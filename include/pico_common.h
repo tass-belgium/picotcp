@@ -58,7 +58,7 @@ struct pico_module {
   RB_ENTRY(pico_module) link;
 
   /* Init/shutdown functions */
-  int (*init)(struct pico_module *mod);
+  struct pico_module * (*init)(void *arg);
   void (*shutdown)(struct pico_module *mod);
 
   /* module identifier */

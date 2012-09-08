@@ -12,4 +12,14 @@
 #define pico_alloc(x) malloc(x)
 #define pico_free(x) free(x)
 
+
+/* modules */
+#ifdef IPV4
+#include "modules/pico_module_ipv4.h"
+#endif
+
+
+
+
+
 #endif

@@ -49,13 +49,32 @@ void pico_mod_delete(char *name)
   }
 }
 
-#ifdef UNIT_MAIN
+
+#ifdef MODULE_DYNAMIC
+
+# error "MODULE_DYNAMIC NOT IMPLEMENTED"
+  /* XXX: Use dlopen() */
+#else
+
+#define pico_init_module(p, itsname, arg) {\
+  p = &pico_module_##itsname; \
+  if (!pico_mod_get(p->name))  { \
+    p->init(arg); \
+    p->hash = pico_mod_hash(p->name); \
+    pico_mod_insert(p); \
+  } \
+}
+
+
+#endif
+
+#ifdef UNIT_TABLE_MAIN
 
 #include "stdio.h"
 int main(void)
 {
   struct pico_module a,b,c,d, *p;
-  a.hash = pico_mod_hash("ipv4");
+  b.hash = pico_mod_hash("arp");
   b.hash = pico_mod_hash("ipv6");
   c.hash = pico_mod_hash("trans:6:7744");
   d.hash = pico_mod_hash("trans:6:7474");
@@ -65,13 +84,15 @@ int main(void)
   pico_mod_insert(&b);
   pico_mod_insert(&c);
   pico_mod_insert(&d);
+  pico_init_module(p, ipv4, NULL);
+
 
   RB_FOREACH(p, pico_module_tree, &mtree) {
     printf("(foreach) hash: %08x\n", p->hash);
   }
 
   p = pico_mod_get("ipv4");
-  printf("(get) hash: %08x\n", p->hash);
+  printf("(get) hash: %08x, name: %s\n", p->hash, p->name);
   p = pico_mod_get("foobar");
   if(p)
     printf("(get) hash: %08x\n", p->hash);

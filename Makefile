@@ -1,3 +1,5 @@
+CTAGS:= -I. -I include/ -DIPV4
+
 all: core
 
 dirs:
@@ -9,13 +11,13 @@ dirs:
 
 core:
 	make dirs
-	gcc -c -o build/obj/mod_table.o mod_table.c -I include
-	gcc -c -o build/obj/delivery.o delivery.c -I include
+	gcc -c -o build/obj/mod_table.o mod_table.c $(CTAGS)
+	gcc -c -o build/obj/delivery.o delivery.c  $(CTAGS)
 
 unit:
 	make dirs
-	gcc  modules/pico_module_ipv4.c -I include/ -DUNIT_MAIN -ggdb -o build/test/unit_ipv4
-	gcc  mod_table.c -I include/ -DUNIT_MAIN -ggdb -o build/test/unit_table
+	gcc  modules/pico_module_ipv4.c $(CTAGS) -DUNIT_IPV4_MAIN -ggdb -o build/test/unit_ipv4
+	gcc  modules/pico_module_ipv4.c mod_table.c $(CTAGS) -DUNIT_TABLE_MAIN -ggdb -o build/test/unit_table 
 
 
 clean:

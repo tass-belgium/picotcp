@@ -65,16 +65,16 @@ struct pico_frame* mod_ipv4_alloc(int payload_size)
 
 }
 
-int mod_ipv4_init(struct pico_module *ip)
+struct pico_module *mod_ipv4_init(void *arg)
 {
-  struct proto_ipv4 *proto = pico_zalloc(sizeof(struct proto_ipv4));
-  if (!proto)
-    return 0;
-  ip->priv = (struct proto_ipv4 *)proto;
+  struct pico_module *ip = pico_zalloc(sizeof(struct pico_module));
+  if (!ip)
+    return NULL;
+  ip->priv = pico_zalloc(sizeof(struct proto_ipv4));
   ip->to_lower.recv = mod_ipv4_recv;
   ip->to_upper.send = mod_ipv4_send;
   ip->run = mod_ipv4_run;
-  return 0;
+  return ip;
 }
 
 void mod_ipv4_shutdown(struct pico_module *ip)
@@ -90,13 +90,10 @@ struct pico_module  pico_module_ipv4 = {
 
 
 
-#ifdef UNIT_MAIN
+#ifdef UNIT_IPV4_MAIN
 int main(void) {
   struct pico_module ip;
   mod_ipv4_init(&ip);
-
-
-
 }
 
 #endif
