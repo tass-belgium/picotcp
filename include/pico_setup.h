@@ -6,6 +6,12 @@
 /* Get numeric types from stdint.h */
 #include <stdint.h>
 
+/* Pre-defined string functions */
+#include <string.h>
+
+/* input/output library */
+#include <stdio.h>
+
 /* Use stdlib.h */
 #include <stdlib.h>
 #define pico_zalloc(x) calloc(1,x)
@@ -14,10 +20,22 @@
 
 
 /* modules */
-#ifdef IPV4
-#include "modules/pico_module_ipv4.h"
-#endif
+/* Uncomment to enable */
 
+/* PROTOCOLS/APPS */
+#define PICO_MODULE_IPV4
+//#define PICO_MODULE_IPV6
+//#define PICO_MODULE_ETH
+//#define PICO_MODULE_ARP
+//#define PICO_MODULE_TCP
+//#define PICO_MODULE_UDP
+//#define PICO_MODULE_DNS
+//#define PICO_MODULE_DHCPD
+
+/* DEVICES */
+//#define PIC_MODULE_VDE
+
+#include "modules.h"
 
 
 

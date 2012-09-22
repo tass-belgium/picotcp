@@ -1,5 +1,5 @@
-#ifndef PICO_MODULE_IPV4
-#define PICO_MODULE_IPV4
+#ifndef _PICO_MODULE_IPV4_H
+#define _PICO_MODULE_IPV4_H
 
 
 /* object: Address */

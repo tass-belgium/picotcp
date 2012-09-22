@@ -1,7 +1,7 @@
 #include "pico_setup.h"
 #include "pico_common.h"
 
-RB_GENERATE(pico_module_tree, pico_module, link, pico_mod_cmp);
+RB_GENERATE(pico_module_tree, pico_module, node, pico_mod_cmp);
 
 static struct pico_module_tree mtree;
 
@@ -28,7 +28,7 @@ uint32_t pico_mod_hash(char *name)
 {
   unsigned long hash = 5381;
   int c;
-  while (c = *name++)
+  while ((c = *name++))
     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
   return hash;
 }
@@ -68,6 +68,29 @@ void pico_mod_delete(char *name)
 
 #endif
 
+
+RB_GENERATE(pico_device_tree, pico_device, node, pico_dev_cmp);
+static struct pico_device_tree dtree;
+
+/* device interface */
+int pico_dev_cmp(struct pico_device *d0, struct pico_device *d1)
+{
+  if (d0->hash < d1->hash)
+    return -1;
+  if (d1->hash < d0->hash)
+    return 1;
+  return 0;
+}
+
+int pico_dev_insert(struct pico_device *dev)
+{
+  if ((RB_INSERT(pico_device_tree, &dtree, dev)) != NULL)
+    return 0;
+  else return -1;
+}
+
+/** XXX finish dev tree interface ***/
+
 #ifdef UNIT_TABLE_MAIN
 
 #include "stdio.h"
@@ -96,6 +119,7 @@ int main(void)
   p = pico_mod_get("foobar");
   if(p)
     printf("(get) hash: %08x\n", p->hash);
+  return 0;
 }
 
 

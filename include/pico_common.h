@@ -4,12 +4,12 @@
 #include "rb.h"
 
 struct pico_frame;
-
 struct connect_up {
   int (*recv_ready)(struct pico_frame *p);
   int (*recv)(struct pico_frame *p);
   struct connect_up *next;
 };
+
 
 struct connect_down {
   struct pico_frame* (*alloc)(int payload_size);
@@ -17,6 +17,9 @@ struct connect_down {
   struct connect_down *next;
 };
 
+struct pico_ethdev {
+  uint8_t mac[6];
+};
 
 struct stack_app { /* E.g. ARP, ICMP, ... */
   /* Layer 5 APP only */
@@ -26,36 +29,12 @@ struct stack_app { /* E.g. ARP, ICMP, ... */
   struct stack_app *next;
 };
 
-#if 0
-struct transport {
-  struct connect_down *net;
-  uint32_t proto;
-  struct ipv4 local_address;
-  struct ipv4 remote_address;
-  uint16_t local_port;
-  uint16_t remote_port;
-  struct transport *next;
-  /**XXX  socket calls **/
-};
-
-struct transport_tcp {
-  struct transport trans;
-  /** XXX TCP specific variables **/
-};
-
-struct transport_udp {
-  struct transport trans;
-  int multicast;
-};
-
-#endif
-
 RB_HEAD(pico_module_tree, pico_module);
-RB_PROTOTYPE(pico_module_tree, pico_module, link, pico_mod_cmp);
+RB_PROTOTYPE(pico_module_tree, pico_module, node, pico_mod_cmp);
 
 #define MAX_MODULE_NAME 128
 struct pico_module {
-  RB_ENTRY(pico_module) link;
+  RB_ENTRY(pico_module) node;
 
   /* Init/shutdown functions */
   struct pico_module * (*init)(void *arg);
@@ -76,6 +55,18 @@ struct pico_module {
   /* Run function for packet-flow independant control handling (e.g. deferred operations) */
   void (*run)(void);
 
+};
+
+RB_HEAD(pico_device_tree, pico_device);
+RB_PROTOTYPE(pico_device_tree, pico_device, node, pico_dev_cmp);
+#define MAX_DEVICE_NAME 16
+
+struct pico_device {
+  RB_ENTRY(pico_device) node;
+  char name[MAX_DEVICE_NAME];
+  uint32_t hash;
+  struct pico_ethdev *eth; /* Null if non-ethernet */
+  struct pico_module *mod;  /* Associated module */
 };
 
 
@@ -106,18 +97,21 @@ struct pico_frame {
 
   /* Pointer to protocol headers */
   void *data_hdr;
+  int  data_len;
   void *net_hdr;
-  void *app_hdr;
+  int net_len;
   void *transport_hdr;
+  int transport_len;
+  void *app_hdr;
+  int app_len;
+
+  struct pico_device *dev;
 
   /* quick reference to identifiers */
   uint16_t id_eth; /* IP or ARP */
   uint16_t id_net; /* version 4 or 6 */
   uint16_t id_trans; /* Transport layer protocol */
   uint16_t id_sock; /* Transport layer port */
-
-  /* Not used for now, needed for alignment */
-  uint16_t flags;   /* XXX */
 
   /* Pointer to payload */
   unsigned char *payload;
@@ -136,6 +130,8 @@ struct pico_frame {
 /* Interface of delivery.c */
 int pico_frame_deliver(struct pico_frame *pkt);
 int pico_frame_deliver_cpy(struct pico_frame *pkt);
+struct pico_frame *pico_frame_alloc(struct pico_module *owner, int size);
+void pico_frame_discard(struct pico_frame *p);
 
 /* Interface of mod_table.c */
 int pico_mod_insert(struct pico_module *mod);
@@ -143,6 +139,8 @@ void pico_mod_delete(char *name);
 uint32_t pico_mod_hash(char *name);
 struct pico_module *pico_mod_get(char *name);
 int pico_mod_cmp(struct pico_module *m0, struct pico_module *m1);
+int pico_dev_cmp(struct pico_device *m0, struct pico_device *m1);
+
 
 
 #endif
