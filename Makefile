@@ -10,8 +10,8 @@ dirs:
 
 core:
 	make dirs
-	gcc -c -o build/obj/mod_table.o mod_table.c $(CFLAGS) $(EXTRA)
-	gcc -c -o build/obj/delivery.o delivery.c  $(CFLAGS)  $(EXTRA)
+	gcc -c -o build/obj/mod_table.o src/mod_table.c $(CFLAGS) $(EXTRA)
+	gcc -c -o build/obj/delivery.o src/delivery.c  $(CFLAGS)  $(EXTRA)
 
 modules: build/mod
 build/mod:

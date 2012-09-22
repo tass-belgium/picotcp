@@ -150,14 +150,7 @@ void mod_ipv4_shutdown(struct pico_module *ip)
 /** Exported additional functionalities **/
 int ipv4_route(struct pico_frame *pkt)
 {
-  struct ipv4_route *a;
-  RB_FOREACH(a, ipv4_route_tree, &proto_ipv4.rtree) {
-    if (IPV4_MASKED_NET(a) == 0) {
-      return -1;
-    } else if (IPV4_MASKED_NET(a) > IPV4_MASKED_NET(a)) {
-      return 1;
-    }
-  }
+  /* TODO */
   return 0;
 }
 

@@ -1,9 +1,11 @@
+/*
+ *  PicoTCP lightweight TCP/IP stack.
+ *  Copyright 2012 Daniele Lacamera <root@danielinux.net>
+ *
+ *  See LICENSE.
+ */
 #include "pico_common.h"
 #include "pico_setup.h"
-
-
-
-/* Routing thing */
 
 static int frame_deliver_up(struct pico_frame *pkt)
 {

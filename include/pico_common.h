@@ -105,6 +105,9 @@ struct pico_frame {
   void *app_hdr;
   int app_len;
 
+  /* Pointer to the phisical device this packet belongs to.
+   * Should be valid in both routing directions
+   */
   struct pico_device *dev;
 
   /* quick reference to identifiers */

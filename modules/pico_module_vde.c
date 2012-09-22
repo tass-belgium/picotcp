@@ -17,6 +17,19 @@ struct dev_vde {
   pico_ethdev *eth;
 };
 
+int mod_vde_send(struct pico_frame *pkt);
+int mod_vde_recv(struct pico_frame *pkt);
+void mod_vde_run(void);
+struct pico_frame* mod_vde_alloc(int payload_size);
+struct pico_module *mod_vde_init(void *arg);
+void mod_vde_shutdown(struct pico_module *vde);
+
+struct pico_module  pico_module_vde = {
+  .init = mod_vde_init,
+  .shutdown = mod_vde_shutdown,
+  .name = "vde"
+};
+
 /* TODO: make a nonblocking version that add packets to the out queue if needed */
 int mod_vde_send(struct pico_frame *pkt)
 {
@@ -44,10 +57,7 @@ struct pico_frame* mod_vde_alloc(int payload_size)
 
 struct pico_module *mod_vde_init(void *arg)
 {
-  struct pico_module *vde = pico_zalloc(sizeof(struct pico_module));
-  if (!vde)
-    return NULL;
-  vde->priv = pico_zalloc(sizeof(struct proto_vde));
+  struct pico_module *vde = &pico_module_vde;
   vde->to_lower.recv = mod_vde_recv;
   vde->to_upper.send = mod_vde_send;
   vde->run = mod_vde_run;
@@ -56,21 +66,12 @@ struct pico_module *mod_vde_init(void *arg)
 
 void mod_vde_shutdown(struct pico_module *vde)
 {
-  /* TODO */
 }
-
-struct pico_module  pico_module_vde = {
-  .init = mod_vde_init,
-  .shutdown = mod_vde_shutdown,
-  .name = "vde"
-};
-
-
 
 #ifdef UNIT_IPV4_MAIN
 int main(void) {
   struct pico_module vde;
-  mod_vde_init(&vde);
+  vde = mod_vde_init(NULL);
 }
 
 #endif

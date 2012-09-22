@@ -12,7 +12,6 @@ int pico_mod_insert(struct pico_module *mod)
   else return -1;
 }
 
-
 int pico_mod_cmp(struct pico_module *m0, struct pico_module *m1)
 {
   if (m0->hash < m1->hash)
