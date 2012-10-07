@@ -1,5 +1,8 @@
 #ifndef _INCLUDE_PICO_QUEUE
 #define _INCLUDE_PICO_QUEUE
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
 
 struct pico_queue {
   uint32_t frames;

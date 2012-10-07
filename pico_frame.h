@@ -1,3 +1,7 @@
+#ifndef _INCLUDE_PICO_FRAME
+#define _INCLUDE_PICO_FRAME
+
+
 struct pico_frame {
 
   /* Connector for queues */
@@ -36,3 +40,4 @@ struct pico_frame {
   int payload_len;
 };
 
+#endif

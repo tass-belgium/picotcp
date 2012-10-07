@@ -1,3 +1,8 @@
+#include <stdint.h>
+#include "pico_frame.h"
+#include "pico_device.h"
+#include "pico_protocol.h"
+#include "pico_addressing.h"
 /* Generic interface for protocols.
  * Specific protocol modules must implement the following:
  * pico_<proto>_process_in()
@@ -9,6 +14,12 @@
 
 
 /** frame alloc/dealloc/copy **/
+
+/* Temporary (POSIX) */
+#include <stdlib.h>
+#include <string.h>
+#define pico_zalloc(x) calloc(x, 1)
+#define pico_free(x) free(x)
 
 void pico_frame_discard(struct pico_frame *f)
 {
@@ -26,7 +37,7 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
   struct pico_frame *new = pico_zalloc(sizeof(struct pico_frame));
   if (!new)
     return NULL;
-  memcpy(new, f, sizeof(struct pico_frame);
+  memcpy(new, f, sizeof(struct pico_frame));
   *f->usage_count++;
   return new;
 }
@@ -74,7 +85,7 @@ int pico_network_receive(struct pico_frame *f)
 }
 
 /* LOWEST LEVEL: interface towards devices. */
-int picotcp_stack_recv(struct pico_dev *dev, uint8_t *buffer, int len)
+int picotcp_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
 {
   struct pico_frame *f;
   if (len <= 0)
@@ -92,7 +103,7 @@ int pico_sendto_dev(struct pico_frame *f)
     pico_frame_discard(f);
     return -1;
    } else {
-    return pico_enqueue(dev->q_out, f);
+    return pico_enqueue(f->dev->q_out, f);
    }
 }
 
@@ -106,7 +117,7 @@ void pico_dev_loop(struct pico_device *dev, int loop_score)
     /* Device dequeue + send */
     f = pico_dequeue(dev->q_out);
     if (f) {
-      dev->send(dev,f->buffer, f->buffer_len);
+      dev->send(dev, f->buffer, f->buffer_len);
       pico_frame_discard(f);
       loop_score--;
     }
@@ -124,17 +135,21 @@ void pico_dev_loop(struct pico_device *dev, int loop_score)
   }
 }
 
+
 void pico_proto_loop(struct pico_protocol *proto, int loop_score)
 {
   struct pico_frame *f;
   while(loop_score >0) {
     if (proto->q_in->frames + proto->q_out->frames <= 0)
       break;
-    /* Device dequeue + send */
+
     f = pico_dequeue(proto->q_out);
-    if (f) {
-      proto->send(proto,f->buffer, f->buffer_len);
-      pico_frame_discard(f);
+    if ((f) &&(proto->process_out(proto, f) > 0)) {
+      loop_score--;
+    }
+
+    f = pico_dequeue(proto->q_in);
+    if ((f) &&(proto->process_in(proto, f) > 0)) {
       loop_score--;
     }
   }
