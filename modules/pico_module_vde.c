@@ -8,12 +8,11 @@
 
 /* Macro to convert priv field */
 #define DEV_VDE(x) ((struct dev_vde *)((x)->priv))
-
 #include <libvdeplug.h>
 
 
 struct dev_vde {
-  VDECONN vdeconn;
+  VDECONN *vdeconn;
   pico_ethdev *eth;
 };
 

@@ -25,6 +25,13 @@ ip4unit: core
 	gcc -c -o build/mod/pico_module_ipv4.o modules/pico_module_ipv4.c $(CFLAGS) -DUNIT_IPV4_MAIN
 	gcc  build/obj/* build/mod/* -o build/test/unit_ipv4
 
+vdeunit: core
+	make dirs
+	make core
+	rm -f build/mod/pico_module_ipv4.o
+	gcc -c -o build/mod/pico_module_vde.o modules/pico_module_vde.c $(CFLAGS) -DUNIT_VDE_MAIN
+	gcc  build/obj/* build/mod/* -o build/test/unit_ipv4 -lvdeplug
+
 unit: clean
 	make dirs
 	make core EXTRA=-DUNIT_TABLE_MAIN

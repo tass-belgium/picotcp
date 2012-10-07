@@ -140,3 +140,68 @@ void pico_frame_discard(struct pico_frame *p)
   }
 }
 
+/* Called by device itself to receive a new packet */
+void pico_dev_recv(struct pico_device *dev, struct pico_frame *p)
+{
+  if (pico_enqueue(dev->qin, p) != 0)
+    pico_frame_discard(p);
+  else {
+    p->stage = PICO_ROUTING_INCOMING;
+    p->dev = dev;
+    p->owner = dev;
+  }
+}
+
+/* Called by network layer to enqueue new packet for transmission */
+void pico_dev_send(struct pico_device *dev, struct pico_frame *p)
+{
+  if ((p->stage != PICO_ROUTING_OUTGOING) || (pico_enqueue(dev->qout, p) != 0))
+    pico_frame_discard(p);
+  else {
+    p->dev = dev;
+    p->owner = dev;
+  }
+}
+
+
+/* Called by upper layers to allocate a new outgoing frame */
+void pico_dev_alloc(struct pico_device *dev, uint16_t size)
+{
+  pico_frame_alloc(size + dev->overhead + (pico->eth_dev?14:0));
+}
+
+/* process_in */
+void pico_dev_process_input(struct pico_device *dev, int score)
+{
+  struct pico_frame *p = pico_dequeue(dev->qin);
+  while(p) {
+    if (p->dev_eth) {
+      p->dest = p->dev_eth;
+    } else {
+      /* TODO: set id_net */
+    }
+    pico_frame_deliver(p);
+    if (--score <= 0)
+      return;
+    p = pico_dequeue(dev->qin);
+  }
+}
+
+/* process_out */
+void pico_dev_process_output(struct pico_device *dev, int score)
+{
+  struct pico_frame *p = pico_dequeue(dev->qout);
+  while(p) {
+    if (dev->send(p) > 0)
+      pico_frame_discard(p);
+    else
+      return;
+    if (--score <= 0)
+      return;
+    p = pico_dequeue(dev->qout);
+  }
+}
+
+
+/* Ethernet layer */
+

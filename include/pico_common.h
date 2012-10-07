@@ -17,9 +17,6 @@ struct connect_down {
   struct connect_down *next;
 };
 
-struct pico_ethdev {
-  uint8_t mac[6];
-};
 
 struct stack_app { /* E.g. ARP, ICMP, ... */
   /* Layer 5 APP only */
@@ -45,6 +42,10 @@ struct pico_module {
   char                    name[MAX_MODULE_NAME];
   uint32_t                hash;
 
+  /* module queues */
+  struct pico_queue *qin;
+  struct pico_queue *qout;
+
   /* exported connectors for communication with other layers */
   struct connect_down to_upper;
   struct connect_up   to_lower;
@@ -65,8 +66,12 @@ struct pico_device {
   RB_ENTRY(pico_device) node;
   char name[MAX_DEVICE_NAME];
   uint32_t hash;
+  uint32_t overhead;
   struct pico_ethdev *eth; /* Null if non-ethernet */
   struct pico_module *mod;  /* Associated module */
+  struct pico_queue *qin;
+  struct pico_queue *qout;
+  int (*send)(struct pico_device *self, struct pico_frame *p); /* Send function. Return 0 if busy */
 };
 
 
@@ -105,10 +110,14 @@ struct pico_frame {
   void *app_hdr;
   int app_len;
 
+
   /* Pointer to the phisical device this packet belongs to.
    * Should be valid in both routing directions
    */
   struct pico_device *dev;
+
+  /* Pointer to network protocol module associated with the packet. */
+  struct pico_module *net;
 
   /* quick reference to identifiers */
   uint16_t id_eth; /* IP or ARP */
