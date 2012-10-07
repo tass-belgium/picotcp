@@ -1,0 +1,76 @@
+#include "pico_setup.h"
+#include "pico_common.h"
+#include "rb.h"
+
+#define IS_MODULE_VDE
+#include "pico_module_vde.h"
+#undef IS_MODULE_VDE
+
+/* Macro to convert priv field */
+#define DEV_VDE(x) ((struct dev_vde *)((x)->priv))
+#include <libvdeplug.h>
+
+
+struct dev_vde {
+  VDECONN *vdeconn;
+  pico_ethdev *eth;
+};
+
+int mod_vde_send(struct pico_frame *pkt);
+int mod_vde_recv(struct pico_frame *pkt);
+void mod_vde_run(void);
+struct pico_frame* mod_vde_alloc(int payload_size);
+struct pico_module *mod_vde_init(void *arg);
+void mod_vde_shutdown(struct pico_module *vde);
+
+struct pico_module  pico_module_vde = {
+  .init = mod_vde_init,
+  .shutdown = mod_vde_shutdown,
+  .name = "vde"
+};
+
+/* TODO: make a nonblocking version that add packets to the out queue if needed */
+int mod_vde_send(struct pico_frame *pkt)
+{
+  struct dev_vde *vde = DEV_VDE(pkt->owner);
+  if (!vde->vdeconn)
+    return -1;
+  else
+    return vde_send(vde->conn, pkt->data_hdr, pkt->data_len, 0);
+}
+
+int mod_vde_recv(struct pico_frame *pkt)
+{
+  return 0;
+}
+
+void mod_vde_run(void)
+{
+
+}
+
+struct pico_frame* mod_vde_alloc(int payload_size)
+{
+  return pico_frame_alloc(&pico_module_vde, payload_size); // No overhead added.
+}
+
+struct pico_module *mod_vde_init(void *arg)
+{
+  struct pico_module *vde = &pico_module_vde;
+  vde->to_lower.recv = mod_vde_recv;
+  vde->to_upper.send = mod_vde_send;
+  vde->run = mod_vde_run;
+  return vde;
+}
+
+void mod_vde_shutdown(struct pico_module *vde)
+{
+}
+
+#ifdef UNIT_IPV4_MAIN
+int main(void) {
+  struct pico_module vde;
+  vde = mod_vde_init(NULL);
+}
+
+#endif

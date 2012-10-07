@@ -2,3 +2,4 @@
 *.a
 *.out
 tags
+build
