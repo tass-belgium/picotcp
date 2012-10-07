@@ -1,6 +1,9 @@
-#ifndef _INCLUDE_PICO_ETH
-#define _INCLUDE_PICO_ETH
+#ifndef _INCLUDE_PICO_IPV4
+#define _INCLUDE_PICO_IPV4
 #include "pico_addressing.h"
+#include "pico_protocol.h"
+
+extern struct pico_protocol *pico_proto_ipv4;
 
 
 /* This module is responsible for routing outgoing packets and 

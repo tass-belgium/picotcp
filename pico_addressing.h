@@ -23,6 +23,7 @@ struct pico_eth
   uint8_t padding[2];
 };
 #define PICO_SIZE_ETH 6
+const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 struct pico_trans
 {

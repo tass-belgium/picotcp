@@ -1,5 +1,8 @@
 #ifndef _INCLUDE_PICO_QUEUE
 #define _INCLUDE_PICO_QUEUE
+#include <stdint.h>
+#include "pico_frame.h"
+
 #ifndef NULL
 #define NULL ((void *)0)
 #endif

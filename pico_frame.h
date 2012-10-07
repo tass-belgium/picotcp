@@ -15,8 +15,8 @@ struct pico_frame {
   uint32_t *usage_count;
 
   /* Pointer to protocol headers */
-  void *data_hdr;
-  int  data_len;
+  void *datalink_hdr;
+  int  datalink_len;
   void *net_hdr;
   int net_len;
   void *transport_hdr;
@@ -29,11 +29,11 @@ struct pico_frame {
    */
   struct pico_device *dev;
 
-  /* quick reference to identifiers */
+  /* quick reference to proto identifiers */
   uint16_t id_eth; /* IP or ARP */
   uint16_t id_net; /* version 4 or 6 */
   uint16_t id_trans; /* Transport layer protocol */
-  uint16_t id_sock; /* Transport layer port */
+  uint16_t id_sock; /* Socket local port */
 
   /* Pointer to payload */
   unsigned char *payload;
