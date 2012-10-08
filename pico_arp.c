@@ -8,13 +8,11 @@
 
 /* Routing destination */
 
-RB_HEAD(arp4_tree, pico_arp4);
-RB_PROTOTYPE_STATIC(arp4_tree, pico_arp4, node, arp4_compare);
+RB_HEAD(arp_tree, pico_arp);
+RB_PROTOTYPE_STATIC(arp_tree, pico_arp, node, arp_compare);
 
-RB_HEAD(arp6_tree, pico_arp6);
-RB_PROTOTYPE_STATIC(arp6_tree, pico_arp6, node, arp6_compare);
 
-static int arp4_compare(struct pico_arp4 *a, struct pico_arp4 *b)
+static int arp_compare(struct pico_arp *a, struct pico_arp *b)
 {
 
   if (a->ipv4.addr < b->ipv4.addr)
@@ -24,16 +22,15 @@ static int arp4_compare(struct pico_arp4 *a, struct pico_arp4 *b)
   return 0;
 }
 
-static int arp6_compare(struct pico_arp6 *a, struct pico_arp6 *b)
+RB_GENERATE_STATIC(arp_tree, pico_arp, node, arp_compare);
+
+/*********************/
+/**  END ARP TREE **/
+/*********************/
+
+
+struct pico_arp *pico_arp_get(struct pico_frame *f)
 {
-  return memcmp(a->ipv6.addr, b->ipv6.addr, PICO_SIZE_IP6);
+  return NULL;
 }
-
-RB_GENERATE_STATIC(arp4_tree, pico_arp4, node, arp4_compare);
-RB_GENERATE_STATIC(arp6_tree, pico_arp6, node, arp6_compare);
-
-/*********************/
-/**  END ROUTE TREE **/
-/*********************/
-
 

@@ -16,11 +16,13 @@ enum pico_layer {
 /** Endian-dependant constants **/
 
 #ifdef PICO_BIGENDIAN
-# define PICO_IDETH_IP 0x0800
+# define PICO_IDETH_IPV4 0x0800
 # define PICO_IDETH_ARP 0x0806
+# define PICO_IDETH_IPV6 0x86DD
 #else
-# define PICO_IDETH_IP 0x0008
+# define PICO_IDETH_IPV4 0x0008
 # define PICO_IDETH_ARP 0x0608
+# define PICO_IDETH_IPV6 0xDD86
 #endif
 
 #define IS_IPV6(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60)

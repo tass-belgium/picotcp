@@ -104,7 +104,7 @@ int pico_ethernet_receive(struct pico_frame *f)
   f->net_hdr = (uint8_t *)f->datalink_hdr + f->datalink_len;
   if (hdr->proto == PICO_IDETH_ARP)
     return pico_arp_receive(f);
-  if (hdr->proto == PICO_IDETH_IP)
+  if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
     return pico_network_receive(f);
 discard:
   pico_frame_discard(f);
@@ -120,49 +120,43 @@ discard:
  */
 static int pico_ethernet_send(struct pico_frame *f)
 {
-  struct pico_arp4 *a4 = NULL;
-  struct pico_arp6 *a6 = NULL;
+  struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
 
-  if (IS_BCAST(f)) {
-    dstmac = (struct pico_eth *) PICO_ETHADDR_ANY;
-  }
 
-  else if (IS_IPV6(f)) {
-    a6 = pico_arp6_get(f);
-    if (!a6) {
-      if (++ f->failure_count < 3) {
-        pico_arp6_query(f);
-        return 0;
-      } else return -1;
-    }
-    dstmac = (struct pico_eth *) a6;
+  if (IS_IPV6(f)) {
+    /*TODO: Neighbor solicitation */
+    dstmac = NULL;
   }
 
   else if (IS_IPV4(f)) {
-    a4 = pico_arp4_get(f);
-    if (!a4) {
-      if (++ f->failure_count < 3) {
-        pico_arp4_query(f);
-        return 0;
-      } else return -1;
+    if (IS_BCAST(f)) {
+     dstmac = (struct pico_eth *) PICO_ETHADDR_ANY;
+    } else {
+      a4 = pico_arp_get(f);
+      if (!a4) {
+       if (++ f->failure_count < 3) {
+         pico_arp_query(f);
+          return 0;
+       } else return -1;
+      }
+      dstmac = (struct pico_eth *) a4;
     }
-    dstmac = (struct pico_eth *) a4;
-  }
-
-  /* This sets destination and source address, then pushes the packet to the device. */
-  if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
-    struct pico_eth_hdr *hdr;
-    f->start -= PICO_SIZE_ETHHDR;
-    f->len += PICO_SIZE_ETHHDR;
-    f->datalink_hdr = f->start;
-    f->datalink_len = PICO_SIZE_ETHHDR;
-    hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-    memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-    memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
-    hdr->proto = PICO_IDETH_IP;
-    return f->dev->send(f->dev, f->start, f->len);
-  } else return -1;
+    /* This sets destination and source address, then pushes the packet to the device. */
+    if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
+      struct pico_eth_hdr *hdr;
+      f->start -= PICO_SIZE_ETHHDR;
+      f->len += PICO_SIZE_ETHHDR;
+      f->datalink_hdr = f->start;
+      f->datalink_len = PICO_SIZE_ETHHDR;
+      hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+      memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+      memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
+      hdr->proto = PICO_IDETH_IPV4;
+      return f->dev->send(f->dev, f->start, f->len);
+    } else return -1;
+  } /* End IPV4 ethernet addressing */
+  return -1;
 }
 
 
