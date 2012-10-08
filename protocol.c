@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include "pico_config.h"
 #include "pico_frame.h"
 #include "pico_device.h"
 #include "pico_protocol.h"
@@ -10,24 +10,6 @@
 #include "pico_ipv6.h"
 
 
-
-
-
-/* Generic interface for protocols.
- * Specific protocol modules must implement the following:
- * pico_<proto>_process_in()
- * pico_<proto>_process_out()
- * pico_<proto>_overhead()
- *
- *
- */
-
-/* Temporary (POSIX) stuff. */
-#include <stdlib.h>
-#include <string.h>
-#define pico_zalloc(x) calloc(x, 1)
-#define pico_free(x) free(x)
-#define dbg printf
 
 /** frame alloc/dealloc/copy **/
 void pico_frame_discard(struct pico_frame *f)

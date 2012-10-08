@@ -1,3 +1,6 @@
+#include "pico_config.h"
+#include "pico_arp.h"
+#include "rb.h"
 
 /*****************/
 /**  ARP TREE **/
@@ -5,39 +8,29 @@
 
 /* Routing destination */
 
-RB_HEAD(eth_arp_tree, pico_arp_entry);
-RB_HEAD(eth_link_tree, pico_eth_link);
-RB_PROTOTYPE_STATIC(eth_arp_tree, pico_arp_entry, node, arp_compare);
-RB_PROTOTYPE_STATIC(eth_link_tree, pico_eth_link, node, link_compare);
+RB_HEAD(arp4_tree, pico_arp4);
+RB_PROTOTYPE_STATIC(arp4_tree, pico_arp4, node, arp4_compare);
 
-#define ETH_MASKED_NET(x) (x->dst.s_addr | x->dst.s_netmask)
+RB_HEAD(arp6_tree, pico_arp6);
+RB_PROTOTYPE_STATIC(arp6_tree, pico_arp6, node, arp6_compare);
 
-static int arp_compare(struct pico_arp_entry *a, struct pico_arp_entry *b)
+static int arp4_compare(struct pico_arp4 *a, struct pico_arp4 *b)
 {
 
-#ifdef PICO_CONFIG_IPV4
-  if (a->addr_ipv4.s_addr < b->addr_ipv4.s_addr)
+  if (a->ipv4.addr < b->ipv4.addr)
     return -1;
-  else if (a->addr_ipv4.s_addr > b->addr_ipv4.s_addr)
+  else if (a->ipv4.addr > b->ipv4.addr)
     return 1;
-  return 0;
-#else
-  return 0;
-#endif
-}
-
-static int link_compare(struct pico_eth_link *a, struct pico_eth_link *b)
-{
-  if (a->address.s_addr < b->address.s_addr) {
-    return -1;
-  } else if (a->address.s_addr > b->address.s_addr) {
-    return 1;
-  }
   return 0;
 }
 
-RB_GENERATE_STATIC(eth_arp_tree, pico_arp_entry, node, routing_compare);
-RB_GENERATE_STATIC(eth_link_tree, pico_eth_link, node, link_compare);
+static int arp6_compare(struct pico_arp6 *a, struct pico_arp6 *b)
+{
+  return memcmp(a->ipv6.addr, b->ipv6.addr, PICO_SIZE_IP6);
+}
+
+RB_GENERATE_STATIC(arp4_tree, pico_arp4, node, arp4_compare);
+RB_GENERATE_STATIC(arp6_tree, pico_arp6, node, arp6_compare);
 
 /*********************/
 /**  END ROUTE TREE **/
