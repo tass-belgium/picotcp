@@ -2,6 +2,10 @@
 #define _INCLUDE_PICO_FRAME
 
 
+#define PICO_FRAME_FLAG_BCAST (0x0001)
+#define IS_BCAST(f) ((f->flags & PICO_FRAME_FLAG_BCAST) == PICO_FRAME_FLAG_BCAST)
+
+
 struct pico_frame {
 
   /* Connector for queues */
@@ -10,6 +14,10 @@ struct pico_frame {
   /* Start of the whole buffer, total frame length. */
   unsigned char *buffer;
   uint32_t      buffer_len;
+
+  /* For outgoing packets: this is the meaningful buffer. */
+  unsigned char *start;
+  uint32_t      len;
 
   /* Pointer to usage counter */
   uint32_t *usage_count;
@@ -29,11 +37,15 @@ struct pico_frame {
    */
   struct pico_device *dev;
 
-  /* quick reference to proto identifiers */
-  uint16_t id_eth; /* IP or ARP */
-  uint16_t id_net; /* version 4 or 6 */
-  uint16_t id_trans; /* Transport layer protocol */
-  uint16_t id_sock; /* Socket local port */
+
+  /* Failures due to bad datalink addressing. */
+  uint16_t failure_count;
+
+  /* Protocol over IP */
+  uint8_t  proto;
+
+  /* PICO_FRAME_FLAG_* */
+  uint8_t flags;
 
   /* Pointer to payload */
   unsigned char *payload;

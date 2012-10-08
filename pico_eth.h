@@ -8,7 +8,13 @@
 #define PICO_ARP_STATUS_PERMANENT 0x01
 #define PICO_ARP_STATUS_STALE     0x02
 
+/* Arp Entries for the tables. */
+
+
+
 struct pico_arp4 {
+/* CAREFUL MAN! ARP entry MUST begin with a pico_eth structure, 
+ * due to in-place casting!!! */
   struct pico_eth eth;
   struct pico_ip4 ipv4;
   int    arp_status;
@@ -16,6 +22,8 @@ struct pico_arp4 {
 };
 
 struct pico_arp6 {
+/* CAREFUL MAN! ARP entry MUST begin with a pico_eth structure, 
+ * due to in-place casting!!! */
   struct pico_eth eth;
   struct pico_ip6 ipv6;
   int    arp_status;
@@ -27,5 +35,7 @@ struct __attribute__((packed)) pico_eth_hdr {
   uint8_t   saddr[6];
   uint16_t  proto;
 };
+
+#define PICO_SIZE_ETHHDR 14
 
 #endif

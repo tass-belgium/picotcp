@@ -5,11 +5,12 @@
 #include "pico_addressing.h"
 
 #include "pico_eth.h"
+#include "pico_arp.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 
-/* TODO: Arp implementation in a separate module */
-int pico_arp_receive(struct pico_frame *);
+
+
 
 
 /* Generic interface for protocols.
@@ -99,6 +100,15 @@ int pico_network_receive(struct pico_frame *f)
   return f->buffer_len;
 }
 
+
+/* DATALINK LEVEL: interface from network to the device
+ * and vice versa.
+ */
+
+/* The pico_ethernet_receive() function is used by 
+ * those devices supporting ETH in order to push packets up 
+ * into the stack. 
+ */
 int pico_ethernet_receive(struct pico_frame *f)
 {
   struct pico_eth_hdr *hdr;
@@ -119,6 +129,61 @@ discard:
   return -1;
 }
 
+/* This is called by dev loop in order to ensure correct ethernet addressing.
+ * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
+ * due to ethernet addressing (i.e., no arp association was possible. 
+ *
+ * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
+ * we assume IP is used.
+ */
+static int pico_ethernet_send(struct pico_frame *f)
+{
+  struct pico_arp4 *a4 = NULL;
+  struct pico_arp6 *a6 = NULL;
+  struct pico_eth *dstmac = NULL;
+
+  if (IS_BCAST(f)) {
+    dstmac = (struct pico_eth *) PICO_ETHADDR_ANY;
+  }
+
+  else if (IS_IPV6(f)) {
+    a6 = pico_arp6_get(f);
+    if (!a6) {
+      if (++ f->failure_count < 3) {
+        pico_arp6_query(f);
+        return 0;
+      } else return -1;
+    }
+    dstmac = (struct pico_eth *) a6;
+  }
+
+  else if (IS_IPV4(f)) {
+    a4 = pico_arp4_get(f);
+    if (!a4) {
+      if (++ f->failure_count < 3) {
+        pico_arp4_query(f);
+        return 0;
+      } else return -1;
+    }
+    dstmac = (struct pico_eth *) a4;
+  }
+
+  /* This sets destination and source address, then pushes the packet to the device. */
+  if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
+    struct pico_eth_hdr *hdr;
+    f->start -= PICO_SIZE_ETHHDR;
+    f->len += PICO_SIZE_ETHHDR;
+    f->datalink_hdr = f->start;
+    f->datalink_len = PICO_SIZE_ETHHDR;
+    hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+    memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
+    hdr->proto = PICO_IDETH_IP;
+    return f->dev->send(f->dev, f->start, f->len);
+  } else return -1;
+}
+
+
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
@@ -131,6 +196,14 @@ int picotcp_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   f = pico_frame_alloc(len);
   if (!f)
     return -1;
+
+  /* Association to the device that just received the frame. */
+  f->dev = dev;
+
+  /* Setup the start pointer, lenght. */
+  f->start = f->buffer;
+  f->len = f->buffer_len;
+
   memcpy(f->buffer, buffer, len);
   return pico_enqueue(dev->q_in, f);
 }
@@ -155,7 +228,12 @@ void pico_dev_loop(struct pico_device *dev, int loop_score)
     /* Device dequeue + send */
     f = pico_dequeue(dev->q_out);
     if (f) {
-      dev->send(dev, f->buffer, f->buffer_len);
+      if (dev->eth) {
+        if (0 == pico_ethernet_send(f)) /* Addressing is in progress. Enqueue again. */
+          pico_enqueue(dev->q_out, f);
+      } else {
+        dev->send(dev, f->start, f->len);
+      }
       pico_frame_discard(f);
       loop_score--;
     }
