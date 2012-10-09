@@ -31,4 +31,6 @@ struct pico_protocol {
   RB_ENTRY(pico_protocol) node;
 };
 
+void pico_protocols_loop(int loop_score);
+
 #endif

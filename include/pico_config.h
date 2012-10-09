@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #define pico_zalloc(x) calloc(x, 1)
 #define pico_free(x) free(x)
@@ -33,6 +34,11 @@ static inline uint32_t pico_hash(char *name)
   while ((c = *name++))
     hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
   return hash;
+}
+
+static inline void PICO_IDLE(void)
+{
+  usleep(50000);
 }
 
 #define dbg printf

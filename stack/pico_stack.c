@@ -165,5 +165,7 @@ void pico_stack_loop(void)
 
   while(1) {
     pico_devices_loop(100);
+    pico_protocols_loop(100);
+    PICO_IDLE();
   }
 }
