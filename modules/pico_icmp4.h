@@ -51,18 +51,33 @@ struct __attribute__((packed)) pico_icmp4_hdr {
   } dun;
 };
 
-#define  PICO_ICMP_UNREACH    3	
+#define PICO_ICMP_ECHOREPLY    0 
+#define PICO_ICMP_DEST_UNREACH 3 
+#define PICO_ICMP_SOURCE_QUENCH  4
+#define PICO_ICMP_REDIRECT   5
+#define PICO_ICMP_ECHO   8
+#define PICO_ICMP_TIME_EXCEEDED  11
+#define PICO_ICMP_PARAMETERPROB  12
+#define PICO_ICMP_TIMESTAMP    13
+#define PICO_ICMP_TIMESTAMPREPLY 14
+#define PICO_ICMP_INFO_REQUEST 15
+#define PICO_ICMP_INFO_REPLY   16
+#define PICO_ICMP_ADDRESS    17
+#define PICO_ICMP_ADDRESSREPLY 18
+
+
+#define  PICO_ICMP_UNREACH    3  
 #define  PICO_ICMP_SOURCEQUENCH  4  
 #define  PICO_ICMP_ROUTERADVERT  9  
 #define  PICO_ICMP_ROUTERSOLICIT  10  
-#define  PICO_ICMP_TIMXCEED    11	
-#define  PICO_ICMP_PARAMPROB    12	
-#define  PICO_ICMP_TSTAMP    13	
+#define  PICO_ICMP_TIMXCEED    11  
+#define  PICO_ICMP_PARAMPROB    12  
+#define  PICO_ICMP_TSTAMP    13  
 #define  PICO_ICMP_TSTAMPREPLY  14  
-#define  PICO_ICMP_IREQ    15	
-#define  PICO_ICMP_IREQREPLY    16		
-#define  PICO_ICMP_MASKREQ    17		
-#define  PICO_ICMP_MASKREPLY    18		
+#define  PICO_ICMP_IREQ    15  
+#define  PICO_ICMP_IREQREPLY    16  	
+#define  PICO_ICMP_MASKREQ    17  	
+#define  PICO_ICMP_MASKREPLY    18  	
 
 #define  PICO_ICMP_MAXTYPE    18
 
@@ -85,14 +100,14 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 #define  PICO_ICMP_UNREACH_PRECEDENCE_CUTOFF  15  
 
 
-#define  PICO_ICMP_REDIRECT_NET  0  	
-#define  PICO_ICMP_REDIRECT_HOST  1  	
-#define  PICO_ICMP_REDIRECT_TOSNET  2  	
-#define  PICO_ICMP_REDIRECT_TOSHOST  3  	
+#define  PICO_ICMP_REDIRECT_NET  0    
+#define  PICO_ICMP_REDIRECT_HOST  1    
+#define  PICO_ICMP_REDIRECT_TOSNET  2    
+#define  PICO_ICMP_REDIRECT_TOSHOST  3    
 
 
-#define  PICO_ICMP_TIMXCEED_INTRANS  0  	
-#define  PICO_ICMP_TIMXCEED_REASS  1  	
+#define  PICO_ICMP_TIMXCEED_INTRANS  0    
+#define  PICO_ICMP_TIMXCEED_REASS  1    
 
 
 #define  PICO_ICMP_PARAMPROB_OPTABSENT 1    

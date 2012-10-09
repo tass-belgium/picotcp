@@ -56,5 +56,6 @@ struct pico_frame {
 void pico_frame_discard(struct pico_frame *f);
 struct pico_frame *pico_frame_copy(struct pico_frame *f);
 struct pico_frame *pico_frame_alloc(int size);
+uint16_t pico_checksum(void *inbuf, int len);
 
 #endif

@@ -107,6 +107,7 @@ int pico_ethernet_send(struct pico_frame *f)
           return 0;
        } else return -1;
       }
+      dbg("Setting dst mac\n");
       dstmac = (struct pico_eth *) a4;
     }
     /* This sets destination and source address, then pushes the packet to the device. */
@@ -120,6 +121,7 @@ int pico_ethernet_send(struct pico_frame *f)
       memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
       memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
       hdr->proto = PICO_IDETH_IPV4;
+      dbg("Sending!\n");
       return f->dev->send(f->dev, f->start, f->len);
     } else return -1;
   } /* End IPV4 ethernet addressing */

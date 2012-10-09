@@ -52,7 +52,7 @@ static inline uint32_t pico_hash(char *name)
 
 static inline void PICO_IDLE(void)
 {
-  usleep(50000);
+  usleep(5000);
 }
 
 #define dbg printf
@@ -71,6 +71,9 @@ static inline void PICO_IDLE(void)
 # define PICO_ARP_REPLY   0x0002
 # define PICO_ARP_HTYPE_ETH 0x0001
 
+#define short_be(x) (x)
+#define long_be(x) (x)
+
 #else
 
 # define PICO_IDETH_IPV4 0x0008
@@ -81,6 +84,16 @@ static inline void PICO_IDLE(void)
 # define PICO_ARP_REPLY   0x0200
 # define PICO_ARP_HTYPE_ETH 0x0100
 
+static inline uint16_t short_be(uint16_t le)
+{
+  return ((le & 0xFF) << 8) | ((le >> 8) & 0xFF);
+}
+
+static inline uint32_t long_be(uint32_t le)
+{
+  /** XXX it's too late today, please write the be conversion here. **/
+  return le;
+}
 #endif
 
 

@@ -1,6 +1,7 @@
 #include "pico_ipv4.h"
 #include "pico_config.h"
 #include "pico_icmp4.h"
+#include "pico_stack.h"
 
 
 /* Queues */
@@ -13,17 +14,24 @@ static struct pico_queue out = {};
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  dbg("Called %s\n", __FUNCTION__);
-  switch (hdr->proto) {
+  if (pico_ipv4_link_find(&hdr->dst)) {
+    f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
+    f->transport_len = short_be(hdr->len);
+    switch (hdr->proto) {
 
 #ifdef PICO_SUPPORT_ICMP4
-    case PICO_PROTO_ICMP4:
-      pico_enqueue(pico_proto_icmp4.q_in, f);
-      break;
+      case PICO_PROTO_ICMP4:
+        pico_enqueue(pico_proto_icmp4.q_in, f);
+        break;
 #endif
 
-    default:
-      pico_frame_discard(f);
+      default:
+        pico_frame_discard(f);
+    }
+  } else {
+    dbg("pkt: wrong destination...\n");
+    pico_frame_discard(f);
+    /* XXX input Routing goes here. */
   }
   return 0;
 }
@@ -31,7 +39,8 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
   dbg("Called %s\n", __FUNCTION__);
-  return 0;
+  f->start = (uint8_t*) f->net_hdr;
+  return pico_sendto_dev(f);
 }
 
 static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
@@ -122,4 +131,28 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
     return NULL;
   return found->dev;
 }
+
+int pico_ipv4_checksum(struct pico_frame *f)
+{
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  if (!hdr)
+    return -1;
+  hdr->crc = 0;
+  hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+  return 0;
+}
+
+int pico_ipv4_rebound(struct pico_frame *f)
+{
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_ip4 tmp;
+  if (!hdr)
+    return -1;
+  tmp.addr = hdr->src.addr;
+  hdr->src.addr = hdr->dst.addr;
+  hdr->dst.addr = tmp.addr;
+  pico_ipv4_checksum(f);
+  return 0;
+}
+
 
