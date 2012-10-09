@@ -20,6 +20,7 @@ struct pico_arp {
   struct pico_eth eth;
   struct pico_ip4 ipv4;
   int    arp_status;
+  uint32_t timestamp;
   RB_ENTRY(pico_arp) node;
 };
 #endif

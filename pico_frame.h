@@ -52,4 +52,9 @@ struct pico_frame {
   int payload_len;
 };
 
+/** frame alloc/dealloc/copy **/
+void pico_frame_discard(struct pico_frame *f);
+struct pico_frame *pico_frame_copy(struct pico_frame *f);
+struct pico_frame *pico_frame_alloc(int size);
+
 #endif

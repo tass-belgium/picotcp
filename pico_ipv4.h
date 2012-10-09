@@ -6,6 +6,20 @@
 extern struct pico_protocol *pico_proto_ipv4;
 
 
+struct __attribute__((packed)) pico_ipv4_hdr {
+  uint8_t vhl;
+  uint8_t tos;
+  uint16_t len;
+  uint16_t id;
+  uint16_t frag;
+  uint8_t ttl;
+  uint8_t proto;
+  uint16_t crc;
+  struct pico_ip4 src;
+  struct pico_ip4 dst;
+};
+
+
 /* This module is responsible for routing outgoing packets and 
  * delivering incoming packets to other layers
  */
