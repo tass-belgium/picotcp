@@ -2,6 +2,7 @@
 #define _INCLUDE_PICO_QUEUE
 #include <stdint.h>
 #include "pico_frame.h"
+#include "pico_config.h"
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -45,6 +46,15 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   q->frames--;
   q->size -= p->buffer_len;
   return p;
+}
+
+static inline void pico_queue_empty(struct pico_queue *q)
+{
+  struct pico_frame *p = pico_dequeue(q);
+  while(p) {
+    pico_free(p);
+    p = pico_dequeue(q);
+  }
 }
 
 #endif

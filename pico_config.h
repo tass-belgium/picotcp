@@ -1,3 +1,6 @@
+#ifndef _INCLUDE_PICO_CONFIG
+#define _INCLUDE_PICO_CONFIG
+
 /* Temporary (POSIX) stuff. */
 #include <stdlib.h>
 #include <string.h>
@@ -23,4 +26,14 @@ static inline unsigned long PICO_TIME_MS(void)
 }
 
 
+static inline uint32_t pico_hash(char *name)
+{
+  unsigned long hash = 5381;
+  int c;
+  while ((c = *name++))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+  return hash;
+}
+
 #define dbg printf
+#endif

@@ -22,8 +22,10 @@ struct pico_device {
   struct pico_queue *q_out;
   int (*send)(struct pico_device *self, void *buf, int len); /* Send function. Return 0 if busy */
   int (*poll)(struct pico_device *self, int loop_score);
+  void(*destroy)(struct pico_device *self);
 };
 
 int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac);
+void pico_device_destroy(struct pico_device *dev);
 
 #endif

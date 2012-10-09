@@ -75,6 +75,7 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
   }
   vde->dev.send = pico_vde_send;
   vde->dev.poll = pico_vde_poll;
+  vde->dev.destroy = pico_vde_destroy;
   return (struct pico_device *)vde;
 }
 
