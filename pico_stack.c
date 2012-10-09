@@ -14,21 +14,21 @@
 
 
 /* SOCKET LEVEL: interface towards transport */
-int pico_socket_receive(struct pico_frame *f)
+static int pico_socket_receive(struct pico_frame *f)
 {
   /* TODO: recognize the correspondant socket */
   return 0;
 }
 
 /* TRANSPORT LEVEL: interface towards network */
-int pico_transport_receive(struct pico_frame *f)
+static int pico_transport_receive(struct pico_frame *f)
 {
   /* TODO: identify transport level, deliver packet to the 
    * correct destination (e.g. socket)*/
   return 0;
 }
 
-int pico_network_receive(struct pico_frame *f)
+static int pico_network_receive(struct pico_frame *f)
 {
   if (IS_IPV4(f))
     pico_enqueue(pico_proto_ipv4.q_in, f);
@@ -50,7 +50,7 @@ int pico_network_receive(struct pico_frame *f)
  * those devices supporting ETH in order to push packets up 
  * into the stack. 
  */
-int pico_ethernet_receive(struct pico_frame *f)
+static int pico_ethernet_receive(struct pico_frame *f)
 {
   struct pico_eth_hdr *hdr;
   if (!f || !f->dev || f->datalink_hdr)
@@ -123,7 +123,7 @@ static int pico_ethernet_send(struct pico_frame *f)
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
  */
-int picotcp_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
+int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
 {
   struct pico_frame *f;
   if (len <= 0)
@@ -153,12 +153,21 @@ int pico_sendto_dev(struct pico_frame *f)
   }
 }
 
-void pico_dev_loop(struct pico_device *dev, int loop_score)
+static void pico_dev_loop(struct pico_device *dev, int loop_score)
 {
   struct pico_frame *f;
+
+
+  /* If device supports polling, give control. Loop score is managed internally, 
+   * remaining loop points are returned. */
+  if (dev->poll) {
+    loop_score = dev->poll(dev, loop_score);
+  }
+
   while(loop_score > 0) {
     if (dev->q_in->frames + dev->q_out->frames <= 0)
       break;
+
 
     /* Device dequeue + send */
     f = pico_dequeue(dev->q_out);
@@ -189,7 +198,7 @@ void pico_dev_loop(struct pico_device *dev, int loop_score)
 }
 
 
-void pico_proto_loop(struct pico_protocol *proto, int loop_score)
+static void pico_proto_loop(struct pico_protocol *proto, int loop_score)
 {
   struct pico_frame *f;
   while(loop_score >0) {
@@ -205,5 +214,14 @@ void pico_proto_loop(struct pico_protocol *proto, int loop_score)
     if ((f) &&(proto->process_in(proto, f) > 0)) {
       loop_score--;
     }
+  }
+}
+
+
+void pico_stack_loop(void)
+{
+
+  while(1) {
+
   }
 }
