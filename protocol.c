@@ -31,9 +31,9 @@ int pico_transport_receive(struct pico_frame *f)
 int pico_network_receive(struct pico_frame *f)
 {
   if (IS_IPV4(f))
-    pico_enqueue(pico_proto_ipv4->q_in, f);
+    pico_enqueue(pico_proto_ipv4.q_in, f);
   else if (IS_IPV6(f))
-    pico_enqueue(pico_proto_ipv6->q_in, f);
+    pico_enqueue(pico_proto_ipv6.q_in, f);
   else {
     pico_frame_discard(f);
     return -1;

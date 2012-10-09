@@ -3,7 +3,7 @@
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 
-extern struct pico_protocol *pico_proto_ipv6;
+extern struct pico_protocol pico_proto_ipv6;
 
 
 /* This module is responsible for routing outgoing packets and 
