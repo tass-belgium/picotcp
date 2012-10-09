@@ -7,6 +7,14 @@
 #define PICO_SUPPORT_IPV4
 //#define PICO_SUPPORT_IPV6
 
+#define PICO_SUPPORT_ICMP4
+
+
+
+
+/*************************/
+
+/*** MACHINE CONFIGURATION ***/
 /* Temporary (POSIX) stuff. */
 #include <stdlib.h>
 #include <string.h>

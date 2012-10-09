@@ -1,5 +1,6 @@
 #include "pico_ipv4.h"
 #include "pico_config.h"
+#include "pico_icmp4.h"
 
 
 /* Queues */
@@ -11,7 +12,19 @@ static struct pico_queue out = {};
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   dbg("Called %s\n", __FUNCTION__);
+  switch (hdr->proto) {
+
+#ifdef PICO_SUPPORT_ICMP4
+    case PICO_PROTO_ICMP4:
+      pico_enqueue(pico_proto_icmp4.q_in, f);
+      break;
+#endif
+
+    default:
+      pico_frame_discard(f);
+  }
   return 0;
 }
 
