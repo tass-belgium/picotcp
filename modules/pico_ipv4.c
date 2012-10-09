@@ -51,9 +51,9 @@ RB_PROTOTYPE_STATIC(link_tree, pico_ipv4_link, node, ipv4_link_compare);
 
 static int ipv4_link_compare(struct pico_ipv4_link *a, struct pico_ipv4_link *b)
 {
-  if ((a->address.addr & a->netmask.addr) < (b->address.addr &  b->netmask.addr))
+  if (a->address.addr < b->address.addr)
     return -1;
-  if ((a->address.addr & a->netmask.addr) < (b->address.addr &  b->netmask.addr))
+  if (a->address.addr > b->address.addr)
     return 1;
   return 0;
 }
@@ -68,10 +68,13 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
   /** XXX: Valid netmask / unicast address test **/
+
   if (RB_FIND(link_tree, &Tree_dev_link, &test)) {
     dbg("IPv4: Trying to assign an invalid address (in use)\n");
     return -1;
   }
+
+  /** XXX: Check for network already in use (e.g. trying to assign 10.0.0.1/24 where 10.1.0.1/8 is in use) **/
   new = pico_zalloc(sizeof(struct pico_ipv4_link));
   if (!new) {
     dbg("IPv4: Out of memory!\n");
@@ -85,11 +88,10 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 }
 
 
-int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask)
+int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
   test.address.addr = address.addr;
-  test.netmask.addr = netmask.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
   if (!found)
     return -1;
@@ -97,8 +99,13 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address, struct 
   return 0;
 }
 
-
-
-
-
+struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
+{
+  struct pico_ipv4_link test, *found;
+  test.address.addr = address->addr;
+  found = RB_FIND(link_tree, &Tree_dev_link, &test);
+  if (!found)
+    return NULL;
+  return found->dev;
+}
 

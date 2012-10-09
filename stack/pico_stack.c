@@ -57,7 +57,7 @@ int pico_network_receive(struct pico_frame *f)
 int pico_ethernet_receive(struct pico_frame *f)
 {
   struct pico_eth_hdr *hdr;
-  if (!f || !f->dev || f->datalink_hdr)
+  if (!f || !f->dev || !f->datalink_hdr)
     goto discard;
   hdr = (struct pico_eth_hdr *) f->datalink_hdr;
   f->datalink_len = sizeof(struct pico_eth_hdr);

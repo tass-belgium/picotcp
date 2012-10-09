@@ -23,7 +23,8 @@ struct __attribute__((packed)) pico_ipv4_hdr {
 
 void pico_proto_ipv4_init(void);
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
-int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
+int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
+struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 
 
 #endif

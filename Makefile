@@ -16,9 +16,9 @@ mod: modules/pico_ipv4.c modules/pico_dev_vde.c
 
 tst: all mod
 	mkdir -p build/test
-	gcc -o build/test/UNIT_arp stack/pico_arp.c stack/pico_frame.c $(CFLAGS) -DUNIT_ARPTABLE -ggdb
+	gcc -o build/test/UNIT_arp stack/pico_arp.c stack/pico_frame.c modules/pico_ipv4.c $(CFLAGS) -DUNIT_ARPTABLE -ggdb
 	gcc -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
-	gcc -o build/test/vde build/*.o build/modules/*.o -lvdeplug
+	gcc -o build/test/vde build/modules/*.o build/*.o -lvdeplug
 
 clean:
 	rm -rf build tags

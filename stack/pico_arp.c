@@ -106,7 +106,13 @@ int pico_arp_receive(struct pico_frame *f)
   if (hdr->opcode == PICO_ARP_REQUEST) {
     struct pico_ip4 me;
     struct pico_eth_hdr *eh = (struct pico_eth_hdr *)f->datalink_hdr;
+    struct pico_device *link_dev;
     me.addr = hdr->dst.addr;
+
+    link_dev = pico_ipv4_link_find(&me);
+    if (link_dev != f->dev)
+      goto end;
+
     hdr->opcode = PICO_ARP_REPLY;
     memcpy(hdr->d_mac, hdr->s_mac, PICO_SIZE_ETH);
     memcpy(hdr->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
@@ -161,7 +167,6 @@ int pico_arp_query(struct pico_frame *f)
 
 int main(void)
 {
-
   struct pico_arp test1, test2, test3;
   struct pico_arp *found, *notfound;
   struct pico_frame *f = pico_frame_alloc(40);
