@@ -21,5 +21,7 @@ struct __attribute__((packed)) pico_ipv4_hdr {
 
 #define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
 
+void pico_proto_ipv4_init(void);
+
 
 #endif

@@ -1,20 +1,23 @@
 #include "pico_ipv4.h"
+#include "pico_config.h"
 
 
 /* Queues */
-static struct pico_queue in;
-static struct pico_queue out;
+static struct pico_queue in = {};
+static struct pico_queue out = {};
 
 
 /* Functions */
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
+  dbg("Called %s", __FUNCTION__);
   return 0;
 }
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
+  dbg("Called %s", __FUNCTION__);
   return 0;
 }
 
@@ -31,3 +34,4 @@ struct pico_protocol pico_proto_ipv4 = {
   .q_in = &in,
   .q_out = &out,
 };
+
