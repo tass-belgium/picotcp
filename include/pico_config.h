@@ -1,6 +1,12 @@
 #ifndef _INCLUDE_PICO_CONFIG
 #define _INCLUDE_PICO_CONFIG
 
+
+
+/*** USER CONFIGURATION ***/
+#define PICO_SUPPORT_IPV4
+//#define PICO_SUPPORT_IPV6
+
 /* Temporary (POSIX) stuff. */
 #include <stdlib.h>
 #include <string.h>
@@ -68,5 +74,8 @@ static inline void PICO_IDLE(void)
 # define PICO_ARP_HTYPE_ETH 0x0100
 
 #endif
+
+
+
 
 #endif

@@ -12,7 +12,6 @@
 
 
 
-
 /* SOCKET LEVEL: interface towards transport */
 int pico_socket_receive(struct pico_frame *f)
 {
