@@ -171,3 +171,16 @@ void pico_stack_loop(void)
     PICO_IDLE();
   }
 }
+
+void pico_stack_init(void)
+{
+
+#ifdef PICO_SUPPORT_IPV4
+  pico_protocol_init(&pico_proto_ipv4);
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+  pico_protocol_init(&pico_proto_ipv6);
+#endif
+
+}

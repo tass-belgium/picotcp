@@ -10,6 +10,8 @@ int main(void)
   struct pico_device *vde;
   struct pico_ip4 address, netmask;
 
+  pico_stack_init();
+
   address.addr = 0x03001e0a; //  10.30.0.3
   netmask.addr = 0x00FFFFFF;
 

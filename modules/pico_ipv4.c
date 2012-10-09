@@ -28,6 +28,7 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
 
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_ipv4 = {
+  .name = "ipv4",
   .layer = PICO_LAYER_NETWORK,
   .alloc = pico_ipv4_alloc,
   .process_in = pico_ipv4_process_in,

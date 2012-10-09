@@ -32,5 +32,6 @@ struct pico_protocol {
 };
 
 void pico_protocols_loop(int loop_score);
+void pico_protocol_init(struct pico_protocol *p);
 
 #endif

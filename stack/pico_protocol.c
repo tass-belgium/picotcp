@@ -57,3 +57,27 @@ void pico_protocols_loop(int loop_score)
   }
 }
 
+void pico_protocol_init(struct pico_protocol *p)
+{
+  if (!p)
+    return;
+
+  p->hash = pico_hash(p->name);
+  switch (p->layer) {
+    case PICO_LAYER_DATALINK:
+      RB_INSERT(pico_protocol_tree, &Datalink_proto_tree, p);
+      break;
+    case PICO_LAYER_NETWORK:
+      RB_INSERT(pico_protocol_tree, &Network_proto_tree, p);
+      break;
+    case PICO_LAYER_TRANSPORT:
+      RB_INSERT(pico_protocol_tree, &Transport_proto_tree, p);
+      break;
+    case PICO_LAYER_SOCKET:
+      RB_INSERT(pico_protocol_tree, &Socket_proto_tree, p);
+      break;
+  }
+  dbg("Protocol %s registered (layer: %d).\n", p->name, p->layer);
+
+}
+
