@@ -1,7 +1,5 @@
 #ifndef _INCLUDE_PICO_ADDRESSING
 #define _INCLUDE_PICO_ADDRESSING
-
-
 #include <stdint.h>
 
 
@@ -23,7 +21,9 @@ struct pico_eth
   uint8_t padding[2];
 };
 #define PICO_SIZE_ETH 6
-const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+extern const uint8_t PICO_ETHADDR_ANY[];
+
 
 struct pico_trans
 {

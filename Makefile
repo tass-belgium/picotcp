@@ -1,4 +1,4 @@
-CFLAGS=-Iinclude -Imodules -Wall
+CFLAGS=-Iinclude -Imodules -Wall -ggdb
 
 all:
 	mkdir -p build
@@ -14,9 +14,11 @@ mod: modules/pico_ipv4.c modules/pico_dev_vde.c
 	gcc -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
 
 
-test:
+tst: all mod
 	mkdir -p build/test
 	gcc -o build/test/UNIT_arp stack/pico_arp.c stack/pico_frame.c $(CFLAGS) -DUNIT_ARPTABLE -ggdb
+	gcc -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
+	gcc -o build/test/vde build/*.o build/modules/*.o -lvdeplug
 
 clean:
 	rm -rf build tags

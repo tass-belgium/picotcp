@@ -3,6 +3,7 @@
 #include "rb.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
+const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 
 struct

@@ -1,5 +1,7 @@
 #ifndef _INCLUDE_PICO_STACK
 #define _INCLUDE_PICO_STACK
+#include "pico_config.h"
+#include "pico_frame.h"
 
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
