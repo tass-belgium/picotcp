@@ -31,12 +31,14 @@ int pico_network_receive(struct pico_frame *f)
 {
   if (0) {}
 #ifdef PICO_SUPPORT_IPV4
-  else if (IS_IPV4(f))
+  else if (IS_IPV4(f)) {
     pico_enqueue(pico_proto_ipv4.q_in, f);
+  }
 #endif
 #ifdef PICO_SUPPORT_IPV6
-  else if (IS_IPV6(f))
+  else if (IS_IPV6(f)) {
     pico_enqueue(pico_proto_ipv6.q_in, f);
+  }
 #endif
   else {
     pico_frame_discard(f);
@@ -64,6 +66,7 @@ int pico_ethernet_receive(struct pico_frame *f)
   if ( (memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) && 
     (memcmp(hdr->daddr, PICO_ETHADDR_ANY, PICO_SIZE_ETH) != 0) )
     goto discard;
+
   f->net_hdr = (uint8_t *)f->datalink_hdr + f->datalink_len;
   if (hdr->proto == PICO_IDETH_ARP)
     return pico_arp_receive(f);

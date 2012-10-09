@@ -11,13 +11,13 @@ static struct pico_queue out = {};
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
-  dbg("Called %s", __FUNCTION__);
+  dbg("Called %s\n", __FUNCTION__);
   return 0;
 }
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  dbg("Called %s", __FUNCTION__);
+  dbg("Called %s\n", __FUNCTION__);
   return 0;
 }
 
