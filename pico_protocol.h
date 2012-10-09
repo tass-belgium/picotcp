@@ -2,6 +2,7 @@
 #define _INCLUDE_PICO_PROTOCOL 
 #include <stdint.h>
 #include "pico_queue.h"
+#include "rb.h"
 
 
 enum pico_layer {
@@ -13,41 +14,21 @@ enum pico_layer {
 
 
 
-/** Endian-dependant constants **/
-
-#ifdef PICO_BIGENDIAN
-
-# define PICO_IDETH_IPV4 0x0800
-# define PICO_IDETH_ARP 0x0806
-# define PICO_IDETH_IPV6 0x86DD
-
-# define PICO_ARP_REQUEST 0x0001
-# define PICO_ARP_REPLY   0x0002
-# define PICO_ARP_HTYPE_ETH 0x0001
-
-#else
-
-# define PICO_IDETH_IPV4 0x0008
-# define PICO_IDETH_ARP 0x0608
-# define PICO_IDETH_IPV6 0xDD86
-
-# define PICO_ARP_REQUEST 0x0100
-# define PICO_ARP_REPLY   0x0200
-# define PICO_ARP_HTYPE_ETH 0x0100
-
-#endif
-
 #define IS_IPV6(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60)
 #define IS_IPV4(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40)
 
+#define MAX_PROTOCOL_NAME 16
+
 struct pico_protocol {
+  char name[MAX_PROTOCOL_NAME];
+  uint32_t hash;
   enum pico_layer layer;
   struct pico_queue *q_in;
   struct pico_queue *q_out;
   struct pico_frame *(*alloc)(struct pico_protocol *self, int size); /* Frame allocation. */
   int (*process_out)(struct pico_protocol *self, struct pico_frame *p); /* Send function. */
   int (*process_in)(struct pico_protocol *self, struct pico_frame *p); /* Recv function. */
- // RB_ENTRY(pico_protocol) node;
+  RB_ENTRY(pico_protocol) node;
 };
 
 #endif

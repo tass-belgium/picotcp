@@ -14,21 +14,21 @@
 
 
 /* SOCKET LEVEL: interface towards transport */
-static int pico_socket_receive(struct pico_frame *f)
+int pico_socket_receive(struct pico_frame *f)
 {
   /* TODO: recognize the correspondant socket */
   return 0;
 }
 
 /* TRANSPORT LEVEL: interface towards network */
-static int pico_transport_receive(struct pico_frame *f)
+int pico_transport_receive(struct pico_frame *f)
 {
   /* TODO: identify transport level, deliver packet to the 
    * correct destination (e.g. socket)*/
   return 0;
 }
 
-static int pico_network_receive(struct pico_frame *f)
+int pico_network_receive(struct pico_frame *f)
 {
   if (IS_IPV4(f))
     pico_enqueue(pico_proto_ipv4.q_in, f);
@@ -50,7 +50,7 @@ static int pico_network_receive(struct pico_frame *f)
  * those devices supporting ETH in order to push packets up 
  * into the stack. 
  */
-static int pico_ethernet_receive(struct pico_frame *f)
+int pico_ethernet_receive(struct pico_frame *f)
 {
   struct pico_eth_hdr *hdr;
   if (!f || !f->dev || f->datalink_hdr)
@@ -77,7 +77,7 @@ discard:
  * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
  * we assume IP is used.
  */
-static int pico_ethernet_send(struct pico_frame *f)
+int pico_ethernet_send(struct pico_frame *f)
 {
   struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
@@ -153,75 +153,12 @@ int pico_sendto_dev(struct pico_frame *f)
   }
 }
 
-static void pico_dev_loop(struct pico_device *dev, int loop_score)
-{
-  struct pico_frame *f;
-
-
-  /* If device supports polling, give control. Loop score is managed internally, 
-   * remaining loop points are returned. */
-  if (dev->poll) {
-    loop_score = dev->poll(dev, loop_score);
-  }
-
-  while(loop_score > 0) {
-    if (dev->q_in->frames + dev->q_out->frames <= 0)
-      break;
-
-
-    /* Device dequeue + send */
-    f = pico_dequeue(dev->q_out);
-    if (f) {
-      if (dev->eth) {
-        if (0 == pico_ethernet_send(f)) /* Addressing is in progress. Enqueue again. */
-          pico_enqueue(dev->q_out, f);
-      } else {
-        dev->send(dev, f->start, f->len);
-      }
-      pico_frame_discard(f);
-      loop_score--;
-    }
-
-    /* Receive */
-    f = pico_dequeue(dev->q_in);
-    if (f) {
-      if (dev->eth) {
-        f->datalink_hdr = f->buffer;
-        pico_ethernet_receive(f);
-      } else {
-        f->net_hdr = f->buffer;
-        pico_network_receive(f);
-      }
-      loop_score--;
-    }
-  }
-}
-
-
-static void pico_proto_loop(struct pico_protocol *proto, int loop_score)
-{
-  struct pico_frame *f;
-  while(loop_score >0) {
-    if (proto->q_in->frames + proto->q_out->frames <= 0)
-      break;
-
-    f = pico_dequeue(proto->q_out);
-    if ((f) &&(proto->process_out(proto, f) > 0)) {
-      loop_score--;
-    }
-
-    f = pico_dequeue(proto->q_in);
-    if ((f) &&(proto->process_in(proto, f) > 0)) {
-      loop_score--;
-    }
-  }
-}
 
 
 void pico_stack_loop(void)
 {
 
   while(1) {
-
+    pico_devices_loop(100);
   }
 }

@@ -36,4 +36,31 @@ static inline uint32_t pico_hash(char *name)
 }
 
 #define dbg printf
+
+
+
+/** Endian-dependant constants **/
+
+#ifdef PICO_BIGENDIAN
+
+# define PICO_IDETH_IPV4 0x0800
+# define PICO_IDETH_ARP 0x0806
+# define PICO_IDETH_IPV6 0x86DD
+
+# define PICO_ARP_REQUEST 0x0001
+# define PICO_ARP_REPLY   0x0002
+# define PICO_ARP_HTYPE_ETH 0x0001
+
+#else
+
+# define PICO_IDETH_IPV4 0x0008
+# define PICO_IDETH_ARP 0x0608
+# define PICO_IDETH_IPV6 0xDD86
+
+# define PICO_ARP_REQUEST 0x0100
+# define PICO_ARP_REPLY   0x0200
+# define PICO_ARP_HTYPE_ETH 0x0100
+
+#endif
+
 #endif
