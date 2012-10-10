@@ -76,6 +76,7 @@ static void devloop(struct pico_device *dev, int loop_score)
     /* Device dequeue + send */
     f = pico_dequeue(dev->q_out);
     if (f) {
+      f->dev = dev;
       dbg("dequeued from dev: ready to send\n");
       if (dev->eth) {
         if (0 == pico_ethernet_send(f)) /* Addressing is in progress. Enqueue again. */
