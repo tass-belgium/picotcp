@@ -9,6 +9,9 @@
 
 #define PICO_SUPPORT_ICMP4
 
+#define PICO_SUPPORT_UDP
+#define PICO_SUPPORT_TCP
+
 
 
 

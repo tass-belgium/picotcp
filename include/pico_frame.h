@@ -5,6 +5,8 @@
 #define PICO_FRAME_FLAG_BCAST (0x0001)
 #define IS_BCAST(f) ((f->flags & PICO_FRAME_FLAG_BCAST) == PICO_FRAME_FLAG_BCAST)
 
+struct pico_socket;
+
 
 struct pico_frame {
 
@@ -50,6 +52,9 @@ struct pico_frame {
   /* Pointer to payload */
   unsigned char *payload;
   int payload_len;
+
+  /* Pointer to socket */
+  struct pico_socket *sock;
 };
 
 /** frame alloc/dealloc/copy **/
