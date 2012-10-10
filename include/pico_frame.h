@@ -23,13 +23,13 @@ struct pico_frame {
   uint32_t *usage_count;
 
   /* Pointer to protocol headers */
-  void *datalink_hdr;
+  uint8_t *datalink_hdr;
   int  datalink_len;
-  void *net_hdr;
+  uint8_t *net_hdr;
   int net_len;
-  void *transport_hdr;
+  uint8_t *transport_hdr;
   int transport_len;
-  void *app_hdr;
+  uint8_t *app_hdr;
   int app_len;
 
   /* Pointer to the phisical device this packet belongs to.

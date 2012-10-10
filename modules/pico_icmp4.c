@@ -28,6 +28,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
     hdr->type = PICO_ICMP_ECHOREPLY;
     f->transport_len = 8;
     pico_icmp4_checksum(f);
+    f->net_hdr = f->transport_hdr - PICO_SIZE_IP4HDR;
     pico_enqueue(pico_proto_ipv4.q_out, f);
   } else {
     pico_frame_discard(f);
