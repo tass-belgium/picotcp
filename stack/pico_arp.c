@@ -142,9 +142,12 @@ int pico_arp_query(struct pico_frame *f)
   if (!q)
     return -1;
   eh = (struct pico_eth_hdr *)q->start;
-  ah = (struct pico_arp_hdr *) q->start + PICO_SIZE_ETHHDR;
+  ah = (struct pico_arp_hdr *) (q->start + PICO_SIZE_ETHHDR);
 
   iphdr = (struct pico_ipv4_hdr *) f->net_hdr;
+
+  if (!iphdr)
+    return -1;
 
   /* Fill eth header */
   memcpy(eh->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
@@ -160,6 +163,7 @@ int pico_arp_query(struct pico_frame *f)
   memcpy(ah->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
   ah->src.addr = iphdr->src.addr;
   ah->dst.addr = iphdr->dst.addr;
+  dbg("Sending arp query.\n");
   return(f->dev->send(f->dev, q->start, q->len));
 }
 

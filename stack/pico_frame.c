@@ -7,6 +7,7 @@ void pico_frame_discard(struct pico_frame *f)
   (*f->usage_count)--;
   if (*f->usage_count <= 0) {
     pico_free(f->usage_count);
+    dbg("Discarded buffer @%p\n", f->buffer);
     pico_free(f->buffer);
     pico_free(f);
   }
@@ -39,6 +40,8 @@ struct pico_frame *pico_frame_alloc(int size)
     return NULL;
   }
   p->buffer_len = size;
+
+  dbg("Allocated buffer @%p, len= %d\n", p->buffer, p->buffer_len);
 
   /* By default, frame content is the full buffer. */
   p->start = p->buffer;

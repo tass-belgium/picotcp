@@ -12,11 +12,11 @@ int main(void)
 
   pico_stack_init();
 
-  address.addr = 0x03001e0a; //  10.30.0.3
+  address.addr = 0x0300280a; //  10.40.0.3
   netmask.addr = 0x00FFFFFF;
 
 
-  vde = pico_vde_create("/tmp/vde0.ctl", "vde0", macaddr);
+  vde = pico_vde_create("/tmp/pico.ctl", "vde0", macaddr);
   if (!vde)
     return 1;
 

@@ -1,6 +1,7 @@
 #include "pico_icmp4.h"
 #include "pico_config.h"
 #include "pico_ipv4.h"
+#include "pico_eth.h"
 
 
 /* Queues */
@@ -26,8 +27,12 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
   if (hdr->type == PICO_ICMP_ECHO) {
     pico_ipv4_rebound(f);
     hdr->type = PICO_ICMP_ECHOREPLY;
-    f->transport_len = 8;
+    /* Ugly, but the best way to get ICMP data size here. */
+    f->transport_len = f->buffer_len - PICO_SIZE_IP4HDR - PICO_SIZE_ETHHDR;
     pico_icmp4_checksum(f);
+    f->net_hdr = f->transport_hdr - PICO_SIZE_IP4HDR;
+    f->start = f->net_hdr;
+    f->len = f->buffer_len - PICO_SIZE_ETHHDR;
     pico_enqueue(pico_proto_ipv4.q_out, f);
   } else {
     pico_frame_discard(f);
