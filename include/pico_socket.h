@@ -2,10 +2,10 @@
 #define _INCLUDE_PICO_SOCKET
 #include "pico_queue.h"
 #include "pico_addressing.h"
+#include "rb.h"
 
 
 struct pico_socket {
-  struct pico_trans trans;
   struct pico_protocol *proto;
   struct pico_protocol *net;
 
@@ -19,8 +19,13 @@ struct pico_socket {
     struct pico_ip6 ip6;
   } remote_addr;
 
-  struct pico_queue q_in;
-  struct pico_queue q_out;
+  uint16_t local_port;
+  uint16_t remote_port;
+
+  struct pico_queue *q_in;
+  struct pico_queue *q_out;
+
+  RB_ENTRY(pico_socket) node;
 
   uint16_t state;
 
@@ -44,12 +49,13 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto);
 int pico_socket_read(struct pico_socket *s, void *buf, int len);
 int pico_socket_write(struct pico_socket *s, void *buf, int len);
 
-int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t dport);
-int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *sport);
+int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port);
+int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port);
 
-int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t dport);
+int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
+int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s);
-struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *sport);
+struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port);
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 int pico_socket_getoption(struct pico_socket *s, int option, void *value);
@@ -57,5 +63,28 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 int pico_socket_shutdown(struct pico_socket *s, int mode);
 int pico_socket_close(struct pico_socket *s);
 
+#ifdef PICO_SUPPORT_IPV4
+# define is_sock_ipv4(x) (x->net == &pico_proto_ipv4)
+#else
+# define is_sock_ipv4(x) (0)
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+# define is_sock_ipv6(x) (x->net == &pico_proto_ipv6)
+#else
+# define is_sock_ipv6(x) (0)
+#endif
+
+#ifdef PICO_SUPPORT_UDP
+# define is_sock_udp(x) (x->net == &pico_proto_udp)
+#else
+# define is_sock_udp(x) (0)
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+# define is_sock_tcp(x) (x->net == &pico_proto_tcp)
+#else
+# define is_sock_tcp(x) (0)
+#endif
 
 #endif

@@ -7,6 +7,7 @@ all:
 	gcc -c -o build/pico_frame.o 	stack/pico_frame.c  $(CFLAGS)
 	gcc -c -o build/pico_device.o	stack/pico_device.c  $(CFLAGS)
 	gcc -c -o build/pico_protocol.o stack/pico_protocol.c  $(CFLAGS)
+	gcc -c -o build/pico_socket.o   stack/pico_socket.c  $(CFLAGS)
 
 mod: modules/pico_ipv4.c modules/pico_dev_vde.c
 	mkdir -p build/modules
