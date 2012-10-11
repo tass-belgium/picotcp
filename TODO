@@ -1,8 +1,9 @@
-IP: Add link to devices
-ICMP
-UDP
+ICMP: provide primitives for UNREACH, TTL expired etc.
+UDP: Unicast sockets
 IP: Routing
 TCP
+UDP: Multicast
+IGMP (2 and 3)
 Generic functional tests
 IPV6
 DHCP server
@@ -10,4 +11,7 @@ DHCP client
 DNS
 NAT
 OLSR
+Multicast routing
+
+
 
