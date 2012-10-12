@@ -49,6 +49,7 @@ static int pico_icmp4_process_out(struct pico_protocol *self, struct pico_frame 
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_icmp4 = {
   .name = "icmp4",
+  .proto_number = PICO_PROTO_ICMP4,
   .layer = PICO_LAYER_TRANSPORT,
   .process_in = pico_icmp4_process_in,
   .process_out = pico_icmp4_process_out,

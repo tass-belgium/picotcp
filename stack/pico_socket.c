@@ -4,40 +4,21 @@
 #include "pico_udp.h"
 #include "pico_tcp.h"
 
-
-static int assign_high_random_port(struct pico_socket *s)
-{
-  s->local_port = 0xFDFD;
-  return 0;
-}
+#define PROTO(s) ((s)->proto->proto_number)
+#define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
 static int socket_cmp(struct pico_socket *a, struct pico_socket *b)
 {
   int a_is_ip6 = is_sock_ipv6(a);
   int b_is_ip6 = is_sock_ipv6(b);
-  int proto_a = is_sock_tcp(a);
-  int proto_b = is_sock_tcp(b);
   int a_is_connected = a->state & PICO_SOCKET_STATE_CONNECTED;
   int b_is_connected = b->state & PICO_SOCKET_STATE_CONNECTED;
   int diff;
-  
 
-  /* First: order by proto (UDP/TCP) */
-  if (proto_a < proto_b)
-    return -1;
-  if (proto_a > proto_b)
-    return 1;
-
-  /* Then, order by network ver */
+  /* First, order by network ver */
   if (a_is_ip6 < b_is_ip6)
     return -1;
   if (a_is_ip6 > b_is_ip6)
-    return 1;
-
-  /* Then, order by local port */
-  if (a->local_port < b->local_port)
-    return -1;
-  if (a->local_port > b->local_port)
     return 1;
 
   /* Unconnected sockets are equal at this point. */
@@ -69,7 +50,7 @@ static int socket_cmp(struct pico_socket *a, struct pico_socket *b)
   if (diff)
     return diff;
 
-  /* And finally by port. The two sockets are coincident if the quad is the same. */
+  /* And finally by remote port. The two sockets are coincident if the quad is the same. */
   return b->remote_port - a->remote_port;
 }
 
@@ -77,21 +58,142 @@ RB_HEAD(socket_tree, pico_socket);
 RB_PROTOTYPE_STATIC(socket_tree, pico_socket, node, socket_cmp);
 RB_GENERATE_STATIC(socket_tree, pico_socket, node, socket_cmp);
 
-struct socket_tree Socket_tree;
+struct pico_sockport
+{
+  struct socket_tree socks;
+  uint16_t number;
+  uint16_t proto;
+  RB_ENTRY(pico_sockport) node;
+};
+
+int sockport_cmp(struct pico_sockport *a, struct pico_sockport *b)
+{
+  if (a->number < b->number)
+    return -1;
+  if (a->number > b->number)
+    return 1;
+  return 0;
+}
+
+RB_HEAD(sockport_table, pico_sockport);
+RB_PROTOTYPE_STATIC(sockport_table, pico_sockport, node, sockport_cmp);
+RB_GENERATE_STATIC(sockport_table, pico_sockport, node, sockport_cmp);
+
+static struct sockport_table UDPTable;
+static struct sockport_table TCPTable;
+
+static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
+{
+  struct pico_sockport test;
+  test.number = port;
+  if (proto == PICO_PROTO_UDP)
+    return RB_FIND(sockport_table, &UDPTable, &test);
+  else if (proto == PICO_PROTO_TCP)
+    return RB_FIND(sockport_table, &TCPTable, &test);
+  else return NULL;
+}
+
+static int pico_socket_add(struct pico_socket *s)
+{
+  struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
+  if (!sp) {
+    sp = pico_zalloc(sizeof(struct pico_sockport));
+      if (!sp)
+        return -1;
+    sp->proto = PROTO(s);
+    sp->number = s->local_port;
+  }
+  RB_INSERT(socket_tree, &sp->socks, s);
+  return 0;
+}
+
+static int pico_socket_del(struct pico_socket *s)
+{
+  struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
+  if (!sp) {
+    return -1;
+  }
+  RB_REMOVE(socket_tree, &sp->socks, s);
+
+  /* Remove associated socketport, if empty */
+  if (RB_EMPTY(&sp->socks)) {
+    if (PROTO(s) == PICO_PROTO_UDP)
+      RB_REMOVE(sockport_table, &UDPTable, sp);
+    else if (PROTO(s) == PICO_PROTO_TCP)
+      RB_REMOVE(sockport_table, &TCPTable, sp);
+    pico_free(sp);
+  }
+  return 0;
+}
+
+static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
+{
+  struct pico_sockport *sp;
+  if (more_states & PICO_SOCKET_STATE_BOUND)
+    return pico_socket_add(s);
+
+  if (less_states & PICO_SOCKET_STATE_BOUND)
+    return pico_socket_del(s);
+
+  sp = pico_get_sockport(PROTO(s), s->local_port);
+  if (!sp)
+    return -1;
+
+  RB_REMOVE(socket_tree, &sp->socks, s);
+  s->state |= more_states;
+  s->state &= (~less_states);
+  if (tcp_state) {
+    s->state &= 0x00FF;
+    s->state |= tcp_state;
+  }
+  RB_INSERT(socket_tree, &sp->socks, s);
+  return 0;
+
+}
+
+int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
+{
+  struct pico_sockport *sp;
+  struct pico_socket *s;
+  sp = pico_get_sockport(p->proto_number, localport);
+  if (!sp)
+    return -1;
+
+  if (p->proto_number == PICO_PROTO_UDP) {
+    /* Take the only socket here. */
+    s = RB_ROOT(&sp->socks);
+    if (!s)
+      return -1;
+  }
+
+  if (pico_enqueue(&s->q_in, f) > 0)
+    return 0;
+  else
+    return -1;
+
+}
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
 {
-  struct pico_socket *s = pico_zalloc(sizeof(struct pico_socket));
+
+  struct pico_socket *s = NULL;
+
+#ifdef PICO_SUPPORT_UDP
+  if (proto == PICO_PROTO_UDP) {
+    s = pico_udp_open();
+    s->proto = &pico_proto_udp;
+  }
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  if (proto == PICO_PROTO_TCP) {
+    s = pico_tcp_open();
+    s->proto = &pico_proto_tcp;
+  }
+#endif
+
   if (!s)
-    goto fail;
-
-  s->q_in = pico_zalloc(sizeof(struct pico_queue));
-  if (!s->q_in)
-    goto fail;
-
-  s->q_out = pico_zalloc(sizeof(struct pico_queue));
-  if (!s->q_out)
-    goto fail;
+    return NULL;
 
 #ifdef PICO_SUPPORT_IPV4
   if (net == 4)
@@ -103,29 +205,14 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
     s->net = &pico_proto_ipv6;
 #endif
 
-#ifdef PICO_SUPPORT_TCP
-  if (proto == PICO_PROTO_TCP)
-    s->proto = &pico_proto_tcp;
-#endif
+  s->q_in.size = PICO_DEFAULT_SOCKETQ;
+  s->q_out.size = PICO_DEFAULT_SOCKETQ;
 
-#ifdef PICO_SUPPORT_UDP
-  if (proto == PICO_PROTO_UDP)
-    s->proto = &pico_proto_udp;
-#endif
-
-  if (!net || !proto)
-    goto fail;
-
-  return s;
-
-fail:
-  if (s->q_in)
-    pico_free(s->q_in);
-  if (s->q_out)
-    pico_free(s->q_out);
-  if (s)
+  if (!net) {
     pico_free(s);
-  return NULL;
+    return NULL;
+  }
+  return s;
 }
 
 
@@ -143,13 +230,11 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
-
   return 0;
 }
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port)
 {
-
   return 0;
 }
 
@@ -161,8 +246,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 
   s->local_port = *port;
 
-  if ((0 == s->local_port) && assign_high_random_port(s))
-    return -1;
+  /* XXX verify  +  change if 0 */
 
   *port = s->local_port; /* As return value. */
 
@@ -173,19 +257,47 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
     struct pico_ip4 *ip = (struct pico_ip4 *) local_addr;
     s->local_addr.ip4.addr = ip->addr;
   }
-  s->state |= PICO_SOCKET_STATE_BOUND;
-  RB_INSERT(socket_tree, &Socket_tree, s);
-  return 0;
+  return pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
 }
 
-int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port)
+int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remote_port)
 {
+  if (remote_port == 0)
+    return -1;
+
+  s->remote_port = remote_port;
+
+  if (is_sock_ipv6(s)) {
+    struct pico_ip6 *ip = (struct pico_ip6 *) remote_addr;
+    memcpy(s->remote_addr.ip6.addr, ip, PICO_SIZE_IP6);
+  } else if (is_sock_ipv4(s)) {
+    struct pico_ip4 *ip = (struct pico_ip4 *) remote_addr;
+    s->remote_addr.ip4.addr = ip->addr;
+  }
+
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_UDP)
+    pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_TCP)
+    pico_tcp_3whs(s);
+
+#endif
 
   return 0;
 }
 
 int pico_socket_listen(struct pico_socket *s)
 {
+  if (PROTO(s) == PICO_PROTO_UDP)
+    return -1;
+
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_TCP)
+    pico_socket_alter_state(0, 0, PICO_SOCKET_STATE_TCP_LISTEN);
+#endif
 
   return 0;
 }

@@ -11,5 +11,7 @@ struct __attribute__((packed)) pico_udp_hdr {
   uint16_t crc;
 };
 
+struct pico_socket *pico_udp_open(void);
+
 
 #endif

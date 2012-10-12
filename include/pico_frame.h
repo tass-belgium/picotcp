@@ -55,6 +55,9 @@ struct pico_frame {
 
   /* Pointer to socket */
   struct pico_socket *sock;
+
+  /* Pointer to transport info */
+  void *info;
 };
 
 /** frame alloc/dealloc/copy **/

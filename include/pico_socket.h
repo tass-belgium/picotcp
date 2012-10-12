@@ -2,7 +2,10 @@
 #define _INCLUDE_PICO_SOCKET
 #include "pico_queue.h"
 #include "pico_addressing.h"
+#include "pico_config.h"
 #include "rb.h"
+
+#define PICO_DEFAULT_SOCKETQ 8192
 
 
 struct pico_socket {
@@ -22,8 +25,8 @@ struct pico_socket {
   uint16_t local_port;
   uint16_t remote_port;
 
-  struct pico_queue *q_in;
-  struct pico_queue *q_out;
+  struct pico_queue q_in;
+  struct pico_queue q_out;
 
   RB_ENTRY(pico_socket) node;
 
@@ -36,8 +39,23 @@ struct pico_socket {
 #define PICO_SOCKET_STATE_OPEN_REMOTE     0x0002
 #define PICO_SOCKET_STATE_BOUND           0x0004
 #define PICO_SOCKET_STATE_CONNECTED       0x0008
-#define PICO_SOCKET_STATE_LISTENING       0x0010
-#define PICO_SOCKET_STATE_CLOSING         0x0020
+#define PICO_SOCKET_STATE_CLOSING         0x0010
+#define PICO_SOCKET_STATE_CLOSED          0x0020
+
+#ifdef PICO_SUPPORT_TCP
+# define PICO_SOCKET_STATE_TCP                0xFF00
+# define PICO_SOCKET_STATE_TCP_CLOSED         0x0100
+# define PICO_SOCKET_STATE_TCP_LISTEN         0x0200
+# define PICO_SOCKET_STATE_TCP_SYN_SENT       0x0300
+# define PICO_SOCKET_STATE_TCP_SYN_RECV       0x0400
+# define PICO_SOCKET_STATE_TCP_ESTABLISHED    0x0500
+# define PICO_SOCKET_STATE_TCP_CLOSE_WAIT     0x0600
+# define PICO_SOCKET_STATE_TCP_LAST_ACK       0x0700
+# define PICO_SOCKET_STATE_TCP_FIN_WAIT1      0x0800
+# define PICO_SOCKET_STATE_TCP_FIN_WAIT2      0x0900
+# define PICO_SOCKET_STATE_TCP_CLOSING        0x0a00
+# define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00
+#endif
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02

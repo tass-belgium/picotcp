@@ -23,6 +23,7 @@ struct pico_protocol {
   char name[MAX_PROTOCOL_NAME];
   uint32_t hash;
   enum pico_layer layer;
+  int proto_number;
   struct pico_queue *q_in;
   struct pico_queue *q_out;
   struct pico_frame *(*alloc)(struct pico_protocol *self, int size); /* Frame allocation. */

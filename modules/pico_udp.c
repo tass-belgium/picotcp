@@ -42,9 +42,17 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_udp = {
   .name = "udp",
+  .proto_number = PICO_PROTO_UDP,
   .layer = PICO_LAYER_TRANSPORT,
   .process_in = pico_udp_process_in,
   .process_out = pico_udp_process_out,
   .q_in = &in,
   .q_out = &out,
 };
+
+struct pico_socket *pico_udp_open(void)
+{
+  return NULL;
+}
+
+
