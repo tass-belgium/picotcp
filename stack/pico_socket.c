@@ -282,7 +282,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    pico_tcp_3whs(s);
+    pico_tcp_initconn(s);
 
 #endif
 
@@ -296,7 +296,7 @@ int pico_socket_listen(struct pico_socket *s)
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    pico_socket_alter_state(0, 0, PICO_SOCKET_STATE_TCP_LISTEN);
+    pico_socket_alter_state(s, 0, 0, PICO_SOCKET_STATE_TCP_LISTEN);
 #endif
 
   return 0;

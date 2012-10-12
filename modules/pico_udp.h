@@ -10,6 +10,7 @@ struct __attribute__((packed)) pico_udp_hdr {
   uint16_t len;
   uint16_t crc;
 };
+#define PICO_UDPHDR_SIZE 8
 
 struct pico_socket *pico_udp_open(void);
 
