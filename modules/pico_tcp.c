@@ -21,17 +21,6 @@ static __attribute__((unused)) int pico_tcp_checksum(struct pico_frame *f)
   return 0;
 }
 
-static int pico_tcp_process_in(struct pico_protocol *self, struct pico_frame *f)
-{
-  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  if (hdr) {
-
-  } else {
-    pico_frame_discard(f);
-  }
-  return 0;
-}
-
 static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
   dbg("Called %s\n", __FUNCTION__);
@@ -44,7 +33,7 @@ struct pico_protocol pico_proto_tcp = {
   .name = "tcp",
   .proto_number = PICO_PROTO_TCP,
   .layer = PICO_LAYER_TRANSPORT,
-  .process_in = pico_tcp_process_in,
+  .process_in = pico_transport_process_in,
   .process_out = pico_tcp_process_out,
   .q_in = &in,
   .q_out = &out,

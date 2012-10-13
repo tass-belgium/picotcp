@@ -51,6 +51,9 @@ struct __attribute__((packed)) pico_icmp4_hdr {
   } dun;
 };
 
+#define PICO_ICMPHDR_DRY_SIZE  4
+#define PICO_ICMPHDR_UN_SIZE  8
+
 #define PICO_ICMP_ECHOREPLY    0 
 #define PICO_ICMP_DEST_UNREACH 3 
 #define PICO_ICMP_SOURCE_QUENCH  4
@@ -75,9 +78,9 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 #define  PICO_ICMP_TSTAMP    13  
 #define  PICO_ICMP_TSTAMPREPLY  14  
 #define  PICO_ICMP_IREQ    15  
-#define  PICO_ICMP_IREQREPLY    16  	
-#define  PICO_ICMP_MASKREQ    17  	
-#define  PICO_ICMP_MASKREPLY    18  	
+#define  PICO_ICMP_IREQREPLY    16    
+#define  PICO_ICMP_MASKREQ    17    
+#define  PICO_ICMP_MASKREPLY    18    
 
 #define  PICO_ICMP_MAXTYPE    18
 
@@ -113,4 +116,6 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 #define  PICO_ICMP_PARAMPROB_OPTABSENT 1    
 
 #define PICO_SIZE_ICMP4HDR ((sizeof(struct pico_icmp4_hdr)))
+
+int pico_icmp4_port_unreachable(struct pico_frame *f);
 #endif

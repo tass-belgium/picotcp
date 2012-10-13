@@ -3,6 +3,8 @@
 #include "pico_icmp4.h"
 #include "pico_stack.h"
 #include "pico_eth.h"
+#include "pico_udp.h"
+#include "pico_tcp.h"
 #include "pico_socket.h"
 
 
@@ -27,6 +29,7 @@ static int pico_ipv4_checksum(struct pico_frame *f)
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  dbg("IPv4: processing incoming packet.\n");
   if (pico_ipv4_link_find(&hdr->dst)) {
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
     f->transport_len = short_be(hdr->len);
@@ -38,7 +41,21 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         break;
 #endif
 
+#ifdef PICO_SUPPORT_UDP
+      case PICO_PROTO_UDP:
+        pico_enqueue(pico_proto_udp.q_in, f);
+        break;
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+      case PICO_PROTO_TCP:
+        pico_enqueue(pico_proto_tcp.q_in, f);
+        break;
+#endif
+
       default:
+        /* Protocol not available */
+        dbg("pkt: no such protocol (%d)\n", hdr->proto);
         pico_frame_discard(f);
     }
   } else {
@@ -67,6 +84,7 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
   f->net_len = PICO_SIZE_IP4HDR;
   f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
   f->transport_len = size;
+  f->len =  size + PICO_SIZE_IP4HDR;
   return f;
 }
 

@@ -105,4 +105,7 @@ int pico_socket_close(struct pico_socket *s);
 # define is_sock_tcp(x) (0)
 #endif
 
+/* Interface towards transport protocol */
+int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f);
+
 #endif

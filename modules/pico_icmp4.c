@@ -55,3 +55,25 @@ struct pico_protocol pico_proto_icmp4 = {
   .q_in = &in,
   .q_out = &out,
 };
+
+int pico_icmp4_port_unreachable(struct pico_frame *f)
+{
+
+  struct pico_frame *reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
+  struct pico_icmp4_hdr *hdr;
+  struct pico_ipv4_hdr *info = (struct pico_ipv4_hdr*)(f->net_hdr);
+
+  hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
+
+  hdr->type = PICO_ICMP_UNREACH;
+  hdr->code = PICO_ICMP_UNREACH_PORT;
+  hdr->hun.ih_pmtu.ipm_nmtu = short_be(1500);
+  hdr->hun.ih_pmtu.ipm_void = 0;
+  reply->transport_len = 8 + sizeof(struct pico_ipv4_hdr) +  PICO_ICMPHDR_UN_SIZE;
+  reply->payload = reply->transport_hdr + PICO_ICMPHDR_UN_SIZE;
+  memcpy(reply->payload, f->net_hdr, 8 + sizeof(struct pico_ipv4_hdr));
+  pico_icmp4_checksum(reply);
+  pico_ipv4_frame_push(reply, &info->src, PICO_PROTO_ICMP4);
+  return 0;
+}
+

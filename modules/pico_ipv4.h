@@ -27,6 +27,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 int pico_ipv4_rebound(struct pico_frame *f);
+int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto);
 
 
 #endif

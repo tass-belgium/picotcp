@@ -44,5 +44,7 @@ void pico_stack_init(void);
 /* ----- Loop Function. ----- */
 void pico_stack_loop(void);
 
+/* ---- Notifications for stack errors */
+int pico_notify_socket_unreachable(struct pico_frame *f);
 
 #endif

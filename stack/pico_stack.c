@@ -9,9 +9,30 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
+#include "pico_udp.h"
+#include "pico_tcp.h"
 
 
 
+/* NOTIFICATIONS: distributed notifications for stack internal errors.
+ */
+
+int pico_notify_socket_unreachable(struct pico_frame *f)
+{
+  if (0) {}
+#ifdef PICO_SUPPORT_ICMP4 
+  else if (IS_IPV4(f)) {
+    pico_icmp4_port_unreachable(f);
+  }
+#endif
+#ifdef PICO_SUPPORT_ICMP6 
+  else if (IS_IPV6(f)) {
+    pico_icmp6_port_unreachable(f);
+  }
+#endif
+
+  return 0;
+}
 
 /* SOCKET LEVEL: interface towards transport */
 int pico_socket_receive(struct pico_frame *f)
@@ -30,6 +51,7 @@ int pico_transport_receive(struct pico_frame *f)
 
 int pico_network_receive(struct pico_frame *f)
 {
+  dbg("Network receive\n");
   if (0) {}
 #ifdef PICO_SUPPORT_IPV4
   else if (IS_IPV4(f)) {
@@ -42,6 +64,7 @@ int pico_network_receive(struct pico_frame *f)
   }
 #endif
   else {
+    dbg("Network not found.\n");
     pico_frame_discard(f);
     return -1;
   }
@@ -189,4 +212,11 @@ void pico_stack_init(void)
   pico_protocol_init(&pico_proto_icmp4);
 #endif
 
+#ifdef PICO_SUPPORT_UDP
+  pico_protocol_init(&pico_proto_udp);
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  pico_protocol_init(&pico_proto_tcp);
+#endif
 }

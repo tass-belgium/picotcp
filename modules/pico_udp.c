@@ -21,16 +21,6 @@ static __attribute__((unused)) int pico_udp_checksum(struct pico_frame *f)
   return 0;
 }
 
-static int pico_udp_process_in(struct pico_protocol *self, struct pico_frame *f)
-{
-  struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
-  if (hdr) {
-
-  } else {
-    pico_frame_discard(f);
-  }
-  return 0;
-}
 
 static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
@@ -44,7 +34,7 @@ struct pico_protocol pico_proto_udp = {
   .name = "udp",
   .proto_number = PICO_PROTO_UDP,
   .layer = PICO_LAYER_TRANSPORT,
-  .process_in = pico_udp_process_in,
+  .process_in = pico_transport_process_in,
   .process_out = pico_udp_process_out,
   .q_in = &in,
   .q_out = &out,

@@ -3,6 +3,7 @@
 #include "pico_ipv6.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
+#include "pico_stack.h"
 
 #define PROTO(s) ((s)->proto->proto_number)
 #define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
@@ -148,10 +149,9 @@ static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, 
   }
   RB_INSERT(socket_tree, &sp->socks, s);
   return 0;
-
 }
 
-int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
+static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
 {
   struct pico_sockport *sp;
   struct pico_socket *s;
@@ -159,18 +159,20 @@ int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t 
   if (!sp)
     return -1;
 
+
+#ifdef PICO_SUPPORT_UDP
   if (p->proto_number == PICO_PROTO_UDP) {
     /* Take the only socket here. */
     s = RB_ROOT(&sp->socks);
     if (!s)
       return -1;
   }
+#endif
 
   if (pico_enqueue(&s->q_in, f) > 0)
     return 0;
   else
     return -1;
-
 }
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
@@ -334,3 +336,15 @@ int pico_socket_close(struct pico_socket *s)
 }
 
 
+int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
+  struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
+  dbg("Socket deliver\n");
+  if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
+    return 0;
+
+  dbg("Socket not found... \n");
+  pico_notify_socket_unreachable(f);
+  pico_frame_discard(f);
+  return -1;
+}
