@@ -64,7 +64,6 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   } else {
     /* Packet is not local. Try to forward. */
     if (pico_ipv4_forward(f) != 0) {
-      pico_notify_dest_unreachable(f);
       pico_frame_discard(f);
     }
   }
@@ -334,6 +333,9 @@ static int pico_ipv4_forward(struct pico_frame *f)
 {
   /* XXX implement forward routing :) */
 
+
+  //pico_notify_dest_unreachable(f);
+  pico_notify_ttl_expired(f);
   return -1;
 
 }

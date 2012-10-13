@@ -56,7 +56,7 @@ struct pico_protocol pico_proto_icmp4 = {
   .q_out = &out,
 };
 
-static int pico_icmp4_unreachable(struct pico_frame *f, uint8_t code)
+static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 {
 
   struct pico_frame *reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
@@ -65,7 +65,7 @@ static int pico_icmp4_unreachable(struct pico_frame *f, uint8_t code)
 
   hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
 
-  hdr->type = PICO_ICMP_UNREACH;
+  hdr->type = type;
   hdr->code = code;
   hdr->hun.ih_pmtu.ipm_nmtu = short_be(1500);
   hdr->hun.ih_pmtu.ipm_void = 0;
@@ -79,16 +79,21 @@ static int pico_icmp4_unreachable(struct pico_frame *f, uint8_t code)
 
 int pico_icmp4_port_unreachable(struct pico_frame *f)
 {
-  return pico_icmp4_unreachable(f, PICO_ICMP_UNREACH_PORT);
+  return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_PORT);
 }
 
 int pico_icmp4_proto_unreachable(struct pico_frame *f)
 {
-  return pico_icmp4_unreachable(f, PICO_ICMP_UNREACH_PROTOCOL);
+  return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_PROTOCOL);
 }
 
 int pico_icmp4_dest_unreachable(struct pico_frame *f)
 {
-  return pico_icmp4_unreachable(f, PICO_ICMP_UNREACH_HOST);
+  return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_HOST);
+}
+
+int pico_icmp4_ttl_expired(struct pico_frame *f)
+{
+  return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_INTRANS);
 }
 

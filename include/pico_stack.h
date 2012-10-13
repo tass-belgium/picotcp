@@ -48,5 +48,6 @@ void pico_stack_loop(void);
 int pico_notify_socket_unreachable(struct pico_frame *f);
 int pico_notify_proto_unreachable(struct pico_frame *f);
 int pico_notify_dest_unreachable(struct pico_frame *f);
+int pico_notify_ttl_expired(struct pico_frame *f);
 
 #endif

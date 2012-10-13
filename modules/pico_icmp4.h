@@ -120,4 +120,5 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 int pico_icmp4_port_unreachable(struct pico_frame *f);
 int pico_icmp4_proto_unreachable(struct pico_frame *f);
 int pico_icmp4_dest_unreachable(struct pico_frame *f);
+int pico_icmp4_ttl_expired(struct pico_frame *f);
 #endif

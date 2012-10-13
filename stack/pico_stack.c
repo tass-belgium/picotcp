@@ -66,6 +66,22 @@ int pico_notify_dest_unreachable(struct pico_frame *f)
   return 0;
 }
 
+int pico_notify_ttl_expired(struct pico_frame *f)
+{
+  if (0) {}
+#ifdef PICO_SUPPORT_ICMP4 
+  else if (IS_IPV4(f)) {
+    pico_icmp4_ttl_expired(f);
+  }
+#endif
+#ifdef PICO_SUPPORT_ICMP6 
+  else if (IS_IPV6(f)) {
+    pico_icmp6_ttl_expired(f);
+  }
+#endif
+  return 0;
+}
+
 
 /* SOCKET LEVEL: interface towards transport */
 int pico_socket_receive(struct pico_frame *f)
