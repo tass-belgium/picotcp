@@ -26,6 +26,8 @@ static int pico_ipv4_checksum(struct pico_frame *f)
 }
 
 
+static int pico_ipv4_forward(struct pico_frame *f);
+
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -60,9 +62,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         pico_frame_discard(f);
     }
   } else {
-    dbg("pkt: wrong destination...\n");
-    pico_frame_discard(f);
-    /* XXX input Routing goes here. */
+    /* Packet is not local. Try to forward. */
+    if (pico_ipv4_forward(f) != 0) {
+      pico_notify_dest_unreachable(f);
+      pico_frame_discard(f);
+    }
   }
   return 0;
 }
@@ -326,4 +330,11 @@ int pico_ipv4_rebound(struct pico_frame *f)
   return pico_ipv4_frame_push(f, &dst, hdr->proto);
 }
 
+static int pico_ipv4_forward(struct pico_frame *f)
+{
+  /* XXX implement forward routing :) */
+
+  return -1;
+
+}
 

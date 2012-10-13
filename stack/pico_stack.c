@@ -47,9 +47,25 @@ int pico_notify_proto_unreachable(struct pico_frame *f)
     pico_icmp6_proto_unreachable(f);
   }
 #endif
-
   return 0;
 }
+
+int pico_notify_dest_unreachable(struct pico_frame *f)
+{
+  if (0) {}
+#ifdef PICO_SUPPORT_ICMP4 
+  else if (IS_IPV4(f)) {
+    pico_icmp4_dest_unreachable(f);
+  }
+#endif
+#ifdef PICO_SUPPORT_ICMP6 
+  else if (IS_IPV6(f)) {
+    pico_icmp6_dest_unreachable(f);
+  }
+#endif
+  return 0;
+}
+
 
 /* SOCKET LEVEL: interface towards transport */
 int pico_socket_receive(struct pico_frame *f)

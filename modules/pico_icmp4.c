@@ -87,4 +87,8 @@ int pico_icmp4_proto_unreachable(struct pico_frame *f)
   return pico_icmp4_unreachable(f, PICO_ICMP_UNREACH_PROTOCOL);
 }
 
+int pico_icmp4_dest_unreachable(struct pico_frame *f)
+{
+  return pico_icmp4_unreachable(f, PICO_ICMP_UNREACH_HOST);
+}
 
