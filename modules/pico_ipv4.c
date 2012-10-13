@@ -223,8 +223,22 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   new->netmask.addr = netmask.addr;
   new->metric = metric;
   new->link = link;
-  if (RB_INSERT(routing_table, &Routes, new))
+  RB_INSERT(routing_table, &Routes, new);
+  return 0;
+}
+
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
+{
+  struct pico_ipv4_route test, *found;
+  test.dest.addr = address.addr;
+  test.netmask.addr = netmask.addr;
+  test.metric = metric;
+  found = RB_FIND(routing_table, &Routes, &test);
+  if (found) {
+    pico_free(found);
+    RB_REMOVE(routing_table, &Routes, found);
     return 0;
+  }
   return -1;
 }
 
@@ -258,6 +272,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   pico_ipv4_route_add(network, netmask, gateway, 1, new);
   return 0;
 }
+
 
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
