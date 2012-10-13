@@ -118,4 +118,5 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 #define PICO_SIZE_ICMP4HDR ((sizeof(struct pico_icmp4_hdr)))
 
 int pico_icmp4_port_unreachable(struct pico_frame *f);
+int pico_icmp4_proto_unreachable(struct pico_frame *f);
 #endif

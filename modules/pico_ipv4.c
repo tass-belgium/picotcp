@@ -56,6 +56,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       default:
         /* Protocol not available */
         dbg("pkt: no such protocol (%d)\n", hdr->proto);
+        pico_notify_proto_unreachable(f);
         pico_frame_discard(f);
     }
   } else {

@@ -46,5 +46,6 @@ void pico_stack_loop(void);
 
 /* ---- Notifications for stack errors */
 int pico_notify_socket_unreachable(struct pico_frame *f);
+int pico_notify_proto_unreachable(struct pico_frame *f);
 
 #endif
