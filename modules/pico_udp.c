@@ -50,9 +50,25 @@ struct pico_protocol pico_proto_udp = {
   .q_out = &out,
 };
 
+
+#define PICO_UDP_MODE_UNICAST 0x01
+#define PICO_UDP_MODE_MULTICAST 0x02
+#define PICO_UDP_MODE_BROADCAST 0xFF
+
+struct pico_socket_udp
+{
+  struct pico_socket sock;
+  int mode;
+
+};
+
 struct pico_socket *pico_udp_open(void)
 {
-  return NULL;
+  struct pico_socket_udp *u = pico_zalloc(sizeof(struct pico_socket_udp));
+  if (!u)
+    return NULL;
+  u->mode = PICO_UDP_MODE_UNICAST;
+  return &u->sock;
 }
 
 

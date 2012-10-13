@@ -50,9 +50,54 @@ struct pico_protocol pico_proto_tcp = {
   .q_out = &out,
 };
 
+struct pico_socket_tcp {
+  struct pico_socket sock;
+  uint32_t snd_nxt;
+  uint32_t snd_una;
+  uint16_t cwnd;
+  uint16_t ssthresh;
+  uint32_t rcv_nxt;
+  uint16_t rwnd;
+  uint16_t avg_rtt;
+};
+
+#define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
+
+static uint32_t pico_paws(void)
+{
+  return 0U; /*XXX: implement paws */
+}
+
+static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
+{
+
+
+  return 0;
+}
+
 struct pico_socket *pico_tcp_open(void)
 {
-  return NULL;
+  struct pico_socket_tcp *t = pico_zalloc(sizeof(struct pico_socket_tcp));
+  if (!t)
+    return NULL;
+  return &t->sock;
+}
+
+int pico_tcp_initconn(struct pico_socket *s)
+{
+  struct pico_socket_tcp *ts = TCP_SOCK(s);
+  struct pico_frame *syn = s->net->alloc(s->net, PICO_TCPHDR_SIZE +
+      PICO_TCPOPTLEN_MSS + PICO_TCPOPTLEN_NOOP + PICO_TCPOPTLEN_SACK +
+      PICO_TCP_OPTION_MSS + PICO_TCPOPTLEN_END);
+
+  if (!syn)
+    return -1;
+  ts->snd_nxt = pico_paws();
+  syn->sock = s;
+  //syn->seq = ts->snd_nxt;
+  /* XXX ... */
+  tcp_send(ts, syn);
+  return 0;
 }
 
 

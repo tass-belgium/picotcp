@@ -25,7 +25,6 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
 {
   struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
   if (hdr->type == PICO_ICMP_ECHO) {
-    pico_ipv4_rebound(f);
     hdr->type = PICO_ICMP_ECHOREPLY;
     /* Ugly, but the best way to get ICMP data size here. */
     f->transport_len = f->buffer_len - PICO_SIZE_IP4HDR - PICO_SIZE_ETHHDR;
@@ -33,7 +32,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
     f->net_hdr = f->transport_hdr - PICO_SIZE_IP4HDR;
     f->start = f->net_hdr;
     f->len = f->buffer_len - PICO_SIZE_ETHHDR;
-    pico_enqueue(pico_proto_ipv4.q_out, f);
+    pico_ipv4_rebound(f);
   } else {
     pico_frame_discard(f);
   }

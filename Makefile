@@ -14,6 +14,7 @@ mod: modules/pico_ipv4.c modules/pico_dev_vde.c
 	gcc -c -o build/modules/pico_ipv4.o modules/pico_ipv4.c $(CFLAGS)
 	gcc -c -o build/modules/pico_icmp4.o modules/pico_icmp4.c $(CFLAGS)
 	gcc -c -o build/modules/pico_udp.o modules/pico_udp.c $(CFLAGS)
+	gcc -c -o build/modules/pico_tcp.o modules/pico_tcp.c $(CFLAGS)
 	gcc -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
 
 
