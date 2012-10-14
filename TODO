@@ -1,4 +1,3 @@
-ARP: refactor to take into account next hop routing
 UDP: Unicast sockets
 IP: Routing
 TCP
