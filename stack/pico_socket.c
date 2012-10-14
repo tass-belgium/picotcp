@@ -1,3 +1,4 @@
+#include "pico_queue.h"
 #include "pico_socket.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
@@ -164,11 +165,16 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   if (p->proto_number == PICO_PROTO_UDP) {
     /* Take the only socket here. */
     s = RB_ROOT(&sp->socks);
-    if (!s)
-      return -1;
   }
 #endif
 
+#ifdef PICO_SUPPORT_TCP
+  if (p->proto_number == PICO_PROTO_TCP) {
+    /* XXX: Find the socket, call some tcp_rcv fn */
+  }
+#endif
+  if (!s)
+    return -1;
   if (pico_enqueue(&s->q_in, f) > 0)
     return 0;
   else
@@ -347,4 +353,26 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   pico_notify_socket_unreachable(f);
   pico_frame_discard(f);
   return -1;
+}
+
+int pico_sockets_loop(int loop_score)
+{
+  struct pico_sockport *sp;
+  struct pico_socket *s;
+  struct pico_frame *f;
+
+#ifdef PICO_SUPPORT_UDP
+  RB_FOREACH(sp, sockport_table, &UDPTable) {
+    RB_FOREACH(s, socket_tree, &sp->socks) {
+      f = pico_dequeue(&s->q_out);
+      while (f && (loop_score > 0)) {
+        pico_network_send(f);
+        loop_score -= 1;
+        f = pico_dequeue(&s->q_out);
+      }
+    }
+  }
+#endif
+
+  return loop_score;
 }

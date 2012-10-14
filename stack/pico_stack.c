@@ -11,6 +11,7 @@
 #include "pico_icmp4.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
+#include "pico_socket.h"
 
 
 
@@ -118,6 +119,17 @@ int pico_network_receive(struct pico_frame *f)
     return -1;
   }
   return f->buffer_len;
+}
+
+
+/* Network layer: interface towards socket for frame sending */
+int pico_network_send(struct pico_frame *f)
+{
+  if (!f || !f->sock || !f->sock->net) {
+    pico_frame_discard(f);
+    return -1;
+  }
+  return f->sock->net->push(f->sock->net, f);
 }
 
 int pico_destination_is_local(struct pico_frame *f)
@@ -278,6 +290,8 @@ void pico_stack_loop(void)
   while(1) {
     pico_devices_loop(100);
     pico_protocols_loop(100);
+    pico_sockets_loop(100);
+//    pico_apps_loop(100);
     PICO_IDLE();
   }
 }
@@ -305,3 +319,4 @@ void pico_stack_init(void)
   pico_protocol_init(&pico_proto_tcp);
 #endif
 }
+

@@ -77,6 +77,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
   return pico_sendto_dev(f);
 }
 
+
 static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
 {
   struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
@@ -92,6 +93,8 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
   return f;
 }
 
+static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_frame *f);
+
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_ipv4 = {
   .name = "ipv4",
@@ -100,6 +103,7 @@ struct pico_protocol pico_proto_ipv4 = {
   .alloc = pico_ipv4_alloc,
   .process_in = pico_ipv4_process_in,
   .process_out = pico_ipv4_process_out,
+  .push = pico_ipv4_frame_sock_push,
   .q_in = &in,
   .q_out = &out,
 };
@@ -229,7 +233,7 @@ drop:
 }
 
 
-int pico_ipv4_frame_sock_push(struct pico_frame *f)
+static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ip4 *dst;
   if (!f->sock) {

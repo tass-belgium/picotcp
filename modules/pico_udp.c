@@ -29,6 +29,23 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
   return 0;
 }
 
+static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
+{
+
+  struct pico_udp_hdr *hdr;
+  f->transport_hdr = f->payload - PICO_UDPHDR_SIZE;
+  f->transport_len = f->payload_len + PICO_UDPHDR_SIZE;
+  hdr = (struct pico_udp_hdr *) f->transport_hdr;
+  hdr->trans.sport = f->sock->local_port;
+  hdr->trans.dport = f->sock->remote_port;
+  hdr->len = f->payload_len;
+  hdr->crc = pico_udp_checksum(f);
+  if (pico_enqueue(self->q_out, f) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_udp = {
   .name = "udp",
@@ -36,6 +53,7 @@ struct pico_protocol pico_proto_udp = {
   .layer = PICO_LAYER_TRANSPORT,
   .process_in = pico_transport_process_in,
   .process_out = pico_udp_process_out,
+  .push = pico_udp_push,
   .q_in = &in,
   .q_out = &out,
 };

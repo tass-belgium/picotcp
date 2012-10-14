@@ -108,4 +108,7 @@ int pico_socket_close(struct pico_socket *s);
 /* Interface towards transport protocol */
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f);
 
+/* Socket loop */
+int pico_sockets_loop(int loop_score);
+
 #endif
