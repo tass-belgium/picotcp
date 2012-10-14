@@ -28,6 +28,8 @@ struct pico_socket {
   struct pico_queue q_in;
   struct pico_queue q_out;
 
+  void (*wakeup)(struct pico_socket *s);
+
   RB_ENTRY(pico_socket) node;
 
   uint16_t state;
@@ -62,7 +64,7 @@ struct pico_socket {
 
 
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto);
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(struct pico_socket *s));
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len);
 int pico_socket_write(struct pico_socket *s, void *buf, int len);

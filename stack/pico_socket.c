@@ -104,6 +104,10 @@ static int pico_socket_add(struct pico_socket *s)
         return -1;
     sp->proto = PROTO(s);
     sp->number = s->local_port;
+    if (PROTO(s) == PICO_PROTO_UDP)
+      RB_INSERT(sockport_table, &UDPTable, sp); 
+    else if (PROTO(s) == PICO_PROTO_TCP)
+      RB_INSERT(sockport_table, &TCPTable, sp);
   }
   RB_INSERT(socket_tree, &sp->socks, s);
   return 0;
@@ -157,6 +161,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   struct pico_sockport *sp;
   struct pico_socket *s;
   sp = pico_get_sockport(p->proto_number, localport);
+
   if (!sp)
     return -1;
 
@@ -175,13 +180,15 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 #endif
   if (!s)
     return -1;
-  if (pico_enqueue(&s->q_in, f) > 0)
+  if (pico_enqueue(&s->q_in, f) > 0) {
+    s->wakeup(s);
     return 0;
+  }
   else
     return -1;
 }
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(struct pico_socket *))
 {
 
   struct pico_socket *s = NULL;
@@ -204,19 +211,20 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
     return NULL;
 
 #ifdef PICO_SUPPORT_IPV4
-  if (net == 4)
+  if (net == PICO_PROTO_IPV4)
     s->net = &pico_proto_ipv4;
 #endif
 
 #ifdef PICO_SUPPORT_IPV6
-  if (net == 6)
+  if (net == PICO_PROTO_IPV6)
     s->net = &pico_proto_ipv6;
 #endif
 
   s->q_in.max_size = PICO_DEFAULT_SOCKETQ;
   s->q_out.max_size = PICO_DEFAULT_SOCKETQ;
+  s->wakeup = wakeup;
 
-  if (!net) {
+  if (!s->net) {
     pico_free(s);
     return NULL;
   }
@@ -226,6 +234,10 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto)
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
+#ifdef PICO_SUPPORT_UDP 
+  if (PROTO(s) == PICO_PROTO_UDP)
+    return pico_udp_recv(s, buf, len);
+#endif
   return 0;
 }
 
@@ -249,7 +261,7 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
 
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
-  if (!s || !local_addr || port)
+  if (!s || !local_addr || !port)
     return -1;
 
   s->local_port = *port;

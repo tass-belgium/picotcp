@@ -13,6 +13,7 @@ struct __attribute__((packed)) pico_udp_hdr {
 #define PICO_UDPHDR_SIZE 8
 
 struct pico_socket *pico_udp_open(void);
+int pico_udp_recv(struct pico_socket *s, void *buf, int len);
 
 
 

@@ -2,6 +2,21 @@
 #include "pico_config.h"
 #include "pico_dev_vde.h"
 #include "pico_ipv4.h"
+#include "pico_socket.h"
+
+void wakeup(struct pico_socket *s)
+{
+  char buf[30];
+  int r;
+  printf("Called wakeup\n");
+  r = pico_socket_read(s, buf, 30);
+  printf("Receive: %d\n", r);
+  if (r > 0) {
+    buf[r] = 0;
+    printf("%s\n", buf);
+  }
+  
+}
 
 
 int main(void)
@@ -10,6 +25,9 @@ int main(void)
   unsigned char macaddr1[6] = {0,0,0,0xa,0xb,0xd};
   struct pico_device *vde0, *vde1;
   struct pico_ip4 address0, netmask0, address1, netmask1;
+
+  struct pico_socket *sk;
+  uint16_t port = short_be(5555);
 
   pico_stack_init();
 
@@ -29,6 +47,15 @@ int main(void)
 
   pico_ipv4_link_add(vde0, address0, netmask0);
   pico_ipv4_link_add(vde1, address1, netmask1);
+
+  sk = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
+  if (!sk)
+    return 2;
+
+  if (pico_socket_bind(sk, &address0, &port)!= 0)
+    return 1;
+
+  
 
   while(1) {
     pico_stack_tick();

@@ -35,7 +35,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   dbg("IPv4: processing incoming packet.\n");
   if (pico_ipv4_link_find(&hdr->dst)) {
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
-    f->transport_len = short_be(hdr->len);
+    f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
     switch (hdr->proto) {
 
 #ifdef PICO_SUPPORT_ICMP4

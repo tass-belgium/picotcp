@@ -79,4 +79,24 @@ struct pico_socket *pico_udp_open(void)
   return &u->sock;
 }
 
+int pico_udp_recv(struct pico_socket *s, void *buf, int len)
+{
+  struct pico_frame *f = pico_dequeue(&s->q_in);
+  if (f) {
+    f->payload = f->transport_hdr + sizeof(struct pico_udp_hdr);
+    f->payload_len = f->transport_len - sizeof(struct pico_udp_hdr);
+    dbg("expected: %d, got: %d\n", len, f->payload_len);
+    if (f->payload_len > len) {
+      memcpy(buf, f->payload, len);
+      f->payload += len;
+      f->payload_len -= len;
+      pico_frame_discard(f); /** XXX: re-queue on head, instead! **/
+      return len;
+    } else {
+      memcpy(buf, f->payload, f->payload_len);
+      pico_frame_discard(f);
+      return f->payload_len;
+    }
+  } else return -1;
+}
 
