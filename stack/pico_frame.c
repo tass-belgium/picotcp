@@ -1,6 +1,10 @@
 #include "pico_config.h"
 #include "pico_frame.h"
 
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+static int n_frames_allocated;
+#endif
+
 /** frame alloc/dealloc/copy **/
 void pico_frame_discard(struct pico_frame *f)
 {
@@ -8,6 +12,9 @@ void pico_frame_discard(struct pico_frame *f)
   if (*f->usage_count <= 0) {
     pico_free(f->usage_count);
     dbg("Discarded buffer @%p\n", f->buffer);
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+    dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
+#endif
     pico_free(f->buffer);
     pico_free(f);
   }
@@ -47,6 +54,9 @@ struct pico_frame *pico_frame_alloc(int size)
   p->start = p->buffer;
   p->len = p->buffer_len;
   *p->usage_count = 1;
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+    dbg("DEBUG MEMORY: %d frames in use.\n", ++n_frames_allocated);
+#endif
   return p;
 }
 

@@ -12,6 +12,8 @@
 #define PICO_SUPPORT_UDP
 #define PICO_SUPPORT_TCP
 
+#define PICO_SUPPORT_DEBUG_MEMORY
+
 
 
 

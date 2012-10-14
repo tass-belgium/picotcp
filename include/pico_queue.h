@@ -18,6 +18,20 @@ struct pico_queue {
   struct pico_frame *tail;
 };
 
+
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+static void debug_q(struct pico_queue *q)
+{
+  struct pico_frame *p = q->head;
+  printf("%d: ", q->frames);
+  while(p) {
+    printf("(%p)-->", p);
+    p = p->next;
+  }
+  printf("X\n");
+}
+#endif
+
 static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 {
   if ((q->max_frames) && (q->max_frames <= q->frames))
@@ -33,11 +47,14 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
     q->frames = 0;
   } else {
     q->tail->next = p;
+    q->tail = p;
     p->next = NULL;
   }
   q->size += p->buffer_len;
   q->frames++;
-  printf("DELME (%p)---------------------- ENQ %d\n", q, q->frames);
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+  debug_q(q);
+#endif
   return q->size;
 }
 
@@ -46,13 +63,17 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
+  printf("cur head: %p, frames: %d\n", q->head, q->frames);
   assert(q->head != NULL);
   q->head = p->next;
   q->frames--;
   q->size -= p->buffer_len;
   if (q->head == NULL)
     q->tail = NULL;
-  printf("DELME (%p)---------------------- DEQ %d\n", q, q->frames);
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+  debug_q(q);
+#endif
+  p->next = NULL;
   return p;
 }
 

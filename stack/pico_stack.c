@@ -211,10 +211,10 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       a4 = pico_arp_get(&hdr->dst);
       dbg ("ETH SEND TO %08x - proto %d\n", hdr->dst.addr, hdr->proto); 
       if (!a4) {
-       dbg ("================= ARP REQUIRED =============\n\n");
-       if (++ f->failure_count < 3) {
+       if (++ f->failure_count < 4) {
+         dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
          pico_arp_query(f->dev, &hdr->dst);
-          return 0;
+         return 0;
        } else return -1;
       }
       dstmac = (struct pico_eth *) a4;
@@ -230,10 +230,8 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
       memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
       hdr->proto = PICO_IDETH_IPV4;
-      dbg ("================= SENDING =============\n\n");
       return f->dev->send(f->dev, f->start, f->len);
     } else {
-      dbg ("================= THAT IF =============\n\n");
       return -1;
     }
   } /* End IPV4 ethernet addressing */
@@ -260,8 +258,6 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   /* Setup the start pointer, lenght. */
   f->start = f->buffer;
   f->len = f->buffer_len;
-
-
   memcpy(f->buffer, buffer, len);
   return pico_enqueue(dev->q_in, f);
 }

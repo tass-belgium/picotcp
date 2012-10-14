@@ -355,8 +355,9 @@ static int pico_ipv4_forward(struct pico_frame *f)
 
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   struct pico_ipv4_route *rt;
-  if (!hdr)
+  if (!hdr) {
     return -1;
+  }
 
   dbg("FORWARDING.\n");
   rt = route_find(&hdr->dst);

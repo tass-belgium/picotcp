@@ -173,6 +173,7 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   ah->dst.addr = dst->addr;
   dbg("Sending arp query.\n");
   ret = dev->send(dev, q->start, q->len);
+  pico_frame_discard(q);
   return ret;
 }
 
