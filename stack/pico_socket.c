@@ -283,7 +283,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     s->remote_addr.ip4.addr = ip->addr;
   }
 
-#ifdef PICO_SUPPORT_TCP
+#ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP)
     pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
 #endif
@@ -373,6 +373,5 @@ int pico_sockets_loop(int loop_score)
     }
   }
 #endif
-
   return loop_score;
 }

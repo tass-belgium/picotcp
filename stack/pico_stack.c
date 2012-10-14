@@ -284,17 +284,23 @@ int pico_sendto_dev(struct pico_frame *f)
   }
 }
 
-void pico_stack_loop(void)
-{
 
-  while(1) {
+void pico_stack_tick(void)
+{
     pico_devices_loop(100);
     pico_protocols_loop(100);
     pico_sockets_loop(100);
 //    pico_apps_loop(100);
+}
+void pico_stack_loop(void)
+{
+
+  while(1) {
+    pico_stack_tick();
     PICO_IDLE();
   }
 }
+
 
 void pico_stack_init(void)
 {

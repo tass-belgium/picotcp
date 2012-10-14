@@ -30,7 +30,10 @@ int main(void)
   pico_ipv4_link_add(vde0, address0, netmask0);
   pico_ipv4_link_add(vde1, address1, netmask1);
 
-  pico_stack_loop();
+  while(1) {
+    pico_stack_tick();
+    usleep(1000);
+  }
 
   return 0;
 

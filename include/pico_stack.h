@@ -43,6 +43,7 @@ int pico_network_send(struct pico_frame *f);
 void pico_stack_init(void);
 
 /* ----- Loop Function. ----- */
+void pico_stack_tick(void);
 void pico_stack_loop(void);
 
 /* ---- Notifications for stack errors */
