@@ -157,7 +157,7 @@ discard:
  * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
  * we assume IP is used.
  */
-int pico_ethernet_send(struct pico_frame *f)
+int pico_ethernet_send(struct pico_frame *f, void *nexthop)
 {
   struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;

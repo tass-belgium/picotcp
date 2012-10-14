@@ -54,6 +54,13 @@ static struct arp_tree Arp_table;
 /**  END ARP TREE **/
 /*********************/
 
+struct pico_arp *pico_arp_get_gateway(struct pico_ip4 gw)
+{
+  struct pico_arp search;
+  search.ipv4.addr = gw.addr;
+  return RB_FIND(arp_tree, &Arp_table, &search);
+}
+
 
 struct pico_arp *pico_arp_get(struct pico_frame *f)
 {

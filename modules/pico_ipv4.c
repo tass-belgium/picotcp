@@ -325,18 +325,30 @@ int pico_ipv4_rebound(struct pico_frame *f)
   if (!hdr)
     return -1;
   dst.addr = hdr->src.addr;
-  dbg("Rebound pkt back to %08x\n", dst.addr);
   return pico_ipv4_frame_push(f, &dst, hdr->proto);
 }
 
 static int pico_ipv4_forward(struct pico_frame *f)
 {
-  /* XXX implement forward routing :) */
 
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+  struct pico_ipv4_route *rt;
+  if (!hdr)
+    return -1;
 
-  //pico_notify_dest_unreachable(f);
-  pico_notify_ttl_expired(f);
-  return -1;
+  rt = route_find(&hdr->dst);
+  if (!rt) {
+    pico_notify_dest_unreachable(f);
+    return -1;
+  }
+  hdr->ttl-=1;
+  if (hdr->ttl < 1) {
+    pico_notify_ttl_expired(f);
+    return -1;
+  }
+  f->dev = rt->link->dev;
+  pico_sendto_dev(f);
+  return 0;
 
 }
 

@@ -6,6 +6,7 @@
 int pico_arp_receive(struct pico_frame *);
 
 struct pico_arp *pico_arp_get(struct pico_frame *);
+struct pico_arp *pico_arp_get_gateway(struct pico_ip4 gw);
 
 int pico_arp_query(struct pico_frame *);
 
