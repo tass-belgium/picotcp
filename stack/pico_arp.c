@@ -54,25 +54,22 @@ static struct arp_tree Arp_table;
 /**  END ARP TREE **/
 /*********************/
 
-struct pico_arp *pico_arp_get_gateway(struct pico_ip4 gw)
+struct pico_arp *pico_arp_get(struct pico_ip4 *dst)
 {
   struct pico_arp search;
-  search.ipv4.addr = gw.addr;
+  search.ipv4.addr = dst->addr;
+
+
   return RB_FIND(arp_tree, &Arp_table, &search);
 }
 
-
-struct pico_arp *pico_arp_get(struct pico_frame *f)
+void dbg_arp(void)
 {
-  struct pico_arp search;
-  struct pico_ipv4_hdr *iphdr;
-  iphdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  if (!iphdr)
-    return NULL;
-  search.ipv4.addr = iphdr->dst.addr;
-  return RB_FIND(arp_tree, &Arp_table, &search);
+  struct pico_arp *a;
+  RB_FOREACH(a, arp_tree, &Arp_table) {
+    dbg("ARP to  %08x, mac: %02x:%02x:%02x:%02x:%02x:%02x\n", a->ipv4.addr,a->eth.addr[0],a->eth.addr[1],a->eth.addr[2],a->eth.addr[3],a->eth.addr[4],a->eth.addr[5] );
+  }
 }
-
 int pico_arp_receive(struct pico_frame *f)
 {
   struct pico_arp_hdr *hdr;
@@ -134,30 +131,34 @@ int pico_arp_receive(struct pico_frame *f)
     f->dev->send(f->dev, f->start, f->len);
   }
 
+  dbg_arp();
+
 end:
   pico_frame_discard(f);
   return ret;
 }
 
-int pico_arp_query(struct pico_frame *f)
+int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
 {
   struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
   struct pico_eth_hdr *eh;
   struct pico_arp_hdr *ah;
-  struct pico_ipv4_hdr *iphdr;
+  struct pico_ip4 *src;
+  int ret;
+
+  src = pico_ipv4_source_find(dst);
+  if (!src)
+    return -1;
+
+  dbg("QUERY: %08x\n", dst->addr);
 
   if (!q)
     return -1;
   eh = (struct pico_eth_hdr *)q->start;
   ah = (struct pico_arp_hdr *) (q->start + PICO_SIZE_ETHHDR);
 
-  iphdr = (struct pico_ipv4_hdr *) f->net_hdr;
-
-  if (!iphdr)
-    return -1;
-
   /* Fill eth header */
-  memcpy(eh->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+  memcpy(eh->saddr, dev->eth->mac.addr, PICO_SIZE_ETH);
   memcpy(eh->daddr, PICO_ETHADDR_ANY, PICO_SIZE_ETH);
   eh->proto = PICO_IDETH_ARP;
 
@@ -167,11 +168,12 @@ int pico_arp_query(struct pico_frame *f)
   ah->hsize  = PICO_SIZE_ETH;
   ah->psize  = PICO_SIZE_IP4;
   ah->opcode = PICO_ARP_REQUEST;
-  memcpy(ah->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-  ah->src.addr = iphdr->src.addr;
-  ah->dst.addr = iphdr->dst.addr;
+  memcpy(ah->s_mac, dev->eth->mac.addr, PICO_SIZE_ETH);
+  ah->src.addr = src->addr;
+  ah->dst.addr = dst->addr;
   dbg("Sending arp query.\n");
-  return(f->dev->send(f->dev, q->start, q->len));
+  ret = dev->send(dev, q->start, q->len);
+  return ret;
 }
 
 #ifdef UNIT_ARPTABLE
@@ -198,9 +200,9 @@ int main(void)
   RB_INSERT(arp_tree, &Arp_table, &test2);
   RB_INSERT(arp_tree, &Arp_table, &test3);
 
-  found = pico_arp_get(f);
+  found = pico_arp_get(&f->dst);
   iphdr->dst.addr = 4;
-  notfound = pico_arp_get(f);
+  notfound = pico_arp_get(&f->dst);
 
   if (found && !notfound)
     return 0;

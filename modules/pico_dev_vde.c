@@ -16,6 +16,7 @@ struct pico_device_vde {
 static int pico_vde_send(struct pico_device *dev, void *buf, int len)
 {
   struct pico_device_vde *vde = (struct pico_device_vde *) dev;
+  dbg("[%s] send %d bytes.\n", dev->name, len);
   return vde_send(vde->conn, buf, len, 0);
 }
 
@@ -76,6 +77,7 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
   vde->dev.send = pico_vde_send;
   vde->dev.poll = pico_vde_poll;
   vde->dev.destroy = pico_vde_destroy;
+  dbg("Device %s created.\n", vde->dev.name);
   return (struct pico_device *)vde;
 }
 

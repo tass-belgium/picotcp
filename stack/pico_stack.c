@@ -120,6 +120,42 @@ int pico_network_receive(struct pico_frame *f)
   return f->buffer_len;
 }
 
+int pico_destination_is_local(struct pico_frame *f)
+{
+  if (0) { }
+#ifdef PICO_SUPPORT_IPV4
+  else if (IS_IPV4(f)) {
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+    if (pico_ipv4_link_find(&hdr->dst))
+      return 1;
+  }
+#endif
+#ifdef PICO_SUPPORT_IPV6
+  else if (IS_IPV6(f)) {
+  }
+#endif
+  return 0;
+}
+
+int pico_source_is_local(struct pico_frame *f)
+{
+  if (0) { }
+#ifdef PICO_SUPPORT_IPV4
+  else if (IS_IPV4(f)) {
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+    if (pico_ipv4_link_find(&hdr->src))
+      return 1;
+  }
+#endif
+#ifdef PICO_SUPPORT_IPV6
+  else if (IS_IPV6(f)) {
+  }
+#endif
+  return 0;
+
+
+}
+
 
 /* DATALINK LEVEL: interface from network to the device
  * and vice versa.
@@ -162,7 +198,6 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
   struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
 
-
   if (IS_IPV6(f)) {
     /*TODO: Neighbor solicitation */
     dstmac = NULL;
@@ -172,10 +207,13 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
     if (IS_BCAST(f)) {
      dstmac = (struct pico_eth *) PICO_ETHADDR_ANY;
     } else {
-      a4 = pico_arp_get(f);
+      struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+      a4 = pico_arp_get(&hdr->dst);
+      dbg ("ETH SEND TO %08x - proto %d\n", hdr->dst.addr, hdr->proto); 
       if (!a4) {
+       dbg ("================= ARP REQUIRED =============\n\n");
        if (++ f->failure_count < 3) {
-         pico_arp_query(f);
+         pico_arp_query(f->dev, &hdr->dst);
           return 0;
        } else return -1;
       }
@@ -192,8 +230,12 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
       memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
       hdr->proto = PICO_IDETH_IPV4;
+      dbg ("================= SENDING =============\n\n");
       return f->dev->send(f->dev, f->start, f->len);
-    } else return -1;
+    } else {
+      dbg ("================= THAT IF =============\n\n");
+      return -1;
+    }
   } /* End IPV4 ethernet addressing */
   return -1;
 }
@@ -233,8 +275,6 @@ int pico_sendto_dev(struct pico_frame *f)
     return pico_enqueue(f->dev->q_out, f);
   }
 }
-
-
 
 void pico_stack_loop(void)
 {

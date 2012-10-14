@@ -6,6 +6,7 @@
 #include "pico_udp.h"
 #include "pico_tcp.h"
 #include "pico_socket.h"
+#include "pico_device.h"
 
 
 /* Queues */
@@ -72,7 +73,6 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  dbg("Called %s\n", __FUNCTION__);
   f->start = (uint8_t*) f->net_hdr;
   return pico_sendto_dev(f);
 }
@@ -152,12 +152,12 @@ static int ipv4_route_compare(struct pico_ipv4_route *a, struct pico_ipv4_route 
     return -1;
 
   if (long_be(a->netmask.addr) > long_be(b->netmask.addr))
-    return -1;
+    return 1;
 
   if (a->dest.addr < b->dest.addr)
     return -1;
 
-  if (a->dest.addr < b->dest.addr)
+  if (a->dest.addr > b->dest.addr)
     return 1;
 
   if (a->metric < b->metric)
@@ -179,10 +179,21 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
   struct pico_ipv4_route *r;
   RB_FOREACH(r, routing_table, &Routes) {
     if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
+      dbg("found route to %08x via %s\n", addr->addr, r->link->dev->name);
       return r;
     }
   }
   return NULL;
+}
+
+struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
+{
+  struct pico_ipv4_route *rt = route_find(dst);
+  struct pico_ip4 *myself = NULL;
+  if (rt) {
+    myself = &rt->link->address;
+  }
+  return myself;
 }
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
@@ -229,6 +240,14 @@ int pico_ipv4_frame_sock_push(struct pico_frame *f)
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
+void dbg_route(void)
+{
+  struct pico_ipv4_route *r;
+  RB_FOREACH(r, routing_table, &Routes) {
+    dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
+  }
+}
+
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
   struct pico_ipv4_route test, *new;
@@ -246,6 +265,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   new->metric = metric;
   new->link = link;
   RB_INSERT(routing_table, &Routes, new);
+  dbg_route();
   return 0;
 }
 
@@ -259,6 +279,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
   if (found) {
     pico_free(found);
     RB_REMOVE(routing_table, &Routes, found);
+    dbg_route();
     return 0;
   }
   return -1;
@@ -292,6 +313,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   network.addr = address.addr & netmask.addr;
   gateway.addr = 0U;
   pico_ipv4_route_add(network, netmask, gateway, 1, new);
+  dbg("Assigned ipv4 to device %s\n", new->dev->name);
   return 0;
 }
 
@@ -336,17 +358,22 @@ static int pico_ipv4_forward(struct pico_frame *f)
   if (!hdr)
     return -1;
 
+  dbg("FORWARDING.\n");
   rt = route_find(&hdr->dst);
   if (!rt) {
     pico_notify_dest_unreachable(f);
     return -1;
   }
+  dbg("ROUTE: valid..\n");
+  f->dev = rt->link->dev;
   hdr->ttl-=1;
   if (hdr->ttl < 1) {
     pico_notify_ttl_expired(f);
     return -1;
   }
-  f->dev = rt->link->dev;
+  hdr->crc++;
+  dbg("Routing towards %s\n", f->dev->name);
+  f->start = f->net_hdr;
   pico_sendto_dev(f);
   return 0;
 

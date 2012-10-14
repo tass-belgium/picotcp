@@ -50,4 +50,8 @@ int pico_notify_proto_unreachable(struct pico_frame *f);
 int pico_notify_dest_unreachable(struct pico_frame *f);
 int pico_notify_ttl_expired(struct pico_frame *f);
 
+/* Various. */
+int pico_source_is_local(struct pico_frame *f);
+int pico_destination_is_local(struct pico_frame *f);
+
 #endif

@@ -1,6 +1,8 @@
 #include "pico_config.h"
 #include "pico_device.h"
 #include "pico_stack.h"
+
+
 RB_HEAD(pico_device_tree, pico_device);
 RB_PROTOTYPE_STATIC(pico_device_tree, pico_device, node, pico_dev_cmp);
 
@@ -77,10 +79,29 @@ static void devloop(struct pico_device *dev, int loop_score)
     f = pico_dequeue(dev->q_out);
     if (f) {
       if (dev->eth) {
-        if (0 == pico_ethernet_send(f)) /* Addressing is in progress. Enqueue again. */
+        int ret = pico_ethernet_send(f);
+        if (0 == ret) {
           pico_enqueue(dev->q_out, f);
           loop_score--;
           continue;
+        } if (ret < 0) {
+  /*
+          if (pico_ipv4_link_find(&hdr->src)) {
+            dbg("Local originated packet: destination unreachable.\n");
+          } else {
+            dbg("Routed packet: destination unreachable, notify sender.\n");
+            pico_notify_dest_unreachable(f);
+          }
+   */
+          if (!pico_source_is_local(f)) { 
+            dbg("Destination unreachable -------> SEND ICMP\n");
+            pico_notify_dest_unreachable(f);
+          } else {
+            dbg("Destination unreachable -------> LOCAL\n");
+          }
+          pico_frame_discard(f);
+          continue;
+        }
       } else {
         dev->send(dev, f->start, f->len);
       }

@@ -1,6 +1,7 @@
 #ifndef _INCLUDE_PICO_QUEUE
 #define _INCLUDE_PICO_QUEUE
 #include <stdint.h>
+#include <assert.h>
 #include "pico_config.h"
 #include "pico_frame.h"
 
@@ -28,23 +29,30 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   if (!q->head) {
     q->head = p;
     q->tail = p;
+    q->size = 0;
+    q->frames = 0;
   } else {
     q->tail->next = p;
     p->next = NULL;
   }
   q->size += p->buffer_len;
   q->frames++;
+  printf("DELME (%p)---------------------- ENQ %d\n", q, q->frames);
   return q->size;
 }
 
 static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
 {
   struct pico_frame *p = q->head;
-  if (!p)
+  if (q->frames < 1)
     return NULL;
+  assert(q->head != NULL);
   q->head = p->next;
   q->frames--;
   q->size -= p->buffer_len;
+  if (q->head == NULL)
+    q->tail = NULL;
+  printf("DELME (%p)---------------------- DEQ %d\n", q, q->frames);
   return p;
 }
 
