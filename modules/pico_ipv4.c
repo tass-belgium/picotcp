@@ -36,32 +36,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   if (pico_ipv4_link_find(&hdr->dst)) {
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
     f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
-    switch (hdr->proto) {
-
-#ifdef PICO_SUPPORT_ICMP4
-      case PICO_PROTO_ICMP4:
-        pico_enqueue(pico_proto_icmp4.q_in, f);
-        break;
-#endif
-
-#ifdef PICO_SUPPORT_UDP
-      case PICO_PROTO_UDP:
-        pico_enqueue(pico_proto_udp.q_in, f);
-        break;
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-      case PICO_PROTO_TCP:
-        pico_enqueue(pico_proto_tcp.q_in, f);
-        break;
-#endif
-
-      default:
-        /* Protocol not available */
-        dbg("pkt: no such protocol (%d)\n", hdr->proto);
-        pico_notify_proto_unreachable(f);
-        pico_frame_discard(f);
-    }
+    pico_transport_receive(f, hdr->proto);
   } else {
     /* Packet is not local. Try to forward. */
     if (pico_ipv4_forward(f) != 0) {

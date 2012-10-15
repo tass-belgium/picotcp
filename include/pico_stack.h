@@ -6,6 +6,10 @@
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
+/* TRANSPORT LEVEL */
+/* interface towards network */
+int pico_transport_receive(struct pico_frame *f, uint8_t proto);
+
 /* NETWORK LEVEL */
 /* interface towards ethernet */
 int pico_network_receive(struct pico_frame *f);
@@ -25,7 +29,6 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len);
 
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
-
 
 int pico_sendto_dev(struct pico_frame *f);
 int pico_ethernet_send(struct pico_frame *f);

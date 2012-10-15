@@ -83,6 +83,42 @@ int pico_notify_ttl_expired(struct pico_frame *f)
   return 0;
 }
 
+
+/* Transport layer */
+int pico_transport_receive(struct pico_frame *f, uint8_t proto)
+{
+  int ret = -1;
+  switch (proto) {
+
+#ifdef PICO_SUPPORT_ICMP4
+  case PICO_PROTO_ICMP4:
+    ret = pico_enqueue(pico_proto_icmp4.q_in, f);
+    break;
+#endif
+
+#ifdef PICO_SUPPORT_UDP
+  case PICO_PROTO_UDP:
+    ret = pico_enqueue(pico_proto_udp.q_in, f);
+    break;
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  case PICO_PROTO_TCP:
+    ret = pico_enqueue(pico_proto_tcp.q_in, f);
+    break;
+#endif
+
+  default:
+    /* Protocol not available */
+    dbg("pkt: no such protocol (%d)\n", proto);
+    pico_notify_proto_unreachable(f);
+    pico_frame_discard(f);
+    ret = -1;
+ }
+ return ret;
+}
+
+
 int pico_network_receive(struct pico_frame *f)
 {
   dbg("Network receive\n");
