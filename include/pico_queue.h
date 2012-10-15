@@ -63,7 +63,6 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
-  printf("cur head: %p, frames: %d\n", q->head, q->frames);
   assert(q->head != NULL);
   q->head = p->next;
   q->frames--;

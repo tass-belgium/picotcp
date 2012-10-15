@@ -201,7 +201,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   pico_ipv4_checksum(f);
 
   f->dev = route->link->dev;
-  dbg("Enqueued frame for ip transmission. src: %08x dst: %08x\n", hdr->src.addr, hdr->dst.addr);
   return pico_enqueue(&out, f);
 drop:
   pico_frame_discard(f);

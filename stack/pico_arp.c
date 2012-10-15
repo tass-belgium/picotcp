@@ -3,7 +3,9 @@
 #include "rb.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
+#include "pico_stack.h"
 const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+#define PICO_ARP_TIMEOUT 60000
 
 
 struct
@@ -56,11 +58,12 @@ static struct arp_tree Arp_table;
 
 struct pico_arp *pico_arp_get(struct pico_ip4 *dst)
 {
-  struct pico_arp search;
+  struct pico_arp search, *found;
   search.ipv4.addr = dst->addr;
-
-
-  return RB_FIND(arp_tree, &Arp_table, &search);
+  found = RB_FIND(arp_tree, &Arp_table, &search);
+  if (found && (found->arp_status != PICO_ARP_STATUS_STALE))
+    return found;
+  return NULL;
 }
 
 void dbg_arp(void)
@@ -70,6 +73,16 @@ void dbg_arp(void)
     dbg("ARP to  %08x, mac: %02x:%02x:%02x:%02x:%02x:%02x\n", a->ipv4.addr,a->eth.addr[0],a->eth.addr[1],a->eth.addr[2],a->eth.addr[3],a->eth.addr[4],a->eth.addr[5] );
   }
 }
+
+void arp_expire(unsigned long now, void *_stale)
+{
+  struct pico_arp *stale = (struct pico_arp *) _stale;
+  stale->arp_status = PICO_ARP_STATUS_STALE;
+  dbg("ARP: Setting arp_status to STALE\n");
+  pico_arp_query(stale->dev, &stale->ipv4);
+
+}
+
 int pico_arp_receive(struct pico_frame *f)
 {
   struct pico_arp_hdr *hdr;
@@ -104,7 +117,10 @@ int pico_arp_receive(struct pico_frame *f)
     memcpy(new->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
     new->arp_status = PICO_ARP_STATUS_REACHABLE;
     new->timestamp  = PICO_TIME();
+    new->dev = f->dev;
     RB_INSERT(arp_tree, &Arp_table, new);
+    dbg("ARP ## reachable.\n");
+    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, new);
   }
 
   if (hdr->opcode == PICO_ARP_REQUEST) {

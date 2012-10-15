@@ -12,6 +12,7 @@
 #include "pico_udp.h"
 #include "pico_tcp.h"
 #include "pico_socket.h"
+#include "heap.h"
 
 
 
@@ -278,6 +279,34 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
   return -1;
 }
 
+void pico_store_network_origin(void *src, struct pico_frame *f)
+{
+  #ifdef PICO_SUPPORT_IPV4
+  struct pico_ip4 *ip4;
+  #endif
+
+  #ifdef PICO_SUPPORT_IPV6
+  struct pico_ip6 *ip6;
+  #endif
+
+  #ifdef PICO_SUPPORT_IPV4
+  if (IS_IPV4(f)) {
+    struct pico_ipv4_hdr *hdr;
+    hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    ip4 = (struct pico_ip4 *) src;
+    ip4->addr = hdr->src.addr;
+  }
+  #endif
+  #ifdef PICO_SUPPORT_IPV6
+  if (IS_IPV6(f)) {
+    struct pico_ipv6_hdr *hdr;
+    hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+    ip6 = (struct pico_ip6 *) src;
+    memcpy(ip6->addr, hdr->src.addr, PICO_SIZE_IP6);
+  }
+  #endif
+}
+
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
@@ -312,21 +341,54 @@ int pico_sendto_dev(struct pico_frame *f)
   }
 }
 
+struct pico_timer
+{
+  unsigned long expire;
+  void *arg;
+  void (*timer)(unsigned long timestamp, void *arg);
+};
+
+typedef struct pico_timer pico_timer;
+
+DECLARE_HEAP(pico_timer, expire);
+
+static heap_pico_timer *Timers;
+
+void pico_check_timers(void)
+{
+  struct pico_timer *t = heap_first(Timers);
+  unsigned long timestamp = PICO_TIME_MS();
+  while((t) && (t->expire < timestamp)) {
+    heap_peek(Timers, t);
+    t->timer(timestamp, t->arg);
+    t = heap_first(Timers);
+  }
+}
+
 
 void pico_stack_tick(void)
 {
     pico_devices_loop(100);
     pico_protocols_loop(100);
     pico_sockets_loop(100);
-//    pico_apps_loop(100);
+    pico_check_timers();
 }
+
 void pico_stack_loop(void)
 {
-
   while(1) {
     pico_stack_tick();
     PICO_IDLE();
   }
+}
+
+void pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg)
+{
+  pico_timer t;
+  t.expire = PICO_TIME_MS() + expire;
+  t.arg = arg;
+  t.timer = timer;
+  heap_insert(Timers, &t);
 }
 
 
@@ -352,32 +414,10 @@ void pico_stack_init(void)
 #ifdef PICO_SUPPORT_TCP
   pico_protocol_init(&pico_proto_tcp);
 #endif
+
+  /* Initialize timer heap */
+  Timers = heap_init();
+
+
 }
 
-void pico_store_network_origin(void *src, struct pico_frame *f)
-{
-  #ifdef PICO_SUPPORT_IPV4
-  struct pico_ip4 *ip4;
-  #endif
-
-  #ifdef PICO_SUPPORT_IPV6
-  struct pico_ip6 *ip6;
-  #endif
-
-  #ifdef PICO_SUPPORT_IPV4
-  if (IS_IPV4(f)) {
-    struct pico_ipv4_hdr *hdr;
-    hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    ip4 = (struct pico_ip4 *) src;
-    ip4->addr = hdr->src.addr;
-  }
-  #endif
-  #ifdef PICO_SUPPORT_IPV6
-  if (IS_IPV6(f)) {
-    struct pico_ipv6_hdr *hdr;
-    hdr = (struct pico_ipv6_hdr *) f->net_hdr;
-    ip6 = (struct pico_ip6 *) src;
-    memcpy(ip6->addr, hdr->src.addr, PICO_SIZE_IP6);
-  }
-  #endif
-}

@@ -18,9 +18,7 @@ void wakeup(struct pico_socket *s)
     printf("%s\n", buf);
     pico_socket_sendto(s, buf, r, &peer, port);
   }
-  
 }
-
 
 int main(void)
 {
