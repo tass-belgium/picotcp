@@ -234,15 +234,21 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
+  if ((s->state | PICO_SOCKET_STATE_BOUND) == 0)
+    return -1;
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP)
-    return pico_udp_recv(s, buf, len);
+    return pico_udp_recv(s, buf, len, NULL, NULL);
 #endif
   return 0;
 }
 
 int pico_socket_write(struct pico_socket *s, void *buf, int len)
 {
+  if ((s->state | PICO_SOCKET_STATE_BOUND) == 0)
+    return -1;
+  if ((s->state | PICO_SOCKET_STATE_CONNECTED) == 0)
+    return -1;
 
   return 0;
 }
@@ -250,12 +256,39 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
+
+  if (!dst || !remote_port)
+    return -1;
+
+#ifdef PICO_SUPPORT_UDP 
+  if (PROTO(s) == PICO_PROTO_UDP)
+    return pico_udp_send(s, buf, len, dst, remote_port);
+#endif
   return 0;
 }
 
-int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port)
+int pico_socket_send(struct pico_socket *s, void *buf, int len)
 {
+  if ((s->state | PICO_SOCKET_STATE_CONNECTED) == 0)
+    return -1;
+
+  return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
+}
+
+int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
+{
+  if ((s->state | PICO_SOCKET_STATE_BOUND) == 0)
+    return -1;
+#ifdef PICO_SUPPORT_UDP 
+  if (PROTO(s) == PICO_PROTO_UDP)
+    return pico_udp_recv(s, buf, len, orig, remote_port);
+#endif
   return 0;
+}
+
+int pico_socket_recv(struct pico_socket *s, void *buf, int len)
+{
+  return pico_socket_recvfrom(s, buf, len, NULL, NULL);
 }
 
 
@@ -323,6 +356,11 @@ int pico_socket_listen(struct pico_socket *s)
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
+  if ((s->state | PICO_SOCKET_STATE_BOUND) == 0)
+    return NULL;
+
+  if (PROTO(s) == PICO_PROTO_UDP)
+    return NULL;
 
   return NULL;
 }

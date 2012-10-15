@@ -354,3 +354,30 @@ void pico_stack_init(void)
 #endif
 }
 
+void pico_store_network_origin(void *src, struct pico_frame *f)
+{
+  #ifdef PICO_SUPPORT_IPV4
+  struct pico_ip4 *ip4;
+  #endif
+
+  #ifdef PICO_SUPPORT_IPV6
+  struct pico_ip6 *ip6;
+  #endif
+
+  #ifdef PICO_SUPPORT_IPV4
+  if (IS_IPV4(f)) {
+    struct pico_ipv4_hdr *hdr;
+    hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    ip4 = (struct pico_ip4 *) src;
+    ip4->addr = hdr->src.addr;
+  }
+  #endif
+  #ifdef PICO_SUPPORT_IPV6
+  if (IS_IPV6(f)) {
+    struct pico_ipv6_hdr *hdr;
+    hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+    ip6 = (struct pico_ip6 *) src;
+    memcpy(ip6->addr, hdr->src.addr, PICO_SIZE_IP6);
+  }
+  #endif
+}

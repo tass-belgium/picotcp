@@ -51,5 +51,6 @@ int pico_notify_ttl_expired(struct pico_frame *f);
 /* Various. */
 int pico_source_is_local(struct pico_frame *f);
 int pico_destination_is_local(struct pico_frame *f);
+void pico_store_network_origin(void *src, struct pico_frame *f);
 
 #endif
