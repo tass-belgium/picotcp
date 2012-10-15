@@ -30,9 +30,10 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len);
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
-int pico_sendto_dev(struct pico_frame *f);
-int pico_ethernet_send(struct pico_frame *f);
+int pico_transport_send(struct pico_frame *f);
 int pico_network_send(struct pico_frame *f);
+int pico_ethernet_send(struct pico_frame *f);
+int pico_sendto_dev(struct pico_frame *f);
 
 /* ----- Initialization ----- */
 void pico_stack_init(void);

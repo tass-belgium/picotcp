@@ -118,6 +118,14 @@ int pico_transport_receive(struct pico_frame *f, uint8_t proto)
  return ret;
 }
 
+int pico_transport_send(struct pico_frame *f)
+{
+  if (!f || !f->sock || !f->sock->proto) {
+    pico_frame_discard(f);
+    return -1;
+  }
+  return f->sock->proto->push(f->sock->net, f);
+}
 
 int pico_network_receive(struct pico_frame *f)
 {

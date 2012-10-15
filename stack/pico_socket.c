@@ -378,7 +378,7 @@ int pico_sockets_loop(int loop_score)
     RB_FOREACH(s, socket_tree, &sp->socks) {
       f = pico_dequeue(&s->q_out);
       while (f && (loop_score > 0)) {
-        pico_network_send(f);
+        pico_proto_udp.push(&pico_proto_udp, f);
         loop_score -= 1;
         f = pico_dequeue(&s->q_out);
       }

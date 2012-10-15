@@ -2,6 +2,7 @@
 #include "pico_config.h"
 #include "pico_eth.h"
 #include "pico_socket.h"
+#include "pico_stack.h"
 
 
 /* Queues */
@@ -24,9 +25,7 @@ static __attribute__((unused)) int pico_udp_checksum(struct pico_frame *f)
 
 static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  dbg("Called %s\n", __FUNCTION__);
-  
-  return 0;
+  return pico_network_send(f); 
 }
 
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
