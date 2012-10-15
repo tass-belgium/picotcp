@@ -196,6 +196,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   hdr->src.addr = route->link->address.addr;
   hdr->dst.addr = dst->addr;
   hdr->frag = short_be(PICO_IPV4_DONTFRAG);
+  hdr->ttl = PICO_IPV4_DEFAULT_TTL;
   hdr->proto = proto;
   pico_ipv4_checksum(f);
 

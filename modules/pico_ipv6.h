@@ -4,6 +4,7 @@
 #include "pico_protocol.h"
 
 extern struct pico_protocol pico_proto_ipv6;
+extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 
 
 /* This module is responsible for routing outgoing packets and 

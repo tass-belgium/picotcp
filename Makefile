@@ -1,4 +1,5 @@
 CFLAGS=-Iinclude -Imodules -Wall -ggdb
+#CFLAGS=-Iinclude -Imodules -Wall -Os
 
 all:
 	mkdir -p build

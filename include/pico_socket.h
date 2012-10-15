@@ -72,6 +72,9 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len);
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port);
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port);
 
+int pico_socket_send(struct pico_socket *s, void *buf, int len);
+int pico_socket_recv(struct pico_socket *s, void *buf, int len);
+
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
 int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s);

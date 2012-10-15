@@ -16,6 +16,7 @@ struct __attribute__((packed)) pico_tcp_hdr {
 };
 
 #define PICO_TCPHDR_SIZE 20
+#define PICO_SIZE_TCP_DATAHDR (40)
 
 #define PICO_TCP_OPTION_END 0x00
 #define PICO_TCPOPTLEN_END 1

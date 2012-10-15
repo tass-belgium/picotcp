@@ -21,6 +21,7 @@ struct __attribute__((packed)) pico_ipv4_hdr {
 
 #define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
 #define PICO_IPV4_DONTFRAG 0x4000
+#define PICO_IPV4_DEFAULT_TTL 64
 
 void pico_proto_ipv4_init(void);
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);

@@ -12,7 +12,7 @@ static struct pico_queue out = {};
 
 /* Functions */
 
-static __attribute__((unused)) int pico_udp_checksum(struct pico_frame *f)
+static int pico_udp_checksum(struct pico_frame *f)
 {
   struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
   if (!hdr)
@@ -37,7 +37,7 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
   hdr = (struct pico_udp_hdr *) f->transport_hdr;
   hdr->trans.sport = f->sock->local_port;
   hdr->trans.dport = f->sock->remote_port;
-  hdr->len = f->payload_len;
+  hdr->len = short_be(f->transport_len);
   hdr->crc = pico_udp_checksum(f);
   if (pico_enqueue(self->q_out, f) < 0) {
     return -1;
@@ -81,6 +81,7 @@ struct pico_socket *pico_udp_open(void)
 int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port)
 {
   struct pico_frame *f = pico_dequeue(&s->q_in);
+  dbg("In %s\n", __FUNCTION__);
   if (f) {
     f->payload = f->transport_hdr + sizeof(struct pico_udp_hdr);
     f->payload_len = f->transport_len - sizeof(struct pico_udp_hdr);

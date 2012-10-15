@@ -8,12 +8,15 @@ void wakeup(struct pico_socket *s)
 {
   char buf[30];
   int r;
+  uint32_t peer;
+  uint16_t port;
   printf("Called wakeup\n");
-  r = pico_socket_read(s, buf, 30);
+  r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
   printf("Receive: %d\n", r);
   if (r > 0) {
     buf[r] = 0;
     printf("%s\n", buf);
+    pico_socket_sendto(s, buf, r, &peer, port);
   }
   
 }
