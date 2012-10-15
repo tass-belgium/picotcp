@@ -30,6 +30,13 @@ struct pico_socket {
 
   void (*wakeup)(struct pico_socket *s);
 
+
+#ifdef PICO_SUPPORT_TCP
+  /* For the TCP backlog queue */
+  struct pico_socket *backlog;
+  struct pico_socket *next;
+#endif
+
   RB_ENTRY(pico_socket) node;
 
   uint16_t state;

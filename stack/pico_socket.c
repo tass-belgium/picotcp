@@ -430,29 +430,51 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
   return 0;
 }
 
+#ifdef PICO_SUPPORT_TCP
 int pico_socket_listen(struct pico_socket *s)
 {
   if (PROTO(s) == PICO_PROTO_UDP)
     return -1;
 
-#ifdef PICO_SUPPORT_TCP
+  
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+    return -1;
+
   if (PROTO(s) == PICO_PROTO_TCP)
-    pico_socket_alter_state(s, 0, 0, PICO_SOCKET_STATE_TCP_LISTEN);
-#endif
+    pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_SYN_SENT, 0, PICO_SOCKET_STATE_TCP_LISTEN);
 
   return 0;
 }
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
+  struct pico_socket *accepted = NULL;
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
     return NULL;
 
   if (PROTO(s) == PICO_PROTO_UDP)
     return NULL;
 
+  if (TCPSTATE(s) == PICO_SOCKET_STATE_TCP_LISTEN) {
+    if (s->backlog) {
+      accepted = s->backlog;
+      s->backlog = accepted->next;
+      pico_socket_alter_state(accepted, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+    }
+  }
+  return accepted;
+}
+#else
+int pico_socket_listen(struct pico_socket *s)
+{
+  return -1;
+}
+
+struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
+{
   return NULL;
 }
+#endif
 
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value)

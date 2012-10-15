@@ -60,7 +60,7 @@ int main(void)
 
   while(1) {
     pico_stack_tick();
-    usleep(1000);
+    usleep(2000);
   }
 
   return 0;
