@@ -83,22 +83,6 @@ int pico_notify_ttl_expired(struct pico_frame *f)
   return 0;
 }
 
-
-/* SOCKET LEVEL: interface towards transport */
-int pico_socket_receive(struct pico_frame *f)
-{
-  /* TODO: recognize the correspondant socket */
-  return 0;
-}
-
-/* TRANSPORT LEVEL: interface towards network */
-int pico_transport_receive(struct pico_frame *f)
-{
-  /* TODO: identify transport level, deliver packet to the 
-   * correct destination (e.g. socket)*/
-  return 0;
-}
-
 int pico_network_receive(struct pico_frame *f)
 {
   dbg("Network receive\n");
