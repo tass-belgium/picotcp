@@ -63,8 +63,7 @@ int main(void)
   if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
     return 1;
 
-  //if (pico_socket_listen(sk_tcp, &address0, 3)!=0)
-  if (pico_socket_listen(sk_tcp)!=0)
+  if (pico_socket_listen(sk_tcp, 3)!=0)
     return 3;
 
   
