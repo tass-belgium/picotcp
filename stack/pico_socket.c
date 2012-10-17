@@ -191,6 +191,12 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 {
   struct pico_sockport *sp;
   struct pico_socket *s;
+  struct pico_trans *tr = (struct pico_trans *)f->transport_hdr;
+
+  if (!tr)
+    return -1;
+
+  dbg("Deliver.\n");
   sp = pico_get_sockport(p->proto_number, localport);
 
   if (!sp)
@@ -206,7 +212,12 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 
 #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
-    /* XXX: Find the socket, call some tcp_rcv fn */
+    RB_FOREACH(s, socket_tree, &sp->socks) {
+      if ((s->remote_port == 0) || (s->remote_port == tr->sport))
+        pico_tcp_input(s, pico_frame_copy(f));
+    }
+    pico_frame_discard(f);
+    return 0;
   }
 #endif
   if (!s)
