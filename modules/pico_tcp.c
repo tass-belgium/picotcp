@@ -99,7 +99,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
   if (!hdr)
     goto discard;
 
-  dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %lu flags: %d\n",
+  dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %u flags: %d\n",
       s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), long_be(hdr->seq), hdr->flags);
 
 
