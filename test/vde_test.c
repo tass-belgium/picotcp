@@ -27,7 +27,7 @@ int main(void)
   struct pico_device *vde0, *vde1;
   struct pico_ip4 address0, netmask0, address1, netmask1;
 
-  struct pico_socket *sk;
+  struct pico_socket *sk_udp, *sk_tcp;
   uint16_t port = short_be(5555);
 
   pico_stack_init();
@@ -49,12 +49,23 @@ int main(void)
   pico_ipv4_link_add(vde0, address0, netmask0);
   pico_ipv4_link_add(vde1, address1, netmask1);
 
-  sk = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
-  if (!sk)
+  sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
+  if (!sk_udp)
     return 2;
 
-  if (pico_socket_bind(sk, &address0, &port)!= 0)
+  if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
     return 1;
+
+  sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
+  if (!sk_tcp)
+    return 2;
+
+  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
+    return 1;
+
+  //if (pico_socket_listen(sk_tcp, &address0, 3)!=0)
+  if (pico_socket_listen(sk_tcp)!=0)
+    return 3;
 
   
 

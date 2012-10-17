@@ -90,4 +90,24 @@ int pico_tcp_initconn(struct pico_socket *s)
   return 0;
 }
 
+int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
+{
+  struct pico_socket_tcp *ts = TCP_SOCK(s);
+  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
+  int ret = -1;
+
+  if (!hdr)
+    goto discard;
+
+  dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %lu flags: %d\n",
+      s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), long_be(hdr->seq), hdr->flags);
+
+
+discard:
+  pico_frame_discard(f);
+  return ret;
+}
+
+
+
 

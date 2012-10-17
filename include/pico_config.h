@@ -96,8 +96,10 @@ static inline uint16_t short_be(uint16_t le)
 
 static inline uint32_t long_be(uint32_t le)
 {
-  /** XXX it's too late today, please write the be conversion here. **/
-  return le;
+  uint8_t *b = (uint8_t *)&le;
+  uint32_t be = 0;
+  be = b[3] + (b[2] << 8) + (b[1] << 16) + (b[0] << 24);
+  return be;
 }
 #endif
 
