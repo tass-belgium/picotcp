@@ -431,7 +431,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 }
 
 #ifdef PICO_SUPPORT_TCP
-int pico_socket_listen(struct pico_socket *s)
+int pico_socket_listen(struct pico_socket *s, int backlog)
 {
   if (PROTO(s) == PICO_PROTO_UDP)
     return -1;
@@ -440,8 +440,12 @@ int pico_socket_listen(struct pico_socket *s)
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
     return -1;
 
+  if (backlog < 1)
+    return -1;
+
   if (PROTO(s) == PICO_PROTO_TCP)
     pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_SYN_SENT, 0, PICO_SOCKET_STATE_TCP_LISTEN);
+  s->max_backlog = backlog;
 
   return 0;
 }
