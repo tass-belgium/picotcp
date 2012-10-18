@@ -180,8 +180,10 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   struct pico_ipv4_route *route;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   static uint16_t ipv4_progressive_id = 0x91c0;
+  
   if (!hdr)
     goto drop;
+  dbg("Pushing frame to %08x\n", dst->addr);
   route = route_find(dst);
   if (!route) {
     goto drop;
@@ -216,6 +218,7 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
     return -1;
   }
   dst = &f->sock->remote_addr.ip4;
+  dbg("dst: %08x\n", dst->addr);
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 

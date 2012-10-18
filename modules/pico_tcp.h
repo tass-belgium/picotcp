@@ -19,6 +19,7 @@ struct __attribute__((packed)) pico_tcp_hdr {
 
 #define PICO_TCPHDR_SIZE 20
 #define PICO_SIZE_TCP_DATAHDR (40)
+#define PICO_SIZE_TCPHDR (sizeof(struct pico_tcp_hdr))
 
 
 /* TCP options */
@@ -51,6 +52,7 @@ struct __attribute__((packed)) pico_tcp_option
 {
   uint8_t kind;
   uint8_t len;
+#if 0
   union {
    uint16_t mss;
     uint8_t wshift;
@@ -59,6 +61,7 @@ struct __attribute__((packed)) pico_tcp_option
       uint32_t tsecr;
     } timestamp;
   } data;
+#endif
 };
 
 struct pico_socket *pico_tcp_open(void);
