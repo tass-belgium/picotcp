@@ -69,6 +69,7 @@ struct pico_socket {
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
+#define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
 
 
@@ -120,6 +121,7 @@ int pico_socket_close(struct pico_socket *s);
 
 /* Interface towards transport protocol */
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f);
+struct pico_socket *pico_socket_clone(struct pico_socket *facsimile);
 
 /* Socket loop */
 int pico_sockets_loop(int loop_score);

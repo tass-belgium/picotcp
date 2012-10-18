@@ -8,7 +8,6 @@
 #include "pico_stack.h"
 
 #define PROTO(s) ((s)->proto->proto_number)
-#define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
 #ifdef PICO_SUPPORT_IPV4
 # define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
@@ -273,6 +272,59 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
   return s;
 }
 
+
+struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
+{
+
+  struct pico_socket *s = NULL;
+
+#ifdef PICO_SUPPORT_UDP
+  if (facsimile->proto->proto_number == PICO_PROTO_UDP) {
+    s = pico_udp_open();
+    s->proto = &pico_proto_udp;
+  }
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  if (facsimile->proto->proto_number == PICO_PROTO_TCP) {
+    s = pico_tcp_open();
+    s->proto = &pico_proto_tcp;
+  }
+#endif
+
+  if (!s)
+    return NULL;
+
+  s->local_port = facsimile->local_port;
+  s->remote_port = facsimile->remote_port;
+  s->state = facsimile->state;
+
+#ifdef PICO_SUPPORT_IPV4
+  if (facsimile->net == &pico_proto_ipv4) {
+    s->net = &pico_proto_ipv4;
+    memcpy(&s->local_addr, &facsimile->local_addr, sizeof(struct pico_ip4));
+    memcpy(&s->remote_addr, &facsimile->remote_addr, sizeof(struct pico_ip4));
+  }
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+  if (net == &pico_proto_ipv6) {
+    s->net = &pico_proto_ipv6;
+    memcpy(&s->local_addr, &facsimile->local_addr, sizeof(struct pico_ip6));
+    memcpy(&s->remote_addr, &facsimile->remote_addr, sizeof(struct pico_ip6));
+  }
+#endif
+
+  s->q_in.max_size = PICO_DEFAULT_SOCKETQ;
+  s->q_out.max_size = PICO_DEFAULT_SOCKETQ;
+  s->wakeup = NULL;
+
+  if (!s->net) {
+    pico_free(s);
+    return NULL;
+  }
+  return s;
+}
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {

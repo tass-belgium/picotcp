@@ -90,11 +90,23 @@ int pico_tcp_initconn(struct pico_socket *s)
   return 0;
 }
 
+static int tcp_spawn_clone(struct pico_socket *s, struct pico_frame *f)
+{
+  /* TODO: Check against backlog length */
+
+  struct pico_socket_tcp *new = (struct pico_socket_tcp *)pico_socket_clone(s);
+  struct pico_socket_tcp *ts = TCP_SOCK(s);
+  if (!new)
+    return -1;
+  new->sock.remote_port = ((struct pico_trans *)f->transport_hdr)->sport;
+  return 0;
+}
+
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 {
-  struct pico_socket_tcp *ts = TCP_SOCK(s);
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
   int ret = -1;
+  uint8_t flags = hdr->flags;
 
   if (!hdr)
     goto discard;
@@ -102,6 +114,27 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
   dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %u flags: %d\n",
       s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), long_be(hdr->seq), hdr->flags);
 
+  if (flags & PICO_TCP_SYN) {
+    switch (TCPSTATE(s)) {
+      case PICO_SOCKET_STATE_TCP_LISTEN:
+        dbg("In TCP Listen.\n");
+        if (flags & PICO_TCP_ACK)
+          goto discard;
+        tcp_spawn_clone(s,f);
+
+        break;
+    }
+
+  }
+
+
+  switch (TCPSTATE(s)) {
+    case PICO_SOCKET_STATE_TCP_LISTEN:
+      dbg("In TCP Listen.\n");
+      break;
+    default:
+      break;
+  }
 
 discard:
   pico_frame_discard(f);
