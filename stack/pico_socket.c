@@ -123,7 +123,7 @@ static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
   else return NULL;
 }
 
-static int pico_socket_add(struct pico_socket *s)
+int pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   if (!sp) {
@@ -212,8 +212,11 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
-      if ((s->remote_port == 0) || (s->remote_port == tr->sport))
+      dbg("Evaluating sock with dport: %d\n", short_be(s->remote_port));
+      if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
+        dbg("Input dport: %d\n", short_be(s->remote_port));
         pico_tcp_input(s, pico_frame_copy(f));
+      }
     }
     pico_frame_discard(f);
     return 0;

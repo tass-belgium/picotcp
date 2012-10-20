@@ -23,9 +23,6 @@ tst: all mod
 	mkdir -p build/test
 	gcc -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
 	gcc -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
-	gcc -c -o build/tcp_crc.o test/tcp_crc.c $(CFLAGS) -ggdb
-	gcc -c -o build/crc_custom.o test/crc_custom.c $(CFLAGS) -ggdb
-	gcc -o build/test/tcp_crc build/modules/*.o build/lib/*.o build/tcp_crc.o build/crc_custom.o -lvdeplug
 
 
 unit:
