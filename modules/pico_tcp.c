@@ -12,13 +12,34 @@ static struct pico_queue out = {};
 
 /* Functions */
 
-static int pico_tcp_checksum(struct pico_frame *f)
+struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
+{
+  struct pico_ip4 src;
+  struct pico_ip4 dst;
+  uint16_t tcp_len;
+  uint8_t res;
+  uint8_t proto;
+};
+
+int pico_tcp_checksum_ipv4(struct pico_frame *f)
 {
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  if (!hdr)
+  struct pico_socket *s = f->sock;
+  struct tcp_pseudo_hdr_ipv4 pseudo;
+  if (!hdr || !s)
     return -1;
+
+  pseudo.src.addr = s->local_addr.ip4.addr;
+  pseudo.dst.addr = s->remote_addr.ip4.addr;
+  pseudo.res = 0;
+  pseudo.proto = PICO_PROTO_TCP;
+  pseudo.tcp_len = short_be(f->transport_len);
+
   hdr->crc = 0;
-  hdr->crc = short_be(pico_checksum(hdr, f->transport_len));
+  dbg("Calculating checksum of pseudo_hdr + %d bytes\n", f->transport_len);
+  hdr->crc = pico_dualbuffer_checksum(&pseudo, sizeof(struct tcp_pseudo_hdr_ipv4), hdr, f->transport_len);
+  dbg("TCP checksum is %04x\n", hdr->crc);
+  hdr->crc = short_be(hdr->crc);
   return 0;
 }
 
@@ -48,6 +69,7 @@ struct pico_socket_tcp {
   uint16_t ssthresh;
   uint32_t rcv_nxt;
   uint32_t rcv_ackd;
+  uint32_t remote_timestamp;
   uint16_t rwnd;
   uint16_t avg_rtt;
 };
@@ -90,12 +112,14 @@ static void pico_add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
   f->start[4] = PICO_TCP_OPTION_SACK;
   f->start[5] = PICO_TCPOPTLEN_SACK;
 
-  f->start[7] = PICO_TCP_OPTION_WS;
-  f->start[8] = PICO_TCPOPTLEN_WS;
-  f->start[9] = 2;
+  f->start[6] = PICO_TCP_OPTION_WS;
+  f->start[7] = PICO_TCPOPTLEN_WS;
+  f->start[8] = 2;
 
-  f->start[10] = PICO_TCP_OPTION_TIMESTAMP;
-  f->start[11] = PICO_TCPOPTLEN_TIMESTAMP;
+  f->start[9] = PICO_TCP_OPTION_TIMESTAMP;
+  f->start[10] = PICO_TCPOPTLEN_TIMESTAMP;
+  memcpy(f->start + 11, &ts->remote_timestamp, 4);
+  memcpy(f->start + 15, &ts->remote_timestamp, 4);
 
 
   f->start[option_len -1] = 0;
@@ -115,7 +139,8 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   }
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
   pico_add_options(ts,f);
-  pico_tcp_checksum(f);
+  f->transport_len = PICO_SIZE_TCP_DATAHDR;
+  pico_tcp_checksum_ipv4(f);
   pico_enqueue(&out, f);
   dbg("Packet enqueued for TCP transmission.\n");
 
@@ -188,6 +213,13 @@ static int tcp_spawn_clone(struct pico_socket *s, struct pico_frame *f)
   new->cwnd = short_be(2);
   new->ssthresh = short_be(0xFFFF);
   new->rwnd = short_be(hdr->rwnd);
+  dbg("Ts: %02x\n", f->transport_hdr[28]);
+  dbg("Ts: %02x\n", f->transport_hdr[29]);
+  dbg("Ts: %02x\n", f->transport_hdr[30]);
+  dbg("Ts: %02x\n", f->transport_hdr[31]);
+
+  memcpy(&new->remote_timestamp, f->transport_hdr + 28, 4);
+
   tcp_send_synack(&new->sock);
   return 0;
 }

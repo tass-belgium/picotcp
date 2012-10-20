@@ -69,6 +69,7 @@ uint16_t pico_checksum(void *inbuf, int len)
   uint32_t sum = 0, carry=0;
   int i=0;
   for(i=0; i<len; i++){
+    dbg("PROCESSING: [%02d] %02x\n", i, buf[i]);
     if (i%2){
       sum+=buf[i];
     }else{
@@ -78,5 +79,61 @@ uint16_t pico_checksum(void *inbuf, int len)
   carry = (sum&0xFFFF0000) >>16;
   sum = (sum&0x0000FFFF);
   return (uint16_t) ~(sum + carry)  ;
+}
+
+uint16_t pico_dualbuffer_checksum(void *inbuf1, int len1, void *inbuf2, int len2)
+{
+  uint8_t *b1 = (uint8_t *) inbuf1;
+  uint8_t *b2 = (uint8_t *) inbuf2;
+  uint32_t sum = 0, carry=0;
+  int i=0, j=0;
+  for(i=0; i<len1; i++){
+    dbg("%02x ", b1[i]);
+    if (j%2){
+      sum+=b1[i];
+    }else{
+      sum+=( b1[i] << 8);
+    }
+    j++;
+  }
+
+  for(i=0; i<len2; i++){
+    dbg("%02x ", b2[i]);
+    if (j%2){
+      sum+=b2[i];
+    }else{
+      sum+=( b2[i] << 8);
+    }
+    j++;
+  }
+  dbg("\n");
+  carry = (sum&0xFFFF0000) >>16;
+  sum = (sum&0x0000FFFF);
+  return (uint16_t) (~(sum + carry))  ;
+}
+
+uint16_t pico_dualbuffer_checksum_broken(void *inbuf1, int len1, void *inbuf2, int len2)
+{
+  uint16_t *b1 = (uint16_t *) inbuf1;
+  uint16_t *b2 = (uint16_t *) inbuf2;
+  uint32_t sum = 0;
+  int i=0, j=0;
+  for(i=0; i<(len1>>1); i++){
+    dbg("%04x",  b1[i]);
+    sum += short_be(b1[i]);
+    j++;
+  }
+  for(i=0; i<(len2>>1); i++){
+    dbg("%04x",  b2[i]);
+    sum += short_be(b2[i]);
+    j++;
+  }
+  sum = (sum & 0xFFFF) + (sum >> 16);
+  sum += (sum >> 16);
+  dbg("\n");
+  
+  // Take the bitwise complement of sum
+  sum = ~sum;
+  return (uint16_t) (sum)  ;
 }
 
