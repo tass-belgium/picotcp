@@ -65,9 +65,11 @@ struct __attribute__((packed)) pico_tcp_option
 };
 
 struct pico_socket *pico_tcp_open(void);
+int pico_tcp_read(struct pico_socket *s, void *buf, int len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
 int pico_tcp_checksum_ipv4(struct pico_frame *f);
+
 
 
 #endif

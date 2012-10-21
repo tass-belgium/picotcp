@@ -343,6 +343,11 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
   if (PROTO(s) == PICO_PROTO_UDP)
     return pico_udp_recv(s, buf, len, NULL, NULL);
 #endif
+
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_TCP)
+    return pico_tcp_read(s, buf, len);
+#endif
   return 0;
 }
 

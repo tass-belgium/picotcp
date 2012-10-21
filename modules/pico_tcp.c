@@ -3,11 +3,114 @@
 #include "pico_eth.h"
 #include "pico_socket.h"
 #include "pico_stack.h"
+#include "pico_queue.h"
+#define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
+
+#define SEQN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)
+#define ACKN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)
+
+
 
 
 /* Queues */
 static struct pico_queue in = {};
 static struct pico_queue out = {};
+
+static inline int seq_compare(uint32_t a, uint32_t b)
+{
+  uint32_t thresh = ((uint32_t)(-1))>>1;
+  if (((a > thresh) && (b > thresh)) || ((a <= thresh) && (b <= thresh))) {
+    if (a > b)
+      return 1;
+    if (b > a)
+      return -1;
+  } else {
+    if (a > b)
+      return -2;
+    if (b > a)
+      return 2;
+  }
+  return 0;
+}
+
+
+/* Enhanced interface for tcp queues. */
+
+/* Insert the packet in the queue, using the sequence number as order */
+static int pico_enqueue_segment(struct pico_queue *q, struct pico_frame *f)
+{
+  struct pico_frame *test = q->head;
+  int ret = -1;
+  if ((q->max_frames) && (q->max_frames <= q->frames))
+    return ret;
+
+  if ((q->max_size) && (q->max_size < (f->buffer_len + q->size)))
+    return ret;
+
+  if (!q->head) {
+    q->head = f;
+    q->tail = f;
+    q->size = 0;
+    q->frames = 0;
+    ret = 0;
+  } else if (seq_compare(SEQN(f),  SEQN(q->head)) < 0) {
+    f->next = q->head;
+    q->head = f;
+    ret = 0;
+  } else {
+    while((test) && (seq_compare(SEQN(f), SEQN(test)) > 0)) {
+      test = test->next;
+      if ((!test->next) || (seq_compare(SEQN(f), SEQN(test->next)) < 0)) {
+        f->next = test->next;
+        test->next = f;
+        ret = 0;
+        break;
+      }
+    }
+  }
+  if (ret == 0) {
+    q->size += f->buffer_len;
+    q->frames++;
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+    debug_q(q);
+#endif
+    return q->size;
+  }
+  return -1;
+}
+
+static struct pico_frame *pico_queue_peek(struct pico_queue *q, uint32_t seq)
+{
+  struct pico_frame *test = q->head;
+  while(test) {
+    if (SEQN(test) == seq)
+      return test;
+  }
+  return NULL;
+}
+
+static struct pico_frame *pico_queue_peek_first(struct pico_queue *q)
+{
+  return q->head;
+}
+
+/* Useful for getting rid of the beginning of the buffer (e.g. for a fresh ack or a read() op */
+static int pico_queue_release_until(struct pico_queue *q, uint32_t seq)
+{
+  struct pico_frame *prev = NULL, *test = q->head;
+  while(test) {
+    if (seq_compare(SEQN(test) + test->payload_len, seq) < 0) {
+      if (!prev) 
+        q->head = test->next;
+        q->frames--;
+        q->size -= test->buffer_len;
+        pico_frame_discard(test);
+    } else {
+      break;
+    }
+  }
+  return 0;
+}
 
 
 /* Functions */
@@ -69,6 +172,7 @@ struct pico_socket_tcp {
   uint16_t ssthresh;
   uint32_t rcv_nxt;
   uint32_t rcv_ackd;
+  uint32_t rcv_processed;
   uint32_t ts_zero;
   uint32_t ts_nxt;
   uint16_t mss;
@@ -81,31 +185,9 @@ struct pico_socket_tcp {
   uint8_t scale_ok;
 };
 
-#define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
-
-#define SEQN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)
-#define ACKN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)
-
 static uint32_t pico_paws(void)
 {
   return long_be(0xc0cac01a); /*XXX: implement paws */
-}
-
-static inline int seq_compare(uint32_t a, uint32_t b)
-{
-  uint32_t thresh = ((uint32_t)(-1))>>1;
-  if (((a > thresh) && (b > thresh)) || ((a <= thresh) && (b <= thresh))) {
-    if (a > b)
-      return 1;
-    if (b > a)
-      return -1;
-  } else {
-    if (a > b)
-      return -2;
-    if (b > a)
-      return 2;
-  }
-  return 0;
 }
 
 static void add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
@@ -195,7 +277,6 @@ static void parse_options(struct pico_frame *f)
         i += sizeof(uint32_t);
 
         t->ts_nxt = long_be(*tsval);
-        dbg("New TS remote: %lu\n", t->ts_nxt);
         if (t->ts_zero == 0) {
           t->ts_zero = PICO_TIME_MS();
         }
@@ -251,6 +332,43 @@ struct pico_socket *pico_tcp_open(void)
   return &t->sock;
 }
 
+int pico_tcp_read(struct pico_socket *s, void *buf, int len)
+{
+  struct pico_socket_tcp *t = TCP_SOCK(s);
+  struct pico_frame *f;
+  uint32_t in_frame_off, in_frame_len;
+  int tot_rd_len = 0;
+
+
+  while (tot_rd_len < len) {
+    /* To be sure we don't have garbage at the beginning */
+    pico_queue_release_until(&s->q_in, t->rcv_processed);
+    f = pico_queue_peek_first(&s->q_in);
+    if (!f)
+      return tot_rd_len;
+
+    /* Hole at the beginning of data, awaiting retransmissions. */
+    if(seq_compare(t->rcv_processed, SEQN(f)) < 0) {
+      return tot_rd_len;
+    }
+
+    if(seq_compare(t->rcv_processed, SEQN(f)) > 0) {
+      in_frame_off = t->rcv_processed - SEQN(f);
+      in_frame_len = f->payload_len - in_frame_off;
+    } else {
+      in_frame_off = 0;
+      in_frame_len = f->payload_len;
+    }
+    if ((in_frame_len + tot_rd_len) > len) {
+      in_frame_len = len - tot_rd_len;
+    }
+    memcpy(buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
+    tot_rd_len += in_frame_len;
+    t->rcv_processed += in_frame_len;
+  }
+  return tot_rd_len;
+}
+
 int pico_tcp_initconn(struct pico_socket *s)
 {
   struct pico_socket_tcp *ts = TCP_SOCK(s);
@@ -279,6 +397,7 @@ static int tcp_send_synack(struct pico_socket *s)
   hdr->len = PICO_SIZE_TCP_DATAHDR << 2;
   hdr->flags = PICO_TCP_SYN | PICO_TCP_ACK;
   hdr->rwnd = short_be(4096); // XXX
+  ts->rcv_processed = long_be(hdr->seq);
   return tcp_send(ts, synack);
 }
 
@@ -357,7 +476,6 @@ static void tcp_data_in(struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  uint32_t rcv_hi;
   if ((hdr->len >> 2) < f->transport_len) {
 
     f->payload = f->transport_hdr + (hdr->len >>2);
@@ -367,6 +485,7 @@ static void tcp_data_in(struct pico_frame *f)
     if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
       dbg("new segment!\n");
       t->rcv_nxt = SEQN(f) + f->payload_len;
+      pico_enqueue_segment(&t->sock.q_in, f);
     }
     /* In either case, send a fresh ack. */
     tcp_send_ack(t);
