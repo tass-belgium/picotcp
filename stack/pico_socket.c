@@ -127,6 +127,7 @@ int pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   if (!sp) {
+    dbg("Creating sockport..%04x\n", s->local_port);
     sp = pico_zalloc(sizeof(struct pico_sockport));
       if (!sp)
         return -1;
@@ -137,8 +138,13 @@ int pico_socket_add(struct pico_socket *s)
     else if (PROTO(s) == PICO_PROTO_TCP)
       RB_INSERT(sockport_table, &TCPTable, sp);
   }
+  dbg("inserting...\n");
   RB_INSERT(socket_tree, &sp->socks, s);
   s->state |= PICO_SOCKET_STATE_BOUND;
+
+  RB_FOREACH(s, socket_tree, &sp->socks) {
+    dbg("List Socket lc=%hu rm=%hu\n", short_be(s->local_port), short_be(s->remote_port));
+  }
   return 0;
 }
 

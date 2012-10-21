@@ -81,7 +81,7 @@ struct pico_socket_tcp {
 
 static uint32_t pico_paws(void)
 {
-  return 0xc0cac01a; /*XXX: implement paws */
+  return long_be(0xc0cac01a); /*XXX: implement paws */
 }
 
 static inline int seq_compare(uint32_t a, uint32_t b)
@@ -119,11 +119,12 @@ static void pico_add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
   f->start[7] = PICO_TCPOPTLEN_WS;
   f->start[8] = 2;
 
+  /* 
   f->start[9] = PICO_TCP_OPTION_TIMESTAMP;
   f->start[10] = PICO_TCPOPTLEN_TIMESTAMP;
   memcpy(f->start + 11, &ts->remote_timestamp, 4);
   memcpy(f->start + 15, &ts->remote_timestamp, 4);
-
+  */
 
   f->start[option_len -1] = 0;
 
@@ -133,12 +134,28 @@ static void pico_add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
 static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
   struct pico_tcp_hdr *hdr= (struct pico_tcp_hdr *) f->transport_hdr;
+  uint32_t next_to_send;
   hdr->trans.sport = ts->sock.local_port;
   hdr->trans.dport = ts->sock.remote_port;
   hdr->seq = long_be(ts->snd_nxt);
-  if (((ts->rcv_ackd == 0) && (ts->rcv_nxt != 0)) || (seq_compare(ts->rcv_ackd, ts->rcv_nxt) < 0)) {
-    hdr->flags |= PICO_TCP_ACK;
-    hdr->ack = long_be(ts->rcv_nxt);
+
+  dbg (" IN TCP SEND, i have: rcv_nxt = %d, rcv_ackd = %d\n", ts->rcv_nxt, ts->rcv_ackd);
+  if (ts->rcv_nxt != 0) {
+    if ( (ts->rcv_ackd == 0) || (seq_compare(ts->rcv_ackd, ts->rcv_nxt) != 0)) {
+      hdr->flags |= PICO_TCP_ACK;
+      hdr->ack = long_be(ts->rcv_nxt);
+      ts->rcv_ackd = ts->rcv_nxt;
+    }
+  }
+
+  next_to_send = SEQN(f);
+  if (hdr->flags & PICO_TCP_SYN)
+    next_to_send++;
+
+  next_to_send += f->payload_len;
+
+  if (seq_compare(next_to_send, ts->snd_nxt) > 0) {
+    ts->snd_nxt = next_to_send;
   }
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
   pico_add_options(ts,f);
@@ -146,7 +163,6 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   pico_tcp_checksum_ipv4(f);
   pico_enqueue(&out, f);
   dbg("Packet enqueued for TCP transmission.\n");
-
   return 0;
 }
 
@@ -166,12 +182,13 @@ int pico_tcp_initconn(struct pico_socket *s)
 
   if (!syn)
     return -1;
-  ts->snd_nxt = pico_paws();
+  ts->snd_nxt = long_be(pico_paws());
   syn->sock = s;
-  hdr->seq = ts->snd_nxt;
+  hdr->seq = long_be(ts->snd_nxt);
   hdr->len = PICO_SIZE_TCP_DATAHDR << 2;
   hdr->flags = PICO_TCP_SYN;
   hdr->rwnd = short_be(4096); // XXX
+  ts->snd_una = short_be(hdr->seq);
   tcp_send(ts, syn);
   return 0;
 }
@@ -211,18 +228,20 @@ static int tcp_spawn_clone(struct pico_socket *s, struct pico_frame *f)
   tcp_len = (hdr->len >> 2);
 
   new->rcv_nxt = long_be(hdr->seq) + 1;
-  new->snd_nxt = pico_paws();
-  new->snd_una = new->snd_nxt;
+  new->snd_nxt = long_be(pico_paws());
+  new->snd_una = new->snd_nxt - 1;
   new->cwnd = short_be(2);
   new->ssthresh = short_be(0xFFFF);
   new->rwnd = short_be(hdr->rwnd);
+  /*
   dbg("Ts: %02x\n", f->transport_hdr[28]);
   dbg("Ts: %02x\n", f->transport_hdr[29]);
   dbg("Ts: %02x\n", f->transport_hdr[30]);
   dbg("Ts: %02x\n", f->transport_hdr[31]);
   memcpy(&new->remote_timestamp, f->transport_hdr + 28, 4);
+  */
   tcp_send_synack(&new->sock);
-  new->sock.state = PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_TCP_SYN_RECV;
+  new->sock.state = PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_RECV;
   pico_socket_add(&new->sock);
   dbg("SYNACK sent, socket added.\n");
   return 0;
@@ -233,8 +252,7 @@ static int fresh_ack(struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   if (hdr->flags & PICO_TCP_ACK) {
-    if (seq_compare(long_be(hdr->ack), t->rcv_nxt - 1) > 0) {
-      t->rcv_nxt = long_be(hdr->ack);
+    if (seq_compare(long_be(hdr->ack), t->snd_una) > 0) {
       return 1;
     }
   }
@@ -242,16 +260,59 @@ static int fresh_ack(struct pico_frame *f)
 
 }
 
+static void tcp_send_ack(struct pico_socket_tcp *t)
+{
+  struct pico_frame *f = t->sock.net->alloc(t->sock.net, PICO_SIZE_TCP_DATAHDR);
+  struct pico_tcp_hdr *hdr;
+  if (!f) {
+    return;
+  }
+  f->sock = &t->sock;
+  hdr= (struct pico_tcp_hdr *) f->transport_hdr;
+  hdr->len = PICO_SIZE_TCP_DATAHDR << 2;
+  hdr->flags = PICO_TCP_ACK;
+  hdr->rwnd = short_be(4096); // XXX
+  tcp_send(t,f);
+
+}
+
+static void tcp_data_in(struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
+  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  uint32_t rcv_hi;
+  if ((hdr->len >> 2) < f->transport_len) {
+
+    f->payload = f->transport_hdr + (hdr->len >>2);
+    f->payload_len = f->transport_len - (hdr->len >>2);
+
+    dbg("[tcp input] RCVD data. seq: %08x flags: %02x data_len: %d\n", SEQN(f), hdr->flags, f->payload_len);
+    if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
+      dbg("new segment!\n");
+      t->rcv_nxt = SEQN(f) + f->payload_len;
+    }
+    /* In either case, send a fresh ack. */
+    tcp_send_ack(t);
+  }
+  /* delme, now. */
+  else {
+    dbg("No data. tcp_len: %d, transport_len: %d\n", (hdr->len>>2), f->transport_len);
+  }
+}
+
 void tcp_ack(struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return;
   dbg("[tcp input] RCVD ack: %08x flags: %02x\n", ACKN(f), hdr->flags);
-
-
+    if (seq_compare(ACKN(f), t->snd_una) > 0) {
+      dbg("new ack!\n");
+      t->snd_una = ACKN(f);
+    } else {
+      dbg("DUPACK! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", t->snd_una, t->snd_nxt, ACKN(f));
+    }
 }
 
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
@@ -265,6 +326,9 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 
   dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %08x ack: %08x flags: %02x\n",
       s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags);
+
+  /* This copy of the frame has the current socket as owner */
+  f->sock = s;
 
   if (flags & PICO_TCP_SYN) {
     switch (TCPSTATE(s)) {
@@ -290,6 +354,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
       if (fresh_ack(f)) {
         s->state = PICO_SOCKET_STATE_TCP_ESTABLISHED;
         tcp_ack(f);
+        tcp_data_in(f);
         dbg("TCP: Established.\n");
       }
 
@@ -297,7 +362,8 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     break;
 
     case PICO_SOCKET_STATE_TCP_ESTABLISHED:
-
+      tcp_ack(f);
+      tcp_data_in(f);
     break;
 
     default:
