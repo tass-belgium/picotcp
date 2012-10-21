@@ -69,9 +69,16 @@ struct pico_socket_tcp {
   uint16_t ssthresh;
   uint32_t rcv_nxt;
   uint32_t rcv_ackd;
-  uint32_t remote_timestamp;
+  uint32_t ts_zero;
+  uint32_t ts_nxt;
+  uint16_t mss;
   uint16_t rwnd;
+  uint16_t rwnd_scale;
   uint16_t avg_rtt;
+  uint8_t sack_ok;
+  uint8_t ts_ok;
+  uint8_t mss_ok;
+  uint8_t scale_ok;
 };
 
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
@@ -101,10 +108,12 @@ static inline int seq_compare(uint32_t a, uint32_t b)
   return 0;
 }
 
-static void pico_add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
+static void add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
   uint16_t mss = 1460;
   int option_len = PICO_SIZE_TCP_DATAHDR - PICO_SIZE_TCPHDR;
+  uint32_t tsval = long_be(PICO_TIME_MS() - ts->ts_zero);
+  uint32_t tsecr = long_be(ts->ts_nxt);
   memset(f->start, 1, option_len);
 
   f->start[0] = PICO_TCP_OPTION_MSS;
@@ -119,15 +128,83 @@ static void pico_add_options(struct pico_socket_tcp *ts, struct pico_frame *f)
   f->start[7] = PICO_TCPOPTLEN_WS;
   f->start[8] = 2;
 
-  /* 
   f->start[9] = PICO_TCP_OPTION_TIMESTAMP;
   f->start[10] = PICO_TCPOPTLEN_TIMESTAMP;
-  memcpy(f->start + 11, &ts->remote_timestamp, 4);
-  memcpy(f->start + 15, &ts->remote_timestamp, 4);
-  */
+  memcpy(f->start + 11, &tsval, 4);
+  memcpy(f->start + 15, &tsecr, 4);
 
   f->start[option_len -1] = 0;
 
+}
+
+static void parse_options(struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
+  uint8_t *opt = f->transport_hdr + PICO_SIZE_TCPHDR;
+  int i = 0;
+  dbg("PARSING OPTIONS\n");
+  while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
+    uint8_t type =  opt[i++];
+    uint8_t len =  opt[i++];
+    switch (type) {
+      case PICO_TCP_OPTION_NOOP:
+      case PICO_TCP_OPTION_END:
+        break;
+      case PICO_TCP_OPTION_WS:
+        if (len != PICO_TCPOPTLEN_WS) {
+          dbg("TCP Window scale: bad len received.\n");
+          i += len - 2;
+          break;
+        }
+        t->rwnd_scale = opt[i++];
+        break;
+      case PICO_TCP_OPTION_SACK:
+        if (len != PICO_TCPOPTLEN_WS) {
+          dbg("TCP option sack: bad len received.\n");
+          i += len - 2;
+          break;
+        }
+        t->sack_ok = 1;
+        break;
+      case PICO_TCP_OPTION_MSS: {
+        uint16_t *mss;
+        if (len != PICO_TCPOPTLEN_MSS) {
+          dbg("TCP option mss: bad len received.\n");
+          i += len - 2;
+          break;
+        }
+        t->mss_ok = 1;
+        mss = (uint16_t *)(opt + i);
+        i += sizeof(uint16_t);
+        if (t->mss > short_be(*mss))
+          t->mss = short_be(*mss);
+        break;
+      }
+      case PICO_TCP_OPTION_TIMESTAMP: {
+        uint32_t *tsval, *tsecr;
+        dbg("TIMESTAMP!\n");
+        if (len != PICO_TCPOPTLEN_TIMESTAMP) {
+          dbg("TCP option timestamp: bad len received.\n");
+          i += len - 2;
+          break;
+        }
+        t->ts_ok = 1;
+        tsval = (uint32_t *)(opt + i);
+        i += sizeof(uint32_t);
+        tsecr = (uint32_t *)(opt + i);
+        i += sizeof(uint32_t);
+
+        t->ts_nxt = long_be(*tsval);
+        dbg("New TS remote: %lu\n", t->ts_nxt);
+        if (t->ts_zero == 0) {
+          t->ts_zero = PICO_TIME_MS();
+        }
+        break;
+      }
+      default:
+        dbg("TCP: received unsupported option %u\n", type);
+    }
+  }
 }
 
 
@@ -158,7 +235,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
     ts->snd_nxt = next_to_send;
   }
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
-  pico_add_options(ts,f);
+  add_options(ts,f);
   f->transport_len = PICO_SIZE_TCP_DATAHDR;
   pico_tcp_checksum_ipv4(f);
   pico_enqueue(&out, f);
@@ -337,11 +414,13 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
         if (flags & PICO_TCP_ACK)
           goto discard;
         tcp_spawn_clone(s,f);
-
+        parse_options(f);
         break;
     }
+    goto discard;
   }
 
+  parse_options(f);
 
   switch (TCPSTATE(s)) {
     case PICO_SOCKET_STATE_TCP_LISTEN:
