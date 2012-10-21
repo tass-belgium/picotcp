@@ -33,7 +33,6 @@ static inline int seq_compare(uint32_t a, uint32_t b)
   return 0;
 }
 
-
 /* Enhanced interface for tcp queues. */
 
 /* Insert the packet in the queue, using the sequence number as order */
@@ -228,6 +227,8 @@ static void parse_options(struct pico_frame *f)
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
     uint8_t len =  opt[i++];
+    if (f->payload && ((opt + i) > f->payload))
+      break;
     switch (type) {
       case PICO_TCP_OPTION_NOOP:
       case PICO_TCP_OPTION_END:
@@ -359,12 +360,16 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
       in_frame_off = 0;
       in_frame_len = f->payload_len;
     }
+
     if ((in_frame_len + tot_rd_len) > len) {
       in_frame_len = len - tot_rd_len;
     }
+
     memcpy(buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
     tot_rd_len += in_frame_len;
     t->rcv_processed += in_frame_len;
+    if (in_frame_len == f->payload_len)
+      (void)pico_dequeue(&s->q_in);
   }
   return tot_rd_len;
 }
@@ -406,7 +411,6 @@ static int tcp_spawn_clone(struct pico_socket *s, struct pico_frame *f)
   /* TODO: Check against backlog length */
 
   struct pico_socket_tcp *new = (struct pico_socket_tcp *)pico_socket_clone(s);
-  struct pico_socket_tcp *ts = TCP_SOCK(s);
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
   uint8_t tcp_len;
   if (!new)
@@ -429,13 +433,8 @@ static int tcp_spawn_clone(struct pico_socket *s, struct pico_frame *f)
   new->cwnd = short_be(2);
   new->ssthresh = short_be(0xFFFF);
   new->rwnd = short_be(hdr->rwnd);
-  /*
-  dbg("Ts: %02x\n", f->transport_hdr[28]);
-  dbg("Ts: %02x\n", f->transport_hdr[29]);
-  dbg("Ts: %02x\n", f->transport_hdr[30]);
-  dbg("Ts: %02x\n", f->transport_hdr[31]);
-  memcpy(&new->remote_timestamp, f->transport_hdr + 28, 4);
-  */
+  new->sock.parent = s;
+  new->sock.wakeup = s->wakeup;
   tcp_send_synack(&new->sock);
   new->sock.state = PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_RECV;
   pico_socket_add(&new->sock);
@@ -486,6 +485,8 @@ static void tcp_data_in(struct pico_frame *f)
       dbg("new segment!\n");
       t->rcv_nxt = SEQN(f) + f->payload_len;
       pico_enqueue_segment(&t->sock.q_in, f);
+      if (t->sock.wakeup)
+        t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
     }
     /* In either case, send a fresh ack. */
     tcp_send_ack(t);
@@ -496,7 +497,7 @@ static void tcp_data_in(struct pico_frame *f)
   }
 }
 
-void tcp_ack(struct pico_frame *f)
+static void tcp_ack(struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -511,6 +512,12 @@ void tcp_ack(struct pico_frame *f)
     }
 }
 
+static void tcp_set_init_point(struct pico_socket *s)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  t->rcv_processed = t->rcv_nxt;
+}
+
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
@@ -520,8 +527,11 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
   if (!hdr)
     goto discard;
 
-  dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %08x ack: %08x flags: %02x\n",
-      s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags);
+  f->payload = (f->transport_hdr + (hdr->len>>2));
+  f->payload_len = f->transport_len - (hdr->len >> 2);
+
+  dbg("[tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
+      s, s->state, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
 
   /* This copy of the frame has the current socket as owner */
   f->sock = s;
@@ -550,12 +560,16 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     {
       dbg("In TCP Syn recv.\n");
       if (fresh_ack(f)) {
-        s->state = PICO_SOCKET_STATE_TCP_ESTABLISHED;
+        s->state &= 0x00FF;
+        s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
+        tcp_set_init_point(s);
         tcp_ack(f);
         tcp_data_in(f);
         dbg("TCP: Established.\n");
+        if (s->parent && s->parent->wakeup) {
+          s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
+        }
       }
-
     }
     break;
 

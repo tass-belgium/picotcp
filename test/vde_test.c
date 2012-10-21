@@ -4,19 +4,35 @@
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 
-void wakeup(struct pico_socket *s)
+static struct pico_socket *client = NULL;
+
+void wakeup(uint16_t ev, struct pico_socket *s)
 {
   char buf[30];
   int r;
   uint32_t peer;
   uint16_t port;
+
   printf("Called wakeup\n");
-  r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
-  printf("Receive: %d\n", r);
-  if (r > 0) {
-    buf[r] = 0;
-    printf("%s\n", buf);
-    pico_socket_sendto(s, buf, r, &peer, port);
+  if (ev == PICO_SOCK_EV_RD) { 
+    r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
+    printf("Receive: %d\n", r);
+    if (r > 0) {
+      buf[r] = 0;
+      printf("%s\n", buf);
+      pico_socket_sendto(s, buf, r, &peer, port);
+    }
+  }
+  if (ev == PICO_SOCK_EV_CONN) { 
+    if (client) {
+      printf("Socket busy: try again later.\n");
+    } else {
+      client = pico_socket_accept(s, &peer, &port);
+      if (client)
+        printf("Connection established.\n");
+      else
+        printf("accept: Error.\n");
+    }
   }
 }
 

@@ -231,14 +231,14 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   if (!s)
     return -1;
   if (pico_enqueue(&s->q_in, f) > 0) {
-    s->wakeup(s);
+    s->wakeup(PICO_SOCK_EV_RD, s);
     return 0;
   }
   else
     return -1;
 }
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(struct pico_socket *))
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
 {
 
   struct pico_socket *s = NULL;
@@ -441,12 +441,17 @@ int pico_socket_send(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
+  dbg("STATE: %x", s->state);
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
     return -1;
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP) {
     return pico_udp_recv(s, buf, len, orig, remote_port);
   }
+#endif
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_TCP)
+    return pico_tcp_read(s, buf, len);
 #endif
   return 0;
 }
@@ -529,7 +534,6 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
-  struct pico_socket *accepted = NULL;
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
     return NULL;
 
@@ -537,13 +541,18 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
     return NULL;
 
   if (TCPSTATE(s) == PICO_SOCKET_STATE_TCP_LISTEN) {
-    if (s->backlog) {
-      accepted = s->backlog;
-      s->backlog = accepted->next;
-      pico_socket_alter_state(accepted, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+    struct pico_sockport *sp = pico_get_sockport(PICO_PROTO_TCP, s->local_port);
+    struct pico_socket *found;
+    if (sp) {
+      RB_FOREACH(found, socket_tree, &sp->socks) {
+        if (s == found->parent) {
+          found->parent = NULL;
+          return found;
+        }
+      }
     }
   }
-  return accepted;
+  return NULL;
 }
 #else
 int pico_socket_listen(struct pico_socket *s)

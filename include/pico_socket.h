@@ -28,13 +28,14 @@ struct pico_socket {
   struct pico_queue q_in;
   struct pico_queue q_out;
 
-  void (*wakeup)(struct pico_socket *s);
+  void (*wakeup)(uint16_t ev, struct pico_socket *s);
 
 
 #ifdef PICO_SUPPORT_TCP
   /* For the TCP backlog queue */
   struct pico_socket *backlog;
   struct pico_socket *next;
+  struct pico_socket *parent;
   int max_backlog;
 #endif
 
@@ -71,9 +72,14 @@ struct pico_socket {
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
 #define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
+#define PICO_SOCK_EV_RD 0
+#define PICO_SOCK_EV_WR 1
+#define PICO_SOCK_EV_CONN 2
+#define PICO_SOCK_EV_CLOSE 4
+#define PICO_SOCK_EV_ERR 0xF0
 
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(struct pico_socket *s));
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s));
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len);
 int pico_socket_write(struct pico_socket *s, void *buf, int len);
