@@ -422,17 +422,17 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
     memcpy(buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
     tot_rd_len += in_frame_len;
     t->rcv_processed += in_frame_len;
-    if (in_frame_len == f->payload_len) {
+    if ((in_frame_len == 0) || (in_frame_len == f->payload_len)) {
       dbg("TCP> Burning...");
       old = pico_dequeue(&s->q_in);
       pico_frame_discard(old);
     }
     tcp_set_space(t);
   }
-  if (seq_compare(t->rcv_processed, SEQN(f)) >= 0) {
-    dbg("TCP> Read: retry.\n");
-    pico_timer_add(10, &wakeup_read, &s);
-  }
+  //if (seq_compare(t->rcv_processed, SEQN(f)) >= 0) {
+  //  dbg("TCP> Read: retry.\n");
+  //  pico_timer_add(10, &wakeup_read, &s);
+ // }
   return tot_rd_len;
 }
 

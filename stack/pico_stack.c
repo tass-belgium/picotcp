@@ -368,10 +368,10 @@ void pico_check_timers(void)
 
 void pico_stack_tick(void)
 {
+    pico_check_timers();
     pico_devices_loop(100);
     pico_protocols_loop(100);
     pico_sockets_loop(100);
-    pico_check_timers();
 }
 
 void pico_stack_loop(void)
