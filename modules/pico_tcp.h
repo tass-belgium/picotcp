@@ -21,6 +21,8 @@ struct __attribute__((packed)) pico_tcp_hdr {
 #define PICO_SIZE_TCP_DATAHDR (40)
 #define PICO_SIZE_TCPHDR (sizeof(struct pico_tcp_hdr))
 
+#define PICO_TCP_DEFAULT_MSS 1460
+
 
 /* TCP options */
 #define PICO_TCP_OPTION_END         0x00

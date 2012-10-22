@@ -5,7 +5,8 @@
 #include "pico_config.h"
 #include "rb.h"
 
-#define PICO_DEFAULT_SOCKETQ 8192
+//#define PICO_DEFAULT_SOCKETQ (8192 * 1024)
+#define PICO_DEFAULT_SOCKETQ (8192)
 
 
 struct pico_socket {
