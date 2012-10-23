@@ -1,12 +1,22 @@
 TCP
+- Receiving: Add SACK
+- 4whs states for closing
+- Active connect
+- Sending: implement write
+- Sending: rtt estimation, rto calculation
+- Sending: congestion control
+
 UDP: Multicast
 IGMP (2 and 3)
+Level 4 error mapping to socket calls
+
+
 Generic functional tests
+DNS
+NAT/NAPT
 DHCP server
 DHCP client
 IPV6
-DNS
-NAT
 PPP
 OLSR
 Multicast routing
