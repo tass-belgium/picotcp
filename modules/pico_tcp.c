@@ -205,8 +205,8 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, in
     f->start[i++] = PICO_TCPOPTLEN_MSS;
     f->start[i++] = (ts->mss >> 8) & 0xFF;
     f->start[i++] = ts->mss & 0xFF;
-    f->start[i++] = PICO_TCP_OPTION_SACK;
-    f->start[i++] = PICO_TCPOPTLEN_SACK;
+    f->start[i++] = PICO_TCP_OPTION_SACK_OK;
+    f->start[i++] = PICO_TCPOPTLEN_SACK_OK;
   }
 
   f->start[i++] = PICO_TCP_OPTION_WS;
@@ -251,7 +251,7 @@ static int tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
   int size = 0;
 
   if (flags & PICO_TCP_SYN) /* Full options */
-    return (PICO_TCPOPTLEN_MSS + PICO_TCP_OPTION_SACK + PICO_TCPOPTLEN_WS + PICO_TCPOPTLEN_TIMESTAMP + PICO_TCPOPTLEN_END);
+    return (PICO_TCPOPTLEN_MSS + PICO_TCP_OPTION_SACK_OK + PICO_TCPOPTLEN_WS + PICO_TCPOPTLEN_TIMESTAMP + PICO_TCPOPTLEN_END);
 
 
   /* Always update window scale. */
@@ -290,7 +290,7 @@ static void tcp_parse_options(struct pico_frame *f)
         }
         t->rwnd_scale = opt[i++];
         break;
-      case PICO_TCP_OPTION_SACK:
+      case PICO_TCP_OPTION_SACK_OK:
         if (len != PICO_TCPOPTLEN_WS) {
           dbg("TCP option sack: bad len received.\n");
           i += len - 2;

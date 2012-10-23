@@ -33,8 +33,10 @@ struct __attribute__((packed)) pico_tcp_hdr {
 #define PICO_TCPOPTLEN_MSS        4
 #define PICO_TCP_OPTION_WS          0x03
 #define PICO_TCPOPTLEN_WS         3
-#define PICO_TCP_OPTION_SACK        0x04
-#define PICO_TCPOPTLEN_SACK       2
+#define PICO_TCP_OPTION_SACK_OK        0x04
+#define PICO_TCPOPTLEN_SACK_OK       2
+#define PICO_TCP_OPTION_SACK        0x05
+#define PICO_TCPOPTLEN_SACK       2 /* Plus the block */
 #define PICO_TCP_OPTION_TIMESTAMP   0x08
 #define PICO_TCPOPTLEN_TIMESTAMP  10
 
