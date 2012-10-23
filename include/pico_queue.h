@@ -40,6 +40,7 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
     return -1;
 
+  p->next = NULL;
   if (!q->head) {
     q->head = p;
     q->tail = p;
@@ -48,7 +49,6 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   } else {
     q->tail->next = p;
     q->tail = p;
-    p->next = NULL;
   }
   q->size += p->buffer_len;
   q->frames++;

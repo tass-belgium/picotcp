@@ -73,6 +73,8 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
 int pico_tcp_checksum_ipv4(struct pico_frame *f);
+int pico_tcp_overhead(struct pico_socket *s);
+void pico_tcp_output(struct pico_socket *s);
 
 
 

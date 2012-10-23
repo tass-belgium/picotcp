@@ -14,6 +14,7 @@
 #include "pico_socket.h"
 #include "heap.h"
 
+volatile unsigned long pico_tick;
 
 
 /* NOTIFICATIONS: distributed notifications for stack internal errors.
@@ -357,21 +358,20 @@ static heap_pico_timer *Timers;
 void pico_check_timers(void)
 {
   struct pico_timer *t = heap_first(Timers);
-  unsigned long timestamp = PICO_TIME_MS();
-  while((t) && (t->expire < timestamp)) {
+  pico_tick = PICO_TIME_MS();
+  while((t) && (t->expire < pico_tick)) {
     heap_peek(Timers, t);
-    t->timer(timestamp, t->arg);
+    t->timer(pico_tick, t->arg);
     t = heap_first(Timers);
   }
 }
 
-
 void pico_stack_tick(void)
 {
     pico_check_timers();
-    pico_devices_loop(100);
-    pico_protocols_loop(100);
-    pico_sockets_loop(100);
+    pico_devices_loop(10);
+    pico_protocols_loop(10);
+    pico_sockets_loop(10);
 }
 
 void pico_stack_loop(void)

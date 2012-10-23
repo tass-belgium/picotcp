@@ -45,6 +45,7 @@ static inline unsigned long PICO_TIME_MS(void)
   return (t.tv_sec * 1000) + (t.tv_usec / 1000);
 }
 
+extern volatile unsigned long pico_tick;
 
 static inline uint32_t pico_hash(char *name)
 {
