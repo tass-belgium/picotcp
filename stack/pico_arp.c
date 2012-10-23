@@ -5,7 +5,7 @@
 #include "pico_device.h"
 #include "pico_stack.h"
 const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-#define PICO_ARP_TIMEOUT 60000
+#define PICO_ARP_TIMEOUT 600000
 
 
 struct

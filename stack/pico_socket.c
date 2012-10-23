@@ -640,7 +640,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    overhead = PICO_SIZE_TCP_DATAHDR; /* keep large enough */
+    overhead = 0; /* Overhead is calculated within TCP */
 #endif
 
 
