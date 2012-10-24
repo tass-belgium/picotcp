@@ -112,8 +112,11 @@ static int pico_enqueue_segment(struct pico_queue *q, struct pico_frame *f)
 static struct pico_frame *pico_queue_peek(struct pico_queue *q, uint32_t seq)
 {
   struct pico_frame *test = q->head;
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+  if (q->head)
+    debug_q(q);
+#endif
   while(test) {
-    dbg("Looking for %08x, found %08x\n",SEQN(test), seq);
     if (SEQN(test) == seq)
       return test;
     test = test->next;
@@ -739,7 +742,9 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) f->sock;
   hdr->seq = long_be(t->snd_last + 1);
+  hdr->len = (f->payload - f->transport_hdr) << 2;
   t->snd_last += f->payload_len;
+  dbg("TCP> ENQUEUE pkt %08x len=%d (snd->nxt is %08x, snd->last is now %08x)\n", long_be(hdr->seq), f->payload_len, t->snd_nxt, t->snd_last);
   pico_enqueue(&f->sock->q_out,f);
   return 0;
 }

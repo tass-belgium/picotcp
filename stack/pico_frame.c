@@ -27,6 +27,7 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
     return NULL;
   memcpy(new, f, sizeof(struct pico_frame));
   *(f->usage_count) += 1;
+  new->next = NULL;
   return new;
 }
 

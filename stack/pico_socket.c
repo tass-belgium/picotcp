@@ -380,6 +380,9 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       return -1;
   }
 
+  if (len <= 0)
+    return 0;
+
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s)) {
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
