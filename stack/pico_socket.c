@@ -212,9 +212,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
-      dbg("Evaluating sock with dport: %d\n", short_be(s->remote_port));
       if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
-        dbg("Input dport: %d\n", short_be(s->remote_port));
         pico_tcp_input(s, pico_frame_copy(f));
         if (s->remote_port == tr->sport)
           return 0;

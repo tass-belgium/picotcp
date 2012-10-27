@@ -16,7 +16,7 @@ void wakeup(uint16_t ev, struct pico_socket *s)
   uint16_t port;
 
   printf("Called wakeup\n");
-  if (ev == PICO_SOCK_EV_RD) { 
+  if (ev == PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_recvfrom(s, buf, 2048, &peer, &port);
       printf("------------------------------------- Receive: %d\n", r);
@@ -61,12 +61,12 @@ int main(void)
   if (!vde0)
     return 1;
 
-  vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
-  if (!vde1)
-    return 1;
+//  vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
+//  if (!vde1)
+//    return 1;
 
   pico_ipv4_link_add(vde0, address0, netmask0);
-  pico_ipv4_link_add(vde1, address1, netmask1);
+//  pico_ipv4_link_add(vde1, address1, netmask1);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)

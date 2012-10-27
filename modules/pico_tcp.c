@@ -280,6 +280,7 @@ static void tcp_set_space(struct pico_socket_tcp *t)
     space >>= 1;
     shift++;
   }
+  dbg("\n\nSPACE: %d\n\n", space);
   t->wnd = space;
   t->wnd_scale = shift;
 }
@@ -579,13 +580,13 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
       dbg("TCP> hey, I've got a new segment!\n");
       pico_enqueue_segment(&t->sock.q_in, f);
-      if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
+      if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
         dbg("TCP> exactly what I was expecting!\n");
         if (t->sock.wakeup)
           t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
-        t->rcv_nxt = SEQN(f) + f->payload_len;
+          t->rcv_nxt = SEQN(f) + f->payload_len;
       } else {
-        dbg("TCP> hi segment. Possible packet loss. I'll dupack this.\n");
+        dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
         /* XXX: differentiate dupack to insert sacks. */
       }
 
