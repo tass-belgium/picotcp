@@ -22,7 +22,9 @@ mod: modules/pico_ipv4.c modules/pico_dev_vde.c
 tst: all mod
 	mkdir -p build/test
 	gcc -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
+	gcc -c -o build/vde_receiver.o test/vde_receiver.c $(CFLAGS) -ggdb
 	gcc -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
+	gcc -o build/test/rcv build/modules/*.o build/lib/*.o build/vde_receiver.o -lvdeplug
 
 
 unit:
