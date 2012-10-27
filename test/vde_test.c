@@ -82,8 +82,6 @@ int main(void)
   if (pico_socket_listen(sk_tcp, 3)!=0)
     return 3;
 
-  
-
   while(1) {
     pico_stack_tick();
     usleep(2000);

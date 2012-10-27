@@ -25,10 +25,10 @@ struct pico_socket_tcp {
   uint32_t snd_last;
 
   /* congestion control */
+  uint32_t avg_rtt;
   uint16_t cwnd;
   uint16_t ssthresh;
   uint16_t in_flight;
-  uint16_t avg_rtt;
   uint16_t rwnd;
   uint16_t rwnd_scale;
 
@@ -536,6 +536,7 @@ static int tcp_send_synack(struct pico_socket *s)
   tcp_set_space(ts);
   tcp_add_options(ts,synack, opt_len);
   synack->payload_len = 0;
+  synack->timestamp = pico_tick;
   //pico_enqueue_segment(&s->q_out,synack);
   tcp_send(ts, synack);
   return 0;
@@ -626,11 +627,26 @@ static int fresh_ack(struct pico_frame *f)
 
 }
 
+static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
+{
+
+  uint32_t avg = t->avg_rtt;
+  if (!avg)
+    t->avg_rtt = rtt;
+  else {
+    t->avg_rtt <<= 2;
+    t->avg_rtt -= avg;
+    t->avg_rtt += rtt;
+    t->avg_rtt >>= 2;
+  }
+  dbg(" -----=============== RTT AVG: %u ======================----", t->avg_rtt);
+}
+
 static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  uint16_t rtt = 0;
+  uint32_t rtt = 0;
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return -1;
 
@@ -638,11 +654,22 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   dbg("Expected ack: %08x, got %08x\n", t->snd_una, ACKN(f));
   if (fresh_ack(f)) {
-    struct pico_frame *qf = pico_queue_peek(&t->sock.q_out,ACKN(f));
-    t->in_flight -= tcp_ack_advance_una(t, f);
-    if (qf)
-      rtt = time_diff(pico_tick, qf->timestamp);
+    struct pico_frame *una = pico_queue_peek(&t->sock.q_out, t->snd_una);
+    if( una) {
+      while (una) {
+        rtt = time_diff(pico_tick, una->timestamp);
+        una = pico_queue_peek(&t->sock.q_out, t->snd_una + una->payload_len + 1);
+      }
+      tcp_rtt(t, rtt);
+    } else {
+      dbg("DELME, looking for %08x\n", ACKN(f) - f->payload_len);
+      if (t->sock.q_out.head)
+        dbg("DELME, found %08x\n", SEQN((struct pico_frame *)(t->sock.q_out.head)));
+      else
+        dbg("DELME, Empty queue\n");
+    }
     dbg("TCP> new ack: %08x, rtt (calculated): %u. in flight: %d\n", ACKN(f),rtt, t->in_flight);
+    t->in_flight -= tcp_ack_advance_una(t, f);
   } else {
     /* one gets to dst, one is lost */
     t->in_flight-= 2;
