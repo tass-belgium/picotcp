@@ -372,6 +372,7 @@ static void tcp_parse_options(struct pico_frame *f)
         tsval = (uint32_t *)(opt + i);
         i += sizeof(uint32_t);
         tsecr = (uint32_t *)(opt + i);
+        f->timestamp = long_be(*tsecr);
         i += sizeof(uint32_t);
 
         t->ts_nxt = long_be(*tsval);
@@ -659,8 +660,15 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       while (una) {
         rtt = time_diff(pico_tick, una->timestamp);
         una = pico_queue_peek(&t->sock.q_out, t->snd_una + una->payload_len + 1);
+        if ((una) &&(t->ts_ok) && (f->timestamp != 0)) {
+          if (f->timestamp > una->timestamp) {
+            dbg("rtt measure invalid ( by timestamp )\n");
+            rtt = 0;
+          }
+        }
       }
-      tcp_rtt(t, rtt);
+      if (rtt)
+        tcp_rtt(t, rtt);
     } else {
       dbg("DELME, looking for %08x\n", ACKN(f) - f->payload_len);
       if (t->sock.q_out.head)
