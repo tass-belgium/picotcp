@@ -56,6 +56,7 @@ struct pico_socket {
 
 #ifdef PICO_SUPPORT_TCP
 # define PICO_SOCKET_STATE_TCP                0xFF00
+# define PICO_SOCKET_STATE_TCP_UNDEF          0x00FF
 # define PICO_SOCKET_STATE_TCP_CLOSED         0x0100
 # define PICO_SOCKET_STATE_TCP_LISTEN         0x0200
 # define PICO_SOCKET_STATE_TCP_SYN_SENT       0x0300
@@ -67,6 +68,7 @@ struct pico_socket {
 # define PICO_SOCKET_STATE_TCP_FIN_WAIT2      0x0900
 # define PICO_SOCKET_STATE_TCP_CLOSING        0x0a00
 # define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00
+# define PICO_SOCKET_STATE_TCP_ARRAYSIZ       0x0c
 #endif
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01

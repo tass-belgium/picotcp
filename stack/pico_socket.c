@@ -208,12 +208,6 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     return -1;
 
 
-#ifdef PICO_SUPPORT_UDP
-  if (p->proto_number == PICO_PROTO_UDP) {
-    /* Take the only socket here. */
-    s = RB_ROOT(&sp->socks);
-  }
-#endif
 
 #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
@@ -222,12 +216,20 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
       if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
         dbg("Input dport: %d\n", short_be(s->remote_port));
         pico_tcp_input(s, pico_frame_copy(f));
+        if (s->remote_port == tr->sport)
+          return 0;
       }
     }
     pico_frame_discard(f);
     return 0;
   }
 #endif
+
+#ifdef PICO_SUPPORT_UDP
+  if (p->proto_number == PICO_PROTO_UDP) {
+    /* Take the only socket here. */
+    s = RB_ROOT(&sp->socks);
+  }
   if (!s)
     return -1;
   if (pico_enqueue(&s->q_in, f) > 0) {
@@ -235,6 +237,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     return 0;
   }
   else
+#endif
     return -1;
 }
 
@@ -436,6 +439,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   f->payload_len -= off;
   f->sock = s;
   memcpy(f->payload, buf, f->payload_len);
+  dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, f->payload_len);
   return s->proto->push(s->proto, f);
 }
 
@@ -637,7 +641,8 @@ int pico_sockets_loop(int loop_score)
 #ifdef PICO_SUPPORT_TCP
   RB_FOREACH(sp, sockport_table, &TCPTable) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
-      pico_tcp_output(s);
+      if (s->q_out.size > 0)
+        pico_tcp_output(s);
       loop_score -= 1;
     }
   }
