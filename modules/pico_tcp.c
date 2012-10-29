@@ -283,7 +283,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
         memcpy(f->start + i, sb, 2 * sizeof(uint32_t));
         i += (2 * sizeof(uint32_t));
         f->start[len_off] += (2 * sizeof(uint32_t));
-        pico_free(sb);
+        //pico_free(sb);
       }
     }
   }
@@ -625,6 +625,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
         t->sacks = sb;
         left = 0;
         right = 0;
+        pico_free(sb);
       }
       break;
     }
@@ -672,11 +673,17 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
       dbg("TCP> hey, I've got a new segment!\n");
       pico_enqueue_segment(&t->sock.q_in, f);
       if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
+        struct pico_frame *nxt;
         dbg("TCP> exactly what I was expecting!\n");
         if (t->sock.wakeup) {
           t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
         }
         t->rcv_nxt = SEQN(f) + f->payload_len;
+        nxt = pico_queue_peek(&t->sock.q_in, t->rcv_nxt);
+        while(nxt) {
+          t->rcv_nxt += f->payload_len;
+          nxt = pico_queue_peek(&t->sock.q_in, t->rcv_nxt);
+        }
       } else {
         dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
         if (t->sack_ok) {
