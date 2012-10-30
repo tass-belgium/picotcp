@@ -252,7 +252,6 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
     } else {
       struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
       a4 = pico_arp_get(&hdr->dst);
-      dbg ("ETH SEND TO %08x - proto %d\n", hdr->dst.addr, hdr->proto); 
       if (!a4) {
        if (++ f->failure_count < 4) {
          dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);

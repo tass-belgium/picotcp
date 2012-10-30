@@ -16,7 +16,7 @@ struct pico_device_vde {
 static int pico_vde_send(struct pico_device *dev, void *buf, int len)
 {
   struct pico_device_vde *vde = (struct pico_device_vde *) dev;
-  dbg("[%s] send %d bytes.\n", dev->name, len);
+  //dbg("[%s] send %d bytes.\n", dev->name, len);
   return vde_send(vde->conn, buf, len, 0);
 }
 

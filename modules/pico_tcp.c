@@ -22,7 +22,6 @@ RB_PROTOTYPE_STATIC(pico_segment_pool, pico_frame, node, segment_compare);
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
   uint32_t thresh = ((uint32_t)(-1))>>1;
-  dbg("Comparing %x to %x\n", a, b);
   if (((a > thresh) && (b > thresh)) || ((a <= thresh) && (b <= thresh))) {
     if (a > b)
       return 1;
@@ -218,7 +217,6 @@ struct pico_protocol pico_proto_tcp = {
 static uint32_t pico_paws(void)
 {
   static unsigned long _paws;
-  dbg("PAWS!\n");
   _paws = pico_tick +  0xc0cac01a + _paws;
   return long_be(_paws); /*XXX: implement paws */
 }
@@ -228,7 +226,6 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
   uint32_t tsval = long_be(pico_tick);
   uint32_t tsecr = long_be(ts->ts_nxt);
   int i = 0;
-  dbg("SETTING OPTIONS, len: %d\n", optsiz);
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
 
   memset(f->start, PICO_TCP_OPTION_NOOP, optsiz); /* fill blanks with noop */
@@ -269,7 +266,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
         memcpy(f->start + i, sb, 2 * sizeof(uint32_t));
         i += (2 * sizeof(uint32_t));
         f->start[len_off] += (2 * sizeof(uint32_t));
-        //pico_free(sb);
+        pico_free(sb);
       }
     }
   }
@@ -324,7 +321,6 @@ static int tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
     size += 2;
     while(sb) {
       size += (2 * sizeof(uint32_t));
-      dbg("Adding SACK information.\n");
       sb = sb->next;
     }
   }
@@ -388,7 +384,6 @@ static void tcp_parse_options(struct pico_frame *f)
       }
       case PICO_TCP_OPTION_TIMESTAMP: {
         uint32_t *tsval, *tsecr;
-        dbg("TIMESTAMP!\n");
         if (len != PICO_TCPOPTLEN_TIMESTAMP) {
           dbg("TCP option timestamp: bad len received.\n");
           i += len - 2;
@@ -420,7 +415,6 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   hdr->trans.dport = ts->sock.remote_port;
   hdr->seq = long_be(ts->snd_nxt);
 
-  dbg ("TCP> IN TCP SEND, i have: rcv_nxt = %08x, rcv_ackd = %08x\n", ts->rcv_nxt, ts->rcv_ackd);
   if (ts->rcv_nxt != 0) {
     if ( (ts->rcv_ackd == 0) || (seq_compare(ts->rcv_ackd, ts->rcv_nxt) != 0) || (hdr->flags & PICO_TCP_ACK)) {
       hdr->flags |= PICO_TCP_ACK;
@@ -450,7 +444,6 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   pico_enqueue(&out, f);
   dbg("DBG> [tcp output] socket: %p state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
       s, TCPSTATE(s) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
-  dbg("Packet enqueued for TCP transmission.\n");
   return 0;
 }
 
@@ -595,39 +588,38 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
   struct pico_frame *pkt;
   uint32_t left=0, right=0;
   struct tcp_sack_block *sb;
+  int n = 0;
   if (t->sacks) /* previous sacks are pending */
     return;
 
   pkt = first_segment(&t->tcpq_in);
-  while(1) {
-    dbg("Packet is %08x, rcv_nxt is %08x\n", pkt?SEQN(pkt):0, t->rcv_nxt);
+  while(n < 3) {
     if (!pkt) {
       if(left) {
         sb = pico_zalloc(sizeof(struct tcp_sack_block));
         sb->left = long_be(left);
         sb->right = long_be(right);
+        n++;
         sb->next = t->sacks;
         t->sacks = sb;
         left = 0;
         right = 0;
-        pico_free(sb);
       }
       break;
     }
     if ((SEQN(pkt) < t->rcv_nxt)) {
-      dbg("sack: skipping pkt\n");
-      pkt = pkt->next;
+      pkt = next_segment(&t->tcpq_in, pkt);
       continue;
     }
     if (!left) {
       left = SEQN(pkt);
       right = SEQN(pkt) + pkt->payload_len;
-      pkt = pkt->next;
+      pkt = next_segment(&t->tcpq_in, pkt);
       continue;
     }
     if(SEQN(pkt) == (right + 1)) {
       right += pkt->payload_len;
-      pkt = pkt->next;
+      pkt = next_segment(&t->tcpq_in, pkt);
       continue;
     } else {
       sb = pico_zalloc(sizeof(struct tcp_sack_block));
@@ -635,11 +627,12 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
         break;
       sb->left = long_be(left);
       sb->right = long_be(right);
+      n++;
       sb->next = t->sacks;
       t->sacks = sb;
       left = 0;
       right = 0;
-      pkt = pkt->next;
+      pkt = next_segment(&t->tcpq_in, pkt);
     }
   }
 }
@@ -649,25 +642,23 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   if ((hdr->len >> 2) < f->transport_len) {
-
+    tcp_parse_options(f);
     f->payload = f->transport_hdr + (hdr->len >>2);
     f->payload_len = f->transport_len - (hdr->len >>2);
-
-    dbg("TCP> [tcp input] RCVD data. seq: %08x flags: %02x data_len: %d\n", SEQN(f), hdr->flags, f->payload_len);
     if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
-      dbg("TCP> hey, I've got a new segment!\n");
       pico_enqueue_segment(&t->tcpq_in, f);
       if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
         struct pico_frame *nxt;
         dbg("TCP> exactly what I was expecting!\n");
-        if (t->sock.wakeup) {
-          t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
-        }
         t->rcv_nxt = SEQN(f) + f->payload_len;
         nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         while(nxt) {
+          dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
           t->rcv_nxt += f->payload_len;
           nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+        }
+        if (t->sock.wakeup) {
+          t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
         }
       } else {
         dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
@@ -681,7 +672,6 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     tcp_send_ack(t);
     return 0;
   } else {
-    dbg("TCP> No data. tcp_len: %d, transport_len: %d\n", (hdr->len>>2), f->transport_len);
     return -1;
   }
 }
@@ -740,10 +730,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   tcp_parse_options(f);
 
-  dbg("Expected ack: %08x, got %08x\n", t->snd_una, ACKN(f));
   if (fresh_ack(f)) {
     struct pico_frame *una = peek_segment(&t->tcpq_out, t->snd_una);
-    if( una) {
+    if(una) {
       while (una) {
         rtt = time_diff(pico_tick, una->timestamp);
         una = peek_segment(&t->tcpq_out, t->snd_una + una->payload_len + 1);
@@ -756,18 +745,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       }
       if (rtt)
         tcp_rtt(t, rtt);
-    } else {
-      dbg("DELME, looking for %08x\n", ACKN(f) - f->payload_len);
-      if (t->sock.q_out.head)
-        dbg("DELME, found %08x\n", SEQN((struct pico_frame *)(t->sock.q_out.head)));
-      else
-        dbg("DELME, Empty queue\n");
     }
-    dbg("\n\n");
-    dbg("TCP> ack received : %08x, rtt (calculated): %u. in flight: %d\n", ACKN(f),rtt, t->in_flight);
     t->in_flight -= tcp_ack_advance_una(t, f);
-    dbg("TCP> ack processed: %08x, rtt (calculated): %u. in flight: %d\n", ACKN(f),rtt, t->in_flight);
-    dbg("\n\n");
   } else {
     /* one gets to dst, one is lost */
     t->in_flight-= 2;
@@ -943,7 +922,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
         action->ack(s,f);
     }
 
-  //tcp_parse_options(f);
 
 #if 0
   switch (TCPSTATE(s)) {
@@ -984,7 +962,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 #endif
 
 discard:
-  dbg("Discard.\n\n\n");
   pico_frame_discard(f);
   return ret;
 }
@@ -998,7 +975,6 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   hdr->seq = long_be(t->snd_last + 1);
   hdr->len = (f->payload - f->transport_hdr) << 2;
   t->snd_last += f->payload_len;
-  dbg("TCP> ENQUEUE pkt %08x len=%d (snd->nxt is %08x, snd->last is now %08x)\n", long_be(hdr->seq), f->payload_len, t->snd_nxt, t->snd_last);
   if (pico_enqueue_segment(&t->tcpq_out,f) > 0)
     return f->payload_len;
   else return 0;
