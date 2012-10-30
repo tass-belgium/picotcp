@@ -639,9 +639,9 @@ int pico_sockets_loop(int loop_score)
 #ifdef PICO_SUPPORT_TCP
   RB_FOREACH(sp, sockport_table, &TCPTable) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
-      if (s->q_out.size > 0)
-        pico_tcp_output(s);
-      loop_score -= 1;
+      loop_score = pico_tcp_output(s, loop_score);
+      if (loop_score <= 0)
+        return 0;
     }
   }
 #endif
@@ -651,7 +651,6 @@ int pico_sockets_loop(int loop_score)
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 {
-
   int overhead = 0;
   struct pico_frame *f = NULL;
 
@@ -670,16 +669,16 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
   if (IS_SOCK_IPV6(s))
     f = pico_proto_ipv6.alloc(&pico_proto_ipv6, overhead + len);
 #endif
-    
+
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s))
     f = pico_proto_ipv4.alloc(&pico_proto_ipv4, overhead + len);
 #endif
   if (!f)
     return f;
-
   f->sock = s;
   f->payload = f->transport_hdr + overhead;
   f->payload_len = len;
   return f;
 }
+

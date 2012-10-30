@@ -18,6 +18,7 @@ void wakeup(uint16_t ev, struct pico_socket *s)
   printf("Called wakeup\n");
   if (ev == PICO_SOCK_EV_RD) {
     do {
+      printf("----------------------------  Calling Receive.\n");
       r = pico_socket_recvfrom(s, buf, 2048, &peer, &port);
       printf("------------------------------------- Receive: %d\n", r);
       if (r > 0) {

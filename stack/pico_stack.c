@@ -191,6 +191,7 @@ int pico_source_is_local(struct pico_frame *f)
 #endif
 #ifdef PICO_SUPPORT_IPV6
   else if (IS_IPV6(f)) {
+  /* XXX */
   }
 #endif
   return 0;
@@ -369,9 +370,9 @@ void pico_check_timers(void)
 void pico_stack_tick(void)
 {
     pico_check_timers();
-    pico_devices_loop(10);
-    pico_protocols_loop(10);
-    pico_sockets_loop(10);
+    pico_devices_loop(100);
+    pico_protocols_loop(100);
+    pico_sockets_loop(100);
 }
 
 void pico_stack_loop(void)
