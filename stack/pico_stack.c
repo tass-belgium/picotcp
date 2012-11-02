@@ -131,7 +131,6 @@ int pico_transport_send(struct pico_frame *f)
 
 int pico_network_receive(struct pico_frame *f)
 {
-  dbg("Network receive\n");
   if (0) {}
 #ifdef PICO_SUPPORT_IPV4
   else if (IS_IPV4(f)) {
@@ -360,8 +359,8 @@ void pico_check_timers(void)
   struct pico_timer *t = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
   while((t) && (t->expire < pico_tick)) {
-    heap_peek(Timers, t);
     t->timer(pico_tick, t->arg);
+    heap_peek(Timers, t);
     t = heap_first(Timers);
   }
 }
@@ -416,7 +415,5 @@ void pico_stack_init(void)
 
   /* Initialize timer heap */
   Timers = heap_init();
-
-
 }
 

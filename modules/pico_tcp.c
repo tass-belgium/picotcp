@@ -9,6 +9,10 @@
 #define SEQN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)
 #define ACKN(f) long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)
 
+#define PICO_TCP_RTO_MIN 1000
+#define PICO_TCP_RTO_MAX 120000
+
+
 #define PICO_TCP_LOOKAHEAD      0x00
 #define PICO_TCP_RETRANSMIT     0x01
 #define PICO_TCP_RECOVER        0x02
@@ -715,7 +719,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
     t->avg_rtt += rtt;
     t->avg_rtt >>= 2;
   }
-  dbg(" -----=============== RTT AVG: %u ======================----", t->avg_rtt);
+  dbg(" -----=============== RTT AVG: %u ======================----\n", t->avg_rtt);
 }
 
 static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
@@ -997,11 +1001,9 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         t->snd_nxt = SEQN(f) + f->payload_len;
     }
   }
-  /* XXX: Trigger a retransmission time out here, if at least one segment left. */
   if (sent > 0) {
-    dbg(".... Sent: %d\n", sent);
-    if (t->rto < 1000)
-      t->rto = 1000;
+    if (t->rto < PICO_TCP_RTO_MIN)
+      t->rto = PICO_TCP_RTO_MIN;
     pico_timer_add(t->rto, tcp_retrans_timeout, t);
   }
   return loop_score;
