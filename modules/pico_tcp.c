@@ -117,6 +117,7 @@ struct pico_socket_tcp {
 
   /* congestion control */
   uint32_t avg_rtt;
+  uint32_t rttvar;
   uint32_t rto;
   uint16_t cwnd;
   uint16_t ssthresh;
@@ -711,13 +712,38 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
 
   uint32_t avg = t->avg_rtt;
-  if (!avg)
+  uint32_t rvar = t->rttvar;
+  if (!avg) {
+    /* This follows RFC2988
+     * (2.2) When the first RTT measurement R is made, the host MUST set
+     *
+     * SRTT <- R
+     * RTTVAR <- R/2
+     * RTO <- SRTT + max (G, K*RTTVAR)
+     */
     t->avg_rtt = rtt;
-  else {
-    t->avg_rtt <<= 2;
+    t->rttvar = rtt >> 1;
+    t->rto = t->avg_rtt + (t->rttvar << 4);
+  } else {
+    int var = (t->avg_rtt - rtt);
+    if (var < 0)
+      var = 0-var;
+    /* RFC2988, section (2.3). Alpha and beta are the ones suggested. */
+
+    /* First, evaluate a new value for the rttvar */
+    t->rttvar <<= 2;
+    t->rttvar -= rvar;
+    t->rttvar += var;
+    t->rttvar >>= 2;
+
+    /* Then, calculate the new avg_rtt */
+    t->avg_rtt <<= 3;
     t->avg_rtt -= avg;
     t->avg_rtt += rtt;
-    t->avg_rtt >>= 2;
+    t->avg_rtt >>= 3;
+
+    /* Finally, assign a new value for the RTO, as specified in the RFC, with K=4 */
+    t->rto = t->avg_rtt + (t->rttvar << 2);
   }
   dbg(" -----=============== RTT AVG: %u ======================----\n", t->avg_rtt);
 }
