@@ -594,14 +594,25 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
 int pico_socket_shutdown(struct pico_socket *s, int mode)
 {
+#ifdef PICO_SUPPORT_UDP
+  if (PROTO(s) == PICO_PROTO_UDP) {
+    if (mode & PICO_SHUT_RDWR)
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_CLOSED, PICO_SOCKET_STATE_CLOSING |PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED, 0);
+    else if (mode & PICO_SHUT_RD)
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+  }
+#endif
+#ifdef PICO_SUPPORT_TCP
+  if (PROTO(s) == PICO_PROTO_TCP) {
 
+  }
+#endif
   return 0;
 }
 
 int pico_socket_close(struct pico_socket *s)
 {
-
-  return 0;
+  return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
 
 

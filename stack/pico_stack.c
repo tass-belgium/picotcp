@@ -391,7 +391,6 @@ void pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), 
   heap_insert(Timers, &t);
 }
 
-
 void pico_stack_init(void)
 {
 

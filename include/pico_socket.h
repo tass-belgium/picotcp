@@ -9,6 +9,11 @@
 //#define PICO_DEFAULT_SOCKETQ (8192)
 
 
+#define PICO_SHUT_RD   1
+#define PICO_SHUT_WR   2
+#define PICO_SHUT_RDWR 3
+
+
 struct pico_socket {
   struct pico_protocol *proto;
   struct pico_protocol *net;
@@ -47,8 +52,8 @@ struct pico_socket {
 };
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000
-#define PICO_SOCKET_STATE_OPEN_LOCAL      0x0001
-#define PICO_SOCKET_STATE_OPEN_REMOTE     0x0002
+#define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001
+#define PICO_SOCKET_STATE_SHUT_REMOTE     0x0002
 #define PICO_SOCKET_STATE_BOUND           0x0004
 #define PICO_SOCKET_STATE_CONNECTED       0x0008
 #define PICO_SOCKET_STATE_CLOSING         0x0010
