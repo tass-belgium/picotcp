@@ -59,7 +59,7 @@ struct pico_tcp_queue
 static struct pico_frame *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
 {
   struct pico_tcp_hdr H;
-  struct pico_frame f;
+  struct pico_frame f = {};
   f.transport_hdr = (uint8_t *) (&H);
   H.seq = long_be(seq);
   return RB_FIND(pico_segment_pool, &tq->pool, &f);
@@ -343,6 +343,52 @@ int pico_tcp_overhead(struct pico_socket *s)
 
 }
 
+static void tcp_process_sack(struct pico_socket_tcp *t, uint32_t start, uint32_t end)
+{
+  struct pico_frame *f, *tmp; 
+  int cmp;
+  dbg("Processing sack %08x-%08x...\n", start, end);
+  RB_FOREACH_SAFE(f, pico_segment_pool, &t->tcpq_out.pool, tmp) {
+    dbg("...found segment at %08x\n", SEQN(f));
+    cmp = seq_compare(SEQN(f), start);
+    dbg("Cmp: %d\n", cmp);
+    if (cmp > 0) 
+      return;
+
+    if (cmp == 0) {
+      cmp = seq_compare(SEQN(f) + f->payload_len, end);
+      if (cmp > 0) {
+        dbg("Invalid SACK: ignoring.\n");
+      }
+
+      pico_discard_segment(&t->tcpq_out, f);
+      dbg("...Discarded One.\n");
+
+      if (cmp == 0) {
+        /* that was last segment sacked. Job done */
+        return;
+      }
+    }
+  }
+}
+
+static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
+{
+  uint32_t *start, *end;
+  int i = 0;
+  if (len % 8) {
+    dbg("SACK: Invalid len.\n");
+    return;
+  }
+  while (i < len) {
+    start = (uint32_t *)(opt + i);
+    i += 4;
+    end = (uint32_t *)(opt + i);
+    i += 4;
+    tcp_process_sack(t, long_be(*start), long_be(*end));
+  }
+}
+
 static void tcp_parse_options(struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
@@ -405,8 +451,16 @@ static void tcp_parse_options(struct pico_frame *f)
         t->ts_nxt = long_be(*tsval);
         break;
       }
+      case PICO_TCP_OPTION_SACK:
+      {
+        dbg("TCP option SACK received.\n");
+        tcp_rcv_sack(t, opt + i, len - 2);
+        i += len - 2;
+        break;
+      }
       default:
         dbg("TCP: received unsupported option %u\n", type);
+        i += len - 2;
     }
   }
 }
@@ -745,7 +799,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
     /* Finally, assign a new value for the RTO, as specified in the RFC, with K=4 */
     t->rto = t->avg_rtt + (t->rttvar << 2);
   }
-  dbg(" -----=============== RTT AVG: %u ======================----\n", t->avg_rtt);
+  dbg(" -----=============== RTT AVG: %u RTTVAR: %u RTO: %u ======================----\n", t->avg_rtt, t->rttvar, t->rto);
 }
 
 static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
@@ -760,17 +814,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   if (fresh_ack(f)) {
     struct pico_frame *una = peek_segment(&t->tcpq_out, t->snd_una);
-    if(una) {
-      while (una) {
-        rtt = time_diff(pico_tick, una->timestamp);
-        una = peek_segment(&t->tcpq_out, t->snd_una + una->payload_len + 1);
-        if ((una) &&(t->ts_ok) && (f->timestamp != 0)) {
-          if (f->timestamp > una->timestamp) {
-            dbg("rtt measure invalid ( by timestamp )\n");
-            rtt = 0;
-          }
-        }
-      }
+    if(una && (una->timestamp != 0)) {
+      rtt = time_diff(pico_tick, una->timestamp);
       if (rtt)
         tcp_rtt(t, rtt);
     }
@@ -779,6 +824,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     /* one gets to dst, one is lost */
     t->in_flight-= 2;
     dbg("TCP> DUPACK! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", t->snd_una, t->snd_nxt, ACKN(f));
+
+    /* Todo: count 3 ack then reduce window */
+    t->snd_nxt = t->snd_una;
   }
   return 0;
 }
@@ -974,7 +1022,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
   struct pico_frame *f = NULL;
   unsigned long limit = val - t->rto;
   struct pico_tcp_hdr *hdr;
-  dbg("TIMEOUT!\n");
+  dbg("TIMEOUT! backoff = %d\n", t->backoff);
 
   RB_FOREACH_REVERSE(f, pico_segment_pool, &t->tcpq_out.pool) {
     if (f->timestamp < limit) {
@@ -982,10 +1030,16 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
       dbg("TCP> TIMED OUT (output) frame %08x, len= %d\n", SEQN(f), f->payload_len);
       f->timestamp = pico_tick;
       tcp_add_options(t, f, hdr->flags, tcp_options_size(t, hdr->flags));
-      tcp_send(t, pico_frame_copy(f));
-      break;
+      hdr->rwnd = short_be(t->wnd);
+      pico_tcp_checksum_ipv4(f);
+      /* TCP: ENQUEUE to PROTO */
+      pico_enqueue(&out, pico_frame_copy(f));
+      t->backoff++;
+      pico_timer_add((t->rto << t->backoff), tcp_retrans_timeout, t);
+      return;
     }
   }
+  t->backoff = 0;
 }
 
 

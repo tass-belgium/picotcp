@@ -364,7 +364,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
   struct pico_frame *f;
   int off = 0;
-
+  if (len <= 0)
+    return len;
 #ifdef PICO_SUPPORT_IPV4
   struct pico_ip4 *src4;
 #endif
