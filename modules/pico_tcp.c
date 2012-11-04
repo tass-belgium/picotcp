@@ -498,7 +498,6 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
   struct pico_tcp_hdr *hdr= (struct pico_tcp_hdr *) f->transport_hdr;
   uint32_t next_to_send;
-  struct pico_socket *s = (struct pico_socket *)ts;
   struct pico_frame *cpy;
   hdr->trans.sport = ts->sock.local_port;
   hdr->trans.dport = ts->sock.remote_port;
@@ -534,7 +533,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   if (pico_enqueue(&out, cpy) > 0) {
     ts->in_flight++;
     tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
-      TCPSTATE(s) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
+      TCPSTATE(ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
   } else {
     pico_frame_discard(cpy);
   }
@@ -1167,7 +1166,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     }
   }
 
-discard:
+//discard:
   pico_frame_discard(f);
   return ret;
 }
