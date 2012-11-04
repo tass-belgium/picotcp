@@ -12,11 +12,7 @@
 #define PICO_SUPPORT_UDP
 #define PICO_SUPPORT_TCP
 
-//#define PICO_SUPPORT_DEBUG_MEMORY
-//#define PICO_SUPPORT_DEBUG_TOOLS
-
-
-
+#define dbg printf
 
 /*************************/
 
@@ -29,8 +25,29 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define pico_zalloc(x) calloc(x, 1)
-#define pico_free(x) free(x)
+
+/* Debug */
+//#define PICO_SUPPORT_DEBUG_MEMORY
+//#define PICO_SUPPORT_DEBUG_TOOLS
+
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+static inline void *pico_zalloc(int len)
+{
+    dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0));
+    return calloc(len, 1);
+}
+
+static inline void pico_free(void *tgt)
+{
+    dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0));
+    free(tgt);
+}
+#else
+# define pico_zalloc(x) calloc(x, 1)
+# define pico_free(x) free(x)
+#endif
+
+
 
 static inline unsigned long PICO_TIME(void)
 {
@@ -62,7 +79,6 @@ static inline void PICO_IDLE(void)
   usleep(5000);
 }
 
-#define dbg printf
 
 
 

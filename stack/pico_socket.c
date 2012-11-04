@@ -214,7 +214,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
       if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
         pico_tcp_input(s, pico_frame_copy(f));
         if (s->remote_port == tr->sport)
-          return 0;
+          break;
       }
     }
     pico_frame_discard(f);
@@ -438,7 +438,12 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   f->sock = s;
   memcpy(f->payload, buf, f->payload_len);
   //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, f->payload_len);
-  return s->proto->push(s->proto, f);
+  if (s->proto->push(s->proto, f) > 0) {
+    return f->payload_len;
+  } else {
+    pico_frame_discard(f);
+    return 0;
+  }
 }
 
 int pico_socket_send(struct pico_socket *s, void *buf, int len)

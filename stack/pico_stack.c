@@ -315,6 +315,7 @@ void pico_store_network_origin(void *src, struct pico_frame *f)
 int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
 {
   struct pico_frame *f;
+  int ret;
   if (len <= 0)
     return -1;
   f = pico_frame_alloc(len);
@@ -328,7 +329,11 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   f->start = f->buffer;
   f->len = f->buffer_len;
   memcpy(f->buffer, buffer, len);
-  return pico_enqueue(dev->q_in, f);
+  ret = pico_enqueue(dev->q_in, f);
+  if (ret <= 0) {
+    pico_frame_discard(f);
+  }
+  return ret;
 }
 
 int pico_sendto_dev(struct pico_frame *f)

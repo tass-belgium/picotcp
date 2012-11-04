@@ -109,6 +109,7 @@ int pico_arp_receive(struct pico_frame *f)
   else if (found->arp_status == PICO_ARP_STATUS_STALE) {
     /* Replace if stale */
     new = found;
+    RB_REMOVE(arp_tree, &Arp_table, new);
   }
 
   ret = 0;
