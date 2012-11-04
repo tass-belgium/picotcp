@@ -201,7 +201,6 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   if (!tr)
     return -1;
 
-  dbg("Deliver.\n");
   sp = pico_get_sockport(p->proto_number, localport);
 
   if (!sp)
@@ -620,7 +619,6 @@ int pico_socket_close(struct pico_socket *s)
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
-  dbg("Socket deliver\n");
   if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
     return 0;
 

@@ -32,7 +32,6 @@ static int pico_ipv4_forward(struct pico_frame *f);
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  dbg("IPv4: processing incoming packet.\n");
   if (pico_ipv4_link_find(&hdr->dst)) {
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
     f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
@@ -158,7 +157,6 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
   struct pico_ipv4_route *r;
   RB_FOREACH(r, routing_table, &Routes) {
     if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
-      dbg("found route to %08x via %s\n", addr->addr, r->link->dev->name);
       return r;
     }
   }
@@ -183,7 +181,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   
   if (!hdr)
     goto drop;
-  dbg("Pushing frame to %08x\n", dst->addr);
   route = route_find(dst);
   if (!route) {
     goto drop;
@@ -218,7 +215,6 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
     return -1;
   }
   dst = &f->sock->remote_addr.ip4;
-  dbg("dst: %08x\n", dst->addr);
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
