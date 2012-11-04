@@ -5,7 +5,7 @@
 #include "pico_config.h"
 #include "rb.h"
 
-#define PICO_DEFAULT_SOCKETQ (32 * 1024)
+#define PICO_DEFAULT_SOCKETQ (64 * 1024)
 //#define PICO_DEFAULT_SOCKETQ (8192)
 
 

@@ -438,7 +438,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   f->payload_len -= off;
   f->sock = s;
   memcpy(f->payload, buf, f->payload_len);
-  dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, f->payload_len);
+  //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, f->payload_len);
   return s->proto->push(s->proto, f);
 }
 
