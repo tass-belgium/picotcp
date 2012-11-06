@@ -21,8 +21,8 @@
 #define PICO_TCP_BLACKOUT       0x04
 #define PICO_TCP_UNREACHABLE    0x05
 
-#define tcp_dbg(...) do{}while(0)
-//#define tcp_dbg dbg
+//#define tcp_dbg(...) do{}while(0)
+#define tcp_dbg dbg
 
 
 RB_HEAD(pico_segment_pool, pico_frame);
@@ -533,7 +533,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
   if (pico_enqueue(&out, cpy) > 0) {
     ts->in_flight++;
     tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
-      TCPSTATE(ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
+      TCPSTATE(&ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, hdr->len >> 2, f->payload_len );
   } else {
     pico_frame_discard(cpy);
   }
