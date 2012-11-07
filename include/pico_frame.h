@@ -3,8 +3,10 @@
 #include "rb.h"
 
 
-#define PICO_FRAME_FLAG_BCAST (0x0001)
+#define PICO_FRAME_FLAG_BCAST   (0x01)
+#define PICO_FRAME_FLAG_SACKED  (0x80)
 #define IS_BCAST(f) ((f->flags & PICO_FRAME_FLAG_BCAST) == PICO_FRAME_FLAG_BCAST)
+
 
 struct pico_socket;
 
