@@ -1020,6 +1020,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     }
   }
   dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
+  if ((acked > 0) && t->sock.wakeup) {
+    t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
+  }
   return 0;
 }
 
@@ -1085,6 +1088,7 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("TCP: Established.\n");
     if (s->parent && s->parent->wakeup) {
       s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
+      s->parent->wakeup(PICO_SOCK_EV_WR, s);
     }
     return 0;
   } else {
