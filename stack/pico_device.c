@@ -32,6 +32,8 @@ int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac)
   if (mac) {
     dev->eth = pico_zalloc(sizeof(struct pico_ethdev));
     memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
+  } else {
+    dev->eth = NULL;
   }
 
   if (!dev->q_in || !dev->q_out || (mac && !dev->eth))

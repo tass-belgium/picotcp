@@ -21,8 +21,8 @@
 #define PICO_TCP_BLACKOUT       0x04
 #define PICO_TCP_UNREACHABLE    0x05
 
-//#define tcp_dbg(...) do{}while(0)
-#define tcp_dbg dbg
+#define tcp_dbg(...) do{}while(0)
+//#define tcp_dbg dbg
 
 
 RB_HEAD(pico_segment_pool, pico_frame);

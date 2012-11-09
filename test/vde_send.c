@@ -1,6 +1,7 @@
 #include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_dev_vde.h"
+#include "pico_dev_tun.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 
@@ -84,7 +85,8 @@ int main(void)
   netmask0.addr = 0x00FFFFFF;
 
 
-  vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
+  //vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
+  vde0 = pico_tun_create("tup0");
   if (!vde0)
     return 1;
 
