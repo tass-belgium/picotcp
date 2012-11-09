@@ -6,15 +6,33 @@
 
 static struct pico_socket *client = NULL;
 
+unsigned long long bytes = 0;
+unsigned long time_0 = 0;
+
 void wakeup(uint16_t ev, struct pico_socket *s)
 {
-  char buf[30];
-  int r;
+  char buf[1400];
+  int r, w;
+  static int rd = 0;
   uint32_t peer;
   uint16_t port;
 
-  printf("Called wakeup\n");
-  if (ev == PICO_SOCK_EV_RD) { 
+  //printf("Called wakeup\n");
+
+  if (ev & PICO_SOCK_EV_CONN) { 
+    if (client) {
+      printf("Socket busy: try again later.\n");
+    } else {
+      client = pico_socket_accept(s, &peer, &port);
+      if (client) {
+        printf("Connection established.\n");
+        time_0 = PICO_TIME();
+      } else
+        printf("accept: Error.\n");
+    }
+  }
+
+  if (ev & PICO_SOCK_EV_RD) { 
     do {
       r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
       printf("------------------------------------- Receive: %d\n", r);
@@ -23,16 +41,31 @@ void wakeup(uint16_t ev, struct pico_socket *s)
       }
     } while(r>0);
   }
-  if (ev == PICO_SOCK_EV_CONN) { 
-    if (client) {
-      printf("Socket busy: try again later.\n");
-    } else {
-      client = pico_socket_accept(s, &peer, &port);
-      if (client)
-        printf("Connection established.\n");
-      else
-        printf("accept: Error.\n");
-    }
+
+  if (ev & PICO_SOCK_EV_WR) {
+    printf("wakeup write\n");
+    do {
+      if (rd == 0) 
+        rd = read(STDIN_FILENO, buf, 1400);
+      if (rd > 0) {
+        w = pico_socket_write(client, buf, rd);
+        if (w < 0)
+          exit(1);
+        rd -= w;
+        bytes += w;
+        printf("Written %d bytes\n", w);
+      } else break;
+    } while (w > 0);
+  }
+
+  if (ev & PICO_SOCK_EV_CLOSE) {
+    unsigned long now;
+    unsigned long long total, rate;
+    now = PICO_TIME();
+    total = now - time_0;
+    rate = bytes / total;
+    fprintf(stderr, "\nSent %llu bytes in %llu seconds, %llu B/s\n", bytes, total, rate);
+    exit(0);
   }
 }
 
@@ -41,13 +74,9 @@ int main(void)
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
   struct pico_ip4 address0, netmask0;
-
-  uint8_t pkt[1400];
-  int rd = 0;
-  int wr = 0;
-
   struct pico_socket *sk_udp, *sk_tcp;
   uint16_t port = short_be(5555);
+
 
   pico_stack_init();
 
@@ -79,27 +108,12 @@ int main(void)
   if (pico_socket_listen(sk_tcp, 3)!=0)
     return 3;
 
-  
-
   while(1) {
     pico_stack_tick();
-    usleep(2000);
-
-    if (client) {
-      if (rd == 0)
-        rd = read(STDIN_FILENO, pkt, 1400);
-      if (rd > 0) {
-        wr = pico_socket_write(client, pkt, rd);
-        if (wr < 0)
-          return 5;
-
-        rd -= wr;
-      }
-    }
+    usleep(2);
   }
 
   return 0;
-
 }
 
 

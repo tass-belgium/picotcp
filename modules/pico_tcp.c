@@ -1087,8 +1087,9 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
     tcp_data_in(s, f);
     tcp_dbg("TCP: Established.\n");
     if (s->parent && s->parent->wakeup) {
+      s->wakeup = s->parent->wakeup;
       s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
-      s->parent->wakeup(PICO_SOCK_EV_WR, s);
+      s->wakeup(PICO_SOCK_EV_WR, s);
     }
     return 0;
   } else {
@@ -1103,6 +1104,8 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
   s->state &= 0x00FF;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+  if (s->wakeup)
+    s->wakeup(PICO_SOCK_EV_CLOSE, s);
   if (f->payload_len > 0)
     tcp_data_in(s,f);
   if (f->flags & PICO_TCP_ACK)
