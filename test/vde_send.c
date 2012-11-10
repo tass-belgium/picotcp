@@ -44,7 +44,6 @@ void wakeup(uint16_t ev, struct pico_socket *s)
   }
 
   if (ev & PICO_SOCK_EV_WR) {
-    printf("wakeup write\n");
     do {
       if (rd == 0) 
         rd = read(STDIN_FILENO, buf, 1400);
@@ -54,7 +53,6 @@ void wakeup(uint16_t ev, struct pico_socket *s)
           exit(1);
         rd -= w;
         bytes += w;
-        printf("Written %d bytes\n", w);
       } else break;
     } while (w > 0);
   }
