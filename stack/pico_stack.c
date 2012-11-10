@@ -393,6 +393,9 @@ void pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), 
   t.arg = arg;
   t.timer = timer;
   heap_insert(Timers, &t);
+  if (Timers->n > 10) {
+    dbg("Warning: I have %d timers\n", Timers->n);
+  }
 }
 
 void pico_stack_init(void)
