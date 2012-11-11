@@ -12,11 +12,16 @@ void pico_frame_discard(struct pico_frame *f)
   if (*f->usage_count <= 0) {
     pico_free(f->usage_count);
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
-    dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(2));
+    dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
     dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
 #endif
     pico_free(f->buffer);
   }
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+  else {
+    dbg("Removed frame @%p(copy), usage count now: %d\n", f, *f->usage_count);
+  }
+#endif
   pico_free(f);
 }
 
@@ -26,8 +31,12 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
   if (!new)
     return NULL;
   memcpy(new, f, sizeof(struct pico_frame));
-  *(f->usage_count) += 1;
+  *(new->usage_count) += 1;
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+  dbg("Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
+#endif
   new->next = NULL;
+  memset(&new->node, 0, sizeof(struct rb_entry_pico_frame));
   return new;
 }
 

@@ -212,7 +212,8 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   if (p->proto_number == PICO_PROTO_TCP) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
       if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
-        pico_tcp_input(s, pico_frame_copy(f));
+        struct pico_frame *cpy = pico_frame_copy(f);
+        pico_tcp_input(s, cpy);
         if (s->remote_port == tr->sport)
           break;
       }
@@ -235,7 +236,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   }
   else
 #endif
-    return -1;
+  return -1;
 }
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
