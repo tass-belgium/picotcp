@@ -2,7 +2,6 @@
 #include "pico_dev_loop.h"
 #include "pico_stack.h"
 
-#include <sys/poll.h>
 
 #define LOOP_MTU 1500
 static uint8_t l_buf[LOOP_MTU];
