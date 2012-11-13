@@ -646,8 +646,14 @@ int pico_tcp_initconn(struct pico_socket *s)
   hdr->rwnd = short_be(ts->wnd);
   tcp_set_space(ts);
   tcp_add_options(ts,syn, PICO_TCP_SYN, opt_len);
-  tcp_send(ts, syn);
-  pico_frame_discard(syn);
+  hdr->trans.sport = ts->sock.local_port;
+  hdr->trans.dport = ts->sock.remote_port;
+
+  pico_tcp_checksum_ipv4(syn);
+
+  /* TCP: ENQUEUE to PROTO ( SYN ) */
+  dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
+  pico_enqueue(&out, syn);
   return 0;
 }
 
@@ -1133,6 +1139,7 @@ static void tcp_set_init_point(struct pico_socket *s)
 
 static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 {
+  dbg("SYNACK!!\n");
   return 0;
 }
 

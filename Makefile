@@ -25,9 +25,11 @@ tst: all mod
 	gcc -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
 	gcc -c -o build/vde_receiver.o test/vde_receiver.c $(CFLAGS) -ggdb
 	gcc -c -o build/vde_send.o test/vde_send.c $(CFLAGS) -ggdb
+	gcc -c -o build/echoclient.o test/echoclient.c $(CFLAGS) -ggdb
 	gcc -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
 	gcc -o build/test/rcv build/modules/*.o build/lib/*.o build/vde_receiver.o -lvdeplug
 	gcc -o build/test/send build/modules/*.o build/lib/*.o build/vde_send.o -lvdeplug
+	gcc -o build/test/echo build/modules/*.o build/lib/*.o build/echoclient.o -lvdeplug
 
 
 unit:
