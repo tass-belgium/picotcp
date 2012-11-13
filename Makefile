@@ -1,6 +1,11 @@
 CC=$(CROSS_COMPILE)gcc
-CFLAGS=-Iinclude -Imodules -Wall -ggdb
-#CFLAGS=-Iinclude -Imodules -Wall -Os
+STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
+
+#CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
+
+
+
 
 all:
 	mkdir -p build/lib
@@ -18,10 +23,10 @@ mod: modules/pico_ipv4.c modules/pico_dev_loop.c
 	$(CC) -c -o build/modules/pico_udp.o modules/pico_udp.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_tcp.o modules/pico_tcp.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_dev_tun.o modules/pico_dev_tun.c $(CFLAGS)
 
 posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c
 	$(CC) -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
+	$(CC) -c -o build/modules/pico_dev_tun.o modules/pico_dev_tun.c $(CFLAGS)
 
 tst: all posix
 	mkdir -p build/test
@@ -38,8 +43,14 @@ loop: all mod
 	mkdir -p build/test
 	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	$(CC) -c -o build/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
-	$(CC) -o build/test/loop_ping build/modules/*.o build/lib/*.o build/loop_ping.o
 
+lib: all mod
+	mkdir -p build/lib
+	mkdir -p build/include
+	cp -f include/*.h build/include
+	cp -f modules/*.h build/include
+	$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
+	$(CROSS_COMPILE)ranlib build/lib/picotcp.a
 
 unit:
 	$(CC) -o build/test/UNIT_arp stack/pico_arp.c stack/pico_frame.c modules/pico_ipv4.c $(CFLAGS) -DUNIT_ARPTABLE -ggdb
