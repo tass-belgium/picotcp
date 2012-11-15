@@ -1,4 +1,4 @@
-#define dbg printf
+#define dbg(...) do{}while(0)
 
 /*************************/
 
@@ -31,24 +31,17 @@ static inline void pico_free(void *tgt)
 
 static inline unsigned long PICO_TIME(void)
 {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return (t.tv_sec);
+  return pico_tick / 1000;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-  struct timeval t;
-  gettimeofday(&t, NULL);
-  return (t.tv_sec * 1000) + (t.tv_usec / 1000);
+  return pico_tick;
 }
 
 static inline void PICO_IDLE(void)
 {
-  usleep(5000);
+  unsigned long tick_now = pico_tick;
+  while(tick_now == pico_tick);
 }
-
-
-
-
 

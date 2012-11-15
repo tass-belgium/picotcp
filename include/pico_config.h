@@ -22,6 +22,7 @@ extern volatile unsigned long pico_tick;
 
 /** ARCH-SPECIFIC **/
 //#include "arch/pico_posix.h"
+#include "arch/pico_stm32.h"
 
 
 
@@ -73,6 +74,15 @@ static inline uint32_t long_be(uint32_t le)
 #ifdef PICO_SUPPORT_IPV6
 extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 #endif
+
+static inline uint32_t pico_hash(char *name)
+{
+  unsigned long hash = 5381;
+  int c;
+  while ((c = *name++))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+  return hash;
+}
 
 
 #endif

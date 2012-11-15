@@ -1,8 +1,8 @@
 CC=$(CROSS_COMPILE)gcc
 STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
 
-#CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
-CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
+CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+#CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
 
 
 
@@ -48,6 +48,7 @@ lib: all mod
 	mkdir -p build/lib
 	mkdir -p build/include
 	cp -f include/*.h build/include
+	cp -fa include/arch build/include
 	cp -f modules/*.h build/include
 	$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
 	$(CROSS_COMPILE)ranlib build/lib/picotcp.a
