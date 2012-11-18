@@ -1,5 +1,5 @@
 CC=$(CROSS_COMPILE)gcc
-STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
+#STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
 
 CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
 #CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)

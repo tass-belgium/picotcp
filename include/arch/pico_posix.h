@@ -1,3 +1,6 @@
+#ifndef PICO_SUPPORT_POSIX
+#define PICO_SUPPORT_POSIX
+
 #define dbg printf
 
 /*************************/
@@ -51,4 +54,5 @@ static inline void PICO_IDLE(void)
 
 
 
+#endif
 
