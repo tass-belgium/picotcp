@@ -53,7 +53,7 @@ void pico_tun_destroy(struct pico_device *dev)
 }
 
 
-int tun_open(char *name) {
+static int tun_open(char *name) {
   struct ifreq ifr;
   int tun_fd;
   if((tun_fd = open("/dev/net/tun", O_RDWR)) < 0){

@@ -70,7 +70,7 @@ void wakeup(uint16_t ev, struct pico_socket *s)
 
 int main(void)
 {
-  unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
+  //unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
   struct pico_ip4 address0, netmask0;
   struct pico_socket *sk_udp, *sk_tcp;
