@@ -643,8 +643,8 @@ int pico_tcp_initconn(struct pico_socket *s)
   hdr->seq = long_be(ts->snd_nxt);
   hdr->len = (PICO_SIZE_TCPHDR + opt_len) << 2;
   hdr->flags = PICO_TCP_SYN;
-  hdr->rwnd = short_be(ts->wnd);
   tcp_set_space(ts);
+  hdr->rwnd = short_be(ts->wnd);
   tcp_add_options(ts,syn, PICO_TCP_SYN, opt_len);
   hdr->trans.sport = ts->sock.local_port;
   hdr->trans.dport = ts->sock.remote_port;
