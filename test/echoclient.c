@@ -48,7 +48,7 @@ int main(void)
   address0.addr = 0x0300280a; //  10.40.0.3
   netmask0.addr = 0x00FFFFFF;
 
-  address1.addr = 0x0100200a; //  10.40.0.1
+  address1.addr = 0x0100280a; //  10.40.0.1
 
   vde0 = pico_tun_create("tup0");
   if (!vde0)
