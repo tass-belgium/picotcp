@@ -179,10 +179,13 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   static uint16_t ipv4_progressive_id = 0x91c0;
   
-  if (!hdr)
+  if (!hdr) {
+    dbg("IP header error\n");
     goto drop;
+  }
   route = route_find(dst);
   if (!route) {
+    dbg("Route to %08x not found.\n", long_be(dst->addr));
     goto drop;
   }
 
