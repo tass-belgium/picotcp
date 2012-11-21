@@ -524,6 +524,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     if (pico_tcp_initconn(s) == 0)
       pico_socket_alter_state(s, 0, 0, PICO_SOCKET_STATE_TCP_SYN_SENT);
 #endif
+  /* TODO: identify problems like destination socket unreachable, and return an error here. */
   return 0;
 }
 

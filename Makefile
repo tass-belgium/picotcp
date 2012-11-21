@@ -27,6 +27,7 @@ mod: modules/pico_ipv4.c modules/pico_dev_loop.c
 posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c
 	$(CC) -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_dev_tun.o modules/pico_dev_tun.c $(CFLAGS)
+	$(CC) -c -o build/modules/pico_ptsocket.o modules/pico_ptsocket.c $(CFLAGS) 
 
 tst: all posix
 	mkdir -p build/test
