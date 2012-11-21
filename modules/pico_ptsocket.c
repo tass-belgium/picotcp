@@ -43,11 +43,12 @@ struct sockaddr_emu_ipv6 {
 
 static void wakeup(uint16_t ev, struct pico_socket *s)
 {
-  
+  int *index = (int *)s->priv;
+  Unlock(index);
 }
 
 
-int socket(int domain, int type, int protocol) {
+int pico_ptsocket(int domain, int type, int protocol) {
   int sockfd = -1;
   uint16_t net, proto;
 
@@ -84,7 +85,7 @@ err:
   return sockfd;
 }
 
-int bind(int sockfd, void *addr, int addrlen) {
+int pico_ptbind(int sockfd, void *addr, int addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
@@ -106,7 +107,7 @@ int bind(int sockfd, void *addr, int addrlen) {
 }
 
 
-int connect(int sockfd, void *addr, int addrlen) {
+int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
@@ -134,7 +135,7 @@ int connect(int sockfd, void *addr, int addrlen) {
 }
 
 
-int accept(int sockfd, void *addr, int *addrlen) {
+int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
   struct pico_socket *newsock = NULL;
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
@@ -160,35 +161,35 @@ int accept(int sockfd, void *addr, int *addrlen) {
 }
 
 
-int listen(int sockfd, int backlog) {
+int pico_ptlisten(int sockfd, int backlog) {
   GlobalLock();
   GlobalUnlock();
   return 0;
 }
 
 
-int recvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen) {
+int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen) {
   GlobalLock();
   GlobalUnlock();
   return 0;
 }
 
 
-int sendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen) {
+int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen) {
   GlobalLock();
   GlobalUnlock();
   return 0;
 }
 
 
-int close(int sockfd) {
+int pico_ptclose(int sockfd) {
   GlobalLock();
   GlobalUnlock();
   return 0;
 }
 
 
-int shutdown(int sockfd, int how) {
+int pico_ptshutdown(int sockfd, int how) {
   GlobalLock();
   GlobalUnlock();
   return 0;
