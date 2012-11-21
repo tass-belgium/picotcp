@@ -15,6 +15,7 @@
 #include "heap.h"
 
 volatile unsigned long pico_tick;
+volatile pico_err_t pico_err;
 
 
 /* NOTIFICATIONS: distributed notifications for stack internal errors.

@@ -12,7 +12,52 @@ enum pico_layer {
   PICO_LAYER_SOCKET = 5     /* Socket management */
 };
 
+enum pico_err_e {
+  PICO_ERR_NOERR = 0,
+  PICO_ERR_EPERM,
+  PICO_ERR_ENOENT,
+  /* ... */
+  PICO_ERR_EINTR = 4,
+  PICO_ERR_EIO,
+  PICO_ERR_ENXIO, 
+  /* ... */
+  PICO_ERR_EAGAIN = 11,
+  PICO_ERR_ENOMEM,
+  PICO_ERR_EACCESS,
+  PICO_ERR_EFAULT,
+  /* ... */
+  PICO_ERR_EBUSY = 16,
+  PICO_ERR_EEXIST = 17,
+  /* ... */
+  PICO_ERR_EINVAL = 22,
+  /* ... */
+  PICO_ERR_EPROTO = 71,
+  PICO_ERR_EPROTONOSUPPORT = 93,
 
+  /* ... */
+  PICO_ERR_EADDRINUSE = 98,
+  PICO_ERR_EADDRNOTAVAIL,
+  PICO_ERR_ENETUNREACH,
+
+  /* ... */
+  PICO_ERR_ECONNRESET = 104,
+
+  /* ... */
+  PICO_ERR_EISCONN = 106,
+  PICO_ERR_ENOTCONN,
+  PICO_ERR_ESHUTDOWN,
+  /* ... */
+  PICO_ERR_ETIMEDOUT = 110,
+  PICO_ERR_ECONNREFUSED = 111,
+  PICO_ERR_EHOSTDOWN,
+  PICO_ERR_EHOSTUNREACH,
+
+
+
+};
+
+typedef enum pico_err_e pico_err_t;
+extern volatile pico_err_t pico_err;
 
 #define IS_IPV6(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60)
 #define IS_IPV4(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40)

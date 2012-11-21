@@ -3,6 +3,7 @@
 #include "pico_queue.h"
 #include "pico_addressing.h"
 #include "pico_config.h"
+#include "pico_protocol.h"
 #include "rb.h"
 
 #define PICO_DEFAULT_SOCKETQ (64 * 1024)
@@ -45,10 +46,10 @@ struct pico_socket {
   int max_backlog;
 #endif
 
-  RB_ENTRY(pico_socket) node;
-
+  /* Private field. */
+  void *priv;
   uint16_t state;
-
+  RB_ENTRY(pico_socket) node;
 };
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000

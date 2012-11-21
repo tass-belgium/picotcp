@@ -129,8 +129,10 @@ int pico_socket_add(struct pico_socket *s)
   if (!sp) {
     dbg("Creating sockport..%04x\n", s->local_port);
     sp = pico_zalloc(sizeof(struct pico_sockport));
-      if (!sp)
-        return -1;
+    if (!sp) {
+      pico_err = PICO_ERR_ENOMEM;
+      return -1;
+    }
     sp->proto = PROTO(s);
     sp->number = s->local_port;
     if (PROTO(s) == PICO_PROTO_UDP)
@@ -178,8 +180,10 @@ static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, 
     return pico_socket_del(s);
 
   sp = pico_get_sockport(PROTO(s), s->local_port);
-  if (!sp)
+  if (!sp) {
+    pico_err = PICO_ERR_ENXIO;
     return -1;
+  }
 
   RB_REMOVE(socket_tree, &sp->socks, s);
   s->state |= more_states;
@@ -258,8 +262,10 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
   }
 #endif
 
-  if (!s)
+  if (!s) {
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
     return NULL;
+  }
 
 #ifdef PICO_SUPPORT_IPV4
   if (net == PICO_PROTO_IPV4)
@@ -277,6 +283,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
   if (!s->net) {
     pico_free(s);
+    pico_err = PICO_ERR_ENETUNREACH;
     return NULL;
   }
   return s;
@@ -302,8 +309,10 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
   }
 #endif
 
-  if (!s)
+  if (!s) {
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
     return NULL;
+  }
   s->local_port = facsimile->local_port;
   s->remote_port = facsimile->remote_port;
   s->state = facsimile->state;
@@ -328,6 +337,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
   s->wakeup = NULL;
   if (!s->net) {
     pico_free(s);
+    pico_err = PICO_ERR_ENETUNREACH;
     return NULL;
   }
   return s;
@@ -335,8 +345,10 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+    pico_err = PICO_ERR_EIO;
     return -1;
+  }
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP)
     return pico_udp_recv(s, buf, len, NULL, NULL);
@@ -351,10 +363,14 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_write(struct pico_socket *s, void *buf, int len)
 {
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+    pico_err = PICO_ERR_EIO;
     return -1;
-  if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0)
+  }
+  if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
+    pico_err = PICO_ERR_ENOTCONN;
     return -1;
+  }
   return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
 }
 
@@ -374,26 +390,39 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   struct pico_ip6 *src6;
 #endif
 
-  if (!dst || !remote_port)
+  if (!dst || !remote_port) {
+    pico_err = PICO_ERR_EADDRNOTAVAIL;
     return -1;
-
-  if ((s->state & PICO_SOCKET_STATE_CONNECTED) != 0) {
-    if (remote_port != s->remote_port)
-      return -1;
   }
 
-  if (len <= 0)
+  if ((s->state & PICO_SOCKET_STATE_CONNECTED) != 0) {
+    if (remote_port != s->remote_port) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
+  if (len < 0) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+  if (len == 0) {
     return 0;
+  }
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s)) {
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
-      if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr )
+      if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr ) {
+        pico_err = PICO_ERR_EADDRNOTAVAIL;
         return -1;
+      }
     } else {
       src4 = pico_ipv4_source_find(dst);
-      if (!src4)
+      if (!src4) {
+        pico_err = PICO_ERR_EHOSTUNREACH;
         return -1;
+      }
       s->local_addr.ip4.addr = src4->addr;
       s->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
     }
@@ -407,8 +436,10 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         return -1;
     } else {
       src6 = pico_ipv6_source_find(dst);
-      if (!src6)
+      if (!src6) {
+        pico_err = PICO_ERR_EHOSTUNREACH;
         return -1;
+      }
       memcpy(&s->local_addr, src6, PICO_SIZE_IP6);
       memcpy(&s->remote_addr, dst, PICO_SIZE_IP6);
     }
@@ -431,8 +462,10 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 
   f = pico_socket_frame_alloc(s, off + len);
-  if (!f)
+  if (!f) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
+  }
 
   f->payload += off;
   f->payload_len -= off;
@@ -443,22 +476,27 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     return f->payload_len;
   } else {
     pico_frame_discard(f);
+    pico_err = PICO_ERR_EAGAIN;
     return 0;
   }
 }
 
 int pico_socket_send(struct pico_socket *s, void *buf, int len)
 {
-  if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0)
+  if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
+    pico_err = PICO_ERR_ENOTCONN;
     return -1;
+  }
   return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
 }
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
   dbg("STATE: %x", s->state);
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+    pico_err = PICO_ERR_EADDRNOTAVAIL;
     return -1;
+  }
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP) {
     return pico_udp_recv(s, buf, len, orig, remote_port);
@@ -501,8 +539,12 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 
 int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remote_port)
 {
-  if (remote_port == 0)
+  int ret = -1;
+  pico_err = PICO_ERR_EPROTONOSUPPORT;
+  if (remote_port == 0) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
 
   s->remote_port = remote_port;
 
@@ -515,31 +557,45 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
   }
 
 #ifdef PICO_SUPPORT_UDP
-  if (PROTO(s) == PICO_PROTO_UDP)
+  if (PROTO(s) == PICO_PROTO_UDP) {
     pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+    pico_err = PICO_ERR_NOERR;
+    ret = 0;
+  }
 #endif
 
 #ifdef PICO_SUPPORT_TCP
-  if (PROTO(s) == PICO_PROTO_TCP)
-    if (pico_tcp_initconn(s) == 0)
+  if (PROTO(s) == PICO_PROTO_TCP) {
+    if (pico_tcp_initconn(s) == 0) {
       pico_socket_alter_state(s, 0, 0, PICO_SOCKET_STATE_TCP_SYN_SENT);
+      pico_err = PICO_ERR_NOERR;
+      ret = 0;
+    } else {
+      pico_err = PICO_ERR_EHOSTUNREACH;
+    }
+  }
 #endif
-  /* TODO: identify problems like destination socket unreachable, and return an error here. */
-  return 0;
+  return ret;
 }
 
 #ifdef PICO_SUPPORT_TCP
 
 int pico_socket_listen(struct pico_socket *s, int backlog)
 {
-  if (PROTO(s) == PICO_PROTO_UDP)
+  if (PROTO(s) == PICO_PROTO_UDP) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
 
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+    pico_err = PICO_ERR_EISCONN;
     return -1;
+  }
 
-  if (backlog < 1)
+  if (backlog < 1) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
 
   if (PROTO(s) == PICO_PROTO_TCP)
     pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_SYN_SENT, 0, PICO_SOCKET_STATE_TCP_LISTEN);
@@ -550,19 +606,27 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0)
+  pico_err = PICO_ERR_EINVAL;
+  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     return NULL;
+  }
 
-  if (PROTO(s) == PICO_PROTO_UDP)
+  if (PROTO(s) == PICO_PROTO_UDP) {
     return NULL;
+  }
 
   if (TCPSTATE(s) == PICO_SOCKET_STATE_TCP_LISTEN) {
     struct pico_sockport *sp = pico_get_sockport(PICO_PROTO_TCP, s->local_port);
     struct pico_socket *found;
+    /* If at this point no incoming connection socket is found,
+     * the accept call is valid, but no connection is established yet.
+     */
+    pico_err = PICO_ERR_EAGAIN; 
     if (sp) {
       RB_FOREACH(found, socket_tree, &sp->socks) {
         if (s == found->parent) {
           found->parent = NULL;
+          pico_err = PICO_ERR_NOERR;
           return found;
         }
       }
@@ -575,11 +639,13 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 int pico_socket_listen(struct pico_socket *s)
 {
+  pico_err = PICO_ERR_EINVAL;
   return -1;
 }
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
+  pico_err = PICO_ERR_EINVAL;
   return NULL;
 }
 
