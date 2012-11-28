@@ -292,7 +292,6 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
 struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 {
-
   struct pico_socket *s = NULL;
 
 #ifdef PICO_SUPPORT_UDP
@@ -667,6 +666,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
 int pico_socket_shutdown(struct pico_socket *s, int mode)
 {
+/* TODO: manage errors (like in case it is already closed) */
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP) {
     if (mode & PICO_SHUT_RDWR)
@@ -698,6 +698,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   dbg("Socket not found... \n");
   pico_notify_socket_unreachable(f);
   pico_frame_discard(f);
+  pico_err = PICO_ERR_ENOENT;
   return -1;
 }
 
@@ -757,8 +758,10 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
   if (IS_SOCK_IPV4(s))
     f = pico_proto_ipv4.alloc(&pico_proto_ipv4, overhead + len);
 #endif
-  if (!f)
+  if (!f) {
+    pico_err == PICO_ERR_ENOMEM;
     return f;
+  }
   f->sock = s;
   f->payload = f->transport_hdr + overhead;
   f->payload_len = len;
