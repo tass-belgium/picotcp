@@ -44,7 +44,7 @@ struct sockaddr_emu_ipv6 {
 static void wakeup(uint16_t ev, struct pico_socket *s)
 {
   int *index = (int *)s->priv;
-  Unlock(index);
+  Unlock(*index);
 }
 
 
