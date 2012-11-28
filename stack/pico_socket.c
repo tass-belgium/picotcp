@@ -1,3 +1,13 @@
+/*********************************************************************
+PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+See LICENSE and COPYING for usage.
+Do not redistribute without a written permission by the Copyright
+holders.
+
+Authors: Daniele Lacamera
+*********************************************************************/
+
+
 #include "pico_config.h"
 #include "pico_queue.h"
 #include "pico_socket.h"
