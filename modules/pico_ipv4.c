@@ -16,6 +16,113 @@ static struct pico_queue out = {};
 
 /* Functions */
 
+static inline int pico_is_digit(char c)
+{
+  if(c < '0' || c > '9')
+    return 0;
+  return 1;
+} 
+ 
+int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
+{
+  const unsigned char *addr = (unsigned char *) &ip;
+  int i;
+  
+  for(i = 0; i < 4; i++)
+  {
+    if(addr[i] > 99){
+      *ipbuf++ = '0' + (addr[i] / 100);
+      *ipbuf++ = '0' + ((addr[i] % 100) / 10);
+      *ipbuf++ = '0' + ((addr[i] % 100) % 10);
+    }else if(addr[i] > 9){
+      *ipbuf++ = '0' + (addr[i] / 10);
+      *ipbuf++ = '0' + (addr[i] % 10);
+    }else{
+      *ipbuf++ = '0' + addr[i];
+    }
+    if(i < 3)
+      *ipbuf++ = '.';
+  }
+  *ipbuf = '\0';
+  
+  return 0;
+}
+    
+int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
+{
+  unsigned char buf[4] = {0};
+  int cnt = 0;
+  int p;
+
+  if(!ipstr || !ip)
+    return -1;
+
+  while((p = *ipstr++) != 0)
+  {
+    if(pico_is_digit(p)){
+      buf[cnt] = (10 * buf[cnt]) + (p - '0');
+    }else if(p == '.'){
+        cnt++;
+    }else{
+      return -1;
+    }
+  }   
+  
+  /* Handle short notation */
+  if(cnt == 1){
+    buf[3] = buf[1];
+    buf[1] = 0;
+    buf[2] = 0;
+  }else if (cnt == 2){
+    buf[3] = buf[2];
+    buf[2] = 0;
+  }else if(cnt != 3){
+    /* String could not be parsed, return error */
+    return -1;
+  }   
+
+  *ip = *((uint32_t *) &buf[0]);
+
+  return 0;
+
+}  
+
+int pico_ipv4_valid_netmask(uint32_t mask)
+{
+  int cnt = 0;
+  int end = 0;
+  int i;
+  uint32_t mask_swap = long_be(mask);
+
+  /* 
+   * Swap bytes for convenient parsing 
+   * e.g. 0x..f8ff will become 0xfff8..
+   * Then, we count the consecutive bits
+   *
+   * */
+
+  for(i = 0; i < 32; i++){
+    if((mask_swap << i) & (1 << 31)){
+      if(end)
+        return -1;
+      cnt++;
+    }else{
+      end = 1;
+    }        
+  }
+  return cnt;
+}
+
+int pico_ipv4_is_unicast(uint32_t address) 
+{
+  const unsigned char *addr = (unsigned char *) &address;
+  
+  if((addr[0] & 0xe0) == 0xe0)
+    return 0;
+    
+  return 1;
+}
+
 static int pico_ipv4_checksum(struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -25,7 +132,6 @@ static int pico_ipv4_checksum(struct pico_frame *f)
   hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
   return 0;
 }
-
 
 static int pico_ipv4_forward(struct pico_frame *f);
 
