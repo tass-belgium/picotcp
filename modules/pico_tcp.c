@@ -669,6 +669,13 @@ int pico_tcp_initconn(struct pico_socket *s)
 }
 
 
+int pico_tcp_shutdown_write(struct pico_socket *s)
+{
+  /* 0. state already set to fin_wait1 */
+  /* 1. send fin segment */
+}
+
+
 static int tcp_send_synack(struct pico_socket *s)
 {
   struct pico_socket_tcp *ts = TCP_SOCK(s);
@@ -729,6 +736,38 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
   /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
   pico_enqueue(&out, f);
 }
+
+
+static void tcp_send_fin(struct pico_socket_tcp *t)
+{
+  struct pico_frame *f;
+  struct pico_tcp_hdr *hdr;
+  int opt_len = tcp_options_size(t, PICO_TCP_FIN);
+  f = t->sock.net->alloc(t->sock.net, PICO_SIZE_TCPHDR + opt_len);
+  if (!f) {
+    return;
+  }
+  f->sock = &t->sock;
+  hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  hdr->len = (PICO_SIZE_TCPHDR + opt_len) << 2;
+  hdr->flags = PICO_TCP_FIN;
+  hdr->rwnd = short_be(t->wnd);
+  tcp_set_space(t);
+  tcp_add_options(t,f, PICO_TCP_FIN, opt_len);
+  hdr->trans.sport = t->sock.local_port;
+  hdr->trans.dport = t->sock.remote_port;
+  hdr->seq = long_be(t->snd_nxt);
+  hdr->ack = long_be(t->rcv_nxt);
+  t->rcv_ackd = t->rcv_nxt;
+
+  f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
+  hdr->rwnd = short_be(t->wnd);
+  pico_tcp_checksum_ipv4(f);
+
+  /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
+  pico_enqueue(&out, f);
+}
+
 
 static void tcp_sack_prepare(struct pico_socket_tcp *t)
 {
@@ -1354,6 +1393,8 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     if (t->rto < PICO_TCP_RTO_MIN)
       t->rto = PICO_TCP_RTO_MIN;
     add_retransmission_timer(t, pico_tick + t->rto);
+  } else {
+    // no packets in queue ??
   }
   return loop_score;
 }

@@ -687,7 +687,10 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 #endif
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
-
+    if (mode & PICO_SHUT_WR)
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_FIN_WAIT1, 0, 0);  /* XXX set state after fin packet sent!, set state to closing */
+    else if (mode & PICO_SHUT_RD)
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_CLOSE_WAIT, 0, 0);
   }
 #endif
   return 0;
