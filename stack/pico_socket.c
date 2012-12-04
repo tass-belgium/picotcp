@@ -364,8 +364,14 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 #endif
 
 #ifdef PICO_SUPPORT_TCP
-  if (PROTO(s) == PICO_PROTO_TCP)
-    return pico_tcp_read(s, buf, len);
+  if (PROTO(s) == PICO_PROTO_TCP){
+    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == 1) {  /* check if in shutdown state */
+      pico_err = PICO_ERR_ESHUTDOWN;
+      return -1;
+    } else {
+      return pico_tcp_read(s, buf, len);
+    }
+  }
 #endif
   return 0;
 }
@@ -379,8 +385,12 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
     pico_err = PICO_ERR_ENOTCONN;
     return -1;
+  } else if ((s->state & PICO_SOCKET_STATE_SHUT_LOCAL) == 1) {  /* check if in shutdown state */
+    pico_err = PICO_ERR_ESHUTDOWN;
+    return -1;
+  } else {
+    return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
   }
-  return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
 }
 
 
@@ -501,7 +511,6 @@ int pico_socket_send(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
-  dbg("STATE: %x", s->state);
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     pico_err = PICO_ERR_EADDRNOTAVAIL;
     return -1;
@@ -512,9 +521,12 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
   }
 #endif
 #ifdef PICO_SUPPORT_TCP
-  if (PROTO(s) == PICO_PROTO_TCP)
+  if (PROTO(s) == PICO_PROTO_TCP) {
+    dbg("socket tcp recv\n");
     return pico_tcp_read(s, buf, len);
+  }
 #endif
+  dbg("socket return 0\n");
   return 0;
 }
 
@@ -576,7 +588,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
     if (pico_tcp_initconn(s) == 0) {
-      pico_socket_alter_state(s, 0, 0, PICO_SOCKET_STATE_TCP_SYN_SENT);
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, 0, 0);
       pico_err = PICO_ERR_NOERR;
       ret = 0;
     } else {
@@ -688,9 +700,9 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
     if (mode & PICO_SHUT_WR)
-      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_FIN_WAIT1, 0, 0);  /* XXX set state after fin packet sent!, set state to closing */
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
     else if (mode & PICO_SHUT_RD)
-      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_CLOSE_WAIT, 0, 0);
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0); /* TODO correct state ?? */
   }
 #endif
   return 0;

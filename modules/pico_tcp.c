@@ -583,6 +583,10 @@ struct pico_socket *pico_tcp_open(void)
     return NULL;
   t->mss = PICO_TCP_DEFAULT_MSS;
 
+  /* Set socket limits, TODO added to make echo test work ?? */
+  t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
+  t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
+
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
   pico_timer_add(2000, sock_stats, t);
 #endif
@@ -607,7 +611,8 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
       return tot_rd_len;
 
     /* Hole at the beginning of data, awaiting retransmissions. */
-    if(seq_compare(t->rcv_processed, SEQN(f)) < 0) {
+    if (seq_compare(t->rcv_processed, SEQN(f)) < 0) {
+      dbg("TCP> read hole beginning of data, %u - %u\n",t->rcv_processed, SEQN(f));
       return tot_rd_len;
     }
 
@@ -666,13 +671,6 @@ int pico_tcp_initconn(struct pico_socket *s)
   dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
   pico_enqueue(&out, syn);
   return 0;
-}
-
-
-int pico_tcp_shutdown_write(struct pico_socket *s)
-{
-  /* 0. state already set to fin_wait1 */
-  /* 1. send fin segment */
 }
 
 
@@ -1203,7 +1201,8 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
   //tcp_dbg("TCP> acked: %08x nxt: %08x\n", ACKN(f), t->snd_nxt);
   if (ACKN(f) ==  (1 + t->snd_nxt)) {
     
-    t->rcv_nxt = long_be(hdr->seq); 
+    t->rcv_nxt = long_be(hdr->seq);
+    t->rcv_processed = t->rcv_nxt + 1;
     tcp_ack(s, f);
     //tcp_data_in(s, f);
 
@@ -1256,6 +1255,9 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
   dbg("Close-wait\n");
   s->state &= 0x00FF;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+  /* set SHUT_REMOTE */
+  s->state &= 0xFF00;
+  s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   if (s->wakeup)
     s->wakeup(PICO_SOCK_EV_CLOSE, s);
   if (f->payload_len > 0)
@@ -1267,6 +1269,14 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_fin(struct pico_socket *s, struct pico_frame *f)
 {
+  dbg("Received FIN in FIN_WAIT1\n");
+
+  s->state &= 0x00FF;
+  s->state |= PICO_SOCKET_STATE_TCP_CLOSING;
+
+  /* send ACK */
+  
+
   return 0;
 }
 
@@ -1387,6 +1397,8 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     tcp_send(t, f);
     sent++;
     loop_score--;
+    if (loop_score < 1)
+      break;
     f = peek_segment(&t->tcpq_out, t->snd_nxt + 1);
   }
   if (sent > 0) {
@@ -1395,6 +1407,22 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     add_retransmission_timer(t, pico_tick + t->rto);
   } else {
     // no packets in queue ??
+  }
+
+  if (!f && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue */
+    if (s->state & PICO_SOCKET_STATE_TCP_ESTABLISHED) {
+      /* send fin if queue empty and in state shut local (write) */
+      tcp_send_fin(t);
+      /* change tcp state to FIN_WAIT1 */
+      s->state &= 0x00FF;
+      s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
+    } else if (s->state & PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+      /* send fin if queue empty and in state shut local (write) */
+      tcp_send_fin(t);
+      /* change tcp state to FIN_WAIT1 */
+      s->state &= 0x00FF;
+      s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
+    }
   }
   return loop_score;
 }

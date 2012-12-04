@@ -10,7 +10,7 @@ static int connected = 0;
 void wakeup(uint16_t ev, struct pico_socket *s)
 {
   char buf[30];
-  int r;
+  int r, ret;
   uint32_t peer;
   uint16_t port;
 
@@ -20,7 +20,10 @@ void wakeup(uint16_t ev, struct pico_socket *s)
       r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
       printf("------------------------------------- Receive: %d\n", r);
       if (r > 0) {
-        pico_socket_write(s, buf, r);
+        //printf("msg = %s\n",buf);
+        ret = pico_socket_write(s, buf, r);
+        if (ret < 0)
+          printf("pico_err - socket_write : %d\n",pico_err);
       }
     } while(r>0);
   }
