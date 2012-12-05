@@ -784,7 +784,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
     f = pico_proto_ipv4.alloc(&pico_proto_ipv4, overhead + len);
 #endif
   if (!f) {
-    pico_err == PICO_ERR_ENOMEM;
+    pico_err = PICO_ERR_ENOMEM;
     return f;
   }
   f->sock = s;

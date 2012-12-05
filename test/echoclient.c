@@ -10,7 +10,7 @@ static int connected = 0;
 void wakeup(uint16_t ev, struct pico_socket *s)
 {
   char buf[30];
-  int r, ret;
+  int r=0, ret=0;
   uint32_t peer;
   uint16_t port;
 
@@ -24,7 +24,13 @@ void wakeup(uint16_t ev, struct pico_socket *s)
         ret = pico_socket_write(s, buf, r);
         if (ret < 0)
           printf("pico_err - socket_write : %d\n",pico_err);
-      }
+      } 
+      /*else {
+        sprintf(buf,"TEST CALLBACK");
+        ret = pico_socket_write(s, buf, sizeof("TEST CALLBACK"));
+        if (ret < 0)
+          printf("pico_err - socket_write : %d\n",pico_err); 
+      }*/
     } while(r>0);
   }
   if (ev == PICO_SOCK_EV_CONN) { 
@@ -72,8 +78,10 @@ int main(void)
 
   if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
     return 1;
-
+  
+  printf("sleep 15\n");
   sleep(10);
+  printf("end sleep\n");
 
   if (pico_socket_connect(sk_tcp, &address1, port)!=0)
     return 3;
