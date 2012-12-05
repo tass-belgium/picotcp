@@ -41,6 +41,10 @@ void wakeup(uint16_t ev, struct pico_socket *s)
       connected = 1;
     }
   }
+  if (ev == PICO_SOCK_EV_ERR) {
+    printf("Socket Error received. Bailing out.\n");
+    exit(0);
+  }
 }
 
 int main(void)

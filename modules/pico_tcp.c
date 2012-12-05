@@ -19,10 +19,11 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
 #define ACKN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)):0)
 
-#define PICO_TCP_RTO_MIN 20
+#define PICO_TCP_RTO_MIN 1000
 #define PICO_TCP_RTO_MAX 120000
 #define PICO_TCP_IW 2
 
+#define PICO_TCP_MAX_CONNECT_RETRIES 3
 
 #define PICO_TCP_LOOKAHEAD      0x00
 #define PICO_TCP_FIRST_DUPACK   0x01
@@ -641,6 +642,26 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
   return tot_rd_len;
 }
 
+int pico_tcp_initconn(struct pico_socket *s);
+static void initconn_retry(unsigned long when, void *arg)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+  if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
+    if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
+      dbg("TCP> Connection timeout. \n");
+      if (t->sock.wakeup)
+        t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+      return;
+    }
+    dbg("TCP> SYN retry %d...\n", t->backoff);
+    t->backoff++;
+    pico_tcp_initconn(&t->sock);
+  } else {
+    dbg("TCP> Connection is already established: no retry needed. good.\n");
+  }
+}
+
+
 int pico_tcp_initconn(struct pico_socket *s)
 {
   struct pico_socket_tcp *ts = TCP_SOCK(s);
@@ -672,9 +693,9 @@ int pico_tcp_initconn(struct pico_socket *s)
   /* TCP: ENQUEUE to PROTO ( SYN ) */
   dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
   pico_enqueue(&out, syn);
+  pico_timer_add(PICO_TCP_RTO_MIN << ts->backoff, initconn_retry, ts);
   return 0;
 }
-
 
 static int tcp_send_synack(struct pico_socket *s)
 {
