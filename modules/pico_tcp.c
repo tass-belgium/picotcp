@@ -270,8 +270,7 @@ struct pico_protocol pico_proto_tcp = {
 static uint32_t pico_paws(void)
 {
   static unsigned long _paws = 0;
-  dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-  _paws = PICO_TIME_MS() ^  0xc0cac01a;
+  _paws = pico_rand();
   return long_be(_paws); /*XXX: implement paws */
 }
 

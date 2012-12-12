@@ -31,7 +31,7 @@ static int pico_proto_cmp(struct pico_protocol *a, struct pico_protocol *b)
 
 RB_GENERATE_STATIC(pico_protocol_tree, pico_protocol, node, pico_proto_cmp);
 
-static void proto_loop(struct pico_protocol *proto, int loop_score)
+static int proto_loop(struct pico_protocol *proto, int loop_score)
 {
   struct pico_frame *f;
   while(loop_score >0) {
@@ -48,23 +48,33 @@ static void proto_loop(struct pico_protocol *proto, int loop_score)
       loop_score--;
     }
   }
+  return loop_score;
 }
 
-void pico_protocols_loop(int loop_score)
+int pico_protocols_loop(int loop_score)
 {
   struct pico_protocol *p;
   RB_FOREACH(p, pico_protocol_tree, &Datalink_proto_tree) {
-    proto_loop(p, loop_score);
+    loop_score = proto_loop(p, loop_score);
+    if (loop_score < 1)
+      return 0;
   }
   RB_FOREACH(p, pico_protocol_tree, &Network_proto_tree) {
-    proto_loop(p, loop_score);
+    loop_score = proto_loop(p, loop_score);
+    if (loop_score < 1)
+      return 0;
   }
   RB_FOREACH(p, pico_protocol_tree, &Transport_proto_tree) {
-    proto_loop(p, loop_score);
+    loop_score = proto_loop(p, loop_score);
+    if (loop_score < 1)
+      return 0;
   }
   RB_FOREACH(p, pico_protocol_tree, &Socket_proto_tree) {
-    proto_loop(p, loop_score);
+    loop_score = proto_loop(p, loop_score);
+    if (loop_score < 1)
+      return 0;
   }
+  return loop_score;
 }
 
 void pico_protocol_init(struct pico_protocol *p)

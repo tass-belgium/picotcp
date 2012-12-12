@@ -27,6 +27,23 @@ Authors: Daniele Lacamera
 volatile unsigned long pico_tick;
 volatile pico_err_t pico_err;
 
+static uint32_t _rand_seed;
+
+
+static void pico_rand_feed(uint32_t feed)
+{
+  if (!feed)
+    return;
+  _rand_seed *= 1664525;
+  _rand_seed += 1013904223;
+  _rand_seed ^= feed;
+}
+
+uint32_t pico_rand(void)
+{
+  pico_rand_feed(pico_tick);
+  return _rand_seed;
+}
 
 /* NOTIFICATIONS: distributed notifications for stack internal errors.
  */
@@ -339,6 +356,10 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   /* Setup the start pointer, lenght. */
   f->start = f->buffer;
   f->len = f->buffer_len;
+  if (f->len > 8) {
+    int mid_frame = f->buffer_len >> 1;
+    pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+  }
   memcpy(f->buffer, buffer, len);
   ret = pico_enqueue(dev->q_in, f);
   if (ret <= 0) {
@@ -353,6 +374,10 @@ int pico_sendto_dev(struct pico_frame *f)
     pico_frame_discard(f);
     return -1;
   } else {
+    if (f->len > 8) {
+      int mid_frame = f->buffer_len >> 1;
+      pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+    }
     return pico_enqueue(f->dev->q_out, f);
   }
 }
@@ -383,10 +408,14 @@ void pico_check_timers(void)
 
 void pico_stack_tick(void)
 {
+    int score;
     pico_check_timers();
-    pico_devices_loop(100);
-    pico_protocols_loop(100);
-    pico_sockets_loop(100);
+    score = pico_devices_loop(100);
+    pico_rand_feed(score);
+    score = pico_protocols_loop(100);
+    pico_rand_feed(score);
+    score = pico_sockets_loop(100);
+    pico_rand_feed(score);
 }
 
 void pico_stack_loop(void)
