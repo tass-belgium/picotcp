@@ -1182,10 +1182,18 @@ static void tcp_deltcb(unsigned long when, void *arg)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_TIME_WAIT) {
     dbg("TCP> state: time_wait, final timer expired, going to closed state\n");
+    
+    /* update state */
     (t->sock).state &= 0x00FFU;
     (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
     (t->sock).state &= 0xFF00U;
-    (t->sock).state |= PICO_SOCKET_STATE_CLOSED; 
+    (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+
+    /* call EV_FIN wakeup before deleting */
+    (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+    /* delete socket */
+    pico_socket_del(&t->sock); 
   } else {
     dbg("TCP> trying to go to closed, wrong state\n");
   }
@@ -1241,6 +1249,9 @@ static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
   dbg("TCP> state: last_ack, received ack, to closed\n");
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
+  
+  /* call socket wakeup with EV_FIN */
+  s->wakeup(PICO_SOCK_EV_FIN, s);
 
   return 0;
 }

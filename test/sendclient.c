@@ -44,6 +44,10 @@ void wakeup(uint16_t ev, struct pico_socket *s)
   if (ev == PICO_SOCK_EV_CLOSE) {
     printf("Socket received close\n");
   }
+  if (ev == PICO_SOCK_EV_FIN) {
+    printf("Socket is going to be closed!\n");
+    send = NULL;
+  } 
 }
 
 
@@ -55,7 +59,7 @@ void send_callback(int signum)
     sprintf(buf,"TEST CALLBACK");
     ret = pico_socket_write(send, buf, sizeof("TEST CALLBACK"));
     if (ret < 0)
-      printf("pico_err - socket_write : %d\n",pico_err);
+      printf("pico_err - socket_write : %s\n",strerror(pico_err));
     alarm(1);
   }
 }

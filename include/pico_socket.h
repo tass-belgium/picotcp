@@ -92,6 +92,7 @@ struct pico_socket {
 #define PICO_SOCK_EV_WR 1
 #define PICO_SOCK_EV_CONN 2
 #define PICO_SOCK_EV_CLOSE 4
+#define PICO_SOCK_EV_FIN 8
 #define PICO_SOCK_EV_ERR 0xF0
 
 
@@ -110,6 +111,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
 int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s, int backlog);
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port);
+int pico_socket_del(struct pico_socket *s);
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 int pico_socket_getoption(struct pico_socket *s, int option, void *value);

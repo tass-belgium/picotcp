@@ -54,6 +54,9 @@ void wakeup(uint16_t ev, struct pico_socket *s)
     //pico_socket_shutdown(send, PICO_SHUT_WR);
     kill(getpid(),SIGUSR1);
   }
+  if (ev == PICO_SOCK_EV_FIN) {
+    printf("Socket is going to be closed!\n");
+  }
 }
 
 

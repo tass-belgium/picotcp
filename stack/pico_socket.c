@@ -160,7 +160,7 @@ int pico_socket_add(struct pico_socket *s)
   return 0;
 }
 
-static int pico_socket_del(struct pico_socket *s)
+int pico_socket_del(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   if (!sp) {
@@ -378,6 +378,14 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_write(struct pico_socket *s, void *buf, int len)
 {
+  if (!s) {
+    pico_err = PICO_ERR_INVAL;//TODO
+    return -1;
+  } else {
+    /* check if exists in tree */
+    
+  }
+
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     pico_err = PICO_ERR_EIO;
     return -1;
