@@ -49,10 +49,11 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
   hdr->trans.dport = f->sock->remote_port;
   hdr->len = short_be(f->transport_len);
   hdr->crc = pico_udp_checksum(f);
-  if (pico_enqueue(self->q_out, f) < 0) {
-    return -1;
-  }
-  return 0;
+  if (pico_enqueue(self->q_out, f) > 0) {
+   return f->payload_len;
+  } else {
+    return 0;
+  }	
 }
 
 /* Interface: protocol definition */
