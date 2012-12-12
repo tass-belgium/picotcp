@@ -194,20 +194,29 @@ int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *
   if (!s) {
     pico_err = PICO_ERR_ENOENT;
   } else {
-    int addr_set = 0;
     if (IS_SOCK_IPV4(s)) {
       sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
-      *addrlen = sizeof(struct sockaddr_emu_ipv4);
+      if (*addrlen != sizeof(struct sockaddr_emu_ipv4)) {
+        pico_err = PICO_ERR_EINVAL;
+        goto fail;
+      }
     } else if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
-      *addrlen = sizeof(struct sockaddr_emu_ipv6);
+      if (*addrlen != sizeof(struct sockaddr_emu_ipv6)) {
+        pico_err = PICO_ERR_EINVAL;
+        goto fail;
+      }
+    } else {
+      goto fail;
     }
     ret = 0;
     Lock(sockfd);
     do {
       int r;
-      uint16_t port;
-      r = pico_socket_recvfrom(s, buf + ret, len - ret, addr, addrlen);
+      if (IS_SOCK_IPV4(s))
+        r = pico_socket_recvfrom(s, buf + ret, len - ret, &sockaddr4->addr, &sockaddr4->port);
+      else
+        r = pico_socket_recvfrom(s, buf + ret, len - ret, &sockaddr6->addr, &sockaddr6->port);
       if (r < 0) {
         Unlock(sockfd);
         ret = -1;
@@ -221,6 +230,8 @@ int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *
     } while(ret < len);
     Unlock(sockfd);
   }
+
+fail:
   GlobalUnlock();
   return ret;
 }
@@ -234,12 +245,31 @@ int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int add
 
   GlobalLock();
   if (!s) {
-    pico_err = ENOENT;
+    pico_err = PICO_ERR_ENOENT;
   } else {
+    if (IS_SOCK_IPV4(s)) {
+      sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
+      if (addrlen != sizeof(struct sockaddr_emu_ipv4)) {
+        pico_err = PICO_ERR_EINVAL;
+        goto fail;
+      }
+    } else if (IS_SOCK_IPV6(s)) {
+      sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
+      if (addrlen != sizeof(struct sockaddr_emu_ipv6)) {
+        pico_err = PICO_ERR_EINVAL;
+        goto fail;
+      }
+    } else {
+      goto fail;
+    }
     ret = 0;
     Lock(sockfd);
     do {
-      int r = pico_socket_sendto(s, buf + ret, len - ret, addr, addrlen);
+      int r;
+      if (IS_SOCK_IPV4(s))
+        r = pico_socket_sendto(s, buf + ret, len - ret, &sockaddr4->addr, sockaddr4->port);
+      else
+        r = pico_socket_sendto(s, buf + ret, len - ret, &sockaddr6->addr, sockaddr6->port);
       if (r < 0) {
         Unlock(sockfd);
         ret = -1;
@@ -253,6 +283,8 @@ int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int add
     } while(ret < len);
     Unlock(sockfd);
   }
+
+fail:
   GlobalUnlock();
   return ret;
 }
