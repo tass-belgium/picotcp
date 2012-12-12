@@ -393,6 +393,26 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
   }
 }
 
+uint16_t pico_socket_high_port(uint16_t proto)
+{
+  uint16_t port;
+  if (0 || 
+#ifdef PICO_SUPPORT_TCP
+  (proto == PICO_PROTO_TCP) ||
+#endif
+#ifdef PICO_SUPPORT_TCP
+  (proto == PICO_PROTO_UDP) ||
+#endif
+  0) {
+    do {
+      port = (uint16_t)(pico_rand() % (65535 - 1024)) + 1024U; 
+      if (!pico_get_sockport(proto, port))
+        return port;
+    } while(1);
+  }
+  else return 0U;
+}
+
 
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
@@ -466,13 +486,15 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 #endif
 
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
-    //s->local_port = pico_socket_high_port(s->proto->proto_number);
-    s->local_port = short_be(60000);
+    s->local_port = pico_socket_high_port(s->proto->proto_number);
+    if (s->local_port == 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
   }
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
     s->remote_port = remote_port;
   }
-
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
@@ -546,11 +568,15 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
   if (!s || !local_addr || !port)
     return -1;
 
+  if (*port == 0) {
+    *port = pico_socket_high_port(PROTO(s));
+    if (*port == 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
   s->local_port = *port;
-
-  /* XXX verify  +  change if 0 */
-
-  *port = s->local_port; /* As return value. */
 
   if (is_sock_ipv6(s)) {
     struct pico_ip6 *ip = (struct pico_ip6 *) local_addr;
