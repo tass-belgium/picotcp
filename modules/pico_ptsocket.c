@@ -164,7 +164,6 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
   }
   if (!newsock) { /* Not yet available */
     Lock(sockfd);
-
   }
   GlobalUnlock();
   return 0;
@@ -172,37 +171,119 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
 
 
 int pico_ptlisten(int sockfd, int backlog) {
+  int ret = -1;
+  struct pico_socket *s = GET_SOCK(sockfd);
   GlobalLock();
+  if (s) {
+    ret = pico_socket_listen(s, backlog);
+  } else {
+    pico_err = PICO_ERR_ENOENT;
+  }
   GlobalUnlock();
-  return 0;
+  return ret;
 }
 
 
 int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen) {
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int ret = -1;
+  struct sockaddr_emu_ipv4 *sockaddr4;
+  struct sockaddr_emu_ipv6 *sockaddr6;
+
   GlobalLock();
+  if (!s) {
+    pico_err = PICO_ERR_ENOENT;
+  } else {
+    int addr_set = 0;
+    if (IS_SOCK_IPV4(s)) {
+      sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
+      *addrlen = sizeof(struct sockaddr_emu_ipv4);
+    } else if (IS_SOCK_IPV6(s)) {
+      sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
+      *addrlen = sizeof(struct sockaddr_emu_ipv6);
+    }
+    ret = 0;
+    Lock(sockfd);
+    do {
+      int r;
+      uint16_t port;
+      r = pico_socket_recvfrom(s, buf + ret, len - ret, addr, addrlen);
+      if (r < 0) {
+        Unlock(sockfd);
+        ret = -1;
+        break;
+      }
+      else if (r == 0) {
+        Lock(sockfd);
+      } else {
+        ret += r;
+      }
+    } while(ret < len);
+    Unlock(sockfd);
+  }
   GlobalUnlock();
-  return 0;
+  return ret;
 }
 
 
 int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen) {
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int ret = -1;
+  struct sockaddr_emu_ipv4 *sockaddr4;
+  struct sockaddr_emu_ipv6 *sockaddr6;
+
   GlobalLock();
+  if (!s) {
+    pico_err = ENOENT;
+  } else {
+    ret = 0;
+    Lock(sockfd);
+    do {
+      int r = pico_socket_sendto(s, buf + ret, len - ret, addr, addrlen);
+      if (r < 0) {
+        Unlock(sockfd);
+        ret = -1;
+        break;
+      }
+      else if (r == 0) {
+        Lock(sockfd);
+      } else {
+        ret += r;
+      }
+    } while(ret < len);
+    Unlock(sockfd);
+  }
   GlobalUnlock();
-  return 0;
+  return ret;
 }
 
 
 int pico_ptclose(int sockfd) {
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int ret = -1;
   GlobalLock();
+  if (s) {
+    ret = pico_socket_close(s);
+    Lock(sockfd);
+  } else {
+    pico_err = PICO_ERR_ENOENT;
+  }
   GlobalUnlock();
-  return 0;
+  return ret;
 }
 
 
 int pico_ptshutdown(int sockfd, int how) {
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int ret = -1;
   GlobalLock();
+  if (s) {
+    ret = pico_socket_close(s);
+    if (how & PICO_SHUT_WR)
+      Lock(sockfd);
+  } else {
+    pico_err = PICO_ERR_ENOENT;
+  }
   GlobalUnlock();
-  return 0;
+  return ret;
 }
-
-
