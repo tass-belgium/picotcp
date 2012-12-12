@@ -70,7 +70,7 @@ void wakeup(uint16_t ev, struct pico_socket *s)
 
 int main(void)
 {
-  //unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
+  unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
   struct pico_ip4 address0, netmask0;
   struct pico_socket *sk_udp, *sk_tcp;
@@ -83,8 +83,8 @@ int main(void)
   netmask0.addr = 0x00FFFFFF;
 
 
-  //vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
-  vde0 = pico_tun_create("tup0");
+  vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
+  //vde0 = pico_tun_create("tup0");
   if (!vde0)
     return 1;
 

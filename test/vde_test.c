@@ -4,7 +4,11 @@
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 
+#include <signal.h>
+#include <unistd.h>
+
 static struct pico_socket *client = NULL;
+static struct pico_socket *send;
 
 void wakeup(uint16_t ev, struct pico_socket *s)
 {
@@ -20,6 +24,8 @@ void wakeup(uint16_t ev, struct pico_socket *s)
       printf("------------------------------------- Receive: %d\n", r);
       if (r > 0) {
         pico_socket_write(s, buf, r);
+      } else if (r < 0) {
+        printf("error recvfrom - %d\n",pico_err);
       }
     } while(r>0);
   }
@@ -28,13 +34,38 @@ void wakeup(uint16_t ev, struct pico_socket *s)
       printf("Socket busy: try again later.\n");
     } else {
       client = pico_socket_accept(s, &peer, &port);
+      send = client;
       if (client)
         printf("Connection established.\n");
       else
         printf("accept: Error.\n");
     }
   }
+  if (ev == PICO_SOCK_EV_CLOSE) {
+    printf("Socket received event close\n");
+    
+    /* test read on shut socket */
+    r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
+    if (r >= 0)
+      printf("messed up reading from closed socket\n"); //DELME
+    else if (r < 0)
+      printf("error recvfrom - %d - good\n",pico_err);
+    
+    //pico_socket_shutdown(send, PICO_SHUT_WR);
+    kill(getpid(),SIGUSR1);
+  }
 }
+
+
+void callback_exit(int signum)
+{
+  if (signum == SIGUSR1) {
+    printf("SERVER > EXIT WRITE ISSUED\n");
+    pico_socket_shutdown(send, PICO_SHUT_WR);
+  }
+}
+
+
 
 int main(void)
 {
@@ -58,12 +89,12 @@ int main(void)
   if (!vde0)
     return 1;
 
-  vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
-  if (!vde1)
-    return 1;
+  //vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
+  //if (!vde1)
+  //  return 1;
 
   pico_ipv4_link_add(vde0, address0, netmask0);
-  pico_ipv4_link_add(vde1, address1, netmask1);
+  //pico_ipv4_link_add(vde1, address1, netmask1);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)
@@ -81,6 +112,10 @@ int main(void)
 
   if (pico_socket_listen(sk_tcp, 3)!=0)
     return 3;
+
+  send = sk_tcp;
+
+  signal(SIGUSR1, callback_exit);
 
   while(1) {
     pico_stack_tick();

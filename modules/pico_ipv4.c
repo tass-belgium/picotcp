@@ -299,6 +299,12 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     dbg("IP header error\n");
     goto drop;
   }
+
+  if (dst->addr == 0) {
+    dbg("IP src addr error\n");
+    goto drop;
+  }
+
   route = route_find(dst);
   if (!route) {
     dbg("Route to %08x not found.\n", long_be(dst->addr));
