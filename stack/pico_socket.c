@@ -379,11 +379,11 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 int pico_socket_write(struct pico_socket *s, void *buf, int len)
 {
   if (!s) {
-    pico_err = PICO_ERR_INVAL;//TODO
+    pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
     /* check if exists in tree */
-    
+    /* See task #178 */
   }
 
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
