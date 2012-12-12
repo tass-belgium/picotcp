@@ -72,7 +72,7 @@ void pico_device_destroy(struct pico_device *dev)
   pico_free(dev);
 }
 
-static void devloop(struct pico_device *dev, int loop_score)
+static int devloop(struct pico_device *dev, int loop_score)
 {
   struct pico_frame *f;
 
@@ -134,12 +134,16 @@ static void devloop(struct pico_device *dev, int loop_score)
       loop_score--;
     }
   }
+  return loop_score;
 }
 
-void pico_devices_loop(int loop_score)
+int pico_devices_loop(int loop_score)
 {
   struct pico_device *dev;
   RB_FOREACH(dev, pico_device_tree, &Device_tree) {
-    devloop(dev, loop_score);
+    loop_score = devloop(dev, loop_score);
+    if (loop_score < 1)
+      return 0;
   }
+  return loop_score;
 }
