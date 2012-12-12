@@ -108,8 +108,8 @@ int main(void)
   if (!sk_tcp)
     return 2;
 
-  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
-    return 1;
+//  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
+//    return 1;
   
   printf("sleep\n");
   sleep(2);

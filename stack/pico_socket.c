@@ -405,9 +405,11 @@ uint16_t pico_socket_high_port(uint16_t proto)
 #endif
   0) {
     do {
-      port = (uint16_t)(pico_rand() % (65535 - 1024)) + 1024U; 
+      uint32_t rand = pico_rand();
+      port = (uint16_t) (rand & 0xFFFFU);
+      port = (uint16_t)(port % (65535 - 1024)) + 1024U; 
       if (!pico_get_sockport(proto, port))
-        return port;
+        return short_be(port);
     } while(1);
   }
   else return 0U;
@@ -599,6 +601,17 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
   }
 
   s->remote_port = remote_port;
+
+  if (s->local_port == 0) {
+    s->local_port = pico_socket_high_port(PROTO(s));
+    if (!s->local_port) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+    dbg("######################################## Local port is set to %d\n", s->local_port);
+    pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+  }
+
 
   if (is_sock_ipv6(s)) {
     struct pico_ip6 *ip = (struct pico_ip6 *) remote_addr;

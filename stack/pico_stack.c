@@ -36,7 +36,7 @@ static void pico_rand_feed(uint32_t feed)
     return;
   _rand_seed *= 1664525;
   _rand_seed += 1013904223;
-  _rand_seed ^= feed;
+  _rand_seed ^= ~(feed);
 }
 
 uint32_t pico_rand(void)
@@ -460,6 +460,8 @@ void pico_stack_init(void)
 #ifdef PICO_SUPPORT_TCP
   pico_protocol_init(&pico_proto_tcp);
 #endif
+
+  pico_rand_feed(123456);
 
   /* Initialize timer heap */
   Timers = heap_init();
