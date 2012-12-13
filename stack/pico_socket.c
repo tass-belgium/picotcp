@@ -133,6 +133,28 @@ static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
   else return NULL;
 }
 
+
+static int pico_check_socket(struct pico_socket *s)
+{
+  struct pico_sockport *test;
+  struct pico_socket *found;
+
+  test = pico_get_sockport(PROTO(s), s->local_port);
+  
+  if (!test) {
+    return -1;
+  }
+
+  RB_FOREACH(found, socket_tree, &test->socks) {
+    if (s == found) {
+      return 0;
+    }
+  }
+
+  return -1;
+}
+
+
 int pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
@@ -354,6 +376,18 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } else {
+    /* check if exists in tree */
+    /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     pico_err = PICO_ERR_EIO;
     return -1;
@@ -384,6 +418,10 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
   } else {
     /* check if exists in tree */
     /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
   }
 
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
@@ -534,6 +572,18 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 int pico_socket_send(struct pico_socket *s, void *buf, int len)
 {
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } else {
+    /* check if exists in tree */
+    /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
     pico_err = PICO_ERR_ENOTCONN;
     return -1;
@@ -543,6 +593,18 @@ int pico_socket_send(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } else {
+    /* check if exists in tree */
+    /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     pico_err = PICO_ERR_EADDRNOTAVAIL;
     return -1;
@@ -558,12 +620,12 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
-      dbg("socket tcp recv\n");
+      //dbg("socket tcp recv\n");
       return pico_tcp_read(s, buf, len);
     }
   }
 #endif
-  dbg("socket return 0\n");
+  //dbg("socket return 0\n");
   return 0;
 }
 
@@ -655,6 +717,18 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 
 int pico_socket_listen(struct pico_socket *s, int backlog)
 {
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } else {
+    /* check if exists in tree */
+    /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
   if (PROTO(s) == PICO_PROTO_UDP) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
@@ -740,6 +814,18 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
 int pico_socket_shutdown(struct pico_socket *s, int mode)
 {
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } else {
+    /* check if exists in tree */
+    /* See task #178 */
+    if (pico_check_socket(s) != 0) {
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+    }
+  }
+
 /* TODO: manage errors (like in case it is already closed) */
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP) {
@@ -755,8 +841,8 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
     else if (mode & PICO_SHUT_RD)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0); /* TODO correct state ?? */
-    //else if (mode & PICO_SHUT_RDWR)
-    //  pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
+    else if (mode & PICO_SHUT_RDWR)
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
   }
 #endif
   return 0;

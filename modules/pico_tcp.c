@@ -1247,11 +1247,17 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
 static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 {
   dbg("TCP> state: last_ack, received ack, to closed\n");
+  
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
+  s->state &= 0xFF00U;
+  s->state |= PICO_SOCKET_STATE_CLOSED;
   
   /* call socket wakeup with EV_FIN */
   s->wakeup(PICO_SOCK_EV_FIN, s);
+
+  /* delete socket */
+  pico_socket_del(s);
 
   return 0;
 }

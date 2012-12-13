@@ -49,13 +49,19 @@ void wakeup(uint16_t ev, struct pico_socket *s)
     if (r >= 0)
       printf("messed up reading from closed socket\n"); //DELME
     else if (r < 0)
-      printf("error recvfrom - %d - good\n",pico_err);
+      printf("pico_err - socket_recvfrom - %s - good?\n",strerror(pico_err));
     
     //pico_socket_shutdown(send, PICO_SHUT_WR);
     kill(getpid(),SIGUSR1);
   }
   if (ev == PICO_SOCK_EV_FIN) {
     printf("Socket is going to be closed!\n");
+    /* test read on shut socket */
+    r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
+    if (r >= 0)
+      printf("messed up reading from closed socket\n"); //DELME
+    else if (r < 0)
+      printf("pico_err - socket_recvfrom - %s - good?\n",strerror(pico_err));
   }
 }
 
@@ -64,7 +70,7 @@ void callback_exit(int signum)
 {
   if (signum == SIGUSR1) {
     printf("SERVER > EXIT WRITE ISSUED\n");
-    pico_socket_shutdown(send, PICO_SHUT_WR);
+    pico_socket_shutdown(client, PICO_SHUT_WR);
   }
 }
 
@@ -103,14 +109,14 @@ int main(void)
     return 2;
 
   if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
-    return 1;
+    return 3;
 
   sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
   if (!sk_tcp)
     return 2;
 
   if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
-    return 1;
+    return 3;
 
   if (pico_socket_listen(sk_tcp, 3)!=0)
     return 3;
