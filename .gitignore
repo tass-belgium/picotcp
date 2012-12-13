@@ -1,7 +1,10 @@
 *.o
 *.a
 *.out
+*.swp
 tags
 build
 UNIT_*
 core
+.DS_Store
+cscope.files
