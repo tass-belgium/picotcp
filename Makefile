@@ -32,12 +32,16 @@ posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c
 tst: all posix
 	mkdir -p build/test
 	$(CC) -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/testclient.o test/TestClient.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/testserver.o test/TestServer.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/vde_receiver.o test/vde_receiver.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/vde_send.o test/vde_send.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/echoclient.o test/echoclient.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/echoclientUDP.o test/echoclientUDP.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/sendclient.o test/sendclient.c $(CFLAGS) -ggdb
 	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
+	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
+	$(CC) -o build/test/testserver build/modules/*.o build/lib/*.o build/testserver.o -lvdeplug
 	$(CC) -o build/test/rcv build/modules/*.o build/lib/*.o build/vde_receiver.o -lvdeplug
 	$(CC) -o build/test/send build/modules/*.o build/lib/*.o build/vde_send.o -lvdeplug
 	$(CC) -o build/test/echo build/modules/*.o build/lib/*.o build/echoclient.o -lvdeplug
