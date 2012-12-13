@@ -58,10 +58,10 @@ int main(void)
 
   pico_stack_init();
 
-  address0.addr = 0x0300280a; //  10.40.0.3
-  netmask0.addr = 0x00FFFFFF;
+  address0.addr = long_be(0x0a280003); //  10.40.0.3
+  netmask0.addr = long_be(0xFFFFFF00);
 
-  address1.addr = 0x0100280a; //  10.40.0.1
+  address1.addr = long_be(0x0a280001); //  10.40.0.1
 
   vde0 = pico_tun_create("tup0");
   if (!vde0)
@@ -83,7 +83,7 @@ int main(void)
   if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
     return 1;
   
-  printf("sleep 15\n");
+  printf("sleep 10\n");
   sleep(10);
   printf("end sleep\n");
 
