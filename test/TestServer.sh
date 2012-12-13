@@ -10,7 +10,7 @@ make tst
 echo -e "${MAGENTA}Kill Wireshark'${NC}"
 killall wireshark
 echo -e "${MAGENTA}Startup vde script'${NC}"
-#sh ./test/vde_sock_start.sh
+sh ./test/vde_sock_start.sh
 echo -e "${MAGENTA}restart Wireshark'${NC}"
 wireshark &
 
