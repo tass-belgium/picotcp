@@ -279,6 +279,11 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
   return NULL;
 }
 
+struct pico_ipv4_route *pico_ipv4_route_find(struct pico_ip4 *addr)
+{
+  return route_find(addr);
+}
+
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
 {
   struct pico_ipv4_route *rt = route_find(dst);
@@ -432,6 +437,19 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }
+
+
+struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
+{
+  struct pico_ipv4_link test, *found = NULL;
+  test.address.addr = address->addr;
+  found = RB_FIND(link_tree, &Tree_dev_link, &test);
+  if (!found)
+    return NULL;
+  else
+    return found;
+}
+
 
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 {

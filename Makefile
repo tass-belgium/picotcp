@@ -39,6 +39,9 @@ tst: all posix
 	$(CC) -c -o build/echoclient.o test/echoclient.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/echoclientUDP.o test/echoclientUDP.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/sendclient.o test/sendclient.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/nat_sendclient.o test/nat_sendclient.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/nat_echoserver.o test/nat_echoserver.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/nat_box.o test/nat_box.c $(CFLAGS) -ggdb
 	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
 	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
 	$(CC) -o build/test/testserver build/modules/*.o build/lib/*.o build/testserver.o -lvdeplug
@@ -47,6 +50,9 @@ tst: all posix
 	$(CC) -o build/test/echo build/modules/*.o build/lib/*.o build/echoclient.o -lvdeplug
 	$(CC) -o build/test/send2 build/modules/*.o build/lib/*.o build/sendclient.o -lvdeplug
 	$(CC) -o build/test/echoUDP build/modules/*o build/lib/*.o build/echoclientUDP.o -lvdeplug
+	$(CC) -o build/test/nat_send build/modules/*.o build/lib/*.o build/nat_sendclient.o -lvdeplug
+	$(CC) -o build/test/nat_echo build/modules/*.o build/lib/*.o build/nat_echoserver.o -lvdeplug
+	$(CC) -o build/test/nat_box build/modules/*.o build/lib/*.o build/nat_box.o -lvdeplug
 
 loop: all mod
 	mkdir -p build/test
