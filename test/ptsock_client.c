@@ -17,24 +17,22 @@ void callback_exit(int signum)
   }
 }
 
-
-
 int main(void)
 {
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
-  struct pico_ip4 address, netmask;
+  struct pico_ip4 address, netmret;
 
   uint16_t port = short_be(5555);
 
   struct sockaddr_in local = {}, remote = {};
-  int sk, ask, size_ask = sizeof(struct sockaddr_in);
+  int sk, ret;
 
   signal(SIGUSR1, callback_exit);
   pico_stack_init();
 
-  pico_string_to_ipv4("10.40.0.3", &address.addr);
-  pico_string_to_ipv4("255.255.255.0", &netmask.addr);
+  pico_string_to_ipv4("10.40.0.4", &address.addr);
+  pico_string_to_ipv4("255.255.255.0", &netmret.addr);
 
   /* add local interface (device) with a mac address, connected to vde switch */
   vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
@@ -42,7 +40,7 @@ int main(void)
     return 1;
 
   /* add network adress 10.40.0.x to route by vde0 */
-  pico_ipv4_link_add(vde0, address, netmask);
+  pico_ipv4_link_add(vde0, address, netmret);
 
 
   /* Initialize POSIX-like interface */
@@ -50,7 +48,7 @@ int main(void)
   remote.sin_family = AF_INET;
   pico_string_to_ipv4("10.40.0.1", &remote.sin_addr.s_addr);
   local.sin_addr.s_addr = address.addr; /* INADDR_ANY */
-  local.sin_port = port;
+  remote.sin_port = port;
 
 
 
@@ -60,33 +58,28 @@ int main(void)
 
   if (sk < 0)
     return 5;
-
-  if (pico_ptbind(sk, &local, sizeof(struct sockaddr_in)) != 0)
-    return 4;
-
-  if (pico_ptlisten(sk, 3)!=0)
-    return 3;
+  printf("Sk is %d\n", sk);
 
   while(1) { 
-   int r, w;
+   int w;
    char buf[20];
-   printf ("Awaiting connection...\n");
-   ask = pico_ptaccept(sk, &remote, &size_ask); 
-   if (ask < 0){
-      perror("accept(): ");
+   printf ("Waiting a bit...\n");
+   sleep(5);
+   printf ("Attempting connection...\n");
+   ret = pico_ptconnect(sk, &remote, sizeof(struct sockaddr_in)); 
+   if (ret != 0){
+      perror("connect(): ");
      return 2;
    }
    printf ("Connection established.\n");
+   printf("Sk is %d\n", sk);
+   memset(buf,'a', 20);
 
     do {
-      r = pico_ptread(ask, buf, 20);
-      if (r > 0) {
-        printf ("Received %d bytes\n", r);
-        printf ("Sending...\n", w);
-        w = pico_ptwrite(ask, buf, r);
-        printf ("Sent %d bytes\n", w);
-      }
-    } while(r > 0);
+      w = pico_ptwrite(sk, buf, 20);
+      printf ("Sent %d bytes\n", w);
+      sleep(1);
+    } while(w > 0);
   }
   return 0;
 }

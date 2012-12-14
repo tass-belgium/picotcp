@@ -44,7 +44,8 @@ tst: all posix
 	$(CC) -c -o build/nat_sendclient.o test/nat_sendclient.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/nat_echoserver.o test/nat_echoserver.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/nat_box.o test/nat_box.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/ptsock.o test/ptsock.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/ptsock_server.o test/ptsock_server.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/ptsock_client.o test/ptsock_client.c $(CFLAGS) -ggdb
 	#Link tests
 	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
 	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
@@ -57,7 +58,8 @@ tst: all posix
 	$(CC) -o build/test/nat_send build/modules/*.o build/lib/*.o build/nat_sendclient.o -lvdeplug
 	$(CC) -o build/test/nat_echo build/modules/*.o build/lib/*.o build/nat_echoserver.o -lvdeplug
 	$(CC) -o build/test/nat_box build/modules/*.o build/lib/*.o build/nat_box.o -lvdeplug
-	$(CC) -o build/test/ptsock build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock.o -lvdeplug -pthread
+	$(CC) -o build/test/ptsock_server build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_server.o -lvdeplug -pthread
+	$(CC) -o build/test/ptsock_client build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_client.o -lvdeplug -pthread
 
 loop: all mod
 	mkdir -p build/test

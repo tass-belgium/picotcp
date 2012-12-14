@@ -144,7 +144,7 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
-  int ret = -1;
+  int ret = 0;
   dbg("Entering connect\n");
 
   GlobalLock();
@@ -152,6 +152,7 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
     if (IS_SOCK_IPV4(s)) {
       sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
       ret = pico_socket_connect(s, &sockaddr4->addr, sockaddr4->port);
+      dbg("pico_socket_connect returned %d\n", ret);
     }
     if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
@@ -167,7 +168,7 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
     dbg("Connect: resumed\n");
     Unlock(sockfd);
   }
-  dbg("Connect: returning %d\n", ret); 
+  dbg("Connect: returning %d\n", ret);
   return ret;
 }
 

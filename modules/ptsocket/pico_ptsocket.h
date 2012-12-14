@@ -39,5 +39,6 @@ int pico_ptwrite(int sockfd, void *buf, int len);
 #define pico_ptsend(s,b,l,f) pico_ptwrite(s,b,l)
 int pico_ptclose(int sockfd);
 int pico_ptshutdown(int sockfd, int how);
+int pico_ptstart(void);
 
 #endif
