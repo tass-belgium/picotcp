@@ -25,11 +25,13 @@ mod: modules/pico_ipv4.c modules/pico_dev_loop.c
 	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 
 posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c
+	mkdir -p build/modules/ptsocket
 	$(CC) -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_dev_tun.o modules/pico_dev_tun.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_ptsocket.o modules/pico_ptsocket.c $(CFLAGS) 
+	$(CC) -c -o build/modules/ptsocket/pico_ptsocket.o modules/ptsocket/pico_ptsocket.c $(CFLAGS) -pthread
 
 tst: all posix
+	#Compile tests
 	mkdir -p build/test
 	$(CC) -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/testclient.o test/TestClient.c $(CFLAGS) -ggdb
@@ -42,6 +44,8 @@ tst: all posix
 	$(CC) -c -o build/nat_sendclient.o test/nat_sendclient.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/nat_echoserver.o test/nat_echoserver.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/nat_box.o test/nat_box.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/ptsock.o test/ptsock.c $(CFLAGS) -ggdb
+	#Link tests
 	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
 	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
 	$(CC) -o build/test/testserver build/modules/*.o build/lib/*.o build/testserver.o -lvdeplug
@@ -53,6 +57,7 @@ tst: all posix
 	$(CC) -o build/test/nat_send build/modules/*.o build/lib/*.o build/nat_sendclient.o -lvdeplug
 	$(CC) -o build/test/nat_echo build/modules/*.o build/lib/*.o build/nat_echoserver.o -lvdeplug
 	$(CC) -o build/test/nat_box build/modules/*.o build/lib/*.o build/nat_box.o -lvdeplug
+	$(CC) -o build/test/ptsock build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock.o -lvdeplug -pthread
 
 loop: all mod
 	mkdir -p build/test

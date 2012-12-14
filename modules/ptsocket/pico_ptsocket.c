@@ -6,11 +6,11 @@ holders.
 
 Authors: Daniele Lacamera
 *********************************************************************/
-
-
 #include "pico_ptsocket.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
+#include "pico_stack.h"
+#include <pthread.h>
 #define PT_MAX_SOCKETS 255
 
 static struct pico_socket *pico_posix_sockets[PT_MAX_SOCKETS] = {};
@@ -30,12 +30,21 @@ static inline int NEW_SOCK(void) {
 static pthread_mutex_t Stack_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t s_mutex[PT_MAX_SOCKETS] = {};
 #define GlobalLock() pthread_mutex_lock(&Stack_lock)
-#define GlobalUnlock() pthread_mutex_lock(&Stack_lock)
+#define GlobalUnlock() pthread_mutex_unlock(&Stack_lock)
 #define Lock(i) pthread_mutex_lock(&s_mutex[i])
 #define Unlock(i) pthread_mutex_unlock(&s_mutex[i])
 
+#ifdef PICO_SUPPORT_IPV4
 #define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
-#define IS_SOCK_IPV6(s) ((s->net == &pico_proto_ipv4))
+#else
+#define IS_SOCK_IPV4(s) (0)
+#endif
+#ifdef PICO_SUPPORT_IPV6
+#define IS_SOCK_IPV6(s) ((s->net == &pico_proto_ipv6))
+#else
+#define IS_SOCK_IPV6(s) (0)
+#endif
+
 
 struct sockaddr_emu_ipv4 {
   uint16_t family;            /* AF_INET */
@@ -53,8 +62,8 @@ struct sockaddr_emu_ipv6 {
 
 static void wakeup(uint16_t ev, struct pico_socket *s)
 {
-  int *index = (int *)s->priv;
-  Unlock(*index);
+  dbg("Unlocking %d\n", s->id);
+  Unlock(s->id);
 }
 
 
@@ -71,14 +80,18 @@ int pico_ptsocket(int domain, int type, int protocol) {
       net = PICO_PROTO_IPV6;
       break;
     default:
+      pico_err = PICO_ERR_EINVAL;
       goto err;
   }
-  switch(protocol) {
+  switch(type) {
     case SOCK_STREAM:
       proto = PICO_PROTO_TCP;
+      break;
     case SOCK_DGRAM:
       proto = PICO_PROTO_UDP;
+      break;
     default:
+      pico_err = PICO_ERR_EINVAL;
       goto err;
   }
 
@@ -87,11 +100,16 @@ int pico_ptsocket(int domain, int type, int protocol) {
     pico_posix_sockets[sockfd] = pico_socket_open(net, proto, wakeup);
     if (!pico_posix_sockets[sockfd])
       goto err;
+    pico_posix_sockets[sockfd]->id = sockfd;
+  } else {
+    pico_err = PICO_ERR_EBUSY;
+    return -1;
   }
   pthread_mutex_init(&s_mutex[sockfd], NULL);
 
 err:
   GlobalUnlock();
+  dbg("Hello, new socket here, idx: %d\n", sockfd);
   return sockfd;
 }
 
@@ -101,11 +119,16 @@ int pico_ptbind(int sockfd, void *addr, int addrlen) {
   struct sockaddr_emu_ipv6 *sockaddr6;
   int ret = -1;
 
+  char dbg_src[30];
+
   GlobalLock();
   if (s) {
     if (IS_SOCK_IPV4(s)) {
       sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
       ret = pico_socket_bind(s, &sockaddr4->addr, &sockaddr4->port);
+      /* test */
+      pico_ipv4_to_string(dbg_src, sockaddr4->addr.addr);
+      dbg("Socket bound to %s:%d\n", dbg_src, short_be(sockaddr4->port));
     }
     if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
@@ -122,6 +145,7 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
   int ret = -1;
+  dbg("Entering connect\n");
 
   GlobalLock();
   if (s) {
@@ -136,11 +160,14 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   }
   GlobalUnlock();
   if (ret == 0) {
+    dbg("Connect: suspended\n");
     Lock(sockfd);
     /* Suspend until the next wakeup callback */
     Lock(sockfd);
+    dbg("Connect: resumed\n");
     Unlock(sockfd);
   }
+  dbg("Connect: returning %d\n", ret); 
   return ret;
 }
 
@@ -151,22 +178,38 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
 
-  GlobalLock();
-  if (s) {
-    if (IS_SOCK_IPV4(s)) {
-      sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
-      newsock = pico_socket_accept(s, &sockaddr4->addr, &sockaddr4->port);
+  while (!newsock) { /* Not yet available */
+    if (s) {
+      if (IS_SOCK_IPV4(s)) {
+        dbg("Accept: IP4\n");
+        sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
+        newsock = pico_socket_accept(s, &sockaddr4->addr, &sockaddr4->port);
+      }
+      if (IS_SOCK_IPV6(s)) {
+        sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
+        newsock = pico_socket_accept(s, &sockaddr6->addr, &sockaddr6->port);
+      }
     }
-    if (IS_SOCK_IPV6(s)) {
-      sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
-      newsock = pico_socket_accept(s, &sockaddr6->addr, &sockaddr6->port);
+    if (!newsock) {
+      if (pico_err == PICO_ERR_EAGAIN) {
+        Lock(sockfd);
+        dbg("Accept: lock!\n");
+        Lock(sockfd);
+        dbg("Accept: unlock!\n");
+      } else {
+        return -1;
+      }
     }
   }
-  if (!newsock) { /* Not yet available */
-    Lock(sockfd);
+  sockfd = NEW_SOCK();
+  if (sockfd >= 0) {
+    newsock->id = sockfd;
+    pico_posix_sockets[sockfd] = newsock;
+  } else {
+    pico_err = PICO_ERR_EBUSY;
+    return -1;
   }
-  GlobalUnlock();
-  return 0;
+  return sockfd;
 }
 
 
@@ -196,13 +239,13 @@ int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *
   } else {
     if (IS_SOCK_IPV4(s)) {
       sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
-      if (*addrlen != sizeof(struct sockaddr_emu_ipv4)) {
+      if ((addrlen) && (*addrlen != sizeof(struct sockaddr_emu_ipv4))) {
         pico_err = PICO_ERR_EINVAL;
         goto fail;
       }
     } else if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
-      if (*addrlen != sizeof(struct sockaddr_emu_ipv6)) {
+      if ((addrlen) && (*addrlen != sizeof(struct sockaddr_emu_ipv6))) {
         pico_err = PICO_ERR_EINVAL;
         goto fail;
       }
@@ -289,6 +332,59 @@ fail:
   return ret;
 }
 
+int pico_ptread(int sockfd, void *buf, int len)
+{
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int tot = 0, r;
+  if (!s) {
+    pico_err = PICO_ERR_ENOENT;
+  } else {
+    Lock(sockfd);
+    while(tot == 0) {
+      r = pico_socket_read(s, buf + tot, len - tot);
+      if (r == 0)
+        Lock(sockfd);
+      else if (r > 0)
+        tot += r;
+      else {
+        tot = -1;
+        break;
+      }
+    }
+  }
+  Unlock(sockfd);
+  return tot;
+}
+
+
+int pico_ptwrite(int sockfd, void *buf, int len)
+{
+  struct pico_socket *s = GET_SOCK(sockfd);
+  int tot = 0, r;
+  if (!s) {
+    pico_err = PICO_ERR_ENOENT;
+  } else {
+    Lock(sockfd);
+    while(tot < len) {
+       dbg("Writing: from %d: %d\n", sockfd, len - tot);
+       r = pico_socket_write(s, buf + tot, len - tot);
+       dbg("Write returned: %d\n", r);
+       if (r == 0) {
+        dbg("Write: on lock\n");
+        Lock(sockfd);
+        dbg("Write: unlocked\n");
+      } else if (r > 0) {
+        tot += r;
+        dbg("Write: %d/%d\n", tot, len);
+      } else {
+        tot = -1;
+        break;
+      }
+    }
+  }
+  return tot;
+}
+
 
 int pico_ptclose(int sockfd) {
   struct pico_socket *s = GET_SOCK(sockfd);
@@ -319,3 +415,22 @@ int pico_ptshutdown(int sockfd, int how) {
   GlobalUnlock();
   return ret;
 }
+
+static void *pico_ptloop(void *arg)
+{
+  while(1) {
+    GlobalLock();
+    pico_stack_tick();
+    GlobalUnlock();
+    usleep(10000);
+  }
+}
+
+int pico_ptstart(void)
+{
+  pthread_t pico_stack_thread;
+  pthread_create(&pico_stack_thread, NULL, &pico_ptloop, NULL);
+  dbg("Thread: created.\n");
+  return 0;
+}
+

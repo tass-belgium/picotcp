@@ -44,6 +44,7 @@ static int pico_vde_poll(struct pico_device *dev, int loop_score)
 
     len = vde_recv(vde->conn, buf, VDE_MTU, 0);
     if (len > 0) {
+      //dbg("Received pkt.\n");
       loop_score--;
       pico_stack_recv(dev, buf, len);
     }

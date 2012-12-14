@@ -54,7 +54,7 @@ struct pico_socket {
 #endif
 
   /* Private field. */
-  void *priv;
+  int id;
   uint16_t state;
   RB_ENTRY(pico_socket) node;
 };

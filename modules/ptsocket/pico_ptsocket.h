@@ -11,7 +11,7 @@ holders.
 #include "pico_socket.h"
 
 #include <pthread.h>
-
+#ifndef PF_INET
 #define PF_INET     2
 #define PF_INET6    10
 #define AF_INET     PF_INET
@@ -23,6 +23,7 @@ holders.
 #define SHUT_RD   0
 #define SHUT_WR   1
 #define SHUT_RDWR 2
+#endif
 
 
 int pico_ptsocket(int domain, int type, int protocol);
@@ -31,11 +32,11 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen);
 int pico_ptaccept(int sockfd, void *addr, int *addrlen);
 int pico_ptlisten(int sockfd, int backlog);
 int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen);
-#define pico_ptrecv(s,b,l,f) pico_ptrecvfrom(s,b,l,f,NULL,NULL)
-#define pico_ptread(s,b,l) pico_ptrecvfrom(s,b,l,0,NULL,NULL)
+int pico_ptread(int sockfd, void *buf, int len);
+#define pico_ptrecv(s,b,l,f) pico_ptread(s,b,l)
 int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen);
-#define pico_ptsend(s,b,l,f) pico_ptsendto(s,b,l,f,NULL,0)
-#define pico_ptwrite(s,b,l) pico_ptsendto(s,b,l,0,NULL,0)
+int pico_ptwrite(int sockfd, void *buf, int len);
+#define pico_ptsend(s,b,l,f) pico_ptwrite(s,b,l)
 int pico_ptclose(int sockfd);
 int pico_ptshutdown(int sockfd, int how);
 

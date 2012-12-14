@@ -398,6 +398,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 {
   struct pico_ipv4_link test, *new;
   struct pico_ip4 network, gateway;
+  char ipstr[30];
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
   /** XXX: Valid netmask / unicast address test **/
@@ -421,7 +422,8 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   network.addr = address.addr & netmask.addr;
   gateway.addr = 0U;
   pico_ipv4_route_add(network, netmask, gateway, 1, new);
-  dbg("Assigned ipv4 to device %s\n", new->dev->name);
+  pico_ipv4_to_string(ipstr, new->address.addr);
+  dbg("Assigned ipv4 %s to device %s\n", ipstr, new->dev->name);
   return 0;
 }
 

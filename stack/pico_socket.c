@@ -198,7 +198,7 @@ int pico_socket_del(struct pico_socket *s)
       RB_REMOVE(sockport_table, &TCPTable, sp);
     pico_free(sp);
   }
-  s->state &= (~PICO_SOCKET_STATE_BOUND);
+  pico_free(s);
   return 0;
 }
 
@@ -689,6 +689,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
   } else if (is_sock_ipv4(s)) {
     struct pico_ip4 *ip = (struct pico_ip4 *) remote_addr;
     s->remote_addr.ip4.addr = ip->addr;
+    dbg("DELME: Set remote ip to %08x\n", ip->addr);
   }
 
 #ifdef PICO_SUPPORT_UDP
