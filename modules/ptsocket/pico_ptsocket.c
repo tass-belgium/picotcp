@@ -63,6 +63,8 @@ struct sockaddr_emu_ipv6 {
 static void wakeup(uint16_t ev, struct pico_socket *s)
 {
   dbg("Unlocking %d\n", s->id);
+  if ((ev & PICO_SOCK_EV_CLOSE) || (ev & PICO_SOCK_EV_FIN))
+    pico_err = PICO_ERR_ESHUTDOWN;
   Unlock(s->id);
 }
 
@@ -165,6 +167,8 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
     Lock(sockfd);
     /* Suspend until the next wakeup callback */
     Lock(sockfd);
+    if (pico_err == PICO_ERR_ESHUTDOWN)
+      return -1;
     dbg("Connect: resumed\n");
     Unlock(sockfd);
   }
@@ -343,8 +347,11 @@ int pico_ptread(int sockfd, void *buf, int len)
     Lock(sockfd);
     while(tot == 0) {
       r = pico_socket_read(s, buf + tot, len - tot);
-      if (r == 0)
+      if (r == 0) {
         Lock(sockfd);
+        if (pico_err == PICO_ERR_ESHUTDOWN)
+          return -1;
+      }
       else if (r > 0)
         tot += r;
       else {
@@ -373,6 +380,8 @@ int pico_ptwrite(int sockfd, void *buf, int len)
        if (r == 0) {
         dbg("Write: on lock\n");
         Lock(sockfd);
+        if (pico_err == PICO_ERR_ESHUTDOWN)
+          return -1;
         dbg("Write: unlocked\n");
       } else if (r > 0) {
         tot += r;
@@ -390,14 +399,15 @@ int pico_ptwrite(int sockfd, void *buf, int len)
 int pico_ptclose(int sockfd) {
   struct pico_socket *s = GET_SOCK(sockfd);
   int ret = -1;
-  GlobalLock();
   if (s) {
     ret = pico_socket_close(s);
     Lock(sockfd);
+    Lock(sockfd);
+    Unlock(sockfd);
   } else {
     pico_err = PICO_ERR_ENOENT;
+    return -1;
   }
-  GlobalUnlock();
   return ret;
 }
 
@@ -405,15 +415,16 @@ int pico_ptclose(int sockfd) {
 int pico_ptshutdown(int sockfd, int how) {
   struct pico_socket *s = GET_SOCK(sockfd);
   int ret = -1;
-  GlobalLock();
   if (s) {
     ret = pico_socket_close(s);
-    if (how & PICO_SHUT_WR)
+    if (how & PICO_SHUT_WR) {
       Lock(sockfd);
+      Lock(sockfd);
+      Unlock(sockfd);
+    }
   } else {
     pico_err = PICO_ERR_ENOENT;
   }
-  GlobalUnlock();
   return ret;
 }
 

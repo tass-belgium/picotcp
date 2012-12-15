@@ -9,11 +9,18 @@
 #include <netinet/in.h>
 #include "ptsocket/pico_ptsocket.h"
 
+int sk;
 
+static int sigint;
 void callback_exit(int signum)
 {
-  if (signum == SIGUSR1) {
-    printf("SERVER > RECEIVED SIGUSR1\n");
+  if (signum == SIGINT) {
+    printf("SERVER > RECEIVED SIGINT\n");
+    if (sigint++)
+      exit(0);
+    pico_ptclose(sk);
+    sleep(2);
+    exit(0);
   }
 }
 
@@ -26,9 +33,9 @@ int main(void)
   uint16_t port = short_be(5555);
 
   struct sockaddr_in local = {}, remote = {};
-  int sk, ret;
+  int ret;
 
-  signal(SIGUSR1, callback_exit);
+  signal(SIGINT, callback_exit);
   pico_stack_init();
 
   pico_string_to_ipv4("10.40.0.4", &address.addr);
