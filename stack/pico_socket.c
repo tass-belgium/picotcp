@@ -678,7 +678,6 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
       pico_err = PICO_ERR_EINVAL;
       return -1;
     }
-    dbg("######################################## Local port is set to %d\n", s->local_port);
     pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
   }
 

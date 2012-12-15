@@ -13,6 +13,8 @@ Authors: Daniele Lacamera
 #include <pthread.h>
 #define PT_MAX_SOCKETS 255
 
+#define ptsock_dbg(...) do{}while(0)
+
 static struct pico_socket *pico_posix_sockets[PT_MAX_SOCKETS] = {};
 
 static inline int NEW_SOCK(void) {
@@ -62,7 +64,7 @@ struct sockaddr_emu_ipv6 {
 
 static void wakeup(uint16_t ev, struct pico_socket *s)
 {
-  dbg("Unlocking %d\n", s->id);
+  ptsock_dbg("Unlocking %d\n", s->id);
   if ((ev & PICO_SOCK_EV_CLOSE) || (ev & PICO_SOCK_EV_FIN))
     pico_err = PICO_ERR_ESHUTDOWN;
   Unlock(s->id);
@@ -111,7 +113,7 @@ int pico_ptsocket(int domain, int type, int protocol) {
 
 err:
   GlobalUnlock();
-  dbg("Hello, new socket here, idx: %d\n", sockfd);
+  ptsock_dbg("Hello, new socket here, idx: %d\n", sockfd);
   return sockfd;
 }
 
@@ -130,7 +132,7 @@ int pico_ptbind(int sockfd, void *addr, int addrlen) {
       ret = pico_socket_bind(s, &sockaddr4->addr, &sockaddr4->port);
       /* test */
       pico_ipv4_to_string(dbg_src, sockaddr4->addr.addr);
-      dbg("Socket bound to %s:%d\n", dbg_src, short_be(sockaddr4->port));
+      ptsock_dbg("Socket bound to %s:%d\n", dbg_src, short_be(sockaddr4->port));
     }
     if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
@@ -147,14 +149,14 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
   int ret = 0;
-  dbg("Entering connect\n");
+  ptsock_dbg("Entering connect\n");
 
   GlobalLock();
   if (s) {
     if (IS_SOCK_IPV4(s)) {
       sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
       ret = pico_socket_connect(s, &sockaddr4->addr, sockaddr4->port);
-      dbg("pico_socket_connect returned %d\n", ret);
+      ptsock_dbg("pico_socket_connect returned %d\n", ret);
     }
     if (IS_SOCK_IPV6(s)) {
       sockaddr6 = (struct sockaddr_emu_ipv6 *) addr;
@@ -163,16 +165,16 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
   }
   GlobalUnlock();
   if (ret == 0) {
-    dbg("Connect: suspended\n");
+    ptsock_dbg("Connect: suspended\n");
     Lock(sockfd);
     /* Suspend until the next wakeup callback */
     Lock(sockfd);
     if (pico_err == PICO_ERR_ESHUTDOWN)
       return -1;
-    dbg("Connect: resumed\n");
+    ptsock_dbg("Connect: resumed\n");
     Unlock(sockfd);
   }
-  dbg("Connect: returning %d\n", ret);
+  ptsock_dbg("Connect: returning %d\n", ret);
   return ret;
 }
 
@@ -186,7 +188,7 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
   while (!newsock) { /* Not yet available */
     if (s) {
       if (IS_SOCK_IPV4(s)) {
-        dbg("Accept: IP4\n");
+        ptsock_dbg("Accept: IP4\n");
         sockaddr4 = (struct sockaddr_emu_ipv4 *) addr;
         newsock = pico_socket_accept(s, &sockaddr4->addr, &sockaddr4->port);
       }
@@ -198,9 +200,9 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
     if (!newsock) {
       if (pico_err == PICO_ERR_EAGAIN) {
         Lock(sockfd);
-        dbg("Accept: lock!\n");
+        ptsock_dbg("Accept: lock!\n");
         Lock(sockfd);
-        dbg("Accept: unlock!\n");
+        ptsock_dbg("Accept: unlock!\n");
       } else {
         return -1;
       }
@@ -374,18 +376,18 @@ int pico_ptwrite(int sockfd, void *buf, int len)
   } else {
     Lock(sockfd);
     while(tot < len) {
-       dbg("Writing: from %d: %d\n", sockfd, len - tot);
+       ptsock_dbg("Writing: from %d: %d\n", sockfd, len - tot);
        r = pico_socket_write(s, buf + tot, len - tot);
-       dbg("Write returned: %d\n", r);
+       ptsock_dbg("Write returned: %d\n", r);
        if (r == 0) {
-        dbg("Write: on lock\n");
+        ptsock_dbg("Write: on lock\n");
         Lock(sockfd);
         if (pico_err == PICO_ERR_ESHUTDOWN)
           return -1;
-        dbg("Write: unlocked\n");
+        ptsock_dbg("Write: unlocked\n");
       } else if (r > 0) {
         tot += r;
-        dbg("Write: %d/%d\n", tot, len);
+        ptsock_dbg("Write: %d/%d\n", tot, len);
       } else {
         tot = -1;
         break;
@@ -442,7 +444,7 @@ int pico_ptstart(void)
 {
   pthread_t pico_stack_thread;
   pthread_create(&pico_stack_thread, NULL, &pico_ptloop, NULL);
-  dbg("Thread: created.\n");
+  ptsock_dbg("Thread: created.\n");
   return 0;
 }
 

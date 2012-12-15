@@ -281,7 +281,7 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       a4 = pico_arp_get(&hdr->dst);
       if (!a4) {
        if (++ f->failure_count < 4) {
-         dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
+         //dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
          pico_arp_query(f->dev, &hdr->dst);
          return 0;
        } else return -1;

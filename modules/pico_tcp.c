@@ -32,8 +32,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_BLACKOUT       0x04
 #define PICO_TCP_UNREACHABLE    0x05
 
-//#define tcp_dbg(...) do{}while(0)
-#define tcp_dbg dbg
+#define tcp_dbg(...) do{}while(0)
+//#define tcp_dbg dbg
 
 
 RB_HEAD(pico_segment_pool, pico_frame);
@@ -402,7 +402,7 @@ static void tcp_process_sack(struct pico_socket_tcp *t, uint32_t start, uint32_t
     if (cmp == 0) {
       cmp = seq_compare(SEQN(f) + f->payload_len, end);
       if (cmp > 0) {
-        dbg("Invalid SACK: ignoring.\n");
+        tcp_dbg("Invalid SACK: ignoring.\n");
       }
 
       tcp_dbg("Marking (by SACK) segment %08x BLK:[%08x::%08x]\n", SEQN(f), start, end);
@@ -430,7 +430,7 @@ static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
   uint32_t *start, *end;
   int i = 0;
   if (len % 8) {
-    dbg("SACK: Invalid len.\n");
+    tcp_dbg("SACK: Invalid len.\n");
     return;
   }
   while (i < len) {
@@ -459,7 +459,7 @@ static void tcp_parse_options(struct pico_frame *f)
         break;
       case PICO_TCP_OPTION_WS:
         if (len != PICO_TCPOPTLEN_WS) {
-          dbg("TCP Window scale: bad len received.\n");
+          tcp_dbg("TCP Window scale: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -467,7 +467,7 @@ static void tcp_parse_options(struct pico_frame *f)
         break;
       case PICO_TCP_OPTION_SACK_OK:
         if (len != PICO_TCPOPTLEN_SACK_OK) {
-          dbg("TCP option sack: bad len received.\n");
+          tcp_dbg("TCP option sack: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -476,7 +476,7 @@ static void tcp_parse_options(struct pico_frame *f)
       case PICO_TCP_OPTION_MSS: {
         uint16_t *mss;
         if (len != PICO_TCPOPTLEN_MSS) {
-          dbg("TCP option mss: bad len received.\n");
+          tcp_dbg("TCP option mss: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -490,7 +490,7 @@ static void tcp_parse_options(struct pico_frame *f)
       case PICO_TCP_OPTION_TIMESTAMP: {
         uint32_t *tsval, *tsecr;
         if (len != PICO_TCPOPTLEN_TIMESTAMP) {
-          dbg("TCP option timestamp: bad len received.\n");
+          tcp_dbg("TCP option timestamp: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -511,7 +511,7 @@ static void tcp_parse_options(struct pico_frame *f)
         break;
       }
       default:
-        dbg("TCP: received unsupported option %u\n", type);
+        tcp_dbg("TCP: received unsupported option %u\n", type);
         i += len - 2;
     }
   }
@@ -546,7 +546,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 
   if (seq_compare(next_to_send, ts->snd_nxt) > 0) {
     ts->snd_nxt = next_to_send;
-    dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, ts->snd_nxt);
+    tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, ts->snd_nxt);
   }
 
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -572,7 +572,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 static void sock_stats(unsigned long when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
-  dbg("STATISTIC> [%lu] socket state: %02x --> local port:%d remote port: %d queue size: %d snd_una: %08x snd_nxt: %08x timer: %d cwnd: %d\n",
+  tcp_dbg("STATISTIC> [%lu] socket state: %02x --> local port:%d remote port: %d queue size: %d snd_una: %08x snd_nxt: %08x timer: %d cwnd: %d\n",
     when, t->sock.state, short_be(t->sock.local_port), short_be(t->sock.remote_port), t->tcpq_out.size, SEQN(first_segment(&t->tcpq_out)), t->snd_nxt, t->timer_running, t->cwnd);
   pico_timer_add(2000, sock_stats, t);
 }
@@ -614,7 +614,7 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
 
     /* Hole at the beginning of data, awaiting retransmissions. */
     if (seq_compare(t->rcv_processed, SEQN(f)) < 0) {
-      dbg("TCP> read hole beginning of data, %u - %u\n",t->rcv_processed, SEQN(f));
+      tcp_dbg("TCP> read hole beginning of data, %u - %u\n",t->rcv_processed, SEQN(f));
       return tot_rd_len;
     }
 
@@ -647,16 +647,16 @@ static void initconn_retry(unsigned long when, void *arg)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
-      dbg("TCP> Connection timeout. \n");
+      tcp_dbg("TCP> Connection timeout. \n");
       if (t->sock.wakeup)
         t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
       return;
     }
-    dbg("TCP> SYN retry %d...\n", t->backoff);
+    tcp_dbg("TCP> SYN retry %d...\n", t->backoff);
     t->backoff++;
     pico_tcp_initconn(&t->sock);
   } else {
-    dbg("TCP> Connection is already established: no retry needed. good.\n");
+    tcp_dbg("TCP> Connection is already established: no retry needed. good.\n");
   }
 }
 
@@ -690,7 +690,7 @@ int pico_tcp_initconn(struct pico_socket *s)
   pico_tcp_checksum_ipv4(syn);
 
   /* TCP: ENQUEUE to PROTO ( SYN ) */
-  dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
+  tcp_dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
   pico_enqueue(&out, syn);
   pico_timer_add(PICO_TCP_RTO_MIN << ts->backoff, initconn_retry, ts);
   return 0;
@@ -781,7 +781,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
   hdr->rwnd = short_be(t->wnd);
   pico_tcp_checksum_ipv4(f);
   
-  //dbg("SENDING FIN...\n");
+  //tcp_dbg("SENDING FIN...\n");
   /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
   pico_enqueue(&out, f);
   t->snd_nxt++;
@@ -882,14 +882,14 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     }
     /* In either case, ack til recv_nxt. */
     if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) ) {
-      //dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state);
+      //tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state);
       tcp_send_ack(t);
     } else {
-      //dbg("SENDACK PREVENTED IN SYNSENT STATE\n");
+      //tcp_dbg("SENDACK PREVENTED IN SYNSENT STATE\n");
     }
     return 0;
   } else {
-    dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", hdr->len >> 2, f->transport_len);
+    tcp_dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", hdr->len >> 2, f->transport_len);
     return -1;
   }
 }
@@ -1165,7 +1165,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("RECEIVED ACK IN FIN_WAIT1\nTCP> IN STATE FIN_WAIT2\n");
+  tcp_dbg("RECEIVED ACK IN FIN_WAIT1\nTCP> IN STATE FIN_WAIT2\n");
 
   /* acking part */
   tcp_ack(s,f);
@@ -1182,7 +1182,7 @@ static void tcp_deltcb(unsigned long when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_TIME_WAIT) {
-    dbg("TCP> state: time_wait, final timer expired, going to closed state\n");
+    tcp_dbg("TCP> state: time_wait, final timer expired, going to closed state\n");
     
     /* update state */
     (t->sock).state &= 0x00FFU;
@@ -1196,7 +1196,7 @@ static void tcp_deltcb(unsigned long when, void *arg)
     /* delete socket */
     pico_socket_del(&t->sock); 
   } else {
-    dbg("TCP> trying to go to closed, wrong state\n");
+    tcp_dbg("TCP> trying to go to closed, wrong state\n");
   }
 
 }
@@ -1204,7 +1204,7 @@ static void tcp_deltcb(unsigned long when, void *arg)
 
 static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("RECEIVED FIN IN FIN_WAIT2\n");
+  tcp_dbg("RECEIVED FIN IN FIN_WAIT2\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
 
@@ -1247,7 +1247,7 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("TCP> state: last_ack, received ack, to closed\n");
+  tcp_dbg("TCP> state: last_ack, received ack, to closed\n");
   
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
@@ -1348,7 +1348,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-  dbg("ACK in SYN_RECV: expecting %08x got %08x\n", t->snd_nxt, ACKN(f));
+  tcp_dbg("ACK in SYN_RECV: expecting %08x got %08x\n", t->snd_nxt, ACKN(f));
   if (t->snd_nxt == ACKN(f)) {
     tcp_set_init_point(s);
     tcp_ack(s, f);
@@ -1361,7 +1361,7 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
       s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
       s->wakeup(PICO_SOCK_EV_WR, s);
     }
-    dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
+    tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     return 0;
   } else {
     return 0;
@@ -1372,7 +1372,7 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("Close-wait\n");
+  tcp_dbg("Close-wait\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
 
@@ -1402,7 +1402,7 @@ static int tcp_fin(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("Received FIN in FIN_WAIT1\n");
+  tcp_dbg("Received FIN in FIN_WAIT1\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
 
@@ -1419,7 +1419,7 @@ static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-  dbg("ENTERED finack\n");
+  tcp_dbg("ENTERED finack\n");
   t->rcv_nxt++;
   /* send ACK */
   tcp_send_ack(t);
@@ -1435,7 +1435,7 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 {
-  dbg("TCP > received RST\n");
+  tcp_dbg("TCP > received RST\n");
   if (s->wakeup)
     s->wakeup(PICO_SOCK_EV_CLOSE, s);
   return 0;
@@ -1556,7 +1556,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
 
   if (!f && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue */
     if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
-      dbg("TCP> buffer empty, shutdown established ...\n");
+      tcp_dbg("TCP> buffer empty, shutdown established ...\n");
       /* send fin if queue empty and in state shut local (write) */
       tcp_send_fin(t);
       /* change tcp state to FIN_WAIT1 */
@@ -1568,7 +1568,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       /* change tcp state to LAST_ACK */
       s->state &= 0x00FFU;
       s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
-      dbg("TCP> STATE: LAST_ACK.\n");
+      tcp_dbg("TCP> STATE: LAST_ACK.\n");
     } 
   }
   return loop_score;

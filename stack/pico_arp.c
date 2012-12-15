@@ -17,6 +17,8 @@ Authors: Daniele Lacamera
 const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define PICO_ARP_TIMEOUT 600000
 
+#define arp_dbg(...) do{}while(0)
+
 
 struct
 __attribute__ ((__packed__)) 
@@ -80,7 +82,7 @@ void dbg_arp(void)
 {
   struct pico_arp *a;
   RB_FOREACH(a, arp_tree, &Arp_table) {
-    dbg("ARP to  %08x, mac: %02x:%02x:%02x:%02x:%02x:%02x\n", a->ipv4.addr,a->eth.addr[0],a->eth.addr[1],a->eth.addr[2],a->eth.addr[3],a->eth.addr[4],a->eth.addr[5] );
+    arp_dbg("ARP to  %08x, mac: %02x:%02x:%02x:%02x:%02x:%02x\n", a->ipv4.addr,a->eth.addr[0],a->eth.addr[1],a->eth.addr[2],a->eth.addr[3],a->eth.addr[4],a->eth.addr[5] );
   }
 }
 
@@ -88,7 +90,7 @@ void arp_expire(unsigned long now, void *_stale)
 {
   struct pico_arp *stale = (struct pico_arp *) _stale;
   stale->arp_status = PICO_ARP_STATUS_STALE;
-  dbg("ARP: Setting arp_status to STALE\n");
+  arp_dbg("ARP: Setting arp_status to STALE\n");
   pico_arp_query(stale->dev, &stale->ipv4);
 
 }
@@ -130,7 +132,7 @@ int pico_arp_receive(struct pico_frame *f)
     new->timestamp  = PICO_TIME();
     new->dev = f->dev;
     RB_INSERT(arp_tree, &Arp_table, new);
-    dbg("ARP ## reachable.\n");
+    arp_dbg("ARP ## reachable.\n");
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, new);
   }
 
@@ -177,7 +179,7 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   if (!src)
     return -1;
 
-  dbg("QUERY: %08x\n", dst->addr);
+  arp_dbg("QUERY: %08x\n", dst->addr);
 
   if (!q)
     return -1;
@@ -198,7 +200,7 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   memcpy(ah->s_mac, dev->eth->mac.addr, PICO_SIZE_ETH);
   ah->src.addr = src->addr;
   ah->dst.addr = dst->addr;
-  dbg("Sending arp query.\n");
+  arp_dbg("Sending arp query.\n");
   ret = dev->send(dev, q->start, q->len);
   pico_frame_discard(q);
   return ret;
