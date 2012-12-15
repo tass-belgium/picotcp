@@ -4,6 +4,8 @@ CC=$(CROSS_COMPILE)gcc
 CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
 #CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
 
+PREFIX?=./build
+
 
 
 
@@ -74,9 +76,6 @@ lib: all mod
 	cp -f modules/*.h build/include
 	$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
 	$(CROSS_COMPILE)ranlib build/lib/picotcp.a
-
-unit:
-	$(CC) -o build/test/UNIT_arp stack/pico_arp.c stack/pico_frame.c modules/pico_ipv4.c $(CFLAGS) -DUNIT_ARPTABLE -ggdb
 
 clean:
 	rm -rf build tags

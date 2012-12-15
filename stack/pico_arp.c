@@ -203,39 +203,3 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   pico_frame_discard(q);
   return ret;
 }
-
-#ifdef UNIT_ARPTABLE
-
-int main(void)
-{
-  struct pico_arp test1, test2, test3;
-  struct pico_arp *found, *notfound;
-  struct pico_frame *f = pico_frame_alloc(40);
-  struct pico_ipv4_hdr *iphdr;
-  f->net_hdr = f->start;
-  iphdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  iphdr->dst.addr = 3;
-
-  memset(test1.eth.addr, 1, 6);
-  memset(test2.eth.addr, 2, 6);
-  memset(test3.eth.addr, 3, 6);
-
-  test1.ipv4.addr = 0x1;
-  test2.ipv4.addr = 0x2;
-  test3.ipv4.addr = 0x3; 
-
-  RB_INSERT(arp_tree, &Arp_table, &test1);
-  RB_INSERT(arp_tree, &Arp_table, &test2);
-  RB_INSERT(arp_tree, &Arp_table, &test3);
-
-  found = pico_arp_get(&f->dst);
-  iphdr->dst.addr = 4;
-  notfound = pico_arp_get(&f->dst);
-
-  if (found && !notfound)
-    return 0;
-  return 5;
-}
-
-#endif
-
