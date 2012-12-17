@@ -1,10 +1,13 @@
 #!/bin/bash
 clear
-RED='\e[1;31m'
-GREEN='\e[1;32m'
-BLUE='\e[1;34m'
-NC='\e[0m'
-MAGENTA='\e[1;35m'
+if [ x$1 != x--nocolor ]; then
+  RED='\e[1;31m'
+  GREEN='\e[1;32m'
+  BLUE='\e[1;34m'
+  MAGENTA='\e[1;35m'
+  NC='\e[0m'
+fi
+
 rm -f logfile.log
 
 function unit() {
@@ -23,9 +26,10 @@ function unit() {
 }
 
 
-echo -e "${MAGENTA}Exec 'make' & 'make tst'${NC}"
-make > ./test/logfile.log
-make tst > ./test/logfile2.log
+#echo -e "${MAGENTA}Exec 'make' & 'make tst'${NC}"
+#make > ./test/logfile.log
+#make tst > ./test/logfile2.log
+
 echo -e "${MAGENTA}Startup vde script'${NC}"
 sh ./test/vde_sock_start_user.sh
 
@@ -43,11 +47,6 @@ echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
 sleep 3
 unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient 9
 
-# Starting TCP server
-./build/test/testserver 8 >> ./logfile.log &
-SERVER=$!
-echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
-sleep 3
-unit "${MAGENTA}CLOSE TCP ${NC}" ./build/test/testclient 9
+echo
 
 exit 0 # I am the last line.
