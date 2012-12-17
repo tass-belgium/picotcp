@@ -47,15 +47,12 @@ void wakeup(uint16_t ev, struct pico_socket *s)
   }
   if (ev == PICO_SOCK_EV_CLOSE) {
     printf("Socket received event close\n");
-    
     /* test read on shut socket */
     r = pico_socket_recvfrom(s, buf, 30, &peer, &port);
     if (r >= 0)
       printf("messed up reading from closed socket\n"); //DELME
     else if (r < 0)
       printf("error recvfrom - %d - good\n",pico_err);
-    
-    //pico_socket_shutdown(send, PICO_SHUT_WR);
     kill(getpid(),SIGUSR1);
   }
 
@@ -83,8 +80,6 @@ int main(int argc, char **argv)
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
   struct pico_ip4 address0, netmask0;
-//  struct pico_ip4 address1, netmask1;
-
 
   struct pico_socket *sk_udp, *sk_tcp;
   uint16_t port = short_be(5555);
@@ -95,10 +90,6 @@ int main(int argc, char **argv)
 
   address0.addr = 0x0300280a; //  10.40.0.3
   netmask0.addr = 0x00FFFFFF;
-
-//  address1.addr = 0x0300290a; //  10.41.0.3
-//  netmask1.addr = 0x00FFFFFF;
-
   vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
   if (!vde0){
     printf("vde NOT created");
@@ -110,12 +101,7 @@ int main(int argc, char **argv)
     exit(1);
   }
 
-  //vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
-  //if (!vde1)
-  //  return 1;
-
   pico_ipv4_link_add(vde0, address0, netmask0);
-  //pico_ipv4_link_add(vde1, address1, netmask1);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp){

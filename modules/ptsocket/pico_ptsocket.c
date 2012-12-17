@@ -290,8 +290,8 @@ fail:
 int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   int ret = -1;
-  struct sockaddr_emu_ipv4 *sockaddr4;
-  struct sockaddr_emu_ipv6 *sockaddr6;
+  struct sockaddr_emu_ipv4 *sockaddr4 = NULL;
+  struct sockaddr_emu_ipv6 *sockaddr6 = NULL;
 
   GlobalLock();
   if (!s) {
@@ -438,6 +438,7 @@ static void *pico_ptloop(void *arg)
     GlobalUnlock();
     usleep(10000);
   }
+  return 0; // makes compiler happy.
 }
 
 int pico_ptstart(void)

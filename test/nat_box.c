@@ -82,10 +82,6 @@ int main(void)
   unsigned char macaddr2[6] = {0,0,0,0xa,0xb,0xe};
   struct pico_device *vde1, *vde2;
   struct pico_ip4 address2, netmask2, address1, netmask1;
-
-  struct pico_socket *sk_udp, *sk_tcp;
-  uint16_t port = short_be(5555);
-
   pico_stack_init();
 
   address1.addr = 0xFE00280a;   // 10.40.0.254
@@ -105,27 +101,6 @@ int main(void)
   /* add local devices vde1, vde2 */
   pico_ipv4_link_add(vde1, address1, netmask1);
   pico_ipv4_link_add(vde2, address2, netmask2);
-
-  //sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
-  //if (!sk_udp)
-  //  return 2;
-
-  //if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
-  //  return 3;
-
-  //sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
-  //if (!sk_tcp)
-  //  return 2;
-
-  //if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
-  //  return 3;
-
-  //if (pico_socket_listen(sk_tcp, 3)!=0)
-  //  return 3;
-
-  //send = sk_tcp;
-
-  //signal(SIGUSR1, callback_exit);
 
   while(1) {
     pico_stack_tick();

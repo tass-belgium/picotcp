@@ -86,10 +86,6 @@ int main(void)
   struct pico_socket *sk_udp, *sk_tcp;
   uint16_t port = short_be(5555);
 
-  struct pollfd fds;
-  char buffer[100];
-  int ret;
-
   signal(SIGUSR1, callback_exit);
   signal(SIGALRM, send_callback);
 
