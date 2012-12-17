@@ -7,7 +7,8 @@
 #include <signal.h>
 #include <unistd.h>
 
-#define TEST_SUCCESS 10
+#define SUCCESS 0
+
 #define TEST_FAILED 9
 
 struct pico_socket *client = NULL;
@@ -77,7 +78,7 @@ void callback_exit(int signum)
 
 
 
-int main(void)
+int main(int argc, char **argv)
 {
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
@@ -88,6 +89,8 @@ int main(void)
 
   pico_stack_init();
 
+  int TestNumber = atoi(argv[1]);
+
   address0.addr = 0x0300280a; //  10.40.0.3
   netmask0.addr = 0x00FFFFFF;
 
@@ -95,8 +98,15 @@ int main(void)
   netmask1.addr = 0x00FFFFFF;
 
   vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
-  if (!vde0)
+  if (!vde0){
+    printf("vde NOT created");
     return 1;
+    exit(1);
+  }else if(TestNumber==1){
+    printf("vde created");
+    return SUCCESS;
+    exit(1);
+  }
 
   //vde1 = pico_vde_create("/tmp/pic1.ctl", "vde1", macaddr1);
   //if (!vde1)
@@ -106,22 +116,68 @@ int main(void)
   //pico_ipv4_link_add(vde1, address1, netmask1);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
-  if (!sk_udp)
+  if (!sk_udp){
+    printf("UDP socket not open\n");
     return 2;
-
-  if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
-    return 1;
+    exit(1);
+  }else if(TestNumber==2){
+    printf("UDP socket open\n");
+    return SUCCESS;
+    exit(1);
+  }
 
   sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
-  if (!sk_tcp)
-    return 2;
-
-  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
-    return 1;
-
-  if (pico_socket_listen(sk_tcp, 3)!=0)
+  if (!sk_tcp){
+      printf("TCP socket not open\n");
     return 3;
-
+    exit(1);
+  }else if(TestNumber==3){
+    printf("TCP socket open\n");
+    return SUCCESS;
+    exit(1);
+  }
+  
+  if (pico_socket_bind(sk_udp, &address0, &port)!= 0){
+    printf("UDP socket bind failed\n");
+    return 4;
+    exit(1);
+  }else if(TestNumber==4){
+    printf("UDP socket bind\n");
+    return SUCCESS;
+    exit(1);
+  }
+ 
+  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0){
+    printf("TCP socket bind failed\n");
+    return 5;
+    exit(1);
+  }else if(TestNumber==5){
+    printf("TCP socket bind succes\n");
+    return SUCCESS;
+    exit(1);
+  }
+/*
+  if (pico_socket_listen(sk_udp, 3)!=0){
+    printf("UDP socket listen failed\n");
+    return 6;
+    exit(1);
+  }else
+ if(TestNumber==6){
+    printf("UDP socket listen\n");
+    return 6;
+    exit(1);
+  }
+*/
+  
+  if (pico_socket_listen(sk_tcp, 3)!=0){
+    printf("TCP socket listen failed\n");
+    return 7;
+    exit(1);
+  }else if(TestNumber==7){
+    printf("TCP socket listen\n");
+    return SUCCESS;
+    exit(1);
+  }
   send = sk_tcp;
 
   signal(SIGUSR1, callback_exit);
@@ -130,7 +186,7 @@ int main(void)
     
     if(shutdown){
       printf("Shutting down\n");
-      return TEST_SUCCESS;     
+      return SUCCESS;     
       exit(1);
     }
     pico_stack_tick();

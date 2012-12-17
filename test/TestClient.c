@@ -89,8 +89,7 @@ void callback_exit(int signum)
   }
 }
 
-
-int main(void)
+int main(int argc, char **argv)
 {
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xd};
   struct pico_device *vde0;
@@ -102,6 +101,7 @@ int main(void)
   struct pollfd fds;
   char buffer[100];
   int ret;
+  int TestNumber = atoi(argv[1]);
 
   signal(SIGUSR1, callback_exit);
   signal(SIGALRM, send_callback);
@@ -138,7 +138,7 @@ int main(void)
     return 1;
   
   printf("sleep\n");
-  sleep(2);
+  //sleep(2);
   printf("end sleep\n");
 
   if (pico_socket_connect(sk_tcp, &address1, port)!=0)
@@ -164,14 +164,16 @@ int main(void)
     }
 
     if(shutdown && cmpTestCorrect){
-      return TEST_SUCCESS;
-      pico_socket_shutdown(send, PICO_SHUT_WR);
-      printf("Shutdown with compare SUCCESS\n"); 
-      exit(1);
+       if(TestNumber==9){
+         printf("Shutdown with compare SUCCESS\n"); 
+         return 0;
+         pico_socket_shutdown(send, PICO_SHUT_WR);
+         exit(1);
+        }
     }else if(shutdown && (cmpTestCorrect==0)){
       printf("Shutdown with compare FAILED\n");
       pico_socket_shutdown(send, PICO_SHUT_WR);
-      return TEST_FAILED;
+      return 8;
       exit(1);
     }
   }
