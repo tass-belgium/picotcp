@@ -156,19 +156,7 @@ int main(int argc, char **argv)
     return SUCCESS;
     exit(1);
   }
-/*
-  if (pico_socket_listen(sk_udp, 3)!=0){
-    printf("UDP socket listen failed\n");
-    return 6;
-    exit(1);
-  }else
- if(TestNumber==6){
-    printf("UDP socket listen\n");
-    return 6;
-    exit(1);
-  }
-*/
-  
+
   if (pico_socket_listen(sk_tcp, 3)!=0){
     printf("TCP socket listen failed\n");
     return 7;
