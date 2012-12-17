@@ -80,7 +80,7 @@ int main(void)
 {
   unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
   struct pico_device *vde0;
-  struct pico_ip4 address0, netmask0, address1, netmask1;
+  struct pico_ip4 address0, netmask0;
 
   struct pico_socket *sk_udp, *sk_tcp;
   uint16_t port = short_be(5555);
@@ -90,8 +90,6 @@ int main(void)
   address0.addr = 0x0300280a; //  10.40.0.3
   netmask0.addr = 0x00FFFFFF;
 
-  address1.addr = 0x0300290a; //  10.41.0.3
-  netmask1.addr = 0x00FFFFFF;
 
   vde0 = pico_vde_create("/tmp/pic0.ctl", "vde0", macaddr0);
   if (!vde0)

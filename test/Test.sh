@@ -39,14 +39,14 @@ unit "${MAGENTA}LISTEN TCP ${NC}" ./build/test/testserver 7
 # Starting TCP server
 sudo ./build/test/testserver 8 >> ./logfile.log &
 SERVER=$!
-echo -e "${BLUE}Start started server (PID=$SERVER) ${NC}"
+echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
 sleep 3
 unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient 9
 
 # Starting TCP server
 sudo ./build/test/testserver 8 >> ./logfile.log &
 SERVER=$!
-echo -e "${BLUE}Start started server ${NC}"
+echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
 sleep 3
 unit "${MAGENTA}CLOSE TCP ${NC}" ./build/test/testclient 9
 

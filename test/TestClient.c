@@ -21,7 +21,7 @@ static struct pico_socket *send;
 void wakeup(uint16_t ev, struct pico_socket *s)
 {
   char recvbuf[30];
-  int r=0, ret=0;
+  int r=0;
   uint32_t peer;
   uint16_t port;
 
@@ -38,7 +38,6 @@ void wakeup(uint16_t ev, struct pico_socket *s)
           pico_socket_shutdown(send, PICO_SHUT_WR);
        }else{
           printf("Compare failed\n");
-          return TEST_FAILED;
           exit(1);
         }
       }
@@ -72,10 +71,9 @@ void wakeup(uint16_t ev, struct pico_socket *s)
 void send_callback(int signum)
 {
   if (signum == SIGALRM) {
-    int ret;
     sprintf(sendbuf,"TEST CALLBACK");
     msgLength = pico_socket_write(send, sendbuf, sizeof("TEST CALLBACK"));
-    if (ret < 0)
+    if (msgLength < 0)
       printf("pico_err - socket_write : %d\n",pico_err);
     alarm(1);
   }
@@ -100,7 +98,6 @@ int main(int argc, char **argv)
 
   struct pollfd fds;
   char buffer[100];
-  int ret;
   int TestNumber = atoi(argv[1]);
 
   signal(SIGUSR1, callback_exit);
@@ -121,14 +118,14 @@ int main(int argc, char **argv)
   }
   
   pico_ipv4_link_add(vde0, address0, netmask0);
-  /*
+ 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)
     return 2;
 
   if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
     return 1;
-  */
+  
   
   sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
   if (!sk_tcp)
