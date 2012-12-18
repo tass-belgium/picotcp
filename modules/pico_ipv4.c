@@ -395,6 +395,11 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
     }
     new->link = r->link;
   }
+  if (!new->link) {
+      pico_err = PICO_ERR_EINVAL;
+      pico_free(new);
+      return -1;
+  }
   RB_INSERT(routing_table, &Routes, new);
   dbg_route();
   return 0;
