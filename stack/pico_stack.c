@@ -256,6 +256,7 @@ discard:
   return -1;
 }
 
+
 /* This is called by dev loop in order to ensure correct ethernet addressing.
  * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
  * due to ethernet addressing (i.e., no arp association was possible. 
@@ -267,6 +268,7 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
 {
   struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
+  struct pico_ip4 gateway;
 
   if (IS_IPV6(f)) {
     /*TODO: Neighbor solicitation */
@@ -278,13 +280,25 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
      dstmac = (struct pico_eth *) PICO_ETHADDR_ANY;
     } else {
       struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-      a4 = pico_arp_get(&hdr->dst);
+      gateway = pico_ipv4_route_get_gateway(&hdr->dst);
+      /* check if dst is local (gateway = 0), or if to use gateway */
+      if (gateway.addr != 0)
+        a4 = pico_arp_get(&gateway);          /* check if gateway ip mac in cache */
+      else 
+        a4 = pico_arp_get(&hdr->dst);         /* check if local ip mac in cache */
       if (!a4) {
-       if (++ f->failure_count < 4) {
-         //dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
-         pico_arp_query(f->dev, &hdr->dst);
+         if (++ f->failure_count < 4) {
+         dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
+         //dbg ("gateway from route = %X\n",gateway.addr); // TODO DELME
+         /* check if dst is local (gateway = 0), or if to use gateway */
+         if (gateway.addr != 0)
+           pico_arp_query(f->dev, &gateway);  /* arp to gateway */
+         else
+           pico_arp_query(f->dev, &hdr->dst); /* arp to dst */
          return 0;
-       } else return -1;
+       } else {
+         return -1;
+      }
       }
       dstmac = (struct pico_eth *) a4;
     }

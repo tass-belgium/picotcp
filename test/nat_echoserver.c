@@ -78,7 +78,7 @@ void callback_exit(int signum)
 
 int main(void)
 {
-  unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xc};
+  unsigned char macaddr0[6] = {0x0e,0,0,0xa,0xb,0xc};
   struct pico_device *vde3;
   struct pico_ip4 address0, netmask0, network1, netmask1, gateway1;
   struct pico_ipv4_link *link;

@@ -79,7 +79,7 @@ void callback_exit(int signum)
 
 int main(void)
 {
-  unsigned char macaddr0[6] = {0,0,0,0xa,0xb,0xd};
+  unsigned char macaddr0[6] = {0x0c,0,0,0xa,0xb,0xd};
   struct pico_device *vde0;
   struct pico_ip4 address0, netmask0, address1, netmask1, network1, gateway1;
   struct pico_ipv4_link *link = NULL;
@@ -111,10 +111,12 @@ int main(void)
   network1.addr = address1.addr & netmask1.addr;
   gateway1.addr = 0xFE00280A;
   link = pico_ipv4_link_get(&address0);
-  if (link)
-    pico_ipv4_route_add(network1, netmask1, gateway1, 1, link);
-  else
+  if (link) {
+    if (pico_ipv4_route_add(network1, netmask1, gateway1, 1, link) == -1)
+      return 5;
+  } else {
     return 5;
+  }
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)

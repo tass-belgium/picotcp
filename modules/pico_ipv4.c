@@ -279,9 +279,15 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
   return NULL;
 }
 
-struct pico_ipv4_route *pico_ipv4_route_find(struct pico_ip4 *addr)
+struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 {
-  return route_find(addr);
+  struct pico_ip4 nullip;
+  struct pico_ipv4_route *route = route_find(addr);
+  nullip.addr = 0U;
+  if (!route)
+    return nullip;
+  else
+    return route->gateway;
 }
 
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
@@ -370,6 +376,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
   new->dest.addr = address.addr;
   new->netmask.addr = netmask.addr;
+  new->gateway.addr = gateway.addr;
   new->metric = metric;
   new->link = link;
   RB_INSERT(routing_table, &Routes, new);

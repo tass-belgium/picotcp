@@ -44,6 +44,6 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address);
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst);
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
-struct pico_ipv4_route *pico_ipv4_route_find(struct pico_ip4 *addr);
+struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr);
 
 #endif

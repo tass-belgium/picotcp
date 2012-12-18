@@ -78,8 +78,8 @@ void callback_exit(int signum)
 
 int main(void)
 {
-  unsigned char macaddr1[6] = {0,0,0,0xa,0xb,0xf};
-  unsigned char macaddr2[6] = {0,0,0,0xa,0xb,0xe};
+  unsigned char macaddr1[6] = {0xb1,0,0,0xa,0xb,0xf};
+  unsigned char macaddr2[6] = {0xb2,0,0,0xa,0xb,0xe};
   struct pico_device *vde1, *vde2;
   struct pico_ip4 address2, netmask2, address1, netmask1;
   pico_stack_init();
