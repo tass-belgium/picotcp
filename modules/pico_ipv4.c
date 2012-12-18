@@ -378,7 +378,23 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   new->netmask.addr = netmask.addr;
   new->gateway.addr = gateway.addr;
   new->metric = metric;
-  new->link = link;
+  if (gateway.addr == 0) {
+    /* No gateway provided, use the link */
+    new->link = link;
+  } else {
+    struct pico_ipv4_route *r = route_find(&gateway);
+    if (!r ) { /* Specified Gateway is unreachable */
+      pico_err = PICO_ERR_EHOSTUNREACH;
+      pico_free(new);
+      return -1;
+    }
+    if (r->gateway.addr) { /* Specified Gateway is not a neighbor */
+      pico_err = PICO_ERR_ENETUNREACH;
+      pico_free(new);
+      return -1;
+    }
+    new->link = r->link;
+  }
   RB_INSERT(routing_table, &Routes, new);
   dbg_route();
   return 0;
