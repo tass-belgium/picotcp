@@ -750,7 +750,7 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
   return 0;
 }
 
-struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
+struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port)
 {
   pico_err = PICO_ERR_EINVAL;
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {

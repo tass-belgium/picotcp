@@ -1278,12 +1278,16 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 
   new->sock.remote_port = ((struct pico_trans *)f->transport_hdr)->sport;
 #ifdef PICO_SUPPORT_IPV4
-  if (IS_IPV4(f))
+  if (IS_IPV4(f)) {
     new->sock.remote_addr.ip4.addr = ((struct pico_ipv4_hdr *)(f->net_hdr))->src.addr;
+    new->sock.local_addr.ip4.addr = ((struct pico_ipv4_hdr *)(f->net_hdr))->dst.addr;
+  }
 #endif
 #ifdef PICO_SUPPORT_IPV6
-  if (IS_IPV4(f))
+  if (IS_IPV6(f)) {
     memcpy(new->sock.remote_addr.ip6.addr, ((struct pico_ipv6_hdr *)(f->net_hdr))->src, PICO_SIZE_IP6);
+    memcpy(new->sock.remote_addr.ip6.addr, ((struct pico_ipv6_hdr *)(f->net_hdr))->src, PICO_SIZE_IP6);
+  }
 #endif
 
   /* Set socket limits */

@@ -110,7 +110,7 @@ int pico_socket_recv(struct pico_socket *s, void *buf, int len);
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
 int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s, int backlog);
-struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port);
+struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port);
 int pico_socket_del(struct pico_socket *s);
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value);
