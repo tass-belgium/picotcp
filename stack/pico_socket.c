@@ -19,6 +19,8 @@ Authors: Daniele Lacamera
 
 #define PROTO(s) ((s)->proto->proto_number)
 
+#define PICO_SOCKET_MTU 1480
+
 #ifdef PICO_SUPPORT_IPV4
 # define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
 #else
@@ -172,7 +174,6 @@ int pico_socket_add(struct pico_socket *s)
     else if (PROTO(s) == PICO_PROTO_TCP)
       RB_INSERT(sockport_table, &TCPTable, sp);
   }
-  dbg("inserting...\n");
   RB_INSERT(socket_tree, &sp->socks, s);
   s->state |= PICO_SOCKET_STATE_BOUND;
 
@@ -182,6 +183,12 @@ int pico_socket_add(struct pico_socket *s)
   }
 #endif
   return 0;
+}
+
+static void socket_garbage_collect(unsigned long now, void *arg)
+{
+  struct pico_socket *s = (struct pico_socket *) arg;
+  pico_free(s);
 }
 
 int pico_socket_del(struct pico_socket *s)
@@ -200,7 +207,8 @@ int pico_socket_del(struct pico_socket *s)
       RB_REMOVE(sockport_table, &TCPTable, sp);
     pico_free(sp);
   }
-  pico_free(s);
+  s->state = PICO_SOCKET_STATE_CLOSED;
+  pico_timer_add(3000, socket_garbage_collect, s);
   return 0;
 }
 
@@ -469,6 +477,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
   struct pico_frame *f;
   int off = 0;
+  int total_payload_written = 0;
   if (len <= 0)
     return len;
 #ifdef PICO_SUPPORT_IPV4
@@ -551,25 +560,30 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     off = pico_tcp_overhead(s);
 #endif
 
+  while (total_payload_written < len) {
+    int mss = len;
+    if (mss > PICO_SOCKET_MTU)
+      mss = PICO_SOCKET_MTU;
+    f = pico_socket_frame_alloc(s, off + mss);
+    if (!f) {
+      pico_err = PICO_ERR_ENOMEM;
+      return -1;
+    }
 
-  f = pico_socket_frame_alloc(s, off + len);
-  if (!f) {
-    pico_err = PICO_ERR_ENOMEM;
-    return -1;
+    f->payload += off;
+    f->payload_len -= off;
+    f->sock = s;
+    memcpy(f->payload, buf + total_payload_written, mss);
+    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, mss);
+    if (s->proto->push(s->proto, f) > 0) {
+      total_payload_written += mss;
+    } else {
+      pico_frame_discard(f);
+      pico_err = PICO_ERR_EAGAIN;
+      break;
+    }
   }
-
-  f->payload += off;
-  f->payload_len -= off;
-  f->sock = s;
-  memcpy(f->payload, buf, f->payload_len);
-  //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, f->payload_len);
-  if (s->proto->push(s->proto, f) > 0) {
-    return f->payload_len;
-  } else {
-    pico_frame_discard(f);
-    pico_err = PICO_ERR_EAGAIN;
-    return 0;
-  }
+  return total_payload_written;
 }
 
 int pico_socket_send(struct pico_socket *s, void *buf, int len)

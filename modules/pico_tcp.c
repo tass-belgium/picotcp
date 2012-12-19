@@ -647,7 +647,7 @@ static void initconn_retry(unsigned long when, void *arg)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
-      tcp_dbg("TCP> Connection timeout. \n");
+      dbg("TCP> Connection timeout. \n");
       if (t->sock.wakeup)
         t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
       return;
@@ -1213,7 +1213,7 @@ static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
   /* set SHUT_REMOTE */
   s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   if (s->wakeup)
-    s->wakeup(PICO_SOCK_EV_CLOSE, s);
+    s->wakeup(PICO_SOCK_EV_FIN, s);
   if (f->payload_len > 0) /* needed?? */
     tcp_data_in(s,f);
   

@@ -116,9 +116,8 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 
   if (ev & PICO_SOCK_EV_FIN) {
     printf("Socket closed. Exit normally. \n");
-    exit(0);
+    pico_timer_add(2000, deferred_exit, NULL);
   }
-
 
   if (ev & PICO_SOCK_EV_ERR) {
     printf("Socket Error received. Bailing out.\n");
@@ -190,7 +189,7 @@ void udpclient_send(unsigned long now, void *arg) {
       w = pico_socket_send(s, end, 4);
       if (w <= 0)
         break;
-      printf("End!\n", w);
+      printf("End!\n");
     }
     pico_timer_add(1000, deferred_exit, NULL);
     return;
@@ -201,8 +200,7 @@ void udpclient_send(unsigned long now, void *arg) {
 void cb_udpclient(uint16_t ev, struct pico_socket *s)
 {
   char recvbuf[1400];
-  char sendbuf[1400] = { };
-  int r=0, w = 0;
+  int r=0;
   uint32_t peer;
   uint16_t port;
 
@@ -264,8 +262,128 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
+#define TCPSIZ (1024 * 1024 * 10)
+static char *buffer1;
+static char *buffer0;
+
+void compare_results(unsigned long now, void *arg)
+{
+  int i;
+  printf("Calculating result.... (%p)\n", buffer1);
+
+#ifdef CONSISTENCY_CHECK /* TODO: Enable */
+  if (memcmp(buffer0,buffer1,TCPSIZ) == 0)
+    exit(0);
+
+  for (i = 0; i < TCPSIZ; i++) {
+    if (buffer0[i] != buffer1[i]) {
+      fprintf(stderr, "Error at byte %d - %c!=%c\n", i, buffer0[i], buffer1[i]);
+      exit(115);
+    }
+  }
+#endif
+  exit(0);
+
+}
+
+void cb_tcpclient(uint16_t ev, struct pico_socket *s)
+{
+  static int w_size = 0;
+  static int r_size = 0;
+  static int closed = 0;
+  int r,w;
+
+  //printf("tcpclient> wakeup\n");
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
+      if (r > 0) {
+        r_size += r;
+      }
+      if (r < 0)
+        exit(5);
+    } while(r>0);
+  }
+  if (ev & PICO_SOCK_EV_CONN) { 
+    printf("Connection established with server.\n");
+  }
+
+  if (ev & PICO_SOCK_EV_FIN) {
+    printf("Socket closed. Exit normally. \n");
+    pico_timer_add(2000, compare_results, NULL);
+    return;
+  }
+
+  if (ev & PICO_SOCK_EV_ERR) {
+    printf("Socket Error received. Bailing out.\n");
+    exit(1);
+  }
+  if (ev & PICO_SOCK_EV_CLOSE) {
+    printf("Socket received close from peer - Wrong case!\n");
+    pico_socket_close(s);
+    exit(1);
+  }
+
+  if (w_size < TCPSIZ) {
+    do {
+      w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
+      if (w > 0) {
+        w_size += w;
+      if (w < 0)
+        exit(5);
+      }
+    } while(w > 0);
+  } else {
+    if (!closed) {
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("Called shutdown()\n");
+      closed = 1;
+    }
+  }
+}
+
 void app_tcpclient(char *arg)
 {
+  struct pico_socket *s;
+  char *dport;
+  char *dest;
+  int port = 0, i;
+  uint16_t port_be = 0;
+  struct pico_ip4 server_addr;
+  char *nxt = cpy_arg(&dest, arg);
+  if (!dest) {
+    fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
+    exit(255);
+  }
+  if (nxt) {
+    printf("Next arg: %s\n", nxt);
+    cpy_arg(&dport, nxt);
+    printf("Dport: %s\n", dport);
+  }
+  if (dport) {
+    port = atoi(dport);
+    port_be = short_be((uint16_t)port);
+  }
+  if (port == 0) {
+    port_be = short_be(5555);
+  }
+
+  buffer0 = malloc(TCPSIZ);
+  buffer1 = malloc(TCPSIZ);
+  printf("Buffer1 (%p)\n", buffer1);
+  for (i = 0; i < TCPSIZ; i++) {
+    char c = (i % 26) + 'a';
+    buffer0[i] = c;
+  }
+  memset(buffer1, 'a', TCPSIZ);
+  printf("Connecting to: %s:%d\n", dest, short_be(port_be));
+
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
+  if (!s)
+    exit(1);
+
+  pico_string_to_ipv4(dest, &server_addr.addr);
+  pico_socket_connect(s, &server_addr, port_be);
 
 }
 /*** END TCP CLIENT ***/
@@ -283,12 +401,13 @@ static char *cpy_arg(char **dst, char *str)
   char *p, *nxt = NULL;
   char *start = str;
   p = str;
-  while (p && *p) {
-    if (*p == ':') {
+  while (p) {
+    if ((*p == ':') || (p == '\0')) {
       *p = (char)0;
       nxt = p + 1;
       if (*nxt == 0)
         nxt = 0;
+      printf("dup'ing %s\n", start);
       *dst = strdup(start);
       break;
     }

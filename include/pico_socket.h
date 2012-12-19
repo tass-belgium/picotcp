@@ -93,7 +93,7 @@ struct pico_socket {
 #define PICO_SOCK_EV_CONN 4
 #define PICO_SOCK_EV_CLOSE 8
 #define PICO_SOCK_EV_FIN 0x10
-#define PICO_SOCK_EV_ERR 0xF0
+#define PICO_SOCK_EV_ERR 0x80
 
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s));
