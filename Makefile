@@ -24,6 +24,7 @@ mod: modules/pico_ipv4.c modules/pico_dev_loop.c
 	$(CC) -c -o build/modules/pico_icmp4.o modules/pico_icmp4.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_udp.o modules/pico_udp.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_tcp.o modules/pico_tcp.c $(CFLAGS)
+	$(CC) -c -o build/modules/pico_nat.o modules/pico_nat.c $(CFLAGS)
 	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 
 posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c

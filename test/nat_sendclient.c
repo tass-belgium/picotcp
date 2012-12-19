@@ -112,7 +112,7 @@ int main(void)
   gateway1.addr = 0xFE00280A;
   link = pico_ipv4_link_get(&address0);
   if (link) {
-    if (pico_ipv4_route_add(network1, netmask1, gateway1, 1, link) == -1)
+    if (pico_ipv4_route_add(network1, netmask1, gateway1, 1, NULL) == -1)
       return 5;
   } else {
     return 5;

@@ -22,7 +22,7 @@ static struct pico_queue out = {};
 
 /* Functions */
 
-static int pico_udp_checksum(struct pico_frame *f)
+int pico_udp_checksum(struct pico_frame *f)
 {
   struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
   if (!hdr)
