@@ -176,9 +176,11 @@ int pico_socket_add(struct pico_socket *s)
   RB_INSERT(socket_tree, &sp->socks, s);
   s->state |= PICO_SOCKET_STATE_BOUND;
 
+#if DEBUG_SOCKET_TREE
   RB_FOREACH(s, socket_tree, &sp->socks) {
     dbg("List Socket lc=%hu rm=%hu\n", short_be(s->local_port), short_be(s->remote_port));
   }
+#endif
   return 0;
 }
 
