@@ -102,6 +102,10 @@ int main(void)
   pico_ipv4_link_add(vde1, address1, netmask1);
   pico_ipv4_link_add(vde2, address2, netmask2);
 
+  /* enable NAT:
+   * 1. route find for 10.50.0.3 to get route struct ptr
+   * 2. pass link ptr from route struct to nat_enable */
+
   while(1) {
     pico_stack_tick();
     usleep(2000);

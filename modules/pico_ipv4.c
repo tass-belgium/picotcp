@@ -17,7 +17,7 @@ Authors: Daniele Lacamera, Markian Yskout
 #include "pico_tcp.h"
 #include "pico_socket.h"
 #include "pico_device.h"
-
+#include "pico_nat.h"
 
 /* Queues */
 static struct pico_queue in = {};
@@ -149,9 +149,15 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   if (pico_ipv4_link_find(&hdr->dst)) {
-    f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
-    f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
-    pico_transport_receive(f, hdr->proto);
+    if (pico_ipv4_nat_isenabled_in(f)) {  /* if NAT enabled (dst port registerd), do NAT */
+      if(pico_ipv4_nat(f, hdr->dst) != 0) {
+        return -1;
+      }
+    } else {                              /* no NAT so enqueue to next layer */
+      f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
+      f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+      pico_transport_receive(f, hdr->proto);
+    }
   } else {
     /* Packet is not local. Try to forward. */
     if (pico_ipv4_forward(f) != 0) {
@@ -524,6 +530,11 @@ static int pico_ipv4_forward(struct pico_frame *f)
     return -1;
   }
   hdr->crc++;
+
+  /* check if NAT enbled on link and do NAT if so */
+  if (pico_ipv4_nat_isenabled_out(rt->link) == 0)
+    pico_ipv4_nat(f, rt->link->address);
+
   dbg("Routing towards %s\n", f->dev->name);
   f->start = f->net_hdr;
   pico_sendto_dev(f);
