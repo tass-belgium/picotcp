@@ -8,6 +8,7 @@ holders.
 #ifndef _INCLUDE_PICO_FRAME
 #define _INCLUDE_PICO_FRAME
 #include "rb.h"
+#include "pico_config.h"
 
 
 #define PICO_FRAME_FLAG_BCAST   (0x01)
