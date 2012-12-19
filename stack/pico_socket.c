@@ -773,6 +773,8 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
         if (s == found->parent) {
           found->parent = NULL;
           pico_err = PICO_ERR_NOERR;
+          memcpy(orig, &found->remote_addr, sizeof(struct pico_ip4));
+          *port = found->remote_port;
           return found;
         }
       }
