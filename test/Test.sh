@@ -41,12 +41,16 @@ unit "${MAGENTA}BIND TCP ${NC}" ./build/test/testserver 5
 unit "${MAGENTA}LISTEN TCP ${NC}" ./build/test/testserver 7
 
 # Starting TCP server
-./build/test/testserver 8 >> ./logfile.log &
-SERVER=$!
-echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
-sleep 3
-unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient 9
+#./build/test/testserver 8 >> ./logfile.log &
+#SERVER=$!
+#echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
+#sleep 3
+#unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient 9
 
 echo
+
+./build/test/picoapp --vde vde0:/tmp/pic0.ctl:10.40.0.5:255.255.255.0: --app tcpecho:5556 &
+sleep 1
+./build/test/picoapp --vde vde0:/tmp/pic0.ctl:10.40.0.6:255.255.255.0: --app tcpclient:10.40.0.5:5556 || exit 1
 
 exit 0 # I am the last line.
