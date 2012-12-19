@@ -17,25 +17,41 @@
 struct pico_ip4 inaddr_any = { };
 static char *cpy_arg(char **dst, char *str);
 
+void deferred_exit(unsigned long now, void *arg)
+{
+  printf("Quitting\n");
+  exit(0);
+}
+
 /*** APPLICATIONS API: ***/
 /* To create a new application, define your initialization
  * function and your callback here */
 
 
 /**** UDP ECHO ****/
+static int udpecho_exit = 0;
+
 void cb_udpecho(uint16_t ev, struct pico_socket *s)
 {
   char recvbuf[1400];
   int r=0;
   uint32_t peer;
   uint16_t port;
+  if (udpecho_exit)
+    return;
 
   //printf("udpecho> wakeup\n");
   if (ev == PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
-      if (r > 0)
+      if (r > 0) {
+        if (strncmp(recvbuf, "end", 3) == 0) {
+          printf("Client requested to exit... test successful.\n");
+          pico_timer_add(1000, deferred_exit, NULL);
+          udpecho_exit++;
+        }
         pico_socket_sendto(s, recvbuf, r, &peer, port);
+      }
     } while(r>0);
   }
 
@@ -126,6 +142,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     } while(w > 0);
   }
 }
+
 void app_tcpecho(char *arg)
 {
   struct pico_socket *s;
@@ -155,8 +172,93 @@ void app_tcpecho(char *arg)
 /*** END TCP ECHO ***/
 
 /*** UDP CLIENT ***/
+void udpclient_send(unsigned long now, void *arg) {
+  int i, w;
+  struct pico_socket *s = (struct pico_socket *)arg;
+  char buf[1400] = { };
+  char end[4] = "end";
+  static int loop = 0;
+  for (i = 0; i < 10; i++) {
+    w = pico_socket_send(s, buf, 1400);
+    if (w <= 0)
+      break;
+    printf("Written %d bytes.\n", w);
+  }
+
+  if (++loop > 100) {
+    for (i = 0; i < 3; i++) {
+      w = pico_socket_send(s, end, 4);
+      if (w <= 0)
+        break;
+      printf("End!\n", w);
+    }
+    pico_timer_add(1000, deferred_exit, NULL);
+    return;
+  }
+  pico_timer_add(100, udpclient_send, s);
+}
+
+void cb_udpclient(uint16_t ev, struct pico_socket *s)
+{
+  char recvbuf[1400];
+  char sendbuf[1400] = { };
+  int r=0, w = 0;
+  uint32_t peer;
+  uint16_t port;
+
+  //printf("udpclient> wakeup\n");
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+    } while(r>0);
+  }
+
+  if (ev == PICO_SOCK_EV_ERR) {
+    printf("Socket Error received. Bailing out.\n");
+    exit(7);
+  }
+
+}
+
 void app_udpclient(char *arg)
 {
+  struct pico_socket *s;
+  char *daddr, *dport;
+  int port = 0;
+  uint16_t port_be = 0;
+  struct pico_ip4 inaddr_dst = { };
+  char *nxt;
+
+  nxt = cpy_arg(&daddr, arg);
+  if (!daddr) {
+    fprintf(stderr, " udpclient expects the following format: udpclient:dest_addr[:dest_port]\n");
+    exit(255);
+  }
+
+  if (nxt) {
+    cpy_arg(&dport, arg);
+    if (dport) {
+      port = atoi(dport);
+      if (port > 0)
+        port_be = short_be(port);
+    }
+  }
+  if (port == 0) {
+    port_be = short_be(5555);
+  }
+
+  printf("UDP client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
+
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
+  if (!s)
+    exit(1);
+
+  pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+
+  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+    exit(1);
+
+  pico_timer_add(100, udpclient_send, s);
 
 }
 /*** END UDP CLIENT ***/
@@ -209,6 +311,7 @@ void usage(char *arg0)
 int main(int argc, char **argv)
 {
   unsigned char macaddr[6] = {0,0,0,0xa,0xb,0x0};
+  uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
   struct pico_device *dev = NULL;
 
   struct option long_options[] = {
@@ -220,6 +323,9 @@ int main(int argc, char **argv)
   };
   int option_idx = 0;
   int c;
+
+  *macaddr_low ^= getpid();
+  printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
   pico_stack_init();
   /* Parse args */
