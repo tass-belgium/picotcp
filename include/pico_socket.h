@@ -88,11 +88,11 @@ struct pico_socket {
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
 #define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
-#define PICO_SOCK_EV_RD 0
-#define PICO_SOCK_EV_WR 1
-#define PICO_SOCK_EV_CONN 2
-#define PICO_SOCK_EV_CLOSE 4
-#define PICO_SOCK_EV_FIN 8
+#define PICO_SOCK_EV_RD 1
+#define PICO_SOCK_EV_WR 2
+#define PICO_SOCK_EV_CONN 4
+#define PICO_SOCK_EV_CLOSE 8
+#define PICO_SOCK_EV_FIN 0x10
 #define PICO_SOCK_EV_ERR 0xF0
 
 

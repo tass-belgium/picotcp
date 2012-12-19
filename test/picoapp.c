@@ -79,29 +79,14 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   char recvbuf[BSIZE];
   int r=0, w = 0;
   int pos = 0, len = 0;
-  
 
   //printf("tcpecho> wakeup\n");
-  switch (ev) {
-    case PICO_SOCK_EV_RD:
+  if (ev & PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_read(s, recvbuf + len, BSIZE - len);
       if (r > 0)
         len += r;
     } while(r>0);
-    /* Fall through */
-    case PICO_SOCK_EV_WR:
-    do {
-      w = pico_socket_write(s, recvbuf + pos, len - pos);
-      if (w > 0) {
-        pos += w;
-        if (pos >= len) {
-          pos = 0;
-          len = 0;
-        }
-      }
-    } while(w > 0);
-    break;
   }
   if (ev & PICO_SOCK_EV_CONN) { 
     struct pico_socket *sock_a;
@@ -113,19 +98,32 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     printf("Connection established with %s:%d.\n", peer, short_be(port));
   }
 
-  if (ev == PICO_SOCK_EV_FIN) {
+  if (ev & PICO_SOCK_EV_FIN) {
     printf("Socket closed. Exit normally. \n");
     exit(0);
   }
 
 
-  if (ev == PICO_SOCK_EV_ERR) {
+  if (ev & PICO_SOCK_EV_ERR) {
     printf("Socket Error received. Bailing out.\n");
     exit(1);
   }
-  if (ev == PICO_SOCK_EV_CLOSE) {
+  if (ev & PICO_SOCK_EV_CLOSE) {
     printf("Socket received close from peer.\n");
     pico_socket_close(s);
+  }
+
+  if (len > pos) {
+    do {
+      w = pico_socket_write(s, recvbuf + pos, len - pos);
+      if (w > 0) {
+        pos += w;
+        if (pos >= len) {
+          pos = 0;
+          len = 0;
+        }
+      }
+    } while(w > 0);
   }
 }
 void app_tcpecho(char *arg)
@@ -171,76 +169,7 @@ void app_tcpclient(char *arg)
 /*** END TCP CLIENT ***/
 
 
-#if 0
-void wakeup(uint16_t ev, struct pico_socket *s)
-{
-  char recvbuf[30];
-  int r=0;
-  uint32_t peer;
-  uint16_t port;
-
-  printf("Called wakeup\n");
-  if (ev == PICO_SOCK_EV_RD) { 
-    do {
-      r = pico_socket_recvfrom(s, recvbuf, 30, &peer, &port);
-      printf("------------------------------------- Receive: %d\n", r);
-      if (r > 0) {
-        printf("---tester------------> Message = %s------------------------------------- \n",recvbuf);
-        if(memcmp(recvbuf,sendbuf,msgLength)==0){
-          printf("compare ECHO correct!\n");
-          cmpTestCorrect = 1;
-          pico_socket_shutdown(send, PICO_SHUT_WR);
-       }else{
-          printf("Compare failed\n");
-          exit(1);
-        }
-      }
-    } while(r>0);
-  }
-  if (ev & PICO_SOCK_EV_CONN) { 
-    if (connected) {
-      printf("Error: already connected.\n");
-    } else {
-      printf("Connection established.\n");
-      connected = 1;
-    }
-  }
-
-  if (ev == PICO_SOCK_EV_FIN) {
-    printf("Socket closed \n");
-    shutdown = 1;
-  }
-
-
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    exit(0);
-  }
-  if (ev == PICO_SOCK_EV_CLOSE) {
-    printf("Socket received close\n");
-  }
-}
-
-
-void send_callback(int signum)
-{
-  if (signum == SIGALRM) {
-    sprintf(sendbuf,"TEST CALLBACK");
-    msgLength = pico_socket_write(send, sendbuf, sizeof("TEST CALLBACK"));
-    if (msgLength < 0)
-      printf("pico_err - socket_write : %d\n",pico_err);
-    alarm(1);
-  }
-}
-#endif
-
-
-void callback_exit(int signum)
-{
-  if (signum == SIGUSR1) {
-    //pico_socket_shutdown(send, PICO_SHUT_WR);
-  }
-}
+/** From now on, parsing the command line **/
 
 #define NXT_MAC(x) ++x[5]
 
@@ -289,11 +218,9 @@ int main(int argc, char **argv)
     {"app", 1, 0, 'a'},
     {0,0,0,0}
   };
-
   int option_idx = 0;
   int c;
 
-  signal(SIGUSR1, callback_exit);
   pico_stack_init();
   /* Parse args */
   while(1) {
@@ -405,67 +332,3 @@ int main(int argc, char **argv)
     usleep(2000);
   }
 }
-
-#if 0
-int test1(char *arg) {
-
-  sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
-  if (!sk_udp)
-    return 2;
-
-  if (pico_socket_bind(sk_udp, &address0, &port)!= 0)
-    return 1;
-  
-  
-  sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
-  if (!sk_tcp)
-    return 2;
-
-  if (pico_socket_bind(sk_tcp, &address0, &port)!= 0)
-    return 1;
-  
-  printf("sleep\n");
-  //sleep(2);
-  printf("end sleep\n");
-
-  if (pico_socket_connect(sk_tcp, &address1, port)!=0)
-    return 3;
-
-  fds.fd = STDIN_FILENO;
-  fds.events = POLLIN;
-  
-  send = sk_tcp;
-  alarm(1);
-  
-  while(1) {
-    pico_stack_tick();
-    usleep(2000);
-
-    if (connected && poll(&fds,1,0)) {
-      printf("read POLLIN\n");
-      msgLength = read(STDIN_FILENO,buffer,100);
-      if (msgLength){
-        printf("write on socket\n");
-        pico_socket_write(sk_tcp, buffer, msgLength);
-      }
-    }
-
-    if(shutdown && cmpTestCorrect){
-       if(TestNumber==9){
-         printf("Shutdown with compare SUCCESS\n"); 
-         return 0;
-         pico_socket_shutdown(send, PICO_SHUT_WR);
-         exit(1);
-        }
-    }else if(shutdown && (cmpTestCorrect==0)){
-      printf("Shutdown with compare FAILED\n");
-      pico_socket_shutdown(send, PICO_SHUT_WR);
-      return 8;
-      exit(1);
-    }
-  }
-  return 0;
-}
-
-
-#endif
