@@ -39,15 +39,6 @@ struct pico_nat_key {
 };
 
 
-struct pico_ipv4_link
-{
-  struct pico_device *dev;
-  struct pico_ip4 address;
-  struct pico_ip4 netmask;
-  RB_ENTRY(pico_ipv4_link) node;
-};
-
-
 static struct pico_ipv4_link nat_link;
 
 

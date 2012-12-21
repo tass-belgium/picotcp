@@ -3,6 +3,7 @@
 #include "pico_dev_vde.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
+#include "pico_nat.h"
 
 #include <signal.h>
 #include <unistd.h>
@@ -82,6 +83,7 @@ int main(void)
   unsigned char macaddr2[6] = {0xb2,0,0,0xa,0xb,0xe};
   struct pico_device *vde1, *vde2;
   struct pico_ip4 address2, netmask2, address1, netmask1;
+  struct pico_ipv4_link *nat_link = NULL;
   pico_stack_init();
 
   address1.addr = 0xFE00280a;   // 10.40.0.254
@@ -102,9 +104,8 @@ int main(void)
   pico_ipv4_link_add(vde1, address1, netmask1);
   pico_ipv4_link_add(vde2, address2, netmask2);
 
-  /* enable NAT:
-   * 1. route find for 10.50.0.3 to get route struct ptr
-   * 2. pass link ptr from route struct to nat_enable */
+  nat_link = pico_ipv4_link_get(&address2);
+  pico_ipv4_nat_enable(nat_link);  
 
   while(1) {
     pico_stack_tick();

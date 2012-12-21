@@ -206,16 +206,6 @@ struct pico_protocol pico_proto_ipv4 = {
   .q_out = &out,
 };
 
-/* Interface: link to device */
-
-struct pico_ipv4_link
-{
-  struct pico_device *dev;
-  struct pico_ip4 address;
-  struct pico_ip4 netmask;
-  RB_ENTRY(pico_ipv4_link) node;
-};
-
 RB_HEAD(link_tree, pico_ipv4_link);
 RB_PROTOTYPE_STATIC(link_tree, pico_ipv4_link, node, ipv4_link_compare);
 
