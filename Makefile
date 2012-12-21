@@ -50,6 +50,7 @@ tst: all posix
 	$(CC) -c -o build/picoapp.o test/picoapp.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/ptsock_server.o test/ptsock_server.c $(CFLAGS) -ggdb
 	$(CC) -c -o build/ptsock_client.o test/ptsock_client.c $(CFLAGS) -ggdb
+	$(CC) -c -o build/testnat.o test/Test_nat.c $(CFLAGS) -ggdb
 	#Link tests
 	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
 	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
@@ -63,6 +64,7 @@ tst: all posix
 	$(CC) -o build/test/nat_echo build/modules/*.o build/lib/*.o build/nat_echoserver.o -lvdeplug
 	$(CC) -o build/test/nat_box build/modules/*.o build/lib/*.o build/nat_box.o -lvdeplug
 	$(CC) -o build/test/picoapp build/modules/*.o build/lib/*.o build/picoapp.o -lvdeplug
+	$(CC) -o build/test/testnat build/modules/*.o build/lib/*.o build/testnat.o -lvdeplug
 	$(CC) -o build/test/ptsock_server build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_server.o -lvdeplug -pthread
 	$(CC) -o build/test/ptsock_client build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_client.o -lvdeplug -pthread
 
