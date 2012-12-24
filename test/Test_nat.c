@@ -20,7 +20,6 @@ int main(void)
 	
   pico_stack_tick(); // do this to enable rand generation
 
-  uint8_t i=0;
   uint8_t buffer[200]= {0};
 //  struct pico_frame *f= pico_frame_alloc(200);
   struct pico_frame *f= (struct pico_frame *) buffer;
@@ -50,7 +49,7 @@ int main(void)
   }
   struct pico_ipv4_hdr *ipv4_hdr= NULL;
   // Let hdr point to f net_hdr to fill in the elements of the hdr seperatly
-  ipv4_hdr= f->net_hdr;
+  ipv4_hdr= (struct pico_ipv4_hdr *)f->net_hdr;
   if(!ipv4_hdr){
     printf("FAILED!");
     exit(0);
@@ -59,7 +58,7 @@ int main(void)
   }
 
   struct pico_tcp_hdr *tcp_hdr = NULL;
-  tcp_hdr = f->transport_hdr;
+  tcp_hdr = (struct pico_tcp_hdr *)f->transport_hdr;
   if(!tcp_hdr){
     printf("FAILED!");
     exit(0);

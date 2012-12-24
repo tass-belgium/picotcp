@@ -268,10 +268,10 @@ static char *buffer0;
 
 void compare_results(unsigned long now, void *arg)
 {
+#ifdef CONSISTENCY_CHECK /* TODO: Enable */
   int i;
   printf("Calculating result.... (%p)\n", buffer1);
 
-#ifdef CONSISTENCY_CHECK /* TODO: Enable */
   if (memcmp(buffer0,buffer1,TCPSIZ) == 0)
     exit(0);
 
