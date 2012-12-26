@@ -93,18 +93,9 @@ static int devloop(struct pico_device *dev, int loop_score)
       if (dev->eth) {
         int ret = pico_ethernet_send(f);
         if (0 == ret) {
-          pico_enqueue(dev->q_out, f);
           loop_score--;
           continue;
         } if (ret < 0) {
-  /*
-          if (pico_ipv4_link_find(&hdr->src)) {
-            dbg("Local originated packet: destination unreachable.\n");
-          } else {
-            dbg("Routed packet: destination unreachable, notify sender.\n");
-            pico_notify_dest_unreachable(f);
-          }
-   */
           if (!pico_source_is_local(f)) { 
             dbg("Destination unreachable -------> SEND ICMP\n");
             pico_notify_dest_unreachable(f);

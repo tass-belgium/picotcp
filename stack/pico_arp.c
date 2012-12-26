@@ -14,10 +14,28 @@ Authors: Daniele Lacamera
 #include "pico_ipv4.h"
 #include "pico_device.h"
 #include "pico_stack.h"
-const uint8_t PICO_ETHADDR_ANY[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
+const uint8_t PICO_ETHADDR_ALL[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define PICO_ARP_TIMEOUT 600000
+#define PICO_ARP_RETRY 300
+
 
 #define arp_dbg(...) do{}while(0)
+
+static struct pico_queue pending;
+static int pending_timer_on = 0;
+
+void check_pending(unsigned long now, void *_unused)
+{
+  struct pico_frame *f = pico_dequeue(&pending);
+  if (!f) {
+    pending_timer_on = 0;
+    return;
+  }
+  if(pico_ethernet_send(f) > 0)
+    pico_frame_discard(f);
+  pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
+}
 
 
 struct
@@ -68,7 +86,7 @@ static struct arp_tree Arp_table;
 /**  END ARP TREE **/
 /*********************/
 
-struct pico_arp *pico_arp_get(struct pico_ip4 *dst)
+static struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst)
 {
   struct pico_arp search, *found;
   search.ipv4.addr = dst->addr;
@@ -76,6 +94,39 @@ struct pico_arp *pico_arp_get(struct pico_ip4 *dst)
   if (found && (found->arp_status != PICO_ARP_STATUS_STALE))
     return found;
   return NULL;
+}
+
+struct pico_arp *pico_arp_get(struct pico_frame *f) {
+  struct pico_arp *a4;
+  struct pico_ip4 gateway;
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  gateway = pico_ipv4_route_get_gateway(&hdr->dst);
+  /* check if dst is local (gateway = 0), or if to use gateway */
+  if (gateway.addr != 0)
+    a4 = pico_arp_get_entry(&gateway);          /* check if gateway ip mac in cache */
+  else
+    a4 = pico_arp_get_entry(&hdr->dst);         /* check if local ip mac in cache */
+  if (!a4) {
+     if (++f->failure_count < 4) {
+       dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
+       /* check if dst is local (gateway = 0), or if to use gateway */
+       if (gateway.addr != 0)
+         pico_arp_query(f->dev, &gateway);  /* arp to gateway */
+       else
+         pico_arp_query(f->dev, &hdr->dst); /* arp to dst */
+
+       pico_enqueue(&pending, f);
+       if (!pending_timer_on) {
+        pending_timer_on++;
+        pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
+       }
+     } else {
+      dbg("ARP: Destination Unreachable\n");
+      pico_notify_dest_unreachable(f);
+      pico_frame_discard(f);
+    }
+  }
+  return a4;
 }
 
 void dbg_arp(void)
@@ -188,7 +239,7 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
 
   /* Fill eth header */
   memcpy(eh->saddr, dev->eth->mac.addr, PICO_SIZE_ETH);
-  memcpy(eh->daddr, PICO_ETHADDR_ANY, PICO_SIZE_ETH);
+  memcpy(eh->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH);
   eh->proto = PICO_IDETH_ARP;
 
   /* Fill arp header */

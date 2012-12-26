@@ -30,7 +30,7 @@ struct pico_eth
 };
 #define PICO_SIZE_ETH 6
 
-extern const uint8_t PICO_ETHADDR_ANY[];
+extern const uint8_t PICO_ETHADDR_ALL[];
 
 
 struct pico_trans
