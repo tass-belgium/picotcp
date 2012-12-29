@@ -500,7 +500,7 @@ int main(int argc, char **argv)
           if (!nxt) break;
           nxt = cpy_arg(&nm, nxt);
           if (!nxt) break;
-          cpy_arg(&gw, nxt);
+          nxt = cpy_arg(&gw, nxt);
         } while(0);
         if (!nm) {
           fprintf(stderr, "Vde: bad configuration...\n");
@@ -512,6 +512,7 @@ int main(int argc, char **argv)
           perror("Creating vde");
           exit(1);
         }
+        printf("Vde created.\n");
         pico_string_to_ipv4(addr, &ipaddr.addr);
         pico_string_to_ipv4(nm, &netmask.addr);
         pico_ipv4_link_add(dev, ipaddr, netmask);

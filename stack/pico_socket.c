@@ -874,14 +874,18 @@ int pico_socket_close(struct pico_socket *s)
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
+  int ret = 0;
   if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
-    return 0;
+    return ret;
 
-  dbg("Socket not found... \n");
-  pico_notify_socket_unreachable(f);
+  if (!IS_BCAST(f)) {
+    dbg("Socket not found... \n");
+    pico_notify_socket_unreachable(f);
+    ret = -1;
+    pico_err = PICO_ERR_ENOENT;
+  }
   pico_frame_discard(f);
-  pico_err = PICO_ERR_ENOENT;
-  return -1;
+  return ret;
 }
 
 int pico_sockets_loop(int loop_score)

@@ -152,7 +152,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
 
-  if (pico_ipv4_link_find(&hdr->dst)) {
+  if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
+      /* Receiving UDP broadcast datagram */
+      f->flags |= PICO_FRAME_FLAG_BCAST;
+      pico_enqueue(pico_proto_udp.q_in, f);
+  } else if (pico_ipv4_link_find(&hdr->dst)) {
     if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
         return -1;
