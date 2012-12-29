@@ -234,7 +234,7 @@ void app_udpclient(char *arg)
   }
 
   if (nxt) {
-    cpy_arg(&dport, arg);
+    cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
       if (port > 0)

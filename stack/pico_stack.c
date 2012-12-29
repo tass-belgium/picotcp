@@ -256,6 +256,22 @@ discard:
   return -1;
 }
 
+static int destination_is_bcast(struct pico_frame *f)
+{
+  if (!f)
+    return 0;
+
+  if (IS_IPV6(f))
+    return 0;
+#ifdef PICO_SUPPORT_IPV4
+  else {
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    return pico_ipv4_is_broadcast(hdr->dst.addr);
+  }
+#endif
+  return 0;
+}
+
 
 /* This is called by dev loop in order to ensure correct ethernet addressing.
  * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
@@ -275,7 +291,8 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
   }
 
   else if (IS_IPV4(f)) {
-    if (IS_BCAST(f)) {
+    if (IS_BCAST(f) || destination_is_bcast(f)) {
+     dbg("IPV4: Destination is BROADCAST!\n");
      dstmac = (struct pico_eth *) PICO_ETHADDR_ALL;
     } else {
       a4 = pico_arp_get(f);

@@ -352,7 +352,7 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
-void dbg_route(void)
+static void dbg_route(void)
 {
   struct pico_ipv4_route *r;
   RB_FOREACH(r, routing_table, &Routes) {
@@ -534,3 +534,14 @@ static int pico_ipv4_forward(struct pico_frame *f)
 
 }
 
+int pico_ipv4_is_broadcast(uint32_t addr)
+{
+  struct pico_ipv4_link *link;
+  if (addr == PICO_IP4_ANY)
+    return 1;
+  RB_FOREACH(link, link_tree, &Tree_dev_link) {
+    if ((link->address.addr | (~link->netmask.addr)) == addr)
+      return 1;
+  }
+  return 0;
+}
