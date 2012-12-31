@@ -6,6 +6,7 @@
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 #include "pico_dev_tun.h"
+#include "pico_nat.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -234,7 +235,7 @@ void app_udpclient(char *arg)
   }
 
   if (nxt) {
-    cpy_arg(&dport, nxt);
+    nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
       if (port > 0)
@@ -355,9 +356,10 @@ void app_tcpclient(char *arg)
     fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
     exit(255);
   }
+  printf ("+++ Dest is %s\n", dest);
   if (nxt) {
     printf("Next arg: %s\n", nxt);
-    cpy_arg(&dport, nxt);
+    nxt=cpy_arg(&dport, nxt);
     printf("Dport: %s\n", dport);
   }
   if (dport) {
@@ -388,6 +390,27 @@ void app_tcpclient(char *arg)
 }
 /*** END TCP CLIENT ***/
 
+void app_natbox(char *arg)
+{
+  char *dest = NULL;
+  char *nxt = cpy_arg(&dest, arg);
+  struct pico_ip4 ipdst;
+  struct pico_ipv4_link *link;
+  if (!dest) {
+    fprintf(stderr, "natbox needs the following format: natbox:dst_addr\n");
+    exit(255);
+  }
+
+  pico_string_to_ipv4(dest, &ipdst.addr);
+  link = pico_ipv4_link_get(&ipdst);
+  if (!link) {
+    fprintf(stderr, "natbox: Destination not found.\n");
+    exit(255);
+  }
+  pico_ipv4_nat_enable(link);
+  fprintf(stderr, "natbox: started.\n");
+}
+
 
 /** From now on, parsing the command line **/
 
@@ -400,12 +423,13 @@ static char *cpy_arg(char **dst, char *str)
 {
   char *p, *nxt = NULL;
   char *start = str;
+  char *end = start + strlen(start);
   p = str;
   while (p) {
     if ((*p == ':') || (p == '\0')) {
       *p = (char)0;
       nxt = p + 1;
-      if (*nxt == 0)
+      if ((*nxt == 0) || (nxt == end))
         nxt = 0;
       printf("dup'ing %s\n", start);
       *dst = strdup(start);
@@ -459,7 +483,7 @@ int main(int argc, char **argv)
       case 't':
       {
         char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway;
+        struct pico_ip4 ipaddr, netmask, gateway, zero = {};
         do {
           nxt = cpy_arg(&name, optarg);
           if (!nxt) break;
@@ -483,14 +507,16 @@ int main(int argc, char **argv)
         pico_ipv4_link_add(dev, ipaddr, netmask);
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
-          pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL);
+          printf("Adding default route via %08x\n", gateway.addr);
+          pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
         }
       }
       break;
     case 'v':
       {
         char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway;
+        struct pico_ip4 ipaddr, netmask, gateway, zero = {};
+        printf("+++ OPTARG %s\n", optarg);
         do {
           nxt = cpy_arg(&name, optarg);
           if (!nxt) break;
@@ -518,14 +544,17 @@ int main(int argc, char **argv)
         pico_ipv4_link_add(dev, ipaddr, netmask);
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
-          pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL);
+          pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
         }
       }
       break;
     case 'a':
       {
         char *name = NULL, *args = NULL;
+        printf("+++ OPTARG %s\n", optarg);
         args = cpy_arg(&name, optarg);
+
+        printf("+++ NAME: %s ARGS: %s\n", name, args);
         IF_APPNAME("udpecho") {
           app_udpecho(args);
         }
@@ -537,6 +566,9 @@ int main(int argc, char **argv)
         }
         else IF_APPNAME("tcpclient") {
           app_tcpclient(args);
+        }
+        else IF_APPNAME("natbox") {
+          app_natbox(args);
         }
         else {
           fprintf(stderr, "Unknown application %s\n", name);
