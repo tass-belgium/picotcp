@@ -17,8 +17,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #include "pico_nat.h"
 
 
-#define nat_dbg(...) 
-//#define nat_dbg dbg
+//#define nat_dbg(...) 
+#define nat_dbg dbg
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 {
@@ -43,7 +43,6 @@ struct pico_nat_key {
 
 
 static struct pico_ipv4_link nat_link;
-
 
 static int nat_cmp(struct pico_nat_key *a, struct pico_nat_key *b)
 {
@@ -112,7 +111,6 @@ int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t prot
     return -1;
   }
 
-  nat_dbg("Creating nat_table entry\n");
   key->private_addr = private_addr;
   key->private_port = private_port;
   key->proto = proto;
@@ -139,10 +137,8 @@ int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port)
     nat_dbg("DEL: key found: proto %u | nat_port %u\n", proto, nat_port);  
     if (!RB_REMOVE(nat_table, &KEYTable, key))
       return -1; /* Error on removing element, do not free! */
-    
 	pico_free(key);
   }
-
   return 0;
 }
 
@@ -152,11 +148,9 @@ void pico_ipv4_nat_print_table(void)
   nat_dbg(">pico_ipv4_nat_print_table\n");
   struct pico_nat_key *k = NULL;
   RB_FOREACH(k, nat_table, &KEYTable) {
-    nat_dbg("NAT entry: private_addr %08X | private_port %u | proto %u | nat_addr %08X | nat_port %u\n",
-          k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port);
+    nat_dbg("NAT entry: private_addr %08X | private_port %u | proto %u | nat_addr %08X | nat_port %u\n", k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port);
   }
 }
-
 
 int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, struct pico_ip4 nat_addr)
 {
@@ -168,7 +162,6 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
   if (!ipv4_hdr)
     return -1;
   uint8_t proto = ipv4_hdr->proto;
-  
   do {
     do { 
       /* 1. generate valid new NAT port entry */
@@ -181,12 +174,11 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
       break;
   
   } while (1);
-  
+    
   nat_dbg("check for pico proto is tcp/udp: ");
   if (proto == PICO_PROTO_TCP) {  
     nat_dbg(" >>TCP\n");
     tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-    nat_dbg(" casting");
     if (!tcp_hdr)
       return -1;
 //      nk->private_port =0; 
@@ -194,21 +186,21 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
   } else if (proto == PICO_PROTO_UDP) {
     nat_dbg(" >>UDP\n");
     udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
-    nat_dbg(" casting");
     if (!udp_hdr)
       return -1;
     nk->private_port = udp_hdr->trans.sport; 
   }
 
   nk->private_addr = ipv4_hdr->src.addr;
-  nk->proto = f->proto;
+  nk->proto = ipv4_hdr->proto;
   nk->nat_addr = nat_addr.addr; /* get public ip address from device */
   nk->nat_port = portkey;
 
-  if (pico_ipv4_nat_add(nk->private_addr,nk->private_port,nk->proto,nk->nat_addr,nk->nat_port) < 0)
+  if (pico_ipv4_nat_add(nk->private_addr,nk->private_port,nk->proto,nk->nat_addr,nk->nat_port) < 0){
     return -1;
-  else
+  }else{
     return 0;
+  }
 }
 
 
@@ -238,7 +230,10 @@ static int pico_nat_tcp_checksum(struct pico_frame *f)
 int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
 {
   nat_dbg(">pico_ipv4_nat_translate\n");
-  struct pico_trans *trans_hdr = NULL;
+  //struct pico_trans *trans_hdr = NULL;
+
+  struct pico_tcp_hdr *tcp_hdr = NULL;  /* forced to use pico_trans */
+  struct pico_udp_hdr *udp_hdr = NULL;  /* forced to use pico_trans */
 
   struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
@@ -246,20 +241,21 @@ int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
   uint8_t proto = ipv4_hdr->proto;
   
   if (proto == PICO_PROTO_TCP) {
-    trans_hdr = (struct pico_trans *) f->transport_hdr;
-    if (!trans_hdr)
+    tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    if (!tcp_hdr)
       return -1;
+    tcp_hdr->trans.sport = nk->nat_port;
   } else if (proto == PICO_PROTO_UDP) {  
-    trans_hdr = (struct pico_trans *) f->transport_hdr;
-    if (!trans_hdr)
+    udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+    if (!udp_hdr)
       return -1;
+    udp_hdr->trans.sport = nk->nat_port;
   }
 
   //if(f->proto == PICO_PROTO_ICMP){
   //}
 
   ipv4_hdr->src.addr = nk->nat_addr;
-  trans_hdr->sport = nk->nat_port;
 
   if (proto == PICO_PROTO_TCP) {
     pico_nat_tcp_checksum(f);
@@ -279,37 +275,46 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
 {
   nat_dbg(">pico_ipv4_nat_port_forward\n");
   struct pico_nat_key *nk = NULL;
-  struct pico_trans *trans_hdr = NULL;
+  struct pico_tcp_hdr *tcp_hdr = NULL;
+  struct pico_udp_hdr *udp_hdr = NULL; 
+
 
   struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
     return -1; 
   uint8_t proto = ipv4_hdr->proto; 
-
   if (proto == PICO_PROTO_TCP) {
-    trans_hdr = (struct pico_trans *) f->transport_hdr;
-    if (!trans_hdr)
+    tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    if (!tcp_hdr)
       return -1;
+    /* get nat key on basis of NATPORT and NATPROTO */
+    nk = pico_ipv4_nat_get_key(proto,tcp_hdr->trans.dport);
+    if (!nk){
+      nat_dbg("nk not found\n");
+      return -1;
+    }else{
+      //do the nat forward translation
+      tcp_hdr->trans.dport=nk->private_port;
+      ipv4_hdr->dst.addr=nk->private_addr;
+      //recalculate the checksum
+      pico_nat_tcp_checksum(f);
+    }
   } else if (proto == PICO_PROTO_UDP) {  
-    trans_hdr = (struct pico_trans *) f->transport_hdr;
-    if (!trans_hdr)
+    udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+    if (!udp_hdr)
       return -1;
-  }
-
-  /* get nat key on basis of NATPORT and NATPROTO */
-  nk = pico_ipv4_nat_get_key(proto,trans_hdr->dport);
-
-  if (!nk)
-    return -1;
-
-  /* change destination parameters from nat key */
-  ipv4_hdr->dst.addr = nk->private_addr;
-  trans_hdr->dport = nk->private_port;
-
-  if (proto == PICO_PROTO_TCP) {
-    pico_nat_tcp_checksum(f);
-  } else if (proto == PICO_PROTO_UDP) {
-    pico_udp_checksum(f);
+    /* get nat key on basis of NATPORT and NATPROTO */
+    nk = pico_ipv4_nat_get_key(proto,udp_hdr->trans.dport);
+    if (!nk){
+      nat_dbg("nk not found\n");
+      return -1;
+    }else{
+      //do the nat forward translation
+      udp_hdr->trans.dport=nk->private_port;
+      ipv4_hdr->dst.addr=nk->private_addr;
+      //recalculate the checksum
+      pico_udp_checksum(f);
+    }
   }
 
   ipv4_hdr->crc = 0;
@@ -328,29 +333,35 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
   struct pico_nat_key key;
   nk= &key;
   struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr; 
+
+  struct pico_tcp_hdr *tcp_hdr = NULL;  
+  struct pico_udp_hdr *udp_hdr = NULL;  
   struct pico_trans *trans_hdr = (struct pico_trans *) f->transport_hdr; 
   int ret;
   uint8_t proto = net_hdr->proto;
-  uint16_t portkey = trans_hdr->dport;
+  uint16_t portkey = 0;
 
-  nat_dbg("before check\n");
-  nat_dbg("net_hdr->dst.addr = %x\n",net_hdr->dst.addr);
-  nat_dbg("nat_addr.addr = %x\n",nat_addr.addr);
-
-
-	/* TODO DELME check if IN */
+  /* TODO DELME check if IN */
   if (nat_addr.addr == net_hdr->dst.addr) {
     nat_dbg("Forward\n");
     ret = pico_ipv4_nat_port_forward(f);  /* our OUT definition */
   } else {
     nat_dbg("Search key\n");
+    if (net_hdr->proto == PICO_PROTO_TCP) {
+      tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+      portkey = tcp_hdr->trans.dport;
+    } else if (net_hdr->proto == PICO_PROTO_UDP) {
+      udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      //TODO insert proto and portkey from udp header instead of trans hdr
+      portkey = udp_hdr->trans.dport;
+    }
     ret = pico_ipv4_nat_find(0,0,proto,portkey);
-    if (ret != 0)
-	nat_dbg("Generate key\n");
+    if (ret != 0){
+      nat_dbg("Generate key\n");
       pico_ipv4_nat_generate_key(nk, f, nat_addr); 
-    pico_ipv4_nat_translate(nk, f);       /* our OUT definition */
+      pico_ipv4_nat_translate(nk, f);       /* our OUT definition */
+    }
   } 
-
   nat_dbg("<pico_ipv4_nat\n");
   return 0;
 }
@@ -359,8 +370,7 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
 int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 {
   nat_dbg(">pico_ipv4_nat_enable\n");
-   nat_link = *link;
-
+  nat_link = *link;
   return 0;
 }
 
