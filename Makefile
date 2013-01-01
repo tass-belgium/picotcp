@@ -13,6 +13,7 @@ ICMP4?=1
 IGMP2?=1
 DEVLOOP?=1
 PING?=1
+DHCP_CLIENT?=1
 ENDIAN=little
 
 ifeq ($(DEBUG),1)
@@ -72,6 +73,9 @@ endif
 ifneq ($(DEVLOOP),0)
   include rules/devloop.mk
 endif
+ifneq ($(DHCP_CLIENT),0)
+  include rules/dhcp_client.mk
+endif
 
 all: mod core lib
 
@@ -103,7 +107,8 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_server.elf        \
           test/ptsock_client.elf        \
           test/testnat.elf   \
-          test/testigmp2.elf
+          test/testigmp2.elf   \
+          test/dhcp_example.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p build/test/
