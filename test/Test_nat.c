@@ -26,13 +26,13 @@ static int nat_print_frame_content(struct pico_frame* f){
     tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     if (!tcp_hdr)
       return -1;
-    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,tcp_hdr->trans.sport,ipv4_hdr->proto,ipv4_hdr->src.addr,tcp_hdr->trans.dport);
+    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,tcp_hdr->trans.dport,ipv4_hdr->proto,ipv4_hdr->src.addr,tcp_hdr->trans.sport);
   } else if (ipv4_hdr->proto == PICO_PROTO_UDP) {
     struct pico_udp_hdr *udp_hdr = NULL;  
     udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
     if (!udp_hdr)
       return -1;
-    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,udp_hdr->trans.sport,ipv4_hdr->proto,ipv4_hdr->src.addr,udp_hdr->trans.dport);
+    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,udp_hdr->trans.dport,ipv4_hdr->proto,ipv4_hdr->src.addr,udp_hdr->trans.sport);
   }
   return 0;
 }
