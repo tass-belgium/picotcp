@@ -44,9 +44,9 @@ struct pico_nat_key {
 
 static struct pico_ipv4_link nat_link;
 
-static int nat_cmp(struct pico_nat_key *a, struct pico_nat_key *b)
+static int nat_cmp_nat_port(struct pico_nat_key *a, struct pico_nat_key *b)
 {
-  nat_dbg(">nat_cmp\n");
+  nat_dbg(">nat_cmp_nat_port\n");
   if (a->nat_port < b->nat_port) {
     return -1;
   }
@@ -67,6 +67,47 @@ static int nat_cmp(struct pico_nat_key *a, struct pico_nat_key *b)
   }
 }
 
+static int nat_cmp_priv_port(struct pico_nat_key *a, struct pico_nat_key *b)
+{
+  nat_dbg(">nat_cmp_priv_port\n");
+  if (a->private_addr < b->private_addr) {
+    return -1;
+  }
+  else if (a->private_addr > b->private_addr) {
+    return 1;
+  }
+  else {
+    if (a->private_port < b->private_port) {
+      return -1;
+    }
+    else if (a->private_port > b->private_port) {
+      return 1;
+    }
+    else {
+      if (a->proto < b->proto) {
+        return -1;
+      }
+      else if (a->proto > b->proto) {
+        return 1;
+      }
+	  else {
+        /* a and b are identical */
+        return 0;
+      }
+    }
+  }
+}
+
+static int nat_cmp(struct pico_nat_key *a, struct pico_nat_key *b)
+{
+  nat_dbg(">nat_cmp\n");
+  /* Structure elements left blank have to be zeroed */
+  if (a->private_port)
+    return nat_cmp_priv_port(a,b);
+  else
+    return nat_cmp_nat_port(a,b);
+}
+
 
 RB_HEAD(nat_table, pico_nat_key);
 RB_PROTOTYPE_STATIC(nat_table, pico_nat_key, node, nat_cmp);
@@ -75,14 +116,21 @@ RB_GENERATE_STATIC(nat_table, pico_nat_key, node, nat_cmp);
 
 static struct nat_table KEYTable;
 
-
-struct pico_nat_key *pico_ipv4_nat_get_key(uint8_t proto, uint16_t nat_port)
+/* 
+  2 options: 
+    find on proto and nat_port 
+    find on private_addr, private_port and proto 
+  zero the unused parameters 
+*/
+static struct pico_nat_key *pico_ipv4_nat_find_key(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint16_t nat_port)
 {
-  nat_dbg(">pico_ipv4_nat_get_key\n");
-  struct pico_nat_key test;
+  nat_dbg(">pico_ipv4_nat_find_key called...\n");
+  struct pico_nat_key test = {0};
+  test.private_addr = private_addr;
+  test.private_port = private_port;
   test.proto = proto;
   test.nat_port = nat_port;
-  /* returns NULL if test can not be found */
+  /* returns NULL if test can not be found */ 
   return RB_FIND(nat_table, &KEYTable, &test);
 }
 
@@ -90,16 +138,19 @@ int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t pro
 {
   nat_dbg(">pico_ipv4_nat_find called...\n");
   struct pico_nat_key *k = NULL;
-  RB_FOREACH(k, nat_table, &KEYTable) {
-    if (k->private_addr == private_addr || private_addr == 0)
-      if (k->private_port == private_port || private_port == 0)
-        if (k->nat_port == nat_port || nat_port == 0)
-          if (k->proto == proto)
-            return 0;
-  nat_dbg("<pico_ipv4_nat_find return:: 0\n");
-  }
-  nat_dbg("<pico_ipv4_nat_find return:: -1\n");
-  return -1;
+
+  k = pico_ipv4_nat_find_key(private_addr, private_port, proto, nat_port); 
+  if (k)
+    return 0;
+  else
+    return -1;
+}
+
+/* @ Brecht and Simon: delete this function after your modifications */
+struct pico_nat_key *pico_ipv4_nat_get_key(uint8_t proto, uint16_t nat_port)
+{
+  nat_dbg(">pico_ipv4_nat_get_key\n");
+  return pico_ipv4_nat_find_key(0,0,proto,nat_port);
 }
 
 int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port)
