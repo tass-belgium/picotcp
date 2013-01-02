@@ -146,13 +146,6 @@ int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t pro
     return -1;
 }
 
-/* @ Brecht and Simon: delete this function after your modifications */
-struct pico_nat_key *pico_ipv4_nat_get_key(uint8_t proto, uint16_t nat_port)
-{
-  nat_dbg(">pico_ipv4_nat_get_key\n");
-  return pico_ipv4_nat_find_key(0,0,proto,nat_port);
-}
-
 int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port)
 {
   nat_dbg(">pico_ipv4_nat_add called\n");
@@ -179,7 +172,7 @@ int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port)
 {
   nat_dbg(">pico_ipv4_nat_del\n");
   struct pico_nat_key *key = NULL;
-  key = pico_ipv4_nat_get_key(proto, nat_port);
+  key = pico_ipv4_nat_find_key(0,0,proto, nat_port);
   if (!key) {
     nat_dbg("DEL: key not found: proto %u | nat_port %u\n", proto, nat_port);
     return -1;
@@ -346,7 +339,7 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
     nat_port= udp_hdr->trans.dport;
   }
 
-  nk = pico_ipv4_nat_get_key(proto,nat_port);
+  nk = pico_ipv4_nat_find_key(0,0,proto,nat_port);
 
   if (!nk){
     nat_dbg("nk not found\n");
@@ -406,7 +399,7 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
     if (ret>=0){
       // Key is available in table
       //TODO make sure this function is implemented
-      //nk = pico_ipv4_nat_get_key_out(private_addr,private_port,proto,0);
+      nk = pico_ipv4_nat_find_key(private_addr,private_port,proto,0);
     }else{
       nat_dbg("Generate key\n");
       pico_ipv4_nat_generate_key(nk, f, nat_addr);
@@ -444,9 +437,9 @@ int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
   struct pico_trans *trans_hdr = (struct pico_trans *) f->transport_hdr; 
   int ret;
   uint8_t proto = net_hdr->proto;
-  uint16_t portkey = trans_hdr->dport;
+  uint16_t nat_port = trans_hdr->dport;
   nat_dbg("search proto , portkey -> ipsrc src port\n");
-  ret = pico_ipv4_nat_find(0,0,proto,portkey);
+  ret = pico_ipv4_nat_find(0,0,proto,nat_port);
 
   if (ret == 0)
     return 0;
