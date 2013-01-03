@@ -161,6 +161,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
         return -1;
       }
+      pico_ipv4_forward(f); /* Local packet became forward packet after NAT */
     } else {                              /* no NAT so enqueue to next layer */
       pico_transport_receive(f, hdr->proto);
     }
