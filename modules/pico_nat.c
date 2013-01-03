@@ -380,7 +380,7 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
   uint8_t proto = net_hdr->proto;
   uint16_t private_port = 0;
 
-  uint32_t private_addr= net_hdr->dst.addr;
+  uint32_t private_addr= net_hdr->src.addr;
 
   /* TODO DELME check if IN */
   if (nat_addr.addr == net_hdr->dst.addr) {
@@ -390,15 +390,15 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
     nat_dbg("Search if key allready exists in tree\n");
     if (net_hdr->proto == PICO_PROTO_TCP) {
       tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-      private_port = tcp_hdr->trans.dport;
+      private_port = tcp_hdr->trans.sport;
     } else if (net_hdr->proto == PICO_PROTO_UDP) {
       udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
-      private_port = udp_hdr->trans.dport;
+      private_port = udp_hdr->trans.sport;
     }
     ret = pico_ipv4_nat_find(private_addr,private_port,proto,0);
+   pico_ipv4_nat_print_table(); 
     if (ret>=0){
       // Key is available in table
-      //TODO make sure this function is implemented
       nk = pico_ipv4_nat_find_key(private_addr,private_port,proto,0);
     }else{
       nat_dbg("Generate key\n");
