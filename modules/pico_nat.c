@@ -36,7 +36,7 @@ struct pico_nat_key {
   uint8_t proto;
   uint32_t nat_addr;
   uint16_t nat_port;
- 
+	uint16_t del_flags; 
   /* Connector for trees */
   RB_ENTRY(pico_nat_key) node;
 };
