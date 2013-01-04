@@ -17,8 +17,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #include "pico_nat.h"
 
 
-#define nat_dbg(...) do{}while(0)
-//#define nat_dbg dbg
+//#define nat_dbg(...) do{}while(0)
+#define nat_dbg dbg
 #define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
@@ -176,14 +176,14 @@ int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f) {
       nk->del_flags |= PICO_DEL_FLAGS_FIN_FORWARD; //FIN from forwarding packet
     }
     if (tcp_hdr->flags & PICO_TCP_SYN) {
-      nk->del_flags |= PICO_DEL_FLAGS_FIN_BACKWARD; 
+      nk->del_flags |= PICO_DEL_FLAGS_SYN; 
     }
     if (tcp_hdr->flags & PICO_TCP_RST) {
-      nk->del_flags |= PICO_DEL_FLAGS_FIN_SYN;
+      nk->del_flags |= PICO_DEL_FLAGS_RST;
     }
   } else if (proto == PICO_PROTO_UDP) {
     nat_dbg(" >>UDP\n");
-    nk->del_flags = PICO_DEL_FLAGS_FIN_RST;  // set the active flag of this udp session
+    nk->del_flags = 0x0001;  // set the active flag of this udp session
   } 
   return 0; 
 }
@@ -205,10 +205,10 @@ int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
       nk->del_flags |= PICO_DEL_FLAGS_FIN_BACKWARD; //FIN from backwarding packet
     }
     if (tcp_hdr->flags & PICO_TCP_SYN) {
-      nk->del_flags |= PICO_DEL_FLAGS_FIN_SYN;
+      nk->del_flags |= PICO_DEL_FLAGS_SYN;
     }
     if (tcp_hdr->flags & PICO_TCP_RST) {
-      nk->del_flags |= PICO_DEL_FLAGS_FIN_RST;
+      nk->del_flags |= PICO_DEL_FLAGS_RST;
     }
   } else if (proto == PICO_PROTO_UDP) {
     nat_dbg(" >>UDP\n");

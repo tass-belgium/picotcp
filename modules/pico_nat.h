@@ -13,8 +13,8 @@ Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
 
 #define PICO_DEL_FLAGS_FIN_FORWARD   (0x8000)
 #define PICO_DEL_FLAGS_FIN_BACKWARD  (0x4000)
-#define PICO_DEL_FLAGS_FIN_SYN       (0x2000)
-#define PICO_DEL_FLAGS_FIN_RST       (0x1000)
+#define PICO_DEL_FLAGS_SYN           (0x2000)
+#define PICO_DEL_FLAGS_RST           (0x1000)
 
 
 
