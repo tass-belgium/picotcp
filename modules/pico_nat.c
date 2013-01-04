@@ -192,9 +192,21 @@ void pico_ipv4_nat_print_table(void)
 {
   nat_dbg(">pico_ipv4_nat_print_table\n");
   struct pico_nat_key *k = NULL;
+  uint16_t i = 0;
+
+  nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  nat_dbg("+                                                NAT table                                                 +\n");
+  nat_dbg("+----------------------------------------------------------------------------------------------------------+\n");
+  nat_dbg("+  nr  | private_addr | private_port | proto | nat_addr | nat_port | conn active | FIN1 | FIN2 | SYN | RST +\n");
+  nat_dbg("+----------------------------------------------------------------------------------------------------------+\n");
+
   RB_FOREACH(k, nat_table, &KEYTable) {
-    nat_dbg("NAT entry: private_addr %08X | private_port %u | proto %u | nat_addr %08X | nat_port %u\n", k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port);
+    nat_dbg("+ %04d |   %08X   |     %04u     |  %04u | %08X |   %04u   |     %03u     |   %u  |   %u  |  %u  |  %u  +\n", 
+           i, k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port, (k->del_flags)&0x01FF, 
+           ((k->del_flags)&0x8000)>>15, ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12);
+    i++;
   }
+  nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
 int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, struct pico_ip4 nat_addr)
