@@ -17,8 +17,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #include "pico_nat.h"
 
 
-//#define nat_dbg(...) do{}while(0)
-#define nat_dbg dbg
+#define nat_dbg(...) do{}while(0)
+//#define nat_dbg dbg
 #define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
 //#define NAT_TCP_TIMEWAIT 10000 /* 10 sec (in msec)  - for testing purposes only*/
 
