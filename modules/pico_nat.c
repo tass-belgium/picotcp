@@ -219,7 +219,58 @@ int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
 
 void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
 {
-  printf(">pico_ipv4_nat_table_cleanup\n");
+  nat_dbg(">pico_ipv4_nat_table_cleanup\n");
+  nat_dbg(">before cleanup:\n");
+  pico_ipv4_nat_print_table();
+
+  struct pico_nat_key *k = NULL;
+  RB_FOREACH_REVERSE(k, nat_table, &KEYTable) {
+    switch (k->proto)
+    {
+      case PICO_PROTO_TCP:
+        if ((k->del_flags & 0x01FF) == 0) {
+          /* conn active is zero, delete entry */
+          pico_ipv4_nat_del(k->proto, k->nat_port);
+        }
+        else if ((k->del_flags & 0x1000) >> 12) {
+          /* RST flag set, set conn active to zero */
+          k->del_flags &= 0xFE00;
+        }
+        else if (((k->del_flags & 0x8000) >> 15) && ((k->del_flags & 0x4000) >> 14)) {
+          /* FIN1 and FIN2 set, set conn active to zero */
+          k->del_flags &= 0xFE00; 
+        }
+        else if ((k->del_flags & 0x01FF) > 360) {
+          /* conn is active for 24 hours, delete entry */
+          pico_ipv4_nat_del(k->proto, k->nat_port);
+        }
+        else {
+          k->del_flags++;
+        } 
+        break;
+
+      case PICO_PROTO_UDP:
+        /* Delete entry when it has existed NAT_TCP_TIMEWAIT */
+        if ((k->del_flags & 0x01FF) > 1) {
+          pico_ipv4_nat_del(k->proto, k->nat_port);         
+        }
+        else {
+          k->del_flags++;
+        }
+        break;
+
+      default:
+        /* Unknown protocol in NAT table, delete when it has existed NAT_TCP_TIMEWAIT */
+        if ((k->del_flags & 0x01FF) > 1) {
+          pico_ipv4_nat_del(k->proto, k->nat_port);         
+        }
+        else {
+          k->del_flags++;
+        }
+    }
+  }
+
+  nat_dbg(">after cleanup:\n");
   pico_ipv4_nat_print_table();
   pico_timer_add(NAT_TCP_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL);
 }
