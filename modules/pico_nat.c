@@ -19,6 +19,7 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 
 #define nat_dbg(...) do{}while(0)
 //#define nat_dbg dbg
+#define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 {
@@ -214,6 +215,13 @@ int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
     nk->del_flags = 0x0001;  // set the active flag of this udp session
   }
   return 0;
+}
+
+void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
+{
+  printf(">pico_ipv4_nat_table_cleanup\n");
+  pico_ipv4_nat_print_table();
+  pico_timer_add(NAT_TCP_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL);
 }
 
 int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port)
@@ -499,6 +507,8 @@ int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 {
   nat_dbg(">pico_ipv4_nat_enable\n");
   nat_link = *link;
+  pico_timer_add(NAT_TCP_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL);
+
   return 0;
 }
 
