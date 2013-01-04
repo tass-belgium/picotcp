@@ -56,7 +56,7 @@ struct pico_nat_key {
 };
 
 static struct pico_ipv4_link nat_link;
-
+static uint8_t enable_nat_flag = 0;
 
 static int nat_cmp_nat_port(struct pico_nat_key *a, struct pico_nat_key *b)
 {
@@ -508,35 +508,66 @@ int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
   nat_dbg(">pico_ipv4_nat_enable\n");
   nat_link = *link;
   pico_timer_add(NAT_TCP_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL);
-
+  enable_nat_flag = 1;
+  return 0;
+}
+ 
+int pico_ipv4_nat_disable(void)
+{
+  nat_link.address.addr = 0;
+  enable_nat_flag = 0;   
   return 0;
 }
 
 
 int pico_ipv4_nat_isenabled_out(struct pico_ipv4_link *link)
 {
-  nat_dbg(">pico_ipv4_nat_isenabled_out\n");
-  // is nat_linl = *link
-  if (nat_link.address.addr == link->address.addr)
-    return 0;
-  else
+  if (enable_nat_flag) {
+    nat_dbg(">pico_ipv4_nat_isenabled_out\n");
+    // is nat_linl = *link
+    if (nat_link.address.addr == link->address.addr)
+      return 0;
+    else
+      return -1;
+  } else {
     return -1;
+  }
 }
 
 
 int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
 {
-  nat_dbg(">pico_ipv4_nat_isenabled_in\n");
-  struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr; 
-  struct pico_trans *trans_hdr = (struct pico_trans *) f->transport_hdr; 
-  int ret;
-  uint8_t proto = net_hdr->proto;
-  uint16_t nat_port = trans_hdr->dport;
-  nat_dbg("search proto , portkey -> ipsrc src port\n");
-  ret = pico_ipv4_nat_find(0,0,proto,nat_port);
+  if (enable_nat_flag) {
+    nat_dbg(">pico_ipv4_nat_isenabled_in\n");
+    struct pico_tcp_hdr *tcp_hdr = NULL;
+    struct pico_udp_hdr *udp_hdr = NULL;
+    uint16_t nat_port = 0;
+    int ret;
+ 
+    struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr; 
+    if (!ipv4_hdr)
+      return -1;
+    uint8_t proto = ipv4_hdr->proto;    
 
-  if (ret == 0)
-    return 0;
-  else
-    return -1;
+    if (proto == PICO_PROTO_TCP) {
+      tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+      if (!tcp_hdr)
+        return -1;
+      nat_port= tcp_hdr->trans.dport;
+    } else if (proto == PICO_PROTO_UDP) {
+      udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      if (!udp_hdr)
+        return -1;
+      nat_port= udp_hdr->trans.dport;
+    }
+
+    nat_dbg("search proto , portkey -> ipsrc src port\n");
+    ret = pico_ipv4_nat_find(0,0,proto,nat_port);
+    if (ret == 0)
+      return 0;
+    else
+      return -1;
+  } else {
+    return -1;    
+  }
 }
