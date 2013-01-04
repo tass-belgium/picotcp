@@ -330,7 +330,7 @@ void pico_ipv4_nat_print_table(void)
   nat_dbg("+----------------------------------------------------------------------------------------------------------+\n");
 
   RB_FOREACH(k, nat_table, &KEYTable) {
-    nat_dbg("+ %04d |   %08X   |     %04u     |  %04u | %08X |   %04u   |     %03u     |   %u  |   %u  |  %u  |  %u  +\n", 
+    nat_dbg("+ %04d |   %08X   |    %05u     |  %04u | %08X |  %05u   |     %03u     |   %u  |   %u  |  %u  |  %u  +\n", 
            i, k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port, (k->del_flags)&0x01FF, 
            ((k->del_flags)&0x8000)>>15, ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12);
     i++;
