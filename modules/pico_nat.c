@@ -29,20 +29,33 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
   uint8_t proto;
 };
 
-
 struct pico_nat_key {
   uint32_t private_addr;
   uint16_t private_port;
   uint8_t proto;
   uint32_t nat_addr;
   uint16_t nat_port;
-	uint16_t del_flags; 
+  /*
+  del_flags:
+              1                   0 
+    5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |F|B|S|R|~~~| CONNECTION ACTIVE |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+  F: FIN from Forwarding packet
+  B: FIN from Backwarding packet
+  S: SYN 
+  R: RST  
+         
+  */
+  uint16_t del_flags;
   /* Connector for trees */
   RB_ENTRY(pico_nat_key) node;
 };
 
-
 static struct pico_ipv4_link nat_link;
+
 
 static int nat_cmp_nat_port(struct pico_nat_key *a, struct pico_nat_key *b)
 {
@@ -144,6 +157,63 @@ int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t pro
     return 0;
   else
     return -1;
+}
+
+int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f) {
+  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+ 
+  if (!ipv4_hdr)
+    return -1;
+  uint8_t proto = ipv4_hdr->proto;
+
+  if (proto == PICO_PROTO_TCP) {
+    nat_dbg(" >>TCP\n");
+    struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    if (!tcp_hdr)
+      return -1;
+    if (tcp_hdr->flags & PICO_TCP_FIN) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_FORWARD; //FIN from forwarding packet
+    }
+    if (tcp_hdr->flags & PICO_TCP_SYN) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_BACKWARD; 
+    }
+    if (tcp_hdr->flags & PICO_TCP_RST) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_SYN;
+    }
+  } else if (proto == PICO_PROTO_UDP) {
+    nat_dbg(" >>UDP\n");
+    nk->del_flags = PICO_DEL_FLAGS_FIN_RST;  // set the active flag of this udp session
+  } 
+  return 0; 
+}
+
+
+int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
+  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+
+  if (!ipv4_hdr)
+    return -1;
+  uint8_t proto = ipv4_hdr->proto;
+
+  if (proto == PICO_PROTO_TCP) {
+    nat_dbg(" >>TCP\n");
+    struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    if (!tcp_hdr)
+      return -1;
+    if (tcp_hdr->flags & PICO_TCP_FIN) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_BACKWARD; //FIN from backwarding packet
+    }
+    if (tcp_hdr->flags & PICO_TCP_SYN) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_SYN;
+    }
+    if (tcp_hdr->flags & PICO_TCP_RST) {
+      nk->del_flags |= PICO_DEL_FLAGS_FIN_RST;
+    }
+  } else if (proto == PICO_PROTO_UDP) {
+    nat_dbg(" >>UDP\n");
+    nk->del_flags = 0x0001;  // set the active flag of this udp session
+  }
+  return 0;
 }
 
 int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port)
@@ -251,7 +321,7 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
   nk->proto = ipv4_hdr->proto;
   nk->nat_addr = nat_addr.addr; /* get public ip address from device */
   nk->nat_port = nat_port;
-
+  nk->del_flags = 0x0001;       // set the Connection active
   if (pico_ipv4_nat_add(nk->private_addr,nk->private_port,nk->proto,nk->nat_addr,nk->nat_port) < 0){
     return -1;
   }else{
@@ -358,6 +428,7 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
     nat_dbg("nk not found\n");
     return -1;
   }else{
+    pico_ipv4_nat_snif_forward(nk,f);
     ipv4_hdr->dst.addr=nk->private_addr;
     if (proto == PICO_PROTO_TCP) {
        tcp_hdr->trans.dport=nk->private_port;
@@ -388,7 +459,6 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
 
   struct pico_tcp_hdr *tcp_hdr = NULL;  
   struct pico_udp_hdr *udp_hdr = NULL;  
-  struct pico_trans *trans_hdr = (struct pico_trans *) f->transport_hdr; 
   int ret;
   uint8_t proto = net_hdr->proto;
   uint16_t private_port = 0;
@@ -417,6 +487,7 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
       nat_dbg("Generate key\n");
       pico_ipv4_nat_generate_key(nk, f, nat_addr);
     }
+    pico_ipv4_nat_snif_backward(nk,f);
     pico_ipv4_nat_translate(nk, f);       /* our OUT definition */
   } 
   nat_dbg("<pico_ipv4_nat\n");
