@@ -393,14 +393,14 @@ void app_tcpclient(char *arg)
 void app_natbox(char *arg)
 {
   char *dest = NULL;
-  char *nxt = cpy_arg(&dest, arg);
   struct pico_ip4 ipdst;
   struct pico_ipv4_link *link;
+
+  cpy_arg(&dest, arg);
   if (!dest) {
     fprintf(stderr, "natbox needs the following format: natbox:dst_addr\n");
     exit(255);
   }
-
   pico_string_to_ipv4(dest, &ipdst.addr);
   link = pico_ipv4_link_get(&ipdst);
   if (!link) {

@@ -20,6 +20,7 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 //#define nat_dbg(...) do{}while(0)
 #define nat_dbg dbg
 #define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
+//#define NAT_TCP_TIMEWAIT 10000 /* 10 sec (in msec)  - for testing purposes only*/
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 {
@@ -224,7 +225,8 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
   pico_ipv4_nat_print_table();
 
   struct pico_nat_key *k = NULL;
-  RB_FOREACH_REVERSE(k, nat_table, &KEYTable) {
+  struct pico_nat_key *tmp;
+  RB_FOREACH_REVERSE_SAFE(k, nat_table, &KEYTable, tmp) {
     switch (k->proto)
     {
       case PICO_PROTO_TCP:
@@ -252,7 +254,7 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
       case PICO_PROTO_UDP:
         /* Delete entry when it has existed NAT_TCP_TIMEWAIT */
         if ((k->del_flags & 0x01FF) > 1) {
-          pico_ipv4_nat_del(k->proto, k->nat_port);         
+          pico_ipv4_nat_del(k->proto, k->nat_port);
         }
         else {
           k->del_flags++;
@@ -262,7 +264,7 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
       default:
         /* Unknown protocol in NAT table, delete when it has existed NAT_TCP_TIMEWAIT */
         if ((k->del_flags & 0x01FF) > 1) {
-          pico_ipv4_nat_del(k->proto, k->nat_port);         
+          pico_ipv4_nat_del(k->proto, k->nat_port);
         }
         else {
           k->del_flags++;
