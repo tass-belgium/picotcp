@@ -160,6 +160,7 @@ int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t prot
   key->proto = proto;
   key->nat_addr = nat_addr;
   key->nat_port = nat_port;
+  key->del_flags = 0x0001; /* set conn active to 1, other flags to 0 */
 
   if (RB_INSERT(nat_table, &KEYTable, key))
     return -1; /* Element key already exists */
