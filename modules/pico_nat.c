@@ -17,8 +17,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #include "pico_nat.h"
 
 
-//#define nat_dbg(...) 
-#define nat_dbg dbg
+#define nat_dbg(...) do{}while(0)
+//#define nat_dbg dbg
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 {

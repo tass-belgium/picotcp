@@ -513,13 +513,13 @@ static int pico_ipv4_forward(struct pico_frame *f)
     return -1;
   }
 
-  dbg("FORWARDING.\n");
+  //dbg("FORWARDING.\n");
   rt = route_find(&hdr->dst);
   if (!rt) {
     pico_notify_dest_unreachable(f);
     return -1;
   }
-  dbg("ROUTE: valid..\n");
+  //dbg("ROUTE: valid..\n");
   f->dev = rt->link->dev;
   hdr->ttl-=1;
   if (hdr->ttl < 1) {
@@ -532,7 +532,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
   if (pico_ipv4_nat_isenabled_out(rt->link) == 0)
     pico_ipv4_nat(f, rt->link->address);
 
-  dbg("Routing towards %s\n", f->dev->name);
+  //dbg("Routing towards %s\n", f->dev->name);
   f->start = f->net_hdr;
   pico_sendto_dev(f);
   return 0;

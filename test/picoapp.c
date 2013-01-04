@@ -182,7 +182,7 @@ void udpclient_send(unsigned long now, void *arg) {
     w = pico_socket_send(s, buf, 1400);
     if (w <= 0)
       break;
-    printf("Written %d bytes.\n", w);
+    //printf("Written %d bytes.\n", w);
   }
 
   if (++loop > 100) {
