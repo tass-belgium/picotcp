@@ -15,7 +15,7 @@ echo -e "${MAGENTA}restart Wireshark'${NC}"
 wireshark &
 
 echo -e "${MAGENTA}starting echo server...${NC}"
-sudo ./build/test/testserver
+sudo ./build/test/testserver.elf
 if [ $? -eq 10 ];
 then
         echo -e "${GREEN}TEST SUCCESS${NC}"

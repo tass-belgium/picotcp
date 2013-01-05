@@ -4,83 +4,92 @@ CC=$(CROSS_COMPILE)gcc
 CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
 #CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
 
+TEST_LDFLAGS=-lvdeplug -pthread  build/modules/*.o build/lib/*.o
+
 PREFIX?=./build
 
+.c.o:
+	@echo "\t[CC] $<"
+	@$(CC) -c $(CFLAGS) -o $@ $<
+
+%.elf: %.o
+	@echo "\t[LD] $@"
+	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS)
 
 
+CORE_OBJ= stack/pico_stack.o \
+          stack/pico_arp.o \
+          stack/pico_frame.o \
+          stack/pico_device.o \
+          stack/pico_protocol.o \
+          stack/pico_socket.o
 
-all:
-	mkdir -p build/lib
-	$(CC) -c -o build/lib/pico_stack.o 	stack/pico_stack.c  $(CFLAGS)
-	$(CC) -c -o build/lib/pico_arp.o	stack/pico_arp.c  $(CFLAGS)
-	$(CC) -c -o build/lib/pico_frame.o 	stack/pico_frame.c  $(CFLAGS)
-	$(CC) -c -o build/lib/pico_device.o	stack/pico_device.c  $(CFLAGS)
-	$(CC) -c -o build/lib/pico_protocol.o stack/pico_protocol.c  $(CFLAGS)
-	$(CC) -c -o build/lib/pico_socket.o   stack/pico_socket.c  $(CFLAGS)
 
-mod: modules/pico_ipv4.c modules/pico_dev_loop.c
-	mkdir -p build/modules
-	$(CC) -c -o build/modules/pico_ipv4.o modules/pico_ipv4.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_icmp4.o modules/pico_icmp4.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_udp.o modules/pico_udp.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_tcp.o modules/pico_tcp.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_nat.o modules/pico_nat.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
+MOD_OBJ=  modules/pico_ipv4.o \
+					modules/pico_icmp4.o \
+					modules/pico_udp.o \
+					modules/pico_tcp.o \
+					modules/pico_nat.o \
+					modules/pico_dev_loop.o
 
-posix: mod modules/pico_dev_vde.c modules/pico_dev_tun.c
-	mkdir -p build/modules/ptsocket
-	$(CC) -c -o build/modules/pico_dev_vde.o modules/pico_dev_vde.c $(CFLAGS)
-	$(CC) -c -o build/modules/pico_dev_tun.o modules/pico_dev_tun.c $(CFLAGS)
-	$(CC) -c -o build/modules/ptsocket/pico_ptsocket.o modules/ptsocket/pico_ptsocket.c $(CFLAGS) -pthread
+POSIX_OBJ=  modules/pico_dev_vde.o \
+						modules/pico_dev_tun.o \
+						modules/ptsocket/pico_ptsocket.o
 
-tst: all posix
-	#Compile tests
-	mkdir -p build/test
-	$(CC) -c -o build/vde_test.o test/vde_test.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/testclient.o test/TestClient.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/testserver.o test/TestServer.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/vde_receiver.o test/vde_receiver.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/vde_send.o test/vde_send.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/echoclient.o test/echoclient.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/echoclientUDP.o test/echoclientUDP.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/sendclient.o test/sendclient.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/nat_sendclient.o test/nat_sendclient.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/nat_echoserver.o test/nat_echoserver.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/nat_box.o test/nat_box.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/picoapp.o test/picoapp.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/ptsock_server.o test/ptsock_server.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/ptsock_client.o test/ptsock_client.c $(CFLAGS) -ggdb
-	$(CC) -c -o build/testnat.o test/Test_nat.c $(CFLAGS) -ggdb
-	#Link tests
-	$(CC) -o build/test/vde build/modules/*.o build/lib/*.o build/vde_test.o -lvdeplug
-	$(CC) -o build/test/testclient build/modules/*.o build/lib/*.o build/testclient.o -lvdeplug
-	$(CC) -o build/test/testserver build/modules/*.o build/lib/*.o build/testserver.o -lvdeplug
-	$(CC) -o build/test/rcv build/modules/*.o build/lib/*.o build/vde_receiver.o -lvdeplug
-	$(CC) -o build/test/send build/modules/*.o build/lib/*.o build/vde_send.o -lvdeplug
-	$(CC) -o build/test/echo build/modules/*.o build/lib/*.o build/echoclient.o -lvdeplug
-	$(CC) -o build/test/send2 build/modules/*.o build/lib/*.o build/sendclient.o -lvdeplug
-	$(CC) -o build/test/echoUDP build/modules/*o build/lib/*.o build/echoclientUDP.o -lvdeplug
-	$(CC) -o build/test/nat_send build/modules/*.o build/lib/*.o build/nat_sendclient.o -lvdeplug
-	$(CC) -o build/test/nat_echo build/modules/*.o build/lib/*.o build/nat_echoserver.o -lvdeplug
-	$(CC) -o build/test/nat_box build/modules/*.o build/lib/*.o build/nat_box.o -lvdeplug
-	$(CC) -o build/test/picoapp build/modules/*.o build/lib/*.o build/picoapp.o -lvdeplug
-	$(CC) -o build/test/testnat build/modules/*.o build/lib/*.o build/testnat.o -lvdeplug
-	$(CC) -o build/test/ptsock_server build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_server.o -lvdeplug -pthread
-	$(CC) -o build/test/ptsock_client build/modules/*o build/lib/*.o build/modules/ptsocket/pico_ptsocket.o build/ptsock_client.o -lvdeplug -pthread
+
+TEST_ELF= test/vde_test.elf \
+          test/testclient.elf \
+          test/testserver.elf \
+          test/vde_receiver.elf \
+          test/vde_send.elf \
+          test/echoclient.elf \
+          test/sendclient.elf \
+          test/echoclientUDP.elf \
+          test/nat_send.elf       \
+          test/nat_echo.elf       \
+          test/nat_box.elf       \
+          test/picoapp.elf        \
+          test/ptsock_server.elf        \
+          test/ptsock_client.elf        \
+          test/testnat.elf
+
+all: mod $(CORE_OBJ)
+	@mkdir -p build/lib
+	@mv stack/*.o build/lib
+
+mod: $(MOD_OBJ)
+	@mkdir -p build/modules
+	@mv modules/*.o build/modules
+
+posix: all $(POSIX_OBJ)
+	@mv modules/*.o build/modules
+	@mv modules/ptsocket/*.o build/modules
+
+test: posix $(TEST_ELF)
+	@mkdir -p build/test/
+	@rm test/*.o
+	@mv test/*.elf build/test
+
+tst: test
+
+
+lib: all mod
+	@mkdir -p build/lib
+	@mkdir -p build/include
+	@cp -f include/*.h build/include
+	@cp -fa include/arch build/include
+	@cp -f modules/*.h build/include
+	@echo "\t[AR] build/lib/picotcp.a"
+	@$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
+	@echo "\t[RANLIB] build/lib/picotcp.a"
+	@$(CROSS_COMPILE)ranlib build/lib/picotcp.a
 
 loop: all mod
 	mkdir -p build/test
-	$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
-	$(CC) -c -o build/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
+	@$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
+	@$(CC) -c -o build/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
-lib: all mod
-	mkdir -p build/lib
-	mkdir -p build/include
-	cp -f include/*.h build/include
-	cp -fa include/arch build/include
-	cp -f modules/*.h build/include
-	$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
-	$(CROSS_COMPILE)ranlib build/lib/picotcp.a
 
 clean:
-	rm -rf build tags
+	@echo "\t[CLEAN] build/"
+	@rm -rf build tags

@@ -10,13 +10,13 @@ fi
 # function to execute on ^C
 control_c()
 {
-	PS=$(ps -ef | grep echoUDP | awk 'BEGIN {min = 100000} {if ($2<min) min=$2} END {print min}')	
+	PS=$(ps -ef | grep echoclientUDP.elf | awk 'BEGIN {min = 100000} {if ($2<min) min=$2} END {print min}')	
 	if [ $PS -ne 0 ]
 	then
-		echo -en "\n\nKilled background process echoUDP (pid=$PS)\n\n"
+		echo -en "\n\nKilled background process echoclientUDP.elf (pid=$PS)\n\n"
 		kill $PS
 	else
-		echo -en "\n\nWARNING: background process echoUDP is NOT killed\n\n"
+		echo -en "\n\nWARNING: background process echoclientUDP.elf is NOT killed\n\n"
 	fi
 
   exit $?
@@ -26,12 +26,12 @@ control_c()
 trap control_c SIGINT
 
 # execute unittest in background
-if [ ! -f ./../build/test/echoUDP ]
+if [ ! -f ./../build/test/echoclientUDP.elf ]
 then
-	echo "Can not find file ./../build/test/echoUDP. Make sure to run the script in his directory."
+	echo "Can not find file ./../build/test/echoclientUDP.elf. Make sure to run the script in his directory."
 	exit 1
 else
-	./../build/test/echoUDP &
+	./../build/test/echoclientUDP.elf &
 fi
 
 # wait for unittest main loop

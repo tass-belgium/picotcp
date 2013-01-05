@@ -33,19 +33,19 @@ function unit() {
 echo -e "${MAGENTA}Startup vde script'${NC}"
 sh ./test/vde_sock_start_user.sh
 
-unit "${MAGENTA}VDE CREATE${NC}" ./build/test/testserver 1
-unit "${MAGENTA}OPEN UDP ${NC}" ./build/test/testserver 2
-unit "${MAGENTA}OPEN TCP ${NC}" ./build/test/testserver 3
-unit "${MAGENTA}BIND UDP ${NC}" ./build/test/testserver 4
-unit "${MAGENTA}BIND TCP ${NC}" ./build/test/testserver 5
-unit "${MAGENTA}LISTEN TCP ${NC}" ./build/test/testserver 7
+unit "${MAGENTA}VDE CREATE${NC}" ./build/test/testserver.elf 1
+unit "${MAGENTA}OPEN UDP ${NC}" ./build/test/testserver.elf 2
+unit "${MAGENTA}OPEN TCP ${NC}" ./build/test/testserver.elf 3
+unit "${MAGENTA}BIND UDP ${NC}" ./build/test/testserver.elf 4
+unit "${MAGENTA}BIND TCP ${NC}" ./build/test/testserver.elf 5
+unit "${MAGENTA}LISTEN TCP ${NC}" ./build/test/testserver.elf 7
 
 # Starting TCP server
-#./build/test/testserver 8 >> ./logfile.log &
+#./build/test/testserver.elf 8 >> ./logfile.log &
 #SERVER=$!
 #echo -e "${BLUE}Started server (PID=$SERVER) ${NC}"
 #sleep 3
-#unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient 9
+#unit "${MAGENTA}SEND and RECEIVE TCP ${NC}" ./build/test/testclient.elf 9
 
 echo
 

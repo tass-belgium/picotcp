@@ -6,7 +6,7 @@ NC='\e[0m'
 MAGENTA='\e[1;35m'
 
 echo -e "${MAGENTA}starting send client ...${NC}"
-sudo ./build/test/testclient
+sudo ./build/test/testclient.elf
 if [ $? -eq 10 ];
 then
         echo -e "${GREEN}TEST SUCCESS${NC}"
