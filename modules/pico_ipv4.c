@@ -465,10 +465,13 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
+  struct pico_ip4 network;
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
   if (!found)
     return -1;
+	network.addr = found->address.addr & found->netmask.addr;
+	pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }
