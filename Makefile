@@ -1,12 +1,26 @@
 CC=$(CROSS_COMPILE)gcc
 #STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
-
-CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
-#CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
-
 TEST_LDFLAGS=-lvdeplug -pthread  build/modules/*.o build/lib/*.o
 
 PREFIX?=./build
+DEBUG?=1
+TCP?=1
+UDP?=1
+IPV4?=1
+ICMP4?=1
+NAT?=1
+DEVLOOP?=1
+ENDIAN=little
+
+ifeq ($(DEBUG),1)
+  CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+else
+  CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
+endif
+
+ifneq ($(ENDIAN),little)
+  CFLAGS+=-DPICO_BIGENDIAN
+endif
 
 .c.o:
 	@echo "\t[CC] $<"
@@ -16,6 +30,8 @@ PREFIX?=./build
 	@echo "\t[LD] $@"
 	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS)
 
+CFLAGS+=$(OPTIONS)
+
 
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_arp.o \
@@ -24,17 +40,43 @@ CORE_OBJ= stack/pico_stack.o \
           stack/pico_protocol.o \
           stack/pico_socket.o
 
-
-MOD_OBJ=  modules/pico_ipv4.o \
-					modules/pico_icmp4.o \
-					modules/pico_udp.o \
-					modules/pico_tcp.o \
-					modules/pico_nat.o \
-					modules/pico_dev_loop.o
-
 POSIX_OBJ=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
 						modules/ptsocket/pico_ptsocket.o
+
+
+ifneq ($(IPV4),0)
+  include rules/ipv4.mk
+endif
+ifneq ($(ICMP4),0)
+  include rules/icmp4.mk
+endif
+ifneq ($(TCP),0)
+  include rules/tcp.mk
+endif
+ifneq ($(UDP),0)
+  include rules/udp.mk
+endif
+ifneq ($(NAT),0)
+  include rules/nat.mk
+endif
+ifneq ($(DEVLOOP),0)
+  include rules/devloop.mk
+endif
+
+all: mod core lib
+
+core: $(CORE_OBJ)
+	@mkdir -p build/lib
+	@mv stack/*.o build/lib
+
+mod: $(MOD_OBJ)
+	@mkdir -p build/modules
+	@mv modules/*.o build/modules
+
+posix: all $(POSIX_OBJ)
+	@mv modules/*.o build/modules
+	@mv modules/ptsocket/*.o build/modules
 
 
 TEST_ELF= test/vde_test.elf \
@@ -53,17 +95,6 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_client.elf        \
           test/testnat.elf
 
-all: mod $(CORE_OBJ)
-	@mkdir -p build/lib
-	@mv stack/*.o build/lib
-
-mod: $(MOD_OBJ)
-	@mkdir -p build/modules
-	@mv modules/*.o build/modules
-
-posix: all $(POSIX_OBJ)
-	@mv modules/*.o build/modules
-	@mv modules/ptsocket/*.o build/modules
 
 test: posix $(TEST_ELF)
 	@mkdir -p build/test/
@@ -73,7 +104,7 @@ test: posix $(TEST_ELF)
 tst: test
 
 
-lib: all mod
+lib: mod core
 	@mkdir -p build/lib
 	@mkdir -p build/include
 	@cp -f include/*.h build/include
@@ -84,7 +115,7 @@ lib: all mod
 	@echo "\t[RANLIB] build/lib/picotcp.a"
 	@$(CROSS_COMPILE)ranlib build/lib/picotcp.a
 
-loop: all mod
+loop: mod core
 	mkdir -p build/test
 	@$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o build/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb

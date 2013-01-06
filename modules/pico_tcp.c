@@ -32,6 +32,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_BLACKOUT       0x04
 #define PICO_TCP_UNREACHABLE    0x05
 
+
+#ifdef PICO_SUPPORT_TCP
 #define tcp_dbg(...) do{}while(0)
 //#define tcp_dbg dbg
 
@@ -1594,3 +1596,4 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
     return 0;
   }
 }
+#endif //PICO_SUPPORT_TCP

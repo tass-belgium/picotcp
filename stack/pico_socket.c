@@ -17,6 +17,10 @@ Authors: Daniele Lacamera
 #include "pico_tcp.h"
 #include "pico_stack.h"
 
+#if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
+#if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
+
+
 #define PROTO(s) ((s)->proto->proto_number)
 
 #define PICO_SOCKET_MTU 1480
@@ -801,7 +805,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 #else
 
-int pico_socket_listen(struct pico_socket *s)
+int pico_socket_listen(struct pico_socket *s, int backlog)
 {
   pico_err = PICO_ERR_EINVAL;
   return -1;
@@ -846,7 +850,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP) {
     if (mode & PICO_SHUT_RDWR)
-      pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_CLOSED, PICO_SOCKET_STATE_CLOSING |PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED, 0);
+      pico_socket_alter_state(s, PICO_SOCKET_STATE_CLOSED, PICO_SOCKET_STATE_CLOSING |PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED, 0);
     else if (mode & PICO_SHUT_RD)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
   }
@@ -892,9 +896,9 @@ int pico_sockets_loop(int loop_score)
 {
   struct pico_sockport *sp;
   struct pico_socket *s;
-  struct pico_frame *f;
 
 #ifdef PICO_SUPPORT_UDP
+  struct pico_frame *f;
   RB_FOREACH(sp, sockport_table, &UDPTable) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
       f = pico_dequeue(&s->q_out);
@@ -954,3 +958,5 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
   return f;
 }
 
+#endif
+#endif

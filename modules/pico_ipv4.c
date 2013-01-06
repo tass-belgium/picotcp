@@ -19,6 +19,8 @@ Authors: Daniele Lacamera, Markian Yskout
 #include "pico_device.h"
 #include "pico_nat.h"
 
+#ifdef PICO_SUPPORT_IPV4
+
 /* Queues */
 static struct pico_queue in = {};
 static struct pico_queue out = {};
@@ -550,3 +552,4 @@ int pico_ipv4_is_broadcast(uint32_t addr)
   }
   return 0;
 }
+#endif

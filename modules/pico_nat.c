@@ -16,6 +16,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #include "pico_addressing.h"
 #include "pico_nat.h"
 
+#ifdef PICO_SUPPORT_IPV4
+#ifdef PICO_SUPPORT_NAT
 
 #define nat_dbg(...) do{}while(0)
 //#define nat_dbg dbg
@@ -624,3 +626,6 @@ int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
     return -1;    
   }
 }
+#endif
+#endif
+
