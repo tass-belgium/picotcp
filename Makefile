@@ -1,6 +1,6 @@
 CC=$(CROSS_COMPILE)gcc
 #STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
-TEST_LDFLAGS=-lvdeplug -pthread  build/modules/*.o build/lib/*.o
+TEST_LDFLAGS=-pthread  build/modules/*.o build/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
