@@ -86,13 +86,15 @@ struct pico_frame *pico_frame_alloc(int size)
 uint16_t pico_checksum(void *inbuf, int len)
 {
   uint8_t *buf = (uint8_t *) inbuf;
+  uint16_t tmp = 0;
   uint32_t sum = 0, carry=0;
   int i=0;
   for(i=0; i<len; i++){
     if (i%2){
       sum+=buf[i];
     }else{
-      sum+=( buf[i] << 8);
+      tmp = buf[i];
+      sum+=( tmp << 8);
     }
   }
   carry = (sum&0xFFFF0000) >>16;
