@@ -6,5 +6,7 @@ tags
 build
 UNIT_*
 core
+core.*
 .DS_Store
 cscope.files
+cscope.out
