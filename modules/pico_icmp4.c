@@ -48,6 +48,9 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
     if (f->dev->eth)
       f->len -= PICO_SIZE_ETHHDR;
     pico_ipv4_rebound(f);
+  } else if (hdr->type == PICO_ICMP_UNREACH) {
+    f->net_hdr = f->transport_hdr + PICO_ICMPHDR_UN_SIZE;
+    pico_ipv4_unreachable(f, hdr->code);
   } else {
     pico_frame_discard(f);
   }

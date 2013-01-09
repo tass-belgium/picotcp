@@ -16,6 +16,7 @@ Authors: Daniele Lacamera
 #include "pico_udp.h"
 #include "pico_tcp.h"
 #include "pico_stack.h"
+#include "pico_icmp4.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
@@ -956,6 +957,65 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
   f->payload = f->transport_hdr + overhead;
   f->payload_len = len;
   return f;
+}
+
+int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
+{
+  int ret = -1;
+  struct pico_trans *trans = (struct pico_trans*) f->transport_hdr;
+  struct pico_sockport *port = NULL;
+  struct pico_socket *s = NULL;
+  switch (proto) {
+
+
+#ifdef PICO_SUPPORT_UDP
+  case PICO_PROTO_UDP:
+    port = pico_get_sockport(proto, trans->sport);
+    break;
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  case PICO_PROTO_TCP:
+    port = pico_get_sockport(proto, trans->sport);
+    break;
+#endif
+
+  default:
+    /* Protocol not available */
+    ret = -1;
+  }
+  if (port) {
+    ret = 0;
+    RB_FOREACH(s, socket_tree, &port->socks) {
+      if (trans->dport == s->remote_port) {
+        if (s->wakeup) {
+          //dbg("SOCKET ERROR FROM ICMP NOTIFICATION. (icmp code= %d)\n\n", code);
+          switch(code) {
+            case PICO_ICMP_UNREACH_PROTOCOL:
+              pico_err = PICO_ERR_EPROTO;
+              break;
+
+            case PICO_ICMP_UNREACH_PORT:
+              pico_err = PICO_ERR_ECONNREFUSED;
+              break;
+
+            case PICO_ICMP_UNREACH_NET:
+            case PICO_ICMP_UNREACH_NET_PROHIB:
+            case PICO_ICMP_UNREACH_NET_UNKNOWN:
+              pico_err = PICO_ERR_ENETUNREACH;
+              break;
+
+            default:
+              pico_err = PICO_ERR_EHOSTUNREACH;
+          }
+          s->wakeup(PICO_SOCK_EV_ERR, s);
+        }
+        break;
+      }
+    }
+  }
+  pico_frame_discard(f);
+  return ret;
 }
 
 #endif

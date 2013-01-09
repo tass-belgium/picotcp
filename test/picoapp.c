@@ -316,7 +316,7 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
   }
 
   if (ev & PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
+    printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
     exit(1);
   }
   if (ev & PICO_SOCK_EV_CLOSE) {
