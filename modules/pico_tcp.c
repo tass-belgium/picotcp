@@ -589,7 +589,10 @@ struct pico_socket *pico_tcp_open(void)
 
   /* Set socket limits, TODO added to make echo test work ?? */
   t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
-  t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
+  t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ; 
+
+  /* enable Nagle by default */
+  t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
 
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
   pico_timer_add(2000, sock_stats, t);
