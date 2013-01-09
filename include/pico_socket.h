@@ -56,6 +56,7 @@ struct pico_socket {
   /* Private field. */
   int id;
   uint16_t state;
+  uint16_t opt_flags;
   RB_ENTRY(pico_socket) node;
 };
 
@@ -82,6 +83,11 @@ struct pico_socket {
 # define PICO_SOCKET_STATE_TCP_CLOSING        0x0a00
 # define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00
 # define PICO_SOCKET_STATE_TCP_ARRAYSIZ       0x0c
+
+# define PICO_TCP_NODELAY                     1
+
+# define PICO_SOCKET_OPT_TCPNODELAY           0x0000
+
 #endif
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
