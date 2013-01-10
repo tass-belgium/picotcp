@@ -61,27 +61,27 @@ test
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Report Received | ACTION = STCF | NEW STATE = Idle Member"
-./a.out 3 | checkOutput 'STATE = Delayed Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
+../build/test/testigmp2.elf 3 | checkOutput 'STATE = Delayed Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
 test
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Timer Expired | ACTION = SRSF | NEW STATE = Idle Member"
-./a.out 4 | checkOutput 'STATE = Delayed Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
+../build/test/testigmp2.elf 4 | checkOutput 'STATE = Delayed Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
 test
 
 echo "---------------------------------------"
 echo "To Test: STATE = Non-Member | EVENT = Join Group | ACTION = SRSFST | NEW STATE = Delayed Member"
-./a.out 5 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delayed Member"
+../build/test/testigmp2.elf 5 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delayed Member"
 test
 
 echo "---------------------------------------"
 echo "To Test: STATE = Idle Member | EVENT = Leave Group | ACTION = SLIFS | NEW STATE = Non-Member"
-./a.out 6 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
+../build/test/testigmp2.elf 6 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
 test
 
 echo "---------------------------------------"
 echo "To Test: STATE = Idle Member | EVENT = Query Received | ACTION = ST | NEW STATE = Delayed Member"
-./a.out 7 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delayed Member"
+../build/test/testigmp2.elf 7 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delayed Member"
 test
 
 
