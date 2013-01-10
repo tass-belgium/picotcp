@@ -7,8 +7,8 @@ DEBUG?=1
 TCP?=1
 UDP?=1
 IPV4?=1
-ICMP4?=1
 NAT?=1
+ICMP4?=1
 DEVLOOP?=1
 ENDIAN=little
 
@@ -50,6 +50,9 @@ ifneq ($(IPV4),0)
 endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk
+endif
+ifneq ($(IGMP2),0)
+  include rules/igmp2.mk
 endif
 ifneq ($(TCP),0)
   include rules/tcp.mk
@@ -93,8 +96,8 @@ TEST_ELF= test/vde_test.elf \
           test/picoapp.elf        \
           test/ptsock_server.elf        \
           test/ptsock_client.elf        \
-          test/testnat.elf
-
+          test/testnat.elf   \
+          test/testigmp2.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p build/test/

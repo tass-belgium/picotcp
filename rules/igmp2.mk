@@ -1,0 +1,3 @@
+OPTIONS+=-DPICO_SUPPORT_IGMP2
+MOD_OBJ+=modules/pico_igmp2.o
+
