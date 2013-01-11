@@ -23,7 +23,7 @@ Authors: Daniele Lacamera
 
 #define PROTO(s) ((s)->proto->proto_number)
 
-#define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+#define IS_NAGLE_ENABLED(s) ((s)->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
 
 #define PICO_SOCKET_MTU 1480
 
