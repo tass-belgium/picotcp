@@ -19,6 +19,7 @@ Authors: Daniele Lacamera
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
+#include "pico_igmp2.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
 #include "pico_socket.h"
@@ -463,6 +464,10 @@ void pico_stack_init(void)
 
 #ifdef PICO_SUPPORT_ICMP4
   pico_protocol_init(&pico_proto_icmp4);
+#endif
+
+#ifdef PICO_SUPPORT_IGMP2
+  pico_protocol_init(&pico_proto_igmp2);
 #endif
 
 #ifdef PICO_SUPPORT_UDP
