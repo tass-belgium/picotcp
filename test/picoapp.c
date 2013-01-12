@@ -7,6 +7,7 @@
 #include "pico_socket.h"
 #include "pico_dev_tun.h"
 #include "pico_nat.h"
+#include "pico_icmp4.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -411,6 +412,39 @@ void app_natbox(char *arg)
   fprintf(stderr, "natbox: started.\n");
 }
 
+#define NUM_PING 10
+
+void cb_ping(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  int time_sec = 0;
+  int time_msec = 0;
+  pico_ipv4_to_string(host, s->dst.addr);
+  time_sec = s->time / 1000;
+  time_msec = s->time % 1000;
+  if (s->err == 0) {
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    if (s->seq >= NUM_PING)
+      exit(0);
+  } else {
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    exit(1);
+  }
+}
+
+void app_ping(char *arg)
+{
+  char *dest = NULL;
+  cpy_arg(&dest, arg);
+  if (!dest) {
+    fprintf(stderr, "ping needs the following format: ping:dst_addr\n");
+    exit(255);
+  }
+#ifdef PICO_SUPPORT_PING
+  pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
+#endif
+}
+
 
 /** From now on, parsing the command line **/
 
@@ -570,6 +604,11 @@ int main(int argc, char **argv)
         else IF_APPNAME("natbox") {
           app_natbox(args);
         }
+#ifdef PICO_SUPPORT_PING
+        else IF_APPNAME("ping") {
+          app_ping(args);
+        }
+#endif
         else {
           fprintf(stderr, "Unknown application %s\n", name);
           usage(argv[0]);
@@ -582,7 +621,6 @@ int main(int argc, char **argv)
     printf("nodev");
     usage(argv[0]);
   }
-
 
   printf("Entering loop...\n");
   while(1) {

@@ -10,6 +10,7 @@ IPV4?=1
 NAT?=1
 ICMP4?=1
 DEVLOOP?=1
+PING?=1
 ENDIAN=little
 
 ifeq ($(DEBUG),1)

@@ -124,8 +124,26 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 
 #define PICO_SIZE_ICMP4HDR ((sizeof(struct pico_icmp4_hdr)))
 
+struct pico_icmp4_stats
+{
+  struct pico_ip4 dst;
+  unsigned long size;
+  unsigned long seq;
+  unsigned long time;
+  int err;
+};
+
 int pico_icmp4_port_unreachable(struct pico_frame *f);
 int pico_icmp4_proto_unreachable(struct pico_frame *f);
 int pico_icmp4_dest_unreachable(struct pico_frame *f);
 int pico_icmp4_ttl_expired(struct pico_frame *f);
+
+#ifdef PICO_SUPPORT_PING
+int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *));
+#define PICO_PING_ERR_REPLIED 0
+#define PICO_PING_ERR_TIMEOUT 1
+#define PICO_PING_ERR_UNREACH 2
+#define PICO_PING_ERR_PENDING 0xFFFF
+#endif
+
 #endif
