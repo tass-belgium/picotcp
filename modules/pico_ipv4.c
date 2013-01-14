@@ -347,6 +347,80 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
   dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
+int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_link *link;
+
+  if (pico_ipv4_is_unicast(mcast_addr->addr)) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+  /* RFC 1112, section 7.1 suggests to also check on validity of mcast_link */
+
+  if (mcast_link)
+    link = mcast_link;
+  else
+    link = mcast_default_link;
+
+  test.mcast_addr = *mcast_addr;
+  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+  if (g) {
+    g->reference_count++;
+  } else {
+    g = pico_zalloc(sizeof(struct pico_mcast_group));
+    if (!g) {
+      pico_err = PICO_ERR_ENOMEM;
+      return -1;
+    }
+    g->mcast_link = link;
+    g->mcast_addr = *mcast_addr;
+    g->reference_count = 1;
+    RB_INSERT(pico_mcast_list, link->mcast_head, g);
+
+    /* TODO send IGMP host membership report */
+    dbg("Multicast: sent IGMP host membership report\n");
+  }
+
+  pico_ipv4_mcast_print_groups(link);
+  return 0;
+}
+
+int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_link *link;
+
+  if (pico_ipv4_is_unicast(mcast_addr->addr)) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+  /* RFC 1112, section 7.1 suggests to also check on validity of mcast_link */
+
+  if (mcast_link)
+    link = mcast_link;
+  else
+    link = mcast_default_link;
+
+  test.mcast_addr = *mcast_addr;
+  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+  if (g) {
+    g->reference_count--;
+    if (g->reference_count < 1) {
+      /* TODO send IGMP leave group */
+      dbg("Multicast: sent IGMP leave group\n");
+      RB_REMOVE(pico_mcast_list, link->mcast_head, g);
+    }
+  } else {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
+  pico_ipv4_mcast_print_groups(link);
+  return 0;
+}
+
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {
   struct pico_ipv4_route *route;
