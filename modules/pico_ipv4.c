@@ -445,7 +445,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (!route) {
     if (!pico_ipv4_is_unicast(dst->addr)) {
       link = mcast_default_link;
-      //if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
+      if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
         ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
     } else {
       dbg("Route to %08x not found.\n", long_be(dst->addr));
