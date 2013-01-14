@@ -445,6 +445,312 @@ void app_ping(char *arg)
 #endif
 }
 
+/*** Multicast CLIENT ***/
+/* picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.1:6667 */
+void mcastclient_send(unsigned long now, void *arg) {
+  int i, w;
+  struct pico_socket *s = (struct pico_socket *)arg;
+  char buf[1400] = { };
+  char end[4] = "end";
+  static int loop = 0;
+  for (i = 0; i < 10; i++) {
+    w = pico_socket_send(s, buf, 1400);
+    if (w <= 0)
+      break;
+    //printf("Written %d bytes.\n", w);
+  }
+
+  if (++loop > 100) {
+    for (i = 0; i < 3; i++) {
+      w = pico_socket_send(s, end, 4);
+      if (w <= 0)
+        break;
+      printf("End!\n");
+    }
+    pico_timer_add(1000, deferred_exit, NULL);
+    return;
+  }
+  pico_timer_add(100, mcastclient_send, s);
+}
+
+void cb_mcastclient(uint16_t ev, struct pico_socket *s)
+{
+  char recvbuf[1400];
+  int r=0;
+  uint32_t peer;
+  uint16_t port;
+
+  //printf("mcastclient> wakeup\n");
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+    } while(r>0);
+  }
+
+  if (ev == PICO_SOCK_EV_ERR) {
+    printf("Socket Error received. Bailing out.\n");
+    exit(7);
+  }
+
+}
+
+void app_mcastclient(char *arg)
+{
+  struct pico_socket *s;
+  char *daddr, *laddr, *dport;
+  int port = 0;
+  uint16_t port_be = 0;
+  struct pico_ip4 inaddr_dst = { };
+  struct pico_ip4 inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null;
+  char *nxt;
+
+  nxt = cpy_arg(&daddr, arg);
+  if (!daddr) {
+    fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
+    fprintf(stderr, " missing dest_addr\n");
+    exit(255);
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&laddr, nxt);
+    if (!laddr) {
+      fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
+      fprintf(stderr, " missing link_addr\n");
+      exit(255);
+    }
+  } else {
+    fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
+    fprintf(stderr, " missing link_addr\n");
+    exit(255);
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&dport, nxt);
+    if (dport) {
+      port = atoi(dport);
+      if (port > 0)
+        port_be = short_be(port);
+    }
+  }
+  if (port == 0) {
+    port_be = short_be(5555);
+  }
+
+  printf("Multicast client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
+
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_mcastclient);
+  if (!s)
+    exit(1);
+
+  pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+  pico_string_to_ipv4(laddr, &inaddr_link.addr);
+  pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
+  pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
+  pico_string_to_ipv4("10.40.0.9", &inaddr_uni.addr);
+
+  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+    exit(1);
+
+  /* Start of pico_socket_setoption */
+  printf("\n---------- Testing SET PICO_IP_MULTICAST_IF: not supported ----------\n");
+  struct pico_ip4 mcast_default_link = {0};
+  if(pico_socket_setoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_IF failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_IF succeeded\n");
+    exit (10);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing GET PICO_IP_MULTICAST_IF: not supported ----------\n");
+  if(pico_socket_getoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link) < 0) {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_IF failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_IF succeeded\n");
+    exit(11);
+  }
+  sleep (1);
+
+  uint8_t ttl = 64;
+  printf("\n---------- Testing SET PICO_IP_MULTICAST_TTL: ttl = %u ----------\n", ttl);
+  if(pico_socket_setoption(s, PICO_IP_MULTICAST_TTL, &ttl) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_TTL failed with errno %d\n", pico_err);
+    exit(12);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_TTL succeeded\n");
+  }
+  sleep (1);
+
+  uint8_t getttl = 0;
+  printf("\n---------- Testing GET PICO_IP_MULTICAST_TTL: expecting ttl = %u ----------\n", ttl);
+  if(pico_socket_getoption(s, PICO_IP_MULTICAST_TTL, &getttl) < 0) {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_TTL failed with errno %d\n", pico_err);
+    exit(13);
+  } else {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_TTL succeeded: ttl = %u\n", getttl);
+    if (getttl != ttl)
+      exit(14);
+  }
+  sleep (1);
+
+  uint8_t loop = 9;
+  printf("\n---------- Testing SET PICO_IP_MULTICAST_LOOP: loop = %u ----------\n", loop);
+  if(pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_LOOP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_LOOP succeeded\n");
+    exit(15);
+  }
+  sleep (1);
+
+  loop = 0;
+  printf("\n---------- Testing SET PICO_IP_MULTICAST_LOOP: loop = %u ----------\n", loop);
+  if(pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_LOOP failed with errno %d\n", pico_err);
+    exit(16);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_LOOP succeeded\n");
+  }
+  sleep (1);
+
+  printf("\n---------- Testing GET PICO_IP_NULTICAST_LOOP: expecting loop = %u ----------\n", loop);
+  uint8_t getloop = 0;
+  if(pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop) < 0) {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_LOOP failed with errno %d\n", pico_err);
+    exit(17);
+  } else {
+    printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_LOOP succeeded: loop = %u\n", getloop);
+    if (getloop != loop)
+      exit(18);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: correct group and link address ----------\n");
+  struct pico_ip_mreq mreq = {{0},{0}};
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+    exit(19);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: unicast group address ----------\n");
+  mreq.mcast_group_addr = inaddr_uni;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+    exit(20);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: NULL group address ----------\n");
+  mreq.mcast_group_addr = inaddr_null;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+    exit(21);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: incorrect link address ----------\n");
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_uni;
+  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+    exit(22);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: NULL link address (use default link) ----------\n");
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_null;
+  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+    exit(23);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: correct group and link address ----------\n");
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+    exit(24);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+  }
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: incorrect group addresses ----------\n");
+  mreq.mcast_group_addr = inaddr_incorrect;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+    exit(25);
+  }
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: unicast group address ----------\n");
+  mreq.mcast_group_addr = inaddr_uni;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+    exit(26);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: NULL group address ----------\n");
+  mreq.mcast_group_addr = inaddr_null;
+  mreq.mcast_link_addr = inaddr_link;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+    exit(27);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: incorrect link address ----------\n");
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_uni;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+    exit(28);
+  }
+  sleep (1);
+
+  printf("\n---------- Testing PICO_IP_DROP_MEMBERSHIP: NULL link address (use default link) ----------\n");
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_null;
+  if(pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP failed with errno %d\n", pico_err);
+    exit(29);
+  } else {
+    printf(">>>>>>>>>> socket_setoption PICO_IP_DROP_MEMBERSHIP succeeded\n");
+  }
+  sleep (1);
+  /* End of pico_socket_setoption */
+
+  pico_timer_add(100, mcastclient_send, s);
+
+}
+/*** END Multicast CLIENT ***/
+
 
 /** From now on, parsing the command line **/
 
@@ -603,6 +909,9 @@ int main(int argc, char **argv)
         }
         else IF_APPNAME("natbox") {
           app_natbox(args);
+        }
+        else IF_APPNAME("mcastclient") {
+          app_mcastclient(args);
         }
 #ifdef PICO_SUPPORT_PING
         else IF_APPNAME("ping") {
