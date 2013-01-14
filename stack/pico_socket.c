@@ -839,6 +839,72 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
             s->opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);  // TODO add opt_flags to struct ?  -->  done
           break;
 
+    case PICO_IP_MULTICAST_IF:
+          pico_err = PICO_ERR_EOPNOTSUPP;
+          return -1;
+          break;
+
+    case PICO_IP_MULTICAST_TTL:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            return pico_udp_set_mc_ttl(s, *((uint8_t *) value));
+          }
+          break;
+
+    case PICO_IP_MULTICAST_LOOP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            switch (*(uint8_t *) value)
+            {
+              case 0:
+                /* do not loop back multicast datagram */
+                s->opt_flags &= ~(1 << PICO_SOCKET_OPT_MULTICAST_LOOP); 
+                break;
+
+              case 1:
+                /* do loop back multicast datagram */
+                s->opt_flags |= (1 << PICO_SOCKET_OPT_MULTICAST_LOOP); 
+                break;  
+
+              default:
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+             }              
+          }  
+          break;
+
+    case PICO_IP_ADD_MEMBERSHIP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            struct pico_ip_mreq *mreq = (struct pico_ip_mreq *) value;
+            struct pico_ipv4_link *mcast_link;
+            if (!mreq->mcast_link_addr.addr) {
+              mcast_link = NULL; /* use default multicast link */
+            } else {
+              mcast_link = pico_ipv4_link_get(&mreq->mcast_link_addr);
+              if (!mcast_link) {
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+              }
+            }
+            return pico_ipv4_mcast_join_group(&mreq->mcast_group_addr, mcast_link);
+          }          
+          break;
+
+    case PICO_IP_DROP_MEMBERSHIP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            struct pico_ip_mreq *mreq = (struct pico_ip_mreq *) value;
+            struct pico_ipv4_link *mcast_link;
+            if (!mreq->mcast_link_addr.addr) {
+              mcast_link = NULL; /* use default multicast link */
+            } else {
+              mcast_link = pico_ipv4_link_get(&mreq->mcast_link_addr);
+              if (!mcast_link) {
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+              }
+            }
+            return pico_ipv4_mcast_leave_group(&mreq->mcast_group_addr, mcast_link);
+          }          
+          break;
+
     default:
           pico_err = PICO_ERR_EINVAL;
           return -1;
@@ -851,16 +917,44 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
 
 int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 {  
-  int *val = (int *) value;
+  if (!s) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
   switch (option)
   {
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* state Nagle's algorithm */
-            *val = s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY);  /* TODO typecast ?? getsockopt has len parameter in call */
+            *(int *)value = s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY);  /* TODO typecast ?? getsockopt has len parameter in call */
           else
-            *val = 0;
+            *(int *)value = 0;
+          break;
+
+    case PICO_IP_MULTICAST_IF:
+          pico_err = PICO_ERR_EOPNOTSUPP;
+          return -1;
+          break;
+
+    case PICO_IP_MULTICAST_TTL:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            pico_udp_get_mc_ttl(s, (uint8_t *) value);
+          } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+          }            
+          break;
+
+    case PICO_IP_MULTICAST_LOOP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            *(uint8_t *)value = (s->opt_flags & (1 << PICO_SOCKET_OPT_MULTICAST_LOOP)) >> PICO_SOCKET_OPT_MULTICAST_LOOP;
+          } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+          }
           break;
 
     default:
