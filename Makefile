@@ -4,16 +4,21 @@ TEST_LDFLAGS=-pthread  build/modules/*.o build/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
+DEBUG_IGMP2?=1
 TCP?=1
 UDP?=1
 IPV4?=1
 NAT?=1
 ICMP4?=1
+IGMP2?=1
 DEVLOOP?=1
 ENDIAN=little
 
 ifeq ($(DEBUG),1)
-  CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+  ifeq ($(DEBUG_IGMP2),1)
+    OPTIONS+=-DPICO_UNIT_TEST_IGMP2
+  endif
 else
   CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
 endif
@@ -105,6 +110,11 @@ test: posix $(TEST_ELF)
 	@mv test/*.elf build/test
 
 tst: test
+
+tstigmp2: posix test/testigmp2.elf 
+	@mkdir -p build/test/
+	@rm test/*.o
+	@mv test/*.elf build/test
 
 
 lib: mod core

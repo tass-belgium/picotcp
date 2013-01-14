@@ -49,40 +49,53 @@ function check() {
   fi
 }
 
-
-echo "To Test: STATE = Delayed Member | EVENT = Leave Group | ACTION = STSLIFS | NEW STATE = Non-Member"
-../build/test/testigmp2.elf 1 | checkOutput "STATE = Delayed Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
+echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_MEM_QUERY "
+../build/test/testigmp2.elf 10 | checkOutput "QUERY REQUEST"
 check
+
+echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V1_MEM_REPORT "
+../build/test/testigmp2.elf 11 | checkOutput "REPORT = VERSION 1"
+check
+
+echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V2_MEM_REPORT "
+../build/test/testigmp2.elf 12 | checkOutput "REPORT = VERSION 2"
+check
+
+echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_LEAVE_GROUP "
+../build/test/testigmp2.elf 13 | checkOutput "Error unkown TYPE 23"
+check
+
+
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delayed Member"
 ../build/test/testigmp2.elf 2 | checkOutput "STATE = Delayed Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delayed Member"
-test
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Report Received | ACTION = STCF | NEW STATE = Idle Member"
 ../build/test/testigmp2.elf 3 | checkOutput 'STATE = Delayed Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
-test
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Timer Expired | ACTION = SRSF | NEW STATE = Idle Member"
 ../build/test/testigmp2.elf 4 | checkOutput 'STATE = Delayed Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
-test
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Non-Member | EVENT = Join Group | ACTION = SRSFST | NEW STATE = Delayed Member"
 ../build/test/testigmp2.elf 5 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delayed Member"
-test
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Idle Member | EVENT = Leave Group | ACTION = SLIFS | NEW STATE = Non-Member"
 ../build/test/testigmp2.elf 6 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
-test
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Idle Member | EVENT = Query Received | ACTION = ST | NEW STATE = Delayed Member"
 ../build/test/testigmp2.elf 7 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delayed Member"
-test
+check
 
 
 exit 0

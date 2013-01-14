@@ -1,3 +1,14 @@
+/*********************************************************************
+PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+See LICENSE and COPYING for usage.
+Do not redistribute without a written permission by the Copyright
+holders.
+
+Authors: Kristof Roelants, Brecht Van Cauwenberghe,
+         Simon Maes, Philippe Mariman
+*********************************************************************/
+
+
 #include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_dev_vde.h"
@@ -81,7 +92,7 @@ int main(void)
   nat_addr.addr = 0xFF00280a; //  10.40.0.256 Public Address
   
   uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf[]= { 0x15, 0xb3, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00}; 
+  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00}; 
  
   // connect the buffer to the f->net_hdr pointer 
   f->net_hdr= ipv4_buf;
@@ -100,36 +111,41 @@ int main(void)
   }else{
     printf("transport hdr is pointer to a buffer\n");
   }
-  
+  printf("First packet is send from PRIVATE realm to nat\n");  
   printf("----------BEFORE NAT::\n");
   nat_print_frame_content(f);
-  
+  printf("Execute the nat function\n");
   pico_ipv4_nat(f, nat_addr);
   printf("----------AFTER NAT::\n");
   nat_print_frame_content(f);
 
+  printf("Client PUBLIC realm received packet and sends reply\n");
+  printf("The Client from the PUBLIC realm has received the packet and sends a reply\n");  
   printf("----------CHANGE SRC <-> DEST::\n");
   change_src_dst(f);
   nat_print_frame_content(f);
-
-
 
   printf("----------SECOND NAT::\n");
   pico_ipv4_nat(f, nat_addr);
   nat_print_frame_content(f);
-   
-
+  
   printf("----------CHANGE SRC <-> DEST::\n");
   change_src_dst(f);
   nat_print_frame_content(f);
-
-
+  
+  printf("Client PRIVATE realm received packet and sends reply\n");
 
   printf("----------THIRD NAT::\n");
   pico_ipv4_nat(f, nat_addr);
   nat_print_frame_content(f);
 
+  printf("----------CHANGE SRC <-> DEST::\n");
+  change_src_dst(f);
+  nat_print_frame_content(f);
 
+  printf("----------FOURTH NAT::\n");
+  pico_ipv4_nat(f, nat_addr);
+  nat_print_frame_content(f);
 
 
 
