@@ -27,12 +27,14 @@ struct __attribute__((packed)) pico_ipv4_hdr {
 };
 
 /* Interface: link to device */
+struct pico_mcast_list;
 
 struct pico_ipv4_link
 {
   struct pico_device *dev;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
+  struct pico_mcast_list *mcast_head;
   RB_ENTRY(pico_ipv4_link) node;
 };
 

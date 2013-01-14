@@ -310,6 +310,46 @@ struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
   return myself;
 }
 
+struct pico_mcast_group {
+  struct pico_ipv4_link *mcast_link;
+  struct pico_ip4 mcast_addr;
+  uint16_t reference_count;
+  RB_ENTRY(pico_mcast_group) node;
+};
+
+static int mcast_cmp(struct pico_mcast_group *a, struct pico_mcast_group *b)
+{
+  if (a->mcast_addr.addr < b->mcast_addr.addr) {
+    return -1;
+  } else if (a->mcast_addr.addr > b->mcast_addr.addr) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+RB_HEAD(pico_mcast_list, pico_mcast_group);
+RB_PROTOTYPE_STATIC(pico_mcast_list, pico_mcast_group, node, mcast_cmp);
+RB_GENERATE_STATIC(pico_mcast_list, pico_mcast_group, node, mcast_cmp);
+
+static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
+{
+  struct pico_mcast_group *g = NULL;
+  uint16_t i = 0;
+
+  dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  dbg("+              MULTICAST list interface %-16s +\n", mcast_link->dev->name);
+  dbg("+--------------------------------------------------------+\n");
+  dbg("+  nr  |    interface     | host group | reference count +\n");
+  dbg("+--------------------------------------------------------+\n");
+
+  RB_FOREACH(g, pico_mcast_list, mcast_link->mcast_head) {
+    dbg("+ %04d | %16s |  %08X  |      %05u      +\n", i, g->mcast_link->dev->name, g->mcast_addr.addr, g->reference_count);
+    i++;
+  }
+  dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+}
+
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {
   struct pico_ipv4_route *route;
