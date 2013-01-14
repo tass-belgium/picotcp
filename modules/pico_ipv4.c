@@ -25,6 +25,8 @@ Authors: Daniele Lacamera, Markian Yskout
 static struct pico_queue in = {};
 static struct pico_queue out = {};
 
+/* Default network interface for multicast transmission */
+static struct pico_ipv4_link *mcast_default_link = NULL;
 
 /* Functions */
 
@@ -490,7 +492,16 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new->address.addr = address.addr;
   new->netmask.addr = netmask.addr;
   new->dev = dev;
+  new->mcast_head = pico_zalloc(sizeof(struct pico_mcast_list));
+  if (!new->mcast_head) {
+    pico_free(new);
+    dbg("IPv4: Out of memory!\n");
+    return -1;
+  }
+
   RB_INSERT(link_tree, &Tree_dev_link, new);
+  if (!mcast_default_link)
+    mcast_default_link = new;
 
   network.addr = address.addr & netmask.addr;
   gateway.addr = 0U;
@@ -501,14 +512,19 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 }
 
 
-
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
+  struct pico_mcast_group *g = NULL, *tmp = NULL;
+
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
   if (!found)
     return -1;
+  RB_FOREACH_SAFE(g, pico_mcast_list, found->mcast_head, tmp) {  
+    RB_REMOVE(pico_mcast_list, found->mcast_head, g);
+    pico_free(g);
+  }
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }
