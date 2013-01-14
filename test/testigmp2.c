@@ -45,7 +45,10 @@ int main(int argc, char **argv)
   data.max_resp_time = 200;
   // -> Groupaddress 
   struct pico_ip4 address0;
-  address0.addr = 0x0101010e; //  224.1.1.1
+//  address0.addr = 0x0101010e; //  224.1.1.1
+//  address0.addr = 0xeffffffa; //  239.255.255.250
+  address0.addr = 0x0a0a0aef; //  239.10.10.10
+
   data.Group_address = address0.addr;
 
   switch (TestNumber) {
@@ -110,13 +113,21 @@ int main(int argc, char **argv)
             igmp2_hdr->Group_address=address0.addr;
             test_pico_igmp2_analyse_packet(f, &params);
             break;
+    case 14:
+            igmp2_hdr->type = PICO_IGMP_TYPE_V2_MEM_REPORT;
+            igmp2_hdr->max_resp_time = 0;
+            igmp2_hdr->crc = 0xfa04; //Test value; 
+            //test_pico_igmp2_analyse_packet(f, &params);
+            igmp2_hdr->Group_address = 0xfaffffef; //  239.255.255.250
+            pico_igmp2_checksum(f);
+            igmp2_hdr->Group_address = 0x0a0a0aef; //  239.10.10.10
+            pico_igmp2_checksum(f);
+            break;
 
     default: printf("ERROR: incorrect Testnumber!");
              break;
      } 
 
   return 0;
-
 }
-
 
