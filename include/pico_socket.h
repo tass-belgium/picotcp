@@ -90,6 +90,11 @@ struct pico_socket {
 
 #endif
 
+#ifdef PICO_SUPPORT_UDP
+# define PICO_IP_DEFAULT_MULTICAST_TTL        1
+# define PICO_IP_DEFAULT_MULTICAST_LOOP       1
+#endif
+
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
 #define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
