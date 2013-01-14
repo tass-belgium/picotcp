@@ -48,10 +48,6 @@ struct __attribute__((packed)) pico_igmp2_hdr {
 
 int pico_igmp2_set_membershipState(uint8_t state);
 uint8_t pico_igmp2_get_membershipState(void);
-
-// only for debugging
-//int pico_igmp2_process_event(struct igmp2_packet_params *params);
-
-
+int pico_igmp2_checksum(struct pico_frame *f);
 
 #endif /* _INCLUDE_PICO_IGMP2 */

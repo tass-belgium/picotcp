@@ -106,9 +106,28 @@ static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
 
 static int check_igmp2_checksum(struct pico_frame *f){
   //TODO implement this function;
-  igmp2_dbg("ERROR CRC IS NOT CHECKED YET! \n");
+//  igmp2_dbg("ERROR CRC IS NOT CHECKED YET! \n");
+  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
+  uint16_t checksum = igmp2_hdr->crc;
+   
+  if(checksum == pico_igmp2_checksum(f)){
+    return 0;
+  }else{
+    return 1;
+  }
+}
+
+int pico_igmp2_checksum(struct pico_frame *f)
+{
+  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
+  if (!igmp2_hdr)
+    return -1;
+  igmp2_hdr->crc = 0;
+  igmp2_hdr->crc = short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)));
+  igmp2_dbg("CHECKSUM = %04X\n",igmp2_hdr->crc);
   return 0;
 }
+
 
 static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f) {
 

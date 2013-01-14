@@ -65,7 +65,9 @@ echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_LEAVE_GROUP "
 ../build/test/testigmp2.elf 13 | checkOutput "Error unkown TYPE 23"
 check
 
-
+echo "To Test: IGMP2 CHECKSUM "
+../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
+check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delayed Member"
