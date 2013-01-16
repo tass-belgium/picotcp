@@ -23,6 +23,7 @@ Authors: Daniele Lacamera
 
 
 #define PROTO(s) ((s)->proto->proto_number)
+#define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
@@ -306,6 +307,9 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
   if (proto == PICO_PROTO_TCP) {
     s = pico_tcp_open();
     s->proto = &pico_proto_tcp;
+    /*check if Nagle enabled */
+    if (!IS_NAGLE_ENABLED(s))
+      dbg("ERROR Nagle should be enabled here\n\n");
   }
 #endif
 
@@ -351,7 +355,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 #ifdef PICO_SUPPORT_TCP
   if (facsimile->proto->proto_number == PICO_PROTO_TCP) {
     s = pico_tcp_open();
-    s->proto = &pico_proto_tcp;
+    s->proto = &pico_proto_tcp; 
   }
 #endif
 
@@ -820,14 +824,47 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #endif
 
 
-int pico_socket_setoption(struct pico_socket *s, int option, void *value)
+int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
+  if (s == NULL)
+    return -1;
+
+  switch (option)
+  {
+    case PICO_TCP_NODELAY:
+          if (s->proto->proto_number == PICO_PROTO_TCP)
+            /* disable Nagle's algorithm */
+            s->opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);  // TODO add opt_flags to struct ?  -->  done
+          break;
+
+    default:
+          pico_err = PICO_ERR_EINVAL;
+          return -1;
+  }
 
   return 0;
 }
 
+#define PICO_SOCKET_GETOPT(socket,index) (socket->opt_flags & (1 << index))
+
 int pico_socket_getoption(struct pico_socket *s, int option, void *value)
-{
+{  
+  int *val = (int *) value;
+
+  switch (option)
+  {
+    case PICO_TCP_NODELAY:
+          if (s->proto->proto_number == PICO_PROTO_TCP)
+            /* state Nagle's algorithm */
+            *val = s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY);  /* TODO typecast ?? getsockopt has len parameter in call */
+          else
+            *val = 0;
+          break;
+
+    default:
+          pico_err = PICO_ERR_EINVAL;
+          return -1;
+  }
 
   return 0;
 }
