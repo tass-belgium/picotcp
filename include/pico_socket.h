@@ -155,8 +155,10 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f);
 struct pico_socket *pico_socket_clone(struct pico_socket *facsimile);
 int pico_socket_add(struct pico_socket *s);
+int pico_transport_error(struct pico_frame *f, uint8_t proto, int code);
 
 /* Socket loop */
 int pico_sockets_loop(int loop_score);
+
 
 #endif

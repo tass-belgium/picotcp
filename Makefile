@@ -4,16 +4,22 @@ TEST_LDFLAGS=-pthread  build/modules/*.o build/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
+DEBUG_IGMP2?=1
 TCP?=1
 UDP?=1
 IPV4?=1
-ICMP4?=1
 NAT?=1
+ICMP4?=1
+IGMP2?=1
 DEVLOOP?=1
+PING?=1
 ENDIAN=little
 
 ifeq ($(DEBUG),1)
-  CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+  ifeq ($(DEBUG_IGMP2),1)
+    OPTIONS+=-DPICO_UNIT_TEST_IGMP2
+  endif
 else
   CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
 endif
@@ -50,6 +56,9 @@ ifneq ($(IPV4),0)
 endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk
+endif
+ifneq ($(IGMP2),0)
+  include rules/igmp2.mk
 endif
 ifneq ($(TCP),0)
   include rules/tcp.mk
@@ -93,8 +102,8 @@ TEST_ELF= test/vde_test.elf \
           test/picoapp.elf        \
           test/ptsock_server.elf        \
           test/ptsock_client.elf        \
-          test/testnat.elf
-
+          test/testnat.elf   \
+          test/testigmp2.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p build/test/
@@ -102,6 +111,11 @@ test: posix $(TEST_ELF)
 	@mv test/*.elf build/test
 
 tst: test
+
+tstigmp2: posix test/testigmp2.elf 
+	@mkdir -p build/test/
+	@rm test/*.o
+	@mv test/*.elf build/test
 
 
 lib: mod core

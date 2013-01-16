@@ -552,4 +552,13 @@ int pico_ipv4_is_broadcast(uint32_t addr)
   }
   return 0;
 }
+
+
+void pico_ipv4_unreachable(struct pico_frame *f, int err)
+{
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
+  pico_transport_error(f, hdr->proto, err);
+}
+
 #endif
