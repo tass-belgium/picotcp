@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # check if user is root
-if [[ $EUID -ne 0 ]]
+if [[ $EUID -eq 0 ]]
 then
-   echo "This script must be run as root"
+   echo "This script must not be run as root"
    exit 1
 fi
 
-vde_switch -s /tmp/pic0.ctl -t tap0 -d -hub
+vdecmd -s /tmp/pico.mgmt shutdown
+sleep 1
+vde_switch -s /tmp/pic0.ctl -M /tmp/pico.mgmt -d
 slirpvde -s /tmp/pic0.ctl --dhcp --daemon
-ifconfig tap0 10.40.0.1 netmask 255.255.255.0 up
+./build/test/dhcp_example.elf || exit 55

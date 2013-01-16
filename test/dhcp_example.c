@@ -36,10 +36,13 @@ void ping_callback(struct pico_icmp4_stats *s)
   time_msec = s->time % 1000;
   if (s->err == 0) {
     dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
-    if (s->seq >= 3)
+    if (s->seq >= 3) {
+      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
       exit(0);
+    }
   } else {
     dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    dbg("DHCP CLIENT TEST: FAILED!\n");
     exit(1);
   }
 }
