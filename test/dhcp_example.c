@@ -13,6 +13,7 @@ Authors: Frederik Van Slycken
 #include "pico_config.h"
 #include "pico_dev_vde.h"
 #include "pico_ipv4.h"
+#include "pico_icmp4.h"
 #include "pico_socket.h"
 
 
@@ -25,16 +26,32 @@ void callback(void* cli, int code){
 }
 
 
+void ping_callback(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  int time_sec = 0;
+  int time_msec = 0;
+  pico_ipv4_to_string(host, s->dst.addr);
+  time_sec = s->time / 1000;
+  time_msec = s->time % 1000;
+  if (s->err == 0) {
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    if (s->seq >= 3)
+      exit(0);
+  } else {
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    exit(1);
+  }
+}
+
+
 int main(void)
 {
 
   unsigned char macaddr0[6] = {0,0,0x0,0xa,0x0,0x0};
   struct pico_device *vde0;
 	void* cookie;
-
-  struct pico_socket *sk_udp;
-  uint16_t port = short_be(6666);
-	struct pico_ip4 address, gateway;
+	struct pico_ip4  gateway;
 
   pico_stack_init();
 	pico_stack_tick(); //to get random numbers working
@@ -52,30 +69,16 @@ int main(void)
 	cookie = pico_dhcp_initiate_negotiation(vde0, &callback);
 
 	while(1) {
+    char gw_txt_addr[30];
 		pico_stack_tick();
 		usleep(2000);
 
 		if(dhcp_finished==1){
 			//we should have an IP by now...
-
-			sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
-			if (!sk_udp){
-				printf("failed to open socket\n");
-				return 2;
-			}
-
-			address = pico_dhcp_get_address(cookie);
 			gateway = pico_dhcp_get_gateway(cookie);
-			if (pico_socket_bind(sk_udp, &address, &port)!= 0){
-				printf("failed to bind socket\n");
-				return 1;
-			}
-
-			if (pico_socket_connect(sk_udp, &gateway, port)!=0)
-				return 3;
-
-			pico_socket_sendto(sk_udp, "dhcp must've worked!", 20, &gateway, port);
-			dhcp_finished = 2;
+      pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+      pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback);
+      dhcp_finished++;
 		}
 	}
 }
