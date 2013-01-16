@@ -150,6 +150,8 @@ static int pico_ipv4_forward(struct pico_frame *f);
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+	struct pico_ip4 address0;
+	address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
@@ -167,6 +169,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     } else {                              /* no NAT so enqueue to next layer */
       pico_transport_receive(f, hdr->proto);
     }
+	} else if (pico_ipv4_link_find(&address0) == f->dev) {
+		//address of this device is apparently 0.0.0.0; might be a DHCP packet
+    pico_enqueue(pico_proto_udp.q_in, f);
   } else {
     /* Packet is not local. Try to forward. */
     if (pico_ipv4_forward(f) != 0) {
@@ -465,10 +470,13 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
+  struct pico_ip4 network;
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
   if (!found)
     return -1;
+	network.addr = found->address.addr & found->netmask.addr;
+	pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }
