@@ -21,10 +21,14 @@ Authors: Daniele Lacamera, Markian Yskout
 
 #ifdef PICO_SUPPORT_IPV4
 
+#define PICO_MCAST_ALL_HOSTS 0x010000E0 /* 224.0.0.1 */
+
 /* Queues */
 static struct pico_queue in = {};
 static struct pico_queue out = {};
 
+/* Default network interface for multicast transmission */
+static struct pico_ipv4_link *mcast_default_link = NULL;
 
 /* Functions */
 
@@ -130,7 +134,7 @@ int pico_ipv4_is_unicast(uint32_t address)
   const unsigned char *addr = (unsigned char *) &address;
   
   if((addr[0] & 0xe0) == 0xe0)
-    return 0;
+    return 0; /* multicast */
     
   return 1;
 }
@@ -146,6 +150,7 @@ static int pico_ipv4_checksum(struct pico_frame *f)
 }
 
 static int pico_ipv4_forward(struct pico_frame *f);
+static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
@@ -156,10 +161,27 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
 
+  /* Multicast address in source, discard quietly */
+  if (!pico_ipv4_is_unicast(hdr->src.addr)) {
+    dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
+    pico_frame_discard(f);
+    return 0;
+  }
+
   if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
       /* Receiving UDP broadcast datagram */
       f->flags |= PICO_FRAME_FLAG_BCAST;
       pico_enqueue(pico_proto_udp.q_in, f);
+  } else if (!pico_ipv4_is_unicast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
+    /* Receiving UDP multicast datagram TODO set f->flags? */
+    if (hdr->dst.addr == PICO_MCAST_ALL_HOSTS) {
+      dbg("MCAST: received IGMP message\n");
+      /* TODO interface to IGMP to process IGMP message */
+    } else if (pico_ipv4_mcast_is_group_member(f)) {
+      pico_enqueue(pico_proto_udp.q_in, f);
+    } else {
+      pico_frame_discard(f);
+    }
   } else if (pico_ipv4_link_find(&hdr->dst)) {
     if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
@@ -350,10 +372,112 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
   dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
+int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_link *link;
+
+  if (pico_ipv4_is_unicast(mcast_addr->addr)) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+  /* RFC 1112, section 7.1 suggests to also check on validity of mcast_link */
+
+  if (mcast_link)
+    link = mcast_link;
+  else
+    link = mcast_default_link;
+
+  test.mcast_addr = *mcast_addr;
+  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+  if (g) {
+    g->reference_count++;
+  } else {
+    g = pico_zalloc(sizeof(struct pico_mcast_group));
+    if (!g) {
+      pico_err = PICO_ERR_ENOMEM;
+      return -1;
+    }
+    g->mcast_link = link;
+    g->mcast_addr = *mcast_addr;
+    g->reference_count = 1;
+    RB_INSERT(pico_mcast_list, link->mcast_head, g);
+
+    if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
+      /* TODO send IGMP host membership report */
+      dbg("Multicast: sent IGMP host membership report\n");
+    }
+  }
+
+  pico_ipv4_mcast_print_groups(link);
+  return 0;
+}
+
+int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_link *link;
+
+  if (pico_ipv4_is_unicast(mcast_addr->addr)) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+  /* RFC 1112, section 7.1 suggests to also check on validity of mcast_link */
+
+  if (mcast_link)
+    link = mcast_link;
+  else
+    link = mcast_default_link;
+
+  test.mcast_addr = *mcast_addr;
+  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+  if (g) {
+    g->reference_count--;
+    if (g->reference_count < 1) {
+      if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
+        /* TODO send IGMP leave group */
+        dbg("Multicast: sent IGMP leave group\n");
+      }
+      RB_REMOVE(pico_mcast_list, link->mcast_head, g);
+    }
+  } else {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
+  pico_ipv4_mcast_print_groups(link);
+  return 0;
+}
+
+static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
+{
+  struct pico_ipv4_link *link;
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+
+  test.mcast_addr = hdr->dst; 
+  RB_FOREACH(link, link_tree, &Tree_dev_link) {
+    g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+    if (g) {
+      if (f->dev == link->dev) {
+        dbg("MCAST: IP %08X is group member of current link %s\n", hdr->dst.addr, f->dev->name);
+        return 1;
+      } else {
+        dbg("MCAST: IP %08X is group member of different link %s\n", hdr->dst.addr, link->dev->name);
+      }
+    }
+  }
+  dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
+  return 0;
+}
+
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {
   struct pico_ipv4_route *route;
+  struct pico_ipv4_link *link;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
   static uint16_t ipv4_progressive_id = 0x91c0;
   
   if (!hdr) {
@@ -368,24 +492,41 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
   route = route_find(dst);
   if (!route) {
-    dbg("Route to %08x not found.\n", long_be(dst->addr));
-    goto drop;
+    if (!pico_ipv4_is_unicast(dst->addr)) {
+      link = mcast_default_link;
+      if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
+        ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
+    } else {
+      dbg("Route to %08x not found.\n", long_be(dst->addr));
+      goto drop;
+    }
+  } else {
+    link = route->link;
   }
 
   if (f->sock)
-    f->sock->local_addr.ip4.addr = route->link->address.addr;
+    f->sock->local_addr.ip4.addr = link->address.addr;
 
   hdr->vhl = 0x45;
   hdr->len = short_be(f->transport_len + PICO_SIZE_IP4HDR);
   hdr->id = short_be(ipv4_progressive_id++);
-  hdr->src.addr = route->link->address.addr;
+  hdr->src.addr = link->address.addr;
   hdr->dst.addr = dst->addr;
   hdr->frag = short_be(PICO_IPV4_DONTFRAG);
-  hdr->ttl = PICO_IPV4_DEFAULT_TTL;
+  hdr->ttl = ttl;
   hdr->proto = proto;
   pico_ipv4_checksum(f);
 
-  f->dev = route->link->dev;
+  f->dev = link->dev;
+
+  if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
+  /* Sending UDP multicast datagram, am I member? If so, loopback copy */
+    if (pico_ipv4_mcast_is_group_member(f)) {
+      dbg("MCAST: sender is member of group, loopback copy\n");
+      struct pico_frame *cpy = pico_frame_copy(f);
+      pico_enqueue(&in, cpy);
+    }
+  }
   return pico_enqueue(&out, f);
 drop:
   pico_frame_discard(f);
@@ -475,7 +616,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask)
 {
   struct pico_ipv4_link test, *new;
-  struct pico_ip4 network, gateway;
+  struct pico_ip4 network, gateway, mcast_all_hosts;
   char ipstr[30];
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
@@ -495,7 +636,19 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new->address.addr = address.addr;
   new->netmask.addr = netmask.addr;
   new->dev = dev;
+  new->mcast_head = pico_zalloc(sizeof(struct pico_mcast_list));
+  if (!new->mcast_head) {
+    pico_free(new);
+    dbg("IPv4: Out of memory!\n");
+    return -1;
+  }
+
   RB_INSERT(link_tree, &Tree_dev_link, new);
+  if (!mcast_default_link)
+    mcast_default_link = new;
+
+  mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
+  pico_ipv4_mcast_join_group(&mcast_all_hosts, new);
 
   network.addr = address.addr & netmask.addr;
   gateway.addr = 0U;
@@ -506,17 +659,24 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 }
 
 
-
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
   struct pico_ip4 network;
+  struct pico_mcast_group *g = NULL, *tmp = NULL;
+
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
   if (!found)
     return -1;
-	network.addr = found->address.addr & found->netmask.addr;
-	pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
+
+  network.addr = found->address.addr & found->netmask.addr;
+  pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
+  
+  RB_FOREACH_SAFE(g, pico_mcast_list, found->mcast_head, tmp) {  
+    RB_REMOVE(pico_mcast_list, found->mcast_head, g);
+    pico_free(g);
+  }
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }

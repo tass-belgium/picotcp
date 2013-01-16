@@ -58,8 +58,8 @@ enum pico_err_e {
   PICO_ERR_ECONNREFUSED = 111,
   PICO_ERR_EHOSTDOWN,
   PICO_ERR_EHOSTUNREACH,
-
-
+  /* ... */
+  PICO_ERR_EOPNOTSUPP = 122,
 
 };
 
