@@ -639,10 +639,14 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	cli->socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_wakeup);
 	if (!cli->socket) {
 		dbg("DHCP>could not open client socket\n");
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
 	if (pico_socket_bind(cli->socket, &address, &port) != 0){
 		dbg("DHCP>could not bind client socket\n");
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
 
@@ -651,6 +655,8 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	cli->xid = pico_rand();
 
 	if (!cli->socket) {
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
 
