@@ -506,6 +506,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   pico_ipv4_checksum(f);
 
   f->dev = link->dev;
+
+  if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
+  /* Sending UDP multicast datagram, am I member? If so, loopback copy */
+    if (pico_ipv4_mcast_is_group_member(f)) {
+      dbg("MCAST: sender is member of group, loopback copy\n");
+      struct pico_frame *cpy = pico_frame_copy(f);
+      pico_enqueue(&in, cpy);
+    }
+  }
   return pico_enqueue(&out, f);
 drop:
   pico_frame_discard(f);
