@@ -25,6 +25,9 @@ Authors: Daniele Lacamera
 #include "pico_socket.h"
 #include "heap.h"
 
+#define PICO_SIZE_MCAST 3
+const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x05, 0x00, 0x00, 0x00};
+
 volatile unsigned long pico_tick;
 volatile pico_err_t pico_err;
 
@@ -244,7 +247,8 @@ int pico_ethernet_receive(struct pico_frame *f)
   hdr = (struct pico_eth_hdr *) f->datalink_hdr;
   f->datalink_len = sizeof(struct pico_eth_hdr);
   if ( (memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) && 
-    (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0) )
+    (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0) && 
+    (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) )
     goto discard;
 
   f->net_hdr = f->datalink_hdr + f->datalink_len;

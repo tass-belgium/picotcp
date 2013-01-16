@@ -150,6 +150,7 @@ static int pico_ipv4_checksum(struct pico_frame *f)
 }
 
 static int pico_ipv4_forward(struct pico_frame *f);
+static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
@@ -158,10 +159,24 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
 
+  /* Multicast address in source, discard quietly */
+  if (!pico_ipv4_is_unicast(hdr->src.addr)) {
+    dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
+    pico_frame_discard(f);
+    return 0;
+  }
+
   if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
       /* Receiving UDP broadcast datagram */
       f->flags |= PICO_FRAME_FLAG_BCAST;
       pico_enqueue(pico_proto_udp.q_in, f);
+  } else if (!pico_ipv4_is_unicast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
+    /* Receiving UDP multicast datagram TODO set f->flags? */
+    if (pico_ipv4_mcast_is_group_member(f)) {
+      pico_enqueue(pico_proto_udp.q_in, f);
+    } else {
+      pico_frame_discard(f);
+    }
   } else if (pico_ipv4_link_find(&hdr->dst)) {
     if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
@@ -420,6 +435,28 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
   }
 
   pico_ipv4_mcast_print_groups(link);
+  return 0;
+}
+
+static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
+{
+  struct pico_ipv4_link *link;
+  struct pico_mcast_group *g, test = {0};
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+
+  test.mcast_addr = hdr->dst; 
+  RB_FOREACH(link, link_tree, &Tree_dev_link) {
+    g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+    if (g) {
+      if (f->dev == link->dev) {
+        dbg("MCAST: IP %08X is group member of current link %s\n", hdr->dst.addr, f->dev->name);
+        return 1;
+      } else {
+        dbg("MCAST: IP %08X is group member of different link %s\n", hdr->dst.addr, link->dev->name);
+      }
+    }
+  }
+  dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
   return 0;
 }
 
