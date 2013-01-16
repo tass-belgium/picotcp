@@ -395,8 +395,10 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
     g->reference_count = 1;
     RB_INSERT(pico_mcast_list, link->mcast_head, g);
 
-    /* TODO send IGMP host membership report */
-    dbg("Multicast: sent IGMP host membership report\n");
+    if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
+      /* TODO send IGMP host membership report */
+      dbg("Multicast: sent IGMP host membership report\n");
+    }
   }
 
   pico_ipv4_mcast_print_groups(link);
@@ -425,8 +427,10 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
   if (g) {
     g->reference_count--;
     if (g->reference_count < 1) {
-      /* TODO send IGMP leave group */
-      dbg("Multicast: sent IGMP leave group\n");
+      if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
+        /* TODO send IGMP leave group */
+        dbg("Multicast: sent IGMP leave group\n");
+      }
       RB_REMOVE(pico_mcast_list, link->mcast_head, g);
     }
   } else {
