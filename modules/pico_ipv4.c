@@ -172,7 +172,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       pico_enqueue(pico_proto_udp.q_in, f);
   } else if (!pico_ipv4_is_unicast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
     /* Receiving UDP multicast datagram TODO set f->flags? */
-    if (pico_ipv4_mcast_is_group_member(f)) {
+    if (hdr->dst.addr == PICO_MCAST_ALL_HOSTS) {
+      dbg("MCAST: received IGMP message\n");
+      /* TODO interface to IGMP to process IGMP message */
+    } else if (pico_ipv4_mcast_is_group_member(f)) {
       pico_enqueue(pico_proto_udp.q_in, f);
     } else {
       pico_frame_discard(f);
