@@ -1,6 +1,6 @@
 CC=$(CROSS_COMPILE)gcc
 #STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
-TEST_LDFLAGS=-pthread  build/modules/*.o build/lib/*.o -lvdeplug
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
@@ -76,16 +76,16 @@ endif
 all: mod core lib
 
 core: $(CORE_OBJ)
-	@mkdir -p build/lib
-	@mv stack/*.o build/lib
+	@mkdir -p $(PREFIX)/lib
+	@mv stack/*.o $(PREFIX)/lib
 
 mod: $(MOD_OBJ)
-	@mkdir -p build/modules
-	@mv modules/*.o build/modules
+	@mkdir -p $(PREFIX)/modules
+	@mv modules/*.o $(PREFIX)/modules
 
 posix: all $(POSIX_OBJ)
-	@mv modules/*.o build/modules
-	@mv modules/ptsocket/*.o build/modules
+	@mv modules/*.o $(PREFIX)/modules
+	@mv modules/ptsocket/*.o $(PREFIX)/modules
 
 
 TEST_ELF= test/vde_test.elf \
@@ -106,35 +106,35 @@ TEST_ELF= test/vde_test.elf \
           test/testigmp2.elf
 
 test: posix $(TEST_ELF)
-	@mkdir -p build/test/
+	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
-	@mv test/*.elf build/test
+	@mv test/*.elf $(PREFIX)/test
 
 tst: test
 
 tstigmp2: posix test/testigmp2.elf 
-	@mkdir -p build/test/
+	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
-	@mv test/*.elf build/test
+	@mv test/*.elf $(PREFIX)/test
 
 
 lib: mod core
-	@mkdir -p build/lib
-	@mkdir -p build/include
-	@cp -f include/*.h build/include
-	@cp -fa include/arch build/include
-	@cp -f modules/*.h build/include
-	@echo "\t[AR] build/lib/picotcp.a"
-	@$(CROSS_COMPILE)ar cru build/lib/picotcp.a build/modules/*.o build/lib/*.o
-	@echo "\t[RANLIB] build/lib/picotcp.a"
-	@$(CROSS_COMPILE)ranlib build/lib/picotcp.a
+	@mkdir -p $(PREFIX)/lib
+	@mkdir -p $(PREFIX)/include
+	@cp -f include/*.h $(PREFIX)/include
+	@cp -fa include/arch $(PREFIX)/include
+	@cp -f modules/*.h $(PREFIX)/include
+	@echo "\t[AR] $(PREFIX)/lib/picotcp.a"
+	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o
+	@echo "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
+	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
 
 loop: mod core
-	mkdir -p build/test
-	@$(CC) -c -o build/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
-	@$(CC) -c -o build/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
+	mkdir -p $(PREFIX)/test
+	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
+	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
 
 clean:
-	@echo "\t[CLEAN] build/"
-	@rm -rf build tags
+	@echo "\t[CLEAN] $(PREFIX)/"
+	@rm -rf $(PREFIX) tags
