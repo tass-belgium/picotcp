@@ -82,6 +82,7 @@ int main(void)
 			gateway = pico_dhcp_get_gateway(cookie);
       pico_ipv4_to_string(gw_txt_addr, gateway.addr);
       pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback);
+      //pico_icmp4_ping(gw_txt_addr, 1, 1000, 5000, 32,NULL); // use this line to run longer tests, when you don't want to quit after you've gotten your IP
       dhcp_finished++;
 		}
 	}
