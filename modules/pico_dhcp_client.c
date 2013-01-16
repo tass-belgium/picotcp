@@ -32,20 +32,21 @@ struct pico_dhcp_client_cookie
 	struct pico_ip4 address;
 	struct pico_ip4 netmask;
 	struct pico_ip4 gateway;
-	uint32_t server_id;
+	struct pico_ip4 server_id;
 	uint32_t lease_time;
 	uint32_t T1;
 	uint32_t T2;
 	struct pico_socket* socket;
 	int connected;
 	struct pico_device* device;
-	struct timeval start_time;
+	unsigned long start_time;
 	int attempt;
 	enum dhcp_negotiation_state state;
 	void (*cb)(void* cli, int code);
 	struct dhcp_timer_param* timer_param_1;
 	struct dhcp_timer_param* timer_param_2;
 	struct dhcp_timer_param* timer_param_lease;
+	struct dhcp_timer_param* timer_param_retransmit;
 	int link_added;
 };
 
@@ -64,12 +65,14 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 static uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt);
 static int is_options_valid(uint8_t *opt_buffer, int len);
 static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pico_dhcp_client_cookie *cli);
+static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code));
 
 //fsm functions
 static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 static int renew(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 static int reset(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
+static int retransmit(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 
 //fsm implementation
 static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cli, uint8_t* data, int len);
@@ -87,44 +90,15 @@ static struct pico_dhcp_client_cookie dhcp_client;
 
 /* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
 void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code)){
-	uint16_t port = PICO_DHCP_CLIENT_PORT;
-	struct pico_ip4 address, netmask;
 
+	struct pico_dhcp_client_cookie* cli = &dhcp_client;
 
-	address.addr = long_be(0x00000000);
-	netmask.addr = long_be(0x00000000);
+	init_cookie(cli, device, callback);
 
-	pico_ipv4_link_add(device, address, netmask);
+	pico_dhcp_retry(cli);
+	dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
 
-	memset(&dhcp_client, 0, sizeof(dhcp_client));
-
-	dhcp_client.cb = callback;
-
-	dhcp_client.device = (struct pico_device*) device;
-	dhcp_client.state = DHCPSTATE_DISCOVER;
-
-	dhcp_client.socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_wakeup);
-	if (!dhcp_client.socket) {
-		dbg("DHCP>could not open client socket\n");
-		return NULL;
-	}
-	if (pico_socket_bind(dhcp_client.socket, &address, &port) != 0){
-		dbg("DHCP>could not bind client socket\n");
-		return NULL;
-	}
-
-	gettimeofday(&dhcp_client.start_time, NULL);
-	dhcp_client.attempt = 0;
-	dhcp_client.xid = pico_rand();
-
-	if (!dhcp_client.socket) {
-		return NULL;
-	}
-
-	pico_dhcp_retry(&dhcp_client);
-	dhclient_send(&dhcp_client, PICO_DHCP_MSG_DISCOVER);
-
-	return &dhcp_client;
+	return cli;
 }
 
 /********************
@@ -154,7 +128,7 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 	uint16_t port;
 	int type;
 
-	struct pico_dhcp_client_cookie *cli = & dhcp_client;
+	struct pico_dhcp_client_cookie *cli = &dhcp_client;
 	dbg("DHCP>Called dhcp_wakeup\n");
 	if (ev == PICO_SOCK_EV_RD) {
 		do {
@@ -173,12 +147,13 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 			cli->connected = 1;
 		}
 	}
-	if (ev == PICO_SOCK_EV_ERR) {
+	/*if (ev == PICO_SOCK_EV_ERR) {
+	  //ICMP errors don't require us to bail out. Could be that the server is temporarily down, or refusing messages, but will come back. DHCP handles this by retrying and going to rebind...
 		dbg("DHCP>Socket Error received. Bailing out.\n");
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
 		exit(0);
-	}
+	}*/
 }
 
 static void dhcp_timer_cb(unsigned long tick, void* param)
@@ -187,7 +162,8 @@ static void dhcp_timer_cb(unsigned long tick, void* param)
 	if(param2->valid == 1){
 		//dbg("called timer cb on active timer type %d\n",param2->type);
 		pico_dhcp_state_machine(param2->type, param2->cli, NULL, 0);
-	}	if(param2->cli->timer_param_1 == param){
+	}
+	if(param2->cli->timer_param_1 == param){
 		param2->cli->timer_param_1 = NULL;
 	}
 	if(param2->cli->timer_param_2 == param){
@@ -195,7 +171,10 @@ static void dhcp_timer_cb(unsigned long tick, void* param)
 	}
 	if(param2->cli->timer_param_lease == param){
 		param2->cli->timer_param_lease = NULL;
-		}
+	}
+	if(param2->cli->timer_param_retransmit == param){
+		param2->cli->timer_param_retransmit = NULL;
+	}
 
 	pico_free(param);
 
@@ -225,10 +204,12 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 		}
 		if ((opt_type == PICO_DHCPOPT_RENEWALTIME) && (opt_len == 4)){
 			memcpy(&cli->T1, opt_data, 4);
+			cli->T1 = long_be(cli->T1);
 			T1_set =1;
 		}
 		if ((opt_type == PICO_DHCPOPT_REBINDINGTIME) && (opt_len == 4)){
 			memcpy(&cli->T2, opt_data, 4);
+			cli->T2 = long_be(cli->T2);
 			T2_set =1;
 		}
 		if ((opt_type == PICO_DHCPOPT_ROUTER) && (opt_len == 4)) //XXX assuming only one router will be advertised...
@@ -236,7 +217,7 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 		if ((opt_type == PICO_DHCPOPT_NETMASK) && (opt_len == 4))
 			memcpy(&cli->netmask.addr, opt_data, 4);
 		if ((opt_type == PICO_DHCPOPT_SERVERID) && (opt_len == 4))
-			memcpy(&cli->server_id, opt_data, 4);
+			memcpy(&cli->server_id.addr, opt_data, 4);
 		if (opt_type == PICO_DHCPOPT_OPTIONOVERLOAD)
 			dbg("DHCP>WARNING : option overload present (not processed)");
 
@@ -252,7 +233,7 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 
 
 
-	if ((msg_type != PICO_DHCP_MSG_OFFER) || !cli->lease_time || !cli->netmask.addr || !cli->server_id )
+	if ((msg_type != PICO_DHCP_MSG_OFFER) || !cli->lease_time || !cli->netmask.addr || !cli->server_id.addr )
 		return 0;
 
 
@@ -271,7 +252,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 		pico_ipv4_link_add(cli->device, cli->address, cli->netmask);
 		cli->link_added = 1;
 	}
-	cli->state = DHCPSTATE_ACK;
+	cli->state = DHCPSTATE_BOUND;
 
 	dbg("DHCP>T1 : %d\n",cli->T1);
 	dbg("DHCP>T2 : %d\n",cli->T2);
@@ -283,6 +264,8 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 		cli->timer_param_2->valid = 0;
 	if(cli->timer_param_lease)
 		cli->timer_param_lease->valid = 0;
+	if(cli->timer_param_retransmit)
+		cli->timer_param_retransmit->valid = 0;
 
 
 	cli->timer_param_1 = pico_zalloc(sizeof(struct dhcp_timer_param));
@@ -324,7 +307,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	else
 		dbg("no CB\n");
 
-	cli->state = DHCPSTATE_ACK;
+	cli->state = DHCPSTATE_BOUND;
 	return 0;
 }
 
@@ -332,7 +315,8 @@ static int renew(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 {
 
 	dhclient_send(cli, PICO_DHCP_MSG_REQUEST);
-	cli->state = DHCPSTATE_REQUEST;
+	cli->state = DHCPSTATE_RENEWING;
+
 	return 0;
 }
 
@@ -348,12 +332,32 @@ static int reset(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 		cli->timer_param_2->valid = 0;
 	if(cli->timer_param_lease)
 		cli->timer_param_lease->valid = 0;
+	if(cli->timer_param_retransmit)
+		cli->timer_param_retransmit->valid = 0;
 
 	pico_socket_close(cli->socket);
 	pico_ipv4_link_del(cli->device, cli->address);
 
 	//initiate negotiations again
-	pico_dhcp_initiate_negotiation(cli->device, cli->cb);
+	init_cookie(cli, cli->device, cli->cb);
+	pico_dhcp_retry(cli);
+	dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
+
+	return 0;
+
+}
+
+static int retransmit(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
+{
+
+	pico_dhcp_retry(cli);
+
+	if(cli->state == DHCPSTATE_DISCOVER)
+		dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
+	else if(cli->state == DHCPSTATE_RENEWING)
+		dhclient_send(cli, PICO_DHCP_MSG_REQUEST);
+	else
+		dbg("DHCP>WARNING : should not get here in state %d!\n", cli->state);
 
 	return 0;
 
@@ -370,14 +374,16 @@ struct dhcp_action_entry {
 	int (*nak)(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 	int (*timer1)(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 	int (*timer_lease)(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
+	int (*timer_retransmit)(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
 };
 
 static struct dhcp_action_entry dhcp_fsm[] = {
-		/* State             offer        ack       nak     timer1  timer_lease*/
-	{ DHCPSTATE_DISCOVER,  &recv_offer, NULL,     NULL,   NULL,   reset},
-	{ DHCPSTATE_OFFER,     NULL,        NULL,     NULL,   NULL,   reset},
-	{ DHCPSTATE_REQUEST,   NULL,        recv_ack, reset,  NULL,   reset},
-	{ DHCPSTATE_ACK,       NULL,        NULL,     reset,  renew,  reset}
+		/* State             offer       ack       nak     timer1  timer_lease timer_retransmit*/
+	{ DHCPSTATE_DISCOVER,  recv_offer, NULL,     NULL,   NULL,   reset,      retransmit},
+	{ DHCPSTATE_OFFER,     NULL,       NULL,     NULL,   NULL,   reset,      NULL},
+	{ DHCPSTATE_REQUEST,   NULL,       recv_ack, reset,  NULL,   reset,      retransmit},
+	{ DHCPSTATE_BOUND,     NULL,       NULL,     reset,  renew,  reset,      NULL},
+	{ DHCPSTATE_RENEWING,  NULL,       recv_ack, reset,  NULL,   reset,      retransmit},
 };
 
 
@@ -409,6 +415,11 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
 				dhcp_fsm[cli->state].timer_lease(cli, NULL, 0);
 			}
 			break;
+		case PICO_DHCP_EVENT_RETRANSMIT:
+			if(dhcp_fsm[cli->state].timer_retransmit!= NULL){
+				dhcp_fsm[cli->state].timer_retransmit(cli, NULL, 0);
+			}
+			break;
 		default:
 			dbg("DHCP>not supported yet!!\n");
 			break;
@@ -420,14 +431,16 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
  * utility functions *
  *********************/
 
-static void pico_dhcp_retry(struct pico_dhcp_client_cookie *client)
+static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 {
 	//TODO : use exponential backoff (cfr RFC)
 	const int MAX_RETRY = 5;
-	if (++client->attempt > MAX_RETRY) {
-		gettimeofday(&client->start_time, NULL);
-		client->attempt = 0;
-		client->xid ^= client->start_time.tv_usec ^ client->start_time.tv_sec;
+	if (++cli->attempt > MAX_RETRY) {
+		cli->start_time = pico_tick;
+		cli->attempt = 0;
+		cli->xid = pico_rand();
+		cli->state = DHCPSTATE_DISCOVER;
+		init_cookie(cli, cli->device, cli->cb);
 	}
 }
 
@@ -436,24 +449,21 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	uint8_t buf_out[DHCP_DATAGRAM_SIZE] = {0};
 	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
 	int sent = 0;
-	struct timeval now;
 	int i = 0;
-	struct pico_ip4 broadcast;
+	struct pico_ip4 destination;
 	uint16_t port = PICO_DHCPD_PORT;
-	if(cli->state ==DHCPSTATE_ACK){
-		broadcast.addr = cli->address.addr | ~(cli->netmask.addr);
+	if(cli->state == DHCPSTATE_BOUND || cli->state == DHCPSTATE_RENEWING){
+		destination.addr = cli->server_id.addr;
 	}else{
-		broadcast.addr = long_be(0xFFFFFFFF);
+		destination.addr = long_be(0xFFFFFFFF);
 	}
-
-	gettimeofday(&now, NULL);
 
 	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);//TODO solution if we don't have ethernet
 	dh_out->op = PICO_DHCP_OP_REQUEST;
 	dh_out->htype = PICO_HTYPE_ETHER;
 	dh_out->hlen = PICO_HLEN_ETHER;
 	dh_out->xid = cli->xid;
-	dh_out->secs = (msg_type == PICO_DHCP_MSG_REQUEST)?0:short_be(now.tv_sec - cli->start_time.tv_sec);
+	dh_out->secs = (msg_type == PICO_DHCP_MSG_REQUEST)?0:short_be((pico_tick - cli->start_time)/1000);
 	dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
 
 	/* Option: msg type, len 1 */
@@ -470,20 +480,22 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		dh_out->options[i++] = (long_be(cli->address.addr) & 0xFF);
 		dh_out->options[i++] = PICO_DHCPOPT_SERVERID;
 		dh_out->options[i++] = 4;
-		dh_out->options[i++] = (long_be(cli->server_id) & 0xFF000000) >> 24;
-		dh_out->options[i++] = (long_be(cli->server_id) & 0xFF0000) >> 16;
-		dh_out->options[i++] = (long_be(cli->server_id) & 0xFF00) >> 8;
-		dh_out->options[i++] = (long_be(cli->server_id) & 0xFF);
+		dh_out->options[i++] = (long_be(cli->server_id.addr) & 0xFF000000) >> 24;
+		dh_out->options[i++] = (long_be(cli->server_id.addr) & 0xFF0000) >> 16;
+		dh_out->options[i++] = (long_be(cli->server_id.addr) & 0xFF00) >> 8;
+		dh_out->options[i++] = (long_be(cli->server_id.addr) & 0xFF);
 	}
 
 	/* Option: req list, len 4 */
 	dh_out->options[i++] = PICO_DHCPOPT_PARMLIST;
-	dh_out->options[i++] = 5;
+	dh_out->options[i++] = 7;
 	dh_out->options[i++] = PICO_DHCPOPT_NETMASK;
 	dh_out->options[i++] = PICO_DHCPOPT_BCAST;
 	dh_out->options[i++] = PICO_DHCPOPT_TIME;
 	dh_out->options[i++] = PICO_DHCPOPT_ROUTER;
 	dh_out->options[i++] = PICO_DHCPOPT_HOSTNAME;
+	dh_out->options[i++] = PICO_DHCPOPT_RENEWALTIME;
+	dh_out->options[i++] = PICO_DHCPOPT_REBINDINGTIME;
 
 	/* Option : max message size */
 	if( msg_type == PICO_DHCP_MSG_REQUEST || msg_type == PICO_DHCP_MSG_DISCOVER){
@@ -498,12 +510,29 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 
 	dh_out->options[i] = PICO_DHCPOPT_END;
 
-	sent = pico_socket_sendto(cli->socket, buf_out, DHCP_DATAGRAM_SIZE, &broadcast, port);
+	sent = pico_socket_sendto(cli->socket, buf_out, DHCP_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
 		dbg("DHCP>socket sendto failed with code %d\n", pico_err);
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
 	}
+
+
+	//resend-timer :
+	if(cli->timer_param_retransmit != NULL)
+		cli->timer_param_retransmit->valid=0;
+
+	cli->timer_param_retransmit = pico_zalloc(sizeof(struct dhcp_timer_param));
+	if(!cli->timer_param_retransmit){
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
+		return;
+	}
+	cli->timer_param_retransmit->valid = 1;
+	cli->timer_param_retransmit->cli = cli;
+	cli->timer_param_retransmit->type = PICO_DHCP_EVENT_RETRANSMIT;
+	pico_timer_add(5000, dhcp_timer_cb, cli->timer_param_retransmit);
+	
 }
 
 
@@ -588,10 +617,59 @@ static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pic
 
 }
 
+static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code))
+{
+
+	uint16_t port = PICO_DHCP_CLIENT_PORT;
+	struct pico_ip4 address, netmask;
+
+
+	address.addr = long_be(0x00000000);
+	netmask.addr = long_be(0x00000000);
+
+	pico_ipv4_link_add(device, address, netmask);
+
+	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
+
+	cli->cb = callback;
+
+	cli->device = device;
+	cli->state = DHCPSTATE_DISCOVER;
+
+	cli->socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_wakeup);
+	if (!cli->socket) {
+		dbg("DHCP>could not open client socket\n");
+		return;
+	}
+	if (pico_socket_bind(cli->socket, &address, &port) != 0){
+		dbg("DHCP>could not bind client socket\n");
+		return;
+	}
+
+	cli->start_time = pico_tick;
+	cli->attempt = 0;
+	cli->xid = pico_rand();
+
+	if (!cli->socket) {
+		return;
+	}
+
+
+}
+
 
 /*
- *
  * TODO
+ *
+ * My retry-attempts are not resetted between messages...
+ *
+ * secs-field : the DHCPREQUEST message MUST use the same value in the DHCP message header's 'secs' field and be sent to the same IP broadcast address as the original DHCPDISCOVER message.
+ * or can we keep this to 0 all the time? table 5 could be read that way... 
+ *
+ * add random fuzz around the timers (cfr RFC 2131 p40)
+ *
+ * we ask for some things in the discover, but we don't send them back in the request, is this OK with the RFC? if not, how do we fix this? 
+ *
  *
  * probably need to add a "garbage"-state for when something went seriously wrong (like running out of memory), or need another way to deal with those errors
  *
@@ -601,8 +679,12 @@ static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pic
  *
  * Currently, after receiving the offer, I have no idea which options have been set and which haven't in the cookie (except for T1 and T2...)
  *
+ * use ARP to see if the address is not already in use (see RFC 2131 p 15-16)
  *
- * implement the rest of the RFC (all states, renewal of address, ...)
+ *
+ *
+ *
+ * implement the rest of the RFC (all states, ...)
  *
  *
  * related to support for multiple interfaces :
@@ -618,7 +700,7 @@ static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pic
  *
  *
  * won't do unless there are complaints:
- * options could (in theory) overflow to file and sname - this is not checked anywhere. Any options passed there will be missed.
+ * options could (in theory) overflow to file and sname - this is not checked anywhere. Any options passed there will be missed. (but we do give a warning it when this happens, so it shouldn't go unnoticed)
  *
  * efficiency improvements :
  * the entire list of options is looped over at least twice now : once to check if it's valid, once to identify the actual type. This could be made more efficient.

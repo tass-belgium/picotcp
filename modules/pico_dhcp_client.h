@@ -75,9 +75,10 @@ struct pico_ip4 pico_dhcp_get_gateway(void* cli);
 #define PICO_DHCP_MSG_RELEASE                7
 #define PICO_DHCP_MSG_INFORM                 8
 /* DHCP EVENT TYPE */
-#define PICO_DHCP_EVENT_T1 9
-#define PICO_DHCP_EVENT_T2 10
-#define PICO_DHCP_EVENT_LEASE 11
+#define PICO_DHCP_EVENT_T1                   9
+#define PICO_DHCP_EVENT_T2                   10
+#define PICO_DHCP_EVENT_LEASE                11
+#define PICO_DHCP_EVENT_RETRANSMIT           12
 
 
 struct __attribute__((packed)) pico_dhcphdr
@@ -122,7 +123,8 @@ enum dhcp_negotiation_state {
         DHCPSTATE_DISCOVER = 0,
         DHCPSTATE_OFFER,
         DHCPSTATE_REQUEST,
-        DHCPSTATE_ACK
+        DHCPSTATE_BOUND,
+        DHCPSTATE_RENEWING
 };
 
 #endif

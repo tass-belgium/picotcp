@@ -21,8 +21,9 @@ Authors: Frederik Van Slycken
 
 static int dhcp_finished = 0;
 void callback(void* cli, int code){
-	dhcp_finished = 1;
-	printf("callback happened!\n");
+	if(code == PICO_DHCP_SUCCESS)
+		dhcp_finished = 1;
+	printf("callback happened with code %d!\n", code);
 }
 
 
