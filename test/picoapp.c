@@ -93,7 +93,7 @@ void app_udpecho(char *arg)
 /*** TCP ECHO ***/
 void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
-  #define BSIZE 1400
+  #define BSIZE 1460
   char recvbuf[BSIZE];
   int r=0, w = 0;
   int pos = 0, len = 0;
