@@ -24,7 +24,7 @@ Authors: Daniele Lacamera
 
 #define PROTO(s) ((s)->proto->proto_number)
 
-#define PICO_SOCKET_MTU 1480
+#define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
 #ifdef PICO_SUPPORT_IPV4
 # define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
@@ -479,9 +479,8 @@ uint16_t pico_socket_high_port(uint16_t proto)
 
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
-
   struct pico_frame *f;
-  int off = 0;
+  int tcp_header_offset = 0;
   int total_payload_written = 0;
   if (len <= 0)
     return len;
@@ -562,26 +561,26 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    off = pico_tcp_overhead(s);
+    tcp_header_offset = pico_tcp_overhead(s);
 #endif
 
   while (total_payload_written < len) {
-    int mss = len;
-    if (mss > PICO_SOCKET_MTU)
-      mss = PICO_SOCKET_MTU;
-    f = pico_socket_frame_alloc(s, off + mss);
+    int transport_len = (len - total_payload_written) + tcp_header_offset; 
+    if (transport_len > PICO_SOCKET_MTU)
+      transport_len = PICO_SOCKET_MTU;
+    f = pico_socket_frame_alloc(s, transport_len);
     if (!f) {
       pico_err = PICO_ERR_ENOMEM;
       return -1;
     }
 
-    f->payload += off;
-    f->payload_len -= off;
+    f->payload += tcp_header_offset;
+    f->payload_len -= tcp_header_offset;
     f->sock = s;
-    memcpy(f->payload, buf + total_payload_written, mss);
-    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, mss);
+    memcpy(f->payload, buf + total_payload_written, transport_len - tcp_header_offset);
+    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", tcp_header_offset, f->payload_len);
     if (s->proto->push(s->proto, f) > 0) {
-      total_payload_written += mss;
+      total_payload_written += (transport_len - tcp_header_offset);
     } else {
       pico_frame_discard(f);
       pico_err = PICO_ERR_EAGAIN;
