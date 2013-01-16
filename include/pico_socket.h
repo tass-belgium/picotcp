@@ -60,13 +60,11 @@ struct pico_socket {
   RB_ENTRY(pico_socket) node;
 };
 
-#ifdef PICO_SUPPORT_UDP
 /* request struct for multicast socket opt */
 struct pico_ip_mreq {
   struct pico_ip4 mcast_group_addr;
   struct pico_ip4 mcast_link_addr;
 };
-#endif
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000
 #define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001
@@ -98,7 +96,6 @@ struct pico_ip_mreq {
 
 #endif
 
-#ifdef PICO_SUPPORT_UDP
 # define PICO_IP_MULTICAST_IF                 32
 # define PICO_IP_MULTICAST_TTL                33
 # define PICO_IP_MULTICAST_LOOP               34
@@ -109,7 +106,6 @@ struct pico_ip_mreq {
 
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
-#endif
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02

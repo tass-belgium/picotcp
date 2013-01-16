@@ -23,7 +23,10 @@ Authors: Daniele Lacamera
 
 
 #define PROTO(s) ((s)->proto->proto_number)
-#define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+
+#ifdef PICO_SUPPORT_TCP
+# define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+#endif
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
@@ -831,12 +834,16 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
 
   switch (option)
   {
+#ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* disable Nagle's algorithm */
             s->opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);  // TODO add opt_flags to struct ?  -->  done
           break;
+#endif
 
+
+#ifdef PICO_SUPPORT_UDP
     case PICO_IP_MULTICAST_IF:
           pico_err = PICO_ERR_EOPNOTSUPP;
           return -1;
@@ -902,6 +909,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
             return pico_ipv4_mcast_leave_group(&mreq->mcast_group_addr, mcast_link);
           }          
           break;
+#endif
 
     default:
           pico_err = PICO_ERR_EINVAL;
@@ -922,6 +930,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
   switch (option)
   {
+#ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* state Nagle's algorithm */
@@ -929,7 +938,9 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
           else
             *(int *)value = 0;
           break;
+#endif
 
+#ifdef PICO_SUPPORT_UDP
     case PICO_IP_MULTICAST_IF:
           pico_err = PICO_ERR_EOPNOTSUPP;
           return -1;
@@ -954,6 +965,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
             return -1;
           }
           break;
+#endif
 
     default:
           pico_err = PICO_ERR_EINVAL;
