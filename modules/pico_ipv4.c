@@ -21,6 +21,9 @@ Authors: Daniele Lacamera, Markian Yskout
 
 #ifdef PICO_SUPPORT_IPV4
 
+#define mcast_dbg(...) do{}while(0)
+//#define mcast_dbg dbg
+
 #define PICO_MCAST_ALL_HOSTS 0x010000E0 /* 224.0.0.1 */
 
 /* Queues */
@@ -163,7 +166,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
   /* Multicast address in source, discard quietly */
   if (!pico_ipv4_is_unicast(hdr->src.addr)) {
-    dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
+    mcast_dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
     pico_frame_discard(f);
     return 0;
   }
@@ -175,7 +178,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   } else if (!pico_ipv4_is_unicast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
     /* Receiving UDP multicast datagram TODO set f->flags? */
     if (hdr->dst.addr == PICO_MCAST_ALL_HOSTS) {
-      dbg("MCAST: received IGMP message\n");
+      mcast_dbg("MCAST: received IGMP message\n");
       /* TODO interface to IGMP to process IGMP message */
     } else if (pico_ipv4_mcast_is_group_member(f)) {
       pico_enqueue(pico_proto_udp.q_in, f);
@@ -359,17 +362,17 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
   struct pico_mcast_group *g = NULL;
   uint16_t i = 0;
 
-  dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-  dbg("+              MULTICAST list interface %-16s +\n", mcast_link->dev->name);
-  dbg("+--------------------------------------------------------+\n");
-  dbg("+  nr  |    interface     | host group | reference count +\n");
-  dbg("+--------------------------------------------------------+\n");
+  mcast_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  mcast_dbg("+              MULTICAST list interface %-16s +\n", mcast_link->dev->name);
+  mcast_dbg("+--------------------------------------------------------+\n");
+  mcast_dbg("+  nr  |    interface     | host group | reference count +\n");
+  mcast_dbg("+--------------------------------------------------------+\n");
 
   RB_FOREACH(g, pico_mcast_list, mcast_link->mcast_head) {
-    dbg("+ %04d | %16s |  %08X  |      %05u      +\n", i, g->mcast_link->dev->name, g->mcast_addr.addr, g->reference_count);
+    mcast_dbg("+ %04d | %16s |  %08X  |      %05u      +\n", i, g->mcast_link->dev->name, g->mcast_addr.addr, g->reference_count);
     i++;
   }
-  dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  mcast_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
 int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
@@ -405,7 +408,7 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
 
     if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
       /* TODO send IGMP host membership report */
-      dbg("Multicast: sent IGMP host membership report\n");
+      mcast_dbg("MCAST: sent IGMP host membership report\n");
     }
   }
 
@@ -437,7 +440,7 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
     if (g->reference_count < 1) {
       if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
         /* TODO send IGMP leave group */
-        dbg("Multicast: sent IGMP leave group\n");
+        mcast_dbg("MCAST: sent IGMP leave group\n");
       }
       RB_REMOVE(pico_mcast_list, link->mcast_head, g);
     }
@@ -461,14 +464,14 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
     g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
     if (g) {
       if (f->dev == link->dev) {
-        dbg("MCAST: IP %08X is group member of current link %s\n", hdr->dst.addr, f->dev->name);
+        mcast_dbg("MCAST: IP %08X is group member of current link %s\n", hdr->dst.addr, f->dev->name);
         return 1;
       } else {
-        dbg("MCAST: IP %08X is group member of different link %s\n", hdr->dst.addr, link->dev->name);
+        mcast_dbg("MCAST: IP %08X is group member of different link %s\n", hdr->dst.addr, link->dev->name);
       }
     }
   }
-  dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
+  mcast_dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
   return 0;
 }
 
@@ -525,7 +528,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
   /* Sending UDP multicast datagram, am I member? If so, loopback copy */
     if (pico_ipv4_mcast_is_group_member(f)) {
-      dbg("MCAST: sender is member of group, loopback copy\n");
+      mcast_dbg("MCAST: sender is member of group, loopback copy\n");
       struct pico_frame *cpy = pico_frame_copy(f);
       pico_enqueue(&in, cpy);
     }

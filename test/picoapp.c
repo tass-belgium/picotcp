@@ -446,7 +446,7 @@ void app_ping(char *arg)
 }
 
 /*** Multicast CLIENT ***/
-/* sudo ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.2 */
+/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.2 */
 void mcastclient_send(unsigned long now, void *arg) {
   int i, w;
   struct pico_socket *s = (struct pico_socket *)arg;
@@ -454,7 +454,7 @@ void mcastclient_send(unsigned long now, void *arg) {
   char end[4] = "end";
   static int loop = 0;
 
-  if (++loop > 10) {
+  if (++loop > 3) {
     for (i = 0; i < 3; i++) {
       w = pico_socket_send(s, end, 4);
       if (w <= 0)
@@ -466,7 +466,7 @@ void mcastclient_send(unsigned long now, void *arg) {
   }
 
   sprintf(buf, "TESTING PACKET %d", loop);
-  printf("Sending %s\n", buf);
+  printf("\n---------- Sending %s\n", buf);
   w = pico_socket_send(s, buf, 30);
 
   pico_timer_add(1000, mcastclient_send, s);
@@ -486,7 +486,7 @@ void cb_mcastclient(uint16_t ev, struct pico_socket *s)
     //} while(r>0);
     if (r > 0)
       pico_ipv4_to_string(speer, peer);
-      printf("------------------------------------- Echo from %s: %s\n\n", speer, recvbuf);
+      printf(">>>>>>>>>> mcastclient: echo from %s -> %s\n", speer, recvbuf);
   }
 
   if (ev == PICO_SOCK_EV_ERR) {
@@ -753,7 +753,7 @@ void app_mcastclient(char *arg)
 /*** END Multicast CLIENT ***/
 
 /*** Multicast RECEIVE + ECHO ***/
-/* sudo ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.2:10.40.0.3:224.7.7.7 */
+/* ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.2:10.40.0.3:224.7.7.7 */
 void cb_mcastreceive(uint16_t ev, struct pico_socket *s)
 {
   char recvbuf[30] = {0};
@@ -761,19 +761,22 @@ void cb_mcastreceive(uint16_t ev, struct pico_socket *s)
   int r = 0;
   uint32_t peer;
   uint16_t port;
+  static uint8_t is_end;
 
   if (ev & PICO_SOCK_EV_RD) {
     //do {
       r = pico_socket_recvfrom(s, recvbuf, 30, &peer, &port);
     //} while(r>0);
     if (strncmp(recvbuf, "end", 3) == 0) {
-      printf("Client requested to exit... test successful.\n");
-      pico_timer_add(1000, deferred_exit, NULL);
+      if (!is_end) {
+        is_end = 1;
+        printf("Client requested to exit... test successful.\n");
+        pico_timer_add(1000, deferred_exit, NULL);
+      }
       return;
     }
     pico_ipv4_to_string(speer, peer);
-    printf("------------------------------------- Received from %s: %s\n", speer, recvbuf);
-    printf("------------------------------------- Sending to %s: %s\n\n", speer, recvbuf);
+    printf(">>>>>>>>>> mcastreceive: received from %s -> %s, send back to %s\n", speer, recvbuf, speer);
     pico_socket_sendto(s, recvbuf, r, &peer, port);
   }
 
