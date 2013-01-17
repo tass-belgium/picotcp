@@ -886,7 +886,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
       }
     }
     /* In either case, ack til recv_nxt. */
-    if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) ) {
+    if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
       //tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state);
       tcp_send_ack(t);
     } else {
@@ -1212,6 +1212,10 @@ static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
   tcp_dbg("RECEIVED FIN IN FIN_WAIT2\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
+
+  /* received FIN, increase ACK nr */
+  t->rcv_nxt = long_be(hdr->seq) + 1;
 
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
@@ -1381,9 +1385,13 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("Close-wait\n");
+  tcp_dbg("TCP> Close-wait\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
+  
+  /* received FIN, increase ACK nr */
+  t->rcv_nxt = long_be(hdr->seq) + 1;
 
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
@@ -1395,8 +1403,6 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     tcp_data_in(s,f);
   if (f->flags & PICO_TCP_ACK)
     tcp_ack(s,f);
- 
-  /* received FIN, increase ACK nr */
 
   tcp_send_ack(t);  /* return ACK */
 
