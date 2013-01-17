@@ -826,6 +826,8 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 #endif
 
+#define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
+#define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= ~(1 << index))
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
@@ -838,7 +840,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* disable Nagle's algorithm */
-            s->opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);  // TODO add opt_flags to struct ?  -->  done
+            PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_TCPNODELAY);
           break;
 #endif
 
@@ -861,19 +863,19 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
             {
               case 0:
                 /* do not loop back multicast datagram */
-                s->opt_flags &= ~(1 << PICO_SOCKET_OPT_MULTICAST_LOOP); 
+                PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
                 break;
 
               case 1:
                 /* do loop back multicast datagram */
-                s->opt_flags |= (1 << PICO_SOCKET_OPT_MULTICAST_LOOP); 
+                PICO_SOCKET_SETOPT_EN(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
                 break;  
 
               default:
                 pico_err = PICO_ERR_EINVAL;
                 return -1;
-             }              
-          }  
+             }
+          }
           break;
 
     case PICO_IP_ADD_MEMBERSHIP:
@@ -919,11 +921,11 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
   return 0;
 }
 
-#define PICO_SOCKET_GETOPT(socket,index) (socket->opt_flags & (1 << index))
+#define PICO_SOCKET_GETOPT(socket,index) ((socket->opt_flags & (1 << index)) != 0)
 
 int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 {  
-  if (!s) {
+  if (!s || !value) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
@@ -934,7 +936,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* state Nagle's algorithm */
-            *(int *)value = s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY);  /* TODO typecast ?? getsockopt has len parameter in call */
+            *(int *)value = PICO_SOCKET_GETOPT(s,PICO_SOCKET_OPT_TCPNODELAY);
           else
             *(int *)value = 0;
           break;
@@ -958,7 +960,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
     case PICO_IP_MULTICAST_LOOP:
           if (s->proto->proto_number == PICO_PROTO_UDP) {
-            *(uint8_t *)value = (s->opt_flags & (1 << PICO_SOCKET_OPT_MULTICAST_LOOP)) >> PICO_SOCKET_OPT_MULTICAST_LOOP;
+            *(uint8_t *)value = PICO_SOCKET_GETOPT(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
           } else {
             *(uint8_t *)value = 0;
             pico_err = PICO_ERR_EINVAL;
