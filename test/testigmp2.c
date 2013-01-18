@@ -20,27 +20,10 @@ int main(int argc, char **argv)
 
 //  pico_stack_tick(); // do this to enable rand generation
 
-  int TestNumber = atoi(argv[1]);
-
-  // Generate Test Frame
-  struct pico_frame *f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_ipv4_hdr) + sizeof(struct pico_igmp2_hdr));
-  
-  // Create access to igmp2 header
-  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr; 
-
-  // Create access to ipv4 header
-  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
-
-   
-  
-  // Declaration of state
-  uint8_t state = 0;
-
   // Igmp parameter declaration
   struct igmp2_packet_params params;
   struct igmp2_action_data data;
   params.data_pointer=&data;
-  
   // -> Max response time 
   data.max_resp_time = 200;
   // -> Groupaddress 
