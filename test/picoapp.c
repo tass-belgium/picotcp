@@ -97,13 +97,20 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   char recvbuf[BSIZE];
   int r=0, w = 0;
   int pos = 0, len = 0;
+  static int flag = 0;
 
   //printf("tcpecho> wakeup\n");
   if (ev & PICO_SOCK_EV_RD) {
+    if (flag & 0x02)
+      printf("SOCKET> EV_RD, FIN RECEIVED\n");
     do {
       r = pico_socket_read(s, recvbuf + len, BSIZE - len);
-      if (r > 0)
+      if (r > 0) {
         len += r;
+        flag &= ~(0x01);
+      }
+      if (r == 0)
+        flag |= 0x01;
     } while(r>0);
   }
   if (ev & PICO_SOCK_EV_CONN) { 
@@ -127,7 +134,12 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   }
   if (ev & PICO_SOCK_EV_CLOSE) {
     printf("Socket received close from peer.\n");
-    pico_socket_close(s);
+    flag |= 0x02;
+    //pico_socket_close(s);
+    if ((flag & 0x01) && (flag & 0x02)) {
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("SOCKET> Called shutdown write, ev = %d\n",ev);
+    }
   }
 
   if (len > pos) {
@@ -138,7 +150,10 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         if (pos >= len) {
           pos = 0;
           len = 0;
+          w = 0;
         }
+      } else {
+        printf("SOCKET> ECHO write failed, dropped %d bytes\n",(len-pos));
       }
     } while(w > 0);
   }
@@ -294,13 +309,17 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
   static int r_size = 0;
   static int closed = 0;
   int r,w;
+  static unsigned long count = 0;
 
-  //printf("tcpclient> wakeup\n");
+  count++;
+
+  //printf("tcpclient> wakeup %lu, event %u\n",count,ev);
   if (ev & PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
       if (r > 0) {
         r_size += r;
+        //printf("SOCKET READ - %d\n",r_size);
       }
       if (r < 0)
         exit(5);
@@ -313,7 +332,6 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
   if (ev & PICO_SOCK_EV_FIN) {
     printf("Socket closed. Exit normally. \n");
     pico_timer_add(2000, compare_results, NULL);
-    return;
   }
 
   if (ev & PICO_SOCK_EV_ERR) {
@@ -321,25 +339,27 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
     exit(1);
   }
   if (ev & PICO_SOCK_EV_CLOSE) {
-    printf("Socket received close from peer - Wrong case!\n");
+    printf("Socket received close from peer - Wrong case if not all client data sent!\n");
     pico_socket_close(s);
-    exit(1);
+    return;
   }
-
-  if (w_size < TCPSIZ) {
-    do {
-      w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
-      if (w > 0) {
-        w_size += w;
-      if (w < 0)
-        exit(5);
+  if (ev & PICO_SOCK_EV_WR) {
+    if (w_size < TCPSIZ) {
+      do {
+        w = pico_socket_write(s, buffer0 + w_size, TCPSIZ-w_size);
+        if (w > 0) {
+          w_size += w;
+          //printf("SOCKET WRITTEN - %d\n",w_size);
+        if (w < 0)
+          exit(5);
+        }
+      } while(w > 0);
+    } else {
+      if (!closed) {
+        pico_socket_shutdown(s, PICO_SHUT_WR);
+        printf("Called shutdown()\n");
+        closed = 1;
       }
-    } while(w > 0);
-  } else {
-    if (!closed) {
-      pico_socket_shutdown(s, PICO_SHUT_WR);
-      printf("Called shutdown()\n");
-      closed = 1;
     }
   }
 }
