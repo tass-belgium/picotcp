@@ -50,7 +50,7 @@ int main(int argc, char **argv)
   address0.addr = 0x0a0a0aef; //  239.10.10.10
 
   data.Group_address = address0.addr;
-
+/*
   switch (TestNumber) {
     case 1: state = PICO_STATES_DELAYING_MEMBER;
             params.event = PICO_EVENT_LEAVE_GROUP; 
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
     default: printf("ERROR: incorrect Testnumber!");
              break;
      } 
-
+*/
   return 0;
 }
 
