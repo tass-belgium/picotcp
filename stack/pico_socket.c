@@ -421,7 +421,8 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP){
-    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) {  /* check if in shutdown state */
+    /* check if in shutdown state and if no more data in tcpq_in */
+    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s) ) {  
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
@@ -643,7 +644,8 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
 #endif
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
-    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) {  /* check if in shutdown state */
+    /* check if in shutdown state and if tcpq_in empty */
+    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {

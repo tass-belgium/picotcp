@@ -186,6 +186,17 @@ static struct pico_queue in = {};
 static struct pico_queue out = {};
 
 
+/* checks if tcpq_in is empty */
+int pico_tcp_queue_in_is_empty(struct pico_socket *s)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+
+  if (t->tcpq_in.frames == 0)
+    return 1;
+  else
+    return 0;
+}
+
 
 /* Useful for getting rid of the beginning of the buffer (read() op) */
 static int release_until(struct pico_tcp_queue *q, uint32_t seq)
@@ -1209,7 +1220,7 @@ static void tcp_deltcb(unsigned long when, void *arg)
 
 static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("RECEIVED FIN IN FIN_WAIT2\n");
+  tcp_dbg("TCP> received fin in FIN_WAIT2\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
@@ -1222,7 +1233,7 @@ static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
   /* set SHUT_REMOTE */
   s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   if (s->wakeup)
-    s->wakeup(PICO_SOCK_EV_FIN, s);
+    s->wakeup(PICO_SOCK_EV_CLOSE, s);
   if (f->payload_len > 0) /* needed?? */
     tcp_data_in(s,f);
   
@@ -1443,6 +1454,8 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
   s->wakeup(PICO_SOCK_EV_FIN, s);
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
+  /* set SHUT_REMOTE */
+  s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   pico_timer_add(2000, tcp_deltcb, t);
 
   return 0;
@@ -1569,7 +1582,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     // no packets in queue ??
   }
 
-  if (!f && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue */
+  if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
     if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
       tcp_dbg("TCP> buffer empty, shutdown established ...\n");
       /* send fin if queue empty and in state shut local (write) */
