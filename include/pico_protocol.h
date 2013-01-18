@@ -15,7 +15,7 @@ holders.
 enum pico_layer {
   PICO_LAYER_DATALINK = 2,  /* Ethernet only. */
   PICO_LAYER_NETWORK = 3,   /* IPv4, IPv6, ARP. Arp is there because it communicates with L2 */
-  PICO_LAYER_TRANSPORT = 4, /* UDP, TCP, DHCP, ICMP */
+  PICO_LAYER_TRANSPORT = 4, /* UDP, TCP, ICMP */
   PICO_LAYER_SOCKET = 5     /* Socket management */
 };
 
@@ -58,8 +58,8 @@ enum pico_err_e {
   PICO_ERR_ECONNREFUSED = 111,
   PICO_ERR_EHOSTDOWN,
   PICO_ERR_EHOSTUNREACH,
-
-
+  /* ... */
+  PICO_ERR_EOPNOTSUPP = 122,
 
 };
 

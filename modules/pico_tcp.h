@@ -28,7 +28,7 @@ struct __attribute__((packed)) pico_tcp_hdr {
 #define PICO_SIZE_TCPOPT_SYN 20
 #define PICO_SIZE_TCPHDR (sizeof(struct pico_tcp_hdr))
 
-#define PICO_TCP_DEFAULT_MSS 1460
+#define PICO_TCP_DEFAULT_MSS 1444
 
 
 
@@ -83,7 +83,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
 int pico_tcp_checksum_ipv4(struct pico_frame *f);
 int pico_tcp_overhead(struct pico_socket *s);
 int pico_tcp_output(struct pico_socket *s, int loop_score);
-
-
+int pico_tcp_queue_in_is_empty(struct pico_socket *s);
 
 #endif

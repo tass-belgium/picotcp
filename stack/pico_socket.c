@@ -24,9 +24,11 @@ Authors: Daniele Lacamera
 
 #define PROTO(s) ((s)->proto->proto_number)
 
-#define IS_NAGLE_ENABLED(s) ((s)->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+#ifdef PICO_SUPPORT_TCP
+# define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+#endif
 
-#define PICO_SOCKET_MTU 1480
+#define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
 #ifdef PICO_SUPPORT_IPV4
 # define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
@@ -419,7 +421,8 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP){
-    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) {  /* check if in shutdown state */
+    /* check if in shutdown state and if no more data in tcpq_in */
+    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s) ) {  
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
@@ -484,9 +487,8 @@ uint16_t pico_socket_high_port(uint16_t proto)
 
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
-
   struct pico_frame *f;
-  int off = 0;
+  int tcp_header_offset = 0;
   int total_payload_written = 0;
   if (len <= 0)
     return len;
@@ -567,26 +569,26 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    off = pico_tcp_overhead(s);
+    tcp_header_offset = pico_tcp_overhead(s);
 #endif
 
   while (total_payload_written < len) {
-    int mss = len;
-    if (mss > PICO_SOCKET_MTU)
-      mss = PICO_SOCKET_MTU;
-    f = pico_socket_frame_alloc(s, off + mss);
+    int transport_len = (len - total_payload_written) + tcp_header_offset; 
+    if (transport_len > PICO_SOCKET_MTU)
+      transport_len = PICO_SOCKET_MTU;
+    f = pico_socket_frame_alloc(s, transport_len);
     if (!f) {
       pico_err = PICO_ERR_ENOMEM;
       return -1;
     }
 
-    f->payload += off;
-    f->payload_len -= off;
+    f->payload += tcp_header_offset;
+    f->payload_len -= tcp_header_offset;
     f->sock = s;
-    memcpy(f->payload, buf + total_payload_written, mss);
-    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", f->transport_len, mss);
+    memcpy(f->payload, buf + total_payload_written, transport_len - tcp_header_offset);
+    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", tcp_header_offset, f->payload_len);
     if (s->proto->push(s->proto, f) > 0) {
-      total_payload_written += mss;
+      total_payload_written += (transport_len - tcp_header_offset);
     } else {
       pico_frame_discard(f);
       pico_err = PICO_ERR_EAGAIN;
@@ -642,7 +644,8 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
 #endif
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
-    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) {  /* check if in shutdown state */
+    /* check if in shutdown state and if tcpq_in empty */
+    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
@@ -825,6 +828,8 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 #endif
 
+#define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
+#define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= ~(1 << index))
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
@@ -833,11 +838,82 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
 
   switch (option)
   {
+#ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* disable Nagle's algorithm */
-            s->opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);  // TODO add opt_flags to struct ?  -->  done
+            PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_TCPNODELAY);
           break;
+#endif
+
+
+#ifdef PICO_SUPPORT_UDP
+    case PICO_IP_MULTICAST_IF:
+          pico_err = PICO_ERR_EOPNOTSUPP;
+          return -1;
+          break;
+
+    case PICO_IP_MULTICAST_TTL:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            return pico_udp_set_mc_ttl(s, *((uint8_t *) value));
+          }
+          break;
+
+    case PICO_IP_MULTICAST_LOOP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            switch (*(uint8_t *) value)
+            {
+              case 0:
+                /* do not loop back multicast datagram */
+                PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
+                break;
+
+              case 1:
+                /* do loop back multicast datagram */
+                PICO_SOCKET_SETOPT_EN(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
+                break;  
+
+              default:
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+             }
+          }
+          break;
+
+    case PICO_IP_ADD_MEMBERSHIP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            struct pico_ip_mreq *mreq = (struct pico_ip_mreq *) value;
+            struct pico_ipv4_link *mcast_link;
+            if (!mreq->mcast_link_addr.addr) {
+              mcast_link = NULL; /* use default multicast link */
+            } else {
+              mcast_link = pico_ipv4_link_get(&mreq->mcast_link_addr);
+              if (!mcast_link) {
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+              }
+            }
+            return pico_ipv4_mcast_join_group(&mreq->mcast_group_addr, mcast_link);
+          }          
+          break;
+
+    case PICO_IP_DROP_MEMBERSHIP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            struct pico_ip_mreq *mreq = (struct pico_ip_mreq *) value;
+            struct pico_ipv4_link *mcast_link;
+            if (!mreq->mcast_link_addr.addr) {
+              mcast_link = NULL; /* use default multicast link */
+            } else {
+              mcast_link = pico_ipv4_link_get(&mreq->mcast_link_addr);
+              if (!mcast_link) {
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+              }
+            }
+            return pico_ipv4_mcast_leave_group(&mreq->mcast_group_addr, mcast_link);
+          }          
+          break;
+#endif
 
     default:
           pico_err = PICO_ERR_EINVAL;
@@ -847,21 +923,53 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
   return 0;
 }
 
-#define PICO_SOCKET_GETOPT(socket,index) (socket->opt_flags & (1 << index))
+#define PICO_SOCKET_GETOPT(socket,index) ((socket->opt_flags & (1 << index)) != 0)
 
 int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 {  
-  int *val = (int *) value;
+  if (!s || !value) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
   switch (option)
   {
+#ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
             /* state Nagle's algorithm */
-            *val = s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY);  /* TODO typecast ?? getsockopt has len parameter in call */
+            *(int *)value = PICO_SOCKET_GETOPT(s,PICO_SOCKET_OPT_TCPNODELAY);
           else
-            *val = 0;
+            *(int *)value = 0;
           break;
+#endif
+
+#ifdef PICO_SUPPORT_UDP
+    case PICO_IP_MULTICAST_IF:
+          pico_err = PICO_ERR_EOPNOTSUPP;
+          return -1;
+          break;
+
+    case PICO_IP_MULTICAST_TTL:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            pico_udp_get_mc_ttl(s, (uint8_t *) value);
+          } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+          }            
+          break;
+
+    case PICO_IP_MULTICAST_LOOP:
+          if (s->proto->proto_number == PICO_PROTO_UDP) {
+            *(uint8_t *)value = PICO_SOCKET_GETOPT(s,PICO_SOCKET_OPT_MULTICAST_LOOP);
+          } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+          }
+          break;
+#endif
 
     default:
           pico_err = PICO_ERR_EINVAL;

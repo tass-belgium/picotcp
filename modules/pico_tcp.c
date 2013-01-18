@@ -40,8 +40,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
 
 #ifdef PICO_SUPPORT_TCP
-//#define tcp_dbg(...) do{}while(0)
-#define tcp_dbg dbg
+#define tcp_dbg(...) do{}while(0)
+//#define tcp_dbg dbg
 
 
 RB_HEAD(pico_segment_pool, pico_frame);
@@ -195,6 +195,18 @@ static struct pico_queue out = {};
 
 /* If Nagle enabled, this function can make 1 new segment from smaller segments in hold queue */
 static struct pico_frame * pico_hold_segment_make(struct pico_socket_tcp *t);
+
+
+/* checks if tcpq_in is empty */
+int pico_tcp_queue_in_is_empty(struct pico_socket *s)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+
+  if (t->tcpq_in.frames == 0)
+    return 1;
+  else
+    return 0;
+}
 
 
 /* Useful for getting rid of the beginning of the buffer (read() op) */
@@ -897,7 +909,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
       }
     }
     /* In either case, ack til recv_nxt. */
-    if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) ) {
+    if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
       //tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state);
       tcp_send_ack(t);
     } else {
@@ -1183,7 +1195,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       tcp_dbg("TCP_ACK - NAGLE add new segment\n");
       f_new = pico_hold_segment_make(t);
       if (f_new == NULL)
-        break;            // XXX corrupt !!! (or no memory)
+        break;            /* XXX corrupt !!! (or no memory) */
       if (pico_enqueue_segment(&t->tcpq_out,f_new) <= 0)
         // handle error
         tcp_dbg("TCP_ACK - NAGLE FAILED to enqueue in out\n");
@@ -1235,16 +1247,20 @@ static void tcp_deltcb(unsigned long when, void *arg)
 
 static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("RECEIVED FIN IN FIN_WAIT2\n");
+  tcp_dbg("TCP> received fin in FIN_WAIT2\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
+
+  /* received FIN, increase ACK nr */
+  t->rcv_nxt = long_be(hdr->seq) + 1;
 
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
   /* set SHUT_REMOTE */
   s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   if (s->wakeup)
-    s->wakeup(PICO_SOCK_EV_FIN, s);
+    s->wakeup(PICO_SOCK_EV_CLOSE, s);
   if (f->payload_len > 0) /* needed?? */
     tcp_data_in(s,f);
   
@@ -1408,9 +1424,13 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("Close-wait\n");
+  tcp_dbg("TCP> Close-wait\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
+  
+  /* received FIN, increase ACK nr */
+  t->rcv_nxt = long_be(hdr->seq) + 1;
 
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
@@ -1422,8 +1442,6 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     tcp_data_in(s,f);
   if (f->flags & PICO_TCP_ACK)
     tcp_ack(s,f);
- 
-  /* received FIN, increase ACK nr */
 
   tcp_send_ack(t);  /* return ACK */
 
@@ -1464,6 +1482,8 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
   s->wakeup(PICO_SOCK_EV_FIN, s);
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
+  /* set SHUT_REMOTE */
+  s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
   pico_timer_add(2000, tcp_deltcb, t);
 
   return 0;
@@ -1590,7 +1610,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     // no packets in queue ??
   }
 
-  if (!f && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue */
+  if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
     if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
       tcp_dbg("TCP> buffer empty, shutdown established ...\n");
       /* send fin if queue empty and in state shut local (write) */
@@ -1636,7 +1656,6 @@ static struct pico_frame * pico_hold_segment_make(struct pico_socket_tcp *t)
   }
   
   /* alloc new frame with payload size = off + total_len */
-  //tcp_dbg("MAKE off+total_len = %d\n",off + total_len);
   f_new = pico_socket_frame_alloc(s, off + total_len);
   if (!f_new) {
     pico_err = PICO_ERR_ENOMEM;
@@ -1660,19 +1679,15 @@ static struct pico_frame * pico_hold_segment_make(struct pico_socket_tcp *t)
   while ((f_temp != NULL) && ((total_payload_len + f_temp->payload_len) <= PICO_TCP_DEFAULT_MSS)) {
     /* cpy data and discard frame */
     test++;
-    //tcp_dbg("MAKE test ++ %d\n",test);
-    //tcp_dbg("MAKE memcpy - f_new->payload = %p, total len = %d, payload = %p, len = %d\n",f_new->payload, total_payload_len, f_temp->payload, f_temp->payload_len);
     memcpy(f_new->payload + total_payload_len, f_temp->payload, f_temp->payload_len);
-    //tcp_dbg("MAKE memcpy done\n");
     total_payload_len += f_temp->payload_len;
     pico_discard_segment(&t->tcpq_hold, f_temp);
-    //tcp_dbg("MAKE frame discarded\n");
     f_temp = first_segment(&t->tcpq_hold);
   }
 
   hdr->len = (f_new->payload - f_new->transport_hdr) << 2;
 
-  dbg("NAGLE make - joined %d segments, len %d bytes\n",test,total_payload_len);
+  tcp_dbg("NAGLE make - joined %d segments, len %d bytes\n",test,total_payload_len);
 
   return f_new;
 }
@@ -1716,29 +1731,29 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
       }
     } else {                                        /* opt 2. hold data back */
       total_len = f->payload_len + t->tcpq_hold.size;
-      if ((total_len >= PICO_TCP_DEFAULT_MSS) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= PICO_TCP_DEFAULT_MSS)) {// TODO check mss 
+      if ((total_len >= PICO_TCP_DEFAULT_MSS) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= PICO_TCP_DEFAULT_MSS)) {/* TODO check mss socket */
         /* IF enough data in hold (>mss) AND space in out queue (>mss) */
         /* add current frame in hold and make new segment */
         if (pico_enqueue_segment(&t->tcpq_hold,f) > 0 ) {
           tcp_dbg("TCP_PUSH - NAGLE - Pushed into hold, make new (enqueued frames out %d)\n",t->tcpq_out.frames);
-          t->snd_last += f->payload_len;    // XXX  WATCH OUT 
+          t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           f_new = pico_hold_segment_make(t);
         } else {
           tcp_dbg("TCP_PUSH - NAGLE - enqueue hold failed 1\n");
           return 0;
         }
         /* and put new frame in out queue */
-        if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out,f_new) > 0)) {      // TODO check if enqueue out fails !!
+        if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out,f_new) > 0)) {
           return f_new->payload_len;
         } else {
           tcp_dbg("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n",f_new);
-          return -1;                        // XXX something seriously wrong
+          return -1;                        /* XXX something seriously wrong */
         }
       } else {
         /* ELSE put frame in hold queue */
         if (pico_enqueue_segment(&t->tcpq_hold,f) > 0) {
           tcp_dbg("TCP_PUSH - NAGLE - Pushed into hold (enqueued frames out %d)\n",t->tcpq_out.frames);
-          t->snd_last += f->payload_len;    // XXX  WATCH OUT
+          t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           return f->payload_len;
         } else {
           tcp_dbg("TCP_PUSH - NAGLE - enqueue hold failed 2\n");

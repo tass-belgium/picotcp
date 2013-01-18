@@ -25,6 +25,9 @@ Authors: Daniele Lacamera
 #include "pico_socket.h"
 #include "heap.h"
 
+#define PICO_SIZE_MCAST 3
+const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x05, 0x00, 0x00, 0x00};
+
 volatile unsigned long pico_tick;
 volatile pico_err_t pico_err;
 
@@ -244,7 +247,8 @@ int pico_ethernet_receive(struct pico_frame *f)
   hdr = (struct pico_eth_hdr *) f->datalink_hdr;
   f->datalink_len = sizeof(struct pico_eth_hdr);
   if ( (memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) && 
-    (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0) )
+    (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0) && 
+    (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) )
     goto discard;
 
   f->net_hdr = f->datalink_hdr + f->datalink_len;
@@ -273,6 +277,34 @@ static int destination_is_bcast(struct pico_frame *f)
   return 0;
 }
 
+static int destination_is_mcast(struct pico_frame *f)
+{
+  if (!f)
+    return 0;
+
+  if (IS_IPV6(f))
+    return 0;
+#ifdef PICO_SUPPORT_IPV4
+  else {
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    return !pico_ipv4_is_unicast(hdr->dst.addr);
+  }
+#endif
+  return 0;
+}
+
+static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
+{
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+
+  /* place 23 lower bits of IP in lower 23 bits of MAC */
+  /* Remark: IP is little endian, MAC is big endian */
+  pico_mcast_mac[5] = ((hdr->dst.addr) & 0xFF000000) >> 24;
+  pico_mcast_mac[4] = ((hdr->dst.addr) & 0x00FF0000) >> 16; 
+  pico_mcast_mac[3] = ((hdr->dst.addr) & 0x00007F00) >> 8;
+
+  return (struct pico_eth *)pico_mcast_mac;
+}
 
 /* This is called by dev loop in order to ensure correct ethernet addressing.
  * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
@@ -285,6 +317,7 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
 {
   struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
+  uint8_t pico_mcast_mac[6] = {0x01, 0x00, 0x05, 0x00, 0x00, 0x00};
 
   if (IS_IPV6(f)) {
     /*TODO: Neighbor solicitation */
@@ -295,6 +328,8 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
     if (IS_BCAST(f) || destination_is_bcast(f)) {
      dbg("IPV4: Destination is BROADCAST!\n");
      dstmac = (struct pico_eth *) PICO_ETHADDR_ALL;
+    } else if (destination_is_mcast(f)) {
+      dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     } else {
       a4 = pico_arp_get(f);
       if (!a4)

@@ -27,12 +27,14 @@ struct __attribute__((packed)) pico_ipv4_hdr {
 };
 
 /* Interface: link to device */
+struct pico_mcast_list;
 
 struct pico_ipv4_link
 {
   struct pico_device *dev;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
+  struct pico_mcast_list *mcast_head;
   RB_ENTRY(pico_ipv4_link) node;
 };
 
@@ -50,11 +52,14 @@ void pico_proto_ipv4_init(void);
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
 int pico_ipv4_rebound(struct pico_frame *f);
+int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link);
+int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link);
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto);
 struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address);
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst);
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr);
 void pico_ipv4_unreachable(struct pico_frame *f, int err);
 

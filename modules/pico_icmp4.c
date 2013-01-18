@@ -249,7 +249,8 @@ static void ping_recv_reply(struct pico_frame *f)
     stats.size = cookie->size;
     stats.time = pico_tick - cookie->timestamp;
     stats.err = cookie->err;
-    cookie->cb(&stats);
+		if(cookie->cb != NULL)
+    	cookie->cb(&stats);
     /* XXX cb */
   } else {
     dbg("Reply for seq=%d, not found.\n", test.seq);
