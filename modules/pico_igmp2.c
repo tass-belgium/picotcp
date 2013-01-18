@@ -207,9 +207,9 @@ struct pico_protocol pico_proto_igmp2 = {
 
 
 /*====================== API CALLS ======================*/
-
+/*
 static void pico_igmp2_join_group(struct pico_ip4 group_address, struct pico_ipv4_link *link) {
-  struct igmp2_packet_params params = {0};
+  struct igmp2_packet_params params = {{0}};
 
   params.event = PICO_IGMP2_EVENT_JOIN_GROUP ;
   params.group_address.addr = group_address.addr;
@@ -219,7 +219,7 @@ static void pico_igmp2_join_group(struct pico_ip4 group_address, struct pico_ipv
 }
 
 static void pico_igmp2_leave_group(struct pico_ip4 group_address, struct pico_ipv4_link *link) {
-  struct igmp2_packet_params params = {0};
+  struct igmp2_packet_params params = {{0}};
 
   params.event = PICO_IGMP2_EVENT_LEAVE_GROUP ;
   params.group_address.addr = group_address.addr;
@@ -227,7 +227,7 @@ static void pico_igmp2_leave_group(struct pico_ip4 group_address, struct pico_ip
 
   pico_igmp2_process_event(&params);
 }
-
+*/
 /*================== GENERAL FUNCTIONS ==================*/
 
 static int start_timer(struct igmp2_packet_params *params,const uint16_t delay, uint8_t timer_type){
@@ -316,14 +316,14 @@ static int create_igmp2_frame(struct pico_frame *f, struct pico_ip4 src, struct 
 
   //TODO implement checksum
   pico_igmp2_checksum(f);
-
+  return 0;
 }
 
 /*================== TIMER CALLBACKS ====================*/
 
 static void generate_event_timer_expired(long unsigned int empty, void *data) {
   struct timer_callback_info *info = (struct timer_callback_info *) data;
-  struct igmp2_packet_params params = {0};
+  struct igmp2_packet_params params = {{0}};
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) info->f->transport_hdr;
 
   params.event = PICO_IGMP2_EVENT_TIMER_EXPIRED;
@@ -362,7 +362,6 @@ static void action1(struct igmp2_packet_params *params){
 static void action2(struct igmp2_packet_params *params){
   struct pico_frame *f = NULL;
 
-  uint8_t ret = 0;
   igmp2_dbg("EVENT = Join Group\n");
   igmp2_dbg("ACTION = SRSFST\n");
 
@@ -446,7 +445,7 @@ static void action7(struct igmp2_packet_params *params){
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->delay));
   if ( (unsigned long) (params->max_resp_time*100) < current_time_left) {
-    reset_timer(&(params->group_address));
+    reset_timer(params);
   }
 }
 
