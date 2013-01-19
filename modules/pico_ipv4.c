@@ -306,7 +306,7 @@ static struct routing_table Routes;
 static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 {
   struct pico_ipv4_route *r;
-  RB_FOREACH(r, routing_table, &Routes) {
+  RB_FOREACH_REVERSE(r, routing_table, &Routes) { /* Biggest netmask is checked first... */
     if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
       return r;
     }
