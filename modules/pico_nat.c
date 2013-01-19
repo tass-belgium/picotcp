@@ -341,10 +341,10 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
     return -1;
   uint8_t proto = ipv4_hdr->proto;
   do {
-    do { 
-      /* 1. generate valid new NAT port entry */
-      nat_port = (uint16_t)(0x0000FFF & pico_rand());    
-    } while (nat_port < 1024); 
+    /* 1. generate valid new NAT port entry */
+    uint32_t rand = pico_rand();
+    nat_port = (uint16_t) (rand & 0xFFFFU);
+    nat_port = (uint16_t)(nat_port % (65535 - 1024)) + 1024U;
 
     /* 2. check if already in table, if no exit */
     nat_dbg("NAT: check if generated port %u is free\n", nat_port);
