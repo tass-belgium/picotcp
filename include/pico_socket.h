@@ -175,5 +175,8 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code);
 /* Socket loop */
 int pico_sockets_loop(int loop_score);
 
+/* Port check */
+int pico_is_port_free(uint16_t proto, uint16_t port);
+
 
 #endif

@@ -348,7 +348,7 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
 
     /* 2. check if already in table, if no exit */
     nat_dbg("NAT: check if generated port %u is free\n", nat_port);
-    if (pico_ipv4_nat_find(0,0,proto,nat_port) == -1)
+    if (pico_is_port_free(proto, nat_port))
       break;
   
   } while (1);

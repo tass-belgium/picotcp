@@ -17,6 +17,7 @@ Authors: Daniele Lacamera
 #include "pico_tcp.h"
 #include "pico_stack.h"
 #include "pico_icmp4.h"
+#include "pico_nat.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
@@ -144,6 +145,21 @@ static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
   else return NULL;
 }
 
+int pico_is_port_free(uint16_t proto, uint16_t port)
+{
+  if (pico_get_sockport(proto, port)) {
+    dbg("Port %u already in use by system\n", port);
+    return 0;
+  }
+#ifdef PICO_SUPPORT_NAT
+  if (pico_ipv4_nat_find(0,0, proto, port) == 0) {
+    dbg("Port %u already in use by NAT\n", port);
+    return 0;
+  }
+#endif
+  return 1;
+}
+
 
 static int pico_check_socket(struct pico_socket *s)
 {
@@ -170,7 +186,7 @@ int pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   if (!sp) {
-    dbg("Creating sockport..%04x\n", s->local_port);
+    //dbg("Creating sockport..%04x\n", s->local_port); /* In comment due to spam during test */
     sp = pico_zalloc(sizeof(struct pico_sockport));
     if (!sp) {
       pico_err = PICO_ERR_ENOMEM;
@@ -476,8 +492,9 @@ uint16_t pico_socket_high_port(uint16_t proto)
       uint32_t rand = pico_rand();
       port = (uint16_t) (rand & 0xFFFFU);
       port = (uint16_t)(port % (65535 - 1024)) + 1024U; 
-      if (!pico_get_sockport(proto, port))
+      if (pico_is_port_free(proto, port)) {
         return short_be(port);
+      }
     } while(1);
   }
   else return 0U;
