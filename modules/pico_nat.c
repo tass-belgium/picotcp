@@ -55,13 +55,13 @@ struct pico_nat_key {
   */
   uint16_t del_flags;
   /* Connector for trees */
-  RB_ENTRY(pico_nat_key) node;
+  RB_ENTRY(pico_nat_key) node_forward, node_backward;
 };
 
 static struct pico_ipv4_link nat_link;
 static uint8_t enable_nat_flag = 0;
 
-static int nat_cmp_nat_port(struct pico_nat_key *a, struct pico_nat_key *b)
+static int nat_cmp_backward(struct pico_nat_key *a, struct pico_nat_key *b)
 {
   if (a->nat_port < b->nat_port) {
     return -1;
@@ -83,7 +83,7 @@ static int nat_cmp_nat_port(struct pico_nat_key *a, struct pico_nat_key *b)
   }
 }
 
-static int nat_cmp_priv_port(struct pico_nat_key *a, struct pico_nat_key *b)
+static int nat_cmp_forward(struct pico_nat_key *a, struct pico_nat_key *b)
 {
   if (a->private_addr < b->private_addr) {
     return -1;
@@ -113,22 +113,16 @@ static int nat_cmp_priv_port(struct pico_nat_key *a, struct pico_nat_key *b)
   }
 }
 
-static int nat_cmp(struct pico_nat_key *a, struct pico_nat_key *b)
-{
-  /* Structure elements left blank have to be zeroed */
-  if (a->private_port)
-    return nat_cmp_priv_port(a,b);
-  else
-    return nat_cmp_nat_port(a,b);
-}
+RB_HEAD(nat_table_forward, pico_nat_key);
+RB_PROTOTYPE_STATIC(nat_table_forward, pico_nat_key, node_forward, nat_cmp_forward);
+RB_GENERATE_STATIC(nat_table_forward, pico_nat_key, node_forward, nat_cmp_forward);
 
+RB_HEAD(nat_table_backward, pico_nat_key);
+RB_PROTOTYPE_STATIC(nat_table_backward, pico_nat_key, node_backward, nat_cmp_backward);
+RB_GENERATE_STATIC(nat_table_backward, pico_nat_key, node_backward, nat_cmp_backward);
 
-RB_HEAD(nat_table, pico_nat_key);
-RB_PROTOTYPE_STATIC(nat_table, pico_nat_key, node, nat_cmp);
-RB_GENERATE_STATIC(nat_table, pico_nat_key, node, nat_cmp);
-
-
-static struct nat_table KEYTable;
+static struct nat_table_forward KEYTable_forward;
+static struct nat_table_backward KEYTable_backward;
 
 /* 
   2 options: 
@@ -144,7 +138,10 @@ static struct pico_nat_key *pico_ipv4_nat_find_key(uint32_t private_addr, uint16
   test.proto = proto;
   test.nat_port = nat_port;
   /* returns NULL if test can not be found */ 
-  return RB_FIND(nat_table, &KEYTable, &test);
+  if (!nat_port)
+    return RB_FIND(nat_table_forward, &KEYTable_forward, &test);
+  else
+    return RB_FIND(nat_table_backward, &KEYTable_backward, &test);
 }
 
 int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint16_t nat_port)
@@ -218,7 +215,7 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
 
   struct pico_nat_key *k = NULL;
   struct pico_nat_key *tmp;
-  RB_FOREACH_REVERSE_SAFE(k, nat_table, &KEYTable, tmp) {
+  RB_FOREACH_REVERSE_SAFE(k, nat_table_forward, &KEYTable_forward, tmp) {
     switch (k->proto)
     {
       case PICO_PROTO_TCP:
@@ -284,10 +281,13 @@ int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t prot
   key->nat_port = nat_port;
   key->del_flags = 0x0001; /* set conn active to 1, other flags to 0 */
 
-  if (RB_INSERT(nat_table, &KEYTable, key))
-    return -1; /* Element key already exists */
-  else
+  /* RB_INSERT returns NULL when element added, pointer to the element if already in tree */
+  if (!RB_INSERT(nat_table_forward, &KEYTable_forward, key) && !RB_INSERT(nat_table_backward, &KEYTable_backward, key)) {
     return 0; /* New element added */
+  }
+  else {
+    return -1; /* Element key already exists */
+  }
 }
 
 
@@ -301,9 +301,11 @@ int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port)
   }
   else {
     nat_dbg("NAT: key to delete found: proto %u | nat_port %u\n", proto, nat_port);  
-    if (!RB_REMOVE(nat_table, &KEYTable, key))
+    /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
+    if (RB_REMOVE(nat_table_forward, &KEYTable_forward, key) && RB_REMOVE(nat_table_backward, &KEYTable_backward, key))
+	  pico_free(key);
+    else
       return -1; /* Error on removing element, do not free! */
-	pico_free(key);
   }
   return 0;
 }
@@ -320,7 +322,7 @@ void pico_ipv4_nat_print_table(void)
   nat_dbg("+  pointer   | private_addr | private_port | proto | nat_addr | nat_port | conn active | FIN1 | FIN2 | SYN | RST +\n");
   nat_dbg("+----------------------------------------------------------------------------------------------------------------+\n");
 
-  RB_FOREACH(k, nat_table, &KEYTable) {
+  RB_FOREACH(k, nat_table_forward, &KEYTable_forward) {
     nat_dbg("+ %10p |   %08X   |    %05u     |  %04u | %08X |  %05u   |     %03u     |   %u  |   %u  |  %u  |  %u  +\n", 
            k, k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port, (k->del_flags)&0x01FF, 
            ((k->del_flags)&0x8000)>>15, ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12);
@@ -522,7 +524,6 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
       private_port = udp_hdr->trans.sport;
     }
     ret = pico_ipv4_nat_find(private_addr,private_port,proto,0);
-   pico_ipv4_nat_print_table(); 
     if (ret >= 0) {
       // Key is available in table
       nk = pico_ipv4_nat_find_key(private_addr,private_port,proto,0);
