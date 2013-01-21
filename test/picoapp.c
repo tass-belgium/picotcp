@@ -15,7 +15,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <errno.h>
-//struct pico_ip4 inaddr_any = {0x0400280a};
+
+//#define INFINITE_TCPTEST
 struct pico_ip4 inaddr_any = { };
 static char *cpy_arg(char **dst, char *str);
 
@@ -355,6 +356,10 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         }
       } while(w > 0);
     } else {
+#ifdef INFINITE_TCPTEST
+      w_size = 0;
+      return;
+#endif
       if (!closed) {
         pico_socket_shutdown(s, PICO_SHUT_WR);
         printf("Called shutdown()\n");
