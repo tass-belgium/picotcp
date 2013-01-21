@@ -49,25 +49,25 @@ function check() {
   fi
 }
 
-echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_MEM_QUERY "
-../build/test/testigmp2.elf 10 | checkOutput "QUERY REQUEST"
-check
+#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_MEM_QUERY "
+#../build/test/testigmp2.elf 10 | checkOutput "QUERY REQUEST"
+#check
 
-echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V1_MEM_REPORT "
-../build/test/testigmp2.elf 11 | checkOutput "REPORT = VERSION 1"
-check
+#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V1_MEM_REPORT "
+#../build/test/testigmp2.elf 11 | checkOutput "REPORT = VERSION 1"
+#check
 
-echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V2_MEM_REPORT "
-../build/test/testigmp2.elf 12 | checkOutput "REPORT = VERSION 2"
-check
+#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V2_MEM_REPORT "
+#../build/test/testigmp2.elf 12 | checkOutput "REPORT = VERSION 2"
+#check
 
-echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_LEAVE_GROUP "
-../build/test/testigmp2.elf 13 | checkOutput "Error unkown TYPE 23"
-check
+#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_LEAVE_GROUP "
+#../build/test/testigmp2.elf 13 | checkOutput "Error unkown TYPE 23"
+#check
 
-echo "To Test: IGMP2 CHECKSUM "
-../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
-check
+#echo "To Test: IGMP2 CHECKSUM "
+#../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
+#check
 
 echo "---------------------------------------"
 echo "To Test: STATE = Delayed Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delayed Member"
