@@ -69,35 +69,40 @@ function check() {
 #../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
 #check
 
-echo "---------------------------------------"
-echo "To Test: STATE = Delayed Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delayed Member"
-../build/test/testigmp2.elf 2 | checkOutput "STATE = Delayed Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delayed Member"
+
+echo "ACTION1---------------------------------------"
+echo "To Test: STATE = Delaying Member | EVENT = Leave Group | ACTION = STSLIFS | NEW STATE = Non-Member"
+../build/test/testigmp2.elf 1 | checkOutput "STATE = Delaying Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
 check
 
-echo "---------------------------------------"
-echo "To Test: STATE = Delayed Member | EVENT = Report Received | ACTION = STCF | NEW STATE = Idle Member"
-../build/test/testigmp2.elf 3 | checkOutput 'STATE = Delayed Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
+echo "ACTION2---------------------------------------"
+echo "To Test: STATE = Non-Member | EVENT = Join Group | ACTION = SRSFST | NEW STATE = Delaying Member"
+../build/test/testigmp2.elf 2 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member"
 check
 
-echo "---------------------------------------"
-echo "To Test: STATE = Delayed Member | EVENT = Timer Expired | ACTION = SRSF | NEW STATE = Idle Member"
-../build/test/testigmp2.elf 4 | checkOutput 'STATE = Delayed Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
-check
-
-echo "---------------------------------------"
-echo "To Test: STATE = Non-Member | EVENT = Join Group | ACTION = SRSFST | NEW STATE = Delayed Member"
-../build/test/testigmp2.elf 5 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delayed Member"
-check
-
-echo "---------------------------------------"
+echo "ACTION3---------------------------------------"
 echo "To Test: STATE = Idle Member | EVENT = Leave Group | ACTION = SLIFS | NEW STATE = Non-Member"
-../build/test/testigmp2.elf 6 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
+../build/test/testigmp2.elf 3 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
 check
 
-echo "---------------------------------------"
-echo "To Test: STATE = Idle Member | EVENT = Query Received | ACTION = ST | NEW STATE = Delayed Member"
-../build/test/testigmp2.elf 7 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delayed Member"
+echo "ACTION4---------------------------------------"
+echo "To Test: STATE = Idle Member | EVENT = Query Received | ACTION = ST | NEW STATE = Delaying Member"
+../build/test/testigmp2.elf 4 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member"
 check
 
+echo "ACTION5---------------------------------------"
+echo "To Test: STATE = Delaying Member | EVENT = Report Received | ACTION = STCF | NEW STATE = Idle Member"
+../build/test/testigmp2.elf 5 | checkOutput 'STATE = Delaying Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
+check
+
+echo "ACTION6---------------------------------------"
+echo "To Test: STATE = Delaying Member | EVENT = Timer Expired | ACTION = SRSF | NEW STATE = Idle Member"
+../build/test/testigmp2.elf 6 | checkOutput 'STATE = Delaying Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
+check
+
+echo "ACTION7---------------------------------------"
+echo "To Test: STATE = Delaying Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delaying Member"
+../build/test/testigmp2.elf 7 | checkOutput "STATE = Delaying Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delaying Member"
+check
 
 exit 0
