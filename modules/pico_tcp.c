@@ -1491,9 +1491,58 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("TCP > received RST\n");
-  if (s->wakeup)
-    s->wakeup(PICO_SOCK_EV_CLOSE, s);
+  tcp_dbg("TCP >>>>>>>>>>>>>> received RST <<<<<<<<<<<<<<<<<<<<\n");
+
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
+
+  if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
+    /* the RST is acceptable if the ACK field acknowledges the SYN */
+    if ((t->snd_nxt + 1) == ACKN(f)) {  /* valid, got to closed state */
+      /* update state */
+      (t->sock).state &= 0x00FFU;
+      (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+      (t->sock).state &= 0xFF00U;
+      (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+
+      /* call EV_FIN wakeup before deleting */
+      (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+      /* delete socket */
+      pico_socket_del(&t->sock);
+    } else {                      /* not valid, ignore */
+      tcp_dbg("TCP RST> IGNORE\n");
+      return 0;
+    }
+  } else {  /* all other states */
+    /* all reset (RST) segments are validated by checking their SEQ-fields,
+    a reset is valid if its sequence number is in the window */
+    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
+      if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
+        /* go to LISTEN state, already done since clone of parent */
+        (t->sock).state &= 0x00FFU;
+        (t->sock).state |= PICO_SOCKET_STATE_TCP_LISTEN;
+        tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
+        pico_socket_del(s);
+      } else {
+        /* go to closed */
+        (t->sock).state &= 0x00FFU;
+        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+        (t->sock).state &= 0xFF00U;
+        (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+
+        /* call EV_FIN wakeup before deleting */
+        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+        /* delete socket */
+        pico_socket_del(&t->sock);
+      }
+    } else {                      /* not valid, ignore */
+      tcp_dbg("TCP RST> IGNORE\n");
+      return 0;
+    }
+  }
+
   return 0;
 }
 
