@@ -69,6 +69,8 @@ function check() {
 #../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
 #check
 
+echo "INIT: API call pico_igmp2_join_group---------------------------------------"
+../build/test/testigmp2.elf 0
 
 echo "ACTION1---------------------------------------"
 echo "To Test: STATE = Delaying Member | EVENT = Leave Group | ACTION = STSLIFS | NEW STATE = Non-Member"

@@ -13,10 +13,10 @@ Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
 extern struct pico_protocol pico_proto_igmp2;
 
 struct __attribute__((packed)) pico_igmp2_hdr {
+  uint32_t group_address;
   uint8_t type;
   uint8_t max_resp_time;
   uint16_t crc;
-  uint32_t group_address;
 };
 
 
@@ -25,16 +25,16 @@ struct __attribute__((packed)) pico_igmp2_hdr {
 #define PICO_IGMP2_HOST_NOT_LAST     (0x0)
 
 // EVENT DEFS
-#define PICO_IGMP2_EVENT_LEAVE_GROUP      (0x1)
-#define PICO_IGMP2_EVENT_JOIN_GROUP       (0x2)
-#define PICO_IGMP2_EVENT_QUERY_RECV       (0x3)
-#define PICO_IGMP2_EVENT_REPORT_RECV      (0x4)
-#define PICO_IGMP2_EVENT_TIMER_EXPIRED    (0x5)
+#define PICO_IGMP2_EVENT_LEAVE_GROUP      (0x0)
+#define PICO_IGMP2_EVENT_JOIN_GROUP       (0x1)
+#define PICO_IGMP2_EVENT_QUERY_RECV       (0x2)
+#define PICO_IGMP2_EVENT_REPORT_RECV      (0x3)
+#define PICO_IGMP2_EVENT_TIMER_EXPIRED    (0x4)
 
 // MEMBERSHIP DEFS
-#define PICO_IGMP2_STATES_NON_MEMBER      (0x1)
-#define PICO_IGMP2_STATES_DELAYING_MEMBER (0x2)
-#define PICO_IGMP2_STATES_IDLE_MEMBER     (0x3)
+#define PICO_IGMP2_STATES_NON_MEMBER      (0x0)
+#define PICO_IGMP2_STATES_DELAYING_MEMBER (0x1)
+#define PICO_IGMP2_STATES_IDLE_MEMBER     (0x2)
 
 // 
 #define PICO_IGMP2_TYPE_MEM_QUERY      (0x11)
@@ -54,5 +54,7 @@ struct __attribute__((packed)) pico_igmp2_hdr {
 
 
 int pico_igmp2_checksum(struct pico_frame *f);
+void pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
+void pico_igmp2_leave_group(struct pico_ip4 group_address, struct pico_ipv4_link *link);
 
 #endif /* _INCLUDE_PICO_IGMP2 */
