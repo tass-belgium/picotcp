@@ -245,7 +245,6 @@ static int start_timer(struct igmp2_packet_params *params,const uint16_t delay, 
     info->active_timer_starttime = timer_info->timer_starttime;
     info->timer_type = TIMER_TYPE_GEN_QUERY;
   }
-  printf("ponter str tmr = %x\n",timer_info->f);
   pico_timer_add(delay, &generate_event_timer_expired, timer_info);
   return 0;
 }
@@ -324,7 +323,6 @@ static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct
 
 static void generate_event_timer_expired(long unsigned int empty, void *data) {
   struct timer_callback_info *info = (struct timer_callback_info *) data;
-  printf("ponter2 = %x\n", info->f);
   struct igmp2_packet_params params = {{0}};
   struct pico_frame* f = (struct pico_frame*)info->f;
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
@@ -334,7 +332,6 @@ static void generate_event_timer_expired(long unsigned int empty, void *data) {
   params.timer_starttime = info->timer_starttime;
   params.f = info->f;
 
-  printf("ponter2 = %x\n", params.f);
   pico_igmp2_process_event(&params);
 
   //TODO de-allocate the *info struct
@@ -516,10 +513,8 @@ static int action6(struct igmp2_packet_params *params){
   igmp2_dbg("EVENT = Timer Expired\n");
   igmp2_dbg("ACTION = SRSF\n");
 
-  printf("start\n");
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if ( TIMER_TYPE_JOIN == info->timer_type) {
-    printf("befor pointer = %x\n",params->f);
     ret |= send_membership_report(params->f);
   }
   else {//TIMER_TYPE_JOIN == timer_type
@@ -530,7 +525,6 @@ static int action6(struct igmp2_packet_params *params){
       pico_frame_discard(params->f);
     }
   }
-  printf("almoste the end\n");
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
