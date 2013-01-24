@@ -7,7 +7,6 @@ holders.
 Authors: Daniele Lacamera, Philippe Mariman
 *********************************************************************/
 
-
 #include "pico_tcp.h"
 #include "pico_config.h"
 #include "pico_eth.h"
@@ -1449,10 +1448,10 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 }
 
 
-static int tcp_fin(struct pico_socket *s, struct pico_frame *f)
+/*static int tcp_fin(struct pico_socket *s, struct pico_frame *f)
 {
   return 0;
-}
+}*/
 
 static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 {
@@ -1546,6 +1545,30 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
   return 0;
 }
 
+static int tcp_syn_recv(struct pico_socket *s, struct pico_frame *f)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+    struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
+    
+    /* send ack */   
+    t->rcv_nxt = long_be(hdr->seq);
+    t->rcv_processed = t->rcv_nxt + 1;
+        
+    /* go to SYN_RECV state */
+    s->state &= 0x00FFU;
+    s->state |= PICO_SOCKET_STATE_TCP_SYN_RECV;
+    tcp_dbg("TCP> Established. Last SYN is ACKed\n");
+    
+    /*if (s->wakeup)
+      s->wakeup(PICO_SOCK_EV_CONN | PICO_SOCK_EV_WR, s);*/
+
+    t->rcv_nxt++;
+    t->snd_nxt++; 
+    tcp_send_ack(t);
+    
+    return 0;
+}
+
 
 
 struct tcp_action_entry {
@@ -1568,12 +1591,17 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            NULL,        &tcp_first_ack,   NULL,         NULL,           NULL,             &tcp_rst },
   { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_closewait, &tcp_closewait,   &tcp_rst },
   { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            NULL,        &tcp_ack,         NULL,         NULL,           &tcp_ack,         &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            NULL,        &tcp_lastackwait, &tcp_data_in, &tcp_fin,       &tcp_lastackwait, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            NULL,        &tcp_lastackwait, NULL,         NULL,           &tcp_lastackwait, &tcp_rst },
   { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            NULL,        &tcp_finwaitack,  &tcp_data_in, &tcp_rcvfin,    &tcp_finack,      &tcp_rst },
   { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_finwaitfin,&tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            NULL,        &tcp_closewaitack,&tcp_data_in, &tcp_fin,       &tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_fin,       &tcp_finack,      &tcp_rst }
+  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            NULL,        &tcp_closewaitack,NULL,         NULL,           NULL,      &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,        NULL,             NULL,         NULL,           NULL,      &tcp_rst }
 };
+
+/* NOTE 1: In CLOSE-WAIT recv finack, action?
+   NOTE 2: In LAST_ACK recv finack, action? 
+   NOTE 3: Prepared callback tcp_syn_recv for SYNSENT->syn 
+*/
 
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 {
