@@ -13,10 +13,10 @@ Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
 extern struct pico_protocol pico_proto_igmp2;
 
 struct __attribute__((packed)) pico_igmp2_hdr {
-  uint32_t group_address;
   uint8_t type;
   uint8_t max_resp_time;
   uint16_t crc;
+  uint32_t group_address;
 };
 
 
