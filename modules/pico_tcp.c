@@ -540,6 +540,31 @@ static void tcp_parse_options(struct pico_frame *f)
   }
 }
 
+static int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  
+  /* segments are validated by checking their SEQ-fields in any synchronized state,
+     a segment is valid if its sequence number is in the window */
+  if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
+    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
+      if (hdr->flags & PICO_TCP_ACK) {
+        /* check ack nr */
+        if ((long_be(hdr->ack) > SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
+          return 1;     /* seq and ack nr ok */
+        else
+          return 0;     /* ack nr not ok */
+      } else {
+        return 1;       /* seq nr ok */
+      }
+    } else {
+      return 0;         /* seq nr not ok */
+    }
+  } else {
+    return 1;           /* no check in unsynchronized state */
+  }
+}
 
 static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
@@ -784,6 +809,40 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
 }
 
 
+static void tcp_send_rst(struct pico_socket_tcp *t, struct pico_frame *fr)
+{
+  struct pico_frame *f;
+  struct pico_tcp_hdr *hdr;
+  int opt_len = tcp_options_size(t, PICO_TCP_RST);
+  f = t->sock.net->alloc(t->sock.net, PICO_SIZE_TCPHDR + opt_len);
+  if (!f) {
+    return;
+  }
+
+  f->sock = &t->sock;
+  hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  hdr->len = (PICO_SIZE_TCPHDR + opt_len) << 2;
+  hdr->flags = PICO_TCP_RST;
+  hdr->rwnd = short_be(t->wnd);
+  tcp_set_space(t);
+  tcp_add_options(t,f, PICO_TCP_ACK, opt_len);
+  hdr->trans.sport = t->sock.local_port;
+  hdr->trans.dport = t->sock.remote_port;
+  hdr->seq = long_be(t->snd_nxt);
+
+  /* do something with ack nr */
+  hdr->ack = long_be(t->rcv_nxt);
+  t->rcv_ackd = t->rcv_nxt;
+
+  f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
+  hdr->rwnd = short_be(t->wnd);
+  pico_tcp_checksum_ipv4(f);
+
+  /* TCP: ENQUEUE to PROTO */
+  pico_enqueue(&out, f);
+}
+
+
 static void tcp_send_fin(struct pico_socket_tcp *t)
 {
   struct pico_frame *f;
@@ -875,6 +934,13 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP DATA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  }
+
   if ((hdr->len >> 2) <= f->transport_len) {
     tcp_parse_options(f);
     f->payload = f->transport_hdr + (hdr->len >>2);
@@ -946,6 +1012,7 @@ static int fresh_ack(struct pico_frame *f)
   }
   return 0;
 }
+
 
 static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
@@ -1104,6 +1171,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
   return 0;
 }
 
+
 static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_frame *f_new; /* use with Nagle to push to out queue */
@@ -1113,6 +1181,12 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   int acked = 0;
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return -1;
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP ACK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  }
 
   tcp_parse_options(f);
 
@@ -1403,7 +1477,7 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
   if (t->snd_nxt == ACKN(f)) {
     tcp_set_init_point(s);
     tcp_ack(s, f);
-    tcp_data_in(s, f);
+    //tcp_data_in(s, f);
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
     tcp_dbg("TCP: Established. State now: %04x\n", s->state);
