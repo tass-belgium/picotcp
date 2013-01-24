@@ -16,10 +16,10 @@
 #include <string.h>
 #include <errno.h>
 
+//#define INFINITE_TCPTEST
 #define picoapp_dbg(...) do{}while(0)
 //#define picoapp_dbg printf
 
-//struct pico_ip4 inaddr_any = {0x0400280a};
 struct pico_ip4 inaddr_any = { };
 static char *cpy_arg(char **dst, char *str);
 
@@ -486,6 +486,10 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         }
       } while(w > 0);
     } else {
+#ifdef INFINITE_TCPTEST
+      w_size = 0;
+      return;
+#endif
       if (!closed) {
         pico_socket_shutdown(s, PICO_SHUT_WR);
         printf("Called shutdown()\n");
