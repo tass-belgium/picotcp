@@ -135,7 +135,6 @@ int pico_ipv4_valid_netmask(uint32_t mask)
 int pico_ipv4_is_unicast(uint32_t address) 
 {
   const unsigned char *addr = (unsigned char *) &address;
-  
   if((addr[0] & 0xe0) == 0xe0)
     return 0; /* multicast */
     
@@ -157,12 +156,18 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
+  int option_len = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 	struct pico_ip4 address0;
 	address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
-  f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR;
-  f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+  if(((hdr->vhl) & 0x0F )> 5){
+     option_len = 4*(((hdr->vhl) & 0x0F )-5);
+  }else{
+     option_len = 0;
+  }
+  f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR+ option_len;
+  f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len ;
 
   /* Multicast address in source, discard quietly */
   if (!pico_ipv4_is_unicast(hdr->src.addr)) {
@@ -170,23 +175,22 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     pico_frame_discard(f);
     return 0;
   }
-
   if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
       /* Receiving UDP broadcast datagram */
       f->flags |= PICO_FRAME_FLAG_BCAST;
       pico_enqueue(pico_proto_udp.q_in, f);
-  } else if (!pico_ipv4_is_unicast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
+  } else if (!pico_ipv4_is_unicast(hdr->dst.addr)  ) {
     /* Receiving UDP multicast datagram TODO set f->flags? */
-    if (hdr->dst.addr == PICO_MCAST_ALL_HOSTS) {
+    if (hdr->proto == PICO_PROTO_IGMP2) {
       mcast_dbg("MCAST: received IGMP message\n");
-      /* TODO interface to IGMP to process IGMP message */
-    } else if (pico_ipv4_mcast_is_group_member(f)) {
+      pico_transport_receive(f, PICO_PROTO_IGMP2);
+    } else if (pico_ipv4_mcast_is_group_member(f) && (hdr->proto == PICO_PROTO_UDP)) {
       pico_enqueue(pico_proto_udp.q_in, f);
     } else {
       pico_frame_discard(f);
     }
   } else if (pico_ipv4_link_find(&hdr->dst)) {
-    if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
+   if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
         return -1;
       }
@@ -476,7 +480,7 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
 }
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
-{
+{  
   struct pico_ipv4_route *route;
   struct pico_ipv4_link *link;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -524,7 +528,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   pico_ipv4_checksum(f);
 
   f->dev = link->dev;
-
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
   /* Sending UDP multicast datagram, am I member? If so, loopback copy */
     if (pico_ipv4_mcast_is_group_member(f)) {
@@ -533,6 +536,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
       pico_enqueue(&in, cpy);
     }
   }
+
   return pico_enqueue(&out, f);
 drop:
   pico_frame_discard(f);
@@ -722,7 +726,6 @@ int pico_ipv4_rebound(struct pico_frame *f)
 
 static int pico_ipv4_forward(struct pico_frame *f)
 {
-
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   struct pico_ipv4_route *rt;
   if (!hdr) {
