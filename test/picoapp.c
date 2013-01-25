@@ -505,8 +505,8 @@ void app_tcpclient(char *arg)
   char *dport;
   char *dest;
   int port = 0, i;
-  uint16_t port_be = 0;
-  struct pico_ip4 server_addr;
+  uint16_t port_be = 0, local_port = 0;
+  struct pico_ip4 server_addr, local_addr;
   char *nxt = cpy_arg(&dest, arg);
   if (!dest) {
     fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
@@ -538,11 +538,15 @@ void app_tcpclient(char *arg)
 
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
   if (!s)
-    exit(1);
-
+    exit(1); 
+  
+  /* NOTE: used to set a fixed local port and address
+  local_port = short_be(6666);
+  pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
+  pico_socket_bind(s, &local_addr, &local_port);*/
+  
   pico_string_to_ipv4(dest, &server_addr.addr);
   pico_socket_connect(s, &server_addr, port_be);
-
 }
 /*** END TCP CLIENT ***/
 

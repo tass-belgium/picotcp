@@ -1619,30 +1619,49 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
   return 0;
 }
 
-static int tcp_syn_recv(struct pico_socket *s, struct pico_frame *f)
+/* This function is called when both sides try to open the connection simultaneously. */
+static int tcp_sim_open(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
     
-    /* send ack */   
+    /* send synack */   
     t->rcv_nxt = long_be(hdr->seq);
     t->rcv_processed = t->rcv_nxt + 1;
-        
+    t->rcv_nxt++;
+    t->snd_nxt++; 
+    tcp_send_synack(s);
+    
     /* go to SYN_RECV state */
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_SYN_RECV;
-    tcp_dbg("TCP> Established. Last SYN is ACKed\n");
-    
-    /*if (s->wakeup)
-      s->wakeup(PICO_SOCK_EV_CONN | PICO_SOCK_EV_WR, s);*/
-
-    t->rcv_nxt++;
-    t->snd_nxt++; 
-    tcp_send_ack(t);
+    tcp_dbg("TCP> Acked the received SYN segment. Now going to SYN_RECV state\n");
     
     return 0;
 }
 
+
+static int tcp_sim_open_ack(struct pico_socket *s, struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  tcp_dbg("SYNACK in SYN_RECV: expecting %08x got %08x\n", t->snd_nxt, ACKN(f));
+  if (t->snd_nxt == ACKN(f)) {
+    tcp_set_init_point(s);
+    tcp_ack(s, f);
+    //tcp_data_in(s, f);
+    s->state &= 0x00FFU;
+    s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
+    tcp_dbg("TCP: Established. State now: %04x\n", s->state);
+    if (s && s->wakeup) {
+      s->wakeup(PICO_SOCK_EV_CONN, s);
+      s->wakeup(PICO_SOCK_EV_WR, s);
+    }
+    tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
+    return 0;
+  } else {
+    return 0;
+  }
+}
 
 
 struct tcp_action_entry {
@@ -1657,19 +1676,19 @@ struct tcp_action_entry {
 };
 
 static struct tcp_action_entry tcp_fsm[] = {
-    /* State                            syn              synack       ack               data          fin             finack            rst*/
-  { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_SYN_SENT,     NULL,            &tcp_synack, NULL,             NULL,         NULL,           NULL,             &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            NULL,        &tcp_first_ack,   NULL,         NULL,           NULL,             &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_closewait, &tcp_closewait,   &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            NULL,        &tcp_ack,         NULL,         NULL,           &tcp_ack,         &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            NULL,        &tcp_lastackwait, NULL,         NULL,           &tcp_lastackwait, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            NULL,        &tcp_finwaitack,  &tcp_data_in, &tcp_rcvfin,    &tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_finwaitfin,&tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            NULL,        &tcp_closewaitack,NULL,         NULL,           NULL,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,        NULL,             NULL,         NULL,           NULL,      &tcp_rst }
+    /* State                            syn              synack            ack               data          fin             finack            rst*/
+  { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,             NULL,             NULL,         NULL,           NULL,             NULL     },
+  { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,             NULL,             NULL,         NULL,           NULL,             NULL     },
+  { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        NULL,             NULL,             NULL,         NULL,           NULL,             NULL     },
+  { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_sim_open,   &tcp_synack,      NULL,             NULL,         NULL,           NULL,             &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_sim_open_ack,&tcp_first_ack,   NULL,         NULL,           NULL,             &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            NULL,             &tcp_ack,         &tcp_data_in, &tcp_closewait, &tcp_closewait,   &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            NULL,             &tcp_ack,         NULL,         NULL,           &tcp_ack,         &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            NULL,             &tcp_lastackwait, NULL,         NULL,           &tcp_lastackwait, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            NULL,             &tcp_finwaitack,  &tcp_data_in, &tcp_rcvfin,    &tcp_finack,      &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            NULL,             &tcp_ack,         &tcp_data_in, &tcp_finwaitfin,&tcp_finack,      &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            NULL,             &tcp_closewaitack,NULL,         NULL,           NULL,      &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,             NULL,             NULL,         NULL,           NULL,      &tcp_rst }
 };
 
 /* NOTE 1: In CLOSE-WAIT recv finack, action?
