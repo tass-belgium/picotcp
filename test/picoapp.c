@@ -8,6 +8,7 @@
 #include "pico_dev_tun.h"
 #include "pico_nat.h"
 #include "pico_icmp4.h"
+#include "pico_dns_client.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -192,6 +193,49 @@ void app_tcpecho(char *arg)
 
 }
 /*** END TCP ECHO ***/
+
+/*** UDP DNS CLIENT ***/
+/* 
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1: -a udpdnsclient:www.google.be:64.46.38.137 
+echo 1 > /proc/sys/net/ipv4/ip_forward
+iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
+iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
+*/
+void app_udpdnsclient(char *arg)
+{
+  char *dname, *daddr;
+  char *nxt;
+
+  nxt = cpy_arg(&dname, arg);
+  if (!dname) {
+    fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+    exit(255);
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&daddr, nxt);
+    if (!daddr) {
+      fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+      fprintf(stderr, " missing dest_ip\n");
+      exit(255);
+    }
+  } else {
+    fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+    fprintf(stderr, " missing dest_ip\n");
+    exit(255);
+  }
+
+  printf("UDP DNS client started.\n");
+
+  printf(">>>>> DNS GET ADDR OF %s\n", dname);
+  pico_dns_client_getaddr(dname);
+  printf(">>>>> DNS GET NAME OF %s\n", daddr);
+  pico_dns_client_getname(daddr);
+
+  return;
+}
+/*** END UDP DNS CLIENT ***/
 
 /*** UDP NAT CLIENT ***/
 /* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0:10.40.0.10: -a udpnatclient:10.50.0.8:6667: */
@@ -1186,6 +1230,9 @@ int main(int argc, char **argv)
         }
         else IF_APPNAME("natbox") {
           app_natbox(args);
+        }
+        else IF_APPNAME("udpdnsclient") {
+          app_udpdnsclient(args);
         }
         else IF_APPNAME("udpnatclient") {
           app_udpnatclient(args);
