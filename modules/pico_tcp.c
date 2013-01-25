@@ -1481,11 +1481,20 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
     tcp_dbg("TCP: Established. State now: %04x\n", s->state);
+    
+    if( !s->parent && s->wakeup) { /* If the socket has no parent, -> sending socket that has a sim_open */
+        tcp_dbg("FIRST ACK - No parent found -> sending socket\n");
+        s->wakeup(PICO_SOCK_EV_CONN, s);
+        s->wakeup(PICO_SOCK_EV_WR, s);    
+    }
+    
     if (s->parent && s->parent->wakeup) {
+      tcp_dbg("FIRST ACK - Parent found -> listening socket\n");
       s->wakeup = s->parent->wakeup;
       s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
       s->wakeup(PICO_SOCK_EV_WR, s);
     }
+    
     tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     return 0;
   } else {
