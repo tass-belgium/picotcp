@@ -85,17 +85,22 @@ static void generate_event_timer_expired(long unsigned int empty, void *info);
 #define igmp2_dbg dbg
 static int pico_igmp2_process_event(struct igmp2_packet_params *params);
 static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_params *params);
+static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f);
 
 
+int test_pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f){
+  pico_igmp2_process_in(self, f);
+  return 0;
+}
 int test_pico_igmp2_set_membershipState(struct pico_ip4 *mgroup_addr ,uint8_t state){
   struct mgroup_info *info = pico_igmp2_find_mgroup(mgroup_addr);
   info->membership_state = state;
-  igmp2_dbg("STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+  igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying MEMBER" : "Idle MEMBER"))); 
   return 0;
 }
 uint8_t test_pico_igmp2_get_membershipState(struct pico_ip4 *mgroup_addr){
   struct mgroup_info *info = pico_igmp2_find_mgroup(mgroup_addr);
-  igmp2_dbg("STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+  igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
   return info->membership_state;
 }
 int test_pico_igmp2_process_event(struct igmp2_packet_params *params) {
@@ -122,19 +127,15 @@ static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_p
   switch (hdr->type){
     //TODO: Test functionality
     case PICO_IGMP2_TYPE_MEM_QUERY:
-       igmp2_dbg("QUERY REQUEST\n");
        params->event = PICO_IGMP2_EVENT_QUERY_RECV;
        break;
     case PICO_IGMP2_TYPE_V1_MEM_REPORT:
-       igmp2_dbg("REPORT = VERSION 1\n");
        params->event = PICO_IGMP2_EVENT_REPORT_RECV;
        break;
     case PICO_IGMP2_TYPE_V2_MEM_REPORT:
-       igmp2_dbg("REPORT = VERSION 2\n");
        params->event = PICO_IGMP2_EVENT_REPORT_RECV;
        break;
     default:
-       igmp2_dbg("Error unkown TYPE %x\n",hdr->type);
        pico_frame_discard(f);
        return 1;
        break;
@@ -381,8 +382,8 @@ typedef int (*callback)(struct igmp2_packet_params *);
 static int action1(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
-  igmp2_dbg("EVENT = Leave Group\n");
-  igmp2_dbg("ACTION = STSLIFS\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Leave Group\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = STSLIFS\n");
   ret |= stop_timer(&(params->group_address));
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
@@ -395,7 +396,7 @@ static int action1(struct igmp2_packet_params *params){
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -407,8 +408,8 @@ static int action2(struct igmp2_packet_params *params){
   uint8_t ret = 0;
   struct pico_frame *f = NULL;
 
-  igmp2_dbg("2EVENT = Join Group\n");
-  igmp2_dbg("ACTION = SRSFST\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Join Group\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = SRSFST\n");
 
   /*insert in tree*/
   struct mgroup_info *info = pico_zalloc(sizeof(struct mgroup_info));
@@ -436,7 +437,7 @@ static int action2(struct igmp2_packet_params *params){
   if( 0 == ret) {
     struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
     info->membership_state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-    igmp2_dbg("NEW STATE = DELAYING MEMBER\n");
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = Delaying Member\n");
     return 0;
   }else{
     return 1;
@@ -447,8 +448,8 @@ static int action3(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
 
-  igmp2_dbg("EVENT = Leave Group\n");
-  igmp2_dbg("ACTION = SLIFS\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Leave Group\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = SLIFS\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   igmp2_dbg("last host flag =%d \n",info->Last_Host_flag);
@@ -465,7 +466,7 @@ static int action3(struct igmp2_packet_params *params){
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -476,8 +477,8 @@ static int action4(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
 
-  igmp2_dbg("EVENT = Query Received\n");
-  igmp2_dbg("ACTION = ST\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = ST\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
@@ -510,7 +511,7 @@ static int action4(struct igmp2_packet_params *params){
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -521,8 +522,8 @@ static int action5(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
 
-  igmp2_dbg("EVENT = Report Received\n");
-  igmp2_dbg("ACTION = STCL\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Report Received\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = STCL\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   ret |= stop_timer(&(params->group_address));
@@ -531,7 +532,7 @@ static int action5(struct igmp2_packet_params *params){
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delayed Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -542,8 +543,8 @@ static int action6(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
 
-  igmp2_dbg("EVENT = Timer Expired\n");
-  igmp2_dbg("ACTION = SRSF\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Timer Expired\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = SRSF\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if ( info->active_timer_starttime == params->timer_starttime) {
@@ -556,7 +557,7 @@ static int action6(struct igmp2_packet_params *params){
   //Check if action is completed successfully, if so then adjust Membership State
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -567,8 +568,8 @@ static int action7(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
 
-  igmp2_dbg("EVENT = Query Received\n");
-  igmp2_dbg("ACTION = RTIMRTCT\n");
+  igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
+  igmp2_dbg("DEBUG_IGMP2:ACTION = RTIMRTCT\n");
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->delay));
   if ( ((unsigned long) (params->max_resp_time*100)) < current_time_left) {
@@ -577,7 +578,7 @@ static int action7(struct igmp2_packet_params *params){
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-    igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
     return 1;
@@ -623,19 +624,21 @@ static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
   uint8_t ret = 0;
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if (NULL == info) {
-    if(params->event ==PICO_IGMP2_EVENT_QUERY_RECV){
+    if(params->event == PICO_IGMP2_EVENT_QUERY_RECV){
       //TODO write functionality to print tree
       RB_FOREACH(info, mgroup_table, &KEYTable) {
-         params->group_address.addr = info->mgroup_addr.addr;
-         igmp2_dbg("group_address for params = %x",params->group_address.addr);
-         ret |= host_membership_diagram_table[info->membership_state][params->event](params);
-       }
-    }else{//first time this group enters the state diagram
-      igmp2_dbg("STATE = Non-Member\n");
+        params->group_address.addr = info->mgroup_addr.addr;
+        igmp2_dbg("group_address for params = %x\n",params->group_address.addr);
+    igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+        ret |= host_membership_diagram_table[info->membership_state][params->event](params);
+      }
+    }
+    else{//first time this group enters the state diagram
+      igmp2_dbg("DEBUG_IGMP2:STATE = Non-Member\n");
       ret |= host_membership_diagram_table[PICO_IGMP2_STATES_NON_MEMBER][params->event](params);
     }
   }else {
-    igmp2_dbg("STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
+    igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     ret |= host_membership_diagram_table[info->membership_state][params->event](params);
   }
 

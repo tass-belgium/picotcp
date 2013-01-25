@@ -21,4 +21,4 @@ uint8_t test_pico_igmp2_get_membershipState(struct pico_ip4 *mgroup_addr);
 
 int test_pico_igmp2_process_event(struct igmp2_packet_params *params);
 int test_pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_params *params);
-
+int test_pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f);
