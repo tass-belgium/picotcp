@@ -10,7 +10,7 @@ Authors: Frederik Van Slycken
 #include "pico_dhcp_client.h"
 #include "pico_stack.h"
 #include "pico_config.h"
-#include "pico_dev_vde.h"
+#include "pico_device.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 
