@@ -58,8 +58,8 @@ echo "TEST: API call JOIN + API call LEAVE (NM)"
 ../build/test/testigmp2.elf 2 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
 check
 
-echo "TEST: API call JOIN + Timer for JOIN (IM) + Query Received + Query Received + Timer Expired (IM)+ Leave Group (NM)"
-../build/test/testigmp2.elf 3 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member" "STATE = Idle Member" "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delaying Member"
+echo "TEST: API call JOIN + Timer for JOIN (IM) + Query Received + Query Received + Timer Expired (IM)"
+../build/test/testigmp2.elf 3 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member" "STATE = Idle Member" "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
 check
 
 
