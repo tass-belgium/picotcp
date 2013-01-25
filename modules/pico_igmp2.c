@@ -24,6 +24,7 @@ Authors: Simon Maes, Brecht Van Cauwenberghe
 
 struct mgroup_info {
   struct pico_ip4 mgroup_addr;
+  struct pico_ip4 src_interface;
   uint8_t membership_state;
   uint8_t Last_Host_flag;
   uint8_t timer_type;
@@ -263,18 +264,29 @@ static int stop_timer(struct pico_ip4 *group_address){
   info->active_timer_starttime = NO_ACTIVE_TIMER;
   return 0;
 }
+static uint16_t calculate_delay(uint8_t max_resp_time){
+  uint16_t cmp_val =1;
+
+  while (cmp_val < max_resp_time){
+    cmp_val = cmp_val << 1;
+  }
+  cmp_val = (cmp_val >>1)-1;
+  cmp_val = (cmp_val & pico_rand());
+  uint16_t delay = cmp_val*100;
+  return delay; 
+}
 
 static int reset_timer(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
   ret |= stop_timer(&(params->group_address));
-  uint16_t delay = ((params->max_resp_time * 100)/((0x00FF & pico_rand()) + 1));
+  uint16_t delay = calculate_delay(params->max_resp_time);
+
   ret |= start_timer(params, delay, TIMER_TYPE_GEN_QUERY);
   return ret;
 }
 
 static int send_membership_report(struct pico_frame *f){
-  igmp2_dbg("send_membership_report\n");
   uint8_t ret = 0;
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
 
@@ -283,6 +295,7 @@ static int send_membership_report(struct pico_frame *f){
   group_address.addr = igmp2_hdr->group_address;
   dst.addr = igmp2_hdr->group_address;
 
+  igmp2_dbg("send_membership_report on group %x\n",group_address.addr);
   pico_ipv4_frame_push(f,&dst,PICO_PROTO_IGMP2);
   ret |= stop_timer(&group_address);
   return ret;
@@ -400,6 +413,7 @@ static int action2(struct igmp2_packet_params *params){
   /*insert in tree*/
   struct mgroup_info *info = pico_zalloc(sizeof(struct mgroup_info));
   info->mgroup_addr.addr = params->group_address.addr;
+  info->src_interface.addr = params->src_interface.addr;
   info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
   info->Last_Host_flag = PICO_IGMP2_HOST_LAST;
   info->active_timer_starttime = NO_ACTIVE_TIMER;
@@ -415,7 +429,7 @@ static int action2(struct igmp2_packet_params *params){
   }
   ret |= send_membership_report(copy_frame);
   /*Random delay between [0 and Unsolicited report interval]: [39-10000] -> 255 values*/
-  info->delay = ((PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL*100)/((0x00FF & pico_rand()) + 1));
+  info->delay = calculate_delay(PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL);
   params->f = f;
   ret |= start_timer(params, info->delay, TIMER_TYPE_JOIN);
   /*Check if action is completed successfully, if so then adjust Membership State*/
@@ -467,6 +481,10 @@ static int action4(struct igmp2_packet_params *params){
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
+  ret |= create_igmp2_frame(&(params->f), info->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
+/*
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
+
   struct pico_igmp2_hdr *igmp2_hdr = NULL;
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) params->f->net_hdr;
 
@@ -483,9 +501,10 @@ static int action4(struct igmp2_packet_params *params){
 
   //TODO implement checksum
   ret |= pico_igmp2_checksum(params->f);
+  */
 
   /*Random delay between [0 and Max Response Time]: [39-10000] -> 255 values*/
-  info->delay = ((params->max_resp_time*100)/((0x00FF & pico_rand()) + 1));
+  info->delay = calculate_delay(params->max_resp_time);
   ret |= start_timer(params, info->delay, TIMER_TYPE_GEN_QUERY);
 
   /*Check if action is completed successfully, if so then adjust Membership State*/
@@ -527,18 +546,14 @@ static int action6(struct igmp2_packet_params *params){
   igmp2_dbg("ACTION = SRSF\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
-  if ( TIMER_TYPE_JOIN == info->timer_type) {
+  if ( info->active_timer_starttime == params->timer_starttime) {
     ret |= send_membership_report(params->f);
   }
-  else {//TIMER_TYPE_JOIN == timer_type
-    if ( info->active_timer_starttime == params->timer_starttime) {
-      ret |= send_membership_report(params->f);
-    }
-    else {
-      pico_frame_discard(params->f);
-    }
+  else {
+    pico_frame_discard(params->f);
   }
-  /*Check if action is completed successfully, if so then adjust Membership State*/
+
+  //Check if action is completed successfully, if so then adjust Membership State
   if( 0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
     igmp2_dbg("NEW STATE = %s\n", (info->membership_state == 0 ? "NON MEMBER" : (info->membership_state == 1 ? "DELAYING MEMBER" : "IDLE MEMBER"))); 
