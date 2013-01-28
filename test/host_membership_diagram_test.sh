@@ -1,13 +1,5 @@
 #!/bin/bash
 
-#ACTION STSLIFS:  stop timer, send leave if flag set
-#ACTION SRSFST:   send report, set flag, start timer
-#ACTION SLIFS:    send leave if flag set
-#ACTION ST:       start timer
-#ACTION STCL:     stop timer, clear flag
-#ACTION SRSF:     send report, set flag
-#ACTION RTIMRTCT: reset timer if Max resp time < current time
-
 clear
 if [ x$1 != x--nocolor ]; then
   RED='\e[1;31m'
@@ -17,94 +9,68 @@ if [ x$1 != x--nocolor ]; then
   NC='\e[0m'
 fi
 
-
 function checkOutput() {
 
-  for i in "$@" 
+  args=("$@")
+  i=0
+  while read outFromC
   do
-    read outFromC
-      echo "> $i"
-      if [ "$outFromC" = "$i" ];
+    if [[ "$outFromC" = "DEBUG_IGMP2:"* ]];
+    then
+      dbg_info=${outFromC##*:}
+      echo "> test: ${args[i]}"
+      if [[ "$dbg_info" = "${args[i]}" ]];
       then
           echo -e "${BLUE}Correct${NC}"
+          i=$[$i+1]
       else
           echo -e "${RED}Not Correct${NC}"
           return 1
       fi
+    fi
+    if [ "$i" -eq "$#" ]
+    then
+      return 0
+    fi
   done
-  return 0
+  echo ">> $i from the $# tests succeed."
+  if [ "$i" -eq "$#" ];
+  then
+    return 0
+  else
+    return 1
+  fi
 }
 
 
 function check() {
 
   returnval=$?
-  echo "Test:"
+  echo "TEST:"
   if [ "$returnval" -eq 0 ];
   then
-    echo -e "${GREEN}SUCCESS${NC}"       
+    echo -e "${GREEN}SUCCESS${NC}"
   else
     echo -e "${RED}FAILED${NC}" 
     exit 1  # To ensure that script exits with error upon failure.
   fi
 }
 
-#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_MEM_QUERY "
-#../build/test/testigmp2.elf 10 | checkOutput "QUERY REQUEST"
-#check
-
-#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V1_MEM_REPORT "
-#../build/test/testigmp2.elf 11 | checkOutput "REPORT = VERSION 1"
-#check
-
-#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_V2_MEM_REPORT "
-#../build/test/testigmp2.elf 12 | checkOutput "REPORT = VERSION 2"
-#check
-
-#echo "To Test: Functionality of analyse packet : PICO_IGMP_TYPE_LEAVE_GROUP "
-#../build/test/testigmp2.elf 13 | checkOutput "Error unkown TYPE 23"
-#check
-
-#echo "To Test: IGMP2 CHECKSUM "
-#../build/test/testigmp2.elf 14 | checkOutput "CHECKSUM = 04FA" "CHECKSUM = EAF0"
-#check
-
-echo "INIT: API call pico_igmp2_join_group---------------------------------------"
-../build/test/testigmp2.elf 0
-
-echo "ACTION1---------------------------------------"
-echo "To Test: STATE = Delaying Member | EVENT = Leave Group | ACTION = STSLIFS | NEW STATE = Non-Member"
-../build/test/testigmp2.elf 1 | checkOutput "STATE = Delaying Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
+echo ">>TEST: API call JOIN (DM) + Timer for JOIN (IM) + API call LEAVE (NM)"
+../build/test/testigmp2.elf 1 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member" "STATE = Idle Member" "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
 check
 
-echo "ACTION2---------------------------------------"
-echo "To Test: STATE = Non-Member | EVENT = Join Group | ACTION = SRSFST | NEW STATE = Delaying Member"
-../build/test/testigmp2.elf 2 | checkOutput 'STATE = Non-Member' "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member"
+echo ">>TEST: API call JOIN (DM) + API call LEAVE (NM)"
+../build/test/testigmp2.elf 2 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
 check
 
-echo "ACTION3---------------------------------------"
-echo "To Test: STATE = Idle Member | EVENT = Leave Group | ACTION = SLIFS | NEW STATE = Non-Member"
-../build/test/testigmp2.elf 3 | checkOutput 'STATE = Idle Member' "EVENT = Leave Group" "ACTION = SLIFS" "NEW STATE = Non-Member"
+echo ">>TEST: API call JOIN (DM) + Timer for JOIN (IM) + Query Received (DM)"
+../build/test/testigmp2.elf 3 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member" "STATE = Idle Member" "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Report Received" "ACTION = STCL" "NEW STATE = Idle Member"
 check
 
-echo "ACTION4---------------------------------------"
-echo "To Test: STATE = Idle Member | EVENT = Query Received | ACTION = ST | NEW STATE = Delaying Member"
-../build/test/testigmp2.elf 4 | checkOutput 'STATE = Idle Member' "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member"
+echo ">>TEST: API call JOIN (DM) + Query Received (DM) + Timer Expired (IM)"
+../build/test/testigmp2.elf 4 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
 check
 
-echo "ACTION5---------------------------------------"
-echo "To Test: STATE = Delaying Member | EVENT = Report Received | ACTION = STCF | NEW STATE = Idle Member"
-../build/test/testigmp2.elf 5 | checkOutput 'STATE = Delaying Member' "EVENT = Report Received" "ACTION = STCF" "NEW STATE = Idle Member"
-check
-
-echo "ACTION6---------------------------------------"
-echo "To Test: STATE = Delaying Member | EVENT = Timer Expired | ACTION = SRSF | NEW STATE = Idle Member"
-../build/test/testigmp2.elf 6 | checkOutput 'STATE = Delaying Member' "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member"
-check
-
-echo "ACTION7---------------------------------------"
-echo "To Test: STATE = Delaying Member | EVENT = Query Received | ACTION = RTIMRTCT | NEW STATE = Delaying Member"
-../build/test/testigmp2.elf 7 | checkOutput "STATE = Delaying Member" "EVENT = Query Received" "ACTION = RTIMRTCT" "NEW STATE = Delaying Member"
-check
 
 exit 0

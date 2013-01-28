@@ -34,20 +34,91 @@ int main(int argc, char **argv)
 
   vde_igmpv2host = pico_vde_create("/tmp/pic0.ctl", "vde3", macaddr_host);
 
-  if (vde_igmpv2host)
-  {
-    printf("Somethingerfzefzefze\n");
-  }
-
   pico_ipv4_link_add(vde_igmpv2host, address_host, netmask_host);
 
   link_host = pico_ipv4_link_get(&address_host);
 
-  printf("before if");
   if (link_host) {
-    printf("befor route add\n");
     pico_ipv4_route_add(network_linux, netmask_linux, gateway_linux, 1, link_host);
   }
+
+/*START packet generation*/
+
+  /*PACKET1: General Query--------------------------------*/
+  /*Max Response Time is here 10sec!*/
+  struct pico_frame *f1;
+  struct pico_igmp2_hdr *igmp2_hdr1 = NULL;
+  f1 = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+
+  struct pico_ipv4_hdr *ipv4_hdr1 = (struct pico_ipv4_hdr *) (f1)->net_hdr;
+
+  // Fill IPV4 header
+  ipv4_hdr1->src.addr = 0x0a280001;
+  ipv4_hdr1->ttl = 1;
+
+  // Fill The IGMP2_HDR
+  igmp2_hdr1 = (struct pico_igmp2_hdr *) (f1)->transport_hdr;
+
+  igmp2_hdr1->type = 0x11;
+  igmp2_hdr1->max_resp_time = 0x64;//=100
+  igmp2_hdr1->group_address = 0x00000000;
+
+  pico_igmp2_checksum(f1);
+
+  printf("Packet generated!\n");
+  /*----------------------------------------*/
+
+  /*PACKET2: General Query--------------------------------*/
+  /*Max Response Time is here 1sec!*/
+  struct pico_frame *f2;
+  struct pico_igmp2_hdr *igmp2_hdr2 = NULL;
+  f2 = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+
+  struct pico_ipv4_hdr *ipv4_hdr2 = (struct pico_ipv4_hdr *) (f2)->net_hdr;
+
+  // Fill IPV4 header
+  ipv4_hdr2->src.addr = 0x0a280001;
+  ipv4_hdr2->ttl = 1;
+
+  // Fill The IGMP2_HDR
+  igmp2_hdr2 = (struct pico_igmp2_hdr *) (f2)->transport_hdr;
+
+  igmp2_hdr2->type = 0x11;
+  igmp2_hdr2->max_resp_time = 0x0a;//=10
+  igmp2_hdr2->group_address = 0x00000000;
+
+  pico_igmp2_checksum(f2);
+
+  printf("Packet generated!\n");
+
+  /*PACKET3: Membership Report--------------------------------*/
+  /*Max Response Time is here 1sec!*/
+  struct pico_frame *f3;
+  struct pico_igmp2_hdr *igmp2_hdr3 = NULL;
+  f3 = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+
+  struct pico_ipv4_hdr *ipv4_hdr3 = (struct pico_ipv4_hdr *) (f3)->net_hdr;
+
+  // Fill IPV4 header
+  ipv4_hdr3->src.addr = 0x0a280001;
+  ipv4_hdr3->ttl = 1;
+
+  // Fill The IGMP2_HDR
+  igmp2_hdr3 = (struct pico_igmp2_hdr *) (f3)->transport_hdr;
+
+  igmp2_hdr3->type = 0x16;
+  igmp2_hdr3->max_resp_time = 0x00;
+  igmp2_hdr3->group_address = 0x0a0a0aef;
+
+  pico_igmp2_checksum(f3);
+
+  printf("Packet generated!\n");
+
+/*END packet generation*/
+
+
+
+
 /*
   struct pico_frame *f = NULL;
   f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
@@ -67,87 +138,75 @@ int main(int argc, char **argv)
 */
   struct pico_ip4 group_address;
   group_address.addr = 0x0a0a0aef; //  239.10.10.10
+  int i = 0;
   switch (TestNumber) {
-    case 0: pico_igmp2_join_group(&group_address, link_host);
-            break;
-    /*case 1: state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-            params.event = PICO_IGMP2_EVENT_LEAVE_GROUP; 
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
-            break;
-    case 2: state = PICO_IGMP2_STATES_NON_MEMBER;
-            params.event = PICO_IGMP2_EVENT_JOIN_GROUP;
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
-            break;
-    case 3: state = PICO_IGMP2_STATES_IDLE_MEMBER;
-            params.event = PICO_IGMP2_EVENT_QUERY_RECV;
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
-            break;
-    case 4: state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-            params.event = PICO_IGMP2_EVENT_REPORT_RECV;
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
-            break;
-    case 5: //Timer Case;
-            break;
-    case 6: state = PICO_IGMP2_STATES_IDLE_MEMBER;
-            params.event = PICO_IGMP2_EVENT_LEAVE_GROUP;
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
-            break;
-    case 7: state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-            params.event = PICO_IGMP2_EVENT_QUERY_RECV;
-            test_pico_igmp2_set_membershipState(&address0, state);
-            test_pico_igmp2_process_event(&params);
+    case 1: pico_igmp2_join_group(&group_address, link_host);
+            while(i<10000)
+            {
+              pico_stack_tick();
+              usleep(1000);
+              i++;
+            }
+            pico_igmp2_leave_group(&group_address, link_host);
             break;
 
-    case 10:
-            igmp2_hdr->type = PICO_IGMP2_TYPE_MEM_QUERY;
-            igmp2_hdr->max_resp_time = 200;
-            igmp2_hdr->crc = 0;//TODO get crc; 
-            igmp2_hdr->group_address=address0.addr;
-            test_pico_igmp2_analyse_packet(f, &params);
+    case 2: pico_igmp2_join_group(&group_address, link_host);
+            while(i<10)
+            {
+              pico_stack_tick();
+              usleep(10);
+              i++;
+            }
+            pico_igmp2_leave_group(&group_address, link_host);
             break;
-    case 11:
-            igmp2_hdr->type = PICO_IGMP2_TYPE_V1_MEM_REPORT;
-            igmp2_hdr->max_resp_time = 200;
-            igmp2_hdr->crc = 0;//TODO get crc; 
-            igmp2_hdr->group_address=address0.addr;
-            test_pico_igmp2_analyse_packet(f, &params);
+
+    case 3: /*ACTION2*/
+            pico_igmp2_join_group(&group_address, link_host);
+            /*Delayed Member*/
+            while(i<10000)
+            {
+              /*Necessary to process send packet*/
+              pico_stack_tick();
+              /*ACTION6*/
+              usleep(1000);
+              i++;
+            }
+            /*Idle Member*/
+            /*ACTION4: Fake Query Received*/
+            // Fake Query Received: MRT=10sec
+            test_pico_igmp2_process_in(&pico_proto_igmp2,f1);
+            /*Delaying Member*/
+            /*ACTION5: Fake Query Received*/
+            // Fake Report Received
+            test_pico_igmp2_process_in(&pico_proto_igmp2,f3);
+            /*Idle Member*/
             break;
-    case 12:
-            igmp2_hdr->type = PICO_IGMP2_TYPE_V2_MEM_REPORT;
-            igmp2_hdr->max_resp_time = 200;
-            igmp2_hdr->crc = 0;//TODO get crc; 
-            igmp2_hdr->group_address=address0.addr;
-            test_pico_igmp2_analyse_packet(f, &params);            
+
+    case 4: /*ACTION2*/
+            pico_igmp2_join_group(&group_address, link_host);
+            while(i<10)
+            {
+              pico_stack_tick();
+              usleep(1);
+              i++;
+            }
+            /*Delayed Member*/
+            // Fake Query Received: MRT=1sec
+            test_pico_igmp2_process_in(&pico_proto_igmp2,f2);
+            /*Delaying Member*/
+            while(i<10000)
+            {
+              /*Necessary to process send packet*/
+              pico_stack_tick();
+              /*ACTION6*/
+              usleep(1000);
+              i++;
+            }
+            /*Idle Member*/
             break;
-    case 13:
-            igmp2_hdr->type = PICO_IGMP2_TYPE_LEAVE_GROUP;
-            igmp2_hdr->max_resp_time = 200;
-            igmp2_hdr->crc = 0;//TODO get crc; 
-            igmp2_hdr->group_address=address0.addr;
-            test_pico_igmp2_analyse_packet(f, &params);
-            break;
-    case 14:
-            igmp2_hdr->type = PICO_IGMP2_TYPE_V2_MEM_REPORT;
-            igmp2_hdr->max_resp_time = 0;
-            igmp2_hdr->crc = 0xfa04; //Test value; 
-            //test_pico_igmp2_analyse_packet(f, &params);
-            igmp2_hdr->group_address = 0xfaffffef; //  239.255.255.250
-            pico_igmp2_checksum(f);
-            igmp2_hdr->group_address = 0x0a0a0aef; //  239.10.10.10
-            pico_igmp2_checksum(f);
-            break;
-*/
+
     default: printf("ERROR: incorrect Testnumber!");
              break;
-     } 
-  while(1){
-    pico_stack_tick();
-    usleep(2000);
   }
 
   return 0;
