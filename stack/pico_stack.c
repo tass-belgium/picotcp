@@ -26,7 +26,7 @@ Authors: Daniele Lacamera
 #include "heap.h"
 
 #define PICO_SIZE_MCAST 3
-const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x05, 0x00, 0x00, 0x00};
+const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 
 volatile unsigned long pico_tick;
 volatile pico_err_t pico_err;
@@ -127,6 +127,12 @@ int pico_transport_receive(struct pico_frame *f, uint8_t proto)
 #ifdef PICO_SUPPORT_ICMP4
   case PICO_PROTO_ICMP4:
     ret = pico_enqueue(pico_proto_icmp4.q_in, f);
+    break;
+#endif
+
+#ifdef PICO_SUPPORT_IGMP2
+  case PICO_PROTO_IGMP2:
+    ret = pico_enqueue(pico_proto_igmp2.q_in, f);
     break;
 #endif
 
