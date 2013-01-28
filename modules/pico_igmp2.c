@@ -67,6 +67,21 @@ static struct mgroup_info *pico_igmp2_find_mgroup(struct pico_ip4 *mgroup_addr)
   return RB_FIND(mgroup_table, &KEYTable, &test);
 }
 
+static int pico_igmp2_del_mgroup(struct mgroup_info *info)
+{
+  if(!info){
+    return 1;
+  }
+  else {
+    // RB_REMOVE returns pointer to removed element, NULL to indicate error·
+    if(RB_REMOVE(mgroup_table, &KEYTable, info))
+      pico_free(info);
+    else
+      return 1;// Do not free, error on removing element from tree
+  }
+  return 0;
+}
+
 /*========================================================*/
 
 struct igmp2_packet_params {
@@ -391,8 +406,9 @@ static int action1(struct igmp2_packet_params *params){
 
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
-    info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
-    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = Non-Member\n");
+    /*del element from tree*/
+    pico_igmp2_del_mgroup(info);
     return 0;
   }else{
     return 1;
@@ -448,21 +464,17 @@ static int action3(struct igmp2_packet_params *params){
   igmp2_dbg("DEBUG_IGMP2:ACTION = SLIFS\n");
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
-  igmp2_dbg("last host flag =%d \n",info->Last_Host_flag);
   if (PICO_IGMP2_HOST_LAST == info->Last_Host_flag) {
     struct pico_frame *f = NULL;
-    igmp2_dbg("ret = %d\n",ret);
     ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_LEAVE_GROUP);
-    igmp2_dbg("ret = %d\n",ret);
     send_leave(f);
-    igmp2_dbg("ret = %d\n",ret);
   }
 
-    igmp2_dbg("ret = %d\n",ret);
   /*Check if action is completed successfully, if so then adjust Membership State*/
   if( 0 == ret) {
-    info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
-    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+    igmp2_dbg("DEBUG_IGMP2:NEW STATE = Non-Member\n");
+    /*del element from tree*/
+    pico_igmp2_del_mgroup(info);
     return 0;
   }else{
     return 1;
