@@ -15,6 +15,17 @@ Authors: Brecht Van Cauwenberghe, Simon Maes
 #include "test_pico_igmp2.h"
 #include "pico_dev_vde.h"
 
+static int pico_igmp2_checksum(struct pico_frame *f)
+{
+  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
+  if (!igmp2_hdr)
+    return 1;
+  igmp2_hdr->crc = 0;
+  igmp2_hdr->crc = short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)));
+  //igmp2_dbg("CHECKSUM = %04X\n",igmp2_hdr->crc);
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   int TestNumber = atoi(argv[1]);

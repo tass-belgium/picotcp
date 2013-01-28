@@ -18,6 +18,7 @@ Authors: Daniele Lacamera, Markian Yskout
 #include "pico_socket.h"
 #include "pico_device.h"
 #include "pico_nat.h"
+#include "pico_igmp2.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -411,8 +412,8 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
     RB_INSERT(pico_mcast_list, link->mcast_head, g);
 
     if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
-      /* TODO send IGMP host membership report */
-      mcast_dbg("MCAST: sent IGMP host membership report\n");
+      dbg("MCAST: sent IGMP host membership report\n");
+      pico_igmp2_join_group(mcast_addr, link);
     }
   }
 
@@ -443,8 +444,8 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
     g->reference_count--;
     if (g->reference_count < 1) {
       if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
-        /* TODO send IGMP leave group */
-        mcast_dbg("MCAST: sent IGMP leave group\n");
+        dbg("MCAST: sent IGMP leave group\n");
+        pico_igmp2_leave_group(mcast_addr, link);
       }
       RB_REMOVE(pico_mcast_list, link->mcast_head, g);
     }
@@ -536,6 +537,8 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
       pico_enqueue(&in, cpy);
     }
   }
+
+  /* TODO: Check if there are members subscribed here */
 
   return pico_enqueue(&out, f);
 drop:

@@ -161,14 +161,15 @@ static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_p
 }
 
 static int check_igmp2_checksum(struct pico_frame *f){
-//TODO implement this function;
-//  igmp2_dbg("ERROR CRC IS NOT CHECKED YET! \n");
+
+
+#ifdef PICO_IGMP2_CHECK_CRC
+  /* TODO: Review this code */
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
+  uint16_t header_checksum = igmp2_hdr->crc;
 
   if (!igmp2_hdr) 
     return 1;
- 
-  uint16_t header_checksum = igmp2_hdr->crc;
   igmp2_hdr->crc=0;
 
   if(header_checksum == short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)))){
@@ -178,9 +179,12 @@ static int check_igmp2_checksum(struct pico_frame *f){
     igmp2_hdr->crc = header_checksum;
     return 1;
   }
+#else
+  return 0;
+#endif
 }
 
-int pico_igmp2_checksum(struct pico_frame *f)
+static int pico_igmp2_checksum(struct pico_frame *f)
 {
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
   if (!igmp2_hdr)
