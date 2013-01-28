@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# check if user is root
+if [[ $EUID -ne 0 ]]
+then
+   echo "This script must be run as root"
+   exit 1
+fi
+
+#set up vde_switch
+gksu "vdecmd -s /tmp/pico.mgmt shutdown"
+gksu "vde_switch -t pic0 -s /tmp/pic0.ctl -m 777 -M /tmp/pico.mgmt -d -hub"
+gksu "ifconfig pic0 10.40.0.1 netmask 255.255.255.0 up"
+
+#set up XORP router
+#gksu "xorp_rtrmgr -b xorp.conf"
+
 clear
 if [ x$1 != x--nocolor ]; then
   RED='\e[1;31m'
@@ -64,7 +79,7 @@ echo ">>TEST: API call JOIN (DM) + API call LEAVE (NM)"
 ../build/test/testigmp2.elf 2 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Leave Group" "ACTION = STSLIFS" "NEW STATE = Non-Member"
 check
 
-echo ">>TEST: API call JOIN (DM) + Timer for JOIN (IM) + Query Received (DM)"
+echo ">>TEST: API call JOIN (DM) + Timer for JOIN (IM) + Query Received (DM) + Report Received (IM)"
 ../build/test/testigmp2.elf 3 | checkOutput "STATE = Non-Member" "EVENT = Join Group" "ACTION = SRSFST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Timer Expired" "ACTION = SRSF" "NEW STATE = Idle Member" "STATE = Idle Member" "EVENT = Query Received" "ACTION = ST" "NEW STATE = Delaying Member" "STATE = Delaying Member" "EVENT = Report Received" "ACTION = STCL" "NEW STATE = Idle Member"
 check
 
