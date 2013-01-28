@@ -89,7 +89,6 @@ static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *
 
 
 int test_pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f){
-  printf("passed test function process in \n");
   pico_igmp2_process_in(self, f);
   return 0;
 }
@@ -124,7 +123,6 @@ static struct pico_queue out = {};
 
 static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_params *params){
   struct pico_igmp2_hdr *hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
-  printf("passed analyse packet\n");
   switch (hdr->type){
     //TODO: Test functionality
     case PICO_IGMP2_TYPE_MEM_QUERY:
@@ -256,8 +254,10 @@ static int start_timer(struct igmp2_packet_params *params,const uint16_t delay, 
     info->active_timer_starttime = timer_info->timer_starttime;
     info->timer_type = TIMER_TYPE_GEN_QUERY;
   }
+  
+
+  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) timer_info->f->transport_hdr;
   pico_timer_add(delay, &generate_event_timer_expired, timer_info);
-  printf("delay %d\n",delay);
   return 0;
 }
 
@@ -269,7 +269,6 @@ static int stop_timer(struct pico_ip4 *group_address){
 }
 static uint16_t calculate_delay(uint8_t max_resp_time){
   uint16_t cmp_val =1;
-  printf("calc: max resp time %d",max_resp_time);
   while (cmp_val < max_resp_time){
     cmp_val = cmp_val << 1;
   }
@@ -277,20 +276,16 @@ static uint16_t calculate_delay(uint8_t max_resp_time){
   cmp_val = (cmp_val & pico_rand());
   uint16_t delay = cmp_val*100;
   
-  printf("delay (ms): %d\n",delay);
   return delay; 
 }
 
 static int reset_timer(struct igmp2_packet_params *params){
 
-  printf("hello reset\n");
   uint8_t ret = 0;
   ret |= stop_timer(&(params->group_address));
-  printf("params -> max_resp_time: %d\n", params->max_resp_time);
   uint16_t delay = calculate_delay(params->max_resp_time);
 
   ret |= start_timer(params, delay, TIMER_TYPE_GEN_QUERY);
-  printf("ret = %d\n",ret);
   return ret;
 }
 
@@ -346,7 +341,6 @@ static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct
 
   //TODO implement checksum
   ret |= pico_igmp2_checksum(*f);
-  printf("creat frame\n");
   return ret;
 }
 
@@ -364,7 +358,6 @@ static void generate_event_timer_expired(long unsigned int empty, void *data) {
   params.f = info->f;
 
   pico_igmp2_process_event(&params);
-  printf("end generate event timer exp\n");
   //TODO de-allocate the *info struct
 }
 
@@ -557,27 +550,16 @@ static int action7(struct igmp2_packet_params *params){
   uint8_t ret = 0;
   unsigned long current_time = 0;
   uint16_t new_delay = 0;
+  struct pico_frame *f = NULL;
   igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = RTIMRTCT\n");
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
-
-
-  printf("PACKET \n");
-  printf("max response time%d\n",params->max_resp_time*1000);
-
-  printf("MGROUP INFO\n");
-  printf("info delay:%d\n",info->delay);
-  printf("info->active_timer_starttime:%ld\n",info->active_timer_starttime);
-
-
   current_time = PICO_TIME_MS();
   unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->active_timer_starttime));
-  printf("Just calculated ......................\n");
-  printf("current time %lu\n",current_time);
-  printf("current time left %lu\n",current_time_left);
 
   if ( ((unsigned long) (params->max_resp_time*100)) < current_time_left) {
+    ret |= create_igmp2_frame(&(params->f), params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
     ret |= reset_timer(params);
   }
   /*Check if action is completed successfully, if so then adjust Membership State*/
@@ -591,7 +573,7 @@ static int action7(struct igmp2_packet_params *params){
 }
 
 static int ignore_and_discardframe(struct igmp2_packet_params *params){
-  igmp2_dbg("ignore and discardframe igmp2\n");
+  igmp2_dbg("ignore and discard frame igmp2\n");
   pico_frame_discard(params->f);
   return 0;
 }
@@ -632,7 +614,10 @@ static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
     if(params->event == PICO_IGMP2_EVENT_QUERY_RECV){
       //TODO write functionality to print tree
       RB_FOREACH(info, mgroup_table, &KEYTable) {
+        params->src_interface.addr = info->src_interface.addr;
         params->group_address.addr = info->mgroup_addr.addr;
+        igmp2_dbg("FOR EACH params->group_address = %x\n",params->group_address.addr);
+
         igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
         ret |= host_membership_diagram_table[info->membership_state][params->event](params);
       }

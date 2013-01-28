@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 
 /*START packet generation*/
 
-  /*PACKET1--------------------------------*/
+  /*PACKET1: General Query--------------------------------*/
   /*Max Response Time is here 10sec!*/
   struct pico_frame *f1;
   struct pico_igmp2_hdr *igmp2_hdr1 = NULL;
@@ -68,7 +68,7 @@ int main(int argc, char **argv)
   printf("Packet generated!\n");
   /*----------------------------------------*/
 
-  /*PACKET2--------------------------------*/
+  /*PACKET2: General Query--------------------------------*/
   /*Max Response Time is here 1sec!*/
   struct pico_frame *f2;
   struct pico_igmp2_hdr *igmp2_hdr2 = NULL;
@@ -90,6 +90,30 @@ int main(int argc, char **argv)
   pico_igmp2_checksum(f2);
 
   printf("Packet generated!\n");
+
+  /*PACKET3: Membership Report--------------------------------*/
+  /*Max Response Time is here 1sec!*/
+  struct pico_frame *f3;
+  struct pico_igmp2_hdr *igmp2_hdr3 = NULL;
+  f3 = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+
+  struct pico_ipv4_hdr *ipv4_hdr3 = (struct pico_ipv4_hdr *) (f3)->net_hdr;
+
+  // Fill IPV4 header
+  ipv4_hdr3->src.addr = 0x0a280001;
+  ipv4_hdr3->ttl = 1;
+
+  // Fill The IGMP2_HDR
+  igmp2_hdr3 = (struct pico_igmp2_hdr *) (f3)->transport_hdr;
+
+  igmp2_hdr3->type = 0x16;
+  igmp2_hdr3->max_resp_time = 0x00;
+  igmp2_hdr3->group_address = 0x0a0a0aef;
+
+  pico_igmp2_checksum(f3);
+
+  printf("Packet generated!\n");
+
 /*END packet generation*/
 
 
@@ -116,14 +140,6 @@ int main(int argc, char **argv)
   group_address.addr = 0x0a0a0aef; //  239.10.10.10
   int i = 0;
   switch (TestNumber) {
-    case 0: pico_igmp2_join_group(&group_address, link_host);
-            while(i<10000)
-            {
-              pico_stack_tick();
-              usleep(1000);
-              i++;
-            }
-            break;
     case 1: pico_igmp2_join_group(&group_address, link_host);
             while(i<10000)
             {
@@ -133,6 +149,7 @@ int main(int argc, char **argv)
             }
             pico_igmp2_leave_group(&group_address, link_host);
             break;
+
     case 2: pico_igmp2_join_group(&group_address, link_host);
             while(i<10)
             {
@@ -159,18 +176,9 @@ int main(int argc, char **argv)
             // Fake Query Received: MRT=10sec
             test_pico_igmp2_process_in(&pico_proto_igmp2,f1);
             /*Delaying Member*/
-            /*ACTION7*/
-            // Fake Query Received: MRT=1sec
-            test_pico_igmp2_process_in(&pico_proto_igmp2,f2);
-            /*Delaying Member*/
-            while(i<1000)
-            {
-              /*Necessary to process send packet*/
-              pico_stack_tick();
-              /*ACTION6*/
-              usleep(1000);
-              i++;
-            }
+            /*ACTION5: Fake Query Received*/
+            // Fake Report Received
+            test_pico_igmp2_process_in(&pico_proto_igmp2,f3);
             /*Idle Member*/
             break;
 
@@ -197,7 +205,6 @@ int main(int argc, char **argv)
             /*Idle Member*/
             break;
 
-            
     default: printf("ERROR: incorrect Testnumber!");
              break;
   }
