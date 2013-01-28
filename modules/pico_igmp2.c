@@ -199,9 +199,6 @@ static int pico_igmp2_process_out(struct pico_protocol *self, struct pico_frame 
   return 0;
 }
 
-
-
-
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_igmp2 = {
   .name = "igmp2",
@@ -254,9 +251,7 @@ static int start_timer(struct igmp2_packet_params *params,const uint16_t delay, 
     info->active_timer_starttime = timer_info->timer_starttime;
     info->timer_type = TIMER_TYPE_GEN_QUERY;
   }
-  
 
-  struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) timer_info->f->transport_hdr;
   pico_timer_add(delay, &generate_event_timer_expired, timer_info);
   return 0;
 }
@@ -267,6 +262,7 @@ static int stop_timer(struct pico_ip4 *group_address){
   info->active_timer_starttime = NO_ACTIVE_TIMER;
   return 0;
 }
+
 static uint16_t calculate_delay(uint8_t max_resp_time){
   uint16_t cmp_val =1;
   while (cmp_val < max_resp_time){
@@ -275,7 +271,7 @@ static uint16_t calculate_delay(uint8_t max_resp_time){
   cmp_val = (cmp_val >>1)-1;
   cmp_val = (cmp_val & pico_rand());
   uint16_t delay = cmp_val*100;
-  
+
   return delay; 
 }
 
@@ -318,7 +314,6 @@ static int send_leave(struct pico_frame *f) {
   ret |= stop_timer(&group_address);
   return ret;
 }
-
 
 static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct pico_ip4 *mcast_addr, uint8_t type){
   // TODO Test this function !
@@ -548,14 +543,10 @@ static int action6(struct igmp2_packet_params *params){
 static int action7(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
-  unsigned long current_time = 0;
-  uint16_t new_delay = 0;
-  struct pico_frame *f = NULL;
   igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = RTIMRTCT\n");
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
-  current_time = PICO_TIME_MS();
   unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->active_timer_starttime));
 
   if ( ((unsigned long) (params->max_resp_time*100)) < current_time_left) {
@@ -638,4 +629,3 @@ static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
     igmp2_dbg("ERROR: pico_igmp2_process_event FAILED!\n");
   }
 }
-
