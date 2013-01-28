@@ -1387,7 +1387,7 @@ static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
   tcp_send_ack(t);
   
   /* set timer */
-  //pico_timer_add(200, tcp_deltcb, t);
+  pico_timer_add(200, tcp_deltcb, t);
 
   return 0;
 }
@@ -1413,7 +1413,7 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
 
   /* set timer */
-  //pico_timer_add(200, tcp_deltcb, t);
+  pico_timer_add(200, tcp_deltcb, t);
 
   return 0;
 }
