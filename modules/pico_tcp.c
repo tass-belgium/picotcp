@@ -540,6 +540,31 @@ static void tcp_parse_options(struct pico_frame *f)
   }
 }
 
+static int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  
+  /* segments are validated by checking their SEQ-fields in any synchronized state,
+     a segment is valid if its sequence number is in the window */
+  if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
+    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
+      if (hdr->flags & PICO_TCP_ACK) {
+        /* check ack nr */
+        if ((long_be(hdr->ack) > SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
+          return 1;     /* seq and ack nr ok */
+        else
+          return 0;     /* ack nr not ok */
+      } else {
+        return 1;       /* seq nr ok */
+      }
+    } else {
+      return 0;         /* seq nr not ok */
+    }
+  } else {
+    return 1;           /* no check in unsynchronized state */
+  }
+}
 
 static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
@@ -784,6 +809,80 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
 }
 
 
+static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  struct pico_frame *f;
+  struct pico_tcp_hdr *hdr, *hdr_rcv;
+  int opt_len = tcp_options_size(t, PICO_TCP_RST);
+  
+  if (tcp_check_valid_segment(s,fr) == 0) {
+    tcp_dbg("TCP SEND RST >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> START\n");
+  }
+
+  /* go to CLOSED here to prevent timer callback to go on after timeout */
+  (t->sock).state &= 0x00FFU;
+  (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+
+  f = t->sock.net->alloc(t->sock.net, PICO_SIZE_TCPHDR + opt_len);
+
+  if (!f) {
+    return -1;
+  }
+
+  hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
+
+  f->sock = &t->sock;
+  hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  hdr->len = (PICO_SIZE_TCPHDR + opt_len) << 2;
+  hdr->flags = PICO_TCP_RST;
+  hdr->rwnd = short_be(t->wnd);
+  tcp_set_space(t);
+  tcp_add_options(t,f, PICO_TCP_RST, opt_len);
+  hdr->trans.sport = t->sock.local_port;
+  hdr->trans.dport = t->sock.remote_port;
+  hdr->seq = long_be(t->snd_nxt);
+
+  /* check if state is synchronized */
+  if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
+    /* in synchronized state: send RST with seq = ack from previous segment */
+    hdr->seq = hdr_rcv->ack;
+  } else {
+    /* non-synchronized state */
+    
+  }
+
+  hdr->ack = long_be(t->rcv_nxt);
+  t->rcv_ackd = t->rcv_nxt;
+  f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
+  hdr->rwnd = short_be(t->wnd);
+  pico_tcp_checksum_ipv4(f);
+
+  /* TCP: ENQUEUE to PROTO */
+  pico_enqueue(&out, f);
+
+  /* goto CLOSED */
+  //(t->sock).state &= 0x00FFU;
+  //(t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+  (t->sock).state &= 0xFF00U;
+  (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+
+  /* call EV_FIN wakeup before deleting */
+  (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+  /* delete socket */
+  pico_socket_del(&t->sock);
+
+  tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> DONE, deleted socket\n");
+
+  return 0;
+}
+
+
 static void tcp_send_fin(struct pico_socket_tcp *t)
 {
   struct pico_frame *f;
@@ -875,6 +974,13 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP DATA>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  }
+
   if ((hdr->len >> 2) <= f->transport_len) {
     tcp_parse_options(f);
     f->payload = f->transport_hdr + (hdr->len >>2);
@@ -946,6 +1052,7 @@ static int fresh_ack(struct pico_frame *f)
   }
   return 0;
 }
+
 
 static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
@@ -1104,6 +1211,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
   return 0;
 }
 
+
 static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_frame *f_new; /* use with Nagle to push to out queue */
@@ -1113,6 +1221,12 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   int acked = 0;
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return -1;
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP ACK>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  }
 
   tcp_parse_options(f);
 
@@ -1246,10 +1360,16 @@ static void tcp_deltcb(unsigned long when, void *arg)
 
 static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("TCP> received fin in FIN_WAIT2\n");
-
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
+  
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP finwaitfin >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP> received fin in FIN_WAIT2\n");
+  }
 
   /* received FIN, increase ACK nr */
   t->rcv_nxt = long_be(hdr->seq) + 1;
@@ -1277,6 +1397,14 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
 
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP closewaitack >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP> received ack in CLOSING\n");
+  }
+
   /* acking part */
   tcp_ack(s,f);
   
@@ -1293,8 +1421,15 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("TCP> state: last_ack, received ack, to closed\n");
-  
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP lastackwait >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP> state: last_ack, received ack, to closed\n");
+  }
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
   s->state &= 0xFF00U;
@@ -1403,15 +1538,23 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
   if (t->snd_nxt == ACKN(f)) {
     tcp_set_init_point(s);
     tcp_ack(s, f);
-    tcp_data_in(s, f);
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
     tcp_dbg("TCP: Established. State now: %04x\n", s->state);
+    
+    if( !s->parent && s->wakeup) { /* If the socket has no parent, -> sending socket that has a sim_open */
+        tcp_dbg("FIRST ACK - No parent found -> sending socket\n");
+        s->wakeup(PICO_SOCK_EV_CONN, s);
+        s->wakeup(PICO_SOCK_EV_WR, s);    
+    }
+    
     if (s->parent && s->parent->wakeup) {
+      tcp_dbg("FIRST ACK - Parent found -> listening socket\n");
       s->wakeup = s->parent->wakeup;
       s->parent->wakeup(PICO_SOCK_EV_CONN, s->parent);
       s->wakeup(PICO_SOCK_EV_WR, s);
     }
+    
     tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     return 0;
   } else {
@@ -1427,7 +1570,13 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
-  
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP closewait >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  }
+ 
   /* received FIN, increase ACK nr */
   t->rcv_nxt = long_be(hdr->seq) + 1;
 
@@ -1455,13 +1604,20 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("Received FIN in FIN_WAIT1\n");
-
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
 
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP RCVFIN (FW1) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP> Received FIN in FIN_WAIT1\n");
+  }
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSING;
 
+  t->rcv_processed = t->rcv_nxt + 1;
+  t->rcv_nxt++;
   /* send ACK */
   tcp_send_ack(t);
 
@@ -1472,7 +1628,15 @@ static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-  tcp_dbg("ENTERED finack\n");
+
+  if (tcp_check_valid_segment(s,f) == 0) {
+    tcp_dbg("TCP finwaitfin >>>>>>>>>>>>>>>>>> invalid segment detected\n");
+    tcp_send_ack(t);
+    return -1;
+  } else {
+    tcp_dbg("TCP> ENTERED finack\n");
+  }
+
   t->rcv_nxt++;
   /* send ACK */
   tcp_send_ack(t);
@@ -1545,30 +1709,48 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
   return 0;
 }
 
-static int tcp_syn_recv(struct pico_socket *s, struct pico_frame *f)
+/* This function is called when both sides try to open the connection simultaneously. */
+static int tcp_sim_open(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
     
-    /* send ack */   
+    /* send synack */   
     t->rcv_nxt = long_be(hdr->seq);
     t->rcv_processed = t->rcv_nxt + 1;
-        
+    t->rcv_nxt++;
+    t->snd_nxt++; 
+    tcp_send_synack(s);
+    
     /* go to SYN_RECV state */
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_SYN_RECV;
-    tcp_dbg("TCP> Established. Last SYN is ACKed\n");
-    
-    /*if (s->wakeup)
-      s->wakeup(PICO_SOCK_EV_CONN | PICO_SOCK_EV_WR, s);*/
-
-    t->rcv_nxt++;
-    t->snd_nxt++; 
-    tcp_send_ack(t);
+    tcp_dbg("TCP> Acked the received SYN segment. Now going to SYN_RECV state\n");
     
     return 0;
 }
 
+
+static int tcp_sim_open_ack(struct pico_socket *s, struct pico_frame *f)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  tcp_dbg("SYNACK in SYN_RECV: expecting %08x got %08x\n", t->snd_nxt, ACKN(f));
+  if (t->snd_nxt == ACKN(f)) {
+    tcp_set_init_point(s);
+    tcp_ack(s, f);
+    s->state &= 0x00FFU;
+    s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
+    tcp_dbg("TCP: Established. State now: %04x\n", s->state);
+    if (s && s->wakeup) {
+      s->wakeup(PICO_SOCK_EV_CONN, s);
+      s->wakeup(PICO_SOCK_EV_WR, s);
+    }
+    tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
+    return 0;
+  } else {
+    return 0;
+  }
+}
 
 
 struct tcp_action_entry {
@@ -1583,19 +1765,19 @@ struct tcp_action_entry {
 };
 
 static struct tcp_action_entry tcp_fsm[] = {
-    /* State                            syn              synack       ack               data          fin             finack            rst*/
-  { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        NULL,        NULL,             NULL,         NULL,           NULL,             NULL     },
-  { PICO_SOCKET_STATE_TCP_SYN_SENT,     NULL,            &tcp_synack, NULL,             NULL,         NULL,           NULL,             &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            NULL,        &tcp_first_ack,   NULL,         NULL,           NULL,             &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_closewait, &tcp_closewait,   &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            NULL,        &tcp_ack,         NULL,         NULL,           &tcp_ack,         &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            NULL,        &tcp_lastackwait, NULL,         NULL,           &tcp_lastackwait, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            NULL,        &tcp_finwaitack,  &tcp_data_in, &tcp_rcvfin,    &tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            NULL,        &tcp_ack,         &tcp_data_in, &tcp_finwaitfin,&tcp_finack,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            NULL,        &tcp_closewaitack,NULL,         NULL,           NULL,      &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,        NULL,             NULL,         NULL,           NULL,      &tcp_rst }
+    /* State                            syn            synack             ack                data           fin              finack          rst*/
+  { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,          NULL,              NULL,              NULL,          NULL,            NULL,           NULL     },
+  { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,          NULL,              NULL,              NULL,          NULL,            NULL,           NULL     },
+  { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,      NULL,              NULL,              NULL,          NULL,            NULL,           NULL     },
+  { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_sim_open, &tcp_synack,       NULL,              NULL,          NULL,            NULL,           &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,          &tcp_sim_open_ack, &tcp_first_ack,    NULL,          NULL,            NULL,           &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_send_rst, &tcp_send_rst,     &tcp_ack,          &tcp_data_in,  &tcp_closewait,  &tcp_closewait, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   &tcp_send_rst, &tcp_send_rst,     &tcp_ack,          &tcp_send_rst, &tcp_send_rst,   &tcp_send_rst,  &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_LAST_ACK,     &tcp_send_rst, &tcp_send_rst,     &tcp_lastackwait,  &tcp_send_rst, &tcp_send_rst,   &tcp_send_rst,  &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    &tcp_send_rst, &tcp_send_rst,     &tcp_finwaitack,   &tcp_data_in,  &tcp_rcvfin,     &tcp_finack,    &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    &tcp_send_rst, &tcp_send_rst,     &tcp_ack,          &tcp_data_in,  &tcp_finwaitfin, &tcp_finack,    &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSING,      &tcp_send_rst, &tcp_send_rst,     &tcp_closewaitack, &tcp_send_rst, &tcp_send_rst,   &tcp_send_rst,  &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    &tcp_send_rst, &tcp_send_rst,     &tcp_send_rst,     &tcp_send_rst, &tcp_send_rst,   &tcp_send_rst,  &tcp_rst }
 };
 
 /* NOTE 1: In CLOSE-WAIT recv finack, action?

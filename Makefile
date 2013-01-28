@@ -14,6 +14,7 @@ IGMP2?=1
 DEVLOOP?=1
 PING?=1
 DHCP_CLIENT?=1
+DNS_CLIENT?=1
 ENDIAN=little
 
 ifeq ($(DEBUG),1)
@@ -75,6 +76,9 @@ ifneq ($(DEVLOOP),0)
 endif
 ifneq ($(DHCP_CLIENT),0)
   include rules/dhcp_client.mk
+endif
+ifneq ($(DNS_CLIENT),0)
+  include rules/dns_client.mk
 endif
 
 all: mod core lib
