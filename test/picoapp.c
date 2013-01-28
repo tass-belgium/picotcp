@@ -549,8 +549,8 @@ void app_tcpclient(char *arg)
   char *dport;
   char *dest;
   int port = 0, i;
-  uint16_t port_be = 0, local_port = 0;
-  struct pico_ip4 server_addr, local_addr;
+  uint16_t port_be = 0;
+  struct pico_ip4 server_addr;
   char *nxt = cpy_arg(&dest, arg);
   if (!dest) {
     fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
