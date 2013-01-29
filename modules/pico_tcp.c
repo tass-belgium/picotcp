@@ -1782,6 +1782,10 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 
       /* call EV_FIN wakeup before deleting */
       (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+      
+      /* call EV_ERR wakeup before deleting */
+      pico_err = PICO_ERR_ECONNRESET;
+      (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
 
       /* delete socket */
       pico_socket_del(&t->sock);
@@ -1794,9 +1798,16 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     a reset is valid if its sequence number is in the window */
     if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
       if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
-        /* go to LISTEN state, already done since clone of parent */
+        /* go to closed */
         (t->sock).state &= 0x00FFU;
-        (t->sock).state |= PICO_SOCKET_STATE_TCP_LISTEN;
+        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+        (t->sock).state &= 0xFF00U;
+        (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+        
+        /* call EV_ERR wakeup */
+        pico_err = PICO_ERR_ECONNRESET;
+        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+        
         tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
         pico_socket_del(s);
       } else {
@@ -1808,6 +1819,10 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 
         /* call EV_FIN wakeup before deleting */
         (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+        
+        /* call EV_ERR wakeup before deleting */
+        pico_err = PICO_ERR_ECONNRESET;
+        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
 
         /* delete socket */
         pico_socket_del(&t->sock);

@@ -438,7 +438,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP){
     /* check if in shutdown state and if no more data in tcpq_in */
-    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s) ) {  
+    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s) ) {  
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
@@ -470,7 +470,7 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len)
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
     pico_err = PICO_ERR_ENOTCONN;
     return -1;
-  } else if ((s->state & PICO_SOCKET_STATE_SHUT_LOCAL) == PICO_SOCKET_STATE_SHUT_LOCAL) {  /* check if in shutdown state */
+  } else if (s->state & PICO_SOCKET_STATE_SHUT_LOCAL) {  /* check if in shutdown state */
     pico_err = PICO_ERR_ESHUTDOWN;
     return -1;
   } else {
@@ -662,7 +662,7 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
     /* check if in shutdown state and if tcpq_in empty */
-    if (((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) == PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
+    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
@@ -683,8 +683,10 @@ int pico_socket_recv(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
-  if (!s || !local_addr || !port)
+  if (!s || !local_addr || !port) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
 
   if (*port == 0) {
     *port = pico_socket_high_port(PROTO(s));
@@ -1027,7 +1029,6 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
     else if (mode & PICO_SHUT_RDWR)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL | PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
-    
   }
 #endif
   return 0;
@@ -1052,7 +1053,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 #ifdef PICO_SUPPORT_TCP
     /* if tcp protocol send RST segment */
     if (self->proto_number == PICO_PROTO_TCP)
-      pico_tcp_reply_rst(f);  // TODO
+      pico_tcp_reply_rst(f);
 #endif
     ret = -1;
     pico_err = PICO_ERR_ENOENT;
