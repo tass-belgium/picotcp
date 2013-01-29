@@ -1,0 +1,73 @@
+TCP SENDING RST PACKETS TEST DESCRIPTIONS
+=========================================
+
+See RFC 793 for info.
+
+1. Set up test environment
+   -----------------------
+	1) Create vde: sudo vde_switch -t pic0 -s /tmp/pic0.ctl -m 777 -M /tmp/pico0.mgmt -d -hub
+	2) Connect the interface: sudo ifconfig pic0 10.40.0.1 netmask 255.255.255.0
+	3) Run tcpecho:   build/test/picoapp.elf --vde vde1:/tmp/pic0.ctl:10.40.0.10:255.255.255.0: -a tcpecho:5555 OR/AND
+	   run tcpclient: build/test/picoapp.elf --vde vde0:/tmp/pic0.ctl:10.40.0.11:255.255.255.0: -a tcpclient:10.40.0.10:5555
+	4) Use tcpecho, tcpclient, netcat or hping in combination to test RST cases
+
+
+2. Reset Generation (p36)
+   ----------------------
+The following cases from RFC 793 for sending a RST segment are implemented.
+Each case (and state) has an example hping command to introduce a segment in
+a connection between tcpecho and tcpclient that generates a RST.
+Note: the examples do not include the appropriate sequence and acknowledge
+numbers. This is required for most RST sending cases (seq and ack must be
+valid).
+
+Case 1: Non-existing socket
+Tested with tcpecho only, hping3 -c 1 -I pic0 10.40.0.10 -p 5900 -s 5901 -S -A (wrong port number)
+
+Case 2: Non-synchronized state, RST sent when:
+	* the segment carries an unacceptable ACK;
+	* if the SYN has not been acknowledged and the precedence level of the
+      incoming segment is higher than the precedence level requested;
+	* if the SYN has been acknowledged and the precedence level of the incoming
+	  segment does not match the local precedence level exactly.
+
+2.1 State LISTEN: 	use tcpecho only, send segment with any flag enabled by hping3,
+					sudo hping3 -c 1 -I pic0 10.40.0.10 -p 5555 (-X)
+					(Note: currently commented because listen socket receives
+					all segments from children causing RST to be sent)
+2.2 State SYN-SENT:	disable receiving SYN-ACK in tcpclient,
+					hping3 -c 1 -I pic0 10.40.0.11 -a 10.40.0.10 -p 5901 -s 5555 -A -P -d 50
+2.3 State SYN-RECV:	disable receiving ACK in tcpecho,
+					hping3 -c 1 -I pic0 10.40.0.10 -a 10.40.0.11 -p 5555 -s 5901 -P -d 50
+
+
+Case 3: Synchronized state, 
+	* RST sent when: the incomingprecedence which does not exactly match
+	  the precedence requested for the connection;
+	* empty ACK sent when: receive unacceptable segment (out of window
+	  sequence number or unacceptable acknowledgment number)
+
+3.1 State ESTABLISHED:	disable socket shutdown on final EV_WR in picoapp tcpclient,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -S
+3.2 State CLOSE_WAIT:	disable socket shutdown on EV_CLOSE in picoapp tcpecho,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -P -d 50
+3.3 State LAST_ACK:		adjust state table with action funtions to ignore ACKs,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -P -d 50
+3.4 State FIN_W1:		adjust state table with action funtions to ignore ACK's and FINs,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -S
+3.5 State FIN_W2:		adjust state table with action funtions to ignore FINs,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -S
+3.6 State CLOSING:		adjust state table with action funtions to ignore ACKs (FW1 + CLOSING),
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -P -d 50
+3.7 State TIME_WAIT:	do not initiate deltcb timers when receiving FIN in FW2 or ACK in CLOSING,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -P -d 50
+
+
+3. Reset processing (p37)
+   ----------------------
+	1) State SYN_SENT:	disable receiving SYN-ACK in tcpclient,
+						hping3 -c 1 -I pic0 10.40.0.11 -a 10.40.0.10 -p 5555 -s 5901 -M seqnr -L acknr -R
+	2) State LISTEN:	use tcpecho only,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -R
+	3) States other:	see other test cases to force stack in certain state,
+						hping3 -c 1 -I pic0 10.40.0.10 -p 5555 -s 46700 -M seqnr -L acknr -R
