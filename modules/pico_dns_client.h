@@ -10,7 +10,7 @@ Authors: Kristof Roelants
 #ifndef _INCLUDE_PICO_DNS_CLIENT
 #define _INCLUDE_PICO_DNS_CLIENT
 
-int pico_dns_client_getaddr(const char *url);
-int pico_dns_client_getname(const char *ip);
+int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip));
+int pico_dns_client_getname(const char *ip, void (*callback)(char *url));
 
 #endif /* _INCLUDE_PICO_DNS_CLIENT */

@@ -7,17 +7,22 @@ holders.
 Authors: Kristof Roelants
 *********************************************************************/
 #include "pico_config.h"
+#include "pico_stack.h"
 #include "pico_addressing.h"
 #include "pico_socket.h"
 #include "pico_ipv4.h"
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
-//#define dns_dbg(...) do{}while(0)
-#define dns_dbg dbg
+#define dns_dbg(...) do{}while(0)
+//#define dns_dbg dbg
 
 /* DNS response length */
 #define PICO_DNS_MAX_RESPONSE_LEN 256
+
+/* DNS client retransmission time (msec) + frequency */
+#define PICO_DNS_CLIENT_RETRANS 4000
+#define PICO_DNS_CLIENT_MAX_RETRANS 3
 
 /* Nameservers */
 #define PICO_DNS_NS_GOOGLE "8.8.8.8"
@@ -107,6 +112,33 @@ struct __attribute__((packed)) dns_answer_suffix
   /* RDATA - variable length string of octets that describes the resource */
 };
 
+struct pico_dns_key
+{
+  void *q_hdr;
+  uint16_t len;
+  uint16_t id;
+  uint16_t qtype;
+  uint16_t qclass;
+  uint8_t retrans;
+  void (*callback)(char *);
+  RB_ENTRY(pico_dns_key) node;
+};
+
+static int dns_cmp(struct pico_dns_key *a, struct pico_dns_key *b)
+{
+  if (a->id < b->id)
+    return -1; 
+  else if (a->id > b->id)
+    return 1;
+  else
+    return 0;
+} 
+    
+RB_HEAD(pico_dns_list, pico_dns_key);
+RB_PROTOTYPE_STATIC(pico_dns_list, pico_dns_key, node, dns_cmp);
+RB_GENERATE_STATIC(pico_dns_list, pico_dns_key, node, dns_cmp);
+
+static struct pico_dns_list DNSTable;
  
 static int pico_dns_client_strlen(const char *url)
 {
@@ -264,12 +296,59 @@ static int pico_dns_client_mirror(char *ptr)
   return 0;
 }
 
+static struct pico_dns_key *pico_dns_client_idcheck(uint16_t id)
+{
+  struct pico_dns_key test;
+
+  test.id = id;
+  return RB_FIND(pico_dns_list, &DNSTable, &test);
+}
+
+static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
+
+static int pico_dns_client_send(struct pico_dns_key *key)
+{
+  struct pico_socket *s;
+  struct pico_ip4 nameserver = {0};
+  int w = 0;
+
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dns_client_callback);
+  if (!s)
+    return -1; 
+  pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &nameserver.addr);
+  if (pico_socket_connect(s, &nameserver, short_be(PICO_DNS_NS_PORT)) != 0)
+    return -1;
+  w = pico_socket_send(s, key->q_hdr, key->len);
+  if (w <= 0)
+    return -1;
+
+  return 0;
+}
+
+static void pico_dns_client_retransmission(unsigned long now, void *arg)
+{
+  struct pico_dns_key *key = (struct pico_dns_key *)arg;
+
+  if (key->retrans && key->retrans <= PICO_DNS_CLIENT_MAX_RETRANS) {
+    dns_dbg("DNS: retransmission! (%u)\n", key->retrans);
+    key->retrans++;
+    pico_dns_client_send(key);
+    pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
+  } else {
+    dns_dbg("DNS: no retransmission! (%u)\n", key->retrans);
+    pico_free(key->q_hdr);
+    RB_REMOVE(pico_dns_list, &DNSTable, key);
+  }
+}
+
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
   void *q_qname, *q_suf, *a_hdr, *a_qname, *a_suf, *a_rdata;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
   struct dns_answer_suffix answer_suf;
+  struct pico_dns_key test, *key;
+  char *answer;
   char dns_answer[PICO_DNS_MAX_RESPONSE_LEN] = {0};
   uint16_t compression = 0;
   int r = 0;
@@ -277,35 +356,42 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
   if (ev & PICO_SOCK_EV_RD) {
     r = pico_socket_read(s, dns_answer, PICO_DNS_MAX_RESPONSE_LEN);
     pico_socket_close(s);
-    if (r == PICO_DNS_MAX_RESPONSE_LEN || r < (int)sizeof(struct dns_message_hdr))
+    if (r == PICO_DNS_MAX_RESPONSE_LEN || r < (int)sizeof(struct dns_message_hdr)) {
+      dns_dbg("DNS ERROR: received incorrect number(%d) of bytes\n", r);
       return;
+    }
 
     /* Check header validity */
     a_hdr = dns_answer;
     hdr = (struct dns_message_hdr *) a_hdr;
     pico_dns_client_hdr_ntoh(hdr);
-    dns_dbg("QR %d | OPCODE %d | TC %d | RCODE %d\n", GET_FLAG_QR(hdr), GET_FLAG_OPCODE(hdr), GET_FLAG_TC(hdr), GET_FLAG_RCODE(hdr));
     if (GET_FLAG_QR(hdr) != PICO_DNS_QR_RESPONSE || GET_FLAG_OPCODE(hdr) != PICO_DNS_OPCODE_QUERY 
-        || GET_FLAG_TC(hdr) == PICO_DNS_TC_IS_TRUNCATED || GET_FLAG_RCODE(hdr) != PICO_DNS_RCODE_NO_ERROR)
+        || GET_FLAG_TC(hdr) == PICO_DNS_TC_IS_TRUNCATED || GET_FLAG_RCODE(hdr) != PICO_DNS_RCODE_NO_ERROR) {
+      dns_dbg("DNS ERROR: OPCODE %d | TC %d | RCODE %d\n", GET_FLAG_OPCODE(hdr), GET_FLAG_TC(hdr), GET_FLAG_RCODE(hdr));
       return;
+    }
 
     if (hdr->ancount < 1 || r < (int)(sizeof(struct dns_message_hdr) + hdr->qdcount * sizeof(struct dns_query_suffix)
-            + hdr->ancount * sizeof(struct dns_answer_suffix)))
+            + hdr->ancount * sizeof(struct dns_answer_suffix))) {
+      dns_dbg("DNS ERROR: ancount < 1 OR received number(%d) of bytes too low\n", r);
       return;
- 
+    }
+
+    /* Find DNS key */
+    test.id = hdr->id;
+    key = RB_FIND(pico_dns_list, &DNSTable, &test);
+    if (!key) {
+      dns_dbg("DNS WARNING: key with id %u not found\n", hdr->id);
+      return;
+    }
+    key->retrans = 0;
+
     /* Check query suffix validity */
     q_qname = a_hdr + sizeof(struct dns_message_hdr);
     q_suf = pico_dns_client_seek(q_qname);
     query_suf = *(struct dns_query_suffix *) q_suf;
-    if (hdr->id == 1) {
-      if (short_be(query_suf.qtype) != PICO_DNS_TYPE_A || short_be(query_suf.qclass) != PICO_DNS_CLASS_IN)
-        return;
-    }
-    else if (hdr->id == 2) {
-      if (short_be(query_suf.qtype) != PICO_DNS_TYPE_PTR || short_be(query_suf.qclass) != PICO_DNS_CLASS_IN)
-        return;
-    }
-    else {
+    if (short_be(query_suf.qtype) != key->qtype || short_be(query_suf.qclass) != key->qclass) {
+      dns_dbg("DNS ERROR: received qtype (%u) or qclass (%u) incorrect\n", short_be(query_suf.qtype), short_be(query_suf.qclass));
       return;
     }
 
@@ -329,29 +415,36 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
         break;
 
       default:
+        dns_dbg("DNS ERROR: incorrect compression (%u) value\n", compression);
         return;
     }
 
     /* Check answer suffix validity */
     answer_suf = *(struct dns_answer_suffix *)a_suf;
-    if (hdr->id == 1) {
-      if (short_be(answer_suf.qtype) != PICO_DNS_TYPE_A || short_be(answer_suf.qclass) != PICO_DNS_CLASS_IN)
-        return;
-    }
-    else if (hdr->id == 2) {
-      if (short_be(answer_suf.qtype) != PICO_DNS_TYPE_PTR || short_be(answer_suf.qclass) != PICO_DNS_CLASS_IN)
-        return;
-    }
-    if (short_be(answer_suf.ttl) > PICO_DNS_MAX_TTL)
+    if (short_be(answer_suf.qtype) != key->qtype || short_be(answer_suf.qclass) != key->qclass) {
+      dns_dbg("DNS ERROR: received qtype (%u) or qclass (%u) incorrect\n", short_be(answer_suf.qtype), short_be(answer_suf.qclass));
       return;
+    }
+
+    if (short_be(answer_suf.ttl) > PICO_DNS_MAX_TTL) {
+      dns_dbg("DNS ERROR: received TTL (%u) > MAX (%u)\n", short_be(answer_suf.ttl), PICO_DNS_MAX_TTL);
+      return;
+    }
 
     a_rdata = a_suf + sizeof(struct dns_answer_suffix);
-    if (hdr->id == 1) {
-      dns_dbg("DNS: has ip %08X\n", long_be(*(uint32_t *)a_rdata));
-    } else if (hdr->id == 2) {
+    if (key->qtype == PICO_DNS_TYPE_A) {
+      dns_dbg("DNS: length %u | ip %08X\n", short_be(answer_suf.rdlength), long_be(*(uint32_t *)a_rdata));
+      answer = pico_zalloc(16);
+      pico_ipv4_to_string(answer, *(uint32_t *)a_rdata);
+      key->callback(answer);
+    } else if (key->qtype == PICO_DNS_TYPE_PTR) {
       pico_dns_client_reverse_label((char *) a_rdata);
-      dns_dbg("DNS: has name %s\n", (char *)a_rdata + 1);
+      dns_dbg("DNS: length %u | name %s\n", short_be(answer_suf.rdlength), (char *)a_rdata + 1);
+      answer = pico_zalloc(answer_suf.rdlength - 1);
+      memcpy(answer, (char *)a_rdata + 1, short_be(answer_suf.rdlength) - 1);
+      key->callback(answer);
     } else {
+      dns_dbg("DNS ERROR: incorrect qtype (%u)\n", key->qtype);
       return;
     }
   }
@@ -361,15 +454,14 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
   }
 }
 
-int pico_dns_client_getaddr(const char *url)
+int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
 {
   void *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
-  struct pico_socket *s;
-  struct pico_ip4 nameserver = {0};
+  struct pico_dns_key *key;
   uint16_t url_len = 0;
-  int w = 0;
+  uint16_t id = 0;
 
   url_len = pico_dns_client_strlen(url);
   /* 2 extra bytes for url_len to account for 2 extra label length octets */
@@ -379,7 +471,11 @@ int pico_dns_client_getaddr(const char *url)
 
   /* Construct query header */
   hdr = (struct dns_message_hdr *) q_hdr;
-  pico_dns_client_construct_hdr(hdr, 1);
+  do {
+    id = (uint16_t) (pico_rand() & 0xFFFFU);
+    dns_dbg("DNS: generated id %u\n", id);
+  } while (pico_dns_client_idcheck(id));
+  pico_dns_client_construct_hdr(hdr, id);
   /* Add and manipulate domain name */
   memcpy(q_qname + 1, url, url_len + 1);
   pico_dns_client_label((char *)q_qname);
@@ -387,31 +483,38 @@ int pico_dns_client_getaddr(const char *url)
   query_suf.qtype = short_be(PICO_DNS_TYPE_A);
   query_suf.qclass = short_be(PICO_DNS_CLASS_IN);
   memcpy(q_suf, &query_suf, sizeof(struct dns_query_suffix));
-
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dns_client_callback);
-  if (!s)
-    return -1; 
-  pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &nameserver.addr);
-  if (pico_socket_connect(s, &nameserver, short_be(PICO_DNS_NS_PORT)) != 0)
+  /* Create RB entry */
+  key = pico_zalloc(sizeof(struct pico_dns_key));
+  if (!key) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
-  w = pico_socket_send(s, q_hdr, sizeof(struct dns_message_hdr) + (1 + url_len + 1) + sizeof(struct dns_query_suffix));
-  if (w <= 0)
-    return -1;
+  }
+  key->q_hdr = q_hdr;
+  key->len = sizeof(struct dns_message_hdr) + (1 + url_len + 1) + sizeof(struct dns_query_suffix);
+  key->id = id;
+  key->qtype = PICO_DNS_TYPE_A;
+  key->qclass = PICO_DNS_CLASS_IN;
+  key->retrans = 1;
+  key->callback = callback;
+  /* Send query */
+  pico_dns_client_send(key);
+  /* Insert RB entry */
+  if (RB_INSERT(pico_dns_list, &DNSTable, key))
+    return -1; /* Element key already exists */
 
-  pico_free(q_hdr);
+  pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   return 0;
 }
 
-int pico_dns_client_getname(const char *ip)
+int pico_dns_client_getname(const char *ip, void (*callback)(char *))
 {
   void *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
-  struct pico_socket *s;
-  struct pico_ip4 nameserver = {0};
+  struct pico_dns_key *key;
   uint16_t ip_len = 0;
   uint16_t arpa_len = 0;
-  int w = 0;
+  uint16_t id = 0;
 
   ip_len = pico_dns_client_strlen(ip);
   arpa_len = pico_dns_client_strlen(".in-addr.arpa");
@@ -422,7 +525,11 @@ int pico_dns_client_getname(const char *ip)
 
   /* Construct query header */
   hdr = (struct dns_message_hdr *)q_hdr;
-  pico_dns_client_construct_hdr(hdr, 2);
+  do {
+    id = (uint16_t) (pico_rand() & 0xFFFFU);
+    dns_dbg("DNS: generated id %u\n", id);
+  } while (pico_dns_client_idcheck(id));
+  pico_dns_client_construct_hdr(hdr, id);
   /* Add and manipulate domain name */
   memcpy(q_qname + 1, ip, ip_len + 1);
   pico_dns_client_mirror((char *)(q_qname + 1));
@@ -432,18 +539,26 @@ int pico_dns_client_getname(const char *ip)
   query_suf.qtype = short_be(PICO_DNS_TYPE_PTR);
   query_suf.qclass = short_be(PICO_DNS_CLASS_IN);
   memcpy(q_suf, &query_suf, sizeof(struct dns_query_suffix));
-
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dns_client_callback);
-  if (!s)
-    return -1; 
-  pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &nameserver.addr);
-  if (pico_socket_connect(s, &nameserver, short_be(PICO_DNS_NS_PORT)) != 0)
+  /* Create RB entry */
+  key = pico_zalloc(sizeof(struct pico_dns_key));
+  if (!key) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
-  w = pico_socket_send(s, q_hdr, sizeof(struct dns_message_hdr) + (1 + ip_len + arpa_len + 1) + sizeof(struct dns_query_suffix));
-  if (w <= 0)
-    return -1;
+  }
+  key->q_hdr = q_hdr;
+  key->len = sizeof(struct dns_message_hdr) + (1 + ip_len + arpa_len + 1) + sizeof(struct dns_query_suffix);
+  key->id = id;
+  key->qtype = PICO_DNS_TYPE_PTR;
+  key->qclass = PICO_DNS_CLASS_IN;
+  key->retrans = 1;
+  key->callback = callback;
+  /* Send query */
+  pico_dns_client_send(key);
+  /* Insert RB entry */
+  if (RB_INSERT(pico_dns_list, &DNSTable, key))
+    return -1; /* Element key already exists */
 
-  pico_free(q_hdr);
+  pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   return 0;
 }
 

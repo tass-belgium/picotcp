@@ -202,6 +202,18 @@ iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
 iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
 */
+void cb_udpdnsclient_getaddr(char *ip)
+{
+  printf("%s: ip %s\n", __FUNCTION__, ip);
+  //pico_free(ip);
+}
+
+void cb_udpdnsclient_getname(char *name)
+{
+  printf("%s: name %s\n", __FUNCTION__, name);
+  //pico_free(name);
+}
+
 void app_udpdnsclient(char *arg)
 {
   char *dname, *daddr;
@@ -229,9 +241,9 @@ void app_udpdnsclient(char *arg)
   printf("UDP DNS client started.\n");
 
   printf(">>>>> DNS GET ADDR OF %s\n", dname);
-  pico_dns_client_getaddr(dname);
+  pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr);
   printf(">>>>> DNS GET NAME OF %s\n", daddr);
-  pico_dns_client_getname(daddr);
+  pico_dns_client_getname(daddr, &cb_udpdnsclient_getname);
 
   return;
 }
