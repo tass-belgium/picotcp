@@ -28,6 +28,9 @@ static int pico_igmp2_checksum(struct pico_frame *f)
 
 int main(int argc, char **argv)
 {
+#ifndef PICO_UNIT_TEST_IGMP2
+  return 0;
+#endif
   int TestNumber = atoi(argv[1]);
 
   unsigned char macaddr_host[6] = {0x0e, 0, 0, 0xa, 0xb, 0xc};
