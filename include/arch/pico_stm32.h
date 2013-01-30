@@ -1,4 +1,5 @@
-#define dbg(...) do{}while(0)
+//#define dbg(...) do{}while(0)
+#define dbg printf
 
 /*************************/
 

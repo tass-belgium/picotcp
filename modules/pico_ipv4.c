@@ -539,7 +539,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   }
 
   /* TODO: Check if there are members subscribed here */
-
   return pico_enqueue(&out, f);
 drop:
   pico_frame_discard(f);

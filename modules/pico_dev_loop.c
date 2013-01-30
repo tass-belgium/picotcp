@@ -25,6 +25,7 @@ static int pico_loop_send(struct pico_device *dev, void *buf, int len)
 
   if (l_bufsize == 0) {
     memcpy(l_buf, buf, len);
+    l_bufsize+=len;
     return len;
   }
   return 0;

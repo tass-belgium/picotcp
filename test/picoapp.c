@@ -9,6 +9,7 @@
 #include "pico_nat.h"
 #include "pico_icmp4.h"
 #include "pico_dns_client.h"
+#include "pico_dev_loop.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -1135,6 +1136,7 @@ int main(int argc, char **argv)
     {"vde",1 , 0, 'v'},
     {"tun", 1, 0, 't'},
     {"app", 1, 0, 'a'},
+    {"loop", 1, 0, 'l'},
     {0,0,0,0}
   };
   int option_idx = 0;
@@ -1146,7 +1148,7 @@ int main(int argc, char **argv)
   pico_stack_init();
   /* Parse args */
   while(1) {
-    c = getopt_long(argc, argv, "v:t:a:h", long_options, &option_idx);
+    c = getopt_long(argc, argv, "v:t:a:hl", long_options, &option_idx);
     if (c < 0)
       break;
     switch(c) {
@@ -1218,6 +1220,18 @@ int main(int argc, char **argv)
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
           pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+        }
+      }
+      break;
+    case 'l':
+      {
+        struct pico_ip4 ipaddr, netmask;
+        pico_string_to_ipv4("127.0.0.1", &ipaddr.addr);
+        pico_string_to_ipv4("255.0.0.0", &netmask.addr);
+        printf("Creating loopback device\n");
+        dev = pico_loop_create();
+        if (dev) {
+          pico_ipv4_link_add(dev, ipaddr, netmask);
         }
       }
       break;
