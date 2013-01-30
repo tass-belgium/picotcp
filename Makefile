@@ -34,6 +34,10 @@ ifeq ($(ARCH),stm32)
   -DSTM32
 endif
 
+ifeq ($(ARCH),stellaris)
+  CFLAGS+=-mthumb -DSTELLARIS
+endif
+
 
 .c.o:
 	@echo "\t[CC] $<"

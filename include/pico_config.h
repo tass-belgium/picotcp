@@ -17,6 +17,8 @@ holders.
  *** *** *** *** *** *** ***/
 #if defined STM32
 # include "arch/pico_stm32.h"
+#elif defined STELLARIS
+# include "arch/pico_stellaris.h"
 
 //#elif defined ...
 
