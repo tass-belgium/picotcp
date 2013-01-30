@@ -15,8 +15,13 @@ holders.
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***
  *** *** *** *** *** *** ***/
+#if defined STM32
+# include "arch/pico_stm32.h"
 
-#include "arch/pico_posix.h"
-//#include "arch/pico_stm32.h"
+//#elif defined ...
+
+#else
+# include "arch/pico_posix.h"
+#endif
 
 #endif

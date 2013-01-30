@@ -1,5 +1,4 @@
 CC=$(CROSS_COMPILE)gcc
-#STMCFLAGS = -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
@@ -17,18 +16,27 @@ DHCP_CLIENT?=1
 DNS_CLIENT?=1
 ENDIAN=little
 
+
 ifeq ($(DEBUG),1)
-CFLAGS=-Iinclude -Imodules -Wall -ggdb $(STMCFLAGS)
+CFLAGS=-Iinclude -Imodules -Wall -ggdb
   ifeq ($(DEBUG_IGMP2),1)
     OPTIONS+=-DPICO_UNIT_TEST_IGMP2
   endif
 else
-  CFLAGS=-Iinclude -Imodules -Wall -Os $(STMCFLAGS)
+  CFLAGS=-Iinclude -Imodules -Wall -Os
 endif
 
 ifneq ($(ENDIAN),little)
   CFLAGS+=-DPICO_BIGENDIAN
 endif
+
+ifeq ($(ARCH),stm32)
+  CFLAGS+=-mcpu=cortex-m4 \
+  -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
+  -DSTM32
+endif
+
 
 .c.o:
 	@echo "\t[CC] $<"
