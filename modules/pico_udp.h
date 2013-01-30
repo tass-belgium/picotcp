@@ -19,11 +19,24 @@ struct __attribute__((packed)) pico_udp_hdr {
 };
 #define PICO_UDPHDR_SIZE 8
 
-int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl);
-int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl);
 struct pico_socket *pico_udp_open(void);
 int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port);
 int pico_udp_checksum(struct pico_frame *f);
 
+#ifdef PICO_SUPPORT_MCAST
+int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl);
+int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl);
+#else
+static inline int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
+{
+  pico_err = PICO_ERR_EPROTONOSUPPORT;
+  return -1;
+}
+static inline int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
+{
+  pico_err = PICO_ERR_EPROTONOSUPPORT;
+  return -1;
+}
+#endif /* PICO_SUPPORT_MCAST */
 
 #endif

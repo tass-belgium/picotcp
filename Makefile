@@ -10,6 +10,7 @@ IPV4?=1
 NAT?=1
 ICMP4?=1
 IGMP2?=1
+MCAST?=1
 DEVLOOP?=1
 PING?=1
 DHCP_CLIENT?=1
@@ -69,6 +70,9 @@ ifneq ($(ICMP4),0)
 endif
 ifneq ($(IGMP2),0)
   include rules/igmp2.mk
+endif
+ifneq ($(MCAST),0)
+  include rules/mcast.mk
 endif
 ifneq ($(TCP),0)
   include rules/tcp.mk
