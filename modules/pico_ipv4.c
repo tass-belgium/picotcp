@@ -22,17 +22,16 @@ Authors: Daniele Lacamera, Markian Yskout
 
 #ifdef PICO_SUPPORT_IPV4
 
-#define mcast_dbg(...) do{}while(0)
-//#define mcast_dbg dbg
-
-#define PICO_MCAST_ALL_HOSTS 0x010000E0 /* 224.0.0.1 */
+#ifdef PICO_SUPPORT_MCAST
+# define mcast_dbg(...) do{}while(0)
+# define PICO_MCAST_ALL_HOSTS 0x010000E0 /* 224.0.0.1 */
+  /* Default network interface for multicast transmission */
+  static struct pico_ipv4_link *mcast_default_link = NULL;
+#endif
 
 /* Queues */
 static struct pico_queue in = {};
 static struct pico_queue out = {};
-
-/* Default network interface for multicast transmission */
-static struct pico_ipv4_link *mcast_default_link = NULL;
 
 /* Functions */
 
@@ -153,8 +152,9 @@ static int pico_ipv4_checksum(struct pico_frame *f)
 }
 
 static int pico_ipv4_forward(struct pico_frame *f);
+#ifdef PICO_SUPPORT_MCAST
 static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
-
+#endif
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   int option_len = 0;
@@ -169,18 +169,20 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   }
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR+ option_len;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len ;
-
+#ifdef PICO_SUPPORT_MCAST
   /* Multicast address in source, discard quietly */
   if (!pico_ipv4_is_unicast(hdr->src.addr)) {
     mcast_dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
     pico_frame_discard(f);
     return 0;
   }
+#endif
   if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
       /* Receiving UDP broadcast datagram */
       f->flags |= PICO_FRAME_FLAG_BCAST;
       pico_enqueue(pico_proto_udp.q_in, f);
   } else if (!pico_ipv4_is_unicast(hdr->dst.addr)  ) {
+#ifdef PICO_SUPPORT_MCAST
     /* Receiving UDP multicast datagram TODO set f->flags? */
     if (hdr->proto == PICO_PROTO_IGMP2) {
       mcast_dbg("MCAST: received IGMP message\n");
@@ -190,6 +192,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     } else {
       pico_frame_discard(f);
     }
+#endif
   } else if (pico_ipv4_link_find(&hdr->dst)) {
    if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
       if(pico_ipv4_nat(f, hdr->dst) != 0) {
@@ -340,6 +343,7 @@ struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
   return myself;
 }
 
+#ifdef PICO_SUPPORT_MCAST
 struct pico_mcast_group {
   struct pico_ipv4_link *mcast_link;
   struct pico_ip4 mcast_addr;
@@ -479,6 +483,7 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
   mcast_dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
   return 0;
 }
+#endif /* PICO_SUPPORT_MCAST */
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {  
@@ -500,16 +505,16 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
   route = route_find(dst);
   if (!route) {
-
-#ifdef PICO_SUPPORT_UDP
-    if (!pico_ipv4_is_unicast(dst->addr)) {
-      link = mcast_default_link;
-      if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
-        ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
-    } else {
+    if (pico_ipv4_is_unicast(dst->addr)) {
       dbg("Route to %08x not found.\n", long_be(dst->addr));
       goto drop;
     }
+#ifdef PICO_SUPPORT_MCAST
+    link = mcast_default_link;
+    if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
+      ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
+#else
+    goto drop;
 #endif
   } else {
     link = route->link;
@@ -529,6 +534,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   pico_ipv4_checksum(f);
 
   f->dev = link->dev;
+#ifdef PICO_SUPPORT_MCAST
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
   /* Sending UDP multicast datagram, am I member? If so, loopback copy */
     if (pico_ipv4_mcast_is_group_member(f)) {
@@ -537,6 +543,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
       pico_enqueue(&in, cpy);
     }
   }
+#endif
 
   /* TODO: Check if there are members subscribed here */
   return pico_enqueue(&out, f);
@@ -628,7 +635,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask)
 {
   struct pico_ipv4_link test, *new;
-  struct pico_ip4 network, gateway, mcast_all_hosts;
+  struct pico_ip4 network, gateway;
   char ipstr[30];
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
@@ -648,19 +655,24 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new->address.addr = address.addr;
   new->netmask.addr = netmask.addr;
   new->dev = dev;
+#ifdef PICO_SUPPORT_MCAST
   new->mcast_head = pico_zalloc(sizeof(struct pico_mcast_list));
   if (!new->mcast_head) {
     pico_free(new);
     dbg("IPv4: Out of memory!\n");
     return -1;
   }
+#endif
 
   RB_INSERT(link_tree, &Tree_dev_link, new);
+#ifdef PICO_SUPPORT_MCAST
   if (!mcast_default_link)
     mcast_default_link = new;
 
+  struct pico_ip4 mcast_all_hosts;
   mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
   pico_ipv4_mcast_join_group(&mcast_all_hosts, new);
+#endif
 
   network.addr = address.addr & netmask.addr;
   gateway.addr = 0U;
@@ -675,7 +687,6 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
   struct pico_ip4 network;
-  struct pico_mcast_group *g = NULL, *tmp = NULL;
 
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
@@ -684,11 +695,13 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 
   network.addr = found->address.addr & found->netmask.addr;
   pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
-  
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_mcast_group *g = NULL, *tmp = NULL;
   RB_FOREACH_SAFE(g, pico_mcast_list, found->mcast_head, tmp) {  
     RB_REMOVE(pico_mcast_list, found->mcast_head, g);
     pico_free(g);
   }
+#endif
   RB_REMOVE(link_tree, &Tree_dev_link, found);
   return 0;
 }

@@ -77,9 +77,12 @@ struct pico_socket_udp
 {
   struct pico_socket sock;
   int mode;
+#ifdef PICO_SUPPORT_MCAST
   uint8_t mc_ttl; /* Multicasting TTL */
+#endif
 };
 
+#ifdef PICO_SUPPORT_MCAST
 int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
 {
   struct pico_socket_udp *u;
@@ -101,6 +104,7 @@ int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
   *ttl = u->mc_ttl;
   return 0;
 }
+#endif /* PICO_SUPPORT_MCAST */
 
 struct pico_socket *pico_udp_open(void)
 {
@@ -108,10 +112,12 @@ struct pico_socket *pico_udp_open(void)
   if (!u)
     return NULL;
   u->mode = PICO_UDP_MODE_UNICAST;
-  u->mc_ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
 
+#ifdef PICO_SUPPORT_MCAST
+  u->mc_ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
   /* enable multicast loopback by default */
   u->sock.opt_flags |= (1 << PICO_SOCKET_OPT_MULTICAST_LOOP);
+#endif
 
   return &u->sock;
 }

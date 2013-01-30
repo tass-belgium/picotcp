@@ -898,7 +898,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
 #endif
 
 
-#ifdef PICO_SUPPORT_UDP
+#ifdef PICO_SUPPORT_MCAST
     case PICO_IP_MULTICAST_IF:
           pico_err = PICO_ERR_EOPNOTSUPP;
           return -1;
@@ -964,7 +964,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
             return pico_ipv4_mcast_leave_group(&mreq->mcast_group_addr, mcast_link);
           }          
           break;
-#endif
+#endif /* PICO_SUPPORT_MCAST */
 
     default:
           pico_err = PICO_ERR_EINVAL;
@@ -995,7 +995,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
           break;
 #endif
 
-#ifdef PICO_SUPPORT_UDP
+#ifdef PICO_SUPPORT_MCAST
     case PICO_IP_MULTICAST_IF:
           pico_err = PICO_ERR_EOPNOTSUPP;
           return -1;
@@ -1020,7 +1020,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
             return -1;
           }
           break;
-#endif
+#endif /* PICO_SUPPORT_MCAST */
 
     default:
           pico_err = PICO_ERR_EINVAL;

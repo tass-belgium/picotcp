@@ -772,7 +772,7 @@ void app_mcastclient(char *arg)
   if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
     exit(1);
 
-#ifdef PICO_SUPPORT_UDP
+#ifdef PICO_SUPPORT_MCAST
   /* Start of pico_socket_setoption */
   printf("\n---------- Testing SET PICO_IP_MULTICAST_IF: not supported ----------\n");
   struct pico_ip4 mcast_default_link = {0};
@@ -961,7 +961,7 @@ void app_mcastclient(char *arg)
   } else {
     printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
   }
-#endif //ifdef PICO_SUPPORT_UDP
+#endif /* PICO_SUPPORT_MCAST */
 
   pico_timer_add(1000, mcastclient_send, s);
 
@@ -1264,9 +1264,15 @@ int main(int argc, char **argv)
           app_udpnatclient(args);
         }
         else IF_APPNAME("mcastclient") {
+#ifndef PICO_SUPPORT_MCAST
+          return 0;
+#endif
           app_mcastclient(args);
         }
         else IF_APPNAME("mcastreceive") {
+#ifndef PICO_SUPPORT_MCAST
+          return 0;
+#endif
           app_mcastreceive(args);
         }
 #ifdef PICO_SUPPORT_PING

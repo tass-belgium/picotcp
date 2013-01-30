@@ -9,7 +9,7 @@ UDP?=1
 IPV4?=1
 NAT?=1
 ICMP4?=1
-IGMP2?=1
+MCAST?=1
 DEVLOOP?=1
 PING?=1
 DHCP_CLIENT?=1
@@ -18,10 +18,7 @@ ENDIAN=little
 
 
 ifeq ($(DEBUG),1)
-CFLAGS=-Iinclude -Imodules -Wall -ggdb
-  ifeq ($(DEBUG_IGMP2),1)
-    OPTIONS+=-DPICO_UNIT_TEST_IGMP2
-  endif
+  CFLAGS=-Iinclude -Imodules -Wall -ggdb
 else
   CFLAGS=-Iinclude -Imodules -Wall -Os
 endif
@@ -67,14 +64,20 @@ endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk
 endif
-ifneq ($(IGMP2),0)
-  include rules/igmp2.mk
-endif
 ifneq ($(TCP),0)
   include rules/tcp.mk
 endif
 ifneq ($(UDP),0)
   include rules/udp.mk
+else
+  MCAST=0
+endif
+ifneq ($(MCAST),0)
+  include rules/mcast.mk
+  include rules/igmp2.mk
+  ifeq ($(DEBUG_IGMP2),1)
+    OPTIONS+=-DPICO_UNIT_TEST_IGMP2
+  endif
 endif
 ifneq ($(NAT),0)
   include rules/nat.mk
