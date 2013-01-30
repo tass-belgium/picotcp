@@ -944,8 +944,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
   
   if (((s->state & PICO_SOCKET_STATE_TCP) ==  PICO_SOCKET_STATE_TCP_LISTEN)) {
     /* XXX TODO NOTE: to prevent the parent socket from trying to send, because this socket has no knowledge of dst IP !!! */
-    //return pico_tcp_reply_rst(fr);
-    return 0;
+    return pico_tcp_reply_rst(fr);
   }
 
   /***************************************************************************/
@@ -1898,7 +1897,7 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
   { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
   { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_sim_open,   &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_SYN_RECV,NULL/*&tcp_nosync_rst*/,&tcp_sim_open_ack, &tcp_first_ack,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_RECV,     &tcp_nosync_rst, &tcp_sim_open_ack, &tcp_first_ack,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
   { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_send_rst,   &tcp_send_rst,     &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   &tcp_send_rst,   &tcp_send_rst,     &tcp_ack,          &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
   { PICO_SOCKET_STATE_TCP_LAST_ACK,     &tcp_send_rst,   &tcp_send_rst,     &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },

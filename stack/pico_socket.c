@@ -266,8 +266,14 @@ static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, 
 static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
 {
   struct pico_sockport *sp;
-  struct pico_socket *s;
+  struct pico_socket *s,*found;
   struct pico_trans *tr = (struct pico_trans *)f->transport_hdr;
+  #ifdef PICO_SUPPORT_IPV4
+  struct pico_ipv4_hdr *ip4hdr;
+  #endif
+  #ifdef PICO_SUPPORT_IPV6
+  struct pico_ipv6_hdr *ip6hdr;
+  #endif
 
   if (!tr)
     return -1;
@@ -282,15 +288,41 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
     RB_FOREACH(s, socket_tree, &sp->socks) {
-      if ((s->remote_port == 0) || (s->remote_port == tr->sport)) {
-        struct pico_frame *cpy = pico_frame_copy(f);
-        pico_tcp_input(s, cpy);
-        if (s->remote_port == tr->sport)
+      /* 4-tuple identification of socket (port-IP) */
+      #ifdef PICO_SUPPORT_IPV4
+      if (IS_IPV4(f)) {
+        ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
+        if ( (s->remote_port == tr->sport) && (((struct pico_ip4) s->remote_addr.ip4).addr == ((struct pico_ip4)(ip4hdr->src)).addr) ) {
+          found = s;
           break;
+        } else if (s->remote_port == 0) {
+          /* listen socket */
+          found = s;
+        }
       }
+      #endif
+      #ifdef PICO_SUPPORT_IPV6    /* XXX TODO make compare for ipv6 addresses */
+      if (IS_IPV6(f)) {
+        ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
+        if ( (s->remote_port == tr->sport) ) { // && (((struct pico_ip6) s->remote_addr.ip6).addr == ((struct pico_ip6)(ip6hdr->src)).addr) ) {
+          found = s;
+          break;
+        } else if (s->remote_port == 0) {
+          /* listen socket */
+          found = s;
+        }
+      }
+      #endif 
+    } /* end foreach */
+    
+    if (found != NULL) {
+      pico_tcp_input(found,f);
+      return 0;
+    } else {
+      pico_frame_discard(f);
+      dbg("SOCKET> mmm something wrong (prob sockport)\n");
+      return -1;
     }
-    pico_frame_discard(f);
-    return 0;
   }
 #endif
 
