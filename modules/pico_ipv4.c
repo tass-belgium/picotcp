@@ -157,18 +157,15 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 #endif
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
-  int option_len = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 	struct pico_ip4 address0;
 	address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
-     option_len = 4*(((hdr->vhl) & 0x0F )-5);
-  }else{
-     option_len = 0;
+     f->net_len =4*((hdr->vhl) & 0x0F );
   }
-  f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR+ option_len;
-  f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len ;
+  f->transport_hdr = ((uint8_t *)f->net_hdr) + f->net_len;
+  f->transport_len = short_be(hdr->len) - f->net_len ;
 #ifdef PICO_SUPPORT_MCAST
   /* Multicast address in source, discard quietly */
   if (!pico_ipv4_is_unicast(hdr->src.addr)) {
