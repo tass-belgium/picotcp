@@ -747,7 +747,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
     return -1;
   }
 
-  //dbg("FORWARDING.\n");
+  //dbg("IP> FORWARDING.\n");
   rt = route_find(&hdr->dst);
   if (!rt) {
     pico_notify_dest_unreachable(f);
@@ -768,6 +768,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
 
   //dbg("Routing towards %s\n", f->dev->name);
   f->start = f->net_hdr;
+  f->len -= PICO_SIZE_ETHHDR;
   pico_sendto_dev(f);
   return 0;
 
