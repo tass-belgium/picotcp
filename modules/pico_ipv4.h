@@ -24,6 +24,7 @@ struct __attribute__((packed)) pico_ipv4_hdr {
   uint16_t crc;
   struct pico_ip4 src;
   struct pico_ip4 dst;
+  uint8_t options[0];
 };
 
 /* Interface: link to device */
