@@ -44,13 +44,14 @@ struct pico_nat_key {
               1                   0 
     5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |F|B|S|R|~~~| CONNECTION ACTIVE |
+   |F|B|S|R|P|~| CONNECTION ACTIVE |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
   F: FIN from Forwarding packet
   B: FIN from Backwarding packet
   S: SYN 
   R: RST  
+  P: Persistant
          
   */
   uint16_t del_flags;
@@ -176,7 +177,9 @@ int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f) {
       nk->del_flags |= PICO_DEL_FLAGS_RST;
     }
   } else if (proto == PICO_PROTO_UDP) {
-    nk->del_flags = 0x0001;  // set the active flag of this udp session
+    /* set conn active to 1 */
+    nk->del_flags &= 0xFE00; 
+    nk->del_flags++;
   } 
   return 0; 
 }
@@ -203,7 +206,9 @@ int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
       nk->del_flags |= PICO_DEL_FLAGS_RST;
     }
   } else if (proto == PICO_PROTO_UDP) {
-    nk->del_flags = 0x0001;  // set the active flag of this udp session
+    /* set conn active to 1 */
+    nk->del_flags &= 0xFE00; 
+    nk->del_flags++;
   }
   return 0;
 }
@@ -219,7 +224,11 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
     switch (k->proto)
     {
       case PICO_PROTO_TCP:
-        if ((k->del_flags & 0x01FF) == 0) {
+        if ((k->del_flags & 0x0800) >> 11) {
+          /* entry is persistant */
+          break;
+        }
+        else if ((k->del_flags & 0x01FF) == 0) {
           /* conn active is zero, delete entry */
           pico_ipv4_nat_del(k->proto, k->nat_port);
         }
@@ -241,8 +250,12 @@ void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
         break;
 
       case PICO_PROTO_UDP:
-        /* Delete entry when it has existed NAT_TCP_TIMEWAIT */
-        if ((k->del_flags & 0x01FF) > 1) {
+        if ((k->del_flags & 0x0800) >> 11) {
+          /* entry is persistant */
+          break;
+        }
+        else if ((k->del_flags & 0x01FF) > 1) {
+          /* Delete entry when it has existed NAT_TCP_TIMEWAIT */
           pico_ipv4_nat_del(k->proto, k->nat_port);
         }
         else {
@@ -270,7 +283,7 @@ int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t prot
 {
   struct pico_nat_key *key = pico_zalloc(sizeof(struct pico_nat_key));
   if (!key) {
-    //pico_err = PICO_ERR_ENOMEM;
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
 
@@ -310,25 +323,51 @@ int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port)
   return 0;
 }
 
+int pico_ipv4_port_forward(uint32_t pub_addr, uint16_t pub_port, uint32_t priv_addr, uint16_t priv_port, uint8_t proto, uint8_t persistant)
+{
+  struct pico_nat_key *key = NULL;
+
+  switch (persistant)
+  {
+    case PICO_IPV4_FORWARD_ADD:
+      if (pico_ipv4_nat_add(priv_addr, priv_port, proto, pub_addr, pub_port) != 0)
+        return -1;
+      key = pico_ipv4_nat_find_key(priv_addr, priv_port, proto, pub_port);
+      if (!key)
+        return -1;
+      key->del_flags = (key->del_flags & ~(0x1 << 11)) | (persistant << 11);
+      break;
+
+    case PICO_IPV4_FORWARD_DEL:
+      return pico_ipv4_nat_del(proto, pub_port);
+
+    default:
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+  }
+  pico_ipv4_nat_print_table();
+  return 0;
+}
+
 
 void pico_ipv4_nat_print_table(void)
 {
   struct pico_nat_key *k = NULL;
   uint16_t i = 0;
 
-  nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-  nat_dbg("+                                                   NAT table                                                    +\n");
-  nat_dbg("+----------------------------------------------------------------------------------------------------------------+\n");
-  nat_dbg("+  pointer   | private_addr | private_port | proto | nat_addr | nat_port | conn active | FIN1 | FIN2 | SYN | RST +\n");
-  nat_dbg("+----------------------------------------------------------------------------------------------------------------+\n");
+  nat_dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  nat_dbg("+                                                       NAT table                                                       +\n");
+  nat_dbg("+-----------------------------------------------------------------------------------------------------------------------+\n");
+  nat_dbg("+  pointer   | private_addr | private_port | proto | nat_addr | nat_port | conn active | FIN1 | FIN2 | SYN | RST | PERS +\n");
+  nat_dbg("+-----------------------------------------------------------------------------------------------------------------------+\n");
 
   RB_FOREACH(k, nat_table_forward, &KEYTable_forward) {
-    nat_dbg("+ %10p |   %08X   |    %05u     |  %04u | %08X |  %05u   |     %03u     |   %u  |   %u  |  %u  |  %u  +\n", 
-           k, k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port, (k->del_flags)&0x01FF, 
-           ((k->del_flags)&0x8000)>>15, ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12);
+    nat_dbg("+ %10p |   %08X   |    %05u     |  %04u | %08X |  %05u   |     %03u     |   %u  |   %u  |  %u  |  %u  |   %u  +\n", 
+           k, k->private_addr, k->private_port, k->proto, k->nat_addr, k->nat_port, (k->del_flags)&0x01FF, ((k->del_flags)&0x8000)>>15, 
+           ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12, ((k->del_flags)&0x0800)>>11);
     i++;
   }
-  nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+  nat_dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
 }
 
 int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, struct pico_ip4 nat_addr)

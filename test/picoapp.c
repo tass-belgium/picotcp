@@ -625,6 +625,7 @@ void app_natbox(char *arg)
     exit(255);
   }
   pico_ipv4_nat_enable(link);
+  pico_ipv4_port_forward(0x0A00320A, short_be(5555), 0x0800280A, short_be(6667), PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
   fprintf(stderr, "natbox: started.\n");
 }
 
