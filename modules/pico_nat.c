@@ -403,6 +403,11 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
     if (!udp_hdr)
       return -1;
     nk->private_port = udp_hdr->trans.sport; 
+  } else if (proto == PICO_PROTO_ICMP4) {
+    nk->private_port = (uint16_t)(ipv4_hdr->src.addr & 0x00FF); 
+    nat_port = (uint16_t)(ipv4_hdr->dst.addr & 0x00FF);
+    if (!pico_is_port_free(proto, nat_port))
+      return -1;
   }
 
   nk->private_addr = ipv4_hdr->src.addr;
@@ -465,7 +470,7 @@ int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
   }
 
   //if(f->proto == PICO_PROTO_ICMP){
-  //}
+  //} XXX no action
 
   ipv4_hdr->src.addr = nk->nat_addr;
 
@@ -488,7 +493,8 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
   struct pico_nat_key *nk = NULL;
   struct pico_tcp_hdr *tcp_hdr = NULL;
   struct pico_udp_hdr *udp_hdr = NULL; 
-  uint16_t nat_port=0; 
+  struct pico_icmp4_hdr *icmp_hdr = NULL;
+  uint16_t nat_port = 0;
 
   struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
@@ -504,7 +510,13 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
     udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
     if (!udp_hdr)
       return -1;
-    nat_port= udp_hdr->trans.dport;
+    nat_port = udp_hdr->trans.dport;
+  } else if (proto == PICO_PROTO_ICMP4) {
+    icmp_hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
+    if (!icmp_hdr)
+      return -1;
+    /* XXX PRELIMINARY ONLY LAST 16 BITS OF IP */
+    nat_port = (uint16_t)(ipv4_hdr->src.addr & 0x00FF);
   }
 
   nk = pico_ipv4_nat_find_key(0,0,proto,nat_port);
@@ -514,7 +526,9 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
     return -1;
   }else{
     pico_ipv4_nat_snif_forward(nk,f);
+
     ipv4_hdr->dst.addr=nk->private_addr;
+
     if (proto == PICO_PROTO_TCP) {
        tcp_hdr->trans.dport=nk->private_port;
        pico_nat_tcp_checksum(f);
@@ -561,7 +575,11 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 nat_addr)
     } else if (net_hdr->proto == PICO_PROTO_UDP) {
       udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
       private_port = udp_hdr->trans.sport;
+    } else if (net_hdr->proto == PICO_PROTO_ICMP4) {
+      //udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      private_port = (uint16_t)(net_hdr->src.addr & 0x00FF);
     }
+
     ret = pico_ipv4_nat_find(private_addr,private_port,proto,0);
     if (ret >= 0) {
       // Key is available in table
@@ -632,7 +650,13 @@ int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
       if (!udp_hdr)
         return -1;
       nat_port= udp_hdr->trans.dport;
-    }
+    } else if (proto == PICO_PROTO_ICMP4) {
+      //icmp_hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
+      //if (!icmp_hdr)
+      //  return -1;
+      /* XXX PRELIMINARY ONLY LAST 16 BITS OF IP */
+      nat_port = (uint16_t)(ipv4_hdr->src.addr & 0x00FF);
+  }
 
     ret = pico_ipv4_nat_find(0,0,proto,nat_port);
     if (ret == 0)
