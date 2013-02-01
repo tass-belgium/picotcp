@@ -217,6 +217,7 @@ void cb_udpdnsclient_getname(char *name)
 
 void app_udpdnsclient(char *arg)
 {
+  struct pico_ip4 nameserver;
   char *dname, *daddr;
   char *nxt;
 
@@ -240,7 +241,22 @@ void app_udpdnsclient(char *arg)
   }
 
   printf("UDP DNS client started.\n");
-
+  
+  picoapp_dbg("----- Deleting non existant nameserver -----\n");
+  pico_string_to_ipv4("127.0.0.1", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
+  picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
+  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+  picoapp_dbg("----- Deleting 8.8.8.8 nameserver -----\n");
+  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
+  picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
+  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+  picoapp_dbg("----- Adding 8.8.4.4 nameserver -----\n");
+  pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
   printf(">>>>> DNS GET ADDR OF %s\n", dname);
   pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr);
   printf(">>>>> DNS GET NAME OF %s\n", daddr);

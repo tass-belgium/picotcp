@@ -11,6 +11,7 @@ Authors: Kristof Roelants
 #include "pico_addressing.h"
 #include "pico_socket.h"
 #include "pico_ipv4.h"
+#include "pico_dns_client.h"
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
@@ -24,7 +25,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_CLIENT_RETRANS 4000
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
-/* Nameservers */
+/* Default nameservers */
 #define PICO_DNS_NS_GOOGLE "8.8.8.8"
 
 /* Nameserver port */
@@ -112,6 +113,101 @@ struct __attribute__((packed)) dns_answer_suffix
   /* RDATA - variable length string of octets that describes the resource */
 };
 
+struct pico_dns_ns
+{
+  struct pico_ip4 ns; /* Nameserver */
+  RB_ENTRY(pico_dns_ns) node;
+};
+
+static int dns_ns_cmp(struct pico_dns_ns *a, struct pico_dns_ns *b)
+{
+  if (a->ns.addr < b->ns.addr)
+    return -1; 
+  else if (a->ns.addr > b->ns.addr)
+    return 1;
+  else
+    return 0;
+} 
+    
+RB_HEAD(pico_dns_slist, pico_dns_ns);
+RB_PROTOTYPE_STATIC(pico_dns_slist, pico_dns_ns, node, dns_ns_cmp);
+RB_GENERATE_STATIC(pico_dns_slist, pico_dns_ns, node, dns_ns_cmp);
+
+static struct pico_dns_slist NSTable;
+
+int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
+{
+  struct pico_dns_ns test, *key = NULL;
+
+  switch (flag)
+  {
+    case PICO_DNS_NS_ADD:
+      key = pico_zalloc(sizeof(struct pico_dns_ns));
+      if (!key) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+      }
+      key->ns = *ns;
+      if (RB_INSERT(pico_dns_slist, &NSTable, key)) {
+        dns_dbg("DNS WARNING: nameserver %08X already added\n",ns->addr);
+        pico_err = PICO_ERR_EINVAL;
+        pico_free(key);
+        return -1; /* Element key already exists */
+      }
+      dns_dbg("DNS: nameserver %08X added\n", ns->addr);
+      /* If default NS found, remove it */
+      pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &test.ns.addr);
+      if (ns->addr != test.ns.addr) {
+        key = RB_FIND(pico_dns_slist, &NSTable, &test);
+        if (key) {
+          if (RB_REMOVE(pico_dns_slist, &NSTable, key)) {
+            dns_dbg("DNS: default nameserver %08X removed\n", test.ns.addr);
+            pico_free(key);
+          } else {
+            return -1;
+          }
+        }
+      }
+      break;
+
+    case PICO_DNS_NS_DEL:
+      test.ns = *ns;
+      key = RB_FIND(pico_dns_slist, &NSTable, &test);
+      if (!key) {
+        dns_dbg("DNS WARNING: nameserver %08X not found\n", ns->addr);
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+      }
+      /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
+      if (RB_REMOVE(pico_dns_slist, &NSTable, key)) {
+        dns_dbg("DNS: nameserver %08X removed\n",key->ns.addr);
+        pico_free(key);
+      } else {
+        pico_err = PICO_ERR_EAGAIN;
+        return -1;
+      }
+      /* If no NS left, add default NS */
+      if (!RB_MIN(pico_dns_slist, &NSTable)) {
+        dns_dbg("DNS: add default nameserver\n");
+        return pico_dns_client_init();
+      }
+      break;
+
+    default:
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+  }
+  return 0;
+}
+
+int pico_dns_client_init()
+{
+  struct pico_ip4 default_ns;
+  if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &default_ns.addr) != 0)
+    return -1;
+  return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
+}
+
 struct pico_dns_key
 {
   void *q_hdr;
@@ -120,6 +216,7 @@ struct pico_dns_key
   uint16_t qtype;
   uint16_t qclass;
   uint8_t retrans;
+  struct pico_dns_ns q_ns;
   void (*callback)(char *);
   RB_ENTRY(pico_dns_key) node;
 };
@@ -309,14 +406,13 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
 static int pico_dns_client_send(struct pico_dns_key *key)
 {
   struct pico_socket *s;
-  struct pico_ip4 nameserver = {0};
   int w = 0;
 
+  dns_dbg("DNS: sending query to %08X\n", key->q_ns.ns.addr);
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dns_client_callback);
   if (!s)
     return -1; 
-  pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &nameserver.addr);
-  if (pico_socket_connect(s, &nameserver, short_be(PICO_DNS_NS_PORT)) != 0)
+  if (pico_socket_connect(s, &key->q_ns.ns, short_be(PICO_DNS_NS_PORT)) != 0)
     return -1;
   w = pico_socket_send(s, key->q_hdr, key->len);
   if (w <= 0)
@@ -328,16 +424,24 @@ static int pico_dns_client_send(struct pico_dns_key *key)
 static void pico_dns_client_retransmission(unsigned long now, void *arg)
 {
   struct pico_dns_key *key = (struct pico_dns_key *)arg;
+  struct pico_dns_ns *q_ns = NULL;
 
   if (key->retrans && key->retrans <= PICO_DNS_CLIENT_MAX_RETRANS) {
     dns_dbg("DNS: retransmission! (%u)\n", key->retrans);
     key->retrans++;
+    q_ns = RB_NEXT(pico_dns_slist, &NSTable, &key->q_ns);
+    if (q_ns)
+      key->q_ns = *q_ns; 
+    else
+      key->q_ns = *(RB_MIN(pico_dns_slist, &NSTable));
     pico_dns_client_send(key);
     pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   } else {
     dns_dbg("DNS: no retransmission! (%u)\n", key->retrans);
     pico_free(key->q_hdr);
-    RB_REMOVE(pico_dns_list, &DNSTable, key);
+    /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
+    if (RB_REMOVE(pico_dns_list, &DNSTable, key))
+      pico_free(key);
   }
 }
 
@@ -495,12 +599,15 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   key->qtype = PICO_DNS_TYPE_A;
   key->qclass = PICO_DNS_CLASS_IN;
   key->retrans = 1;
+  key->q_ns = *(RB_MIN(pico_dns_slist, &NSTable));
   key->callback = callback;
   /* Send query */
   pico_dns_client_send(key);
   /* Insert RB entry */
-  if (RB_INSERT(pico_dns_list, &DNSTable, key))
+  if (RB_INSERT(pico_dns_list, &DNSTable, key)) {
+    pico_free(key);
     return -1; /* Element key already exists */
+  }
 
   pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   return 0;
@@ -551,12 +658,15 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *))
   key->qtype = PICO_DNS_TYPE_PTR;
   key->qclass = PICO_DNS_CLASS_IN;
   key->retrans = 1;
+  key->q_ns = *(RB_MIN(pico_dns_slist, &NSTable));
   key->callback = callback;
   /* Send query */
   pico_dns_client_send(key);
   /* Insert RB entry */
-  if (RB_INSERT(pico_dns_list, &DNSTable, key))
+  if (RB_INSERT(pico_dns_list, &DNSTable, key)) {
+    pico_free(key);
     return -1; /* Element key already exists */
+  }
 
   pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   return 0;

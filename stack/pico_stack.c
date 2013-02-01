@@ -13,6 +13,7 @@ Authors: Daniele Lacamera
 #include "pico_device.h"
 #include "pico_protocol.h"
 #include "pico_addressing.h"
+#include "pico_dns_client.h"
 
 #include "pico_eth.h"
 #include "pico_arp.h"
@@ -527,6 +528,10 @@ void pico_stack_init(void)
 
 #ifdef PICO_SUPPORT_TCP
   pico_protocol_init(&pico_proto_tcp);
+#endif
+
+#ifdef PICO_SUPPORT_DNS_CLIENT
+  pico_dns_client_init();
 #endif
 
   pico_rand_feed(123456);
