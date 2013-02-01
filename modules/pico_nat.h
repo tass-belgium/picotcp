@@ -21,12 +21,12 @@ Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
 
 #ifdef PICO_SUPPORT_NAT
 void pico_ipv4_nat_print_table(void);
-int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port);
-int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port);
-int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint16_t nat_port);
-int pico_ipv4_port_forward(uint32_t pub_addr, uint16_t pub_port, uint32_t priv_addr, uint16_t priv_port, uint8_t proto, uint8_t persistant);
+int pico_ipv4_nat_add(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto);
+int pico_ipv4_nat_del(uint16_t pub_port, uint8_t proto);
+int pico_ipv4_nat_find(uint16_t pub_port, struct pico_ip4 *priv_addr, uint16_t priv_port, uint8_t proto);
+int pico_ipv4_port_forward(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto, uint8_t persistant);
 
-int pico_ipv4_nat(struct pico_frame* f, struct pico_ip4 nat_addr);
+int pico_ipv4_nat(struct pico_frame* f, struct pico_ip4 pub_addr);
 int pico_ipv4_nat_enable(struct pico_ipv4_link *link);
 int pico_ipv4_nat_isenabled_out(struct pico_ipv4_link *link);
 int pico_ipv4_nat_isenabled_in(struct pico_frame *f);
@@ -44,7 +44,7 @@ static inline int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
   return -1;
 }
 
-static inline int pico_ipv4_nat(struct pico_frame* f, struct pico_ip4 nat_addr)
+static inline int pico_ipv4_nat(struct pico_frame* f, struct pico_ip4 pub_addr)
 {
   pico_err = PICO_ERR_EPROTONOSUPPORT;
   return -1;
@@ -58,26 +58,26 @@ static inline int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 
 #define pico_ipv4_nat_print_table() do{}while(0)
 
-static inline int pico_ipv4_nat_add(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint32_t nat_addr, uint16_t nat_port)
+static inline int pico_ipv4_nat_add(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto)
 {
   pico_err = PICO_ERR_EPROTONOSUPPORT;
   return -1;
 }
 
-static inline int pico_ipv4_nat_del(uint8_t proto, uint16_t nat_port)
+static inline int pico_ipv4_nat_del(uint16_t pub_port, uint8_t proto)
 {
   pico_err = PICO_ERR_EPROTONOSUPPORT;
   return -1;
 }
 
 
-static inline int pico_ipv4_nat_find(uint32_t private_addr, uint16_t private_port, uint8_t proto, uint16_t nat_port)
+static inline int pico_ipv4_nat_find(uint16_t pub_port, struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto)
 {
   pico_err = PICO_ERR_EPROTONOSUPPORT;
   return -1;
 }
 
-static inline int pico_ipv4_port_forward(uint32_t pub_addr, uint16_t pub_port, uint32_t priv_addr, uint16_t priv_port, uint8_t proto, uint8_t persistant)
+static inline int pico_ipv4_port_forward(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto, uint8_t persistant)
 {
   pico_err = PICO_ERR_EPROTONOSUPPORT;
   return -1;

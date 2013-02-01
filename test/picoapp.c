@@ -610,7 +610,7 @@ void app_tcpclient(char *arg)
 void app_natbox(char *arg)
 {
   char *dest = NULL;
-  struct pico_ip4 ipdst;
+  struct pico_ip4 ipdst, pub_addr, priv_addr;
   struct pico_ipv4_link *link;
 
   cpy_arg(&dest, arg);
@@ -625,7 +625,9 @@ void app_natbox(char *arg)
     exit(255);
   }
   pico_ipv4_nat_enable(link);
-  pico_ipv4_port_forward(0x0A00320A, short_be(5555), 0x0800280A, short_be(6667), PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
+  pico_string_to_ipv4("10.50.0.10", &pub_addr.addr);
+  pico_string_to_ipv4("10.40.0.08", &priv_addr.addr);
+  pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667), PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
   fprintf(stderr, "natbox: started.\n");
 }
 
