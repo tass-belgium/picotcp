@@ -303,6 +303,7 @@ int pico_ipv4_nat_add(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_i
     return 0; /* New element added */
   }
   else {
+    pico_free(key);
     return -1; /* Element key already exists */
   }
 }
