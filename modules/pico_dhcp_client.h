@@ -6,7 +6,7 @@ holders.
 
 *********************************************************************/
 #ifndef _INCLUDE_PICO_DHCP_CLIENT
-#define PICO__INCLUDE_PICO_DHCP_CLIENT
+#define _INCLUDE_PICO_DHCP_CLIENT
 
 #ifdef PICO_SUPPORT_DHCPC
 
