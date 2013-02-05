@@ -147,13 +147,6 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 			cli->connected = 1;
 		}
 	}
-	/*if (ev == PICO_SOCK_EV_ERR) {
-	  //ICMP errors don't require us to bail out. Could be that the server is temporarily down, or refusing messages, but will come back. DHCP handles this by retrying and going to rebind...
-		dbg("DHCP>Socket Error received. Bailing out.\n");
-		if(cli->cb != NULL)
-			cli->cb(cli, PICO_DHCP_ERROR);
-		exit(0);
-	}*/
 }
 
 static void dhcp_timer_cb(unsigned long tick, void* param)

@@ -30,11 +30,7 @@ void callback(void* cli, int code){
 void ping_callback(struct pico_icmp4_stats *s)
 {
   char host[30];
-  int time_sec = 0;
-  int time_msec = 0;
   pico_ipv4_to_string(host, s->dst.addr);
-  time_sec = s->time / 1000;
-  time_msec = s->time % 1000;
   if (s->err == 0) {
     dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
     if (s->seq >= 3) {
