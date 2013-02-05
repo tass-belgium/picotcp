@@ -779,6 +779,8 @@ int pico_ipv4_is_broadcast(uint32_t addr)
   struct pico_ipv4_link *link;
   if (addr == PICO_IP4_ANY)
     return 1;
+  if (addr == PICO_IP4_BCAST)
+    return 1;
   RB_FOREACH(link, link_tree, &Tree_dev_link) {
     if ((link->address.addr | (~link->netmask.addr)) == addr)
       return 1;

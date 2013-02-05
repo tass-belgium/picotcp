@@ -52,6 +52,7 @@ static inline uint32_t long_be(uint32_t le)
 
 /* Add well-known host numbers here. (bigendian constants only beyond this point) */
 #define PICO_IP4_ANY (0x00000000U)
+#define PICO_IP4_BCAST (0xffffffffU)
 
 /* defined in modules/pico_ipv6.c */
 #ifdef PICO_SUPPORT_IPV6
