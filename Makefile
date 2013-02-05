@@ -13,6 +13,7 @@ MCAST?=1
 DEVLOOP?=1
 PING?=1
 DHCP_CLIENT?=1
+DHCP_SERVER?=1
 DNS_CLIENT?=1
 ENDIAN=little
 
@@ -92,6 +93,9 @@ endif
 ifneq ($(DHCP_CLIENT),0)
   include rules/dhcp_client.mk
 endif
+ifneq ($(DHCP_SERVER),0)
+  include rules/dhcp_server.mk
+endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
 endif
@@ -127,6 +131,7 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_client.elf        \
           test/testnat.elf   \
           test/testigmp2.elf   \
+          test/dhcp_server.elf \
           test/dhcp_example.elf
 
 test: posix $(TEST_ELF)
