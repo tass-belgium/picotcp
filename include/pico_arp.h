@@ -32,4 +32,8 @@ struct pico_arp {
   struct pico_device *dev;
   RB_ENTRY(pico_arp) node;
 };
+
+struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst);
+struct pico_arp *pico_arp_get_entry_by_mac(uint8_t *dst);
+void pico_arp_add_entry(struct pico_arp *entry);
 #endif

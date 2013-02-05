@@ -86,13 +86,23 @@ static struct arp_tree Arp_table;
 /**  END ARP TREE **/
 /*********************/
 
-static struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst)
+struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst)
 {
   struct pico_arp search, *found;
   search.ipv4.addr = dst->addr;
   found = RB_FIND(arp_tree, &Arp_table, &search);
   if (found && (found->arp_status != PICO_ARP_STATUS_STALE))
     return found;
+  return NULL;
+}
+
+struct pico_arp *pico_arp_get_entry_by_mac(uint8_t *dst)
+{
+  struct pico_arp* search;
+  RB_FOREACH(search, arp_tree, &Arp_table) {
+    if(memcmp(&(search->eth.addr), dst, 6) == 0)
+      return search;
+  }
   return NULL;
 }
 
@@ -179,12 +189,8 @@ int pico_arp_receive(struct pico_frame *f)
 
   if (new) {
     memcpy(new->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-    new->arp_status = PICO_ARP_STATUS_REACHABLE;
-    new->timestamp  = PICO_TIME();
     new->dev = f->dev;
-    RB_INSERT(arp_tree, &Arp_table, new);
-    arp_dbg("ARP ## reachable.\n");
-    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, new);
+    pico_arp_add_entry(new);
   }
 
   if (hdr->opcode == PICO_ARP_REQUEST) {
@@ -216,6 +222,15 @@ int pico_arp_receive(struct pico_frame *f)
 end:
   pico_frame_discard(f);
   return ret;
+}
+
+void pico_arp_add_entry(struct pico_arp *entry)
+{
+    entry->arp_status = PICO_ARP_STATUS_REACHABLE;
+    entry->timestamp  = PICO_TIME();
+    RB_INSERT(arp_tree, &Arp_table, entry);
+    arp_dbg("ARP ## reachable.\n");
+    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
 }
 
 int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
