@@ -13,7 +13,8 @@ holders.
 #include <stdint.h>
 
 //minimum size is 576, cfr RFC
-#define DHCP_DATAGRAM_SIZE 576
+#define DHCPC_DATAGRAM_SIZE 576
+#define DHCPD_DATAGRAM_SIZE 576
 
 
 #define PICO_DHCPD_PORT (short_be(67))
@@ -85,5 +86,10 @@ struct __attribute__((packed)) pico_dhcphdr
 	uint8_t options[0];
 };
 
+
+//common functions for client and server
+
+uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt);
+int is_options_valid(uint8_t *opt_buffer, int len); 
 #endif
 #endif

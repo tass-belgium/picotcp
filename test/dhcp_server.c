@@ -74,7 +74,7 @@ int main(void)
   pico_ipv4_link_add(vde0, address0, netmask0);
 
 	//cookie = pico_dhcp_initiate_negotiation(vde0, &callback);
-	pico_dhcp_server_loop(vde0);
+	pico_dhcp_server_initiate(vde0);
 
 	printf("going into pico loop!\n");
 	while(1) {

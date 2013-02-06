@@ -9,13 +9,14 @@ holders.
 #define _INCLUDE_PICO_DHCP_SERVER
 
 #include "pico_dhcp_common.h"
+#include "pico_addressing.h"
 
 #ifdef PICO_SUPPORT_DHCPD
 
 struct pico_dhcpd_settings
 {
 	struct pico_device *dev;
-	uint32_t my_ip;//unused atm
+	struct pico_ip4 my_ip;
 	uint32_t netmask; //unused atm
 	uint32_t pool_start;
 	uint32_t pool_next;
@@ -43,7 +44,7 @@ struct pico_dhcp_negotiation {
 	struct pico_arp *arp;
 };
 
-void pico_dhcp_server_loop(struct pico_device* device);
+void pico_dhcp_server_initiate(struct pico_device* device);
 
 //TODO remove this workaround (depending on how much we use the state we could pull the enum into the common.h
 #define DHCPSTATE_DISCOVER 0

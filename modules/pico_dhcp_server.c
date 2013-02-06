@@ -1,23 +1,27 @@
+/*********************************************************************
+PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+See LICENSE and COPYING for usage.
+Do not redistribute without a written permission by the Copyright
+holders.
+
+Authors: Frederik Van Slycken
+*********************************************************************/
+
 #include "pico_dhcp_server.h"
 #include "pico_stack.h"
 #include "pico_config.h"
-#include "pico_stack.h"
 #include "pico_addressing.h"
 #include "pico_socket.h"
 #include "pico_arp.h"
-#include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/time.h>
 
 static struct pico_dhcp_negotiation *Negotiation_list;
 static struct pico_socket *udpsock;
 static struct pico_dhcpd_settings settings;
 
-/* should check out OK */
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
 
-//TODO could probably replace this with an rb-tree...
+//TODO could/should probably replace this with an rb-tree...
 static struct pico_dhcp_negotiation * get_negotiation_by_xid(uint32_t xid)
 {
 	struct pico_dhcp_negotiation *cur = Negotiation_list;
@@ -29,63 +33,12 @@ static struct pico_dhcp_negotiation * get_negotiation_by_xid(uint32_t xid)
 	return NULL;
 }
 
-static uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt)
-{
-	uint8_t *p;
-	uint8_t type;
-	uint8_t opt_len;
-
-	if (!begin)
-		p = *nextopt;
-	else
-		p = begin;
-
-	type = *p;
-	*nextopt = ++p;
-	if ((type == PICO_DHCPOPT_END) || (type == PICO_DHCPOPT_PAD)) {
-		memset(data, 0, *len);
-		len = 0;
-		return type;
-	}
-	opt_len = *p;
-	p++;
-	if (*len > opt_len)
-		*len = opt_len;
-	memcpy(data, p, *len);
-	*nextopt = p + opt_len;
-	return type;
-}
-
-static int is_options_valid(uint8_t *opt_buffer, int len)
-{
-	uint8_t *p = opt_buffer;
-	while (len > 0) {
-		if (*p == PICO_DHCPOPT_END)
-			return 1;
-		else if (*p == PICO_DHCPOPT_PAD) {
-			p++;
-			len--;
-		} else {
-			uint8_t opt_len;
-			p++;
-			len--;
-			opt_len = *p;
-			p += opt_len + 1;
-			len -= opt_len;
-		}
-	}
-	return 0;
-}
-
-#define DHCPD_DATAGRAM_SIZE 300
-
-/* TODO change this around...*/ 
-
 static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_type)
 {
 
 	uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
 	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
+	//TODO should this stuff be coming from somewhere else? the settings-struct or something?
 	uint32_t server_address = SERVER_ADDR;
 	uint32_t netmask = NETMASK;
 	uint32_t bcast = BROADCAST;
@@ -94,8 +47,6 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 	struct pico_ip4 destination;
 
 	int sent = 0;
-	dbg("getting ready for a reply\n");
-
 
 	memcpy(dh_out->hwaddr, dn->hwaddr, PICO_HLEN_ETHER);
 	dh_out->op = PICO_DHCP_OP_REPLY;
@@ -143,9 +94,9 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 	dh_out->options[40] = PICO_DHCPOPT_END;
 
+	//TODO find out where we checked if yiaddr is OK...
 	destination.addr = dh_out->yiaddr;
-	dbg("just before sending!\n");
-	sent = pico_socket_sendto(udpsock, buf_out, DHCP_DATAGRAM_SIZE, &destination, port);
+	sent = pico_socket_sendto(udpsock, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
 		dbg("DHCPD>sendto failed with code %d!\n", pico_err);
 	}
@@ -159,6 +110,7 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 static void dhcp_recv(uint8_t *buffer, int len)
 {
 	struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
+	//TODO does this mean we only give out the same ip if the xid was the same? shouldn't we be looking at the MAC address? 
 	struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
 	uint8_t *nextopt, opt_data[20], opt_type;
 	int opt_len = 20;
@@ -184,6 +136,7 @@ static void dhcp_recv(uint8_t *buffer, int len)
 				return;
 			//fill in arp entry, add it to the tree
 			memcpy(dn->arp->eth.addr, dn->hwaddr, PICO_HLEN_ETHER);
+			//TODO this means we completely ignore it if there was an option requesting a specific address...
 			dn->arp->ipv4.addr = settings.pool_next;
 			dn->arp->dev = settings.dev;
 			pico_arp_add_entry(dn->arp);
@@ -192,7 +145,6 @@ static void dhcp_recv(uint8_t *buffer, int len)
 		}
 	}
 
-	printf("foobarxyzzy\n");
 	if (!ip_inrange(dn->arp->ipv4.addr))
 		return;
 
@@ -209,6 +161,7 @@ static void dhcp_recv(uint8_t *buffer, int len)
 				dn->state = DHCPSTATE_OFFER;
 				return;
 			} else if (msg_type == PICO_DHCP_MSG_REQUEST) {
+				//TODO does this mean that we can simply send a REQUEST right away and have it acked without any debate? 
 				dhcpd_make_ack(dn);
 				return;
 			}
@@ -219,15 +172,15 @@ static void dhcp_recv(uint8_t *buffer, int len)
 }
 
 
-void pico_dhcp_server_loop(struct pico_device* device)
+//TODO should we return something when things go wrong? or a callback (like in the client?)
+void pico_dhcp_server_initiate(struct pico_device* device)
 {
 	uint16_t port = PICO_DHCPD_PORT;
-	struct pico_ip4 address;
 
 	if(!device)
 		return;
 
-	address.addr = SERVER_ADDR;
+	settings.my_ip.addr = SERVER_ADDR;
 
 
 	settings.dev = device;
@@ -244,7 +197,7 @@ void pico_dhcp_server_loop(struct pico_device* device)
 			//cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
-	if (pico_socket_bind(udpsock, &address, &port) != 0){
+	if (pico_socket_bind(udpsock, &settings.my_ip, &port) != 0){
 		dbg("DHCP>could not bind client socket\n");
 		//if(cli->cb != NULL)
 			//cli->cb(cli, PICO_DHCP_ERROR);
@@ -254,7 +207,7 @@ void pico_dhcp_server_loop(struct pico_device* device)
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
 {
-	uint8_t buf[DHCP_DATAGRAM_SIZE];
+	uint8_t buf[DHCPD_DATAGRAM_SIZE];
 	int r=0;
 	uint32_t peer;
 	uint16_t port;
@@ -264,11 +217,8 @@ static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
 	dbg("DHCP>Called dhcpd_wakeup\n");
 	if (ev == PICO_SOCK_EV_RD) {
 		do {
-			r = pico_socket_recvfrom(s, buf, DHCP_DATAGRAM_SIZE, &peer, &port);
+			r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
 			if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
-				//type = pico_dhcp_verify_and_identify_type(buf, r, cli);//TODO make this work...or should we? dhcp_recv doesn't need it....
-				//pico_dhcp_state_machine(type, cli, buf, r);
-				dbg("bar\n");
 				dhcp_recv(buf, r);
 			}
 		} while(r>0);

@@ -62,8 +62,6 @@ static void dhcp_timer_cb(unsigned long tick, void* param);
 //util
 static void pico_dhcp_retry(struct pico_dhcp_client_cookie *client);
 static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type);
-static uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt);
-static int is_options_valid(uint8_t *opt_buffer, int len);
 static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pico_dhcp_client_cookie *cli);
 static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code));
 
@@ -122,7 +120,7 @@ struct pico_ip4 pico_dhcp_get_gateway(void* cli)
 
 static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 {
-	uint8_t buf[DHCP_DATAGRAM_SIZE];
+	uint8_t buf[DHCPC_DATAGRAM_SIZE];
 	int r=0;
 	uint32_t peer;
 	uint16_t port;
@@ -132,7 +130,7 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 	dbg("DHCP>Called dhcp_wakeup\n");
 	if (ev == PICO_SOCK_EV_RD) {
 		do {
-			r = pico_socket_recvfrom(s, buf, DHCP_DATAGRAM_SIZE, &peer, &port);
+			r = pico_socket_recvfrom(s, buf, DHCPC_DATAGRAM_SIZE, &peer, &port);
 			if (r > 0 && port == PICO_DHCPD_PORT) {
 				type = pico_dhcp_verify_and_identify_type(buf, r, cli);
 				pico_dhcp_state_machine(type, cli, buf, r);
@@ -439,7 +437,7 @@ static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 
 static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 {
-	uint8_t buf_out[DHCP_DATAGRAM_SIZE] = {0};
+	uint8_t buf_out[DHCPC_DATAGRAM_SIZE] = {0};
 	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
 	int sent = 0;
 	int i = 0;
@@ -492,7 +490,7 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 
 	/* Option : max message size */
 	if( msg_type == PICO_DHCP_MSG_REQUEST || msg_type == PICO_DHCP_MSG_DISCOVER){
-		uint16_t dds = DHCP_DATAGRAM_SIZE;
+		uint16_t dds = DHCPC_DATAGRAM_SIZE;
 		dh_out->options[i++] = PICO_DHCPOPT_MAXMSGSIZE;
 		dh_out->options[i++] = 2;
 		dh_out->options[i++] = (dds & 0xFF00) >> 8;
@@ -503,7 +501,7 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 
 	dh_out->options[i] = PICO_DHCPOPT_END;
 
-	sent = pico_socket_sendto(cli->socket, buf_out, DHCP_DATAGRAM_SIZE, &destination, port);
+	sent = pico_socket_sendto(cli->socket, buf_out, DHCPC_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
 		dbg("DHCP>socket sendto failed with code %d\n", pico_err);
 		if(cli->cb != NULL)
@@ -526,59 +524,6 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	cli->timer_param_retransmit->type = PICO_DHCP_EVENT_RETRANSMIT;
 	pico_timer_add(5000, dhcp_timer_cb, cli->timer_param_retransmit);
 	
-}
-
-
-//this function should only be used after you checked if the options are valid! otherwise it could read from bad memory!
-static uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt)
-{
-	uint8_t *p;
-	uint8_t type;
-	uint8_t opt_len;
-
-	if (!begin)
-		p = *nextopt;
-	else
-		p = begin;
-
-	type = *p;
-	*nextopt = ++p;
-	if ((type == PICO_DHCPOPT_END) || (type == PICO_DHCPOPT_PAD)) {
-		memset(data, 0, *len);
-		len = 0;
-		return type;
-	}
-	opt_len = *p;
-	p++;
-	if (*len > opt_len)
-		*len = opt_len;
-	memcpy(data, p, *len);
-	*nextopt = p + opt_len;
-	return type;
-}
-
-static int is_options_valid(uint8_t *opt_buffer, int len)
-{
-	uint8_t *p = opt_buffer;
-	while (len > 0) {
-		if (*p == PICO_DHCPOPT_END)
-			return 1;
-		else if (*p == PICO_DHCPOPT_PAD) {
-			p++;
-			len--;
-		} else {
-			uint8_t opt_len;
-			p++;
-			len--;
-			if(len > 0) {
-				opt_len = *p;
-				p += opt_len + 1;
-				len -= opt_len;
-			}else
-				return 0;
-		}
-	}
-	return 0;
 }
 
 //identifies type & does some preprocessing : checking if everything is valid
