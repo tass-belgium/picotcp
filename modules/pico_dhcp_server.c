@@ -7,6 +7,8 @@ holders.
 Authors: Frederik Van Slycken
 *********************************************************************/
 
+#ifdef PICO_SUPPORT_DHCPD
+
 #include "pico_dhcp_server.h"
 #include "pico_stack.h"
 #include "pico_config.h"
@@ -38,9 +40,6 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 	uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
 	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
-	//TODO should this stuff be coming from somewhere else? the settings-struct or something?
-	uint32_t server_address = SERVER_ADDR;
-	uint32_t netmask = NETMASK;
 	uint32_t bcast = BROADCAST;
 	uint32_t dns_server = OPENDNS;
 	uint16_t port = PICO_DHCP_CLIENT_PORT;
@@ -54,7 +53,7 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 	dh_out->hlen = PICO_HLEN_ETHER;
 	dh_out->xid = dn->xid;
 	dh_out->yiaddr = dn->arp->ipv4.addr;
-	dh_out->siaddr = server_address;
+	dh_out->siaddr = settings.my_ip.addr;
 	dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
 
 	/* Option: msg type, len 1 */
@@ -65,7 +64,7 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 	/* Option: server id, len 4 */
 	dh_out->options[3] = PICO_DHCPOPT_SERVERID;
 	dh_out->options[4] = 4;
-	memcpy(dh_out->options + 5, &server_address, 4);
+	memcpy(dh_out->options + 5, &settings.my_ip.addr, 4);
 
 	/* Option: Lease time, len 4 */
 	dh_out->options[9] = PICO_DHCPOPT_LEASETIME;
@@ -75,12 +74,12 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 	/* Option: Netmask, len 4 */
 	dh_out->options[15] = PICO_DHCPOPT_NETMASK;
 	dh_out->options[16] = 4;
-	memcpy(dh_out->options + 17, &netmask, 4);
+	memcpy(dh_out->options + 17, &settings.netmask.addr, 4);
 
 	/* Option: Router, len 4 */
 	dh_out->options[21] = PICO_DHCPOPT_ROUTER;
 	dh_out->options[22] = 4;
-	memcpy(dh_out->options + 23, &server_address, 4);
+	memcpy(dh_out->options + 23, &settings.my_ip.addr, 4);
 
 	/* Option: Broadcast, len 4 */
 	dh_out->options[27] = PICO_DHCPOPT_BCAST;
@@ -181,6 +180,7 @@ void pico_dhcp_server_initiate(struct pico_device* device)
 		return;
 
 	settings.my_ip.addr = SERVER_ADDR;
+	settings.netmask.addr = NETMASK;
 
 
 	settings.dev = device;
@@ -232,8 +232,12 @@ static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
  *
  * We're going to get into the same kind of funky stuff : it will only work on one interface at a time...
  *
+ * it seems that DHCP relies on info from ARP for assigning IPs... Not sure if this can't cause any problems...
+ *
  *
  * longer term :
  *
  * obey the Broadcast-flag!
  */
+
+#endif

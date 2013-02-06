@@ -17,7 +17,7 @@ struct pico_dhcpd_settings
 {
 	struct pico_device *dev;
 	struct pico_ip4 my_ip;
-	uint32_t netmask; //unused atm
+	struct pico_ip4 netmask;
 	uint32_t pool_start;
 	uint32_t pool_next;
 	uint32_t pool_end;
