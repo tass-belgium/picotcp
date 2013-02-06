@@ -10,6 +10,7 @@
 #include "pico_icmp4.h"
 #include "pico_dns_client.h"
 #include "pico_dev_loop.h"
+#include "pico_dhcp_server.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -1105,6 +1106,54 @@ void app_mcastreceive(char *arg)
 }
 /*** END Multicast RECEIVE + ECHO ***/
 
+
+/*** DHCP Server ***/
+// ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0
+void app_dhcp_server(char* arg)
+{
+	struct pico_device *dev;
+	char *dev_name, *addr, *netmsk;
+	char* nxt;
+	struct pico_dhcpd_settings s = {0};
+
+	nxt = cpy_arg(&dev_name, arg);
+	if(!dev_name){
+		fprintf(stderr, " dhcp server expects as parameters : the name of the device\n");
+		fprintf(stderr, " or optionally : devicename:address:netmask\n");
+		exit(255);
+	}
+
+	dev = pico_get_device(dev_name);
+	free(dev_name);
+	if(dev == NULL){
+		printf("error : no device found\n");
+		exit(255);
+	}
+	s.dev = dev;
+
+	if(nxt) {
+		nxt = cpy_arg(&addr, nxt);
+		if(addr){
+			pico_string_to_ipv4(addr, &s.my_ip.addr);
+
+			nxt = cpy_arg(&netmsk, nxt);
+			if(netmsk){
+				pico_string_to_ipv4(netmsk, &s.netmask.addr);
+				//let's just take some "default" values for the range :
+				s.pool_start = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x00000064);
+				s.pool_end = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x000000ff);
+			}else{
+				fprintf(stderr, " when supplying an address you must also give the netmask : devicename:address:netmask\n");
+			}
+		}
+	}
+
+	
+
+	pico_dhcp_server_initiate(&s);
+}
+/*** END DHCP Server ***/
+
 /** From now on, parsing the command line **/
 
 #define NXT_MAC(x) ++x[5]
@@ -1122,7 +1171,7 @@ static char *cpy_arg(char **dst, char *str)
     if ((*p == ':') || (p == '\0')) {
       *p = (char)0;
       nxt = p + 1;
-      if ((*nxt == 0) || (nxt == end))
+      if ((*nxt == 0) || (nxt >= end))
         nxt = 0;
       printf("dup'ing %s\n", start);
       *dst = strdup(start);
@@ -1299,6 +1348,13 @@ int main(int argc, char **argv)
           app_ping(args);
         }
 #endif
+        else IF_APPNAME("dhcpserver") {
+#ifndef PICO_SUPPORT_DHCPD
+          return 0;
+#endif
+          app_dhcp_server(args);
+        }
+
         else {
           fprintf(stderr, "Unknown application %s\n", name);
           usage(argv[0]);

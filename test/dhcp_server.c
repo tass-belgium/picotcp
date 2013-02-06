@@ -16,36 +16,6 @@ Authors: Frederik Van Slycken
 #include "pico_icmp4.h"
 #include "pico_socket.h"
 
-
-
-
-#if 0
-static int dhcp_finished = 0;
-void callback(void* cli, int code){
-	if(code == PICO_DHCP_SUCCESS)
-		dhcp_finished = 1;
-	printf("callback happened with code %d!\n", code);
-}
-
-void ping_callback(struct pico_icmp4_stats *s)
-{
-  char host[30];
-  pico_ipv4_to_string(host, s->dst.addr);
-  if (s->err == 0) {
-    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
-    if (s->seq >= 3) {
-      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
-      exit(0);
-    }
-  } else {
-    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
-    dbg("DHCP CLIENT TEST: FAILED!\n");
-    exit(1);
-  }
-}
-#endif
-
-
 int main(void)
 {
 
@@ -73,24 +43,22 @@ int main(void)
 
   pico_ipv4_link_add(vde0, address0, netmask0);
 
-	//cookie = pico_dhcp_initiate_negotiation(vde0, &callback);
-	pico_dhcp_server_initiate(vde0);
+
+	struct pico_dhcpd_settings s = {0};
+
+	s.dev = vde0;
+	s.my_ip.addr = address0.addr;
+	s.netmask.addr = netmask0.addr;
+	s.pool_start = long_be(0x0a28000a);
+	s.pool_end = long_be(0x0a2800ff);
+
+
+	pico_dhcp_server_initiate(&s);
 
 	printf("going into pico loop!\n");
 	while(1) {
-    //char gw_txt_addr[30];
 		pico_stack_tick();
 		usleep(2000);
-#if 0
-		if(dhcp_finished==1){
-			//we should have an IP by now...
-			gateway = pico_dhcp_get_gateway(cookie);
-      pico_ipv4_to_string(gw_txt_addr, gateway.addr);
-      pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback);
-      //pico_icmp4_ping(gw_txt_addr, 1, 1000, 5000, 32,NULL); // use this line to run longer tests, when you don't want to quit after you've gotten your IP
-      dhcp_finished++;
-		}
-#endif
 	}
 }
 

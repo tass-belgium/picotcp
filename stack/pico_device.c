@@ -138,3 +138,13 @@ int pico_devices_loop(int loop_score)
   }
   return loop_score;
 }
+
+struct pico_device* pico_get_device(char* name)
+{
+  struct pico_device *dev;
+  RB_FOREACH(dev, pico_device_tree, &Device_tree) {
+    if(strcmp(name, dev->name) == 0)
+      return dev;
+  }
+  return NULL;
+}

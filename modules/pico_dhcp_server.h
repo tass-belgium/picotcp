@@ -44,7 +44,8 @@ struct pico_dhcp_negotiation {
 	struct pico_arp *arp;
 };
 
-void pico_dhcp_server_initiate(struct pico_device* device);
+//you pass this function a pointer to pico_dhcpd_settings. The only required field is the device, the others have default values if they are 0.
+void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting);
 
 //TODO remove this workaround (depending on how much we use the state we could pull the enum into the common.h
 #define DHCPSTATE_DISCOVER 0

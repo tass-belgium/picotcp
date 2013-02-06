@@ -172,21 +172,49 @@ static void dhcp_recv(uint8_t *buffer, int len)
 
 
 //TODO should we return something when things go wrong? or a callback (like in the client?)
-void pico_dhcp_server_initiate(struct pico_device* device)
+//This function gets a pico_dhcpd_settings-struct. 
+void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
 {
 	uint16_t port = PICO_DHCPD_PORT;
 
-	if(!device)
+	if(!setting->dev)
 		return;
 
-	settings.my_ip.addr = SERVER_ADDR;
-	settings.netmask.addr = NETMASK;
+	memcpy(&settings,setting,sizeof(struct pico_dhcpd_settings));
+	dbg("DHCPD>initiating server\n");
 
+	//default values if not filled in!
+	if(settings.my_ip.addr == 0){
+		settings.my_ip.addr = SERVER_ADDR;
+		dbg("DHCPD>  using default server addr\n");
+	}else{
+		dbg("DHCPD> using server addr %x\n",settings.my_ip.addr);
+	}
+	if(settings.netmask.addr == 0){
+		settings.netmask.addr = NETMASK;
+		dbg("DHCPD>  using default netmask\n");
+	}else{
+		dbg("DHCPD> using netmask %x\n",settings.netmask.addr);
+	}
 
-	settings.dev = device;
-	settings.pool_start = POOL_START;
-	settings.pool_end = POOL_END;
-	settings.lease_time = LEASE_TIME;
+	if(settings.pool_start == 0){
+		settings.pool_start = POOL_START;
+		dbg("DHCPD>  using default pool_start\n");
+	}else{
+		dbg("DHCPD> using pool_start %x\n",settings.pool_start);
+	}
+	if(settings.pool_end == 0){
+		settings.pool_end = POOL_END;
+		dbg("DHCPD>  using default pool_end\n");
+	}else{
+		dbg("DHCPD> using pool_end %x\n",settings.pool_end);
+	}
+	if(settings.lease_time == 0){
+		settings.lease_time = LEASE_TIME;
+		dbg("DHCPD>  using default lease time\n");
+	}else{
+		dbg("DHCPD> using lease time %x\n",settings.lease_time);
+	}
 
 	settings.pool_next = settings.pool_start;
 
