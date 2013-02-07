@@ -10,6 +10,7 @@
 #include "pico_icmp4.h"
 #include "pico_dns_client.h"
 #include "pico_dev_loop.h"
+#include "pico_dhcp_client.h"
 #include "pico_dhcp_server.h"
 
 #include <poll.h>
@@ -1154,6 +1155,64 @@ void app_dhcp_server(char* arg)
 }
 /*** END DHCP Server ***/
 
+/*** DHCP Client ***/
+
+
+void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  pico_ipv4_to_string(host, s->dst.addr);
+  if (s->err == 0) {
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    if (s->seq >= 3) {
+      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
+      exit(0);
+    }
+  } else {
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    dbg("DHCP CLIENT TEST: FAILED!\n");
+    exit(1);
+  }
+}
+
+
+static void* dhcp_client_cookie;
+void callback_dhcpclient(void* cli, int code){
+	struct pico_ip4  gateway;
+	char gw_txt_addr[30];
+	if(code == PICO_DHCP_SUCCESS){
+		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+    pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+    pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
+	}
+	printf("callback happened with code %d!\n", code);
+}
+
+void app_dhcp_client(char* arg)
+{
+	struct pico_device *dev;
+	char *dev_name;
+
+	cpy_arg(&dev_name, arg);
+	if(!dev_name){
+		fprintf(stderr, " dhcp client expects as parameters : the name of the device\n");
+		exit(255);
+	}
+
+	dev = pico_get_device(dev_name);
+	free(dev_name);
+	if(dev == NULL){
+		printf("error : no device found\n");
+		exit(255);
+	}
+	printf("starting negotiation\n");
+
+	dhcp_client_cookie = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
+}
+
+
+/*** END DHCP Client ***/
+
 /** From now on, parsing the command line **/
 
 #define NXT_MAC(x) ++x[5]
@@ -1202,6 +1261,7 @@ int main(int argc, char **argv)
   struct option long_options[] = {
     {"help",0 , 0, 'h'},
     {"vde",1 , 0, 'v'},
+    {"barevde",1 , 0, 'b'},
     {"tun", 1, 0, 't'},
     {"app", 1, 0, 'a'},
     {"loop", 1, 0, 'l'},
@@ -1216,7 +1276,7 @@ int main(int argc, char **argv)
   pico_stack_init();
   /* Parse args */
   while(1) {
-    c = getopt_long(argc, argv, "v:t:a:hl", long_options, &option_idx);
+    c = getopt_long(argc, argv, "v:b:t:a:hl", long_options, &option_idx);
     if (c < 0)
       break;
     switch(c) {
@@ -1291,6 +1351,28 @@ int main(int argc, char **argv)
         }
       }
       break;
+    case 'b':
+      {
+        char *nxt, *name = NULL, *sock = NULL;
+        printf("+++ OPTARG %s\n", optarg);
+        do {
+          nxt = cpy_arg(&name, optarg);
+          if (!nxt) break;
+          nxt = cpy_arg(&sock, nxt);
+        } while(0);
+        if (!sock) {
+          fprintf(stderr, "Vde: bad configuration...\n");
+          exit(1);
+        }
+        dev = pico_vde_create(sock, name, macaddr);
+        NXT_MAC(macaddr);
+        if (!dev) {
+          perror("Creating vde");
+          exit(1);
+        }
+        printf("Vde created.\n");
+      }
+      break;
     case 'l':
       {
         struct pico_ip4 ipaddr, netmask;
@@ -1354,6 +1436,13 @@ int main(int argc, char **argv)
 #endif
           app_dhcp_server(args);
         }
+        else IF_APPNAME("dhcpclient") {
+#ifndef PICO_SUPPORT_DHCPC
+          return 0;
+#endif
+          app_dhcp_client(args);
+        }
+
 
         else {
           fprintf(stderr, "Unknown application %s\n", name);

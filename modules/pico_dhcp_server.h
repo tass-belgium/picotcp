@@ -28,13 +28,6 @@ struct pico_dhcpd_settings
 #define FLAG_BROADCAST (htons(0xF000))
 
 
-enum dhcp_negotiation_state {
-	DHCPSTATE_DISCOVER = 0,
-	DHCPSTATE_OFFER,
-	DHCPSTATE_REQUEST,
-	DHCPSTATE_ACK
-};
-
 struct pico_dhcp_negotiation {
 	struct pico_dhcp_negotiation *next;
 	uint32_t xid;
@@ -47,10 +40,9 @@ struct pico_dhcp_negotiation {
 //you pass this function a pointer to pico_dhcpd_settings. The only required field is the device, the others have default values if they are 0.
 void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting);
 
-//TODO remove this workaround (depending on how much we use the state we could pull the enum into the common.h
-#define DHCPSTATE_DISCOVER 0
-
 // configuration info : 
+// These are the default values if something is not filled in for the initiate-call.
+// Note that this can give weird effects, e.g. if you fill in the server address, but not the pool_start or end, and they don't match. 
 #define SERVER_ADDR long_be(0x0a280001)
 #define NETMASK long_be(0xffffff00)
 #define BROADCAST long_be(0x0a2800ff)

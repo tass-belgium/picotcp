@@ -65,6 +65,15 @@ holders.
 #define PICO_DHCP_MSG_INFORM                 8
 
 
+enum dhcp_negotiation_state {
+        DHCPSTATE_DISCOVER = 0,
+        DHCPSTATE_OFFER,
+        DHCPSTATE_REQUEST,
+        DHCPSTATE_BOUND,
+        DHCPSTATE_RENEWING
+};
+
+
 struct __attribute__((packed)) pico_dhcphdr
 {
 	uint8_t op;

@@ -49,14 +49,5 @@ enum pico_dhcp_negotiation_state {
 };*/
 
 
-
-enum dhcp_negotiation_state {
-        DHCPSTATE_DISCOVER = 0,
-        DHCPSTATE_OFFER,
-        DHCPSTATE_REQUEST,
-        DHCPSTATE_BOUND,
-        DHCPSTATE_RENEWING
-};
-
 #endif
 #endif
