@@ -130,9 +130,7 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_server.elf        \
           test/ptsock_client.elf        \
           test/testnat.elf   \
-          test/testigmp2.elf   \
-          test/dhcp_server.elf \
-          test/dhcp_example.elf
+          test/testigmp2.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p $(PREFIX)/test/
