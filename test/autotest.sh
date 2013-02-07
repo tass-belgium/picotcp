@@ -51,5 +51,10 @@ sleep 2
 
 killall picoapp.elf
 
+echo "DHCP TEST"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0) &
+./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a dhcpclient:pic0 || exit 1
+killall picoapp.elf
+
 
 echo "SUCCESS!" && exit 0
