@@ -227,9 +227,8 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
   if (!f)
     return NULL;
   f->datalink_hdr = f->buffer;
-  f->datalink_len = PICO_SIZE_ETHHDR;
   f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP4HDR;
+  f->net_len = PICO_SIZE_IP4HDR + size;
   f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
   f->transport_len = size;
   f->len =  size + PICO_SIZE_IP4HDR;
