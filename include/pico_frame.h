@@ -40,7 +40,7 @@ struct pico_frame {
 
   /* Pointer to protocol headers */
   uint8_t *datalink_hdr;
-  int  datalink_len;
+
   uint8_t *net_hdr;
   int net_len;
   uint8_t *transport_hdr;

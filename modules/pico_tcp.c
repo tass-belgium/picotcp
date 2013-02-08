@@ -891,7 +891,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
   tcp_dbg("TCP>>>>>>>>>>>>>>>> sending RST ... <<<<<<<<<<<<<<<<<<\n");
 
-  f = pico_proto_ipv4.alloc(&pico_proto_ipv4, size);
+  f = fr->sock->net->alloc(fr->sock->net, size);
 
   /* fill in IP data from original frame */
   // TODO if IPv4
