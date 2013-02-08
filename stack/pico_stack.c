@@ -254,7 +254,6 @@ int pico_ethernet_receive(struct pico_frame *f)
   if (!f || !f->dev || !f->datalink_hdr)
     goto discard;
   hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-  f->datalink_len = sizeof(struct pico_eth_hdr);
   if ( (memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) && 
 #ifdef PICO_SUPPORT_MCAST
     (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
@@ -262,7 +261,7 @@ int pico_ethernet_receive(struct pico_frame *f)
     (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0) ) 
     goto discard;
 
-  f->net_hdr = f->datalink_hdr + f->datalink_len;
+  f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
   if (hdr->proto == PICO_IDETH_ARP)
     return pico_arp_receive(f);
   if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
@@ -359,7 +358,6 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       f->start -= PICO_SIZE_ETHHDR;
       f->len += PICO_SIZE_ETHHDR;
       f->datalink_hdr = f->start;
-      f->datalink_len = PICO_SIZE_ETHHDR;
       hdr = (struct pico_eth_hdr *) f->datalink_hdr;
       memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
       memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);

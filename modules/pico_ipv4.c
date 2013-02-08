@@ -163,8 +163,6 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 	address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
-     // TODO the commented line below make the build unstable
-     //f->net_len = PICO_SIZE_IP4HDR + 4*(((hdr->vhl) & 0x0F)-5);
      option_len =  4*(((hdr->vhl) & 0x0F)-5);
   }
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
@@ -227,9 +225,8 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
   if (!f)
     return NULL;
   f->datalink_hdr = f->buffer;
-  f->datalink_len = PICO_SIZE_ETHHDR;
   f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP4HDR;
+  f->net_len = PICO_SIZE_IP4HDR + size;
   f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
   f->transport_len = size;
   f->len =  size + PICO_SIZE_IP4HDR;
