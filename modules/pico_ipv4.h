@@ -49,7 +49,6 @@ int pico_ipv4_valid_netmask(uint32_t mask);
 int pico_ipv4_is_unicast(uint32_t address); 
 int pico_ipv4_is_broadcast(uint32_t addr);
 
-void pico_proto_ipv4_init(void);
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
 int pico_ipv4_rebound(struct pico_frame *f);

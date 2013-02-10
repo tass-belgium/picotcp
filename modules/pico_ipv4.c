@@ -159,8 +159,8 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 {
   uint8_t option_len = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-	struct pico_ip4 address0;
-	address0.addr = long_be(0x00000000);
+  struct pico_ip4 address0;
+  address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
      option_len =  4*(((hdr->vhl) & 0x0F)-5);
@@ -200,8 +200,8 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     } else {                              /* no NAT so enqueue to next layer */
       pico_transport_receive(f, hdr->proto);
     }
-	} else if (pico_ipv4_link_find(&address0) == f->dev) {
-		//address of this device is apparently 0.0.0.0; might be a DHCP packet
+  } else if (pico_ipv4_link_find(&address0) == f->dev) {
+    //address of this device is apparently 0.0.0.0; might be a DHCP packet
     pico_enqueue(pico_proto_udp.q_in, f);
   } else {
     /* Packet is not local. Try to forward. */
