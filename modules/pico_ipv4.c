@@ -561,6 +561,8 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
+
+#ifdef DEBUG_ROUTE
 static void dbg_route(void)
 {
   struct pico_ipv4_route *r;
@@ -568,6 +570,9 @@ static void dbg_route(void)
     dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
   }
 }
+#else
+#define dbg_route() do{ }while(0)
+#endif
 
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
