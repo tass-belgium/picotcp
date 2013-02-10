@@ -14,7 +14,7 @@
 START_TEST (test_ipv4)
 {
   struct pico_device *dev0, *dev1, *dev2;
-  struct pico_ip4 a0, a1, a2, r0, r1, r2, nm24, nm16, nm32, zero={}, gw2;
+  struct pico_ip4 a0, a1, a2, r0, r1, r2, nm24, nm16, nm32, zero={}, gw1, gw2, ret;
   struct pico_ipv4_link *l0, *l1, *l2;
 
   dev0 = pico_null_create("nul0");
@@ -29,7 +29,8 @@ START_TEST (test_ipv4)
   nm16.addr = long_be(0xFFFF0000);
   nm24.addr = long_be(0xFFFFFF00);
   nm32.addr = long_be(0xFFFFFFFF);
-  gw2.addr  = long_be(0x020202F0);
+  gw1.addr  = long_be(0x020202F0);
+  gw2.addr  = long_be(0x030303F0);
 
 
   pico_ipv4_link_add(dev0, a0, nm16);
@@ -54,10 +55,15 @@ START_TEST (test_ipv4)
   fail_unless(strcmp(l2->dev->name, "nul2") == 0, "wrong link");
 
   pico_ipv4_route_add(r0, nm24, zero, 1, l0);
-  pico_ipv4_route_add(r1, nm32, zero, 1, l1);
+  pico_ipv4_route_add(r1, nm32, gw1, 1, l1);
   pico_ipv4_route_add(r2, nm32, gw2, 1, l2);
 
-  /* TODO: test routing algorithm (source_find/gateway_find) */
+  ret = pico_ipv4_route_get_gateway(&r0);
+  fail_if(ret.addr != 0, "gw find: returned wrong route");
+  ret = pico_ipv4_route_get_gateway(&r1);
+  fail_if(ret.addr != gw1.addr, "gw find: returned wrong route");
+  ret = pico_ipv4_route_get_gateway(&r2);
+  fail_if(ret.addr != gw2.addr, "gw find: returned wrong route");
 
 }
 END_TEST
