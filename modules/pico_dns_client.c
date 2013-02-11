@@ -210,7 +210,7 @@ int pico_dns_client_init()
 
 struct pico_dns_key
 {
-  void *q_hdr;
+  char *q_hdr;
   uint16_t len;
   uint16_t id;
   uint16_t qtype;
@@ -294,7 +294,7 @@ static int pico_dns_client_reverse_label(char *ptr)
 }
 
 /* Seek the end of a string */
-static void *pico_dns_client_seek(char *ptr)
+static char *pico_dns_client_seek(char *ptr)
 {
   int p;
 
@@ -447,7 +447,7 @@ static void pico_dns_client_retransmission(unsigned long now, void *arg)
 
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
-  void *q_qname, *q_suf, *a_hdr, *a_qname, *a_suf, *a_rdata;
+  char *q_qname, *q_suf, *a_hdr, *a_qname, *a_suf, *a_rdata;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
   struct dns_answer_suffix answer_suf;
@@ -560,7 +560,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 
 int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
 {
-  void *q_hdr, *q_qname, *q_suf;
+  char *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
   struct pico_dns_key *key;
@@ -582,7 +582,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   pico_dns_client_construct_hdr(hdr, id);
   /* Add and manipulate domain name */
   memcpy(q_qname + 1, url, url_len + 1);
-  pico_dns_client_label((char *)q_qname);
+  pico_dns_client_label(q_qname);
   /* Add type and class of query */
   query_suf.qtype = short_be(PICO_DNS_TYPE_A);
   query_suf.qclass = short_be(PICO_DNS_CLASS_IN);
@@ -615,7 +615,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
 
 int pico_dns_client_getname(const char *ip, void (*callback)(char *))
 {
-  void *q_hdr, *q_qname, *q_suf;
+  char *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
   struct dns_query_suffix query_suf;
   struct pico_dns_key *key;
@@ -639,9 +639,9 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *))
   pico_dns_client_construct_hdr(hdr, id);
   /* Add and manipulate domain name */
   memcpy(q_qname + 1, ip, ip_len + 1);
-  pico_dns_client_mirror((char *)(q_qname + 1));
+  pico_dns_client_mirror(q_qname + 1);
   memcpy(q_qname + 1 + ip_len, ".in-addr.arpa", arpa_len);
-  pico_dns_client_label((char *)q_qname);
+  pico_dns_client_label(q_qname);
   /* Add type and class of query */
   query_suf.qtype = short_be(PICO_DNS_TYPE_PTR);
   query_suf.qclass = short_be(PICO_DNS_CLASS_IN);

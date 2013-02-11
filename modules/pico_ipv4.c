@@ -159,12 +159,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 {
   uint8_t option_len = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-	struct pico_ip4 address0;
-	address0.addr = long_be(0x00000000);
+  struct pico_ip4 address0;
+  address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
-     // TODO the commented line below make the build unstable
-     //f->net_len = PICO_SIZE_IP4HDR + 4*(((hdr->vhl) & 0x0F)-5);
      option_len =  4*(((hdr->vhl) & 0x0F)-5);
   }
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
@@ -202,8 +200,8 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     } else {                              /* no NAT so enqueue to next layer */
       pico_transport_receive(f, hdr->proto);
     }
-	} else if (pico_ipv4_link_find(&address0) == f->dev) {
-		//address of this device is apparently 0.0.0.0; might be a DHCP packet
+  } else if (pico_ipv4_link_find(&address0) == f->dev) {
+    //address of this device is apparently 0.0.0.0; might be a DHCP packet
     pico_enqueue(pico_proto_udp.q_in, f);
   } else {
     /* Packet is not local. Try to forward. */
@@ -227,9 +225,8 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
   if (!f)
     return NULL;
   f->datalink_hdr = f->buffer;
-  f->datalink_len = PICO_SIZE_ETHHDR;
   f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP4HDR;
+  f->net_len = PICO_SIZE_IP4HDR + size;
   f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
   f->transport_len = size;
   f->len =  size + PICO_SIZE_IP4HDR;
@@ -564,6 +561,8 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
+
+#ifdef DEBUG_ROUTE
 static void dbg_route(void)
 {
   struct pico_ipv4_route *r;
@@ -571,6 +570,9 @@ static void dbg_route(void)
     dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
   }
 }
+#else
+#define dbg_route() do{ }while(0)
+#endif
 
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {

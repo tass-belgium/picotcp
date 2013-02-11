@@ -267,7 +267,7 @@ static int reset_timer(struct igmp2_packet_params *params){
 
   uint8_t ret = 0;
   ret |= stop_timer(&(params->group_address));
-  uint16_t delay = (params->max_resp_time % pico_rand()); 
+  uint16_t delay = pico_rand() % (params->max_resp_time*100); 
 
   ret |= start_timer(params, delay);
   return ret;
@@ -411,8 +411,7 @@ static int action2(struct igmp2_packet_params *params){
     return 1;
   }
   ret |= send_membership_report(copy_frame);
-  /*Random delay between [0 and Unsolicited report interval]: [39-10000] -> 255 values*/
-  info->delay = (PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL % pico_rand()); 
+  info->delay = (pico_rand() %( PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL*100)); 
   params->f = f;
   ret |= start_timer(params, info->delay);
   /*Check if action is completed successfully, if so then adjust Membership State*/
@@ -462,8 +461,7 @@ static int action4(struct igmp2_packet_params *params){
 
   ret |= create_igmp2_frame(&(params->f), info->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
 
-  /*Random delay between [0 and Max Response Time]: [39-10000] -> 255 values*/
-  info->delay = (params->max_resp_time % pico_rand()); 
+  info->delay = (pico_rand() % (params->max_resp_time*100) ); 
   ret |= start_timer(params, info->delay);
 
   /*Check if action is completed successfully, if so then adjust Membership State*/

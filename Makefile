@@ -41,11 +41,11 @@ endif
 
 
 .c.o:
-	@echo "\t[CC] $<"
+	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
 
 %.elf: %.o
-	@echo "\t[LD] $@"
+	@echo -e "\t[LD] $@"
 	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS)
 
 CFLAGS+=$(OPTIONS)
@@ -151,9 +151,9 @@ lib: mod core
 	@cp -f include/*.h $(PREFIX)/include
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
-	@echo "\t[AR] $(PREFIX)/lib/picotcp.a"
+	@echo -e "\t[AR] $(PREFIX)/lib/picotcp.a"
 	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o
-	@echo "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
+	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
 	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
 
 loop: mod core
@@ -161,7 +161,15 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
+units: mod core lib
+	@echo -e "\n\t[UNIT TESTS SUITE]"
+	@mkdir -p $(PREFIX)/test
+	@echo -e "\t[CC] units.o"
+	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS)
+	@echo -e "\t[LD] $(PREFIX)/test/units"
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o $(PREFIX)/lib/picotcp.a modules/pico_dev_null.c -lcheck
+
 
 clean:
-	@echo "\t[CLEAN] $(PREFIX)/"
+	@echo -e "\t[CLEAN] $(PREFIX)/"
 	@rm -rf $(PREFIX) tags

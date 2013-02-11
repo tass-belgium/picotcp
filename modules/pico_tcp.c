@@ -893,19 +893,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
   tcp_dbg("TCP>>>>>>>>>>>>>>>> sending RST ... <<<<<<<<<<<<<<<<<<\n");
 
-  /* allocate new frame for RST */
-  f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
-  if (!f)
-    return 0;
-  
-  /* set pointer in newly allocated frame */
-  f->datalink_hdr = f->buffer;
-  f->datalink_len = PICO_SIZE_ETHHDR;
-  f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP4HDR;
-  f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
-  f->transport_len = size;
-  f->len =  size + PICO_SIZE_IP4HDR;
+  f = fr->sock->net->alloc(fr->sock->net, size);
 
   /* fill in IP data from original frame */
   // TODO if IPv4
