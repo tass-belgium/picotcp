@@ -309,7 +309,6 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
   /* place 23 lower bits of IP in lower 23 bits of MAC */
-  /* Remark: IP is little endian, MAC is big endian */
   pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FF);
   pico_mcast_mac[4] = (long_be(hdr->dst.addr) & 0x0000FF00) >> 8; 
   pico_mcast_mac[3] = (long_be(hdr->dst.addr) & 0x007F0000) >> 16;
