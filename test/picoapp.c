@@ -625,6 +625,206 @@ void app_tcpclient(char *arg)
 }
 /*** END TCP CLIENT ***/
 
+
+/*** START TCP BENCH ***/
+
+#define TCP_BENCH_TX  1
+#define TCP_BENCH_RX  2
+
+int tcpbench_mode = 0;
+struct pico_socket *tcpbench_sock = NULL;
+struct timeval tcpbench_time_start,tcpbench_time_end;
+
+void cb_tcpbench(uint16_t ev, struct pico_socket *s)
+{
+  static int closed = 0;
+  static unsigned long count = 0;
+  uint8_t recvbuf[1500];
+  struct pico_ip4 orig;
+  uint16_t port;
+  char peer[30];
+  struct pico_socket *sock_a;
+
+  static int tcpbench_wr_size = 0;
+  static int tcpbench_rd_size = 0;
+  int tcpbench_w = 0;
+  int tcpbench_r = 0;
+  double tcpbench_time = 0;
+
+  count++;
+
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      /* read data, but discard */
+      tcpbench_r = pico_socket_read(s, recvbuf, 1500);
+      if (tcpbench_r > 0)
+        tcpbench_rd_size += tcpbench_r;
+      else if (tcpbench_r < 0) {
+        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        exit(5);
+      }
+    } while (tcpbench_r > 0);
+  }
+
+  if (ev & PICO_SOCK_EV_CONN) { 
+    if (tcpbench_mode == TCP_BENCH_TX) {
+      printf("tcpbench> Connection established with server.\n");
+    } else if (tcpbench_mode == TCP_BENCH_RX) {
+      sock_a = pico_socket_accept(s, &orig, &port);
+      pico_ipv4_to_string(peer, orig.addr);
+      printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
+    }
+    gettimeofday(&tcpbench_time_start,NULL);
+  }
+
+  if (ev & PICO_SOCK_EV_FIN) {
+    printf("tcpbench> Socket closed. Exit normally. \n");
+    exit(0);
+  }
+
+  if (ev & PICO_SOCK_EV_ERR) {
+    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+    exit(1);
+  }
+
+  if (ev & PICO_SOCK_EV_CLOSE) {
+    printf("tcpbench> event close\n");
+    if (tcpbench_mode == TCP_BENCH_RX) {
+        gettimeofday(&tcpbench_time_end,NULL);
+        tcpbench_time = (tcpbench_time_end.tv_sec - tcpbench_time_start.tv_sec) + (tcpbench_time_end.tv_usec - tcpbench_time_start.tv_usec)/1000000;
+        printf("tcpbench> average read throughput %lf kB/sec\n",(tcpbench_rd_size/tcpbench_time)/1000);
+        pico_socket_shutdown(s, PICO_SHUT_WR);
+        printf("tcpbench> Called shutdown write, ev = %d\n",ev);
+    } else if (tcpbench_mode == TCP_BENCH_TX) {
+        pico_socket_close(s);
+        return;
+    }
+  }
+
+  if (ev & PICO_SOCK_EV_WR) {
+    if (tcpbench_wr_size < TCPSIZ && tcpbench_mode == TCP_BENCH_TX) {
+      do {
+        tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ-tcpbench_wr_size);
+        if (tcpbench_w > 0) {
+          tcpbench_wr_size += tcpbench_w;
+          //printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
+        }
+        if (tcpbench_w < 0) {
+          printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+          exit(5);
+        }
+      } while(tcpbench_w > 0);
+    } else {
+      if (!closed && tcpbench_mode == TCP_BENCH_TX) {
+        gettimeofday(&tcpbench_time_end,NULL);
+        pico_socket_shutdown(s, PICO_SHUT_WR);
+        printf("tcpbench> TCPSIZ written\n");
+        printf("tcpbench> Called shutdown()\n");
+        tcpbench_time = (tcpbench_time_end.tv_sec - tcpbench_time_start.tv_sec) + (tcpbench_time_end.tv_usec - tcpbench_time_start.tv_usec)/1000000;
+        printf("tcpbench> average write throughput %lf kB/sec\n",(TCPSIZ/tcpbench_time)/1000);
+        closed = 1;
+      }
+    }
+  }
+}
+
+void app_tcpbench(char *arg)
+{
+  struct pico_socket *s;
+  char *dport;
+  char *dest;
+  char *mode;
+  int port = 0, i;
+  uint16_t port_be = 0;
+  struct pico_ip4 server_addr;
+  char *nxt;
+  char *sport;
+
+  nxt = cpy_arg(&mode, arg);
+
+  if (*mode == 't') {   /* TEST BENCH SEND MODE */
+    tcpbench_mode = TCP_BENCH_TX;    
+
+    nxt = cpy_arg(&dest, nxt);
+    if (!dest) {
+      fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport]\n");
+      exit(255);
+    }
+    printf ("+++ Dest is %s\n", dest);
+    if (nxt) {
+      printf("Next arg: %s\n", nxt);
+      nxt=cpy_arg(&dport, nxt);
+      printf("Dport: %s\n", dport);
+    }
+    if (dport) {
+      port = atoi(dport);
+      port_be = short_be((uint16_t)port);
+    }
+    if (port == 0) {
+      port_be = short_be(5555);
+    }
+
+    buffer0 = malloc(TCPSIZ);
+    buffer1 = malloc(TCPSIZ);
+    printf("Buffer1 (%p)\n", buffer1);
+    for (i = 0; i < TCPSIZ; i++) {
+      char c = (i % 26) + 'a';
+      buffer0[i] = c;
+    }
+    memset(buffer1, 'a', TCPSIZ);
+    printf("tcpbench> Connecting to: %s:%d\n", dest, short_be(port_be));
+
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
+    if (!s)
+      exit(1); 
+    
+    /* NOTE: used to set a fixed local port and address
+    local_port = short_be(6666);
+    pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
+    pico_socket_bind(s, &local_addr, &local_port);*/
+    
+    pico_string_to_ipv4(dest, &server_addr.addr);
+    pico_socket_connect(s, &server_addr, port_be);
+
+  } else if (*mode == 'r') {   /* TEST BENCH RECEIVE MODE */ 
+    tcpbench_mode = TCP_BENCH_RX;    
+
+    cpy_arg(&sport, arg);
+    if (!sport) {
+      fprintf(stderr, "tcpbench receive needs the following format: tcpbench:rx[:dport]\n");
+      exit(255);
+    }
+    if (sport) {
+      port = atoi(sport);
+      port_be = short_be((uint16_t)port);
+    }
+    if (port == 0) {
+      port_be = short_be(5555);
+    }
+
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
+    if (!s)
+      exit(1);
+
+    if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0)
+      exit(1);
+
+    if (pico_socket_listen(s, 40) != 0)
+      exit(1);
+
+    printf("tcpbench> listening port %u ...\n",short_be(port_be));
+  } else {
+    printf("tcpbench> wrong mode argument\n");
+    exit(1);
+  }
+
+  tcpbench_sock = s;
+
+  return;
+}
+
+
+
 void app_natbox(char *arg)
 {
   char *dest = NULL;
@@ -1403,6 +1603,9 @@ int main(int argc, char **argv)
         }
         else IF_APPNAME("tcpclient") {
           app_tcpclient(args);
+        }
+        else IF_APPNAME("tcpbench") {
+          app_tcpbench(args);
         }
         else IF_APPNAME("natbox") {
           app_natbox(args);
