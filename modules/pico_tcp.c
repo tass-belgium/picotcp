@@ -589,7 +589,9 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
     next_to_send++;
   if (f->payload_len > 0) {
     next_to_send = SEQN(f) + f->payload_len;
-    hdr->flags |= PICO_TCP_PSH;
+    hdr->flags |= PICO_TCP_PSH | PICO_TCP_ACK;
+    hdr->ack = long_be(ts->rcv_nxt);
+    ts->rcv_ackd = ts->rcv_nxt;
   }
 
   if (seq_compare(next_to_send, ts->snd_nxt) > 0) {
