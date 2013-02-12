@@ -361,7 +361,12 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
       memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
       memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
       hdr->proto = PICO_IDETH_IPV4;
-      return f->dev->send(f->dev, f->start, f->len);
+      if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)){
+        dbg("sending out packet destined for our own mac\n");
+        return pico_ethernet_receive(f);
+      }else{
+        return f->dev->send(f->dev, f->start, f->len);
+      }
     } else {
       return -1;
     }

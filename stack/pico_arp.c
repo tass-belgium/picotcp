@@ -110,6 +110,14 @@ struct pico_eth *pico_arp_get(struct pico_frame *f) {
   struct pico_arp *a4;
   struct pico_ip4 gateway;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_ipv4_link *l;
+
+  l = pico_ipv4_link_get(&hdr->dst);
+  if(l){
+    //address belongs to ourself
+    return &l->dev->eth->mac;
+  }
+
   gateway = pico_ipv4_route_get_gateway(&hdr->dst);
   /* check if dst is local (gateway = 0), or if to use gateway */
   if (gateway.addr != 0)
