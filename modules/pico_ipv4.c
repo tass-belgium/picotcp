@@ -542,8 +542,14 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   }
 #endif
 
-  /* TODO: Check if there are members subscribed here */
-  return pico_enqueue(&out, f);
+  if(pico_ipv4_link_get(&hdr->dst)){
+    //it's our own IP
+    return pico_enqueue(&in, f);
+  }else{
+    /* TODO: Check if there are members subscribed here */
+    return pico_enqueue(&out, f);
+  }
+
 drop:
   pico_frame_discard(f);
   return -1;
