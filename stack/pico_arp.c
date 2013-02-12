@@ -106,7 +106,7 @@ struct pico_arp *pico_arp_get_entry_by_mac(uint8_t *dst)
   return NULL;
 }
 
-struct pico_arp *pico_arp_get(struct pico_frame *f) {
+struct pico_eth *pico_arp_get(struct pico_frame *f) {
   struct pico_arp *a4;
   struct pico_ip4 gateway;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -136,7 +136,7 @@ struct pico_arp *pico_arp_get(struct pico_frame *f) {
       pico_frame_discard(f);
     }
   }
-  return a4;
+  return &a4->eth;
 }
 
 void dbg_arp(void)

@@ -328,7 +328,6 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
  */
 int pico_ethernet_send(struct pico_frame *f, void *nexthop)
 {
-  struct pico_arp *a4 = NULL;
   struct pico_eth *dstmac = NULL;
 
   if (IS_IPV6(f)) {
@@ -348,10 +347,9 @@ int pico_ethernet_send(struct pico_frame *f, void *nexthop)
     } 
 #endif
     else {
-      a4 = pico_arp_get(f);
-      if (!a4)
+      dstmac = pico_arp_get(f);
+      if (!dstmac)
         return 0;
-      dstmac = (struct pico_eth *) a4;
     }
     /* This sets destination and source address, then pushes the packet to the device. */
     if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
