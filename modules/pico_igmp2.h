@@ -52,7 +52,7 @@ struct __attribute__((packed)) pico_igmp2_hdr {
 #define PICO_IGMP2_DEFAULT_MAX_RESPONSE_TIME   (100)
 #define PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL (100)
 
-void pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
-void pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
+int pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
+int pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
 
 #endif /* _INCLUDE_PICO_IGMP2 */
