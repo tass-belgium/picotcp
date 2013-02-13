@@ -11,3 +11,8 @@ core.*
 cscope.files
 cscope.out
 *.so
+*.aux
+*.pdf
+*.toc
+*.gz
+*.log
