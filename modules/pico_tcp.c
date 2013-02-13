@@ -544,14 +544,14 @@ static int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-  
+
   /* segments are validated by checking their SEQ-fields in any synchronized state,
      a segment is valid if its sequence number is in the window */
   if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
     if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
       if (hdr->flags & PICO_TCP_ACK) {
         /* check ack nr */
-        if ((long_be(hdr->ack) > SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
+        if ((long_be(hdr->ack) >= SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
           return 1;     /* seq and ack nr ok */
         else
           return 0;     /* ack nr not ok */
@@ -589,9 +589,9 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
     next_to_send++;
   if (f->payload_len > 0) {
     next_to_send = SEQN(f) + f->payload_len;
-    hdr->flags |= PICO_TCP_PSH;// | PICO_TCP_ACK;
-    //hdr->ack = long_be(ts->rcv_nxt);
-    //ts->rcv_ackd = ts->rcv_nxt;
+    hdr->flags |= PICO_TCP_PSH | PICO_TCP_ACK;
+    hdr->ack = long_be(ts->rcv_nxt);
+    ts->rcv_ackd = ts->rcv_nxt;
   }
 
   if (seq_compare(next_to_send, ts->snd_nxt) > 0) {
@@ -1353,7 +1353,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     } else
       t->in_flight -= acked;
 
-  } else {
+  } else if (!(hdr->flags & PICO_TCP_PSH)) { /* OSX/WIN behaviour: if PSH flag set, ACK must be there, if not fresh ignore ? XXX  */
     if (t->in_flight > 0)
       t->in_flight--;
     if (t->x_mode < PICO_TCP_RECOVER) {
