@@ -82,7 +82,9 @@ On success, this call returns an integer representing the number of bytes read. 
 \end{itemize}
 
 \subsubsection*{Example}
-bytesRead = pico$\_$socket$\_$read(sk$\_$tcp, buffer, bufferLength);
+\begin{verbatim}
+bytesRead = pico_socket_read(sk_tcp, buffer, bufferLength);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$write}
@@ -120,7 +122,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-bytesWritten = pico$\_$socket$\_$write(sk$\_$tcp, buffer, bufLength);
+\begin{verbatim}
+bytesWritten = pico_socket_write(sk_tcp, buffer, bufLength);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$sendto}
@@ -156,7 +160,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-bytesWritten = pico$\_$socket$\_$sendto(sk$\_$tcp, buf, len, $\&$sk$\_$tcp->remote$\_$addr, sk$\_$tcp->remote$\_$port);
+\begin{verbatim}
+bytesWritten = pico_socket_sendto(sk_tcp, buf, len, &sk_tcp->remote_addr, sk_tcp->remote_port);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$recvfrom}
@@ -189,7 +195,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-bytesRcvd = pico$\_$socket$\_$recvfrom(sk$\_$tcp, buf, bufLen, $\&$peer, $\&$port);
+\begin{verbatim}
+bytesRcvd = pico_socket_recvfrom(sk_tcp, buf, bufLen, &peer, &port);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$send}
@@ -224,7 +232,9 @@ the socket. On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-bytesRcvd = pico$\_$socket$\_$send(sk$\_$tcp, buf, bufLen);
+\begin{verbatim}
+bytesRcvd = pico_socket_send(sk_tcp, buf, bufLen);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$recv}
@@ -254,7 +264,9 @@ from the socket. On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-bytesRcvd = pico$\_$socket$\_$recv(sk$\_$tcp, buf, bufLen);
+\begin{verbatim}
+bytesRcvd = pico_socket_recv(sk_tcp, buf, bufLen);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$bind}
@@ -283,7 +295,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-errMsg = pico$\_$socket$\_$bind(sk$\_$tcp, $\&$sockaddr4->addr, $\&$sockaddr4->port);
+\begin{verbatim}
+errMsg = pico_socket_bind(sk_tcp, &sockaddr4->addr, &sockaddr4->port);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$connect}
@@ -313,7 +327,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-errMsg = pico$\_$socket$\_$connect(sk$\_$tcp, $\&$sockaddr4->addr, sockaddr4->port);
+\begin{verbatim}
+errMsg = pico_socket_connect(sk_tcp, &sockaddr4->addr, sockaddr4->port);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$listen}
@@ -341,14 +357,16 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-errMsg = pico$\_$socket$\_$listen(sk$\_$tcp, 3);
+\begin{verbatim}
+errMsg = pico_socket_listen(sk_tcp, 3);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$accept}
 
 \subsubsection*{Description}
 When a server is listening on a socket and the client is trying to connect.
-The server on his side will wakeup and acknowlegde the connection by calling the this function.
+The server on his side will wakeup and acknowledge the connection by calling the this function.
 
 \subsubsection*{Function prototype}
 struct pico$\_$socket *pico$\_$socket$\_$accept(struct pico$\_$socket *s, void *orig, uint16$\_$t *local$\_$port);
@@ -372,7 +390,9 @@ is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-client = pico$\_$socket$\_$accept(sk$\_$tcp, $\&$peer, $\&$port);
+\begin{verbatim}
+client = pico_socket_accept(sk_tcp, &peer, &port);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$shutdown}
@@ -392,7 +412,7 @@ int pico$\_$socket$\_$shutdown(struct pico$\_$socket *s, int mode);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull socket shutdown.
+On success, this call returns 0 after a successful socket shutdown.
 On error, -1 is returned, and pico$\_$err is set appropriately.
 
 \subsubsection*{Errors}
@@ -401,7 +421,9 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-errMsg = pico$\_$socket$\_$shutdown(s, PICO$\_$SHUT$\_$RDWR);
+\begin{verbatim}
+errMsg = pico_socket_shutdown(s, PICO_SHUT_RDWR);
+\end{verbatim}
 
 
 \subsection{pico$\_$socket$\_$close}
@@ -427,4 +449,6 @@ On error, -1 is returned, and pico$\_$err is set appropriately.
 \end{itemize}
 
 \subsubsection*{Example}
-errMsg = pico$\_$socket$\_$close(sk$\_$tcp);
+\begin{verbatim}
+errMsg = pico_socket_close(sk_tcp);
+\end{verbatim}
