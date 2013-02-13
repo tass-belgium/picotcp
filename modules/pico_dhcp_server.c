@@ -120,7 +120,7 @@ static void dhcp_recv(uint8_t *buffer, int len)
 
 
 	if (!dn) {
-		dn = malloc(sizeof(struct pico_dhcp_negotiation));
+		dn = pico_zalloc(sizeof(struct pico_dhcp_negotiation));
 		memset(dn, 0, sizeof(struct pico_dhcp_negotiation));
 		dn->xid = dhdr->xid;
 		dn->state = DHCPSTATE_DISCOVER;
@@ -171,14 +171,13 @@ static void dhcp_recv(uint8_t *buffer, int len)
 }
 
 
-//TODO should we return something when things go wrong? or a callback (like in the client?)
 //This function gets a pico_dhcpd_settings-struct. 
-void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
+int pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
 {
 	uint16_t port = PICO_DHCPD_PORT;
 
 	if(!setting->dev)
-		return;
+		return -1;
 
 	memcpy(&settings,setting,sizeof(struct pico_dhcpd_settings));
 	dbg("DHCPD>initiating server\n");
@@ -223,14 +222,15 @@ void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
 		dbg("DHCP>could not open client socket\n");
 		//if(cli->cb != NULL)
 			//cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
 	if (pico_socket_bind(udpsock, &settings.my_ip, &port) != 0){
 		dbg("DHCP>could not bind client socket\n");
 		//if(cli->cb != NULL)
 			//cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
+	return 0;
 }
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
