@@ -1,0 +1,93 @@
+\section{DHCP : client}
+
+% Short description/overview of module functions
+A DHCP client for obtaining a dynamic IP address.
+Currently DHCP can only be run on one interface. Future versions may support DHCP on multiple interfaces, and the functions described here are already prepared for that.
+When initiating a negotiation the user is passed an identifier, which must then be pass to all future calls to \texttt{pico\_dhcp} functions.
+
+
+\subsection{pico\_dhcp\_initiate\_negotiation}
+
+\subsubsection*{Description}
+Initiate a DHCP negotiation. The user passes a callback-function, which will be called when DHCP has succeeded or failed.
+
+\subsubsection*{Function prototype}
+\texttt{void* pico\_dhcp\_initiate\_negotiation(struct pico\_device* device, void (*callback)(void* cli, int code));}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{device} - the device on which a negotiation should be started
+\item \texttt{callback} - the function which will be called in case of success or failure. Note that this function can be called multiple times. An example would be if initially DHCP succeeded, but then the DHCP server was removed from the network long enough for the lease to expire, and later added again to the network. The callback would be called 3 times in this example: first with code \texttt{PICO\_DHCP\_SUCCESS}, then with \texttt{PICO\_DHCP\_RESET}, and finally again with \texttt{PICO\_DHCP\_SUCCESS}.
+Also note that this callback may already be called before \texttt{pico\_dhcp\_initiate\_negotiation} has returned, e.g. in case of failure to open a socket.
+It accepts two parameters : 
+\begin{itemize}
+\item \texttt{cli} - the identifier of the negotiation
+\item \texttt{code} - the reason the callback occurred. 
+\begin{itemize}
+\item \texttt{PICO\_DHCP\_SUCCESS} - DHCP succeeded, the user can start using the assigned address, which can be obtained by calling \texttt{pico\_dhcp\_get\_address}.
+\item \texttt{PICO\_DHCP\_ERROR} - an error occurred. DHCP is unable to recover from this error.
+\item \texttt{PICO\_DHCP\_RESET} - DHCP was unable to renew its lease, and the lease expired. The user must immediately stop using the previously assigned IP, and wait for DHCP to obtain a new lease. DHCP will automatically start negotiations again.
+\end{itemize}
+\end{itemize}
+\end{itemize}
+
+\subsubsection*{Return value}
+A \texttt{void*} identifying the negotiation. This must be passed to all calls related to DHCP. This is to create the possibility of initiating DHCP negotiations on multiple devices (currently not supported).
+
+\subsubsection*{Errors}
+All errors are reported through the callback-function described above.
+
+\subsubsection*{Example}
+\begin{verbatim}
+void* identifier = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
+\end{verbatim}
+
+
+\subsection{pico\_dhcp\_get\_address}
+
+\subsubsection*{Description}
+Get the address that was assigned through DHCP. This function should only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+
+\subsubsection*{Function prototype}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_address(void* cli);}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{cli} - the negotiation identifier that was returned from \texttt{pico\_dhcp\_initiate\_negotiations}.
+\end{itemize}
+
+\subsubsection*{Return value}
+\texttt{struct pico\_ip4} - the address that was assigned
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+struct pico_ip4 address = pico_dhcp_get_address(identifier);
+\end{verbatim}
+
+
+\subsection{pico\_dhcp\_get\_gateway}
+
+\subsubsection*{Description}
+Get the address of the gateway that was assigned through DHCP. This function should only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+
+\subsubsection*{Function prototype}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_gateway(void* cli);}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{cli} : the negotiation identifier that was returned from \texttt{pico\_dhcp\_initiate\_negotiations}.
+\end{itemize}
+
+\subsubsection*{Return value}
+\begin{itemize}
+\item \texttt{struct pico\_ip4} - the address of the gateway that should be used. 
+\end{itemize}
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+struct pico_ip4 gateway = pico_dhcp_get_gateway(identifier);
+\end{verbatim}

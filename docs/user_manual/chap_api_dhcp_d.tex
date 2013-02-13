@@ -1,0 +1,42 @@
+\section{DHCP : server}
+
+% Short description/overview of module functions
+
+
+\subsection{pico\_dhcp\_server\_initiate}
+
+
+\subsubsection*{Description}
+This function starts a simple DHCP server. 
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_dhcp\_server\_initiate(struct pico\_dhcpd\_settings* setting);}
+
+\subsubsection*{Parameters}
+\texttt{settings} - a pointer to a struct \texttt{pico\_dhcpd\_settings}, in which the following members matter to the user : 
+\begin{itemize}
+\item \texttt{struct pico\_device *dev} - a pointer to the device on which the dhcp server must operate
+\item \texttt{struct pico\_ip4 my\_ip} - the IP assigned to the server
+\item \texttt{struct pico\_ip4 netmask} - the netmask the server must advertise
+\item \texttt{uint32\_t pool\_start} - the first IP address that may be assigned
+\item \texttt{uint32\_t pool\_end} - the last IP address that may be assigned
+\item \texttt{uint32\_t lease\_time} - the advertised lease time in seconds
+\end{itemize}
+
+\subsubsection*{Return value}
+On successfull startup of the dhcp server, 0 is returned. On error a value different from 0 is returned.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+struct pico_dhcpd_settings s = {0};
+s.dev = ethernet;
+s.my_ip.addr = long_be(0x0a280003);
+s.netmask.addr = long_be(0xffffff00);
+s.pool_start = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x00000064);
+s.pool_end = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x000000ff);
+pico_dhcp_server_initiate(&s);
+\end{verbatim}
+
+

@@ -1,0 +1,50 @@
+\section{IGMP}
+
+% Short description/overview of module functions
+This module allows the user to join and leave IGMP multicast groups. Currently only IGMP2 is supported.
+
+
+\subsection{pico\_igmp2\_join\_group}
+
+\subsubsection*{Description}
+Join an IGMP2 multicast group.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_igmp2\_join\_group(struct pico\_ip4 *group\_address, struct pico\_ipv4\_link *link);}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{group\_address} - the address of the multicast group you want to join.
+\item \texttt{link} - the link on which that multicast group should be joined.
+\end{itemize}
+
+\subsubsection*{Return value}
+In case of success, 0. In case of failure, a value different from 0. Attempting to join a group which was already joined before is considered a failure in this context. 
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+
+
+\subsection{pico\_igmp2\_leave\_group}
+
+\subsubsection*{Description}
+leave an IGMP2 multicast group.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_igmp2\_leave\_group(struct pico\_ip4 *group\_address, struct pico\_ipv4\_link *link);}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{group\_address} - the address of the multicast group you want to leave.
+\item \texttt{link} - the link on which that multicast group should be left.
+\end{itemize}
+
+\subsubsection*{Return value}
+In case of success, 0. In case of failure, a value different from 0. Attempting to leave a group which was never joined is considered a failure in this context. 
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+
+
