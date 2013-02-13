@@ -1,0 +1,71 @@
+% Philippe Mariman
+%
+% PicoTCP User Documentation main file
+% ====================================
+
+%\documentclass[11pt, a4paper, openright]{paper}
+
+
+\input{layout1}
+
+% TEMPS
+
+%\usepackage{tikz}
+%\usepackage[latin1]{inputenc}
+%\usepackage{graphicx}
+%\usepackage[hang,flushmargin]{footmisc}
+%\usepackage{pdfpages}
+%\usepackage{tabularx}
+%\usepackage{lscape}
+%\usepackage{longtable}
+%\usepackage{verbatim}
+%\usepackage{moreverb}
+%\usepackage{listings}
+%\usepackage{draftcopy}
+\usepackage{draftwatermark}
+\SetWatermarkText{DRAFT}
+\SetWatermarkScale{5}
+\SetWatermarkLightness{0.9}
+
+
+\begin{document}
+
+\title{PicoTCP User Documentation}
+\author{Philippe Mariman}
+\date{\today}
+\maketitle
+
+\thispagestyle{empty}
+
+\pagenumbering{arabic}
+
+%\selectlanguage{english}
+
+\tableofcontents
+
+\chapter{Introduction}
+\label{chap:intro}
+%\input{chap_intro}
+
+\chapter{Overview}
+\label{chap:overview}
+%\input{chap_overview}
+
+
+\chapter{Usage and platform integration}
+\label{chap:usage}
+%\input{chap_usage}
+
+
+\chapter{API Documentation}
+\label{chap:api_doc}
+The following sections will describe the API for picoTCP.
+\input{chap_api_sock}
+
+
+\chapter{Examples}
+\label{chap:examples}
+%\input{chap_examples}
+
+
+\end{document}

@@ -1,0 +1,71 @@
+%Thesistemplate LaTeX De Nayer 2008-2009
+%Stefan Bouwens, Dave Geeradyn & Toon Goedem\'e
+
+%PACKAGES
+%\usepackage{times}
+%\usepackage[dvips]{graphicx}
+\usepackage{url}
+\usepackage[english,dutch]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[all]{xy}
+\usepackage{amssymb}
+%\usepackage[breaklinks=true, bookmarksopen=true]{hyperref}
+\usepackage[small,bf,hang]{caption}
+\renewcommand{\captionfont}{\small\itshape}
+\usepackage{natbib}
+\bibpunct{(}{)}{;}{a}{,}{,}
+
+\usepackage{listings}
+\lstloadlanguages{[visual]c++}
+\lstset{	basicstyle=\small,
+		basicstyle=\ttfamily,
+		numbers=left, numberstyle=\tiny, stepnumber=1, numbersep=5pt,
+		tabsize=3,
+		keywordstyle=\color{black}\bfseries,
+		commentstyle=\color{gray}\itshape,
+		frame=single,
+		breaklines=true
+		}
+
+
+%LAYOUT
+%\bibliographystyle{agsm}
+
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+
+\setlength{\textheight}{237mm}
+\setlength{\textwidth}{160mm}
+%\setlength{\columnsep}{0.3125in}
+\setlength{\topmargin}{-0.54cm}
+\setlength{\headheight}{15pt}
+%\setlength{\headsep}{0in}
+%\setlength{\parindent}{1pc}
+\setlength{\oddsidemargin}{0.46cm}  % Centers text.
+\setlength{\evensidemargin}{-.54cm}
+%
+%Linkermarge 30 mm, rechtermarge 20 mm, bovenmarge 20 mm, ondermarge 20 mm. 
+%2,54
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+% with this we ensure that the chapter and section
+% headings are in lowercase.
+\renewcommand{\chaptermark}[1]{%
+	\markboth{#1}{}}
+\renewcommand{\sectionmark}[1]{%
+	\markright{\thesection\ #1}}
+\fancyhf{} % delete current header and footer
+\fancyhead[LE,RO]{\bfseries\thepage}
+\fancyhead[LO]{\bfseries\rightmark}
+\fancyhead[RE]{\bfseries\leftmark}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0pt}
+\addtolength{\headheight}{0.5pt} % space for the rule
+\fancypagestyle{plain}{%
+	\fancyhead{} % get rid of headers on plain pages
+	\renewcommand{\headrulewidth}{0pt} % and the line
+}
+
+\parskip 6pt           % sets spacing between paragraphs
+\parindent 0pt		 % sets leading space for paragraphs
