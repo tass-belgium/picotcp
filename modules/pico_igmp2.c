@@ -219,24 +219,24 @@ struct pico_protocol pico_proto_igmp2 = {
 
 /*====================== API CALLS ======================*/
 
-void pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
+int pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
   struct igmp2_packet_params params = {{0}};
 
   params.event = PICO_IGMP2_EVENT_JOIN_GROUP ;
   params.group_address.addr = group_address->addr;
   params.src_interface.addr = link->address.addr;
 
-  pico_igmp2_process_event(&params);
+  return pico_igmp2_process_event(&params);
 }
 
-void pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
+int pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
   struct igmp2_packet_params params = {{0}};
 
   params.event = PICO_IGMP2_EVENT_LEAVE_GROUP ;
   params.group_address.addr = group_address->addr;
   params.src_interface.addr = link->address.addr;
 
-  pico_igmp2_process_event(&params);
+  return pico_igmp2_process_event(&params);
 }
 
 /*================== GENERAL FUNCTIONS ==================*/

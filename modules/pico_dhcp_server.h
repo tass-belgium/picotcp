@@ -38,7 +38,7 @@ struct pico_dhcp_negotiation {
 };
 
 //you pass this function a pointer to pico_dhcpd_settings. The only required field is the device, the others have default values if they are 0.
-void pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting);
+int pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting);
 
 // configuration info : 
 // These are the default values if something is not filled in for the initiate-call.
