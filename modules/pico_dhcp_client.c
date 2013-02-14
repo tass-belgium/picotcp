@@ -262,18 +262,21 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	cli->timer_param_1 = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_1){
 		if(cli->cb != NULL)
+      pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return 0;
 	}
 	cli->timer_param_2 = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_2){
 		if(cli->cb != NULL)
+      pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return 0;
 	}
 	cli->timer_param_lease = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_lease){
 		if(cli->cb != NULL)
+      pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return 0;
 	}
@@ -516,6 +519,7 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	cli->timer_param_retransmit = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_retransmit){
 		if(cli->cb != NULL)
+      pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
