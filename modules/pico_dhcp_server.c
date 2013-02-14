@@ -47,12 +47,12 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 	int sent = 0;
 
-	memcpy(dh_out->hwaddr, dn->hwaddr, PICO_HLEN_ETHER);
+	memcpy(dh_out->hwaddr, dn->eth.addr, PICO_HLEN_ETHER);
 	dh_out->op = PICO_DHCP_OP_REPLY;
 	dh_out->htype = PICO_HTYPE_ETHER;
 	dh_out->hlen = PICO_HLEN_ETHER;
 	dh_out->xid = dn->xid;
-	dh_out->yiaddr = dn->arp->ipv4.addr;
+	dh_out->yiaddr = dn->ipv4.addr;
 	dh_out->siaddr = settings.my_ip.addr;
 	dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
 
@@ -120,31 +120,29 @@ static void dhcp_recv(uint8_t *buffer, int len)
 
 
 	if (!dn) {
+		struct pico_ip4* ipv4;
 		dn = pico_zalloc(sizeof(struct pico_dhcp_negotiation));
 		memset(dn, 0, sizeof(struct pico_dhcp_negotiation));
 		dn->xid = dhdr->xid;
 		dn->state = DHCPSTATE_DISCOVER;
-		memcpy(dn->hwaddr, dhdr->hwaddr, PICO_HLEN_ETHER);
+		memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
 		dn->next = Negotiation_list;
 		Negotiation_list = dn;
-		dn->arp = pico_arp_get_entry_by_mac(dn->hwaddr);
-		if (!dn->arp) {
-			//allocate memory for arp entry
-			dn->arp = pico_zalloc(sizeof(struct pico_arp));
-			if (!dn->arp)
-				return;
-			//fill in arp entry, add it to the tree
-			memcpy(dn->arp->eth.addr, dn->hwaddr, PICO_HLEN_ETHER);
+		ipv4 = pico_arp_reverse_lookup(&dn->eth);
+		if (!ipv4) {
 			//TODO this means we completely ignore it if there was an option requesting a specific address...
-			dn->arp->ipv4.addr = settings.pool_next;
-			dn->arp->dev = settings.dev;
-			pico_arp_add_entry(dn->arp);
+			struct pico_ip4 addr;
+			addr.addr = settings.pool_next;
+
+			pico_arp_create_entry(dn->eth.addr, addr, settings.dev);
 
 			settings.pool_next = long_be(long_be(settings.pool_next) + 1);
+		}else{
+			dn->ipv4 = *ipv4;
 		}
 	}
 
-	if (!ip_inrange(dn->arp->ipv4.addr))
+	if (!ip_inrange(dn->ipv4.addr))
 		return;
 
 

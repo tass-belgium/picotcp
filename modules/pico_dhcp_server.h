@@ -31,10 +31,10 @@ struct pico_dhcpd_settings
 struct pico_dhcp_negotiation {
 	struct pico_dhcp_negotiation *next;
 	uint32_t xid;
-	uint8_t hwaddr[6];
+	struct pico_eth eth;
 	uint32_t assigned_address;
 	enum dhcp_negotiation_state state;
-	struct pico_arp *arp;
+	struct pico_ip4 ipv4;
 };
 
 //you pass this function a pointer to pico_dhcpd_settings. The only required field is the device, the others have default values if they are 0.
