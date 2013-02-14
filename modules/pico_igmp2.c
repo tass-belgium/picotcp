@@ -67,14 +67,14 @@ static struct mgroup_info *pico_igmp2_find_mgroup(struct pico_ip4 *mgroup_addr)
 static int pico_igmp2_del_mgroup(struct mgroup_info *info)
 {
   if(!info){
-    return 1;
+    return PICO_IGMP2_ERR_STRUCT_UNAVAILABLE;
   }
   else {
     // RB_REMOVE returns pointer to removed element, NULL to indicate error·
     if(RB_REMOVE(mgroup_table, &KEYTable, info))
       pico_free(info);
     else
-      return 1;// Do not free, error on removing element from tree
+      return PICO_IGMP2_ERR_RB_REMOVE;// Do not free, error on removing element from tree
   }
   return 0;
 }
@@ -147,7 +147,7 @@ static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_p
        break;
     default:
        pico_frame_discard(f);
-       return 1;
+       return PICO_IGMP2_ERR_UNKOWN_PARAM;
        break;
   }
   params->group_address.addr = hdr->group_address;
@@ -161,7 +161,7 @@ static int check_igmp2_checksum(struct pico_frame *f){
   uint16_t header_checksum = igmp2_hdr->crc;
 
   if (!igmp2_hdr) 
-    return 1;
+    return PICO_IGMP2_ERR_STRUCT_UNAVAILABLE;
   igmp2_hdr->crc=0;
 
   if(header_checksum == short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)))){
@@ -169,7 +169,7 @@ static int check_igmp2_checksum(struct pico_frame *f){
     return 0;
   }else{
     igmp2_hdr->crc = header_checksum;
-    return 1;
+    return PICO_IGMP2_ERR_WRONG_CHECKSUM;
   }
 }
 
@@ -177,7 +177,7 @@ static int pico_igmp2_checksum(struct pico_frame *f)
 {
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
   if (!igmp2_hdr)
-    return 1;
+    return PICO_IGMP2_ERR_STRUCT_UNAVAILABLE;
   igmp2_hdr->crc = 0;
   igmp2_hdr->crc = short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)));
   //igmp2_dbg("CHECKSUM = %04X\n",igmp2_hdr->crc);
@@ -382,7 +382,7 @@ static int action1(struct igmp2_packet_params *params){
     pico_igmp2_del_mgroup(info);
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION1_FAILED;
   }
 }
 
@@ -408,7 +408,7 @@ static int action2(struct igmp2_packet_params *params){
 
   struct pico_frame *copy_frame = pico_frame_copy(f);
   if (copy_frame == NULL) {
-    return 1;
+    return PICO_IGMP2_ERR_STRUCT_UNAVAILABLE;
   }
   ret |= send_membership_report(copy_frame);
   info->delay = (pico_rand() %( PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL*100)); 
@@ -421,7 +421,7 @@ static int action2(struct igmp2_packet_params *params){
     igmp2_dbg("DEBUG_IGMP2:NEW STATE = Delaying Member\n");
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION2_FAILED;
   }
 }
 
@@ -446,7 +446,7 @@ static int action3(struct igmp2_packet_params *params){
     pico_igmp2_del_mgroup(info);
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION3_FAILED;
   }
 }
 
@@ -470,7 +470,7 @@ static int action4(struct igmp2_packet_params *params){
     igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION4_FAILED;
   }
 }
 
@@ -491,7 +491,7 @@ static int action5(struct igmp2_packet_params *params){
     igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delayed Member" : "Idle Member"))); 
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION5_FAILED;
   }
 }
 
@@ -516,7 +516,7 @@ static int action6(struct igmp2_packet_params *params){
     igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION6_FAILED;
   }
 }
 
@@ -539,7 +539,7 @@ static int action7(struct igmp2_packet_params *params){
     igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
     return 0;
   }else{
-    return 1;
+    return PICO_IGMP2_ERR_ACTION7_FAILED;
   }
 }
 
@@ -551,7 +551,7 @@ static int ignore_and_discardframe(struct igmp2_packet_params *params){
 
 static int generate_err1(struct igmp2_packet_params *params){
   igmp2_dbg("ERROR: STATE = Non-Member, EVENT = Leave Group");
-  return 1;
+  return PICO_IGMP2_ERR_UNCONN_GROUP;
 }
 
 static int generate_err2(struct igmp2_packet_params *params){

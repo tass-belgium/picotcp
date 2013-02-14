@@ -22,6 +22,24 @@ Join an IGMP2 multicast group.
 In case of success, 0. In case of failure, a value different from 0. Attempting to join a group which was already joined before is considered a failure in this context. 
 
 \subsubsection*{Errors}
+In most cases the return value is an OR operation of all return values obtained in a function, therefore the error code could be a masked version of multiple separate errors.
+
+\begin{itemize}
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$RB$\_$REMOVE}          - Red black tree remove failed 
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$STRUCT$\_$UNAVAILABLE} - Struct pointer unavailable 
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$UNKOWN$\_$PARAM}       - Unknown parameter value 
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$WRONG$\_$CHECKSUM}     - Wrong checksum  
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION1$\_$FAILED}     - Leave group failed as delaying member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION2$\_$FAILED}     - Join group failed as non member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION3$\_$FAILED}     - Leave group failed as idle member 
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION4$\_$FAILED}     - Query received failed as idle member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION5$\_$FAILED}     - Report received failed as delaying member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION6$\_$FAILED}     - Timer expired failed as delaying member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION7$\_$FAILED}     - Query received failed as delaying member
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$UNCONN$\_$GROUP}       - Try to leave an unconnected group
+\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$GROUP$\_$CONNECTED}    - Try to join a connected group 
+\end{itemize}
+
 
 \subsubsection*{Example}
 
