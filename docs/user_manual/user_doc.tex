@@ -24,10 +24,21 @@
 %\usepackage{draftcopy}
 \usepackage{hyperref}
 \usepackage{longtable}
+
+% to print watermark
 \usepackage{draftwatermark}
 \SetWatermarkText{DRAFT}
 \SetWatermarkScale{5}
 \SetWatermarkLightness{0.9}
+
+% to adjust the space between titles and text
+\usepackage[compact]{titlesec}
+\titlespacing{\section}{0pt}{*5}{*2}
+\titlespacing{\subsection}{0pt}{*4}{*1}
+\titlespacing{\subsubsection}{0pt}{*1}{*0}
+
+% to minimize space between list items
+\usepackage{enumitem}
 
 
 \begin{document}
@@ -41,7 +52,7 @@
 
 \pagenumbering{arabic}
 
-%\selectlanguage{english}
+\selectlanguage{english}
 
 \tableofcontents
 
@@ -62,6 +73,7 @@
 \chapter{API Documentation}
 \label{chap:api_doc}
 The following sections will describe the API for picoTCP.
+\input{chap_api_ipv4}
 \input{chap_api_sock}
 \input{chap_api_dhcp_c}
 \input{chap_api_dhcp_d}

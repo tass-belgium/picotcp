@@ -15,45 +15,42 @@ socket will be unbound.
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto,
 						void (*wakeup)(uint16_t ev, struct pico_socket *s));
 \end{verbatim}
-%struct pico$\_$socket *pico$\_$socket$\_$open(uint16$\_$t net, uint16$\_$t proto,
-%						void (*wakeup)(uint16$\_$t ev, struct pico$\_$socket *s));
 
 \subsubsection*{Parameters}
 \begin{itemize}
-\item net - Network protocol, PICO$\_$PROTO$\_$IPV4 = 0, PICO$\_$PROTO$\_$IPV6 = 41
-\item proto - Transport protocol, PICO$\_$PROTO$\_$TCP = 6, PICO$\_$PROTO$\_$UDP = 17
-\item wakeup - Callback function that accepts 2 parameters:
+\item \texttt{net} - Network protocol, \texttt{PICO$\_$PROTO$\_$IPV4} = 0, \texttt{PICO$\_$PROTO$\_$IPV6} = 41
+\item \texttt{proto} - Transport protocol, \texttt{PICO$\_$PROTO$\_$TCP} = 6, \texttt{PICO$\_$PROTO$\_$UDP} = 17
+\item \texttt{wakeup} - Callback function that accepts 2 parameters:
 \begin{itemize}
-\item ev - Events that apply to that specific socket, see further
-\item s - Pointer to a socket of type struct pico$\_$socket
+\item \texttt{ev} - Events that apply to that specific socket, see further
+\item \texttt{s} - Pointer to a socket of type struct \texttt{pico$\_$socket}
 \end{itemize}
 \end{itemize}
 
 \subsubsection*{Possible events for sockets}
-\begin{itemize}
-\item PICO$\_$SOCK$\_$EV$\_$RD - trigerred when data arrived on the socket
-\item PICO$\_$SOCK$\_$EV$\_$WR - trigerred when ready to write to the socket (TCP only)
-\item PICO$\_$SOCK$\_$EV$\_$CONN - trigerred when connection is established (TCP only)
-\item PICO$\_$SOCK$\_$EV$\_$CLOSE - trigerred when FIN packet received (TCP only)
-\item PICO$\_$SOCK$\_$EV$\_$FIN - trigerred when the socket is closed (TCP only)
-\item PICO$\_$SOCK$\_$EV$\_$ERR - trigerred when an error occurs
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$RD} - trigerred when data arrived on the socket
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$WR} - trigerred when ready to write to the socket (TCP only)
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$CONN} - trigerred when connection is established (TCP only)
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$CLOSE} - trigerred when FIN packet received (TCP only)
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$FIN} - trigerred when the socket is closed (TCP only)
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$ERR} - trigerred when an error occurs
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns a pointer to the declared socket ("struct pico$\_$socket *").
-On error the socket is not created, "NULL" is returned, and pico$\_$err is set appropriately.
+On success, this call returns a pointer to the declared socket (\texttt{struct pico$\_$socket *}).
+On error the socket is not created, \texttt{NULL} is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EPROTONOSUPPORT - protocol not supported
-\item PICO$\_$ERR$\_$ENETUNREACH - network unreachable 
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported
+\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable 
 \end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
 sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
 \end{verbatim}
-%sk$\_$tcp = pico$\_$socket$\_$open(PICO$\_$PROTO$\_$IPV4, PICO$\_$PROTO$\_$TCP, $\&$wakeup);
 
 
 \subsection{pico$\_$socket$\_$read}
@@ -62,29 +59,33 @@ sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
 This function will be called to read a string from a socket from the application level. The function checks whether or not the socket is bound.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$read(struct pico$\_$socket *s, void *buf, int len);
+\begin{verbatim}
+int pico_socket_read(struct pico_socket *s, void *buf, int len);
+\end{verbatim}
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - pointer to socket of type "struct pico$\_$socket"
-\item buf - void pointer to the start of a string buffer where the string will be stored
-\item len - length of the string that was read from the socket (in bytes)
+\begin{itemize}[noitemsep]
+\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - void pointer to the start of a string buffer where the string will be stored
+\item \texttt{len} - length of the string that was read from the socket (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns an integer representing the number of bytes read. On error, -1 is returned, and pico$\_$err is set appropriately.
+On success, this call returns an integer representing the number of bytes read.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EIO - input/output error
-\item PICO$\_$ERR$\_$ESHUTDOWN - cannot read after transport endpoint shutdown
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EIO} - input/output error
+\item \texttt{PICO$\_$ERR$\_$ESHUTDOWN} - cannot read after transport endpoint shutdown
 \end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
 bytesRead = pico_socket_read(sk_tcp, buffer, bufferLength);
 \end{verbatim}
+
 
 
 \subsection{pico$\_$socket$\_$write}
@@ -96,29 +97,31 @@ locally. This is the preferred function to use when writing strings from applica
 level. 
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$write(struct pico$\_$socket *s, void *buf, int len);
+\begin{verbatim}
+int pico_socket_write(struct pico_socket *s, void *buf, int len);
+\end{verbatim}
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - pointer to socket of type "struct pico$\_$socket"
-\item buf - void pointer to the start of a string buffer where the string is stored
-\item len - length of the string that is stored in the buffer (in bytes)
+\begin{itemize}[noitemsep]
+\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - void pointer to the start of a string buffer where the string is stored
+\item \texttt{len} - length of the string that is stored in the buffer (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns an integer representing the number of bytes written to the socket.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EIO - input/output error
-\item PICO$\_$ERR$\_$ENOTCONN - the socket is not connected
-\item PICO$\_$ERR$\_$ESHUTDOWN - cannot send after transport endpoint shutdown
-\item PICO$\_$ERR$\_$EADDRNOTAVAIL - address not available
-\item PICO$\_$ERR$\_$EHOSTUNREACH - host is unreachable
-\item PICO$\_$ERR$\_$ENOMEM - not enough space
-\item PICO$\_$ERR$\_$EAGAIN - resource temporarily unavailable
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EIO} - input/output error
+\item \texttt{PICO$\_$ERR$\_$ENOTCONN} - the socket is not connected
+\item \texttt{PICO$\_$ERR$\_$ESHUTDOWN} - cannot send after transport endpoint shutdown
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
 \end{itemize}
 
 \subsubsection*{Example}
@@ -130,38 +133,42 @@ bytesWritten = pico_socket_write(sk_tcp, buffer, bufLength);
 \subsection{pico$\_$socket$\_$sendto}
 
 \subsubsection*{Description}
-This function is be called by the "pico$\_$socket$\_$write" and "pico$\_$socket$\_$send" functions.
+This function is be called by the \texttt{pico$\_$socket$\_$write} and \texttt{pico$\_$socket$\_$send} functions.
 This function sends a string from the local address to the remote address, without checking
 if the remote is connected or not.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$sendto(struct pico$\_$socket *s, void *buf, int len, void *dst, uint16$\_$t remote$\_$port);
+\begin{verbatim}
+int pico_socket_sendto(struct pico_socket *s, void *buf, int len,
+void *dst, uint16_t remote_port);
+\end{verbatim}
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - pointer to socket of type "struct pico$\_$socket"
-\item buf - void pointer to the start of a string buffer where the string is stored
-\item len - length of the string that is stored in the buffer (in bytes)
-\item dst - pointer to the origin of the IPv4/IPv6 frame header
-\item remote$\_$port - portnumber of the receiving socket
+\begin{itemize}[noitemsep]
+\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - void pointer to the start of a string buffer where the string is stored
+\item \texttt{len} - length of the string that is stored in the buffer (in bytes)
+\item \texttt{dst} - pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{remote$\_$port} - portnumber of the receiving socket
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns an integer representing the number of bytes written to the socket.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EADDRNOTAVAIL - address not available
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EHOSTUNREACH - host is unreachable
-\item PICO$\_$ERR$\_$ENOMEM - not enough space
-\item PICO$\_$ERR$\_$EAGAIN - resource temporarily unavailable
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
 \end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
-bytesWritten = pico_socket_sendto(sk_tcp, buf, len, &sk_tcp->remote_addr, sk_tcp->remote_port);
+bytesWritten = pico_socket_sendto(sk_tcp, buf, len, &sk_tcp->remote_addr,
+sk_tcp->remote_port);
 \end{verbatim}
 
 
@@ -172,26 +179,29 @@ This function is called to receive a string of data from the specified socket.
 This function also checks if the socket is bound but not if it is connected or shutdown locally. 
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$recvfrom(struct pico$\_$socket *s, void *buf, int len, void *orig, uint16$\_$t *remote$\_$port);
+\begin{verbatim}
+int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len,
+void *orig, uint16_t *remote_port);
+\end{verbatim}
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item buf - Void pointer to the start of a string buffer where the string will be stored
-\item len - Length of the string that will be stored in the buffer (in bytes)
-\item orig - Pointer to the origin of the IPv4/IPv6 frame header
-\item remote$\_$port - Portnumber of the sender socket 
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
+\item \texttt{len} - Length of the string that will be stored in the buffer (in bytes)
+\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{remote$\_$port} - Portnumber of the sender socket 
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns an integer representing the number of bytes read from the socket.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$ESHUTDOWN - cannot read after transport endpoint shutdown
-\item PICO$\_$ERR$\_$EADDRNOTAVAIL - address not available
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ESHUTDOWN} - cannot read after transport endpoint shutdown
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
 \end{itemize}
 
 \subsubsection*{Example}
@@ -205,30 +215,33 @@ bytesRcvd = pico_socket_recvfrom(sk_tcp, buf, bufLen, &peer, &port);
 \subsubsection*{Description}
 This function is called to send a string of data to the specified socket.
 This function also checks if the socket is connected and then calls the
-pico$\_$socket$\_$sendto function.
+\texttt{pico$\_$socket$\_$sendto} function.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$send(struct pico$\_$socket *s, void *buf, int len);
+\begin{verbatim}
+int pico_socket_send(struct pico_socket *s, void *buf, int len);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item buf - Void pointer to the start of a string buffer where the string is stored
-\item len - Length of the string that is stored in the buffer (in bytes)
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
+\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns an integer representing the number of bytes written to
-the socket. On error, -1 is returned, and pico$\_$err is set appropriately.
+the socket. On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$ENOTCONN - the socket is not connected
-\item PICO$\_$ERR$\_$EADDRNOTAVAIL - address not available
-\item PICO$\_$ERR$\_$EHOSTUNREACH - host is unreachable
-\item PICO$\_$ERR$\_$ENOMEM - not enough space
-\item PICO$\_$ERR$\_$EAGAIN - resource temporarily unavailable
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOTCONN} - the socket is not connected
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
 \end{itemize}
 
 \subsubsection*{Example}
@@ -240,27 +253,30 @@ bytesRcvd = pico_socket_send(sk_tcp, buf, bufLen);
 \subsection{pico$\_$socket$\_$recv}
 
 \subsubsection*{Description}
-This function directly calls the pico$\_$socket$\_$recvfrom function.
+This function directly calls the \texttt{pico$\_$socket$\_$recvfrom} function.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$recv(struct pico$\_$socket *s, void *buf, int len);
+\begin{verbatim}
+int pico_socket_recv(struct pico_socket *s, void *buf, int len);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item buf - Void pointer to the start of a string buffer where the string will be stored
-\item len - Length of the string in the socket buffer (in bytes)
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
+\item \texttt{len} - Length of the string in the socket buffer (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns an integer representing the number of bytes read
-from the socket. On error, -1 is returned, and pico$\_$err is set appropriately.
+from the socket. On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$ESHUTDOWN - cannot read after transport endpoint shutdown
-\item PICO$\_$ERR$\_$EADDRNOTAVAIL - address not available
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ESHUTDOWN} - cannot read after transport endpoint shutdown
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
 \end{itemize}
 
 \subsubsection*{Example}
@@ -275,23 +291,26 @@ bytesRcvd = pico_socket_recv(sk_tcp, buf, bufLen);
 This function binds a local IP-address and port to the specified socket.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$bind(struct pico$\_$socket *s, void *local$\_$addr, uint16$\_$t *port);
+\begin{verbatim}
+int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item local$\_$addr - Void pointer to the local IP-address
-\item port - Local portnumber to bind with the socket
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{local$\_$addr} - Void pointer to the local IP-address
+\item \texttt{port} - Local portnumber to bind with the socket
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns 0 after a succesfull bind.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$ENXIO - no such device or address
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
 \end{itemize}
 
 \subsubsection*{Example}
@@ -306,24 +325,27 @@ errMsg = pico_socket_bind(sk_tcp, &sockaddr4->addr, &sockaddr4->port);
 This function connects a local socket to a remote socket of a server that is listening.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$connect(struct pico$\_$socket *s, void *srv$\_$addr, uint16$\_$t remote$\_$port);
+\begin{verbatim}
+int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item srv$\_$addr - Void pointer to the remote IP-address to connect to
-\item remote$\_$port - Remote port number on which the socket will be connected to
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{srv$\_$addr} - Void pointer to the remote IP-address to connect to
+\item \texttt{remote$\_$port} - Remote port number on which the socket will be connected to
 \end{itemize} 
 
 \subsubsection*{Return value}
 On success, this call returns 0 after a succesfull connect.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EPROTONOSUPPORT - protocol not supported
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EHOSTUNREACH - host is unreachable 
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable 
 \end{itemize}
 
 \subsubsection*{Example}
@@ -338,22 +360,25 @@ errMsg = pico_socket_connect(sk_tcp, &sockaddr4->addr, sockaddr4->port);
 A server can use this function when a socket is opened and bound to start listening to it.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$listen(struct pico$\_$socket *s, int backlog);
+\begin{verbatim}
+int pico_socket_listen(struct pico_socket *s, int backlog);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item backlog - ???
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{backlog} - ???
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns 0 after a succesfull listen start.
-On error, -1 is returned, and pico$\_$err is set appropriately. 
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately. 
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EISCONN - socket is connected
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EISCONN} - socket is connected
 \end{itemize}
 
 \subsubsection*{Example}
@@ -369,24 +394,28 @@ When a server is listening on a socket and the client is trying to connect.
 The server on his side will wakeup and acknowledge the connection by calling the this function.
 
 \subsubsection*{Function prototype}
-struct pico$\_$socket *pico$\_$socket$\_$accept(struct pico$\_$socket *s, void *orig, uint16$\_$t *local$\_$port);
+\begin{verbatim}
+struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig,
+uint16_t *local_port);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item orig - Pointer to the origin of the IPv4/IPv6 frame header
-\item local$\_$port - Portnumber of the local socket
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{local$\_$port} - Portnumber of the local socket
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns the pointer to a pico$\_$socket ("struct pico$\_$socket *") that
-represents the client thas was just connected. On error, "NULL" is returned, and pico$\_$err
-is set appropriately.
+On success, this call returns the pointer to a \texttt{struct pico$\_$socket} that
+represents the client thas was just connected. On error, \texttt{NULL} is returned,
+and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
-\item PICO$\_$ERR$\_$EAGAIN - resource temporarily unavailable
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
 \end{itemize}
 
 \subsubsection*{Example}
@@ -398,26 +427,29 @@ client = pico_socket_accept(sk_tcp, &peer, &port);
 \subsection{pico$\_$socket$\_$shutdown}
 
 \subsubsection*{Description}
-Used by the pico$\_$socket$\_$close function to shutdown read and write mode for
+Used by the \texttt{pico$\_$socket$\_$close} function to shutdown read and write mode for
 the specified socket. With this function one can close a socket for reading
 and/or writing.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$shutdown(struct pico$\_$socket *s, int mode);
+\begin{verbatim}
+int pico_socket_shutdown(struct pico_socket *s, int mode);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
-\item mode - PICO$\_$SHUT$\_$RDWR, PICO$\_$SHUT$\_$WR, PICO$\_$SHUT$\_$RD
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{mode} - \texttt{PICO$\_$SHUT$\_$RDWR}, \texttt{PICO$\_$SHUT$\_$WR}, \texttt{PICO$\_$SHUT$\_$RD}
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a successful socket shutdown.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On success, this call returns 0 after a succesfull socket shutdown.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
 \end{itemize}
 
 \subsubsection*{Example}
@@ -432,20 +464,23 @@ errMsg = pico_socket_shutdown(s, PICO_SHUT_RDWR);
 Function used on application level to close a socket. Always closes read and write connection.
 
 \subsubsection*{Function prototype}
-int pico$\_$socket$\_$close(struct pico$\_$socket *s);
+\begin{verbatim}
+int pico_socket_close(struct pico_socket *s);
+\end{verbatim}
+
 
 \subsubsection*{Parameters}
-\begin{itemize}
-\item s - Pointer to socket of type "struct pico$\_$socket"
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns 0 after a succesfull socket shutdown.
-On error, -1 is returned, and pico$\_$err is set appropriately.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
-\begin{itemize}
-\item PICO$\_$ERR$\_$EINVAL - invalid argument
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
 \end{itemize}
 
 \subsubsection*{Example}
