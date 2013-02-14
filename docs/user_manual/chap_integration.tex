@@ -1,0 +1,171 @@
+
+\section{Requirements and Configuration}
+
+PicoTCP is designed to be portable and versatile. Modules can be activated at
+compile-time, or excluded from the compilation in order to reduce the build size,
+or to save resources at runtime. This characteristic allows an embedded
+application to create different types of appliances, starting from a small
+forwarding multi-protocol switch, to fully-featured TCP hosts, supporting
+internal applets as well as generic POSIX-compliant socket interfaces.
+
+
+\section{Supported features}
+(WIP)
+
+\section{Module dependencies}
+(WIP)
+
+
+\section{Target requirements}
+PicoTCP can run on several different hardware architectures, and can be
+integrated with virtually any operating system, or within a standalone
+application. It is possible to run PicoTCP on big-endian as well as
+little-endian CPU configurations. PicoTCP uses gcc-specific tags that may
+not be compatible with other compilers. The amount of resources needed
+may vary depending on the modules that are compiled-in. However, adapting
+to a specific hardware platform or for a particular use may require some
+integration effort.
+
+\section{The pico$\_$config.h file}
+The configuration for all the modules and their features is located in a
+the pico$\_$config.h file. The files has two sections: "user configuration"
+and "architecture specific". The first one is used to enable features to
+include. Uncommenting a line starting with a \texttt{$\#$define} statement
+will enable the feature described in the comment. The pico$\_$config file
+is located under the "/include" directory. The second section is used to
+include the specific implementation of the system interface required by
+PicoTCP to run on the target as described in the next section. As an
+example, some architecture implementations are provided:
+\begin{itemize}
+\item a virtual posix target that allows the stack to be run on top of a
+POSIX compliant operating system (like Linux or other unix-like implementations).
+\item Arm M3/M4 Cortex board support
+\end{itemize} 
+
+The architecture-specific configuration is located in the "/include/arch"
+directory.
+
+\subsection{Porting to a target system}
+PicoTCP relies on a simple set of system-specific calls that must be
+implemented externally from the target. Briefly, the interface needed for
+the stack to run is composed by:
+\begin{itemize}
+\item A mechanism to allocate dynamic memory on the system
+\item A stable time-source to update its internal counters
+\end{itemize} 
+
+For the memory allocation interface, two symbols have to be defined by the system:
+\begin{verbatim}
+  void *pico_zalloc(int size) - (memory allocation) 
+  void pico_free(void *ptr) - (memory release)
+\end{verbatim}
+
+\begin{itemize}
+\item \texttt{pico$\_$zalloc} Must allocate an object of the given size size in memory
+and set the content of the allocated memory to zero. A pointer to the address 0 will
+indicate an allocation failure.
+\item \texttt{pico$\_$free} Must must release the memory assigned to the object previously
+allocated at the address ptr.
+\end{itemize}
+
+
+For the time keeping, the following objects must be defined by the system:	% MOVE TO TABLE ???
+\begin{verbatim}
+   static inline unsigned long PICO_TIME(void) - returns current time expressed in seconds
+   static inline unsigned long PICO_TIME_MS(void)  - returns current time expressed in milliseconds
+   static inline void PICO_IDLE(void) - sleep between two consecutive iterations inside the main protocol loop (e.g. to yield the CPU to some other functionality on the sytem)
+\end{verbatim}
+
+Finally, whenever debug informations are needed, the system will have to provide a
+\texttt{dbg()} function that accepts the same variadic arguments model as a standard \texttt{printf()}.
+
+
+\section{Network devices integration}
+Every device driver must define its own interface to communicate with the stack.
+This interface is accessed via the \texttt{pico$\_$device} structure. Every device implements
+an instance of this structure by populating the following mandatory fields:
+
+\begin{itemize}
+\item \textbf{overhead} - A positive integer indicating the amount of bytes required by the
+device driver to implement its header. This is used whenever a network layer allocates a new
+packet to be sent through this device. If a valued is specified here, it will be possible for
+the device to seek back in the frame scheduled for sending, and subsequently copy any header
+information in front of it. Devices dealing with pure stack frames or subparts of it
+(e.g. Ethernet) should have overhead set to 0.
+
+\item The callback \textbf{send} - must be a pointer to a function internally defined in the
+device driver module. This function will be called every time a frame must be injected in the
+network. The module can implement a generic send function for all the registered devices, as
+the device field will be passed as the first argument. The callback prototype is the following:
+
+ \texttt{int (*send)(struct pico$\_$device *self, void *buf, int len);}
+
+If the device can immediately inject the frame at address \texttt{buf} of length \texttt{len},
+it returns back to the caller the length of the frame injected. If the device is currently busy,
+this function can safely return 0, and the stack will retry the same operation again later.
+
+\item The callback \textbf{poll} - must be a pointer to a function internally defined in the
+device driver module. This function will be called periodically by the stack, to request a
+synchronization on the incoming frames. The prototype is the following:
+
+  \texttt{int (*poll)(struct pico$\_$device *self, int loop$\_$score);}
+
+The poll function must check if the device is ready to receive frames, and for each frame that
+is directed to the stack, it will call the library function \texttt{pico$\_$stack$\_$recv()}.
+This function will deliver the received frame to the stack.
+
+The loop$\_$score variable represents the maximum amount of frames that the stack can process
+during this call, i.e. the maximum amount of calls to \texttt{pico$\_$stack$\_$recv()} that
+can be performed during this iterations. The device driver should loop around the packet
+delivery operation and decrease the loop$\_$score by one every time a frame is delivered to
+the stack. If during the iteration all the score was used, poll will return 0.
+
+\textbf{NOTE:} The poll function must return \textbf{immediately} and must never block on
+hardware-specific operations. If the device is interrupt-driven, the integration will have
+to provide a mechanism to defer the reception until the next call back to poll. Calling
+\texttt{pico$\_$stack$\_$recv()} is only allowed from inside the \texttt{poll()} callback,
+thus a two-halves interface interrupt management design is required, and any memory structure
+shared between the two halves must be protected against concurrent access accordingly.
+
+\item The callback \textbf{destroy} - a pointer to a function that deallocates the device
+structure itself and frees all the eventual structures allocated by the driver during device
+creation.
+
+A device driver will have a simple two-functions library API exported in a header file using
+the same name, in the modules directory. The two functions to export will be:
+
+\item A create function, accepting any argument required for the internal device configuration,
+that returns a pointer to the newly allocated device. The function must allocate the device and
+finally call the library function \texttt{pico$\_$device$\_$init()} in order to register the
+device into the stack.
+The \texttt{pico$\_$device$\_$init()} function accepts the following arguments:
+
+\begin{itemize}
+\item the device allocated just before
+\item a null-terminated string containing a unique device name for the device to be inserted in
+the system (e.g. "eth0")
+\item a pointer to an Ethernet address in the form of a previously allocated \texttt{pico$\_$ethdev}
+structure, containing the hardware address to be used by the stack for datalink addressing.
+If no hardware-specific address is provided to \texttt{pico$\_$device$\_$init()} is provided
+(i.e. a \texttt{NULL} pointer is passed), the newly created device will be directly attached
+to the network layer and it will have to provide and process valid IP packets with no further
+encapsulation.
+\end{itemize}
+
+\item A destroy routine, accepting the previously allocated device pointer to free all the associated structures.
+
+\end{itemize}
+
+The way to expand the device driver interface is by simply creating a new specific structure
+that contains it, so it inherits all the capabilities of the standard structure but also holds
+the required hardware-specific information. The three callbacks will always receive a pointer
+to the beginning of the \texttt{pico$\_$device} structure, but the memory area that follows
+the structure can be used to keep track of the device hardware-specific context.
+
+Naming convention must be followed for the two functions exposed to the user interface to
+create and destroy the device. The functions must be named \texttt{pico$\_$X$\_$create()} and
+\texttt{pico$\_$X$\_$destroy()}, where X is the unique name of the device driver.
+
+As an example of a very simple device driver, directly attached to the networking layer using
+the valid naming convention for the send/poll/create/destroy interface is contained in the source
+file "modules/pico$\_$dev$\_$null.c" and its header "modules/pico$\_$dev$\_$null.h".
