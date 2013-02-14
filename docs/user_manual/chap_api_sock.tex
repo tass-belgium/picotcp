@@ -13,15 +13,15 @@ socket will be unbound.
 \subsubsection*{Function prototype}
 \begin{verbatim}
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto,
-						void (*wakeup)(uint16_t ev, struct pico_socket *s));
+void (*wakeup)(uint16_t ev, struct pico_socket *s));
 \end{verbatim}
 
 \subsubsection*{Parameters}
-\begin{itemize}
+\begin{itemize}[noitemsep]
 \item \texttt{net} - Network protocol, \texttt{PICO$\_$PROTO$\_$IPV4} = 0, \texttt{PICO$\_$PROTO$\_$IPV6} = 41
 \item \texttt{proto} - Transport protocol, \texttt{PICO$\_$PROTO$\_$TCP} = 6, \texttt{PICO$\_$PROTO$\_$UDP} = 17
 \item \texttt{wakeup} - Callback function that accepts 2 parameters:
-\begin{itemize}
+\begin{itemize}[noitemsep]
 \item \texttt{ev} - Events that apply to that specific socket, see further
 \item \texttt{s} - Pointer to a socket of type struct \texttt{pico$\_$socket}
 \end{itemize}
@@ -65,9 +65,9 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len);
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - void pointer to the start of a string buffer where the string will be stored
-\item \texttt{len} - length of the string that was read from the socket (in bytes)
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
+\item \texttt{len} - Length of the string that was read from the socket (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -103,9 +103,9 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len);
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - void pointer to the start of a string buffer where the string is stored
-\item \texttt{len} - length of the string that is stored in the buffer (in bytes)
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
+\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -145,11 +145,11 @@ void *dst, uint16_t remote_port);
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{s} - pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - void pointer to the start of a string buffer where the string is stored
-\item \texttt{len} - length of the string that is stored in the buffer (in bytes)
-\item \texttt{dst} - pointer to the origin of the IPv4/IPv6 frame header
-\item \texttt{remote$\_$port} - portnumber of the receiving socket
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
+\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
+\item \texttt{dst} - Pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{remote$\_$port} - Portnumber of the receiving socket
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -190,11 +190,12 @@ void *orig, uint16_t *remote_port);
 \item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
 \item \texttt{len} - Length of the string that will be stored in the buffer (in bytes)
 \item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header
-\item \texttt{remote$\_$port} - Portnumber of the sender socket 
+\item \texttt{remote$\_$port} - Portnumber of the sender socket (pointer)
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns an integer representing the number of bytes read from the socket.
+On success, this call returns an integer representing the number of bytes read from the socket. Also
+\texttt{remote$\_$port} will contain the portnumber of the sending socket.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -259,7 +260,6 @@ This function directly calls the \texttt{pico$\_$socket$\_$recvfrom} function.
 \begin{verbatim}
 int pico_socket_recv(struct pico_socket *s, void *buf, int len);
 \end{verbatim}
-
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
@@ -326,7 +326,8 @@ This function connects a local socket to a remote socket of a server that is lis
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
+int pico_socket_connect(struct pico_socket *s, void *srv_addr,
+uint16_t remote_port);
 \end{verbatim}
 
 
@@ -368,7 +369,7 @@ int pico_socket_listen(struct pico_socket *s, int backlog);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{backlog} - ???
+\item \texttt{backlog} - Maximum connection requests
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -399,18 +400,18 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig,
 uint16_t *local_port);
 \end{verbatim}
 
-
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header
-\item \texttt{local$\_$port} - Portnumber of the local socket
+\item \texttt{local$\_$port} - Portnumber of the local socket (pointer)
 \end{itemize}
 
 \subsubsection*{Return value}
 On success, this call returns the pointer to a \texttt{struct pico$\_$socket} that
-represents the client thas was just connected. On error, \texttt{NULL} is returned,
-and \texttt{pico$\_$err} is set appropriately.
+represents the client thas was just connected. Also \texttt{orig} will contain the requesting
+IP-address and \texttt{remote$\_$port} will contain the portnumber of the requesting socket.
+On error, \texttt{NULL} is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
@@ -486,4 +487,88 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Example}
 \begin{verbatim}
 errMsg = pico_socket_close(sk_tcp);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$socket$\_$setoption}
+
+\subsubsection*{Description}
+Function used to set socket options.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_setoption(struct pico_socket *s, int option, void *value);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{option} - Option to be set (see further for all options)
+\item \texttt{value} - Value of option (void pointer)
+\end{itemize}
+
+\subsubsection*{Available socket options}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables the Nagle algorithm (\texttt{value} not used)
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - 
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - 
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - 
+\item \texttt{PICO$\_$IP$\_$ADD$\_$MEMBERSHIP} - 
+\item \texttt{PICO$\_$IP$\_$DROP$\_$MEMBERSHIP} -
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 after a succesfull setting of socket option.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, NULL);
+\end{verbatim}
+
+
+\subsection{pico$\_$socket$\_$getoption}
+
+\subsubsection*{Description}
+Function used to get socket options.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_getoption(struct pico_socket *s, int option, void *value);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{option} - Option to be set (see further for all options)
+\item \texttt{value} - Value of option (void pointer)
+\end{itemize}
+
+\subsubsection*{Available socket options}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$TCP$\_$NODELAY} - Nagle algorithm, \texttt{value} casted to \texttt{(int *)} (0 = disabled, 1 = enabled)
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - 
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - 
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - 
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 after a succesfull getting of socket option. The value of
+the option is written to \texttt{value}.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &stat);
 \end{verbatim}
