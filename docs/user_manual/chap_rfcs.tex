@@ -1,0 +1,71 @@
+
+\begin{longtable}{ | l | p{13cm} | }
+\hline
+{\bf RFC} &
+{\bf Description} \\ \hline
+
+RFC 793 &
+This RFC describes the TCP standard. The following requirements are facilitated:
+(1) Basic Data Transfer, (2) Reliability, (3) Flow Control, (4) Multiplexing, (5) Connection Management. \\ \hline
+
+RFC 813 &
+This RFC describes the implementation of (1) the acknowledgement mechanism and (2) window mechanism (flow control). \\ \hline
+
+RFC 817 &
+This RFC will discuss  some  of  the  commonly  encountered   reasons   why   protocol implementations seem to run slowly. Two aspects to achieve good protocol performance are described: (1) how the implementation of the protocol is integrated in an OS (scheduling, resources, interrupts, ...) and (2) how  the  protocol  package itself  is  organized  internally (packet size, unneeded packets, ...) \\ \hline
+
+RFC 872 &
+This RFC discusses the position that the usage of TCP and IP on LAN's is inappropriate. The conclusion is that the sometimes-expressed fear that using TCP on a local net is a bad idea is unfounded. \\ \hline
+
+RFC 879 &
+This RFC discusses the TCP Maximum Segment Size Option. The TCP maximum segment size (MSS) can be calculated depending on the network MTU, or it can be communicated by a TCP option. \\ \hline
+
+RFC 896 &
+This RFC discusses some aspects of congestion control in IP/TCP Internetworks. The Nagle algorithm suggests that the sending of new data should inhibited when there remain unacknowledged packets. When packets are acknowledged, new packets in the buffer can be transmitted (until the window size). This scheme reduces the amount of small packets transmitted. \\ \hline
+
+RFC 964 &
+This note points out three errors with the specification of the Military Standard Transmission Control Protocol (MIL-STD-1778). The following problems are discussed:
+(1) data accompanying a SYN can not be accepted because of errors in the acceptance policy, (2) no retransmission timer is set for a SYN packet, and therefore the SYN will not be retransmitted if it is lost, (3) when the connection has been established, neither entity takes the proper steps to accept incoming data. \\ \hline
+
+RFC 1071 &
+This RFC gives an overview of methods for efficiently computing the Internet checksum that is used by the standard Internet protocols (1) IP, (2) UDP, and TCP. \\ \hline
+
+RFC 1106 &
+This RFC discusses two extensions to the TCP protocol to provide a more efficient operation over a network with a high bandwidth*delay product: (1) NAK Option, (2) Big Windows. \\ \hline
+ 
+RFC 1122 &
+Requirements for Internet Hosts -- Communication Layers \\ \hline
+
+RFC 1180 &
+This RFC is a tutorial on the TCP/IP protocol suite, focusing  particularly on the steps in forwarding an IP datagram from source host to destination host through a router. \\ \hline
+
+RFC 1263 &
+This RFC comments on recent proposals to extend TCP (see RFC 1072 and RFC 1185). The costs and benefits of three approaches to making these changes are compared: (1) the creation of new protocols, (2) backward compatible protocol extensions and (3) protocol evolution. \\ \hline
+
+RFC 1323 &
+This memo presents a set of TCP extensions to improve performance over large bandwidth*delay product paths and to provide reliable operation over very high-speed paths. It defines new TCP options for scaled windows and timestamps, which are designed to provide compatible interworking with TCP's that do not implement the extensions.  The timestamps are used for two distinct mechanisms: RTTM (Round Trip Time Measurement) and PAWS (Protect Against Wrapped Sequences).  Selective acknowledgments are not included in this memo.
+This memo combines and supersedes RFC 1072 and RFC 1185, adding additional clarification and more detailed specification. \\ \hline
+
+RFC 1337 &
+This note describes some theoretically-possible failure modes for TCP connections and discusses possible remedies. Especially the TIME-WAIT Assassination" (TWA) problem and solution are discussed. \\ \hline
+
+RFC 2018 &
+TCP Selective Acknowledgment Options \\ \hline
+
+RFC 2131 &
+Dynamic Host Configuration Protocol \\ \hline
+
+RFC 2132 &
+DHCP Options and BOOTP Vendor Extensions \\ \hline
+
+RFC 2236 &
+IGMPv2: Host functionality implemented, Router functionality NOT implemented \\ \hline
+
+RFC 2581 &
+This RFC defines TCP's four intertwined congestion control algorithms: (1) slow start, (2) congestion avoidance, (3) fast retransmit and (4) fast recovery. \\ \hline
+
+RFC 2663 &
+This RFC describes NAT. The implemented NAT method is NAPT.  \\ \hline
+
+
+\end{longtable}
