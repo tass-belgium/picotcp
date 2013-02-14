@@ -27,6 +27,13 @@ This function starts a simple DHCP server.
 On successful startup of the dhcp server, 0 is returned. On error a value different from 0 is returned.
 
 \subsubsection*{Errors}
+%everything from :
+%pico_socket_open
+\item PICO$\_$ERR$\_$EPROTONOSUPPORT - protocol not supported
+\item PICO$\_$ERR$\_$ENETUNREACH - network unreachable 
+%pico_socket_bind
+\item PICO$\_$ERR$\_$EINVAL - invalid argument
+\item PICO$\_$ERR$\_$ENXIO - no such device or address
 
 \subsubsection*{Example}
 \begin{verbatim}
