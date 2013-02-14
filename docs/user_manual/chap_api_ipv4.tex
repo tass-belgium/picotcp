@@ -1,0 +1,378 @@
+\section{IPv4 functions}
+
+% Short description/overview of module functions
+
+\subsection{pico$\_$ipv4$\_$to$\_$string}
+
+\subsubsection*{Description}
+Convert the internet host address ip to a string in IPv4 dotted-decimal notation.
+The result is stored in the char array that ipbuf points to. Always returns 0. Little
+endian or big endian is not taken into account. The worst case memory requirement for
+ipbuf is 16 bytes (12 digits, 3 periods and '\texttt{$\backslash$0}'). F.e.: 0xC0A80101 becomes 192.168.1.1
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{ipbuf} - Char array to store the result in.
+\item \texttt{ip} - Internet host address in integer notation.
+\end{itemize}
+
+\subsubsection*{Return value}
+Always returns 0.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_to_string(buf, ip);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$string$\_$to$\_$ipv4}
+
+\subsubsection*{Description}
+Convert the IPv4 dotted-decimal notation into binary form. The result is stored in the
+\texttt{int} that ip points to. Little endian or big endian is not taken into account.
+The address supplied in ipstr can have one of the following forms: a.b.c.d, a.b.c or a.b.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_string_to_ipv4(const char *ipstr, uint32_t *ip); 
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{ipstr} - Pointer to the ip string.
+\item \texttt{ip} - Int pointer to store the result in.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, 0 is returned if the conversion was successful.
+On error, -1 is returned.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_string_to_ipv4(buf, *ip);
+\end{verbatim}
+
+
+\subsection{pico$\_$ipv4$\_$valid$\_$netmask}
+
+\subsubsection*{Description}
+Check if the provided mask if valid.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_valid_netmask(uint32_t mask);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{mask} - The netmask in integer notation.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, the netmask in CIDR notation is returned.
+If the netmask is invalid, -1 is returned.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_valid_netmask(netmask);
+\end{verbatim}
+
+
+\subsection{pico$\_$ipv4$\_$is$\_$unicast}
+
+\subsubsection*{Description}
+Check if the provided address is unicast or multicast.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_is_unicast(uint32_t address);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{address} - Internet host address in integer notation.
+\end{itemize}
+
+\subsubsection*{Return value}
+Returns 1 if unicast, 0 if multicast.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_is_unicast(address);
+\end{verbatim}
+
+
+\subsection{pico$\_$ipv4$\_$source$\_$find}
+
+\subsubsection*{Description}
+Find the source ip belonging to the destination ip dst.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{address} - Pointer to the destination internet host address as \texttt{struct pico$\_$ip4}.
+\end{itemize}
+
+\subsubsection*{Return value}
+Returns the source ip as \texttt{struct pico$\_$ip4} on success, \texttt{NULL} if the source can not be found.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+src = pico_ipv4_source_find(dst);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$frame$\_$push}
+
+\subsubsection*{Description}
+Add an IP header to the \texttt{pico$\_$frame f} (with destination ip \texttt{dst} and protocol
+\texttt{proto}) and queue the \texttt{pico$\_$frame} to the data link layer.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{f} - Pointer to the frame that flows through the stack.
+\item \texttt{dst} - Pointer to the destination internet host address as \item \texttt{struct pico$\_$ip4}.
+\item \texttt{proto} - IP protocol to use. 
+\end{itemize}
+
+\subsubsection*{Return value}
+On success the new queue size is returned. On error, -1 is returned.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_frame_push(frame, dst, protocol);
+\end{verbatim}
+
+
+
+\subsection{dbg$\_$route}
+
+\subsubsection*{Description}
+Print the complete routing table. 
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+void dbg_route(void);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+
+\subsubsection*{Return value}
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+dbg_route();
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$route$\_$add}
+
+\subsubsection*{Description}
+Add a new route to the destination ip address from the local device link, f.e. eth0.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask,
+struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}
+\item \texttt{address} - Pointer to the destination internet host address as \texttt{struct pico$\_$ip4}.
+\item \texttt{netmask} - Netmask of the address.
+\item \texttt{gateway} - Gateway of the address network.
+\item \texttt{metric} - Metric of the route.
+\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory,
+thus \texttt{NULL} can be used.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, 0 is returned. On error, -1 is returned and \texttt{pico$\_$err} is set appropriately. 
+%if the route already exists or no memory could be allocated. 
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_route_add(dst, netmask, gateway, metric, link);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$route$\_$del}
+
+\subsubsection*{Description}
+Remove the route to the destination ip address from the local device link, f.e. etho0.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask,
+struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link); 
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{address} - Pointer to the destination internet host address as struct \texttt{pico$\_$ip4}.
+\item \texttt{netmask} - Netmask of the address.
+\item \texttt{gateway} - Gateway of the address network.
+\item \texttt{metric} - Metric of the route.
+\item \texttt{link} - Local device interface.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, 0 is returned. On error, -1 is returned if the route could not be found.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_route_del(dst, netmask, gateway, metric, link);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$link$\_$add }
+
+\subsubsection*{Description}
+Add a new local device dev inteface, f.e. eth0, with ip address 'address' and netmask 'netmask'.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - Local device.
+\item \texttt{address} - Pointer to the internet host address as \texttt{struct pico$\_$ip4}.
+\item \texttt{netmask} - Netmask of the address.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, 0 is returned. On error, -1 is returned if the address is already assigned or no memory could be allocated.
+% SET PICO_ERR
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_link_add(dev, address, netmask);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$link$\_$del}
+
+\subsubsection*{Description}
+Remove the local device dev interface, f.e. eth0, with ip address 'address'.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address); 
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - Local device.
+\item \texttt{address} - Pointer to the internet host address as \texttt{struct pico$\_$ip4}.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, 0 is returned. On error, -1 is returned if the local device interface could not be found. 
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_link_del(dev, address);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$link$\_$find}
+
+\subsubsection*{Description}
+Find the local device with ip address 'address'.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{address} - Pointer to the internet host address as \texttt{struct pico$\_$ip4}.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, the local device is returned. On error, \texttt{NULL} is returned if the local device could not be found. 
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+dev = pico_ipv4_link_find(address);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$ipv4$\_$rebound}
+
+\subsubsection*{Description}
+Rebound the frame f back to the source.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_ipv4_rebound(struct pico_frame *f);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{f} - Pointer to the frame that flows through the stack
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, the frame queue size is returned. On error, -1 is returned.
+
+\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_ipv4_rebound(frame);
+\end{verbatim}
