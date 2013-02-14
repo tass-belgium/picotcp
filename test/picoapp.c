@@ -633,7 +633,7 @@ void app_tcpclient(char *arg)
 
 int tcpbench_mode = 0;
 struct pico_socket *tcpbench_sock = NULL;
-struct timeval tcpbench_time_start,tcpbench_time_end;
+unsigned long tcpbench_time_start,tcpbench_time_end;
 
 void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 {
@@ -674,7 +674,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
       pico_ipv4_to_string(peer, orig.addr);
       printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
     }
-    gettimeofday(&tcpbench_time_start,NULL);
+    tcpbench_time_start = PICO_TIME_MS();
   }
 
   if (ev & PICO_SOCK_EV_FIN) {
@@ -690,14 +690,14 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
   if (ev & PICO_SOCK_EV_CLOSE) {
     printf("tcpbench> event close\n");
     if (tcpbench_mode == TCP_BENCH_RX) {
-        gettimeofday(&tcpbench_time_end,NULL);
-        tcpbench_time = (tcpbench_time_end.tv_sec - tcpbench_time_start.tv_sec) + (tcpbench_time_end.tv_usec - tcpbench_time_start.tv_usec)/1000000;
-        printf("tcpbench> average read throughput %lf kB/sec\n",(tcpbench_rd_size/tcpbench_time)/1000);
-        pico_socket_shutdown(s, PICO_SHUT_WR);
-        printf("tcpbench> Called shutdown write, ev = %d\n",ev);
+      tcpbench_time_end = PICO_TIME_MS();
+      tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000; /* get number of seconds */
+      printf("tcpbench> average read throughput %lf kbit/sec\n",((tcpbench_rd_size*8)/tcpbench_time)/1000);
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
     } else if (tcpbench_mode == TCP_BENCH_TX) {
-        pico_socket_close(s);
-        return;
+      pico_socket_close(s);
+      return;
     }
   }
 
@@ -716,12 +716,12 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
       } while(tcpbench_w > 0);
     } else {
       if (!closed && tcpbench_mode == TCP_BENCH_TX) {
-        gettimeofday(&tcpbench_time_end,NULL);
+        tcpbench_time_end = PICO_TIME_MS();
         pico_socket_shutdown(s, PICO_SHUT_WR);
         printf("tcpbench> TCPSIZ written\n");
         printf("tcpbench> Called shutdown()\n");
-        tcpbench_time = (tcpbench_time_end.tv_sec - tcpbench_time_start.tv_sec) + (tcpbench_time_end.tv_usec - tcpbench_time_start.tv_usec)/1000000;
-        printf("tcpbench> average write throughput %lf kB/sec\n",(TCPSIZ/tcpbench_time)/1000);
+        tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000; /* get number of seconds */
+        printf("tcpbench> average write throughput %lf kbit/sec\n",((TCPSIZ*8)/tcpbench_time)/1000);
         closed = 1;
       }
     }
