@@ -21,19 +21,8 @@ int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst);
 #define PICO_ARP_STATUS_PERMANENT 0x01
 #define PICO_ARP_STATUS_STALE     0x02
 
-/* Arp Entries for the tables. */
-struct pico_arp {
-/* CAREFUL MAN! ARP entry MUST begin with a pico_eth structure, 
- * due to in-place casting!!! */
-  struct pico_eth eth;
-  struct pico_ip4 ipv4;
-  int    arp_status;
-  uint32_t timestamp;
-  struct pico_device *dev;
-  RB_ENTRY(pico_arp) node;
-};
 
-struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst);
-struct pico_arp *pico_arp_get_entry_by_mac(uint8_t *dst);
-void pico_arp_add_entry(struct pico_arp *entry);
+struct pico_eth *pico_arp_lookup(struct pico_ip4 *dst);
+struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst);
+int pico_arp_create_entry(uint8_t* hwaddr, struct pico_ip4 ipv4, struct pico_device* dev);
 #endif

@@ -56,6 +56,18 @@ pico_arp_hdr
 
 #define PICO_SIZE_ARPHDR ((sizeof(struct pico_arp_hdr)))
 
+/* Arp Entries for the tables. */
+struct pico_arp {
+/* CAREFUL MAN! ARP entry MUST begin with a pico_eth structure, 
+ * due to in-place casting!!! */
+  struct pico_eth eth;
+  struct pico_ip4 ipv4;
+  int    arp_status;
+  uint32_t timestamp;
+  struct pico_device *dev;
+  RB_ENTRY(pico_arp) node;
+};
+
 
 
 /*****************/
@@ -86,28 +98,28 @@ static struct arp_tree Arp_table;
 /**  END ARP TREE **/
 /*********************/
 
-struct pico_arp *pico_arp_get_entry(struct pico_ip4 *dst)
+struct pico_eth *pico_arp_lookup(struct pico_ip4 *dst)
 {
   struct pico_arp search, *found;
   search.ipv4.addr = dst->addr;
   found = RB_FIND(arp_tree, &Arp_table, &search);
   if (found && (found->arp_status != PICO_ARP_STATUS_STALE))
-    return found;
+    return &found->eth;
   return NULL;
 }
 
-struct pico_arp *pico_arp_get_entry_by_mac(uint8_t *dst)
+struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst)
 {
   struct pico_arp* search;
   RB_FOREACH(search, arp_tree, &Arp_table) {
-    if(memcmp(&(search->eth.addr), dst, 6) == 0)
-      return search;
+    if(memcmp(&(search->eth.addr), &dst->addr, 6) == 0)
+      return &search->ipv4;
   }
   return NULL;
 }
 
 struct pico_eth *pico_arp_get(struct pico_frame *f) {
-  struct pico_arp *a4;
+  struct pico_eth *a4;
   struct pico_ip4 gateway;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_ipv4_link *l;
@@ -121,9 +133,9 @@ struct pico_eth *pico_arp_get(struct pico_frame *f) {
   gateway = pico_ipv4_route_get_gateway(&hdr->dst);
   /* check if dst is local (gateway = 0), or if to use gateway */
   if (gateway.addr != 0)
-    a4 = pico_arp_get_entry(&gateway);          /* check if gateway ip mac in cache */
+    a4 = pico_arp_lookup(&gateway);          /* check if gateway ip mac in cache */
   else
-    a4 = pico_arp_get_entry(&hdr->dst);         /* check if local ip mac in cache */
+    a4 = pico_arp_lookup(&hdr->dst);         /* check if local ip mac in cache */
   if (!a4) {
      if (++f->failure_count < 4) {
        dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
@@ -144,7 +156,7 @@ struct pico_eth *pico_arp_get(struct pico_frame *f) {
       pico_frame_discard(f);
     }
   }
-  return &a4->eth;
+  return a4;
 }
 
 void dbg_arp(void)
@@ -162,6 +174,31 @@ void arp_expire(unsigned long now, void *_stale)
   arp_dbg("ARP: Setting arp_status to STALE\n");
   pico_arp_query(stale->dev, &stale->ipv4);
 
+}
+
+void pico_arp_add_entry(struct pico_arp *entry)
+{
+    entry->arp_status = PICO_ARP_STATUS_REACHABLE;
+    entry->timestamp  = PICO_TIME();
+    RB_INSERT(arp_tree, &Arp_table, entry);
+    arp_dbg("ARP ## reachable.\n");
+    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
+}
+
+int pico_arp_create_entry(uint8_t* hwaddr, struct pico_ip4 ipv4, struct pico_device* dev)
+{
+	struct pico_arp* arp = pico_zalloc(sizeof(struct pico_arp));
+	if(!arp){
+		pico_err = PICO_ERR_ENOMEM;
+		return -1;
+	}
+	memcpy(arp->eth.addr, hwaddr, 6);
+	arp->ipv4.addr = ipv4.addr;
+	arp->dev = dev;
+
+	pico_arp_add_entry(arp);
+
+	return 0;
 }
 
 int pico_arp_receive(struct pico_frame *f)
@@ -230,15 +267,6 @@ int pico_arp_receive(struct pico_frame *f)
 end:
   pico_frame_discard(f);
   return ret;
-}
-
-void pico_arp_add_entry(struct pico_arp *entry)
-{
-    entry->arp_status = PICO_ARP_STATUS_REACHABLE;
-    entry->timestamp  = PICO_TIME();
-    RB_INSERT(arp_tree, &Arp_table, entry);
-    arp_dbg("ARP ## reachable.\n");
-    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
 }
 
 int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
