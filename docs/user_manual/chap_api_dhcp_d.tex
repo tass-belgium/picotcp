@@ -1,20 +1,20 @@
-\section{DHCP : server}
+\section{DHCP server}
 
 % Short description/overview of module functions
 
 
 \subsection{pico\_dhcp\_server\_initiate}
 
-
 \subsubsection*{Description}
 This function starts a simple DHCP server. 
 
 \subsubsection*{Function prototype}
-\texttt{int pico\_dhcp\_server\_initiate(struct pico\_dhcpd\_settings* setting);}
+\texttt{int pico\_dhcp\_server\_initiate(struct pico\_dhcpd\_settings* settings);}
 
 \subsubsection*{Parameters}
-\texttt{settings} - a pointer to a struct \texttt{pico\_dhcpd\_settings}, in which the following members matter to the user : 
-\begin{itemize}
+\begin{itemize}[noitemsep]
+\item \texttt{settings} - a pointer to a struct \texttt{pico\_dhcpd\_settings}, in which the following members matter to the user : 
+\begin{itemize}[noitemsep]
 \item \texttt{struct pico\_device *dev} - a pointer to the device on which the dhcp server must operate
 \item \texttt{struct pico\_ip4 my\_ip} - the IP assigned to the server
 \item \texttt{struct pico\_ip4 netmask} - the netmask the server must advertise
@@ -22,14 +22,16 @@ This function starts a simple DHCP server.
 \item \texttt{uint32\_t pool\_end} - the last IP address that may be assigned
 \item \texttt{uint32\_t lease\_time} - the advertised lease time in seconds
 \end{itemize}
+\end{itemize}
 
 \subsubsection*{Return value}
-On successful startup of the dhcp server, 0 is returned. On error a value different from 0 is returned.
+On successful startup of the dhcp server, 0 is returned.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
+\begin{itemize}[noitemsep]
 %everything from :
 %pico_socket_open
-\begin{itemize}
 \item PICO$\_$ERR$\_$EPROTONOSUPPORT - protocol not supported
 \item PICO$\_$ERR$\_$ENETUNREACH - network unreachable 
 %pico_socket_bind
