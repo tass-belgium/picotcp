@@ -60,6 +60,7 @@ CORE_OBJ= stack/pico_stack.o \
 
 POSIX_OBJ=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
+						modules/pico_dev_mock.o \
 						modules/ptsocket/pico_ptsocket.o
 
 
@@ -130,6 +131,7 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_server.elf        \
           test/ptsock_client.elf        \
           test/testnat.elf   \
+          test/mock_example.elf   \
           test/testigmp2.elf
 
 test: posix $(TEST_ELF)
