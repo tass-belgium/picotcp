@@ -43,7 +43,7 @@ int main(void)
 
   unsigned char mac[6] = {0,0,0,0xa,0xb,0xd};
 
-	struct pico_device* mock;
+	struct mock_device* mock;
 	struct pico_ip4 address = {.addr=long_be(0x0a280004)};
 	struct pico_ip4 netmask = {.addr=long_be(0xffffff00)};
 	struct pico_ip4 target = {.addr=long_be(0x0a280005)};
@@ -57,7 +57,7 @@ int main(void)
 	if(!mock)
 		return 1;
 
-	pico_ipv4_link_add(mock, address, netmask);
+	pico_ipv4_link_add(mock->dev, address, netmask);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)

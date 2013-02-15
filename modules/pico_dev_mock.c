@@ -15,19 +15,32 @@ Authors: Frederik Van Slycken
 
 #define MOCK_MTU 1500
 
-struct mock_frame{
-	uint8_t* buffer;
-	int len;
-	int read;
 
-	struct mock_frame* next;
-};
 
-//TODO perhaps we should put the lists in the mock-device, so we can make multiple mock-devices with their own queues
-struct mock_frame *in_head, *in_tail, *out_head, *out_tail;
+//Tree for finding mock_device based on pico_device*
+RB_HEAD(mock_device_tree, mock_device);
+RB_PROTOTYPE_STATIC(mock_device_tree, mock_device, node, mock_dev_cmp);
+
+static struct mock_device_tree Device_tree;
+
+static int mock_dev_cmp(struct mock_device *a, struct mock_device *b)
+{
+  if (a->dev < b->dev)
+    return -1;
+  if (a->dev > b->dev)
+    return 1;
+  return 0;
+}
+
+RB_GENERATE_STATIC(mock_device_tree, mock_device, node, mock_dev_cmp);
 
 static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 {
+	struct mock_device search = {.dev = dev};
+	struct mock_device* mock = RB_FIND(mock_device_tree, &Device_tree, &search);
+	if(!mock)
+		return 0;
+
 	struct mock_frame* frame;
   if (len > MOCK_MTU)
     return 0;
@@ -37,18 +50,18 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 		return 0;
 	}
 
-	if(out_head == NULL)
-		out_head = frame;
+	if(mock->out_head == NULL)
+		mock->out_head = frame;
 	else
-		out_tail->next = frame;
-	out_tail = frame;
+		mock->out_tail->next = frame;
+	mock->out_tail = frame;
 
-	out_tail->buffer = pico_zalloc(len);
-	if(!out_tail->buffer)
+	mock->out_tail->buffer = pico_zalloc(len);
+	if(!mock->out_tail->buffer)
 		return 0;
 
-	memcpy(out_tail->buffer, buf, len);
-	out_tail->len = len;
+	memcpy(mock->out_tail->buffer, buf, len);
+	mock->out_tail->len = len;
 
 	return len;
 
@@ -56,62 +69,68 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 
 static int pico_mock_poll(struct pico_device *dev, int loop_score)
 {
+	struct mock_device search = {.dev = dev};
+	struct mock_device* mock = RB_FIND(mock_device_tree, &Device_tree, &search);
+	if(!mock)
+		return 0;
+
+
 	struct mock_frame* nxt;
   if (loop_score <= 0)
     return 0;
 
-	while(in_head != NULL && loop_score >0)
+	while(mock->in_head != NULL && loop_score >0)
 	{
-		pico_stack_recv(dev, in_head->buffer, in_head->len);
+		pico_stack_recv(dev, mock->in_head->buffer, mock->in_head->len);
 		loop_score--;
 
-		pico_free(in_head->buffer);
+		pico_free(mock->in_head->buffer);
 
-		if(in_tail == in_head){
-			free(in_head);
-			in_tail = in_head = NULL;
+		if(mock->in_tail == mock->in_head){
+			free(mock->in_head);
+			mock->in_tail = mock->in_head = NULL;
 			return loop_score;
 		}
 
-		nxt = in_head->next;
-		free(in_head);
-		in_head = nxt;
+		nxt = mock->in_head->next;
+		free(mock->in_head);
+		mock->in_head = nxt;
 	}
   return loop_score;
 }
 
-int pico_mock_network_read(struct pico_device* mock, void *buf, int len)
+int pico_mock_network_read(struct mock_device* mock, void *buf, int len)
 {
 	struct mock_frame* nxt;
-	if(out_head == NULL)
+	if(mock->out_head == NULL)
 		return 0;
 
-	if(len > out_head->len-out_head->read)
-		len = out_head->len - out_head->read;
+	if(len > mock->out_head->len-mock->out_head->read)
+		len = mock->out_head->len - mock->out_head->read;
 
-	memcpy(buf, out_head->buffer, len);
+	memcpy(buf, mock->out_head->buffer, len);
 
-	if(len+out_head->read != out_head->len){
-		out_head->read += len;
+	if(len+mock->out_head->read != mock->out_head->len){
+		mock->out_head->read += len;
 		return len;
 	}
 
-	pico_free(out_head->buffer);
+	pico_free(mock->out_head->buffer);
 
-	if(out_tail == out_head){
-		free(out_head);
-		out_tail = out_head = NULL;
+	if(mock->out_tail == mock->out_head){
+		free(mock->out_head);
+		mock->out_tail = mock->out_head = NULL;
 		return len;
 	}
 
-	nxt = out_head->next;
-	free(out_head);
-	out_head = nxt;
+	nxt = mock->out_head->next;
+	free(mock->out_head);
+	mock->out_head = nxt;
 
 	return len;
 }
 
-int pico_mock_network_write(struct pico_device* mock, const void *buf, int len)
+int pico_mock_network_write(struct mock_device* mock, const void *buf, int len)
 {
 	struct mock_frame* frame;
   if (len > MOCK_MTU)
@@ -122,18 +141,18 @@ int pico_mock_network_write(struct pico_device* mock, const void *buf, int len)
 		return 0;
 	}
 
-	if(in_head == NULL)
-		in_head = frame;
+	if(mock->in_head == NULL)
+		mock->in_head = frame;
 	else
-		in_tail->next = frame;
-	in_tail = frame;
+		mock->in_tail->next = frame;
+	mock->in_tail = frame;
 
-	in_tail->buffer = pico_zalloc(len);
-	if(!in_tail->buffer)
+	mock->in_tail->buffer = pico_zalloc(len);
+	if(!mock->in_tail->buffer)
 		return 0;
 
-	memcpy(in_tail->buffer, buf, len);
-	in_tail->len = len;
+	memcpy(mock->in_tail->buffer, buf, len);
+	mock->in_tail->len = len;
 
 	return len;
 
@@ -143,23 +162,57 @@ int pico_mock_network_write(struct pico_device* mock, const void *buf, int len)
 
 void pico_mock_destroy(struct pico_device *dev)
 {
-	//TODO delete the remaining buffers...
+	struct mock_device search = {.dev = dev};
+	struct mock_device* mock = RB_FIND(mock_device_tree, &Device_tree, &search);
+	if(!mock)
+		return;
+
+	struct mock_frame* nxt = mock->in_head;
+	while(nxt != NULL){
+		mock->in_head = mock->in_head->next;
+		pico_free(nxt);
+		nxt = mock->in_head;
+	}
+	nxt = mock->out_head;
+	while(nxt != NULL){
+		mock->out_head = mock->out_head->next;
+		pico_free(nxt);
+		nxt = mock->out_head;
+	}
+  RB_REMOVE(mock_device_tree, &Device_tree, mock);
 }
 
-struct pico_device *pico_mock_create(uint8_t* mac)
+struct mock_device *pico_mock_create(uint8_t* mac)
 {
-  struct pico_device *mock = pico_zalloc(sizeof(struct pico_device));
-  if (!mock)
-    return NULL;
 
-  if( 0 != pico_device_init((struct pico_device *)mock, "mock", mac)) {
+	struct mock_device* mock = pico_zalloc(sizeof(struct mock_device));
+	if(!mock)
+		return NULL;
+
+  mock->dev = pico_zalloc(sizeof(struct pico_device));
+  if (!mock->dev){
+		pico_free(mock);
+    return NULL;
+	}
+
+  if( 0 != pico_device_init((struct pico_device *)mock->dev, "mock", mac)) {
     dbg ("Loop init failed.\n");
-    pico_mock_destroy((struct pico_device *)mock);
+    pico_mock_destroy((struct pico_device *)mock->dev);
+		pico_free(mock);
     return NULL;
   }
-  mock->send = pico_mock_send;
-  mock->poll = pico_mock_poll;
-  mock->destroy = pico_mock_destroy;
-  dbg("Device %s created.\n", mock->name);
-  return (struct pico_device *)mock;
+  mock->dev->send = pico_mock_send;
+  mock->dev->poll = pico_mock_poll;
+  mock->dev->destroy = pico_mock_destroy;
+  dbg("Device %s created.\n", mock->dev->name);
+	RB_INSERT(mock_device_tree, &Device_tree, mock);
+  return mock;
 }
+
+/*
+ * TODO :
+ *
+ * add the utility functions that check with the mock-device
+ *
+ */
+
