@@ -41,7 +41,6 @@ void wakeup(uint16_t ev, struct pico_socket *s)
 int main(void)
 {
 
-  unsigned char mac[6] = {0,0,0,0xa,0xb,0xd};
 
 	struct pico_device* mock;
 	struct pico_ip4 address = {.addr=long_be(0x0a280004)};
