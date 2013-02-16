@@ -10,7 +10,36 @@ internal applets as well as generic POSIX-compliant socket interfaces.
 
 
 \section{Supported features}
-(WIP)
+\begin{itemize}
+\item \textbf{Device layer} Facilities for device driver are offered in a simple
+					structure and API.
+\item \textbf{ARP} The stack can use the "Address Resolution Protocol" to retrieve
+					the MAC addresses of other hosts in the network.
+\item \textbf{IPv4} The network layer supports the IPv4 protocol. The API provides
+					functions for routing, set network adresses to devices, ...
+\item \textbf{ICMP} Also the "Internet Control Message Protocol" is implemented. This
+					protocol provides the system to send error messages, do a ping, ...
+\item \textbf{NAT} The stack supports "Network Address Translation" to hide addresses
+					from internal networks to the outside. The API also supports functions
+					for port forwarding.
+\item \textbf{IGMP} ... BLA ... <<< TODO >>>
+\item \textbf{multicasting} ... BLA ... <<< TODO >>> (or with IGMP)
+\item \textbf{UDP} The stack can use the "User Datagram Protocol" as a transport protocol
+					for connection-less communication between sockets.
+\item \textbf{TCP} The stack also supports the connection-oriented "Transport Control Protocol"
+					for reliable communications.
+\item \textbf{Sockets} The user applications on different host use the socket API to communicate.
+					The socket API is POSIX compliant <<< TODO CHECK >>>.
+\item \textbf{DNS client} A small DNS client is provided to resolve an IP address for a given name.
+					The API supports setting several DNS servers and a small cache.
+\item \textbf{DHCP client} A DHCP client can request an IP lease from a DHCP server to set the IP
+					adress of the device.
+\item \textbf{DHCP server} Also a small DHCP server is included to hand out IP addresses to hosts
+					in the network.
+\item \textbf{Linux development and test facilities} The stack is developed entirely on a Linux system.
+					Several tools are easily available and/or included to develop and test user applications.
+					(tun/tap devices, vde, tcp benchmark test, ...)
+\end{itemize}
 
 \section{Module dependencies}
 (WIP)

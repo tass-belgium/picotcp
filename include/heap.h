@@ -6,7 +6,6 @@ holders.
 
 *********************************************************************/
 #include <stdint.h>
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -20,10 +19,14 @@ typedef struct heap_##type heap_##type; \
 static inline int heap_insert(struct heap_##type *heap, type *el) \
 { \
   int i; \
+  type * newTop; \
     if (++heap->n >= heap->size) {    											\
-    heap->top = realloc(heap->top, (heap->n + 1) * sizeof(type));				\
-    if (!heap->top)																\
-    	return -1;																\
+    newTop = pico_zalloc((heap->n + 1) * sizeof(type)); \
+    if(!newTop) \
+      return -1; \
+    memcpy(newTop,heap->top,heap->n*sizeof(type)); \
+    pico_free(heap->top); \
+    heap->top = newTop;				\
     heap->size++;																\
   }  																			\
   if (heap->n == 1) {  														\
@@ -41,7 +44,6 @@ static inline int heap_peek(struct heap_##type *heap, type *first) \
   type *last;  			\
   int i, child;  		\
   if(heap->n == 0) {  	\
-    errno = ENOENT;		\
     return -1; 			\
   }  					\
   memcpy(first, &heap->top[1], sizeof(type));  	\
@@ -70,13 +72,13 @@ static inline type *heap_first(heap_##type *heap)  \
 } \
 static inline heap_##type *heap_init(void) \
 { \
-  heap_##type *p = (heap_##type *)calloc(1, sizeof(heap_##type));  \
+  heap_##type *p = (heap_##type *)pico_zalloc(sizeof(heap_##type));  \
   return p;  	\
 } \
 static inline void heap_destroy(heap_##type *h) \
 { \
-  free(h->top);   \
-  free(h);   	\
+  pico_free(h->top);   \
+  pico_free(h);   	\
 } \
 
 

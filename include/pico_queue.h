@@ -8,7 +8,6 @@ holders.
 #ifndef _INCLUDE_PICO_QUEUE
 #define _INCLUDE_PICO_QUEUE
 #include <stdint.h>
-#include <assert.h>
 #include "pico_config.h"
 #include "pico_frame.h"
 
@@ -70,7 +69,6 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
-  assert(q->head != NULL);
   q->head = p->next;
   q->frames--;
   q->size -= p->buffer_len;

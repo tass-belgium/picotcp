@@ -304,6 +304,7 @@ int pico_ipv4_nat_add(struct pico_ip4 pub_addr, uint16_t pub_port, struct pico_i
   }
   else {
     pico_free(key);
+    pico_err = PICO_ERR_EINVAL;
     return -1; /* Element key already exists */
   }
 }
@@ -336,10 +337,12 @@ int pico_ipv4_port_forward(struct pico_ip4 pub_addr, uint16_t pub_port, struct p
   {
     case PICO_IPV4_FORWARD_ADD:
       if (pico_ipv4_nat_add(pub_addr, pub_port, priv_addr, priv_port, proto) != 0)
-        return -1;
+        return -1;  /* pico_err set in nat_add */
       key = pico_ipv4_nat_find_key(pub_port, &priv_addr, priv_port, proto);
-      if (!key)
+      if (!key) {
+        pico_err = PICO_ERR_EAGAIN;
         return -1;
+      }
       key->del_flags = (key->del_flags & ~(0x1 << 11)) | (persistant << 11);
       break;
 
@@ -602,6 +605,11 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 pub_addr)
 
 int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 {
+  if (link == NULL) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   pub_link = *link;
   pico_timer_add(NAT_TCP_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL);
   enable_nat_flag = 1;
