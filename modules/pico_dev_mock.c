@@ -194,25 +194,61 @@ struct mock_device *pico_mock_create(uint8_t* mac)
 		pico_free(mock);
     return NULL;
 	}
+	if(mac != NULL){
+		mock->mac = pico_zalloc(6*sizeof(uint8_t));
+		if(!mock->mac){
+			pico_free(mock->mac);
+			pico_free(mock);
+			return NULL;
+		}
+		memcpy(mock->mac, mac, 6);
+	}
 
   if( 0 != pico_device_init((struct pico_device *)mock->dev, "mock", mac)) {
     dbg ("Loop init failed.\n");
     pico_mock_destroy((struct pico_device *)mock->dev);
+		if(mock->mac != NULL)
+			pico_free(mock->mac);
 		pico_free(mock);
     return NULL;
   }
-  mock->dev->send = pico_mock_send;
-  mock->dev->poll = pico_mock_poll;
-  mock->dev->destroy = pico_mock_destroy;
-  dbg("Device %s created.\n", mock->dev->name);
+	mock->dev->send = pico_mock_send;
+	mock->dev->poll = pico_mock_poll;
+	mock->dev->destroy = pico_mock_destroy;
+	dbg("Device %s created.\n", mock->dev->name);
 	RB_INSERT(mock_device_tree, &Device_tree, mock);
   return mock;
 }
 
 /*
- * TODO :
- *
- * add the utility functions that check with the mock-device
- *
+ * a few utility functions that check certain fields
  */
 
+uint32_t mock_get_sender_ip4(struct mock_device* mock, void* buf, int len)
+{
+	uint32_t ret;
+	int start = mock->mac?14:0;
+	if(start+16 > len){
+		printf("out of range!\n");
+		return 0;
+	}
+	memcpy(&ret, buf+start+12, 4);
+	return ret;
+}
+
+/*
+ * TODO
+ * find a way to create ARP replies
+ *
+ * create the other utility functions, e.g.
+ *  -is_arp_request
+ *  -create_arp_reply
+ *  -get_destination_ip4
+ *  -get_ip4_total_length
+ *  -is_ip4_checksum_valid
+ *  -is_tcp_syn
+ *  -create_tcp_synack
+ *  -is_tcp_checksum_valid
+ *  etc.
+ *
+ */
