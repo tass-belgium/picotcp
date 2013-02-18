@@ -9,6 +9,7 @@
 #include "pico_ipv4.h"
 #include "pico_dev_null.h"
 #include "pico_device.h"
+#include "pico_dhcp_server.h"
 #include <check.h>
 
 START_TEST (test_ipv4)
@@ -48,6 +49,23 @@ START_TEST (test_ipv4)
 }
 END_TEST
 
+START_TEST (test_dhcp)
+{
+	struct pico_device* dev;
+	struct pico_dhcpd_settings s = {0};
+	struct pico_ip4 address = {.addr=long_be(0x0a280001)};
+	struct pico_ip4 netmask = {.addr=long_be(0xffffff00)};
+
+	pico_stack_init();
+	dev = pico_null_create("null");
+	pico_ipv4_link_add(dev, address, netmask);
+
+	s.dev = dev;
+
+	fail_if(pico_dhcp_server_initiate(&s));
+}
+END_TEST
+
 
 Suite *pico_suite(void)
 {
@@ -56,6 +74,10 @@ Suite *pico_suite(void)
   TCase *ipv4 = tcase_create("IPv4");
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
+
+	TCase *dhcp = tcase_create("DHCP");
+	tcase_add_test(dhcp, test_dhcp);
+	suite_add_tcase(s, dhcp);
 
   return s;
 }
