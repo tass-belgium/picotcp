@@ -455,6 +455,13 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		destination.addr = long_be(0xFFFFFFFF);
 	}
 
+	if(cli->device->eth == NULL){
+		pico_err = PICO_ERR_EOPNOTSUPP;
+		if(cli->cb != NULL){
+			cli->cb(cli, PICO_DHCP_ERROR);
+		}
+		return;
+	}
 	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);//TODO solution if we don't have ethernet
 	dh_out->op = PICO_DHCP_OP_REQUEST;
 	dh_out->htype = PICO_HTYPE_ETHER;
