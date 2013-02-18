@@ -569,7 +569,11 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	address.addr = long_be(0x00000000);
 	netmask.addr = long_be(0x00000000);
 
-	pico_ipv4_link_add(device, address, netmask);
+	if(pico_ipv4_link_add(device, address, netmask) != 0){
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
+		return;
+	}
 
 	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
 
