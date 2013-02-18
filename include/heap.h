@@ -1,8 +1,6 @@
 /*********************************************************************
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
-Do not redistribute without a written permission by the Copyright
-holders.
 
 *********************************************************************/
 #include <stdint.h>
@@ -20,12 +18,14 @@ static inline int heap_insert(struct heap_##type *heap, type *el) \
 { \
   int i; \
   type * newTop; \
-    if (++heap->n >= heap->size) {    											\
+  if (++heap->n >= heap->size) {    											\
     newTop = pico_zalloc((heap->n + 1) * sizeof(type)); \
     if(!newTop) \
       return -1; \
-    memcpy(newTop,heap->top,heap->n*sizeof(type)); \
-    pico_free(heap->top); \
+    if (heap->top)  {\
+      memcpy(newTop,heap->top,heap->n*sizeof(type)); \
+      pico_free(heap->top); \
+    } \
     heap->top = newTop;				\
     heap->size++;																\
   }  																			\
