@@ -73,9 +73,15 @@ int main(void)
 	pico_stack_tick();
 	pico_stack_tick();
 
-	printf("read returned %d\n",pico_mock_network_read(mock, buffer2, 80));
+	int len = pico_mock_network_read(mock, buffer2, 80);
+	printf("length : %d\n",len);
 
 	//TODO : check some of these fields automatically...
+	if(mock_get_sender_ip4(mock, buffer2, len) == address.addr){
+		printf("great!\n");
+	}else{
+		printf("not so great!\n");
+	}
 	int cntr = 0;
 	while(cntr < 80){
 		printf("0x%02x ",buffer2[cntr]);
