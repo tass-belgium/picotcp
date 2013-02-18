@@ -34,13 +34,6 @@ static struct pico_queue in = {};
 static struct pico_queue out = {};
 
 /* Functions */
-
-static inline int pico_is_digit(char c)
-{
-  if(c < '0' || c > '9')
-    return 0;
-  return 1;
-} 
  
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
 {

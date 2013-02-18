@@ -24,6 +24,15 @@ struct __attribute__((packed)) pico_tcp_hdr {
   uint16_t urgent;
 };
 
+struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
+{
+  struct pico_ip4 src;
+  struct pico_ip4 dst;
+  uint16_t tcp_len;
+  uint8_t res;
+  uint8_t proto;
+};
+
 #define PICO_TCPHDR_SIZE 20
 #define PICO_SIZE_TCPOPT_SYN 20
 #define PICO_SIZE_TCPHDR (sizeof(struct pico_tcp_hdr))

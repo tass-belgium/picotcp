@@ -4,12 +4,23 @@
  * 2. Add your test to the suite in the pico_suite() function
  */
 
-
-#include "pico_stack.h"
-#include "pico_ipv4.h"
-#include "pico_dev_null.h"
-#include "pico_device.h"
-#include "pico_dhcp_server.h"
+#include "pico_device.c"
+#include "pico_frame.c"
+#include "pico_stack.c"
+#include "pico_protocol.c"
+#include "pico_ipv4.c"
+#include "pico_socket.c"
+#include "pico_dev_null.c"
+#include "pico_udp.c"
+#include "pico_tcp.c"
+#include "pico_arp.c"
+#include "pico_icmp4.c"
+#include "pico_dhcp_common.c"
+#include "pico_dns_client.c"
+#include "pico_dhcp_server.c"
+#include "pico_dhcp_client.c"
+#include "pico_igmp2.c"
+#include "pico_nat.c"
 #include <check.h>
 
 START_TEST (test_ipv4)

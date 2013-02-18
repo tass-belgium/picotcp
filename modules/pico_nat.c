@@ -24,14 +24,6 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
 //#define NAT_TCP_TIMEWAIT 10000 /* 10 sec (in msec)  - for testing purposes only*/
 
-struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
-{
-  struct pico_ip4 src;
-  struct pico_ip4 dst;
-  uint16_t tcp_len;
-  uint8_t res;
-  uint8_t proto;
-};
 
 struct pico_nat_key {
   struct pico_ip4 pub_addr;

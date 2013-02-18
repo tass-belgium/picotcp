@@ -17,8 +17,8 @@ Authors: Daniele Lacamera
 
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue icmp_in = {};
+static struct pico_queue icmp_out = {};
 
 
 /* Functions */
@@ -82,8 +82,8 @@ struct pico_protocol pico_proto_icmp4 = {
   .layer = PICO_LAYER_TRANSPORT,
   .process_in = pico_icmp4_process_in,
   .process_out = pico_icmp4_process_out,
-  .q_in = &in,
-  .q_out = &out,
+  .q_in = &icmp_in,
+  .q_out = &icmp_out,
 };
 
 static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)

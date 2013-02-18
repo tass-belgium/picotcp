@@ -130,8 +130,8 @@ int test_pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_par
 
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue igmp_in = {};
+static struct pico_queue igmp_out = {};
 
 static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_params *params){
   struct pico_igmp2_hdr *hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
@@ -212,8 +212,8 @@ struct pico_protocol pico_proto_igmp2 = {
   .layer = PICO_LAYER_TRANSPORT,
   .process_in = pico_igmp2_process_in,
   .process_out = pico_igmp2_process_out,
-  .q_in = &in,
-  .q_out = &out,
+  .q_in = &igmp_in,
+  .q_out = &igmp_out,
 };
 
 

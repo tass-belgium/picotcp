@@ -188,8 +188,8 @@ struct pico_socket_tcp {
 
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue tcp_in = {};
+static struct pico_queue tcp_out = {};
 
 
 /* If Nagle enabled, this function can make 1 new segment from smaller segments in hold queue */
@@ -241,15 +241,6 @@ static int release_all_until(struct pico_tcp_queue *q, uint32_t seq)
 
 /* API calls */
 
-struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
-{
-  struct pico_ip4 src;
-  struct pico_ip4 dst;
-  uint16_t tcp_len;
-  uint8_t res;
-  uint8_t proto;
-};
-
 int pico_tcp_checksum_ipv4(struct pico_frame *f)
 {
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -286,8 +277,8 @@ struct pico_protocol pico_proto_tcp = {
   .process_in = pico_transport_process_in,
   .process_out = pico_tcp_process_out,
   .push = pico_tcp_push,
-  .q_in = &in,
-  .q_out = &out,
+  .q_in = &tcp_in,
+  .q_out = &tcp_out,
 };
 
 static uint32_t pico_paws(void)
@@ -605,7 +596,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 
   /* TCP: ENQUEUE to PROTO ( Transmit ) */
   cpy = pico_frame_copy(f);
-  if (pico_enqueue(&out, cpy) > 0) {
+  if (pico_enqueue(&tcp_out, cpy) > 0) {
     if (f->payload_len > 0)
       ts->in_flight++;
     tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
@@ -745,7 +736,7 @@ int pico_tcp_initconn(struct pico_socket *s)
 
   /* TCP: ENQUEUE to PROTO ( SYN ) */
   tcp_dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
-  pico_enqueue(&out, syn);
+  pico_enqueue(&tcp_out, syn);
   pico_timer_add(PICO_TCP_RTO_MIN << ts->backoff, initconn_retry, ts);
   return 0;
 }
@@ -807,7 +798,7 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
   pico_tcp_checksum_ipv4(f);
 
   /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
-  pico_enqueue(&out, f);
+  pico_enqueue(&tcp_out, f);
 }
 
 
@@ -865,7 +856,7 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
   pico_tcp_checksum_ipv4(f);
 
   /* TCP: ENQUEUE to PROTO */
-  pico_enqueue(&out, f);
+  pico_enqueue(&tcp_out, f);
 
   /* goto CLOSED */
   //(t->sock).state &= 0x00FFU;
@@ -972,7 +963,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
   pico_tcp_checksum_ipv4(f);
 
   /* TCP: ENQUEUE to PROTO */
-  pico_enqueue(&out, f);
+  pico_enqueue(&tcp_out, f);
 
   /***************************************************************************/
 
@@ -1008,7 +999,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
   
   //tcp_dbg("SENDING FIN...\n");
   /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
-  pico_enqueue(&out, f);
+  pico_enqueue(&tcp_out, f);
   t->snd_nxt++;
 }
 
@@ -1244,7 +1235,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
       pico_tcp_checksum_ipv4(f);
       /* TCP: ENQUEUE to PROTO ( retransmit )*/
       cpy = pico_frame_copy(f);
-      if (pico_enqueue(&out, cpy)) {
+      if (pico_enqueue(&tcp_out, cpy)) {
         t->backoff++;
         add_retransmission_timer(t, (t->rto << t->backoff) + pico_tick);
         tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
@@ -1299,7 +1290,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
     pico_tcp_checksum_ipv4(f);
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
     cpy = pico_frame_copy(f);
-    if (pico_enqueue(&out, cpy)) {
+    if (pico_enqueue(&tcp_out, cpy)) {
       t->in_flight++;
       add_retransmission_timer(t, pico_tick + t->rto);
     } else {

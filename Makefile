@@ -3,7 +3,10 @@ TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
-DEBUG_IGMP2?=1
+DEBUG_IGMP2?=0
+ENDIAN?=little
+
+# Default compiled-in protocols
 TCP?=1
 UDP?=1
 IPV4?=1
@@ -15,7 +18,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
-ENDIAN=little
+
 
 
 ifeq ($(DEBUG),1)
@@ -167,9 +170,9 @@ units: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS)
+	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o $(PREFIX)/lib/picotcp.a modules/pico_dev_null.c -lcheck
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck
 
 
 clean:
