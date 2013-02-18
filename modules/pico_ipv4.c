@@ -1,8 +1,8 @@
 /*********************************************************************
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
-
-.
+Do not redistribute without a written permission by the Copyright
+holders.
 
 Authors: Daniele Lacamera, Markian Yskout
 *********************************************************************/
@@ -46,7 +46,12 @@ int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
 {
   const unsigned char *addr = (unsigned char *) &ip;
   int i;
-  
+
+  if (!ipbuf) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   for(i = 0; i < 4; i++)
   {
     if(addr[i] > 99){
@@ -73,8 +78,10 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
   int cnt = 0;
   int p;
 
-  if(!ipstr || !ip)
+  if(!ipstr || !ip) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
 
   while((p = *ipstr++) != 0)
   {
@@ -123,6 +130,7 @@ int pico_ipv4_valid_netmask(uint32_t mask)
   for(i = 0; i < 32; i++){
     if((mask_swap << i) & (1 << 31)){
       if(end)
+        pico_err = PICO_ERR_EINVAL;
         return -1;
       cnt++;
     }else{
@@ -263,7 +271,6 @@ static int ipv4_link_compare(struct pico_ipv4_link *a, struct pico_ipv4_link *b)
 RB_GENERATE_STATIC(link_tree, pico_ipv4_link, node, ipv4_link_compare);
 
 
-
 struct pico_ipv4_route
 {
   struct pico_ip4 dest;
@@ -332,11 +339,17 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
 {
+  if(!dst) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+
   struct pico_ipv4_route *rt = route_find(dst);
   struct pico_ip4 *myself = NULL;
   if (rt) {
     myself = &rt->link->address;
-  }
+  } else
+    pico_err = PICO_ERR_EHOSTUNREACH;
   return myself;
 }
 
@@ -582,16 +595,25 @@ static void dbg_route(void)
 
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
+  if(!link) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_route test, *new;
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
   test.metric = metric;
-  if (RB_FIND(routing_table, &Routes, &test))
+  if (RB_FIND(routing_table, &Routes, &test)) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
+  
   new = pico_zalloc(sizeof(struct pico_ipv4_route));
-  if (!new)
+  if (!new) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
-
+  }
   new->dest.addr = address.addr;
   new->netmask.addr = netmask.addr;
   new->gateway.addr = gateway.addr;
@@ -625,6 +647,11 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
 int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
+  if (!link) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_route test, *found;
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
@@ -636,12 +663,18 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
     dbg_route();
     return 0;
   }
+  pico_err = PICO_ERR_EINVAL;
   return -1;
 }
 
 
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask)
 {
+  if(!dev) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_link test, *new;
   struct pico_ip4 network, gateway;
   char ipstr[30];
@@ -651,6 +684,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
   if (RB_FIND(link_tree, &Tree_dev_link, &test)) {
     dbg("IPv4: Trying to assign an invalid address (in use)\n");
+    pico_err = PICO_ERR_EADDRINUSE;
     return -1;
   }
 
@@ -658,6 +692,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new = pico_zalloc(sizeof(struct pico_ipv4_link));
   if (!new) {
     dbg("IPv4: Out of memory!\n");
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
   new->address.addr = address.addr;
@@ -668,6 +703,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   if (!new->mcast_head) {
     pico_free(new);
     dbg("IPv4: Out of memory!\n");
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
 #endif
@@ -693,13 +729,20 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
+  if(!dev) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_link test, *found;
   struct pico_ip4 network;
 
   test.address.addr = address.addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
-  if (!found)
+  if (!found) {
+    pico_err = PICO_ERR_ENXIO;
     return -1;
+  }
 
   network.addr = found->address.addr & found->netmask.addr;
   pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
@@ -729,20 +772,34 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
 
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 {
+  if(!address) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+
   struct pico_ipv4_link test, *found;
   test.address.addr = address->addr;
   found = RB_FIND(link_tree, &Tree_dev_link, &test);
-  if (!found)
+  if (!found) {
+    pico_err = PICO_ERR_ENXIO;
     return NULL;
+  }
   return found->dev;
 }
 
 int pico_ipv4_rebound(struct pico_frame *f)
 {
+  if(!f) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_ip4 dst;
-  if (!hdr)
+  if (!hdr) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
   dst.addr = hdr->src.addr;
   return pico_ipv4_frame_push(f, &dst, hdr->proto);
 }
