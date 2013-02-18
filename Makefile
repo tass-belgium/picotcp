@@ -112,11 +112,11 @@ core: $(CORE_OBJ)
 
 mod: $(MOD_OBJ)
 	@mkdir -p $(PREFIX)/modules
-	@mv modules/*.o $(PREFIX)/modules
+	@mv modules/*.o $(PREFIX)/modules || echo
 
 posix: all $(POSIX_OBJ)
-	@mv modules/*.o $(PREFIX)/modules
-	@mv modules/ptsocket/*.o $(PREFIX)/modules
+	@mv modules/*.o $(PREFIX)/modules || echo
+	@mv modules/ptsocket/*.o $(PREFIX)/modules || echo
 
 
 TEST_ELF= test/vde_test.elf \
@@ -157,10 +157,14 @@ lib: mod core
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
 	@echo -e "\t[AR] $(PREFIX)/lib/picotcp.a"
-	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o
+	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
+	  || $(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
 	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
-
+	@test $(DEBUG) = 0 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
+     && strip $(PREFIX)/lib/picotcp.a) \
+     || echo -e "\t[KEEP DEBUG SYMBOLS] $(PREFIX)/lib/picotcp.a" 
+	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/picotcp.a`"
 loop: mod core
 	mkdir -p $(PREFIX)/test
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
