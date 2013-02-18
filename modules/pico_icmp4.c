@@ -26,8 +26,10 @@ static struct pico_queue out = {};
 static int pico_icmp4_checksum(struct pico_frame *f)
 {
   struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
-  if (!hdr)
+  if (!hdr) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
   hdr->crc = 0;
   hdr->crc = short_be(pico_checksum(hdr, f->transport_len));
   return 0;
@@ -86,13 +88,16 @@ struct pico_protocol pico_proto_icmp4 = {
 
 static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 {
-
+  if (f == NULL) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
   struct pico_frame *reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
   struct pico_icmp4_hdr *hdr;
   struct pico_ipv4_hdr *info = (struct pico_ipv4_hdr*)(f->net_hdr);
 
   hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
-
+  
   hdr->type = type;
   hdr->code = code;
   hdr->hun.ih_pmtu.ipm_nmtu = short_be(1500);
@@ -107,21 +112,25 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 
 int pico_icmp4_port_unreachable(struct pico_frame *f)
 {
+  /*Parameter check executed in pico_icmp4_notify*/
   return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_PORT);
 }
 
 int pico_icmp4_proto_unreachable(struct pico_frame *f)
 {
+  /*Parameter check executed in pico_icmp4_notify*/
   return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_PROTOCOL);
 }
 
 int pico_icmp4_dest_unreachable(struct pico_frame *f)
 {
+  /*Parameter check executed in pico_icmp4_notify*/
   return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_HOST);
 }
 
 int pico_icmp4_ttl_expired(struct pico_frame *f)
 {
+  /*Parameter check executed in pico_icmp4_notify*/
   return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_INTRANS);
 }
 
@@ -259,14 +268,21 @@ static void ping_recv_reply(struct pico_frame *f)
 
 int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *))
 {
+  if((dst == NULL) || (interval == 0) || (timeout == 0) || (count == 0)){
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  } 
   static uint16_t next_id = 0x91c0;
   struct pico_icmp4_ping_cookie *cookie;
 
   cookie = pico_zalloc(sizeof(struct pico_icmp4_ping_cookie));
-  if (!cookie)
+  if (!cookie) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
+  }
 
   if (pico_string_to_ipv4(dst, &cookie->dst.addr) < 0) {
+    pico_err = PICO_ERR_EINVAL;
     pico_free(cookie);
     return -1;
   }
@@ -283,6 +299,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
   send_ping(cookie);
 
   return 0;
+
 }
 
 #endif
