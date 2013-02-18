@@ -44,6 +44,7 @@ It accepts two parameters :
 \item \texttt{PICO\_DHCP\_SUCCESS} - DHCP succeeded, the user can start using the assigned address,
 which can be obtained by calling \texttt{pico\_dhcp\_get\_address}.
 \item \texttt{PICO\_DHCP\_ERROR} - an error occurred. DHCP is unable to recover from this error.
+\texttt{pico$\_$err} is set appropriately.
 \item \texttt{PICO\_DHCP\_RESET} - DHCP was unable to renew its lease, and the lease expired.
 The user must immediately stop using the previously assigned IP, and wait for DHCP to obtain a
 new lease. DHCP will automatically start negotiations again.
@@ -53,19 +54,20 @@ new lease. DHCP will automatically start negotiations again.
 A \texttt{void*} identifying the negotiation. This must be passed to all calls related to DHCP.
 This is to create the possibility of initiating DHCP negotiations on multiple devices (currently not supported).
 
-%\subsubsection*{Errors}   % ORGANIZE
-%%All errors are reported through the callback-function described above.
-%\begin{itemize}[noitemsep]
-%\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available		% pico_socket_sendto
-%\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
-%\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
-%\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
-%\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
-%\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported	% pico_socket_open
-%\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable 
-%\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument					% pico_socket_bind
-%\item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
-%\end{itemize}
+\subsubsection*{Errors}   % ORGANIZE
+All errors are reported through the callback-function described above.
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available		% pico_socket_sendto
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
+\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported	% pico_socket_open
+\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable 
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument					% pico_socket_bind
+\item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
+\item \texttt{PICO$\_$ERR$\_$EOPNOTSUPP} - operation not supported on socket
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}

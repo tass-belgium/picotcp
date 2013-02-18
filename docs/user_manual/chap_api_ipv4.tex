@@ -409,6 +409,44 @@ ret = pico_ipv4_route_del(dst, netmask, gateway, metric, link);
 
 
 
+\subsection{int$\_$pico$\_$icmp4$\_$ping}
+
+\subsubsection*{Description}
+This function sends out a number of ping echo requests and checks if the replies are received correctly.
+The information from the replies is passed to the callback function after a succesfull reception.
+If a timeout expires before a reply is received, the callback is called with the error condition.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size,
+void (*cb)(struct pico_icmp4_stats *));
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dst} - Pointer to the destination internet host address as text string
+\item \texttt{count} - Number of pings going to be send
+\item \texttt{interval} - Time between two transmissions (in ms)
+\item \texttt{timeout} - Timeout period untill reply received (in ms)
+\item \texttt{size} - Size of data buffer in bytes
+\item \texttt{cb} - Callback for ICMP ping
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_icmp4_ping(dst_addr, 30, 10, 100, 1000, callback);
+\end{verbatim}
+
 
 \subsection{pico$\_$ipv4$\_$frame$\_$push}
 

@@ -43,6 +43,7 @@ On error the socket is not created, \texttt{NULL} is returned, and \texttt{pico$
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
 \item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported
 \item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable 
 \end{itemize}
@@ -310,6 +311,7 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
 \item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
 \end{itemize}
 
@@ -437,7 +439,6 @@ and/or writing.
 int pico_socket_shutdown(struct pico_socket *s, int mode);
 \end{verbatim}
 
-
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
@@ -468,7 +469,6 @@ Function used on application level to close a socket. Always closes read and wri
 \begin{verbatim}
 int pico_socket_close(struct pico_socket *s);
 \end{verbatim}
-
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]

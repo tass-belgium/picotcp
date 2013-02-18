@@ -220,6 +220,7 @@ int pico_socket_del(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   if (!sp) {
+    pico_err = PICO_ERR_ENXIO;
     return -1;
   }
   RB_REMOVE(socket_tree, &sp->socks, s);
@@ -347,6 +348,11 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
   struct pico_socket *s = NULL;
 
+  if (wakeup == NULL) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+
 #ifdef PICO_SUPPORT_UDP
   if (proto == PICO_PROTO_UDP) {
     s = pico_udp_open();
@@ -446,7 +452,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
-  if (!s) {
+  if (!s || buf == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
@@ -483,7 +489,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_write(struct pico_socket *s, void *buf, int len)
 {
-  if (!s) {
+  if (!s || buf == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
@@ -548,6 +554,11 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 #ifdef PICO_SUPPORT_IPV6
   struct pico_ip6 *src6;
 #endif
+
+  if (buf == NULL || s == NULL) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
   if (!dst || !remote_port) {
     pico_err = PICO_ERR_EADDRNOTAVAIL;
@@ -649,7 +660,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 int pico_socket_send(struct pico_socket *s, void *buf, int len)
 {
-  if (!s) {
+  if (!s || buf == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
@@ -670,7 +681,7 @@ int pico_socket_send(struct pico_socket *s, void *buf, int len)
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
-  if (!s) {
+  if (!s || buf == NULL) { /// || orig == NULL || remote_port == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
@@ -745,7 +756,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 {
   int ret = -1;
   pico_err = PICO_ERR_EPROTONOSUPPORT;
-  if (remote_port == 0) {
+  if (!s || remote_addr == NULL || remote_port == 0) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
@@ -796,7 +807,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 
 int pico_socket_listen(struct pico_socket *s, int backlog)
 {
-  if (!s) {
+  if (!s || backlog < 1) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   } else {
@@ -884,7 +895,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
-  if (s == NULL)
+  if (s == NULL || value == NULL)
     return -1;
 
   switch (option)
