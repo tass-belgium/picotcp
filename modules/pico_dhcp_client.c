@@ -261,23 +261,26 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 
 	cli->timer_param_1 = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_1){
-		if(cli->cb != NULL)
+		if(cli->cb != NULL){
       pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
+		}
 		return 0;
 	}
 	cli->timer_param_2 = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_2){
-		if(cli->cb != NULL)
+		if(cli->cb != NULL){
       pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
+		}
 		return 0;
 	}
 	cli->timer_param_lease = pico_zalloc(sizeof(struct dhcp_timer_param));
 	if(!cli->timer_param_lease){
-		if(cli->cb != NULL)
+		if(cli->cb != NULL){
       pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
+		}
 		return 0;
 	}
 	cli->timer_param_1->valid = 1;
@@ -452,6 +455,13 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		destination.addr = long_be(0xFFFFFFFF);
 	}
 
+	if(cli->device->eth == NULL){
+		pico_err = PICO_ERR_EOPNOTSUPP;
+		if(cli->cb != NULL){
+			cli->cb(cli, PICO_DHCP_ERROR);
+		}
+		return;
+	}
 	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);//TODO solution if we don't have ethernet
 	dh_out->op = PICO_DHCP_OP_REQUEST;
 	dh_out->htype = PICO_HTYPE_ETHER;
@@ -569,7 +579,11 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	address.addr = long_be(0x00000000);
 	netmask.addr = long_be(0x00000000);
 
-	pico_ipv4_link_add(device, address, netmask);
+	if(pico_ipv4_link_add(device, address, netmask) != 0){
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
+		return;
+	}
 
 	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
 

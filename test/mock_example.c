@@ -42,7 +42,7 @@ int main(void)
 {
 
 
-	struct pico_device* mock;
+	struct mock_device* mock;
 	struct pico_ip4 address = {.addr=long_be(0x0a280004)};
 	struct pico_ip4 netmask = {.addr=long_be(0xffffff00)};
 	struct pico_ip4 target = {.addr=long_be(0x0a280005)};
@@ -56,7 +56,7 @@ int main(void)
 	if(!mock)
 		return 1;
 
-	pico_ipv4_link_add(mock, address, netmask);
+	pico_ipv4_link_add(mock->dev, address, netmask);
 
   sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
   if (!sk_udp)
@@ -73,9 +73,15 @@ int main(void)
 	pico_stack_tick();
 	pico_stack_tick();
 
-	printf("read returned %d\n",pico_mock_network_read(mock, buffer2, 80));
+	int len = pico_mock_network_read(mock, buffer2, 80);
+	printf("length : %d\n",len);
 
 	//TODO : check some of these fields automatically...
+	if(mock_get_sender_ip4(mock, buffer2, len) == address.addr){
+		printf("great!\n");
+	}else{
+		printf("not so great!\n");
+	}
 	int cntr = 0;
 	while(cntr < 80){
 		printf("0x%02x ",buffer2[cntr]);

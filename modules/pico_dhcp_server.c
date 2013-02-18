@@ -174,8 +174,15 @@ int pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
 {
 	uint16_t port = PICO_DHCPD_PORT;
 
-	if(!setting->dev)
+	if(!setting){
+		pico_err = PICO_ERR_EINVAL;
 		return -1;
+	}
+
+	if(!setting->dev){
+		pico_err = PICO_ERR_EINVAL;
+		return -1;
+	}
 
 	memcpy(&settings,setting,sizeof(struct pico_dhcpd_settings));
 	dbg("DHCPD>initiating server\n");

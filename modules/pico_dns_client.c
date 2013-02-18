@@ -15,8 +15,8 @@ Authors: Kristof Roelants
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
-#define dns_dbg(...) do{}while(0)
-//#define dns_dbg dbg
+//#define dns_dbg(...) do{}while(0)
+#define dns_dbg dbg
 
 /* DNS response length */
 #define PICO_DNS_MAX_RESPONSE_LEN 256
@@ -454,8 +454,9 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
   struct pico_dns_key test, *key;
   char *answer;
   char dns_answer[PICO_DNS_MAX_RESPONSE_LEN] = {0};
+  uint8_t valid_suffix = 0;
   uint16_t compression = 0;
-  int r = 0;
+  int i = 0, r = 0;
 
   if (ev & PICO_SOCK_EV_RD) {
     r = pico_socket_read(s, dns_answer, PICO_DNS_MAX_RESPONSE_LEN);
@@ -502,37 +503,49 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     /* Seek answer suffix */
     a_qname = q_suf + sizeof(struct dns_query_suffix);
     a_suf = a_qname;
-    compression = short_be(*(uint16_t *)a_suf);
-    switch (compression >> 14) 
-    {
-      case PICO_DNS_POINTER:
-        while (compression >> 14 == PICO_DNS_POINTER) {
-          dns_dbg("DNS: pointer\n");
-          a_suf += sizeof(uint16_t);
-          compression = short_be(*(uint16_t *)a_suf);
-        }
-        break;
+    while(i++ < hdr->ancount) {
+      compression = short_be(*(uint16_t *)a_suf);
+      switch (compression >> 14) 
+      {
+        case PICO_DNS_POINTER:
+          while (compression >> 14 == PICO_DNS_POINTER) {
+            dns_dbg("DNS: pointer\n");
+            a_suf += sizeof(uint16_t);
+            compression = short_be(*(uint16_t *)a_suf);
+          }
+          break;
 
-      case PICO_DNS_LABEL:
-        dns_dbg("DNS: label\n");
-        a_suf = pico_dns_client_seek(a_qname);
-        break;
+        case PICO_DNS_LABEL:
+          dns_dbg("DNS: label\n");
+          a_suf = pico_dns_client_seek(a_qname);
+          break;
 
-      default:
-        dns_dbg("DNS ERROR: incorrect compression (%u) value\n", compression);
-        return;
+        default:
+          dns_dbg("DNS ERROR: incorrect compression (%u) value\n", compression);
+          return;
+      }
+
+      /* Check answer suffix validity */
+      answer_suf = *(struct dns_answer_suffix *)a_suf;
+      if (short_be(answer_suf.qtype) != key->qtype || short_be(answer_suf.qclass) != key->qclass) {
+        dns_dbg("DNS WARNING: received qtype (%u) or qclass (%u) incorrect\n", short_be(answer_suf.qtype), short_be(answer_suf.qclass));
+        a_suf = a_suf + sizeof(struct dns_answer_suffix) + short_be(answer_suf.rdlength);
+        continue;
+      }
+
+      if (short_be(answer_suf.ttl) > PICO_DNS_MAX_TTL) {
+        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", short_be(answer_suf.ttl), PICO_DNS_MAX_TTL);
+        a_suf = a_suf + sizeof(struct dns_answer_suffix) + short_be(answer_suf.rdlength);
+        continue;
+      }
+
+      valid_suffix = 1;
+      break;
     }
 
-    /* Check answer suffix validity */
-    answer_suf = *(struct dns_answer_suffix *)a_suf;
-    if (short_be(answer_suf.qtype) != key->qtype || short_be(answer_suf.qclass) != key->qclass) {
-      dns_dbg("DNS ERROR: received qtype (%u) or qclass (%u) incorrect\n", short_be(answer_suf.qtype), short_be(answer_suf.qclass));
-      return;
-    }
-
-    if (short_be(answer_suf.ttl) > PICO_DNS_MAX_TTL) {
-      dns_dbg("DNS ERROR: received TTL (%u) > MAX (%u)\n", short_be(answer_suf.ttl), PICO_DNS_MAX_TTL);
-      return;
+    if (!valid_suffix) {
+       dns_dbg("DNS ERROR: invalid dns answer suffix\n");
+       return;
     }
 
     a_rdata = a_suf + sizeof(struct dns_answer_suffix);
