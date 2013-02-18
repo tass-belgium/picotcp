@@ -595,11 +595,6 @@ static void dbg_route(void)
 
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
-  if(!link) {
-    pico_err = PICO_ERR_EINVAL;
-    return -1;
-  }
-
   struct pico_ipv4_route test, *new;
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
