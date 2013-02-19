@@ -15,8 +15,8 @@ Authors: Kristof Roelants
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
-//#define dns_dbg(...) do{}while(0)
-#define dns_dbg dbg
+#define dns_dbg(...) do{}while(0)
+//#define dns_dbg dbg
 
 /* DNS response length */
 #define PICO_DNS_MAX_RESPONSE_LEN 256
@@ -139,6 +139,11 @@ int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
 {
   struct pico_dns_ns test, *key = NULL;
 
+  if (!ns) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   switch (flag)
   {
     case PICO_DNS_NS_ADD:
@@ -164,6 +169,7 @@ int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
             dns_dbg("DNS: default nameserver %08X removed\n", test.ns.addr);
             pico_free(key);
           } else {
+            pico_err = PICO_ERR_EAGAIN;
             return -1;
           }
         }
@@ -203,8 +209,10 @@ int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
 int pico_dns_client_init()
 {
   struct pico_ip4 default_ns;
-  if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &default_ns.addr) != 0)
+  if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &default_ns.addr) != 0) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
   return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
 }
 
@@ -297,6 +305,9 @@ static int pico_dns_client_reverse_label(char *ptr)
 static char *pico_dns_client_seek(char *ptr)
 {
   int p;
+
+  if (!ptr)
+    return NULL;
 
   while ((p = *ptr++) != 0);
 
@@ -420,9 +431,16 @@ static void pico_dns_client_retransmission(unsigned long now, void *arg)
   struct pico_dns_key *key = (struct pico_dns_key *)arg;
   struct pico_dns_ns *q_ns = NULL;
 
-  if (key->retrans && key->retrans <= PICO_DNS_CLIENT_MAX_RETRANS) {
-    dns_dbg("DNS: retransmission! (%u)\n", key->retrans);
+  if (!key->retrans) {
+    dns_dbg("DNS: no retransmission!\n");
+    pico_free(key->q_hdr);
+    /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
+    if (RB_REMOVE(pico_dns_list, &DNSTable, key))
+      pico_free(key);
+  }
+  else if (key->retrans <= PICO_DNS_CLIENT_MAX_RETRANS) {
     key->retrans++;
+    dns_dbg("DNS: retransmission! (%u attempts)\n", key->retrans);
     q_ns = RB_NEXT(pico_dns_slist, &NSTable, &key->q_ns);
     if (q_ns)
       key->q_ns = *q_ns; 
@@ -431,7 +449,9 @@ static void pico_dns_client_retransmission(unsigned long now, void *arg)
     pico_dns_client_send(key);
     pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, key);
   } else {
-    dns_dbg("DNS: no retransmission! (%u)\n", key->retrans);
+    dns_dbg("DNS ERROR: no reply from nameservers! (%u attempts)\n", key->retrans);
+    pico_err = PICO_ERR_EIO;
+    key->callback(NULL);
     pico_free(key->q_hdr);
     /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
     if (RB_REMOVE(pico_dns_list, &DNSTable, key))
@@ -574,6 +594,12 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   uint16_t url_len = 0;
   uint16_t id = 0;
 
+  if (!url || !callback) {
+    dns_dbg("DNS ERROR: NULL parameters\n");
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   url_len = pico_dns_client_strlen(url);
   /* 2 extra bytes for url_len to account for 2 extra label length octets */
   q_hdr = pico_zalloc(sizeof(struct dns_message_hdr) + (1 + url_len + 1) + sizeof(struct dns_query_suffix));
@@ -609,10 +635,14 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   key->q_ns = *(RB_MIN(pico_dns_slist, &NSTable));
   key->callback = callback;
   /* Send query */
-  pico_dns_client_send(key);
+  if (pico_dns_client_send(key) < 0) {
+    pico_err = PICO_ERR_EAGAIN;
+    return -1;
+  }
   /* Insert RB entry */
   if (RB_INSERT(pico_dns_list, &DNSTable, key)) {
     pico_free(key);
+    pico_err = PICO_ERR_EAGAIN;
     return -1; /* Element key already exists */
   }
 
@@ -629,6 +659,12 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *))
   uint16_t ip_len = 0;
   uint16_t arpa_len = 0;
   uint16_t id = 0;
+
+  if (!ip || !callback) {
+    dns_dbg("DNS ERROR: NULL parameters\n");
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
   ip_len = pico_dns_client_strlen(ip);
   arpa_len = pico_dns_client_strlen(".in-addr.arpa");
@@ -668,10 +704,14 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *))
   key->q_ns = *(RB_MIN(pico_dns_slist, &NSTable));
   key->callback = callback;
   /* Send query */
-  pico_dns_client_send(key);
+  if (pico_dns_client_send(key) < 0) {
+    pico_err = PICO_ERR_EAGAIN;
+    return -1;
+  }
   /* Insert RB entry */
   if (RB_INSERT(pico_dns_list, &DNSTable, key)) {
     pico_free(key);
+    pico_err = PICO_ERR_EAGAIN;
     return -1; /* Element key already exists */
   }
 
