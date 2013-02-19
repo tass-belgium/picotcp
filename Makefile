@@ -5,6 +5,7 @@ PREFIX?=./build
 DEBUG?=1
 DEBUG_IGMP2?=0
 ENDIAN?=little
+STRIP?=0
 
 # Default compiled-in protocols
 TCP?=1
@@ -161,9 +162,9 @@ lib: mod core
 	  || $(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
 	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
-	@test $(DEBUG) = 0 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
-     && strip $(PREFIX)/lib/picotcp.a) \
-     || echo -e "\t[KEEP DEBUG SYMBOLS] $(PREFIX)/lib/picotcp.a" 
+	@test $(STRIP) = 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
+     && $(CROSS_COMPILE)strip $(PREFIX)/lib/picotcp.a) \
+     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/picotcp.a" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/picotcp.a`"
 loop: mod core
 	mkdir -p $(PREFIX)/test
