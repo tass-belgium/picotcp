@@ -331,12 +331,6 @@ static inline void pico_dns_client_hdr_ntoh(struct dns_message_hdr *hdr)
   hdr->arcount = short_be(hdr->arcount);
 }
 
-static inline int pico_is_digit(char c)
-{
-  if (c < '0' || c > '9')
-    return 0;
-  return 1;
-}
 
 static int pico_dns_client_mirror(char *ptr)
 {

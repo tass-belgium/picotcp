@@ -16,8 +16,8 @@ Authors: Daniele Lacamera
 
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue udp_in = {};
+static struct pico_queue udp_out = {};
 
 
 /* Functions */
@@ -64,8 +64,8 @@ struct pico_protocol pico_proto_udp = {
   .process_in = pico_transport_process_in,
   .process_out = pico_udp_process_out,
   .push = pico_udp_push,
-  .q_in = &in,
-  .q_out = &out,
+  .q_in = &udp_in,
+  .q_out = &udp_out,
 };
 
 

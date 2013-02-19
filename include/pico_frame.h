@@ -80,4 +80,11 @@ struct pico_frame *pico_frame_alloc(int size);
 uint16_t pico_checksum(void *inbuf, int len);
 uint16_t pico_dualbuffer_checksum(void *b1, int len1, void *b2, int len2);
 
+static inline int pico_is_digit(char c)
+{
+  if (c < '0' || c > '9')
+    return 0;
+  return 1;
+}
+
 #endif

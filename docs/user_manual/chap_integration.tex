@@ -15,21 +15,30 @@ internal applets as well as generic POSIX-compliant socket interfaces.
 					structure and API.
 \item \textbf{ARP} The stack can use the "Address Resolution Protocol" to retrieve
 					the MAC addresses of other hosts in the network.
-\item \textbf{IPv4} The network layer supports the IPv4 protocol. The API provides
-					functions for routing, set network adresses to devices, ...
+\item \textbf{IPv4} The network layer supports the IPv4 network layer
+          protocol. An API is provided in order to access all the
+          addressing and routing related functionalities.
 \item \textbf{ICMP} Also the "Internet Control Message Protocol" is implemented. This
 					protocol provides the system to send error messages, do a ping, ...
 \item \textbf{NAT} The stack supports "Network Address Translation" to hide addresses
 					from internal networks to the outside. The API also supports functions
 					for port forwarding.
-\item \textbf{IGMP} ... BLA ... <<< TODO >>>
-\item \textbf{multicasting} ... BLA ... <<< TODO >>> (or with IGMP)
+\item \textbf{multicast sockets} The stack supports multicast (one-to-many)
+          sockets and addresses in order to send and receive data to/from
+          multicast groups
+\item \textbf{IGMP} As an integration for the multicast features above, IGMP version 2
+          is supported to manage the membership to multicast groups
 \item \textbf{UDP} The stack can use the "User Datagram Protocol" as a transport protocol
 					for connection-less communication between sockets.
-\item \textbf{TCP} The stack also supports the connection-oriented "Transport Control Protocol"
-					for reliable communications.
+\item \textbf{TCP} The stack supports the connection-oriented "Transport Control Protocol"
+					for reliable communications. The TCP implementation is fully
+          featured and the most commonly used extensions are included.
 \item \textbf{Sockets} The user applications on different host use the socket API to communicate.
-					The socket API is POSIX compliant <<< TODO CHECK >>>.
+					The socket API is based on the latest POSIX (1-2008)
+          specifications, while not being fully compliant due to the fact
+          that it is designed to run in a single threading unit. Blocking
+          functionalities are reproduced via callback triggering as
+          described in the socket API documentation.
 \item \textbf{DNS client} A small DNS client is provided to resolve an IP address for a given name.
 					The API supports setting several DNS servers and a small cache.
 \item \textbf{DHCP client} A DHCP client can request an IP lease from a DHCP server to set the IP
@@ -41,8 +50,157 @@ internal applets as well as generic POSIX-compliant socket interfaces.
 					(tun/tap devices, vde, tcp benchmark test, ...)
 \end{itemize}
 
-\section{Module dependencies}
-(WIP)
+\section{Enabling modules}
+Each module, option and feature included in the code base must be explicitly
+enabled by defining a specific PICO$\_$SUPPORT$\_$ preprocessor variable.
+If the default Makefile is used to compile PicoTCP, this can be done using
+command line options when running make. The syntax required to compile the
+protocol in a library (the default Makefile target) is the following:
+
+\texttt{make [MAKE$\_$ARG=VALUE] [...] }
+
+\subsection{Compile-time options}
+A few compile-time options can be specified using the command line
+arguments of make to modify the result of the build. Global options that
+affect the build are the following:
+
+\begin{longtable}{ | l | l | l | p{5cm} | }
+\hline
+{\bf Argument} &
+{\bf Possible values} &
+{\bf Default value} &
+{\bf Description} 
+\\ \hline
+
+DEBUG&
+0,1&
+1&
+When enabled (=1), the resulting library will contain debug symbols. The
+size of the library will be much larger than the production build, but it
+will be possible to run the stack into a debugger to inspect its behavior.
+When the option is disabled (=0), the library will be optimized for size in
+flash, resulting in a smaller binary to be used in production. \\ \hline
+
+PREFIX&
+any valid path&
+./build&
+The target directory where the library and all the objects will be placed
+after the compilation. \\ \hline
+
+ENDIAN&
+little, big &
+little&
+force to build against little-endian or big-endian architecture. \\ \hline
+
+CROSS$\_$COMPILE&
+compiler prefix&
+&
+Use a cross compile prefix when calling the binaries needed to build 
+\\ \hline
+
+TCP&
+0,1&
+1&
+Enables the support for Transmission Control Protocol by allowing the usage 
+of stream sockets.
+\\ \hline
+
+UDP&
+0,1&
+1&
+Enables the support for User Datagram Protocol by allowing the usage 
+of datagram sockets.
+\\ \hline
+
+IPV4&
+0,1&
+1&
+Enables the support for basic IP networking functionalities. At least one network protocol
+is required for most of the features to work, as all types of sockets depend
+on the networking layer.
+\\ \hline
+
+NAT&
+0,1&
+1&
+Activates the support for network address translation to IPv4.
+\\ \hline
+
+ICMP4&
+0,1&
+1&
+Enables the support for control messages over IPv4, (not including the ping functionalities).
+\\ \hline
+
+MCAST&
+0,1&
+1&
+If enabled, the support for multicast sockets will be included in the resulting library.
+\\ \hline
+
+DEVLOOP&
+0,1&
+1&
+If enabled, a loopback device will be added to the stack, and can be configured to run local traffic.
+\\ \hline
+
+PING&
+0,1&
+1&
+When activated, the ping API will be available to test whether the hosts on the network are reachable.
+Requires ICMP4 support.
+\\ \hline
+
+DNS$\_$CLIENT&
+0,1&
+1&
+This feature is required to resolve host names into IP addresses and vice-versa.
+\\ \hline
+
+DHCP$\_$CLIENT&
+0,1&
+1&
+When activated, it will be possible to get the IP address for network devices automatically, when a DHCP
+server is present on the network.
+\\ \hline
+
+DHCP$\_$SERVER&
+0,1&
+1&
+If activated, it will be possible to run a small DHCP server to provide addresses for automatic configuration
+to the other hosts in the network.
+\\ \hline
+
+\end{longtable}
+
+\subsection{Architecture support}
+By default, the stack will be compiled to run in a process on a POSIX
+system, e.g. to be linked to a Linux application. To change this behavior
+and produce a library linked to a specific board-support package (BSP)
+among those supported, it is sufficient to set the command line argument
+variable ARCH to a specific value. The architectures supported by the stack
+are the following:
+
+
+\begin{longtable}{ | l | l | p{5cm} | }
+\hline
+{\bf ARCH keyword} &
+{\bf CPU} &
+{\bf Reference hardware}
+\\ \hline
+
+stm32&
+ARM Cortex M4-F&
+ST Microelectronics evaluation board "STM32f4 Discovery"
+\\ \hline
+
+stellaris&
+ARM Cortex LM3S-6965&
+Texas Instrument Evaluation Kit "Codesourcery LM3S6965 ETH"
+\\ \hline
+
+\end{longtable}
+
 
 
 \section{Target requirements}
@@ -55,26 +213,14 @@ may vary depending on the modules that are compiled-in. However, adapting
 to a specific hardware platform or for a particular use may require some
 integration effort.
 
-\section{The pico$\_$config.h file}
-The configuration for all the modules and their features is located in a
-the pico$\_$config.h file. The files has two sections: "user configuration"
-and "architecture specific". The first one is used to enable features to
-include. Uncommenting a line starting with a \texttt{$\#$define} statement
-will enable the feature described in the comment. The pico$\_$config file
-is located under the "/include" directory. The second section is used to
-include the specific implementation of the system interface required by
-PicoTCP to run on the target as described in the next section. As an
-example, some architecture implementations are provided:
-\begin{itemize}
-\item a virtual posix target that allows the stack to be run on top of a
-POSIX compliant operating system (like Linux or other unix-like implementations).
-\item Arm M3/M4 Cortex board support
-\end{itemize} 
+\subsection{Porting PicoTCP to a target system}
 
-The architecture-specific configuration is located in the "/include/arch"
-directory.
+\begin{center}
+\textbf{Warning: ensure that the Board Support Package provided by your
+hardware supplier is distributed under the terms of a license compatible
+with the PicoTCP license, described in the Appendix of this document.}
+\end{center}
 
-\subsection{Porting to a target system}
 PicoTCP relies on a simple set of system-specific calls that must be
 implemented externally from the target. Briefly, the interface needed for
 the stack to run is composed by:
@@ -98,16 +244,116 @@ allocated at the address ptr.
 \end{itemize}
 
 
-For the time keeping, the following objects must be defined by the system:	% MOVE TO TABLE ???
+For the time keeping, the following objects must be defined by the system:
+\begin{itemize}
+\item
 \begin{verbatim}
-   static inline unsigned long PICO_TIME(void) - returns current time expressed in seconds
-   static inline unsigned long PICO_TIME_MS(void)  - returns current time expressed in milliseconds
-   static inline void PICO_IDLE(void) - sleep between two consecutive iterations inside the main protocol loop (e.g. to yield the CPU to some other functionality on the sytem)
-\end{verbatim}
+   static inline unsigned long PICO_TIME(void) 
+\end{verbatim} returns current time expressed in seconds
+
+\item
+\begin{verbatim}
+   static inline unsigned long PICO_TIME_MS(void)  
+\end{verbatim} returns current time expressed in milliseconds
+
+\item
+\begin{verbatim}
+   static inline void PICO_IDLE(void) 
+\end{verbatim} sleep between two consecutive iterations inside 
+      the main protocol loop (e.g. to yield the CPU to 
+      some other functionality on the sytem)
+\end{itemize}
+
+As an alternative to defining the time-keeping procedure in the asynchronous functions \texttt{PICO$\_$TIME()} and
+\texttt{PICO$\_$TIME$\_$MS()}, an interrupt handler linked to a fixed
+interval time source, increasing the
+volatile global variable \texttt{pico$\_$tick}. If done this way, the two
+functions may return the values of \texttt{(pico$\_$tick / 1000)} and
+\texttt{pico$\_$tick}, respectively.
 
 Finally, whenever debug informations are needed, the system will have to provide a
 \texttt{dbg()} function that accepts the same variadic arguments model as a standard \texttt{printf()}.
 
+\subsection{Defining a new architecture support}
+If all the requirements above are satisfied, PicoTCP expects those
+functions to be mapped to existing code in the BSP of the architecture.
+This can be easily made by the means of a new architecture-specific header
+file under the include/arch subdirectory.
+Since all the functions above must be already implemented outside the
+PicoTCP tree, the library will have to be linked to the system support
+library, either during compilation or at a second time when the resulting
+firmware is being generated. For this reason, a prototype of all the
+functions used to implement the functionalities requested by the BSP
+must be included from the architecture support header file, or incorporated
+into the file itself.
+
+For instance, if the BSP for an architecture called "foobar" provides the 
+following functions:
+\begin{verbatim}
+  void *custom_allocate_and_zero(int size);
+  void *custom_free(void *mem);
+  int print_serial_debug(...);
+\end{verbatim}
+And an interrupt handler is attached to a time source in order to increment
+the \texttt{pico$\_$tick} variable every millisecond, one possible architecture-specific 
+file (under \texttt{arch/pico$\_$foobar.h}) should look like the following:
+
+\begin{verbatim}
+  /* repeat the prototypes used */
+  extern void *custom_allocate_and_zero(int size);
+  extern void *custom_free(void *mem);
+  extern int print_serial_debug(...);
+
+  #define dbg print_serial_debug
+  #define pico_zalloc(x) custom_allocate_and_zero(x)
+  #define pico_free(x) custom_free(x)
+
+  static inline unsigned long PICO_TIME(void)
+  {
+    return pico_tick / 1000;
+  }
+
+  static inline unsigned long PICO_TIME_MS(void)
+  {
+    return pico_tick;
+  }
+
+  static inline void PICO_IDLE(void)
+  {
+    unsigned long tick_now = pico_tick;
+    while(tick_now == pico_tick);
+  }
+
+\end{verbatim}
+
+Once the architecture specific file is created, it is time to add the
+architecture specific support to the \texttt{pico$\_$config.h} file, the
+same way it is done for the existing architectures, using an additional 
+preprocessor elif block:
+
+\begin{verbatim}
+#elif defined FOOBAR
+#include "arch/pico_foobar.h"
+\end{verbatim}
+
+From this point on, it is sufficient to define a preprocessor variable with
+the keyword chosen for the architecture, all in capitals (\texttt{FOOBAR} in 
+this example case). One last step is to create a block in the main PicoTCP 
+makefile that also sets the needed compiler flags to produce objects compatible 
+and/or optimized for the foobar architecture, besides of course defining the 
+keyword preprocessor macro so the correct arch-specific header is included:
+
+\begin{verbatim}
+ifeq ($(ARCH),foobar)
+  CFLAGS+=-mcustom-foobar-code -DFOOBAR
+endif
+\end{verbatim}
+
+To compile for the foobar architecture, it is now sufficient to run
+
+\begin{verbatim}
+  make ARCH=foobar
+\end{verbatim}
 
 \section{Network devices integration}
 Every device driver must define its own interface to communicate with the stack.

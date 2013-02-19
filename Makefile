@@ -3,7 +3,10 @@ TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
-DEBUG_IGMP2?=1
+DEBUG_IGMP2?=0
+ENDIAN?=little
+
+# Default compiled-in protocols
 TCP?=1
 UDP?=1
 IPV4?=1
@@ -15,7 +18,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
-ENDIAN=little
+
 
 
 ifeq ($(DEBUG),1)
@@ -109,11 +112,11 @@ core: $(CORE_OBJ)
 
 mod: $(MOD_OBJ)
 	@mkdir -p $(PREFIX)/modules
-	@mv modules/*.o $(PREFIX)/modules
+	@mv modules/*.o $(PREFIX)/modules || echo
 
 posix: all $(POSIX_OBJ)
-	@mv modules/*.o $(PREFIX)/modules
-	@mv modules/ptsocket/*.o $(PREFIX)/modules
+	@mv modules/*.o $(PREFIX)/modules || echo
+	@mv modules/ptsocket/*.o $(PREFIX)/modules || echo
 
 
 TEST_ELF= test/vde_test.elf \
@@ -154,10 +157,14 @@ lib: mod core
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
 	@echo -e "\t[AR] $(PREFIX)/lib/picotcp.a"
-	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o
+	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
+	  || $(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
 	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
-
+	@test $(DEBUG) = 0 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
+     && strip $(PREFIX)/lib/picotcp.a) \
+     || echo -e "\t[KEEP DEBUG SYMBOLS] $(PREFIX)/lib/picotcp.a" 
+	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/picotcp.a`"
 loop: mod core
 	mkdir -p $(PREFIX)/test
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
@@ -167,9 +174,9 @@ units: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS)
+	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o $(PREFIX)/lib/picotcp.a modules/pico_dev_null.c -lcheck
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck
 
 
 clean:

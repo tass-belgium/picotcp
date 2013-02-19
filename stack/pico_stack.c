@@ -326,7 +326,7 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
  * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
  * we assume IP is used.
  */
-int pico_ethernet_send(struct pico_frame *f, void *nexthop)
+int pico_ethernet_send(struct pico_frame *f)
 {
   struct pico_eth *dstmac = NULL;
 

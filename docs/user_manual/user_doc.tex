@@ -25,11 +25,11 @@
 %\usepackage{hyperref}
 \usepackage{longtable}
 
-% to print watermark
-\usepackage{draftwatermark}
-\SetWatermarkText{DRAFT}
-\SetWatermarkScale{5}
-\SetWatermarkLightness{0.9}
+%% to print watermark
+ \usepackage{draftwatermark}
+ \SetWatermarkText{TASS Confidential}
+ \SetWatermarkScale{3}
+ \SetWatermarkLightness{0.9}
 
 % to adjust the space between titles and text
 \usepackage[compact]{titlesec}
@@ -56,13 +56,13 @@
 
 \tableofcontents
 
-\chapter{Introduction}
-\label{chap:intro}
-\input{chap_intro}
+%\chapter{Introduction}
+%\label{chap:intro}
+%\input{chap_intro}
 
 \chapter{Overview}
 \label{chap:overview}
-%\input{chap_overview}
+\input{chap_overview}
 
 
 \chapter{Usage and platform integration}
@@ -83,7 +83,12 @@ The following sections will describe the API for picoTCP.
 \label{chap:examples}
 %\input{chap_examples}
 
+
 \appendix
+
+\chapter{License}
+\label{chap:license}
+\input{chap_license}
 
 \chapter{Supported RFC's}
 \label{chap:rfcs}
