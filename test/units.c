@@ -78,6 +78,53 @@ START_TEST (test_dhcp)
 END_TEST
 
 
+
+START_TEST (test_dns)
+{
+  int ret;
+  struct pico_ip4 ns;
+
+  ns.addr = long_be(0x0a00280a);  // 10.40.0.10
+
+  /* testing nameserver API */
+  ret = pico_dns_client_nameserver(NULL,PICO_DNS_NS_ADD);
+  fail_if(ret == 0, "dns> dns_client_nameserver add error");
+
+  ret = pico_dns_client_nameserver(NULL,PICO_DNS_NS_DEL);
+  fail_if(ret == 0, "dns> dns_client_nameserver del error");
+
+  ret = pico_dns_client_nameserver(NULL,99);
+  fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
+
+  ret = pico_dns_client_nameserver(NULL,-99);
+  fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
+
+  ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_DEL);  /* delete non added ns */
+  fail_if(ret == 0, "dns> dns_client_nameserver del error");
+
+  ret = pico_dns_client_nameserver(&ns,99);
+  fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
+
+  ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_ADD);  /* add correct one */
+  fail_if(ret < 0, "dns> dns_client_nameserver add error: %s",strerror(pico_err));
+
+  ret = pico_dns_client_nameserver(&ns,99);
+  fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
+
+  ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_DEL);
+  fail_if(ret < 0, "dns> dns_client_nameserver del error: %s",strerror(pico_err));
+
+  ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_ADD);  /* add correct one */
+  fail_if(ret < 0, "dns> dns_client_nameserver add error: %s",strerror(pico_err));
+
+  ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_ADD);  /* add correct one again */
+  fail_if(ret == 0, "dns> dns_client_nameserver add double");
+}
+END_TEST
+
+
+
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -89,6 +136,10 @@ Suite *pico_suite(void)
 	TCase *dhcp = tcase_create("DHCP");
 	tcase_add_test(dhcp, test_dhcp);
 	suite_add_tcase(s, dhcp);
+
+  TCase *dns = tcase_create("DNS");
+  tcase_add_test(dns, test_dns);
+  suite_add_tcase(s, dns);
 
   return s;
 }
