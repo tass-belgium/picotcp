@@ -56,7 +56,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip));
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{url} - Pointer to text string containing url text string (e.g. www.google.com)
-\item \texttt{calback} - Callback function, receiving the internet host address IP
+\item \texttt{calback} - Callback function, receiving the internet host address IP. Note: the returned string has to be freed by the user.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -72,7 +72,22 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_dns_client_getaddr("www.google.com", callback);
+void cb_getaddr(char *ip)
+{
+  if (!ip) {
+    // Error occured
+    return;
+  }
+  // Do something
+  pico_free(ip);
+}
+
+int main (int argc, char *argv[])
+{
+  ...
+  ret = pico_dns_client_getaddr("www.google.com", cb_getaddr);
+  ...
+}
 \end{verbatim}
 
 
@@ -90,7 +105,7 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *url));
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{ip} - Pointer to text string containing an internet host address IP (e.g. 8.8.4.4)
-\item \texttt{callback} - Callback function, receiving the url text string
+\item \texttt{callback} - Callback function, receiving the url text string. Note: the returned string has to be freed by the user.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -106,5 +121,20 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_dns_client_getname("8.8.4.4", callback);
+void cb_getname(char *url)
+{
+  if (!url) {
+    // Error occured
+    return;
+  }
+  // Do something
+  pico_free(url);
+}
+
+int main (int argc, char *argv[])
+{
+  ...
+  ret = pico_dns_client_getname("8.8.4.4", cb_getname);
+  ...
+}
 \end{verbatim}
