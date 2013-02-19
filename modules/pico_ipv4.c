@@ -120,9 +120,10 @@ int pico_ipv4_valid_netmask(uint32_t mask)
 
   for(i = 0; i < 32; i++){
     if((mask_swap << i) & (1 << 31)){
-      if(end)
+      if(end) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
+      }
       cnt++;
     }else{
       end = 1;
@@ -320,10 +321,18 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 {
   struct pico_ip4 nullip;
-  struct pico_ipv4_route *route = route_find(addr);
   nullip.addr = 0U;
-  if (!route)
+
+  if(!addr) {
+    pico_err = PICO_ERR_EINVAL;
     return nullip;
+  }
+
+  struct pico_ipv4_route *route = route_find(addr);
+  if (!route) {
+    pico_err = PICO_ERR_EHOSTUNREACH;
+    return nullip;
+  }
   else
     return route->gateway;
 }
@@ -487,7 +496,12 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
 #endif /* PICO_SUPPORT_MCAST */
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
-{  
+{
+  if(!f || !dst) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
   struct pico_ipv4_route *route;
   struct pico_ipv4_link *link;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -496,16 +510,19 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   
   if (!hdr) {
     dbg("IP header error\n");
+    pico_err = PICO_ERR_EINVAL;
     goto drop;
   }
 
   if (dst->addr == 0) {
     dbg("IP src addr error\n");
+    pico_err = PICO_ERR_EINVAL;
     goto drop;
   }
 
   route = route_find(dst);
   if (!route) {
+    pico_err = PICO_ERR_EHOSTUNREACH;
     if (pico_ipv4_is_unicast(dst->addr)) {
       dbg("Route to %08x not found.\n", long_be(dst->addr));
       goto drop;
