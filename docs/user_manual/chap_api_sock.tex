@@ -511,11 +511,11 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 \subsubsection*{Available socket options}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables the Nagle algorithm (\texttt{value} not used)
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - 
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - 
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - 
-\item \texttt{PICO$\_$IP$\_$ADD$\_$MEMBERSHIP} - 
-\item \texttt{PICO$\_$IP$\_$DROP$\_$MEMBERSHIP} -
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Set link multicast datagrams are sent from, default is first added link
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - Set TTL (0-255) of multicast datagrams, default is 1
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Specifies if a copy of an outgoing multicast datagram is looped back as long as it is a member of the multicast group, default is enabled
+\item \texttt{PICO$\_$IP$\_$ADD$\_$MEMBERSHIP} - Join the multicast group specified
+\item \texttt{PICO$\_$IP$\_$DROP$\_$MEMBERSHIP} - Leave the multicast group specified
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -530,6 +530,21 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Example}
 \begin{verbatim}
 ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, NULL);
+
+uint8_t ttl = 2;
+ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_TTL, &ttl);
+
+uint8_t loop = 0;
+ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
+
+struct pico_ip4 inaddr_dst, inaddr_link;
+struct pico_ip_mreq mreq = {{0},{0}};
+pico_string_to_ipv4("224.7.7.7", &inaddr_dst.addr);
+pico_string_to_ipv4("192.168.0.2", &inaddr_link.addr);
+mreq.mcast_group_addr = inaddr_dst;
+mreq.mcast_link_addr = inaddr_link;
+ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq)
 \end{verbatim}
 
 
@@ -553,9 +568,9 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 \subsubsection*{Available socket options}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$TCP$\_$NODELAY} - Nagle algorithm, \texttt{value} casted to \texttt{(int *)} (0 = disabled, 1 = enabled)
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - 
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - 
-\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - 
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Link multicast datagrams are sent from
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - TTL (0-255) of multicast datagrams
+\item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Loop back a copy of an outgoing multicast datagram, as long as it is a member of the multicast group, or not.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -571,4 +586,10 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Example}
 \begin{verbatim}
 ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &stat);
+
+uint8_t ttl = 0;
+ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_TTL, &ttl);
+
+uint8_t loop = 0;
+ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
 \end{verbatim}
