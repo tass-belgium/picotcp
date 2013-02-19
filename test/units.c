@@ -36,6 +36,9 @@ START_TEST (test_ipv4)
   char ipstr[] = "192.168.1.1";
   struct pico_ip4 ipaddr;
 
+  struct pico_frame *f_NULL = NULL;
+  struct pico_ip4 *dst_NULL = NULL;
+
   pico_stack_init();
 
   nm16.addr = long_be(0xFFFF0000);
@@ -89,8 +92,11 @@ START_TEST (test_ipv4)
   fail_if((pico_ipv4_is_unicast(0x0101a8c0)) != 1, "Error checking unicast");
   fail_if((pico_ipv4_is_unicast(0x010000e0)) != 0, "Error checking unicast");
 
-  /**/
-  //pico_ipv4_source_find(struct pico_ip4 *dst);
+  /*rebound*/
+  fail_if(pico_ipv4_rebound(f_NULL) != -1, "Error rebound frame");
+
+  /*frame_push*/
+  fail_if(pico_ipv4_frame_push(f_NULL, dst_NULL, PICO_PROTO_TCP) != -1, "Error push frame");
 }
 END_TEST
 
