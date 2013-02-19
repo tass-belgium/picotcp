@@ -202,6 +202,64 @@ START_TEST (test_dns)
 END_TEST
 
 
+/* RB tree unit test */
+struct rbtree_element {
+  int value;
+  RB_ENTRY(rbtree_element) node;
+};
+
+RB_HEAD(rbtree, rbtree_element);
+
+static struct rbtree RBTREE;
+
+int rbtree_compare(struct rbtree_element *a, struct rbtree_element *b)
+{
+  return a->value - b->value;
+}
+RB_GENERATE(rbtree, rbtree_element, node, rbtree_compare);
+RB_PROTOTYPE(rbtree, rbtree_element, node, rbtree_compare);
+
+#define RBTEST_SIZE 400000
+
+START_TEST (test_rbtree)
+{
+  struct rbtree_element *e, *s, t;
+  int i;
+  struct timeval start, end;
+  gettimeofday(&start, 0);
+  for (i = 0; i < (RBTEST_SIZE >> 1); i++) {
+    e = malloc(sizeof(struct rbtree_element));
+    fail_if(!e, "Out of memory");
+    e->value = i;
+    RB_INSERT(rbtree, &RBTREE, e);
+    e = malloc(sizeof(struct rbtree_element));
+    fail_if(!e, "Out of memory");
+    e->value = (RBTEST_SIZE - 1) - i;
+    RB_INSERT(rbtree, &RBTREE, e);
+  }
+
+  i = 0;
+  RB_FOREACH(s, rbtree, &RBTREE) {
+    fail_if (i++ != s->value);
+  }
+
+  t.value = RBTEST_SIZE >> 2;
+  s = RB_FIND(rbtree, &RBTREE, &t);
+  fail_if(!s, "Search failed...");
+  fail_if(s->value != t.value, "Wrong element returned...");
+
+  RB_FOREACH_REVERSE_SAFE(e, rbtree, &RBTREE, s) {
+    fail_if(!e, "Reverse safe returned null");
+    RB_REMOVE(rbtree, &RBTREE, e);
+    free(e);
+  }
+  fail_if(!RB_EMPTY(&RBTREE), "Not empty");
+  gettimeofday(&end, 0);
+
+  printf("Rbtree test duration with %d entries: %d milliseconds\n", RBTEST_SIZE, 
+    (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) /1000);
+}
+END_TEST
 
 
 Suite *pico_suite(void)
@@ -220,8 +278,13 @@ Suite *pico_suite(void)
   tcase_add_test(dns, test_dns);
   suite_add_tcase(s, dns);
 
+  TCase *rb = tcase_create("RB TREE");
+  tcase_add_test(rb, test_rbtree);
+  suite_add_tcase(s, rb);
+
   return s;
 }
+
 
 
 
