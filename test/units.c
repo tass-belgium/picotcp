@@ -79,12 +79,31 @@ END_TEST
 
 
 
+void cb_dns(char *ip)
+{
+  if (!ip) {
+    /* Error occured */
+    printf("DNS error getaddr\n");
+    return;
+  }
+  /* Do something */
+  printf("DNS -> %s\n",ip);
+  pico_free(ip);
+}
+
+
 START_TEST (test_dns)
 {
   int ret;
+  char url[] = "www.google.com";
+  char ip[]  = "8.8.4.4";
   struct pico_ip4 ns;
 
   ns.addr = long_be(0x0a00280a);  // 10.40.0.10
+
+  pico_stack_init();
+
+  printf("START DNS TEST\n");
 
   /* testing nameserver API */
   ret = pico_dns_client_nameserver(NULL,PICO_DNS_NS_ADD);
@@ -119,6 +138,26 @@ START_TEST (test_dns)
 
   ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_ADD);  /* add correct one again */
   fail_if(ret == 0, "dns> dns_client_nameserver add double");
+
+  /* testing getaddr API */
+  ret = pico_dns_client_getaddr(url,cb_dns); /* ask correct one */
+  fail_if(ret < 0, "dns> dns_client_getaddr: %s",strerror(pico_err));
+
+  ret = pico_dns_client_getaddr(NULL,cb_dns);
+  fail_if(ret == 0, "dns> dns_client_getaddr: no url");
+  
+  ret = pico_dns_client_getaddr(url,NULL);
+  fail_if(ret == 0, "dns> dns_client_getaddr: no cb");
+
+  /* testing getname API */
+  ret = pico_dns_client_getname(ip,cb_dns); /* ask correct one */
+  fail_if(ret < 0, "dns> dns_client_getname: %s",strerror(pico_err));
+
+  ret = pico_dns_client_getname(NULL,cb_dns);
+  fail_if(ret == 0, "dns> dns_client_getname: no ip");
+
+  ret = pico_dns_client_getname(ip,NULL);
+  fail_if(ret == 0, "dns> dns_client_getname: no cb");
 }
 END_TEST
 
