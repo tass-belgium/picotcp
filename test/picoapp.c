@@ -207,14 +207,22 @@ iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
 */
 void cb_udpdnsclient_getaddr(char *ip)
 {
+  if (!ip) {
+    printf("%s: ERROR occured!\n", __FUNCTION__);
+    return;
+  }
   printf("%s: ip %s\n", __FUNCTION__, ip);
-  //pico_free(ip);
+  pico_free(ip);
 }
 
 void cb_udpdnsclient_getname(char *name)
 {
+  if (!name) {
+    printf("%s: ERROR occured!\n", __FUNCTION__);
+    return;
+  }
   printf("%s: name %s\n", __FUNCTION__, name);
-  //pico_free(name);
+  pico_free(name);
 }
 
 void app_udpdnsclient(char *arg)
