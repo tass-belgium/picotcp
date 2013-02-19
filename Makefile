@@ -104,6 +104,9 @@ endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
 endif
+ifneq ($(SIMPLE_HTTP),0)
+  include rules/http.mk
+endif
 
 all: mod core lib
 
@@ -136,7 +139,8 @@ TEST_ELF= test/vde_test.elf \
           test/ptsock_client.elf        \
           test/testnat.elf   \
           test/mock_example.elf   \
-          test/testigmp2.elf
+          test/testigmp2.elf \
+	  test/test_http.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p $(PREFIX)/test/
