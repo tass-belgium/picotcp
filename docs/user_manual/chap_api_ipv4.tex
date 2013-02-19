@@ -23,9 +23,13 @@ int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 \end{itemize}
 
 \subsubsection*{Return value}
-Always returns 0.
+On success, this call returns 0 if the conversion was successful.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -55,9 +59,12 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
 
 \subsubsection*{Return value}
 On success, this call returns 0 if the conversion was successful.
-On error, -1 is returned. %, and \texttt{pico$\_$err} is set appropriately.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -81,10 +88,13 @@ int pico_ipv4_valid_netmask(uint32_t mask);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, the netmask in CIDR notation is returned.
-If the netmask is invalid, -1 is returned.
+On success, this call returns the netmask in CIDR notation is returned if the netmask is valid.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -136,9 +146,13 @@ struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst);
 
 \subsubsection*{Return value}
 On success, this call returns the source IP as \texttt{struct pico$\_$ip4}.
-If the source can not be found, \texttt{NULL} is returned.
+If the source can not be found, \texttt{NULL} is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -155,7 +169,8 @@ Add a new local device dev inteface, f.e. eth0, with IP address 'address' and ne
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
+int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address,
+struct pico_ip4 netmask);
 \end{verbatim}
 
 \subsubsection*{Parameters}
@@ -167,10 +182,15 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
 \subsubsection*{Return value}
 On success, this call returns 0.
-On error, -1 is returned if the address is already assigned or no memory could be allocated.
-% SET PICO_ERR
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -197,9 +217,12 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
 
 \subsubsection*{Return value}
 On success, this call returns 0.
-On error, -1 is returned if the local device interface could not be found. 
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -225,9 +248,13 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 
 \subsubsection*{Return value}
 On success, this call returns the local device.
-On error, \texttt{NULL} is returned if the local device could not be found. 
+On error, \texttt{NULL} is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -257,7 +284,7 @@ int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 
 \subsubsection*{Return value}
 On success, this call returns 0.
-On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
@@ -323,7 +350,7 @@ or delete \texttt{PICO$\_$IPV4$\_$FORWARD$\_$DEL} (= 0).
 
 \subsubsection*{Return value}
 On success, this call 0 after a succesfull entry of the forward rule.
-On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
@@ -337,6 +364,8 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 ret = pico_ipv4_port_forward(ext_link_addr, ext_port, host_addr,
 host_port, PICO_PROTO_UDP, 1);
 \end{verbatim}
+
+
 
 \subsection{pico$\_$ipv4$\_$route$\_$add}
 
@@ -365,9 +394,10 @@ On success, this call returns 0. On error, -1 is returned and \texttt{pico$\_$er
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
 \item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
 \item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
-\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable
 \end{itemize}
 
 \subsubsection*{Example}
@@ -398,15 +428,45 @@ struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0. On error, -1 is returned if the route could not be found.
+On success, this call returns 0 if the route is found.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
 ret = pico_ipv4_route_del(dst, netmask, gateway, metric, link);
 \end{verbatim}
 
+
+
+\subsection{pico$\_$ipv4$\_$route$\_$get$\_$gateway}
+
+\subsubsection*{Description}
+This function gets the gateway address for the given destination IP address, if set.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{address} - Pointer to the destination internet host address as struct \texttt{pico$\_$ip4}.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success the gateway address is returned. On error a \texttt{null} address is returned (\texttt{0.0.0.0}).
+
+%\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+gateway_addr = pico_ip4 pico_ipv4_route_get_gateway(&dest_addr)
+\end{verbatim}
 
 
 \subsection{int$\_$pico$\_$icmp4$\_$ping}
@@ -494,9 +554,12 @@ int pico_ipv4_rebound(struct pico_frame *f);
 
 \subsubsection*{Return value}
 On success, this call returns the frame queue size.
-On error, -1 is returned.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
