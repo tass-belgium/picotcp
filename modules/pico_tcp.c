@@ -865,7 +865,8 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
   (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
   /* call EV_FIN wakeup before deleting */
-  (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+  if ((t->sock).wakeup)
+    (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
 
   /* delete socket */
   pico_socket_del(&t->sock);
@@ -1437,8 +1438,9 @@ static void tcp_deltcb(unsigned long when, void *arg)
     (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
     /* call EV_FIN wakeup before deleting */
-    (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
-
+    if (t->sock.wakeup) {
+      (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+    }
     /* delete socket */
     pico_socket_del(&t->sock); 
   } else {
@@ -1526,7 +1528,8 @@ static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
   s->state |= PICO_SOCKET_STATE_CLOSED;
   
   /* call socket wakeup with EV_FIN */
-  s->wakeup(PICO_SOCK_EV_FIN, s);
+  if (s->wakeup)
+    s->wakeup(PICO_SOCK_EV_FIN, s);
 
   /* delete socket */
   pico_socket_del(s);
@@ -1734,7 +1737,8 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
   tcp_send_ack(t);
 
   /* call socket wakeup with EV_FIN */
-  s->wakeup(PICO_SOCK_EV_FIN, s);
+  if (s->wakeup)
+    s->wakeup(PICO_SOCK_EV_FIN, s);
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
   /* set SHUT_REMOTE */
@@ -1761,11 +1765,13 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
       (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
       /* call EV_FIN wakeup before deleting */
-      (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+      if ((t->sock).wakeup)
+        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
       
       /* call EV_ERR wakeup before deleting */
       pico_err = PICO_ERR_ECONNRESET;
-      (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+      if ((t->sock).wakeup)
+        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
 
       /* delete socket */
       pico_socket_del(&t->sock);
@@ -1786,7 +1792,8 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
         
         /* call EV_ERR wakeup */
         pico_err = PICO_ERR_ECONNRESET;
-        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+        if ((t->sock).wakeup)
+          (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
         
         tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
         pico_socket_del(s);
@@ -1798,11 +1805,13 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
         (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
         /* call EV_FIN wakeup before deleting */
-        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+        if ((t->sock).wakeup)
+          (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
         
         /* call EV_ERR wakeup before deleting */
         pico_err = PICO_ERR_ECONNRESET;
-        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+        if ((t->sock).wakeup)
+          (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
 
         /* delete socket */
         pico_socket_del(&t->sock);

@@ -334,7 +334,8 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   if (!s)
     return -1;
   if (pico_enqueue(&s->q_in, f) > 0) {
-    s->wakeup(PICO_SOCK_EV_RD, s);
+    if (s->wakeup)
+      s->wakeup(PICO_SOCK_EV_RD, s);
     return 0;
   }
   else
@@ -346,11 +347,6 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 {
 
   struct pico_socket *s = NULL;
-
-  if (wakeup == NULL) {
-    pico_err = PICO_ERR_EINVAL;
-    return NULL;
-  }
 
 #ifdef PICO_SUPPORT_UDP
   if (proto == PICO_PROTO_UDP) {
