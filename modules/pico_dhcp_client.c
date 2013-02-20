@@ -619,6 +619,15 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 
 }
 
+/* TODO IMPROVEMENTS 
+*  Every message sent through the network is 576 bytes long.
+*  With an average option size, half of these bytes are padding.
+*
+*  Router options are only parsed when there is only 1 address available.
+*  The first address could be always be chosen since it should be the most prefered address anyway.
+*
+*
+*/
 
 /*
  * TODO
