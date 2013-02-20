@@ -697,7 +697,7 @@ START_TEST (test_dhcp_client)
   uint8_t offer_buf2[] = {0x63, 0x82, 0x53, 0x63, 0x35, 0x01, 0x02, 0x01, 0x04, 0xff, 0xff, 0xff, 0x00, 0x3a, 0x04, 0x00, 0x00, 0x07, 0x08, 0x3b, 0x04, 0x00, 0x00, 0x0c, 0x4e, 0x33, 0x04, 0x00, 0x00, 0x0e, 0x10, 0x36, 0x04, 0xc0, 0xa8, 0x00, 0x01, 0xff}; 
   uint8_t routeropt_buf[]={PICO_DHCPOPT_ROUTER,0x04,0xC0,0xA8,0x00,0xFE,0xFF};
   int type = 0;
-  uint8_t printbufactive = 1;
+  uint8_t printbufactive = 0;
   uint32_t len = 0;
   struct pico_dhcp_client_cookie *cli = NULL;
 
@@ -750,8 +750,6 @@ START_TEST (test_dhcp_client)
   fail_unless(cli->state == DHCPSTATE_REQUEST,"not in REQUEST state after dhcp server offer");
 
   address = pico_dhcp_get_address(cli);
-  printf("address.addr = 0x%08x\n",long_be(address.addr));
-  printf("yiaddr.addr = 0x%08x\n",long_be(yiaddr.addr));
   fail_unless(address.addr == yiaddr.addr,"Client address incorrect => yiaddr or pico_dhcp_get_address incorrect"); 
   gateway = pico_dhcp_get_gateway(cli);
   fail_unless(gateway.addr == router.addr,"Gateway incorrect! => routeroption or pico_dhcp_get_gateway incorrect"); 
