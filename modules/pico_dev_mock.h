@@ -41,4 +41,7 @@ int pico_mock_network_write(struct mock_device* mock, const void *buf, int len);
 //That would be useful to avoid having to manually create buffers of what you expect, probably with masks for things that are random,...
 uint32_t mock_get_sender_ip4(struct mock_device* mock, void* buf, int len);
 
+int mock_ip_protocol(struct mock_device* mock, void* buf, int len);
+int mock_icmp_type(struct mock_device* mock, void* buf, int len);
+int mock_icmp_code(struct mock_device* mock, void* buf, int len);
 #endif
