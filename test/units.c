@@ -621,7 +621,7 @@ START_TEST (test_rbtree)
   fail_if(!RB_EMPTY(&RBTREE), "Not empty");
   gettimeofday(&end, 0);
 
-  printf("Rbtree test duration with %d entries: %d milliseconds\n", RBTEST_SIZE, 
+  printf("Rbtree test duration with %d entries: %lu milliseconds\n", RBTEST_SIZE, 
     (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) /1000);
 }
 END_TEST
