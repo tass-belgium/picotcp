@@ -761,7 +761,150 @@ START_TEST (test_dhcp_client)
   
 }
 END_TEST
+START_TEST (test_socket)
+{
+  int ret = 0;
+  uint16_t port_be = 0;
+  struct pico_socket *sk_tcp, *sk_udp;
+  struct pico_device *dev;
+  struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask;
 
+  pico_stack_init();
+    
+  pico_string_to_ipv4("224.7.7.7", &inaddr_dst.addr);
+  pico_string_to_ipv4("10.40.0.2", &inaddr_link.addr);
+  pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
+  pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
+  pico_string_to_ipv4("10.40.0.3", &inaddr_uni.addr);
+
+  dev = pico_null_create("dummy");
+  netmask.addr = long_be(0xFFFF0000);
+  ret = pico_ipv4_link_add(dev, inaddr_link, netmask); 
+  fail_if(ret < 0, "socket> error adding link");
+
+  sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
+  fail_if(sk_tcp == NULL, "socket> tcp socket open failed");
+  port_be = short_be(5555);
+  ret = pico_socket_bind(sk_tcp, &inaddr_link, &port_be);
+  fail_if(ret < 0, "socket> tcp socket bind failed");
+
+  sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
+  fail_if(sk_udp == NULL, "socket> udp socket open failed");
+  port_be = short_be(5555);
+  ret = pico_socket_bind(sk_udp, &inaddr_link, &port_be);
+  fail_if(ret < 0, "socket> udp socket bind failed");
+
+  /*
+  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+    exit(1);
+  */
+
+  printf("START SOCKET TEST\n");
+
+  uint8_t getnodelay = -1;
+  ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
+  fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
+  fail_if(getnodelay != 1, "socket> socket_setoption: default PICO_TCP_NODELAY != 1\n");
+
+  uint8_t nodelay = -1;
+  ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, &nodelay);
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_TCP_NODELAY failed\n");
+
+  ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
+  fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
+  fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY != 0\n");
+
+  struct pico_ip4 mcast_default_link = {0};
+  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
+  fail_if(ret == 0, "socket> socket_setoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
+
+  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
+  fail_if(ret == 0, "socket> socket_getoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
+
+  uint8_t ttl = 64;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_TTL, &ttl);
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_TTL failed\n");
+
+  uint8_t getttl = 0;
+  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_TTL, &getttl);
+  fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_TTL failed\n");
+  fail_if(getttl != ttl, "socket> socket_getoption: setoption ttl != getoption ttl\n");
+
+  uint8_t loop = 9;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_MULTICAST_LOOP succeeded with invalid (not 0 or 1) loop value\n");
+
+  loop = 0;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_LOOP failed\n");
+
+  uint8_t getloop = 0;
+  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_LOOP, &getloop);
+  fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_LOOP failed\n");
+  fail_if(getloop != loop, "socket> socket_getoption: setoption loop != getoption loop\n");
+
+  struct pico_ip_mreq mreq = {{0},{0}};
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq); 
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_ADD_MEMBERSHIP failed\n");
+
+  mreq.mcast_group_addr = inaddr_uni;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid (unicast) group address\n");
+
+  mreq.mcast_group_addr = inaddr_null;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid (NULL) group address\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_uni;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_null;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  mreq.mcast_group_addr = inaddr_incorrect;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (not added) group address\n");
+
+  mreq.mcast_group_addr = inaddr_uni;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) group address\n");
+
+  mreq.mcast_group_addr = inaddr_null;
+  mreq.mcast_link_addr = inaddr_link;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (NULL) group address\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_uni;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_null;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
+
+  ret = pico_socket_close(sk_tcp);
+  fail_if(ret < 0, "socket> tcp socket close failed: %s\n", strerror(pico_err));
+  ret = pico_socket_close(sk_udp);
+  fail_if(ret < 0, "socket> udp socket close failed: %s\n", strerror(pico_err));
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
@@ -778,11 +921,10 @@ Suite *pico_suite(void)
   tcase_add_test(icmp, test_icmp4_unreachable_recv);
   suite_add_tcase(s, icmp);
 
-
-	TCase *dhcp = tcase_create("DHCP");
-	tcase_add_test(dhcp, test_dhcp);
-	tcase_add_test(dhcp, test_dhcp_client);
-	suite_add_tcase(s, dhcp);
+  TCase *dhcp = tcase_create("DHCP");
+  tcase_add_test(dhcp, test_dhcp);
+  tcase_add_test(dhcp, test_dhcp_client);
+  suite_add_tcase(s, dhcp);
 
   TCase *dns = tcase_create("DNS");
   tcase_add_test(dns, test_dns);
@@ -791,6 +933,10 @@ Suite *pico_suite(void)
   TCase *rb = tcase_create("RB TREE");
   tcase_add_test(rb, test_rbtree);
   suite_add_tcase(s, rb);
+
+  TCase *socket = tcase_create("SOCKET");
+  tcase_add_test(socket, test_socket);
+  suite_add_tcase(s, socket);
 
   return s;
 }
