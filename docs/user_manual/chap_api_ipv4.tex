@@ -459,9 +459,14 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 \end{itemize}
 
 \subsubsection*{Return value}
-On success the gateway address is returned. On error a \texttt{null} address is returned (\texttt{0.0.0.0}).
+On success the gateway address is returned.
+On error a \texttt{null} address is returned (\texttt{0.0.0.0}) and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
@@ -527,9 +532,14 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 \end{itemize}
 
 \subsubsection*{Return value}
-On success the new queue size is returned. On error, -1 is returned.
+On success the new queue size is returned.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
-%\subsubsection*{Errors}  ERROR -> pico_err ???
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
