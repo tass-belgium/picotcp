@@ -575,7 +575,7 @@ START_TEST (test_icmp4_incoming_ping)
 			printf("\n");
 	}
 
-	fail_unless(len == buffer2len);
+	fail_unless(len == buffer2len, "ping reply lenght does not match, expected len: %d, got: %d", buffer2len, len);
 	fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
 	fail_unless(mock_icmp_type(mock, buffer2, len) == 0);
 	fail_unless(mock_icmp_code(mock, buffer2, len) == 0);
@@ -1059,13 +1059,16 @@ END_TEST
 START_TEST (test_socket)
 {
   int ret = 0;
-  uint16_t port_be = 0;
-  struct pico_socket *sk_tcp, *sk_udp;
+  uint16_t port_be = 0, porta;
+  char buf[] = "test";
+  struct pico_socket *sk_tcp, *sk_udp, *s, *sl, *sa;
   struct pico_device *dev;
-  struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask;
+  struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask,orig;
 
   pico_stack_init();
     
+  printf("START SOCKET TEST\n");
+
   pico_string_to_ipv4("224.7.7.7", &inaddr_dst.addr);
   pico_string_to_ipv4("10.40.0.2", &inaddr_link.addr);
   pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
@@ -1077,9 +1080,33 @@ START_TEST (test_socket)
   ret = pico_ipv4_link_add(dev, inaddr_link, netmask); 
   fail_if(ret < 0, "socket> error adding link");
 
+
+  /* socket_open passing wrong parameters */
+  s = pico_socket_open(PICO_PROTO_IPV4, 99, NULL);
+  fail_if(s != NULL, "Error got socket wrong parameters");
+
+  s = pico_socket_open(PICO_PROTO_IPV4, -109, NULL);
+  fail_if(s != NULL, "Error got socket");
+
+  s = pico_socket_open(99, PICO_PROTO_UDP, NULL);
+  fail_if(s != NULL, "Error got socket");
+
+  s = pico_socket_open(-99, PICO_PROTO_UDP, NULL);
+  fail_if(s != NULL, "Error got socket");
+
+
   sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
   fail_if(sk_tcp == NULL, "socket> tcp socket open failed");
+
   port_be = short_be(5555);
+  /* socket_bind passing wrong parameters */
+  ret = pico_socket_bind(NULL, &inaddr_link, &port_be);
+  fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
+  ret = pico_socket_bind(sk_tcp, NULL, &port_be);
+  fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
+  ret = pico_socket_bind(sk_tcp, &inaddr_link, NULL);
+  fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
+  /* socket_bind passing correct parameters */
   ret = pico_socket_bind(sk_tcp, &inaddr_link, &port_be);
   fail_if(ret < 0, "socket> tcp socket bind failed");
 
@@ -1088,13 +1115,216 @@ START_TEST (test_socket)
   port_be = short_be(5555);
   ret = pico_socket_bind(sk_udp, &inaddr_link, &port_be);
   fail_if(ret < 0, "socket> udp socket bind failed");
+  /* socket_close passing wrong parameter */
+  ret = pico_socket_close(NULL);
+  fail_if(ret == 0, "Error socket close with wrong parameters");
 
-  /*
-  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
-    exit(1);
-  */
 
-  printf("START SOCKET TEST\n");
+  /* socket_connect passing wrong parameters */
+  ret = pico_socket_connect(sk_udp, NULL, port_be);
+  fail_if(ret == 0, "Error socket connect with wrong parameters");
+  ret = pico_socket_connect(NULL, &inaddr_dst, port_be);
+  fail_if(ret == 0, "Error socket connect with wrong parameters");
+
+  /* socket_connect passing correct parameters */
+  ret = pico_socket_connect(sk_udp, &inaddr_dst, port_be);
+  fail_if(ret < 0, "Error socket connect");
+  ret = pico_socket_connect(sk_tcp, &inaddr_dst, port_be);
+  fail_if(ret < 0, "Error socket connect");
+
+
+  /* testing listening socket */
+  sl = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
+  fail_if(sl == NULL, "socket> tcp socket open failed");
+  port_be = short_be(6666);
+  ret = pico_socket_bind(sl, &inaddr_link, &port_be);
+  fail_if(ret < 0, "socket> tcp socket bind failed");
+  /* socket_listen passing wrong parameters */
+  ret = pico_socket_listen(sl,0);
+  fail_if(ret == 0, "Error socket tcp socket listen done, wrong parameter");
+  ret = pico_socket_listen(NULL,10);
+  fail_if(ret == 0, "Error socket tcp socket listen done, wrong parameter");
+  /* socket_listen passing correct parameters */
+  ret = pico_socket_listen(sl,10);
+  fail_if(ret < 0, "socket> tcp socket listen failed: %s",strerror(pico_err));
+
+  /* socket_accept passing wrong parameters */
+  sa = pico_socket_accept(sl,&orig,NULL);
+  fail_if(sa != NULL, "Error socket tcp socket accept wrong argument");
+  sa = pico_socket_accept(sl,NULL,&porta);
+  fail_if(sa != NULL, "Error socket tcp socket accept wrong argument");
+  /* socket_accept passing correct parameters */
+  sa = pico_socket_accept(sl,&orig,&porta);
+  fail_if(sa == NULL && pico_err != PICO_ERR_EAGAIN, "socket> tcp socket accept failed: %s",strerror(pico_err));
+
+  ret = pico_socket_close(sl);
+  fail_if(ret < 0, "socket> tcp socket close failed: %s\n", strerror(pico_err));
+
+
+
+
+  /* testing socket read/write */
+  /* socket_write passing wrong parameters */
+  ret = pico_socket_write(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket write succeeded, wrong argument\n");
+  ret = pico_socket_write(sk_tcp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket write succeeded, wrong argument\n");
+  ret = pico_socket_write(sk_tcp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket write succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_write(sk_tcp,(void *)buf,sizeof(buf));
+  fail_if(ret < 0, "socket> tcp socket write failed: %s\n", strerror(pico_err));
+  /* socket_read passing wrong parameters */
+  ret = pico_socket_read(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket read succeeded, wrong argument\n");
+  ret = pico_socket_read(sk_tcp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket read succeeded, wrong argument\n");
+  ret = pico_socket_read(sk_tcp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket read succeeded, wrong argument\n");
+  /* socket_read passing correct parameters */
+  ret = pico_socket_read(sk_tcp,(void *)buf,sizeof(buf));
+  fail_if(ret < 0, "socket> tcp socket read failed, ret = %d: %s\n",ret, strerror(pico_err));  /* tcp_recv returns 0 when no frame !? */
+
+
+  /* send/recv */
+  /* socket_send passing wrong parameters */
+  ret = pico_socket_send(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket send succeeded, wrong argument\n");
+  ret = pico_socket_send(sk_tcp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket send succeeded, wrong argument\n");
+  ret = pico_socket_send(sk_tcp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket send succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_send(sk_tcp,(void *)buf,sizeof(buf));
+  fail_if(ret <= 0, "socket> tcp socket send failed: %s\n", strerror(pico_err));
+  /* socket_recv passing wrong parameters */
+  ret = pico_socket_recv(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket recv succeeded, wrong argument\n");
+  ret = pico_socket_recv(sk_tcp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket recv succeeded, wrong argument\n");
+  ret = pico_socket_recv(sk_tcp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket recv succeeded, wrong argument\n");
+  /* socket_recv passing correct parameters */
+  ret = pico_socket_recv(sk_tcp,(void *)buf,sizeof(buf));
+  fail_if(ret < 0, "socket> tcp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));  /* tcp_recv returns 0 when no frame !? */
+  
+
+  /* sendto/recvfrom */
+  /* socket_sendto passing wrong parameters */
+  ret = pico_socket_sendto(NULL,(void *)buf,sizeof(buf),&inaddr_dst,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_tcp,NULL,sizeof(buf),&inaddr_dst,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_tcp,(void *)buf,0,&inaddr_dst,port_be);
+  fail_if(ret > 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_tcp,(void *)buf,sizeof(buf),NULL,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_tcp,(void *)buf,sizeof(buf),&inaddr_dst,-120);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_sendto(sk_tcp,(void *)buf,sizeof(buf),&inaddr_dst,short_be(5555));
+  fail_if(ret <= 0, "socket> udp socket sendto failed, ret = %d: %s\n",ret, strerror(pico_err));
+  /* socket_recvfrom passing wrong parameters */
+  ret = pico_socket_recvfrom(NULL,(void *)buf,sizeof(buf),&orig,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_tcp,NULL,sizeof(buf),&orig,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_tcp,(void *)buf,0,&orig,&porta);
+  fail_if(ret > 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_tcp,(void *)buf,sizeof(buf),NULL,&porta);
+  fail_if(ret > 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_tcp,(void *)buf,sizeof(buf),&orig,NULL);
+  fail_if(ret > 0, "Error socket recvfrom succeeded, wrong argument\n");
+  /* socket_recvfrom passing correct parameters */
+  ret = pico_socket_recvfrom(sk_tcp,(void *)buf,sizeof(buf),&orig,&porta);
+  fail_if(ret != 0, "socket> tcp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* tcp_recv returns -1 when no frame !? */
+
+
+
+
+  /* testing socket read/write */
+  /* socket_write passing wrong parameters */
+  ret = pico_socket_write(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket write succeeded, wrong argument\n");
+  ret = pico_socket_write(sk_udp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket write succeeded, wrong argument\n");
+  ret = pico_socket_write(sk_udp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket write succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_write(sk_udp,(void *)buf,sizeof(buf));
+  fail_if(ret < 0, "socket> tcp socket write failed: %s\n", strerror(pico_err));
+  /* socket_read passing wrong parameters */
+  ret = pico_socket_read(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket read succeeded, wrong argument\n");
+  ret = pico_socket_read(sk_udp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket read succeeded, wrong argument\n");
+  ret = pico_socket_read(sk_udp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket read succeeded, wrong argument\n");
+  /* socket_read passing correct parameters */
+  ret = pico_socket_read(sk_udp,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "socket> udp socket read failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+
+
+  /* send/recv */
+  /* socket_send passing wrong parameters */
+  ret = pico_socket_send(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket send succeeded, wrong argument\n");
+  ret = pico_socket_send(sk_udp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket send succeeded, wrong argument\n");
+  ret = pico_socket_send(sk_udp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket send succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_send(sk_udp,(void *)buf,sizeof(buf));
+  fail_if(ret <= 0, "socket> tcp socket send failed: %s\n", strerror(pico_err));
+  /* socket_recv passing wrong parameters */
+  ret = pico_socket_recv(NULL,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "Error socket recv succeeded, wrong argument\n");
+  ret = pico_socket_recv(sk_udp,NULL,sizeof(buf));
+  fail_if(ret == 0, "Error socket recv succeeded, wrong argument\n");
+  ret = pico_socket_recv(sk_udp,(void *)buf,0);
+  fail_if(ret > 0, "Error socket recv succeeded, wrong argument\n");
+  /* socket_recv passing correct parameters */
+  ret = pico_socket_recv(sk_udp,(void *)buf,sizeof(buf));
+  fail_if(ret == 0, "socket> udp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  
+
+  /* sendto/recvfrom */
+  /* socket_sendto passing wrong parameters */
+  ret = pico_socket_sendto(NULL,(void *)buf,sizeof(buf),&inaddr_dst,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_udp,NULL,sizeof(buf),&inaddr_dst,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_udp,(void *)buf,0,&inaddr_dst,port_be);
+  fail_if(ret > 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_udp,(void *)buf,sizeof(buf),NULL,port_be);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  ret = pico_socket_sendto(sk_udp,(void *)buf,sizeof(buf),&inaddr_dst,-120);
+  fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+  /* socket_write passing correct parameters */
+  ret = pico_socket_sendto(sk_udp,(void *)buf,sizeof(buf),&inaddr_dst,short_be(5555));
+  fail_if(ret <= 0, "socket> udp socket sendto failed, ret = %d: %s\n",ret, strerror(pico_err));
+  /* socket_recvfrom passing wrong parameters */
+  ret = pico_socket_recvfrom(NULL,(void *)buf,sizeof(buf),&orig,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_udp,NULL,sizeof(buf),&orig,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,0,&orig,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),NULL,&porta);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,NULL);
+  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+  /* socket_recvfrom passing correct parameters */
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,&porta);
+  fail_if(ret == 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+
+
+
+
+
+
+
+  printf("START SOCKET OPTION TEST\n");
 
   uint8_t getnodelay = -1;
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
