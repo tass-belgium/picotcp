@@ -208,7 +208,7 @@ START_TEST (test_icmp4_ping)
 	memcpy(temp_buf, buffer+12, 4);
 	memcpy(buffer+12, buffer+16, 4);
 	memcpy(buffer+16, temp_buf, 4);
-	buffer[26] = !buffer[26];
+	buffer[26] = ~buffer[26]; // flip some bits in the sequence number, to see if the packet gets ignored properly
 
 	//using the mock-device because otherwise I have to put everything in a pico_frame correctly myself.
 	pico_mock_network_write(mock, buffer, len);
