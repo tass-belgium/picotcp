@@ -102,6 +102,301 @@ START_TEST (test_ipv4)
 END_TEST
 
 
+static int nat_print_frame_content(struct pico_frame* f){
+  struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+
+  if (ipv4_hdr->proto == PICO_PROTO_TCP) {
+    struct pico_tcp_hdr *tcp_hdr = NULL;  
+    tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    if (!tcp_hdr)
+      return -1;
+    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,short_be(tcp_hdr->trans.dport),ipv4_hdr->proto,ipv4_hdr->src.addr,short_be(tcp_hdr->trans.sport));
+  } else if (ipv4_hdr->proto == PICO_PROTO_UDP) {
+    struct pico_udp_hdr *udp_hdr = NULL;  
+    udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+    if (!udp_hdr)
+      return -1;
+    printf("frame:\t daddr %08X | dport %u | proto %u\n\t saddr %08X | sport %u\n",ipv4_hdr->dst.addr,short_be(udp_hdr->trans.dport),ipv4_hdr->proto,ipv4_hdr->src.addr,short_be(udp_hdr->trans.sport));
+  }
+  return 0;
+}
+
+START_TEST (test_nat_enable_disable)
+{
+	struct pico_ipv4_link l = {.address={.addr=long_be(0x0a280010)}};
+	struct pico_frame frame = {0};
+	struct pico_frame* f = &frame;
+	struct pico_ip4 nat_addr = {.addr = long_be(0x01234567)};
+	printf("*********************** starting %s * \n", __func__);
+
+	pico_stack_init();
+	fail_if(pico_ipv4_nat_enable(&l));
+	//check if nat is properly enabled...
+	fail_unless(enable_nat_flag);
+	fail_unless(pub_link.address.addr == long_be(0x0a280010));
+
+	fail_if(pico_ipv4_nat_isenabled_out(&l));
+
+
+	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	f->net_hdr = buffer1;
+	f->transport_hdr = buffer1+20;
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	memcpy(buffer4+22, buffer1+20, 2); // putting in the right destination port
+
+	f->net_hdr = buffer4;
+	f->transport_hdr = buffer4+20;
+
+	fail_if(pico_ipv4_nat_isenabled_in(f));
+
+	//disable nat
+	fail_if(pico_ipv4_nat_disable());
+
+	//check if it is properly disabled
+	fail_if(enable_nat_flag);
+	fail_unless(pico_ipv4_nat_isenabled_out(&l));
+	fail_unless(pico_ipv4_nat_isenabled_in(f));
+}
+END_TEST
+
+START_TEST (test_nat_translation)
+{
+	struct pico_frame frame = {0};
+	struct pico_frame* f = &frame;
+	struct pico_ip4 nat_addr = {.addr = long_be(0x01234567)};
+	struct pico_ip4 orig_addr = {.addr = long_be(0x0a280004)};
+	printf("*********************** starting %s * \n", __func__);
+
+	//cobble up a packet
+	uint8_t buffer1_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	fail_if(memcmp(buffer1_orig, buffer1, sizeof(buffer1)), "test error : you changed buffer 1 without changing buffer1_orig");
+
+	f->net_hdr = buffer1;
+	f->transport_hdr = buffer1+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+
+	//buffer2 is the same, so should translate to the same source port
+	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	f->net_hdr = buffer2;
+	f->transport_hdr = buffer2+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
+	fail_if(memcmp(buffer1+20, buffer2+20, 4), "two frames with same sport/dport don't get translated the same");
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+
+	//buffer3 has different ports, so should translate differently
+	uint8_t buffer3_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer3[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	fail_if(memcmp(buffer3_orig, buffer3, sizeof(buffer3)), "test error : you changed buffer 3 without changing buffer3_orig");
+	f->net_hdr = buffer3;
+	f->transport_hdr = buffer3+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
+	fail_unless(memcmp(buffer1+20, buffer3+20, 4), "two frames with different sport get translated the same");
+
+
+	//check if a packet from out to in gets tranlated
+
+	//like buffer1 but in the other direction
+	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	memcpy(buffer4+22, buffer1+20, 2); // putting in the right destination port
+
+	f->net_hdr = buffer4;
+	f->transport_hdr = buffer4+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+	fail_if(memcmp(buffer4+12, &orig_addr, 4), "destination address not translated");
+	fail_if(memcmp(buffer4+20, buffer1_orig+22,2), "ports not translated correctly");
+	fail_if(memcmp(buffer4+22, buffer1_orig+20,2), "ports not translated correctly");
+
+
+	//check something in the other direction for the second packet too 
+
+	printf(" checking out->in as reverse from buffer 3\n");
+	//like buffer3 but in the other direction
+	uint8_t buffer5[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04, 
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	memcpy(buffer5+22, buffer3+20, 2); // putting in the right destination port
+
+	f->net_hdr = buffer5;
+	f->transport_hdr = buffer5+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+	fail_if(memcmp(buffer5+12, &orig_addr, 4), "destination address not translated");
+	fail_if(memcmp(buffer5+20, buffer3_orig+22,2), "ports not translated correctly");
+	fail_if(memcmp(buffer5+22, buffer3_orig+20,2), "ports not translated correctly");
+
+
+	//add a packet from another internal IP address with same ports, do back & forth
+	uint8_t buffer6[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer6_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	fail_if(memcmp(buffer6_orig, buffer6, sizeof(buffer6)), "test error : you changed buffer 6 without changing buffer6_orig");
+
+	f->net_hdr = buffer6;
+	f->transport_hdr = buffer6+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	fail_if(memcmp(buffer6+12, &nat_addr, 4), "source address not translated"); //source address
+	fail_unless(memcmp(buffer6+20, buffer1+20, 2), "ports from different source IP translated the same");
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+
+	//check if a packet from out to in gets tranlated
+
+	struct pico_ip4 buf6_orig =  {.addr = long_be(0x0a280064)};
+	//like buffer6 but in the other direction
+	uint8_t buffer7[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	memcpy(buffer7+22, buffer6+20, 2); // putting in the right destination port
+
+	f->net_hdr = buffer7;
+	f->transport_hdr = buffer7+20;
+
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, nat_addr));
+
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+	fail_if(memcmp(buffer7+12, &buf6_orig, 4), "destination address not translated");
+	fail_if(memcmp(buffer7+20, buffer6_orig+22,2), "ports not translated correctly");
+	fail_if(memcmp(buffer7+22, buffer6_orig+20,2), "ports not translated correctly");
+}
+END_TEST
+
+START_TEST (test_nat_port_forwarding)
+{
+	struct pico_frame frame = {0};
+	struct pico_frame* f = &frame;
+	struct pico_ip4 public_addr = {.addr = long_be(0x01234567)};
+	struct pico_ip4 private_addr = {.addr = long_be(0x0a280004)};
+	uint16_t private_port = short_be(8080);
+	uint16_t public_port = short_be(80);
+	printf("*********************** starting %s * \n", __func__);
+
+	//add port forwarding
+	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_ADD));
+
+	//nat_print_frame_content(f);
+	//cobble up a packet
+	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x01, 0x23, 0x45, 0x67,  0xaa, 0xaa, 0x00, 0x50, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+
+	f->net_hdr = buffer1;
+	f->transport_hdr = buffer1+20;
+
+	//have a packet from out to in
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, public_addr));
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+
+	fail_unless(memcmp(buffer1+16, &private_addr.addr, 4), "port forwarding didn't work");
+	fail_unless(memcmp(buffer1+22, &private_port, 2),"port forwarding didn't translate port");
+
+	//have a packet from out to in with the same source port, different IP
+	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64, 
+											 0x01, 0x23, 0x45, 0x67,  0xaa, 0xaa, 0x00, 0x50, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+
+	f->net_hdr = buffer2;
+	f->transport_hdr = buffer2+20;
+
+	//have a packet from out to in
+	printf("original packet : \n");
+	nat_print_frame_content(f);
+	//have it translated from in to out
+	fail_if(pico_ipv4_nat(f, public_addr));
+	printf("after translation : \n");
+	nat_print_frame_content(f);
+
+	fail_unless(memcmp(buffer2+16, &private_addr.addr, 4), "port forwarding didn't work");
+	fail_unless(memcmp(buffer1+22, &private_port, 2),"port forwarding didn't translate port");
+}
+END_TEST
+
 #include "pico_icmp4.h"
 #define NUM_PING 1
 int ping_test_var = 0;
@@ -937,6 +1232,12 @@ Suite *pico_suite(void)
   TCase *socket = tcase_create("SOCKET");
   tcase_add_test(socket, test_socket);
   suite_add_tcase(s, socket);
+
+  TCase *nat = tcase_create("NAT");
+  tcase_add_test(nat, test_nat_enable_disable);
+  tcase_add_test(nat, test_nat_port_forwarding);
+  tcase_add_test(nat, test_nat_translation);
+  suite_add_tcase(s, nat);
 
   return s;
 }
