@@ -562,6 +562,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) != 0) {
     if (remote_port != s->remote_port) {
+      printf("RETURN EINVAL %d - %d\n",short_be(remote_port), short_be(s->remote_port));
       pico_err = PICO_ERR_EINVAL;
       return -1;
     }
@@ -838,7 +839,13 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port)
 {
+  if (!s || !orig || !port) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+
   pico_err = PICO_ERR_EINVAL;
+
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     return NULL;
   }
@@ -890,16 +897,23 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
-  if (s == NULL || value == NULL)
+  if (s == NULL) {
+    pico_err = PICO_ERR_EINVAL;
     return -1;
+  }
+
+  pico_err = PICO_ERR_NOERR;
 
   switch (option)
   {
 #ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
-          if (s->proto->proto_number == PICO_PROTO_TCP)
+          if (s->proto->proto_number == PICO_PROTO_TCP) {
             /* disable Nagle's algorithm */
             PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_TCPNODELAY);
+          } else {
+            pico_err = PICO_ERR_EINVAL;
+          }
           break;
 #endif
 
@@ -977,7 +991,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
           return -1;
   }
 
-  return 0;
+  if (pico_err != PICO_ERR_NOERR)
+    return -1;
+  else
+    return 0;
 }
 
 #define PICO_SOCKET_GETOPT(socket,index) ((socket->opt_flags & (1 << index)) != 0)
