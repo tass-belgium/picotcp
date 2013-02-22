@@ -134,20 +134,49 @@ int pico_protocol_transport_loop(int loop_score)
 }
 
 
+#define SOCK_LOOP_MIN 1
+
+int pico_protocol_socket_loop(int loop_score)
+{
+  struct pico_protocol *start;
+  static struct pico_protocol *next = NULL;
+
+  if (next == NULL)
+    next = RB_MIN(pico_protocol_tree, &Socket_proto_tree);
+
+  /* init start node */
+  start = next;
+
+  /* round-robin all transport protocols, break if traversed all protocols */
+  while (loop_score > SOCK_LOOP_MIN && next != NULL) {
+    loop_score = proto_loop(next, loop_score);
+
+    next = RB_NEXT(pico_protocol_tree, &Socket_proto_tree, next);
+    if (next == NULL)
+      next = RB_MIN(pico_protocol_tree, &Socket_proto_tree);
+    if (next == start)
+      break;
+  }
+
+  return loop_score;
+}
+
 int pico_protocols_loop(int loop_score)
 {
-  struct pico_protocol *p;
+//  struct pico_protocol *p;
 
   loop_score = pico_protocol_datalink_loop(loop_score);
   loop_score = pico_protocol_network_loop(loop_score);
   loop_score = pico_protocol_transport_loop(loop_score);
+  loop_score = pico_protocol_socket_loop(loop_score);
 
-  // XXX NOT BEING CALLED ???
+/*  // XXX NOT BEING CALLED ???
   RB_FOREACH(p, pico_protocol_tree, &Socket_proto_tree) {
     loop_score = proto_loop(p, loop_score);
     if (loop_score < 1)
       return 0;
-  }
+  }*/
+
   return loop_score;
 }
 

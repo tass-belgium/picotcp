@@ -1117,15 +1117,28 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   return ret;
 }
 
+
+#define SL_LOOP_MIN 1
+
 int pico_sockets_loop(int loop_score)
 {
-  struct pico_sockport *sp;
+  static struct pico_sockport *sp_udp,*sp_tcp;
+  struct pico_sockport *start;
   struct pico_socket *s;
 
 #ifdef PICO_SUPPORT_UDP
   struct pico_frame *f;
-  RB_FOREACH(sp, sockport_table, &UDPTable) {
-    RB_FOREACH(s, socket_tree, &sp->socks) {
+
+  if (sp_udp == NULL)
+    sp_udp = RB_MIN(sockport_table, &UDPTable);
+
+  /* init start node */
+  start = sp_udp;
+
+  /* round-robin all transport protocols, break if traversed all protocols */
+  while (loop_score > SL_LOOP_MIN && sp_udp != NULL) {
+
+    RB_FOREACH(s, socket_tree, &sp_udp->socks) {
       f = pico_dequeue(&s->q_out);
       while (f && (loop_score > 0)) {
         pico_proto_udp.push(&pico_proto_udp, f);
@@ -1133,15 +1146,41 @@ int pico_sockets_loop(int loop_score)
         f = pico_dequeue(&s->q_out);
       }
     }
+
+    sp_udp = RB_NEXT(sockport_table, &UDPTable, sp_udp);
+    if (sp_udp == NULL)
+      sp_udp = RB_MIN(sockport_table, &UDPTable);
+    if (sp_udp == start)
+      break;
   }
 #endif
+
 #ifdef PICO_SUPPORT_TCP
-  RB_FOREACH(sp, sockport_table, &TCPTable) {
-    RB_FOREACH(s, socket_tree, &sp->socks) {
+  if (sp_tcp == NULL)
+    sp_tcp = RB_MIN(sockport_table, &TCPTable);
+
+  /* init start node */
+  start = sp_tcp;
+
+  while (loop_score > SL_LOOP_MIN && sp_tcp != NULL) {
+
+    RB_FOREACH(s, socket_tree, &sp_tcp->socks) {
       loop_score = pico_tcp_output(s, loop_score);
-      if (loop_score <= 0)
-        return 0;
+      if (loop_score <= 0) {
+        loop_score = 0;
+        break;
+      }
     }
+ 
+    /* check if RB_FOREACH ended, if not, break to keep the cur sp_tcp */
+    if (s != NULL)
+      break;
+
+    sp_tcp = RB_NEXT(sockport_table, &TCPTable, sp_tcp);
+    if (sp_tcp == NULL)
+      sp_tcp = RB_MIN(sockport_table, &TCPTable);
+    if (sp_tcp == start)
+      break;
   }
 #endif
 
