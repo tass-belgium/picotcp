@@ -1,3 +1,10 @@
+/*********************************************************************
+PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+See LICENSE and COPYING for usage.
+
+Author: Andrei Carp <andrei.carp@tass.be>
+*********************************************************************/
+
 #ifndef __PICO_RBTREE_H__
 #define __PICO_RBTREE_H__
 
