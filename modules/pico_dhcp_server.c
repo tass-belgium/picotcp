@@ -150,11 +150,11 @@ static void dhcp_recv(uint8_t *buffer, int len)
 				dhcpd_make_offer(dn);
 				dn->state = DHCPSTATE_OFFER;
 				return;
-			} else if (msg_type == PICO_DHCP_MSG_REQUEST) {
-				//TODO does this mean that we can simply send a REQUEST right away and have it acked without any debate? 
-				dhcpd_make_ack(dn);
-				return;
-			}
+			}else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER)) {
+        dhcpd_make_ack(dn);
+        dn->state = DHCPSTATE_BOUND;
+        return;
+      }
 		}
 		opt_len = 20;
 		opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
