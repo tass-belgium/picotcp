@@ -760,23 +760,299 @@ START_TEST (test_icmp4_unreachable_recv)
 END_TEST
 
 
-START_TEST (test_dhcp)
-{
-	struct pico_device* dev;
-	struct pico_dhcpd_settings s = {0};
-	struct pico_ip4 address = {.addr=long_be(0x0a280001)};
-	struct pico_ip4 netmask = {.addr=long_be(0xffffff00)};
 
-	pico_stack_init();
-	dev = pico_null_create("null");
-	pico_ipv4_link_add(dev, address, netmask);
+int printbuf(uint8_t *buf, uint32_t len, char *str, uint8_t printbufactive){
+  uint8_t printMethod =0;
+  uint32_t cntr = 0;
+  uint32_t cntr2 = 0;
+  if((printbufactive)&&(printMethod== 0)){
+    printf("\n%s:\n",str);
+    for(cntr =0;cntr<len;cntr++){
+      if((cntr %8) == 0 && cntr !=0)
+        printf(" ");
+      if((cntr % 16) == 0 && cntr != 0)
+        printf("\n");
+      if((cntr % 16) == 0)
+        printf("%03x0  ",cntr2++);
+      printf("%02x ",buf[cntr]);
+    }
+    printf("\n");
+  }else if((printbufactive)&&(printMethod== 1)){
+    printf("\n%s:\n",str);
+    printf("Buf = {");
+    for(cntr =0;cntr<len;cntr++){
+      if(cntr !=0)
+        printf(",");
+      if((cntr%16==0)&&(cntr!=0))
+        printf("\n");
+      printf("0x%02x",buf[cntr]);
+    }
+    printf("}\n");
+  }
+  return 0;
+}
 
-	s.dev = dev;
+#define BUFLEN (576+14+20+8)
+#define DHCP_MSG_TYPE_DISCOVER (1)
+#define DHCP_MSG_TYPE_OFFER    (2)
+#define DHCP_MSG_TYPE_REQUEST  (3)
+#define DHCP_MSG_TYPE_ACK      (4)
+int tick_it(uint32_t nticks){
+  uint32_t i = 0;
+  for (i=0;i<nticks;i++) {
+    pico_stack_tick();
+  }
+  return 0;
+}
 
-	fail_if(pico_dhcp_server_initiate(&s));
+int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type){
+  if(type == DHCP_MSG_TYPE_DISCOVER){ 
+    uint8_t buffer[]={
+    0x01,0x01,0x06,0x00,0x0c,0x10,
+    0x53,0xe6,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0xc1,0x00,0x00,0x0a,0x0b,0x0f,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x63,0x82,0x53,0x63,0x35,0x01,0x01,0x37,0x07,0x01,
+    0x1c,0x02,0x03,0x0c,0x3a,0x3b,0x39,0x02,0x02,0x40,0xff,0x00};
+    *len=sizeof(buffer);
+    memcpy(&(buf[0]),buffer,*len);
+  }else if(type == DHCP_MSG_TYPE_OFFER){ 
+     return 1;
+  }else if(type == DHCP_MSG_TYPE_REQUEST){ 
+    int i = 0;
+    uint8_t buffer1[]={
+    //0x63,0x82,0x53,0x63,// MAGIC COOCKIE
+    // 0x35,0x01,0x03,     // DHCP REQUEST
+    // 0x36,0x04,0x00,0x00,0x00,0x00 // SERVER ID
+    0x32,0x04,buf[0x3a],buf[0x3b],buf[0x3c],buf[0x3e],//requested ip
+    0x37,0x04,0x01,0x03,0x06,0x2a, // Parameter list
+    0x3d,0x07,0x01,buf[0x06],buf[0x07],buf[0x08],buf[0x09],buf[0x0a],buf[0x0b],//Client id
+    0xff};
+
+    buf[0x02a]=0x01;// change to boot request 
+    buf[0x11c]=0x03;// request 
+
+    memcpy(&(buf[0x123]),&(buffer1[0]),sizeof(buffer1));
+    *len = sizeof(buffer1) + 0x123; 
+    for(i=*len;i<0x150;i++){
+      buf[i+10]=0x00;
+    }
+     return 0;
+  }else if(type ==DHCP_MSG_TYPE_ACK){ 
+     return 1;
+  }
+    return 0; 
+}
+  
+ 
+ START_TEST (test_dhcp)
+ {
+
+
+/************************************************************************
+* Check if dhcp recv works correctly if
+*     MAC address of client is allready in arp table
+* Status : Done 
+*************************************************************************/
+  struct mock_device* mock;
+  struct pico_dhcpd_settings s = {0};
+ struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
+  uint8_t macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
+  uint8_t macaddr2[6] = {0xc6,0,0,0xa,0xb,0xf};
+  struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
+  struct pico_ip4 serverip={.addr = SERVER_ADDR};
+  struct pico_dhcp_negotiation *dn = NULL;
+  struct pico_ip4 *stored_ipv4=NULL;
+  uint32_t len = 0;
+  uint8_t buf[600]={0};
+  uint8_t printbufactive = 0;
+
+  /*Insert custom values in buffer*/
+  fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
+  memcpy(&(buf[4]),&(xid.addr),sizeof(struct pico_ip4));
+  memcpy(&(buf[28]),&(macaddr1[0]),sizeof(struct pico_ip4));
+  printbuf(&(buf[0]),len,"DHCP-DISCOVER packet",printbufactive);
+
+  /*Initiate test setup*/
+ pico_stack_init();
+
+  /* Create mock device  */
+  mock = pico_mock_create(macaddr2);
+ fail_if(!mock,"MOCK DEVICE creation failed");
+  fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
+  fail_if(pico_ipv4_link_add(mock->dev, serverip , netmask),"add link to mock device failed");
+
+  s.dev = mock->dev;
+
+  fail_if(pico_dhcp_server_initiate(&s),"DHCP_SERVER> server initiation failed");
+
+  dn = get_negotiation_by_xid(xid.addr);
+  fail_unless(dn==NULL,"DCHP SERVER -> negotiation data available befor discover msg recvd");
+
+  /* simulate reception of a DISCOVER packet */
+  dhcp_recv(buf, len);
+
+  tick_it(3);
+
+  /* check if negotiation data is stored */
+  dn = get_negotiation_by_xid(xid.addr);
+  fail_if(dn==NULL,"DCHP SERVER -> no negotiation stored after discover msg recvd");
+
+  /* check if new ip is in ARP cache */
+  stored_ipv4 = pico_arp_reverse_lookup(&dn->eth);
+  fail_if(stored_ipv4 == NULL,"DCHP SERVER -> new address is not inserted in ARP");
+  fail_unless(stored_ipv4->addr== dn->ipv4.addr,"DCHP SERVER -> new ip not stored in negotiation data");
+
+  /* check if state is changed and reply is received  */
+  len = pico_mock_network_read(mock, buf, BUFLEN);
+  fail_unless(len,"received msg on network of %d bytes",len);
+  printbuf(&(buf[0]),len,"DHCP-OFFER msg",printbufactive);
+  fail_unless(buf[0x011c]==0x02,"No DHCP offer received after discovery");
+  fail_unless(dn->state == DHCPSTATE_OFFER,"DCHP SERVER -> negotiation state not changed to OFFER");
+  
+  /*change offer to request*/
+  fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_REQUEST),"DHCP_SERVER->failed to generate buffer");
+  printbuf(&(buf[0x2a]) , len-0x2a , "request buffer",printbufactive);
+
+  /* simulate reception of a offer packet */
+  dhcp_recv(&(buf[0x2a]) , len-0x2a);
+  fail_unless(dn->state == DHCPSTATE_BOUND,"DCHP SERVER -> negotiation state not changed to BOUND");
+
+  tick_it(3);
+
+  /* check if state is changed and reply is received  */
+  len = pico_mock_network_read(mock, buf, BUFLEN);
+  fail_unless(len,"received msg on network of %d bytes",len);
+  fail_unless(len,"received msg on network of %d bytes",len);
+  printbuf(&(buf[0]),len,"DHCP-ACK msg",printbufactive);
+  fail_unless(buf[0x11c]==0x05,"No DHCP offer received after discovery");
+
 }
 END_TEST
 
+
+START_TEST (test_dhcp_server_ipninarp)
+{
+/************************************************************************
+* Check if dhcp recv works correctly if
+*     MAC address of client is not in arp table yet
+* Status : Done
+*************************************************************************/
+  struct mock_device* mock;
+  struct pico_dhcpd_settings s = {0};
+  struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
+  unsigned char macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
+  struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
+  struct pico_ip4 serverip={.addr = SERVER_ADDR};
+  struct pico_dhcp_negotiation *dn = NULL;
+  struct pico_ip4 *stored_ipv4=NULL;
+  uint32_t len = 0;
+  uint8_t buf[600]={0};
+  uint8_t printbufactive = 0;
+  /*Insert custom values in buffer*/
+  fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
+  memcpy(&(buf[4]),&(xid.addr),sizeof(struct pico_ip4));
+  memcpy(&(buf[28]),&(macaddr1[0]),sizeof(struct pico_ip4));
+  printbuf(&(buf[0]),len,"DHCP-DISCOVER packet",printbufactive);
+    
+  /*Initiate test setup*/
+  pico_stack_init();
+  
+  /* Create mock device  */
+  mock = pico_mock_create(macaddr1);
+  fail_if(!mock,"MOCK DEVICE creation failed");
+  fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
+  fail_if(pico_ipv4_link_add(mock->dev, serverip , netmask),"add link to mock device failed");
+  s.dev = mock->dev; 
+    
+  fail_if(pico_dhcp_server_initiate(&s),"DHCP_SERVER> server initiation failed");
+      
+  dn = get_negotiation_by_xid(xid.addr);
+  fail_unless(dn==NULL,"DCHP SERVER -> negotiation data available before discover msg recvd");
+
+  /* simulate reception of a DISCOVER packet */
+  dhcp_recv(buf, len);
+  
+  /* check if negotiation data is stored */
+  dn = get_negotiation_by_xid(xid.addr);
+  fail_if(dn==NULL,"DCHP SERVER -> no negotiation stored after discover msg recvd");
+
+  /* check if new ip is in ARP cache */
+  stored_ipv4 = pico_arp_reverse_lookup(&dn->eth);
+  fail_if(stored_ipv4 == NULL,"DCHP SERVER -> new address is not inserted in ARP");
+  fail_unless(stored_ipv4->addr== dn->ipv4.addr,"DCHP SERVER -> new ip not stored in negotiation data");
+  
+  /* check if new ip is in ARP cache */
+  fail_if(pico_arp_reverse_lookup(&dn->eth)== NULL,"DCHP SERVER -> new address is not inserted in ARP");
+  
+} 
+END_TEST
+
+START_TEST (test_dhcp_server_ipinarp)
+{
+/************************************************************************
+* Check if dhcp recv works correctly if
+*     MAC address of client is allready in arp table
+* Status : Done
+*************************************************************************/
+  struct mock_device* mock;
+  struct pico_dhcpd_settings s = {0};
+  struct pico_ip4 ipv4address ={.addr = long_be(0x0a280067)};
+  struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
+  struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
+  struct pico_ip4 serverip={.addr = SERVER_ADDR};
+  struct pico_ip4 *stored_ipv4=NULL;
+  struct pico_dhcp_negotiation *dn = NULL;
+  unsigned char macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
+  uint32_t len = 0;
+  uint8_t buf[600]={0};
+
+  /*Insert custom values in buffer*/
+  fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
+  memcpy(&(buf[28]),&(macaddr1[0]),sizeof(struct pico_ip4));
+  memcpy(&(buf[4]),&(xid.addr),sizeof(struct pico_ip4));
+
+  /*Initiate test setup*/
+  pico_stack_init();
+  pico_arp_create_entry(&(macaddr1[0]),ipv4address , settings.dev);
+
+  /* Create mock device  */
+  mock = pico_mock_create(macaddr1);
+  fail_if(!mock,"MOCK DEVICE creation failed");
+  fail_if(pico_ipv4_link_add(mock->dev, serverip , netmask),"add link to mock device failed");
+  s.dev = mock->dev;
+
+  fail_if(pico_dhcp_server_initiate(&s),"DHCP_SERVER> server initiation failed");
+
+  /* simulate reception of a DISCOVER packet */
+  dhcp_recv(buf, len);
+
+  /* check if negotiation data is stored */
+  dn = get_negotiation_by_xid(xid.addr);
+  fail_if(dn==NULL,"DCHP SERVER -> no negotiation stored after discover msg recvd");
+
+  /* check if new ip is in ARP cache */
+  stored_ipv4 = pico_arp_reverse_lookup(&dn->eth);
+  fail_if(stored_ipv4 == NULL,"DCHP SERVER -> new address is not inserted in ARP");
+  fail_unless(stored_ipv4->addr== dn->ipv4.addr,"DCHP SERVER -> new ip not stored in negotiation data");
+
+  /* check if new ip is in ARP cache */
+  struct pico_eth *arp_resp=NULL;
+  arp_resp = pico_arp_lookup(&ipv4address);
+  fail_if(arp_resp==NULL,"DCHP SERVER -> address unavailable in arp cache");
+}
+END_TEST
 
 
 void cb_dns(char *ip)
@@ -930,41 +1206,7 @@ void callback_dhcpclient(void* cli, int code){
   }
   printf("callback happened with code %d!\n", code);
 }
-int printbuf(uint8_t *buf, uint32_t len, char *str, uint8_t printbufactive){
-  uint8_t printMethod =0;
-  uint32_t cntr = 0;
-  uint32_t cntr2 = 0;
 
-  if((printbufactive)&&(printMethod== 0)){
-    printf("\n%s:\n",str);
-    for(cntr =0;cntr<len;cntr++){
-      if((cntr %8) == 0 && cntr !=0)
-        printf(" ");
-      if((cntr % 16) == 0 && cntr != 0)
-        printf("\n");
-      if((cntr % 16) == 0)
-        printf("%03x0  ",cntr2++);
-      printf("%02x ",buf[cntr]);
-    }
-    printf("\n");
-  }else if((printbufactive)&&(printMethod== 1)){
-    printf("Buf = {");
-    for(cntr =0;cntr<len;cntr++){
-      if(cntr !=0)
-        printf(",");
-      printf("0x%02x",buf[cntr]);
-    }
-    printf("}\n");
-  }
-  return 0;
-}
-int tick_it(uint32_t nticks){
-  uint32_t i = 0;
-  for (i=0;i<nticks;i++) {
-    pico_stack_tick();
-  }
-  return 0;
-}
 int mock_print_protocol(uint8_t *buf){
   uint8_t pnr = buf[0x17];// protocol number
 
@@ -1056,6 +1298,7 @@ START_TEST (test_dhcp_client)
   
 }
 END_TEST
+
 START_TEST (test_socket)
 {
   int ret = 0;
@@ -1447,8 +1690,12 @@ Suite *pico_suite(void)
   suite_add_tcase(s, icmp);
 
   TCase *dhcp = tcase_create("DHCP");
-  tcase_add_test(dhcp, test_dhcp);
   tcase_add_test(dhcp, test_dhcp_client);
+
+  tcase_add_test(dhcp, test_dhcp_server_ipinarp);
+  tcase_add_test(dhcp, test_dhcp_server_ipninarp);
+//  tcase_add_test(dhcp, test_dhcp_server_replyoffer);
+  tcase_add_test(dhcp, test_dhcp);
   suite_add_tcase(s, dhcp);
 
   TCase *dns = tcase_create("DNS");
