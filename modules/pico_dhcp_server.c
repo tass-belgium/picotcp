@@ -95,6 +95,7 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 	//TODO find out where we checked if yiaddr is OK...
 	destination.addr = dh_out->yiaddr;
+
 	sent = pico_socket_sendto(udpsock, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
 		dbg("DHCPD>sendto failed with code %d!\n", pico_err);
@@ -113,8 +114,6 @@ static void dhcp_recv(uint8_t *buffer, int len)
 	struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
 	uint8_t *nextopt, opt_data[20], opt_type;
 	int opt_len = 20;
-
-
 	if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr)))
 		return;
 
@@ -131,26 +130,20 @@ static void dhcp_recv(uint8_t *buffer, int len)
 		ipv4 = pico_arp_reverse_lookup(&dn->eth);
 		if (!ipv4) {
 			//TODO this means we completely ignore it if there was an option requesting a specific address...
-			struct pico_ip4 addr;
-			addr.addr = settings.pool_next;
-
-			pico_arp_create_entry(dn->eth.addr, addr, settings.dev);
-
+			dn->ipv4.addr = settings.pool_next;
+			pico_arp_create_entry(dn->eth.addr, dn->ipv4, settings.dev);
 			settings.pool_next = long_be(long_be(settings.pool_next) + 1);
 		}else{
-			dn->ipv4 = *ipv4;
-		}
+      dn->ipv4.addr = ipv4->addr;
+    }
 	}
-
+ 
 	if (!ip_inrange(dn->ipv4.addr))
 		return;
-
-
 	opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
 	while (opt_type != PICO_DHCPOPT_END) {
 		/* parse interesting options here */
 		if (opt_type == PICO_DHCPOPT_MSGTYPE) {
-
 			/* server simple state machine */
 			uint8_t msg_type = opt_data[0];
 			if (msg_type == PICO_DHCP_MSG_DISCOVER) {
