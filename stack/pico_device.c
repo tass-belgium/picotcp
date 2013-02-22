@@ -128,14 +128,31 @@ static int devloop(struct pico_device *dev, int loop_score)
   return loop_score;
 }
 
+
+#define DEV_LOOP_MIN  16
+
 int pico_devices_loop(int loop_score)
 {
-  struct pico_device *dev;
-  RB_FOREACH(dev, pico_device_tree, &Device_tree) {
-    loop_score = devloop(dev, loop_score);
-    if (loop_score < 1)
-      return 0;
+  struct pico_device *start;
+  static struct pico_device *next = NULL;
+
+  if (next == NULL)
+    next = RB_MIN(pico_device_tree, &Device_tree);
+
+  /* init start node */
+  start = next;
+
+  /* round-robin all devices, break if traversed all devices */
+  while (loop_score > DEV_LOOP_MIN && next != NULL) {
+    loop_score = devloop(next, loop_score);
+
+    next = RB_NEXT(pico_device_tree, &Device_tree, next);
+    if (next == NULL)
+      next = RB_MIN(pico_device_tree, &Device_tree);
+    if (next == start)
+      break;
   }
+
   return loop_score;
 }
 
