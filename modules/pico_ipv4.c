@@ -836,7 +836,8 @@ static int pico_ipv4_forward(struct pico_frame *f)
 
   //dbg("Routing towards %s\n", f->dev->name);
   f->start = f->net_hdr;
-  f->len -= PICO_SIZE_ETHHDR;
+  if(f->dev->eth != NULL)
+    f->len -= PICO_SIZE_ETHHDR;
   pico_sendto_dev(f);
   return 0;
 
