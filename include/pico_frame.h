@@ -71,6 +71,9 @@ struct pico_frame {
 
   /* Pointer to transport info */
   void *info;
+
+  /*Priority. "best-effort" priority, the default value is 0. Priority can be in between -10 and +10*/
+  uint8_t priority;
 };
 
 /** frame alloc/dealloc/copy **/
