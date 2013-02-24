@@ -157,6 +157,12 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 #endif
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
+  #ifdef PICO_SUPPORT_IPFILTER
+  if (ipfilter(f)) {
+    /*pico_frame is discarded as result of the filtering*/
+    return 0;
+  }
+  #endif
   uint8_t option_len = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_ip4 address0;
@@ -214,6 +220,12 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
+  #ifdef PICO_SUPPORT_IPFILTER
+  if (ipfilter(f)) {
+    /*pico_frame is discarded as result of the filtering*/
+    return 0;
+  }
+  #endif
   f->start = (uint8_t*) f->net_hdr;
   return pico_sendto_dev(f);
 }

@@ -19,7 +19,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
-
+IPFILTER?=1
 
 
 ifeq ($(DEBUG),1)
@@ -106,6 +106,9 @@ ifneq ($(DNS_CLIENT),0)
 endif
 ifneq ($(SIMPLE_HTTP),0)
   include rules/http.mk
+endif
+ifneq ($(IPFILTER),0)
+  include rules/ipfilter.mk
 endif
 
 all: mod core lib

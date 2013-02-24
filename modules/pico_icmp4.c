@@ -134,6 +134,14 @@ int pico_icmp4_ttl_expired(struct pico_frame *f)
   return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_INTRANS);
 }
 
+#ifdef PICO_SUPPORT_IPFILTER
+int pico_icmp4_packet_filtered(struct pico_frame *f)
+{
+  /*Parameter check executed in pico_icmp4_notify*/
+  /*Packet Filtered: type 3, code 13 (Communication Administratively Prohibited)*/
+  return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_FILTER_PROHIB);
+}
+#endif
 
 /***********************/
 /* Ping implementation */
