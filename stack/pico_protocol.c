@@ -163,19 +163,10 @@ int pico_protocol_socket_loop(int loop_score)
 
 int pico_protocols_loop(int loop_score)
 {
-//  struct pico_protocol *p;
-
   loop_score = pico_protocol_datalink_loop(loop_score);
   loop_score = pico_protocol_network_loop(loop_score);
   loop_score = pico_protocol_transport_loop(loop_score);
   loop_score = pico_protocol_socket_loop(loop_score);
-
-/*  // XXX NOT BEING CALLED ???
-  RB_FOREACH(p, pico_protocol_tree, &Socket_proto_tree) {
-    loop_score = proto_loop(p, loop_score);
-    if (loop_score < 1)
-      return 0;
-  }*/
 
   return loop_score;
 }

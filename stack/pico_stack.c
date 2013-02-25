@@ -473,16 +473,127 @@ void pico_check_timers(void)
   }
 }
 
+
+#define PROTO_DEF_NR      6
+#define PROTO_DEF_AVG_NR  4
+#define PROTO_DEF_SCORE   32
+#define PROTO_MAX_SCORE   128
+#define PROTO_MIN_SCORE   32
+
+#define PROTO_LAT_IND     0   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
+#define PROTO_MAX_LOOP    (PROTO_MAX_SCORE<<PROTO_LAT_IND) /* max global loop score, so per tick */
+
+static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
+{
+  int temp, i, j, sum;
+
+ // dbg("USED SCORES> "); 
+
+  for (i = 0; i < PROTO_DEF_NR; i++) {
+
+    /* if used looped score */
+    if (ret[i] < score[i]) {
+      temp = score[i] - ret[i]; /* remaining loop score */
+      
+     // dbg("%3d - ",temp);
+
+      if (index[i] >= PROTO_DEF_AVG_NR)
+        index[i] = 0;           /* reset index */
+      j = index[i];
+      avg[i][j] = temp;
+
+      index[i]++; 
+
+      if (ret[i] == 0 && (score[i]<<1 <= PROTO_MAX_SCORE)) {        /* used all loop score -> increase next score directly */
+        score[i] <<= 1;
+        continue;
+      }
+
+      sum = 0;
+      for (j = 0; j < PROTO_DEF_AVG_NR; j++)
+        sum += avg[i][j];       /* calculate sum */
+
+      sum >>= 2;                /* divide by 4 to get average used score */
+
+      /* criterion to increase next loop score */
+      if (sum > (score[i] - (score[i]>>2))  && (score[i]<<1 <= PROTO_MAX_SCORE)) { /* > 3/4 */
+        score[i] <<= 1;         /* double loop score */
+        continue;
+      }
+
+      /* criterion to decrease next loop score */
+      if (sum < (score[i]>>2) && (score[i]>>1 >= PROTO_MIN_SCORE)) { /* < 1/4 */
+        score[i] >>= 1;         /* half loop score */
+        continue;
+      }
+    }
+    else if (ret[i] == score[i]) {
+      /* no used loop score - gradually decrease */
+      
+    //  dbg("%3d - ",0);
+
+      if (index[i] >= PROTO_DEF_AVG_NR)
+        index[i] = 0;           /* reset index */
+      j = index[i];
+      avg[i][j] = 0;
+
+      index[i]++; 
+
+      sum = 0;
+      for (j = 0; j < PROTO_DEF_AVG_NR; j++)
+        sum += avg[i][j];       /* calculate sum */
+
+      sum >>= 2;                /* divide by 4 to get average used score */
+
+      if ((sum == 0) && (score[i]>>1 >= PROTO_MIN_SCORE)) {
+        score[i] >>= 1;         /* half loop score */
+        for (j = 0; j < PROTO_DEF_AVG_NR; j++)
+          avg[i][j] = score[i];
+      }
+      
+    }
+  }
+
+  //dbg("\n");
+
+  return 0;
+}
+
+
 void pico_stack_tick(void)
 {
-    int score;
+    static int score[PROTO_DEF_NR] = {PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE};
+    static int index[PROTO_DEF_NR] = {0,0,0,0,0,0};
+    static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
+    static int ret[PROTO_DEF_NR] = {0};
+
     pico_check_timers();
-    score = pico_devices_loop(100);
-    pico_rand_feed(score);
-    score = pico_protocols_loop(100);
-    pico_rand_feed(score);
-    score = pico_sockets_loop(100);
-    pico_rand_feed(score);
+
+    //dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d\n",score[0],score[1],score[2],score[3],score[4],score[5]);
+
+    //score = pico_protocols_loop(100);
+
+    ret[0] = pico_devices_loop(score[0]);
+    pico_rand_feed(ret[0]);
+
+
+    ret[1] = pico_protocol_datalink_loop(score[1]);
+    pico_rand_feed(ret[1]);
+
+    ret[2] = pico_protocol_network_loop(score[2]);
+    pico_rand_feed(ret[2]);
+
+    ret[3] = pico_protocol_transport_loop(score[3]);
+    pico_rand_feed(ret[3]);
+
+    ret[4] = pico_protocol_socket_loop(score[4]);
+    pico_rand_feed(ret[4]);
+
+    ret[5] = pico_sockets_loop(score[5]);
+    pico_rand_feed(ret[5]);
+
+    /* calculate new loop scores for next iteration */
+    calc_score(score, index,(int **) avg, ret);
 }
 
 void pico_stack_loop(void)
