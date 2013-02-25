@@ -6,8 +6,9 @@ Authors: Daniele Lacamera, Markian Yskout
 *********************************************************************/
 
 
-#include "pico_ipv4.h"
 #include "pico_config.h"
+#include "pico_ipfilter.h"
+#include "pico_ipv4.h"
 #include "pico_icmp4.h"
 #include "pico_stack.h"
 #include "pico_eth.h"

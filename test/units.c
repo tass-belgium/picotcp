@@ -22,6 +22,7 @@
 #include "pico_dhcp_client.c"
 #include "pico_igmp2.c"
 #include "pico_nat.c"
+#include "pico_ipfilter.c"
 #include <check.h>
 
 START_TEST (test_ipv4)

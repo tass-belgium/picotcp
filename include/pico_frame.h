@@ -73,7 +73,7 @@ struct pico_frame {
   void *info;
 
   /*Priority. "best-effort" priority, the default value is 0. Priority can be in between -10 and +10*/
-  uint8_t priority;
+  int8_t priority;
 };
 
 /** frame alloc/dealloc/copy **/

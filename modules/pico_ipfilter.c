@@ -16,21 +16,21 @@ Authors: Simon Maes
 #include "pico_tcp.h"
 #include "pico_udp.h"
 
+struct filter_node;
 typedef int (*func_pntr)(struct filter_node *filter, struct pico_frame *f);
 
-// TODO change sequence of struct elems! big ones first!
-static struct filter_node {
+struct filter_node {
   struct pico_device *fdev;
-  uint8_t proto;
+  struct filter_node *next_filter;
   uint32_t src_addr;
   uint32_t saddr_netmask;
   uint32_t dst_addr;
   uint32_t daddr_netmask;
+  uint8_t proto;
   uint8_t sport;
   uint8_t dport;
-  uint8_t priority;
+  int8_t priority;
   uint8_t tos;
-  struct filter_node *next_filter;
   uint8_t filter_id;
   func_pntr function_ptr;
 };
@@ -40,22 +40,22 @@ static struct filter_node *tail = NULL;
 
 /*======================== FUNCTION PNTRS ==========================*/
 
-int fp_accept(struct filter_node *filter, struct pico_frame *f) {return 0;}
+static int fp_accept(struct filter_node *filter, struct pico_frame *f) {return 0;}
 
-int fp_priority(struct filter_node *filter, struct pico_frame *f) {
+static int fp_priority(struct filter_node *filter, struct pico_frame *f) {
 
   f->priority = filter->priority;
   return 0;
 }
 
-int fp_reject(struct filter_node *filter, struct pico_frame *f) {
+static int fp_reject(struct filter_node *filter, struct pico_frame *f) {
 // TODO check first if sender is pico itself or not
   pico_icmp4_packet_filtered(f);
   pico_frame_discard(f);
   return 1;
 }
 
-int fp_drop(struct filter_node *filter, struct pico_frame *f) {
+static int fp_drop(struct filter_node *filter, struct pico_frame *f) {
 
   pico_frame_discard(f);
   return 1;
@@ -102,6 +102,7 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t sr
       new_filter->function_ptr = fp_drop;
       break;
   }
+  return 0;
 }
 
 int pico_ipv4_filter_del(uint8_t filter_id) {
@@ -124,22 +125,6 @@ int pico_ipv4_filter_del(uint8_t filter_id) {
 }
 
 /*================================== CORE FILTER FUNCTIONS ==================================*/
-int ipfilter(struct pico_frame *f) {
-  /*return 1 if pico_frame is discarded as result of the filtering, 0 for an incomming packet, -1 for faults*/
-  uint8_t cnt = 0;
-  while (tail != head) {
-    if ( match_filter(head, f) == 0 ) {
-      /*filter match, execute filter!*/
-      return head->function_ptr(head, f);
-    }
-    head++;
-    cnt++;
-  }
-  /*replace head pointer to the head of the train*/
-  head = head - cnt;
-  return 0;
-}
-
 int match_filter(struct filter_node *filter, struct pico_frame *f) {
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   if (filter->fdev != NULL) {
@@ -184,6 +169,22 @@ int match_filter(struct filter_node *filter, struct pico_frame *f) {
       return 1;
   }
   /*filter match!*/
+  return 0;
+}
+
+int ipfilter(struct pico_frame *f) {
+  /*return 1 if pico_frame is discarded as result of the filtering, 0 for an incomming packet, -1 for faults*/
+  uint8_t cnt = 0;
+  while (tail != head) {
+    if ( match_filter(head, f) == 0 ) {
+      /*filter match, execute filter!*/
+      return head->function_ptr(head, f);
+    }
+    head++;
+    cnt++;
+  }
+  /*replace head pointer to the head of the train*/
+  head = head - cnt;
   return 0;
 }
 

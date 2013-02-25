@@ -137,6 +137,7 @@ int pico_icmp4_port_unreachable(struct pico_frame *f);
 int pico_icmp4_proto_unreachable(struct pico_frame *f);
 int pico_icmp4_dest_unreachable(struct pico_frame *f);
 int pico_icmp4_ttl_expired(struct pico_frame *f);
+int pico_icmp4_packet_filtered(struct pico_frame *f);
 
 #ifdef PICO_SUPPORT_PING
 int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *));
