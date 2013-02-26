@@ -12,6 +12,7 @@
 #include "pico_dev_loop.h"
 #include "pico_dhcp_client.h"
 #include "pico_dhcp_server.h"
+#include "pico_ipfilter.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -96,6 +97,8 @@ void app_udpecho(char *arg)
 
   if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0)
     exit(1);
+
+  pico_ipv4_filter_add(NULL, PICO_PROTO_TCP, 0, 0, 0, 0, 0, 0, 0, 0, filter_drop);
 
 }
 /*** END UDP ECHO ***/

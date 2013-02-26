@@ -1675,6 +1675,146 @@ START_TEST (test_socket)
 }
 END_TEST
 
+START_TEST (test_ipfilter)
+{
+
+  printf("============================== IPFILTER ===============================\n");
+/*
+  struct pico_device *dev;
+  char devname[8];
+  struct pico_ip4 a;
+  struct pico_ipv4_link *l;
+
+  char ipstr[] = "192.168.1.1";
+  struct pico_ip4 ipaddr;
+
+  struct pico_frame *f_NULL = NULL;
+  struct pico_ip4 *dst_NULL = NULL;
+
+  pico_stack_init();
+
+  nm16.addr = long_be(0xFFFF0000);
+  nm32.addr = long_be(0xFFFFFFFF);
+
+    dev[i] = pico_null_create(devname);
+    a[i].addr = long_be(0x0a000001 + (i << 16));
+    d[i].addr = long_be(0x0a000002 + (i << 16));
+    fail_if(pico_ipv4_link_add(dev[i], a[i], nm16) != 0, "Error adding link");
+
+    gw[i].addr = long_be(0x0a0000f0 + (i << 16));
+    r[i].addr = long_be(0x0c00001 + (i << 16));
+    fail_unless(pico_ipv4_link_find(&a[i]) == dev[i], "Error finding link");
+    l[i] = pico_ipv4_link_get(&a[i]);
+    fail_if(l[i] == NULL, "Error getting link");
+    fail_if(pico_ipv4_route_add(r[i], nm32, gw[i], 1, l[i]) != 0, "Error adding route");
+    fail_if(pico_ipv4_route_add(d[i], nm32, gw[i], 1, l[i]) != 0, "Error adding route");
+    
+    ret = pico_ipv4_route_get_gateway(&r[i]);
+    fail_if(ret.addr != gw[i].addr, "Error get gateway: returned wrong route");
+    source[i] = pico_ipv4_source_find(&d[i]);
+    fail_if(source[i]->addr != a[i].addr, "Error find source: returned wrong route");
+////////////////:
+nt8_t buffer[200]= {0};
+  struct pico_frame *f= (struct pico_frame *) buffer;
+  struct pico_ip4 nat_addr;
+  nat_addr.addr = 0xFF00280a; //  10.40.0.256 Public Address
+··
+  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};·
+·
+  // connect the buffer to the f->net_hdr pointer·
+  f->net_hdr= ipv4_buf;
+  if (!f->net_hdr){
+    printf("FAILED!");
+    exit(0);
+  }else{
+    printf("net hdr is pointer to a buffer\n");
+  }
+
+  // connect the buffer to the f->transport_hdr pointer·
+  f->transport_hdr= tcp_buf;
+  if (!f->transport_hdr){
+    printf("FAILED!");
+    exit(0);
+  }else{
+    printf("transport hdr is pointer to a buffer\n");
+  }
+///////////
+*/
+  struct pico_device *dev = NULL;
+  uint8_t proto = 0, sport = 0, dport = 0, tos = 0;
+  int8_t priority = 0;
+  int ret =0;
+
+  uint32_t src_addr = long_be(0x00000000);
+  uint32_t saddr_netmask = long_be(0x00000000);
+  uint32_t dst_addr = long_be(0x00000000);
+  uint32_t daddr_netmask = long_be(0x00000000);
+
+  enum filter_action action = 1;
+
+
+  int8_t *buffer= pico_zalloc(200);
+  struct pico_frame *f= (struct pico_frame *) buffer;
+
+  f->buffer = pico_zalloc(10);
+  f->usage_count = pico_zalloc(sizeof(uint32_t));
+
+  /*======================== EMPTY FILTER*/
+  printf("===========> EMPTY FILTER\n");
+  pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, action);
+
+  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+
+   // connect the buffer to the f->net_hdr pointer
+  f->net_hdr= ipv4_buf;
+  // connect the buffer to the f->transport_hdr pointer
+  f->transport_hdr= tcp_buf;
+
+  fail_if(ipfilter(f) != 0, "Error filtering packet: EMPTY FILTER");
+
+
+  /*======================= DROP PROTO FILTER: TCP*/
+  printf("===========> DROP PROTO FILTER: TCP\n");
+
+  pico_ipv4_filter_add(dev, 0x06, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, 3);
+
+  struct pico_frame *f2= (struct pico_frame *) buffer;
+  uint8_t ipv4_buf2[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf2[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+
+  // connect the buffer to the f->net_hdr pointer
+  f2->net_hdr= ipv4_buf2;
+  // connect the buffer to the f->transport_hdr pointer
+  f2->transport_hdr= tcp_buf2;
+
+  printf("UNIT: :packet proto:%d\n",f2->proto);
+
+  ret = ipfilter(f2);
+  printf("## before failif");
+
+ fail_if(ret < 0, "Error filtering packet: DROP PROTO FILTER: TCP");
+
+  /*======================= REJECT SPORT FILTER*/
+  /*printf("===========> REJECT SPORT FILTER\n");
+
+  pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, 3333, dport, priority, tos, 3);
+
+  struct pico_frame *f3= (struct pico_frame *) buffer;
+  uint8_t ipv4_buf3[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf3[]= { 0x0D, 0x05, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+
+  // connect the buffer to the f->net_hdr pointer
+  f3->net_hdr= ipv4_buf3;
+  // connect the buffer to the f->transport_hdr pointer
+  f3->transport_hdr= tcp_buf3;
+
+  fail_if(ipfilter(f3) != 1, "Error filtering packet: REJECT SPORT FILTER");
+*/
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -1701,7 +1841,8 @@ Suite *pico_suite(void)
 
   TCase *dns = tcase_create("DNS");
   tcase_add_test(dns, test_dns);
-  suite_add_tcase(s, dns);
+
+   suite_add_tcase(s, dns);
 
   TCase *rb = tcase_create("RB TREE");
   tcase_add_test(rb, test_rbtree);
@@ -1716,6 +1857,10 @@ Suite *pico_suite(void)
   tcase_add_test(nat, test_nat_port_forwarding);
   tcase_add_test(nat, test_nat_translation);
   suite_add_tcase(s, nat);
+
+  TCase *ipfilter = tcase_create("IPFILTER");
+  tcase_add_test(ipfilter, test_ipfilter);
+  suite_add_tcase(s, ipfilter);
 
   return s;
 }

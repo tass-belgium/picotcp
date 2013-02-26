@@ -16,7 +16,9 @@ enum filter_action {
   filter_drop,
 };
 
-uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t src_addr, uint32_t saddr_netmask, uint32_t dst_addr, uint32_t daddr_netmask, uint8_t sport, uint8_t dport, uint8_t priority, uint8_t tos, enum filter_action action);
+
+
+uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr, uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action);
 int pico_ipv4_filter_del(uint8_t filter_id);
 int ipfilter(struct pico_frame *f);
 
