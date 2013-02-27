@@ -25,6 +25,8 @@
 #define picoapp_dbg(...) do{}while(0)
 //#define picoapp_dbg printf
 
+//#define PICOAPP_IPFILTER 1
+
 struct pico_ip4 inaddr_any = { };
 static char *cpy_arg(char **dst, char *str);
 
@@ -78,7 +80,7 @@ void app_udpecho(char *arg)
 {
   struct pico_socket *s;
   char *sport;
-  int port = 0;
+  int port = 0, ret;
   uint16_t port_be = 0;
   printf("sport: %s\n", arg);
   cpy_arg(&sport, arg);
@@ -98,7 +100,20 @@ void app_udpecho(char *arg)
   if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0)
     exit(1);
 
-  pico_ipv4_filter_add(NULL, PICO_PROTO_TCP, 0, 0, 0, 0, 0, 0, 0, 0, filter_drop);
+#ifdef PICOAPP_IPFILTER
+  struct pico_ip4 address;
+  struct pico_ipv4_link *link;
+  address.addr = 0x0800280a;
+  link = pico_ipv4_link_get(&address);
+
+  printf("udpecho> IPFILTER ENABLED\n");
+
+  /*Adjust your IPFILTER*/
+  ret |= pico_ipv4_filter_add(NULL, 6, 0, 0, 0x0000320a, 0x00FFFFFF, 0, 5555, 0, 0, filter_reject);
+
+  if (ret < 0)
+    printf("Filter_add invalid argument\n");
+#endif
 
 }
 /*** END UDP ECHO ***/
@@ -176,7 +191,7 @@ void app_tcpecho(char *arg)
 {
   struct pico_socket *s;
   char *sport = arg;
-  int port = 0;
+  int port = 0, ret;
   uint16_t port_be = 0;
   cpy_arg(&sport, arg);
   if (sport) {
@@ -197,6 +212,20 @@ void app_tcpecho(char *arg)
   if (pico_socket_listen(s, 40) != 0)
     exit(1);
 
+#ifdef PICOAPP_IPFILTER
+  struct pico_ip4 address;
+  struct pico_ipv4_link *link;
+  address.addr = 0x0800280a;
+  link = pico_ipv4_link_get(&address);
+
+  printf("tcpecho> IPFILTER ENABLED\n");
+
+  /*Adjust your IPFILTER*/
+  ret |= pico_ipv4_filter_add(NULL, 6, 0, 0, 0x0000320a, 0x00FFFFFF, 0, 5555, 0, 0, filter_reject);
+
+  if (ret < 0)
+    printf("Filter_add invalid argument\n");
+#endif
 }
 /*** END TCP ECHO ***/
 

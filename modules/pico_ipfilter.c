@@ -16,6 +16,10 @@ Authors: Simon Maes
 #include "pico_tcp.h"
 #include "pico_udp.h"
 
+
+//#define ipf_dbg dbg
+#define ipf_dbg(...) do{}while(0)
+
 struct filter_node;
 typedef int (*func_pntr)(struct filter_node *filter, struct pico_frame *f);
 
@@ -44,14 +48,13 @@ static int fp_accept(struct filter_node *filter, struct pico_frame *f) {return 0
 
 static int fp_priority(struct filter_node *filter, struct pico_frame *f) {
 
-  printf("# prio\n");
-  f->priority = filter->priority;
+  //TODO do priority-stuff
   return 0;
 }
 
 static int fp_reject(struct filter_node *filter, struct pico_frame *f) {
 // TODO check first if sender is pico itself or not
-  printf("#reject\n");
+  ipf_dbg("ipfilter> #reject\n");
   pico_icmp4_packet_filtered(f);
   pico_frame_discard(f);
   return 1;
@@ -59,24 +62,29 @@ static int fp_reject(struct filter_node *filter, struct pico_frame *f) {
 
 static int fp_drop(struct filter_node *filter, struct pico_frame *f) {
 
-  printf("# drop\n");
+  ipf_dbg("ipfilter> # drop\n");
   pico_frame_discard(f);
-  printf("# exit drop\n");
   return 1;
 }
 
 /*============================ API CALLS ============================*/
 uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr, uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action) {
-// s -> out
-// d -> in
-  printf("# adding filter\n");
+  
+
+  if ( !(dev != NULL || proto != 0 || out_addr != 0 || out_addr_netmask != 0 || in_addr != 0 || in_addr_netmask !=0 || out_port != 0 || in_port !=0 || tos != 0 )) 
+    return -1;
+  if ( priority > 10 || priority < -10)
+    return -1;
+  if (action > 3 || action < 0)
+    return -1;
+
+  ipf_dbg("ipfilter> # adding filter\n");
   static uint8_t filter_id = 0;
 
   struct filter_node *new_filter;
   new_filter = pico_zalloc(sizeof(struct filter_node));
   if (!head) {
     head = tail = new_filter;
-    printf(">>> 0X%08x\n", head);
   } else {
     tail->next_filter = new_filter;
     tail = new_filter;
@@ -107,15 +115,11 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t ou
       break;
     case filter_drop:
       new_filter->function_ptr = fp_drop;
-  printf("# select drop: %d\n", action);
-  printf("fp_drop: 0x%08x\n",fp_drop);
-  printf("newfilter: 0x%08x\n",new_filter);
       break;
     default:
-      printf("#unknown filter action\n");
+      ipf_dbg("ipfilter> #unknown filter action\n");
       break;
   }
-  printf("# filter added\n");
   return 0;
 }
 
@@ -162,79 +166,46 @@ int pico_ipv4_filter_del(uint8_t filter_id) {
 int match_filter(struct filter_node *filter, struct pico_frame *f) {
 
   if (!filter|| !f) {
-    printf("## nullpointer in match filter \n");
+    ipf_dbg("ipfilter> ## nullpointer in match filter \n");
     return -1;
   }
 
+  struct filter_node temp;
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  if (filter->fdev != NULL) {
-    if (filter->fdev == f->dev)
-      return 0; /*filter match!*/
-  }
-      printf("filter proto:%d\n",filter->proto);
-      printf("packet proto:%d\n",ipv4_hdr->proto);
-  if (filter->proto != 0) {
-    if (filter->proto == ipv4_hdr->proto) {
-     
-      printf("protocol match \n");
-      return 0;
-    }
-  }
-  if (filter->out_addr != 0) {
-    if (filter->out_addr == ipv4_hdr->src.addr)
-      return 0;
-  }
-  if (filter->out_addr_netmask != 0) {
-    if ((filter->out_addr & filter->out_addr_netmask) == (ipv4_hdr->src.addr & filter->out_addr_netmask))
-      return 0;
-   }
-  if (filter->in_addr != 0) {
-    if (filter->in_addr == ipv4_hdr->dst.addr)
-      return 0;
-  }
-  if (filter->in_addr_netmask != 0) {
-    if ((filter->in_addr & filter->in_addr_netmask) == (ipv4_hdr->dst.addr & filter->in_addr_netmask))
-      return 0;
-   }/*OUT*/
-  if (filter->out_port != 0) {
-    if (ipv4_hdr->proto == PICO_PROTO_TCP ) {
-      struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-      if (short_be(filter->out_port) == tcp_hdr->trans.sport)
-        return 0;
-    } else if (ipv4_hdr->proto == PICO_PROTO_UDP) {
-      struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
-      printf("sport/out_port: %u %u\n", short_be(udp_hdr->trans.sport), filter->out_port);
-      if ((short_be(filter->out_port) == udp_hdr->trans.sport) && (filter->proto != PICO_PROTO_UDP))
-        return 0;
-    }
-  }
 
-  /*IN*/
-  if (filter->in_port != 0) {
-      printf("proto: %d\n",ipv4_hdr->proto);
-    if (ipv4_hdr->proto == PICO_PROTO_TCP ) {
+  temp.fdev = f->dev;
+  temp.out_addr = ipv4_hdr->dst.addr;
+  temp.in_addr = ipv4_hdr->src.addr;
+  if (ipv4_hdr->proto == PICO_PROTO_TCP ) {
       struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-      printf("got tcp_hdr\n");
-      if (short_be(filter->in_port) == tcp_hdr->trans.dport)
-        return 0;
-    } else if (ipv4_hdr->proto == PICO_PROTO_UDP) {
+      temp.out_port = short_be(tcp_hdr->trans.dport);
+      temp.in_port = short_be(tcp_hdr->trans.sport);
+  }else if (ipv4_hdr->proto == PICO_PROTO_UDP ) {
       struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
-      printf("dport/in_port: %u %u\n", short_be(udp_hdr->trans.dport), filter->in_port);
-      if ((short_be(filter->in_port) == udp_hdr->trans.dport) && (filter->proto != PICO_PROTO_UDP)) {
-      printf("dport/in_port: %d\n", short_be(udp_hdr->trans.dport));
-        return 0;
-      }
-    }
+      temp.out_port = short_be(udp_hdr->trans.dport);
+      temp.in_port = short_be(udp_hdr->trans.sport);
   }
+  temp.proto = ipv4_hdr->proto;
+  temp.priority = f->priority;
+  temp.tos = ipv4_hdr->tos;
 
-  if ((filter->priority > 10) || (filter->priority < -10))
-    return -1;
-  if (filter->tos != 0) {
-    if (filter->tos == ipv4_hdr->tos);
-      return 0;
-  }
-  /*No filter match!*/
-  printf("#no match\n");
+
+
+  if ( ((filter->fdev == NULL || filter->fdev == temp.fdev) && \
+        (filter->in_addr == 0 || ((filter->in_addr_netmask == 0) ? (filter->in_addr == temp.in_addr) : 1)) &&\
+        (filter->in_port == 0 || filter->in_port == temp.in_port) &&\
+        (filter->out_addr == 0 || ((filter->out_addr_netmask == 0) ? (filter->out_addr == temp.out_addr) : 1)) && \
+        (filter->out_port == 0 || filter->out_port == temp.out_port)  && \
+        (filter->proto == 0 || filter->proto == temp.proto ) &&\
+        (filter->priority == 0 || filter->priority == temp.priority ) &&\
+        (filter->tos == 0 || filter->tos == temp.tos ) &&\
+        (filter->out_addr_netmask == 0 || ((filter->out_addr & filter->out_addr_netmask) == (temp.out_addr & filter->out_addr_netmask)) ) &&\
+        (filter->in_addr_netmask == 0 || ((filter->in_addr & filter->in_addr_netmask) == (temp.in_addr & filter->in_addr_netmask)) )\
+       ) ) 
+    return 0;
+
+  //No filter match!
+  ipf_dbg("ipfilter> #no match\n");
   return 1;
 }
 
@@ -245,26 +216,17 @@ int ipfilter(struct pico_frame *f) {
   }
 
   struct filter_node *work = head;
-  printf("%s>>> 0X%08x\n",__FUNCTION__ ,work);
-  printf("# ipfilter\n");
   if ( match_filter(work, f) == 0 ) { 
-    printf("# ipfilter match\n");
-      /*filter match, execute filter!*/
-      printf("work_functionpnt: 0x%08x\n",work->function_ptr);
-      printf("work: 0x%08x\n",work);
-      printf("sizeof: %d\n", sizeof(*work));
-      return work->function_ptr(work, f);
-    } 
-
+    ipf_dbg("ipfilter> # ipfilter match\n");
+    /*filter match, execute filter!*/
+    return work->function_ptr(work, f);
+  } 
   while (tail != work) {
-    printf("next filter..\n");
+    ipf_dbg("ipfilter> next filter..\n");
     work = work->next_filter;
-      printf("work: 0x%08x\n",work);
     if ( match_filter(work, f) == 0 ) {
-  printf("# ipfilter match\n");
+      ipf_dbg("ipfilter> # ipfilter match\n");
       /*filter match, execute filter!*/
-      printf("work_functionpnt: 0x%08x\n",work->function_ptr);
-      printf("sizeof: %d\n", sizeof(*work));
       return work->function_ptr(work, f);
     }
   }

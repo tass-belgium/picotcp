@@ -1778,68 +1778,7 @@ START_TEST (test_ipfilter)
 {
 
   printf("============================== IPFILTER ===============================\n");
-/*
-  struct pico_device *dev;
-  char devname[8];
-  struct pico_ip4 a;
-  struct pico_ipv4_link *l;
-
-  char ipstr[] = "192.168.1.1";
-  struct pico_ip4 ipaddr;
-
-  struct pico_frame *f_NULL = NULL;
-  struct pico_ip4 *dst_NULL = NULL;
-
-  pico_stack_init();
-
-  nm16.addr = long_be(0xFFFF0000);
-  nm32.addr = long_be(0xFFFFFFFF);
-
-    dev[i] = pico_null_create(devname);
-    a[i].addr = long_be(0x0a000001 + (i << 16));
-    d[i].addr = long_be(0x0a000002 + (i << 16));
-    fail_if(pico_ipv4_link_add(dev[i], a[i], nm16) != 0, "Error adding link");
-
-    gw[i].addr = long_be(0x0a0000f0 + (i << 16));
-    r[i].addr = long_be(0x0c00001 + (i << 16));
-    fail_unless(pico_ipv4_link_find(&a[i]) == dev[i], "Error finding link");
-    l[i] = pico_ipv4_link_get(&a[i]);
-    fail_if(l[i] == NULL, "Error getting link");
-    fail_if(pico_ipv4_route_add(r[i], nm32, gw[i], 1, l[i]) != 0, "Error adding route");
-    fail_if(pico_ipv4_route_add(d[i], nm32, gw[i], 1, l[i]) != 0, "Error adding route");
-    
-    ret = pico_ipv4_route_get_gateway(&r[i]);
-    fail_if(ret.addr != gw[i].addr, "Error get gateway: returned wrong route");
-    source[i] = pico_ipv4_source_find(&d[i]);
-    fail_if(source[i]->addr != a[i].addr, "Error find source: returned wrong route");
-////////////////:
-nt8_t buffer[200]= {0};
-  struct pico_frame *f= (struct pico_frame *) buffer;
-  struct pico_ip4 nat_addr;
-  nat_addr.addr = 0xFF00280a; //  10.40.0.256 Public Address
-··
-  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};·
-·
-  // connect the buffer to the f->net_hdr pointer·
-  f->net_hdr= ipv4_buf;
-  if (!f->net_hdr){
-    printf("FAILED!");
-    exit(0);
-  }else{
-    printf("net hdr is pointer to a buffer\n");
-  }
-
-  // connect the buffer to the f->transport_hdr pointer·
-  f->transport_hdr= tcp_buf;
-  if (!f->transport_hdr){
-    printf("FAILED!");
-    exit(0);
-  }else{
-    printf("transport hdr is pointer to a buffer\n");
-  }
-///////////
-*/
+  
   struct pico_device *dev = NULL;
   uint8_t proto = 0, sport = 0, dport = 0, tos = 0;
   int8_t priority = 0;
