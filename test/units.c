@@ -453,6 +453,7 @@ START_TEST (test_icmp4_ping)
 	pico_stack_tick();
 	pico_stack_tick();
 	pico_stack_tick();
+
 	fail_if(ping_test_var != 1);
 
   pico_icmp4_ping(remote_address, NUM_PING, interval, timeout, size, cb_ping);
@@ -1360,8 +1361,7 @@ START_TEST (test_dhcp_client_api)
   struct pico_dhcp_client_cookie *cli2 = NULL;
   struct pico_device *dev2;
   struct mock_device *mock2=NULL;
-  int i=0;
-	printf("*********************** starting %d * \n", i++);
+
   /* test 0 */ 
   /* Clear error code */
   pico_err = PICO_ERR_NOERR;
@@ -1381,18 +1381,20 @@ START_TEST (test_dhcp_client_api)
   /* test 2 */ 
   /* Create device  */
   dev2 = pico_null_create("dummy");
+  mock2 = pico_mock_create(NULL);
+  fail_if(mock2 == NULL, "No device created");
   /* Clear error code */
   pico_err = PICO_ERR_NOERR;
   /* Test 2 statements */
 	cli2 = pico_dhcp_initiate_negotiation(dev2, NULL);
   fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to cb == NULL");
- 
-	return; // Brecht will look into what's next
-	cli2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
 	cli2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
-
-  // initiate negotiation   
+  fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to cb == NULL");
 	cli2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
+  fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to mock dev");
+	cli2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+  fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to  nulldev");
+
  
 }
 END_TEST
