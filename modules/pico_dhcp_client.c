@@ -91,6 +91,11 @@ void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback
 
 	struct pico_dhcp_client_cookie* cli = &dhcp_client;
 
+	if(device == NULL){
+		pico_err = PICO_ERR_EINVAL;
+		return NULL;
+	}
+
 	init_cookie(cli, device, callback);
 
 	pico_dhcp_retry(cli);
