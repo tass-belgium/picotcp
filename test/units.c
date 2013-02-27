@@ -854,20 +854,61 @@ int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type){
   }
     return 0; 
 }
-  
  
- START_TEST (test_dhcp)
- {
-
-
+START_TEST (test_dhcp_server_api)
+{
 /************************************************************************
 * Check if dhcp recv works correctly if
-*     MAC address of client is allready in arp table
+*     MAC address of client is not in arp table yet
+* Status : Done
+************************************************************************/
+	printf("*********************** starting %s * \n", __func__);
+
+  /* Declaration test 1 */ 
+  struct pico_dhcpd_settings s1 = {0};
+  /* Declaration test 2 */ 
+  struct pico_dhcpd_settings s2 = {0};
+  struct pico_device *dev;
+
+  /* test 0 */ 
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Test 0 statements */
+  fail_unless(pico_dhcp_server_initiate(NULL),"DHCP_SERVER> initiate succeeded after pointer to dev == NULL");
+  fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
+ 
+  /* test 1 */ 
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Store data in settings */
+  s1.dev = NULL;
+  /* Test 1 statements */
+  fail_unless(pico_dhcp_server_initiate(&s1),"DHCP_SERVER> initiate succeeded after pointer to dev == NULL");
+  fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
+
+  /* test 2 */ 
+  /* Create device  */
+  dev = pico_null_create("dummy");
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Store data in settings */
+  s2.dev = dev;
+  /* Test 2 statements */
+  fail_if(pico_dhcp_server_initiate(&s2),"DHCP_SERVER> failed after correct parameter");
+}
+END_TEST
+ 
+START_TEST (test_dhcp)
+{
+/************************************************************************
+* Check if all states (offer, bound) are changed correctly 
+*   and if response messages are replied correctly 
 * Status : Done 
 *************************************************************************/
+	printf("*********************** starting %s * \n", __func__);
   struct mock_device* mock;
   struct pico_dhcpd_settings s = {0};
- struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
+  struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
   uint8_t macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
   uint8_t macaddr2[6] = {0xc6,0,0,0xa,0xb,0xf};
   struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
@@ -885,11 +926,11 @@ int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type){
   printbuf(&(buf[0]),len,"DHCP-DISCOVER packet",printbufactive);
 
   /*Initiate test setup*/
- pico_stack_init();
+  pico_stack_init();
 
   /* Create mock device  */
   mock = pico_mock_create(macaddr2);
- fail_if(!mock,"MOCK DEVICE creation failed");
+  fail_if(!mock,"MOCK DEVICE creation failed");
   fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
   fail_if(pico_ipv4_link_add(mock->dev, serverip , netmask),"add link to mock device failed");
 
@@ -936,8 +977,7 @@ int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type){
   fail_unless(len,"received msg on network of %d bytes",len);
   fail_unless(len,"received msg on network of %d bytes",len);
   printbuf(&(buf[0]),len,"DHCP-ACK msg",printbufactive);
-  fail_unless(buf[0x11c]==0x05,"No DHCP offer received after discovery");
-
+  fail_unless(buf[0x11c]==0x05,"No DHCP ACK received after discovery");
 }
 END_TEST
 
@@ -949,17 +989,19 @@ START_TEST (test_dhcp_server_ipninarp)
 *     MAC address of client is not in arp table yet
 * Status : Done
 *************************************************************************/
+	printf("*********************** starting %s * \n", __func__);
   struct mock_device* mock;
   struct pico_dhcpd_settings s = {0};
   struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
-  unsigned char macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
   struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
   struct pico_ip4 serverip={.addr = SERVER_ADDR};
   struct pico_dhcp_negotiation *dn = NULL;
   struct pico_ip4 *stored_ipv4=NULL;
+  unsigned char macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
   uint32_t len = 0;
   uint8_t buf[600]={0};
   uint8_t printbufactive = 0;
+
   /*Insert custom values in buffer*/
   fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
   memcpy(&(buf[4]),&(xid.addr),sizeof(struct pico_ip4));
@@ -995,12 +1037,12 @@ START_TEST (test_dhcp_server_ipninarp)
   
   /* check if new ip is in ARP cache */
   fail_if(pico_arp_reverse_lookup(&dn->eth)== NULL,"DCHP SERVER -> new address is not inserted in ARP");
-  
 } 
 END_TEST
 
 START_TEST (test_dhcp_server_ipinarp)
 {
+	printf("*********************** starting %s * \n", __func__);
 /************************************************************************
 * Check if dhcp recv works correctly if
 *     MAC address of client is allready in arp table
@@ -1258,6 +1300,7 @@ START_TEST (test_dhcp_client)
   len = pico_mock_network_read(mock, buf,BUFLEN );
   fail_unless(len,"No msg received on network!");
   printbuf(&(buf[0]),len,"DHCP-DISCOVER packet",printbufactive);
+  fail_unless(buf[0x011c]==0x01,"No DHCP Discover received after initiate negotiation");
   mock_print_protocol(buf);
   fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
   
@@ -1295,10 +1338,65 @@ START_TEST (test_dhcp_client)
   len = pico_mock_network_read(mock, buf, BUFLEN);
   fail_unless(len,"received msg on network of %d bytes",len);
   printbuf(&(buf[0]),len,"DHCP-REQUEST packet",printbufactive);
+  fail_unless(buf[0x011c]==0x03,"No DHCP request received after offer");
   
 }
 END_TEST
+ 
+START_TEST (test_dhcp_client_api)
+{
+/************************************************************************
+* Check API of pico_dhcp_initiate_negotiation 
+* Status : Done
+************************************************************************/
+	printf("*********************** starting %s * \n", __func__);
 
+  /* Declaration test 0 */ 
+  struct pico_dhcp_client_cookie *cli0 = NULL;
+  /* Declaration test 1 */ 
+  struct pico_dhcp_client_cookie *cli1 = NULL;
+  /* Declaration test 2 */ 
+  struct pico_dhcp_client_cookie *cli2 = NULL;
+  struct pico_device *dev2;
+  struct mock_device *mock2=NULL;
+  int i=0;
+	printf("*********************** starting %d * \n", i++);
+  /* test 0 */ 
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Test 0 statements */
+	pico_dhcp_initiate_negotiation(NULL, NULL);
+	cli0 = pico_dhcp_initiate_negotiation(NULL, NULL);
+  fail_unless(cli0 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
+  fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
+ 
+  /* test 1 */ 
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Test 1 statements */
+	cli1 = pico_dhcp_initiate_negotiation(NULL, &callback_dhcpclient);
+  fail_unless(cli1 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
+  fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
+
+  /* test 2 */ 
+  /* Create device  */
+  dev2 = pico_null_create("dummy");
+  /* Clear error code */
+  pico_err = PICO_ERR_NOERR;
+  /* Test 2 statements */
+	cli2 = pico_dhcp_initiate_negotiation(dev2, NULL);
+  fail_unless(cli2 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
+  fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
+ 
+	cli2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
+	cli2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+
+  // initiate negotiation   
+	cli2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
+ 
+}
+END_TEST
+ 
 START_TEST (test_socket)
 {
   int ret = 0;
@@ -1691,10 +1789,11 @@ Suite *pico_suite(void)
 
   TCase *dhcp = tcase_create("DHCP");
   tcase_add_test(dhcp, test_dhcp_client);
+  tcase_add_test(dhcp, test_dhcp_client_api);
 
   tcase_add_test(dhcp, test_dhcp_server_ipinarp);
   tcase_add_test(dhcp, test_dhcp_server_ipninarp);
-//  tcase_add_test(dhcp, test_dhcp_server_replyoffer);
+  tcase_add_test(dhcp,test_dhcp_server_api);
   tcase_add_test(dhcp, test_dhcp);
   suite_add_tcase(s, dhcp);
 
