@@ -240,7 +240,7 @@ START_TEST (test_nat_translation)
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
-	fail_unless(memcmp(buffer1+20, buffer3+20, 4), "two frames with different sport get translated the same");
+	fail_if((memcmp(buffer1+20, buffer3+20, 4)) != 0, "two frames with different sport get translated the same");
 
 
 	//check if a packet from out to in gets tranlated
@@ -311,7 +311,7 @@ START_TEST (test_nat_translation)
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	fail_if(memcmp(buffer6+12, &nat_addr, 4), "source address not translated"); //source address
-	fail_unless(memcmp(buffer6+20, buffer1+20, 2), "ports from different source IP translated the same");
+	fail_if((memcmp(buffer6+20, buffer1+20, 2)) != 0, "ports from different source IP translated the same");
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
@@ -373,8 +373,10 @@ START_TEST (test_nat_port_forwarding)
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
-	fail_unless(memcmp(buffer1+16, &private_addr.addr, 4), "port forwarding didn't work");
-	fail_unless(memcmp(buffer1+22, &private_port, 2),"port forwarding didn't translate port");
+    int ret = memcmp(buffer1+16, &private_addr.addr, 4);
+	fail_if(ret != 0, "port forwarding didn't work");
+    ret = memcmp(buffer1+22, &private_port, 2);
+	fail_if(ret != 0,"port forwarding didn't translate port");
 
 	//have a packet from out to in with the same source port, different IP
 	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
@@ -393,8 +395,11 @@ START_TEST (test_nat_port_forwarding)
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
-	fail_unless(memcmp(buffer2+16, &private_addr.addr, 4), "port forwarding didn't work");
-	fail_unless(memcmp(buffer1+22, &private_port, 2),"port forwarding didn't translate port");
+	fail_if((memcmp(buffer2+16, &private_addr.addr, 4)) != 0, "port forwarding didn't work");
+	fail_if((memcmp(buffer1+22, &private_port, 2)) != 0,"port forwarding didn't translate port");
+
+	//remove port forwarding
+	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_DEL));
 }
 END_TEST
 
