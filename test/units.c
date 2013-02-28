@@ -1900,6 +1900,7 @@ Suite *pico_suite(void)
   tcase_add_test(nat, test_nat_enable_disable);
   tcase_add_test(nat, test_nat_port_forwarding);
   tcase_add_test(nat, test_nat_translation);
+  tcase_set_timeout(nat, 10);
   suite_add_tcase(s, nat);
 
   TCase *ipfilter = tcase_create("IPFILTER");

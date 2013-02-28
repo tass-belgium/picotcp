@@ -147,12 +147,12 @@ static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
 int pico_is_port_free(uint16_t proto, uint16_t port)
 {
   if (pico_get_sockport(proto, port)) {
-    dbg("Port %u already in use by system\n", port);
+//    dbg("Port %u already in use by system\n", port);
     return 0;
   }
 #ifdef PICO_SUPPORT_NAT
   if (pico_ipv4_nat_find(port, NULL, 0, proto) == 0) {
-    dbg("Port %u already in use by NAT\n", port);
+//    dbg("Port %u already in use by NAT\n", port);
     return 0;
   }
 #endif

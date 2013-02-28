@@ -593,7 +593,7 @@ void pico_stack_tick(void)
     pico_rand_feed(ret[5]);
 
     /* calculate new loop scores for next iteration */
-    calc_score(score, index,(int **) avg, ret);
+    calc_score(score, index,(int (*)[]) avg, ret);
 }
 
 void pico_stack_loop(void)
