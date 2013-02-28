@@ -72,10 +72,13 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t ou
   
 
   if ( !(dev != NULL || proto != 0 || out_addr != 0 || out_addr_netmask != 0 || in_addr != 0 || in_addr_netmask !=0 || out_port != 0 || in_port !=0 || tos != 0 )) 
+    pico_err = PICO_ERR_EINVAL;
     return -1;
   if ( priority > 10 || priority < -10)
+    pico_err = PICO_ERR_EINVAL;
     return -1;
   if (action > 3 || action < 0)
+    pico_err = PICO_ERR_EINVAL;
     return -1;
 
   ipf_dbg("ipfilter> # adding filter\n");
@@ -120,12 +123,13 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t ou
       ipf_dbg("ipfilter> #unknown filter action\n");
       break;
   }
-  return 0;
+  return new_filter->filter_id;
 }
 
 int pico_ipv4_filter_del(uint8_t filter_id) {
 
   if (!tail || !head) {
+    pico_err = PICO_ERR_EPERM;
     return -1;
   }
 
@@ -157,9 +161,12 @@ int pico_ipv4_filter_del(uint8_t filter_id) {
       /*check next filter_node*/
       prev = work;
       work = work->next_filter;
+      if (work == tail) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+      }
     }
   }
-  return -1;
 }
 
 /*================================== CORE FILTER FUNCTIONS ==================================*/
