@@ -405,10 +405,12 @@ shared between the two halves must be protected against concurrent access accord
 \item The callback \textbf{destroy} - a pointer to a function that deallocates the device
 structure itself and frees all the eventual structures allocated by the driver during device
 creation.
+\end{itemize}
 
 A device driver will have a simple two-functions library API exported in a header file using
 the same name, in the modules directory. The two functions to export will be:
 
+\begin{itemize}
 \item A create function, accepting any argument required for the internal device configuration,
 that returns a pointer to the newly allocated device. The function must allocate the device and
 finally call the library function \texttt{pico$\_$device$\_$init()} in order to register the
