@@ -19,8 +19,8 @@ Authors: Kristof Roelants, Brecht Van Cauwenberghe,
 #ifdef PICO_SUPPORT_IPV4
 #ifdef PICO_SUPPORT_NAT
 
-#define nat_dbg(...) do{}while(0)
-//#define nat_dbg dbg
+//#define nat_dbg(...) do{}while(0)
+#define nat_dbg dbg
 #define NAT_TCP_TIMEWAIT 240000 /* 4mins (in msec) */
 //#define NAT_TCP_TIMEWAIT 10000 /* 10 sec (in msec)  - for testing purposes only*/
 
@@ -363,8 +363,9 @@ void pico_ipv4_nat_print_table(void)
 
   RB_FOREACH(k, nat_table_forward, &KEYTable_forward) {
     nat_dbg("+ %10p |   %08X   |    %05u     |  %04u | %08X |  %05u   |     %03u     |   %u  |   %u  |  %u  |  %u  |   %u  +\n", 
-           k, k->priv_addr.addr, k->priv_port, k->proto, k->pub_addr.addr, k->pub_port, (k->del_flags)&0x01FF, ((k->del_flags)&0x8000)>>15, 
-           ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12, ((k->del_flags)&0x0800)>>11);
+           k, k->priv_addr.addr, short_be(k->priv_port), k->proto, k->pub_addr.addr, short_be(k->pub_port), (k->del_flags)&0x01FF,
+           ((k->del_flags)&0x8000)>>15, ((k->del_flags)&0x4000)>>14, ((k->del_flags)&0x2000)>>13, ((k->del_flags)&0x1000)>>12, 
+           ((k->del_flags)&0x0800)>>11);
     i++;
   }
   nat_dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -384,14 +385,15 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
     uint32_t rand = pico_rand();
     pub_port = (uint16_t) (rand & 0xFFFFU);
     pub_port = (uint16_t)(pub_port % (65535 - 1024)) + 1024U;
+    pub_port = short_be(pub_port); // store it as big-endian
 
     /* 2. check if already in table, if no exit */
-    nat_dbg("NAT: check if generated port %u is free\n", pub_port);
+    nat_dbg("NAT: check if generated port %u is free\n", short_be(pub_port));
     if (pico_is_port_free(proto, pub_port))
       break;
   
   } while (1);
-  nat_dbg("NAT: port %u is free\n", pub_port);
+  nat_dbg("NAT: port %u is free\n", short_be(pub_port));
     
   if (proto == PICO_PROTO_TCP) {  
     tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -563,9 +565,10 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 pub_addr)
 
   /* TODO DELME check if IN */
   if (pub_addr.addr == net_hdr->dst.addr) {
-    nat_dbg("NAT: backward translation {dst.addr, dport}: {%08X,%u} ->", net_hdr->dst.addr, ((struct pico_trans *)f->transport_hdr)->dport);
+    nat_dbg("NAT: backward translation {dst.addr, dport}: {%08X,%u} ->", 
+              net_hdr->dst.addr, short_be(((struct pico_trans *)f->transport_hdr)->dport));
     ret = pico_ipv4_nat_port_forward(f);  /* our IN definition */
-    nat_dbg(" {%08X,%u}\n", net_hdr->dst.addr, ((struct pico_trans *)f->transport_hdr)->dport);
+    nat_dbg(" {%08X,%u}\n", net_hdr->dst.addr, short_be(((struct pico_trans *)f->transport_hdr)->dport));
   } else {
     if (net_hdr->proto == PICO_PROTO_TCP) {
       tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -587,9 +590,10 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 pub_addr)
       pico_ipv4_nat_generate_key(nk, f, pub_addr);
     }
     pico_ipv4_nat_snif_backward(nk,f);
-    nat_dbg("NAT: forward translation {src.addr, sport}: {%08X,%u} ->", net_hdr->src.addr, ((struct pico_trans *)f->transport_hdr)->sport);
+    nat_dbg("NAT: forward translation {src.addr, sport}: {%08X,%u} ->", 
+              net_hdr->src.addr, short_be(((struct pico_trans *)f->transport_hdr)->sport));
     pico_ipv4_nat_translate(nk, f); /* our OUT definition */
-    nat_dbg(" {%08X,%u}\n", net_hdr->src.addr, ((struct pico_trans *)f->transport_hdr)->sport);
+    nat_dbg(" {%08X,%u}\n", net_hdr->src.addr, short_be(((struct pico_trans *)f->transport_hdr)->sport));
   } 
   return 0;
 }
