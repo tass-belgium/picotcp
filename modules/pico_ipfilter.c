@@ -104,16 +104,16 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t ou
 
   /*Define filterType_functionPointer here instead of in ipfilter-function, to prevent running multiple times through switch*/
   switch (action) {
-    case filter_accept:
+    case FILTER_ACCEPT:
       new_filter->function_ptr = fp_accept;
       break;
-    case filter_priority:
+    case FILTER_PRIORITY:
       new_filter->function_ptr = fp_priority;
       break;
-    case filter_reject:
+    case FILTER_REJECT:
       new_filter->function_ptr = fp_reject;
       break;
-    case filter_drop:
+    case FILTER_DROP:
       new_filter->function_ptr = fp_drop;
       break;
     default:

@@ -21,29 +21,14 @@ struct pico_ipv4_link *link);
 \item \texttt{link} - the link on which that multicast group should be joined.
 \end{itemize}
 
-\subsubsection*{Return value}
-On success, this call returns 0.
-On error, a value different from 0 is returned.
-Attempting to join a group which was already joined before is considered a failure in this context.
-
 \subsubsection*{Errors}
-In most cases the return value is an OR operation of all return values obtained in a function,
-therefore the error code could be a masked version of multiple separate errors.
+In case of failure, -1 is returned, and the value of pico$\_$err
+is set as follows:
 
 \begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$RB$\_$REMOVE}          - Red black tree remove failed 
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$STRUCT$\_$UNAVAILABLE} - Struct pointer unavailable 
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$UNKOWN$\_$PARAM}       - Unknown parameter value 
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$WRONG$\_$CHECKSUM}     - Wrong checksum  
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION1$\_$FAILED}     - Leave group failed as delaying member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION2$\_$FAILED}     - Join group failed as non member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION3$\_$FAILED}     - Leave group failed as idle member 
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION4$\_$FAILED}     - Query received failed as idle member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION5$\_$FAILED}     - Report received failed as delaying member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION6$\_$FAILED}     - Timer expired failed as delaying member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$ACTION7$\_$FAILED}     - Query received failed as delaying member
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$UNCONN$\_$GROUP}       - Try to leave an unconnected group
-\item \texttt{PICO$\_$IGMP2$\_$ERR$\_$GROUP$\_$CONNECTED}    - Try to join a connected group 
+\item \texttt{PICO$\_$ERR$\_$EINVAL}          - Invalid argument provided
+\item \texttt{PICO$\_$ERR$\_$EFAULT}          - Internal error
+\item \texttt{PICO$\_$ERR$\_$EEXIST}          - Attempted to join a group that was already joined before
 \end{itemize}
 
 %\subsubsection*{Example}
@@ -64,8 +49,17 @@ leave an IGMP2 multicast group.
 \end{itemize}
 
 \subsubsection*{Return value}
-In case of success, 0. In case of failure, a value different from 0. Attempting to leave a group
-which was never joined is considered a failure in this context. 
+In case of success, 0. In case of failure, -1 is returned and pico$\_$err is set accordingly.
+
+\subsubsection*{Errors}
+In case of success, zero is returned. In case of failure, -1 is returned, and the value of pico$\_$err
+is set as follows:
+
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL}          - Invalid argument provided
+\item \texttt{PICO$\_$ERR$\_$EFAULT}          - Internal error
+\item \texttt{PICO$\_$ERR$\_$ENOENT}          - Attempted to leave a group which has never been joined
+\end{itemize}
 
 %\subsubsection*{Errors}
 

@@ -52,22 +52,6 @@ struct __attribute__((packed)) pico_igmp2_hdr {
 #define PICO_IGMP2_DEFAULT_MAX_RESPONSE_TIME   (100)
 #define PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL (100)
 
-
-//IGMP2 ERROR RETURN VALUES
-#define PICO_IGMP2_ERR_RB_REMOVE             (0x02)
-#define PICO_IGMP2_ERR_STRUCT_UNAVAILABLE    (0x03)
-#define PICO_IGMP2_ERR_UNKOWN_PARAM          (0x04)
-#define PICO_IGMP2_ERR_WRONG_CHECKSUM        (0x05) 
-#define PICO_IGMP2_ERR_ACTION1_FAILED        (0x11) 
-#define PICO_IGMP2_ERR_ACTION2_FAILED        (0x12) 
-#define PICO_IGMP2_ERR_ACTION3_FAILED        (0x13) 
-#define PICO_IGMP2_ERR_ACTION4_FAILED        (0x14) 
-#define PICO_IGMP2_ERR_ACTION5_FAILED        (0x15) 
-#define PICO_IGMP2_ERR_ACTION6_FAILED        (0x16) 
-#define PICO_IGMP2_ERR_ACTION7_FAILED        (0x17) 
-#define PICO_IGMP2_ERR_UNCONN_GROUP          (0x20) 
-#define PICO_IGMP2_ERR_GROUP_CONNECTED       (0x21) 
-
 int pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
 int pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
 
