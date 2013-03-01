@@ -9,6 +9,8 @@ See LICENSE and COPYING for usage.
 #include "pico_queue.h"
 #include "rb.h"
 
+#define PICO_LOOP_DIR_IN   1
+#define PICO_LOOP_DIR_OUT  2
 
 enum pico_layer {
   PICO_LAYER_DATALINK = 2,  /* Ethernet only. */
@@ -86,9 +88,9 @@ struct pico_protocol {
 int pico_protocols_loop(int loop_score);
 void pico_protocol_init(struct pico_protocol *p);
 
-int pico_protocol_datalink_loop(int loop_score);
-int pico_protocol_network_loop(int loop_score);
-int pico_protocol_transport_loop(int loop_score);
-int pico_protocol_socket_loop(int loop_score);
+int pico_protocol_datalink_loop(int loop_score, int direction);
+int pico_protocol_network_loop(int loop_score, int direction);
+int pico_protocol_transport_loop(int loop_score, int direction);
+int pico_protocol_socket_loop(int loop_score, int direction);
 
 #endif

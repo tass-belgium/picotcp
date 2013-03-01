@@ -12,6 +12,7 @@ Authors: Daniele Lacamera
 #include "pico_frame.h"
 #include "pico_device.h"
 #include "pico_protocol.h"
+#include "pico_stack.h"
 #include "pico_addressing.h"
 #include "pico_dns_client.h"
 
@@ -474,20 +475,20 @@ void pico_check_timers(void)
 }
 
 
-#define PROTO_DEF_NR      6
+#define PROTO_DEF_NR      11
 #define PROTO_DEF_AVG_NR  4
 #define PROTO_DEF_SCORE   32
-#define PROTO_MAX_SCORE   128
 #define PROTO_MIN_SCORE   32
-
-#define PROTO_LAT_IND     0   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
+#define PROTO_MAX_SCORE   128
+#define PROTO_LAT_IND     3   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
 #define PROTO_MAX_LOOP    (PROTO_MAX_SCORE<<PROTO_LAT_IND) /* max global loop score, so per tick */
 
 static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
 {
   int temp, i, j, sum;
+  int max_total = PROTO_MAX_LOOP, total = 0;
 
- // dbg("USED SCORES> "); 
+  dbg("USED SCORES> "); 
 
   for (i = 0; i < PROTO_DEF_NR; i++) {
 
@@ -495,7 +496,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     if (ret[i] < score[i]) {
       temp = score[i] - ret[i]; /* remaining loop score */
       
-     // dbg("%3d - ",temp);
+      dbg("%3d - ",temp);
 
       if (index[i] >= PROTO_DEF_AVG_NR)
         index[i] = 0;           /* reset index */
@@ -504,8 +505,9 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
       index[i]++; 
 
-      if (ret[i] == 0 && (score[i]<<1 <= PROTO_MAX_SCORE)) {        /* used all loop score -> increase next score directly */
+      if (ret[i] == 0 && (score[i]<<1 <= PROTO_MAX_SCORE) && ((total+(score[i]<<1)) < max_total) ) {        /* used all loop score -> increase next score directly */
         score[i] <<= 1;
+        total += score[i];
         continue;
       }
 
@@ -516,21 +518,26 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
       sum >>= 2;                /* divide by 4 to get average used score */
 
       /* criterion to increase next loop score */
-      if (sum > (score[i] - (score[i]>>2))  && (score[i]<<1 <= PROTO_MAX_SCORE)) { /* > 3/4 */
+      if (sum > (score[i] - (score[i]>>2))  && (score[i]<<1 <= PROTO_MAX_SCORE) && ((total+(score[i]<<1)) < max_total)) { /* > 3/4 */
         score[i] <<= 1;         /* double loop score */
+        total += score[i];
         continue;
       }
 
       /* criterion to decrease next loop score */
       if (sum < (score[i]>>2) && (score[i]>>1 >= PROTO_MIN_SCORE)) { /* < 1/4 */
         score[i] >>= 1;         /* half loop score */
+        total += score[i];
         continue;
       }
+
+      /* also add non-changed scores */
+      total += score[i];
     }
     else if (ret[i] == score[i]) {
       /* no used loop score - gradually decrease */
       
-    //  dbg("%3d - ",0);
+      dbg("%3d - ",0);
 
       if (index[i] >= PROTO_DEF_AVG_NR)
         index[i] = 0;           /* reset index */
@@ -547,6 +554,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
       if ((sum == 0) && (score[i]>>1 >= PROTO_MIN_SCORE)) {
         score[i] >>= 1;         /* half loop score */
+        total += score[i];
         for (j = 0; j < PROTO_DEF_AVG_NR; j++)
           avg[i][j] = score[i];
       }
@@ -554,7 +562,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     }
   }
 
-  //dbg("\n");
+  dbg("\n");
 
   return 0;
 }
@@ -562,35 +570,51 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
 void pico_stack_tick(void)
 {
-    static int score[PROTO_DEF_NR] = {PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE};
+    static int score[PROTO_DEF_NR] = {PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE};
     static int index[PROTO_DEF_NR] = {0,0,0,0,0,0};
     static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
     static int ret[PROTO_DEF_NR] = {0};
 
     pico_check_timers();
 
-    //dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d\n",score[0],score[1],score[2],score[3],score[4],score[5]);
+    dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d\n",score[0],score[1],score[2],score[3],score[4],score[5],score[6],score[7],score[8],score[9],score[10]);
 
     //score = pico_protocols_loop(100);
 
-    ret[0] = pico_devices_loop(score[0]);
+    ret[0] = pico_devices_loop(score[0],PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[0]);
 
-
-    ret[1] = pico_protocol_datalink_loop(score[1]);
+    ret[1] = pico_protocol_datalink_loop(score[1], PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[1]);
 
-    ret[2] = pico_protocol_network_loop(score[2]);
+    ret[2] = pico_protocol_network_loop(score[2], PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[2]);
 
-    ret[3] = pico_protocol_transport_loop(score[3]);
+    ret[3] = pico_protocol_transport_loop(score[3], PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[3]);
 
-    ret[4] = pico_protocol_socket_loop(score[4]);
+
+    ret[5] = pico_sockets_loop(score[5]); // swapped
+    pico_rand_feed(ret[5]);
+
+    ret[4] = pico_protocol_socket_loop(score[4], PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[4]);
 
-    ret[5] = pico_sockets_loop(score[5]);
-    pico_rand_feed(ret[5]);
+
+    ret[6] = pico_protocol_socket_loop(score[6], PICO_LOOP_DIR_OUT);
+    pico_rand_feed(ret[6]);
+
+    ret[7] = pico_protocol_transport_loop(score[7], PICO_LOOP_DIR_OUT);
+    pico_rand_feed(ret[7]);
+
+    ret[8] = pico_protocol_network_loop(score[8], PICO_LOOP_DIR_OUT);
+    pico_rand_feed(ret[8]);
+
+    ret[9] = pico_protocol_datalink_loop(score[9], PICO_LOOP_DIR_OUT);
+    pico_rand_feed(ret[9]);
+
+    ret[10] = pico_devices_loop(score[10],PICO_LOOP_DIR_OUT);
+    pico_rand_feed(ret[10]);
 
     /* calculate new loop scores for next iteration */
     calc_score(score, index,(int (*)[]) avg, ret);

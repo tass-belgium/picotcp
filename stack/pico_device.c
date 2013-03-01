@@ -11,6 +11,7 @@ Authors: Daniele Lacamera
 #include "pico_config.h"
 #include "pico_device.h"
 #include "pico_stack.h"
+#include "pico_protocol.h"
 
 
 RB_HEAD(pico_device_tree, pico_device);
@@ -72,7 +73,7 @@ void pico_device_destroy(struct pico_device *dev)
   pico_free(dev);
 }
 
-static int devloop(struct pico_device *dev, int loop_score)
+static int devloop(struct pico_device *dev, int loop_score, int direction)
 {
   struct pico_frame *f;
 
@@ -82,69 +83,88 @@ static int devloop(struct pico_device *dev, int loop_score)
     loop_score = dev->poll(dev, loop_score);
   }
 
-  while(loop_score > 0) {
-    if (dev->q_in->frames + dev->q_out->frames <= 0)
-      break;
+  if (direction == PICO_LOOP_DIR_OUT) {
 
+    while(loop_score > 0) {
+      if (dev->q_out->frames <= 0)
+        break;
 
-    /* Device dequeue + send */
-    f = pico_dequeue(dev->q_out);
-    if (f) {
-      if (dev->eth) {
-        int ret = pico_ethernet_send(f);
-        if (0 == ret) {
-          loop_score--;
-          continue;
-        } if (ret < 0) {
-          if (!pico_source_is_local(f)) { 
-            dbg("Destination unreachable -------> SEND ICMP\n");
-            pico_notify_dest_unreachable(f);
-          } else {
-            dbg("Destination unreachable -------> LOCAL\n");
+      /* Device dequeue + send */
+      f = pico_dequeue(dev->q_out);
+      if (f) {
+        if (dev->eth) {
+          int ret = pico_ethernet_send(f);
+          if (0 == ret) {
+            loop_score--;
+            continue;
+          } if (ret < 0) {
+            if (!pico_source_is_local(f)) { 
+              dbg("Destination unreachable -------> SEND ICMP\n");
+              pico_notify_dest_unreachable(f);
+            } else {
+              dbg("Destination unreachable -------> LOCAL\n");
+            }
+            pico_frame_discard(f);
+            continue;
           }
-          pico_frame_discard(f);
-          continue;
+        } else {
+          dev->send(dev, f->start, f->len);
         }
-      } else {
-        dev->send(dev, f->start, f->len);
+        pico_frame_discard(f);
+        loop_score--;
       }
-      pico_frame_discard(f);
-      loop_score--;
     }
 
-    /* Receive */
-    f = pico_dequeue(dev->q_in);
-    if (f) {
-      if (dev->eth) {
-        f->datalink_hdr = f->buffer;
-        pico_ethernet_receive(f);
-      } else {
-        f->net_hdr = f->buffer;
-        pico_network_receive(f);
+  } else if (direction == PICO_LOOP_DIR_IN) {
+
+    while(loop_score > 0) {
+      if (dev->q_in->frames <= 0)
+        break;
+
+      /* Receive */
+      f = pico_dequeue(dev->q_in);
+      if (f) {
+        if (dev->eth) {
+          f->datalink_hdr = f->buffer;
+          pico_ethernet_receive(f);
+        } else {
+          f->net_hdr = f->buffer;
+          pico_network_receive(f);
+        }
+        loop_score--;
       }
-      loop_score--;
     }
   }
+
   return loop_score;
 }
 
 
 #define DEV_LOOP_MIN  16
 
-int pico_devices_loop(int loop_score)
+int pico_devices_loop(int loop_score, int direction)
 {
   struct pico_device *start;
-  static struct pico_device *next = NULL;
+  static struct pico_device *next = NULL, *next_in = NULL, *next_out = NULL;
 
-  if (next == NULL)
-    next = RB_MIN(pico_device_tree, &Device_tree);
+  if (next_in == NULL) {
+    next_in = RB_MIN(pico_device_tree, &Device_tree);
+  }
+  if (next_out == NULL) {
+    next_out = RB_MIN(pico_device_tree, &Device_tree);
+  }
+  
+  if (direction == PICO_LOOP_DIR_IN)
+    next = next_in;
+  else if (direction == PICO_LOOP_DIR_OUT)
+    next = next_out;
 
   /* init start node */
   start = next;
 
   /* round-robin all devices, break if traversed all devices */
   while (loop_score > DEV_LOOP_MIN && next != NULL) {
-    loop_score = devloop(next, loop_score);
+    loop_score = devloop(next, loop_score, direction);
 
     next = RB_NEXT(pico_device_tree, &Device_tree, next);
     if (next == NULL)
@@ -152,6 +172,11 @@ int pico_devices_loop(int loop_score)
     if (next == start)
       break;
   }
+
+  if (direction == PICO_LOOP_DIR_IN)
+    next_in = next;
+  else if (direction == PICO_LOOP_DIR_OUT)
+    next_out = next;
 
   return loop_score;
 }
