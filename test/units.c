@@ -145,6 +145,7 @@ START_TEST (test_nat_enable_disable)
 											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	f->net_hdr = buffer1;
 	f->transport_hdr = buffer1+20;
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
@@ -193,6 +194,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
@@ -211,6 +213,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
@@ -237,6 +240,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
 	printf("IPV4_NAT called, line %d \n",  __LINE__);
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 	printf("IPV4_NAT returned, line %d \n",  __LINE__);
 
@@ -261,6 +265,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	printf("after translation : \n");
@@ -285,6 +290,7 @@ START_TEST (test_nat_translation)
 
 	printf("original packet : \n");
 	nat_print_frame_content(f);
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	printf("after translation : \n");
@@ -311,6 +317,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	fail_if(memcmp(buffer6+12, &nat_addr, 4), "source address not translated"); //source address
@@ -335,6 +342,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+  pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
 	printf("after translation : \n");
