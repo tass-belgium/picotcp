@@ -12,9 +12,9 @@ Function to add a filter.
 \subsubsection*{Function prototype}
 \begin{verbatim}
 int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
-  uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr,
-  uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port,
-  int8_t priority, uint8_t tos, enum filter_action action);
+  struct pico_ip4 out_addr, struct pico_ip4 out_addr_netmask,
+  struct pico_ip4 in_addr, struct pico_ip4 in_addr_netmask, uint16_t out_port,
+  uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action);
 \end{verbatim}
 
 \subsubsection*{Parameters}
@@ -38,7 +38,8 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-filter_id = pico_ipv4_filter_add(NULL, 6, 0, 0, 0, 0, 0, 5555, 0, 0, FILTER_REJECT);
+/* block all incoming traffic on port 5555 *?
+filter_id = pico_ipv4_filter_add(NULL, 6, NULL, NULL, NULL, NULL, 0, 5555, 0, 0, FILTER_REJECT);
 \end{verbatim}
 
 \subsubsection*{Errors}
