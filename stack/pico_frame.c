@@ -46,7 +46,6 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
   dbg("Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
 #endif
   new->next = NULL;
-  memset(&new->node, 0, sizeof(struct rb_entry_pico_frame));
   return new;
 }
 

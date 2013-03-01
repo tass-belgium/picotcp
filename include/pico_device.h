@@ -8,8 +8,7 @@ See LICENSE and COPYING for usage.
 #include "pico_queue.h"
 #include "pico_frame.h"
 #include "pico_addressing.h"
-#include "rb.h"
-
+#include "pico_tree.h"
 #define MAX_DEVICE_NAME 16
 
 
@@ -19,7 +18,6 @@ struct pico_ethdev {
 
 struct pico_device {
   char name[MAX_DEVICE_NAME];
-  RB_ENTRY(pico_device) node;
   uint32_t hash;
   uint32_t overhead;
   struct pico_ethdev *eth; /* Null if non-ethernet */

@@ -18,6 +18,7 @@ Authors: Daniele Lacamera, Markian Yskout
 #include "pico_device.h"
 #include "pico_nat.h"
 #include "pico_igmp2.h"
+#include "pico_tree.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -263,11 +264,9 @@ struct pico_protocol pico_proto_ipv4 = {
   .q_out = &out,
 };
 
-RB_HEAD(link_tree, pico_ipv4_link);
-RB_PROTOTYPE_STATIC(link_tree, pico_ipv4_link, node, ipv4_link_compare);
-
-static int ipv4_link_compare(struct pico_ipv4_link *a, struct pico_ipv4_link *b)
+static int ipv4_link_compare(void *ka, void *kb)
 {
+	struct pico_ipv4_link *a = ka, *b =kb;
   if (a->address.addr < b->address.addr)
     return -1;
   if (a->address.addr > b->address.addr)
@@ -275,8 +274,7 @@ static int ipv4_link_compare(struct pico_ipv4_link *a, struct pico_ipv4_link *b)
   return 0;
 }
 
-RB_GENERATE_STATIC(link_tree, pico_ipv4_link, node, ipv4_link_compare);
-
+PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
 
 struct pico_ipv4_route
 {
@@ -285,15 +283,12 @@ struct pico_ipv4_route
   struct pico_ip4 gateway;
   struct pico_ipv4_link *link;
   uint32_t metric;
-  RB_ENTRY(pico_ipv4_route) node;
 };
 
-RB_HEAD(routing_table, pico_ipv4_route);
-RB_PROTOTYPE_STATIC(routing_table, pico_ipv4_route, node, ipv4_route_compare);
 
-/* use RB_FIND for perfect match only (e.g. to avoid double route to same dst) */
-static int ipv4_route_compare(struct pico_ipv4_route *a, struct pico_ipv4_route *b)
+static int ipv4_route_compare(void *ka, void * kb)
 {
+	struct pico_ipv4_route *a = ka, *b = kb;
 
   /* Routes are sorted by (host side) netmask len, then by addr, then by metric. */
   if (long_be(a->netmask.addr) < long_be(b->netmask.addr))
@@ -317,15 +312,14 @@ static int ipv4_route_compare(struct pico_ipv4_route *a, struct pico_ipv4_route 
   return 0;
 }
 
-RB_GENERATE_STATIC(routing_table, pico_ipv4_route, node, ipv4_route_compare);
-
-static struct link_tree Tree_dev_link;
-static struct routing_table Routes;
+PICO_TREE_DECLARE(Routes, ipv4_route_compare);
 
 static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 {
   struct pico_ipv4_route *r;
-  RB_FOREACH_REVERSE(r, routing_table, &Routes) { /* Biggest netmask is checked first... */
+  struct pico_tree_node * index;
+  pico_tree_foreach_reverse(index, &Routes) {
+  	r = index->keyValue;
     if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
       return r;
     }
@@ -368,16 +362,17 @@ struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
   return myself;
 }
 
+
 #ifdef PICO_SUPPORT_MCAST
 struct pico_mcast_group {
   struct pico_ipv4_link *mcast_link;
   struct pico_ip4 mcast_addr;
   uint16_t reference_count;
-  RB_ENTRY(pico_mcast_group) node;
 };
 
-static int mcast_cmp(struct pico_mcast_group *a, struct pico_mcast_group *b)
+static int mcast_cmp(void * ka, void * kb)
 {
+	struct pico_mcast_group *a = ka, *b = kb;
   if (a->mcast_addr.addr < b->mcast_addr.addr) {
     return -1;
   } else if (a->mcast_addr.addr > b->mcast_addr.addr) {
@@ -387,13 +382,11 @@ static int mcast_cmp(struct pico_mcast_group *a, struct pico_mcast_group *b)
   }
 }
 
-RB_HEAD(pico_mcast_list, pico_mcast_group);
-RB_PROTOTYPE_STATIC(pico_mcast_list, pico_mcast_group, node, mcast_cmp);
-RB_GENERATE_STATIC(pico_mcast_list, pico_mcast_group, node, mcast_cmp);
 
 static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
 {
-  struct pico_mcast_group *g = NULL;
+  struct pico_mcast_group __attribute__((unused)) *g = NULL;
+  struct pico_tree_node * index;
   uint16_t i = 0;
 
   mcast_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -402,7 +395,8 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
   mcast_dbg("+  nr  |    interface     | host group | reference count +\n");
   mcast_dbg("+--------------------------------------------------------+\n");
 
-  RB_FOREACH(g, pico_mcast_list, mcast_link->mcast_head) {
+  pico_tree_foreach(index, mcast_link->mcast_head){
+  	g = index->keyValue;
     mcast_dbg("+ %04d | %16s |  %08X  |      %05u      +\n", i, g->mcast_link->dev->name, g->mcast_addr.addr, g->reference_count);
     i++;
   }
@@ -426,7 +420,9 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
     link = mcast_default_link;
 
   test.mcast_addr = *mcast_addr;
-  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+
+  g = pico_tree_findKey(link->mcast_head, &test);
+
   if (g) {
     g->reference_count++;
   } else {
@@ -438,7 +434,9 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
     g->mcast_link = link;
     g->mcast_addr = *mcast_addr;
     g->reference_count = 1;
-    RB_INSERT(pico_mcast_list, link->mcast_head, g);
+
+    pico_tree_insert(link->mcast_head,g);
+
 
     if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
       dbg("MCAST: sent IGMP host membership report\n");
@@ -468,7 +466,8 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
     link = mcast_default_link;
 
   test.mcast_addr = *mcast_addr;
-  g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+
+  g = pico_tree_findKey(link->mcast_head,&test);
   if (g) {
     g->reference_count--;
     if (g->reference_count < 1) {
@@ -476,7 +475,8 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
         dbg("MCAST: sent IGMP leave group\n");
         pico_igmp2_leave_group(mcast_addr, link);
       }
-      RB_REMOVE(pico_mcast_list, link->mcast_head, g);
+
+      pico_tree_delete(link->mcast_head,g);
     }
   } else {
     pico_err = PICO_ERR_EINVAL;
@@ -490,12 +490,16 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
 static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
 {
   struct pico_ipv4_link *link;
+  struct pico_tree_node * index;
   struct pico_mcast_group *g, test = {0};
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
   test.mcast_addr = hdr->dst; 
-  RB_FOREACH(link, link_tree, &Tree_dev_link) {
-    g = RB_FIND(pico_mcast_list, link->mcast_head, &test);
+
+  pico_tree_foreach(index,&Tree_dev_link) {
+  	link = index->keyValue;
+
+  	g = pico_tree_findKey(link->mcast_head,&test);
     if (g) {
       if (f->dev == link->dev) {
         mcast_dbg("MCAST: IP %08X is group member of current link %s\n", hdr->dst.addr, f->dev->name);
@@ -608,7 +612,9 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
 static void dbg_route(void)
 {
   struct pico_ipv4_route *r;
-  RB_FOREACH(r, routing_table, &Routes) {
+  struct pico_tree_node * index;
+  pico_tree_foreach(index,&Routes){
+  	r = index->keyValue;
     dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
   }
 }
@@ -622,7 +628,8 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
   test.metric = metric;
-  if (RB_FIND(routing_table, &Routes, &test)) {
+
+	if(pico_tree_findKey(&Routes,&test)){
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
@@ -658,7 +665,8 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
       pico_free(new);
       return -1;
   }
-  RB_INSERT(routing_table, &Routes, new);
+
+	pico_tree_insert(&Routes,new);
   dbg_route();
   return 0;
 }
@@ -674,10 +682,13 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
   test.metric = metric;
-  found = RB_FIND(routing_table, &Routes, &test);
+
+	found = pico_tree_findKey(&Routes,&test);
   if (found) {
+
+	  pico_tree_delete(&Routes,found);
     pico_free(found);
-    RB_REMOVE(routing_table, &Routes, found);
+
     dbg_route();
     return 0;
   }
@@ -700,7 +711,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   test.netmask.addr = netmask.addr;
   /** XXX: Valid netmask / unicast address test **/
 
-  if (RB_FIND(link_tree, &Tree_dev_link, &test)) {
+  if(pico_tree_findKey(&Tree_dev_link, &test)) {
     dbg("IPv4: Trying to assign an invalid address (in use)\n");
     pico_err = PICO_ERR_EADDRINUSE;
     return -1;
@@ -717,7 +728,10 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new->netmask.addr = netmask.addr;
   new->dev = dev;
 #ifdef PICO_SUPPORT_MCAST
-  new->mcast_head = pico_zalloc(sizeof(struct pico_mcast_list));
+  new->mcast_head = pico_zalloc(sizeof(struct pico_tree));
+  new->mcast_head->root = &LEAF;
+  new->mcast_head->compare = mcast_cmp;
+
   if (!new->mcast_head) {
     pico_free(new);
     dbg("IPv4: Out of memory!\n");
@@ -726,7 +740,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   }
 #endif
 
-  RB_INSERT(link_tree, &Tree_dev_link, new);
+  pico_tree_insert(&Tree_dev_link, new);
 #ifdef PICO_SUPPORT_MCAST
   if (!mcast_default_link)
     mcast_default_link = new;
@@ -754,9 +768,10 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 
   struct pico_ipv4_link test, *found;
   struct pico_ip4 network;
-
+  struct pico_tree_node * index, * _tmp;
   test.address.addr = address.addr;
-  found = RB_FIND(link_tree, &Tree_dev_link, &test);
+
+  found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
     pico_err = PICO_ERR_ENXIO;
     return -1;
@@ -765,13 +780,17 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
   network.addr = found->address.addr & found->netmask.addr;
   pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
 #ifdef PICO_SUPPORT_MCAST
-  struct pico_mcast_group *g = NULL, *tmp = NULL;
-  RB_FOREACH_SAFE(g, pico_mcast_list, found->mcast_head, tmp) {  
-    RB_REMOVE(pico_mcast_list, found->mcast_head, g);
+  struct pico_mcast_group *g = NULL;
+
+  pico_tree_foreach_safe(index,found->mcast_head, _tmp)
+  {
+  	g = index->keyValue;
+  	pico_tree_delete(found->mcast_head,g);
     pico_free(g);
   }
 #endif
-  RB_REMOVE(link_tree, &Tree_dev_link, found);
+
+	pico_tree_delete(&Tree_dev_link, found);
   return 0;
 }
 
@@ -780,7 +799,8 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
 {
   struct pico_ipv4_link test, *found = NULL;
   test.address.addr = address->addr;
-  found = RB_FIND(link_tree, &Tree_dev_link, &test);
+
+	found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found)
     return NULL;
   else
@@ -797,7 +817,8 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 
   struct pico_ipv4_link test, *found;
   test.address.addr = address->addr;
-  found = RB_FIND(link_tree, &Tree_dev_link, &test);
+
+	found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
     pico_err = PICO_ERR_ENXIO;
     return NULL;
@@ -861,11 +882,14 @@ static int pico_ipv4_forward(struct pico_frame *f)
 int pico_ipv4_is_broadcast(uint32_t addr)
 {
   struct pico_ipv4_link *link;
+  struct pico_tree_node * index;
   if (addr == PICO_IP4_ANY)
     return 1;
   if (addr == PICO_IP4_BCAST)
     return 1;
-  RB_FOREACH(link, link_tree, &Tree_dev_link) {
+
+	pico_tree_foreach(index,&Tree_dev_link) {
+  	link = index->keyValue;
     if ((link->address.addr | (~link->netmask.addr)) == addr)
       return 1;
   }

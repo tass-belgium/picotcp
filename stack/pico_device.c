@@ -12,15 +12,12 @@ Authors: Daniele Lacamera
 #include "pico_device.h"
 #include "pico_stack.h"
 #include "pico_protocol.h"
+#include "pico_tree.h"
 
 
-RB_HEAD(pico_device_tree, pico_device);
-RB_PROTOTYPE_STATIC(pico_device_tree, pico_device, node, pico_dev_cmp);
-
-static struct pico_device_tree Device_tree;
-
-static int pico_dev_cmp(struct pico_device *a, struct pico_device *b)
+static int pico_dev_cmp(void *ka, void *kb)
 {
+	struct pico_device *a = ka, *b = kb;
   if (a->hash < b->hash)
     return -1;
   if (a->hash > b->hash)
@@ -28,15 +25,14 @@ static int pico_dev_cmp(struct pico_device *a, struct pico_device *b)
   return 0;
 }
 
-RB_GENERATE_STATIC(pico_device_tree, pico_device, node, pico_dev_cmp);
+PICO_TREE_DECLARE(Device_tree,pico_dev_cmp);
 
 int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac)
 {
   memcpy(dev->name, name, MAX_DEVICE_NAME);
   dev->hash = pico_hash(dev->name);
 
-  RB_INSERT(pico_device_tree, &Device_tree, dev);
-
+  pico_tree_insert(&Device_tree,dev);
   dev->q_in = pico_zalloc(sizeof(struct pico_queue));
   dev->q_out = pico_zalloc(sizeof(struct pico_queue));
 
@@ -69,7 +65,7 @@ void pico_device_destroy(struct pico_device *dev)
   if (dev->eth)
     pico_free(dev->eth);
 
-  RB_REMOVE(pico_device_tree, &Device_tree, dev);
+  pico_tree_delete(&Device_tree,dev);
   pico_free(dev);
 }
 
@@ -146,18 +142,27 @@ int pico_devices_loop(int loop_score, int direction)
 {
   struct pico_device *start;
   static struct pico_device *next = NULL, *next_in = NULL, *next_out = NULL;
+  static struct pico_tree_node * next_node, * in_node, * out_node;
 
   if (next_in == NULL) {
-    next_in = RB_MIN(pico_device_tree, &Device_tree);
+    in_node = pico_tree_firstNode(Device_tree.root);
+    next_in = in_node->keyValue;
   }
   if (next_out == NULL) {
-    next_out = RB_MIN(pico_device_tree, &Device_tree);
+  	out_node = pico_tree_firstNode(Device_tree.root);
+    next_out = out_node->keyValue;
   }
   
   if (direction == PICO_LOOP_DIR_IN)
+  {
+  	next_node = in_node;
     next = next_in;
+  }
   else if (direction == PICO_LOOP_DIR_OUT)
+  {
+  	next_node = out_node;
     next = next_out;
+  }
 
   /* init start node */
   start = next;
@@ -166,17 +171,28 @@ int pico_devices_loop(int loop_score, int direction)
   while (loop_score > DEV_LOOP_MIN && next != NULL) {
     loop_score = devloop(next, loop_score, direction);
 
-    next = RB_NEXT(pico_device_tree, &Device_tree, next);
+    next_node = pico_tree_next(next_node);
+    next = next_node->keyValue;
+
     if (next == NULL)
-      next = RB_MIN(pico_device_tree, &Device_tree);
+    {
+    	next_node = pico_tree_firstNode(Device_tree.root);
+      next = next_node->keyValue;
+    }
     if (next == start)
       break;
   }
 
   if (direction == PICO_LOOP_DIR_IN)
+  {
+  	in_node = next_node;
     next_in = next;
+  }
   else if (direction == PICO_LOOP_DIR_OUT)
+  {
+  	out_node = next_node;
     next_out = next;
+  }
 
   return loop_score;
 }
@@ -184,7 +200,9 @@ int pico_devices_loop(int loop_score, int direction)
 struct pico_device* pico_get_device(char* name)
 {
   struct pico_device *dev;
-  RB_FOREACH(dev, pico_device_tree, &Device_tree) {
+  struct pico_tree_node * index;
+  pico_tree_foreach(index, &Device_tree){
+  	dev = index->keyValue;
     if(strcmp(name, dev->name) == 0)
       return dev;
   }

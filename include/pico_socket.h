@@ -9,7 +9,6 @@ See LICENSE and COPYING for usage.
 #include "pico_addressing.h"
 #include "pico_config.h"
 #include "pico_protocol.h"
-#include "rb.h"
 
 #define PICO_DEFAULT_SOCKETQ (64 * 1024)
 //#define PICO_DEFAULT_SOCKETQ (8192)
@@ -55,7 +54,6 @@ struct pico_socket {
   int id;
   uint16_t state;
   uint16_t opt_flags;
-  RB_ENTRY(pico_socket) node;
 };
 
 /* request struct for multicast socket opt */

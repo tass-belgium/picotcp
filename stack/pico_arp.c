@@ -10,7 +10,7 @@ Authors: Daniele Lacamera
 
 #include "pico_config.h"
 #include "pico_arp.h"
-#include "rb.h"
+#include "pico_tree.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
 #include "pico_stack.h"
@@ -19,8 +19,11 @@ const uint8_t PICO_ETHADDR_ALL[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 #define PICO_ARP_TIMEOUT 600000
 #define PICO_ARP_RETRY 300
 
-
-#define arp_dbg(...) do{}while(0)
+#ifdef DEBUG_ARP
+	#define arp_dbg dbg
+#else
+	#define arp_dbg(...) do{}while(0)
+#endif
 
 static struct pico_queue pending;
 static int pending_timer_on = 0;
@@ -65,7 +68,6 @@ struct pico_arp {
   int    arp_status;
   uint32_t timestamp;
   struct pico_device *dev;
-  RB_ENTRY(pico_arp) node;
 };
 
 
@@ -76,13 +78,9 @@ struct pico_arp {
 
 /* Routing destination */
 
-RB_HEAD(arp_tree, pico_arp);
-RB_PROTOTYPE_STATIC(arp_tree, pico_arp, node, arp_compare);
-
-
-static int arp_compare(struct pico_arp *a, struct pico_arp *b)
+static int arp_compare(void * ka, void * kb)
 {
-
+	struct pico_arp *a = ka, *b = kb;
   if (a->ipv4.addr < b->ipv4.addr)
     return -1;
   else if (a->ipv4.addr > b->ipv4.addr)
@@ -90,9 +88,7 @@ static int arp_compare(struct pico_arp *a, struct pico_arp *b)
   return 0;
 }
 
-RB_GENERATE_STATIC(arp_tree, pico_arp, node, arp_compare);
-
-static struct arp_tree Arp_table;
+PICO_TREE_DECLARE(arp_tree, arp_compare);
 
 /*********************/
 /**  END ARP TREE **/
@@ -102,7 +98,7 @@ struct pico_eth *pico_arp_lookup(struct pico_ip4 *dst)
 {
   struct pico_arp search, *found;
   search.ipv4.addr = dst->addr;
-  found = RB_FIND(arp_tree, &Arp_table, &search);
+  found = pico_tree_findKey(&arp_tree,&search);
   if (found && (found->arp_status != PICO_ARP_STATUS_STALE))
     return &found->eth;
   return NULL;
@@ -111,7 +107,9 @@ struct pico_eth *pico_arp_lookup(struct pico_ip4 *dst)
 struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst)
 {
   struct pico_arp* search;
-  RB_FOREACH(search, arp_tree, &Arp_table) {
+  struct pico_tree_node * index;
+  pico_tree_foreach(index,&arp_tree){
+  	search = index->keyValue;
     if(memcmp(&(search->eth.addr), &dst->addr, 6) == 0)
       return &search->ipv4;
   }
@@ -159,13 +157,18 @@ struct pico_eth *pico_arp_get(struct pico_frame *f) {
   return a4;
 }
 
+#ifdef DEBUG_ARP
 void dbg_arp(void)
 {
   struct pico_arp *a;
-  RB_FOREACH(a, arp_tree, &Arp_table) {
+  struct pico_tree_node * index;
+
+  pico_tree_foreach(index,&arp_tree) {
+  	a = index->keyValue;
     arp_dbg("ARP to  %08x, mac: %02x:%02x:%02x:%02x:%02x:%02x\n", a->ipv4.addr,a->eth.addr[0],a->eth.addr[1],a->eth.addr[2],a->eth.addr[3],a->eth.addr[4],a->eth.addr[5] );
   }
 }
+#endif
 
 void arp_expire(unsigned long now, void *_stale)
 {
@@ -180,7 +183,8 @@ void pico_arp_add_entry(struct pico_arp *entry)
 {
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
-    RB_INSERT(arp_tree, &Arp_table, entry);
+
+    pico_tree_insert(&arp_tree,entry);
     arp_dbg("ARP ## reachable.\n");
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
 }
@@ -217,7 +221,8 @@ int pico_arp_receive(struct pico_frame *f)
   memcpy(search.eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
   /* Search for already existing entry */
-  found = RB_FIND(arp_tree, &Arp_table, &search);
+
+  found = pico_tree_findKey(&arp_tree,&search);
   if (!found) {
     new = pico_zalloc(sizeof(struct pico_arp));
     if (!new)
@@ -227,7 +232,8 @@ int pico_arp_receive(struct pico_frame *f)
   else if (found->arp_status == PICO_ARP_STATUS_STALE) {
     /* Replace if stale */
     new = found;
-    RB_REMOVE(arp_tree, &Arp_table, new);
+
+    pico_tree_delete(&arp_tree,new);
   }
 
   ret = 0;
@@ -262,7 +268,9 @@ int pico_arp_receive(struct pico_frame *f)
     f->dev->send(f->dev, f->start, f->len);
   }
 
+#ifdef DEBUG_ARG
   dbg_arp();
+#endif
 
 end:
   pico_frame_discard(f);

@@ -9,6 +9,7 @@ See LICENSE and COPYING for usage.
 #define _INCLUDE_PICO_IPV4
 #include "pico_addressing.h"
 #include "pico_protocol.h"
+#include "pico_tree.h"
 
 extern struct pico_protocol pico_proto_ipv4;
 
@@ -35,8 +36,7 @@ struct pico_ipv4_link
   struct pico_device *dev;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
-  struct pico_mcast_list *mcast_head;
-  RB_ENTRY(pico_ipv4_link) node;
+  struct pico_tree * mcast_head;
 };
 
 #define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))

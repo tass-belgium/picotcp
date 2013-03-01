@@ -7,7 +7,7 @@ See LICENSE and COPYING for usage.
 #define _INCLUDE_PICO_MOCK
 #include "pico_config.h"
 #include "pico_device.h"
-#include "rb.h"
+
 
 struct mock_frame{
 	uint8_t* buffer;
@@ -25,7 +25,7 @@ struct mock_device {
 	struct mock_frame* out_tail;
 
 	uint8_t* mac;
-	RB_ENTRY(mock_device) node;
+
 };
 
 struct mock_device;

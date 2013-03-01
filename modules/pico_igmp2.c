@@ -14,6 +14,7 @@ Authors: Simon Maes, Brecht Van Cauwenberghe
 #include "pico_eth.h"
 #include "pico_addressing.h"
 #include "pico_frame.h"
+#include "pico_tree.h"
 
 #define NO_ACTIVE_TIMER (0)
 
@@ -25,7 +26,6 @@ struct mgroup_info {
   struct pico_ip4 src_interface;
   unsigned long active_timer_starttime;
   /* Connector for trees */
-  RB_ENTRY(mgroup_info) node;
   uint16_t delay;
   uint8_t membership_state;
   uint8_t Last_Host_flag;
@@ -36,8 +36,9 @@ struct timer_callback_info {
   struct pico_frame *f;
 };
 
-static int mgroup_cmp(struct mgroup_info *a, struct mgroup_info *b)
+static int mgroup_cmp(void *ka,void *kb)
 {
+	struct mgroup_info *a=ka, *b=kb;
   if (a->mgroup_addr.addr < b->mgroup_addr.addr) {
     return -1;
   }
@@ -50,18 +51,14 @@ static int mgroup_cmp(struct mgroup_info *a, struct mgroup_info *b)
   }
 }
 
-RB_HEAD(mgroup_table, mgroup_info);
-RB_PROTOTYPE_STATIC(mgroup_table, mgroup_info, node, mgroup_cmp);
-RB_GENERATE_STATIC(mgroup_table, mgroup_info, node, mgroup_cmp);
-
-static struct mgroup_table KEYTable;
+PICO_TREE_DECLARE(KEYTable,mgroup_cmp);
 
 static struct mgroup_info *pico_igmp2_find_mgroup(struct pico_ip4 *mgroup_addr)
 {
   struct mgroup_info test = {{0}};
   test.mgroup_addr.addr = mgroup_addr->addr;
   /* returns NULL if test can not be found */
-  return RB_FIND(mgroup_table, &KEYTable, &test);
+  return pico_tree_findKey(&KEYTable,&test);
 }
 
 static int pico_igmp2_del_mgroup(struct mgroup_info *info)
@@ -72,7 +69,7 @@ static int pico_igmp2_del_mgroup(struct mgroup_info *info)
   }
   else {
     // RB_REMOVE returns pointer to removed element, NULL to indicate error·
-    if(RB_REMOVE(mgroup_table, &KEYTable, info))
+    if(pico_tree_delete(&KEYTable,info))
       pico_free(info);
     else {
       pico_err = PICO_ERR_EEXIST;
@@ -410,7 +407,8 @@ static int action2(struct igmp2_packet_params *params){
   info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
   info->Last_Host_flag = PICO_IGMP2_HOST_LAST;
   info->active_timer_starttime = NO_ACTIVE_TIMER;
-  RB_INSERT(mgroup_table, &KEYTable, info);
+
+  pico_tree_insert(&KEYTable,info);
   /*---------------*/
 
   ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
@@ -598,12 +596,14 @@ const callback host_membership_diagram_table[3][5] =
 };
 
 static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
+	struct pico_tree_node * index;
   igmp2_dbg("pico_igmp2_process_event , params->group_address = %x\n",params->group_address.addr);
   uint8_t ret = 0;
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if (NULL == info) {
     if(params->event == PICO_IGMP2_EVENT_QUERY_RECV){
-      RB_FOREACH(info, mgroup_table, &KEYTable) {
+      pico_tree_foreach(index,&KEYTable){
+    		info = index->keyValue;
         params->src_interface.addr = info->src_interface.addr;
         params->group_address.addr = info->mgroup_addr.addr;
         igmp2_dbg("FOR EACH params->group_address = %x\n",params->group_address.addr);

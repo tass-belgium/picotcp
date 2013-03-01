@@ -7,7 +7,6 @@ See LICENSE and COPYING for usage.
 #define _INCLUDE_PICO_PROTOCOL 
 #include <stdint.h>
 #include "pico_queue.h"
-#include "rb.h"
 
 #define PICO_LOOP_DIR_IN   1
 #define PICO_LOOP_DIR_OUT  2
@@ -82,7 +81,6 @@ struct pico_protocol {
   int (*push) (struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
   int (*process_out)(struct pico_protocol *self, struct pico_frame *p); /* Send loop. */
   int (*process_in)(struct pico_protocol *self, struct pico_frame *p); /* Recv loop. */
-  RB_ENTRY(pico_protocol) node;
 };
 
 int pico_protocols_loop(int loop_score);

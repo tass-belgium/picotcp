@@ -44,7 +44,7 @@ static void switchNodes(struct pico_tree* tree, struct pico_tree_node* nodeA, st
  * Exported functions
  */
 
-struct pico_tree_node * pico_tree_minimum(struct pico_tree_node * node)
+struct pico_tree_node * pico_tree_firstNode(struct pico_tree_node * node)
 {
 	while(IS_NOT_LEAF(node->leftChild))
 		node = node->leftChild;
@@ -52,7 +52,7 @@ struct pico_tree_node * pico_tree_minimum(struct pico_tree_node * node)
 	return node;
 }
 
-struct pico_tree_node * pico_tree_maximum(struct pico_tree_node * node)
+struct pico_tree_node * pico_tree_lastNode(struct pico_tree_node * node)
 {
 	while(IS_NOT_LEAF(node->rightChild))
 		node = node->rightChild;
@@ -111,9 +111,8 @@ void * pico_tree_insert(struct pico_tree* tree, void * key){
   void * LocalKey;
   int result = 0;
 
-  LocalKey = (tree->root ? pico_tree_findKey(tree,key) : NULL);
-
-  // if node already in, bail out
+  LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree,key) : NULL);
+	// if node already in, bail out
   if(LocalKey)
   	return LocalKey;
   else
@@ -143,6 +142,7 @@ void * pico_tree_insert(struct pico_tree* tree, void * key){
 
   // fix colour issues
   fix_insert_collisions(tree, insert);
+
   return NULL;
 }
 
@@ -174,16 +174,30 @@ void * pico_tree_findKey(struct pico_tree * tree, void * key)
   while(IS_NOT_LEAF(found))
   {
   	int result;
+
   	result = tree->compare(found->keyValue, key);
   	if(result == 0)
+  	{
   	   return found->keyValue;
+  	}
   	else if(result < 0)
        found = found->rightChild;
      else
        found = found->leftChild;
+
    }
 
   return NULL;
+}
+
+void * pico_tree_first(struct pico_tree * tree)
+{
+	return pico_tree_firstNode(tree->root)->keyValue;
+}
+
+void * pico_tree_last(struct pico_tree * tree)
+{
+	return pico_tree_lastNode(tree->root)->keyValue;
 }
 
 void * pico_tree_delete(struct pico_tree * tree, void * key){
@@ -218,20 +232,20 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
     }
     else{
     	struct pico_tree_node * min;
-    	min = pico_tree_minimum(delete->rightChild);
+    	min = pico_tree_firstNode(delete->rightChild);
       nodeColor = min->color;
 
        temp = min->rightChild;
-       if(min->parent == ltemp)
-				 temp->parent = min;
+       if(min->parent == ltemp && IS_NOT_LEAF(temp))
+ 	 temp->parent = min;
        else{
       	 switchNodes(tree, min, min->rightChild);
       	 min->rightChild = ltemp->rightChild;
-      	 min->rightChild->parent = min;
+      	 if(IS_NOT_LEAF(min->rightChild)) min->rightChild->parent = min;
        }
        switchNodes(tree, ltemp, min);
        min->leftChild = ltemp->leftChild;
-       min->leftChild->parent = min;
+       if(IS_NOT_LEAF(min->leftChild)) min->leftChild->parent = min;
        min->color = ltemp->color;
     }
 
@@ -240,12 +254,13 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
     fix_delete_collisions(tree, temp);
 
   pico_free(delete);
+
   return lkey;
 }
 
 int pico_tree_empty(struct pico_tree * tree)
 {
-	return (!tree || !tree->root || IS_LEAF(tree->root));
+	return (!tree->root || IS_LEAF(tree->root));
 }
 
 /*
@@ -256,6 +271,9 @@ static void rotateToLeft(struct pico_tree* tree, struct pico_tree_node* node)
   struct pico_tree_node* temp;
 
   temp = node->rightChild;
+
+  if(temp == &LEAF) return;
+
   node->rightChild = temp->leftChild;
 
   if(IS_NOT_LEAF(temp->leftChild))
@@ -282,6 +300,8 @@ static void rotateToRight(struct pico_tree * tree, struct pico_tree_node * node)
 
   temp = node->leftChild;
   node->leftChild = temp->rightChild;
+
+  if(temp == &LEAF) return;
 
   if(IS_NOT_LEAF(temp->rightChild))
     temp->rightChild->parent = node;
@@ -379,12 +399,16 @@ static void switchNodes(struct pico_tree* tree, struct pico_tree_node* nodeA, st
 	if(IS_LEAF(nodeA->parent))
     tree->root = nodeB;
   else
+  if(IS_NOT_LEAF(nodeA))
+  {	
     if(AM_I_LEFT_CHILD(nodeA))
       nodeA->parent->leftChild = nodeB;
     else
       nodeA->parent->rightChild = nodeB;
+   }
 
-  nodeB->parent = nodeA->parent;
+  if(IS_NOT_LEAF(nodeB))  nodeB->parent = nodeA->parent;
+
 }
 
 /*
@@ -396,7 +420,7 @@ static void fix_delete_collisions(struct pico_tree* tree, struct pico_tree_node 
 {
   struct pico_tree_node* temp;
 
-  while( node != tree->root && node->color == BLACK)
+  while( node != tree->root && node->color == BLACK && IS_NOT_LEAF(node))
   {
   	if(AM_I_LEFT_CHILD(node)){
 

@@ -23,6 +23,7 @@
 #include "pico_igmp2.c"
 #include "pico_nat.c"
 #include "pico_ipfilter.c"
+#include "pico_tree.c"
 #include <check.h>
 
 START_TEST (test_ipv4)
@@ -1198,61 +1199,60 @@ END_TEST
 
 
 /* RB tree unit test */
-struct rbtree_element {
-  int value;
-  RB_ENTRY(rbtree_element) node;
-};
-
-RB_HEAD(rbtree, rbtree_element);
-
-static struct rbtree RBTREE;
-
-int rbtree_compare(struct rbtree_element *a, struct rbtree_element *b)
+typedef struct
 {
-  return a->value - b->value;
-}
-RB_GENERATE(rbtree, rbtree_element, node, rbtree_compare);
-RB_PROTOTYPE(rbtree, rbtree_element, node, rbtree_compare);
+	int value;
+}elem;
 
+int compare(void * a, void * b)
+{
+	return ((elem *)a)->value - ((elem *)b)->value;
+}
+
+PICO_TREE_DECLARE(test_tree,compare);
 #define RBTEST_SIZE 400000
 
 START_TEST (test_rbtree)
 {
-  struct rbtree_element *e, *s, t;
+  struct pico_tree_node  *s;
+  elem t,*e;
   int i;
   struct timeval start, end;
+  printf("Started test...\n");
   gettimeofday(&start, 0);
+
   for (i = 0; i < (RBTEST_SIZE >> 1); i++) {
-    e = malloc(sizeof(struct rbtree_element));
-    fail_if(!e, "Out of memory");
+    e = malloc(sizeof(elem));
     e->value = i;
-    RB_INSERT(rbtree, &RBTREE, e);
-    e = malloc(sizeof(struct rbtree_element));
-    fail_if(!e, "Out of memory");
+    pico_tree_insert(&test_tree,e);
+    //RB_INSERT(rbtree, &RBTREE, e);
+    e = malloc(sizeof(elem));
     e->value = (RBTEST_SIZE - 1) - i;
-    RB_INSERT(rbtree, &RBTREE, e);
+    pico_tree_insert(&test_tree,e);
   }
 
   i = 0;
-  RB_FOREACH(s, rbtree, &RBTREE) {
-    fail_if (i++ != s->value);
+
+  pico_tree_foreach(s,&test_tree){
+    fail_if (i++ != ((elem *)(s->keyValue))->value,"error");
   }
-
   t.value = RBTEST_SIZE >> 2;
-  s = RB_FIND(rbtree, &RBTREE, &t);
-  fail_if(!s, "Search failed...");
-  fail_if(s->value != t.value, "Wrong element returned...");
 
-  RB_FOREACH_REVERSE_SAFE(e, rbtree, &RBTREE, s) {
-    fail_if(!e, "Reverse safe returned null");
-    RB_REMOVE(rbtree, &RBTREE, e);
+  e = pico_tree_findKey(&test_tree,&t);
+  fail_if(!e, "Search failed...");
+  fail_if(e->value != t.value, "Wrong element returned...");
+
+  pico_tree_foreach_reverse(s,&test_tree){
+    fail_if(!s, "Reverse safe returned null");
+    e = (elem *)pico_tree_delete(&test_tree,s->keyValue);
     free(e);
   }
-  fail_if(!RB_EMPTY(&RBTREE), "Not empty");
-  gettimeofday(&end, 0);
 
-  printf("Rbtree test duration with %d entries: %lu milliseconds\n", RBTEST_SIZE, 
-    (end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) /1000);
+  fail_if(!pico_tree_empty(&test_tree), "Not empty");
+  gettimeofday(&end, 0);
+  printf("Rbtree test duration with %d entries: %d milliseconds\n", RBTEST_SIZE,
+	(int)((end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) /1000));
+  printf("Test finished...\n");
 }
 END_TEST
 

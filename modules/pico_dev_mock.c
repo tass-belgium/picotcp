@@ -9,20 +9,18 @@ Authors: Frederik Van Slycken
 #include "pico_device.h"
 #include "pico_dev_mock.h"
 #include "pico_stack.h"
-
+#include "pico_tree.h"
 
 #define MOCK_MTU 1500
 
 
 
 //Tree for finding mock_device based on pico_device*
-RB_HEAD(mock_device_tree, mock_device);
-RB_PROTOTYPE_STATIC(mock_device_tree, mock_device, node, mock_dev_cmp);
 
-static struct mock_device_tree mock_device_tree;
 
-static int mock_dev_cmp(struct mock_device *a, struct mock_device *b)
+static int mock_dev_cmp(void *ka, void *kb)
 {
+	struct mock_device *a = ka, *b = kb;
   if (a->dev < b->dev)
     return -1;
   if (a->dev > b->dev)
@@ -30,12 +28,13 @@ static int mock_dev_cmp(struct mock_device *a, struct mock_device *b)
   return 0;
 }
 
-RB_GENERATE_STATIC(mock_device_tree, mock_device, node, mock_dev_cmp);
+PICO_TREE_DECLARE(mock_device_tree, mock_dev_cmp);
 
 static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 {
 	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = RB_FIND(mock_device_tree, &mock_device_tree, &search);
+	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+
 	if(!mock)
 		return 0;
 
@@ -68,7 +67,8 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 static int pico_mock_poll(struct pico_device *dev, int loop_score)
 {
 	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = RB_FIND(mock_device_tree, &mock_device_tree, &search);
+	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+
 	if(!mock)
 		return 0;
 
@@ -161,7 +161,8 @@ int pico_mock_network_write(struct mock_device* mock, const void *buf, int len)
 void pico_mock_destroy(struct pico_device *dev)
 {
 	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = RB_FIND(mock_device_tree, &mock_device_tree, &search);
+	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+
 	if(!mock)
 		return;
 
@@ -177,7 +178,8 @@ void pico_mock_destroy(struct pico_device *dev)
 		pico_free(nxt);
 		nxt = mock->out_head;
 	}
-  RB_REMOVE(mock_device_tree, &mock_device_tree, mock);
+
+	pico_tree_delete(&mock_device_tree,mock);
 }
 
 struct mock_device *pico_mock_create(uint8_t* mac)
@@ -214,7 +216,8 @@ struct mock_device *pico_mock_create(uint8_t* mac)
 	mock->dev->poll = pico_mock_poll;
 	mock->dev->destroy = pico_mock_destroy;
 	dbg("Device %s created.\n", mock->dev->name);
-	RB_INSERT(mock_device_tree, &mock_device_tree, mock);
+
+	pico_tree_insert(&mock_device_tree,mock);
   return mock;
 }
 

@@ -14,6 +14,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #include "pico_stack.h"
 #include "pico_socket.h"
 #include "pico_queue.h"
+#include "pico_tree.h"
+
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
 #define ACKN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)):0)
@@ -38,13 +40,11 @@ Authors: Daniele Lacamera, Philippe Mariman
 /* check if the hold queue contains data (again Nagle) */
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
 
+
 #ifdef PICO_SUPPORT_TCP
 #define tcp_dbg(...) do{}while(0)
 //#define tcp_dbg dbg
 
-
-RB_HEAD(pico_segment_pool, pico_frame);
-RB_PROTOTYPE_STATIC(pico_segment_pool, pico_frame, node, segment_compare);
 
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
@@ -63,16 +63,16 @@ static inline int seq_compare(uint32_t a, uint32_t b)
   return 0;
 }
 
-static int segment_compare(struct pico_frame *a, struct pico_frame *b)
+static int segment_compare(void * ka, void * kb)
 {
+	struct pico_frame *a = ka, *b = kb;
   return seq_compare(SEQN(a), SEQN(b));
 }
 
-RB_GENERATE_STATIC(pico_segment_pool, pico_frame, node, segment_compare);
 
 struct pico_tcp_queue
 {
-  struct pico_segment_pool pool;
+	struct pico_tree pool;
   uint32_t max_size;
   uint32_t size;
   uint32_t frames;
@@ -86,12 +86,13 @@ static struct pico_frame *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
   struct pico_frame f = {};
   f.transport_hdr = (uint8_t *) (&H);
   H.seq = long_be(seq);
-  return RB_FIND(pico_segment_pool, &tq->pool, &f);
+
+  return pico_tree_findKey(&tq->pool,&f);
 }
 
 static struct pico_frame *first_segment(struct pico_tcp_queue *tq)
 {
-  return RB_MIN(pico_segment_pool, &tq->pool);
+  return pico_tree_first(&tq->pool);
 }
 
 static struct pico_frame *next_segment(struct pico_tcp_queue *tq, struct pico_frame *cur)
@@ -103,9 +104,19 @@ static struct pico_frame *next_segment(struct pico_tcp_queue *tq, struct pico_fr
 
 static struct pico_frame *next_segment_in_queue(struct pico_tcp_queue *tq, struct pico_frame *cur)
 {
+	struct pico_tree_node * node = NULL;
+
   if(!cur)
     return NULL;
-  return pico_segment_pool_RB_NEXT(cur);
+
+  node = pico_tree_findNode(&tq->pool,cur);
+  if(node)
+  {
+  	node = pico_tree_next(node);
+  	return node->keyValue;
+  }
+  else
+  	return NULL;
 }
 
 
@@ -113,7 +124,8 @@ static int pico_enqueue_segment(struct pico_tcp_queue *tq, struct pico_frame *f)
 {
   if ((tq->size + f->payload_len) > tq->max_size)
     return 0;
-  RB_INSERT(pico_segment_pool, &tq->pool, f);
+
+  pico_tree_insert(&tq->pool,f);
   tq->size += f->payload_len;
   if (f->payload_len > 0)
     tq->frames++;
@@ -122,7 +134,7 @@ static int pico_enqueue_segment(struct pico_tcp_queue *tq, struct pico_frame *f)
 
 static void pico_discard_segment(struct pico_tcp_queue *tq, struct pico_frame *f)
 {
-  RB_REMOVE(pico_segment_pool, &tq->pool, f);
+	pico_tree_delete(&tq->pool,f);
   tq->size -= f->payload_len;
   if (f->payload_len > 0)
     tq->frames--;
@@ -227,9 +239,12 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
 
 static int release_all_until(struct pico_tcp_queue *q, uint32_t seq)
 {
-  struct pico_frame *f = NULL, *tmp;
+  struct pico_frame *f = NULL, *tmp __attribute__((unused));
+  struct pico_tree_node * idx, * temp;
   int ret = 0;
-  RB_FOREACH_SAFE(f, pico_segment_pool, &q->pool, tmp) {
+
+  pico_tree_foreach_safe(idx,&q->pool,temp){
+  	f = idx->keyValue;
     if (seq_compare(SEQN(f) + f->payload_len, seq) <= 0) {
       pico_discard_segment(q, f);
       ret++;
@@ -405,10 +420,13 @@ int pico_tcp_overhead(struct pico_socket *s)
 
 static void tcp_process_sack(struct pico_socket_tcp *t, uint32_t start, uint32_t end)
 {
-  struct pico_frame *f, *tmp; 
+  struct pico_frame *f;
+  struct pico_tree_node * index, * temp;
   int cmp;
   int count = 0;
-  RB_FOREACH_SAFE(f, pico_segment_pool, &t->tcpq_out.pool, tmp) {
+
+  pico_tree_foreach_safe(index,&t->tcpq_out.pool,temp){
+  	f = index->keyValue;
     cmp = seq_compare(SEQN(f), start);
     if (cmp > 0) 
       goto done;
@@ -627,6 +645,9 @@ struct pico_socket *pico_tcp_open(void)
   t->mss = PICO_TCP_DEFAULT_MSS;
 
   /* Set socket limits, TODO added to make echo test work ?? */
+  t->tcpq_in.pool.root = t->tcpq_hold.pool.root = t->tcpq_out.pool.root = &LEAF;
+  t->tcpq_hold.pool.compare = t->tcpq_in.pool.compare = t->tcpq_out.pool.compare = segment_compare;
+
   t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
   t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ; 
   t->tcpq_hold.max_size = 2*PICO_TCP_DEFAULT_MSS;
@@ -1255,12 +1276,16 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
 
 static void add_retransmission_timer(struct pico_socket_tcp *t, unsigned long next_ts)
 {
+	struct pico_tree_node * index;
+
   if (t->timer_running > 0)
     return;
 
   if (next_ts == 0) {
     struct pico_frame *f;
-    RB_FOREACH(f, pico_segment_pool, &t->tcpq_out.pool) {
+
+    pico_tree_foreach(index,&t->tcpq_out.pool){
+    	f = index->keyValue;
       if (((next_ts == 0) || (f->timestamp < next_ts)) && (f->timestamp > 0)) {
         next_ts = f->timestamp;
       }

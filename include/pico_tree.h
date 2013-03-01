@@ -13,7 +13,7 @@ Author: Andrei Carp <andrei.carp@tass.be>
 
 // This is used to declare a new tree, leaf root by default
 #define PICO_TREE_DECLARE(name,compareFunction) \
-pico_tree name =\
+struct pico_tree name =\
 { \
 	&LEAF, \
 	compareFunction \
@@ -48,11 +48,13 @@ void 	pico_tree_drop(struct pico_tree * tree);
 int 	pico_tree_empty(struct pico_tree * tree);
 struct pico_tree_node * pico_tree_findNode(struct pico_tree * tree, void * key);
 
+void * pico_tree_first(struct pico_tree * tree);
+void * pico_tree_last(struct pico_tree * tree);
 /*
  * Traverse functions
  */
-struct pico_tree_node * pico_tree_maximum(struct pico_tree_node * node);
-struct pico_tree_node * pico_tree_minimum(struct pico_tree_node * node);
+struct pico_tree_node * pico_tree_lastNode(struct pico_tree_node * node);
+struct pico_tree_node * pico_tree_firstNode(struct pico_tree_node * node);
 struct pico_tree_node * pico_tree_next(struct pico_tree_node * node);
 struct pico_tree_node * pico_tree_prev(struct pico_tree_node * node);
 
@@ -61,22 +63,22 @@ struct pico_tree_node * pico_tree_prev(struct pico_tree_node * node);
  */
 
 #define pico_tree_foreach(idx,tree) \
-		for ((idx) = pico_tree_minimum((tree)->root); \
+		for ((idx) = pico_tree_firstNode((tree)->root); \
 		     (idx) != &LEAF; \
 		     (idx) = pico_tree_next(idx))
 
 #define pico_tree_foreach_reverse(idx,tree) \
-		for ((idx) = pico_tree_maximum((tree)->root); \
+		for ((idx) = pico_tree_lastNode((tree)->root); \
 		     (idx) != &LEAF; \
 		     (idx) = pico_tree_prev(idx))
 
 #define pico_tree_foreach_safe(idx,tree,idx2) \
-		for ((idx) = pico_tree_minimum((tree)->root);	\
+		for ((idx) = pico_tree_firstNode((tree)->root);	\
 		     ((idx) != &LEAF) && ((idx2) = pico_tree_next(idx), 1); \
 		      (idx) = (idx2))
 
 #define pico_tree_foreach_reverse_safe(idx,tree,idx2) \
-		for ((idx) = pico_tree_maximum((tree)->root); \
+		for ((idx) = pico_tree_lastNode((tree)->root); \
 				((idx) != &LEAF) && ((idx2) = pico_tree_prev(idx), 1); \
 				 (idx) = (idx2))
 

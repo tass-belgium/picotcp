@@ -14,7 +14,7 @@ Authors: Daniele Lacamera
 #include "pico_eth.h"
 #include "pico_device.h"
 #include "pico_stack.h"
-
+#include "pico_tree.h"
 
 /* Queues */
 static struct pico_queue icmp_in = {};
@@ -150,6 +150,7 @@ int pico_icmp4_packet_filtered(struct pico_frame *f)
 /***********************/
 /***********************/
 
+
 #ifdef PICO_SUPPORT_PING
 
 
@@ -165,14 +166,12 @@ struct pico_icmp4_ping_cookie
   int interval;
   int timeout;
   void (*cb)(struct pico_icmp4_stats*);
-  RB_ENTRY(pico_icmp4_ping_cookie) node;
+
 };
 
-RB_HEAD(ping_tree, pico_icmp4_ping_cookie);
-RB_PROTOTYPE_STATIC(ping_tree, pico_icmp4_ping_cookie, node, cookie_compare);
-
-static int cookie_compare(struct pico_icmp4_ping_cookie *a, struct pico_icmp4_ping_cookie *b)
+static int cookie_compare(void *ka, void *kb)
 {
+	struct pico_icmp4_ping_cookie *a = ka, *b = kb;
   if (a->id < b->id)
     return -1;
   if (a->id > b->id)
@@ -180,9 +179,7 @@ static int cookie_compare(struct pico_icmp4_ping_cookie *a, struct pico_icmp4_pi
   return (a->seq - b->seq);
 }
 
-RB_GENERATE_STATIC(ping_tree, pico_icmp4_ping_cookie, node, cookie_compare);
-
-static struct ping_tree Pings;
+PICO_TREE_DECLARE(Pings,cookie_compare);
 
 static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 {
@@ -208,7 +205,7 @@ static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 static void ping_timeout(unsigned long now, void *arg)
 {
   struct pico_icmp4_ping_cookie *cookie = (struct pico_icmp4_ping_cookie *)arg;
-  if (RB_FIND(ping_tree, &Pings, cookie)) {
+  if(pico_tree_findKey(&Pings,cookie)){
     if (cookie->err == PICO_PING_ERR_PENDING) {
       struct pico_icmp4_stats stats;
       stats.dst = cookie->dst;
@@ -219,7 +216,8 @@ static void ping_timeout(unsigned long now, void *arg)
       dbg(" ---- Ping timeout!!!\n");
       cookie->cb(&stats);
     }
-    RB_REMOVE(ping_tree, &Pings, cookie);
+
+    pico_tree_delete(&Pings,cookie);
     pico_free(cookie);
   }
 }
@@ -236,14 +234,16 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 static void next_ping(unsigned long now, void *arg)
 {
   struct pico_icmp4_ping_cookie *newcookie, *cookie = (struct pico_icmp4_ping_cookie *)arg;
-  if (RB_FIND(ping_tree, &Pings, cookie)) {
+
+	if(pico_tree_findKey(&Pings,cookie)){
     if (cookie->seq < cookie->count) {
       newcookie = pico_zalloc(sizeof(struct pico_icmp4_ping_cookie));
       if (!newcookie)
         return;
       memcpy(newcookie, cookie, sizeof(struct pico_icmp4_ping_cookie));
       newcookie->seq++;
-      RB_INSERT(ping_tree, &Pings, newcookie);
+
+	    pico_tree_insert(&Pings,newcookie);
       send_ping(newcookie);
     }
   }
@@ -257,7 +257,7 @@ static void ping_recv_reply(struct pico_frame *f)
   test.id  = short_be(hdr->hun.ih_idseq.idseq_id );
   test.seq = short_be(hdr->hun.ih_idseq.idseq_seq);
 
-  cookie = RB_FIND(ping_tree, &Pings, &test);
+  cookie = pico_tree_findKey(&Pings, &test);
   if (cookie) {
     struct pico_icmp4_stats stats;
     cookie->err = PICO_PING_ERR_REPLIED;
@@ -303,7 +303,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
   cookie->cb = cb;
   cookie->count = count;
 
-  RB_INSERT(ping_tree, &Pings, cookie);
+  pico_tree_insert(&Pings,cookie);
   send_ping(cookie);
 
   return 0;

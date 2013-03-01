@@ -5,7 +5,6 @@ See LICENSE and COPYING for usage.
 *********************************************************************/
 #ifndef _INCLUDE_PICO_FRAME
 #define _INCLUDE_PICO_FRAME
-#include "rb.h"
 #include "pico_config.h"
 
 
@@ -21,9 +20,6 @@ struct pico_frame {
 
   /* Connector for queues */
   struct pico_frame *next;
-
-  /* Connector for trees */
-  RB_ENTRY(pico_frame) node;
 
   /* Start of the whole buffer, total frame length. */
   unsigned char *buffer;
