@@ -488,7 +488,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
   int temp, i, j, sum;
   int max_total = PROTO_MAX_LOOP, total = 0;
 
-  dbg("USED SCORES> "); 
+  //dbg("USED SCORES> "); 
 
   for (i = 0; i < PROTO_DEF_NR; i++) {
 
@@ -496,7 +496,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     if (ret[i] < score[i]) {
       temp = score[i] - ret[i]; /* remaining loop score */
       
-      dbg("%3d - ",temp);
+      //dbg("%3d - ",temp);
 
       if (index[i] >= PROTO_DEF_AVG_NR)
         index[i] = 0;           /* reset index */
@@ -537,7 +537,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     else if (ret[i] == score[i]) {
       /* no used loop score - gradually decrease */
       
-      dbg("%3d - ",0);
+    //  dbg("%3d - ",0);
 
       if (index[i] >= PROTO_DEF_AVG_NR)
         index[i] = 0;           /* reset index */
@@ -562,7 +562,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     }
   }
 
-  dbg("\n");
+  //dbg("\n");
 
   return 0;
 }
@@ -577,7 +577,7 @@ void pico_stack_tick(void)
 
     pico_check_timers();
 
-    dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d\n",score[0],score[1],score[2],score[3],score[4],score[5],score[6],score[7],score[8],score[9],score[10]);
+    //dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d\n",score[0],score[1],score[2],score[3],score[4],score[5],score[6],score[7],score[8],score[9],score[10]);
 
     //score = pico_protocols_loop(100);
 
