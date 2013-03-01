@@ -18,7 +18,7 @@ enum filter_action {
 
 
 
-uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
+int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
   uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr,
   uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port,
   int8_t priority, uint8_t tos, enum filter_action action);

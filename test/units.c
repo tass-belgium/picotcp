@@ -1805,8 +1805,12 @@ START_TEST (test_ipfilter)
 
   /*======================== EMPTY FILTER*/
   printf("===========> EMPTY FILTER\n");
-  pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, action);
 
+  int filter_id1;
+  filter_id1 = pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, action);
+
+  fail_if(filter_id1 != -1, "Error adding filter\n");
+  printf("filter_id1 = %d\n", filter_id1);
   uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
   uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
 
@@ -1818,10 +1822,14 @@ START_TEST (test_ipfilter)
   fail_if(ipfilter(f) != 0, "Error filtering packet: EMPTY FILTER");
 
 
+  filter_id1 = pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, 4545, priority, tos, action);
   /*======================= DROP PROTO FILTER: TCP*/
   printf("===========> DROP PROTO FILTER: TCP\n");
 
-  pico_ipv4_filter_add(dev, 0x06, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, 3);
+  int filter_id2;
+  filter_id2 = pico_ipv4_filter_add(dev, PICO_PROTO_TCP, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+  printf("filter_id2 = %d\n", filter_id2);
+  fail_if(filter_id2 == -1, "Error adding filter\n");
 
   struct pico_frame *f2= (struct pico_frame *) buffer;
   uint8_t ipv4_buf2[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
@@ -1835,9 +1843,25 @@ START_TEST (test_ipfilter)
   printf("UNIT: :packet proto:%d\n",f2->proto);
 
   ret = ipfilter(f2);
-  printf("## before failif");
 
- fail_if(ret < 0, "Error filtering packet: DROP PROTO FILTER: TCP");
+  fail_if(ret < 0, "Error filtering packet: DROP PROTO FILTER: TCP");
+
+  /*====================== DELETING FILTERS*/
+  printf("===========> DELETING FILTER\n");
+  int filter_id3;
+
+  /*Adjust your IPFILTER*/
+  filter_id3 = pico_ipv4_filter_add(NULL, 17, 0, 0 , 0, 0, 0, 0, 0, 0, FILTER_DROP);
+  fail_if(filter_id3 == -1, "Error adding filter\n");
+
+  printf("filter_id3: %d\n", filter_id3);
+  /*Deleting IPFILTER*/
+
+  fail_if(pico_ipv4_filter_del(filter_id2) != 0 , "Error deleting filter 2");
+  fail_if(pico_ipv4_filter_del(filter_id3) != 0 , "Error deleting filter 3");
+  fail_if(pico_ipv4_filter_del(filter_id1) != 0 , "Error deleting filter 1");
+
+  printf("filters deleted\n");
 
   /*======================= REJECT SPORT FILTER*/
   /*printf("===========> REJECT SPORT FILTER\n");

@@ -68,21 +68,27 @@ static int fp_drop(struct filter_node *filter, struct pico_frame *f) {
 }
 
 /*============================ API CALLS ============================*/
-uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr, uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action) {
+int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t out_addr, uint32_t out_addr_netmask, uint32_t in_addr, uint32_t in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action) {
   
-
-  if ( !(dev != NULL || proto != 0 || out_addr != 0 || out_addr_netmask != 0 || in_addr != 0 || in_addr_netmask !=0 || out_port != 0 || in_port !=0 || tos != 0 )) 
+  printf("adding filter\n");
+  if ( !(dev != NULL || proto != 0 || out_addr != 0 || out_addr_netmask != 0 || in_addr != 0 || in_addr_netmask !=0 || out_port != 0 || in_port !=0 || tos != 0 )) {
     pico_err = PICO_ERR_EINVAL;
+    printf("err1\n");
     return -1;
-  if ( priority > 10 || priority < -10)
+  }
+  if ( priority > 10 || priority < -10) {
     pico_err = PICO_ERR_EINVAL;
+    printf("err2\n");
     return -1;
-  if (action > 3 || action < 0)
+  }
+  if (action > 3 || action < 0) {
     pico_err = PICO_ERR_EINVAL;
+    printf("err3\n");
     return -1;
-
+  }
   ipf_dbg("ipfilter> # adding filter\n");
   static uint8_t filter_id = 0;
+  printf(">>> filter_id  = %d\n", filter_id);
 
   struct filter_node *new_filter;
   new_filter = pico_zalloc(sizeof(struct filter_node));
@@ -103,7 +109,9 @@ uint8_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, uint32_t ou
   new_filter->in_port = in_port;
   new_filter->priority = priority;
   new_filter->tos = tos;
+  printf(">> new_filter: %d", new_filter->filter_id);
   new_filter->filter_id = filter_id++;
+  printf(">> new_filter: %d", new_filter->filter_id);
 
   /*Define filterType_functionPointer here instead of in ipfilter-function, to prevent running multiple times through switch*/
   switch (action) {
