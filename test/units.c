@@ -1799,10 +1799,10 @@ START_TEST (test_ipfilter)
   int8_t priority = 0;
   int ret =0;
 
-  uint32_t src_addr = long_be(0x00000000);
-  uint32_t saddr_netmask = long_be(0x00000000);
-  uint32_t dst_addr = long_be(0x00000000);
-  uint32_t daddr_netmask = long_be(0x00000000);
+  struct pico_ip4 src_addr = {0};
+  struct pico_ip4 saddr_netmask= {0};
+  struct pico_ip4 dst_addr = {0};
+  struct pico_ip4 daddr_netmask = {0} ;
 
   enum filter_action action = 1;
 
@@ -1817,7 +1817,7 @@ START_TEST (test_ipfilter)
   printf("===========> EMPTY FILTER\n");
 
   int filter_id1;
-  filter_id1 = pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, action);
+  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, action);
 
   fail_if(filter_id1 != -1, "Error adding filter\n");
   printf("filter_id1 = %d\n", filter_id1);
@@ -1832,12 +1832,12 @@ START_TEST (test_ipfilter)
   fail_if(ipfilter(f) != 0, "Error filtering packet: EMPTY FILTER");
 
 
-  filter_id1 = pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, 4545, priority, tos, action);
+  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, 4545, priority, tos, action);
   /*======================= DROP PROTO FILTER: TCP*/
   printf("===========> DROP PROTO FILTER: TCP\n");
 
   int filter_id2;
-  filter_id2 = pico_ipv4_filter_add(dev, PICO_PROTO_TCP, src_addr, saddr_netmask, dst_addr, daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+  filter_id2 = pico_ipv4_filter_add(dev, PICO_PROTO_TCP, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
   printf("filter_id2 = %d\n", filter_id2);
   fail_if(filter_id2 == -1, "Error adding filter\n");
 
@@ -1861,7 +1861,7 @@ START_TEST (test_ipfilter)
   int filter_id3;
 
   /*Adjust your IPFILTER*/
-  filter_id3 = pico_ipv4_filter_add(NULL, 17, 0, 0 , 0, 0, 0, 0, 0, 0, FILTER_DROP);
+  filter_id3 = pico_ipv4_filter_add(NULL, 17, NULL, NULL , NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
   fail_if(filter_id3 == -1, "Error adding filter\n");
 
   printf("filter_id3: %d\n", filter_id3);
