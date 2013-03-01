@@ -1107,8 +1107,8 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
     pico_notify_socket_unreachable(f);
 #ifdef PICO_SUPPORT_TCP
     /* if tcp protocol send RST segment */
-    if (self->proto_number == PICO_PROTO_TCP)
-      pico_tcp_reply_rst(f);
+    //if (self->proto_number == PICO_PROTO_TCP)
+      //pico_tcp_reply_rst(f);
 #endif
     ret = -1;
     pico_err = PICO_ERR_ENOENT;

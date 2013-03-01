@@ -102,17 +102,19 @@ void app_udpecho(char *arg)
 
 #ifdef PICOAPP_IPFILTER
   {
-    struct pico_ip4 address;
-    struct pico_ipv4_link *link;
+    struct pico_ip4 address, in_addr_netmask, in_addr;
+    //struct pico_ipv4_link *link;
     int ret;
     address.addr = 0x0800280a;
-    link = pico_ipv4_link_get(&address);
-  
+    in_addr_netmask.addr = 0x00FFFFFF;
+    in_addr.addr = 0x0000320a;
+    //link = pico_ipv4_link_get(&address);
+
     printf("udpecho> IPFILTER ENABLED\n");
-  
+
     /*Adjust your IPFILTER*/
-    ret |= pico_ipv4_filter_add(NULL, 6, 0, 0, 0x0000320a, 0x00FFFFFF, 0, 5555, 0, 0, FILTER_REJECT);
-  
+    ret |= pico_ipv4_filter_add(NULL, 17, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_DROP);
+
     if (ret < 0)
       printf("Filter_add invalid argument\n");
   }
@@ -217,17 +219,19 @@ void app_tcpecho(char *arg)
 
 #ifdef PICOAPP_IPFILTER
   {
+    struct pico_ip4 address, in_addr_netmask, in_addr;
+    //struct pico_ipv4_link *link;
     int ret;
-    struct pico_ip4 address;
-    struct pico_ipv4_link *link;
     address.addr = 0x0800280a;
-    link = pico_ipv4_link_get(&address);
-  
-    printf("tcpecho> IPFILTER ENABLED\n");
-  
+    in_addr_netmask.addr = 0x00FFFFFF;
+    in_addr.addr = 0x0000320a;
+    //link = pico_ipv4_link_get(&address);
+
+    printf("udpecho> IPFILTER ENABLED\n");
+
     /*Adjust your IPFILTER*/
-    ret |= pico_ipv4_filter_add(NULL, 6, 0, 0, 0x0000320a, 0x00FFFFFF, 0, 5555, 0, 0, FILTER_REJECT);
-  
+    ret |= pico_ipv4_filter_add(NULL, 6, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_REJECT);
+
     if (ret < 0)
       printf("Filter_add invalid argument\n");
   }
