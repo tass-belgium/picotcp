@@ -228,6 +228,7 @@ START_TEST (test_nat_translation)
 											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
 											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
 											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+  
 	fail_if(memcmp(buffer3_orig, buffer3, sizeof(buffer3)), "test error : you changed buffer 3 without changing buffer3_orig");
 	f->net_hdr = buffer3;
 	f->transport_hdr = buffer3+20;
@@ -235,7 +236,9 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
+	printf("IPV4_NAT called, line %d \n",  __LINE__);
 	fail_if(pico_ipv4_nat(f, nat_addr));
+	printf("IPV4_NAT returned, line %d \n",  __LINE__);
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
@@ -1914,6 +1917,7 @@ Suite *pico_suite(void)
 
   TCase *rb = tcase_create("RB TREE");
   tcase_add_test(rb, test_rbtree);
+  tcase_set_timeout(rb, 10);
   suite_add_tcase(s, rb);
 
   TCase *socket = tcase_create("SOCKET");
