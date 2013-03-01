@@ -616,6 +616,7 @@ START_TEST (test_icmp4_unreachable_send)
 												 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o'};
 
 	struct pico_frame* f = pico_zalloc(sizeof(struct pico_frame));
+	uint8_t nullbuf[8] = {};
 	printf("*********************** starting %s * \n", __func__);
 
 	f->net_hdr = buffer;
@@ -707,8 +708,7 @@ START_TEST (test_icmp4_unreachable_send)
 	fail_unless(mock_icmp_code(mock, buffer2, len) == 2);//proto unreachable
 	fail_unless(pico_checksum(buffer2+20, len-20) == 0);
 
-	uint8_t nullbuf[8] = {0,0,0,0,0,0,0};
-	fail_if(memcmp(buffer+48, nullbuf , 8)); // there was no data, assuming that the 64 bits of payload should then be zeroed out. Otherwise you're either reading uninitialized memory, or you're leaking stack data.
+	fail_if(memcmp(buffer+48, nullbuf , 8)==0); // there was no data 
 }
 END_TEST
 
