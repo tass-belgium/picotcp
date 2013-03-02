@@ -131,13 +131,14 @@ int pico_protocol_network_loop(int loop_score, int direction)
 
   if (next_in == NULL) {
     in_node = pico_tree_firstNode(Network_proto_tree.root);
-    next_in = in_node->keyValue;
+    if (in_node)
+      next_in = in_node->keyValue;
   }
   if (next_out == NULL) {
   	out_node = pico_tree_firstNode(Network_proto_tree.root);
-  	next_out = out_node->keyValue;
+    if (out_node)
+  	  next_out = out_node->keyValue;
   }
-  
   if (direction == PICO_LOOP_DIR_IN)
   {
   	next_node = in_node;
