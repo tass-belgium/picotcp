@@ -11,4 +11,4 @@ sleep(1)
 start(T)
 
 wait(h2)
-
+cleanup()

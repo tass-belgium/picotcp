@@ -6,6 +6,9 @@
 
 import  sys, os, subprocess, time, re
 
+def test_tuntap():
+  if not os.geteuid()==0:
+    sys.exit("\nOnly root can use real devices contained in this script\n")
 
 class Topology:
   def __init__(self):
@@ -16,7 +19,7 @@ class Topology:
 
 
 class Network:
-  def __init__(self, topology):
+  def __init__(self, topology, real=''):
     self.n = topology.nextn
     topology.nextn += 1
     self.nodes = []
@@ -24,10 +27,19 @@ class Network:
     self.topology.nets.append(self)
     self.sock = "/tmp/topology/net"+`self.n`
     self.nextn = 1
-    self.pop = subprocess.Popen(["vde_switch", "-s", self.sock, "-m", self.sock+".mgmt"], stdin=subprocess.PIPE)
+    vdecmd = ["vde_switch", "-s", self.sock, "-m", self.sock+".mgmt"]
+    if real != '':
+      test_tuntap()
+      vdecmd.append('-t')
+      vdecmd.append(real)
+    self.pop = subprocess.Popen(vdecmd, stdin=subprocess.PIPE)
     self.hosts = []
     print ""
+    print vdecmd
     print "Created network "+self.sock
+    if real != '':
+      subprocess.call(["ifconfig",real,"172.16."+`self.n`+".1", "netmask", "255.255.255.0", "up"])
+      self.nextn = 2
 
 class Node:
   def __init__(self,topology, network = None):
@@ -146,18 +158,15 @@ class Host:
     self.pop = subprocess.Popen(self.cmd)
 
 
-try:
-  os.mkdir("/tmp/topology/")
-except:
-  pass
 
-try:
-  subprocess.call(["killall","vde_switch"])
-  subprocess.call(["killall","picoapp.elf"])
-  subprocess.call(["killall","wirefilter"])
-  os.unlink("/tmp/topology")
-except:
-  pass
+def cleanup():
+  try:
+    subprocess.call(["killall","vde_switch"])
+    subprocess.call(["killall","picoapp.elf"])
+    subprocess.call(["killall","wirefilter"])
+    os.unlink("/tmp/topology")
+  except:
+    pass
 
 
 
@@ -189,3 +198,8 @@ def start(T):
     for h in n.hosts:
       h.start()
 
+try:
+  os.mkdir("/tmp/topology/")
+except:
+  pass
+cleanup()

@@ -2,9 +2,9 @@
 from  topology import *
 
 T = Topology()
-net1 = Network(T)
+net1 = Network(T, "pyt0")
 
-h1 = Host(T, net1, delay1="200")
+#h1 = Host(T, net1)
 h2 = Host(T, net1, args="ping:172.16.1.1:")
 
 sleep(1)

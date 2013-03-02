@@ -44,3 +44,4 @@ wait(send1)
 wait(send2)
 wait(send3)
 
+cleanup()

@@ -29,10 +29,10 @@ T = Topology()
 
 # Now, we can create "Network" objects. The networks will have address
 # 172.16.X.0/24, where 'X' is the order of creation, starting from 1.
+#
 
 network1 = Network(T)
 network2 = Network(T)
-
 # The two networks are separated and using different address pools:
 #
 #   ## ### ## ##       ## ### ## ##
@@ -41,12 +41,16 @@ network2 = Network(T)
 #   ## ## ######       ## ## ######
 #
 
-# In the same way, we can create a PicoTCP host that connects to a
-# network:
+# If you are running your test as root, you can also add a tun-tap connection
+# to the network, which will be automatically configured:
+networkLocal = Network(T,'tap0')
 
+
+# In the same way ad networks, you can create a PicoTCP Host that connects to a
+# network as follows:
 host1_1 = Host(T, network1)
 
-# Also, we can specify a role for the application/host, by using picoapp's
+# Also, you can specify a role for the application/host, by using picoapp's
 # args format for '--app'. For example, the machine below will ping the previously
 # created one:
 host1_2 = Host(T, network1, args ="ping:172.16.1.1:")
@@ -123,3 +127,9 @@ sleep(N) # Sleep N seconds
 wait(host1_4) # Wait for application running on host 1.4, and return only if
               # it has terminated
 
+
+########################################################################
+#== End the test                                                     ==#
+########################################################################
+# Always call:
+cleanup()
