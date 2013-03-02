@@ -24,7 +24,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_RTO_MAX 120000
 #define PICO_TCP_IW 2
 
-#define PICO_TCP_MAX_CONNECT_RETRIES 3
+#define PICO_TCP_MAX_CONNECT_RETRIES 7
 
 #define PICO_TCP_LOOKAHEAD      0x00
 #define PICO_TCP_FIRST_DUPACK   0x01
