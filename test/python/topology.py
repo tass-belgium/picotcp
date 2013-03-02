@@ -77,8 +77,25 @@ class Host:
                 self.routes.append("-r")
                 self.routes.append(dst+":255.255.255.0:"+gw+":")
                 dst_net += 1
+  def parse_options(self, eth, delay, bw):
+    if (delay != "" or  bw != ""):
+      mysock = eth.net.sock + "__" + `eth.n`
+      wirecmd = ['wirefilter', '-v']
+      wirecmd.append(mysock +":" + eth.net.sock)
+      if (delay != ''):
+        wirecmd.append("-d")
+        wirecmd.append(delay)
+      if (bw != ''):
+        wirecmd.append("-r")
+        wirecmd.append(bw)
+      print wirecmd
+      subprocess.Popen(['vde_switch', '-s', mysock], stdin=subprocess.PIPE)
+      subprocess.Popen(wirecmd, stdin=subprocess.PIPE)
+    else:
+      mysock = eth.net.sock
+    return mysock
 
-  def __init__(self, topology, net1=None, net2=None, gw=None, args="tcpecho:5555"):
+  def __init__(self, topology, net1=None, net2=None, gw=None, args="tcpecho:5555", delay1="", bw1="", delay2="", bw2=""):
     if net1:
       self.eth1 = Node(topology, net1)
       net1.hosts.append(self)
@@ -91,15 +108,19 @@ class Host:
       self.eth2 = None
     self.cmd = ["./build/test/picoapp.elf"]
     self.gw = gw
+
+
     if (net1):
+      mysock = self.parse_options(self.eth1, delay1, bw1)
       self.cmd.append("--vde")
-      vdeline = "eth1:"+self.eth1.net.sock+':'+"172.16."+`self.eth1.net.n`+"."+`self.eth1.n`+":255.255.255.0:"
+      vdeline = "eth1:"+mysock+':'+"172.16."+`self.eth1.net.n`+"."+`self.eth1.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth1.net`, self.gw)):
         vdeline +=self.gw+":"
       self.cmd.append(vdeline)
     if (net2):
+      mysock = self.parse_options(self.eth2, delay2, bw2)
       self.cmd.append("--vde")
-      vdeline = "eth2:"+self.eth2.net.sock+':'+"172.16."+`self.eth2.net.n`+"."+`self.eth2.n`+":255.255.255.0:"
+      vdeline = "eth2:"+mysock+':'+"172.16."+`self.eth2.net.n`+"."+`self.eth2.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth2.net`+".", self.gw)):
         vdeline +=self.gw+":"
       self.cmd.append(vdeline)
@@ -127,6 +148,8 @@ except:
 
 try:
   subprocess.call(["killall","vde_switch"])
+  subprocess.call(["killall","picoapp.elf"])
+  subprocess.call(["killall","wirefilter"])
   os.unlink("/tmp/topology")
 except:
   pass

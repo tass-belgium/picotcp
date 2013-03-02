@@ -900,7 +900,7 @@ void app_natbox(char *arg)
   fprintf(stderr, "natbox: started.\n");
 }
 
-#define NUM_PING 10
+#define NUM_PING 2000
 
 void cb_ping(struct pico_icmp4_stats *s)
 {
