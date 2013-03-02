@@ -16,3 +16,4 @@ cscope.out
 *.toc
 *.gz
 *.log
+*.pyc
