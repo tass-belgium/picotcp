@@ -68,11 +68,13 @@ int pico_protocol_datalink_loop(int loop_score, int direction)
 
   if (next_in == NULL) {
   	in_node = pico_tree_firstNode(Datalink_proto_tree.root);
-    next_in = in_node->keyValue;
+    if (in_node)
+      next_in = in_node->keyValue;
   }
   if (next_out == NULL) {
     out_node = pico_tree_firstNode(Datalink_proto_tree.root);
-    next_out = out_node->keyValue;
+    if (out_node)
+      next_out = out_node->keyValue;
   }
   
   if (direction == PICO_LOOP_DIR_IN)
@@ -193,11 +195,13 @@ int pico_protocol_transport_loop(int loop_score, int direction)
 
   if (next_in == NULL) {
   	in_node = pico_tree_firstNode(Transport_proto_tree.root);
-  	next_in = in_node->keyValue;
+    if (in_node)
+    	next_in = in_node->keyValue;
   }
   if (next_out == NULL) {
   	out_node = pico_tree_firstNode(Transport_proto_tree.root);
-  	next_out = out_node->keyValue;
+    if (out_node)
+  	  next_out = out_node->keyValue;
   }
   
   if (direction == PICO_LOOP_DIR_IN)
@@ -256,11 +260,13 @@ int pico_protocol_socket_loop(int loop_score, int direction)
 
   if (next_in == NULL) {
   	in_node = pico_tree_firstNode(Socket_proto_tree.root);
-  	next_in = in_node->keyValue;
+    if(in_node)
+  	  next_in = in_node->keyValue;
   }
   if (next_out == NULL) {
   	out_node = pico_tree_firstNode(Socket_proto_tree.root);
-    next_out = out_node->keyValue;
+    if(out_node)
+      next_out = out_node->keyValue;
   }
   
   if (direction == PICO_LOOP_DIR_IN)
