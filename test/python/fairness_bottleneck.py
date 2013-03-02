@@ -3,7 +3,7 @@
 # A complex test for butterly-like topology,
 # using 3 TCP connections and 3 ping flows.
 #
-# Bottleneck of 2 Mbit/300 ms overall delay is added.
+# Bottleneck of 4 Mbit/300 ms overall delay is added.
 #
 # s1---.                 .---r1
 # s2----\               /

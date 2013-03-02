@@ -1,4 +1,9 @@
 #!/usr/bin/python
+# Python classes definition for the picoTCP
+# topology test environment
+#
+# Copyright (c) 2013 TASS Belgium. See LICENSE for usage.
+
 import  sys, os, subprocess, time, re
 
 
