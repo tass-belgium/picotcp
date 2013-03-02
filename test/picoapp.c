@@ -1492,6 +1492,7 @@ static char *cpy_arg(char **dst, char *str)
 }
 
 
+
 void usage(char *arg0)
 {
   printf("Usage: %s [--vde name:sock:address:netmask[:gateway]] [--vde ...] [--tun name:address:netmask[:gateway]] [--tun ...] [--app name[:args]]\n\n\n", arg0);
@@ -1513,8 +1514,9 @@ int main(int argc, char **argv)
     {"vde",1 , 0, 'v'},
     {"barevde",1 , 0, 'b'},
     {"tun", 1, 0, 't'},
+    {"route", 1, 0, 'r'},
     {"app", 1, 0, 'a'},
-    {"loop", 1, 0, 'l'},
+    {"loop", 0, 0, 'l'},
     {0,0,0,0}
   };
   int option_idx = 0;
@@ -1526,7 +1528,7 @@ int main(int argc, char **argv)
   pico_stack_init();
   /* Parse args */
   while(1) {
-    c = getopt_long(argc, argv, "v:b:t:a:hl", long_options, &option_idx);
+    c = getopt_long(argc, argv, "v:b:t:a:r:hl", long_options, &option_idx);
     if (c < 0)
       break;
     switch(c) {
@@ -1635,6 +1637,32 @@ int main(int argc, char **argv)
         }
       }
       break;
+    case 'r':
+      {
+      char *nxt, *addr, *nm, *gw;
+      struct pico_ip4 ipaddr, netmask, gateway;
+      addr = NULL, nm = NULL, gw = NULL;
+      printf("+++ ROUTEOPTARG %s\n", optarg);
+      do {
+        nxt = cpy_arg(&addr, optarg);
+        if (!nxt) break;
+        nxt = cpy_arg(&nm, nxt);
+        if (!nxt) break;
+        nxt = cpy_arg(&gw, nxt);
+      } while(0);
+      if (!addr || !nm || !gw) {
+        fprintf(stderr, "--route expects addr:nm:gw:\n");
+        usage(argv[0]);
+      }
+      pico_string_to_ipv4(addr, &ipaddr.addr);
+      pico_string_to_ipv4(nm, &netmask.addr);
+      pico_string_to_ipv4(gw, &gateway.addr);
+      if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0) 
+        fprintf(stderr,"ROUTE ADDED *** to %s via %s\n", addr, gw);
+      else
+        fprintf(stderr,"ROUTE ADD: ERROR %s \n", strerror(pico_err));
+      break;
+      }
     case 'a':
       {
         char *name = NULL, *args = NULL;
