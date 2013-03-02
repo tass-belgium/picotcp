@@ -32,6 +32,7 @@ class Network:
       test_tuntap()
       vdecmd.append('-t')
       vdecmd.append(real)
+      vdecmd.append('-x')
     self.pop = subprocess.Popen(vdecmd, stdin=subprocess.PIPE)
     self.hosts = []
     print ""
@@ -103,7 +104,7 @@ class Host:
         wirecmd.append("-d")
         wirecmd.append(delay)
       if (bw != ''):
-        wirecmd.append("-r")
+        wirecmd.append("-b")
         wirecmd.append(bw)
       print wirecmd
       subprocess.Popen(['vde_switch', '-s', mysock], stdin=subprocess.PIPE)
