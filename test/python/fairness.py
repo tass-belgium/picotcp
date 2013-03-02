@@ -32,8 +32,10 @@ recv1 = Host(T, net3, args="tcpbench:r:")
 recv2 = Host(T, net3, args="tcpbench:r:")
 recv3 = Host(T, net3, args="tcpbench:r:")
 
-router1 = Host(T, net1, net2, "natbox:172.16.2.1:")
-router2 = Host(T, net2, net3, "natbox:172.16.3.4:")
+#router1 = Host(T, net1, net2, "natbox:172.16.2.1:")
+#router2 = Host(T, net2, net3, "natbox:172.16.3.4:")
+router1 = Host(T, net1, net2)
+router2 = Host(T, net2, net3)
 
 sleep(1)
 start(T)
