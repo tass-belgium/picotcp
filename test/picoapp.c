@@ -900,6 +900,7 @@ void app_natbox(char *arg)
   fprintf(stderr, "natbox: started.\n");
 }
 
+#ifdef PICO_SUPPORT_PING
 #define NUM_PING 10
 
 void cb_ping(struct pico_icmp4_stats *s)
@@ -928,10 +929,9 @@ void app_ping(char *arg)
     fprintf(stderr, "ping needs the following format: ping:dst_addr\n");
     exit(255);
   }
-#ifdef PICO_SUPPORT_PING
   pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
-#endif
 }
+#endif
 
 /*** Multicast CLIENT ***/
 /* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.2 */
@@ -1358,7 +1358,7 @@ void app_mcastreceive(char *arg)
 }
 /*** END Multicast RECEIVE + ECHO ***/
 
-
+#ifdef PICO_SUPPORT_DHCPD
 /*** DHCP Server ***/
 // ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0
 void app_dhcp_server(char* arg)
@@ -1404,11 +1404,12 @@ void app_dhcp_server(char* arg)
 
 	pico_dhcp_server_initiate(&s);
 }
+#endif
 /*** END DHCP Server ***/
 
 /*** DHCP Client ***/
 
-
+#ifdef PICO_SUPPORT_DHCPC
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
   char host[30];
@@ -1434,7 +1435,9 @@ void callback_dhcpclient(void* cli, int code){
 	if(code == PICO_DHCP_SUCCESS){
 		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+#ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
+#endif
 	}
 	printf("callback happened with code %d!\n", code);
 }
@@ -1461,7 +1464,7 @@ void app_dhcp_client(char* arg)
 	dhcp_client_cookie = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
 }
 
-
+#endif
 /*** END DHCP Client ***/
 
 /** From now on, parsing the command line **/
@@ -1715,14 +1718,16 @@ int main(int argc, char **argv)
         else IF_APPNAME("dhcpserver") {
 #ifndef PICO_SUPPORT_DHCPD
           return 0;
-#endif
+#else
           app_dhcp_server(args);
+#endif
         }
         else IF_APPNAME("dhcpclient") {
 #ifndef PICO_SUPPORT_DHCPC
           return 0;
-#endif
+#else
           app_dhcp_client(args);
+#endif
         }
 
 

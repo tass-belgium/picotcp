@@ -17,3 +17,4 @@ cscope.out
 *.gz
 *.log
 *.pyc
+*.elf
