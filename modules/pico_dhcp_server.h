@@ -11,7 +11,6 @@ See LICENSE and COPYING for usage.
 #include "pico_dhcp_common.h"
 #include "pico_addressing.h"
 
-#ifdef PICO_SUPPORT_DHCPD
 
 struct pico_dhcpd_settings
 {
@@ -51,5 +50,4 @@ int pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting);
 #define POOL_END long_be(0x0a2800ff)
 #define LEASE_TIME long_be(0x00000078)
 
-#endif
 #endif

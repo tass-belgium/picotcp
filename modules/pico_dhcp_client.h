@@ -8,7 +8,6 @@ See LICENSE and COPYING for usage.
 #ifndef _INCLUDE_PICO_DHCP_CLIENT
 #define _INCLUDE_PICO_DHCP_CLIENT
 
-#ifdef PICO_SUPPORT_DHCPC
 
 #include "pico_dhcp_common.h"
 #include "pico_addressing.h"
@@ -49,5 +48,4 @@ enum pico_dhcp_negotiation_state {
 };*/
 
 
-#endif
 #endif

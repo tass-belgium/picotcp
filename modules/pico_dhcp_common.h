@@ -8,7 +8,6 @@ See LICENSE and COPYING for usage.
 #ifndef _INCLUDE_PICO_DHCP_COMMON
 #define _INCLUDE_PICO_DHCP_COMMON
 
-#if defined (PICO_SUPPORT_DHCPC) || defined (PICO_SUPPORT_DHCPD)
 
 #include <stdint.h>
 
@@ -100,5 +99,4 @@ struct __attribute__((packed)) pico_dhcphdr
 
 uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt);
 int is_options_valid(uint8_t *opt_buffer, int len); 
-#endif
 #endif
