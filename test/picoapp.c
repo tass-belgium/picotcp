@@ -912,7 +912,7 @@ void cb_ping(struct pico_icmp4_stats *s)
   time_sec = s->time / 1000;
   time_msec = s->time % 1000;
   if (s->err == 0) {
-    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
     if (s->seq >= NUM_PING)
       exit(0);
   } else {

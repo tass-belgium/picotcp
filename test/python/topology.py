@@ -64,17 +64,19 @@ class Host:
             gw=""
             routing=False
             if (h.eth2.net.n == net.n) and (self not in h.eth1.net.hosts):
-              print "FOUND route to net "+`h.eth1.net.n`
-              dst_net = h.eth1.net.n
-              gw_net = h.eth2.net.n
-              gw_n = h.eth2.n
-              routing=True
+              if h.eth1.net.n > net.n or h.nat == False:
+                print "FOUND route to net "+`h.eth1.net.n`
+                dst_net = h.eth1.net.n
+                gw_net = h.eth2.net.n
+                gw_n = h.eth2.n
+                routing=True
             elif (h.eth1.net.n == net.n) and (self not in h.eth2.net.hosts):
-              print "FOUND route to net "+`h.eth2.net.n`
-              dst_net = h.eth2.net.n
-              gw_net = h.eth1.net.n
-              gw_n = h.eth1.n
-              routing=True
+              if h.eth2.net.n > net.n or h.nat == False:
+                print "FOUND route to net "+`h.eth2.net.n`
+                dst_net = h.eth2.net.n
+                gw_net = h.eth1.net.n
+                gw_n = h.eth1.n
+                routing=True
 
             if (routing):
               dst = "172.16."+`dst_net`+".0"
@@ -88,7 +90,7 @@ class Host:
                 self.routes.append("-r")
                 self.routes.append(dst+":255.255.255.0:"+gw+":")
                 dst_net -= 1
-            elif (routing and gw_net != None and gw_net  < dst_net):
+            elif (routing and gw_net != None and gw_net  < dst_net and h.nat == False):
               dst_net += 1
               while(dst_net < net.topology.nextn):
                 dst = "172.16."+`dst_net`+".0"
@@ -126,6 +128,10 @@ class Host:
       self.eth2 = None
     self.cmd = ["./build/test/picoapp.elf"]
     self.gw = gw
+    if args.startswith("nat"):
+      self.nat = True
+    else:
+      self.nat = False
 
 
     if (net1):

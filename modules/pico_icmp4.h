@@ -130,6 +130,7 @@ struct pico_icmp4_stats
   unsigned long size;
   unsigned long seq;
   unsigned long time;
+  unsigned long ttl;
   int err;
 };
 

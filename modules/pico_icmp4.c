@@ -266,6 +266,7 @@ static void ping_recv_reply(struct pico_frame *f)
     stats.size = cookie->size;
     stats.time = pico_tick - cookie->timestamp;
     stats.err = cookie->err;
+    stats.ttl = ((struct pico_ipv4_hdr *)f->net_hdr)->ttl;
 		if(cookie->cb != NULL)
     	cookie->cb(&stats);
     /* XXX cb */
