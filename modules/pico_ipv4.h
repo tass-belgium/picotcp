@@ -62,20 +62,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr);
 void pico_ipv4_unreachable(struct pico_frame *f, int err);
 
-#ifdef PICO_SUPPORT_MCAST
 int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link);
 int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link);
-#else
-static inline int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
-{
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
-}
-static inline int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
-{
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
-}
-#endif /* PICO_SUPPORT_MCAST */
 
 #endif /* _INCLUDE_PICO_IPV4 */

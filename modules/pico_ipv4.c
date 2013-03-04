@@ -512,6 +512,20 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f)
   mcast_dbg("MCAST: IP %08X is not a group member of current link %s\n", hdr->dst.addr, f->dev->name);
   return 0;
 }
+
+#else 
+
+int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+  pico_err = PICO_ERR_EPROTONOSUPPORT;
+  return -1;
+}
+int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *mcast_link)
+{
+  pico_err = PICO_ERR_EPROTONOSUPPORT;
+  return -1;
+}
+
 #endif /* PICO_SUPPORT_MCAST */
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
@@ -761,16 +775,15 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
+
+  struct pico_ipv4_link test, *found;
+  struct pico_ip4 network;
+
   if(!dev) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-
-  struct pico_ipv4_link test, *found;
-  struct pico_ip4 network;
-  struct pico_tree_node * index, * _tmp;
   test.address.addr = address.addr;
-
   found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
     pico_err = PICO_ERR_ENXIO;
@@ -780,14 +793,17 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
   network.addr = found->address.addr & found->netmask.addr;
   pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
 #ifdef PICO_SUPPORT_MCAST
-  struct pico_mcast_group *g = NULL;
+  do {
+    struct pico_mcast_group *g = NULL;
+    struct pico_tree_node * index, * _tmp;
 
-  pico_tree_foreach_safe(index,found->mcast_head, _tmp)
-  {
-  	g = index->keyValue;
-  	pico_tree_delete(found->mcast_head,g);
-    pico_free(g);
-  }
+    pico_tree_foreach_safe(index,found->mcast_head, _tmp)
+    {
+    	g = index->keyValue;
+    	pico_tree_delete(found->mcast_head,g);
+      pico_free(g);
+    }
+  } while(0);
 #endif
 
 	pico_tree_delete(&Tree_dev_link, found);
