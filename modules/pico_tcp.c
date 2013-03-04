@@ -2000,7 +2000,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     loop_score--;
     if (loop_score < 1)
       break;
-    f = peek_segment(&t->tcpq_out, t->snd_nxt + 1);
+    f = peek_segment(&t->tcpq_out, t->snd_nxt);
   }
   if (sent > 0) {
     if (t->rto < PICO_TCP_RTO_MIN)

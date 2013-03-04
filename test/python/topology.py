@@ -83,14 +83,14 @@ class Host:
               gw = "172.16."+`gw_net`+"."+`gw_n`
               self.routes.append("-r")
               self.routes.append(dst+":255.255.255.0:"+gw+":")
-            if (routing and gw_net > dst_net):
+            if (routing and gw_net > dst_net and h.nat == False):
               dst_net -= 1
               while(dst_net > 0):
                 dst = "172.16."+`dst_net`+".0"
                 self.routes.append("-r")
                 self.routes.append(dst+":255.255.255.0:"+gw+":")
                 dst_net -= 1
-            elif (routing and gw_net != None and gw_net  < dst_net and h.nat == False):
+            elif (routing and gw_net != None and gw_net  < dst_net):
               dst_net += 1
               while(dst_net < net.topology.nextn):
                 dst = "172.16."+`dst_net`+".0"
