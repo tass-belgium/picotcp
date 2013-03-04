@@ -184,6 +184,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     return 0;
   }
 #endif
+  if (hdr->frag & 0x80) {
+    pico_frame_discard(f); //RFC 3514
+    return 0;
+  }
   if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
       /* Receiving UDP broadcast datagram */
       f->flags |= PICO_FRAME_FLAG_BCAST;
