@@ -20,7 +20,7 @@ net1 = Network(T)
 net2 = Network(T)
 net3 = Network(T)
 
-router1 = Host(T, net1, net2, delay2="150", bw2="4M")
+router1 = Host(T, net1, net2, delay2="150", bw2="20M")
 router2 = Host(T, net2, net3)
 
 send1 = Host(T, net1, args="tcpbench:t:172.16.3.2:")

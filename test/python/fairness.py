@@ -35,6 +35,7 @@ send6 = Host(T, net1, args="ping:172.16.3.4:")
 recv1 = Host(T, net3, args="tcpbench:r:")
 recv2 = Host(T, net3, args="tcpbench:r:")
 recv3 = Host(T, net3, args="tcpbench:r:")
+recv4 = Host(T, net3, args="tcpbench:r:")
 
 
 sleep(1)
