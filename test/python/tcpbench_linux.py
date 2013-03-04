@@ -11,5 +11,5 @@ h3 = Host(T, net1, args="tcpbench:t:172.16.1.1:")
 sleep(1)
 start(T)
 
-wait(h2)
+wait(h3)
 cleanup()

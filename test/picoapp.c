@@ -535,7 +535,7 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 10)
+#define TCPSIZ (1024 * 1024 * 100)
 static char *buffer1;
 static char *buffer0;
 
