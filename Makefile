@@ -127,24 +127,7 @@ posix: all $(POSIX_OBJ)
 	@mv modules/ptsocket/*.o $(PREFIX)/modules || echo
 
 
-TEST_ELF= test/vde_test.elf \
-          test/testclient.elf \
-          test/testserver.elf \
-          test/vde_receiver.elf \
-          test/vde_send.elf \
-          test/echoclient.elf \
-          test/sendclient.elf \
-          test/echoclientUDP.elf \
-          test/nat_send.elf       \
-          test/nat_echo.elf       \
-          test/nat_box.elf       \
-          test/picoapp.elf        \
-          test/ptsock_server.elf        \
-          test/ptsock_client.elf        \
-          test/testnat.elf   \
-          test/mock_example.elf   \
-          test/testigmp2.elf \
-	  test/test_http.elf
+TEST_ELF= test/picoapp.elf
 
 test: posix $(TEST_ELF)
 	@mkdir -p $(PREFIX)/test/
