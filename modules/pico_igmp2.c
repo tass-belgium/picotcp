@@ -158,12 +158,13 @@ static int pico_igmp2_analyse_packet(struct pico_frame *f, struct igmp2_packet_p
 
 static int check_igmp2_checksum(struct pico_frame *f){
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
-  uint16_t header_checksum = igmp2_hdr->crc;
+  uint16_t header_checksum;
 
   if (!igmp2_hdr) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
+  header_checksum = igmp2_hdr->crc;
   igmp2_hdr->crc=0;
 
   if(header_checksum == short_be(pico_checksum(igmp2_hdr, sizeof(struct pico_igmp2_hdr)))){
