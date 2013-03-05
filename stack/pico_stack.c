@@ -465,11 +465,12 @@ static heap_pico_timer *Timers;
 
 void pico_check_timers(void)
 {
+  struct pico_timer timer;
   struct pico_timer *t = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
   while((t) && (t->expire < pico_tick)) {
     t->timer(pico_tick, t->arg);
-    heap_peek(Timers, t);
+    heap_peek(Timers, &timer);
     t = heap_first(Timers);
   }
 }
