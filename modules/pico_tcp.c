@@ -482,13 +482,14 @@ static void tcp_parse_options(struct pico_frame *f)
   int i = 0;
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
-    uint8_t len =  opt[i++];
+    uint8_t len;
+    if(i < (f->transport_len - PICO_SIZE_TCPHDR))
+      len =  opt[i++];
     if (f->payload && ((opt + i) > f->payload))
       break;
     switch (type) {
       case PICO_TCP_OPTION_NOOP:
       case PICO_TCP_OPTION_END:
-        i--; /* unread len */
         break;
       case PICO_TCP_OPTION_WS:
         if (len != PICO_TCPOPTLEN_WS) {
@@ -1352,8 +1353,6 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     t->x_mode = PICO_TCP_LOOKAHEAD;
     tcp_dbg("Mode: Look-ahead.\n");
     t->backoff = 0;
-    acked = tcp_ack_advance_una(t, f);
-    tcp_dbg("TCP ACK> FRESH ACK %08x (acked %d) Queue size: %u/%u frames: %u cwnd: %u in_flight: %u snd_una: %u\n", ACKN(f), acked, t->tcpq_out.size, t->tcpq_out.max_size, t->tcpq_out.frames, t->cwnd, t->in_flight, SEQN(una));
 
     /* Do rtt/rttvar/rto calculations */
     if(una && (una->timestamp != 0)) {
@@ -1361,6 +1360,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       if (rtt)
         tcp_rtt(t, rtt);
     }
+
+    acked = tcp_ack_advance_una(t, f);
+    tcp_dbg("TCP ACK> FRESH ACK %08x (acked %d) Queue size: %u/%u frames: %u cwnd: %u in_flight: %u snd_una: %u\n", ACKN(f), acked, t->tcpq_out.size, t->tcpq_out.max_size, t->tcpq_out.frames, t->cwnd, t->in_flight, SEQN(una));
 
     /* Do congestion control */
     tcp_congestion_control(t);

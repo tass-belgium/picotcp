@@ -86,6 +86,7 @@ void app_udpecho(char *arg)
   cpy_arg(&sport, arg);
   if (sport) {
     port = atoi(sport);
+		free(sport);
     if (port > 0)
       port_be = short_be(port);
   }
@@ -201,6 +202,7 @@ void app_tcpecho(char *arg)
   cpy_arg(&sport, arg);
   if (sport) {
     port = atoi(sport);
+		free(sport);
     port_be = short_be((uint16_t)port);
   }
   if (port == 0) {
@@ -314,6 +316,8 @@ void app_udpdnsclient(char *arg)
   printf(">>>>> DNS GET NAME OF %s\n", daddr);
   pico_dns_client_getname(daddr, &cb_udpdnsclient_getname);
 
+	free(dname);
+	free(daddr);
   return;
 }
 /*** END UDP DNS CLIENT ***/
@@ -414,6 +418,7 @@ void app_udpnatclient(char *arg)
     nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
+			free(dport);
       if (port > 0)
         port_be = short_be(port);
     }
@@ -429,6 +434,7 @@ void app_udpnatclient(char *arg)
       exit(1);
 
     pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+		free(daddr);
 
     if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
       exit(1);
@@ -510,6 +516,7 @@ void app_udpclient(char *arg)
     nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
+			free(dport);
       if (port > 0)
         port_be = short_be(port);
     }
@@ -525,6 +532,7 @@ void app_udpclient(char *arg)
     exit(1);
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+	free(daddr);
 
   if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
     exit(1);
@@ -645,6 +653,7 @@ void app_tcpclient(char *arg)
   }
   if (dport) {
     port = atoi(dport);
+		free(dport);
     port_be = short_be((uint16_t)port);
   }
   if (port == 0) {
@@ -671,6 +680,7 @@ void app_tcpclient(char *arg)
   pico_socket_bind(s, &local_addr, &local_port);*/
   
   pico_string_to_ipv4(dest, &server_addr.addr);
+	free(dest);
   pico_socket_connect(s, &server_addr, port_be);
 }
 /*** END TCP CLIENT ***/
@@ -814,6 +824,7 @@ void app_tcpbench(char *arg)
     }
     if (dport) {
       port = atoi(dport);
+			free(dport);
       port_be = short_be((uint16_t)port);
     }
     if (port == 0) {
@@ -840,6 +851,7 @@ void app_tcpbench(char *arg)
     pico_socket_bind(s, &local_addr, &local_port);*/
     
     pico_string_to_ipv4(dest, &server_addr.addr);
+		free(dest);
     pico_socket_connect(s, &server_addr, port_be);
 
   } else if (*mode == 'r') {   /* TEST BENCH RECEIVE MODE */ 
@@ -852,6 +864,7 @@ void app_tcpbench(char *arg)
     }
     if (sport) {
       port = atoi(sport);
+			free(sport);
       port_be = short_be((uint16_t)port);
     }
     if (port == 0) {
@@ -876,6 +889,8 @@ void app_tcpbench(char *arg)
 
   tcpbench_sock = s;
 
+	free(mode);
+
   return;
 }
 
@@ -893,6 +908,7 @@ void app_natbox(char *arg)
     exit(255);
   }
   pico_string_to_ipv4(dest, &ipdst.addr);
+	free(dest);
   link = pico_ipv4_link_get(&ipdst);
   if (!link) {
     fprintf(stderr, "natbox: Destination not found.\n");
@@ -935,6 +951,8 @@ void app_ping(char *arg)
     exit(255);
   }
   pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
+
+	free(dest);
 }
 #endif
 
@@ -1023,6 +1041,7 @@ void app_mcastclient(char *arg)
     nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
+			free(dport);
       if (port > 0)
         port_be = short_be(port);
     }
@@ -1038,7 +1057,9 @@ void app_mcastclient(char *arg)
     exit(1);
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+	free(daddr);
   pico_string_to_ipv4(laddr, &inaddr_link.addr);
+	free(laddr);
   pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
   pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
   pico_string_to_ipv4("10.40.0.9", &inaddr_uni.addr);
@@ -1328,6 +1349,7 @@ void app_mcastreceive(char *arg)
     nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
+			free(dport);
       if (port > 0)
         port_be = short_be(port);
     }
@@ -1343,8 +1365,11 @@ void app_mcastreceive(char *arg)
     exit(1);
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+	free(daddr);
   pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+	free(maddr);
   pico_string_to_ipv4(laddr, &inaddr_link.addr);
+	free(laddr);
 
   if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0)
     exit(1);
@@ -1392,10 +1417,12 @@ void app_dhcp_server(char* arg)
 		nxt = cpy_arg(&addr, nxt);
 		if(addr){
 			pico_string_to_ipv4(addr, &s.my_ip.addr);
+			free(addr);
 
 			nxt = cpy_arg(&netmsk, nxt);
 			if(netmsk){
 				pico_string_to_ipv4(netmsk, &s.netmask.addr);
+				free(netmsk);
 				//let's just take some "default" values for the range :
 				s.pool_start = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x00000064);
 				s.pool_end = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x000000ff);
@@ -1562,15 +1589,19 @@ int main(int argc, char **argv)
           exit(1);
         }
         dev = pico_tun_create(name);
+				free(name);
         if (!dev) {
           perror("Creating tun");
           exit(1);
         }
         pico_string_to_ipv4(addr, &ipaddr.addr);
+				free(addr);
         pico_string_to_ipv4(nm, &netmask.addr);
+				free(nm);
         pico_ipv4_link_add(dev, ipaddr, netmask);
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
+					free(gw);
           printf("Adding default route via %08x\n", gateway.addr);
           pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
         }
@@ -1597,6 +1628,8 @@ int main(int argc, char **argv)
           exit(1);
         }
         dev = pico_vde_create(sock, name, macaddr);
+				free(sock);
+				free(name);
         NXT_MAC(macaddr);
         if (!dev) {
           perror("Creating vde");
@@ -1604,10 +1637,13 @@ int main(int argc, char **argv)
         }
         printf("Vde created.\n");
         pico_string_to_ipv4(addr, &ipaddr.addr);
+				free(addr);
         pico_string_to_ipv4(nm, &netmask.addr);
+				free(nm);
         pico_ipv4_link_add(dev, ipaddr, netmask);
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
+					free(gw);
           pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
         }
       }
@@ -1626,6 +1662,8 @@ int main(int argc, char **argv)
           exit(1);
         }
         dev = pico_vde_create(sock, name, macaddr);
+				free(sock);
+				free(name);
         NXT_MAC(macaddr);
         if (!dev) {
           perror("Creating vde");
@@ -1664,8 +1702,11 @@ int main(int argc, char **argv)
         usage(argv[0]);
       }
       pico_string_to_ipv4(addr, &ipaddr.addr);
+			free(addr);
       pico_string_to_ipv4(nm, &netmask.addr);
+			free(nm);
       pico_string_to_ipv4(gw, &gateway.addr);
+			free(gw);
       if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0) 
         fprintf(stderr,"ROUTE ADDED *** to %s via %s\n", addr, gw);
       else
@@ -1740,6 +1781,7 @@ int main(int argc, char **argv)
           fprintf(stderr, "Unknown application %s\n", name);
           usage(argv[0]);
         }
+				free(name);
       }
       break;
     }
