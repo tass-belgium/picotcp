@@ -104,7 +104,7 @@ void app_udpecho(char *arg)
   {
     struct pico_ip4 address, in_addr_netmask, in_addr;
     //struct pico_ipv4_link *link;
-    int ret;
+    int ret = 0;
     address.addr = 0x0800280a;
     in_addr_netmask.addr = 0x00FFFFFF;
     in_addr.addr = 0x0000320a;
@@ -221,7 +221,7 @@ void app_tcpecho(char *arg)
   {
     struct pico_ip4 address, in_addr_netmask, in_addr;
     //struct pico_ipv4_link *link;
-    int ret;
+    int ret = 0;
     address.addr = 0x0800280a;
     in_addr_netmask.addr = 0x00FFFFFF;
     in_addr.addr = 0x0000320a;
