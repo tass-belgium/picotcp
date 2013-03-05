@@ -482,13 +482,14 @@ static void tcp_parse_options(struct pico_frame *f)
   int i = 0;
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
-    uint8_t len =  opt[i++];
+    uint8_t len;
+    if(i < (f->transport_len - PICO_SIZE_TCPHDR))
+      len =  opt[i++];
     if (f->payload && ((opt + i) > f->payload))
       break;
     switch (type) {
       case PICO_TCP_OPTION_NOOP:
       case PICO_TCP_OPTION_END:
-        i--; /* unread len */
         break;
       case PICO_TCP_OPTION_WS:
         if (len != PICO_TCPOPTLEN_WS) {
