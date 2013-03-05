@@ -142,9 +142,10 @@ int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t
       pico_frame_discard(f); /** XXX: re-queue on head, instead! **/
       return len;
     } else {
+      int ret = f->payload_len;
       memcpy(buf, f->payload, f->payload_len);
       pico_frame_discard(f);
-      return f->payload_len;
+      return ret;
     }
   } else return -1;
 }
