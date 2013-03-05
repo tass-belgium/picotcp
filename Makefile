@@ -23,9 +23,9 @@ IPFILTER?=1
 
 
 ifeq ($(DEBUG),1)
-  CFLAGS=-Iinclude -Imodules -Wall -ggdb
+  CFLAGS=-Iinclude -Imodules -Wall -ggdb -Wdeclaration-after-statement
 else
-  CFLAGS=-Iinclude -Imodules -Wall -Os
+  CFLAGS=-Iinclude -Imodules -Wall -Os -Wdeclaration-after-statement
 endif
 
 ifneq ($(ENDIAN),little)
