@@ -1690,11 +1690,11 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("TCP> Close-wait\n");
 
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
 
+  tcp_dbg("TCP> Close-wait\n");
   if (tcp_check_valid_segment(s,f) == 0) {
     tcp_dbg("TCP closewait >>>>>>>>>>>>>>>>>> invalid segment detected\n");
     tcp_send_ack(t);
@@ -1779,11 +1779,10 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("TCP >>>>>>>>>>>>>> received RST <<<<<<<<<<<<<<<<<<<<\n");
-
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
 
+  tcp_dbg("TCP >>>>>>>>>>>>>> received RST <<<<<<<<<<<<<<<<<<<<\n");
   if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     /* the RST is acceptable if the ACK field acknowledges the SYN */
     if ((t->snd_nxt + 1) == ACKN(f)) {  /* valid, got to closed state */

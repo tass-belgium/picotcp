@@ -88,16 +88,16 @@ struct pico_protocol pico_proto_icmp4 = {
 
 static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 {
+  struct pico_frame *reply;
+  struct pico_icmp4_hdr *hdr;
+  struct pico_ipv4_hdr *info;
   if (f == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-  struct pico_frame *reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
-  struct pico_icmp4_hdr *hdr;
-  struct pico_ipv4_hdr *info = (struct pico_ipv4_hdr*)(f->net_hdr);
-
+  reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
+  info = (struct pico_ipv4_hdr*)(f->net_hdr);
   hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
-  
   hdr->type = type;
   hdr->code = code;
   hdr->hun.ih_pmtu.ipm_nmtu = short_be(1500);
@@ -277,12 +277,13 @@ static void ping_recv_reply(struct pico_frame *f)
 
 int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *))
 {
+  static uint16_t next_id = 0x91c0;
+  struct pico_icmp4_ping_cookie *cookie;
+
   if((dst == NULL) || (interval == 0) || (timeout == 0) || (count == 0)){
     pico_err = PICO_ERR_EINVAL;
     return -1;
-  } 
-  static uint16_t next_id = 0x91c0;
-  struct pico_icmp4_ping_cookie *cookie;
+  }
 
   cookie = pico_zalloc(sizeof(struct pico_icmp4_ping_cookie));
   if (!cookie) {

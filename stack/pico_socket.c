@@ -564,8 +564,6 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   struct pico_frame *f;
   int tcp_header_offset = 0;
   int total_payload_written = 0;
-  if (len <= 0)
-    return len;
 #ifdef PICO_SUPPORT_IPV4
   struct pico_ip4 *src4;
 #endif
@@ -573,6 +571,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 #ifdef PICO_SUPPORT_IPV6
   struct pico_ip6 *src6;
 #endif
+  if (len <= 0)
+    return len;
 
   if (buf == NULL || s == NULL) {
     pico_err = PICO_ERR_EINVAL;
