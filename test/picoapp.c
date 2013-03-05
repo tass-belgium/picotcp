@@ -729,6 +729,14 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 
   if (ev & PICO_SOCK_EV_FIN) {
     printf("tcpbench> Socket closed. Exit normally. \n");
+    if (tcpbench_mode == TCP_BENCH_RX) {
+      tcpbench_time_end = PICO_TIME_MS();
+      tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000.0; /* get number of seconds */
+      printf("tcpbench> received %d bytes in %lf seconds\n",tcpbench_rd_size,tcpbench_time);
+      printf("tcpbench> average read throughput %lf kbit/sec\n",((tcpbench_rd_size*8.0)/tcpbench_time)/1000);
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
+    }
     exit(0);
   }
 
@@ -740,9 +748,6 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
   if (ev & PICO_SOCK_EV_CLOSE) {
     printf("tcpbench> event close\n");
     if (tcpbench_mode == TCP_BENCH_RX) {
-      tcpbench_time_end = PICO_TIME_MS();
-      tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000.0; /* get number of seconds */
-      printf("tcpbench> average read throughput %lf kbit/sec\n",((tcpbench_rd_size*8.0)/tcpbench_time)/1000);
       pico_socket_shutdown(s, PICO_SHUT_WR);
       printf("tcpbench> Called shutdown write, ev = %d\n",ev);
     } else if (tcpbench_mode == TCP_BENCH_TX) {
