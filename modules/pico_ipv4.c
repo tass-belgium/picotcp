@@ -334,6 +334,7 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 {
   struct pico_ip4 nullip;
+  struct pico_ipv4_route *route;
   nullip.addr = 0U;
 
   if(!addr) {
@@ -341,7 +342,7 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
     return nullip;
   }
 
-  struct pico_ipv4_route *route = route_find(addr);
+  route = route_find(addr);
   if (!route) {
     pico_err = PICO_ERR_EHOSTUNREACH;
     return nullip;
@@ -352,13 +353,15 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
 {
+  struct pico_ip4 *myself = NULL;
+  struct pico_ipv4_route *rt;
+
   if(!dst) {
     pico_err = PICO_ERR_EINVAL;
     return NULL;
   }
 
-  struct pico_ipv4_route *rt = route_find(dst);
-  struct pico_ip4 *myself = NULL;
+  rt = route_find(dst);
   if (rt) {
     myself = &rt->link->address;
   } else
@@ -534,17 +537,18 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {
+
+  struct pico_ipv4_route *route;
+  struct pico_ipv4_link *link;
+  struct pico_ipv4_hdr *hdr;
+  uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
+  static uint16_t ipv4_progressive_id = 0x91c0;
+
   if(!f || !dst) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-
-  struct pico_ipv4_route *route;
-  struct pico_ipv4_link *link;
-  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
-  static uint16_t ipv4_progressive_id = 0x91c0;
-  
+  hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   if (!hdr) {
     dbg("IP header error\n");
     pico_err = PICO_ERR_EINVAL;
@@ -591,10 +595,11 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   f->dev = link->dev;
 #ifdef PICO_SUPPORT_MCAST
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
-  /* Sending UDP multicast datagram, am I member? If so, loopback copy */
+    struct pico_frame *cpy;
+    /* Sending UDP multicast datagram, am I member? If so, loopback copy */
     if (pico_ipv4_mcast_is_group_member(f)) {
       mcast_dbg("MCAST: sender is member of group, loopback copy\n");
-      struct pico_frame *cpy = pico_frame_copy(f);
+      cpy = pico_frame_copy(f);
       pico_enqueue(&in, cpy);
     }
   }
@@ -691,12 +696,11 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
 int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
+  struct pico_ipv4_route test, *found;
   if (!link) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-
-  struct pico_ipv4_route test, *found;
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
   test.metric = metric;
@@ -717,14 +721,14 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask)
 {
+  struct pico_ipv4_link test, *new;
+  struct pico_ip4 network, gateway;
+  char ipstr[30];
+
   if(!dev) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-
-  struct pico_ipv4_link test, *new;
-  struct pico_ip4 network, gateway;
-  char ipstr[30];
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
   /** XXX: Valid netmask / unicast address test **/
@@ -760,12 +764,14 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
   pico_tree_insert(&Tree_dev_link, new);
 #ifdef PICO_SUPPORT_MCAST
-  if (!mcast_default_link)
-    mcast_default_link = new;
+  do {
+    struct pico_ip4 mcast_all_hosts;
+    if (!mcast_default_link)
+      mcast_default_link = new;
 
-  struct pico_ip4 mcast_all_hosts;
-  mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
-  pico_ipv4_mcast_join_group(&mcast_all_hosts, new);
+    mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
+    pico_ipv4_mcast_join_group(&mcast_all_hosts, new);
+  } while(0);
 #endif
 
   network.addr = address.addr & netmask.addr;
@@ -830,14 +836,12 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
 
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 {
+  struct pico_ipv4_link test, *found;
   if(!address) {
     pico_err = PICO_ERR_EINVAL;
     return NULL;
   }
-
-  struct pico_ipv4_link test, *found;
   test.address.addr = address->addr;
-
 	found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
     pico_err = PICO_ERR_ENXIO;
@@ -848,13 +852,14 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 
 int pico_ipv4_rebound(struct pico_frame *f)
 {
+  struct pico_ip4 dst;
+  struct pico_ipv4_hdr *hdr;
   if(!f) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
 
-  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  struct pico_ip4 dst;
+  hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   if (!hdr) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
