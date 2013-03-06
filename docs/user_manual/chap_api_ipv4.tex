@@ -497,6 +497,26 @@ void (*cb)(struct pico_icmp4_stats *));
 \item \texttt{cb} - Callback for ICMP ping
 \end{itemize}
 
+\subsubsection*{Data structure \texttt{struct pico$\_$icmp4$\_$stats}}
+\begin{verbatim}
+struct pico_icmp4_stats
+{
+  struct pico_ip4 dst;
+  unsigned long size;
+  unsigned long seq;
+  unsigned long time;
+  unsigned long ttl;
+  int err;
+};
+\end{verbatim}
+With \textbf{err} values:
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$PING$\_$ERR$\_$REPLIED} (value 0)
+\item \texttt{PICO$\_$PING$\_$ERR$\_$TIMEOUT} (value 1)
+\item \texttt{PICO$\_$PING$\_$ERR$\_$UNREACH} (value 2)
+\item \texttt{PICO$\_$PING$\_$ERR$\_$PENDING} (value 0xFFFF)
+\end{itemize}
+
 \subsubsection*{Return value}
 On success, this call returns 0.
 On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.

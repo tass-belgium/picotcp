@@ -1,0 +1,254 @@
+It is assumed that all examples include the appropriate header files
+and a \textbf{main} routine that calls the \texttt{app$\_$x} functions to initialize
+the example.
+
+The most common header files are:
+\begin{verbatim}
+#include "pico_stack.h"
+#include "pico_config.h"
+#include "pico_dev_vde.h"
+#include "pico_ipv4.h"
+#include "pico_socket.h"
+#include "pico_dev_tun.h"
+#include "pico_nat.h"
+#include "pico_icmp4.h"
+#include "pico_dns_client.h"
+#include "pico_dev_loop.h"
+#include "pico_dhcp_client.h"
+#include "pico_dhcp_server.h"
+#include "pico_ipfilter.h"
+\end{verbatim}
+
+\section{Ping example}
+
+\begin{verbatim}
+#define NUM_PING 10
+
+/* callback function for receiving ping reply */
+void cb_ping(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  int time_sec = 0;
+  int time_msec = 0;
+  
+  /* convert ip address from icmp4_stats structure to string */
+  pico_ipv4_to_string(host, s->dst.addr);
+  
+  /* get time information from icmp4_stats structure */
+  time_sec = s->time / 1000;
+  time_msec = s->time % 1000;
+  
+  if (s->err == PICO_PING_ERR_REPLIED) {
+  	/* print info if no error reported in icmp4_stats structure */
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", \
+    					s->size, host, s->seq, s->ttl, s->time);
+    if (s->seq >= NUM_PING)
+      exit(0);
+  } else {
+  	/* else, print error info */
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    exit(1);
+  }
+}
+
+/* initialize the ping command */
+void app_ping(char *dest)
+{
+  pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
+}
+\end{verbatim}
+
+
+\section{UDP echo socket example}
+
+\begin{verbatim}
+struct pico_ip4 inaddr_any = { };
+
+/* callback for UDP echo socket events */
+void cb_udpecho(uint16_t ev, struct pico_socket *s)
+{
+  char recvbuf[1400];
+  int read = 0;
+  uint32_t peer;
+  uint16_t port;
+
+  /* process read event, data available */
+  if (ev == PICO_SOCK_EV_RD) {
+  	/* while data available in socket buffer, echo data to peer */
+    do {
+      read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+      if (read > 0)
+        pico_socket_sendto(s, recvbuf, r, &peer, port);
+    } while(read > 0);
+  }
+
+  /* process error event, socket error occured */
+  if (ev == PICO_SOCK_EV_ERR) {
+    printf("Socket Error received. Bailing out.\n");
+    exit(1);
+  }
+
+  printf("Received data from %08X:%u\n", peer, port);
+}
+
+/* initialize the UDP echo socket */
+void app_udpecho(uint16_t source_port)
+{
+  struct pico_socket *s;
+  uint16_t port_be = 0;
+  
+  /* set the source port for the socket */
+  if (source_port == 0)
+    port_be = short_be(5555);
+  else
+    port_be = short_be(source_port);
+
+  /* open a UDP socket with the appropriate callback */
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
+  if (!s)
+    exit(1);
+
+  /* bind the socket to port_be */
+  if (pico_socket_bind(s, &inaddr_any, &port_be) != 0)
+    exit(1);
+}
+\end{verbatim}
+
+
+\section{TCP echo socket example}
+
+\begin{verbatim}
+#define BSIZE 1460
+
+/* callback for TCP echo socket events */
+void cb_tcpecho(uint16_t ev, struct pico_socket *s)
+{
+  char recvbuf[BSIZE];
+  int read = 0, written = 0;
+  int pos = 0, len = 0;
+  struct pico_socket *sock_a;
+  struct pico_ip4 orig;
+  uint16_t port;
+  char peer[30];
+
+  /* process read event, data available */
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      read = pico_socket_read(s, recvbuf + len, BSIZE - len);
+      if (read > 0)
+        len += r;
+    } while(read > 0);
+  }
+  
+  /* process connect event, syn received */
+  if (ev & PICO_SOCK_EV_CONN) {
+    /* accept new connection request */
+    sock_a = pico_socket_accept(s, &orig, &port);
+    
+   	/* convert peer IP to string */
+    pico_ipv4_to_string(peer, orig.addr);
+    
+    /* print info */
+    printf("Connection established with %s:%d.\n", peer, short_be(port));
+  }
+
+  /* process fin event, receiving socket closed */
+  if (ev & PICO_SOCK_EV_FIN) {
+    printf("Socket closed. Exit normally. \n");
+  }
+
+  /* process error event, socket error occured */
+  if (ev & PICO_SOCK_EV_ERR) {
+    printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+    exit(1);
+  }
+  
+  /* process close event, receiving socket received close from peer */
+  if (ev & PICO_SOCK_EV_CLOSE) {
+    printf("Socket received close from peer.\n");
+    /* shutdown write side of socket */
+    pico_socket_shutdown(s, PICO_SHUT_WR);
+  }
+
+  /* if data read, echo back */
+  if (len > pos) {
+    do {
+      /* echo data back to peer */
+      written = pico_socket_write(s, recvbuf + pos, len - pos);
+      if (written > 0) {
+        pos += written;
+        if (pos >= len) {
+          pos = 0;
+          len = 0;
+          written = 0;
+        }
+      } else {
+        printf("SOCKET> ECHO write failed, dropped %d bytes\n",(len-pos));
+      }
+    } while(written > 0);
+  }
+}
+
+/* initialize the TCP echo socket */
+void app_tcpecho(uint16_t source_port)
+{
+  struct pico_socket *s;
+  uint16_t port_be = 0;
+  int backlog = 40;			/* max number of accepting connections */
+  int ret;
+  
+  /* set the source port for the socket */
+  if (source_port == 0)
+    port_be = short_be(5555);
+  else
+    port_be = short_be(source_port);
+
+  /* open a TCP socket with the appropriate callback */
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpecho);
+  if (!s)
+    exit(1);
+
+  /* bind the socket to port_be */
+  ret = pico_socket_bind(s, &inaddr_any, &port_be);
+  if (ret != 0)
+    exit(1);
+
+  /* start listening on socket */
+  ret = pico_socket_listen(s, backlog);
+  if (ret != 0)
+    exit(1);
+}
+\end{verbatim}
+
+
+\section{NAT setup example}
+
+\begin{verbatim}
+/* initialize NAT functionality and add port forward rule */
+void app_nat(char *dest)
+{
+  char *dest = NULL;
+  struct pico_ip4 ipdst, pub_addr, priv_addr;
+  struct pico_ipv4_link *link;
+
+  /* convert IP address of link where to enable NAT */
+  pico_string_to_ipv4(dest, &ipdst.addr);
+  
+  /* get link pointer */
+  link = pico_ipv4_link_get(&ipdst);
+  if (!link) {
+    printf("destination not found\n");
+    exit(1);
+  }
+  
+  /* enable NAT on link */
+  pico_ipv4_nat_enable(link);
+  
+  /* add port forward rule */
+  pico_string_to_ipv4("10.50.0.10", &pub_addr.addr);
+  pico_string_to_ipv4("10.40.0.08", &priv_addr.addr);
+  pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667), PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
+  
+  printf("nat started\n");
+}
+\end{verbatim}
