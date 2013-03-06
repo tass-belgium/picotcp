@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+extern volatile uint32_t stellaris_tick;
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
 static inline void *pico_zalloc(int len)
@@ -34,18 +35,19 @@ static inline void pico_free(void *tgt)
 
 static inline unsigned long PICO_TIME(void)
 {
-  return pico_tick / 1000;
+  register uint32_t tick = stellaris_tick;
+  return tick / 1000;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-  return pico_tick;
+  return stellaris_tick;
 }
 
 static inline void PICO_IDLE(void)
 {
-  unsigned long tick_now = pico_tick;
-  while(tick_now == pico_tick);
+  unsigned long tick_now = stellaris_tick;
+  while(tick_now == stellaris_tick);
 }
 
 #endif
