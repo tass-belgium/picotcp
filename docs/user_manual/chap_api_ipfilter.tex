@@ -38,8 +38,9 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-/* block all incoming traffic on port 5555 *?
-filter_id = pico_ipv4_filter_add(NULL, 6, NULL, NULL, NULL, NULL, 0, 5555, 0, 0, FILTER_REJECT);
+/* block all incoming traffic on port 5555 */
+filter_id = pico_ipv4_filter_add(NULL, 6, NULL, NULL, NULL, NULL, 0, 5555,
+													0, 0, FILTER_REJECT);
 \end{verbatim}
 
 \subsubsection*{Errors}
