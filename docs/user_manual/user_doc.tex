@@ -26,10 +26,10 @@
 \usepackage{longtable}
 
 %% to print watermark
- \usepackage{draftwatermark}
- \SetWatermarkText{TASS Confidential}
- \SetWatermarkScale{3}
- \SetWatermarkLightness{0.9}
+% \usepackage{draftwatermark}
+% \SetWatermarkText{TASS Confidential}
+% \SetWatermarkScale{3}
+% \SetWatermarkLightness{0.9}
 
 % to adjust the space between titles and text
 \usepackage[compact]{titlesec}
@@ -40,15 +40,26 @@
 % to minimize space between list items
 \usepackage{enumitem}
 
+% To use hyperlinks
+\usepackage{hyperref}
+
 
 \begin{document}
 
 \title{PicoTCP User Documentation}
 \author{Copyright \copyright 2013 TASS Belgium NV. All right reserved.}
+\maketitle
 \date{\today}
 \maketitle
 
 \thispagestyle{empty}
+
+Disclaimer
+This document is distributed under the terms of Creative Commons CC BY-ND 3.0.
+You are free to share unmodified copies of this document, as long as the copyright
+statement is kept. The full license text is available 
+\href{http://creativecommons.org/licenses/by-nd/3.0/} {here}
+
 
 \pagenumbering{arabic}
 
@@ -88,9 +99,10 @@ The following sections will describe the API for picoTCP.
 
 \appendix
 
-\chapter{License}
-\label{chap:license}
-\input{chap_license}
+% Do not include license
+%\chapter{License}
+%\label{chap:license}
+%\input{chap_license}
 
 \chapter{Supported RFC's}
 \label{chap:rfcs}
