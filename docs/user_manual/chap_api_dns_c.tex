@@ -38,7 +38,8 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_dns_client_nameserver(&addr_ns, flag);
+ret = pico_dns_client_nameserver(&addr_ns, PICO_DNS_NS_ADD);
+ret = pico_dns_client_nameserver(&addr_ns, PICO_DNS_NS_DEL);
 \end{verbatim}
 
 
@@ -72,22 +73,7 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-void cb_getaddr(char *ip)
-{
-  if (!ip) {
-    // Error occured
-    return;
-  }
-  // Do something
-  pico_free(ip);
-}
-
-int main (int argc, char *argv[])
-{
-  ...
-  ret = pico_dns_client_getaddr("www.google.com", cb_getaddr);
-  ...
-}
+int ret = pico_dns_client_getaddr("www.google.com", cb_getaddr);
 \end{verbatim}
 
 
@@ -121,20 +107,5 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-void cb_getname(char *url)
-{
-  if (!url) {
-    // Error occured
-    return;
-  }
-  // Do something
-  pico_free(url);
-}
-
-int main (int argc, char *argv[])
-{
-  ...
-  ret = pico_dns_client_getname("8.8.4.4", cb_getname);
-  ...
-}
+int ret = pico_dns_client_getname("8.8.4.4", cb_getname);
 \end{verbatim}

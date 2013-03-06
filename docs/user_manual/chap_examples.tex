@@ -247,8 +247,58 @@ void app_nat(char *dest)
   /* add port forward rule */
   pico_string_to_ipv4("10.50.0.10", &pub_addr.addr);
   pico_string_to_ipv4("10.40.0.08", &priv_addr.addr);
-  pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667), PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
+  pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667),
+  PICO_PROTO_UDP, PICO_IPV4_FORWARD_ADD);
   
   printf("nat started\n");
+}
+\end{verbatim}
+
+
+\section{DNS example}
+
+\begin{verbatim}
+/* callback function for receiving URL translation */
+void cb_getaddr(char *ip)
+{
+  /* NULL indicates an error condition */
+  if (!ip) {
+    printf("DNS error occured: %s\n", strerror(pico_err));
+    return;
+  }
+  printf("DNS translation to ip %s\n", ip);
+  
+  /* important: free the received pointer! */
+  pico_free(ip);
+}
+
+/* callback function for receiving IP translation */
+void cb_getname(char *url)
+{
+  /* NULL indicates an error condition */
+  if (!url) {
+    printf("DNS error occured: %s\n", strerror(pico_err));
+    return;
+  }
+  printf("DNS translation to url %s\n", url);
+  
+  /* important: free the received pointer! */
+  pico_free(url);
+}
+
+/* initialize the dns */
+void app_dns(char *url, char *ip)
+{
+  struct pico_ip4 nameserver;
+  
+  /* optional: add custom dns nameserver */
+  pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
+  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+
+  /* request translation of URL f.e. www.google.com */  
+  pico_dns_client_getaddr(url, &cb_getaddr);
+
+  /* request translation of IP f.e. 8.8.8.8 */
+  pico_dns_client_getname(ip, &cb_getname);
 }
 \end{verbatim}
