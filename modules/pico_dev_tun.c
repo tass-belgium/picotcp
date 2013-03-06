@@ -56,7 +56,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score)
 void pico_tun_destroy(struct pico_device *dev)
 {
   struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-  /* TODO: Destroy piece by piece. */
+  close(tun->fd);
   pico_free(tun);
 }
 
