@@ -55,7 +55,7 @@ static int pico_vde_poll(struct pico_device *dev, int loop_score)
 void pico_vde_destroy(struct pico_device *dev)
 {
   struct pico_device_vde *vde = (struct pico_device_vde *) dev;
-  /* TODO: Destroy piece by piece. */
+  vde_close(vde->conn);
   pico_free(vde);
 }
 
