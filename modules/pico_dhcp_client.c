@@ -435,7 +435,6 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
 
 static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 {
-	//TODO : use exponential backoff (cfr RFC)
 	const int MAX_RETRY = 5;
 	if (++cli->attempt > MAX_RETRY) {
 		cli->start_time = pico_tick;
@@ -467,7 +466,7 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		}
 		return;
 	}
-	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);//TODO solution if we don't have ethernet
+	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);
 	dh_out->op = PICO_DHCP_OP_REQUEST;
 	dh_out->htype = PICO_HTYPE_ETHER;
 	dh_out->hlen = PICO_HLEN_ETHER;
@@ -623,64 +622,5 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 
 
 }
-
-/* TODO IMPROVEMENTS 
-*  Every message sent through the network is 576 bytes long.
-*  With an average option size, half of these bytes are padding.
-*
-*  Router options are only parsed when there is only 1 address available.
-*  The first address could be always be chosen since it should be the most prefered address anyway.
-*
-*
-*/
-
-/*
- * TODO
- *
- * My retry-attempts are not resetted between messages...
- *
- * secs-field : the DHCPREQUEST message MUST use the same value in the DHCP message header's 'secs' field and be sent to the same IP broadcast address as the original DHCPDISCOVER message.
- * or can we keep this to 0 all the time? table 5 could be read that way... 
- *
- * add random fuzz around the timers (cfr RFC 2131 p40)
- *
- * we ask for some things in the discover, but we don't send them back in the request, is this OK with the RFC? if not, how do we fix this? 
- *
- *
- * probably need to add a "garbage"-state for when something went seriously wrong (like running out of memory), or need another way to deal with those errors
- *
- * timers : check if there are other times when they need to be invalidated!
- *
- * currently, I'm not checking if the information in the offer and the information in the ACK are the same... not sure if this is required...
- *
- * Currently, after receiving the offer, I have no idea which options have been set and which haven't in the cookie (except for T1 and T2...)
- *
- * use ARP to see if the address is not already in use (see RFC 2131 p 15-16)
- *
- *
- *
- *
- * implement the rest of the RFC (all states, ...)
- *
- *
- * related to support for multiple interfaces :
- *
- * pico_dhcp_initiate_negotiations could be split :
- * -the part that resets everything (and should be called when the user calls) and returns a cli-pointer
- * -the part that keeps a bunch of stuff, but resets another bunch, and can be called when returning to init-state (also receives the cli-pointer)
- * This is, again, for when we want to do dhcp on multiple interfaces...
- *
- * Currently we can only have one client cookie. This means that we can only use DHCP on one interface. I think the ipv4-implementation might limit us to one DHCP-discovery at a time (because we need to bind 0.0.0.0 for that), but the client cookie would limit us even further, because it contains info we'll need for a renew. Possible solution : have a linked list of client cookies, find the correct cookie. (probably means adding a socket* to the cookie, passing the socket* from the wakeup to the process_incoming_message, and then iterating over the linked list)
- *
- *
- *
- *
- * won't do unless there are complaints:
- * options could (in theory) overflow to file and sname - this is not checked anywhere. Any options passed there will be missed. (but we do give a warning it when this happens, so it shouldn't go unnoticed)
- *
- * efficiency improvements :
- * the entire list of options is looped over at least twice now : once to check if it's valid, once to identify the actual type. This could be made more efficient.
- * the dhcp_get_next_option currently always copies the contents of the option. There are a few places where this function is used but the copying is generally not needed. One option would be to have it simply pass a pointer (into the buffer), another would be to implement the loops without the get_next_option.
- */
 
 #endif

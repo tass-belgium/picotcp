@@ -23,7 +23,6 @@ static struct pico_dhcpd_settings settings;
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
 
-//TODO could/should probably replace this with an rb-tree...
 static struct pico_dhcp_negotiation * get_negotiation_by_xid(uint32_t xid)
 {
 	struct pico_dhcp_negotiation *cur = Negotiation_list;
@@ -93,7 +92,6 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 	dh_out->options[40] = PICO_DHCPOPT_END;
 
-	//TODO find out where we checked if yiaddr is OK...
 	destination.addr = dh_out->yiaddr;
 
 	sent = pico_socket_sendto(udpsock, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
@@ -110,7 +108,6 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 static void dhcp_recv(uint8_t *buffer, int len)
 {
 	struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
-	//TODO does this mean we only give out the same ip if the xid was the same? shouldn't we be looking at the MAC address? 
 	struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
 	uint8_t *nextopt, opt_data[20], opt_type;
 	int opt_len = 20;
@@ -129,7 +126,6 @@ static void dhcp_recv(uint8_t *buffer, int len)
 		Negotiation_list = dn;
 		ipv4 = pico_arp_reverse_lookup(&dn->eth);
 		if (!ipv4) {
-			//TODO this means we completely ignore it if there was an option requesting a specific address...
 			dn->ipv4.addr = settings.pool_next;
 			pico_arp_create_entry(dn->eth.addr, dn->ipv4, settings.dev);
 			settings.pool_next = long_be(long_be(settings.pool_next) + 1);
@@ -250,20 +246,5 @@ static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
 		} while(r>0);
 	}
 }
-
-/*
- * TODO's, ideas, remarks,...
- *
- * getting the hwaddr of the other end could prove somewhat difficult... but we don't need it...wtf?
- *
- * We're going to get into the same kind of funky stuff : it will only work on one interface at a time...
- *
- * it seems that DHCP relies on info from ARP for assigning IPs... Not sure if this can't cause any problems...
- *
- *
- * longer term :
- *
- * obey the Broadcast-flag!
- */
 
 #endif

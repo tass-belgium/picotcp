@@ -31,21 +31,4 @@ struct pico_ip4 pico_dhcp_get_gateway(void* cli);
 #define PICO_DHCP_EVENT_LEASE                11
 #define PICO_DHCP_EVENT_RETRANSMIT           12
 
-
-
-//based on the RFC
-//TODO start using this ; for now I'll take the VDER-implementation
-/*
-enum pico_dhcp_negotiation_state {
-	INIT,
-	SELECTING,
-	REQUESTING,
-	BOUND,
-	RENEWING,
-	REBINDING,
-	INIT-REBOOT,
-	REBOOTING
-};*/
-
-
 #endif
