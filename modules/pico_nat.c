@@ -146,15 +146,18 @@ int pico_ipv4_nat_find(uint16_t pub_port, struct pico_ip4 *priv_addr, uint16_t p
     return -1;
 }
 
-int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f) {
+int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f)
+{
+  uint8_t proto;
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+  struct pico_tcp_hdr *tcp_hdr;
  
   if (!ipv4_hdr)
     return -1;
-  uint8_t proto = ipv4_hdr->proto;
+  proto = ipv4_hdr->proto;
 
   if (proto == PICO_PROTO_TCP) {
-    struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     if (!tcp_hdr)
       return -1;
     if (tcp_hdr->flags & PICO_TCP_FIN) {
@@ -175,15 +178,18 @@ int pico_ipv4_nat_snif_forward(struct pico_nat_key *nk, struct pico_frame *f) {
 }
 
 
-int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
+int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f)
+{
+  uint8_t proto;
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+  struct pico_tcp_hdr *tcp_hdr;
 
   if (!ipv4_hdr)
     return -1;
-  uint8_t proto = ipv4_hdr->proto;
+  proto = ipv4_hdr->proto;
 
   if (proto == PICO_PROTO_TCP) {
-    struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     if (!tcp_hdr)
       return -1;
     if (tcp_hdr->flags & PICO_TCP_FIN) {
@@ -206,10 +212,10 @@ int pico_ipv4_nat_snif_backward(struct pico_nat_key *nk, struct pico_frame *f) {
 void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
 {
   struct pico_tree_node * idx, * safe;
+  struct pico_nat_key *k = NULL;
 	nat_dbg("NAT: before table cleanup:\n");
   pico_ipv4_nat_print_table();
 
-  struct pico_nat_key *k = NULL;
   //struct pico_nat_key *tmp;
   pico_tree_foreach_reverse_safe(idx,&KEYTable_forward,safe){
   	k = idx->keyValue;
@@ -371,12 +377,13 @@ void pico_ipv4_nat_print_table(void)
 int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, struct pico_ip4 pub_addr)
 {
   uint16_t pub_port = 0;
+  uint8_t proto;
   struct pico_tcp_hdr *tcp_hdr = NULL;  /* forced to use pico_trans */
   struct pico_udp_hdr *udp_hdr = NULL;  /* forced to use pico_trans */
   struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
     return -1;
-  uint8_t proto = ipv4_hdr->proto;
+  proto = ipv4_hdr->proto;
   do {
     /* 1. generate valid new NAT port entry */
     uint32_t rand = pico_rand();
@@ -446,14 +453,14 @@ static int pico_nat_tcp_checksum(struct pico_frame *f)
 
 int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
 {
-
+  uint8_t proto;
   struct pico_tcp_hdr *tcp_hdr = NULL;  /* forced to use pico_trans */
   struct pico_udp_hdr *udp_hdr = NULL;  /* forced to use pico_trans */
 
   struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
     return -1;
-  uint8_t proto = ipv4_hdr->proto;
+  proto = ipv4_hdr->proto;
   
   if (proto == PICO_PROTO_TCP) {
     tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -492,12 +499,14 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
   struct pico_tcp_hdr *tcp_hdr = NULL;
   struct pico_udp_hdr *udp_hdr = NULL; 
   struct pico_icmp4_hdr *icmp_hdr = NULL;
+  struct pico_ipv4_hdr* ipv4_hdr;
   uint16_t pub_port = 0; 
+  uint8_t proto;
 
-  struct pico_ipv4_hdr* ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+  ipv4_hdr = (struct pico_ipv4_hdr *)f->net_hdr;
   if (!ipv4_hdr)
     return -1; 
-  uint8_t proto = ipv4_hdr->proto; 
+  proto = ipv4_hdr->proto; 
   
   if (proto == PICO_PROTO_TCP) {
     tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -548,15 +557,15 @@ int pico_ipv4_nat(struct pico_frame *f, struct pico_ip4 pub_addr)
   /*do nat---------*/
   struct pico_nat_key *nk = NULL;
   struct pico_nat_key key;
-  nk= &key;
   struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr; 
-
   struct pico_tcp_hdr *tcp_hdr = NULL;  
   struct pico_udp_hdr *udp_hdr = NULL;  
   int ret;
   uint8_t proto = net_hdr->proto;
   uint16_t priv_port = 0;
   struct pico_ip4 priv_addr= net_hdr->src;
+
+  nk= &key;
 
   /* TODO DELME check if IN */
   if (pub_addr.addr == net_hdr->dst.addr) {
@@ -634,11 +643,12 @@ int pico_ipv4_nat_isenabled_in(struct pico_frame *f)
     struct pico_udp_hdr *udp_hdr = NULL;
     uint16_t pub_port = 0;
     int ret;
+    uint8_t proto;
  
     struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr; 
     if (!ipv4_hdr)
       return -1;
-    uint8_t proto = ipv4_hdr->proto;    
+    proto = ipv4_hdr->proto;    
 
     if (proto == PICO_PROTO_TCP) {
       tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;

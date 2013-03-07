@@ -68,8 +68,11 @@ static int fp_drop(struct filter_node *filter, struct pico_frame *f) {
 }
 
 /*============================ API CALLS ============================*/
-int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4 *out_addr, struct pico_ip4 *out_addr_netmask, struct pico_ip4 *in_addr, struct pico_ip4 *in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action) {
-  
+int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4 *out_addr, struct pico_ip4 *out_addr_netmask, struct pico_ip4 *in_addr, struct pico_ip4 *in_addr_netmask, uint16_t out_port, uint16_t in_port, int8_t priority, uint8_t tos, enum filter_action action)
+{
+  static uint8_t filter_id = 0;
+  struct filter_node *new_filter;
+
   if ( !(dev != NULL || proto != 0 || (out_addr != NULL && out_addr->addr != 0U) || (out_addr_netmask != NULL && out_addr_netmask->addr != 0U)|| (in_addr != NULL && in_addr->addr != 0U) || (in_addr_netmask != NULL && in_addr_netmask->addr != 0U)|| out_port != 0 || in_port !=0 || tos != 0 )) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
@@ -83,9 +86,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
     return -1;
   }
   ipf_dbg("ipfilter> # adding filter\n");
-  static uint8_t filter_id = 0;
 
-  struct filter_node *new_filter;
   new_filter = pico_zalloc(sizeof(struct filter_node));
   if (!head) {
     head = tail = new_filter;
@@ -143,15 +144,16 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
   return new_filter->filter_id;
 }
 
-int pico_ipv4_filter_del(uint8_t filter_id) {
+int pico_ipv4_filter_del(uint8_t filter_id)
+{
+  struct filter_node *work;
+  struct filter_node *prev;
 
   if (!tail || !head) {
     pico_err = PICO_ERR_EPERM;
     return -1;
   }
 
-  struct filter_node *work;
-  struct filter_node *prev;
   work = head;
   if (work->filter_id == filter_id) {
       /*delete filter_node from linked list*/
@@ -187,25 +189,27 @@ int pico_ipv4_filter_del(uint8_t filter_id) {
 }
 
 /*================================== CORE FILTER FUNCTIONS ==================================*/
-int match_filter(struct filter_node *filter, struct pico_frame *f) {
+int match_filter(struct filter_node *filter, struct pico_frame *f)
+{
+  struct filter_node temp;
+  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_tcp_hdr *tcp_hdr;
+  struct pico_udp_hdr *udp_hdr;
 
   if (!filter|| !f) {
     ipf_dbg("ipfilter> ## nullpointer in match filter \n");
     return -1;
   }
 
-  struct filter_node temp;
-  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-
   temp.fdev = f->dev;
   temp.out_addr = ipv4_hdr->dst.addr;
   temp.in_addr = ipv4_hdr->src.addr;
   if (ipv4_hdr->proto == PICO_PROTO_TCP ) {
-      struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+      tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
       temp.out_port = short_be(tcp_hdr->trans.dport);
       temp.in_port = short_be(tcp_hdr->trans.sport);
   }else if (ipv4_hdr->proto == PICO_PROTO_UDP ) {
-      struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
       temp.out_port = short_be(udp_hdr->trans.dport);
       temp.in_port = short_be(udp_hdr->trans.sport);
   }
@@ -233,13 +237,15 @@ int match_filter(struct filter_node *filter, struct pico_frame *f) {
   return 1;
 }
 
-int ipfilter(struct pico_frame *f) {
+int ipfilter(struct pico_frame *f)
+{
+  struct filter_node *work = head;
+
   /*return 1 if pico_frame is discarded as result of the filtering, 0 for an incomming packet, -1 for faults*/
   if (!tail || !head)  {
     return 0;
   }
 
-  struct filter_node *work = head;
   if ( match_filter(work, f) == 0 ) { 
     ipf_dbg("ipfilter> # ipfilter match\n");
     /*filter match, execute filter!*/

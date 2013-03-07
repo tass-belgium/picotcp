@@ -191,10 +191,12 @@ static int pico_igmp2_checksum(struct pico_frame *f)
 }
 
 
-static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f) {
-  igmp2_dbg("pico_igmp2_process_in\n");
+static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
   struct igmp2_packet_params params;
  
+  igmp2_dbg("pico_igmp2_process_in\n");
+
   if (check_igmp2_checksum(f) == 0) {
     if (!pico_igmp2_analyse_packet(f,&params)) {
       pico_igmp2_process_event(&params);
@@ -269,12 +271,12 @@ static int stop_timer(struct pico_ip4 *group_address){
 }
 
 
-static int reset_timer(struct igmp2_packet_params *params){
-
+static int reset_timer(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
-  ret |= stop_timer(&(params->group_address));
   uint16_t delay = pico_rand() % (params->max_resp_time*100); 
 
+  ret |= stop_timer(&(params->group_address));
   ret |= start_timer(params, delay);
   return ret;
 }
@@ -294,14 +296,15 @@ static int send_membership_report(struct pico_frame *f){
   return ret;
 }
 
-static int send_leave(struct pico_frame *f) {
-  igmp2_dbg("send leave\n");
+static int send_leave(struct pico_frame *f)
+{
   uint8_t ret = 0;
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
-
   struct pico_ip4 group_address = {0};
-  group_address.addr = igmp2_hdr->group_address;
   struct pico_ip4 dst = {0};
+
+  igmp2_dbg("send leave\n");
+  group_address.addr = igmp2_hdr->group_address;
   dst.addr = PICO_IGMP2_ALL_ROUTER_GROUP;
 
   pico_ipv4_frame_push(f,&dst,PICO_PROTO_IGMP2);
@@ -312,9 +315,10 @@ static int send_leave(struct pico_frame *f) {
 static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct pico_ip4 *mcast_addr, uint8_t type){
   uint8_t ret = 0;
   struct pico_igmp2_hdr *igmp2_hdr = NULL;
-  *f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+  struct pico_ipv4_hdr *ipv4_hdr;
 
-  struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  *f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
+  ipv4_hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
 
   // Fill IPV4 header
   ipv4_hdr->src.addr = src.addr;
@@ -367,16 +371,17 @@ typedef int (*callback)(struct igmp2_packet_params *);
 #ACTION7 RTIMRTCT: reset timer if Max resp time < current time
 */
 
-static int action1(struct igmp2_packet_params *params){
-
+static int action1(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
+  struct pico_frame *f = NULL;
+
   igmp2_dbg("DEBUG_IGMP2:EVENT = Leave Group\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = STSLIFS\n");
   ret |= stop_timer(&(params->group_address));
 
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if (PICO_IGMP2_HOST_LAST == info->Last_Host_flag) {
-    struct pico_frame *f = NULL;
     ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_LEAVE_GROUP);
     ret |= send_leave(f);
   }
@@ -393,16 +398,17 @@ static int action1(struct igmp2_packet_params *params){
   }
 }
 
-static int action2(struct igmp2_packet_params *params){
-
+static int action2(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
   struct pico_frame *f = NULL;
+  struct mgroup_info *info = pico_zalloc(sizeof(struct mgroup_info));
+  struct pico_frame *copy_frame;
 
   igmp2_dbg("DEBUG_IGMP2:EVENT = Join Group\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = SRSFST\n");
 
   /*insert in tree*/
-  struct mgroup_info *info = pico_zalloc(sizeof(struct mgroup_info));
   info->mgroup_addr.addr = params->group_address.addr;
   info->src_interface.addr = params->src_interface.addr;
   info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
@@ -414,7 +420,7 @@ static int action2(struct igmp2_packet_params *params){
 
   ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
 
-  struct pico_frame *copy_frame = pico_frame_copy(f);
+  copy_frame = pico_frame_copy(f);
   if (copy_frame == NULL) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
@@ -435,16 +441,17 @@ static int action2(struct igmp2_packet_params *params){
   }
 }
 
-static int action3(struct igmp2_packet_params *params){
-
+static int action3(struct igmp2_packet_params *params)
+{
+  struct pico_frame *f = NULL;
+  struct mgroup_info *info;
   uint8_t ret = 0;
 
   igmp2_dbg("DEBUG_IGMP2:EVENT = Leave Group\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = SLIFS\n");
 
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
+  info = pico_igmp2_find_mgroup(&(params->group_address));
   if (PICO_IGMP2_HOST_LAST == info->Last_Host_flag) {
-    struct pico_frame *f = NULL;
     ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_LEAVE_GROUP);
     send_leave(f);
   }
@@ -461,14 +468,13 @@ static int action3(struct igmp2_packet_params *params){
   }
 }
 
-static int action4(struct igmp2_packet_params *params){
-
+static int action4(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
   igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = ST\n");
-
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
   ret |= create_igmp2_frame(&(params->f), info->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
 
@@ -486,14 +492,14 @@ static int action4(struct igmp2_packet_params *params){
   }
 }
 
-static int action5(struct igmp2_packet_params *params){
-
+static int action5(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
   igmp2_dbg("DEBUG_IGMP2:EVENT = Report Received\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = STCL\n");
 
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   ret |= stop_timer(&(params->group_address));
   info->Last_Host_flag = PICO_IGMP2_HOST_LAST;
 
@@ -508,14 +514,14 @@ static int action5(struct igmp2_packet_params *params){
   }
 }
 
-static int action6(struct igmp2_packet_params *params){
-
+static int action6(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
   igmp2_dbg("DEBUG_IGMP2:EVENT = Timer Expired\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = SRSF\n");
 
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   if ( info->active_timer_starttime == params->timer_starttime) {
     ret |= send_membership_report(params->f);
   }
@@ -534,14 +540,14 @@ static int action6(struct igmp2_packet_params *params){
   }
 }
 
-static int action7(struct igmp2_packet_params *params){
-
+static int action7(struct igmp2_packet_params *params)
+{
   uint8_t ret = 0;
+  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
+  unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->active_timer_starttime));
+
   igmp2_dbg("DEBUG_IGMP2:EVENT = Query Received\n");
   igmp2_dbg("DEBUG_IGMP2:ACTION = RTIMRTCT\n");
-  struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
-
-  unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS()-(unsigned long)info->active_timer_starttime));
 
   if ( ((unsigned long) (params->max_resp_time*100)) < current_time_left) {
     ret |= create_igmp2_frame(&(params->f), params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
@@ -598,9 +604,9 @@ const callback host_membership_diagram_table[3][5] =
 
 static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
 	struct pico_tree_node * index;
-  igmp2_dbg("pico_igmp2_process_event , params->group_address = %x\n",params->group_address.addr);
   uint8_t ret = 0;
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
+  igmp2_dbg("pico_igmp2_process_event , params->group_address = %x\n",params->group_address.addr);
   if (NULL == info) {
     if(params->event == PICO_IGMP2_EVENT_QUERY_RECV){
       pico_tree_foreach(index,&KEYTable){

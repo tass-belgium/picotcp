@@ -34,11 +34,11 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 {
 	struct mock_device search = {.dev = dev};
 	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+	struct mock_frame* frame;
 
 	if(!mock)
 		return 0;
 
-	struct mock_frame* frame;
   if (len > MOCK_MTU)
     return 0;
 
@@ -68,12 +68,11 @@ static int pico_mock_poll(struct pico_device *dev, int loop_score)
 {
 	struct mock_device search = {.dev = dev};
 	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+	struct mock_frame* nxt;
 
 	if(!mock)
 		return 0;
 
-
-	struct mock_frame* nxt;
   if (loop_score <= 0)
     return 0;
 
@@ -162,11 +161,12 @@ void pico_mock_destroy(struct pico_device *dev)
 {
 	struct mock_device search = {.dev = dev};
 	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
+  struct mock_frame* nxt;
 
 	if(!mock)
 		return;
 
-	struct mock_frame* nxt = mock->in_head;
+	nxt = mock->in_head;
 	while(nxt != NULL){
 		mock->in_head = mock->in_head->next;
 		pico_free(nxt);
