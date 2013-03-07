@@ -129,6 +129,16 @@ START_TEST (test_nat_enable_disable)
 	struct pico_frame frame = {0};
 	struct pico_frame* f = &frame;
 	struct pico_ip4 nat_addr = {.addr = long_be(0x01234567)};
+
+	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+
 	printf("*********************** starting %s * \n", __func__);
 
 	pico_stack_init();
@@ -140,19 +150,11 @@ START_TEST (test_nat_enable_disable)
 	fail_if(pico_ipv4_nat_isenabled_out(&l));
 
 
-	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	f->net_hdr = buffer1;
 	f->transport_hdr = buffer1+20;
   pico_rand_feed(1);
 	fail_if(pico_ipv4_nat(f, nat_addr));
 
-	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
-											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	memcpy(buffer4+22, buffer1+20, 2); // putting in the right destination port
 
 	f->net_hdr = buffer4;
@@ -176,7 +178,6 @@ START_TEST (test_nat_translation)
 	struct pico_frame* f = &frame;
 	struct pico_ip4 nat_addr = {.addr = long_be(0x01234567)};
 	struct pico_ip4 orig_addr = {.addr = long_be(0x0a280004)};
-	printf("*********************** starting %s * \n", __func__);
 
 	//cobble up a packet
 	uint8_t buffer1_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
@@ -187,6 +188,48 @@ START_TEST (test_nat_translation)
 											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
 											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
 											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	//buffer2 is the same, so should translate to the same source port
+	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	//buffer3 has different ports, so should translate differently
+	uint8_t buffer3_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer3[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	//like buffer1 but in the other direction
+	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	//like buffer3 but in the other direction
+	uint8_t buffer5[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04, 
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	//add a packet from another internal IP address with same ports, do back & forth
+	uint8_t buffer6[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	uint8_t buffer6_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
+											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	struct pico_ip4 buf6_orig =  {.addr = long_be(0x0a280064)};
+	//like buffer6 but in the other direction
+	uint8_t buffer7[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
+											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+
+	printf("*********************** starting %s * \n", __func__);
+
 	fail_if(memcmp(buffer1_orig, buffer1, sizeof(buffer1)), "test error : you changed buffer 1 without changing buffer1_orig");
 
 	f->net_hdr = buffer1;
@@ -203,11 +246,6 @@ START_TEST (test_nat_translation)
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
-	//buffer2 is the same, so should translate to the same source port
-	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3, 
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	f->net_hdr = buffer2;
 	f->transport_hdr = buffer2+20;
 
@@ -222,16 +260,6 @@ START_TEST (test_nat_translation)
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
-
-	//buffer3 has different ports, so should translate differently
-	uint8_t buffer3_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
-	uint8_t buffer3[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb4, 0x15, 0xb3, 
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
   
 	fail_if(memcmp(buffer3_orig, buffer3, sizeof(buffer3)), "test error : you changed buffer 3 without changing buffer3_orig");
 	f->net_hdr = buffer3;
@@ -252,11 +280,6 @@ START_TEST (test_nat_translation)
 
 	//check if a packet from out to in gets tranlated
 
-	//like buffer1 but in the other direction
-	uint8_t buffer4[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
-											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	memcpy(buffer4+22, buffer1+20, 2); // putting in the right destination port
 
 	f->net_hdr = buffer4;
@@ -278,11 +301,6 @@ START_TEST (test_nat_translation)
 	//check something in the other direction for the second packet too 
 
 	printf(" checking out->in as reverse from buffer 3\n");
-	//like buffer3 but in the other direction
-	uint8_t buffer5[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00, 
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04, 
-											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3, 
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	memcpy(buffer5+22, buffer3+20, 2); // putting in the right destination port
 
 	f->net_hdr = buffer5;
@@ -299,16 +317,6 @@ START_TEST (test_nat_translation)
 	fail_if(memcmp(buffer5+20, buffer3_orig+22,2), "ports not translated correctly");
 	fail_if(memcmp(buffer5+22, buffer3_orig+20,2), "ports not translated correctly");
 
-
-	//add a packet from another internal IP address with same ports, do back & forth
-	uint8_t buffer6[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
-	uint8_t buffer6_orig[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64,
-											 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	fail_if(memcmp(buffer6_orig, buffer6, sizeof(buffer6)), "test error : you changed buffer 6 without changing buffer6_orig");
 
 	f->net_hdr = buffer6;
@@ -328,12 +336,6 @@ START_TEST (test_nat_translation)
 
 	//check if a packet from out to in gets tranlated
 
-	struct pico_ip4 buf6_orig =  {.addr = long_be(0x0a280064)};
-	//like buffer6 but in the other direction
-	uint8_t buffer7[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x04,
-											 0x01, 0x23, 0x45, 0x67,  0x15, 0xb3, 0x15, 0xb3,
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 	memcpy(buffer7+22, buffer6+20, 2); // putting in the right destination port
 
 	f->net_hdr = buffer7;
@@ -355,23 +357,32 @@ END_TEST
 
 START_TEST (test_nat_port_forwarding)
 {
+  int ret;
 	struct pico_frame frame = {0};
 	struct pico_frame* f = &frame;
 	struct pico_ip4 public_addr = {.addr = long_be(0x01234567)};
 	struct pico_ip4 private_addr = {.addr = long_be(0x0a280004)};
 	uint16_t private_port = short_be(8080);
 	uint16_t public_port = short_be(80);
-	printf("*********************** starting %s * \n", __func__);
 
-	//add port forwarding
-	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_ADD));
-
-	//nat_print_frame_content(f);
 	//cobble up a packet
 	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
 											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05, 
 											 0x01, 0x23, 0x45, 0x67,  0xaa, 0xaa, 0x00, 0x50, 
 											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+	
+	//have a packet from out to in with the same source port, different IP
+	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
+											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64, 
+											 0x01, 0x23, 0x45, 0x67,  0xaa, 0xaa, 0x00, 0x50, 
+											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
+
+  printf("*********************** starting %s * \n", __func__);
+
+	//add port forwarding
+	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_ADD));
+
+	//nat_print_frame_content(f);
 
 	f->net_hdr = buffer1;
 	f->transport_hdr = buffer1+20;
@@ -384,16 +395,10 @@ START_TEST (test_nat_port_forwarding)
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
-    int ret = memcmp(buffer1+16, &private_addr.addr, 4);
+  ret = memcmp(buffer1+16, &private_addr.addr, 4);
 	fail_if(ret != 0, "port forwarding didn't work");
     ret = memcmp(buffer1+22, &private_port, 2);
 	fail_if(ret != 0,"port forwarding didn't translate port");
-
-	//have a packet from out to in with the same source port, different IP
-	uint8_t buffer2[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,  
-											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x64, 
-											 0x01, 0x23, 0x45, 0x67,  0xaa, 0xaa, 0x00, 0x50, 
-											 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o' };
 
 	f->net_hdr = buffer2;
 	f->transport_hdr = buffer2+20;
@@ -558,6 +563,7 @@ START_TEST (test_icmp4_incoming_ping)
 													0x00, 0x00, 0x00, 0x00};
 	int buffer2len = 76;
 	int len;
+	int cntr = 0;
 	uint8_t buffer2[bufferlen];
   struct pico_ip4 local={.addr = long_be(0xc0a80164)};
   struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
@@ -570,7 +576,6 @@ START_TEST (test_icmp4_incoming_ping)
   fail_if(mock == NULL, "No device created");
 
   pico_ipv4_link_add(mock->dev, local, netmask);
-
 
 	pico_mock_network_write(mock, buffer, bufferlen);
 	//check if it is received
@@ -585,7 +590,6 @@ START_TEST (test_icmp4_incoming_ping)
 	len = pico_mock_network_read(mock, buffer2, buffer2len);
 	//inspect it
 
-	int cntr = 0;
 	while(cntr < len){
 		printf("0x%02x ",buffer2[cntr]);
 		cntr++;
@@ -615,6 +619,11 @@ START_TEST (test_icmp4_unreachable_send)
 												 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,  
 												 0x0a, 0x28, 0x00, 0x04,  0x15, 0xb3, 0x15, 0xb3,  
 												 0x00, 0x0c, 0x00, 0x00,  'e', 'l', 'l', 'o'};
+
+	//fake packet with bad upper-layer-protocol
+	uint8_t buffer3[20] = {0x45, 0x00, 0x00, 0x14,  0x91, 0xc0, 0x40, 0x00,  
+												 0x40, 0xff, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,  
+												 0x0a, 0x28, 0x00, 0x04 };
 
 	struct pico_frame* f = pico_zalloc(sizeof(struct pico_frame));
 	uint8_t nullbuf[8] = {};
@@ -686,13 +695,6 @@ START_TEST (test_icmp4_unreachable_send)
 	fail_unless(mock_icmp_code(mock, buffer2, len) == 0);
 	fail_unless(pico_checksum(buffer2+20, len-20) == 0);
 
-
-
-	//fake packet with bad upper-layer-protocol
-	uint8_t buffer3[20] = {0x45, 0x00, 0x00, 0x14,  0x91, 0xc0, 0x40, 0x00,  
-												 0x40, 0xff, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,  
-												 0x0a, 0x28, 0x00, 0x04 };
-
 	f->net_hdr = buffer3;
 	f->buffer = buffer3;
 
@@ -730,20 +732,6 @@ START_TEST (test_icmp4_unreachable_recv)
 	struct pico_socket* sock;
 	uint16_t port = short_be(7777);
 
-	printf("*********************** starting %s * \n", __func__);
-  pico_stack_init();
-
-  mock = pico_mock_create(NULL);
-  fail_if(mock == NULL, "No device created");
-
-  pico_ipv4_link_add(mock->dev, local, netmask);
-
-	//open a socket
-	sock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &icmp4_unreach_socket_cb);
-	fail_if(sock == NULL);
-	fail_if(pico_socket_bind(sock, &local, &port));
-	pico_socket_connect(sock, &remote, port);
-	pico_socket_write(sock, "fooo", 4);
 	//put a host unreachable in the queue, run a few stack ticks
 	uint8_t buffer[] = {0x45, 0x00, 0x00, 0x20,
 											0x91, 0xc0, 0x40, 0x00,
@@ -761,6 +749,21 @@ START_TEST (test_icmp4_unreachable_recv)
 											0x00, 0x00, 0x00, 0x00,
 											0x00, 0x00, 0x00, 0x00,
 	};
+
+	printf("*********************** starting %s * \n", __func__);
+  pico_stack_init();
+
+  mock = pico_mock_create(NULL);
+  fail_if(mock == NULL, "No device created");
+
+  pico_ipv4_link_add(mock->dev, local, netmask);
+
+	//open a socket
+	sock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &icmp4_unreach_socket_cb);
+	fail_if(sock == NULL);
+	fail_if(pico_socket_bind(sock, &local, &port));
+	pico_socket_connect(sock, &remote, port);
+	pico_socket_write(sock, "fooo", 4);
 	//see if my callback was called with the proper code
 	
 	pico_stack_tick();
@@ -880,13 +883,14 @@ START_TEST (test_dhcp_server_api)
 *     MAC address of client is not in arp table yet
 * Status : Done
 ************************************************************************/
-	printf("*********************** starting %s * \n", __func__);
 
   /* Declaration test 1 */ 
   struct pico_dhcpd_settings s1 = {0};
   /* Declaration test 2 */ 
   struct pico_dhcpd_settings s2 = {0};
   struct pico_device *dev;
+
+	printf("*********************** starting %s * \n", __func__);
 
   /* test 0 */ 
   /* Clear error code */
@@ -923,7 +927,6 @@ START_TEST (test_dhcp)
 *   and if response messages are replied correctly 
 * Status : Done 
 *************************************************************************/
-	printf("*********************** starting %s * \n", __func__);
   struct mock_device* mock;
   struct pico_dhcpd_settings s = {0};
   struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
@@ -936,6 +939,8 @@ START_TEST (test_dhcp)
   uint32_t len = 0;
   uint8_t buf[600]={0};
   uint8_t printbufactive = 0;
+
+	printf("*********************** starting %s * \n", __func__);
 
   /*Insert custom values in buffer*/
   fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
@@ -1007,7 +1012,6 @@ START_TEST (test_dhcp_server_ipninarp)
 *     MAC address of client is not in arp table yet
 * Status : Done
 *************************************************************************/
-	printf("*********************** starting %s * \n", __func__);
   struct mock_device* mock;
   struct pico_dhcpd_settings s = {0};
   struct pico_ip4 xid = {.addr=long_be(0x00003d1d)};
@@ -1019,6 +1023,8 @@ START_TEST (test_dhcp_server_ipninarp)
   uint32_t len = 0;
   uint8_t buf[600]={0};
   uint8_t printbufactive = 0;
+
+	printf("*********************** starting %s * \n", __func__);
 
   /*Insert custom values in buffer*/
   fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
@@ -1060,7 +1066,6 @@ END_TEST
 
 START_TEST (test_dhcp_server_ipinarp)
 {
-	printf("*********************** starting %s * \n", __func__);
 /************************************************************************
 * Check if dhcp recv works correctly if
 *     MAC address of client is allready in arp table
@@ -1074,9 +1079,12 @@ START_TEST (test_dhcp_server_ipinarp)
   struct pico_ip4 serverip={.addr = SERVER_ADDR};
   struct pico_ip4 *stored_ipv4=NULL;
   struct pico_dhcp_negotiation *dn = NULL;
+  struct pico_eth *arp_resp=NULL;
   unsigned char macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
   uint32_t len = 0;
   uint8_t buf[600]={0};
+
+	printf("*********************** starting %s * \n", __func__);
 
   /*Insert custom values in buffer*/
   fail_if(generate_dhcp_msg(buf,&len,DHCP_MSG_TYPE_DISCOVER),"DHCP_SERVER->failed to generate buffer");
@@ -1108,7 +1116,6 @@ START_TEST (test_dhcp_server_ipinarp)
   fail_unless(stored_ipv4->addr== dn->ipv4.addr,"DCHP SERVER -> new ip not stored in negotiation data");
 
   /* check if new ip is in ARP cache */
-  struct pico_eth *arp_resp=NULL;
   arp_resp = pico_arp_lookup(&ipv4address);
   fail_if(arp_resp==NULL,"DCHP SERVER -> address unavailable in arp cache");
 }
@@ -1366,7 +1373,6 @@ START_TEST (test_dhcp_client_api)
 * Check API of pico_dhcp_initiate_negotiation 
 * Status : Done
 ************************************************************************/
-	printf("*********************** starting %s * \n", __func__);
 
   /* Declaration test 0 */ 
   struct pico_dhcp_client_cookie *cli0 = NULL;
@@ -1376,6 +1382,8 @@ START_TEST (test_dhcp_client_api)
   struct pico_dhcp_client_cookie *cli2 = NULL;
   struct pico_device *dev2;
   struct mock_device *mock2=NULL;
+
+	printf("*********************** starting %s * \n", __func__);
 
   /* test 0 */ 
   /* Clear error code */
@@ -1422,6 +1430,15 @@ START_TEST (test_socket)
   struct pico_socket *sk_tcp, *sk_udp, *s, *sl, *sa;
   struct pico_device *dev;
   struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask,orig;
+
+  uint8_t getnodelay = -1;
+  uint8_t nodelay = -1;
+  uint8_t ttl = 64;
+  uint8_t getttl = 0;
+  uint8_t loop = 9;
+  uint8_t getloop = 0;
+  struct pico_ip4 mcast_default_link = {0};
+  struct pico_ip_mreq mreq = {{0},{0}};
 
   pico_stack_init();
     
@@ -1677,19 +1694,12 @@ START_TEST (test_socket)
   fail_if(ret == 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
 
 
-
-
-
-
-
   printf("START SOCKET OPTION TEST\n");
 
-  uint8_t getnodelay = -1;
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
   fail_if(getnodelay != 1, "socket> socket_setoption: default PICO_TCP_NODELAY != 1\n");
 
-  uint8_t nodelay = -1;
   ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, &nodelay);
   fail_if(ret < 0, "socket> socket_setoption: supported PICO_TCP_NODELAY failed\n");
 
@@ -1697,23 +1707,19 @@ START_TEST (test_socket)
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
   fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY != 0\n");
 
-  struct pico_ip4 mcast_default_link = {0};
   ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
   fail_if(ret == 0, "socket> socket_setoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
 
   ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
   fail_if(ret == 0, "socket> socket_getoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
 
-  uint8_t ttl = 64;
   ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_TTL, &ttl);
   fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_TTL failed\n");
 
-  uint8_t getttl = 0;
   ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_TTL, &getttl);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_TTL failed\n");
   fail_if(getttl != ttl, "socket> socket_getoption: setoption ttl != getoption ttl\n");
 
-  uint8_t loop = 9;
   ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
   fail_if(ret == 0, "socket> socket_setoption: PICO_IP_MULTICAST_LOOP succeeded with invalid (not 0 or 1) loop value\n");
 
@@ -1721,12 +1727,10 @@ START_TEST (test_socket)
   ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
   fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_LOOP failed\n");
 
-  uint8_t getloop = 0;
   ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_LOOP, &getloop);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_LOOP failed\n");
   fail_if(getloop != loop, "socket> socket_getoption: setoption loop != getoption loop\n");
 
-  struct pico_ip_mreq mreq = {{0},{0}};
   mreq.mcast_group_addr = inaddr_dst;
   mreq.mcast_link_addr = inaddr_link;
   ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq); 
@@ -1790,10 +1794,7 @@ START_TEST (test_socket)
 END_TEST
 
 START_TEST (test_ipfilter)
-{
-
-  printf("============================== IPFILTER ===============================\n");
-  
+{  
   struct pico_device *dev = NULL;
   uint8_t proto = 0, sport = 0, dport = 0, tos = 0;
   int8_t priority = 0;
@@ -1806,9 +1807,21 @@ START_TEST (test_ipfilter)
 
   enum filter_action action = 1;
 
+  int filter_id1;
+  int filter_id2;
+  int filter_id3;
+
+  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+
+  uint8_t ipv4_buf2[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
+  uint8_t tcp_buf2[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
 
   int8_t *buffer= pico_zalloc(200);
   struct pico_frame *f= (struct pico_frame *) buffer;
+  struct pico_frame *f2= (struct pico_frame *) buffer;
+
+  printf("============================== IPFILTER ===============================\n");
 
   f->buffer = pico_zalloc(10);
   f->usage_count = pico_zalloc(sizeof(uint32_t));
@@ -1816,13 +1829,10 @@ START_TEST (test_ipfilter)
   /*======================== EMPTY FILTER*/
   printf("===========> EMPTY FILTER\n");
 
-  int filter_id1;
   filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, action);
 
   fail_if(filter_id1 != -1, "Error adding filter\n");
   printf("filter_id1 = %d\n", filter_id1);
-  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
 
    // connect the buffer to the f->net_hdr pointer
   f->net_hdr= ipv4_buf;
@@ -1836,14 +1846,10 @@ START_TEST (test_ipfilter)
   /*======================= DROP PROTO FILTER: TCP*/
   printf("===========> DROP PROTO FILTER: TCP\n");
 
-  int filter_id2;
   filter_id2 = pico_ipv4_filter_add(dev, PICO_PROTO_TCP, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
   printf("filter_id2 = %d\n", filter_id2);
   fail_if(filter_id2 == -1, "Error adding filter\n");
 
-  struct pico_frame *f2= (struct pico_frame *) buffer;
-  uint8_t ipv4_buf2[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf2[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
 
   // connect the buffer to the f->net_hdr pointer
   f2->net_hdr= ipv4_buf2;
@@ -1858,7 +1864,6 @@ START_TEST (test_ipfilter)
 
   /*====================== DELETING FILTERS*/
   printf("===========> DELETING FILTER\n");
-  int filter_id3;
 
   /*Adjust your IPFILTER*/
   filter_id3 = pico_ipv4_filter_add(NULL, 17, NULL, NULL , NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
@@ -1897,17 +1902,23 @@ Suite *pico_suite(void)
   Suite *s = suite_create("PicoTCP");
 
   TCase *ipv4 = tcase_create("IPv4");
+  TCase *icmp = tcase_create("ICMP4");
+  TCase *dhcp = tcase_create("DHCP");
+  TCase *dns = tcase_create("DNS");
+  TCase *rb = tcase_create("RB TREE");
+  TCase *socket = tcase_create("SOCKET");
+  TCase *nat = tcase_create("NAT");
+  TCase *ipfilter = tcase_create("IPFILTER");
+
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
 
-  TCase *icmp = tcase_create("ICMP4");
   tcase_add_test(icmp, test_icmp4_ping);
   tcase_add_test(icmp, test_icmp4_incoming_ping);
   tcase_add_test(icmp, test_icmp4_unreachable_send);
   tcase_add_test(icmp, test_icmp4_unreachable_recv);
   suite_add_tcase(s, icmp);
 
-  TCase *dhcp = tcase_create("DHCP");
   tcase_add_test(dhcp, test_dhcp_client);
   tcase_add_test(dhcp, test_dhcp_client_api);
 
@@ -1917,28 +1928,23 @@ Suite *pico_suite(void)
   tcase_add_test(dhcp, test_dhcp);
   suite_add_tcase(s, dhcp);
 
-  TCase *dns = tcase_create("DNS");
   tcase_add_test(dns, test_dns);
 
-   suite_add_tcase(s, dns);
+  suite_add_tcase(s, dns);
 
-  TCase *rb = tcase_create("RB TREE");
   tcase_add_test(rb, test_rbtree);
   tcase_set_timeout(rb, 10);
   suite_add_tcase(s, rb);
 
-  TCase *socket = tcase_create("SOCKET");
   tcase_add_test(socket, test_socket);
   suite_add_tcase(s, socket);
 
-  TCase *nat = tcase_create("NAT");
   tcase_add_test(nat, test_nat_enable_disable);
   tcase_add_test(nat, test_nat_port_forwarding);
   tcase_add_test(nat, test_nat_translation);
   tcase_set_timeout(nat, 10);
   suite_add_tcase(s, nat);
 
-  TCase *ipfilter = tcase_create("IPFILTER");
   tcase_add_test(ipfilter, test_ipfilter);
   suite_add_tcase(s, ipfilter);
 
