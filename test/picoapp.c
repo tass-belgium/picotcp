@@ -1016,6 +1016,14 @@ void app_mcastclient(char *arg)
   struct pico_ip4 inaddr_dst;
   struct pico_ip4 inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null;
   char *nxt;
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_ip4 mcast_default_link = {0};
+  uint8_t getttl = 0;
+  uint8_t ttl = 64;
+  uint8_t loop = 9;
+  struct pico_ip_mreq mreq = {{0},{0}};
+  uint8_t getloop = 0;
+#endif
 
   nxt = cpy_arg(&daddr, arg);
   if (!daddr) {
@@ -1073,7 +1081,6 @@ void app_mcastclient(char *arg)
 #ifdef PICO_SUPPORT_MCAST
   /* Start of pico_socket_setoption */
   printf("\n---------- Testing SET PICO_IP_MULTICAST_IF: not supported ----------\n");
-  struct pico_ip4 mcast_default_link = {0};
   if(pico_socket_setoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link) < 0) {
     printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_IF failed with errno %d\n", pico_err);
   } else {
@@ -1089,7 +1096,6 @@ void app_mcastclient(char *arg)
     exit(11);
   }
 
-  uint8_t ttl = 64;
   printf("\n---------- Testing SET PICO_IP_MULTICAST_TTL: ttl = %u ----------\n", ttl);
   if(pico_socket_setoption(s, PICO_IP_MULTICAST_TTL, &ttl) < 0) {
     printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_TTL failed with errno %d\n", pico_err);
@@ -1098,7 +1104,6 @@ void app_mcastclient(char *arg)
     printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_TTL succeeded\n");
   }
 
-  uint8_t getttl = 0;
   printf("\n---------- Testing GET PICO_IP_MULTICAST_TTL: expecting ttl = %u ----------\n", ttl);
   if(pico_socket_getoption(s, PICO_IP_MULTICAST_TTL, &getttl) < 0) {
     printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_TTL failed with errno %d\n", pico_err);
@@ -1109,7 +1114,6 @@ void app_mcastclient(char *arg)
       exit(14);
   }
 
-  uint8_t loop = 9;
   printf("\n---------- Testing SET PICO_IP_MULTICAST_LOOP: loop = %u ----------\n", loop);
   if(pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop) < 0) {
     printf(">>>>>>>>>> socket_setoption PICO_IP_MULTICAST_LOOP failed with errno %d\n", pico_err);
@@ -1128,7 +1132,6 @@ void app_mcastclient(char *arg)
   }
 
   printf("\n---------- Testing GET PICO_IP_NULTICAST_LOOP: expecting loop = %u ----------\n", loop);
-  uint8_t getloop = 0;
   if(pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop) < 0) {
     printf(">>>>>>>>>> socket_getoption PICO_IP_MULTICAST_LOOP failed with errno %d\n", pico_err);
     exit(17);
@@ -1139,7 +1142,6 @@ void app_mcastclient(char *arg)
   }
 
   printf("\n---------- Testing PICO_IP_ADD_MEMBERSHIP: correct group and link address ----------\n");
-  struct pico_ip_mreq mreq = {{0},{0}};
   mreq.mcast_group_addr = inaddr_dst;
   mreq.mcast_link_addr = inaddr_link;
   if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
