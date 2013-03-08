@@ -751,15 +751,15 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   new->dev = dev;
 #ifdef PICO_SUPPORT_MCAST
   new->mcast_head = pico_zalloc(sizeof(struct pico_tree));
-  new->mcast_head->root = &LEAF;
-  new->mcast_head->compare = mcast_cmp;
-
   if (!new->mcast_head) {
     pico_free(new);
     dbg("IPv4: Out of memory!\n");
     pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
+
+  new->mcast_head->root = &LEAF;
+  new->mcast_head->compare = mcast_cmp;
 #endif
 
   pico_tree_insert(&Tree_dev_link, new);
