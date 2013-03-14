@@ -46,7 +46,7 @@ static int udpecho_exit = 0;
 
 void cb_udpecho(uint16_t ev, struct pico_socket *s)
 {
-  char recvbuf[1400];
+  char recvbuf[4400];
   int r=0;
   uint32_t peer;
   uint16_t port;
@@ -56,7 +56,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
   //printf("udpecho> wakeup\n");
   if (ev == PICO_SOCK_EV_RD) {
     do {
-      r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+      r = pico_socket_recvfrom(s, recvbuf, 4400, &peer, &port);
       if (r > 0) {
         if (strncmp(recvbuf, "end", 3) == 0) {
           printf("Client requested to exit... test successful.\n");
