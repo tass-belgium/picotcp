@@ -160,7 +160,6 @@ struct pico_ipv4_fragmented_packet {
   struct pico_ip4 src;
   struct pico_ip4 dst;
   uint16_t total_len;
-  uint32_t timestamp;
   struct pico_tree *t;
 };
 
@@ -226,23 +225,6 @@ static inline void pico_ipv4_fragmented_cleanup(struct pico_ipv4_fragmented_pack
   pico_free(pfrag->t);
   pico_free(pfrag);
 }
-
-static void pico_ipv4_fragmented_timeout(unsigned long now, void *arg)
-{
-  uint32_t current_timestamp = PICO_TIME_MS();
-  struct pico_tree_node *index = NULL, *_tmp = NULL;
-  struct pico_ipv4_fragmented_packet *pfrag = NULL; 
-
-  pico_tree_foreach_safe(index, &pico_ipv4_fragmented_tree, _tmp) {
-    pfrag = index->keyValue;
-    if (pfrag->timestamp < current_timestamp) {
-      dbg("FRAG: timeout on fragmented packet with ID %u, cleanup\n", pfrag->id);
-      pico_ipv4_fragmented_cleanup(pfrag);
-    }
-  }
-
-  return;
-}
 #endif /* PICO_SUPPORT_IPFRAG */
 
 #ifdef PICO_SUPPORT_IPFRAG
@@ -262,38 +244,35 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
   if (short_be(hdr->frag) & PICO_IPV4_MOREFRAG) {
     if (!offset) {
       dbg("FRAG: first element of a fragmented packet\n");
-      if (pico_tree_empty(&pico_ipv4_fragmented_tree)) {
-        // add entry in tree for this ID and create secondary tree to contain fragmented elements
-        pfrag = pico_zalloc(sizeof(struct pico_ipv4_fragmented_packet));
-        if (!pfrag) {
-          pico_err = PICO_ERR_ENOMEM;
-          return -1;
-        }
-        pfrag->id = short_be(hdr->id);
-        pfrag->proto = hdr->proto;
-        pfrag->src.addr = long_be(hdr->src.addr);
-        pfrag->dst.addr = long_be(hdr->dst.addr);
-        pfrag->total_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
-        pfrag->timestamp = PICO_TIME_MS() + PICO_IPV4_FRAG_TIMEOUT;
-        pfrag->t = pico_zalloc(sizeof(struct pico_tree));
-        if (!pfrag->t) {
-          pico_free(pfrag);
-          pico_err = PICO_ERR_ENOMEM;
-          return -1;
-        }
-        pfrag->t->root = &LEAF;
-        pfrag->t->compare = pico_ipv4_fragmented_element_cmp;
-        
-        pico_tree_insert(pfrag->t, *f);
-        pico_tree_insert(&pico_ipv4_fragmented_tree, pfrag);
-        pico_timer_add(PICO_IPV4_FRAG_TIMEOUT, pico_ipv4_fragmented_timeout, NULL);
-        return 0;
-      } 
-      else {
-        dbg("FRAG: silently discard first frame, we only allow one fragmented packet at a time\n");
-        pico_frame_discard(*f);
-        return 0;
+      if (!pico_tree_empty(&pico_ipv4_fragmented_tree)) {
+        dbg("FRAG: cleanup tree\n");
+        // only one entry allowed in this tree
+        pfrag = pico_tree_first(&pico_ipv4_fragmented_tree);
+        pico_ipv4_fragmented_cleanup(pfrag);
       }
+      // add entry in tree for this ID and create secondary tree to contain fragmented elements
+      pfrag = pico_zalloc(sizeof(struct pico_ipv4_fragmented_packet));
+      if (!pfrag) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+      }
+      pfrag->id = short_be(hdr->id);
+      pfrag->proto = hdr->proto;
+      pfrag->src.addr = long_be(hdr->src.addr);
+      pfrag->dst.addr = long_be(hdr->dst.addr);
+      pfrag->total_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+      pfrag->t = pico_zalloc(sizeof(struct pico_tree));
+      if (!pfrag->t) {
+        pico_free(pfrag);
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+      }
+      pfrag->t->root = &LEAF;
+      pfrag->t->compare = pico_ipv4_fragmented_element_cmp;
+       
+      pico_tree_insert(pfrag->t, *f);
+      pico_tree_insert(&pico_ipv4_fragmented_tree, pfrag);
+      return 0;
     }
     else {
       dbg("FRAG: intermediate element of a fragmented packet\n");
