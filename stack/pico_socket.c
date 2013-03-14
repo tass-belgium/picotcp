@@ -562,7 +562,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
   struct pico_frame *f;
-  int tcp_header_offset = 0;
+  int header_offset = 0;
   int total_payload_written = 0;
 #ifdef PICO_SUPPORT_IPV4
   struct pico_ip4 *src4;
@@ -586,7 +586,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
   if ((s->state & PICO_SOCKET_STATE_CONNECTED) != 0) {
     if (remote_port != s->remote_port) {
-      printf("RETURN EINVAL %d - %d\n",short_be(remote_port), short_be(s->remote_port));
+      //dbg("RETURN EINVAL %d - %d\n",short_be(remote_port), short_be(s->remote_port));
       pico_err = PICO_ERR_EINVAL;
       return -1;
     }
@@ -649,11 +649,16 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP)
-    tcp_header_offset = pico_tcp_overhead(s);
+    header_offset = pico_tcp_overhead(s);
+#endif
+
+#ifdef PICO_SUPPORT_UDP
+  if (PROTO(s) == PICO_PROTO_UDP)
+    header_offset = 8;
 #endif
 
   while (total_payload_written < len) {
-    int transport_len = (len - total_payload_written) + tcp_header_offset; 
+    int transport_len = (len - total_payload_written) + header_offset; 
     if (transport_len > PICO_SOCKET_MTU)
       transport_len = PICO_SOCKET_MTU;
     f = pico_socket_frame_alloc(s, transport_len);
@@ -662,13 +667,13 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       return -1;
     }
 
-    f->payload += tcp_header_offset;
-    f->payload_len -= tcp_header_offset;
+    f->payload += header_offset;
+    f->payload_len -= header_offset;
     f->sock = s;
-    memcpy(f->payload, buf + total_payload_written, transport_len - tcp_header_offset);
-    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", tcp_header_offset, f->payload_len);
+    memcpy(f->payload, buf + total_payload_written, transport_len - header_offset);
+    //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);
     if (s->proto->push(s->proto, f) > 0) {
-      total_payload_written += (transport_len - tcp_header_offset);
+      total_payload_written += (transport_len - header_offset);
     } else {
       pico_frame_discard(f);
       pico_err = PICO_ERR_EAGAIN;
@@ -1242,7 +1247,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP)
-    overhead = sizeof(struct pico_udp_hdr);
+    overhead = 0; /* used to be overhead = sizeof(struct pico_udp_hdr); */
 #endif
 
 #ifdef PICO_SUPPORT_TCP
