@@ -11,6 +11,7 @@ STRIP?=0
 TCP?=1
 UDP?=1
 IPV4?=1
+IPFRAG?=1
 NAT?=1
 ICMP4?=1
 MCAST?=1
@@ -71,6 +72,9 @@ POSIX_OBJ=  modules/pico_dev_vde.o \
 
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
+endif
+ifneq ($(IPFRAG),0)
+  include rules/ipfrag.mk
 endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk

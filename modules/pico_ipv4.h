@@ -41,6 +41,9 @@ struct pico_ipv4_link
 
 #define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
 #define PICO_IPV4_DONTFRAG 0x4000
+#define PICO_IPV4_MOREFRAG 0x2000
+#define PICO_IPV4_FRAG_MASK 0x1FFF
+#define PICO_IPV4_FRAG_TIMEOUT 2000 /* ms */
 #define PICO_IPV4_DEFAULT_TTL 64
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
