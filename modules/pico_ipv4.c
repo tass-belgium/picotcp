@@ -153,6 +153,235 @@ static int pico_ipv4_checksum(struct pico_frame *f)
   return 0;
 }
 
+#ifdef PICO_SUPPORT_IPFRAG
+struct pico_ipv4_fragmented_packet {
+  uint16_t id;
+  uint8_t proto;
+  struct pico_ip4 src;
+  struct pico_ip4 dst;
+  uint16_t total_len;
+  uint32_t timestamp;
+  struct pico_tree *t;
+};
+
+static int pico_ipv4_fragmented_packet_cmp(void *ka, void *kb)
+{
+  struct pico_ipv4_fragmented_packet *a = ka, *b = kb;
+
+  if (a->id < b->id)
+    return -1; 
+  else if (a->id > b->id)
+    return 1;
+  else {
+    if (a->proto < b->proto)
+      return -1;
+    else if (a->proto > b->proto)
+      return 1;
+    else {
+      if (a->src.addr < b->src.addr)
+        return -1;
+      else if (a->src.addr > b->src.addr)
+        return 1;
+      else {
+        if (a->dst.addr < b->dst.addr)
+          return -1;
+        else if (a->dst.addr > b->dst.addr)
+          return 1;
+        else
+          return 0;
+      }
+    }
+  }
+} 
+
+static int pico_ipv4_fragmented_element_cmp(void *ka, void *kb)
+{
+  struct pico_frame *frame_a = ka, *frame_b = kb;
+  struct pico_ipv4_hdr *a, *b;
+  a = (struct pico_ipv4_hdr *) frame_a->net_hdr;
+  b = (struct pico_ipv4_hdr *) frame_b->net_hdr;
+
+  if (short_be((a->frag & PICO_IPV4_FRAG_MASK)) < short_be((b->frag & PICO_IPV4_FRAG_MASK)))
+    return -1; 
+  else if (short_be((a->frag & PICO_IPV4_FRAG_MASK)) > short_be((b->frag & PICO_IPV4_FRAG_MASK)))
+    return 1;
+  else
+    return 0;
+} 
+    
+PICO_TREE_DECLARE(pico_ipv4_fragmented_tree, pico_ipv4_fragmented_packet_cmp);
+
+static inline void pico_ipv4_fragmented_cleanup(struct pico_ipv4_fragmented_packet *pfrag)
+{
+  struct pico_tree_node *index = NULL, *_tmp = NULL;
+  struct pico_frame *f_frag = NULL;
+
+  pico_tree_foreach_safe(index, pfrag->t, _tmp) {
+    f_frag = index->keyValue;
+    dbg("FRAG: remove packet with offset %u\n", short_be(((struct pico_ipv4_hdr *)f_frag->net_hdr)->frag) & PICO_IPV4_FRAG_MASK);
+    pico_tree_delete(pfrag->t, f_frag);
+    pico_frame_discard(f_frag);
+  }
+  pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
+  pico_free(pfrag->t);
+  pico_free(pfrag);
+}
+
+static void pico_ipv4_fragmented_timeout(unsigned long now, void *arg)
+{
+  uint32_t current_timestamp = PICO_TIME_MS();
+  struct pico_tree_node *index = NULL, *_tmp = NULL;
+  struct pico_ipv4_fragmented_packet *pfrag = NULL; 
+
+  pico_tree_foreach_safe(index, &pico_ipv4_fragmented_tree, _tmp) {
+    pfrag = index->keyValue;
+    if (pfrag->timestamp < current_timestamp) {
+      dbg("FRAG: timeout on fragmented packet with ID %u, cleanup\n", pfrag->id);
+      pico_ipv4_fragmented_cleanup(pfrag);
+    }
+  }
+
+  return;
+}
+#endif /* PICO_SUPPORT_IPFRAG */
+
+#ifdef PICO_SUPPORT_IPFRAG
+static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct pico_frame **f)
+{
+  uint8_t *running_pointer = NULL;
+  uint16_t running_offset = 0;
+  uint16_t offset = 0;
+  uint16_t data_len = 0;
+  struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  struct pico_ipv4_fragmented_packet *pfrag = NULL, frag; 
+  struct pico_frame *f_new = NULL, *f_frag = NULL;
+  struct pico_tree_node *index, *_tmp;
+
+  data_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+  offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
+  if (short_be(hdr->frag) & PICO_IPV4_MOREFRAG) {
+    if (!offset) {
+      dbg("FRAG: first element of a fragmented packet\n");
+      if (pico_tree_empty(&pico_ipv4_fragmented_tree)) {
+        // add entry in tree for this ID and create secondary tree to contain fragmented elements
+        pfrag = pico_zalloc(sizeof(struct pico_ipv4_fragmented_packet));
+        if (!pfrag) {
+          pico_err = PICO_ERR_ENOMEM;
+          return -1;
+        }
+        pfrag->id = short_be(hdr->id);
+        pfrag->proto = hdr->proto;
+        pfrag->src.addr = long_be(hdr->src.addr);
+        pfrag->dst.addr = long_be(hdr->dst.addr);
+        pfrag->total_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+        pfrag->timestamp = PICO_TIME_MS() + PICO_IPV4_FRAG_TIMEOUT;
+        pfrag->t = pico_zalloc(sizeof(struct pico_tree));
+        if (!pfrag->t) {
+          pico_free(pfrag);
+          pico_err = PICO_ERR_ENOMEM;
+          return -1;
+        }
+        pfrag->t->root = &LEAF;
+        pfrag->t->compare = pico_ipv4_fragmented_element_cmp;
+        
+        pico_tree_insert(pfrag->t, *f);
+        pico_tree_insert(&pico_ipv4_fragmented_tree, pfrag);
+        pico_timer_add(PICO_IPV4_FRAG_TIMEOUT, pico_ipv4_fragmented_timeout, NULL);
+        return 0;
+      } 
+      else {
+        dbg("FRAG: silently discard first frame, we only allow one fragmented packet at a time\n");
+        pico_frame_discard(*f);
+        return 0;
+      }
+    }
+    else {
+      dbg("FRAG: intermediate element of a fragmented packet\n");
+      frag.id = short_be(hdr->id);
+      frag.proto = hdr->proto;
+      frag.src.addr = long_be(hdr->src.addr);
+      frag.dst.addr = long_be(hdr->dst.addr);
+      pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
+      if (pfrag) {
+        pfrag->total_len += (short_be(hdr->len) - PICO_SIZE_IP4HDR);
+        pico_tree_insert(pfrag->t, *f);
+        return 0;
+      } else {
+        dbg("FRAG: silently discard intermediate frame, first packet was lost or disallowed (one fragmented packet at a time)\n");
+        pico_frame_discard(*f);
+        return 0;
+      }
+    }
+  } else if (offset) {
+    dbg("FRAG: last element of a fragmented packet\n");
+    frag.id = short_be(hdr->id);
+    frag.proto = hdr->proto;
+    frag.src.addr = long_be(hdr->src.addr);
+    frag.dst.addr = long_be(hdr->dst.addr);
+    pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
+    if (pfrag) {
+      dbg("FRAG: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
+      pfrag->total_len += (short_be(hdr->len) - PICO_SIZE_IP4HDR);
+      f_new = self->alloc(self, pfrag->total_len);
+
+      dbg("FRAG: copy IP header information len = %lu\n", PICO_SIZE_IP4HDR);
+      f_frag = pico_tree_first(pfrag->t);
+      f_frag_hdr = (struct pico_ipv4_hdr *)f_frag->net_hdr;
+      data_len = short_be(f_frag_hdr->len) - PICO_SIZE_IP4HDR; 
+      memcpy(f_new->net_hdr, f_frag->net_hdr, PICO_SIZE_IP4HDR);
+      memcpy(f_new->transport_hdr, f_frag->transport_hdr, data_len);
+      running_pointer = f_new->transport_hdr + data_len;
+      offset = short_be(f_frag_hdr->frag) & PICO_IPV4_FRAG_MASK;
+      running_offset = data_len / 8;
+      pico_tree_delete(pfrag->t, f_frag);
+      pico_frame_discard(f_frag);
+      dbg("FRAG: reassembled first packet of %u data bytes, offset = %u next expected offset = %u\n", data_len, offset, running_offset);
+
+      pico_tree_foreach_safe(index, pfrag->t, _tmp)
+      {
+        f_frag = index->keyValue;
+        f_frag_hdr = (struct pico_ipv4_hdr *)f_frag->net_hdr;
+        data_len = short_be(f_frag_hdr->len) - PICO_SIZE_IP4HDR; 
+        memcpy(running_pointer, f_frag->transport_hdr, data_len);
+        running_pointer += data_len;
+        offset = short_be(f_frag_hdr->frag) & PICO_IPV4_FRAG_MASK;
+        if (offset != running_offset) {
+          dbg("FRAG: error reassembling intermediate packet: offset %u != expected offset %u (missing fragment)\n", offset, running_offset);
+          pico_ipv4_fragmented_cleanup(pfrag);
+          return -1;
+        }
+        running_offset += (data_len / 8);
+        pico_tree_delete(pfrag->t, f_frag);
+        pico_frame_discard(f_frag);
+        dbg("FRAG: reassembled intermediate packet of %u data bytes, offset = %u next expected offset = %u\n", data_len, offset, running_offset);
+      }
+      pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
+      pico_free(pfrag);
+
+      data_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+      memcpy(running_pointer, (*f)->transport_hdr, data_len);
+      offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
+      pico_frame_discard(*f);
+      dbg("FRAG: reassembled last packet of %u data bytes, offset = %u\n", data_len, offset);
+      *f = f_new;
+      return 1;
+    } else {
+      // 
+      dbg("FRAG: silently discard last frame, first packet was lost or disallowed (one fragmented packet at a time)\n");
+      pico_frame_discard(*f);
+      return 0;
+    }
+  } else {
+    return 1;
+  }
+}
+#else
+static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct pico_frame **f)
+{
+  return 1;
+}
+#endif /* PICO_SUPPORT_IPFRAG */
+
 static int pico_ipv4_forward(struct pico_frame *f);
 #ifdef PICO_SUPPORT_MCAST
 static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
@@ -160,8 +389,10 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   uint8_t option_len = 0;
+  int ret = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_ip4 address0;
+
   address0.addr = long_be(0x00000000);
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
@@ -176,6 +407,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     return 0;
   }
 #endif
+
+  ret = pico_ipv4_fragmented_check(self, &f);
+  if (ret < 1)
+    return ret;
+
 #ifdef PICO_SUPPORT_MCAST
   /* Multicast address in source, discard quietly */
   if (!pico_ipv4_is_unicast(hdr->src.addr)) {

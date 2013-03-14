@@ -79,6 +79,17 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   return p;
 }
 
+static inline struct pico_frame *pico_queue_peek(struct pico_queue *q)
+{
+  struct pico_frame *p = q->head;
+  if (q->frames < 1)
+    return NULL;
+#ifdef PICO_SUPPORT_DEBUG_TOOLS
+  debug_q(q);
+#endif
+  return p;
+}
+
 static inline void pico_queue_empty(struct pico_queue *q)
 {
   struct pico_frame *p = pico_dequeue(q);

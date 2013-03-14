@@ -124,7 +124,7 @@ struct pico_socket *pico_udp_open(void)
 
 int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port)
 {
-  struct pico_frame *f = pico_dequeue(&s->q_in);
+  struct pico_frame *f = pico_queue_peek(&s->q_in);
   if (f) {
     f->payload = f->transport_hdr + sizeof(struct pico_udp_hdr);
     f->payload_len = f->transport_len - sizeof(struct pico_udp_hdr);
@@ -139,11 +139,11 @@ int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t
       memcpy(buf, f->payload, len);
       f->payload += len;
       f->payload_len -= len;
-      pico_frame_discard(f); /** XXX: re-queue on head, instead! **/
       return len;
     } else {
       int ret = f->payload_len;
       memcpy(buf, f->payload, f->payload_len);
+      f = pico_dequeue(&s->q_in);
       pico_frame_discard(f);
       return ret;
     }
