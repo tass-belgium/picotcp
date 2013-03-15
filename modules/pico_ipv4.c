@@ -376,11 +376,20 @@ static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   uint8_t option_len = 0;
+  uint16_t checksum_invalid = 1;
   int ret = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_ip4 address0;
 
   address0.addr = long_be(0x00000000);
+
+  checksum_invalid = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+  if (checksum_invalid) {
+    dbg("IP: checksum failed!\n");
+    pico_frame_discard(f);
+    return 0;
+  }
+
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
      option_len =  4*(((hdr->vhl) & 0x0F)-5);
