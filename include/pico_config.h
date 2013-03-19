@@ -17,7 +17,8 @@ See LICENSE and COPYING for usage.
 # include "arch/pico_stm32.h"
 #elif defined STELLARIS
 # include "arch/pico_stellaris.h"
-
+#elif defined LPC
+# include "arch/pico_lpc1768.h"
 //#elif defined ...
 
 #else

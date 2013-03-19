@@ -44,6 +44,11 @@ ifeq ($(ARCH),stellaris)
   CFLAGS+=-mthumb -DSTELLARIS
 endif
 
+ifeq ($(ARCH),lpc)
+  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
+endif
 
 .c.o:
 	@echo -e "\t[CC] $<"
