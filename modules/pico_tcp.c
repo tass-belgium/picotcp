@@ -1009,7 +1009,9 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
   f->sock = &t->sock;
   hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   hdr->len = (PICO_SIZE_TCPHDR + opt_len) << 2 | t->jumbo;
-  hdr->flags = PICO_TCP_FIN;
+  hdr->flags = PICO_TCP_FIN | PICO_TCP_ACK;
+  hdr->ack = long_be(t->rcv_nxt);
+  t->rcv_ackd = t->rcv_nxt;
   hdr->rwnd = short_be(t->wnd);
   tcp_set_space(t);
   tcp_add_options(t,f, PICO_TCP_FIN, opt_len);
@@ -1968,7 +1970,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
       if (action->fin)
         action->fin(s,f);
     }
-    if (flags == (PICO_TCP_FIN | PICO_TCP_ACK)) {
+    if ((flags == (PICO_TCP_FIN | PICO_TCP_ACK)) || (flags == (PICO_TCP_FIN | PICO_TCP_ACK | PICO_TCP_PSH))) {
       if (action->finack)
         action->finack(s,f);
     }
