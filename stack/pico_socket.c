@@ -1130,7 +1130,40 @@ int pico_socket_close(struct pico_socket *s)
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
+  struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_udp_hdr *udp_hdr = NULL;
+  uint16_t checksum_invalid = 1;
   int ret = 0;
+
+  if (!hdr) {
+    pico_err = PICO_ERR_EFAULT;
+    return -1;
+  }
+
+  switch (net_hdr->proto)
+  {
+    case PICO_PROTO_TCP:
+      //pico_tcp_checksum_ipv4(f);
+      break;
+
+    case PICO_PROTO_UDP:
+      udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      if (short_be(udp_hdr->crc)) {
+        checksum_invalid = short_be(pico_udp_checksum_ipv4(f));
+        //dbg("UDP CRC validation == %u\n", checksum_invalid);
+        if (checksum_invalid) {
+          //dbg("UDP CRC: validation failed!\n");
+          pico_frame_discard(f);
+          return 0;
+        }
+      }
+      break;
+
+    default:
+      // Do nothing
+      break;
+  }
+
   if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
     return ret;
 
