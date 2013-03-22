@@ -238,6 +238,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
   uint16_t offset = 0;
   uint16_t data_len = 0;
   struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) (*f)->transport_hdr;
   struct pico_ipv4_fragmented_packet *pfrag = NULL, frag; 
   struct pico_frame *f_new = NULL, *f_frag = NULL;
   struct pico_tree_node *index, *_tmp;
@@ -351,6 +352,14 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       hdr->frag = 0; /* flags cleared and no offset */
       hdr->crc = 0;
       hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+      /* Optional, the UDP/TCP CRC should already be correct */
+      if (hdr->proto == PICO_PROTO_TCP) {
+        //pico_tcp_checksum_ipv4(f);
+      } else if (hdr->proto == PICO_PROTO_UDP){
+        udp_hdr = (struct pico_udp_hdr *) f_new->transport_hdr;
+        udp_hdr->crc = 0;
+        udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f_new));
+      }
       *f = f_new;
       return 1;
     } else {
