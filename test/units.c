@@ -568,6 +568,7 @@ START_TEST (test_icmp4_incoming_ping)
   struct pico_ip4 local={.addr = long_be(0xc0a80164)};
   struct pico_ip4 netmask={.addr = long_be(0xffffff00)};
 	struct mock_device* mock;
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) buffer;
 	printf("*********************** starting %s * \n", __func__);
 
   pico_stack_init();
@@ -577,6 +578,8 @@ START_TEST (test_icmp4_incoming_ping)
 
   pico_ipv4_link_add(mock->dev, local, netmask);
 
+  hdr->crc = 0;
+  hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
 	pico_mock_network_write(mock, buffer, bufferlen);
 	//check if it is received
 	pico_stack_tick();
@@ -749,6 +752,7 @@ START_TEST (test_icmp4_unreachable_recv)
 											0x00, 0x00, 0x00, 0x00,
 											0x00, 0x00, 0x00, 0x00,
 	};
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) buffer;
 
 	printf("*********************** starting %s * \n", __func__);
   pico_stack_init();
@@ -770,6 +774,8 @@ START_TEST (test_icmp4_unreachable_recv)
 	pico_stack_tick();
 	pico_stack_tick();
 	//filling in the IP header and first 8 bytes
+  hdr->crc = 0;
+  hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
 	printf("read %d bytes\n",pico_mock_network_read(mock, buffer+28, 28));
 	
 	printf("wrote %d bytes\n", pico_mock_network_write(mock, buffer, 56));

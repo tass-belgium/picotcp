@@ -238,6 +238,8 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
   uint16_t offset = 0;
   uint16_t data_len = 0;
   struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  struct pico_udp_hdr *udp_hdr = NULL;
+  struct pico_tcp_hdr *tcp_hdr = NULL;
   struct pico_ipv4_fragmented_packet *pfrag = NULL, frag; 
   struct pico_frame *f_new = NULL, *f_frag = NULL;
   struct pico_tree_node *index, *_tmp;
@@ -351,6 +353,16 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       hdr->frag = 0; /* flags cleared and no offset */
       hdr->crc = 0;
       hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+      /* Optional, the UDP/TCP CRC should already be correct */
+      if (hdr->proto == PICO_PROTO_TCP) {
+        tcp_hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
+        tcp_hdr->crc = 0;
+        tcp_hdr->crc = short_be(pico_tcp_checksum_ipv4(f_new));
+      } else if (hdr->proto == PICO_PROTO_UDP){
+        udp_hdr = (struct pico_udp_hdr *) f_new->transport_hdr;
+        udp_hdr->crc = 0;
+        udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f_new));
+      }
       *f = f_new;
       return 1;
     } else {
@@ -369,19 +381,11 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
 }
 #endif /* PICO_SUPPORT_IPFRAG */
 
-static int pico_ipv4_forward(struct pico_frame *f);
-#ifdef PICO_SUPPORT_MCAST
-static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
-#endif
-static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
+#ifdef PICO_SUPPORT_CRC
+static inline int pico_ipv4_crc_check(struct pico_frame *f)
 {
-  uint8_t option_len = 0;
   uint16_t checksum_invalid = 1;
-  int ret = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  struct pico_ip4 address0;
-
-  address0.addr = long_be(0x00000000);
 
   checksum_invalid = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
   if (checksum_invalid) {
@@ -389,6 +393,27 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     pico_frame_discard(f);
     return 0;
   }
+  return 1;
+}
+#else
+static inline int pico_ipv4_crc_check(struct pico_frame *f)
+{
+  return 1;
+}
+#endif /* PICO_SUPPORT_CRC */
+
+static int pico_ipv4_forward(struct pico_frame *f);
+#ifdef PICO_SUPPORT_MCAST
+static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
+#endif
+static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
+  uint8_t option_len = 0;
+  int ret = 0;
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_ip4 address0;
+
+  address0.addr = long_be(0x00000000);
 
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
@@ -404,6 +429,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   }
 #endif
 
+  /* ret == 1 indicates to continue the function */
+  ret = pico_ipv4_crc_check(f);
+  if (ret < 1)
+    return ret;
   ret = pico_ipv4_fragmented_check(self, &f);
   if (ret < 1)
     return ret;

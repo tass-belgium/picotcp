@@ -21,6 +21,7 @@ DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
 IPFILTER?=1
+CRC?=1
 
 
 ifeq ($(DEBUG),1)
@@ -44,6 +45,11 @@ ifeq ($(ARCH),stellaris)
   CFLAGS+=-mthumb -DSTELLARIS
 endif
 
+ifeq ($(ARCH),lpc)
+  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
+endif
 
 .c.o:
 	@echo -e "\t[CC] $<"
@@ -114,6 +120,9 @@ ifneq ($(SIMPLE_HTTP),0)
 endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
+endif
+ifneq ($(CRC),0)
+  include rules/crc.mk
 endif
 
 all: mod core lib

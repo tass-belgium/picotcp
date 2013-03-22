@@ -425,7 +425,7 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   f->start = f->buffer;
   f->len = f->buffer_len;
   if (f->len > 8) {
-    int mid_frame = f->buffer_len >> 1;
+    int mid_frame = (f->buffer_len >> 2)<<1;
     pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
   }
   memcpy(f->buffer, buffer, len);
@@ -443,7 +443,7 @@ int pico_sendto_dev(struct pico_frame *f)
     return -1;
   } else {
     if (f->len > 8) {
-      int mid_frame = f->buffer_len >> 1;
+      int mid_frame = (f->buffer_len >> 2)<<1;
       pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
     }
     return pico_enqueue(f->dev->q_out, f);

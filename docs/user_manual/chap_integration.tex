@@ -407,8 +407,8 @@ thus a two-halves interface interrupt management design is required, and any mem
 shared between the two halves must be protected against concurrent access accordingly.
 
 \item The callback \textbf{destroy} - a pointer to a function that deallocates the device
-structure itself and frees all the eventual structures allocated by the driver during device
-creation.
+structure itself and frees all the structures that were possibly allocated by the driver 
+during device creation.
 \end{itemize}
 
 A device driver will have a simple two-functions library API exported in a header file using

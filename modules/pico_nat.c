@@ -482,7 +482,8 @@ int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
   if (proto == PICO_PROTO_TCP) {
     pico_nat_tcp_checksum(f);
   } else if (proto == PICO_PROTO_UDP){
-    pico_udp_checksum(f);
+    udp_hdr->crc = 0;
+    udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f));
   }
 
   // pico_ipv4_checksum(f);
@@ -540,7 +541,8 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
        pico_nat_tcp_checksum(f);
     } else if (proto == PICO_PROTO_UDP) {
       udp_hdr->trans.dport = nk->priv_port;
-      pico_udp_checksum(f);
+      udp_hdr->crc = 0;
+      udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f));
     }
   }
 

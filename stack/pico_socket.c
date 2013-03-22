@@ -1126,11 +1126,67 @@ int pico_socket_close(struct pico_socket *s)
   return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
 
+#ifdef PICO_SUPPORT_CRC
+static inline int pico_transport_crc_check(struct pico_frame *f)
+{
+  struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_udp_hdr *udp_hdr = NULL;
+  uint16_t checksum_invalid = 1;
+
+  switch (net_hdr->proto)
+  {
+    case PICO_PROTO_TCP:
+      checksum_invalid = short_be(pico_tcp_checksum_ipv4(f));
+      //dbg("TCP CRC validation == %u\n", checksum_invalid);
+      if (checksum_invalid) {
+        //dbg("TCP CRC: validation failed!\n");
+        pico_frame_discard(f);
+        return 0;
+      }
+      break;
+
+    case PICO_PROTO_UDP:
+      udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+      if (short_be(udp_hdr->crc)) {
+        checksum_invalid = short_be(pico_udp_checksum_ipv4(f));
+        //dbg("UDP CRC validation == %u\n", checksum_invalid);
+        if (checksum_invalid) {
+          //dbg("UDP CRC: validation failed!\n");
+          pico_frame_discard(f);
+          return 0;
+        }
+      }
+      break;
+
+    default:
+      // Do nothing
+      break;
+  }
+  return 1;
+}
+#else
+static inline int pico_transport_crc_check(struct pico_frame *f)
+{
+  return 1;
+}
+#endif /* PICO_SUPPORT_CRC */
 
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
   int ret = 0;
+
+  if (!hdr) {
+    pico_err = PICO_ERR_EFAULT;
+    return -1;
+  }
+
+  ret = pico_transport_crc_check(f);
+  if (ret < 1)
+    return ret;
+  else
+    ret = 0;
+
   if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
     return ret;
 
