@@ -28,6 +28,15 @@ struct __attribute__((packed)) pico_ipv4_hdr {
   uint8_t options[0];
 };
 
+struct __attribute__((packed)) pico_ipv4_pseudo_hdr
+{
+  struct pico_ip4 src;
+  struct pico_ip4 dst;
+  uint8_t zeros;
+  uint8_t proto;
+  uint16_t len;
+};
+
 /* Interface: link to device */
 struct pico_mcast_list;
 
