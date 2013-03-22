@@ -22,14 +22,29 @@ static struct pico_queue udp_out = {};
 
 /* Functions */
 
-int pico_udp_checksum(struct pico_frame *f)
+uint16_t pico_udp_checksum_ipv4(struct pico_frame *f)
 {
-  struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
-  if (!hdr)
-    return -1;
-  hdr->crc = 0;
-  hdr->crc = short_be(pico_checksum(hdr, f->transport_len));
-  return 0;
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+  struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+  struct pico_socket *s = f->sock;
+  struct pico_ipv4_pseudo_hdr pseudo;
+
+  if (s) {
+    /* Case of outgoing frame */
+    //dbg("UDP CRC: on outgoing frame\n");
+    pseudo.src.addr = s->local_addr.ip4.addr;
+    pseudo.dst.addr = s->remote_addr.ip4.addr;
+  } else {
+    /* Case of incomming frame */
+    //dbg("UDP CRC: on incomming frame\n");
+    pseudo.src.addr = hdr->src.addr;
+    pseudo.dst.addr = hdr->dst.addr;
+  }
+  pseudo.zeros = 0;
+  pseudo.proto = PICO_PROTO_UDP;
+  pseudo.len = short_be(f->transport_len);
+
+  return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv4_pseudo_hdr), udp_hdr, f->transport_len);
 }
 
 
@@ -48,7 +63,8 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
   hdr->trans.sport = f->sock->local_port;
   hdr->trans.dport = f->sock->remote_port;
   hdr->len = short_be(f->transport_len);
-  hdr->crc = pico_udp_checksum(f);
+  hdr->crc = 0;
+  hdr->crc = short_be(pico_udp_checksum_ipv4(f));
   if (pico_enqueue(self->q_out, f) > 0) {
    return f->payload_len;
   } else {

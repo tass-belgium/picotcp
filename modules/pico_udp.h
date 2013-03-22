@@ -21,7 +21,7 @@ struct __attribute__((packed)) pico_udp_hdr {
 
 struct pico_socket *pico_udp_open(void);
 int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port);
-int pico_udp_checksum(struct pico_frame *f);
+uint16_t pico_udp_checksum_ipv4(struct pico_frame *f);
 
 #ifdef PICO_SUPPORT_MCAST
 int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl);
