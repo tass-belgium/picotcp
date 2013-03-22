@@ -1126,19 +1126,12 @@ int pico_socket_close(struct pico_socket *s)
   return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
 
-
-int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
+#ifdef PICO_SUPPORT_CRC
+static inline int pico_transport_crc_check(struct pico_frame *f)
 {
-  struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
   struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
   struct pico_udp_hdr *udp_hdr = NULL;
   uint16_t checksum_invalid = 1;
-  int ret = 0;
-
-  if (!hdr) {
-    pico_err = PICO_ERR_EFAULT;
-    return -1;
-  }
 
   switch (net_hdr->proto)
   {
@@ -1169,6 +1162,30 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
       // Do nothing
       break;
   }
+  return 1;
+}
+#else
+static inline int pico_transport_crc_check(struct pico_frame *f)
+{
+  return 1;
+}
+#endif /* PICO_SUPPORT_CRC */
+
+int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
+  struct pico_trans *hdr = (struct pico_trans *) f->transport_hdr;
+  int ret = 0;
+
+  if (!hdr) {
+    pico_err = PICO_ERR_EFAULT;
+    return -1;
+  }
+
+  ret = pico_transport_crc_check(f);
+  if (ret < 1)
+    return ret;
+  else
+    ret = 0;
 
   if ((hdr) && (pico_socket_deliver(self, f, hdr->dport) == 0))
     return ret;
