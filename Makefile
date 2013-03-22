@@ -21,6 +21,7 @@ DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
 IPFILTER?=1
+CRC?=1
 
 
 ifeq ($(DEBUG),1)
@@ -119,6 +120,9 @@ ifneq ($(SIMPLE_HTTP),0)
 endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
+endif
+ifneq ($(CRC),0)
+  include rules/crc.mk
 endif
 
 all: mod core lib
