@@ -1143,7 +1143,13 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   switch (net_hdr->proto)
   {
     case PICO_PROTO_TCP:
-      //pico_tcp_checksum_ipv4(f);
+      checksum_invalid = short_be(pico_tcp_checksum_ipv4(f));
+      //dbg("TCP CRC validation == %u\n", checksum_invalid);
+      if (checksum_invalid) {
+        //dbg("TCP CRC: validation failed!\n");
+        pico_frame_discard(f);
+        return 0;
+      }
       break;
 
     case PICO_PROTO_UDP:
