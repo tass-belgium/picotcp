@@ -1903,6 +1903,109 @@ START_TEST (test_ipfilter)
 }
 END_TEST
 
+START_TEST (test_crc_check)
+{
+  uint8_t buffer[64] = { 0x45, 0x00, 0x00, 0x40, /* start of IP hdr */
+                         0x91, 0xc3, 0x40, 0x00, 
+                         0x40, 0x11, 0x24, 0xcf, /* last 2 bytes are CRC */
+                         0xc0, 0xa8, 0x01, 0x66, 
+                         0xc0, 0xa8, 0x01, 0x64, /* end of IP hdr */
+                         0x15, 0xb3, 0x1F, 0x90, /* start of UDP/TCP hdr */
+                         0x00, 0x2c, 0x27, 0x22, /* end of UDP hdr */
+                         0x00, 0x00, 0x00, 0x00, 
+                         0x00, 0x00, 0x00, 0x00, 
+                         0x00, 0x0b, 0x00, 0x00, 
+                         0x00, 0x00, 0x00, 0x00, 
+                         0x00, 0x00, 0x00, 0x00, 
+                         0x00, 0x00, 0x00, 0x00, /* end of TCP hdr */
+                         0x01, 0x23, 0x45, 0x67, /* start of data */
+                         0x89, 0xab, 0xcd, 0xef, 
+                         0xc0, 0xca, 0xc0, 0x1a};
+  struct pico_frame *f = NULL;
+  struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) buffer;
+  struct pico_udp_hdr *udp_hdr = NULL;
+  struct pico_tcp_hdr *tcp_hdr = NULL;
+  uint32_t *f_usage_count = NULL;
+  uint8_t *f_buffer = NULL;
+  int ret = -1;
+
+  printf("START CRC TEST\n");
+  pico_stack_init();
+
+  /* IPv4 CRC unit tests */
+  /* Allocated memory will be freed when pico_ipv4_crc_check fails */
+  f = calloc(1, sizeof(struct pico_frame));
+  f_usage_count = calloc(1, sizeof(uint32_t));
+  f_buffer = calloc(1, sizeof(uint8_t));
+  f->net_hdr = buffer;
+  f->transport_hdr = buffer + PICO_SIZE_IP4HDR;
+  f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
+  f->usage_count = f_usage_count;
+  f->buffer = f_buffer;
+  *(f->usage_count) = 1;
+
+  //hdr->crc = 0;
+  //printf(">>>>>>>>>>>>>>>>>>>>> CRC VALUE = %X\n", pico_checksum(hdr, PICO_SIZE_IP4HDR));
+  ret = pico_ipv4_crc_check(f);
+  fail_if(ret == 0, "correct IPv4 checksum got rejected\n");
+  hdr->crc = short_be(0x8899); /* Make check fail */
+  ret = pico_ipv4_crc_check(f);
+  fail_if(ret == 1, "incorrect IPv4 checksum got accepted\n");
+
+  /* UDP CRC unit tests */
+  /* Allocated memory will be freed when pico_transport_crc_check fails */
+  f = calloc(1, sizeof(struct pico_frame));
+  f_usage_count = calloc(1, sizeof(uint32_t));
+  f_buffer = calloc(1, sizeof(uint8_t));
+  f->net_hdr = buffer;
+  f->transport_hdr = buffer + PICO_SIZE_IP4HDR;
+  f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
+  f->usage_count = f_usage_count;
+  f->buffer = f_buffer;
+  *(f->usage_count) = 1;
+  hdr->proto = 0x11; /* UDP */
+  hdr->crc = short_be(0x24cf); /* Set IPv4 CRC correct */
+  udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+
+  //udp_hdr->crc = 0;
+  //printf(">>>>>>>>>>>>>>>>>>>>> UDP CRC VALUE = %X\n", pico_udp_checksum_ipv4(f));
+  ret = pico_transport_crc_check(f);
+  fail_if(ret == 0, "correct UDP checksum got rejected\n");
+  udp_hdr->crc = 0;
+  ret = pico_transport_crc_check(f);
+  fail_if(ret == 0, "UDP checksum of 0 did not get ignored\n");
+  udp_hdr->crc = short_be(0x8899); /* Make check fail */
+  ret = pico_transport_crc_check(f);
+  fail_if(ret == 1, "incorrect UDP checksum got accepted\n");
+
+  /* TCP CRC unit tests */
+  /* Allocated memory will be freed when pico_transport_crc_check fails */
+  f = calloc(1, sizeof(struct pico_frame));
+  f_usage_count = calloc(1, sizeof(uint32_t));
+  f_buffer = calloc(1, sizeof(uint8_t));
+  f->net_hdr = buffer;
+  f->transport_hdr = buffer + PICO_SIZE_IP4HDR;
+  f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
+  f->usage_count = f_usage_count;
+  f->buffer = f_buffer;
+  *(f->usage_count) = 1;
+  hdr->proto = 0x06; /* TCP */
+  hdr->crc = short_be(0x24cf); /* Set IPv4 CRC correct */
+  tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+  tcp_hdr->seq = long_be(0x002c2722); /* Set sequence number correct */
+
+  //tcp_hdr = 0;
+  //printf(">>>>>>>>>>>>>>>>>>>>> TCP CRC VALUE = %X\n", pico_tcp_checksum_ipv4(f));
+  tcp_hdr->crc = short_be(0x0016); /* Set correct TCP CRC */
+  ret = pico_transport_crc_check(f);
+  fail_if(ret == 0, "correct TCP checksum got rejected\n");
+  tcp_hdr->crc = short_be(0x8899); /* Make check fail */
+  ret = pico_transport_crc_check(f);
+  fail_if(ret == 1, "incorrect TCP checksum got accepted\n");
+}
+END_TEST
+
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -1915,6 +2018,7 @@ Suite *pico_suite(void)
   TCase *socket = tcase_create("SOCKET");
   TCase *nat = tcase_create("NAT");
   TCase *ipfilter = tcase_create("IPFILTER");
+  TCase *crc = tcase_create("CRC");
 
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
@@ -1935,7 +2039,6 @@ Suite *pico_suite(void)
   suite_add_tcase(s, dhcp);
 
   tcase_add_test(dns, test_dns);
-
   suite_add_tcase(s, dns);
 
   tcase_add_test(rb, test_rbtree);
@@ -1954,9 +2057,11 @@ Suite *pico_suite(void)
   tcase_add_test(ipfilter, test_ipfilter);
   suite_add_tcase(s, ipfilter);
 
+  tcase_add_test(crc, test_crc_check);
+  suite_add_tcase(s, crc);
+
   return s;
 }
-
 
 
 
