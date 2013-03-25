@@ -1128,7 +1128,7 @@ START_TEST (test_dhcp_server_ipinarp)
 END_TEST
 
 
-void cb_dns(char *ip)
+void cb_dns(char *ip, void *arg)
 {
   if (!ip) {
     /* Error occured */
@@ -1138,6 +1138,8 @@ void cb_dns(char *ip)
   /* Do something */
   printf("DNS -> %s\n",ip);
   pico_free(ip);
+  if (arg)
+    pico_free(arg);
 }
 
 
@@ -1189,23 +1191,23 @@ START_TEST (test_dns)
   fail_if(ret == 0, "dns> dns_client_nameserver add double");
 
   /* testing getaddr API */
-  ret = pico_dns_client_getaddr(url,cb_dns); /* ask correct one */
+  ret = pico_dns_client_getaddr(url, cb_dns, NULL); /* ask correct one */
   fail_if(ret < 0, "dns> dns_client_getaddr: %s",strerror(pico_err));
 
-  ret = pico_dns_client_getaddr(NULL,cb_dns);
+  ret = pico_dns_client_getaddr(NULL, cb_dns, NULL);
   fail_if(ret == 0, "dns> dns_client_getaddr: no url");
   
-  ret = pico_dns_client_getaddr(url,NULL);
+  ret = pico_dns_client_getaddr(url, NULL, NULL);
   fail_if(ret == 0, "dns> dns_client_getaddr: no cb");
 
   /* testing getname API */
-  ret = pico_dns_client_getname(ip,cb_dns); /* ask correct one */
+  ret = pico_dns_client_getname(ip, cb_dns, NULL); /* ask correct one */
   fail_if(ret < 0, "dns> dns_client_getname: %s",strerror(pico_err));
 
-  ret = pico_dns_client_getname(NULL,cb_dns);
+  ret = pico_dns_client_getname(NULL, cb_dns, NULL);
   fail_if(ret == 0, "dns> dns_client_getname: no ip");
 
-  ret = pico_dns_client_getname(ip,NULL);
+  ret = pico_dns_client_getname(ip, NULL, NULL);
   fail_if(ret == 0, "dns> dns_client_getname: no cb");
 }
 END_TEST

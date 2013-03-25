@@ -249,24 +249,32 @@ iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
 iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
 */
-void cb_udpdnsclient_getaddr(char *ip)
+void cb_udpdnsclient_getaddr(char *ip, void *arg)
 {
+  uint8_t *id = (uint8_t *) arg; 
+
   if (!ip) {
-    printf("%s: ERROR occured!\n", __FUNCTION__);
+    printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
     return;
   }
-  printf("%s: ip %s\n", __FUNCTION__, ip);
+  printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
   pico_free(ip);
+  if (arg)
+    pico_free(arg);
 }
 
-void cb_udpdnsclient_getname(char *name)
+void cb_udpdnsclient_getname(char *name, void *arg)
 {
+  uint8_t *id = (uint8_t *) arg; 
+
   if (!name) {
-    printf("%s: ERROR occured!\n", __FUNCTION__);
+    printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
     return;
   }
-  printf("%s: name %s\n", __FUNCTION__, name);
+  printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
   pico_free(name);
+  if (arg)
+    pico_free(arg);
 }
 
 void app_udpdnsclient(char *arg)
@@ -274,6 +282,7 @@ void app_udpdnsclient(char *arg)
   struct pico_ip4 nameserver;
   char *dname, *daddr;
   char *nxt;
+  uint8_t *getaddr_id, *getname_id;
 
   nxt = cpy_arg(&dname, arg);
   if (!dname) {
@@ -311,10 +320,15 @@ void app_udpdnsclient(char *arg)
   picoapp_dbg("----- Adding 8.8.4.4 nameserver -----\n");
   pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
   pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+
+  getaddr_id = calloc(1, sizeof(uint8_t));
+  *getaddr_id = 1;
   printf(">>>>> DNS GET ADDR OF %s\n", dname);
-  pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr);
+  pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
+  getname_id = calloc(1, sizeof(uint8_t));
+  *getname_id = 2;
   printf(">>>>> DNS GET NAME OF %s\n", daddr);
-  pico_dns_client_getname(daddr, &cb_udpdnsclient_getname);
+  pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
 
 	free(dname);
 	free(daddr);
