@@ -1905,6 +1905,7 @@ START_TEST (test_ipfilter)
 }
 END_TEST
 
+#ifdef PICO_SUPPORT_CRC
 START_TEST (test_crc_check)
 {
   uint8_t buffer[64] = { 0x45, 0x00, 0x00, 0x40, /* start of IP hdr */
@@ -2006,6 +2007,7 @@ START_TEST (test_crc_check)
   fail_if(ret == 1, "incorrect TCP checksum got accepted\n");
 }
 END_TEST
+#endif
 
 
 Suite *pico_suite(void)
@@ -2020,7 +2022,9 @@ Suite *pico_suite(void)
   TCase *socket = tcase_create("SOCKET");
   TCase *nat = tcase_create("NAT");
   TCase *ipfilter = tcase_create("IPFILTER");
+#ifdef PICO_SUPPORT_CRC
   TCase *crc = tcase_create("CRC");
+#endif
 
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
@@ -2059,8 +2063,10 @@ Suite *pico_suite(void)
   tcase_add_test(ipfilter, test_ipfilter);
   suite_add_tcase(s, ipfilter);
 
+#ifdef PICO_SUPPORT_CRC
   tcase_add_test(crc, test_crc_check);
   suite_add_tcase(s, crc);
+#endif
 
   return s;
 }
