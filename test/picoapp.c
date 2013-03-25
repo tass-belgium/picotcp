@@ -148,11 +148,12 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     } while(r>0);
   }
   if (ev & PICO_SOCK_EV_CONN) { 
-    struct pico_socket *sock_a;
+    //struct pico_socket *sock_a;
     struct pico_ip4 orig;
     uint16_t port;
     char peer[30];
-    sock_a = pico_socket_accept(s, &orig, &port);
+    //sock_a = pico_socket_accept(s, &orig, &port);
+    pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("Connection established with %s:%d.\n", peer, short_be(port));
   }
@@ -717,7 +718,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
   struct pico_ip4 orig;
   uint16_t port;
   char peer[30];
-  struct pico_socket *sock_a;
+  //struct pico_socket *sock_a;
 
   static int tcpbench_wr_size = 0;
   static int tcpbench_rd_size = 0;
@@ -744,7 +745,8 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     if (tcpbench_mode == TCP_BENCH_TX) {
       printf("tcpbench> Connection established with server.\n");
     } else if (tcpbench_mode == TCP_BENCH_RX) {
-      sock_a = pico_socket_accept(s, &orig, &port);
+      //sock_a = pico_socket_accept(s, &orig, &port);
+      pico_socket_accept(s, &orig, &port);
       pico_ipv4_to_string(peer, orig.addr);
       printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
     }
@@ -941,11 +943,11 @@ void app_natbox(char *arg)
 void cb_ping(struct pico_icmp4_stats *s)
 {
   char host[30];
-  int time_sec = 0;
-  int time_msec = 0;
+  //int time_sec = 0;
+  //int time_msec = 0;
   pico_ipv4_to_string(host, s->dst.addr);
-  time_sec = s->time / 1000;
-  time_msec = s->time % 1000;
+  //time_sec = s->time / 1000;
+  //time_msec = s->time % 1000;
   if (s->err == 0) {
     dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
     if (s->seq >= NUM_PING)
