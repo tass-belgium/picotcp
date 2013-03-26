@@ -465,65 +465,92 @@ void app_udpnatclient(char *arg)
 /*** END UDP NAT CLIENT ***/
 
 /*** UDP CLIENT ***/
-void udpclient_send(unsigned long now, void *arg) {
-  int i, w;
-  struct pico_socket *s = (struct pico_socket *)arg;
-  char buf[1400] = { };
-  char end[4] = "end";
-  static int loop = 0;
-  for (i = 0; i < 10; i++) {
-    w = pico_socket_send(s, buf, 1400);
-    if (w <= 0)
-      break;
-    //printf("Written %d bytes.\n", w);
-  }
+static uint16_t udpclient_datasize = 1400;
 
-  if (++loop > 100) {
+struct udpclient_pas {
+  struct pico_socket *s;
+  uint8_t loops;
+  uint8_t subloops;
+  uint16_t datasize;
+}; /* per application struct */
+
+void udpclient_send(unsigned long now, void *arg) {
+  struct udpclient_pas *pas = (struct udpclient_pas *) arg;
+  struct pico_socket *s = pas->s;
+  char end[4] = "end";
+  char *buf = NULL;
+  int i = 0, w = 0;
+  static uint16_t loop = 0;
+
+  buf = calloc(1, pas->datasize);
+
+  printf("%s: performing loop %u\n", __FUNCTION__, loop);
+  if (++loop > pas->loops) {
     for (i = 0; i < 3; i++) {
       w = pico_socket_send(s, end, 4);
       if (w <= 0)
         break;
-      printf("End!\n");
+      printf("%s: requested exit of echo\n", __FUNCTION__);
     }
+    free(buf);
     pico_timer_add(1000, deferred_exit, NULL);
     return;
+  } else {
+    for (i = 0; i < pas->subloops; i++) {
+      w = pico_socket_send(s, buf, pas->datasize);
+      if (w <= 0)
+        break;
+    }
+    printf("%s: written %u byte(s) in each of %u subloops\n", __FUNCTION__, pas->datasize, i);
   }
-  pico_timer_add(100, udpclient_send, s);
+
+  pico_timer_add(100, udpclient_send, pas);
 }
 
 void cb_udpclient(uint16_t ev, struct pico_socket *s)
 {
-  char recvbuf[1400];
-  int r=0;
-  uint32_t peer;
-  uint16_t port;
+  char *recvbuf = NULL;
+  int r = 0;
+  uint32_t peer = 0;
+  uint16_t port = 0;
 
-  //printf("udpclient> wakeup\n");
+  //printf("%s: callback entered\n");
+
+  recvbuf = calloc(1, udpclient_datasize);
   if (ev & PICO_SOCK_EV_RD) {
     do {
-      r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+      r = pico_socket_recvfrom(s, recvbuf, udpclient_datasize, &peer, &port);
     } while(r>0);
   }
+  free(recvbuf);
 
   if (ev == PICO_SOCK_EV_ERR) {
     printf("Socket Error received. Bailing out.\n");
     exit(7);
   }
-
 }
 
 void app_udpclient(char *arg)
 {
-  struct pico_socket *s;
-  char *daddr, *dport;
+  char *daddr = NULL, *dport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
   int port = 0;
   uint16_t port_be = 0;
   struct pico_ip4 inaddr_dst = { };
-  char *nxt;
+  char *nxt = NULL;
+  struct udpclient_pas *pas = NULL;
 
+  pas = calloc(1, sizeof(struct udpclient_pas));
+  pas->s = NULL;
+  pas->loops = 100;
+  pas->subloops = 10;
+  pas->datasize = 1400;
+  udpclient_datasize = pas->datasize;
+
+  /* start of argument parsing */
   nxt = cpy_arg(&daddr, arg);
   if (!daddr) {
-    fprintf(stderr, " udpclient expects the following format: udpclient:dest_addr[:dest_port]\n");
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
+    free(pas);
     exit(255);
   }
 
@@ -531,29 +558,70 @@ void app_udpclient(char *arg)
     nxt = cpy_arg(&dport, nxt);
     if (dport) {
       port = atoi(dport);
-			free(dport);
+      free(dport);
       if (port > 0)
         port_be = short_be(port);
     }
-  }
-  if (port == 0) {
+  } else {
     port_be = short_be(5555);
   }
 
-  printf("UDP client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
+  if (nxt) {
+    nxt = cpy_arg(&s_datasize, nxt);
+    if (s_datasize) {
+      pas->datasize = atoi(s_datasize);
+      udpclient_datasize = pas->datasize;
+      free(s_datasize);
+    }
+  } else {
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
+    free(pas);
+    exit(255);
+  }
 
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
-  if (!s)
+  if (nxt) {
+    nxt = cpy_arg(&s_loops, nxt);
+    if (s_loops) {
+      pas->loops = atoi(s_loops);
+      free(s_loops);
+    }
+  } else {
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
+    free(pas);
+    exit(255);
+  }
+ 
+  if (nxt) {
+    nxt = cpy_arg(&s_subloops, nxt);
+    if (s_subloops) {
+      pas->subloops = atoi(s_subloops);
+      free(s_subloops);
+    }
+  } else {
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
+    free(pas);
+    exit(255);
+  }
+  /* end of argument parsing */
+ 
+  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n", 
+          __FUNCTION__, pas->datasize, pas->loops, pas->subloops, daddr, short_be(port_be));
+
+  pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
+  if (!pas->s) {
+    free(pas);
     exit(1);
+  }
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
-	free(daddr);
+  free(daddr);
 
-  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+  if (pico_socket_connect(pas->s, &inaddr_dst, port_be)!= 0) {
+    free(pas);
     exit(1);
+  }
 
-  pico_timer_add(100, udpclient_send, s);
-
+  pico_timer_add(100, udpclient_send, pas);
 }
 /*** END UDP CLIENT ***/
 
@@ -1809,7 +1877,7 @@ int main(int argc, char **argv)
     usage(argv[0]);
   }
 
-  printf("Entering loop...\n");
+  printf("%s: launching PicoTCP loop\n", __FUNCTION__);
   while(1) {
     pico_stack_tick();
     usleep(2000);
