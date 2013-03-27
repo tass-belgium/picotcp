@@ -128,12 +128,12 @@ void app_udpecho(char *arg)
 void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
   #define BSIZE 1460
-  char recvbuf[BSIZE];
+  static char recvbuf[BSIZE];
   int r=0, w = 0;
-  int pos = 0, len = 0;
+  static int pos = 0, len = 0;
   static int flag = 0;
 
-  //printf("tcpecho> wakeup\n");
+  printf("tcpecho> wakeup ev=%04x\n", ev);
   if (ev & PICO_SOCK_EV_RD) {
     if (flag & 0x02)
       printf("SOCKET> EV_RD, FIN RECEIVED\n");
@@ -142,10 +142,11 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
       if (r > 0) {
         len += r;
         flag &= ~(0x01);
+        printf("Read %d bytes total.\n", len);
       }
       if (r == 0)
         flag |= 0x01;
-    } while(r>0);
+    } while((r>0) && (len < BSIZE));
   }
   if (ev & PICO_SOCK_EV_CONN) { 
     //struct pico_socket *sock_a;
@@ -177,22 +178,18 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     }
   }
 
-  if (ev & PICO_SOCK_EV_WR) {
-    if (len > pos) {
-      do {
-        w = pico_socket_write(s, recvbuf + pos, len - pos);
-        if (w > 0) {
-          pos += w;
-          if (pos >= len) {
-            pos = 0;
-            len = 0;
-            w = 0;
-          }
-        } else {
-          printf("SOCKET> ECHO write failed, returning %d. dropped %d bytes\n",w, (len-pos));
+  if (len > pos) {
+    do {
+      w = pico_socket_write(s, recvbuf + pos, len - pos);
+      if (w > 0) {
+        pos += w;
+        if (pos >= len) {
+          pos = 0;
+          len = 0;
+          w = 0;
         }
-      } while(w > 0);
-    }
+      }
+    } while((w > 0) && (pos < len));
   }
 }
 
