@@ -1433,7 +1433,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   }
   tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
   if ((acked > 0) && t->sock.wakeup) {
-    t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
+    if (t->tcpq_out.size < t->tcpq_out.max_size)
+      t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
   }
 
   /* if Nagle enabled, check if no unack'ed data and fill out queue (till window) */
@@ -1654,7 +1655,8 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("TCP> Established.\n");
 
     if (s->wakeup)
-      s->wakeup(PICO_SOCK_EV_CONN | PICO_SOCK_EV_WR, s);
+      if (t->tcpq_out.size < t->tcpq_out.max_size)
+        s->wakeup(PICO_SOCK_EV_CONN | PICO_SOCK_EV_WR, s);
 
     t->rcv_nxt++;
     t->snd_nxt++; 

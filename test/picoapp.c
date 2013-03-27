@@ -176,20 +176,22 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     }
   }
 
-  if (len > pos) {
-    do {
-      w = pico_socket_write(s, recvbuf + pos, len - pos);
-      if (w > 0) {
-        pos += w;
-        if (pos >= len) {
-          pos = 0;
-          len = 0;
-          w = 0;
+  if (ev & PICO_SOCK_EV_WR) {
+    if (len > pos) {
+      do {
+        w = pico_socket_write(s, recvbuf + pos, len - pos);
+        if (w > 0) {
+          pos += w;
+          if (pos >= len) {
+            pos = 0;
+            len = 0;
+            w = 0;
+          }
+        } else {
+          printf("SOCKET> ECHO write failed, returning %d. dropped %d bytes\n",w, (len-pos));
         }
-      } else {
-        printf("SOCKET> ECHO write failed, dropped %d bytes\n",(len-pos));
-      }
-    } while(w > 0);
+      } while(w > 0);
+    }
   }
 }
 
