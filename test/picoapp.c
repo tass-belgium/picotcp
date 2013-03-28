@@ -127,7 +127,7 @@ void app_udpecho(char *arg)
 /*** TCP ECHO ***/
 void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
-  #define BSIZE 1460
+  #define BSIZE (1024 * 1024)
   static char recvbuf[BSIZE];
   int r=0, w = 0;
   static int pos = 0, len = 0;
@@ -188,6 +188,9 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
           pos = 0;
           len = 0;
         }
+      } else {
+        errno = pico_err;
+        perror("pico_socket_write");
       }
     } while((w > 0) && (pos < len));
   }

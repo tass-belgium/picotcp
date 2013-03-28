@@ -171,8 +171,8 @@ struct pico_socket_tcp {
   uint16_t cwnd_counter;
   uint16_t cwnd;
   uint16_t ssthresh;
-  uint16_t rwnd;
-  uint16_t rwnd_scale;
+  uint16_t recv_wnd;
+  uint16_t recv_wnd_scale;
 
   /* tcp_input */
   uint32_t rcv_nxt;
@@ -293,7 +293,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
   if (hdr->flags & PICO_TCP_PSH) {
       if (seq_compare(SEQN(f) + f->payload_len, t->snd_seqn_high) > 0) {
         t->snd_seqn_high = SEQN(f) + f->payload_len;
-        dbg("------------- %s: snd_seqn_high is now %08x\n", __FUNCTION__, t->snd_seqn_high);
+       tcp_dbg("------------- %s: snd_seqn_high is now %08x\n", __FUNCTION__, t->snd_seqn_high);
       }
   }
 
@@ -507,21 +507,23 @@ static void tcp_parse_options(struct pico_frame *f)
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
     uint8_t len;
-    if(i < (f->transport_len - PICO_SIZE_TCPHDR))
+    if(i < (f->transport_len - PICO_SIZE_TCPHDR) && (type > 1))
       len =  opt[i++];
     if (f->payload && ((opt + i) > f->payload))
       break;
+    tcp_dbg("Received option '%d', len = %d \n", type, len);
     switch (type) {
       case PICO_TCP_OPTION_NOOP:
       case PICO_TCP_OPTION_END:
         break;
       case PICO_TCP_OPTION_WS:
         if (len != PICO_TCPOPTLEN_WS) {
-          tcp_dbg("TCP Window scale: bad len received.\n");
+          tcp_dbg("TCP Window scale: bad len received (%d).\n", len);
           i += len - 2;
           break;
         }
-        t->rwnd_scale = opt[i++];
+        t->recv_wnd_scale = opt[i++];
+        tcp_dbg("TCP Window scale: received %d\n", t->recv_wnd_scale);
         break;
       case PICO_TCP_OPTION_SACK_OK:
         if (len != PICO_TCPOPTLEN_SACK_OK) {
@@ -574,7 +576,8 @@ static void tcp_parse_options(struct pico_frame *f)
     }
   }
 }
-
+//#define PICO_TCP_CHECKS_SEGMENTS
+#ifdef PICO_TCP_CHECKS_SEGMENTS
 static int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
@@ -583,23 +586,36 @@ static int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f)
   /* segments are validated by checking their SEQ-fields in any synchronized state,
      a segment is valid if its sequence number is in the window */
   if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
-    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
-      if (hdr->flags & PICO_TCP_ACK) {
-        /* check ack nr */
-        if ((long_be(hdr->ack) >= SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
-          return 1;     /* seq and ack nr ok */
-        else
-          return 0;     /* ack nr not ok */
-      } else {
-        return 1;       /* seq nr ok */
+    if (seq_compare(SEQN(f), t->rcv_ackd) < 0) {
+      tcp_dbg("Invalid SEQN (too low...)\n");
+      return 0;
+    }
+    if (short_be(hdr->rwnd) << (t->wnd_scale) >= PICO_TCP_DEFAULT_MSS) {
+      if (seq_compare(SEQN(f), ((short_be(hdr->rwnd)<<(t->wnd_scale)) + t->rcv_ackd)) > 0) {
+        tcp_dbg("Invalid SEQN (too high to fit the window) seqn: %08x rcv_ackd: %08x winsize: %d\n", SEQN(f), t->rcv_ackd, short_be(hdr->rwnd)<<(t->wnd_scale));
+        return 0;
+      }
+    }
+    if (hdr->flags & PICO_TCP_ACK) {
+      /* check ack nr */
+      if ((long_be(hdr->ack) >= SEQN(first_segment(&t->tcpq_out))) && (long_be(hdr->ack) <= t->snd_nxt))
+        return 1;     /* seq and ack nr ok */
+      else {
+        tcp_dbg("(ACK nr not ok)\n");
+        return 0;     /* ack nr not ok */
       }
     } else {
-      return 0;         /* seq nr not ok */
+      return 1;       /* seq nr ok */
     }
   } else {
     return 1;           /* no check in unsynchronized state */
   }
 }
+#else
+static inline int tcp_check_valid_segment(struct pico_socket *s, struct pico_frame *f) {
+  return 1;
+}
+#endif
 
 static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 {
@@ -742,7 +758,7 @@ static void initconn_retry(unsigned long when, void *arg)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
-      dbg("TCP> Connection timeout. \n");
+      tcp_dbg("TCP> Connection timeout. \n");
       if (t->sock.wakeup)
         t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
       return;
@@ -1196,7 +1212,8 @@ static int fresh_ack(struct pico_frame *f)
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   struct pico_frame *una = first_segment(&t->tcpq_out);
   if (hdr->flags & PICO_TCP_ACK) {
-    if (seq_compare(ACKN(f), SEQN(una)) > 0) {
+    if (seq_compare(ACKN(f), SEQN(una)) >= 0) {
+       tcp_dbg("TCP ACK> !!!!!!!!!!!! FRESH ACK %08x < %08x Queue size: %u/%u frames: %u cwnd: %u in_flight: %u\n", ACKN(f), SEQN(una), t->tcpq_out.size, t->tcpq_out.max_size, t->tcpq_out.frames, t->cwnd, t->in_flight);
       return 1;
     }
   }
@@ -1348,7 +1365,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
   struct pico_tcp_hdr *hdr;
   if (f) {
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-    dbg("TCP> RETRANS (by dupack) frame %08x, len= %d\n", SEQN(f), f->payload_len);
+    tcp_dbg("TCP> RETRANS (by dupack) frame %08x, len= %d\n", SEQN(f), f->payload_len);
     f->timestamp = pico_tick;
     tcp_add_options(t, f, 0, f->transport_len - f->payload_len - PICO_SIZE_TCPHDR);
     hdr->rwnd = short_be(t->wnd);
@@ -1386,13 +1403,16 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   }
 
   tcp_parse_options(f);
+  t->recv_wnd = short_be(hdr->rwnd);
 
   acked = tcp_ack_advance_una(t, f);
   if (fresh_ack(f)) {
     struct pico_frame *una = first_segment(&t->tcpq_out);
     t->x_mode = PICO_TCP_LOOKAHEAD;
-    dbg("Mode: Look-ahead.\n");
+    tcp_dbg("Mode: Look-ahead.\n");
     t->backoff = 0;
+    if (!acked)
+      acked++;
 
     /* Do rtt/rttvar/rto calculations */
     if(una && (una->timestamp != 0)) {
@@ -1418,11 +1438,11 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     if (t->x_mode < PICO_TCP_RECOVER) {
       /* One should be acked. */
       t->x_mode++;
-      dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
+      tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
       tcp_dbg("ACK: %x - QUEUE: %x\n",ACKN(f), SEQN(first_segment(&t->tcpq_out)));
       tcp_dbg("\n\n\n\nTCP RETRANSMIT> DUPACK:%d! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", t->x_mode, SEQN(first_segment(&t->tcpq_out)), t->snd_nxt, ACKN(f));
       if (t->in_flight < t->cwnd) {
-        dbg("FAST RETRANS: %08x\n", SEQN(first_segment(&t->tcpq_out)));
+        tcp_dbg("FAST RETRANS: %08x\n", SEQN(first_segment(&t->tcpq_out)));
         tcp_retrans(t, first_segment(&t->tcpq_out));
       }
       t->ssthresh = (t->cwnd >> 1);
@@ -1438,11 +1458,13 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
         nxt = next_segment_in_queue(&t->tcpq_out, nxt);
 
         while (nxt && (nxt->flags & PICO_FRAME_FLAG_SACKED)) {
-          dbg("Skipping %08x because it is sacked.\n", SEQN(nxt));
+          tcp_dbg("Skipping %08x because it is sacked.\n", SEQN(nxt));
           nxt = next_segment_in_queue(&t->tcpq_out, nxt);
         }
 
         if (seq_compare(SEQN(nxt), t->snd_nxt) > 0)
+          nxt = NULL;
+        if (seq_compare(SEQN(nxt), SEQN(first_segment(&t->tcpq_out))) > (t->recv_wnd << t->recv_wnd_scale))
           nxt = NULL;
 
         if(!nxt)
@@ -1647,7 +1669,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
   new->snd_last = new->snd_nxt;
   new->cwnd = PICO_TCP_IW;
   new->ssthresh = 40;
-  new->rwnd = short_be(hdr->rwnd);
+  new->recv_wnd = short_be(hdr->rwnd);
   new->jumbo = hdr->len & 0x07;
   new->sock.parent = s;
   new->sock.wakeup = s->wakeup;
@@ -1853,7 +1875,7 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
   } else {  /* all other states */
     /* all reset (RST) segments are validated by checking their SEQ-fields,
     a reset is valid if its sequence number is in the window */
-    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->rwnd_scale)) + t->rcv_ackd))) {
+    if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->wnd_scale)) + t->rcv_ackd))) {
       if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
         /* go to closed */
         (t->sock).state &= 0x00FFU;
@@ -2041,19 +2063,21 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
   f = peek_segment(&t->tcpq_out, t->snd_nxt);
   while(f && (t->in_flight <= t->cwnd)) {
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-    if (f->payload_len > 0)
-      tcp_dbg("TCP> DEQUEUED (for output) frame %08x, len= %d, remaining frames %d\n", SEQN(f), f->payload_len,t->tcpq_out.frames);
     f->timestamp = pico_tick;
     tcp_add_options(t, f, hdr->flags, tcp_options_size(t, hdr->flags));
-
-
-    dbg("TCP> DEQUEUED (for output) frame %08x, acks %08x len= %d, remaining frames %d\n", SEQN(f), ACKN(f), f->payload_len,t->tcpq_out.frames);
+    tcp_dbg("TCP> DEQUEUED (for output) frame %08x, acks %08x len= %d, remaining frames %d\n", SEQN(f), ACKN(f), f->payload_len,t->tcpq_out.frames);
+    if (f->payload_len > (t->recv_wnd << t->recv_wnd_scale)) {
+      tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
+      break;
+    }
     tcp_send(t, f);
     sent++;
     loop_score--;
     if (loop_score < 1)
       break;
     f = peek_segment(&t->tcpq_out, t->snd_nxt);
+    if (!f && (t->tcpq_out.frames > 0))
+      f = first_segment(&t->tcpq_out);
   }
   if (sent > 0) {
     if (t->rto < PICO_TCP_RTO_MIN)
