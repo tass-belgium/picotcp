@@ -724,7 +724,8 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
   }
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP) {
-    return pico_udp_recv(s, buf, len, orig, remote_port);
+    if (pico_udp_recv(s, buf, len, orig, remote_port) < 0)
+      return 0;
   }
 #endif
 #ifdef PICO_SUPPORT_TCP
