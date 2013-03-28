@@ -141,8 +141,6 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, struct pico_frame *f
   pico_frame_discard(f);
 }
 
-
-
 /* Structure for TCP socket */
 struct tcp_sack_block {
   uint32_t left;
@@ -1873,9 +1871,9 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 /* This function is called when both sides try to open the connection simultaneously. */
 static int tcp_sim_open(struct pico_socket *s, struct pico_frame *f)
 {
+#ifdef PICO_TCP_ALLOWS_SIMULTANEOUS_CONNECT
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
-    
     /* send synack */   
     t->rcv_nxt = long_be(hdr->seq);
     t->rcv_processed = t->rcv_nxt + 1;
@@ -1889,6 +1887,10 @@ static int tcp_sim_open(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("TCP> Acked the received SYN segment. Now going to SYN_RECV state\n");
     
     return 0;
+#else
+    /* DLA: Quite odd feature. Disabling by calling nosync_rst() */
+    return tcp_nosync_rst(s, f);
+#endif
 }
 
 
