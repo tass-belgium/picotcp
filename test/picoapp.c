@@ -134,6 +134,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   static int flag = 0;
 
   printf("tcpecho> wakeup ev=%04x\n", ev);
+
   if (ev & PICO_SOCK_EV_RD) {
     if (flag & 0x02)
       printf("SOCKET> EV_RD, FIN RECEIVED\n");
@@ -149,14 +150,15 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     } while((r>0) && (len < BSIZE));
   }
   if (ev & PICO_SOCK_EV_CONN) { 
-    //struct pico_socket *sock_a;
+    struct pico_socket *sock_a;
     struct pico_ip4 orig;
     uint16_t port;
     char peer[30];
-    //sock_a = pico_socket_accept(s, &orig, &port);
+    sock_a = pico_socket_accept(s, &orig, &port);
     pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("Connection established with %s:%d.\n", peer, short_be(port));
+    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
   }
 
   if (ev & PICO_SOCK_EV_FIN) {
@@ -177,7 +179,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
       printf("SOCKET> Called shutdown write, ev = %d\n",ev);
     }
   }
-
   if (len > pos) {
     do {
       w = pico_socket_write(s, recvbuf + pos, len - pos);
@@ -186,11 +187,11 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         if (pos >= len) {
           pos = 0;
           len = 0;
-          w = 0;
         }
       }
     } while((w > 0) && (pos < len));
   }
+
 }
 
 void app_tcpecho(char *arg)
