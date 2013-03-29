@@ -43,6 +43,10 @@ Authors: Daniele Lacamera
 # define IS_SOCK_IPV6(s) (0)
 #endif
 
+#ifdef PICO_SUPPORT_IPFRAG
+# define frag_dbg(...) do{}while(0) 
+#endif
+
 static struct pico_sockport *sp_udp = NULL ,*sp_tcp = NULL;
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
@@ -674,7 +678,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     if (PROTO(s) == PICO_PROTO_UDP) {
       /* hacking way to identify fragmentation frames: payload != transport_hdr -> first frame */
       if (!total_payload_written) {
-        dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len - header_offset);
+        frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len - header_offset);
         f->payload += header_offset;
         f->payload_len -= header_offset;
         f->frag = 0; 
@@ -684,11 +688,11 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         f->payload = f->transport_hdr;
         f->frag = short_be((total_payload_written + header_offset) / 8); 
         if (total_payload_written + f->payload_len < len) {
-          dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+          frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
           /* f->payload_len = f->payload_len */
           f->frag |= short_be(PICO_IPV4_MOREFRAG);
         } else {
-          dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len - header_offset, short_be(f->frag));
+          frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len - header_offset, short_be(f->frag));
           f->payload_len -= header_offset;
           f->frag &= short_be(PICO_IPV4_FRAG_MASK);
         }
