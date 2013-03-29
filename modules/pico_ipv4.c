@@ -406,14 +406,33 @@ static int pico_ipv4_forward(struct pico_frame *f);
 #ifdef PICO_SUPPORT_MCAST
 static int pico_ipv4_mcast_is_group_member(struct pico_frame *f);
 #endif
+
+static int ipv4_link_compare(void *ka, void *kb)
+{
+	struct pico_ipv4_link *a = ka, *b =kb;
+  if (a->address.addr < b->address.addr)
+    return -1;
+  if (a->address.addr > b->address.addr)
+    return 1;
+
+  //zero can be assigned multiple times (e.g. for DHCP)
+  if (a->dev != NULL && b->dev != NULL && a->address.addr == PICO_IP4_ANY && b->address.addr == PICO_IP4_ANY){
+    if (a->dev < b->dev)
+      return -1;
+    if (a->dev > b->dev)
+      return 1;
+  }
+  return 0;
+}
+
+PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
+
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   uint8_t option_len = 0;
   int ret = 0;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  struct pico_ip4 address0;
-
-  address0.addr = long_be(0x00000000);
+  struct pico_ipv4_link test = {.address = {.addr = PICO_IP4_ANY}, .dev = NULL};
 
   /* NAT needs transport header information */
   if(((hdr->vhl) & 0x0F )> 5){
@@ -474,7 +493,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     } else {                              /* no NAT so enqueue to next layer */
       pico_transport_receive(f, hdr->proto);
     }
-  } else if (pico_ipv4_link_find(&address0) == f->dev) {
+  } else if (pico_tree_findKey(&Tree_dev_link, &test)){
     //address of this device is apparently 0.0.0.0; might be a DHCP packet
     pico_enqueue(pico_proto_udp.q_in, f);
   } else {
@@ -528,18 +547,6 @@ struct pico_protocol pico_proto_ipv4 = {
   .q_in = &in,
   .q_out = &out,
 };
-
-static int ipv4_link_compare(void *ka, void *kb)
-{
-	struct pico_ipv4_link *a = ka, *b =kb;
-  if (a->address.addr < b->address.addr)
-    return -1;
-  if (a->address.addr > b->address.addr)
-    return 1;
-  return 0;
-}
-
-PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
 
 struct pico_ipv4_route
 {
@@ -1102,6 +1109,7 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
     pico_err = PICO_ERR_EINVAL;
     return NULL;
   }
+	test.dev = NULL;
   test.address.addr = address->addr;
 	found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
