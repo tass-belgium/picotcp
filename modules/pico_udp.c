@@ -164,6 +164,6 @@ int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t
       pico_frame_discard(f);
       return ret;
     }
-  } else return -1;
+  } else return 0;
 }
 
