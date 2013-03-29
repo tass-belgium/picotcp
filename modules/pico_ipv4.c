@@ -304,8 +304,8 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
     frag.dst.addr = long_be(hdr->dst.addr);
     pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
     if (pfrag) {
-      reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
       pfrag->total_len += (short_be(hdr->len) - PICO_SIZE_IP4HDR);
+      reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
       f_new = self->alloc(self, pfrag->total_len);
 
       reassembly_dbg("REASSEMBLY: copy IP header information len = %lu\n", PICO_SIZE_IP4HDR);
@@ -363,6 +363,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
         udp_hdr->crc = 0;
         udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f_new));
       }
+      reassembly_dbg("REASSEMBLY: packet with id %X reassembled correctly\n", short_be(hdr->id));
       *f = f_new;
       return 1;
     } else {
@@ -845,9 +846,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
   hdr->vhl = 0x45;
   hdr->len = short_be(f->transport_len + PICO_SIZE_IP4HDR);
-  hdr->id = short_be(ipv4_progressive_id);
   if (f->transport_hdr != f->payload)
     ipv4_progressive_id++;
+  hdr->id = short_be(ipv4_progressive_id);
   hdr->src.addr = link->address.addr;
   hdr->dst.addr = dst->addr;
   hdr->ttl = ttl;

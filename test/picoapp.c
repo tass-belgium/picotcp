@@ -516,6 +516,7 @@ void udpclient_send(unsigned long now, void *arg) {
   static uint16_t loop = 0;
 
   buf = calloc(1, pas->datasize);
+  memset(buf, '1', pas->datasize);
 
   printf("%s: performing loop %u\n", __FUNCTION__, loop);
   if (++loop > pas->loops) {

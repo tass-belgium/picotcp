@@ -661,6 +661,13 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     int transport_len = (len - total_payload_written) + header_offset; 
     if (transport_len > PICO_SOCKET_MTU)
       transport_len = PICO_SOCKET_MTU;
+#ifdef PICO_SUPPORT_IPFRAG
+    else {
+      if (total_payload_written)
+        transport_len -= header_offset; /* last fragment, do not allocate memory for transport header */
+    }
+#endif /* PICO_SUPPORT_IPFRAG */
+
     f = pico_socket_frame_alloc(s, transport_len);
     if (!f) {
       pico_err = PICO_ERR_ENOMEM;
@@ -689,11 +696,9 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         f->frag = short_be((total_payload_written + header_offset) / 8); 
         if (total_payload_written + f->payload_len < len) {
           frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-          /* f->payload_len = f->payload_len */
           f->frag |= short_be(PICO_IPV4_MOREFRAG);
         } else {
-          frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len - header_offset, short_be(f->frag));
-          f->payload_len -= header_offset;
+          frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
           f->frag &= short_be(PICO_IPV4_FRAG_MASK);
         }
       }
@@ -704,10 +709,9 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     f->payload_len -= header_offset;
 #endif /* PICO_SUPPORT_IPFRAG */
     f->sock = s;
-    memcpy(f->payload, buf + total_payload_written, transport_len - header_offset);
+    memcpy(f->payload, buf + total_payload_written, f->payload_len);
     //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);
     if (s->proto->push(s->proto, f) > 0) {
-      //total_payload_written += (transport_len - header_offset);
       total_payload_written += f->payload_len;
     } else {
       pico_frame_discard(f);
