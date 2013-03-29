@@ -406,7 +406,6 @@ static void tcp_set_space(struct pico_socket_tcp *t)
     t->wnd = space;
     t->wnd_scale = shift;
     if ((space != old_space) && (old_space == 0) && (t->sock.state & PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
-      printf(" ---------------- WIND UPDATE SPACE: %d SHIFT: %d\n", space, shift);
       tcp_send_ack(t);
     }
   }

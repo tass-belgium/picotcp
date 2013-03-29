@@ -145,7 +145,6 @@ int send_tcpecho(struct pico_socket *s)
         }
       } else {
         errno = pico_err;
-        perror("pico_socket_write");
       }
     } while((w > 0) && (pos < len));
   }
