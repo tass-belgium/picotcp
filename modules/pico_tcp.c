@@ -381,10 +381,14 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
     f->start[ optsiz - 1 ] = PICO_TCP_OPTION_END;
 }
 
+static void tcp_send_ack(struct pico_socket_tcp *t);
+
 static void tcp_set_space(struct pico_socket_tcp *t)
 {
   int mtu, space;
   int shift = 0;
+  int old_space = t->wnd;
+  int old_shift = t->wnd_scale;
 
   mtu = t->mss + PICO_SIZE_TCPHDR + PICO_SIZE_TCPOPT_SYN ;
   if (t->tcpq_in.max_size == 0) {
@@ -398,9 +402,13 @@ static void tcp_set_space(struct pico_socket_tcp *t)
     space >>= 1;
     shift++;
   }
-  if ((space == 0) || (t->wnd_scale == 0) || (shift != t->wnd_scale) || ((space - t->wnd) > (space>>2))) {
+  if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (space>>2))) {
     t->wnd = space;
     t->wnd_scale = shift;
+    if ((space != old_space) && (old_space == 0) && (t->sock.state & PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
+      printf(" ---------------- WIND UPDATE SPACE: %d SHIFT: %d\n", space, shift);
+      tcp_send_ack(t);
+    }
   }
 }
 
@@ -509,6 +517,8 @@ static void tcp_parse_options(struct pico_frame *f)
     uint8_t len;
     if(i < (f->transport_len - PICO_SIZE_TCPHDR) && (type > 1))
       len =  opt[i++];
+    else
+      len = 1;
     if (f->payload && ((opt + i) > f->payload))
       break;
     tcp_dbg("Received option '%d', len = %d \n", type, len);
@@ -703,6 +713,7 @@ struct pico_socket *pico_tcp_open(void)
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
   pico_timer_add(2000, sock_stats, t);
 #endif
+  tcp_set_space(t);
 
   return &t->sock;
 }
@@ -720,8 +731,10 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
     /* To be sure we don't have garbage at the beginning */
     release_until(&t->tcpq_in, t->rcv_processed);
     f = first_segment(&t->tcpq_in);
-    if (!f)
+    if (!f) {
+      tcp_set_space(t);
       return tot_rd_len;
+    }
 
     /* Hole at the beginning of data, awaiting retransmissions. */
     if (seq_compare(t->rcv_processed, SEQN(f)) < 0) {
@@ -747,8 +760,8 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
     if ((in_frame_len == 0) || (in_frame_len == f->payload_len)) {
       pico_discard_segment(&t->tcpq_in, f);
     }
-    tcp_set_space(t);
   }
+  tcp_set_space(t);
   return tot_rd_len;
 }
 
@@ -1166,7 +1179,10 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
           nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         }
         if (t->sock.wakeup) {
-          t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
+          if (t->tcpq_out.size < t->tcpq_out.max_size)
+            t->sock.wakeup(PICO_SOCK_EV_WR | PICO_SOCK_EV_RD, &t->sock);
+          else
+            t->sock.wakeup(PICO_SOCK_EV_RD, &t->sock);
         }
       }
     
@@ -1195,6 +1211,8 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f)
 {
   int ret =  release_all_until(&t->tcpq_out, ACKN(f));
+  if (t->tcpq_out.size < t->tcpq_out.max_size)
+     t->sock.wakeup(PICO_SOCK_EV_WR | PICO_SOCK_EV_RD, &t->sock);
   return ret;
 }
 
@@ -1211,7 +1229,9 @@ static int fresh_ack(struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   struct pico_frame *una = first_segment(&t->tcpq_out);
-  if (hdr->flags & PICO_TCP_ACK) {
+  if (!una)
+    return 1;
+  if ((hdr->flags & PICO_TCP_ACK)) {
     if (seq_compare(ACKN(f), SEQN(una)) >= 0) {
        tcp_dbg("TCP ACK> !!!!!!!!!!!! FRESH ACK %08x < %08x Queue size: %u/%u frames: %u cwnd: %u in_flight: %u\n", ACKN(f), SEQN(una), t->tcpq_out.size, t->tcpq_out.max_size, t->tcpq_out.frames, t->cwnd, t->in_flight);
       return 1;
@@ -1328,6 +1348,8 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
   }
   t->backoff = 0;
   add_retransmission_timer(t, 0);
+  if (t->tcpq_out.size < t->tcpq_out.max_size)
+     t->sock.wakeup(PICO_SOCK_EV_WR | PICO_SOCK_EV_RD, &t->sock);
   return;
 }
 
@@ -1411,8 +1433,6 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     t->x_mode = PICO_TCP_LOOKAHEAD;
     tcp_dbg("Mode: Look-ahead.\n");
     t->backoff = 0;
-    if (!acked)
-      acked++;
 
     /* Do rtt/rttvar/rto calculations */
     if(una && (una->timestamp != 0)) {
@@ -2076,8 +2096,6 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     if (loop_score < 1)
       break;
     f = peek_segment(&t->tcpq_out, t->snd_nxt);
-    if (!f && (t->tcpq_out.frames > 0))
-      f = first_segment(&t->tcpq_out);
   }
   if (sent > 0) {
     if (t->rto < PICO_TCP_RTO_MIN)

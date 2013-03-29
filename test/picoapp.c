@@ -125,28 +125,52 @@ void app_udpecho(char *arg)
 /*** END UDP ECHO ***/
 
 /*** TCP ECHO ***/
+#define BSIZE (1024 * 4)
+static char recvbuf[BSIZE];
+static int pos = 0, len = 0;
+static int flag = 0;
+
+int send_tcpecho(struct pico_socket *s)
+{
+  int w, ww = 0;
+  if (len > pos) {
+    do {
+      w = pico_socket_write(s, recvbuf + pos, len - pos);
+      if (w > 0) {
+        pos += w;
+        ww += w;
+        if (pos >= len) {
+          pos = 0;
+          len = 0;
+        }
+      } else {
+        errno = pico_err;
+        perror("pico_socket_write");
+      }
+    } while((w > 0) && (pos < len));
+  }
+  return ww;
+}
 void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
-  #define BSIZE (1024 * 1024)
-  static char recvbuf[BSIZE];
-  int r=0, w = 0;
-  static int pos = 0, len = 0;
-  static int flag = 0;
+  int r=0;
 
   printf("tcpecho> wakeup ev=%04x\n", ev);
 
   if (ev & PICO_SOCK_EV_RD) {
-    if (flag & 0x02)
+    if (flag & PICO_SOCK_EV_CLOSE)
       printf("SOCKET> EV_RD, FIN RECEIVED\n");
     do {
       r = pico_socket_read(s, recvbuf + len, BSIZE - len);
       if (r > 0) {
         len += r;
-        flag &= ~(0x01);
+        flag &= ~(PICO_SOCK_EV_RD);
         printf("Read %d bytes total.\n", len);
+      } else {
+        printf("Read returns %d\n", r);
       }
       if (r == 0)
-        flag |= 0x01;
+        flag |= PICO_SOCK_EV_RD;
     } while((r>0) && (len < BSIZE));
   }
   if (ev & PICO_SOCK_EV_CONN) { 
@@ -172,30 +196,25 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   }
   if (ev & PICO_SOCK_EV_CLOSE) {
     printf("Socket received close from peer.\n");
-    flag |= 0x02;
+    flag |= PICO_SOCK_EV_CLOSE;
     //pico_socket_close(s);
-    if ((flag & 0x01) && (flag & 0x02)) {
+    if ((flag & PICO_SOCK_EV_RD) && (flag & PICO_SOCK_EV_CLOSE)) {
       pico_socket_shutdown(s, PICO_SHUT_WR);
       printf("SOCKET> Called shutdown write, ev = %d\n",ev);
     }
   }
-  if (len > pos) {
-    do {
-      w = pico_socket_write(s, recvbuf + pos, len - pos);
-      if (w > 0) {
-        pos += w;
-        if (pos >= len) {
-          pos = 0;
-          len = 0;
-        }
-      } else {
-        errno = pico_err;
-        perror("pico_socket_write");
-      }
-    } while((w > 0) && (pos < len));
+  if (ev & PICO_SOCK_EV_WR) {
+    r = send_tcpecho(s);
+    if (r == 0) 
+      flag |= PICO_SOCK_EV_WR;
+    else
+      flag &= (~PICO_SOCK_EV_WR);
+    printf("Written %d bytes total.\n", r);
   }
+  printf("pos/len: %d/%d.\n", pos,len);
 
 }
+
 
 void app_tcpecho(char *arg)
 {
@@ -233,7 +252,7 @@ void app_tcpecho(char *arg)
     in_addr.addr = 0x0000320a;
     //link = pico_ipv4_link_get(&address);
 
-    printf("udpecho> IPFILTER ENABLED\n");
+    printf("tcpecho> IPFILTER ENABLED\n");
 
     /*Adjust your IPFILTER*/
     ret |= pico_ipv4_filter_add(NULL, 6, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_REJECT);
@@ -242,6 +261,18 @@ void app_tcpecho(char *arg)
       printf("Filter_add invalid argument\n");
   }
 #endif
+  printf("%s: launching PicoTCP echo server loop\n", __FUNCTION__);
+  while(1) {
+    int ret;
+    if (flag & PICO_SOCK_EV_WR) {
+      ret = send_tcpecho(s);
+      if (ret <= 0) {
+        flag &= (~PICO_SOCK_EV_WR);
+      }
+    }
+    pico_stack_tick();
+    usleep(2000);
+  }
 }
 /*** END TCP ECHO ***/
 
@@ -629,7 +660,7 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 20)
+#define TCPSIZ (1024 * 1024 * 2)
 static char *buffer1;
 static char *buffer0;
 
