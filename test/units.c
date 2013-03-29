@@ -1269,11 +1269,13 @@ START_TEST (test_rbtree)
 }
 END_TEST
 
+static struct pico_dhcp_client_cookie* dhcp_client_ptr;
+
 void callback_dhcpclient(void* cli, int code){
   struct pico_ip4  gateway;
   char gw_txt_addr[30];
   if(code == PICO_DHCP_SUCCESS){
-    gateway = pico_dhcp_get_gateway(&dhcp_client);
+    gateway = pico_dhcp_get_gateway(&dhcp_client_ptr);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
   }
   printf("callback happened with code %d!\n", code);
@@ -1319,6 +1321,7 @@ START_TEST (test_dhcp_client)
 
   // initiate negotiation -> change state to  
 	cli = pico_dhcp_initiate_negotiation(mock->dev, &callback_dhcpclient);
+	dhcp_client_ptr = cli;
 	fail_if(cli == NULL,"initiate fail");
   fail_unless(cli->state == DHCPSTATE_DISCOVER,"Not in discover state after init negotiate");
   fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
@@ -2004,7 +2007,6 @@ START_TEST (test_crc_check)
   fail_if(ret == 1, "incorrect TCP checksum got accepted\n");
 }
 END_TEST
-
 
 Suite *pico_suite(void)
 {

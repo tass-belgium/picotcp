@@ -48,6 +48,8 @@ struct pico_dhcp_client_cookie
 	struct dhcp_timer_param* timer_param_lease;
 	struct dhcp_timer_param* timer_param_retransmit;
 	int link_added;
+
+	struct pico_dhcp_client_cookie* next;
 };
 
 /*************************
@@ -64,6 +66,8 @@ static void pico_dhcp_retry(struct pico_dhcp_client_cookie *client);
 static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type);
 static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pico_dhcp_client_cookie *cli);
 static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code));
+static struct pico_dhcp_client_cookie* get_cookie_by_xid(uint32_t xid);
+static uint32_t get_xid(uint8_t* data);
 
 //fsm functions
 static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len);
@@ -80,7 +84,7 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
  * static variables *
  ********************/
 
-static struct pico_dhcp_client_cookie dhcp_client;
+static struct pico_dhcp_client_cookie* dhcp_head;
 
 /***************
  * entry point *
@@ -89,7 +93,13 @@ static struct pico_dhcp_client_cookie dhcp_client;
 /* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
 void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code)){
 
-	struct pico_dhcp_client_cookie* cli = &dhcp_client;
+	struct pico_dhcp_client_cookie* cli = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
+	cli->next = dhcp_head;
+	dhcp_head = cli;
+	if(!cli){
+		pico_err = PICO_ERR_ENOMEM;
+		return NULL;
+	}
 
 	if(device == NULL){
 		pico_err = PICO_ERR_EINVAL;
@@ -131,24 +141,19 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 	uint16_t port;
 	int type;
 
-	struct pico_dhcp_client_cookie *cli = &dhcp_client;
+	struct pico_dhcp_client_cookie *cli;
 	dbg("DHCP>Called dhcp_wakeup\n");
 	if (ev == PICO_SOCK_EV_RD) {
 		do {
 			r = pico_socket_recvfrom(s, buf, DHCPC_DATAGRAM_SIZE, &peer, &port);
+			cli = get_cookie_by_xid(get_xid(buf));
+			if(cli == NULL)
+				return;
 			if (r > 0 && port == PICO_DHCPD_PORT) {
 				type = pico_dhcp_verify_and_identify_type(buf, r, cli);
 				pico_dhcp_state_machine(type, cli, buf, r);
 			}
 		} while(r>0);
-	}
-	if (ev == PICO_SOCK_EV_CONN) {
-		if (cli->connected) {
-			dbg("DHCP>Error: already connected.\n");
-		} else {
-			dbg("DHCP>Connection established.\n");
-			cli->connected = 1;
-		}
 	}
 }
 
@@ -439,7 +444,11 @@ static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 	if (++cli->attempt > MAX_RETRY) {
 		cli->start_time = pico_tick;
 		cli->attempt = 0;
-		cli->xid = pico_rand();
+		uint32_t new_xid = pico_rand();
+		while(get_cookie_by_xid(new_xid) != NULL){
+			new_xid = pico_rand();
+		}
+		cli->xid = new_xid;
 		cli->state = DHCPSTATE_DISCOVER;
 		init_cookie(cli, cli->device, cli->cb);
 	}
@@ -621,6 +630,27 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	}
 
 
+}
+
+//using a linked list and not e.g. a red-black-tree because
+// - there will probably be very few cookies
+// - xids can be changed, with a tree this would require a remove and insert
+static struct pico_dhcp_client_cookie* get_cookie_by_xid(uint32_t xid)
+{
+	struct pico_dhcp_client_cookie* ptr = dhcp_head;
+	while(ptr != NULL){
+		if(ptr->xid == xid){
+			return ptr;
+		}
+		ptr = ptr->next;
+	}
+	return NULL;
+}
+
+static uint32_t get_xid(uint8_t* data)
+{
+	struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) data;
+	return dhdr->xid;
 }
 
 #endif
