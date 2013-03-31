@@ -154,12 +154,12 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
   int r=0;
 
-  printf("tcpecho> wakeup ev=%04x\n", ev);
+//  printf("tcpecho> wakeup ev=%04x\n", ev);
 
   if (ev & PICO_SOCK_EV_RD) {
     if (flag & PICO_SOCK_EV_CLOSE)
       printf("SOCKET> EV_RD, FIN RECEIVED\n");
-    do {
+    while(len < BSIZE) {
       r = pico_socket_read(s, recvbuf + len, BSIZE - len);
       if (r > 0) {
         len += r;
@@ -168,9 +168,11 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
       } else {
         printf("Read returns %d\n", r);
       }
-      if (r == 0)
+      if (r <= 0) {
         flag |= PICO_SOCK_EV_RD;
-    } while((r>0) && (len < BSIZE));
+        break;
+      }
+    }
   }
   if (ev & PICO_SOCK_EV_CONN) { 
     struct pico_socket *sock_a;
@@ -203,6 +205,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     }
   }
   if (ev & PICO_SOCK_EV_WR) {
+    printf("Calling send...\n");
     r = send_tcpecho(s);
     if (r == 0) 
       flag |= PICO_SOCK_EV_WR;
@@ -210,7 +213,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
       flag &= (~PICO_SOCK_EV_WR);
     printf("Written %d bytes total.\n", r);
   }
-  printf("pos/len: %d/%d.\n", pos,len);
+//  printf("pos/len: %d/%d.\n", pos,len);
 
 }
 
@@ -261,6 +264,7 @@ void app_tcpecho(char *arg)
   }
 #endif
   printf("%s: launching PicoTCP echo server loop\n", __FUNCTION__);
+#if 0
   while(1) {
     int ret;
     if (flag & PICO_SOCK_EV_WR) {
@@ -272,6 +276,7 @@ void app_tcpecho(char *arg)
     pico_stack_tick();
     usleep(2000);
   }
+#endif
 }
 /*** END TCP ECHO ***/
 

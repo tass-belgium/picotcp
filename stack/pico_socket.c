@@ -345,6 +345,9 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     
     if (found != NULL) {
       pico_tcp_input(found,f);
+      if ((found->ev_pending) && found->wakeup) {
+        found->wakeup(found->ev_pending, found);
+      }
       return 0;
     } else {
       pico_frame_discard(f);
@@ -1308,6 +1311,9 @@ int pico_sockets_loop(int loop_score)
     pico_tree_foreach(index, &sp_tcp->socks){
       s = index->keyValue;
     	loop_score = pico_tcp_output(s, loop_score);
+      if ((s->ev_pending) && s->wakeup) {
+        s->wakeup(s->ev_pending, s);
+      }
       if (loop_score <= 0) {
         loop_score = 0;
         break;

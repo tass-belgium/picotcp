@@ -49,6 +49,7 @@ struct pico_socket {
   struct pico_socket *parent;
   int max_backlog;
 #endif
+  uint16_t ev_pending;
 
   /* Private field. */
   int id;
