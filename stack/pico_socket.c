@@ -712,8 +712,15 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     f->payload_len -= header_offset;
 #endif /* PICO_SUPPORT_IPFRAG */
     f->sock = s;
+
+    if (f->payload_len <= 0) {
+      pico_frame_discard(f);
+      return total_payload_written;
+    }
+
     memcpy(f->payload, buf + total_payload_written, f->payload_len);
     //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);
+
     if (s->proto->push(s->proto, f) > 0) {
       total_payload_written += f->payload_len;
     } else {
