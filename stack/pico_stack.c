@@ -367,6 +367,7 @@ int pico_ethernet_send(struct pico_frame *f)
         return pico_ethernet_receive(f);
       }else{
         return f->dev->send(f->dev, f->start, f->len);
+        /* Frame is discarded after this return by the caller */
       }
     } else {
       return -1;

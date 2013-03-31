@@ -205,13 +205,11 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     }
   }
   if (ev & PICO_SOCK_EV_WR) {
-    printf("Calling send...\n");
     r = send_tcpecho(s);
     if (r == 0) 
       flag |= PICO_SOCK_EV_WR;
     else
       flag &= (~PICO_SOCK_EV_WR);
-    printf("Written %d bytes total.\n", r);
   }
 //  printf("pos/len: %d/%d.\n", pos,len);
 
