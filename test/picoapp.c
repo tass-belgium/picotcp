@@ -166,7 +166,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         flag &= ~(PICO_SOCK_EV_RD);
         printf("Read %d bytes total.\n", len);
       } else {
-        printf("Read returns %d\n", r);
       }
       if (r <= 0) {
         flag |= PICO_SOCK_EV_RD;
@@ -663,7 +662,7 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 2)
+#define TCPSIZ (1024 * 20)
 static char *buffer1;
 static char *buffer0;
 
