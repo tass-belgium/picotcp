@@ -125,7 +125,7 @@ void app_udpecho(char *arg)
 /*** END UDP ECHO ***/
 
 /*** TCP ECHO ***/
-#define BSIZE (1024 * 4)
+#define BSIZE (1024 * 10)
 static char recvbuf[BSIZE];
 static int pos = 0, len = 0;
 static int flag = 0;
