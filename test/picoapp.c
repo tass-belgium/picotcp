@@ -164,7 +164,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
       if (r > 0) {
         len += r;
         flag &= ~(PICO_SOCK_EV_RD);
-        printf("Read %d bytes total.\n", len);
       } else {
       }
       if (r <= 0) {
@@ -182,7 +181,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("Connection established with %s:%d.\n", peer, short_be(port));
-    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
+//    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
   }
 
   if (ev & PICO_SOCK_EV_FIN) {
@@ -210,8 +209,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     else
       flag &= (~PICO_SOCK_EV_WR);
   }
-//  printf("pos/len: %d/%d.\n", pos,len);
-
 }
 
 
@@ -261,19 +258,6 @@ void app_tcpecho(char *arg)
   }
 #endif
   printf("%s: launching PicoTCP echo server loop\n", __FUNCTION__);
-#if 0
-  while(1) {
-    int ret;
-    if (flag & PICO_SOCK_EV_WR) {
-      ret = send_tcpecho(s);
-      if (ret <= 0) {
-        flag &= (~PICO_SOCK_EV_WR);
-      }
-    }
-    pico_stack_tick();
-    usleep(2000);
-  }
-#endif
 }
 /*** END TCP ECHO ***/
 
@@ -662,7 +646,7 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 20)
+#define TCPSIZ (1024 *1024 *20)
 static char *buffer1;
 static char *buffer0;
 
