@@ -1062,25 +1062,29 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     f->payload = f->transport_hdr + ((hdr->len & 0xf0) >>2);
     f->payload_len = f->transport_len - ((hdr->len & 0xf0) >>2);
 
-    if (seq_compare(SEQN(f), t->rcv_nxt) > 0) {
+    if (seq_compare(SEQN(f), t->rcv_nxt) >= 0) {
       struct pico_frame *cpy = pico_frame_copy(f);
-      tcp_dbg("TCP> lo segment. Possible retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
+      struct pico_frame *nxt;
+
       /* Enqueue: try to put into RCV buffer */
       if (pico_enqueue_segment(&t->tcpq_in, cpy) <= 0) {
         pico_frame_discard(cpy);
         return -1;
       }
-    } else if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
-      struct pico_frame *nxt;
-      t->rcv_nxt = SEQN(f) + f->payload_len;
-      nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-      while(nxt) {
-        tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
-        t->rcv_nxt += f->payload_len;
+
+      if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
+        t->rcv_nxt = SEQN(f) + f->payload_len;
         nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+        while(nxt) {
+          tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
+          t->rcv_nxt += f->payload_len;
+          nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+        }
+        t->sock.ev_pending |= PICO_SOCK_EV_RD;
+        t->rcv_nxt = SEQN(f) + f->payload_len;
+      } else {
+        tcp_dbg("TCP> lo segment. Possible retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       }
-      t->sock.ev_pending |= PICO_SOCK_EV_RD;
-      t->rcv_nxt = SEQN(f) + f->payload_len;
     } else {
       tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       if (t->sack_ok) {
