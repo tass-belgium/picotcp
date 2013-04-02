@@ -849,7 +849,7 @@ void app_tcpclient(char *arg)
 
 int tcpbench_mode = 0;
 struct pico_socket *tcpbench_sock = NULL;
-unsigned long tcpbench_time_start,tcpbench_time_end;
+static unsigned long tcpbench_time_start,tcpbench_time_end;
 
 void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 {
@@ -873,13 +873,17 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     do {
       /* read data, but discard */
       tcpbench_r = pico_socket_read(s, recvbuf, 1500);
-      if (tcpbench_r > 0)
+      if (tcpbench_r > 0){
         tcpbench_rd_size += tcpbench_r;
+      }
       else if (tcpbench_r < 0) {
         printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
         exit(5);
       }
     } while (tcpbench_r > 0);
+    if (tcpbench_time_start == 0)
+      tcpbench_time_start = PICO_TIME_MS();
+    printf("tcpbench_rd_size = %d      \r", tcpbench_rd_size);
   }
 
   if (ev & PICO_SOCK_EV_CONN) { 
@@ -891,7 +895,6 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
       pico_ipv4_to_string(peer, orig.addr);
       printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
     }
-    tcpbench_time_start = PICO_TIME_MS();
   }
 
   if (ev & PICO_SOCK_EV_FIN) {

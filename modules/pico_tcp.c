@@ -268,14 +268,6 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   hdr = (struct pico_tcp_hdr *)f->transport_hdr;
 
-#if 0
-  if ((hdr->flags & (PICO_TCP_SYN | PICO_TCP_FIN | PICO_TCP_RST)) == 0) {
-    if (f->payload_len == 0) /* If pure ack, update the seq index */
-      hdr->seq = long_be(t->snd_nxt);
-    else /* If not pure ack, use freshest ack stats */
-      hdr->ack = long_be(t->rcv_nxt);
-  }
-#endif
   if (f->payload_len > 0) {
     tcp_dbg("Process out: sending %p (%d bytes)\n",f, f->payload_len);
   } else {
@@ -283,9 +275,6 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
   }
 
   if (f->payload_len > 0) {
-    //cpy = pico_frame_copy(f);
-    //f = pico_tree_delete(&t->tcpq_out.pool,f);
-    //pico_tree_insert(&t->tcpq_out.pool,cpy);
     if (seq_compare(SEQN(f) + f->payload_len, t->snd_nxt) > 0) {
       t->snd_nxt = SEQN(f) + f->payload_len;
       tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
@@ -1073,25 +1062,25 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     f->payload = f->transport_hdr + ((hdr->len & 0xf0) >>2);
     f->payload_len = f->transport_len - ((hdr->len & 0xf0) >>2);
 
-    if (seq_compare(SEQN(f) + f->payload_len, t->rcv_nxt) > 0) {
+    if (seq_compare(SEQN(f), t->rcv_nxt) > 0) {
       struct pico_frame *cpy = pico_frame_copy(f);
+      tcp_dbg("TCP> lo segment. Possible retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       /* Enqueue: try to put into RCV buffer */
       if (pico_enqueue_segment(&t->tcpq_in, cpy) <= 0) {
         pico_frame_discard(cpy);
         return -1;
-      } else if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
-        struct pico_frame *nxt;
-        t->rcv_nxt = SEQN(f) + f->payload_len;
-        nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-        while(nxt) {
-          tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
-          t->rcv_nxt += f->payload_len;
-          nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-        }
-        t->sock.ev_pending |= PICO_SOCK_EV_RD;
       }
+    } else if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
+      struct pico_frame *nxt;
       t->rcv_nxt = SEQN(f) + f->payload_len;
-
+      nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+      while(nxt) {
+        tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
+        t->rcv_nxt += f->payload_len;
+        nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+      }
+      t->sock.ev_pending |= PICO_SOCK_EV_RD;
+      t->rcv_nxt = SEQN(f) + f->payload_len;
     } else {
       tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       if (t->sack_ok) {
@@ -1211,7 +1200,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
     if ((f->timestamp != 0) && (f->timestamp <= limit)) {
       struct pico_frame *cpy;
       hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-      tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d\n", SEQN(f), f->payload_len);
+      tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d\n", SEQN(f), f->payload_len, t->rto);
       t->x_mode = PICO_TCP_BLACKOUT;
       tcp_dbg("Mode: Blackout.\n");
       t->cwnd = PICO_TCP_IW;
