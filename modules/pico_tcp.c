@@ -1616,7 +1616,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_ESTABLISHED;
-    tcp_dbg("TCP> Established.\n");
+    tcp_dbg("TCP> Established. State: %x\n", s->state);
 
     if (s->wakeup)
       s->wakeup(PICO_SOCK_EV_CONN, s);
