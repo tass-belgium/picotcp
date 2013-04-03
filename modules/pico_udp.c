@@ -62,8 +62,10 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
     hdr->trans.sport = f->sock->local_port;
     hdr->trans.dport = f->sock->remote_port;
     hdr->len = short_be(f->transport_len);
+    /* do not perform CRC validation. If you want to, a system needs to be 
+       implemented to calculate the CRC over the total payload of a 
+       fragmented payload */
     hdr->crc = 0;
-    hdr->crc = short_be(pico_udp_checksum_ipv4(f));
   }
 
   if (pico_enqueue(self->q_out, f) > 0) {

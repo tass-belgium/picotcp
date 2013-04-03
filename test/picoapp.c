@@ -564,13 +564,13 @@ void udpclient_send(unsigned long now, void *arg) {
       return;
     }
     memset(buf, '1', udpclient_pas->datasize);
-    printf("%s: performing loop %u\n", __FUNCTION__, loop);
+    picoapp_dbg("%s: performing loop %u\n", __FUNCTION__, loop);
     for (i = 0; i < udpclient_pas->subloops; i++) {
       w = pico_socket_send(s, buf, udpclient_pas->datasize);
       if (w <= 0)
         break;
     }
-    printf("%s: written %u byte(s) in each of %u subloops\n", __FUNCTION__, udpclient_pas->datasize, i);
+    picoapp_dbg("%s: written %u byte(s) in each of %u subloops\n", __FUNCTION__, udpclient_pas->datasize, i);
     free(buf);
   }
 
