@@ -22,7 +22,8 @@ DHCP_SERVER?=1
 DNS_CLIENT?=1
 IPFILTER?=1
 CRC?=0
-
+HTTP_CLIENT?=1
+HTTP_SERVER?=1
 
 ifeq ($(DEBUG),1)
   CFLAGS=-Iinclude -Imodules -Wall -ggdb -Wdeclaration-after-statement
@@ -124,7 +125,12 @@ endif
 ifneq ($(CRC),0)
   include rules/crc.mk
 endif
-
+ifneq ($(HTTP_SERVER),0)
+  include rules/httpServer.mk
+endif
+ifneq ($(HTTP_CLIENT),0)
+  include rules/httpClient.mk
+endif
 all: mod core lib
 
 core: $(CORE_OBJ)

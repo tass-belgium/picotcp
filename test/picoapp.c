@@ -13,6 +13,9 @@
 #include "pico_dhcp_client.h"
 #include "pico_dhcp_server.h"
 #include "pico_ipfilter.h"
+#include "pico_http_client.h"
+#include "pico_http_server.h"
+#include "pico_http_util.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -1646,6 +1649,219 @@ void app_dhcp_client(char* arg)
 #endif
 /*** END DHCP Client ***/
 
+#ifdef PICO_SUPPORT_HTTP_CLIENT
+/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:192.168.24.15:255.255.255.0:192.168.24.5: -a wget:web.mit.edu/modiano/www/6.263/lec22-23.pdf
+ */
+void wget_callback(uint16_t ev, uint16_t conn)
+{
+	char data[1000u];
+	static int _length = 0;
+
+
+	if(ev & EV_HTTP_CON)
+	{
+
+		printf(">>> Connected to the client \n");
+		pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
+	}
+
+	if(ev & EV_HTTP_REQ)
+	{
+		struct pico_http_header * header = pico_http_client_readHeader(conn);
+		printf("Received header from server...\n");
+		printf("Server response : %d\n",header->responseCode);
+		printf("Location : %s\n",header->location);
+		printf("Transfer-Encoding : %d\n",header->transferCoding);
+		printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
+
+		// sending default generated header
+		pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
+	}
+
+	if(ev & EV_HTTP_BODY)
+	{
+		int len;
+
+		printf("Reading data...\n");
+		while((len = pico_http_client_readData(conn,data,1000u)))
+		{
+			_length += len;
+		}
+	}
+
+
+	if(ev & EV_HTTP_CLOSE)
+	{
+		struct pico_http_header * header = pico_http_client_readHeader(conn);
+		int len;
+		printf("Connection was closed...\n");
+		printf("Reading remaining data, if any ...\n");
+		while((len = pico_http_client_readData(conn,data,1000u)) && len > 0)
+		{
+			_length += len;
+		}
+
+		printf("Read a total data of : %d bytes \n",_length);
+
+		if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+		{
+			if(header->contentLengthOrChunk)
+			{
+				printf("Last chunk data not fully read !\n");
+				exit(1);
+			}
+			else
+			{
+				printf("Transfer ended with a zero chunk! OK !\n");
+			}
+		} else
+		{
+			if(header->contentLengthOrChunk == _length)
+			{
+				printf("Received the full : %d \n",_length);
+			}
+			else
+			{
+				printf("Received %d , waiting for %d\n",_length, header->contentLengthOrChunk);
+				exit(1);
+			}
+		}
+
+
+		pico_http_client_close(conn);
+		exit(0);
+	}
+
+	if(ev & EV_HTTP_ERROR)
+	{
+		printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
+		pico_http_client_close(conn);
+		exit(1u);
+	}
+
+	if(ev & EV_HTTP_DNS)
+	{
+		printf("The DNS query was successful ... \n");
+	}
+}
+
+void app_wget(char *arg)
+{
+	char * url;
+	cpy_arg(&url, arg);
+
+	if(!url)
+	{
+		fprintf(stderr, " wget expects the url to be received\n");
+		exit(1);
+	}
+
+	if(pico_http_client_open(url,wget_callback) < 0)
+	{
+		fprintf(stderr," error opening the url : %s, please check the format\n",url);
+		exit(1);
+	}
+}
+#endif
+
+
+#ifdef PICO_SUPPORT_HTTP_SERVER
+
+#define SIZE 4*1024
+
+void serverWakeup(uint16_t ev,uint16_t conn)
+{
+	static FILE * f;
+	char buffer[SIZE];
+
+	if(ev & EV_HTTP_CON)
+	{
+			printf("New connection received....\n");
+			pico_http_server_accept();
+	}
+
+	if(ev & EV_HTTP_REQ) // new header received
+	{
+		int read;
+		char * resource;
+		printf("Header request was received...\n");
+		printf("> Resource : %s\n",pico_http_getResource(conn));
+		resource = pico_http_getResource(conn);
+
+		if(strcmp(resource,"/")==0 || strcmp(resource,"index.html") == 0 || strcmp(resource,"/index.html") == 0)
+		{
+					// Accepting request
+					printf("Accepted connection...\n");
+					pico_http_respond(conn,HTTP_RESOURCE_FOUND);
+					f = fopen("test/examples/index.html","r");
+
+					if(!f)
+					{
+						fprintf(stderr,"Unable to open the file /test/examples/index.html\n");
+						exit(1);
+					}
+
+					read = fread(buffer,1,SIZE,f);
+					pico_http_submitData(conn,buffer,read);
+		}
+		else
+		{ // reject
+			printf("Rejected connection...\n");
+			pico_http_respond(conn,HTTP_RESOURCE_NOT_FOUND);
+		}
+
+	}
+
+	if(ev & EV_HTTP_PROGRESS) // submitted data was sent
+	{
+		uint16_t sent, total;
+		pico_http_getProgress(conn,&sent,&total);
+		printf("Chunk statistics : %d/%d sent\n",sent,total);
+	}
+
+	if(ev & EV_HTTP_SENT) // submitted data was fully sent
+	{
+		int read;
+		read = fread(buffer,1,SIZE,f);
+		printf("Chunk was sent...\n");
+		if(read > 0)
+		{
+				printf("Sending another chunk...\n");
+				pico_http_submitData(conn,buffer,read);
+		}
+		else
+		{
+				printf("Last chunk !\n");
+				pico_http_submitData(conn,NULL,0);// send the final chunk
+				fclose(f);
+		}
+
+	}
+
+	if(ev & EV_HTTP_CLOSE)
+	{
+		printf("Close request...\n");
+		pico_http_close(conn);
+	}
+
+	if(ev & EV_HTTP_ERROR)
+	{
+		printf("Error on server...\n");
+		pico_http_close(conn);
+	}
+}
+
+void app_httpd(char *arg)
+{
+
+	if( pico_http_server_start(0,serverWakeup) < 0)
+	{
+		fprintf(stderr,"Unable to start the server on port 80\n");
+	}
+
+}
+#endif
+
 /** From now on, parsing the command line **/
 
 #define NXT_MAC(x) ++x[5]
@@ -1908,8 +2124,22 @@ int main(int argc, char **argv)
           app_dhcp_client(args);
 #endif
         }
-
-
+        else IF_APPNAME("wget")
+	{
+#ifndef PICO_SUPPORT_HTTP_CLIENT
+       	  return 0;
+#else
+	  app_wget(args);
+#endif
+	}
+        else IF_APPNAME("httpd")
+	{
+#ifndef PICO_SUPPORT_HTTP_SERVER
+          return 0;
+#else
+	  app_httpd(args);
+#endif
+	}
         else {
           fprintf(stderr, "Unknown application %s\n", name);
           usage(argv[0]);
