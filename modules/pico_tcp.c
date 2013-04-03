@@ -279,6 +279,8 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
       t->snd_nxt = SEQN(f) + f->payload_len;
       tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     }
+  } else {
+    hdr->seq = long_be(t->snd_nxt);
   }
   pico_network_send(f);
   return 0;
