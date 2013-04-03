@@ -22,7 +22,6 @@ Author: Andrei Carp <andrei.carp@tass.be>
  * Server functions
  */
 int pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn));
-int pico_http_server_stop(void);
 int pico_http_server_accept(void);
 
 /*

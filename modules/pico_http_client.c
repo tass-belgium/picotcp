@@ -531,8 +531,7 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 
 int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_header * header)
 {
-	// move this to ram, stack is precious
-	static char line[HTTP_HEADER_LINE_SIZE];
+	char line[HTTP_HEADER_LINE_SIZE];
 	char c;
 	int index = 0;
 
