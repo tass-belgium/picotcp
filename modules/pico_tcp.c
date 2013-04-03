@@ -1067,13 +1067,11 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     if (seq_compare(SEQN(f), t->rcv_nxt) >= 0) {
       struct pico_frame *cpy = pico_frame_copy(f);
       struct pico_frame *nxt;
-
       /* Enqueue: try to put into RCV buffer */
       if (pico_enqueue_segment(&t->tcpq_in, cpy) <= 0) {
         pico_frame_discard(cpy);
         return -1;
       }
-
       if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
         t->rcv_nxt = SEQN(f) + f->payload_len;
         nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
