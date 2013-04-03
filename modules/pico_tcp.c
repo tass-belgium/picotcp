@@ -1168,10 +1168,9 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
   if (t->x_mode > PICO_TCP_LOOKAHEAD)
     return;
   if (t->cwnd > t->tcpq_out.frames) {
-   tcp_dbg("TCP CWND: limited by app\n");
+    tcp_dbg("Limited by app: %d\n", t->cwnd);
     return;
   }
-
  tcp_dbg("Doing congestion control\n");
   if (t->cwnd < t->ssthresh) {
     t->cwnd++;
@@ -1382,12 +1381,6 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       t->x_mode++;
       tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
       tcp_dbg("ACK: %x - QUEUE: %x\n",ACKN(f), SEQN(first_segment(&t->tcpq_out)));
-      tcp_dbg("\n\n\n\nTCP RETRANSMIT> DUPACK:%d! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", t->x_mode, SEQN(first_segment(&t->tcpq_out)), t->snd_nxt, ACKN(f));
-
-#if 0
-      tcp_dbg("FAST RETRANS: %08x\n", SEQN(first_segment(&t->tcpq_out)));
-      tcp_retrans(t, first_segment(&t->tcpq_out));
-#endif
       if (t->x_mode == PICO_TCP_RECOVER) { /* Switching mode */
         t->snd_retry = SEQN(first_segment(&t->tcpq_out));
         if (t->ssthresh > t->cwnd)
@@ -1453,7 +1446,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     pico_tcp_output(&t->sock, t->cwnd - t->in_flight);
   }
 
-  t->snd_old_ack = ACKN(f);
+  if (f->payload_len == 0)
+    t->snd_old_ack = ACKN(f);
   return 0;
 }
 

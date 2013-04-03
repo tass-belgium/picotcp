@@ -928,7 +928,6 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 
   if (ev & PICO_SOCK_EV_WR) {
     if (tcpbench_wr_size < TCPSIZ && tcpbench_mode == TCP_BENCH_TX) {
-      uint32_t *cwnd = (uint32_t *) (((uint8_t *)tcpbench_sock) + sizeof(struct pico_socket) + 13 * sizeof(uint32_t));
       do {
         tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ-tcpbench_wr_size);
         if (tcpbench_w > 0) {
@@ -940,7 +939,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
           exit(5);
         }
       } while(tcpbench_w > 0);
-      printf("tcpbench_wr_size = %d  CWND: %lu\r", tcpbench_wr_size, *cwnd);
+      printf("tcpbench_wr_size = %d      \r", tcpbench_wr_size);
     } else {
       if (!closed && tcpbench_mode == TCP_BENCH_TX) {
         tcpbench_time_end = PICO_TIME_MS();
