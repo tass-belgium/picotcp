@@ -657,7 +657,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP)
-    header_offset = 8;
+    header_offset = sizeof(struct pico_udp_hdr);
 #endif
 
   while (total_payload_written < len) {
@@ -676,26 +676,24 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       pico_err = PICO_ERR_ENOMEM;
       return -1;
     }
+    f->payload += header_offset;
+    f->payload_len -= header_offset;
+    f->sock = s;
 
 #ifdef PICO_SUPPORT_IPFRAG
-#  ifdef PICO_SUPPORT_TCP
-    if (PROTO(s) == PICO_PROTO_TCP) {
-      f->payload += header_offset;
-      f->payload_len -= header_offset;
-    }
-#  endif /* PICO_SUPPORT_TCP */
 #  ifdef PICO_SUPPORT_UDP
-    if (PROTO(s) == PICO_PROTO_UDP) {
+    if (PROTO(s) == PICO_PROTO_UDP && ((len + header_offset) > PICO_SOCKET_MTU)) {
       /* hacking way to identify fragmentation frames: payload != transport_hdr -> first frame */
       if (!total_payload_written) {
-        frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len - header_offset);
-        f->payload += header_offset;
-        f->payload_len -= header_offset;
-        f->frag = 0; 
-        if (len > PICO_SOCKET_MTU) 
-          f->frag |= short_be(PICO_IPV4_MOREFRAG);
+        frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
+        /* transport header length field contains total length + header length */
+        f->transport_len = len + header_offset;
+        f->frag = short_be(PICO_IPV4_MOREFRAG); 
       } else {
+        /* no transport header in fragmented IP */
         f->payload = f->transport_hdr;
+        f->payload_len += header_offset;
+        /* set offset in octets */
         f->frag = short_be((total_payload_written + header_offset) / 8); 
         if (total_payload_written + f->payload_len < len) {
           frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
@@ -705,13 +703,11 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
           f->frag &= short_be(PICO_IPV4_FRAG_MASK);
         }
       }
+    } else {
+      f->frag = short_be(PICO_IPV4_DONTFRAG);
     }
 #  endif /* PICO_SUPPORT_UDP */
-#else
-    f->payload += header_offset;
-    f->payload_len -= header_offset;
 #endif /* PICO_SUPPORT_IPFRAG */
-    f->sock = s;
 
     if (f->payload_len <= 0) {
       pico_frame_discard(f);
@@ -1350,36 +1346,24 @@ int pico_sockets_loop(int loop_score)
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 {
-  int overhead = 0;
   struct pico_frame *f = NULL;
-
-#ifdef PICO_SUPPORT_UDP
-  if (PROTO(s) == PICO_PROTO_UDP)
-    overhead = 0; /* used to be overhead = sizeof(struct pico_udp_hdr); */
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-  if (PROTO(s) == PICO_PROTO_TCP)
-    overhead = 0; /* Overhead is calculated within TCP */
-#endif
-
 
 #ifdef PICO_SUPPORT_IPV6
   if (IS_SOCK_IPV6(s))
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, overhead + len);
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
 #endif
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s))
-    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, overhead + len);
+    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, len);
 #endif
   if (!f) {
     pico_err = PICO_ERR_ENOMEM;
     return f;
   }
-  f->sock = s;
-  f->payload = f->transport_hdr + overhead;
+  f->payload = f->transport_hdr;
   f->payload_len = len;
+  f->sock = s;
   return f;
 }
 

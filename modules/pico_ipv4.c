@@ -853,10 +853,17 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   hdr->dst.addr = dst->addr;
   hdr->ttl = ttl;
   hdr->proto = proto;
-#ifdef PICO_SUPPORT_IPFRAG
-  hdr->frag = f->frag;
-#else
   hdr->frag = short_be(PICO_IPV4_DONTFRAG);
+#ifdef PICO_SUPPORT_IPFRAG
+#  ifdef PICO_SUPPORT_UDP
+  if (proto == PICO_PROTO_UDP) {
+    /* first fragment, can not use transport_len to calculate IP length */
+    if (f->transport_hdr != f->payload)
+      hdr->len = short_be(f->payload_len + sizeof(struct pico_udp_hdr) + PICO_SIZE_IP4HDR);
+    /* set fragmentation flags and offset calculated in socket layer */
+    hdr->frag = f->frag;
+  }
+#  endif /* PICO_SUPPORT_UDP */
 #endif /* PICO_SUPPORT_IPFRAG */
   pico_ipv4_checksum(f);
 
