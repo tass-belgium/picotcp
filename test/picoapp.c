@@ -1498,6 +1498,111 @@ void app_dhcp_client(char* arg)
 	dhcp_client_cookie = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
 }
 
+
+static int finished1=0, finished2=0;
+void ping_callback_dhcpclient1(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  pico_ipv4_to_string(host, s->dst.addr);
+  if (s->err == 0) {
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    if (s->seq >= 3) {
+      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
+			finished1 = 1;
+			if(finished2 == 1)
+				exit(0);
+    }
+  } else {
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    dbg("DHCP CLIENT TEST: FAILED!\n");
+    exit(1);
+  }
+}
+
+void ping_callback_dhcpclient2(struct pico_icmp4_stats *s)
+{
+  char host[30];
+  pico_ipv4_to_string(host, s->dst.addr);
+  if (s->err == 0) {
+    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    if (s->seq >= 3) {
+      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
+			finished2 = 1;
+			if(finished1 == 1)
+				exit(0);
+    }
+  } else {
+    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    dbg("DHCP CLIENT TEST: FAILED!\n");
+    exit(1);
+  }
+}
+static void* dhcp_client_cookie1;
+static void* dhcp_client_cookie2;
+void callback_dhcpclient1(void* cli, int code){
+	struct pico_ip4  gateway;
+	char gw_txt_addr[30];
+	if(code == PICO_DHCP_SUCCESS){
+		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+    pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+#ifdef PICO_SUPPORT_PING
+    pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient1);
+#endif
+	}
+	printf("callback happened with code %d!\n", code);
+}
+void callback_dhcpclient2(void* cli, int code){
+	struct pico_ip4  gateway;
+	char gw_txt_addr[30];
+	if(code == PICO_DHCP_SUCCESS){
+		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+    pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+#ifdef PICO_SUPPORT_PING
+    pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient2);
+#endif
+	}
+	printf("callback happened with code %d!\n", code);
+}
+
+void app_dhcp_dual_client(char* arg)
+{
+	struct pico_device *dev1, *dev2;
+	char *dev_name1, *dev_name2, *nxt;
+
+	nxt = cpy_arg(&dev_name1, arg);
+	if(!dev_name1){
+		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+		exit(255);
+	}
+	if(!nxt){
+		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+		exit(255);
+	}
+	cpy_arg(&dev_name2, nxt);
+	if(!dev_name1){
+		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+		exit(255);
+	}
+
+	dev1 = pico_get_device(dev_name1);
+	dev2 = pico_get_device(dev_name2);
+	free(dev_name1);
+	free(dev_name2);
+	if(dev1 == NULL){
+		printf("error : no device found\n");
+		exit(255);
+	}
+	if(dev2 == NULL){
+		printf("error : no device found\n");
+		exit(255);
+	}
+	printf("starting negotiation\n");
+
+	dhcp_client_cookie1 = pico_dhcp_initiate_negotiation(dev1, &callback_dhcpclient1);
+	dhcp_client_cookie2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient2);
+}
+
+
 #endif
 /*** END DHCP Client ***/
 
@@ -1775,6 +1880,13 @@ int main(int argc, char **argv)
           return 0;
 #else
           app_dhcp_client(args);
+#endif
+        }
+        else IF_APPNAME("dhcpdualclient") {
+#ifndef PICO_SUPPORT_DHCPC
+          return 0;
+#else
+          app_dhcp_dual_client(args);
 #endif
         }
 
