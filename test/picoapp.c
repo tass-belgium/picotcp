@@ -315,11 +315,12 @@ void app_tcpecho(char *arg)
 
 /*** UDP DNS CLIENT ***/
 /* 
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1: -a udpdnsclient:www.google.be:173.194.67.94 
+./test/vde_sock_start.sh
 echo 1 > /proc/sys/net/ipv4/ip_forward
 iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
 iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
 iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1: -a udpdnsclient:www.google.be:173.194.67.94 
 */
 void cb_udpdnsclient_getaddr(char *ip, void *arg)
 {
