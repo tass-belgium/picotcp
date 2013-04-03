@@ -441,10 +441,11 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
 static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 {
 	const int MAX_RETRY = 5;
+	uint32_t new_xid;
 	if (++cli->attempt > MAX_RETRY) {
 		cli->start_time = pico_tick;
 		cli->attempt = 0;
-		uint32_t new_xid = pico_rand();
+		 new_xid = pico_rand();
 		while(get_cookie_by_xid(new_xid) != NULL){
 			new_xid = pico_rand();
 		}

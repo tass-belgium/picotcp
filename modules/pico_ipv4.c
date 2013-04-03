@@ -999,6 +999,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   }
   test.address.addr = address.addr;
   test.netmask.addr = netmask.addr;
+	test.dev = dev;
   /** XXX: Valid netmask / unicast address test **/
 
   if(pico_tree_findKey(&Tree_dev_link, &test)) {
