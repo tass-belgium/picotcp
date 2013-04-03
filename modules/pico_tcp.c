@@ -279,7 +279,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
       t->snd_nxt = SEQN(f) + f->payload_len;
       tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     }
-  } else {
+  } else if (hdr->flags == PICO_TCP_ACK) { /* pure ack */
     hdr->seq = long_be(t->snd_nxt);
   }
   pico_network_send(f);
@@ -1347,6 +1347,11 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   acked = tcp_ack_advance_una(t, f);
   una = first_segment(&t->tcpq_out);
+
+  /* One should be acked. */
+//  if ((acked == 0) && (t->in_flight > 0))
+  if ((acked == 0) && (f->payload_len  == 0) && (t->in_flight > 0))
+    t->in_flight--;
   if (!una || acked > 0) {
     t->x_mode = PICO_TCP_LOOKAHEAD;
    tcp_dbg("Mode: Look-ahead. In flight: %d/%d buf: %d\n", t->in_flight, t->cwnd, t->tcpq_out.frames);
@@ -1364,7 +1369,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       tcp_dbg("WARNING: in flight < 0\n");
       t->in_flight = 0;
     } else
-      t->in_flight -= acked;
+      t->in_flight -= (acked);
 
   } else if ((t->snd_old_ack == ACKN(f)) && /* We've just seen this ack, and... */
       ((0 == (hdr->flags & (PICO_TCP_PSH | PICO_TCP_SYN))) &&
@@ -1372,10 +1377,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       (ACKN(f) != t->snd_nxt)) /* There is something in flight awaiting to be acked... */
   {
     /* Process incoming duplicate ack. */
-    if (t->in_flight > 0)
-      t->in_flight--;
     if (t->x_mode < PICO_TCP_RECOVER) {
-      /* One should be acked. */
       t->x_mode++;
       tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
       tcp_dbg("ACK: %x - QUEUE: %x\n",ACKN(f), SEQN(first_segment(&t->tcpq_out)));
@@ -1413,8 +1415,10 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
         }
       }
 
-      if (t->cwnd > t->ssthresh)
+      if (++t->cwnd_counter > 1) {
         t->cwnd--;
+        t->cwnd_counter = 0;
+      }
     }
   } /* End case duplicate ack detection */
 
@@ -1440,12 +1444,13 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   /* If some space was created, put a few segments out. */
  tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
-  if (t->cwnd >= t->in_flight) {
-    pico_tcp_output(&t->sock, t->cwnd - t->in_flight);
+  if (t->x_mode ==  PICO_TCP_LOOKAHEAD) {
+    if (t->cwnd >= t->in_flight) {
+      pico_tcp_output(&t->sock, t->cwnd - t->in_flight);
+    }
   }
 
-  if (f->payload_len == 0)
-    t->snd_old_ack = ACKN(f);
+  t->snd_old_ack = ACKN(f);
   return 0;
 }
 
@@ -1896,7 +1901,6 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     if (loop_score < 1)
       break;
     if (f->payload_len > 0) {
-      //f = peek_segment(&t->tcpq_out, t->snd_last_out);
       f = next_segment(&t->tcpq_out, f);
     } else {
       f = NULL;
