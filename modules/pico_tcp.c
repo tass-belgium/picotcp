@@ -1661,22 +1661,21 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
 
-  if (seq_compare(SEQN(f), t->rcv_nxt) > 0) {
-    return tcp_data_in(s, f);
-  } else {
-    tcp_dbg("TCP> Close-wait\n");
+  if (f->payload_len > 0)
+    tcp_data_in(s,f);
+  if (f->flags & PICO_TCP_ACK)
+    tcp_ack(s,f);
+  if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
     /* received FIN, increase ACK nr */
     t->rcv_nxt = long_be(hdr->seq) + 1;
     s->state &= 0x00FFU;
     s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
     /* set SHUT_REMOTE */
     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+      tcp_dbg("TCP> Close-wait\n");
     if (s->wakeup)
       s->wakeup(PICO_SOCK_EV_CLOSE, s);
-    if (f->payload_len > 0)
-      tcp_data_in(s,f);
-    if (f->flags & PICO_TCP_ACK)
-      tcp_ack(s,f);
+  } else {
     tcp_send_ack(t);  /* return ACK */
   }
   return 0;
