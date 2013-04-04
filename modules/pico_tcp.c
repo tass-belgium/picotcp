@@ -1443,12 +1443,14 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   }
 
   /* If some space was created, put a few segments out. */
- tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
+  tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
+/* 
   if (t->x_mode ==  PICO_TCP_LOOKAHEAD) {
     if (t->cwnd >= t->in_flight) {
       pico_tcp_output(&t->sock, t->cwnd - t->in_flight);
     }
   }
+*/
 
   t->snd_old_ack = ACKN(f);
   return 0;
