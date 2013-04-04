@@ -707,7 +707,7 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 *1024 *20)
+#define TCPSIZ (1024 *1024 *50)
 static char *buffer1;
 static char *buffer0;
 
@@ -944,6 +944,8 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
           printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
           exit(5);
         }
+        if (tcpbench_time_start == 0)
+          tcpbench_time_start = PICO_TIME_MS();
       } while(tcpbench_w > 0);
       printf("tcpbench_wr_size = %d      \r", tcpbench_wr_size);
     } else {

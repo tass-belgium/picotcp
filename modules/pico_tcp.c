@@ -41,8 +41,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
 
 #ifdef PICO_SUPPORT_TCP
-//#define tcp_dbg(...) do{}while(0)
-#define tcp_dbg dbg
+#define tcp_dbg(...) do{}while(0)
+//#define tcp_dbg dbg
 
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
@@ -147,6 +147,7 @@ struct pico_socket_tcp {
   uint32_t snd_last;
   uint32_t snd_old_ack;
   uint32_t snd_retry;
+  uint32_t snd_last_out;
 
   /* congestion control */
   uint32_t avg_rtt;
@@ -1169,7 +1170,7 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
     tcp_dbg("Limited by app: %d\n", t->cwnd);
     return;
   }
- tcp_dbg("Doing congestion control\n");
+  tcp_dbg("Doing congestion control\n");
   if (t->cwnd < t->ssthresh) {
     t->cwnd++;
   } else {
@@ -1279,6 +1280,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
     cpy = pico_frame_copy(f);
     if (pico_enqueue(&tcp_out, cpy) > 0) {
       t->in_flight++;
+      t->snd_last_out = SEQN(cpy);
       add_retransmission_timer(t, pico_tick + t->rto);
     } else {
       pico_frame_discard(cpy);
@@ -1417,6 +1419,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
       if (++t->cwnd_counter > 1) {
         t->cwnd--;
+        if (t->cwnd < 2)
+          t->cwnd = 2;
         t->cwnd_counter = 0;
       }
     }
@@ -1444,13 +1448,11 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
   /* If some space was created, put a few segments out. */
   tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
-/* 
   if (t->x_mode ==  PICO_TCP_LOOKAHEAD) {
-    if (t->cwnd >= t->in_flight) {
+    if ((t->cwnd >= t->in_flight) && (t->snd_nxt > t->snd_last_out)) {
       pico_tcp_output(&t->sock, t->cwnd - t->in_flight);
     }
   }
-*/
 
   t->snd_old_ack = ACKN(f);
   return 0;
@@ -1899,6 +1901,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     tcp_send(t, f);
     sent++;
     loop_score--;
+    t->snd_last_out = SEQN(f);
     if (loop_score < 1)
       break;
     if (f->payload_len > 0) {
