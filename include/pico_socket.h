@@ -72,7 +72,6 @@ struct pico_ip_mreq {
 #define PICO_SOCKET_STATE_CLOSING         0x0010
 #define PICO_SOCKET_STATE_CLOSED          0x0020
 
-#ifdef PICO_SUPPORT_TCP
 # define PICO_SOCKET_STATE_TCP                0xFF00
 # define PICO_SOCKET_STATE_TCP_UNDEF          0x00FF
 # define PICO_SOCKET_STATE_TCP_CLOSED         0x0100
@@ -91,8 +90,6 @@ struct pico_ip_mreq {
 # define PICO_TCP_NODELAY                     1
 
 # define PICO_SOCKET_OPT_TCPNODELAY           0x0000
-
-#endif
 
 # define PICO_IP_MULTICAST_IF                 32
 # define PICO_IP_MULTICAST_TTL                33
