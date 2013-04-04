@@ -237,7 +237,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("Connection established with %s:%d.\n", peer, short_be(port));
-//    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
+    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
   }
 
   if (ev & PICO_SOCK_EV_FIN) {
@@ -292,6 +292,8 @@ void app_tcpecho(char *arg)
 
   if (pico_socket_listen(s, 40) != 0)
     exit(1);
+
+  pico_socket_setoption(s, PICO_TCP_NODELAY, NULL);
 
 #ifdef PICOAPP_IPFILTER
   {
