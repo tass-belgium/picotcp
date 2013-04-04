@@ -41,8 +41,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
 
 #ifdef PICO_SUPPORT_TCP
-#define tcp_dbg(...) do{}while(0)
-//#define tcp_dbg dbg
+//#define tcp_dbg(...) do{}while(0)
+#define tcp_dbg dbg
 
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
