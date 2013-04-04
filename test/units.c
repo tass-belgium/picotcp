@@ -1645,7 +1645,7 @@ START_TEST (test_socket)
   fail_if(ret > 0, "Error socket read succeeded, wrong argument\n");
   /* socket_read passing correct parameters */
   ret = pico_socket_read(sk_udp,(void *)buf,sizeof(buf));
-  fail_if(ret == 0, "socket> udp socket read failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket read failed, ret = %d: %s\n",ret, strerror(pico_err)); 
 
 
   /* send/recv */
@@ -1668,7 +1668,7 @@ START_TEST (test_socket)
   fail_if(ret > 0, "Error socket recv succeeded, wrong argument\n");
   /* socket_recv passing correct parameters */
   ret = pico_socket_recv(sk_udp,(void *)buf,sizeof(buf));
-  fail_if(ret == 0, "socket> udp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));
   
 
   /* sendto/recvfrom */
@@ -1691,15 +1691,11 @@ START_TEST (test_socket)
   fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
   ret = pico_socket_recvfrom(sk_udp,NULL,sizeof(buf),&orig,&porta);
   fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,0,&orig,&porta);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),NULL,&porta);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,NULL);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
   /* socket_recvfrom passing correct parameters */
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,0,&orig,&porta);
+  fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
   ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,&porta);
-  fail_if(ret == 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
 
 
   printf("START SOCKET OPTION TEST\n");
