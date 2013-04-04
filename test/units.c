@@ -1128,7 +1128,7 @@ START_TEST (test_dhcp_server_ipinarp)
 END_TEST
 
 
-void cb_dns(char *ip)
+void cb_dns(char *ip, void *arg)
 {
   if (!ip) {
     /* Error occured */
@@ -1138,6 +1138,8 @@ void cb_dns(char *ip)
   /* Do something */
   printf("DNS -> %s\n",ip);
   pico_free(ip);
+  if (arg)
+    pico_free(arg);
 }
 
 
@@ -1189,23 +1191,23 @@ START_TEST (test_dns)
   fail_if(ret == 0, "dns> dns_client_nameserver add double");
 
   /* testing getaddr API */
-  ret = pico_dns_client_getaddr(url,cb_dns); /* ask correct one */
+  ret = pico_dns_client_getaddr(url, cb_dns, NULL); /* ask correct one */
   fail_if(ret < 0, "dns> dns_client_getaddr: %s",strerror(pico_err));
 
-  ret = pico_dns_client_getaddr(NULL,cb_dns);
+  ret = pico_dns_client_getaddr(NULL, cb_dns, NULL);
   fail_if(ret == 0, "dns> dns_client_getaddr: no url");
   
-  ret = pico_dns_client_getaddr(url,NULL);
+  ret = pico_dns_client_getaddr(url, NULL, NULL);
   fail_if(ret == 0, "dns> dns_client_getaddr: no cb");
 
   /* testing getname API */
-  ret = pico_dns_client_getname(ip,cb_dns); /* ask correct one */
+  ret = pico_dns_client_getname(ip, cb_dns, NULL); /* ask correct one */
   fail_if(ret < 0, "dns> dns_client_getname: %s",strerror(pico_err));
 
-  ret = pico_dns_client_getname(NULL,cb_dns);
+  ret = pico_dns_client_getname(NULL, cb_dns, NULL);
   fail_if(ret == 0, "dns> dns_client_getname: no ip");
 
-  ret = pico_dns_client_getname(ip,NULL);
+  ret = pico_dns_client_getname(ip, NULL, NULL);
   fail_if(ret == 0, "dns> dns_client_getname: no cb");
 }
 END_TEST
@@ -1646,7 +1648,7 @@ START_TEST (test_socket)
   fail_if(ret > 0, "Error socket read succeeded, wrong argument\n");
   /* socket_read passing correct parameters */
   ret = pico_socket_read(sk_udp,(void *)buf,sizeof(buf));
-  fail_if(ret == 0, "socket> udp socket read failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket read failed, ret = %d: %s\n",ret, strerror(pico_err)); 
 
 
   /* send/recv */
@@ -1669,7 +1671,7 @@ START_TEST (test_socket)
   fail_if(ret > 0, "Error socket recv succeeded, wrong argument\n");
   /* socket_recv passing correct parameters */
   ret = pico_socket_recv(sk_udp,(void *)buf,sizeof(buf));
-  fail_if(ret == 0, "socket> udp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket recv failed, ret = %d: %s\n",ret, strerror(pico_err));
   
 
   /* sendto/recvfrom */
@@ -1692,15 +1694,11 @@ START_TEST (test_socket)
   fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
   ret = pico_socket_recvfrom(sk_udp,NULL,sizeof(buf),&orig,&porta);
   fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,0,&orig,&porta);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),NULL,&porta);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
-  ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,NULL);
-  fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
   /* socket_recvfrom passing correct parameters */
+  ret = pico_socket_recvfrom(sk_udp,(void *)buf,0,&orig,&porta);
+  fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
   ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,&porta);
-  fail_if(ret == 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* udp_recv returns -1 when no frame !? */
+  fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
 
 
   printf("START SOCKET OPTION TEST\n");
@@ -1906,6 +1904,7 @@ START_TEST (test_ipfilter)
 }
 END_TEST
 
+#ifdef PICO_SUPPORT_CRC
 START_TEST (test_crc_check)
 {
   uint8_t buffer[64] = { 0x45, 0x00, 0x00, 0x40, /* start of IP hdr */
@@ -2007,6 +2006,7 @@ START_TEST (test_crc_check)
   fail_if(ret == 1, "incorrect TCP checksum got accepted\n");
 }
 END_TEST
+#endif
 
 Suite *pico_suite(void)
 {
@@ -2020,7 +2020,9 @@ Suite *pico_suite(void)
   TCase *socket = tcase_create("SOCKET");
   TCase *nat = tcase_create("NAT");
   TCase *ipfilter = tcase_create("IPFILTER");
+#ifdef PICO_SUPPORT_CRC
   TCase *crc = tcase_create("CRC");
+#endif
 
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
@@ -2059,8 +2061,10 @@ Suite *pico_suite(void)
   tcase_add_test(ipfilter, test_ipfilter);
   suite_add_tcase(s, ipfilter);
 
+#ifdef PICO_SUPPORT_CRC
   tcase_add_test(crc, test_crc_check);
   suite_add_tcase(s, crc);
+#endif
 
   return s;
 }

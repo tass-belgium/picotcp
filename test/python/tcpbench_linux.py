@@ -12,4 +12,5 @@ sleep(1)
 start(T)
 
 wait(h3)
+wait(h2)
 cleanup()

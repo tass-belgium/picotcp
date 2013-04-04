@@ -55,16 +55,19 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
 
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
 {
+  struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
 
-  struct pico_udp_hdr *hdr;
-  f->transport_hdr = f->payload - PICO_UDPHDR_SIZE;
-  f->transport_len = f->payload_len + PICO_UDPHDR_SIZE;
-  hdr = (struct pico_udp_hdr *) f->transport_hdr;
-  hdr->trans.sport = f->sock->local_port;
-  hdr->trans.dport = f->sock->remote_port;
-  hdr->len = short_be(f->transport_len);
-  hdr->crc = 0;
-  hdr->crc = short_be(pico_udp_checksum_ipv4(f));
+  /* this (fragmented) frame should contain a transport header */
+  if (f->transport_hdr != f->payload) {
+    hdr->trans.sport = f->sock->local_port;
+    hdr->trans.dport = f->sock->remote_port;
+    hdr->len = short_be(f->transport_len);
+    /* do not perform CRC validation. If you want to, a system needs to be 
+       implemented to calculate the CRC over the total payload of a 
+       fragmented payload */
+    hdr->crc = 0;
+  }
+
   if (pico_enqueue(self->q_out, f) > 0) {
    return f->payload_len;
   } else {
@@ -163,6 +166,6 @@ int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t
       pico_frame_discard(f);
       return ret;
     }
-  } else return -1;
+  } else return 0;
 }
 

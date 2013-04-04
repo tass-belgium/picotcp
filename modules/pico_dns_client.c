@@ -227,7 +227,8 @@ struct pico_dns_key
   uint8_t retrans;
   struct pico_dns_ns q_ns;
   struct pico_socket *s;
-  void (*callback)(char *);
+  void (*callback)(char *, void *);
+  void *arg;
 };
 
 static int dns_cmp(void *ka, void *kb)
@@ -452,7 +453,7 @@ static void pico_dns_client_retransmission(unsigned long now, void *arg)
     dns_dbg("DNS ERROR: no reply from nameservers! (%u attempts)\n", key->retrans);
     pico_socket_close(key->s);
     pico_err = PICO_ERR_EIO;
-    key->callback(NULL);
+    key->callback(NULL, key->arg);
     pico_free(key->q_hdr);
     /* RB_REMOVE returns pointer to removed element, NULL to indicate error */
 
@@ -570,13 +571,13 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
       dns_dbg("DNS: length %u | ip %08X\n", short_be(answer_suf.rdlength), long_be(*(uint32_t *)a_rdata));
       answer = pico_zalloc(16);
       pico_ipv4_to_string(answer, *(uint32_t *)a_rdata);
-      key->callback(answer);
+      key->callback(answer, key->arg);
     } else if (key->qtype == PICO_DNS_TYPE_PTR) {
       pico_dns_client_reverse_label((char *) a_rdata);
       dns_dbg("DNS: length %u | name %s\n", short_be(answer_suf.rdlength), (char *)a_rdata + 1);
       answer = pico_zalloc(answer_suf.rdlength - 1);
       memcpy(answer, (char *)a_rdata + 1, short_be(answer_suf.rdlength) - 1);
-      key->callback(answer);
+      key->callback(answer, key->arg);
     } else {
       dns_dbg("DNS ERROR: incorrect qtype (%u)\n", key->qtype);
       return;
@@ -588,7 +589,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
   }
 }
 
-int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
+int pico_dns_client_getaddr(const char *url, void (*callback)(char *, void *), void *arg)
 {
   char *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
@@ -644,6 +645,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   key->q_ns = *((struct pico_dns_ns *)pico_tree_first(&NSTable));
   key->s = NULL;
   key->callback = callback;
+  key->arg = arg;
   /* Send query */
   if (pico_dns_client_send(key) < 0) {
     pico_free(q_hdr);
@@ -666,7 +668,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *))
   return 0;
 }
 
-int pico_dns_client_getname(const char *ip, void (*callback)(char *))
+int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), void *arg)
 {
   char *q_hdr, *q_qname, *q_suf;
   struct dns_message_hdr *hdr;
@@ -725,6 +727,7 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *))
   key->q_ns = *((struct pico_dns_ns *)pico_tree_first(&NSTable));
   key->s = NULL;
   key->callback = callback;
+  key->arg = arg;
   /* Send query */
   if (pico_dns_client_send(key) < 0) {
     pico_free(q_hdr);

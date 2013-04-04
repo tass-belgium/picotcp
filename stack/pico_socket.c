@@ -43,6 +43,10 @@ Authors: Daniele Lacamera
 # define IS_SOCK_IPV6(s) (0)
 #endif
 
+#ifdef PICO_SUPPORT_IPFRAG
+# define frag_dbg(...) do{}while(0) 
+#endif
+
 static struct pico_sockport *sp_udp = NULL ,*sp_tcp = NULL;
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
@@ -341,6 +345,9 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     
     if (found != NULL) {
       pico_tcp_input(found,f);
+      if ((found->ev_pending) && found->wakeup) {
+        found->wakeup(found->ev_pending, found);
+      }
       return 0;
     } else {
       pico_frame_discard(f);
@@ -571,8 +578,12 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 #ifdef PICO_SUPPORT_IPV6
   struct pico_ip6 *src6;
 #endif
-  if (len <= 0)
-    return len;
+  if (len == 0) {
+    return 0;
+  } else if (len < 0) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
   if (buf == NULL || s == NULL) {
     pico_err = PICO_ERR_EINVAL;
@@ -590,14 +601,6 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       pico_err = PICO_ERR_EINVAL;
       return -1;
     }
-  }
-
-  if (len < 0) {
-    pico_err = PICO_ERR_EINVAL;
-    return -1;
-  }
-  if (len == 0) {
-    return 0;
   }
 
 #ifdef PICO_SUPPORT_IPV4
@@ -654,26 +657,68 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP)
-    header_offset = 8;
+    header_offset = sizeof(struct pico_udp_hdr);
 #endif
 
   while (total_payload_written < len) {
     int transport_len = (len - total_payload_written) + header_offset; 
     if (transport_len > PICO_SOCKET_MTU)
       transport_len = PICO_SOCKET_MTU;
+#ifdef PICO_SUPPORT_IPFRAG
+    else {
+      if (total_payload_written)
+        transport_len -= header_offset; /* last fragment, do not allocate memory for transport header */
+    }
+#endif /* PICO_SUPPORT_IPFRAG */
+
     f = pico_socket_frame_alloc(s, transport_len);
     if (!f) {
       pico_err = PICO_ERR_ENOMEM;
       return -1;
     }
-
     f->payload += header_offset;
     f->payload_len -= header_offset;
     f->sock = s;
-    memcpy(f->payload, buf + total_payload_written, transport_len - header_offset);
+
+#ifdef PICO_SUPPORT_IPFRAG
+#  ifdef PICO_SUPPORT_UDP
+    if (PROTO(s) == PICO_PROTO_UDP && ((len + header_offset) > PICO_SOCKET_MTU)) {
+      /* hacking way to identify fragmentation frames: payload != transport_hdr -> first frame */
+      if (!total_payload_written) {
+        frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
+        /* transport header length field contains total length + header length */
+        f->transport_len = len + header_offset;
+        f->frag = short_be(PICO_IPV4_MOREFRAG); 
+      } else {
+        /* no transport header in fragmented IP */
+        f->payload = f->transport_hdr;
+        f->payload_len += header_offset;
+        /* set offset in octets */
+        f->frag = short_be((total_payload_written + header_offset) / 8); 
+        if (total_payload_written + f->payload_len < len) {
+          frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+          f->frag |= short_be(PICO_IPV4_MOREFRAG);
+        } else {
+          frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+          f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+        }
+      }
+    } else {
+      f->frag = short_be(PICO_IPV4_DONTFRAG);
+    }
+#  endif /* PICO_SUPPORT_UDP */
+#endif /* PICO_SUPPORT_IPFRAG */
+
+    if (f->payload_len <= 0) {
+      pico_frame_discard(f);
+      return total_payload_written;
+    }
+
+    memcpy(f->payload, buf + total_payload_written, f->payload_len);
     //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);
+
     if (s->proto->push(s->proto, f) > 0) {
-      total_payload_written += (transport_len - header_offset);
+      total_payload_written += f->payload_len;
     } else {
       pico_frame_discard(f);
       pico_err = PICO_ERR_EAGAIN;
@@ -1269,6 +1314,9 @@ int pico_sockets_loop(int loop_score)
     pico_tree_foreach(index, &sp_tcp->socks){
       s = index->keyValue;
     	loop_score = pico_tcp_output(s, loop_score);
+      if ((s->ev_pending) && s->wakeup) {
+        s->wakeup(s->ev_pending, s);
+      }
       if (loop_score <= 0) {
         loop_score = 0;
         break;
@@ -1298,36 +1346,24 @@ int pico_sockets_loop(int loop_score)
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 {
-  int overhead = 0;
   struct pico_frame *f = NULL;
-
-#ifdef PICO_SUPPORT_UDP
-  if (PROTO(s) == PICO_PROTO_UDP)
-    overhead = 0; /* used to be overhead = sizeof(struct pico_udp_hdr); */
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-  if (PROTO(s) == PICO_PROTO_TCP)
-    overhead = 0; /* Overhead is calculated within TCP */
-#endif
-
 
 #ifdef PICO_SUPPORT_IPV6
   if (IS_SOCK_IPV6(s))
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, overhead + len);
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
 #endif
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s))
-    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, overhead + len);
+    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, len);
 #endif
   if (!f) {
     pico_err = PICO_ERR_ENOMEM;
     return f;
   }
-  f->sock = s;
-  f->payload = f->transport_hdr + overhead;
+  f->payload = f->transport_hdr;
   f->payload_len = len;
+  f->sock = s;
   return f;
 }
 

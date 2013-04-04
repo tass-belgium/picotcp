@@ -62,6 +62,11 @@ struct pico_frame {
   unsigned char *payload;
   int payload_len;
 
+#ifdef PICO_SUPPORT_IPFRAG
+  /* Payload fragmentation info (big endian)*/
+  uint16_t frag;
+#endif
+
   /* Pointer to socket */
   struct pico_socket *sock;
 
