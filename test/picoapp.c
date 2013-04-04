@@ -1543,7 +1543,7 @@ void callback_dhcpclient1(void* cli, int code){
 	struct pico_ip4  gateway;
 	char gw_txt_addr[30];
 	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+		gateway = pico_dhcp_get_gateway(dhcp_client_cookie1);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient1);
@@ -1555,7 +1555,7 @@ void callback_dhcpclient2(void* cli, int code){
 	struct pico_ip4  gateway;
 	char gw_txt_addr[30];
 	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+		gateway = pico_dhcp_get_gateway(dhcp_client_cookie2);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient2);

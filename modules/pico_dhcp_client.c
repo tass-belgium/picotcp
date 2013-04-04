@@ -527,7 +527,6 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 
 
 	dh_out->options[i] = PICO_DHCPOPT_END;
-
 	sent = pico_socket_sendto(cli->socket, buf_out, DHCPC_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
 		dbg("DHCP>socket sendto failed with code %d\n", pico_err);
@@ -589,6 +588,7 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	uint16_t port = PICO_DHCP_CLIENT_PORT;
 	struct pico_ip4 address, netmask;
 
+	struct pico_dhcp_client_cookie* next = cli->next;
 
 	address.addr = long_be(0x00000000);
 	netmask.addr = long_be(0x00000000);
@@ -600,6 +600,8 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	}
 
 	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
+
+	cli->next = next;
 
 	cli->cb = callback;
 
@@ -619,6 +621,7 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
+	cli->socket->dev = device;
 
 	cli->start_time = pico_tick;
 	cli->attempt = 0;

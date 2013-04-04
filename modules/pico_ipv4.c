@@ -847,6 +847,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     link = route->link;
   }
 
+
   if (f->sock)
     f->sock->local_addr.ip4.addr = link->address.addr;
 
@@ -860,7 +861,12 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   hdr->proto = proto;
   pico_ipv4_checksum(f);
 
-  f->dev = link->dev;
+  if (f->sock && f->sock->dev){
+    //if the socket has its device set, use that (currently used for DHCP)
+    f->dev = f->sock->dev;
+  }else
+    f->dev = link->dev;
+
 #ifdef PICO_SUPPORT_MCAST
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
     struct pico_frame *cpy;

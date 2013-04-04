@@ -50,6 +50,8 @@ struct pico_socket {
   int max_backlog;
 #endif
 
+	struct pico_device* dev;
+
   /* Private field. */
   int id;
   uint16_t state;
