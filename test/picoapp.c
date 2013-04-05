@@ -23,6 +23,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
 
 //#define INFINITE_TCPTEST
 #define picoapp_dbg(...) do{}while(0)
@@ -1761,9 +1763,25 @@ void app_dhcp_dual_client(char* arg)
 #ifdef PICO_SUPPORT_HTTP_CLIENT
 /* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:192.168.24.15:255.255.255.0:192.168.24.5: -a wget:web.mit.edu/modiano/www/6.263/lec22-23.pdf
  */
+
+static char *url_filename = NULL;
+
+static int http_save_file(void *data, int len)
+{
+  int fd = open(url_filename, O_WRONLY |O_CREAT | O_TRUNC, 0660);
+  int w, e;
+  if (fd < 0)
+    return fd;
+
+  w = write(fd, data, len);
+  e = errno;
+  close(fd);
+  errno = e;
+  return w;
+}
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-	char data[1000u];
+	char data[1024 * 1024]; // MAX: 1M
 	static int _length = 0;
 
 
@@ -1792,7 +1810,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
 		int len;
 
 		printf("Reading data...\n");
-		while((len = pico_http_client_readData(conn,data,1000u)))
+		while((len = pico_http_client_readData(conn,data + _length,1024)))
 		{
 			_length += len;
 		}
@@ -1836,6 +1854,16 @@ void wget_callback(uint16_t ev, uint16_t conn)
 			}
 		}
 
+    if (!url_filename) {
+      printf("Failed to get local filename\n");
+      exit(1);
+    }
+
+    if (http_save_file(data, _length) < _length) {
+      printf("Failed to save file: %s\n", strerror(errno));
+      exit(1);
+    }
+
 
 		pico_http_client_close(conn);
 		exit(0);
@@ -1870,6 +1898,7 @@ void app_wget(char *arg)
 		fprintf(stderr," error opening the url : %s, please check the format\n",url);
 		exit(1);
 	}
+  url_filename = basename(url);
 }
 #endif
 
