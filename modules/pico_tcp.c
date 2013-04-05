@@ -1677,8 +1677,13 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     /* set SHUT_REMOTE */
     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
       tcp_dbg("TCP> Close-wait\n");
-    if (s->wakeup)
-      s->wakeup(PICO_SOCK_EV_CLOSE, s);
+    if (s->wakeup){
+      if(f->payload_len>0){
+        struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+        t->sock.ev_pending |=PICO_SOCK_EV_CLOSE;
+      }else
+        s->wakeup(PICO_SOCK_EV_CLOSE, s);
+    }
   } else {
     tcp_send_ack(t);  /* return ACK */
   }
