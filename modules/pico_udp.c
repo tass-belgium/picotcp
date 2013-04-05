@@ -56,11 +56,12 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
+  struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
 
   /* this (fragmented) frame should contain a transport header */
   if (f->transport_hdr != f->payload) {
     hdr->trans.sport = f->sock->local_port;
-    hdr->trans.dport = f->sock->remote_port;
+    hdr->trans.dport = remote_duple->remote_port;
     hdr->len = short_be(f->transport_len);
     /* do not perform CRC validation. If you want to, a system needs to be 
        implemented to calculate the CRC over the total payload of a 
