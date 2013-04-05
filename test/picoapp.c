@@ -1550,106 +1550,147 @@ void app_mcastreceive(char *arg)
 
 #ifdef PICO_SUPPORT_DHCPD
 /*** DHCP Server ***/
-// ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0
+// ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0:64:128
 void app_dhcp_server(char* arg)
 {
-	struct pico_device *dev;
-	char *dev_name, *addr, *netmsk;
-	char* nxt;
-	struct pico_dhcpd_settings s = {0};
+  struct pico_device *dev = NULL;
+  struct pico_dhcpd_settings s = {0};
+  int pool_start = 0, pool_end = 0;
+  char *s_name = NULL, *s_addr = NULL, *s_netm = NULL, *s_pool_start = NULL, *s_pool_end = NULL;
+  char *nxt = arg;
 
-	nxt = cpy_arg(&dev_name, arg);
-	if(!dev_name){
-		fprintf(stderr, " dhcp server expects as parameters : the name of the device\n");
-		fprintf(stderr, " or optionally : devicename:address:netmask\n");
-		exit(255);
-	}
+  if (nxt) {
+    nxt = cpy_arg(&s_name, arg);
+    if (!s_name) {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	dev = pico_get_device(dev_name);
-	if(dev == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	s.dev = dev;
+  if (nxt) {
+    nxt = cpy_arg(&s_addr, nxt);
+    if (s_addr) {
+      pico_string_to_ipv4(s_addr, &s.my_ip.addr);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	if(nxt) {
-		nxt = cpy_arg(&addr, nxt);
-		if(addr){
-			pico_string_to_ipv4(addr, &s.my_ip.addr);
+  if (nxt) {
+    nxt = cpy_arg(&s_netm, nxt);
+    if (s_netm) {
+      pico_string_to_ipv4(s_netm, &s.netmask.addr);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-			nxt = cpy_arg(&netmsk, nxt);
-			if(netmsk){
-				pico_string_to_ipv4(netmsk, &s.netmask.addr);
-				//let's just take some "default" values for the range :
-				s.pool_start = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x00000064);
-				s.pool_end = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x000000ff);
-			}else{
-				fprintf(stderr, " when supplying an address you must also give the netmask : devicename:address:netmask\n");
-			}
-		}
-	}
+  if (nxt) {
+    nxt = cpy_arg(&s_pool_start, nxt);
+    if (s_pool_start && atoi(s_pool_start)) {
+      pool_start = atoi(s_pool_start);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	
+  if (nxt) {
+    nxt = cpy_arg(&s_pool_end, nxt);
+    if (s_pool_end && atoi(s_pool_end)) {
+      pool_end = atoi(s_pool_end);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	pico_dhcp_server_initiate(&s);
+  dev = pico_get_device(s_name);
+  if (dev == NULL) {
+    fprintf(stderr, "No device with name %s found\n", s_name);
+    exit(255);
+  }
+  s.dev = dev;
+  s.pool_start = (s.my_ip.addr & s.netmask.addr) | long_be(pool_start);
+  s.pool_end = (s.my_ip.addr & s.netmask.addr) | long_be(pool_end);
+
+  pico_dhcp_server_initiate(&s);
+  return;
+
+  out:
+    fprintf(stderr, "dhcpserver expects the following format: dhcpserver:dev_name:dev_addr:dev_netm:pool_start:pool_end\n");
+    exit(255);
+
 }
 #endif
 /*** END DHCP Server ***/
 
 /*** DHCP Client ***/
-
 #ifdef PICO_SUPPORT_DHCPC
+static void *dhcpclient_cli; 
+
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
   char host[30];
   pico_ipv4_to_string(host, s->dst.addr);
   if (s->err == 0) {
-    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    dbg("DHCP client (id %p): %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", 
+          dhcpclient_cli, s->size, host, s->seq, s->time);
     if (s->seq >= 3) {
-      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
+      dbg("DHCP client (id %p): TEST SUCCESS!\n", dhcpclient_cli);
       exit(0);
     }
   } else {
-    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
-    dbg("DHCP CLIENT TEST: FAILED!\n");
+    dbg("DHCP client (id %p): ping %lu to %s error %d\n", dhcpclient_cli, s->seq, host, s->err);
+    dbg("DHCP client (id %p): TEST FAILED!\n", dhcpclient_cli);
     exit(1);
   }
 }
 
-
-static void* dhcp_client_cookie;
 void callback_dhcpclient(void* cli, int code){
 	struct pico_ip4  gateway;
 	char gw_txt_addr[30];
 	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+		gateway = pico_dhcp_get_gateway(cli);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
 #endif
 	}
-	printf("callback happened with code %d!\n", code);
+	printf("DHCP client (id %p): callback happened with code %d!\n", dhcpclient_cli, code);
 }
 
 void app_dhcp_client(char* arg)
 {
-	struct pico_device *dev;
-	char *dev_name;
+  struct pico_device *dev;
+  char *dev_name;
+  char *nxt = arg;
 
-	cpy_arg(&dev_name, arg);
-	if(!dev_name){
-		fprintf(stderr, " dhcp client expects as parameters : the name of the device\n");
-		exit(255);
-	}
+  if (nxt) {
+    cpy_arg(&dev_name, arg);
+    if(!dev_name){
+      fprintf(stderr, " dhcp client expects as parameters : the name of the device\n");
+      exit(255);
+    }
+  } else {
 
-	dev = pico_get_device(dev_name);
-	if(dev == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	printf("starting negotiation\n");
+  }
 
-	dhcp_client_cookie = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
+  dev = pico_get_device(dev_name);
+  if(dev == NULL){
+    printf("error : no device found\n");
+    exit(255);
+  }
+  printf("starting negotiation\n");
+
+  dhcpclient_cli = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
 }
 
 
