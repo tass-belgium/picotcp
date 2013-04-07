@@ -800,7 +800,8 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags)
   hdr->trans.sport = t->sock.local_port;
   hdr->trans.dport = t->sock.remote_port;
   hdr->seq = long_be(t->snd_nxt);
-  hdr->ack = long_be(t->rcv_nxt);
+  if ((flags & PICO_TCP_ACK) != 0)
+    hdr->ack = long_be(t->rcv_nxt);
   t->rcv_ackd = t->rcv_nxt;
 
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -1366,6 +1367,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   if (t->x_mode == PICO_TCP_WINDOW_FULL && ((t->recv_wnd << t->recv_wnd_scale) > t->mss)) {
     tcp_dbg("Re-entering look-ahead...\n");
     t->x_mode = PICO_TCP_LOOKAHEAD;
+    t->backoff = 0;
   }
 
   /* One should be acked. */
@@ -1374,7 +1376,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     t->in_flight--;
   if (!una || acked > 0) {
     t->x_mode = PICO_TCP_LOOKAHEAD;
-   tcp_dbg("Mode: Look-ahead. In flight: %d/%d buf: %d\n", t->in_flight, t->cwnd, t->tcpq_out.frames);
+    tcp_dbg("Mode: Look-ahead. In flight: %d/%d buf: %d\n", t->in_flight, t->cwnd, t->tcpq_out.frames);
     t->backoff = 0;
 
     /* Do rtt/rttvar/rto calculations */
@@ -1908,10 +1910,10 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 static void tcp_send_keepalive(unsigned long when, void *_t)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)_t;
-  tcp_dbg("Sending keepalive...\n");
+  dbg("Sending keepalive...\n");
   if (t->x_mode == PICO_TCP_WINDOW_FULL) {
-    tcp_send_empty(t, PICO_TCP_PSH );
-    pico_timer_add(t->rto, tcp_send_keepalive, t);
+    tcp_send_ack(t);
+    //pico_timer_add(t->rto << (++t->backoff), tcp_send_keepalive, t);
   }
 }
 
