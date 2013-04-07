@@ -743,13 +743,13 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
 
   count++;
 
-  //printf("tcpclient> wakeup %lu, event %u\n",count,ev);
+  printf("tcpclient> wakeup %lu, event %u\n",count,ev);
   if (ev & PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
       if (r > 0) {
         r_size += r;
-        //printf("SOCKET READ - %d\n",r_size);
+        printf("SOCKET READ - %d\n",r_size);
       }
       if (r < 0)
         exit(5);
@@ -779,7 +779,7 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         w = pico_socket_write(s, buffer0 + w_size, TCPSIZ-w_size);
         if (w > 0) {
           w_size += w;
-          //printf("SOCKET WRITTEN - %d\n",w_size);
+          printf("SOCKET WRITTEN - %d\n",w_size);
         if (w < 0)
           exit(5);
         }
@@ -838,6 +838,8 @@ void app_tcpclient(char *arg)
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
   if (!s)
     exit(1); 
+
+  pico_socket_setoption(s, PICO_TCP_NODELAY, NULL);
   
   /* NOTE: used to set a fixed local port and address
   local_port = short_be(6666);

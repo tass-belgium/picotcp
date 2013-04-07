@@ -97,7 +97,7 @@ class Host:
                 self.routes.append("-r")
                 self.routes.append(dst+":255.255.255.0:"+gw+":")
                 dst_net += 1
-  def parse_options(self, eth, delay, bw):
+  def parse_options(self, eth, delay, bw, loss):
     if (delay != "" or  bw != ""):
       mysock = eth.net.sock + "__" + `eth.n`
       wirecmd = ['wirefilter', '-v']
@@ -108,6 +108,9 @@ class Host:
       if (bw != ''):
         wirecmd.append("-b")
         wirecmd.append(bw)
+      if (loss != ''):
+        wirecmd.append("-l")
+        wirecmd.append(loss)
       print wirecmd
       subprocess.Popen(['vde_switch', '-s', mysock], stdin=subprocess.PIPE)
       subprocess.Popen(wirecmd, stdin=subprocess.PIPE)
@@ -115,7 +118,7 @@ class Host:
       mysock = eth.net.sock
     return mysock
 
-  def __init__(self, topology, net1=None, net2=None, gw=None, args="tcpecho:5555", delay1="", bw1="", delay2="", bw2=""):
+  def __init__(self, topology, net1=None, net2=None, gw=None, args="tcpecho:5555", delay1="", bw1="", delay2="", bw2="", loss1="", loss2=""):
     if net1:
       self.eth1 = Node(topology, net1)
       net1.hosts.append(self)
@@ -135,14 +138,14 @@ class Host:
 
 
     if (net1):
-      mysock = self.parse_options(self.eth1, delay1, bw1)
+      mysock = self.parse_options(self.eth1, delay1, bw1, loss1)
       self.cmd.append("--vde")
       vdeline = "eth1:"+mysock+':'+"172.16."+`self.eth1.net.n`+"."+`self.eth1.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth1.net`, self.gw)):
         vdeline +=self.gw+":"
       self.cmd.append(vdeline)
     if (net2):
-      mysock = self.parse_options(self.eth2, delay2, bw2)
+      mysock = self.parse_options(self.eth2, delay2, bw2, loss2)
       self.cmd.append("--vde")
       vdeline = "eth2:"+mysock+':'+"172.16."+`self.eth2.net.n`+"."+`self.eth2.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth2.net`+".", self.gw)):
