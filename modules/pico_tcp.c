@@ -1889,20 +1889,25 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 int pico_tcp_output(struct pico_socket *s, int loop_score)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-  struct pico_frame *f;
+  struct pico_frame *f, *una;
   struct pico_tcp_hdr *hdr;
   int sent = 0;
+
+  una = first_segment(&t->tcpq_out);
 
   f = peek_segment(&t->tcpq_out, t->snd_nxt);
   while((f) && (t->cwnd >= t->in_flight)) {
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     f->timestamp = pico_tick;
     tcp_add_options(t, f, hdr->flags, tcp_options_size(t, hdr->flags));
-    tcp_dbg("TCP> DEQUEUED (for output) frame %08x, acks %08x len= %d, remaining frames %d\n", SEQN(f), ACKN(f), f->payload_len,t->tcpq_out.frames);
-    if (f->payload_len > (t->recv_wnd << t->recv_wnd_scale)) {
+    if (seq_compare(SEQN(f) + f->payload_len, SEQN(una) + (t->recv_wnd << t->recv_wnd_scale)) > 0) {
       tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
+      t->cwnd = t->in_flight;
+      if (t->cwnd < 1)
+        t->cwnd = 1;
       break;
     }
+    tcp_dbg("TCP> DEQUEUED (for output) frame %08x, acks %08x len= %d, remaining frames %d\n", SEQN(f), ACKN(f), f->payload_len,t->tcpq_out.frames);
     tcp_send(t, f);
     sent++;
     loop_score--;
