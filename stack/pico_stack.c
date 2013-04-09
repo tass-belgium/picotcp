@@ -39,9 +39,6 @@ static uint32_t _rand_seed;
 
 #ifndef PICO_SUPPORT_RTOS
 static void pico_rand_feed(uint32_t feed)
-#else
-extern void pico_rand_feed(uint32_t feed)
-#endif
 {
   if (!feed)
     return;
@@ -49,6 +46,9 @@ extern void pico_rand_feed(uint32_t feed)
   _rand_seed += 1013904223;
   _rand_seed ^= ~(feed);
 }
+#else
+extern void pico_rand_feed(uint32_t feed);
+#endif
 
 uint32_t pico_rand(void)
 {
