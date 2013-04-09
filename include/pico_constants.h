@@ -42,7 +42,11 @@ static inline uint32_t long_be(uint32_t le)
 {
   uint8_t *b = (uint8_t *)&le;
   uint32_t be = 0;
-  be = b[3] + (b[2] << 8) + (b[1] << 16) + (b[0] << 24);
+  uint32_t b0, b1, b2;
+  b0 = b[0];
+  b1 = b[1];
+  b2 = b[2];
+  be = b[3] + (b2 << 8) + (b1 << 16) + (b0 << 24);
   return be;
 }
 #endif

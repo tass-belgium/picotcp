@@ -6,6 +6,7 @@ DEBUG?=1
 DEBUG_IGMP2?=0
 ENDIAN?=little
 STRIP?=0
+RTOS?=0
 
 # Default compiled-in protocols
 TCP?=1
@@ -33,6 +34,10 @@ endif
 
 ifneq ($(ENDIAN),little)
   CFLAGS+=-DPICO_BIGENDIAN
+endif
+
+ifneq ($(RTOS),0)
+  CFLAGS+=-DPICO_SUPPORT_RTOS
 endif
 
 ifeq ($(ARCH),stm32)

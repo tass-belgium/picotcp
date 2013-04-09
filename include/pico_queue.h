@@ -20,8 +20,15 @@ struct pico_queue {
   uint32_t max_size;
   struct pico_frame *head;
   struct pico_frame *tail;
+#ifdef PICO_RTOS_SUPPORT
+  void * mutex;
+#endif
 };
 
+#ifdef PICO_RTOS_SUPPORT
+	extern void waitAndTakeMutex(void ** mutex);
+	extern void giveMutexBack(void * mutex);
+#endif
 
 #ifdef PICO_SUPPORT_DEBUG_TOOLS
 static void debug_q(struct pico_queue *q)
@@ -44,6 +51,10 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
     return -1;
 
+#ifdef PICO_RTOS_SUPPORT
+	waitAndTakeMutex(&q->mutex);
+#endif
+
   p->next = NULL;
   if (!q->head) {
     q->head = p;
@@ -59,6 +70,11 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 #ifdef PICO_SUPPORT_DEBUG_TOOLS
   debug_q(q);
 #endif
+
+#ifdef PICO_RTOS_SUPPORT
+	giveMutexBack(q->mutex);
+#endif
+
   return q->size;
 }
 
@@ -67,6 +83,10 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
+#ifdef PICO_RTOS_SUPPORT
+ waitAndTakeMutex(&q->mutex);
+#endif
+
   q->head = p->next;
   q->frames--;
   q->size -= p->buffer_len;
@@ -76,6 +96,11 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   debug_q(q);
 #endif
   p->next = NULL;
+
+#ifdef PICO_RTOS_SUPPORT
+	giveMutexBack(q->mutex);
+#endif
+
   return p;
 }
 

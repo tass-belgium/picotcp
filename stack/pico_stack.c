@@ -37,8 +37,11 @@ volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
 
-
+#ifndef PICO_SUPPORT_RTOS
 static void pico_rand_feed(uint32_t feed)
+#else
+extern void pico_rand_feed(uint32_t feed)
+#endif
 {
   if (!feed)
     return;
@@ -427,6 +430,7 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   f->len = f->buffer_len;
   if (f->len > 8) {
     int mid_frame = (f->buffer_len >> 2)<<1;
+    mid_frame -= (mid_frame % 4);
     pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
   }
   memcpy(f->buffer, buffer, len);
@@ -445,6 +449,7 @@ int pico_sendto_dev(struct pico_frame *f)
   } else {
     if (f->len > 8) {
       int mid_frame = (f->buffer_len >> 2)<<1;
+      mid_frame -= (mid_frame % 4);
       pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
     }
     return pico_enqueue(f->dev->q_out, f);
@@ -485,7 +490,11 @@ void pico_check_timers(void)
 #define PROTO_LAT_IND     3   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
 #define PROTO_MAX_LOOP    (PROTO_MAX_SCORE<<PROTO_LAT_IND) /* max global loop score, so per tick */
 
+#ifndef PICO_SUPPORT_RTOS
 static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
+#else
+extern int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
+#endif
 {
   int temp, i, j, sum;
   int max_total = PROTO_MAX_LOOP, total = 0;
