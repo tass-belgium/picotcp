@@ -23,6 +23,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <libgen.h>
 
 //#define INFINITE_TCPTEST
 #define picoapp_dbg(...) do{}while(0)
@@ -741,13 +743,13 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
 
   count++;
 
-  //printf("tcpclient> wakeup %lu, event %u\n",count,ev);
+  printf("tcpclient> wakeup %lu, event %u\n",count,ev);
   if (ev & PICO_SOCK_EV_RD) {
     do {
       r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
       if (r > 0) {
         r_size += r;
-        //printf("SOCKET READ - %d\n",r_size);
+        printf("SOCKET READ - %d\n",r_size);
       }
       if (r < 0)
         exit(5);
@@ -777,7 +779,7 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         w = pico_socket_write(s, buffer0 + w_size, TCPSIZ-w_size);
         if (w > 0) {
           w_size += w;
-          //printf("SOCKET WRITTEN - %d\n",w_size);
+          printf("SOCKET WRITTEN - %d\n",w_size);
         if (w < 0)
           exit(5);
         }
@@ -836,6 +838,8 @@ void app_tcpclient(char *arg)
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
   if (!s)
     exit(1); 
+
+  pico_socket_setoption(s, PICO_TCP_NODELAY, NULL);
   
   /* NOTE: used to set a fixed local port and address
   local_port = short_be(6666);
@@ -1548,106 +1552,147 @@ void app_mcastreceive(char *arg)
 
 #ifdef PICO_SUPPORT_DHCPD
 /*** DHCP Server ***/
-// ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0
+// ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0:64:128
 void app_dhcp_server(char* arg)
 {
-	struct pico_device *dev;
-	char *dev_name, *addr, *netmsk;
-	char* nxt;
-	struct pico_dhcpd_settings s = {0};
+  struct pico_device *dev = NULL;
+  struct pico_dhcpd_settings s = {0};
+  int pool_start = 0, pool_end = 0;
+  char *s_name = NULL, *s_addr = NULL, *s_netm = NULL, *s_pool_start = NULL, *s_pool_end = NULL;
+  char *nxt = arg;
 
-	nxt = cpy_arg(&dev_name, arg);
-	if(!dev_name){
-		fprintf(stderr, " dhcp server expects as parameters : the name of the device\n");
-		fprintf(stderr, " or optionally : devicename:address:netmask\n");
-		exit(255);
-	}
+  if (nxt) {
+    nxt = cpy_arg(&s_name, arg);
+    if (!s_name) {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	dev = pico_get_device(dev_name);
-	if(dev == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	s.dev = dev;
+  if (nxt) {
+    nxt = cpy_arg(&s_addr, nxt);
+    if (s_addr) {
+      pico_string_to_ipv4(s_addr, &s.my_ip.addr);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	if(nxt) {
-		nxt = cpy_arg(&addr, nxt);
-		if(addr){
-			pico_string_to_ipv4(addr, &s.my_ip.addr);
+  if (nxt) {
+    nxt = cpy_arg(&s_netm, nxt);
+    if (s_netm) {
+      pico_string_to_ipv4(s_netm, &s.netmask.addr);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-			nxt = cpy_arg(&netmsk, nxt);
-			if(netmsk){
-				pico_string_to_ipv4(netmsk, &s.netmask.addr);
-				//let's just take some "default" values for the range :
-				s.pool_start = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x00000064);
-				s.pool_end = (s.my_ip.addr & long_be(0xffffff00)) | long_be(0x000000ff);
-			}else{
-				fprintf(stderr, " when supplying an address you must also give the netmask : devicename:address:netmask\n");
-			}
-		}
-	}
+  if (nxt) {
+    nxt = cpy_arg(&s_pool_start, nxt);
+    if (s_pool_start && atoi(s_pool_start)) {
+      pool_start = atoi(s_pool_start);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	
+  if (nxt) {
+    nxt = cpy_arg(&s_pool_end, nxt);
+    if (s_pool_end && atoi(s_pool_end)) {
+      pool_end = atoi(s_pool_end);
+    } else {
+      goto out;
+    }
+  } else {
+    goto out;
+  }
 
-	pico_dhcp_server_initiate(&s);
+  dev = pico_get_device(s_name);
+  if (dev == NULL) {
+    fprintf(stderr, "No device with name %s found\n", s_name);
+    exit(255);
+  }
+  s.dev = dev;
+  s.pool_start = (s.my_ip.addr & s.netmask.addr) | long_be(pool_start);
+  s.pool_end = (s.my_ip.addr & s.netmask.addr) | long_be(pool_end);
+
+  pico_dhcp_server_initiate(&s);
+  return;
+
+  out:
+    fprintf(stderr, "dhcpserver expects the following format: dhcpserver:dev_name:dev_addr:dev_netm:pool_start:pool_end\n");
+    exit(255);
+
 }
 #endif
 /*** END DHCP Server ***/
 
 /*** DHCP Client ***/
-
 #ifdef PICO_SUPPORT_DHCPC
+static void *dhcpclient_cli; 
+
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
   char host[30];
   pico_ipv4_to_string(host, s->dst.addr);
   if (s->err == 0) {
-    dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    dbg("DHCP client (id %p): %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", 
+          dhcpclient_cli, s->size, host, s->seq, s->time);
     if (s->seq >= 3) {
-      dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
+      dbg("DHCP client (id %p): TEST SUCCESS!\n", dhcpclient_cli);
       exit(0);
     }
   } else {
-    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
-    dbg("DHCP CLIENT TEST: FAILED!\n");
+    dbg("DHCP client (id %p): ping %lu to %s error %d\n", dhcpclient_cli, s->seq, host, s->err);
+    dbg("DHCP client (id %p): TEST FAILED!\n", dhcpclient_cli);
     exit(1);
   }
 }
 
-
-static void* dhcp_client_cookie;
 void callback_dhcpclient(void* cli, int code){
 	struct pico_ip4  gateway;
 	char gw_txt_addr[30];
 	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie);
+		gateway = pico_dhcp_get_gateway(cli);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
 #endif
 	}
-	printf("callback happened with code %d!\n", code);
+	printf("DHCP client (id %p): callback happened with code %d!\n", dhcpclient_cli, code);
 }
 
 void app_dhcp_client(char* arg)
 {
-	struct pico_device *dev;
-	char *dev_name;
+  struct pico_device *dev;
+  char *dev_name;
+  char *nxt = arg;
 
-	cpy_arg(&dev_name, arg);
-	if(!dev_name){
-		fprintf(stderr, " dhcp client expects as parameters : the name of the device\n");
-		exit(255);
-	}
+  if (nxt) {
+    cpy_arg(&dev_name, arg);
+    if(!dev_name){
+      fprintf(stderr, " dhcp client expects as parameters : the name of the device\n");
+      exit(255);
+    }
+  } else {
 
-	dev = pico_get_device(dev_name);
-	if(dev == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	printf("starting negotiation\n");
+  }
 
-	dhcp_client_cookie = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
+  dev = pico_get_device(dev_name);
+  if(dev == NULL){
+    printf("error : no device found\n");
+    exit(255);
+  }
+  printf("starting negotiation\n");
+
+  dhcpclient_cli = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
 }
 
 
@@ -1761,9 +1806,25 @@ void app_dhcp_dual_client(char* arg)
 #ifdef PICO_SUPPORT_HTTP_CLIENT
 /* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:192.168.24.15:255.255.255.0:192.168.24.5: -a wget:web.mit.edu/modiano/www/6.263/lec22-23.pdf
  */
+
+static char *url_filename = NULL;
+
+static int http_save_file(void *data, int len)
+{
+  int fd = open(url_filename, O_WRONLY |O_CREAT | O_TRUNC, 0660);
+  int w, e;
+  if (fd < 0)
+    return fd;
+
+  w = write(fd, data, len);
+  e = errno;
+  close(fd);
+  errno = e;
+  return w;
+}
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-	char data[1000u];
+	char data[1024 * 1024]; // MAX: 1M
 	static int _length = 0;
 
 
@@ -1792,7 +1853,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
 		int len;
 
 		printf("Reading data...\n");
-		while((len = pico_http_client_readData(conn,data,1000u)))
+		while((len = pico_http_client_readData(conn,data + _length,1024)))
 		{
 			_length += len;
 		}
@@ -1836,6 +1897,16 @@ void wget_callback(uint16_t ev, uint16_t conn)
 			}
 		}
 
+    if (!url_filename) {
+      printf("Failed to get local filename\n");
+      exit(1);
+    }
+
+    if (http_save_file(data, _length) < _length) {
+      printf("Failed to save file: %s\n", strerror(errno));
+      exit(1);
+    }
+
 
 		pico_http_client_close(conn);
 		exit(0);
@@ -1870,6 +1941,7 @@ void app_wget(char *arg)
 		fprintf(stderr," error opening the url : %s, please check the format\n",url);
 		exit(1);
 	}
+  url_filename = basename(url);
 }
 #endif
 

@@ -32,6 +32,8 @@ void pico_frame_discard(struct pico_frame *f)
     dbg("Removed frame @%p(copy), usage count now: %d\n", f, *f->usage_count);
   }
 #endif
+  if (f->info)
+    pico_free(f->info);
   pico_free(f);
 }
 

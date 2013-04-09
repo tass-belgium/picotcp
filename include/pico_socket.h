@@ -60,6 +60,16 @@ struct pico_socket {
   uint16_t opt_flags;
 };
 
+struct pico_remote_duple {
+  union {
+    struct pico_ip4 ip4;
+    struct pico_ip6 ip6;
+  } remote_addr;
+
+  uint16_t remote_port;
+};
+
+
 /* request struct for multicast socket opt */
 struct pico_ip_mreq {
   struct pico_ip4 mcast_group_addr;

@@ -569,6 +569,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
 int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
 {
   struct pico_frame *f;
+  struct pico_remote_duple *remote_duple = NULL;
   int header_offset = 0;
   int total_payload_written = 0;
 #ifdef PICO_SUPPORT_IPV4
@@ -618,6 +619,14 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       }
       s->local_addr.ip4.addr = src4->addr;
       s->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
+#     ifdef PICO_SUPPORT_UDP
+      /* socket remote info could change in a consecutive call, make persistant */
+      if (PROTO(s) == PICO_PROTO_UDP) {
+        remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));
+        remote_duple->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
+        remote_duple->remote_port = remote_port;
+      }
+#     endif
     }
   }
 #endif
@@ -635,6 +644,13 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       }
       memcpy(&s->local_addr, src6, PICO_SIZE_IP6);
       memcpy(&s->remote_addr, dst, PICO_SIZE_IP6);
+#     ifdef PICO_SUPPORT_UDP
+      if (PROTO(s) == PICO_PROTO_UDP) {
+        remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));
+        remote_duple->remote_addr.ip6.addr = ((struct pico_ip6 *)dst)->addr;
+        remote_duple->remote_port = remote_port;
+      }
+#     endif
     }
   }
 #endif
@@ -679,6 +695,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     f->payload += header_offset;
     f->payload_len -= header_offset;
     f->sock = s;
+    f->info = remote_duple;
 
 #ifdef PICO_SUPPORT_IPFRAG
 #  ifdef PICO_SUPPORT_UDP

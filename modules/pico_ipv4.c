@@ -910,11 +910,17 @@ drop:
 static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_frame *f)
 {
   struct pico_ip4 *dst;
+  struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
   if (!f->sock) {
     pico_frame_discard(f);
     return -1;
   }
-  dst = &f->sock->remote_addr.ip4;
+
+  if (remote_duple)
+    dst = &remote_duple->remote_addr.ip4;
+  else
+    dst = &f->sock->remote_addr.ip4;
+
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }
 
