@@ -152,6 +152,30 @@ int pico_is_port_free(uint16_t proto, uint16_t port)
   return 1;
 }
 
+int pico_is_port_free_dev(uint16_t proto, uint16_t port, struct pico_device *dev)
+{
+  struct pico_sockport *sp;
+#ifdef PICO_SUPPORT_NAT
+  if (pico_ipv4_nat_find(port,NULL, 0,proto) == 0) {
+    dbg("Port %u already in use by NAT\n", port);
+    return 0;
+  }
+#endif
+  sp = pico_get_sockport(proto, port);
+  if (sp) {
+    struct pico_tree_node *idx;
+    struct pico_socket *s;
+    pico_tree_foreach(idx, &sp->socks) {
+      s = idx->keyValue;
+      if ((s->dev == NULL) || (s->dev == dev)) {
+        dbg("Port %u already in use by system\n", port);
+        return 0;
+      }
+    }
+  }
+  return 1;
+}
+
 
 static int pico_check_socket(struct pico_socket *s)
 {
@@ -818,6 +842,8 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
     return -1;
   }
 
+
+  /* When given port = 0, get a random high port to bind to. */
   if (*port == 0) {
     *port = pico_socket_high_port(PROTO(s));
     if (*port == 0) {
@@ -827,6 +853,13 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
   }
 
   s->local_port = *port;
+
+
+  /* Check for port already in use */
+  if (pico_is_port_free(PROTO(s), port)) {
+    pico_err = PICO_ERR_EADDRINUSE;
+    return -1;
+  }
 
   if (is_sock_ipv6(s)) {
     struct pico_ip6 *ip = (struct pico_ip6 *) local_addr;
@@ -1332,6 +1365,7 @@ int pico_sockets_loop(int loop_score)
       s = index->keyValue;
     	loop_score = pico_tcp_output(s, loop_score);
       if ((s->ev_pending) && s->wakeup) {
+        dbg("Trigger Pending Events (%d)!\n", s->ev_pending);
         s->wakeup(s->ev_pending, s);
       }
       if (loop_score <= 0) {
