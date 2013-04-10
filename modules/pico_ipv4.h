@@ -11,8 +11,15 @@ See LICENSE and COPYING for usage.
 #include "pico_protocol.h"
 #include "pico_tree.h"
 
-extern struct pico_protocol pico_proto_ipv4;
+#define PICO_IPV4_INADDR_ANY 0x00000000U
 
+#define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
+#define PICO_IPV4_DONTFRAG 0x4000
+#define PICO_IPV4_MOREFRAG 0x2000
+#define PICO_IPV4_FRAG_MASK 0x1FFF
+#define PICO_IPV4_DEFAULT_TTL 64
+
+extern struct pico_protocol pico_proto_ipv4;
 
 struct __attribute__((packed)) pico_ipv4_hdr {
   uint8_t vhl;
@@ -47,12 +54,6 @@ struct pico_ipv4_link
   struct pico_ip4 netmask;
   struct pico_tree * mcast_head;
 };
-
-#define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
-#define PICO_IPV4_DONTFRAG 0x4000
-#define PICO_IPV4_MOREFRAG 0x2000
-#define PICO_IPV4_FRAG_MASK 0x1FFF
-#define PICO_IPV4_DEFAULT_TTL 64
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
