@@ -1,32 +1,32 @@
 #!/usr/bin/python
-# fairness.py
-# A complex test for butterly-like topology,
-# using 3 TCP connections and 3 ping flows.
+# dhcp.py
+# Butterfly-like topology test for dhcp
+# One DHCP server, serving on two interface
+# Eigth DHCP clients, four on each network
 #
-# Bottleneck of 4 Mbit/300 ms overall delay is added.
+# s1----@            @----r1
+# s2-----\__ DHCP __/-----r2
+# s3-----/          \-----r3
+# s4----@            @----r4
 #
-# s1---.                 .---r1
-# s2----\               /
-# s3-----\__. DHCP  .__/__.--r2
-# s4-----/             \
-# s5----/               \_.--r3
-# s6---^
-#
+
 
 from  topology import *
 
 T = Topology()
-net1 = Network(T, "pyt0")
-net2 = Network(T)
+net1 = Network(T, "pyt1")
+net2 = Network(T, "pyt2")
 
-server = Host(T, net1, args="dhcpserver:eth1:172.16.1.2:255.255.255.0:64:128")
+server = Host(T, net1, net2, args="dhcpserver:eth1:172.16.1.2:255.255.255.0:64:128:eth2:172.16.2.2:255.255.255.0:64:128")
 
-client1 = Host(T, net1, args="dhcpclient:eth1")
-client2 = Host(T, net1, args="dhcpclient:eth1")
-client3 = Host(T, net1, args="dhcpclient:eth1")
-client4 = Host(T, net1, args="dhcpclient:eth1")
-client5 = Host(T, net1, args="dhcpclient:eth1")
-client6 = Host(T, net1, args="dhcpclient:eth1")
+s1 = Host(T, net1, args="dhcpclient:eth1")
+s2 = Host(T, net1, args="dhcpclient:eth1")
+s3 = Host(T, net1, args="dhcpclient:eth1")
+s4 = Host(T, net1, args="dhcpclient:eth1")
+r1 = Host(T, net2, args="dhcpclient:eth1")
+r2 = Host(T, net2, args="dhcpclient:eth1")
+r3 = Host(T, net2, args="dhcpclient:eth1")
+r4 = Host(T, net2, args="dhcpclient:eth1")
 
 raw_input("Press enter to continue ...")
 start(T)
