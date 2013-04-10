@@ -2,9 +2,8 @@
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
 
-.
 
-Authors: Frederik Van Slycken
+Authors: Frederik Van Slycken, Kristof Roelants
 *********************************************************************/
 
 #ifdef PICO_SUPPORT_DHCPD
@@ -17,234 +16,261 @@ Authors: Frederik Van Slycken
 #include "pico_arp.h"
 #include <stdlib.h>
 
+# define dhcpd_dbg(...) do{}while(0)
+
 static struct pico_dhcp_negotiation *Negotiation_list;
-static struct pico_socket *udpsock;
-static struct pico_dhcpd_settings settings;
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
 
-static struct pico_dhcp_negotiation * get_negotiation_by_xid(uint32_t xid)
+static int dhcp_settings_cmp(void *ka, void *kb)
 {
-	struct pico_dhcp_negotiation *cur = Negotiation_list;
-	while (cur) {
-		if (cur->xid == xid)
-			return cur;
-		cur = cur->next;
-	}
-	return NULL;
+  struct pico_dhcpd_settings *a = ka, *b = kb;
+  if (a->dev < b->dev)
+    return -1; 
+  else if (a->dev > b->dev)
+    return 1;
+  else
+    return 0;
+} 
+PICO_TREE_DECLARE(DHCPTable, dhcp_settings_cmp);
+
+static struct pico_dhcp_negotiation *get_negotiation_by_xid(uint32_t xid)
+{
+  struct pico_dhcp_negotiation *cur = Negotiation_list;
+  while (cur) {
+    if (cur->xid == xid)
+      return cur;
+    cur = cur->next;
+  }
+  return NULL;
 }
 
 static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_type)
 {
+  uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
+  struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
+  struct pico_ip4 destination = { };
+  uint32_t bcast = dn->settings->my_ip.addr | ~(dn->settings->netmask.addr);
+  uint32_t dns_server = OPENDNS;
+  uint16_t port = PICO_DHCP_CLIENT_PORT;
+  int sent = 0;
 
-	uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
-	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
-	uint32_t bcast = BROADCAST;
-	uint32_t dns_server = OPENDNS;
-	uint16_t port = PICO_DHCP_CLIENT_PORT;
-	struct pico_ip4 destination;
+  memcpy(dh_out->hwaddr, dn->eth.addr, PICO_HLEN_ETHER);
+  dh_out->op = PICO_DHCP_OP_REPLY;
+  dh_out->htype = PICO_HTYPE_ETHER;
+  dh_out->hlen = PICO_HLEN_ETHER;
+  dh_out->xid = dn->xid;
+  dh_out->yiaddr = dn->ipv4.addr;
+  dh_out->siaddr = dn->settings->my_ip.addr;
+  dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
 
-	int sent = 0;
+  /* Option: msg type, len 1 */
+  dh_out->options[0] = PICO_DHCPOPT_MSGTYPE;
+  dh_out->options[1] = 1;
+  dh_out->options[2] = reply_type;
 
-	memcpy(dh_out->hwaddr, dn->eth.addr, PICO_HLEN_ETHER);
-	dh_out->op = PICO_DHCP_OP_REPLY;
-	dh_out->htype = PICO_HTYPE_ETHER;
-	dh_out->hlen = PICO_HLEN_ETHER;
-	dh_out->xid = dn->xid;
-	dh_out->yiaddr = dn->ipv4.addr;
-	dh_out->siaddr = settings.my_ip.addr;
-	dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
+  /* Option: server id, len 4 */
+  dh_out->options[3] = PICO_DHCPOPT_SERVERID;
+  dh_out->options[4] = 4;
+  memcpy(dh_out->options + 5, &dn->settings->my_ip.addr, 4);
 
-	/* Option: msg type, len 1 */
-	dh_out->options[0] = PICO_DHCPOPT_MSGTYPE;
-	dh_out->options[1] = 1;
-	dh_out->options[2] = reply_type;
+  /* Option: Lease time, len 4 */
+  dh_out->options[9] = PICO_DHCPOPT_LEASETIME;
+  dh_out->options[10] = 4;
+  memcpy(dh_out->options + 11, &dn->settings->lease_time, 4);
 
-	/* Option: server id, len 4 */
-	dh_out->options[3] = PICO_DHCPOPT_SERVERID;
-	dh_out->options[4] = 4;
-	memcpy(dh_out->options + 5, &settings.my_ip.addr, 4);
+  /* Option: Netmask, len 4 */
+  dh_out->options[15] = PICO_DHCPOPT_NETMASK;
+  dh_out->options[16] = 4;
+  memcpy(dh_out->options + 17, &dn->settings->netmask.addr, 4);
 
-	/* Option: Lease time, len 4 */
-	dh_out->options[9] = PICO_DHCPOPT_LEASETIME;
-	dh_out->options[10] = 4;
-	memcpy(dh_out->options + 11, &settings.lease_time, 4);
+  /* Option: Router, len 4 */
+  dh_out->options[21] = PICO_DHCPOPT_ROUTER;
+  dh_out->options[22] = 4;
+  memcpy(dh_out->options + 23, &dn->settings->my_ip.addr, 4);
 
-	/* Option: Netmask, len 4 */
-	dh_out->options[15] = PICO_DHCPOPT_NETMASK;
-	dh_out->options[16] = 4;
-	memcpy(dh_out->options + 17, &settings.netmask.addr, 4);
+  /* Option: Broadcast, len 4 */
+  dh_out->options[27] = PICO_DHCPOPT_BCAST;
+  dh_out->options[28] = 4;
+  memcpy(dh_out->options + 29, &bcast, 4);
 
-	/* Option: Router, len 4 */
-	dh_out->options[21] = PICO_DHCPOPT_ROUTER;
-	dh_out->options[22] = 4;
-	memcpy(dh_out->options + 23, &settings.my_ip.addr, 4);
+  /* Option: DNS, len 4 */
+  dh_out->options[33] = PICO_DHCPOPT_DNS;
+  dh_out->options[34] = 4;
+  memcpy(dh_out->options + 35, &dns_server, 4);
 
-	/* Option: Broadcast, len 4 */
-	dh_out->options[27] = PICO_DHCPOPT_BCAST;
-	dh_out->options[28] = 4;
-	memcpy(dh_out->options + 29, &bcast, 4);
+  dh_out->options[40] = PICO_DHCPOPT_END;
 
-	/* Option: DNS, len 4 */
-	dh_out->options[33] = PICO_DHCPOPT_DNS;
-	dh_out->options[34] = 4;
-	memcpy(dh_out->options + 35, &dns_server, 4);
+  destination.addr = dh_out->yiaddr;
 
-	dh_out->options[40] = PICO_DHCPOPT_END;
-
-	destination.addr = dh_out->yiaddr;
-
-	sent = pico_socket_sendto(udpsock, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
-	if (sent < 0) {
-		dbg("DHCPD>sendto failed with code %d!\n", pico_err);
-	}
+  sent = pico_socket_sendto(dn->settings->s, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
+  if (sent < 0) {
+    dhcpd_dbg("DHCPD: sendto failed with code %d!\n", pico_err);
+  }
 }
 
 #define dhcpd_make_offer(x) dhcpd_make_reply(x, PICO_DHCP_MSG_OFFER)
 #define dhcpd_make_ack(x) dhcpd_make_reply(x, PICO_DHCP_MSG_ACK)
+#define ip_inrange(x) ((long_be(x) >= long_be(dn->settings->pool_start)) && (long_be(x) <= long_be(dn->settings->pool_end)))
 
-#define ip_inrange(x) ((long_be(x) >= long_be(settings.pool_start)) && (long_be(x) <= long_be(settings.pool_end)))
-
-static void dhcp_recv(uint8_t *buffer, int len)
+static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
 {
-	struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
-	struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
-	uint8_t *nextopt, opt_data[20], opt_type;
-	int opt_len = 20;
-	if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr)))
-		return;
+  struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
+  struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
+  struct pico_ip4* ipv4 = NULL;
+  struct pico_dhcpd_settings test, *settings = NULL;
+  uint8_t *nextopt, opt_data[20], opt_type;
+  int opt_len = 20;
 
+  if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr))) {
+    dhcpd_dbg("DHCPD WARNING: invalid options in dhcp message\n");
+    return;
+  }
 
-	if (!dn) {
-		struct pico_ip4* ipv4;
-		dn = pico_zalloc(sizeof(struct pico_dhcp_negotiation));
-		memset(dn, 0, sizeof(struct pico_dhcp_negotiation));
-		dn->xid = dhdr->xid;
-		dn->state = DHCPSTATE_DISCOVER;
-		memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
-		dn->next = Negotiation_list;
-		Negotiation_list = dn;
-		ipv4 = pico_arp_reverse_lookup(&dn->eth);
-		if (!ipv4) {
-			dn->ipv4.addr = settings.pool_next;
-			pico_arp_create_entry(dn->eth.addr, dn->ipv4, settings.dev);
-			settings.pool_next = long_be(long_be(settings.pool_next) + 1);
-		}else{
+  if (!dn) {
+    dn = pico_zalloc(sizeof(struct pico_dhcp_negotiation));
+    if (!dn) {
+      pico_err = PICO_ERR_ENOMEM;
+      return;
+    }
+
+    test.dev = pico_ipv4_link_find(&s->local_addr.ip4);
+    settings = pico_tree_findKey(&DHCPTable, &test);
+    if (settings) {
+      dn->settings = settings;
+    } else {
+      dhcpd_dbg("DHCPD WARNING: received DHCP message on unconfigured link %s\n", test.dev->name);
+      pico_free(dn);
+      return;
+    }
+
+    dn->xid = dhdr->xid;
+    dn->state = DHCPSTATE_DISCOVER;
+    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
+    dn->next = Negotiation_list;
+    Negotiation_list = dn;
+    ipv4 = pico_arp_reverse_lookup(&dn->eth);
+    if (!ipv4) {
+      dn->ipv4.addr = settings->pool_next;
+      pico_arp_create_entry(dn->eth.addr, dn->ipv4, settings->dev);
+      settings->pool_next = long_be(long_be(settings->pool_next) + 1);
+    } else {
       dn->ipv4.addr = ipv4->addr;
     }
-	}
+  }
  
-	if (!ip_inrange(dn->ipv4.addr))
-		return;
-	opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
-	while (opt_type != PICO_DHCPOPT_END) {
-		/* parse interesting options here */
-		if (opt_type == PICO_DHCPOPT_MSGTYPE) {
-			/* server simple state machine */
-			uint8_t msg_type = opt_data[0];
-			if (msg_type == PICO_DHCP_MSG_DISCOVER) {
-				dhcpd_make_offer(dn);
-				dn->state = DHCPSTATE_OFFER;
-				return;
-			}else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER)) {
+  if (!ip_inrange(dn->ipv4.addr))
+    return;
+
+  opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
+  while (opt_type != PICO_DHCPOPT_END) {
+    /* parse interesting options here */
+    if (opt_type == PICO_DHCPOPT_MSGTYPE) {
+      /* server simple state machine */
+      uint8_t msg_type = opt_data[0];
+      if (msg_type == PICO_DHCP_MSG_DISCOVER) {
+        dhcpd_make_offer(dn);
+        dn->state = DHCPSTATE_OFFER;
+        return;
+      } else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER)) {
         dhcpd_make_ack(dn);
         dn->state = DHCPSTATE_BOUND;
         return;
       }
-		}
-		opt_len = 20;
-		opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
-	}
+    }
+    opt_len = 20;
+    opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
+  }
 }
 
-
-//This function gets a pico_dhcpd_settings-struct. 
-int pico_dhcp_server_initiate(struct pico_dhcpd_settings* setting)
+int pico_dhcp_server_initiate(struct pico_dhcpd_settings *setting)
 {
-	uint16_t port = PICO_DHCPD_PORT;
+  struct pico_dhcpd_settings *settings = NULL;
+  struct pico_ipv4_link *link = NULL;
+  uint16_t port = PICO_DHCPD_PORT;
 
-	if(!setting){
-		pico_err = PICO_ERR_EINVAL;
-		return -1;
-	}
+  if (!setting) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
 
-	if(!setting->dev){
-		pico_err = PICO_ERR_EINVAL;
-		return -1;
-	}
+  if (!setting->my_ip.addr) {
+    pico_err = PICO_ERR_EINVAL;
+    dhcpd_dbg("DHCPD: IP address of interface was not supplied\n");
+    return -1;
+  }
 
-	memcpy(&settings,setting,sizeof(struct pico_dhcpd_settings));
-	dbg("DHCPD>initiating server\n");
+  link = pico_ipv4_link_get(&setting->my_ip);
+  if (!link) {
+    pico_err = PICO_ERR_EINVAL;
+    dhcpd_dbg("DHCPD: no link with IP %X found\n", setting->my_ip.addr);
+    return -1;
+  }
 
-	//default values if not filled in!
-	if(settings.my_ip.addr == 0){
-		settings.my_ip.addr = SERVER_ADDR;
-		dbg("DHCPD>  using default server addr\n");
-	}else{
-		dbg("DHCPD> using server addr %x\n",settings.my_ip.addr);
-	}
-	if(settings.netmask.addr == 0){
-		settings.netmask.addr = NETMASK;
-		dbg("DHCPD>  using default netmask\n");
-	}else{
-		dbg("DHCPD> using netmask %x\n",settings.netmask.addr);
-	}
+  settings = pico_zalloc(sizeof(struct pico_dhcpd_settings));
+  if (!settings) {
+    pico_err = PICO_ERR_ENOMEM;
+    return -1;
+  }
+  memcpy(settings, setting, sizeof(struct pico_dhcpd_settings));
 
-	if(settings.pool_start == 0){
-		settings.pool_start = POOL_START;
-		dbg("DHCPD>  using default pool_start\n");
-	}else{
-		dbg("DHCPD> using pool_start %x\n",settings.pool_start);
-	}
-	if(settings.pool_end == 0){
-		settings.pool_end = POOL_END;
-		dbg("DHCPD>  using default pool_end\n");
-	}else{
-		dbg("DHCPD> using pool_end %x\n",settings.pool_end);
-	}
-	if(settings.lease_time == 0){
-		settings.lease_time = LEASE_TIME;
-		dbg("DHCPD>  using default lease time\n");
-	}else{
-		dbg("DHCPD> using lease time %x\n",settings.lease_time);
-	}
+  settings->dev = link->dev;
+  dhcpd_dbg("DHCPD: configuring DHCP server for link %s\n", link->dev->name);
+  settings->my_ip.addr = link->address.addr;
+  dhcpd_dbg("DHCPD: using server addr %X\n", long_be(settings->my_ip.addr));
+  settings->netmask.addr = link->netmask.addr;
+  dhcpd_dbg("DHCPD: using netmask %X\n", long_be(settings->netmask.addr));
 
-	settings.pool_next = settings.pool_start;
+  /* default values if not provided */
+  if (settings->pool_start == 0)
+    settings->pool_start = (settings->my_ip.addr & settings->netmask.addr) | POOL_START;
+  dhcpd_dbg("DHCPD: using pool_start %X\n", long_be(settings->pool_start));
+  if (settings->pool_end == 0)
+    settings->pool_end = (settings->my_ip.addr & settings->netmask.addr) | POOL_END;
+  dhcpd_dbg("DHCPD: using pool_end %x\n", long_be(settings->pool_end));
+  if (settings->lease_time == 0)
+    settings->lease_time = LEASE_TIME;
+  dhcpd_dbg("DHCPD: using lease time %x\n", long_be(settings->lease_time));
+  settings->pool_next = settings->pool_start;
 
-	udpsock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcpd_wakeup);
-	if (!udpsock) {
-		dbg("DHCP>could not open client socket\n");
-		//if(cli->cb != NULL)
-			//cli->cb(cli, PICO_DHCP_ERROR);
-		return -1;
-	}
-	if (pico_socket_bind(udpsock, &settings.my_ip, &port) != 0){
-		dbg("DHCP>could not bind client socket\n");
-		//if(cli->cb != NULL)
-			//cli->cb(cli, PICO_DHCP_ERROR);
-		return -1;
-	}
-	return 0;
+  settings->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcpd_wakeup);
+  if (!settings->s) {
+    dhcpd_dbg("DHCP: could not open client socket\n");
+    pico_free(settings);
+    return -1;
+  }
+  if (pico_socket_bind(settings->s, &settings->my_ip, &port) != 0) {
+    dhcpd_dbg("DHCP: could not bind client socket\n");
+    pico_free(settings);
+    return -1;
+  }
+  
+  if (pico_tree_insert(&DHCPTable, settings)) {
+    dhcpd_dbg("DHCPD ERROR: link %s already configured\n", link->dev->name);
+    pico_err = PICO_ERR_EINVAL;
+    pico_free(settings);
+    return -1; /* Element key already exists */
+  }
+  dhcpd_dbg("DHCPD: configured DHCP server for link %s\n", link->dev->name);
+
+  return 0;
 }
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
 {
-	uint8_t buf[DHCPD_DATAGRAM_SIZE];
-	int r=0;
-	uint32_t peer;
-	uint16_t port;
-	//int type;
+  uint8_t buf[DHCPD_DATAGRAM_SIZE] = { };
+  int r = 0;
+  uint32_t peer = 0;
+  uint16_t port = 0;
 
-	//struct pico_dhcp_client_cookie *cli = &dhcp_client;
-	dbg("DHCP>Called dhcpd_wakeup\n");
-	if (ev == PICO_SOCK_EV_RD) {
-		do {
-			r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
-			if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
-				dhcp_recv(buf, r);
-			}
-		} while(r>0);
-	}
+  dhcpd_dbg("DHCPD: called dhcpd_wakeup\n");
+  if (ev == PICO_SOCK_EV_RD) {
+    do {
+      r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
+      if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
+        dhcp_recv(s, buf, r);
+      }
+    } while(r>0);
+  }
 }
-
-#endif
+#endif /* PICO_SUPPORT_DHCP */

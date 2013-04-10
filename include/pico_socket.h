@@ -52,7 +52,7 @@ struct pico_socket {
 #endif
   uint16_t ev_pending;
 
-	struct pico_device* dev;
+	struct pico_device *dev;
 
   /* Private field. */
   int id;

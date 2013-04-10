@@ -18,6 +18,7 @@ Authors: Daniele Lacamera
 #include "pico_icmp4.h"
 #include "pico_nat.h"
 #include "pico_tree.h"
+#include "pico_device.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
@@ -315,9 +316,11 @@ static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, 
 
 static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
 {
-  struct pico_sockport *sp;
-  struct pico_socket *s,*found = NULL;
+  struct pico_frame *cpy = NULL;
+  struct pico_sockport *sp = NULL;
+  struct pico_socket *s = NULL, *found = NULL;
   struct pico_trans *tr = (struct pico_trans *)f->transport_hdr;
+  struct pico_tree_node *index = NULL;
   #ifdef PICO_SUPPORT_IPV4
   struct pico_ipv4_hdr *ip4hdr;
   #endif
@@ -335,7 +338,6 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 
   #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
-  	struct pico_tree_node * index;
   	pico_tree_foreach(index,&sp->socks){
   		s = index->keyValue;
       /* 4-tuple identification of socket (port-IP) */
@@ -365,7 +367,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
         }
       }
       #endif 
-    } /* end foreach */
+    } 
     
     if (found != NULL) {
       pico_tcp_input(found,f);
@@ -378,22 +380,31 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
       dbg("SOCKET> mmm something wrong (prob sockport)\n");
       return -1;
     }
-  }
+  } /* FOREACH */
 #endif
 
 #ifdef PICO_SUPPORT_UDP
   if (p->proto_number == PICO_PROTO_UDP) {
-    /* Take the only socket here. */
-  	s = sp->socks.root->keyValue;
+  	pico_tree_foreach(index, &sp->socks) {
+  		s = index->keyValue;
+      /* is the socket INADDR_ANY or is this frame destined for the socket? */
+      if (!s->dev || (s->dev == f->dev)) {
+        /* copy as there can be multiple sockets to deliver to */
+        cpy = pico_frame_copy(f);
+        if (!cpy)
+          return -1;
+        if (pico_enqueue(&s->q_in, cpy) > 0) {
+          if (s->wakeup)
+            s->wakeup(PICO_SOCK_EV_RD, s);
+        }
+      }
+    } /* FOREACH */
+    pico_frame_discard(f);
+    if (s)
+      return 0;
+    else
+      return -1;
   }
-  if (!s)
-    return -1;
-  if (pico_enqueue(&s->q_in, f) > 0) {
-    if (s->wakeup)
-      s->wakeup(PICO_SOCK_EV_RD, s);
-    return 0;
-  }
-  else
 #endif
   return -1;
 }
@@ -852,6 +863,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
     }
   }
 
+  /* XXX: implement check on port bind, pair (address, port) should be unique. */
   s->local_port = *port;
 
 
@@ -864,11 +876,24 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
   if (is_sock_ipv6(s)) {
     struct pico_ip6 *ip = (struct pico_ip6 *) local_addr;
     memcpy(s->local_addr.ip6.addr, ip, PICO_SIZE_IP6);
+    /* XXX: port ipv4 functionality to ipv6 */
+    dbg("Socket is bound.\n");
   } else if (is_sock_ipv4(s)) {
     struct pico_ip4 *ip = (struct pico_ip4 *) local_addr;
     s->local_addr.ip4.addr = ip->addr;
+    if (ip->addr == PICO_IPV4_INADDR_ANY) {
+      /* socket is bound to all devices, not one specific */
+      s->dev = NULL;
+    }
+    else {
+      s->dev = pico_ipv4_link_find((struct pico_ip4 *) local_addr);
+      if (!s->dev) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+      }
+    }
+    dbg("Bounded socket to local address %08X and local port %u\n", long_be((*ip).addr), short_be(*port));
   }
-  dbg("Socket is bound.\n");
   return pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
 }
 

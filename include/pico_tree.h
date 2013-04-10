@@ -41,7 +41,7 @@ extern struct pico_tree_node LEAF; // generic leaf node
 /*
  * Manipulation functions
  */
-void * pico_tree_insert(struct pico_tree * tree, void * node);
+void * pico_tree_insert(struct pico_tree * tree, void * key);
 void * pico_tree_delete(struct pico_tree * tree, void * key);
 void * pico_tree_findKey(struct pico_tree * tree, void * key);
 void 	pico_tree_drop(struct pico_tree * tree);
