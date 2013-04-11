@@ -393,7 +393,7 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
 
     /* 2. check if already in table, if no exit */
     nat_dbg("NAT: check if generated port %u is free\n", short_be(pub_port));
-    if (pico_is_port_free(proto, pub_port))
+    if (pico_is_port_free(proto, pub_port, NULL, &pico_proto_ipv4))
       break;
   
   } while (1);
@@ -412,7 +412,7 @@ int pico_ipv4_nat_generate_key(struct pico_nat_key* nk, struct pico_frame* f, st
   } else if (proto == PICO_PROTO_ICMP4) {
     nk->priv_port = (uint16_t)(ipv4_hdr->src.addr & 0x00FF); 
     pub_port = (uint16_t)(ipv4_hdr->dst.addr & 0x00FF);
-    if (!pico_is_port_free(proto, pub_port))
+    if (!pico_is_port_free(proto, pub_port, NULL, &pico_proto_ipv4))
       return -1;
   }
 

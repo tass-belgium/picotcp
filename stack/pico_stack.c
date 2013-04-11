@@ -337,8 +337,7 @@ int pico_ethernet_send(struct pico_frame *f)
 
   else if (IS_IPV4(f)) {
     if (IS_BCAST(f) || destination_is_bcast(f)) {
-     dbg("IPV4: Destination is BROADCAST!\n");
-     dstmac = (struct pico_eth *) PICO_ETHADDR_ALL;
+      dstmac = (struct pico_eth *) PICO_ETHADDR_ALL;
     } 
 #ifdef PICO_SUPPORT_MCAST
     else if (destination_is_mcast(f)) {

@@ -80,7 +80,7 @@ int pico_startHttpServer(struct pico_ip4 * address)
 
 	uint16_t localHttpPort = short_be(HTTP_LISTEN_PORT);
 
-	if(!pico_is_port_free(localHttpPort,PICO_PROTO_TCP))
+	if(!pico_is_port_free(localHttpPort,PICO_PROTO_TCP, address, &pico_proto_ipv4))
 	{
 		pico_err = PICO_ERR_EADDRINUSE;
 		return HTTP_ERROR;

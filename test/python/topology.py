@@ -56,7 +56,7 @@ class Node:
 class Host:
   def add_routes(self, topology):
     for eth in [self.eth1, self.eth2]:
-      if eth:
+      if eth and not self.args.startswith("dhcpclient"):
         net = eth.net
         for h in topology.hosts:
           if h.eth1 and h.eth2:
@@ -139,15 +139,23 @@ class Host:
 
     if (net1):
       mysock = self.parse_options(self.eth1, delay1, bw1, loss1)
-      self.cmd.append("--vde")
-      vdeline = "eth1:"+mysock+':'+"172.16."+`self.eth1.net.n`+"."+`self.eth1.n`+":255.255.255.0:"
+      if (args.startswith("dhcpclient")):
+        self.cmd.append("--barevde")
+        vdeline = "eth1:"+mysock+':'
+      else:
+        self.cmd.append("--vde")
+        vdeline = "eth1:"+mysock+':'+"172.16."+`self.eth1.net.n`+"."+`self.eth1.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth1.net`, self.gw)):
         vdeline +=self.gw+":"
       self.cmd.append(vdeline)
     if (net2):
       mysock = self.parse_options(self.eth2, delay2, bw2, loss2)
-      self.cmd.append("--vde")
-      vdeline = "eth2:"+mysock+':'+"172.16."+`self.eth2.net.n`+"."+`self.eth2.n`+":255.255.255.0:"
+      if (args.startswith("dhcpclient")):
+        self.cmd.append("--barevde")
+        vdeline = "eth2:"+mysock+':'
+      else:
+        self.cmd.append("--vde")
+        vdeline = "eth2:"+mysock+':'+"172.16."+`self.eth2.net.n`+"."+`self.eth2.n`+":255.255.255.0:"
       if (self.gw and re.search("172\.16\."+`self.eth2.net`+".", self.gw)):
         vdeline +=self.gw+":"
       self.cmd.append(vdeline)

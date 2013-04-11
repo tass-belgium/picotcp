@@ -17,6 +17,7 @@ Authors: Frederik Van Slycken, Kristof Roelants
 #include <stdlib.h>
 
 # define dhcpd_dbg(...) do{}while(0)
+//# define dhcpd_dbg dbg
 
 static struct pico_dhcp_negotiation *Negotiation_list;
 
@@ -240,7 +241,7 @@ int pico_dhcp_server_initiate(struct pico_dhcpd_settings *setting)
     return -1;
   }
   if (pico_socket_bind(settings->s, &settings->my_ip, &port) != 0) {
-    dhcpd_dbg("DHCP: could not bind client socket\n");
+    dhcpd_dbg("DHCP: could not bind server socket (%s)\n", strerror(pico_err));
     pico_free(settings);
     return -1;
   }

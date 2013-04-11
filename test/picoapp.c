@@ -18,6 +18,7 @@
 #include "pico_http_util.h"
 
 #include <poll.h>
+#include <errno.h>
 #include <unistd.h>
 #include <signal.h>
 #include <getopt.h>
@@ -983,6 +984,7 @@ void app_tcpbench(char *arg)
 
   if (*mode == 't') {   /* TEST BENCH SEND MODE */
     tcpbench_mode = TCP_BENCH_TX;    
+    printf("tcpbench> TX\n");
 
     nxt = cpy_arg(&dest, nxt);
     if (!dest) {
@@ -1027,6 +1029,7 @@ void app_tcpbench(char *arg)
 
   } else if (*mode == 'r') {   /* TEST BENCH RECEIVE MODE */ 
     tcpbench_mode = TCP_BENCH_RX;    
+    printf("tcpbench> RX\n");
 
     cpy_arg(&sport, arg);
     if (!sport) {
@@ -1041,13 +1044,18 @@ void app_tcpbench(char *arg)
       port_be = short_be(5555);
     }
 
+    printf("tcpbench> OPEN\n");
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
     if (!s)
       exit(1);
 
-    if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0)
+    printf("tcpbench> BIND\n");
+    if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0) {
+      printf("tcpbench> BIND failed because %s\n", strerror(pico_err));
       exit(1);
+    }
 
+    printf("tcpbench> LISTEN\n");
     if (pico_socket_listen(s, 40) != 0)
       exit(1);
 
