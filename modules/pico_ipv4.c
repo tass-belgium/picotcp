@@ -946,10 +946,11 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
     return -1;
   }
 
-  if (remote_duple)
+  if (remote_duple) {
     dst = &remote_duple->remote_addr.ip4;
-  else
+  } else {
     dst = &f->sock->remote_addr.ip4;
+  }
 
   return pico_ipv4_frame_push(f, dst, f->sock->proto->proto_number);
 }

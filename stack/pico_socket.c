@@ -697,7 +697,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     		s->remote_addr.ip4.addr = PICO_IP4_BCAST;
     	}
 
-      /* socket remote info could change in a consecutive call, make persistant */
+      /* socket remote info could change in a consecutive call, make persistent */
       if (PROTO(s) == PICO_PROTO_UDP) {
         remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));
         remote_duple->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
@@ -772,7 +772,10 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
     f->payload += header_offset;
     f->payload_len -= header_offset;
     f->sock = s;
-    f->info = remote_duple;
+    if (remote_duple) {
+      f->info = pico_zalloc(sizeof(struct pico_remote_duple));
+      memcpy(f->info, remote_duple, sizeof(struct pico_remote_duple));
+    }
 
 #ifdef PICO_SUPPORT_IPFRAG
 #  ifdef PICO_SUPPORT_UDP
@@ -805,6 +808,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
     if (f->payload_len <= 0) {
       pico_frame_discard(f);
+      pico_free(remote_duple);
       return total_payload_written;
     }
 
@@ -819,6 +823,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       break;
     }
   }
+  pico_free(remote_duple);
   return total_payload_written;
 }
 

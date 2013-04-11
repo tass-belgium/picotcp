@@ -26,14 +26,14 @@ void pico_frame_discard(struct pico_frame *f)
     dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
 #endif
     pico_free(f->buffer);
+    if (f->info)
+      pico_free(f->info);
   }
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
   else {
     dbg("Removed frame @%p(copy), usage count now: %d\n", f, *f->usage_count);
   }
 #endif
-  if (f->info)
-    pico_free(f->info);
   pico_free(f);
 }
 

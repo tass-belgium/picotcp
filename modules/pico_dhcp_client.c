@@ -396,7 +396,7 @@ static struct dhcp_action_entry dhcp_fsm[] = {
 
 static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cli, uint8_t* data, int len)
 {
-	dbg("DHCP>received incoming event of type %d\n", type);
+	dbg("DHCPC>received incoming event of type %d\n", type);
 	switch(type){
 		case PICO_DHCP_MSG_OFFER:
 			if(dhcp_fsm[cli->state].offer != NULL)
