@@ -509,7 +509,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
 PICO_TREE_DECLARE(Routes, ipv4_route_compare);
 
-static struct pico_frame * pico_ipv4_frame_duplicate(struct pico_frame * f, struct pico_ipv4_link *route);
+static struct pico_frame * pico_ipv4_frame_copy_to_dev(struct pico_frame * f, struct pico_ipv4_link *route);
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
@@ -531,7 +531,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
 			struct pico_ipv4_link * link = index->keyValue;
 			struct pico_frame * frame;
 
-			frame = pico_ipv4_frame_duplicate(f,link);
+			frame = pico_ipv4_frame_copy_to_dev(f,link);
 			frame->start = (uint8_t *)frame->net_hdr;
 
 			len = pico_sendto_dev(frame);
@@ -1256,37 +1256,13 @@ void pico_ipv4_unreachable(struct pico_frame *f, int err)
   pico_transport_error(f, hdr->proto, err);
 }
 
-// this function will be called by the udp layer when asked to broadcast data to 255.255.255.255
-struct pico_frame * pico_ipv4_frame_duplicate(struct pico_frame * f, struct pico_ipv4_link *link)
+struct pico_frame * pico_ipv4_frame_copy_to_dev(struct pico_frame * f, struct pico_ipv4_link *link)
 {
 	struct pico_frame * frame = NULL;
-
-	frame = pico_socket_frame_alloc(f->sock, f->net_len - PICO_SIZE_IP4HDR);
-
-	if(!frame)
-		return NULL;
-
-	// copy the full content, nasty hack
-	memcpy(frame->datalink_hdr,f->datalink_hdr,f->net_len + PICO_SIZE_ETHHDR);
-
-	//frame->info = f->info;
-	frame->payload_len = f->payload_len;
-
-	// since this will be called only by udp
-	frame->payload += sizeof(struct pico_udp_hdr);
-
-	frame->failure_count = f->failure_count;
-	frame->flags = f->flags;
-	frame->priority = f->priority;
-	frame->proto = f->proto;
-	// adapt source
+  frame = pico_frame_deepcopy(f);
 	((struct pico_ipv4_hdr *) frame->net_hdr)->src.addr = link->address.addr;
-
 	pico_ipv4_checksum(frame);
-
-	// redirect to a different device
 	frame->dev = link->dev;
-
 	return frame;
 }
 #endif

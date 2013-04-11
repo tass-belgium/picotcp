@@ -2022,6 +2022,27 @@ START_TEST (test_crc_check)
 END_TEST
 #endif
 
+START_TEST (test_frame)
+{
+  struct pico_frame *f1;
+  struct pico_frame *cpy;
+  struct pico_frame *deepcpy;
+
+  f1 = pico_frame_alloc(200);
+  f1->payload = f1->buffer +32;
+  f1->net_hdr = f1->buffer +16;
+  cpy = pico_frame_copy(f1);
+  deepcpy = pico_frame_deepcopy(f1);
+  fail_unless(*f1->usage_count == 2);
+  fail_unless(*deepcpy->usage_count == 1);
+  pico_frame_discard(f1);
+  fail_unless(*cpy->usage_count == 1);
+  pico_frame_discard(cpy);
+  fail_unless(*deepcpy->usage_count == 1);
+  pico_frame_discard(deepcpy);
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -2037,6 +2058,7 @@ Suite *pico_suite(void)
 #ifdef PICO_SUPPORT_CRC
   TCase *crc = tcase_create("CRC");
 #endif
+  TCase *frame = tcase_create("FRAME");
 
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
@@ -2079,6 +2101,8 @@ Suite *pico_suite(void)
   tcase_add_test(crc, test_crc_check);
   suite_add_tcase(s, crc);
 #endif
+  tcase_add_test(frame, test_frame);
+  suite_add_tcase(s, frame);
 
   return s;
 }
