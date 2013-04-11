@@ -623,14 +623,24 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         return -1;
       }
     } else {
-      src4 = pico_ipv4_source_find(dst);
-      if (!src4) {
-        pico_err = PICO_ERR_EHOSTUNREACH;
-        return -1;
-      }
-      s->local_addr.ip4.addr = src4->addr;
-      s->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
+    	if( ((struct pico_ip4 *)dst)->addr != PICO_IP4_BCAST)
+    	{
+				src4 = pico_ipv4_source_find(dst);
+				if (!src4) {
+					pico_err = PICO_ERR_EHOSTUNREACH;
+					return -1;
+				}
+				s->local_addr.ip4.addr = src4->addr;
+				s->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
+    	}
 #     ifdef PICO_SUPPORT_UDP
+    	else if(PROTO(s) == PICO_PROTO_UDP)
+    	{
+    		// next function will check the bcast this way
+    		s->local_addr.ip4.addr = PICO_IP4_BCAST;
+    		s->remote_addr.ip4.addr = PICO_IP4_BCAST;
+    	}
+
       /* socket remote info could change in a consecutive call, make persistant */
       if (PROTO(s) == PICO_PROTO_UDP) {
         remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));

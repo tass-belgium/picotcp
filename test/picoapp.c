@@ -2079,6 +2079,7 @@ static char *cpy_arg(char **dst, char *str)
   return nxt;
 }
 
+void __wakeup(uint16_t ev, struct pico_socket *s){}
 
 
 void usage(char *arg0)
@@ -2335,6 +2336,12 @@ int main(int argc, char **argv)
 #else
 	  app_httpd(args);
 #endif
+	}
+				else IF_APPNAME("bcast")
+	{
+					struct pico_ip4 any = {.addr = 0xFFFFFFFFu};
+					struct pico_socket * s = pico_socket_open(PICO_PROTO_IPV4,PICO_PROTO_UDP,&__wakeup);
+					pico_socket_sendto(s,"abcd",5u,&any,1000);
 	}
         else {
           fprintf(stderr, "Unknown application %s\n", name);
