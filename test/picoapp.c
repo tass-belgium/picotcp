@@ -2087,6 +2087,9 @@ static char *cpy_arg(char **dst, char *str)
   return nxt;
 }
 
+void __wakeup(uint16_t ev, struct pico_socket *s){
+
+}
 
 
 void usage(char *arg0)
@@ -2104,6 +2107,7 @@ int main(int argc, char **argv)
   unsigned char macaddr[6] = {0,0,0,0xa,0xb,0x0};
   uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
   struct pico_device *dev = NULL;
+	struct pico_ip4 bcastAddr = {};
 
   struct option long_options[] = {
     {"help",0 , 0, 'h'},
@@ -2156,6 +2160,8 @@ int main(int argc, char **argv)
         pico_string_to_ipv4(addr, &ipaddr.addr);
         pico_string_to_ipv4(nm, &netmask.addr);
         pico_ipv4_link_add(dev, ipaddr, netmask);
+        bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
           printf("Adding default route via %08x\n", gateway.addr);
@@ -2193,6 +2199,7 @@ int main(int argc, char **argv)
         pico_string_to_ipv4(addr, &ipaddr.addr);
         pico_string_to_ipv4(nm, &netmask.addr);
         pico_ipv4_link_add(dev, ipaddr, netmask);
+        bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
         if (gw && *gw) {
           pico_string_to_ipv4(gw, &gateway.addr);
           pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
@@ -2343,6 +2350,15 @@ int main(int argc, char **argv)
 #else
 	  app_httpd(args);
 #endif
+	}
+				else IF_APPNAME("bcast")
+	{
+					struct pico_ip4 any = {.addr = 0xFFFFFFFFu};
+
+					struct pico_socket * s = pico_socket_open(PICO_PROTO_IPV4,PICO_PROTO_UDP,&__wakeup);
+					pico_socket_sendto(s,"abcd",5u,&any,1000);
+
+					pico_socket_sendto(s,"abcd",5u,&bcastAddr,1000);
 	}
         else {
           fprintf(stderr, "Unknown application %s\n", name);

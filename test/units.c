@@ -2047,14 +2047,14 @@ Suite *pico_suite(void)
   tcase_add_test(icmp, test_icmp4_unreachable_recv);
   suite_add_tcase(s, icmp);
 
-  //tcase_add_test(dhcp, test_dhcp_client);
-  //tcase_add_test(dhcp, test_dhcp_client_api);
+  tcase_add_test(dhcp, test_dhcp_client);
+  tcase_add_test(dhcp, test_dhcp_client_api);
 
-  //tcase_add_test(dhcp, test_dhcp_server_ipinarp);
-  //tcase_add_test(dhcp, test_dhcp_server_ipninarp);
-  //tcase_add_test(dhcp,test_dhcp_server_api);
-  //tcase_add_test(dhcp, test_dhcp);
-  //suite_add_tcase(s, dhcp);
+  tcase_add_test(dhcp, test_dhcp_server_ipinarp);
+  tcase_add_test(dhcp, test_dhcp_server_ipninarp);
+  tcase_add_test(dhcp,test_dhcp_server_api);
+  tcase_add_test(dhcp, test_dhcp);
+  suite_add_tcase(s, dhcp);
 
   tcase_add_test(dns, test_dns);
   suite_add_tcase(s, dns);
