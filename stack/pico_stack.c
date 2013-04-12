@@ -225,6 +225,8 @@ int pico_source_is_local(struct pico_frame *f)
 #ifdef PICO_SUPPORT_IPV4
   else if (IS_IPV4(f)) {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+    if (hdr->src.addr == PICO_IPV4_INADDR_ANY)
+      return 1;
     if (pico_ipv4_link_find(&hdr->src))
       return 1;
   }

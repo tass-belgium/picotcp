@@ -509,39 +509,17 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
 PICO_TREE_DECLARE(Routes, ipv4_route_compare);
 
-static struct pico_frame * pico_ipv4_frame_copy_to_dev(struct pico_frame * f, struct pico_ipv4_link *route);
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  struct pico_tree_node * index;
   f->start = (uint8_t*) f->net_hdr;
-    #ifdef PICO_SUPPORT_IPFILTER
+  #ifdef PICO_SUPPORT_IPFILTER
   if (ipfilter(f)) {
     /*pico_frame is discarded as result of the filtering*/
     return 0;
   }
   #endif
-
-  if( ((struct pico_ipv4_hdr *) f->net_hdr)->src.addr == PICO_IP4_BCAST )
-  {
-  // frame will be cloned and adapter for each device
-  	int len = -1;
-		pico_tree_foreach(index,&Tree_dev_link)
-		{
-			struct pico_ipv4_link * link = index->keyValue;
-			struct pico_frame * frame;
-
-			frame = pico_ipv4_frame_copy_to_dev(f,link);
-			frame->start = (uint8_t *)frame->net_hdr;
-
-			len = pico_sendto_dev(frame);
-		}
-
-		pico_frame_discard(f);
-		return len;
-  }
-  else
-  	return pico_sendto_dev(f);
+  return pico_sendto_dev(f);
 }
 
 
@@ -848,47 +826,36 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   }
 
   if (dst->addr == 0) {
-    dbg("IP src addr error\n");
+    dbg("IP destination addr error\n");
     pico_err = PICO_ERR_EINVAL;
     goto drop;
   }
 
-  if(dst->addr != PICO_IP4_BCAST)
-  {
-		route = route_find(dst);
-		if (!route) {
-			pico_err = PICO_ERR_EHOSTUNREACH;
-			if (pico_ipv4_is_unicast(dst->addr)) {
-				dbg("Route to %08x not found.\n", long_be(dst->addr));
-				goto drop;
-			}
-#ifdef PICO_SUPPORT_MCAST
-			link = mcast_default_link;
-			if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
-				ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
-#else
-    	goto drop;
-#endif
-		} else {
-			link = route->link;
+	route = route_find(dst);
+	if (!route) {
+		pico_err = PICO_ERR_EHOSTUNREACH;
+		if (pico_ipv4_is_unicast(dst->addr)) {
+			dbg("Route to %08x not found.\n", long_be(dst->addr));
+			goto drop;
 		}
-
-		if (f->sock)
-			f->sock->local_addr.ip4.addr = link->address.addr;
-  }
+#ifdef PICO_SUPPORT_MCAST
+	link = mcast_default_link;
+	if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
+		ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
+#else
+  goto drop;
+#endif
+	} else {
+		link = route->link;
+	}
 
   hdr->vhl = 0x45;
   hdr->len = short_be(f->transport_len + PICO_SIZE_IP4HDR);
   if (f->transport_hdr != f->payload)
     ipv4_progressive_id++;
   hdr->id = short_be(ipv4_progressive_id);
-
-  if(dst->addr != PICO_IP4_BCAST)
-  	hdr->src.addr = link->address.addr;
-  else
-  	hdr->src.addr = PICO_IP4_BCAST;
-
   hdr->dst.addr = dst->addr;
+  hdr->src.addr = link->address.addr;
   hdr->ttl = ttl;
   hdr->proto = proto;
   hdr->frag = short_be(PICO_IPV4_DONTFRAG);
@@ -908,8 +875,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (f->sock && f->sock->dev){
     //if the socket has its device set, use that (currently used for DHCP)
     f->dev = f->sock->dev;
-  }else if(dst->addr != PICO_IP4_BCAST)
+  } else {
     f->dev = link->dev;
+  }
 
 #ifdef PICO_SUPPORT_MCAST
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
@@ -1248,7 +1216,6 @@ int pico_ipv4_is_broadcast(uint32_t addr)
   return 0;
 }
 
-
 void pico_ipv4_unreachable(struct pico_frame *f, int err)
 {
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -1256,13 +1223,4 @@ void pico_ipv4_unreachable(struct pico_frame *f, int err)
   pico_transport_error(f, hdr->proto, err);
 }
 
-struct pico_frame * pico_ipv4_frame_copy_to_dev(struct pico_frame * f, struct pico_ipv4_link *link)
-{
-	struct pico_frame * frame = NULL;
-  frame = pico_frame_deepcopy(f);
-	((struct pico_ipv4_hdr *) frame->net_hdr)->src.addr = link->address.addr;
-	pico_ipv4_checksum(frame);
-	frame->dev = link->dev;
-	return frame;
-}
 #endif

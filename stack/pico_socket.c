@@ -407,31 +407,26 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
         struct pico_ip4 s_local, p_dst, p_src;
         ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
         s_local.addr = s->local_addr.ip4.addr;
-        printf("Receiving UDP %08x->%08x (local addr: %08x)\n", ip4hdr->src.addr, ip4hdr->dst.addr, s_local.addr);
         p_dst.addr = ip4hdr->dst.addr;
         p_src.addr = ip4hdr->src.addr;
         if ((pico_ipv4_is_broadcast(p_dst.addr))) {
           struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
-          printf("...Is BCAST\n");
           if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
             (dev == f->dev) ) { /* the source of the bcast packet is a neighbor... */
             cpy = pico_frame_copy(f);
             if (!cpy)
               return -1;
             if (pico_enqueue(&s->q_in, cpy) > 0) {
-              printf("...delivered\n");
               if (s->wakeup)
                 s->wakeup(PICO_SOCK_EV_RD, s);
             }
           }
         } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))
         { /* Either local socket is ANY, or matches dst */
-          printf("...Is UCAST for us...\n");
           cpy = pico_frame_copy(f);
           if (!cpy)
             return -1;
           if (pico_enqueue(&s->q_in, cpy) > 0) {
-            printf("...delivered\n");
             if (s->wakeup)
               s->wakeup(PICO_SOCK_EV_RD, s);
           }
@@ -687,24 +682,14 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         return -1;
       }
     } else {
-    	if( ((struct pico_ip4 *)dst)->addr != PICO_IP4_BCAST)
-    	{
-				src4 = pico_ipv4_source_find(dst);
-				if (!src4) {
-					pico_err = PICO_ERR_EHOSTUNREACH;
-					return -1;
-				}
-				s->local_addr.ip4.addr = src4->addr;
-				s->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
-    	}
+  		src4 = pico_ipv4_source_find(dst);
+      if (!src4) {
+				pico_err = PICO_ERR_EHOSTUNREACH;
+				return -1;
+			}
+      if (src4->addr != PICO_IPV4_INADDR_ANY)
+			  s->local_addr.ip4.addr = src4->addr;
 #     ifdef PICO_SUPPORT_UDP
-    	else if(PROTO(s) == PICO_PROTO_UDP)
-    	{
-    		// next function will check the bcast this way
-    		s->local_addr.ip4.addr = PICO_IP4_BCAST;
-    		s->remote_addr.ip4.addr = PICO_IP4_BCAST;
-    	}
-
       /* socket remote info could change in a consecutive call, make persistent */
       if (PROTO(s) == PICO_PROTO_UDP) {
         remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));
@@ -948,7 +933,6 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
   } else if (is_sock_ipv4(s)) {
     struct pico_ip4 *ip = (struct pico_ip4 *) local_addr;
     s->local_addr.ip4.addr = ip->addr;
-    printf("Bound to %08x:%d\n",s->local_addr.ip4.addr, short_be(*port));
   }
   return pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
 }
@@ -982,9 +966,7 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     local = pico_ipv4_source_find(ip);
     if (local) {
       s->local_addr.ip4.addr = local->addr;
-      printf("Connect: set local address to %08x\n", s->local_addr.ip4.addr);
     } else {
-      printf("Connect: No route to  %08x\n", ip->addr);
       pico_err = PICO_ERR_EHOSTUNREACH;
       return -1;
     }
