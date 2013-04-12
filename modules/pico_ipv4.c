@@ -592,6 +592,7 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 {
   struct pico_ipv4_route *r;
   struct pico_tree_node * index;
+
   if(addr->addr != PICO_IP4_BCAST)
   {
 		pico_tree_foreach_reverse(index, &Routes) {
@@ -603,8 +604,17 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
   }
   else
   {
-  	return pico_tree_first(&Routes);
+  	r = pico_tree_first(&Routes);
+  	if(!r->netmask.addr)
+  	{
+  		return r;
+  	}
+  	else
+  	{
+  		dbg("WARNING: no default route for a global broadcast found\n");
+  	}
   }
+
   return NULL;
 }
 
