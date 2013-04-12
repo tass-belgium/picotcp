@@ -592,11 +592,18 @@ static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
 {
   struct pico_ipv4_route *r;
   struct pico_tree_node * index;
-  pico_tree_foreach_reverse(index, &Routes) {
-  	r = index->keyValue;
-    if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
-      return r;
-    }
+  if(addr->addr != PICO_IP4_BCAST)
+  {
+		pico_tree_foreach_reverse(index, &Routes) {
+			r = index->keyValue;
+			if ((addr->addr & (r->netmask.addr)) == (r->dest.addr)) {
+				return r;
+			}
+		}
+  }
+  else
+  {
+  	return pico_tree_first(&Routes);
   }
   return NULL;
 }

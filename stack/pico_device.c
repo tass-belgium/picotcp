@@ -211,3 +211,30 @@ struct pico_device* pico_get_device(char* name)
   }
   return NULL;
 }
+
+int pico_device_broadcast(struct pico_frame * f)
+{
+	struct pico_tree_node * index;
+	int ret = -1;
+
+	pico_tree_foreach(index,&Device_tree)
+	{
+		struct pico_device * dev = index->keyValue;
+		if(dev != f->dev)
+		{
+			struct pico_frame * copy = pico_frame_copy(f);
+
+			if(!copy)
+				return -1;
+			copy->dev = dev;
+			copy->dev->send(copy->dev, copy->start, copy->len);
+			pico_frame_discard(copy);
+		}
+		else
+		{
+			ret = f->dev->send(f->dev, f->start, f->len);
+		}
+	}
+
+	return ret;
+}

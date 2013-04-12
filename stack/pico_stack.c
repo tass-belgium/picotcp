@@ -27,6 +27,8 @@ Authors: Daniele Lacamera
 #include "pico_socket.h"
 #include "heap.h"
 
+#define IS_LIMITED_BCAST(f) ( ((struct pico_ipv4_hdr *) f->net_hdr)->dst.addr == PICO_IP4_BCAST )
+
 #ifdef PICO_SUPPORT_MCAST
 # define PICO_SIZE_MCAST 3
   const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
@@ -365,7 +367,9 @@ int pico_ethernet_send(struct pico_frame *f)
       if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)){
         dbg("sending out packet destined for our own mac\n");
         return pico_ethernet_receive(f);
-      }else{
+      }else if(IS_LIMITED_BCAST(f)){
+      	return pico_device_broadcast(f);
+      }else {
         return f->dev->send(f->dev, f->start, f->len);
         /* Frame is discarded after this return by the caller */
       }
