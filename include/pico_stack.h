@@ -8,6 +8,7 @@ See LICENSE and COPYING for usage.
 #include "pico_config.h"
 #include "pico_frame.h"
 
+#define PICO_MAX_TIMERS 20
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
