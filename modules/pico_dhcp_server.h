@@ -29,7 +29,6 @@ struct pico_dhcpd_settings
 };
 
 struct pico_dhcp_negotiation {
-  struct pico_dhcp_negotiation *next;
   struct pico_dhcpd_settings *settings;
   struct pico_ip4 ipv4;
   struct pico_eth eth;
