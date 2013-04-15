@@ -19,9 +19,9 @@ Authors: Frederik Van Slycken, Kristof Roelants
 # define dhcpd_dbg(...) do{}while(0)
 //# define dhcpd_dbg dbg
 
-static struct pico_dhcp_negotiation *Negotiation_list;
-
-static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
+#define dhcpd_make_offer(x) dhcpd_make_reply(x, PICO_DHCP_MSG_OFFER)
+#define dhcpd_make_ack(x) dhcpd_make_reply(x, PICO_DHCP_MSG_ACK)
+#define ip_inrange(x) ((long_be(x) >= long_be(dn->settings->pool_start)) && (long_be(x) <= long_be(dn->settings->pool_end)))
 
 static int dhcp_settings_cmp(void *ka, void *kb)
 {
@@ -33,17 +33,30 @@ static int dhcp_settings_cmp(void *ka, void *kb)
   else
     return 0;
 } 
-PICO_TREE_DECLARE(DHCPTable, dhcp_settings_cmp);
+PICO_TREE_DECLARE(DHCPSettings, dhcp_settings_cmp);
+
+static int dhcp_negotiations_cmp(void *ka, void *kb)
+{
+  struct pico_dhcp_negotiation *a = ka, *b = kb;
+  if (a->xid < b->xid)
+    return -1; 
+  else if (a->xid > b->xid)
+    return 1;
+  else
+    return 0;
+} 
+PICO_TREE_DECLARE(DHCPNegotiations, dhcp_negotiations_cmp);
 
 static struct pico_dhcp_negotiation *get_negotiation_by_xid(uint32_t xid)
 {
-  struct pico_dhcp_negotiation *cur = Negotiation_list;
-  while (cur) {
-    if (cur->xid == xid)
-      return cur;
-    cur = cur->next;
-  }
-  return NULL;
+  struct pico_dhcp_negotiation test = { }, *neg = NULL;
+
+  test.xid = xid;
+  neg = pico_tree_findKey(&DHCPNegotiations, &test);
+  if (!neg)
+    return NULL;
+  else
+    return neg;
 }
 
 static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_type)
@@ -110,10 +123,6 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
   }
 }
 
-#define dhcpd_make_offer(x) dhcpd_make_reply(x, PICO_DHCP_MSG_OFFER)
-#define dhcpd_make_ack(x) dhcpd_make_reply(x, PICO_DHCP_MSG_ACK)
-#define ip_inrange(x) ((long_be(x) >= long_be(dn->settings->pool_start)) && (long_be(x) <= long_be(dn->settings->pool_end)))
-
 static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
 {
   struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
@@ -134,9 +143,12 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
       pico_err = PICO_ERR_ENOMEM;
       return;
     }
+    dn->xid = dhdr->xid;
+    dn->state = DHCPSTATE_DISCOVER;
+    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
 
     test.dev = pico_ipv4_link_find(&s->local_addr.ip4);
-    settings = pico_tree_findKey(&DHCPTable, &test);
+    settings = pico_tree_findKey(&DHCPSettings, &test);
     if (settings) {
       dn->settings = settings;
     } else {
@@ -145,11 +157,6 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
       return;
     }
 
-    dn->xid = dhdr->xid;
-    dn->state = DHCPSTATE_DISCOVER;
-    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
-    dn->next = Negotiation_list;
-    Negotiation_list = dn;
     ipv4 = pico_arp_reverse_lookup(&dn->eth);
     if (!ipv4) {
       dn->ipv4.addr = settings->pool_next;
@@ -157,6 +164,12 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
       settings->pool_next = long_be(long_be(settings->pool_next) + 1);
     } else {
       dn->ipv4.addr = ipv4->addr;
+    }
+
+    if (pico_tree_insert(&DHCPNegotiations, dn)) {
+      dhcpd_dbg("DHCPD WARNING: tried creating new negotation for existing xid %u\n", dn->xid);
+      pico_free(dn);
+      return; /* Element key already exists */
     }
   }
  
@@ -181,6 +194,24 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
     }
     opt_len = 20;
     opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
+  }
+}
+
+static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
+{
+  uint8_t buf[DHCPD_DATAGRAM_SIZE] = { };
+  int r = 0;
+  uint32_t peer = 0;
+  uint16_t port = 0;
+
+  dhcpd_dbg("DHCPD: called dhcpd_wakeup\n");
+  if (ev == PICO_SOCK_EV_RD) {
+    do {
+      r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
+      if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
+        dhcp_recv(s, buf, r);
+      }
+    } while(r>0);
   }
 }
 
@@ -246,7 +277,7 @@ int pico_dhcp_server_initiate(struct pico_dhcpd_settings *setting)
     return -1;
   }
   
-  if (pico_tree_insert(&DHCPTable, settings)) {
+  if (pico_tree_insert(&DHCPSettings, settings)) {
     dhcpd_dbg("DHCPD ERROR: link %s already configured\n", link->dev->name);
     pico_err = PICO_ERR_EINVAL;
     pico_free(settings);
@@ -255,23 +286,5 @@ int pico_dhcp_server_initiate(struct pico_dhcpd_settings *setting)
   dhcpd_dbg("DHCPD: configured DHCP server for link %s\n", link->dev->name);
 
   return 0;
-}
-
-static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
-{
-  uint8_t buf[DHCPD_DATAGRAM_SIZE] = { };
-  int r = 0;
-  uint32_t peer = 0;
-  uint16_t port = 0;
-
-  dhcpd_dbg("DHCPD: called dhcpd_wakeup\n");
-  if (ev == PICO_SOCK_EV_RD) {
-    do {
-      r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
-      if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
-        dhcp_recv(s, buf, r);
-      }
-    } while(r>0);
-  }
 }
 #endif /* PICO_SUPPORT_DHCP */
