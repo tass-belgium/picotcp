@@ -404,12 +404,11 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     pico_tree_foreach(index, &sp->socks) {
       s = index->keyValue;
       if (IS_IPV4(f)) { /* IPV4 */
-        struct pico_ip4 s_local, p_dst, p_src;
+        struct pico_ip4 s_local, p_dst;
         ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
         s_local.addr = s->local_addr.ip4.addr;
         p_dst.addr = ip4hdr->dst.addr;
-        p_src.addr = ip4hdr->src.addr;
-        if ((pico_ipv4_is_broadcast(p_dst.addr))) {
+        if ((pico_ipv4_is_broadcast(p_dst.addr)) || !pico_ipv4_is_unicast(p_dst.addr)) {
           struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
           if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
             (dev == f->dev) ) { /* the source of the bcast packet is a neighbor... */

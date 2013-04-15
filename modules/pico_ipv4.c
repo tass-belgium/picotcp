@@ -24,7 +24,7 @@ Authors: Daniele Lacamera, Markian Yskout
 
 #ifdef PICO_SUPPORT_MCAST
 # define mcast_dbg(...) do{}while(0)
-# define PICO_MCAST_ALL_HOSTS 0x010000E0 /* 224.0.0.1 */
+# define PICO_MCAST_ALL_HOSTS long_be(0xE0000001) /* 224.0.0.1 */
   /* Default network interface for multicast transmission */
   static struct pico_ipv4_link *mcast_default_link = NULL;
 #endif
@@ -1076,10 +1076,14 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   pico_tree_insert(&Tree_dev_link, new);
 #ifdef PICO_SUPPORT_MCAST
   do {
-    struct pico_ip4 mcast_all_hosts;
-    if (!mcast_default_link)
+    struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
+    mcast_addr.addr = long_be(0xE0000000); /* 224.0.0.0 */
+    mcast_nm.addr = long_be(0xF0000000); /* 15.0.0.0 */
+    mcast_gw.addr = long_be(0x00000000);
+    if (!mcast_default_link) {
       mcast_default_link = new;
-
+      pico_ipv4_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
+    }
     mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
     pico_ipv4_mcast_join_group(&mcast_all_hosts, new);
   } while(0);

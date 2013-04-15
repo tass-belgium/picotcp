@@ -345,7 +345,7 @@ int pico_ethernet_send(struct pico_frame *f)
     } 
 #ifdef PICO_SUPPORT_MCAST
     else if (destination_is_mcast(f)) {
-      uint8_t pico_mcast_mac[6] = {0x01, 0x00, 0x05, 0x00, 0x00, 0x00};
+      uint8_t pico_mcast_mac[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
       dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     } 
 #endif
