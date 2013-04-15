@@ -34,7 +34,6 @@
 //#define PICOAPP_IPFILTER 1
 
 struct pico_ip4 inaddr_any = { };
-struct pico_ip4 local = {};
 
 static char *cpy_arg(char **dst, char *str);
 
@@ -153,12 +152,14 @@ void app_udpecho(char *arg)
 
   udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
   if (!udpecho_pas->s) {
+  	printf("Error opennning...\n");
     free(udpecho_pas);
     exit(1);
   }
 
   if (pico_socket_bind(udpecho_pas->s, &inaddr_any, &port_be)!= 0) {
     free(udpecho_pas);
+    printf("Error on binding...\n");
     exit(1);
   }
 
@@ -430,13 +431,13 @@ void udpnatclient_send(unsigned long now, void *arg) {
   static int loop = 0;
 
   for ( i = 0; i < 3; i++) {
-    w = pico_socket_sendto(s, buf, 1400,&udpnatclient_inaddr_dst,udpnatclient_port_be);
+    w = pico_socket_send(s, buf, 1400);
   }
 
   if (++loop > 1000) {
     udpnatclient_port_be = 0;
     for (i = 0; i < 3; i++) {
-      w = pico_socket_sendto(s, end, 4,&udpnatclient_inaddr_dst,udpnatclient_port_be);
+      w = pico_socket_send(s, end, 4);
       if (w <= 0)
         break;
       printf("End!\n");
@@ -450,12 +451,10 @@ void cb_udpnatclient(uint16_t ev, struct pico_socket *s)
 {
   char recvbuf[1400];
   int r=0;
-  uint32_t peer;
-  uint16_t port;
 
   if (ev & PICO_SOCK_EV_RD) {
     do {
-      r = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+      r = pico_socket_recv(s, recvbuf, 1400);
     } while(r>0);
   }
 
@@ -485,9 +484,9 @@ void udpnatclient_open_socket(unsigned long now, void *arg)
   if (!s)
     exit(1);
 
-  if (pico_socket_bind(s, &udpnatclient_inaddr_dst, &udpnatclient_port_be)!= 0)
+  if (pico_socket_connect(s, &udpnatclient_inaddr_dst, udpnatclient_port_be)!= 0)
   {
-    printf("Error binding the port !!\n");
+    printf("Error connecting\n");
     exit(1);
   }
 
@@ -532,7 +531,7 @@ void app_udpnatclient(char *arg)
 
     pico_string_to_ipv4(daddr, &inaddr_dst.addr);
 
-    if (pico_socket_bind(s, &local, &port_be)!= 0)
+    if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
     {
       printf("Error binding the port \n");
       exit(1);
@@ -569,7 +568,7 @@ void udpclient_send(unsigned long now, void *arg) {
 
   if (++loop > udpclient_pas->loops) {
     for (i = 0; i < 3; i++) {
-      w = pico_socket_sendto(s, end, 4, &udpclient_pas->dest,udpclient_pas->dport);
+      w = pico_socket_send(s, end, 4);
       if (w <= 0)
         break;
       printf("%s: requested exit of echo\n", __FUNCTION__);
@@ -585,7 +584,7 @@ void udpclient_send(unsigned long now, void *arg) {
     memset(buf, '1', udpclient_pas->datasize);
     picoapp_dbg("%s: performing loop %u\n", __FUNCTION__, loop);
     for (i = 0; i < udpclient_pas->subloops; i++) {
-      w =  pico_socket_sendto(s, buf, udpclient_pas->datasize, &udpclient_pas->dest,udpclient_pas->dport);
+      w =  pico_socket_send(s, buf, udpclient_pas->datasize);
       if (w <= 0)
         break;
     }
@@ -600,8 +599,6 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
 {
   char *recvbuf = NULL;
   int r = 0;
-  uint32_t peer = 0;
-  uint16_t port = 0;
 
   if (ev & PICO_SOCK_EV_RD) {
     recvbuf = calloc(1, udpclient_pas->datasize);
@@ -610,7 +607,7 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
       return;
     }
     do {
-      r = pico_socket_recvfrom(s, recvbuf, udpclient_pas->datasize, &peer, &port);
+      r = pico_socket_recv(s, recvbuf, udpclient_pas->datasize);
     } while(r>0);
     free(recvbuf);
   }
@@ -713,9 +710,10 @@ void app_udpclient(char *arg)
   udpclient_pas->dest = inaddr_dst;
   udpclient_pas->dport = port_be;
 
-   if(pico_socket_bind(udpclient_pas->s ,&inaddr_any,&port_be) != 0)
+   if(pico_socket_connect(udpclient_pas->s ,&inaddr_dst,port_be) != 0)
   {
-    printf("Problem with socket bind\n");
+    printf("Problem with socket bind %d \n",pico_err);
+
     exit(1);
   }
 
@@ -862,7 +860,11 @@ void app_tcpclient(char *arg)
   pico_socket_bind(s, &local_addr, &local_port);*/
   
   pico_string_to_ipv4(dest, &server_addr.addr);
-  pico_socket_connect(s, &server_addr, port_be);
+  if(pico_socket_connect(s, &server_addr, port_be) < 0)
+  {
+  	printf("Error connecting...%d \n",pico_err);
+  	exit(1);
+  }
 }
 /*** END TCP CLIENT ***/
 
@@ -1249,8 +1251,12 @@ void app_mcastclient(char *arg)
   printf("Multicast client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
 
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_mcastclient);
-  if (!s)
-    exit(1);
+
+    if (!s)
+    {
+    	printf("Error opening. Code error : %d\n",pico_err);
+      exit(1);
+    }
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
   pico_string_to_ipv4(laddr, &inaddr_link.addr);
@@ -1259,10 +1265,16 @@ void app_mcastclient(char *arg)
   pico_string_to_ipv4("10.40.0.9", &inaddr_uni.addr);
 
   if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0)
+  {
+  	printf("Error binding. Code error : %d\n",pico_err);
     exit(1);
+  }
 
   if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+  {
+  	printf("Error connecting. Code error : %d\n",pico_err);
     exit(1);
+  }
 
 #ifdef PICO_SUPPORT_MCAST
   /* Start of pico_socket_setoption */
