@@ -974,7 +974,8 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP) {
-    pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+    if(pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0) < 0)
+      return -1;
     pico_err = PICO_ERR_NOERR;
     ret = 0;
   }
@@ -983,7 +984,8 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
     if (pico_tcp_initconn(s) == 0) {
-      pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, 0, 0);
+      if(pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, 0, 0) <0)
+        return -1;
       pico_err = PICO_ERR_NOERR;
       ret = 0;
     } else {
@@ -991,7 +993,9 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     }
   }
 #endif
-  pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+  if(pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0)<0)
+   return -1;
+
   return ret;
 }
 

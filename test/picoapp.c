@@ -34,6 +34,8 @@
 //#define PICOAPP_IPFILTER 1
 
 struct pico_ip4 inaddr_any = { };
+struct pico_ip4 local = {};
+
 static char *cpy_arg(char **dst, char *str);
 
 void deferred_exit(unsigned long now, void *arg)
@@ -428,13 +430,13 @@ void udpnatclient_send(unsigned long now, void *arg) {
   static int loop = 0;
 
   for ( i = 0; i < 3; i++) {
-    w = pico_socket_send(s, buf, 1400);
+    w = pico_socket_sendto(s, buf, 1400,&udpnatclient_inaddr_dst,udpnatclient_port_be);
   }
 
   if (++loop > 1000) {
     udpnatclient_port_be = 0;
     for (i = 0; i < 3; i++) {
-      w = pico_socket_send(s, end, 4);
+      w = pico_socket_sendto(s, end, 4,&udpnatclient_inaddr_dst,udpnatclient_port_be);
       if (w <= 0)
         break;
       printf("End!\n");
@@ -483,8 +485,11 @@ void udpnatclient_open_socket(unsigned long now, void *arg)
   if (!s)
     exit(1);
 
-  if (pico_socket_connect(s, &udpnatclient_inaddr_dst, udpnatclient_port_be)!= 0)
+  if (pico_socket_bind(s, &udpnatclient_inaddr_dst, &udpnatclient_port_be)!= 0)
+  {
+    printf("Error binding the port !!\n");
     exit(1);
+  }
 
   picoapp_dbg("New socket with port %u\n", s->local_port);
 
@@ -527,8 +532,11 @@ void app_udpnatclient(char *arg)
 
     pico_string_to_ipv4(daddr, &inaddr_dst.addr);
 
-    if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+    if (pico_socket_bind(s, &local, &port_be)!= 0)
+    {
+      printf("Error binding the port \n");
       exit(1);
+    }
 
     picoapp_dbg("New socket with port %u\n", s->local_port);
 
@@ -546,6 +554,8 @@ struct udpclient_pas {
   uint8_t loops;
   uint8_t subloops;
   uint16_t datasize;
+  struct pico_ip4 dest;
+  uint16_t dport;
 }; /* per application struct */
 
 static struct udpclient_pas *udpclient_pas;
@@ -559,7 +569,7 @@ void udpclient_send(unsigned long now, void *arg) {
 
   if (++loop > udpclient_pas->loops) {
     for (i = 0; i < 3; i++) {
-      w = pico_socket_send(s, end, 4);
+      w = pico_socket_sendto(s, end, 4, &udpclient_pas->dest,udpclient_pas->dport);
       if (w <= 0)
         break;
       printf("%s: requested exit of echo\n", __FUNCTION__);
@@ -575,7 +585,7 @@ void udpclient_send(unsigned long now, void *arg) {
     memset(buf, '1', udpclient_pas->datasize);
     picoapp_dbg("%s: performing loop %u\n", __FUNCTION__, loop);
     for (i = 0; i < udpclient_pas->subloops; i++) {
-      w = pico_socket_send(s, buf, udpclient_pas->datasize);
+      w =  pico_socket_sendto(s, buf, udpclient_pas->datasize, &udpclient_pas->dest,udpclient_pas->dport);
       if (w <= 0)
         break;
     }
@@ -700,8 +710,12 @@ void app_udpclient(char *arg)
   }
 
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+  udpclient_pas->dest = inaddr_dst;
+  udpclient_pas->dport = port_be;
 
-  if (pico_socket_connect(udpclient_pas->s, &inaddr_dst, port_be)!= 0) {
+   if(pico_socket_bind(udpclient_pas->s ,&inaddr_any,&port_be) != 0)
+  {
+    printf("Problem with socket bind\n");
     exit(1);
   }
 
