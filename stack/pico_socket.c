@@ -310,16 +310,12 @@ static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, 
     return -1;
   }
 
-  pico_tree_delete(&sp->socks,s);
-
   s->state |= more_states;
   s->state &= (~less_states);
   if (tcp_state) {
     s->state &= 0x00FF;
     s->state |= tcp_state;
   }
-
-  pico_tree_insert(&sp->socks,s);
 
   return 0;
 }
@@ -970,6 +966,8 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     }
   }
 
+  pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+
 #ifdef PICO_SUPPORT_UDP
   if (PROTO(s) == PICO_PROTO_UDP) {
     pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
@@ -989,7 +987,6 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
     }
   }
 #endif
-  pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
 
   return ret;
 }
