@@ -1047,14 +1047,16 @@ void app_tcpbench(char *arg)
     tcpbench_mode = TCP_BENCH_RX;    
     printf("tcpbench> RX\n");
 
-    cpy_arg(&sport, arg);
+    cpy_arg(&sport, nxt);
     if (!sport) {
       fprintf(stderr, "tcpbench receive needs the following format: tcpbench:rx[:dport]\n");
       exit(255);
     }
     if (sport) {
+      printf("s-port is %s\n", sport);
       port = atoi(sport);
       port_be = short_be((uint16_t)port);
+      printf("tcpbench> Got port %d\n", port);
     }
     if (port == 0) {
       port_be = short_be(5555);

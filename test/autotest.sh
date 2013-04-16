@@ -10,8 +10,8 @@ echo "PING TEST"
 killall picoapp.elf
 
 echo "TCP TEST"
-(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0: -a tcpecho:6667) &
-time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0: -a tcpclient:10.40.0.8:6667 || exit 1)
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0: -a tcpbench:r:6667:) &
+time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0: -a tcpbench:t:10.40.0.8:6667: || exit 1)
 wait || exit 1
 wait
 
