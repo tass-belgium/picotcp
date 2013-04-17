@@ -54,6 +54,7 @@ void deferred_exit(unsigned long now, void *arg)
 
 
 /**** UDP ECHO ****/
+/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.255.0: -a udpecho:10.40.0.8:6667:1400 */
 static int udpecho_exit = 0;
 
 struct udpecho_pas {
@@ -65,10 +66,10 @@ static struct udpecho_pas *udpecho_pas;
 
 void cb_udpecho(uint16_t ev, struct pico_socket *s)
 {
-  int r = 0;
-  uint32_t peer = 0;
-  uint16_t port = 0;
   char *recvbuf = NULL;
+  uint16_t port = 0;
+  uint32_t peer = 0;
+  int r = 0;
 
   if (udpecho_exit)
     return;
@@ -89,7 +90,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
         }
         pico_socket_sendto(s, recvbuf, r, &peer, port);
       }
-    } while(r>0);
+    } while (r > 0);
     free(recvbuf);
   }
 
@@ -104,10 +105,10 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
 
 void app_udpecho(char *arg)
 {
-  int port = 0;
-  uint16_t port_be = 0;
-  char *sport = NULL, *s_datasize = NULL;
+  char *baddr = NULL, *sport = NULL, *s_datasize = NULL;
   char *nxt = arg;
+  uint16_t port_be = 0;
+  struct pico_ip4 inaddr_bind = { };
 
   udpecho_pas = calloc(1, sizeof(struct udpecho_pas));
   if (!udpecho_pas) {
@@ -117,49 +118,54 @@ void app_udpecho(char *arg)
   udpecho_pas->s = NULL;
   udpecho_pas->datasize = 1400;
 
+  /* start of argument parsing */
   if (nxt) {
-    nxt = cpy_arg(&sport, arg);
-    if (sport) {
-      port = atoi(sport);
-      free(sport);
-      if (port > 0)
-        port_be = short_be(port);
+    nxt = cpy_arg(&baddr, nxt);
+    if (baddr) {
+      pico_string_to_ipv4(baddr, &inaddr_bind.addr);
+    } else {
+      goto out;
     }
-    if (port == 0) {
+  } else {
+    /* missing bind_addr */
+    goto out;
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&sport, nxt);
+    if (sport && atoi(sport)) {
+      port_be = short_be(atoi(sport));
+    } else {
       port_be = short_be(5555);
     }
   } else {
-    /* missing dest_port */
-    fprintf(stderr, "udpecho expects the following format: udpecho:dest_port[:datasize]\n");
-    free(udpecho_pas);
-    exit(255);
+    /* missing listen_port */
+    goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&s_datasize, nxt);
     if (s_datasize && atoi(s_datasize)) {
       udpecho_pas->datasize = atoi(s_datasize);
-      free(s_datasize);
     } else {
       /* incorrect datasize */
-      fprintf(stderr, "udpecho expects the following format: udpecho:dest_port[:datasize]\n");
-      free(udpecho_pas);
-      exit(255);
+      goto out;
     }
+  } else {
+    /* missing datasize, use default */
   }
-
-  printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n", __FUNCTION__, udpecho_pas->datasize, short_be(port_be));
+  /* end of argument parsing */
 
   udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
   if (!udpecho_pas->s) {
-  	printf("Error opennning...\n");
+  	printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
     free(udpecho_pas);
     exit(1);
   }
 
-  if (pico_socket_bind(udpecho_pas->s, &inaddr_any, &port_be)!= 0) {
+  if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &port_be)!= 0) {
     free(udpecho_pas);
-    printf("Error on binding...\n");
+  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(port_be), strerror(pico_err));
     exit(1);
   }
 
@@ -183,6 +189,14 @@ void app_udpecho(char *arg)
   }
 #endif
 
+  printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n", __FUNCTION__, udpecho_pas->datasize, short_be(port_be));
+
+  return;
+
+  out:
+    fprintf(stderr, "udpecho expects the following format: udpecho:bind_addr:listen_port[:datasize]\n");
+    free(udpecho_pas);
+    exit(255);
 }
 /*** END UDP ECHO ***/
 
@@ -608,7 +622,7 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
     }
     do {
       r = pico_socket_recv(s, recvbuf, udpclient_pas->datasize);
-    } while(r>0);
+    } while ( r > 0);
     free(recvbuf);
   }
 
@@ -622,7 +636,6 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
 void app_udpclient(char *arg)
 {
   char *daddr = NULL, *dport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
-  int port = 0;
   uint16_t port_be = 0;
   struct pico_ip4 inaddr_dst = { };
   char *nxt = arg;
@@ -641,67 +654,56 @@ void app_udpclient(char *arg)
   if (nxt) {
     nxt = cpy_arg(&daddr, arg);
     if (!daddr) {
-      fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
-      free(udpclient_pas);
-      exit(255);
+      goto out;
     }
   } else {
     /* missing dest_addr */
-    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
-    exit(255);
+    goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&dport, nxt);
-    if (dport) {
-      port = atoi(dport);
-      if (port > 0)
-        port_be = short_be(port);
+    if (dport && atoi(dport)) {
+      port_be = short_be(atoi(dport));
+    } else {
+      goto out;
     }
   } else {
-    port_be = short_be(5555);
+    /* missing dest_port */
+    goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&s_datasize, nxt);
     if (s_datasize) {
       udpclient_pas->datasize = atoi(s_datasize);
-      free(s_datasize);
     }
   } else {
-    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
-    exit(255);
+    /* missing datasize, use default */
   }
 
   if (nxt) {
     nxt = cpy_arg(&s_loops, nxt);
     if (s_loops) {
       udpclient_pas->loops = atoi(s_loops);
-      free(s_loops);
     }
   } else {
-    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
-    exit(255);
+    /* missing loops, use default */
   }
  
   if (nxt) {
     nxt = cpy_arg(&s_subloops, nxt);
     if (s_subloops) {
       udpclient_pas->subloops = atoi(s_subloops);
-      free(s_subloops);
     }
   } else {
-    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr[:dest_port:datasize:loops:subloops]\n");
-    exit(255);
+    /* missing subloops, use default */
   }
   /* end of argument parsing */
- 
-  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n", 
-          __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(port_be));
 
   udpclient_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
   if (!udpclient_pas->s) {
-    free(daddr);
+  	printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
     free(udpclient_pas);
     exit(1);
   }
@@ -709,15 +711,23 @@ void app_udpclient(char *arg)
   pico_string_to_ipv4(daddr, &inaddr_dst.addr);
   udpclient_pas->dest = inaddr_dst;
   udpclient_pas->dport = port_be;
-
-   if(pico_socket_connect(udpclient_pas->s ,&inaddr_dst,port_be) != 0)
+  if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, port_be) != 0)
   {
-    printf("Problem with socket bind %d \n",pico_err);
-
+  	printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(port_be), strerror(pico_err));
+    free(udpclient_pas);
     exit(1);
   }
 
+  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n", 
+          __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(port_be));
+
   pico_timer_add(100, udpclient_send, NULL);
+  return;
+
+  out:
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr:dest_port[:datasize:loops:subloops]\n");
+    free(udpclient_pas);
+    exit(255);
 }
 /*** END UDP CLIENT ***/
 
@@ -1384,11 +1394,15 @@ void app_mcastreceive(char *arg)
   pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
   pico_string_to_ipv4(laddr, &inaddr_link.addr);
 
-  if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0)
+  if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0) {
+    printf("MCAST APP: bind of %08X:%u failed: %s\n", long_be(inaddr_link.addr), short_be(port_be), strerror(pico_err));
     exit(1);
+  }
   
-  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0) {
+    printf("MCAST APP: connect to %08X:%u failed: %s\n", long_be(inaddr_dst.addr), short_be(port_be), strerror(pico_err));
     exit(1);
+  }
 
   mreq.mcast_group_addr = inaddr_mcast;
   mreq.mcast_link_addr = inaddr_link;
