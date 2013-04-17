@@ -42,7 +42,7 @@ echo "MULTICAST TEST"
 (./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.2:10.40.0.4:224.7.7.7) &
 (./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0: -a mcastreceive:10.40.0.2:10.40.0.5:224.7.7.7) &
 sleep 2
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.2 || exit 1
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:10.40.0.2:224.7.7.7:6667 || exit 1
 (wait && wait && wait) || exit 1
 
 killall picoapp.elf

@@ -371,136 +371,80 @@ void app_udpecho(char *arg)
 /*** END UDP ECHO ***/
 
 /*** Multicast CLIENT ***/
-/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastclient:224.7.7.7:10.40.0.2 */
-void mcastclient_send(unsigned long now, void *arg) {
-  int i, w;
-  struct pico_socket *s = (struct pico_socket *)arg;
-  char buf[30] = {0};
-  char end[4] = "end";
-  static int loop = 0;
-
-  if (++loop > 3) {
-    for (i = 0; i < 3; i++) {
-      w = pico_socket_send(s, end, 4);
-      if (w <= 0)
-        break;
-      printf("End!\n");
-    }
-    pico_timer_add(1000, deferred_exit, NULL);
-    return;
-  }
-
-  sprintf(buf, "TESTING PACKET %d", loop);
-  printf("\n---------- Sending %s\n", buf);
-  w = pico_socket_send(s, buf, 30);
-
-  pico_timer_add(1000, mcastclient_send, s);
-}
-
-void cb_mcastclient(uint16_t ev, struct pico_socket *s)
+/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:224.7.7.7:10.40.0.2 */
+void app_mcastsend(char *arg)
 {
-  char recvbuf[30] = {0};
-  char speer[16] = {0};
-  int r = 0;
-  uint32_t peer;
-  uint16_t port;
-
-  if (ev & PICO_SOCK_EV_RD) {
-    //do {
-      r = pico_socket_recvfrom(s, recvbuf, 30, &peer, &port);
-    //} while(r>0);
-    if (r > 0)
-      pico_ipv4_to_string(speer, peer);
-      printf(">>>>>>>>>> mcastclient: echo from %s -> %s\n", speer, recvbuf);
-  }
-
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    exit(7);
-  }
-
-}
-
-void app_mcastclient(char *arg)
-{
-  struct pico_socket *s;
-  char *daddr, *laddr, *dport;
-  int port = 0;
+  char *maddr = NULL, *laddr = NULL, *dport = NULL;
   uint16_t port_be = 0;
-  struct pico_ip4 inaddr_dst;
-  struct pico_ip4 inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null;
-  char *nxt;
-#ifdef PICO_SUPPORT_MCAST
-  struct pico_ip_mreq mreq = {{0},{0}};
-#endif
+  struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
+  char *new_arg = NULL, *p = NULL, *nxt = arg;
 
-  nxt = cpy_arg(&daddr, arg);
-  if (!daddr) {
-    fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
-    fprintf(stderr, " missing dest_addr\n");
-    exit(255);
+  /* start of parameter parsing */
+  if (nxt) {
+    nxt = cpy_arg(&laddr, nxt);
+    if (laddr) {
+      pico_string_to_ipv4(laddr, &inaddr_link.addr);
+    } else {
+      goto out;
+    }
+  } else {
+    /* no arguments */
+    goto out;
   }
 
   if (nxt) {
-    nxt = cpy_arg(&laddr, nxt);
-    if (!laddr) {
-      fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
-      fprintf(stderr, " missing link_addr\n");
-      exit(255);
+    nxt = cpy_arg(&maddr, nxt);
+    if (maddr) {
+      pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+    } else {
+      goto out;
     }
   } else {
-    fprintf(stderr, " mcastclient expects the following format: mcastclient:dest_addr:link_addr[:dest_port]:\n");
-    fprintf(stderr, " missing link_addr\n");
-    exit(255);
+    /* missing multicast address */
+    goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&dport, nxt);
-    if (dport) {
-      port = atoi(dport);
-      if (port > 0)
-        port_be = short_be(port);
+    if (dport && atoi(dport)) {
+      port_be = short_be(atoi(dport));
+    } else {
+      /* incorrect dest_port */
+      goto out;
     }
-  }
-  if (port == 0) {
-    port_be = short_be(5555);
-  }
-
-  printf("Multicast client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
-
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_mcastclient);
-
-    if (!s)
-    {
-    	printf("Error opening. Code error : %d\n",pico_err);
-      exit(1);
-    }
-
-  pico_string_to_ipv4(daddr, &inaddr_dst.addr);
-  pico_string_to_ipv4(laddr, &inaddr_link.addr);
-  pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
-  pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
-  pico_string_to_ipv4("10.40.0.9", &inaddr_uni.addr);
-
-  if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0) {
-    printf("MCAST APP: bind of %08X:%u failed: %s\n", inaddr_link.addr, port_be, strerror(pico_err));
-    exit(1);
+  } else {
+    /* missing dest_port */
+    goto out;
   }
 
-  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0) {
-    printf("MCAST APP: connect of %08X:%u failed: %s\n", inaddr_dst.addr, port_be, strerror(pico_err));
-    exit(1);
-  }
+  printf("mcastsend started. Sending packets to %08X:%u\n", long_be(inaddr_mcast.addr), short_be(port_be));
 
-  /* Testing multicast loopback */
-  mreq.mcast_group_addr = inaddr_dst;
+  /* XXX reimplement multicast loopback */
+  /*
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_ip_mreq mreq = { };
+#endif
+  mreq.mcast_group_addr = inaddr_mcast;
   mreq.mcast_link_addr = inaddr_link;
   if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
-    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
+    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
     exit(1);
   }
+  */
 
-  pico_timer_add(1000, mcastclient_send, s);
+  /* udpclient:dest_addr:dest_port[:datasize:loops:subloops] */
+  new_arg = calloc(1, strlen(maddr) + 1 + strlen(dport) + strlen(":64:10:5") + 1);
+  p = strcat(new_arg, maddr);
+  p = strcat(p + strlen(maddr), ":");
+  p = strcat(p + 1, dport);
+  p = strcat(p + strlen(dport), ":64:10:5");
+
+  app_udpclient(new_arg);
+  return;
+
+  out:
+    fprintf(stderr, "mcastsend expects the following format: mcastsend:link_addr:mcast_addr:dest_port\n");
+    exit(255);
 }
 /*** END Multicast CLIENT ***/
 
@@ -2153,11 +2097,11 @@ int main(int argc, char **argv)
         else IF_APPNAME("udpnatclient") {
           app_udpnatclient(args);
         }
-        else IF_APPNAME("mcastclient") {
+        else IF_APPNAME("mcastsend") {
 #ifndef PICO_SUPPORT_MCAST
           return 0;
 #endif
-          app_mcastclient(args);
+          app_mcastsend(args);
         }
         else IF_APPNAME("mcastreceive") {
 #ifndef PICO_SUPPORT_MCAST
