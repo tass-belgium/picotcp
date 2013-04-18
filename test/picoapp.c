@@ -28,8 +28,8 @@
 #include <libgen.h>
 
 //#define INFINITE_TCPTEST
-#define picoapp_dbg(...) do{}while(0)
-//#define picoapp_dbg printf
+//#define picoapp_dbg(...) do{}while(0)
+#define picoapp_dbg printf
 
 //#define PICOAPP_IPFILTER 1
 
@@ -54,13 +54,26 @@ void deferred_exit(unsigned long now, void *arg)
 
 
 /*** UDP CLIENT ***/
+/* 
+ * udpclient expects the following format: udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops]
+ * dest_addr: IP address to send datagrams to
+ * sendto_port: port number to send datagrams to
+ * listen_port [OPTIONAL]: port number on which the udpclient listens
+ * datasize [OPTIONAL]: size of the data given to the socket in one go 
+ * loops [OPTIONAL]: number of intervals in which data is send
+ * subloops [OPTIONAL]: number of sends in one interval
+ * 
+ * REMARK: once an optional parameter is given, all optional parameters need a value!
+ *
+ * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a udpclient:10.40.0.3:6667:6667:1400:100:10 
+*/
 struct udpclient_pas {
   struct pico_socket *s;
   uint8_t loops;
   uint8_t subloops;
   uint16_t datasize;
   struct pico_ip4 dest;
-  uint16_t dport;
+  uint16_t sport;
 }; /* per application struct */
 
 static struct udpclient_pas *udpclient_pas;
@@ -127,8 +140,8 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
 
 void app_udpclient(char *arg)
 {
-  char *daddr = NULL, *dport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
-  uint16_t port_be = 0;
+  char *daddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
+  uint16_t listen_port = 0, send_port = 0;
   struct pico_ip4 inaddr_dst = { };
   char *nxt = arg;
 
@@ -145,7 +158,10 @@ void app_udpclient(char *arg)
   /* start of argument parsing */
   if (nxt) {
     nxt = cpy_arg(&daddr, arg);
-    if (!daddr) {
+    if (daddr) {
+      pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+      udpclient_pas->dest = inaddr_dst;
+    } else {
       goto out;
     }
   } else {
@@ -154,42 +170,67 @@ void app_udpclient(char *arg)
   }
 
   if (nxt) {
-    nxt = cpy_arg(&dport, nxt);
-    if (dport && atoi(dport)) {
-      port_be = short_be(atoi(dport));
+    nxt = cpy_arg(&sport, nxt);
+    if (sport && atoi(sport)) {
+      send_port = short_be(atoi(sport));
+      udpclient_pas->sport = send_port;
     } else {
       goto out;
     }
   } else {
-    /* missing dest_port */
+    /* missing send_port */
     goto out;
   }
 
   if (nxt) {
-    nxt = cpy_arg(&s_datasize, nxt);
-    if (s_datasize) {
-      udpclient_pas->datasize = atoi(s_datasize);
+    nxt = cpy_arg(&lport, nxt);
+    if (lport && atoi(lport)) {
+      listen_port = short_be(atoi(lport));
+    } else {
+      goto out;
     }
   } else {
-    /* missing datasize, use default */
+    /* missing listen_port, use default */
+    listen_port = 0;
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&s_datasize, nxt);
+    if (s_datasize && atoi(s_datasize)) {
+      udpclient_pas->datasize = atoi(s_datasize);
+    } else {
+      goto out;
+    }
+  } else {
+    /* missing datasize, incomplete optional parameters? -> exit */
+    if (lport)
+      goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&s_loops, nxt);
-    if (s_loops) {
+    if (s_loops && atoi(s_loops)) {
       udpclient_pas->loops = atoi(s_loops);
+    } else {
+      goto out;
     }
   } else {
-    /* missing loops, use default */
+    /* missing loops, incomplete optional parameters? -> exit */
+    if (s_datasize)
+      goto out;
   }
  
   if (nxt) {
     nxt = cpy_arg(&s_subloops, nxt);
-    if (s_subloops) {
+    if (s_subloops && atoi(s_subloops)) {
       udpclient_pas->subloops = atoi(s_subloops);
+    } else {
+      goto out;
     }
   } else {
-    /* missing subloops, use default */
+    /* missing subloops, incomplete optional parameters? -> exit */
+    if (s_loops)
+      goto out;
   }
   /* end of argument parsing */
 
@@ -200,35 +241,49 @@ void app_udpclient(char *arg)
     exit(1);
   }
 
-  pico_string_to_ipv4(daddr, &inaddr_dst.addr);
-  udpclient_pas->dest = inaddr_dst;
-  udpclient_pas->dport = port_be;
-  if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, port_be) != 0)
+  if (pico_socket_bind(udpclient_pas->s, &inaddr_any, &listen_port)!= 0) {
+    free(udpclient_pas);
+  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(listen_port), strerror(pico_err));
+    exit(1);
+  }
+
+  if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, send_port) != 0)
   {
-  	printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(port_be), strerror(pico_err));
+  	printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(send_port), strerror(pico_err));
     free(udpclient_pas);
     exit(1);
   }
 
-  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n", 
-          __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(port_be));
+  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n\n", 
+          __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(send_port));
 
   pico_timer_add(100, udpclient_send, NULL);
   return;
 
   out:
-    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr:dest_port[:datasize:loops:subloops]\n");
+    fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr:dest_port[:listen_port:datasize:loops:subloops]\n");
     free(udpclient_pas);
     exit(255);
 }
 /*** END UDP CLIENT ***/
 
 /**** UDP ECHO ****/
-/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.255.0: -a udpecho:10.40.0.8:6667:1400 */
+/* 
+ * udpecho expects the following format: udpecho:bind_addr:listen_port[:sendto_port:datasize]
+ * bind_addr: IP address to bind to
+ * listen_port: port number on which the udpecho listens
+ * sendto_port [OPTIONAL]: port number to echo datagrams to (echo to originating IP address)
+ * datasize [OPTIONAL]: max size of the data red from the socket in one go 
+ * 
+ * REMARK: once an optional parameter is given, all optional parameters need a value!
+ *
+ * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.3:255.255.255.0: -a udpecho:10.40.0.3:6667:6667:1400 
+*/
 static int udpecho_exit = 0;
 
 struct udpecho_pas {
   struct pico_socket *s;
+  uint16_t sendto_port; /* big-endian */
   uint16_t datasize;
 }; /* per application struct */
 
@@ -258,7 +313,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
           pico_timer_add(1000, deferred_exit, udpecho_pas);
           udpecho_exit++;
         }
-        pico_socket_sendto(s, recvbuf, r, &peer, port);
+        pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
       }
     } while (r > 0);
     free(recvbuf);
@@ -270,14 +325,14 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
     exit(7);
   }
 
-  picoapp_dbg("Received packet from %08X:%u\n", peer, port);
+  picoapp_dbg("%s: received packet from %08X:%u\n", __FUNCTION__, long_be(peer), short_be(port));
 }
 
 void app_udpecho(char *arg)
 {
-  char *baddr = NULL, *sport = NULL, *s_datasize = NULL;
+  char *baddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL;
   char *nxt = arg;
-  uint16_t port_be = 0;
+  uint16_t listen_port = 0;
   struct pico_ip4 inaddr_bind = { };
 
   udpecho_pas = calloc(1, sizeof(struct udpecho_pas));
@@ -286,6 +341,7 @@ void app_udpecho(char *arg)
     exit(255);
   }
   udpecho_pas->s = NULL;
+  udpecho_pas->sendto_port = 0;
   udpecho_pas->datasize = 1400;
 
   /* start of argument parsing */
@@ -302,15 +358,27 @@ void app_udpecho(char *arg)
   }
 
   if (nxt) {
-    nxt = cpy_arg(&sport, nxt);
-    if (sport && atoi(sport)) {
-      port_be = short_be(atoi(sport));
+    nxt = cpy_arg(&lport, nxt);
+    if (lport && atoi(lport)) {
+      listen_port = short_be(atoi(lport));
     } else {
-      port_be = short_be(5555);
+      listen_port = short_be(5555);
     }
   } else {
     /* missing listen_port */
     goto out;
+  }
+
+  if (nxt) {
+    nxt = cpy_arg(&sport, nxt);
+    if (sport && atoi(sport)) {
+      udpecho_pas->sendto_port = atoi(sport);
+    } else {
+      /* incorrect send_port */
+      goto out;
+    }
+  } else {
+    /* missing send_port, use default */
   }
 
   if (nxt) {
@@ -322,7 +390,9 @@ void app_udpecho(char *arg)
       goto out;
     }
   } else {
-    /* missing datasize, use default */
+    /* missing datasize, incomplete optional parameters? -> exit */
+    if (sport)
+      goto out;
   }
   /* end of argument parsing */
 
@@ -333,9 +403,9 @@ void app_udpecho(char *arg)
     exit(1);
   }
 
-  if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &port_be)!= 0) {
+  if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &listen_port)!= 0) {
     free(udpecho_pas);
-  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(port_be), strerror(pico_err));
+  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
     exit(1);
   }
 
@@ -359,25 +429,36 @@ void app_udpecho(char *arg)
   }
 #endif
 
-  printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n", __FUNCTION__, udpecho_pas->datasize, short_be(port_be));
+  printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n\n", __FUNCTION__, udpecho_pas->datasize, short_be(listen_port));
 
   return;
 
   out:
-    fprintf(stderr, "udpecho expects the following format: udpecho:bind_addr:listen_port[:datasize]\n");
+    fprintf(stderr, "udpecho expects the following format: udpecho:bind_addr:listen_port[:sendto_port:datasize]\n");
     free(udpecho_pas);
     exit(255);
 }
 /*** END UDP ECHO ***/
 
-/*** Multicast CLIENT ***/
-/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:224.7.7.7:10.40.0.2 */
+/*** Multicast SEND ***/
+/* 
+ * multicast send expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port
+ * link_addr: mcastsend picoapp IP address
+ * mcast_addr: multicast IP address to send to
+ * sendto_port: port number to send multicast traffic to
+ * listen_port: port number on which the mcastsend can receive data
+ *
+ * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667
+*/
 void app_mcastsend(char *arg)
 {
-  char *maddr = NULL, *laddr = NULL, *dport = NULL;
-  uint16_t port_be = 0;
+  char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
+  uint16_t sendto_port = 0;
   struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
   char *new_arg = NULL, *p = NULL, *nxt = arg;
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_ip_mreq mreq = { };
+#endif
 
   /* start of parameter parsing */
   if (nxt) {
@@ -405,168 +486,156 @@ void app_mcastsend(char *arg)
   }
 
   if (nxt) {
-    nxt = cpy_arg(&dport, nxt);
-    if (dport && atoi(dport)) {
-      port_be = short_be(atoi(dport));
+    nxt = cpy_arg(&sport, nxt);
+    if (sport && atoi(sport)) {
+      sendto_port = short_be(atoi(sport));
     } else {
-      /* incorrect dest_port */
+      /* incorrect send_port */
       goto out;
     }
   } else {
-    /* missing dest_port */
+    /* missing send_port */
     goto out;
   }
 
-  printf("mcastsend started. Sending packets to %08X:%u\n", long_be(inaddr_mcast.addr), short_be(port_be));
+  if (nxt) {
+    nxt = cpy_arg(&lport, nxt);
+    if (lport && atoi(lport)) {
+      /* unused at this moment */
+      /* listen_port = short_be(atoi(lport)); */
+    } else {
+      /* incorrect listen_port */
+      goto out;
+    }
+  } else {
+    /* missing listen_port */
+    goto out;
+  }
 
-  /* XXX reimplement multicast loopback */
-  /*
-#ifdef PICO_SUPPORT_MCAST
-  struct pico_ip_mreq mreq = { };
-#endif
+  printf("\n%s: mcastsend started. Sending packets to %08X:%u\n\n", __FUNCTION__, long_be(inaddr_mcast.addr), short_be(sendto_port));
+
+  /* udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops] */
+  new_arg = calloc(1, strlen(maddr) + 1 + strlen(sport) + 1 + strlen(lport) + strlen(":64:10:5") + 1);
+  p = strcat(new_arg, maddr);
+  p = strcat(p + strlen(maddr), ":");
+  p = strcat(p + 1, sport);
+  p = strcat(p + strlen(sport), ":");
+  p = strcat(p + 1, lport);
+  p = strcat(p + strlen(lport), ":64:10:5");
+
+  app_udpclient(new_arg);
+
   mreq.mcast_group_addr = inaddr_mcast;
   mreq.mcast_link_addr = inaddr_link;
-  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+  if(pico_socket_setoption(udpclient_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
     printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
     exit(1);
   }
-  */
 
-  /* udpclient:dest_addr:dest_port[:datasize:loops:subloops] */
-  new_arg = calloc(1, strlen(maddr) + 1 + strlen(dport) + strlen(":64:10:5") + 1);
-  p = strcat(new_arg, maddr);
-  p = strcat(p + strlen(maddr), ":");
-  p = strcat(p + 1, dport);
-  p = strcat(p + strlen(dport), ":64:10:5");
-
-  app_udpclient(new_arg);
   return;
 
   out:
-    fprintf(stderr, "mcastsend expects the following format: mcastsend:link_addr:mcast_addr:dest_port\n");
+    fprintf(stderr, "mcastsend expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port\n");
     exit(255);
 }
-/*** END Multicast CLIENT ***/
+/*** END Multicast SEND ***/
 
 /*** Multicast RECEIVE + ECHO ***/
-/* ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.2:10.40.0.3:224.7.7.7 */
-void cb_mcastreceive(uint16_t ev, struct pico_socket *s)
-{
-  char recvbuf[30] = {0};
-  char speer[16] = {0};
-  int r = 0;
-  uint32_t peer;
-  uint16_t port;
-  static uint8_t is_end;
-
-  if (ev & PICO_SOCK_EV_RD) {
-    //do {
-      r = pico_socket_recvfrom(s, recvbuf, 30, &peer, &port);
-    //} while(r>0);
-    if (strncmp(recvbuf, "end", 3) == 0) {
-      if (!is_end) {
-        is_end = 1;
-        printf("Client requested to exit... test successful.\n");
-        pico_timer_add(1000, deferred_exit, NULL);
-      }
-      return;
-    }
-    pico_ipv4_to_string(speer, peer);
-    printf(">>>>>>>>>> mcastreceive: received from %s -> %s, send back to %s\n", speer, recvbuf, speer);
-    pico_socket_sendto(s, recvbuf, r, &peer, port);
-  }
-
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    exit(7);
-  }
-
-}
-
+/* 
+ * multicast receive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port:sendto_port
+ * link_addr: mcastreceive picoapp IP address
+ * mcast_addr: multicast IP address to receive
+ * listen_port: port number on which the mcastreceive listens
+ * sendto_port: port number to echo multicast traffic to (echo to originating IP address)
+ *
+ * f.e.: ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667
+*/
 void app_mcastreceive(char *arg)
 {
-  struct pico_socket *s;
-  char *daddr, *laddr, *maddr, *dport;
-  int port = 0;
-  uint16_t port_be = 0;
-  struct pico_ip4 inaddr_dst;
-  struct pico_ip4 inaddr_link, inaddr_mcast;
-  struct pico_ip_mreq mreq = {{0},{0}};
-  char *nxt;
+  char *new_arg = NULL, *p = NULL, *nxt = arg;
+  char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
+  uint16_t listen_port = 0;
+  struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
+  struct pico_ip_mreq mreq = { };
 
-  nxt = cpy_arg(&daddr, arg);
-  if (!daddr) {
-    fprintf(stderr, " mcastreceive expects the following format: mcastreceive:dest_addr:link_addr:mcast_addr[:dest_port]:\n");
-    fprintf(stderr, " missing dest_addr\n");
-    exit(255);
-  }
-
+  /* start of parameter parsing */
   if (nxt) {
     nxt = cpy_arg(&laddr, nxt);
-    if (!laddr) {
-      fprintf(stderr, " mcastreceive expects the following format: mcastreceive:dest_addr:link_addr:mcast_addr[:dest_port]:\n");
-      fprintf(stderr, " missing link_addr\n");
-      exit(255);
+    if (laddr) {
+      pico_string_to_ipv4(laddr, &inaddr_link.addr);
+    } else {
+      goto out;
     }
   } else {
-    fprintf(stderr, " mcastreceive expects the following format: mcastreceive:dest_addr:link_addr:mcast_addr[:dest_port]:\n");
-    fprintf(stderr, " missing link_addr\n");
-    exit(255);
+    /* no arguments */
+    goto out;
   }
 
   if (nxt) {
     nxt = cpy_arg(&maddr, nxt);
-    if (!maddr) {
-      fprintf(stderr, " mcastreceive expects the following format: mcastreceive:dest_addr:link_addr:mcast_addr[:dest_port]:\n");
-      fprintf(stderr, " missing mcast_addr\n");
-      exit(255);
+    if (maddr) {
+      pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+    } else {
+      goto out;
     }
   } else {
-    fprintf(stderr, " mcastreceive expects the following format: mcastreceive:dest_addr:link_addr:mcast_addr[:dest_port]:\n");
-    fprintf(stderr, " missing mcast_addr\n");
-    exit(255);
+    /* missing multicast address */
+    goto out;
   }
 
   if (nxt) {
-    nxt = cpy_arg(&dport, nxt);
-    if (dport) {
-      port = atoi(dport);
-      if (port > 0)
-        port_be = short_be(port);
+    nxt = cpy_arg(&lport, nxt);
+    if (lport && atoi(lport)) {
+      listen_port = short_be(atoi(lport));
+    } else {
+      /* incorrect listen_port */
+      goto out;
     }
-  }
-  if (port == 0) {
-    port_be = short_be(5555);
+  } else {
+    /* missing listen_port */
+    goto out;
   }
 
-  printf("Multicast receive started. Receiving packets from %s:%d, Echo packets to %s\n", maddr, short_be(port_be), daddr);
-
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_mcastreceive);
-  if (!s)
-    exit(1);
-
-  pico_string_to_ipv4(daddr, &inaddr_dst.addr);
-  pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
-  pico_string_to_ipv4(laddr, &inaddr_link.addr);
-
-  if (pico_socket_bind(s, &inaddr_link, &port_be)!= 0) {
-    printf("MCAST APP: bind of %08X:%u failed: %s\n", long_be(inaddr_link.addr), short_be(port_be), strerror(pico_err));
-    exit(1);
+  if (nxt) {
+    nxt = cpy_arg(&sport, nxt);
+    if (sport && atoi(sport)) {
+      /* unused at this moment */
+      /* send_port = short_be(atoi(sport)); */
+    } else {
+      /* incorrect send_port */
+      goto out;
+    }
+  } else {
+    /* missing send_port */
+    goto out;
   }
-  
-  if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0) {
-    printf("MCAST APP: connect to %08X:%u failed: %s\n", long_be(inaddr_dst.addr), short_be(port_be), strerror(pico_err));
-    exit(1);
-  }
+  /* end of parameter parsing */
+
+  printf("\n%s: multicast receive started. Receiving packets on %s:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
+
+  /* udpecho:bind_addr:listen_port[:sendto_port:datasize] */ 
+  new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64") + 1);
+  p = strcat(new_arg, laddr);
+  p = strcat(p + strlen(laddr), ":");
+  p = strcat(p + 1, lport);
+  p = strcat(p + strlen(lport), ":");
+  p = strcat(p + 1, sport);
+  p = strcat(p + strlen(sport), ":64");
+
+  app_udpecho(new_arg);
 
   mreq.mcast_group_addr = inaddr_mcast;
   mreq.mcast_link_addr = inaddr_link;
-  if(pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
-    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP failed with errno %d\n", pico_err);
-    exit(2);
-  } else {
-    printf(">>>>>>>>>> socket_setoption PICO_IP_ADD_MEMBERSHIP succeeded\n");
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    exit(1);
   }
+
+  return;
+
+  out:
+    fprintf(stderr, "mcastreceive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port[:send_port]\n");
+    exit(255);
 }
 /*** END Multicast RECEIVE + ECHO ***/
 
