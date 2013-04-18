@@ -794,7 +794,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 *1024 *50)
+#define TCPSIZ (1024 *1024 *500)
 static char *buffer1;
 static char *buffer0;
 
