@@ -2,9 +2,7 @@
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
 
-.
-
-Authors: Frederik Van Slycken
+Authors: Frederik Van Slycken, Kristof Roelants
 *********************************************************************/
 
 #include "pico_dhcp_client.h"
@@ -48,9 +46,19 @@ struct pico_dhcp_client_cookie
 	struct dhcp_timer_param* timer_param_lease;
 	struct dhcp_timer_param* timer_param_retransmit;
 	int link_added;
-
-	struct pico_dhcp_client_cookie* next;
 };
+
+static int dhcp_cookies_cmp(void *ka, void *kb)
+{
+  struct pico_dhcp_client_cookie *a = ka, *b = kb;
+  if (a->xid < b->xid)
+    return -1; 
+  else if (a->xid > b->xid)
+    return 1;
+  else
+    return 0;
+} 
+PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
 
 /*************************
  * function declarations *
@@ -79,23 +87,14 @@ static int retransmit(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 //fsm implementation
 static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cli, uint8_t* data, int len);
 
-
-/********************
- * static variables *
- ********************/
-
-static struct pico_dhcp_client_cookie* dhcp_head;
-
 /***************
  * entry point *
  ***************/
 
 /* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
-void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code)){
-
+void *pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code))
+{
 	struct pico_dhcp_client_cookie* cli = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
-	cli->next = dhcp_head;
-	dhcp_head = cli;
 	if(!cli){
 		pico_err = PICO_ERR_ENOMEM;
 		return NULL;
@@ -107,6 +106,14 @@ void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback
 	}
 
 	init_cookie(cli, device, callback);
+  dbg("DHCP client: cookie with xid %u\n", cli->xid);
+  
+  if (pico_tree_insert(&DHCPCookies, cli)) {
+    dbg("DHCP client ERROR: xid %u already used\n", cli->xid);
+    pico_err = PICO_ERR_EAGAIN;
+    pico_free(cli);
+    return NULL; /* Element key already exists */
+  }
 
 	pico_dhcp_retry(cli);
 	dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
@@ -588,8 +595,6 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	uint16_t port = PICO_DHCP_CLIENT_PORT;
 	struct pico_ip4 address, netmask;
 
-	struct pico_dhcp_client_cookie* next = cli->next;
-
 	address.addr = long_be(0x00000000);
 	netmask.addr = long_be(0x00000000);
 
@@ -600,8 +605,6 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 	}
 
 	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
-
-	cli->next = next;
 
 	cli->cb = callback;
 
@@ -632,23 +635,18 @@ static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device*
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return;
 	}
-
-
 }
 
-//using a linked list and not e.g. a red-black-tree because
-// - there will probably be very few cookies
-// - xids can be changed, with a tree this would require a remove and insert
-static struct pico_dhcp_client_cookie* get_cookie_by_xid(uint32_t xid)
+static struct pico_dhcp_client_cookie *get_cookie_by_xid(uint32_t xid)
 {
-	struct pico_dhcp_client_cookie* ptr = dhcp_head;
-	while(ptr != NULL){
-		if(ptr->xid == xid){
-			return ptr;
-		}
-		ptr = ptr->next;
-	}
-	return NULL;
+	struct pico_dhcp_client_cookie test = { }, *cookie = NULL;
+
+  test.xid = xid;
+  cookie = pico_tree_findKey(&DHCPCookies, &test);
+  if (!cookie)
+    return NULL;
+  else
+    return cookie;
 }
 
 static uint32_t get_xid(uint8_t* data)
