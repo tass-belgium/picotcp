@@ -37,9 +37,9 @@ s_udp_recv.bind((IF_ADDR, LISTEN_PORT))
 s_udp_recv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s_udp_recv.settimeout(5);
 
-start(T)
-
 raw_input("Press enter to continue ...")
+start(T)
+sleep(1)
 
 while True:
   s_udp.sendto("multicast test succeeded", (str(MCAST_ADDR), LISTEN_PORT))
@@ -61,3 +61,4 @@ print '+++++++++++++++++++++++++++++++++++++++++++++'
 print '\n\n'
 cleanup()
 exit(1)
+

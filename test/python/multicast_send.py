@@ -35,6 +35,7 @@ s_udp.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
 
 raw_input("Press enter to continue ...")
 start(T)
+sleep(1)
 
 while True:
   data = s_udp.recv(4096)
