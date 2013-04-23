@@ -1953,7 +1953,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       if (t->x_mode != PICO_TCP_WINDOW_FULL) {
         tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
         tcp_dbg("In window full...\n");
-        //t->snd_nxt = una;
+        t->snd_nxt = SEQN(una);
         t->x_mode = PICO_TCP_WINDOW_FULL;
         if (t->keepalive_timer_running == 0) {
           tcp_dbg("Adding timer(send keepalive)\n");
