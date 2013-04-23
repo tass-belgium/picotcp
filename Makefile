@@ -1,4 +1,8 @@
-CC=$(CROSS_COMPILE)gcc
+CC:=$(CROSS_COMPILE)gcc
+LD:=$(CROSS_COMPILE)ld
+AR:=$(CROSS_COMPILE)ar
+RANLIB:=$(CROSS_COMPILE)ranlib
+STRIP:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
@@ -45,6 +49,9 @@ ifeq ($(ARCH),stm32)
   -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
   -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
   -DSTM32
+endif
+ifeq ($(ARCH),msp430)
+  CFLAGS+=-DMSP430
 endif
 
 ifeq ($(ARCH),stellaris)
@@ -173,12 +180,12 @@ lib: mod core
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
 	@echo -e "\t[AR] $(PREFIX)/lib/picotcp.a"
-	@$(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
-	  || $(CROSS_COMPILE)ar cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
+	@$(AR) cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
+	  || $(AR) cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
-	@$(CROSS_COMPILE)ranlib $(PREFIX)/lib/picotcp.a
+	@$(RANLIB) $(PREFIX)/lib/picotcp.a
 	@test $(STRIP) = 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
-     && $(CROSS_COMPILE)strip $(PREFIX)/lib/picotcp.a) \
+     && $(STRIP) $(PREFIX)/lib/picotcp.a) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/picotcp.a" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/picotcp.a`"
 loop: mod core

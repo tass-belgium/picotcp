@@ -677,13 +677,13 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
         return -1;
       }
     } else {
-  		src4 = pico_ipv4_source_find(dst);
+      src4 = pico_ipv4_source_find(dst);
       if (!src4) {
-				pico_err = PICO_ERR_EHOSTUNREACH;
-				return -1;
-			}
+        pico_err = PICO_ERR_EHOSTUNREACH;
+        return -1;
+      }
       if (src4->addr != PICO_IPV4_INADDR_ANY)
-			  s->local_addr.ip4.addr = src4->addr;
+        s->local_addr.ip4.addr = src4->addr;
 #     ifdef PICO_SUPPORT_UDP
       /* socket remote info could change in a consecutive call, make persistent */
       if (PROTO(s) == PICO_PROTO_UDP) {
@@ -1546,6 +1546,5 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
   pico_frame_discard(f);
   return ret;
 }
-
 #endif
 #endif

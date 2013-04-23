@@ -368,7 +368,7 @@ int pico_ethernet_send(struct pico_frame *f)
         dbg("sending out packet destined for our own mac\n");
         return pico_ethernet_receive(f);
       }else if(IS_LIMITED_BCAST(f)){
-      	return pico_device_broadcast(f);
+        return pico_device_broadcast(f);
       }else {
         return f->dev->send(f->dev, f->start, f->len);
         /* Frame is discarded after this return by the caller */
@@ -602,8 +602,13 @@ void pico_stack_tick(void)
     pico_rand_feed(ret[3]);
 
 
+    ret[5] = score[5];
+#if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
+#if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
     ret[5] = pico_sockets_loop(score[5]); // swapped
     pico_rand_feed(ret[5]);
+#endif
+#endif
 
     ret[4] = pico_protocol_socket_loop(score[4], PICO_LOOP_DIR_IN);
     pico_rand_feed(ret[4]);
