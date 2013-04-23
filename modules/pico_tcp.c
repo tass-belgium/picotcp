@@ -1954,11 +1954,16 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
         tcp_dbg("In window full...\n");
         t->snd_nxt = SEQN(una);
+
+        /* Alternative to the line above:  (better performance, but seems to lock anyway with larger buffers)
+        if (seq_compare(t->snd_nxt, SEQN(una)) > 0)
+          t->snd_nxt -= f->payload_len;
+        */
+
         t->x_mode = PICO_TCP_WINDOW_FULL;
         if (t->keepalive_timer_running == 0) {
           tcp_dbg("Adding timer(send keepalive)\n");
           tcp_send_keepalive(0, t);
-          //pico_timer_add(t->rto, tcp_send_keepalive, t);
         }
       }
       break;
