@@ -4,8 +4,8 @@
 from  topology import *
 
 T = Topology()
-net1 = Network(T)
-send1 = Host(T, net1, args="tcpbench:t:172.16.1.2:7770:")
+net1 = Network(T, "pyt0")
+send1 = Host(T, net1, args="tcpbench:t:172.16.1.3:7770:")
 recv1 = Host(T, net1, args="tcpbench:r:7770:")
 
 

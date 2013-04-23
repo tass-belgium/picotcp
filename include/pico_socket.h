@@ -10,8 +10,7 @@ See LICENSE and COPYING for usage.
 #include "pico_config.h"
 #include "pico_protocol.h"
 
-#define PICO_DEFAULT_SOCKETQ (1024 * 128)
-//#define PICO_DEFAULT_SOCKETQ (64 * 1024)
+#define PICO_DEFAULT_SOCKETQ (64 * 1024)
 //#define PICO_DEFAULT_SOCKETQ (8192)
 
 
@@ -52,7 +51,7 @@ struct pico_socket {
 #endif
   uint16_t ev_pending;
 
-	struct pico_device *dev;
+  struct pico_device *dev;
 
   /* Private field. */
   int id;

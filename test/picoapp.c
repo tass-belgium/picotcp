@@ -236,20 +236,20 @@ void app_udpclient(char *arg)
 
   udpclient_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
   if (!udpclient_pas->s) {
-  	printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
+    printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
     free(udpclient_pas);
     exit(1);
   }
 
   if (pico_socket_bind(udpclient_pas->s, &inaddr_any, &listen_port)!= 0) {
     free(udpclient_pas);
-  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(listen_port), strerror(pico_err));
+    printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(listen_port), strerror(pico_err));
     exit(1);
   }
 
   if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, send_port) != 0)
   {
-  	printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(send_port), strerror(pico_err));
+    printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(send_port), strerror(pico_err));
     free(udpclient_pas);
     exit(1);
   }
@@ -398,14 +398,14 @@ void app_udpecho(char *arg)
 
   udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
   if (!udpecho_pas->s) {
-  	printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
+    printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
     free(udpecho_pas);
     exit(1);
   }
 
   if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &listen_port)!= 0) {
     free(udpecho_pas);
-  	printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
+    printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
     exit(1);
   }
 
@@ -863,7 +863,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 *1024 *500)
+#define TCPSIZ (1024 *1024 *100)
 static char *buffer1;
 static char *buffer0;
 
@@ -1003,8 +1003,8 @@ void app_tcpclient(char *arg)
   pico_string_to_ipv4(dest, &server_addr.addr);
   if(pico_socket_connect(s, &server_addr, port_be) < 0)
   {
-  	printf("Error connecting...%d \n",pico_err);
-  	exit(1);
+    printf("Error connecting...%d \n",pico_err);
+    exit(1);
   }
 }
 /*** END TCP CLIENT ***/
@@ -1544,16 +1544,16 @@ void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 }
 
 void callback_dhcpclient(void* cli, int code){
-	struct pico_ip4  gateway;
-	char gw_txt_addr[30];
-	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(cli);
+  struct pico_ip4  gateway;
+  char gw_txt_addr[30];
+  if(code == PICO_DHCP_SUCCESS){
+  	gateway = pico_dhcp_get_gateway(cli);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
 #endif
-	}
-	printf("DHCP client (id %p): callback happened with code %d!\n", dhcpclient_cli, code);
+  }
+  printf("DHCP client (id %p): callback happened with code %d!\n", dhcpclient_cli, code);
 }
 
 void app_dhcp_client(char* arg)
@@ -1592,9 +1592,9 @@ void ping_callback_dhcpclient1(struct pico_icmp4_stats *s)
     dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
     if (s->seq >= 3) {
       dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
-			finished1 = 1;
-			if(finished2 == 1)
-				exit(0);
+  		finished1 = 1;
+  		if(finished2 == 1)
+  			exit(0);
     }
   } else {
     dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
@@ -1611,9 +1611,9 @@ void ping_callback_dhcpclient2(struct pico_icmp4_stats *s)
     dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
     if (s->seq >= 3) {
       dbg("DHCP CLIENT TEST: SUCCESS!\n\n\n");
-			finished2 = 1;
-			if(finished1 == 1)
-				exit(0);
+  		finished2 = 1;
+  		if(finished1 == 1)
+  			exit(0);
     }
   } else {
     dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
@@ -1624,66 +1624,66 @@ void ping_callback_dhcpclient2(struct pico_icmp4_stats *s)
 static void* dhcp_client_cookie1;
 static void* dhcp_client_cookie2;
 void callback_dhcpclient1(void* cli, int code){
-	struct pico_ip4  gateway;
-	char gw_txt_addr[30];
-	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie1);
+  struct pico_ip4  gateway;
+  char gw_txt_addr[30];
+  if(code == PICO_DHCP_SUCCESS){
+  	gateway = pico_dhcp_get_gateway(dhcp_client_cookie1);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient1);
 #endif
-	}
-	printf("callback happened with code %d!\n", code);
+  }
+  printf("callback happened with code %d!\n", code);
 }
 void callback_dhcpclient2(void* cli, int code){
-	struct pico_ip4  gateway;
-	char gw_txt_addr[30];
-	if(code == PICO_DHCP_SUCCESS){
-		gateway = pico_dhcp_get_gateway(dhcp_client_cookie2);
+  struct pico_ip4  gateway;
+  char gw_txt_addr[30];
+  if(code == PICO_DHCP_SUCCESS){
+  	gateway = pico_dhcp_get_gateway(dhcp_client_cookie2);
     pico_ipv4_to_string(gw_txt_addr, gateway.addr);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient2);
 #endif
-	}
-	printf("callback happened with code %d!\n", code);
+  }
+  printf("callback happened with code %d!\n", code);
 }
 
 void app_dhcp_dual_client(char* arg)
 {
-	struct pico_device *dev1, *dev2;
-	char *dev_name1, *dev_name2, *nxt;
+  struct pico_device *dev1, *dev2;
+  char *dev_name1, *dev_name2, *nxt;
 
-	nxt = cpy_arg(&dev_name1, arg);
-	if(!dev_name1){
-		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
-		exit(255);
-	}
-	if(!nxt){
-		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
-		exit(255);
-	}
-	cpy_arg(&dev_name2, nxt);
-	if(!dev_name1){
-		fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
-		exit(255);
-	}
+  nxt = cpy_arg(&dev_name1, arg);
+  if(!dev_name1){
+  	fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+  	exit(255);
+  }
+  if(!nxt){
+  	fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+  	exit(255);
+  }
+  cpy_arg(&dev_name2, nxt);
+  if(!dev_name1){
+  	fprintf(stderr, " dhcp client expects as parameters : the names of the devices\n");
+  	exit(255);
+  }
 
-	dev1 = pico_get_device(dev_name1);
-	dev2 = pico_get_device(dev_name2);
-	free(dev_name1);
-	free(dev_name2);
-	if(dev1 == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	if(dev2 == NULL){
-		printf("error : no device found\n");
-		exit(255);
-	}
-	printf("starting negotiation\n");
+  dev1 = pico_get_device(dev_name1);
+  dev2 = pico_get_device(dev_name2);
+  free(dev_name1);
+  free(dev_name2);
+  if(dev1 == NULL){
+  	printf("error : no device found\n");
+  	exit(255);
+  }
+  if(dev2 == NULL){
+  	printf("error : no device found\n");
+  	exit(255);
+  }
+  printf("starting negotiation\n");
 
-	dhcp_client_cookie1 = pico_dhcp_initiate_negotiation(dev1, &callback_dhcpclient1);
-	dhcp_client_cookie2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient2);
+  dhcp_client_cookie1 = pico_dhcp_initiate_negotiation(dev1, &callback_dhcpclient1);
+  dhcp_client_cookie2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient2);
 }
 #endif
 /*** END DHCP Client ***/
@@ -1709,78 +1709,78 @@ static int http_save_file(void *data, int len)
 }
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-	char data[1024 * 1024]; // MAX: 1M
-	static int _length = 0;
+  char data[1024 * 1024]; // MAX: 1M
+  static int _length = 0;
 
 
-	if(ev & EV_HTTP_CON)
-	{
+  if(ev & EV_HTTP_CON)
+  {
 
-		printf(">>> Connected to the client \n");
-		pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
-	}
+  	printf(">>> Connected to the client \n");
+  	pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
+  }
 
-	if(ev & EV_HTTP_REQ)
-	{
-		struct pico_http_header * header = pico_http_client_readHeader(conn);
-		printf("Received header from server...\n");
-		printf("Server response : %d\n",header->responseCode);
-		printf("Location : %s\n",header->location);
-		printf("Transfer-Encoding : %d\n",header->transferCoding);
-		printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
+  if(ev & EV_HTTP_REQ)
+  {
+  	struct pico_http_header * header = pico_http_client_readHeader(conn);
+  	printf("Received header from server...\n");
+  	printf("Server response : %d\n",header->responseCode);
+  	printf("Location : %s\n",header->location);
+  	printf("Transfer-Encoding : %d\n",header->transferCoding);
+  	printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
 
-		// sending default generated header
-		pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
-	}
+  	// sending default generated header
+  	pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
+  }
 
-	if(ev & EV_HTTP_BODY)
-	{
-		int len;
+  if(ev & EV_HTTP_BODY)
+  {
+  	int len;
 
-		printf("Reading data...\n");
-		while((len = pico_http_client_readData(conn,data + _length,1024)))
-		{
-			_length += len;
-		}
-	}
+  	printf("Reading data...\n");
+  	while((len = pico_http_client_readData(conn,data + _length,1024)))
+  	{
+  		_length += len;
+  	}
+  }
 
 
-	if(ev & EV_HTTP_CLOSE)
-	{
-		struct pico_http_header * header = pico_http_client_readHeader(conn);
-		int len;
-		printf("Connection was closed...\n");
-		printf("Reading remaining data, if any ...\n");
-		while((len = pico_http_client_readData(conn,data,1000u)) && len > 0)
-		{
-			_length += len;
-		}
+  if(ev & EV_HTTP_CLOSE)
+  {
+  	struct pico_http_header * header = pico_http_client_readHeader(conn);
+  	int len;
+  	printf("Connection was closed...\n");
+  	printf("Reading remaining data, if any ...\n");
+  	while((len = pico_http_client_readData(conn,data,1000u)) && len > 0)
+  	{
+  		_length += len;
+  	}
 
-		printf("Read a total data of : %d bytes \n",_length);
+  	printf("Read a total data of : %d bytes \n",_length);
 
-		if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
-		{
-			if(header->contentLengthOrChunk)
-			{
-				printf("Last chunk data not fully read !\n");
-				exit(1);
-			}
-			else
-			{
-				printf("Transfer ended with a zero chunk! OK !\n");
-			}
-		} else
-		{
-			if(header->contentLengthOrChunk == _length)
-			{
-				printf("Received the full : %d \n",_length);
-			}
-			else
-			{
-				printf("Received %d , waiting for %d\n",_length, header->contentLengthOrChunk);
-				exit(1);
-			}
-		}
+  	if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+  	{
+  		if(header->contentLengthOrChunk)
+  		{
+  			printf("Last chunk data not fully read !\n");
+  			exit(1);
+  		}
+  		else
+  		{
+  			printf("Transfer ended with a zero chunk! OK !\n");
+  		}
+  	} else
+  	{
+  		if(header->contentLengthOrChunk == _length)
+  		{
+  			printf("Received the full : %d \n",_length);
+  		}
+  		else
+  		{
+  			printf("Received %d , waiting for %d\n",_length, header->contentLengthOrChunk);
+  			exit(1);
+  		}
+  	}
 
     if (!url_filename) {
       printf("Failed to get local filename\n");
@@ -1793,39 +1793,39 @@ void wget_callback(uint16_t ev, uint16_t conn)
     }
 
 
-		pico_http_client_close(conn);
-		exit(0);
-	}
+  	pico_http_client_close(conn);
+  	exit(0);
+  }
 
-	if(ev & EV_HTTP_ERROR)
-	{
-		printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
-		pico_http_client_close(conn);
-		exit(1u);
-	}
+  if(ev & EV_HTTP_ERROR)
+  {
+  	printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
+  	pico_http_client_close(conn);
+  	exit(1u);
+  }
 
-	if(ev & EV_HTTP_DNS)
-	{
-		printf("The DNS query was successful ... \n");
-	}
+  if(ev & EV_HTTP_DNS)
+  {
+  	printf("The DNS query was successful ... \n");
+  }
 }
 
 void app_wget(char *arg)
 {
-	char * url;
-	cpy_arg(&url, arg);
+  char * url;
+  cpy_arg(&url, arg);
 
-	if(!url)
-	{
-		fprintf(stderr, " wget expects the url to be received\n");
-		exit(1);
-	}
+  if(!url)
+  {
+  	fprintf(stderr, " wget expects the url to be received\n");
+  	exit(1);
+  }
 
-	if(pico_http_client_open(url,wget_callback) < 0)
-	{
-		fprintf(stderr," error opening the url : %s, please check the format\n",url);
-		exit(1);
-	}
+  if(pico_http_client_open(url,wget_callback) < 0)
+  {
+  	fprintf(stderr," error opening the url : %s, please check the format\n",url);
+  	exit(1);
+  }
   url_filename = basename(url);
 }
 #endif
@@ -1837,93 +1837,93 @@ void app_wget(char *arg)
 
 void serverWakeup(uint16_t ev,uint16_t conn)
 {
-	static FILE * f;
-	char buffer[SIZE];
+  static FILE * f;
+  char buffer[SIZE];
 
-	if(ev & EV_HTTP_CON)
-	{
-			printf("New connection received....\n");
-			pico_http_server_accept();
-	}
+  if(ev & EV_HTTP_CON)
+  {
+  		printf("New connection received....\n");
+  		pico_http_server_accept();
+  }
 
-	if(ev & EV_HTTP_REQ) // new header received
-	{
-		int read;
-		char * resource;
-		printf("Header request was received...\n");
-		printf("> Resource : %s\n",pico_http_getResource(conn));
-		resource = pico_http_getResource(conn);
+  if(ev & EV_HTTP_REQ) // new header received
+  {
+  	int read;
+  	char * resource;
+  	printf("Header request was received...\n");
+  	printf("> Resource : %s\n",pico_http_getResource(conn));
+  	resource = pico_http_getResource(conn);
 
-		if(strcmp(resource,"/")==0 || strcmp(resource,"index.html") == 0 || strcmp(resource,"/index.html") == 0)
-		{
-					// Accepting request
-					printf("Accepted connection...\n");
-					pico_http_respond(conn,HTTP_RESOURCE_FOUND);
-					f = fopen("test/examples/index.html","r");
+  	if(strcmp(resource,"/")==0 || strcmp(resource,"index.html") == 0 || strcmp(resource,"/index.html") == 0)
+  	{
+  				// Accepting request
+  				printf("Accepted connection...\n");
+  				pico_http_respond(conn,HTTP_RESOURCE_FOUND);
+  				f = fopen("test/examples/index.html","r");
 
-					if(!f)
-					{
-						fprintf(stderr,"Unable to open the file /test/examples/index.html\n");
-						exit(1);
-					}
+  				if(!f)
+  				{
+  					fprintf(stderr,"Unable to open the file /test/examples/index.html\n");
+  					exit(1);
+  				}
 
-					read = fread(buffer,1,SIZE,f);
-					pico_http_submitData(conn,buffer,read);
-		}
-		else
-		{ // reject
-			printf("Rejected connection...\n");
-			pico_http_respond(conn,HTTP_RESOURCE_NOT_FOUND);
-		}
+  				read = fread(buffer,1,SIZE,f);
+  				pico_http_submitData(conn,buffer,read);
+  	}
+  	else
+  	{ // reject
+  		printf("Rejected connection...\n");
+  		pico_http_respond(conn,HTTP_RESOURCE_NOT_FOUND);
+  	}
 
-	}
+  }
 
-	if(ev & EV_HTTP_PROGRESS) // submitted data was sent
-	{
-		uint16_t sent, total;
-		pico_http_getProgress(conn,&sent,&total);
-		printf("Chunk statistics : %d/%d sent\n",sent,total);
-	}
+  if(ev & EV_HTTP_PROGRESS) // submitted data was sent
+  {
+  	uint16_t sent, total;
+  	pico_http_getProgress(conn,&sent,&total);
+  	printf("Chunk statistics : %d/%d sent\n",sent,total);
+  }
 
-	if(ev & EV_HTTP_SENT) // submitted data was fully sent
-	{
-		int read;
-		read = fread(buffer,1,SIZE,f);
-		printf("Chunk was sent...\n");
-		if(read > 0)
-		{
-				printf("Sending another chunk...\n");
-				pico_http_submitData(conn,buffer,read);
-		}
-		else
-		{
-				printf("Last chunk !\n");
-				pico_http_submitData(conn,NULL,0);// send the final chunk
-				fclose(f);
-		}
+  if(ev & EV_HTTP_SENT) // submitted data was fully sent
+  {
+  	int read;
+  	read = fread(buffer,1,SIZE,f);
+  	printf("Chunk was sent...\n");
+  	if(read > 0)
+  	{
+  			printf("Sending another chunk...\n");
+  			pico_http_submitData(conn,buffer,read);
+  	}
+  	else
+  	{
+  			printf("Last chunk !\n");
+  			pico_http_submitData(conn,NULL,0);// send the final chunk
+  			fclose(f);
+  	}
 
-	}
+  }
 
-	if(ev & EV_HTTP_CLOSE)
-	{
-		printf("Close request...\n");
-		pico_http_close(conn);
-	}
+  if(ev & EV_HTTP_CLOSE)
+  {
+  	printf("Close request...\n");
+  	pico_http_close(conn);
+  }
 
-	if(ev & EV_HTTP_ERROR)
-	{
-		printf("Error on server...\n");
-		pico_http_close(conn);
-	}
+  if(ev & EV_HTTP_ERROR)
+  {
+  	printf("Error on server...\n");
+  	pico_http_close(conn);
+  }
 }
 
 void app_httpd(char *arg)
 {
 
-	if( pico_http_server_start(0,serverWakeup) < 0)
-	{
-		fprintf(stderr,"Unable to start the server on port 80\n");
-	}
+  if( pico_http_server_start(0,serverWakeup) < 0)
+  {
+  	fprintf(stderr,"Unable to start the server on port 80\n");
+  }
 
 }
 #endif
@@ -1976,7 +1976,7 @@ int main(int argc, char **argv)
   unsigned char macaddr[6] = {0,0,0,0xa,0xb,0x0};
   uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
   struct pico_device *dev = NULL;
-	struct pico_ip4 bcastAddr = {};
+  struct pico_ip4 bcastAddr = {};
 
   struct option long_options[] = {
     {"help",0 , 0, 'h'},
@@ -2205,30 +2205,30 @@ int main(int argc, char **argv)
 #endif
         }
         else IF_APPNAME("wget")
-	{
+  {
 #ifndef PICO_SUPPORT_HTTP_CLIENT
-       	  return 0;
+           return 0;
 #else
-	  app_wget(args);
+    app_wget(args);
 #endif
-	}
+  }
         else IF_APPNAME("httpd")
-	{
+  {
 #ifndef PICO_SUPPORT_HTTP_SERVER
           return 0;
 #else
-	  app_httpd(args);
+    app_httpd(args);
 #endif
-	}
-				else IF_APPNAME("bcast")
-	{
-					struct pico_ip4 any = {.addr = 0xFFFFFFFFu};
+  }
+  			else IF_APPNAME("bcast")
+  {
+  				struct pico_ip4 any = {.addr = 0xFFFFFFFFu};
 
-					struct pico_socket * s = pico_socket_open(PICO_PROTO_IPV4,PICO_PROTO_UDP,&__wakeup);
-					pico_socket_sendto(s,"abcd",5u,&any,1000);
+  				struct pico_socket * s = pico_socket_open(PICO_PROTO_IPV4,PICO_PROTO_UDP,&__wakeup);
+  				pico_socket_sendto(s,"abcd",5u,&any,1000);
 
-					pico_socket_sendto(s,"abcd",5u,&bcastAddr,1000);
-	}
+  				pico_socket_sendto(s,"abcd",5u,&bcastAddr,1000);
+  }
         else {
           fprintf(stderr, "Unknown application %s\n", name);
           usage(argv[0]);
