@@ -910,7 +910,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
     }
   }
 
-  if (pico_is_port_free(PROTO(s), *port, &local_addr, s->net) == 0) {
+  if (pico_is_port_free(PROTO(s), *port, local_addr, s->net) == 0) {
     pico_err = PICO_ERR_EADDRINUSE;
     return -1;
   }
