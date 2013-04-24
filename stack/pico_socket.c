@@ -1258,8 +1258,8 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     /* check if exists in tree */
     /* See task #178 */
     if (pico_check_socket(s) != 0) {
-      pico_err = PICO_ERR_EINVAL;
-      return -1;
+      pico_free(s); /* close socket after bind or connect failed */
+      return 0;
     }
   }
 
