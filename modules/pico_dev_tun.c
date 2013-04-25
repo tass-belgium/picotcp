@@ -71,6 +71,7 @@ static int tun_open(char *name) {
   ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
   strncpy(ifr.ifr_name, name, IFNAMSIZ);
   if(ioctl(tun_fd, TUNSETIFF, &ifr) < 0){
+    close(tun_fd);
     return(-1);
   }
   return tun_fd;
