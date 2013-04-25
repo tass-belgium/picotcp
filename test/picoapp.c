@@ -961,6 +961,7 @@ void app_tcpclient(char *arg)
   uint16_t port_be = 0;
   struct pico_ip4 server_addr;
   char *nxt = cpy_arg(&dest, arg);
+  int yes = 0;
   if (!dest) {
     fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
     exit(255);
@@ -993,7 +994,7 @@ void app_tcpclient(char *arg)
   if (!s)
     exit(1); 
 
-  pico_socket_setoption(s, PICO_TCP_NODELAY, NULL);
+  pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
   
   /* NOTE: used to set a fixed local port and address
   local_port = short_be(6666);
@@ -1062,11 +1063,12 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     struct pico_ip4 orig;
     uint16_t port;
     char peer[30];
+    int yes = 0;
     sock_a = pico_socket_accept(s, &orig, &port);
     pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("Connection established with %s:%d.\n", peer, short_be(port));
-    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, NULL);
+    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, &yes);
   }
 
   if (ev & PICO_SOCK_EV_FIN) {
@@ -1103,6 +1105,7 @@ void app_tcpecho(char *arg)
   char *sport = arg;
   int port = 0;
   uint16_t port_be = 0;
+  int yes = 0;
   cpy_arg(&sport, arg);
   if (sport) {
     port = atoi(sport);
@@ -1122,7 +1125,7 @@ void app_tcpecho(char *arg)
   if (pico_socket_listen(s, 40) != 0)
     exit(1);
 
-  pico_socket_setoption(s, PICO_TCP_NODELAY, NULL);
+  pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
 
 #ifdef PICOAPP_IPFILTER
   {
@@ -1272,6 +1275,7 @@ void app_tcpbench(char *arg)
   struct pico_ip4 server_addr;
   char *nxt;
   char *sport;
+  int yes = 0;
 
   nxt = cpy_arg(&mode, arg);
 
@@ -1311,6 +1315,8 @@ void app_tcpbench(char *arg)
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
     if (!s)
       exit(1); 
+  
+    pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
     
     /* NOTE: used to set a fixed local port and address
     local_port = short_be(6666);

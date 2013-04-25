@@ -27,7 +27,7 @@ Authors: Daniele Lacamera
 #define PROTO(s) ((s)->proto->proto_number)
 
 #ifdef PICO_SUPPORT_TCP
-# define IS_NAGLE_ENABLED(s) (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+# define IS_NAGLE_ENABLED(s) (!(!(!(s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY)))))
 #endif
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
@@ -1103,9 +1103,19 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
   {
 #ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
+          if (!value) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+          }
           if (s->proto->proto_number == PICO_PROTO_TCP) {
-            /* disable Nagle's algorithm */
-            PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_TCPNODELAY);
+            int *val = (int*)value;
+            if (*val > 0) {
+              dbg("setsockopt: Nagle algorithm disabled.\n");
+              PICO_SOCKET_SETOPT_EN(s,PICO_SOCKET_OPT_TCPNODELAY);
+            } else {
+              dbg("setsockopt: Nagle algorithm enabled.\n");
+              PICO_SOCKET_SETOPT_DIS(s,PICO_SOCKET_OPT_TCPNODELAY);
+            }
           } else {
             pico_err = PICO_ERR_EINVAL;
           }
@@ -1206,7 +1216,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 #ifdef PICO_SUPPORT_TCP
     case PICO_TCP_NODELAY:
           if (s->proto->proto_number == PICO_PROTO_TCP)
-            /* state Nagle's algorithm */
+            /* state of the NODELAY option */
             *(int *)value = PICO_SOCKET_GETOPT(s,PICO_SOCKET_OPT_TCPNODELAY);
           else
             *(int *)value = 0;

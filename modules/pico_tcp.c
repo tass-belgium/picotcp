@@ -35,7 +35,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_WINDOW_FULL    0x06
 
 /* check if the Nagle algorithm is enabled on the socket */
-#define IS_NAGLE_ENABLED(s)     (s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY))
+#define IS_NAGLE_ENABLED(s)     (!(!(!(s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY)))))
 /* check if tcp connection is "idle" according to Nagle (RFC 896) */
 #define IS_TCP_IDLE(t)          ((t->in_flight == 0) && (t->tcpq_out.size == 0))
 /* check if the hold queue contains data (again Nagle) */
@@ -635,7 +635,7 @@ struct pico_socket *pico_tcp_open(void)
   t->tcpq_hold.max_size = 2*PICO_TCP_DEFAULT_MSS;
 
   /* enable Nagle by default */
-  t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
+  t->sock.opt_flags &= (~(1 << PICO_SOCKET_OPT_TCPNODELAY));
 
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
   pico_timer_add(2000, sock_stats, t);
