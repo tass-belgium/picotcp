@@ -1316,6 +1316,7 @@ static void tcp_ack_dbg(struct pico_socket *s, struct pico_frame *f)
   struct pico_tree_node *idx;
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   char info[64];
+  char tmp[64];
   ack = ACKN(f);
   nxt = t->snd_nxt;
   tcp_dbg("===================================\n");
@@ -1330,14 +1331,22 @@ static void tcp_ack_dbg(struct pico_socket *s, struct pico_frame *f)
       una = SEQN(una_f);
     }
 
-    if (cur == nxt)
-      snprintf(info,64, "%s SND_NXT", info);
-    if (cur == ack)
-      snprintf(info,64, "%s ACK", info);
-    if (cur == una)
-      snprintf(info,64, "%s SND_UNA", info);
-    if (cur == t->snd_last)
-      snprintf(info,64, "%s SND_LAST", info);
+    if (cur == nxt) {
+      strncpy(tmp, info, strlen(info));
+      snprintf(info,64, "%s SND_NXT", tmp);
+    }
+    if (cur == ack) {
+      strncpy(tmp, info, strlen(info));
+      snprintf(info,64, "%s ACK", tmp);
+    }
+    if (cur == una) {
+      strncpy(tmp, info, strlen(info));
+      snprintf(info,64, "%s SND_UNA", tmp);
+    }
+    if (cur == t->snd_last) {
+      strncpy(tmp, info, strlen(info));
+      snprintf(info,64, "%s SND_LAST", tmp);
+    }
     tcp_dbg("%08x %d%s\n", cur, cur_f->payload_len, info);
 
   }

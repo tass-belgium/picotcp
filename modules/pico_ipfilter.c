@@ -212,6 +212,8 @@ int match_filter(struct filter_node *filter, struct pico_frame *f)
       udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
       temp.out_port = short_be(udp_hdr->trans.dport);
       temp.in_port = short_be(udp_hdr->trans.sport);
+  } else {
+    temp.out_port = temp.in_port = 0;
   }
   temp.proto = ipv4_hdr->proto;
   temp.priority = f->priority;
