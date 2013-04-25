@@ -106,7 +106,7 @@ static uint32_t pico_dhcp_execute_init(struct pico_dhcp_client_cookie *cli)
 	if (init_cookie(cli) < 0)
     return 0;
 
-  dbg("DHCP client: cookie with xid %u\n", cli->xid);
+  dbg("DHCPC: cookie with xid %u\n", cli->xid);
   
   if (pico_tree_insert(&DHCPCookies, cli)) {
     pico_err = PICO_ERR_EAGAIN;
@@ -181,7 +181,7 @@ static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s)
 	int type;
 
 	struct pico_dhcp_client_cookie *cli;
-	dbg("DHCP>Called dhcp_wakeup\n");
+	dbg("DHCPC: called dhcp_wakeup\n");
 	if (ev == PICO_SOCK_EV_RD) {
 		do {
 			r = pico_socket_recvfrom(s, buf, DHCPC_DATAGRAM_SIZE, &peer, &port);
@@ -259,7 +259,7 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 		if ((opt_type == PICO_DHCPOPT_SERVERID) && (opt_len == 4))
 			memcpy(&cli->server_id.addr, opt_data, 4);
 		if (opt_type == PICO_DHCPOPT_OPTIONOVERLOAD)
-			dbg("DHCP>WARNING : option overload present (not processed)");
+			dbg("DHCPC: WARNING: option overload present (not processed)");
 
 		opt_len = 20;
 		opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
@@ -295,9 +295,9 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	}
 	cli->state = DHCPSTATE_BOUND;
 
-	dbg("DHCP>T1 : %d\n",cli->T1);
-	dbg("DHCP>T2 : %d\n",cli->T2);
-	dbg("DHCP>lease time: %d\n",cli->lease_time);
+	dbg("DHCPC: T1: %d\n",cli->T1);
+	dbg("DHCPC: T2: %d\n",cli->T2);
+	dbg("DHCPC: lease time: %d\n",cli->lease_time);
 
 	if(cli->timer_param_1)
 		cli->timer_param_1->valid = 0;
@@ -352,7 +352,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	if(cli->cb != NULL)
 		cli->cb(cli, PICO_DHCP_SUCCESS);
 	else
-		dbg("no CB\n");
+		dbg("DHCPC: no callback\n");
 
   dhcp_client_mutex++;
 	cli->state = DHCPSTATE_BOUND;
@@ -397,7 +397,6 @@ static int reset(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 
 static int retransmit(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 {
-
 	pico_dhcp_retry(cli);
 
 	if(cli->state == DHCPSTATE_DISCOVER)
@@ -405,7 +404,7 @@ static int retransmit(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 	else if(cli->state == DHCPSTATE_RENEWING)
 		dhclient_send(cli, PICO_DHCP_MSG_REQUEST);
 	else
-		dbg("DHCP>WARNING : should not get here in state %d!\n", cli->state);
+		dbg("DHCPC: WARNING: should not get here in state %d!\n", cli->state);
 
 	return 0;
 
@@ -437,7 +436,7 @@ static struct dhcp_action_entry dhcp_fsm[] = {
 
 static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cli, uint8_t* data, int len)
 {
-	dbg("DHCPC>received incoming event of type %d\n", type);
+	dbg("DHCPC: received incoming event of type %d\n", type);
 	switch(type){
 		case PICO_DHCP_MSG_OFFER:
 			if(dhcp_fsm[cli->state].offer != NULL)
@@ -469,7 +468,7 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
 			}
 			break;
 		default:
-			dbg("DHCP>not supported yet!!\n");
+			dbg("DHCPC: event not supported yet!!\n");
 			break;
 	}
 }
@@ -481,7 +480,7 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
 
 static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 {
-	const int MAX_RETRY = 5;
+	const int MAX_RETRY = 3;
 	uint32_t new_xid;
 	if (++cli->attempt > MAX_RETRY) {
 		cli->start_time = pico_tick;
@@ -492,7 +491,6 @@ static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 		}
 		cli->xid = new_xid;
 		cli->state = DHCPSTATE_DISCOVER;
-		init_cookie(cli);
 	}
 }
 
@@ -570,7 +568,7 @@ static int dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	dh_out->options[i] = PICO_DHCPOPT_END;
 	sent = pico_socket_sendto(cli->socket, buf_out, DHCPC_DATAGRAM_SIZE, &destination, port);
 	if (sent < 0) {
-		dbg("DHCP>socket sendto failed with code %d\n", pico_err);
+		dbg("DHCPC: sendto failed: %s\n", strerror(pico_err));
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
 	}
@@ -590,7 +588,7 @@ static int dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	cli->timer_param_retransmit->valid = 1;
 	cli->timer_param_retransmit->cli = cli;
 	cli->timer_param_retransmit->type = PICO_DHCP_EVENT_RETRANSMIT;
-	pico_timer_add(5000, dhcp_timer_cb, cli->timer_param_retransmit);
+	pico_timer_add(4000, dhcp_timer_cb, cli->timer_param_retransmit);
 
   return 0;
 }
@@ -654,7 +652,7 @@ static int init_cookie(struct pico_dhcp_client_cookie* cli)
 	cli->socket->dev = cli->device;
 
 	if(pico_ipv4_link_add(cli->device, address, netmask) != 0){
-    dbg("DHCPD: error adding link: %s\n", strerror(pico_err));
+    dbg("DHCPC: error adding link: %s\n", strerror(pico_err));
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
 		return -1;
