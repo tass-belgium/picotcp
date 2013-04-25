@@ -37,7 +37,6 @@ Author: Andrei Carp <andrei.carp@tass.be>
 
 #ifdef dbg
 	#undef dbg
-	//#define dbg printf
 	#define dbg(...) do{}while(0);
 #endif
 

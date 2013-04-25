@@ -230,7 +230,7 @@ uint32_t mock_get_sender_ip4(struct mock_device* mock, void* buf, int len)
 	uint32_t ret;
 	int start = mock->mac?14:0;
 	if(start+16 > len){
-		printf("out of range!\n");
+		dbg("out of range!\n");
 		return 0;
 	}
 	memcpy(&ret, buf+start+12, 4);

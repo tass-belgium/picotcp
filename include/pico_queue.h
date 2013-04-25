@@ -34,12 +34,12 @@ struct pico_queue {
 static void debug_q(struct pico_queue *q)
 {
   struct pico_frame *p = q->head;
-  printf("%d: ", q->frames);
+  dbg("%d: ", q->frames);
   while(p) {
-    printf("(%p)-->", p);
+    dbg("(%p)-->", p);
     p = p->next;
   }
-  printf("X\n");
+  dbg("X\n");
 }
 #endif
 

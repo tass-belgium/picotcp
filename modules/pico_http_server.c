@@ -382,7 +382,7 @@ int pico_http_submitData(uint16_t conn, void * buffer, int len)
 	}
 	else if(len == 0)
 	{
-		printf("->\n");
+		dbg("->\n");
 		// end of transmision
 		pico_socket_write(client->sck,"0\r\n\r\n",5u);
 		// nothing left, close the client
