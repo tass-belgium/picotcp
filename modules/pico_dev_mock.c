@@ -84,13 +84,13 @@ static int pico_mock_poll(struct pico_device *dev, int loop_score)
 		pico_free(mock->in_head->buffer);
 
 		if(mock->in_tail == mock->in_head){
-			free(mock->in_head);
+			pico_free(mock->in_head);
 			mock->in_tail = mock->in_head = NULL;
 			return loop_score;
 		}
 
 		nxt = mock->in_head->next;
-		free(mock->in_head);
+		pico_free(mock->in_head);
 		mock->in_head = nxt;
 	}
   return loop_score;
@@ -115,13 +115,13 @@ int pico_mock_network_read(struct mock_device* mock, void *buf, int len)
 	pico_free(mock->out_head->buffer);
 
 	if(mock->out_tail == mock->out_head){
-		free(mock->out_head);
+		pico_free(mock->out_head);
 		mock->out_tail = mock->out_head = NULL;
 		return len;
 	}
 
 	nxt = mock->out_head->next;
-	free(mock->out_head);
+	pico_free(mock->out_head);
 	mock->out_head = nxt;
 
 	return len;

@@ -158,7 +158,7 @@ int pico_ipv4_filter_del(uint8_t filter_id)
   if (work->filter_id == filter_id) {
       /*delete filter_node from linked list*/
       head = work->next_filter;
-      free(work);
+      pico_free(work);
       return 0;
   }
   prev = work;
@@ -169,11 +169,11 @@ int pico_ipv4_filter_del(uint8_t filter_id)
         if (work != tail) {
         /*delete filter_node from linked list*/
         prev->next_filter = work->next_filter;
-        free(work);
+        pico_free(work);
         return 0;
         } else {
           prev->next_filter = NULL;
-          free(work);
+          pico_free(work);
           return 0;
         }
     } else {
