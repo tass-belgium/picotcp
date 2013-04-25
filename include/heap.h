@@ -3,9 +3,6 @@ PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
 
 *********************************************************************/
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 #define DECLARE_HEAP(type, orderby) \
 struct heap_##type {   \

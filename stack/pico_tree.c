@@ -5,8 +5,6 @@ See LICENSE and COPYING for usage.
 Author: Andrei Carp <andrei.carp@tass.be>
 *********************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
 #include "pico_tree.h"
 #include "pico_config.h"
 
