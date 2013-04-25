@@ -1119,6 +1119,7 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
     return -1;
   }
   test.address.addr = address.addr;
+  test.dev = dev;
   found = pico_tree_findKey(&Tree_dev_link, &test);
   if (!found) {
     pico_err = PICO_ERR_ENXIO;

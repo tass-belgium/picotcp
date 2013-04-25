@@ -14,10 +14,10 @@ See LICENSE and COPYING for usage.
 #include "pico_protocol.h"
 
 
-void* pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code));
-void pico_dhcp_process_incoming_message(uint8_t* data, int len);
-struct pico_ip4 pico_dhcp_get_address(void* cli);
-struct pico_ip4 pico_dhcp_get_gateway(void* cli);
+uint32_t pico_dhcp_initiate_negotiation(struct pico_device *device, void (*callback)(void* cli, int code));
+void pico_dhcp_process_incoming_message(uint8_t *data, int len);
+struct pico_ip4 pico_dhcp_get_address(void *cli);
+struct pico_ip4 pico_dhcp_get_gateway(void *cli);
 
 /* possible codes for the callback */
 #define PICO_DHCP_SUCCESS 0

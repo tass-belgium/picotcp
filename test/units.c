@@ -1326,6 +1326,7 @@ START_TEST (test_dhcp_client)
   int type = 0;
   uint8_t printbufactive = 0;
   uint32_t len = 0;
+  uint32_t xid = 0;
   struct pico_dhcp_client_cookie *cli = NULL;
 
   pico_stack_init();
@@ -1336,7 +1337,8 @@ START_TEST (test_dhcp_client)
   fail_if(pico_mock_network_read(mock,buf,BUFLEN),"data on network that shouldn't be there");
 
   // initiate negotiation -> change state to  
-	cli = pico_dhcp_initiate_negotiation(mock->dev, &callback_dhcpclient);
+	xid = pico_dhcp_initiate_negotiation(mock->dev, &callback_dhcpclient);
+  cli = get_cookie_by_xid(xid);
 	dhcp_client_ptr = cli;
 	fail_if(cli == NULL,"initiate fail");
   fail_unless(cli->state == DHCPSTATE_DISCOVER,"Not in discover state after init negotiate");
@@ -1400,10 +1402,13 @@ START_TEST (test_dhcp_client_api)
 ************************************************************************/
 
   /* Declaration test 0 */ 
+  uint32_t xid0 = 0;
   struct pico_dhcp_client_cookie *cli0 = NULL;
   /* Declaration test 1 */ 
+  uint32_t xid1 = 0;
   struct pico_dhcp_client_cookie *cli1 = NULL;
   /* Declaration test 2 */ 
+  uint32_t xid2 = 0;
   struct pico_dhcp_client_cookie *cli2 = NULL;
   struct pico_device *dev2;
   struct mock_device *mock2=NULL;
@@ -1414,7 +1419,8 @@ START_TEST (test_dhcp_client_api)
   /* Clear error code */
   pico_err = PICO_ERR_NOERR;
   /* Test 0 statements */
-	cli0 = pico_dhcp_initiate_negotiation(NULL, NULL);
+	xid0 = pico_dhcp_initiate_negotiation(NULL, NULL);
+  cli0 = get_cookie_by_xid(xid0);
   fail_unless(cli0 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
   fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
  
@@ -1422,7 +1428,8 @@ START_TEST (test_dhcp_client_api)
   /* Clear error code */
   pico_err = PICO_ERR_NOERR;
   /* Test 1 statements */
-	cli1 = pico_dhcp_initiate_negotiation(NULL, &callback_dhcpclient);
+	xid1 = pico_dhcp_initiate_negotiation(NULL, &callback_dhcpclient);
+  cli1 = get_cookie_by_xid(xid1);
   fail_unless(cli1 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
   fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
 
@@ -1434,13 +1441,17 @@ START_TEST (test_dhcp_client_api)
   /* Clear error code */
   pico_err = PICO_ERR_NOERR;
   /* Test 2 statements */
-	cli2 = pico_dhcp_initiate_negotiation(dev2, NULL);
+	xid2 = pico_dhcp_initiate_negotiation(dev2, NULL);
+  cli2 = get_cookie_by_xid(xid2);
   fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to cb == NULL");
-	cli2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+	xid2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+  cli2 = get_cookie_by_xid(xid2);
   fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to cb == NULL");
-	cli2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
+	xid2 = pico_dhcp_initiate_negotiation(mock2->dev, &callback_dhcpclient);
+  cli2 = get_cookie_by_xid(xid2);
   fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to mock dev");
-	cli2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+	xid2 = pico_dhcp_initiate_negotiation(dev2, &callback_dhcpclient);
+  cli2 = get_cookie_by_xid(xid2);
   fail_if(cli2 == NULL,"DHCP_CLIENT> initiate failed after pointer to  nulldev");
 
  

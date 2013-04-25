@@ -7,14 +7,11 @@ See LICENSE and COPYING for usage.
 Authors: Frederik Van Slycken
 *********************************************************************/
 
+#include "pico_config.h"
+#include "pico_stack.h"
+#include "pico_dhcp_common.h"
 
 #if defined (PICO_SUPPORT_DHCPC) || defined (PICO_SUPPORT_DHCPD)
-
-#include "pico_stack.h"
-#include "pico_config.h"
-#include "pico_dhcp_common.h"
-#include <stdlib.h>
-#include <unistd.h>
 //this function should only be used after you checked if the options are valid! otherwise it could read from bad memory!
 uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt)
 {

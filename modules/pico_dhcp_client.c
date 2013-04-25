@@ -18,6 +18,8 @@ Authors: Frederik Van Slycken, Kristof Roelants
  * structs *
  ***********/
 
+static uint8_t dhcp_client_mutex = 1; /* to serialize client negotations if multiple devices */
+
 struct dhcp_timer_param{
 	uint16_t type;
 	struct pico_dhcp_client_cookie* cli;
@@ -64,6 +66,7 @@ PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
  * function declarations *
  *************************/
 static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cli, uint8_t* data, int len);
+static void pico_dhcp_reinitiate_negotiation(unsigned long now, void *arg);
 
 //cb
 static void pico_dhcp_wakeup(uint16_t ev, struct pico_socket *s);
@@ -71,9 +74,9 @@ static void dhcp_timer_cb(unsigned long tick, void* param);
 
 //util
 static void pico_dhcp_retry(struct pico_dhcp_client_cookie *client);
-static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type);
+static int dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type);
 static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pico_dhcp_client_cookie *cli);
-static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code));
+static int init_cookie(struct pico_dhcp_client_cookie* cli);
 static struct pico_dhcp_client_cookie* get_cookie_by_xid(uint32_t xid);
 static uint32_t get_xid(uint8_t* data);
 
@@ -91,34 +94,63 @@ static void pico_dhcp_state_machine(int type, struct pico_dhcp_client_cookie* cl
  * entry point *
  ***************/
 
-/* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
-void *pico_dhcp_initiate_negotiation(struct pico_device* device, void (*callback)(void* cli, int code))
+static uint32_t pico_dhcp_execute_init(struct pico_dhcp_client_cookie *cli)
 {
-	struct pico_dhcp_client_cookie* cli = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
-	if(!cli){
-		pico_err = PICO_ERR_ENOMEM;
-		return NULL;
-	}
+  if (!dhcp_client_mutex) {
+    pico_timer_add(3000, pico_dhcp_reinitiate_negotiation, cli);
+    pico_err = PICO_ERR_EBUSY; /* initiation is postponed, not a breaking error */
+    return 0;
+  }
+  dhcp_client_mutex--;
 
-	if(device == NULL){
-		pico_err = PICO_ERR_EINVAL;
-		return NULL;
-	}
+	if (init_cookie(cli) < 0)
+    return 0;
 
-	init_cookie(cli, device, callback);
   dbg("DHCP client: cookie with xid %u\n", cli->xid);
   
   if (pico_tree_insert(&DHCPCookies, cli)) {
-    dbg("DHCP client ERROR: xid %u already used\n", cli->xid);
     pico_err = PICO_ERR_EAGAIN;
+		if(cli->cb != NULL) {
+			cli->cb(cli, PICO_DHCP_ERROR);
+    }
     pico_free(cli);
-    return NULL; /* Element key already exists */
+    return 0; /* Element key already exists */
   }
 
-	pico_dhcp_retry(cli);
-	dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
+	if (dhclient_send(cli, PICO_DHCP_MSG_DISCOVER) < 0)
+    return 0;
 
-	return cli;
+	return cli->xid;
+}
+
+/* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
+uint32_t pico_dhcp_initiate_negotiation(struct pico_device *device, void (*callback)(void *cli, int code))
+{
+	struct pico_dhcp_client_cookie *cli;
+  
+	if(!device || !callback){
+		pico_err = PICO_ERR_EINVAL;
+		return 0;
+	}
+  cli = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
+	if(!cli){
+		pico_err = PICO_ERR_ENOMEM;
+		return 0;
+	}
+
+  cli->device = device;
+  cli->cb = callback;
+
+  return pico_dhcp_execute_init(cli);
+}
+
+static void pico_dhcp_reinitiate_negotiation(unsigned long now, void *arg)
+{
+  struct pico_dhcp_client_cookie *cli = (struct pico_dhcp_client_cookie *) arg;
+
+  pico_dhcp_execute_init(cli);
+
+  return;
 }
 
 /********************
@@ -256,6 +288,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	address.addr = long_be(0x00000000);
 
 	if(cli->link_added == 0){
+    pico_socket_close(cli->socket);
 		pico_ipv4_link_del(cli->device, address);
 		pico_ipv4_link_add(cli->device, cli->address, cli->netmask);
 		cli->link_added = 1;
@@ -321,6 +354,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	else
 		dbg("no CB\n");
 
+  dhcp_client_mutex++;
 	cli->state = DHCPSTATE_BOUND;
 	return 0;
 }
@@ -353,7 +387,7 @@ static int reset(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	pico_ipv4_link_del(cli->device, cli->address);
 
 	//initiate negotiations again
-	init_cookie(cli, cli->device, cli->cb);
+	init_cookie(cli);
 	pico_dhcp_retry(cli);
 	dhclient_send(cli, PICO_DHCP_MSG_DISCOVER);
 
@@ -458,11 +492,11 @@ static void pico_dhcp_retry(struct pico_dhcp_client_cookie *cli)
 		}
 		cli->xid = new_xid;
 		cli->state = DHCPSTATE_DISCOVER;
-		init_cookie(cli, cli->device, cli->cb);
+		init_cookie(cli);
 	}
 }
 
-static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
+static int dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 {
 	uint8_t buf_out[DHCPC_DATAGRAM_SIZE] = {0};
 	struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
@@ -481,7 +515,7 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		if(cli->cb != NULL){
 			cli->cb(cli, PICO_DHCP_ERROR);
 		}
-		return;
+		return -1;
 	}
 	memcpy(dh_out->hwaddr, &cli->device->eth->mac, PICO_HLEN_ETHER);
 	dh_out->op = PICO_DHCP_OP_REQUEST;
@@ -551,13 +585,14 @@ static void dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 		if(cli->cb != NULL)
       pico_err = PICO_ERR_ENOMEM;
 			cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
 	cli->timer_param_retransmit->valid = 1;
 	cli->timer_param_retransmit->cli = cli;
 	cli->timer_param_retransmit->type = PICO_DHCP_EVENT_RETRANSMIT;
 	pico_timer_add(5000, dhcp_timer_cb, cli->timer_param_retransmit);
-	
+
+  return 0;
 }
 
 //identifies type & does some preprocessing : checking if everything is valid
@@ -589,57 +624,61 @@ static int pico_dhcp_verify_and_identify_type(uint8_t* data, int len, struct pic
 
 }
 
-static void init_cookie(struct pico_dhcp_client_cookie* cli, struct pico_device* device, void (*callback)(void* cli, int code))
+static int init_cookie(struct pico_dhcp_client_cookie* cli)
 {
-
+  uint8_t n = 3;
 	uint16_t port = PICO_DHCP_CLIENT_PORT;
 	struct pico_ip4 address, netmask;
 
 	address.addr = long_be(0x00000000);
 	netmask.addr = long_be(0x00000000);
 
-	if(pico_ipv4_link_add(device, address, netmask) != 0){
-		if(cli->cb != NULL)
-			cli->cb(cli, PICO_DHCP_ERROR);
-		return;
-	}
-
-	memset(cli, 0, sizeof(struct pico_dhcp_client_cookie));
-
-	cli->cb = callback;
-
-	cli->device = device;
 	cli->state = DHCPSTATE_DISCOVER;
+	cli->start_time = pico_tick;
+	cli->attempt = 0;
 
 	cli->socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_wakeup);
 	if (!cli->socket) {
-		dbg("DHCP>could not open client socket\n");
+		dbg("DHCPC: error opening socket: %s\n", strerror(pico_err));
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
 	if (pico_socket_bind(cli->socket, &address, &port) != 0){
-		dbg("DHCP>could not bind client socket\n");
+		dbg("DHCPC: error binding socket: %s\n", strerror(pico_err));
+    pico_socket_close(cli->socket);
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
-	cli->socket->dev = device;
+	cli->socket->dev = cli->device;
 
-	cli->start_time = pico_tick;
-	cli->attempt = 0;
-	cli->xid = pico_rand();
-
-	if (!cli->socket) {
+	if(pico_ipv4_link_add(cli->device, address, netmask) != 0){
+    dbg("DHCPD: error adding link: %s\n", strerror(pico_err));
 		if(cli->cb != NULL)
 			cli->cb(cli, PICO_DHCP_ERROR);
-		return;
+		return -1;
 	}
+
+  /* attempt to generate a correct xid 3 times, then fail */
+  do {
+	  cli->xid = pico_rand();
+  } while (!cli->xid && --n);
+  if (!cli->xid) {
+		if(cli->cb != NULL)
+			cli->cb(cli, PICO_DHCP_ERROR);
+    return -1;
+  }
+
+  return 0;
 }
 
 static struct pico_dhcp_client_cookie *get_cookie_by_xid(uint32_t xid)
 {
 	struct pico_dhcp_client_cookie test = { }, *cookie = NULL;
+
+  if (!xid)
+    return NULL;
 
   test.xid = xid;
   cookie = pico_tree_findKey(&DHCPCookies, &test);
