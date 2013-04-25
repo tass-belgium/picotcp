@@ -1468,12 +1468,12 @@ START_TEST (test_socket)
   struct pico_device *dev;
   struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask,orig;
 
-  uint8_t getnodelay = -1;
-  uint8_t nodelay = -1;
-  uint8_t ttl = 64;
-  uint8_t getttl = 0;
-  uint8_t loop = 9;
-  uint8_t getloop = 0;
+  int getnodelay = -1;
+  int nodelay = -1;
+  int ttl = 64;
+  int  getttl = 0;
+  int  loop = 9;
+  int  getloop = 0;
   struct pico_ip4 mcast_default_link = {0};
   struct pico_ip_mreq mreq = {{0},{0}};
 
@@ -1731,14 +1731,21 @@ START_TEST (test_socket)
 
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
-  fail_if(getnodelay != 1, "socket> socket_setoption: default PICO_TCP_NODELAY != 1\n");
+  fail_if(getnodelay != 0, "socket> socket_setoption: default PICO_TCP_NODELAY != 0 (nagle disabled by default)\n");
 
+  nodelay = 1;
   ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, &nodelay);
   fail_if(ret < 0, "socket> socket_setoption: supported PICO_TCP_NODELAY failed\n");
-
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
-  fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY != 0\n");
+  fail_if(getnodelay == 0, "socket> socket_setoption: PICO_TCP_NODELAY is off (expected: on!)\n");
+
+  nodelay = 0;
+  ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, &nodelay);
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_TCP_NODELAY failed\n");
+  ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
+  fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
+  fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY is on (expected: off!)\n");
 
   ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
   fail_if(ret == 0, "socket> socket_setoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
