@@ -1,58 +1,41 @@
 \section{DHCP client}
 
 % Short description/overview of module functions
-A DHCP client for obtaining a dynamic IP address.
-When initiating a negotiation the user is passed an identifier,
-which must then be passed to all future calls to \texttt{pico\_dhcp} functions.
-(Currently DHCP can only be run on one interface. Future versions may support
-DHCP on multiple interfaces, and the functions described here are already prepared for that.)
+A DHCP client for obtaining a dynamic IP address. DHCP is supported on multiple interfaces.
 
 
 \subsection{pico\_dhcp\_initiate\_negotiation}
 
 \subsubsection*{Description}
-Initiate a DHCP negotiation. The user passes a callback-function, which will be called
-when DHCP has succeeded or failed.
+Initiate a DHCP negotiation. The user passes a callback-function, which will be executed on DHCP success or failure.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-void * pico_dhcp_initiate_negotiation(struct pico_device* device,
-void (*callback)(void* cli, int code));
+int pico_dhcp_initiate_negotiation(struct pico_device *device,
+  void (*callback)(void *cli, int code), uint32_t *xid);
 \end{verbatim}
 
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{device} - the device on which a negotiation should be started
-\item \texttt{callback} - the function which will be called in case of success or failure.
-Note that this function can be called multiple times. An example would be if initially DHCP
-succeeded, but then the DHCP server was removed from the network long enough for the lease
-to expire, and later added again to the network. The callback would be called 3 times in
-this example: first with code \texttt{PICO\_DHCP\_SUCCESS}, then with \texttt{PICO\_DHCP\_RESET},
-and finally again with \texttt{PICO\_DHCP\_SUCCESS}.
-Also note that this callback may already be called before \texttt{pico\_dhcp\_initiate\_negotiation}
-has returned, e.g. in case of failure to open a socket.
-It accepts two parameters : 
+\item \texttt{device} - the device on which a negotiation should be started.
+\item \texttt{callback} - the function which is executed on success or failure. This function can be called multiple times. F.e.: initially DHCP succeeded, then the DHCP server is removed long enough from the network for the lease to expire, later the server is added again to the network. The callback is called 3 times: first with code \texttt{PICO\_DHCP\_SUCCESS}, then with \texttt{PICO\_DHCP\_RESET} and finally with \texttt{PICO\_DHCP\_SUCCESS}. The callback may be called before \texttt{pico\_dhcp\_initiate\_negotiation} has returned, f.e. in case of failure to open a socket. The callback has two parameters: 
 \begin{itemize}[noitemsep]
 \item \texttt{cli} - the identifier of the negotiation
-\item \texttt{code} - the reason the callback occurred, see further
+\item \texttt{code} - the id indicating success or failure, see further
 \end{itemize}
+\item \texttt{xid} - transaction id of the negotiation. Is set on \texttt{PICO\_DHCP\_SUCCESS}, 0 otherwise.
 \end{itemize}
 
 \subsubsection*{Possible DHCP codes}
 \begin{itemize}[noitemsep]
-\item \texttt{PICO\_DHCP\_SUCCESS} - DHCP succeeded, the user can start using the assigned address,
-which can be obtained by calling \texttt{pico\_dhcp\_get\_address}.
-\item \texttt{PICO\_DHCP\_ERROR} - an error occurred. DHCP is unable to recover from this error.
-\texttt{pico$\_$err} is set appropriately.
-\item \texttt{PICO\_DHCP\_RESET} - DHCP was unable to renew its lease, and the lease expired.
-The user must immediately stop using the previously assigned IP, and wait for DHCP to obtain a
-new lease. DHCP will automatically start negotiations again.
+\item \texttt{PICO\_DHCP\_SUCCESS} - DHCP succeeded, the user can start using the assigned address, which can be obtained by calling \texttt{pico\_dhcp\_get\_address}.
+\item \texttt{PICO\_DHCP\_ERROR} - an error occurred. DHCP is unable to recover from this error. \texttt{pico$\_$err} is set appropriately.
+\item \texttt{PICO\_DHCP\_RESET} - DHCP was unable to renew its lease, and the lease expired. The user must immediately stop using the previously assigned IP, and wait for DHCP to obtain a new lease. DHCP will automatically start negotiations again.
 \end{itemize}
 
 \subsubsection*{Return value}
-A \texttt{void*} identifying the negotiation. This must be passed to all calls related to DHCP.
-This is to create the possibility of initiating DHCP negotiations on multiple devices (currently not supported).
+Returns 0 on success, -1 otherwise.
 
 \subsubsection*{Errors}   % ORGANIZE
 All errors are reported through the callback-function described above.
@@ -71,32 +54,55 @@ All errors are reported through the callback-function described above.
 
 \subsubsection*{Example}
 \begin{verbatim}
-void* identifier = pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient);
+pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &xid);
+\end{verbatim}
+
+
+\subsection{pico\_dhcp\_get\_identifier}
+
+\subsubsection*{Description}
+Get the identifier needed to pass to all other \texttt{pico\_dhcp} functions. This function should only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+
+\subsubsection*{Function prototype}
+\texttt{void *pico\_dhcp\_get\_identifier(uint32\_t xid);}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{xid} - transaction id of the negotiation.
+\end{itemize}
+
+\subsubsection*{Return value}
+\texttt{void *} - pointer to the identifier.
+
+%\subsubsection*{Errors}
+
+\subsubsection*{Example}
+\begin{verbatim}
+void *cli = pico_dhcp_get_identifier(xid);
 \end{verbatim}
 
 
 \subsection{pico\_dhcp\_get\_address}
 
 \subsubsection*{Description}
-Get the address that was assigned through DHCP. This function should only be called after
-a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+Get the address that was assigned through DHCP. This function should only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
 
 \subsubsection*{Function prototype}
-\texttt{struct pico\_ip4 pico\_dhcp\_get\_address(void* cli);}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_address(void *cli);}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{cli} - the negotiation identifier that was returned from \texttt{pico\_dhcp\_initiate\_negotiations}.
+\item \texttt{cli} - the identifier that was provided by the callback on \texttt{PICO\_DHCP\_SUCCESS}.
 \end{itemize}
 
 \subsubsection*{Return value}
-\texttt{struct pico\_ip4} - the address that was assigned
+\texttt{struct pico\_ip4} - the address that was assigned.
 
 %\subsubsection*{Errors}
 
 \subsubsection*{Example}
 \begin{verbatim}
-struct pico_ip4 address = pico_dhcp_get_address(identifier);
+struct pico_ip4 address = pico_dhcp_get_address(cli);
 \end{verbatim}
 
 
@@ -107,12 +113,11 @@ Get the address of the gateway that was assigned through DHCP. This function sho
 only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
 
 \subsubsection*{Function prototype}
-\texttt{struct pico\_ip4 pico\_dhcp\_get\_gateway(void* cli);}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_gateway(void *cli);}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{cli} : the negotiation identifier that was returned from
-\texttt{pico\_dhcp\_initiate\_negotiations}.
+\item \texttt{cli} - the identifier that was provided by the callback on \texttt{PICO\_DHCP\_SUCCESS}.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -124,5 +129,5 @@ only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}.
 
 \subsubsection*{Example}
 \begin{verbatim}
-struct pico_ip4 gateway = pico_dhcp_get_gateway(identifier);
+struct pico_ip4 gateway = pico_dhcp_get_gateway(cli);
 \end{verbatim}

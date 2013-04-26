@@ -150,6 +150,24 @@ When activated, the ping API will be available to test whether the hosts on the 
 Requires ICMP4 support.
 \\ \hline
 
+CRC&
+0,1&
+0&
+If enabled, CRC values are validated at IP and transport layer.
+\\ \hline
+
+IPFRAG&
+0,1&
+1&
+Enables the support for fragmentation and reassembly of UDP packets.
+\\ \hline
+
+IPFILTER&
+0,1&
+1&
+If enabled, provides basic filtering.
+\\ \hline
+
 DNS$\_$CLIENT&
 0,1&
 1&
@@ -168,6 +186,18 @@ DHCP$\_$SERVER&
 1&
 If activated, it will be possible to run a small DHCP server to provide addresses for automatic configuration
 to the other hosts in the network.
+\\ \hline
+
+HTTP$\_$CLIENT&
+0,1&
+1&
+Activates a basic HTTP client.
+\\ \hline
+
+HTTP$\_$SERVER&
+0,1&
+1&
+Activates a basic HTTP server.
 \\ \hline
 
 \end{longtable}

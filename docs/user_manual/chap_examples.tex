@@ -258,47 +258,117 @@ void app_nat(char *dest)
 \section{DNS example}
 
 \begin{verbatim}
-/* callback function for receiving URL translation */
-void cb_getaddr(char *ip)
+/* identifier struct */
+struct dns_identifier {
+  uint8_t id;
+  /* ... */
+};
+
+/* callback function of URL translation */
+void cb_getaddr(char *ip, void *arg)
 {
+  struct dns_identifier *id_getaddr = (struct dns_identifier *) arg;
+  
   /* NULL indicates an error condition */
   if (!ip) {
     printf("DNS error occured: %s\n", strerror(pico_err));
     return;
   }
-  printf("DNS translation to ip %s\n", ip);
+  printf("DNS translation to ip %s (id %u)\n", ip, id_getaddr ? id_getaddr->id : 0);
   
-  /* important: free the received pointer! */
+  /* important: free the received pointers! */
   pico_free(ip);
+  if (id_getaddr)
+    pico_free(id_getaddr);
 }
 
-/* callback function for receiving IP translation */
+/* callback function of IP translation */
 void cb_getname(char *url)
 {
+  struct dns_identifier *id_getname = (struct dns_identifier *) arg;
+  
   /* NULL indicates an error condition */
   if (!url) {
     printf("DNS error occured: %s\n", strerror(pico_err));
     return;
   }
-  printf("DNS translation to url %s\n", url);
+  printf("DNS translation to url %s (id %u)\n", url, id_getname ? id_getname->id : 0);
   
-  /* important: free the received pointer! */
+  /* important: free the received pointers! */
   pico_free(url);
+  if (id_getname)
+    pico_free(id_getname);
 }
 
 /* initialize the dns */
 void app_dns(char *url, char *ip)
 {
-  struct pico_ip4 nameserver;
+  struct pico_ip4 nameserver = { };
+  struct dns_identifier *id_getaddr = NULL, *id_getname = NULL;
   
   /* optional: add custom dns nameserver */
   pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
   pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
 
   /* request translation of URL f.e. www.google.com */  
-  pico_dns_client_getaddr(url, &cb_getaddr);
+  id_getaddr = pico_zalloc(sizeof(struct dns_identifier));
+  id_getaddr->id = 1;
+  pico_dns_client_getaddr(url, &cb_getaddr, id_getaddr);
 
   /* request translation of IP f.e. 8.8.8.8 */
-  pico_dns_client_getname(ip, &cb_getname);
+  id_getname = pico_zalloc(sizeof(struct dns_identifier));
+  id_getname->id = 2;
+  pico_dns_client_getname(ip, &cb_getname, id_getname);
+}
+\end{verbatim}
+
+
+\section{DHCP client example}
+
+\begin{verbatim}
+int main(void)
+{
+  uint8_t mac_eth0[6] = {0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc};
+  uint8_t mac_eth1[6] = {0xcb, 0xa9, 0x87, 0x65, 0x43, 0x21};
+  char s_addr_eth0[16] = { }, s_addr_eth1[16] = { };
+  void *identifier_eth0 = NULL, *identifier_eth1 = NULL;
+  uint32_t xid_eth0 = 0, xid_eth1 = 0;
+  struct pico_device *eth0 = NULL, *eth1 = NULL;
+  struct pico_ip4 addr_eth0 = { }, addr_eth1 = { };
+
+  /* see section 2.5 Network devices integration */
+  eth0 = pico_device_create("eth0", mac_eth0);
+  eth1 = pico_device_create("eth1", mac_eth1);
+  
+  pico_stack_init();
+  
+  if (pico_dhcp_initiate_negotiation(eth0, &cb_dhcpclient, &xid_eth0) < 0) {
+      printf("DHCPC: error initiating negotiation: %s\n", strerror(pico_err));
+      exit(255);
+  } 
+  if (pico_dhcp_initiate_negotiation(eth1, &cb_dhcpclient, &xid_eth1) < 0) {
+      printf("DHCPC: error initiating negotiation: %s\n", strerror(pico_err));
+      exit(255);
+  }
+  
+  for(;;) {
+    pico_stack_tick();
+    /* did both devices get a successful lease? */
+    if (xid_eth0 && xid_eth1)
+      break;
+    PICO_IDLE();
+  }
+  
+  identifier_eth0 = pico_dhcp_get_identifier(xid_eth0);
+  addr_eth0 = pico_dhcp_get_address(identifier_eth0);
+  pico_ipv4_to_string(s_addr_eth0, addr_eth0.addr);
+  printf("Device %s got leased IP %s\n", eth0->name, s_addr_eth0);
+  
+  identifier_eth1 = pico_dhcp_get_identifier(xid_eth1);
+  addr_eth1 = pico_dhcp_get_address(identifier_eth1);
+  pico_ipv4_to_string(s_addr_eth1, addr_eth1.addr);
+  printf("Device %s got leased IP %s\n", eth1->name, s_addr_eth1);
+  
+  return 0;
 }
 \end{verbatim}

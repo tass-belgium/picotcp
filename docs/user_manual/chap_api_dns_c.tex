@@ -51,13 +51,15 @@ Function to translate an url text string to an internet host address IP.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip));
+int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *arg), 
+  void *arg);
 \end{verbatim}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{url} - Pointer to text string containing url text string (e.g. www.google.com)
-\item \texttt{calback} - Callback function, receiving the internet host address IP. Note: the returned string has to be freed by the user.
+\item \texttt{url} - Pointer to text string containing url text string (e.g. www.google.com).
+\item \texttt{calback} - Callback function, returning the internet host address IP and the provided argument. The returned string has to be freed by the user.
+\item \texttt{arg} - Pointer to an identifier for the request. The pointer is returned in the callback.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -73,7 +75,7 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-int ret = pico_dns_client_getaddr("www.google.com", cb_getaddr);
+int ret = pico_dns_client_getaddr("www.google.com", cb_getaddr, &identifier);
 \end{verbatim}
 
 
@@ -85,13 +87,15 @@ Function to translate an internet host address IP to an url text string.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_dns_client_getname(const char *ip, void (*callback)(char *url));
+int pico_dns_client_getname(const char *ip, void (*callback)(char *url, void *arg), 
+  void *arg);
 \end{verbatim}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{ip} - Pointer to text string containing an internet host address IP (e.g. 8.8.4.4)
 \item \texttt{callback} - Callback function, receiving the url text string. Note: the returned string has to be freed by the user.
+\item \texttt{arg} - Pointer to an identifier for the request. The pointer is returned in the callback.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -107,5 +111,5 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-int ret = pico_dns_client_getname("8.8.4.4", cb_getname);
+int ret = pico_dns_client_getname("8.8.4.4", cb_getname, &identifier);
 \end{verbatim}

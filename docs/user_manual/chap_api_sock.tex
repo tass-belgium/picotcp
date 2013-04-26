@@ -190,8 +190,8 @@ void *orig, uint16_t *remote_port);
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
 \item \texttt{len} - Length of the string that will be stored in the buffer (in bytes)
-\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header
-\item \texttt{remote$\_$port} - Portnumber of the sender socket (pointer)
+\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header, can be NULL
+\item \texttt{remote$\_$port} - Pointer to the port number of the sender socket, can be NULL
 \end{itemize}
 
 \subsubsection*{Return value}
