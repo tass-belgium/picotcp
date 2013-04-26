@@ -9,6 +9,7 @@ Welcome to the one and only PicoTCP repository. Here's what you should do to get
 * make
 * sudo apt-get install vde2
 * sudo apt-get install libvdeplug2_dev
+* make test
 * sudo ./test/autotest.sh
 
 From here on, you can look into the source, and start building your very own applications.
