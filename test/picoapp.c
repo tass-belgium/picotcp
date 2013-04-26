@@ -1530,10 +1530,12 @@ void app_dhcp_server(char *arg)
 /*** DHCP Client ***/
 #ifdef PICO_SUPPORT_DHCPC
 static uint8_t dhcpclient_devices = 0;
+static uint32_t dhcpclient_xid = 0;
 
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
-  char host[30];
+  char host[30] = { };
+
   pico_ipv4_to_string(host, s->dst.addr);
   if (s->err == 0) {
     dbg("DHCP client: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
@@ -1549,25 +1551,35 @@ void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
   }
 }
 
-void callback_dhcpclient(void *cli, int code){
-  struct pico_ip4  gateway;
-  char gw_txt_addr[30];
+void callback_dhcpclient(void *cli, int code) 
+{
+  struct pico_ip4 address = { }, gateway = { };
+  char s_address[16] = { }, s_gateway[16] = { };
+  void *identifier = NULL;
 
   printf("DHCP client: callback happened with code %d!\n", code);
-  if(code == PICO_DHCP_SUCCESS){
-    gateway = pico_dhcp_get_gateway(cli);
-    pico_ipv4_to_string(gw_txt_addr, gateway.addr);
+  if (code == PICO_DHCP_SUCCESS) {
+    identifier = pico_dhcp_get_identifier(dhcpclient_xid);
+    if (!identifier) {
+      printf("DHCP client: incorrect transaction ID %u\n", dhcpclient_xid);
+      return;
+    }
+    address = pico_dhcp_get_address(identifier);
+    gateway = pico_dhcp_get_gateway(identifier);
+    pico_ipv4_to_string(s_address, address.addr);
+    pico_ipv4_to_string(s_gateway, gateway.addr);
+    printf("DHCP client: got IP %s assigned with xid %u\n", s_address, dhcpclient_xid);
 #ifdef PICO_SUPPORT_PING
-    pico_icmp4_ping(gw_txt_addr, 3, 1000, 5000, 32, ping_callback_dhcpclient);
+    pico_icmp4_ping(s_gateway, 3, 1000, 5000, 32, ping_callback_dhcpclient);
 #endif
   }
 }
 
 void app_dhcp_client(char *arg)
 {
-  struct pico_device *dev;
-  char *sdev;
+  char *sdev = NULL;
   char *nxt = arg;
+  struct pico_device *dev = NULL;
 
   if (!nxt)
     goto out;
@@ -1587,11 +1599,9 @@ void app_dhcp_client(char *arg)
     }
     printf("Starting negotiation\n");
 
-    if (pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient) == 0) {
-      if (pico_err != PICO_ERR_EBUSY) {
-        printf("%s: error initiating negotiation: %s\n", __FUNCTION__, strerror(pico_err));
-        exit(255);
-      }
+    if (pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &dhcpclient_xid) < 0) {
+      printf("%s: error initiating negotiation: %s\n", __FUNCTION__, strerror(pico_err));
+      exit(255);
     }
     dhcpclient_devices++;
   }

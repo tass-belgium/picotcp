@@ -29,6 +29,7 @@ struct dhcp_timer_param{
 struct pico_dhcp_client_cookie
 {
 	uint32_t xid;
+  uint32_t *xid_user;
 	struct pico_ip4 address;
 	struct pico_ip4 netmask;
 	struct pico_ip4 gateway;
@@ -98,13 +99,12 @@ static uint32_t pico_dhcp_execute_init(struct pico_dhcp_client_cookie *cli)
 {
   if (!dhcp_client_mutex) {
     pico_timer_add(3000, pico_dhcp_reinitiate_negotiation, cli);
-    pico_err = PICO_ERR_EBUSY; /* initiation is postponed, not a breaking error */
     return 0;
   }
   dhcp_client_mutex--;
 
 	if (init_cookie(cli) < 0)
-    return 0;
+    return -1;
 
   dbg("DHCPC: cookie with xid %u\n", cli->xid);
   
@@ -114,32 +114,34 @@ static uint32_t pico_dhcp_execute_init(struct pico_dhcp_client_cookie *cli)
 			cli->cb(cli, PICO_DHCP_ERROR);
     }
     pico_free(cli);
-    return 0; /* Element key already exists */
+    return -1; /* Element key already exists */
   }
 
 	if (dhclient_send(cli, PICO_DHCP_MSG_DISCOVER) < 0)
-    return 0;
+    return -1;
 
-	return cli->xid;
+	return 0;
 }
 
 /* returns a pointer to the client cookie. The user should pass this pointer every time he calls a dhcp-function. This is so that we can (one day) support dhcp on multiple interfaces */
-uint32_t pico_dhcp_initiate_negotiation(struct pico_device *device, void (*callback)(void *cli, int code))
+int pico_dhcp_initiate_negotiation(struct pico_device *device, void (*callback)(void *cli, int code), uint32_t *xid)
 {
 	struct pico_dhcp_client_cookie *cli;
   
-	if(!device || !callback){
+	if(!device || !callback || !xid){
 		pico_err = PICO_ERR_EINVAL;
-		return 0;
+		return -1;
 	}
   cli = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
 	if(!cli){
 		pico_err = PICO_ERR_ENOMEM;
-		return 0;
+		return -1;
 	}
 
   cli->device = device;
   cli->cb = callback;
+  cli->xid_user = xid;
+  *(cli->xid_user) = 0;
 
   return pico_dhcp_execute_init(cli);
 }
@@ -349,6 +351,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	pico_timer_add(cli->T2*1000, dhcp_timer_cb, cli->timer_param_2);
 	pico_timer_add(cli->lease_time*1000, dhcp_timer_cb, cli->timer_param_lease);
 
+  *(cli->xid_user) = cli->xid;
 	if(cli->cb != NULL)
 		cli->cb(cli, PICO_DHCP_SUCCESS);
 	else
@@ -684,6 +687,11 @@ static struct pico_dhcp_client_cookie *get_cookie_by_xid(uint32_t xid)
     return NULL;
   else
     return cookie;
+}
+
+void *pico_dhcp_get_identifier(uint32_t xid)
+{
+  return (void *) get_cookie_by_xid(xid);
 }
 
 static uint32_t get_xid(uint8_t* data)
