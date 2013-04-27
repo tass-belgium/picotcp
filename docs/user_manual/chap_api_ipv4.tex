@@ -6,10 +6,7 @@
 
 \subsubsection*{Description}
 Convert the internet host address IP to a string in IPv4 dotted-decimal notation.
-The result is stored in the char array that ipbuf points to. Little
-endian or big endian is not taken into account. The worst case memory requirement for
-ipbuf is 16 bytes (12 digits, 3 periods and '\texttt{$\backslash$0}').
-For example: 0xC0A80101 becomes 192.168.1.1
+The result is stored in the char array that ipbuf points to. The given IP address argument must be in network order (i.e. 0xC0A80101 becomes 192.168.1.1).
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -132,7 +129,8 @@ ret = pico_ipv4_is_unicast(address);
 \subsection{pico$\_$ipv4$\_$source$\_$find}
 
 \subsubsection*{Description}
-Find the source IP belonging to the destination IP dst.
+Find the source IP for the link associated to the specified destination.
+This function will use the currently configured routing table to identify the link that would be used to transmit any traffic directed to the given IP address.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -165,7 +163,7 @@ src = pico_ipv4_source_find(dst);
 \subsection{pico$\_$ipv4$\_$link$\_$add }
 
 \subsubsection*{Description}
-Add a new local device dev inteface, f.e. eth0, with IP address 'address' and netmask 'netmask'.
+Add a new local device dev inteface, f.e. eth0, with IP address 'address' and netmask 'netmask'. A device may have more than one link configured, i.e. to access multiple networks on the same link.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -202,7 +200,7 @@ ret = pico_ipv4_link_add(dev, address, netmask);
 \subsection{pico$\_$ipv4$\_$link$\_$del}
 
 \subsubsection*{Description}
-Remove the local device dev interface, f.e. eth0, with IP address 'address'.
+Remove the link associated to the local device that was previously configured, corresponding to the IP address 'address'.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -234,7 +232,7 @@ ret = pico_ipv4_link_del(dev, address);
 \subsection{pico$\_$ipv4$\_$link$\_$find}
 
 \subsubsection*{Description}
-Find the local device with IP address 'address'.
+Find the local device associated to the local IP address 'address'.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -381,11 +379,10 @@ struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{address} - Pointer to the destination internet host address as \texttt{struct pico$\_$ip4}.
-\item \texttt{netmask} - Netmask of the address.
-\item \texttt{gateway} - Gateway of the address network.
-\item \texttt{metric} - Metric of the route.
-\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory,
-thus \texttt{NULL} can be used.
+\item \texttt{netmask} - Netmask of the address. If zeroed, the call assumes the meaning of adding a default gateway.
+\item \texttt{gateway} - Gateway of the address network. If zeroed, no gateway will be associated to this route, and the traffic towards the destination will be simply forwarded towards the given device.
+\item \texttt{metric} - Metric for this route.
+\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory, otherwise \texttt{NULL} can be used.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -567,42 +564,10 @@ ret = pico_ipv4_frame_push(frame, dst, protocol);
 \end{verbatim}
 
 
-\subsection{pico$\_$ipv4$\_$rebound}
-
-\subsubsection*{Description}
-Rebound the frame f back to the source.
-
-\subsubsection*{Function prototype}
-\begin{verbatim}
-int pico_ipv4_rebound(struct pico_frame *f);
-\end{verbatim}
-
-\subsubsection*{Parameters}
-\begin{itemize}[noitemsep]
-\item \texttt{f} - Pointer to the frame that flows through the stack
-\end{itemize}
-
-\subsubsection*{Return value}
-On success, this call returns the frame queue size.
-On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
-
-\subsubsection*{Errors}
-\begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
-\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
-\end{itemize}
-
-\subsubsection*{Example}
-\begin{verbatim}
-ret = pico_ipv4_rebound(frame);
-\end{verbatim}
-
-
-
 \subsection{dbg$\_$route}
 
 \subsubsection*{Description}
-Print the complete routing table. 
+Print the complete routing table. Through the currently configured dbg.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}

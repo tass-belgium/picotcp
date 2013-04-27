@@ -324,7 +324,7 @@ errMsg = pico_socket_bind(sk_tcp, &sockaddr4->addr, &sockaddr4->port);
 \subsection{pico$\_$socket$\_$connect}
 
 \subsubsection*{Description}
-This function connects a local socket to a remote socket of a server that is listening.
+This function connects a local socket to a remote socket of a server that is listening, or permanently associate a remote UDP peer as default receiver for any further outgoing traffic through this socket.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -510,7 +510,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 
 \subsubsection*{Available socket options}
 \begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables the Nagle algorithm (\texttt{value} not used)
+\item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables/enables the Nagle algorithm
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Set link multicast datagrams are sent from, default is first added link
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - Set TTL (0-255) of multicast datagrams, default is 1
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Specifies if a copy of an outgoing multicast datagram is looped back as long as it is a member of the multicast group, default is enabled
