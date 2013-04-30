@@ -860,20 +860,26 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
   route = route_find(dst);
   if (!route) {
+    dbg("Route to %08x not found.\n", long_be(dst->addr));
     pico_err = PICO_ERR_EHOSTUNREACH;
-    if (pico_ipv4_is_unicast(dst->addr)) {
-      dbg("Route to %08x not found.\n", long_be(dst->addr));
-      goto drop;
-    }
-#ifdef PICO_SUPPORT_MCAST
-  link = mcast_default_link;
-  if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
-    ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
-#else
-  goto drop;
-#endif
+    goto drop;
   } else {
     link = route->link;
+#ifdef PICO_SUPPORT_MCAST
+    if (!pico_ipv4_is_unicast(dst->addr)) { /* if multicast */
+      switch (proto) {
+        case PICO_PROTO_UDP:
+          if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
+            ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
+          break;
+        case PICO_PROTO_IGMP2:
+          ttl = 1;
+          break;
+        default:
+          ttl = PICO_IPV4_DEFAULT_TTL;
+      }
+    }
+#endif
   }
 
   hdr->vhl = 0x45;
@@ -910,7 +916,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
     struct pico_frame *cpy;
     /* Sending UDP multicast datagram, am I member? If so, loopback copy */
-    if (pico_ipv4_mcast_is_group_member(f)) {
+    if ((proto != PICO_PROTO_IGMP2) && pico_ipv4_mcast_is_group_member(f)) {
       mcast_dbg("MCAST: sender is member of group, loopback copy\n");
       cpy = pico_frame_copy(f);
       pico_enqueue(&in, cpy);
