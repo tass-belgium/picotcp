@@ -488,7 +488,7 @@ int pico_ipv4_nat_translate(struct pico_nat_key* nk, struct pico_frame* f)
 
   // pico_ipv4_checksum(f);
   ipv4_hdr->crc = 0;
-  ipv4_hdr->crc = short_be(pico_checksum(ipv4_hdr, PICO_SIZE_IP4HDR));
+  ipv4_hdr->crc = short_be(pico_checksum(ipv4_hdr, f->net_len));
 
   return 0;
 }
@@ -547,7 +547,7 @@ int pico_ipv4_nat_port_forward(struct pico_frame* f)
   }
 
   ipv4_hdr->crc = 0;
-  ipv4_hdr->crc = short_be(pico_checksum(ipv4_hdr, PICO_SIZE_IP4HDR));
+  ipv4_hdr->crc = short_be(pico_checksum(ipv4_hdr, f->net_len));
  
   return 0; 
 }

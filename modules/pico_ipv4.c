@@ -153,7 +153,7 @@ static int pico_ipv4_checksum(struct pico_frame *f)
   if (!hdr)
     return -1;
   hdr->crc = 0;
-  hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+  hdr->crc = short_be(pico_checksum(hdr, f->net_len));
   return 0;
 }
 
@@ -245,7 +245,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
   struct pico_frame *f_new = NULL, *f_frag = NULL;
   struct pico_tree_node *index, *_tmp;
 
-  data_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+  data_len = short_be(hdr->len) - (*f)->net_len;
   offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
   if (short_be(hdr->frag) & PICO_IPV4_MOREFRAG) {
     if (!offset) {
@@ -266,7 +266,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       pfrag->proto = hdr->proto;
       pfrag->src.addr = long_be(hdr->src.addr);
       pfrag->dst.addr = long_be(hdr->dst.addr);
-      pfrag->total_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+      pfrag->total_len = short_be(hdr->len) - (*f)->net_len;
       pfrag->t = pico_zalloc(sizeof(struct pico_tree));
       if (!pfrag->t) {
         pico_free(pfrag);
@@ -288,7 +288,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       frag.dst.addr = long_be(hdr->dst.addr);
       pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
       if (pfrag) {
-        pfrag->total_len += (short_be(hdr->len) - PICO_SIZE_IP4HDR);
+        pfrag->total_len += (short_be(hdr->len) - (*f)->net_len);
         pico_tree_insert(pfrag->t, *f);
         return 0;
       } else {
@@ -305,15 +305,15 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
     frag.dst.addr = long_be(hdr->dst.addr);
     pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
     if (pfrag) {
-      pfrag->total_len += (short_be(hdr->len) - PICO_SIZE_IP4HDR);
+      pfrag->total_len += (short_be(hdr->len) - (*f)->net_len);
       reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
       f_new = self->alloc(self, pfrag->total_len);
 
-      reassembly_dbg("REASSEMBLY: copy IP header information len = %lu\n", PICO_SIZE_IP4HDR);
       f_frag = pico_tree_first(pfrag->t);
+      reassembly_dbg("REASSEMBLY: copy IP header information len = %lu\n", f_frag->net_len);
       f_frag_hdr = (struct pico_ipv4_hdr *)f_frag->net_hdr;
-      data_len = short_be(f_frag_hdr->len) - PICO_SIZE_IP4HDR; 
-      memcpy(f_new->net_hdr, f_frag->net_hdr, PICO_SIZE_IP4HDR);
+      data_len = short_be(f_frag_hdr->len) - f_frag->net_len; 
+      memcpy(f_new->net_hdr, f_frag->net_hdr, f_frag->net_len);
       memcpy(f_new->transport_hdr, f_frag->transport_hdr, data_len);
       running_pointer = f_new->transport_hdr + data_len;
       offset = short_be(f_frag_hdr->frag) & PICO_IPV4_FRAG_MASK;
@@ -326,7 +326,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       {
         f_frag = index->keyValue;
         f_frag_hdr = (struct pico_ipv4_hdr *)f_frag->net_hdr;
-        data_len = short_be(f_frag_hdr->len) - PICO_SIZE_IP4HDR; 
+        data_len = short_be(f_frag_hdr->len) - f_frag->net_len; 
         memcpy(running_pointer, f_frag->transport_hdr, data_len);
         running_pointer += data_len;
         offset = short_be(f_frag_hdr->frag) & PICO_IPV4_FRAG_MASK;
@@ -343,7 +343,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
       pico_free(pfrag);
 
-      data_len = short_be(hdr->len) - PICO_SIZE_IP4HDR;
+      data_len = short_be(hdr->len) - (*f)->net_len;
       memcpy(running_pointer, (*f)->transport_hdr, data_len);
       offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
       pico_frame_discard(*f);
@@ -353,7 +353,7 @@ static inline int pico_ipv4_fragmented_check(struct pico_protocol *self, struct 
       hdr->len = pfrag->total_len;
       hdr->frag = 0; /* flags cleared and no offset */
       hdr->crc = 0;
-      hdr->crc = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+      hdr->crc = short_be(pico_checksum(hdr, f_new->net_len));
       /* Optional, the UDP/TCP CRC should already be correct */
       if (0) {
   #ifdef PICO_SUPPORT_TCP
@@ -394,7 +394,7 @@ static inline int pico_ipv4_crc_check(struct pico_frame *f)
   uint16_t checksum_invalid = 1;
   struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
-  checksum_invalid = short_be(pico_checksum(hdr, PICO_SIZE_IP4HDR));
+  checksum_invalid = short_be(pico_checksum(hdr, f->net_len));
   if (checksum_invalid) {
     dbg("IP: checksum failed!\n");
     pico_frame_discard(f);
@@ -447,6 +447,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   }
   f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
   f->transport_len = short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len;
+  f->net_len = PICO_SIZE_IP4HDR + option_len;
 
 #ifdef PICO_SUPPORT_IPFILTER
   if (ipfilter(f)) {
@@ -540,7 +541,7 @@ static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
     return NULL;
   f->datalink_hdr = f->buffer;
   f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP4HDR + size;
+  f->net_len = PICO_SIZE_IP4HDR;
   f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
   f->transport_len = size;
   f->len =  size + PICO_SIZE_IP4HDR;
@@ -839,6 +840,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   struct pico_ipv4_link *link;
   struct pico_ipv4_hdr *hdr;
   uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
+  uint8_t vhl = 0x45; /* version 4, header length 20 */
   static uint16_t ipv4_progressive_id = 0x91c0;
 
   if(!f || !dst) {
@@ -873,7 +875,13 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
             ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
           break;
         case PICO_PROTO_IGMP2:
+          vhl = 0x46; /* header length 24 */
           ttl = 1;
+          /* router alert (RFC 2113) */ 
+          hdr->options[0] = 0x94;
+          hdr->options[1] = 0x04;
+          hdr->options[2] = 0x00;
+          hdr->options[3] = 0x00;
           break;
         default:
           ttl = PICO_IPV4_DEFAULT_TTL;
@@ -882,8 +890,8 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 #endif
   }
 
-  hdr->vhl = 0x45;
-  hdr->len = short_be(f->transport_len + PICO_SIZE_IP4HDR);
+  hdr->vhl = vhl;
+  hdr->len = short_be(f->transport_len + f->net_len);
   if (f->transport_hdr != f->payload)
     ipv4_progressive_id++;
   hdr->id = short_be(ipv4_progressive_id);
@@ -897,7 +905,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (proto == PICO_PROTO_UDP) {
     /* first fragment, can not use transport_len to calculate IP length */
     if (f->transport_hdr != f->payload)
-      hdr->len = short_be(f->payload_len + sizeof(struct pico_udp_hdr) + PICO_SIZE_IP4HDR);
+      hdr->len = short_be(f->payload_len + sizeof(struct pico_udp_hdr) + f->net_len);
     /* set fragmentation flags and offset calculated in socket layer */
     hdr->frag = f->frag;
   }

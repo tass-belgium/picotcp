@@ -4,7 +4,7 @@ See LICENSE and COPYING for usage.
 
 .
 
-Authors: Simon Maes, Brecht Van Cauwenberghe
+Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 *********************************************************************/
 
 #include "pico_stack.h"
@@ -17,6 +17,7 @@ Authors: Simon Maes, Brecht Van Cauwenberghe
 #include "pico_tree.h"
 
 #define NO_ACTIVE_TIMER (0)
+#define IP_OPTION_ROUTER_ALERT_LEN 4
 
 
 /*================= RB_TREE FUNCTIONALITY ================*/
@@ -82,11 +83,12 @@ static int pico_igmp2_del_mgroup(struct mgroup_info *info)
 /*========================================================*/
 
 struct igmp2_packet_params {
+  uint8_t event;
+  uint8_t max_resp_time;
+  /* uint16_t checksum */
   struct pico_ip4 group_address;
   struct pico_ip4 src_interface;
   struct pico_frame *f;
-  uint8_t event;
-  uint8_t max_resp_time;
   unsigned long timer_starttime;
 };
 
@@ -209,7 +211,7 @@ static int pico_igmp2_process_in(struct pico_protocol *self, struct pico_frame *
 }
 
 static int pico_igmp2_process_out(struct pico_protocol *self, struct pico_frame *f) {
-  // TODO impmement this function
+  // not supported.
   return 0;
 }
 
@@ -228,21 +230,21 @@ struct pico_protocol pico_proto_igmp2 = {
 /*====================== API CALLS ======================*/
 
 int pico_igmp2_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
-  struct igmp2_packet_params params = {{0}};
+  struct igmp2_packet_params params = {0};
 
   params.event = PICO_IGMP2_EVENT_JOIN_GROUP ;
-  params.group_address.addr = group_address->addr;
-  params.src_interface.addr = link->address.addr;
+  params.group_address = *group_address;
+  params.src_interface = link->address;
 
   return pico_igmp2_process_event(&params);
 }
 
 int pico_igmp2_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link) {
-  struct igmp2_packet_params params = {{0}};
+  struct igmp2_packet_params params = {0};
 
   params.event = PICO_IGMP2_EVENT_LEAVE_GROUP ;
-  params.group_address.addr = group_address->addr;
-  params.src_interface.addr = link->address.addr;
+  params.group_address = *group_address;
+  params.src_interface = link->address;
 
   return pico_igmp2_process_event(&params);
 }
@@ -253,12 +255,11 @@ static int start_timer(struct igmp2_packet_params *params,const uint16_t delay){
 
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
   struct timer_callback_info *timer_info= pico_zalloc(sizeof(struct timer_callback_info));
+
   timer_info->timer_starttime = PICO_TIME_MS();
-  info->delay = delay;
   timer_info->f = params->f;
-
+  info->delay = delay;
   info->active_timer_starttime = timer_info->timer_starttime;
-
   pico_timer_add(delay, &generate_event_timer_expired, timer_info);
   return 0;
 }
@@ -284,14 +285,14 @@ static int reset_timer(struct igmp2_packet_params *params)
 static int send_membership_report(struct pico_frame *f){
   uint8_t ret = 0;
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
-
   struct pico_ip4 dst = {0};
   struct pico_ip4 group_address = {0};
+
   group_address.addr = igmp2_hdr->group_address;
   dst.addr = igmp2_hdr->group_address;
 
-  igmp2_dbg("send_membership_report on group %x\n",group_address.addr);
-  pico_ipv4_frame_push(f,&dst,PICO_PROTO_IGMP2);
+  igmp2_dbg("IGMP: send membership report on group %08X\n", group_address.addr);
+  pico_ipv4_frame_push(f, &dst, PICO_PROTO_IGMP2);
   ret |= stop_timer(&group_address);
   return ret;
 }
@@ -312,17 +313,20 @@ static int send_leave(struct pico_frame *f)
   return ret;
 }
 
+/* XXX: remove manipulation of ip hdr */
 static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct pico_ip4 *mcast_addr, uint8_t type){
   uint8_t ret = 0;
   struct pico_igmp2_hdr *igmp2_hdr = NULL;
   struct pico_ipv4_hdr *ipv4_hdr;
 
-  *f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct pico_igmp2_hdr));
-  ipv4_hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  *f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct pico_igmp2_hdr));
+  (*f)->net_len += IP_OPTION_ROUTER_ALERT_LEN;
+  (*f)->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
+  (*f)->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
+  (*f)->len += IP_OPTION_ROUTER_ALERT_LEN;
 
-  // Fill IPV4 header
-  ipv4_hdr->src.addr = src.addr;
-  ipv4_hdr->ttl = 1;
+  ipv4_hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
+  ipv4_hdr->src = src;
 
   // Fill The IGMP2_HDR
   igmp2_hdr = (struct pico_igmp2_hdr *) (*f)->transport_hdr;
@@ -339,7 +343,7 @@ static int create_igmp2_frame(struct pico_frame **f, struct pico_ip4 src, struct
 
 static void generate_event_timer_expired(long unsigned int empty, void *data) {
   struct timer_callback_info *info = (struct timer_callback_info *) data;
-  struct igmp2_packet_params params = {{0}};
+  struct igmp2_packet_params params = {0};
   struct pico_frame* f = (struct pico_frame*)info->f;
   struct pico_igmp2_hdr *igmp2_hdr = (struct pico_igmp2_hdr *) f->transport_hdr;
 
@@ -363,11 +367,11 @@ typedef int (*callback)(struct igmp2_packet_params *);
 /*------------ ACTIONS ------------*/
 /*
 #ACTION1 STSLIFS:  stop timer, send leave if flag set
-#ACTION2 SRSFST:   send report, set flag, start timer
+#srsfst SRSFST:   send report, set flag, start timer
 #ACTION3 SLIFS:    send leave if flag set
 #ACTION4 ST:       start timer
 #ACTION5 STCL:     stop timer, clear flag
-#ACTION6 SRSF:     send report, set flag
+#srsf SRSF:     send report, set flag
 #ACTION7 RTIMRTCT: reset timer if Max resp time < current time
 */
 
@@ -398,25 +402,22 @@ static int action1(struct igmp2_packet_params *params)
   }
 }
 
-static int action2(struct igmp2_packet_params *params)
+/* send report, set flag, start timer */
+static int srsfst(struct igmp2_packet_params *params)
 {
   uint8_t ret = 0;
   struct pico_frame *f = NULL;
   struct mgroup_info *info = pico_zalloc(sizeof(struct mgroup_info));
   struct pico_frame *copy_frame;
 
-  igmp2_dbg("DEBUG_IGMP2:EVENT = Join Group\n");
-  igmp2_dbg("DEBUG_IGMP2:ACTION = SRSFST\n");
+  igmp2_dbg("IGMP: event = join group | action = send report, set flag, start timer\n");
 
-  /*insert in tree*/
-  info->mgroup_addr.addr = params->group_address.addr;
-  info->src_interface.addr = params->src_interface.addr;
+  info->mgroup_addr = params->group_address;
+  info->src_interface = params->src_interface;
   info->membership_state = PICO_IGMP2_STATES_NON_MEMBER;
   info->Last_Host_flag = PICO_IGMP2_HOST_LAST;
   info->active_timer_starttime = NO_ACTIVE_TIMER;
-
   pico_tree_insert(&KEYTable,info);
-  /*---------------*/
 
   ret |= create_igmp2_frame(&f, params->src_interface, &(params->group_address), PICO_IGMP2_TYPE_V2_MEM_REPORT);
 
@@ -426,16 +427,16 @@ static int action2(struct igmp2_packet_params *params)
     return -1;
   }
   ret |= send_membership_report(copy_frame);
-  info->delay = (pico_rand() %( PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL*100)); 
+  info->delay = (pico_rand() % (PICO_IGMP2_UNSOLICITED_REPORT_INTERVAL * 100)); 
   params->f = f;
   ret |= start_timer(params, info->delay);
-  /*Check if action is completed successfully, if so then adjust Membership State*/
-  if( 0 == ret) {
+
+  if(0 == ret) {
     struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
     info->membership_state = PICO_IGMP2_STATES_DELAYING_MEMBER;
-    igmp2_dbg("DEBUG_IGMP2:NEW STATE = Delaying Member\n");
+    igmp2_dbg("IGMP: new state = delaying member\n");
     return 0;
-  }else{
+  } else {
     pico_err = PICO_ERR_EFAULT;
     return -1;
   }
@@ -514,27 +515,26 @@ static int action5(struct igmp2_packet_params *params)
   }
 }
 
-static int action6(struct igmp2_packet_params *params)
+/* send report, set flag */
+static int srsf(struct igmp2_packet_params *params)
 {
   uint8_t ret = 0;
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
 
-  igmp2_dbg("DEBUG_IGMP2:EVENT = Timer Expired\n");
-  igmp2_dbg("DEBUG_IGMP2:ACTION = SRSF\n");
+  igmp2_dbg("IGMP: event = timer expired | action = send report, set flag\n");
 
-  if ( info->active_timer_starttime == params->timer_starttime) {
+  /* start time of mgroup == start time of expired timer? */
+  if (info->active_timer_starttime == params->timer_starttime) {
     ret |= send_membership_report(params->f);
-  }
-  else {
+  } else {
     pico_frame_discard(params->f);
   }
 
-  //Check if action is completed successfully, if so then adjust Membership State
-  if( 0 == ret) {
+  if (0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
-    igmp2_dbg("DEBUG_IGMP2:NEW STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+    igmp2_dbg("IGMP: new state = %u\n", info->membership_state); 
     return 0;
-  }else{
+  } else {
     pico_err = PICO_ERR_ENOENT;
     return -1;
   }
@@ -564,7 +564,7 @@ static int action7(struct igmp2_packet_params *params)
   }
 }
 
-static int ignore_and_discardframe(struct igmp2_packet_params *params){
+static int discard(struct igmp2_packet_params *params){
   igmp2_dbg("ignore and discard frame igmp2\n");
   pico_frame_discard(params->f);
   return 0;
@@ -596,42 +596,40 @@ static int generate_err4(struct igmp2_packet_params *params){
 
 /* finite state machine table */
 const callback host_membership_diagram_table[3][5] =
-{ /*     event               |Leave Group       |Join Group       |Query Received              |Report Received            |Timer Expired */
-/* state Non-Member      */ { generate_err1,     action2,          ignore_and_discardframe,     generate_err4,              ignore_and_discardframe   },
-/* state Delaying Member */ { action1,           generate_err2,    action7,                     action5,                    action6                   },
-/* state Idle Member     */ { action3,           generate_err3,    action4,                     ignore_and_discardframe,    ignore_and_discardframe   }
+{ /* event                    |Leave Group   |Join Group    |Query Received  |Report Received  |Timer Expired */
+/* state Non-Member      */ { generate_err1, srsfst,        discard,         generate_err4,    discard },
+/* state Delaying Member */ { action1,       generate_err2, action7,         action5,          srsf },
+/* state Idle Member     */ { action3,       generate_err3, action4,         discard,          discard }
 };
 
 static int pico_igmp2_process_event(struct igmp2_packet_params *params) {
-	struct pico_tree_node * index;
+  struct pico_tree_node *index;
   uint8_t ret = 0;
   struct mgroup_info *info = pico_igmp2_find_mgroup(&(params->group_address));
-  igmp2_dbg("pico_igmp2_process_event , params->group_address = %x\n",params->group_address.addr);
+
+  igmp2_dbg("IGMP: process event on group address %08X\n", params->group_address.addr);
   if (NULL == info) {
-    if(params->event == PICO_IGMP2_EVENT_QUERY_RECV){
-      pico_tree_foreach(index,&KEYTable){
-    		info = index->keyValue;
+    if (params->event == PICO_IGMP2_EVENT_QUERY_RECV) {
+      pico_tree_foreach(index,&KEYTable) {
+        info = index->keyValue;
         params->src_interface.addr = info->src_interface.addr;
         params->group_address.addr = info->mgroup_addr.addr;
-        igmp2_dbg("FOR EACH params->group_address = %x\n",params->group_address.addr);
-
-        igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+        igmp2_dbg("IGMP: for each group_address = %08X | state = %u\n", params->group_address.addr, info->membership_state);
         ret |= host_membership_diagram_table[info->membership_state][params->event](params);
       }
-    }
-    else{//first time this group enters the state diagram
-      igmp2_dbg("DEBUG_IGMP2:STATE = Non-Member\n");
+    } else { /* first time this group enters the state diagram */
+      igmp2_dbg("IGMP: state = 0 (Non-Member)\n");
       ret |= host_membership_diagram_table[PICO_IGMP2_STATES_NON_MEMBER][params->event](params);
     }
-  }else {
-    igmp2_dbg("DEBUG_IGMP2:STATE = %s\n", (info->membership_state == 0 ? "Non-Member" : (info->membership_state == 1 ? "Delaying Member" : "Idle Member"))); 
+  } else {
+    igmp2_dbg("IGMP: state = %u\n", info->membership_state); 
     ret |= host_membership_diagram_table[info->membership_state][params->event](params);
   }
 
   if( 0 == ret) {
     return 0;
-  }else{
-    igmp2_dbg("ERROR: pico_igmp2_process_event FAILED!\n");
+  } else {
+    igmp2_dbg("IGMP ERROR: pico_igmp2_process_event failed!\n");
     return -1;
   }
 }
