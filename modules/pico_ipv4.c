@@ -740,8 +740,7 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
     g->mcast_addr = *mcast_addr;
     g->reference_count = 1;
 
-    pico_tree_insert(link->mcast_head,g);
-
+    pico_tree_insert(link->mcast_head, g);
 
     if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
       dbg("MCAST: sent IGMP host membership report\n");
@@ -781,7 +780,8 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
         pico_igmp2_leave_group(mcast_addr, link);
       }
 
-      pico_tree_delete(link->mcast_head,g);
+      pico_tree_delete(link->mcast_head, g);
+      pico_free(g);
     }
   } else {
     pico_err = PICO_ERR_EINVAL;
@@ -1101,10 +1101,10 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 #ifdef PICO_SUPPORT_MCAST
   do {
     struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
-    mcast_addr.addr = long_be(0xE0000000); /* 224.0.0.0 */
-    mcast_nm.addr = long_be(0xF0000000); /* 15.0.0.0 */
-    mcast_gw.addr = long_be(0x00000000);
     if (!mcast_default_link) {
+      mcast_addr.addr = long_be(0xE0000000); /* 224.0.0.0 */
+      mcast_nm.addr = long_be(0xF0000000); /* 15.0.0.0 */
+      mcast_gw.addr = long_be(0x00000000);
       mcast_default_link = new;
       pico_ipv4_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
     }
@@ -1124,7 +1124,6 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
-
   struct pico_ipv4_link test, *found;
   struct pico_ip4 network;
 
@@ -1144,19 +1143,30 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
   pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
 #ifdef PICO_SUPPORT_MCAST
   do {
+    struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
     struct pico_mcast_group *g = NULL;
     struct pico_tree_node * index, * _tmp;
-
+    if (found == mcast_default_link) {
+      mcast_addr.addr = long_be(0xE0000000); /* 224.0.0.0 */
+      mcast_nm.addr = long_be(0xF0000000); /* 15.0.0.0 */
+      mcast_gw.addr = long_be(0x00000000);
+      mcast_default_link = NULL;
+      pico_ipv4_route_del(mcast_addr, mcast_nm, mcast_gw, 1, found);
+    }
+    mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
+    pico_ipv4_mcast_leave_group(&mcast_all_hosts, found);
     pico_tree_foreach_safe(index,found->mcast_head, _tmp)
     {
       g = index->keyValue;
-      pico_tree_delete(found->mcast_head,g);
+      pico_tree_delete(found->mcast_head, g);
       pico_free(g);
     }
   } while(0);
 #endif
 
   pico_tree_delete(&Tree_dev_link, found);
+  /* XXX: pico_free(found); */
+  /* XXX: cleanup all routes containing the removed link */
   return 0;
 }
 

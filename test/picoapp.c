@@ -1571,6 +1571,14 @@ void callback_dhcpclient(void *cli, int code)
     printf("DHCP client: got IP %s assigned with xid %u\n", s_address, dhcpclient_xid);
 #ifdef PICO_SUPPORT_PING
     pico_icmp4_ping(s_gateway, 3, 1000, 5000, 32, ping_callback_dhcpclient);
+    /* optional test to check routing when links get added and deleted */
+    do {
+      char *new_arg = NULL, *p = NULL;
+      new_arg = calloc(1, strlen(s_address) + strlen(":224.7.7.7:6667:6667") + 1);
+      p = strcat(new_arg, s_address);
+      p = strcat(p + strlen(s_address), ":224.7.7.7:6667:6667");
+      app_mcastsend(p);
+    } while (0);
 #endif
   }
 }
