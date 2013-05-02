@@ -17,7 +17,7 @@ Authors: Daniele Lacamera, Markian Yskout
 #include "pico_socket.h"
 #include "pico_device.h"
 #include "pico_nat.h"
-#include "pico_igmp2.h"
+#include "pico_igmp.h"
 #include "pico_tree.h"
 
 #ifdef PICO_SUPPORT_IPV4
@@ -486,9 +486,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   } else if (!pico_ipv4_is_unicast(hdr->dst.addr)  ) {
 #ifdef PICO_SUPPORT_MCAST
     /* Receiving UDP multicast datagram TODO set f->flags? */
-    if (hdr->proto == PICO_PROTO_IGMP2) {
+    if (hdr->proto == PICO_PROTO_IGMP) {
       mcast_dbg("MCAST: received IGMP message\n");
-      pico_transport_receive(f, PICO_PROTO_IGMP2);
+      pico_transport_receive(f, PICO_PROTO_IGMP);
     } else if (pico_ipv4_mcast_is_group_member(f) && (hdr->proto == PICO_PROTO_UDP)) {
       pico_enqueue(pico_proto_udp.q_in, f);
     } else {
@@ -744,7 +744,7 @@ int pico_ipv4_mcast_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_lin
 
     if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
       dbg("MCAST: sent IGMP host membership report\n");
-      pico_igmp2_join_group(mcast_addr, link);
+      pico_igmp_join_group(mcast_addr, link);
     }
   }
 
@@ -777,7 +777,7 @@ int pico_ipv4_mcast_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_li
     if (g->reference_count < 1) {
       if (mcast_addr->addr != PICO_MCAST_ALL_HOSTS) {
         dbg("MCAST: sent IGMP leave group\n");
-        pico_igmp2_leave_group(mcast_addr, link);
+        pico_igmp_leave_group(mcast_addr, link);
       }
 
       pico_tree_delete(link->mcast_head, g);
@@ -877,7 +877,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
           if(pico_udp_get_mc_ttl(f->sock, &ttl) < 0)
             ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
           break;
-        case PICO_PROTO_IGMP2:
+        case PICO_PROTO_IGMP:
           vhl = 0x46; /* header length 24 */
           ttl = 1;
           /* router alert (RFC 2113) */ 
@@ -934,7 +934,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   if (!pico_ipv4_is_unicast(hdr->dst.addr)) {
     struct pico_frame *cpy;
     /* Sending UDP multicast datagram, am I member? If so, loopback copy */
-    if ((proto != PICO_PROTO_IGMP2) && pico_ipv4_mcast_is_group_member(f)) {
+    if ((proto != PICO_PROTO_IGMP) && pico_ipv4_mcast_is_group_member(f)) {
       mcast_dbg("MCAST: sender is member of group, loopback copy\n");
       cpy = pico_frame_copy(f);
       pico_enqueue(&in, cpy);

@@ -20,7 +20,7 @@
 #include "pico_dns_client.c"
 #include "pico_dhcp_server.c"
 #include "pico_dhcp_client.c"
-#include "pico_igmp2.c"
+#include "pico_igmp.c"
 #include "pico_nat.c"
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
@@ -1304,7 +1304,7 @@ int mock_print_protocol(uint8_t *buf){
 
   printf("transport protocol: %s\n",
    (pnr == PICO_PROTO_ICMP4 ? "icmp4" :
-   (pnr == PICO_PROTO_IGMP2 ? "igmp2" :
+   (pnr == PICO_PROTO_IGMP ? "igmp" :
    (pnr == PICO_PROTO_TCP   ? "tcp" :
    (pnr == PICO_PROTO_UDP   ? "udp" :
    (pnr == PICO_PROTO_ICMP6 ? "icmp6": 

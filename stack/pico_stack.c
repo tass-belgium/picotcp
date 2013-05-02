@@ -21,7 +21,7 @@ Authors: Daniele Lacamera
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
-#include "pico_igmp2.h"
+#include "pico_igmp.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
 #include "pico_socket.h"
@@ -135,9 +135,9 @@ int pico_transport_receive(struct pico_frame *f, uint8_t proto)
     break;
 #endif
 
-#ifdef PICO_SUPPORT_IGMP2
-  case PICO_PROTO_IGMP2:
-    ret = pico_enqueue(pico_proto_igmp2.q_in, f);
+#ifdef PICO_SUPPORT_IGMP
+  case PICO_PROTO_IGMP:
+    ret = pico_enqueue(pico_proto_igmp.q_in, f);
     break;
 #endif
 
@@ -668,8 +668,8 @@ void pico_stack_init(void)
   pico_protocol_init(&pico_proto_icmp4);
 #endif
 
-#ifdef PICO_SUPPORT_IGMP2
-  pico_protocol_init(&pico_proto_igmp2);
+#ifdef PICO_SUPPORT_IGMP
+  pico_protocol_init(&pico_proto_igmp);
 #endif
 
 #ifdef PICO_SUPPORT_UDP

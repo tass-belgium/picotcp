@@ -7,7 +7,7 @@ TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 
 PREFIX?=./build
 DEBUG?=1
-DEBUG_IGMP2?=0
+DEBUG_IGMP?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
@@ -108,9 +108,9 @@ else
 endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk
-  include rules/igmp2.mk
-  ifeq ($(DEBUG_IGMP2),1)
-    OPTIONS+=-DPICO_UNIT_TEST_IGMP2
+  include rules/igmp.mk
+  ifeq ($(DEBUG_IGMP),1)
+    OPTIONS+=-DPICO_UNIT_TEST_IGMP
   endif
 endif
 ifneq ($(NAT),0)
@@ -167,7 +167,7 @@ test: posix $(TEST_ELF)
 
 tst: test
 
-tstigmp2: posix test/testigmp2.elf 
+tstigmp: posix test/testigmp.elf 
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
