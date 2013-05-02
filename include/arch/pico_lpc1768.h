@@ -35,6 +35,5 @@ static inline void * pico_zalloc(size_t size)
 }
 
 #define dbg(...)
-#define printf(...)
 
 #endif
