@@ -483,7 +483,7 @@ static int stcl(struct igmp2_packet_params *params)
   igmp2_dbg("IGMP: event = report received | action = stop timer, clear flag\n");
 
   ret |= stop_timer(&(params->group_address));
-  info->Last_Host_flag = PICO_IGMP2_HOST_LAST;
+  info->Last_Host_flag = PICO_IGMP2_HOST_NOT_LAST;
 
   if (0 == ret) {
     info->membership_state = PICO_IGMP2_STATES_IDLE_MEMBER;
