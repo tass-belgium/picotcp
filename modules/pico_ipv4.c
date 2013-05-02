@@ -842,6 +842,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
   uint8_t vhl = 0x45; /* version 4, header length 20 */
   static uint16_t ipv4_progressive_id = 0x91c0;
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_tree_node *index;
+#endif
 
   if(!f || !dst) {
     pico_err = PICO_ERR_EINVAL;
@@ -882,6 +885,13 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
           hdr->options[1] = 0x04;
           hdr->options[2] = 0x00;
           hdr->options[3] = 0x00;
+          if (f->dev && link->dev != f->dev) { /* default link is not requested link */
+            pico_tree_foreach(index, &Tree_dev_link) {
+              link = index->keyValue;
+              if (link->dev == f->dev)
+                break;
+            }
+          }
           break;
         default:
           ttl = PICO_IPV4_DEFAULT_TTL;
