@@ -1634,7 +1634,7 @@ static int http_save_file(void *data, int len)
   int w, e;
   if (fd < 0)
     return fd;
-
+  printf("Saving data to : %s\n",url_filename);
   w = write(fd, data, len);
   e = errno;
   close(fd);
@@ -1663,8 +1663,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
   	printf("Transfer-Encoding : %d\n",header->transferCoding);
   	printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
 
-  	// sending default generated header
-  	pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
   }
 
   if(ev & EV_HTTP_BODY)
@@ -1689,7 +1687,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
   	{
   		_length += len;
   	}
-
   	printf("Read a total data of : %d bytes \n",_length);
 
   	if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
