@@ -372,3 +372,241 @@ int main(void)
   return 0;
 }
 \end{verbatim}
+
+\section{HTTP Client example}
+\begin{verbatim}
+static char *url_filename = NULL;
+
+static int http_save_file(void *data, int len)
+{
+  int fd = open(url_filename, O_WRONLY |O_CREAT | O_TRUNC, 0660);
+  int w, e;
+  if (fd < 0)
+    return fd;
+
+  printf("Saving data to : %s\n",url_filename);
+  w = write(fd, data, len);
+  e = errno;
+  close(fd);
+  errno = e;
+  return w;
+}
+void wget_callback(uint16_t ev, uint16_t conn)
+{
+  char data[1024 * 1024]; // MAX: 1M
+  static int _length = 0;
+
+  if(ev & EV_HTTP_CON)
+  {
+    printf(">>> Connected to the client \n");
+    /* you can let the client use the default generated header
+       or you can create you own string header (compatible with HTTP/1.x */
+    pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
+  }
+
+  if(ev & EV_HTTP_REQ)
+  {
+    struct pico_http_header * header = pico_http_client_readHeader(conn);
+    printf("Received header from server...\n");
+    printf("Server response : %d\n",header->responseCode);
+    printf("Location : %s\n",header->location);
+    printf("Transfer-Encoding : %d\n",header->transferCoding);
+    printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
+  }
+
+  if(ev & EV_HTTP_BODY)
+  {
+    int len;
+
+    printf("Reading data...\n");
+    /*
+      Data is passed to you without you worrying if the transfer is 
+      chunked or the content-length was specified.
+    */
+    while((len = pico_http_client_readData(conn,data + _length,1024)))
+    {
+      _length += len;
+    }
+  }
+
+  if(ev & EV_HTTP_CLOSE)
+  {
+    struct pico_http_header * header = pico_http_client_readHeader(conn);
+    int len;
+    printf("Connection was closed...\n");
+    printf("Reading remaining data, if any ...\n");
+    while((len = pico_http_client_readData(conn,data,1000u)) && len > 0)
+    {
+      _length += len;
+    }
+    printf("Read a total data of : %d bytes \n",_length);
+
+    if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+    {
+      if(header->contentLengthOrChunk)
+      {
+        printf("Last chunk data not fully read !\n");
+        exit(1);
+      }
+      else
+      {
+        printf("Transfer ended with a zero chunk! OK !\n");
+      }
+    } else
+    {
+      if(header->contentLengthOrChunk == _length)
+      {
+        printf("Received the full : %d \n",_length);
+      }
+      else
+      {
+        printf("Received %d , waiting for %d\n",_length, header->contentLengthOrChunk);
+        exit(1);
+      }
+    }
+
+    if (!url_filename) {
+      printf("Failed to get local filename\n");
+      exit(1);
+    }
+
+    if (http_save_file(data, _length) < _length) {
+      printf("Failed to save file: %s\n", strerror(errno));
+      exit(1);
+    }
+    pico_http_client_close(conn);
+    exit(0);
+  }
+
+  if(ev & EV_HTTP_ERROR)
+  {
+    printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
+    pico_http_client_close(conn);
+    exit(1u);
+  }
+
+  if(ev & EV_HTTP_DNS)
+  {
+    printf("The DNS query was successful ... \n");
+  }
+}
+
+void app_wget(char *arg)
+{
+  char * url;
+  cpy_arg(&url, arg);
+
+  if(!url)
+  {
+    fprintf(stderr, " wget expects the url to be received\n");
+    exit(1);
+  }
+  
+  // when opening the http client it will internally parse the url passed
+  if(pico_http_client_open(url,wget_callback) < 0)
+  {
+    fprintf(stderr," error opening the url : %s, please check the format\n",url);
+    exit(1);
+  }
+  url_filename = basename(url);
+}
+\end{verbatim}
+
+\section{HTTP Server example}
+\begin{verbatim}
+
+#define SIZE 4*1024
+
+void serverWakeup(uint16_t ev,uint16_t conn)
+{
+  static FILE * f;
+  char buffer[SIZE];
+
+  if(ev & EV_HTTP_CON)
+  {
+      printf("New connection received....\n");
+      pico_http_server_accept();
+  }
+
+  if(ev & EV_HTTP_REQ) // new header received
+  {
+    int read;
+    char * resource;
+    printf("Header request was received...\n");
+    printf("> Resource : %s\n",pico_http_getResource(conn));
+    resource = pico_http_getResource(conn);
+
+    if(strcmp(resource,"/")==0 || strcmp(resource,"index.html") == 0 || strcmp(resource,"/index.html") == 0)
+    {
+          // Accepting request
+          printf("Accepted connection...\n");
+          pico_http_respond(conn,HTTP_RESOURCE_FOUND);
+          f = fopen("test/examples/index.html","r");
+
+          if(!f)
+          {
+            fprintf(stderr,"Unable to open the file /test/examples/index.html\n");
+            exit(1);
+          }
+
+          read = fread(buffer,1,SIZE,f);
+          pico_http_submitData(conn,buffer,read);
+    }
+    else
+    { // reject
+      printf("Rejected connection...\n");
+      pico_http_respond(conn,HTTP_RESOURCE_NOT_FOUND);
+    }
+
+  }
+
+  if(ev & EV_HTTP_PROGRESS) // submitted data was sent
+  {
+    uint16_t sent, total;
+    pico_http_getProgress(conn,&sent,&total);
+    printf("Chunk statistics : %d/%d sent\n",sent,total);
+  }
+
+  if(ev & EV_HTTP_SENT) // submitted data was fully sent
+  {
+    int read;
+    read = fread(buffer,1,SIZE,f);
+    printf("Chunk was sent...\n");
+    if(read > 0)
+    {
+        printf("Sending another chunk...\n");
+        pico_http_submitData(conn,buffer,read);
+    }
+    else
+    {
+        printf("Last chunk !\n");
+        pico_http_submitData(conn,NULL,0);// send the final chunk
+        fclose(f);
+    }
+  }
+
+  if(ev & EV_HTTP_CLOSE)
+  {
+    printf("Close request...\n");
+    pico_http_close(conn);
+  }
+
+  if(ev & EV_HTTP_ERROR)
+  {
+    printf("Error on server...\n");
+    pico_http_close(conn);
+  }
+}
+/* simple server example that serves the index(.html) page */
+void app_httpd(char *arg)
+{
+  /* transfer encoding with this server is always chunked and you can 
+     submit chunks to the client, without needing to specify the content-length of the
+     body response */ 
+  if( pico_http_server_start(0,serverWakeup) < 0)
+  {
+    fprintf(stderr,"Unable to start the server on port 80\n");
+  }
+}
+\end{verbatim}
+
