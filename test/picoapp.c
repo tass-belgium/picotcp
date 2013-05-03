@@ -450,15 +450,14 @@ void app_udpecho(char *arg)
  *
  * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667
 */
+#ifdef PICO_SUPPORT_MCAST
 void app_mcastsend(char *arg)
 {
   char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
   uint16_t sendto_port = 0;
   struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
   char *new_arg = NULL, *p = NULL, *nxt = arg;
-#ifdef PICO_SUPPORT_MCAST
   struct pico_ip_mreq mreq = { };
-#endif
 
   /* start of parameter parsing */
   if (nxt) {
@@ -538,6 +537,13 @@ void app_mcastsend(char *arg)
     fprintf(stderr, "mcastsend expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port\n");
     exit(255);
 }
+#else
+void app_mcastsend(char *arg)
+{
+  printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
+  return;
+}
+#endif
 /*** END Multicast SEND ***/
 
 /*** Multicast RECEIVE + ECHO ***/
@@ -550,6 +556,7 @@ void app_mcastsend(char *arg)
  *
  * f.e.: ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667
 */
+#ifdef PICO_SUPPORT_MCAST
 void app_mcastreceive(char *arg)
 {
   char *new_arg = NULL, *p = NULL, *nxt = arg;
@@ -637,6 +644,13 @@ void app_mcastreceive(char *arg)
     fprintf(stderr, "mcastreceive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port[:send_port]\n");
     exit(255);
 }
+#else
+void app_mcastreceive(char *arg)
+{
+  printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
+  return;
+}
+#endif
 /*** END Multicast RECEIVE + ECHO ***/
 
 /*** UDP NAT CLIENT ***/

@@ -49,6 +49,9 @@ struct pico_socket {
   struct pico_socket *parent;
   int max_backlog;
 #endif
+#ifdef PICO_SUPPORT_MCAST
+  struct pico_tree *MCASTListen;
+#endif
   uint16_t ev_pending;
 
   struct pico_device *dev;
@@ -72,6 +75,12 @@ struct pico_remote_duple {
 /* request struct for multicast socket opt */
 struct pico_ip_mreq {
   struct pico_ip4 mcast_group_addr;
+  struct pico_ip4 mcast_link_addr;
+};
+
+struct pico_ip_mreq_source {
+  struct pico_ip4 mcast_group_addr;
+  struct pico_ip4 mcast_source_addr;
   struct pico_ip4 mcast_link_addr;
 };
 
@@ -102,11 +111,17 @@ struct pico_ip_mreq {
 
 # define PICO_SOCKET_OPT_TCPNODELAY           0x0000
 
+# define PICO_IP_MULTICAST_EXCLUDE            0
+# define PICO_IP_MULTICAST_INCLUDE            1
 # define PICO_IP_MULTICAST_IF                 32
 # define PICO_IP_MULTICAST_TTL                33
 # define PICO_IP_MULTICAST_LOOP               34
 # define PICO_IP_ADD_MEMBERSHIP               35
 # define PICO_IP_DROP_MEMBERSHIP              36
+# define PICO_IP_UNBLOCK_SOURCE               37
+# define PICO_IP_BLOCK_SOURCE                 38
+# define PICO_IP_ADD_SOURCE_MEMBERSHIP        39
+# define PICO_IP_DROP_SOURCE_MEMBERSHIP       40
 
 # define PICO_SOCKET_OPT_MULTICAST_LOOP       1
 

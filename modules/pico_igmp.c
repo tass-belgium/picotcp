@@ -2,7 +2,7 @@
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
 
-.
+RFC 1112, 2236, 3376, 3678
 
 Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 *********************************************************************/
