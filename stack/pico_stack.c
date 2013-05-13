@@ -302,7 +302,7 @@ static int destination_is_mcast(struct pico_frame *f)
 #ifdef PICO_SUPPORT_IPV4
   else {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    return !pico_ipv4_is_unicast(hdr->dst.addr);
+    return pico_ipv4_is_multicast(hdr->dst.addr);
   }
 #endif
   return 0;
