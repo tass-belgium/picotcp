@@ -1591,7 +1591,7 @@ void callback_dhcpclient(void *cli, int code)
       new_arg = calloc(1, strlen(s_address) + strlen(":224.7.7.7:6667:6667") + 1);
       p = strcat(new_arg, s_address);
       p = strcat(p + strlen(s_address), ":224.7.7.7:6667:6667");
-      app_mcastsend(p);
+      app_mcastsend(new_arg);
     } while (0);
 #endif
   }
