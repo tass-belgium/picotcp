@@ -1777,6 +1777,15 @@ START_TEST (test_socket)
   mreq.mcast_link_addr = inaddr_link;
   ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq); 
   fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq); 
+  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  mreq.mcast_group_addr = inaddr_dst;
+  mreq.mcast_link_addr = inaddr_null;
+  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
+  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
+  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
+  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
 
   mreq.mcast_group_addr = inaddr_uni;
   mreq.mcast_link_addr = inaddr_link;
@@ -1792,16 +1801,6 @@ START_TEST (test_socket)
   mreq.mcast_link_addr = inaddr_uni;
   ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
   fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_null;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
-  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_DROP_MEMBERSHIP failed\n");
 
   mreq.mcast_group_addr = inaddr_incorrect;
   mreq.mcast_link_addr = inaddr_link;
@@ -1822,11 +1821,6 @@ START_TEST (test_socket)
   mreq.mcast_link_addr = inaddr_uni;
   ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
   fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_null;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
 
   ret = pico_socket_close(sk_tcp);
   fail_if(ret < 0, "socket> tcp socket close failed: %s\n", strerror(pico_err));

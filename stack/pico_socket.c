@@ -1582,6 +1582,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
           pico_free(listen);
           if (pico_tree_empty(s->MCASTListen)) {
             pico_free(s->MCASTListen);
+            s->MCASTListen = NULL;
             pico_tree_delete(&MCASTSockets, s);
           }
         }
@@ -1860,6 +1861,8 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
               pico_tree_delete(s->MCASTListen, listen);
               pico_free(listen);
               if (pico_tree_empty(s->MCASTListen))
+                pico_free(s->MCASTListen);
+                s->MCASTListen = NULL;
                 pico_tree_delete(&MCASTSockets, s);
             }
           }
