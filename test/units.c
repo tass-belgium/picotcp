@@ -1472,12 +1472,6 @@ START_TEST (test_socket)
 
   int getnodelay = -1;
   int nodelay = -1;
-  int ttl = 64;
-  int  getttl = 0;
-  int  loop = 9;
-  int  getloop = 0;
-  struct pico_ip4 mcast_default_link = {0};
-  struct pico_ip_mreq mreq = {{0},{0}};
 
   pico_stack_init();
     
@@ -1575,8 +1569,6 @@ START_TEST (test_socket)
   fail_if(ret < 0, "socket> tcp socket close failed: %s\n", strerror(pico_err));
 
 
-
-
   /* testing socket read/write */
   /* socket_write passing wrong parameters */
   ret = pico_socket_write(NULL,(void *)buf,sizeof(buf));
@@ -1654,8 +1646,6 @@ START_TEST (test_socket)
   fail_if(ret != 0, "socket> tcp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));  /* tcp_recv returns -1 when no frame !? */
 
 
-
-
   /* testing socket read/write */
   /* socket_write passing wrong parameters */
   ret = pico_socket_write(NULL,(void *)buf,sizeof(buf));
@@ -1729,8 +1719,7 @@ START_TEST (test_socket)
   fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
 
 
-  printf("START SOCKET OPTION TEST\n");
-
+  /* setoption/getoption */
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
   fail_if(getnodelay != 0, "socket> socket_setoption: default PICO_TCP_NODELAY != 0 (nagle disabled by default)\n");
@@ -1748,79 +1737,6 @@ START_TEST (test_socket)
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
   fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
   fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY is on (expected: off!)\n");
-
-  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
-  fail_if(ret == 0, "socket> socket_setoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
-
-  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_IF, &mcast_default_link);
-  fail_if(ret == 0, "socket> socket_getoption: unsupported PICO_IP_MULTICAST_IF succeeded\n");
-
-  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_TTL, &ttl);
-  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_TTL failed\n");
-
-  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_TTL, &getttl);
-  fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_TTL failed\n");
-  fail_if(getttl != ttl, "socket> socket_getoption: setoption ttl != getoption ttl\n");
-
-  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_MULTICAST_LOOP succeeded with invalid (not 0 or 1) loop value\n");
-
-  loop = 0;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_MULTICAST_LOOP, &loop);
-  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_MULTICAST_LOOP failed\n");
-
-  ret = pico_socket_getoption(sk_udp, PICO_IP_MULTICAST_LOOP, &getloop);
-  fail_if(ret < 0, "socket> socket_getoption: supported PICO_IP_MULTICAST_LOOP failed\n");
-  fail_if(getloop != loop, "socket> socket_getoption: setoption loop != getoption loop\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq); 
-  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_ADD_MEMBERSHIP failed\n");
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq); 
-  fail_if(ret < 0, "socket> socket_setoption: supported PICO_IP_DROP_MEMBERSHIP failed\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_null;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
-  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret < 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
-
-  mreq.mcast_group_addr = inaddr_uni;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-
-  mreq.mcast_group_addr = inaddr_null;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_uni;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_ADD_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
-
-  mreq.mcast_group_addr = inaddr_incorrect;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (not added) group address\n");
-
-  mreq.mcast_group_addr = inaddr_uni;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-
-  mreq.mcast_group_addr = inaddr_null;
-  mreq.mcast_link_addr = inaddr_link;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-
-  mreq.mcast_group_addr = inaddr_dst;
-  mreq.mcast_link_addr = inaddr_uni;
-  ret = pico_socket_setoption(sk_udp, PICO_IP_DROP_MEMBERSHIP, &mreq);
-  fail_if(ret == 0, "socket> socket_setoption: PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
 
   ret = pico_socket_close(sk_tcp);
   fail_if(ret < 0, "socket> tcp socket close failed: %s\n", strerror(pico_err));
@@ -2037,6 +1953,422 @@ START_TEST (test_crc_check)
 END_TEST
 #endif
 
+#ifdef PICO_SUPPORT_MCAST
+START_TEST (test_igmp_sockopts)
+{
+  int i = 0, j = 0, k = 0, ret = 0;
+  struct pico_socket *s, *s1 = NULL;
+  struct pico_device *dev = NULL;
+  struct pico_ip4 *source = NULL;
+  struct pico_ip4 inaddr_dst = {0}, inaddr_incorrect = {0}, inaddr_uni = {0}, inaddr_null = {0}, netmask = {0};
+  struct pico_ip4 inaddr_link[2] = {{0}};
+  struct pico_ip4 inaddr_mcast[8] = {{0}};
+  struct pico_ip4 inaddr_source[8] = {{0}};
+  struct pico_ip_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
+  struct pico_ip_mreq_source mreq_source[128] = {{{0}}};
+  struct pico_tree_node *index = NULL;
+
+  int ttl = 64;
+  int  getttl = 0;
+  int  loop = 9;
+  int  getloop = 0;
+  struct pico_ip4 mcast_default_link = {0};
+
+  pico_stack_init();
+    
+  printf("START IGMP SOCKOPTS TEST\n");
+
+  pico_string_to_ipv4("224.7.7.7", &inaddr_dst.addr);
+  pico_string_to_ipv4("10.40.0.2", &inaddr_uni.addr);
+  pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
+  pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
+
+  pico_string_to_ipv4("10.40.0.1", &inaddr_link[0].addr); /* 0 */
+  pico_string_to_ipv4("10.50.0.1", &inaddr_link[1].addr); /* 1 */
+
+  pico_string_to_ipv4("232.1.1.0", &inaddr_mcast[0].addr); /* 0 */
+  pico_string_to_ipv4("232.2.2.1", &inaddr_mcast[1].addr); /* 1 */
+  pico_string_to_ipv4("232.3.3.2", &inaddr_mcast[2].addr); /* 2 */
+  pico_string_to_ipv4("232.4.4.3", &inaddr_mcast[3].addr); /* 3 */
+  pico_string_to_ipv4("232.5.5.4", &inaddr_mcast[4].addr); /* 4 */
+  pico_string_to_ipv4("232.6.6.5", &inaddr_mcast[5].addr); /* 5 */
+  pico_string_to_ipv4("232.7.7.6", &inaddr_mcast[6].addr); /* 6 */
+  pico_string_to_ipv4("232.8.8.7", &inaddr_mcast[7].addr); /* 7 */
+
+  pico_string_to_ipv4("10.40.1.0", &inaddr_source[0].addr); /* 0 */
+  pico_string_to_ipv4("10.40.1.1", &inaddr_source[1].addr); /* 1 */
+  pico_string_to_ipv4("10.40.1.2", &inaddr_source[2].addr); /* 2 */
+  pico_string_to_ipv4("10.40.1.3", &inaddr_source[3].addr); /* 3 */
+  pico_string_to_ipv4("10.40.1.4", &inaddr_source[4].addr); /* 4 */
+  pico_string_to_ipv4("10.40.1.5", &inaddr_source[5].addr); /* 5 */
+  pico_string_to_ipv4("10.40.1.6", &inaddr_source[6].addr); /* 6 */
+  pico_string_to_ipv4("10.40.1.7", &inaddr_source[7].addr); /* 7 */
+
+  /* 00 01 02 03 04 05 06 07 | 10 11 12 13 14 15 16 17 */
+  for (i = 0; i < 16; i++) {
+    mreq[i].mcast_link_addr = inaddr_link[i/8];
+    mreq[i].mcast_group_addr = inaddr_mcast[i%8];
+  }
+
+  /* 000 001 002 003 004 005 006 007 | 010 011 012 013 014 015 016 017  */
+  for (i = 0; i < 16; i++) {
+    for (j = 0; j < 8; j++) {
+      //printf(">>>>> mreq_source[%d]: link[%d] mcast[%d] source[%d]\n", (i*8)+j, i/8, i%8, j);
+      mreq_source[(i*8)+j].mcast_link_addr = inaddr_link[i/8];
+      mreq_source[(i*8)+j].mcast_group_addr = inaddr_mcast[i%8];
+      mreq_source[(i*8)+j].mcast_source_addr = inaddr_source[j];
+    }
+  }
+
+  dev = pico_null_create("dummy0");
+  netmask.addr = long_be(0xFFFF0000);
+  ret = pico_ipv4_link_add(dev, inaddr_link[0], netmask); 
+  fail_if(ret < 0, "link add failed");
+
+  dev = pico_null_create("dummy1");
+  netmask.addr = long_be(0xFFFF0000);
+  ret = pico_ipv4_link_add(dev, inaddr_link[1], netmask); 
+  fail_if(ret < 0, "link add failed");
+
+  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
+  fail_if(s == NULL, "UDP socket open failed");
+  s1 = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
+  fail_if(s1 == NULL, "UDP socket open failed");
+
+  /* argument validation tests */
+  printf("IGMP SETOPTION ARGUMENT VALIDATION TEST\n");
+  ret = pico_socket_setoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link);
+  fail_if(ret == 0, "unsupported PICO_IP_MULTICAST_IF succeeded\n");
+  ret = pico_socket_getoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link);
+  fail_if(ret == 0, "unsupported PICO_IP_MULTICAST_IF succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_MULTICAST_TTL, &ttl);
+  fail_if(ret < 0, "supported PICO_IP_MULTICAST_TTL failed\n");
+
+  ret = pico_socket_getoption(s, PICO_IP_MULTICAST_TTL, &getttl);
+  fail_if(ret < 0, "supported PICO_IP_MULTICAST_TTL failed\n");
+  fail_if(getttl != ttl, "setoption ttl != getoption ttl\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop);
+  fail_if(ret == 0, "PICO_IP_MULTICAST_LOOP succeeded with invalid (not 0 or 1) loop value\n");
+  loop = 0;
+  ret = pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop);
+  fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed\n");
+  ret = pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop);
+  fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed\n");
+  fail_if(getloop != loop, "setoption loop != getoption loop\n");
+
+  _mreq.mcast_group_addr = inaddr_dst;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq); 
+  fail_if(ret < 0, "supported PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq); 
+  fail_if(ret < 0, "supported PICO_IP_DROP_MEMBERSHIP failed\n");
+  _mreq.mcast_group_addr = inaddr_dst;
+  _mreq.mcast_link_addr = inaddr_null;
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
+  _mreq.mcast_group_addr = inaddr_uni;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (unicast) group address\n");
+  _mreq.mcast_group_addr = inaddr_null;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (NULL) group address\n");
+  _mreq.mcast_group_addr = inaddr_dst;
+  _mreq.mcast_link_addr = inaddr_uni;
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
+  _mreq.mcast_group_addr = inaddr_incorrect;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (not added) group address\n");
+  _mreq.mcast_group_addr = inaddr_uni;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) group address\n");
+  _mreq.mcast_group_addr = inaddr_null;
+  _mreq.mcast_link_addr = inaddr_link[0];
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (NULL) group address\n");
+  _mreq.mcast_group_addr = inaddr_dst;
+  _mreq.mcast_link_addr = inaddr_uni;
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
+  fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
+
+  /* flow validation tests */
+  printf("IGMP SETOPTION FLOW VALIDATION TEST\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_SOURCE succeeded\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_BLOCK_SOURCE succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_UNBLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret == 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP succeeded\n");
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  /* stress tests */
+  printf("IGMP SETOPTION STRESS TEST\n");
+  for (k = 0; k < 2; k++) {
+    /* ADD for even combinations of group and link, ADD_SOURCE for uneven */
+    for (i = 0; i < 16; i++) {
+      if (i%2) {
+        ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[i]); 
+        fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+        for (j = 0; j < 8; j++) {
+          ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[(i*8)+j]); 
+          fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+        }
+      } else {
+        for (j = 0; j < 8; j++) {
+          ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[(i*8)+j]); 
+          fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+        }
+      }
+    }
+
+    /* UNBLOCK and DROP for even combinations, DROP_SOURCE for uneven */
+    for (i = 0; i < 16; i++) {
+      if (i%2) {
+        for (j = 0; j < 8; j++) {
+          ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[(i*8)+j]); 
+          fail_if(ret < 0, "PICO_IP_UNBLOCK_SOURCE failed\n");
+        }
+        ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[i]); 
+        fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+      } else {
+        for (j = 0; j < 8; j++) {
+          ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[(i*8)+j]); 
+          fail_if(ret < 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP failed\n");
+        }
+      }
+    }
+    /* everything should be cleanup up, next iteration will fail if not */
+  }
+
+  /* filter validation tests */
+  printf("IGMP SETOPTION FILTER VALIDATION TEST\n");
+  /* INCLUDE + INCLUDE expected filter: source of 0 and 1*/
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[1]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  i = 0;
+  pico_tree_foreach(index, &MCASTFilters)
+  {
+    if (++i > 2)
+      fail("MCASTFilters (INCLUDE + INCLUDE) too many elements\n");
+    source = index->keyValue;
+    if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */ }
+    else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */ }
+    else { fail("MCASTFilters (INCLUDE + INCLUDE) incorrect\n"); }
+  }
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  /* INCLUDE + EXCLUDE expected filter: source of 2 */
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[1]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[1]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[2]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  i = 0;
+  pico_tree_foreach(index, &MCASTFilters)
+  {
+    if (++i > 1)
+      fail("MCASTFilters (INCLUDE + EXCLUDE) too many elements\n");
+    source = index->keyValue;
+    if (source->addr == mreq_source[2].mcast_source_addr.addr) { /* OK */ }
+    else { fail("MCASTFilters (INCLUDE + EXCLUDE) incorrect\n"); }
+  }
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  /* EXCLUDE + INCLUDE expected filter: source of 0 and 1 */
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[1]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[3]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[4]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[3]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[4]); 
+  fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
+  i = 0;
+  pico_tree_foreach(index, &MCASTFilters)
+  {
+    if (++i > 2)
+      fail("MCASTFilters (EXCLUDE + INCLUDE) too many elements\n");
+    source = index->keyValue;
+    if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */ }
+    else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */ }
+    else { fail("MCASTFilters (EXCLUDE + INCLUDE) incorrect\n"); }
+  }
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+  /* EXCLUDE + EXCLUDE expected filter: source of 3 and 4 */
+  ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[1]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[3]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[4]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_ADD_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[3]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[4]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[5]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[6]); 
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  i = 0;
+  pico_tree_foreach(index, &MCASTFilters)
+  {
+    if (++i > 2)
+      fail("MCASTFilters (EXCLUDE + EXCLUDE) too many elements\n");
+    source = index->keyValue;
+    if (source->addr == mreq_source[3].mcast_source_addr.addr) { /* OK */ }
+    else if (source->addr == mreq_source[4].mcast_source_addr.addr) { /* OK */ }
+    else { fail("MCASTFilters (EXCLUDE + EXCLUDE) incorrect\n"); }
+  }
+  ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+  ret = pico_socket_setoption(s1, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
+  fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
+
+
+  ret = pico_socket_close(s);
+  fail_if(ret < 0, "socket close failed: %s\n", strerror(pico_err));
+  ret = pico_socket_close(s1);
+  fail_if(ret < 0, "socket close failed: %s\n", strerror(pico_err));
+}
+END_TEST
+#endif
+
 START_TEST (test_frame)
 {
   struct pico_frame *f1;
@@ -2072,6 +2404,9 @@ Suite *pico_suite(void)
   TCase *ipfilter = tcase_create("IPFILTER");
 #ifdef PICO_SUPPORT_CRC
   TCase *crc = tcase_create("CRC");
+#endif
+#ifdef PICO_SUPPORT_MCAST
+  TCase *igmp = tcase_create("IGMP");
 #endif
   TCase *frame = tcase_create("FRAME");
 
@@ -2117,6 +2452,12 @@ Suite *pico_suite(void)
   tcase_add_test(crc, test_crc_check);
   suite_add_tcase(s, crc);
 #endif
+
+#ifdef PICO_SUPPORT_MCAST
+  tcase_add_test(igmp, test_igmp_sockopts);
+  suite_add_tcase(s, igmp);
+#endif
+
   tcase_add_test(frame, test_frame);
   suite_add_tcase(s, frame);
 

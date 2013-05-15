@@ -1860,10 +1860,11 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
               reference_count = 1;
               pico_tree_delete(s->MCASTListen, listen);
               pico_free(listen);
-              if (pico_tree_empty(s->MCASTListen))
+              if (pico_tree_empty(s->MCASTListen)) {
                 pico_free(s->MCASTListen);
                 s->MCASTListen = NULL;
                 pico_tree_delete(&MCASTSockets, s);
+              }
             }
           }
         }
