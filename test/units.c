@@ -2255,14 +2255,14 @@ START_TEST (test_igmp_sockopts)
   ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[1]); 
   fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
   i = 0;
-  pico_tree_foreach(index, &MCASTFilters)
+  pico_tree_foreach(index, &MCASTFilter)
   {
     if (++i > 2)
-      fail("MCASTFilters (INCLUDE + INCLUDE) too many elements\n");
+      fail("MCASTFilter (INCLUDE + INCLUDE) too many elements\n");
     source = index->keyValue;
     if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */ }
     else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */ }
-    else { fail("MCASTFilters (INCLUDE + INCLUDE) incorrect\n"); }
+    else { fail("MCASTFilter (INCLUDE + INCLUDE) incorrect\n"); }
   }
   ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
   fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
@@ -2281,13 +2281,13 @@ START_TEST (test_igmp_sockopts)
   ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[2]); 
   fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
   i = 0;
-  pico_tree_foreach(index, &MCASTFilters)
+  pico_tree_foreach(index, &MCASTFilter)
   {
     if (++i > 1)
-      fail("MCASTFilters (INCLUDE + EXCLUDE) too many elements\n");
+      fail("MCASTFilter (INCLUDE + EXCLUDE) too many elements\n");
     source = index->keyValue;
     if (source->addr == mreq_source[2].mcast_source_addr.addr) { /* OK */ }
-    else { fail("MCASTFilters (INCLUDE + EXCLUDE) incorrect\n"); }
+    else { fail("MCASTFilter (INCLUDE + EXCLUDE) incorrect\n"); }
   }
   ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
   fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
@@ -2310,14 +2310,14 @@ START_TEST (test_igmp_sockopts)
   ret = pico_socket_setoption(s1, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[4]); 
   fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
   i = 0;
-  pico_tree_foreach(index, &MCASTFilters)
+  pico_tree_foreach(index, &MCASTFilter)
   {
     if (++i > 2)
-      fail("MCASTFilters (EXCLUDE + INCLUDE) too many elements\n");
+      fail("MCASTFilter (EXCLUDE + INCLUDE) too many elements\n");
     source = index->keyValue;
     if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */ }
     else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */ }
-    else { fail("MCASTFilters (EXCLUDE + INCLUDE) incorrect\n"); }
+    else { fail("MCASTFilter (EXCLUDE + INCLUDE) incorrect\n"); }
   }
   ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
   fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
@@ -2346,14 +2346,14 @@ START_TEST (test_igmp_sockopts)
   ret = pico_socket_setoption(s1, PICO_IP_BLOCK_SOURCE, &mreq_source[6]); 
   fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
   i = 0;
-  pico_tree_foreach(index, &MCASTFilters)
+  pico_tree_foreach(index, &MCASTFilter)
   {
     if (++i > 2)
-      fail("MCASTFilters (EXCLUDE + EXCLUDE) too many elements\n");
+      fail("MCASTFilter (EXCLUDE + EXCLUDE) too many elements\n");
     source = index->keyValue;
     if (source->addr == mreq_source[3].mcast_source_addr.addr) { /* OK */ }
     else if (source->addr == mreq_source[4].mcast_source_addr.addr) { /* OK */ }
-    else { fail("MCASTFilters (EXCLUDE + EXCLUDE) incorrect\n"); }
+    else { fail("MCASTFilter (EXCLUDE + EXCLUDE) incorrect\n"); }
   }
   ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]); 
   fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");

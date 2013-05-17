@@ -52,7 +52,10 @@ struct pico_ipv4_link
   struct pico_device *dev;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
+#ifdef PICO_SUPPORT_MCAST
   struct pico_tree *MCASTGroups;
+  uint8_t mcast_router_version;
+#endif
 };
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
@@ -75,8 +78,8 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr);
 void pico_ipv4_unreachable(struct pico_frame *f, int err);
 
-int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilters);
-int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilters);
+int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter);
+int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter);
 struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void);
 
 #endif /* _INCLUDE_PICO_IPV4 */

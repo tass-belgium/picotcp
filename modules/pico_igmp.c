@@ -53,8 +53,9 @@ Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 #define IP_OPTION_ROUTER_ALERT_LEN       (4)
 #define IGMP_DEFAULT_MAX_RESPONSE_TIME   (100)
 #define IGMP_UNSOLICITED_REPORT_INTERVAL (100)
-#define IGMP_ALL_HOST_GROUP              (0x010000E0) /* 224.0.0.1 */
-#define IGMP_ALL_ROUTER_GROUP            (0x020000E0) /* 224.0.0.2 */
+#define IGMP_ALL_HOST_GROUP              long_be(0xE0000001) /* 224.0.0.1 */
+#define IGMP_ALL_ROUTER_GROUP            long_be(0xE0000002) /* 224.0.0.2 */
+#define IGMPV3_ALL_ROUTER_GROUP          long_be(0xE0000016) /* 224.0.0.22 */
 
 struct __attribute__((packed)) igmpv2_message {
   uint8_t type;
@@ -295,30 +296,34 @@ struct pico_protocol pico_proto_igmp = {
   .q_out = &igmp_out,
 };
 
-
-/*====================== API CALLS ======================*/
-
-int pico_igmp_join_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *link) {
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state) 
+{
   struct igmp_packet_params params = {0};
+  
+  if (mcast_group->addr == IGMP_ALL_HOST_GROUP)
+    return 0;
 
-  params.event = IGMP_EVENT_JOIN_GROUP ;
-  params.mcast_addr = *mcast_addr;
-  params.src_interface = link->address;
+  switch (state) {
+    case PICO_IGMP_STATE_CREATE:
+      /* fall through */
+
+    case PICO_IGMP_STATE_UPDATE:
+      params.event = IGMP_EVENT_JOIN_GROUP;
+      break;
+    
+    case PICO_IGMP_STATE_DELETE:
+      params.event = IGMP_EVENT_LEAVE_GROUP;
+      break;
+
+    default:
+      return -1;
+  }
+
+  params.mcast_addr = *mcast_group;
+  params.src_interface = *mcast_link;
 
   return pico_igmp_process_event(&params);
 }
-
-int pico_igmp_leave_group(struct pico_ip4 *mcast_addr, struct pico_ipv4_link *link) {
-  struct igmp_packet_params params = {0};
-
-  params.event = IGMP_EVENT_LEAVE_GROUP ;
-  params.mcast_addr = *mcast_addr;
-  params.src_interface = link->address;
-
-  return pico_igmp_process_event(&params);
-}
-
-/*================== GENERAL FUNCTIONS ==================*/
 
 static int start_timer(struct igmp_packet_params *params,const uint16_t delay)
 {

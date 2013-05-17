@@ -10,12 +10,15 @@ Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
 #ifndef _INCLUDE_PICO_IGMP
 #define _INCLUDE_PICO_IGMP
 
-#define PICO_IGMPV1 1
-#define PICO_IGMPV2 2
-#define PICO_IGMPV3 3
+#define PICO_IGMPV1             1
+#define PICO_IGMPV2             2
+#define PICO_IGMPV3             3
+
+#define PICO_IGMP_STATE_CREATE  1
+#define PICO_IGMP_STATE_UPDATE  2
+#define PICO_IGMP_STATE_DELETE  3
 
 extern struct pico_protocol pico_proto_igmp;
 
-int pico_igmp_join_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
-int pico_igmp_leave_group(struct pico_ip4 *group_address, struct pico_ipv4_link *link);
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state);
 #endif /* _INCLUDE_PICO_IGMP */
