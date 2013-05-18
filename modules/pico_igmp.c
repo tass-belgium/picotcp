@@ -100,9 +100,9 @@ struct igmp_parameters {
   uint8_t max_resp_time;
   uint16_t delay;
   unsigned long timer_start;
-  struct pico_tree *MCASTFilter;
   struct pico_ip4 mcast_link;
   struct pico_ip4 mcast_group;
+  struct pico_tree *MCASTFilter;
   struct pico_frame *f;
 };
 
@@ -122,14 +122,14 @@ static int parameters_cmp(void *ka,void *kb)
 }
 PICO_TREE_DECLARE(IGMPParameters, parameters_cmp);
 
-static struct igmp_parameters *pico_igmp_find_mgroup(struct pico_ip4 *mcast_group)
+static struct igmp_parameters *pico_igmp_find_parameters(struct pico_ip4 *mcast_group)
 {
   struct igmp_parameters test = {0};
   test.mcast_group.addr = mcast_group->addr;
   return pico_tree_findKey(&IGMPParameters,&test);
 }
 
-static int pico_igmp_del_mgroup(struct igmp_parameters *info)
+static int pico_igmp_delete_parameters(struct igmp_parameters *info)
 {
   if(!info){
     pico_err = PICO_ERR_EINVAL;
@@ -160,13 +160,13 @@ int test_pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f){
   return 0;
 }
 int test_pico_igmp_set_membershipState(struct pico_ip4 *mcast_group ,uint8_t state){
-  struct igmp_parameters *info = pico_igmp_find_mgroup(mcast_group);
+  struct igmp_parameters *info = pico_igmp_find_parameters(mcast_group);
   info->state = state;
   igmp_dbg("DEBUG_IGMP:STATE = %s\n", (info->state == 0 ? "Non-Member" : (info->state == 1 ? "Delaying MEMBER" : "Idle MEMBER"))); 
   return 0;
 }
 uint8_t test_pico_igmp_get_membershipState(struct pico_ip4 *mcast_group){
-  struct igmp_parameters *info = pico_igmp_find_mgroup(mcast_group);
+  struct igmp_parameters *info = pico_igmp_find_parameters(mcast_group);
   igmp_dbg("DEBUG_IGMP:STATE = %s\n", (info->state == 0 ? "Non-Member" : (info->state == 1 ? "Delaying Member" : "Idle Member"))); 
   return info->state;
 }
@@ -310,7 +310,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
 
 static int start_timer(struct igmp_parameters *params,const uint16_t delay)
 {
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
   struct timer_callback_info *timer_info= pico_zalloc(sizeof(struct timer_callback_info));
 
   timer_info->timer_start = PICO_TIME_MS();
@@ -323,7 +323,7 @@ static int start_timer(struct igmp_parameters *params,const uint16_t delay)
 
 static int stop_timer(struct pico_ip4 *mcast_group)
 {
-  struct igmp_parameters *info = pico_igmp_find_mgroup(mcast_group);
+  struct igmp_parameters *info = pico_igmp_find_parameters(mcast_group);
   info->timer_start = TIMER_NOT_ACTIVE;
   return 0;
 }
@@ -367,6 +367,51 @@ static int send_leave(struct pico_frame *f)
   igmp_dbg("IGMP: send leave group on group %08X\n", mcast_group.addr);
   pico_ipv4_frame_push(f,&dst,PICO_PROTO_IGMP);
   ret |= stop_timer(&mcast_group);
+  return ret;
+}
+
+static int generate_igmp_report(struct igmp_parameters *params)
+{
+  uint8_t ret = 0;
+  struct pico_ipv4_link *link = NULL;
+
+  link = pico_ipv4_link_get(&params->mcast_link);
+  if (!link) {
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+  }
+
+  switch (link->mcast_router_version) {
+    case PICO_IGMPV1:
+      pico_err = PICO_ERR_EPROTONOSUPPORT;
+      return -1;
+      
+    case PICO_IGMPV2:
+    {
+      struct igmpv2_message *report = NULL;
+      params->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct igmpv2_message));
+      params->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->len += IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->dev = pico_ipv4_link_find(&params->mcast_link);
+
+      report = (struct igmpv2_message *)params->f->transport_hdr;
+      report->type = IGMP_TYPE_MEM_REPORT_V2;
+      report->max_resp_time = IGMP_DEFAULT_MAX_RESPONSE_TIME;
+      report->mcast_group = params->mcast_group.addr;
+
+      ret |= pico_igmp_checksum(params->f);
+      break;
+    }
+    case PICO_IGMPV3:
+      pico_err = PICO_ERR_EPROTONOSUPPORT;
+      break;
+
+    default:
+      pico_err = PICO_ERR_EINVAL;
+      return -1;
+  }
   return ret;
 }
 
@@ -414,7 +459,7 @@ typedef int (*callback)(struct igmp_parameters *);
 static int stslifs(struct igmp_parameters *params)
 {
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
   struct pico_frame *f = NULL;
 
   igmp_dbg("IGMP: event = leave group | action = stop timer, send leave if flag set\n");
@@ -427,7 +472,7 @@ static int stslifs(struct igmp_parameters *params)
 
   if ( 0 == ret) {
     /* delete from tree */
-    pico_igmp_del_mgroup(info);
+    pico_igmp_delete_parameters(info);
     igmp_dbg("IGMP: new state = non-member\n");
     return 0;
   } else {
@@ -439,41 +484,38 @@ static int stslifs(struct igmp_parameters *params)
 /* send report, set flag, start timer */
 static int srsfst(struct igmp_parameters *params)
 {
-  uint8_t ret = 0;
-  struct pico_frame *f = NULL;
-  struct igmp_parameters *info = pico_zalloc(sizeof(struct igmp_parameters));
-  struct pico_frame *copy_frame;
+  struct igmp_parameters *rbtparams = NULL;
+  struct pico_frame *copy_frame = NULL;
 
   igmp_dbg("IGMP: event = join group | action = send report, set flag, start timer\n");
 
-  info->mcast_group = params->mcast_group;
-  info->mcast_link = params->mcast_link;
-  info->state = IGMP_STATE_NON_MEMBER;
-  info->last_host = IGMP_HOST_LAST;
-  info->timer_start = TIMER_NOT_ACTIVE;
-  pico_tree_insert(&IGMPParameters,info);
-
-  ret |= create_igmp_frame(&f, params->mcast_link, &(params->mcast_group), IGMP_TYPE_MEM_REPORT_V2);
-
-  copy_frame = pico_frame_copy(f);
-  if (copy_frame == NULL) {
-    pico_err = PICO_ERR_EINVAL;
+  rbtparams = pico_zalloc(sizeof(struct igmp_parameters));
+  if (!rbtparams) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
-  ret |= send_membership_report(copy_frame);
-  info->delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 100)); 
-  params->f = f;
-  ret |= start_timer(params, info->delay);
+  memcpy(rbtparams, params, sizeof(struct igmp_parameters));
+  rbtparams->state = IGMP_STATE_NON_MEMBER;
+  rbtparams->last_host = IGMP_HOST_LAST;
+  rbtparams->timer_start = TIMER_NOT_ACTIVE;
+  pico_tree_insert(&IGMPParameters, rbtparams);
 
-  if(0 == ret) {
-    struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
-    info->state = IGMP_STATE_DELAYING_MEMBER;
-    igmp_dbg("IGMP: new state = delaying member\n");
-    return 0;
-  } else {
-    pico_err = PICO_ERR_EFAULT;
+  if (generate_igmp_report(rbtparams) < 0)
+    return -1;
+  copy_frame = pico_frame_copy(rbtparams->f);
+  if (!copy_frame) {
+    pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
+  if (send_membership_report(copy_frame) < 0)
+    return -1;
+
+  rbtparams->delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 100)); 
+  if (start_timer(rbtparams, rbtparams->delay) < 0) /* XXX: change to one parameter? */
+    return -1;
+  rbtparams->state = IGMP_STATE_DELAYING_MEMBER;
+  igmp_dbg("IGMP: new state = delaying member\n");
+  return 0;
 }
 
 /* send leave if flag set */
@@ -485,7 +527,7 @@ static int slifs(struct igmp_parameters *params)
 
   igmp_dbg("IGMP: event = leave group | action = send leave if flag set\n");
 
-  info = pico_igmp_find_mgroup(&(params->mcast_group));
+  info = pico_igmp_find_parameters(&(params->mcast_group));
   if (IGMP_HOST_LAST == info->last_host) {
     ret |= create_igmp_frame(&f, params->mcast_link, &(params->mcast_group), IGMP_TYPE_LEAVE_GROUP);
     send_leave(f);
@@ -493,7 +535,7 @@ static int slifs(struct igmp_parameters *params)
 
   if (0 == ret) {
     /* delete from tree */
-    pico_igmp_del_mgroup(info);
+    pico_igmp_delete_parameters(info);
     igmp_dbg("IGMP: new state = non-member\n");
     return 0;
   } else {
@@ -506,7 +548,7 @@ static int slifs(struct igmp_parameters *params)
 static int st(struct igmp_parameters *params)
 {
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
 
   igmp_dbg("IGMP: event = query received | action = start timer\n");
 
@@ -528,7 +570,7 @@ static int st(struct igmp_parameters *params)
 static int stcl(struct igmp_parameters *params)
 {
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
 
   igmp_dbg("IGMP: event = report received | action = stop timer, clear flag\n");
 
@@ -549,11 +591,11 @@ static int stcl(struct igmp_parameters *params)
 static int srsf(struct igmp_parameters *params)
 {
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
 
   igmp_dbg("IGMP: event = timer expired | action = send report, set flag\n");
 
-  /* start time of mgroup == start time of expired timer? */
+  /* start time of parameter == start time of expired timer? */
   if (info->timer_start == params->timer_start) {
     ret |= send_membership_report(params->f);
   } else {
@@ -574,7 +616,7 @@ static int srsf(struct igmp_parameters *params)
 static int rtimrtct(struct igmp_parameters *params)
 {
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
   unsigned long current_time_left = ((unsigned long)info->delay - (PICO_TIME_MS() - (unsigned long)info->timer_start));
 
   igmp_dbg("IGMP: event = query received | action = reset timer if max response time < current timer\n");
@@ -630,7 +672,7 @@ static int pico_igmp_process_event(struct igmp_parameters *params)
 {
   struct pico_tree_node *index;
   uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_mgroup(&(params->mcast_group));
+  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
 
   igmp_dbg("IGMP: process event on group address %08X\n", params->mcast_group.addr);
   if (NULL == info) {
