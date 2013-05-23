@@ -38,6 +38,7 @@ enum pico_err_e {
   PICO_ERR_EINVAL = 22,
   /* ... */
   PICO_ERR_EPROTO = 71,
+  PICO_ERR_ENOPROTOOPT = 92,
   PICO_ERR_EPROTONOSUPPORT = 93,
 
   /* ... */

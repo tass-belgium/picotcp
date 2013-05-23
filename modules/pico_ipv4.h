@@ -58,6 +58,15 @@ struct pico_ipv4_link
 #endif
 };
 
+#ifdef PICO_SUPPORT_MCAST
+struct pico_mcast_group {
+  uint8_t filter_mode;
+  uint16_t reference_count;
+  struct pico_ip4 mcast_addr;
+  struct pico_tree MCASTSources;
+};
+#endif
+
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
 int pico_ipv4_valid_netmask(uint32_t mask);

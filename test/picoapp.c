@@ -564,6 +564,7 @@ void app_mcastreceive(char *arg)
   uint16_t listen_port = 0;
   struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
   struct pico_ip_mreq mreq = { };
+  struct pico_ip_mreq_source mreq_source = { };
 
   /* start of parameter parsing */
   if (nxt) {
@@ -631,13 +632,47 @@ void app_mcastreceive(char *arg)
 
   app_udpecho(new_arg);
 
-  mreq.mcast_group_addr = inaddr_mcast;
-  mreq.mcast_link_addr = inaddr_link;
+  mreq.mcast_group_addr = mreq_source.mcast_group_addr = inaddr_mcast;
+  mreq.mcast_link_addr = mreq_source.mcast_link_addr = inaddr_link;
+  mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
   if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
     printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-    exit(1);
   }
-
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_BLOCK_SOURCE, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_BLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_UNBLOCK_SOURCE, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_UNBLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_DROP_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  mreq_source.mcast_source_addr.addr = long_be(0XAC10010A);
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+  }
+  mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
+  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+  }
   return;
 
   out:

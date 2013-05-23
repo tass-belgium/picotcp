@@ -20,11 +20,14 @@
 #include "pico_dns_client.c"
 #include "pico_dhcp_server.c"
 #include "pico_dhcp_client.c"
-#include "pico_igmp.c"
 #include "pico_nat.c"
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
 #include <check.h>
+
+#ifdef PICO_SUPPORT_MCAST
+#include "pico_igmp.c"
+#endif
 
 START_TEST (test_ipv4)
 {

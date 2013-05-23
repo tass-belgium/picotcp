@@ -691,13 +691,6 @@ struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
  *   MCASTGroups: RBTree(mcast_group)
  *   MCASTSources: RBTree(source)
  */
-struct pico_mcast_group {
-  uint8_t filter_mode;
-  uint16_t reference_count;
-  struct pico_ip4 mcast_addr;
-  struct pico_tree MCASTSources;
-};
-
 static int ipv4_mcast_groups_cmp(void * ka, void * kb)
 {
   struct pico_mcast_group *a = ka, *b = kb;
@@ -752,6 +745,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
   struct pico_mcast_group *g = NULL, test = {0};
   struct pico_ipv4_link *link = NULL;
   struct pico_tree_node *index = NULL, *_tmp = NULL;
+  struct pico_ip4 *source = NULL;
 
   if (mcast_link)
     link = pico_ipv4_link_get(mcast_link);
@@ -770,6 +764,8 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
       pico_err = PICO_ERR_ENOMEM;
       return -1;
     }
+    /* "non-existent" state of filter mode INCLUDE and empty source list */
+    g->filter_mode = PICO_IP_MULTICAST_INCLUDE;
     g->reference_count = 1;
     g->mcast_addr = *mcast_group;
     g->MCASTSources.root = &LEAF;
@@ -778,16 +774,24 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
   }
 
-  /* cleanup previous filter */
+  /* cleanup filter */
   pico_tree_foreach_safe(index, &g->MCASTSources, _tmp)
   {
-    pico_tree_delete(&g->MCASTSources, index->keyValue);
+    source = index->keyValue;
+    pico_tree_delete(&g->MCASTSources, source);
+    pico_free(source);
   }
   /* insert new filter */
   if (MCASTFilter) {
     pico_tree_foreach(index, MCASTFilter)
     {
-      pico_tree_insert(&g->MCASTSources, index->keyValue);
+      source = pico_zalloc(sizeof(struct pico_ip4));
+      if (!source) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+      }
+      source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
+      pico_tree_insert(&g->MCASTSources, source);
     }
   }
   g->filter_mode = filter_mode;
@@ -802,6 +806,7 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
   struct pico_mcast_group *g = NULL, test = {0};
   struct pico_ipv4_link *link = NULL;
   struct pico_tree_node *index = NULL, *_tmp = NULL;
+  struct pico_ip4 *source = NULL;
 
   if (mcast_link)
     link = pico_ipv4_link_get(mcast_link);
@@ -815,24 +820,39 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
     return -1;
   } else {
     if (reference_count && (--(g->reference_count) < 1)) {
-      pico_tree_delete(link->MCASTGroups, g);
-      pico_free(g);
       pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_DELETE);
-    } else {
-      pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
-      g->filter_mode = filter_mode;
-      /* cleanup previous filter */
+      /* cleanup filter */
       pico_tree_foreach_safe(index, &g->MCASTSources, _tmp)
       {
-        pico_tree_delete(&g->MCASTSources, index->keyValue);
+        source = index->keyValue;
+        pico_tree_delete(&g->MCASTSources, source);
+        pico_free(source);
+      }
+      pico_tree_delete(link->MCASTGroups, g);
+      pico_free(g); 
+    } else {
+      pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+      /* cleanup filter */
+      pico_tree_foreach_safe(index, &g->MCASTSources, _tmp)
+      {
+        source = index->keyValue;
+        pico_tree_delete(&g->MCASTSources, source);
+        pico_free(source);
       }
       /* insert new filter */
       if (MCASTFilter) {
         pico_tree_foreach(index, MCASTFilter)
         {
-          pico_tree_insert(&g->MCASTSources, index->keyValue);
+          source = pico_zalloc(sizeof(struct pico_ip4));
+          if (!source) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+          }
+          source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
+          pico_tree_insert(&g->MCASTSources, source);
         }
       }
+      g->filter_mode = filter_mode;
     }
   }
 

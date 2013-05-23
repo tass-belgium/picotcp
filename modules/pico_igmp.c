@@ -2,9 +2,9 @@
 PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
 See LICENSE and COPYING for usage.
 
-RFC 1112, 2236, 3376, 3678, 4607
+RFC 1112, 2236, 3376, 3569, 3678, 4607
 
-Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
+Authors: Kristof Roelants (IGMPv3), Simon Maes, Brecht Van Cauwenberghe 
 *********************************************************************/
 
 #include "pico_stack.h"
@@ -16,6 +16,7 @@ Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 #include "pico_frame.h"
 #include "pico_tree.h"
 #include "pico_device.h"
+#include "pico_socket.h"
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER            (0x0)
@@ -24,10 +25,11 @@ Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 
 /* events */ 
 #define IGMP_EVENT_DELETE_GROUP          (0x0)
-#define IGMP_EVENT_UPDATE_GROUP          (0x1)
-#define IGMP_EVENT_QUERY_RECV            (0x2)
-#define IGMP_EVENT_REPORT_RECV           (0x3)
-#define IGMP_EVENT_TIMER_EXPIRED         (0x4)
+#define IGMP_EVENT_CREATE_GROUP          (0x1)
+#define IGMP_EVENT_UPDATE_GROUP          (0x2)
+#define IGMP_EVENT_QUERY_RECV            (0x3)
+#define IGMP_EVENT_REPORT_RECV           (0x4)
+#define IGMP_EVENT_TIMER_EXPIRED         (0x5)
 
 /* message types */
 #define IGMP_TYPE_MEM_QUERY              (0x11)
@@ -53,6 +55,7 @@ Authors: Simon Maes, Brecht Van Cauwenberghe, Kristof Roelants
 #define IP_OPTION_ROUTER_ALERT_LEN       (4)
 #define IGMP_DEFAULT_MAX_RESPONSE_TIME   (100)
 #define IGMP_UNSOLICITED_REPORT_INTERVAL (100)
+#define IGMP_MAX_GROUPS                  (32) /* max 255 */
 #define IGMP_ALL_HOST_GROUP              long_be(0xE0000001) /* 224.0.0.1 */
 #define IGMP_ALL_ROUTER_GROUP            long_be(0xE0000002) /* 224.0.0.2 */
 #define IGMPV3_ALL_ROUTER_GROUP          long_be(0xE0000016) /* 224.0.0.22 */
@@ -98,6 +101,7 @@ struct igmp_parameters {
   uint8_t last_host;
   uint8_t filter_mode;
   uint8_t max_resp_time;
+  uint8_t mcast_router_version;
   uint16_t delay;
   unsigned long timer_start;
   struct pico_ip4 mcast_link;
@@ -111,16 +115,28 @@ struct timer_callback_info {
   struct pico_frame *f;
 };
 
-static int parameters_cmp(void *ka,void *kb)
+static int igmp_parameters_cmp(void *ka,void *kb)
 {
-	struct igmp_parameters *a = ka, *b = kb;
+  struct igmp_parameters *a = ka, *b = kb;
   if (a->mcast_group.addr < b->mcast_group.addr)
     return -1;
   if (a->mcast_group.addr > b->mcast_group.addr)
     return 1;
   return 0;
 }
-PICO_TREE_DECLARE(IGMPParameters, parameters_cmp);
+PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
+
+static int igmp_sources_cmp(void *ka, void *kb)
+{
+  struct pico_ip4 *a = ka, *b = kb;
+  if (a->addr < b->addr)
+    return -1;
+  if (a->addr > b->addr)
+    return 1;
+  return 0;
+}
+PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
+PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);
 
 static struct igmp_parameters *pico_igmp_find_parameters(struct pico_ip4 *mcast_group)
 {
@@ -234,9 +250,9 @@ static int check_igmp_checksum(struct pico_frame *f)
   }
 }
 
-static int pico_igmp_checksum(struct pico_frame *f)
+static int pico_igmp_checksum(struct igmp_parameters *params)
 {
-  struct igmpv2_message *igmp_hdr = (struct igmpv2_message *) f->transport_hdr;
+  struct igmpv2_message *igmp_hdr = (struct igmpv2_message *) params->f->transport_hdr;
   if (!igmp_hdr) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
@@ -262,7 +278,7 @@ static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f
 }
 
 static int pico_igmp_process_out(struct pico_protocol *self, struct pico_frame *f) {
-  // not supported.
+  /* packets are directly transferred to the IP layer by calling pico_ipv4_frame_push */
   return 0;
 }
 
@@ -279,14 +295,15 @@ struct pico_protocol pico_proto_igmp = {
 
 int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state) 
 {
-  struct igmp_parameters params = {0};
+  struct igmp_parameters *rbtparams = NULL, params = {0};
   
   if (mcast_group->addr == IGMP_ALL_HOST_GROUP)
     return 0;
 
   switch (state) {
     case PICO_IGMP_STATE_CREATE:
-      /* fall through */
+      params.event = IGMP_EVENT_CREATE_GROUP;
+      break;
 
     case PICO_IGMP_STATE_UPDATE:
       params.event = IGMP_EVENT_UPDATE_GROUP;
@@ -300,10 +317,19 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
       return -1;
   }
 
-  params.mcast_link = *mcast_link;
+  params.mcast_router_version = PICO_IGMPV2; /* init value, can change when generating frame */
   params.mcast_group = *mcast_group;
+  params.mcast_link = *mcast_link;
   params.filter_mode = filter_mode;
   params.MCASTFilter = MCASTFilter;
+
+  rbtparams = pico_igmp_find_parameters(mcast_group);
+  if (rbtparams) {
+    rbtparams->event = params.event;
+    rbtparams->mcast_link = params.mcast_link;
+    rbtparams->filter_mode = params.filter_mode;
+    rbtparams->MCASTFilter = params.MCASTFilter;
+  }
 
   return pico_igmp_process_event(&params);
 }
@@ -324,6 +350,8 @@ static int start_timer(struct igmp_parameters *params,const uint16_t delay)
 static int stop_timer(struct pico_ip4 *mcast_group)
 {
   struct igmp_parameters *info = pico_igmp_find_parameters(mcast_group);
+  if (!info)
+    return -1;
   info->timer_start = TIMER_NOT_ACTIVE;
   return 0;
 }
@@ -338,50 +366,50 @@ static int reset_timer(struct igmp_parameters *params)
   return ret;
 }
 
-static int send_membership_report(struct pico_frame *f)
+static int send_membership_report(struct igmp_parameters *params, struct pico_frame *f)
 {
-  uint8_t ret = 0;
-  struct igmpv2_message *igmp_hdr = (struct igmpv2_message *) f->transport_hdr;
   struct pico_ip4 dst = {0};
   struct pico_ip4 mcast_group = {0};
 
-  mcast_group.addr = igmp_hdr->mcast_group;
-  dst.addr = igmp_hdr->mcast_group;
+  mcast_group.addr = params->mcast_group.addr;
+  switch (params->mcast_router_version) {
+    case PICO_IGMPV2:
+    {
+      if (params->event == IGMP_EVENT_DELETE_GROUP)
+        dst.addr = IGMP_ALL_ROUTER_GROUP;
+      else
+        dst.addr = mcast_group.addr;
+      break;
+    }
 
-  igmp_dbg("IGMP: send membership report on group %08X\n", mcast_group.addr);
+    case PICO_IGMPV3:
+      dst.addr = IGMPV3_ALL_ROUTER_GROUP;
+      break;
+
+    default:
+      pico_err = PICO_ERR_EPROTONOSUPPORT;
+      return -1;
+  }
+
+  igmp_dbg("IGMP: send membership report on group %08X to %08X\n", mcast_group.addr, dst.addr);
   pico_ipv4_frame_push(f, &dst, PICO_PROTO_IGMP);
-  ret |= stop_timer(&mcast_group);
-  return ret;
-}
-
-static int send_leave(struct pico_frame *f)
-{
-  uint8_t ret = 0;
-  struct igmpv2_message *igmp_hdr = (struct igmpv2_message *) f->transport_hdr;
-  struct pico_ip4 mcast_group = {0};
-  struct pico_ip4 dst = {0};
-
-  mcast_group.addr = igmp_hdr->mcast_group;
-  dst.addr = IGMP_ALL_ROUTER_GROUP;
-
-  igmp_dbg("IGMP: send leave group on group %08X\n", mcast_group.addr);
-  pico_ipv4_frame_push(f,&dst,PICO_PROTO_IGMP);
-  ret |= stop_timer(&mcast_group);
-  return ret;
+  stop_timer(&mcast_group);
+  return 0;
 }
 
 static int generate_igmp_report(struct igmp_parameters *params)
 {
-  uint8_t ret = 0;
   struct pico_ipv4_link *link = NULL;
+  int i = 0;
 
   link = pico_ipv4_link_get(&params->mcast_link);
   if (!link) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
+  params->mcast_router_version = link->mcast_router_version;
 
-  switch (link->mcast_router_version) {
+  switch (params->mcast_router_version) {
     case PICO_IGMPV1:
       pico_err = PICO_ERR_EPROTONOSUPPORT;
       return -1;
@@ -389,33 +417,252 @@ static int generate_igmp_report(struct igmp_parameters *params)
     case PICO_IGMPV2:
     {
       struct igmpv2_message *report = NULL;
+      uint8_t report_type = IGMP_TYPE_MEM_REPORT_V2;
+      if (params->event == IGMP_EVENT_DELETE_GROUP)
+        report_type = IGMP_TYPE_LEAVE_GROUP;
+
       params->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct igmpv2_message));
       params->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
       params->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
       params->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
-      params->f->len += IP_OPTION_ROUTER_ALERT_LEN;
       params->f->dev = pico_ipv4_link_find(&params->mcast_link);
+      /* params->f->len is correctly set by alloc */
 
       report = (struct igmpv2_message *)params->f->transport_hdr;
-      report->type = IGMP_TYPE_MEM_REPORT_V2;
+      report->type = report_type;
       report->max_resp_time = IGMP_DEFAULT_MAX_RESPONSE_TIME;
       report->mcast_group = params->mcast_group.addr;
 
-      ret |= pico_igmp_checksum(params->f);
+      pico_igmp_checksum(params);
       break;
     }
     case PICO_IGMPV3:
-      pico_err = PICO_ERR_EPROTONOSUPPORT;
+    {
+      struct igmpv3_report *report = NULL;
+      struct igmpv3_group_record *record = NULL;
+      struct pico_mcast_group *g = NULL, test = {0};
+      struct pico_tree_node *index = NULL, *_tmp = NULL;
+      struct pico_tree *IGMPFilter = NULL;
+      struct pico_ip4 *source = NULL;
+      uint8_t record_type = 0;
+      uint8_t sources = 0;
+      int len = 0;
+
+      test.mcast_addr = params->mcast_group;
+      g = pico_tree_findKey(link->MCASTGroups, &test);
+      if (!g) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+      }
+
+      if (params->event == IGMP_EVENT_DELETE_GROUP) { /* "non-existent" state of filter mode INCLUDE and empty source list */
+        params->filter_mode = PICO_IP_MULTICAST_INCLUDE;
+        params->MCASTFilter = NULL;
+      }
+
+      /* cleanup filters */
+      pico_tree_foreach_safe(index, &IGMPAllow, _tmp) 
+      {
+        pico_tree_delete(&IGMPAllow, index->keyValue);
+      }
+      pico_tree_foreach_safe(index, &IGMPBlock, _tmp) 
+      {
+        pico_tree_delete(&IGMPBlock, index->keyValue);
+      }
+
+      switch (g->filter_mode) {
+
+        case PICO_IP_MULTICAST_INCLUDE:
+          switch (params->filter_mode) {
+            case PICO_IP_MULTICAST_INCLUDE:
+              if (params->event == IGMP_EVENT_DELETE_GROUP) { /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
+                /* TO_IN (B) */
+                record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
+                IGMPFilter = &IGMPAllow;
+                if (params->MCASTFilter) {
+                  pico_tree_foreach(index, params->MCASTFilter) /* B */
+                  {
+                    pico_tree_insert(&IGMPAllow, index->keyValue);
+                    sources++;
+                  }
+                } /* else { IGMPAllow stays empty } */
+                break;
+              }
+
+              /* ALLOW (B-A) */
+              /* if event is CREATE A will be empty, thus only ALLOW (B-A) has sense */
+              if (params->event == IGMP_EVENT_CREATE_GROUP) /* first ADD_SOURCE_MEMBERSHIP */
+                record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
+              else
+                record_type = IGMP_ALLOW_NEW_SOURCES;
+              IGMPFilter = &IGMPAllow;
+              pico_tree_foreach(index, params->MCASTFilter) /* B */
+              {
+                pico_tree_insert(&IGMPAllow, index->keyValue);
+                sources++;
+              }
+              pico_tree_foreach(index, &g->MCASTSources) /* A */
+              {
+                source = pico_tree_findKey(&IGMPAllow, index->keyValue);
+                if (source) {
+                  pico_tree_delete(&IGMPAllow, source);
+                  sources--;
+                }
+              }
+              if (!pico_tree_empty(&IGMPAllow)) /* record type is ALLOW */
+                break;
+
+              /* BLOCK (A-B) */
+              record_type = IGMP_BLOCK_OLD_SOURCES;
+              IGMPFilter = &IGMPBlock;
+              pico_tree_foreach(index, &g->MCASTSources) /* A */
+              {
+                pico_tree_insert(&IGMPBlock, index->keyValue);
+                sources++;
+              }
+              pico_tree_foreach(index, params->MCASTFilter) /* B */
+              {
+                source = pico_tree_findKey(&IGMPBlock, index->keyValue);
+                if (source) {
+                  pico_tree_delete(&IGMPBlock, source);
+                  sources--;
+                }
+              }
+              if (!pico_tree_empty(&IGMPBlock)) /* record type is BLOCK */
+                break;
+
+              /* ALLOW (B-A) and BLOCK (A-B) are empty: do not send report (RFC 3376 $5.1) */
+              params->f = NULL;
+              return 0;
+
+            case PICO_IP_MULTICAST_EXCLUDE:
+              /* TO_EX (B) */
+              record_type = IGMP_CHANGE_TO_EXCLUDE_MODE;
+              IGMPFilter = &IGMPBlock;
+              pico_tree_foreach(index, params->MCASTFilter) /* B */
+              {
+                pico_tree_insert(&IGMPBlock, index->keyValue);
+                sources++;
+              }
+              break;
+
+            default:
+              pico_err = PICO_ERR_EINVAL;
+              return -1;
+          }
+          break;
+
+        case PICO_IP_MULTICAST_EXCLUDE:
+          switch (params->filter_mode) {
+            case PICO_IP_MULTICAST_INCLUDE:
+              /* TO_IN (B) */
+              record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
+              IGMPFilter = &IGMPAllow;
+              if (params->MCASTFilter) {
+                pico_tree_foreach(index, params->MCASTFilter) /* B */
+                {
+                  pico_tree_insert(&IGMPAllow, index->keyValue);
+                  sources++;
+                }
+              } /* else { IGMPAllow stays empty } */
+              break;
+
+            case PICO_IP_MULTICAST_EXCLUDE:
+              /* BLOCK (B-A) */
+              record_type = IGMP_BLOCK_OLD_SOURCES;
+              IGMPFilter = &IGMPBlock;
+              pico_tree_foreach(index, params->MCASTFilter)
+              {
+                pico_tree_insert(&IGMPBlock, index->keyValue);
+                sources++;
+              }
+              pico_tree_foreach(index, &g->MCASTSources) /* A */
+              {
+                source = pico_tree_findKey(&IGMPBlock, index->keyValue); /* B */
+                if (source) {
+                  pico_tree_delete(&IGMPBlock, source);
+                  sources--;
+                }
+              }
+              if (!pico_tree_empty(&IGMPBlock)) /* record type is BLOCK */
+                break;
+
+              /* ALLOW (A-B) */
+              record_type = IGMP_ALLOW_NEW_SOURCES;
+              IGMPFilter = &IGMPAllow;
+              pico_tree_foreach(index, &g->MCASTSources)
+              {
+                pico_tree_insert(&IGMPAllow, index->keyValue);
+                sources++;
+              }
+              pico_tree_foreach(index, params->MCASTFilter) /* B */
+              {
+                source = pico_tree_findKey(&IGMPAllow, index->keyValue); /* A */
+                if (source) {
+                  pico_tree_delete(&IGMPAllow, source);
+                  sources--;
+                }
+              }
+              if (!pico_tree_empty(&IGMPAllow)) /* record type is ALLOW */
+                break;
+
+              /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report (RFC 3376 $5.1) */
+              params->f = NULL;
+              return 0;
+
+            default:
+              pico_err = PICO_ERR_EINVAL;
+              return -1;
+          }
+          break;
+
+        default:
+          pico_err = PICO_ERR_EINVAL;
+          return -1;
+      }
+
+      len = sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (sources * sizeof(struct pico_ip4));
+      params->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + len);
+      params->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
+      params->f->dev = pico_ipv4_link_find(&params->mcast_link);
+      /* params->f->len is correctly set by alloc */
+
+      report = (struct igmpv3_report *)params->f->transport_hdr;
+      report->type = IGMP_TYPE_MEM_REPORT_V3;
+      report->res0 = 0;
+      report->crc = 0;
+      report->res1 = 0;
+      report->groups = short_be(1);
+
+      record = &report->record[0];
+      record->type = record_type;
+      record->aux = 0;
+      record->sources = short_be(sources);
+      record->mcast_group = params->mcast_group.addr;
+      if (!pico_tree_empty(IGMPFilter)) {
+        i = 0;
+        pico_tree_foreach(index, IGMPFilter)
+        {
+          record->source_addr[i] = ((struct pico_ip4 *)index->keyValue)->addr;
+          i++;
+        }
+      }
+      report->crc = short_be(pico_checksum(report, len));
+
       break;
+    }
 
     default:
       pico_err = PICO_ERR_EINVAL;
       return -1;
   }
-  return ret;
+  return 0;
 }
 
-static int create_igmp_frame(struct pico_frame **f, struct pico_ip4 src, struct pico_ip4 *mcast_group, uint8_t type)
+/* XXX TO BE DELETED */
+static int create_igmp_frame(struct igmp_parameters *params, struct pico_frame **f, struct pico_ip4 src, struct pico_ip4 *mcast_group, uint8_t type)
 {
   uint8_t ret = 0;
   struct igmpv2_message *igmp_hdr = NULL;
@@ -432,7 +679,7 @@ static int create_igmp_frame(struct pico_frame **f, struct pico_ip4 src, struct 
   igmp_hdr->max_resp_time = IGMP_DEFAULT_MAX_RESPONSE_TIME;
   igmp_hdr->mcast_group = mcast_group->addr;
 
-  ret |= pico_igmp_checksum(*f);
+  ret |= pico_igmp_checksum(params);
   return ret;
 }
 
@@ -458,27 +705,29 @@ typedef int (*callback)(struct igmp_parameters *);
 /* stop timer, send leave if flag set */
 static int stslifs(struct igmp_parameters *params)
 {
-  uint8_t ret = 0;
-  struct igmp_parameters *info = pico_igmp_find_parameters(&(params->mcast_group));
-  struct pico_frame *f = NULL;
+  struct igmp_parameters *rbtparams = NULL;
 
   igmp_dbg("IGMP: event = leave group | action = stop timer, send leave if flag set\n");
 
-  ret |= stop_timer(&(params->mcast_group));
-  if (IGMP_HOST_LAST == info->last_host) {
-    ret |= create_igmp_frame(&f, params->mcast_link, &(params->mcast_group), IGMP_TYPE_LEAVE_GROUP);
-    ret |= send_leave(f);
-  }
-
-  if ( 0 == ret) {
-    /* delete from tree */
-    pico_igmp_delete_parameters(info);
-    igmp_dbg("IGMP: new state = non-member\n");
-    return 0;
-  } else {
-    pico_err =  PICO_ERR_EFAULT;
+  rbtparams = pico_igmp_find_parameters(&(params->mcast_group));
+  if (!rbtparams)
     return -1;
-  }
+
+  if (stop_timer(&(rbtparams->mcast_group)) < 0)
+    return -1;
+
+  /* always send leave, even if not last host */
+  if (generate_igmp_report(rbtparams) < 0)
+    return -1;
+  if (!rbtparams->f)
+    return 0;
+  if (send_membership_report(rbtparams, rbtparams->f) < 0)
+    return -1;
+
+  /* delete from tree */
+  pico_igmp_delete_parameters(rbtparams);
+  igmp_dbg("IGMP: new state = non-member\n");
+  return 0;
 }
 
 /* send report, set flag, start timer */
@@ -502,12 +751,14 @@ static int srsfst(struct igmp_parameters *params)
 
   if (generate_igmp_report(rbtparams) < 0)
     return -1;
+  if (!rbtparams->f)
+    return 0;
   copy_frame = pico_frame_copy(rbtparams->f);
   if (!copy_frame) {
     pico_err = PICO_ERR_ENOMEM;
     return -1;
   }
-  if (send_membership_report(copy_frame) < 0)
+  if (send_membership_report(rbtparams, copy_frame) < 0)
     return -1;
 
   rbtparams->delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 100)); 
@@ -518,30 +769,105 @@ static int srsfst(struct igmp_parameters *params)
   return 0;
 }
 
+/* merge report, send report, reset timer (IGMPv3 only) */
+static int mrsrrt(struct igmp_parameters *params)
+{
+  struct igmp_parameters *rbtparams = NULL;
+  struct pico_frame *copy_frame = NULL;
+
+  igmp_dbg("IGMP: event = update group | action = merge report, send report, reset timer (IGMPv3 only)\n");
+
+  rbtparams = pico_igmp_find_parameters(&(params->mcast_group));
+  if (!rbtparams)
+    return -1;
+
+  if (rbtparams->mcast_router_version != PICO_IGMPV3) {
+    igmp_dbg("IGMP: no IGMPv3 compatible router on network\n");
+    pico_err = PICO_ERR_ENOPROTOOPT;
+    return -1;
+  }
+
+  /* XXX: merge with pending report rfc 3376 p20 */
+
+  if (generate_igmp_report(rbtparams) < 0)
+    return -1;
+  if (!rbtparams->f)
+    return 0;
+  copy_frame = pico_frame_copy(rbtparams->f);
+  if (!copy_frame) {
+    pico_err = PICO_ERR_ENOMEM;
+    return -1;
+  }
+  if (send_membership_report(rbtparams, copy_frame) < 0)
+    return -1;
+
+  /* XXX: reset timer */
+
+  rbtparams->state = IGMP_STATE_DELAYING_MEMBER;
+  igmp_dbg("IGMP: new state = delaying member\n");
+  return 0;
+}
+
+/* send report, start timer (IGMPv3 only) */
+static int srst(struct igmp_parameters *params)
+{
+  struct igmp_parameters *rbtparams = NULL;
+  struct pico_frame *copy_frame = NULL;
+
+  igmp_dbg("IGMP: event = update group | action = send report, start timer (IGMPv3 only)\n");
+
+  rbtparams = pico_igmp_find_parameters(&(params->mcast_group));
+  if (!rbtparams)
+    return -1;
+
+  if (rbtparams->mcast_router_version != PICO_IGMPV3) {
+    igmp_dbg("IGMP: no IGMPv3 compatible router on network\n");
+    pico_err = PICO_ERR_ENOPROTOOPT;
+    return -1;
+  }
+
+  if (generate_igmp_report(rbtparams) < 0)
+    return -1;
+  if (!rbtparams->f)
+    return 0;
+  copy_frame = pico_frame_copy(rbtparams->f);
+  if (!copy_frame) {
+    pico_err = PICO_ERR_ENOMEM;
+    return -1;
+  }
+  if (send_membership_report(rbtparams, copy_frame) < 0)
+    return -1;
+
+  /* XXX: start timer */
+
+  rbtparams->state = IGMP_STATE_DELAYING_MEMBER;
+  igmp_dbg("IGMP: new state = delaying member\n");
+  return 0;
+}
+
 /* send leave if flag set */
 static int slifs(struct igmp_parameters *params)
 {
-  struct pico_frame *f = NULL;
-  struct igmp_parameters *info;
-  uint8_t ret = 0;
+  struct igmp_parameters *rbtparams = NULL;
 
   igmp_dbg("IGMP: event = leave group | action = send leave if flag set\n");
 
-  info = pico_igmp_find_parameters(&(params->mcast_group));
-  if (IGMP_HOST_LAST == info->last_host) {
-    ret |= create_igmp_frame(&f, params->mcast_link, &(params->mcast_group), IGMP_TYPE_LEAVE_GROUP);
-    send_leave(f);
-  }
-
-  if (0 == ret) {
-    /* delete from tree */
-    pico_igmp_delete_parameters(info);
-    igmp_dbg("IGMP: new state = non-member\n");
-    return 0;
-  } else {
-    pico_err = PICO_ERR_ENOENT;
+  rbtparams = pico_igmp_find_parameters(&(params->mcast_group));
+  if (!rbtparams)
     return -1;
-  }
+
+  /* always send leave, even if not last host */
+  if (generate_igmp_report(rbtparams) < 0)
+    return -1;
+  if (!rbtparams->f)
+    return 0;
+  if (send_membership_report(rbtparams, rbtparams->f) < 0)
+    return -1;
+
+  /* delete from tree */
+  pico_igmp_delete_parameters(rbtparams);
+  igmp_dbg("IGMP: new state = non-member\n");
+  return 0;
 }
 
 /* start timer */
@@ -552,7 +878,7 @@ static int st(struct igmp_parameters *params)
 
   igmp_dbg("IGMP: event = query received | action = start timer\n");
 
-  ret |= create_igmp_frame(&(params->f), info->mcast_link, &(params->mcast_group), IGMP_TYPE_MEM_REPORT_V2);
+  ret |= create_igmp_frame(params, &(params->f), info->mcast_link, &(params->mcast_group), IGMP_TYPE_MEM_REPORT_V2);
   info->delay = (pico_rand() % (params->max_resp_time*100)); 
   ret |= start_timer(params, info->delay);
 
@@ -597,7 +923,7 @@ static int srsf(struct igmp_parameters *params)
 
   /* start time of parameter == start time of expired timer? */
   if (info->timer_start == params->timer_start) {
-    ret |= send_membership_report(params->f);
+    ret |= send_membership_report(params, params->f);
   } else {
     pico_frame_discard(params->f);
   }
@@ -622,7 +948,7 @@ static int rtimrtct(struct igmp_parameters *params)
   igmp_dbg("IGMP: event = query received | action = reset timer if max response time < current timer\n");
 
   if (((unsigned long)(params->max_resp_time * 100)) < current_time_left) {
-    ret |= create_igmp_frame(&(params->f), params->mcast_link, &(params->mcast_group), IGMP_TYPE_MEM_REPORT_V2);
+    ret |= create_igmp_frame(params, &(params->f), params->mcast_link, &(params->mcast_group), IGMP_TYPE_MEM_REPORT_V2);
     ret |= reset_timer(params);
   }
 
@@ -648,24 +974,12 @@ static int err_non(struct igmp_parameters *params){
   return -1;
 }
 
-static int err_delaying(struct igmp_parameters *params){
-  igmp_dbg("IGMP ERROR: state = delaying member, event = %u\n", params->event);
-  pico_err = PICO_ERR_EEXIST;
-  return -1;
-}
-
-static int err_idle(struct igmp_parameters *params){
-  igmp_dbg("IGMP ERROR: state = idle member, event = %u\n", params->event);
-  pico_err = PICO_ERR_EEXIST;
-  return -1;
-}
-
 /* finite state machine table */
-const callback host_membership_diagram_table[3][5] =
-{ /* event                    |Delete Group  |Update Group |Query Received  |Report Received  |Timer Expired */
-/* state Non-Member      */ { err_non,       srsfst,       discard,         err_non,          discard },
-/* state Delaying Member */ { stslifs,       err_delaying, rtimrtct,        stcl,             srsf    },
-/* state Idle Member     */ { slifs,         err_idle,     st,              discard,          discard }
+const callback host_membership_diagram_table[3][6] =
+{ /* event                    |Delete Group  |Create Group |Update Group |Query Received  |Report Received  |Timer Expired */
+/* state Non-Member      */ { err_non,       srsfst,       srsfst,       discard,         err_non,          discard },
+/* state Delaying Member */ { stslifs,       mrsrrt,       mrsrrt,       rtimrtct,        stcl,             srsf    },
+/* state Idle Member     */ { slifs,         srst,         srst,         st,              discard,          discard }
 };
 
 static int pico_igmp_process_event(struct igmp_parameters *params)

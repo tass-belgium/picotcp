@@ -302,7 +302,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
       }
     }
   }
-  return 0;
+  return filter_mode;
 }
 
 static int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group, struct pico_ip4 *src)
