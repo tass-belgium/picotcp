@@ -556,7 +556,7 @@ int pico_socket_del(struct pico_socket *s)
     return -1;
   }
   pico_tree_delete(&sp->socks,s);
-
+  s->net = NULL;
   if(pico_tree_empty(&sp->socks)){
     if (PROTO(s) == PICO_PROTO_UDP)
     {
