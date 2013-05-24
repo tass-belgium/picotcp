@@ -1213,7 +1213,8 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
   new->MCASTGroups->root = &LEAF;
   new->MCASTGroups->compare = ipv4_mcast_groups_cmp;
-  new->mcast_router_version = PICO_IGMPV2;
+  new->mcast_compatibility = PICO_IGMPV3; /* default RFC 3376 $7.2.1 */
+  new->mcast_last_query_interval = PICO_IGMP_QUERY_INTERVAL;
 #endif
 
   pico_tree_insert(&Tree_dev_link, new);
@@ -1300,6 +1301,20 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
     return NULL;
   else
     return found;
+}
+
+struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
+{
+  struct pico_tree_node *index = NULL;
+  struct pico_ipv4_link *link = NULL;
+
+  pico_tree_foreach(index, &Tree_dev_link) 
+  {
+    link = index->keyValue;
+    if (link->dev == dev)
+      return link;
+  }
+  return NULL;
 }
 
 
