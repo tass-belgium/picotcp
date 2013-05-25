@@ -54,7 +54,8 @@ struct pico_ipv4_link
   struct pico_ip4 netmask;
 #ifdef PICO_SUPPORT_MCAST
   struct pico_tree *MCASTGroups;
-  uint8_t mcast_router_version;
+  uint8_t mcast_compatibility;
+  uint8_t mcast_last_query_interval;
 #endif
 };
 
@@ -80,6 +81,7 @@ int pico_ipv4_rebound(struct pico_frame *f);
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto);
 struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address);
+struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev);
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst);
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
