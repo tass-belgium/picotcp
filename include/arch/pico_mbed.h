@@ -27,12 +27,10 @@ Debug needs initialization:
 
 
 #define PICO_SUPPORT_MUTEX
-#include "mbed.h"
-#include "rtos.h"
+extern void *pico_mutex_init(void);
+extern void pico_mutex_lock(void*);
+extern void pico_mutex_unlock(void*);
 
-#define pico_mutex_init() Mutex()
-#define pico_mutex_lock(x) x.lock()
-#define pico_mutex_unlock(x) x.unlock()
 
 extern uint32_t os_time;
 

@@ -16,6 +16,13 @@ extern uint32_t Time_ElapsedMili(void);
 extern void *pvPortMalloc( size_t xSize );
 extern void vPortFree( void *pv );
 
+#ifdef PICO_SUPPORT_RTOS
+#   define PICO_SUPPORT_MUTEX
+extern void *pico_mutex_init(void);
+extern void pico_mutex_lock(void*);
+extern void pico_mutex_unlock(void*);
+#endif
+
 
 #define PICO_TIME() (Time_ElapsedSec())
 #define PICO_TIME_MS() (Time_ElapsedMili())
