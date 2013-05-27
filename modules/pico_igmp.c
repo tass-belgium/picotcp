@@ -376,6 +376,7 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
 {
   struct pico_ipv4_hdr *hdr = NULL;
   struct pico_ipv4_link *link = NULL;
+  struct pico_tree_node *index = NULL, *_tmp = NULL;
   struct igmp_timer t = {0};
   uint8_t ihl = 24, datalen = 0;
 
@@ -401,6 +402,14 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
     struct igmp_message *query = (struct igmp_message *)f->transport_hdr;
     if (query->max_resp_time != 0) {
       /* IGMPv2 query */
+      /* When changing compatibility mode, cancel all pending response 
+       * and retransmission timers.
+       */
+      pico_tree_foreach_safe(index, &IGMPTimers, _tmp) 
+      {
+        ((struct igmp_timer *)index->keyValue)->stopped = IGMP_TIMER_STOPPED;
+        pico_tree_delete(&IGMPTimers, index->keyValue);
+      }
       igmp_dbg("IGMP: switch to compatibility mode IGMPv2\n");
       link->mcast_compatibility = PICO_IGMPV2;
       t.type = IGMP_TIMER_V2_QUERIER;
