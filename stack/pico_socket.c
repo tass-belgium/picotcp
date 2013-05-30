@@ -639,6 +639,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   struct pico_sockport *sp = NULL;
   struct pico_socket *s = NULL, *found = NULL;
   struct pico_tree_node *index = NULL;
+  struct pico_tree_node *_tmp;
   struct pico_trans *tr = (struct pico_trans *) f->transport_hdr;
   #ifdef PICO_SUPPORT_IPV4
   struct pico_ipv4_hdr *ip4hdr;
@@ -659,7 +660,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 
   #ifdef PICO_SUPPORT_TCP
   if (p->proto_number == PICO_PROTO_TCP) {
-    pico_tree_foreach(index,&sp->socks){
+    pico_tree_foreach_safe(index,&sp->socks, _tmp){
       s = index->keyValue;
       /* 4-tuple identification of socket (port-IP) */
       #ifdef PICO_SUPPORT_IPV4
