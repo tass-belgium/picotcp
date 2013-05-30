@@ -125,6 +125,26 @@ only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}.
 \item \texttt{struct pico\_ip4} - the address of the gateway that should be used. 
 \end{itemize}
 
+\subsection{pico\_dhcp\_get\_nameserver}
+
+\subsubsection*{Description}
+Get the address of the nameserver that was assigned through DHCP. This function should
+only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+
+\subsubsection*{Function prototype}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_nameserver(void *cli);}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{cli} - the identifier that was provided by the callback on \texttt{PICO\_DHCP\_SUCCESS}.
+\end{itemize}
+
+\subsubsection*{Return value}
+\begin{itemize}[noitemsep]
+\item \texttt{struct pico\_ip4} - the address of the nameserver that should be used. 
+\end{itemize}
+
+
 %\subsubsection*{Errors}
 
 \subsubsection*{Example}

@@ -33,6 +33,7 @@ struct pico_dhcp_client_cookie
 	struct pico_ip4 address;
 	struct pico_ip4 netmask;
 	struct pico_ip4 gateway;
+	struct pico_ip4 nameserver;
 	struct pico_ip4 server_id;
 	uint32_t lease_time;
 	uint32_t T1;
@@ -161,13 +162,17 @@ static void pico_dhcp_reinitiate_negotiation(unsigned long now, void *arg)
 
 struct pico_ip4 pico_dhcp_get_address(void* cli)
 {
-
 	return ((struct pico_dhcp_client_cookie*)cli)->address;
 }
 
 struct pico_ip4 pico_dhcp_get_gateway(void* cli)
 {
 	return ((struct pico_dhcp_client_cookie*)cli)->gateway;
+}
+
+struct pico_ip4 pico_dhcp_get_nameserver(void* cli)
+{
+	return ((struct pico_dhcp_client_cookie*)cli)->nameserver;
 }
 
 /*************
@@ -256,6 +261,8 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 		}
 		if ((opt_type == PICO_DHCPOPT_ROUTER) && (opt_len == 4)) //XXX assuming only one router will be advertised...
 			memcpy(&cli->gateway.addr, opt_data, 4);
+		if ((opt_type == PICO_DHCPOPT_DNS) && (opt_len == 4))
+			memcpy(&cli->nameserver.addr, opt_data, 4);
 		if ((opt_type == PICO_DHCPOPT_NETMASK) && (opt_len == 4))
 			memcpy(&cli->netmask.addr, opt_data, 4);
 		if ((opt_type == PICO_DHCPOPT_SERVERID) && (opt_len == 4))

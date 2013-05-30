@@ -19,6 +19,7 @@ void pico_dhcp_process_incoming_message(uint8_t *data, int len);
 void *pico_dhcp_get_identifier(uint32_t xid);
 struct pico_ip4 pico_dhcp_get_address(void *cli);
 struct pico_ip4 pico_dhcp_get_gateway(void *cli);
+struct pico_ip4 pico_dhcp_get_nameserver(void* cli);
 
 /* possible codes for the callback */
 #define PICO_DHCP_SUCCESS 0
