@@ -290,7 +290,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 	address.addr = long_be(0x00000000);
 
 	if(cli->link_added == 0){
-    pico_socket_close(cli->socket);
+    //pico_socket_close(cli->socket); why ? when lease expires this crashes !
 		pico_ipv4_link_del(cli->device, address);
 		pico_ipv4_link_add(cli->device, cli->address, cli->netmask);
 		cli->link_added = 1;
