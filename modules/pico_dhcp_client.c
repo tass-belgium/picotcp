@@ -276,9 +276,9 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 
 	/* default values for T1 and T2 if necessary */
 	if(T1_set != 1)
-		cli->T1 = 0.5*cli->lease_time;
+		cli->T1 = cli->lease_time >> 1;
 	if(T2_set != 1)
-		cli->T2 = 0.875*cli->lease_time;
+		cli->T2 = (cli->lease_time * 875) / 1000;
 
 
 
@@ -293,11 +293,12 @@ static int recv_offer(struct pico_dhcp_client_cookie *cli, uint8_t *data, int le
 
 static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 {
-	struct pico_ip4 address;
-	address.addr = long_be(0x00000000);
+	struct pico_ip4 address = {0};
 
 	if(cli->link_added == 0){
-    //pico_socket_close(cli->socket); why ? when lease expires this crashes !
+    /* close the socket bound on address 0.0.0.0 */
+    pico_socket_close(cli->socket);
+    cli->socket = NULL;
 		pico_ipv4_link_del(cli->device, address);
 		pico_ipv4_link_add(cli->device, cli->address, cli->netmask);
 		cli->link_added = 1;
@@ -371,9 +372,28 @@ static int recv_ack(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 
 static int renew(struct pico_dhcp_client_cookie *cli, uint8_t *data, int len)
 {
+	uint16_t port = PICO_DHCP_CLIENT_PORT;
 
-	dhclient_send(cli, PICO_DHCP_MSG_REQUEST);
+  /* open and bind to currently acquired address */
+  if (cli->socket)
+    return -1;
+
+  cli->socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_wakeup);
+  if (!cli->socket) {
+    dbg("DHCPC: error opening socket on renew: %s\n", strerror(pico_err));
+    if(cli->cb != NULL)
+      cli->cb(cli, PICO_DHCP_ERROR);
+    return -1;
+  }
+  if (pico_socket_bind(cli->socket, &cli->address, &port) != 0){
+    dbg("DHCPC: error binding socket on renew: %s\n", strerror(pico_err));
+    pico_socket_close(cli->socket);
+    if(cli->cb != NULL)
+      cli->cb(cli, PICO_DHCP_ERROR);
+    return -1;
+  }
 	cli->state = DHCPSTATE_RENEWING;
+	dhclient_send(cli, PICO_DHCP_MSG_REQUEST);
 
 	return 0;
 }
@@ -532,6 +552,8 @@ static int dhclient_send(struct pico_dhcp_client_cookie *cli, uint8_t msg_type)
 	dh_out->xid = cli->xid;
 	dh_out->secs = (msg_type == PICO_DHCP_MSG_REQUEST)?0:short_be((pico_tick - cli->start_time)/1000);
 	dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
+  if (cli->state == DHCPSTATE_RENEWING)
+    dh_out->ciaddr = cli->address.addr;
 
 	/* Option: msg type, len 1 */
 	dh_out->options[i++] = PICO_DHCPOPT_MSGTYPE;
