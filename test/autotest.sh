@@ -2,6 +2,7 @@
 
 sh ./test/vde_sock_start_user.sh
 sleep 2
+ulimit -c unlimited
 
 
 echo "PING TEST"
