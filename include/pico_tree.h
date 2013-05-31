@@ -12,22 +12,12 @@ Author: Andrei Carp <andrei.carp@tass.be>
 #include "pico_config.h"
 
 // This is used to declare a new tree, leaf root by default
-#ifndef PICO_SUPPORT_MUTEX
 #define PICO_TREE_DECLARE(name,compareFunction) \
 	struct pico_tree name =\
 	{ \
 		&LEAF, \
-		compareFunction, \
+		compareFunction \
 	}
-#else
-	#define PICO_TREE_DECLARE(name,compareFunction) \
-	struct pico_tree name =\
-	{ \
-		&LEAF, \
-		compareFunction, \
-		NULL \
-	}
-#endif
 
 struct pico_tree_node
 {
@@ -36,9 +26,6 @@ struct pico_tree_node
   struct pico_tree_node* leftChild;
   struct pico_tree_node* rightChild;
   uint8_t color;
-#ifdef PICO_SUPPORT_MUTEX
-	struct pico_tree * tree;
-#endif
 };
 
 struct pico_tree
@@ -47,9 +34,6 @@ struct pico_tree
 
 	// this function directly provides the keys as parameters not the nodes.
   int (*compare)(void* keyA, void* keyB);
-#ifdef PICO_SUPPORT_MUTEX
-  void * mutex;
-#endif
 };
 
 extern struct pico_tree_node LEAF; // generic leaf node

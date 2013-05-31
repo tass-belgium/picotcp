@@ -45,6 +45,22 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define tcp_dbg(...) do{}while(0)
 //#define tcp_dbg dbg
 
+
+#ifdef PICO_SUPPORT_MUTEX
+static void * Mutex = NULL;
+#define LOCK(x) {\
+  if (x == NULL) \
+    x = pico_mutex_init(); \
+  pico_mutex_lock(x); \
+}
+#define UNLOCK(x) pico_mutex_unlock(x);
+
+#else
+#define LOCK(x) do{}while(0)
+#define UNLOCK(x) do{}while(0)
+#endif
+
+
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
   uint32_t thresh = ((uint32_t)(-1))>>1;
@@ -100,25 +116,37 @@ static struct pico_frame *next_segment(struct pico_tcp_queue *tq, struct pico_fr
 
 static int pico_enqueue_segment(struct pico_tcp_queue *tq, struct pico_frame *f)
 {
+	int ret = -1;
   if (f->payload_len <= 0) {
     tcp_dbg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TRIED TO ENQUEUE INVALID SEGMENT!\n");
     //abort();
     return -1;
   }
-
+	LOCK(Mutex);
   if ((tq->size + f->payload_len) > tq->max_size)
-    return 0;
+  {
+    ret = 0;
+    goto out;
+  }
   if (pico_tree_insert(&tq->pool,f) != 0)
-    return 0;
+  {
+    ret = 0;
+    goto out;
+  }
   tq->size += f->payload_len;
   if (f->payload_len > 0)
     tq->frames++;
-  return f->payload_len;
+  ret = f->payload_len;
+
+out :
+  UNLOCK(Mutex);
+  return ret;
 }
 
 static void pico_discard_segment(struct pico_tcp_queue *tq, struct pico_frame *f)
 {
   struct pico_frame *f1;
+  LOCK(Mutex);
   f1 = pico_tree_delete(&tq->pool,f);
   if (f1) {
     tq->size -= f->payload_len;
@@ -126,6 +154,7 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, struct pico_frame *f
       tq->frames--;
   }
   pico_frame_discard(f);
+  UNLOCK(Mutex);
 }
 
 /* Structure for TCP socket */

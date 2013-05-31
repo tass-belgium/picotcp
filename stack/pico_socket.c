@@ -24,6 +24,21 @@ Authors: Daniele Lacamera
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
 
 
+#ifdef PICO_SUPPORT_MUTEX
+static void * Mutex = NULL;
+#define LOCK(x) {\
+  if (x == NULL) \
+    x = pico_mutex_init(); \
+  pico_mutex_lock(x); \
+}
+#define UNLOCK(x) pico_mutex_unlock(x);
+
+#else
+#define LOCK(x) do{}while(0)
+#define UNLOCK(x) do{}while(0)
+#endif
+
+
 #define PROTO(s) ((s)->proto->proto_number)
 
 #ifdef PICO_SUPPORT_TCP
@@ -501,12 +516,14 @@ static int pico_check_socket(struct pico_socket *s)
 int pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
+  LOCK(Mutex);
   if (!sp) {
     //dbg("Creating sockport..%04x\n", s->local_port); /* In comment due to spam during test */
     sp = pico_zalloc(sizeof(struct pico_sockport));
 
     if (!sp) {
       pico_err = PICO_ERR_ENOMEM;
+      UNLOCK(Mutex);
       return -1;
     }
     sp->proto = PROTO(s);
@@ -526,7 +543,7 @@ int pico_socket_add(struct pico_socket *s)
 
   pico_tree_insert(&sp->socks,s);
   s->state |= PICO_SOCKET_STATE_BOUND;
-
+	UNLOCK(Mutex);
 #if DEBUG_SOCKET_TREE
   {
     struct pico_tree_node * index;
@@ -555,6 +572,8 @@ int pico_socket_del(struct pico_socket *s)
     pico_err = PICO_ERR_ENXIO;
     return -1;
   }
+
+  LOCK(Mutex);
   pico_tree_delete(&sp->socks,s);
   s->net = NULL;
   if(pico_tree_empty(&sp->socks)){
@@ -604,7 +623,7 @@ int pico_socket_del(struct pico_socket *s)
 
   s->state = PICO_SOCKET_STATE_CLOSED;
   pico_timer_add(3000, socket_garbage_collect, s);
-
+	UNLOCK(Mutex);
   return 0;
 }
 
