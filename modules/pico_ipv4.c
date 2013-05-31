@@ -104,7 +104,7 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     return -1;
   }   
 
-  *ip = *((uint32_t *) &buf[0]);
+  *ip = long_from(buf);
 
   return 0;
 

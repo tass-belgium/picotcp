@@ -498,18 +498,18 @@ done:
 
 static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
 {
-  uint32_t *start, *end;
+  uint32_t start, end;
   int i = 0;
   if (len % 8) {
     tcp_dbg("SACK: Invalid len.\n");
     return;
   }
   while (i < len) {
-    start = (uint32_t *)(opt + i);
+    start = long_from(opt + i);
     i += 4;
-    end = (uint32_t *)(opt + i);
+    end = long_from(opt + i);
     i += 4;
-    tcp_process_sack(t, long_be(*start), long_be(*end));
+    tcp_process_sack(t, long_be(start), long_be(end));
   }
 }
 
@@ -550,34 +550,34 @@ static void tcp_parse_options(struct pico_frame *f)
         t->sack_ok = 1;
         break;
       case PICO_TCP_OPTION_MSS: {
-        uint16_t *mss;
+        uint16_t mss;
         if (len != PICO_TCPOPTLEN_MSS) {
           tcp_dbg("TCP option mss: bad len received.\n");
           i += len - 2;
           break;
         }
         t->mss_ok = 1;
-        mss = (uint16_t *)(opt + i);
+        mss = short_from(opt + i);
         i += sizeof(uint16_t);
-        if (t->mss > short_be(*mss))
-          t->mss = short_be(*mss);
+        if (t->mss > short_be(mss))
+          t->mss = short_be(mss);
         break;
       }
       case PICO_TCP_OPTION_TIMESTAMP: {
-        uint32_t *tsval, *tsecr;
+        uint32_t tsval, tsecr;
         if (len != PICO_TCPOPTLEN_TIMESTAMP) {
           tcp_dbg("TCP option timestamp: bad len received.\n");
           i += len - 2;
           break;
         }
         t->ts_ok = 1;
-        tsval = (uint32_t *)(opt + i);
+        tsval = long_from(opt + i);
         i += sizeof(uint32_t);
-        tsecr = (uint32_t *)(opt + i);
-        f->timestamp = long_be(*tsecr);
+        tsecr = long_from(opt + i);
+        f->timestamp = long_be(tsecr);
         i += sizeof(uint32_t);
 
-        t->ts_nxt = long_be(*tsval);
+        t->ts_nxt = long_be(tsval);
         break;
       }
       case PICO_TCP_OPTION_SACK:

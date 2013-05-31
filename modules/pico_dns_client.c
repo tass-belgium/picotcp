@@ -522,14 +522,16 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     a_qname = q_suf + sizeof(struct dns_query_suffix);
     a_suf = a_qname;
     while(i++ < hdr->ancount) {
-      compression = short_be(*(uint16_t *)a_suf);
-      switch (compression >> 14) 
+      uint16_t comp_h = short_from(a_suf);
+      compression = short_be(comp_h);
+      switch (compression >> 14)
       {
         case PICO_DNS_POINTER:
           while (compression >> 14 == PICO_DNS_POINTER) {
             dns_dbg("DNS: pointer\n");
             a_suf += sizeof(uint16_t);
-            compression = short_be(*(uint16_t *)a_suf);
+            comp_h = short_from(a_suf);
+            compression = short_be(comp_h);
           }
           break;
 
@@ -568,9 +570,10 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 
     a_rdata = a_suf + sizeof(struct dns_answer_suffix);
     if (key->qtype == PICO_DNS_TYPE_A) {
-      dns_dbg("DNS: length %u | ip %08X\n", short_be(answer_suf.rdlength), long_be(*(uint32_t *)a_rdata));
+      uint32_t ip_h = long_from(a_rdata);
+      dns_dbg("DNS: length %u | ip %08X\n", short_be(answer_suf.rdlength), long_be(ip_h));
       answer = pico_zalloc(16);
-      pico_ipv4_to_string(answer, *(uint32_t *)a_rdata);
+      pico_ipv4_to_string(answer, ip_h);
       key->callback(answer, key->arg);
     } else if (key->qtype == PICO_DNS_TYPE_PTR) {
       pico_dns_client_reverse_label((char *) a_rdata);
