@@ -711,7 +711,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 
 #ifdef PICO_SUPPORT_UDP
   if (p->proto_number == PICO_PROTO_UDP) {
-    pico_tree_foreach(index, &sp->socks) {
+    pico_tree_foreach_safe(index,&sp->socks, _tmp){
       s = index->keyValue;
       if (IS_IPV4(f)) { /* IPV4 */
         struct pico_ip4 s_local, p_dst;

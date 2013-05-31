@@ -15,7 +15,10 @@ Author: Andrei Carp <andrei.carp@tass.be>
 struct pico_tree_node LEAF = {
   NULL, // key
   &LEAF, &LEAF, &LEAF, // parent, left,right
-  BLACK // color
+  BLACK, // color
+#ifdef PICO_SUPPORT_MUTEX
+  NULL
+#endif
 };
 
 #define IS_LEAF(x) (x == &LEAF)
@@ -28,10 +31,35 @@ struct pico_tree_node LEAF = {
 #define PARENT(x) (x->parent)
 #define GRANPA(x) (x->parent->parent)
 
+// Mutex support
+#ifdef PICO_SUPPORT_MUTEX
+#define LOCK(x) {\
+  if (x == NULL) \
+    x = pico_mutex_init(); \
+  pico_mutex_lock(x); \
+}
+
+#define LOCK_NODE(x) \
+	if(IS_NOT_LEAF(x)) \
+  	LOCK(x->tree->mutex);
+
+#define UNLOCK_NODE(x) \
+	if(IS_NOT_LEAF(x)) \
+		UNLOCK(x->tree->mutex);
+
+#define UNLOCK(x) pico_mutex_unlock(x);
+
+#else
+#define LOCK(x) do{}while(0)
+#define UNLOCK(x) do{}while(0)
+#define LOCK_NODE(x) do{}while(0)
+#define UNLOCK_NODE(x) do{}while(0);
+#endif
+
 /*
  * Local Functions
  */
-static struct pico_tree_node * create_node(void *key);
+static struct pico_tree_node * create_node(struct pico_tree * tree,void *key);
 static void rotateToLeft(struct pico_tree* tree, struct pico_tree_node* node);
 static void rotateToRight(struct pico_tree* root, struct pico_tree_node* node);
 static void fix_insert_collisions(struct pico_tree* tree, struct pico_tree_node* node);
@@ -44,22 +72,26 @@ static void switchNodes(struct pico_tree* tree, struct pico_tree_node* nodeA, st
 
 struct pico_tree_node * pico_tree_firstNode(struct pico_tree_node * node)
 {
+	LOCK_NODE(node);
 	while(IS_NOT_LEAF(node->leftChild))
 		node = node->leftChild;
 
+	UNLOCK(node);
 	return node;
 }
 
 struct pico_tree_node * pico_tree_lastNode(struct pico_tree_node * node)
 {
+	LOCK_NODE(node);
 	while(IS_NOT_LEAF(node->rightChild))
 		node = node->rightChild;
-
+	UNLOCK_NODE(node);
 	return node;
 }
 
 struct pico_tree_node * pico_tree_next(struct pico_tree_node * node)
 {
+	LOCK_NODE(node);
 	if(IS_NOT_LEAF(node->rightChild))
 	{
 		node = node->rightChild;
@@ -77,12 +109,13 @@ struct pico_tree_node * pico_tree_next(struct pico_tree_node * node)
 			node = node->parent;
 		}
 	}
-
+	UNLOCK_NODE(node);
 	return node;
 }
 
 struct pico_tree_node * pico_tree_prev(struct pico_tree_node * node)
 {
+	LOCK_NODE(node);
   if (IS_NOT_LEAF(node->leftChild)) {
   	node = node->leftChild;
   	while (IS_NOT_LEAF(node->rightChild))
@@ -97,7 +130,7 @@ struct pico_tree_node * pico_tree_prev(struct pico_tree_node * node)
   		node = node->parent;
   	}
   }
-
+	UNLOCK_NODE(node);
   return node;
 }
 
@@ -109,12 +142,15 @@ void * pico_tree_insert(struct pico_tree* tree, void * key){
   void * LocalKey;
   int result = 0;
 
-  LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree,key) : NULL);
+	LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree,key) : NULL);
 	// if node already in, bail out
   if(LocalKey)
   	return LocalKey;
   else
-  	insert = create_node(key);
+  {
+  	LOCK(tree->mutex);
+  	insert = create_node(tree,key);
+  }
 
   // search for the place to insert the new node
   while(IS_NOT_LEAF(temp))
@@ -140,13 +176,16 @@ void * pico_tree_insert(struct pico_tree* tree, void * key){
 
   // fix colour issues
   fix_insert_collisions(tree, insert);
+	UNLOCK(tree->mutex);
 
-  return NULL;
+	return NULL;
 }
 
 struct pico_tree_node * pico_tree_findNode(struct pico_tree * tree, void * key)
 {
 		struct pico_tree_node *found;
+
+		LOCK(tree->mutex);
 		found = tree->root;
 
 	  while(IS_NOT_LEAF(found))
@@ -161,13 +200,17 @@ struct pico_tree_node * pico_tree_findNode(struct pico_tree * tree, void * key)
 	       found = found->leftChild;
 	   }
 
+	  UNLOCK(tree->mutex);
+
 	  return NULL;
 }
 
 void * pico_tree_findKey(struct pico_tree * tree, void * key)
 {
   struct pico_tree_node *found;
-	found = tree->root;
+
+  LOCK(tree->mutex);
+  found = tree->root;
 
   while(IS_NOT_LEAF(found))
   {
@@ -184,6 +227,7 @@ void * pico_tree_findKey(struct pico_tree * tree, void * key)
        found = found->leftChild;
 
    }
+	UNLOCK(tree->mutex);
 
   return NULL;
 }
@@ -216,6 +260,7 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
   lkey = delete->keyValue;
   nodeColor = delete->color;
 
+  LOCK(tree->mutex);
   if(IS_LEAF(delete->leftChild))
   {
     temp = ltemp->rightChild;
@@ -252,6 +297,7 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
     fix_delete_collisions(tree, temp);
 
   pico_free(delete);
+	UNLOCK(tree->mutex);
 
   return lkey;
 }
@@ -319,7 +365,7 @@ static void rotateToRight(struct pico_tree * tree, struct pico_tree_node * node)
   return;
 }
 
-static struct pico_tree_node * create_node(void* key)
+static struct pico_tree_node * create_node(struct pico_tree * tree, void* key)
 {
   struct pico_tree_node *temp;
   temp = (struct pico_tree_node *)pico_zalloc(sizeof(struct pico_tree_node));
@@ -333,7 +379,9 @@ static struct pico_tree_node * create_node(void* key)
   temp->rightChild = &LEAF;
   // by default every new node is red
   temp->color = RED;
-
+#ifdef PICO_SUPPORT_MUTEX
+	temp->tree = tree;
+#endif
   return temp;
 }
 
