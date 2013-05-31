@@ -23,7 +23,36 @@ extern volatile unsigned long pico_tick;
 #define short_be(x) (x)
 #define long_be(x) (x)
 
+static inline uint16_t short_from(void *_p)
+{
+  unsigned char *p = (unsigned char *)_p;
+  uint16_t r = (p[0] << 8) + p[1];
+  return r;
+}
+
+static inline uint16_t long_from(void *_p)
+{
+  unsigned char *p = (unsigned char *)_p;
+  uint32_t r = (p[0] << 24) + (p[1] << 16) + (p[2] << 8) + p[3];
+  return r;
+}
+
 #else
+
+static inline uint16_t short_from(void *_p)
+{
+  unsigned char *p = (unsigned char *)_p;
+  uint16_t r = (p[1] << 8) + p[0];
+  return r;
+}
+
+static inline uint16_t long_from(void *_p)
+{
+  unsigned char *p = (unsigned char *)_p;
+  uint32_t r = (p[3] << 24) + (p[2] << 16) + (p[1] << 8) + p[0];
+  return r;
+}
+
 
 # define PICO_IDETH_IPV4 0x0008
 # define PICO_IDETH_ARP 0x0608
