@@ -1131,7 +1131,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
     if (f->payload_len <= 0) {
       pico_frame_discard(f);
-      pico_free(remote_duple);
+      if (remote_duple)
+        pico_free(remote_duple);
       return total_payload_written;
     }
 
@@ -1146,7 +1147,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       break;
     }
   }
-  pico_free(remote_duple);
+  if (remote_duple)
+    pico_free(remote_duple);
   return total_payload_written;
 }
 
