@@ -26,14 +26,22 @@ extern volatile unsigned long pico_tick;
 static inline uint16_t short_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint16_t r = (p[0] << 8) + p[1];
+  uint16_t r, p0, p1;
+  p0 = p[0];
+  p1 = p[1];
+  r = (p0 << 8) + p1;
   return r;
 }
 
 static inline uint16_t long_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint32_t r = (p[0] << 24) + (p[1] << 16) + (p[2] << 8) + p[3];
+  uint32_t r, p0, p1, p2, p3;
+  p0 = p[0];
+  p1 = p[1];
+  p2 = p[2];
+  p3 = p[3];
+  r = (p0 << 24) + (p1 << 16) + (p2 << 8) + p3;
   return r;
 }
 
@@ -42,14 +50,22 @@ static inline uint16_t long_from(void *_p)
 static inline uint16_t short_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint16_t r = (p[1] << 8) + p[0];
+  uint16_t r, p0, p1;
+  p0 = p[0];
+  p1 = p[1];
+  r = (p1 << 8) + p0;
   return r;
 }
 
 static inline uint16_t long_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint32_t r = (p[3] << 24) + (p[2] << 16) + (p[1] << 8) + p[0];
+  uint32_t r, p0, p1, p2, p3;
+  p0 = p[0];
+  p1 = p[1];
+  p2 = p[2];
+  p3 = p[3];
+  r = (p3 << 24) + (p2 << 16) + (p1 << 8) + p0;
   return r;
 }
 
