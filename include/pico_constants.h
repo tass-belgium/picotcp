@@ -46,7 +46,7 @@ static inline uint16_t short_from(void *_p)
   return r;
 }
 
-static inline uint16_t long_from(void *_p)
+static inline uint32_t long_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
   uint32_t r = (p[3] << 24) + (p[2] << 16) + (p[1] << 8) + p[0];
