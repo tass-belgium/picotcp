@@ -228,7 +228,8 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
   pico_icmp4_send_echo(cookie);
   cookie->timestamp = pico_tick;
   pico_timer_add(cookie->timeout, ping_timeout, cookie);
-  pico_timer_add(cookie->interval, next_ping, cookie);
+  if (cookie->seq < cookie->count)
+    pico_timer_add(cookie->interval, next_ping, cookie);
 }
 
 static void next_ping(unsigned long now, void *arg)
@@ -269,7 +270,6 @@ static void ping_recv_reply(struct pico_frame *f)
     stats.ttl = ((struct pico_ipv4_hdr *)f->net_hdr)->ttl;
 		if(cookie->cb != NULL)
     	cookie->cb(&stats);
-    /* XXX cb */
   } else {
     dbg("Reply for seq=%d, not found.\n", test.seq);
   }
