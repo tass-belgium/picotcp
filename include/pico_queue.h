@@ -23,6 +23,7 @@ struct pico_queue {
 #ifdef PICO_SUPPORT_MUTEX
   void * mutex;
 #endif
+  uint8_t shared;
 };
 
 #ifdef PICO_SUPPORT_MUTEX
@@ -49,6 +50,10 @@ static void debug_q(struct pico_queue *q)
   }
   dbg("X\n");
 }
+
+#else
+
+#define debug_q(x) do{}while(0)
 #endif
 
 static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
@@ -59,7 +64,8 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
     return -1;
 
-  LOCK(q->mutex);
+  if (q->shared)
+    LOCK(q->mutex);
 
   p->next = NULL;
   if (!q->head) {
@@ -73,11 +79,10 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
   }
   q->size += p->buffer_len;
   q->frames++;
-#ifdef PICO_SUPPORT_DEBUG_TOOLS
   debug_q(q);
-#endif
 
-  UNLOCK(q->mutex);
+  if (q->shared)
+    UNLOCK(q->mutex);
   return q->size;
 }
 
@@ -86,18 +91,18 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
-  LOCK(q->mutex);
+  if (q->shared)
+    LOCK(q->mutex);
 
   q->head = p->next;
   q->frames--;
   q->size -= p->buffer_len;
   if (q->head == NULL)
     q->tail = NULL;
-#ifdef PICO_SUPPORT_DEBUG_TOOLS
   debug_q(q);
-#endif
   p->next = NULL;
-  UNLOCK(q->mutex);
+  if (q->shared)
+    UNLOCK(q->mutex);
   return p;
 }
 
@@ -106,9 +111,7 @@ static inline struct pico_frame *pico_queue_peek(struct pico_queue *q)
   struct pico_frame *p = q->head;
   if (q->frames < 1)
     return NULL;
-#ifdef PICO_SUPPORT_DEBUG_TOOLS
   debug_q(q);
-#endif
   return p;
 }
 
@@ -119,6 +122,11 @@ static inline void pico_queue_empty(struct pico_queue *q)
     pico_free(p);
     p = pico_dequeue(q);
   }
+}
+
+static inline void pico_queue_protect(struct pico_queue *q)
+{
+  q->shared = 1;
 }
 
 #endif
