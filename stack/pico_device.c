@@ -76,6 +76,12 @@ static int devloop(struct pico_device *dev, int loop_score, int direction)
 {
   struct pico_frame *f;
 
+  /* If device supports interrupts, read the value of the condition and trigger the dsr */
+  if ((dev->__serving_interrupt) && (dev->dsr)) {
+    /* call dsr routine */
+    loop_score = dev->dsr(dev, loop_score);
+  }
+
   /* If device supports polling, give control. Loop score is managed internally, 
    * remaining loop points are returned. */
   if (dev->poll) {

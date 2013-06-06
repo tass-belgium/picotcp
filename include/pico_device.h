@@ -26,6 +26,8 @@ struct pico_device {
   int (*send)(struct pico_device *self, void *buf, int len); /* Send function. Return 0 if busy */
   int (*poll)(struct pico_device *self, int loop_score);
   void(*destroy)(struct pico_device *self);
+  int (*dsr)(struct pico_device *self, int loop_score);
+  int __serving_interrupt;
 };
 
 int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac);
