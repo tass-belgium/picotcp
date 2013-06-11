@@ -61,6 +61,7 @@ static void * Mutex = NULL;
 #endif
 
 
+
 static inline int seq_compare(uint32_t a, uint32_t b)
 {
   uint32_t thresh = ((uint32_t)(-1))>>1;
@@ -213,8 +214,11 @@ struct pico_socket_tcp {
   uint8_t  x_mode;
   uint8_t  dupacks;
   uint8_t  backoff;
-
+  /* Close wait flag */
+  uint8_t closing;
 };
+
+static void checkIfQueueEmptyAndFin(struct pico_socket_tcp * t);
 
 /* Queues */
 static struct pico_queue tcp_in = {};
@@ -1041,6 +1045,44 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
   t->snd_nxt++;
 }
 
+/*****/
+static inline void checkIfQueueEmptyAndFin(struct pico_socket_tcp * t)
+{
+	struct pico_socket *s =(struct pico_socket *)&t->sock;
+	if(t->closing && t->tcpq_out.frames==0)
+	{
+		s->state &= 0x00FFU;
+		/* set SHUT_REMOTE */
+		s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+		s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+		tcp_dbg("TCP> Close-wait\n");
+		if (s->wakeup)
+		{
+				s->wakeup(PICO_SOCK_EV_CLOSE, s);
+		}
+		t->closing = 0;
+	}
+
+	if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
+		if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
+			tcp_dbg("TCP> buffer empty, shutdown established ...\n");
+			/* send fin if queue empty and in state shut local (write) */
+			tcp_send_fin(t);
+			/* change tcp state to FIN_WAIT1 */
+			s->state &= 0x00FFU;
+			s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
+		} else if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+			/* send fin if queue empty and in state shut local (write) */
+			tcp_send_fin(t);
+			/* change tcp state to LAST_ACK */
+			s->state &= 0x00FFU;
+			s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
+			tcp_dbg("TCP> STATE: LAST_ACK.\n");
+		}
+	}
+}
+/*****/
+
 static void tcp_sack_prepare(struct pico_socket_tcp *t)
 {
   struct pico_frame *pkt;
@@ -1280,6 +1322,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
 		add_retransmission_timer(t, 0);
 		if (t->tcpq_out.size < t->tcpq_out.max_size)
 			 t->sock.ev_pending |= PICO_SOCK_EV_WR;
+		checkIfQueueEmptyAndFin(t);
 		return;
 	}
 }
@@ -1739,20 +1782,32 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
   if (f->flags & PICO_TCP_ACK)
     tcp_ack(s,f);
   if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
-    /* received FIN, increase ACK nr */
-    t->rcv_nxt = long_be(hdr->seq) + 1;
-    s->state &= 0x00FFU;
-    s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-    /* set SHUT_REMOTE */
-    s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
-      tcp_dbg("TCP> Close-wait\n");
-    if (s->wakeup){
-      if(f->payload_len>0){
-        struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-        t->sock.ev_pending |=PICO_SOCK_EV_CLOSE;
-      }else
-        s->wakeup(PICO_SOCK_EV_CLOSE, s);
-    }
+  	if(t->tcpq_out.frames == 0)
+  	{
+			/* received FIN, increase ACK nr */
+			t->rcv_nxt = long_be(hdr->seq) + 1;
+			s->state &= 0x00FFU;
+			s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+			/* set SHUT_REMOTE */
+			s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+				tcp_dbg("TCP> Close-wait\n");
+			if (s->wakeup){
+				if(f->payload_len>0){
+					struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+					t->sock.ev_pending |=PICO_SOCK_EV_CLOSE;
+				}else
+					s->wakeup(PICO_SOCK_EV_CLOSE, s);
+			}
+  	}
+  	else
+  	{
+  		if(!t->closing)
+  		{
+  			/* Update ACK for the first FIN */
+  			t->rcv_nxt = long_be(hdr->seq) + 1;
+  		}
+  		t->closing = 1;
+  	}
   } else {
     tcp_send_ack(t);  /* return ACK */
   }
@@ -2049,6 +2104,9 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       tcp_dbg("TCP> STATE: LAST_ACK.\n");
     }
   }
+  // check to see if we are in the case where FIN was received
+  // but we still had data in the queue (tcpq_out)
+  checkIfQueueEmptyAndFin(t);
   return loop_score;
 }
 
