@@ -710,7 +710,7 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
     if (in_frame_len > f->payload_len - in_frame_off)
       in_frame_len = f->payload_len - in_frame_off;
 
-    memcpy(buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
+    memcpy((uint8_t *)buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
     tot_rd_len += in_frame_len;
     t->rcv_processed += in_frame_len;
 
