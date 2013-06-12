@@ -9,6 +9,8 @@ See LICENSE and COPYING for usage.
 #include "pico_config.h"
 #include "pico_frame.h"
 
+#define Q_LIMIT 0
+
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
@@ -60,7 +62,10 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 {
   if ((q->max_frames) && (q->max_frames <= q->frames))
     return -1;
-
+    
+  if ((Q_LIMIT) && (Q_LIMIT < p->buffer_len + q->size))
+    return -1;
+    
   if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
     return -1;
 
