@@ -12,6 +12,7 @@ Authors: Kristof Roelants
 
 #define PICO_DNS_NS_DEL 0
 #define PICO_DNS_NS_ADD 1
+#include <stdint.h>
 
 int pico_dns_client_init();
 /* flag is PICO_DNS_NS_DEL or PICO_DNS_NS_ADD */
