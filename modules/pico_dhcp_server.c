@@ -131,6 +131,9 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
   struct pico_dhcpd_settings test, *settings = NULL;
   uint8_t *nextopt, opt_data[20], opt_type;
   int opt_len = 20;
+  uint8_t msg_type;
+  uint32_t msg_reqIP = 0;
+  uint32_t msg_servID = 0;
 
   if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr))) {
     dhcpd_dbg("DHCPD WARNING: invalid options in dhcp message\n");
@@ -179,22 +182,68 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
   opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
   while (opt_type != PICO_DHCPOPT_END) {
     /* parse interesting options here */
-    if (opt_type == PICO_DHCPOPT_MSGTYPE) {
-      /* server simple state machine */
-      uint8_t msg_type = opt_data[0];
-      if (msg_type == PICO_DHCP_MSG_DISCOVER) {
-        dhcpd_make_offer(dn);
-        dn->state = DHCPSTATE_OFFER;
-        return;
-      } else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER)) {
-        dhcpd_make_ack(dn);
-        dn->state = DHCPSTATE_BOUND;
-        return;
-      }
+      //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_data[0]%d\n", opt_type, opt_data[0]);
+    switch(opt_type){
+      case PICO_DHCPOPT_MSGTYPE:
+        msg_type = opt_data[0];
+        break;
+      case PICO_DHCPOPT_REQIP:
+        //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
+        if( opt_len == 4)
+        {
+          msg_reqIP =  ( opt_data[0] << 24 );
+          msg_reqIP |= ( opt_data[1] << 16 );
+          msg_reqIP |= ( opt_data[2] << 8  );
+          msg_reqIP |= ( opt_data[3]       );
+         //dhcpd_dbg("DHCPD sever: msg_reqIP %x, opt_data[0] %x,[1] %x,[2] %x,[3] %x\n", msg_reqIP, opt_data[0],opt_data[1],opt_data[2],opt_data[3]);
+        };
+        break;
+      case PICO_DHCPOPT_SERVERID:
+        //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
+        if( opt_len == 4)
+        {
+          msg_servID =  ( opt_data[0] << 24 );
+          msg_servID |= ( opt_data[1] << 16 );
+          msg_servID |= ( opt_data[2] << 8  );
+          msg_servID |= ( opt_data[3]       );
+          //dhcpd_dbg("DHCPD sever: msg_servID %x, opt_data[0] %x,[1] %x,[2] %x,[3] %x\n", msg_servID, opt_data[0],opt_data[1],opt_data[2],opt_data[3]);
+        };
+        break;        
+      default:
+        break;
     }
+        
     opt_len = 20;
     opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
   }
+    
+  //dhcpd_dbg("DHCPD sever: msg_type %d, dn->state %d\n", msg_type, dn->state);
+  //dhcpd_dbg("DHCPD sever: msg_reqIP %x, dn->msg_servID %x\n", msg_reqIP, msg_servID);
+  //dhcpd_dbg("DHCPD sever: dhdr->ciaddr %x, dhdr->yiaddr %x, dn->ipv4.addr %x\n", dhdr->ciaddr,dhdr->yiaddr,dn->ipv4.addr);
+
+  if (msg_type == PICO_DHCP_MSG_DISCOVER)
+  {
+    dhcpd_make_offer(dn);
+    dn->state = DHCPSTATE_OFFER;
+    return;
+  }
+  else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER))
+  {
+    dhcpd_make_ack(dn);
+    dn->state = DHCPSTATE_BOUND;
+    return;
+  }
+  else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_BOUND))
+  {
+    if( ( msg_servID == 0 )
+      &&( msg_reqIP == 0 )
+      &&( dhdr->ciaddr == dn->ipv4.addr)
+      )
+    { 
+      dhcpd_make_ack(dn);
+      return;
+    }
+  }  
 }
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
