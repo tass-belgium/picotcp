@@ -20,7 +20,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
 #define ACKN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)):0)
 
-#define PICO_TCP_RTO_MIN 1000
+#define PICO_TCP_RTO_MIN 10
 #define PICO_TCP_RTO_MAX 120000
 #define PICO_TCP_IW 2
 
@@ -854,11 +854,9 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
   struct pico_frame *f;
   struct pico_tcp_hdr *hdr, *hdr_rcv;
   int opt_len = tcp_options_size(t, PICO_TCP_RST);
+  int close;
 
   tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> START\n");
-  /* go to CLOSED here to prevent timer callback to go on after timeout */
-  (t->sock).state &= 0x00FFU;
-  (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
 
   f = t->sock.net->alloc(t->sock.net, PICO_SIZE_TCPHDR + opt_len);
 
@@ -883,8 +881,13 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
   if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
     /* in synchronized state: send RST with seq = ack from previous segment */
     hdr->seq = hdr_rcv->ack;
+    close = 0;
   } else {
     /* non-synchronized state */
+    /* go to CLOSED here to prevent timer callback to go on after timeout */
+    (t->sock).state &= 0x00FFU;
+    (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+    close = 1;
   }
 
   hdr->ack = long_be(t->rcv_nxt);
@@ -898,19 +901,19 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
   pico_enqueue(&tcp_out, f);
 
   /* goto CLOSED */
-  //(t->sock).state &= 0x00FFU;
-  //(t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-  (t->sock).state &= 0xFF00U;
-  (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+  if (close) {
+    (t->sock).state &= 0xFF00U;
+    (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
-  /* call EV_FIN wakeup before deleting */
-  if ((t->sock).wakeup)
-    (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+    /* call EV_FIN wakeup before deleting */
+    if ((t->sock).wakeup)
+      (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
 
-  /* delete socket */
-  pico_socket_del(&t->sock);
+    /* delete socket */
+      pico_socket_del(&t->sock);
 
-  tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> DONE, deleted socket\n");
+    tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> DONE, deleted socket\n");
+  }
 
   return 0;
 }
@@ -1248,7 +1251,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
 					((f->timestamp != 0) && (f->timestamp <= limit))) {
 				struct pico_frame *cpy;
 				hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-				tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d\n", SEQN(f), f->payload_len, t->rto);
+				tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
 				if ((t->x_mode != PICO_TCP_WINDOW_FULL) ) {
 					t->x_mode = PICO_TCP_BLACKOUT;
 					tcp_dbg("Mode: Blackout.\n");
