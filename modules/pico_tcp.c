@@ -2087,6 +2087,23 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     // no packets in queue ??
   }
 
+  if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
+    if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
+      tcp_dbg("TCP> buffer empty, shutdown established ...\n");
+      /* send fin if queue empty and in state shut local (write) */
+      tcp_send_fin(t);
+      /* change tcp state to FIN_WAIT1 */
+      s->state &= 0x00FFU;
+      s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
+    } else if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+      /* send fin if queue empty and in state shut local (write) */
+      tcp_send_fin(t);
+      /* change tcp state to LAST_ACK */
+      s->state &= 0x00FFU;
+      s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
+      tcp_dbg("TCP> STATE: LAST_ACK.\n");
+    }
+  }
   // check to see if we are in the case where FIN was received
   // but we still had data in the queue (tcpq_out)
   checkIfQueueEmptyAndFin(t);
