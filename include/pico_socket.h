@@ -59,6 +59,7 @@ struct pico_socket {
   int id;
   uint16_t state;
   uint16_t opt_flags;
+  void *priv;
 };
 
 struct pico_remote_duple {
