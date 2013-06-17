@@ -331,7 +331,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
 				s->state &= 0x00FFU;
 				s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
 				t->passiveClosing = 0;
-				printf("TCP> STATE: LAST_ACK.\n");
+				tcp_dbg("TCP> STATE: LAST_ACK.\n");
 			}
 		}
 
