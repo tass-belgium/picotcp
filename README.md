@@ -8,7 +8,7 @@ Welcome to the one and only PicoTCP repository. Here's what you should do to get
 * cd picotcp
 * make
 * sudo apt-get install vde2
-* sudo apt-get install libvdeplug2_dev
+* sudo apt-get install libvdeplug2-dev
 * make test
 * sudo ./test/autotest.sh
 
