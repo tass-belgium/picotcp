@@ -1694,9 +1694,10 @@ static int http_save_file(void *data, int len)
   errno = e;
   return w;
 }
+
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-  char data[1024 * 1024]; // MAX: 1M
+  static char data[1024 * 1024]; // MAX: 1M
   static int _length = 0;
 
 
@@ -1715,7 +1716,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
   	printf("Location : %s\n",header->location);
   	printf("Transfer-Encoding : %d\n",header->transferCoding);
   	printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
-
   }
 
   if(ev & EV_HTTP_BODY)
@@ -1723,7 +1723,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
   	int len;
 
   	printf("Reading data...\n");
-  	while((len = pico_http_client_readData(conn,data + _length,1024)))
+  	while((len = pico_http_client_readData(conn,data + _length,1024)) && len>0)
   	{
   		_length += len;
   	}
@@ -1736,7 +1736,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
   	int len;
   	printf("Connection was closed...\n");
   	printf("Reading remaining data, if any ...\n");
-  	while((len = pico_http_client_readData(conn,data,1000u)) && len > 0)
+  	while((len = pico_http_client_readData(conn,data + _length,1000u)) && len > 0)
   	{
   		_length += len;
   	}
