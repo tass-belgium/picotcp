@@ -214,8 +214,6 @@ struct pico_socket_tcp {
   uint8_t  dupacks;
   uint8_t  backoff;
 
-  //
-  uint8_t passiveClosing;
 };
 
 /* Queues */
@@ -319,21 +317,6 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
   } else {
     tcp_dbg("%s: non-pure ACK with len=0, fl:%04x\n", __FUNCTION__, hdr->flags);
   }
-
-  // checking if fin,ack was previously received
-  if(t->passiveClosing){
-  	struct pico_socket *s = (struct pico_socket *)&t->sock;
-		// processing the output, wait to be ready to FIN,ACK
-		if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
-			  /* send fin if queue empty and in state shut local (write) */
-				tcp_send_fin(t);
-				/* change tcp state to LAST_ACK */
-				s->state &= 0x00FFU;
-				s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
-				t->passiveClosing = 0;
-				tcp_dbg("TCP> STATE: LAST_ACK.\n");
-			}
-		}
 
   pico_network_send(f);
   return 0;
@@ -1757,8 +1740,6 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
 
-//  if(t->closing)
-//  	return 0;
 
   if (f->payload_len > 0)
     tcp_data_in(s,f);
@@ -1767,14 +1748,9 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
   if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
     /* received FIN, increase ACK nr */
   	t->rcv_nxt = long_be(hdr->seq) + 1;
-  	if(t->tcpq_out.frames == 0)
-  	{
-    		s->state &= 0x00FFU;
-    		s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-  	}
-  	else
-  		t->passiveClosing = 1;
-    /* set SHUT_REMOTE */
+		s->state &= 0x00FFU;
+		s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+		/* set SHUT_REMOTE */
     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
       tcp_dbg("TCP> Close-wait\n");
 
@@ -2072,14 +2048,12 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       /* change tcp state to FIN_WAIT1 */
       s->state &= 0x00FFU;
       s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
-      t->passiveClosing = 0;
     } else if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
       /* send fin if queue empty and in state shut local (write) */
       tcp_send_fin(t);
       /* change tcp state to LAST_ACK */
       s->state &= 0x00FFU;
       s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
-      t->passiveClosing = 0;
       tcp_dbg("TCP> STATE: LAST_ACK.\n");
     }
   }
