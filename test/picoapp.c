@@ -31,10 +31,6 @@
 #define picoapp_dbg(...) do{}while(0)
 //#define picoapp_dbg printf
 
-uint32_t max_mem;
-uint32_t cur_mem;
-
-
 //#define PICOAPP_IPFILTER 1
 
 struct pico_ip4 inaddr_any = { };
@@ -1239,7 +1235,6 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
       tcpbench_r = pico_socket_read(s, recvbuf, 1500);
       if (tcpbench_r > 0){
         tcpbench_rd_size += tcpbench_r;
-        //pico_socket_write(s,recvbuf,tcpbench_r);
       }
       else if (tcpbench_r < 0) {
         printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
