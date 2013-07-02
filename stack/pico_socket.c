@@ -596,7 +596,7 @@ int pico_socket_del(struct pico_socket *s)
 
 #ifdef PICO_SUPPORT_MCAST
   do {
-    uint8_t filter_mode = 0;
+    int filter_mode;
     struct pico_tree_node *index = NULL, *_tmp = NULL, *index2 = NULL, *_tmp2 = NULL;
     struct pico_mcast_listen *listen = NULL;
     struct pico_ip4 *source = NULL;
@@ -612,7 +612,8 @@ int pico_socket_del(struct pico_socket *s)
           pico_free(source);
         }
         filter_mode = pico_socket_aggregate_mcastfilters(&listen->mcast_link, &listen->mcast_group);
-        pico_ipv4_mcast_leave(&listen->mcast_link, &listen->mcast_group, 1, filter_mode, &MCASTFilter);
+        if (filter_mode >= 0) 
+          pico_ipv4_mcast_leave(&listen->mcast_link, &listen->mcast_group, 1, filter_mode, &MCASTFilter);
         pico_tree_delete(s->MCASTListen, listen);
         pico_free(listen);
       }
@@ -1496,7 +1497,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_ADD_MEMBERSHIP:
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0;
+        int filter_mode;
         struct pico_ip_mreq *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ipv4_link *mcast_link = NULL;
@@ -1562,7 +1563,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_DROP_MEMBERSHIP:
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0;
+        int filter_mode = 0;
         struct pico_ip_mreq *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ip4 *source = NULL;
@@ -1621,7 +1622,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_UNBLOCK_SOURCE:
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0;
+        int filter_mode = 0;
         struct pico_ip_mreq_source *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ip4 *source = NULL, stest = {0};
@@ -1681,7 +1682,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_BLOCK_SOURCE:
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0;
+        int filter_mode = 0;
         struct pico_ip_mreq_source *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ip4 *source = NULL, stest = {0};
@@ -1746,7 +1747,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_ADD_SOURCE_MEMBERSHIP:
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0, reference_count = 0;
+        int filter_mode = 0, reference_count = 0;
         struct pico_ip_mreq_source *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ip4 *source = NULL, stest = {0};
@@ -1833,7 +1834,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
     case PICO_IP_DROP_SOURCE_MEMBERSHIP:
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
-        uint8_t filter_mode = 0, reference_count = 0;
+        int filter_mode = 0, reference_count = 0;
         struct pico_ip_mreq_source *mreq = NULL;
         struct pico_mcast_listen *listen = NULL, ltest = {0};
         struct pico_ip4 *source = NULL, stest = {0};
