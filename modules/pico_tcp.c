@@ -22,7 +22,8 @@ Authors: Daniele Lacamera, Philippe Mariman
 
 #define PICO_TCP_RTO_MIN 10
 #define PICO_TCP_RTO_MAX 120000
-#define PICO_TCP_IW 2
+#define PICO_TCP_IW 		 2
+#define PICO_TCP_SYN_TO	 1000
 
 #define PICO_TCP_MAX_CONNECT_RETRIES 7
 
@@ -781,7 +782,7 @@ int pico_tcp_initconn(struct pico_socket *s)
   /* TCP: ENQUEUE to PROTO ( SYN ) */
   tcp_dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
   pico_enqueue(&tcp_out, syn);
-  pico_timer_add(PICO_TCP_RTO_MIN << ts->backoff, initconn_retry, ts);
+  pico_timer_add(PICO_TCP_SYN_TO << ts->backoff, initconn_retry, ts);
   return 0;
 }
 
