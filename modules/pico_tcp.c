@@ -1895,15 +1895,15 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
   { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
   { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
-  { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,     &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
   { PICO_SOCKET_STATE_TCP_SYN_RECV,     &tcp_nosync_rst, &tcp_nosync_rst,   &tcp_first_ack,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_send_rst,   &tcp_send_rst,     &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   &tcp_send_rst,   &tcp_send_rst,     &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,   &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_LAST_ACK,     &tcp_send_rst,   &tcp_send_rst,     &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    &tcp_send_rst,   &tcp_send_rst,     &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    &tcp_send_rst,   &tcp_send_rst,     &tcp_ack,          &tcp_data_in,    &tcp_finwaitfin, &tcp_finack,     &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_CLOSING,      &tcp_send_rst,   &tcp_send_rst,     &tcp_closewaitack, &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    &tcp_send_rst,   &tcp_send_rst,     &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
+  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,   &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_finwaitfin, &tcp_finack,     &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            &tcp_ack,          &tcp_closewaitack, &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            &tcp_ack,          &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
 };
 
 /*
