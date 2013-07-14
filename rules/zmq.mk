@@ -1,0 +1,2 @@
+OPTIONS+=-DPICO_SUPPORT_ZMTP
+MOD_OBJ+=modules/pico_zmq.o

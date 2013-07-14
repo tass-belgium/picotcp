@@ -28,7 +28,7 @@ IPFILTER?=1
 CRC?=0
 HTTP_CLIENT?=1
 HTTP_SERVER?=1
-ZMTP?=1
+ZMQ?=1
 
 ifeq ($(DEBUG),1)
   CFLAGS=-Iinclude -Imodules -Wall -ggdb -Wdeclaration-after-statement
@@ -140,8 +140,8 @@ endif
 ifneq ($(HTTP_CLIENT),0)
   include rules/httpClient.mk
 endif
-ifneq ($(ZMTP),0)
-  include rules/zmtp.mk
+ifneq ($(ZMQ),0)
+  include rules/zmq.mk
 endif
 all: mod core lib
 

@@ -9,6 +9,7 @@ Authors: Daniele Lacamera
 #include "pico_config.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
+#include "pico_zmq.h"
 
  
 enum zmq_hshake_state {
@@ -26,16 +27,16 @@ struct __attribute__((packed)) zmq_msg {
     char    txt[0];
 };
 
-struct zmtp_socket {
+struct zmq_socket {
   struct pico_socket *sock;
   enum zmq_hshake_state state;
-  void (*ready)(struct zmtp_socket *z);
+  void (*ready)(struct zmq_socket *z);
 };
 
-static int zmtp_socket_cmp(void *ka, void *kb)
+static int zmq_socket_cmp(void *ka, void *kb)
 {
-  struct zmtp_socket *a = ka;
-  struct zmtp_socket *b = kb;
+  struct zmq_socket *a = ka;
+  struct zmq_socket *b = kb;
   if (a->sock < b->sock)
     return -1;
   if (b->sock < a->sock)
@@ -43,17 +44,16 @@ static int zmtp_socket_cmp(void *ka, void *kb)
   return 0;
 }
 
-int zmtp_send(struct zmtp_socket *z, char *txt, int len); /* TO .h */
 
-PICO_TREE_DECLARE(zmtp_sockets, zmtp_socket_cmp);
-static inline struct zmtp_socket *ZMTP(struct pico_socket *s)
+PICO_TREE_DECLARE(zmq_sockets, zmq_socket_cmp);
+static inline struct zmq_socket *ZMTP(struct pico_socket *s)
 {
-  struct zmtp_socket tst = { .sock = s };
-  return (pico_tree_findKey(&zmtp_sockets, &tst));
+  struct zmq_socket tst = { .sock = s };
+  return (pico_tree_findKey(&zmq_sockets, &tst));
 }
 
 
-static void hs_connected(struct zmtp_socket *z)
+static void hs_connected(struct zmq_socket *z)
 {
   uint8_t my_ver[2] = {3u, 0};
   uint8_t my_signature[10] =  {0xff, 0, 0, 0, 0, 0, 0, 0, 1, 0x7f};
@@ -64,7 +64,7 @@ static void hs_connected(struct zmtp_socket *z)
   z->state = ST_SIGNATURE;
 }
  
-static void hs_signature(struct zmtp_socket *z)
+static void hs_signature(struct zmq_socket *z)
 {
   uint8_t incoming[20];
   int ret;
@@ -86,7 +86,7 @@ static void hs_signature(struct zmtp_socket *z)
   z->state = ST_VERSION;
 }
  
-static void hs_version(struct zmtp_socket *z)
+static void hs_version(struct zmq_socket *z)
 {
   uint8_t incoming[20];
   int ret;
@@ -110,12 +110,12 @@ static void hs_version(struct zmtp_socket *z)
   z->state = ST_GREETING;
 }
  
-static void hs_greeting(struct zmtp_socket *z)
+static void hs_greeting(struct zmq_socket *z)
 {
   uint8_t incoming[64];
   int ret;
   ret = pico_socket_read(z->sock, incoming, 64);
-  printf("zmtp_socket_read in greeting returned %d\n", ret);    
+  printf("zmq_socket_read in greeting returned %d\n", ret);    
   if (ret == 0)
    return;  
   if (ret < 0) {
@@ -126,11 +126,11 @@ static void hs_greeting(struct zmtp_socket *z)
   }
   printf("Paired. Sending Ready.\n");
   z->state = ST_RDY;
-  zmtp_send(z, "READY   ", 8);
+  zmq_send(z, "READY   ", 8);
   
 }
  
-static void hs_rdy(struct zmtp_socket *z)
+static void hs_rdy(struct zmq_socket *z)
 {
     int ret;
     uint8_t incoming[258];
@@ -138,7 +138,7 @@ static void hs_rdy(struct zmtp_socket *z)
     printf("Got %d bytes from subscriber whilst in rdy state.\n", ret);
 }
  
-static void(*hs_cb[])(struct zmtp_socket *) = {
+static void(*hs_cb[])(struct zmq_socket *) = {
     NULL,
     hs_connected,
     hs_signature,
@@ -147,12 +147,12 @@ static void(*hs_cb[])(struct zmtp_socket *) = {
     hs_rdy
 };
  
-void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
+static void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
 {
   struct pico_ip4 orig;
   uint16_t port;
   char peer[30];
-  struct zmtp_socket *z = ZMTP(s);
+  struct zmq_socket *z = ZMTP(s);
  
   if (ev & PICO_SOCK_EV_RD) {
     if (hs_cb[z->state])
@@ -166,8 +166,9 @@ void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
     printf("tcp0mq> Connection requested by %s:%d.\n", peer, short_be(port));
     if (z->state == ST_LISTEN) {
         printf("tcp0mq> Accepted connection!\n");
-        pico_tree_insert(&zmtp_sockets, z_a);
+        pico_tree_insert(&zmq_sockets, z_a);
         z_a->state = ST_CONNECTED;
+        hs_connected(z_a);
     } else {
         printf("tcp0mq> Server busy, connection rejected\n");
         pico_socket_close(z_a);
@@ -194,28 +195,28 @@ void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
   }
 }
 
-struct zmtp_socket *zmtp_producer(uint16_t _port, void (*cb)(struct zmtp_socket *z))
+ZMQ zmq_producer(uint16_t _port, void (*cb)(ZMQ z))
 {
   struct pico_socket *s;
   struct pico_ip4 inaddr_any = {0};
-  uint16_t port = short_be(port);
-  struct zmtp_socket *z = NULL;
+  uint16_t port = short_be(_port);
+  struct zmq_socket *z = NULL;
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcp0mq);
   if (!s)
     return NULL;
  
-  dbg("zmtp_producer: BIND\n");
+  dbg("zmq_producer: BIND\n");
   if (pico_socket_bind(s, &inaddr_any, &port)!= 0) {
-    printf("zmtp producer: BIND failed\n");
+    printf("zmq producer: BIND failed\n");
     return NULL;
   }
   if (pico_socket_listen(s, 40) != 0) {
-    printf("zmtp producer: LISTEN failed\n");
+    printf("zmq producer: LISTEN failed\n");
     return NULL;
   }
-  dbg("zmtp_producer: Active and bound to local port %d\n", short_be(port));
+  dbg("zmq_producer: Active and bound to local port %d\n", short_be(port));
 
-  z = pico_zalloc(sizeof(struct zmtp_socket));
+  z = pico_zalloc(sizeof(struct zmq_socket));
   if (!z) {
     pico_socket_close(s);
     pico_err = PICO_ERR_ENOMEM;
@@ -224,11 +225,11 @@ struct zmtp_socket *zmtp_producer(uint16_t _port, void (*cb)(struct zmtp_socket 
   z->sock = s;
   z->state = ST_LISTEN;
   z->ready = cb;
-  pico_tree_insert(&zmtp_sockets, z);
+  pico_tree_insert(&zmq_sockets, z);
   return z;
 }
 
-int zmtp_send(struct zmtp_socket *z, char *txt, int len)
+int zmq_send(struct zmq_socket *z, char *txt, int len)
 {
     struct zmq_msg msg;
     msg.flags = 4;

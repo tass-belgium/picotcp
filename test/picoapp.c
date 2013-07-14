@@ -16,6 +16,7 @@
 #include "pico_http_client.h"
 #include "pico_http_server.h"
 #include "pico_http_util.h"
+#include "pico_zmq.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -1919,6 +1920,32 @@ void app_httpd(char *arg)
 #endif
 /* END HTTP server */
 
+void cb_zeromq_prod(ZMQ z)
+{
+}
+
+
+/* ZEROMQ PRODUCER */
+void app_zeromq_prod(char *arg)
+{
+  ZMQ z = zmq_producer(1207, &cb_zeromq_prod);
+  if (!z) {
+    fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
+    exit(1);
+  }
+  while(1) {
+    uint32_t last = 0;
+    uint32_t now; 
+    pico_stack_tick();
+    now = PICO_TIME_MS();
+    if (now > last + 500) {
+      zmq_send(z, "HELLO", 5);
+      last = now;
+    }
+    usleep(2000);
+  }
+}
+
 /** From now on, parsing the command line **/
 #define NXT_MAC(x) ++x[5]
 
@@ -2208,6 +2235,9 @@ int main(int argc, char **argv)
           pico_socket_sendto(s,"abcd",5u,&any,1000);
 
           pico_socket_sendto(s,"abcd",5u,&bcastAddr,1000);
+        }
+        else IF_APPNAME("zeromq_prod"){
+          app_zeromq_prod(args);
         }
         else {
           fprintf(stderr, "Unknown application %s\n", name);
