@@ -7,12 +7,11 @@ Authors: Daniele Lacamera
 
 #include "pico_stack.h"
 #include "pico_config.h"
-#include "pico_device.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
 
  
-volatile enum zmq_hshake_state {
+enum zmq_hshake_state {
   ST_LISTEN = 0,
   ST_CONNECTED,
   ST_SIGNATURE,
@@ -33,10 +32,10 @@ struct zmtp_socket {
   void (*ready)(struct zmtp_socket *z);
 };
 
-static int ztmp_socket_cmp(void *ka, void *kb)
+static int zmtp_socket_cmp(void *ka, void *kb)
 {
-  struct ztmp_socket *a = ka;
-  struct ztmp_socket *b = kb;
+  struct zmtp_socket *a = ka;
+  struct zmtp_socket *b = kb;
   if (a->sock < b->sock)
     return -1;
   if (b->sock < a->sock)
@@ -44,108 +43,98 @@ static int ztmp_socket_cmp(void *ka, void *kb)
   return 0;
 }
 
-PICO_TREE_DECLARE(ztmp_sockets, ztmp_socket_cmp);
+int zmtp_send(struct zmtp_socket *z, char *txt, int len); /* TO .h */
 
-void zmq_send(struct zmtp_socket *s, char *txt, int len)
+PICO_TREE_DECLARE(zmtp_sockets, zmtp_socket_cmp);
+static inline struct zmtp_socket *ZMTP(struct pico_socket *s)
 {
-    struct zmq_msg msg;
-    msg.flags = 4;
-    msg.len = (uint8_t) len;
-    memcpy(msg.txt, txt, len);
-    zmtp_socket_write(s, &msg, len + 2);
+  struct zmtp_socket tst = { .sock = s };
+  return (pico_tree_findKey(&zmtp_sockets, &tst));
 }
 
-static void hs_connected(struct zmtp_socket *s)
+
+static void hs_connected(struct zmtp_socket *z)
 {
   uint8_t my_ver[2] = {3u, 0};
   uint8_t my_signature[10] =  {0xff, 0, 0, 0, 0, 0, 0, 0, 1, 0x7f};
   uint8_t my_greeting[52] = {'N','U','L','L', 0};
-  zmtp_socket_write(s, my_signature, 10);
-  zmtp_socket_write(s, my_ver, 2);
-  zmtp_socket_write(s, my_greeting, 52);
-  Handshake_state = ST_SIGNATURE;
-  remaining_hs_bytes = 64;
-  conn_led = 1;
+  pico_socket_write(z->sock, my_signature, 10);
+  pico_socket_write(z->sock, my_ver, 2);
+  pico_socket_write(z->sock, my_greeting, 52);
+  z->state = ST_SIGNATURE;
 }
  
-static void hs_signature(struct zmtp_socket *s)
+static void hs_signature(struct zmtp_socket *z)
 {
   uint8_t incoming[20];
   int ret;
   
-  ret = zmtp_socket_read(s, incoming, 10);
+  ret = pico_socket_read(z->sock, incoming, 10);
   if (ret < 10) {
     printf("Received invalid signature\n");
-    zmtp_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
+    pico_socket_close(z->sock);
+    z->state = ST_LISTEN;
     return;
   }
   if (incoming[0] != 0xFF) {
     printf("Received invalid signature\n");
-    zmtp_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
+    pico_socket_close(z->sock);
+    z->state = ST_LISTEN;
     return;
   }
   printf("Valid signature received. len = %d, first byte: %02x\n", ret, incoming[0]);
-  remaining_hs_bytes -= ret;
-  Handshake_state = ST_VERSION;
+  z->state = ST_VERSION;
 }
  
-static void hs_version(struct zmtp_socket *s)
+static void hs_version(struct zmtp_socket *z)
 {
   uint8_t incoming[20];
   int ret;
-  ret = zmtp_socket_read(s, incoming, 2);
+  ret = pico_socket_read(z->sock, incoming, 2);
   if (ret < 0) {
     printf("Cannot exchange valid version information. Read returned -1\n");
-    zmtp_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
+    pico_socket_close(z->sock);
+    z->state = ST_LISTEN;
     return;
   }
   if (ret == 0)
      return;
     
-  remaining_hs_bytes -= ret;
   if (incoming[0] != 3) {
     printf("Version %d.x not supported by this publisher\n", incoming[0]);
-    zmtp_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
+    pico_socket_close(z->sock);
+    z->state = ST_LISTEN;
     return;
   }
   printf("Subscriber is using version 3. Good!\n");
-  Handshake_state = ST_GREETING;
+  z->state = ST_GREETING;
 }
  
-static void hs_greeting(struct zmtp_socket *s)
+static void hs_greeting(struct zmtp_socket *z)
 {
   uint8_t incoming[64];
   int ret;
-  ret = zmtp_socket_read(s, incoming, 64);
+  ret = pico_socket_read(z->sock, incoming, 64);
   printf("zmtp_socket_read in greeting returned %d\n", ret);    
   if (ret == 0)
    return;  
   if (ret < 0) {
     printf("Cannot retrieve valid greeting\n");
-    zmtp_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
+    pico_socket_close(z->sock);
+    z->state = ST_LISTEN;
     return;
   }
   printf("Paired. Sending Ready.\n");
-  Handshake_state = ST_RDY;
-  zmq_send(s, "READY   ", 8);
+  z->state = ST_RDY;
+  zmtp_send(z, "READY   ", 8);
   
 }
  
-static void hs_rdy(struct zmtp_socket *s)
+static void hs_rdy(struct zmtp_socket *z)
 {
     int ret;
     uint8_t incoming[258];
-    ret = zmtp_socket_read(s, incoming, 258);
+    ret = pico_socket_read(z->sock, incoming, 258);
     printf("Got %d bytes from subscriber whilst in rdy state.\n", ret);
 }
  
@@ -163,59 +152,54 @@ void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
   struct pico_ip4 orig;
   uint16_t port;
   char peer[30];
+  struct zmtp_socket *z = ZMTP(s);
  
   if (ev & PICO_SOCK_EV_RD) {
-    if (hs_cb[Handshake_state])
-      hs_cb[Handshake_state](s);
+    if (hs_cb[z->state])
+      hs_cb[z->state](z);
   }
  
   if (ev & PICO_SOCK_EV_CONN) { 
-    struct pico_socket *z;
-    z = pico_socket_accept(s, &orig, &port);
+    struct pico_socket *z_a;
+    z_a = pico_socket_accept(s, &orig, &port);
     pico_ipv4_to_string(peer, orig.addr);
     printf("tcp0mq> Connection requested by %s:%d.\n", peer, short_be(port));
-    if (Handshake_state == ST_LISTEN) {
+    if (z->state == ST_LISTEN) {
         printf("tcp0mq> Accepted connection!\n");
-        conn_led = 1;
-        zmq_sock = z;
-        Handshake_state = ST_CONNECTED;
+        pico_tree_insert(&zmtp_sockets, z_a);
+        z_a->state = ST_CONNECTED;
     } else {
         printf("tcp0mq> Server busy, connection rejected\n");
-        pico_socket_close(z);
+        pico_socket_close(z_a);
     }
   }
  
   if (ev & PICO_SOCK_EV_FIN) {
     printf("tcp0mq> Connection closed.\n");
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
   }
  
   if (ev & PICO_SOCK_EV_ERR) {
     printf("tcp0mq> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
     printf("tcp0mq> Connection closed.\n");
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
   }
  
   if (ev & PICO_SOCK_EV_CLOSE) {
     printf("tcp0mq> event close\n");
     pico_socket_close(s);
-    Handshake_state = ST_LISTEN;
-    conn_led = 0;
   }
  
   if (ev & PICO_SOCK_EV_WR) {
-    /* TODO: manage pending data */
+    if (z->ready)
+      z->ready(z);
   }
 }
 
-struct pico_socket *ztmp_producer(uint16_t _port, void (*cb)(struct zmtp_socket *z))
+struct zmtp_socket *zmtp_producer(uint16_t _port, void (*cb)(struct zmtp_socket *z))
 {
   struct pico_socket *s;
-  struct pico_ipv4 inaddr_any = {0};
+  struct pico_ip4 inaddr_any = {0};
   uint16_t port = short_be(port);
-  struct zmtp_producer *z = NULL;
+  struct zmtp_socket *z = NULL;
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcp0mq);
   if (!s)
     return NULL;
@@ -231,7 +215,7 @@ struct pico_socket *ztmp_producer(uint16_t _port, void (*cb)(struct zmtp_socket 
   }
   dbg("zmtp_producer: Active and bound to local port %d\n", short_be(port));
 
-  z = pico_zalloc(sizeof(struct ztmp_producer));
+  z = pico_zalloc(sizeof(struct zmtp_socket));
   if (!z) {
     pico_socket_close(s);
     pico_err = PICO_ERR_ENOMEM;
@@ -240,6 +224,15 @@ struct pico_socket *ztmp_producer(uint16_t _port, void (*cb)(struct zmtp_socket 
   z->sock = s;
   z->state = ST_LISTEN;
   z->ready = cb;
+  pico_tree_insert(&zmtp_sockets, z);
   return z;
 }
 
+int zmtp_send(struct zmtp_socket *z, char *txt, int len)
+{
+    struct zmq_msg msg;
+    msg.flags = 4;
+    msg.len = (uint8_t) len;
+    memcpy(msg.txt, txt, len);
+    return pico_socket_write(z->sock, &msg, len + 2);
+}
