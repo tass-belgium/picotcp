@@ -333,6 +333,7 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 int pico_ethernet_send(struct pico_frame *f)
 {
   struct pico_eth *dstmac = NULL;
+  int ret = -1;
 
   if (IS_IPV6(f)) {
     /*TODO: Neighbor solicitation */
@@ -366,18 +367,22 @@ int pico_ethernet_send(struct pico_frame *f)
       hdr->proto = PICO_IDETH_IPV4;
       if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)){
         dbg("sending out packet destined for our own mac\n");
-        return pico_ethernet_receive(f);
+      return pico_ethernet_receive(f);
       }else if(IS_LIMITED_BCAST(f)){
-        return pico_device_broadcast(f);
+        ret = pico_device_broadcast(f);
       }else {
-        return f->dev->send(f->dev, f->start, f->len);
+        ret = f->dev->send(f->dev, f->start, f->len);
         /* Frame is discarded after this return by the caller */
       }
+
+      if(!ret) pico_frame_discard(f);
+      	return ret;
     } else {
       return -1;
     }
   } /* End IPV4 ethernet addressing */
   return -1;
+
 }
 
 void pico_store_network_origin(void *src, struct pico_frame *f)
