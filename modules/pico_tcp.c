@@ -314,7 +314,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
       tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
     }
   } else if (hdr->flags == PICO_TCP_ACK) { /* pure ack */
-    hdr->seq = long_be(t->snd_nxt);
+    //hdr->seq = long_be(t->snd_nxt);   /* XXX disabled this to not to mess with seq nrs of ACKs anymore */
   } else {
     tcp_dbg("%s: non-pure ACK with len=0, fl:%04x\n", __FUNCTION__, hdr->flags);
   }
@@ -620,6 +620,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
     hdr->flags |= PICO_TCP_PSH | PICO_TCP_ACK;
     hdr->ack = long_be(ts->rcv_nxt);
     ts->rcv_ackd = ts->rcv_nxt;
+    ts->keepalive_timer_running = 2;    /* XXX TODO check fix: added 1 to counter to postpone sending keepalive, ACK is in data segments */
   }
 
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -629,9 +630,11 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 
   /* TCP: ENQUEUE to PROTO ( Transmit ) */
   cpy = pico_frame_copy(f);
-  if (pico_enqueue(&tcp_out, cpy) > 0) {
-    if (f->payload_len > 0)
+  if ((pico_enqueue(&tcp_out, cpy) > 0)) {
+    if (f->payload_len > 0) {
       ts->in_flight++;
+      ts->snd_nxt += f->payload_len;  /* update next pointer here to prevent sending same segment twice when called twice in same tick */
+    }
     tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
       TCPSTATE(&ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2 , f->payload_len );
   } else {
@@ -1035,7 +1038,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
   tcp_add_options(t,f, PICO_TCP_FIN, opt_len);
   hdr->trans.sport = t->sock.local_port;
   hdr->trans.dport = t->sock.remote_port;
-  hdr->seq = long_be(t->snd_nxt);
+  hdr->seq = long_be(t->snd_nxt);   /* XXX TODO check correct ?? --> snd_last? otherwise maybe data after FIN */
 
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
   hdr->rwnd = short_be(t->wnd);
@@ -1329,7 +1332,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
     tcp_add_options(t, f, 0, f->transport_len - f->payload_len - PICO_SIZE_TCPHDR);
     hdr->rwnd = short_be(t->wnd);
     hdr->flags |= PICO_TCP_PSH;
-    hdr->ack = long_be(t->rcv_nxt);
+    //hdr->ack = long_be(t->rcv_nxt);  /* XXX TODO check: setting ack field with no ACK flag ?? */
     hdr->crc = 0;
     hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
@@ -2005,7 +2008,8 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       if (t->x_mode != PICO_TCP_WINDOW_FULL) {
         tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
         tcp_dbg("In window full...\n");
-        t->snd_nxt = SEQN(una);
+        //t->snd_nxt = SEQN(una);   /* XXX prevent out-of-order-packets ! */
+        t->snd_retry = SEQN(una);   /* XXX replace by retry pointer? */
 
         /* Alternative to the line above:  (better performance, but seems to lock anyway with larger buffers)
         if (seq_compare(t->snd_nxt, SEQN(una)) > 0)
