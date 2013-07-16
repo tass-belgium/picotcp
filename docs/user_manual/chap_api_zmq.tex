@@ -49,6 +49,26 @@ is set as follows:
 
 %\subsubsection*{Example}
 
+\subsection{zmq\_send}
+\subsubsection*{Description}
+Send a message using a previously created ZMQ Publisher object.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int zmq_send(ZMQ z, char *txt, int len)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{z} - the ZMQ publisher object instance, previously created via \texttt{zmq\_publisher} 
+\item \texttt{txt} - the message content to be delivered to registered subscribers 
+\item \texttt{len} - the lenght of the message \texttt{txt} 
+\end{itemize}
+
+\subsubsection*{Errors}
+This function returns the number of copies of the messages that were delivered. When the ZMQ publisher object is in its ready state, this should be the number of registered subscribers at the time of the call.
+Zero will be returned if no subscribers are registered, or if the sockets are busy.
+
 
 \subsection{zmq\_subscriber}
 \subsubsection*{Description}
@@ -75,7 +95,59 @@ is set as follows:
 
 %\subsubsection*{Example}
 
-%TODO: provide documentation for connect
-%TODO: provide documentation for send
-%TODO: provide documentation for recv
-%TODO: provide documentation for close
+\subsection{zmq\_connect}
+\subsubsection*{Description}
+Connect a ZMQ Subscriber object previously created with the \texttt{zmq\_subscriber} call to a remote publisher at the given TCP address.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int zmq_connect(ZMQ z, char *address, uint16_t port)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{z} - the ZMQ publisher object instance, previously created via \texttt{zmq\_subscriber} 
+\item \texttt{address} - the IP address or hostname of the remote ZeroMQ Publisher 
+\item \texttt{port} - the TCP port number of the remote Publisher
+\end{itemize}
+
+\subsubsection*{Errors}
+This function returns 0 on success, or -1 on failure. \texttt{pico\_err} is set accordingly from the underlying \texttt{pico\_socket\_connect} call. Additionally, \texttt{pico\_err} is set to \texttt{PICO\_ERR\_ENOMEM} when there is not enough memory availabl to add a connector to the ZMQ object.
+
+\subsection{zmq\_recv}
+\subsubsection*{Description}
+Receive a message using the ZMQ Subscriber object previously created with the \texttt{zmq\_subscriber}, and connected to one or more publishers using \texttt{zmq\_connect}. 
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int zmq_connect(ZMQ z, char *msg)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{z} - the ZMQ publisher object instance, previously created via \texttt{zmq\_subscriber} 
+\item \texttt{msg} - the text of the message received, if any.
+\end{itemize}
+
+\subsubsection*{Errors}
+On success, return the lenght of the received message. This function assumes that the buffer provided by the caller is big enough to contain a whole message (i.e. at least 256 Bytes).
+If there is no data to read, or the ZMQ object is disconnected from the Publisher, or not ready, this function returns 0.
+In case of failure, -1 is returned, and the value of pico$\_$err
+is set accordingly.
+
+\subsection{zmq\_close}
+\subsubsection*{Description}
+Close and destroy an instance of ZMQ object previously created using \texttt{zmq\_subscriber} or \texttt{zmq\_publisher}. All connected instances related to the object are terminated. No other API calls shall be valid on the same object after this call.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+void zmq_close(ZMQ z)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{z} - the ZMQ publisher object instance, previously created via \texttt{zmq\_subscriber} or \texttt{zmq\_publisher}
+\end{itemize}
+
+\subsubsection*{Errors}
+This routine never fails. Invalid argument is ignored.
