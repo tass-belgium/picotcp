@@ -1,0 +1,81 @@
+\section{ZeroMQ}
+
+% Description
+ZeroMQ is a Messaging protocol for many applications. In this version of the API, only Publish/Subscribe paradigm is s
+supported.
+
+To create and use a ZeroMQ Publisher, refer to:
+\begin{verbatim}
+ZMQ zmq_publisher(uint16_t port, void (*cb)(ZMQ z))
+int zmq_send(ZMQ z, char *txt, int len)
+\end{verbatim}
+
+To create a subscriber, connect and receive messages, use:
+\begin{verbatim}
+ZMQ zmq_subscriber(void (*cb)(ZMQ z))
+int zmq_connect(ZMQ z, char *address, uint16_t port)
+int zmq_recv(ZMQ z, char *txt)
+\end{verbatim}
+
+To terminate a ZMQ object, use:
+\begin{verbatim}
+void zmq_close(ZMQ z)
+\end{verbatim}
+
+\subsection{zmq\_publisher}
+\subsubsection*{Description}
+Create a publisher ZeroMQ object, and bind it to a specific local TCP port.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+ZMQ zmq_publisher(uint16_t port, void (*cb)(ZMQ z))
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{port} - the local port the publisher will be bound to. Subscribers in the network will specify this port when connecting to ths publisher.
+\item \texttt{cb} - callback indicating READY state: will be called by the stack when all the connected subscribers are ready to receive the next message. If the application is interested in this kind of event, it must provide a callback accepting a ZMQ object with this argument.
+\end{itemize}
+
+\subsubsection*{Errors}
+In case of failure, NULL is returned, and the value of pico$\_$err
+is set as follows:
+
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL}          - Invalid argument provided
+\item \texttt{PICO$\_$ERR$\_$EFAULT}          - Internal error
+\item \texttt{PICO$\_$ERR$\_$ENOMEM}          - No memory available to allocate the object
+\end{itemize}
+
+%\subsubsection*{Example}
+
+
+\subsection{zmq\_subscriber}
+\subsubsection*{Description}
+Create a subscriber ZeroMQ object, and bind it to a specific local TCP port.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+ZMQ zmq_subscriber(void (*cb)(ZMQ z))
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{cb} - callback indicating a new incoming message: will be called by the stack when at least one of the connected publishers has delivered a new message. If the application is interested in this kind of event, it must provide a callback accepting a ZMQ object with this argument.
+\end{itemize}
+
+\subsubsection*{Errors}
+In case of failure, NULL is returned, and the value of pico$\_$err
+is set as follows:
+
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EFAULT}          - Internal error
+\item \texttt{PICO$\_$ERR$\_$ENOMEM}          - No memory available to allocate the object
+\end{itemize}
+
+%\subsubsection*{Example}
+
+%TODO: provide documentation for connect
+%TODO: provide documentation for send
+%TODO: provide documentation for recv
+%TODO: provide documentation for close

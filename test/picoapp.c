@@ -1928,7 +1928,7 @@ void cb_zeromq_prod(ZMQ z)
 /* ZEROMQ PRODUCER */
 void app_zeromq_prod(char *arg)
 {
-  ZMQ z = zmq_producer(1207, &cb_zeromq_prod);
+  ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
   if (!z) {
     fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
     exit(1);
