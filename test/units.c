@@ -1721,6 +1721,11 @@ START_TEST (test_socket)
   ret = pico_socket_recvfrom(sk_udp,(void *)buf,sizeof(buf),&orig,&porta);
   fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n",ret, strerror(pico_err));
 
+  // temporary fix, until Nagle problems are analyzed and fixed
+  {
+  	nodelay = 0;
+  	ret = pico_socket_setoption(sk_tcp, PICO_TCP_NODELAY, &nodelay);
+  }
 
   /* setoption/getoption */
   ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
