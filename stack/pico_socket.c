@@ -24,6 +24,10 @@ Authors: Daniele Lacamera
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
 
 
+#define PROTO(s) ((s)->proto->proto_number)
+#define PICO_SOCKET4_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
+#define PICO_SOCKET6_MTU 1460 /* Ethernet MTU(1500) - IP header size(40) */
+
 #ifdef PICO_SUPPORT_MUTEX
 static void * Mutex = NULL;
 #define LOCK(x) {\
@@ -972,6 +976,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 {
   struct pico_frame *f;
   struct pico_remote_duple *remote_duple = NULL;
+  int socket_mtu = PICO_SOCKET4_MTU;
   int header_offset = 0;
   int total_payload_written = 0;
 #ifdef PICO_SUPPORT_IPV4
@@ -1007,6 +1012,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s)) {
+    #ifdef PICO_SUPPORT_IPV4
+    socket_mtu = PICO_SOCKET4_MTU;
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
       if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr ) {
         pico_err = PICO_ERR_EADDRNOTAVAIL;
@@ -1029,11 +1036,10 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       }
 #     endif
     }
-  }
-#endif
-
-#ifdef PICO_SUPPORT_IPV6
-  if (IS_SOCK_IPV6(s)) {
+    #endif
+  } else if (IS_SOCK_IPV6(s)) {
+    socket_mtu = PICO_SOCKET6_MTU;
+    #ifdef PICO_SUPPORT_IPV6
     if (s->state & PICO_SOCKET_STATE_CONNECTED) {
       if (memcmp(&s->remote_addr, dst, PICO_SIZE_IP6))
         return -1;
@@ -1079,9 +1085,9 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
   while (total_payload_written < len) {
     int transport_len = (len - total_payload_written) + header_offset; 
-    if (transport_len > PICO_SOCKET_MTU)
-      transport_len = PICO_SOCKET_MTU;
-#ifdef PICO_SUPPORT_IPFRAG
+    if (transport_len > socket_mtu)
+      transport_len = socket_mtu;
+    #ifdef PICO_SUPPORT_IPFRAG
     else {
       if (total_payload_written)
         transport_len -= header_offset; /* last fragment, do not allocate memory for transport header */
@@ -1101,9 +1107,9 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       memcpy(f->info, remote_duple, sizeof(struct pico_remote_duple));
     }
 
-#ifdef PICO_SUPPORT_IPFRAG
-#  ifdef PICO_SUPPORT_UDP
-    if (PROTO(s) == PICO_PROTO_UDP && ((len + header_offset) > PICO_SOCKET_MTU)) {
+    #ifdef PICO_SUPPORT_IPFRAG
+    #ifdef PICO_SUPPORT_UDP
+    if (PROTO(s) == PICO_PROTO_UDP && ((len + header_offset) > socket_mtu)) {
       /* hacking way to identify fragmentation frames: payload != transport_hdr -> first frame */
       if (!total_payload_written) {
         frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
