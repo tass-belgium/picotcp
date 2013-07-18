@@ -1012,7 +1012,6 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s)) {
-    #ifdef PICO_SUPPORT_IPV4
     socket_mtu = PICO_SOCKET4_MTU;
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
       if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr ) {
@@ -1059,8 +1058,8 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
       }
 #     endif
     }
-  }
 #endif
+  }
 
   if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
     s->local_port = pico_socket_high_port(s->proto->proto_number);
