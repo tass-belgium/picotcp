@@ -43,6 +43,10 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
 
 #ifdef PICO_SUPPORT_TCP
+#define tcp_dbg_nagle(...) do{}while(0)
+#define tcp_dbg_options(...) do{}while(0)
+
+
 #define tcp_dbg(...) do{}while(0)
 //#define tcp_dbg dbg
 
@@ -530,23 +534,23 @@ static void tcp_parse_options(struct pico_frame *f)
       len = 1;
     if (f->payload && ((opt + i) > f->payload))
       break;
-    tcp_dbg("Received option '%d', len = %d \n", type, len);
+    tcp_dbg_options("Received option '%d', len = %d \n", type, len);
     switch (type) {
       case PICO_TCP_OPTION_NOOP:
       case PICO_TCP_OPTION_END:
         break;
       case PICO_TCP_OPTION_WS:
         if (len != PICO_TCPOPTLEN_WS) {
-          tcp_dbg("TCP Window scale: bad len received (%d).\n", len);
+          tcp_dbg_options("TCP Window scale: bad len received (%d).\n", len);
           i += len - 2;
           break;
         }
         t->recv_wnd_scale = opt[i++];
-        tcp_dbg("TCP Window scale: received %d\n", t->recv_wnd_scale);
+        tcp_dbg_options("TCP Window scale: received %d\n", t->recv_wnd_scale);
         break;
       case PICO_TCP_OPTION_SACK_OK:
         if (len != PICO_TCPOPTLEN_SACK_OK) {
-          tcp_dbg("TCP option sack: bad len received.\n");
+          tcp_dbg_options("TCP option sack: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -555,7 +559,7 @@ static void tcp_parse_options(struct pico_frame *f)
       case PICO_TCP_OPTION_MSS: {
         uint16_t mss;
         if (len != PICO_TCPOPTLEN_MSS) {
-          tcp_dbg("TCP option mss: bad len received.\n");
+          tcp_dbg_options("TCP option mss: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -569,7 +573,7 @@ static void tcp_parse_options(struct pico_frame *f)
       case PICO_TCP_OPTION_TIMESTAMP: {
         uint32_t tsval, tsecr;
         if (len != PICO_TCPOPTLEN_TIMESTAMP) {
-          tcp_dbg("TCP option timestamp: bad len received.\n");
+          tcp_dbg_options("TCP option timestamp: bad len received.\n");
           i += len - 2;
           break;
         }
@@ -579,7 +583,6 @@ static void tcp_parse_options(struct pico_frame *f)
         tsecr = long_from(opt + i);
         f->timestamp = long_be(tsecr);
         i += sizeof(uint32_t);
-
         t->ts_nxt = long_be(tsval);
         break;
       }
@@ -590,7 +593,7 @@ static void tcp_parse_options(struct pico_frame *f)
         break;
       }
       default:
-        tcp_dbg("TCP: received unsupported option %u\n", type);
+        tcp_dbg_options("TCP: received unsupported option %u\n", type);
         i += len - 2;
     }
   }
@@ -1135,7 +1138,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
         t->sock.ev_pending |= PICO_SOCK_EV_RD;
         t->rcv_nxt = SEQN(f) + f->payload_len;
       } else {
-        tcp_dbg("TCP> lo segment. Possible retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
+        tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       }
     } else {
       tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
@@ -1210,7 +1213,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
     /* Finally, assign a new value for the RTO, as specified in the RFC, with K=4 */
     t->rto = t->avg_rtt + (t->rttvar << 2);
   }
-  tcp_dbg(" -----=============== RTT AVG: %u RTTVAR: %u RTO: %u ======================----\n", t->avg_rtt, t->rttvar, t->rto);
+  tcp_dbg(" -----=============== RTT CUR: %u AVG: %u RTTVAR: %u RTO: %u ======================----\n", rtt, t->avg_rtt, t->rttvar, t->rto);
 }
 
 static void tcp_congestion_control(struct pico_socket_tcp *t)
@@ -1515,13 +1518,13 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   /* if Nagle enabled, check if no unack'ed data and fill out queue (till window) */
   if (IS_NAGLE_ENABLED((&(t->sock)))) {
     while (!IS_TCP_HOLDQ_EMPTY(t) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= PICO_TCP_DEFAULT_MSS)) {
-      tcp_dbg("TCP_ACK - NAGLE add new segment\n");
+      tcp_dbg_nagle("TCP_ACK - NAGLE add new segment\n");
       f_new = pico_hold_segment_make(t);
       if (f_new == NULL)
         break;            /* XXX corrupt !!! (or no memory) */
       if (pico_enqueue_segment(&t->tcpq_out,f_new) <= 0)
         // handle error
-        tcp_dbg("TCP_ACK - NAGLE FAILED to enqueue in out\n");
+        tcp_dbg_nagle("TCP_ACK - NAGLE FAILED to enqueue in out\n");
     }
   }
 
@@ -2118,7 +2121,7 @@ static struct pico_frame * pico_hold_segment_make(struct pico_socket_tcp *t)
 
   hdr->len = (f_new->payload - f_new->transport_hdr) << 2 | t->jumbo;
 
-  tcp_dbg("NAGLE make - joined %d segments, len %d bytes\n",test,total_payload_len);
+  tcp_dbg_nagle("NAGLE make - joined %d segments, len %d bytes\n",test,total_payload_len);
 
   return f_new;
 }
@@ -2145,7 +2148,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   if (!IS_NAGLE_ENABLED((&(t->sock)))) {
     /* TCP_NODELAY enabled, original behavior */
     if (pico_enqueue_segment(&t->tcpq_out,f) > 0) {
-      tcp_dbg("TCP_PUSH - NO NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
+      tcp_dbg_nagle("TCP_PUSH - NO NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
       t->snd_last += f->payload_len;
       return f->payload_len;
     } else {
@@ -2158,7 +2161,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
     /* Nagle's algorithm enabled, check if ready to send, or put frame in hold queue */
     if (IS_TCP_IDLE(t) && IS_TCP_HOLDQ_EMPTY(t)) {  /* opt 1. send frame */
       if (pico_enqueue_segment(&t->tcpq_out,f) > 0) {
-        tcp_dbg("TCP_PUSH - NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
+        tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
         t->snd_last += f->payload_len;
         return f->payload_len;
       } else {
@@ -2171,28 +2174,28 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
         /* IF enough data in hold (>mss) AND space in out queue (>mss) */
         /* add current frame in hold and make new segment */
         if (pico_enqueue_segment(&t->tcpq_hold,f) > 0 ) {
-          tcp_dbg("TCP_PUSH - NAGLE - Pushed into hold, make new (enqueued frames out %d)\n",t->tcpq_out.frames);
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold, make new (enqueued frames out %d)\n",t->tcpq_out.frames);
           t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           f_new = pico_hold_segment_make(t);
         } else {
-          tcp_dbg("TCP_PUSH - NAGLE - enqueue hold failed 1\n");
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 1\n");
           return 0;
         }
         /* and put new frame in out queue */
         if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out,f_new) > 0)) {
           return f_new->payload_len;
         } else {
-          tcp_dbg("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n",f_new);
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n",f_new);
           return -1;                        /* XXX something seriously wrong */
         }
       } else {
         /* ELSE put frame in hold queue */
         if (pico_enqueue_segment(&t->tcpq_hold,f) > 0) {
-          tcp_dbg("TCP_PUSH - NAGLE - Pushed into hold (enqueued frames out %d)\n",t->tcpq_out.frames);
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold (enqueued frames out %d)\n",t->tcpq_out.frames);
           t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           return f->payload_len;
         } else {
-          tcp_dbg("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
           return 0;
         }
       }
