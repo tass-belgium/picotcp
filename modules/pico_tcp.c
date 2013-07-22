@@ -525,6 +525,7 @@ static void tcp_parse_options(struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   uint8_t *opt = f->transport_hdr + PICO_SIZE_TCPHDR;
   int i = 0;
+  f->timestamp = 0;
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
     uint8_t len;
@@ -1438,10 +1439,16 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     t->backoff = 0;
 
     /* Do rtt/rttvar/rto calculations */
-    if(una && (una->timestamp != 0)) {
-      rtt = time_diff(pico_tick, una->timestamp);
+    /* First, try with timestamps, using the value from options */
+    if(f && (f->timestamp != 0)) {
+      rtt = time_diff(pico_tick, f->timestamp);
       if (rtt)
         tcp_rtt(t, rtt);
+    } else if(una && (una->timestamp != 0)) {
+      /* If no timestamps are there, use conservatve estimation on the una */
+        rtt = time_diff(pico_tick, una->timestamp);
+        if (rtt)
+          tcp_rtt(t, rtt);
     }
 
     tcp_dbg("TCP ACK> FRESH ACK %08x (acked %d) Queue size: %u/%u frames: %u cwnd: %u in_flight: %u snd_una: %u\n", ACKN(f), acked, t->tcpq_out.size, t->tcpq_out.max_size, t->tcpq_out.frames, t->cwnd, t->in_flight, SEQN(una));
