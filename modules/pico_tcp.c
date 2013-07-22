@@ -1223,6 +1223,8 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
     return;
   if (t->cwnd > t->tcpq_out.frames) {
     tcp_dbg("Limited by app: %d\n", t->cwnd);
+    if (t->sock.wakeup)
+      t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
     return;
   }
   tcp_dbg("Doing congestion control\n");
