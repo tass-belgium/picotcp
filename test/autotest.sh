@@ -34,7 +34,7 @@ echo "NAT UDP TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic1.ctl:10.50.0.8:255.255.0.0: -a udpecho:10.50.0.8:6667) &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0:10.40.0.10: -a udpclient:10.50.0.8:6667:6667:1400:100:10 || exit 1
 #sometimes udpecho finishes before reaching wait %2
-wait %2
+#wait %2
 
 killall picoapp.elf
 
