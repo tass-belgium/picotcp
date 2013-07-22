@@ -124,19 +124,22 @@ uint16_t pico_checksum(void *inbuf, int len)
 {
   uint8_t *buf = (uint8_t *) inbuf;
   uint16_t tmp = 0;
-  uint32_t sum = 0, carry=0;
-  int i=0;
-  for(i=0; i<len; i++){
-    if (i%2){
-      sum+=buf[i];
-    }else{
+  uint32_t sum = 0;
+  int i = 0;
+
+  for(i=0; i < len; i++) {
+    if (i%2) {
+      sum += buf[i];
+    } else {
       tmp = buf[i];
-      sum+=( tmp << 8);
+      sum += (tmp << 8);
     }
   }
-  carry = (sum&0xFFFF0000) >>16;
-  sum = (sum&0x0000FFFF);
-  return (uint16_t) ~(sum + carry)  ;
+
+  while (sum >> 16) { /* a second carry is possible! */
+    sum = (sum & 0x0000FFFF) + (sum >> 16);
+  } 
+  return (uint16_t) (~sum);
 }
 
 uint16_t pico_dualbuffer_checksum(void *inbuf1, int len1, void *inbuf2, int len2)
@@ -144,30 +147,33 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, int len1, void *inbuf2, int len2
   uint8_t *b1 = (uint8_t *) inbuf1;
   uint8_t *b2 = (uint8_t *) inbuf2;
   uint16_t tmp = 0;
-  uint32_t sum = 0, carry=0;
-  int i=0, j=0;
-  for(i=0; i<len1; i++){
-    if (j%2){
-      sum+=b1[i];
-    }else{
+  uint32_t sum = 0;
+  int i = 0, j = 0;
+
+  for(i=0; i < len1; i++) {
+    if (j%2) {
+      sum += b1[i];
+    } else {
       tmp = b1[i];
-      sum+=( tmp << 8);
+      sum += (tmp << 8);
     }
     j++;
   }
 
-  for(i=0; i<len2; i++){
-    if (j%2){
-      sum+=b2[i];
-    }else{
+  j = 0; /* j has to be reset if len1 is odd */
+  for(i=0; i < len2; i++) {
+    if (j%2) {
+      sum += b2[i];
+    } else {
       tmp = b2[i];
-      sum+=( tmp << 8);
+      sum += (tmp << 8);
     }
     j++;
   }
-  carry = (sum&0xFFFF0000) >>16;
-  sum = (sum&0x0000FFFF);
-  return (uint16_t) (~(sum + carry))  ;
+  while (sum >> 16) { /* a second carry is possible! */
+    sum = (sum & 0x0000FFFF) + (sum >> 16);
+  } 
+  return (uint16_t) (~sum);
 }
 
 uint16_t pico_dualbuffer_checksum_broken(void *inbuf1, int len1, void *inbuf2, int len2)
