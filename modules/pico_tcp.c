@@ -2020,7 +2020,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       if (t->x_mode != PICO_TCP_WINDOW_FULL) {
         tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n",t->recv_wnd << t->recv_wnd_scale, f->payload_len);
         tcp_dbg("In window full...\n");
-        //t->snd_nxt = SEQN(una);   /* XXX prevent out-of-order-packets ! */
+        t->snd_nxt = SEQN(una);   /* XXX prevent out-of-order-packets ! */ /*DLA re-enabled.*/
         t->snd_retry = SEQN(una);   /* XXX replace by retry pointer? */
 
         /* Alternative to the line above:  (better performance, but seems to lock anyway with larger buffers)
@@ -2052,9 +2052,11 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
   if (sent > 0) {
     if (t->rto < PICO_TCP_RTO_MIN)
       t->rto = PICO_TCP_RTO_MIN;
+    if (s->wakeup)
+      t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
     add_retransmission_timer(t, pico_tick + t->rto);
   } else {
-    // no packets in queue ??
+    /* Nothing to transmit. */
   }
 
   if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
