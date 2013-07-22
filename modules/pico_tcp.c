@@ -1119,16 +1119,16 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     tcp_parse_options(f);
     f->payload = f->transport_hdr + ((hdr->len & 0xf0) >>2);
     f->payload_len = f->transport_len - ((hdr->len & 0xf0) >>2);
+    tcp_dbg("TCP> Received segment. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
 
-    if (seq_compare(SEQN(f), t->rcv_nxt) >= 0) {
-      struct pico_frame *cpy = pico_frame_copy(f);
+    if (seq_compare(SEQN(f), t->rcv_nxt) <= 0) {
       struct pico_frame *nxt;
-      /* Enqueue: try to put into RCV buffer */
-      if (pico_enqueue_segment(&t->tcpq_in, cpy) <= 0) {
-        pico_frame_discard(cpy);
-        return -1;
-      }
       if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
+        struct pico_frame *cpy = pico_frame_copy(f);
+        /* Enqueue: try to put into RCV buffer */
+        if(pico_enqueue_segment(&t->tcpq_in, cpy) <= 0) {
+          pico_frame_discard(cpy);
+        }
         t->rcv_nxt = SEQN(f) + f->payload_len;
         nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         while(nxt) {
@@ -1336,7 +1336,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
     tcp_add_options(t, f, 0, f->transport_len - f->payload_len - PICO_SIZE_TCPHDR);
     hdr->rwnd = short_be(t->wnd);
     hdr->flags |= PICO_TCP_PSH;
-    //hdr->ack = long_be(t->rcv_nxt);  /* XXX TODO check: setting ack field with no ACK flag ?? */
+    hdr->ack = long_be(t->rcv_nxt);
     hdr->crc = 0;
     hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
