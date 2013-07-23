@@ -2052,8 +2052,8 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
   if (sent > 0) {
     if (t->rto < PICO_TCP_RTO_MIN)
       t->rto = PICO_TCP_RTO_MIN;
-    if (s->wakeup)
-      t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
+    //if (s->wakeup)
+    //  t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
     add_retransmission_timer(t, pico_tick + t->rto);
   } else {
     /* Nothing to transmit. */
