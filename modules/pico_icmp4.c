@@ -47,6 +47,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
     /* outgoing frames require a f->len without the ethernet header len */
     if (f->dev->eth)
       f->len -= PICO_SIZE_ETHHDR;
+    pico_icmp4_checksum(f);
     pico_ipv4_rebound(f);
   } else if (hdr->type == PICO_ICMP_UNREACH) {
     f->net_hdr = f->transport_hdr + PICO_ICMPHDR_UN_SIZE;
