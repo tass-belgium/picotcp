@@ -44,14 +44,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
   struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
   if (hdr->type == PICO_ICMP_ECHO) {
     hdr->type = PICO_ICMP_ECHOREPLY;
-    /* Ugly, but the best way to get ICMP data size here. */
-    f->transport_len = f->buffer_len - PICO_SIZE_IP4HDR;
-    if (f->dev->eth)
-      f->transport_len -= PICO_SIZE_ETHHDR;
-    pico_icmp4_checksum(f);
-    f->net_hdr = f->transport_hdr - PICO_SIZE_IP4HDR;
-    f->start = f->net_hdr;
-    f->len = f->buffer_len;
+    /* outgoing frames require a f->len without the ethernet header len */
     if (f->dev->eth)
       f->len -= PICO_SIZE_ETHHDR;
     pico_ipv4_rebound(f);
