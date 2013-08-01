@@ -2003,7 +2003,7 @@ static void tcp_send_keepalive(unsigned long when, void *_t)
 void zombie_timer(unsigned long time, void *param)
 {
 	struct pico_socket_tcp * t = (struct pico_socket_tcp *)param;
-	if(pico_sockets_find(param))
+	if(pico_sockets_find(param) && ((t->sock.state & PICO_SOCKET_STATE_TCP ) == PICO_SOCKET_STATE_TCP_LAST_ACK) )
 	{
 		(t->sock).state &= 0x00FFU;
 		(t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
