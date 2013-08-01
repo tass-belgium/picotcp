@@ -2095,6 +2095,22 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   return ret;
 }
 
+int pico_sockets_find(struct pico_socket *s)
+{
+		struct pico_tree_node *index = NULL;
+		pico_tree_foreach(index,&TCPTable) // for each sockport
+		{
+			struct pico_tree_node *sp_index = NULL;
+			struct pico_sockport * sp = (struct pico_sockport *)index->keyValue;
+			pico_tree_foreach(sp_index,&sp->socks) // for each socket in sockport
+			{
+				if(sp_index->keyValue == s)
+					return 1;
+			}
+		}
+	return 0;
+}
+
 #define SL_LOOP_MIN 1
 
 
