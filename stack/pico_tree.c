@@ -345,7 +345,7 @@ static void fix_insert_collisions(struct pico_tree* tree, struct pico_tree_node*
 {
   struct pico_tree_node* temp;
 
-  while(node->parent->color == RED)
+  while(node->parent->color == RED && IS_NOT_LEAF(GRANPA(node)) )
   {
   	if(AM_I_RIGHT_CHILD(node->parent))
 	 {
