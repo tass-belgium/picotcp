@@ -2155,7 +2155,7 @@ int pico_sockets_loop(int loop_score)
   start = sp_tcp;
 
   while (loop_score > SL_LOOP_MIN && sp_tcp != NULL) {
-    struct pico_tree_node * index;
+    struct pico_tree_node * index = NULL;
     pico_tree_foreach(index, &sp_tcp->socks){
       s = index->keyValue;
       loop_score = pico_tcp_output(s, loop_score);
@@ -2169,7 +2169,7 @@ int pico_sockets_loop(int loop_score)
     }
 
     /* check if RB_FOREACH ended, if not, break to keep the cur sp_tcp */
-    if (s != NULL)
+    if (index && index->keyValue)
       break;
 
     index_tcp = pico_tree_next(index_tcp);
