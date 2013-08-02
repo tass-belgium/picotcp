@@ -519,9 +519,14 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     pico_enqueue(pico_proto_udp.q_in, f);
 #endif
   } else {
-    /* Packet is not local. Try to forward. */
-    if (pico_ipv4_forward(f) != 0) {
+    
+    if((pico_ipv4_is_broadcast(hdr->dst.addr)))
+    {
+      /* don't forward broadcast frame, discard! */
       pico_frame_discard(f);
+    } else if (pico_ipv4_forward(f) != 0) {
+        /* Packet is not local. Try to forward. */
+        pico_frame_discard(f);
     }
   }
   return 0;
