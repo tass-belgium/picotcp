@@ -16,6 +16,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #include "pico_queue.h"
 #include "pico_tree.h"
 
+#define TCP_STATE(s) (s->state & PICO_SOCKET_STATE_TCP)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
 #define ACKN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)):0)
@@ -1961,7 +1962,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
         action->ack(s,f);
       }
     }
-    if (f->payload_len > 0) {
+    if (f->payload_len > 0 && !(s->state & PICO_SOCKET_STATE_CLOSED)) {
       ret = f->payload_len;
       if (action->data)
         action->data(s,f);
