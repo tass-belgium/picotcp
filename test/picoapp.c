@@ -1959,7 +1959,7 @@ static char *cpy_arg(char **dst, char *str)
   char *end = start + strlen(start);
   p = str;
   while (p) {
-    if ((*p == ':') || (p == '\0')) {
+    if ((*p == ':') || (*p == '\0')) {
       *p = (char)0;
       nxt = p + 1;
       if ((*nxt == 0) || (nxt >= end))
