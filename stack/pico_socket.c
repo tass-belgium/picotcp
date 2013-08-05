@@ -516,6 +516,28 @@ static int pico_check_socket(struct pico_socket *s)
   return -1;
 }
 
+struct pico_socket* pico_sockets_find(uint16_t local,uint16_t remote)
+{
+	struct pico_socket * sock = NULL;
+	struct pico_tree_node *index = NULL;
+	struct pico_sockport *sp = NULL;
+
+	sp = pico_get_sockport(PICO_PROTO_TCP,local);
+	if(sp)
+	{
+		pico_tree_foreach(index,&sp->socks)
+		{
+			if( ((struct pico_socket *)index->keyValue)->remote_port == remote)
+			{
+				sock = (struct pico_socket *)index->keyValue;
+				break;
+			}
+		}
+	}
+
+	return sock;
+}
+
 
 int pico_socket_add(struct pico_socket *s)
 {
@@ -2093,22 +2115,6 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
   }
   pico_frame_discard(f);
   return ret;
-}
-
-int pico_sockets_find(struct pico_socket *s)
-{
-		struct pico_tree_node *index = NULL;
-		pico_tree_foreach(index,&TCPTable) // for each sockport
-		{
-			struct pico_tree_node *sp_index = NULL;
-			struct pico_sockport * sp = (struct pico_sockport *)index->keyValue;
-			pico_tree_foreach(sp_index,&sp->socks) // for each socket in sockport
-			{
-				if(sp_index->keyValue == s)
-					return 1;
-			}
-		}
-	return 0;
 }
 
 #define SL_LOOP_MIN 1
