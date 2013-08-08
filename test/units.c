@@ -131,7 +131,6 @@ START_TEST (test_nat_enable_disable)
 	struct pico_ipv4_link l = {.address={.addr=long_be(0x0a280010)}};
 	struct pico_frame frame = {0};
 	struct pico_frame* f = &frame;
-	struct pico_ip4 nat_addr = {.addr = long_be(0x01234567)};
 
 	uint8_t buffer1[] = {0x45, 0x00, 0x00, 0x20,  0x91, 0xc0, 0x40, 0x00,
 											 0x40, 0x11, 0x94, 0xb4,  0x0a, 0x28, 0x00, 0x05,
@@ -147,31 +146,26 @@ START_TEST (test_nat_enable_disable)
 	pico_stack_init();
 	fail_if(pico_ipv4_nat_enable(&l));
 	//check if nat is properly enabled...
-	fail_unless(enable_nat_flag);
-	fail_unless(pub_link.address.addr == long_be(0x0a280010));
+	fail_unless(nat_link->address.addr == long_be(0x0a280010));
 
-	fail_if(pico_ipv4_nat_isenabled_out(&l));
+	fail_if(pico_ipv4_nat_is_enabled(&l.address));
 
 
 	f->net_hdr = buffer1;
 	f->transport_hdr = buffer1+20;
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_inbound(f, &((struct pico_ipv4_hdr *)f->net_hdr)->dst));
 
 	memcpy(buffer4+22, buffer1+20, 2); // putting in the right destination port
 
 	f->net_hdr = buffer4;
 	f->transport_hdr = buffer4+20;
 
-	fail_if(pico_ipv4_nat_isenabled_in(f));
-
 	//disable nat
 	fail_if(pico_ipv4_nat_disable());
 
 	//check if it is properly disabled
-	fail_if(enable_nat_flag);
-	fail_unless(pico_ipv4_nat_isenabled_out(&l));
-	fail_unless(pico_ipv4_nat_isenabled_in(f));
+	fail_unless(pico_ipv4_nat_is_enabled(&l.address));
 }
 END_TEST
 
@@ -242,7 +236,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
 
@@ -256,7 +250,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	fail_if(memcmp(buffer1+12, &nat_addr, 4), "source address not translated"); //source address
 	fail_if(memcmp(buffer1+20, buffer2+20, 4), "two frames with same sport/dport don't get translated the same");
@@ -273,7 +267,7 @@ START_TEST (test_nat_translation)
 	//have it translated from in to out
 	printf("IPV4_NAT called, line %d \n",  __LINE__);
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 	printf("IPV4_NAT returned, line %d \n",  __LINE__);
 
 	printf("after translation : \n");
@@ -292,7 +286,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
@@ -312,7 +306,7 @@ START_TEST (test_nat_translation)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
@@ -329,7 +323,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	fail_if(memcmp(buffer6+12, &nat_addr, 4), "source address not translated"); //source address
 	fail_unless(memcmp(buffer6+20, buffer1+20, 2), "ports from different source IP translated the same");
@@ -348,7 +342,7 @@ START_TEST (test_nat_translation)
 	nat_print_frame_content(f);
 	//have it translated from in to out
   pico_rand_feed(1);
-	fail_if(pico_ipv4_nat(f, nat_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 
 	printf("after translation : \n");
 	nat_print_frame_content(f);
@@ -383,7 +377,7 @@ START_TEST (test_nat_port_forwarding)
   printf("*********************** starting %s * \n", __func__);
 
 	//add port forwarding
-	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_ADD));
+	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_NAT_PORT_FORWARD_ADD));
 
 	//nat_print_frame_content(f);
 
@@ -394,7 +388,7 @@ START_TEST (test_nat_port_forwarding)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
-	fail_if(pico_ipv4_nat(f, public_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
@@ -410,7 +404,7 @@ START_TEST (test_nat_port_forwarding)
 	printf("original packet : \n");
 	nat_print_frame_content(f);
 	//have it translated from in to out
-	fail_if(pico_ipv4_nat(f, public_addr));
+	fail_if(pico_ipv4_nat_outbound(f, &nat_link->address));
 	printf("after translation : \n");
 	nat_print_frame_content(f);
 
@@ -418,7 +412,7 @@ START_TEST (test_nat_port_forwarding)
 	fail_if((memcmp(buffer2+22, &private_port, 2)) != 0,"port forwarding didn't translate port");
 
 	//remove port forwarding
-	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_IPV4_FORWARD_DEL));
+	fail_if(pico_ipv4_port_forward(public_addr, public_port, private_addr, private_port, 17, PICO_NAT_PORT_FORWARD_DEL));
 }
 END_TEST
 

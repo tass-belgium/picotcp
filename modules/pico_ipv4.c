@@ -505,14 +505,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     }
 #endif
   } else if (pico_ipv4_link_find(&hdr->dst)) {
-   if (pico_ipv4_nat_isenabled_in(f) == 0) {  /* if NAT enabled (dst port registerd), do NAT */
-      if(pico_ipv4_nat(f, hdr->dst) != 0) {
-        return -1;
-      }
-      pico_ipv4_forward(f); /* Local packet became forward packet after NAT */
-    } else {                              /* no NAT so enqueue to next layer */
+    if (pico_ipv4_nat_inbound(f, &hdr->dst) == 0)
+      pico_enqueue(pico_proto_ipv4.q_in, f); /* dst changed, reprocess */
+    else 
       pico_transport_receive(f, hdr->proto);
-    }
   } else if (pico_tree_findKey(&Tree_dev_link, &test)){
 #ifdef PICO_SUPPORT_UDP
     //address of this device is apparently 0.0.0.0; might be a DHCP packet
@@ -1366,13 +1362,12 @@ static int pico_ipv4_forward(struct pico_frame *f)
     return -1;
   }
 
-  //dbg("IP> FORWARDING.\n");
   rt = route_find(&hdr->dst);
   if (!rt) {
     pico_notify_dest_unreachable(f);
     return -1;
   }
-  //dbg("ROUTE: valid..\n");
+
   f->dev = rt->link->dev;
   hdr->ttl-=1;
   if (hdr->ttl < 1) {
@@ -1381,11 +1376,8 @@ static int pico_ipv4_forward(struct pico_frame *f)
   }
   hdr->crc++;
 
-  /* check if NAT enbled on link and do NAT if so */
-  if (pico_ipv4_nat_isenabled_out(rt->link) == 0)
-    pico_ipv4_nat(f, rt->link->address);
+  pico_ipv4_nat_outbound(f, &rt->link->address);
 
-  //dbg("Routing towards %s\n", f->dev->name);
   f->start = f->net_hdr;
   if(f->dev->eth != NULL)
     f->len -= PICO_SIZE_ETHHDR;

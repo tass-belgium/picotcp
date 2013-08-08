@@ -461,7 +461,7 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 
   /* IPv4 */
 #ifdef PICO_SUPPORT_NAT
-  if (pico_ipv4_nat_find(port,NULL, 0,proto) == 0) {
+  if (pico_ipv4_nat_find(port, NULL, 0, proto)) {
     dbg("In use by nat....\n");
     return 0;
   }
