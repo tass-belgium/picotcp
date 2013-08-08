@@ -66,7 +66,7 @@ endif
 
 
 ifeq ($(ARCH),pic24)
-  CFLAGS+=-c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
+  CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
   -mlarge-code -mlarge-data -O0 -msmart-io=1 -msfr-warn=off
 endif
 
