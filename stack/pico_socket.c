@@ -2016,7 +2016,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     if (mode & PICO_SHUT_RDWR)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_CLOSED, PICO_SOCKET_STATE_CLOSING |PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED, 0);
     else if (mode & PICO_SHUT_RD)
-      pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+      pico_socket_alter_state(s, 0, PICO_SOCKET_STATE_BOUND, 0);
   }
 #endif
 #ifdef PICO_SUPPORT_TCP
