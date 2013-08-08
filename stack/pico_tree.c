@@ -7,6 +7,7 @@ Author: Andrei Carp <andrei.carp@tass.be>
 
 #include "pico_tree.h"
 #include "pico_config.h"
+#include "pico_protocol.h"
 
 #define RED 	0
 #define BLACK 1
@@ -110,7 +111,15 @@ void * pico_tree_insert(struct pico_tree* tree, void * key){
   if(LocalKey)
   	return LocalKey;
   else
+  {
   	insert = create_node(tree,key);
+  	if(!insert)
+  	{
+  		pico_err = PICO_ERR_ENOMEM;
+  		// to let the user know that it couldn't insert
+  		return (void *)&LEAF;
+  	}
+  }
 
   // search for the place to insert the new node
   while(IS_NOT_LEAF(temp))
