@@ -447,7 +447,7 @@ int zmq_recv(ZMQ z, char *txt)
     ret = pico_socket_read(c->sock, &msg, 2);
     if (ret < 0) {
       dbg("Error reading!\n");
-      zmq_connector_del(z);
+      zmq_connector_del(c);
     } else if (ret < 2) {
       c->state = ST_BUSY;
     } else {

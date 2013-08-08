@@ -64,6 +64,12 @@ ifeq ($(ARCH),lpc)
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
 endif
 
+
+ifeq ($(ARCH),pic24)
+  CFLAGS+=-c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
+  -mlarge-code -mlarge-data -O0 -msmart-io=1 -msfr-warn=off
+endif
+
 .c.o:
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<

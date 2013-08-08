@@ -1,18 +1,63 @@
 #ifndef PICO_SUPPORT_PIC24
 #define PICO_SUPPORT_PIC24
-#define dbg(...) do{}while(0)
+#define dbg printf
+//#define dbg(...)
 
 /*************************/
 
 /*** MACHINE CONFIGURATION ***/
-//#include <string.h>
-//#include <stdio.h>
+#include <stdio.h>
+#include <stdint.h>
 
-#include "phalox_development_board.h"
+//#include "phalox_development_board.h"
+
+#ifndef __PIC24F__
+#define __PIC24F__
+#endif
+
+#ifndef __PIC24FJ256GA106__
+#define __PIC24FJ256GA106__
+#endif
+
+#ifndef PICO_SUPPORT_PING
+#define PICO_SUPPORT_PING
+#endif
+
+#ifndef PICO_SUPPORT_IPV4
+#define PICO_SUPPORT_IPV4
+#endif
+
+#ifndef PICO_SUPPORT_DHCP
+#define PICO_SUPPORT_DHCP
+#endif
+
+#ifndef PICO_SUPPORT_TCP
+#define PICO_SUPPORT_TCP
+#endif
+
+#ifndef PICO_SUPPORT_ZMQ
+#define PICO_SUPPORT_ZMQ
+#endif
+
+#ifndef PICO_SUPPORT_ICMP4
+#define PICO_SUPPORT_ICMP4
+#endif
+
+/* Device header file */
+#if defined(__PIC24E__)
+# include <p24Exxxx.h>
+#elif defined(__PIC24F__)
+# include <p24Fxxxx.h>
+#elif defined(__PIC24H__)
+# include <p24Hxxxx.h>
+#endif
+
+#define TIMBASE_INT_E         IEC0bits.T2IE
 
 #define pico_zalloc(x) calloc(x, 1)
 #define pico_free(x) free(x)
 
+extern void * pvPortMalloc( size_t xWantedSize );
 extern volatile unsigned long __pic24_tick;
 
 static inline unsigned long PICO_TIME(void)
