@@ -43,6 +43,7 @@ struct zmq_connector {
   enum zmq_state state;
   ZMQ parent;
   enum zmq_role role;
+  uint8_t bytes_received;
   struct zmq_connector *next;
 };
 
@@ -102,13 +103,13 @@ static void zmq_connector_del(struct zmq_connector *zc)
 {
   ZMQ z = zc->parent;
   if(z) {
-    struct zmq_connector *el = z->subs, *prev = NULL;
+    struct zmq_connector *el = z->subs, *prev = NULL;      /* el = pointer to linked list */
     while(el) {
-      if (el == zc) {
-        if (prev)
-          prev->next = zc->next;
+      if (el == zc) {               /* did we find the connector that we want to delete? */
+        if (prev)                   /* was there a previous list item? */
+          prev->next = zc->next;    /* link the linked list again */
         else
-          z->subs = zc->next;;
+          z->subs = zc->next;       /* we were at the beginning of the list */
         break;
       }
       prev = el;
@@ -145,44 +146,50 @@ static void zmq_check_state(ZMQ z)
 
 static void zmq_hs_connected(struct zmq_connector *z)
 {
-  uint8_t my_ver[2] = {MY_VERSION, 0};
-  uint8_t my_signature[10] =  {0xff, 0, 0, 0, 0, 0, 0, 0, 1, 0x7f};
-  uint8_t my_greeting[52] = {'N','U','L','L', 0};
-  pico_socket_write(z->sock, my_signature, 10);
-  pico_socket_write(z->sock, my_ver, 2);
-  if (MY_VERSION > 2)
-    pico_socket_write(z->sock, my_greeting, 52);
+  /* v2 signature */
+  uint8_t my_signature[14] =  {0xff, 0, 0, 0, 0, 0, 0, 0, 1, 0x7f, 1, 1, 0, 0};
+
+//  uint8_t my_ver[2] = {MY_VERSION, 0};
+//  uint8_t my_greeting[52] = {'N','U','L','L', 0};
+
+  pico_socket_write(z->sock, my_signature, 14);
+//  pico_socket_write(z->sock, my_ver, 2);
+
+//  if (MY_VERSION > 2)
+//    pico_socket_write(z->sock, my_greeting, 52);
+
   z->state = ST_SIGNATURE;
+//  z->state = ST_RDY;
 }
  
-static void zmq_hs_signature(struct zmq_connector *z)
+static void zmq_hs_signature(struct zmq_connector *zc)
 {
   uint8_t incoming[20];
   int ret;
   
-  ret = pico_socket_read(z->sock, incoming, 10);
-  if (ret < 10) {
-    dbg("Received invalid signature\n");
-    zmq_connector_del(z);
+  ret = pico_socket_read(zc->sock, incoming, 14);
+  if (zc->bytes_received == 0 && ret > 0 &&  incoming[0] != 0xFF) {
+    //dbg("Received invalid signature: [0]!=0xFF\n");
+    zmq_connector_del(zc);
+  }
+  zc->bytes_received += ret;
+  if (zc->bytes_received < 14) {
+    //dbg("Waiting for the rest of the sig - got %u bytes\n",zc->bytes_received);
     return;
   }
-  if (incoming[0] != 0xFF) {
-    dbg("Received invalid signature\n");
-    zmq_connector_del(z);
-    return;
-  }
-  dbg("Valid signature received. len = %d, first byte: %02x\n", ret, incoming[0]);
-  z->state = ST_VERSION;
+
+  //dbg("Valid signature received. len = %d, first byte: %02x\n", ret, incoming[0]);
+  zc->state = ST_RDY;
 }
  
-static void zmq_hs_version(struct zmq_connector *z)
+static void zmq_hs_version(struct zmq_connector *zc)
 {
   uint8_t incoming[20];
   int ret;
-  ret = pico_socket_read(z->sock, incoming, 2);
+  ret = pico_socket_read(zc->sock, incoming, 2);
   if (ret < 0) {
     dbg("Cannot exchange valid version information. Read returned -1\n");
-    zmq_connector_del(z);
+    zmq_connector_del(zc);
     return;
   }
   if (ret == 0)
@@ -190,55 +197,55 @@ static void zmq_hs_version(struct zmq_connector *z)
 /* Version check?    
   if (incoming[0] != 3) {
     dbg("Version %d.x not supported by this publisher\n", incoming[0]);
-    zmq_connector_del(z);
+    zmq_connector_del(zc);
     return;
   }
   dbg("Subscriber is using version 3. Good!\n");
 */
   dbg("Subscriber is using version %d. Good!\n", incoming[0]);
   if (incoming[0] == 3)
-    z->state = ST_GREETING;
+    zc->state = ST_GREETING;
   else
-    z->state = ST_RDY;
+    zc->state = ST_RDY;
 }
  
-static void zmq_hs_greeting(struct zmq_connector *z)
+static void zmq_hs_greeting(struct zmq_connector *zc)
 {
   uint8_t incoming[64];
   int ret;
-  ret = pico_socket_read(z->sock, incoming, 64);
+  ret = pico_socket_read(zc->sock, incoming, 64);
   dbg("zmq_socket_read in greeting returned %d\n", ret);    
   if (ret == 0)
    return;  
   if (ret < 0) {
     dbg("Cannot retrieve valid greeting\n");
-    zmq_connector_del(z);
+    zmq_connector_del(zc);
     return;
   }
-  z->state = ST_RDY;
-  zmq_check_state(z->parent);
+  zc->state = ST_RDY;
+  zmq_check_state(zc->parent);
   dbg("Paired. Sending Ready.\n");
-  pico_socket_write(z->sock, "READY   ",8);
+  pico_socket_write(zc->sock, "READY   ",8);
 }
 
-static void zmq_hs_rdy(struct zmq_connector *z)
+static void zmq_hs_rdy(struct zmq_connector *zc)
 {
     int ret;
     uint8_t incoming[258];
-    if (z->role == ROLE_SUBSCRIBER)
+    if (zc->role == ROLE_SUBSCRIBER)
       return;
-    ret = pico_socket_read(z->sock, incoming, 258);
+    ret = pico_socket_read(zc->sock, incoming, 258);
     dbg("Got %d bytes from subscriber whilst in rdy state.\n", ret);
 }
 
-static void zmq_hs_busy(struct zmq_connector *z)
+static void zmq_hs_busy(struct zmq_connector *zc)
 {
   int was_busy = 0;
-  if (z->parent->state == ST_BUSY)
+  if (zc->parent->state == ST_BUSY)
     was_busy = 1;
-  zmq_check_state(z->parent);
-  if (was_busy && (z->parent->state == ST_RDY) && z->parent->ready)
-    z->parent->ready(z->parent);
+  zmq_check_state(zc->parent);
+  if (was_busy && (zc->parent->state == ST_RDY) && zc->parent->ready)
+    zc->parent->ready(zc->parent);
 }
  
 static void(*zmq_hs_cb[])(struct zmq_connector *) = {
@@ -269,9 +276,9 @@ static void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
       
       z_a->sock = pico_socket_accept(s, &orig, &port);
       pico_ipv4_to_string(peer, orig.addr);
-      dbg("tcp0mq> Connection requested by %s:%d.\n", peer, short_be(port));
+      dbg("tcp0mq> Connection requested by %s:%u.\n", peer, short_be(port));
       if (z->state == ST_OPEN) {
-          dbg("tcp0mq> Accepted connection! New subscriber.\n");
+          dbg("tcp0mq> Accepted connection! New subscriber on sock %p.\n",z_a->sock);
           zmq_connector_add(z, z_a);
           z_a->role = ROLE_PUBLISHER;
           z_a->state = ST_CONNECTED;
@@ -286,7 +293,8 @@ static void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
 
   zc = find_subscriber(s);
   if (!zc) {
-    dbg("Cannot find subscriber!\n");
+    dbg("Cannot find subscriber with socket %p, ev = %d!\n", s, ev);
+//    pico_socket_close(s);
     return;
   }
 
@@ -408,13 +416,17 @@ int zmq_send(ZMQ z, char *txt, int len)
     int ret = 0;
 
     if (!c) 
-      return 0; /* Need at least one subscriber */
+    {
+        dbg("no subscribers, bailing out\n");
+        return 0; /* Need at least one subscriber */
+    }
     msg = pico_zalloc(len + 2);
     msg->flags = 4;
     msg->len = (uint8_t) len;
     memcpy(msg->txt, txt, len);
 
     while (c) {
+      dbg("write to %u\n",c->state);
       if ((ST_RDY == c->state) && (pico_socket_write(c->sock, msg, len + 2) > 0))
         ret++;
       c = c->next;
@@ -435,7 +447,7 @@ int zmq_recv(ZMQ z, char *txt)
     ret = pico_socket_read(c->sock, &msg, 2);
     if (ret < 0) {
       dbg("Error reading!\n");
-      zmq_connector_del(c);
+      zmq_connector_del(z);
     } else if (ret < 2) {
       c->state = ST_BUSY;
     } else {
