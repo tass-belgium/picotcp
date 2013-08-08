@@ -526,7 +526,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
         /* Packet is not local. Try to forward. */
-        pico_frame_discard(f);
+        pico_ipv4_forward(f);
     }
   }
   return 0;
