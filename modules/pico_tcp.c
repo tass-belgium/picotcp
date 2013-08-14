@@ -1257,7 +1257,7 @@ static void tcp_retrans_timeout(unsigned long val, void *sock)
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED
   		|| (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) )
   {
-		tcp_dbg("\n\nTIMEOUT! backoff = %d\n", t->backoff);
+		tcp_dbg("TIMEOUT! backoff = %d\n", t->backoff);
 		/* was timer cancelled? */
 		if (t->timer_running == 0) {
 			add_retransmission_timer(t, 0);
@@ -1404,7 +1404,7 @@ static void tcp_ack_dbg(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("%08x %d%s\n", cur, cur_f->payload_len, info);
 
   }
-  tcp_dbg("SND_NXT is %08x, snd_LAST is %08x", nxt, t->snd_last);
+  tcp_dbg("SND_NXT is %08x, snd_LAST is %08x\n", nxt, t->snd_last);
   tcp_dbg("===================================\n");
   tcp_dbg("\n\n");
 }
@@ -1558,7 +1558,8 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 {
-  tcp_dbg("RECEIVED ACK IN FIN_WAIT1\nTCP> IN STATE FIN_WAIT2\n");
+  tcp_dbg("RECEIVED ACK IN FIN_WAIT1\n");
+  tcp_dbg("TCP> IN STATE FIN_WAIT2\n");
 
   /* acking part */
   tcp_ack(s,f);
@@ -1989,7 +1990,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 static void tcp_send_keepalive(unsigned long when, void *_t)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)_t;
-  tcp_dbg("\n\nSending keepalive (%d), [State = %d]...\n", t->backoff,t->sock.state );
+  tcp_dbg("Sending keepalive (%d), [State = %d]...\n", t->backoff,t->sock.state );
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) )
   {
 		tcp_send_ack(t);
