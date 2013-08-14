@@ -1051,7 +1051,7 @@ START_TEST (test_dns)
   fail_if(ret < 0, "dns> dns_client_nameserver add error: %s",strerror(pico_err));
 
   ret = pico_dns_client_nameserver(&ns,PICO_DNS_NS_ADD);  /* add correct one again */
-  fail_if(ret == 0, "dns> dns_client_nameserver add double");
+  fail_if(ret < 0, "dns> dns_client_nameserver add double failed");
 
   /* testing getaddr API */
   /* not testable since we do not have a stub for the pico_socket_send */
