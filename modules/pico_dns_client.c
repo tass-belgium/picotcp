@@ -279,13 +279,13 @@ static struct pico_dns_query *pico_dns_client_find_query(uint16_t id)
 }
 
 /* determine len of string */
-static int pico_dns_client_strlen(const char *url)
+static uint16_t pico_dns_client_strlen(const char *url)
 {
+  char p = 0;
   uint16_t len = 0;
-  int p;
 
   if (!url)
-    return -1;
+    return 0;
 
   while ((p = *url++) != 0) {
     len++;
@@ -296,13 +296,12 @@ static int pico_dns_client_strlen(const char *url)
 /* seek end of string */
 static char *pico_dns_client_seek(char *ptr)
 {
-  int p;
+  char p = 0;
 
   if (!ptr)
     return NULL;
 
   while ((p = *ptr++) != 0);
-
   return ptr++;
 }
 
@@ -310,61 +309,38 @@ static char *pico_dns_client_seek(char *ptr)
  * f.e. 192.168.0.1 => 1.0.168.192 */
 static int pico_dns_client_mirror(char *ptr)
 {
-  unsigned char buf[4] = {0};
-  char *m;
-  int cnt = 0;
-  int p, i;
+  const unsigned char *addr = NULL;
+  char *m = ptr;
+  uint32_t ip = 0;
+  int i = 0;
 
-  if (!ptr)
+  if (pico_string_to_ipv4(ptr, &ip) < 0)
     return -1;
-
-  m = ptr;
-  while ((p = *ptr++) != 0)
-  {
-    if (pico_is_digit(p)) {
-      buf[cnt] = (10 * buf[cnt]) + (p - '0');
-    } else if (p == '.') {
-        cnt++;
-    } else {
-      return -1;
-    }
-  }
-
-  /* Handle short notation */
-  if (cnt == 1) {
-    buf[3] = buf[1];
-    buf[1] = 0;
-    buf[2] = 0;
-  } else if (cnt == 2) {
-    buf[3] = buf[2];
-    buf[2] = 0;
-  } else if(cnt != 3) {
-    /* String could not be parsed, return error */
-    return -1;
-  }
 
   ptr = m;
+  addr = (unsigned char *)&ip;
   for (i = 3; i >= 0; i--) {
-    if (buf[i] > 99) {
-      *ptr++ = '0' + (buf[i] / 100);
-      *ptr++ = '0' + ((buf[i] % 100) / 10);
-      *ptr++ = '0' + ((buf[i] % 100) % 10);
-    } else if(buf[i] > 9) {
-      *ptr++ = '0' + (buf[i] / 10);
-      *ptr++ = '0' + (buf[i] % 10);
+    if (addr[i] > 99) {
+      *ptr++ = '0' + (addr[i] / 100);
+      *ptr++ = '0' + ((addr[i] % 100) / 10);
+      *ptr++ = '0' + ((addr[i] % 100) % 10);
+    } else if(addr[i] > 9) {
+      *ptr++ = '0' + (addr[i] / 10);
+      *ptr++ = '0' + (addr[i] % 10);
     } else {
-      *ptr++ = '0' + buf[i];
+      *ptr++ = '0' + addr[i];
     }
     if(i > 0)
       *ptr++ = '.';
   }
+  *ptr = '\0';
 
   return 0;
 }
 
 static struct pico_dns_query *pico_dns_client_idcheck(uint16_t id)
 {
-  struct pico_dns_query test;
+  struct pico_dns_query test = {0};
 
   test.id = id;
   return pico_tree_findKey(&DNSTable, &test);
@@ -410,24 +386,23 @@ static int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint1
  * f.e. www.google.be => 3www6google2be0 */
 static int pico_dns_client_query_domain(char *ptr)
 {
-  char *l;
-  uint8_t lbl_len = 0;
-  int p;
+  char p = 0, *label = NULL;
+  uint8_t len = 0;
 
   if (!ptr)
     return -1;
 
-  l = ptr++;
+  label = ptr++;
   while ((p = *ptr++) != 0){
     if (p == '.') {
-      *l = lbl_len;
-      l = ptr - 1;
-      lbl_len = 0;
+      *label = len;
+      label = ptr - 1;
+      len = 0;
     } else {
-      lbl_len++;
+      len++;
     }
   }
-  *l = lbl_len;
+  *label = len;
   return 0;
 }
 
@@ -435,17 +410,16 @@ static int pico_dns_client_query_domain(char *ptr)
  * f.e. 3www6google2be0 => .www.google.be */
 static int pico_dns_client_answer_domain(char *ptr)
 {
-  char *l;
-  int p;
+  char p = 0, *label = NULL;
 
   if (!ptr)
     return -1;
 
-  l = ptr;
+  label = ptr;
   while ((p = *ptr++) != 0){
     ptr += p;
-    *l = '.';
-    l = ptr;
+    *label = '.';
+    label = ptr;
   }
   return 0;
 }
