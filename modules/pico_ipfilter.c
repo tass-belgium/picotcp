@@ -81,7 +81,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
-  if (action > 3 || action < 0) {
+  if (action > 3) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }

@@ -30,10 +30,14 @@ HTTP_CLIENT?=1
 HTTP_SERVER?=1
 ZMQ?=1
 
+CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement 
+# extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
+#CFLAGS+= -W -Wextra -Wconversion -Wshadow -Wcast-qual -Wwrite-strings
+
 ifeq ($(DEBUG),1)
-  CFLAGS=-Iinclude -Imodules -Wall -ggdb -Wdeclaration-after-statement
+  CFLAGS+=-ggdb
 else
-  CFLAGS=-Iinclude -Imodules -Wall -Os -Wdeclaration-after-statement
+  CFLAGS+=-Os
 endif
 
 ifneq ($(ENDIAN),little)

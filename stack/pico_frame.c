@@ -103,7 +103,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
   new->usage_count = uc;
 
   /* Update in-buffer pointers with offset */
-  addr_diff = (int)new->buffer - (int)f->buffer;
+  addr_diff = (int)(new->buffer - f->buffer);
   new->net_hdr += addr_diff;
   new->transport_hdr += addr_diff;
   new->app_hdr += addr_diff;

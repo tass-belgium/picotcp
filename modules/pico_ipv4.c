@@ -125,7 +125,7 @@ int pico_ipv4_valid_netmask(uint32_t mask)
    * */
 
   for(i = 0; i < 32; i++){
-    if((mask_swap << i) & (1 << 31)){
+    if((mask_swap << i) & 0x80000000){
       if(end) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -895,7 +895,6 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
             }
             ip_mcast_dbg("MCAST: IP %08X NOT in included interface source list\n", hdr->src.addr);
             return -1;
-            break;
 
           case PICO_IP_MULTICAST_EXCLUDE:
             pico_tree_foreach(index2, &g->MCASTSources)
@@ -907,11 +906,9 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
             }
             ip_mcast_dbg("MCAST: IP %08X NOT in excluded interface source list\n", hdr->src.addr);
             return 0;
-            break;
 
           default:
             return -1;
-            break;
         }
       } else {
         ip_mcast_dbg("MCAST: IP %08X is group member of different link %s\n", hdr->dst.addr, link->dev->name);
