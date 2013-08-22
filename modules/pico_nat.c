@@ -205,6 +205,9 @@ static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
     if (pico_is_port_free(net->proto, nport, NULL, &pico_proto_ipv4))
       break;
   } while (--retry);
+
+  if (!retry)
+    return NULL;
     
   switch (net->proto) {
     case PICO_PROTO_TCP:
