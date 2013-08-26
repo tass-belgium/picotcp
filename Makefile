@@ -33,7 +33,7 @@ ZMQ?=1
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 #CFLAGS+= -W -Wextra -Wconversion -Wshadow -Wcast-qual -Wwrite-strings
-
+#CFLAGS+= -Wunused-parameter
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
 else

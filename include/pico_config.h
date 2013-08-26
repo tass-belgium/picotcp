@@ -10,6 +10,7 @@ See LICENSE and COPYING for usage.
 #include <string.h>
 #include "pico_constants.h"
 
+#define IGNORE_PARAMETER(x)  ((void)x)
 
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***

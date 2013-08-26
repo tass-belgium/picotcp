@@ -272,7 +272,8 @@ static void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
 {
   struct pico_tree_node *index = NULL, *_tmp = NULL;
   struct pico_nat_tuple *t = NULL;
-
+  IGNORE_PARAMETER(now);
+  IGNORE_PARAMETER(_unused);
 	nat_dbg("NAT: before table cleanup:\n");
   pico_ipv4_nat_print_table();
 

@@ -311,6 +311,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
 {
   struct pico_tcp_hdr *hdr;
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
+  IGNORE_PARAMETER(self);
   hdr = (struct pico_tcp_hdr *)f->transport_hdr;
 
   if (f->payload_len > 0) {
@@ -748,6 +749,7 @@ int pico_tcp_initconn(struct pico_socket *s);
 static void initconn_retry(unsigned long when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+  IGNORE_PARAMETER(when);
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
       tcp_dbg("TCP> Connection timeout. \n");
@@ -1573,6 +1575,8 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 static void tcp_deltcb(unsigned long when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+  IGNORE_PARAMETER(when);
+
   if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_TIME_WAIT) {
     tcp_dbg("TCP> state: time_wait, final timer expired, going to closed state\n");
     /* update state */
@@ -1629,6 +1633,7 @@ static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 {
+	IGNORE_PARAMETER(f);
   tcp_dbg("TCP> state: last_ack, received ack, to closed\n");
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
@@ -1799,6 +1804,7 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  IGNORE_PARAMETER(f);
   tcp_dbg("TCP> Received FIN in FIN_WAIT1\n");
   s->state &= 0x00FFU;
   s->state |= PICO_SOCKET_STATE_TCP_CLOSING;
@@ -1812,6 +1818,8 @@ static int tcp_rcvfin(struct pico_socket *s, struct pico_frame *f)
 static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+  IGNORE_PARAMETER(f);
+
   tcp_dbg("TCP> ENTERED finack\n");
   t->rcv_nxt++;
   /* send ACK */
@@ -1990,6 +1998,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 static void tcp_send_keepalive(unsigned long when, void *_t)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)_t;
+  IGNORE_PARAMETER(when);
   tcp_dbg("Sending keepalive (%d), [State = %d]...\n", t->backoff,t->sock.state );
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) )
   {
@@ -2010,6 +2019,7 @@ static void tcp_send_keepalive(unsigned long when, void *_t)
 void zombie_timer(unsigned long time, void *param)
 {
 	struct tcp_port_pair * ports = (struct tcp_port_pair *)param;
+	IGNORE_PARAMETER(time);
 	if(ports)
 	{
 		struct pico_socket_tcp * t = (struct pico_socket_tcp *)pico_sockets_find(ports->local,ports->remote);
@@ -2177,6 +2187,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) f->sock;
   struct pico_frame *f_new;
   int total_len = 0;
+  IGNORE_PARAMETER(self);
 
   hdr->trans.sport = t->sock.local_port;
   hdr->trans.dport = t->sock.remote_port;

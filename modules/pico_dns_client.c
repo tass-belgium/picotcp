@@ -517,7 +517,7 @@ static int pico_dns_client_send(struct pico_dns_query *q)
 static void pico_dns_client_retransmission(unsigned long now, void *arg)
 {
   struct pico_dns_query *q = (struct pico_dns_query *)arg;
-
+  IGNORE_PARAMETER(now);
   /* dns query successful? */
   if (!q->retrans) {
     pico_dns_client_del_query(q->id);
