@@ -446,7 +446,7 @@ struct pico_http_uri * pico_http_client_readUriData(uint16_t conn)
 int pico_http_client_close(uint16_t conn)
 {
 	struct pico_http_client * toBeRemoved = NULL;
-	struct pico_http_client dummy = {};
+	struct pico_http_client dummy = {0};
 	dummy.connectionID = conn;
 
 	dbg("Closing the client...\n");

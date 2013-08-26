@@ -73,7 +73,7 @@ struct httpClient
 #define HTTP_ERROR					6
 #define HTTP_CLOSED					7
 
-static struct httpServer server = {};
+static struct httpServer server = {0};
 
 /*
  * Private functions
@@ -164,7 +164,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
  */
 int pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn))
 {
-	struct pico_ip4 anything = {};
+	struct pico_ip4 anything = {0};
 
 	server.port = port ? short_be(port) : short_be(80u);
 

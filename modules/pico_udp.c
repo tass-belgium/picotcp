@@ -16,8 +16,8 @@ Authors: Daniele Lacamera
 
 
 /* Queues */
-static struct pico_queue udp_in = {};
-static struct pico_queue udp_out = {};
+static struct pico_queue udp_in = {0};
+static struct pico_queue udp_out = {0};
 
 
 /* Functions */

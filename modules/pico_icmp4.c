@@ -17,8 +17,8 @@ Authors: Daniele Lacamera
 #include "pico_tree.h"
 
 /* Queues */
-static struct pico_queue icmp_in = {};
-static struct pico_queue icmp_out = {};
+static struct pico_queue icmp_in = {0};
+static struct pico_queue icmp_out = {0};
 
 
 /* Functions */

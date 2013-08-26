@@ -107,7 +107,7 @@ struct pico_tcp_queue
 static struct pico_frame *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
 {
   struct pico_tcp_hdr H;
-  struct pico_frame f = {};
+  struct pico_frame f = {0};
   f.transport_hdr = (uint8_t *) (&H);
   H.seq = long_be(seq);
 
@@ -229,8 +229,8 @@ struct pico_socket_tcp {
 };
 
 /* Queues */
-static struct pico_queue tcp_in = {};
-static struct pico_queue tcp_out = {};
+static struct pico_queue tcp_in = {0};
+static struct pico_queue tcp_out = {0};
 
 /* If Nagle enabled, this function can make 1 new segment from smaller segments in hold queue */
 static struct pico_frame * pico_hold_segment_make(struct pico_socket_tcp *t);

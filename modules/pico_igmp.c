@@ -138,8 +138,8 @@ struct igmp_timer {
 };
 
 /* queues */
-static struct pico_queue igmp_in = {};
-static struct pico_queue igmp_out = {};
+static struct pico_queue igmp_in = {0};
+static struct pico_queue igmp_out = {0};
 
 /* finite state machine caller */
 static int pico_igmp_process_event(struct igmp_parameters *p);

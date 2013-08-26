@@ -33,8 +33,8 @@ static struct pico_ipv4_link *mcast_default_link = NULL;
 #endif
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue in = {0};
+static struct pico_queue out = {0};
 
 /* Functions */
 static int ipv4_route_compare(void *ka, void * kb);
