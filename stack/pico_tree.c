@@ -234,9 +234,9 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
   else
     if(IS_LEAF(delete->rightChild))
     {
-    	struct pico_tree_node * ltemp = delete;
-      temp = ltemp->leftChild;
-      switchNodes(tree, ltemp, ltemp->leftChild);
+    	struct pico_tree_node * _ltemp = delete;
+      temp = _ltemp->leftChild;
+      switchNodes(tree, _ltemp, _ltemp->leftChild);
     }
     else{
     	struct pico_tree_node * min;

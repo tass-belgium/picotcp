@@ -1785,8 +1785,8 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 
     if (s->wakeup){
       if(f->payload_len>0){
-        struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-        t->sock.ev_pending |=PICO_SOCK_EV_CLOSE;
+        struct pico_socket_tcp *_t = (struct pico_socket_tcp *)s;
+        _t->sock.ev_pending |=PICO_SOCK_EV_CLOSE;
       }else
         s->wakeup(PICO_SOCK_EV_CLOSE, s);
     }
