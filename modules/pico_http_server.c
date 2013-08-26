@@ -485,7 +485,7 @@ int parseRequest(struct httpClient * client)
 	{ // possible GET
 
 		char line[HTTP_HEADER_MAX_LINE];
-		int index = 0;
+		uint32_t index = 0;
 
 		line[index] = c;
 
@@ -496,7 +496,7 @@ int parseRequest(struct httpClient * client)
 			if(c == '\n')
 				break;
 
-				if(index >= HTTP_HEADER_MAX_LINE)
+			if(index >= HTTP_HEADER_MAX_LINE)
 			{
 				dbg("Size exceeded \n");
 				return HTTP_RETURN_ERROR;

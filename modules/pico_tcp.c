@@ -477,7 +477,7 @@ static void tcp_process_sack(struct pico_socket_tcp *t, uint32_t start, uint32_t
   struct pico_frame *f;
   struct pico_tree_node * index, * temp;
   int cmp;
-  int count = 0;
+  uint16_t count = 0;
 
   pico_tree_foreach_safe(index,&t->tcpq_out.pool,temp){
     f = index->keyValue;
@@ -532,7 +532,7 @@ static void tcp_parse_options(struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   uint8_t *opt = f->transport_hdr + PICO_SIZE_TCPHDR;
-  int i = 0;
+  uint32_t i = 0;
   f->timestamp = 0;
   while (i < (f->transport_len - PICO_SIZE_TCPHDR)) {
     uint8_t type =  opt[i++];
@@ -721,7 +721,7 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
       in_frame_off = 0;
       in_frame_len = f->payload_len;
     }
-    if ((in_frame_len + tot_rd_len) > len) {
+    if ((in_frame_len + tot_rd_len) > (uint32_t)len) {
       in_frame_len = len - tot_rd_len;
     }
 
@@ -732,7 +732,7 @@ int pico_tcp_read(struct pico_socket *s, void *buf, int len)
     tot_rd_len += in_frame_len;
     t->rcv_processed += in_frame_len;
 
-    if ((in_frame_len == 0) || (in_frame_len == f->payload_len)) {
+    if ((in_frame_len == 0u) || (in_frame_len == (uint32_t)f->payload_len)) {
       pico_discard_segment(&t->tcpq_in, f);
     }
   }
@@ -1418,7 +1418,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   uint32_t rtt = 0;
-  int acked = 0;
+  uint16_t acked = 0;
   struct pico_frame *una = NULL;
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return -1;
@@ -2194,7 +2194,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   hdr->seq = long_be(t->snd_last + 1);
   hdr->len = (f->payload - f->transport_hdr) << 2 | t->jumbo;
 
-  if (f->payload_len > (t->tcpq_out.max_size - t->tcpq_out.size))
+  if ((uint32_t)f->payload_len > (uint32_t)(t->tcpq_out.max_size - t->tcpq_out.size))
     t->sock.ev_pending &= (~PICO_SOCK_EV_WR);
 
   /***************************************************************************/
