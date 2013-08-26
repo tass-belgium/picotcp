@@ -452,7 +452,7 @@ static int pico_dns_client_check_asuffix(struct pico_dns_answer_suffix *suf, str
     dns_dbg("DNS WARNING: received qtype (%u) or qclass (%u) incorrect\n", short_be(suf->qtype), short_be(suf->qclass));
     return -1;
   }
-  if (short_be(suf->ttl) > PICO_DNS_MAX_TTL) {
+  if (long_be(suf->ttl) > PICO_DNS_MAX_TTL) {
     dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", short_be(suf->ttl), PICO_DNS_MAX_TTL);
     return -1;
   }
