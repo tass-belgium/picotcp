@@ -22,21 +22,21 @@ Author: Andrei Carp <andrei.carp@tass.be>
 
 #define consumeChar(c) (pico_socket_read(client->sck,&c,1u))
 
-static char returnOkHeader[] =
+static const char returnOkHeader[] =
 "HTTP/1.1 200 OK\r\n\
 Host: localhost\r\n\
 Transfer-Encoding: chunked\r\n\
 Connection: close\r\n\
 \r\n";
 
-static char returnFailHeader[] =
+static const char returnFailHeader[] =
 "HTTP/1.1 404 Not Found\r\n\
 Host: localhost\r\n\
 Connection: close\r\n\
 \r\n\
 <html><body>The resource you requested cannot be found !</body></html>";
 
-static char errorHeader[] =
+static const char errorHeader[] =
 "HTTP/1.1 400 Bad Request\r\n\
 Host: localhost\r\n\
 Connection: close\r\n\
@@ -124,7 +124,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 		{
 			// send out error
 			client->state = HTTP_ERROR;
-			pico_socket_write(client->sck,errorHeader,sizeof(errorHeader)-1);
+			pico_socket_write(client->sck,(char *)errorHeader,sizeof(errorHeader)-1);
 			server.wakeup(EV_HTTP_ERROR,client->connectionID);
 		}
 	}
@@ -288,13 +288,13 @@ int pico_http_respond(uint16_t conn, uint16_t code)
 		if(code == HTTP_RESOURCE_FOUND)
 		{
 			client->state = HTTP_WAIT_DATA;
-			return pico_socket_write(client->sck,returnOkHeader,sizeof(returnOkHeader)-1);//remove \0
+			return pico_socket_write(client->sck,(char *)returnOkHeader,sizeof(returnOkHeader)-1);//remove \0
 		}
 		else
 		{
 			int length;
 
-			length = pico_socket_write(client->sck,returnFailHeader,sizeof(returnFailHeader)-1);//remove \0
+			length = pico_socket_write(client->sck,(char *)returnFailHeader,sizeof(returnFailHeader)-1);//remove \0
 			pico_socket_close(client->sck);
 			client->state = HTTP_CLOSED;
 			return length;
