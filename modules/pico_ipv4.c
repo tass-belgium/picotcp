@@ -513,6 +513,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   } else if (pico_tree_findKey(&Tree_dev_link, &test)){
 #ifdef PICO_SUPPORT_UDP
     //address of this device is apparently 0.0.0.0; might be a DHCP packet
+    /* XXX KRO: is obsolete. Broadcast flag is set on outgoing DHCP messages.
+     * incomming DHCP messages are to be broadcasted. Our current DHCP server
+     * implementation does not take this flag into account yet though ... */
     pico_enqueue(pico_proto_udp.q_in, f);
 #endif
   } else {

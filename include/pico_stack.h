@@ -10,6 +10,9 @@ See LICENSE and COPYING for usage.
 
 #define PICO_MAX_TIMERS 20
 
+#define PICO_ETH_MTU 1514
+#define PICO_IP_MTU 1500
+
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
 /* TRANSPORT LEVEL */

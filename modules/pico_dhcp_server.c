@@ -62,58 +62,58 @@ static struct pico_dhcp_negotiation *get_negotiation_by_xid(uint32_t xid)
 static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_type)
 {
   uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
-  struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
+  struct pico_dhcp_hdr *dh_out = (struct pico_dhcp_hdr *) buf_out;
   struct pico_ip4 destination = { };
   uint32_t bcast = dn->settings->my_ip.addr | ~(dn->settings->netmask.addr);
   uint32_t dns_server = OPENDNS;
   uint16_t port = PICO_DHCP_CLIENT_PORT;
   int sent = 0;
 
-  memcpy(dh_out->hwaddr, dn->eth.addr, PICO_HLEN_ETHER);
+  memcpy(dh_out->hwaddr, dn->eth.addr, PICO_SIZE_ETH);
   dh_out->op = PICO_DHCP_OP_REPLY;
-  dh_out->htype = PICO_HTYPE_ETHER;
-  dh_out->hlen = PICO_HLEN_ETHER;
+  dh_out->htype = PICO_DHCP_HTYPE_ETH;
+  dh_out->hlen = PICO_SIZE_ETH;
   dh_out->xid = dn->xid;
   dh_out->yiaddr = dn->ipv4.addr;
   dh_out->siaddr = dn->settings->my_ip.addr;
   dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
 
   /* Option: msg type, len 1 */
-  dh_out->options[0] = PICO_DHCPOPT_MSGTYPE;
+  dh_out->options[0] = PICO_DHCP_OPT_MSGTYPE;
   dh_out->options[1] = 1;
   dh_out->options[2] = reply_type;
 
   /* Option: server id, len 4 */
-  dh_out->options[3] = PICO_DHCPOPT_SERVERID;
+  dh_out->options[3] = PICO_DHCP_OPT_SERVERID;
   dh_out->options[4] = 4;
   memcpy(dh_out->options + 5, &dn->settings->my_ip.addr, 4);
 
   /* Option: Lease time, len 4 */
-  dh_out->options[9] = PICO_DHCPOPT_LEASETIME;
+  dh_out->options[9] = PICO_DHCP_OPT_LEASETIME;
   dh_out->options[10] = 4;
   memcpy(dh_out->options + 11, &dn->settings->lease_time, 4);
 
   /* Option: Netmask, len 4 */
-  dh_out->options[15] = PICO_DHCPOPT_NETMASK;
+  dh_out->options[15] = PICO_DHCP_OPT_NETMASK;
   dh_out->options[16] = 4;
   memcpy(dh_out->options + 17, &dn->settings->netmask.addr, 4);
 
   /* Option: Router, len 4 */
-  dh_out->options[21] = PICO_DHCPOPT_ROUTER;
+  dh_out->options[21] = PICO_DHCP_OPT_ROUTER;
   dh_out->options[22] = 4;
   memcpy(dh_out->options + 23, &dn->settings->my_ip.addr, 4);
 
   /* Option: Broadcast, len 4 */
-  dh_out->options[27] = PICO_DHCPOPT_BCAST;
+  dh_out->options[27] = PICO_DHCP_OPT_BCAST;
   dh_out->options[28] = 4;
   memcpy(dh_out->options + 29, &bcast, 4);
 
   /* Option: DNS, len 4 */
-  dh_out->options[33] = PICO_DHCPOPT_DNS;
+  dh_out->options[33] = PICO_DHCP_OPT_DNS;
   dh_out->options[34] = 4;
   memcpy(dh_out->options + 35, &dns_server, 4);
 
-  dh_out->options[40] = PICO_DHCPOPT_END;
+  dh_out->options[40] = PICO_DHCP_OPT_END;
 
   destination.addr = dh_out->yiaddr;
 
@@ -125,7 +125,7 @@ static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_typ
 
 static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
 {
-  struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
+  struct pico_dhcp_hdr *dhdr = (struct pico_dhcp_hdr *) buffer;
   struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
   struct pico_ip4* ipv4 = NULL;
   struct pico_dhcpd_settings test, *settings = NULL;
@@ -135,7 +135,7 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
   uint32_t msg_reqIP = 0;
   uint32_t msg_servID = 0;
 
-  if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr))) {
+  if (!pico_dhcp_are_options_valid(dhdr->options, len - sizeof(struct pico_dhcp_hdr))) {
     dhcpd_dbg("DHCPD WARNING: invalid options in dhcp message\n");
     return;
   }
@@ -148,7 +148,7 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
     }
     dn->xid = dhdr->xid;
     dn->state = DHCPSTATE_DISCOVER;
-    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
+    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_SIZE_ETH);
 
     test.dev = pico_ipv4_link_find(&s->local_addr.ip4);
     settings = pico_tree_findKey(&DHCPSettings, &test);
@@ -180,14 +180,14 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
     return;
 
   opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
-  while (opt_type != PICO_DHCPOPT_END) {
+  while (opt_type != PICO_DHCP_OPT_END) {
     /* parse interesting options here */
       //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_data[0]%d\n", opt_type, opt_data[0]);
     switch(opt_type){
-      case PICO_DHCPOPT_MSGTYPE:
+      case PICO_DHCP_OPT_MSGTYPE:
         msg_type = opt_data[0];
         break;
-      case PICO_DHCPOPT_REQIP:
+      case PICO_DHCP_OPT_REQIP:
         //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
         if( opt_len == 4)
         {
@@ -198,7 +198,7 @@ static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
          //dhcpd_dbg("DHCPD sever: msg_reqIP %x, opt_data[0] %x,[1] %x,[2] %x,[3] %x\n", msg_reqIP, opt_data[0],opt_data[1],opt_data[2],opt_data[3]);
         };
         break;
-      case PICO_DHCPOPT_SERVERID:
+      case PICO_DHCP_OPT_SERVERID:
         //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
         if( opt_len == 4)
         {

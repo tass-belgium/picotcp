@@ -15,6 +15,14 @@ See LICENSE and COPYING for usage.
 #define POOL_END long_be(0x000000fe)
 #define LEASE_TIME long_be(0x00000078)
 
+enum dhcp_negotiation_state {
+        DHCPSTATE_DISCOVER = 0,
+        DHCPSTATE_OFFER,
+        DHCPSTATE_REQUEST,
+        DHCPSTATE_BOUND,
+        DHCPSTATE_RENEWING
+};
+
 struct pico_dhcpd_settings
 {
   struct pico_device *dev;

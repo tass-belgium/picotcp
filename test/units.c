@@ -1268,7 +1268,7 @@ START_TEST (test_dhcp_client_api)
   pico_err = PICO_ERR_NOERR;
   /* Test 0 statements */
 	pico_dhcp_initiate_negotiation(NULL, NULL, &xid0);
-  cli0 = get_cookie_by_xid(xid0);
+  cli0 = pico_dhcp_client_find_cookie(xid0);
   fail_unless(cli0 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
   fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
  
@@ -1277,7 +1277,7 @@ START_TEST (test_dhcp_client_api)
   pico_err = PICO_ERR_NOERR;
   /* Test 1 statements */
 	pico_dhcp_initiate_negotiation(NULL, &callback_dhcpclient, &xid1);
-  cli1 = get_cookie_by_xid(xid1);
+  cli1 = pico_dhcp_client_find_cookie(xid1);
   fail_unless(cli1 == NULL,"DHCP_CLIENT> initiate succeeded after pointer to dev == NULL");
   fail_unless(pico_err == PICO_ERR_EINVAL,"DHCP_SERVER> initiate succeeded without PICO_ERR_EINVAL after wrong parameter");
 
