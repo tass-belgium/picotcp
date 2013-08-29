@@ -668,6 +668,7 @@ static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   {
     case DHCP_CLIENT_STATE_INIT:
       pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_DISCOVER);
+      pico_dhcp_client_start_init_timer(dhcpc);
       break;
 
     case DHCP_CLIENT_STATE_REQUESTING:
