@@ -9,9 +9,6 @@ See LICENSE and COPYING for usage.
 #define _INCLUDE_PICO_DHCP_COMMON
 #include "pico_addressing.h"
 
-/* minimum size is 576, cfr RFC */
-#define DHCPD_DATAGRAM_SIZE 576
-
 #define PICO_DHCPD_PORT (short_be(67))
 #define PICO_DHCP_CLIENT_PORT (short_be(68))
 #define PICO_DHCPD_MAGIC_COOKIE (long_be(0x63825363))
@@ -29,7 +26,7 @@ See LICENSE and COPYING for usage.
 #define PICO_DHCP_OPT_HOSTNAME          0x0c
 #define PICO_DHCP_OPT_DOMAINNAME        0x0f
 #define PICO_DHCP_OPT_MTU               0x1a
-#define PICO_DHCP_OPT_BCAST             0x1c
+#define PICO_DHCP_OPT_BROADCAST         0x1c
 #define PICO_DHCP_OPT_NETBIOSNS         0x2c
 #define PICO_DHCP_OPT_NETBIOSSCOPE      0x2f
 #define PICO_DHCP_OPT_REQIP             0x32
@@ -50,6 +47,10 @@ See LICENSE and COPYING for usage.
 
 /* options len */
 #define PICO_DHCP_OPTLEN_HDR            2 /* account for code and len field */
+#define PICO_DHCP_OPTLEN_NETMASK        6
+#define PICO_DHCP_OPTLEN_ROUTER         6
+#define PICO_DHCP_OPTLEN_DNS            6
+#define PICO_DHCP_OPTLEN_BROADCAST      6
 #define PICO_DHCP_OPTLEN_REQIP          6
 #define PICO_DHCP_OPTLEN_LEASETIME      6
 #define PICO_DHCP_OPTLEN_OPTOVERLOAD    3
@@ -118,6 +119,9 @@ struct __attribute__((packed)) pico_dhcp_opt
     } dns;
     struct {
       struct pico_ip4 ip;
+    } broadcast;
+    struct {
+      struct pico_ip4 ip;
     } req_ip;
     struct {
       uint32_t time;
@@ -165,4 +169,15 @@ uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **
 struct pico_dhcp_opt *pico_dhcp_next_option(struct pico_dhcp_opt **ptr);
 int pico_dhcp_are_options_valid(void *ptr, int len); 
 
+int pico_dhcp_opt_netmask(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_router(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_dns(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_broadcast(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_reqip(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_leasetime(void *ptr, uint32_t time);
+int pico_dhcp_opt_msgtype(void *ptr, uint8_t type);
+int pico_dhcp_opt_serverid(void *ptr, struct pico_ip4 *ip);
+int pico_dhcp_opt_paramlist(void *ptr);
+int pico_dhcp_opt_maxmsgsize(void *ptr, uint16_t size);
+int pico_dhcp_opt_end(void *ptr);
 #endif

@@ -1498,7 +1498,7 @@ void app_ping(char *arg)
 void app_dhcp_server(char *arg)
 {
   struct pico_device *dev = NULL;
-  struct pico_dhcpd_settings s = {0};
+  struct pico_dhcp_server_setting s = {0};
   int pool_start = 0, pool_end = 0;
   char *s_name = NULL, *s_addr = NULL, *s_netm = NULL, *s_pool_start = NULL, *s_pool_end = NULL;
   char *nxt = arg;
@@ -1519,7 +1519,7 @@ void app_dhcp_server(char *arg)
     if (nxt) {
       nxt = cpy_arg(&s_addr, nxt);
       if (s_addr) {
-        pico_string_to_ipv4(s_addr, &s.my_ip.addr);
+        pico_string_to_ipv4(s_addr, &s.server_ip.addr);
       } else {
         goto out;
       }
@@ -1566,8 +1566,8 @@ void app_dhcp_server(char *arg)
       exit(255);
     }
     s.dev = dev;
-    s.pool_start = (s.my_ip.addr & s.netmask.addr) | long_be(pool_start);
-    s.pool_end = (s.my_ip.addr & s.netmask.addr) | long_be(pool_end);
+    s.pool_start = (s.server_ip.addr & s.netmask.addr) | long_be(pool_start);
+    s.pool_end = (s.server_ip.addr & s.netmask.addr) | long_be(pool_end);
 
     pico_dhcp_server_initiate(&s);
   }
