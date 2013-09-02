@@ -5,7 +5,7 @@ See LICENSE and COPYING for usage.
 Authors: Kristof Roelants, Frederik Van Slycken 
 *********************************************************************/
 
-#ifdef PICO_SUPPORT_DHCPC
+
 #include "pico_dhcp_client.h"
 #include "pico_stack.h"
 #include "pico_config.h"
@@ -14,6 +14,7 @@ Authors: Kristof Roelants, Frederik Van Slycken
 #include "pico_socket.h"
 #include "pico_eth.h"
 
+#ifdef PICO_SUPPORT_DHCPC
 #define dhcpc_dbg(...) do{}while(0)
 //#define dhcpc_dbg dbg
 
