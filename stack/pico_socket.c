@@ -587,6 +587,7 @@ int pico_socket_add(struct pico_socket *s)
 static void socket_garbage_collect(unsigned long now, void *arg)
 {
   struct pico_socket *s = (struct pico_socket *) arg;
+  IGNORE_PARAMETER(now);
   pico_free(s);
 }
 
@@ -2079,7 +2080,8 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
 #else
 static inline int pico_transport_crc_check(struct pico_frame *f)
 {
-  return 1;
+	IGNORE_PARAMETER(f);
+	return 1;
 }
 #endif /* PICO_SUPPORT_CRC */
 

@@ -31,6 +31,8 @@ static int pending_timer_on = 0;
 void check_pending(unsigned long now, void *_unused)
 {
   struct pico_frame *f = pico_dequeue(&pending);
+  IGNORE_PARAMETER(now);
+  IGNORE_PARAMETER(_unused);
   if (!f) {
     pending_timer_on = 0;
     return;
@@ -173,6 +175,7 @@ void dbg_arp(void)
 void arp_expire(unsigned long now, void *_stale)
 {
   struct pico_arp *stale = (struct pico_arp *) _stale;
+  IGNORE_PARAMETER(now);
   stale->arp_status = PICO_ARP_STATUS_STALE;
   arp_dbg("ARP: Setting arp_status to STALE\n");
   pico_arp_query(stale->dev, &stale->ipv4);

@@ -39,7 +39,7 @@ static inline int heap_insert(struct heap_##type *heap, type *el) \
 static inline int heap_peek(struct heap_##type *heap, type *first) \
 { \
   type *last;  			\
-  int i, child;  		\
+  uint32_t i, child;  		\
   if(heap->n == 0) {  	\
     return -1; 			\
   }  					\

@@ -234,9 +234,9 @@ void * pico_tree_delete(struct pico_tree * tree, void * key){
   else
     if(IS_LEAF(delete->rightChild))
     {
-    	struct pico_tree_node * ltemp = delete;
-      temp = ltemp->leftChild;
-      switchNodes(tree, ltemp, ltemp->leftChild);
+    	struct pico_tree_node * _ltemp = delete;
+      temp = _ltemp->leftChild;
+      switchNodes(tree, _ltemp, _ltemp->leftChild);
     }
     else{
     	struct pico_tree_node * min;
@@ -332,6 +332,7 @@ static void rotateToRight(struct pico_tree * tree, struct pico_tree_node * node)
 static struct pico_tree_node * create_node(struct pico_tree * tree, void* key)
 {
   struct pico_tree_node *temp;
+  IGNORE_PARAMETER(tree);
   temp = (struct pico_tree_node *)pico_zalloc(sizeof(struct pico_tree_node));
 
   if(!temp)

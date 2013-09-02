@@ -106,7 +106,7 @@ static inline uint32_t long_be(uint32_t le)
 extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 #endif
 
-static inline uint32_t pico_hash(char *name)
+static inline uint32_t pico_hash(const char *name)
 {
   unsigned long hash = 5381;
   int c;

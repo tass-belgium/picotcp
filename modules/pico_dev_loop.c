@@ -18,7 +18,8 @@ static int l_bufsize = 0;
 
 static int pico_loop_send(struct pico_device *dev, void *buf, int len)
 {
-  if (len > LOOP_MTU)
+	IGNORE_PARAMETER(dev);
+	if (len > LOOP_MTU)
     return 0;
 
   if (l_bufsize == 0) {
@@ -46,6 +47,7 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 
 void pico_loop_destroy(struct pico_device *dev)
 {
+	IGNORE_PARAMETER(dev);
 }
 
 struct pico_device *pico_loop_create(void)

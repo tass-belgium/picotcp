@@ -33,8 +33,8 @@ static struct pico_ipv4_link *mcast_default_link = NULL;
 #endif
 
 /* Queues */
-static struct pico_queue in = {};
-static struct pico_queue out = {};
+static struct pico_queue in = {0};
+static struct pico_queue out = {0};
 
 /* Functions */
 static int ipv4_route_compare(void *ka, void * kb);
@@ -414,6 +414,7 @@ static inline int pico_ipv4_crc_check(struct pico_frame *f)
 #else
 static inline int pico_ipv4_crc_check(struct pico_frame *f)
 {
+	IGNORE_PARAMETER(f);
   return 1;
 }
 #endif /* PICO_SUPPORT_CRC */
@@ -512,6 +513,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
   } else if (pico_tree_findKey(&Tree_dev_link, &test)){
 #ifdef PICO_SUPPORT_UDP
     //address of this device is apparently 0.0.0.0; might be a DHCP packet
+    /* XXX KRO: is obsolete. Broadcast flag is set on outgoing DHCP messages.
+     * incomming DHCP messages are to be broadcasted. Our current DHCP server
+     * implementation does not take this flag into account yet though ... */
     pico_enqueue(pico_proto_udp.q_in, f);
 #endif
   } else {
@@ -533,7 +537,8 @@ PICO_TREE_DECLARE(Routes, ipv4_route_compare);
 
 static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  f->start = (uint8_t*) f->net_hdr;
+	IGNORE_PARAMETER(self);
+	f->start = (uint8_t*) f->net_hdr;
   #ifdef PICO_SUPPORT_IPFILTER
   if (ipfilter(f)) {
     /*pico_frame is discarded as result of the filtering*/
@@ -546,8 +551,10 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
 
 static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, int size)
 {
-  struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
-  if (!f)
+	struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
+	IGNORE_PARAMETER(self);
+
+	if (!f)
     return NULL;
   f->datalink_hdr = f->buffer;
   f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
@@ -1064,8 +1071,10 @@ drop:
 
 static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_frame *f)
 {
-  struct pico_ip4 *dst;
+	struct pico_ip4 *dst;
   struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
+  IGNORE_PARAMETER(self);
+
   if (!f->sock) {
     pico_frame_discard(f);
     return -1;
@@ -1146,8 +1155,10 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
 int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
-  struct pico_ipv4_route test, *found;
-  if (!link) {
+	struct pico_ipv4_route test, *found;
+	IGNORE_PARAMETER(gateway);
+
+	if (!link) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }

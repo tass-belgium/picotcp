@@ -7,332 +7,310 @@ Authors: Frederik Van Slycken, Kristof Roelants
 *********************************************************************/
 
 #ifdef PICO_SUPPORT_DHCPD
-
 #include "pico_dhcp_server.h"
-#include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_addressing.h"
 #include "pico_socket.h"
+#include "pico_udp.h"
+#include "pico_stack.h"
 #include "pico_arp.h"
-#include <stdlib.h>
 
-# define dhcpd_dbg(...) do{}while(0)
-//# define dhcpd_dbg dbg
+#define dhcps_dbg(...) do{}while(0)
+//#define dhcps_dbg dbg
 
-#define dhcpd_make_offer(x) dhcpd_make_reply(x, PICO_DHCP_MSG_OFFER)
-#define dhcpd_make_ack(x) dhcpd_make_reply(x, PICO_DHCP_MSG_ACK)
-#define ip_inrange(x) ((long_be(x) >= long_be(dn->settings->pool_start)) && (long_be(x) <= long_be(dn->settings->pool_end)))
+/* default configurations */ 
+#define DHCP_SERVER_OPENDNS    long_be(0xd043dede) /* OpenDNS DNS server 208.67.222.222 */
+#define DHCP_SERVER_POOL_START long_be(0x00000064)
+#define DHCP_SERVER_POOL_END   long_be(0x000000fe)
+#define DHCP_SERVER_LEASE_TIME long_be(0x00000078)
+
+/* maximum size of a DHCP message */
+#define DHCP_SERVER_MAXMSGSIZE (PICO_IP_MTU - sizeof(struct pico_ipv4_hdr) - sizeof(struct pico_udp_hdr))
+
+#define ip_inrange(x) ((long_be(x) >= long_be(dhcpn->dhcps->pool_start)) && (long_be(x) <= long_be(dhcpn->dhcps->pool_end)))
+
+enum dhcp_server_state {
+  PICO_DHCP_STATE_DISCOVER = 0,
+  PICO_DHCP_STATE_OFFER,
+  PICO_DHCP_STATE_REQUEST,
+  PICO_DHCP_STATE_BOUND,
+  PICO_DHCP_STATE_RENEWING
+};
+
+struct pico_dhcp_server_negotiation {
+  uint32_t xid;
+  enum dhcp_server_state state;
+  struct pico_dhcp_server_setting *dhcps;
+  struct pico_ip4 ciaddr;
+  struct pico_eth hwaddr;
+};
+
+static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
 
 static int dhcp_settings_cmp(void *ka, void *kb)
 {
-  struct pico_dhcpd_settings *a = ka, *b = kb;
-  if (a->dev < b->dev)
-    return -1; 
-  else if (a->dev > b->dev)
-    return 1;
-  else
+  struct pico_dhcp_server_setting *a = ka, *b = kb;
+  if (a->dev == b->dev)
     return 0;
+  return (a->dev < b->dev) ? -1 : 1;
 } 
 PICO_TREE_DECLARE(DHCPSettings, dhcp_settings_cmp);
 
 static int dhcp_negotiations_cmp(void *ka, void *kb)
 {
-  struct pico_dhcp_negotiation *a = ka, *b = kb;
-  if (a->xid < b->xid)
-    return -1; 
-  else if (a->xid > b->xid)
-    return 1;
-  else
+  struct pico_dhcp_server_negotiation *a = ka, *b = kb;
+  if (a->xid == b->xid)
     return 0;
+  return (a->xid < b->xid) ? -1 : 1;
 } 
 PICO_TREE_DECLARE(DHCPNegotiations, dhcp_negotiations_cmp);
 
-static struct pico_dhcp_negotiation *get_negotiation_by_xid(uint32_t xid)
+static struct pico_dhcp_server_setting *pico_dhcp_server_add_setting(struct pico_dhcp_server_setting *setting)
 {
-  struct pico_dhcp_negotiation test = { }, *neg = NULL;
+  uint16_t port = PICO_DHCPD_PORT;
+  struct pico_dhcp_server_setting *dhcps = NULL, *found = NULL, test = {0};
+  struct pico_ipv4_link *link = NULL;
+  
+  link = pico_ipv4_link_get(&setting->server_ip);
+  if (!link) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+  test.dev = setting->dev;
+  found = pico_tree_findKey(&DHCPSettings, &test);
+  if (found) {
+    pico_err = PICO_ERR_EINVAL;
+    return NULL;
+  }
+  dhcps = pico_zalloc(sizeof(struct pico_dhcp_server_setting));
+  if (!dhcps) {
+    pico_err = PICO_ERR_ENOMEM;
+    return NULL;
+  }
+
+  dhcps->lease_time = setting->lease_time;
+  dhcps->pool_start = setting->pool_start;
+  dhcps->pool_next = setting->pool_next;
+  dhcps->pool_end = setting->pool_end;
+  dhcps->dev = link->dev;
+  dhcps->server_ip = link->address;
+  dhcps->netmask = link->netmask;
+
+  /* default values if not provided */
+  if (!dhcps->pool_start)
+    dhcps->pool_start = (dhcps->server_ip.addr & dhcps->netmask.addr) | DHCP_SERVER_POOL_START;
+  if (!dhcps->pool_end)
+    dhcps->pool_end = (dhcps->server_ip.addr & dhcps->netmask.addr) | DHCP_SERVER_POOL_END;
+  if (!dhcps->lease_time)
+    dhcps->lease_time = DHCP_SERVER_LEASE_TIME;
+  dhcps->pool_next = dhcps->pool_start;
+
+  dhcps->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcpd_wakeup);
+  if (!dhcps->s) {
+    dhcps_dbg("DHCP server ERROR: failure opening socket (%s)\n", strerror(pico_err));
+    pico_free(dhcps);
+    return NULL;
+  }
+  if (pico_socket_bind(dhcps->s, &dhcps->server_ip, &port) < 0) {
+    dhcps_dbg("DHCP server ERROR: failure binding socket (%s)\n", strerror(pico_err));
+    pico_free(dhcps);
+    return NULL;
+  }
+  
+  pico_tree_insert(&DHCPSettings, dhcps);
+  return dhcps;
+}
+
+static struct pico_dhcp_server_negotiation *pico_dhcp_server_find_negotiation(uint32_t xid)
+{
+  struct pico_dhcp_server_negotiation test = {0}, *found = NULL;
 
   test.xid = xid;
-  neg = pico_tree_findKey(&DHCPNegotiations, &test);
-  if (!neg)
-    return NULL;
+  found = pico_tree_findKey(&DHCPNegotiations, &test);
+  if (found)
+    return found;
   else
-    return neg;
+    return NULL;
 }
 
-static void dhcpd_make_reply(struct pico_dhcp_negotiation *dn, uint8_t reply_type)
+static struct pico_dhcp_server_negotiation *pico_dhcp_server_add_negotiation(struct pico_device *dev, struct pico_dhcp_hdr *hdr)
 {
-  uint8_t buf_out[DHCPD_DATAGRAM_SIZE] = {0};
-  struct pico_dhcphdr *dh_out = (struct pico_dhcphdr *) buf_out;
-  struct pico_ip4 destination = { };
-  uint32_t bcast = dn->settings->my_ip.addr | ~(dn->settings->netmask.addr);
-  uint32_t dns_server = OPENDNS;
-  uint16_t port = PICO_DHCP_CLIENT_PORT;
-  int sent = 0;
+  struct pico_dhcp_server_negotiation *dhcpn = NULL;
+  struct pico_dhcp_server_setting test = {0};
+  struct pico_ip4 *ciaddr = NULL;
 
-  memcpy(dh_out->hwaddr, dn->eth.addr, PICO_HLEN_ETHER);
-  dh_out->op = PICO_DHCP_OP_REPLY;
-  dh_out->htype = PICO_HTYPE_ETHER;
-  dh_out->hlen = PICO_HLEN_ETHER;
-  dh_out->xid = dn->xid;
-  dh_out->yiaddr = dn->ipv4.addr;
-  dh_out->siaddr = dn->settings->my_ip.addr;
-  dh_out->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
+  if (pico_dhcp_server_find_negotiation(hdr->xid))
+    return NULL;
 
-  /* Option: msg type, len 1 */
-  dh_out->options[0] = PICO_DHCPOPT_MSGTYPE;
-  dh_out->options[1] = 1;
-  dh_out->options[2] = reply_type;
-
-  /* Option: server id, len 4 */
-  dh_out->options[3] = PICO_DHCPOPT_SERVERID;
-  dh_out->options[4] = 4;
-  memcpy(dh_out->options + 5, &dn->settings->my_ip.addr, 4);
-
-  /* Option: Lease time, len 4 */
-  dh_out->options[9] = PICO_DHCPOPT_LEASETIME;
-  dh_out->options[10] = 4;
-  memcpy(dh_out->options + 11, &dn->settings->lease_time, 4);
-
-  /* Option: Netmask, len 4 */
-  dh_out->options[15] = PICO_DHCPOPT_NETMASK;
-  dh_out->options[16] = 4;
-  memcpy(dh_out->options + 17, &dn->settings->netmask.addr, 4);
-
-  /* Option: Router, len 4 */
-  dh_out->options[21] = PICO_DHCPOPT_ROUTER;
-  dh_out->options[22] = 4;
-  memcpy(dh_out->options + 23, &dn->settings->my_ip.addr, 4);
-
-  /* Option: Broadcast, len 4 */
-  dh_out->options[27] = PICO_DHCPOPT_BCAST;
-  dh_out->options[28] = 4;
-  memcpy(dh_out->options + 29, &bcast, 4);
-
-  /* Option: DNS, len 4 */
-  dh_out->options[33] = PICO_DHCPOPT_DNS;
-  dh_out->options[34] = 4;
-  memcpy(dh_out->options + 35, &dns_server, 4);
-
-  dh_out->options[40] = PICO_DHCPOPT_END;
-
-  destination.addr = dh_out->yiaddr;
-
-  sent = pico_socket_sendto(dn->settings->s, buf_out, DHCPD_DATAGRAM_SIZE, &destination, port);
-  if (sent < 0) {
-    dhcpd_dbg("DHCPD: sendto failed with code %d!\n", pico_err);
+  dhcpn = pico_zalloc(sizeof(struct pico_dhcp_server_negotiation));
+  if (!dhcpn) {
+    pico_err = PICO_ERR_ENOMEM;
+    return NULL;
   }
+
+  dhcpn->xid = hdr->xid;
+  dhcpn->state = PICO_DHCP_STATE_DISCOVER;
+  memcpy(dhcpn->hwaddr.addr, hdr->hwaddr, PICO_SIZE_ETH);
+
+  test.dev = dev;
+  dhcpn->dhcps = pico_tree_findKey(&DHCPSettings, &test);
+  if (!dhcpn->dhcps) {
+    dhcps_dbg("DHCP server WARNING: received DHCP message on unconfigured link %s\n", dev->name);
+    pico_free(dhcpn);
+    return NULL;
+  }
+
+  ciaddr = pico_arp_reverse_lookup(&dhcpn->hwaddr);
+  if (!ciaddr) {
+    dhcpn->ciaddr.addr = dhcpn->dhcps->pool_next;
+    dhcpn->dhcps->pool_next = long_be(long_be(dhcpn->dhcps->pool_next) + 1);
+    pico_arp_create_entry(dhcpn->hwaddr.addr, dhcpn->ciaddr, dhcpn->dhcps->dev);
+  } else {
+    dhcpn->ciaddr = *ciaddr;
+  }
+
+  pico_tree_insert(&DHCPNegotiations, dhcpn);
+  return dhcpn; 
 }
 
-static void dhcp_recv(struct pico_socket *s, uint8_t *buffer, int len)
+static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t msg_type)
 {
-  struct pico_dhcphdr *dhdr = (struct pico_dhcphdr *) buffer;
-  struct pico_dhcp_negotiation *dn = get_negotiation_by_xid(dhdr->xid);
-  struct pico_ip4* ipv4 = NULL;
-  struct pico_dhcpd_settings test, *settings = NULL;
-  uint8_t *nextopt, opt_data[20], opt_type;
-  int opt_len = 20;
-  uint8_t msg_type;
-  uint32_t msg_reqIP = 0;
-  uint32_t msg_servID = 0;
+  int r = 0, optlen = 0, offset = 0;
+  struct pico_ip4 broadcast = {0}, dns = {0}, destination = { .addr = 0xFFFFFFFF};
+  struct pico_dhcp_hdr *hdr = NULL;
 
-  if (!is_options_valid(dhdr->options, len - sizeof(struct pico_dhcphdr))) {
-    dhcpd_dbg("DHCPD WARNING: invalid options in dhcp message\n");
+  dns.addr = DHCP_SERVER_OPENDNS;
+  broadcast.addr = dhcpn->dhcps->server_ip.addr | ~(dhcpn->dhcps->netmask.addr);
+
+  optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_SERVERID + PICO_DHCP_OPTLEN_LEASETIME + PICO_DHCP_OPTLEN_NETMASK + PICO_DHCP_OPTLEN_ROUTER 
+          + PICO_DHCP_OPTLEN_BROADCAST + PICO_DHCP_OPTLEN_DNS + PICO_DHCP_OPTLEN_END;
+  hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + optlen);
+
+  hdr->op = PICO_DHCP_OP_REPLY;
+  hdr->htype = PICO_DHCP_HTYPE_ETH;
+  hdr->hlen = PICO_SIZE_ETH;
+  hdr->xid = dhcpn->xid;
+  hdr->yiaddr = dhcpn->ciaddr.addr;
+  hdr->siaddr = dhcpn->dhcps->server_ip.addr;
+  hdr->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
+  memcpy(hdr->hwaddr, dhcpn->hwaddr.addr, PICO_SIZE_ETH);
+
+  /* options */
+  offset += pico_dhcp_opt_msgtype(&hdr->options[offset], msg_type);
+  offset += pico_dhcp_opt_serverid(&hdr->options[offset], &dhcpn->dhcps->server_ip);
+  offset += pico_dhcp_opt_leasetime(&hdr->options[offset], dhcpn->dhcps->lease_time);
+  offset += pico_dhcp_opt_netmask(&hdr->options[offset], &dhcpn->dhcps->netmask);
+  offset += pico_dhcp_opt_router(&hdr->options[offset], &dhcpn->dhcps->server_ip);
+  offset += pico_dhcp_opt_broadcast(&hdr->options[offset], &broadcast);
+  offset += pico_dhcp_opt_dns(&hdr->options[offset], &dns);
+  offset += pico_dhcp_opt_end(&hdr->options[offset]);
+
+  destination.addr = hdr->yiaddr;
+  r = pico_socket_sendto(dhcpn->dhcps->s, hdr, sizeof(struct pico_dhcp_hdr) + optlen, &destination, PICO_DHCP_CLIENT_PORT);
+  if (r < 0)
+    dhcps_dbg("DHCP server WARNING: failure sending: %s!\n", strerror(pico_err));
+
+  return;
+}
+
+static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, int len)
+{
+  uint8_t msgtype = 0;
+  int optlen = len - sizeof(struct pico_dhcp_hdr);
+  struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
+  struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
+  struct pico_dhcp_server_negotiation *dhcpn = NULL;
+  struct pico_ip4 reqip = {0}, server_id = {0};
+  struct pico_device *dev = NULL;
+
+  if (!pico_dhcp_are_options_valid(hdr->options, optlen))
     return;
-  }
 
-  if (!dn) {
-    dn = pico_zalloc(sizeof(struct pico_dhcp_negotiation));
-    if (!dn) {
-      pico_err = PICO_ERR_ENOMEM;
-      return;
-    }
-    dn->xid = dhdr->xid;
-    dn->state = DHCPSTATE_DISCOVER;
-    memcpy(dn->eth.addr, dhdr->hwaddr, PICO_HLEN_ETHER);
-
-    test.dev = pico_ipv4_link_find(&s->local_addr.ip4);
-    settings = pico_tree_findKey(&DHCPSettings, &test);
-    if (settings) {
-      dn->settings = settings;
-    } else {
-      dhcpd_dbg("DHCPD WARNING: received DHCP message on unconfigured link %s\n", test.dev->name);
-      pico_free(dn);
-      return;
-    }
-
-    ipv4 = pico_arp_reverse_lookup(&dn->eth);
-    if (!ipv4) {
-      dn->ipv4.addr = settings->pool_next;
-      pico_arp_create_entry(dn->eth.addr, dn->ipv4, settings->dev);
-      settings->pool_next = long_be(long_be(settings->pool_next) + 1);
-    } else {
-      dn->ipv4.addr = ipv4->addr;
-    }
-
-    if (pico_tree_insert(&DHCPNegotiations, dn)) {
-      dhcpd_dbg("DHCPD WARNING: tried creating new negotation for existing xid %u\n", dn->xid);
-      pico_free(dn);
-      return; /* Element key already exists */
-    }
-  }
+  dev = pico_ipv4_link_find(&s->local_addr.ip4);
+  dhcpn = pico_dhcp_server_find_negotiation(hdr->xid);
+  if (!dhcpn)
+    dhcpn = pico_dhcp_server_add_negotiation(dev, hdr);
  
-  if (!ip_inrange(dn->ipv4.addr))
+  if (!ip_inrange(dhcpn->ciaddr.addr))
     return;
 
-  opt_type = dhcp_get_next_option(dhdr->options, opt_data, &opt_len, &nextopt);
-  while (opt_type != PICO_DHCPOPT_END) {
-    /* parse interesting options here */
-      //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_data[0]%d\n", opt_type, opt_data[0]);
-    switch(opt_type){
-      case PICO_DHCPOPT_MSGTYPE:
-        msg_type = opt_data[0];
+  do {
+    switch (opt->code)
+    {
+      case PICO_DHCP_OPT_PAD:
         break;
-      case PICO_DHCPOPT_REQIP:
-        //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
-        if( opt_len == 4)
-        {
-          msg_reqIP =  ( opt_data[0] << 24 );
-          msg_reqIP |= ( opt_data[1] << 16 );
-          msg_reqIP |= ( opt_data[2] << 8  );
-          msg_reqIP |= ( opt_data[3]       );
-         //dhcpd_dbg("DHCPD sever: msg_reqIP %x, opt_data[0] %x,[1] %x,[2] %x,[3] %x\n", msg_reqIP, opt_data[0],opt_data[1],opt_data[2],opt_data[3]);
-        };
+
+      case PICO_DHCP_OPT_END:
         break;
-      case PICO_DHCPOPT_SERVERID:
-        //dhcpd_dbg("DHCPD sever: opt_type %x,  opt_len%d\n", opt_type, opt_len);
-        if( opt_len == 4)
-        {
-          msg_servID =  ( opt_data[0] << 24 );
-          msg_servID |= ( opt_data[1] << 16 );
-          msg_servID |= ( opt_data[2] << 8  );
-          msg_servID |= ( opt_data[3]       );
-          //dhcpd_dbg("DHCPD sever: msg_servID %x, opt_data[0] %x,[1] %x,[2] %x,[3] %x\n", msg_servID, opt_data[0],opt_data[1],opt_data[2],opt_data[3]);
-        };
+
+      case PICO_DHCP_OPT_MSGTYPE:
+        msgtype = opt->ext.msg_type.type;
+        dhcps_dbg("DHCP server: message type %u\n", msgtype);
+        break;
+
+      case PICO_DHCP_OPT_REQIP:
+        reqip = opt->ext.req_ip.ip;
+        dhcps_dbg("DHCP server: requested IP %08X\n", reqip.addr);
+        break;
+
+      case PICO_DHCP_OPT_SERVERID:
+        server_id = opt->ext.server_id.ip;
+        dhcps_dbg("DHCP server: server ID %08X\n", server_id.addr);
         break;        
+
       default:
+        dhcps_dbg("DHCP server WARNING: unsupported option %u\n", opt->code);
         break;
     }
-        
-    opt_len = 20;
-    opt_type = dhcp_get_next_option(NULL, opt_data, &opt_len, &nextopt);
-  }
-    
-  //dhcpd_dbg("DHCPD sever: msg_type %d, dn->state %d\n", msg_type, dn->state);
-  //dhcpd_dbg("DHCPD sever: msg_reqIP %x, dn->msg_servID %x\n", msg_reqIP, msg_servID);
-  //dhcpd_dbg("DHCPD sever: dhdr->ciaddr %x, dhdr->yiaddr %x, dn->ipv4.addr %x\n", dhdr->ciaddr,dhdr->yiaddr,dn->ipv4.addr);
+  } while (pico_dhcp_next_option(&opt));
 
-  if (msg_type == PICO_DHCP_MSG_DISCOVER)
+  switch (msgtype)
   {
-    dhcpd_make_offer(dn);
-    dn->state = DHCPSTATE_OFFER;
-    return;
+    case PICO_DHCP_MSG_DISCOVER:
+      dhcpd_make_reply(dhcpn, PICO_DHCP_MSG_OFFER);
+      dhcpn->state = PICO_DHCP_STATE_OFFER;
+      break;
+
+    case PICO_DHCP_MSG_REQUEST:
+      if ((dhcpn->state == PICO_DHCP_STATE_BOUND) && (!reqip.addr) && (!server_id.addr) && (hdr->ciaddr == dhcpn->ciaddr.addr))
+        dhcpd_make_reply(dhcpn, PICO_DHCP_MSG_ACK);
+      if (dhcpn->state == PICO_DHCP_STATE_OFFER) {
+        dhcpn->state = PICO_DHCP_STATE_BOUND;
+        dhcpd_make_reply(dhcpn, PICO_DHCP_MSG_ACK);
+      }
+      break;
+
+    default:
+      dhcps_dbg("DHCP server WARNING: unsupported message type %u\n", msgtype);
+      break;
   }
-  else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_OFFER))
-  {
-    dhcpd_make_ack(dn);
-    dn->state = DHCPSTATE_BOUND;
-    return;
-  }
-  else if ((msg_type == PICO_DHCP_MSG_REQUEST)&&( dn->state == DHCPSTATE_BOUND))
-  {
-    if( ( msg_servID == 0 )
-      &&( msg_reqIP == 0 )
-      &&( dhdr->ciaddr == dn->ipv4.addr)
-      )
-    { 
-      dhcpd_make_ack(dn);
-      return;
-    }
-  }  
+  return;
 }
 
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
 {
-  uint8_t buf[DHCPD_DATAGRAM_SIZE] = { };
+  uint8_t buf[DHCP_SERVER_MAXMSGSIZE] = {0};
   int r = 0;
-  uint32_t peer = 0;
-  uint16_t port = 0;
 
-  dhcpd_dbg("DHCPD: called dhcpd_wakeup\n");
-  if (ev == PICO_SOCK_EV_RD) {
-    do {
-      r = pico_socket_recvfrom(s, buf, DHCPD_DATAGRAM_SIZE, &peer, &port);
-      if (r > 0 && port == PICO_DHCP_CLIENT_PORT) {
-        dhcp_recv(s, buf, r);
-      }
-    } while(r>0);
-  }
+  if (ev != PICO_SOCK_EV_RD)
+    return;
+  r = pico_socket_recvfrom(s, buf, DHCP_SERVER_MAXMSGSIZE, NULL, NULL);
+  if (r < 0)
+    return;
+
+  pico_dhcp_server_recv(s, buf, r);
+  return;
 }
 
-int pico_dhcp_server_initiate(struct pico_dhcpd_settings *setting)
+int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *setting)
 {
-  struct pico_dhcpd_settings *settings = NULL;
-  struct pico_ipv4_link *link = NULL;
-  uint16_t port = PICO_DHCPD_PORT;
-
-  if (!setting) {
+  if (!setting || !setting->server_ip.addr) {
     pico_err = PICO_ERR_EINVAL;
     return -1;
   }
 
-  if (!setting->my_ip.addr) {
-    pico_err = PICO_ERR_EINVAL;
-    dhcpd_dbg("DHCPD: IP address of interface was not supplied\n");
+  if (pico_dhcp_server_add_setting(setting) == NULL)
     return -1;
-  }
-
-  link = pico_ipv4_link_get(&setting->my_ip);
-  if (!link) {
-    pico_err = PICO_ERR_EINVAL;
-    dhcpd_dbg("DHCPD: no link with IP %X found\n", setting->my_ip.addr);
-    return -1;
-  }
-
-  settings = pico_zalloc(sizeof(struct pico_dhcpd_settings));
-  if (!settings) {
-    pico_err = PICO_ERR_ENOMEM;
-    return -1;
-  }
-  memcpy(settings, setting, sizeof(struct pico_dhcpd_settings));
-
-  settings->dev = link->dev;
-  dhcpd_dbg("DHCPD: configuring DHCP server for link %s\n", link->dev->name);
-  settings->my_ip.addr = link->address.addr;
-  dhcpd_dbg("DHCPD: using server addr %X\n", long_be(settings->my_ip.addr));
-  settings->netmask.addr = link->netmask.addr;
-  dhcpd_dbg("DHCPD: using netmask %X\n", long_be(settings->netmask.addr));
-
-  /* default values if not provided */
-  if (settings->pool_start == 0)
-    settings->pool_start = (settings->my_ip.addr & settings->netmask.addr) | POOL_START;
-  dhcpd_dbg("DHCPD: using pool_start %X\n", long_be(settings->pool_start));
-  if (settings->pool_end == 0)
-    settings->pool_end = (settings->my_ip.addr & settings->netmask.addr) | POOL_END;
-  dhcpd_dbg("DHCPD: using pool_end %x\n", long_be(settings->pool_end));
-  if (settings->lease_time == 0)
-    settings->lease_time = LEASE_TIME;
-  dhcpd_dbg("DHCPD: using lease time %x\n", long_be(settings->lease_time));
-  settings->pool_next = settings->pool_start;
-
-  settings->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcpd_wakeup);
-  if (!settings->s) {
-    dhcpd_dbg("DHCP: could not open client socket\n");
-    pico_free(settings);
-    return -1;
-  }
-  if (pico_socket_bind(settings->s, &settings->my_ip, &port) != 0) {
-    dhcpd_dbg("DHCP: could not bind server socket (%s)\n", strerror(pico_err));
-    pico_free(settings);
-    return -1;
-  }
-  
-  if (pico_tree_insert(&DHCPSettings, settings)) {
-    dhcpd_dbg("DHCPD ERROR: link %s already configured\n", link->dev->name);
-    pico_err = PICO_ERR_EINVAL;
-    pico_free(settings);
-    return -1; /* Element key already exists */
-  }
-  dhcpd_dbg("DHCPD: configured DHCP server for link %s\n", link->dev->name);
 
   return 0;
 }

@@ -44,16 +44,23 @@ static struct filter_node *tail = NULL;
 
 /*======================== FUNCTION PNTRS ==========================*/
 
-static int fp_accept(struct filter_node *filter, struct pico_frame *f) {return 0;}
+static int fp_accept(struct filter_node *filter, struct pico_frame *f) {
+	IGNORE_PARAMETER(filter);
+	IGNORE_PARAMETER(f);
+	return 0;
+}
 
 static int fp_priority(struct filter_node *filter, struct pico_frame *f) {
 
   //TODO do priority-stuff
+	IGNORE_PARAMETER(filter);
+	IGNORE_PARAMETER(f);
   return 0;
 }
 
 static int fp_reject(struct filter_node *filter, struct pico_frame *f) {
 // TODO check first if sender is pico itself or not
+	IGNORE_PARAMETER(filter);
   ipf_dbg("ipfilter> #reject\n");
   pico_icmp4_packet_filtered(f);
   pico_frame_discard(f);
@@ -61,7 +68,7 @@ static int fp_reject(struct filter_node *filter, struct pico_frame *f) {
 }
 
 static int fp_drop(struct filter_node *filter, struct pico_frame *f) {
-
+	IGNORE_PARAMETER(filter);
   ipf_dbg("ipfilter> # drop\n");
   pico_frame_discard(f);
   return 1;

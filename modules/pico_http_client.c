@@ -353,7 +353,7 @@ int pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 
 					// if needed truncate the data
 					tmpLenRead = pico_socket_read(client->sck,data + lenRead,
-					client->header->contentLengthOrChunk < size-lenRead ? client->header->contentLengthOrChunk : size-lenRead);
+					client->header->contentLengthOrChunk < (uint32_t)(size-lenRead) ? client->header->contentLengthOrChunk : (uint32_t)(size-lenRead));
 
 					if(tmpLenRead > 0)
 					{
@@ -446,7 +446,7 @@ struct pico_http_uri * pico_http_client_readUriData(uint16_t conn)
 int pico_http_client_close(uint16_t conn)
 {
 	struct pico_http_client * toBeRemoved = NULL;
-	struct pico_http_client dummy = {};
+	struct pico_http_client dummy = {0};
 	dummy.connectionID = conn;
 
 	dbg("Closing the client...\n");
@@ -532,7 +532,7 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 {
 	char line[HTTP_HEADER_LINE_SIZE];
 	char c;
-	int index = 0;
+	uint32_t index = 0;
 
 	// read the first line of the header
 	while(consumeChar(c)>0 && c!='\r')

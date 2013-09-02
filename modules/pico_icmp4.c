@@ -17,8 +17,8 @@ Authors: Daniele Lacamera
 #include "pico_tree.h"
 
 /* Queues */
-static struct pico_queue icmp_in = {};
-static struct pico_queue icmp_out = {};
+static struct pico_queue icmp_in = {0};
+static struct pico_queue icmp_out = {0};
 
 
 /* Functions */
@@ -41,7 +41,9 @@ static void ping_recv_reply(struct pico_frame *f);
 
 static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
-  struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
+	struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
+	IGNORE_PARAMETER(self);
+
   if (hdr->type == PICO_ICMP_ECHO) {
     hdr->type = PICO_ICMP_ECHOREPLY;
     /* outgoing frames require a f->len without the ethernet header len */
@@ -65,7 +67,9 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
 
 static int pico_icmp4_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
-  dbg("Called %s\n", __FUNCTION__);
+	IGNORE_PARAMETER(self);
+	IGNORE_PARAMETER(f);
+	dbg("Called %s\n", __FUNCTION__);
   return 0;
 }
 
@@ -197,6 +201,8 @@ static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 static void ping_timeout(unsigned long now, void *arg)
 {
   struct pico_icmp4_ping_cookie *cookie = (struct pico_icmp4_ping_cookie *)arg;
+  IGNORE_PARAMETER(now);
+
   if(pico_tree_findKey(&Pings,cookie)){
     if (cookie->err == PICO_PING_ERR_PENDING) {
       struct pico_icmp4_stats stats;
@@ -227,6 +233,7 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 static void next_ping(unsigned long now, void *arg)
 {
   struct pico_icmp4_ping_cookie *newcookie, *cookie = (struct pico_icmp4_ping_cookie *)arg;
+  IGNORE_PARAMETER(now);
 
 	if(pico_tree_findKey(&Pings,cookie)){
     if (cookie->seq < cookie->count) {

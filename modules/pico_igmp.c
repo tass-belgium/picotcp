@@ -138,8 +138,8 @@ struct igmp_timer {
 };
 
 /* queues */
-static struct pico_queue igmp_in = {};
-static struct pico_queue igmp_out = {};
+static struct pico_queue igmp_in = {0};
+static struct pico_queue igmp_out = {0};
 
 /* finite state machine caller */
 static int pico_igmp_process_event(struct igmp_parameters *p);
@@ -216,6 +216,7 @@ static void pico_igmp_timer_expired(unsigned long now, void *arg)
 {
   struct igmp_timer *t = NULL, *timer = NULL, test = {0};
 
+  IGNORE_PARAMETER(now);
   t = (struct igmp_timer *)arg;
   test.type = t->type;
   test.mcast_link = t->mcast_link;
@@ -481,7 +482,8 @@ static struct igmp_parameters *pico_igmp_analyse_packet(struct pico_frame *f)
 static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
   struct igmp_parameters *p = NULL;
- 
+  IGNORE_PARAMETER(self);
+
   if (!pico_igmp_is_checksum_valid(f))
     goto out;
   if (pico_igmp_compatibility_mode(f) < 0)
@@ -499,7 +501,9 @@ static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f
 
 static int pico_igmp_process_out(struct pico_protocol *self, struct pico_frame *f) {
   /* packets are directly transferred to the IP layer by calling pico_ipv4_frame_push */
-  return 0;
+	IGNORE_PARAMETER(self);
+	IGNORE_PARAMETER(f);
+	return 0;
 }
 
 /* Interface: protocol definition */
