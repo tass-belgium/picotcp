@@ -34,7 +34,7 @@ Authors: Daniele Lacamera
   const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 #endif
 
-volatile unsigned long pico_tick;
+volatile unsigned long long pico_tick;
 volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
