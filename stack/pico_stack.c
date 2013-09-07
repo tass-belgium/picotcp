@@ -332,7 +332,7 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
  */
 int pico_ethernet_send(struct pico_frame *f)
 {
-  struct pico_eth *dstmac = NULL;
+  const struct pico_eth *dstmac = NULL;
   int ret = -1;
 
   if (IS_IPV6(f)) {
@@ -342,7 +342,7 @@ int pico_ethernet_send(struct pico_frame *f)
 
   else if (IS_IPV4(f)) {
     if (IS_BCAST(f) || destination_is_bcast(f)) {
-      dstmac = (struct pico_eth *) PICO_ETHADDR_ALL;
+      dstmac = (const struct pico_eth *const) PICO_ETHADDR_ALL;
     } 
 #ifdef PICO_SUPPORT_MCAST
     else if (destination_is_mcast(f)) {

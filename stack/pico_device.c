@@ -27,7 +27,7 @@ static int pico_dev_cmp(void *ka, void *kb)
 
 PICO_TREE_DECLARE(Device_tree,pico_dev_cmp);
 
-int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac)
+int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
 	int len = strlen(name);
 	if(len>MAX_DEVICE_NAME)
@@ -206,7 +206,7 @@ int pico_devices_loop(int loop_score, int direction)
   return loop_score;
 }
 
-struct pico_device* pico_get_device(char* name)
+struct pico_device* pico_get_device(const char* name)
 {
   struct pico_device *dev;
   struct pico_tree_node * index;

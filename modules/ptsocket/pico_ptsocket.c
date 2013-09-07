@@ -71,7 +71,7 @@ static void wakeup(uint16_t ev, struct pico_socket *s)
 }
 
 
-int pico_ptsocket(int domain, int type, int protocol) {
+int pico_ptsocket(int domain, int type, int __attribute__((unused)) protocol) {
   int sockfd = -1;
   uint16_t net, proto;
 
@@ -117,7 +117,7 @@ err:
   return sockfd;
 }
 
-int pico_ptbind(int sockfd, void *addr, int addrlen) {
+int pico_ptbind(int sockfd, void *addr, int __attribute__((unused)) addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
@@ -144,7 +144,7 @@ int pico_ptbind(int sockfd, void *addr, int addrlen) {
 }
 
 
-int pico_ptconnect(int sockfd, void *addr, int addrlen) {
+int pico_ptconnect(int sockfd, void *addr, int __attribute__((unused)) addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
   struct sockaddr_emu_ipv6 *sockaddr6;
@@ -179,7 +179,7 @@ int pico_ptconnect(int sockfd, void *addr, int addrlen) {
 }
 
 
-int pico_ptaccept(int sockfd, void *addr, int *addrlen) {
+int pico_ptaccept(int sockfd, void *addr, int __attribute__((unused)) *addrlen) {
   struct pico_socket *newsock = NULL;
   struct pico_socket *s = GET_SOCK(sockfd);
   struct sockaddr_emu_ipv4 *sockaddr4;
@@ -234,7 +234,7 @@ int pico_ptlisten(int sockfd, int backlog) {
 }
 
 
-int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen) {
+int pico_ptrecvfrom(int sockfd, void *buf, int len, int __attribute__((unused)) flags, void *addr, int *addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   int ret = -1;
   struct sockaddr_emu_ipv4 *sockaddr4 = NULL;
@@ -287,7 +287,7 @@ fail:
 }
 
 
-int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen) {
+int pico_ptsendto(int sockfd, void *buf, int len, int __attribute__((unused)) flags, void *addr, int addrlen) {
   struct pico_socket *s = GET_SOCK(sockfd);
   int ret = -1;
   struct sockaddr_emu_ipv4 *sockaddr4 = NULL;
@@ -430,7 +430,7 @@ int pico_ptshutdown(int sockfd, int how) {
   return ret;
 }
 
-static void *pico_ptloop(void *arg)
+static void *pico_ptloop(void __attribute__((unused)) *arg)
 {
   while(1) {
     GlobalLock();

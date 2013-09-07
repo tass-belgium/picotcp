@@ -53,7 +53,7 @@ static inline uint16_t short_from(void *_p)
   uint16_t r, p0, p1;
   p0 = p[0];
   p1 = p[1];
-  r = (p1 << 8) + p0;
+  r = (p1 << 8u) + p0;
   return r;
 }
 
@@ -80,7 +80,7 @@ static inline uint32_t long_from(void *_p)
 
 static inline uint16_t short_be(uint16_t le)
 {
-  return ((le & 0xFF) << 8) | ((le >> 8) & 0xFF);
+  return ((le & 0xFFu) << 8) | ((le >> 8u) & 0xFFu);
 }
 
 static inline uint32_t long_be(uint32_t le)

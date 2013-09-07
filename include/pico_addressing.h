@@ -10,7 +10,7 @@ See LICENSE and COPYING for usage.
 
 struct pico_ip4
 {
-  uint32_t addr;
+  uint32_t     addr;
 };
 #define PICO_SIZE_IP4 4
 

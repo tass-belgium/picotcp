@@ -124,7 +124,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 		{
 			// send out error
 			client->state = HTTP_ERROR;
-			pico_socket_write(client->sck,(char *)errorHeader,sizeof(errorHeader)-1);
+			pico_socket_write(client->sck,(const char *)errorHeader,sizeof(errorHeader)-1);
 			server.wakeup(EV_HTTP_ERROR,client->connectionID);
 		}
 	}
@@ -288,13 +288,13 @@ int pico_http_respond(uint16_t conn, uint16_t code)
 		if(code == HTTP_RESOURCE_FOUND)
 		{
 			client->state = HTTP_WAIT_DATA;
-			return pico_socket_write(client->sck,(char *)returnOkHeader,sizeof(returnOkHeader)-1);//remove \0
+			return pico_socket_write(client->sck,(const char *)returnOkHeader,sizeof(returnOkHeader)-1);//remove \0
 		}
 		else
 		{
 			int length;
 
-			length = pico_socket_write(client->sck,(char *)returnFailHeader,sizeof(returnFailHeader)-1);//remove \0
+			length = pico_socket_write(client->sck,(const char *)returnFailHeader,sizeof(returnFailHeader)-1);//remove \0
 			pico_socket_close(client->sck);
 			client->state = HTTP_CLOSED;
 			return length;

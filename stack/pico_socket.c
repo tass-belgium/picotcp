@@ -942,7 +942,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
   return 0;
 }
 
-int pico_socket_write(struct pico_socket *s, void *buf, int len)
+int pico_socket_write(struct pico_socket *s, const void *buf, int len)
 {
   if (!s || buf == NULL) {
     pico_err = PICO_ERR_EINVAL;
@@ -995,7 +995,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
 }
 
 
-int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port)
+int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
   struct pico_frame *f;
   struct pico_remote_duple *remote_duple = NULL;
@@ -1181,7 +1181,7 @@ int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uin
   return total_payload_written;
 }
 
-int pico_socket_send(struct pico_socket *s, void *buf, int len)
+int pico_socket_send(struct pico_socket *s, const void *buf, int len)
 {
   if (!s || buf == NULL) {
     pico_err = PICO_ERR_EINVAL;
@@ -1298,7 +1298,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
   return pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
 }
 
-int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remote_port)
+int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t remote_port)
 {
   int ret = -1;
   pico_err = PICO_ERR_EPROTONOSUPPORT;
@@ -1318,10 +1318,10 @@ int pico_socket_connect(struct pico_socket *s, void *remote_addr, uint16_t remot
   }
 
   if (is_sock_ipv6(s)) {
-    struct pico_ip6 *ip = (struct pico_ip6 *) remote_addr;
+    const struct pico_ip6 *ip = (const struct pico_ip6 *) remote_addr;
     memcpy(s->remote_addr.ip6.addr, ip, PICO_SIZE_IP6);
   } else if (is_sock_ipv4(s)) {
-    struct pico_ip4 *local, *ip = (struct pico_ip4 *) remote_addr;
+    const struct pico_ip4 *local, *ip = (const struct pico_ip4 *) remote_addr;
     s->remote_addr.ip4.addr = ip->addr;
     local = pico_ipv4_source_find(ip);
     if (local) {

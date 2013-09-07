@@ -74,12 +74,12 @@ struct pico_remote_duple {
 
 /* request struct for multicast socket opt */
 struct pico_ip_mreq {
-  struct pico_ip4 mcast_group_addr;
+  struct pico_ip4   mcast_group_addr;
   struct pico_ip4 mcast_link_addr;
 };
 
 struct pico_ip_mreq_source {
-  struct pico_ip4 mcast_group_addr;
+  struct pico_ip4  mcast_group_addr;
   struct pico_ip4 mcast_source_addr;
   struct pico_ip4 mcast_link_addr;
 };
@@ -143,17 +143,17 @@ struct pico_ip_mreq_source {
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s));
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len);
-int pico_socket_write(struct pico_socket *s, void *buf, int len);
+int pico_socket_write(struct pico_socket *s, const void *buf, int len);
 
-int pico_socket_sendto(struct pico_socket *s, void *buf, int len, void *dst, uint16_t remote_port);
+int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *dst, uint16_t remote_port);
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port);
 
-int pico_socket_send(struct pico_socket *s, void *buf, int len);
+int pico_socket_send(struct pico_socket *s, const void *buf, int len);
 int pico_socket_recv(struct pico_socket *s, void *buf, int len);
 
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
-int pico_socket_connect(struct pico_socket *s, void *srv_addr, uint16_t remote_port);
-int pico_socket_listen(struct pico_socket *s, int backlog);
+int pico_socket_connect(struct pico_socket *s, const void *srv_addr, uint16_t remote_port);
+int pico_socket_listen(struct pico_socket *s, const int backlog);
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port);
 int pico_socket_del(struct pico_socket *s);
 

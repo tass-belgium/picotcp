@@ -28,17 +28,21 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+static struct pico_ip4 ZERO_IP4 = { 0 };
+static struct pico_ip_mreq ZERO_MREQ = { .mcast_group_addr = {0}, .mcast_link_addr = {0} };
+static struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+
 //#define INFINITE_TCPTEST
 #define picoapp_dbg(...) do{}while(0)
 //#define picoapp_dbg printf
 
 //#define PICOAPP_IPFILTER 1
 
-struct pico_ip4 inaddr_any = { };
+struct pico_ip4 inaddr_any = { 0 };
 
 static char *cpy_arg(char **dst, char *str);
 
-void deferred_exit(unsigned long now, void *arg)
+void deferred_exit(unsigned long __attribute__((unused)) now, void *arg)
 {
   if (arg) {
     free(arg);
@@ -79,7 +83,7 @@ struct udpclient_pas {
 
 static struct udpclient_pas *udpclient_pas;
 
-void udpclient_send(unsigned long now, void *arg) {
+void udpclient_send(unsigned long __attribute__((unused)) now, void __attribute__((unused))  *arg) {
   struct pico_socket *s = udpclient_pas->s;
   char end[4] = "end";
   char *buf = NULL;
@@ -143,7 +147,7 @@ void app_udpclient(char *arg)
 {
   char *daddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
   uint16_t listen_port = 0, send_port = 0;
-  struct pico_ip4 inaddr_dst = { };
+  struct pico_ip4 inaddr_dst = { 0 };
   char *nxt = arg;
 
   udpclient_pas = calloc(1, sizeof(struct udpclient_pas));
@@ -334,7 +338,7 @@ void app_udpecho(char *arg)
   char *baddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL;
   char *nxt = arg;
   uint16_t listen_port = 0;
-  struct pico_ip4 inaddr_bind = { };
+  struct pico_ip4 inaddr_bind = { 0 };
 
   udpecho_pas = calloc(1, sizeof(struct udpecho_pas));
   if (!udpecho_pas) {
@@ -456,9 +460,9 @@ void app_mcastsend(char *arg)
 {
   char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
   uint16_t sendto_port = 0;
-  struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
+  struct pico_ip4 inaddr_link = { 0 }, inaddr_mcast = { 0 };
   char *new_arg = NULL, *p = NULL, *nxt = arg;
-  struct pico_ip_mreq mreq = { };
+  struct pico_ip_mreq mreq = ZERO_MREQ;
 
   /* start of parameter parsing */
   if (nxt) {
@@ -563,9 +567,9 @@ void app_mcastreceive(char *arg)
   char *new_arg = NULL, *p = NULL, *nxt = arg;
   char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
   uint16_t listen_port = 0;
-  struct pico_ip4 inaddr_link = { }, inaddr_mcast = { };
-  struct pico_ip_mreq mreq = { };
-  struct pico_ip_mreq_source mreq_source = { };
+  struct pico_ip4 inaddr_link = { 0 }, inaddr_mcast = { 0 };
+  struct pico_ip_mreq mreq = ZERO_MREQ;
+  struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC;
 
   /* start of parameter parsing */
   if (nxt) {
@@ -698,7 +702,7 @@ void app_mcastreceive(char *arg)
 static struct pico_ip4 udpnatclient_inaddr_dst;
 static uint16_t udpnatclient_port_be;
 
-void udpnatclient_send(unsigned long now, void *arg) {
+void udpnatclient_send(unsigned long __attribute__((unused)) now, void *arg) {
   int i, w;
   struct pico_socket *s = (struct pico_socket *)arg;
   char buf[1400] = { };
@@ -742,7 +746,7 @@ void cb_udpnatclient(uint16_t ev, struct pico_socket *s)
   //pico_socket_close(s);
 }
 
-void udpnatclient_open_socket(unsigned long now, void *arg)
+void udpnatclient_open_socket(unsigned long __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
   struct pico_socket *s = NULL;
   static int loop;
@@ -777,7 +781,7 @@ void app_udpnatclient(char *arg)
   char *daddr, *dport;
   int port = 0;
   uint16_t port_be = 0;
-  struct pico_ip4 inaddr_dst = { };
+  struct pico_ip4 inaddr_dst = ZERO_IP4;
   char *nxt;
 
   nxt = cpy_arg(&daddr, arg);
@@ -921,7 +925,7 @@ void app_udpdnsclient(char *arg)
 static char *buffer1;
 static char *buffer0;
 
-void compare_results(unsigned long now, void *arg)
+void compare_results(unsigned long __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
 #ifdef CONSISTENCY_CHECK /* TODO: Enable */
   int i;
@@ -1067,26 +1071,26 @@ void app_tcpclient(char *arg)
 /*** TCP ECHO ***/
 #define BSIZE (1024 * 10)
 static char recvbuf[BSIZE];
-static int pos = 0, len = 0;
+static int global_pos = 0, global_len = 0;
 static int flag = 0;
 
 int send_tcpecho(struct pico_socket *s)
 {
   int w, ww = 0;
-  if (len > pos) {
+  if (global_len > global_pos) {
     do {
-      w = pico_socket_write(s, recvbuf + pos, len - pos);
+      w = pico_socket_write(s, recvbuf + global_pos, global_len - global_pos);
       if (w > 0) {
-        pos += w;
+        global_pos += w;
         ww += w;
-        if (pos >= len) {
-          pos = 0;
-          len = 0;
+        if (global_pos >= global_len) {
+          global_pos = 0;
+          global_len = 0;
         }
       } else {
         errno = pico_err;
       }
-    } while((w > 0) && (pos < len));
+    } while((w > 0) && (global_pos < global_len));
   }
   return ww;
 }
@@ -1099,10 +1103,10 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
   if (ev & PICO_SOCK_EV_RD) {
     if (flag & PICO_SOCK_EV_CLOSE)
       printf("SOCKET> EV_RD, FIN RECEIVED\n");
-    while(len < BSIZE) {
-      r = pico_socket_read(s, recvbuf + len, BSIZE - len);
+    while(global_len < BSIZE) {
+      r = pico_socket_read(s, recvbuf + global_len, BSIZE - global_len);
       if (r > 0) {
-        len += r;
+        global_len += r;
         flag &= ~(PICO_SOCK_EV_RD);
       } else {
       }
@@ -1216,7 +1220,6 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 {
   static int closed = 0;
   static unsigned long count = 0;
-  uint8_t recvbuf[1500];
   struct pico_ip4 orig;
   uint16_t port;
   char peer[30];
@@ -1605,9 +1608,9 @@ void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
   }
 }
 
-void callback_dhcpclient(void *cli, int code) 
+void callback_dhcpclient(void __attribute__((unused)) *cli, int code) 
 {
-  struct pico_ip4 address = { }, gateway = { };
+  struct pico_ip4 address = ZERO_IP4, gateway = ZERO_IP4;
   char s_address[16] = { }, s_gateway[16] = { };
   void *identifier = NULL;
 
@@ -1702,7 +1705,7 @@ static int http_save_file(void *data, int len)
 void wget_callback(uint16_t ev, uint16_t conn)
 {
   static char data[1024 * 1024]; // MAX: 1M
-  static int _length = 0;
+  static uint32_t _length = 0u;
 
 
   if(ev & EV_HTTP_CON)
@@ -1781,12 +1784,11 @@ void wget_callback(uint16_t ev, uint16_t conn)
       exit(1);
     }
 
-    if (http_save_file(data, _length) < _length) {
+    len = http_save_file(data, _length);
+    if ((len < 0)|| ((uint32_t)len < _length)) {
       printf("Failed to save file: %s\n", strerror(errno));
       exit(1);
     }
-
-
   	pico_http_client_close(conn);
   	exit(0);
   }
@@ -1911,7 +1913,7 @@ void serverWakeup(uint16_t ev,uint16_t conn)
   }
 }
 
-void app_httpd(char *arg)
+void app_httpd(char __attribute__((unused)) *arg)
 {
 
   if( pico_http_server_start(0,serverWakeup) < 0)
@@ -1923,13 +1925,13 @@ void app_httpd(char *arg)
 #endif
 /* END HTTP server */
 
-void cb_zeromq_prod(ZMQ z)
+void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
 {
 }
 
 
 /* ZEROMQ PRODUCER */
-void app_zeromq_prod(char *arg)
+void app_zeromq_prod(char __attribute__((unused)) *arg)
 {
   ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
   if (!z) {
@@ -1939,10 +1941,11 @@ void app_zeromq_prod(char *arg)
   while(1) {
     uint32_t last = 0;
     uint32_t now; 
+    char zmsg[] = "HELLO";
     pico_stack_tick();
     now = PICO_TIME_MS();
     if (now > last + 500) {
-      zmq_send(z, "HELLO", 5);
+      zmq_send(z, zmsg, 5);
       last = now;
     }
     usleep(2000);
@@ -1976,7 +1979,8 @@ static char *cpy_arg(char **dst, char *str)
   return nxt;
 }
 
-void __wakeup(uint16_t ev, struct pico_socket *s){
+void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
+{
 
 }
 
@@ -1996,7 +2000,7 @@ int main(int argc, char **argv)
   unsigned char macaddr[6] = {0,0,0,0xa,0xb,0x0};
   uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
   struct pico_device *dev = NULL;
-  struct pico_ip4 bcastAddr = {};
+  struct pico_ip4 bcastAddr = ZERO_IP4;
 
   struct option long_options[] = {
     {"help",0 , 0, 'h'},
@@ -2027,7 +2031,7 @@ int main(int argc, char **argv)
       case 't':
       {
         char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway, zero = {};
+        struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
         do {
           nxt = cpy_arg(&name, optarg);
           if (!nxt) break;
@@ -2061,7 +2065,7 @@ int main(int argc, char **argv)
     case 'v':
       {
         char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway, zero = {};
+        struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
         printf("+++ OPTARG %s\n", optarg);
         do {
           nxt = cpy_arg(&name, optarg);

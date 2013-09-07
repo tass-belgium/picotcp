@@ -656,7 +656,8 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *, void *), v
 
 int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), void *arg)
 {
-  char *inaddr_arpa = ".in-addr.arpa", *msg = NULL;
+  const char *inaddr_arpa = ".in-addr.arpa";
+  char *msg = NULL;
   struct pico_dns_prefix *prefix = NULL;
   struct pico_dns_name *domain = NULL;
   struct pico_dns_query_suffix *qsuffix = NULL;

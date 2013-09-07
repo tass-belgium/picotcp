@@ -30,10 +30,10 @@ struct pico_device {
   int __serving_interrupt;
 };
 
-int pico_device_init(struct pico_device *dev, char *name, uint8_t *mac);
+int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac);
 void pico_device_destroy(struct pico_device *dev);
 int pico_devices_loop(int loop_score, int direction);
-struct pico_device* pico_get_device(char* name);
+struct pico_device* pico_get_device(const char* name);
 int pico_device_broadcast(struct pico_frame * f);
 
 #endif

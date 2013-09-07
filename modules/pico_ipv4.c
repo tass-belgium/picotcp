@@ -41,7 +41,7 @@ static int ipv4_route_compare(void *ka, void * kb);
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
 {
-  const unsigned char *addr = (unsigned char *) &ip;
+  const unsigned char *addr = (const unsigned char *) &ip;
   int i;
 
   if (!ipbuf) {
@@ -616,7 +616,7 @@ static int ipv4_route_compare(void *ka, void * kb)
   return 0;
 }
 
-static struct pico_ipv4_route *route_find(struct pico_ip4 *addr)
+static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
 {
   struct pico_ipv4_route *r;
   struct pico_tree_node * index;
@@ -666,7 +666,7 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
     return route->gateway;
 }
 
-struct pico_ip4 *pico_ipv4_source_find(struct pico_ip4 *dst)
+struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
 {
   struct pico_ip4 *myself = NULL;
   struct pico_ipv4_route *rt;

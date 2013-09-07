@@ -65,6 +65,7 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
 {
   struct pico_device_vde *vde = pico_zalloc(sizeof(struct pico_device_vde));
   struct vde_open_args open_args={.mode=0700};
+  char vdename[] = "picotcp";
 
   if (!vde)
     return NULL;
@@ -78,7 +79,7 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
   vde->dev.overhead = 0;
   vde->sock = pico_zalloc(strlen(sock) + 1);
   memcpy(vde->sock, sock, strlen(sock));
-  vde->conn = vde_open(sock, "picotcp", &open_args);
+  vde->conn = vde_open(sock, vdename, &open_args);
   if (!vde->conn) {
     pico_vde_destroy((struct pico_device *)vde);
     return NULL;

@@ -155,7 +155,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
     return NULL;
 }
 
-static void pico_dhcp_client_init_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_init_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -177,7 +177,7 @@ static void pico_dhcp_client_init_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_requesting_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_requesting_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -197,7 +197,7 @@ static void pico_dhcp_client_requesting_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_renewing_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_renewing_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -212,7 +212,7 @@ static void pico_dhcp_client_renewing_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_rebinding_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_rebinding_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -227,7 +227,7 @@ static void pico_dhcp_client_rebinding_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_T1_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_T1_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -241,7 +241,7 @@ static void pico_dhcp_client_T1_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_T2_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_T2_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -256,7 +256,7 @@ static void pico_dhcp_client_T2_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_lease_timer(unsigned long now, void *arg)
+static void pico_dhcp_client_lease_timer(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -271,7 +271,7 @@ static void pico_dhcp_client_lease_timer(unsigned long now, void *arg)
   return;
 }
 
-static void pico_dhcp_client_reinit(unsigned long now, void *arg)
+static void pico_dhcp_client_reinit(unsigned long __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -598,7 +598,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   return 0;
 }
 
-static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
+static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
   uint16_t port = PICO_DHCP_CLIENT_PORT;
 
@@ -623,7 +623,7 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   return 0;
 }
 
-static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
+static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
   struct pico_ip4 bcast = { .addr = 0xFFFFFFFF }, netmask = {0}, inaddr_any = {0};
 
@@ -637,7 +637,7 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   return 0;
 }
 
-static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
+static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
   struct pico_ip4 address = {0}, netmask = {0}, inaddr_any = {0}, bcast = { .addr = 0xFFFFFFFF };
 
@@ -663,7 +663,7 @@ static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   return 0;
 }
 
-static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
+static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
   switch (dhcpc->state)
   {
