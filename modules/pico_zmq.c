@@ -349,7 +349,7 @@ ZMQ zmq_subscriber(void (*cb)(ZMQ z))
 
 int zmq_connect(ZMQ z, char *address, uint16_t port) 
 {
-  struct pico_ip4 ip;
+  struct pico_ip4 ip = {0};
   struct zmq_connector *z_c;
   if (pico_string_to_ipv4(address, &ip.addr) < 0) {
     dbg("FIXME!! I need to synchronize with the dns client to get to my publisher :(\n");
