@@ -2190,7 +2190,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
   struct pico_frame *f_new;
   int total_len = 0;
   IGNORE_PARAMETER(self);
-
+  pico_err = PICO_ERR_NOERR;
   hdr->trans.sport = t->sock.local_port;
   hdr->trans.dport = t->sock.remote_port;
   hdr->seq = long_be(t->snd_last + 1);
@@ -2251,7 +2251,8 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
           t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           return f->payload_len;
         } else {
-          tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
+        	pico_err = PICO_ERR_EAGAIN;
+        	tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
           return 0;
         }
       }
