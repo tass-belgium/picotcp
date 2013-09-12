@@ -682,7 +682,9 @@ struct pico_socket *pico_tcp_open(void)
   t->tcpq_hold.max_size = 2*PICO_TCP_DEFAULT_MSS;
 
   /* disable Nagle by default */
-  t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
+  //t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
+  /* Nagle is enabled by default */
+  t->sock.opt_flags &= ~(1 << PICO_SOCKET_OPT_TCPNODELAY);
 
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
   pico_timer_add(2000, sock_stats, t);

@@ -28,6 +28,8 @@ struct pico_device {
   void(*destroy)(struct pico_device *self);
   int (*dsr)(struct pico_device *self, int loop_score);
   int __serving_interrupt;
+  // used to signal the upper layer the number of events arrived since the last processing
+  volatile int eventCnt;
 };
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac);
