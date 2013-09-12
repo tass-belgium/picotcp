@@ -17,6 +17,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #include "pico_tree.h"
 
 #define TCP_STATE(s) (s->state & PICO_SOCKET_STATE_TCP)
+#define TCP_IS_STATE(s,st) (s->state & st)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
 #define ACKN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->ack)):0)
@@ -1973,7 +1974,8 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
         action->ack(s,f);
       }
     }
-    if (f->payload_len > 0 && !(s->state & PICO_SOCKET_STATE_CLOSED)) {
+    if (f->payload_len > 0 && !(s->state & PICO_SOCKET_STATE_CLOSED) && !TCP_IS_STATE(s,PICO_SOCKET_STATE_TCP_LISTEN))
+    {
       ret = f->payload_len;
       if (action->data)
         action->data(s,f);
@@ -2251,8 +2253,8 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
           t->snd_last += f->payload_len;    /* XXX  WATCH OUT */
           return f->payload_len;
         } else {
-        	pico_err = PICO_ERR_EAGAIN;
-        	tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
+          pico_err = PICO_ERR_EAGAIN;
+          tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
           return 0;
         }
       }
