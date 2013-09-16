@@ -138,6 +138,7 @@ static int pico_dhcp_client_del_cookie(uint32_t xid)
     return -1;
 
   pico_socket_close(found->s);
+  pico_ipv4_link_del(found->dev, found->address);
   pico_tree_delete(&DHCPCookies, found);
   pico_free(found);
   return 0;
