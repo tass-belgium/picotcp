@@ -584,10 +584,32 @@ int pico_socket_add(struct pico_socket *s)
   return 0;
 }
 
+static void socket_clean_queues(struct pico_socket *sock)
+{
+  struct pico_frame * f_in = pico_dequeue(&sock->q_in);
+  struct pico_frame * f_out = pico_dequeue(&sock->q_out);
+  while(f_in || f_out)
+  {
+    if(f_in)
+    {
+    	pico_frame_discard(f_in);
+    	f_in = pico_dequeue(&sock->q_in);
+    }
+
+    if(f_out)
+    {
+    	pico_frame_discard(f_out);
+    	f_out = pico_dequeue(&sock->q_out);
+    }
+
+  }
+}
+
 static void socket_garbage_collect(unsigned long now, void *arg)
 {
   struct pico_socket *s = (struct pico_socket *) arg;
   IGNORE_PARAMETER(now);
+  socket_clean_queues(s);
   pico_free(s);
 }
 

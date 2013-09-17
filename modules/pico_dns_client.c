@@ -23,7 +23,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_MAX_RESPONSE_LEN 256
 
 /* DNS client retransmission time (msec) + frequency */
-#define PICO_DNS_CLIENT_RETRANS 4000
+#define PICO_DNS_CLIENT_RETRANS 2000
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
 /* Default nameservers + port */
@@ -255,7 +255,7 @@ static int pico_dns_client_del_query(uint16_t id)
   struct pico_dns_query test = {0}, *found = NULL;
 
   test.id = id;
-  found = pico_tree_findKey(&NSTable, &test);
+  found = pico_tree_findKey(&DNSTable, &test);
   if (!found)
     return -1;
 
