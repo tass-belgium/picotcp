@@ -519,12 +519,14 @@ static int pico_dns_client_send(struct pico_dns_query *q)
 static void pico_dns_client_retransmission(unsigned long now, void *arg)
 {
   struct pico_dns_query *q = NULL;
+  struct pico_dns_query dummy;
   IGNORE_PARAMETER(now);
 
   if(!arg)
 	  return;
   // search for the dns query and free used space
-  q = (struct pico_dns_query *)pico_tree_findKey(&DNSTable,arg);
+  dummy.id = *(uint16_t *)arg;
+  q = (struct pico_dns_query *)pico_tree_findKey(&DNSTable,&dummy);
   pico_free(arg);
 
   /* dns query successful? */
