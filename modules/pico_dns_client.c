@@ -23,7 +23,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_MAX_RESPONSE_LEN 256
 
 /* DNS client retransmission time (msec) + frequency */
-#define PICO_DNS_CLIENT_RETRANS 2000
+#define PICO_DNS_CLIENT_RETRANS 4000
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
 /* Default nameservers + port */
@@ -502,6 +502,7 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre,
 
 static int pico_dns_client_send(struct pico_dns_query *q)
 {
+  uint16_t * paramID = pico_zalloc(sizeof(uint16_t));
   dns_dbg("DNS: sending query to %08X\n", q->q_ns.ns.addr);
   if (!q->s)
     return -1;
@@ -509,18 +510,25 @@ static int pico_dns_client_send(struct pico_dns_query *q)
     return -1;
 
   pico_socket_send(q->s, q->query, q->len);
-  pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, q);
+  *paramID = q->id;
+  pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID);
 
   return 0;
 }
 
 static void pico_dns_client_retransmission(unsigned long now, void *arg)
 {
-  struct pico_dns_query *q = (struct pico_dns_query *)arg;
+  struct pico_dns_query *q = NULL;
   IGNORE_PARAMETER(now);
+
+  if(!arg)
+	  return;
+  // search for the dns query and free used space
+  q = (struct pico_dns_query *)pico_tree_findKey(&DNSTable,arg);
+  pico_free(arg);
+
   /* dns query successful? */
-  if (!q->retrans) {
-    pico_dns_client_del_query(q->id);
+  if (!q) {
     return;
   }
 
@@ -561,6 +569,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
   if (q->retrans) {
     q->callback(str, q->arg);
     q->retrans = 0;
+    pico_dns_client_del_query(q->id);
   }
   return 0;
 }
