@@ -592,17 +592,19 @@ static void socket_clean_queues(struct pico_socket *sock)
   {
     if(f_in)
     {
-    	pico_frame_discard(f_in);
-    	f_in = pico_dequeue(&sock->q_in);
+      pico_frame_discard(f_in);
+      f_in = pico_dequeue(&sock->q_in);
     }
 
     if(f_out)
     {
-    	pico_frame_discard(f_out);
-    	f_out = pico_dequeue(&sock->q_out);
+      pico_frame_discard(f_out);
+      f_out = pico_dequeue(&sock->q_out);
     }
-
   }
+  // for tcp sockets go further and clean the sockets inside queue
+  if(sock->proto == &pico_proto_tcp)
+    pico_tcp_cleanup_queues(sock);
 }
 
 static void socket_garbage_collect(unsigned long now, void *arg)

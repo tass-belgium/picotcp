@@ -94,5 +94,6 @@ int pico_tcp_overhead(struct pico_socket *s);
 int pico_tcp_output(struct pico_socket *s, int loop_score);
 int pico_tcp_queue_in_is_empty(struct pico_socket *s);
 int pico_tcp_reply_rst(struct pico_frame *f);
+void pico_tcp_cleanup_queues(struct pico_socket *sck);
 
 #endif
