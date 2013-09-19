@@ -16,7 +16,6 @@ Authors: Daniele Lacamera, Philippe Mariman
 #include "pico_queue.h"
 #include "pico_tree.h"
 
-#define TCP_STATE(s) (s->state & PICO_SOCKET_STATE_TCP)
 #define TCP_IS_STATE(s,st) (s->state & st)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) (f?(long_be(((struct pico_tcp_hdr *)(f->transport_hdr))->seq)):0)
@@ -314,7 +313,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)f->sock;
   IGNORE_PARAMETER(self);
   hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-
+  f->sock->timestamp = PICO_TIME_MS();
   if (f->payload_len > 0) {
     tcp_dbg("Process out: sending %p (%d bytes)\n",f, f->payload_len);
   } else {
@@ -673,6 +672,7 @@ struct pico_socket *pico_tcp_open(void)
   struct pico_socket_tcp *t = pico_zalloc(sizeof(struct pico_socket_tcp));
   if (!t)
     return NULL;
+  t->sock.timestamp = PICO_TIME_MS();
   t->mss = PICO_TCP_DEFAULT_MSS;
 
   t->tcpq_in.pool.root = t->tcpq_hold.pool.root = t->tcpq_out.pool.root = &LEAF;
@@ -1959,7 +1959,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 
   /* This copy of the frame has the current socket as owner */
   f->sock = s;
-
+  s->timestamp = PICO_TIME_MS();
   /* Those are not supported at this time. */
   flags &= ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN);
   if (flags == PICO_TCP_SYN) {

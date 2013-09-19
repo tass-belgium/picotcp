@@ -27,6 +27,7 @@ Authors: Daniele Lacamera
 #define PROTO(s) ((s)->proto->proto_number)
 #define PICO_SOCKET4_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 #define PICO_SOCKET6_MTU 1460 /* Ethernet MTU(1500) - IP header size(40) */
+#define TCP_STATE(s) (s->state & PICO_SOCKET_STATE_TCP)
 
 #ifdef PICO_SUPPORT_MUTEX
 static void * Mutex = NULL;
@@ -2203,8 +2204,8 @@ int pico_sockets_loop(int loop_score)
   start = sp_tcp;
 
   while (loop_score > SL_LOOP_MIN && sp_tcp != NULL) {
-    struct pico_tree_node * index = NULL;
-    pico_tree_foreach(index, &sp_tcp->socks){
+    struct pico_tree_node * index = NULL, * safe_index = NULL;
+    pico_tree_foreach_safe(index, &sp_tcp->socks,safe_index){
       s = index->keyValue;
       loop_score = pico_tcp_output(s, loop_score);
       if ((s->ev_pending) && s->wakeup) {
@@ -2214,10 +2215,26 @@ int pico_sockets_loop(int loop_score)
         loop_score = 0;
         break;
       }
-    }
+
+      // checking socket activity
+      if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
+    	// checking for hanging sockets
+    	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )
+    	{
+		  pico_socket_del(s);
+		  index_tcp = pico_tree_firstNode(TCPTable.root);
+    	}
+        // if no activity, force the socket into closing state
+    	if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
+    	{
+    	  pico_socket_close(s);
+    	  s->timestamp = PICO_TIME_MS();
+    	}
+      }
+	}
 
     /* check if RB_FOREACH ended, if not, break to keep the cur sp_tcp */
-    if (index && index->keyValue)
+    if ( (index && index->keyValue) || !index_tcp)
       break;
 
     index_tcp = pico_tree_next(index_tcp);

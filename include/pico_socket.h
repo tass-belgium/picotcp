@@ -59,6 +59,7 @@ struct pico_socket {
   int id;
   uint16_t state;
   uint16_t opt_flags;
+  uint32_t timestamp;
   void *priv;
 };
 
@@ -127,6 +128,8 @@ struct pico_ip_mreq_source {
 
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
+
+#define PICO_SOCKET_TIMEOUT					  90000u //1.5 minutes
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
