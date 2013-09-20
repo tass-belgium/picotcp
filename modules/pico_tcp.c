@@ -25,7 +25,6 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_RTO_MAX 120000
 #define PICO_TCP_IW 		 2
 #define PICO_TCP_SYN_TO	 1000
-#define PICO_TCP_ZOMBIE_TO 30000
 
 #define PICO_TCP_MAX_CONNECT_RETRIES 7
 
@@ -2020,26 +2019,6 @@ static void tcp_send_keepalive(unsigned long when, void *_t)
   }
 }
 
-void zombie_timer(unsigned long time, void *param)
-{
-	struct tcp_port_pair * ports = (struct tcp_port_pair *)param;
-	IGNORE_PARAMETER(time);
-	if(ports)
-	{
-		struct pico_socket_tcp * t = (struct pico_socket_tcp *)pico_sockets_find(ports->local,ports->remote);
-		if(t)
-		{
-			(t->sock).state &= 0x00FFU;
-			(t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-			(t->sock).state &= 0xFF00U;
-			(t->sock).state |= PICO_SOCKET_STATE_CLOSED;
-			tcp_dbg("Deleting zombie socket %p\n",param);
-			pico_socket_del(&t->sock);
-		}
-		pico_free(ports);
-	}
-}
-
 int pico_tcp_output(struct pico_socket *s, int loop_score)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
@@ -2118,8 +2097,6 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       s->state &= 0x00FFU;
       s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
       tcp_dbg("TCP> STATE: LAST_ACK.\n");
-      // start zombie timer
-      pico_timer_add(PICO_TCP_ZOMBIE_TO,&zombie_timer,(void *)pair);
     }
   }
   return loop_score;
