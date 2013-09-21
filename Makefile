@@ -30,7 +30,7 @@ HTTP_CLIENT?=1
 HTTP_SERVER?=1
 ZMQ?=1
 
-CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings
+CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 #CFLAGS+= -Wconversion 
 # request from Toon
