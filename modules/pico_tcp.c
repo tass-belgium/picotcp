@@ -1839,6 +1839,23 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
   return 0;
 }
 
+static void tcp_force_closed(struct pico_socket *s)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  /* update state */
+  (t->sock).state &= 0x00FFU;
+  (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+  (t->sock).state &= 0xFF00U;
+  (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+}
+
+static void tcp_wakeup_pending(struct pico_socket *s, uint16_t ev)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  if ((t->sock).wakeup)
+    (t->sock).wakeup(ev, &(t->sock));
+}
+
 static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
@@ -1848,23 +1865,11 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
   if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
     /* the RST is acceptable if the ACK field acknowledges the SYN */
     if ((t->snd_nxt + 1) == ACKN(f)) {  /* valid, got to closed state */
-      /* update state */
-      (t->sock).state &= 0x00FFU;
-      (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-      (t->sock).state &= 0xFF00U;
-      (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
-
-      /* call EV_FIN wakeup before deleting */
-      if ((t->sock).wakeup)
-        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
-
-      /* call EV_ERR wakeup before deleting */
+      tcp_force_closed(s);
+      tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
       pico_err = PICO_ERR_ECONNRESET;
-      if ((t->sock).wakeup)
-        (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
-
-      /* delete socket */
-      pico_socket_del(&t->sock);
+      tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
+      pico_socket_del(&t->sock);  /* delete socket */
     } else {                      /* not valid, ignore */
       tcp_dbg("TCP RST> IGNORE\n");
       return 0;
@@ -1874,34 +1879,18 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     a reset is valid if its sequence number is in the window */
     if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((short_be(hdr->rwnd)<<(t->wnd_scale)) + t->rcv_ackd))) {
       if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
-        /* go to closed */
-        (t->sock).state &= 0x00FFU;
-        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-        (t->sock).state &= 0xFF00U;
-        (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
-        /* call EV_ERR wakeup */
+        tcp_force_closed(s);
         pico_err = PICO_ERR_ECONNRESET;
-        if ((t->sock).wakeup)
-          (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+        tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
+        pico_socket_del(&t->sock);  /* delete socket */
         tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
         pico_socket_del(s);
       } else {
-        /* go to closed */
-        (t->sock).state &= 0x00FFU;
-        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-        (t->sock).state &= 0xFF00U;
-        (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
-
-        /* call EV_FIN wakeup before deleting */
-        if ((t->sock).wakeup)
-          (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
-        /* call EV_ERR wakeup before deleting */
+        tcp_force_closed(s);
+        tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
         pico_err = PICO_ERR_ECONNRESET;
-        if ((t->sock).wakeup)
-          (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
-
-        /* delete socket */
-        pico_socket_del(&t->sock);
+        tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
+        pico_socket_del(&t->sock);  /* delete socket */
       }
     } else {                      /* not valid, ignore */
       tcp_dbg("TCP RST> IGNORE\n");
