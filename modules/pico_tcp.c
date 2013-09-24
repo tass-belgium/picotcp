@@ -196,6 +196,7 @@ struct pico_socket_tcp {
   uint32_t rto;
   uint32_t in_flight;
   uint8_t  timer_running;
+  struct pico_timer * retrans_tmr;
   uint8_t  keepalive_timer_running;
   uint16_t cwnd_counter;
   uint16_t cwnd;
@@ -1330,9 +1331,9 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, unsigned long ne
   }
   if (next_ts > 0) {
     if ((next_ts + t->rto) > pico_tick) {
-      pico_timer_add(next_ts + t->rto - pico_tick, tcp_retrans_timeout, t);
+      t->retrans_tmr = pico_timer_add(next_ts + t->rto - pico_tick, tcp_retrans_timeout, t);
     } else {
-      pico_timer_add(1, tcp_retrans_timeout, t);
+        t->retrans_tmr = pico_timer_add(1, tcp_retrans_timeout, t);
     }
     t->timer_running++;
   }
@@ -2249,6 +2250,8 @@ inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
 void pico_tcp_cleanup_queues(struct pico_socket *sck)
 {
   struct pico_socket_tcp * tcp = (struct pico_socket_tcp *)sck;
+  if(tcp->retrans_tmr)
+	  pico_timer_cancel(tcp->retrans_tmr);
   tcp_discard_all_segments(&tcp->tcpq_in);
   tcp_discard_all_segments(&tcp->tcpq_out);
   tcp_discard_all_segments(&tcp->tcpq_hold);
