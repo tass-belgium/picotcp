@@ -507,6 +507,7 @@ void pico_timer_cancel(struct pico_timer *t)
     if (tref[i].tmr == t) {
       Timers->top[i].tmr = NULL;
       pico_free(t);
+      break;
     }
   }
 }
