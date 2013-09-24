@@ -58,10 +58,11 @@ int pico_notify_dest_unreachable(struct pico_frame *f);
 int pico_notify_ttl_expired(struct pico_frame *f);
 
 /* Various. */
+struct pico_timer;
 int pico_source_is_local(struct pico_frame *f);
 int pico_destination_is_local(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
-void pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg);
+struct pico_timer *pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
 

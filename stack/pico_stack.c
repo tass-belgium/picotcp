@@ -464,26 +464,50 @@ int pico_sendto_dev(struct pico_frame *f)
 
 struct pico_timer
 {
-  unsigned long expire;
   void *arg;
   void (*timer)(unsigned long timestamp, void *arg);
 };
 
-typedef struct pico_timer pico_timer;
+struct pico_timer_ref
+{
+  unsigned long expire;
+  struct pico_timer *tmr;
+};
 
-DECLARE_HEAP(pico_timer, expire);
+typedef struct pico_timer_ref pico_timer_ref;
 
-static heap_pico_timer *Timers;
+DECLARE_HEAP(pico_timer_ref, expire);
+
+static heap_pico_timer_ref *Timers;
 
 void pico_check_timers(void)
 {
-  struct pico_timer timer;
-  struct pico_timer *t = heap_first(Timers);
+  struct pico_timer *t;
+  struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
-  while((t) && (t->expire < pico_tick)) {
-    t->timer(pico_tick, t->arg);
-    heap_peek(Timers, &timer);
-    t = heap_first(Timers);
+  while((tref) && (tref->expire < pico_tick)) {
+    t = tref->tmr;
+    if (t && t->timer)
+      t->timer(pico_tick, t->arg);
+    if (t)
+      pico_free(t);
+    t = NULL;
+    heap_peek(Timers, &tref_unused);
+    tref = heap_first(Timers);
+  }
+}
+
+void pico_timer_cancel(struct pico_timer *t)
+{
+  uint32_t i;
+  struct pico_timer_ref *tref = Timers->top;
+  if (!t)
+    return;
+  for (i = 1; i <= Timers->n; i++) {
+    if (tref[i].tmr == t) {
+      Timers->top[i].tmr = NULL;
+      pico_free(t);
+    }
   }
 }
 
@@ -680,16 +704,23 @@ void pico_stack_loop(void)
   }
 }
 
-void pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg)
+struct pico_timer *pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg)
 {
-  pico_timer t;
-  t.expire = PICO_TIME_MS() + expire;
-  t.arg = arg;
-  t.timer = timer;
-  heap_insert(Timers, &t);
+  struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
+  struct pico_timer_ref tref;
+  if (!t) {
+    pico_err = PICO_ERR_ENOMEM;
+    return NULL;
+  }
+  tref.expire = PICO_TIME_MS() + expire;
+  t->arg = arg;
+  t->timer = timer;
+  tref.tmr = t;
+  heap_insert(Timers, &tref);
   if (Timers->n > PICO_MAX_TIMERS) {
     dbg("Warning: I have %d timers\n", Timers->n);
   }
+  return t;
 }
 
 void pico_stack_init(void)
