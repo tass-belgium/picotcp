@@ -2222,7 +2222,8 @@ int pico_sockets_loop(int loop_score)
     	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )
     	{
 		  pico_socket_del(s);
-		  index_tcp = pico_tree_firstNode(TCPTable.root);
+		  index_tcp = NULL;
+		  break;
     	}
         // if no activity, force the socket into closing state
     	if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
@@ -2234,7 +2235,7 @@ int pico_sockets_loop(int loop_score)
 	}
 
     /* check if RB_FOREACH ended, if not, break to keep the cur sp_tcp */
-    if ( (index && index->keyValue) || !index_tcp)
+    if (!index_tcp ||(index && index->keyValue))
       break;
 
     index_tcp = pico_tree_next(index_tcp);
