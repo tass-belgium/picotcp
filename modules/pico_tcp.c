@@ -414,14 +414,15 @@ static void tcp_send_ack(struct pico_socket_tcp *t);
 
 static void tcp_set_space(struct pico_socket_tcp *t)
 {
-  int32_t mtu, space;
+  uint32_t mtu;
+  int32_t space;
   uint32_t shift = 0;
 
   mtu = t->mss + PICO_SIZE_TCPHDR + PICO_SIZE_TCPOPT_SYN ;
   if (t->tcpq_in.max_size == 0) {
     space = 1024 * 1024 * 1024; /* One Gigabyte, for unlimited sockets. */
   } else {
-    space = ((t->tcpq_in.max_size - t->tcpq_in.size) / mtu) * t->mss;
+    space = (int32_t)(((t->tcpq_in.max_size - t->tcpq_in.size) / mtu) * t->mss);
   }
   if (space < 0)
     space = 0;

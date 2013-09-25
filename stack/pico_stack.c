@@ -471,7 +471,7 @@ struct pico_timer
 
 struct pico_timer_ref
 {
-  unsigned long expire;
+  uint64_t expire;
   struct pico_timer *tmr;
 };
 
