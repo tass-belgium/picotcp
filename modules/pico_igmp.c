@@ -54,9 +54,9 @@ Authors: Kristof Roelants (IGMPv3), Simon Maes, Brecht Van Cauwenberghe
 #define IGMP_HOST_NOT_LAST                (0x0)
 
 /* list of timers, counters and their default values */
-#define IGMP_ROBUSTNESS                   (2)
+#define IGMP_ROBUSTNESS                   (2u)
 #define IGMP_QUERY_INTERVAL               (125) /* secs */
-#define IGMP_QUERY_RESPONSE_INTERVAL      (10) /* secs */
+#define IGMP_QUERY_RESPONSE_INTERVAL      (10u) /* secs */
 #define IGMP_STARTUP_QUERY_INTERVAL       (IGMPV3_QUERY_INTERVAL / 4)
 #define IGMP_STARTUP_QUERY_COUNT          (IGMPV3_ROBUSTNESS)
 #define IGMP_LAST_MEMBER_QUERY_INTERVAL   (1) /* secs */
@@ -76,7 +76,7 @@ Authors: Kristof Roelants (IGMPv3), Simon Maes, Brecht Van Cauwenberghe
 
 /* misc */
 #define IGMP_TIMER_STOPPED                (1)
-#define IP_OPTION_ROUTER_ALERT_LEN        (4)
+#define IP_OPTION_ROUTER_ALERT_LEN        (4u)
 #define IGMP_MAX_GROUPS                   (32) /* max 255 */
 
 struct __attribute__((packed)) igmp_message {
@@ -129,8 +129,8 @@ struct igmp_parameters {
 struct igmp_timer {
   uint8_t type;
   uint8_t stopped;
-  unsigned long start;
-  unsigned long delay;
+  uint64_t start;
+  uint64_t delay;
   struct pico_ip4 mcast_link;
   struct pico_ip4 mcast_group;
   struct pico_frame *f;
@@ -212,7 +212,7 @@ static int pico_igmp_delete_parameter(struct igmp_parameters *p)
   return 0;
 }
 
-static void pico_igmp_timer_expired(unsigned long now, void *arg)
+static void pico_igmp_timer_expired(uint64_t now, void *arg)
 {
   struct igmp_timer *t = NULL, *timer = NULL, test = {0};
 
@@ -363,8 +363,8 @@ static int pico_igmp_is_checksum_valid(struct pico_frame *f)
   uint8_t ihl = 24, datalen = 0;
 
   hdr = (struct pico_ipv4_hdr *)f->net_hdr;
-  ihl = (hdr->vhl & 0x0F) * 4; /* IHL is in 32bit words */
-  datalen = short_be(hdr->len) - ihl;
+  ihl = (uint8_t)((hdr->vhl & 0x0F) * 4); /* IHL is in 32bit words */
+  datalen = (uint8_t)(short_be(hdr->len) - ihl);
 
   if (short_be(pico_checksum(f->transport_hdr, datalen)) == 0)
     return 1;
@@ -386,8 +386,8 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
     return -1;
 
   hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-  ihl = (hdr->vhl & 0x0F) * 4; /* IHL is in 32bit words */
-  datalen = short_be(hdr->len) - ihl;
+  ihl = (uint8_t)((hdr->vhl & 0x0F) * 4); /* IHL is in 32bit words */
+  datalen = (uint8_t)(short_be(hdr->len) - ihl);
   igmp_dbg("IGMP: IHL = %u, LEN = %u, OCTETS = %u\n", ihl, short_be(hdr->len), datalen);
 
   if (datalen > 12) {
@@ -595,7 +595,7 @@ static int pico_igmp_send_report(struct igmp_parameters *p, struct pico_frame *f
   return 0;
 }
 
-static int pico_igmp_generate_report(struct igmp_parameters *p)
+static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
 {
   struct pico_ipv4_link *link = NULL;
   int i = 0;
@@ -644,7 +644,7 @@ static int pico_igmp_generate_report(struct igmp_parameters *p)
       struct pico_ip4 *source = NULL;
       uint8_t record_type = 0;
       uint8_t sources = 0;
-      int len = 0;
+      uint16_t len = 0;
 
       test.mcast_addr = p->mcast_group;
       g = pico_tree_findKey(link->MCASTGroups, &test);
@@ -819,8 +819,8 @@ static int pico_igmp_generate_report(struct igmp_parameters *p)
           return -1;
       }
 
-      len = sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (sources * sizeof(struct pico_ip4));
-      p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + len);
+      len = (uint16_t)(sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (sources * sizeof(struct pico_ip4)));
+      p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(IP_OPTION_ROUTER_ALERT_LEN + len));
       p->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
       p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
       p->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
@@ -1022,7 +1022,7 @@ static int st(struct igmp_parameters *p)
   t.type = IGMP_TIMER_GROUP_REPORT;
   t.mcast_link = p->mcast_link;
   t.mcast_group = p->mcast_group;
-  t.delay = (pico_rand() % (p->max_resp_time * 100)); 
+  t.delay = (pico_rand() % (p->max_resp_time * 100u));
   t.f = p->f;
   t.callback = pico_igmp_report_expired;
   pico_igmp_timer_start(&t);
@@ -1068,7 +1068,7 @@ static int srsf(struct igmp_parameters *p)
 static int rtimrtct(struct igmp_parameters *p)
 {
   struct igmp_timer *t = NULL;
-  unsigned long time_to_run = 0;
+  uint64_t time_to_run = 0;
 
   igmp_dbg("IGMP: event = query received | action = reset timer if max response time < current timer\n");
 
@@ -1078,7 +1078,7 @@ static int rtimrtct(struct igmp_parameters *p)
 
   time_to_run = t->start + t->delay - PICO_TIME_MS();
   if ((p->max_resp_time * 100) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
-    t->delay = pico_rand() % (p->max_resp_time * 100); 
+    t->delay = pico_rand() % (p->max_resp_time * 100u);
     pico_igmp_timer_reset(t);
   }
 

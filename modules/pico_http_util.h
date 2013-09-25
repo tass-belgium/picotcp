@@ -111,7 +111,7 @@ struct pico_http_uri
 
 // used for chunks
 int pico_itoaHex(uint16_t port, char * ptr);
-int pico_itoa(uint16_t port, char * ptr);
-int pico_processURI(const char * uri, struct pico_http_uri * urikey);
+uint16_t pico_itoa(uint16_t port, char * ptr);
+int8_t pico_processURI(const char * uri, struct pico_http_uri * urikey);
 
 #endif /* PICO_HTTP_UTIL_H_ */

@@ -58,7 +58,7 @@ static void debug_q(struct pico_queue *q)
 #define debug_q(x) do{}while(0)
 #endif
 
-static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
+static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 {
   if ((q->max_frames) && (q->max_frames <= q->frames))
     return -1;
@@ -88,7 +88,7 @@ static inline int pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 
   if (q->shared)
     UNLOCK(q->mutex);
-  return q->size;
+  return (int32_t)q->size;
 }
 
 static inline struct pico_frame *pico_dequeue(struct pico_queue *q)

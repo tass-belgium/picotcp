@@ -184,7 +184,7 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
 
   optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_SERVERID + PICO_DHCP_OPTLEN_LEASETIME + PICO_DHCP_OPTLEN_NETMASK + PICO_DHCP_OPTLEN_ROUTER 
           + PICO_DHCP_OPTLEN_BROADCAST + PICO_DHCP_OPTLEN_DNS + PICO_DHCP_OPTLEN_END;
-  hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + optlen);
+  hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen);
 
   hdr->op = PICO_DHCP_OP_REPLY;
   hdr->htype = PICO_DHCP_HTYPE_ETH;
@@ -206,17 +206,17 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
   offset += pico_dhcp_opt_end(&hdr->options[offset]);
 
   destination.addr = hdr->yiaddr;
-  r = pico_socket_sendto(dhcpn->dhcps->s, hdr, sizeof(struct pico_dhcp_hdr) + optlen, &destination, PICO_DHCP_CLIENT_PORT);
+  r = pico_socket_sendto(dhcpn->dhcps->s, hdr, (int)(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen), &destination, PICO_DHCP_CLIENT_PORT);
   if (r < 0)
     dhcps_dbg("DHCP server WARNING: failure sending: %s!\n", strerror(pico_err));
 
   return;
 }
 
-static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, int len)
+static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, uint32_t len)
 {
   uint8_t msgtype = 0;
-  int optlen = len - sizeof(struct pico_dhcp_hdr);
+  int32_t optlen = (int32_t)(len - sizeof(struct pico_dhcp_hdr));
   struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
   struct pico_dhcp_server_negotiation *dhcpn = NULL;
@@ -298,7 +298,7 @@ static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s)
   if (r < 0)
     return;
 
-  pico_dhcp_server_recv(s, buf, r);
+  pico_dhcp_server_recv(s, buf, (uint32_t)r);
   return;
 }
 

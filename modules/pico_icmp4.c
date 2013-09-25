@@ -158,7 +158,7 @@ struct pico_icmp4_ping_cookie
   uint16_t seq;
   uint16_t size;
   int count;
-  unsigned long timestamp;
+  uint64_t timestamp;
   int interval;
   int timeout;
   void (*cb)(struct pico_icmp4_stats*);
@@ -177,9 +177,9 @@ static int cookie_compare(void *ka, void *kb)
 
 PICO_TREE_DECLARE(Pings,cookie_compare);
 
-static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
+static uint8_t pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 {
-  struct pico_frame *echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, PICO_ICMPHDR_UN_SIZE + cookie->size);
+  struct pico_frame *echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size));
   struct pico_icmp4_hdr *hdr;
 
   hdr = (struct pico_icmp4_hdr *) echo->transport_hdr;
@@ -188,7 +188,7 @@ static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
   hdr->code = 0;
   hdr->hun.ih_idseq.idseq_id = short_be(cookie->id);
   hdr->hun.ih_idseq.idseq_seq = short_be(cookie->seq);
-  echo->transport_len = PICO_ICMPHDR_UN_SIZE + cookie->size;
+  echo->transport_len = (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size);
   echo->payload = echo->transport_hdr + PICO_ICMPHDR_UN_SIZE;
   echo->payload_len = cookie->size;
   /* XXX: Fill payload */
@@ -198,7 +198,7 @@ static int pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 }
 
 
-static void ping_timeout(unsigned long now, void *arg)
+static void ping_timeout(uint64_t now, void *arg)
 {
   struct pico_icmp4_ping_cookie *cookie = (struct pico_icmp4_ping_cookie *)arg;
   IGNORE_PARAMETER(now);
@@ -220,17 +220,17 @@ static void ping_timeout(unsigned long now, void *arg)
   }
 }
 
-static void next_ping(unsigned long now, void *arg);
+static void next_ping(uint64_t now, void *arg);
 static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
   pico_icmp4_send_echo(cookie);
   cookie->timestamp = pico_tick;
-  pico_timer_add(cookie->timeout, ping_timeout, cookie);
+  pico_timer_add((long unsigned int)cookie->timeout, ping_timeout, cookie);
   if (cookie->seq < cookie->count)
-    pico_timer_add(cookie->interval, next_ping, cookie);
+    pico_timer_add((long unsigned int)cookie->interval, next_ping, cookie);
 }
 
-static void next_ping(unsigned long now, void *arg)
+static void next_ping(uint64_t now, void *arg)
 {
   struct pico_icmp4_ping_cookie *newcookie, *cookie = (struct pico_icmp4_ping_cookie *)arg;
   IGNORE_PARAMETER(now);
@@ -298,7 +298,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
   cookie->seq = 1;
   cookie->id = next_id++;
   cookie->err = PICO_PING_ERR_PENDING;
-  cookie->size = size;
+  cookie->size = (uint16_t)size;
   cookie->interval = interval;
   cookie->timeout = timeout;
   cookie->cb = cb;

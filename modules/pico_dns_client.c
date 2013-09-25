@@ -63,7 +63,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_POINTER 3
 
 /* Label len */
-#define PICO_DNS_LABEL_INITIAL 1
+#define PICO_DNS_LABEL_INITIAL 1u
 #define PICO_DNS_LABEL_ROOT 1
 
 /* TTL values */
@@ -73,7 +73,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_IPV4_ADDR_LEN 16
 
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
-static void pico_dns_client_retransmission(unsigned long now, void *arg);
+static void pico_dns_client_retransmission(uint64_t now, void *arg);
 
 /* RFC 1035 section 4. MESSAGES */
 struct __attribute__((packed)) pico_dns_name
@@ -307,12 +307,12 @@ static char *pico_dns_client_seek(char *ptr)
 
 /* mirror ip address numbers
  * f.e. 192.168.0.1 => 1.0.168.192 */
-static int pico_dns_client_mirror(char *ptr)
+static int8_t pico_dns_client_mirror(char *ptr)
 {
   const unsigned char *addr = NULL;
   char *m = ptr;
   uint32_t ip = 0;
-  int i = 0;
+  int8_t i = 0;
 
   if (pico_string_to_ipv4(ptr, &ip) < 0)
     return -1;
@@ -321,14 +321,14 @@ static int pico_dns_client_mirror(char *ptr)
   addr = (unsigned char *)&ip;
   for (i = 3; i >= 0; i--) {
     if (addr[i] > 99) {
-      *ptr++ = '0' + (addr[i] / 100);
-      *ptr++ = '0' + ((addr[i] % 100) / 10);
-      *ptr++ = '0' + ((addr[i] % 100) % 10);
+      *ptr++ = (char)('0' + (addr[i] / 100));
+      *ptr++ = (char)('0' + ((addr[i] % 100) / 10));
+      *ptr++ = (char)('0' + ((addr[i] % 100) % 10));
     } else if(addr[i] > 9) {
-      *ptr++ = '0' + (addr[i] / 10);
-      *ptr++ = '0' + (addr[i] % 10);
+      *ptr++ = (char)('0' + (addr[i] / 10));
+      *ptr++ = (char)('0' + (addr[i] % 10));
     } else {
-      *ptr++ = '0' + addr[i];
+      *ptr++ = (char)('0' + addr[i]);
     }
     if(i > 0)
       *ptr++ = '.';
@@ -395,14 +395,14 @@ static int pico_dns_client_query_domain(char *ptr)
   label = ptr++;
   while ((p = *ptr++) != 0){
     if (p == '.') {
-      *label = len;
+      *label = (char)len;
       label = ptr - 1;
       len = 0;
     } else {
       len++;
     }
   }
-  *label = len;
+  *label = (char)len;
   return 0;
 }
 
@@ -516,7 +516,7 @@ static int pico_dns_client_send(struct pico_dns_query *q)
   return 0;
 }
 
-static void pico_dns_client_retransmission(unsigned long now, void *arg)
+static void pico_dns_client_retransmission(uint64_t now, void *arg)
 {
   struct pico_dns_query *q = NULL;
   struct pico_dns_query dummy;
@@ -559,7 +559,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 
     case PICO_DNS_TYPE_PTR:
       pico_dns_client_answer_domain((char *)asuffix->rdata);
-      str = pico_zalloc(asuffix->rdlength - PICO_DNS_LABEL_INITIAL);
+      str = pico_zalloc((size_t)(asuffix->rdlength - PICO_DNS_LABEL_INITIAL));
       memcpy(str, asuffix->rdata + PICO_DNS_LABEL_INITIAL, short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL);
       break;
 
@@ -635,8 +635,8 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *, void *), v
   }
 
   strlen = pico_dns_client_strlen(url);
-  lblen = PICO_DNS_LABEL_INITIAL + strlen + PICO_DNS_LABEL_ROOT;
-  len = sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix);
+  lblen = (uint16_t)(PICO_DNS_LABEL_INITIAL + strlen + PICO_DNS_LABEL_ROOT);
+  len = (uint16_t)(sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix));
   msg = pico_zalloc(len);
   if (!msg) {
     pico_err = PICO_ERR_ENOMEM;
@@ -682,8 +682,8 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), vo
 
   strlen = pico_dns_client_strlen(ip);
   arpalen = pico_dns_client_strlen(inaddr_arpa);
-  lblen = PICO_DNS_LABEL_INITIAL + strlen + arpalen + PICO_DNS_LABEL_ROOT;
-  len = sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix);
+  lblen = (uint16_t)(PICO_DNS_LABEL_INITIAL + strlen + arpalen + PICO_DNS_LABEL_ROOT);
+  len = (uint16_t)(sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix));
   msg = pico_zalloc(len);
   if (!msg) {
     pico_err = PICO_ERR_ENOMEM;

@@ -420,10 +420,10 @@ int zmq_send(ZMQ z, char *txt, int len)
         dbg("no subscribers, bailing out\n");
         return 0; /* Need at least one subscriber */
     }
-    msg = pico_zalloc(len + 2);
+    msg = pico_zalloc((size_t)(len + 2));
     msg->flags = 4;
     msg->len = (uint8_t) len;
-    memcpy(msg->txt, txt, len);
+    memcpy(msg->txt, txt,(size_t) len);
 
     while (c) {
       dbg("write to %u\n",c->state);

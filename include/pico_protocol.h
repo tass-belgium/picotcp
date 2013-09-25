@@ -75,10 +75,10 @@ struct pico_protocol {
   const char name[MAX_PROTOCOL_NAME];
   uint32_t hash;
   const enum pico_layer layer;
-  const int proto_number;
+  const uint16_t proto_number;
   struct pico_queue * const q_in;
   struct pico_queue * const q_out;
-  struct pico_frame *(* const alloc)(struct pico_protocol *self, int size); /* Frame allocation. */
+  struct pico_frame *(* const alloc)(struct pico_protocol *self, uint16_t size); /* Frame allocation. */
   int (* const push) (struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
   int (* const process_out)(struct pico_protocol *self, struct pico_frame *p); /* Send loop. */
   int (* const process_in)(struct pico_protocol *self, struct pico_frame *p); /* Recv loop. */

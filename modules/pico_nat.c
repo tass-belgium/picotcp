@@ -199,7 +199,7 @@ static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
   do {
     uint32_t rand = pico_rand();
     nport = (uint16_t) (rand & 0xFFFFU);
-    nport = (uint16_t)(nport % (65535 - 1024)) + 1024U;
+    nport = (uint16_t)((nport % (65535 - 1024)) + 1024U);
 		nport = short_be(nport);
 
     if (pico_is_port_free(net->proto, nport, NULL, &pico_proto_ipv4))
@@ -268,7 +268,7 @@ static int pico_ipv4_nat_snif_session(struct pico_nat_tuple *t, struct pico_fram
   return 0;
 }
 
-static void pico_ipv4_nat_table_cleanup(unsigned long now, void *_unused)
+static void pico_ipv4_nat_table_cleanup(uint64_t now, void *_unused)
 {
   struct pico_tree_node *index = NULL, *_tmp = NULL;
   struct pico_nat_tuple *t = NULL;

@@ -36,18 +36,18 @@ struct pico_frame {
   uint8_t *datalink_hdr;
 
   uint8_t *net_hdr;
-  int net_len;
+  uint16_t net_len;
   uint8_t *transport_hdr;
-  int transport_len;
+  uint16_t transport_len;
   uint8_t *app_hdr;
-  int app_len;
+  uint16_t app_len;
 
   /* Pointer to the phisical device this packet belongs to.
    * Should be valid in both routing directions
    */
   struct pico_device *dev;
 
-  unsigned long timestamp;
+  uint64_t timestamp;
 
   /* Failures due to bad datalink addressing. */
   uint16_t failure_count;
@@ -60,7 +60,7 @@ struct pico_frame {
 
   /* Pointer to payload */
   unsigned char *payload;
-  int payload_len;
+  uint16_t payload_len;
 
 #ifdef PICO_SUPPORT_IPFRAG
   /* Payload fragmentation info (big endian)*/
@@ -81,9 +81,9 @@ struct pico_frame {
 void pico_frame_discard(struct pico_frame *f);
 struct pico_frame *pico_frame_copy(struct pico_frame *f);
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f);
-struct pico_frame *pico_frame_alloc(int size);
-uint16_t pico_checksum(void *inbuf, int len);
-uint16_t pico_dualbuffer_checksum(void *b1, int len1, void *b2, int len2);
+struct pico_frame *pico_frame_alloc(uint32_t size);
+uint16_t pico_checksum(void *inbuf, uint32_t len);
+uint16_t pico_dualbuffer_checksum(void *b1, uint32_t len1, void *b2, uint32_t len2);
 
 static inline int pico_is_digit(char c)
 {

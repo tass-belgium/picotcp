@@ -27,7 +27,7 @@ int pico_itoaHex(uint16_t port, char * ptr)
 	// transform to from number to string [ in backwards ]
 	while(port)
 	{
-		ptr[size] = ((port & 0xF) < 10) ? ((port & 0xF) + '0') : ((port & 0xF) - 10 + 'a');
+		ptr[size] = (char)(((port & 0xF) < 10) ? ((port & 0xF) + '0') : ((port & 0xF) - 10 + 'a'));
 		port = port>>4u; //divide by 16
 		size++;
 	}
@@ -43,15 +43,15 @@ int pico_itoaHex(uint16_t port, char * ptr)
 	return size;
 }
 
-int pico_itoa(uint16_t port, char * ptr)
+uint16_t pico_itoa(uint16_t port, char * ptr)
 {
-	int size = 0;
-	int index;
+	uint16_t size = 0;
+	uint16_t index;
 
 	// transform to from number to string [ in backwards ]
 	while(port)
 	{
-		ptr[size] = port%10 + '0';
+		ptr[size] = (char)(port%10 + '0');
 		port = port/10;
 		size++;
 	}
@@ -68,7 +68,7 @@ int pico_itoa(uint16_t port, char * ptr)
 }
 
 
-int pico_processURI(const char * uri, struct pico_http_uri * urikey)
+int8_t pico_processURI(const char * uri, struct pico_http_uri * urikey)
 {
 
 	uint16_t lastIndex = 0, index;
@@ -111,14 +111,14 @@ int pico_processURI(const char * uri, struct pico_http_uri * urikey)
 	else
 	{
 		// extract host
-		urikey->host = (char *)pico_zalloc(index-lastIndex+1);
+		urikey->host = (char *)pico_zalloc((uint32_t)(index-lastIndex+1));
 
 		if(!urikey->host)
 		{
 			// no memory
 			goto error;
 		}
-		memcpy(urikey->host,uri+lastIndex,index-lastIndex);
+		memcpy(urikey->host,uri+lastIndex,(size_t)(index-lastIndex));
 	}
 
 	if(!uri[index])
@@ -140,7 +140,7 @@ int pico_processURI(const char * uri, struct pico_http_uri * urikey)
 		while(uri[index] && uri[index]!='/')
 		{
 			// should check if every component is a digit
-			urikey->port = urikey->port*10 + (uri[index] - '0');
+			urikey->port = (uint16_t)(urikey->port*10 + (uri[index] - '0'));
 			index++;
 		}
 	}
@@ -155,7 +155,7 @@ int pico_processURI(const char * uri, struct pico_http_uri * urikey)
 	{
 		lastIndex = index;
 		while(uri[index] && uri[index]!='?' && uri[index]!='&' && uri[index]!='#') index++;
-		urikey->resource = (char *)pico_zalloc(index-lastIndex+1);
+		urikey->resource = (char *)pico_zalloc((size_t)(index-lastIndex+1));
 
 		if(!urikey->resource)
 		{
@@ -164,7 +164,7 @@ int pico_processURI(const char * uri, struct pico_http_uri * urikey)
 			goto error;
 		}
 
-		memcpy(urikey->resource,uri+lastIndex,index-lastIndex);
+		memcpy(urikey->resource,uri+lastIndex,(size_t)(index-lastIndex));
 	}
 
 	return HTTP_RETURN_OK;

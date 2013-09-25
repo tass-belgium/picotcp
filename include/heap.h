@@ -13,7 +13,7 @@ struct heap_##type {   \
 typedef struct heap_##type heap_##type; \
 static inline int heap_insert(struct heap_##type *heap, type *el) \
 { \
-  int i; \
+  uint32_t i; \
   type * newTop; \
   if (++heap->n >= heap->size) {    											\
     newTop = pico_zalloc((heap->n + 1) * sizeof(type)); \

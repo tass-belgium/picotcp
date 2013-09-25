@@ -37,7 +37,7 @@ struct pico_http_header
 };
 
 int pico_http_client_open(char * uri, void (*wakeup)(uint16_t ev, uint16_t conn));
-int pico_http_client_sendHeader(uint16_t conn, char * header, int hdr);
+int32_t pico_http_client_sendHeader(uint16_t conn, char * header, uint8_t hdr);
 
 struct pico_http_header * pico_http_client_readHeader(uint16_t conn);
 struct pico_http_uri * pico_http_client_readUriData(uint16_t conn);

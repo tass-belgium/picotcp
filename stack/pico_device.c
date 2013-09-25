@@ -29,7 +29,7 @@ PICO_TREE_DECLARE(Device_tree,pico_dev_cmp);
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
-	int len = strlen(name);
+	uint32_t len = strlen(name);
 	if(len>MAX_DEVICE_NAME)
 		len = MAX_DEVICE_NAME;
   memcpy(dev->name, name, len);
@@ -218,10 +218,10 @@ struct pico_device* pico_get_device(const char* name)
   return NULL;
 }
 
-int pico_device_broadcast(struct pico_frame * f)
+int32_t pico_device_broadcast(struct pico_frame * f)
 {
 	struct pico_tree_node * index;
-	int ret = -1;
+	int32_t ret = -1;
 
 	pico_tree_foreach(index,&Device_tree)
 	{
@@ -238,7 +238,7 @@ int pico_device_broadcast(struct pico_frame * f)
 		}
 		else
 		{
-			ret = f->dev->send(f->dev, f->start, f->len);
+			ret = (int32_t)f->dev->send(f->dev, f->start, f->len);
 		}
 	}
 

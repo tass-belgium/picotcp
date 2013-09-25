@@ -59,7 +59,7 @@ struct __attribute__((packed)) pico_icmp4_hdr {
 };
 
 #define PICO_ICMPHDR_DRY_SIZE  4
-#define PICO_ICMPHDR_UN_SIZE  8
+#define PICO_ICMPHDR_UN_SIZE  8u
 
 #define PICO_ICMP_ECHOREPLY    0 
 #define PICO_ICMP_DEST_UNREACH 3 
@@ -129,7 +129,7 @@ struct pico_icmp4_stats
   struct pico_ip4 dst;
   unsigned long size;
   unsigned long seq;
-  unsigned long time;
+  uint64_t time;
   unsigned long ttl;
   int err;
 };

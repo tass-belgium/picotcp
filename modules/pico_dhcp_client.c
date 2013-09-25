@@ -67,7 +67,7 @@ struct pico_dhcp_client_cookie
   uint32_t *uid;
   enum dhcp_client_state state;
   void (*cb)(void* dhcpc, int code);
-  unsigned long init_timestamp;
+  uint64_t init_timestamp;
   struct pico_socket *s;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
@@ -86,7 +86,7 @@ struct pico_dhcp_client_cookie
 
 static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc);
 static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf);
-static int pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t msg_type);
+static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t msg_type);
 static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s);
 static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf);
 
@@ -156,7 +156,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
     return NULL;
 }
 
-static void pico_dhcp_client_init_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_init_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -178,7 +178,7 @@ static void pico_dhcp_client_init_timer(unsigned long __attribute__((unused)) no
   return;
 }
 
-static void pico_dhcp_client_requesting_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_requesting_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -198,7 +198,7 @@ static void pico_dhcp_client_requesting_timer(unsigned long __attribute__((unuse
   return;
 }
 
-static void pico_dhcp_client_renewing_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_renewing_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -213,7 +213,7 @@ static void pico_dhcp_client_renewing_timer(unsigned long __attribute__((unused)
   return;
 }
 
-static void pico_dhcp_client_rebinding_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_rebinding_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -228,7 +228,7 @@ static void pico_dhcp_client_rebinding_timer(unsigned long __attribute__((unused
   return;
 }
 
-static void pico_dhcp_client_T1_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T1_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -242,7 +242,7 @@ static void pico_dhcp_client_T1_timer(unsigned long __attribute__((unused)) now,
   return;
 }
 
-static void pico_dhcp_client_T2_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T2_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -257,7 +257,7 @@ static void pico_dhcp_client_T2_timer(unsigned long __attribute__((unused)) now,
   return;
 }
 
-static void pico_dhcp_client_lease_timer(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_lease_timer(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -272,7 +272,7 @@ static void pico_dhcp_client_lease_timer(unsigned long __attribute__((unused)) n
   return;
 }
 
-static void pico_dhcp_client_reinit(unsigned long __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_reinit(uint64_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -777,15 +777,15 @@ static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cooki
   return;
 }
 
-static int pico_dhcp_client_opt_parse(void *ptr, int len)
+static int16_t pico_dhcp_client_opt_parse(void *ptr, uint16_t len)
 {
-  int optlen = len - sizeof(struct pico_dhcp_hdr);
+  uint32_t optlen = len - sizeof(struct pico_dhcp_hdr);
   struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)ptr;
   struct pico_dhcp_opt *opt = NULL;
 
   if (hdr->dhcp_magic != PICO_DHCPD_MAGIC_COOKIE)
     return -1;
-  if (!pico_dhcp_are_options_valid(hdr->options, optlen))
+  if (!pico_dhcp_are_options_valid(hdr->options, (int32_t)optlen))
     return -1;
 
   opt = (struct pico_dhcp_opt *)hdr->options;
@@ -797,9 +797,10 @@ static int pico_dhcp_client_opt_parse(void *ptr, int len)
   return -1;
 }
 
-static int pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t msg_type)
+static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t msg_type)
 {
-  int r = 0, optlen = 0, offset = 0;
+  int32_t r = 0;
+  uint16_t optlen = 0, offset = 0;
   struct pico_ip4 destination = { .addr = 0xFFFFFFFF};
   struct pico_dhcp_hdr *hdr = NULL;
 
@@ -808,7 +809,7 @@ static int pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t m
     case PICO_DHCP_MSG_DISCOVER:
       dhcpc_dbg("DHCP client: sent DHCPDISCOVER\n");
       optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_MAXMSGSIZE + PICO_DHCP_OPTLEN_PARAMLIST + PICO_DHCP_OPTLEN_END;
-      hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + optlen);
+      hdr = pico_zalloc((size_t)(sizeof(struct pico_dhcp_hdr) + optlen));
       /* specific options */
       offset += pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE);
       break;
@@ -866,7 +867,7 @@ static int pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_t m
   /* copy client hardware address */
   memcpy(hdr->hwaddr, &dhcpc->dev->eth->mac, PICO_SIZE_ETH);
 
-  r = pico_socket_sendto(dhcpc->s, hdr, sizeof(struct pico_dhcp_hdr) + optlen, &destination, PICO_DHCPD_PORT);
+  r = pico_socket_sendto(dhcpc->s, hdr, (int)(sizeof(struct pico_dhcp_hdr) + optlen), &destination, PICO_DHCPD_PORT);
   pico_free(hdr);
   if (r < 0)
     return -1;
@@ -894,7 +895,7 @@ static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s)
   dhcpc = pico_dhcp_client_find_cookie(hdr->xid);
   if (!dhcpc)
     return;
-  dhcpc->event = pico_dhcp_client_opt_parse(buf, r);
+  dhcpc->event = (uint8_t)pico_dhcp_client_opt_parse(buf, (uint16_t)r);
   pico_dhcp_state_machine(dhcpc->event, dhcpc, buf);
 }
 

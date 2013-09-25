@@ -147,12 +147,12 @@ struct pico_socket *pico_udp_open(void)
   return &u->sock;
 }
 
-int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port)
+uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src, uint16_t *port)
 {
   struct pico_frame *f = pico_queue_peek(&s->q_in);
   if (f) {
     f->payload = f->transport_hdr + sizeof(struct pico_udp_hdr);
-    f->payload_len = f->transport_len - sizeof(struct pico_udp_hdr);
+    f->payload_len = (uint16_t)(f->transport_len - sizeof(struct pico_udp_hdr));
 //    dbg("expected: %d, got: %d\n", len, f->payload_len);
     if (src)
       pico_store_network_origin(src, f);
@@ -166,7 +166,7 @@ int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t
       f->payload_len -= len;
       return len;
     } else {
-      int ret = f->payload_len;
+      uint16_t ret = f->payload_len;
       memcpy(buf, f->payload, f->payload_len);
       f = pico_dequeue(&s->q_in);
       pico_frame_discard(f);

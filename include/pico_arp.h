@@ -12,7 +12,7 @@ int pico_arp_receive(struct pico_frame *);
 
 
 struct pico_eth *pico_arp_get(struct pico_frame *f);
-int pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst);
+int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst);
 
 #define PICO_ARP_STATUS_REACHABLE 0x00
 #define PICO_ARP_STATUS_PERMANENT 0x01

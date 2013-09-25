@@ -13,10 +13,10 @@ Authors: Daniele Lacamera
 
 #define LOOP_MTU 1500
 static uint8_t l_buf[LOOP_MTU];
-static int l_bufsize = 0;
+static uint32_t l_bufsize = 0;
 
 
-static int pico_loop_send(struct pico_device *dev, void *buf, int len)
+static uint32_t pico_loop_send(struct pico_device *dev, void *buf, uint32_t len)
 {
 	IGNORE_PARAMETER(dev);
 	if (len > LOOP_MTU)

@@ -149,12 +149,12 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
 	if( (ev & PICO_SOCK_EV_CLOSE) || (ev & PICO_SOCK_EV_FIN) )
 	{
-		server.wakeup(EV_HTTP_CLOSE,(serverEvent ? HTTP_SERVER_ID : client->connectionID));
+		server.wakeup(EV_HTTP_CLOSE,(uint16_t)(serverEvent ? HTTP_SERVER_ID : client->connectionID));
 	}
 
 	if(ev & PICO_SOCK_EV_ERR)
 	{
-		server.wakeup(EV_HTTP_ERROR,(serverEvent ? HTTP_SERVER_ID : client->connectionID));
+		server.wakeup(EV_HTTP_ERROR,(uint16_t)(serverEvent ? HTTP_SERVER_ID : client->connectionID));
 	}
 }
 
@@ -162,11 +162,11 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
  * API for starting the server. If 0 is passed as a port, the port 80
  * will be used.
  */
-int pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn))
+int8_t pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn))
 {
 	struct pico_ip4 anything = {0};
 
-	server.port = port ? short_be(port) : short_be(80u);
+	server.port = (uint16_t)(port ? short_be(port) : short_be(80u));
 
 	if(!wakeup)
 	{
@@ -323,7 +323,7 @@ int pico_http_respond(uint16_t conn, uint16_t code)
  * To let the client know this is the last chunk, the user
  * should pass a NULL buffer.
  */
-int pico_http_submitData(uint16_t conn, void * buffer, int len)
+int8_t pico_http_submitData(uint16_t conn, void * buffer, uint16_t len)
 {
 
 	struct httpClient * client = findClient(conn);
@@ -579,9 +579,9 @@ int readRemainingHeader(struct httpClient * client)
 
 void sendData(struct httpClient * client)
 {
-	int length;
+	uint16_t length;
 	while( client->bufferSent < client->bufferSize &&
-	(length = pico_socket_write(client->sck,client->buffer+client->bufferSent,client->bufferSize-client->bufferSent)) > 0 )
+	(length = (uint16_t)pico_socket_write(client->sck,client->buffer+client->bufferSent,client->bufferSize-client->bufferSent)) > 0 )
 	{
 		client->bufferSent += length;
 		server.wakeup(EV_HTTP_PROGRESS,client->connectionID);

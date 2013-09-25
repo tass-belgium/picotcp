@@ -30,7 +30,7 @@ struct pico_dhcp_opt *pico_dhcp_next_option(struct pico_dhcp_opt **ptr)
   return *ptr;
 }
 
-int pico_dhcp_are_options_valid(void *ptr, int len)
+uint8_t pico_dhcp_are_options_valid(void *ptr, int32_t len)
 {
 	uint8_t optlen = 0, *p = ptr;
 
@@ -58,7 +58,7 @@ int pico_dhcp_are_options_valid(void *ptr, int len)
 	return 0;
 }
 
-int pico_dhcp_opt_netmask(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_netmask(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -69,7 +69,7 @@ int pico_dhcp_opt_netmask(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_NETMASK;
 }
 
-int pico_dhcp_opt_router(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_router(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -80,7 +80,7 @@ int pico_dhcp_opt_router(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_ROUTER;
 }
 
-int pico_dhcp_opt_dns(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_dns(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -91,7 +91,7 @@ int pico_dhcp_opt_dns(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_DNS;
 }
 
-int pico_dhcp_opt_broadcast(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_broadcast(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -102,7 +102,7 @@ int pico_dhcp_opt_broadcast(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_BROADCAST;
 }
 
-int pico_dhcp_opt_reqip(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_reqip(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -113,7 +113,7 @@ int pico_dhcp_opt_reqip(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_REQIP;
 }
 
-int pico_dhcp_opt_leasetime(void *ptr, uint32_t time)
+uint8_t pico_dhcp_opt_leasetime(void *ptr, uint32_t time)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -124,7 +124,7 @@ int pico_dhcp_opt_leasetime(void *ptr, uint32_t time)
   return PICO_DHCP_OPTLEN_LEASETIME;
 }
 
-int pico_dhcp_opt_msgtype(void *ptr, uint8_t type)
+uint8_t pico_dhcp_opt_msgtype(void *ptr, uint8_t type)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -135,7 +135,7 @@ int pico_dhcp_opt_msgtype(void *ptr, uint8_t type)
   return PICO_DHCP_OPTLEN_MSGTYPE;
 }
 
-int pico_dhcp_opt_serverid(void *ptr, struct pico_ip4 *ip)
+uint8_t pico_dhcp_opt_serverid(void *ptr, struct pico_ip4 *ip)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -146,7 +146,7 @@ int pico_dhcp_opt_serverid(void *ptr, struct pico_ip4 *ip)
   return PICO_DHCP_OPTLEN_SERVERID;
 }
 
-int pico_dhcp_opt_paramlist(void *ptr)
+uint8_t pico_dhcp_opt_paramlist(void *ptr)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -162,7 +162,7 @@ int pico_dhcp_opt_paramlist(void *ptr)
   return PICO_DHCP_OPTLEN_PARAMLIST;
 }
 
-int pico_dhcp_opt_maxmsgsize(void *ptr, uint16_t size)
+uint8_t pico_dhcp_opt_maxmsgsize(void *ptr, uint16_t size)
 {
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
 
@@ -173,7 +173,7 @@ int pico_dhcp_opt_maxmsgsize(void *ptr, uint16_t size)
   return PICO_DHCP_OPTLEN_MAXMSGSIZE;
 }
 
-int pico_dhcp_opt_end(void *ptr)
+uint8_t pico_dhcp_opt_end(void *ptr)
 {
   uint8_t *opt = (uint8_t *)ptr;
 

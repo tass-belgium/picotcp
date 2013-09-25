@@ -266,11 +266,11 @@ int pico_http_client_open(char * uri, void (*wakeup)(uint16_t ev, uint16_t conn)
  * based on the uri passed when opening the client.
  *
  */
-int pico_http_client_sendHeader(uint16_t conn, char * header, int hdr)
+int32_t pico_http_client_sendHeader(uint16_t conn, char * header, uint8_t hdr)
 {
 	struct pico_http_client search = {.connectionID = conn};
 	struct pico_http_client * http = pico_tree_findKey(&pico_client_list,&search);
-	int length ;
+	int32_t length ;
 	if(!http)
 	{
 		dbg("Client not found !\n");
@@ -290,7 +290,7 @@ int pico_http_client_sendHeader(uint16_t conn, char * header, int hdr)
 		}
 	}
 
-	length = pico_socket_write(http->sck,(void *)header,strlen(header)+1);
+	length = (int32_t)pico_socket_write(http->sck,(void *)header,(int)strlen(header)+1);
 
 	if(hdr == HTTP_HEADER_DEFAULT)
 		pico_free(header);
@@ -306,7 +306,7 @@ int pico_http_client_sendHeader(uint16_t conn, char * header, int hdr)
  * a chunked transfer encoding will "de-chunk" the data
  * and pass it to the user.
  */
-int pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
+int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 {
 	struct pico_http_client dummy = {.connectionID = conn};
 	struct pico_http_client * client = pico_tree_findKey(&pico_client_list,&dummy);
@@ -353,7 +353,7 @@ int pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 
 					// if needed truncate the data
 					tmpLenRead = pico_socket_read(client->sck,data + lenRead,
-					client->header->contentLengthOrChunk < (uint32_t)(size-lenRead) ? client->header->contentLengthOrChunk : (uint32_t)(size-lenRead));
+					client->header->contentLengthOrChunk < (uint32_t)(size-lenRead) ? (int)client->header->contentLengthOrChunk : (int)(size-lenRead));
 
 					if(tmpLenRead > 0)
 					{
@@ -504,7 +504,7 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	}
 
 	//
-	headerSize += strlen(uriData->host) + strlen(uriData->resource) + pico_itoa(uriData->port,port) + 4u; // 3 = size(CRLF + \0)
+	headerSize += (uint16_t)strlen(uriData->host) + (uint16_t)strlen(uriData->resource) + pico_itoa(uriData->port,port) + 4u; // 3 = size(CRLF + \0)
 	header = pico_zalloc(headerSize);
 
 	if(!header)
@@ -554,9 +554,9 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 	}
 
 	// extract response code
-	header->responseCode = (line[RESPONSE_INDEX] - '0') * 100u +
-												 (line[RESPONSE_INDEX+1] - '0') * 10u +
-												 (line[RESPONSE_INDEX+2] - '0');
+	header->responseCode = (uint16_t)((line[RESPONSE_INDEX] - '0') * 100 +
+												 (line[RESPONSE_INDEX+1] - '0') * 10 +
+												 (line[RESPONSE_INDEX+2] - '0'));
 
 
 	if(header->responseCode/100u > 5u)
@@ -603,7 +603,7 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 				consumeChar(c);
 				while(consumeChar(c)>0 && c!='\r')
 				{
-					header->contentLengthOrChunk = header->contentLengthOrChunk*10u + (c-'0');
+					header->contentLengthOrChunk = header->contentLengthOrChunk*10u + (uint32_t)(c-'0');
 				}
 
 			}// Transfer-Encoding: chunked
@@ -676,7 +676,7 @@ int readChunkLine(struct pico_http_client * client)
 		while(consumeChar(c)>0 && c!='\r' && c!=';')
 		{
 			if(is_hex_digit(c))
-				client->header->contentLengthOrChunk = (client->header->contentLengthOrChunk << 4u) + hex_digit_to_dec(c);
+				client->header->contentLengthOrChunk = (client->header->contentLengthOrChunk << 4u) + (uint32_t)hex_digit_to_dec(c);
 			else
 			{
 				pico_err = PICO_ERR_EINVAL;

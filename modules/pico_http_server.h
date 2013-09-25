@@ -16,12 +16,12 @@ Author: Andrei Carp <andrei.carp@tass.be>
 #define HTTP_RESOURCE_NOT_FOUND		1
 
 // Generic id for the server
-#define HTTP_SERVER_ID					0
+#define HTTP_SERVER_ID					0u
 
 /*
  * Server functions
  */
-int pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn));
+int8_t pico_http_server_start(uint16_t port, void (*wakeup)(uint16_t ev, uint16_t conn));
 int pico_http_server_accept(void);
 
 /*
@@ -34,7 +34,7 @@ int 	 pico_http_getProgress(uint16_t conn, uint16_t * sent, uint16_t *total);
  * Handshake and data functions
  */
 int 	 pico_http_respond(uint16_t conn, uint16_t code);
-int 	 pico_http_submitData(uint16_t conn, void * buffer, int len);
+int8_t 	 pico_http_submitData(uint16_t conn, void * buffer, uint16_t len);
 int 	 pico_http_close(uint16_t conn);
 
 #endif /* PICO_HTTP_SERVER_H_ */

@@ -20,7 +20,7 @@ struct __attribute__((packed)) pico_udp_hdr {
 #define PICO_UDPHDR_SIZE 8
 
 struct pico_socket *pico_udp_open(void);
-int pico_udp_recv(struct pico_socket *s, void *buf, int len, void *src, uint16_t *port);
+uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src, uint16_t *port);
 uint16_t pico_udp_checksum_ipv4(struct pico_frame *f);
 
 #ifdef PICO_SUPPORT_MCAST

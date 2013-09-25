@@ -52,7 +52,7 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 }
 
 
-struct pico_frame *pico_frame_alloc(int size)
+struct pico_frame *pico_frame_alloc(uint32_t size)
 {
   struct pico_frame *p = pico_zalloc(sizeof(struct pico_frame));
   if (!p)
@@ -120,12 +120,12 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
 /**
  * Calculate checksum of a given string
  */
-uint16_t pico_checksum(void *inbuf, int len)
+uint16_t pico_checksum(void *inbuf, uint32_t len)
 {
   uint8_t *buf = (uint8_t *) inbuf;
-  uint16_t tmp = 0;
+  uint32_t tmp = 0;
   uint32_t sum = 0;
-  int i = 0;
+  uint32_t i = 0;
 
   for(i=0; i < len; i++) {
     if (i%2) {
@@ -142,7 +142,7 @@ uint16_t pico_checksum(void *inbuf, int len)
   return (uint16_t) (~sum);
 }
 
-uint16_t pico_dualbuffer_checksum(void *inbuf1, int len1, void *inbuf2, int len2)
+uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uint32_t len2)
 {
   uint8_t *b1 = (uint8_t *) inbuf1;
   uint8_t *b2 = (uint8_t *) inbuf2;
@@ -176,7 +176,7 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, int len1, void *inbuf2, int len2
   return (uint16_t) (~sum);
 }
 
-uint16_t pico_dualbuffer_checksum_broken(void *inbuf1, int len1, void *inbuf2, int len2)
+uint16_t pico_dualbuffer_checksum_broken(void *inbuf1, uint16_t len1, void *inbuf2, uint16_t len2)
 {
   uint16_t *b1 = (uint16_t *) inbuf1;
   uint16_t *b2 = (uint16_t *) inbuf2;

@@ -22,6 +22,7 @@ extern volatile unsigned long long pico_tick;
 
 #define short_be(x) (x)
 #define long_be(x) (x)
+#define long_long_be(x) (x)
 
 static inline uint16_t short_from(void *_p)
 {
@@ -53,7 +54,7 @@ static inline uint16_t short_from(void *_p)
   uint16_t r, p0, p1;
   p0 = p[0];
   p1 = p[1];
-  r = (p1 << 8u) + p0;
+  r = (uint16_t)((p1 << 8u) + p0);
   return r;
 }
 
@@ -80,7 +81,7 @@ static inline uint32_t long_from(void *_p)
 
 static inline uint16_t short_be(uint16_t le)
 {
-  return ((le & 0xFFu) << 8) | ((le >> 8u) & 0xFFu);
+  return (uint16_t)(((le & 0xFFu) << 8) | ((le >> 8u) & 0xFFu));
 }
 
 static inline uint32_t long_be(uint32_t le)
@@ -92,6 +93,21 @@ static inline uint32_t long_be(uint32_t le)
   b1 = b[1];
   b2 = b[2];
   be = b[3] + (b2 << 8) + (b1 << 16) + (b0 << 24);
+  return be;
+}
+static inline uint64_t long_long_be(uint64_t le)
+{
+  uint8_t *b = (uint8_t *)&le;
+  uint64_t be = 0;
+  uint64_t b0, b1, b2, b3, b4, b5, b6;
+  b0 = b[0];
+  b1 = b[1];
+  b2 = b[2];
+  b3 = b[3];
+  b4 = b[4];
+  b5 = b[5];
+  b6 = b[6];
+  be = b[7] + (b6 << 8) + (b5 << 16) + (b4 << 24) + (b3 << 32) + (b2 << 40) + (b1 << 48) + (b0 << 56);
   return be;
 }
 #endif
@@ -109,9 +125,9 @@ extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 static inline uint32_t pico_hash(const char *name)
 {
   unsigned long hash = 5381;
-  int c;
+  int8_t c;
   while ((c = *name++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    hash = ((hash << 5) + hash) + (unsigned long)c; /* hash * 33 + c */
   return hash;
 }
 
