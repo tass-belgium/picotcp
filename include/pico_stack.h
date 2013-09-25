@@ -11,38 +11,38 @@ See LICENSE and COPYING for usage.
 #define PICO_MAX_TIMERS 20
 
 #define PICO_ETH_MTU 1514
-#define PICO_IP_MTU 1500
+#define PICO_IP_MTU 1500u
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
 /* TRANSPORT LEVEL */
 /* interface towards network */
-int pico_transport_receive(struct pico_frame *f, uint8_t proto);
+int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto);
 
 /* NETWORK LEVEL */
 /* interface towards ethernet */
-int pico_network_receive(struct pico_frame *f);
+int32_t pico_network_receive(struct pico_frame *f);
 
 /* The pico_ethernet_receive() function is used by 
  * those devices supporting ETH in order to push packets up 
  * into the stack. 
  */
 /* DATALINK LEVEL */
-int pico_ethernet_receive(struct pico_frame *f);
+int32_t pico_ethernet_receive(struct pico_frame *f);
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
  */
-int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len);
+int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
-int pico_transport_send(struct pico_frame *f);
-int pico_network_send(struct pico_frame *f);
-int pico_ethernet_send(struct pico_frame *f);
-int pico_sendto_dev(struct pico_frame *f);
+int32_t pico_transport_send(struct pico_frame *f);
+int32_t pico_network_send(struct pico_frame *f);
+int32_t pico_ethernet_send(struct pico_frame *f);
+int32_t pico_sendto_dev(struct pico_frame *f);
 
 /* ----- Initialization ----- */
 void pico_stack_init(void);
@@ -62,7 +62,7 @@ struct pico_timer;
 int pico_source_is_local(struct pico_frame *f);
 int pico_destination_is_local(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
-struct pico_timer *pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg);
+struct pico_timer *pico_timer_add(uint64_t expire, void (*timer)(uint64_t, void *), void *arg);
 void pico_timer_cancel(struct pico_timer *t);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);

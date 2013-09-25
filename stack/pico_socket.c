@@ -74,15 +74,15 @@ static void * Mutex = NULL;
 
 static struct pico_sockport *sp_udp = NULL ,*sp_tcp = NULL;
 
-struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
+struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
-static int socket_cmp(void * ka, void * kb)
+static int32_t socket_cmp(void * ka, void * kb)
 {
   struct pico_socket *a = ka, *b = kb;
-  int a_is_ip6 = is_sock_ipv6(a);
-  int b_is_ip6 = is_sock_ipv6(b);
+  uint32_t a_is_ip6 = is_sock_ipv6(a);
+  uint32_t b_is_ip6 = is_sock_ipv6(b);
 
-  int diff;
+  int32_t diff;
 
   /* First, order by network ver */
   if (a_is_ip6 < b_is_ip6)
@@ -106,7 +106,7 @@ static int socket_cmp(void * ka, void * kb)
     if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
       diff = 0;
     else
-      diff = a->local_addr.ip4.addr - b->local_addr.ip4.addr;
+      diff = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
   }
 
   if (diff)
@@ -117,7 +117,7 @@ static int socket_cmp(void * ka, void * kb)
   if (a_is_ip6)
     diff = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
   else
-    diff = a->remote_addr.ip4.addr - b->remote_addr.ip4.addr;
+    diff = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
 
   if (diff)
     return diff;
@@ -462,7 +462,7 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 
   /* IPv4 */
 #ifdef PICO_SUPPORT_NAT
-  if (pico_ipv4_nat_find(port, NULL, 0, proto)) {
+  if (pico_ipv4_nat_find(port, NULL, 0, (uint8_t)proto)) {
     dbg("In use by nat....\n");
     return 0;
   }
@@ -540,7 +540,7 @@ struct pico_socket* pico_sockets_find(uint16_t local,uint16_t remote)
 }
 
 
-int pico_socket_add(struct pico_socket *s)
+int8_t pico_socket_add(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
   LOCK(Mutex);
@@ -608,7 +608,7 @@ static void socket_clean_queues(struct pico_socket *sock)
     pico_tcp_cleanup_queues(sock);
 }
 
-static void socket_garbage_collect(unsigned long now, void *arg)
+static void socket_garbage_collect(uint64_t now, void *arg)
 {
   struct pico_socket *s = (struct pico_socket *) arg;
   IGNORE_PARAMETER(now);
@@ -616,7 +616,7 @@ static void socket_garbage_collect(unsigned long now, void *arg)
   pico_free(s);
 }
 
-int pico_socket_del(struct pico_socket *s)
+int8_t pico_socket_del(struct pico_socket *s)
 {
   struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
 
@@ -665,7 +665,7 @@ int pico_socket_del(struct pico_socket *s)
         }
         filter_mode = pico_socket_aggregate_mcastfilters(&listen->mcast_link, &listen->mcast_group);
         if (filter_mode >= 0) 
-          pico_ipv4_mcast_leave(&listen->mcast_link, &listen->mcast_group, 1, filter_mode, &MCASTFilter);
+          pico_ipv4_mcast_leave(&listen->mcast_link, &listen->mcast_group, 1, (uint8_t)filter_mode, &MCASTFilter);
         pico_tree_delete(s->MCASTListen, listen);
         pico_free(listen);
       }
@@ -680,7 +680,7 @@ int pico_socket_del(struct pico_socket *s)
   return 0;
 }
 
-static int pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
+static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
 {
   struct pico_sockport *sp;
   if (more_states & PICO_SOCKET_STATE_BOUND)
@@ -950,7 +950,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
   }
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP)
-    return pico_udp_recv(s, buf, len, NULL, NULL);
+    return pico_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
 #endif
 
 #ifdef PICO_SUPPORT_TCP
@@ -960,7 +960,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
       pico_err = PICO_ERR_ESHUTDOWN;
       return -1;
     } else {
-      return pico_tcp_read(s, buf, len);
+      return (int)pico_tcp_read(s, buf, (uint32_t)len);
     }
   }
 #endif
@@ -1010,7 +1010,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
     do {
       uint32_t rand = pico_rand();
       port = (uint16_t) (rand & 0xFFFFU);
-      port = (uint16_t)(port % (65535 - 1024)) + 1024U; 
+      port = (uint16_t)((port % (65535 - 1024)) + 1024U);
       if (pico_is_port_free(proto, port, NULL, NULL)) {
         return short_be(port);
       }
@@ -1141,7 +1141,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     }
 #endif /* PICO_SUPPORT_IPFRAG */
 
-    f = pico_socket_frame_alloc(s, transport_len);
+    f = pico_socket_frame_alloc(s, (uint16_t)transport_len);
     if (!f) {
       pico_err = PICO_ERR_ENOMEM;
       return -1;
@@ -1161,14 +1161,14 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
       if (!total_payload_written) {
         frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
         /* transport header length field contains total length + header length */
-        f->transport_len = len + header_offset;
+        f->transport_len = (uint16_t)(len + header_offset);
         f->frag = short_be(PICO_IPV4_MOREFRAG); 
       } else {
         /* no transport header in fragmented IP */
         f->payload = f->transport_hdr;
         f->payload_len += header_offset;
         /* set offset in octets */
-        f->frag = short_be((total_payload_written + header_offset) / 8); 
+        f->frag = short_be((uint16_t)((total_payload_written + header_offset) / 8));
         if (total_payload_written + f->payload_len < len) {
           frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
           f->frag |= short_be(PICO_IPV4_MOREFRAG);
@@ -1194,7 +1194,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     //dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);
 
     if (s->proto->push(s->proto, f) > 0) {
-      total_payload_written += f->payload_len;
+      total_payload_written += (int)f->payload_len;
     } else {
       pico_frame_discard(f);
       pico_err = PICO_ERR_EAGAIN;
@@ -1247,7 +1247,7 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
   }
 #ifdef PICO_SUPPORT_UDP 
   if (PROTO(s) == PICO_PROTO_UDP) {
-    return pico_udp_recv(s, buf, len, orig, remote_port);
+    return pico_udp_recv(s, buf, (uint16_t)len, orig, remote_port);
   }
 #endif
 #ifdef PICO_SUPPORT_TCP
@@ -1258,7 +1258,7 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
       return -1;
     } else {
       //dbg("socket tcp recv\n");
-      return pico_tcp_read(s, buf, len);
+      return (int)pico_tcp_read(s, buf, (uint32_t)len);
     }
   }
 #endif
@@ -1609,7 +1609,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 1, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 
@@ -1668,7 +1668,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 1, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 
@@ -1728,7 +1728,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 0, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 
@@ -1793,7 +1793,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 0, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 
@@ -1880,7 +1880,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, reference_count, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 
@@ -1950,7 +1950,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         if (filter_mode < 0) 
           return -1;
 
-        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, reference_count, filter_mode, &MCASTFilter);
+        return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter);
       }          
       break;
 #endif /* PICO_SUPPORT_MCAST */
@@ -2255,7 +2255,7 @@ int pico_sockets_loop(int loop_score)
 }
 
 
-struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
+struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len)
 {
   struct pico_frame *f = NULL;
 
@@ -2266,7 +2266,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len)
 
 #ifdef PICO_SUPPORT_IPV4
   if (IS_SOCK_IPV4(s))
-    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, len);
+    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)len);
 #endif
   if (!f) {
     pico_err = PICO_ERR_ENOMEM;

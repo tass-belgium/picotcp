@@ -43,19 +43,19 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 
 /* TCP options */
 #define PICO_TCP_OPTION_END         0x00
-#define PICO_TCPOPTLEN_END        1
+#define PICO_TCPOPTLEN_END        1u
 #define PICO_TCP_OPTION_NOOP        0x01
 #define PICO_TCPOPTLEN_NOOP       1
 #define PICO_TCP_OPTION_MSS         0x02
 #define PICO_TCPOPTLEN_MSS        4
 #define PICO_TCP_OPTION_WS          0x03
-#define PICO_TCPOPTLEN_WS         3
+#define PICO_TCPOPTLEN_WS         3u
 #define PICO_TCP_OPTION_SACK_OK        0x04
 #define PICO_TCPOPTLEN_SACK_OK       2
 #define PICO_TCP_OPTION_SACK        0x05
 #define PICO_TCPOPTLEN_SACK       2 /* Plus the block */
 #define PICO_TCP_OPTION_TIMESTAMP   0x08
-#define PICO_TCPOPTLEN_TIMESTAMP  10
+#define PICO_TCPOPTLEN_TIMESTAMP  10u
 
 /* TCP flags */
 #define PICO_TCP_FIN 0x01
@@ -63,9 +63,9 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 #define PICO_TCP_RST 0x04
 #define PICO_TCP_PSH 0x08
 #define PICO_TCP_ACK 0x10
-#define PICO_TCP_URG 0x20
-#define PICO_TCP_ECN 0x40
-#define PICO_TCP_CWR 0x80
+#define PICO_TCP_URG 0x20u
+#define PICO_TCP_ECN 0x40u
+#define PICO_TCP_CWR 0x80u
 
 
 
@@ -86,11 +86,11 @@ struct __attribute__((packed)) pico_tcp_option
 };
 
 struct pico_socket *pico_tcp_open(void);
-int pico_tcp_read(struct pico_socket *s, void *buf, int len);
+uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
 uint16_t pico_tcp_checksum_ipv4(struct pico_frame *f);
-int pico_tcp_overhead(struct pico_socket *s);
+uint16_t pico_tcp_overhead(struct pico_socket *s);
 int pico_tcp_output(struct pico_socket *s, int loop_score);
 int pico_tcp_queue_in_is_empty(struct pico_socket *s);
 int pico_tcp_reply_rst(struct pico_frame *f);

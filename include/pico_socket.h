@@ -158,7 +158,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
 int pico_socket_connect(struct pico_socket *s, const void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s, const int backlog);
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port);
-int pico_socket_del(struct pico_socket *s);
+int8_t pico_socket_del(struct pico_socket *s);
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 int pico_socket_getoption(struct pico_socket *s, int option, void *value);
@@ -166,7 +166,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 int pico_socket_shutdown(struct pico_socket *s, int mode);
 int pico_socket_close(struct pico_socket *s);
 
-struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
+struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
 #ifdef PICO_SUPPORT_IPV4
 # define is_sock_ipv4(x) (x->net == &pico_proto_ipv4)
@@ -195,7 +195,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, int len);
 /* Interface towards transport protocol */
 int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f);
 struct pico_socket *pico_socket_clone(struct pico_socket *facsimile);
-int pico_socket_add(struct pico_socket *s);
+int8_t pico_socket_add(struct pico_socket *s);
 int pico_transport_error(struct pico_frame *f, uint8_t proto, int code);
 
 /* Socket loop */

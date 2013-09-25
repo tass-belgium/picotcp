@@ -34,7 +34,7 @@ Authors: Daniele Lacamera
   const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 #endif
 
-volatile unsigned long long pico_tick;
+volatile uint64_t pico_tick;
 volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
@@ -50,7 +50,7 @@ void pico_rand_feed(uint32_t feed)
 
 uint32_t pico_rand(void)
 {
-  pico_rand_feed(pico_tick);
+  pico_rand_feed((uint32_t)pico_tick);
   return _rand_seed;
 }
 
@@ -124,9 +124,9 @@ int pico_notify_ttl_expired(struct pico_frame *f)
 
 
 /* Transport layer */
-int pico_transport_receive(struct pico_frame *f, uint8_t proto)
+int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
-  int ret = -1;
+	int32_t ret = -1;
   switch (proto) {
 
 #ifdef PICO_SUPPORT_ICMP4
@@ -172,7 +172,7 @@ int pico_transport_send(struct pico_frame *f)
   return f->sock->proto->push(f->sock->net, f);
 }
 
-int pico_network_receive(struct pico_frame *f)
+int32_t pico_network_receive(struct pico_frame *f)
 {
   if (0) {}
 #ifdef PICO_SUPPORT_IPV4
@@ -190,7 +190,7 @@ int pico_network_receive(struct pico_frame *f)
     pico_frame_discard(f);
     return -1;
   }
-  return f->buffer_len;
+  return (int32_t)f->buffer_len;
 }
 
 
@@ -252,7 +252,7 @@ int pico_source_is_local(struct pico_frame *f)
  * those devices supporting ETH in order to push packets up 
  * into the stack. 
  */
-int pico_ethernet_receive(struct pico_frame *f)
+int32_t pico_ethernet_receive(struct pico_frame *f)
 {
   struct pico_eth_hdr *hdr;
   if (!f || !f->dev || !f->datalink_hdr)
@@ -314,8 +314,8 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 
   /* place 23 lower bits of IP in lower 23 bits of MAC */
   pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FF);
-  pico_mcast_mac[4] = (long_be(hdr->dst.addr) & 0x0000FF00) >> 8; 
-  pico_mcast_mac[3] = (long_be(hdr->dst.addr) & 0x007F0000) >> 16;
+  pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00) >> 8);
+  pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000) >> 16);
 
   return (struct pico_eth *)pico_mcast_mac;
 }
@@ -330,10 +330,10 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
  * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
  * we assume IP is used.
  */
-int pico_ethernet_send(struct pico_frame *f)
+int32_t pico_ethernet_send(struct pico_frame *f)
 {
   const struct pico_eth *dstmac = NULL;
-  int ret = -1;
+  int32_t ret = -1;
 
   if (IS_IPV6(f)) {
     /*TODO: Neighbor solicitation */
@@ -371,7 +371,7 @@ int pico_ethernet_send(struct pico_frame *f)
       }else if(IS_LIMITED_BCAST(f)){
         ret = pico_device_broadcast(f);
       }else {
-        ret = f->dev->send(f->dev, f->start, f->len);
+        ret = (int32_t)f->dev->send(f->dev, f->start, f->len);
         /* Frame is discarded after this return by the caller */
       }
 
@@ -418,10 +418,10 @@ void pico_store_network_origin(void *src, struct pico_frame *f)
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
  */
-int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
+int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
   struct pico_frame *f;
-  int ret;
+  int32_t ret;
   if (len <= 0)
     return -1;
   f = pico_frame_alloc(len);
@@ -435,7 +435,7 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   f->start = f->buffer;
   f->len = f->buffer_len;
   if (f->len > 8) {
-    int mid_frame = (f->buffer_len >> 2)<<1;
+    uint32_t mid_frame = (f->buffer_len >> 2)<<1;
     mid_frame -= (mid_frame % 4);
     pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
   }
@@ -447,14 +447,14 @@ int pico_stack_recv(struct pico_device *dev, uint8_t *buffer, int len)
   return ret;
 }
 
-int pico_sendto_dev(struct pico_frame *f)
+int32_t pico_sendto_dev(struct pico_frame *f)
 {
   if (!f->dev) {
     pico_frame_discard(f);
     return -1;
   } else {
     if (f->len > 8) {
-      int mid_frame = (f->buffer_len >> 2)<<1;
+      uint32_t mid_frame = (f->buffer_len >> 2)<<1;
       mid_frame -= (mid_frame % 4);
       pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
     }
@@ -464,8 +464,9 @@ int pico_sendto_dev(struct pico_frame *f)
 
 struct pico_timer
 {
+  uint64_t expire;
   void *arg;
-  void (*timer)(unsigned long timestamp, void *arg);
+  void (*timer)(uint64_t timestamp, void *arg);
 };
 
 struct pico_timer_ref
@@ -654,44 +655,44 @@ void pico_stack_tick(void)
     //score = pico_protocols_loop(100);
 
     ret[0] = pico_devices_loop(score[0],PICO_LOOP_DIR_IN);
-    pico_rand_feed(ret[0]);
+    pico_rand_feed((uint32_t)ret[0]);
 
     ret[1] = pico_protocol_datalink_loop(score[1], PICO_LOOP_DIR_IN);
-    pico_rand_feed(ret[1]);
+    pico_rand_feed((uint32_t)ret[1]);
 
     ret[2] = pico_protocol_network_loop(score[2], PICO_LOOP_DIR_IN);
-    pico_rand_feed(ret[2]);
+    pico_rand_feed((uint32_t)ret[2]);
 
     ret[3] = pico_protocol_transport_loop(score[3], PICO_LOOP_DIR_IN);
-    pico_rand_feed(ret[3]);
+    pico_rand_feed((uint32_t)ret[3]);
 
 
     ret[5] = score[5];
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
     ret[5] = pico_sockets_loop(score[5]); // swapped
-    pico_rand_feed(ret[5]);
+    pico_rand_feed((uint32_t)ret[5]);
 #endif
 #endif
 
     ret[4] = pico_protocol_socket_loop(score[4], PICO_LOOP_DIR_IN);
-    pico_rand_feed(ret[4]);
+    pico_rand_feed((uint32_t)ret[4]);
 
 
     ret[6] = pico_protocol_socket_loop(score[6], PICO_LOOP_DIR_OUT);
-    pico_rand_feed(ret[6]);
+    pico_rand_feed((uint32_t)ret[6]);
 
     ret[7] = pico_protocol_transport_loop(score[7], PICO_LOOP_DIR_OUT);
-    pico_rand_feed(ret[7]);
+    pico_rand_feed((uint32_t)ret[7]);
 
     ret[8] = pico_protocol_network_loop(score[8], PICO_LOOP_DIR_OUT);
-    pico_rand_feed(ret[8]);
+    pico_rand_feed((uint32_t)ret[8]);
 
     ret[9] = pico_protocol_datalink_loop(score[9], PICO_LOOP_DIR_OUT);
-    pico_rand_feed(ret[9]);
+    pico_rand_feed((uint32_t)ret[9]);
 
     ret[10] = pico_devices_loop(score[10],PICO_LOOP_DIR_OUT);
-    pico_rand_feed(ret[10]);
+    pico_rand_feed((uint32_t)ret[10]);
 
     /* calculate new loop scores for next iteration */
     calc_score(score, index,(int (*)[]) avg, ret);
@@ -705,7 +706,7 @@ void pico_stack_loop(void)
   }
 }
 
-struct pico_timer *pico_timer_add(unsigned long expire, void (*timer)(unsigned long, void *), void *arg)
+void pico_timer_add(uint64_t expire, void (*timer)(uint64_t, void *), void *arg)
 {
   struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
   struct pico_timer_ref tref;
