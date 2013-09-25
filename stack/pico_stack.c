@@ -706,7 +706,7 @@ void pico_stack_loop(void)
   }
 }
 
-void pico_timer_add(uint64_t expire, void (*timer)(uint64_t, void *), void *arg)
+struct pico_timer *pico_timer_add(uint64_t expire, void (*timer)(uint64_t, void *), void *arg)
 {
   struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
   struct pico_timer_ref tref;
