@@ -148,7 +148,7 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uin
   uint8_t *b2 = (uint8_t *) inbuf2;
   uint16_t tmp = 0;
   uint32_t sum = 0;
-  int i = 0, j = 0;
+  uint32_t i = 0, j = 0;
 
   for(i=0; i < len1; i++) {
     if (j%2) {

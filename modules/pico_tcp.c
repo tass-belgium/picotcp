@@ -414,7 +414,7 @@ static void tcp_send_ack(struct pico_socket_tcp *t);
 
 static void tcp_set_space(struct pico_socket_tcp *t)
 {
-  uint32_t mtu, space;
+  int32_t mtu, space;
   uint32_t shift = 0;
 
   mtu = t->mss + PICO_SIZE_TCPHDR + PICO_SIZE_TCPOPT_SYN ;
