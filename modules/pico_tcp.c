@@ -513,6 +513,18 @@ done:
   }
 }
 
+inline static void tcp_add_header(struct pico_socket_tcp *t, struct pico_frame * f)
+{
+  struct pico_tcp_hdr *	hdr = (struct pico_tcp_hdr *)f->transport_hdr;
+  f->timestamp = pico_tick;
+  tcp_add_options(t, f, 0, (uint16_t)(f->transport_len - f->payload_len - (uint16_t)PICO_SIZE_TCPHDR));
+  hdr->rwnd = short_be(t->wnd);
+  hdr->flags |= PICO_TCP_PSH;
+  hdr->ack = long_be(t->rcv_nxt);
+  hdr->crc = 0;
+  hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
+}
+
 static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
 {
   uint32_t start, end;
@@ -1260,7 +1272,6 @@ static void tcp_retrans_timeout(uint64_t val, void *sock)
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) sock;
   struct pico_frame *f = NULL;
   uint64_t limit = val - t->rto;
-  struct pico_tcp_hdr *hdr;
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED
   		|| (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) )
   {
@@ -1277,7 +1288,6 @@ static void tcp_retrans_timeout(uint64_t val, void *sock)
 			if ((t->x_mode == PICO_TCP_WINDOW_FULL) ||
 					((f->timestamp != 0) && (f->timestamp <= limit))) {
 				struct pico_frame *cpy;
-				hdr = (struct pico_tcp_hdr *)f->transport_hdr;
 				tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
 				if ((t->x_mode != PICO_TCP_WINDOW_FULL) ) {
 					t->x_mode = PICO_TCP_BLACKOUT;
@@ -1285,13 +1295,7 @@ static void tcp_retrans_timeout(uint64_t val, void *sock)
 					t->cwnd = PICO_TCP_IW;
 					t->in_flight = 0;
 				}
-				f->timestamp = pico_tick;
-				tcp_add_options(t, f, 0, (uint16_t)(f->transport_len - f->payload_len - (uint16_t)PICO_SIZE_TCPHDR));
-				hdr->rwnd = short_be(t->wnd);
-				hdr->flags |= PICO_TCP_PSH;
-				hdr->ack = long_be(t->rcv_nxt);
-				hdr->crc = 0;
-				hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
+				tcp_add_header(t,f);
 				/* TCP: ENQUEUE to PROTO ( retransmit )*/
 				cpy = pico_frame_copy(f);
 				if (pico_enqueue(&tcp_out, cpy) > 0) {
@@ -1344,17 +1348,9 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, uint64_t next_ts
 static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
 {
   struct pico_frame *cpy;
-  struct pico_tcp_hdr *hdr;
   if (f) {
-    hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     tcp_dbg("TCP> RETRANS (by dupack) frame %08x, len= %d\n", SEQN(f), f->payload_len);
-    f->timestamp = pico_tick;
-    tcp_add_options(t, f, 0, (uint16_t)(f->transport_len - f->payload_len - (uint16_t)PICO_SIZE_TCPHDR));
-    hdr->rwnd = short_be(t->wnd);
-    hdr->flags |= PICO_TCP_PSH;
-    hdr->ack = long_be(t->rcv_nxt);
-    hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
+    tcp_add_header(t,f);
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
     cpy = pico_frame_copy(f);
     if (pico_enqueue(&tcp_out, cpy) > 0) {
