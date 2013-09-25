@@ -648,9 +648,10 @@ static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((u
     address.addr = dhcpc->address.addr;
 
   /* delete the default route for our global broadcast messages, otherwise another interface can not rebind */
-  if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING)
+  if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING){
     pico_ipv4_route_del(bcast, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
-
+    pico_ipv4_route_del(inaddr_any, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
+  }
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
   /* delete the link with the currently in use address */
