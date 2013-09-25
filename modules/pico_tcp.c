@@ -52,12 +52,6 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define tcp_dbg(...) do{}while(0)
 //#define tcp_dbg dbg
 
-struct tcp_port_pair
-{
-	uint16_t local;
-	uint16_t remote;
-};
-
 #ifdef PICO_SUPPORT_MUTEX
 static void * Mutex = NULL;
 #define LOCK(x) {\
@@ -2076,9 +2070,6 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
       s->state &= 0x00FFU;
       s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
     } else if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
-    	struct tcp_port_pair *pair = (struct tcp_port_pair *)pico_zalloc(sizeof(struct tcp_port_pair));
-    	pair->local = s->local_port;
-    	pair->remote = s->remote_port;
       /* send fin if queue empty and in state shut local (write) */
       tcp_send_fin(t);
       /* change tcp state to LAST_ACK */
