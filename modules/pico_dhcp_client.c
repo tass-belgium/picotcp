@@ -573,7 +573,8 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 
   /* Issue #20 the server can transmit on ACK a different IP than the one in OFFER */
   /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
-  dhcpc->address.addr = hdr->yiaddr;
+  if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
+    dhcpc->address.addr = hdr->yiaddr;
 
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
