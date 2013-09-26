@@ -565,7 +565,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
   struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
-  struct pico_ip4 address = {0}, netmask = {0}, inaddr_any = {0}, bcast = { .addr = 0xFFFFFFFF };
+  struct pico_ip4 address = {0}, netmask = {0}, bcast = { .addr = 0xFFFFFFFF };
 
   pico_dhcp_client_recv_params(dhcpc, opt);
   if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_timer.time)
@@ -575,6 +575,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
   if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
     dhcpc->address.addr = hdr->yiaddr;
+
 
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
@@ -586,7 +587,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   }
   /* delete the default route for our global broadcast messages, otherwise another interface can not rebind */
   if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING)
-    pico_ipv4_route_del(bcast, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
+    pico_ipv4_route_del(bcast, netmask, 1);
 
   dbg("DHCP client: renewal time (T1) %u\n", dhcpc->T1_timer.time);
   dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->T2_timer.time);
@@ -645,18 +646,13 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((
 
 static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
-  struct pico_ip4 address = {0}, netmask = {0}, inaddr_any = {0}, bcast = { .addr = 0xFFFFFFFF };
+  struct pico_ip4 address = {0};
 
   if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
     address.addr = PICO_IP4_ANY;
   else
     address.addr = dhcpc->address.addr;
 
-  /* delete the default route for our global broadcast messages, otherwise another interface can not rebind */
-  if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING){
-    pico_ipv4_route_del(bcast, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
-    pico_ipv4_route_del(inaddr_any, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
-  }
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
   /* delete the link with the currently in use address */

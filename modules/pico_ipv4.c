@@ -1139,15 +1139,10 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   return 0;
 }
 
-int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int metric)
 {
-	struct pico_ipv4_route test, *found;
-	IGNORE_PARAMETER(gateway);
+  struct pico_ipv4_route test, *found;
 
-	if (!link) {
-    pico_err = PICO_ERR_EINVAL;
-    return -1;
-  }
   test.dest.addr = address.addr;
   test.netmask.addr = netmask.addr;
   test.metric = (uint32_t)metric;
@@ -1236,11 +1231,23 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   return 0;
 }
 
+int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
+{
+  struct pico_tree_node *index = NULL, *tmp = NULL;
+  struct pico_ipv4_route *route = NULL;
+
+  pico_tree_foreach_safe(index, &Routes, tmp)
+  {
+    route = index->keyValue;
+    if (link == route->link)
+      pico_ipv4_route_del(route->dest, route->netmask, route->metric);
+  }
+  return 0;
+}
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 {
   struct pico_ipv4_link test, *found;
-  struct pico_ip4 network;
 
   if(!dev) {
     pico_err = PICO_ERR_EINVAL;
@@ -1254,19 +1261,16 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
     return -1;
   }
 
-  network.addr = found->address.addr & found->netmask.addr;
-  pico_ipv4_route_del(network, found->netmask,pico_ipv4_route_get_gateway(&found->address), 1, found);
 #ifdef PICO_SUPPORT_MCAST
   do {
-    struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
+    struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm;
     struct pico_mcast_group *g = NULL;
     struct pico_tree_node * index, * _tmp;
     if (found == mcast_default_link) {
       mcast_addr.addr = long_be(0xE0000000); /* 224.0.0.0 */
       mcast_nm.addr = long_be(0xF0000000); /* 15.0.0.0 */
-      mcast_gw.addr = long_be(0x00000000);
       mcast_default_link = NULL;
-      pico_ipv4_route_del(mcast_addr, mcast_nm, mcast_gw, 1, found);
+      pico_ipv4_route_del(mcast_addr, mcast_nm, 1);
     }
     mcast_all_hosts.addr = PICO_MCAST_ALL_HOSTS;
     pico_ipv4_mcast_leave(&address, &mcast_all_hosts, 1, PICO_IP_MULTICAST_EXCLUDE, NULL);
@@ -1279,9 +1283,10 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
   } while(0);
 #endif
 
+  pico_ipv4_cleanup_routes(found);
   pico_tree_delete(&Tree_dev_link, found);
-  /* XXX: pico_free(found); */
-  /* XXX: cleanup all routes containing the removed link */
+  pico_free(found);
+
   return 0;
 }
 
