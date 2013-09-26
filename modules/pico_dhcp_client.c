@@ -571,6 +571,10 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_timer.time)
     return -1;
 
+  /* Issue #20 the server can transmit on ACK a different IP than the one in OFFER */
+  /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
+  dhcpc->address.addr = hdr->yiaddr;
+
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
   /* delete the link with address 0.0.0.0, add new link with acquired address */
