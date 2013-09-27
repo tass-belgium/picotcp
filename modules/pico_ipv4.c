@@ -1231,7 +1231,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
   return 0;
 }
 
-int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
+static int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
 {
   struct pico_tree_node *index = NULL, *tmp = NULL;
   struct pico_ipv4_route *route = NULL;
