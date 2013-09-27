@@ -28,7 +28,7 @@ const uint8_t PICO_ETHADDR_ALL[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static struct pico_queue pending;
 static int pending_timer_on = 0;
 
-void check_pending(uint64_t now, void *_unused)
+void check_pending(uint32_t now, void *_unused)
 {
   struct pico_frame *f = pico_dequeue(&pending);
   IGNORE_PARAMETER(now);
@@ -68,7 +68,7 @@ struct pico_arp {
   struct pico_eth eth;
   struct pico_ip4 ipv4;
   int    arp_status;
-  uint64_t timestamp;
+  uint32_t timestamp;
   struct pico_device *dev;
 };
 
@@ -172,7 +172,7 @@ void dbg_arp(void)
 }
 #endif
 
-void arp_expire(uint64_t now, void *_stale)
+void arp_expire(uint32_t now, void *_stale)
 {
   struct pico_arp *stale = (struct pico_arp *) _stale;
   IGNORE_PARAMETER(now);
@@ -268,7 +268,7 @@ int pico_arp_receive(struct pico_frame *f)
     memcpy(eh->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
     f->start = f->datalink_hdr;
     f->len = PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR;
-    f->dev->send(f->dev, f->start, f->len);
+    f->dev->send(f->dev, f->start, (int)f->len);
   }
 
 #ifdef DEBUG_ARG
@@ -286,7 +286,7 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   struct pico_eth_hdr *eh;
   struct pico_arp_hdr *ah;
   struct pico_ip4 *src;
-  uint32_t ret;
+  int ret;
 
   src = pico_ipv4_source_find(dst);
   if (!src)
@@ -314,7 +314,7 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   ah->src.addr = src->addr;
   ah->dst.addr = dst->addr;
   arp_dbg("Sending arp query.\n");
-  ret = dev->send(dev, q->start, q->len);
+  ret = dev->send(dev, q->start,(int) q->len);
   pico_frame_discard(q);
-  return (int32_t)ret;
+  return ret;
 }

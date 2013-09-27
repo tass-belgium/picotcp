@@ -268,7 +268,7 @@ static int pico_ipv4_nat_snif_session(struct pico_nat_tuple *t, struct pico_fram
   return 0;
 }
 
-static void pico_ipv4_nat_table_cleanup(uint64_t now, void *_unused)
+static void pico_ipv4_nat_table_cleanup(uint32_t now, void *_unused)
 {
   struct pico_tree_node *index = NULL, *_tmp = NULL;
   struct pico_nat_tuple *t = NULL;

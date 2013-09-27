@@ -13,17 +13,17 @@ Authors: Daniele Lacamera
 
 #define LOOP_MTU 1500
 static uint8_t l_buf[LOOP_MTU];
-static uint32_t l_bufsize = 0;
+static int l_bufsize = 0;
 
 
-static uint32_t pico_loop_send(struct pico_device *dev, void *buf, uint32_t len)
+static int pico_loop_send(struct pico_device *dev, void *buf, int len)
 {
 	IGNORE_PARAMETER(dev);
 	if (len > LOOP_MTU)
     return 0;
 
   if (l_bufsize == 0) {
-    memcpy(l_buf, buf, len);
+    memcpy(l_buf, buf, (size_t)len);
     l_bufsize+=len;
     return len;
   }
@@ -36,7 +36,7 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
     return 0;
 
   if (l_bufsize > 0) {
-    pico_stack_recv(dev, l_buf, l_bufsize);
+    pico_stack_recv(dev, l_buf, (uint32_t)l_bufsize);
     l_bufsize = 0;
     loop_score--;
   }

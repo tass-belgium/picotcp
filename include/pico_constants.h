@@ -8,7 +8,7 @@ See LICENSE and COPYING for usage.
 /* Included from pico_config.h */
 /** Endian-dependant constants **/
 
-extern volatile uint64_t pico_tick;
+extern volatile unsigned long pico_tick;
 
 #ifdef PICO_BIGENDIAN
 

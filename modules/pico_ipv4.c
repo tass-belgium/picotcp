@@ -297,7 +297,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
       frag.dst.addr = long_be(hdr->dst.addr);
       pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
       if (pfrag) {
-        pfrag->total_len += (short_be(hdr->len) - (*f)->net_len);
+        pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
         pico_tree_insert(pfrag->t, *f);
         return 0;
       } else {
@@ -314,7 +314,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     frag.dst.addr = long_be(hdr->dst.addr);
     pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
     if (pfrag) {
-      pfrag->total_len += (short_be(hdr->len) - (*f)->net_len);
+      pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
       reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
       f_new = self->alloc(self, pfrag->total_len);
 
@@ -344,7 +344,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
           pico_ipv4_fragmented_cleanup(pfrag);
           return -1;
         }
-        running_offset += (data_len / 8);
+        running_offset = (uint16_t)(running_offset + (data_len / 8));
         pico_tree_delete(pfrag->t, f_frag);
         pico_frame_discard(f_frag);
         reassembly_dbg("REASSEMBLY: reassembled intermediate packet of %u data bytes, offset = %u next expected offset = %u\n", data_len, offset, running_offset);
@@ -1368,7 +1368,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
   }
 
   f->dev = rt->link->dev;
-  hdr->ttl-=1;
+  hdr->ttl= (uint8_t)(hdr->ttl - 1);
   if (hdr->ttl < 1) {
     pico_notify_ttl_expired(f);
     return -1;

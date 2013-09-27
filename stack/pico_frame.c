@@ -155,7 +155,7 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uin
       sum += b1[i];
     } else {
       tmp = b1[i];
-      sum += (tmp << 8);
+      sum = sum +(uint32_t)(tmp << 8);
     }
     j++;
   }
@@ -166,7 +166,7 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uin
       sum += b2[i];
     } else {
       tmp = b2[i];
-      sum += (tmp << 8);
+      sum = sum +(uint32_t)(tmp << 8);
     }
     j++;
   }

@@ -73,7 +73,7 @@ Authors: Kristof Roelants
 #define PICO_DNS_IPV4_ADDR_LEN 16
 
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
-static void pico_dns_client_retransmission(uint64_t now, void *arg);
+static void pico_dns_client_retransmission(uint32_t now, void *arg);
 
 /* RFC 1035 section 4. MESSAGES */
 struct __attribute__((packed)) pico_dns_name
@@ -516,7 +516,7 @@ static int pico_dns_client_send(struct pico_dns_query *q)
   return 0;
 }
 
-static void pico_dns_client_retransmission(uint64_t now, void *arg)
+static void pico_dns_client_retransmission(uint32_t now, void *arg)
 {
   struct pico_dns_query *q = NULL;
   struct pico_dns_query dummy;

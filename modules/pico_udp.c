@@ -163,7 +163,7 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
     if (f->payload_len > len) {
       memcpy(buf, f->payload, len);
       f->payload += len;
-      f->payload_len -= len;
+      f->payload_len = (uint16_t)(f->payload_len - len);
       return len;
     } else {
       uint16_t ret = f->payload_len;
