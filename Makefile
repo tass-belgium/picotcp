@@ -32,7 +32,7 @@ ZMQ?=1
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
-#CFLAGS+= -Wconversion 
+CFLAGS+= -Wconversion 
 # request from Toon
 CFLAGS+= -Wcast-align
 
