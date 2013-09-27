@@ -1240,7 +1240,7 @@ static int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
   {
     route = index->keyValue;
     if (link == route->link)
-      pico_ipv4_route_del(route->dest, route->netmask, route->metric);
+      pico_ipv4_route_del(route->dest, route->netmask, (int)route->metric);
   }
   return 0;
 }
