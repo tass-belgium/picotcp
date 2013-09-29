@@ -22,4 +22,5 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst);
 struct pico_eth *pico_arp_lookup(struct pico_ip4 *dst);
 struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst);
 int pico_arp_create_entry(uint8_t* hwaddr, struct pico_ip4 ipv4, struct pico_device* dev);
+int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, int maxlen);
 #endif
