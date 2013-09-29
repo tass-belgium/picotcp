@@ -241,6 +241,18 @@ static inline void pico_ipv4_fragmented_cleanup(struct pico_ipv4_fragmented_pack
 #endif /* PICO_SUPPORT_IPFRAG */
 
 #ifdef PICO_SUPPORT_IPFRAG
+
+static inline struct pico_ipv4_fragmented_packet *fragment_find_by_hdr(struct pico_ipv4_hdr *hdr)
+{
+  struct pico_ipv4_fragmented_packet frag = {0};
+  frag.id = short_be(hdr->id);
+  frag.proto = hdr->proto;
+  frag.src.addr = long_be(hdr->src.addr);
+  frag.dst.addr = long_be(hdr->dst.addr);
+  return pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
+}
+
+
 static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, struct pico_frame **f)
 {
   uint8_t *running_pointer = NULL;
@@ -250,7 +262,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
   struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
   struct pico_udp_hdr *udp_hdr = NULL;
   struct pico_tcp_hdr *tcp_hdr = NULL;
-  struct pico_ipv4_fragmented_packet *pfrag = NULL, frag; 
+  struct pico_ipv4_fragmented_packet *pfrag = NULL; 
   struct pico_frame *f_new = NULL, *f_frag = NULL;
   struct pico_tree_node *index, *_tmp;
 
@@ -291,11 +303,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     }
     else {
       reassembly_dbg("REASSEMBLY: intermediate element of a fragmented packet with id %X and offset %u\n", short_be(hdr->id), offset);
-      frag.id = short_be(hdr->id);
-      frag.proto = hdr->proto;
-      frag.src.addr = long_be(hdr->src.addr);
-      frag.dst.addr = long_be(hdr->dst.addr);
-      pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
+      pfrag = fragment_find_by_hdr(hdr);
       if (pfrag) {
         pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
         pico_tree_insert(pfrag->t, *f);
@@ -308,11 +316,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     }
   } else if (offset) {
     reassembly_dbg("REASSEMBLY: last element of a fragmented packet with id %X and offset %u\n", short_be(hdr->id), offset);
-    frag.id = short_be(hdr->id);
-    frag.proto = hdr->proto;
-    frag.src.addr = long_be(hdr->src.addr);
-    frag.dst.addr = long_be(hdr->dst.addr);
-    pfrag = pico_tree_findKey(&pico_ipv4_fragmented_tree, &frag);
+    pfrag = fragment_find_by_hdr(hdr);
     if (pfrag) {
       pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
       reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
