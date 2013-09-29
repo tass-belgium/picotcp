@@ -17,6 +17,7 @@
 #include "pico_http_server.h"
 #include "pico_http_util.h"
 #include "pico_zmq.h"
+#include "pico_olsr.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -1952,6 +1953,17 @@ void app_zeromq_prod(char __attribute__((unused)) *arg)
   }
 }
 
+/* NOOP */
+void app_noop(void)
+{
+  while(1) {
+    pico_stack_tick();
+    usleep(2000);
+  }
+}
+
+/* end NOOP */
+
 /** From now on, parsing the command line **/
 #define NXT_MAC(x) ++x[5]
 
@@ -2245,6 +2257,21 @@ int main(int argc, char **argv)
         }
         else IF_APPNAME("zeromq_prod"){
           app_zeromq_prod(args);
+        }
+        else IF_APPNAME("noop") {
+          app_noop();
+        }
+        else IF_APPNAME("olsr") {
+          pico_olsr_init();
+          dev = pico_get_device("pic0");
+          if(dev) {
+            pico_olsr_add(dev);
+          }
+          dev = pico_get_device("pic1");
+          if(dev) {
+            pico_olsr_add(dev);
+          }
+          app_noop();
         }
         else {
           fprintf(stderr, "Unknown application %s\n", name);

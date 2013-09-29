@@ -816,6 +816,7 @@ void pico_olsr_init(void)
 {
   struct pico_ip4 ANY = {0};
   uint16_t port = OLSR_PORT;
+  dbg("OLSR initialized.\n");
   if (!udpsock) {
     udpsock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
     if (udpsock)
