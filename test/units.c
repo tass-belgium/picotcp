@@ -1961,7 +1961,7 @@ START_TEST (test_igmp_sockopts)
   ret = pico_socket_setoption(s, PICO_IP_UNBLOCK_SOURCE, &mreq_source[0]); 
   fail_if(ret == 0, "PICO_IP_UNBLOCK_SOURCE succeeded\n");
   ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[0]); 
-  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+  fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed with err %s\n", strerror(pico_err));
   ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[0]); 
   fail_if(ret == 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP succeeded\n");
   ret = pico_socket_setoption(s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source[0]); 

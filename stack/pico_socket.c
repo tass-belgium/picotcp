@@ -220,17 +220,23 @@ static int mcast_filter_cmp(void *ka, void *kb)
 /* gather sources to be filtered */
 PICO_TREE_DECLARE(MCASTFilter, mcast_filter_cmp);
 
+static struct pico_mcast_listen *listen_find(struct pico_socket *s, struct pico_ip4 *lnk, struct pico_ip4 *grp)
+{
+  struct pico_mcast_listen ltest = {0};
+  ltest.mcast_link.addr = lnk->addr;
+  ltest.mcast_group.addr = grp->addr;
+  return pico_tree_findKey(s->MCASTListen, &ltest);
+}
+
 /* MCASTFilter will be empty if no socket is listening on mcast_group on mcast_link anymore */
 static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group)
 {
   uint8_t filter_mode = PICO_IP_MULTICAST_INCLUDE;
-  struct pico_mcast_listen *listen = NULL, ltest = {0};
+  struct pico_mcast_listen *listen = NULL;
   struct pico_ip4 *source = NULL;
   struct pico_socket *mcast_sock = NULL;
   struct pico_tree_node *index = NULL, *_tmp = NULL, *index2 = NULL, *_tmp2 = NULL;
 
-  ltest.mcast_link = *mcast_link;
-  ltest.mcast_group = *mcast_group;
 
   /* cleanup old filter */
   pico_tree_foreach_safe(index, &MCASTFilter, _tmp)
@@ -242,7 +248,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
   pico_tree_foreach(index, &MCASTSockets)
   {
     mcast_sock = index->keyValue;
-    listen = pico_tree_findKey(mcast_sock->MCASTListen, &ltest);
+    listen = listen_find(mcast_sock, mcast_link, mcast_group);
     if (listen) {
       /* aggregate filter */
       switch(filter_mode)
@@ -328,7 +334,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
 static int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group, struct pico_ip4 *src)
 {
   struct pico_ipv4_link *mcast_link = NULL;
-  struct pico_mcast_listen *listen = NULL, ltest = {0};
+  struct pico_mcast_listen *listen = NULL;
   struct pico_tree_node *index = NULL;
 
   /* no multicast enabled on socket */
@@ -338,10 +344,7 @@ static int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcas
   mcast_link = pico_ipv4_link_get(&s->local_addr.ip4);
   if (!mcast_link) 
     return -1;
-
-  ltest.mcast_link.addr = mcast_link->address.addr;
-  ltest.mcast_group = *mcast_group;
-  listen = pico_tree_findKey(s->MCASTListen, &ltest);
+  listen = listen_find(s, &mcast_link->address, mcast_group);
   if (!listen)
     return -1;
 
@@ -1481,6 +1484,46 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= ~(1 << index))
 
+static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
+{
+    struct pico_ip_mreq *mreq = NULL;
+    struct pico_ipv4_link *mcast_link = NULL;
+    struct pico_ip_mreq_source *mreq_src = NULL;
+
+    if (!value) {
+      pico_err = PICO_ERR_EINVAL;
+      return NULL;
+    }
+    if (!bysource) {
+      mreq = (struct pico_ip_mreq *) value;
+      mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
+      if (!mreq->mcast_link_addr.addr)
+        mreq->mcast_link_addr.addr = mcast_link->address.addr;
+    } else {
+      mreq_src = (struct pico_ip_mreq_source *) value;
+      mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq_src);
+      if (!mreq_src->mcast_link_addr.addr)
+        mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
+    }
+    if (!mcast_link) {
+      pico_err = PICO_ERR_EINVAL;
+      return NULL;
+    }
+
+    if (!s->MCASTListen) { /* No RBTree allocated yet */
+      if (alloc) {
+        s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
+        if (!s->MCASTListen) {
+          pico_err = PICO_ERR_ENOMEM;
+          return NULL;
+        }
+        s->MCASTListen->root = &LEAF;
+        s->MCASTListen->compare = mcast_listen_cmp;
+      } else return NULL;
+    }
+    return mcast_link;
+}
+
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
   if (s == NULL) {
@@ -1551,35 +1594,12 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode;
-        struct pico_ip_mreq *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
-        struct pico_ipv4_link *mcast_link = NULL;
-
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
+        struct pico_mcast_listen *listen;
+        struct pico_ip_mreq *mreq = (struct pico_ip_mreq *)value;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1, 0);
+        if (!mcast_link)
           return -1;
-        }
-        mreq = (struct pico_ip_mreq *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
-          if (!s->MCASTListen) {
-            pico_err = PICO_ERR_ENOMEM;
-            return -1;
-          }
-          s->MCASTListen->root = &LEAF;
-          s->MCASTListen->compare = mcast_listen_cmp;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (listen) {
           if (listen->filter_mode != PICO_IP_MULTICAST_EXCLUDE) {
             so_mcast_dbg("pico_socket_setoption: ERROR any-source multicast (exclude) on source-specific multicast (include)\n");
@@ -1617,33 +1637,15 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0;
-        struct pico_ip_mreq *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
+        struct pico_mcast_listen *listen;
+        struct pico_ip_mreq *mreq = (struct pico_ip_mreq *)value;
         struct pico_ip4 *source = NULL;
-        struct pico_ipv4_link *mcast_link = NULL;
         struct pico_tree_node *index, *_tmp;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 0);
+        if (!mcast_link)
+          return -1;
 
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        mreq = (struct pico_ip_mreq *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          so_mcast_dbg("socket_setoption: ERROR PICO_IP_DROP_MEMBERSHIP before any PICO_IP_ADD_MEMBERSHIP/SOURCE_MEMBERSHIP\n");
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (!listen) {
           so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_DROP_MEMBERSHIP before PICO_IP_ADD_MEMBERSHIP/SOURCE_MEMBERSHIP\n");
           pico_err = PICO_ERR_EADDRNOTAVAIL;
@@ -1676,32 +1678,13 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
+        struct pico_mcast_listen *listen = NULL; 
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = NULL;
-
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
+        if (!mcast_link)
           return -1;
-        }
-        mreq = (struct pico_ip_mreq_source *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_UNBLOCK_SOURCE before any PICO_IP_ADD_MEMBERSHIP\n");
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (!listen) {
           so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_UNBLOCK_SOURCE before PICO_IP_ADD_MEMBERSHIP\n");
           pico_err = PICO_ERR_EINVAL;
@@ -1736,34 +1719,15 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
+        struct pico_mcast_listen *listen = NULL;
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = NULL;
-
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
+        if (!mcast_link)
           return -1;
-        }
-        mreq = (struct pico_ip_mreq_source *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_BLOCK_SOURCE before any PICO_IP_ADD_MEMBERSHIP\n");
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (!listen) {
-          so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_BLOCK_SOURCE before PICO_IP_ADD_MEMBERSHIP\n");
+          dbg("pico_socket_setoption: ERROR PICO_IP_BLOCK_SOURCE before PICO_IP_ADD_MEMBERSHIP\n");
           pico_err = PICO_ERR_EINVAL;
           return -1;
         } else {
@@ -1801,36 +1765,13 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0, reference_count = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
+        struct pico_mcast_listen *listen = NULL; 
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = NULL;
-
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1, 1);
+        if (!mcast_link)
           return -1;
-        }
-        mreq = (struct pico_ip_mreq_source *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
-          if (!s->MCASTListen) {
-            pico_err = PICO_ERR_ENOMEM;
-            return -1;
-          }
-          s->MCASTListen->root = &LEAF;
-          s->MCASTListen->compare = mcast_listen_cmp;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (listen) {
           if (listen->filter_mode != PICO_IP_MULTICAST_INCLUDE) {
             so_mcast_dbg("pico_socket_setoption: ERROR source-specific multicast (include) on any-source multicast (exclude)\n");
@@ -1888,32 +1829,13 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0, reference_count = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
-        struct pico_mcast_listen *listen = NULL, ltest = {0};
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
+        struct pico_mcast_listen *listen = NULL;
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = NULL;
-
-        if (!value) {
-          pico_err = PICO_ERR_EINVAL;
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
+        if (!mcast_link)
           return -1;
-        }
-        mreq = (struct pico_ip_mreq_source *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq);
-        if (!mcast_link) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        if (!mreq->mcast_link_addr.addr)
-          mreq->mcast_link_addr.addr = mcast_link->address.addr;
-
-        if (!s->MCASTListen) { /* No RBTree allocated yet */
-          so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_DROP_SOURCE_MEMBERSHIP before any PICO_IP_ADD_SOURCE_MEMBERSHIP\n");
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        }
-        ltest.mcast_link = mreq->mcast_link_addr;
-        ltest.mcast_group = mreq->mcast_group_addr;
-        listen = pico_tree_findKey(s->MCASTListen, &ltest);
+        listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
         if (!listen) {
           so_mcast_dbg("pico_socket_setoption: ERROR PICO_IP_DROP_SOURCE_MEMBERSHIP before PICO_IP_ADD_SOURCE_MEMBERSHIP\n");
           pico_err = PICO_ERR_EADDRNOTAVAIL;
