@@ -23,7 +23,7 @@ struct pico_device {
   struct pico_ethdev *eth; /* Null if non-ethernet */
   struct pico_queue *q_in;
   struct pico_queue *q_out;
-  uint32_t (*send)(struct pico_device *self, void *buf, uint32_t len); /* Send function. Return 0 if busy */
+  int (*send)(struct pico_device *self, void *buf, int len); /* Send function. Return 0 if busy */
   int (*poll)(struct pico_device *self, int loop_score);
   void(*destroy)(struct pico_device *self);
   int (*dsr)(struct pico_device *self, int loop_score);

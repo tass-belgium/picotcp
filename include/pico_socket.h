@@ -10,8 +10,11 @@ See LICENSE and COPYING for usage.
 #include "pico_config.h"
 #include "pico_protocol.h"
 
-#define PICO_DEFAULT_SOCKETQ (128 * 1024)
-//#define PICO_DEFAULT_SOCKETQ (4 * 1024)
+#ifndef MBED
+	#define PICO_DEFAULT_SOCKETQ (128 * 1024)
+#else
+	#define PICO_DEFAULT_SOCKETQ (4 * 1024)
+#endif
 
 #define PICO_SHUT_RD   1
 #define PICO_SHUT_WR   2

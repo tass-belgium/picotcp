@@ -80,7 +80,7 @@ START_TEST (test_ipv4)
 
   /*route_del + link_del*/
   for (i = 0; i < IP_TST_SIZ; i++) {
-    fail_if(pico_ipv4_route_del(r[i], nm32, gw[i], 1, l[i]) != 0, "Error deleting route");
+    fail_if(pico_ipv4_route_del(r[i], nm32, 1) != 0, "Error deleting route");
     fail_if(pico_ipv4_link_del(dev[i], a[i]) != 0, "Error deleting link");
   }
 

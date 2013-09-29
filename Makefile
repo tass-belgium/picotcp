@@ -211,3 +211,13 @@ units: mod core lib
 clean:
 	@echo -e "\t[CLEAN] $(PREFIX)/"
 	@rm -rf $(PREFIX) tags
+
+mbed:
+	@echo -e "\t[Creating PicoTCP.zip]"
+	@rm -f PicoTCP.zip
+	@cp include/pico_socket.h include/socket.tmp
+	@echo "#define MBED\n" > include/mbed.tmp
+	@cat include/mbed.tmp include/socket.tmp > include/pico_socket.h
+	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/ptsocket/* modules/ptsocket/ modules/ptsocket/test/ modules/ptsocket/test/* modules/pico_dev_*
+	@rm include/pico_socket.h include/mbed.tmp
+	@mv include/socket.tmp include/pico_socket.h

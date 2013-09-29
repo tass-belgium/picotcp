@@ -611,7 +611,7 @@ static void socket_clean_queues(struct pico_socket *sock)
     pico_tcp_cleanup_queues(sock);
 }
 
-static void socket_garbage_collect(uint64_t now, void *arg)
+static void socket_garbage_collect(uint32_t now, void *arg)
 {
   struct pico_socket *s = (struct pico_socket *) arg;
   IGNORE_PARAMETER(now);
@@ -699,7 +699,7 @@ static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_state
   }
 
   s->state |= more_states;
-  s->state &= (~less_states);
+  s->state = (uint16_t)(s->state & (~less_states));
   if (tcp_state) {
     s->state &= 0x00FF;
     s->state |= tcp_state;
@@ -1150,7 +1150,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
       return -1;
     }
     f->payload += header_offset;
-    f->payload_len -= header_offset;
+    f->payload_len = (uint16_t)(f->payload_len - header_offset);
     f->sock = s;
     if (remote_duple) {
       f->info = pico_zalloc(sizeof(struct pico_remote_duple));
@@ -1169,7 +1169,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
       } else {
         /* no transport header in fragmented IP */
         f->payload = f->transport_hdr;
-        f->payload_len += header_offset;
+        f->payload_len = (uint16_t)(f->payload_len + header_offset);
         /* set offset in octets */
         f->frag = short_be((uint16_t)((total_payload_written + header_offset) / 8));
         if (total_payload_written + f->payload_len < len) {
@@ -1482,7 +1482,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #endif
 
 #define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
-#define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= ~(1 << index))
+#define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= (uint16_t)~(1 << index))
 
 static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
 {

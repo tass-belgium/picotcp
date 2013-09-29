@@ -172,7 +172,7 @@ static void zmq_hs_signature(struct zmq_connector *zc)
     //dbg("Received invalid signature: [0]!=0xFF\n");
     zmq_connector_del(zc);
   }
-  zc->bytes_received += ret;
+  zc->bytes_received = (uint8_t)(zc->bytes_received + ret);
   if (zc->bytes_received < 14) {
     //dbg("Waiting for the rest of the sig - got %u bytes\n",zc->bytes_received);
     return;

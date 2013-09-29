@@ -67,7 +67,7 @@ struct pico_dhcp_client_cookie
   uint32_t *uid;
   enum dhcp_client_state state;
   void (*cb)(void* dhcpc, int code);
-  uint64_t init_timestamp;
+  uint32_t init_timestamp;
   struct pico_socket *s;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
@@ -156,7 +156,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
     return NULL;
 }
 
-static void pico_dhcp_client_init_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_init_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -178,7 +178,7 @@ static void pico_dhcp_client_init_timer(uint64_t __attribute__((unused)) now, vo
   return;
 }
 
-static void pico_dhcp_client_requesting_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_requesting_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -198,7 +198,7 @@ static void pico_dhcp_client_requesting_timer(uint64_t __attribute__((unused)) n
   return;
 }
 
-static void pico_dhcp_client_renewing_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_renewing_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -213,7 +213,7 @@ static void pico_dhcp_client_renewing_timer(uint64_t __attribute__((unused)) now
   return;
 }
 
-static void pico_dhcp_client_rebinding_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_rebinding_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -228,7 +228,7 @@ static void pico_dhcp_client_rebinding_timer(uint64_t __attribute__((unused)) no
   return;
 }
 
-static void pico_dhcp_client_T1_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T1_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -242,7 +242,7 @@ static void pico_dhcp_client_T1_timer(uint64_t __attribute__((unused)) now, void
   return;
 }
 
-static void pico_dhcp_client_T2_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T2_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -257,7 +257,7 @@ static void pico_dhcp_client_T2_timer(uint64_t __attribute__((unused)) now, void
   return;
 }
 
-static void pico_dhcp_client_lease_timer(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_lease_timer(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -272,7 +272,7 @@ static void pico_dhcp_client_lease_timer(uint64_t __attribute__((unused)) now, v
   return;
 }
 
-static void pico_dhcp_client_reinit(uint64_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_reinit(uint32_t __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -565,7 +565,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
   struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
   struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
-  struct pico_ip4 address = {0}, netmask = {0}, inaddr_any = {0}, bcast = { .addr = 0xFFFFFFFF };
+  struct pico_ip4 address = {0}, netmask = {0}, bcast = { .addr = 0xFFFFFFFF };
 
   pico_dhcp_client_recv_params(dhcpc, opt);
   if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_timer.time)
@@ -575,6 +575,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
   if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
     dhcpc->address.addr = hdr->yiaddr;
+
 
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
@@ -586,7 +587,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
   }
   /* delete the default route for our global broadcast messages, otherwise another interface can not rebind */
   if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING)
-    pico_ipv4_route_del(bcast, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
+    pico_ipv4_route_del(bcast, netmask, 1);
 
   dbg("DHCP client: renewal time (T1) %u\n", dhcpc->T1_timer.time);
   dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->T2_timer.time);
@@ -645,18 +646,13 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((
 
 static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
 {
-  struct pico_ip4 address = {0}, netmask = {0}, inaddr_any = {0}, bcast = { .addr = 0xFFFFFFFF };
+  struct pico_ip4 address = {0};
 
   if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
     address.addr = PICO_IP4_ANY;
   else
     address.addr = dhcpc->address.addr;
 
-  /* delete the default route for our global broadcast messages, otherwise another interface can not rebind */
-  if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING){
-    pico_ipv4_route_del(bcast, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
-    pico_ipv4_route_del(inaddr_any, netmask, inaddr_any, 1, pico_ipv4_link_get(&dhcpc->address));
-  }
   /* close the socket used for address (re)acquisition */
   pico_socket_close(dhcpc->s);
   /* delete the link with the currently in use address */
@@ -817,7 +813,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
       optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_MAXMSGSIZE + PICO_DHCP_OPTLEN_PARAMLIST + PICO_DHCP_OPTLEN_END;
       hdr = pico_zalloc((size_t)(sizeof(struct pico_dhcp_hdr) + optlen));
       /* specific options */
-      offset += pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE);
+      offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
       break;
 
     case PICO_DHCP_MSG_REQUEST:
@@ -826,10 +822,10 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
               + PICO_DHCP_OPTLEN_END;
       hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + optlen);
       /* specific options */
-      offset += pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE);
+      offset = (uint16_t)(offset+pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
       if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING) {
-        offset += pico_dhcp_opt_reqip(&hdr->options[offset], &dhcpc->address);
-        offset += pico_dhcp_opt_serverid(&hdr->options[offset], &dhcpc->server_id);
+        offset = (uint16_t)(offset+pico_dhcp_opt_reqip(&hdr->options[offset], &dhcpc->address));
+        offset = (uint16_t)(offset+pico_dhcp_opt_serverid(&hdr->options[offset], &dhcpc->server_id));
       }
       break;
 
@@ -838,9 +834,9 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
   }
 
   /* common options */
-  offset += pico_dhcp_opt_msgtype(&hdr->options[offset], msg_type);
-  offset += pico_dhcp_opt_paramlist(&hdr->options[offset]);
-  offset += pico_dhcp_opt_end(&hdr->options[offset]);
+  offset = (uint16_t)(offset+pico_dhcp_opt_msgtype(&hdr->options[offset], msg_type));
+  offset = (uint16_t)(offset+pico_dhcp_opt_paramlist(&hdr->options[offset]));
+  offset = (uint16_t)(offset+pico_dhcp_opt_end(&hdr->options[offset]));
 
   switch (dhcpc->state)
   {

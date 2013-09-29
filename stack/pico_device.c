@@ -113,7 +113,7 @@ static int devloop(struct pico_device *dev, int loop_score, int direction)
             continue;
           }
         } else {
-          dev->send(dev, f->start, f->len);
+          dev->send(dev, f->start, (int)f->len);
         }
         pico_frame_discard(f);
         loop_score--;
@@ -233,12 +233,12 @@ int32_t pico_device_broadcast(struct pico_frame * f)
 			if(!copy)
 				return -1;
 			copy->dev = dev;
-			copy->dev->send(copy->dev, copy->start, copy->len);
+			copy->dev->send(copy->dev, copy->start, (int)copy->len);
 			pico_frame_discard(copy);
 		}
 		else
 		{
-			ret = (int32_t)f->dev->send(f->dev, f->start, f->len);
+			ret = (int32_t)f->dev->send(f->dev, f->start, (int)f->len);
 		}
 	}
 

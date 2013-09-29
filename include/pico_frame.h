@@ -47,7 +47,7 @@ struct pico_frame {
    */
   struct pico_device *dev;
 
-  uint64_t timestamp;
+  uint32_t timestamp;
 
   /* Failures due to bad datalink addressing. */
   uint16_t failure_count;

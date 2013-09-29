@@ -129,8 +129,8 @@ struct igmp_parameters {
 struct igmp_timer {
   uint8_t type;
   uint8_t stopped;
-  uint64_t start;
-  uint64_t delay;
+  uint32_t start;
+  uint32_t delay;
   struct pico_ip4 mcast_link;
   struct pico_ip4 mcast_group;
   struct pico_frame *f;
@@ -212,7 +212,7 @@ static int pico_igmp_delete_parameter(struct igmp_parameters *p)
   return 0;
 }
 
-static void pico_igmp_timer_expired(uint64_t now, void *arg)
+static void pico_igmp_timer_expired(uint32_t now, void *arg)
 {
   struct igmp_timer *t = NULL, *timer = NULL, test = {0};
 
@@ -619,9 +619,9 @@ static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
         report_type = IGMP_TYPE_LEAVE_GROUP;
 
       p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct igmp_message));
-      p->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
+      p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
       p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
-      p->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
+      p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
       p->f->dev = pico_ipv4_link_find(&p->mcast_link);
       /* p->f->len is correctly set by alloc */
 
@@ -821,9 +821,9 @@ static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
 
       len = (uint16_t)(sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (sources * sizeof(struct pico_ip4)));
       p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(IP_OPTION_ROUTER_ALERT_LEN + len));
-      p->f->net_len += IP_OPTION_ROUTER_ALERT_LEN;
+      p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
       p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
-      p->f->transport_len -= IP_OPTION_ROUTER_ALERT_LEN;
+      p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
       p->f->dev = pico_ipv4_link_find(&p->mcast_link);
       /* p->f->len is correctly set by alloc */
 
@@ -1068,7 +1068,7 @@ static int srsf(struct igmp_parameters *p)
 static int rtimrtct(struct igmp_parameters *p)
 {
   struct igmp_timer *t = NULL;
-  uint64_t time_to_run = 0;
+  uint32_t time_to_run = 0;
 
   igmp_dbg("IGMP: event = query received | action = reset timer if max response time < current timer\n");
 

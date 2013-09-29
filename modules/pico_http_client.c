@@ -357,7 +357,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 
 					if(tmpLenRead > 0)
 					{
-						client->header->contentLengthOrChunk -= tmpLenRead;
+						client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)tmpLenRead;
 					}
 					else if(tmpLenRead < 0)
 					{
@@ -387,7 +387,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 			lenRead = pico_socket_read(client->sck,(void *)data,size);
 
 			if(lenRead)
-				client->header->contentLengthOrChunk -= lenRead;
+				client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)lenRead;
 		}
 
 		return lenRead;
@@ -504,7 +504,7 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	}
 
 	//
-	headerSize += (uint16_t)strlen(uriData->host) + (uint16_t)strlen(uriData->resource) + pico_itoa(uriData->port,port) + 4u; // 3 = size(CRLF + \0)
+	headerSize = (uint16_t)(headerSize + strlen(uriData->host) + strlen(uriData->resource) + pico_itoa(uriData->port,port) + 4u); // 3 = size(CRLF + \0)
 	header = pico_zalloc(headerSize);
 
 	if(!header)

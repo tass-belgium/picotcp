@@ -34,7 +34,7 @@ Authors: Daniele Lacamera
   const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 #endif
 
-volatile uint64_t pico_tick;
+volatile unsigned long pico_tick;
 volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
@@ -371,7 +371,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
       }else if(IS_LIMITED_BCAST(f)){
         ret = pico_device_broadcast(f);
       }else {
-        ret = (int32_t)f->dev->send(f->dev, f->start, f->len);
+        ret = (int32_t)f->dev->send(f->dev, f->start,(int) f->len);
         /* Frame is discarded after this return by the caller */
       }
 
@@ -464,14 +464,14 @@ int32_t pico_sendto_dev(struct pico_frame *f)
 
 struct pico_timer
 {
-  uint64_t expire;
+  uint32_t expire;
   void *arg;
-  void (*timer)(uint64_t timestamp, void *arg);
+  void (*timer)(uint32_t timestamp, void *arg);
 };
 
 struct pico_timer_ref
 {
-  uint64_t expire;
+  uint32_t expire;
   struct pico_timer *tmr;
 };
 
@@ -706,7 +706,7 @@ void pico_stack_loop(void)
   }
 }
 
-struct pico_timer *pico_timer_add(uint64_t expire, void (*timer)(uint64_t, void *), void *arg)
+struct pico_timer *pico_timer_add(uint32_t expire, void (*timer)(uint32_t, void *), void *arg)
 {
   struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
   struct pico_timer_ref tref;
