@@ -1484,6 +1484,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= (uint16_t)~(1 << index))
 
+#ifdef PICO_SUPPORT_MCAST
 static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
 {
     struct pico_ip_mreq *mreq = NULL;
@@ -1523,6 +1524,7 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
     }
     return mcast_link;
 }
+#endif
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX no check against proto (vs setsockopt) or implicit by socket?
 {
