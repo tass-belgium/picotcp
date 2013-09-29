@@ -1484,23 +1484,31 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #define PICO_SOCKET_SETOPT_EN(socket,index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket,index) (socket->opt_flags &= ~(1 << index))
 
-static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc)
+static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
 {
     struct pico_ip_mreq *mreq = NULL;
     struct pico_ipv4_link *mcast_link = NULL;
+    struct pico_ip_mreq_source *mreq_src = NULL;
 
     if (!value) {
       pico_err = PICO_ERR_EINVAL;
       return NULL;
     }
-    mreq = (struct pico_ip_mreq *) value;
-    mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
+    if (!bysource) {
+      mreq = (struct pico_ip_mreq *) value;
+      mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
+      if (!mreq->mcast_link_addr.addr)
+        mreq->mcast_link_addr.addr = mcast_link->address.addr;
+    } else {
+      mreq_src = (struct pico_ip_mreq_source *) value;
+      mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq_src);
+      if (!mreq_src->mcast_link_addr.addr)
+        mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
+    }
     if (!mcast_link) {
       pico_err = PICO_ERR_EINVAL;
       return NULL;
     }
-    if (!mreq->mcast_link_addr.addr)
-      mreq->mcast_link_addr.addr = mcast_link->address.addr;
 
     if (!s->MCASTListen) { /* No RBTree allocated yet */
       if (alloc) {
@@ -1588,7 +1596,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         int filter_mode;
         struct pico_mcast_listen *listen;
         struct pico_ip_mreq *mreq = (struct pico_ip_mreq *)value;
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1, 0);
         if (!mcast_link)
           return -1;
         listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
@@ -1633,7 +1641,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
         struct pico_ip_mreq *mreq = (struct pico_ip_mreq *)value;
         struct pico_ip4 *source = NULL;
         struct pico_tree_node *index, *_tmp;
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 0);
         if (!mcast_link)
           return -1;
 
@@ -1670,10 +1678,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
         struct pico_mcast_listen *listen = NULL; 
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
         if (!mcast_link)
           return -1;
         listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
@@ -1711,10 +1719,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* EXCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
         struct pico_mcast_listen *listen = NULL;
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
         if (!mcast_link)
           return -1;
         listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
@@ -1757,10 +1765,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0, reference_count = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
         struct pico_mcast_listen *listen = NULL; 
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1, 1);
         if (!mcast_link)
           return -1;
         listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
@@ -1821,10 +1829,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) // XXX
       /* INCLUDE mode */
       if (s->proto->proto_number == PICO_PROTO_UDP) {
         int filter_mode = 0, reference_count = 0;
-        struct pico_ip_mreq_source *mreq = NULL;
+        struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
         struct pico_mcast_listen *listen = NULL;
         struct pico_ip4 *source = NULL, stest = {0};
-        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0);
+        struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
         if (!mcast_link)
           return -1;
         listen = listen_find(s, &mreq->mcast_link_addr, &mreq->mcast_group_addr);
