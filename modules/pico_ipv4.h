@@ -13,7 +13,7 @@ See LICENSE and COPYING for usage.
 
 #define PICO_IPV4_INADDR_ANY 0x00000000U
 
-#define PICO_SIZE_IP4HDR ((sizeof(struct pico_ipv4_hdr)))
+#define PICO_SIZE_IP4HDR (uint32_t)((sizeof(struct pico_ipv4_hdr)))
 #define PICO_IPV4_DONTFRAG 0x4000
 #define PICO_IPV4_MOREFRAG 0x2000
 #define PICO_IPV4_FRAG_MASK 0x1FFF

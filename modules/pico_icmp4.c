@@ -225,9 +225,9 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
   pico_icmp4_send_echo(cookie);
   cookie->timestamp = pico_tick;
-  pico_timer_add((long unsigned int)cookie->timeout, ping_timeout, cookie);
+  pico_timer_add((uint32_t)cookie->timeout, ping_timeout, cookie);
   if (cookie->seq < cookie->count)
-    pico_timer_add((long unsigned int)cookie->interval, next_ping, cookie);
+    pico_timer_add((uint32_t)cookie->interval, next_ping, cookie);
 }
 
 static void next_ping(uint32_t now, void *arg)

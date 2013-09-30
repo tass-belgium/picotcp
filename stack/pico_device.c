@@ -29,7 +29,7 @@ PICO_TREE_DECLARE(Device_tree,pico_dev_cmp);
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
-	uint32_t len = strlen(name);
+	uint32_t len = (uint32_t)strlen(name);
 	if(len>MAX_DEVICE_NAME)
 		len = MAX_DEVICE_NAME;
   memcpy(dev->name, name, len);

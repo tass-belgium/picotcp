@@ -346,7 +346,7 @@ struct pico_protocol pico_proto_tcp = {
 
 static uint32_t pico_paws(void)
 {
-  static unsigned long _paws = 0;
+  static uint32_t _paws = 0;
   _paws = pico_rand();
   return long_be(_paws); /*XXX: implement paws */
 }
@@ -394,7 +394,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
         sb = ts->sacks;
         ts->sacks = sb->next;
         memcpy(f->start + i, sb, 2 * sizeof(uint32_t));
-        i += (2 * sizeof(uint32_t));
+        i += (2 * (uint32_t)sizeof(uint32_t));
         f->start[len_off] = (uint8_t)(f->start[len_off] + (2 * sizeof(uint32_t)));
         pico_free(sb);
       }
@@ -582,7 +582,7 @@ static void tcp_parse_options(struct pico_frame *f)
         }
         t->mss_ok = 1;
         mss = short_from(opt + i);
-        i += sizeof(uint16_t);
+        i += (uint32_t)sizeof(uint16_t);
         if (t->mss > short_be(mss))
           t->mss = short_be(mss);
         break;
@@ -596,10 +596,10 @@ static void tcp_parse_options(struct pico_frame *f)
         }
         t->ts_ok = 1;
         tsval = long_from(opt + i);
-        i += sizeof(uint32_t);
+        i += (uint32_t)sizeof(uint32_t);
         tsecr = long_from(opt + i);
         f->timestamp = long_be(tsecr);
-        i += sizeof(uint32_t);
+        i += (uint32_t)sizeof(uint32_t);
         t->ts_nxt = long_be(tsval);
         break;
       }

@@ -8,7 +8,7 @@ See LICENSE and COPYING for usage.
 /* Included from pico_config.h */
 /** Endian-dependant constants **/
 
-extern volatile unsigned long pico_tick;
+extern volatile uint32_t pico_tick;
 
 #ifdef PICO_BIGENDIAN
 
@@ -124,10 +124,10 @@ extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 
 static inline uint32_t pico_hash(const char *name)
 {
-  unsigned long hash = 5381;
-  int8_t c;
-  while ((c = *name++))
-    hash = ((hash << 5) + hash) + (unsigned long)c; /* hash * 33 + c */
+  uint32_t hash = 5381;
+  uint8_t c;
+  while ((c = (uint8_t)*name++))
+    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
   return hash;
 }
 

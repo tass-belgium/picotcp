@@ -35,7 +35,7 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 
 #define PICO_TCPHDR_SIZE 20
 #define PICO_SIZE_TCPOPT_SYN 20
-#define PICO_SIZE_TCPHDR (sizeof(struct pico_tcp_hdr))
+#define PICO_SIZE_TCPHDR (uint32_t)(sizeof(struct pico_tcp_hdr))
 
 #define PICO_TCP_DEFAULT_MSS 1444
 

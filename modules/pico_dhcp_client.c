@@ -781,7 +781,7 @@ static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cooki
 
 static int16_t pico_dhcp_client_opt_parse(void *ptr, uint16_t len)
 {
-  uint32_t optlen = len - sizeof(struct pico_dhcp_hdr);
+  uint32_t optlen = len - (uint32_t)sizeof(struct pico_dhcp_hdr);
   struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)ptr;
   struct pico_dhcp_opt *opt = NULL;
 
