@@ -384,13 +384,13 @@ static uint32_t olsr_build_hello_neighbors(uint8_t *buf, uint32_t size)
 			li->link_code = neighbor->link_type;
 			li->reserved = 0;
 			li->link_msg_size = short_be(sizeof(struct olsr_neighbor) + sizeof(struct olsr_link));
-			ret += sizeof(struct olsr_link);
+			ret += (uint32_t)sizeof(struct olsr_link);
 			dst = (struct olsr_neighbor *) (buf+ret);
 			dst->addr = neighbor->destination.addr;
 			dst->nlq = neighbor->nlq;
 			dst->lq = neighbor->lq;
 			dst->reserved = 0;
-			ret += sizeof(struct olsr_neighbor);
+			ret += (uint32_t)sizeof(struct olsr_neighbor);
 			if (ret >= size)
 				return (uint32_t)((uint32_t)(ret - sizeof(struct olsr_neighbor)) - sizeof(struct olsr_link));
 			neighbor = neighbor->next;
@@ -413,10 +413,10 @@ static uint32_t olsr_build_tc_neighbors(uint8_t *buf, uint32_t size)
 			dst->nlq = neighbor->nlq;
 			dst->lq = neighbor->lq;
 			dst->reserved = 0;
-			ret += sizeof(struct olsr_neighbor);
+			ret += (uint32_t)sizeof(struct olsr_neighbor);
 			dst = (struct olsr_neighbor *) (buf + ret);
 			if (ret >= size)
-				return ret - sizeof(struct olsr_neighbor);
+				return (uint32_t)(ret - sizeof(struct olsr_neighbor));
 			neighbor = neighbor->next;
 		}
 		local = local->next;
@@ -433,10 +433,10 @@ static uint32_t olsr_build_mid(uint8_t *buf, uint32_t size, struct pico_device *
 	while (local) {
 		if (local->iface != excluded) {
 			dst->addr = local->destination.addr;
-			ret += sizeof(uint32_t);
+			ret += (uint32_t)sizeof(uint32_t);
 			dst = (struct pico_ip4 *) (buf + ret);
 			if (ret >= size)
-				return ret - sizeof(uint32_t);
+				return (uint32_t)(ret - sizeof(uint32_t));
 		}
 		local = local->next;
 	}
@@ -457,7 +457,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
 	static uint8_t hello_counter = 0, mid_counter = 0, tc_counter = 0;
 
 	ohdr = (struct olsrhdr *)dgram;
-	size += sizeof(struct olsrhdr);
+	size += (uint32_t)sizeof(struct olsrhdr);
   ep = pico_ipv4_link_by_dev(pdev);
 	if (!ep)
 		return;
@@ -466,7 +466,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
 	/* HELLO Message */
 
 	msg_hello = (struct olsrmsg *) (dgram + size);
-	size += sizeof(struct olsrmsg);
+	size += (uint32_t)sizeof(struct olsrmsg);
 	msg_hello->type = OLSRMSG_HELLO;
 	msg_hello->vtime = seconds2olsr(DEFAULT_VTIME);
 	msg_hello->orig.addr = ep->address.addr;
@@ -474,7 +474,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
 	msg_hello->hop = 0;
 	msg_hello->seq = short_be(hello_counter++);
 	hello = (struct olsr_hmsg_hello *)(dgram + size);
-	size += sizeof(struct olsr_hmsg_hello);
+	size += (uint32_t)sizeof(struct olsr_hmsg_hello);
 	hello->reserved = 0;
 	hello->htime = 0x05; /* Todo: find and define values */
 	hello->willingness = 0x07;
@@ -491,7 +491,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
   	/* MID Message */
   
   	msg_mid = (struct olsrmsg *)(dgram + size);
-  	size += sizeof(struct olsrmsg);
+  	size += (uint32_t)sizeof(struct olsrmsg);
   	msg_mid->type = OLSRMSG_MID;
   	msg_mid->vtime = seconds2olsr(60);
   	msg_mid->orig.addr = ep->address.addr;
@@ -504,14 +504,14 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
   		return;
   	}
   	if (r == 0) {
-  		size -= sizeof(struct olsrmsg);
+  		size -= (uint32_t)sizeof(struct olsrmsg);
   	} else {
   		size += r;
   		msg_mid->size = short_be((uint16_t)(sizeof(struct olsrmsg) + r));
   	}
   
   	msg_tc = (struct olsrmsg *) (dgram + size);
-  	size += sizeof(struct olsrmsg);
+  	size += (uint32_t)sizeof(struct olsrmsg);
   	msg_tc->type = OLSRMSG_TC;
   	msg_tc->vtime = seconds2olsr(DEFAULT_VTIME); 
   	msg_tc->orig.addr = ep->address.addr;
@@ -519,7 +519,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
   	msg_tc->hop = 0;
   	msg_tc->seq = short_be(tc_counter++);
   	tc = (struct olsr_hmsg_tc *)(dgram + size);
-  	size += sizeof(struct olsr_hmsg_tc);
+  	size += (uint32_t)sizeof(struct olsr_hmsg_tc);
   	tc->ansn = short_be(my_ansn);
   	r = olsr_build_tc_neighbors(dgram + size, DGRAM_MAX_SIZE  - size);
   	if (r == 0) {
@@ -654,7 +654,7 @@ static uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_rou
 		e->ansn = new_ansn;
 		while (parsed < size) {
 			n = (struct olsr_neighbor *) (buf + parsed);
-			parsed += sizeof(struct olsr_neighbor);
+			parsed += (uint32_t)sizeof(struct olsr_neighbor);
 			rt = get_route_by_address(Local_interfaces, n->addr);
 			if (rt && (rt->gateway == e)) {
 				/* Refresh existing node */
@@ -693,10 +693,10 @@ static void olsr_recv(uint8_t *buffer, uint32_t len)
 	if (len != short_be(oh->len)) {
 		return;
 	}
-	parsed += sizeof(struct olsrhdr);
+	parsed += (uint32_t)sizeof(struct olsrhdr);
 
 	outohdr = (struct olsrhdr *)outmsg;
-	outsize += sizeof(struct olsrhdr);
+	outsize += (uint32_t)sizeof(struct olsrhdr);
 
 	while (len > parsed) {
 		struct olsr_route_entry *origin;
@@ -726,10 +726,10 @@ static void olsr_recv(uint8_t *buffer, uint32_t len)
 				msg->ttl = 0;
 				break;
 			case OLSRMSG_MID:
-				recv_mid(buffer + parsed + sizeof(struct olsrmsg), short_be(msg->size) - (sizeof(struct olsrmsg)), origin);
+				recv_mid(buffer + parsed + sizeof(struct olsrmsg), (uint32_t)(short_be(msg->size) - (sizeof(struct olsrmsg))), origin);
 				break;
 			case OLSRMSG_TC:
-				if (reconsider_topology(buffer + parsed + sizeof(struct olsrmsg), short_be(msg->size) - (sizeof(struct olsrmsg)), origin) < 1)
+				if (reconsider_topology(buffer + parsed + sizeof(struct olsrmsg), (uint32_t)(short_be(msg->size) - (sizeof(struct olsrmsg))), origin) < 1)
 					msg->ttl = 0;
 				else {
 					msg->hop = (uint8_t) origin->metric;
