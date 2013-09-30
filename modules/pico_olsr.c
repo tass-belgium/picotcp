@@ -782,7 +782,6 @@ static void wakeup(uint16_t ev, struct pico_socket *s)
   }
 
   if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Restarting.\n");
     pico_socket_close(udpsock);
     udpsock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &wakeup);
     if (udpsock)
