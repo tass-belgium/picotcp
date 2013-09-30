@@ -318,3 +318,19 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   pico_frame_discard(q);
   return ret;
 }
+
+int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, int maxlen)
+{
+  struct pico_arp* search;
+  struct pico_tree_node * index;
+  int i = 0;
+  pico_tree_foreach(index,&arp_tree){
+    search = index->keyValue;
+    if (search->dev == dev) {
+      neighbors[i++].addr = search->ipv4.addr;
+      if (i >= maxlen)
+        return i;
+    }
+  }
+  return i;
+}

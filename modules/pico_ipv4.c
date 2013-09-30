@@ -1321,6 +1321,27 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
   return NULL;
 }
 
+struct pico_ipv4_link *pico_ipv4_link_by_dev_next(struct pico_device *dev, struct pico_ipv4_link *last)
+{
+  struct pico_tree_node *index = NULL;
+  struct pico_ipv4_link *link = NULL;
+  int valid = 0;
+
+  if (last == NULL)
+    valid = 1;
+
+  pico_tree_foreach(index, &Tree_dev_link) 
+  {
+    link = index->keyValue;
+    if (link->dev == dev) {
+      if (last == link)
+        valid = 1;
+      else if (valid > 0)
+        return link;
+    }
+  }
+  return NULL;
+}
 
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 {

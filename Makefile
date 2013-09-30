@@ -29,6 +29,7 @@ CRC?=0
 HTTP_CLIENT?=1
 HTTP_SERVER?=1
 ZMQ?=1
+OLSR?=1
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -154,6 +155,9 @@ ifneq ($(HTTP_CLIENT),0)
 endif
 ifneq ($(ZMQ),0)
   include rules/zmq.mk
+endif
+ifneq ($(OLSR),0)
+  include rules/olsr.mk
 endif
 all: mod core lib
 
