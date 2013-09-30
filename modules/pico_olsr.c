@@ -198,7 +198,7 @@ static inline void olsr_route_del(struct olsr_route_entry *r)
 			while (r->children) {
 				olsr_route_del(r->children);
 				/* Orphans must die. */
-				free(r->children);
+				pico_free(r->children);
 			}
 			return;
 		}
@@ -310,7 +310,7 @@ static void olsr_garbage_collector(struct olsr_route_entry *sublist)
 		return;
 	if ((sublist->time_left--) <= 0) {
 		olsr_route_del(sublist);
-		free(sublist);
+		pico_free(sublist);
 		return;
 	}
 	olsr_garbage_collector(sublist->children);
@@ -636,7 +636,7 @@ static int reconsider_topology(uint8_t *buf, int size, struct olsr_route_entry *
 
 	if (e->advertised_tc && fresher(new_ansn, e->ansn))
 	{
-		free(e->advertised_tc);
+		pico_free(e->advertised_tc);
 		e->advertised_tc = NULL;
 	}
 
