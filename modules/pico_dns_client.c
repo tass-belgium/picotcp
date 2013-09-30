@@ -505,15 +505,19 @@ static int pico_dns_client_send(struct pico_dns_query *q)
   uint16_t * paramID = pico_zalloc(sizeof(uint16_t));
   dns_dbg("DNS: sending query to %08X\n", q->q_ns.ns.addr);
   if (!q->s)
-    return -1;
+    goto failure;
   if (pico_socket_connect(q->s, &q->q_ns.ns, short_be(PICO_DNS_NS_PORT)) < 0)
-    return -1;
+    goto failure;
 
   pico_socket_send(q->s, q->query, q->len);
   *paramID = q->id;
   pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID);
 
   return 0;
+
+failure:
+  pico_free(paramID);
+  return -1;
 }
 
 static void pico_dns_client_retransmission(uint32_t now, void *arg)
