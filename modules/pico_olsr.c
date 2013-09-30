@@ -536,7 +536,6 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
 
 	/* Send the thing out */
   if  (0 > pico_socket_sendto(udpsock, dgram, size, &bcast, OLSR_PORT)) {
-		dbg("olsr send");
 	}
   dbg("Sent %s packet\n", full!=0?"FULL":"HELLO");
 }
@@ -806,7 +805,7 @@ static void olsr_tick(uint32_t when, void *unused)
   }
   if (full++ > 0)
     full = 0;
-  pico_timer_add(2000, &olsr_tick, NULL);
+  pico_timer_add(1000, &olsr_tick, NULL);
 }
 
 
