@@ -2010,6 +2010,10 @@ static void tcp_send_keepalive(uint32_t when, void *_t)
   }
 }
 
+inline static int checkLocalClosing(struct pico_socket *s);
+inline static int checkRemoteClosing(struct pico_socket *s);
+
+
 int pico_tcp_output(struct pico_socket *s, int loop_score)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
@@ -2071,21 +2075,10 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
   }
 
   if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {    /* if no more packets in queue, XXX replacled !f by tcpq check */
-    if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
-      tcp_dbg("TCP> buffer empty, shutdown established ...\n");
-      /* send fin if queue empty and in state shut local (write) */
-      tcp_send_fin(t);
-      /* change tcp state to FIN_WAIT1 */
-      s->state &= 0x00FFU;
-      s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
-    } else if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
-      /* send fin if queue empty and in state shut local (write) */
-      tcp_send_fin(t);
-      /* change tcp state to LAST_ACK */
-      s->state &= 0x00FFU;
-      s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
-      tcp_dbg("TCP> STATE: LAST_ACK.\n");
-    }
+	  if(!checkLocalClosing(&t->sock)) // check if local closing started and send fin
+	  {
+		  checkRemoteClosing(&t->sock); // check if remote closing started and send fin
+	  }
   }
   return loop_score;
 }
@@ -2253,6 +2246,45 @@ void pico_tcp_cleanup_queues(struct pico_socket *sck)
   tcp_discard_all_segments(&tcp->tcpq_in);
   tcp_discard_all_segments(&tcp->tcpq_out);
   tcp_discard_all_segments(&tcp->tcpq_hold);
+}
+
+static int checkLocalClosing(struct pico_socket *s)
+{
+	struct pico_socket_tcp * t = (struct pico_socket_tcp *)s;
+	if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
+		  tcp_dbg("TCP> buffer empty, shutdown established ...\n");
+		  /* send fin if queue empty and in state shut local (write) */
+		  tcp_send_fin(t);
+		  /* change tcp state to FIN_WAIT1 */
+		  s->state &= 0x00FFU;
+		  s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT1;
+		  return 1;
+	}
+	return 0;
+}
+
+static int checkRemoteClosing(struct pico_socket *s)
+{
+	struct pico_socket_tcp * t = (struct pico_socket_tcp *)s;
+	if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+      /* send fin if queue empty and in state shut local (write) */
+      tcp_send_fin(t);
+      /* change tcp state to LAST_ACK */
+      s->state &= 0x00FFU;
+      s->state |= PICO_SOCKET_STATE_TCP_LAST_ACK;
+      tcp_dbg("TCP> STATE: LAST_ACK.\n");
+      return 1;
+    }
+	return 0;
+}
+
+void pico_tcp_notify_closing(struct pico_socket *sck)
+{
+	struct pico_socket_tcp *t=(struct pico_socket_tcp *)sck;
+	if(t->tcpq_out.frames == 0)
+	{
+		checkLocalClosing(sck);
+	}
 }
 
 #endif //PICO_SUPPORT_TCP

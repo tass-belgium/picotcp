@@ -1972,7 +1972,10 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 #ifdef PICO_SUPPORT_TCP
   if (PROTO(s) == PICO_PROTO_TCP) {
   	if(mode & PICO_SHUT_RDWR)
+  	{
   		pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL | PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
+  		pico_tcp_notify_closing(s);
+  	}
   	else if (mode & PICO_SHUT_WR)
       pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
     else if (mode & PICO_SHUT_RD)
