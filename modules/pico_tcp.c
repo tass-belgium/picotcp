@@ -220,7 +220,7 @@ struct pico_socket_tcp {
   uint8_t  x_mode;
   uint8_t  dupacks;
   uint8_t  backoff;
-
+  uint8_t  localZeroWindow;
 };
 
 /* Queues */
@@ -405,6 +405,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
 }
 
 static void tcp_send_ack(struct pico_socket_tcp *t);
+#define tcp_send_windowUpdate(t) (tcp_send_ack(t))
 
 static void tcp_set_space(struct pico_socket_tcp *t)
 {
@@ -427,6 +428,14 @@ static void tcp_set_space(struct pico_socket_tcp *t)
   if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (space>>2))) {
     t->wnd = (uint16_t)space;
     t->wnd_scale = (uint16_t)shift;
+
+    if(t->wnd == 0) // mark the entering to zero window state
+    	t->localZeroWindow = 1u;
+    else if(t->localZeroWindow)
+    {
+    	t->localZeroWindow = 0u;
+    	tcp_send_windowUpdate(t);
+    }
   }
 }
 
