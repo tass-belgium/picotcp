@@ -36,6 +36,6 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac);
 void pico_device_destroy(struct pico_device *dev);
 int pico_devices_loop(int loop_score, int direction);
 struct pico_device* pico_get_device(const char* name);
-int pico_device_broadcast(struct pico_frame * f);
+int32_t pico_device_broadcast(struct pico_frame * f);
 
 #endif

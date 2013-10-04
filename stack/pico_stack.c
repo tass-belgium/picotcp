@@ -163,7 +163,7 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
  return ret;
 }
 
-int pico_transport_send(struct pico_frame *f)
+int32_t pico_transport_send(struct pico_frame *f)
 {
   if (!f || !f->sock || !f->sock->proto) {
     pico_frame_discard(f);
@@ -195,7 +195,7 @@ int32_t pico_network_receive(struct pico_frame *f)
 
 
 /* Network layer: interface towards socket for frame sending */
-int pico_network_send(struct pico_frame *f)
+int32_t pico_network_send(struct pico_frame *f)
 {
   if (!f || !f->sock || !f->sock->net) {
     pico_frame_discard(f);

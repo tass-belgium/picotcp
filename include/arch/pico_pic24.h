@@ -28,7 +28,7 @@
 #endif
 
 #ifndef PICO_SUPPORT_DHCP
-#define PICO_SUPPORT_DHCP
+//#define PICO_SUPPORT_DHCP
 #endif
 
 #ifndef PICO_SUPPORT_TCP
@@ -36,11 +36,23 @@
 #endif
 
 #ifndef PICO_SUPPORT_ZMQ
-#define PICO_SUPPORT_ZMQ
+//#define PICO_SUPPORT_ZMQ
 #endif
 
 #ifndef PICO_SUPPORT_ICMP4
 #define PICO_SUPPORT_ICMP4
+#endif
+
+#ifndef PICO_SUPPORT_OLSR
+#define PICO_SUPPORT_OLSR
+#endif
+
+#ifndef PICO_SUPPORT_UDP
+#define PICO_SUPPORT_UDP
+#endif
+
+#ifndef PICO_MAX_SOCKET_FRAMES
+#define PICO_MAX_SOCKET_FRAMES 16
 #endif
 
 /* Device header file */
@@ -54,8 +66,10 @@
 
 #define TIMBASE_INT_E         IEC0bits.T2IE
 
-#define pico_zalloc(x) calloc(x, 1)
-#define pico_free(x) free(x)
+static inline void * calloc_vnz(uint16_t size);
+
+#define pico_zalloc(x) calloc_catch(x, __FILE__, __LINE__)
+#define pico_free(x) free_catch(x, __FILE__, __LINE__)
 
 extern void * pvPortMalloc( size_t xWantedSize );
 extern volatile unsigned long __pic24_tick;
