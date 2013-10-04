@@ -1902,7 +1902,13 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
 
   return 0;
 }
-
+static int tcp_halfopencon(struct pico_socket *s, struct pico_frame *fr)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  IGNORE_PARAMETER(fr);
+  tcp_send_ack(t);
+  return 0;
+}
 struct tcp_action_entry {
   uint16_t tcpstate;
   int (*syn)(struct pico_socket *s, struct pico_frame *f);
@@ -1921,7 +1927,7 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
   { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
   { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  NULL,            &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon,&tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
   { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
@@ -2288,3 +2294,5 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
 }
 
 #endif //PICO_SUPPORT_TCP
+
+
