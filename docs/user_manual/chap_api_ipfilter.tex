@@ -27,7 +27,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
 \item \texttt{in$\_$addr$\_$netmask} - incomming address-netmask to be filtered
 \item \texttt{out$\_$port} - outgoing port to be filtered
 \item \texttt{in$\_$port} - incomming port to be filtered
-\item \texttt{priority} - priority to be filtered
+\item \texttt{priority} - priority to assign on the marked packet
 \item \texttt{tos} - type of service to be filtered
 \item \texttt{action} - type of action for the filter: ACCEPT, PRIORITY, REJECT and DROP. ACCEPT, filters all packets selected by the filter. PRIORITY is not yet implemented. REJECT drops all packets and send an ICMP message 'Packet Filtered' (Communication Administratively Prohibited). DROP will discard the packet silently.
 \end{itemize}
