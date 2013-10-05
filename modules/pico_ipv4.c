@@ -968,7 +968,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
   route = route_find(dst);
   if (!route) {
-    dbg("Route to %08x not found.\n", long_be(dst->addr));
+    //dbg("Route to %08x not found.\n", long_be(dst->addr));
     pico_err = PICO_ERR_EHOSTUNREACH;
     goto drop;
   } else {
