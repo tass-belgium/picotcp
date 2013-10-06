@@ -529,8 +529,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       /* don't forward broadcast frame, discard! */
       pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
-        /* Packet is not local. Try to forward. */
-        pico_ipv4_forward(f);
+      //dbg("Forward failed.\n");
     }
   }
   return 0;
@@ -936,6 +935,20 @@ struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void)
 }
 #endif /* PICO_SUPPORT_MCAST */
 
+#ifdef DEBUG_ROUTE
+static void dbg_route(void)
+{
+  struct pico_ipv4_route *r;
+  struct pico_tree_node * index;
+  pico_tree_foreach(index,&Routes){
+    r = index->keyValue;
+    dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
+  }
+}
+#else
+#define dbg_route() do{ }while(0)
+#endif
+
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {
 
@@ -969,6 +982,8 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
   route = route_find(dst);
   if (!route) {
     //dbg("Route to %08x not found.\n", long_be(dst->addr));
+      
+    
     pico_err = PICO_ERR_EHOSTUNREACH;
     goto drop;
   } else {
@@ -1080,20 +1095,6 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
 }
 
 
-#ifdef DEBUG_ROUTE
-static void dbg_route(void)
-{
-  struct pico_ipv4_route *r;
-  struct pico_tree_node * index;
-  pico_tree_foreach(index,&Routes){
-    r = index->keyValue;
-    dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
-  }
-}
-#else
-#define dbg_route() do{ }while(0)
-#endif
-
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
   struct pico_ipv4_route test, *new;
@@ -1139,7 +1140,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
   }
 
   pico_tree_insert(&Routes,new);
-  dbg_route();
+  //dbg_route();
   return 0;
 }
 
@@ -1157,7 +1158,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int me
     pico_tree_delete(&Routes,found);
     pico_free(found);
 
-    dbg_route();
+    //dbg_route();
     return 0;
   }
   pico_err = PICO_ERR_EINVAL;
@@ -1396,6 +1397,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
   hdr->ttl= (uint8_t)(hdr->ttl - 1);
   if (hdr->ttl < 1) {
     pico_notify_ttl_expired(f);
+    dbg(" ------------------- TTL EXPIRED\n");
     return -1;
   }
   hdr->crc++;
