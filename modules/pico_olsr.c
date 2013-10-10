@@ -157,7 +157,6 @@ static struct olsr_route_entry *get_next_hop(struct olsr_route_entry *dst)
 static inline void olsr_route_add(struct olsr_route_entry *el)
 {
   struct olsr_route_entry *nexthop;
-  int ret;
 
   my_ansn++;
 
@@ -169,7 +168,7 @@ static inline void olsr_route_add(struct olsr_route_entry *el)
     el->link_type = OLSRLINK_MPR;
     if (nexthop->destination.addr != el->destination.addr) {
       //dbg("[OLSR] Adding route to %08x via %08x metric %d..................", el->destination.addr, nexthop->destination.addr, el->metric);
-      ret = pico_ipv4_route_add(el->destination, HOST_NETMASK, nexthop->destination, el->metric, NULL);
+      pico_ipv4_route_add(el->destination, HOST_NETMASK, nexthop->destination, el->metric, NULL);
       //dbg("route added: %d err: %s\n", ret, strerror(pico_err));
     }
   } else if (el->iface) {

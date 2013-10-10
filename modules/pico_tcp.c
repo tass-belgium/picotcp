@@ -1926,7 +1926,7 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
   { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
   { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_data_in,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
   { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon,&tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
