@@ -1452,7 +1452,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
       //RB_FOREACH(found, socket_tree, &sp->socks) {
       pico_tree_foreach(index,&sp->socks){
         found = index->keyValue;
-        if (s == found->parent) {
+        if ((s == found->parent) && ((found->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
           found->parent = NULL;
           pico_err = PICO_ERR_NOERR;
           memcpy(orig, &found->remote_addr, sizeof(struct pico_ip4));
