@@ -985,8 +985,8 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     hdr->seq = 0U;
   }
 
-  hdr->ack = ((struct pico_tcp_hdr *)(fr->transport_hdr))->seq + short_be(fr->payload_len);
-
+  hdr->ack = ((struct pico_tcp_hdr *)(fr->transport_hdr))->seq + long_be(fr->payload_len);
+  hdr->crc = short_be(pico_tcp_checksum_ipv4(fr));
   /* enqueue for transmission */
   pico_ipv4_frame_push(f,&(((struct pico_ipv4_hdr *)(f->net_hdr))->dst),PICO_PROTO_TCP);
 
@@ -1033,7 +1033,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     hdr->seq = 0U;
   }
 
-  hdr->ack = hdr_rcv->seq + short_be(fr->payload_len);
+  hdr->ack = hdr_rcv->seq + long_be(fr->payload_len);
 
   t->rcv_ackd = t->rcv_nxt;
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
