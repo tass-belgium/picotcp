@@ -4,6 +4,7 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 STRIP:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
+LIBNAME:="libpicotcp.a"
 
 PREFIX?=./build
 DEBUG?=1
@@ -189,15 +190,15 @@ lib: mod core
 	@cp -f include/*.h $(PREFIX)/include
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
-	@echo -e "\t[AR] $(PREFIX)/lib/picotcp.a"
-	@$(AR) cru $(PREFIX)/lib/picotcp.a $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
-	  || $(AR) cru $(PREFIX)/lib/picotcp.a $(PREFIX)/lib/*.o 
-	@echo -e "\t[RANLIB] $(PREFIX)/lib/picotcp.a"
-	@$(RANLIB) $(PREFIX)/lib/picotcp.a
-	@test $(STRIP) = 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/picotcp.a" \
-     && $(STRIP) $(PREFIX)/lib/picotcp.a) \
-     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/picotcp.a" 
-	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/picotcp.a`"
+	@echo -e "\t[AR] $(PREFIX)/lib/$(LIBNAME)"
+	@$(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
+	  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o 
+	@echo -e "\t[RANLIB] $(PREFIX)/lib/$(LIBNAME)"
+	@$(RANLIB) $(PREFIX)/lib/$(LIBNAME)
+	@test $(STRIP) = 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
+     && $(STRIP) $(PREFIX)/lib/$(LIBNAME)) \
+     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
+	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
 loop: mod core
 	mkdir -p $(PREFIX)/test
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
