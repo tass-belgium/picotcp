@@ -1457,6 +1457,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
           pico_err = PICO_ERR_NOERR;
           memcpy(orig, &found->remote_addr, sizeof(struct pico_ip4));
           *port = found->remote_port;
+          s->number_of_pending_conn--;
           return found;
         }
       }
@@ -2076,6 +2077,13 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 
 static int checkSocketSanity(struct pico_socket *s)
 {
+
+// checking for pending connections
+  if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV)
+    if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT){
+	  s->parent->number_of_pending_conn--;
+	  return -1;
+	}
   if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
 	// checking for hanging sockets
 	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )

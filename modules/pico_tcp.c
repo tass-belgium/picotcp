@@ -1653,9 +1653,12 @@ static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 {
-  /* TODO: Check against backlog length */
-  struct pico_socket_tcp *new = (struct pico_socket_tcp *)pico_socket_clone(s);
-  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
+  struct pico_socket_tcp *new=NULL;
+  struct pico_tcp_hdr *hdr=NULL;
+  if(s->number_of_pending_conn >= s->max_backlog)
+	return -1;
+  new = (struct pico_socket_tcp *)pico_socket_clone(s);
+  hdr = (struct pico_tcp_hdr *)f->transport_hdr;
   if (!new)
     return -1;
 
@@ -1692,6 +1695,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
   new->ssthresh = 40;
   new->recv_wnd = short_be(hdr->rwnd);
   new->jumbo = hdr->len & 0x07;
+  s->number_of_pending_conn++;
   new->sock.parent = s;
   new->sock.wakeup = s->wakeup;
   /* Initialize timestamp values */
