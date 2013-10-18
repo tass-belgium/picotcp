@@ -775,6 +775,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
       pico_tcp_input(found,f);
       if ((found->ev_pending) && found->wakeup) {
         found->wakeup(found->ev_pending, found);
+        found->ev_pending = 0;
       }
       return 0;
     } else {
@@ -2137,6 +2138,7 @@ int pico_sockets_loop(int loop_score)
       loop_score = pico_tcp_output(s, loop_score);
       if ((s->ev_pending) && s->wakeup) {
         s->wakeup(s->ev_pending, s);
+        s->ev_pending = 0;
       }
       if (loop_score <= 0) {
         loop_score = 0;
