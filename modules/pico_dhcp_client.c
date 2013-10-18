@@ -659,6 +659,10 @@ static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((u
   pico_ipv4_link_del(dhcpc->dev, address);
 
   dhcpc->cb(dhcpc, PICO_DHCP_RESET);
+  if (dhcpc->state < DHCP_CLIENT_STATE_BOUND)
+  {
+    pico_dhcp_client_mutex++;
+  }
   dhcpc->state = DHCP_CLIENT_STATE_INIT;
   dhcpc->status = DHCP_CLIENT_STATUS_INIT;
   pico_dhcp_client_stop_timers(dhcpc);
