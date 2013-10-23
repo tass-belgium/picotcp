@@ -775,6 +775,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
       pico_tcp_input(found,f);
       if ((found->ev_pending) && found->wakeup) {
         found->wakeup(found->ev_pending, found);
+        found->ev_pending = 0;
       }
       return 0;
     } else {
@@ -1457,6 +1458,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
           pico_err = PICO_ERR_NOERR;
           memcpy(orig, &found->remote_addr, sizeof(struct pico_ip4));
           *port = found->remote_port;
+          s->number_of_pending_conn--;
           return found;
         }
       }
@@ -2074,6 +2076,29 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 #define SL_LOOP_MIN 1
 
 
+static int checkSocketSanity(struct pico_socket *s)
+{
+
+// checking for pending connections
+  if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV)
+    if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT){
+	  s->parent->number_of_pending_conn--;
+	  return -1;
+	}
+  if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
+	// checking for hanging sockets
+	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )
+	  return -1;
+	// if no activity, force the socket into closing state
+	if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
+	{
+	  pico_socket_close(s);
+	  s->timestamp = PICO_TIME_MS();
+	}
+  }
+  return 0;
+}
+
 int pico_sockets_loop(int loop_score)
 {
   static struct pico_tree_node *index_udp, * index_tcp;
@@ -2137,32 +2162,23 @@ int pico_sockets_loop(int loop_score)
       loop_score = pico_tcp_output(s, loop_score);
       if ((s->ev_pending) && s->wakeup) {
         s->wakeup(s->ev_pending, s);
+        s->ev_pending = 0;
       }
       if (loop_score <= 0) {
         loop_score = 0;
         break;
       }
-
-      // checking socket activity
-      if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
-    	// checking for hanging sockets
-    	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )
-    	{
-		  pico_socket_del(s);
-		  index_tcp = NULL;
-		  break;
-    	}
-        // if no activity, force the socket into closing state
-    	if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
-    	{
-    	  pico_socket_close(s);
-    	  s->timestamp = PICO_TIME_MS();
-    	}
+      if(checkSocketSanity(s) < 0)
+      {
+    	pico_socket_del(s);
+    	index_tcp = NULL; // forcing the restart of loop
+    	sp_tcp = NULL;
+    	break;
       }
-	}
+    }
 
     /* check if RB_FOREACH ended, if not, break to keep the cur sp_tcp */
-    if (!index_tcp ||(index && index->keyValue))
+    if (!index_tcp || (index && index->keyValue) )
       break;
 
     index_tcp = pico_tree_next(index_tcp);

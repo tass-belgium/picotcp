@@ -27,6 +27,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define PICO_TCP_SYN_TO	 1000u
 #define PICO_TCP_ZOMBIE_TO 30000
 
+#define PICO_TCP_MAX_RETRANS		 10
 #define PICO_TCP_MAX_CONNECT_RETRIES 7
 
 #define PICO_TCP_LOOKAHEAD      0x00
@@ -97,7 +98,7 @@ struct pico_tcp_queue
   uint32_t size;
   uint32_t frames;
 };
-
+static void tcp_discard_all_segments(struct pico_tcp_queue *tq);
 static struct pico_frame *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
 {
   struct pico_tcp_hdr H;
@@ -1276,7 +1277,7 @@ static void tcp_retrans_timeout(uint32_t val, void *sock)
   struct pico_frame *f = NULL;
   uint32_t limit = val - t->rto;
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED
-  		|| (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) )
+  		|| (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && t->backoff < PICO_TCP_MAX_RETRANS)
   {
 		tcp_dbg("TIMEOUT! backoff = %d\n", t->backoff);
 		/* was timer cancelled? */
@@ -1316,8 +1317,15 @@ static void tcp_retrans_timeout(uint32_t val, void *sock)
 		t->backoff = 0;
 		add_retransmission_timer(t, 0);
 		if (t->tcpq_out.size < t->tcpq_out.max_size)
-			 t->sock.ev_pending |= PICO_SOCK_EV_WR;
+		  t->sock.ev_pending |= PICO_SOCK_EV_WR;
 		return;
+	}
+    else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
+	{
+		// the retransmission timer, failed to get an ack for a frame, giving up on the connection
+		tcp_discard_all_segments(&t->tcpq_out);
+		if(t->sock.wakeup)
+		  t->sock.wakeup(PICO_SOCK_EV_FIN,&t->sock);
 	}
 }
 
@@ -1653,9 +1661,12 @@ static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 {
-  /* TODO: Check against backlog length */
-  struct pico_socket_tcp *new = (struct pico_socket_tcp *)pico_socket_clone(s);
-  struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
+  struct pico_socket_tcp *new=NULL;
+  struct pico_tcp_hdr *hdr=NULL;
+  if(s->number_of_pending_conn >= s->max_backlog)
+	return -1;
+  new = (struct pico_socket_tcp *)pico_socket_clone(s);
+  hdr = (struct pico_tcp_hdr *)f->transport_hdr;
   if (!new)
     return -1;
 
@@ -1692,6 +1703,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
   new->ssthresh = 40;
   new->recv_wnd = short_be(hdr->rwnd);
   new->jumbo = hdr->len & 0x07;
+  s->number_of_pending_conn++;
   new->sock.parent = s;
   new->sock.wakeup = s->wakeup;
   /* Initialize timestamp values */
@@ -2221,9 +2233,9 @@ int32_t pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
           tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
           return 0;
         }
-      }
     }
   }
+      }
   /***************************************************************************/
 }
 

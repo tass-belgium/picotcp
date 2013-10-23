@@ -50,6 +50,7 @@ struct pico_socket {
   struct pico_socket *next;
   struct pico_socket *parent;
   int max_backlog;
+  uint8_t number_of_pending_conn;
 #endif
 #ifdef PICO_SUPPORT_MCAST
   struct pico_tree *MCASTListen;
@@ -132,7 +133,8 @@ struct pico_ip_mreq_source {
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
 
-#define PICO_SOCKET_TIMEOUT					  90000u //1.5 minutes
+#define PICO_SOCKET_TIMEOUT					  90000u //90 seconds
+#define PICO_SOCKET_BOUND_TIMEOUT             30000u //30 seconds
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
