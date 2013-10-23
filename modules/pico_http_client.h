@@ -43,7 +43,7 @@ struct pico_http_header * pico_http_client_readHeader(uint16_t conn);
 struct pico_http_uri * pico_http_client_readUriData(uint16_t conn);
 char * pico_http_client_buildHeader(const struct pico_http_uri * uriData);
 
-int pico_http_client_readData(uint16_t conn, char * data, uint16_t size);
+int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size);
 int pico_http_client_close(uint16_t conn);
 
 #endif /* PICO_HTTP_CLIENT_H_ */
