@@ -529,7 +529,8 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
       /* don't forward broadcast frame, discard! */
       pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
-      //dbg("Forward failed.\n");
+        pico_frame_discard(f);
+        //dbg("Forward failed.\n");
     }
   }
   return 0;
@@ -1392,6 +1393,9 @@ static int pico_ipv4_forward(struct pico_frame *f)
     pico_notify_dest_unreachable(f);
     return -1;
   }
+
+  if (f->dev == rt->link->dev)
+	  return -1;
 
   f->dev = rt->link->dev;
   hdr->ttl= (uint8_t)(hdr->ttl - 1);
