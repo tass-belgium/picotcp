@@ -1893,12 +1893,13 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     a reset is valid if its sequence number is in the window */
     if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((uint32_t)(short_be(hdr->rwnd)<<(t->wnd_scale)) + t->rcv_ackd))) {
       if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
+    	s->parent->number_of_pending_conn--;
         tcp_force_closed(s);
         pico_err = PICO_ERR_ECONNRESET;
         tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
         pico_socket_del(&t->sock);  /* delete socket */
         tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
-        pico_socket_del(s);
+   //   pico_socket_del(s);
       } else {
         tcp_force_closed(s);
         tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
