@@ -987,7 +987,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
   }
 
   hdr->ack = ((struct pico_tcp_hdr *)(fr->transport_hdr))->seq + long_be(fr->payload_len);
-  hdr->crc = short_be(pico_tcp_checksum_ipv4(fr));
+  hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
   /* enqueue for transmission */
   pico_ipv4_frame_push(f,&(((struct pico_ipv4_hdr *)(f->net_hdr))->dst),PICO_PROTO_TCP);
 
