@@ -2302,7 +2302,8 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
 	struct pico_socket_tcp *t=(struct pico_socket_tcp *)sck;
 	if(t->tcpq_out.frames == 0)
 	{
-		checkLocalClosing(sck);
+		if(!checkLocalClosing(sck))
+			checkRemoteClosing(sck);
 	}
 }
 
