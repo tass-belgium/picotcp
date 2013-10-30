@@ -205,7 +205,7 @@ out :
 
 static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
 {
-  struct pico_frame *f1;
+  void *f1;
   uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq)? ((struct tcp_input_segment *)f)->payload_len : ((struct pico_frame *)f)->payload_len);
   LOCK(Mutex);
   f1 = pico_tree_delete(&tq->pool,f);
@@ -215,7 +215,11 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
       tq->frames--;
   }
   if(IS_INPUT_QUEUE(tq))
-	pico_free(f);
+  {
+	struct tcp_input_segment * inp = f1;
+	pico_free(inp->payload);
+	pico_free(inp);
+  }
   else
     pico_frame_discard(f);
   UNLOCK(Mutex);
