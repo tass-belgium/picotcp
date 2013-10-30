@@ -1922,6 +1922,24 @@ static int tcp_halfopencon(struct pico_socket *s, struct pico_frame *fr)
   tcp_send_ack(t);
   return 0;
 }
+static int tcp_closeconn(struct pico_socket *s, struct pico_frame *fr)
+{
+  struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+  struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (fr->transport_hdr);
+
+  if (seq_compare(SEQN(fr), t->rcv_nxt) == 0) {
+      /* received FIN, increase ACK nr */
+  	  t->rcv_nxt = long_be(hdr->seq) + 1;
+	  s->state &= 0x00FFU;
+	  s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+	  /* set SHUT_LOCAL */
+      s->state |= PICO_SOCKET_STATE_SHUT_LOCAL;
+      pico_socket_close(s);
+      s->parent->number_of_pending_conn--;
+      return 1;
+  }
+  return 0;
+}
 struct tcp_action_entry {
   uint16_t tcpstate;
   int (*syn)(struct pico_socket *s, struct pico_frame *f);
@@ -1939,7 +1957,7 @@ static struct tcp_action_entry tcp_fsm[] = {
   { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
   { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
   { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_data_in,    &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
+  { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_data_in,    &tcp_nosync_rst, &tcp_closeconn,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon,&tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,  &tcp_rst },
   { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
