@@ -23,6 +23,7 @@ Authors: Daniele Lacamera
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
 
+#define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
 
 #define PROTO(s) ((s)->proto->proto_number)
 #define PICO_SOCKET4_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
@@ -846,6 +847,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
   if (proto == PICO_PROTO_UDP) {
     s = pico_udp_open();
     s->proto = &pico_proto_udp;
+    s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
   }
 #endif
 
@@ -876,6 +878,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
   s->q_in.max_size = PICO_DEFAULT_SOCKETQ;
   s->q_out.max_size = PICO_DEFAULT_SOCKETQ;
+
   s->wakeup = wakeup;
 
   if (!s->net) {
@@ -895,6 +898,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
   if (facsimile->proto->proto_number == PICO_PROTO_UDP) {
     s = pico_udp_open();
     s->proto = &pico_proto_udp;
+    s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
   }
 #endif
 
