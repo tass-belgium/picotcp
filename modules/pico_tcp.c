@@ -44,7 +44,9 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_TCP_IDLE(t)          ((t->in_flight == 0) && (t->tcpq_out.size == 0))
 /* check if the hold queue contains data (again Nagle) */
 #define IS_TCP_HOLDQ_EMPTY(t)   (t->tcpq_hold.size == 0)
+
 #define IS_INPUT_QUEUE(q)  (q->pool.compare==input_segment_compare)
+#define TCP_INPUT_OVERHEAD (sizeof(struct tcp_input_segment)+sizeof(struct pico_tree_node))
 
 #ifdef PICO_SUPPORT_TCP
 #define tcp_dbg_nagle(...) do{}while(0)
@@ -175,7 +177,9 @@ static void *next_segment(struct pico_tcp_queue *tq, void *cur)
 static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
 {
   int32_t ret = -1;
-  uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq) ? ((struct tcp_input_segment *)f)->payload_len : ((struct pico_frame *)f)->payload_len);
+  uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq) ?
+		  ((struct tcp_input_segment *)f)->payload_len + TCP_INPUT_OVERHEAD:
+		  ((struct pico_frame *)f)->payload_len);
 
   if (payload_len <= 0) {
     tcp_dbg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TRIED TO ENQUEUE INVALID SEGMENT!\n");
@@ -206,7 +210,9 @@ out :
 static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
 {
   void *f1;
-  uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq)? ((struct tcp_input_segment *)f)->payload_len : ((struct pico_frame *)f)->payload_len);
+  uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq)?
+		  ((struct tcp_input_segment *)f)->payload_len + TCP_INPUT_OVERHEAD:
+		  ((struct pico_frame *)f)->payload_len);
   LOCK(Mutex);
   f1 = pico_tree_delete(&tq->pool,f);
   if (f1) {
@@ -2345,11 +2351,18 @@ inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
   LOCK(Mutex);
 	pico_tree_foreach_safe(index,&tq->pool,index_safe)
 	{
-	  struct pico_frame *f = index->keyValue;
+	  void *f = index->keyValue;
 	  if(!f)
 		break;
 	  pico_tree_delete(&tq->pool,f);
-	  pico_frame_discard(f);
+	  if(IS_INPUT_QUEUE(tq))
+	  {
+		struct tcp_input_segment *inp = (struct tcp_input_segment *)f;
+		pico_free(inp->payload);
+		pico_free(inp);
+	  }
+	  else
+	    pico_frame_discard(f);
 	}
  tq->frames = 0;
  tq->size = 0;
