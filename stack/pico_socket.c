@@ -807,6 +807,9 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
               if (s->wakeup)
                 s->wakeup(PICO_SOCK_EV_RD, s);
             }
+            else
+            	pico_frame_discard(cpy);
+
           }
         } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))
         { /* Either local socket is ANY, or matches dst */
@@ -817,6 +820,8 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
             if (s->wakeup)
               s->wakeup(PICO_SOCK_EV_RD, s);
           }
+          else
+        	  pico_frame_discard(cpy);
         }
       } else {
         /*... IPv6 */
