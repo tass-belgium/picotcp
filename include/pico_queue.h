@@ -26,6 +26,7 @@ struct pico_queue {
   void * mutex;
 #endif
   uint8_t shared;
+  uint16_t overhead;
 };
 
 #ifdef PICO_SUPPORT_MUTEX
@@ -82,7 +83,7 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
     q->tail->next = p;
     q->tail = p;
   }
-  q->size += p->buffer_len;
+  q->size += p->buffer_len + q->overhead;
   q->frames++;
   debug_q(q);
 
@@ -101,7 +102,7 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
 
   q->head = p->next;
   q->frames--;
-  q->size -= p->buffer_len;
+  q->size -= p->buffer_len -q->overhead;
   if (q->head == NULL)
     q->tail = NULL;
   debug_q(q);
