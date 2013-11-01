@@ -782,7 +782,7 @@ struct pico_socket *pico_tcp_open(void)
   t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
   t->tcpq_hold.max_size = 2*PICO_TCP_DEFAULT_MSS;
   t->tcpq_in.overhead=(sizeof(struct tcp_input_segment)+sizeof(struct pico_tree_node));
-  t->tcpq_out.overhead=t->tcpq_hold.overhead=sizeof(struct pico_frame);
+  t->tcpq_out.overhead=t->tcpq_hold.overhead=sizeof(struct pico_frame)+sizeof(struct pico_tree_node);
   /* disable Nagle by default */
   //t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
   /* Nagle is enabled by default */
@@ -1780,7 +1780,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
   new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
   new->tcpq_hold.max_size = 2*PICO_TCP_DEFAULT_MSS;
   new->tcpq_in.overhead=(sizeof(struct tcp_input_segment)+sizeof(struct pico_tree_node));
-  new->tcpq_out.overhead=new->tcpq_hold.overhead=sizeof(struct pico_frame);
+  new->tcpq_out.overhead=new->tcpq_hold.overhead=sizeof(struct pico_frame)+sizeof(struct pico_tree_node);
 
   f->sock = &new->sock;
   tcp_parse_options(f);
