@@ -18,6 +18,11 @@ See LICENSE and COPYING for usage.
 #define PICO_IPV4_MOREFRAG 0x2000
 #define PICO_IPV4_FRAG_MASK 0x1FFF
 #define PICO_IPV4_DEFAULT_TTL 64
+#ifndef MBED
+    #define PICO_IPV4_FRAG_MAX_SIZE (63 * 1024)
+#else
+	#define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
+#endif
 
 extern struct pico_protocol pico_proto_ipv4;
 

@@ -306,6 +306,13 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
       pfrag = fragment_find_by_hdr(hdr);
       if (pfrag) {
         pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
+				if (pfrag->total_len > PICO_IPV4_FRAG_MAX_SIZE) {
+           reassembly_dbg("BIG frame!!!\n");
+           pfrag = pico_tree_first(&pico_ipv4_fragmented_tree);
+           pico_ipv4_fragmented_cleanup(pfrag);
+    			 pico_frame_discard(*f);
+					 return 0;
+				}
         pico_tree_insert(pfrag->t, *f);
         return 0;
       } else {
@@ -320,6 +327,13 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     if (pfrag) {
       pfrag->total_len = (uint16_t)(pfrag->total_len + (short_be(hdr->len) - (*f)->net_len));
       reassembly_dbg("REASSEMBLY: fragmented packet in tree, reassemble packet of %u data bytes\n", pfrag->total_len);
+			if (pfrag->total_len > PICO_IPV4_FRAG_MAX_SIZE) {
+           reassembly_dbg("BIG frame!!!\n");
+           pfrag = pico_tree_first(&pico_ipv4_fragmented_tree);
+           pico_ipv4_fragmented_cleanup(pfrag);
+    			 pico_frame_discard(*f);
+					 return 0;
+				}
       f_new = self->alloc(self, pfrag->total_len);
 
       f_frag = pico_tree_first(pfrag->t);
