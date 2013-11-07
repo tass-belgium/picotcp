@@ -2,7 +2,7 @@ CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
-STRIP:=$(CROSS_COMPILE)strip
+STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 LIBNAME:="libpicotcp.a"
 
@@ -195,8 +195,8 @@ lib: mod core
 	  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o 
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/$(LIBNAME)"
 	@$(RANLIB) $(PREFIX)/lib/$(LIBNAME)
-	@test $(STRIP) = 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
-     && $(STRIP) $(PREFIX)/lib/$(LIBNAME)) \
+	@test $(STRIP) -eq 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
+     && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
 loop: mod core
