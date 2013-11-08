@@ -21,7 +21,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define SEQN(f) ((f)?(long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->seq)):0)
 #define ACKN(f) ((f)?(long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->ack)):0)
 
-#define PICO_TCP_RTO_MIN 10
+#define PICO_TCP_RTO_MIN 50
 #define PICO_TCP_RTO_MAX 120000
 #define PICO_TCP_IW 		 2
 #define PICO_TCP_SYN_TO	 1000u
@@ -1069,7 +1069,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     hdr->seq = 0U;
   }
 
-  hdr->ack = ((struct pico_tcp_hdr *)(fr->transport_hdr))->seq + long_be(fr->payload_len);
+  hdr->ack = long_be(long_be(((struct pico_tcp_hdr *)(fr->transport_hdr))->seq) + fr->payload_len);
   hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
   /* enqueue for transmission */
   pico_ipv4_frame_push(f,&(((struct pico_ipv4_hdr *)(f->net_hdr))->dst),PICO_PROTO_TCP);
