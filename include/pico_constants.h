@@ -51,22 +51,22 @@ static inline uint32_t long_from(void *_p)
 static inline uint16_t short_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint16_t r, p0, p1;
-  p0 = p[0];
-  p1 = p[1];
-  r = (uint16_t)((p1 << 8u) + p0);
+  uint16_t r, _p0, _p1;
+  _p0 = p[0];
+  _p1 = p[1];
+  r = (uint16_t)((_p1 << 8u) + _p0);
   return r;
 }
 
 static inline uint32_t long_from(void *_p)
 {
   unsigned char *p = (unsigned char *)_p;
-  uint32_t r, p0, p1, p2, p3;
-  p0 = p[0];
-  p1 = p[1];
-  p2 = p[2];
-  p3 = p[3];
-  r = (p3 << 24) + (p2 << 16) + (p1 << 8) + p0;
+  uint32_t r, _p0, _p1, _p2, _p3;
+  _p0 = p[0];
+  _p1 = p[1];
+  _p2 = p[2];
+  _p3 = p[3];
+  r = (_p3 << 24) + (_p2 << 16) + (_p1 << 8) + _p0;
   return r;
 }
 
