@@ -36,7 +36,7 @@
 #endif
 
 #ifndef PICO_SUPPORT_ZMQ
-//#define PICO_SUPPORT_ZMQ
+#define PICO_SUPPORT_ZMQ
 #endif
 
 #ifndef PICO_SUPPORT_ICMP4
@@ -66,10 +66,22 @@
 
 #define TIMBASE_INT_E         IEC0bits.T2IE
 
-static inline void * calloc_vnz(uint16_t size);
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+static inline void *pico_zalloc(int len)
+{
+    //dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0));
+    return calloc(len, 1);
+}
 
-#define pico_zalloc(x) calloc_catch(x, __FILE__, __LINE__)
-#define pico_free(x) free_catch(x, __FILE__, __LINE__)
+static inline void pico_free(void *tgt)
+{
+    //dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0));
+    free(tgt);
+}
+#else
+# define pico_zalloc(x) calloc(x, 1)
+# define pico_free(x) free(x)
+#endif
 
 extern void * pvPortMalloc( size_t xWantedSize );
 extern volatile unsigned long __pic24_tick;
