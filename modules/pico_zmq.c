@@ -351,6 +351,7 @@ int zmq_connect(ZMQ z, char *address, uint16_t port)
 {
   struct pico_ip4 ip = {0};
   struct zmq_connector *z_c;
+  uint8_t sockopts = 1;
   if (pico_string_to_ipv4(address, &ip.addr) < 0) {
     dbg("FIXME!! I need to synchronize with the dns client to get to my publisher :(\n");
     return -1;
@@ -366,6 +367,7 @@ int zmq_connect(ZMQ z, char *address, uint16_t port)
     pico_free(z_c);
     return -1;
   }
+  pico_socket_setoption(z_c->sock, PICO_TCP_NODELAY, &sockopts);
   if (pico_socket_connect(z_c->sock, &ip, short_be(port)) < 0)
     return -1;
   zmq_connector_add(z, z_c);
@@ -376,12 +378,15 @@ ZMQ zmq_publisher(uint16_t _port, void (*cb)(ZMQ z))
 {
   struct pico_socket *s;
   struct pico_ip4 inaddr_any = {0};
+  uint8_t sockopts = 1;
   uint16_t port = short_be(_port);
   ZMQ z = NULL;
   s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcp0mq);
   if (!s)
     return NULL;
  
+  pico_socket_setoption(s, PICO_TCP_NODELAY, &sockopts);
+
   dbg("zmq_publisher: BIND\n");
   if (pico_socket_bind(s, &inaddr_any, &port)!= 0) {
     dbg("zmq publisher: BIND failed\n");
