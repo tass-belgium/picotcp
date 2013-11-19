@@ -37,7 +37,7 @@ struct __attribute__((packed)) pico_ipv4_hdr {
   uint16_t crc;
   struct pico_ip4 src;
   struct pico_ip4 dst;
-  uint8_t options[0];
+  uint8_t options[];
 };
 
 struct __attribute__((packed)) pico_ipv4_pseudo_hdr

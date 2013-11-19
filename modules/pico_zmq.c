@@ -33,7 +33,7 @@ enum zmq_role {
 struct __attribute__((packed)) zmq_msg {
    uint8_t flags;
     uint8_t len;
-    char    txt[0];
+    char    txt[];
 };
 
 struct zmq_socket;

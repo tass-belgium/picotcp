@@ -100,7 +100,7 @@ struct __attribute__((packed)) pico_dhcp_hdr
 	char    hostname[64];
 	char    bootp_filename[128];
 	uint32_t dhcp_magic;
-	uint8_t options[0];
+	uint8_t options[];
 };
 
 struct __attribute__((packed)) pico_dhcp_opt
@@ -130,10 +130,10 @@ struct __attribute__((packed)) pico_dhcp_opt
       uint8_t value;
     } opt_overload;
     struct {
-      char name[0];
+      char name[1];
     } tftp_server;
     struct {
-      char name[0];
+      char name[1];
     } bootfile;
     struct {
       uint8_t type;
@@ -142,10 +142,10 @@ struct __attribute__((packed)) pico_dhcp_opt
       struct pico_ip4 ip;
     } server_id;
     struct {
-      uint8_t code[0];
+      uint8_t code[1];
     } param_list;
     struct {
-      char error[0];
+      char error[1];
     } message;
     struct {
       uint16_t size;
@@ -157,10 +157,10 @@ struct __attribute__((packed)) pico_dhcp_opt
       uint32_t time;
     } rebinding_time;
     struct {
-      uint8_t id[0];
+      uint8_t id[1];
     } vendor_id;
     struct {
-      uint8_t id[0];
+      uint8_t id[1];
     } client_id;
   } ext;
 };

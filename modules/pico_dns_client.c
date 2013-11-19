@@ -113,7 +113,7 @@ struct __attribute__((packed)) pico_dns_answer_suffix
   uint16_t qclass;
   uint32_t ttl;
   uint16_t rdlength;
-  uint8_t rdata[0];
+  uint8_t rdata[];
 };
 
 struct pico_dns_ns
