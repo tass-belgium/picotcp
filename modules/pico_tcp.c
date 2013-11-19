@@ -2418,6 +2418,13 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
 	struct pico_socket_tcp *t=(struct pico_socket_tcp *)sck;
 	if(t->tcpq_out.frames == 0)
 	{
+	    // canceling retrans timer when closing
+		if(t->retrans_tmr)
+	    {
+		    pico_timer_cancel(t->retrans_tmr);
+		    t->retrans_tmr = NULL;
+  	    }
+
 		if(!checkLocalClosing(sck))
 			checkRemoteClosing(sck);
 	}
