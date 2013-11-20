@@ -1117,7 +1117,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     hdr->seq = 0U;
   }
 
-  hdr->ack = hdr_rcv->seq + long_be(fr->payload_len);
+  hdr->ack = long_be(SEQN(fr) + fr->payload_len);
 
   t->rcv_ackd = t->rcv_nxt;
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
