@@ -2284,7 +2284,9 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
             default:
               pico_err = PICO_ERR_EHOSTUNREACH;
           }
+          s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
           s->wakeup(PICO_SOCK_EV_ERR, s);
+
         }
         break;
       }

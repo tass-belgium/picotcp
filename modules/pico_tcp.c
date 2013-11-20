@@ -854,7 +854,9 @@ static void initconn_retry(uint32_t when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   IGNORE_PARAMETER(when);
-  if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
+  if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT
+	&& !(t->sock.state & PICO_SOCKET_STATE_SHUT_LOCAL)
+	&& !(t->sock.state & PICO_SOCKET_STATE_SHUT_REMOTE)) {
     if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
       tcp_dbg("TCP> Connection timeout. \n");
       if (t->sock.wakeup)
@@ -1969,7 +1971,6 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     /* the RST is acceptable if the ACK field acknowledges the SYN */
     if ((t->snd_nxt + 1) == ACKN(f)) {  /* valid, got to closed state */
       tcp_force_closed(s);
-      tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
       pico_err = PICO_ERR_ECONNRESET;
       tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
       pico_socket_del(&t->sock);  /* delete socket */
