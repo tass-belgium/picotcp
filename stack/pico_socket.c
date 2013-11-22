@@ -2102,6 +2102,7 @@ static int checkSocketSanity(struct pico_socket *s)
 	// if no activity, force the socket into closing state
 	if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
 	{
+	  s->wakeup(PICO_SOCK_EV_CLOSE,s);
 	  pico_socket_close(s);
 	  s->timestamp = PICO_TIME_MS();
 	}
