@@ -1,0 +1,44 @@
+\section{SLAACV4 Module}
+
+% Short description/overview of module functions
+
+
+\subsection{pico\_slaacv4\_claimip}
+
+\subsubsection*{Description}
+This function starts the ip claiming process for a device. It will generate first the local link ip using
+as seed the mac address of the device. Then it will start the claim procedure described in RFC3927. 
+In case of success the IP is registered to the IP layer and returned using the callback function. 
+In case of error, code SLAACV4\_ERROR is returned. Errors occur when the maximum number of conflicts is reached. 
+Use the IP returned only if the return code is SLAACV4\_SUCCESS.
+
+\subsubsection*{Function prototype}
+\texttt{pico\_slaacv4\_claimip(struct pico\_device *dev, void (*cb)(struct pico\_ip4 *ip,  uint8\_t code));}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device}
+\item \texttt{*cb} - a callback function returning the ip claimed and a return code (SLAACV4\_ERROR | SLAACV4\_SUCCESS)
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the claiming has started successfully
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+dev = pico_get_device(sdev);
+
+ret = pico_slaacv4_claimip(dev, slaacv4_cb);
+
+\end{verbatim}
+
+\subsection{pico\_slaacv4\_unregisterip}
+
+\subsubsection*{Description}
+This function allows to unregister the local link ip in usage. The function will remove from the route table
+the local link ip and will reset the internal state of the SLAACV4 module
+
+\subsubsection*{Function prototype}
+\texttt{void pico\_slaacv4\_unregisterip(void);}
+
