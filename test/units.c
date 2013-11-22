@@ -23,6 +23,7 @@
 #include "pico_nat.c"
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
+#include "pico_slaacv4.c"
 #include <check.h>
 
 #ifdef PICO_SUPPORT_MCAST
@@ -2273,6 +2274,38 @@ START_TEST (test_timers)
 }
 END_TEST
 
+START_TEST (test_slaacv4)
+{
+  uint32_t tmp;
+  struct pico_device *dev;
+  struct mock_device *mock;
+  uint8_t macaddr1[6] = {0xc1,0,0,0xa,0xb,0xf};
+
+  /* verify min boundry*/
+  tmp = SLAACV4_CREATE_IPV4(0);
+  fail_if(tmp < (SLAACV4_ADDRESS | 0x00000100));
+
+  /* verify max boundry*/
+  tmp = SLAACV4_CREATE_IPV4(0xFD00);
+  fail_if(tmp > (SLAACV4_ADDRESS | 0x0000FEFF));
+
+  /* verify case where dev->eth is NULL */
+  dev = pico_null_create("dummy");
+  tmp = pico_slaacv4_getip(dev, 0);
+  fail_if(tmp != (SLAACV4_ADDRESS | 0x00000100));
+
+  /* verify nominal case; two runs of slaacv4_get_ip need to return same value */
+  mock = pico_mock_create(macaddr1);
+  tmp = pico_slaacv4_getip(mock->dev, 0);
+  fail_if(tmp != pico_slaacv4_getip(mock->dev, 0));
+
+  tmp = pico_slaacv4_getip(mock->dev, 1);
+  fail_if(tmp != pico_slaacv4_getip(mock->dev, 0));
+  fail_if((tmp > (SLAACV4_ADDRESS | 0x0000FEFF)) || (tmp < (SLAACV4_ADDRESS | 0x00000100)));
+
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -2293,6 +2326,7 @@ Suite *pico_suite(void)
 #endif
   TCase *frame = tcase_create("FRAME");
   TCase *timers = tcase_create("TIMERS");
+  TCase *slaacv4 = tcase_create("SLAACV4");
 
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
@@ -2347,6 +2381,9 @@ Suite *pico_suite(void)
 
   tcase_add_test(timers, test_timers);
   suite_add_tcase(s, timers);
+
+  tcase_add_test(slaacv4, test_slaacv4);
+  suite_add_tcase(s, slaacv4);
 
   return s;
 }

@@ -58,6 +58,13 @@ pico_arp_hdr
   struct pico_ip4 dst;
 };
 
+struct arp_service_ipconflict{
+	struct pico_eth mac;
+	struct pico_ip4 ip;
+	void (*conflict)(void);
+};
+
+static struct arp_service_ipconflict conflict_ipv4;
 
 #define PICO_SIZE_ARPHDR ((sizeof(struct pico_arp_hdr)))
 
@@ -141,9 +148,9 @@ struct pico_eth *pico_arp_get(struct pico_frame *f) {
        dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
        /* check if dst is local (gateway = 0), or if to use gateway */
        if (gateway.addr != 0)
-         pico_arp_query(f->dev, &gateway);  /* arp to gateway */
+    	 pico_arp_request(f->dev, &gateway, PICO_ARP_QUERY);  /* arp to gateway */
        else
-         pico_arp_query(f->dev, &hdr->dst); /* arp to dst */
+    	 pico_arp_request(f->dev, &hdr->dst, PICO_ARP_QUERY); /* arp to dst */
 
        pico_enqueue(&pending, f);
        if (!pending_timer_on) {
@@ -178,7 +185,7 @@ void arp_expire(uint32_t now, void *_stale)
   IGNORE_PARAMETER(now);
   stale->arp_status = PICO_ARP_STATUS_STALE;
   arp_dbg("ARP: Setting arp_status to STALE\n");
-  pico_arp_query(stale->dev, &stale->ipv4);
+  pico_arp_request(stale->dev, &stale->ipv4, PICO_ARP_QUERY);
 
 }
 
@@ -218,6 +225,11 @@ int pico_arp_receive(struct pico_frame *f)
   if (!hdr)
     goto end;
 
+  if (conflict_ipv4.conflict != NULL)
+  {
+    if ((conflict_ipv4.ip.addr == hdr->src.addr) && (memcmp(hdr->s_mac,conflict_ipv4.mac.addr,6) != 0))
+      conflict_ipv4.conflict();
+  }
 
   /* Populate a new arp entry */
   search.ipv4.addr = hdr->src.addr;
@@ -280,7 +292,7 @@ end:
   return ret;
 }
 
-int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
+int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t type)
 {
   struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
   struct pico_eth_hdr *eh;
@@ -288,9 +300,12 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   struct pico_ip4 *src;
   int ret;
 
-  src = pico_ipv4_source_find(dst);
-  if (!src)
-    return -1;
+  if (type == PICO_ARP_QUERY)
+  {
+    src = pico_ipv4_source_find(dst);
+    if (!src)
+      return -1;
+  }
 
   arp_dbg("QUERY: %08x\n", dst->addr);
 
@@ -311,9 +326,22 @@ int32_t pico_arp_query(struct pico_device *dev, struct pico_ip4 *dst)
   ah->psize  = PICO_SIZE_IP4;
   ah->opcode = PICO_ARP_REQUEST;
   memcpy(ah->s_mac, dev->eth->mac.addr, PICO_SIZE_ETH);
-  ah->src.addr = src->addr;
-  ah->dst.addr = dst->addr;
-  arp_dbg("Sending arp query.\n");
+
+  switch (type){
+  case PICO_ARP_ANNOUNCE:
+	  ah->src.addr = dst->addr;
+	  ah->dst.addr = dst->addr;
+	  break;
+  case PICO_ARP_PROBE:
+	  ah->src.addr = 0;
+	  ah->dst.addr = dst->addr;
+	  break;
+  default:
+	  ah->src.addr = src->addr;
+	  ah->dst.addr = dst->addr;
+  }
+
+  arp_dbg("Sending arp request.\n");
   ret = dev->send(dev, q->start,(int) q->len);
   pico_frame_discard(q);
   return ret;
@@ -333,4 +361,12 @@ int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, 
     }
   }
   return i;
+}
+
+void pico_arp_register_ipconflict(struct pico_ip4 *ip, struct pico_eth *mac, void(*cb)(void))
+{
+  conflict_ipv4.conflict = cb;
+  conflict_ipv4.ip.addr = ip->addr;
+  if (mac != NULL)
+    memcpy(conflict_ipv4.mac.addr, mac, 6);
 }
