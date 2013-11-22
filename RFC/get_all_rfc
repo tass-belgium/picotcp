@@ -4,3 +4,5 @@ wget http://tools.ietf.org/rfc/rfc4614.txt
 for RFC in `grep "\[RFC" rfc4614.txt | sed -e "s/^.*RFC/rfc/" | grep -v "rfc \|rfc$" | sed -e "s/\].*$//g" |sort |uniq`; do
 	wget http://tools.ietf.org/rfc/$RFC.txt
 done
+
+wget http://tools.ietf.org/rfc/rfc3927.txt
