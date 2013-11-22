@@ -59,4 +59,10 @@ echo "DHCP DUAL TEST"
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: --barevde pic1:/tmp/pic1.ctl: -a dhcpclient:pic0:pic1 || exit 1
 killall picoapp.elf
 
+#TO DO: the ping address 169.254.22.5 is hardcoded in the slaacv4 test. Nice to pass that by parameter
+echo "SLAACV4 TEST"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:169.254.22.5:255.255.0.0:) &
+./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a slaacv4:pic0 || exit 1
+killall picoapp.elf
+
 echo "SUCCESS!" && exit 0

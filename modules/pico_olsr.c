@@ -651,7 +651,7 @@ static inline void arp_storm(struct pico_ip4 *addr)
 {
   struct olsr_dev_entry *icur = Local_devices;
   while(icur) {
-    pico_arp_query(icur->dev, addr);
+    pico_arp_request(icur->dev, addr, PICO_ARP_QUERY);
     icur = icur->next;
   }
 }

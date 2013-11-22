@@ -1,2 +1,0 @@
-OPTIONS+=-DPICO_SUPPORT_LLIPV4
-MOD_OBJ+=modules/pico_llipv4.o
