@@ -37,8 +37,10 @@ Author: Andrei Carp <andrei.carp@tass.be>
 
 #ifdef dbg
 	#undef dbg
-	#define dbg(...) do{}while(0);
 #endif
+
+#define dbg(...) do{}while(0)
+
 
 #define consumeChar(c) 							(pico_socket_read(client->sck,&c,1u))
 #define isLocation(line) 						(memcmp(line,"Location",8u) == 0)
@@ -46,8 +48,8 @@ Author: Andrei Carp <andrei.carp@tass.be>
 #define isTransferEncoding(line)		(memcmp(line,"Transfer-Encoding",17u) == 0u)
 #define isChunked(line)							(memcmp(line," chunked",8u) == 0u)
 #define isNotHTTPv1(line)						(memcmp(line,"HTTP/1.",7u))
-#define is_hex_digit(x) ( ('0' <= x && x <= '9') || ('a' <= x && x <= 'f') )
-#define hex_digit_to_dec(x) ( ('0' <= x && x <= '9') ? x-'0' : ( ('a' <= x && x <= 'f') ? x-'a' + 10 : -1) )
+#define is_hex_digit(x) ((('0' <= x) && (x <= '9')) || (('a' <= x) && (x <= 'f')))
+#define hex_digit_to_dec(x) ( (('0' <= x) && (x <= '9')) ? (x-'0') : ( (('a' <= x) && (x <= 'f')) ? (x-'a' + 10) : -1) )
 
 struct pico_http_client
 {
@@ -128,7 +130,7 @@ void tcpCallback(uint16_t ev, struct pico_socket *s)
 				if(client->header->responseCode != HTTP_CONTINUE)
 				{
 					client->wakeup(
-							client->header->responseCode == HTTP_OK ?
+							(client->header->responseCode == HTTP_OK) ?
 							EV_HTTP_REQ | EV_HTTP_BODY : // data comes for sure only when 200 is received
 							EV_HTTP_REQ
 							,client->connectionID);
@@ -344,7 +346,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 		if(size >= client->header->contentLengthOrChunk)
 		{
 			// read the rest of the chunk, if chunk is done, proceed to the next chunk
-			while(lenRead <= size)
+			while((uint16_t)lenRead <= size)
 			{
 				int tmpLenRead = 0;
 
@@ -353,7 +355,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 
 					// if needed truncate the data
 					tmpLenRead = pico_socket_read(client->sck,data + lenRead,
-					client->header->contentLengthOrChunk < (uint32_t)(size-lenRead) ? (int)client->header->contentLengthOrChunk : (int)(size-lenRead));
+					(client->header->contentLengthOrChunk < (uint32_t)(size-lenRead)) ? (int)client->header->contentLengthOrChunk : (int)(size-lenRead));
 
 					if(tmpLenRead > 0)
 					{
@@ -546,7 +548,7 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 	// check the integrity of the response
 	// make sure we have enough characters to include the response code
 	// make sure the server response starts with HTTP/1.
-	if(index < RESPONSE_INDEX+2 || isNotHTTPv1(line))
+	if((index < RESPONSE_INDEX+2u) || isNotHTTPv1(line))
 	{
 		// wrong format of the the response
 		pico_err = PICO_ERR_EINVAL;
