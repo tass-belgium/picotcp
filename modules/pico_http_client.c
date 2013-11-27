@@ -512,7 +512,7 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	char * header;
 	char port[6u]; // 6 = max length of a uint16 + \0
 
-	uint16_t headerSize = HTTP_GET_BASIC_SIZE;
+	unsigned long headerSize = HTTP_GET_BASIC_SIZE;
 
 	if(!uriData->host || !uriData->resource || !uriData->port)
 	{
@@ -521,9 +521,8 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	}
 
 	//
-	headerSize = (uint16_t)(headerSize + strlen(uriData->host));
-	headerSize += (uint16_t)strlen(uriData->resource);
-	headerSize += (uint16_t)(pico_itoa(uriData->port,port) + 4u); // 3 = size(CRLF + \0)
+	headerSize = (headerSize + strlen(uriData->host)+strlen(uriData->resource));
+	headerSize = (headerSize + pico_itoa(uriData->port,port) + 4u); // 3 = size(CRLF + \0)
 	header = pico_zalloc(headerSize);
 
 	if(!header)
