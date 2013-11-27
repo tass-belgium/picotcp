@@ -362,7 +362,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 
 					// if needed truncate the data
 					tmpLenRead = pico_socket_read(client->sck,data + lenRead,
-					(client->header->contentLengthOrChunk < (uint32_t)(size-lenRead)) ? (int)client->header->contentLengthOrChunk : (size-lenRead));
+					(client->header->contentLengthOrChunk < ((uint32_t)(size-lenRead))) ? (int)client->header->contentLengthOrChunk : (size-lenRead));
 
 					if(tmpLenRead > 0)
 					{
@@ -521,7 +521,8 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	}
 
 	//
-	headerSize = (headerSize + strlen(uriData->host)+strlen(uriData->resource));
+	headerSize = (headerSize + strlen(uriData->host));
+	headerSize = (headerSize + strlen(uriData->resource));
 	headerSize = (headerSize + pico_itoa(uriData->port,port) + 4u); // 3 = size(CRLF + \0)
 	header = pico_zalloc(headerSize);
 
@@ -546,21 +547,143 @@ char * pico_http_client_buildHeader(const struct pico_http_uri * uriData)
 	return header;
 }
 
-int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_header * header)
+
+//
+static inline void readFirstLine(struct pico_http_client * client, char * line, uint32_t * index)
 {
-	char line[HTTP_HEADER_LINE_SIZE];
 	char c;
-	uint32_t index = 0;
 
 	// read the first line of the header
 	while(consumeChar(c)>0 && c!='\r')
 	{
-		if(index < HTTP_HEADER_LINE_SIZE) // truncate if too long
-			line[index++] = c;
+		if(*index < HTTP_HEADER_LINE_SIZE) // truncate if too long
+			line[(*index)++] = c;
 	}
 
 	consumeChar(c); // consume \n
+}
 
+static inline void startReadingBody(struct pico_http_client * client, struct pico_http_header * header)
+{
+
+	if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+	{
+		// read the first chunk
+		header->contentLengthOrChunk = 0;
+
+		client->state = HTTP_READING_CHUNK_VALUE;
+		readChunkLine(client);
+
+	}
+	else
+		client->state = HTTP_READING_BODY;
+}
+
+static inline int parseLocAndCont(struct pico_http_client * client, struct pico_http_header * header, char *line, uint32_t * index)
+{
+	   char c;
+	   // Location:
+
+		if(isLocation(line))
+		{
+			*index = 0;
+			while(consumeChar(c)>0 && c!='\r')
+			{
+				line[(*index)++] = c;
+			}
+
+			// allocate space for the field
+			header->location = pico_zalloc((*index)+1u);
+
+			memcpy(header->location,line,(*index));
+			return 1;
+		}// Content-Length:
+		else if(isContentLength(line))
+		{
+			header->contentLengthOrChunk = 0u;
+			header->transferCoding = HTTP_TRANSFER_FULL;
+			// consume the first space
+			consumeChar(c);
+			while(consumeChar(c)>0 && c!='\r')
+			{
+				header->contentLengthOrChunk = header->contentLengthOrChunk*10u + (uint32_t)(c-'0');
+			}
+			return 1;
+		}// Transfer-Encoding: chunked
+		return 0;
+}
+
+static inline int parseTransferEncoding(struct pico_http_client * client, struct pico_http_header * header, char *line, uint32_t * index)
+{
+	char c;
+
+	if(isTransferEncoding(line))
+	{
+		(*index) = 0;
+		while(consumeChar(c)>0 && c!='\r')
+		{
+			line[(*index)++] = c;
+		}
+
+		if(isChunked(line))
+		{
+			header->contentLengthOrChunk = 0u;
+			header->transferCoding = HTTP_TRANSFER_CHUNKED;
+		}
+		return 1;
+	}// just ignore the line
+	return 0;
+}
+
+
+static inline void parseFields(struct pico_http_client * client, struct pico_http_header * header, char *line, uint32_t * index)
+{
+	char c;
+
+	if(!parseLocAndCont(client,header,line,index))
+	{
+		if(!parseTransferEncoding(client,header,line,index))
+		{
+			while(consumeChar(c)>0 && c!='\r') nop();
+		}
+	}
+
+	// consume the next one
+	consumeChar(c);
+	// reset the index
+	(*index) = 0u;
+}
+
+static inline void parseRestOfHeader(struct pico_http_client * client, struct pico_http_header * header, char *line, uint32_t * index)
+{
+	char c;
+
+	// parse the rest of the header
+	while(consumeChar(c)>0)
+	{
+		if(c==':')
+		{
+			parseFields(client,header,line,index);
+		}
+		else if(c=='\r' && !(*index))
+		{
+				// consume the \n
+				consumeChar(c);
+				break;
+		}
+		else
+		{
+			line[(*index)++] = c;
+		}
+	}
+}
+
+int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_header * header)
+{
+	char line[HTTP_HEADER_LINE_SIZE];
+	uint32_t index = 0;
+
+	readFirstLine(client,line,&index);
 	// check the integrity of the response
 	// make sure we have enough characters to include the response code
 	// make sure the server response starts with HTTP/1.
@@ -576,7 +699,6 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 												 (line[RESPONSE_INDEX+1] - '0') * 10 +
 												 (line[RESPONSE_INDEX+2] - '0'));
 
-
 	if(header->responseCode/100u > 5u)
 	{
 		// invalid response type
@@ -586,94 +708,9 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 
 	dbg("Server response : %d \n",header->responseCode);
 
-	// parse the rest of the header
-	while(consumeChar(c)>0)
-	{
-		if(c==':')
-		{
-			// check for interesting fields
+	parseRestOfHeader(client,header,line,&index);
 
-			// Location:
-			if(isLocation(line))
-			{
-				index = 0;
-				while(consumeChar(c)>0 && c!='\r')
-				{
-					line[index++] = c;
-				}
-
-				// allocate space for the field
-				header->location = pico_zalloc(index+1u);
-				if(!header->location)
-				{
-					pico_err = PICO_ERR_ENOMEM;
-					return HTTP_RETURN_ERROR;
-				}
-
-				memcpy(header->location,line,index);
-
-			}// Content-Length:
-			else if(isContentLength(line))
-			{
-				header->contentLengthOrChunk = 0u;
-				header->transferCoding = HTTP_TRANSFER_FULL;
-				// consume the first space
-				consumeChar(c);
-				while(consumeChar(c)>0 && c!='\r')
-				{
-					header->contentLengthOrChunk = header->contentLengthOrChunk*10u + (uint32_t)(c-'0');
-				}
-
-			}// Transfer-Encoding: chunked
-			else if(isTransferEncoding(line))
-			{
-				index = 0;
-				while(consumeChar(c)>0 && c!='\r')
-				{
-					line[index++] = c;
-				}
-
-				if(isChunked(line))
-				{
-					header->contentLengthOrChunk = 0u;
-					header->transferCoding = HTTP_TRANSFER_CHUNKED;
-				}
-
-			}// just ignore the line
-			else
-			{
-				while(consumeChar(c)>0 && c!='\r') nop();
-			}
-
-			// consume the next one
-			consumeChar(c);
-			// reset the index
-			index = 0u;
-		}
-		else if(c=='\r' && !index)
-		{
-				// consume the \n
-				consumeChar(c);
-				break;
-		}
-		else
-		{
-			line[index++] = c;
-		}
-	}
-
-	if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
-	{
-		// read the first chunk
-		header->contentLengthOrChunk = 0;
-
-		client->state = HTTP_READING_CHUNK_VALUE;
-		readChunkLine(client);
-
-	}
-	else
-		client->state = HTTP_READING_BODY;
-
+	startReadingBody(client,header);
 	dbg("End of header\n");
 	return HTTP_RETURN_OK;
 
@@ -682,6 +719,7 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 // an async read of the chunk part, since in theory a chunk can be split in 2 packets
 static inline void setClientChunkState(struct pico_http_client * client)
 {
+
 	if(client->header->contentLengthOrChunk==0 && client->state == HTTP_READING_BODY)
 	{
 		client->state = HTTP_READING_CHUNK_VALUE;
@@ -690,6 +728,7 @@ static inline void setClientChunkState(struct pico_http_client * client)
 static inline void readChunkTrail(struct pico_http_client * client)
 {
 	char c;
+
 	if(client->state == HTTP_READING_CHUNK_TRAIL)
 	{
 
@@ -702,6 +741,7 @@ static inline void readChunkTrail(struct pico_http_client * client)
 static inline void readChunkValue(struct pico_http_client * client)
 {
 	char c;
+
 	while(consumeChar(c)>0 && c!='\r' && c!=';')
 	{
 		if(is_hex_digit(c))
@@ -713,6 +753,7 @@ static inline void readChunkValue(struct pico_http_client * client)
 int readChunkLine(struct pico_http_client * client)
 {
 	setClientChunkState(client);
+
 	if(client->state == HTTP_READING_CHUNK_VALUE)
 	{
 		readChunkValue(client);
