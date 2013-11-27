@@ -48,6 +48,7 @@ Authors: Daniele Lacamera, Philippe Mariman
 #define IS_INPUT_QUEUE(q)  (q->pool.compare==input_segment_compare)
 #define TCP_INPUT_OVERHEAD (sizeof(struct tcp_input_segment)+sizeof(struct pico_tree_node))
 
+
 #ifdef PICO_SUPPORT_TCP
 #define tcp_dbg_nagle(...) do{}while(0)
 #define tcp_dbg_options(...) do{}while(0)
@@ -335,12 +336,13 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
   return ret;
 }
 
-static int release_all_until(struct pico_tcp_queue *q, uint32_t seq)
+static int release_all_until(struct pico_tcp_queue *q, uint32_t seq,uint32_t * timestamp)
 {
   void *f = NULL, *tmp __attribute__((unused));
   struct pico_tree_node * idx, * temp;
   int seq_result;
   int ret = 0;
+  *timestamp = 0;
 
   pico_tree_foreach_safe(idx,&q->pool,temp){
   f = idx->keyValue;
@@ -349,6 +351,8 @@ static int release_all_until(struct pico_tcp_queue *q, uint32_t seq)
 		  seq_compare(SEQN((struct pico_frame *)f) + ((struct pico_frame *)f)->payload_len, seq);
     if (seq_result<= 0) {
       tcp_dbg("Releasing %p\n", f);
+      if(seq_result == 0)
+    	  *timestamp = ((struct pico_frame *)f)->timestamp;
       pico_discard_segment(q, f);
       ret++;
     } else
@@ -1280,9 +1284,9 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
   }
 }
 
-static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f)
+static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, uint32_t * timestamp)
 {
-  int ret =  release_all_until(&t->tcpq_out, ACKN(f));
+  int ret =  release_all_until(&t->tcpq_out, ACKN(f),timestamp);
   if (ret > 0)
     t->sock.ev_pending |= PICO_SOCK_EV_WR;
   return ret;
@@ -1393,6 +1397,7 @@ static void tcp_retrans_timeout(uint32_t val, void *sock)
 				cpy = pico_frame_copy(f);
 				if (pico_enqueue(&tcp_out, cpy) > 0) {
 					t->backoff++;
+					t->snd_last_out = SEQN(cpy);
 					add_retransmission_timer(t, (t->rto << t->backoff) + pico_tick);
 					tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
 					return;
@@ -1520,6 +1525,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   uint32_t rtt = 0;
   uint16_t acked = 0;
+  uint32_t acked_timestamp = 0;
+  uint8_t restart_tmr = 0;
+
   struct pico_frame *una = NULL;
   if ((hdr->flags & PICO_TCP_ACK) == 0)
     return -1;
@@ -1531,18 +1539,27 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   tcp_parse_options(f);
   t->recv_wnd = short_be(hdr->rwnd);
 
-  acked = (uint16_t)tcp_ack_advance_una(t, f);
+  acked = (uint16_t)tcp_ack_advance_una(t, f,&acked_timestamp);
   una = first_segment(&t->tcpq_out);
 
   if ((t->x_mode == PICO_TCP_BLACKOUT) || 
     ((t->x_mode == PICO_TCP_WINDOW_FULL) && ((t->recv_wnd << t->recv_wnd_scale) > t->mss))) {
+	int prev_mode = t->x_mode;
     tcp_dbg("Re-entering look-ahead...\n\n\n");
     t->x_mode = PICO_TCP_LOOKAHEAD;
     t->backoff = 0;
+
+    if((prev_mode == PICO_TCP_BLACKOUT) && (acked>0) && una)
+    {
+		t->snd_nxt = SEQN(una);
+		// restart the retrans timer
+		pico_timer_cancel(t->retrans_tmr);
+		t->timer_running = 0;
+		restart_tmr = 1u;
+    }
   }
 
   /* One should be acked. */
-//  if ((acked == 0) && (t->in_flight > 0))
   if ((acked == 0) && (f->payload_len  == 0) && (t->in_flight > 0))
     t->in_flight--;
   if (!una || acked > 0) {
@@ -1556,9 +1573,9 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
       rtt = time_diff(pico_tick, f->timestamp);
       if (rtt)
         tcp_rtt(t, rtt);
-    } else if(una && (una->timestamp != 0)) {
+    } else if(acked_timestamp) {
       /* If no timestamps are there, use conservatve estimation on the una */
-        rtt = time_diff(pico_tick, una->timestamp);
+        rtt = time_diff(pico_tick, acked_timestamp);
         if (rtt)
           tcp_rtt(t, rtt);
     }
@@ -1653,6 +1670,11 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
     if ((t->cwnd >= t->in_flight) && (t->snd_nxt > t->snd_last_out)) {
       pico_tcp_output(&t->sock, (int)t->cwnd - (int)t->in_flight);
     }
+  }
+
+  if(restart_tmr)
+  {
+  	add_retransmission_timer(t,pico_tick+t->rto);
   }
 
   t->snd_old_ack = ACKN(f);
@@ -2151,8 +2173,8 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
   int sent = 0;
 
   una = first_segment(&t->tcpq_out);
-
   f = peek_segment(&t->tcpq_out, t->snd_nxt);
+
   while((f) && (t->cwnd >= t->in_flight)) {
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     f->timestamp = pico_tick;
