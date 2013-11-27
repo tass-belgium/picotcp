@@ -40,7 +40,7 @@ Author: Andrei Carp <andrei.carp@tass.be>
 #endif
 
 #define dbg(...) do{}while(0)
-
+#define nop() do{}while(0)
 
 #define consumeChar(c) 							(pico_socket_read(client->sck,&c,1u))
 #define isLocation(line) 						(memcmp(line,"Location",8u) == 0)
@@ -49,7 +49,7 @@ Author: Andrei Carp <andrei.carp@tass.be>
 #define isChunked(line)							(memcmp(line," chunked",8u) == 0u)
 #define isNotHTTPv1(line)						(memcmp(line,"HTTP/1.",7u))
 #define is_hex_digit(x) ((('0' <= x) && (x <= '9')) || (('a' <= x) && (x <= 'f')))
-#define hex_digit_to_dec(x) ( (('0' <= x) && (x <= '9')) ? (x-'0') : ( (('a' <= x) && (x <= 'f')) ? (x-'a' + 10) : -1) )
+#define hex_digit_to_dec(x) ( (('0' <= x) && (x <= '9')) ? (x-'0') : ( (('a' <= x) && (x <= 'f')) ? (x-'a' + 10) : (-1)) )
 
 struct pico_http_client
 {
@@ -131,7 +131,7 @@ void tcpCallback(uint16_t ev, struct pico_socket *s)
 				{
 					client->wakeup(
 							(client->header->responseCode == HTTP_OK) ?
-							EV_HTTP_REQ | EV_HTTP_BODY : // data comes for sure only when 200 is received
+							(EV_HTTP_REQ | EV_HTTP_BODY) : // data comes for sure only when 200 is received
 							EV_HTTP_REQ
 							,client->connectionID);
 				}
@@ -202,7 +202,7 @@ static void dnsCallback(char *ip, void * ptr)
 /*
  * API used for opening a new HTTP Client.
  *
- * The accepted uri's are [http://]hostname[:port]/resource
+ * The accepted uri's are [http:]hostname[:port]/resource
  * no relative uri's are accepted.
  *
  * The function returns a connection ID >= 0 if successful
@@ -292,7 +292,7 @@ int32_t pico_http_client_sendHeader(uint16_t conn, char * header, uint8_t hdr)
 		}
 	}
 
-	length = (int32_t)pico_socket_write(http->sck,(void *)header,(int)strlen(header)+1);
+	length = pico_socket_write(http->sck,(void *)header,(int)strlen(header)+1);
 
 	if(hdr == HTTP_HEADER_DEFAULT)
 		pico_free(header);
@@ -626,7 +626,7 @@ int parseHeaderFromServer(struct pico_http_client * client, struct pico_http_hea
 			}// just ignore the line
 			else
 			{
-				while(consumeChar(c)>0 && c!='\r');
+				while(consumeChar(c)>0 && c!='\r') nop();
 			}
 
 			// consume the next one
@@ -693,7 +693,8 @@ int readChunkLine(struct pico_http_client * client)
 	if(client->state == HTTP_READING_CHUNK_TRAIL)
 	{
 
-		while(consumeChar(c)>0 && c!='\n');
+		while(consumeChar(c)>0 && c!='\n') nop();
+
 
 		if(c=='\n') client->state = HTTP_READING_BODY;
 	}
