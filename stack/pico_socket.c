@@ -713,7 +713,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
 {
   struct pico_frame *cpy = NULL;
   struct pico_sockport *sp = NULL;
-  struct pico_socket *s = NULL, *found = NULL;
+  struct pico_socket *s = NULL;
   struct pico_tree_node *index = NULL;
   struct pico_tree_node *_tmp;
   struct pico_trans *tr = (struct pico_trans *) f->transport_hdr;
@@ -723,6 +723,10 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
   #ifdef PICO_SUPPORT_IPV6
   struct pico_ipv6_hdr *ip6hdr;
   #endif
+
+#ifdef PICO_SUPPORT_TCP
+  struct pico_socket *found = NULL;
+#endif
 
   if (!tr)
     return -1;
@@ -1481,12 +1485,17 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 int pico_socket_listen(struct pico_socket *s, int backlog)
 {
+  IGNORE_PARAMETER(s);
+  IGNORE_PARAMETER(backlog);
   pico_err = PICO_ERR_EINVAL;
   return -1;
 }
 
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *local_port)
 {
+  IGNORE_PARAMETER(s);
+  IGNORE_PARAMETER(orig);
+  IGNORE_PARAMETER(local_port);
   pico_err = PICO_ERR_EINVAL;
   return NULL;
 }
@@ -2085,7 +2094,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 
 #define SL_LOOP_MIN 1
 
-
+#ifdef PICO_SUPPORT_TCP
 static int checkSocketSanity(struct pico_socket *s)
 {
 
@@ -2109,10 +2118,17 @@ static int checkSocketSanity(struct pico_socket *s)
   }
   return 0;
 }
+#endif
 
 int pico_sockets_loop(int loop_score)
 {
-  static struct pico_tree_node *index_udp, * index_tcp;
+#ifdef PICO_SUPPORT_UDP
+  static struct pico_tree_node *index_udp;
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+  static struct pico_tree_node* index_tcp;
+#endif
 
   struct pico_sockport *start;
   struct pico_socket *s;
