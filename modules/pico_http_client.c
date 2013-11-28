@@ -307,6 +307,117 @@ int32_t pico_http_client_sendHeader(uint16_t conn, char * header, uint8_t hdr)
 	return length;
 }
 
+
+///
+
+static inline int checkChunkLine(struct pico_http_client *client,int tmpLenRead)
+{
+	if(readChunkLine(client) == HTTP_RETURN_ERROR)
+	{
+		dbg("Probably the chunk is malformed or parsed wrong...\n");
+		client->wakeup(EV_HTTP_ERROR,client->connectionID);
+		return HTTP_RETURN_ERROR;
+	}
+
+	if(client->state != HTTP_READING_BODY || !tmpLenRead)
+		return 0; // force out
+
+	return 1;
+}
+
+static inline void updateContentLength(struct pico_http_client *client,int tmpLenRead )
+{
+	if(tmpLenRead > 0)
+	{
+		client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)tmpLenRead;
+	}
+}
+
+static inline int readBody(struct pico_http_client *client,char * data, uint16_t size, int *lenRead,int *tmpLenRead)
+{
+	*tmpLenRead = 0;
+
+	if(client->state == HTTP_READING_BODY)
+	{
+
+		// if needed truncate the data
+		*tmpLenRead = pico_socket_read(client->sck,data + (*lenRead),
+		(client->header->contentLengthOrChunk < ((uint32_t)(size-(*lenRead)))) ? ((int)client->header->contentLengthOrChunk) : (size-(*lenRead)));
+
+		updateContentLength(client,*tmpLenRead);
+		if(*tmpLenRead < 0)
+		{
+			// error on reading
+			dbg(">>> Error returned pico_socket_read\n");
+			pico_err = PICO_ERR_EBUSY;
+			// return how much data was read until now
+			return (*lenRead);
+		}
+	}
+
+	*lenRead += *tmpLenRead;
+	return 0;
+}
+
+static inline int readBigChunk(struct pico_http_client *client,char * data, uint16_t size, int *lenRead)
+{
+	int value;
+	// check if we need more than one chunk
+	if(size >= client->header->contentLengthOrChunk)
+	{
+		// read the rest of the chunk, if chunk is done, proceed to the next chunk
+		while((uint16_t)(*lenRead) <= size)
+		{
+			int tmpLenRead = 0;
+			if(readBody(client,data,size,lenRead,&tmpLenRead))
+				return (*lenRead);
+
+			if((value = checkChunkLine(client,tmpLenRead)) <= 0)
+				return value;
+		}
+	}
+	return 0;
+}
+
+static inline void readSmallChunk(struct pico_http_client *client,char * data, uint16_t size, int *lenRead)
+{
+	if(size < client->header->contentLengthOrChunk)
+	{
+		// read the data from the chunk
+		*lenRead = pico_socket_read(client->sck,(void *)data,size);
+
+		if(*lenRead)
+			client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)(*lenRead);
+	}
+}
+static inline int readChunkedData(struct pico_http_client *client,char * data, uint16_t size)
+{
+	int lenRead = 0;
+	int value;
+	// read the chunk line
+	if(readChunkLine(client) == HTTP_RETURN_ERROR)
+	{
+		dbg("Probably the chunk is malformed or parsed wrong...\n");
+		client->wakeup(EV_HTTP_ERROR,client->connectionID);
+		return HTTP_RETURN_ERROR;
+	}
+
+	// nothing to read, no use to try
+	if(client->state != HTTP_READING_BODY)
+	{
+		pico_err = PICO_ERR_EAGAIN;
+		return HTTP_RETURN_OK;
+	}
+
+
+	readSmallChunk(client,data,size,&lenRead);
+
+	if((value = readBigChunk(client,data,size,&lenRead)))
+		return value;
+
+	return lenRead;
+}
+
 /*
  * API for reading received data.
  *
@@ -331,76 +442,7 @@ int32_t pico_http_client_readData(uint16_t conn, char * data, uint16_t size)
 	if(client->header->transferCoding == HTTP_TRANSFER_FULL)
 		return pico_socket_read(client->sck,(void *)data,size);
 	else
-	{
-		int lenRead = 0;
-
-		// read the chunk line
-		if(readChunkLine(client) == HTTP_RETURN_ERROR)
-		{
-			dbg("Probably the chunk is malformed or parsed wrong...\n");
-			client->wakeup(EV_HTTP_ERROR,client->connectionID);
-			return HTTP_RETURN_ERROR;
-		}
-
-		// nothing to read, no use to try
-		if(client->state != HTTP_READING_BODY)
-		{
-			pico_err = PICO_ERR_EAGAIN;
-			return HTTP_RETURN_OK;
-		}
-
-		// check if we need more than one chunk
-		if(size >= client->header->contentLengthOrChunk)
-		{
-			// read the rest of the chunk, if chunk is done, proceed to the next chunk
-			while((uint16_t)lenRead <= size)
-			{
-				int tmpLenRead = 0;
-
-				if(client->state == HTTP_READING_BODY)
-				{
-
-					// if needed truncate the data
-					tmpLenRead = pico_socket_read(client->sck,data + lenRead,
-					(client->header->contentLengthOrChunk < ((uint32_t)(size-lenRead))) ? (int)client->header->contentLengthOrChunk : (size-lenRead));
-
-					if(tmpLenRead > 0)
-					{
-						client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)tmpLenRead;
-					}
-					else if(tmpLenRead < 0)
-					{
-						// error on reading
-						dbg(">>> Error returned pico_socket_read\n");
-						pico_err = PICO_ERR_EBUSY;
-						// return how much data was read until now
-						return lenRead;
-					}
-				}
-
-				lenRead += tmpLenRead;
-				if(readChunkLine(client) == HTTP_RETURN_ERROR)
-				{
-					dbg("Probably the chunk is malformed or parsed wrong...\n");
-					client->wakeup(EV_HTTP_ERROR,client->connectionID);
-					return HTTP_RETURN_ERROR;
-				}
-
-				if(client->state != HTTP_READING_BODY || !tmpLenRead)  break;
-
-			}
-		}
-		else
-		{
-			// read the data from the chunk
-			lenRead = pico_socket_read(client->sck,(void *)data,size);
-
-			if(lenRead)
-				client->header->contentLengthOrChunk = client->header->contentLengthOrChunk - (uint32_t)lenRead;
-		}
-
-		return lenRead;
-	}
+		return readChunkedData(client,data,size);
 }
 
 /*
