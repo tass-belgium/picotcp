@@ -29,9 +29,57 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+#define SSL_ARC4
+
 static struct pico_ip4 ZERO_IP4 = { 0 };
 static struct pico_ip_mreq ZERO_MREQ = { .mcast_group_addr = {0}, .mcast_link_addr = {0} };
 static struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+
+#ifdef SSL_ARC4
+typedef struct
+{
+    int x;                      /*!< permutation index */
+    int y;                      /*!< permutation index */
+    unsigned char m[256];       /*!< permutation table */
+}
+arc4_context;
+#define KEY_SIZE 256
+static const unsigned char arc4_key[KEY_SIZE] =
+{
+    0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
+    0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
+    0xCA, 0x82, 0xC9, 0x7D, 0xFA, 0x59, 0x47, 0xF0,
+    0xAD, 0xD4, 0xA2, 0xAF, 0x9C, 0xA4, 0x72, 0xC0,
+    0xB7, 0xFD, 0x93, 0x26, 0x36, 0x3F, 0xF7, 0xCC,
+    0x34, 0xA5, 0xE5, 0xF1, 0x71, 0xD8, 0x31, 0x15,
+    0x04, 0xC7, 0x23, 0xC3, 0x18, 0x96, 0x05, 0x9A,
+    0x07, 0x12, 0x80, 0xE2, 0xEB, 0x27, 0xB2, 0x75,
+    0x09, 0x83, 0x2C, 0x1A, 0x1B, 0x6E, 0x5A, 0xA0,
+    0x52, 0x3B, 0xD6, 0xB3, 0x29, 0xE3, 0x2F, 0x84,
+    0x53, 0xD1, 0x00, 0xED, 0x20, 0xFC, 0xB1, 0x5B,
+    0x6A, 0xCB, 0xBE, 0x39, 0x4A, 0x4C, 0x58, 0xCF,
+    0xD0, 0xEF, 0xAA, 0xFB, 0x43, 0x4D, 0x33, 0x85,
+    0x45, 0xF9, 0x02, 0x7F, 0x50, 0x3C, 0x9F, 0xA8,
+    0x51, 0xA3, 0x40, 0x8F, 0x92, 0x9D, 0x38, 0xF5,
+    0xBC, 0xB6, 0xDA, 0x21, 0x10, 0xFF, 0xF3, 0xD2,
+    0xCD, 0x0C, 0x13, 0xEC, 0x5F, 0x97, 0x44, 0x17,
+    0xC4, 0xA7, 0x7E, 0x3D, 0x64, 0x5D, 0x19, 0x73,
+    0x60, 0x81, 0x4F, 0xDC, 0x22, 0x2A, 0x90, 0x88,
+    0x46, 0xEE, 0xB8, 0x14, 0xDE, 0x5E, 0x0B, 0xDB,
+    0xE0, 0x32, 0x3A, 0x0A, 0x49, 0x06, 0x24, 0x5C,
+    0xC2, 0xD3, 0xAC, 0x62, 0x91, 0x95, 0xE4, 0x79,
+    0xE7, 0xC8, 0x37, 0x6D, 0x8D, 0xD5, 0x4E, 0xA9,
+    0x6C, 0x56, 0xF4, 0xEA, 0x65, 0x7A, 0xAE, 0x08,
+    0xBA, 0x78, 0x25, 0x2E, 0x1C, 0xA6, 0xB4, 0xC6,
+    0xE8, 0xDD, 0x74, 0x1F, 0x4B, 0xBD, 0x8B, 0x8A,
+    0x70, 0x3E, 0xB5, 0x66, 0x48, 0x03, 0xF6, 0x0E,
+    0x61, 0x35, 0x57, 0xB9, 0x86, 0xC1, 0x1D, 0x9E,
+    0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94,
+    0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
+    0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68,
+    0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
+};
+#endif
 
 //#define INFINITE_TCPTEST
 #define picoapp_dbg(...) do{}while(0)
@@ -53,7 +101,68 @@ void deferred_exit(unsigned long __attribute__((unused)) now, void *arg)
   printf("%s: quitting\n", __FUNCTION__);
   exit(0);
 }
+#ifdef SSL_ARC4
+/*
+ * ARC4 key schedule
+ */
+void arc4_setup( arc4_context *ctx, const unsigned char *key, unsigned int keylen )
+{
+    int i, j, a;
+    unsigned int k;
+    unsigned char *m;
 
+    ctx->x = 0;
+    ctx->y = 0;
+    m = ctx->m;
+
+    for( i = 0; i < 256; i++ )
+        m[i] = (unsigned char) i;
+
+    j = k = 0;
+
+    for( i = 0; i < 256; i++, k++ )
+    {
+        if( k >= keylen ) k = 0;
+
+        a = m[i];
+        j = ( j + a + key[k] ) & 0xFF;
+        m[i] = m[j];
+        m[j] = (unsigned char) a;
+    }
+}
+
+/*
+ * ARC4 cipher function
+ */
+int arc4_crypt( arc4_context *ctx, size_t length, const unsigned char *input,
+                unsigned char *output )
+{
+    int x, y, a, b;
+    size_t i;
+    unsigned char *m;
+
+    x = ctx->x;
+    y = ctx->y;
+    m = ctx->m;
+
+    for( i = 0; i < length; i++ )
+    {
+        x = ( x + 1 ) & 0xFF; a = m[x];
+        y = ( y + a ) & 0xFF; b = m[y];
+
+        m[x] = (unsigned char) b;
+        m[y] = (unsigned char) a;
+
+        output[i] = (unsigned char)
+            ( input[i] ^ m[(unsigned char)( a + b )] );
+    }
+
+    ctx->x = x;
+    ctx->y = y;
+
+    return( 0 );
+}
+#endif
 /*** APPLICATIONS API: ***/
 /* To create a new application, define your initialization
  * function and your callback here */
@@ -953,7 +1062,6 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
   static int closed = 0;
   int r,w;
   static unsigned long count = 0;
-
   count++;
 
   printf("tcpclient> wakeup %lu, event %u\n",count,ev);
@@ -1429,7 +1537,221 @@ void app_tcpbench(char *arg)
 
   return;
 }
+#ifdef SSL_ARC4
+#define TCPTESTSIZ  (100*1024*1024)
+static char *buffer_send;
+static char *buffer_send_crypt;
+static char *buffer_received_crypt;
+static char *buffer_received;
+void cb_cryptcpbench(uint16_t ev, struct pico_socket *s)
+{
+
+  static int closed = 0;
+  static unsigned long count = 0;
+  struct pico_ip4 orig;
+  uint16_t port;
+  char peer[30];
+  static int tcpbench_wr_size = 0;
+  static int tcpbench_rd_size = 0;
+  int tcpbench_w = 0;
+  int tcpbench_r = 0;
+  arc4_context ctx;
+
+  count++;
+
+  if (ev & PICO_SOCK_EV_RD) {
+    do {
+      /* read data, but discard */
+      tcpbench_r = pico_socket_read(s, buffer_received_crypt + tcpbench_rd_size, 1500);
+      if (tcpbench_r > 0){
+        tcpbench_rd_size += tcpbench_r;
+      }
+      else if (tcpbench_r < 0) {
+        printf("tcpbench> Socket Error received: %d. Bailing out.\n", pico_err);
+        exit(5);
+      }
+    } while (tcpbench_r > 0);
+    printf("tcpbench_rd_size = %d      \r", tcpbench_rd_size);
+    if(tcpbench_rd_size == TCPTESTSIZ){
+    	arc4_setup( &ctx, arc4_key, KEY_SIZE );
+    	arc4_crypt( &ctx, tcpbench_rd_size, buffer_received_crypt, buffer_received);
+    	if(!memcmp(buffer_send,buffer_received,TCPTESTSIZ))
+    		printf("BUFFER_SEND and BUFFER_RECEIVED ARE IDENTICAL.\n");
+    	else
+    		printf("BUFFER_SEND and BUFFER_RECEIVED ARE NOT IDENTICAL.\n");
+     }
+   }
+
+  if (ev & PICO_SOCK_EV_CONN) {
+    if (tcpbench_mode == TCP_BENCH_TX) {
+      printf("tcpbench> Connection established with server.\n");
+    } else if (tcpbench_mode == TCP_BENCH_RX) {
+      //sock_a = pico_socket_accept(s, &orig, &port);
+      pico_socket_accept(s, &orig, &port);
+      pico_ipv4_to_string(peer, orig.addr);
+      printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
+    }
+  }
+
+  if (ev & PICO_SOCK_EV_FIN) {
+    printf("tcpbench> Socket closed. Exit normally. \n");
+    if (tcpbench_mode == TCP_BENCH_RX) {
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
+    }
+    exit(0);
+  }
+
+  if (ev & PICO_SOCK_EV_ERR) {
+    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+    exit(1);
+  }
+
+  if (ev & PICO_SOCK_EV_CLOSE) {
+    printf("tcpbench> event close\n");
+    if (tcpbench_mode == TCP_BENCH_RX) {
+      pico_socket_shutdown(s, PICO_SHUT_WR);
+      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
+    } else if (tcpbench_mode == TCP_BENCH_TX) {
+      pico_socket_close(s);
+      return;
+    }
+  }
+
+  if (ev & PICO_SOCK_EV_WR) {
+    if (tcpbench_wr_size < TCPTESTSIZ && tcpbench_mode == TCP_BENCH_TX) {
+      do {
+        tcpbench_w = pico_socket_write(tcpbench_sock, buffer_send_crypt + tcpbench_wr_size, TCPTESTSIZ-tcpbench_wr_size);
+        if (tcpbench_w > 0) {
+          tcpbench_wr_size += tcpbench_w;
+       // printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
+        }
+        if (tcpbench_w < 0) {
+          printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+          exit(5);
+        }
+      } while(tcpbench_w > 0);
+      printf("tcpbench_wr_size = %d      \r", tcpbench_wr_size);
+    } else {
+      if (!closed && tcpbench_mode == TCP_BENCH_TX) {
+        pico_socket_shutdown(s, PICO_SHUT_WR);
+        printf("tcpbench> TCPSIZ written\n");
+        printf("tcpbench> Called shutdown()\n");
+        closed = 1;
+      }
+    }
+  }
+}
+void app_cryptcpbench(char *arg)
+{
+  struct pico_socket *s;
+  char *dport;
+  char *dest;
+  char *mode;
+  int port = 0, i;
+  uint16_t port_be = 0;
+  struct pico_ip4 server_addr;
+  char *nxt;
+  char *sport;
+  int yes = 0;
+  arc4_context ctx;
+  buffer_send=malloc(TCPTESTSIZ);
+
+  nxt = cpy_arg(&mode, arg);
+  for (i = 0; i < TCPTESTSIZ; i++) {
+        char c = (i % 26) + 'a';
+        buffer_send[i] = c;
+      }
+
+  if (*mode == 't') {   /* TEST BENCH SEND MODE */
+    tcpbench_mode = TCP_BENCH_TX;
+    printf("tcpbench> TX\n");
+
+    nxt = cpy_arg(&dest, nxt);
+    if (!dest) {
+      fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport]\n");
+      exit(255);
+    }
+    printf ("+++ Dest is %s\n", dest);
+    if (nxt) {
+      printf("Next arg: %s\n", nxt);
+      nxt=cpy_arg(&dport, nxt);
+      printf("Dport: %s\n", dport);
+    }
+    if (dport) {
+      port = atoi(dport);
+      port_be = short_be((uint16_t)port);
+    }
+    if (port == 0) {
+      port_be = short_be(5555);
+    }
+    printf("tcpbench> Connecting to: %s:%d\n", dest, short_be(port_be));
+    buffer_send_crypt=malloc(TCPTESTSIZ);
+    arc4_setup( &ctx, arc4_key, KEY_SIZE );
+    arc4_crypt( &ctx, TCPTESTSIZ, buffer_send, buffer_send_crypt);
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_cryptcpbench);
+    if (!s)
+      exit(1);
+
+    pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+
+    /* NOTE: used to set a fixed local port and address
+    local_port = short_be(6666);
+    pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
+    pico_socket_bind(s, &local_addr, &local_port);*/
+
+    pico_string_to_ipv4(dest, &server_addr.addr);
+    pico_socket_connect(s, &server_addr, port_be);
+
+  } else if (*mode == 'r') {   /* TEST BENCH RECEIVE MODE */
+	buffer_received_crypt=malloc(TCPTESTSIZ);
+	buffer_received=malloc(TCPTESTSIZ);
+    tcpbench_mode = TCP_BENCH_RX;
+    printf("tcpbench> RX\n");
+
+    cpy_arg(&sport, nxt);
+    if (!sport) {
+      fprintf(stderr, "tcpbench receive needs the following format: tcpbench:rx[:dport]\n");
+      exit(255);
+    }
+    if (sport) {
+      printf("s-port is %s\n", sport);
+      port = atoi(sport);
+      port_be = short_be((uint16_t)port);
+      printf("tcpbench> Got port %d\n", port);
+    }
+    if (port == 0) {
+      port_be = short_be(5555);
+    }
+
+    printf("tcpbench> OPEN\n");
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_cryptcpbench);
+    if (!s)
+      exit(1);
+
+    printf("tcpbench> BIND\n");
+    if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0) {
+      printf("tcpbench> BIND failed because %s\n", strerror(pico_err));
+      exit(1);
+    }
+
+    printf("tcpbench> LISTEN\n");
+    if (pico_socket_listen(s, 40) != 0)
+      exit(1);
+
+    printf("tcpbench> listening port %u ...\n",short_be(port_be));
+  } else {
+    printf("tcpbench> wrong mode argument\n");
+    exit(1);
+  }
+
+  tcpbench_sock = s;
+
+
+  return;
+}
 /*** END TCP BENCH ***/
+#endif
 
 /*** START NATBOX ***/
 void app_natbox(char *arg)
@@ -2258,6 +2580,9 @@ int main(int argc, char **argv)
         else IF_APPNAME("tcpbench") {
           app_tcpbench(args);
         }
+        else IF_APPNAME("cryptcpbench") {
+          app_cryptcpbench(args);
+         }
         else IF_APPNAME("natbox") {
           app_natbox(args);
         }
