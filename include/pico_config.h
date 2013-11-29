@@ -25,6 +25,8 @@ See LICENSE and COPYING for usage.
 # include "arch/pico_pic24.h"
 #elif defined MSP430
 # include "arch/pico_msp430.h"
+#elif defined MBED_TEST
+# include "arch/pico_mbed.h"
 //#elif defined ...
 
 #else
