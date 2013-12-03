@@ -150,8 +150,8 @@ static void *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
 	}
 	else
 	{
-	  struct tcp_input_segment dummy={.seq=long_be(seq)};
-	  // TODO: Check if long_be(seq) is needed
+	  struct tcp_input_segment dummy={.seq=seq};
+
 	  return pico_tree_findKey(&tq->pool,&dummy);
 	}
 
@@ -1256,7 +1256,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
         nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         while(nxt) {
           tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
-          t->rcv_nxt += f->payload_len;
+          t->rcv_nxt += nxt->payload_len;
           nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         }
         t->sock.ev_pending |= PICO_SOCK_EV_RD;
