@@ -920,6 +920,12 @@ struct pico_ip4 pico_dhcp_get_gateway(void* dhcpc)
   return ((struct pico_dhcp_client_cookie*)dhcpc)->gateway;
 }
 
+struct pico_ip4 pico_dhcp_get_netmask(void *dhcpc)
+{
+  return ((struct pico_dhcp_client_cookie*)dhcpc)->netmask;
+}
+
+
 struct pico_ip4 pico_dhcp_get_nameserver(void* dhcpc)
 {
   return ((struct pico_dhcp_client_cookie*)dhcpc)->nameserver;
