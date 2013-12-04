@@ -1603,9 +1603,10 @@ END_TEST
 START_TEST (test_ipfilter)
 {  
   struct pico_device *dev = NULL;
-  uint8_t proto = 0, sport = 0, dport = 0, tos = 0;
+  uint8_t proto = 0, tos = 0;
+  uint16_t sport = 0, dport = 0;
   int8_t priority = 0;
-  int ret =0;
+  int ret = 0;
 
   struct pico_ip4 src_addr = {0};
   struct pico_ip4 saddr_netmask= {0};
@@ -1615,92 +1616,96 @@ START_TEST (test_ipfilter)
   enum filter_action action = 1;
 
   int filter_id1;
-  int filter_id2;
-  int filter_id3;
 
-  uint8_t ipv4_buf[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+  // 192.168.1.2:16415 -> 192.168.1.109:1222 [sending a TCP syn]
+  uint8_t ipv4_buf[]= {0x00,0x02,0xf7,0xf1,0x79,0x33,0xe0,0xdb,0x55,
+		  	  	  	   0xd4,0xb6,0x27,0x08,0x00,0x45,0x00,0x00,0x28,
+		  	  	  	   0x00,0x01,0x00,0x00,0x40,0x06,0xf7,0x0f,0xc0,
+		  	  	  	   0xa8,0x01,0x02,0xc0,0xa8,0x01,0x6d,0x40,0x1f,
+		  	  	  	   0x04,0xc6,0x00,0xb1,0x56,0x5a,0x00,0x00,0x00,
+		  	  	  	   0x00,0x50,0x02,0x20,0x00,0x70,0x32,0x00,0x00};
 
-  uint8_t ipv4_buf2[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf2[]= { 0x15, 0xb4, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
+  struct pico_frame *f;
 
-  int8_t *buffer= pico_zalloc(200);
-  struct pico_frame *f= (struct pico_frame *) buffer;
-  struct pico_frame *f2= (struct pico_frame *) buffer;
-
-  printf("============================== IPFILTER ===============================\n");
-
-  f->buffer = pico_zalloc(10);
-  f->usage_count = pico_zalloc(sizeof(uint32_t));
-
-  /*======================== EMPTY FILTER*/
-  printf("===========> EMPTY FILTER\n");
-
+  printf("IP Filter> Adding a new filter...\n");
   filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, action);
-
-  fail_if(filter_id1 != -1, "Error adding filter\n");
+  fail_if(filter_id1 <= 0, "Error adding filter\n");
   printf("filter_id1 = %d\n", filter_id1);
 
-   // connect the buffer to the f->net_hdr pointer
-  f->net_hdr= ipv4_buf;
-  // connect the buffer to the f->transport_hdr pointer
-  f->transport_hdr= tcp_buf;
+  printf("IP Filter> Trying to add the same filter...\n");
+  ret = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, action);
+  fail_if(ret >0, "Error adding filter\n");
 
-  fail_if(ipfilter(f) != 0, "Error filtering packet: EMPTY FILTER");
+  printf("IP Filter> Deleting added filter...\n");
+  ret = pico_ipv4_filter_del(filter_id1);
+  fail_if(ret != 0, "Error deleting the filter\n");
 
+  printf("IP Filter> Trying to delete the same filter\n");
+  ret = pico_ipv4_filter_del(filter_id1);
+  fail_if(ret != -1, "Deleting non existing filter failed\n");
 
-  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, 4545, priority, tos, action);
-  /*======================= DROP PROTO FILTER: TCP*/
-  printf("===========> DROP PROTO FILTER: TCP\n");
+  f = (struct pico_frame *)pico_zalloc(200);
+  f->buffer = pico_zalloc(20);
+  f->usage_count = pico_zalloc(sizeof(uint32_t));
+  f->buffer = ipv4_buf;
+  f->net_hdr= ipv4_buf + 14u; // shifting to IP layer
+  f->transport_hdr= ipv4_buf + 34u; //shifting to Transport layer
 
-  filter_id2 = pico_ipv4_filter_add(dev, PICO_PROTO_TCP, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
-  printf("filter_id2 = %d\n", filter_id2);
-  fail_if(filter_id2 == -1, "Error adding filter\n");
+  // adding exact filter
+  pico_string_to_ipv4("192.168.1.109",&src_addr.addr);
+  pico_string_to_ipv4("255.255.255.255",&saddr_netmask.addr);
+  sport = 1222u;
+  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+  fail_if(filter_id1 <= 0, "Error adding exact filter\n");
 
+  ret = ipfilter(f);
+  fail_if(ret != 1,"Frame wasn't filtered\n");
 
-  // connect the buffer to the f->net_hdr pointer
-  f2->net_hdr= ipv4_buf2;
-  // connect the buffer to the f->transport_hdr pointer
-  f2->transport_hdr= tcp_buf2;
+  printf("IP Filter> Deleting added filter...\n");
+  ret = pico_ipv4_filter_del(filter_id1);
+  fail_if(ret != 0, "Error deleting the filter\n");
 
-  printf("UNIT: :packet proto:%d\n",f2->proto);
+  printf("IP Filter> Adding masked filter...\n");
+  pico_string_to_ipv4("192.168.1.7",&src_addr.addr);
+  pico_string_to_ipv4("255.255.255.0",&saddr_netmask.addr);
+  sport = 1222u;
 
-  ret = ipfilter(f2);
+  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+  fail_if(filter_id1 <= 0, "Error adding exact filter\n");
 
-  fail_if(ret < 0, "Error filtering packet: DROP PROTO FILTER: TCP");
+  f = (struct pico_frame *)pico_zalloc(200);
+  f->buffer = pico_zalloc(20);
+  f->usage_count = pico_zalloc(sizeof(uint32_t));
+  f->buffer = ipv4_buf;
+  f->net_hdr= ipv4_buf + 14u; // shifting to IP layer
+  f->transport_hdr= ipv4_buf + 34u; //shifting to Transport layer
+  ret = ipfilter(f);
+  fail_if(ret != 1,"Mask filter failed to filter\n");
 
-  /*====================== DELETING FILTERS*/
-  printf("===========> DELETING FILTER\n");
+  printf("IP Filter> Deleting added filter...\n");
+  ret = pico_ipv4_filter_del(filter_id1);
+  fail_if(ret != 0, "Error deleting the filter\n");
 
-  /*Adjust your IPFILTER*/
-  filter_id3 = pico_ipv4_filter_add(NULL, 17, NULL, NULL , NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
-  fail_if(filter_id3 == -1, "Error adding filter\n");
+  printf("IP Filter> Adding bad filter..\n");
+  pico_string_to_ipv4("191.1.1.7",&src_addr.addr);
+  pico_string_to_ipv4("255.255.255.0",&saddr_netmask.addr);
+  sport = 1991u;
+  filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+  fail_if(filter_id1 <= 0, "Error adding bad filter\n");
 
-  printf("filter_id3: %d\n", filter_id3);
-  /*Deleting IPFILTER*/
+  f = (struct pico_frame *)pico_zalloc(200);
+  f->buffer = pico_zalloc(20);
+  f->usage_count = pico_zalloc(sizeof(uint32_t));
+  f->buffer = ipv4_buf;
+  f->net_hdr= ipv4_buf + 14u; // shifting to IP layer
+  f->transport_hdr= ipv4_buf + 34u; //shifting to Transport layer
+  ret = ipfilter(f);
+  fail_if(ret != 0,"Filter shouldn't have filtered this frame\n");
 
-  fail_if(pico_ipv4_filter_del(filter_id2) != 0 , "Error deleting filter 2");
-  fail_if(pico_ipv4_filter_del(filter_id3) != 0 , "Error deleting filter 3");
-  fail_if(pico_ipv4_filter_del(filter_id1) != 0 , "Error deleting filter 1");
+  printf("IP Filter> Deleting added filter...\n");
+  ret = pico_ipv4_filter_del(filter_id1);
+  fail_if(ret != 0, "Error deleting the filter\n");
 
-  printf("filters deleted\n");
-
-  /*======================= REJECT SPORT FILTER*/
-  /*printf("===========> REJECT SPORT FILTER\n");
-
-  pico_ipv4_filter_add(dev, proto, src_addr, saddr_netmask, dst_addr, daddr_netmask, 3333, dport, priority, tos, 3);
-
-  struct pico_frame *f3= (struct pico_frame *) buffer;
-  uint8_t ipv4_buf3[]= {0x45, 0x00, 0x00, 0x4a, 0x91, 0xc3, 0x40, 0x00, 0x3f, 0x06, 0x95, 0x8c, 0x0a, 0x32, 0x00, 0x03, 0x0a, 0x28, 0x00, 0x02};
-  uint8_t tcp_buf3[]= { 0x0D, 0x05, 0x15, 0xb3, 0xd5, 0x75, 0x77, 0xee, 0x00, 0x00, 0x00, 0x00, 0x90, 0x08, 0xf5, 0x3c, 0x55, 0x1f, 0x00, 0x00, 0x03, 0x03,  0x00, 0x08, 0x0a, 0xb7, 0xeb, 0xce, 0xc1, 0xb7, 0xeb, 0xce, 0xb5, 0x01, 0x01, 0x00};
-
-  // connect the buffer to the f->net_hdr pointer
-  f3->net_hdr= ipv4_buf3;
-  // connect the buffer to the f->transport_hdr pointer
-  f3->transport_hdr= tcp_buf3;
-
-  fail_if(ipfilter(f3) != 1, "Error filtering packet: REJECT SPORT FILTER");
-*/
 }
 END_TEST
 

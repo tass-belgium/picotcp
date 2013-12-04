@@ -70,11 +70,11 @@ int filter_compare(void *filterA, void *filterB)
 	if(temp->filter_id && filter->filter_id == temp->filter_id)
 		return 0;
 
-	ipf_dbg("filter ->> %x %x %x %x %d %d\n",filter->in_addr,filter->in_addr_netmask,filter->out_addr,filter->out_addr_netmask,filter->in_port,filter->out_port);
-
+	ipf_dbg("\nfilter ->> %x %x %x %x %d %d %d\n",filter->in_addr,filter->in_addr_netmask,filter->out_addr,filter->out_addr_netmask,filter->in_port,filter->out_port,filter->proto);
+	ipf_dbg("\ntemp ->> %x %x %x %x %d %d %d\n",temp->in_addr,temp->in_addr_netmask,temp->out_addr,temp->out_addr_netmask,temp->in_port,temp->out_port,filter->proto);
 	CHECK_AND_RETURN(filter->fdev,temp->fdev);
 	CHECK_AND_RETURN((filter->in_addr & filter->in_addr_netmask),(temp->in_addr & filter->in_addr_netmask));
-	CHECK_AND_RETURN((filter->out_addr & filter->out_addr_netmask),(temp->out_addr & filter->in_addr_netmask));
+	CHECK_AND_RETURN((filter->out_addr & filter->out_addr_netmask),(temp->out_addr & filter->out_addr_netmask));
 	CHECK_AND_RETURN(filter->in_port,temp->in_port);
 	CHECK_AND_RETURN(filter->out_port,temp->out_port);
 	CHECK_AND_RETURN(filter->priority,temp->priority);
@@ -148,7 +148,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
   if(filter_id == 0)
 	  filter_id = 1;
 
-  new_filter->filter_id = filter_id;
+  new_filter->filter_id = filter_id++;
 
   /*Define filterType_functionPointer here instead of in ipfilter-function, to prevent running multiple times through switch*/
   switch (action) {
@@ -203,6 +203,7 @@ int ipfilter(struct pico_frame *f)
   temp.fdev = f->dev;
   temp.out_addr = ipv4_hdr->dst.addr;
   temp.in_addr = ipv4_hdr->src.addr;
+
   if (ipv4_hdr->proto == PICO_PROTO_TCP ) {
       tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
       temp.out_port = short_be(tcp_hdr->trans.dport);
