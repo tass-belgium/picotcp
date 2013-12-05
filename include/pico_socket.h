@@ -63,7 +63,7 @@ struct pico_socket {
   int id;
   uint16_t state;
   uint16_t opt_flags;
-  uint32_t timestamp;
+  pico_time timestamp;
   void *priv;
 };
 

@@ -158,7 +158,7 @@ struct pico_icmp4_ping_cookie
   uint16_t seq;
   uint16_t size;
   int count;
-  uint32_t timestamp;
+  pico_time timestamp;
   int interval;
   int timeout;
   void (*cb)(struct pico_icmp4_stats*);
@@ -198,7 +198,7 @@ static uint8_t pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 }
 
 
-static void ping_timeout(uint32_t now, void *arg)
+static void ping_timeout(pico_time now, void *arg)
 {
   struct pico_icmp4_ping_cookie *cookie = (struct pico_icmp4_ping_cookie *)arg;
   IGNORE_PARAMETER(now);
@@ -220,7 +220,7 @@ static void ping_timeout(uint32_t now, void *arg)
   }
 }
 
-static void next_ping(uint32_t now, void *arg);
+static void next_ping(pico_time now, void *arg);
 static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
   pico_icmp4_send_echo(cookie);
@@ -230,7 +230,7 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
     pico_timer_add((uint32_t)cookie->interval, next_ping, cookie);
 }
 
-static void next_ping(uint32_t now, void *arg)
+static void next_ping(pico_time now, void *arg)
 {
   struct pico_icmp4_ping_cookie *newcookie, *cookie = (struct pico_icmp4_ping_cookie *)arg;
   IGNORE_PARAMETER(now);

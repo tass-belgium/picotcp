@@ -336,7 +336,7 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
   return ret;
 }
 
-static int release_all_until(struct pico_tcp_queue *q, uint32_t seq,uint32_t * timestamp)
+static int release_all_until(struct pico_tcp_queue *q, uint32_t seq,pico_time * timestamp)
 {
   void *f = NULL, *tmp __attribute__((unused));
   struct pico_tree_node * idx, * temp;
@@ -440,7 +440,7 @@ static uint32_t pico_paws(void)
 
 static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, uint16_t flags, uint16_t optsiz)
 {
-  uint32_t tsval = long_be(pico_tick);
+  uint32_t tsval = long_be((uint32_t)pico_tick);
   uint32_t tsecr = long_be(ts->ts_nxt);
   uint32_t i = 0;
   f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -854,7 +854,7 @@ out:
 }
 
 int pico_tcp_initconn(struct pico_socket *s);
-static void initconn_retry(uint32_t when, void *arg)
+static void initconn_retry(pico_time when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   IGNORE_PARAMETER(when);
@@ -1284,7 +1284,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
   }
 }
 
-static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, uint32_t * timestamp)
+static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, pico_time * timestamp)
 {
   int ret =  release_all_until(&t->tcpq_out, ACKN(f),timestamp);
   if (ret > 0)
@@ -1292,7 +1292,7 @@ static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, 
   return ret;
 }
 
-static uint16_t time_diff(uint32_t a, uint32_t b)
+static uint16_t time_diff(pico_time a, pico_time b)
 {
   if (a >= b)
     return (uint16_t)(a - b);
@@ -1363,12 +1363,12 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
   tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", pico_tick, t->cwnd, t->ssthresh, t->in_flight);
 }
 
-static void add_retransmission_timer(struct pico_socket_tcp *t, uint32_t next_ts);
-static void tcp_retrans_timeout(uint32_t val, void *sock)
+static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_ts);
+static void tcp_retrans_timeout(pico_time val, void *sock)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *) sock;
   struct pico_frame *f = NULL;
-  uint32_t limit = val - t->rto;
+  pico_time limit = val - t->rto;
   if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED
   		|| (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && t->backoff < PICO_TCP_MAX_RETRANS)
   {
@@ -1423,7 +1423,7 @@ static void tcp_retrans_timeout(uint32_t val, void *sock)
 	}
 }
 
-static void add_retransmission_timer(struct pico_socket_tcp *t, uint32_t next_ts)
+static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_ts)
 {
   struct pico_tree_node * index;
 
@@ -1525,7 +1525,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
   struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
   uint32_t rtt = 0;
   uint16_t acked = 0;
-  uint32_t acked_timestamp = 0;
+  pico_time acked_timestamp = 0;
   uint8_t restart_tmr = 0;
 
   struct pico_frame *una = NULL;
@@ -1695,7 +1695,7 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
   return 0;
 }
 
-static void tcp_deltcb(uint32_t when, void *arg)
+static void tcp_deltcb(pico_time when, void *arg)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
   IGNORE_PARAMETER(when);
@@ -2140,7 +2140,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
   return ret;
 }
 
-static void tcp_send_keepalive(uint32_t when, void *_t)
+static void tcp_send_keepalive(pico_time when, void *_t)
 {
   struct pico_socket_tcp *t = (struct pico_socket_tcp *)_t;
   IGNORE_PARAMETER(when);

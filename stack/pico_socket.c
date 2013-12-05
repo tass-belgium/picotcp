@@ -612,7 +612,7 @@ static void socket_clean_queues(struct pico_socket *sock)
     pico_tcp_cleanup_queues(sock);
 }
 
-static void socket_garbage_collect(uint32_t now, void *arg)
+static void socket_garbage_collect(pico_time now, void *arg)
 {
   struct pico_socket *s = (struct pico_socket *) arg;
   IGNORE_PARAMETER(now);
@@ -2104,11 +2104,11 @@ static int checkSocketSanity(struct pico_socket *s)
 
 // checking for pending connections
   if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV)
-    if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT){
+    if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT){
 	  s->parent->number_of_pending_conn--;
 	  return -1;
 	}
-  if((uint32_t)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
+  if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
 	// checking for hanging sockets
 	if( (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED ) )
 	  return -1;

@@ -7,8 +7,8 @@ See LICENSE and COPYING for usage.
 #define _INCLUDE_PICO_CONST
 /* Included from pico_config.h */
 /** Endian-dependant constants **/
-
-extern volatile uint32_t pico_tick;
+typedef uint64_t pico_time;
+extern volatile uint64_t pico_tick;
 
 #ifdef PICO_BIGENDIAN
 

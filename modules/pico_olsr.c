@@ -368,7 +368,7 @@ struct olsr_fwd_pkt
 
 static uint32_t buffer_mem_used = 0U;
 
-void olsr_process_out(uint32_t now, void *arg)
+void olsr_process_out(pico_time now, void *arg)
 {
   struct olsr_fwd_pkt *p = (struct olsr_fwd_pkt *)arg;
   struct pico_ip4 bcast;
@@ -924,7 +924,7 @@ static void wakeup(uint16_t ev, struct pico_socket *s)
   pico_free(recvbuf);
 }
 
-static void olsr_hello_tick(uint32_t when, void *unused)
+static void olsr_hello_tick(pico_time when, void *unused)
 {
   struct olsr_dev_entry *d;
   (void)when;
@@ -939,7 +939,7 @@ static void olsr_hello_tick(uint32_t when, void *unused)
   pico_timer_add(OLSR_HELLO_INTERVAL, &olsr_hello_tick, NULL);
 }
 
-static void olsr_tc_tick(uint32_t when, void *unused)
+static void olsr_tc_tick(pico_time when, void *unused)
 {
   struct olsr_dev_entry *d;
   (void)when;

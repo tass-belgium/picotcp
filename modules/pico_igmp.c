@@ -129,8 +129,8 @@ struct igmp_parameters {
 struct igmp_timer {
   uint8_t type;
   uint8_t stopped;
-  uint32_t start;
-  uint32_t delay;
+  pico_time start;
+  pico_time delay;
   struct pico_ip4 mcast_link;
   struct pico_ip4 mcast_group;
   struct pico_frame *f;
@@ -212,7 +212,7 @@ static int pico_igmp_delete_parameter(struct igmp_parameters *p)
   return 0;
 }
 
-static void pico_igmp_timer_expired(uint32_t now, void *arg)
+static void pico_igmp_timer_expired(pico_time now, void *arg)
 {
   struct igmp_timer *t = NULL, *timer = NULL, test = {0};
 
@@ -1076,7 +1076,7 @@ static int rtimrtct(struct igmp_parameters *p)
   if (!t)
     return -1;
 
-  time_to_run = t->start + t->delay - PICO_TIME_MS();
+  time_to_run = (uint32_t)(t->start + t->delay - PICO_TIME_MS());
   if ((p->max_resp_time * 100) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
     t->delay = pico_rand() % (p->max_resp_time * 100u);
     pico_igmp_timer_reset(t);

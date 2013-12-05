@@ -83,7 +83,7 @@ static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
   tmp->timer = NULL;
 }
 
-static void pico_slaacv4_send_announce_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_slaacv4_send_announce_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
   struct pico_ip4 netmask = {.addr = 0x0000FFFF};
@@ -103,7 +103,7 @@ static void pico_slaacv4_send_announce_timer(uint32_t __attribute__((unused)) no
   }
 }
 
-static void pico_slaacv4_send_probe_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_slaacv4_send_probe_timer(pico_time __attribute__((unused)) now, void *arg)
 {
 
   struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;

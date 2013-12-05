@@ -129,7 +129,7 @@ struct pico_icmp4_stats
   struct pico_ip4 dst;
   unsigned long size;
   unsigned long seq;
-  uint32_t time;
+  pico_time time;
   unsigned long ttl;
   int err;
 };

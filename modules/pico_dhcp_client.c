@@ -67,7 +67,7 @@ struct pico_dhcp_client_cookie
   uint32_t *uid;
   enum dhcp_client_state state;
   void (*cb)(void* dhcpc, int code);
-  uint32_t init_timestamp;
+  pico_time init_timestamp;
   struct pico_socket *s;
   struct pico_ip4 address;
   struct pico_ip4 netmask;
@@ -156,7 +156,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
     return NULL;
 }
 
-static void pico_dhcp_client_init_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_init_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -178,7 +178,7 @@ static void pico_dhcp_client_init_timer(uint32_t __attribute__((unused)) now, vo
   return;
 }
 
-static void pico_dhcp_client_requesting_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_requesting_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -198,7 +198,7 @@ static void pico_dhcp_client_requesting_timer(uint32_t __attribute__((unused)) n
   return;
 }
 
-static void pico_dhcp_client_renewing_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_renewing_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -213,7 +213,7 @@ static void pico_dhcp_client_renewing_timer(uint32_t __attribute__((unused)) now
   return;
 }
 
-static void pico_dhcp_client_rebinding_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_rebinding_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -228,7 +228,7 @@ static void pico_dhcp_client_rebinding_timer(uint32_t __attribute__((unused)) no
   return;
 }
 
-static void pico_dhcp_client_T1_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T1_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -242,7 +242,7 @@ static void pico_dhcp_client_T1_timer(uint32_t __attribute__((unused)) now, void
   return;
 }
 
-static void pico_dhcp_client_T2_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T2_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -257,7 +257,7 @@ static void pico_dhcp_client_T2_timer(uint32_t __attribute__((unused)) now, void
   return;
 }
 
-static void pico_dhcp_client_lease_timer(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_lease_timer(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 
@@ -272,7 +272,7 @@ static void pico_dhcp_client_lease_timer(uint32_t __attribute__((unused)) now, v
   return;
 }
 
-static void pico_dhcp_client_reinit(uint32_t __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_reinit(pico_time __attribute__((unused)) now, void *arg)
 {
   struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
 

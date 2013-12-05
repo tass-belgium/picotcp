@@ -28,7 +28,7 @@ const uint8_t PICO_ETHADDR_ALL[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static struct pico_queue pending;
 static int pending_timer_on = 0;
 
-void check_pending(uint32_t now, void *_unused)
+void check_pending(pico_time now, void *_unused)
 {
   struct pico_frame *f = pico_dequeue(&pending);
   IGNORE_PARAMETER(now);
@@ -75,7 +75,7 @@ struct pico_arp {
   struct pico_eth eth;
   struct pico_ip4 ipv4;
   int    arp_status;
-  uint32_t timestamp;
+  pico_time timestamp;
   struct pico_device *dev;
 };
 
@@ -179,7 +179,7 @@ void dbg_arp(void)
 }
 #endif
 
-void arp_expire(uint32_t now, void *_stale)
+void arp_expire(pico_time now, void *_stale)
 {
   struct pico_arp *stale = (struct pico_arp *) _stale;
   IGNORE_PARAMETER(now);

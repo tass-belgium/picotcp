@@ -32,18 +32,18 @@ static inline void pico_free(void *tgt)
 
 
 
-static inline uint32_t PICO_TIME(void)
+static inline pico_time PICO_TIME(void)
 {
   struct timeval t;
   gettimeofday(&t, NULL);
-  return (uint32_t)t.tv_sec;
+  return (pico_time)t.tv_sec;
 }
 
-static inline uint32_t PICO_TIME_MS(void)
+static inline pico_time PICO_TIME_MS(void)
 {
   struct timeval t;
   gettimeofday(&t, NULL);
-  return (uint32_t)((t.tv_sec * 1000) + (t.tv_usec / 1000));
+  return (pico_time)((t.tv_sec * 1000) + (t.tv_usec / 1000));
 }
 
 static inline void PICO_IDLE(void)

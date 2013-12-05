@@ -1323,7 +1323,7 @@ void app_tcpecho(char *arg)
 
 int tcpbench_mode = 0;
 struct pico_socket *tcpbench_sock = NULL;
-static unsigned long tcpbench_time_start,tcpbench_time_end;
+static pico_time tcpbench_time_start,tcpbench_time_end;
 
 void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 {
@@ -2262,8 +2262,8 @@ void app_zeromq_prod(char __attribute__((unused)) *arg)
     exit(1);
   }
   while(1) {
-    uint32_t last = 0;
-    uint32_t now; 
+	pico_time last = 0;
+	pico_time now;
     char zmsg[] = "HELLO";
     pico_stack_tick();
     now = PICO_TIME_MS();

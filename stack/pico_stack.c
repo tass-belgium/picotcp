@@ -34,7 +34,7 @@ Authors: Daniele Lacamera
   const uint8_t PICO_ETHADDR_MCAST[6] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x00};
 #endif
 
-volatile uint32_t pico_tick;
+volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
@@ -466,12 +466,12 @@ struct pico_timer
 {
   uint32_t expire;
   void *arg;
-  void (*timer)(uint32_t timestamp, void *arg);
+  void (*timer)(pico_time timestamp, void *arg);
 };
 
 struct pico_timer_ref
 {
-  uint32_t expire;
+  pico_time expire;
   struct pico_timer *tmr;
 };
 
@@ -706,7 +706,7 @@ void pico_stack_loop(void)
   }
 }
 
-struct pico_timer *pico_timer_add(uint32_t expire, void (*timer)(uint32_t, void *), void *arg)
+struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
   struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
   struct pico_timer_ref tref;
