@@ -460,7 +460,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
   f->start[i++] = PICO_TCPOPTLEN_WS;
   f->start[i++] = (uint8_t)(ts->wnd_scale);
 
-  if (optsiz >= 12) {
+  if ((flags & PICO_TCP_SYN) || ts->ts_ok) {
     f->start[i++] = PICO_TCP_OPTION_TIMESTAMP;
     f->start[i++] = PICO_TCPOPTLEN_TIMESTAMP;
     memcpy(f->start + i, &tsval, 4);
@@ -1209,7 +1209,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
       pkt = next_segment(&t->tcpq_in, pkt);
       continue;
     }
-    if(pkt->seq == (right + 1)) {
+    if(pkt->seq == right) {
       right += pkt->payload_len;
       pkt = next_segment(&t->tcpq_in, pkt);
       continue;
@@ -1260,16 +1260,21 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
           nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
         }
         t->sock.ev_pending |= PICO_SOCK_EV_RD;
-        t->rcv_nxt = SEQN(f) + f->payload_len;
       } else {
         tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       }
     } else {
       tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
       if (t->sack_ok) {
-        tcp_sack_prepare(t);
+    	struct tcp_input_segment * input = segment_from_frame(f);
+    	if(input && pico_enqueue_segment(&t->tcpq_in,input) <= 0){
+    		// failed to enqueue, destroy segment
+    		pico_free(input->payload);
+    		pico_free(input);
+    	}
+    	tcp_sack_prepare(t);
       }
-    }
+   }
     /* In either case, ack til recv_nxt. */
     if ( ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
       //tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state);
