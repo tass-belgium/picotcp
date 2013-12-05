@@ -2311,6 +2311,13 @@ START_TEST (test_slaacv4)
 }
 END_TEST
 
+START_TEST (test_tick)
+{
+	pico_tick = (uint64_t)-1;
+	fail_if(pico_tick != 0xFFFFFFFFFFFFFFFF,"Failed to assign (uint64_t)-1 to pico_tick\n");
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
   Suite *s = suite_create("PicoTCP");
@@ -2332,7 +2339,7 @@ Suite *pico_suite(void)
   TCase *frame = tcase_create("FRAME");
   TCase *timers = tcase_create("TIMERS");
   TCase *slaacv4 = tcase_create("SLAACV4");
-
+  TCase *tick = tcase_create("pico_tick");
   tcase_add_test(ipv4, test_ipv4);
   suite_add_tcase(s, ipv4);
 
@@ -2389,6 +2396,9 @@ Suite *pico_suite(void)
 
   tcase_add_test(slaacv4, test_slaacv4);
   suite_add_tcase(s, slaacv4);
+
+  tcase_add_test(tick, test_tick);
+  suite_add_tcase(s, tick);
 
   return s;
 }
