@@ -617,8 +617,10 @@ static void socket_garbage_collect(pico_time now, void *arg)
   struct pico_socket *s = (struct pico_socket *) arg;
   IGNORE_PARAMETER(now);
 
+#ifdef PICO_SUPPORT_TCP
   if(s->parent)
 	  s->parent->number_of_pending_conn--;
+#endif
 
   socket_clean_queues(s);
   pico_free(s);
