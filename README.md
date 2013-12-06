@@ -1,7 +1,7 @@
-<font color=ff00f0>PicoTCP</font>
+PicoTCP
 ---------------
 
-Welcome to the one and only PicoTCP repository. 
+Welcome to the one and only <font color=ff00f0>PicoTCP repository</font>. 
 
 PicoTCP is a TCP/IP stack designed for embedded systems, and developed by *[TASS Belgium NV](http://www.tass.be)*
 
