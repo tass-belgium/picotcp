@@ -37,7 +37,7 @@ static void * Mutex = NULL;
     x = pico_mutex_init(); \
   pico_mutex_lock(x); \
 }
-#define UNLOCK(x) pico_mutex_unlock(x);
+#define UNLOCK(x) pico_mutex_unlock(x)
 
 #else
 #define LOCK(x) do{}while(0)
