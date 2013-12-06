@@ -43,7 +43,7 @@ struct pico_ip4 inaddr_any = { 0 };
 
 static char *cpy_arg(char **dst, char *str);
 
-void deferred_exit(unsigned long __attribute__((unused)) now, void *arg)
+void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
 {
   if (arg) {
     free(arg);
@@ -83,7 +83,7 @@ struct udpclient_pas {
 
 static struct udpclient_pas *udpclient_pas;
 
-void udpclient_send(unsigned long __attribute__((unused)) now, void __attribute__((unused))  *arg) {
+void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((unused))  *arg) {
   struct pico_socket *s = udpclient_pas->s;
   char end[4] = "end";
   char *buf = NULL;
@@ -702,7 +702,7 @@ void app_mcastreceive(char *arg)
 static struct pico_ip4 udpnatclient_inaddr_dst;
 static uint16_t udpnatclient_port_be;
 
-void udpnatclient_send(unsigned long __attribute__((unused)) now, void *arg) {
+void udpnatclient_send(pico_time __attribute__((unused)) now, void *arg) {
   int i, w;
   struct pico_socket *s = (struct pico_socket *)arg;
   char buf[1400] = { };
@@ -746,7 +746,7 @@ void cb_udpnatclient(uint16_t ev, struct pico_socket *s)
   //pico_socket_close(s);
 }
 
-void udpnatclient_open_socket(unsigned long __attribute__((unused)) now, void __attribute__((unused)) *arg)
+void udpnatclient_open_socket(pico_time __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
   struct pico_socket *s = NULL;
   static int loop;
@@ -925,7 +925,7 @@ void app_udpdnsclient(char *arg)
 static char *buffer1;
 static char *buffer0;
 
-void compare_results(unsigned long __attribute__((unused)) now, void __attribute__((unused)) *arg)
+void compare_results(pico_time __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
 #ifdef CONSISTENCY_CHECK /* TODO: Enable */
   int i;
