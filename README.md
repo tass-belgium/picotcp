@@ -1,4 +1,4 @@
-PicoTCP
+<font color=ff00f0>PicoTCP</font>
 ---------------
 
 Welcome to the one and only PicoTCP repository. 
