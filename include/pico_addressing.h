@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_ADDRESSING
 #define _INCLUDE_PICO_ADDRESSING
 #include <stdint.h>
@@ -10,21 +10,21 @@ See LICENSE and COPYING for usage.
 
 struct pico_ip4
 {
-  uint32_t     addr;
+    uint32_t addr;
 };
 #define PICO_SIZE_IP4 4
 
 
 struct pico_ip6
 {
-  uint8_t addr[16];
+    uint8_t addr[16];
 };
 #define PICO_SIZE_IP6 16
 
 struct pico_eth
 {
-  uint8_t addr[6];
-  uint8_t padding[2];
+    uint8_t addr[6];
+    uint8_t padding[2];
 };
 #define PICO_SIZE_ETH 6
 
@@ -33,8 +33,8 @@ extern const uint8_t PICO_ETHADDR_ALL[];
 
 struct pico_trans
 {
-  uint16_t sport;
-  uint16_t dport;
+    uint16_t sport;
+    uint16_t dport;
 
 };
 #define PICO_SIZE_TRANS 8

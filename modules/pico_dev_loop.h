@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_LOOP
 #define _INCLUDE_PICO_LOOP
 #include "pico_config.h"

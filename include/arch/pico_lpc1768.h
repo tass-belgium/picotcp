@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_LPC
 #define _INCLUDE_PICO_LPC
 
@@ -31,14 +31,14 @@ extern void pico_mutex_unlock(void*);
 #define pico_free(x) vPortFree(x)
 #define free(x)      vPortFree(x)
 
-static inline void * pico_zalloc(size_t size)
+static inline void *pico_zalloc(size_t size)
 {
-	void *ptr = pvPortMalloc(size);
+    void *ptr = pvPortMalloc(size);
 
-	if(ptr)
-		memset(ptr,0u,size);
+    if(ptr)
+        memset(ptr, 0u, size);
 
-	return ptr;
+    return ptr;
 }
 
 #define dbg(...)

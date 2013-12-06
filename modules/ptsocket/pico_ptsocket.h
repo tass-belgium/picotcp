@@ -1,10 +1,10 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
+   .
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_PTSOCKET
 #define _INCLUDE_PICO_PTSOCKET
 #include "pico_config.h"
@@ -33,10 +33,10 @@ int pico_ptaccept(int sockfd, void *addr, int *addrlen);
 int pico_ptlisten(int sockfd, int backlog);
 int pico_ptrecvfrom(int sockfd, void *buf, int len, int flags, void *addr, int *addrlen);
 int pico_ptread(int sockfd, void *buf, int len);
-#define pico_ptrecv(s,b,l,f) pico_ptread(s,b,l)
+#define pico_ptrecv(s, b, l, f) pico_ptread(s, b, l)
 int pico_ptsendto(int sockfd, void *buf, int len, int flags, void *addr, int addrlen);
 int pico_ptwrite(int sockfd, void *buf, int len);
-#define pico_ptsend(s,b,l,f) pico_ptwrite(s,b,l)
+#define pico_ptsend(s, b, l, f) pico_ptwrite(s, b, l)
 int pico_ptclose(int sockfd);
 int pico_ptshutdown(int sockfd, int how);
 int pico_ptstart(void);

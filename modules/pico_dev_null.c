@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Daniele Lacamera
-*********************************************************************/
+   Authors: Daniele Lacamera
+ *********************************************************************/
 
 
 #include "pico_device.h"
@@ -11,56 +11,56 @@ Authors: Daniele Lacamera
 #include "pico_stack.h"
 
 struct pico_device_null {
-  struct pico_device dev;
-  int statistics_frames_out;
+    struct pico_device dev;
+    int statistics_frames_out;
 };
 
 #define NULL_MTU 0
 
 static int pico_null_send(struct pico_device *dev, void *buf, int len)
 {
-  struct pico_device_null *null = (struct pico_device_null *) dev;
+    struct pico_device_null *null = (struct pico_device_null *) dev;
 
-  /* Increase the statistic count */
-  null->statistics_frames_out++;
+    /* Increase the statistic count */
+    null->statistics_frames_out++;
 
-  /* Discard the frame content silently. */
-  return len;
+    /* Discard the frame content silently. */
+    return len;
 }
 
 static int pico_null_poll(struct pico_device *dev, int loop_score)
 {
-  /* We never have packet to receive, no score is used. */
-  return loop_score;
+    /* We never have packet to receive, no score is used. */
+    return loop_score;
 }
 
 /* Public interface: create/destroy. */
 
 void pico_null_destroy(struct pico_device *dev)
 {
-  struct pico_device_null *null = (struct pico_device_null *) dev;
-  pico_free(null);
+    struct pico_device_null *null = (struct pico_device_null *) dev;
+    pico_free(null);
 }
 
 struct pico_device *pico_null_create(char *name)
 {
-  struct pico_device_null *null = pico_zalloc(sizeof(struct pico_device_null));
+    struct pico_device_null *null = pico_zalloc(sizeof(struct pico_device_null));
 
-  if (!null)
-    return NULL;
+    if (!null)
+        return NULL;
 
-  if( 0 != pico_device_init((struct pico_device *)null, name, NULL)) {
-    dbg ("Tun init failed.\n");
-    pico_null_destroy((struct pico_device *)null);
-    return NULL;
-  }
+    if( 0 != pico_device_init((struct pico_device *)null, name, NULL)) {
+        dbg ("Tun init failed.\n");
+        pico_null_destroy((struct pico_device *)null);
+        return NULL;
+    }
 
-  null->dev.overhead = 0;
-  null->statistics_frames_out = 0;
-  null->dev.send = pico_null_send;
-  null->dev.poll = pico_null_poll;
-  null->dev.destroy = pico_null_destroy;
-  dbg("Device %s created.\n", null->dev.name);
-  return (struct pico_device *)null;
+    null->dev.overhead = 0;
+    null->statistics_frames_out = 0;
+    null->dev.send = pico_null_send;
+    null->dev.poll = pico_null_poll;
+    null->dev.destroy = pico_null_destroy;
+    dbg("Device %s created.\n", null->dev.name);
+    return (struct pico_device *)null;
 }
 

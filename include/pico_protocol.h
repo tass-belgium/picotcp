@@ -1,10 +1,10 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
-#ifndef _INCLUDE_PICO_PROTOCOL 
-#define _INCLUDE_PICO_PROTOCOL 
+ *********************************************************************/
+#ifndef _INCLUDE_PICO_PROTOCOL
+#define _INCLUDE_PICO_PROTOCOL
 #include <stdint.h>
 #include "pico_queue.h"
 
@@ -12,54 +12,54 @@ See LICENSE and COPYING for usage.
 #define PICO_LOOP_DIR_OUT  2
 
 enum pico_layer {
-  PICO_LAYER_DATALINK = 2,  /* Ethernet only. */
-  PICO_LAYER_NETWORK = 3,   /* IPv4, IPv6, ARP. Arp is there because it communicates with L2 */
-  PICO_LAYER_TRANSPORT = 4, /* UDP, TCP, ICMP */
-  PICO_LAYER_SOCKET = 5     /* Socket management */
+    PICO_LAYER_DATALINK = 2, /* Ethernet only. */
+    PICO_LAYER_NETWORK = 3, /* IPv4, IPv6, ARP. Arp is there because it communicates with L2 */
+    PICO_LAYER_TRANSPORT = 4, /* UDP, TCP, ICMP */
+    PICO_LAYER_SOCKET = 5   /* Socket management */
 };
 
 enum pico_err_e {
-  PICO_ERR_NOERR = 0,
-  PICO_ERR_EPERM,
-  PICO_ERR_ENOENT,
-  /* ... */
-  PICO_ERR_EINTR = 4,
-  PICO_ERR_EIO,
-  PICO_ERR_ENXIO, 
-  /* ... */
-  PICO_ERR_EAGAIN = 11,
-  PICO_ERR_ENOMEM,
-  PICO_ERR_EACCESS,
-  PICO_ERR_EFAULT,
-  /* ... */
-  PICO_ERR_EBUSY = 16,
-  PICO_ERR_EEXIST = 17,
-  /* ... */
-  PICO_ERR_EINVAL = 22,
-  /* ... */
-  PICO_ERR_EPROTO = 71,
-  PICO_ERR_ENOPROTOOPT = 92,
-  PICO_ERR_EPROTONOSUPPORT = 93,
+    PICO_ERR_NOERR = 0,
+    PICO_ERR_EPERM,
+    PICO_ERR_ENOENT,
+    /* ... */
+    PICO_ERR_EINTR = 4,
+    PICO_ERR_EIO,
+    PICO_ERR_ENXIO,
+    /* ... */
+    PICO_ERR_EAGAIN = 11,
+    PICO_ERR_ENOMEM,
+    PICO_ERR_EACCESS,
+    PICO_ERR_EFAULT,
+    /* ... */
+    PICO_ERR_EBUSY = 16,
+    PICO_ERR_EEXIST = 17,
+    /* ... */
+    PICO_ERR_EINVAL = 22,
+    /* ... */
+    PICO_ERR_EPROTO = 71,
+    PICO_ERR_ENOPROTOOPT = 92,
+    PICO_ERR_EPROTONOSUPPORT = 93,
 
-  /* ... */
-  PICO_ERR_EADDRINUSE = 98,
-  PICO_ERR_EADDRNOTAVAIL,
-  PICO_ERR_ENETUNREACH,
+    /* ... */
+    PICO_ERR_EADDRINUSE = 98,
+    PICO_ERR_EADDRNOTAVAIL,
+    PICO_ERR_ENETUNREACH,
 
-  /* ... */
-  PICO_ERR_ECONNRESET = 104,
+    /* ... */
+    PICO_ERR_ECONNRESET = 104,
 
-  /* ... */
-  PICO_ERR_EISCONN = 106,
-  PICO_ERR_ENOTCONN,
-  PICO_ERR_ESHUTDOWN,
-  /* ... */
-  PICO_ERR_ETIMEDOUT = 110,
-  PICO_ERR_ECONNREFUSED = 111,
-  PICO_ERR_EHOSTDOWN,
-  PICO_ERR_EHOSTUNREACH,
-  /* ... */
-  PICO_ERR_EOPNOTSUPP = 122,
+    /* ... */
+    PICO_ERR_EISCONN = 106,
+    PICO_ERR_ENOTCONN,
+    PICO_ERR_ESHUTDOWN,
+    /* ... */
+    PICO_ERR_ETIMEDOUT = 110,
+    PICO_ERR_ECONNREFUSED = 111,
+    PICO_ERR_EHOSTDOWN,
+    PICO_ERR_EHOSTUNREACH,
+    /* ... */
+    PICO_ERR_EOPNOTSUPP = 122,
 
 };
 
@@ -72,16 +72,16 @@ extern volatile pico_err_t pico_err;
 #define MAX_PROTOCOL_NAME 16
 
 struct pico_protocol {
-  const char name[MAX_PROTOCOL_NAME];
-  uint32_t hash;
-  const enum pico_layer layer;
-  const uint16_t proto_number;
-  struct pico_queue * const q_in;
-  struct pico_queue * const q_out;
-  struct pico_frame *(* const alloc)(struct pico_protocol *self, uint16_t size); /* Frame allocation. */
-  int (* const push) (struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
-  int (* const process_out)(struct pico_protocol *self, struct pico_frame *p); /* Send loop. */
-  int (* const process_in)(struct pico_protocol *self, struct pico_frame *p); /* Recv loop. */
+    const char name[MAX_PROTOCOL_NAME];
+    uint32_t hash;
+    const enum pico_layer layer;
+    const uint16_t proto_number;
+    struct pico_queue *const q_in;
+    struct pico_queue *const q_out;
+    struct pico_frame *(*const alloc)(struct pico_protocol *self, uint16_t size); /* Frame allocation. */
+    int (*const push) (struct pico_protocol *self, struct pico_frame *p);   /* Push function, for active outgoing pkts from above */
+    int (*const process_out) (struct pico_protocol *self, struct pico_frame *p); /* Send loop. */
+    int (*const process_in) (struct pico_protocol *self, struct pico_frame *p); /* Recv loop. */
 };
 
 int pico_protocols_loop(int loop_score);

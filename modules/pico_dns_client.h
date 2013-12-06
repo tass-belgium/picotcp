@@ -1,11 +1,11 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
-  
-Authors: Kristof Roelants
-*********************************************************************/
+   .
+
+   Authors: Kristof Roelants
+ *********************************************************************/
 
 #ifndef _INCLUDE_PICO_DNS_CLIENT
 #define _INCLUDE_PICO_DNS_CLIENT

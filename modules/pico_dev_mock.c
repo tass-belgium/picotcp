@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Frederik Van Slycken
-*********************************************************************/
+   Authors: Frederik Van Slycken
+ *********************************************************************/
 
 
 #include "pico_device.h"
@@ -15,143 +15,151 @@ Authors: Frederik Van Slycken
 
 
 
-//Tree for finding mock_device based on pico_device*
+/* Tree for finding mock_device based on pico_device* */
 
 
 static int mock_dev_cmp(void *ka, void *kb)
 {
-	struct mock_device *a = ka, *b = kb;
-  if (a->dev < b->dev)
-    return -1;
-  if (a->dev > b->dev)
-    return 1;
-  return 0;
+    struct mock_device *a = ka, *b = kb;
+    if (a->dev < b->dev)
+        return -1;
+
+    if (a->dev > b->dev)
+        return 1;
+
+    return 0;
 }
 
 PICO_TREE_DECLARE(mock_device_tree, mock_dev_cmp);
 
 static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 {
-	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
-	struct mock_frame* frame;
+    struct mock_device search = {
+        .dev = dev
+    };
+    struct mock_device*mock = pico_tree_findKey(&mock_device_tree, &search);
+    struct mock_frame*frame;
 
-	if(!mock)
-		return 0;
+    if(!mock)
+        return 0;
 
-  if (len > MOCK_MTU)
-    return 0;
+    if (len > MOCK_MTU)
+        return 0;
 
-	frame = pico_zalloc(sizeof(struct mock_frame));
-	if(!frame){
-		return 0;
-	}
+    frame = pico_zalloc(sizeof(struct mock_frame));
+    if(!frame) {
+        return 0;
+    }
 
-	if(mock->out_head == NULL)
-		mock->out_head = frame;
-	else
-		mock->out_tail->next = frame;
-	mock->out_tail = frame;
+    if(mock->out_head == NULL)
+        mock->out_head = frame;
+    else
+        mock->out_tail->next = frame;
 
-	mock->out_tail->buffer = pico_zalloc(len);
-	if(!mock->out_tail->buffer)
-		return 0;
+    mock->out_tail = frame;
 
-	memcpy(mock->out_tail->buffer, buf, len);
-	mock->out_tail->len = len;
+    mock->out_tail->buffer = pico_zalloc(len);
+    if(!mock->out_tail->buffer)
+        return 0;
 
-	return len;
+    memcpy(mock->out_tail->buffer, buf, len);
+    mock->out_tail->len = len;
+
+    return len;
 
 }
 
 static int pico_mock_poll(struct pico_device *dev, int loop_score)
 {
-	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
-	struct mock_frame* nxt;
+    struct mock_device search = {
+        .dev = dev
+    };
+    struct mock_device*mock = pico_tree_findKey(&mock_device_tree, &search);
+    struct mock_frame*nxt;
 
-	if(!mock)
-		return 0;
+    if(!mock)
+        return 0;
 
-  if (loop_score <= 0)
-    return 0;
+    if (loop_score <= 0)
+        return 0;
 
-	while(mock->in_head != NULL && loop_score >0)
-	{
-		pico_stack_recv(dev, mock->in_head->buffer, mock->in_head->len);
-		loop_score--;
+    while(mock->in_head != NULL && loop_score > 0)
+    {
+        pico_stack_recv(dev, mock->in_head->buffer, mock->in_head->len);
+        loop_score--;
 
-		pico_free(mock->in_head->buffer);
+        pico_free(mock->in_head->buffer);
 
-		if(mock->in_tail == mock->in_head){
-			pico_free(mock->in_head);
-			mock->in_tail = mock->in_head = NULL;
-			return loop_score;
-		}
+        if(mock->in_tail == mock->in_head) {
+            pico_free(mock->in_head);
+            mock->in_tail = mock->in_head = NULL;
+            return loop_score;
+        }
 
-		nxt = mock->in_head->next;
-		pico_free(mock->in_head);
-		mock->in_head = nxt;
-	}
-  return loop_score;
+        nxt = mock->in_head->next;
+        pico_free(mock->in_head);
+        mock->in_head = nxt;
+    }
+    return loop_score;
 }
 
-int pico_mock_network_read(struct mock_device* mock, void *buf, int len)
+int pico_mock_network_read(struct mock_device*mock, void *buf, int len)
 {
-	struct mock_frame* nxt;
-	if(mock->out_head == NULL)
-		return 0;
+    struct mock_frame*nxt;
+    if(mock->out_head == NULL)
+        return 0;
 
-	if(len > mock->out_head->len-mock->out_head->read)
-		len = mock->out_head->len - mock->out_head->read;
+    if(len > mock->out_head->len - mock->out_head->read)
+        len = mock->out_head->len - mock->out_head->read;
 
-	memcpy(buf, mock->out_head->buffer, len);
+    memcpy(buf, mock->out_head->buffer, len);
 
-	if(len+mock->out_head->read != mock->out_head->len){
-		mock->out_head->read += len;
-		return len;
-	}
+    if(len + mock->out_head->read != mock->out_head->len) {
+        mock->out_head->read += len;
+        return len;
+    }
 
-	pico_free(mock->out_head->buffer);
+    pico_free(mock->out_head->buffer);
 
-	if(mock->out_tail == mock->out_head){
-		pico_free(mock->out_head);
-		mock->out_tail = mock->out_head = NULL;
-		return len;
-	}
+    if(mock->out_tail == mock->out_head) {
+        pico_free(mock->out_head);
+        mock->out_tail = mock->out_head = NULL;
+        return len;
+    }
 
-	nxt = mock->out_head->next;
-	pico_free(mock->out_head);
-	mock->out_head = nxt;
+    nxt = mock->out_head->next;
+    pico_free(mock->out_head);
+    mock->out_head = nxt;
 
-	return len;
+    return len;
 }
 
-int pico_mock_network_write(struct mock_device* mock, const void *buf, int len)
+int pico_mock_network_write(struct mock_device*mock, const void *buf, int len)
 {
-	struct mock_frame* frame;
-  if (len > MOCK_MTU)
-    return 0;
+    struct mock_frame*frame;
+    if (len > MOCK_MTU)
+        return 0;
 
-	frame = pico_zalloc(sizeof(struct mock_frame));
-	if(!frame){
-		return 0;
-	}
+    frame = pico_zalloc(sizeof(struct mock_frame));
+    if(!frame) {
+        return 0;
+    }
 
-	if(mock->in_head == NULL)
-		mock->in_head = frame;
-	else
-		mock->in_tail->next = frame;
-	mock->in_tail = frame;
+    if(mock->in_head == NULL)
+        mock->in_head = frame;
+    else
+        mock->in_tail->next = frame;
 
-	mock->in_tail->buffer = pico_zalloc(len);
-	if(!mock->in_tail->buffer)
-		return 0;
+    mock->in_tail = frame;
 
-	memcpy(mock->in_tail->buffer, buf, len);
-	mock->in_tail->len = len;
+    mock->in_tail->buffer = pico_zalloc(len);
+    if(!mock->in_tail->buffer)
+        return 0;
 
-	return len;
+    memcpy(mock->in_tail->buffer, buf, len);
+    mock->in_tail->len = len;
+
+    return len;
 
 }
 
@@ -159,82 +167,88 @@ int pico_mock_network_write(struct mock_device* mock, const void *buf, int len)
 
 void pico_mock_destroy(struct pico_device *dev)
 {
-	struct mock_device search = {.dev = dev};
-	struct mock_device* mock = pico_tree_findKey(&mock_device_tree,&search);
-  struct mock_frame* nxt;
+    struct mock_device search = {
+        .dev = dev
+    };
+    struct mock_device*mock = pico_tree_findKey(&mock_device_tree, &search);
+    struct mock_frame*nxt;
 
-	if(!mock)
-		return;
+    if(!mock)
+        return;
 
-	nxt = mock->in_head;
-	while(nxt != NULL){
-		mock->in_head = mock->in_head->next;
-		pico_free(nxt);
-		nxt = mock->in_head;
-	}
-	nxt = mock->out_head;
-	while(nxt != NULL){
-		mock->out_head = mock->out_head->next;
-		pico_free(nxt);
-		nxt = mock->out_head;
-	}
-
-	pico_tree_delete(&mock_device_tree,mock);
+    nxt = mock->in_head;
+    while(nxt != NULL) {
+        mock->in_head = mock->in_head->next;
+        pico_free(nxt);
+        nxt = mock->in_head;
+    }
+    nxt = mock->out_head;
+    while(nxt != NULL) {
+        mock->out_head = mock->out_head->next;
+        pico_free(nxt);
+        nxt = mock->out_head;
+    }
+    pico_tree_delete(&mock_device_tree, mock);
 }
 
-struct mock_device *pico_mock_create(uint8_t* mac)
+struct mock_device *pico_mock_create(uint8_t*mac)
 {
 
-	struct mock_device* mock = pico_zalloc(sizeof(struct mock_device));
-	if(!mock)
-		return NULL;
+    struct mock_device*mock = pico_zalloc(sizeof(struct mock_device));
+    if(!mock)
+        return NULL;
 
-  mock->dev = pico_zalloc(sizeof(struct pico_device));
-  if (!mock->dev){
-		pico_free(mock);
-    return NULL;
-	}
-	if(mac != NULL){
-		mock->mac = pico_zalloc(6*sizeof(uint8_t));
-		if(!mock->mac){
-			pico_free(mock->mac);
-			pico_free(mock);
-			return NULL;
-		}
-		memcpy(mock->mac, mac, 6);
-	}
+    mock->dev = pico_zalloc(sizeof(struct pico_device));
+    if (!mock->dev) {
+        pico_free(mock);
+        return NULL;
+    }
 
-  if( 0 != pico_device_init((struct pico_device *)mock->dev, "mock", mac)) {
-    dbg ("Loop init failed.\n");
-    pico_mock_destroy((struct pico_device *)mock->dev);
-		if(mock->mac != NULL)
-			pico_free(mock->mac);
-		pico_free(mock);
-    return NULL;
-  }
-	mock->dev->send = pico_mock_send;
-	mock->dev->poll = pico_mock_poll;
-	mock->dev->destroy = pico_mock_destroy;
-	dbg("Device %s created.\n", mock->dev->name);
+    if(mac != NULL) {
+        mock->mac = pico_zalloc(6 * sizeof(uint8_t));
+        if(!mock->mac) {
+            pico_free(mock->mac);
+            pico_free(mock);
+            return NULL;
+        }
 
-	pico_tree_insert(&mock_device_tree,mock);
-  return mock;
+        memcpy(mock->mac, mac, 6);
+    }
+
+    if( 0 != pico_device_init((struct pico_device *)mock->dev, "mock", mac)) {
+        dbg ("Loop init failed.\n");
+        pico_mock_destroy((struct pico_device *)mock->dev);
+        if(mock->mac != NULL)
+            pico_free(mock->mac);
+
+        pico_free(mock);
+        return NULL;
+    }
+
+    mock->dev->send = pico_mock_send;
+    mock->dev->poll = pico_mock_poll;
+    mock->dev->destroy = pico_mock_destroy;
+    dbg("Device %s created.\n", mock->dev->name);
+
+    pico_tree_insert(&mock_device_tree, mock);
+    return mock;
 }
 
 /*
  * a few utility functions that check certain fields
  */
 
-uint32_t mock_get_sender_ip4(struct mock_device* mock, void* buf, int len)
+uint32_t mock_get_sender_ip4(struct mock_device*mock, void*buf, int len)
 {
-	uint32_t ret;
-	int start = mock->mac?14:0;
-	if(start+16 > len){
-		dbg("out of range!\n");
-		return 0;
-	}
-	memcpy(&ret, buf+start+12, 4);
-	return ret;
+    uint32_t ret;
+    int start = mock->mac ? 14 : 0;
+    if(start + 16 > len) {
+        dbg("out of range!\n");
+        return 0;
+    }
+
+    memcpy(&ret, buf + start + 12, 4);
+    return ret;
 }
 
 /*
@@ -254,37 +268,40 @@ uint32_t mock_get_sender_ip4(struct mock_device* mock, void* buf, int len)
  *
  */
 
-int mock_ip_protocol(struct mock_device* mock, void* buf, int len)
+int mock_ip_protocol(struct mock_device*mock, void*buf, int len)
 {
-	uint8_t type;
-	int start = mock->mac?14:0;
-	if(start+10 > len){
-		return 0;
-	}
-	memcpy(&type, buf+start+9,1);
-	return type;
+    uint8_t type;
+    int start = mock->mac ? 14 : 0;
+    if(start + 10 > len) {
+        return 0;
+    }
+
+    memcpy(&type, buf + start + 9, 1);
+    return type;
 }
 
-//note : this function doesn't check if the IP header has any options
-int mock_icmp_type(struct mock_device* mock, void* buf, int len)
+/* note : this function doesn't check if the IP header has any options */
+int mock_icmp_type(struct mock_device*mock, void*buf, int len)
 {
-	uint8_t type;
-	int start = mock->mac?14:0;
-	if(start+21 > len){
-		return 0;
-	}
-	memcpy(&type, buf+start+20,1);
-	return type;
+    uint8_t type;
+    int start = mock->mac ? 14 : 0;
+    if(start + 21 > len) {
+        return 0;
+    }
+
+    memcpy(&type, buf + start + 20, 1);
+    return type;
 }
 
-//note : this function doesn't check if the IP header has any options
-int mock_icmp_code(struct mock_device* mock, void* buf, int len)
+/* note : this function doesn't check if the IP header has any options */
+int mock_icmp_code(struct mock_device*mock, void*buf, int len)
 {
-	uint8_t type;
-	int start = mock->mac?14:0;
-	if(start+22 > len){
-		return 0;
-	}
-	memcpy(&type, buf+start+21,1);
-	return type;
+    uint8_t type;
+    int start = mock->mac ? 14 : 0;
+    if(start + 22 > len) {
+        return 0;
+    }
+
+    memcpy(&type, buf + start + 21, 1);
+    return type;
 }

@@ -2,7 +2,7 @@
 #define __PICO_ZMQ_H
 
 struct zmq_socket;
-typedef struct zmq_socket *ZMQ; 
+typedef struct zmq_socket *ZMQ;
 
 ZMQ zmq_publisher(uint16_t _port, void (*cb)(ZMQ z));
 ZMQ zmq_subscriber(void (*cb)(ZMQ z));
