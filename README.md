@@ -1,18 +1,14 @@
-Getting Started
+PicoTCP
 ---------------
 
-Welcome to the one and only PicoTCP repository. Here's what you should do to get the stack compiled, and some tests running on a linux system:
+Welcome to the one and only PicoTCP repository. 
 
-* Open your favourite terminal
-* git clone git://github.com/tass-belgium/picotcp.git
-* cd picotcp
-* make
-* sudo apt-get install vde2
-* sudo apt-get install libvdeplug2-dev
-* make test
-* sudo ./test/autotest.sh
+PicoTCP is a TCP/IP stack designed for embedded systems, and developed by *[TASS Belgium NV](http://www.tass.be)*
 
-From here on, you can look into the source, and start building your very own applications.
+This code is released under the terms of GNU GPL v2 only. Some rights reserved.
+Other licenses may apply at the sole discetion of the copyright holders.
 
-Have fun!
+For more information, visit [the project's website](http://www.picotcp.com)
+
+
 
