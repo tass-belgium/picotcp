@@ -663,7 +663,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     .2S2S2i     )2S2S2[.    .)XS2So(  <;.      .2S2S2o :<.       ]XZZZX(
      nX2S2S,,_s_=3oSS2SoaasuXXS2S2o( .oXoasi_aioSSS22l.]dZoaas_aadXZZXZ'
      vS2SSSXXX2; )S2S2S2SoS2S2S2S2o( iS2S222XSoSS22So.)nXZZXXXZZXXZZXZo
-   +32S22S2Sn  -+S2S2S2S2So22S2So( 12S2SS2S2SS22S}- )SXXZZZZZZZZZXX!-
+     x32S22S2Sn  -+S2S2S2S2So22S2So( 12S2SS2S2SS22S}- )SXXZZZZZZZZZXX!-
       .)S22222i    .i2S2S2o>;:S2S2o(  .<vSoSoSo2S(;     :nXXXXXZXXX(
        .-~~~~-        --- .   - -        --~~~--           --^^~~-
                                   .
