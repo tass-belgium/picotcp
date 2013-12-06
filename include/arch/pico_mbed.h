@@ -10,30 +10,13 @@ Author: Toon Peters
 
 #ifndef PICO_SUPPORT_MBED
 #define PICO_SUPPORT_MBED
-
-#define MBED
-//#define PICO_SUPPORT_CRC
-#define PICO_SUPPORT_DEVLOOP
-#define PICO_SUPPORT_DHCPC
-#define PICO_SUPPORT_DHCPD
-#define PICO_SUPPORT_DNS_CLIENT
-#define PICO_SUPPORT_HTTP_CLIENT
-#define PICO_SUPPORT_HTTP
-#define PICO_SUPPORT_HTTP_SERVER
-#define PICO_SUPPORT_ICMP4
-#define PICO_SUPPORT_PING
-#define PICO_SUPPORT_IGMP2
-#define PICO_SUPPORT_IPFILTER
-//#define PICO_SUPPORT_IPFRAG
-#define PICO_SUPPORT_IPV4
-#define PICO_SUPPORT_MCAST
-#define PICO_SUPPORT_NAT
-#define PICO_SUPPORT_TCP
-#define PICO_SUPPORT_UDP
-
+#include <stdio.h>
 //#include "mbed.h"
 //#include "serial_api.h"
 
+//#define TIME_PRESCALE
+//#define PICO_MEASURE_STACK
+//#define MEMORY_MEASURE
 /*
 Debug needs initialization:
 * void serial_init       (serial_t *obj, PinName tx, PinName rx);
@@ -42,26 +25,91 @@ Debug needs initialization:
 */
 
 #define dbg(...) 
+
+#ifdef PICO_MEASURE_STACK
+
+extern int freeStack;
+#define STACK_TOTAL_WORDS   1000u
+#define STACK_PATTERN       (0xC0CAC01A)
+
+void stack_fill_pattern(void *ptr);
+void stack_count_free_words(void *ptr);
+int stack_get_free_words(void);
+#else 
+#define stack_fill_pattern(...) do{}while(0)
+#define stack_count_free_words(...) do{}while(0)
+#define stack_get_free_words() (0)
+#endif
+
+#ifdef MEMORY_MEASURE // in case, comment out the two defines above me.
+extern uint32_t max_mem;
+extern uint32_t cur_mem;
+
+static inline void * pico_zalloc(int x)
+{
+    uint32_t *ptr;
+    if ((cur_mem + x )> (10 * 1024))
+        return NULL;
+        
+    ptr = (uint32_t *)calloc(x + 4, 1);
+    *ptr = (uint32_t)x;
+    cur_mem += x;
+    if (cur_mem > max_mem) {
+        max_mem = cur_mem;
+  //      printf("max mem: %lu\n", max_mem);
+    }
+    return (void*)(ptr + 1);
+}
+
+static inline void pico_free(void *x)
+{
+    uint32_t *ptr = (uint32_t*)(((uint8_t *)x) - 4);
+    cur_mem -= *ptr;
+    free(ptr);
+}
+#else
+
 #define pico_zalloc(x) calloc(x, 1)
 #define pico_free(x) free(x)
 
+#endif
 
 #define PICO_SUPPORT_MUTEX
 extern void *pico_mutex_init(void);
 extern void pico_mutex_lock(void*);
 extern void pico_mutex_unlock(void*);
 
+extern uint32_t os_time;
+extern uint64_t local_time;
+extern uint32_t last_os_time;
 
+#ifdef TIME_PRESCALE
+extern int32_t prescale_time;
+#endif
 extern uint32_t os_time;
 
-static inline unsigned long PICO_TIME(void)
+#define UPDATE_LOCAL_TIME() do{local_time=local_time+(os_time-last_os_time);last_os_time=os_time;}while(0)
+
+static inline uint64_t PICO_TIME(void)
 {
-  return (unsigned long)os_time / 1000;
+  UPDATE_LOCAL_TIME();
+  #ifdef TIME_PRESCALE
+  return (prescale_time < 0) ? (uint64_t)(local_time / 1000 << (-prescale_time)) : \
+                                (uint64_t)(local_time / 1000 >> prescale_time);
+  #else
+  return (uint64_t)(local_time / 1000);
+  #endif
 }
 
-static inline unsigned long PICO_TIME_MS(void)
+static inline uint64_t PICO_TIME_MS(void)
 {
-  return (unsigned long)os_time;
+  UPDATE_LOCAL_TIME();
+  #ifdef TIME_PRESCALE
+  return (prescale_time < 0) ? (uint64_t)(local_time << (-prescale_time)) : \
+                                (uint64_t)(local_time >> prescale_time);
+  #else
+  return (uint64_t)local_time;
+  #endif
 }
 
 static inline void PICO_IDLE(void)
