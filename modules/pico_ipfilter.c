@@ -26,7 +26,6 @@
 
 /**************** LOCAL DECLARATIONS ****************/
 struct filter_node;
-typedef int (*func_pntr)(struct filter_node *filter, struct pico_frame *f);
 static int filter_compare(void *filterA, void *filterB);
 
 /**************** FILTER TREE ****************/
@@ -47,7 +46,7 @@ struct filter_node {
     int8_t priority;
     uint8_t tos;
     uint8_t filter_id;
-    func_pntr function_ptr;
+    int (*function_ptr)(struct filter_node *filter, struct pico_frame *f);
 };
 
 PICO_TREE_DECLARE(filter_tree, &filter_compare);
