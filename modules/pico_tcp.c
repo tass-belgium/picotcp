@@ -740,8 +740,8 @@ static void tcp_parse_options(struct pico_frame *f)
                 i = i + len - 2;
                 break;
             }
-
-            t->sack_ok = 1;
+            if(((struct pico_tcp_hdr *)(f->transport_hdr))->flags & PICO_TCP_SYN )
+            	t->sack_ok = 1;
             break;
         case PICO_TCP_OPTION_MSS: {
             uint16_t mss;
