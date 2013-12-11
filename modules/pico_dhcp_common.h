@@ -1,10 +1,10 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
+   .
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_DHCP_COMMON
 #define _INCLUDE_PICO_DHCP_COMMON
 #include "pico_addressing.h"
@@ -84,85 +84,85 @@ See LICENSE and COPYING for usage.
 
 struct __attribute__((packed)) pico_dhcp_hdr
 {
-	uint8_t op;
-	uint8_t htype;
-	uint8_t hlen;
-	uint8_t hops; //zero
-	uint32_t xid; //store this in the request
-	uint16_t secs; // ignore
-	uint16_t flags;
-	uint32_t ciaddr; // client address - if asking for renewal
-	uint32_t yiaddr; // your address (client)
-	uint32_t siaddr; // dhcp offered address
-	uint32_t giaddr; // relay agent, bootp.
-	uint8_t hwaddr[6];
-	uint8_t hwaddr_padding[10];
-	char    hostname[64];
-	char    bootp_filename[128];
-	uint32_t dhcp_magic;
-	uint8_t options[];
+    uint8_t op;
+    uint8_t htype;
+    uint8_t hlen;
+    uint8_t hops; /* zero */
+    uint32_t xid; /* store this in the request */
+    uint16_t secs; /* ignore */
+    uint16_t flags;
+    uint32_t ciaddr; /* client address - if asking for renewal */
+    uint32_t yiaddr; /* your address (client) */
+    uint32_t siaddr; /* dhcp offered address */
+    uint32_t giaddr; /* relay agent, bootp. */
+    uint8_t hwaddr[6];
+    uint8_t hwaddr_padding[10];
+    char hostname[64];
+    char bootp_filename[128];
+    uint32_t dhcp_magic;
+    uint8_t options[];
 };
 
 struct __attribute__((packed)) pico_dhcp_opt
 {
-  uint8_t code;
-  uint8_t len;
-  union {
-    struct {
-      struct pico_ip4 ip;
-    } netmask;
-    struct {
-      struct pico_ip4 ip;
-    } router;
-    struct {
-      struct pico_ip4 ip;
-    } dns;
-    struct {
-      struct pico_ip4 ip;
-    } broadcast;
-    struct {
-      struct pico_ip4 ip;
-    } req_ip;
-    struct {
-      uint32_t time;
-    } lease_time;
-    struct {
-      uint8_t value;
-    } opt_overload;
-    struct {
-      char name[1];
-    } tftp_server;
-    struct {
-      char name[1];
-    } bootfile;
-    struct {
-      uint8_t type;
-    } msg_type;
-    struct {
-      struct pico_ip4 ip;
-    } server_id;
-    struct {
-      uint8_t code[1];
-    } param_list;
-    struct {
-      char error[1];
-    } message;
-    struct {
-      uint16_t size;
-    } max_msg_size;
-    struct {
-      uint32_t time;
-    } renewal_time;
-    struct {
-      uint32_t time;
-    } rebinding_time;
-    struct {
-      uint8_t id[1];
-    } vendor_id;
-    struct {
-      uint8_t id[1];
-    } client_id;
-  } ext;
+    uint8_t code;
+    uint8_t len;
+    union {
+        struct {
+            struct pico_ip4 ip;
+        } netmask;
+        struct {
+            struct pico_ip4 ip;
+        } router;
+        struct {
+            struct pico_ip4 ip;
+        } dns;
+        struct {
+            struct pico_ip4 ip;
+        } broadcast;
+        struct {
+            struct pico_ip4 ip;
+        } req_ip;
+        struct {
+            uint32_t time;
+        } lease_time;
+        struct {
+            uint8_t value;
+        } opt_overload;
+        struct {
+            char name[1];
+        } tftp_server;
+        struct {
+            char name[1];
+        } bootfile;
+        struct {
+            uint8_t type;
+        } msg_type;
+        struct {
+            struct pico_ip4 ip;
+        } server_id;
+        struct {
+            uint8_t code[1];
+        } param_list;
+        struct {
+            char error[1];
+        } message;
+        struct {
+            uint16_t size;
+        } max_msg_size;
+        struct {
+            uint32_t time;
+        } renewal_time;
+        struct {
+            uint32_t time;
+        } rebinding_time;
+        struct {
+            uint8_t id[1];
+        } vendor_id;
+        struct {
+            uint8_t id[1];
+        } client_id;
+    } ext;
 };
 
 uint8_t dhcp_get_next_option(uint8_t *begin, uint8_t *data, int *len, uint8_t **nextopt);

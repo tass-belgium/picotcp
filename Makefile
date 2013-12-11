@@ -239,3 +239,8 @@ mbed:
 	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/ptsocket/* modules/ptsocket/ modules/ptsocket/test/ modules/ptsocket/test/* modules/pico_dev_*
 	@rm include/pico_socket.h include/mbed.tmp
 	@mv include/socket.tmp include/pico_socket.h
+
+
+style:
+	@find . -iname "*.[c|h]" |xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*unc-backup*" |xargs -x rm || true

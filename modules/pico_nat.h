@@ -1,11 +1,11 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
-  
-Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
-*********************************************************************/
+   .
+
+   Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
+ *********************************************************************/
 
 #ifndef _INCLUDE_PICO_NAT
 #define _INCLUDE_PICO_NAT
@@ -26,47 +26,47 @@ int pico_ipv4_nat_disable(void);
 int pico_ipv4_nat_is_enabled(struct pico_ip4 *link_addr);
 #else
 
-#define pico_ipv4_nat_print_table() do{}while(0)
+#define pico_ipv4_nat_print_table() do {} while(0)
 static inline int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_nat_disable(void)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_nat_is_enabled(struct pico_ip4 *link_addr)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_nat_find(uint16_t nat_port, struct pico_ip4 *src_addr, uint16_t src_port, uint8_t proto)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 static inline int pico_ipv4_port_forward(struct pico_ip4 nat_addr, uint16_t nat_port, struct pico_ip4 src_addr, uint16_t src_port, uint8_t proto, uint8_t flag)
 {
-  pico_err = PICO_ERR_EPROTONOSUPPORT;
-  return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 #endif
 

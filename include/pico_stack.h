@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_STACK
 #define _INCLUDE_PICO_STACK
 #include "pico_config.h"
@@ -23,9 +23,9 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto);
 /* interface towards ethernet */
 int32_t pico_network_receive(struct pico_frame *f);
 
-/* The pico_ethernet_receive() function is used by 
- * those devices supporting ETH in order to push packets up 
- * into the stack. 
+/* The pico_ethernet_receive() function is used by
+ * those devices supporting ETH in order to push packets up
+ * into the stack.
  */
 /* DATALINK LEVEL */
 int32_t pico_ethernet_receive(struct pico_frame *f);

@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_SOCKET
 #define _INCLUDE_PICO_SOCKET
 #include "pico_queue.h"
@@ -11,9 +11,9 @@ See LICENSE and COPYING for usage.
 #include "pico_protocol.h"
 
 #ifndef MBED
-	#define PICO_DEFAULT_SOCKETQ (128 * 1024)
+    #define PICO_DEFAULT_SOCKETQ (128 * 1024)
 #else
-	#define PICO_DEFAULT_SOCKETQ (4 * 1024)
+    #define PICO_DEFAULT_SOCKETQ (4 * 1024)
 #endif
 
 #define PICO_SHUT_RD   1
@@ -22,71 +22,71 @@ See LICENSE and COPYING for usage.
 
 
 struct pico_socket {
-  struct pico_protocol *proto;
-  struct pico_protocol *net;
+    struct pico_protocol *proto;
+    struct pico_protocol *net;
 
-  union {
-    struct pico_ip4 ip4;
-    struct pico_ip6 ip6;
-  } local_addr;
+    union {
+        struct pico_ip4 ip4;
+        struct pico_ip6 ip6;
+    } local_addr;
 
-  union {
-    struct pico_ip4 ip4;
-    struct pico_ip6 ip6;
-  } remote_addr;
+    union {
+        struct pico_ip4 ip4;
+        struct pico_ip6 ip6;
+    } remote_addr;
 
-  uint16_t local_port;
-  uint16_t remote_port;
+    uint16_t local_port;
+    uint16_t remote_port;
 
-  struct pico_queue q_in;
-  struct pico_queue q_out;
+    struct pico_queue q_in;
+    struct pico_queue q_out;
 
-  void (*wakeup)(uint16_t ev, struct pico_socket *s);
+    void (*wakeup)(uint16_t ev, struct pico_socket *s);
 
 
 #ifdef PICO_SUPPORT_TCP
-  /* For the TCP backlog queue */
-  struct pico_socket *backlog;
-  struct pico_socket *next;
-  struct pico_socket *parent;
-  int max_backlog;
-  uint8_t number_of_pending_conn;
+    /* For the TCP backlog queue */
+    struct pico_socket *backlog;
+    struct pico_socket *next;
+    struct pico_socket *parent;
+    int max_backlog;
+    uint8_t number_of_pending_conn;
 #endif
 #ifdef PICO_SUPPORT_MCAST
-  struct pico_tree *MCASTListen;
+    struct pico_tree *MCASTListen;
 #endif
-  uint16_t ev_pending;
+    uint16_t ev_pending;
 
-  struct pico_device *dev;
+    struct pico_device *dev;
 
-  /* Private field. */
-  int id;
-  uint16_t state;
-  uint16_t opt_flags;
-  pico_time timestamp;
-  void *priv;
+    /* Private field. */
+    int id;
+    uint16_t state;
+    uint16_t opt_flags;
+    pico_time timestamp;
+    void *priv;
 };
 
 struct pico_remote_duple {
-  union {
-    struct pico_ip4 ip4;
-    struct pico_ip6 ip6;
-  } remote_addr;
+    union {
+        struct pico_ip4 ip4;
+        struct pico_ip6 ip6;
+    } remote_addr;
 
-  uint16_t remote_port;
+    uint16_t remote_port;
 };
 
 
 /* request struct for multicast socket opt */
 struct pico_ip_mreq {
-  struct pico_ip4   mcast_group_addr;
-  struct pico_ip4 mcast_link_addr;
+    struct pico_ip4 mcast_group_addr;
+    struct pico_ip4 mcast_link_addr;
 };
 
 struct pico_ip_mreq_source {
-  struct pico_ip4  mcast_group_addr;
-  struct pico_ip4 mcast_source_addr;
-  struct pico_ip4 mcast_link_addr;
+    struct pico_ip4 mcast_group_addr;
+    struct pico_ip4 mcast_source_addr;
+    struct pico_ip4 mcast_link_addr;
 };
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000
@@ -133,8 +133,8 @@ struct pico_ip_mreq_source {
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
 
-#define PICO_SOCKET_TIMEOUT					  90000u //90 seconds
-#define PICO_SOCKET_BOUND_TIMEOUT             30000u //30 seconds
+#define PICO_SOCKET_TIMEOUT                   90000u /* 90 seconds */
+#define PICO_SOCKET_BOUND_TIMEOUT             30000u /* 30 seconds */
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01
 #define PICO_SOCKET_SHUTDOWN_READ  0x02
@@ -205,7 +205,7 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code);
 
 /* Socket loop */
 int pico_sockets_loop(int loop_score);
-struct pico_socket* pico_sockets_find(uint16_t local,uint16_t remote);
+struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote);
 /* Port check */
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net);
 

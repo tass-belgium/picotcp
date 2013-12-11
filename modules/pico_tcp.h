@@ -1,10 +1,10 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
+   .
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_TCP
 #define _INCLUDE_PICO_TCP
 #include "pico_addressing.h"
@@ -14,23 +14,23 @@ See LICENSE and COPYING for usage.
 extern struct pico_protocol pico_proto_tcp;
 
 struct __attribute__((packed)) pico_tcp_hdr {
-  struct pico_trans trans;
-  uint32_t seq;
-  uint32_t ack;
-  uint8_t  len;
-  uint8_t flags;
-  uint16_t  rwnd;
-  uint16_t crc;
-  uint16_t urgent;
+    struct pico_trans trans;
+    uint32_t seq;
+    uint32_t ack;
+    uint8_t len;
+    uint8_t flags;
+    uint16_t rwnd;
+    uint16_t crc;
+    uint16_t urgent;
 };
 
 struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 {
-  struct pico_ip4 src;
-  struct pico_ip4 dst;
-  uint16_t tcp_len;
-  uint8_t res;
-  uint8_t proto;
+    struct pico_ip4 src;
+    struct pico_ip4 dst;
+    uint16_t tcp_len;
+    uint8_t res;
+    uint8_t proto;
 };
 
 #define PICO_TCPHDR_SIZE 20
@@ -71,17 +71,17 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 
 struct __attribute__((packed)) pico_tcp_option
 {
-  uint8_t kind;
-  uint8_t len;
+    uint8_t kind;
+    uint8_t len;
 #if 0
-  union {
-   uint16_t mss;
-    uint8_t wshift;
-    struct {
-      uint32_t tsval;
-      uint32_t tsecr;
-    } timestamp;
-  } data;
+    union {
+        uint16_t mss;
+        uint8_t wshift;
+        struct {
+            uint32_t tsval;
+            uint32_t tsecr;
+        } timestamp;
+    } data;
 #endif
 };
 
@@ -96,5 +96,6 @@ int pico_tcp_queue_in_is_empty(struct pico_socket *s);
 int pico_tcp_reply_rst(struct pico_frame *f);
 void pico_tcp_cleanup_queues(struct pico_socket *sck);
 void pico_tcp_notify_closing(struct pico_socket *sck);
+void transport_flags_update(struct pico_frame *, struct pico_socket *);
 
 #endif

@@ -1,8 +1,8 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_CONFIG
 #define _INCLUDE_PICO_CONFIG
 #include <stdint.h>
@@ -27,7 +27,7 @@ See LICENSE and COPYING for usage.
 # include "arch/pico_msp430.h"
 #elif defined MBED_TEST
 # include "arch/pico_mbed.h"
-//#elif defined ...
+/* #elif defined ... */
 
 #else
 # include "arch/pico_posix.h"

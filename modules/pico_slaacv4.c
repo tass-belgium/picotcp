@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Bogdan Lupu
-*********************************************************************/
+   Authors: Bogdan Lupu
+ *********************************************************************/
 #include "pico_slaacv4.h"
 #include "pico_arp.h"
 #include "pico_constants.h"
@@ -16,29 +16,29 @@ Authors: Bogdan Lupu
 #define SLAACV4_MINRANGE 0x00000100
 #define SLAACV4_MAXRANGE 0x0000FD00
 
-#define SLAACV4_CREATE_IPV4(seed) (((seed % SLAACV4_MAXRANGE ) + SLAACV4_MINRANGE) & SLAACV4_MASK) | SLAACV4_ADDRESS
+#define SLAACV4_CREATE_IPV4(seed) (((seed % SLAACV4_MAXRANGE) + SLAACV4_MINRANGE) & SLAACV4_MASK) | SLAACV4_ADDRESS
 
-#define PROBE_WAIT           1 // delay between two tries during claim
-#define PROBE_NB             3 // number of probe packets during claim
-//#define PROBE_MIN  1
-//#define PROBE_MAX  2
-#define ANNOUNCE_WAIT        2 // delay before start announcing
-#define ANNOUNCE_NB          2 // number of announcement packets
-#define ANNOUNCE_INTERVAL    2 // time between announcement packets
-#define MAX_CONFLICTS       10 // max conflicts before rate limiting
-#define RATE_LIMIT_INTERVAL 60 // time between successive attempts
-#define DEFEND_INTERVAL     10 // minimum interval between defensive ARP
+#define PROBE_WAIT           1 /* delay between two tries during claim */
+#define PROBE_NB             3 /* number of probe packets during claim */
+/* #define PROBE_MIN  1 */
+/* #define PROBE_MAX  2 */
+#define ANNOUNCE_WAIT        2 /* delay before start announcing */
+#define ANNOUNCE_NB          2 /* number of announcement packets */
+#define ANNOUNCE_INTERVAL    2 /* time between announcement packets */
+#define MAX_CONFLICTS       10 /* max conflicts before rate limiting */
+#define RATE_LIMIT_INTERVAL 60 /* time between successive attempts */
+#define DEFEND_INTERVAL     10 /* minimum interval between defensive ARP */
 
-enum slaacv4_state{
-	SLAACV4_RESET = 0,
-	SLAACV4_CLAIMING,
-	SLAACV4_CLAIMED,
-	SLAACV4_ANNOUNCING,
-	SLAACV4_ERROR
+enum slaacv4_state {
+    SLAACV4_RESET = 0,
+    SLAACV4_CLAIMING,
+    SLAACV4_CLAIMED,
+    SLAACV4_ANNOUNCING,
+    SLAACV4_ERROR
 };
 
-struct slaacv4_cookie{
-	uint8_t state;
+struct slaacv4_cookie {
+    uint8_t state;
     uint8_t probe_try_nb;
     uint8_t conflict_nb;
     uint8_t announce_nb;
@@ -52,140 +52,147 @@ static struct slaacv4_cookie slaacv4_local;
 
 static uint32_t pico_slaacv4_getip(struct pico_device *dev, uint8_t rand)
 {
-  uint32_t seed = 0;
-  if (dev->eth != NULL)
-  {
-    seed = pico_hash((const char *)dev->eth->mac.addr);
-  }
-  if (rand)
-  {
-    seed += pico_rand();
-  }
-  return SLAACV4_CREATE_IPV4(seed);
+    uint32_t seed = 0;
+    if (dev->eth != NULL)
+    {
+        seed = pico_hash((const char *)dev->eth->mac.addr);
+    }
+
+    if (rand)
+    {
+        seed += pico_rand();
+    }
+
+    return SLAACV4_CREATE_IPV4(seed);
 }
 
 static void pico_slaacv4_init_cookie(struct pico_ip4 *ip, struct pico_device *dev, struct slaacv4_cookie *ck, void (*cb)(struct pico_ip4 *ip,  uint8_t code))
 {
-  ck->state = SLAACV4_RESET;
-  ck->probe_try_nb = 0;
-  ck->conflict_nb = 0;
-  ck->announce_nb = 0;
-  ck->cb = cb;
-  ck->device = dev;
-  ck->ip.addr = ip->addr;
-  ck->timer = NULL;
+    ck->state = SLAACV4_RESET;
+    ck->probe_try_nb = 0;
+    ck->conflict_nb = 0;
+    ck->announce_nb = 0;
+    ck->cb = cb;
+    ck->device = dev;
+    ck->ip.addr = ip->addr;
+    ck->timer = NULL;
 }
 
 static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
 {
-  pico_timer_cancel(tmp->timer);
+    pico_timer_cancel(tmp->timer);
 
-  tmp->timer = NULL;
+    tmp->timer = NULL;
 }
 
 static void pico_slaacv4_send_announce_timer(pico_time __attribute__((unused)) now, void *arg)
 {
-  struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
-  struct pico_ip4 netmask = {.addr = 0x0000FFFF};
+    struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
+    struct pico_ip4 netmask = {
+        .addr = 0x0000FFFF
+    };
 
-  if (tmp->announce_nb < ANNOUNCE_NB)
-  {
-	pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_ANNOUNCE);
-	tmp->announce_nb++;
-	tmp->timer = pico_timer_add(ANNOUNCE_INTERVAL*1000,pico_slaacv4_send_announce_timer, arg);
-  }
-  else
-  {
-	tmp->state = SLAACV4_CLAIMED;
-	pico_ipv4_link_add(tmp->device, tmp->ip, netmask);
-	if (tmp->cb != NULL)
-      tmp->cb(&tmp->ip, PICO_SLAACV4_SUCCESS);
-  }
+    if (tmp->announce_nb < ANNOUNCE_NB)
+    {
+        pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_ANNOUNCE);
+        tmp->announce_nb++;
+        tmp->timer = pico_timer_add(ANNOUNCE_INTERVAL * 1000, pico_slaacv4_send_announce_timer, arg);
+    }
+    else
+    {
+        tmp->state = SLAACV4_CLAIMED;
+        pico_ipv4_link_add(tmp->device, tmp->ip, netmask);
+        if (tmp->cb != NULL)
+            tmp->cb(&tmp->ip, PICO_SLAACV4_SUCCESS);
+    }
 }
 
 static void pico_slaacv4_send_probe_timer(pico_time __attribute__((unused)) now, void *arg)
 {
 
-  struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
+    struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
 
-  if (tmp->probe_try_nb < PROBE_NB)
-  {
-    pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
-    tmp->probe_try_nb++;
-    tmp->timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, tmp);
-  }
-  else
-  {
-	tmp->state = SLAACV4_ANNOUNCING;
-	tmp->timer = pico_timer_add(ANNOUNCE_WAIT*1000,pico_slaacv4_send_announce_timer, arg);
-  }
+    if (tmp->probe_try_nb < PROBE_NB)
+    {
+        pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
+        tmp->probe_try_nb++;
+        tmp->timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, tmp);
+    }
+    else
+    {
+        tmp->state = SLAACV4_ANNOUNCING;
+        tmp->timer = pico_timer_add(ANNOUNCE_WAIT * 1000, pico_slaacv4_send_announce_timer, arg);
+    }
 }
 
 
 
 static void pico_slaacv4_receive_ipconflict(void)
 {
-  struct slaacv4_cookie *tmp = &slaacv4_local;
+    struct slaacv4_cookie *tmp = &slaacv4_local;
 
-  tmp->conflict_nb++;
-  pico_slaacv4_cancel_timers(tmp);
+    tmp->conflict_nb++;
+    pico_slaacv4_cancel_timers(tmp);
 
-  if(tmp->state == SLAACV4_CLAIMED)
-  {
-	pico_ipv4_link_del(tmp->device,tmp->ip);
-  }
-
-  if (tmp->conflict_nb < MAX_CONFLICTS)
-  {
-	tmp->state = SLAACV4_CLAIMING;
-	tmp->probe_try_nb = 0;
-	tmp->announce_nb = 0;
-    tmp->ip.addr = long_be(pico_slaacv4_getip(tmp->device, (uint8_t)1));
-    pico_arp_register_ipconflict(&tmp->ip, &tmp->device->eth->mac, pico_slaacv4_receive_ipconflict);
-    pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
-    tmp->probe_try_nb++;
-    tmp->timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, tmp);
-  }
-  else
-  {
-    if (tmp->cb != NULL)
+    if(tmp->state == SLAACV4_CLAIMED)
     {
-      tmp->cb(&tmp->ip, PICO_SLAACV4_ERROR);
+        pico_ipv4_link_del(tmp->device, tmp->ip);
     }
-    tmp->state = SLAACV4_ERROR;
-  }
+
+    if (tmp->conflict_nb < MAX_CONFLICTS)
+    {
+        tmp->state = SLAACV4_CLAIMING;
+        tmp->probe_try_nb = 0;
+        tmp->announce_nb = 0;
+        tmp->ip.addr = long_be(pico_slaacv4_getip(tmp->device, (uint8_t)1));
+        pico_arp_register_ipconflict(&tmp->ip, &tmp->device->eth->mac, pico_slaacv4_receive_ipconflict);
+        pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
+        tmp->probe_try_nb++;
+        tmp->timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, tmp);
+    }
+    else
+    {
+        if (tmp->cb != NULL)
+        {
+            tmp->cb(&tmp->ip, PICO_SLAACV4_ERROR);
+        }
+
+        tmp->state = SLAACV4_ERROR;
+    }
 
 }
 
 uint8_t pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip,  uint8_t code))
 {
-  struct pico_ip4 ip;
+    struct pico_ip4 ip;
 
-  ip.addr = long_be(pico_slaacv4_getip(dev, 0));
+    ip.addr = long_be(pico_slaacv4_getip(dev, 0));
 
-  pico_slaacv4_init_cookie(&ip, dev, &slaacv4_local, cb);
-  pico_arp_register_ipconflict(&ip, &dev->eth->mac, pico_slaacv4_receive_ipconflict);
-  pico_arp_request(dev, &ip, PICO_ARP_PROBE);
-  slaacv4_local.state = SLAACV4_CLAIMING;
-  slaacv4_local.probe_try_nb++;
-  slaacv4_local.timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, &slaacv4_local);
+    pico_slaacv4_init_cookie(&ip, dev, &slaacv4_local, cb);
+    pico_arp_register_ipconflict(&ip, &dev->eth->mac, pico_slaacv4_receive_ipconflict);
+    pico_arp_request(dev, &ip, PICO_ARP_PROBE);
+    slaacv4_local.state = SLAACV4_CLAIMING;
+    slaacv4_local.probe_try_nb++;
+    slaacv4_local.timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, &slaacv4_local);
 
-  return 0;
+    return 0;
 }
 
 void pico_slaacv4_unregisterip(void)
 {
-  struct slaacv4_cookie *tmp = &slaacv4_local;
-  struct pico_ip4 empty = { .addr = 0x00000000 };
+    struct slaacv4_cookie *tmp = &slaacv4_local;
+    struct pico_ip4 empty = {
+        .addr = 0x00000000
+    };
 
-  if (tmp->state == SLAACV4_CLAIMED)
-  {
-	pico_ipv4_link_del(tmp->device,tmp->ip);
-  }
+    if (tmp->state == SLAACV4_CLAIMED)
+    {
+        pico_ipv4_link_del(tmp->device, tmp->ip);
+    }
 
-  pico_slaacv4_cancel_timers(tmp);
-  pico_slaacv4_init_cookie(&empty, NULL, tmp, NULL);
-  pico_arp_register_ipconflict(&tmp->ip, NULL, NULL);
+    pico_slaacv4_cancel_timers(tmp);
+    pico_slaacv4_init_cookie(&empty, NULL, tmp, NULL);
+    pico_arp_register_ipconflict(&tmp->ip, NULL, NULL);
 
 }
 

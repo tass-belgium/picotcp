@@ -106,7 +106,7 @@ extern void *pico_thread_create(void *(*routine)(void *), void *arg);
 
 static inline void PICO_IDLE(void)
 {
-  usleep(5000);
+    usleep(5000);
 }
 
 #endif  /* PICO_SUPPORT_POSIX */

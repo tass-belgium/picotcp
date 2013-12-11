@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Daniele Lacamera
-*********************************************************************/
+   Authors: Daniele Lacamera
+ *********************************************************************/
 #ifndef __PICO_OLSR_H
 #define __PICO_OLSR_H
 

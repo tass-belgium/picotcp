@@ -1,7 +1,7 @@
 #ifndef PICO_SUPPORT_PIC24
 #define PICO_SUPPORT_PIC24
 #define dbg printf
-//#define dbg(...)
+/* #define dbg(...) */
 
 /*************************/
 
@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-//#include "phalox_development_board.h"
+/* #include "phalox_development_board.h" */
 
 #ifndef __PIC24F__
 #define __PIC24F__
@@ -28,7 +28,7 @@
 #endif
 
 #ifndef PICO_SUPPORT_DHCP
-//#define PICO_SUPPORT_DHCP
+/* #define PICO_SUPPORT_DHCP */
 #endif
 
 #ifndef PICO_SUPPORT_TCP
@@ -69,13 +69,13 @@
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
 static inline void *pico_zalloc(int len)
 {
-    //dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0));
+    /* dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0)); */
     return calloc(len, 1);
 }
 
 static inline void pico_free(void *tgt)
 {
-    //dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0));
+    /* dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0)); */
     free(tgt);
 }
 #else
@@ -83,42 +83,42 @@ static inline void pico_free(void *tgt)
 # define pico_free(x) free(x)
 #endif
 
-extern void * pvPortMalloc( size_t xWantedSize );
+extern void *pvPortMalloc( size_t xWantedSize );
 extern volatile unsigned long __pic24_tick;
 
 static inline unsigned long PICO_TIME(void)
 {
-  unsigned long tick;
-  // Disable timer interrupts
-  TIMBASE_INT_E = 0;
-  tick = __pic24_tick;
-  // Enable timer interrupts
-  TIMBASE_INT_E = 1;
-  return tick / 1000;
+    unsigned long tick;
+    /* Disable timer interrupts */
+    TIMBASE_INT_E = 0;
+    tick = __pic24_tick;
+    /* Enable timer interrupts */
+    TIMBASE_INT_E = 1;
+    return tick / 1000;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-  unsigned long tick;
-  // Disable timer interrupts
-  TIMBASE_INT_E = 0;
-  tick = __pic24_tick;
-  // Enable timer interrupts
-  TIMBASE_INT_E = 1;
-  return tick;
+    unsigned long tick;
+    /* Disable timer interrupts */
+    TIMBASE_INT_E = 0;
+    tick = __pic24_tick;
+    /* Enable timer interrupts */
+    TIMBASE_INT_E = 1;
+    return tick;
 }
 
 static inline void PICO_IDLE(void)
 {
-  unsigned long tick_now;
-  // Disable timer interrupts
-  TIMBASE_INT_E = 0;
-  tick_now = pico_tick;
-  // Enable timer interrupts
-  TIMBASE_INT_E = 1;
-  // Doesn't matter that this call isn't interrupt safe,
-  // we just check for the value to change
-  while(tick_now == __pic24_tick);
+    unsigned long tick_now;
+    /* Disable timer interrupts */
+    TIMBASE_INT_E = 0;
+    tick_now = pico_tick;
+    /* Enable timer interrupts */
+    TIMBASE_INT_E = 1;
+    /* Doesn't matter that this call isn't interrupt safe, */
+    /* we just check for the value to change */
+    while(tick_now == __pic24_tick) ;
 }
 
 #endif

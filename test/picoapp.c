@@ -29,29 +29,35 @@
 #include <fcntl.h>
 #include <libgen.h>
 
-static struct pico_ip4 ZERO_IP4 = { 0 };
-static struct pico_ip_mreq ZERO_MREQ = { .mcast_group_addr = {0}, .mcast_link_addr = {0} };
+static struct pico_ip4 ZERO_IP4 = {
+    0
+};
+static struct pico_ip_mreq ZERO_MREQ = {
+    .mcast_group_addr = {0}, .mcast_link_addr = {0}
+};
 static struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
 
-//#define INFINITE_TCPTEST
-#define picoapp_dbg(...) do{}while(0)
-//#define picoapp_dbg printf
+/* #define INFINITE_TCPTEST */
+#define picoapp_dbg(...) do {} while(0)
+/* #define picoapp_dbg printf */
 
-//#define PICOAPP_IPFILTER 1
+/* #define PICOAPP_IPFILTER 1 */
 
-struct pico_ip4 inaddr_any = { 0 };
+struct pico_ip4 inaddr_any = {
+    0
+};
 
 static char *cpy_arg(char **dst, char *str);
 
 void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
 {
-  if (arg) {
-    free(arg);
-    arg = NULL;
-  }
+    if (arg) {
+        free(arg);
+        arg = NULL;
+    }
 
-  printf("%s: quitting\n", __FUNCTION__);
-  exit(0);
+    printf("%s: quitting\n", __FUNCTION__);
+    exit(0);
 }
 /*** APPLICATIONS API: ***/
 /* To create a new application, define your initialization
@@ -59,213 +65,221 @@ void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
 
 
 /*** UDP CLIENT ***/
-/* 
+/*
  * udpclient expects the following format: udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops]
  * dest_addr: IP address to send datagrams to
  * sendto_port: port number to send datagrams to
  * listen_port [OPTIONAL]: port number on which the udpclient listens
- * datasize [OPTIONAL]: size of the data given to the socket in one go 
+ * datasize [OPTIONAL]: size of the data given to the socket in one go
  * loops [OPTIONAL]: number of intervals in which data is send
  * subloops [OPTIONAL]: number of sends in one interval
- * 
+ *
  * REMARK: once an optional parameter is given, all optional parameters need a value!
  *
- * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a udpclient:10.40.0.3:6667:6667:1400:100:10 
-*/
+ * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a udpclient:10.40.0.3:6667:6667:1400:100:10
+ */
 struct udpclient_pas {
-  struct pico_socket *s;
-  uint8_t loops;
-  uint8_t subloops;
-  uint16_t datasize;
-  struct pico_ip4 dest;
-  uint16_t sport;
+    struct pico_socket *s;
+    uint8_t loops;
+    uint8_t subloops;
+    uint16_t datasize;
+    struct pico_ip4 dest;
+    uint16_t sport;
 }; /* per application struct */
 
 static struct udpclient_pas *udpclient_pas;
 
-void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((unused))  *arg) {
-  struct pico_socket *s = udpclient_pas->s;
-  char end[4] = "end";
-  char *buf = NULL;
-  int i = 0, w = 0;
-  static uint16_t loop = 0;
+void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((unused))  *arg)
+{
+    struct pico_socket *s = udpclient_pas->s;
+    char end[4] = "end";
+    char *buf = NULL;
+    int i = 0, w = 0;
+    static uint16_t loop = 0;
 
-  if (++loop > udpclient_pas->loops) {
-    for (i = 0; i < 3; i++) {
-      w = pico_socket_send(s, end, 4);
-      if (w <= 0)
-        break;
-      printf("%s: requested exit of echo\n", __FUNCTION__);
-    }
-    pico_timer_add(1000, deferred_exit, udpclient_pas);
-    return;
-  } else {
-    buf = calloc(1, udpclient_pas->datasize);
-    if (!buf) {
-      printf("%s: no memory available\n", __FUNCTION__);
-      return;
-    }
-    memset(buf, '1', udpclient_pas->datasize);
-    picoapp_dbg("%s: performing loop %u\n", __FUNCTION__, loop);
-    for (i = 0; i < udpclient_pas->subloops; i++) {
-      w =  pico_socket_send(s, buf, udpclient_pas->datasize);
-      if (w <= 0)
-        break;
-    }
-    picoapp_dbg("%s: written %u byte(s) in each of %u subloops\n", __FUNCTION__, udpclient_pas->datasize, i);
-    free(buf);
-  }
+    if (++loop > udpclient_pas->loops) {
+        for (i = 0; i < 3; i++) {
+            w = pico_socket_send(s, end, 4);
+            if (w <= 0)
+                break;
 
-  pico_timer_add(100, udpclient_send, NULL);
+            printf("%s: requested exit of echo\n", __FUNCTION__);
+        }
+        pico_timer_add(1000, deferred_exit, udpclient_pas);
+        return;
+    } else {
+        buf = calloc(1, udpclient_pas->datasize);
+        if (!buf) {
+            printf("%s: no memory available\n", __FUNCTION__);
+            return;
+        }
+
+        memset(buf, '1', udpclient_pas->datasize);
+        picoapp_dbg("%s: performing loop %u\n", __FUNCTION__, loop);
+        for (i = 0; i < udpclient_pas->subloops; i++) {
+            w =  pico_socket_send(s, buf, udpclient_pas->datasize);
+            if (w <= 0)
+                break;
+        }
+        picoapp_dbg("%s: written %u byte(s) in each of %u subloops\n", __FUNCTION__, udpclient_pas->datasize, i);
+        free(buf);
+    }
+
+    pico_timer_add(100, udpclient_send, NULL);
 }
 
 void cb_udpclient(uint16_t ev, struct pico_socket *s)
 {
-  char *recvbuf = NULL;
-  int r = 0;
+    char *recvbuf = NULL;
+    int r = 0;
 
-  if (ev & PICO_SOCK_EV_RD) {
-    recvbuf = calloc(1, udpclient_pas->datasize);
-    if (!recvbuf) {
-      printf("%s: no memory available\n", __FUNCTION__);
-      return;
+    if (ev & PICO_SOCK_EV_RD) {
+        recvbuf = calloc(1, udpclient_pas->datasize);
+        if (!recvbuf) {
+            printf("%s: no memory available\n", __FUNCTION__);
+            return;
+        }
+
+        do {
+            r = pico_socket_recv(s, recvbuf, udpclient_pas->datasize);
+        } while ( r > 0);
+        free(recvbuf);
     }
-    do {
-      r = pico_socket_recv(s, recvbuf, udpclient_pas->datasize);
-    } while ( r > 0);
-    free(recvbuf);
-  }
 
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    free(udpclient_pas);
-    exit(7);
-  }
+    if (ev == PICO_SOCK_EV_ERR) {
+        printf("Socket Error received. Bailing out.\n");
+        free(udpclient_pas);
+        exit(7);
+    }
 }
 
 void app_udpclient(char *arg)
 {
-  char *daddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
-  uint16_t listen_port = 0, send_port = 0;
-  struct pico_ip4 inaddr_dst = { 0 };
-  char *nxt = arg;
+    char *daddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL, *s_loops = NULL, *s_subloops = NULL;
+    uint16_t listen_port = 0, send_port = 0;
+    struct pico_ip4 inaddr_dst = {
+        0
+    };
+    char *nxt = arg;
 
-  udpclient_pas = calloc(1, sizeof(struct udpclient_pas));
-  if (!udpclient_pas) {
-    printf("%s: no memory available\n", __FUNCTION__);
-    exit(255);
-  }
-  udpclient_pas->s = NULL;
-  udpclient_pas->loops = 100;
-  udpclient_pas->subloops = 10;
-  udpclient_pas->datasize = 1400;
-
-  /* start of argument parsing */
-  if (nxt) {
-    nxt = cpy_arg(&daddr, arg);
-    if (daddr) {
-      pico_string_to_ipv4(daddr, &inaddr_dst.addr);
-      udpclient_pas->dest = inaddr_dst;
-    } else {
-      goto out;
+    udpclient_pas = calloc(1, sizeof(struct udpclient_pas));
+    if (!udpclient_pas) {
+        printf("%s: no memory available\n", __FUNCTION__);
+        exit(255);
     }
-  } else {
-    /* missing dest_addr */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&sport, nxt);
-    if (sport && atoi(sport)) {
-      send_port = short_be(atoi(sport));
-      udpclient_pas->sport = send_port;
+    udpclient_pas->s = NULL;
+    udpclient_pas->loops = 100;
+    udpclient_pas->subloops = 10;
+    udpclient_pas->datasize = 1400;
+
+    /* start of argument parsing */
+    if (nxt) {
+        nxt = cpy_arg(&daddr, arg);
+        if (daddr) {
+            pico_string_to_ipv4(daddr, &inaddr_dst.addr);
+            udpclient_pas->dest = inaddr_dst;
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing dest_addr */
+        goto out;
     }
-  } else {
-    /* missing send_port */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&lport, nxt);
-    if (lport && atoi(lport)) {
-      listen_port = short_be(atoi(lport));
+    if (nxt) {
+        nxt = cpy_arg(&sport, nxt);
+        if (sport && atoi(sport)) {
+            send_port = short_be(atoi(sport));
+            udpclient_pas->sport = send_port;
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing send_port */
+        goto out;
     }
-  } else {
-    /* missing listen_port, use default */
-    listen_port = 0;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&s_datasize, nxt);
-    if (s_datasize && atoi(s_datasize)) {
-      udpclient_pas->datasize = atoi(s_datasize);
+    if (nxt) {
+        nxt = cpy_arg(&lport, nxt);
+        if (lport && atoi(lport)) {
+            listen_port = short_be(atoi(lport));
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing listen_port, use default */
+        listen_port = 0;
     }
-  } else {
-    /* missing datasize, incomplete optional parameters? -> exit */
-    if (lport)
-      goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&s_loops, nxt);
-    if (s_loops && atoi(s_loops)) {
-      udpclient_pas->loops = atoi(s_loops);
+    if (nxt) {
+        nxt = cpy_arg(&s_datasize, nxt);
+        if (s_datasize && atoi(s_datasize)) {
+            udpclient_pas->datasize = atoi(s_datasize);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing datasize, incomplete optional parameters? -> exit */
+        if (lport)
+            goto out;
     }
-  } else {
-    /* missing loops, incomplete optional parameters? -> exit */
-    if (s_datasize)
-      goto out;
-  }
- 
-  if (nxt) {
-    nxt = cpy_arg(&s_subloops, nxt);
-    if (s_subloops && atoi(s_subloops)) {
-      udpclient_pas->subloops = atoi(s_subloops);
+
+    if (nxt) {
+        nxt = cpy_arg(&s_loops, nxt);
+        if (s_loops && atoi(s_loops)) {
+            udpclient_pas->loops = atoi(s_loops);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing loops, incomplete optional parameters? -> exit */
+        if (s_datasize)
+            goto out;
     }
-  } else {
-    /* missing subloops, incomplete optional parameters? -> exit */
-    if (s_loops)
-      goto out;
-  }
-  /* end of argument parsing */
 
-  udpclient_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
-  if (!udpclient_pas->s) {
-    printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
-    free(udpclient_pas);
-    exit(1);
-  }
+    if (nxt) {
+        nxt = cpy_arg(&s_subloops, nxt);
+        if (s_subloops && atoi(s_subloops)) {
+            udpclient_pas->subloops = atoi(s_subloops);
+        } else {
+            goto out;
+        }
+    } else {
+        /* missing subloops, incomplete optional parameters? -> exit */
+        if (s_loops)
+            goto out;
+    }
 
-  if (pico_socket_bind(udpclient_pas->s, &inaddr_any, &listen_port)!= 0) {
-    free(udpclient_pas);
-    printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(listen_port), strerror(pico_err));
-    exit(1);
-  }
+    /* end of argument parsing */
 
-  if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, send_port) != 0)
-  {
-    printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(send_port), strerror(pico_err));
-    free(udpclient_pas);
-    exit(1);
-  }
+    udpclient_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpclient);
+    if (!udpclient_pas->s) {
+        printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
+        free(udpclient_pas);
+        exit(1);
+    }
 
-  printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n\n", 
-          __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(send_port));
+    if (pico_socket_bind(udpclient_pas->s, &inaddr_any, &listen_port) != 0) {
+        free(udpclient_pas);
+        printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_any.addr), short_be(listen_port), strerror(pico_err));
+        exit(1);
+    }
 
-  pico_timer_add(100, udpclient_send, NULL);
-  return;
+    if(pico_socket_connect(udpclient_pas->s, &inaddr_dst, send_port) != 0)
+    {
+        printf("%s: error connecting to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_dst.addr), short_be(send_port), strerror(pico_err));
+        free(udpclient_pas);
+        exit(1);
+    }
 
-  out:
+    printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n\n",
+           __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(send_port));
+
+    pico_timer_add(100, udpclient_send, NULL);
+    return;
+
+out:
     fprintf(stderr, "udpclient expects the following format: udpclient:dest_addr:dest_port[:listen_port:datasize:loops:subloops]\n");
     free(udpclient_pas);
     exit(255);
@@ -273,172 +287,178 @@ void app_udpclient(char *arg)
 /*** END UDP CLIENT ***/
 
 /**** UDP ECHO ****/
-/* 
+/*
  * udpecho expects the following format: udpecho:bind_addr:listen_port[:sendto_port:datasize]
  * bind_addr: IP address to bind to
  * listen_port: port number on which the udpecho listens
  * sendto_port [OPTIONAL]: port number to echo datagrams to (echo to originating IP address)
- * datasize [OPTIONAL]: max size of the data red from the socket in one go 
- * 
+ * datasize [OPTIONAL]: max size of the data red from the socket in one go
+ *
  * REMARK: once an optional parameter is given, all optional parameters need a value!
  *
- * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.3:255.255.255.0: -a udpecho:10.40.0.3:6667:6667:1400 
-*/
+ * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.3:255.255.255.0: -a udpecho:10.40.0.3:6667:6667:1400
+ */
 static int udpecho_exit = 0;
 
 struct udpecho_pas {
-  struct pico_socket *s;
-  uint16_t sendto_port; /* big-endian */
-  uint16_t datasize;
+    struct pico_socket *s;
+    uint16_t sendto_port; /* big-endian */
+    uint16_t datasize;
 }; /* per application struct */
 
 static struct udpecho_pas *udpecho_pas;
 
 void cb_udpecho(uint16_t ev, struct pico_socket *s)
 {
-  char *recvbuf = NULL;
-  uint16_t port = 0;
-  uint32_t peer = 0;
-  int r = 0;
+    char *recvbuf = NULL;
+    uint16_t port = 0;
+    uint32_t peer = 0;
+    int r = 0;
 
-  if (udpecho_exit)
-    return;
+    if (udpecho_exit)
+        return;
 
-  if (ev == PICO_SOCK_EV_RD) {
-    recvbuf = calloc(1, udpecho_pas->datasize);
-    if (!recvbuf) {
-      printf("%s: no memory available\n", __FUNCTION__);
-      return;
-    }
-    do {
-      r = pico_socket_recvfrom(s, recvbuf, udpecho_pas->datasize, &peer, &port);
-      if (r > 0) {
-        if (strncmp(recvbuf, "end", 3) == 0) {
-          printf("Client requested to exit... test successful.\n");
-          pico_timer_add(1000, deferred_exit, udpecho_pas);
-          udpecho_exit++;
+    if (ev == PICO_SOCK_EV_RD) {
+        recvbuf = calloc(1, udpecho_pas->datasize);
+        if (!recvbuf) {
+            printf("%s: no memory available\n", __FUNCTION__);
+            return;
         }
-        pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
-      }
-    } while (r > 0);
-    free(recvbuf);
-  }
 
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    free(udpecho_pas);
-    exit(7);
-  }
+        do {
+            r = pico_socket_recvfrom(s, recvbuf, udpecho_pas->datasize, &peer, &port);
+            if (r > 0) {
+                if (strncmp(recvbuf, "end", 3) == 0) {
+                    printf("Client requested to exit... test successful.\n");
+                    pico_timer_add(1000, deferred_exit, udpecho_pas);
+                    udpecho_exit++;
+                }
 
-  picoapp_dbg("%s: received packet from %08X:%u\n", __FUNCTION__, long_be(peer), short_be(port));
+                pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
+            }
+        } while (r > 0);
+        free(recvbuf);
+    }
+
+    if (ev == PICO_SOCK_EV_ERR) {
+        printf("Socket Error received. Bailing out.\n");
+        free(udpecho_pas);
+        exit(7);
+    }
+
+    picoapp_dbg("%s: received packet from %08X:%u\n", __FUNCTION__, long_be(peer), short_be(port));
 }
 
 void app_udpecho(char *arg)
 {
-  char *baddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL;
-  char *nxt = arg;
-  uint16_t listen_port = 0;
-  struct pico_ip4 inaddr_bind = { 0 };
+    char *baddr = NULL, *lport = NULL, *sport = NULL, *s_datasize = NULL;
+    char *nxt = arg;
+    uint16_t listen_port = 0;
+    struct pico_ip4 inaddr_bind = {
+        0
+    };
 
-  udpecho_pas = calloc(1, sizeof(struct udpecho_pas));
-  if (!udpecho_pas) {
-    printf("%s: no memory available\n", __FUNCTION__);
-    exit(255);
-  }
-  udpecho_pas->s = NULL;
-  udpecho_pas->sendto_port = 0;
-  udpecho_pas->datasize = 1400;
-
-  /* start of argument parsing */
-  if (nxt) {
-    nxt = cpy_arg(&baddr, nxt);
-    if (baddr) {
-      pico_string_to_ipv4(baddr, &inaddr_bind.addr);
-    } else {
-      goto out;
+    udpecho_pas = calloc(1, sizeof(struct udpecho_pas));
+    if (!udpecho_pas) {
+        printf("%s: no memory available\n", __FUNCTION__);
+        exit(255);
     }
-  } else {
-    /* missing bind_addr */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&lport, nxt);
-    if (lport && atoi(lport)) {
-      listen_port = short_be(atoi(lport));
+    udpecho_pas->s = NULL;
+    udpecho_pas->sendto_port = 0;
+    udpecho_pas->datasize = 1400;
+
+    /* start of argument parsing */
+    if (nxt) {
+        nxt = cpy_arg(&baddr, nxt);
+        if (baddr) {
+            pico_string_to_ipv4(baddr, &inaddr_bind.addr);
+        } else {
+            goto out;
+        }
     } else {
-      listen_port = short_be(5555);
+        /* missing bind_addr */
+        goto out;
     }
-  } else {
-    /* missing listen_port */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&sport, nxt);
-    if (sport && atoi(sport)) {
-      udpecho_pas->sendto_port = atoi(sport);
+    if (nxt) {
+        nxt = cpy_arg(&lport, nxt);
+        if (lport && atoi(lport)) {
+            listen_port = short_be(atoi(lport));
+        } else {
+            listen_port = short_be(5555);
+        }
     } else {
-      /* incorrect send_port */
-      goto out;
+        /* missing listen_port */
+        goto out;
     }
-  } else {
-    /* missing send_port, use default */
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&s_datasize, nxt);
-    if (s_datasize && atoi(s_datasize)) {
-      udpecho_pas->datasize = atoi(s_datasize);
+    if (nxt) {
+        nxt = cpy_arg(&sport, nxt);
+        if (sport && atoi(sport)) {
+            udpecho_pas->sendto_port = atoi(sport);
+        } else {
+            /* incorrect send_port */
+            goto out;
+        }
     } else {
-      /* incorrect datasize */
-      goto out;
+        /* missing send_port, use default */
     }
-  } else {
-    /* missing datasize, incomplete optional parameters? -> exit */
-    if (sport)
-      goto out;
-  }
-  /* end of argument parsing */
 
-  udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
-  if (!udpecho_pas->s) {
-    printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
-    free(udpecho_pas);
-    exit(1);
-  }
+    if (nxt) {
+        nxt = cpy_arg(&s_datasize, nxt);
+        if (s_datasize && atoi(s_datasize)) {
+            udpecho_pas->datasize = atoi(s_datasize);
+        } else {
+            /* incorrect datasize */
+            goto out;
+        }
+    } else {
+        /* missing datasize, incomplete optional parameters? -> exit */
+        if (sport)
+            goto out;
+    }
 
-  if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &listen_port)!= 0) {
-    free(udpecho_pas);
-    printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
-    exit(1);
-  }
+    /* end of argument parsing */
+
+    udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
+    if (!udpecho_pas->s) {
+        printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
+        free(udpecho_pas);
+        exit(1);
+    }
+
+    if (pico_socket_bind(udpecho_pas->s, &inaddr_bind, &listen_port) != 0) {
+        free(udpecho_pas);
+        printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
+        exit(1);
+    }
 
 #ifdef PICOAPP_IPFILTER
-  {
-    struct pico_ip4 address, in_addr_netmask, in_addr;
-    //struct pico_ipv4_link *link;
-    int ret = 0;
-    address.addr = 0x0800280a;
-    in_addr_netmask.addr = 0x00FFFFFF;
-    in_addr.addr = 0x0000320a;
-    //link = pico_ipv4_link_get(&address);
+    {
+        struct pico_ip4 address, in_addr_netmask, in_addr;
+        /* struct pico_ipv4_link *link; */
+        int ret = 0;
+        address.addr = 0x0800280a;
+        in_addr_netmask.addr = 0x00FFFFFF;
+        in_addr.addr = 0x0000320a;
+        /* link = pico_ipv4_link_get(&address); */
 
-    printf("udpecho> IPFILTER ENABLED\n");
+        printf("udpecho> IPFILTER ENABLED\n");
 
-    /*Adjust your IPFILTER*/
-    ret |= pico_ipv4_filter_add(NULL, 17, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_DROP);
+        /*Adjust your IPFILTER*/
+        ret |= pico_ipv4_filter_add(NULL, 17, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_DROP);
 
-    if (ret < 0)
-      printf("Filter_add invalid argument\n");
-  }
+        if (ret < 0)
+            printf("Filter_add invalid argument\n");
+    }
 #endif
 
-  printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n\n", __FUNCTION__, udpecho_pas->datasize, short_be(listen_port));
+    printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n\n", __FUNCTION__, udpecho_pas->datasize, short_be(listen_port));
 
-  return;
+    return;
 
-  out:
+out:
     fprintf(stderr, "udpecho expects the following format: udpecho:bind_addr:listen_port[:sendto_port:datasize]\n");
     free(udpecho_pas);
     exit(255);
@@ -446,7 +466,7 @@ void app_udpecho(char *arg)
 /*** END UDP ECHO ***/
 
 /*** Multicast SEND ***/
-/* 
+/*
  * multicast send expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port
  * link_addr: mcastsend picoapp IP address
  * mcast_addr: multicast IP address to send to
@@ -454,105 +474,109 @@ void app_udpecho(char *arg)
  * listen_port: port number on which the mcastsend can receive data
  *
  * f.e.: ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.255.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667
-*/
+ */
 #ifdef PICO_SUPPORT_MCAST
 void app_mcastsend(char *arg)
 {
-  char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
-  uint16_t sendto_port = 0;
-  struct pico_ip4 inaddr_link = { 0 }, inaddr_mcast = { 0 };
-  char *new_arg = NULL, *p = NULL, *nxt = arg;
-  struct pico_ip_mreq mreq = ZERO_MREQ;
+    char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
+    uint16_t sendto_port = 0;
+    struct pico_ip4 inaddr_link = {
+        0
+    }, inaddr_mcast = {
+        0
+    };
+    char *new_arg = NULL, *p = NULL, *nxt = arg;
+    struct pico_ip_mreq mreq = ZERO_MREQ;
 
-  /* start of parameter parsing */
-  if (nxt) {
-    nxt = cpy_arg(&laddr, nxt);
-    if (laddr) {
-      pico_string_to_ipv4(laddr, &inaddr_link.addr);
+    /* start of parameter parsing */
+    if (nxt) {
+        nxt = cpy_arg(&laddr, nxt);
+        if (laddr) {
+            pico_string_to_ipv4(laddr, &inaddr_link.addr);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* no arguments */
+        goto out;
     }
-  } else {
-    /* no arguments */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&maddr, nxt);
-    if (maddr) {
-      pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+    if (nxt) {
+        nxt = cpy_arg(&maddr, nxt);
+        if (maddr) {
+            pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing multicast address */
+        goto out;
     }
-  } else {
-    /* missing multicast address */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&sport, nxt);
-    if (sport && atoi(sport)) {
-      sendto_port = short_be(atoi(sport));
+    if (nxt) {
+        nxt = cpy_arg(&sport, nxt);
+        if (sport && atoi(sport)) {
+            sendto_port = short_be(atoi(sport));
+        } else {
+            /* incorrect send_port */
+            goto out;
+        }
     } else {
-      /* incorrect send_port */
-      goto out;
+        /* missing send_port */
+        goto out;
     }
-  } else {
-    /* missing send_port */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&lport, nxt);
-    if (lport && atoi(lport)) {
-      /* unused at this moment */
-      /* listen_port = short_be(atoi(lport)); */
+    if (nxt) {
+        nxt = cpy_arg(&lport, nxt);
+        if (lport && atoi(lport)) {
+            /* unused at this moment */
+            /* listen_port = short_be(atoi(lport)); */
+        } else {
+            /* incorrect listen_port */
+            goto out;
+        }
     } else {
-      /* incorrect listen_port */
-      goto out;
+        /* missing listen_port */
+        goto out;
     }
-  } else {
-    /* missing listen_port */
-    goto out;
-  }
 
-  printf("\n%s: mcastsend started. Sending packets to %08X:%u\n\n", __FUNCTION__, long_be(inaddr_mcast.addr), short_be(sendto_port));
+    printf("\n%s: mcastsend started. Sending packets to %08X:%u\n\n", __FUNCTION__, long_be(inaddr_mcast.addr), short_be(sendto_port));
 
-  /* udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops] */
-  new_arg = calloc(1, strlen(maddr) + 1 + strlen(sport) + 1 + strlen(lport) + strlen(":64:10:5") + 1);
-  p = strcat(new_arg, maddr);
-  p = strcat(p + strlen(maddr), ":");
-  p = strcat(p + 1, sport);
-  p = strcat(p + strlen(sport), ":");
-  p = strcat(p + 1, lport);
-  p = strcat(p + strlen(lport), ":64:10:5");
+    /* udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops] */
+    new_arg = calloc(1, strlen(maddr) + 1 + strlen(sport) + 1 + strlen(lport) + strlen(":64:10:5") + 1);
+    p = strcat(new_arg, maddr);
+    p = strcat(p + strlen(maddr), ":");
+    p = strcat(p + 1, sport);
+    p = strcat(p + strlen(sport), ":");
+    p = strcat(p + 1, lport);
+    p = strcat(p + strlen(lport), ":64:10:5");
 
-  app_udpclient(new_arg);
+    app_udpclient(new_arg);
 
-  mreq.mcast_group_addr = inaddr_mcast;
-  mreq.mcast_link_addr = inaddr_link;
-  if(pico_socket_setoption(udpclient_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-    exit(1);
-  }
+    mreq.mcast_group_addr = inaddr_mcast;
+    mreq.mcast_link_addr = inaddr_link;
+    if(pico_socket_setoption(udpclient_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+        exit(1);
+    }
 
-  return;
+    return;
 
-  out:
+out:
     fprintf(stderr, "mcastsend expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port\n");
     exit(255);
 }
 #else
 void app_mcastsend(char *arg)
 {
-  printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
-  return;
+    printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
+    return;
 }
 #endif
 /*** END Multicast SEND ***/
 
 /*** Multicast RECEIVE + ECHO ***/
-/* 
+/*
  * multicast receive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port:sendto_port
  * link_addr: mcastreceive picoapp IP address
  * mcast_addr: multicast IP address to receive
@@ -560,139 +584,157 @@ void app_mcastsend(char *arg)
  * sendto_port: port number to echo multicast traffic to (echo to originating IP address)
  *
  * f.e.: ./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667
-*/
+ */
 #ifdef PICO_SUPPORT_MCAST
 void app_mcastreceive(char *arg)
 {
-  char *new_arg = NULL, *p = NULL, *nxt = arg;
-  char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
-  uint16_t listen_port = 0;
-  struct pico_ip4 inaddr_link = { 0 }, inaddr_mcast = { 0 };
-  struct pico_ip_mreq mreq = ZERO_MREQ;
-  struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC;
+    char *new_arg = NULL, *p = NULL, *nxt = arg;
+    char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
+    uint16_t listen_port = 0;
+    struct pico_ip4 inaddr_link = {
+        0
+    }, inaddr_mcast = {
+        0
+    };
+    struct pico_ip_mreq mreq = ZERO_MREQ;
+    struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC;
 
-  /* start of parameter parsing */
-  if (nxt) {
-    nxt = cpy_arg(&laddr, nxt);
-    if (laddr) {
-      pico_string_to_ipv4(laddr, &inaddr_link.addr);
+    /* start of parameter parsing */
+    if (nxt) {
+        nxt = cpy_arg(&laddr, nxt);
+        if (laddr) {
+            pico_string_to_ipv4(laddr, &inaddr_link.addr);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* no arguments */
+        goto out;
     }
-  } else {
-    /* no arguments */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&maddr, nxt);
-    if (maddr) {
-      pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+    if (nxt) {
+        nxt = cpy_arg(&maddr, nxt);
+        if (maddr) {
+            pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+        } else {
+            goto out;
+        }
     } else {
-      goto out;
+        /* missing multicast address */
+        goto out;
     }
-  } else {
-    /* missing multicast address */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&lport, nxt);
-    if (lport && atoi(lport)) {
-      listen_port = short_be(atoi(lport));
+    if (nxt) {
+        nxt = cpy_arg(&lport, nxt);
+        if (lport && atoi(lport)) {
+            listen_port = short_be(atoi(lport));
+        } else {
+            /* incorrect listen_port */
+            goto out;
+        }
     } else {
-      /* incorrect listen_port */
-      goto out;
+        /* missing listen_port */
+        goto out;
     }
-  } else {
-    /* missing listen_port */
-    goto out;
-  }
 
-  if (nxt) {
-    nxt = cpy_arg(&sport, nxt);
-    if (sport && atoi(sport)) {
-      /* unused at this moment */
-      /* send_port = short_be(atoi(sport)); */
+    if (nxt) {
+        nxt = cpy_arg(&sport, nxt);
+        if (sport && atoi(sport)) {
+            /* unused at this moment */
+            /* send_port = short_be(atoi(sport)); */
+        } else {
+            /* incorrect send_port */
+            goto out;
+        }
     } else {
-      /* incorrect send_port */
-      goto out;
+        /* missing send_port */
+        goto out;
     }
-  } else {
-    /* missing send_port */
-    goto out;
-  }
-  /* end of parameter parsing */
 
-  printf("\n%s: multicast receive started. Receiving packets on %s:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
+    /* end of parameter parsing */
 
-  /* udpecho:bind_addr:listen_port[:sendto_port:datasize] */ 
-  new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64") + 1);
-  p = strcat(new_arg, laddr);
-  p = strcat(p + strlen(laddr), ":");
-  p = strcat(p + 1, lport);
-  p = strcat(p + strlen(lport), ":");
-  p = strcat(p + 1, sport);
-  p = strcat(p + strlen(sport), ":64");
+    printf("\n%s: multicast receive started. Receiving packets on %s:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
 
-  app_udpecho(new_arg);
+    /* udpecho:bind_addr:listen_port[:sendto_port:datasize] */
+    new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64") + 1);
+    p = strcat(new_arg, laddr);
+    p = strcat(p + strlen(laddr), ":");
+    p = strcat(p + 1, lport);
+    p = strcat(p + strlen(lport), ":");
+    p = strcat(p + 1, sport);
+    p = strcat(p + strlen(sport), ":64");
 
-  mreq.mcast_group_addr = mreq_source.mcast_group_addr = inaddr_mcast;
-  mreq.mcast_link_addr = mreq_source.mcast_link_addr = inaddr_link;
-  mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_BLOCK_SOURCE, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_BLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_UNBLOCK_SOURCE, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_UNBLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_DROP_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  mreq_source.mcast_source_addr.addr = long_be(0XAC10010A);
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
-    printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  mreq_source.mcast_group_addr.addr = long_be(0XE0010101);
-  if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-    printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-  }
-  return;
+    app_udpecho(new_arg);
 
-  out:
+    mreq.mcast_group_addr = mreq_source.mcast_group_addr = inaddr_mcast;
+    mreq.mcast_link_addr = mreq_source.mcast_link_addr = inaddr_link;
+    mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_BLOCK_SOURCE, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_BLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_UNBLOCK_SOURCE, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_UNBLOCK_SOURCE failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_DROP_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    mreq_source.mcast_source_addr.addr = long_be(0XAC10010A);
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_DROP_MEMBERSHIP, &mreq) < 0) {
+        printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    mreq_source.mcast_source_addr.addr = long_be(0XAC100101);
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    mreq_source.mcast_group_addr.addr = long_be(0XE0010101);
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+    }
+
+    return;
+
+out:
     fprintf(stderr, "mcastreceive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port[:send_port]\n");
     exit(255);
 }
 #else
 void app_mcastreceive(char *arg)
 {
-  printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
-  return;
+    printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
+    return;
 }
 #endif
 /*** END Multicast RECEIVE + ECHO ***/
@@ -702,118 +744,120 @@ void app_mcastreceive(char *arg)
 static struct pico_ip4 udpnatclient_inaddr_dst;
 static uint16_t udpnatclient_port_be;
 
-void udpnatclient_send(pico_time __attribute__((unused)) now, void *arg) {
-  int i, w;
-  struct pico_socket *s = (struct pico_socket *)arg;
-  char buf[1400] = { };
-  char end[4] = "end";
-  static int loop = 0;
+void udpnatclient_send(pico_time __attribute__((unused)) now, void *arg)
+{
+    int i, w;
+    struct pico_socket *s = (struct pico_socket *)arg;
+    char buf[1400] = { };
+    char end[4] = "end";
+    static int loop = 0;
 
-  for ( i = 0; i < 3; i++) {
-    w = pico_socket_send(s, buf, 1400);
-  }
-
-  if (++loop > 1000) {
-    udpnatclient_port_be = 0;
-    for (i = 0; i < 3; i++) {
-      w = pico_socket_send(s, end, 4);
-      if (w <= 0)
-        break;
-      printf("End!\n");
+    for ( i = 0; i < 3; i++) {
+        w = pico_socket_send(s, buf, 1400);
     }
-    pico_timer_add(1000, deferred_exit, NULL);
-    return;
-  }
+    if (++loop > 1000) {
+        udpnatclient_port_be = 0;
+        for (i = 0; i < 3; i++) {
+            w = pico_socket_send(s, end, 4);
+            if (w <= 0)
+                break;
+
+            printf("End!\n");
+        }
+        pico_timer_add(1000, deferred_exit, NULL);
+        return;
+    }
 }
 
 void cb_udpnatclient(uint16_t ev, struct pico_socket *s)
 {
-  char recvbuf[1400];
-  int r=0;
+    char recvbuf[1400];
+    int r = 0;
 
-  if (ev & PICO_SOCK_EV_RD) {
-    do {
-      r = pico_socket_recv(s, recvbuf, 1400);
-    } while(r>0);
-  }
+    if (ev & PICO_SOCK_EV_RD) {
+        do {
+            r = pico_socket_recv(s, recvbuf, 1400);
+        } while(r > 0);
+    }
 
-  if (ev == PICO_SOCK_EV_ERR) {
-    printf("Socket Error received. Bailing out.\n");
-    exit(7);
-  }
+    if (ev == PICO_SOCK_EV_ERR) {
+        printf("Socket Error received. Bailing out.\n");
+        exit(7);
+    }
 
-  /* Not closing to test port check */
-  //pico_socket_close(s);
+    /* Not closing to test port check */
+    /* pico_socket_close(s); */
 }
 
 void udpnatclient_open_socket(pico_time __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
-  struct pico_socket *s = NULL;
-  static int loop;
+    struct pico_socket *s = NULL;
+    static int loop;
 
-  if (!udpnatclient_port_be)
-    return;
+    if (!udpnatclient_port_be)
+        return;
 
-  loop++;
-  picoapp_dbg(">>>>> Loop %d\n", loop);
-  if (!(loop % 100))
-    printf("Created %d sockets\n", loop);
+    loop++;
+    picoapp_dbg(">>>>> Loop %d\n", loop);
+    if (!(loop % 100))
+        printf("Created %d sockets\n", loop);
 
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpnatclient);
-  if (!s)
-    exit(1);
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpnatclient);
+    if (!s)
+        exit(1);
 
-  if (pico_socket_connect(s, &udpnatclient_inaddr_dst, udpnatclient_port_be)!= 0)
-  {
-    printf("Error connecting\n");
-    exit(1);
-  }
+    if (pico_socket_connect(s, &udpnatclient_inaddr_dst, udpnatclient_port_be) != 0)
+    {
+        printf("Error connecting\n");
+        exit(1);
+    }
 
-  picoapp_dbg("New socket with port %u\n", s->local_port);
+    picoapp_dbg("New socket with port %u\n", s->local_port);
 
-  pico_timer_add(25, udpnatclient_send, s);
-  pico_timer_add(25, udpnatclient_open_socket, 0);
+    pico_timer_add(25, udpnatclient_send, s);
+    pico_timer_add(25, udpnatclient_open_socket, 0);
 }
 
 void app_udpnatclient(char *arg)
 {
-  struct pico_socket *s;
-  char *daddr, *dport;
-  int port = 0;
-  uint16_t port_be = 0;
-  struct pico_ip4 inaddr_dst = ZERO_IP4;
-  char *nxt;
+    struct pico_socket *s;
+    char *daddr, *dport;
+    int port = 0;
+    uint16_t port_be = 0;
+    struct pico_ip4 inaddr_dst = ZERO_IP4;
+    char *nxt;
 
-  nxt = cpy_arg(&daddr, arg);
-  if (!daddr) {
-    fprintf(stderr, " udpnatclient expects the following format: udpnatclient:dest_addr[:dest_port]\n");
-    exit(255);
-  }
-
-  if (nxt) {
-    nxt = cpy_arg(&dport, nxt);
-    if (dport) {
-      port = atoi(dport);
-      if (port > 0)
-        port_be = short_be(port);
+    nxt = cpy_arg(&daddr, arg);
+    if (!daddr) {
+        fprintf(stderr, " udpnatclient expects the following format: udpnatclient:dest_addr[:dest_port]\n");
+        exit(255);
     }
-  }
-  if (port == 0) {
-    port_be = short_be(5555);
-  }
 
-  printf("UDP NAT client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
+    if (nxt) {
+        nxt = cpy_arg(&dport, nxt);
+        if (dport) {
+            port = atoi(dport);
+            if (port > 0)
+                port_be = short_be(port);
+        }
+    }
+
+    if (port == 0) {
+        port_be = short_be(5555);
+    }
+
+    printf("UDP NAT client started. Sending packets to %s:%d\n", daddr, short_be(port_be));
 
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpnatclient);
     if (!s)
-      exit(1);
+        exit(1);
 
     pico_string_to_ipv4(daddr, &inaddr_dst.addr);
 
-    if (pico_socket_connect(s, &inaddr_dst, port_be)!= 0)
+    if (pico_socket_connect(s, &inaddr_dst, port_be) != 0)
     {
-      printf("Error binding the port \n");
-      exit(1);
+        printf("Error binding the port \n");
+        exit(1);
     }
 
     picoapp_dbg("New socket with port %u\n", s->local_port);
@@ -827,243 +871,252 @@ void app_udpnatclient(char *arg)
 /*** END UDP NAT CLIENT ***/
 
 /*** UDP DNS CLIENT ***/
-/* 
-./test/vde_sock_start.sh
-echo 1 > /proc/sys/net/ipv4/ip_forward
-iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
-iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
-iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1: -a udpdnsclient:www.google.be:173.194.67.94 
-*/
+/*
+   ./test/vde_sock_start.sh
+   echo 1 > /proc/sys/net/ipv4/ip_forward
+   iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+   iptables -A FORWARD -i pic0 -o wlan0 -j ACCEPT
+   iptables -A FORWARD -i wlan0 -o pic0 -j ACCEPT
+   ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1: -a udpdnsclient:www.google.be:173.194.67.94
+ */
 void cb_udpdnsclient_getaddr(char *ip, void *arg)
 {
-  uint8_t *id = (uint8_t *) arg; 
+    uint8_t *id = (uint8_t *) arg;
 
-  if (!ip) {
-    printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
-    return;
-  }
-  printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
-  pico_free(ip);
-  if (arg)
-    pico_free(arg);
+    if (!ip) {
+        printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
+        return;
+    }
+
+    printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
+    pico_free(ip);
+    if (arg)
+        pico_free(arg);
 }
 
 void cb_udpdnsclient_getname(char *name, void *arg)
 {
-  uint8_t *id = (uint8_t *) arg; 
+    uint8_t *id = (uint8_t *) arg;
 
-  if (!name) {
-    printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
-    return;
-  }
-  printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
-  pico_free(name);
-  if (arg)
-    pico_free(arg);
+    if (!name) {
+        printf("%s: ERROR occured! (id: %u)\n", __FUNCTION__, *id);
+        return;
+    }
+
+    printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
+    pico_free(name);
+    if (arg)
+        pico_free(arg);
 }
 
 void app_udpdnsclient(char *arg)
 {
-  struct pico_ip4 nameserver;
-  char *dname, *daddr;
-  char *nxt;
-  uint8_t *getaddr_id, *getname_id;
+    struct pico_ip4 nameserver;
+    char *dname, *daddr;
+    char *nxt;
+    uint8_t *getaddr_id, *getname_id;
 
-  nxt = cpy_arg(&dname, arg);
-  if (!dname) {
-    fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
-    exit(255);
-  }
-
-  if (nxt) {
-    nxt = cpy_arg(&daddr, nxt);
-    if (!daddr) {
-      fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
-      fprintf(stderr, " missing dest_ip\n");
-      exit(255);
+    nxt = cpy_arg(&dname, arg);
+    if (!dname) {
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        exit(255);
     }
-  } else {
-    fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
-    fprintf(stderr, " missing dest_ip\n");
-    exit(255);
-  }
 
-  printf("UDP DNS client started.\n");
-  
-  picoapp_dbg("----- Deleting non existant nameserver -----\n");
-  pico_string_to_ipv4("127.0.0.1", &nameserver.addr);
-  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
-  picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
-  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
-  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
-  picoapp_dbg("----- Deleting 8.8.8.8 nameserver -----\n");
-  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
-  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
-  picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
-  pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
-  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
-  picoapp_dbg("----- Adding 8.8.4.4 nameserver -----\n");
-  pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
-  pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+    if (nxt) {
+        nxt = cpy_arg(&daddr, nxt);
+        if (!daddr) {
+            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+            fprintf(stderr, " missing dest_ip\n");
+            exit(255);
+        }
+    } else {
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        fprintf(stderr, " missing dest_ip\n");
+        exit(255);
+    }
 
-  getaddr_id = calloc(1, sizeof(uint8_t));
-  *getaddr_id = 1;
-  printf(">>>>> DNS GET ADDR OF %s\n", dname);
-  pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
-  getname_id = calloc(1, sizeof(uint8_t));
-  *getname_id = 2;
-  printf(">>>>> DNS GET NAME OF %s\n", daddr);
-  pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
+    printf("UDP DNS client started.\n");
 
-  return;
+    picoapp_dbg("----- Deleting non existant nameserver -----\n");
+    pico_string_to_ipv4("127.0.0.1", &nameserver.addr);
+    pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
+    picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
+    pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+    pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+    picoapp_dbg("----- Deleting 8.8.8.8 nameserver -----\n");
+    pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+    pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_DEL);
+    picoapp_dbg("----- Adding 8.8.8.8 nameserver -----\n");
+    pico_string_to_ipv4("8.8.8.8", &nameserver.addr);
+    pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+    picoapp_dbg("----- Adding 8.8.4.4 nameserver -----\n");
+    pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
+    pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
+
+    getaddr_id = calloc(1, sizeof(uint8_t));
+    *getaddr_id = 1;
+    printf(">>>>> DNS GET ADDR OF %s\n", dname);
+    pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
+    getname_id = calloc(1, sizeof(uint8_t));
+    *getname_id = 2;
+    printf(">>>>> DNS GET NAME OF %s\n", daddr);
+    pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
+
+    return;
 }
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 *1024 *100)
+#define TCPSIZ (1024 * 1024 * 100)
 static char *buffer1;
 static char *buffer0;
 
 void compare_results(pico_time __attribute__((unused)) now, void __attribute__((unused)) *arg)
 {
 #ifdef CONSISTENCY_CHECK /* TODO: Enable */
-  int i;
-  printf("Calculating result.... (%p)\n", buffer1);
+    int i;
+    printf("Calculating result.... (%p)\n", buffer1);
 
-  if (memcmp(buffer0,buffer1,TCPSIZ) == 0)
-    exit(0);
+    if (memcmp(buffer0, buffer1, TCPSIZ) == 0)
+        exit(0);
 
-  for (i = 0; i < TCPSIZ; i++) {
-    if (buffer0[i] != buffer1[i]) {
-      fprintf(stderr, "Error at byte %d - %c!=%c\n", i, buffer0[i], buffer1[i]);
-      exit(115);
+    for (i = 0; i < TCPSIZ; i++) {
+        if (buffer0[i] != buffer1[i]) {
+            fprintf(stderr, "Error at byte %d - %c!=%c\n", i, buffer0[i], buffer1[i]);
+            exit(115);
+        }
     }
-  }
 #endif
-  exit(0);
+    exit(0);
 
 }
 
 void cb_tcpclient(uint16_t ev, struct pico_socket *s)
 {
-  static int w_size = 0;
-  static int r_size = 0;
-  static int closed = 0;
-  int r,w;
-  static unsigned long count = 0;
-  count++;
+    static int w_size = 0;
+    static int r_size = 0;
+    static int closed = 0;
+    int r, w;
+    static unsigned long count = 0;
+    count++;
 
-  printf("tcpclient> wakeup %lu, event %u\n",count,ev);
-  if (ev & PICO_SOCK_EV_RD) {
-    do {
-      r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
-      if (r > 0) {
-        r_size += r;
-        printf("SOCKET READ - %d\n",r_size);
-      }
-      if (r < 0)
-        exit(5);
-    } while(r>0);
-  }
-  if (ev & PICO_SOCK_EV_CONN) { 
-    printf("Connection established with server.\n");
-  }
+    printf("tcpclient> wakeup %lu, event %u\n", count, ev);
+    if (ev & PICO_SOCK_EV_RD) {
+        do {
+            r = pico_socket_read(s, buffer1 + r_size, TCPSIZ - r_size);
+            if (r > 0) {
+                r_size += r;
+                printf("SOCKET READ - %d\n", r_size);
+            }
 
-  if (ev & PICO_SOCK_EV_FIN) {
-    printf("Socket closed. Exit normally. \n");
-    pico_timer_add(2000, compare_results, NULL);
-  }
-
-  if (ev & PICO_SOCK_EV_ERR) {
-    printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-    exit(1);
-  }
-  if (ev & PICO_SOCK_EV_CLOSE) {
-    printf("Socket received close from peer - Wrong case if not all client data sent!\n");
-    pico_socket_close(s);
-    return;
-  }
-  if (ev & PICO_SOCK_EV_WR) {
-    if (w_size < TCPSIZ) {
-      do {
-        w = pico_socket_write(s, buffer0 + w_size, TCPSIZ-w_size);
-        if (w > 0) {
-          w_size += w;
-          printf("SOCKET WRITTEN - %d\n",w_size);
-        if (w < 0)
-          exit(5);
-        }
-      } while(w > 0);
-    } else {
-#ifdef INFINITE_TCPTEST
-      w_size = 0;
-      return;
-#endif
-      if (!closed) {
-        pico_socket_shutdown(s, PICO_SHUT_WR);
-        printf("Called shutdown()\n");
-        closed = 1;
-      }
+            if (r < 0)
+                exit(5);
+        } while(r > 0);
     }
-  }
+
+    if (ev & PICO_SOCK_EV_CONN) {
+        printf("Connection established with server.\n");
+    }
+
+    if (ev & PICO_SOCK_EV_FIN) {
+        printf("Socket closed. Exit normally. \n");
+        pico_timer_add(2000, compare_results, NULL);
+    }
+
+    if (ev & PICO_SOCK_EV_ERR) {
+        printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        exit(1);
+    }
+
+    if (ev & PICO_SOCK_EV_CLOSE) {
+        printf("Socket received close from peer - Wrong case if not all client data sent!\n");
+        pico_socket_close(s);
+        return;
+    }
+
+    if (ev & PICO_SOCK_EV_WR) {
+        if (w_size < TCPSIZ) {
+            do {
+                w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
+                if (w > 0) {
+                    w_size += w;
+                    printf("SOCKET WRITTEN - %d\n", w_size);
+                    if (w < 0)
+                        exit(5);
+                }
+            } while(w > 0);
+        } else {
+#ifdef INFINITE_TCPTEST
+            w_size = 0;
+            return;
+#endif
+            if (!closed) {
+                pico_socket_shutdown(s, PICO_SHUT_WR);
+                printf("Called shutdown()\n");
+                closed = 1;
+            }
+        }
+    }
 }
 
 void app_tcpclient(char *arg)
 {
-  struct pico_socket *s;
-  char *dport;
-  char *dest;
-  int port = 0, i;
-  uint16_t port_be = 0;
-  struct pico_ip4 server_addr;
-  char *nxt = cpy_arg(&dest, arg);
-  int yes = 0;
-  if (!dest) {
-    fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
-    exit(255);
-  }
-  printf ("+++ Dest is %s\n", dest);
-  if (nxt) {
-    printf("Next arg: %s\n", nxt);
-    nxt=cpy_arg(&dport, nxt);
-    printf("Dport: %s\n", dport);
-  }
-  if (dport) {
-    port = atoi(dport);
-    port_be = short_be((uint16_t)port);
-  }
-  if (port == 0) {
-    port_be = short_be(5555);
-  }
+    struct pico_socket *s;
+    char *dport;
+    char *dest;
+    int port = 0, i;
+    uint16_t port_be = 0;
+    struct pico_ip4 server_addr;
+    char *nxt = cpy_arg(&dest, arg);
+    int yes = 0;
+    if (!dest) {
+        fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
+        exit(255);
+    }
 
-  buffer0 = malloc(TCPSIZ);
-  buffer1 = malloc(TCPSIZ);
-  printf("Buffer1 (%p)\n", buffer1);
-  for (i = 0; i < TCPSIZ; i++) {
-    char c = (i % 26) + 'a';
-    buffer0[i] = c;
-  }
-  memset(buffer1, 'a', TCPSIZ);
-  printf("Connecting to: %s:%d\n", dest, short_be(port_be));
+    printf ("+++ Dest is %s\n", dest);
+    if (nxt) {
+        printf("Next arg: %s\n", nxt);
+        nxt = cpy_arg(&dport, nxt);
+        printf("Dport: %s\n", dport);
+    }
 
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
-  if (!s)
-    exit(1); 
+    if (dport) {
+        port = atoi(dport);
+        port_be = short_be((uint16_t)port);
+    }
 
-  pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
-  
-  /* NOTE: used to set a fixed local port and address
-  local_port = short_be(6666);
-  pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
-  pico_socket_bind(s, &local_addr, &local_port);*/
-  
-  pico_string_to_ipv4(dest, &server_addr.addr);
-  if(pico_socket_connect(s, &server_addr, port_be) < 0)
-  {
-    printf("Error connecting...%d \n",pico_err);
-    exit(1);
-  }
+    if (port == 0) {
+        port_be = short_be(5555);
+    }
+
+    buffer0 = malloc(TCPSIZ);
+    buffer1 = malloc(TCPSIZ);
+    printf("Buffer1 (%p)\n", buffer1);
+    for (i = 0; i < TCPSIZ; i++) {
+        char c = (i % 26) + 'a';
+        buffer0[i] = c;
+    }
+    memset(buffer1, 'a', TCPSIZ);
+    printf("Connecting to: %s:%d\n", dest, short_be(port_be));
+
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpclient);
+    if (!s)
+        exit(1);
+
+    pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+
+    /* NOTE: used to set a fixed local port and address
+       local_port = short_be(6666);
+       pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
+       pico_socket_bind(s, &local_addr, &local_port);*/
+
+    pico_string_to_ipv4(dest, &server_addr.addr);
+    if(pico_socket_connect(s, &server_addr, port_be) < 0)
+    {
+        printf("Error connecting...%d \n", pico_err);
+        exit(1);
+    }
 }
 /*** END TCP CLIENT ***/
 
@@ -1075,135 +1128,142 @@ static int flag = 0;
 
 int send_tcpecho(struct pico_socket *s)
 {
-  int w, ww = 0;
-  if (global_len > global_pos) {
-    do {
-      w = pico_socket_write(s, recvbuf + global_pos, global_len - global_pos);
-      if (w > 0) {
-        global_pos += w;
-        ww += w;
-        if (global_pos >= global_len) {
-          global_pos = 0;
-          global_len = 0;
-        }
-      } else {
-        errno = pico_err;
-      }
-    } while((w > 0) && (global_pos < global_len));
-  }
-  return ww;
+    int w, ww = 0;
+    if (global_len > global_pos) {
+        do {
+            w = pico_socket_write(s, recvbuf + global_pos, global_len - global_pos);
+            if (w > 0) {
+                global_pos += w;
+                ww += w;
+                if (global_pos >= global_len) {
+                    global_pos = 0;
+                    global_len = 0;
+                }
+            } else {
+                errno = pico_err;
+            }
+        } while((w > 0) && (global_pos < global_len));
+    }
+
+    return ww;
 }
 void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
-  int r=0;
+    int r = 0;
 
-//  printf("tcpecho> wakeup ev=%04x\n", ev);
+/*  printf("tcpecho> wakeup ev=%04x\n", ev); */
 
-  if (ev & PICO_SOCK_EV_RD) {
-    if (flag & PICO_SOCK_EV_CLOSE)
-      printf("SOCKET> EV_RD, FIN RECEIVED\n");
-    while(global_len < BSIZE) {
-      r = pico_socket_read(s, recvbuf + global_len, BSIZE - global_len);
-      if (r > 0) {
-        global_len += r;
-        flag &= ~(PICO_SOCK_EV_RD);
-      } else {
-      }
-      if (r <= 0) {
-        flag |= PICO_SOCK_EV_RD;
-        break;
-      }
+    if (ev & PICO_SOCK_EV_RD) {
+        if (flag & PICO_SOCK_EV_CLOSE)
+            printf("SOCKET> EV_RD, FIN RECEIVED\n");
+
+        while(global_len < BSIZE) {
+            r = pico_socket_read(s, recvbuf + global_len, BSIZE - global_len);
+            if (r > 0) {
+                global_len += r;
+                flag &= ~(PICO_SOCK_EV_RD);
+            } else {
+            }
+
+            if (r <= 0) {
+                flag |= PICO_SOCK_EV_RD;
+                break;
+            }
+        }
     }
-  }
-  if (ev & PICO_SOCK_EV_CONN) { 
-    struct pico_socket *sock_a;
-    struct pico_ip4 orig;
-    uint16_t port;
-    char peer[30];
-    int yes = 0;
-    sock_a = pico_socket_accept(s, &orig, &port);
-    pico_socket_accept(s, &orig, &port);
-    pico_ipv4_to_string(peer, orig.addr);
-    printf("Connection established with %s:%d.\n", peer, short_be(port));
-    pico_socket_setoption(sock_a, PICO_TCP_NODELAY, &yes);
-  }
 
-  if (ev & PICO_SOCK_EV_FIN) {
-    printf("Socket closed. Exit normally. \n");
-    pico_timer_add(2000, deferred_exit, NULL);
-  }
-
-  if (ev & PICO_SOCK_EV_ERR) {
-    printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-    exit(1);
-  }
-  if (ev & PICO_SOCK_EV_CLOSE) {
-    printf("Socket received close from peer.\n");
-    flag |= PICO_SOCK_EV_CLOSE;
-    //pico_socket_close(s);
-    if ((flag & PICO_SOCK_EV_RD) && (flag & PICO_SOCK_EV_CLOSE)) {
-      pico_socket_shutdown(s, PICO_SHUT_WR);
-      printf("SOCKET> Called shutdown write, ev = %d\n",ev);
+    if (ev & PICO_SOCK_EV_CONN) {
+        struct pico_socket *sock_a;
+        struct pico_ip4 orig;
+        uint16_t port;
+        char peer[30];
+        int yes = 0;
+        sock_a = pico_socket_accept(s, &orig, &port);
+        pico_socket_accept(s, &orig, &port);
+        pico_ipv4_to_string(peer, orig.addr);
+        printf("Connection established with %s:%d.\n", peer, short_be(port));
+        pico_socket_setoption(sock_a, PICO_TCP_NODELAY, &yes);
     }
-  }
-  if (ev & PICO_SOCK_EV_WR) {
-    r = send_tcpecho(s);
-    if (r == 0) 
-      flag |= PICO_SOCK_EV_WR;
-    else
-      flag &= (~PICO_SOCK_EV_WR);
-  }
+
+    if (ev & PICO_SOCK_EV_FIN) {
+        printf("Socket closed. Exit normally. \n");
+        pico_timer_add(2000, deferred_exit, NULL);
+    }
+
+    if (ev & PICO_SOCK_EV_ERR) {
+        printf("Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        exit(1);
+    }
+
+    if (ev & PICO_SOCK_EV_CLOSE) {
+        printf("Socket received close from peer.\n");
+        flag |= PICO_SOCK_EV_CLOSE;
+        /* pico_socket_close(s); */
+        if ((flag & PICO_SOCK_EV_RD) && (flag & PICO_SOCK_EV_CLOSE)) {
+            pico_socket_shutdown(s, PICO_SHUT_WR);
+            printf("SOCKET> Called shutdown write, ev = %d\n", ev);
+        }
+    }
+
+    if (ev & PICO_SOCK_EV_WR) {
+        r = send_tcpecho(s);
+        if (r == 0)
+            flag |= PICO_SOCK_EV_WR;
+        else
+            flag &= (~PICO_SOCK_EV_WR);
+    }
 }
 
 
 void app_tcpecho(char *arg)
 {
-  struct pico_socket *s;
-  char *sport = arg;
-  int port = 0;
-  uint16_t port_be = 0;
-  int yes = 0;
-  cpy_arg(&sport, arg);
-  if (sport) {
-    port = atoi(sport);
-    port_be = short_be((uint16_t)port);
-  }
-  if (port == 0) {
-    port_be = short_be(5555);
-  }
+    struct pico_socket *s;
+    char *sport = arg;
+    int port = 0;
+    uint16_t port_be = 0;
+    int yes = 0;
+    cpy_arg(&sport, arg);
+    if (sport) {
+        port = atoi(sport);
+        port_be = short_be((uint16_t)port);
+    }
 
-  s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpecho);
-  if (!s)
-    exit(1);
+    if (port == 0) {
+        port_be = short_be(5555);
+    }
 
-  if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0)
-    exit(1);
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpecho);
+    if (!s)
+        exit(1);
 
-  if (pico_socket_listen(s, 40) != 0)
-    exit(1);
+    if (pico_socket_bind(s, &inaddr_any, &port_be) != 0)
+        exit(1);
 
-  pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+    if (pico_socket_listen(s, 40) != 0)
+        exit(1);
+
+    pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
 
 #ifdef PICOAPP_IPFILTER
-  {
-    struct pico_ip4 address, in_addr_netmask, in_addr;
-    //struct pico_ipv4_link *link;
-    int ret = 0;
-    address.addr = 0x0800280a;
-    in_addr_netmask.addr = 0x00FFFFFF;
-    in_addr.addr = 0x0000320a;
-    //link = pico_ipv4_link_get(&address);
+    {
+        struct pico_ip4 address, in_addr_netmask, in_addr;
+        /* struct pico_ipv4_link *link; */
+        int ret = 0;
+        address.addr = 0x0800280a;
+        in_addr_netmask.addr = 0x00FFFFFF;
+        in_addr.addr = 0x0000320a;
+        /* link = pico_ipv4_link_get(&address); */
 
-    printf("tcpecho> IPFILTER ENABLED\n");
+        printf("tcpecho> IPFILTER ENABLED\n");
 
-    /*Adjust your IPFILTER*/
-    ret |= pico_ipv4_filter_add(NULL, 6, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_REJECT);
+        /*Adjust your IPFILTER*/
+        ret |= pico_ipv4_filter_add(NULL, 6, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_REJECT);
 
-    if (ret < 0)
-      printf("Filter_add invalid argument\n");
-  }
+        if (ret < 0)
+            printf("Filter_add invalid argument\n");
+    }
 #endif
-  printf("%s: launching PicoTCP echo server loop\n", __FUNCTION__);
+    printf("%s: launching PicoTCP echo server loop\n", __FUNCTION__);
 }
 /*** END TCP ECHO ***/
 
@@ -1213,244 +1273,255 @@ void app_tcpecho(char *arg)
 
 int tcpbench_mode = 0;
 struct pico_socket *tcpbench_sock = NULL;
-static pico_time tcpbench_time_start,tcpbench_time_end;
+static pico_time tcpbench_time_start, tcpbench_time_end;
 
 void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 {
-  static int closed = 0;
-  static unsigned long count = 0;
-  struct pico_ip4 orig;
-  uint16_t port;
-  char peer[30];
-  //struct pico_socket *sock_a;
+    static int closed = 0;
+    static unsigned long count = 0;
+    struct pico_ip4 orig;
+    uint16_t port;
+    char peer[30];
+    /* struct pico_socket *sock_a; */
 
-  static int tcpbench_wr_size = 0;
-  static int tcpbench_rd_size = 0;
-  int tcpbench_w = 0;
-  int tcpbench_r = 0;
-  double tcpbench_time = 0;
+    static int tcpbench_wr_size = 0;
+    static int tcpbench_rd_size = 0;
+    int tcpbench_w = 0;
+    int tcpbench_r = 0;
+    double tcpbench_time = 0;
 
-  count++;
+    count++;
 
-  if (ev & PICO_SOCK_EV_RD) {
-    do {
-      /* read data, but discard */
-      tcpbench_r = pico_socket_read(s, recvbuf, 1500);
-      if (tcpbench_r > 0){
-        tcpbench_rd_size += tcpbench_r;
-      }
-      else if (tcpbench_r < 0) {
-        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-        exit(5);
-      }
-    } while (tcpbench_r > 0);
-    if (tcpbench_time_start == 0)
-      tcpbench_time_start = PICO_TIME_MS();
-    printf("tcpbench_rd_size = %d      \r", tcpbench_rd_size);
-  }
-
-  if (ev & PICO_SOCK_EV_CONN) { 
-    if (tcpbench_mode == TCP_BENCH_TX) {
-      printf("tcpbench> Connection established with server.\n");
-    } else if (tcpbench_mode == TCP_BENCH_RX) {
-      //sock_a = pico_socket_accept(s, &orig, &port);
-      pico_socket_accept(s, &orig, &port);
-      pico_ipv4_to_string(peer, orig.addr);
-      printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
-    }
-  }
-
-  if (ev & PICO_SOCK_EV_FIN) {
-    printf("tcpbench> Socket closed. Exit normally. \n");
-    if (tcpbench_mode == TCP_BENCH_RX) {
-      tcpbench_time_end = PICO_TIME_MS();
-      tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000.0; /* get number of seconds */
-      printf("tcpbench> received %d bytes in %lf seconds\n",tcpbench_rd_size,tcpbench_time);
-      printf("tcpbench> average read throughput %lf kbit/sec\n",((tcpbench_rd_size*8.0)/tcpbench_time)/1000);
-      pico_socket_shutdown(s, PICO_SHUT_WR);
-      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
-    }
-    exit(0);
-  }
-
-  if (ev & PICO_SOCK_EV_ERR) {
-    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-    exit(1);
-  }
-
-  if (ev & PICO_SOCK_EV_CLOSE) {
-    printf("tcpbench> event close\n");
-    if (tcpbench_mode == TCP_BENCH_RX) {
-      pico_socket_shutdown(s, PICO_SHUT_WR);
-      printf("tcpbench> Called shutdown write, ev = %d\n",ev);
-    } else if (tcpbench_mode == TCP_BENCH_TX) {
-      pico_socket_close(s);
-      return;
-    }
-  }
-
-  if (ev & PICO_SOCK_EV_WR) {
-    if (tcpbench_wr_size < TCPSIZ && tcpbench_mode == TCP_BENCH_TX) {
-      do {
-        tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ-tcpbench_wr_size);
-        if (tcpbench_w > 0) {
-          tcpbench_wr_size += tcpbench_w;
-          //printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
-        }
-        if (tcpbench_w < 0) {
-          printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-          exit(5);
-        }
+    if (ev & PICO_SOCK_EV_RD) {
+        do {
+            /* read data, but discard */
+            tcpbench_r = pico_socket_read(s, recvbuf, 1500);
+            if (tcpbench_r > 0) {
+                tcpbench_rd_size += tcpbench_r;
+            }
+            else if (tcpbench_r < 0) {
+                printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                exit(5);
+            }
+        } while (tcpbench_r > 0);
         if (tcpbench_time_start == 0)
-          tcpbench_time_start = PICO_TIME_MS();
-      } while(tcpbench_w > 0);
-      printf("tcpbench_wr_size = %d      \r", tcpbench_wr_size);
-    } else {
-      if (!closed && tcpbench_mode == TCP_BENCH_TX) {
-        tcpbench_time_end = PICO_TIME_MS();
-        pico_socket_shutdown(s, PICO_SHUT_WR);
-        printf("tcpbench> TCPSIZ written\n");
-        printf("tcpbench> Called shutdown()\n");
-        tcpbench_time = (tcpbench_time_end - tcpbench_time_start)/1000.0; /* get number of seconds */
-        printf("tcpbench> Transmitted %u bytes in %lf seconds\n",TCPSIZ, tcpbench_time);
-        printf("tcpbench> average write throughput %lf kbit/sec\n",((TCPSIZ*8.0)/tcpbench_time)/1000);
-        closed = 1;
-      }
+            tcpbench_time_start = PICO_TIME_MS();
+
+        printf("tcpbench_rd_size = %d      \r", tcpbench_rd_size);
     }
-  }
+
+    if (ev & PICO_SOCK_EV_CONN) {
+        if (tcpbench_mode == TCP_BENCH_TX) {
+            printf("tcpbench> Connection established with server.\n");
+        } else if (tcpbench_mode == TCP_BENCH_RX) {
+            /* sock_a = pico_socket_accept(s, &orig, &port); */
+            pico_socket_accept(s, &orig, &port);
+            pico_ipv4_to_string(peer, orig.addr);
+            printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
+        }
+    }
+
+    if (ev & PICO_SOCK_EV_FIN) {
+        printf("tcpbench> Socket closed. Exit normally. \n");
+        if (tcpbench_mode == TCP_BENCH_RX) {
+            tcpbench_time_end = PICO_TIME_MS();
+            tcpbench_time = (tcpbench_time_end - tcpbench_time_start) / 1000.0; /* get number of seconds */
+            printf("tcpbench> received %d bytes in %lf seconds\n", tcpbench_rd_size, tcpbench_time);
+            printf("tcpbench> average read throughput %lf kbit/sec\n", ((tcpbench_rd_size * 8.0) / tcpbench_time) / 1000);
+            pico_socket_shutdown(s, PICO_SHUT_WR);
+            printf("tcpbench> Called shutdown write, ev = %d\n", ev);
+        }
+
+        exit(0);
+    }
+
+    if (ev & PICO_SOCK_EV_ERR) {
+        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        exit(1);
+    }
+
+    if (ev & PICO_SOCK_EV_CLOSE) {
+        printf("tcpbench> event close\n");
+        if (tcpbench_mode == TCP_BENCH_RX) {
+            pico_socket_shutdown(s, PICO_SHUT_WR);
+            printf("tcpbench> Called shutdown write, ev = %d\n", ev);
+        } else if (tcpbench_mode == TCP_BENCH_TX) {
+            pico_socket_close(s);
+            return;
+        }
+    }
+
+    if (ev & PICO_SOCK_EV_WR) {
+        if (tcpbench_wr_size < TCPSIZ && tcpbench_mode == TCP_BENCH_TX) {
+            do {
+                tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
+                if (tcpbench_w > 0) {
+                    tcpbench_wr_size += tcpbench_w;
+                    /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
+                }
+
+                if (tcpbench_w < 0) {
+                    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                    exit(5);
+                }
+
+                if (tcpbench_time_start == 0)
+                    tcpbench_time_start = PICO_TIME_MS();
+            } while(tcpbench_w > 0);
+            printf("tcpbench_wr_size = %d      \r", tcpbench_wr_size);
+        } else {
+            if (!closed && tcpbench_mode == TCP_BENCH_TX) {
+                tcpbench_time_end = PICO_TIME_MS();
+                pico_socket_shutdown(s, PICO_SHUT_WR);
+                printf("tcpbench> TCPSIZ written\n");
+                printf("tcpbench> Called shutdown()\n");
+                tcpbench_time = (tcpbench_time_end - tcpbench_time_start) / 1000.0; /* get number of seconds */
+                printf("tcpbench> Transmitted %u bytes in %lf seconds\n", TCPSIZ, tcpbench_time);
+                printf("tcpbench> average write throughput %lf kbit/sec\n", ((TCPSIZ * 8.0) / tcpbench_time) / 1000);
+                closed = 1;
+            }
+        }
+    }
 }
 
 void app_tcpbench(char *arg)
 {
-  struct pico_socket *s;
-  char *dport;
-  char *dest;
-  char *mode;
-  int port = 0, i;
-  uint16_t port_be = 0;
-  struct pico_ip4 server_addr;
-  char *nxt;
-  char *sport;
-  int yes = 0;
+    struct pico_socket *s;
+    char *dport;
+    char *dest;
+    char *mode;
+    int port = 0, i;
+    uint16_t port_be = 0;
+    struct pico_ip4 server_addr;
+    char *nxt;
+    char *sport;
+    int yes = 0;
 
-  nxt = cpy_arg(&mode, arg);
+    nxt = cpy_arg(&mode, arg);
 
-  if (*mode == 't') {   /* TEST BENCH SEND MODE */
-    tcpbench_mode = TCP_BENCH_TX;    
-    printf("tcpbench> TX\n");
+    if (*mode == 't') { /* TEST BENCH SEND MODE */
+        tcpbench_mode = TCP_BENCH_TX;
+        printf("tcpbench> TX\n");
 
-    nxt = cpy_arg(&dest, nxt);
-    if (!dest) {
-      fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport]\n");
-      exit(255);
+        nxt = cpy_arg(&dest, nxt);
+        if (!dest) {
+            fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport]\n");
+            exit(255);
+        }
+
+        printf ("+++ Dest is %s\n", dest);
+        if (nxt) {
+            printf("Next arg: %s\n", nxt);
+            nxt = cpy_arg(&dport, nxt);
+            printf("Dport: %s\n", dport);
+        }
+
+        if (dport) {
+            port = atoi(dport);
+            port_be = short_be((uint16_t)port);
+        }
+
+        if (port == 0) {
+            port_be = short_be(5555);
+        }
+
+        buffer0 = malloc(TCPSIZ);
+        buffer1 = malloc(TCPSIZ);
+        printf("Buffer1 (%p)\n", buffer1);
+        for (i = 0; i < TCPSIZ; i++) {
+            char c = (i % 26) + 'a';
+            buffer0[i] = c;
+        }
+        memset(buffer1, 'a', TCPSIZ);
+        printf("tcpbench> Connecting to: %s:%d\n", dest, short_be(port_be));
+
+        s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
+        if (!s)
+            exit(1);
+
+        pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+
+        /* NOTE: used to set a fixed local port and address
+           local_port = short_be(6666);
+           pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
+           pico_socket_bind(s, &local_addr, &local_port);*/
+
+        pico_string_to_ipv4(dest, &server_addr.addr);
+        pico_socket_connect(s, &server_addr, port_be);
+
+    } else if (*mode == 'r') { /* TEST BENCH RECEIVE MODE */
+        tcpbench_mode = TCP_BENCH_RX;
+        printf("tcpbench> RX\n");
+
+        cpy_arg(&sport, nxt);
+        if (!sport) {
+            fprintf(stderr, "tcpbench receive needs the following format: tcpbench:rx[:dport]\n");
+            exit(255);
+        }
+
+        if (sport) {
+            printf("s-port is %s\n", sport);
+            port = atoi(sport);
+            port_be = short_be((uint16_t)port);
+            printf("tcpbench> Got port %d\n", port);
+        }
+
+        if (port == 0) {
+            port_be = short_be(5555);
+        }
+
+        printf("tcpbench> OPEN\n");
+        s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
+        if (!s)
+            exit(1);
+
+        printf("tcpbench> BIND\n");
+        if (pico_socket_bind(s, &inaddr_any, &port_be) != 0) {
+            printf("tcpbench> BIND failed because %s\n", strerror(pico_err));
+            exit(1);
+        }
+
+        printf("tcpbench> LISTEN\n");
+        if (pico_socket_listen(s, 40) != 0)
+            exit(1);
+
+        printf("tcpbench> listening port %u ...\n", short_be(port_be));
+    } else {
+        printf("tcpbench> wrong mode argument\n");
+        exit(1);
     }
-    printf ("+++ Dest is %s\n", dest);
-    if (nxt) {
-      printf("Next arg: %s\n", nxt);
-      nxt=cpy_arg(&dport, nxt);
-      printf("Dport: %s\n", dport);
-    }
-    if (dport) {
-      port = atoi(dport);
-      port_be = short_be((uint16_t)port);
-    }
-    if (port == 0) {
-      port_be = short_be(5555);
-    }
 
-    buffer0 = malloc(TCPSIZ);
-    buffer1 = malloc(TCPSIZ);
-    printf("Buffer1 (%p)\n", buffer1);
-    for (i = 0; i < TCPSIZ; i++) {
-      char c = (i % 26) + 'a';
-      buffer0[i] = c;
-    }
-    memset(buffer1, 'a', TCPSIZ);
-    printf("tcpbench> Connecting to: %s:%d\n", dest, short_be(port_be));
-
-    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
-    if (!s)
-      exit(1); 
-  
-    pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
-    
-    /* NOTE: used to set a fixed local port and address
-    local_port = short_be(6666);
-    pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
-    pico_socket_bind(s, &local_addr, &local_port);*/
-    
-    pico_string_to_ipv4(dest, &server_addr.addr);
-    pico_socket_connect(s, &server_addr, port_be);
-
-  } else if (*mode == 'r') {   /* TEST BENCH RECEIVE MODE */ 
-    tcpbench_mode = TCP_BENCH_RX;    
-    printf("tcpbench> RX\n");
-
-    cpy_arg(&sport, nxt);
-    if (!sport) {
-      fprintf(stderr, "tcpbench receive needs the following format: tcpbench:rx[:dport]\n");
-      exit(255);
-    }
-    if (sport) {
-      printf("s-port is %s\n", sport);
-      port = atoi(sport);
-      port_be = short_be((uint16_t)port);
-      printf("tcpbench> Got port %d\n", port);
-    }
-    if (port == 0) {
-      port_be = short_be(5555);
-    }
-
-    printf("tcpbench> OPEN\n");
-    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcpbench);
-    if (!s)
-      exit(1);
-
-    printf("tcpbench> BIND\n");
-    if (pico_socket_bind(s, &inaddr_any, &port_be)!= 0) {
-      printf("tcpbench> BIND failed because %s\n", strerror(pico_err));
-      exit(1);
-    }
-
-    printf("tcpbench> LISTEN\n");
-    if (pico_socket_listen(s, 40) != 0)
-      exit(1);
-
-    printf("tcpbench> listening port %u ...\n",short_be(port_be));
-  } else {
-    printf("tcpbench> wrong mode argument\n");
-    exit(1);
-  }
-
-  tcpbench_sock = s;
+    tcpbench_sock = s;
 
 
-  return;
+    return;
 }
 
 /*** START NATBOX ***/
 void app_natbox(char *arg)
 {
-  char *dest = NULL;
-  struct pico_ip4 ipdst, pub_addr, priv_addr;
-  struct pico_ipv4_link *link;
+    char *dest = NULL;
+    struct pico_ip4 ipdst, pub_addr, priv_addr;
+    struct pico_ipv4_link *link;
 
-  cpy_arg(&dest, arg);
-  if (!dest) {
-    fprintf(stderr, "natbox needs the following format: natbox:dst_addr\n");
-    exit(255);
-  }
-  pico_string_to_ipv4(dest, &ipdst.addr);
-  link = pico_ipv4_link_get(&ipdst);
-  if (!link) {
-    fprintf(stderr, "natbox: Destination not found.\n");
-    exit(255);
-  }
-  pico_ipv4_nat_enable(link);
-  pico_string_to_ipv4("10.50.0.10", &pub_addr.addr);
-  pico_string_to_ipv4("10.40.0.08", &priv_addr.addr);
-  pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667), PICO_PROTO_UDP, PICO_NAT_PORT_FORWARD_ADD);
-  fprintf(stderr, "natbox: started.\n");
+    cpy_arg(&dest, arg);
+    if (!dest) {
+        fprintf(stderr, "natbox needs the following format: natbox:dst_addr\n");
+        exit(255);
+    }
+
+    pico_string_to_ipv4(dest, &ipdst.addr);
+    link = pico_ipv4_link_get(&ipdst);
+    if (!link) {
+        fprintf(stderr, "natbox: Destination not found.\n");
+        exit(255);
+    }
+
+    pico_ipv4_nat_enable(link);
+    pico_string_to_ipv4("10.50.0.10", &pub_addr.addr);
+    pico_string_to_ipv4("10.40.0.08", &priv_addr.addr);
+    pico_ipv4_port_forward(pub_addr, short_be(5555), priv_addr, short_be(6667), PICO_PROTO_UDP, PICO_NAT_PORT_FORWARD_ADD);
+    fprintf(stderr, "natbox: started.\n");
 }
 /*** END NATBOX ***/
 
@@ -1460,31 +1531,32 @@ void app_natbox(char *arg)
 
 void cb_ping(struct pico_icmp4_stats *s)
 {
-  char host[30];
-  //int time_sec = 0;
-  //int time_msec = 0;
-  pico_ipv4_to_string(host, s->dst.addr);
-  //time_sec = s->time / 1000;
-  //time_msec = s->time % 1000;
-  if (s->err == 0) {
-    dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
-    if (s->seq >= NUM_PING)
-      exit(0);
-  } else {
-    dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
-    exit(1);
-  }
+    char host[30];
+    /* int time_sec = 0; */
+    /* int time_msec = 0; */
+    pico_ipv4_to_string(host, s->dst.addr);
+    /* time_sec = s->time / 1000; */
+    /* time_msec = s->time % 1000; */
+    if (s->err == 0) {
+        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
+        if (s->seq >= NUM_PING)
+            exit(0);
+    } else {
+        dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+        exit(1);
+    }
 }
 
 void app_ping(char *arg)
 {
-  char *dest = NULL;
-  cpy_arg(&dest, arg);
-  if (!dest) {
-    fprintf(stderr, "ping needs the following format: ping:dst_addr\n");
-    exit(255);
-  }
-  pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
+    char *dest = NULL;
+    cpy_arg(&dest, arg);
+    if (!dest) {
+        fprintf(stderr, "ping needs the following format: ping:dst_addr\n");
+        exit(255);
+    }
+
+    pico_icmp4_ping(dest, NUM_PING, 1000, 5000, 48, cb_ping);
 
 }
 #endif
@@ -1492,89 +1564,92 @@ void app_ping(char *arg)
 
 /*** START DHCP Server ***/
 #ifdef PICO_SUPPORT_DHCPD
-/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0:64:128 
+/* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0: -a dhcpserver:pic0:10.40.0.1:255.255.255.0:64:128
  * ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.10:255.255.255.0: --vde pic1:/tmp/pic1.ctl:10.50.0.10:255.255.255.0: \
  * -a dhcpserver:pic0:10.40.0.10:255.255.255.0:64:128:pic1:10.50.0.10:255.255.255.0:64:128
  */
 void app_dhcp_server(char *arg)
 {
-  struct pico_device *dev = NULL;
-  struct pico_dhcp_server_setting s = {0};
-  int pool_start = 0, pool_end = 0;
-  char *s_name = NULL, *s_addr = NULL, *s_netm = NULL, *s_pool_start = NULL, *s_pool_end = NULL;
-  char *nxt = arg;
+    struct pico_device *dev = NULL;
+    struct pico_dhcp_server_setting s = {
+        0
+    };
+    int pool_start = 0, pool_end = 0;
+    char *s_name = NULL, *s_addr = NULL, *s_netm = NULL, *s_pool_start = NULL, *s_pool_end = NULL;
+    char *nxt = arg;
 
-  if (!nxt)
-    goto out;
-
-  while (nxt) {
-    if (nxt) {
-      nxt = cpy_arg(&s_name, nxt);
-      if (!s_name) {
+    if (!nxt)
         goto out;
-      }
-    } else {
-      goto out;
+
+    while (nxt) {
+        if (nxt) {
+            nxt = cpy_arg(&s_name, nxt);
+            if (!s_name) {
+                goto out;
+            }
+        } else {
+            goto out;
+        }
+
+        if (nxt) {
+            nxt = cpy_arg(&s_addr, nxt);
+            if (s_addr) {
+                pico_string_to_ipv4(s_addr, &s.server_ip.addr);
+            } else {
+                goto out;
+            }
+        } else {
+            goto out;
+        }
+
+        if (nxt) {
+            nxt = cpy_arg(&s_netm, nxt);
+            if (s_netm) {
+                pico_string_to_ipv4(s_netm, &s.netmask.addr);
+            } else {
+                goto out;
+            }
+        } else {
+            goto out;
+        }
+
+        if (nxt) {
+            nxt = cpy_arg(&s_pool_start, nxt);
+            if (s_pool_start && atoi(s_pool_start)) {
+                pool_start = atoi(s_pool_start);
+            } else {
+                goto out;
+            }
+        } else {
+            goto out;
+        }
+
+        if (nxt) {
+            nxt = cpy_arg(&s_pool_end, nxt);
+            if (s_pool_end && atoi(s_pool_end)) {
+                pool_end = atoi(s_pool_end);
+            } else {
+                goto out;
+            }
+        } else {
+            goto out;
+        }
+
+        dev = pico_get_device(s_name);
+        if (dev == NULL) {
+            fprintf(stderr, "No device with name %s found\n", s_name);
+            exit(255);
+        }
+
+        s.dev = dev;
+        s.pool_start = (s.server_ip.addr & s.netmask.addr) | long_be(pool_start);
+        s.pool_end = (s.server_ip.addr & s.netmask.addr) | long_be(pool_end);
+
+        pico_dhcp_server_initiate(&s);
     }
+    return;
 
-    if (nxt) {
-      nxt = cpy_arg(&s_addr, nxt);
-      if (s_addr) {
-        pico_string_to_ipv4(s_addr, &s.server_ip.addr);
-      } else {
-        goto out;
-      }
-    } else {
-      goto out;
-    }
-
-    if (nxt) {
-      nxt = cpy_arg(&s_netm, nxt);
-      if (s_netm) {
-        pico_string_to_ipv4(s_netm, &s.netmask.addr);
-      } else {
-        goto out;
-      }
-    } else {
-      goto out;
-    }
-
-    if (nxt) {
-      nxt = cpy_arg(&s_pool_start, nxt);
-      if (s_pool_start && atoi(s_pool_start)) {
-        pool_start = atoi(s_pool_start);
-      } else {
-        goto out;
-      }
-    } else {
-      goto out;
-    }
-
-    if (nxt) {
-      nxt = cpy_arg(&s_pool_end, nxt);
-      if (s_pool_end && atoi(s_pool_end)) {
-        pool_end = atoi(s_pool_end);
-      } else {
-        goto out;
-      }
-    } else {
-      goto out;
-    }
-
-    dev = pico_get_device(s_name);
-    if (dev == NULL) {
-      fprintf(stderr, "No device with name %s found\n", s_name);
-      exit(255);
-    }
-    s.dev = dev;
-    s.pool_start = (s.server_ip.addr & s.netmask.addr) | long_be(pool_start);
-    s.pool_end = (s.server_ip.addr & s.netmask.addr) | long_be(pool_end);
-
-    pico_dhcp_server_initiate(&s);
-  }
-  return;
-
-  out:
+out:
     fprintf(stderr, "dhcpserver expects the following format: dhcpserver:dev_name:dev_addr:dev_netm:pool_start:pool_end\n");
     exit(255);
 
@@ -1589,93 +1664,96 @@ static uint32_t dhcpclient_xid = 0;
 
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
-  char host[30] = { };
+    char host[30] = { };
 
-  pico_ipv4_to_string(host, s->dst.addr);
-  if (s->err == 0) {
-    dbg("DHCP client: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
-    if (s->seq >= 3) {
-      dbg("DHCP client: TEST SUCCESS!\n");
-      if (--dhcpclient_devices <= 0)
-        exit(0);
+    pico_ipv4_to_string(host, s->dst.addr);
+    if (s->err == 0) {
+        dbg("DHCP client: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+        if (s->seq >= 3) {
+            dbg("DHCP client: TEST SUCCESS!\n");
+            if (--dhcpclient_devices <= 0)
+                exit(0);
+        }
+    } else {
+        dbg("DHCP client: ping %lu to %s error %d\n", s->seq, host, s->err);
+        dbg("DHCP client: TEST FAILED!\n");
+        exit(1);
     }
-  } else {
-    dbg("DHCP client: ping %lu to %s error %d\n", s->seq, host, s->err);
-    dbg("DHCP client: TEST FAILED!\n");
-    exit(1);
-  }
 }
 
-void callback_dhcpclient(void __attribute__((unused)) *cli, int code) 
+void callback_dhcpclient(void __attribute__((unused)) *cli, int code)
 {
-  struct pico_ip4 address = ZERO_IP4, gateway = ZERO_IP4;
-  char s_address[16] = { }, s_gateway[16] = { };
-  void *identifier = NULL;
+    struct pico_ip4 address = ZERO_IP4, gateway = ZERO_IP4;
+    char s_address[16] = { }, s_gateway[16] = { };
+    void *identifier = NULL;
 
-  printf("DHCP client: callback happened with code %d!\n", code);
-  if (code == PICO_DHCP_SUCCESS) {
-    identifier = pico_dhcp_get_identifier(dhcpclient_xid);
-    if (!identifier) {
-      printf("DHCP client: incorrect transaction ID %u\n", dhcpclient_xid);
-      return;
-    }
-    address = pico_dhcp_get_address(identifier);
-    gateway = pico_dhcp_get_gateway(identifier);
-    pico_ipv4_to_string(s_address, address.addr);
-    pico_ipv4_to_string(s_gateway, gateway.addr);
-    printf("DHCP client: got IP %s assigned with xid %u\n", s_address, dhcpclient_xid);
+    printf("DHCP client: callback happened with code %d!\n", code);
+    if (code == PICO_DHCP_SUCCESS) {
+        identifier = pico_dhcp_get_identifier(dhcpclient_xid);
+        if (!identifier) {
+            printf("DHCP client: incorrect transaction ID %u\n", dhcpclient_xid);
+            return;
+        }
+
+        address = pico_dhcp_get_address(identifier);
+        gateway = pico_dhcp_get_gateway(identifier);
+        pico_ipv4_to_string(s_address, address.addr);
+        pico_ipv4_to_string(s_gateway, gateway.addr);
+        printf("DHCP client: got IP %s assigned with xid %u\n", s_address, dhcpclient_xid);
 #ifdef PICO_SUPPORT_PING
-    pico_icmp4_ping(s_gateway, 3, 1000, 5000, 32, ping_callback_dhcpclient);
-    /* optional test to check routing when links get added and deleted */
-    /* temporarily disabled till a good fix can be found when running multiple clients for:
-     * address already in use: requested ANY, already in use
-    do {
-      char *new_arg = NULL, *p = NULL;
-      new_arg = calloc(1, strlen(s_address) + strlen(":224.7.7.7:6667:6667") + 1);
-      p = strcat(new_arg, s_address);
-      p = strcat(p + strlen(s_address), ":224.7.7.7:6667:6667");
-      app_mcastsend(new_arg);
-    } while (0);
-    */
+        pico_icmp4_ping(s_gateway, 3, 1000, 5000, 32, ping_callback_dhcpclient);
+        /* optional test to check routing when links get added and deleted */
+        /* temporarily disabled till a good fix can be found when running multiple clients for:
+         * address already in use: requested ANY, already in use
+           do {
+           char *new_arg = NULL, *p = NULL;
+           new_arg = calloc(1, strlen(s_address) + strlen(":224.7.7.7:6667:6667") + 1);
+           p = strcat(new_arg, s_address);
+           p = strcat(p + strlen(s_address), ":224.7.7.7:6667:6667");
+           app_mcastsend(new_arg);
+           } while (0);
+         */
 #endif
-  }
+    }
 }
 
 void app_dhcp_client(char *arg)
 {
-  char *sdev = NULL;
-  char *nxt = arg;
-  struct pico_device *dev = NULL;
+    char *sdev = NULL;
+    char *nxt = arg;
+    struct pico_device *dev = NULL;
 
-  if (!nxt)
-    goto out;
-
-  while (nxt) {
-    if (nxt) {
-      nxt = cpy_arg(&sdev, nxt);
-      if(!sdev){
+    if (!nxt)
         goto out;
-      }
-    }
 
-    dev = pico_get_device(sdev);
-    if(dev == NULL){
-      printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
-      exit(255);
-    }
-    printf("Starting negotiation\n");
+    while (nxt) {
+        if (nxt) {
+            nxt = cpy_arg(&sdev, nxt);
+            if(!sdev) {
+                goto out;
+            }
+        }
 
-    if (pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &dhcpclient_xid) < 0) {
-      printf("%s: error initiating negotiation: %s\n", __FUNCTION__, strerror(pico_err));
-      exit(255);
-    }
-    dhcpclient_devices++;
-  }
-  return;
+        dev = pico_get_device(sdev);
+        if(dev == NULL) {
+            printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
+            exit(255);
+        }
 
-  out:
-  fprintf(stderr, "dhcpclient expects the following format: dhcpclient:dev_name:[dev_name]\n");
-  exit(255);
+        printf("Starting negotiation\n");
+
+        if (pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &dhcpclient_xid) < 0) {
+            printf("%s: error initiating negotiation: %s\n", __FUNCTION__, strerror(pico_err));
+            exit(255);
+        }
+
+        dhcpclient_devices++;
+    }
+    return;
+
+out:
+    fprintf(stderr, "dhcpclient expects the following format: dhcpclient:dev_name:[dev_name]\n");
+    exit(255);
 }
 #endif
 /*** END DHCP Client ***/
@@ -1683,241 +1761,245 @@ void app_dhcp_client(char *arg)
 /*** START HTTP Client ***/
 #ifdef PICO_SUPPORT_HTTP_CLIENT
 /* ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:192.168.24.15:255.255.255.0:192.168.24.5: -a wget:web.mit.edu/modiano/www/6.263/lec22-23.pdf
-*/
+ */
 static char *url_filename = NULL;
 
 static int http_save_file(void *data, int len)
 {
-  int fd = open(url_filename, O_WRONLY |O_CREAT | O_TRUNC, 0660);
-  int w, e;
-  if (fd < 0)
-    return fd;
-  printf("Saving data to : %s\n",url_filename);
-  w = write(fd, data, len);
-  e = errno;
-  close(fd);
-  errno = e;
-  return w;
+    int fd = open(url_filename, O_WRONLY | O_CREAT | O_TRUNC, 0660);
+    int w, e;
+    if (fd < 0)
+        return fd;
+
+    printf("Saving data to : %s\n", url_filename);
+    w = write(fd, data, len);
+    e = errno;
+    close(fd);
+    errno = e;
+    return w;
 }
 
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-  static char data[1024 * 1024]; // MAX: 1M
-  static uint32_t _length = 0u;
+    static char data[1024 * 1024]; /* MAX: 1M */
+    static uint32_t _length = 0u;
 
 
-  if(ev & EV_HTTP_CON)
-  {
+    if(ev & EV_HTTP_CON)
+    {
 
-  	printf(">>> Connected to the client \n");
-  	pico_http_client_sendHeader(conn,NULL,HTTP_HEADER_DEFAULT);
-  }
-
-  if(ev & EV_HTTP_REQ)
-  {
-  	struct pico_http_header * header = pico_http_client_readHeader(conn);
-  	printf("Received header from server...\n");
-  	printf("Server response : %d\n",header->responseCode);
-  	printf("Location : %s\n",header->location);
-  	printf("Transfer-Encoding : %d\n",header->transferCoding);
-  	printf("Size/Chunk : %d\n",header->contentLengthOrChunk);
-  }
-
-  if(ev & EV_HTTP_BODY)
-  {
-  	int len;
-
-  	printf("Reading data...\n");
-  	while((len = pico_http_client_readData(conn,data + _length,1024)) && len>0)
-  	{
-  		_length += len;
-  	}
-  }
-
-
-  if(ev & EV_HTTP_CLOSE)
-  {
-  	struct pico_http_header * header = pico_http_client_readHeader(conn);
-  	int len;
-  	printf("Connection was closed...\n");
-  	printf("Reading remaining data, if any ...\n");
-	if(!header)
-	{
-		printf("No header received\n");
-		pico_http_client_close(conn);
-		exit(1);
-	}
-  	while((len = pico_http_client_readData(conn,data + _length,1000u)) && len > 0)
-  	{
-  		_length += len;
-  	}
-  	printf("Read a total data of : %d bytes \n",_length);
-
-  	if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
-  	{
-  		if(header->contentLengthOrChunk)
-  		{
-  			printf("Last chunk data not fully read !\n");
-  			exit(1);
-  		}
-  		else
-  		{
-  			printf("Transfer ended with a zero chunk! OK !\n");
-  		}
-  	} else
-  	{
-  		if(header->contentLengthOrChunk == _length)
-  		{
-  			printf("Received the full : %d \n",_length);
-  		}
-  		else
-  		{
-  			printf("Received %d , waiting for %d\n",_length, header->contentLengthOrChunk);
-  			exit(1);
-  		}
-  	}
-
-    if (!url_filename) {
-      printf("Failed to get local filename\n");
-      exit(1);
+        printf(">>> Connected to the client \n");
+        pico_http_client_sendHeader(conn, NULL, HTTP_HEADER_DEFAULT);
     }
 
-    len = http_save_file(data, _length);
-    if ((len < 0)|| ((uint32_t)len < _length)) {
-      printf("Failed to save file: %s\n", strerror(errno));
-      exit(1);
+    if(ev & EV_HTTP_REQ)
+    {
+        struct pico_http_header *header = pico_http_client_readHeader(conn);
+        printf("Received header from server...\n");
+        printf("Server response : %d\n", header->responseCode);
+        printf("Location : %s\n", header->location);
+        printf("Transfer-Encoding : %d\n", header->transferCoding);
+        printf("Size/Chunk : %d\n", header->contentLengthOrChunk);
     }
-  	pico_http_client_close(conn);
-  	exit(0);
-  }
 
-  if(ev & EV_HTTP_ERROR)
-  {
-  	printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
-  	pico_http_client_close(conn);
-  	exit(1u);
-  }
+    if(ev & EV_HTTP_BODY)
+    {
+        int len;
 
-  if(ev & EV_HTTP_DNS)
-  {
-  	printf("The DNS query was successful ... \n");
-  }
+        printf("Reading data...\n");
+        while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0)
+        {
+            _length += len;
+        }
+    }
+
+
+    if(ev & EV_HTTP_CLOSE)
+    {
+        struct pico_http_header *header = pico_http_client_readHeader(conn);
+        int len;
+        printf("Connection was closed...\n");
+        printf("Reading remaining data, if any ...\n");
+        if(!header)
+        {
+            printf("No header received\n");
+            pico_http_client_close(conn);
+            exit(1);
+        }
+
+        while((len = pico_http_client_readData(conn, data + _length, 1000u)) && len > 0)
+        {
+            _length += len;
+        }
+        printf("Read a total data of : %d bytes \n", _length);
+
+        if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+        {
+            if(header->contentLengthOrChunk)
+            {
+                printf("Last chunk data not fully read !\n");
+                exit(1);
+            }
+            else
+            {
+                printf("Transfer ended with a zero chunk! OK !\n");
+            }
+        } else
+        {
+            if(header->contentLengthOrChunk == _length)
+            {
+                printf("Received the full : %d \n", _length);
+            }
+            else
+            {
+                printf("Received %d , waiting for %d\n", _length, header->contentLengthOrChunk);
+                exit(1);
+            }
+        }
+
+        if (!url_filename) {
+            printf("Failed to get local filename\n");
+            exit(1);
+        }
+
+        len = http_save_file(data, _length);
+        if ((len < 0) || ((uint32_t)len < _length)) {
+            printf("Failed to save file: %s\n", strerror(errno));
+            exit(1);
+        }
+
+        pico_http_client_close(conn);
+        exit(0);
+    }
+
+    if(ev & EV_HTTP_ERROR)
+    {
+        printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
+        pico_http_client_close(conn);
+        exit(1u);
+    }
+
+    if(ev & EV_HTTP_DNS)
+    {
+        printf("The DNS query was successful ... \n");
+    }
 }
 
 void app_wget(char *arg)
 {
-  char * url;
-  cpy_arg(&url, arg);
+    char *url;
+    cpy_arg(&url, arg);
 
-  if(!url)
-  {
-  	fprintf(stderr, " wget expects the url to be received\n");
-  	exit(1);
-  }
+    if(!url)
+    {
+        fprintf(stderr, " wget expects the url to be received\n");
+        exit(1);
+    }
 
-  if(pico_http_client_open(url,wget_callback) < 0)
-  {
-  	fprintf(stderr," error opening the url : %s, please check the format\n",url);
-  	exit(1);
-  }
-  url_filename = basename(url);
+    if(pico_http_client_open(url, wget_callback) < 0)
+    {
+        fprintf(stderr, " error opening the url : %s, please check the format\n", url);
+        exit(1);
+    }
+
+    url_filename = basename(url);
 }
 #endif
 /* END HTTP client */
 
 /* START HTTP server */
 #ifdef PICO_SUPPORT_HTTP_SERVER
-#define SIZE 4*1024
+#define SIZE 4 * 1024
 
-void serverWakeup(uint16_t ev,uint16_t conn)
+void serverWakeup(uint16_t ev, uint16_t conn)
 {
-  static FILE * f;
-  char buffer[SIZE];
+    static FILE *f;
+    char buffer[SIZE];
 
-  if(ev & EV_HTTP_CON)
-  {
-  		printf("New connection received....\n");
-  		pico_http_server_accept();
-  }
+    if(ev & EV_HTTP_CON)
+    {
+        printf("New connection received....\n");
+        pico_http_server_accept();
+    }
 
-  if(ev & EV_HTTP_REQ) // new header received
-  {
-  	int read;
-  	char * resource;
-  	printf("Header request was received...\n");
-  	printf("> Resource : %s\n",pico_http_getResource(conn));
-  	resource = pico_http_getResource(conn);
+    if(ev & EV_HTTP_REQ) /* new header received */
+    {
+        int read;
+        char *resource;
+        printf("Header request was received...\n");
+        printf("> Resource : %s\n", pico_http_getResource(conn));
+        resource = pico_http_getResource(conn);
 
-  	if(strcmp(resource,"/")==0 || strcmp(resource,"index.html") == 0 || strcmp(resource,"/index.html") == 0)
-  	{
-  				// Accepting request
-  				printf("Accepted connection...\n");
-  				pico_http_respond(conn,HTTP_RESOURCE_FOUND);
-  				f = fopen("test/examples/index.html","r");
+        if(strcmp(resource, "/") == 0 || strcmp(resource, "index.html") == 0 || strcmp(resource, "/index.html") == 0)
+        {
+            /* Accepting request */
+            printf("Accepted connection...\n");
+            pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+            f = fopen("test/examples/index.html", "r");
 
-  				if(!f)
-  				{
-  					fprintf(stderr,"Unable to open the file /test/examples/index.html\n");
-  					exit(1);
-  				}
+            if(!f)
+            {
+                fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
+                exit(1);
+            }
 
-  				read = fread(buffer,1,SIZE,f);
-  				pico_http_submitData(conn,buffer,read);
-  	}
-  	else
-  	{ // reject
-  		printf("Rejected connection...\n");
-  		pico_http_respond(conn,HTTP_RESOURCE_NOT_FOUND);
-  	}
+            read = fread(buffer, 1, SIZE, f);
+            pico_http_submitData(conn, buffer, read);
+        }
+        else
+        { /* reject */
+            printf("Rejected connection...\n");
+            pico_http_respond(conn, HTTP_RESOURCE_NOT_FOUND);
+        }
 
-  }
+    }
 
-  if(ev & EV_HTTP_PROGRESS) // submitted data was sent
-  {
-  	uint16_t sent, total;
-  	pico_http_getProgress(conn,&sent,&total);
-  	printf("Chunk statistics : %d/%d sent\n",sent,total);
-  }
+    if(ev & EV_HTTP_PROGRESS) /* submitted data was sent */
+    {
+        uint16_t sent, total;
+        pico_http_getProgress(conn, &sent, &total);
+        printf("Chunk statistics : %d/%d sent\n", sent, total);
+    }
 
-  if(ev & EV_HTTP_SENT) // submitted data was fully sent
-  {
-  	int read;
-  	read = fread(buffer,1,SIZE,f);
-  	printf("Chunk was sent...\n");
-  	if(read > 0)
-  	{
-  			printf("Sending another chunk...\n");
-  			pico_http_submitData(conn,buffer,read);
-  	}
-  	else
-  	{
-  			printf("Last chunk !\n");
-  			pico_http_submitData(conn,NULL,0);// send the final chunk
-  			fclose(f);
-  	}
+    if(ev & EV_HTTP_SENT) /* submitted data was fully sent */
+    {
+        int read;
+        read = fread(buffer, 1, SIZE, f);
+        printf("Chunk was sent...\n");
+        if(read > 0)
+        {
+            printf("Sending another chunk...\n");
+            pico_http_submitData(conn, buffer, read);
+        }
+        else
+        {
+            printf("Last chunk !\n");
+            pico_http_submitData(conn, NULL, 0); /* send the final chunk */
+            fclose(f);
+        }
 
-  }
+    }
 
-  if(ev & EV_HTTP_CLOSE)
-  {
-  	printf("Close request...\n");
-  	pico_http_close(conn);
-  }
+    if(ev & EV_HTTP_CLOSE)
+    {
+        printf("Close request...\n");
+        pico_http_close(conn);
+    }
 
-  if(ev & EV_HTTP_ERROR)
-  {
-  	printf("Error on server...\n");
-  	pico_http_close(conn);
-  }
+    if(ev & EV_HTTP_ERROR)
+    {
+        printf("Error on server...\n");
+        pico_http_close(conn);
+    }
 }
 
 void app_httpd(char __attribute__((unused)) *arg)
 {
 
-  if( pico_http_server_start(0,serverWakeup) < 0)
-  {
-  	fprintf(stderr,"Unable to start the server on port 80\n");
-  }
+    if( pico_http_server_start(0, serverWakeup) < 0)
+    {
+        fprintf(stderr, "Unable to start the server on port 80\n");
+    }
 
 }
 #endif
@@ -1931,126 +2013,129 @@ void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
 /* ZEROMQ PRODUCER */
 void app_zeromq_prod(char __attribute__((unused)) *arg)
 {
-  ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
-  if (!z) {
-    fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
-    exit(1);
-  }
-  while(1) {
-	pico_time last = 0;
-	pico_time now;
-    char zmsg[] = "HELLO";
-    pico_stack_tick();
-    now = PICO_TIME_MS();
-    if (now > last + 500) {
-      zmq_send(z, zmsg, 5);
-      last = now;
+    ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
+    if (!z) {
+        fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
+        exit(1);
     }
-    usleep(2000);
-  }
+
+    while(1) {
+        pico_time last = 0;
+        pico_time now;
+        char zmsg[] = "HELLO";
+        pico_stack_tick();
+        now = PICO_TIME_MS();
+        if (now > last + 500) {
+            zmq_send(z, zmsg, 5);
+            last = now;
+        }
+
+        usleep(2000);
+    }
 }
 
 /* NOOP */
 void app_noop(void)
 {
-  while(1) {
-    pico_stack_tick();
-    usleep(2000);
-  }
+    while(1) {
+        pico_stack_tick();
+        usleep(2000);
+    }
 }
 
 /* end NOOP */
 
 void ping_callback_slaacv4(struct pico_icmp4_stats *s)
 {
-  char host[30] = { };
+    char host[30] = { };
 
-  pico_ipv4_to_string(host, s->dst.addr);
-  if (s->err == 0) {
-    dbg("SLAACV4: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
-    if (s->seq >= 3) {
-      dbg("SLAACV4: TEST SUCCESS!\n");
-      pico_slaacv4_unregisterip();
-      exit(0);
+    pico_ipv4_to_string(host, s->dst.addr);
+    if (s->err == 0) {
+        dbg("SLAACV4: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+        if (s->seq >= 3) {
+            dbg("SLAACV4: TEST SUCCESS!\n");
+            pico_slaacv4_unregisterip();
+            exit(0);
+        }
+    } else {
+        dbg("SLAACV4: ping %lu to %s error %d\n", s->seq, host, s->err);
+        dbg("SLAACV4: TEST FAILED!\n");
+        exit(1);
     }
-  } else {
-    dbg("SLAACV4: ping %lu to %s error %d\n", s->seq, host, s->err);
-    dbg("SLAACV4: TEST FAILED!\n");
-    exit(1);
-  }
 }
 
 void slaacv4_cb(struct pico_ip4 *ip, uint8_t code)
 {
-  char dst[16] = "169.254.22.5";
-  printf("SLAACV4 CALLBACK ip:0x%X code:%d \n", ip->addr, code);
-  if (code == 0)
-  {
+    char dst[16] = "169.254.22.5";
+    printf("SLAACV4 CALLBACK ip:0x%X code:%d \n", ip->addr, code);
+    if (code == 0)
+    {
 #ifdef PICO_SUPPORT_PING
-    pico_icmp4_ping(dst, 3, 1000, 5000, 32, ping_callback_slaacv4);
+        pico_icmp4_ping(dst, 3, 1000, 5000, 32, ping_callback_slaacv4);
 #else
-    exit(0);
+        exit(0);
 #endif
-  }
-  else
-  {
-    exit(255);
-  }
+    }
+    else
+    {
+        exit(255);
+    }
 
 }
 
 
 void app_slaacv4(char *arg)
 {
-  char *sdev = NULL;
-  char *nxt = arg;
-  struct pico_device *dev = NULL;
+    char *sdev = NULL;
+    char *nxt = arg;
+    struct pico_device *dev = NULL;
 
-  if (!nxt)
-    exit(255);
-
-  while (nxt) {
-    if (nxt) {
-      nxt = cpy_arg(&sdev, nxt);
-      if(!sdev){
+    if (!nxt)
         exit(255);
-      }
+
+    while (nxt) {
+        if (nxt) {
+            nxt = cpy_arg(&sdev, nxt);
+            if(!sdev) {
+                exit(255);
+            }
+        }
     }
-  }
+    dev = pico_get_device(sdev);
+    if(dev == NULL) {
+        printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
+        exit(255);
+    }
 
-  dev = pico_get_device(sdev);
-  if(dev == NULL){
-    printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
-    exit(255);
-  }
-
-  pico_slaacv4_claimip(dev, slaacv4_cb);
+    pico_slaacv4_claimip(dev, slaacv4_cb);
 }
 /** From now on, parsing the command line **/
-#define NXT_MAC(x) ++x[5]
+#define NXT_MAC(x) ++ x[5]
 
-/* Copy a string until the separator, 
-terminate it and return the next index, 
-or NULL if it encounters a EOS */
+/* Copy a string until the separator,
+   terminate it and return the next index,
+   or NULL if it encounters a EOS */
 static char *cpy_arg(char **dst, char *str)
 {
-  char *p, *nxt = NULL;
-  char *start = str;
-  char *end = start + strlen(start);
-  p = str;
-  while (p) {
-    if ((*p == ':') || (*p == '\0')) {
-      *p = (char)0;
-      nxt = p + 1;
-      if ((*nxt == 0) || (nxt >= end))
-        nxt = 0;
-      printf("dup'ing %s\n", start);
-      *dst = strdup(start);
-      break;
+    char *p, *nxt = NULL;
+    char *start = str;
+    char *end = start + strlen(start);
+    p = str;
+    while (p) {
+        if ((*p == ':') || (*p == '\0')) {
+            *p = (char)0;
+            nxt = p + 1;
+            if ((*nxt == 0) || (nxt >= end))
+                nxt = 0;
+
+            printf("dup'ing %s\n", start);
+            *dst = strdup(start);
+            break;
+        }
+
+        p++;
     }
-    p++;
-  }
-  return nxt;
+    return nxt;
 }
 
 void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
@@ -2061,303 +2146,328 @@ void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribut
 
 void usage(char *arg0)
 {
-  printf("Usage: %s [--vde name:sock:address:netmask[:gateway]] [--vde ...] [--tun name:address:netmask[:gateway]] [--tun ...] [--app name[:args]]\n\n\n", arg0);
-  printf("\tall arguments can be repeated, e.g. to run on multiple links or applications\n");
-  printf("\t*** --app arguments must be at the end  ***\n");
-  exit(255);
+    printf("Usage: %s [--vde name:sock:address:netmask[:gateway]] [--vde ...] [--tun name:address:netmask[:gateway]] [--tun ...] [--app name[:args]]\n\n\n", arg0);
+    printf("\tall arguments can be repeated, e.g. to run on multiple links or applications\n");
+    printf("\t*** --app arguments must be at the end  ***\n");
+    exit(255);
 }
 
 #define IF_APPNAME(x) if(strcmp(x, name) == 0)
 
 int main(int argc, char **argv)
 {
-  unsigned char macaddr[6] = {0,0,0,0xa,0xb,0x0};
-  uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
-  struct pico_device *dev = NULL;
-  struct pico_ip4 bcastAddr = ZERO_IP4;
+    unsigned char macaddr[6] = {
+        0, 0, 0, 0xa, 0xb, 0x0
+    };
+    uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
+    struct pico_device *dev = NULL;
+    struct pico_ip4 bcastAddr = ZERO_IP4;
 
-  struct option long_options[] = {
-    {"help",0 , 0, 'h'},
-    {"vde",1 , 0, 'v'},
-    {"barevde",1 , 0, 'b'},
-    {"tun", 1, 0, 't'},
-    {"route", 1, 0, 'r'},
-    {"app", 1, 0, 'a'},
-    {"loop", 0, 0, 'l'},
-    {0,0,0,0}
-  };
-  int option_idx = 0;
-  int c;
+    struct option long_options[] = {
+        {"help", 0, 0, 'h'},
+        {"vde", 1, 0, 'v'},
+        {"barevde", 1, 0, 'b'},
+        {"tun", 1, 0, 't'},
+        {"route", 1, 0, 'r'},
+        {"app", 1, 0, 'a'},
+        {"loop", 0, 0, 'l'},
+        {0, 0, 0, 0}
+    };
+    int option_idx = 0;
+    int c;
 
-  *macaddr_low ^= getpid();
-  printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
+    *macaddr_low ^= getpid();
+    printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
-  pico_stack_init();
-  /* Parse args */
-  while(1) {
-    c = getopt_long(argc, argv, "v:b:t:a:r:hl", long_options, &option_idx);
-    if (c < 0)
-      break;
-    switch(c) {
-      case 'h':
-        usage(argv[0]);
+    pico_stack_init();
+    /* Parse args */
+    while(1) {
+        c = getopt_long(argc, argv, "v:b:t:a:r:hl", long_options, &option_idx);
+        if (c < 0)
+            break;
+
+        switch(c) {
+        case 'h':
+            usage(argv[0]);
+            break;
+        case 't':
+        {
+            char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
+
+                cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Tun: bad configuration...\n");
+                exit(1);
+            }
+
+            dev = pico_tun_create(name);
+            if (!dev) {
+                perror("Creating tun");
+                exit(1);
+            }
+
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                printf("Adding default route via %08x\n", gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
+        }
         break;
-      case 't':
-      {
-        char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-        do {
-          nxt = cpy_arg(&name, optarg);
-          if (!nxt) break;
-          nxt = cpy_arg(&addr, nxt);
-          if (!nxt) break;
-          nxt = cpy_arg(&nm, nxt);
-          if (!nxt) break;
-          cpy_arg(&gw, nxt);
-        } while(0);
-        if (!nm) {
-          fprintf(stderr, "Tun: bad configuration...\n");
-          exit(1);
-        }
-        dev = pico_tun_create(name);
-        if (!dev) {
-          perror("Creating tun");
-          exit(1);
-        }
-        pico_string_to_ipv4(addr, &ipaddr.addr);
-        pico_string_to_ipv4(nm, &netmask.addr);
-        pico_ipv4_link_add(dev, ipaddr, netmask);
-        bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+        case 'v':
+        {
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
 
-        if (gw && *gw) {
-          pico_string_to_ipv4(gw, &gateway.addr);
-          printf("Adding default route via %08x\n", gateway.addr);
-          pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-        }
-      }
-      break;
-    case 'v':
-      {
-        char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-        struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-        printf("+++ OPTARG %s\n", optarg);
-        do {
-          nxt = cpy_arg(&name, optarg);
-          if (!nxt) break;
-          nxt = cpy_arg(&sock, nxt);
-          if (!nxt) break;
-          nxt = cpy_arg(&addr, nxt);
-          if (!nxt) break;
-          nxt = cpy_arg(&nm, nxt);
-          if (!nxt) break;
-          nxt = cpy_arg(&gw, nxt);
-        } while(0);
-        if (!nm) {
-          fprintf(stderr, "Vde: bad configuration...\n");
-          exit(1);
-        }
-        dev = pico_vde_create(sock, name, macaddr);
-        NXT_MAC(macaddr);
-        if (!dev) {
-          perror("Creating vde");
-          exit(1);
-        }
-        printf("Vde created.\n");
-        pico_string_to_ipv4(addr, &ipaddr.addr);
-        pico_string_to_ipv4(nm, &netmask.addr);
-        pico_ipv4_link_add(dev, ipaddr, netmask);
-        bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
-        if (gw && *gw) {
-          pico_string_to_ipv4(gw, &gateway.addr);
-          pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-        }
-      }
-      break;
-    case 'b':
-      {
-        char *nxt, *name = NULL, *sock = NULL;
-        printf("+++ OPTARG %s\n", optarg);
-        do {
-          nxt = cpy_arg(&name, optarg);
-          if (!nxt) break;
-          nxt = cpy_arg(&sock, nxt);
-        } while(0);
-        if (!sock) {
-          fprintf(stderr, "Vde: bad configuration...\n");
-          exit(1);
-        }
-        dev = pico_vde_create(sock, name, macaddr);
-        NXT_MAC(macaddr);
-        if (!dev) {
-          perror("Creating vde");
-          exit(1);
-        }
-        printf("Vde created.\n");
-      }
-      break;
-    case 'l':
-      {
-        struct pico_ip4 ipaddr, netmask;
-        pico_string_to_ipv4("127.0.0.1", &ipaddr.addr);
-        pico_string_to_ipv4("255.0.0.0", &netmask.addr);
-        printf("Creating loopback device\n");
-        dev = pico_loop_create();
-        if (dev) {
-          pico_ipv4_link_add(dev, ipaddr, netmask);
-        }
-      }
-      break;
-    case 'r':
-      {
-      char *nxt, *addr, *nm, *gw;
-      struct pico_ip4 ipaddr, netmask, gateway;
-      addr = NULL, nm = NULL, gw = NULL;
-      printf("+++ ROUTEOPTARG %s\n", optarg);
-      do {
-        nxt = cpy_arg(&addr, optarg);
-        if (!nxt) break;
-        nxt = cpy_arg(&nm, nxt);
-        if (!nxt) break;
-        nxt = cpy_arg(&gw, nxt);
-      } while(0);
-      if (!addr || !nm || !gw) {
-        fprintf(stderr, "--route expects addr:nm:gw:\n");
-        usage(argv[0]);
-      }
-      pico_string_to_ipv4(addr, &ipaddr.addr);
-      pico_string_to_ipv4(nm, &netmask.addr);
-      pico_string_to_ipv4(gw, &gateway.addr);
-      if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0) 
-        fprintf(stderr,"ROUTE ADDED *** to %s via %s\n", addr, gw);
-      else
-        fprintf(stderr,"ROUTE ADD: ERROR %s \n", strerror(pico_err));
-      break;
-      }
-    case 'a':
-      {
-        char *name = NULL, *args = NULL;
-        printf("+++ OPTARG %s\n", optarg);
-        args = cpy_arg(&name, optarg);
+                nxt = cpy_arg(&sock, nxt);
+                if (!nxt) break;
 
-        printf("+++ NAME: %s ARGS: %s\n", name, args);
-        IF_APPNAME("udpecho") {
-          app_udpecho(args);
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
+            }
+
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
+
+            printf("Vde created.\n");
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
         }
-        else IF_APPNAME("tcpecho") {
-          app_tcpecho(args);
+        break;
+        case 'b':
+        {
+            char *nxt, *name = NULL, *sock = NULL;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&sock, nxt);
+            } while(0);
+            if (!sock) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
+            }
+
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
+
+            printf("Vde created.\n");
         }
-        else IF_APPNAME("udpclient") {
-          app_udpclient(args);
+        break;
+        case 'l':
+        {
+            struct pico_ip4 ipaddr, netmask;
+            pico_string_to_ipv4("127.0.0.1", &ipaddr.addr);
+            pico_string_to_ipv4("255.0.0.0", &netmask.addr);
+            printf("Creating loopback device\n");
+            dev = pico_loop_create();
+            if (dev) {
+                pico_ipv4_link_add(dev, ipaddr, netmask);
+            }
         }
-        else IF_APPNAME("tcpclient") {
-          app_tcpclient(args);
+        break;
+        case 'r':
+        {
+            char *nxt, *addr, *nm, *gw;
+            struct pico_ip4 ipaddr, netmask, gateway;
+            addr = NULL, nm = NULL, gw = NULL;
+            printf("+++ ROUTEOPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&addr, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&gw, nxt);
+            } while(0);
+            if (!addr || !nm || !gw) {
+                fprintf(stderr, "--route expects addr:nm:gw:\n");
+                usage(argv[0]);
+            }
+
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_string_to_ipv4(gw, &gateway.addr);
+            if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0)
+                fprintf(stderr, "ROUTE ADDED *** to %s via %s\n", addr, gw);
+            else
+                fprintf(stderr, "ROUTE ADD: ERROR %s \n", strerror(pico_err));
+
+            break;
         }
-        else IF_APPNAME("tcpbench") {
-          app_tcpbench(args);
-        }
-        else IF_APPNAME("natbox") {
-          app_natbox(args);
-        }
-        else IF_APPNAME("udpdnsclient") {
-          app_udpdnsclient(args);
-        }
-        else IF_APPNAME("udpnatclient") {
-          app_udpnatclient(args);
-        }
-        else IF_APPNAME("mcastsend") {
+        case 'a':
+        {
+            char *name = NULL, *args = NULL;
+            printf("+++ OPTARG %s\n", optarg);
+            args = cpy_arg(&name, optarg);
+
+            printf("+++ NAME: %s ARGS: %s\n", name, args);
+            IF_APPNAME("udpecho") {
+                app_udpecho(args);
+            }
+            else IF_APPNAME("tcpecho") {
+                    app_tcpecho(args);
+                }
+                else IF_APPNAME("udpclient") {
+                        app_udpclient(args);
+                    }
+                    else IF_APPNAME("tcpclient") {
+                            app_tcpclient(args);
+                        }
+                        else IF_APPNAME("tcpbench") {
+                                app_tcpbench(args);
+                            }
+                            else IF_APPNAME("natbox") {
+                                    app_natbox(args);
+                                }
+                                else IF_APPNAME("udpdnsclient") {
+                                        app_udpdnsclient(args);
+                                    }
+                                    else IF_APPNAME("udpnatclient") {
+                                            app_udpnatclient(args);
+                                        }
+                                        else IF_APPNAME("mcastsend") {
 #ifndef PICO_SUPPORT_MCAST
-          return 0;
+                                                return 0;
 #endif
-          app_mcastsend(args);
-        }
-        else IF_APPNAME("mcastreceive") {
+                                                app_mcastsend(args);
+                                            }
+                                            else IF_APPNAME("mcastreceive") {
 #ifndef PICO_SUPPORT_MCAST
-          return 0;
+                                                    return 0;
 #endif
-          app_mcastreceive(args);
-        }
+                                                    app_mcastreceive(args);
+                                                }
 #ifdef PICO_SUPPORT_PING
-        else IF_APPNAME("ping") {
-          app_ping(args);
-        }
+                                                else IF_APPNAME("ping") {
+                                                        app_ping(args);
+                                                    }
 #endif
-        else IF_APPNAME("dhcpserver") {
+                                                else IF_APPNAME("dhcpserver") {
 #ifndef PICO_SUPPORT_DHCPD
-          return 0;
+                                                        return 0;
 #else
-          app_dhcp_server(args);
+                                                        app_dhcp_server(args);
 #endif
-        }
-        else IF_APPNAME("dhcpclient") {
+                                                    }
+                                                    else IF_APPNAME("dhcpclient") {
 #ifndef PICO_SUPPORT_DHCPC
-          return 0;
+                                                            return 0;
 #else
-          app_dhcp_client(args);
+                                                            app_dhcp_client(args);
 #endif
-        }
-        else IF_APPNAME("wget") {
+                                                        }
+                                                        else IF_APPNAME("wget") {
 #ifndef PICO_SUPPORT_HTTP_CLIENT
-          return 0;
+                                                                return 0;
 #else
-          app_wget(args);
+                                                                app_wget(args);
 #endif
-        }
-        else IF_APPNAME("httpd") {
+                                                            }
+                                                            else IF_APPNAME("httpd") {
 #ifndef PICO_SUPPORT_HTTP_SERVER
-          return 0;
+                                                                    return 0;
 #else
-          app_httpd(args);
+                                                                    app_httpd(args);
 #endif
-        }
-  			else IF_APPNAME("bcast") {
-          struct pico_ip4 any = {.addr = 0xFFFFFFFFu};
+                                                                }
+                                                                else IF_APPNAME("bcast") {
+                                                                        struct pico_ip4 any = {
+                                                                            .addr = 0xFFFFFFFFu
+                                                                        };
 
-          struct pico_socket * s = pico_socket_open(PICO_PROTO_IPV4,PICO_PROTO_UDP,&__wakeup);
-          pico_socket_sendto(s,"abcd",5u,&any,1000);
+                                                                        struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
+                                                                        pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
-          pico_socket_sendto(s,"abcd",5u,&bcastAddr,1000);
-        }
-        else IF_APPNAME("zeromq_prod"){
-          app_zeromq_prod(args);
-        }
-        else IF_APPNAME("noop") {
-          app_noop();
-        }
-        else IF_APPNAME("olsr") {
-          pico_olsr_init();
-          dev = pico_get_device("pic0");
-          if(dev) {
-            pico_olsr_add(dev);
-          }
-          dev = pico_get_device("pic1");
-          if(dev) {
-            pico_olsr_add(dev);
-          }
-          app_noop();
-        }
-        else IF_APPNAME("slaacv4"){
+                                                                        pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
+                                                                    }
+                                                                    else IF_APPNAME("zeromq_prod"){
+                                                                            app_zeromq_prod(args);
+                                                                        }
+                                                                        else IF_APPNAME("noop") {
+                                                                                app_noop();
+                                                                            }
+                                                                            else IF_APPNAME("olsr") {
+                                                                                    pico_olsr_init();
+                                                                                    dev = pico_get_device("pic0");
+                                                                                    if(dev) {
+                                                                                        pico_olsr_add(dev);
+                                                                                    }
+
+                                                                                    dev = pico_get_device("pic1");
+                                                                                    if(dev) {
+                                                                                        pico_olsr_add(dev);
+                                                                                    }
+
+                                                                                    app_noop();
+                                                                                }
+                                                                                else IF_APPNAME("slaacv4"){
 #ifndef PICO_SUPPORT_SLAACV4
-          return 0;
+                                                                                        return 0;
 #else
-          app_slaacv4(args);
+                                                                                        app_slaacv4(args);
 #endif
+                                                                                    }
+                                                                                    else {
+                                                                                        fprintf(stderr, "Unknown application %s\n", name);
+                                                                                        usage(argv[0]);
+                                                                                    }
         }
-        else {
-          fprintf(stderr, "Unknown application %s\n", name);
-          usage(argv[0]);
+        break;
         }
-      }
-      break;
     }
-  }
-  if (!dev) {
-    printf("nodev");
-    usage(argv[0]);
-  }
+    if (!dev) {
+        printf("nodev");
+        usage(argv[0]);
+    }
 
-  printf("%s: launching PicoTCP loop\n", __FUNCTION__);
-  while(1) {
-    pico_stack_tick();
-    usleep(2000);
-  }
+    printf("%s: launching PicoTCP loop\n", __FUNCTION__);
+    while(1) {
+        pico_stack_tick();
+        usleep(2000);
+    }
 }

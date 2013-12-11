@@ -1,10 +1,10 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-.
+   .
 
-*********************************************************************/
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_IPV4
 #define _INCLUDE_PICO_IPV4
 #include "pico_addressing.h"
@@ -21,32 +21,32 @@ See LICENSE and COPYING for usage.
 #ifndef MBED
     #define PICO_IPV4_FRAG_MAX_SIZE (63 * 1024)
 #else
-	#define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
+    #define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
 #endif
 
 extern struct pico_protocol pico_proto_ipv4;
 
 struct __attribute__((packed)) pico_ipv4_hdr {
-  uint8_t vhl;
-  uint8_t tos;
-  uint16_t len;
-  uint16_t id;
-  uint16_t frag;
-  uint8_t ttl;
-  uint8_t proto;
-  uint16_t crc;
-  struct pico_ip4 src;
-  struct pico_ip4 dst;
-  uint8_t options[];
+    uint8_t vhl;
+    uint8_t tos;
+    uint16_t len;
+    uint16_t id;
+    uint16_t frag;
+    uint8_t ttl;
+    uint8_t proto;
+    uint16_t crc;
+    struct pico_ip4 src;
+    struct pico_ip4 dst;
+    uint8_t options[];
 };
 
 struct __attribute__((packed)) pico_ipv4_pseudo_hdr
 {
-  struct pico_ip4 src;
-  struct pico_ip4 dst;
-  uint8_t zeros;
-  uint8_t proto;
-  uint16_t len;
+    struct pico_ip4 src;
+    struct pico_ip4 dst;
+    uint8_t zeros;
+    uint8_t proto;
+    uint16_t len;
 };
 
 /* Interface: link to device */
@@ -54,30 +54,30 @@ struct pico_mcast_list;
 
 struct pico_ipv4_link
 {
-  struct pico_device *dev;
-  struct pico_ip4 address;
-  struct pico_ip4 netmask;
+    struct pico_device *dev;
+    struct pico_ip4 address;
+    struct pico_ip4 netmask;
 #ifdef PICO_SUPPORT_MCAST
-  struct pico_tree *MCASTGroups;
-  uint8_t mcast_compatibility;
-  uint8_t mcast_last_query_interval;
+    struct pico_tree *MCASTGroups;
+    uint8_t mcast_compatibility;
+    uint8_t mcast_last_query_interval;
 #endif
 };
 
 #ifdef PICO_SUPPORT_MCAST
 struct pico_mcast_group {
-  uint8_t filter_mode;
-  uint16_t reference_count;
-  struct pico_ip4 mcast_addr;
-  struct pico_tree MCASTSources;
+    uint8_t filter_mode;
+    uint16_t reference_count;
+    struct pico_ip4 mcast_addr;
+    struct pico_tree MCASTSources;
 };
 #endif
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
 int pico_ipv4_valid_netmask(uint32_t mask);
-int pico_ipv4_is_unicast(uint32_t address); 
-int pico_ipv4_is_multicast(uint32_t address); 
+int pico_ipv4_is_unicast(uint32_t address);
+int pico_ipv4_is_multicast(uint32_t address);
 int pico_ipv4_is_broadcast(uint32_t addr);
 
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);

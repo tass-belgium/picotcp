@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Bogdan Lupu
-*********************************************************************/
+   Authors: Bogdan Lupu
+ *********************************************************************/
 #ifndef _INCLUDE_PICO_SUPPORT_SLAACV4
 #define _INCLUDE_PICO_SUPPORT_SLAACV4
 #include "pico_arp.h"

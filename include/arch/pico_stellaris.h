@@ -1,8 +1,8 @@
 #ifndef PICO_SUPPORT_STELLARIS
 #define PICO_SUPPORT_STELLARIS
 
-//#define dbg printf
-#define dbg(...) do{}while(0)
+/* #define dbg printf */
+#define dbg(...) do {} while(0)
 
 /*************************/
 
@@ -17,13 +17,13 @@ extern volatile uint32_t stellaris_tick;
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
 static inline void *pico_zalloc(int len)
 {
-    //dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0));
+    /* dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0)); */
     return calloc(len, 1);
 }
 
 static inline void pico_free(void *tgt)
 {
-    //dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0));
+    /* dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0)); */
     free(tgt);
 }
 #else
@@ -35,19 +35,19 @@ static inline void pico_free(void *tgt)
 
 static inline unsigned long PICO_TIME(void)
 {
-  register uint32_t tick = stellaris_tick;
-  return tick / 1000;
+    register uint32_t tick = stellaris_tick;
+    return tick / 1000;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-  return stellaris_tick;
+    return stellaris_tick;
 }
 
 static inline void PICO_IDLE(void)
 {
-  unsigned long tick_now = stellaris_tick;
-  while(tick_now == stellaris_tick);
+    unsigned long tick_now = stellaris_tick;
+    while(tick_now == stellaris_tick) ;
 }
 
 #endif
