@@ -1,5 +1,5 @@
 OPTIONS+=-DPICO_SUPPORT_ICMP4
-MOD_OBJ+=modules/pico_icmp4.o
+MOD_OBJ+=$(LIBBASE)modules/pico_icmp4.o
 ifneq ($(PING),0)
   OPTIONS+=-DPICO_SUPPORT_PING
 endif

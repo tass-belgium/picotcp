@@ -1,2 +1,2 @@
 OPTIONS+=-DPICO_SUPPORT_OLSR
-MOD_OBJ+=modules/pico_olsr.o
+MOD_OBJ+=$(LIBBASE)modules/pico_olsr.o

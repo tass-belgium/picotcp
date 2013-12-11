@@ -1,2 +1,2 @@
 OPTIONS+=-DPICO_SUPPORT_IPV4
-MOD_OBJ+=modules/pico_ipv4.o
+MOD_OBJ+=$(LIBBASE)modules/pico_ipv4.o

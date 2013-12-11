@@ -1,2 +1,2 @@
 OPTIONS+=-DPICO_SUPPORT_DNS_CLIENT
-MOD_OBJ+=modules/pico_dns_client.o
+MOD_OBJ+=$(LIBBASE)modules/pico_dns_client.o

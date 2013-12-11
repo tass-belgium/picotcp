@@ -1,2 +1,2 @@
 OPTIONS+=-DPICO_SUPPORT_TCP
-MOD_OBJ+=modules/pico_tcp.o
+MOD_OBJ+=$(LIBBASE)modules/pico_tcp.o
