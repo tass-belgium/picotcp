@@ -52,14 +52,31 @@ static inline void *pico_zalloc(size_t size)
     return ptr;
 }
 
-#define PICO_TIME_MS() (void)
-#error "You must define your clock source!\n"
+extern uint32_t lpc_tick;
+static pico_time full_tick = 0ULL;
 
-#endif
+static inline pico_time PICO_TIME_MS(void)
+{
+    if ((full_tick & 0xFFFFFFFF) > lpc_tick) {
+        full_tick +=  0x100000000ULL;
+    }
 
+    full_tick = (full_tick & 0xFFFFFFFF00000000ULL) + lpc_tick;
+    return full_tick;
+}
 
+static inline pico_time PICO_TIME(void)
+{
+    return PICO_TIME_MS() / 1000;
+}
 
+static inline void PICO_IDLE(void)
+{
+    uint32_t now = lpc_tick;
+    while(tick_now == lpc_tick) ;
+}
 
+#endif /* IFNDEF RTOS */
 
 #define dbg(...)
 
