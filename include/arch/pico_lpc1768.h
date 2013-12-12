@@ -11,22 +11,13 @@
 #include <string.h>
 #include "pico_constants.h"
 
-extern uint32_t Time_ElapsedSec(void);
-extern uint32_t Time_ElapsedMili(void);
-extern void *pvPortMalloc( size_t xSize );
-extern void vPortFree( void *pv );
-
 #ifdef PICO_SUPPORT_RTOS
 #   define PICO_SUPPORT_MUTEX
 extern void *pico_mutex_init(void);
 extern void pico_mutex_lock(void*);
 extern void pico_mutex_unlock(void*);
-#endif
-
-
-#define PICO_TIME() (Time_ElapsedSec())
-#define PICO_TIME_MS() (Time_ElapsedMili())
-#define PICO_IDLE()
+extern void *pvPortMalloc( size_t xSize );
+extern void vPortFree( void *pv );
 
 #define pico_free(x) vPortFree(x)
 #define free(x)      vPortFree(x)
@@ -40,6 +31,35 @@ static inline void *pico_zalloc(size_t size)
 
     return ptr;
 }
+
+#define PICO_TIME() (Time_ElapsedSec())
+#define PICO_TIME_MS() (Time_ElapsedMili())
+#define PICO_IDLE()
+extern uint32_t Time_ElapsedSec(void);
+extern uint32_t Time_ElapsedMili(void);
+
+
+#else
+# define pico_free(x) free(x)
+
+static inline void *pico_zalloc(size_t size)
+{
+    void *ptr = malloc(size);
+
+    if(ptr)
+        memset(ptr, 0u, size);
+
+    return ptr;
+}
+
+#define PICO_TIME_MS() (void)
+#error "You must define your clock source!\n"
+
+#endif
+
+
+
+
 
 #define dbg(...)
 
