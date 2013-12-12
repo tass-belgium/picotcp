@@ -1142,12 +1142,13 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
 
 int pico_tcp_reply_rst(struct pico_frame *fr)
 {
-    struct pico_tcp_hdr *hdr;
+	struct pico_tcp_hdr *hdr,*hdr1;
     struct pico_frame *f;
     uint16_t size = PICO_SIZE_TCPHDR;
 
     tcp_dbg("TCP>>>>>>>>>>>>>>>> sending RST ... <<<<<<<<<<<<<<<<<<\n");
 
+    hdr1 = (struct pico_tcp_hdr *) (fr->transport_hdr);
     f = fr->sock->net->alloc(fr->sock->net, size);
 
     /* fill in IP data from original frame */
@@ -1160,14 +1161,17 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     ((struct pico_tcp_hdr *)(f->transport_hdr))->trans.sport = ((struct pico_tcp_hdr *)(fr->transport_hdr))->trans.dport;
     hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     hdr->len   = (uint8_t)(size << 2);
-    hdr->flags = PICO_TCP_RST | PICO_TCP_ACK;
+    hdr->flags = PICO_TCP_RST;
+    if(!(hdr1->flags & PICO_TCP_ACK))
+    hdr->flags |= PICO_TCP_ACK;
     hdr->rwnd  = 0;
     if (((struct pico_tcp_hdr *)(fr->transport_hdr))->flags & PICO_TCP_ACK) {
         hdr->seq = ((struct pico_tcp_hdr *)(fr->transport_hdr))->ack;
     } else {
         hdr->seq = 0U;
     }
-
+    hdr->ack = 0;
+    if(!(hdr1->flags & PICO_TCP_ACK))
     hdr->ack = long_be(long_be(((struct pico_tcp_hdr *)(fr->transport_hdr))->seq) + fr->payload_len);
     hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
     /* enqueue for transmission */
@@ -2214,13 +2218,13 @@ struct tcp_action_entry {
 };
 
 static struct tcp_action_entry tcp_fsm[] = {
-    /* State                            syn              synack             ack                data             fin              finack           rst*/
+    /* State                              syn              synack             ack                data             fin              finack           rst*/
     { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
     { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
-    { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
-    { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_data_in,    &tcp_nosync_rst, &tcp_closeconn, &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon, &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
+    { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
+    { PICO_SOCKET_STATE_TCP_SYN_SENT,     NULL,            &tcp_synack,       NULL,              NULL,            NULL,            NULL,            &tcp_rst },
+    { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            NULL,              &tcp_first_ack,    &tcp_data_in,    NULL,            &tcp_closeconn,  &tcp_rst },
+    { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon,&tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
     { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,  &tcp_rst },
     { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
     { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
@@ -2232,7 +2236,31 @@ static struct tcp_action_entry tcp_fsm[] = {
 /*
    NOTE: in SYN-RECV receiving syn when cloned by default (see yellow pos-it), should send reset.
  */
-
+#define MAX_VALID_FLAGS  9  // Maximum number of valid flag combinations
+static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
+{
+	uint8_t i;
+	static uint8_t valid_flags[PICO_SOCKET_STATE_TCP_ARRAYSIZ][MAX_VALID_FLAGS] = {
+		{ /* PICO_SOCKET_STATE_TCP_UNDEF      */ },
+		{ /* PICO_SOCKET_STATE_TCP_CLOSED     */ },
+		{ /* PICO_SOCKET_STATE_TCP_LISTEN     */ PICO_TCP_SYN },
+		{ /* PICO_SOCKET_STATE_TCP_SYN_SENT   */ PICO_TCP_SYNACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_SYN_RECV   */ PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_ESTABLISHED*/ PICO_TCP_SYN, PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_CLOSE_WAIT */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_LAST_ACK   */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_FIN_WAIT1  */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_FIN_WAIT2  */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_CLOSING    */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+		{ /* PICO_SOCKET_STATE_TCP_TIME_WAIT  */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+	};
+	if(!flags)
+		return 1;
+	for(i=0; i < MAX_VALID_FLAGS; i++)
+		if(valid_flags[s->state >> 8u][i] == flags)
+			return 0;
+	return 1;
+}
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
@@ -2250,8 +2278,10 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     f->sock = s;
     s->timestamp = PICO_TIME_MS();
     /* Those are not supported at this time. */
-    flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN);
-    if (flags == PICO_TCP_SYN) {
+    //flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN);
+    if(invalid_flags(s,flags))
+    	pico_tcp_reply_rst(f);
+    else if (flags == PICO_TCP_SYN) {
         if (action->syn)
             action->syn(s, f);
     } else if (flags == (PICO_TCP_SYN | PICO_TCP_ACK)) {

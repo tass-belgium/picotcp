@@ -67,6 +67,10 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 #define PICO_TCP_ECN 0x40u
 #define PICO_TCP_CWR 0x80u
 
+#define PICO_TCP_SYNACK    (PICO_TCP_SYN | PICO_TCP_ACK)
+#define PICO_TCP_PSHACK    (PICO_TCP_PSH | PICO_TCP_ACK)
+#define PICO_TCP_FINACK    (PICO_TCP_FIN | PICO_TCP_ACK)
+#define PICO_TCP_FINPSHACK (PICO_TCP_FIN | PICO_TCP_PSH | PICO_TCP_ACK)
 
 
 struct __attribute__((packed)) pico_tcp_option
