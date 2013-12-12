@@ -135,11 +135,11 @@ static int segment_compare(void *ka, void *kb)
 
 struct pico_tcp_queue
 {
-  struct pico_tree pool;
-  uint32_t max_size;
-  uint32_t size;
-  uint32_t frames;
-  uint16_t overhead;
+    struct pico_tree pool;
+    uint32_t max_size;
+    uint32_t size;
+    uint32_t frames;
+    uint16_t overhead;
 };
 
 static void tcp_discard_all_segments(struct pico_tcp_queue *tq);
@@ -258,56 +258,56 @@ struct tcp_sack_block {
 };
 
 struct pico_socket_tcp {
-  struct pico_socket sock;
+    struct pico_socket sock;
 
-  /* Tree/queues */
-  struct pico_tcp_queue tcpq_in;    // updated the input queue to hold input segments not the full frame.
-  struct pico_tcp_queue tcpq_out;
-  struct pico_tcp_queue tcpq_hold;  /* buffer to hold delayed frames according to Nagle */
+    /* Tree/queues */
+    struct pico_tcp_queue tcpq_in;  /* updated the input queue to hold input segments not the full frame. */
+    struct pico_tcp_queue tcpq_out;
+    struct pico_tcp_queue tcpq_hold; /* buffer to hold delayed frames according to Nagle */
 
-  /* tcp_output */
-  uint32_t snd_nxt;
-  uint32_t snd_last;
-  uint32_t snd_old_ack;
-  uint32_t snd_retry;
-  uint32_t snd_last_out;
+    /* tcp_output */
+    uint32_t snd_nxt;
+    uint32_t snd_last;
+    uint32_t snd_old_ack;
+    uint32_t snd_retry;
+    uint32_t snd_last_out;
 
-  /* congestion control */
-  uint32_t avg_rtt;
-  uint32_t rttvar;
-  uint32_t rto;
-  uint32_t in_flight;
-  uint8_t  timer_running;
-  struct pico_timer * retrans_tmr;
-  uint8_t  keepalive_timer_running;
-  uint16_t cwnd_counter;
-  uint16_t cwnd;
-  uint16_t ssthresh;
-  uint16_t recv_wnd;
-  uint16_t recv_wnd_scale;
+    /* congestion control */
+    uint32_t avg_rtt;
+    uint32_t rttvar;
+    uint32_t rto;
+    uint32_t in_flight;
+    uint8_t timer_running;
+    struct pico_timer *retrans_tmr;
+    uint8_t keepalive_timer_running;
+    uint16_t cwnd_counter;
+    uint16_t cwnd;
+    uint16_t ssthresh;
+    uint16_t recv_wnd;
+    uint16_t recv_wnd_scale;
 
-  /* tcp_input */
-  uint32_t rcv_nxt;
-  uint32_t rcv_ackd;
-  uint32_t rcv_processed;
-  uint16_t wnd;
-  uint16_t wnd_scale;
+    /* tcp_input */
+    uint32_t rcv_nxt;
+    uint32_t rcv_ackd;
+    uint32_t rcv_processed;
+    uint16_t wnd;
+    uint16_t wnd_scale;
 
-  /* options */
-  uint32_t ts_nxt;
-  uint16_t mss;
-  uint8_t sack_ok;
-  uint8_t ts_ok;
-  uint8_t mss_ok;
-  uint8_t scale_ok;
-  struct tcp_sack_block *sacks;
-  uint8_t jumbo;
+    /* options */
+    uint32_t ts_nxt;
+    uint16_t mss;
+    uint8_t sack_ok;
+    uint8_t ts_ok;
+    uint8_t mss_ok;
+    uint8_t scale_ok;
+    struct tcp_sack_block *sacks;
+    uint8_t jumbo;
 
-  /* Transmission */
-  uint8_t  x_mode;
-  uint8_t  dupacks;
-  uint8_t  backoff;
-  uint8_t  localZeroWindow;
+    /* Transmission */
+    uint8_t x_mode;
+    uint8_t dupacks;
+    uint8_t backoff;
+    uint8_t localZeroWindow;
 };
 
 /* Queues */
@@ -519,10 +519,11 @@ static uint16_t tcp_options_size_frame(struct pico_frame *f)
 {
     uint16_t size = 0;
 
-   /* Always update window scale. */
+    /* Always update window scale. */
     size = (uint16_t)(size + PICO_TCPOPTLEN_WS);
     if (f->transport_flags_saved)
-    	size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
+        size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
+
     size = (uint16_t)(size + PICO_TCPOPTLEN_END);
     size = (uint16_t)(((size + 3) >> 2) << 2);
     return size;
@@ -552,6 +553,7 @@ static void tcp_add_options_frame(struct pico_socket_tcp *ts, struct pico_frame 
         memcpy(f->start + i, &tsecr, 4);
         i += 4;
     }
+
     if (i < optsiz)
         f->start[ optsiz - 1 ] = PICO_TCP_OPTION_END;
 }
@@ -740,8 +742,10 @@ static void tcp_parse_options(struct pico_frame *f)
                 i = i + len - 2;
                 break;
             }
+
             if(((struct pico_tcp_hdr *)(f->transport_hdr))->flags & PICO_TCP_SYN )
-            	t->sack_ok = 1;
+                t->sack_ok = 1;
+
             break;
         case PICO_TCP_OPTION_MSS: {
             uint16_t mss;
@@ -2216,7 +2220,7 @@ static struct tcp_action_entry tcp_fsm[] = {
     { PICO_SOCKET_STATE_TCP_LISTEN,       &tcp_syn,        &tcp_nosync_rst,   &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, NULL     },
     { PICO_SOCKET_STATE_TCP_SYN_SENT,     &tcp_nosync_rst, &tcp_synack,       &tcp_nosync_rst,   &tcp_nosync_rst, &tcp_nosync_rst, &tcp_nosync_rst, &tcp_rst },
     { PICO_SOCKET_STATE_TCP_SYN_RECV,     NULL,            &tcp_nosync_rst,   &tcp_first_ack,    &tcp_data_in,    &tcp_nosync_rst, &tcp_closeconn, &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon,&tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
+    { PICO_SOCKET_STATE_TCP_ESTABLISHED,  &tcp_halfopencon, &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_closewait,  &tcp_closewait,  &tcp_rst },
     { PICO_SOCKET_STATE_TCP_CLOSE_WAIT,   NULL,            &tcp_ack,          &tcp_ack,          &tcp_send_rst,   &tcp_closewait,  &tcp_closewait,  &tcp_rst },
     { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
     { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },

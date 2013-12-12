@@ -1237,7 +1237,7 @@ while (total_payload_written < len) {
     f->payload += header_offset;
     f->payload_len = (uint16_t)(f->payload_len - header_offset);
     f->sock = s;
-    transport_flags_update(f,s);
+    transport_flags_update(f, s);
     if (remote_duple) {
         f->info = pico_zalloc(sizeof(struct pico_remote_duple));
         memcpy(f->info, remote_duple, sizeof(struct pico_remote_duple));

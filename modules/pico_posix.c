@@ -1,9 +1,9 @@
 /*********************************************************************
-PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Authors: Andrei Carp, Maarten Vandersteegen
-*********************************************************************/
+   Authors: Andrei Carp, Maarten Vandersteegen
+ *********************************************************************/
 
 #ifdef PICO_SUPPORT_THREADING
 
@@ -28,14 +28,16 @@ void pico_mutex_destroy(void *mux)
 
 void pico_mutex_lock(void *mux)
 {
-    if (mux == NULL)    return;
+    if (mux == NULL) return;
+
     pthread_mutex_t *m = (pthread_mutex_t *)mux;
     pthread_mutex_lock(m);
 }
 
 void pico_mutex_unlock(void *mux)
 {
-    if (mux == NULL)    return;
+    if (mux == NULL) return;
+
     pthread_mutex_t *m = (pthread_mutex_t *)mux;
     pthread_mutex_unlock(m);
 }
@@ -57,7 +59,8 @@ void pico_sem_destroy(void *sem)
 
 void pico_sem_post(void *sem)
 {
-    if (sem == NULL)    return;
+    if (sem == NULL) return;
+
     sem_t *s = (sem_t *)sem;
     sem_post(s);
 }
@@ -65,7 +68,8 @@ void pico_sem_post(void *sem)
 int pico_sem_wait(void *sem, int timeout)
 {
     struct timespec t;
-    if (sem == NULL)    return 0;
+    if (sem == NULL) return 0;
+
     sem_t *s = (sem_t *)sem;
 
     if (timeout < 0) {
@@ -77,6 +81,7 @@ int pico_sem_wait(void *sem, int timeout)
         if (sem_timedwait(s, &t) == -1)
             return -1;
     }
+
     return 0;
 }
 
