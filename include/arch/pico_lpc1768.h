@@ -73,7 +73,7 @@ static inline pico_time PICO_TIME(void)
 static inline void PICO_IDLE(void)
 {
     uint32_t now = lpc_tick;
-    while(tick_now == lpc_tick) ;
+    while(now == lpc_tick) ;
 }
 
 #endif /* IFNDEF RTOS */
