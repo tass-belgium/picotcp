@@ -15,14 +15,14 @@ Authors: Andrei Carp, Maarten Vandersteegen
 void *pico_mutex_init(void)
 {
     pthread_mutex_t *m;
-    m = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+    m = (pthread_mutex_t *)pico_zalloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(m, NULL);
     return m;
 }
 
 void pico_mutex_destroy(void *mux)
 {
-    free(mux);
+    pico_free(mux);
     mux = NULL;
 }
 
@@ -44,14 +44,14 @@ void pico_mutex_unlock(void *mux)
 void *pico_sem_init(void)
 {
     sem_t *s;
-    s = (sem_t *)malloc(sizeof(sem_t));
+    s = (sem_t *)pico_zalloc(sizeof(sem_t));
     sem_init(s, 0, 0);
     return s;
 }
 
 void pico_sem_destroy(void *sem)
 {
-    free(sem);
+    pico_free(sem);
     sem = NULL;
 }
 
@@ -84,7 +84,7 @@ int pico_sem_wait(void *sem, int timeout)
 void *pico_thread_create(void *(*routine)(void *), void *arg)
 {
     pthread_t *thread;
-    thread = (pthread_t *)malloc(sizeof(pthread_t));
+    thread = (pthread_t *)pico_zalloc(sizeof(pthread_t));
 
     if (pthread_create(thread, NULL, routine, arg) == -1)
         return NULL;
