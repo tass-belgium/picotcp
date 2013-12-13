@@ -10,10 +10,10 @@
 #include "pico_config.h"
 #include "pico_protocol.h"
 
-#ifndef MBED
-    #define PICO_DEFAULT_SOCKETQ (128 * 1024)
+#ifdef __linux__
+    #define PICO_DEFAULT_SOCKETQ (128 * 1024) /* Linux host, so we want full throttle */
 #else
-    #define PICO_DEFAULT_SOCKETQ (4 * 1024)
+    #define PICO_DEFAULT_SOCKETQ (4 * 1024) /* seems like an acceptable default for small embedded systems */
 #endif
 
 #define PICO_SHUT_RD   1
