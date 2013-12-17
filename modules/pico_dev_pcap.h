@@ -12,7 +12,8 @@
 #include <pcap.h>
 
 void pico_pcap_destroy(struct pico_device *pcap);
-struct pico_device *pico_pcap_create(char *sock, char *name, uint8_t *mac);
+struct pico_device *pico_pcap_create_live(char *ifname, char *name, uint8_t *mac);
+struct pico_device *pico_pcap_create_fromfile(char *filename, char *name, uint8_t *mac);
 
 #endif
 
