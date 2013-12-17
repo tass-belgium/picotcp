@@ -18,6 +18,7 @@
 #include "pico_http_util.h"
 #include "pico_zmq.h"
 #include "pico_olsr.h"
+#include "pico_slaacv4.h"
 
 #include <poll.h>
 #include <errno.h>
