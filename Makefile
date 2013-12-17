@@ -3,7 +3,7 @@ LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=./build
@@ -109,6 +109,7 @@ CORE_OBJ= stack/pico_stack.o \
 POSIX_OBJ=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
 						modules/pico_dev_mock.o \
+            modules/pico_dev_pcap.o \
 						modules/ptsocket/pico_ptsocket.o
 
 

@@ -1,0 +1,78 @@
+/*********************************************************************
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+
+   Authors: Daniele Lacamera
+ *********************************************************************/
+
+
+#include <pcap.h>
+#include "pico_device.h"
+#include "pico_dev_pcap.h"
+#include "pico_stack.h"
+
+#include <sys/poll.h>
+
+struct pico_device_pcap {
+    struct pico_device dev;
+    pcap_t *conn;
+};
+
+#define VDE_MTU 2048
+
+static int pico_pcap_send(struct pico_device *dev, void *buf, int len)
+{
+    struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
+    /* dbg("[%s] send %d bytes.\n", dev->name, len); */
+    return pcap_inject(pcap->conn, buf, len);
+}
+
+static void pico_dev_pcap_cb(u_char *u, const struct pcap_pkthdr *h, const u_char *data)
+{
+    struct pico_dev *dev = (struct pico_dev *)u;
+    pico_stack_recv(dev, data, h->len);
+}
+
+
+static int pico_pcap_poll(struct pico_device *dev, int loop_score)
+{
+    struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
+    loop_score -= pcap_dispatch(pcap->conn, loop_score, pico_dev_pcap_cb, (u_char *) pcap);
+    return loop_score;
+}
+
+/* Public interface: create/destroy. */
+
+void pico_pcap_destroy(struct pico_device *dev)
+{
+    struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
+    pcap_close(pcap->conn);
+    pico_free(pcap);
+}
+
+struct pico_device *pico_pcap_create(char *ifname, char *name, uint8_t *mac)
+{
+    struct pico_device_pcap *pcap = pico_zalloc(sizeof(struct pico_device_pcap));
+    char errbuf[2000];
+    if (!pcap)
+        return NULL;
+    if( 0 != pico_device_init((struct pico_device *)pcap, name, mac)) {
+        dbg ("Pcap init failed.\n");
+        pico_pcap_destroy((struct pico_device *)pcap);
+        return NULL;
+    }
+
+    pcap->dev.overhead = 0;
+    pcap->conn = pcap_open_live(ifname, 2000, 100, 10, errbuf);
+
+    if (!pcap->conn) {
+        pico_pcap_destroy((struct pico_device *)pcap);
+        return NULL;
+    }
+
+    pcap->dev.send = pico_pcap_send;
+    pcap->dev.poll = pico_pcap_poll;
+    pcap->dev.destroy = pico_pcap_destroy;
+    dbg("Device %s created.\n", pcap->dev.name);
+    return (struct pico_device *)pcap;
+}
