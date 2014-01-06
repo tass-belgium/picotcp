@@ -1,3 +1,10 @@
+Downloading the manual
+----------------------
+
+With every git commit, we rebuild the documentation and make the [user_doc.pdf](http://tass-be.vm.bytemark.co.uk/user_doc.pdf) file (click to download) publically available.
+
+If for some reason, you're looking for an older version of the documentation, please check out the wanted commit in git, and compile the manual as described below.
+
 Compiling the manual
 --------------------
 
