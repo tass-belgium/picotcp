@@ -265,6 +265,10 @@ int pico_arp_receive(struct pico_frame *f)
 
         pico_tree_delete(&arp_tree, new);
     }
+    else {
+        /* Existing entry found & still valid, update mac address */
+        memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+    }
 
     ret = 0;
 
