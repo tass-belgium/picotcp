@@ -235,6 +235,10 @@ int pico_arp_receive(struct pico_frame *f)
     if (!hdr)
         goto end;
 
+    /* Validate the incoming arp packet */
+    if ((hdr->htype != PICO_ARP_HTYPE_ETH) || (hdr->ptype != PICO_IDETH_IPV4))
+        goto end;
+
     if (conflict_ipv4.conflict != NULL)
     {
         if ((conflict_ipv4.ip.addr == hdr->src.addr) && (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, 6) != 0))
