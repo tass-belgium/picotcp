@@ -81,6 +81,7 @@ struct pico_arp {
     int arp_status;
     pico_time timestamp;
     struct pico_device *dev;
+    struct pico_timer *timer;
 };
 
 
@@ -268,6 +269,11 @@ int pico_arp_receive(struct pico_frame *f)
     else {
         /* Existing entry found & still valid, update mac address */
         memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+
+        /* Refresh timeout & update timestamp*/
+        pico_timer_cancel(found->timer);
+        found->timer = pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, found);
+        found->timestamp = PICO_TIME();
     }
 
     ret = 0;
