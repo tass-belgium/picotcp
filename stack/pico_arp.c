@@ -230,8 +230,13 @@ int pico_arp_receive(struct pico_frame *f)
 {
     struct pico_arp_hdr *hdr;
     struct pico_arp search, *found, *new = NULL;
+    struct pico_ip4 me;
+    struct pico_device *link_dev;
+    struct pico_eth_hdr *eh;
     int ret = -1;
     hdr = (struct pico_arp_hdr *) f->net_hdr;
+    me.addr = hdr->dst.addr;
+    eh = (struct pico_eth_hdr *)f->datalink_hdr;
 
     if (!hdr)
         goto end;
@@ -257,49 +262,48 @@ int pico_arp_receive(struct pico_frame *f)
     memcpy(search.eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
     /* Search for already existing entry */
-
     found = pico_tree_findKey(&arp_tree, &search);
+    if (found) {
+        if (found->arp_status == PICO_ARP_STATUS_STALE) {
+            /* Replace if stale */
+            new = found;
+
+            pico_tree_delete(&arp_tree, new);
+        }
+        else {
+            /* Update mac address */
+            memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+
+            /* Refresh timeout & update timestamp*/
+            pico_timer_cancel(found->timer);
+            found->timer = pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, found);
+            found->timestamp = PICO_TIME();
+        }
+    }
+
+    /* Check if we are the target IP address */
+    link_dev = pico_ipv4_link_find(&me);
+    if (link_dev != f->dev)
+        goto end;
+
+    /* If no existing entry was found, create a new entry */
     if (!found) {
         new = pico_zalloc(sizeof(struct pico_arp));
         if (!new)
             goto end;
 
         new->ipv4.addr = hdr->src.addr;
+        memcpy(new->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+        new->dev = f->dev;
     }
-    else if (found->arp_status == PICO_ARP_STATUS_STALE) {
-        /* Replace if stale */
-        new = found;
 
-        pico_tree_delete(&arp_tree, new);
-    }
-    else {
-        /* Existing entry found & still valid, update mac address */
-        memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-
-        /* Refresh timeout & update timestamp*/
-        pico_timer_cancel(found->timer);
-        found->timer = pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, found);
-        found->timestamp = PICO_TIME();
-    }
+    if (new)
+        pico_arp_add_entry(new);
 
     ret = 0;
 
-    if (new) {
-        memcpy(new->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-        new->dev = f->dev;
-        pico_arp_add_entry(new);
-    }
-
+    /* If the packet is a request, send a reply */
     if (hdr->opcode == PICO_ARP_REQUEST) {
-        struct pico_ip4 me;
-        struct pico_eth_hdr *eh = (struct pico_eth_hdr *)f->datalink_hdr;
-        struct pico_device *link_dev;
-        me.addr = hdr->dst.addr;
-
-        link_dev = pico_ipv4_link_find(&me);
-        if (link_dev != f->dev)
-            goto end;
-
         hdr->opcode = PICO_ARP_REPLY;
         memcpy(hdr->d_mac, hdr->s_mac, PICO_SIZE_ETH);
         memcpy(hdr->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
