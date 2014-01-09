@@ -237,7 +237,13 @@ int pico_arp_receive(struct pico_frame *f)
         goto end;
 
     /* Validate the incoming arp packet */
+
+    /* Check the hardware type and protocol */
     if ((hdr->htype != PICO_ARP_HTYPE_ETH) || (hdr->ptype != PICO_IDETH_IPV4))
+        goto end;
+
+    /* The source mac address must not be a multicast or broadcast address */
+    if (hdr->s_mac[0] & 0x01)
         goto end;
 
     if (conflict_ipv4.conflict != NULL)
