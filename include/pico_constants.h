@@ -122,12 +122,12 @@ static inline uint64_t long_long_be(uint64_t le)
 extern const uint8_t PICO_IPV6_ANY[PICO_SIZE_IP6];
 #endif
 
-static inline uint32_t pico_hash(const char *name)
+static inline uint32_t pico_hash(const uint8_t *buf, int size)
 {
     uint32_t hash = 5381;
-    uint8_t c;
-    while ((c = (uint8_t)*name++))
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+    uint32_t i;
+    for(i = 0; i < size; i++)
+        hash = ((hash << 5) + hash) + buf[i]; /* hash * 33 + char */
     return hash;
 }
 

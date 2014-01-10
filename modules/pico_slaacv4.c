@@ -55,7 +55,7 @@ static uint32_t pico_slaacv4_getip(struct pico_device *dev, uint8_t rand)
     uint32_t seed = 0;
     if (dev->eth != NULL)
     {
-        seed = pico_hash((const char *)dev->eth->mac.addr);
+        seed = pico_hash((const uint8_t *)dev->eth->mac.addr, PICO_SIZE_ETH);
     }
 
     if (rand)

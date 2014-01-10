@@ -36,7 +36,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
         len = MAX_DEVICE_NAME;
 
     memcpy(dev->name, name, len);
-    dev->hash = pico_hash(dev->name);
+    dev->hash = pico_hash(dev->name, len);
 
     pico_tree_insert(&Device_tree, dev);
     dev->q_in = pico_zalloc(sizeof(struct pico_queue));
