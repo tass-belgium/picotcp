@@ -33,4 +33,12 @@
 # include "arch/pico_posix.h"
 #endif
 
+/*** *** *** *** *** *** ***
+ ***     ARP CONFIG      ***
+ *** *** *** *** *** *** ***/
+/* Maximum amount of accepted ARP requests per burst interval */
+#define PICO_ARP_MAX_RATE 1
+/* Duration of the burst interval in milliseconds */
+#define PICO_ARP_INTERVAL 1000
+
 #endif

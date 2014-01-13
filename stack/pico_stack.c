@@ -801,6 +801,7 @@ void pico_stack_init(void)
 
     /* Initialize timer heap */
     Timers = heap_init();
+    pico_arp_init();
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();

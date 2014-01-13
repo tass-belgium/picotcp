@@ -29,6 +29,7 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 
 static struct pico_queue pending;
 static int pending_timer_on = 0;
+static int max_arp_reqs = PICO_ARP_MAX_RATE;
 
 void check_pending(pico_time now, void *_unused)
 {
@@ -46,6 +47,20 @@ void check_pending(pico_time now, void *_unused)
     pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
 }
 
+static void update_max_arp_reqs(pico_time now, void *unused)
+{
+    IGNORE_PARAMETER(now);
+    IGNORE_PARAMETER(unused);
+    if (max_arp_reqs < PICO_ARP_MAX_RATE)
+        max_arp_reqs++;
+
+    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+}
+
+void pico_arp_init()
+{
+    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+}
 
 struct
 __attribute__ ((__packed__))
@@ -251,6 +266,15 @@ int pico_arp_receive(struct pico_frame *f)
     if (hdr->s_mac[0] & 0x01)
         goto end;
 
+    /* Prevent ARP flooding */
+    link_dev = pico_ipv4_link_find(&me);
+    if ((link_dev == f->dev) && (hdr->opcode == PICO_ARP_REQUEST)) {
+        if (max_arp_reqs == 0)
+            goto end;
+        else
+            max_arp_reqs--;
+    }
+
     if (conflict_ipv4.conflict != NULL)
     {
         if ((conflict_ipv4.ip.addr == hdr->src.addr) && (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, 6) != 0))
@@ -282,7 +306,6 @@ int pico_arp_receive(struct pico_frame *f)
     }
 
     /* Check if we are the target IP address */
-    link_dev = pico_ipv4_link_find(&me);
     if (link_dev != f->dev)
         goto end;
 
