@@ -642,12 +642,6 @@ static void socket_garbage_collect(pico_time now, void *arg)
     struct pico_socket *s = (struct pico_socket *) arg;
     IGNORE_PARAMETER(now);
 
-#ifdef PICO_SUPPORT_TCP
-    if(s->parent)
-        s->parent->number_of_pending_conn--;
-
-#endif
-
     socket_clean_queues(s);
     pico_free(s);
 }
@@ -709,6 +703,11 @@ int8_t pico_socket_del(struct pico_socket *s)
             pico_free(s->MCASTListen);
         }
     } while (0);
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+    if(s->parent)
+        s->parent->number_of_pending_conn--;
 #endif
 
     s->state = PICO_SOCKET_STATE_CLOSED;
