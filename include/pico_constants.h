@@ -126,7 +126,7 @@ static inline uint32_t pico_hash(const void *buf, uint32_t size)
 {
     uint32_t hash = 5381;
     uint32_t i;
-    const uint8_t *ptr= buf;
+    const uint8_t *ptr= (const uint8_t *)buf;
     for(i = 0; i < size; i++)
         hash = ((hash << 5) + hash) + ptr[i]; /* hash * 33 + char */
     return hash;
