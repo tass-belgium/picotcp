@@ -335,7 +335,7 @@ void pico_protocol_init(struct pico_protocol *p)
     if (!p)
         return;
 
-    p->hash = pico_hash(p->name, strlen(p->name));
+    p->hash = pico_hash(p->name, (uint32_t)strlen(p->name));
     switch (p->layer) {
     case PICO_LAYER_DATALINK:
         pico_tree_insert(&Datalink_proto_tree, p);
