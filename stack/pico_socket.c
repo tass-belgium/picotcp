@@ -2226,11 +2226,10 @@ static int checkSocketSanity(struct pico_socket *s)
 {
 
 /* checking for pending connections */
-    if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV)
-        if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT) {
-            s->parent->number_of_pending_conn--;
+    if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
+        if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
-        }
+    }
 
     if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
         /* checking for hanging sockets */
