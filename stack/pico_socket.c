@@ -2230,12 +2230,15 @@ static int checkSocketSanity(struct pico_socket *s)
             return -1;
 
         /* if no activity, force the socket into closing state */
+        /* DLA: Why? This seems off-specs. */
+#ifdef TCP_OFF_SPECS
         if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
         {
             s->wakeup(PICO_SOCK_EV_CLOSE, s);
             pico_socket_close(s);
             s->timestamp = PICO_TIME_MS();
         }
+#endif
     }
 
     return 0;
