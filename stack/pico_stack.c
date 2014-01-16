@@ -304,8 +304,9 @@ static int destination_is_bcast(struct pico_frame *f)
         struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
         return pico_ipv4_is_broadcast(hdr->dst.addr);
     }
-#endif
+#else
     return 0;
+#endif
 }
 
 #ifdef PICO_SUPPORT_MCAST
@@ -322,8 +323,9 @@ static int destination_is_mcast(struct pico_frame *f)
         struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
         return pico_ipv4_is_multicast(hdr->dst.addr);
     }
-#endif
+#else
     return 0;
+#endif
 }
 
 static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
@@ -360,7 +362,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
 
     else if (IS_IPV4(f)) {
         if (IS_BCAST(f) || destination_is_bcast(f)) {
-            dstmac = (const struct pico_eth *const) PICO_ETHADDR_ALL;
+            dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
         }
 
 #ifdef PICO_SUPPORT_MCAST

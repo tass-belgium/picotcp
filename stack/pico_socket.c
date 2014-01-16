@@ -377,7 +377,6 @@ static int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcas
         }
         so_mcast_dbg("MCAST: IP %08X NOT in included socket source list\n", src->addr);
         return -1;
-        break;
 
     case PICO_IP_MULTICAST_EXCLUDE:
         pico_tree_foreach(index, &listen->MCASTSources)
@@ -389,11 +388,6 @@ static int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcas
         }
         so_mcast_dbg("MCAST: IP %08X NOT in excluded socket source list\n", src->addr);
         return 0;
-        break;
-
-    default:
-        return -1;
-        break;
     }
     return -1;
 }
@@ -1100,6 +1094,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     int socket_mtu = PICO_SOCKET4_MTU;
     int header_offset = 0;
     int total_payload_written = 0;
+
 #ifdef PICO_SUPPORT_IPV4
     struct pico_ip4 *src4;
 #endif
@@ -1280,7 +1275,7 @@ while (total_payload_written < len) {
         return total_payload_written;
     }
 
-    memcpy(f->payload, buf + total_payload_written, f->payload_len);
+    memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
 
     if (s->proto->push(s->proto, f) > 0) {
@@ -1673,7 +1668,6 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX
     case PICO_IP_MULTICAST_IF:
         pico_err = PICO_ERR_EOPNOTSUPP;
         return -1;
-        break;
 
     case PICO_IP_MULTICAST_TTL:
         if (s->proto->proto_number == PICO_PROTO_UDP) {
@@ -2056,7 +2050,6 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
     case PICO_IP_MULTICAST_IF:
         pico_err = PICO_ERR_EOPNOTSUPP;
         return -1;
-        break;
 
     case PICO_IP_MULTICAST_TTL:
         if (s->proto->proto_number == PICO_PROTO_UDP) {

@@ -72,10 +72,10 @@
         heap_ ## type * p = (heap_ ## type *)pico_zalloc(sizeof(heap_ ## type));  \
         return p;     \
     } \
-    static inline void heap_destroy(heap_ ## type * h) \
+    /*static inline void heap_destroy(heap_ ## type * h) \
     { \
         pico_free(h->top);   \
         pico_free(h);     \
-    } \
+    } \*/
 
 

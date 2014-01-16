@@ -14,7 +14,7 @@
 #define PICO_DNS_NS_ADD 1
 #include <stdint.h>
 
-int pico_dns_client_init();
+int pico_dns_client_init(void);
 /* flag is PICO_DNS_NS_DEL or PICO_DNS_NS_ADD */
 int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag);
 int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg);

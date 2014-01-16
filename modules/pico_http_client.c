@@ -414,8 +414,8 @@ static inline int readChunkedData(struct pico_http_client *client, char *data, u
 
 
     readSmallChunk(client, data, size, &lenRead);
-
-    if((value = readBigChunk(client, data, size, &lenRead)))
+    value = readBigChunk(client, data, size, &lenRead);
+    if(value)
         return value;
 
     return lenRead;
