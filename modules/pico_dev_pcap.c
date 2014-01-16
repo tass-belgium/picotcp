@@ -59,17 +59,19 @@ static struct pico_device *pico_pcap_create(char *if_file_name, char *name, uint
     char errbuf[2000];
     if (!pcap)
         return NULL;
+
     if( 0 != pico_device_init((struct pico_device *)pcap, name, mac)) {
         dbg ("Pcap init failed.\n");
         pico_pcap_destroy((struct pico_device *)pcap);
         return NULL;
     }
+
     pcap->dev.overhead = 0;
 
     if (mode == PICO_PCAP_MODE_LIVE)
-      pcap->conn = pcap_open_live(if_file_name, 2000, 100, 10, errbuf);
+        pcap->conn = pcap_open_live(if_file_name, 2000, 100, 10, errbuf);
     else
-      pcap->conn = pcap_open_offline(if_file_name, errbuf);
+        pcap->conn = pcap_open_offline(if_file_name, errbuf);
 
     if (!pcap->conn) {
         pico_pcap_destroy((struct pico_device *)pcap);
@@ -85,10 +87,10 @@ static struct pico_device *pico_pcap_create(char *if_file_name, char *name, uint
 
 struct pico_device *pico_pcap_create_fromfile(char *filename, char *name, uint8_t *mac)
 {
-  return pico_pcap_create(filename, name, mac, PICO_PCAP_MODE_STORED);
+    return pico_pcap_create(filename, name, mac, PICO_PCAP_MODE_STORED);
 }
 
 struct pico_device *pico_pcap_create_live(char *ifname, char *name, uint8_t *mac)
 {
-  return pico_pcap_create(ifname, name, mac, PICO_PCAP_MODE_LIVE);
+    return pico_pcap_create(ifname, name, mac, PICO_PCAP_MODE_LIVE);
 }

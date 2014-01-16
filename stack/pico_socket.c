@@ -2238,6 +2238,7 @@ static int checkSocketSanity(struct pico_socket *s)
             pico_socket_close(s);
             s->timestamp = PICO_TIME_MS();
         }
+
 #endif
     }
 
