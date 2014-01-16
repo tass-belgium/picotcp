@@ -248,8 +248,10 @@ static void zmq_hs_greeting(struct zmq_connector *zc)
 
 static void zmq_hs_rdy(struct zmq_connector *zc)
 {
-    int ret;
     uint8_t incoming[258];
+    int ret;
+    (void)ret;
+
     if (zc->role == ROLE_SUBSCRIBER)
         return;
 

@@ -289,14 +289,11 @@ static struct pico_dns_query *pico_dns_client_find_query(uint16_t id)
 /* determine len of string */
 static uint16_t pico_dns_client_strlen(const char *url)
 {
-    char p = 0;
-    uint16_t len = 0;
+    uint16_t len;
 
-    if (!url)
-        return 0;
-
-    while ((p = *url++) != 0) {
-        len++;
+    for (len=0; len<0xFFFF; len++) {
+        if (url[len] == 0)
+            break;
     }
     return len;
 }
@@ -304,12 +301,12 @@ static uint16_t pico_dns_client_strlen(const char *url)
 /* seek end of string */
 static char *pico_dns_client_seek(char *ptr)
 {
-    char p = 0;
-
     if (!ptr)
         return NULL;
 
-    while ((p = *ptr++) != 0) ;
+    while (*ptr != 0)
+        ptr++;
+
     return ptr++;
 }
 
@@ -776,7 +773,7 @@ int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
     return 0;
 }
 
-int pico_dns_client_init()
+int pico_dns_client_init(void)
 {
     struct pico_ip4 default_ns = {
         0
