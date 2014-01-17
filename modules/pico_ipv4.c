@@ -163,6 +163,34 @@ int pico_ipv4_is_multicast(uint32_t address)
     return 0;
 }
 
+int pico_ipv4_is_loopback(uint32_t address)
+{
+    const unsigned char *addr = (unsigned char *) &address;
+    if(addr[0] == 0x7f)
+        return 1;
+
+    return 0;
+}
+
+int pico_ipv4_is_valid_src(uint32_t address)
+{
+    if (pico_ipv4_is_broadcast(address)) {
+        dbg("Source is a broadcast address, discard packet\n");
+        return 0;
+    }
+    else if( pico_ipv4_is_multicast(address)) {
+        dbg("Source is a multicast address, discard packet\n");
+        return 0;
+    }
+    else if (pico_ipv4_is_loopback(address)) {
+        dbg("Source is a loopback address, discard packet\n");
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
 static int pico_ipv4_checksum(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
@@ -518,15 +546,12 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     if (ret < 1)
         return ret;
 
-#ifdef PICO_SUPPORT_MCAST
-    /* Multicast address in source, discard quietly */
-    if (pico_ipv4_is_multicast(hdr->src.addr)) {
-        ip_mcast_dbg("MCAST: ERROR multicast address %08X in source address\n", hdr->src.addr);
+    /* Validate source IP address. Discard quietly if invalid */
+    if (!pico_ipv4_is_valid_src(hdr->src.addr)) {
         pico_frame_discard(f);
         return 0;
     }
 
-#endif
     if (hdr->frag & 0x80) {
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
