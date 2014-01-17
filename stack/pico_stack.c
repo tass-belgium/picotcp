@@ -279,6 +279,10 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
         (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
         goto discard;
 
+    /* Indicate a link layer broadcast packet */
+    if (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) == 0)
+        f->flags |= PICO_FRAME_FLAG_BCAST;
+
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
     if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
