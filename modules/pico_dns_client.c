@@ -291,6 +291,9 @@ static uint16_t pico_dns_client_strlen(const char *url)
 {
     uint16_t len;
 
+    if (!url)
+        return 0;
+
     for (len=0; len<0xFFFF; len++) {
         if (url[len] == 0)
             break;
@@ -307,7 +310,7 @@ static char *pico_dns_client_seek(char *ptr)
     while (*ptr != 0)
         ptr++;
 
-    return ptr++;
+    return ptr + 1;
 }
 
 /* mirror ip address numbers
