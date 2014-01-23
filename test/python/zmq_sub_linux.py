@@ -15,19 +15,20 @@ raw_input("Press enter to continue ...")
 #start(T)
 
 # Zeromq publisher
+'''
 ctx = zmq.Context()
 z = ctx.socket(zmq.PUB)
 
 z.bind("tcp://*:1337")
 
-while True: 
-	messagedata = "Hello world!Thhe addition of security mechanisms, the removal of hard-coded connection metadata (socket type and identity) from the greeting, the addition of connection metadata, the addition of commands, and the addition of heartbeating.azertyuiopsdfghjkl"
-	print "%d" % len(messagedata)
-	print "%s" % (messagedata)
-	z.send("%s" % (messagedata))
+while True:
+	topic = 12345 
+	messagedata = "My msg"
+	print "%d %s" % (topic, messagedata)
+	z.send("%d %s" % (topic, messagedata))
 	time.sleep(1)
-
-# Zeromq part
+'''
+# Zeromq sub
 ctx = zmq.Context()
 z = ctx.socket(zmq.SUB)
 z.setsockopt(zmq.SUBSCRIBE, "")
