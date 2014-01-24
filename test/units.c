@@ -102,6 +102,7 @@ Suite *pico_suite(void)
     TCase *timers = tcase_create("TIMERS");
     TCase *slaacv4 = tcase_create("SLAACV4");
     TCase *tick = tcase_create("pico_tick");
+    
     tcase_add_test(ipv4, test_ipv4);
     suite_add_tcase(s, ipv4);
 
