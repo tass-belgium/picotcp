@@ -355,7 +355,7 @@ int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t 
     struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
     struct pico_eth_hdr *eh;
     struct pico_arp_hdr *ah;
-    struct pico_ip4 *src=NULL;
+    struct pico_ip4 *src = NULL;
     int ret;
 
     if (type == PICO_ARP_QUERY)

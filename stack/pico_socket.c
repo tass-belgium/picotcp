@@ -702,6 +702,7 @@ int8_t pico_socket_del(struct pico_socket *s)
 #ifdef PICO_SUPPORT_TCP
     if(s->parent)
         s->parent->number_of_pending_conn--;
+
 #endif
 
     s->state = PICO_SOCKET_STATE_CLOSED;

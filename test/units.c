@@ -40,7 +40,7 @@
 
 /* Inclusion of unit submodules.
  * Historically, this code has been part of
- * the units.c file. 
+ * the units.c file.
  * Moved for readability of the units.
  */
 #include "unit_mocks.c"
