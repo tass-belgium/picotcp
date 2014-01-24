@@ -271,8 +271,8 @@ static inline void pico_ipv4_fragmented_cleanup(struct pico_ipv4_fragmented_pack
         pico_frame_discard(f_frag);
     }
     pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
-    pico_free(pfrag->t);
-    pico_free(pfrag);
+    PICO_FREE(pfrag->t);
+    PICO_FREE(pfrag);
 }
 #endif /* PICO_SUPPORT_IPFRAG */
 
@@ -317,7 +317,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             }
 
             /* add entry in tree for this ID and create secondary tree to contain fragmented elements */
-            pfrag = pico_zalloc(sizeof(struct pico_ipv4_fragmented_packet));
+            pfrag = PICO_ZALLOC(sizeof(struct pico_ipv4_fragmented_packet));
             if (!pfrag) {
                 pico_err = PICO_ERR_ENOMEM;
                 return -1;
@@ -328,9 +328,9 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             pfrag->src.addr = long_be(hdr->src.addr);
             pfrag->dst.addr = long_be(hdr->dst.addr);
             pfrag->total_len = (uint16_t)(short_be(hdr->len) - (*f)->net_len);
-            pfrag->t = pico_zalloc(sizeof(struct pico_tree));
+            pfrag->t = PICO_ZALLOC(sizeof(struct pico_tree));
             if (!pfrag->t) {
-                pico_free(pfrag);
+                PICO_FREE(pfrag);
                 pico_err = PICO_ERR_ENOMEM;
                 return -1;
             }
@@ -412,7 +412,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
                 reassembly_dbg("REASSEMBLY: reassembled intermediate packet of %u data bytes, offset = %u next expected offset = %u\n", data_len, offset, running_offset);
             }
             pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
-            pico_free(pfrag);
+            PICO_FREE(pfrag);
 
             data_len = (uint16_t)(short_be(hdr->len) - (*f)->net_len);
             memcpy(running_pointer, (*f)->transport_hdr, data_len);
@@ -835,13 +835,13 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
     {
         source = index->keyValue;
         pico_tree_delete(&g->MCASTSources, source);
-        pico_free(source);
+        PICO_FREE(source);
     }
     /* insert new filter */
     if (MCASTFilter) {
         pico_tree_foreach(index, MCASTFilter)
         {
-            source = pico_zalloc(sizeof(struct pico_ip4));
+            source = PICO_ZALLOC(sizeof(struct pico_ip4));
             if (!source) {
                 pico_err = PICO_ERR_ENOMEM;
                 return -1;
@@ -876,7 +876,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
 
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
     } else {
-        g = pico_zalloc(sizeof(struct pico_mcast_group));
+        g = PICO_ZALLOC(sizeof(struct pico_mcast_group));
         if (!g) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -927,10 +927,10 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
             {
                 source = index->keyValue;
                 pico_tree_delete(&g->MCASTSources, source);
-                pico_free(source);
+                PICO_FREE(source);
             }
             pico_tree_delete(link->MCASTGroups, g);
-            pico_free(g);
+            PICO_FREE(g);
         } else {
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
             if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
@@ -1202,7 +1202,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
         return -1;
     }
 
-    new = pico_zalloc(sizeof(struct pico_ipv4_route));
+    new = PICO_ZALLOC(sizeof(struct pico_ipv4_route));
     if (!new) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -1219,13 +1219,13 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
         struct pico_ipv4_route *r = route_find(&gateway);
         if (!r ) { /* Specified Gateway is unreachable */
             pico_err = PICO_ERR_EHOSTUNREACH;
-            pico_free(new);
+            PICO_FREE(new);
             return -1;
         }
 
         if (r->gateway.addr) { /* Specified Gateway is not a neighbor */
             pico_err = PICO_ERR_ENETUNREACH;
-            pico_free(new);
+            PICO_FREE(new);
             return -1;
         }
 
@@ -1234,7 +1234,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
 
     if (!new->link) {
         pico_err = PICO_ERR_EINVAL;
-        pico_free(new);
+        PICO_FREE(new);
         return -1;
     }
 
@@ -1255,7 +1255,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int me
     if (found) {
 
         pico_tree_delete(&Routes, found);
-        pico_free(found);
+        PICO_FREE(found);
 
         /* dbg_route(); */
         return 0;
@@ -1289,7 +1289,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
     }
 
     /** XXX: Check for network already in use (e.g. trying to assign 10.0.0.1/24 where 10.1.0.1/8 is in use) **/
-    new = pico_zalloc(sizeof(struct pico_ipv4_link));
+    new = PICO_ZALLOC(sizeof(struct pico_ipv4_link));
     if (!new) {
         dbg("IPv4: Out of memory!\n");
         pico_err = PICO_ERR_ENOMEM;
@@ -1300,9 +1300,9 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
     new->netmask.addr = netmask.addr;
     new->dev = dev;
 #ifdef PICO_SUPPORT_MCAST
-    new->MCASTGroups = pico_zalloc(sizeof(struct pico_tree));
+    new->MCASTGroups = PICO_ZALLOC(sizeof(struct pico_tree));
     if (!new->MCASTGroups) {
-        pico_free(new);
+        PICO_FREE(new);
         dbg("IPv4: Out of memory!\n");
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -1388,14 +1388,14 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
         {
             g = index->keyValue;
             pico_tree_delete(found->MCASTGroups, g);
-            pico_free(g);
+            PICO_FREE(g);
         }
     } while(0);
 #endif
 
     pico_ipv4_cleanup_routes(found);
     pico_tree_delete(&Tree_dev_link, found);
-    pico_free(found);
+    PICO_FREE(found);
 
     return 0;
 }

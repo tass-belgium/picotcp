@@ -155,7 +155,7 @@ int pico_ipv4_nat_find(uint16_t nat_port, struct pico_ip4 *src_addr, uint16_t sr
 static struct pico_nat_tuple *pico_ipv4_nat_add(struct pico_ip4 dst_addr, uint16_t dst_port, struct pico_ip4 src_addr, uint16_t src_port,
                                                 struct pico_ip4 nat_addr, uint16_t nat_port, uint8_t proto)
 {
-    struct pico_nat_tuple *t = pico_zalloc(sizeof(struct pico_nat_tuple));
+    struct pico_nat_tuple *t = PICO_ZALLOC(sizeof(struct pico_nat_tuple));
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -176,13 +176,13 @@ static struct pico_nat_tuple *pico_ipv4_nat_add(struct pico_ip4 dst_addr, uint16
     t->fin_out = 0;
 
     if (pico_tree_insert(&NATOutbound, t)) {
-        pico_free(t);
+        PICO_FREE(t);
         return NULL;
     }
 
     if (pico_tree_insert(&NATInbound, t)) {
         pico_tree_delete(&NATOutbound, t);
-        pico_free(t);
+        PICO_FREE(t);
         return NULL;
     }
 
@@ -196,7 +196,7 @@ static int pico_ipv4_nat_del(uint16_t nat_port, uint8_t proto)
     if (t) {
         pico_tree_delete(&NATOutbound, t);
         pico_tree_delete(&NATInbound, t);
-        pico_free(t);
+        PICO_FREE(t);
     }
 
     return 0;

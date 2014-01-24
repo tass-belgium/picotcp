@@ -226,7 +226,7 @@ static void ping_timeout(pico_time now, void *arg)
         }
 
         pico_tree_delete(&Pings, cookie);
-        pico_free(cookie);
+        PICO_FREE(cookie);
     }
 }
 
@@ -247,7 +247,7 @@ static void next_ping(pico_time now, void *arg)
 
     if(pico_tree_findKey(&Pings, cookie)) {
         if (cookie->seq < cookie->count) {
-            newcookie = pico_zalloc(sizeof(struct pico_icmp4_ping_cookie));
+            newcookie = PICO_ZALLOC(sizeof(struct pico_icmp4_ping_cookie));
             if (!newcookie)
                 return;
 
@@ -295,7 +295,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
         return -1;
     }
 
-    cookie = pico_zalloc(sizeof(struct pico_icmp4_ping_cookie));
+    cookie = PICO_ZALLOC(sizeof(struct pico_icmp4_ping_cookie));
     if (!cookie) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -303,7 +303,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
 
     if (pico_string_to_ipv4(dst, &cookie->dst.addr) < 0) {
         pico_err = PICO_ERR_EINVAL;
-        pico_free(cookie);
+        PICO_FREE(cookie);
         return -1;
     }
 

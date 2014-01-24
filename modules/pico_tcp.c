@@ -110,14 +110,14 @@ static int input_segment_compare(void *ka, void *kb)
 
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
-    struct tcp_input_segment *seg = pico_zalloc(sizeof(struct tcp_input_segment));
+    struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
     if(!seg)
         return NULL;
 
-    seg->payload = pico_zalloc(f->payload_len);
+    seg->payload = PICO_ZALLOC(f->payload_len);
     if(!seg->payload)
     {
-        pico_free(seg);
+        PICO_FREE(seg);
         return NULL;
     }
 
@@ -241,8 +241,8 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
     if(IS_INPUT_QUEUE(tq))
     {
         struct tcp_input_segment *inp = f1;
-        pico_free(inp->payload);
-        pico_free(inp);
+        PICO_FREE(inp->payload);
+        PICO_FREE(inp);
     }
     else
         pico_frame_discard(f);
@@ -506,7 +506,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
                 memcpy(f->start + i, sb, 2 * sizeof(uint32_t));
                 i += (2 * (uint32_t)sizeof(uint32_t));
                 f->start[len_off] = (uint8_t)(f->start[len_off] + (2 * sizeof(uint32_t)));
-                pico_free(sb);
+                PICO_FREE(sb);
             }
         }
     }
@@ -857,7 +857,7 @@ static void sock_stats(uint32_t when, void *arg)
 
 struct pico_socket *pico_tcp_open(void)
 {
-    struct pico_socket_tcp *t = pico_zalloc(sizeof(struct pico_socket_tcp));
+    struct pico_socket_tcp *t = PICO_ZALLOC(sizeof(struct pico_socket_tcp));
     if (!t)
         return NULL;
 
@@ -1287,7 +1287,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
     while(n < 3) {
         if (!pkt) {
             if(left) {
-                sb = pico_zalloc(sizeof(struct tcp_sack_block));
+                sb = PICO_ZALLOC(sizeof(struct tcp_sack_block));
                 if (!sb)
                     break;
 
@@ -1320,7 +1320,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
             pkt = next_segment(&t->tcpq_in, pkt);
             continue;
         } else {
-            sb = pico_zalloc(sizeof(struct tcp_sack_block));
+            sb = PICO_ZALLOC(sizeof(struct tcp_sack_block));
             if (!sb)
                 break;
 
@@ -1355,8 +1355,8 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 if(input && pico_enqueue_segment(&t->tcpq_in, input) <= 0)
                 {
                     /* failed to enqueue, destroy segment */
-                    pico_free(input->payload);
-                    pico_free(input);
+                    PICO_FREE(input->payload);
+                    PICO_FREE(input);
                 }
 
                 t->rcv_nxt = SEQN(f) + f->payload_len;
@@ -1376,8 +1376,8 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 struct tcp_input_segment *input = segment_from_frame(f);
                 if(input && pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
                     /* failed to enqueue, destroy segment */
-                    pico_free(input->payload);
-                    pico_free(input);
+                    PICO_FREE(input->payload);
+                    PICO_FREE(input);
                 }
 
                 tcp_sack_prepare(t);
@@ -2576,8 +2576,8 @@ inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
         if(IS_INPUT_QUEUE(tq))
         {
             struct tcp_input_segment *inp = (struct tcp_input_segment *)f;
-            pico_free(inp->payload);
-            pico_free(inp);
+            PICO_FREE(inp->payload);
+            PICO_FREE(inp);
         }
         else
             pico_frame_discard(f);

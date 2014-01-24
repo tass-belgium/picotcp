@@ -191,7 +191,7 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
         fix_delete_collisions(tree, temp);
 
     if(allocator == USE_PICO_ZALLOC)
-        pico_free(delete);
+        PICO_FREE(delete);
 #ifdef PICO_SUPPORT_MM
     else
         pico_mem_page0_free(delete);
@@ -379,7 +379,7 @@ static struct pico_tree_node *create_node(struct pico_tree *tree, void*key, uint
     struct pico_tree_node *temp;
 
     if(allocator == USE_PICO_ZALLOC)
-        temp = (struct pico_tree_node *)pico_zalloc(sizeof(struct pico_tree_node));
+        temp = (struct pico_tree_node *)PICO_ZALLOC(sizeof(struct pico_tree_node));
     else
     {
 #ifdef PICO_SUPPORT_MM

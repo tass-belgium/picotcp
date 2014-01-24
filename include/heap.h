@@ -16,12 +16,12 @@
         uint32_t i; \
         type *newTop; \
         if (++heap->n >= heap->size) {                                                \
-            newTop = pico_zalloc((heap->n + 1) * sizeof(type)); \
+            newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
             if(!newTop) \
                 return -1; \
             if (heap->top)  { \
                 memcpy(newTop, heap->top, heap->n * sizeof(type)); \
-                pico_free(heap->top); \
+                PICO_FREE(heap->top); \
             } \
             heap->top = newTop;             \
             heap->size++;                                                               \
@@ -69,13 +69,13 @@
     } \
     static inline heap_ ## type *heap_init(void) \
     { \
-        heap_ ## type * p = (heap_ ## type *)pico_zalloc(sizeof(heap_ ## type));  \
+        heap_ ## type * p = (heap_ ## type *)PICO_ZALLOC(sizeof(heap_ ## type));  \
         return p;     \
     } \
     /*static inline void heap_destroy(heap_ ## type * h) \
        { \
-        pico_free(h->top); \
-        pico_free(h); \
+        PICO_FREE(h->top); \
+        PICO_FREE(h); \
        } \*/
 
 

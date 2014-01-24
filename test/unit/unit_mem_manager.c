@@ -20,17 +20,17 @@ START_TEST (test_compare_slab_keys)
     //>Compare equal sizes
     //>Finally, compare with int pointers and with slab_nodes
 
-    struct pico_mem_block* block1 = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* block1 = pico_zalloc(sizeof(struct pico_mem_block));
     block1->internals.heap_block.size = 1200;
-    struct pico_mem_block* block2 = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* block2 = pico_zalloc(sizeof(struct pico_mem_block));
     block2->internals.heap_block.size = 1600;
-    struct pico_mem_block* block3 = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* block3 = pico_zalloc(sizeof(struct pico_mem_block));
     block3->internals.heap_block.size = 1600;
-    struct pico_mem_slab_node* node1 = pico_native_malloc(sizeof(struct pico_mem_slab_node));
+    struct pico_mem_slab_node* node1 = pico_zalloc(sizeof(struct pico_mem_slab_node));
     node1->slab = block1;
-    struct pico_mem_slab_node* node2 = pico_native_malloc(sizeof(struct pico_mem_slab_node));
+    struct pico_mem_slab_node* node2 = pico_zalloc(sizeof(struct pico_mem_slab_node));
     node2->slab = block2;
-    struct pico_mem_slab_node* node3 = pico_native_malloc(sizeof(struct pico_mem_slab_node));
+    struct pico_mem_slab_node* node3 = pico_zalloc(sizeof(struct pico_mem_slab_node));
     node3->slab = block3;
 
     uint32_t len1 = 1200;
@@ -54,19 +54,19 @@ START_TEST (test_compare_slab_keys)
     ck_assert(compare_slab_keys(&doublelenptr1, &node1) == 0);
     ck_assert(compare_slab_keys(&node3, &doublelenptr1) < 0);
 
-    pico_native_free(block1);
-    pico_native_free(block2);
-    pico_native_free(block3);
-    pico_native_free(node1);
-    pico_native_free(node2);
-    pico_native_free(node3);
+    PICO_FREE(block1);
+    PICO_FREE(block2);
+    PICO_FREE(block3);
+    PICO_FREE(node1);
+    PICO_FREE(node2);
+    PICO_FREE(node3);
 }
 END_TEST
 
 START_TEST (test_manager_extra_alloc)
 {
     //Dependencies:
-    //>pico_native_malloc
+    //>pico_zalloc
     printf("\n***************Running test_manager_extra_alloc***************\n\n");
     //Scenario's to test:
     //Page with enough space in it passed, space should not be split up further
@@ -87,13 +87,13 @@ START_TEST (test_manager_extra_alloc)
     uint8_t* data3;
 
     //Housekeeping of extra manager page
-    struct pico_mem_manager_extra* heap_page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_manager_extra* heap_page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     heap_page->blocks = 2;
     heap_page->timestamp = 12345;
 
     heap_page->next = NULL;
     //Housekeeping of manager page
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->manager_extra = heap_page;
     manager->used_size = 2*PICO_MEM_PAGE_SIZE;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
@@ -223,7 +223,7 @@ END_TEST
 START_TEST (test_page0_zalloc)
 {
     //Dependencies:
-    //>pico_native_malloc
+    //>pico_zalloc
     //>_pico_mem_manager_extra_alloc()
     printf("\n***************Running test_page0_zalloc***************\n\n");
 
@@ -239,7 +239,7 @@ START_TEST (test_page0_zalloc)
     uint32_t sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_manager);
 
     //Memory manager housekeeping
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
     byteptr = (uint8_t*) (manager+1);
     //Block 1: not free, size1
     block = (struct pico_mem_block*) byteptr;
@@ -320,14 +320,14 @@ START_TEST (test_page0_zalloc)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE);
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
 
-    pico_native_free(manager);
+    PICO_FREE(manager);
 
     //Extra scenario's:
     //No more space left in the main heap, a second page doesn't exist yet
     //No more space left in the main heap, a second heap_page exists (space left doesn't matter, extra_alloc handles that)
     
     //Manager housekeeping
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->manager_extra = NULL;
     manager->used_size = PICO_MEM_PAGE_SIZE;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
@@ -373,8 +373,8 @@ START_TEST (test_page0_zalloc)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE);
     ck_assert(block->internals.heap_block.size == size1);
 
-    pico_native_free(manager->manager_extra);
-    pico_native_free(manager);
+    PICO_FREE(manager->manager_extra);
+    PICO_FREE(manager);
 }
 END_TEST
 
@@ -391,8 +391,8 @@ START_TEST (test_init_page)
     int vlag = 0;
     int i;
 
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
     manager->used_size = 2*PICO_MEM_PAGE_SIZE;
@@ -406,8 +406,8 @@ START_TEST (test_init_page)
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
     block->internals.heap_block.size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_manager) - sizeof(struct pico_mem_block);
 
-    struct pico_mem_page* page1 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page2 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page1 = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page2 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     uint32_t slabsize1 = PICO_MEM_DEFAULT_SLAB_SIZE;
     //Slabsize 975 => 4 slab blocks fit in the page with 44 heap size
     //with a minimum heap size of 100, one slab block will be used as heapspace
@@ -522,8 +522,8 @@ START_TEST (test_init_page)
     pico_mem_deinit();
 
     //Extra scenario: Managerheap almost full (enough space for a slab_node, but not the necessary tree node), try to init a page
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 3*PICO_MEM_PAGE_SIZE;
     manager->used_size = 3*PICO_MEM_PAGE_SIZE;
@@ -550,7 +550,7 @@ START_TEST (test_init_page)
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
     block->internals.heap_block.size = sizeof(struct pico_tree_node);
 
-    page1 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    page1 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     _pico_mem_init_page(page1, slabsize1);
 
     //Check the housekeeping of page1
@@ -587,9 +587,9 @@ END_TEST
 START_TEST (test_mem_init_whitebox)
 {
     //Dependencies:
-    //>pico_native_malloc
+    //>pico_zalloc
     //>_pico_mem_init_page
-    //>pico_native_free
+    //>PICO_FREE
     printf("\n***************Running test test_mem_init_whitebox***************\n\n");
 
     //No manager should be instantiated
@@ -645,7 +645,7 @@ START_TEST (test_free_and_merge_heap_block)
     struct pico_mem_block* block3;
     struct pico_mem_block* block4;
     
-    struct pico_mem_page* page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
@@ -731,10 +731,10 @@ START_TEST (test_free_and_merge_heap_block)
     ck_assert(block1->internals.heap_block.size == page->heap_max_size);
     //printf("page->heap_max_size=%u ?= block1.size=%u\n", page->heap_max_size, block1->internals.heap_block.size);
 
-    pico_native_free(page);
+    PICO_FREE(page);
 
     //Additional scenario to test: |block1|block2|block3|slabs
-    page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
@@ -795,7 +795,7 @@ START_TEST (test_free_and_merge_heap_block)
     ck_assert(block1->internals.heap_block.free == HEAP_BLOCK_FREE);
     ck_assert(block1->internals.heap_block.size == page->heap_max_free_space);
 
-    pico_native_free(page);
+    PICO_FREE(page);
 }
 END_TEST
 
@@ -816,7 +816,7 @@ START_TEST (test_determine_max_free_space)
     struct pico_mem_block* block4;
     
     //Page housekeeping
-    struct pico_mem_page* page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
@@ -890,7 +890,7 @@ START_TEST (test_determine_max_free_space)
     ck_assert(temp == 0);
     ck_assert(page->heap_max_free_space == 0);
 
-    pico_native_free(page);
+    PICO_FREE(page);
 }
 END_TEST
 
@@ -907,9 +907,9 @@ START_TEST (test_free_slab_block)
     //Freeing a block without an existing pico_tree_node
     
     //Manager and page housekeepings
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page1 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page1 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
     manager->used_size = 3*PICO_MEM_PAGE_SIZE;
@@ -937,7 +937,7 @@ START_TEST (test_free_slab_block)
     page0->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page0->slabs_max = 2;
     page0->slabs_free = 1;
-    struct pico_mem_block* original_slab_block = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* original_slab_block = pico_zalloc(sizeof(struct pico_mem_block));
     original_slab_block->type = SLAB_BLOCK_TYPE;
     original_slab_block->internals.slab_block.page = page0;
     struct pico_mem_slab_node* original_slab_node = pico_mem_page0_zalloc(sizeof(struct pico_mem_slab_node));
@@ -949,13 +949,13 @@ START_TEST (test_free_slab_block)
     manager_tree_insert(&manager->tree, original_slab_node);
 
     //Page 0: one slab not free
-    struct pico_mem_block* slab_block1 = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* slab_block1 = pico_zalloc(sizeof(struct pico_mem_block));
     slab_block1->type = SLAB_BLOCK_TYPE;
     slab_block1->internals.slab_block.page = page0;
     slab_block1->internals.slab_block.slab_node = NULL;
 
     //Page 1: all slabs not free, this one will be freed (no node in the tree for this size)
-    struct pico_mem_block* slab_block2 = pico_native_malloc(sizeof(struct pico_mem_block));
+    struct pico_mem_block* slab_block2 = pico_zalloc(sizeof(struct pico_mem_block));
     slab_block2->type = SLAB_BLOCK_TYPE;
     slab_block2->internals.slab_block.page = page1;
     slab_block2->internals.slab_block.slab_node = NULL;
@@ -986,14 +986,14 @@ START_TEST (test_free_slab_block)
     ck_assert(slab_node->next == NULL);
     ck_assert(slab_node->slab == slab_block2);
 
-    pico_native_free(slab_block1);
-    pico_native_free(slab_block2);
-    pico_native_free(original_slab_block);
+    PICO_FREE(slab_block1);
+    PICO_FREE(slab_block2);
+    PICO_FREE(original_slab_block);
     pico_mem_deinit();
 
     //Extra scenario: Managerheap almost full (enough space for a slab_node, but not the necessary tree node), try to free the slab block
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 2*PICO_MEM_PAGE_SIZE;
     manager->used_size = 2*PICO_MEM_PAGE_SIZE;
@@ -1016,7 +1016,7 @@ START_TEST (test_free_slab_block)
     page0->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page0->slabs_max = 2;
     page0->slabs_free = 1;
-    slab_block1 = pico_native_malloc(sizeof(struct pico_mem_block));
+    slab_block1 = pico_zalloc(sizeof(struct pico_mem_block));
     slab_block1->type = SLAB_BLOCK_TYPE;
     slab_block1->internals.slab_block.page = page0;
     slab_block1->internals.slab_block.slab_node = NULL;
@@ -1042,7 +1042,7 @@ START_TEST (test_free_slab_block)
     ck_assert(page0->slabs_free == 2);
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_FREE);
     
-    pico_native_free(slab_block1);
+    PICO_FREE(slab_block1);
     //DEPENDENCY ON CLEANUP
     pico_mem_deinit();
 }
@@ -1064,7 +1064,7 @@ START_TEST (test_zero_initialize)
     int uninitialized = 0;
     int initialized = 0;
 
-    char* bytestream = pico_native_malloc(size);
+    char* bytestream = pico_zalloc(size);
     memset(bytestream, 'a', size);
 
     _pico_mem_zero_initialize(bytestream+leftBound,size-leftBound-rightBound);
@@ -1087,7 +1087,7 @@ START_TEST (test_zero_initialize)
     ck_assert(uninitialized == leftBound+rightBound);
     ck_assert(initialized == size-leftBound-rightBound);
 
-    pico_native_free(bytestream);
+    PICO_FREE(bytestream);
 }
 END_TEST
 
@@ -1111,7 +1111,7 @@ START_TEST (test_find_heap_block)
     struct pico_mem_block* block4;
     
     //Page housekeeping
-    struct pico_mem_page* page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
@@ -1196,7 +1196,7 @@ START_TEST (test_find_heap_block)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_FREE);
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
 
-    pico_native_free(page);
+    PICO_FREE(page);
 }
 END_TEST
 
@@ -1215,8 +1215,8 @@ START_TEST (test_find_slab)
     //>The size you request has one slab node available, it returns it and deletes the tree_node
     
     //Manager housekeeping
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
     manager->used_size = 2*PICO_MEM_PAGE_SIZE;
@@ -1240,7 +1240,7 @@ START_TEST (test_find_slab)
     page0->next_page = NULL;
 
     //Build tree with two slab nodes
-    struct pico_mem_block* slab_block1 = pico_native_malloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
+    struct pico_mem_block* slab_block1 = pico_zalloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
     slab_block1->type = SLAB_BLOCK_TYPE;
     slab_block1->internals.slab_block.page = page0;
     struct pico_mem_slab_node* slab_node1 = pico_mem_page0_zalloc(sizeof(struct pico_mem_slab_node));
@@ -1250,7 +1250,7 @@ START_TEST (test_find_slab)
     //pico_tree_insert(&manager->tree, slab_node1);
     manager_tree_insert(&manager->tree, slab_node1);
 
-    struct pico_mem_block* slab_block2 = pico_native_malloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
+    struct pico_mem_block* slab_block2 = pico_zalloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
     slab_block2->type = SLAB_BLOCK_TYPE;
     slab_block2->internals.slab_block.page = page0;
     struct pico_mem_slab_node* slab_node2 = pico_mem_page0_zalloc(sizeof(struct pico_mem_slab_node));
@@ -1281,8 +1281,8 @@ START_TEST (test_find_slab)
 
     //DEPENDENCY ON CLEANUP
     pico_mem_deinit();
-    pico_native_free(slab_block1);
-    pico_native_free(slab_block2);
+    PICO_FREE(slab_block1);
+    PICO_FREE(slab_block2);
 }
 END_TEST
 
@@ -1304,9 +1304,9 @@ START_TEST (test_free)
     struct pico_mem_block* block2;
 
     //Manager housekeeping
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page1 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page1 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 10*PICO_MEM_PAGE_SIZE;
     manager->used_size = 3*PICO_MEM_PAGE_SIZE;
@@ -1343,7 +1343,7 @@ START_TEST (test_free)
     uint32_t sizeLeft2 = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page1->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     
     //Set up the slab block
-    struct pico_mem_block* slab_block1 = pico_native_malloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
+    struct pico_mem_block* slab_block1 = pico_zalloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
     slab_block1->type = SLAB_BLOCK_TYPE;
     slab_block1->internals.slab_block.page = page0;
     slab_block1->internals.slab_block.slab_node = NULL;
@@ -1417,7 +1417,7 @@ START_TEST (test_free)
 
     //DEPENDENCY ON CLEANUP
     pico_mem_deinit();
-    pico_native_free(slab_block1);
+    PICO_FREE(slab_block1);
 }
 END_TEST
 
@@ -1529,7 +1529,7 @@ START_TEST (test_zalloc)
     //Dependencies:
     //>_pico_mem_determine_slab_size
     //>_pico_mem_find_slab
-    //>_pico_native_malloc
+    //>_pico_zalloc
     //>_pico_mem_init_page
     //>_pico_mem_find_heap_block
     printf("\n***************Running test_zalloc***************\n\n");
@@ -1553,8 +1553,8 @@ START_TEST (test_zalloc)
     byteptr = pico_mem_zalloc(PICO_MEM_DEFAULT_SLAB_SIZE);
     ck_assert(byteptr == NULL);
 
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    struct pico_mem_page* page0 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    struct pico_mem_page* page0 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->first_page = page0;
     manager->size = 3*PICO_MEM_PAGE_SIZE;
     manager->used_size = 2*PICO_MEM_PAGE_SIZE;
@@ -1723,7 +1723,7 @@ START_TEST (test_page0_free)
     uint32_t blockAmount = 5;
     uint32_t blockAmount2 = 8;
 
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
 
     sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_manager);
     byteptr = (uint8_t*) (manager+1);
@@ -1742,8 +1742,8 @@ START_TEST (test_page0_free)
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
     block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block); 
 
-    heap_page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
-    heap_page2 = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    heap_page = pico_zalloc(PICO_MEM_PAGE_SIZE);
+    heap_page2 = pico_zalloc(PICO_MEM_PAGE_SIZE);
     manager->manager_extra = heap_page;
     heap_page->next = heap_page2;
     heap_page->blocks = blockAmount;
@@ -1801,9 +1801,9 @@ START_TEST (test_page0_free)
     ck_assert(heap_page2->blocks == blockAmount2-1);
 
     //Cleanup
-    pico_native_free(manager);
-    pico_native_free(heap_page);
-    pico_native_free(heap_page2);
+    PICO_FREE(manager);
+    PICO_FREE(heap_page);
+    PICO_FREE(heap_page2);
 }
 END_TEST
 
@@ -1813,7 +1813,7 @@ START_TEST (test_cleanup)
     //>pico_tree_findNode
     //>pico_tree_delete
     //>pico_mem_page0_free
-    //>pico_native_free
+    //>PICO_FREE
     printf("\n***************Running test_cleanup***************\n\n");
     uint32_t timestamp = 1;
     struct pico_mem_page* page;

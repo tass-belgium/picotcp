@@ -1,6 +1,6 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-   See LICENSE and COPYING for usage.
+  PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+  See LICENSE and COPYING for usage.
 
  *********************************************************************/
 #ifndef _INCLUDE_PICO_CONFIG
@@ -47,11 +47,11 @@
 #endif
 
 #ifdef PICO_SUPPORT_MM
-#define pico_zalloc(x) pico_mem_zalloc(x)
-#define pico_free(x) pico_mem_free(x)
+#define PICO_ZALLOC(x) pico_mem_zalloc(x)
+#define PICO_FREE(x) pico_mem_free(x)
 #else
-#define pico_zalloc(x) pico_native_malloc(x)
-#define pico_free(x) pico_native_free(x)
+#define PICO_ZALLOC(x) pico_zalloc(x)
+#define PICO_FREE(x) pico_free(x)
 #endif  /* PICO_SUPPORT_MM */
 
 

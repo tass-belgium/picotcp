@@ -358,7 +358,7 @@ void pico_mem_init(uint32_t memsize)
 
     //First pico_mem_page is already included in pico_mem_manager. Others are added.
     //manager = pico_azalloc(sizeof(pico_mem_manager) + sizeof(pico_mem_page*)*(pages - 1));	//Points to usermanager if one present
-    manager = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+    manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
     if( NULL != manager )
     {
         manager->size = memsize;
@@ -382,7 +382,7 @@ void pico_mem_init(uint32_t memsize)
 		first_block->internals.heap_block.size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_manager) - sizeof(struct pico_mem_block);
 
         // Initialize the first page only!
-        page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+        page = pico_zalloc(PICO_MEM_PAGE_SIZE);
         if(page != NULL)
         {
             manager->used_size += PICO_MEM_PAGE_SIZE;
@@ -395,7 +395,7 @@ void pico_mem_init(uint32_t memsize)
             //Set pico_err to an appropriate value
             pico_err = PICO_ERR_ENOMEM;
             //Free the manager page
-            pico_native_free(manager);
+            pico_free(manager);
             manager = NULL;
             DBG_MM_RED("Not enough space to allocate page 1, memory not initialized!");
             return;
@@ -433,18 +433,18 @@ void pico_mem_deinit()
         {
             DBG_MM_BLUE("Freeing page %i at %p", i++, manager->first_page);
             next_page = manager->first_page->next_page;
-            pico_native_free(manager->first_page);
+            pico_free(manager->first_page);
             manager->first_page = next_page;
         }
         while(manager->manager_extra != NULL)
         {
             DBG_MM_BLUE("Freeing extra manager page %i at %p", j++, manager->manager_extra);
             next_manager_page = manager->manager_extra->next;
-            pico_native_free(manager->manager_extra);
+            pico_free(manager->manager_extra);
             manager->manager_extra = next_manager_page;
         }
         DBG_MM_BLUE("Freeing manager page at %p", manager);
-        pico_native_free(manager);
+        pico_free(manager);
         manager = NULL;
         slab_size_global = PICO_MEM_DEFAULT_SLAB_SIZE;
         DBG_MM_GREEN("Memory manager reset");
@@ -496,7 +496,7 @@ static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_p
                     //exit(1);
                     return NULL;
                 }
-                extra_heap_page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+                extra_heap_page = pico_zalloc(PICO_MEM_PAGE_SIZE);
                 if(extra_heap_page != NULL)
                 {
                     extra_heap_page->blocks = 0;
@@ -609,7 +609,7 @@ void* pico_mem_page0_zalloc(uint32_t len)
                     //exit(1);
                     return NULL;
                 }
-                heap_page = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+                heap_page = pico_zalloc(PICO_MEM_PAGE_SIZE);
                 if(heap_page != NULL)
                 {
                     //Initialize the new heap page
@@ -1138,7 +1138,7 @@ void* pico_mem_zalloc(uint32_t len)
         DBG_MM_BLUE("No free slab found, trying to create a new page (Used size = %u, max size = %u)", manager->used_size, manager->size);
         if(manager->used_size + PICO_MEM_PAGE_SIZE <= manager->size)
         {
-			struct pico_mem_page* newpage = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+			struct pico_mem_page* newpage = pico_zalloc(PICO_MEM_PAGE_SIZE);
             if(newpage != NULL)
             {
                 manager->used_size += PICO_MEM_PAGE_SIZE;
@@ -1185,7 +1185,7 @@ void* pico_mem_zalloc(uint32_t len)
     DBG_MM_BLUE("No free heap block found, trying to create a new page (Used size = %u, max size = %u)", manager->used_size, manager->size);
     if(manager->used_size + PICO_MEM_PAGE_SIZE <= manager->size)
     {
-        struct pico_mem_page* newpage = pico_native_malloc(PICO_MEM_PAGE_SIZE);
+        struct pico_mem_page* newpage = pico_zalloc(PICO_MEM_PAGE_SIZE);
         if(newpage != NULL)
         {
             manager->used_size += PICO_MEM_PAGE_SIZE;
@@ -1349,7 +1349,7 @@ void pico_mem_cleanup(uint32_t timestamp)
                 //Return the page to the system's control
                 next_page = page->next_page;
                 DBG_MM("Freeing page, manager used size = %u", manager->used_size);
-                pico_native_free(page);
+                pico_free(page);
                 //Update the manager housekeeping
                 manager->used_size -= PICO_MEM_PAGE_SIZE;
                 DBG_MM("Freed page, manager used size = %u, down from %u", manager->used_size, manager->used_size+PICO_MEM_PAGE_SIZE);
@@ -1407,7 +1407,7 @@ void pico_mem_cleanup(uint32_t timestamp)
                 //Return the page to the system's control
                 next = heap_page->next;
                 DBG_MM("Freeing page, manager used size = %u", manager->used_size);
-                pico_native_free(heap_page);
+                pico_free(heap_page);
                 //Update the manager housekeeping
                 manager->used_size -= PICO_MEM_PAGE_SIZE;
                 DBG_MM("Freed page, manager used size = %u, down from %u", manager->used_size, manager->used_size+PICO_MEM_PAGE_SIZE);

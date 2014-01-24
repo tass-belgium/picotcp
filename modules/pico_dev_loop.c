@@ -54,7 +54,7 @@ void pico_loop_destroy(struct pico_device *dev)
 
 struct pico_device *pico_loop_create(void)
 {
-    struct pico_device *loop = pico_zalloc(sizeof(struct pico_device));
+    struct pico_device *loop = PICO_ZALLOC(sizeof(struct pico_device));
     if (!loop)
         return NULL;
 

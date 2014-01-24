@@ -125,7 +125,7 @@ static void zmq_connector_del(struct zmq_connector *zc)
     }
 
     pico_socket_close(zc->sock);
-    pico_free(zc);
+    PICO_FREE(zc);
 }
 
 static void zmq_check_state(ZMQ z)
@@ -292,7 +292,7 @@ static void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
     /* Publisher. Accepting new subscribers */
     if (z) {
         if (ev & PICO_SOCK_EV_CONN) {
-            z_a = pico_zalloc(sizeof(struct zmq_socket));
+            z_a = PICO_ZALLOC(sizeof(struct zmq_socket));
             if (z_a == NULL)
                 return;
 
@@ -358,7 +358,7 @@ static void cb_tcp0mq(uint16_t ev, struct pico_socket *s)
 
 ZMQ zmq_subscriber(void (*cb)(ZMQ z))
 {
-    ZMQ z = pico_zalloc(sizeof(struct zmq_socket));
+    ZMQ z = PICO_ZALLOC(sizeof(struct zmq_socket));
     if (!z) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -383,7 +383,7 @@ int zmq_connect(ZMQ z, char *address, uint16_t port)
         return -1;
     }
 
-    z_c = pico_zalloc(sizeof(struct zmq_connector));
+    z_c = PICO_ZALLOC(sizeof(struct zmq_connector));
     if (!z_c)
         return -1;
 
@@ -391,7 +391,7 @@ int zmq_connect(ZMQ z, char *address, uint16_t port)
     z_c->state = ST_OPEN;
     z_c->sock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_tcp0mq);
     if (!z_c->sock) {
-        pico_free(z_c);
+        PICO_FREE(z_c);
         return -1;
     }
 
@@ -431,7 +431,7 @@ ZMQ zmq_publisher(uint16_t _port, void (*cb)(ZMQ z))
 
     dbg("zmq_publisher: Active and bound to local port %d\n", short_be(port));
 
-    z = pico_zalloc(sizeof(struct zmq_socket));
+    z = PICO_ZALLOC(sizeof(struct zmq_socket));
     if (!z) {
         pico_socket_close(s);
         pico_err = PICO_ERR_ENOMEM;
@@ -460,7 +460,7 @@ int zmq_send(ZMQ z, char *txt, int len)
         return 0; /* Need at least one subscriber */
     }
 
-    msg = pico_zalloc((size_t)(len + 2));
+    msg = PICO_ZALLOC((size_t)(len + 2));
     msg->flags = 4;
     msg->len = (uint8_t) len;
     memcpy(msg->txt, txt, (size_t) len);
@@ -472,7 +472,7 @@ int zmq_send(ZMQ z, char *txt, int len)
 
         c = c->next;
     }
-    pico_free(msg);
+    PICO_FREE(msg);
     return ret;
 }
 
@@ -511,5 +511,5 @@ void zmq_close(ZMQ z)
         c = nxt;
     }
     pico_socket_close(z->sock);
-    pico_free(z);
+    PICO_FREE(z);
 }

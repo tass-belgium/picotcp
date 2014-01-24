@@ -9,9 +9,9 @@ void cb_dns(char *ip, void *arg)
 
     /* Do something */
     printf("DNS -> %s\n", ip);
-    pico_free(ip);
+    PICO_FREE(ip);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 

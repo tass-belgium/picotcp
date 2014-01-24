@@ -141,7 +141,7 @@ int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
 
 struct pico_socket *pico_udp_open(void)
 {
-    struct pico_socket_udp *u = pico_zalloc(sizeof(struct pico_socket_udp));
+    struct pico_socket_udp *u = PICO_ZALLOC(sizeof(struct pico_socket_udp));
     if (!u)
         return NULL;
 
