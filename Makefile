@@ -32,6 +32,8 @@ HTTP_SERVER?=1
 ZMQ?=1
 OLSR?=1
 SLAACV4?=1
+MEMORY_MANAGER?=0
+MEMORY_MANAGER_PROFILING?=0
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -173,6 +175,12 @@ endif
 ifneq ($(SLAACV4),0)
   include rules/slaacv4.mk
 endif
+ifneq ($(MEMORY_MANAGER),0)
+  include rules/memory_manager.mk
+endif
+ifneq ($(MEMORY_MANAGER_PROFILING),0)
+  OPTIONS+=-DPICO_SUPPORT_MM_PROFILING
+endif
 
 all: mod core lib
 
@@ -225,6 +233,14 @@ units: mod core lib
 	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
 	@echo -e "\t[LD] $(PREFIX)/test/units"
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt
+
+units_mm: mod core lib
+	@echo -e "\n\t[UNIT TESTS SUITE]"
+	@mkdir -p $(PREFIX)/test
+	@echo -e "\t[CC] units_mm.o"
+	@$(CC) -c -o $(PREFIX)/test/units_mm.o test/unit/unit_mem_manager.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
+	@echo -e "\t[LD] $(PREFIX)/test/units"
+	@$(CC) -o $(PREFIX)/test/units_mm $(CFLAGS) $(PREFIX)/test/units_mm.o -lcheck -lm -pthread -lrt
 
 
 clean:

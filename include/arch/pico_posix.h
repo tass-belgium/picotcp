@@ -52,8 +52,8 @@ static inline void pico_free(void *x)
     free(ptr);
 }
 #else
-#define pico_zalloc(x) calloc(x, 1)
-#define pico_free(x) free(x)
+#define pico_native_malloc(x) calloc(x, 1)
+#define pico_native_free(x) free(x)
 #endif
 
 /* time prescaler */

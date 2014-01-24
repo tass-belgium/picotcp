@@ -2180,6 +2180,7 @@ int main(int argc, char **argv)
     *macaddr_low ^= getpid();
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
+    pico_mem_init(100*4096);
     pico_stack_init();
     /* Parse args */
     while(1) {
