@@ -161,10 +161,10 @@ START_TEST (test_dhcp)
     struct pico_dhcp_server_negotiation *dn = NULL;
     struct pico_ip4 *stored_ipv4 = NULL;
     uint32_t len = 0;
-    uint8_t buf[600] = {
-        0
-    };
+    uint8_t *buf;
     uint8_t printbufactive = 0;
+
+    buf = pico_zalloc(600);
 
     printf("*********************** starting %s * \n", __func__);
 

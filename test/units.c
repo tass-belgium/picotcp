@@ -89,6 +89,7 @@ Suite *pico_suite(void)
     TCase *dhcp = tcase_create("DHCP");
     TCase *dns = tcase_create("DNS");
     TCase *rb = tcase_create("RB TREE");
+    TCase *rb2 = tcase_create("RB TREE 2");
     TCase *socket = tcase_create("SOCKET");
     TCase *nat = tcase_create("NAT");
     TCase *ipfilter = tcase_create("IPFILTER");
@@ -125,8 +126,12 @@ Suite *pico_suite(void)
     suite_add_tcase(s, dns);
 
     tcase_add_test(rb, test_rbtree);
-    tcase_set_timeout(rb, 4);
+    tcase_set_timeout(rb, 10);
     suite_add_tcase(s, rb);
+
+    tcase_add_test(rb2, test_rbtree2);
+    tcase_set_timeout(rb2, 10);
+    suite_add_tcase(s, rb2);
 
     tcase_add_test(socket, test_socket);
     suite_add_tcase(s, socket);

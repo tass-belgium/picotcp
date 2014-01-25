@@ -10,12 +10,50 @@ int compare(void *a, void *b)
 }
 
 PICO_TREE_DECLARE(test_tree, compare);
-#define RBTEST_SIZE 8000
+PICO_TREE_DECLARE(test_tree2, compare);
+#define RBTEST_SIZE 20000
+
+START_TEST (test_rbtree2)
+{
+    struct pico_tree_node  *s;
+    elem t, *e;
+    int i, last;
+    struct timeval start, end;
+    gettimeofday(&start, 0);
+
+#if 0
+    srand48(RBTEST_SIZE); /* use test-size as salt */
+    for (i = 0; i < RBTEST_SIZE >> 1; i++)
+    {
+      e = malloc(sizeof(elem));
+      e->value = lrand48() % RBTEST_SIZE;
+      if (pico_tree_findKey(&test_tree2, e)) {
+          free(e);
+      } else {
+          pico_tree_insert(&test_tree2, e);
+      }
+    }
+    gettimeofday(&end, 0);
+    printf("Rbtree test 2 inserted %d entries in %d milliseconds\n", RBTEST_SIZE,
+           (int)((end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000));
+    last = 0; 
+    pico_tree_foreach(s, &test_tree2){
+        fail_if (last > ((elem *)(s->keyValue))->value, "error");
+        last = ((elem *)(s->keyValue))->value;
+    }
+#endif
+
+    gettimeofday(&end, 0);
+    printf("Rbtree test 2 duration with %d entries: %d milliseconds\n", RBTEST_SIZE,
+           (int)((end.tv_sec - start.tv_sec) * 1000 + (end.tv_usec - start.tv_usec) / 1000));
+    printf("Test finished.\n");
+}
+END_TEST
 
 START_TEST (test_rbtree)
 {
     struct pico_tree_node  *s;
-    elem t, *e;
+    elem t, *e, *tmp;
     int i;
     struct timeval start, end;
     printf("Started test...\n");
@@ -40,6 +78,7 @@ START_TEST (test_rbtree)
     fail_if(!e, "Search failed...");
     fail_if(e->value != t.value, "Wrong element returned...");
 
+//    pico_tree_foreach_reverse_safe(s, &test_tree, tmp){
     pico_tree_foreach_reverse(s, &test_tree){
         fail_if(!s, "Reverse safe returned null");
         e = (elem *)pico_tree_delete(&test_tree, s->keyValue);
