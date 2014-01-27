@@ -44,6 +44,8 @@ static struct pico_proto_rr proto_rr_socket     = { &Socket_proto_tree,       NU
 static int proto_loop_in(struct pico_protocol *proto, int loop_score)
 {
     struct pico_frame *f;
+    if (!proto)
+      return loop_score;
     while(loop_score > 0) {
         if (proto->q_in->frames <= 0)
             break;
@@ -59,6 +61,8 @@ static int proto_loop_in(struct pico_protocol *proto, int loop_score)
 static int proto_loop_out(struct pico_protocol *proto, int loop_score)
 {
     struct pico_frame *f;
+    if (!proto)
+      return loop_score;
     while(loop_score > 0) {
         if (proto->q_out->frames <= 0)
             break;
@@ -111,8 +115,8 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
     /* init start node */
     start = next;
 
-    /* round-robin all layer protocols, break if traversed all protocols */
-    while (loop_score > 1 && next != NULL) {
+    /* round-robin all layer protocols, break if traversed all protocols in the tree*/
+    while (loop_score > 1) {
         loop_score = proto_loop(next, loop_score, direction);
         next_node = pico_tree_next(next_node);
         next = next_node->keyValue;
