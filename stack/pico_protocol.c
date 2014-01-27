@@ -13,8 +13,8 @@
 
 struct pico_proto_rr
 {
-  struct pico_tree *t;
-  struct pico_tree_node *node_in, *node_out;
+    struct pico_tree *t;
+    struct pico_tree_node *node_in, *node_out;
 };
 
 
@@ -36,10 +36,18 @@ PICO_TREE_DECLARE(Transport_proto_tree, pico_proto_cmp);
 PICO_TREE_DECLARE(Socket_proto_tree, pico_proto_cmp);
 
 /* Static variables to keep track of the round robin loop */
-static struct pico_proto_rr proto_rr_datalink   = { &Datalink_proto_tree,     NULL, NULL };
-static struct pico_proto_rr proto_rr_network    = { &Network_proto_tree,      NULL, NULL };
-static struct pico_proto_rr proto_rr_transport  = { &Transport_proto_tree,    NULL, NULL };
-static struct pico_proto_rr proto_rr_socket     = { &Socket_proto_tree,       NULL, NULL };
+static struct pico_proto_rr proto_rr_datalink   = {
+    &Datalink_proto_tree,     NULL, NULL
+};
+static struct pico_proto_rr proto_rr_network    = {
+    &Network_proto_tree,      NULL, NULL
+};
+static struct pico_proto_rr proto_rr_transport  = {
+    &Transport_proto_tree,    NULL, NULL
+};
+static struct pico_proto_rr proto_rr_socket     = {
+    &Socket_proto_tree,       NULL, NULL
+};
 
 static int proto_loop_in(struct pico_protocol *proto, int loop_score)
 {
@@ -74,10 +82,11 @@ static int proto_loop_out(struct pico_protocol *proto, int loop_score)
 static int proto_loop(struct pico_protocol *proto, int loop_score, int direction)
 {
 
-    if (direction == PICO_LOOP_DIR_IN) 
-      loop_score = proto_loop_in(proto, loop_score);
+    if (direction == PICO_LOOP_DIR_IN)
+        loop_score = proto_loop_in(proto, loop_score);
     else if (direction == PICO_LOOP_DIR_OUT)
-      loop_score = proto_loop_out(proto, loop_score);
+        loop_score = proto_loop_out(proto, loop_score);
+
     return loop_score;
 }
 
@@ -87,13 +96,14 @@ static struct pico_tree_node *roundrobin_init(struct pico_proto_rr *rr, int dire
     /* Initialization (takes place only once) */
     if (rr->node_in == NULL)
         rr->node_in = pico_tree_firstNode(rr->t->root);
+
     if (rr->node_out == NULL)
         rr->node_out = pico_tree_firstNode(rr->t->root);
 
     if (direction == PICO_LOOP_DIR_IN)
-      next_node = rr->node_in;
+        next_node = rr->node_in;
     else
-      next_node = rr->node_out;
+        next_node = rr->node_out;
 
     return next_node;
 }
@@ -101,9 +111,9 @@ static struct pico_tree_node *roundrobin_init(struct pico_proto_rr *rr, int dire
 static void roundrobin_end(struct pico_proto_rr *rr, int direction, struct pico_tree_node *last)
 {
     if (direction == PICO_LOOP_DIR_IN)
-      rr->node_in = last;
+        rr->node_in = last;
     else
-      rr->node_out = last;
+        rr->node_out = last;
 }
 
 static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction)
@@ -112,9 +122,9 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
     struct pico_tree_node *next_node = roundrobin_init(rr, direction);
 
     if (!next_node)
-      return loop_score;
+        return loop_score;
     else
-      next = next_node->keyValue;
+        next = next_node->keyValue;
 
     /* init start node */
     start = next;
