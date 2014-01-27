@@ -51,6 +51,7 @@
 #include "unit_rbtree.c"
 #include "unit_socket.c"
 #include "unit_timer.c"
+#include "unit_arp.c"
 
 START_TEST (test_frame)
 {
@@ -103,6 +104,7 @@ Suite *pico_suite(void)
     TCase *timers = tcase_create("TIMERS");
     TCase *slaacv4 = tcase_create("SLAACV4");
     TCase *tick = tcase_create("pico_tick");
+    TCase *arp = tcase_create("ARP");
     tcase_add_test(ipv4, test_ipv4);
     suite_add_tcase(s, ipv4);
 
@@ -166,6 +168,14 @@ Suite *pico_suite(void)
 
     tcase_add_test(tick, test_tick);
     suite_add_tcase(s, tick);
+
+    tcase_add_test(arp, arp_check_pending_test);
+    tcase_add_test(arp, arp_update_max_arp_reqs_test);
+    tcase_add_test(arp, arp_compare_test);
+    tcase_add_test(arp, arp_lookup_test);
+    tcase_add_test(arp, arp_expire_test);
+    tcase_add_test(arp, arp_receive_test);
+    suite_add_tcase(s, arp);
 
     return s;
 }
