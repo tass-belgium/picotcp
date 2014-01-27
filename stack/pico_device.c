@@ -14,6 +14,13 @@
 #include "pico_protocol.h"
 #include "pico_tree.h"
 
+struct pico_devices_rr_info {
+    struct pico_tree_node *node_in, *node_out;
+};
+
+static struct pico_devices_rr_info Devices_rr_info = {
+    NULL, NULL
+};
 
 static int pico_dev_cmp(void *ka, void *kb)
 {
@@ -39,6 +46,8 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     dev->hash = pico_hash(dev->name, len);
 
     pico_tree_insert(&Device_tree, dev);
+    Devices_rr_info.node_in  = NULL;
+    Devices_rr_info.node_out = NULL;
     dev->q_in = pico_zalloc(sizeof(struct pico_queue));
     dev->q_out = pico_zalloc(sizeof(struct pico_queue));
 
@@ -55,144 +64,175 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     return 0;
 }
 
+static void pico_queue_destroy(struct pico_queue *q)
+{
+    if (q) {
+        pico_queue_empty(q);
+        pico_free(q);
+    }
+}
+
 void pico_device_destroy(struct pico_device *dev)
 {
     if (dev->destroy)
         dev->destroy(dev);
 
-    if (dev->q_in) {
-        pico_queue_empty(dev->q_in);
-        pico_free(dev->q_in);
-    }
-
-    if (dev->q_out) {
-        pico_queue_empty(dev->q_out);
-        pico_free(dev->q_out);
-    }
+    pico_queue_destroy(dev->q_in);
+    pico_queue_destroy(dev->q_out);
 
     if (dev->eth)
         pico_free(dev->eth);
 
     pico_tree_delete(&Device_tree, dev);
+    Devices_rr_info.node_in  = NULL;
+    Devices_rr_info.node_out = NULL;
     pico_free(dev);
 }
 
-static int devloop(struct pico_device *dev, int loop_score, int direction)
+static int check_dev_serve_interrupt(struct pico_device *dev, int loop_score)
 {
-    struct pico_frame *f;
-
-    /* If device supports interrupts, read the value of the condition and trigger the dsr */
     if ((dev->__serving_interrupt) && (dev->dsr)) {
         /* call dsr routine */
         loop_score = dev->dsr(dev, loop_score);
     }
 
-    /* If device supports polling, give control. Loop score is managed internally,
-     * remaining loop points are returned. */
+    return loop_score;
+}
+
+static int check_dev_serve_polling(struct pico_device *dev, int loop_score)
+{
     if (dev->poll) {
         loop_score = dev->poll(dev, loop_score);
-    }
-
-    if (direction == PICO_LOOP_DIR_OUT) {
-
-        while(loop_score > 0) {
-            if (dev->q_out->frames <= 0)
-                break;
-
-            /* Device dequeue + send */
-            f = pico_dequeue(dev->q_out);
-            if (f) {
-                if (dev->eth) {
-                    int ret = pico_ethernet_send(f);
-                    if (0 == ret) {
-                        loop_score--;
-                        continue;
-                    }
-
-                    if (ret < 0) {
-                        if (!pico_source_is_local(f)) {
-                            dbg("Destination unreachable -------> SEND ICMP\n");
-                            pico_notify_dest_unreachable(f);
-                        } else {
-                            dbg("Destination unreachable -------> LOCAL\n");
-                        }
-
-                        pico_frame_discard(f);
-                        continue;
-                    }
-                } else {
-                    dev->send(dev, f->start, (int)f->len);
-                }
-
-                pico_frame_discard(f);
-                loop_score--;
-            }
-        }
-    } else if (direction == PICO_LOOP_DIR_IN) {
-
-        while(loop_score > 0) {
-            if (dev->q_in->frames <= 0)
-                break;
-
-            /* Receive */
-            f = pico_dequeue(dev->q_in);
-            if (f) {
-                if (dev->eth) {
-                    f->datalink_hdr = f->buffer;
-                    pico_ethernet_receive(f);
-                } else {
-                    f->net_hdr = f->buffer;
-                    pico_network_receive(f);
-                }
-
-                loop_score--;
-            }
-        }
     }
 
     return loop_score;
 }
 
+static int devloop_in(struct pico_device *dev, int loop_score)
+{
+    struct pico_frame *f;
+    while(loop_score > 0) {
+        if (dev->q_in->frames <= 0)
+            break;
+
+        /* Receive */
+        f = pico_dequeue(dev->q_in);
+        if (f) {
+            if (dev->eth) {
+                f->datalink_hdr = f->buffer;
+                pico_ethernet_receive(f);
+            } else {
+                f->net_hdr = f->buffer;
+                pico_network_receive(f);
+            }
+
+            loop_score--;
+        }
+    }
+    return loop_score;
+}
+
+static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
+{
+
+    int ret;
+    if (dev->eth) {
+        ret = pico_ethernet_send(f);
+        if (0 <= ret) {
+            return 1;
+        } else {
+            if (!pico_source_is_local(f)) {
+                dbg("Destination unreachable -------> SEND ICMP\n");
+                pico_notify_dest_unreachable(f);
+            } else {
+                dbg("Destination unreachable -------> LOCAL\n");
+            }
+
+            pico_frame_discard(f);
+            return 1;
+        }
+    } else {
+        dev->send(dev, f->start, (int)f->len);
+        pico_frame_discard(f);
+        return 1;
+    }
+}
+
+static int devloop_out(struct pico_device *dev, int loop_score)
+{
+    struct pico_frame *f;
+    while(loop_score > 0) {
+        if (dev->q_out->frames <= 0)
+            break;
+
+        /* Device dequeue + send */
+        f = pico_dequeue(dev->q_out);
+        if (!f)
+            break;
+
+        loop_score -= devloop_sendto_dev(dev, f);
+    }
+    return loop_score;
+}
+
+static int devloop(struct pico_device *dev, int loop_score, int direction)
+{
+    /* If device supports interrupts, read the value of the condition and trigger the dsr */
+    loop_score = check_dev_serve_interrupt(dev, loop_score);
+
+    /* If device supports polling, give control. Loop score is managed internally,
+     * remaining loop points are returned. */
+    loop_score = check_dev_serve_polling(dev, loop_score);
+
+    if (direction == PICO_LOOP_DIR_OUT)
+        loop_score = devloop_out(dev, loop_score);
+    else
+        loop_score = devloop_in(dev, loop_score);
+
+    return loop_score;
+}
+
+
+static struct pico_tree_node *pico_dev_roundrobin_start(int direction)
+{
+    if (Devices_rr_info.node_in == NULL)
+        Devices_rr_info.node_in = pico_tree_firstNode(Device_tree.root);
+
+    if (Devices_rr_info.node_out == NULL)
+        Devices_rr_info.node_out = pico_tree_firstNode(Device_tree.root);
+
+    if (direction == PICO_LOOP_DIR_IN)
+        return Devices_rr_info.node_in;
+    else
+        return Devices_rr_info.node_out;
+}
+
+static void pico_dev_roundrobin_end(int direction, struct pico_tree_node *last)
+{
+    if (direction == PICO_LOOP_DIR_IN)
+        Devices_rr_info.node_in = last;
+    else
+        Devices_rr_info.node_out = last;
+}
 
 #define DEV_LOOP_MIN  16
 
 int pico_devices_loop(int loop_score, int direction)
 {
-    struct pico_device *start;
-    static struct pico_device *next = NULL, *next_in = NULL, *next_out = NULL;
-    static struct pico_tree_node *next_node, *in_node, *out_node;
+    struct pico_device *start, *next;
+    struct pico_tree_node *next_node  = pico_dev_roundrobin_start(direction);
 
-    if (next_in == NULL) {
-        in_node = pico_tree_firstNode(Device_tree.root);
-        next_in = in_node->keyValue;
-    }
+    if (!next_node)
+        return loop_score;
 
-    if (next_out == NULL) {
-        out_node = pico_tree_firstNode(Device_tree.root);
-        next_out = out_node->keyValue;
-    }
-
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        next_node = in_node;
-        next = next_in;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        next_node = out_node;
-        next = next_out;
-    }
-
-    /* init start node */
+    next = next_node->keyValue;
     start = next;
 
     /* round-robin all devices, break if traversed all devices */
-    while (loop_score > DEV_LOOP_MIN && next != NULL) {
+    while ((loop_score > DEV_LOOP_MIN) && (next != NULL)) {
         loop_score = devloop(next, loop_score, direction);
-
         next_node = pico_tree_next(next_node);
         next = next_node->keyValue;
-
         if (next == NULL)
         {
             next_node = pico_tree_firstNode(Device_tree.root);
@@ -202,21 +242,11 @@ int pico_devices_loop(int loop_score, int direction)
         if (next == start)
             break;
     }
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        in_node = next_node;
-        next_in = next;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        out_node = next_node;
-        next_out = next;
-    }
-
+    pico_dev_roundrobin_end(direction, next_node);
     return loop_score;
 }
 
-struct pico_device*pico_get_device(const char*name)
+struct pico_device *pico_get_device(const char*name)
 {
     struct pico_device *dev;
     struct pico_tree_node *index;
@@ -249,7 +279,7 @@ int32_t pico_device_broadcast(struct pico_frame *f)
         }
         else
         {
-            ret = (int32_t)f->dev->send(f->dev, f->start, (int)f->len);
+            ret = f->dev->send(f->dev, f->start, (int)f->len);
         }
     }
 
