@@ -98,6 +98,14 @@ static struct pico_tree_node *roundrobin_init(struct pico_proto_rr *rr, int dire
     return next_node;
 }
 
+static void roundrobin_end(struct pico_proto_rr *rr, int direction, struct pico_tree_node *last)
+{
+    if (direction == PICO_LOOP_DIR_IN)
+      rr->node_in = last;
+    else
+      rr->node_out = last;
+}
+
 static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction)
 {
     struct pico_protocol *start, *next;
@@ -125,11 +133,7 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
         if (next == start)
             break;
     }
-    if (direction == PICO_LOOP_DIR_IN)
-      rr->node_in = next_node;
-    else
-      rr->node_out = next_node;
-
+    roundrobin_end(rr, direction, next_node);
     return loop_score;
 }
 
