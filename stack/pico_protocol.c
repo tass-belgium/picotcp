@@ -98,16 +98,6 @@ static struct pico_tree_node *roundrobin_init(struct pico_proto_rr *rr, int dire
     return next_node;
 }
 
-#define proto_rr_check_restart(root, nxt, start, nxt_node) \
-{ \
-  if (NULL == nxt) \
-  { \
-    nxt_node = pico_tree_firstNode((root)); \
-    nxt = (nxt_node)->keyValue; \
-  } \
-}
-
-
 static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction)
 {
     struct pico_protocol *start, *next;
@@ -126,7 +116,12 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
         loop_score = proto_loop(next, loop_score, direction);
         next_node = pico_tree_next(next_node);
         next = next_node->keyValue;
-        proto_rr_check_restart(rr->t->root, next, start, next_node);
+        if (next == NULL)
+        {
+            next_node = pico_tree_firstNode(rr->t->root);
+            next = next_node->keyValue;
+        }
+
         if (next == start)
             break;
     }
