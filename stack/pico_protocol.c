@@ -178,6 +178,12 @@ int pico_protocols_loop(int loop_score)
     return loop_score;
 }
 
+static void proto_layer_rr_reset(struct pico_proto_rr *rr)
+{
+  rr->node_in = NULL;
+  rr->node_out = NULL;
+}
+
 void pico_protocol_init(struct pico_protocol *p)
 {
     if (!p)
@@ -187,15 +193,19 @@ void pico_protocol_init(struct pico_protocol *p)
     switch (p->layer) {
     case PICO_LAYER_DATALINK:
         pico_tree_insert(&Datalink_proto_tree, p);
+        proto_layer_rr_reset(&proto_rr_datalink);
         break;
     case PICO_LAYER_NETWORK:
         pico_tree_insert(&Network_proto_tree, p);
+        proto_layer_rr_reset(&proto_rr_network);
         break;
     case PICO_LAYER_TRANSPORT:
         pico_tree_insert(&Transport_proto_tree, p);
+        proto_layer_rr_reset(&proto_rr_transport);
         break;
     case PICO_LAYER_SOCKET:
         pico_tree_insert(&Socket_proto_tree, p);
+        proto_layer_rr_reset(&proto_rr_socket);
         break;
     }
     dbg("Protocol %s registered (layer: %d).\n", p->name, p->layer);
