@@ -11,6 +11,13 @@
 #include "pico_protocol.h"
 #include "pico_tree.h"
 
+struct pico_proto_rr
+{
+  struct pico_tree *t;
+  struct pico_tree_node *node_in, *node_out;
+};
+
+
 static int pico_proto_cmp(void *ka, void *kb)
 {
     struct pico_protocol *a = ka, *b = kb;
@@ -28,295 +35,122 @@ PICO_TREE_DECLARE(Network_proto_tree, pico_proto_cmp);
 PICO_TREE_DECLARE(Transport_proto_tree, pico_proto_cmp);
 PICO_TREE_DECLARE(Socket_proto_tree, pico_proto_cmp);
 
-static int proto_loop(struct pico_protocol *proto, int loop_score, int direction)
+/* Static variables to keep track of the round robin loop */
+static struct pico_proto_rr proto_rr_datalink   = { &Datalink_proto_tree,     NULL, NULL };
+static struct pico_proto_rr proto_rr_network    = { &Network_proto_tree,      NULL, NULL };
+static struct pico_proto_rr proto_rr_transport  = { &Transport_proto_tree,    NULL, NULL };
+static struct pico_proto_rr proto_rr_socket     = { &Socket_proto_tree,       NULL, NULL };
+
+static int proto_loop_in(struct pico_protocol *proto, int loop_score)
 {
     struct pico_frame *f;
+    while(loop_score > 0) {
+        if (proto->q_in->frames <= 0)
+            break;
 
-    if (direction == PICO_LOOP_DIR_IN) {
-
-        while(loop_score > 0) {
-            if (proto->q_in->frames <= 0)
-                break;
-
-            f = pico_dequeue(proto->q_in);
-            if ((f) && (proto->process_in(proto, f) > 0)) {
-                loop_score--;
-            }
-        }
-    } else if (direction == PICO_LOOP_DIR_OUT) {
-
-        while(loop_score > 0) {
-            if (proto->q_out->frames <= 0)
-                break;
-
-            f = pico_dequeue(proto->q_out);
-            if ((f) && (proto->process_out(proto, f) > 0)) {
-                loop_score--;
-            }
+        f = pico_dequeue(proto->q_in);
+        if ((f) && (proto->process_in(proto, f) > 0)) {
+            loop_score--;
         }
     }
-
     return loop_score;
 }
 
-#define DL_LOOP_MIN 1
+static int proto_loop_out(struct pico_protocol *proto, int loop_score)
+{
+    struct pico_frame *f;
+    while(loop_score > 0) {
+        if (proto->q_out->frames <= 0)
+            break;
+
+        f = pico_dequeue(proto->q_out);
+        if ((f) && (proto->process_out(proto, f) > 0)) {
+            loop_score--;
+        }
+    }
+    return loop_score;
+}
+
+static int proto_loop(struct pico_protocol *proto, int loop_score, int direction)
+{
+
+    if (direction == PICO_LOOP_DIR_IN) 
+      loop_score = proto_loop_in(proto, loop_score);
+    else if (direction == PICO_LOOP_DIR_OUT)
+      loop_score = proto_loop_out(proto, loop_score);
+    return loop_score;
+}
+
+static struct pico_tree_node *roundrobin_init(struct pico_proto_rr *rr, int direction)
+{
+    struct pico_tree_node *next_node = NULL;
+    /* Initialization (takes place only once) */
+    if (rr->node_in == NULL)
+        rr->node_in = pico_tree_firstNode(rr->t->root);
+    if (rr->node_out == NULL)
+        rr->node_out = pico_tree_firstNode(rr->t->root);
+
+    if (direction == PICO_LOOP_DIR_IN)
+      next_node = rr->node_in;
+    else
+      next_node = rr->node_out;
+
+    return next_node;
+}
+
+static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction)
+{
+    struct pico_protocol *start, *next;
+    struct pico_tree_node *next_node = roundrobin_init(rr, direction);
+
+    if (!next_node)
+      return loop_score;
+    else
+      next = next_node->keyValue;
+
+    /* init start node */
+    start = next;
+
+    /* round-robin all layer protocols, break if traversed all protocols */
+    while (loop_score > 1 && next != NULL) {
+        loop_score = proto_loop(next, loop_score, direction);
+        next_node = pico_tree_next(next_node);
+        next = next_node->keyValue;
+        if (next == NULL)
+        {
+            next_node = pico_tree_firstNode(rr->t->root);
+            next = next_node->keyValue;
+        }
+
+        if (next == start)
+            break;
+    }
+    if (direction == PICO_LOOP_DIR_IN)
+      rr->node_in = next_node;
+    else
+      rr->node_out = next_node;
+
+    return loop_score;
+}
 
 int pico_protocol_datalink_loop(int loop_score, int direction)
 {
-    struct pico_protocol *start;
-    static struct pico_protocol *next = NULL, *next_in = NULL, *next_out = NULL;
-    static struct pico_tree_node *next_node, *in_node, *out_node;
-
-    if (next_in == NULL) {
-        in_node = pico_tree_firstNode(Datalink_proto_tree.root);
-        if (in_node)
-            next_in = in_node->keyValue;
-    }
-
-    if (next_out == NULL) {
-        out_node = pico_tree_firstNode(Datalink_proto_tree.root);
-        if (out_node)
-            next_out = out_node->keyValue;
-    }
-
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        next_node = in_node;
-        next = next_in;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        next_node = out_node;
-        next = next_out;
-    }
-
-    /* init start node */
-    start = next;
-
-    /* round-robin all datalink protocols, break if traversed all protocols */
-    while (loop_score > DL_LOOP_MIN && next != NULL) {
-        loop_score = proto_loop(next, loop_score, direction);
-
-        /* next = RB_NEXT(pico_protocol_tree, &Datalink_proto_tree, next); */
-        next_node = pico_tree_next(next_node);
-        next = next_node->keyValue;
-
-        if (next == NULL)
-        {
-            next_node = pico_tree_firstNode(Datalink_proto_tree.root);
-            next = next_node->keyValue;
-        }
-
-        if (next == start)
-            break;
-    }
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        in_node = next_node;
-        next_in = next;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        out_node = next_node;
-        next_out = next;
-    }
-
-    return loop_score;
+    return pico_protocol_generic_loop(&proto_rr_datalink, loop_score, direction);
 }
-
-
-#define NW_LOOP_MIN 1
 
 int pico_protocol_network_loop(int loop_score, int direction)
 {
-    struct pico_protocol *start;
-    static struct pico_protocol *next = NULL, *next_in = NULL, *next_out = NULL;
-    static struct pico_tree_node *next_node, *in_node, *out_node;
-
-    if (next_in == NULL) {
-        in_node = pico_tree_firstNode(Network_proto_tree.root);
-        if (in_node)
-            next_in = in_node->keyValue;
-    }
-
-    if (next_out == NULL) {
-        out_node = pico_tree_firstNode(Network_proto_tree.root);
-        if (out_node)
-            next_out = out_node->keyValue;
-    }
-
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        next_node = in_node;
-        next = next_in;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        next_node = out_node;
-        next = next_out;
-    }
-
-    /* init start node */
-    start = next;
-
-    /* round-robin all network protocols, break if traversed all protocols */
-    while (loop_score > NW_LOOP_MIN && next != NULL) {
-        loop_score = proto_loop(next, loop_score, direction);
-
-        next_node = pico_tree_next(next_node);
-        next = next_node->keyValue;
-
-        if (next == NULL)
-        {
-            next_node = pico_tree_firstNode(Network_proto_tree.root);
-            next = next_node->keyValue;
-        }
-
-        if (next == start)
-            break;
-    }
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        in_node = next_node;
-        next_in = next;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        out_node = next_node;
-        next_out = next;
-    }
-
-    return loop_score;
+    return pico_protocol_generic_loop(&proto_rr_network, loop_score, direction);
 }
-
-#define TP_LOOP_MIN 1
 
 int pico_protocol_transport_loop(int loop_score, int direction)
 {
-    struct pico_protocol *start;
-    static struct pico_protocol *next = NULL, *next_in = NULL, *next_out = NULL;
-    static struct pico_tree_node *next_node, *in_node, *out_node;
-
-    if (next_in == NULL) {
-        in_node = pico_tree_firstNode(Transport_proto_tree.root);
-        if (in_node)
-            next_in = in_node->keyValue;
-    }
-
-    if (next_out == NULL) {
-        out_node = pico_tree_firstNode(Transport_proto_tree.root);
-        if (out_node)
-            next_out = out_node->keyValue;
-    }
-
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        next_node = in_node;
-        next = next_in;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        next_node = out_node;
-        next = next_out;
-    }
-
-    /* init start node */
-    start = next;
-
-    /* round-robin all transport protocols, break if traversed all protocols */
-    while (loop_score > DL_LOOP_MIN && next != NULL) {
-        loop_score = proto_loop(next, loop_score, direction);
-
-        /* next = RB_NEXT(pico_protocol_tree, &Transport_proto_tree, next); */
-        next_node = pico_tree_next(next_node);
-        next = next_node->keyValue;
-
-        if (next == NULL)
-        {
-            next_node = pico_tree_firstNode(Transport_proto_tree.root);
-            next = next_node->keyValue;
-        }
-
-        if (next == start)
-            break;
-    }
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        in_node = next_node;
-        next_in = next;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        out_node = next_node;
-        next_out = next;
-    }
-
-    return loop_score;
+    return pico_protocol_generic_loop(&proto_rr_transport, loop_score, direction);
 }
-
-
-#define SOCK_LOOP_MIN 1
 
 int pico_protocol_socket_loop(int loop_score, int direction)
 {
-    struct pico_protocol *start;
-    static struct pico_protocol *next = NULL, *next_in = NULL, *next_out = NULL;
-    static struct pico_tree_node *next_node, *in_node, *out_node;
-
-    if (next_in == NULL) {
-        in_node = pico_tree_firstNode(Socket_proto_tree.root);
-        if(in_node)
-            next_in = in_node->keyValue;
-    }
-
-    if (next_out == NULL) {
-        out_node = pico_tree_firstNode(Socket_proto_tree.root);
-        if(out_node)
-            next_out = out_node->keyValue;
-    }
-
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        next_node = in_node;
-        next = next_in;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        next_node = out_node;
-        next = next_out;
-    }
-
-    /* init start node */
-    start = next;
-
-    /* round-robin all transport protocols, break if traversed all protocols */
-    while (loop_score > SOCK_LOOP_MIN && next != NULL) {
-        loop_score = proto_loop(next, loop_score, direction);
-
-        next_node = pico_tree_next(next_node);
-        next = next_node->keyValue;
-
-        if (next == NULL)
-        {
-            next_node = pico_tree_firstNode(next_node);
-            next = next_node->keyValue;
-        }
-
-        if (next == start)
-            break;
-    }
-    if (direction == PICO_LOOP_DIR_IN)
-    {
-        in_node = next_node;
-        next_in = next;
-    }
-    else if (direction == PICO_LOOP_DIR_OUT)
-    {
-        out_node = next_node;
-        next_out = next;
-    }
-
-    return loop_score;
+    return pico_protocol_generic_loop(&proto_rr_socket, loop_score, direction);
 }
 
 int pico_protocols_loop(int loop_score)
