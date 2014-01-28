@@ -29,12 +29,10 @@
 
 #define IS_LIMITED_BCAST(f) (((struct pico_ipv4_hdr *) f->net_hdr)->dst.addr == PICO_IP4_BCAST)
 
-#ifdef PICO_SUPPORT_MCAST
 # define PICO_SIZE_MCAST 3
 const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
-#endif
 
 volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
@@ -265,34 +263,50 @@ int pico_source_is_local(struct pico_frame *f)
  * those devices supporting ETH in order to push packets up
  * into the stack.
  */
+
+static int32_t pico_ll_receive(struct pico_frame *f)
+{
+    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
+    if (hdr->proto == PICO_IDETH_ARP)
+        return pico_arp_receive(f);
+    else if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
+        return pico_network_receive(f);
+    else {
+      pico_frame_discard(f);
+      return -1;
+    }
+}
+
+static void pico_ll_check_bcast(struct pico_frame *f)
+{
+    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    /* Indicate a link layer broadcast packet */
+    if (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) == 0)
+        f->flags |= PICO_FRAME_FLAG_BCAST;
+}
+
 int32_t pico_ethernet_receive(struct pico_frame *f)
 {
     struct pico_eth_hdr *hdr;
     if (!f || !f->dev || !f->datalink_hdr)
-        goto discard;
+    {
+          pico_frame_discard(f);
+          return -1;
+    }
 
     hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     if ((memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) &&
-#ifdef PICO_SUPPORT_MCAST
         (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
-#endif
         (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
-        goto discard;
+    {
+          pico_frame_discard(f);
+          return -1;
+    }
 
-    /* Indicate a link layer broadcast packet */
-    if (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) == 0)
-        f->flags |= PICO_FRAME_FLAG_BCAST;
+    pico_ll_check_bcast(f);
 
-    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    if (hdr->proto == PICO_IDETH_ARP)
-        return pico_arp_receive(f);
-
-    if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
-        return pico_network_receive(f);
-
-discard:
-    pico_frame_discard(f);
-    return -1;
+    return pico_ll_receive(f);
 }
 
 static int destination_is_bcast(struct pico_frame *f)
@@ -313,7 +327,6 @@ static int destination_is_bcast(struct pico_frame *f)
 #endif
 }
 
-#ifdef PICO_SUPPORT_MCAST
 static int destination_is_mcast(struct pico_frame *f)
 {
     if (!f)
@@ -345,7 +358,16 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 }
 
 
-#endif /* PICO_SUPPORT_MCAST */
+
+
+int32_t pico_ethernet_send_ipv6(struct pico_frame *f)
+{
+  (void)f;
+  /*TODO: Neighbor solicitation */
+  return -1;
+}
+
+
 
 /* This is called by dev loop in order to ensure correct ethernet addressing.
  * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
@@ -354,64 +376,78 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
  * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
  * we assume IP is used.
  */
+
+static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr, int *ret)
+{
+    /* Check own mac */
+    if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
+        dbg("sending out packet destined for our own mac\n");
+        *ret = (int32_t)pico_ethernet_receive(f);
+        return 1;
+    }
+    return 0;
+}
+
+static int32_t pico_ethsend_bcast(struct pico_frame *f, int *ret)
+{
+  if (IS_LIMITED_BCAST(f)) {
+    *ret = pico_device_broadcast(f);
+    return 1;
+  }
+  return 0;
+}
+
+static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
+{
+  *ret = f->dev->send(f->dev, f->start, (int) f->len);
+  if (*ret <= 0)
+    return 0;
+  else {
+    pico_frame_discard(f);
+    return 1;
+  }
+}
+
 int32_t pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
     int32_t ret = -1;
 
-    if (IS_IPV6(f)) {
-        /*TODO: Neighbor solicitation */
-        dstmac = NULL;
+    if (IS_IPV6(f))
+      return pico_ethernet_send_ipv6(f);
+
+    if (IS_BCAST(f) || destination_is_bcast(f))
+        dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
+
+    else if (destination_is_mcast(f)) {
+        uint8_t pico_mcast_mac[6] = {
+            0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
+        };
+        dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
+    else {
+        dstmac = pico_arp_get(f);
+        if (!dstmac)
+            return 0;
+    }
+    /* This sets destination and source address, then pushes the packet to the device. */
+    if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
+        struct pico_eth_hdr *hdr;
+        f->start -= PICO_SIZE_ETHHDR;
+        f->len += PICO_SIZE_ETHHDR;
+        f->datalink_hdr = f->start;
+        hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+        memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+        memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
+        hdr->proto = PICO_IDETH_IPV4;
 
-    else if (IS_IPV4(f)) {
-        if (IS_BCAST(f) || destination_is_bcast(f)) {
-            dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
-        }
-
-#ifdef PICO_SUPPORT_MCAST
-        else if (destination_is_mcast(f)) {
-            uint8_t pico_mcast_mac[6] = {
-                0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
-            };
-            dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
-        }
-#endif
-        else {
-            dstmac = pico_arp_get(f);
-            if (!dstmac)
-                return 0;
-        }
-        /* This sets destination and source address, then pushes the packet to the device. */
-        if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
-            struct pico_eth_hdr *hdr;
-            f->start -= PICO_SIZE_ETHHDR;
-            f->len += PICO_SIZE_ETHHDR;
-            f->datalink_hdr = f->start;
-            hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-            memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-            memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
-            hdr->proto = PICO_IDETH_IPV4;
-            if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
-                dbg("sending out packet destined for our own mac\n");
-                return pico_ethernet_receive(f);
-            }else if(IS_LIMITED_BCAST(f)) {
-                ret = pico_device_broadcast(f);
-            }else {
-                ret = (int32_t)f->dev->send(f->dev, f->start, (int) f->len);
-                /* Frame is discarded after this return by the caller */
-            }
-
-            if(!ret) pico_frame_discard(f);
-
-            return ret;
+        if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
+          return ret;
         } else {
-            return -1;
+          return -1;
         }
-    } /* End IPV4 ethernet addressing */
-
+    }
     return -1;
-
 }
 
 void pico_store_network_origin(void *src, struct pico_frame *f)

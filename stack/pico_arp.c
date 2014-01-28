@@ -41,8 +41,7 @@ static void check_pending(pico_time now, void *_unused)
         return;
     }
 
-    if(pico_ethernet_send(f) > 0)
-        pico_frame_discard(f);
+    pico_ethernet_send(f);
 
     pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
 }
