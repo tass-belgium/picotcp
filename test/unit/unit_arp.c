@@ -56,7 +56,7 @@ END_TEST
 
 START_TEST (arp_compare_test)
 {
-    struct pico_arp a,b;
+    struct pico_arp a, b;
     char ipstr[] = "192.168.1.1";
 
     memset(&a, 0, sizeof(a));

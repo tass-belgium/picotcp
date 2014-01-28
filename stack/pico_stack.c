@@ -273,8 +273,8 @@ static int32_t pico_ll_receive(struct pico_frame *f)
     else if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
         return pico_network_receive(f);
     else {
-      pico_frame_discard(f);
-      return -1;
+        pico_frame_discard(f);
+        return -1;
     }
 }
 
@@ -291,8 +291,8 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
     struct pico_eth_hdr *hdr;
     if (!f || !f->dev || !f->datalink_hdr)
     {
-          pico_frame_discard(f);
-          return -1;
+        pico_frame_discard(f);
+        return -1;
     }
 
     hdr = (struct pico_eth_hdr *) f->datalink_hdr;
@@ -300,8 +300,8 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
         (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
         (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
     {
-          pico_frame_discard(f);
-          return -1;
+        pico_frame_discard(f);
+        return -1;
     }
 
     pico_ll_check_bcast(f);
@@ -362,9 +362,9 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 
 int32_t pico_ethernet_send_ipv6(struct pico_frame *f)
 {
-  (void)f;
-  /*TODO: Neighbor solicitation */
-  return -1;
+    (void)f;
+    /*TODO: Neighbor solicitation */
+    return -1;
 }
 
 
@@ -385,27 +385,29 @@ static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr
         *ret = (int32_t)pico_ethernet_receive(f);
         return 1;
     }
+
     return 0;
 }
 
 static int32_t pico_ethsend_bcast(struct pico_frame *f, int *ret)
 {
-  if (IS_LIMITED_BCAST(f)) {
-    *ret = pico_device_broadcast(f);
-    return 1;
-  }
-  return 0;
+    if (IS_LIMITED_BCAST(f)) {
+        *ret = pico_device_broadcast(f);
+        return 1;
+    }
+
+    return 0;
 }
 
 static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
 {
-  *ret = f->dev->send(f->dev, f->start, (int) f->len);
-  if (*ret <= 0)
-    return 0;
-  else {
-    pico_frame_discard(f);
-    return 1;
-  }
+    *ret = f->dev->send(f->dev, f->start, (int) f->len);
+    if (*ret <= 0)
+        return 0;
+    else {
+        pico_frame_discard(f);
+        return 1;
+    }
 }
 
 int32_t pico_ethernet_send(struct pico_frame *f)
@@ -414,7 +416,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
     int32_t ret = -1;
 
     if (IS_IPV6(f))
-      return pico_ethernet_send_ipv6(f);
+        return pico_ethernet_send_ipv6(f);
 
     if (IS_BCAST(f) || destination_is_bcast(f))
         dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
@@ -430,6 +432,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         if (!dstmac)
             return 0;
     }
+
     /* This sets destination and source address, then pushes the packet to the device. */
     if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
         struct pico_eth_hdr *hdr;
@@ -442,11 +445,12 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr->proto = PICO_IDETH_IPV4;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
-          return ret;
+            return ret;
         } else {
-          return -1;
+            return -1;
         }
     }
+
     return -1;
 }
 

@@ -21,9 +21,8 @@ START_TEST (test_rbtree2)
     struct timeval start, end;
     gettimeofday(&start, 0);
 
-#if 0
     srand48(RBTEST_SIZE); /* use test-size as salt */
-    for (i = 0; i < RBTEST_SIZE > > 1; i++)
+    for (i = 0; i < (RBTEST_SIZE >> 1); i++)
     {
         e = malloc(sizeof(elem));
         e->value = lrand48() % RBTEST_SIZE;
@@ -41,7 +40,6 @@ START_TEST (test_rbtree2)
         fail_if (last > ((elem *)(s->keyValue))->value, "error");
         last = ((elem *)(s->keyValue))->value;
     }
-#endif
 
     gettimeofday(&end, 0);
     printf("Rbtree test 2 duration with %d entries: %d milliseconds\n", RBTEST_SIZE,
