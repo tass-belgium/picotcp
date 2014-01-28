@@ -587,6 +587,11 @@ void pico_timer_cancel(struct pico_timer *t)
     }
 }
 
+pico_time pico_timer_get_expire(struct pico_timer *t)
+{
+    return t->expire;
+}
+
 
 #define PROTO_DEF_NR      11
 #define PROTO_DEF_AVG_NR  4

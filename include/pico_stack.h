@@ -8,7 +8,7 @@
 #include "pico_config.h"
 #include "pico_frame.h"
 
-#define PICO_MAX_TIMERS 2000
+#define PICO_MAX_TIMERS 20
 
 #define PICO_ETH_MTU 1514
 #define PICO_IP_MTU 1500u
@@ -64,6 +64,7 @@ int pico_destination_is_local(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg);
 void pico_timer_cancel(struct pico_timer *t);
+pico_time pico_timer_get_expire(struct pico_timer *t);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
 
