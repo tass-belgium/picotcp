@@ -535,7 +535,7 @@ int32_t pico_sendto_dev(struct pico_frame *f)
 
 struct pico_timer
 {
-    uint32_t expire;
+    pico_time expire;
     void *arg;
     void (*timer)(pico_time timestamp, void *arg);
 };

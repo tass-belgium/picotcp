@@ -180,8 +180,8 @@ int pico_protocols_loop(int loop_score)
 
 static void proto_layer_rr_reset(struct pico_proto_rr *rr)
 {
-  rr->node_in = NULL;
-  rr->node_out = NULL;
+    rr->node_in = NULL;
+    rr->node_out = NULL;
 }
 
 void pico_protocol_init(struct pico_protocol *p)
