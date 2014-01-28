@@ -175,6 +175,7 @@ Suite *pico_suite(void)
     tcase_add_test(arp, arp_lookup_test);
     tcase_add_test(arp, arp_expire_test);
     tcase_add_test(arp, arp_receive_test);
+    tcase_add_test(arp, arp_get_test);
     suite_add_tcase(s, arp);
 
     return s;

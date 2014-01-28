@@ -1,9 +1,41 @@
+static struct pico_frame *init_frame(struct pico_device *dev)
+{
+    struct pico_frame *f = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
+    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
+    f->datalink_hdr = f->buffer;
+    f->dev = dev;
+
+    return f;
+}
+
 START_TEST (arp_check_pending_test)
 {
+    struct pico_frame *f = NULL;
+    struct mock_device *mock;
+    uint8_t macaddr[6] = {
+        0, 0, 0, 0xa, 0xb, 0xf
+    };
+    struct pico_ip4 netmask = {
+        .addr = long_be(0xffffff00)
+    };
+    struct pico_ip4 ip = {
+        .addr = long_be(0x0A28000A)
+    };
+
+    mock = pico_mock_create(macaddr);
+    fail_if(!mock, "MOCK DEVICE creation failed");
+    fail_if(pico_ipv4_link_add(mock->dev, ip, netmask), "add link to mock device failed");
+
     pico_stack_init();
     pending_timer_on = 1;
     check_pending(0, NULL);
     fail_unless(pending_timer_on == 0);
+
+    f = init_frame(mock->dev);
+    pico_enqueue(&pending, f);
+    pending_timer_on = 1;
+    check_pending(0, NULL);
+    fail_unless(pending_timer_on == 1);
 }
 END_TEST
 
@@ -11,9 +43,14 @@ START_TEST (arp_update_max_arp_reqs_test)
 {
     pico_stack_init();
     max_arp_reqs = 0;
-    usleep((PICO_ARP_INTERVAL * 2) * 1000);
+    usleep((PICO_ARP_INTERVAL + 1) * 1000);
     pico_stack_tick();
     fail_unless(max_arp_reqs > 0);
+
+    max_arp_reqs = PICO_ARP_MAX_RATE;
+    usleep((PICO_ARP_INTERVAL + 1) * 1000);
+    pico_stack_tick();
+    fail_unless(max_arp_reqs == PICO_ARP_MAX_RATE);
 }
 END_TEST
 
@@ -61,16 +98,6 @@ START_TEST (arp_expire_test)
     fail_unless(entry.arp_status == PICO_ARP_STATUS_STALE);
 }
 END_TEST
-
-static struct pico_frame *init_frame(struct pico_device * dev)
-{
-    struct pico_frame *f = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
-    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-    f->datalink_hdr = f->buffer;
-    f->dev = dev;
-
-    return f;
-}
 
 START_TEST (arp_receive_test)
 {
@@ -142,5 +169,37 @@ START_TEST (arp_receive_test)
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->s_mac[0] = 0x01;
     fail_unless(pico_arp_receive(f) == -1);
+}
+END_TEST
+
+START_TEST (arp_get_test)
+{
+    struct pico_frame *f = NULL;
+    struct mock_device *mock;
+    struct pico_ipv4_hdr *hdr = NULL;
+    struct pico_eth *eth = NULL;
+    uint8_t macaddr[6] = {
+        0, 0, 0, 0xa, 0xb, 0xf
+    };
+    struct pico_ip4 netmask = {
+        .addr = long_be(0xffffff00)
+    };
+    struct pico_ip4 ip = {
+        .addr = long_be(0x0A28000A)
+    };
+
+    mock = pico_mock_create(macaddr);
+    fail_if(!mock, "MOCK DEVICE creation failed");
+    fail_if(pico_ipv4_link_add(mock->dev, ip, netmask), "add link to mock device failed");
+
+    f = pico_frame_alloc(PICO_SIZE_ETHHDR + sizeof(struct pico_ipv4_hdr));
+    f->net_hdr = f->start + PICO_SIZE_ETHHDR;
+    f->datalink_hdr = f->start;
+    f->dev = mock->dev;
+
+    hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    hdr->dst.addr = ip.addr;
+    eth = pico_arp_get(f);
+    fail_unless(eth == &mock->dev->eth->mac);
 }
 END_TEST
