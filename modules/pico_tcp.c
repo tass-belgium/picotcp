@@ -1496,7 +1496,6 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
                         || (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && t->backoff < PICO_TCP_MAX_RETRANS)
     {
         tcp_dbg("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
-        printf("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
         t->retrans_tmr = NULL;
 
         f = first_segment(&t->tcpq_out);
@@ -1532,7 +1531,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
     }
     else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
     {
-        printf("Connection FAIL!\n");
+        tcp_dbg("Connection FAIL!\n");
         /* the retransmission timer, failed to get an ack for a frame, giving up on the connection */
         tcp_discard_all_segments(&t->tcpq_out);
         if(t->sock.wakeup)
