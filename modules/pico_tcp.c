@@ -873,9 +873,9 @@ struct pico_socket *pico_tcp_open(void)
     t->tcpq_in.overhead = (sizeof(struct tcp_input_segment) + sizeof(struct pico_tree_node));
     t->tcpq_out.overhead = t->tcpq_hold.overhead = sizeof(struct pico_frame) + sizeof(struct pico_tree_node);
     /* disable Nagle by default */
-    /* t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY); */
+    t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
     /* Nagle is enabled by default */
-    t->sock.opt_flags &= (uint16_t) ~(1 << PICO_SOCKET_OPT_TCPNODELAY);
+    /*t->sock.opt_flags &= (uint16_t) ~(1 << PICO_SOCKET_OPT_TCPNODELAY); */
 
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
     pico_timer_add(2000, sock_stats, t);
