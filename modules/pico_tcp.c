@@ -1496,6 +1496,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
                         || (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && t->backoff < PICO_TCP_MAX_RETRANS)
     {
         tcp_dbg("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
+        printf("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
         t->retrans_tmr = NULL;
 
         f = first_segment(&t->tcpq_out);
@@ -1519,28 +1520,27 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
                     t->snd_last_out = SEQN(cpy);
                     add_retransmission_timer(t, (t->rto << t->backoff) + TCP_TIME);
                     tcp_dbg("TCP_CWND, %lu, %u, %u, %u\n", TCP_TIME, t->cwnd, t->ssthresh, t->in_flight);
-                    /* return; */
                 } else {
                     add_retransmission_timer(t, (t->rto << t->backoff) + TCP_TIME);
                     pico_frame_discard(cpy);
                 }
             }
-
             f = next_segment(&t->tcpq_out, f);
         }
-        t->backoff = 0;
-        add_retransmission_timer(t, 0);
         if (t->tcpq_out.size < t->tcpq_out.max_size)
             t->sock.ev_pending |= PICO_SOCK_EV_WR;
-
-        return;
     }
     else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
     {
+        printf("Connection FAIL!\n");
         /* the retransmission timer, failed to get an ack for a frame, giving up on the connection */
         tcp_discard_all_segments(&t->tcpq_out);
         if(t->sock.wakeup)
             t->sock.wakeup(PICO_SOCK_EV_FIN, &t->sock);
+    }
+    if (!t->retrans_tmr) {
+       t->backoff = 0;
+       add_retransmission_timer(t, 0);
     }
 }
 
@@ -1566,7 +1566,7 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_t
 
     if (next_ts > 0) {
         if ((next_ts + t->rto) > TCP_TIME) {
-            t->retrans_tmr = pico_timer_add(next_ts + t->rto - TCP_TIME, tcp_retrans_timeout, t);
+            t->retrans_tmr = pico_timer_add(next_ts + (t->rto << t->backoff) - TCP_TIME, tcp_retrans_timeout, t);
         } else {
             t->retrans_tmr = pico_timer_add(1, tcp_retrans_timeout, t);
         }
@@ -1812,7 +1812,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
     if(restart_tmr)
     {
-        add_retransmission_timer(t, TCP_TIME + t->rto);
+        add_retransmission_timer(t, 0);
     }
 
     t->snd_old_ack = ACKN(f);
@@ -2400,13 +2400,13 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
             f = NULL;
         }
     }
-    if (sent > 0) {
+    if ( (sent > 0) || (t->tcpq_out.frames > 0)) {
         if (t->rto < PICO_TCP_RTO_MIN)
             t->rto = PICO_TCP_RTO_MIN;
 
         /* if (s->wakeup) */
         /*  t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock); */
-        add_retransmission_timer(t, TCP_TIME + t->rto);
+        add_retransmission_timer(t, 0);
     } else {
         /* Nothing to transmit. */
     }
