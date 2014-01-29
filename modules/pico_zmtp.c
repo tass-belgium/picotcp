@@ -6,3 +6,16 @@
  *********************************************************************/
 
 #include "pico_zmtp.h"
+#include "pico_socket.h"
+#include "pico_zmq.h"
+
+
+
+struct zmtp_socket {
+    struct pico_socket *sock;
+    enum zmq_state state;
+    zmq_socket parent;
+    enum zmq_socket_type role;
+    uint16_t bytes_received;
+    struct zmtp_socket *next;
+};
