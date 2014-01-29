@@ -5,8 +5,9 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
+#ifndef UNIT_TEST
 #include <libvdeplug.h>
+#endif
 #include "pico_device.h"
 #include "pico_dev_vde.h"
 #include "pico_stack.h"

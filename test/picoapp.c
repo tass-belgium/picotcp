@@ -1069,7 +1069,7 @@ void app_tcpclient(char *arg)
     uint16_t port_be = 0;
     struct pico_ip4 server_addr;
     char *nxt = cpy_arg(&dest, arg);
-    int yes = 0;
+    int yes = 1;
     if (!dest) {
         fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
         exit(255);
@@ -1178,7 +1178,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         struct pico_ip4 orig;
         uint16_t port;
         char peer[30];
-        int yes = 0;
+        int yes = 1;
         sock_a = pico_socket_accept(s, &orig, &port);
         pico_socket_accept(s, &orig, &port);
         pico_ipv4_to_string(peer, orig.addr);
@@ -1222,7 +1222,7 @@ void app_tcpecho(char *arg)
     char *sport = arg;
     int port = 0;
     uint16_t port_be = 0;
-    int yes = 0;
+    int yes = 1;
     cpy_arg(&sport, arg);
     if (sport) {
         port = atoi(sport);
@@ -1396,7 +1396,7 @@ void app_tcpbench(char *arg)
     struct pico_ip4 server_addr;
     char *nxt;
     char *sport;
-    int yes = 0;
+    int yes = 1;
 
     nxt = cpy_arg(&mode, arg);
 

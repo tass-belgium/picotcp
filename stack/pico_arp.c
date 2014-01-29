@@ -31,7 +31,7 @@ static struct pico_queue pending;
 static int pending_timer_on = 0;
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
 
-void check_pending(pico_time now, void *_unused)
+static void check_pending(pico_time now, void *_unused)
 {
     struct pico_frame *f = pico_dequeue(&pending);
     IGNORE_PARAMETER(now);
@@ -41,8 +41,7 @@ void check_pending(pico_time now, void *_unused)
         return;
     }
 
-    if(pico_ethernet_send(f) > 0)
-        pico_frame_discard(f);
+    pico_ethernet_send(f);
 
     pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
 }
@@ -204,7 +203,7 @@ void dbg_arp(void)
 }
 #endif
 
-void arp_expire(pico_time now, void *_stale)
+static void arp_expire(pico_time now, void *_stale)
 {
     struct pico_arp *stale = (struct pico_arp *) _stale;
     IGNORE_PARAMETER(now);
@@ -214,7 +213,7 @@ void arp_expire(pico_time now, void *_stale)
 
 }
 
-void pico_arp_add_entry(struct pico_arp *entry)
+static void pico_arp_add_entry(struct pico_arp *entry)
 {
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
@@ -250,11 +249,12 @@ int pico_arp_receive(struct pico_frame *f)
     struct pico_eth_hdr *eh;
     int ret = -1;
     hdr = (struct pico_arp_hdr *) f->net_hdr;
-    me.addr = hdr->dst.addr;
     eh = (struct pico_eth_hdr *)f->datalink_hdr;
 
     if (!hdr)
         goto end;
+
+    me.addr = hdr->dst.addr;
 
     /* Validate the incoming arp packet */
 
@@ -355,20 +355,22 @@ int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t 
     struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
     struct pico_eth_hdr *eh;
     struct pico_arp_hdr *ah;
-    struct pico_ip4 *src=NULL;
+    struct pico_ip4 *src = NULL;
     int ret;
+
+    if (!q)
+        return -1;
 
     if (type == PICO_ARP_QUERY)
     {
         src = pico_ipv4_source_find(dst);
-        if (!src)
+        if (!src) {
+            pico_frame_discard(q);
             return -1;
+        }
     }
 
     arp_dbg("QUERY: %08x\n", dst->addr);
-
-    if (!q)
-        return -1;
 
     eh = (struct pico_eth_hdr *)q->start;
     ah = (struct pico_arp_hdr *) (q->start + PICO_SIZE_ETHHDR);

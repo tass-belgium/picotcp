@@ -11,7 +11,7 @@ recv1 = Host(T, net1, args="tcpbench:r:7770:", delay1="20", loss1="5")
 
 
 sleep(1)
-#raw_input("Press enter to continue ...")
+raw_input("Press enter to continue ...")
 
 start(T)
 wait(send1)

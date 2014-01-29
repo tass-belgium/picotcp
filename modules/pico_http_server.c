@@ -587,7 +587,7 @@ void sendData(struct httpClient *client)
     uint16_t length;
     while( client->bufferSent < client->bufferSize &&
            (length = (uint16_t)pico_socket_write(client->sck, (uint8_t *)client->buffer + client->bufferSent, \
-           client->bufferSize - client->bufferSent)) > 0 )
+                                                 client->bufferSize - client->bufferSent)) > 0 )
     {
         client->bufferSent = (uint16_t)(client->bufferSent + length);
         server.wakeup(EV_HTTP_PROGRESS, client->connectionID);

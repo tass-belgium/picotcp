@@ -73,9 +73,9 @@
         return p;     \
     } \
     /*static inline void heap_destroy(heap_ ## type * h) \
-    { \
-        pico_free(h->top);   \
-        pico_free(h);     \
-    } \*/
+       { \
+        pico_free(h->top); \
+        pico_free(h); \
+       } \*/
 
 

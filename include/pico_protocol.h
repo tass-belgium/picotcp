@@ -66,8 +66,8 @@ enum pico_err_e {
 typedef enum pico_err_e pico_err_t;
 extern volatile pico_err_t pico_err;
 
-#define IS_IPV6(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60)
-#define IS_IPV4(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40)
+#define IS_IPV6(f) (f && f->net_hdr && ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60))
+#define IS_IPV4(f) (f && f->net_hdr && ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40))
 
 #define MAX_PROTOCOL_NAME 16
 
@@ -79,9 +79,9 @@ struct pico_protocol {
     struct pico_queue *q_in;
     struct pico_queue *q_out;
     struct pico_frame *(*alloc)(struct pico_protocol *self, uint16_t size); /* Frame allocation. */
-    int (*push) (struct pico_protocol *self, struct pico_frame *p);   /* Push function, for active outgoing pkts from above */
-    int (*process_out) (struct pico_protocol *self, struct pico_frame *p); /* Send loop. */
-    int (*process_in) (struct pico_protocol *self, struct pico_frame *p); /* Recv loop. */
+    int (*push)(struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
+    int (*process_out)(struct pico_protocol *self, struct pico_frame *p);  /* Send loop. */
+    int (*process_in)(struct pico_protocol *self, struct pico_frame *p);  /* Recv loop. */
 };
 
 int pico_protocols_loop(int loop_score);

@@ -27,7 +27,7 @@ class Network:
     self.topology.nets.append(self)
     self.sock = "/tmp/topology/net"+`self.n`
     self.nextn = 1
-    vdecmd = ["vde_switch", "-s", self.sock, "-m", self.sock+".mgmt"]
+    vdecmd = ["vde_switch", "-x" , "-s", self.sock, "-m", self.sock+".mgmt"]
     if real != '':
       test_tuntap()
       vdecmd.append('-t')
