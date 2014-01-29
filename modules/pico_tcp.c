@@ -801,6 +801,13 @@ static void tcp_send_keepalive(pico_time when, void *_t);
 #define KA_MAX (2 * 3600 * 1000) /* Two hours */
 static void pico_keepalive_reschedule(struct pico_socket_tcp *t)
 {
+    if ((t->sock.state & 0xFF00) != PICO_SOCKET_STATE_TCP_ESTABLISHED
+         && (t->sock.state & 0xFF00) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+      if (t->ka_tmr)
+        pico_timer_cancel(t->ka_tmr);
+      t->ka_tmr = NULL;
+      return;
+    }
     t->ka_tmr_due = (3 * t->rto);
     if (t->ka_tmr_due < KA_MIN)
         t->ka_tmr_due = KA_MIN;
