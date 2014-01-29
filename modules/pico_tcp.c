@@ -797,13 +797,21 @@ static void tcp_parse_options(struct pico_frame *f)
 }
 
 static void tcp_send_keepalive(pico_time when, void *_t);
+#define KA_MIN (1000)
+#define KA_MAX (2 * 3600 * 1000) /* Two hours */
 static void pico_keepalive_reschedule(struct pico_socket_tcp *t)
 {
-    t->ka_tmr_due = (t->rto << t->backoff) + TCP_TIME;
+    t->ka_tmr_due = (3 * t->rto);
+    if (t->ka_tmr_due < KA_MIN)
+        t->ka_tmr_due = KA_MIN;
+
+    if (t->ka_tmr_due > KA_MAX)
+        t->ka_tmr_due = KA_MAX;
+
     if (!t->ka_tmr) {
-        t->ka_tmr = pico_timer_add((t->rto << t->backoff), tcp_send_keepalive, t);
-    } else {
-    }
+        t->ka_tmr = pico_timer_add(t->ka_tmr_due, tcp_send_keepalive, t);
+    } 
+    t->ka_tmr_due += TCP_TIME;
 }
 
 static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
