@@ -89,6 +89,14 @@ ifeq ($(ARCH),pic24)
   -mlarge-code -mlarge-data -O0 -msmart-io=1 -msfr-warn=off
 endif
 
+ifeq ($(ARCH), avr)
+  CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
+endif
+
+ifeq ($(ARCH),str9)
+  CFLAGS+=-DSTR9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
+endif
+
 .c.o:
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
