@@ -19,4 +19,11 @@ enum zmq_state {
     ST_BUSY
 };
 
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, struct zmq_socket* parent, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
+
+static void zmtp_tcp_cb(uint16_t ev, struct pico_socket *s);
+ 
+
+
+
 #endif
