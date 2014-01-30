@@ -1,2 +1,6 @@
 *.*~
 .gitignore
+build/
+docs/user_manual/*
+.gitignore
+tmp/
