@@ -19,3 +19,11 @@ struct zmtp_socket {
     uint16_t bytes_received;
     struct zmtp_socket *next;
 };
+
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, struct zmq_socket* parent, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
+{  
+    struct zmtp_socket* s;
+    s.parent = parent;
+    
+    struct* pico_socket = pico_socket_open(net, proto, 
+
