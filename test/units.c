@@ -183,7 +183,7 @@ Suite *pico_suite(void)
     tcase_add_test(arp, arp_get_test);
     suite_add_tcase(s, arp);
 
-    tcase_add_test(zmtp, test_zmtp_dummy);
+    tcase_add_test(zmtp, test_zmtp);
     suite_add_tcase(s, zmtp);
 
     tcase_add_test(zmq, test_zmq_dummy);

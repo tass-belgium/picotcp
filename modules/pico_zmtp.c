@@ -11,14 +11,6 @@
 
 
 
-struct zmtp_socket {
-    struct pico_socket* sock;
-    enum zmq_state state;
-    zmq_socket* parent;
-    enum zmq_socket_type role;
-    uint16_t bytes_received;
-};
-
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket *s)
 {
     return;
@@ -50,16 +42,27 @@ int8_t zmtp_read(struct smtp_socket* s, void* buf, uint16_t len);
 }
 
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, struct zmq_socket* parent, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
 {  
     struct zmtp_socket* s;
-//    s = pico_zalloc(sizeof(zmtp_socket));
-//    if (s == NULL)
-//       return s;
+    /*
+    s = pico_zalloc(sizeof(zmtp_socket));
+    if (s == NULL)
+       return NULL;
     
-//    s->parent = parent;
-    
-//    struct* pico_socket = pico_socket_open(net, proto, &zmtp_tcp_cb);
-//    s->
+    struct* pico_socket = pico_socket_open(net, proto, &zmtp_tcp_cb);
+    if (pico_socket == NULL)
+        return NULL;
+    s->sock = pico_socket;
+
+    s->state = ST_OPEN;
+
+    if (type >= TYPE_END)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+    s->type = type;
+    */
     return s;
 }
