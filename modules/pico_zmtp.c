@@ -11,32 +11,27 @@
 
 
 
-static void zmtp_tcp_cb(uint16_t ev, struct pico_socket *s)
+static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 {
     return;
 }
 
-int8_t zmtp_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
+int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
     return 0;
 }
 
-int8_t zmtp_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
+int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 {
     return 0;
 }
 
-int8_t zmtp_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
+int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
 {
     return 0;
 }
 
-int8_t zmtp_socket_close(struct zmtp_socket *s);
-{
-    return 0;
-}
-
-int8_t zmtp_read(struct smtp_socket* s, void* buf, uint16_t len);
+int8_t zmtp_socket_close(struct zmtp_socket* s);
 {
     return 0;
 }

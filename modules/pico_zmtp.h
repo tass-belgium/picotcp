@@ -43,6 +43,5 @@ int8_t zmtp_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int8_t zmtp_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int8_t zmtp_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
 int8_t zmtp_socket_close(struct zmtp_socket *s);
-int8_t zmtp_read(struct smtp_socket* s, void* buf, uint16_t len);
 
 #endif
