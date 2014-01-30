@@ -41,7 +41,7 @@ int zmq_socket_connect(struct zmq_socket * z, char *address, uint16_t port)
 
 int zmq_socket_send(struct zmq_socket * z, char *txt, int len)
 {
-    return ret;
+    return 0;
 }
 
 int zmq_socket_recv(struct zmq_socket * z, char *txt)

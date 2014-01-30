@@ -34,11 +34,11 @@ struct zmq_msg {
 };
 
 struct zmtp_socket* zmtp_socket_open(struct zmq_socket* parent, 
-    enum zmq_socket_t t, void (*wakeup)(uint16_t ev, struct zmtp_socket* s))
+    enum zmq_socket_type t, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
 
 int8_t zmtp_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int8_t zmtp_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
-int8_t zmtp_send(struct zmtp_socket* s, zmq_msg_t** msg, uint16_t len);
+int8_t zmtp_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
 int8_t zmtp_socket_close(struct zmtp_socket *s);
 int8_t zmtp_read(struct smtp_socket* s, void* buf, uint16_t len);
 >>>>>>> 28464d3224cebaf43e0b5ccaf297b6a07ebc3ac4
