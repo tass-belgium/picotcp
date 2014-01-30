@@ -17,7 +17,6 @@ struct zmtp_socket {
     zmq_socket parent;
     enum zmq_socket_type role;
     uint16_t bytes_received;
-    struct zmtp_socket *next;
 };
 
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, struct zmq_socket* parent, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
