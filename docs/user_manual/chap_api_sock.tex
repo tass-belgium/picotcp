@@ -177,7 +177,9 @@ sk_tcp->remote_port);
 
 \subsubsection*{Description}
 This function is called to receive a string of data from the specified socket.
-This function also checks if the socket is bound but not if it is connected or shutdown locally. 
+It is useful when called in the context of a non-connected socket, to receive
+the information regarding the origin of the data, namely the origin address and 
+the remote port number.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -195,8 +197,11 @@ void *orig, uint16_t *remote_port);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns an integer representing the number of bytes read from the socket. Also
-\texttt{remote$\_$port} will contain the portnumber of the sending socket.
+On success, this call returns an integer representing the number of bytes read from the socket. On success, if \texttt{orig}
+is not NULL, The address of the remote endpoint is stored in the memory area pointed by \texttt{orig}. 
+In the same way, \texttt{remote$\_$port} will contain the portnumber of the sending socket, unless a NULL is passed
+from the caller.
+
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}

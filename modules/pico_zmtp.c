@@ -10,7 +10,6 @@
 #include "pico_zmq.h"
 
 
-
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 {
     return;

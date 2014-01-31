@@ -8,9 +8,14 @@
 #ifndef __PICO_ZMTP_H
 #define __PICO_ZMTP_H
 
+#include <stdint.h>
+
 #define ZMQ_TYPE_PUBLISHER               1
 #define ZMQ_TYPE_SUBSCRIBER              2
-#define ZMQ_TYPE_END                     3
+#define ZMQ_TYPE_REQ                     3
+#define ZMQ_TYPE_REP                     4
+#define ZMQ_TYPE_END                     5
+
 
 enum zmq_state {
     ST_OPEN = 0,
