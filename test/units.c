@@ -30,6 +30,8 @@
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
 #include "pico_slaacv4.c"
+#include "pico_zmtp.c"
+#include "pico_zmq.c"
 #ifdef PICO_SUPPORT_MCAST
 #include "pico_igmp.c"
 #endif
