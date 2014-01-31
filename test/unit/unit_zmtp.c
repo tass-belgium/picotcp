@@ -1,11 +1,12 @@
 void test_zmtp_socket_open();
 void test_zmtp_bind();
-
+void test_zmtp_connect();
 
 START_TEST (test_zmtp)
 {
   test_zmtp_socket_open();
   //test_zmtp_bind();
+  //test_zmtp_connect();
 }
 END_TEST
 
@@ -62,3 +63,28 @@ void test_zmtp_socket_open()
   sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMQ_TYPE_SUBSCRIBER, &empty_cb);
   fail_if(sock == NULL, "test_zmtp_socket failed on valid arguments");
 }
+
+void test_zmtp_socket_connect()
+{
+    struct zmtp_socket* sock;
+    uint16_t port_be;
+    int8_t ret;
+    struct pico_ip4 inaddr_dst;
+
+    pico_string_to_ipv4("10.10.10.10", &inaddr_dst.addr);
+    port_be = short_be(5555);
+
+    ret = zmtp_socket_connect(NULL, &inaddr_dst, port_be);
+    fail_if(ret == 0, "test zmtp socket connect failed on invalid socket argument");
+    ret = zmtp_socket_connect(sock, NULL, port_be);
+    fail_if(ret == 0, "test zmtp socket connect failed on invalid server address");
+    ret = zmtp_socket_connect(sock, &inaddr_dst, 0);
+    fail_if(ret == 0, "test zmtp socket connect failed on invalid port (0)");
+    //TODO: invalid port (max_port)
+
+    //TODO: Are these arguments correct?
+    //Or, can we mock the pico_socket_connect that will be called by zmtp_socket_connect
+    ret = zmtp_socket_connect(sock, &inaddr_dst, port_be);
+    fail_if(ret < 0, "Error socket connect");
+}
+
