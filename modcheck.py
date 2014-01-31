@@ -36,14 +36,15 @@ for k,v in mods.iteritems():
       command += i + "=1 "
     else:
       command += i + "=0 "
-  print command
   commands.append(command)
 
-
+nul = open('/dev/null', 'w')
 for i in commands:
-  print 'Checking config:\n\t%s\n' % i
+  print 'Checking config:\n\t%s' % i
   os.system('make clean >/dev/null')
   args = i.split(' ')
-  
-  subprocess.check_call(i, shell=True,stdout=None, stderr=None)==0 or sys.exit(1)
+  subprocess.call(['make','clean'], shell=True, stdout=nul, stderr=nul)
+  subprocess.check_call(i, shell=True,stdout=nul, stderr=nul)==0 or sys.exit(1)
+  print "CONFIG OK!"
+  print
 sys.exit(0)
