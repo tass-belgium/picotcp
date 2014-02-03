@@ -10,11 +10,10 @@
 
 #include <stdint.h>
 
-#define ZMQ_TYPE_PUBLISHER               1
-#define ZMQ_TYPE_SUBSCRIBER              2
-#define ZMQ_TYPE_REQ                     3
-#define ZMQ_TYPE_REP                     4
-#define ZMQ_TYPE_END                     5
+#define ZMQ_TYPE_PUBLISHER               0x01
+#define ZMQ_TYPE_SUBSCRIBER              0x02
+#define ZMQ_TYPE_REQ                     0x03
+#define ZMQ_TYPE_REP                     0x04
 
 
 enum zmq_state {
@@ -31,7 +30,8 @@ enum zmq_state {
 struct zmtp_socket {
     struct pico_socket* sock;
     enum zmq_state state;
-    uint16_t type;
+    uint8_t type;
+    void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s);
 };
 
 struct zmq_msg {
@@ -41,7 +41,6 @@ struct zmq_msg {
 };
 
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint16_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
-static void zmtp_tcp_cb(uint16_t ev, struct pico_socket *s);
 int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
