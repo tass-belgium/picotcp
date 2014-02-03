@@ -42,7 +42,7 @@ struct zmq_msg {
 
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint16_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket *s);
-int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
 int8_t zmtp_socket_close(struct zmtp_socket *s);

@@ -18,7 +18,7 @@ void empty_cb(uint16_t ev, struct zmtp_socket* s)
 void test_zmtp_bind()
 {
   struct zmtp_socket * sock;
-  int8_t ret;
+  int ret;
   uint16_t port_be;
   struct pico_ip4 inaddr_link, netmask;  struct pico_device *dev;
 
