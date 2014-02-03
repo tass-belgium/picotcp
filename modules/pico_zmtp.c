@@ -15,9 +15,9 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
     return;
 }
 
-int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
-    uint8_t ret = 0;
+    int ret = 0;
 
     if (s && s->sock)
     {
