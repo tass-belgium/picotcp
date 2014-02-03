@@ -42,16 +42,22 @@ int8_t zmtp_socket_close(struct zmtp_socket *s)
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint16_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s))
 {  
     struct zmtp_socket* s;
+
     if (NULL == wakeup)
     {
-	return NULL;
+        pico_err = PICO_ERR_EINVAL;
+	    return NULL;
     } 
+
     s = pico_zalloc(sizeof(struct zmtp_socket));
     if (s == NULL)
+    {
+        pico_err = PICO_ERR_ENOMEM;
        return NULL;
+    }
     
     struct pico_socket* pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
-    if (pico_s == NULL)
+    if (pico_s == NULL) // Leave pico_err the same (EINVAL, EPPROTONOSUPPORT, ENETUNREACH)
     {
         pico_free(s);
         return NULL;
@@ -62,10 +68,9 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint16_t type
 
     if (NULL == type || ZMQ_TYPE_END <= type)
     {
-      printf("fail on type with number %d\n", type);
         pico_err = PICO_ERR_EINVAL;
-	pico_free(pico_s);
-	pico_free(s);
+    	pico_free(pico_s);
+	    pico_free(s);
         return NULL;
     }
     s->type = type;
