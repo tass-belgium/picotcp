@@ -5,7 +5,7 @@ void test_zmtp_connect();
 START_TEST (test_zmtp)
 {
   test_zmtp_socket_open();
-  //test_zmtp_bind();
+  test_zmtp_bind();
   //test_zmtp_connect();
 }
 END_TEST
@@ -14,31 +14,37 @@ void empty_cb(uint16_t ev, struct zmtp_socket* s)
 {
 
 }
+
 void test_zmtp_bind()
 {
   struct zmtp_socket * sock;
   int8_t ret;
   uint16_t port_be;
-  struct pico_ip4 inaddr_link;
+  struct pico_ip4 inaddr_link, netmask;  struct pico_device *dev;
+
+  dev = pico_null_create("dummy");
+  pico_string_to_ipv4("10.40.0.2", &inaddr_link.addr);
+  netmask.addr = long_be(0xFFFF0000);
+  ret = pico_ipv4_link_add(dev, inaddr_link, netmask);
+  fail_if(ret < 0, "socket> error adding link");
 
   sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMQ_TYPE_PUBLISHER, &empty_cb);
   if (sock == NULL)
   {
-    fail("zmtp_bind: unable to initiate zmtp_socket");
+    fail_if(1,"zmtp_bind: unable to initiate zmtp_socket");
   } else {
     
-    pico_string_to_ipv4("10.40.0.2", &inaddr_link.addr);
     port_be = short_be(5555);
     /* socket_bind passing wrong parameters */
     ret = zmtp_socket_bind(NULL, &inaddr_link, &port_be);
     fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
-    /*ret = zmtp_socket_bind(sock, NULL, &port_be);
+    ret = zmtp_socket_bind(sock, NULL, &port_be);
     fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
     ret = zmtp_socket_bind(sock, &inaddr_link, NULL);
     fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
     /* socket_bind passing correct parameters */
-    /*ret = zmtp_socket_bind(sock, &inaddr_link, &port_be);
-      fail_if(ret < 0, "socket> tcp socket bind failed");*/
+    ret = zmtp_socket_bind(sock, &inaddr_link, &port_be);
+    fail_if(ret < 0, "socket> tcp socket bind failed");
     //pico_free(sock);
     
   }
