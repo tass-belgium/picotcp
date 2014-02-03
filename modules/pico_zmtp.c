@@ -10,7 +10,6 @@
 #include "pico_zmq.h"
 
 
-
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 {
     return;
@@ -18,8 +17,18 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 
 int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
-    return 0;
+    uint8_t ret = 0;
+
+    if (s && s->sock)
+    {
+        ret = pico_socket_bind(s->sock, local_addr, port);
+    } else {
+        ret = PICO_ERR_EFAULT;
+    }
+
+    return ret;
 }
+
 
 int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port)
 {
@@ -31,33 +40,48 @@ int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t le
     return 0;
 }
 
-int8_t zmtp_socket_close(struct zmtp_socket* s)
+int8_t zmtp_socket_close(struct zmtp_socket *s)
 {
     return 0;
+
 }
 
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s))
-{ 
-    struct zmtp_socket* s = NULL;
-    /*
-    s = pico_zalloc(sizeof(zmtp_socket));
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s))
+{  
+    struct zmtp_socket* s;
+
+    if (NULL == wakeup)
+    {
+        pico_err = PICO_ERR_EINVAL;
+	    return NULL;
+    } 
+
+    s = pico_zalloc(sizeof(struct zmtp_socket));
     if (s == NULL)
+    {
+        pico_err = PICO_ERR_ENOMEM;
        return NULL;
+    }
     
-    struct* pico_socket = pico_socket_open(net, proto, &zmtp_tcp_cb);
-    if (pico_socket == NULL)
+    struct pico_socket* pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
+    if (pico_s == NULL) // Leave pico_err the same (EINVAL, EPPROTONOSUPPORT, ENETUNREACH)
+    {
+        pico_free(s);
         return NULL;
-    s->sock = pico_socket;
+    }
+    s->sock = pico_s;
 
     s->state = ST_OPEN;
 
-    if (type >= TYPE_END)
+    if (NULL == type || ZMQ_TYPE_END <= type)
     {
         pico_err = PICO_ERR_EINVAL;
+    	pico_free(pico_s);
+	    pico_free(s);
         return NULL;
     }
     s->type = type;
-    */
+    
     return s;
 }

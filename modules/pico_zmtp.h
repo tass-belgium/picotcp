@@ -11,13 +11,6 @@
 #include <stdint.h>
 #include "pico_socket.h"
 
-enum zmq_socket_t {
-    TYPE_PUBLISHER, 
-    TYPE_SUBSCRIBER,
-    TYPE_REQ,
-    TYPE_REP,
-    TYPE_END //Marks the end of the enum
-};
 
 enum zmq_state {
     ST_OPEN = 0,
@@ -33,19 +26,19 @@ enum zmq_state {
 struct zmtp_socket {
     struct pico_socket* sock;
     enum zmq_state state;
-    enum zmq_socket_t type;
+    uint8_t type;
 };
 
 struct zmq_msg {
     uint8_t flags;
     uint64_t len;
-    uint8_t* buf;
+    uint8_t *buf;
 };
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, enum zmq_socket_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void (*wakeup)(uint16_t ev, struct zmtp_socket* s));
 int8_t zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len);
-int8_t zmtp_socket_close(struct zmtp_socket* s);
+int8_t zmtp_socket_close(struct zmtp_socket *s);
 
 #endif
