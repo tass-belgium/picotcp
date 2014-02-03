@@ -443,7 +443,7 @@ static int pico_tcp_process_out(struct pico_protocol *self, struct pico_frame *f
     return 0;
 }
 
-int32_t pico_tcp_push(struct pico_protocol *self, struct pico_frame *data);
+int pico_tcp_push(struct pico_protocol *self, struct pico_frame *data);
 
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_tcp = {
@@ -2546,7 +2546,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
 
 /* original behavior kept when Nagle disabled;
    Nagle algorithm added here, keeping hold frame queue instead of eg linked list of data */
-int32_t pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
+int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) f->sock;
