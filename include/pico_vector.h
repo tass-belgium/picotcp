@@ -40,7 +40,7 @@ struct pico_vector
     {                             \
         PICO_VECTOR_COMMON_DATA;  \
         type* data;               \
-    };
+    }
 
 
 /**
@@ -71,7 +71,12 @@ struct pico_vector
 /**
  * @brief Iterator type for pico_vector
  */
-struct pico_vector_iterator;
+struct pico_vector_iterator
+{
+    struct pico_vector vector;
+    void* ptr;
+    void* data;
+};
 
 /**
  * @brief Gets an iterator to the beginning of the vector
@@ -87,7 +92,7 @@ pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector);
  * @brief Gets the element at 'index' from 'vector', returns NULL if no elements left
  */
 //#define pico_vector_safe_get(vector, index) (vector->((uint8_t*)data)[index*vector->type_size])
-void* pico_vector_itarator_next(const pico_vector_iterator* iterator, int index);
+pico_vector_iterator* pico_vector_itarator_next(pico_vector_iterator* iterator);
 
 
 
