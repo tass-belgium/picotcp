@@ -61,7 +61,7 @@ void* zmq_socket(void* context, int type)
 
     sock->type = type;
         
-    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, type, &cb_zmtp_sockets);
+    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_zmtp_sockets);
     
     if(!sock->sock) {
         pico_free(sock);
@@ -101,3 +101,16 @@ void zmq_close(void* socket)
 {
 
 }
+
+/* cyclic states
+    if(s->state == ST_OPEN && ev & PICO_SOCK_EV_CONN)
+    {
+        s->state = ST_CONNECTED;
+        zmtp_send_greeting(zmtp_s);
+    }
+    else if(s->state == ST_CONNECTED && ev & PICO_SOCK_EV_RD)
+    {
+        //read greeting
+    }
+    return;
+*/

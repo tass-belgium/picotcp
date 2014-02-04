@@ -8,11 +8,17 @@
 #include "pico_zmtp.h"
 #include "pico_socket.h"
 #include "pico_zmq.h"
+#include "pico_tree.h"
+#include "pico_protocol.h"
+
+//#include "pico_stack.h"
+//#include "pico_config.h"
+//#include "pico_ipv4.h"
 
 static int zmtp_socket_cmp(void *ka, void *kb)
 {
-    struct zmtp_socket a = ka;
-    struct zmtp_socket b = kb;
+    struct zmtp_socket* a = ka;
+    struct zmtp_socket* b = kb;
     if(a->sock < b->sock)
         return -1;
 
@@ -23,7 +29,7 @@ static int zmtp_socket_cmp(void *ka, void *kb)
 }
 PICO_TREE_DECLARE(zmtp_sockets, zmtp_socket_cmp);
 
-static inline struct zmtp_socket get_zmtp_socket(struct pico_socket *s)
+static inline struct zmtp_socket* get_zmtp_socket(struct pico_socket *s)
 {
     struct zmtp_socket tst = {
         .sock = s
@@ -31,28 +37,18 @@ static inline struct zmtp_socket get_zmtp_socket(struct pico_socket *s)
     return (pico_tree_findKey(&zmtp_sockets, &tst));
 }
 
-static int8_t zmtp_send_greeting(struct zmtp_socket *s)
+int zmtp_send_greeting(struct zmtp_socket* s, uint8_t type)
 {
-    int8_t ret;
     uint8_t signature[14] = {
-        0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0x7f, 1, s->type, 0, 0
+        0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0x7f, 1, type, 0, 0
     };
     
-    ret = pico_socket_send(s->sock, signature, 14);
-    if(ret == -1)
-    {
-        s->zmq_cb(..,s);
-    s->state = ST_SIGNATURE;
+    return pico_socket_send(s->sock, signature, 14);
 }
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 {
-    if(s-state == ST_OPEN && ev & PICO_SOCK_EV_CONN)
-    {
-        s->state = ST_CONNECTED;
-        struct zmtp_socket zmtp_s = get_zmtp_socket(s);
-        zmtp_send_greeting(zmtp_s);
-    }
-    return;
+    struct zmtp_socket* zmtp_s = get_zmtp_socket(s);
+    zmtp_s->zmq_cb(ev,zmtp_s);
 }
 
 int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
@@ -77,6 +73,16 @@ int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_p
 
 int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len)
 {
+/*
+    int ret;
+    int i;
+
+    for(i=0; i < len - 1; i++)
+    {
+        //create_msg
+    }
+    ret = pico_socket_send(s->sock, buf, lenBuf)
+*/
     return 0;
 }
 
@@ -107,7 +113,7 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, void (*zmq_cb
     s->zmq_cb = zmq_cb;
     
     struct pico_socket* pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
-    if (pico_s == NULL) // Leave pico_err the same (EINVAL, EPPROTONOSUPPORT, ENETUNREACH)
+    if (pico_s == NULL) // Leave pico_err the same 
     {
         pico_free(s);
         return NULL;
