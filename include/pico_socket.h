@@ -41,7 +41,7 @@ struct pico_socket {
     struct pico_queue q_in;
     struct pico_queue q_out;
 
-    void (*wakeup)(uint16_t ev, struct pico_socket *s);
+    void (*wakeup) (uint16_t ev, struct pico_socket *s);
 
 
 #ifdef PICO_SUPPORT_TCP

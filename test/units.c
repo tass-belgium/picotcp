@@ -30,8 +30,6 @@
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
 #include "pico_slaacv4.c"
-#include "pico_zmtp.c"
-#include "pico_zmq.c"
 #ifdef PICO_SUPPORT_MCAST
 #include "pico_igmp.c"
 #endif
@@ -54,8 +52,6 @@
 #include "unit_socket.c"
 #include "unit_timer.c"
 #include "unit_arp.c"
-#include "unit_zmtp.c"
-#include "unit_zmq.c"
 
 START_TEST (test_frame)
 {
@@ -109,8 +105,6 @@ Suite *pico_suite(void)
     TCase *slaacv4 = tcase_create("SLAACV4");
     TCase *tick = tcase_create("pico_tick");
     TCase *arp = tcase_create("ARP");
-    TCase *zmtp = tcase_create("ZMTP");
-    TCase *zmq = tcase_create("ZMQ");
 
     tcase_add_test(ipv4, test_ipv4);
     suite_add_tcase(s, ipv4);
@@ -185,11 +179,6 @@ Suite *pico_suite(void)
     tcase_add_test(arp, arp_get_test);
     suite_add_tcase(s, arp);
 
-    tcase_add_test(zmtp, test_zmtp);
-    suite_add_tcase(s, zmtp);
-
-    tcase_add_test(zmq, test_zmq_dummy);
-    suite_add_tcase(s, zmq);
     return s;
 }
 

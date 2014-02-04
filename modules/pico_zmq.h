@@ -10,25 +10,37 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include "pico_zmtp.h"
+
+#define ZMQ_TYPE_PAIR                    0
+#define ZMQ_TYPE_PUB                     1
+#define ZMQ_TYPE_SUB                     2
+#define ZMQ_TYPE_REQ                     3
+#define ZMQ_TYPE_REP                     4
+#define ZMQ_TYPE_END                     5
 
 struct zmq_zmtp_list_item {
     struct zmtp_socket* sock;
     struct zmq_zmtp_socket_item* next_item;
 };
 
-struct zmq_socket {
+struct zmq_socket_base
+{
+    uint8_t type;
     struct zmtp_socket* sock;
-    struct zmq_zmtp_list_item* zmtp_socket_list;
 };
 
-struct zmq_socket* zmq_create_socket(uint16_t type);
-int8_t zmq_setsockopt (struct zmq_socket* z, int option_name, const void* option_value, size_t option_len);
-int8_t zmq_getsockopt (struct zmq_socket* z, int option_name, void* option_value, size_t* option_len);
-int8_t zmq_bind(struct zmq_socket* s, char* address, uint16_t port);
-int8_t zmq_connect(struct zmq_socket* z, const char* endpoint);
-int8_t zmq_send(struct zmq_socket* z, char* txt, int len);
-int8_t zmq_recv(struct zmq_socket* z, char* txt);
-void zmq_close(struct zmq_socket* z);
+struct zmq_socket_req {
+    struct zmq_socket_base base;
+    struct zmtp_socket* sock;
+};
+
+void* zmq_socket(void* context, int type);
+int zmq_setsockopt (void* socket, int option_name, const void* option_value, size_t option_len);
+int zmq_getsockopt (void* socket, int option_name, void* option_value, size_t* option_len);
+int zmq_bind(void* s, char* address, uint16_t port);
+int zmq_connect(void* socket, const char* endpoint);
+int zmq_send(void* socket, char* txt, int len);
+int zmq_recv(void* socket, char* txt);
+void zmq_close(void* socket);
 
 #endif
