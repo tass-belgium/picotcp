@@ -26,6 +26,12 @@
 
 #define dbg(...)
 
+/* Intended for Mr. Jenkins endurance test loggings */
+#ifdef JENKINS_DEBUG
+#include "PicoTerm.h"
+#define jenkins_dbg ptm_dbg
+#endif
+
 #ifdef PICO_MEASURE_STACK
 
 extern int freeStack;

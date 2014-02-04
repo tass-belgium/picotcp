@@ -498,12 +498,15 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 
     f = pico_frame_alloc(len);
     if (!f)
+    {
+        dbg("Cannot alloc incoming frame!\n");
         return -1;
+    }
 
     /* Association to the device that just received the frame. */
     f->dev = dev;
 
-    /* Setup the start pointer, lenght. */
+    /* Setup the start pointer, length. */
     f->start = f->buffer;
     f->len = f->buffer_len;
     if (f->len > 8) {
@@ -810,6 +813,9 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     t->timer = timer;
     tref.tmr = t;
     heap_insert(Timers, &tref);
+    #ifdef JENKINS_DEBUG
+    jenkins_dbg("pico_timer_add: now have %d\n", Timers->n);
+    #endif
     if (Timers->n > PICO_MAX_TIMERS) {
         dbg("Warning: I have %d timers\n", Timers->n);
     }
