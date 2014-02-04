@@ -1106,7 +1106,7 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
 
 static void tcp_send_ka(struct pico_socket_tcp *t)
 {
-    printf("Sending keepalive\n");
+    //printf("Sending keepalive\n");
     return tcp_send_empty(t, PICO_TCP_ACK, 1);
 }
 
