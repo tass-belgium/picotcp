@@ -802,12 +802,14 @@ static void tcp_send_keepalive(pico_time when, void *_t);
 static void pico_keepalive_reschedule(struct pico_socket_tcp *t)
 {
     if ((t->sock.state & 0xFF00) != PICO_SOCKET_STATE_TCP_ESTABLISHED
-         && (t->sock.state & 0xFF00) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
-      if (t->ka_tmr)
-        pico_timer_cancel(t->ka_tmr);
-      t->ka_tmr = NULL;
-      return;
+        && (t->sock.state & 0xFF00) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+        if (t->ka_tmr)
+            pico_timer_cancel(t->ka_tmr);
+
+        t->ka_tmr = NULL;
+        return;
     }
+
     t->ka_tmr_due = (3 * t->rto);
     if (t->ka_tmr_due < KA_MIN)
         t->ka_tmr_due = KA_MIN;
@@ -817,7 +819,8 @@ static void pico_keepalive_reschedule(struct pico_socket_tcp *t)
 
     if (!t->ka_tmr) {
         t->ka_tmr = pico_timer_add(t->ka_tmr_due, tcp_send_keepalive, t);
-    } 
+    }
+
     t->ka_tmr_due += TCP_TIME;
 }
 
@@ -1059,7 +1062,7 @@ static int tcp_send_synack(struct pico_socket *s)
     return 0;
 }
 
-static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags)
+static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_keepalive)
 {
     struct pico_frame *f;
     struct pico_tcp_hdr *hdr;
@@ -1082,6 +1085,9 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags)
     if ((flags & PICO_TCP_ACK) != 0)
         hdr->ack = long_be(t->rcv_nxt);
 
+    if (is_keepalive)
+        hdr->ack = long_be(t->rcv_nxt - 1);
+
     t->rcv_ackd = t->rcv_nxt;
 
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -1095,12 +1101,13 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags)
 
 static void tcp_send_ack(struct pico_socket_tcp *t)
 {
-    return tcp_send_empty(t, PICO_TCP_ACK);
+    return tcp_send_empty(t, PICO_TCP_ACK, 0);
 }
 
-static void tcp_send_pshack(struct pico_socket_tcp *t)
+static void tcp_send_ka(struct pico_socket_tcp *t)
 {
-    return tcp_send_empty(t, PICO_TCP_PSH);
+    printf("Sending keepalive\n");
+    return tcp_send_empty(t, PICO_TCP_ACK, 1);
 }
 
 static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
@@ -1593,7 +1600,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
     }
 
     pico_keepalive_reschedule(t);
-    tcp_send_pshack(t);
+    tcp_send_ka(t);
 }
 
 static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_ts)
@@ -2395,15 +2402,7 @@ static void tcp_send_keepalive(pico_time val, void *_t)
     tcp_dbg("Sending keepalive (%d), [State = %d]...\n", t->backoff, t->sock.state );
     if( t->sock.net && ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED))
     {
-        /*
-           if ((t->x_mode != PICO_TCP_WINDOW_FULL)) {
-            t->x_mode = PICO_TCP_BLACKOUT;
-            tcp_dbg("Mode: Blackout.\n");
-            t->cwnd = PICO_TCP_IW;
-            t->in_flight = 0;
-           }
-         */
-        tcp_send_pshack(t);
+        tcp_send_ka(t);
     }
 
     pico_keepalive_reschedule(t);
