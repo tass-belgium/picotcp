@@ -1086,7 +1086,7 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_kee
         hdr->ack = long_be(t->rcv_nxt);
 
     if (is_keepalive)
-        hdr->ack = long_be(t->rcv_nxt - 1);
+        hdr->seq = long_be(t->snd_nxt - 1);
 
     t->rcv_ackd = t->rcv_nxt;
 
@@ -1107,7 +1107,7 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
 static void tcp_send_ka(struct pico_socket_tcp *t)
 {
     //printf("Sending keepalive\n");
-    return tcp_send_empty(t, PICO_TCP_ACK, 1);
+    return tcp_send_empty(t, PICO_TCP_PSH | PICO_TCP_ACK, 1);
 }
 
 static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
