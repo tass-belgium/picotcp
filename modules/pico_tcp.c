@@ -681,7 +681,7 @@ inline static void tcp_add_header(struct pico_socket_tcp *t, struct pico_frame *
     f->timestamp = TCP_TIME;
     tcp_add_options(t, f, 0, (uint16_t)(f->transport_len - f->payload_len - (uint16_t)PICO_SIZE_TCPHDR));
     hdr->rwnd = short_be(t->wnd);
-    hdr->flags |= PICO_TCP_PSH;
+    hdr->flags |= PICO_TCP_PSH | PICO_TCP_ACK;
     hdr->ack = long_be(t->rcv_nxt);
     hdr->crc = 0;
     hdr->crc = short_be(pico_tcp_checksum_ipv4(f));
@@ -897,10 +897,8 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
         /* To be sure we don't have garbage at the beginning */
         release_until(&t->tcpq_in, t->rcv_processed);
         f = first_segment(&t->tcpq_in);
-        if (!f) {
-            tcp_set_space(t);
+        if (!f)
             goto out;
-        }
 
         /* Hole at the beginning of data, awaiting retransmissions. */
         if (seq_compare(t->rcv_processed, f->seq) < 0) {
