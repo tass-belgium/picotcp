@@ -17,12 +17,14 @@
  * Allows you to specify your own allocation_strategy by function pointer (see vector.allocation_strategy and pico_vector_allocation_strategy_times2)
  */
 
+struct pico_vector;
 
 #define PICO_VECTOR_COMMON_DATA        \
     size_t size;                       \
     size_t capacity;                   \
     size_t type_size;                           \
-    void* (*allocation_strategy)(void* data);             
+    void* (*allocation_strategy)(struct pico_vector* data);             
+
 
 struct pico_vector
 {
@@ -48,15 +50,17 @@ struct pico_vector
  * 
  */
 #define DECLARE_PICO_VECTOR_INIT_FOR_TYPE(type) \
-    type * pico_vector_ ##type _init(struct pico_vector* vector, int capacity) { \
-        vector.size = 0;                                                \
-        vector.capacity = capacity;                                     \
-        vector.allocation_strategy = pico_vector_allocation_strategy_times2;    \
-        vector.type_size = sizeof(struct pico_vector_##type);                   \
-        vector.data = pico_zalloc(sizeof(struct pico_vector_##type)*capacity);  \
-        return vector.data;                                             \
-    }                                                                   \
+    type * pico_vector_ ##type##_init(struct pico_vector* vector, size_t capacity) { \
+        vector->size = 0;                                                \
+        vector->capacity = capacity;                                     \
+        vector->allocation_strategy = pico_vector_allocation_strategy_times2;    \
+        vector->type_size = sizeof(struct pico_vector_##type);                   \
+        vector->data = pico_zalloc(sizeof(struct pico_vector_##type)*capacity);  \
+        return vector->data;                                             \
+    }
 
+
+void*  pico_vector_init(struct pico_vector* vector, size_t capacity, size_t typesize);
 
 /**
  * @brief Gets the element at 'index' from 'vector'
@@ -66,22 +70,24 @@ struct pico_vector
 /**
  * @brief Gets the size of the vector
  */
-#define pico_vector_size(vector) (vector->size)
+#define pico_vector_size(vector) ((vector)->size)
 
 /**
  * @brief Iterator type for pico_vector
  */
 struct pico_vector_iterator
 {
-    struct pico_vector vector;
-    void* ptr;
+    const struct pico_vector* vector;
+    //void* ptr;
     void* data;
 };
 
 /**
  * @brief Gets an iterator to the beginning of the vector
+ * If you don't run the iterator the end, you have to delete it yourself!
  */
-pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector);
+struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector);
+
 
 /* /\** */
 /*  * @brief Gets an iterator to the end of the vector */
@@ -90,15 +96,16 @@ pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector);
 
 /**
  * @brief Gets the element at 'index' from 'vector', returns NULL if no elements left
+ * Deletes the iterator object on return NULL. == Invalidating any pointer you have to the iterator!!!
  */
 //#define pico_vector_safe_get(vector, index) (vector->((uint8_t*)data)[index*vector->type_size])
-pico_vector_iterator* pico_vector_itarator_next(pico_vector_iterator* iterator);
+struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterator* iterator);
 
 
 
 /**
- * @brief Add one element of 'vector->type_size'
- * Might change capacity!
+ * @brief Copy one element of 'vector->type_size' to the end of the vector
+ * Might cause the capacity to grow (choose your allocation_strategy wisely)
  */
 int pico_vector_push_back(struct pico_vector* vector, void* data);
 
@@ -120,6 +127,7 @@ void pico_vector_clear(struct pico_vector* vector);
 /**
  * @brief Destroys a vector
  * Will release internal memory and zero out the vector struct
+ * Will invalidate any Iterators you might have kept!!
  */
 void pico_vector_destroy(struct pico_vector* vector);
 
@@ -129,7 +137,7 @@ void pico_vector_destroy(struct pico_vector* vector);
 /**
  * @brief Allocation strategy function for doubling the capacity when in need of growth
  */
-void* pico_vector_allocation_strategy_times2(void *data);
+void* pico_vector_allocation_strategy_times2(struct pico_vector* vector);
 
 
 #endif //__PICO_VECTOR_H__

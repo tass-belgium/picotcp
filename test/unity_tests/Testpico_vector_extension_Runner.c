@@ -26,38 +26,27 @@
 #include "cmock.h"
 #include <setjmp.h>
 #include <stdio.h>
-#include "zmtp_tests.h"
-#include "pico_zmtp.h"
-#include <stdint.h>
-#include "Mockpico_socket.h"
-#include "Mockpico_vector.h"
+#include "pico_vector_extension.h"
+#include <stdlib.h>
 #include "Mockpico_zalloc.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_zmtp_tests_NeedToImplement(void);
-extern void test_zmtp_socket_send(void);
-extern void test_zmtp_socket_connect(void);
+extern void test_pico_vector_pop_front(void);
 
 
 //=======Mock Management=====
 static void CMock_Init(void)
 {
-  Mockpico_socket_Init();
-  Mockpico_vector_Init();
   Mockpico_zalloc_Init();
 }
 static void CMock_Verify(void)
 {
-  Mockpico_socket_Verify();
-  Mockpico_vector_Verify();
   Mockpico_zalloc_Verify();
 }
 static void CMock_Destroy(void)
 {
-  Mockpico_socket_Destroy();
-  Mockpico_vector_Destroy();
   Mockpico_zalloc_Destroy();
 }
 
@@ -75,11 +64,9 @@ void resetTest()
 //=======MAIN=====
 int main(void)
 {
-  Unity.TestFile = "Testzmtp_tests.c";
+  Unity.TestFile = "Testpico_vector_extension.c";
   UnityBegin();
-  RUN_TEST(test_zmtp_tests_NeedToImplement, 19);
-  RUN_TEST(test_zmtp_socket_send, 24);
-  RUN_TEST(test_zmtp_socket_connect, 539);
+  RUN_TEST(test_pico_vector_pop_front, 29);
 
   return (UnityEnd());
 }

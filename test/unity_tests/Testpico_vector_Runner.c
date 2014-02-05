@@ -26,38 +26,33 @@
 #include "cmock.h"
 #include <setjmp.h>
 #include <stdio.h>
-#include "zmtp_tests.h"
-#include "pico_zmtp.h"
-#include <stdint.h>
-#include "Mockpico_socket.h"
-#include "Mockpico_vector.h"
+#include "pico_vector.h"
+#include <stdlib.h>
 #include "Mockpico_zalloc.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
 extern void tearDown(void);
-extern void test_zmtp_tests_NeedToImplement(void);
-extern void test_zmtp_socket_send(void);
-extern void test_zmtp_socket_connect(void);
+extern void test_pico_vector_init(void);
+extern void test_pico_vector_size(void);
+extern void test_pico_vector_push_back(void);
+extern void test_pico_vector_grow(void);
+extern void test_pico_vector_clear(void);
+extern void test_pico_vector_destroy(void);
+extern void test_pico_iterator(void);
 
 
 //=======Mock Management=====
 static void CMock_Init(void)
 {
-  Mockpico_socket_Init();
-  Mockpico_vector_Init();
   Mockpico_zalloc_Init();
 }
 static void CMock_Verify(void)
 {
-  Mockpico_socket_Verify();
-  Mockpico_vector_Verify();
   Mockpico_zalloc_Verify();
 }
 static void CMock_Destroy(void)
 {
-  Mockpico_socket_Destroy();
-  Mockpico_vector_Destroy();
   Mockpico_zalloc_Destroy();
 }
 
@@ -75,11 +70,15 @@ void resetTest()
 //=======MAIN=====
 int main(void)
 {
-  Unity.TestFile = "Testzmtp_tests.c";
+  Unity.TestFile = "Testpico_vector.c";
   UnityBegin();
-  RUN_TEST(test_zmtp_tests_NeedToImplement, 19);
-  RUN_TEST(test_zmtp_socket_send, 24);
-  RUN_TEST(test_zmtp_socket_connect, 539);
+  RUN_TEST(test_pico_vector_init, 32);
+  RUN_TEST(test_pico_vector_size, 49);
+  RUN_TEST(test_pico_vector_push_back, 59);
+  RUN_TEST(test_pico_vector_grow, 78);
+  RUN_TEST(test_pico_vector_clear, 106);
+  RUN_TEST(test_pico_vector_destroy, 122);
+  RUN_TEST(test_pico_iterator, 144);
 
   return (UnityEnd());
 }
