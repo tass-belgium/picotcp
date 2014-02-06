@@ -44,6 +44,7 @@ enum pico_err_e {
     /* ... */
     PICO_ERR_EADDRINUSE = 98,
     PICO_ERR_EADDRNOTAVAIL,
+    PICO_ERR_ENETDOWN,
     PICO_ERR_ENETUNREACH,
 
     /* ... */
