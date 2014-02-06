@@ -334,6 +334,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
                     pico_timer_add(1000, deferred_exit, udpecho_pas);
                     udpecho_exit++;
                 }
+                printf("Received datagram (%d bytes, from port %d)... Echoing back!\n", r, short_be(port));
 
                 pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
             }
