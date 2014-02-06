@@ -832,7 +832,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
                 trf = &Timers->top[timer_it];
                 tmr = trf->tmr;
                 //if (tmr && tmr->caller)
-                jenkins_dbg("timer %d [%p] - caller: %p - exp:%llu\n",Timers->n - timer_it , tmr, trf->caller, trf->expire);    
+                jenkins_dbg("timer %d [%p] - caller: %p - exp:%d\n",Timers->n - timer_it , tmr, trf->caller,(uint32_t)(trf->expire - PICO_TIME_MS()));    
             }
         }
         #endif
