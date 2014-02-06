@@ -153,6 +153,10 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     struct pico_ipv4_link *l;
 
+#ifndef PICO_SUPPORT_IPV4
+    return NULL;
+#endif
+
     l = pico_ipv4_link_get(&hdr->dst);
     if(l) {
         /* address belongs to ourself */
@@ -253,6 +257,10 @@ int pico_arp_receive(struct pico_frame *f)
 
     if (!hdr)
         goto end;
+
+#ifndef PICO_SUPPORT_IPV4
+    goto end;
+#endif
 
     me.addr = hdr->dst.addr;
 
@@ -360,6 +368,10 @@ int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t 
 
     if (!q)
         return -1;
+
+#ifndef PICO_SUPPORT_IPV4
+    return -1;
+#endif
 
     if (type == PICO_ARP_QUERY)
     {
