@@ -2418,22 +2418,29 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
                 if (s->wakeup) {
                     /* dbg("SOCKET ERROR FROM ICMP NOTIFICATION. (icmp code= %d)\n\n", code); */
                     switch(code) {
+                    case PICO_ICMP_UNREACH_NET:
+                        pico_err = PICO_ERR_ENETUNREACH;
+                        break;
+
+                    case PICO_ICMP_UNREACH_HOST:
+                        pico_err = PICO_ERR_EHOSTUNREACH;
+                        break;
+
                     case PICO_ICMP_UNREACH_PROTOCOL:
-                        pico_err = PICO_ERR_EPROTO;
+                        pico_err = PICO_ERR_ENOPROTOOPT;
                         break;
 
                     case PICO_ICMP_UNREACH_PORT:
                         pico_err = PICO_ERR_ECONNREFUSED;
                         break;
 
-                    case PICO_ICMP_UNREACH_NET:
                     case PICO_ICMP_UNREACH_NET_PROHIB:
                     case PICO_ICMP_UNREACH_NET_UNKNOWN:
                         pico_err = PICO_ERR_ENETUNREACH;
                         break;
 
                     default:
-                        pico_err = PICO_ERR_EHOSTUNREACH;
+                        pico_err = PICO_ERR_EOPNOTSUPP;
                     }
                     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
                     s->wakeup(PICO_SOCK_EV_ERR, s);

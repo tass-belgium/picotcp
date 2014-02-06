@@ -42,8 +42,10 @@ enum pico_err_e {
     PICO_ERR_EPROTONOSUPPORT = 93,
 
     /* ... */
+    PICO_ERR_EOPNOTSUPP = 95,
     PICO_ERR_EADDRINUSE = 98,
     PICO_ERR_EADDRNOTAVAIL,
+    PICO_ERR_ENETDOWN,
     PICO_ERR_ENETUNREACH,
 
     /* ... */
@@ -58,9 +60,6 @@ enum pico_err_e {
     PICO_ERR_ECONNREFUSED = 111,
     PICO_ERR_EHOSTDOWN,
     PICO_ERR_EHOSTUNREACH,
-    /* ... */
-    PICO_ERR_EOPNOTSUPP = 122,
-
 };
 
 typedef enum pico_err_e pico_err_t;
