@@ -254,3 +254,10 @@ mbed:
 style:
 	@find . -iname "*.[c|h]" |xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
 	@find . -iname "*unc-backup*" |xargs -x rm || true
+
+dummy: mod core lib
+	@echo testing configuration...
+	@$(CC) -c -o test/dummy.o test/dummy.c $(CFLAGS)
+	@$(CC) -o dummy test/dummy.o $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
+	@echo done.
+	@rm -f test/dummy.o dummy 
