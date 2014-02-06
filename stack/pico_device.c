@@ -139,7 +139,7 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
     if (dev->eth) {
         ret = pico_ethernet_send(f);
         if (0 <= ret) {
-            return 1;
+            return -1;
         } else {
             if (!pico_source_is_local(f)) {
                 dbg("Destination unreachable -------> SEND ICMP\n");
@@ -152,7 +152,10 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
             return 1;
         }
     } else {
-        dev->send(dev, f->start, (int)f->len);
+        /* non-ethernet */
+        if (dev->send(dev, f->start, (int)f->len) <= 0)
+            return -1;
+
         pico_frame_discard(f);
         return 1;
     }
@@ -170,7 +173,10 @@ static int devloop_out(struct pico_device *dev, int loop_score)
         if (!f)
             break;
 
-        loop_score -= devloop_sendto_dev(dev, f);
+        if (devloop_sendto_dev(dev, f) < 0)
+            break;
+
+        loop_score--;
     }
     return loop_score;
 }
