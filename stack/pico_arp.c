@@ -361,39 +361,10 @@ end:
     return ret;
 }
 
-int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t type)
+int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, struct pico_ip4 *src, struct pico_ip4 *dst, uint8_t type)
 {
-    struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
-    struct pico_eth_hdr *eh;
-    struct pico_arp_hdr *ah;
-    struct pico_ip4 *src = NULL;
+    struct pico_arp_hdr *ah = (struct pico_arp_hdr *) (f->start + PICO_SIZE_ETHHDR);
     int ret;
-
-    if (!q)
-        return -1;
-
-#ifndef PICO_SUPPORT_IPV4
-    return -1;
-#endif
-
-    if (type == PICO_ARP_QUERY)
-    {
-        src = pico_ipv4_source_find(dst);
-        if (!src) {
-            pico_frame_discard(q);
-            return -1;
-        }
-    }
-
-    arp_dbg("QUERY: %08x\n", dst->addr);
-
-    eh = (struct pico_eth_hdr *)q->start;
-    ah = (struct pico_arp_hdr *) (q->start + PICO_SIZE_ETHHDR);
-
-    /* Fill eth header */
-    memcpy(eh->saddr, dev->eth->mac.addr, PICO_SIZE_ETH);
-    memcpy(eh->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH);
-    eh->proto = PICO_IDETH_ARP;
 
     /* Fill arp header */
     ah->htype  = PICO_ARP_HTYPE_ETH;
@@ -415,12 +386,48 @@ int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t 
     case PICO_ARP_QUERY:
         ah->src.addr = src->addr;
         ah->dst.addr = dst->addr;
+        break;
+    default:
+      pico_frame_discard(f);
+      return -1;
+    }
+    arp_dbg("Sending arp request.\n");
+    ret = dev->send(dev, f->start, (int) f->len);
+    pico_frame_discard(f);
+    return ret;
+}
+
+int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t type)
+{
+    struct pico_frame *q = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);
+    struct pico_eth_hdr *eh;
+    struct pico_ip4 *src = NULL;
+
+    if (!q)
+        return -1;
+
+#ifndef PICO_SUPPORT_IPV4
+    return -1;
+#endif
+    if (type == PICO_ARP_QUERY)
+    {
+        src = pico_ipv4_source_find(dst);
+        if (!src) {
+            pico_frame_discard(q);
+            return -1;
+        }
     }
 
-    arp_dbg("Sending arp request.\n");
-    ret = dev->send(dev, q->start, (int) q->len);
-    pico_frame_discard(q);
-    return ret;
+    arp_dbg("QUERY: %08x\n", dst->addr);
+
+    eh = (struct pico_eth_hdr *)q->start;
+
+    /* Fill eth header */
+    memcpy(eh->saddr, dev->eth->mac.addr, PICO_SIZE_ETH);
+    memcpy(eh->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH);
+    eh->proto = PICO_IDETH_ARP;
+
+    return pico_arp_request_xmit(dev, q, src, dst, type);
 }
 
 int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, int maxlen)
