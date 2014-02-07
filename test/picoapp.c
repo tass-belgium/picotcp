@@ -969,7 +969,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 100)
+#define TCPSIZ (1024 * 1024 * 100 )
 static char *buffer1;
 static char *buffer0;
 
@@ -1094,7 +1094,7 @@ void app_tcpclient(char *arg)
 
     buffer0 = malloc(TCPSIZ);
     buffer1 = malloc(TCPSIZ);
-    printf("Buffer1 (%p)\n", buffer1);
+    //printf("Buffer1 (%p)\n", buffer1);
     for (i = 0; i < TCPSIZ; i++) {
         char c = (i % 26) + 'a';
         buffer0[i] = c;
@@ -1429,7 +1429,7 @@ void app_tcpbench(char *arg)
 
         buffer0 = malloc(TCPSIZ);
         buffer1 = malloc(TCPSIZ);
-        printf("Buffer1 (%p)\n", buffer1);
+        //printf("Buffer1 (%p)\n", buffer1);
         for (i = 0; i < TCPSIZ; i++) {
             char c = (i % 26) + 'a';
             buffer0[i] = c;

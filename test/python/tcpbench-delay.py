@@ -7,7 +7,7 @@ T = Topology()
 net1 = Network(T, "vde0")
 
 send1 = Host(T, net1, args="tcpbench:t:172.16.1.3:7770:")
-recv1 = Host(T, net1, args="tcpbench:r:7770:", delay1="20", loss1="5")
+recv1 = Host(T, net1, args="tcpbench:r:7770:", delay1="30", loss1="1")
 
 
 sleep(1)

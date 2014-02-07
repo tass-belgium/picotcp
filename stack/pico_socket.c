@@ -897,8 +897,10 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
         s = pico_tcp_open();
         s->proto = &pico_proto_tcp;
         /*check if Nagle enabled */
+        /* 
         if (!IS_NAGLE_ENABLED(s))
             dbg("ERROR Nagle should be enabled here\n\n");
+        */
     }
 
 #endif
