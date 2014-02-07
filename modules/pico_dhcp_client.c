@@ -919,7 +919,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
     hdr->htype = PICO_DHCP_HTYPE_ETH;
     hdr->hlen = PICO_SIZE_ETH;
     hdr->xid = dhcpc->xid;
-    //hdr->flags = short_be(PICO_DHCP_FLAG_BROADCAST); /* Nope: see bug #96! */
+    /* hdr->flags = short_be(PICO_DHCP_FLAG_BROADCAST); / * Nope: see bug #96! * / */
     hdr->dhcp_magic = PICO_DHCPD_MAGIC_COOKIE;
     /* copy client hardware address */
     memcpy(hdr->hwaddr, &dhcpc->dev->eth->mac, PICO_SIZE_ETH);

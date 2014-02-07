@@ -99,7 +99,6 @@ CFLAGS+=$(OPTIONS)
 
 
 CORE_OBJ= stack/pico_stack.o \
-          stack/pico_arp.o \
           stack/pico_frame.o \
           stack/pico_device.o \
           stack/pico_protocol.o \

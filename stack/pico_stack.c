@@ -29,6 +29,10 @@
 
 #define IS_LIMITED_BCAST(f) (((struct pico_ipv4_hdr *) f->net_hdr)->dst.addr == PICO_IP4_BCAST)
 
+const uint8_t PICO_ETHADDR_ALL[6] = {
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+};
+
 # define PICO_SIZE_MCAST 3
 const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
@@ -268,10 +272,15 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 {
     struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    if (hdr->proto == PICO_IDETH_ARP)
+    if (0) { }
+#ifdef PICO_SUPPORT_IPV4
+    else if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
+#endif
+#if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
     else if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
         return pico_network_receive(f);
+#endif
     else {
         pico_frame_discard(f);
         return -1;
@@ -428,7 +437,9 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
     else {
+#ifdef PICO_SUPPORT_IPV4
         dstmac = pico_arp_get(f);
+#endif
         if (!dstmac)
             return 0;
     }
@@ -809,7 +820,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     t->timer = timer;
     tref.tmr = t;
     #ifdef JENKINS_DEBUG
-    //jenkins_dbg("pico_timer_add: now have %d \t caller: %p\n", Timers->n, __builtin_return_address(0));
+    /* jenkins_dbg("pico_timer_add: now have %d \t caller: %p\n", Timers->n, __builtin_return_address(0)); */
     tref.caller = __builtin_return_address(0);
     #endif
     heap_insert(Timers, &tref);
@@ -818,11 +829,11 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
         #ifdef JENKINS_DEBUG
         {
             struct pico_timer_ref *trf = heap_first(Timers);
-            int timer_it = 1; 
-            for (timer_it = 1; timer_it <= Timers->n; timer_it++) 
+            int timer_it = 1;
+            for (timer_it = 1; timer_it <= Timers->n; timer_it++)
             {
                 trf = &Timers->top[timer_it];
-                jenkins_dbg("timer %d [%p] - cb:%p\n",Timers->n - timer_it, trf->tmr, trf->caller,(trf->tmr->timer));    
+                jenkins_dbg("timer %d [%p] - cb:%p\n", Timers->n - timer_it, trf->tmr, trf->caller, (trf->tmr->timer));
             }
         }
         #endif
@@ -866,7 +877,9 @@ void pico_stack_init(void)
 
     /* Initialize timer heap */
     Timers = heap_init();
+#ifdef PICO_SUPPORT_IPV4
     pico_arp_init();
+#endif
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();

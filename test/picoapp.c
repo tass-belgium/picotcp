@@ -334,6 +334,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
                     pico_timer_add(1000, deferred_exit, udpecho_pas);
                     udpecho_exit++;
                 }
+
                 printf("Received datagram (%d bytes, from port %d)... Echoing back!\n", r, short_be(port));
 
                 pico_socket_sendto(s, recvbuf, r, &peer, port);
@@ -969,7 +970,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 100 )
+#define TCPSIZ (1024 * 1024 * 100)
 static char *buffer1;
 static char *buffer0;
 
@@ -1094,7 +1095,7 @@ void app_tcpclient(char *arg)
 
     buffer0 = malloc(TCPSIZ);
     buffer1 = malloc(TCPSIZ);
-    //printf("Buffer1 (%p)\n", buffer1);
+    /* printf("Buffer1 (%p)\n", buffer1); */
     for (i = 0; i < TCPSIZ; i++) {
         char c = (i % 26) + 'a';
         buffer0[i] = c;
@@ -1429,7 +1430,7 @@ void app_tcpbench(char *arg)
 
         buffer0 = malloc(TCPSIZ);
         buffer1 = malloc(TCPSIZ);
-        //printf("Buffer1 (%p)\n", buffer1);
+        /* printf("Buffer1 (%p)\n", buffer1); */
         for (i = 0; i < TCPSIZ; i++) {
             char c = (i % 26) + 'a';
             buffer0[i] = c;
