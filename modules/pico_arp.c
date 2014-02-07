@@ -228,7 +228,7 @@ static void pico_arp_add_entry(struct pico_arp *entry)
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
 }
 
-int pico_arp_create_entry(uint8_t*hwaddr, struct pico_ip4 ipv4, struct pico_device*dev)
+int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
 {
     struct pico_arp*arp = pico_zalloc(sizeof(struct pico_arp));
     if(!arp) {
@@ -245,30 +245,92 @@ int pico_arp_create_entry(uint8_t*hwaddr, struct pico_ip4 ipv4, struct pico_devi
     return 0;
 }
 
-int pico_arp_receive(struct pico_frame *f)
+static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
+{
+    if (conflict_ipv4.conflict != NULL)
+    {
+        if ((conflict_ipv4.ip.addr == hdr->src.addr) && (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, 6) != 0))
+            conflict_ipv4.conflict();
+    }
+}
+
+
+static void pico_arp_check_entry(struct pico_frame *f, struct pico_arp **found)
+{
+    struct pico_arp search;
+    struct pico_arp_hdr *hdr = (struct pico_arp_hdr *) f->net_hdr;
+    /* Populate a new arp entry */
+    search.ipv4.addr = hdr->src.addr;
+    memcpy(search.eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+
+    /* Search for already existing entry */
+    *found = pico_tree_findKey(&arp_tree, &search);
+    if (*found) {
+        if ((*found)->arp_status == PICO_ARP_STATUS_STALE) {
+            /* Replace if stale */
+            pico_tree_delete(&arp_tree, *found);
+            pico_arp_add_entry(*found);
+        } else {
+            /* Update mac address */
+            memcpy((*found)->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+
+            /* Refresh timestamp, this will force a reschedule on the next timeout*/
+            (*found)->timestamp = PICO_TIME();
+        }
+    }
+}
+
+static int pico_arp_check_incoming_hdr(struct pico_frame *f, struct pico_ip4 *dst_addr)
 {
     struct pico_arp_hdr *hdr;
-    struct pico_arp search, *found, *new = NULL;
-    struct pico_ip4 me;
-    struct pico_device *link_dev;
-    struct pico_eth_hdr *eh;
-    int ret = -1;
+    if (!f)
+        return -1;
     hdr = (struct pico_arp_hdr *) f->net_hdr;
-    eh = (struct pico_eth_hdr *)f->datalink_hdr;
-
     if (!hdr)
-        goto end;
+        return -1;
 
-    me.addr = hdr->dst.addr;
-
-    /* Validate the incoming arp packet */
+    dst_addr->addr = hdr->dst.addr;
 
     /* Check the hardware type and protocol */
     if ((hdr->htype != PICO_ARP_HTYPE_ETH) || (hdr->ptype != PICO_IDETH_IPV4))
-        goto end;
+        return -1;
 
     /* The source mac address must not be a multicast or broadcast address */
     if (hdr->s_mac[0] & 0x01)
+        return -1;
+
+    return 0;
+}
+
+static void pico_arp_reply(struct pico_frame *f, struct pico_ip4 me)
+{
+    struct pico_arp_hdr *hdr;
+    struct pico_eth_hdr *eh;
+    hdr = (struct pico_arp_hdr *) f->net_hdr;
+    eh = (struct pico_eth_hdr *)f->datalink_hdr;
+    hdr->opcode = PICO_ARP_REPLY;
+    memcpy(hdr->d_mac, hdr->s_mac, PICO_SIZE_ETH);
+    memcpy(hdr->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+    hdr->dst.addr = hdr->src.addr;
+    hdr->src.addr = me.addr;
+
+    /* Prepare eth header for arp reply */
+    memcpy(eh->daddr, eh->saddr, PICO_SIZE_ETH);
+    memcpy(eh->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+    f->start = f->datalink_hdr;
+    f->len = PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR;
+    f->dev->send(f->dev, f->start, (int)f->len);
+}
+
+int pico_arp_receive(struct pico_frame *f)
+{
+    struct pico_arp_hdr *hdr;
+    struct pico_arp *found = NULL;
+    struct pico_ip4 me;
+    struct pico_device *link_dev;
+    hdr = (struct pico_arp_hdr *) f->net_hdr;
+
+    if (pico_arp_check_incoming_hdr(f, &me) < 0)
         goto end;
 
     /* Prevent ARP flooding */
@@ -280,77 +342,31 @@ int pico_arp_receive(struct pico_frame *f)
             max_arp_reqs--;
     }
 
-    if (conflict_ipv4.conflict != NULL)
-    {
-        if ((conflict_ipv4.ip.addr == hdr->src.addr) && (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, 6) != 0))
-            conflict_ipv4.conflict();
-    }
-
-    /* Populate a new arp entry */
-    search.ipv4.addr = hdr->src.addr;
-    memcpy(search.eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-
-    /* Search for already existing entry */
-    found = pico_tree_findKey(&arp_tree, &search);
-    if (found) {
-        if (found->arp_status == PICO_ARP_STATUS_STALE) {
-            /* Replace if stale */
-            new = found;
-
-            pico_tree_delete(&arp_tree, new);
-        } else {
-            /* Update mac address */
-            memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-
-            /* Refresh timestamp, this will force a reschedule on the next timeout*/
-            found->timestamp = PICO_TIME();
-            new = NULL; /* Avoid re-inserting the entry in the table */
-        }
-    }
+    pico_arp_check_conflict(hdr);
+    pico_arp_check_entry(f, &found);
 
     /* Check if we are the target IP address */
     if (link_dev != f->dev)
         goto end;
 
-    /* If no existing entry was found, create a new entry */
+    /* If no existing entry was found, create a new entry, or fail trying. */
     if (!found) {
-        new = pico_zalloc(sizeof(struct pico_arp));
-        if (!new)
-            goto end;
-
-        new->ipv4.addr = hdr->src.addr;
-        memcpy(new->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
-        new->dev = f->dev;
+        if (pico_arp_create_entry(hdr->s_mac, hdr->src, f->dev) < 0)
+          goto end;
     }
-
-    if (new)
-        pico_arp_add_entry(new);
-
-    ret = 0;
 
     /* If the packet is a request, send a reply */
-    if (hdr->opcode == PICO_ARP_REQUEST) {
-        hdr->opcode = PICO_ARP_REPLY;
-        memcpy(hdr->d_mac, hdr->s_mac, PICO_SIZE_ETH);
-        memcpy(hdr->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-        hdr->dst.addr = hdr->src.addr;
-        hdr->src.addr = me.addr;
-
-        /* Prepare eth header for arp reply */
-        memcpy(eh->daddr, eh->saddr, PICO_SIZE_ETH);
-        memcpy(eh->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-        f->start = f->datalink_hdr;
-        f->len = PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR;
-        f->dev->send(f->dev, f->start, (int)f->len);
-    }
+    if (hdr->opcode == PICO_ARP_REQUEST)
+        pico_arp_reply(f, me);
 
 #ifdef DEBUG_ARP
     dbg_arp();
 #endif
-
+    pico_frame_discard(f);
+    return 0;
 end:
     pico_frame_discard(f);
-    return ret;
+    return -1;
 }
 
 int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, struct pico_ip4 *src, struct pico_ip4 *dst, uint8_t type)
