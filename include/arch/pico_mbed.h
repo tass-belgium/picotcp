@@ -62,7 +62,8 @@ static inline void *pico_zalloc(int x)
     /* Intended for Mr. Jenkins endurance test loggings */
     #ifdef JENKINS_DEBUG
     if (!ptr)
-        jenkins_dbg(">> OUT OF MEM\n"); 
+        jenkins_dbg(">> OUT OF MEM\n");
+
     #endif
     *ptr = (uint32_t)x;
     cur_mem += x;

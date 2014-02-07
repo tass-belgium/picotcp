@@ -18,8 +18,8 @@
 const uint8_t PICO_ETHADDR_ALL[6] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
-#define PICO_ARP_TIMEOUT 600000
-#define PICO_ARP_RETRY 300
+#define PICO_ARP_TIMEOUT 600000llu
+#define PICO_ARP_RETRY 300lu
 
 #ifdef DEBUG_ARP
     #define arp_dbg dbg
@@ -56,7 +56,7 @@ static void update_max_arp_reqs(pico_time now, void *unused)
     pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
 }
 
-void pico_arp_init()
+void pico_arp_init(void)
 {
     pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
 }
@@ -188,10 +188,12 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
         where = &gateway;
     else
         where = &hdr->dst;
+
     a4 = pico_arp_lookup(where);      /* check if dst ip mac in cache */
 
     if (!a4)
-      pico_arp_retry(f, where);
+        pico_arp_retry(f, where);
+
     return a4;
 }
 
@@ -310,7 +312,7 @@ int pico_arp_receive(struct pico_frame *f)
             /* Update mac address */
             memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
-            /* Refresh timestamp, this will force a reschedule on the next timeout*/ 
+            /* Refresh timestamp, this will force a reschedule on the next timeout*/
             found->timestamp = PICO_TIME();
             new = NULL; /* Avoid re-inserting the entry in the table */
         }
@@ -388,8 +390,8 @@ int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, str
         ah->dst.addr = dst->addr;
         break;
     default:
-      pico_frame_discard(f);
-      return -1;
+        pico_frame_discard(f);
+        return -1;
     }
     arp_dbg("Sending arp request.\n");
     ret = dev->send(dev, f->start, (int) f->len);
