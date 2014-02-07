@@ -27,7 +27,6 @@
 #include <setjmp.h>
 #include <stdio.h>
 #include "zmtp_tests.h"
-#include "pico_zmtp.h"
 #include <stdint.h>
 #include "Mockpico_socket.h"
 #include "Mockpico_vector.h"
@@ -79,7 +78,7 @@ int main(void)
   UnityBegin();
   RUN_TEST(test_zmtp_tests_NeedToImplement, 19);
   RUN_TEST(test_zmtp_socket_send, 24);
-  RUN_TEST(test_zmtp_socket_connect, 539);
+  RUN_TEST(test_zmtp_socket_connect, 556);
 
   return (UnityEnd());
 }

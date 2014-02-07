@@ -6,6 +6,16 @@
 #include "cmock.h"
 #include "Mockpico_vector.h"
 
+typedef struct _CMOCK_pico_vector_init_CALL_INSTANCE
+{
+  UNITY_LINE_TYPE LineNumber;
+  void* ReturnVal;
+  struct pico_vector* Expected_vector;
+  size_t Expected_capacity;
+  size_t Expected_typesize;
+
+} CMOCK_pico_vector_init_CALL_INSTANCE;
+
 typedef struct _CMOCK_pico_vector_begin_CALL_INSTANCE
 {
   UNITY_LINE_TYPE LineNumber;
@@ -63,6 +73,7 @@ typedef struct _CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE
 
 static struct Mockpico_vectorInstance
 {
+  CMOCK_MEM_INDEX_TYPE pico_vector_init_CallInstance;
   CMOCK_MEM_INDEX_TYPE pico_vector_begin_CallInstance;
   CMOCK_MEM_INDEX_TYPE pico_vector_iterator_next_CallInstance;
   CMOCK_MEM_INDEX_TYPE pico_vector_push_back_CallInstance;
@@ -77,6 +88,7 @@ extern jmp_buf AbortFrame;
 void Mockpico_vector_Verify(void)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
+  UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_init_CallInstance, cmock_line, "Function 'pico_vector_init' called less times than expected.");
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_begin_CallInstance, cmock_line, "Function 'pico_vector_begin' called less times than expected.");
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_iterator_next_CallInstance, cmock_line, "Function 'pico_vector_iterator_next' called less times than expected.");
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_push_back_CallInstance, cmock_line, "Function 'pico_vector_push_back' called less times than expected.");
@@ -95,6 +107,43 @@ void Mockpico_vector_Destroy(void)
 {
   CMock_Guts_MemFreeAll();
   memset(&Mock, 0, sizeof(Mock));
+}
+
+void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t typesize)
+{
+  UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
+  CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_init_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_init_CallInstance);
+  Mock.pico_vector_init_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_init_CallInstance);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_init' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
+  {
+    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_init' called with unexpected value for argument 'vector'.");
+  }
+  {
+    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(&cmock_call_instance->Expected_capacity), (void*)(&capacity), sizeof(size_t), cmock_line, "Function 'pico_vector_init' called with unexpected value for argument 'capacity'.");
+  }
+  {
+    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(&cmock_call_instance->Expected_typesize), (void*)(&typesize), sizeof(size_t), cmock_line, "Function 'pico_vector_init' called with unexpected value for argument 'typesize'.");
+  }
+  return cmock_call_instance->ReturnVal;
+}
+
+void CMockExpectParameters_pico_vector_init(CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance, struct pico_vector* vector, size_t capacity, size_t typesize)
+{
+  cmock_call_instance->Expected_vector = vector;
+  memcpy(&cmock_call_instance->Expected_capacity, &capacity, sizeof(size_t));
+  memcpy(&cmock_call_instance->Expected_typesize, &typesize, sizeof(size_t));
+}
+
+void pico_vector_init_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, size_t capacity, size_t typesize, void* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_init_CALL_INSTANCE));
+  CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_init_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_init_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_init_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  CMockExpectParameters_pico_vector_init(cmock_call_instance, vector, capacity, typesize);
+  cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
 struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)

@@ -11,6 +11,8 @@ void Mockpico_vector_Verify(void);
 
 
 
+#define pico_vector_init_ExpectAndReturn(vector, capacity, typesize, cmock_retval) pico_vector_init_CMockExpectAndReturn(__LINE__, vector, capacity, typesize, cmock_retval)
+void pico_vector_init_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, size_t capacity, size_t typesize, void* cmock_to_return);
 #define pico_vector_begin_ExpectAndReturn(vector, cmock_retval) pico_vector_begin_CMockExpectAndReturn(__LINE__, vector, cmock_retval)
 void pico_vector_begin_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, const struct pico_vector* vector, struct pico_vector_iterator* cmock_to_return);
 #define pico_vector_iterator_next_ExpectAndReturn(iterator, cmock_retval) pico_vector_iterator_next_CMockExpectAndReturn(__LINE__, iterator, cmock_retval)

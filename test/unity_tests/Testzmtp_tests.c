@@ -1,6 +1,6 @@
 #include "unity.h"
 #include "zmtp_tests.h"
-#include "pico_zmtp.h"
+#include "pico_zmtp.c"
 #include "Mockpico_socket.h"
 #include <stdint.h>
 #include "Mockpico_vector.h"
@@ -23,6 +23,7 @@ void test_zmtp_tests_NeedToImplement(void)
 
 void test_zmtp_socket_send(void)
 {
+    TEST_IGNORE();
 /*
     mocking variables
     void* aBytestream: actual bytestream, used as return value of the mocked pico_zalloc
@@ -535,21 +536,50 @@ void test_zmtp_socket_send(void)
     free(frame2);
 }
 
+void* dummy_callback(uint16_t ev, struct zmtp_socket*s)
+{
+    TEST_FAIL();
+}
+
+/* set callback_include_count to false! */
+int stub_callback1(struct zmtp_socket* zmtp_s, void* buf, int len, int numCalls)
+{
+    uint8_t greeting[14] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01, ZMTP_TYPE_REQ, 0x00, 0x00};
+    int greetingLen = 14;
+
+    TEST_ASSERT_EQUAL_INT(greetingLen, len);
+    TEST_ASSERT_EQUAL_MEMORY(greeting, buf, greetingLen);
+    TEST_FAIL();
+    
+    return 0;
+}
 
 void test_zmtp_socket_connect(void)
 {
-    struct zmtp_socket* zmtp_s;
-    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
-    
-    struct pico_socket* pico_s;
-    zmtp_s->sock = pico_s;
+    /* Only supporting zmtp2.0 (whole greeting send at once) */
 
+    /* Add tests for NULL arguments */ 
+
+    struct zmtp_socket* zmtp_s;
+    struct pico_socket* pico_s;
     void* srv_addr;
     uint16_t remote_port = 1320;
+    uint8_t socket_type = ZMTP_TYPE_REQ;
+
+
+    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+
+    /* Setting up zmtp_socket */
+    pico_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, &zmtp_tcp_cb, pico_s);
+    zmtp_s = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, socket_type, &dummy_callback);
+    TEST_ASSERT_EQUAL_UINT8(zmtp_s->type, socket_type);
+
 
     /* Setup mocking objects */
     pico_socket_connect_ExpectAndReturn(zmtp_s->sock, srv_addr, remote_port, 0);
+    pico_socket_write_StubWithCallback(stub_callback1);
 
     /* Tests */
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_connect(zmtp_s, srv_addr, remote_port));
+
 }
