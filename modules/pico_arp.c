@@ -280,6 +280,15 @@ static void pico_arp_check_entry(struct pico_frame *f, struct pico_arp **found)
     }
 }
 
+
+static int pico_arp_check_incoming_hdr_type(struct pico_arp_hdr *h)
+{
+    /* Check the hardware type and protocol */
+    if ((h->htype != PICO_ARP_HTYPE_ETH) || (h->ptype != PICO_IDETH_IPV4))
+        return -1;
+    return 0;
+}
+
 static int pico_arp_check_incoming_hdr(struct pico_frame *f, struct pico_ip4 *dst_addr)
 {
     struct pico_arp_hdr *hdr;
@@ -291,8 +300,7 @@ static int pico_arp_check_incoming_hdr(struct pico_frame *f, struct pico_ip4 *ds
 
     dst_addr->addr = hdr->dst.addr;
 
-    /* Check the hardware type and protocol */
-    if ((hdr->htype != PICO_ARP_HTYPE_ETH) || (hdr->ptype != PICO_IDETH_IPV4))
+    if (pico_arp_check_incoming_hdr_type(hdr) < 0)
         return -1;
 
     /* The source mac address must not be a multicast or broadcast address */
@@ -322,41 +330,55 @@ static void pico_arp_reply(struct pico_frame *f, struct pico_ip4 me)
     f->dev->send(f->dev, f->start, (int)f->len);
 }
 
-int pico_arp_receive(struct pico_frame *f)
+static int pico_arp_check_flooding(struct pico_frame *f, struct pico_ip4 me)
 {
-    struct pico_arp_hdr *hdr;
-    struct pico_arp *found = NULL;
-    struct pico_ip4 me;
     struct pico_device *link_dev;
+    struct pico_arp_hdr *hdr;
     hdr = (struct pico_arp_hdr *) f->net_hdr;
-
-    if (pico_arp_check_incoming_hdr(f, &me) < 0)
-        goto end;
 
     /* Prevent ARP flooding */
     link_dev = pico_ipv4_link_find(&me);
     if ((link_dev == f->dev) && (hdr->opcode == PICO_ARP_REQUEST)) {
         if (max_arp_reqs == 0)
-            goto end;
+            return -1;
         else
             max_arp_reqs--;
+    }
+
+    /* Check if we are the target IP address */
+    if (link_dev != f->dev)
+        return -1;
+    return 0;
+}
+
+int pico_arp_receive(struct pico_frame *f)
+{
+    struct pico_arp_hdr *hdr;
+    struct pico_arp *found = NULL;
+    struct pico_ip4 me;
+    int ret = 0;
+    hdr = (struct pico_arp_hdr *) f->net_hdr;
+
+    if (pico_arp_check_incoming_hdr(f, &me) < 0) {
+        pico_frame_discard(f);
+        return -1;
+    }
+    if (pico_arp_check_flooding(f, me) < 0) {
+        pico_frame_discard(f);
+        return -1;
     }
 
     pico_arp_check_conflict(hdr);
     pico_arp_check_entry(f, &found);
 
-    /* Check if we are the target IP address */
-    if (link_dev != f->dev)
-        goto end;
-
     /* If no existing entry was found, create a new entry, or fail trying. */
-    if (!found) {
-        if (pico_arp_create_entry(hdr->s_mac, hdr->src, f->dev) < 0)
-          goto end;
+    if ((!found) && (pico_arp_create_entry(hdr->s_mac, hdr->src, f->dev) < 0)) {
+        pico_frame_discard(f);
+        return -1;
     }
 
     /* If the packet is a request, send a reply */
-    if (hdr->opcode == PICO_ARP_REQUEST)
+    if ((ret == 0) && hdr->opcode == PICO_ARP_REQUEST)
         pico_arp_reply(f, me);
 
 #ifdef DEBUG_ARP
@@ -364,9 +386,6 @@ int pico_arp_receive(struct pico_frame *f)
 #endif
     pico_frame_discard(f);
     return 0;
-end:
-    pico_frame_discard(f);
-    return -1;
 }
 
 int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, struct pico_ip4 *src, struct pico_ip4 *dst, uint8_t type)
