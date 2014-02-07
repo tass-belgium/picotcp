@@ -255,29 +255,31 @@ static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
 }
 
 
-static void pico_arp_check_entry(struct pico_frame *f, struct pico_arp **found)
+static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
 {
     struct pico_arp search;
+    struct pico_arp *found = NULL;
     struct pico_arp_hdr *hdr = (struct pico_arp_hdr *) f->net_hdr;
     /* Populate a new arp entry */
     search.ipv4.addr = hdr->src.addr;
     memcpy(search.eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
     /* Search for already existing entry */
-    *found = pico_tree_findKey(&arp_tree, &search);
-    if (*found) {
-        if ((*found)->arp_status == PICO_ARP_STATUS_STALE) {
+    found = pico_tree_findKey(&arp_tree, &search);
+    if (found) {
+        if (found->arp_status == PICO_ARP_STATUS_STALE) {
             /* Replace if stale */
-            pico_tree_delete(&arp_tree, *found);
-            pico_arp_add_entry(*found);
+            pico_tree_delete(&arp_tree, found);
+            pico_arp_add_entry(found);
         } else {
             /* Update mac address */
-            memcpy((*found)->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
+            memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
             /* Refresh timestamp, this will force a reschedule on the next timeout*/
-            (*found)->timestamp = PICO_TIME();
+            found->timestamp = PICO_TIME();
         }
     }
+    return found;
 }
 
 
@@ -306,12 +308,16 @@ static int pico_arp_check_incoming_hdr(struct pico_frame *f, struct pico_ip4 *ds
     return 0;
 }
 
-static void pico_arp_reply(struct pico_frame *f, struct pico_ip4 me)
+static void pico_arp_reply_on_request(struct pico_frame *f, struct pico_ip4 me)
 {
     struct pico_arp_hdr *hdr;
     struct pico_eth_hdr *eh;
+
     hdr = (struct pico_arp_hdr *) f->net_hdr;
     eh = (struct pico_eth_hdr *)f->datalink_hdr;
+    if (hdr->opcode != PICO_ARP_REQUEST)
+        return;
+
     hdr->opcode = PICO_ARP_REPLY;
     memcpy(hdr->d_mac, hdr->s_mac, PICO_SIZE_ETH);
     memcpy(hdr->s_mac, f->dev->eth->mac.addr, PICO_SIZE_ETH);
@@ -364,7 +370,7 @@ int pico_arp_receive(struct pico_frame *f)
 
     hdr = (struct pico_arp_hdr *) f->net_hdr;
     pico_arp_check_conflict(hdr);
-    pico_arp_check_entry(f, &found);
+    found = pico_arp_lookup_entry(f);
 
     /* If no existing entry was found, create a new entry, or fail trying. */
     if ((!found) && (pico_arp_create_entry(hdr->s_mac, hdr->src, f->dev) < 0)) {
@@ -373,8 +379,7 @@ int pico_arp_receive(struct pico_frame *f)
     }
 
     /* If the packet is a request, send a reply */
-    if (hdr->opcode == PICO_ARP_REQUEST)
-        pico_arp_reply(f, me);
+    pico_arp_reply_on_request(f, me);
 
 #ifdef DEBUG_ARP
     dbg_arp();
