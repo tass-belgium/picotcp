@@ -29,12 +29,12 @@ void (*wakeup)(uint16_t ev, struct pico_socket *s));
 
 \subsubsection*{Possible events for sockets}
 \begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$RD} - trigerred when data arrived on the socket
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$WR} - trigerred when ready to write to the socket (TCP only)
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$CONN} - trigerred when connection is established (TCP only)
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$CLOSE} - trigerred when FIN packet received (TCP only)
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$FIN} - trigerred when the socket is closed (TCP only)
-\item \texttt{PICO$\_$SOCK$\_$EV$\_$ERR} - trigerred when an error occurs
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$RD} - triggered when new data arrives on the socket. A new receive action can be taken by the socket owner because this event indicates there is new data to receive.
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$WR} - triggered when ready to write to the socket. Issuing a write/send call will now succeed if the buffer has enough space to allocate new outstanding data.
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$CONN} - triggered when connection is established (TCP only). This event is received either after a successful call to \texttt{pico$\_$socket$\_$connect} to indicate that the connection has been established, or on a listening socket, indicating that a call to \texttt{pico$\_$socket$\_$accept} may now be issued in order to accept the incoming connection from a remote host.
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$CLOSE} - triggered when a FIN segment is received (TCP only). This event indicates that the other endpont has closed the connection, so the local TCP layer is only allowed to send new data until a local shutdown or close is initiated. PicoTCP is able to keep the connection half-open (only for sending) after the FIN packet has been received, allowing new data to be sent in the TCP CLOSE$\_$WAIT state.
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$FIN} - triggered when the socket is closed. No further communication is possible from this point on the socket.
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$ERR} - triggered when an error occurs. 
 \end{itemize}
 
 \subsubsection*{Return value}
