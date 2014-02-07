@@ -136,7 +136,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     do {
       read = pico_socket_read(s, recvbuf + len, BSIZE - len);
       if (read > 0)
-        len += r;
+        len += read;
     } while(read > 0);
   }
   
