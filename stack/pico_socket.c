@@ -2436,9 +2436,21 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
                         pico_err = PICO_ERR_ECONNREFUSED;
                         break;
 
-                    case PICO_ICMP_UNREACH_NET_PROHIB:
                     case PICO_ICMP_UNREACH_NET_UNKNOWN:
                         pico_err = PICO_ERR_ENETUNREACH;
+                        break;
+
+                    case PICO_ICMP_UNREACH_HOST_UNKNOWN:
+                        pico_err = PICO_ERR_EHOSTDOWN;
+                        break;
+
+                    case PICO_ICMP_UNREACH_ISOLATED:
+                        pico_err = PICO_ERR_ENONET;
+                        break;
+
+                    case PICO_ICMP_UNREACH_NET_PROHIB:
+                    case PICO_ICMP_UNREACH_HOST_PROHIB:
+                        pico_err = PICO_ERR_EHOSTUNREACH;
                         break;
 
                     default:
