@@ -172,7 +172,7 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
 
     if (!a4) {
         if (++f->failure_count < 4) {
-            dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
+            arp_dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
             /* check if dst is local (gateway = 0), or if to use gateway */
             if (gateway.addr != 0)
                 pico_arp_request(f->dev, &gateway, PICO_ARP_QUERY); /* arp to gateway */
@@ -210,11 +210,15 @@ void dbg_arp(void)
 static void arp_expire(pico_time now, void *_stale)
 {
     struct pico_arp *stale = (struct pico_arp *) _stale;
-    IGNORE_PARAMETER(now);
-    stale->arp_status = PICO_ARP_STATUS_STALE;
-    arp_dbg("ARP: Setting arp_status to STALE\n");
-    pico_arp_request(stale->dev, &stale->ipv4, PICO_ARP_QUERY);
-
+    if (now >= (stale->timestamp + PICO_ARP_TIMEOUT)) {
+        stale->arp_status = PICO_ARP_STATUS_STALE;
+        arp_dbg("ARP: Setting arp_status to STALE\n");
+        pico_arp_request(stale->dev, &stale->ipv4, PICO_ARP_QUERY);
+    } else {
+        /* Timer must be rescheduled, ARP entry has been renewed lately.
+         * No action required to refresh the entry, will check on the next timeout */
+        pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale);
+    }
 }
 
 static void pico_arp_add_entry(struct pico_arp *entry)
@@ -301,15 +305,13 @@ int pico_arp_receive(struct pico_frame *f)
             new = found;
 
             pico_tree_delete(&arp_tree, new);
-        }
-        else {
+        } else {
             /* Update mac address */
             memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
 
-            /* Refresh timeout & update timestamp*/
-            pico_timer_cancel(found->timer);
-            found->timer = pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, found);
+            /* Refresh timestamp, this will force a reschedule on the next timeout*/ 
             found->timestamp = PICO_TIME();
+            new = NULL; /* Avoid re-inserting the entry in the table */
         }
     }
 
