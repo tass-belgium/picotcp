@@ -15,9 +15,7 @@
 #include "pico_device.h"
 #include "pico_stack.h"
 
-const uint8_t PICO_ETHADDR_ALL[6] = {
-    0xff, 0xff, 0xff, 0xff, 0xff, 0xff
-};
+extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
 #define PICO_ARP_RETRY 300lu
 
@@ -172,10 +170,6 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     struct pico_ipv4_link *l;
 
-#ifndef PICO_SUPPORT_IPV4
-    return NULL;
-#endif
-
     l = pico_ipv4_link_get(&hdr->dst);
     if(l) {
         /* address belongs to ourself */
@@ -265,10 +259,6 @@ int pico_arp_receive(struct pico_frame *f)
     if (!hdr)
         goto end;
 
-#ifndef PICO_SUPPORT_IPV4
-    goto end;
-#endif
-
     me.addr = hdr->dst.addr;
 
     /* Validate the incoming arp packet */
@@ -354,7 +344,7 @@ int pico_arp_receive(struct pico_frame *f)
         f->dev->send(f->dev, f->start, (int)f->len);
     }
 
-#ifdef DEBUG_ARG
+#ifdef DEBUG_ARP
     dbg_arp();
 #endif
 
@@ -408,9 +398,6 @@ int32_t pico_arp_request(struct pico_device *dev, struct pico_ip4 *dst, uint8_t 
     if (!q)
         return -1;
 
-#ifndef PICO_SUPPORT_IPV4
-    return -1;
-#endif
     if (type == PICO_ARP_QUERY)
     {
         src = pico_ipv4_source_find(dst);
