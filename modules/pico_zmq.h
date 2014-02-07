@@ -11,13 +11,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define ZMQ_TYPE_PAIR                    0
-#define ZMQ_TYPE_PUB                     1
-#define ZMQ_TYPE_SUB                     2
-#define ZMQ_TYPE_REQ                     3
-#define ZMQ_TYPE_REP                     4
-#define ZMQ_TYPE_END                     5
-
 struct zmq_zmtp_list_item {
     struct zmtp_socket* sock;
     struct zmq_zmtp_socket_item* next_item;

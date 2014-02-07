@@ -41,12 +41,12 @@ void* zmq_socket(void* context, int type)
 
     switch(type)
     {
-        case(ZMQ_TYPE_REQ): 
+        case(ZMTP_TYPE_REQ): 
             sock = pico_zalloc(sizeof(struct zmq_socket_req));
             break;
-        case(ZMQ_TYPE_REP):
+        case(ZMTP_TYPE_REP):
             break; 
-        case(ZMQ_TYPE_PUB):
+        case(ZMTP_TYPE_PUB):
             break;
         default:
             pico_free(sock);
@@ -61,7 +61,7 @@ void* zmq_socket(void* context, int type)
 
     sock->type = type;
         
-    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_zmtp_sockets);
+    //sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &cb_zmtp_sockets);
     
     if(!sock->sock) {
         pico_free(sock);
