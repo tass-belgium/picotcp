@@ -159,7 +159,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
                 zmtp_s->rcv_state = ST_RCV_ID_LEN;
                 while(1);
             }
-            pcio_free(buf);
+            pico_free(buf);
             return;
         }
 
@@ -266,6 +266,8 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     s->sock = pico_s;
     s->snd_state = ST_SND_IDLE;
     s->rcv_state = ST_RCV_IDLE;
+    
+    pico_tree_insert(&zmtp_sockets, s);
 
     return s;
 }
