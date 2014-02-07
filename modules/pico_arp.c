@@ -291,15 +291,11 @@ static int pico_arp_check_incoming_hdr_type(struct pico_arp_hdr *h)
 
 static int pico_arp_check_incoming_hdr(struct pico_frame *f, struct pico_ip4 *dst_addr)
 {
-    struct pico_arp_hdr *hdr;
-    if (!f)
-        return -1;
-    hdr = (struct pico_arp_hdr *) f->net_hdr;
+    struct pico_arp_hdr *hdr = (struct pico_arp_hdr *) f->net_hdr;
     if (!hdr)
         return -1;
 
     dst_addr->addr = hdr->dst.addr;
-
     if (pico_arp_check_incoming_hdr_type(hdr) < 0)
         return -1;
 
@@ -356,8 +352,6 @@ int pico_arp_receive(struct pico_frame *f)
     struct pico_arp_hdr *hdr;
     struct pico_arp *found = NULL;
     struct pico_ip4 me;
-    int ret = 0;
-    hdr = (struct pico_arp_hdr *) f->net_hdr;
 
     if (pico_arp_check_incoming_hdr(f, &me) < 0) {
         pico_frame_discard(f);
@@ -368,6 +362,7 @@ int pico_arp_receive(struct pico_frame *f)
         return -1;
     }
 
+    hdr = (struct pico_arp_hdr *) f->net_hdr;
     pico_arp_check_conflict(hdr);
     pico_arp_check_entry(f, &found);
 
@@ -378,7 +373,7 @@ int pico_arp_receive(struct pico_frame *f)
     }
 
     /* If the packet is a request, send a reply */
-    if ((ret == 0) && hdr->opcode == PICO_ARP_REQUEST)
+    if (hdr->opcode == PICO_ARP_REQUEST)
         pico_arp_reply(f, me);
 
 #ifdef DEBUG_ARP
