@@ -146,10 +146,29 @@ struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst)
     return NULL;
 }
 
+void pico_arp_retry(struct pico_frame *f, struct pico_ip4 *where)
+{
+    if (++f->failure_count < 4) {
+        arp_dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
+        /* check if dst is local (gateway = 0), or if to use gateway */
+        pico_arp_request(f->dev, where, PICO_ARP_QUERY);
+        pico_enqueue(&pending, f);
+        if (!pending_timer_on) {
+            pending_timer_on++;
+            pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
+        }
+    } else {
+        dbg("ARP: Destination Unreachable\n");
+        pico_notify_dest_unreachable(f);
+        pico_frame_discard(f);
+    }
+}
+
 struct pico_eth *pico_arp_get(struct pico_frame *f)
 {
     struct pico_eth *a4;
     struct pico_ip4 gateway;
+    struct pico_ip4 *where;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     struct pico_ipv4_link *l;
 
@@ -166,31 +185,13 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
     gateway = pico_ipv4_route_get_gateway(&hdr->dst);
     /* check if dst is local (gateway = 0), or if to use gateway */
     if (gateway.addr != 0)
-        a4 = pico_arp_lookup(&gateway);      /* check if gateway ip mac in cache */
+        where = &gateway;
     else
-        a4 = pico_arp_lookup(&hdr->dst);     /* check if local ip mac in cache */
+        where = &hdr->dst;
+    a4 = pico_arp_lookup(where);      /* check if dst ip mac in cache */
 
-    if (!a4) {
-        if (++f->failure_count < 4) {
-            arp_dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
-            /* check if dst is local (gateway = 0), or if to use gateway */
-            if (gateway.addr != 0)
-                pico_arp_request(f->dev, &gateway, PICO_ARP_QUERY); /* arp to gateway */
-            else
-                pico_arp_request(f->dev, &hdr->dst, PICO_ARP_QUERY); /* arp to dst */
-
-            pico_enqueue(&pending, f);
-            if (!pending_timer_on) {
-                pending_timer_on++;
-                pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
-            }
-        } else {
-            dbg("ARP: Destination Unreachable\n");
-            pico_notify_dest_unreachable(f);
-            pico_frame_discard(f);
-        }
-    }
-
+    if (!a4)
+      pico_arp_retry(f, where);
     return a4;
 }
 
