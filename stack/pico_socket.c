@@ -626,9 +626,12 @@ static void socket_clean_queues(struct pico_socket *sock)
             f_out = pico_dequeue(&sock->q_out);
         }
     }
+#ifdef PICO_SUPPORT_TCP
     /* for tcp sockets go further and clean the sockets inside queue */
     if(sock->proto == &pico_proto_tcp)
         pico_tcp_cleanup_queues(sock);
+#endif
+
 }
 
 static void socket_garbage_collect(pico_time now, void *arg)
@@ -1234,7 +1237,9 @@ while (total_payload_written < len) {
     f->payload += header_offset;
     f->payload_len = (uint16_t)(f->payload_len - header_offset);
     f->sock = s;
+#ifdef PICO_SUPPORT_TCP
     transport_flags_update(f, s);
+#endif
     if (remote_duple) {
         f->info = pico_zalloc(sizeof(struct pico_remote_duple));
         memcpy(f->info, remote_duple, sizeof(struct pico_remote_duple));
