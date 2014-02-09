@@ -15,6 +15,7 @@ RTOS?=0
 # Default compiled-in protocols
 TCP?=1
 UDP?=1
+ETH?=1
 IPV4?=1
 IPFRAG?=1
 NAT?=1
@@ -117,7 +118,9 @@ POSIX_OBJ=  modules/pico_dev_vde.o \
             modules/pico_dev_pcap.o \
 						modules/ptsocket/pico_ptsocket.o
 
-
+ifneq ($(ETH),0)
+  include rules/eth.mk
+endif
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
 endif
