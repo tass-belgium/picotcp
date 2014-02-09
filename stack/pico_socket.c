@@ -32,16 +32,16 @@
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
-#define LOCK(x) { \
+#define PICOTCP_MUTEX_LOCK(x) { \
         if (x == NULL) \
             x = pico_mutex_init(); \
         pico_mutex_lock(x); \
 }
-#define UNLOCK(x) pico_mutex_unlock(x)
+#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
 
 #else
-#define LOCK(x) do {} while(0)
-#define UNLOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 
@@ -565,14 +565,14 @@ struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote)
 int8_t pico_socket_add(struct pico_socket *s)
 {
     struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
-    LOCK(Mutex);
+    PICOTCP_MUTEX_LOCK(Mutex);
     if (!sp) {
         /* dbg("Creating sockport..%04x\n", s->local_port); / * In comment due to spam during test * / */
         sp = pico_zalloc(sizeof(struct pico_sockport));
 
         if (!sp) {
             pico_err = PICO_ERR_ENOMEM;
-            UNLOCK(Mutex);
+            PICOTCP_MUTEX_UNLOCK(Mutex);
             return -1;
         }
 
@@ -593,7 +593,7 @@ int8_t pico_socket_add(struct pico_socket *s)
 
     pico_tree_insert(&sp->socks, s);
     s->state |= PICO_SOCKET_STATE_BOUND;
-    UNLOCK(Mutex);
+    PICOTCP_MUTEX_UNLOCK(Mutex);
 #if DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
@@ -652,7 +652,7 @@ int8_t pico_socket_del(struct pico_socket *s)
         return -1;
     }
 
-    LOCK(Mutex);
+    PICOTCP_MUTEX_LOCK(Mutex);
     pico_tree_delete(&sp->socks, s);
     s->net = NULL;
     if(pico_tree_empty(&sp->socks)) {
@@ -710,7 +710,7 @@ int8_t pico_socket_del(struct pico_socket *s)
 
     s->state = PICO_SOCKET_STATE_CLOSED;
     pico_timer_add(3000, socket_garbage_collect, s);
-    UNLOCK(Mutex);
+    PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
 
