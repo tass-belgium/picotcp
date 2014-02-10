@@ -19,6 +19,7 @@
 #include "pico_nat.h"
 #include "pico_igmp.h"
 #include "pico_tree.h"
+#include "pico_socket_multicast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 

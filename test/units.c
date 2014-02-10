@@ -16,6 +16,7 @@
 #include "pico_protocol.c"
 #include "pico_ipv4.c"
 #include "pico_socket.c"
+#include "pico_socket_multicast.c"
 #include "pico_dev_null.c"
 #include "pico_dev_mock.c"
 #include "pico_udp.c"

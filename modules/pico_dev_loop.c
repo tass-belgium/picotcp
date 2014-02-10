@@ -58,9 +58,9 @@ struct pico_device *pico_loop_create(void)
     if (!loop)
         return NULL;
 
-    if( 0 != pico_device_init((struct pico_device *)loop, "loop", NULL)) {
+    if( 0 != pico_device_init(loop, "loop", NULL)) {
         dbg ("Loop init failed.\n");
-        pico_loop_destroy((struct pico_device *)loop);
+        pico_loop_destroy(loop);
         return NULL;
     }
 
@@ -68,6 +68,6 @@ struct pico_device *pico_loop_create(void)
     loop->poll = pico_loop_poll;
     loop->destroy = pico_loop_destroy;
     dbg("Device %s created.\n", loop->name);
-    return (struct pico_device *)loop;
+    return loop;
 }
 

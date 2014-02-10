@@ -15,6 +15,7 @@ RTOS?=0
 # Default compiled-in protocols
 TCP?=1
 UDP?=1
+ETH?=1
 IPV4?=1
 IPFRAG?=1
 NAT?=1
@@ -81,6 +82,12 @@ ifeq ($(ARCH),lpc)
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
 endif
 
+ifeq ($(ARCH),lpc-m4-hard)
+  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16  \
+  -fsingle-precision-constant -mthumb -MMD -MP -DLPC
+endif
 
 ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
@@ -111,7 +118,9 @@ POSIX_OBJ=  modules/pico_dev_vde.o \
             modules/pico_dev_pcap.o \
 						modules/ptsocket/pico_ptsocket.o
 
-
+ifneq ($(ETH),0)
+  include rules/eth.mk
+endif
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
 endif
@@ -126,8 +135,6 @@ ifneq ($(TCP),0)
 endif
 ifneq ($(UDP),0)
   include rules/udp.mk
-else
-  MCAST=0
 endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk

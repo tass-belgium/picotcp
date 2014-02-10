@@ -93,8 +93,9 @@ START_TEST (arp_expire_test)
 {
     struct pico_arp entry;
     entry.arp_status = PICO_ARP_STATUS_REACHABLE;
+    entry.timestamp = 0;
 
-    arp_expire(0, &entry);
+    arp_expire(PICO_ARP_TIMEOUT, &entry);
     fail_unless(entry.arp_status == PICO_ARP_STATUS_STALE);
 }
 END_TEST
