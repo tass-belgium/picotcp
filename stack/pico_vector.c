@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pico_vector_extension.h"
-#include "pico_zalloc.h"
+#include "pico_config.h"
 #include <stdint.h>
 
 

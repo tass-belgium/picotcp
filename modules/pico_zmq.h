@@ -10,20 +10,50 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include "pico_vector.h"
+#include "pico_addressing.h"
 
-struct zmq_zmtp_list_item {
+
+/*  Send/recv options.  */
+#define ZMQ_DONTWAIT  1
+#define ZMQ_SNDMORE   2
+
+#define ZMQ_SEND_ENABLED 1
+#define ZMQ_SEND_DISABLED 2
+
+
+struct zmq_zmtp_list_item 
+{
     struct zmtp_socket* sock;
     struct zmq_zmtp_socket_item* next_item;
+};
+
+typedef struct zmq_msg_t zmq_msg_t_in;
+typedef struct zmq_msg_t zmq_msg_t_out;
+
+struct zmq_msg_t
+{
+    size_t len;
+    void* buf;
 };
 
 struct zmq_socket_base
 {
     uint8_t type;
     struct zmtp_socket* sock;
+    struct pico_ip4 addr;
+    uint32_t port;
+    //State??
+    //DECLARE_PICO_VECTOR(zmq_msg_t_in) out_vector;
+    //DECLARE_PICO_VECTOR(zmq_msg_t_out) in_vector;
+    struct pico_vector out_vector;
+    struct pico_vector in_vector;
 };
 
-struct zmq_socket_req {
+struct zmq_socket_req 
+{
     struct zmq_socket_base base;
+    uint8_t send_enable;        //Req can send data but afterwards it should receive something before sending again!
     struct zmtp_socket* sock;
 };
 
@@ -32,8 +62,10 @@ int zmq_setsockopt (void* socket, int option_name, const void* option_value, siz
 int zmq_getsockopt (void* socket, int option_name, void* option_value, size_t* option_len);
 int zmq_bind(void* s, char* address, uint16_t port);
 int zmq_connect(void* socket, const char* endpoint);
-int zmq_send(void* socket, char* txt, int len);
+int zmq_send(void* socket, void* buf, size_t len, int flags);
 int zmq_recv(void* socket, char* txt);
 void zmq_close(void* socket);
+
+int zmq_msg_init_size(struct zmq_msg_t* msg, size_t size);
 
 #endif

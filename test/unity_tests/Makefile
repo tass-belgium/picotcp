@@ -34,6 +34,8 @@ TEST_VECTOR_EXTENSION_TESTS_RUNNER = Testpico_vector_extension_Runner.c
 
 ZMQ_TESTS_SRC = $(TEST_ZMQ_TESTS) \
       $(MOCKS)/Mockpico_zmtp.c \
+      $(MOCKS)/Mockpico_ipv4.c \
+      $(MOCKS)/Mockpico_vector.c \
 
 ZMTP_TESTS_SRC = $(TEST_ZMTP_TESTS) \
       $(MOCKS)/Mockpico_socket.c \
@@ -55,7 +57,7 @@ PLUGIN_EXPECT_CALLBACK = --plugins="expect;callback"
 PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore"
 
 
-CFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
+CFLAGS += -ggdb -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
 
 
 all: zmtp_tests zmq_tests vector_tests vector_extension_tests
@@ -63,7 +65,7 @@ all: zmtp_tests zmq_tests vector_tests vector_extension_tests
 
 zmq_tests: $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC)
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS_RUNNER)
 
 
@@ -84,3 +86,4 @@ vector_extension_tests: $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC)
 
 clean:
 	rm -f demo.elf demo.bin *.o
+	rm -f zmq_tests vector_tests vector_extension_tests

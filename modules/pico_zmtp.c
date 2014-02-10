@@ -203,7 +203,7 @@ int zmtp_send_greeting(struct zmtp_socket* s)
 int zmtp_socket_connect(struct zmtp_socket* zmtp_s, void* srv_addr, uint16_t remote_port)
 {
     int ret;
-     
+
     if(zmtp_s == NULL)
     {
         pico_err = PICO_ERR_EINVAL;
@@ -220,7 +220,22 @@ int zmtp_socket_connect(struct zmtp_socket* zmtp_s, void* srv_addr, uint16_t rem
 
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 {
-    return 0;
+    int ret;
+    uint8_t* data = NULL;
+    struct zmtp_frame_t* frame;
+    
+    //Should append the more-short/final-short field code
+    frame = (struct zmtp_frame_t *)pico_vector_pop_front(vec);
+    data = pico_zalloc(frame->len + 4);
+    data[0] = 0x01; /* Frame delimiter */
+    data[1] = 0x00; /* Frame delimiter */
+    data[2] = 0x00; /* Final short frame */
+    data[3] = frame->len;   /* Length final short frame */
+    memcpy(data+4, frame->buf, frame->len);
+    ret = pico_socket_send(s->sock, data, frame->len + 4);
+    pico_free(data);
+
+    return ret;
 }
 
 int8_t zmtp_socket_close(struct zmtp_socket *s)
