@@ -21,11 +21,11 @@
 #include "pico_device.h"
 #include "pico_socket_multicast.h"
 #include "pico_socket_tcp.h"
+#include "pico_socket_udp.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
 
-#define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
 
 #define PROTO(s) ((s)->proto->proto_number)
 #define PICO_SOCKET4_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
@@ -124,12 +124,6 @@ static int32_t socket_cmp(void *ka, void *kb)
     return b->remote_port - a->remote_port;
 }
 
-struct pico_sockport
-{
-    struct pico_tree socks; /* how you make the connection ? */
-    uint16_t number;
-    uint16_t proto;
-};
 
 #define INIT_SOCKPORT { {&LEAF, socket_cmp}, 0, 0 }
 
@@ -148,7 +142,7 @@ int sockport_cmp(void *ka, void *kb)
 PICO_TREE_DECLARE(UDPTable, sockport_cmp);
 PICO_TREE_DECLARE(TCPTable, sockport_cmp);
 
-static struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
+struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
 {
     struct pico_sockport test = INIT_SOCKPORT;
     test.number = port;
@@ -306,6 +300,7 @@ int8_t pico_socket_add(struct pico_socket *s)
     return 0;
 }
 
+
 static void socket_clean_queues(struct pico_socket *sock)
 {
     struct pico_frame *f_in = pico_dequeue(&sock->q_in);
@@ -324,12 +319,7 @@ static void socket_clean_queues(struct pico_socket *sock)
             f_out = pico_dequeue(&sock->q_out);
         }
     }
-#ifdef PICO_SUPPORT_TCP
-    /* for tcp sockets go further and clean the sockets inside queue */
-    if(sock->proto == &pico_proto_tcp)
-        pico_tcp_cleanup_queues(sock);
-#endif
-
+    pico_socket_tcp_cleanup(sock);
 }
 
 static void socket_garbage_collect(pico_time now, void *arg)
@@ -371,12 +361,8 @@ int8_t pico_socket_del(struct pico_socket *s)
 
     }
     pico_multicast_delete(s);
+    pico_socket_tcp_delete(s);
 
-#ifdef PICO_SUPPORT_TCP
-    if(s->parent)
-        s->parent->number_of_pending_conn--;
-
-#endif
 
     s->state = PICO_SOCKET_STATE_CLOSED;
     pico_timer_add(3000, socket_garbage_collect, s);
@@ -409,6 +395,7 @@ static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_state
     return 0;
 }
 
+
 static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
 {
     struct pico_frame *cpy = NULL;
@@ -417,16 +404,6 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     struct pico_tree_node *index = NULL;
     struct pico_tree_node *_tmp;
     struct pico_trans *tr = (struct pico_trans *) f->transport_hdr;
-  #ifdef PICO_SUPPORT_IPV4
-    struct pico_ipv4_hdr *ip4hdr;
-  #endif
-  #ifdef PICO_SUPPORT_IPV6
-    struct pico_ipv6_hdr *ip6hdr;
-  #endif
-
-#ifdef PICO_SUPPORT_TCP
-    struct pico_socket *found = NULL;
-#endif
 
     if (!tr)
         return -1;
@@ -438,62 +415,8 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
         return -1;
     }
 
-  #ifdef PICO_SUPPORT_TCP
-    if (p->proto_number == PICO_PROTO_TCP) {
-        pico_tree_foreach_safe(index, &sp->socks, _tmp){
-            s = index->keyValue;
-            /* 4-tuple identification of socket (port-IP) */
-      #ifdef PICO_SUPPORT_IPV4
-            if (IS_IPV4(f)) {
-                struct pico_ip4 s_local, s_remote, p_src, p_dst;
-                ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
-                s_local.addr = s->local_addr.ip4.addr;
-                s_remote.addr = s->remote_addr.ip4.addr;
-                p_src.addr = ip4hdr->src.addr;
-                p_dst.addr = ip4hdr->dst.addr;
-                if ((s->remote_port == tr->sport) && /* remote port check */
-                    (s_remote.addr == p_src.addr) && /* remote addr check */
-                    ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))) { /* Either local socket is ANY, or matches dst */
-                    found = s;
-                    break;
-                } else if ((s->remote_port == 0)  && /* not connected... listening */
-                           ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))) { /* Either local socket is ANY, or matches dst */
-                    /* listen socket */
-                    found = s;
-                }
-            }
-
-      #endif
-      #ifdef PICO_SUPPORT_IPV6    /* XXX TODO make compare for ipv6 addresses */
-            if (IS_IPV6(f)) {
-                ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
-                if ((s->remote_port == localport)) { /* && (((struct pico_ip6) s->remote_addr.ip6).addr == ((struct pico_ip6)(ip6hdr->src)).addr) ) { */
-                    found = s;
-                    break;
-                } else if (s->remote_port == 0) {
-                    /* listen socket */
-                    found = s;
-                }
-            }
-
-      #endif
-        } /* FOREACH */
-        if (found != NULL) {
-            pico_tcp_input(found, f);
-            if ((found->ev_pending) && found->wakeup) {
-                found->wakeup(found->ev_pending, found);
-                if(!found->parent)
-                    found->ev_pending = 0;
-            }
-
-            return 0;
-        } else {
-            dbg("SOCKET> mmm something wrong (prob sockport)\n");
-            return -1;
-        }
-    } /* TCP CASE */
-
-#endif
+    if (p->proto_number == PICO_PROTO_TCP)
+        return pico_socket_tcp_deliver(sp, f);
 
 #ifdef PICO_SUPPORT_UDP
     if (p->proto_number == PICO_PROTO_UDP) {
@@ -501,6 +424,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
             s = index->keyValue;
             if (IS_IPV4(f)) { /* IPV4 */
                 struct pico_ip4 s_local, p_dst;
+                struct pico_ipv4_hdr *ip4hdr;
                 ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
                 s_local.addr = s->local_addr.ip4.addr;
                 p_dst.addr = ip4hdr->dst.addr;
@@ -556,27 +480,11 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
     struct pico_socket *s = NULL;
 
-#ifdef PICO_SUPPORT_UDP
-    if (proto == PICO_PROTO_UDP) {
-        s = pico_udp_open();
-        s->proto = &pico_proto_udp;
-        s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
-    }
+    if (proto == PICO_PROTO_UDP)
+        s = pico_socket_udp_open();
 
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-    if (proto == PICO_PROTO_TCP) {
-        s = pico_tcp_open();
-        s->proto = &pico_proto_tcp;
-        /*check if Nagle enabled */
-        /*
-           if (!IS_NAGLE_ENABLED(s))
-            dbg("ERROR Nagle should be enabled here\n\n");
-         */
-    }
-
-#endif
+    if (proto == PICO_PROTO_TCP)
+        s = pico_socket_tcp_open();
 
     if (!s) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
@@ -614,22 +522,13 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 {
     struct pico_socket *s = NULL;
 
-#ifdef PICO_SUPPORT_UDP
     if (facsimile->proto->proto_number == PICO_PROTO_UDP) {
-        s = pico_udp_open();
-        s->proto = &pico_proto_udp;
-        s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
+        s = pico_socket_udp_open();
     }
 
-#endif
-
-#ifdef PICO_SUPPORT_TCP
     if (facsimile->proto->proto_number == PICO_PROTO_TCP) {
-        s = pico_tcp_open();
-        s->proto = &pico_proto_tcp;
+        s = pico_socket_tcp_open();
     }
-
-#endif
 
     if (!s) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;

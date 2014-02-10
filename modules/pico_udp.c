@@ -14,6 +14,8 @@
 #include "pico_socket.h"
 #include "pico_stack.h"
 
+#define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
+
 
 /* Queues */
 static struct pico_queue udp_in = {
