@@ -246,57 +246,37 @@ int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group
     return -1;
 }
 
-static inline struct pico_ipv4_link *pico_socket_setoption_mcastargs_validation(struct pico_ip_mreq *mreq, struct pico_ip_mreq_source *mreq_source)
+static struct pico_ipv4_link *mcast_link(struct pico_ip4 *a)
 {
-    struct pico_ipv4_link *mcast_link = NULL;
-
-    if (!mreq && !mreq_source)
-        return NULL;
-
-    if (mreq) {
-        if (!mreq->mcast_group_addr.addr)
-            return NULL;
-
-        if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
-            return NULL;
-
-        if (!mreq->mcast_link_addr.addr) {
-            mcast_link = pico_ipv4_get_default_mcastlink();
-            if (!mcast_link)
-                return NULL;
-        } else {
-            mcast_link = pico_ipv4_link_get(&mreq->mcast_link_addr);
-            if (!mcast_link)
-                return NULL;
-        }
-    }
-
-    if (mreq_source) {
-        if (!mreq_source->mcast_group_addr.addr)
-            return NULL;
-
-        if (pico_ipv4_is_unicast(mreq_source->mcast_group_addr.addr))
-            return NULL;
-
-        if (!mreq_source->mcast_source_addr.addr)
-            return NULL;
-
-        if (!pico_ipv4_is_unicast(mreq_source->mcast_source_addr.addr))
-            return NULL;
-
-        if (!mreq_source->mcast_link_addr.addr) {
-            mcast_link = pico_ipv4_get_default_mcastlink();
-            if (!mcast_link)
-                return NULL;
-        } else {
-            mcast_link = pico_ipv4_link_get(&mreq_source->mcast_link_addr);
-            if (!mcast_link)
-                return NULL;
-        }
-    }
-
-    return mcast_link;
+    if (!a->addr)
+        return pico_ipv4_get_default_mcastlink();
+    return pico_ipv4_link_get(a);
 }
+
+static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip_mreq *mreq)
+{
+    if (!mreq)
+        return NULL;
+    if (!mreq->mcast_group_addr.addr)
+        return NULL;
+    if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
+        return NULL;
+  return mcast_link(&mreq->mcast_link_addr);
+}
+
+static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_ip_mreq_source *mreq)
+{
+    if (!mreq)
+        return NULL;
+    if (!mreq->mcast_group_addr.addr)
+        return NULL;
+    if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
+        return NULL;
+    if (!pico_ipv4_is_unicast(mreq->mcast_source_addr.addr))
+        return NULL;
+  return mcast_link(&mreq->mcast_link_addr);
+}
+
 
 static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
 {
@@ -311,12 +291,12 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
 
     if (!bysource) {
         mreq = (struct pico_ip_mreq *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(mreq, NULL);
+        mcast_link = pico_socket_setoption_validate_mreq(mreq);
         if (!mreq->mcast_link_addr.addr)
             mreq->mcast_link_addr.addr = mcast_link->address.addr;
     } else {
         mreq_src = (struct pico_ip_mreq_source *) value;
-        mcast_link = pico_socket_setoption_mcastargs_validation(NULL, mreq_src);
+        mcast_link = pico_socket_setoption_validate_s_mreq(mreq_src);
         if (!mreq_src->mcast_link_addr.addr)
             mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
     }
@@ -392,7 +372,7 @@ int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value)
 
     case PICO_IP_MULTICAST_LOOP:
         if (s->proto->proto_number == PICO_PROTO_UDP) {
-            *(uint8_t *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
+            *(uint8_t *)value = (uint8_t)PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
         } else {
             *(uint8_t *)value = 0;
             pico_err = PICO_ERR_EINVAL;
