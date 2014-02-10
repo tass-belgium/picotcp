@@ -574,12 +574,25 @@ void test_zmtp_socket_connect(void)
     zmtp_s = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, socket_type, &dummy_callback);
     TEST_ASSERT_EQUAL_UINT8(zmtp_s->type, socket_type);
 
-
+    /*----=== Test valid arguments ===----*/
     /* Setup mocking objects */
     pico_socket_connect_ExpectAndReturn(zmtp_s->sock, srv_addr, remote_port, 0);
     pico_socket_write_StubWithCallback(stub_callback1);
 
-    /* Tests */
+    /* Test */
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_connect(zmtp_s, srv_addr, remote_port));
+
+    /*----=== Test invalid arguments ===----
+    The zmq_connect only returns -1 if the zmtp_socket was NULL 
+    or if pico_socket_connect returns -1*/
+
+    /* Setup mocking objects */
+    pico_socket_connect_ExpectAndReturn(zmtp_s->sock, srv_addr, remote_port, -1);
+
+    /* Test */
+    TEST_ASSERT_EQUAL_INT(-1, zmtp_socket_connect(zmtp_s, srv_addr, remote_port));
+    TEST_ASSERT_EQUAL_INT(-1, zmtp_socket_connect(NULL, srv_addr, remote_port));
+    
+    
 
 }

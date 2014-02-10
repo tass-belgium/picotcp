@@ -78,7 +78,7 @@ int main(void)
   UnityBegin();
   RUN_TEST(test_zmtp_tests_NeedToImplement, 19);
   RUN_TEST(test_zmtp_socket_send, 24);
-  RUN_TEST(test_zmtp_socket_connect, 556);
+  RUN_TEST(test_zmtp_socket_connect, 557);
 
   return (UnityEnd());
 }
