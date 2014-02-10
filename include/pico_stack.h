@@ -8,7 +8,7 @@
 #include "pico_config.h"
 #include "pico_frame.h"
 
-#define PICO_MAX_TIMERS 20
+#define PICO_MAX_TIMERS 10
 
 #define PICO_ETH_MTU 1514
 #define PICO_IP_MTU 1500u

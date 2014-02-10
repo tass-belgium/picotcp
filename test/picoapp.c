@@ -335,7 +335,9 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
                     udpecho_exit++;
                 }
 
-                pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
+                printf("Received datagram (%d bytes, from port %d)... Echoing back!\n", r, short_be(port));
+
+                pico_socket_sendto(s, recvbuf, r, &peer, port);
             }
         } while (r > 0);
         free(recvbuf);
@@ -1093,7 +1095,7 @@ void app_tcpclient(char *arg)
 
     buffer0 = malloc(TCPSIZ);
     buffer1 = malloc(TCPSIZ);
-    printf("Buffer1 (%p)\n", buffer1);
+    /* printf("Buffer1 (%p)\n", buffer1); */
     for (i = 0; i < TCPSIZ; i++) {
         char c = (i % 26) + 'a';
         buffer0[i] = c;
@@ -1428,7 +1430,7 @@ void app_tcpbench(char *arg)
 
         buffer0 = malloc(TCPSIZ);
         buffer1 = malloc(TCPSIZ);
-        printf("Buffer1 (%p)\n", buffer1);
+        /* printf("Buffer1 (%p)\n", buffer1); */
         for (i = 0; i < TCPSIZ; i++) {
             char c = (i % 26) + 'a';
             buffer0[i] = c;

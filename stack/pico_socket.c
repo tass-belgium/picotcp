@@ -32,16 +32,16 @@
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
-#define LOCK(x) { \
+#define PICOTCP_MUTEX_LOCK(x) { \
         if (x == NULL) \
             x = pico_mutex_init(); \
         pico_mutex_lock(x); \
 }
-#define UNLOCK(x) pico_mutex_unlock(x)
+#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
 
 #else
-#define LOCK(x) do {} while(0)
-#define UNLOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 
@@ -565,14 +565,14 @@ struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote)
 int8_t pico_socket_add(struct pico_socket *s)
 {
     struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
-    LOCK(Mutex);
+    PICOTCP_MUTEX_LOCK(Mutex);
     if (!sp) {
         /* dbg("Creating sockport..%04x\n", s->local_port); / * In comment due to spam during test * / */
         sp = pico_zalloc(sizeof(struct pico_sockport));
 
         if (!sp) {
             pico_err = PICO_ERR_ENOMEM;
-            UNLOCK(Mutex);
+            PICOTCP_MUTEX_UNLOCK(Mutex);
             return -1;
         }
 
@@ -593,7 +593,7 @@ int8_t pico_socket_add(struct pico_socket *s)
 
     pico_tree_insert(&sp->socks, s);
     s->state |= PICO_SOCKET_STATE_BOUND;
-    UNLOCK(Mutex);
+    PICOTCP_MUTEX_UNLOCK(Mutex);
 #if DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
@@ -626,9 +626,12 @@ static void socket_clean_queues(struct pico_socket *sock)
             f_out = pico_dequeue(&sock->q_out);
         }
     }
+#ifdef PICO_SUPPORT_TCP
     /* for tcp sockets go further and clean the sockets inside queue */
     if(sock->proto == &pico_proto_tcp)
         pico_tcp_cleanup_queues(sock);
+#endif
+
 }
 
 static void socket_garbage_collect(pico_time now, void *arg)
@@ -649,7 +652,7 @@ int8_t pico_socket_del(struct pico_socket *s)
         return -1;
     }
 
-    LOCK(Mutex);
+    PICOTCP_MUTEX_LOCK(Mutex);
     pico_tree_delete(&sp->socks, s);
     s->net = NULL;
     if(pico_tree_empty(&sp->socks)) {
@@ -707,7 +710,7 @@ int8_t pico_socket_del(struct pico_socket *s)
 
     s->state = PICO_SOCKET_STATE_CLOSED;
     pico_timer_add(3000, socket_garbage_collect, s);
-    UNLOCK(Mutex);
+    PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
 
@@ -897,8 +900,10 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
         s = pico_tcp_open();
         s->proto = &pico_proto_tcp;
         /*check if Nagle enabled */
-        if (!IS_NAGLE_ENABLED(s))
+        /*
+           if (!IS_NAGLE_ENABLED(s))
             dbg("ERROR Nagle should be enabled here\n\n");
+         */
     }
 
 #endif
@@ -1232,7 +1237,9 @@ while (total_payload_written < len) {
     f->payload += header_offset;
     f->payload_len = (uint16_t)(f->payload_len - header_offset);
     f->sock = s;
+#ifdef PICO_SUPPORT_TCP
     transport_flags_update(f, s);
+#endif
     if (remote_duple) {
         f->info = pico_zalloc(sizeof(struct pico_remote_duple));
         memcpy(f->info, remote_duple, sizeof(struct pico_remote_duple));
@@ -2418,22 +2425,29 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
                 if (s->wakeup) {
                     /* dbg("SOCKET ERROR FROM ICMP NOTIFICATION. (icmp code= %d)\n\n", code); */
                     switch(code) {
+                    case PICO_ICMP_UNREACH_NET:
+                        pico_err = PICO_ERR_ENETUNREACH;
+                        break;
+
+                    case PICO_ICMP_UNREACH_HOST:
+                        pico_err = PICO_ERR_EHOSTUNREACH;
+                        break;
+
                     case PICO_ICMP_UNREACH_PROTOCOL:
-                        pico_err = PICO_ERR_EPROTO;
+                        pico_err = PICO_ERR_ENOPROTOOPT;
                         break;
 
                     case PICO_ICMP_UNREACH_PORT:
                         pico_err = PICO_ERR_ECONNREFUSED;
                         break;
 
-                    case PICO_ICMP_UNREACH_NET:
                     case PICO_ICMP_UNREACH_NET_PROHIB:
                     case PICO_ICMP_UNREACH_NET_UNKNOWN:
                         pico_err = PICO_ERR_ENETUNREACH;
                         break;
 
                     default:
-                        pico_err = PICO_ERR_EHOSTUNREACH;
+                        pico_err = PICO_ERR_EOPNOTSUPP;
                     }
                     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
                     s->wakeup(PICO_SOCK_EV_ERR, s);
