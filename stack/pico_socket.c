@@ -20,6 +20,7 @@
 #include "pico_tree.h"
 #include "pico_device.h"
 #include "pico_socket_multicast.h"
+#include "pico_socket_tcp.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
@@ -47,10 +48,6 @@ static void *Mutex = NULL;
 
 
 #define PROTO(s) ((s)->proto->proto_number)
-
-#ifdef PICO_SUPPORT_TCP
-# define IS_NAGLE_ENABLED(s) (!(!(!(s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY)))))
-#endif
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
@@ -1264,6 +1261,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 
 int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX no check against proto (vs setsockopt) or implicit by socket? */
 {
+
     if (s == NULL) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -1271,102 +1269,26 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX
 
     pico_err = PICO_ERR_NOERR;
 
-    switch (option)
-    {
-#ifdef PICO_SUPPORT_TCP
-    case PICO_TCP_NODELAY:
-        if (!value) {
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-
-        if (s->proto->proto_number == PICO_PROTO_TCP) {
-            int *val = (int*)value;
-            if (*val > 0) {
-                dbg("setsockopt: Nagle algorithm disabled.\n");
-                PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_TCPNODELAY);
-            } else {
-                dbg("setsockopt: Nagle algorithm enabled.\n");
-                PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_TCPNODELAY);
-            }
-        } else {
-            pico_err = PICO_ERR_EINVAL;
-        }
-
-        break;
-#endif
-
-    
-    default:
-        if (pico_setsockopt_mcast(s, option, value) < 0) {
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
-        } else {
-          return 0;
-        }
-    } /* End switch/case */
-    if (pico_err != PICO_ERR_NOERR)
-        return -1;
-    else
-        return 0;
+    if ( (pico_setsockopt_tcp(s, option, value) < 0) &&
+         (pico_setsockopt_mcast(s, option, value) < 0) )
+      return -1;
+    else return 0;
 }
 
-#define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1 << index)) != 0)
 
 int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 {
-    if (!s || !value) {
+    if (s == NULL) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
 
-    switch (option)
-    {
-#ifdef PICO_SUPPORT_TCP
-    case PICO_TCP_NODELAY:
-        if (s->proto->proto_number == PICO_PROTO_TCP)
-            /* state of the NODELAY option */
-            *(int *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_TCPNODELAY);
-        else
-            *(int *)value = 0;
+    pico_err = PICO_ERR_NOERR;
 
-        break;
-#endif
-
-#ifdef PICO_SUPPORT_MCAST
-    case PICO_IP_MULTICAST_IF:
-        pico_err = PICO_ERR_EOPNOTSUPP;
-        return -1;
-
-    case PICO_IP_MULTICAST_TTL:
-        if (s->proto->proto_number == PICO_PROTO_UDP) {
-            pico_udp_get_mc_ttl(s, (uint8_t *) value);
-        } else {
-            *(uint8_t *)value = 0;
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-
-        break;
-
-    case PICO_IP_MULTICAST_LOOP:
-        if (s->proto->proto_number == PICO_PROTO_UDP) {
-            *(uint8_t *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
-        } else {
-            *(uint8_t *)value = 0;
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-
-        break;
-#endif /* PICO_SUPPORT_MCAST */
-
-    default:
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    return 0;
+    if ( (pico_getsockopt_tcp(s, option, value) < 0) &&
+         (pico_getsockopt_mcast(s, option, value) < 0) )
+      return -1;
+    else return 0;
 }
 
 

@@ -211,6 +211,7 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net);
 
 #define PICO_SOCKET_SETOPT_EN(socket, index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket, index) (socket->opt_flags &= (uint16_t) ~(1 << index))
+#define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1 << index)) != 0)
 
 
 #endif

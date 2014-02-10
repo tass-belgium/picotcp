@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "pico_socket.h"
+#include "pico_socket_multicast.h"
 #include "pico_tree.h"
 #include "pico_ipv4.h"
 #include "pico_udp.h"
@@ -370,6 +371,43 @@ void pico_multicast_delete(struct pico_socket *s)
     }
 }
 
+
+int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value)
+{
+    switch(option) {
+    case PICO_IP_MULTICAST_IF:
+        pico_err = PICO_ERR_EOPNOTSUPP;
+        return -1;
+
+    case PICO_IP_MULTICAST_TTL:
+        if (s->proto->proto_number == PICO_PROTO_UDP) {
+            pico_udp_get_mc_ttl(s, (uint8_t *) value);
+        } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+
+        break;
+
+    case PICO_IP_MULTICAST_LOOP:
+        if (s->proto->proto_number == PICO_PROTO_UDP) {
+            *(uint8_t *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
+        } else {
+            *(uint8_t *)value = 0;
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+
+        break;
+    default:
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    
+    return 0;
+}
+
 int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
 {
 
@@ -722,14 +760,53 @@ int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
         break;
 
     default:
+        pico_err = PICO_ERR_EINVAL;
         return -1;
     }
     return 0;
 }
-#else
-int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group, struct pico_ip4 *src)
+
+int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
 {
+    struct pico_socket_udp *u;
+    if(!s) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    u = (struct pico_socket_udp *) s;
+    u->mc_ttl = ttl;
     return 0;
 }
+
+int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
+{
+    struct pico_socket_udp *u;
+    if(!s)
+        return -1;
+
+    u = (struct pico_socket_udp *) s;
+    *ttl = u->mc_ttl;
+    return 0;
+}
+#else
+int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
+{
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
+int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
+{
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
+int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group, struct pico_ip4 *src)
+{
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
 #endif /* PICO_SUPPORT_MCAST */
 

@@ -135,8 +135,6 @@ ifneq ($(TCP),0)
 endif
 ifneq ($(UDP),0)
   include rules/udp.mk
-else
-  MCAST=0
 endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk
