@@ -148,7 +148,7 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev == PICO_SOCK_EV_ERR) {
-        fprintf("Socket Error received: %s Bailing out.\n", strerror(pico_err));
+        fprintf(stderr, "Socket Error received: %s Bailing out.\n", strerror(pico_err));
         free(udpclient_pas);
         exit(7);
     }

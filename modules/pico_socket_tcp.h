@@ -24,5 +24,6 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f);
 void pico_socket_tcp_delete(struct pico_socket *s);
 void pico_socket_tcp_cleanup(struct pico_socket *sock);
 struct pico_socket *pico_socket_tcp_open(void);
+int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 
 #endif

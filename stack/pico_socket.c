@@ -587,25 +587,13 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
         return -1;
     }
 
-#ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP)
-        return pico_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+        return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+    
+    else if (PROTO(s) == PICO_PROTO_TCP) 
+        return pico_socket_tcp_read(s, buf, (uint32_t)len);
 
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-    if (PROTO(s) == PICO_PROTO_TCP) {
-        /* check if in shutdown state and if no more data in tcpq_in */
-        if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
-            pico_err = PICO_ERR_ESHUTDOWN;
-            return -1;
-        } else {
-            return (int)pico_tcp_read(s, buf, (uint32_t)len);
-        }
-    }
-
-#endif
-    return 0;
+    else return 0;
 }
 
 int pico_socket_write(struct pico_socket *s, const void *buf, int len)
