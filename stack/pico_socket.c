@@ -766,6 +766,10 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
             /* socket remote info could change in a consecutive call, make persistent */
             if (PROTO(s) == PICO_PROTO_UDP) {
                 remote_duple = pico_zalloc(sizeof(struct pico_remote_duple));
+                if (!remote_duple) {
+                    pico_err = PICO_ERR_ENOMEM;
+                    return -1;
+                }
                 remote_duple->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
                 remote_duple->remote_port = remote_port;
             }
@@ -1119,11 +1123,6 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
 
     if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
         pico_err = PICO_ERR_EISCONN;
-        return -1;
-    }
-
-    if (backlog < 1) {
-        pico_err = PICO_ERR_EINVAL;
         return -1;
     }
 
