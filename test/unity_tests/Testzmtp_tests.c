@@ -641,22 +641,68 @@ void test_zmtp_socket_open(void)
 void test_zmtp_socket_bind(void)
 {
    struct zmtp_socket* zmtp_s;
-   struct zmq_socket* zmq_s;
+   struct pico_socket* pico_s;
    uint16_t port = 23445;
 
    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
-   zmq_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
    /*----=== Test empty sockets ===----*/
    /*we don't test pico_socket_bind here so we can use whatever value for the local_addr and port*/
    TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(NULL, NULL, &port), PICO_ERR_EFAULT);
    TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(zmtp_s, NULL, &port), PICO_ERR_EFAULT);
 
    /*----=== Test valid arguments ===----*/
-   zmtp_s->sock = zmq_s;
+   zmtp_s->sock = pico_s;
    pico_socket_bind_IgnoreAndReturn(0);
    TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(zmtp_s, NULL, &port), 0);
    
    free(zmtp_s);
-   free(zmq_s);
+   free(pico_s);
    
 }
+
+void test_zmtp_socket_close(void)
+{
+   struct zmtp_socket* zmtp_s;
+   struct pico_socket* pico_s;
+   zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
+   /*----=== Test empty sockets ===----*/
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(NULL), -1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s),-1);
+
+   zmtp_s->sock = pico_s;
+   pico_socket_close_IgnoreAndReturn(-1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), -1);
+   /*----=== Test valid arguments ===----*/
+   pico_socket_close_IgnoreAndReturn(0);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), 0);
+
+   free(zmtp_s);
+   free(pico_s);
+}
+
+void test_zmtp_socket_read(void)
+{
+   struct zmtp_socket* zmtp_s;
+   struct pico_socket* pico_s;
+   int buffLen = 20;
+   char buff[buffLen];
+   zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
+   /*----=== Test empty sockets ===----*/
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(NULL, (void*)buff, buffLen), -1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), -1);
+   /*invalid buff or buffLen should be handled by pico_socket*/
+
+   zmtp_s->sock = pico_s;
+   pico_socket_read_IgnoreAndReturn(-1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), -1);
+   /*----=== Test valid arguments ===----*/
+   pico_socket_read_IgnoreAndReturn(0);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), 0);
+
+   free(zmtp_s);
+   free(pico_s);
+}
+

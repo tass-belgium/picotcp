@@ -225,7 +225,16 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 
 int8_t zmtp_socket_close(struct zmtp_socket *s)
 {
-    return 0;
+    int ret;
+    if(NULL==s || NULL==s->sock)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    s->snd_state = ST_SND_IDLE;
+    s->rcv_state = ST_RCV_IDLE;
+    return pico_socket_close(s->sock);
 }
 
 
@@ -268,4 +277,17 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     pico_tree_insert(&zmtp_sockets, s);
 
     return s;
+}
+
+int zmtp_socket_read(struct zmtp_socket* s, void* buff, int len)
+{
+    int retval = -1;
+    if (NULL==s || NULL==s->sock)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        retval = -1;
+    } else {
+        retval = pico_socket_read(s->sock, buff, len);
+    }
+    return retval;
 }
