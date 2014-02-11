@@ -133,25 +133,22 @@ static int32_t socket_cmp(void *ka, void *kb)
 
     /* First, order by network ver */
     ret = socket_cmp_family(a, b);
-    if (ret)
-      return ret;
 
     /* At this point, sort by local host */
-    ret = socket_cmp_ipv6(a, b);
-    if (ret)
-      return ret;
+    if (ret == 0)
+      ret = socket_cmp_ipv6(a, b);
 
-    ret = socket_cmp_ipv4(a, b);
-    if (ret)
-      return ret;
+    if (ret == 0)
+      ret = socket_cmp_ipv4(a, b);
     
     /* Sort by remote host */
-    ret = socket_cmp_remotehost(a, b);
-    if (ret)
-      return ret;
+    if (ret == 0)
+      ret = socket_cmp_remotehost(a, b);
     
     /* And finally by remote port. The two sockets are coincident if the quad is the same. */
-    return b->remote_port - a->remote_port;
+    if (ret == 0)
+      ret = b->remote_port - a->remote_port;
+    return ret;
 }
 
 
