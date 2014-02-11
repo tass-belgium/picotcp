@@ -508,45 +508,60 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     return pico_socket_transport_deliver(p, sp, f);
 }
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
+static int pico_socket_set_family(struct pico_socket *s, uint16_t family)
 {
+  (void) family;
 
+  #ifdef PICO_SUPPORT_IPV4
+    if (family == PICO_PROTO_IPV4)
+        s->net = &pico_proto_ipv4;
+  #endif
+
+  #ifdef PICO_SUPPORT_IPV6
+    if (family == PICO_PROTO_IPV6)
+        s->net = &pico_proto_ipv6;
+  #endif
+
+  if (s->net == NULL)
+    return -1;
+  return 0;
+}
+
+static struct pico_socket *pico_socket_transport_open(uint16_t proto)
+{
     struct pico_socket *s = NULL;
-
     if (proto == PICO_PROTO_UDP)
         s = pico_socket_udp_open();
 
     if (proto == PICO_PROTO_TCP)
         s = pico_socket_tcp_open();
 
+    return s;
+
+}
+
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
+{
+
+    struct pico_socket *s = NULL;
+
+    s = pico_socket_transport_open(proto);
+
     if (!s) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return NULL;
     }
 
-#ifdef PICO_SUPPORT_IPV4
-    if (net == PICO_PROTO_IPV4)
-        s->net = &pico_proto_ipv4;
-
-#endif
-
-#ifdef PICO_SUPPORT_IPV6
-    if (net == PICO_PROTO_IPV6)
-        s->net = &pico_proto_ipv6;
-
-#endif
-
-    s->q_in.max_size = PICO_DEFAULT_SOCKETQ;
-    s->q_out.max_size = PICO_DEFAULT_SOCKETQ;
-
-    s->wakeup = wakeup;
-
-    if (!s->net) {
+    if (pico_socket_set_family(s, net) != 0) {
         pico_free(s);
         pico_err = PICO_ERR_ENETUNREACH;
         return NULL;
     }
 
+    s->q_in.max_size = PICO_DEFAULT_SOCKETQ;
+    s->q_out.max_size = PICO_DEFAULT_SOCKETQ;
+
+    s->wakeup = wakeup;
     return s;
 }
 
