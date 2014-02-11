@@ -12,6 +12,10 @@ struct pico_socket *pico_socket_udp_open(void)
     struct pico_socket *s = NULL;
 #ifdef PICO_SUPPORT_UDP
     s = pico_udp_open();
+    if (!s) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
     s->proto = &pico_proto_udp;
     s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
 #endif

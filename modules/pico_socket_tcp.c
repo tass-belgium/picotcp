@@ -136,6 +136,10 @@ struct pico_socket *pico_socket_tcp_open(void)
     struct pico_socket *s = NULL;
 #ifdef PICO_SUPPORT_TCP
     s = pico_tcp_open();
+    if (!s) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
     s->proto = &pico_proto_tcp;
     /*check if Nagle enabled */
     /*
