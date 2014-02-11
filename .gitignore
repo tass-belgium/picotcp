@@ -7,3 +7,4 @@ tmp/
 *.swp
 *.orig
 *Runner.c
+*_tests
