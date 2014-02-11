@@ -499,128 +499,129 @@ int pico_http_close(uint16_t conn)
     }
 }
 
+static int parseRequestConsumeFullLine(struct httpClient *client, char *line)
+{
+    char c;
+    uint32_t index = 0;
+    /* consume the full line */
+    while(consumeChar(c) > 0) /* read char by char only the first line */
+    {
+        line[++index] = c;
+        if(c == '\n')
+            break;
+
+        if(index >= HTTP_HEADER_MAX_LINE)
+        {
+            dbg("Size exceeded \n");
+            return HTTP_RETURN_ERROR;
+        }
+    }
+    return (int)index;
+}
+
+static int parseRequestExtractFunction(char *line, int index, const char *method)
+{
+    uint8_t len = (uint8_t)strlen(method);
+
+    /* extract the function and the resource */
+    if(memcmp(line, method, len) || line[len] != ' ' || index < 10 || line[index] != '\n')
+    {
+        dbg("Wrong command or wrong ending\n");
+        return HTTP_RETURN_ERROR;
+    }
+    return 0;
+}
+
+static int parseRequestReadResource(struct httpClient *client, int method_length, char *line)
+{
+    uint32_t index;
+
+    /* start reading the resource */
+    index = (uint32_t)method_length + 1; /* go after ' ' */
+    while(line[index] != ' ')
+    {
+        if(line[index] == '\n') /* no terminator ' ' */
+        {
+	    dbg("No terminator...\n");
+	    return HTTP_RETURN_ERROR;
+        }
+
+        index++;
+    }
+    client->resource = pico_zalloc(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
+
+    if(!client)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        return HTTP_RETURN_ERROR;
+    }
+
+    /* copy the resource */
+    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by pico_zalloc */
+    return 0;
+}
+
+static int parseRequestGet(struct httpClient *client, char *line)
+{
+    int ret;
+
+    ret = parseRequestConsumeFullLine(client, line);
+    if(ret < 0)
+        return ret;
+
+    ret = parseRequestExtractFunction(line, ret, "GET");
+    if(ret)
+        return ret;
+
+    ret = parseRequestReadResource(client, strlen("GET"), line);
+    if(ret)
+        return ret;
+
+    client->state = HTTP_WAIT_EOF_HDR;
+    client->method = HTTP_METHOD_GET;
+    return HTTP_RETURN_OK;
+}
+
+static int parseRequestPost(struct httpClient *client, char *line)
+{
+    int ret;
+
+    ret = parseRequestConsumeFullLine(client, line);
+    if(ret < 0)
+        return ret;
+
+    ret = parseRequestExtractFunction(line, ret, "POST");
+    if(ret)
+        return ret;
+
+    ret = parseRequestReadResource(client, strlen("POST"), line);
+    if(ret)
+        return ret;
+
+    client->state = HTTP_WAIT_EOF_HDR;
+    client->method = HTTP_METHOD_POST;
+    return HTTP_RETURN_OK;
+}
+
 /* check the integrity of the request */
 int parseRequest(struct httpClient *client)
 {
     char c;
+    char line[HTTP_HEADER_MAX_LINE];
     /* read first line */
     consumeChar(c);
+    line[0] = c;
     if(c == 'G')
     { /* possible GET */
-
-        char line[HTTP_HEADER_MAX_LINE];
-        uint32_t index = 0;
-
-        line[index] = c;
-
-        /* consume the full line */
-        while(consumeChar(c) > 0) /* read char by char only the first line */
-        {
-            line[++index] = c;
-            if(c == '\n')
-                break;
-
-            if(index >= HTTP_HEADER_MAX_LINE)
-            {
-                dbg("Size exceeded \n");
-                return HTTP_RETURN_ERROR;
-            }
-        }
-        /* extract the function and the resource */
-        if(memcmp(line, "GET", 3u) || line[3u] != ' ' || index < 10u || line[index] != '\n')
-        {
-            dbg("Wrong command or wrong ending\n");
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* start reading the resource */
-        index = 4u; /* go after ' ' */
-        while(line[index] != ' ')
-        {
-            if(line[index] == '\n') /* no terminator ' ' */
-            {
-                dbg("No terminator...\n");
-                return HTTP_RETURN_ERROR;
-            }
-
-            index++;
-        }
-        client->resource = pico_zalloc(index - 3u); /* allocate without the GET in front + 1 which is \0 */
-
-        if(!client)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* copy the resource */
-        memcpy(client->resource, line + 4u, index - 4u); /* copy without the \0 which was already set by pico_zalloc */
-
-        client->state = HTTP_WAIT_EOF_HDR;
-        client->method = HTTP_METHOD_GET;
-        return HTTP_RETURN_OK;
+        return parseRequestGet(client, line);
     }
-
-    if(c == 'P')
+    else if(c == 'P')
     { /* possible POST */
-
-        char line[HTTP_HEADER_MAX_LINE];
-        uint32_t index = 0;
-
-        line[index] = c;
-
-        /* consume the full line */
-        while(consumeChar(c) > 0) /* read char by char only the first line */
-        {
-            line[++index] = c;
-            if(c == '\n')
-                break;
-
-            if(index >= HTTP_HEADER_MAX_LINE)
-            {
-                dbg("Size exceeded \n");
-                return HTTP_RETURN_ERROR;
-            }
-        }
-        /* extract the function and the resource */
-        if(memcmp(line, "POST", 4u) || line[4u] != ' ' || index < 10u || line[index] != '\n')
-        {
-            dbg("Wrong command or wrong ending\n");
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* start reading the resource */
-        index = 5u; /* go after ' ' */
-        while(line[index] != ' ')
-        {
-            if(line[index] == '\n') /* no terminator ' ' */
-            {
-                dbg("No terminator...\n");
-                return HTTP_RETURN_ERROR;
-            }
-
-            index++;
-        }
-        client->resource = pico_zalloc(index - 4u); /* allocate without the POST in front + 1 which is \0 */
-
-        if(!client)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* copy the resource */
-        memcpy(client->resource, line + 5u, index - 5u); /* copy without the \0 which was already set by pico_zalloc */
-
-        client->state = HTTP_WAIT_EOF_HDR;
-        client->method = HTTP_METHOD_POST;
-        return HTTP_RETURN_OK;
+        return parseRequestPost(client, line);
     }
 
     return HTTP_RETURN_ERROR;
 }
-
-
 
 int readRemainingHeader(struct httpClient *client)
 {
