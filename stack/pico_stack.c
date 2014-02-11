@@ -273,6 +273,7 @@ static int32_t pico_ll_receive(struct pico_frame *f)
     struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
     if (0) { }
+
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
     else if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
@@ -437,11 +438,11 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
     else {
-#if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH) 
+#if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
         dstmac = pico_arp_get(f);
         if (!dstmac)
 #endif
-            return 0;
+        return 0;
     }
 
     /* This sets destination and source address, then pushes the packet to the device. */

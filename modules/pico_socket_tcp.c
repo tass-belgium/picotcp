@@ -12,8 +12,10 @@ int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
             *(int *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_TCPNODELAY);
         else
             *(int *)value = 0;
+
         return 0;
     }
+
 #endif
     return -1;
 }
@@ -36,11 +38,13 @@ int pico_setsockopt_tcp(struct pico_socket *s, int option, void *value)
                 dbg("setsockopt: Nagle algorithm enabled.\n");
                 PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_TCPNODELAY);
             }
+
             return 0;
         } else {
             pico_err = PICO_ERR_EINVAL;
         }
     }
+
 #endif
     return -1;
 }
@@ -51,6 +55,7 @@ void pico_socket_tcp_cleanup(struct pico_socket *sock)
     /* for tcp sockets go further and clean the sockets inside queue */
     if(sock->proto == &pico_proto_tcp)
         pico_tcp_cleanup_queues(sock);
+
 #endif
 }
 
@@ -60,6 +65,7 @@ void pico_socket_tcp_delete(struct pico_socket *s)
 #ifdef PICO_SUPPORT_TCP
     if(s->parent)
         s->parent->number_of_pending_conn--;
+
 #endif
 }
 
@@ -70,7 +76,7 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
     struct pico_tree_node *_tmp;
     struct pico_trans *tr = (struct pico_trans *) f->transport_hdr;
     struct pico_socket *s = NULL;
-    
+
 
     pico_tree_foreach_safe(index, &sp->socks, _tmp){
         s = index->keyValue;
@@ -94,8 +100,9 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
                 found = s;
             }
         }
+
         #endif
-        #ifdef PICO_SUPPORT_IPV6 
+        #ifdef PICO_SUPPORT_IPV6
         if (IS_IPV6(f)) {
             struct pico_ipv6_hdr *ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
             if ((s->remote_port == localport)) {
@@ -106,6 +113,7 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
                 found = s;
             }
         }
+
         #endif
     } /* FOREACH */
     if (found != NULL) {
@@ -115,10 +123,11 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
             if(!found->parent)
                 found->ev_pending = 0;
         }
+
         return 0;
     } else {
-       dbg("TCP SOCKET> Not found.\n");
-       return -1;
+        dbg("TCP SOCKET> Not found.\n");
+        return -1;
     }
 }
 
@@ -135,4 +144,19 @@ struct pico_socket *pico_socket_tcp_open(void)
      */
 #endif
     return s;
+}
+
+int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
+{
+#ifdef PICO_SUPPORT_TCP
+    /* check if in shutdown state and if no more data in tcpq_in */
+    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
+        pico_err = PICO_ERR_ESHUTDOWN;
+        return -1;
+    } else {
+        return (int)(pico_tcp_read(s, buf, (uint32_t)len));
+    }
+
+#endif
+    return 0;
 }

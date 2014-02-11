@@ -72,56 +72,96 @@ static struct pico_sockport *sp_udp = NULL, *sp_tcp = NULL;
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
-static int32_t socket_cmp(void *ka, void *kb)
+static int32_t socket_cmp_family(struct pico_socket *a, struct pico_socket *b)
 {
-    struct pico_socket *a = ka, *b = kb;
     uint32_t a_is_ip6 = is_sock_ipv6(a);
     uint32_t b_is_ip6 = is_sock_ipv6(b);
-
-    int32_t diff;
-
-    /* First, order by network ver */
+    (void)a;
+    (void)b;
     if (a_is_ip6 < b_is_ip6)
         return -1;
 
     if (a_is_ip6 > b_is_ip6)
         return 1;
 
-    /* If either socket is PICO_IPV4_INADDR_ANY mode, skip local address comparison */
+    return 0;
+}
 
-    /* At this point, sort by local host */
 
-    if (0) {
+static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    (void)a;
+    (void)b;
 #ifdef PICO_SUPPORT_IPV6
-    } else if (a_is_ip6) {
-        if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || memcmp((b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
-            diff = 0;
-        else
-            diff = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
+    if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || memcmp((b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
+        ret = 0;
+    else
+        ret = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
 
 #endif
-    } else {
-        if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
-            diff = 0;
-        else
-            diff = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
-    }
+    return ret;
+}
 
-    if (diff)
-        return diff;
+static int32_t socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    (void)a;
+    (void)b;
+#ifdef PICO_SUPPORT_IPV4
+    if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
+        ret = 0;
+    else
+        ret = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
 
+#endif
+    return ret;
+}
+
+static int32_t socket_cmp_remotehost(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    if (is_sock_ipv6(a))
+        ret = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
+    else
+        ret = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
+
+    return ret;
+}
+
+static int32_t socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    /* At this point, sort by local host */
+    ret = socket_cmp_ipv6(a, b);
+
+    if (ret == 0)
+        ret = socket_cmp_ipv4(a, b);
 
     /* Sort by remote host */
-    if (a_is_ip6)
-        diff = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
-    else
-        diff = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
+    if (ret == 0)
+        ret = socket_cmp_remotehost(a, b);
 
-    if (diff)
-        return diff;
+    return 0;
+}
+
+static int32_t socket_cmp(void *ka, void *kb)
+{
+    struct pico_socket *a = ka, *b = kb;
+    int32_t ret = 0;
+
+    /* First, order by network family */
+    ret = socket_cmp_family(a, b);
+
+    /* Then, compare by source/destination addresses */
+    if (ret == 0)
+        ret = socket_cmp_addresses(a, b);
 
     /* And finally by remote port. The two sockets are coincident if the quad is the same. */
-    return b->remote_port - a->remote_port;
+    if (ret == 0)
+        ret = b->remote_port - a->remote_port;
+
+    return ret;
 }
 
 
@@ -156,10 +196,65 @@ struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
     else return NULL;
 }
 
+static int pico_port_in_use_by_nat(uint16_t proto, uint16_t port)
+{
+    int ret = 0;
+    (void) proto;
+    (void) port;
+#ifdef PICO_SUPPORT_NAT
+    if (pico_ipv4_nat_find(port, NULL, 0, (uint8_t)proto)) {
+        dbg("In use by nat....\n");
+        ret = 1;
+    }
+
+#endif
+    return ret;
+}
+
+static int pico_port_in_use_with_this_address(struct pico_sockport *sp, struct pico_ip4 ip)
+{
+    if (sp) {
+        struct pico_ip4 *s_local;
+        struct pico_tree_node *idx;
+        struct pico_socket *s;
+        pico_tree_foreach(idx, &sp->socks) {
+            s = idx->keyValue;
+            if (s->net == &pico_proto_ipv4) {
+                s_local = (struct pico_ip4*) &s->local_addr;
+                if ((s_local->addr == PICO_IPV4_INADDR_ANY) || (s_local->addr == ip.addr)) {
+                    return 1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int pico_port_in_use(struct pico_sockport *sp, void *addr)
+{
+    struct pico_ip4 ip;
+    /* IPv4 */
+    if (addr)
+        ip.addr = ((struct pico_ip4 *)addr)->addr;
+    else
+        ip.addr = PICO_IPV4_INADDR_ANY;
+
+    if (ip.addr == PICO_IPV4_INADDR_ANY) {
+        if (!sp)
+            return 0;
+        else {
+            dbg("In use, and asked for ANY\n");
+            return 1;
+        }
+    }
+
+    return pico_port_in_use_with_this_address(sp, ip);
+}
+
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 {
     struct pico_sockport *sp;
-    struct pico_ip4 ip;
     sp = pico_get_sockport(proto, port);
 
     if (!net)
@@ -171,42 +266,16 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
         return (!sp);
     }
 
-    /* IPv4 */
-#ifdef PICO_SUPPORT_NAT
-    if (pico_ipv4_nat_find(port, NULL, 0, (uint8_t)proto)) {
-        dbg("In use by nat....\n");
+    if (pico_port_in_use_by_nat(proto, port)) {
         return 0;
     }
 
-#endif
-    if (addr)
-        ip.addr = ((struct pico_ip4 *)addr)->addr;
-    else
-        ip.addr = PICO_IPV4_INADDR_ANY;
-
-    if (ip.addr == PICO_IPV4_INADDR_ANY) {
-        if (!sp) return 1;
-        else {
-            dbg("In use, and asked for ANY\n");
-            return 0;
-        }
-    }
-
-    if (sp) {
-        struct pico_ip4 *s_local;
-        struct pico_tree_node *idx;
-        struct pico_socket *s;
-        pico_tree_foreach(idx, &sp->socks) {
-            s = idx->keyValue;
-            if (s->net == &pico_proto_ipv4) {
-                s_local = (struct pico_ip4*) &s->local_addr;
-                if ((s_local->addr == PICO_IPV4_INADDR_ANY) || (s_local->addr == ip.addr))
-                    return 0;
-            }
-        }
+    if (pico_port_in_use(sp, addr)) {
+        return 0;
     }
 
     return 1;
+
 }
 
 static int pico_check_socket(struct pico_socket *s)
@@ -360,6 +429,7 @@ int8_t pico_socket_del(struct pico_socket *s)
         pico_free(sp);
 
     }
+
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
 
@@ -587,25 +657,13 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
         return -1;
     }
 
-#ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP)
-        return pico_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+        return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
 
-#endif
+    else if (PROTO(s) == PICO_PROTO_TCP)
+        return pico_socket_tcp_read(s, buf, (uint32_t)len);
 
-#ifdef PICO_SUPPORT_TCP
-    if (PROTO(s) == PICO_PROTO_TCP) {
-        /* check if in shutdown state and if no more data in tcpq_in */
-        if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
-            pico_err = PICO_ERR_ESHUTDOWN;
-            return -1;
-        } else {
-            return (int)pico_tcp_read(s, buf, (uint32_t)len);
-        }
-    }
-
-#endif
-    return 0;
+    else return 0;
 }
 
 int pico_socket_write(struct pico_socket *s, const void *buf, int len)
@@ -1168,9 +1226,9 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX
 
     pico_err = PICO_ERR_NOERR;
 
-    if ( (pico_setsockopt_tcp(s, option, value) < 0) &&
-         (pico_setsockopt_mcast(s, option, value) < 0) )
-      return -1;
+    if ((pico_setsockopt_tcp(s, option, value) < 0) &&
+        (pico_setsockopt_mcast(s, option, value) < 0))
+        return -1;
     else return 0;
 }
 
@@ -1184,9 +1242,9 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
     pico_err = PICO_ERR_NOERR;
 
-    if ( (pico_getsockopt_tcp(s, option, value) < 0) &&
-         (pico_getsockopt_mcast(s, option, value) < 0) )
-      return -1;
+    if ((pico_getsockopt_tcp(s, option, value) < 0) &&
+        (pico_getsockopt_mcast(s, option, value) < 0))
+        return -1;
     else return 0;
 }
 
