@@ -30,12 +30,12 @@ void test_zmq_socket_req(void)
 {
     struct zmq_socket_base* temp = NULL;
     /* Testing request */
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMQ_TYPE_REQ, &cb_zmtp_sockets, NULL);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMQ_TYPE_REQ, &cb_zmtp_sockets, &dummy_req);
-    TEST_ASSERT_NULL(zmq_socket(NULL, ZMQ_TYPE_REQ));
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, NULL);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, &dummy_req);
+    TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_REQ));
 
-    temp = (struct zmq_socket_base *)zmq_socket(NULL, ZMQ_TYPE_REQ);
-    TEST_ASSERT_EQUAL(temp->type, ZMQ_TYPE_REQ);
+    temp = (struct zmq_socket_base *)zmq_socket(NULL, ZMTP_TYPE_REQ);
+    TEST_ASSERT_EQUAL(temp->type, ZMTP_TYPE_REQ);
 
     /* Test invalid 0mq socket type */
     TEST_ASSERT_NULL(zmq_socket(NULL, 9));    //is not one of the defined types (REP, REQ, SUBSCRIBER, PUBLISHE ... )
