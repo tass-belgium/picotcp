@@ -21,6 +21,11 @@ LIBS=Libraries
 TEST_FRAMEWORK = $(UNITY)/unity.c \
 	  $(CMOCK)/cmock.c \
 
+ZMTP_SRC = $(PICOTCP)/modules/pico_zmtp.c \
+    $(PICOTCP)/modules/pico_zmtp.h
+
+ZMQ_SRC = $(PICOTCP)/modules/pico_zmq.c \
+    $(PICOTCP)/modules/pico_zmq.h
 
 TEST_ZMQ_TESTS = Testzmq_tests.c
 TEST_ZMTP_TESTS = Testzmtp_tests.c
@@ -61,13 +66,13 @@ CFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(
 all: zmtp_tests zmq_tests vector_tests vector_extension_tests
 
 
-zmq_tests: $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC)
+zmq_tests: $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(ZMQ_SRC)
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
 	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS_RUNNER)
 
 
-zmtp_tests: $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC)
+zmtp_tests: $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC) $(ZMTP_SRC)
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
 	#ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_socket.h
 	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT) ../../include/pico_vector.h
