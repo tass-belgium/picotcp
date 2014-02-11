@@ -77,8 +77,8 @@ pico_arp_hdr
 
 
 
-/* Callback handler for ip conflict service (e.g. IPv4 SLAAC) 
- *  Whenever the IP address registered here is seen in the network, 
+/* Callback handler for ip conflict service (e.g. IPv4 SLAAC)
+ *  Whenever the IP address registered here is seen in the network,
  *  the callback is awaken to take countermeasures against IP collisions.
  *
  */
@@ -181,7 +181,7 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     struct pico_ipv4_link *l;
     if (!hdr)
-      return NULL;
+        return NULL;
 
     l = pico_ipv4_link_get(&hdr->dst);
     if(l) {
@@ -261,10 +261,10 @@ int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_dev
 static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
 {
 
-    if ( (conflict_ipv4.conflict) && 
-        ((conflict_ipv4.ip.addr == hdr->src.addr) && 
-        (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0)) )
-          conflict_ipv4.conflict();
+    if ((conflict_ipv4.conflict) &&
+        ((conflict_ipv4.ip.addr == hdr->src.addr) &&
+         (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0)))
+        conflict_ipv4.conflict();
 }
 
 static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
@@ -291,6 +291,7 @@ static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
             found->timestamp = PICO_TIME();
         }
     }
+
     return found;
 }
 
@@ -300,6 +301,7 @@ static int pico_arp_check_incoming_hdr_type(struct pico_arp_hdr *h)
     /* Check the hardware type and protocol */
     if ((h->htype != PICO_ARP_HTYPE_ETH) || (h->ptype != PICO_IDETH_IPV4))
         return -1;
+
     return 0;
 }
 
@@ -362,6 +364,7 @@ static int pico_arp_check_flooding(struct pico_frame *f, struct pico_ip4 me)
     /* Check if we are the target IP address */
     if (link_dev != f->dev)
         return -1;
+
     return 0;
 }
 
@@ -372,6 +375,7 @@ static int pico_arp_process_in(struct pico_frame *f, struct pico_arp_hdr *hdr, s
         pico_frame_discard(f);
         return -1;
     }
+
     if (pico_arp_check_flooding(f, me) < 0) {
         pico_frame_discard(f);
         return -1;
@@ -401,6 +405,7 @@ int pico_arp_receive(struct pico_frame *f)
     hdr = (struct pico_arp_hdr *) f->net_hdr;
     if (!hdr)
         return -1;
+
     pico_arp_check_conflict(hdr);
     found = pico_arp_lookup_entry(f);
     return pico_arp_process_in(f, hdr, found);
