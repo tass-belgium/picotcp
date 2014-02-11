@@ -72,54 +72,84 @@ static struct pico_sockport *sp_udp = NULL, *sp_tcp = NULL;
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
-static int32_t socket_cmp(void *ka, void *kb)
+static int32_t socket_cmp_family(struct pico_socket *a, struct pico_socket *b)
 {
-    struct pico_socket *a = ka, *b = kb;
     uint32_t a_is_ip6 = is_sock_ipv6(a);
     uint32_t b_is_ip6 = is_sock_ipv6(b);
-
-    int32_t diff;
-
-    /* First, order by network ver */
+    (void)a;
+    (void)b;
     if (a_is_ip6 < b_is_ip6)
         return -1;
 
     if (a_is_ip6 > b_is_ip6)
         return 1;
+    return 0;
+}
 
-    /* If either socket is PICO_IPV4_INADDR_ANY mode, skip local address comparison */
+
+static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    (void)a;
+    (void)b;
+#ifdef PICO_SUPPORT_IPV6
+        if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || memcmp((b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
+            ret = 0;
+        else
+            ret = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
+#endif
+    return ret;
+}
+
+static int32_t socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    (void)a;
+    (void)b;
+#ifdef PICO_SUPPORT_IPV4
+    if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
+        ret = 0;
+    else
+        ret = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
+#endif
+    return ret;
+}
+
+static int32_t socket_cmp_remotehost(struct pico_socket *a, struct pico_socket *b)
+{
+    int32_t ret = 0;
+    if (is_sock_ipv6(a))
+        ret = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
+    else
+        ret = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
+    return ret;
+}
+
+
+static int32_t socket_cmp(void *ka, void *kb)
+{
+    struct pico_socket *a = ka, *b = kb;
+    int32_t ret = 0;
+
+    /* First, order by network ver */
+    ret = socket_cmp_family(a, b);
+    if (ret)
+      return ret;
 
     /* At this point, sort by local host */
+    ret = socket_cmp_ipv6(a, b);
+    if (ret)
+      return ret;
 
-    if (0) {
-#ifdef PICO_SUPPORT_IPV6
-    } else if (a_is_ip6) {
-        if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || memcmp((b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
-            diff = 0;
-        else
-            diff = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
-
-#endif
-    } else {
-        if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
-            diff = 0;
-        else
-            diff = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
-    }
-
-    if (diff)
-        return diff;
-
-
+    ret = socket_cmp_ipv4(a, b);
+    if (ret)
+      return ret;
+    
     /* Sort by remote host */
-    if (a_is_ip6)
-        diff = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
-    else
-        diff = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
-
-    if (diff)
-        return diff;
-
+    ret = socket_cmp_remotehost(a, b);
+    if (ret)
+      return ret;
+    
     /* And finally by remote port. The two sockets are coincident if the quad is the same. */
     return b->remote_port - a->remote_port;
 }
