@@ -252,6 +252,19 @@ static int pico_port_in_use(struct pico_sockport *sp, void *addr)
     return pico_port_in_use_with_this_address(sp, ip);
 }
 
+static int pico_generic_port_in_use(uint16_t proto, uint16_t port, struct pico_sockport *sp, void *addr)
+{
+
+    if (pico_port_in_use_by_nat(proto, port)) {
+        return 1;
+    }
+
+    if (pico_port_in_use(sp, addr)) {
+        return 1;
+    }
+    return 0;
+}
+
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 {
     struct pico_sockport *sp;
@@ -266,16 +279,10 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
         return (!sp);
     }
 
-    if (pico_port_in_use_by_nat(proto, port)) {
-        return 0;
-    }
-
-    if (pico_port_in_use(sp, addr)) {
-        return 0;
-    }
+    if (pico_generic_port_in_use(proto, port, sp, addr))
+      return 0;
 
     return 1;
-
 }
 
 static int pico_check_socket(struct pico_socket *s)
@@ -300,7 +307,7 @@ static int pico_check_socket(struct pico_socket *s)
     return -1;
 }
 
-struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote)
+struct pico_socket *pico_sockets_find(uint16_t local, uint16_t remote)
 {
     struct pico_socket *sock = NULL;
     struct pico_tree_node *index = NULL;
@@ -400,18 +407,9 @@ static void socket_garbage_collect(pico_time now, void *arg)
     pico_free(s);
 }
 
-int8_t pico_socket_del(struct pico_socket *s)
+
+static void pico_socket_check_empty_sockport(struct pico_socket *s, struct pico_sockport *sp)
 {
-    struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
-
-    if (!sp) {
-        pico_err = PICO_ERR_ENXIO;
-        return -1;
-    }
-
-    PICOTCP_MUTEX_LOCK(Mutex);
-    pico_tree_delete(&sp->socks, s);
-    s->net = NULL;
     if(pico_tree_empty(&sp->socks)) {
         if (PROTO(s) == PICO_PROTO_UDP)
         {
@@ -422,22 +420,42 @@ int8_t pico_socket_del(struct pico_socket *s)
             pico_tree_delete(&TCPTable, sp);
         }
 
-        if(sp_tcp == sp) sp_tcp = NULL;
+        if(sp_tcp == sp) 
+            sp_tcp = NULL;
 
-        if(sp_udp == sp) sp_udp = NULL;
+        if(sp_udp == sp) 
+            sp_udp = NULL;
 
         pico_free(sp);
+    }
+}
 
+int8_t pico_socket_del(struct pico_socket *s)
+{
+    struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
+    if (!sp) {
+        pico_err = PICO_ERR_ENXIO;
+        return -1;
     }
 
+    PICOTCP_MUTEX_LOCK(Mutex);
+    pico_tree_delete(&sp->socks, s);
+    s->net = NULL;
+    pico_socket_check_empty_sockport(s, sp);
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
-
-
     s->state = PICO_SOCKET_STATE_CLOSED;
     pico_timer_add(3000, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
+}
+
+static void pico_socket_update_tcp_state(struct pico_socket *s, uint16_t tcp_state)
+{
+    if (tcp_state) {
+        s->state &= 0x00FF;
+        s->state |= tcp_state;
+    }
 }
 
 static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
@@ -457,92 +475,37 @@ static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_state
 
     s->state |= more_states;
     s->state = (uint16_t)(s->state & (~less_states));
-    if (tcp_state) {
-        s->state &= 0x00FF;
-        s->state |= tcp_state;
-    }
-
+    pico_socket_update_tcp_state(s, tcp_state);
     return 0;
+}
+
+
+static int pico_socket_transport_deliver(struct pico_protocol *p, struct pico_sockport *sp, struct pico_frame *f)
+{
+
+    if (p->proto_number == PICO_PROTO_TCP)
+        return pico_socket_tcp_deliver(sp, f);
+
+    if (p->proto_number == PICO_PROTO_UDP)
+        return pico_socket_udp_deliver(sp, f);
+
+    return -1;
 }
 
 
 static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, uint16_t localport)
 {
-    struct pico_frame *cpy = NULL;
     struct pico_sockport *sp = NULL;
-    struct pico_socket *s = NULL;
-    struct pico_tree_node *index = NULL;
-    struct pico_tree_node *_tmp;
     struct pico_trans *tr = (struct pico_trans *) f->transport_hdr;
 
     if (!tr)
         return -1;
-
     sp = pico_get_sockport(p->proto_number, localport);
-
     if (!sp) {
         dbg("No such port %d\n", short_be(localport));
         return -1;
     }
-
-    if (p->proto_number == PICO_PROTO_TCP)
-        return pico_socket_tcp_deliver(sp, f);
-
-#ifdef PICO_SUPPORT_UDP
-    if (p->proto_number == PICO_PROTO_UDP) {
-        pico_tree_foreach_safe(index, &sp->socks, _tmp){
-            s = index->keyValue;
-            if (IS_IPV4(f)) { /* IPV4 */
-                struct pico_ip4 s_local, p_dst;
-                struct pico_ipv4_hdr *ip4hdr;
-                ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
-                s_local.addr = s->local_addr.ip4.addr;
-                p_dst.addr = ip4hdr->dst.addr;
-                if ((pico_ipv4_is_broadcast(p_dst.addr)) || pico_ipv4_is_multicast(p_dst.addr)) {
-                    struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
-                    if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, &ip4hdr->dst, &ip4hdr->src) < 0))
-                        return -1;
-
-                    if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
-                        (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
-                        cpy = pico_frame_copy(f);
-                        if (!cpy)
-                            return -1;
-
-                        if (pico_enqueue(&s->q_in, cpy) > 0) {
-                            if (s->wakeup)
-                                s->wakeup(PICO_SOCK_EV_RD, s);
-                        }
-                        else
-                            pico_frame_discard(cpy);
-
-                    }
-                } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))
-                { /* Either local socket is ANY, or matches dst */
-                    cpy = pico_frame_copy(f);
-                    if (!cpy)
-                        return -1;
-
-                    if (pico_enqueue(&s->q_in, cpy) > 0) {
-                        if (s->wakeup)
-                            s->wakeup(PICO_SOCK_EV_RD, s);
-                    }
-                    else
-                        pico_frame_discard(cpy);
-                }
-            } else {
-                /*... IPv6 */
-            }
-        } /* FOREACH */
-        pico_frame_discard(f);
-        if (s)
-            return 0;
-        else
-            return -1;
-    }
-
-#endif
-    return -1;
+    return pico_socket_transport_deliver(p, sp, f);
 }
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
