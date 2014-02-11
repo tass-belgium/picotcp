@@ -125,18 +125,11 @@ static int32_t socket_cmp_remotehost(struct pico_socket *a, struct pico_socket *
     return ret;
 }
 
-
-static int32_t socket_cmp(void *ka, void *kb)
+static int32_t socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
 {
-    struct pico_socket *a = ka, *b = kb;
     int32_t ret = 0;
-
-    /* First, order by network ver */
-    ret = socket_cmp_family(a, b);
-
     /* At this point, sort by local host */
-    if (ret == 0)
-      ret = socket_cmp_ipv6(a, b);
+    ret = socket_cmp_ipv6(a, b);
 
     if (ret == 0)
       ret = socket_cmp_ipv4(a, b);
@@ -144,7 +137,22 @@ static int32_t socket_cmp(void *ka, void *kb)
     /* Sort by remote host */
     if (ret == 0)
       ret = socket_cmp_remotehost(a, b);
-    
+
+    return 0;
+}
+
+static int32_t socket_cmp(void *ka, void *kb)
+{
+    struct pico_socket *a = ka, *b = kb;
+    int32_t ret = 0;
+
+    /* First, order by network family */
+    ret = socket_cmp_family(a, b);
+
+    /* Then, compare by source/destination addresses */
+    if (ret == 0)
+        ret = socket_cmp_addresses(a, b);
+
     /* And finally by remote port. The two sockets are coincident if the quad is the same. */
     if (ret == 0)
       ret = b->remote_port - a->remote_port;
@@ -183,10 +191,63 @@ struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
     else return NULL;
 }
 
+static int pico_port_in_use_by_nat(uint16_t proto, uint16_t port)
+{
+    int ret = 0;
+    (void) proto;
+    (void) port;
+#ifdef PICO_SUPPORT_NAT
+    if (pico_ipv4_nat_find(port, NULL, 0, (uint8_t)proto)) {
+        dbg("In use by nat....\n");
+        ret = 1;
+    }
+#endif
+    return ret;
+}
+
+
+static int pico_port_in_use_with_this_address(struct pico_sockport *sp, struct pico_ip4 ip)
+{
+    if (sp) {
+        struct pico_ip4 *s_local;
+        struct pico_tree_node *idx;
+        struct pico_socket *s;
+        pico_tree_foreach(idx, &sp->socks) {
+            s = idx->keyValue;
+            if (s->net == &pico_proto_ipv4) {
+                s_local = (struct pico_ip4*) &s->local_addr;
+                if ((s_local->addr == PICO_IPV4_INADDR_ANY) || (s_local->addr == ip.addr)) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
+static int pico_port_in_use(struct pico_sockport *sp, void *addr)
+{
+    struct pico_ip4 ip;
+    /* IPv4 */
+    if (addr)
+        ip.addr = ((struct pico_ip4 *)addr)->addr;
+    else
+        ip.addr = PICO_IPV4_INADDR_ANY;
+
+    if (ip.addr == PICO_IPV4_INADDR_ANY) {
+        if (!sp) 
+            return 0;
+        else {
+            dbg("In use, and asked for ANY\n");
+            return 1;
+        }
+    }
+    return pico_port_in_use_with_this_address(sp, ip);
+}
+
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 {
     struct pico_sockport *sp;
-    struct pico_ip4 ip;
     sp = pico_get_sockport(proto, port);
 
     if (!net)
@@ -198,42 +259,16 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
         return (!sp);
     }
 
-    /* IPv4 */
-#ifdef PICO_SUPPORT_NAT
-    if (pico_ipv4_nat_find(port, NULL, 0, (uint8_t)proto)) {
-        dbg("In use by nat....\n");
+    if (pico_port_in_use_by_nat(proto, port)) {
         return 0;
     }
 
-#endif
-    if (addr)
-        ip.addr = ((struct pico_ip4 *)addr)->addr;
-    else
-        ip.addr = PICO_IPV4_INADDR_ANY;
-
-    if (ip.addr == PICO_IPV4_INADDR_ANY) {
-        if (!sp) return 1;
-        else {
-            dbg("In use, and asked for ANY\n");
-            return 0;
-        }
-    }
-
-    if (sp) {
-        struct pico_ip4 *s_local;
-        struct pico_tree_node *idx;
-        struct pico_socket *s;
-        pico_tree_foreach(idx, &sp->socks) {
-            s = idx->keyValue;
-            if (s->net == &pico_proto_ipv4) {
-                s_local = (struct pico_ip4*) &s->local_addr;
-                if ((s_local->addr == PICO_IPV4_INADDR_ANY) || (s_local->addr == ip.addr))
-                    return 0;
-            }
-        }
+    if (pico_port_in_use(sp, addr)) {
+        return 0;
     }
 
     return 1;
+
 }
 
 static int pico_check_socket(struct pico_socket *s)
@@ -276,7 +311,6 @@ struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote)
             }
         }
     }
-
     return sock;
 }
 
