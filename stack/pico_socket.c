@@ -227,7 +227,6 @@ static int pico_port_in_use_with_this_address(struct pico_sockport *sp, struct p
             }
         }
     }
-
     return 0;
 }
 
@@ -254,7 +253,6 @@ static int pico_port_in_use(struct pico_sockport *sp, void *addr)
 
 static int pico_generic_port_in_use(uint16_t proto, uint16_t port, struct pico_sockport *sp, void *addr)
 {
-
     if (pico_port_in_use_by_nat(proto, port)) {
         return 1;
     }
@@ -325,7 +323,6 @@ struct pico_socket *pico_sockets_find(uint16_t local, uint16_t remote)
             }
         }
     }
-
     return sock;
 }
 
