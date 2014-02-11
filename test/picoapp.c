@@ -148,7 +148,7 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev == PICO_SOCK_EV_ERR) {
-        printf("Socket Error received. Bailing out.\n");
+        fprintf(stderr, "Socket Error received: %s Bailing out.\n", strerror(pico_err));
         free(udpclient_pas);
         exit(7);
     }
@@ -970,7 +970,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 100)
+#define TCPSIZ (1024 * 1024 * 10)
 static char *buffer1;
 static char *buffer0;
 

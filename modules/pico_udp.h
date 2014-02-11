@@ -9,6 +9,18 @@
 #define _INCLUDE_PICO_UDP
 #include "pico_addressing.h"
 #include "pico_protocol.h"
+#include "pico_socket.h"
+#define PICO_UDP_MODE_UNICAST 0x01
+#define PICO_UDP_MODE_MULTICAST 0x02
+#define PICO_UDP_MODE_BROADCAST 0xFF
+
+struct pico_socket_udp
+{
+    struct pico_socket sock;
+    int mode;
+    uint8_t mc_ttl; /* Multicasting TTL */
+};
+
 
 extern struct pico_protocol pico_proto_udp;
 
@@ -22,21 +34,5 @@ struct __attribute__((packed)) pico_udp_hdr {
 struct pico_socket *pico_udp_open(void);
 uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src, uint16_t *port);
 uint16_t pico_udp_checksum_ipv4(struct pico_frame *f);
-
-#ifdef PICO_SUPPORT_MCAST
-int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl);
-int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl);
-#else
-static inline int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
-{
-    pico_err = PICO_ERR_EPROTONOSUPPORT;
-    return -1;
-}
-static inline int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
-{
-    pico_err = PICO_ERR_EPROTONOSUPPORT;
-    return -1;
-}
-#endif /* PICO_SUPPORT_MCAST */
 
 #endif

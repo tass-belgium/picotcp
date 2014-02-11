@@ -625,7 +625,6 @@ int readData(struct httpClient *client)
     if(client->state == HTTP_EOF_HDR)
     {
         client->state = HTTP_WAIT_RESPONSE;
-        pico_socket_shutdown(client->sck, PICO_SHUT_RD);
         server.wakeup(EV_HTTP_REQ, client->connectionID);
     }
 
