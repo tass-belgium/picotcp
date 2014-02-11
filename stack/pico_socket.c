@@ -613,6 +613,15 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
     return s;
 }
 
+static int pico_socket_transport_read(struct pico_socket *s, void *buf, int len)
+{
+    if (PROTO(s) == PICO_PROTO_UDP)
+        return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+    else if (PROTO(s) == PICO_PROTO_TCP)
+        return pico_socket_tcp_read(s, buf, (uint32_t)len);
+    else return 0;
+}
+
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
     if (!s || buf == NULL) {
@@ -626,19 +635,37 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
             return -1;
         }
     }
-
     if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
         pico_err = PICO_ERR_EIO;
         return -1;
     }
+    return pico_socket_transport_read(s, buf, len);
+}
 
-    if (PROTO(s) == PICO_PROTO_UDP)
-        return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+static int pico_socket_write_check_state(struct pico_socket *s)
+{
+    if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+        pico_err = PICO_ERR_EIO;
+        return -1;
+    }
+    if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
+        pico_err = PICO_ERR_ENOTCONN;
+        return -1;
+    }
+    if (s->state & PICO_SOCKET_STATE_SHUT_LOCAL) { /* check if in shutdown state */
+        pico_err = PICO_ERR_ESHUTDOWN;
+        return -1;
+    }
+    return 0;
+}
 
-    else if (PROTO(s) == PICO_PROTO_TCP)
-        return pico_socket_tcp_read(s, buf, (uint32_t)len);
-
-    else return 0;
+static int pico_socket_write_attempt(struct pico_socket *s, const void *buf, int len)
+{
+    if (pico_socket_write_check_state(s) < 0) {
+        return -1;
+    } else {
+        return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
+    }
 }
 
 int pico_socket_write(struct pico_socket *s, const void *buf, int len)
@@ -654,21 +681,7 @@ int pico_socket_write(struct pico_socket *s, const void *buf, int len)
             return -1;
         }
     }
-
-    if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
-        pico_err = PICO_ERR_EIO;
-        return -1;
-    }
-
-    if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
-        pico_err = PICO_ERR_ENOTCONN;
-        return -1;
-    } else if (s->state & PICO_SOCKET_STATE_SHUT_LOCAL) { /* check if in shutdown state */
-        pico_err = PICO_ERR_ESHUTDOWN;
-        return -1;
-    } else {
-        return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
-    }
+    return pico_socket_write_attempt(s, buf, len);
 }
 
 uint16_t pico_socket_high_port(uint16_t proto)
