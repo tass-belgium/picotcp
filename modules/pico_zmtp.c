@@ -264,6 +264,15 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     s->type = type;
     s->zmq_cb = zmq_cb;
     
+    struct pico_vector* out_buff = pico_zalloc(sizeof(struct pico_vector));
+    pico_vector_init(out_buff, SOCK_BUFF_CAP, sizeof(struct zmtp_frame_t));
+
+    if (NULL == out_buff) 
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        pico_free(s);
+        return NULL;
+    }
     struct pico_socket* pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
     if (pico_s == NULL) // Leave pico_err the same 
     {
