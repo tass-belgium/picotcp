@@ -61,6 +61,7 @@ struct httpClient
     uint16_t bufferSent;
     char *resource;
     uint16_t state;
+    uint16_t method;
 };
 
 /* Local states for clients */
@@ -262,6 +263,23 @@ char *pico_http_getResource(uint16_t conn)
     else
         return client->resource;
 }
+
+/*
+ * Function used for getting the method coming from client
+ * (e.g. POST, GET...)
+ * Should only be used after header was read (EV_HTTP_REQ)
+ */
+
+int pico_http_getMethod(uint16_t conn)
+{
+    struct httpClient *client = findClient(conn);
+
+    if(!client)
+        return 0;
+    else
+        return client->method;
+}
+
 
 /*
  * After the resource was asked by the client (EV_HTTP_REQ)
@@ -539,8 +557,64 @@ int parseRequest(struct httpClient *client)
         memcpy(client->resource, line + 4u, index - 4u); /* copy without the \0 which was already set by pico_zalloc */
 
         client->state = HTTP_WAIT_EOF_HDR;
+        client->method = HTTP_METHOD_GET;
         return HTTP_RETURN_OK;
+    }
 
+    if(c == 'P')
+    { /* possible POST */
+
+        char line[HTTP_HEADER_MAX_LINE];
+        uint32_t index = 0;
+
+        line[index] = c;
+
+        /* consume the full line */
+        while(consumeChar(c) > 0) /* read char by char only the first line */
+        {
+            line[++index] = c;
+            if(c == '\n')
+                break;
+
+            if(index >= HTTP_HEADER_MAX_LINE)
+            {
+                dbg("Size exceeded \n");
+                return HTTP_RETURN_ERROR;
+            }
+        }
+        /* extract the function and the resource */
+        if(memcmp(line, "POST", 4u) || line[4u] != ' ' || index < 10u || line[index] != '\n')
+        {
+            dbg("Wrong command or wrong ending\n");
+            return HTTP_RETURN_ERROR;
+        }
+
+        /* start reading the resource */
+        index = 5u; /* go after ' ' */
+        while(line[index] != ' ')
+        {
+            if(line[index] == '\n') /* no terminator ' ' */
+            {
+                dbg("No terminator...\n");
+                return HTTP_RETURN_ERROR;
+            }
+
+            index++;
+        }
+        client->resource = pico_zalloc(index - 4u); /* allocate without the POST in front + 1 which is \0 */
+
+        if(!client)
+        {
+            pico_err = PICO_ERR_ENOMEM;
+            return HTTP_RETURN_ERROR;
+        }
+
+        /* copy the resource */
+        memcpy(client->resource, line + 5u, index - 5u); /* copy without the \0 which was already set by pico_zalloc */
+
+        client->state = HTTP_WAIT_EOF_HDR;
+        client->method = HTTP_METHOD_POST;
+        return HTTP_RETURN_OK;
     }
 
     return HTTP_RETURN_ERROR;
