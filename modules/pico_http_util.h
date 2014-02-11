@@ -83,6 +83,10 @@
 #define HTTP_RETURN_ERROR    -1
 #define HTTP_RETURN_OK              0
 
+/* HTTP Methods */
+#define HTTP_METHOD_GET     1u
+#define HTTP_METHOD_POST    2u
+
 /* List of events - shared between client and server */
 #define EV_HTTP_CON         1u
 #define EV_HTTP_REQ       2u
@@ -113,5 +117,8 @@ struct pico_http_uri
 int pico_itoaHex(uint16_t port, char *ptr);
 uint16_t pico_itoa(uint16_t port, char *ptr);
 int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey);
+
+/* HTTP Header parsing functions */
+int pico_http_parse_header(char *ptr, char **key, char **value); /* Returns next key and value, modifies buffer with zero terminations */
 
 #endif /* PICO_HTTP_UTIL_H_ */

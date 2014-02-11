@@ -1929,25 +1929,36 @@ void serverWakeup(uint16_t ev, uint16_t conn)
     {
         int read;
         char *resource;
+        int method;
         printf("Header request was received...\n");
         printf("> Resource : %s\n", pico_http_getResource(conn));
         resource = pico_http_getResource(conn);
+        method = pico_http_getMethod(conn);
 
         if(strcmp(resource, "/") == 0 || strcmp(resource, "index.html") == 0 || strcmp(resource, "/index.html") == 0)
         {
-            /* Accepting request */
-            printf("Accepted connection...\n");
-            pico_http_respond(conn, HTTP_RESOURCE_FOUND);
-            f = fopen("test/examples/index.html", "r");
-
-            if(!f)
+            if(method == HTTP_METHOD_GET)
             {
-                fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
-                exit(1);
-            }
+                /* Accepting request */
+                printf("Accepted connection...\n");
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                f = fopen("test/examples/index.html", "r");
 
-            read = fread(buffer, 1, SIZE, f);
-            pico_http_submitData(conn, buffer, read);
+                if(!f)
+                {
+                    fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
+                    exit(1);
+                }
+
+                read = fread(buffer, 1, SIZE, f);
+                pico_http_submitData(conn, buffer, read);
+            }
+            else if(method == HTTP_METHOD_POST)
+            {
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                strcpy(buffer, "Thanks for posting your data");
+                pico_http_submitData(conn, buffer, strlen(buffer));
+            }
         }
         else
         { /* reject */
