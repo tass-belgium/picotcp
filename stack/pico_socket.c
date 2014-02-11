@@ -1361,11 +1361,11 @@ static int checkSocketSanity(struct pico_socket *s)
 
 /* checking for pending connections */
     if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
-        if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
+        if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
 
-    if((pico_time)(PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
+    if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
         /* checking for hanging sockets */
         if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED))
             return -1;
@@ -1509,7 +1509,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len)
 
 #ifdef PICO_SUPPORT_IPV4
     if (IS_SOCK_IPV4(s))
-        f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)len);
+        f = pico_proto_ipv4.alloc(&pico_proto_ipv4, len);
 
 #endif
     if (!f) {
