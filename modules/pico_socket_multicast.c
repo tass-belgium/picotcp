@@ -250,6 +250,7 @@ static struct pico_ipv4_link *mcast_link(struct pico_ip4 *a)
 {
     if (!a->addr)
         return pico_ipv4_get_default_mcastlink();
+
     return pico_ipv4_link_get(a);
 }
 
@@ -257,24 +258,31 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip
 {
     if (!mreq)
         return NULL;
+
     if (!mreq->mcast_group_addr.addr)
         return NULL;
+
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
         return NULL;
-  return mcast_link(&mreq->mcast_link_addr);
+
+    return mcast_link(&mreq->mcast_link_addr);
 }
 
 static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_ip_mreq_source *mreq)
 {
     if (!mreq)
         return NULL;
+
     if (!mreq->mcast_group_addr.addr)
         return NULL;
+
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
         return NULL;
+
     if (!pico_ipv4_is_unicast(mreq->mcast_source_addr.addr))
         return NULL;
-  return mcast_link(&mreq->mcast_link_addr);
+
+    return mcast_link(&mreq->mcast_link_addr);
 }
 
 
@@ -323,7 +331,7 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
 }
 
 
-void pico_multicast_delete(struct pico_socket *s) 
+void pico_multicast_delete(struct pico_socket *s)
 {
     int filter_mode;
     struct pico_tree_node *index = NULL, *_tmp = NULL, *index2 = NULL, *_tmp2 = NULL;
@@ -384,7 +392,7 @@ int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value)
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -392,12 +400,13 @@ static int mcast_so_loop(struct pico_socket *s, void *value)
 {
     uint8_t val = (*(uint8_t *)value);
     if (val == 0u) {
-            PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
-            return 0;
+        PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
+        return 0;
     } else if (val == 1u) {
-            PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
-            return 0;
+        PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_MULTICAST_LOOP);
+        return 0;
     }
+
     pico_err = PICO_ERR_EINVAL;
     return -1;
 }
@@ -706,40 +715,40 @@ int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-        
+
     switch(option) {
 
-      case PICO_IP_MULTICAST_IF:
-          pico_err = PICO_ERR_EOPNOTSUPP;
-          return -1;
-  
-      case PICO_IP_MULTICAST_TTL:
-          return pico_udp_set_mc_ttl(s, *((uint8_t *) value));
-  
-      case PICO_IP_MULTICAST_LOOP:
-          return mcast_so_loop(s, value);
-  
-      case PICO_IP_ADD_MEMBERSHIP:
-          return mcast_so_addm(s, value);
-  
-      case PICO_IP_DROP_MEMBERSHIP:
-          return mcast_so_dropm(s, value);
-  
-      case PICO_IP_UNBLOCK_SOURCE:
-          return mcast_so_unblock_src(s, value);
-  
-      case PICO_IP_BLOCK_SOURCE:
-          return mcast_so_block_src(s, value);
-  
-      case PICO_IP_ADD_SOURCE_MEMBERSHIP:
-          return mcast_so_addsrcm(s, value);
-  
-      case PICO_IP_DROP_SOURCE_MEMBERSHIP:
-          return mcast_so_dropsrcm(s, value);
-  
-      default:
-          pico_err = PICO_ERR_EINVAL;
-          return -1;
+    case PICO_IP_MULTICAST_IF:
+        pico_err = PICO_ERR_EOPNOTSUPP;
+        return -1;
+
+    case PICO_IP_MULTICAST_TTL:
+        return pico_udp_set_mc_ttl(s, *((uint8_t *) value));
+
+    case PICO_IP_MULTICAST_LOOP:
+        return mcast_so_loop(s, value);
+
+    case PICO_IP_ADD_MEMBERSHIP:
+        return mcast_so_addm(s, value);
+
+    case PICO_IP_DROP_MEMBERSHIP:
+        return mcast_so_dropm(s, value);
+
+    case PICO_IP_UNBLOCK_SOURCE:
+        return mcast_so_unblock_src(s, value);
+
+    case PICO_IP_BLOCK_SOURCE:
+        return mcast_so_block_src(s, value);
+
+    case PICO_IP_ADD_SOURCE_MEMBERSHIP:
+        return mcast_so_addsrcm(s, value);
+
+    case PICO_IP_DROP_SOURCE_MEMBERSHIP:
+        return mcast_so_dropsrcm(s, value);
+
+    default:
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
     }
 }
 
