@@ -13,14 +13,14 @@ typedef struct _CMOCK_zmtp_socket_open_CALL_INSTANCE
   uint16_t Expected_net;
   uint16_t Expected_proto;
   uint8_t Expected_type;
-  cmock_pico_zmtp_func_ptr1 Expected_wakeup;
+  cmock_pico_zmtp_func_ptr1 Expected_zmq_cb;
 
 } CMOCK_zmtp_socket_open_CALL_INSTANCE;
 
 typedef struct _CMOCK_zmtp_socket_connect_CALL_INSTANCE
 {
   UNITY_LINE_TYPE LineNumber;
-  int8_t ReturnVal;
+  int ReturnVal;
   struct zmtp_socket* Expected_s;
   void* Expected_srv_addr;
   uint16_t Expected_remote_port;
@@ -30,10 +30,9 @@ typedef struct _CMOCK_zmtp_socket_connect_CALL_INSTANCE
 typedef struct _CMOCK_zmtp_socket_send_CALL_INSTANCE
 {
   UNITY_LINE_TYPE LineNumber;
-  int8_t ReturnVal;
+  int ReturnVal;
   struct zmtp_socket* Expected_s;
-  struct zmq_msg** Expected_msg;
-  uint16_t Expected_len;
+  struct pico_vector* Expected_vec;
 
 } CMOCK_zmtp_socket_send_CALL_INSTANCE;
 
@@ -53,12 +52,12 @@ static struct Mockpico_zmtpInstance
   int zmtp_socket_open_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE zmtp_socket_open_CallInstance;
   int zmtp_socket_connect_IgnoreBool;
-  int8_t zmtp_socket_connect_FinalReturn;
+  int zmtp_socket_connect_FinalReturn;
   CMOCK_zmtp_socket_connect_CALLBACK zmtp_socket_connect_CallbackFunctionPointer;
   int zmtp_socket_connect_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE zmtp_socket_connect_CallInstance;
   int zmtp_socket_send_IgnoreBool;
-  int8_t zmtp_socket_send_FinalReturn;
+  int zmtp_socket_send_FinalReturn;
   CMOCK_zmtp_socket_send_CALLBACK zmtp_socket_send_CallbackFunctionPointer;
   int zmtp_socket_send_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE zmtp_socket_send_CallInstance;
@@ -115,7 +114,7 @@ void Mockpico_zmtp_Destroy(void)
   Mock.zmtp_socket_close_CallbackCalls = 0;
 }
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 wakeup)
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 zmq_cb)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_open_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_open_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_open_CallInstance);
@@ -129,7 +128,7 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type,
   }
   if (Mock.zmtp_socket_open_CallbackFunctionPointer != NULL)
   {
-    return Mock.zmtp_socket_open_CallbackFunctionPointer(net, proto, type, wakeup, Mock.zmtp_socket_open_CallbackCalls++);
+    return Mock.zmtp_socket_open_CallbackFunctionPointer(net, proto, type, zmq_cb, Mock.zmtp_socket_open_CallbackCalls++);
   }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_open' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
@@ -143,17 +142,17 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type,
     UNITY_TEST_ASSERT_EQUAL_HEX8(cmock_call_instance->Expected_type, type, cmock_line, "Function 'zmtp_socket_open' called with unexpected value for argument 'type'.");
   }
   {
-    UNITY_TEST_ASSERT_EQUAL_PTR(cmock_call_instance->Expected_wakeup, wakeup, cmock_line, "Function 'zmtp_socket_open' called with unexpected value for argument 'wakeup'.");
+    UNITY_TEST_ASSERT_EQUAL_PTR(cmock_call_instance->Expected_zmq_cb, zmq_cb, cmock_line, "Function 'zmtp_socket_open' called with unexpected value for argument 'zmq_cb'.");
   }
   return cmock_call_instance->ReturnVal;
 }
 
-void CMockExpectParameters_zmtp_socket_open(CMOCK_zmtp_socket_open_CALL_INSTANCE* cmock_call_instance, uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 wakeup)
+void CMockExpectParameters_zmtp_socket_open(CMOCK_zmtp_socket_open_CALL_INSTANCE* cmock_call_instance, uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 zmq_cb)
 {
   cmock_call_instance->Expected_net = net;
   cmock_call_instance->Expected_proto = proto;
   cmock_call_instance->Expected_type = type;
-  memcpy(&cmock_call_instance->Expected_wakeup, &wakeup, sizeof(cmock_pico_zmtp_func_ptr1));
+  memcpy(&cmock_call_instance->Expected_zmq_cb, &zmq_cb, sizeof(cmock_pico_zmtp_func_ptr1));
 }
 
 void zmtp_socket_open_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* cmock_to_return)
@@ -167,14 +166,14 @@ void zmtp_socket_open_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct zm
   Mock.zmtp_socket_open_IgnoreBool = (int)1;
 }
 
-void zmtp_socket_open_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 wakeup, struct zmtp_socket* cmock_to_return)
+void zmtp_socket_open_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t net, uint16_t proto, uint8_t type, cmock_pico_zmtp_func_ptr1 zmq_cb, struct zmtp_socket* cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_open_CALL_INSTANCE));
   CMOCK_zmtp_socket_open_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_open_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
   Mock.zmtp_socket_open_CallInstance = CMock_Guts_MemChain(Mock.zmtp_socket_open_CallInstance, cmock_guts_index);
   cmock_call_instance->LineNumber = cmock_line;
-  CMockExpectParameters_zmtp_socket_open(cmock_call_instance, net, proto, type, wakeup);
+  CMockExpectParameters_zmtp_socket_open(cmock_call_instance, net, proto, type, zmq_cb);
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
@@ -183,7 +182,7 @@ void zmtp_socket_open_StubWithCallback(CMOCK_zmtp_socket_open_CALLBACK Callback)
   Mock.zmtp_socket_open_CallbackFunctionPointer = Callback;
 }
 
-int8_t zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port)
+int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_connect_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_connect_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_connect_CallInstance);
@@ -220,7 +219,7 @@ void CMockExpectParameters_zmtp_socket_connect(CMOCK_zmtp_socket_connect_CALL_IN
   cmock_call_instance->Expected_remote_port = remote_port;
 }
 
-void zmtp_socket_connect_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int8_t cmock_to_return)
+void zmtp_socket_connect_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_connect_CALL_INSTANCE));
   CMOCK_zmtp_socket_connect_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_connect_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
@@ -231,7 +230,7 @@ void zmtp_socket_connect_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int8_t
   Mock.zmtp_socket_connect_IgnoreBool = (int)1;
 }
 
-void zmtp_socket_connect_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* srv_addr, uint16_t remote_port, int8_t cmock_to_return)
+void zmtp_socket_connect_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* srv_addr, uint16_t remote_port, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_connect_CALL_INSTANCE));
   CMOCK_zmtp_socket_connect_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_connect_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
@@ -247,7 +246,7 @@ void zmtp_socket_connect_StubWithCallback(CMOCK_zmtp_socket_connect_CALLBACK Cal
   Mock.zmtp_socket_connect_CallbackFunctionPointer = Callback;
 }
 
-int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len)
+int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_send_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_send_CallInstance);
@@ -261,7 +260,7 @@ int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t le
   }
   if (Mock.zmtp_socket_send_CallbackFunctionPointer != NULL)
   {
-    return Mock.zmtp_socket_send_CallbackFunctionPointer(s, msg, len, Mock.zmtp_socket_send_CallbackCalls++);
+    return Mock.zmtp_socket_send_CallbackFunctionPointer(s, vec, Mock.zmtp_socket_send_CallbackCalls++);
   }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_send' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
@@ -269,22 +268,18 @@ int8_t zmtp_socket_send(struct zmtp_socket* s, struct zmq_msg** msg, uint16_t le
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_send' called with unexpected value for argument 's'.");
   }
   {
-    UNITY_TEST_ASSERT_EQUAL_PTR(cmock_call_instance->Expected_msg, msg, cmock_line, "Function 'zmtp_socket_send' called with unexpected value for argument 'msg'.");
-  }
-  {
-    UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_len, len, cmock_line, "Function 'zmtp_socket_send' called with unexpected value for argument 'len'.");
+    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vec), (void*)(vec), sizeof(struct pico_vector), cmock_line, "Function 'zmtp_socket_send' called with unexpected value for argument 'vec'.");
   }
   return cmock_call_instance->ReturnVal;
 }
 
-void CMockExpectParameters_zmtp_socket_send(CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance, struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len)
+void CMockExpectParameters_zmtp_socket_send(CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance, struct zmtp_socket* s, struct pico_vector* vec)
 {
   cmock_call_instance->Expected_s = s;
-  cmock_call_instance->Expected_msg = msg;
-  cmock_call_instance->Expected_len = len;
+  cmock_call_instance->Expected_vec = vec;
 }
 
-void zmtp_socket_send_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int8_t cmock_to_return)
+void zmtp_socket_send_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_send_CALL_INSTANCE));
   CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_send_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
@@ -295,14 +290,14 @@ void zmtp_socket_send_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int8_t cm
   Mock.zmtp_socket_send_IgnoreBool = (int)1;
 }
 
-void zmtp_socket_send_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, struct zmq_msg** msg, uint16_t len, int8_t cmock_to_return)
+void zmtp_socket_send_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, struct pico_vector* vec, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_send_CALL_INSTANCE));
   CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_send_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
   Mock.zmtp_socket_send_CallInstance = CMock_Guts_MemChain(Mock.zmtp_socket_send_CallInstance, cmock_guts_index);
   cmock_call_instance->LineNumber = cmock_line;
-  CMockExpectParameters_zmtp_socket_send(cmock_call_instance, s, msg, len);
+  CMockExpectParameters_zmtp_socket_send(cmock_call_instance, s, vec);
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 

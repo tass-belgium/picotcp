@@ -35,6 +35,10 @@ enum zmtp_snd_state {
     ST_SND_GREETING
 };
 
+enum zmtp_ev {
+    EV_NONE=0,
+    EV_ERR=1
+};
 /*
 enum zmq_state {
     ST_OPEN = 0,
