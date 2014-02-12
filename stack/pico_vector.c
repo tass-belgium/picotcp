@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pico_vector_extension.h"
-#include "pico_config.h"
+#include "pico_zalloc.h"    // <=== should become pico_config (?)
 #include <stdint.h>
 
 
@@ -74,7 +74,7 @@ struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
 
 struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterator* iterator)
 {
-    if (iterator->data == (iterator->vector->data + iterator->vector->type_size * iterator->vector->size))
+    if (iterator->data == (iterator->vector->data + iterator->vector->type_size * (iterator->vector->size - 1)))
     {
         pico_free(iterator);
         return NULL;

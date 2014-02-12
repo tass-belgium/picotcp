@@ -8,8 +8,8 @@
 #ifndef __PICO_VECTOR_H__
 #define __PICO_VECTOR_H__
 
-//#include <stdint.h>
-
+#include <stdint.h>
+//#include "pico_zalloc.h" //<==== see mocking bug (sam)
 
 /**
  * @brief Vector provides dynamic array functionality for the pico_tcp project
