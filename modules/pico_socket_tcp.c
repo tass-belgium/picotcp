@@ -164,3 +164,10 @@ int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 #endif
     return 0;
 }
+
+void transport_flags_update(struct pico_frame *f, struct pico_socket *s)
+{
+#ifdef PICO_SUPPORT_TCP
+    f->transport_flags_saved = ((struct pico_socket_tcp *)s)->ts_ok;
+#endif
+}

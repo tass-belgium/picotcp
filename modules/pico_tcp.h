@@ -101,6 +101,5 @@ int pico_tcp_queue_in_is_empty(struct pico_socket *s);
 int pico_tcp_reply_rst(struct pico_frame *f);
 void pico_tcp_cleanup_queues(struct pico_socket *sck);
 void pico_tcp_notify_closing(struct pico_socket *sck);
-void transport_flags_update(struct pico_frame *, struct pico_socket *);
 
 #endif
