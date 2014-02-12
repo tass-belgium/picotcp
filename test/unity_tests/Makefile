@@ -88,4 +88,4 @@ vector_extension_tests: $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC)
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC) $(TEST_VECTOR_EXTENSION_TESTS_RUNNER)
 
 clean:
-	rm zmq_tests zmtp_tests vector_tests vector_extension_tests *_Runner.c
+	rm -f zmq_tests zmtp_tests vector_tests vector_extension_tests *_Runner.c
