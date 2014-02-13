@@ -832,6 +832,12 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv4(struct p
     return ep;
 }
 
+static void pico_endpoint_free(struct pico_remote_endpoint *ep)
+{
+    if (ep)
+        pico_free(ep);
+}
+
 static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv6(struct pico_socket *s, struct pico_ip6 *dst, uint16_t port)
 {
     struct pico_remote_endpoint *ep = NULL;
@@ -920,11 +926,23 @@ static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 #endif
 }
 
+static int pico_socket_final_xmit(struct pico_socket *s, struct pico_frame *f)
+{
+    if (s->proto->push(s->proto, f) > 0) {
+        return f->payload_len;
+    } else {
+        pico_frame_discard(f);
+        return 0;
+    }
+}
+
 static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
     struct pico_frame *f;
     uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
+    int ret = 0;
     (void)src;
+    
     f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
@@ -939,21 +957,44 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     if (ep) {
         f->info = pico_socket_set_info(ep);
         if (!f->info) {
+            pico_frame_discard(f);
             return -1;
         }
     }
 
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
-    if (s->proto->push(s->proto, f) > 0) {
-        return len;
-    } else {
-        pico_frame_discard(f);
-        return 0;
-    }
+    ret = pico_socket_final_xmit(s, f);
+    return ret;
 }
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s);
+
+static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int space, int hdr_offset) 
+{
+    frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
+    /* transport header length field contains total length + header length */
+    f->transport_len = (uint16_t)(space);
+    f->frag = short_be(PICO_IPV4_MOREFRAG);
+    f->payload += hdr_offset;
+    f->payload_len = (uint16_t) space;
+}
+
+static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_offset, int total_payload_written, int len)
+{
+    /* no transport header in fragmented IP */
+    f->payload = f->transport_hdr;
+    f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
+    /* set offset in octets */
+    f->frag = short_be((uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u));
+    if (total_payload_written + f->payload_len < len) {
+        frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+        f->frag |= short_be(PICO_IPV4_MOREFRAG);
+    } else {
+        frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+        f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+    }
+}
 
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
@@ -973,32 +1014,24 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
         f = pico_socket_frame_alloc(s, (uint16_t)(space + hdr_offset));
         if (!f) {
             pico_err = PICO_ERR_ENOMEM;
-            if(ep)
-                pico_free(ep);
+            pico_endpoint_free(ep);
             return -1;
         }
         f->sock = s;
-        /* First fragment: no payload written yet! */
-        if (!total_payload_written == 0) {
-            frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
-            /* transport header length field contains total length + header length */
-            f->transport_len = (uint16_t)(space);
-            f->frag = short_be(PICO_IPV4_MOREFRAG);
-            f->payload += hdr_offset;
-            f->payload_len = (uint16_t) space;
-        } else {
-            /* no transport header in fragmented IP */
-            f->payload = f->transport_hdr;
-            f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
-            /* set offset in octets */
-            f->frag = short_be((uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3));
-            if (total_payload_written + f->payload_len < len) {
-                frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-                f->frag |= short_be(PICO_IPV4_MOREFRAG);
-            } else {
-                frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-                f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+        if (ep) {
+            f->info = pico_socket_set_info(ep);
+            if (!f->info) {
+                pico_frame_discard(f);
+                pico_endpoint_free(ep);
+                return -1;
             }
+        }
+        if (!total_payload_written == 0) {
+            /* First fragment: no payload written yet! */
+            pico_socket_xmit_first_fragment_setup(f, space, hdr_offset);
+        } else {
+            /* Next fragment */
+            pico_socket_xmit_next_fragment_setup(f, hdr_offset, total_payload_written, len);
         }
         memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
         transport_flags_update(f, s);
@@ -1006,13 +1039,10 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
             total_payload_written += f->payload_len;
         } else {
             pico_frame_discard(f);
-            if(ep)
-                pico_free(ep);
-            return 0;
+            break;
         }
     } /* while() */
-    if(ep)
-        pico_free(ep);
+    pico_endpoint_free(ep);
     return total_payload_written;
 
 #else
@@ -1080,10 +1110,15 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
             break;
         }
     }
-    if (ep)
-        pico_free(ep);
-
+    pico_endpoint_free(ep);
     return total_payload_written;
+}
+
+static void pico_socket_sendto_set_dport(struct pico_socket *s, uint16_t port)
+{
+    if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
+        s->remote_port = port;
+    }
 }
 
 
@@ -1106,10 +1141,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     if (pico_socket_sendto_set_localport(s) < 0)
         return -1;
 
-
-    if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
-        s->remote_port = remote_port;
-    }
+    pico_socket_sendto_set_dport(s, remote_port);
 
     return pico_socket_xmit(s, buf, len, src, remote_endpoint); 
 }
