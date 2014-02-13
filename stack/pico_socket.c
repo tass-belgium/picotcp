@@ -716,14 +716,14 @@ static void *pico_socket_sendto_get_ip4_src(struct pico_socket *s, struct pico_i
         src4 = &s->local_addr.ip4;
         if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr ) {
             pico_err = PICO_ERR_EADDRNOTAVAIL;
-            NULL;
+            return NULL;
         }
     } else {
 
         src4 = pico_ipv4_source_find(dst);
         if (!src4) {
             pico_err = PICO_ERR_EHOSTUNREACH;
-            NULL;
+            return NULL;
         }
 
     }
@@ -749,13 +749,13 @@ static void *pico_socket_sendto_get_ip6_src(struct pico_socket *s, struct pico_i
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
         if (memcmp(&s->remote_addr, dst, PICO_SIZE_IP6)) {
             pico_err = PICO_ERR_EADDRNOTAVAIL;
-            return -1;
+            return NULL;
         }
     } else {
         src6 = pico_ipv6_source_find(dst);
         if (!src6) {
             pico_err = PICO_ERR_EHOSTUNREACH;
-            return -1;
+            return NULL;
         }
         /* TODO:compare against IP6ADDR_ANY just like the ip4 version above */
         memcpy(&s->local_addr, src6, PICO_SIZE_IP6);
