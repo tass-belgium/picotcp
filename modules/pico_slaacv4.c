@@ -162,9 +162,14 @@ static void pico_slaacv4_receive_ipconflict(void)
 
 }
 
-uint8_t pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip,  uint8_t code))
+int pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip,  uint8_t code))
 {
     struct pico_ip4 ip;
+
+    if (!dev->eth) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
+        return -1;
+    }
 
     ip.addr = long_be(pico_slaacv4_getip(dev, 0));
 
