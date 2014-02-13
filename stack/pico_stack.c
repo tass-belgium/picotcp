@@ -843,7 +843,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     return t;
 }
 
-void pico_stack_init(void)
+int pico_stack_init(void)
 {
 
 #ifdef PICO_SUPPORT_IPV4
@@ -878,11 +878,14 @@ void pico_stack_init(void)
 
     /* Initialize timer heap */
     Timers = heap_init();
+    if (!Timers)
+        return -1;
 #if ((defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH))
     pico_arp_init();
 #endif
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();
+    return 0;
 }
 
