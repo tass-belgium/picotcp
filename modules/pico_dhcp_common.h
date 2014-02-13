@@ -100,7 +100,7 @@ struct __attribute__((packed)) pico_dhcp_hdr
     char hostname[64];
     char bootp_filename[128];
     uint32_t dhcp_magic;
-    uint8_t options[];
+    uint8_t options[0];
 };
 
 struct __attribute__((packed)) pico_dhcp_opt
