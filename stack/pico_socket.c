@@ -1070,16 +1070,9 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
         int w, chunk_len = len;
         if (len > space)
             chunk_len = space;
-        printf("In the loop... (%d/%d)\n", len, total_payload_written);
         w = pico_socket_xmit_one(s, buf, chunk_len, src, ep);
-        if (w < 0) {
-            if (total_payload_written > 0)
-                break;
-            else {
-                if (ep)
-                    pico_free(ep);
-                return -1;
-            }
+        if (w <= 0) {
+            break;
         }
         total_payload_written += w;
         if (PROTO(s) == PICO_PROTO_UDP) {

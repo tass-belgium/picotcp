@@ -1041,9 +1041,9 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         if (w_size < TCPSIZ) {
             do {
                 w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
+                //printf("SOCKET WRITTEN - %d\n", w);
                 if (w > 0) {
                     w_size += w;
-                    printf("SOCKET WRITTEN - %d\n", w_size);
                     if (w < 0)
                         exit(5);
                 }
@@ -1303,7 +1303,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_rd_size += tcpbench_r;
             }
             else if (tcpbench_r < 0) {
-                printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                printf("tcpbench READ> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                 exit(5);
             }
         } while (tcpbench_r > 0);
@@ -1339,7 +1339,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
-        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        printf("tcpbench> EV_ERR: Socket Error received: %s. Bailing out.\n", strerror(pico_err));
         exit(1);
     }
 
@@ -1360,11 +1360,11 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
-                    /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
+//                    printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
                 }
 
                 if (tcpbench_w < 0) {
-                    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                    printf("tcpbench WR> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                     exit(5);
                 }
 
