@@ -192,8 +192,8 @@ static void *next_segment(struct pico_tcp_queue *tq, void *cur)
 static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
 {
     int32_t ret = -1;
-    uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq) ?
-                                      ((struct tcp_input_segment *)f)->payload_len :
+    uint16_t payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
+                                      (((struct tcp_input_segment *)f)->payload_len) :
                                       ((struct pico_frame *)f)->buffer_len);
 
     if (payload_len <= 0) {
@@ -229,8 +229,8 @@ out:
 static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
 {
     void *f1;
-    uint16_t payload_len = (uint16_t)(IS_INPUT_QUEUE(tq) ?
-                                      ((struct tcp_input_segment *)f)->payload_len :
+    uint16_t payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
+                                      (((struct tcp_input_segment *)f)->payload_len) :
                                       ((struct pico_frame *)f)->buffer_len);
     PICOTCP_MUTEX_LOCK(Mutex);
     f1 = pico_tree_delete(&tq->pool, f);
@@ -526,7 +526,7 @@ static uint16_t tcp_options_size_frame(struct pico_frame *f)
         size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
 
     size = (uint16_t)(size + PICO_TCPOPTLEN_END);
-    size = (uint16_t)(((size + 3) >> 2) << 2);
+    size = (uint16_t)(((uint16_t)(size + 3u) >> 2u) << 2u);
     return size;
 }
 
@@ -579,10 +579,10 @@ static void tcp_set_space(struct pico_socket_tcp *t)
         space = 0;
 
     while(space > 0xFFFF) {
-        space >>= 1;
+        space >>= 1u;
         shift++;
     }
-    if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (space >> 2))) {
+    if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (space >> 2u))) {
         t->wnd = (uint16_t)space;
         t->wnd_scale = (uint16_t)shift;
 
@@ -623,7 +623,7 @@ static uint16_t tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
         }
     }
 
-    size = (uint16_t)(((size + 3) >> 2) << 2);
+    size = (uint16_t)(((size + 3u) >> 2u) << 2u);
     return size;
 }
 
@@ -1069,13 +1069,13 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_kee
 
 static void tcp_send_ack(struct pico_socket_tcp *t)
 {
-    return tcp_send_empty(t, PICO_TCP_ACK, 0);
+    tcp_send_empty(t, PICO_TCP_ACK, 0);
 }
 
 static void tcp_send_probe(struct pico_socket_tcp *t)
 {
     /* tcp_dbg("Sending probe\n"); */
-    return tcp_send_empty(t, PICO_TCP_PSH, 0);
+    tcp_send_empty(t, PICO_TCP_PSH, 0);
 }
 
 static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
@@ -1348,7 +1348,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-    uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
+    uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2u));
 
     if (payload_len == 0 && (hdr->flags & PICO_TCP_PSH)) {
         tcp_send_ack(t);
@@ -1356,9 +1356,9 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     }
 
 
-    if (((hdr->len & 0xf0) >> 2) <= f->transport_len) {
+    if (((hdr->len & 0xf0) >> 2u) <= f->transport_len) {
         tcp_parse_options(f);
-        f->payload = f->transport_hdr + ((hdr->len & 0xf0) >> 2);
+        f->payload = f->transport_hdr + ((hdr->len & 0xf0) >> 2u);
         f->payload_len = payload_len;
         tcp_dbg("TCP> Received segment. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
 
@@ -2197,7 +2197,7 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("TCP >>>>>>>>>>>>>> received RST <<<<<<<<<<<<<<<<<<<<\n");
     if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_SENT) {
         /* the RST is acceptable if the ACK field acknowledges the SYN */
-        if ((t->snd_nxt + 1) == ACKN(f)) {              /* valid, got to closed state */
+        if ((t->snd_nxt + 1u) == ACKN(f)) {              /* valid, got to closed state */
             tcp_force_closed(s);
             pico_err = PICO_ERR_ECONNRESET;
             tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
@@ -2501,7 +2501,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
         pico_discard_segment(&t->tcpq_hold, f_temp);
         f_temp = first_segment(&t->tcpq_hold);
     }
-    hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2 | t->jumbo);
+    hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2u | t->jumbo);
 
     tcp_dbg_nagle("NAGLE make - joined %d segments, len %d bytes\n", test, total_payload_len);
 
@@ -2521,7 +2521,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
     hdr->trans.sport = t->sock.local_port;
     hdr->trans.dport = t->sock.remote_port;
     hdr->seq = long_be(t->snd_last + 1);
-    hdr->len = (uint8_t)((f->payload - f->transport_hdr) << 2 | t->jumbo);
+    hdr->len = (uint8_t)((f->payload - f->transport_hdr) << 2u | t->jumbo);
 
     if ((uint32_t)f->payload_len > (uint32_t)(t->tcpq_out.max_size - t->tcpq_out.size))
         t->sock.ev_pending &= (uint16_t)(~PICO_SOCK_EV_WR);
