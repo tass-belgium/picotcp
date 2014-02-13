@@ -2678,4 +2678,8 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
     }
 }
 
+void pico_tcp_flags_update(struct pico_frame *f, struct pico_socket *s)
+{
+    f->transport_flags_saved = ((struct pico_socket_tcp *)s)->ts_ok;
+}
 #endif /* PICO_SUPPORT_TCP */

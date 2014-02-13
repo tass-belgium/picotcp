@@ -704,34 +704,31 @@ uint16_t pico_socket_high_port(uint16_t proto)
     else return 0U;
 }
 
-static struct pico_remote_endpoint *pico_socket_sendto_udp4(struct pico_socket *s, const void *buf, const int len, struct pico_ip4 *src, struct pico_ip4 *dst, int dport)
-{
-
-}
-
 static void *pico_socket_sendto_get_ip4_src(struct pico_socket *s, struct pico_ip4 *dst)
 {
     struct pico_ip4 *src4 = NULL;
 
-#ifdef PICO_SUPPORT_IPV6
+#ifdef PICO_SUPPORT_IPV4
     /* Check if socket is connected: destination address MUST match the 
      * current connected endpoint 
      */
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
+        src4 = &s->local_addr.ip4;
         if  (s->remote_addr.ip4.addr != ((struct pico_ip4 *)dst)->addr ) {
             pico_err = PICO_ERR_EADDRNOTAVAIL;
-            return -1;
+            NULL;
         }
     } else {
+
         src4 = pico_ipv4_source_find(dst);
         if (!src4) {
             pico_err = PICO_ERR_EHOSTUNREACH;
-            return -1;
+            NULL;
         }
 
-        if (src4->addr != PICO_IPV4_INADDR_ANY)
-            s->local_addr.ip4.addr = src4->addr;
     }
+    if (src4->addr != PICO_IPV4_INADDR_ANY)
+        s->local_addr.ip4.addr = src4->addr;
 #else
     pico_err = PICO_ERR_EPROTONOSUPPORT;
 #endif
@@ -741,6 +738,8 @@ static void *pico_socket_sendto_get_ip4_src(struct pico_socket *s, struct pico_i
 static void *pico_socket_sendto_get_ip6_src(struct pico_socket *s, struct pico_ip6 *dst)
 {
     struct pico_ip6 *src6 = NULL;
+    (void)s;
+    (void)dst;
 
 #ifdef PICO_SUPPORT_IPV6
 
@@ -774,7 +773,7 @@ static int pico_socket_sendto_dest_check(struct pico_socket *s, void *dst, uint1
     /* For the sendto call to be valid, 
      * dst and remote_port should be always populated. 
      */
-    if (!dst || !remote_port) {
+    if (!dst || !port) {
         pico_err = PICO_ERR_EADDRNOTAVAIL;
         return -1;
     }
@@ -815,17 +814,18 @@ static void *pico_socket_sendto_get_src(struct pico_socket *s, void *dst)
     if (IS_SOCK_IPV4(s))
         src = pico_socket_sendto_get_ip4_src(s, (struct pico_ip4 *)dst);
     if (IS_SOCK_IPV6(s))
-        src = pico_socket_sendto_get_ip6_src(s, (struct pico_ip4 *)dst);
+        src = pico_socket_sendto_get_ip6_src(s, (struct pico_ip6 *)dst);
     return src;
 }
 
 static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv4(struct pico_socket *s, struct pico_ip4 *dst, uint16_t port)
 {
     struct pico_remote_endpoint *ep = NULL;
+    (void)s;
     ep = pico_zalloc(sizeof(struct pico_remote_endpoint));
     if (!ep) {
          pico_err = PICO_ERR_ENOMEM;
-         return -1;
+         return NULL;
     }
     ep->remote_addr.ip4.addr = ((struct pico_ip4 *)dst)->addr;
     ep->remote_port = port;
@@ -835,31 +835,40 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv4(struct p
 static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv6(struct pico_socket *s, struct pico_ip6 *dst, uint16_t port)
 {
     struct pico_remote_endpoint *ep = NULL;
+    (void)s;
+    (void)dst;
+    (void)port;
+#ifdef PICO_SUPPORT_IPV6
     ep = pico_zalloc(sizeof(struct pico_remote_endpoint));
     if (!ep) {
          pico_err = PICO_ERR_ENOMEM;
-         return -1;
+         return NULL;
     }
     memcpy(ep->remote_addr.ip6, dst, sizeof(struct pico_ip6));
     ep->remote_port = port;
+#endif
     return ep;
 }
+
 
 static struct pico_remote_endpoint *pico_socket_sendto_destination(struct pico_socket *s, void *dst, uint16_t port)
 {
     struct pico_remote_endpoint *ep = NULL;
+    (void)pico_socket_sendto_destination_ipv6;
     /* socket remote info could change in a consecutive call, make persistent */
 #   ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
 #       ifdef PICO_SUPPORT_IPV6
-        if (IS_SOCK_IPV6(s)
+        if (IS_SOCK_IPV6(s))
            ep = pico_socket_sendto_destination_ipv6(s, (struct pico_ip6 *)dst, port); 
 #       endif
 #       ifdef PICO_SUPPORT_IPV4
-        if (IS_SOCK_IPV4(s)
+        if (IS_SOCK_IPV4(s))
            ep = pico_socket_sendto_destination_ipv4(s, (struct pico_ip4 *)dst, port); 
 #       endif
+    }
 #  endif
+    return ep;
 }
 
 static int pico_socket_sendto_set_localport(struct pico_socket *s)
@@ -914,8 +923,9 @@ static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
     struct pico_frame *f;
-    int hdr_offset = pico_socket_sendto_transport_offset(s);
-    f = pico_socket_frame_alloc(s, (uint16_t)len + hdr_offset);
+    uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
+    (void)src;
+    f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -938,33 +948,50 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     if (s->proto->push(s->proto, f) > 0) {
         return len;
     } else {
-        if (f->info)
-            pico_free(f->info);
         pico_frame_discard(f);
-        pico_err = PICO_ERR_EAGAIN;
-        return -1;
+        return 0;
     }
 }
 
+static int pico_socket_xmit_avail_space(struct pico_socket *s);
+
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
+    int space = pico_socket_xmit_avail_space(s);
+    int hdr_offset = pico_socket_sendto_transport_offset(s);
+    int total_payload_written = 0;
+    struct pico_frame *f = NULL;
+
+    if (space > len) {
+        return pico_socket_xmit_one(s, buf, len, src, ep);
+    }
 #ifdef PICO_SUPPORT_IPFRAG
-    while(
-
-
-
-        /* hacking way to identify fragmentation frames: payload != transport_hdr -> first frame */
-        if (!total_payload_written) {
+    while(total_payload_written < len) {
+        /* Always allocate the max space available: space + offset */
+        if (len < space)
+            space = len;
+        f = pico_socket_frame_alloc(s, (uint16_t)(space + hdr_offset));
+        if (!f) {
+            pico_err = PICO_ERR_ENOMEM;
+            if(ep)
+                pico_free(ep);
+            return -1;
+        }
+        f->sock = s;
+        /* First fragment: no payload written yet! */
+        if (!total_payload_written == 0) {
             frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
             /* transport header length field contains total length + header length */
-            f->transport_len = (uint16_t)(len + header_offset);
+            f->transport_len = (uint16_t)(space);
             f->frag = short_be(PICO_IPV4_MOREFRAG);
+            f->payload += hdr_offset;
+            f->payload_len = (uint16_t) space;
         } else {
             /* no transport header in fragmented IP */
             f->payload = f->transport_hdr;
-            f->payload_len = (uint16_t)(f->payload_len + header_offset);
+            f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
             /* set offset in octets */
-            f->frag = short_be((uint16_t)((total_payload_written + header_offset) / 8));
+            f->frag = short_be((uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3));
             if (total_payload_written + f->payload_len < len) {
                 frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
                 f->frag |= short_be(PICO_IPV4_MOREFRAG);
@@ -973,22 +1000,38 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
                 f->frag &= short_be(PICO_IPV4_FRAG_MASK);
             }
         }
-    } else {
-        f->frag = short_be(PICO_IPV4_DONTFRAG);
-    }
-
-    
+        memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
+        transport_flags_update(f, s);
+        if (s->proto->push(s->proto, f) > 0) {
+            total_payload_written += f->payload_len;
+        } else {
+            pico_frame_discard(f);
+            if(ep)
+                pico_free(ep);
+            return 0;
+        }
+    } /* while() */
+    if(ep)
+        pico_free(ep);
+    return total_payload_written;
 
 #else
-    /* Careful with that axe, Eugene! */
-    len = pico_socket_xmit_get_mtu(s) - pico_socket_sendto_transport_offset(s); 
+    /* Careful with that axe, Eugene! 
+     *
+     * cropping down datagrams to the MTU value.
+     */
+    (void) f;
+    (void) hdr_offset;
+    (void) total_payload_written;
+    len = space; 
     return pico_socket_xmit_one(s, buf, len, src, ep);
 
 #endif
 }
 
-static int pico_socket_xmit_get_mtu(s)
+static int pico_socket_xmit_get_mtu(struct pico_socket *s)
 {
+    (void)s;
 #ifdef PICO_SUPPORT_IPV6
     if (IS_SOCK_IPV6(s))
         return PICO_SOCKET6_MTU; 
@@ -1014,8 +1057,10 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 {
     int space = pico_socket_xmit_avail_space(s);
     int total_payload_written = 0;
-    if (space < 0)
+    if (space < 0) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
+    }
 
     if ((PROTO(s) == PICO_PROTO_UDP) && (len > space)) {
         return pico_socket_xmit_fragments(s, buf, len, src, ep);
@@ -1025,16 +1070,23 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
         int w, chunk_len = len;
         if (len > space)
             chunk_len = space;
+        printf("In the loop... (%d/%d)\n", len, total_payload_written);
         w = pico_socket_xmit_one(s, buf, chunk_len, src, ep);
         if (w < 0) {
             if (total_payload_written > 0)
                 break;
-            else
+            else {
+                if (ep)
+                    pico_free(ep);
                 return -1;
+            }
         }
         total_payload_written += w;
+        if (PROTO(s) == PICO_PROTO_UDP) {
+            /* Break after the first datagram sent with at most MTU bytes. */
+            break;
+        }
     }
-
     if (ep)
         pico_free(ep);
 
@@ -1045,60 +1097,28 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
     struct pico_remote_endpoint *remote_endpoint = NULL;
-    int header_offset = 0;
     void *src = NULL;
+
 
     if (pico_socket_sendto_initial_checks(s, buf, len, dst, remote_port) < 0)
         return -1;
+    
 
     src = pico_socket_sendto_get_src(s, dst);
     if (!src) {
         return -1;
     }
 
-    remote_endpoint = pico_sendto_set_endpoint(s, dst, remote_port);
+    remote_endpoint = pico_socket_sendto_destination(s, dst, remote_port);
     if (pico_socket_sendto_set_localport(s) < 0)
         return -1;
+
 
     if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
         s->remote_port = remote_port;
     }
 
     return pico_socket_xmit(s, buf, len, src, remote_endpoint); 
-}
-
-
-while (total_payload_written < len) {
-    int transport_len = (len - total_payload_written) + header_offset;
-    #ifdef PICO_SUPPORT_IPFRAG
-    else {
-        if (total_payload_written)
-            transport_len -= header_offset; /* last fragment, do not allocate memory for transport header */
-
-    }
-#endif /* PICO_SUPPORT_IPFRAG */
-
-
-#ifdef PICO_SUPPORT_IPFRAG
-    #ifdef PICO_SUPPORT_UDP
-    if (PROTO(s) == PICO_PROTO_UDP && ((len + header_offset) > socket_mtu)) {
-#  endif /* PICO_SUPPORT_UDP */
-#endif /* PICO_SUPPORT_IPFRAG */
-    memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
-    /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
-
-    if (s->proto->push(s->proto, f) > 0) {
-        total_payload_written += (int)f->payload_len;
-    } else {
-        pico_frame_discard(f);
-        pico_err = PICO_ERR_EAGAIN;
-        break;
-    }
-}
-if (remote_endpoint)
-    pico_free(remote_endpoint);
-
-return total_payload_written;
 }
 
 int pico_socket_send(struct pico_socket *s, const void *buf, int len)
@@ -1534,11 +1554,6 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
     if (!IS_BCAST(f)) {
         dbg("Socket not found... \n");
         pico_notify_socket_unreachable(f);
-#ifdef PICO_SUPPORT_TCP
-        /* if tcp protocol send RST segment */
-        /* if (self->proto_number == PICO_PROTO_TCP) */
-        /*  pico_tcp_reply_rst(f); */
-#endif
         ret = -1;
         pico_err = PICO_ERR_ENOENT;
     }
@@ -1553,7 +1568,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 static int checkSocketSanity(struct pico_socket *s)
 {
 
-/* checking for pending connections */
+    /* checking for pending connections */
     if(TCP_STATE(s) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
@@ -1563,18 +1578,6 @@ static int checkSocketSanity(struct pico_socket *s)
         /* checking for hanging sockets */
         if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED))
             return -1;
-
-        /* if no activity, force the socket into closing state */
-        /* DLA: Why? This seems off-specs. */
-#ifdef TCP_OFF_SPECS
-        if( TCP_STATE(s) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
-        {
-            s->wakeup(PICO_SOCK_EV_CLOSE, s);
-            pico_socket_close(s);
-            s->timestamp = PICO_TIME_MS();
-        }
-
-#endif
     }
 
     return 0;
