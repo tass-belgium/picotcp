@@ -116,7 +116,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
         }
     }
 
-    if(!client && !serverEvent)
+    if(!client || !serverEvent)
     {
         return;
     }
@@ -353,6 +353,12 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     char chunkStr[10];
     int chunkCount;
 
+    if(!client)
+    {
+        dbg("Wrong connection ID\n");
+        return HTTP_RETURN_ERROR;
+    }
+
     if(client->state != HTTP_WAIT_DATA)
     {
         dbg("Client is in a different state than accepted\n");
@@ -365,11 +371,6 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         return HTTP_RETURN_ERROR;
     }
 
-    if(!client)
-    {
-        dbg("Wrong connection ID\n");
-        return HTTP_RETURN_ERROR;
-    }
 
     if(!buffer)
     {
@@ -404,7 +405,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         chunkStr[chunkCount++] = '\n';
         pico_socket_write(client->sck, chunkStr, chunkCount);
     }
-    else if(len == 0)
+    else
     {
         dbg("->\n");
         /* end of transmision */
@@ -501,7 +502,7 @@ int pico_http_close(uint16_t conn)
 
 static int parseRequestConsumeFullLine(struct httpClient *client, char *line)
 {
-    char c;
+    char c = 0;
     uint32_t index = 0;
     /* consume the full line */
     while(consumeChar(c) > 0) /* read char by char only the first line */
@@ -550,7 +551,7 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
     }
     client->resource = pico_zalloc(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
 
-    if(!client)
+    if(!client->resource)
     {
         pico_err = PICO_ERR_ENOMEM;
         return HTTP_RETURN_ERROR;
@@ -606,7 +607,7 @@ static int parseRequestPost(struct httpClient *client, char *line)
 /* check the integrity of the request */
 int parseRequest(struct httpClient *client)
 {
-    char c;
+    char c = 0;
     char line[HTTP_HEADER_MAX_LINE];
     /* read first line */
     consumeChar(c);
@@ -684,6 +685,12 @@ void sendData(struct httpClient *client)
 
 int readData(struct httpClient *client)
 {
+    if(!client)
+    {
+        dbg("Wrong connection ID\n");
+        return HTTP_RETURN_ERROR;
+    }
+
     if(client->state == HTTP_WAIT_HDR)
     {
         if(parseRequest(client) < 0 || readRemainingHeader(client) < 0)
