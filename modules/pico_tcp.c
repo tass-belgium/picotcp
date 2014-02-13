@@ -1449,7 +1449,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
         t->rttvar = rtt >> 1;
         t->rto = t->avg_rtt + (t->rttvar << 4);
     } else {
-        int32_t var = (int32_t)(t->avg_rtt - rtt);
+        int32_t var = (int32_t)t->avg_rtt - (int32_t)rtt;
         if (var < 0)
             var = 0 - var;
 
