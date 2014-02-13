@@ -240,7 +240,7 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
             tq->frames--;
     }
 
-    if(IS_INPUT_QUEUE(tq))
+    if(f1 && IS_INPUT_QUEUE(tq))
     {
         struct tcp_input_segment *inp = f1;
         pico_free(inp->payload);
