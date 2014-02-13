@@ -94,35 +94,34 @@ extern void pico_mutex_lock(void*);
 extern void pico_mutex_unlock(void*);
 
 extern uint32_t os_time;
-extern uint64_t local_time;
+extern pico_time local_time;
 extern uint32_t last_os_time;
 
 #ifdef TIME_PRESCALE
 extern int32_t prescale_time;
 #endif
-extern uint32_t os_time;
 
-#define UPDATE_LOCAL_TIME() do {local_time = local_time + (os_time - last_os_time);last_os_time = os_time;} while(0)
+#define UPDATE_LOCAL_TIME() do {local_time = local_time + ((pico_time)os_time - (pico_time)last_os_time);last_os_time = os_time;} while(0)
 
-static inline uint64_t PICO_TIME(void)
+static inline pico_time PICO_TIME(void)
 {
     UPDATE_LOCAL_TIME();
   #ifdef TIME_PRESCALE
-    return (prescale_time < 0) ? (uint64_t)(local_time / 1000 << (-prescale_time)) : \
-           (uint64_t)(local_time / 1000 >> prescale_time);
+    return (prescale_time < 0) ? (pico_time)(local_time / 1000 << (-prescale_time)) : \
+           (pico_time)(local_time / 1000 >> prescale_time);
   #else
-    return (uint64_t)(local_time / 1000);
+    return (pico_time)(local_time / 1000);
   #endif
 }
 
-static inline uint64_t PICO_TIME_MS(void)
+static inline pico_time PICO_TIME_MS(void)
 {
     UPDATE_LOCAL_TIME();
   #ifdef TIME_PRESCALE
-    return (prescale_time < 0) ? (uint64_t)(local_time << (-prescale_time)) : \
-           (uint64_t)(local_time >> prescale_time);
+    return (prescale_time < 0) ? (pico_time)(local_time << (-prescale_time)) : \
+           (pico_time)(local_time >> prescale_time);
   #else
-    return (uint64_t)local_time;
+    return (pico_time)local_time;
   #endif
 }
 
