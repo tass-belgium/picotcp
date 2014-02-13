@@ -1,9 +1,9 @@
 PICOTCP?=../../
 
 TCPREFIX = 
-CC      = $(TCPREFIX)gcc
-AS      = $(TCPREFIX)gcc
-LD      = $(TCPREFIX)gcc
+CC      = $(TCPREFIX)gcc-4.6
+AS      = $(TCPREFIX)gcc-4.6
+LD      = $(TCPREFIX)gcc-4.6
 CP      = $(TCPREFIX)objcopy
 OD      = $(TCPREFIX)objdump
 GDBTUI  = $(TCPREFIX)gdbtui
@@ -34,8 +34,9 @@ TEST_VECTOR_EXTENSION_TESTS_RUNNER = Testpico_vector_extension_Runner.c
 
 ZMQ_TESTS_SRC = $(TEST_ZMQ_TESTS) \
       $(MOCKS)/Mockpico_zmtp.c \
-      $(MOCKS)/Mockpico_ipv4.c \
       $(MOCKS)/Mockpico_vector.c \
+      $(MOCKS)/Mockpico_ipv4.c \
+	  $(MOCKS)/Mockpico_zalloc.c \
 
 ZMTP_TESTS_SRC = $(TEST_ZMTP_TESTS) \
       $(MOCKS)/Mockpico_socket.c \
@@ -52,12 +53,12 @@ VECTOR_EXTENSION_TESTS_SRC = $(TEST_VECTOR_EXTENSION_TESTS) \
       ../../stack/pico_vector.c
 
 
-PLUGIN_EXPECT = --plugins="expect"
+PLUGIN_EXPECT = --plugins="expect;"
 PLUGIN_EXPECT_CALLBACK = --plugins="expect;callback"
 PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore"
 
 
-CFLAGS += -ggdb -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
+CFLAGS += -ggdb -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wconversion -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
 
 
 all: zmtp_tests zmq_tests vector_tests vector_extension_tests
@@ -65,7 +66,7 @@ all: zmtp_tests zmq_tests vector_tests vector_extension_tests
 
 zmq_tests: $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC)
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h mocks/pico_zalloc.h
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS_RUNNER)
 
 

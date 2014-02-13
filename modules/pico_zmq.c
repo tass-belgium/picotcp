@@ -6,16 +6,18 @@
  *********************************************************************/
 
 #include "stdint.h"
+#include "pico_zalloc.h"
+#include "pico_vector.h"
+#include "pico_zmq.h"
+#include "pico_zmtp.h"
+
 #include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
-#include "pico_config.h"
+#include "pico_protocol.h"
 
-#include "pico_vector.h"
 
-#include "pico_zmq.h"
-#include "pico_zmtp.h"
 
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
@@ -38,29 +40,30 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
     //TODO: process events!!
 }
 
-void* zmq_socket(void* context, int type)
+void* zmq_socket(void* __attribute__((unused)) context, int type)
 {
     struct zmq_socket_base* sock = NULL;
     switch(type)
     {
         case(ZMTP_TYPE_REQ): 
             sock = pico_zalloc(sizeof(struct zmq_socket_req));
-            ((struct zmq_socket_req *)sock)->send_enable = ZMQ_SEND_ENABLED;
             break;
         case(ZMTP_TYPE_REP):
             break; 
         case(ZMTP_TYPE_PUB):
             break;
         default:
-            pico_free(sock);
             return NULL;
     }
     
     if(!sock) 
     {
-        //pico_err = PICO_ERR_ENOMEM;
+        pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
+    
+    if(type == ZMTP_TYPE_REQ)
+        ((struct zmq_socket_req *)sock)->send_enable = ZMQ_SEND_ENABLED;
 
     sock->type = type;
         
@@ -86,6 +89,7 @@ int zmq_bind(void* socket, char* address, uint16_t port)
 int zmq_connect(void* socket, const char* endpoint)
 {
     struct zmq_socket_base *base = NULL;
+    struct pico_ip4 addr;
     
     if(!socket || !endpoint)
         return -1;
@@ -94,14 +98,15 @@ int zmq_connect(void* socket, const char* endpoint)
     //TODO: parse endpoint!!!
     base = (struct zmq_socket_base *)socket;
     
-    pico_string_to_ipv4("10.40.0.1", &base->addr.addr);
-    return zmtp_socket_connect(base->sock, &base->addr.addr, short_be(5555));
+    pico_string_to_ipv4("10.40.0.1", &addr.addr);
+    return zmtp_socket_connect(base->sock, &addr.addr, short_be(5555));
 }
 
 int zmq_send(void* socket, void* buf, size_t len, int flags)
 {
     struct zmtp_frame_t* frame = NULL;
     struct zmq_socket_base* bsock = NULL;
+    struct pico_vector_iterator* it;
 
     if(!socket)
         return -1;
@@ -123,13 +128,12 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
     
 
     if(bsock->type == ZMTP_TYPE_REQ && ((struct zmq_socket_req *)bsock)->send_enable == ZMQ_SEND_DISABLED )
-            return -1; //For REQ, if send_enable is disabled, then return -1
+        return -1; //For REQ, if send_enable is disabled, then return -1
     
     /* Multi-part messages are described here: http://zguide.zeromq.org/page:all#Multipart-Messages */
     if( (flags & ZMQ_SNDMORE) != 0)
     {
         /* More frames to come. Just add into pico_vector and wait for a later call with a final frame */
-        printf("vector_push_back \n");
         pico_vector_push_back(&bsock->out_vector, frame);
     }
     else {
@@ -145,9 +149,7 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
         if(bsock->type == ZMTP_TYPE_REQ)
             ((struct zmq_socket_req *)bsock)->send_enable = ZMQ_SEND_DISABLED;
 
-
-
-        //TODO: clear out_vector & delete all related zmq_msg_t
+        pico_vector_clear(&bsock->out_vector);  //Who has ownership of the data pointers?
     }
 
     return 0;

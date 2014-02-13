@@ -41,8 +41,6 @@ struct zmq_socket_base
 {
     uint8_t type;
     struct zmtp_socket* sock;
-    struct pico_ip4 addr;
-    uint32_t port;
     //State??
     //DECLARE_PICO_VECTOR(zmq_msg_t_in) out_vector;
     //DECLARE_PICO_VECTOR(zmq_msg_t_out) in_vector;

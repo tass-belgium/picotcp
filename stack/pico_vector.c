@@ -19,7 +19,7 @@ void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t types
     vector->allocation_strategy = pico_vector_allocation_strategy_times2; 
     vector->type_size = typesize;              
     vector->data = pico_zalloc(typesize*capacity); 
-    return vector->data;    
+    return vector->data;
 }
 
 
@@ -62,10 +62,11 @@ void pico_vector_destroy(struct pico_vector* vector)
 
 struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
 {
+    struct pico_vector_iterator* it = malloc(5);
     if (vector->size == 0)
         return NULL;
 
-    struct pico_vector_iterator* it = pico_zalloc(sizeof(struct pico_vector_iterator));
+    it = pico_zalloc(sizeof(struct pico_vector_iterator));
     it->vector = vector;
     it->data = vector->data;
     return it;

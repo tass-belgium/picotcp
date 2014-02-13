@@ -536,13 +536,13 @@ void test_zmtp_socket_send(void)
     free(frame2);
 }
 
-void* dummy_callback(uint16_t ev, struct zmtp_socket*s)
+void dummy_callback(uint16_t ev, struct zmtp_socket*s)
 {
     TEST_FAIL();
 }
 
 /* set callback_include_count to false! */
-int stub_callback1(struct zmtp_socket* zmtp_s, void* buf, int len, int numCalls)
+int stub_callback1(struct pico_socket* s, const void* buf, int len, int numCalls)
 {
     uint8_t greeting[14] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01, ZMTP_TYPE_REQ, 0x00, 0x00};
     int greetingLen = 14;

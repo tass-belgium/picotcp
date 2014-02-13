@@ -32,6 +32,7 @@
 #include "Mockpico_zmtp.h"
 #include "Mockpico_ipv4.h"
 #include "Mockpico_vector.h"
+#include "Mockpico_zalloc.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -39,8 +40,6 @@ extern void tearDown(void);
 extern void test_zmq_socket_req(void);
 extern void test_zmq_socket_rep(void);
 extern void test_zmq_socket_pub(void);
-extern void test_zmq_connect(void);
-extern void test_zmq_req(void);
 
 
 //=======Mock Management=====
@@ -49,18 +48,21 @@ static void CMock_Init(void)
   Mockpico_zmtp_Init();
   Mockpico_ipv4_Init();
   Mockpico_vector_Init();
+  Mockpico_zalloc_Init();
 }
 static void CMock_Verify(void)
 {
   Mockpico_zmtp_Verify();
   Mockpico_ipv4_Verify();
   Mockpico_vector_Verify();
+  Mockpico_zalloc_Verify();
 }
 static void CMock_Destroy(void)
 {
   Mockpico_zmtp_Destroy();
   Mockpico_ipv4_Destroy();
   Mockpico_vector_Destroy();
+  Mockpico_zalloc_Destroy();
 }
 
 //=======Test Reset Option=====
@@ -79,11 +81,9 @@ int main(void)
 {
   Unity.TestFile = "Testzmq_tests.c";
   UnityBegin();
-  RUN_TEST(test_zmq_socket_req, 20);
-  RUN_TEST(test_zmq_socket_rep, 38);
-  RUN_TEST(test_zmq_socket_pub, 43);
-  RUN_TEST(test_zmq_connect, 53);
-  RUN_TEST(test_zmq_req, 69);
+  RUN_TEST(test_zmq_socket_req, 22);
+  RUN_TEST(test_zmq_socket_rep, 56);
+  RUN_TEST(test_zmq_socket_pub, 61);
 
   return (UnityEnd());
 }

@@ -2,7 +2,7 @@
 #ifndef _MOCKPICO_ZALLOC_H
 #define _MOCKPICO_ZALLOC_H
 
-//#include "pico_zalloc.h"
+#include "pico_zalloc.h"
 
 void Mockpico_zalloc_Init(void);
 void Mockpico_zalloc_Destroy(void);
@@ -11,9 +11,17 @@ void Mockpico_zalloc_Verify(void);
 
 
 
+#define pico_zalloc_IgnoreAndReturn(cmock_retval) pico_zalloc_CMockIgnoreAndReturn(__LINE__, cmock_retval)
+void pico_zalloc_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, void* cmock_to_return);
 #define pico_zalloc_ExpectAndReturn(size, cmock_retval) pico_zalloc_CMockExpectAndReturn(__LINE__, size, cmock_retval)
 void pico_zalloc_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, int size, void* cmock_to_return);
+typedef void* (* CMOCK_pico_zalloc_CALLBACK)(int size, int cmock_num_calls);
+void pico_zalloc_StubWithCallback(CMOCK_pico_zalloc_CALLBACK Callback);
+#define pico_free_Ignore() pico_free_CMockIgnore()
+void pico_free_CMockIgnore(void);
 #define pico_free_Expect(mem) pico_free_CMockExpect(__LINE__, mem)
 void pico_free_CMockExpect(UNITY_LINE_TYPE cmock_line, void* mem);
+typedef void (* CMOCK_pico_free_CALLBACK)(void* mem, int cmock_num_calls);
+void pico_free_StubWithCallback(CMOCK_pico_free_CALLBACK Callback);
 
 #endif

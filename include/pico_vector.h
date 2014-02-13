@@ -114,7 +114,7 @@ int pico_vector_push_back(struct pico_vector* vector, void* data);
  * @brief Pop an element from the end of the vector of which you assume ownership
  * Doesn't change capacity!
  */
-void* pico_vector_pop_back(struct pico_vector* vector);
+void* pico_vector_pop_front(struct pico_vector* vector);
 
 
 /**
