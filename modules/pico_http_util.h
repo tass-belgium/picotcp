@@ -97,14 +97,6 @@
 #define EV_HTTP_BODY            64u
 #define EV_HTTP_DNS             128u
 
-#ifndef TRUE
-    #define TRUE    1
-#endif
-
-#ifndef FALSE
-    #define FALSE 0
-#endif
-
 struct pico_http_uri
 {
     uint8_t protoHttp; /* is the protocol Http ? */

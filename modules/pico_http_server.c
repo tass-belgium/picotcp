@@ -98,12 +98,12 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 {
     struct pico_tree_node *index;
     struct httpClient *client = NULL;
-    uint8_t serverEvent = FALSE;
+    uint8_t serverEvent = 0u;
 
     /* determine the client for the socket */
     if( s == server.sck)
     {
-        serverEvent = TRUE;
+        serverEvent = 1u;
     }
     else
     {
@@ -143,7 +143,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
     if(ev & PICO_SOCK_EV_CONN)
     {
-        server.accepted = FALSE;
+        server.accepted = 0u;
         server.wakeup(EV_HTTP_CON, HTTP_SERVER_ID);
         if(!server.accepted)
         {
@@ -235,7 +235,7 @@ int pico_http_server_accept(void)
         return HTTP_RETURN_ERROR;
     }
 
-    server.accepted = TRUE;
+    server.accepted = 1u;
     /* buffer used for async sending */
     client->state = HTTP_WAIT_HDR;
     client->buffer = NULL;
