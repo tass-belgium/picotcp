@@ -1609,20 +1609,14 @@ static int checkSocketSanity(struct pico_socket *s)
 }
 #endif
 
-int pico_sockets_loop(int loop_score)
+
+static int pico_sockets_loop_udp(int loop_score)
 {
+
 #ifdef PICO_SUPPORT_UDP
     static struct pico_tree_node *index_udp;
-#endif
-
-#ifdef PICO_SUPPORT_TCP
-    static struct pico_tree_node*index_tcp;
-#endif
-
     struct pico_sockport *start;
     struct pico_socket *s;
-
-#ifdef PICO_SUPPORT_UDP
     struct pico_frame *f;
 
     if (sp_udp == NULL)
@@ -1660,9 +1654,17 @@ int pico_sockets_loop(int loop_score)
         if (sp_udp == start)
             break;
     }
-#endif
 
+#endif
+    return loop_score;
+}
+
+static int pico_sockets_loop_tcp(int loop_score)
+{
 #ifdef PICO_SUPPORT_TCP
+    struct pico_sockport *start;
+    struct pico_socket *s;
+    static struct pico_tree_node *index_tcp;
     if (sp_tcp == NULL)
     {
         index_tcp = pico_tree_firstNode(TCPTable.root);
@@ -1713,8 +1715,17 @@ int pico_sockets_loop(int loop_score)
         if (sp_tcp == start)
             break;
     }
-#endif
 
+#endif
+    return loop_score;
+
+
+}
+
+int pico_sockets_loop(int loop_score)
+{
+    loop_score = pico_sockets_loop_udp(loop_score);
+    loop_score = pico_sockets_loop_tcp(loop_score);
     return loop_score;
 }
 
@@ -1743,6 +1754,48 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len)
     f->payload_len = len;
     f->sock = s;
     return f;
+}
+
+static void pico_transport_error_set_picoerr(int code)
+{
+    /* dbg("SOCKET ERROR FROM ICMP NOTIFICATION. (icmp code= %d)\n\n", code); */
+    switch(code) {
+    case PICO_ICMP_UNREACH_NET:
+        pico_err = PICO_ERR_ENETUNREACH;
+        break;
+
+    case PICO_ICMP_UNREACH_HOST:
+        pico_err = PICO_ERR_EHOSTUNREACH;
+        break;
+
+    case PICO_ICMP_UNREACH_PROTOCOL:
+        pico_err = PICO_ERR_ENOPROTOOPT;
+        break;
+
+    case PICO_ICMP_UNREACH_PORT:
+        pico_err = PICO_ERR_ECONNREFUSED;
+        break;
+
+    case PICO_ICMP_UNREACH_NET_UNKNOWN:
+        pico_err = PICO_ERR_ENETUNREACH;
+        break;
+
+    case PICO_ICMP_UNREACH_HOST_UNKNOWN:
+        pico_err = PICO_ERR_EHOSTDOWN;
+        break;
+
+    case PICO_ICMP_UNREACH_ISOLATED:
+        pico_err = PICO_ERR_ENONET;
+        break;
+
+    case PICO_ICMP_UNREACH_NET_PROHIB:
+    case PICO_ICMP_UNREACH_HOST_PROHIB:
+        pico_err = PICO_ERR_EHOSTUNREACH;
+        break;
+
+    default:
+        pico_err = PICO_ERR_EOPNOTSUPP;
+    }
 }
 
 int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
@@ -1778,54 +1831,14 @@ int pico_transport_error(struct pico_frame *f, uint8_t proto, int code)
             s = index->keyValue;
             if (trans->dport == s->remote_port) {
                 if (s->wakeup) {
-                    /* dbg("SOCKET ERROR FROM ICMP NOTIFICATION. (icmp code= %d)\n\n", code); */
-                    switch(code) {
-                    case PICO_ICMP_UNREACH_NET:
-                        pico_err = PICO_ERR_ENETUNREACH;
-                        break;
-
-                    case PICO_ICMP_UNREACH_HOST:
-                        pico_err = PICO_ERR_EHOSTUNREACH;
-                        break;
-
-                    case PICO_ICMP_UNREACH_PROTOCOL:
-                        pico_err = PICO_ERR_ENOPROTOOPT;
-                        break;
-
-                    case PICO_ICMP_UNREACH_PORT:
-                        pico_err = PICO_ERR_ECONNREFUSED;
-                        break;
-
-                    case PICO_ICMP_UNREACH_NET_UNKNOWN:
-                        pico_err = PICO_ERR_ENETUNREACH;
-                        break;
-
-                    case PICO_ICMP_UNREACH_HOST_UNKNOWN:
-                        pico_err = PICO_ERR_EHOSTDOWN;
-                        break;
-
-                    case PICO_ICMP_UNREACH_ISOLATED:
-                        pico_err = PICO_ERR_ENONET;
-                        break;
-
-                    case PICO_ICMP_UNREACH_NET_PROHIB:
-                    case PICO_ICMP_UNREACH_HOST_PROHIB:
-                        pico_err = PICO_ERR_EHOSTUNREACH;
-                        break;
-
-                    default:
-                        pico_err = PICO_ERR_EOPNOTSUPP;
-                    }
+                    pico_transport_error_set_picoerr(code);
                     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
                     s->wakeup(PICO_SOCK_EV_ERR, s);
-
                 }
-
                 break;
             }
         }
     }
-
     pico_frame_discard(f);
     return ret;
 }
