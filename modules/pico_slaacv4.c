@@ -38,7 +38,7 @@ enum slaacv4_state {
 };
 
 struct slaacv4_cookie {
-    uint8_t state;
+    enum slaacv4_state state;
     uint8_t probe_try_nb;
     uint8_t conflict_nb;
     uint8_t announce_nb;
