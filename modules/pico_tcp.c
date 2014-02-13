@@ -1623,12 +1623,10 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_t
         val = next_ts;
     }
 
-    if (val > 0) {
-        if (val > TCP_TIME) {
-            t->retrans_tmr_due = val;
-        } else {
-            t->retrans_tmr_due = TCP_TIME + 1;
-        }
+    if ((val > 0) || (val > TCP_TIME)) {
+        t->retrans_tmr_due = val;
+    } else {
+        t->retrans_tmr_due = TCP_TIME + 1;
     }
 
     if (!t->retrans_tmr) {
@@ -2397,6 +2395,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
 
     while((f) && (t->cwnd >= t->in_flight)) {
         f->timestamp = TCP_TIME;
+        add_retransmission_timer(t, t->rto + TCP_TIME);
         tcp_add_options_frame(t, f);
         if (seq_compare((SEQN(f) + f->payload_len), (SEQN(una) + (uint32_t)(t->recv_wnd << t->recv_wnd_scale))) > 0) {
             t->cwnd = (uint16_t)t->in_flight;
