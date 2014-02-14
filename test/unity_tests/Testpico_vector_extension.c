@@ -2,13 +2,17 @@
 #include <stdlib.h>
 #include "unity.h"
 #include "pico_vector_extension.h"
-#include "Mockpico_zalloc.h"
+#include "Mockpico_mm.h"
 
-typedef struct dummy {
+//TODO: remove following 2 lines if makefile is refactored!!
+#include "pico_protocol.h"
+volatile pico_err_t pico_err;
+
+struct dummy {
     uint8_t a;
     uint16_t b;
     uint64_t c;
-} dummy;
+};
 
 
 void* memory;
@@ -17,7 +21,7 @@ size_t defaultcapacity = 10;
 
 void setUp(void)
 {
-    memory = malloc(defaultcapacity*sizeof(dummy));
+    memory = malloc(defaultcapacity*sizeof(struct dummy));
 }
 
 void tearDown(void)
@@ -29,17 +33,20 @@ void tearDown(void)
 void test_pico_vector_pop_front(void)
 {
     struct pico_vector vector;
-    pico_zalloc_ExpectAndReturn(defaultcapacity*sizeof(dummy), memory);
-    TEST_ASSERT_EQUAL_PTR(pico_vector_init(&vector, defaultcapacity, sizeof(dummy)), memory);
+    void* front;
+    struct dummy d = {42,44,666};
+    struct dummy d2 = {22, 33, 999};
+    struct dummy dummyAsIfMalloced;
 
-    dummy d = {42,44,666};
+    pico_mem_zalloc_ExpectAndReturn(defaultcapacity*sizeof(struct dummy), memory);
+    TEST_ASSERT_EQUAL_PTR(pico_vector_init(&vector, defaultcapacity, sizeof(struct dummy)), memory);
+
     pico_vector_push_back(&vector, &d);
-    dummy d2 = {22, 33, 999};
     pico_vector_push_back(&vector, &d2);
 
-    dummy dummyAsIfMalloced;
-    void* front;
-    pico_zalloc_ExpectAndReturn(sizeof(dummy), &dummyAsIfMalloced); 
+
+
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct dummy), &dummyAsIfMalloced); 
     TEST_ASSERT_EQUAL_PTR(&dummyAsIfMalloced, front = pico_vector_pop_front(&vector));
 
     TEST_ASSERT_EQUAL_MEMORY(&d, front, sizeof(d));

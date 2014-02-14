@@ -1,5 +1,4 @@
 #include "unity.h"
-#include "zmq_tests.h"
 #include "pico_zmq.c"
 #include "pico_ipv4.h"
 #include "pico_socket.h"
