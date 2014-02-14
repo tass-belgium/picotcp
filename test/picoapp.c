@@ -1041,9 +1041,9 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         if (w_size < TCPSIZ) {
             do {
                 w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
+                //printf("SOCKET WRITTEN - %d\n", w);
                 if (w > 0) {
                     w_size += w;
-                    printf("SOCKET WRITTEN - %d\n", w_size);
                     if (w < 0)
                         exit(5);
                 }
@@ -1303,7 +1303,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_rd_size += tcpbench_r;
             }
             else if (tcpbench_r < 0) {
-                printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                printf("tcpbench READ> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                 exit(5);
             }
         } while (tcpbench_r > 0);
@@ -1339,7 +1339,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
-        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        printf("tcpbench> EV_ERR: Socket Error received: %s. Bailing out.\n", strerror(pico_err));
         exit(1);
     }
 
@@ -1360,11 +1360,11 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
-                    /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
+//                    printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
                 }
 
                 if (tcpbench_w < 0) {
-                    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                    printf("tcpbench WR> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                     exit(5);
                 }
 
@@ -1929,25 +1929,36 @@ void serverWakeup(uint16_t ev, uint16_t conn)
     {
         int read;
         char *resource;
+        int method;
         printf("Header request was received...\n");
         printf("> Resource : %s\n", pico_http_getResource(conn));
         resource = pico_http_getResource(conn);
+        method = pico_http_getMethod(conn);
 
         if(strcmp(resource, "/") == 0 || strcmp(resource, "index.html") == 0 || strcmp(resource, "/index.html") == 0)
         {
-            /* Accepting request */
-            printf("Accepted connection...\n");
-            pico_http_respond(conn, HTTP_RESOURCE_FOUND);
-            f = fopen("test/examples/index.html", "r");
-
-            if(!f)
+            if(method == HTTP_METHOD_GET)
             {
-                fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
-                exit(1);
-            }
+                /* Accepting request */
+                printf("Accepted connection...\n");
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                f = fopen("test/examples/index.html", "r");
 
-            read = fread(buffer, 1, SIZE, f);
-            pico_http_submitData(conn, buffer, read);
+                if(!f)
+                {
+                    fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
+                    exit(1);
+                }
+
+                read = fread(buffer, 1, SIZE, f);
+                pico_http_submitData(conn, buffer, read);
+            }
+            else if(method == HTTP_METHOD_POST)
+            {
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                strcpy(buffer, "Thanks for posting your data");
+                pico_http_submitData(conn, buffer, strlen(buffer));
+            }
         }
         else
         { /* reject */

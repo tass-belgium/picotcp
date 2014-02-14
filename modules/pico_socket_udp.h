@@ -2,6 +2,7 @@
 #define PICO_SOCKET_UDP_H
 
 struct pico_socket *pico_socket_udp_open(void);
+int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f);
 
 
 #ifdef PICO_SUPPORT_UDP

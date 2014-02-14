@@ -75,7 +75,7 @@ struct pico_socket {
     void *priv;
 };
 
-struct pico_remote_duple {
+struct pico_remote_endpoint {
     union {
         struct pico_ip4 ip4;
         struct pico_ip6 ip6;
