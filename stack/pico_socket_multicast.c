@@ -29,6 +29,17 @@ struct pico_mcast_listen
     struct pico_tree MCASTSources;
 };
 
+static int mcast_listen_link_cmp(struct pico_mcast_listen *a, struct pico_mcast_listen *b)
+{
+    if (a->mcast_link.addr < b->mcast_link.addr)
+        return -1;
+
+    if (a->mcast_link.addr > b->mcast_link.addr)
+        return 1;
+
+    return 0;
+}
+
 static int mcast_listen_cmp(void *ka, void *kb)
 {
     struct pico_mcast_listen *a = ka, *b = kb;
@@ -38,13 +49,8 @@ static int mcast_listen_cmp(void *ka, void *kb)
     if (a->mcast_group.addr > b->mcast_group.addr)
         return 1;
 
-    if (a->mcast_link.addr < b->mcast_link.addr)
-        return -1;
+    return mcast_listen_link_cmp(a, b);
 
-    if (a->mcast_link.addr > b->mcast_link.addr)
-        return 1;
-
-    return 0;
 }
 
 static int mcast_sources_cmp(void *ka, void *kb)
@@ -200,17 +206,59 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
     return filter_mode;
 }
 
+static int pico_socket_mcast_filter_include(struct pico_mcast_listen *listen, struct pico_ip4 *src)
+{
+    struct pico_tree_node *index = NULL;
+    pico_tree_foreach(index, &listen->MCASTSources)
+    {
+        if (src->addr == ((struct pico_ip4 *)index->keyValue)->addr) {
+            so_mcast_dbg("MCAST: IP %08X in included socket source list\n", src->addr);
+            return 0;
+        }
+    }
+    so_mcast_dbg("MCAST: IP %08X NOT in included socket source list\n", src->addr);
+    return -1;
+
+}
+
+static int pico_socket_mcast_filter_exclude(struct pico_mcast_listen *listen, struct pico_ip4 *src)
+{
+    struct pico_tree_node *index = NULL;
+    pico_tree_foreach(index, &listen->MCASTSources)
+    {
+        if (src->addr == ((struct pico_ip4 *)index->keyValue)->addr) {
+            so_mcast_dbg("MCAST: IP %08X in excluded socket source list\n", src->addr);
+            return -1;
+        }
+    }
+    so_mcast_dbg("MCAST: IP %08X NOT in excluded socket source list\n", src->addr);
+    return 0;
+}
+
+static int pico_socket_mcast_source_filtering(struct pico_mcast_listen *listen, struct pico_ip4 *src)
+{
+    /* perform source filtering */
+    if (listen->filter_mode == PICO_IP_MULTICAST_INCLUDE)
+        return pico_socket_mcast_filter_include(listen, src);
+    if (listen->filter_mode == PICO_IP_MULTICAST_EXCLUDE)
+        return pico_socket_mcast_filter_exclude(listen, src);
+    return -1;
+}
+
+static struct pico_ipv4_link *pico_socket_mcast_filter_link_get(struct pico_socket *s)
+{
+    /* check if no multicast enabled on socket */
+    if (!s->MCASTListen)
+        return NULL;
+    return pico_ipv4_link_get(&s->local_addr.ip4);
+}
+
 int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group, struct pico_ip4 *src)
 {
     struct pico_ipv4_link *mcast_link = NULL;
     struct pico_mcast_listen *listen = NULL;
-    struct pico_tree_node *index = NULL;
 
-    /* no multicast enabled on socket */
-    if (!s->MCASTListen)
-        return 0;
-
-    mcast_link = pico_ipv4_link_get(&s->local_addr.ip4);
+    mcast_link = pico_socket_mcast_filter_link_get(s);
     if (!mcast_link)
         return -1;
 
@@ -218,32 +266,8 @@ int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group
     if (!listen)
         return -1;
 
-    /* perform source filtering */
-    switch (listen->filter_mode)
-    {
-    case PICO_IP_MULTICAST_INCLUDE:
-        pico_tree_foreach(index, &listen->MCASTSources)
-        {
-            if (src->addr == ((struct pico_ip4 *)index->keyValue)->addr) {
-                so_mcast_dbg("MCAST: IP %08X in included socket source list\n", src->addr);
-                return 0;
-            }
-        }
-        so_mcast_dbg("MCAST: IP %08X NOT in included socket source list\n", src->addr);
-        return -1;
+    return pico_socket_mcast_source_filtering(listen, src);
 
-    case PICO_IP_MULTICAST_EXCLUDE:
-        pico_tree_foreach(index, &listen->MCASTSources)
-        {
-            if (src->addr == ((struct pico_ip4 *)index->keyValue)->addr) {
-                so_mcast_dbg("MCAST: IP %08X in excluded socket source list\n", src->addr);
-                return -1;
-            }
-        }
-        so_mcast_dbg("MCAST: IP %08X NOT in excluded socket source list\n", src->addr);
-        return 0;
-    }
-    return -1;
 }
 
 static struct pico_ipv4_link *mcast_link(struct pico_ip4 *a)
@@ -254,12 +278,19 @@ static struct pico_ipv4_link *mcast_link(struct pico_ip4 *a)
     return pico_ipv4_link_get(a);
 }
 
-static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip_mreq *mreq)
+
+static int pico_socket_setoption_pre_validation(struct pico_ip_mreq *mreq)
 {
     if (!mreq)
-        return NULL;
-
+        return -1;
     if (!mreq->mcast_group_addr.addr)
+        return -1;
+    return 0;
+}
+
+static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip_mreq *mreq)
+{
+    if (pico_socket_setoption_pre_validation(mreq) < 0)
         return NULL;
 
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
@@ -268,20 +299,23 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip
     return mcast_link(&mreq->mcast_link_addr);
 }
 
-static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_ip_mreq_source *mreq)
+static int pico_socket_setoption_pre_validation_s(struct pico_ip_mreq_source *mreq)
 {
     if (!mreq)
-        return NULL;
-
+        return -1;
     if (!mreq->mcast_group_addr.addr)
-        return NULL;
+        return -1;
+    return 0;
+}
 
+static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_ip_mreq_source *mreq)
+{
+    if (pico_socket_setoption_pre_validation_s(mreq) < 0)
+        return NULL;
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
         return NULL;
-
     if (!pico_ipv4_is_unicast(mreq->mcast_source_addr.addr))
         return NULL;
-
     return mcast_link(&mreq->mcast_link_addr);
 }
 
