@@ -11,8 +11,8 @@ static struct pico_frame f = {.next=NULL};
 
 static struct pico_queue q = {0};
 
-static struct pico_tree_node NODE_IN;
-static struct pico_tree_node NODE_OUT;
+static struct pico_tree_node NODE_IN = { 0 };
+static struct pico_tree_node NODE_OUT = { 0 };
 
 #define KEY_IN 0x0D01
 #define KEY_OUT 0x0D00
@@ -106,10 +106,10 @@ END_TEST
 
 START_TEST(tc_pico_tree_node)
 {
-    struct pico_proto_rr rr;
+    struct pico_proto_rr rr = {0};
     rr.node_in = &NODE_IN;
-    fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_IN) == &NODE_IN); 
     rr.node_out = &NODE_OUT;
+    fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_IN) == &NODE_IN); 
     fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_OUT) == &NODE_OUT);
 }
 END_TEST
