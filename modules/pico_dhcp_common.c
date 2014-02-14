@@ -48,7 +48,8 @@ uint8_t pico_dhcp_are_options_valid(void *ptr, int32_t len)
 
         default:
             p++; /* move pointer from code octet to len octet */
-            if ((--len <= 0) || (len - (*p + 1) < 0)) /* (*p + 1) to account for len octet */
+            len--;
+            if ((len <= 0) || (len - (*p + 1) < 0)) /* (*p + 1) to account for len octet */
                 return 0;
 
             optlen = *p;
