@@ -39,7 +39,7 @@ void test_zmtp_socket_send(void)
 
     /* expected variables */
     void* eBytestream;
-    int eBytestreamLen;
+    size_t eBytestreamLen;
 
     struct pico_vector* vec;
     struct zmtp_socket* zmtp_s;
@@ -51,8 +51,8 @@ void test_zmtp_socket_send(void)
     struct zmtp_frame_t* frame2;
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
     frame2 = calloc(1, sizeof(struct zmtp_frame_t));
-    int msg1Len;
-    int msg2Len;
+    size_t msg1Len;
+    size_t msg2Len;
     uint8_t* msg1;
     uint8_t* msg2;
     
