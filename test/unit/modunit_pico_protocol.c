@@ -7,12 +7,20 @@ volatile pico_err_t pico_err = 0;
 
 static int protocol_passby = 0;
 
-static struct pico_frame f = {.next=NULL};
+static struct pico_frame f = {
+    .next = NULL
+};
 
-static struct pico_queue q = {0};
+static struct pico_queue q = {
+    0
+};
 
-static struct pico_tree_node NODE_IN = { 0 };
-static struct pico_tree_node NODE_OUT = { 0 };
+static struct pico_tree_node NODE_IN = {
+    0
+};
+static struct pico_tree_node NODE_OUT = {
+    0
+};
 
 #define KEY_IN 0x0D01
 #define KEY_OUT 0x0D00
@@ -20,13 +28,17 @@ static struct pico_tree_node NODE_OUT = { 0 };
 
 START_TEST(tc_pico_proto_cmp)
 {
-    struct pico_protocol a = {.hash = 0};
-    struct pico_protocol b = {.hash = 1};
-    fail_if(pico_proto_cmp(&a,&b) >= 0);
+    struct pico_protocol a = {
+        .hash = 0
+    };
+    struct pico_protocol b = {
+        .hash = 1
+    };
+    fail_if(pico_proto_cmp(&a, &b) >= 0);
     a.hash = 1;
-    fail_if(pico_proto_cmp(&a,&b) != 0);
+    fail_if(pico_proto_cmp(&a, &b) != 0);
     a.hash = 2;
-    fail_if(pico_proto_cmp(&a,&b) <= 0);
+    fail_if(pico_proto_cmp(&a, &b) <= 0);
 }
 END_TEST
 
@@ -64,7 +76,9 @@ static int modunit_proto_loop_cb_out(struct pico_protocol *self, struct pico_fra
 
 START_TEST(tc_proto_loop_in)
 {
-    struct pico_protocol p = {.process_in = modunit_proto_loop_cb_in, .q_in = &q};
+    struct pico_protocol p = {
+        .process_in = modunit_proto_loop_cb_in, .q_in = &q
+    };
     protocol_passby = 0;
     pico_enqueue(p.q_in, &f);
     fail_if(proto_loop_in(&p, 1) != 0);
@@ -75,7 +89,9 @@ END_TEST
 
 START_TEST(tc_proto_loop_out)
 {
-    struct pico_protocol p = {.process_out = modunit_proto_loop_cb_out, .q_out = &q};
+    struct pico_protocol p = {
+        .process_out = modunit_proto_loop_cb_out, .q_out = &q
+    };
     protocol_passby = 0;
     pico_enqueue(p.q_out, &f);
     fail_if(proto_loop_out(&p, 1) != 0);
@@ -86,10 +102,10 @@ END_TEST
 START_TEST(tc_proto_loop)
 {
     struct pico_protocol p = {
-            .process_in = modunit_proto_loop_cb_in, 
-            .process_out = modunit_proto_loop_cb_out, 
-            .q_in = &q, 
-            .q_out = &q
+        .process_in = modunit_proto_loop_cb_in,
+        .process_out = modunit_proto_loop_cb_out,
+        .q_in = &q,
+        .q_out = &q
     };
     protocol_passby = 0;
     pico_enqueue(p.q_in, &f);
@@ -106,10 +122,12 @@ END_TEST
 
 START_TEST(tc_pico_tree_node)
 {
-    struct pico_proto_rr rr = {0};
+    struct pico_proto_rr rr = {
+        0
+    };
     rr.node_in = &NODE_IN;
     rr.node_out = &NODE_OUT;
-    fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_IN) == &NODE_IN); 
+    fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_IN) == &NODE_IN);
     fail_unless(roundrobin_init(&rr, PICO_LOOP_DIR_OUT) == &NODE_OUT);
 }
 END_TEST
@@ -126,7 +144,7 @@ END_TEST
 
 START_TEST(tc_pico_protocol_generic_loop)
 {
-   /* TODO: test this: static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction) */
+    /* TODO: test this: static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction) */
 }
 END_TEST
 
@@ -143,9 +161,9 @@ START_TEST(tc_proto_layer_rr_reset)
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("pico_protocol.c");             
+    Suite *s = suite_create("pico_protocol.c");
 
     TCase *TCase_pico_proto_cmp = tcase_create("Unit test for pico_proto_cmp");
     TCase *TCase_proto_loop_in = tcase_create("Unit test for proto_loop_in");
@@ -175,14 +193,14 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_proto_layer_rr_reset);
     return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

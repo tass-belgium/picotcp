@@ -1041,7 +1041,7 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         if (w_size < TCPSIZ) {
             do {
                 w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
-                //printf("SOCKET WRITTEN - %d\n", w);
+                /* printf("SOCKET WRITTEN - %d\n", w); */
                 if (w > 0) {
                     w_size += w;
                     if (w < 0)
@@ -1360,7 +1360,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
-//                    printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w);
+/*                    printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
                 }
 
                 if (tcpbench_w < 0) {

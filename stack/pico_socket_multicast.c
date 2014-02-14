@@ -240,8 +240,10 @@ static int pico_socket_mcast_source_filtering(struct pico_mcast_listen *listen, 
     /* perform source filtering */
     if (listen->filter_mode == PICO_IP_MULTICAST_INCLUDE)
         return pico_socket_mcast_filter_include(listen, src);
+
     if (listen->filter_mode == PICO_IP_MULTICAST_EXCLUDE)
         return pico_socket_mcast_filter_exclude(listen, src);
+
     return -1;
 }
 
@@ -250,6 +252,7 @@ static struct pico_ipv4_link *pico_socket_mcast_filter_link_get(struct pico_sock
     /* check if no multicast enabled on socket */
     if (!s->MCASTListen)
         return NULL;
+
     return pico_ipv4_link_get(&s->local_addr.ip4);
 }
 
@@ -283,8 +286,10 @@ static int pico_socket_setoption_pre_validation(struct pico_ip_mreq *mreq)
 {
     if (!mreq)
         return -1;
+
     if (!mreq->mcast_group_addr.addr)
         return -1;
+
     return 0;
 }
 
@@ -303,8 +308,10 @@ static int pico_socket_setoption_pre_validation_s(struct pico_ip_mreq_source *mr
 {
     if (!mreq)
         return -1;
+
     if (!mreq->mcast_group_addr.addr)
         return -1;
+
     return 0;
 }
 
@@ -312,10 +319,13 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_
 {
     if (pico_socket_setoption_pre_validation_s(mreq) < 0)
         return NULL;
+
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
         return NULL;
+
     if (!pico_ipv4_is_unicast(mreq->mcast_source_addr.addr))
         return NULL;
+
     return mcast_link(&mreq->mcast_link_addr);
 }
 
@@ -331,6 +341,7 @@ static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysou
         mcast_link = pico_socket_setoption_validate_mreq(mreq);
         if (!mcast_link)
             return NULL;
+
         if (!mreq->mcast_link_addr.addr)
             mreq->mcast_link_addr.addr = mcast_link->address.addr;
     } else {
@@ -339,13 +350,15 @@ static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysou
         if (!mreq_src->mcast_link_addr.addr)
             mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
     }
+
     return mcast_link;
-} 
+}
 
 static int setop_verify_listen_tree(struct pico_socket *s, int alloc)
 {
     if(!alloc)
         return -1;
+
     s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
     if (!s->MCASTListen) {
         pico_err = PICO_ERR_ENOMEM;
@@ -366,6 +379,7 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
+
     mcast_link = setop_multicast_link_search(value, bysource);
 
     if (!mcast_link) {
@@ -377,6 +391,7 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
         if (setop_verify_listen_tree(s, alloc) < 0)
             return NULL;
     }
+
     return mcast_link;
 }
 
@@ -849,7 +864,7 @@ void pico_multicast_delete(struct pico_socket *s)
     (void)s;
 }
 
-int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value) 
+int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value)
 {
     (void)s;
     (void)option;

@@ -530,6 +530,7 @@ static int parseRequestExtractFunction(char *line, int index, const char *method
         dbg("Wrong command or wrong ending\n");
         return HTTP_RETURN_ERROR;
     }
+
     return 0;
 }
 
@@ -543,8 +544,8 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
     {
         if(line[index] == '\n') /* no terminator ' ' */
         {
-	    dbg("No terminator...\n");
-	    return HTTP_RETURN_ERROR;
+            dbg("No terminator...\n");
+            return HTTP_RETURN_ERROR;
         }
 
         index++;

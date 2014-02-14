@@ -51,7 +51,7 @@ void pico_loop_destroy(struct pico_device *dev)
 {
     if (dev)
         pico_free(dev);
-    
+
 }
 
 struct pico_device *pico_loop_create(void)

@@ -598,6 +598,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         memcpy(str, asuffix->rdata + PICO_DNS_LABEL_INITIAL, short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL);
         break;
 

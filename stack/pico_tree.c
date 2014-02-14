@@ -224,7 +224,7 @@ static uint8_t pico_tree_delete_node(struct pico_tree *tree, struct pico_tree_no
     switchNodes(tree, ltemp, min);
     min->leftChild = ltemp->leftChild;
 
-    if(IS_NOT_LEAF(min->leftChild)) 
+    if(IS_NOT_LEAF(min->leftChild))
         min->leftChild->parent = min;
 
     min->color = ltemp->color;
@@ -250,9 +250,10 @@ static uint8_t pico_tree_delete_check_switch(struct pico_tree *tree, struct pico
     else{
         nodeColor = pico_tree_delete_node(tree, delete, temp);
     }
+
     return nodeColor;
 
-} 
+}
 
 void *pico_tree_delete(struct pico_tree *tree, void *key)
 {

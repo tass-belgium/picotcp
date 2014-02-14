@@ -126,11 +126,12 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
         /* nothing specified */
         urikey->port = 80u;
         urikey->resource = pico_zalloc(2u);
-        if (!urikey->resource){
+        if (!urikey->resource) {
             /* no memory */
             pico_err = PICO_ERR_ENOMEM;
             goto error;
         }
+
         urikey->resource[0] = '/';
         return HTTP_RETURN_OK;
     }
@@ -154,11 +155,12 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
     if(!uri[index])
     {
         urikey->resource = pico_zalloc(2u);
-        if (!urikey->resource){
+        if (!urikey->resource) {
             /* no memory */
             pico_err = PICO_ERR_ENOMEM;
             goto error;
         }
+
         urikey->resource[0] = '/';
     }
     else

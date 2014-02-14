@@ -361,8 +361,8 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 
     /* place 23 lower bits of IP in lower 23 bits of MAC */
     pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FF);
-    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00) >> 8);
-    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000) >> 16);
+    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00) >> 8u);
+    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000) >> 16u);
 
     return (struct pico_eth *)pico_mcast_mac;
 }
@@ -646,18 +646,18 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum >>= 2;          /* divide by 4 to get average used score */
+            sum >>= 2u;          /* divide by 4 to get average used score */
 
             /* criterion to increase next loop score */
-            if (sum > (score[i] - (score[i] >> 2))  && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1)) < max_total)) { /* > 3/4 */
-                score[i] <<= 1; /* double loop score */
+            if (sum > (score[i] - (score[i] >> 2u))  && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1u)) < max_total)) { /* > 3/4 */
+                score[i] <<= 1u; /* double loop score */
                 total += score[i];
                 continue;
             }
 
             /* criterion to decrease next loop score */
-            if (sum < (score[i] >> 2) && (score[i] >> 1 >= PROTO_MIN_SCORE)) { /* < 1/4 */
-                score[i] >>= 1; /* half loop score */
+            if ((sum < (score[i] >> 2u)) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) { /* < 1/4 */
+                score[i] >>= 1u; /* half loop score */
                 total += score[i];
                 continue;
             }
@@ -684,8 +684,8 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
             sum >>= 2;          /* divide by 4 to get average used score */
 
-            if ((sum == 0) && (score[i] >> 1 >= PROTO_MIN_SCORE)) {
-                score[i] >>= 1; /* half loop score */
+            if ((sum == 0) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) {
+                score[i] >>= 1u; /* half loop score */
                 total += score[i];
                 for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                     avg[i][j] = score[i];
@@ -862,6 +862,7 @@ int pico_stack_init(void)
     Timers = heap_init();
     if (!Timers)
         return -1;
+
 #if ((defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH))
     pico_arp_init();
 #endif
