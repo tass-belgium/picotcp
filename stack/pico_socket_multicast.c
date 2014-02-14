@@ -320,20 +320,17 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_
 }
 
 
-static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
+static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysource)
 {
+
     struct pico_ip_mreq *mreq = NULL;
     struct pico_ipv4_link *mcast_link = NULL;
     struct pico_ip_mreq_source *mreq_src = NULL;
-
-    if (!value) {
-        pico_err = PICO_ERR_EINVAL;
-        return NULL;
-    }
-
     if (!bysource) {
         mreq = (struct pico_ip_mreq *) value;
         mcast_link = pico_socket_setoption_validate_mreq(mreq);
+        if (!mcast_link)
+            return NULL;
         if (!mreq->mcast_link_addr.addr)
             mreq->mcast_link_addr.addr = mcast_link->address.addr;
     } else {
@@ -342,6 +339,34 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
         if (!mreq_src->mcast_link_addr.addr)
             mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
     }
+    return mcast_link;
+} 
+
+static int setop_verify_listen_tree(struct pico_socket *s, int alloc)
+{
+    if(!alloc)
+        return -1;
+    s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
+    if (!s->MCASTListen) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
+    s->MCASTListen->root = &LEAF;
+    s->MCASTListen->compare = mcast_listen_cmp;
+    return 0;
+}
+
+
+static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void *value, int alloc, int bysource)
+{
+    struct pico_ipv4_link *mcast_link = NULL;
+
+    if (!value) {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+    mcast_link = setop_multicast_link_search(value, bysource);
 
     if (!mcast_link) {
         pico_err = PICO_ERR_EINVAL;
@@ -349,18 +374,9 @@ static struct pico_ipv4_link *setopt_multicast_check(struct pico_socket *s, void
     }
 
     if (!s->MCASTListen) { /* No RBTree allocated yet */
-        if (alloc) {
-            s->MCASTListen = pico_zalloc(sizeof(struct pico_tree));
-            if (!s->MCASTListen) {
-                pico_err = PICO_ERR_ENOMEM;
-                return NULL;
-            }
-
-            s->MCASTListen->root = &LEAF;
-            s->MCASTListen->compare = mcast_listen_cmp;
-        } else return NULL;
+        if (setop_verify_listen_tree(s, alloc) < 0)
+            return NULL;
     }
-
     return mcast_link;
 }
 
