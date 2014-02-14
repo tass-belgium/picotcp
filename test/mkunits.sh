@@ -2,6 +2,10 @@
 # By Daniele.
 #set -x
 filename=$1
+if [ [x$1] == [x] ]; then
+    echo USAGE: $0 filename.c
+    exit 4
+fi
 
 #CMOCK="../CMock/lib/cmock.rb"
 
