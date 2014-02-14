@@ -128,7 +128,7 @@ void *pico_tree_insert(struct pico_tree*tree, void *key)
         last_node = temp;
         result = tree->compare(insert->keyValue, temp->keyValue);
 
-        temp = (result < 0 ? temp->leftChild : temp->rightChild);
+        temp = (result < 0) ? (temp->leftChild) : (temp->rightChild);
     }
     /* make the needed connections */
     insert->parent = last_node;
@@ -204,64 +204,77 @@ void *pico_tree_last(struct pico_tree *tree)
     return pico_tree_lastNode(tree->root)->keyValue;
 }
 
-void *pico_tree_delete(struct pico_tree *tree, void *key)
+static uint8_t pico_tree_delete_node(struct pico_tree *tree, struct pico_tree_node *d, struct pico_tree_node **temp)
 {
+    struct pico_tree_node *min;
+    struct pico_tree_node *ltemp = d;
+    uint8_t nodeColor;
+    min = pico_tree_firstNode(d->rightChild);
+    nodeColor = min->color;
 
-    uint8_t nodeColor; /* keeps the color of the node to be deleted */
-    void *lkey; /* keeps a copy of the key which will be removed */
-    struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
-    struct pico_tree_node *temp;  /* temporary */
-    struct pico_tree_node *ltemp;  /* used for switching nodes, as a copy */
+    *temp = min->rightChild;
+    if(min->parent == ltemp && IS_NOT_LEAF(*temp))
+        (*temp)->parent = min;
+    else{
+        switchNodes(tree, min, min->rightChild);
+        min->rightChild = ltemp->rightChild;
+        if(IS_NOT_LEAF(min->rightChild)) min->rightChild->parent = min;
+    }
 
-    delete = pico_tree_findNode(tree, key);
-    ltemp = delete;
+    switchNodes(tree, ltemp, min);
+    min->leftChild = ltemp->leftChild;
 
-    /* this key isn't in the tree, bail out */
-    if(!delete)
-        return NULL;
+    if(IS_NOT_LEAF(min->leftChild)) 
+        min->leftChild->parent = min;
 
-    lkey = delete->keyValue;
-    nodeColor = delete->color;
+    min->color = ltemp->color;
+    return nodeColor;
+}
 
+static uint8_t pico_tree_delete_check_switch(struct pico_tree *tree, struct pico_tree_node *delete, struct pico_tree_node **temp)
+{
+    struct pico_tree_node *ltemp = delete;
+    uint8_t nodeColor = delete->color;
     if(IS_LEAF(delete->leftChild))
     {
-        temp = ltemp->rightChild;
+        *temp = ltemp->rightChild;
         switchNodes(tree, ltemp, ltemp->rightChild);
     }
     else
     if(IS_LEAF(delete->rightChild))
     {
         struct pico_tree_node *_ltemp = delete;
-        temp = _ltemp->leftChild;
+        *temp = _ltemp->leftChild;
         switchNodes(tree, _ltemp, _ltemp->leftChild);
     }
     else{
-        struct pico_tree_node *min;
-        min = pico_tree_firstNode(delete->rightChild);
-        nodeColor = min->color;
-
-        temp = min->rightChild;
-        if(min->parent == ltemp && IS_NOT_LEAF(temp))
-            temp->parent = min;
-        else{
-            switchNodes(tree, min, min->rightChild);
-            min->rightChild = ltemp->rightChild;
-            if(IS_NOT_LEAF(min->rightChild)) min->rightChild->parent = min;
-        }
-
-        switchNodes(tree, ltemp, min);
-        min->leftChild = ltemp->leftChild;
-        if(IS_NOT_LEAF(min->leftChild)) min->leftChild->parent = min;
-
-        min->color = ltemp->color;
+        nodeColor = pico_tree_delete_node(tree, delete, temp);
     }
+    return nodeColor;
+
+} 
+
+void *pico_tree_delete(struct pico_tree *tree, void *key)
+{
+    struct pico_tree_node *temp;
+    uint8_t nodeColor; /* keeps the color of the node to be deleted */
+    void *lkey; /* keeps a copy of the key which will be removed */
+    struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
+
+    delete = pico_tree_findNode(tree, key);
+
+    /* this key isn't in the tree, bail out */
+    if(!delete)
+        return NULL;
+
+    lkey = delete->keyValue;
+    nodeColor = pico_tree_delete_check_switch(tree, delete, &temp);
 
     /* deleted node is black, this will mess up the black path property */
     if(nodeColor == BLACK)
         fix_delete_collisions(tree, temp);
 
     pico_free(delete);
-
     return lkey;
 }
 
