@@ -38,26 +38,36 @@ static inline struct zmtp_socket* get_zmtp_socket(struct pico_socket *s)
 }
 
 
-uint8_t check_signature(void* buf)
+int8_t check_signature(uint8_t* buf)
 {
+    /* always 10 bytes */
     uint8_t i;
 
     printf("received signature: ");
     for(i = 0; i < 10; i++)
         printf("%x ",((uint8_t*)buf)[i]);
     printf("\n");
-    return 0;
+
+    uint8_t sign[10] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x7f};
+    for(i = 0; i < 8; i++)
+        if(sign[i] != buf[i])
+            return -1;
+    if(sign[9] != buf[i])
+        return -1;
+    else
+        return 0;
 }
 
-uint8_t check_revision(void* buf)
+int8_t check_revision(uint8_t* buf)
 {
     printf("received revision: ");
     printf("%x ",*(uint8_t*)buf);
     printf("\n");
+
     return 0;
 }
 
-uint8_t check_socket_type(void* buf)
+int8_t check_socket_type(void* buf)
 {
     printf("received type: ");
     printf("%x ",*(uint8_t*)buf);
@@ -65,7 +75,7 @@ uint8_t check_socket_type(void* buf)
     return 0;
 }
 
-uint8_t get_identity_len(void* buf)
+int8_t get_identity_len(void* buf)
 {
     uint8_t i;
 
@@ -184,7 +194,7 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
     {
         ret = pico_socket_bind(s->sock, local_addr, port);
     } else {
-        ret = PICO_ERR_EFAULT;
+        ret = PICO_ERR_EINVAL;
     }
 
     return ret;
