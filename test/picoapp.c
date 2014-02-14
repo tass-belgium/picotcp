@@ -892,9 +892,9 @@ void cb_udpdnsclient_getaddr(char *ip, void *arg)
     }
 
     printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
-    pico_free(ip);
+    PICO_FREE(ip);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void cb_udpdnsclient_getname(char *name, void *arg)
@@ -907,9 +907,9 @@ void cb_udpdnsclient_getname(char *name, void *arg)
     }
 
     printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
-    pico_free(name);
+    PICO_FREE(name);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void app_udpdnsclient(char *arg)
@@ -2182,6 +2182,7 @@ int main(int argc, char **argv)
     *macaddr_low ^= getpid();
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
+    pico_mem_init(100*4096);
     pico_stack_init();
     /* Parse args */
     while(1) {

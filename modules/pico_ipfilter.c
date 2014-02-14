@@ -134,7 +134,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
 
     ipf_dbg("ipfilter> adding filter\n");
 
-    new_filter = pico_zalloc(sizeof(struct filter_node));
+    new_filter = PICO_ZALLOC(sizeof(struct filter_node));
 
     new_filter->fdev = dev;
     new_filter->proto = proto;
@@ -171,7 +171,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
     }
     if(pico_tree_insert(&filter_tree, new_filter))
     {
-        pico_free(new_filter);
+        PICO_FREE(new_filter);
         ipf_dbg("ipfilter> failed adding filter to tree.\n");
         return -1;
     }
@@ -191,7 +191,7 @@ int pico_ipv4_filter_del(uint8_t filter_id)
         return -1;
     }
 
-    pico_free(node);
+    PICO_FREE(node);
     return 0;
 }
 

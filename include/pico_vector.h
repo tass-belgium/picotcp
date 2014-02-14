@@ -8,8 +8,9 @@
 #ifndef __PICO_VECTOR_H__
 #define __PICO_VECTOR_H__
 
-//#include <stdint.h>
-
+#include <stdint.h>
+#include <stdlib.h>
+//#include "pico_zalloc.h" //<==== see mocking bug (sam)
 
 /**
  * @brief Vector provides dynamic array functionality for the pico_tcp project
@@ -114,7 +115,7 @@ int pico_vector_push_back(struct pico_vector* vector, void* data);
  * @brief Pop an element from the end of the vector of which you assume ownership
  * Doesn't change capacity!
  */
-void* pico_vector_pop_back(struct pico_vector* vector);
+void* pico_vector_pop_front(struct pico_vector* vector);
 
 
 /**

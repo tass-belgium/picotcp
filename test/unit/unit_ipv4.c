@@ -306,9 +306,9 @@ START_TEST (test_ipfilter)
     ret = pico_ipv4_filter_del(filter_id1);
     fail_if(ret != -1, "Deleting non existing filter failed\n");
 
-    f = (struct pico_frame *)pico_zalloc(200);
-    f->buffer = pico_zalloc(20);
-    f->usage_count = pico_zalloc(sizeof(uint32_t));
+    f = (struct pico_frame *)PICO_ZALLOC(200);
+    f->buffer = PICO_ZALLOC(20);
+    f->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     f->buffer = ipv4_buf;
     f->net_hdr = ipv4_buf + 14u; /* shifting to IP layer */
     f->transport_hdr = ipv4_buf + 34u; /* shifting to Transport layer */
@@ -335,9 +335,9 @@ START_TEST (test_ipfilter)
     filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
     fail_if(filter_id1 <= 0, "Error adding exact filter\n");
 
-    f = (struct pico_frame *)pico_zalloc(200);
-    f->buffer = pico_zalloc(20);
-    f->usage_count = pico_zalloc(sizeof(uint32_t));
+    f = (struct pico_frame *)PICO_ZALLOC(200);
+    f->buffer = PICO_ZALLOC(20);
+    f->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     f->buffer = ipv4_buf;
     f->net_hdr = ipv4_buf + 14u; /* shifting to IP layer */
     f->transport_hdr = ipv4_buf + 34u; /* shifting to Transport layer */
@@ -355,9 +355,9 @@ START_TEST (test_ipfilter)
     filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
     fail_if(filter_id1 <= 0, "Error adding bad filter\n");
 
-    f = (struct pico_frame *)pico_zalloc(200);
-    f->buffer = pico_zalloc(20);
-    f->usage_count = pico_zalloc(sizeof(uint32_t));
+    f = (struct pico_frame *)PICO_ZALLOC(200);
+    f->buffer = PICO_ZALLOC(20);
+    f->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     f->buffer = ipv4_buf;
     f->net_hdr = ipv4_buf + 14u; /* shifting to IP layer */
     f->transport_hdr = ipv4_buf + 34u; /* shifting to Transport layer */

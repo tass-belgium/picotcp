@@ -41,13 +41,13 @@ typedef struct _CMOCK_pico_vector_push_back_CALL_INSTANCE
 
 } CMOCK_pico_vector_push_back_CALL_INSTANCE;
 
-typedef struct _CMOCK_pico_vector_pop_back_CALL_INSTANCE
+typedef struct _CMOCK_pico_vector_pop_front_CALL_INSTANCE
 {
   UNITY_LINE_TYPE LineNumber;
   void* ReturnVal;
   struct pico_vector* Expected_vector;
 
-} CMOCK_pico_vector_pop_back_CALL_INSTANCE;
+} CMOCK_pico_vector_pop_front_CALL_INSTANCE;
 
 typedef struct _CMOCK_pico_vector_clear_CALL_INSTANCE
 {
@@ -73,13 +73,43 @@ typedef struct _CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE
 
 static struct Mockpico_vectorInstance
 {
+  int pico_vector_init_IgnoreBool;
+  void* pico_vector_init_FinalReturn;
+  CMOCK_pico_vector_init_CALLBACK pico_vector_init_CallbackFunctionPointer;
+  int pico_vector_init_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_init_CallInstance;
+  int pico_vector_begin_IgnoreBool;
+  struct pico_vector_iterator* pico_vector_begin_FinalReturn;
+  CMOCK_pico_vector_begin_CALLBACK pico_vector_begin_CallbackFunctionPointer;
+  int pico_vector_begin_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_begin_CallInstance;
+  int pico_vector_iterator_next_IgnoreBool;
+  struct pico_vector_iterator* pico_vector_iterator_next_FinalReturn;
+  CMOCK_pico_vector_iterator_next_CALLBACK pico_vector_iterator_next_CallbackFunctionPointer;
+  int pico_vector_iterator_next_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_iterator_next_CallInstance;
+  int pico_vector_push_back_IgnoreBool;
+  int pico_vector_push_back_FinalReturn;
+  CMOCK_pico_vector_push_back_CALLBACK pico_vector_push_back_CallbackFunctionPointer;
+  int pico_vector_push_back_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_push_back_CallInstance;
-  CMOCK_MEM_INDEX_TYPE pico_vector_pop_back_CallInstance;
+  int pico_vector_pop_front_IgnoreBool;
+  void* pico_vector_pop_front_FinalReturn;
+  CMOCK_pico_vector_pop_front_CALLBACK pico_vector_pop_front_CallbackFunctionPointer;
+  int pico_vector_pop_front_CallbackCalls;
+  CMOCK_MEM_INDEX_TYPE pico_vector_pop_front_CallInstance;
+  int pico_vector_clear_IgnoreBool;
+  CMOCK_pico_vector_clear_CALLBACK pico_vector_clear_CallbackFunctionPointer;
+  int pico_vector_clear_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_clear_CallInstance;
+  int pico_vector_destroy_IgnoreBool;
+  CMOCK_pico_vector_destroy_CALLBACK pico_vector_destroy_CallbackFunctionPointer;
+  int pico_vector_destroy_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_destroy_CallInstance;
+  int pico_vector_allocation_strategy_times2_IgnoreBool;
+  void* pico_vector_allocation_strategy_times2_FinalReturn;
+  CMOCK_pico_vector_allocation_strategy_times2_CALLBACK pico_vector_allocation_strategy_times2_CallbackFunctionPointer;
+  int pico_vector_allocation_strategy_times2_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_vector_allocation_strategy_times2_CallInstance;
 } Mock;
 
@@ -88,14 +118,46 @@ extern jmp_buf AbortFrame;
 void Mockpico_vector_Verify(void)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
+  if (Mock.pico_vector_init_IgnoreBool)
+    Mock.pico_vector_init_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_init_CallInstance, cmock_line, "Function 'pico_vector_init' called less times than expected.");
+  if (Mock.pico_vector_init_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_init_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_begin_IgnoreBool)
+    Mock.pico_vector_begin_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_begin_CallInstance, cmock_line, "Function 'pico_vector_begin' called less times than expected.");
+  if (Mock.pico_vector_begin_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_begin_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_iterator_next_IgnoreBool)
+    Mock.pico_vector_iterator_next_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_iterator_next_CallInstance, cmock_line, "Function 'pico_vector_iterator_next' called less times than expected.");
+  if (Mock.pico_vector_iterator_next_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_iterator_next_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_push_back_IgnoreBool)
+    Mock.pico_vector_push_back_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_push_back_CallInstance, cmock_line, "Function 'pico_vector_push_back' called less times than expected.");
-  UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_pop_back_CallInstance, cmock_line, "Function 'pico_vector_pop_back' called less times than expected.");
+  if (Mock.pico_vector_push_back_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_push_back_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_pop_front_IgnoreBool)
+    Mock.pico_vector_pop_front_CallInstance = CMOCK_GUTS_NONE;
+  UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_pop_front_CallInstance, cmock_line, "Function 'pico_vector_pop_front' called less times than expected.");
+  if (Mock.pico_vector_pop_front_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_pop_front_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_clear_IgnoreBool)
+    Mock.pico_vector_clear_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_clear_CallInstance, cmock_line, "Function 'pico_vector_clear' called less times than expected.");
+  if (Mock.pico_vector_clear_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_clear_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_destroy_IgnoreBool)
+    Mock.pico_vector_destroy_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_destroy_CallInstance, cmock_line, "Function 'pico_vector_destroy' called less times than expected.");
+  if (Mock.pico_vector_destroy_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_destroy_CallInstance = CMOCK_GUTS_NONE;
+  if (Mock.pico_vector_allocation_strategy_times2_IgnoreBool)
+    Mock.pico_vector_allocation_strategy_times2_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_vector_allocation_strategy_times2_CallInstance, cmock_line, "Function 'pico_vector_allocation_strategy_times2' called less times than expected.");
+  if (Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer != NULL)
+    Mock.pico_vector_allocation_strategy_times2_CallInstance = CMOCK_GUTS_NONE;
 }
 
 void Mockpico_vector_Init(void)
@@ -107,6 +169,22 @@ void Mockpico_vector_Destroy(void)
 {
   CMock_Guts_MemFreeAll();
   memset(&Mock, 0, sizeof(Mock));
+  Mock.pico_vector_init_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_init_CallbackCalls = 0;
+  Mock.pico_vector_begin_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_begin_CallbackCalls = 0;
+  Mock.pico_vector_iterator_next_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_iterator_next_CallbackCalls = 0;
+  Mock.pico_vector_push_back_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_push_back_CallbackCalls = 0;
+  Mock.pico_vector_pop_front_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_pop_front_CallbackCalls = 0;
+  Mock.pico_vector_clear_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_clear_CallbackCalls = 0;
+  Mock.pico_vector_destroy_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_destroy_CallbackCalls = 0;
+  Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer = NULL;
+  Mock.pico_vector_allocation_strategy_times2_CallbackCalls = 0;
 }
 
 void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t typesize)
@@ -114,6 +192,17 @@ void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t types
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_init_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_init_CallInstance);
   Mock.pico_vector_init_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_init_CallInstance);
+  if (Mock.pico_vector_init_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_init_FinalReturn;
+    Mock.pico_vector_init_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_init_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_init_CallbackFunctionPointer(vector, capacity, typesize, Mock.pico_vector_init_CallbackCalls++);
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_init' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -135,6 +224,17 @@ void CMockExpectParameters_pico_vector_init(CMOCK_pico_vector_init_CALL_INSTANCE
   memcpy(&cmock_call_instance->Expected_typesize, &typesize, sizeof(size_t));
 }
 
+void pico_vector_init_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, void* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_init_CALL_INSTANCE));
+  CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_init_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_init_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_init_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_init_IgnoreBool = (int)1;
+}
+
 void pico_vector_init_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, size_t capacity, size_t typesize, void* cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_init_CALL_INSTANCE));
@@ -146,11 +246,27 @@ void pico_vector_init_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pi
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
+void pico_vector_init_StubWithCallback(CMOCK_pico_vector_init_CALLBACK Callback)
+{
+  Mock.pico_vector_init_CallbackFunctionPointer = Callback;
+}
+
 struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_begin_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_begin_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_begin_CallInstance);
   Mock.pico_vector_begin_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_begin_CallInstance);
+  if (Mock.pico_vector_begin_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_begin_FinalReturn;
+    Mock.pico_vector_begin_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_begin_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_begin_CallbackFunctionPointer(vector, Mock.pico_vector_begin_CallbackCalls++);
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_begin' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -164,6 +280,17 @@ void CMockExpectParameters_pico_vector_begin(CMOCK_pico_vector_begin_CALL_INSTAN
   cmock_call_instance->Expected_vector = (struct pico_vector*)vector;
 }
 
+void pico_vector_begin_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector_iterator* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_begin_CALL_INSTANCE));
+  CMOCK_pico_vector_begin_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_begin_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_begin_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_begin_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_begin_IgnoreBool = (int)1;
+}
+
 void pico_vector_begin_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, const struct pico_vector* vector, struct pico_vector_iterator* cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_begin_CALL_INSTANCE));
@@ -175,11 +302,27 @@ void pico_vector_begin_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, const st
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
+void pico_vector_begin_StubWithCallback(CMOCK_pico_vector_begin_CALLBACK Callback)
+{
+  Mock.pico_vector_begin_CallbackFunctionPointer = Callback;
+}
+
 struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterator* iterator)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_iterator_next_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_iterator_next_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_iterator_next_CallInstance);
   Mock.pico_vector_iterator_next_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_iterator_next_CallInstance);
+  if (Mock.pico_vector_iterator_next_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_iterator_next_FinalReturn;
+    Mock.pico_vector_iterator_next_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_iterator_next_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_iterator_next_CallbackFunctionPointer(iterator, Mock.pico_vector_iterator_next_CallbackCalls++);
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_iterator_next' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -193,6 +336,17 @@ void CMockExpectParameters_pico_vector_iterator_next(CMOCK_pico_vector_iterator_
   cmock_call_instance->Expected_iterator = iterator;
 }
 
+void pico_vector_iterator_next_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector_iterator* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_iterator_next_CALL_INSTANCE));
+  CMOCK_pico_vector_iterator_next_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_iterator_next_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_iterator_next_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_iterator_next_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_iterator_next_IgnoreBool = (int)1;
+}
+
 void pico_vector_iterator_next_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector_iterator* iterator, struct pico_vector_iterator* cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_iterator_next_CALL_INSTANCE));
@@ -204,11 +358,27 @@ void pico_vector_iterator_next_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, 
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
+void pico_vector_iterator_next_StubWithCallback(CMOCK_pico_vector_iterator_next_CALLBACK Callback)
+{
+  Mock.pico_vector_iterator_next_CallbackFunctionPointer = Callback;
+}
+
 int pico_vector_push_back(struct pico_vector* vector, void* data)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_push_back_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_push_back_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_push_back_CallInstance);
   Mock.pico_vector_push_back_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_push_back_CallInstance);
+  if (Mock.pico_vector_push_back_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_push_back_FinalReturn;
+    Mock.pico_vector_push_back_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_push_back_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_push_back_CallbackFunctionPointer(vector, data, Mock.pico_vector_push_back_CallbackCalls++);
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_push_back' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -226,6 +396,17 @@ void CMockExpectParameters_pico_vector_push_back(CMOCK_pico_vector_push_back_CAL
   cmock_call_instance->Expected_data = data;
 }
 
+void pico_vector_push_back_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_push_back_CALL_INSTANCE));
+  CMOCK_pico_vector_push_back_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_push_back_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_push_back_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_push_back_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_push_back_IgnoreBool = (int)1;
+}
+
 void pico_vector_push_back_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, void* data, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_push_back_CALL_INSTANCE));
@@ -237,33 +418,65 @@ void pico_vector_push_back_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, stru
   cmock_call_instance->ReturnVal = cmock_to_return;
 }
 
-void* pico_vector_pop_back(struct pico_vector* vector)
+void pico_vector_push_back_StubWithCallback(CMOCK_pico_vector_push_back_CALLBACK Callback)
+{
+  Mock.pico_vector_push_back_CallbackFunctionPointer = Callback;
+}
+
+void* pico_vector_pop_front(struct pico_vector* vector)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
-  CMOCK_pico_vector_pop_back_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_back_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_pop_back_CallInstance);
-  Mock.pico_vector_pop_back_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_pop_back_CallInstance);
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_pop_back' called more times than expected.");
+  CMOCK_pico_vector_pop_front_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_front_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_pop_front_CallInstance);
+  Mock.pico_vector_pop_front_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_pop_front_CallInstance);
+  if (Mock.pico_vector_pop_front_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_pop_front_FinalReturn;
+    Mock.pico_vector_pop_front_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_pop_front_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_pop_front_CallbackFunctionPointer(vector, Mock.pico_vector_pop_front_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_pop_front' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
-    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_pop_back' called with unexpected value for argument 'vector'.");
+    UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_pop_front' called with unexpected value for argument 'vector'.");
   }
   return cmock_call_instance->ReturnVal;
 }
 
-void CMockExpectParameters_pico_vector_pop_back(CMOCK_pico_vector_pop_back_CALL_INSTANCE* cmock_call_instance, struct pico_vector* vector)
+void CMockExpectParameters_pico_vector_pop_front(CMOCK_pico_vector_pop_front_CALL_INSTANCE* cmock_call_instance, struct pico_vector* vector)
 {
   cmock_call_instance->Expected_vector = vector;
 }
 
-void pico_vector_pop_back_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, void* cmock_to_return)
+void pico_vector_pop_front_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, void* cmock_to_return)
 {
-  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_pop_back_CALL_INSTANCE));
-  CMOCK_pico_vector_pop_back_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_back_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_pop_front_CALL_INSTANCE));
+  CMOCK_pico_vector_pop_front_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_front_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
-  Mock.pico_vector_pop_back_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_pop_back_CallInstance, cmock_guts_index);
+  Mock.pico_vector_pop_front_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_pop_front_CallInstance, cmock_guts_index);
   cmock_call_instance->LineNumber = cmock_line;
-  CMockExpectParameters_pico_vector_pop_back(cmock_call_instance, vector);
   cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_pop_front_IgnoreBool = (int)1;
+}
+
+void pico_vector_pop_front_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, void* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_pop_front_CALL_INSTANCE));
+  CMOCK_pico_vector_pop_front_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_front_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_pop_front_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_pop_front_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  CMockExpectParameters_pico_vector_pop_front(cmock_call_instance, vector);
+  cmock_call_instance->ReturnVal = cmock_to_return;
+}
+
+void pico_vector_pop_front_StubWithCallback(CMOCK_pico_vector_pop_front_CALLBACK Callback)
+{
+  Mock.pico_vector_pop_front_CallbackFunctionPointer = Callback;
 }
 
 void pico_vector_clear(struct pico_vector* vector)
@@ -271,6 +484,15 @@ void pico_vector_clear(struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_clear_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_clear_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_clear_CallInstance);
   Mock.pico_vector_clear_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_clear_CallInstance);
+  if (Mock.pico_vector_clear_IgnoreBool)
+  {
+    return;
+  }
+  if (Mock.pico_vector_clear_CallbackFunctionPointer != NULL)
+  {
+    Mock.pico_vector_clear_CallbackFunctionPointer(vector, Mock.pico_vector_clear_CallbackCalls++);
+    return;
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_clear' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -283,6 +505,11 @@ void CMockExpectParameters_pico_vector_clear(CMOCK_pico_vector_clear_CALL_INSTAN
   cmock_call_instance->Expected_vector = vector;
 }
 
+void pico_vector_clear_CMockIgnore(void)
+{
+  Mock.pico_vector_clear_IgnoreBool = (int)1;
+}
+
 void pico_vector_clear_CMockExpect(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_clear_CALL_INSTANCE));
@@ -293,11 +520,25 @@ void pico_vector_clear_CMockExpect(UNITY_LINE_TYPE cmock_line, struct pico_vecto
   CMockExpectParameters_pico_vector_clear(cmock_call_instance, vector);
 }
 
+void pico_vector_clear_StubWithCallback(CMOCK_pico_vector_clear_CALLBACK Callback)
+{
+  Mock.pico_vector_clear_CallbackFunctionPointer = Callback;
+}
+
 void pico_vector_destroy(struct pico_vector* vector)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_destroy_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_destroy_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_destroy_CallInstance);
   Mock.pico_vector_destroy_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_destroy_CallInstance);
+  if (Mock.pico_vector_destroy_IgnoreBool)
+  {
+    return;
+  }
+  if (Mock.pico_vector_destroy_CallbackFunctionPointer != NULL)
+  {
+    Mock.pico_vector_destroy_CallbackFunctionPointer(vector, Mock.pico_vector_destroy_CallbackCalls++);
+    return;
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_destroy' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -310,6 +551,11 @@ void CMockExpectParameters_pico_vector_destroy(CMOCK_pico_vector_destroy_CALL_IN
   cmock_call_instance->Expected_vector = vector;
 }
 
+void pico_vector_destroy_CMockIgnore(void)
+{
+  Mock.pico_vector_destroy_IgnoreBool = (int)1;
+}
+
 void pico_vector_destroy_CMockExpect(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_destroy_CALL_INSTANCE));
@@ -320,11 +566,27 @@ void pico_vector_destroy_CMockExpect(UNITY_LINE_TYPE cmock_line, struct pico_vec
   CMockExpectParameters_pico_vector_destroy(cmock_call_instance, vector);
 }
 
+void pico_vector_destroy_StubWithCallback(CMOCK_pico_vector_destroy_CALLBACK Callback)
+{
+  Mock.pico_vector_destroy_CallbackFunctionPointer = Callback;
+}
+
 void* pico_vector_allocation_strategy_times2(struct pico_vector* vector)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_allocation_strategy_times2_CallInstance);
   Mock.pico_vector_allocation_strategy_times2_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_allocation_strategy_times2_CallInstance);
+  if (Mock.pico_vector_allocation_strategy_times2_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_vector_allocation_strategy_times2_FinalReturn;
+    Mock.pico_vector_allocation_strategy_times2_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  if (Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer(vector, Mock.pico_vector_allocation_strategy_times2_CallbackCalls++);
+  }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_allocation_strategy_times2' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
   {
@@ -338,6 +600,17 @@ void CMockExpectParameters_pico_vector_allocation_strategy_times2(CMOCK_pico_vec
   cmock_call_instance->Expected_vector = vector;
 }
 
+void pico_vector_allocation_strategy_times2_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, void* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE));
+  CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_vector_allocation_strategy_times2_CallInstance = CMock_Guts_MemChain(Mock.pico_vector_allocation_strategy_times2_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_vector_allocation_strategy_times2_IgnoreBool = (int)1;
+}
+
 void pico_vector_allocation_strategy_times2_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_vector* vector, void* cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE));
@@ -347,5 +620,10 @@ void pico_vector_allocation_strategy_times2_CMockExpectAndReturn(UNITY_LINE_TYPE
   cmock_call_instance->LineNumber = cmock_line;
   CMockExpectParameters_pico_vector_allocation_strategy_times2(cmock_call_instance, vector);
   cmock_call_instance->ReturnVal = cmock_to_return;
+}
+
+void pico_vector_allocation_strategy_times2_StubWithCallback(CMOCK_pico_vector_allocation_strategy_times2_CALLBACK Callback)
+{
+  Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer = Callback;
 }
 

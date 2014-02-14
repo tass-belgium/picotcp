@@ -161,15 +161,12 @@ void test_pico_iterator(void)
     TEST_ASSERT_EQUAL_PTR((it = pico_vector_begin(&vector)), &actualIt);
     TEST_ASSERT_EQUAL_PTR(it->data, vector.data);
     TEST_ASSERT_EQUAL_PTR(it->vector, &vector);
-   
+
     it = pico_vector_iterator_next(it);
     TEST_ASSERT_EQUAL_PTR(it->data, (uint8_t*)(vector.data)+vector.type_size);
     TEST_ASSERT_EQUAL_PTR(it->vector, &vector);
 
-    it = pico_vector_iterator_next(it);
-    TEST_ASSERT_EQUAL_PTR(it->data, (uint8_t*)(vector.data)+vector.type_size*2);
-    TEST_ASSERT_EQUAL_PTR(it->vector, &vector);
-
+    //THIS SHOULD NOT BE HERE!!!!
     pico_free_Expect(it);
     TEST_ASSERT_NULL((it = pico_vector_iterator_next(it)));
 }

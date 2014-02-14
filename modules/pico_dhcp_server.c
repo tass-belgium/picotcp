@@ -88,7 +88,7 @@ static struct pico_dhcp_server_setting *pico_dhcp_server_add_setting(struct pico
         return NULL;
     }
 
-    dhcps = pico_zalloc(sizeof(struct pico_dhcp_server_setting));
+    dhcps = PICO_ZALLOC(sizeof(struct pico_dhcp_server_setting));
     if (!dhcps) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -117,13 +117,13 @@ static struct pico_dhcp_server_setting *pico_dhcp_server_add_setting(struct pico
     dhcps->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcpd_wakeup);
     if (!dhcps->s) {
         dhcps_dbg("DHCP server ERROR: failure opening socket (%s)\n", strerror(pico_err));
-        pico_free(dhcps);
+        PICO_FREE(dhcps);
         return NULL;
     }
 
     if (pico_socket_bind(dhcps->s, &dhcps->server_ip, &port) < 0) {
         dhcps_dbg("DHCP server ERROR: failure binding socket (%s)\n", strerror(pico_err));
-        pico_free(dhcps);
+        PICO_FREE(dhcps);
         return NULL;
     }
 
@@ -156,7 +156,7 @@ static struct pico_dhcp_server_negotiation *pico_dhcp_server_add_negotiation(str
     if (pico_dhcp_server_find_negotiation(hdr->xid))
         return NULL;
 
-    dhcpn = pico_zalloc(sizeof(struct pico_dhcp_server_negotiation));
+    dhcpn = PICO_ZALLOC(sizeof(struct pico_dhcp_server_negotiation));
     if (!dhcpn) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -170,7 +170,7 @@ static struct pico_dhcp_server_negotiation *pico_dhcp_server_add_negotiation(str
     dhcpn->dhcps = pico_tree_findKey(&DHCPSettings, &test);
     if (!dhcpn->dhcps) {
         dhcps_dbg("DHCP server WARNING: received DHCP message on unconfigured link %s\n", dev->name);
-        pico_free(dhcpn);
+        PICO_FREE(dhcpn);
         return NULL;
     }
 
@@ -204,7 +204,7 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
 
     optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_SERVERID + PICO_DHCP_OPTLEN_LEASETIME + PICO_DHCP_OPTLEN_NETMASK + PICO_DHCP_OPTLEN_ROUTER
              + PICO_DHCP_OPTLEN_BROADCAST + PICO_DHCP_OPTLEN_DNS + PICO_DHCP_OPTLEN_END;
-    hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen);
+    hdr = PICO_ZALLOC(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen);
 
     hdr->op = PICO_DHCP_OP_REPLY;
     hdr->htype = PICO_DHCP_HTYPE_ETH;

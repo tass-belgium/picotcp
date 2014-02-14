@@ -105,7 +105,7 @@ struct pico_protocol pico_proto_udp = {
 
 struct pico_socket *pico_udp_open(void)
 {
-    struct pico_socket_udp *u = pico_zalloc(sizeof(struct pico_socket_udp));
+    struct pico_socket_udp *u = PICO_ZALLOC(sizeof(struct pico_socket_udp));
     if (!u)
         return NULL;
 

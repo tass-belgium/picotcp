@@ -218,7 +218,7 @@ int pico_http_server_accept(void)
     struct httpClient *client;
     uint16_t port;
 
-    client = pico_zalloc(sizeof(struct httpClient));
+    client = PICO_ZALLOC(sizeof(struct httpClient));
     if(!client)
     {
         pico_err = PICO_ERR_ENOMEM;
@@ -230,7 +230,7 @@ int pico_http_server_accept(void)
     if(!client->sck)
     {
         pico_err = PICO_ERR_ENOMEM;
-        pico_free(client);
+        PICO_FREE(client);
         return HTTP_RETURN_ERROR;
     }
 
@@ -360,7 +360,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
 
     if(len > 0)
     {
-        client->buffer = pico_zalloc(len);
+        client->buffer = PICO_ZALLOC(len);
         if(!client->buffer)
         {
             pico_err = PICO_ERR_ENOMEM;
@@ -442,7 +442,7 @@ int pico_http_close(uint16_t conn)
                 struct httpClient *client = index->keyValue;
 
                 if(client->resource)
-                    pico_free(client->resource);
+                    PICO_FREE(client->resource);
 
                 pico_socket_close(client->sck);
                 pico_tree_delete(&pico_http_clients, client);
@@ -468,15 +468,15 @@ int pico_http_close(uint16_t conn)
         pico_tree_delete(&pico_http_clients, client);
 
         if(client->resource)
-            pico_free(client->resource);
+            PICO_FREE(client->resource);
 
         if(client->buffer)
-            pico_free(client->buffer);
+            PICO_FREE(client->buffer);
 
         if(client->state != HTTP_CLOSED || !client->sck)
             pico_socket_close(client->sck);
 
-        pico_free(client);
+        PICO_FREE(client);
         return HTTP_RETURN_OK;
     }
 }
@@ -527,7 +527,7 @@ int parseRequest(struct httpClient *client)
 
             index++;
         }
-        client->resource = pico_zalloc(index - 3u); /* allocate without the GET in front + 1 which is \0 */
+        client->resource = PICO_ZALLOC(index - 3u); /* allocate without the GET in front + 1 which is \0 */
 
         if(!client)
         {
@@ -536,7 +536,7 @@ int parseRequest(struct httpClient *client)
         }
 
         /* copy the resource */
-        memcpy(client->resource, line + 4u, index - 4u); /* copy without the \0 which was already set by pico_zalloc */
+        memcpy(client->resource, line + 4u, index - 4u); /* copy without the \0 which was already set by PICO_ZALLOC */
 
         client->state = HTTP_WAIT_EOF_HDR;
         return HTTP_RETURN_OK;
@@ -599,7 +599,7 @@ void sendData(struct httpClient *client)
         {
             client->state = HTTP_WAIT_DATA;
             /* free the buffer */
-            pico_free(client->buffer);
+            PICO_FREE(client->buffer);
             client->buffer = NULL;
             server.wakeup(EV_HTTP_SENT, client->connectionID);
         }

@@ -18,11 +18,10 @@ GENERATE_MOCK = ../../../CMock/lib/cmock.rb
 LIBS=Libraries
 
 
-TEST_FRAMEWORK = $(UNITY)/unity.c \
-	  $(CMOCK)/cmock.c \
+TEST_FRAMEWORK = $(UNITY)/unity.o \
+	  $(CMOCK)/cmock.o \
 
-ZMTP_SRC = $(PICOTCP)/modules/pico_zmtp.c \
-    $(PICOTCP)/modules/pico_zmtp.h
+TEST_FRAMEWORK_CFLAGS = -I$(UNITY) -I$(CMOCK)
 
 ZMQ_SRC = $(PICOTCP)/modules/pico_zmq.c \
     $(PICOTCP)/modules/pico_zmq.h
@@ -37,14 +36,17 @@ TEST_ZMTP_TESTS_RUNNER = Testzmtp_tests_Runner.c
 TEST_VECTOR_TESTS_RUNNER = Testpico_vector_Runner.c
 TEST_VECTOR_EXTENSION_TESTS_RUNNER = Testpico_vector_extension_Runner.c
 
-ZMQ_TESTS_SRC = $(TEST_ZMQ_TESTS) \
-      $(MOCKS)/Mockpico_zmtp.c \
+ZMQ_TESTS_SRC = $(MOCKS)/Mockpico_zmtp.o \
+      $(MOCKS)/Mockpico_vector.o \
+      $(MOCKS)/Mockpico_ipv4.o \
+	  $(MOCKS)/Mockpico_mm.o \
+	  $(TEST_ZMQ_TESTS_RUNNER) \
 
 ZMTP_TESTS_SRC = $(TEST_ZMTP_TESTS) \
-      $(MOCKS)/Mockpico_socket.c \
-      $(MOCKS)/Mockpico_vector.c \
-      $(MOCKS)/Mockpico_zalloc.c \
-      $(PICOTCP)/stack/pico_tree.c
+      $(MOCKS)/Mockpico_socket.o \
+      $(MOCKS)/Mockpico_vector.o \
+      $(MOCKS)/Mockpico_mm.o \
+      $(TEST_ZMTP_TESTS_RUNNER) \
 
 VECTOR_TESTS_SRC = $(TEST_VECTOR_TESTS) \
       $(MOCKS)/Mockpico_zalloc.c \
@@ -55,29 +57,50 @@ VECTOR_EXTENSION_TESTS_SRC = $(TEST_VECTOR_EXTENSION_TESTS) \
       ../../stack/pico_vector.c
 
 
-PLUGIN_EXPECT = --plugins="expect"
+PLUGIN_EXPECT = --plugins="expect;"
 PLUGIN_EXPECT_CALLBACK = --plugins="expect;callback"
 PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore"
 
 
-CFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
+CFLAGS += -ggdb -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wconversion -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
+
+CFLAGS += -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
 
 
 all: zmtp_tests zmq_tests vector_tests vector_extension_tests
 
+$(TEST_FRAMEWORK): %.o : %.c
+	@$(CC) -c $(TEST_FRAMEWORK_CFLAGS) $< -o $@
 
-zmq_tests: $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(ZMQ_SRC)
+$(ZMQ_TESTS_SRC): %.o : %.c
+	@$(CC) -c $(TEST_FRAMEWORK_CFLAGS) -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING -I$(PICOTCP)/modules/ -I$(MOCKS) -I$(PICOTCP)/include/ $< -o $@
+
+$(ZMTP_TESTS_SRC): %.o : %.c
+	@$(CC) -c $(TEST_FRAMEWORK_CFLAGS) -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING -I$(PICOTCP)/modules/ -I$(MOCKS) -I$(PICOTCP)/include/ $< -o $@
+
+generate_zmq_mocks:
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h
-	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS_RUNNER)
-
-
-zmtp_tests: $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC) $(ZMTP_SRC)
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h ../../modules/pico_mm.h
+	
+generate_zmtp_mocks:
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_vector.h ../../modules/pico_mm.h
 	#ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_socket.h
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT) ../../include/pico_vector.h
-	#ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT) mocks/pico_zalloc.h
-	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC) $(TEST_ZMTP_TESTS_RUNNER)
+	
+zmq_tests: generate_zmq_mocks $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS)
+	@mv $(UNITY)/*.o ./obj/
+	@mv $(CMOCK)/*.o ./obj/
+	@mv ./mocks/*.o ./obj/
+	#@mv $(PICOTCP)stack/*.o ./obj/
+	$(CC) $(CFLAGS) -o $@ ./obj/* $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
+
+
+zmtp_tests: generate_zmtp_mocks $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC)
+	@mv $(UNITY)/*.o ./obj/
+	@mv $(CMOCK)/*.o ./obj/
+	@mv ./mocks/*.o ./obj/
+	$(CC) -I$(PICOTCP)/include -I$(PICOTCP)/modules -c -o ./obj/pico_tree.o $(PICOTCP)/stack/pico_tree.c
+	$(CC) $(CFLAGS) -o $@ ./obj/* $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
 
 vector_tests: $(TEST_FRAMEWORK) $(VECTOR_TESTS_SRC)
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_VECTOR_TESTS) $(TEST_VECTOR_TESTS_RUNNER)
@@ -88,4 +111,5 @@ vector_extension_tests: $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC)
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC) $(TEST_VECTOR_EXTENSION_TESTS_RUNNER)
 
 clean:
-	rm -f zmq_tests zmtp_tests vector_tests vector_extension_tests *_Runner.c
+	rm -vf demo.elf demo.bin *.o ./obj/*.o
+	rm -vf zmq_tests vector_tests vector_extension_tests
