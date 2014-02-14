@@ -11,8 +11,8 @@
 #include <string.h>
 #include "pico_constants.h"
 
-extern uint32_t msp430_time_s(void);
-extern uint32_t msp430_time_ms(void);
+extern pico_time msp430_time_s(void);
+extern pico_time msp430_time_ms(void);
 extern void *malloc(size_t);
 extern void free(void *);
 

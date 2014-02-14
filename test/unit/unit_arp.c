@@ -32,6 +32,7 @@ START_TEST (arp_check_pending_test)
     fail_unless(pending_timer_on == 0);
 
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     pico_enqueue(&pending, f);
     pending_timer_on = 1;
     check_pending(0, NULL);
@@ -93,8 +94,9 @@ START_TEST (arp_expire_test)
 {
     struct pico_arp entry;
     entry.arp_status = PICO_ARP_STATUS_REACHABLE;
+    entry.timestamp = 0;
 
-    arp_expire(0, &entry);
+    arp_expire(PICO_ARP_TIMEOUT, &entry);
     fail_unless(entry.arp_status == PICO_ARP_STATUS_STALE);
 }
 END_TEST
@@ -130,6 +132,7 @@ START_TEST (arp_receive_test)
 
     /* Normal ARP request */
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     eh = (struct pico_eth_hdr *) f->datalink_hdr;
     ah = (struct pico_arp_hdr *) f->net_hdr;
 
@@ -149,23 +152,27 @@ START_TEST (arp_receive_test)
 
     /* net_hdr is a nullpointer */
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     f->net_hdr = NULL;
     fail_unless(pico_arp_receive(f) == -1);
 
     /* wrong hardware type */
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->htype = 0;
     fail_unless(pico_arp_receive(f) == -1);
 
     /* wrong protocol type */
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->ptype = 0;
     fail_unless(pico_arp_receive(f) == -1);
 
     /* source mac address is multicast */
     f = init_frame(mock->dev);
+    fail_if(!f, "FRAME INIT failed");
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->s_mac[0] = 0x01;
     fail_unless(pico_arp_receive(f) == -1);

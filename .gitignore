@@ -1,4 +1,4 @@
-*.*~
+*~
 .gitignore
 build/
 docs/user_manual/*
@@ -6,3 +6,5 @@ docs/user_manual/*
 tmp/
 *.swp
 *.orig
+*Runner.c
+*_tests

@@ -29,7 +29,7 @@ while(True):
     mods[mod] = deps.strip(' ')
 
 for k,v in mods.iteritems():
-  command = 'make '
+  command = 'make dummy '
   deps = get_deps(k)
   for i in mods.keys():
     if i in deps:

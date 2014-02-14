@@ -21,6 +21,7 @@ void test_zmtp_tests_NeedToImplement(void)
     TEST_IGNORE();
 }
 
+
 void test_zmtp_socket_send(void)
 {
     TEST_IGNORE();
@@ -554,6 +555,11 @@ int stub_callback1(struct pico_socket* s, const void* buf, int len, int numCalls
     return 0;
 }
 
+void zmtp_socket_callback(uint16_t ev, struct zmtp_socket* s)
+{
+
+}
+
 void test_zmtp_socket_connect(void)
 {
     /* Only supporting zmtp2.0 (whole greeting send at once) */
@@ -571,16 +577,133 @@ void test_zmtp_socket_connect(void)
     pico_mem_zalloc_IgnoreAndReturn(NULL);
     /* Setting up zmtp_socket */
     pico_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, &zmtp_tcp_cb, pico_s);
-    zmtp_s = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, socket_type, &dummy_callback);
+    zmtp_s = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, socket_type, &zmtp_socket_callback);
     TEST_ASSERT_NOT_NULL(zmtp_s);
     TEST_ASSERT_EQUAL_UINT8(zmtp_s->type, socket_type);
 
-
+    /*----=== Test valid arguments ===----*/
     /* Setup mocking objects */
     pico_socket_connect_ExpectAndReturn(zmtp_s->sock, srv_addr, remote_port, 0);
     pico_socket_write_StubWithCallback(stub_callback1);
 
-    /* Tests */
+    /* Test */
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_connect(zmtp_s, srv_addr, remote_port));
 
+    /*----=== Test invalid arguments ===----
+    The zmq_connect only returns -1 if the zmtp_socket was NULL 
+    or if pico_socket_connect returns -1*/
+
+    /* Setup mocking objects */
+    pico_socket_connect_ExpectAndReturn(zmtp_s->sock, srv_addr, remote_port, -1);
+
+    /* Test */
+    TEST_ASSERT_EQUAL_INT(-1, zmtp_socket_connect(zmtp_s, srv_addr, remote_port));
+    TEST_ASSERT_EQUAL_INT(-1, zmtp_socket_connect(NULL, srv_addr, remote_port));
 }
+
+void test_zmtp_socket_open(void)
+{
+    uint16_t net = PICO_PROTO_IPV4;
+    uint16_t proto = PICO_PROTO_TCP;
+    uint8_t type = ZMTP_TYPE_PUB;
+    struct zmtp_socket* zmtp_s;
+    struct zmtp_socket* zmtp_ret_s;
+    struct pico_socket* pico_s;
+    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+    pico_s = calloc(1, sizeof(struct pico_socket));
+    /* ---=== Test failing pico_zalloc ===----*/
+    //pico_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), NULL);
+    //pico_socket_open_IgnoreAndReturn(NULL);
+ 
+    /* Test */
+    //TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, &zmtp_socket_callback));
+    //TEST_ASSERT_EQUAL_INT(PICO_ERR_ENOMEM, pico_err);     
+    /*----=== Test invalid arguments ===----*/
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, -1, &zmtp_socket_callback));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, ZMTP_TYPE_END, &zmtp_socket_callback));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, NULL));
+
+    pico_socket_open_ExpectAndReturn(net, proto, &zmtp_tcp_cb, NULL);
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, &zmtp_socket_callback));
+
+    /*----=== Test valid arguments ===----*/
+    //pico_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), zmtp_s);
+    pico_socket_open_ExpectAndReturn(net, proto, &zmtp_tcp_cb, pico_s);
+    zmtp_ret_s = zmtp_socket_open(net, proto, type, &zmtp_socket_callback); 
+    TEST_ASSERT_EQUAL_PTR(pico_s, zmtp_ret_s->sock);
+    TEST_ASSERT_EQUAL_INT(ST_SND_IDLE, zmtp_ret_s->snd_state);
+    TEST_ASSERT_EQUAL_INT(ST_RCV_IDLE, zmtp_ret_s->rcv_state);
+
+    free(zmtp_s);
+    free(pico_s);
+
+}
+
+void test_zmtp_socket_bind(void)
+{
+   struct zmtp_socket* zmtp_s;
+   struct pico_socket* pico_s;
+   uint16_t port = 23445;
+
+   zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
+   /*----=== Test empty sockets ===----*/
+   /*we don't test pico_socket_bind here so we can use whatever value for the local_addr and port*/
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(NULL, NULL, &port), PICO_ERR_EFAULT);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(zmtp_s, NULL, &port), PICO_ERR_EFAULT);
+
+   /*----=== Test valid arguments ===----*/
+   zmtp_s->sock = pico_s;
+   pico_socket_bind_IgnoreAndReturn(0);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_bind(zmtp_s, NULL, &port), 0);
+   
+   free(zmtp_s);
+   free(pico_s);
+   
+}
+
+void test_zmtp_socket_close(void)
+{
+   struct zmtp_socket* zmtp_s;
+   struct pico_socket* pico_s;
+   zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
+   /*----=== Test empty sockets ===----*/
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(NULL), -1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s),-1);
+
+   zmtp_s->sock = pico_s;
+   pico_socket_close_IgnoreAndReturn(-1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), -1);
+   /*----=== Test valid arguments ===----*/
+   pico_socket_close_IgnoreAndReturn(0);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), 0);
+
+   free(zmtp_s);
+   free(pico_s);
+}
+
+void test_zmtp_socket_read(void)
+{
+   struct zmtp_socket* zmtp_s;
+   struct pico_socket* pico_s;
+   int buffLen = 20;
+   char buff[buffLen];
+   zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+   pico_s = calloc(1, sizeof(struct pico_socket));
+   /*----=== Test empty sockets ===----*/
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(NULL, (void*)buff, buffLen), -1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), -1);
+   /*invalid buff or buffLen should be handled by pico_socket*/
+
+   zmtp_s->sock = pico_s;
+   pico_socket_read_IgnoreAndReturn(-1);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), -1);
+   /*----=== Test valid arguments ===----*/
+   pico_socket_read_IgnoreAndReturn(0);
+   TEST_ASSERT_EQUAL_INT(zmtp_socket_read(zmtp_s, (void*)buff, buffLen), 0);
+
+   free(zmtp_s);
+   free(pico_s);
+}
+

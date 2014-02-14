@@ -23,6 +23,9 @@ TEST_FRAMEWORK = $(UNITY)/unity.o \
 
 TEST_FRAMEWORK_CFLAGS = -I$(UNITY) -I$(CMOCK)
 
+ZMQ_SRC = $(PICOTCP)/modules/pico_zmq.c \
+    $(PICOTCP)/modules/pico_zmq.h
+
 TEST_ZMQ_TESTS = Testzmq_tests.c
 TEST_ZMTP_TESTS = Testzmtp_tests.c
 TEST_VECTOR_TESTS = Testpico_vector.c

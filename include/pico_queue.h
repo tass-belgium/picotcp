@@ -30,16 +30,16 @@ struct pico_queue {
 };
 
 #ifdef PICO_SUPPORT_MUTEX
-#define LOCK(x) { \
+#define PICOTCP_MUTEX_LOCK(x) { \
         if (x == NULL) \
             x = pico_mutex_init(); \
         pico_mutex_lock(x); \
 }
-#define UNLOCK(x) pico_mutex_unlock(x)
+#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
 
 #else
-#define LOCK(x) do {} while(0)
-#define UNLOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 #ifdef PICO_SUPPORT_DEBUG_TOOLS
@@ -71,7 +71,7 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
         return -1;
 
     if (q->shared)
-        LOCK(q->mutex);
+        PICOTCP_MUTEX_LOCK(q->mutex);
 
     p->next = NULL;
     if (!q->head) {
@@ -89,7 +89,7 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
     debug_q(q);
 
     if (q->shared)
-        UNLOCK(q->mutex);
+        PICOTCP_MUTEX_UNLOCK(q->mutex);
 
     return (int32_t)q->size;
 }
@@ -101,7 +101,7 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
         return NULL;
 
     if (q->shared)
-        LOCK(q->mutex);
+        PICOTCP_MUTEX_LOCK(q->mutex);
 
     q->head = p->next;
     q->frames--;
@@ -112,7 +112,7 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
     debug_q(q);
     p->next = NULL;
     if (q->shared)
-        UNLOCK(q->mutex);
+        PICOTCP_MUTEX_UNLOCK(q->mutex);
 
     return p;
 }

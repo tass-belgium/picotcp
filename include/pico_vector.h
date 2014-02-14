@@ -29,7 +29,7 @@ struct pico_vector;
 
 struct pico_vector
 {
-    PICO_VECTOR_COMMON_DATA;
+    PICO_VECTOR_COMMON_DATA
     void* data;
 };
 
