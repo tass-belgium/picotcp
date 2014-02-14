@@ -47,7 +47,7 @@ void pico_pcap_destroy(struct pico_device *dev)
 {
     struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
     pcap_close(pcap->conn);
-    pico_free(pcap);
+    PICO_FREE(pcap);
 }
 
 #define PICO_PCAP_MODE_LIVE 0
@@ -55,7 +55,7 @@ void pico_pcap_destroy(struct pico_device *dev)
 
 static struct pico_device *pico_pcap_create(char *if_file_name, char *name, uint8_t *mac, int mode)
 {
-    struct pico_device_pcap *pcap = pico_zalloc(sizeof(struct pico_device_pcap));
+    struct pico_device_pcap *pcap = PICO_ZALLOC(sizeof(struct pico_device_pcap));
     char errbuf[2000];
     if (!pcap)
         return NULL;

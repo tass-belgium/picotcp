@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include "Mockpico_socket.h"
 #include "Mockpico_vector.h"
-#include "Mockpico_zalloc.h"
+#include "Mockpico_mm.h"
 
 //=======External Functions This Runner Calls=====
 extern void setUp(void);
@@ -45,19 +45,19 @@ static void CMock_Init(void)
 {
   Mockpico_socket_Init();
   Mockpico_vector_Init();
-  Mockpico_zalloc_Init();
+  Mockpico_mm_Init();
 }
 static void CMock_Verify(void)
 {
   Mockpico_socket_Verify();
   Mockpico_vector_Verify();
-  Mockpico_zalloc_Verify();
+  Mockpico_mm_Verify();
 }
 static void CMock_Destroy(void)
 {
   Mockpico_socket_Destroy();
   Mockpico_vector_Destroy();
-  Mockpico_zalloc_Destroy();
+  Mockpico_mm_Destroy();
 }
 
 //=======Test Reset Option=====

@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "pico_vector_extension.h"
-#include "pico_zalloc.h"    // <=== should become pico_config (?)
+#include "pico_config.h"
 #include <stdint.h>
 
 
@@ -18,7 +18,7 @@ void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t types
     vector->capacity = capacity;                                        
     vector->allocation_strategy = pico_vector_allocation_strategy_times2; 
     vector->type_size = typesize;              
-    vector->data = pico_zalloc(typesize*capacity); 
+    vector->data = PICO_ZALLOC(typesize*capacity); 
     return vector->data;
 }
 
@@ -37,7 +37,7 @@ int pico_vector_push_back(struct pico_vector* vector, void* data)
 
 void* pico_vector_allocation_strategy_times2(struct pico_vector* vector) 
 { 
-    void* newmem = pico_zalloc(vector->type_size*vector->capacity*2);
+    void* newmem = PICO_ZALLOC(vector->type_size*vector->capacity*2);
     memcpy(newmem, vector->data, vector->type_size*vector->capacity);
     pico_free(vector->data);
     vector->data = newmem;
@@ -66,7 +66,7 @@ struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
     if (vector->size == 0)
         return NULL;
 
-    it = pico_zalloc(sizeof(struct pico_vector_iterator));
+    it = PICO_ZALLOC(sizeof(struct pico_vector_iterator));
     it->vector = vector;
     it->data = vector->data;
     return it;
@@ -89,11 +89,11 @@ struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterat
 void* pico_vector_pop_front(struct pico_vector* vector)
 {
     uint8_t* from, *to;
-    void* data = pico_zalloc(vector->type_size);
+    void* data = PICO_ZALLOC(vector->type_size);
     memcpy(data, vector->data, vector->type_size);
     
     // not using memmove, standard is unclear about what happens under the hood
-    // is a malloc is used, we're bummed .. it bypasses pico_zalloc
+    // is a malloc is used, we're bummed .. it bypasses PICO_ZALLOC
 
     for(from = vector->data+vector->type_size, to = vector->data;
         from < vector->data+(vector->type_size*vector->size);

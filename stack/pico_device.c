@@ -48,11 +48,11 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     pico_tree_insert(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
-    dev->q_in = pico_zalloc(sizeof(struct pico_queue));
-    dev->q_out = pico_zalloc(sizeof(struct pico_queue));
+    dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
 
     if (mac) {
-        dev->eth = pico_zalloc(sizeof(struct pico_ethdev));
+        dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
         memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
     } else {
         dev->eth = NULL;
@@ -81,12 +81,11 @@ void pico_device_destroy(struct pico_device *dev)
     pico_queue_destroy(dev->q_out);
 
     if (dev->eth)
-        pico_free(dev->eth);
+        PICO_FREE(dev->eth);
 
     pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
-    pico_free(dev);
 }
 
 static int check_dev_serve_interrupt(struct pico_device *dev, int loop_score)

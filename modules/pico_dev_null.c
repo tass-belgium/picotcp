@@ -39,12 +39,12 @@ static int pico_null_poll(struct pico_device *dev, int loop_score)
 void pico_null_destroy(struct pico_device *dev)
 {
     struct pico_device_null *null = (struct pico_device_null *) dev;
-    pico_free(null);
+    PICO_FREE(null);
 }
 
 struct pico_device *pico_null_create(char *name)
 {
-    struct pico_device_null *null = pico_zalloc(sizeof(struct pico_device_null));
+    struct pico_device_null *null = PICO_ZALLOC(sizeof(struct pico_device_null));
 
     if (!null)
         return NULL;

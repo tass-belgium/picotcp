@@ -6,7 +6,7 @@
 #include "Mockpico_zmtp.h"
 #include "Mockpico_ipv4.h"
 #include "Mockpico_vector.h"
-#include "Mockpico_zalloc.h"
+#include "Mockpico_mm.h"
 
 struct zmtp_socket dummy_zmtp_sock;
 volatile pico_err_t pico_err;
@@ -24,18 +24,18 @@ void test_zmq_socket_req(void)
     struct zmq_socket_base* temp = NULL;
     struct zmq_socket_req req_sock;
     
-    /* Make pico_zalloc return NULL */
-    pico_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), NULL);
+    /* Make pico_mem_zalloc return NULL */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), NULL);
     TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_REQ));
     
     /* Make pico_zmtp_open return NULL */
-    pico_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
     zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, NULL);
-    pico_free_Expect(&req_sock);
+    pico_mem_free_Expect(&req_sock);
     TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_REQ));
 
     /* Normal situation */
-    pico_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
     zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&req_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&req_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
@@ -63,21 +63,46 @@ void test_zmq_socket_pub(void)
     TEST_IGNORE();
 }
 
+struct pico_ip4 addr;
+
+uint32_t* addr_pointer_to_verify;
 int pico_string_to_ipv4_cb(const char *ipstr, uint32_t *ip, int NumCalls)
 {
-    *ip = 123456;
+    TEST_ASSERT_EQUAL_STRING("10.40.0.1", ipstr);
+    addr_pointer_to_verify = ip;
+    return 0;
 }
 
-//void test_zmq_connect(void)
-//{
-//    void *dummy_ptr = NULL;
-//    
-//    pico_string_to_ipv4_StubWithCallback(&pico_string_to_ipv4_cb);
-//    zmtp_socket_connect_IgnoreAndReturn(0);
-//    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(NULL, NULL));
-//    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(&dummy_ptr, NULL));
-//    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(NULL, "tcp://127.0.0.1:5555"));
-//}
+int zmtp_socket_connect_cb(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port, int cmock_num_calls)
+{
+    TEST_ASSERT_EQUAL_PTR(addr_pointer_to_verify, srv_addr);
+    TEST_ASSERT_EQUAL_INT(45845, remote_port);    //45854 = short_be(5555)
+    return 0;
+}
+
+void test_zmq_connect(void)
+{
+    struct zmq_socket_base* temp = NULL;
+    struct zmq_socket_req req_sock;
+
+    /* Test for bad arguments */
+    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(NULL, "tcp://10.40.0.1:5555"));
+    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(&req_sock, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, zmq_connect(NULL, NULL));
+
+    /* Test normal situation */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    pico_vector_init_ExpectAndReturn(&req_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
+    pico_vector_init_ExpectAndReturn(&req_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
+    
+    temp = (struct zmq_socket_base *)zmq_socket(NULL, ZMTP_TYPE_REQ);
+
+    addr_pointer_to_verify = calloc(sizeof(uint32_t), 1);
+    pico_string_to_ipv4_StubWithCallback(&pico_string_to_ipv4_cb);
+    zmtp_socket_connect_StubWithCallback(&zmtp_socket_connect_cb);
+    TEST_ASSERT_EQUAL_INT(0, zmq_connect(temp, "tcp://10.40.0.1:5555"));
+}
 
 //void test_zmq_req_send(void)
 //{

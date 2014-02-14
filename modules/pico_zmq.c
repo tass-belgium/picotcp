@@ -6,7 +6,6 @@
  *********************************************************************/
 
 #include "stdint.h"
-#include "pico_zalloc.h"
 #include "pico_vector.h"
 #include "pico_zmq.h"
 #include "pico_zmtp.h"
@@ -46,7 +45,7 @@ void* zmq_socket(void* __attribute__((unused)) context, int type)
     switch(type)
     {
         case(ZMTP_TYPE_REQ): 
-            sock = pico_zalloc(sizeof(struct zmq_socket_req));
+            sock = PICO_ZALLOC(sizeof(struct zmq_socket_req));
             break;
         case(ZMTP_TYPE_REP):
             break; 
@@ -65,12 +64,12 @@ void* zmq_socket(void* __attribute__((unused)) context, int type)
     if(type == ZMTP_TYPE_REQ)
         ((struct zmq_socket_req *)sock)->send_enable = ZMQ_SEND_ENABLED;
 
-    sock->type = type;
+    sock->type = (uint8_t)type;
         
-    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, type, &cb_zmtp_sockets);
+    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, (uint8_t)type, &cb_zmtp_sockets);
     
     if(!sock->sock) {
-        pico_free(sock);
+        PICO_FREE(sock);
         return NULL;
     }
     
@@ -78,12 +77,7 @@ void* zmq_socket(void* __attribute__((unused)) context, int type)
     pico_vector_init(&sock->in_vector, 5, sizeof(struct zmq_msg_t));
     pico_vector_init(&sock->out_vector, 5, sizeof(struct zmq_msg_t));
 
-    return sock; 
-}
-
-int zmq_bind(void* socket, char* address, uint16_t port)
-{
-    return 0;
+    return sock;
 }
 
 int zmq_connect(void* socket, const char* endpoint)
@@ -106,17 +100,16 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
 {
     struct zmtp_frame_t* frame = NULL;
     struct zmq_socket_base* bsock = NULL;
-    struct pico_vector_iterator* it;
 
     if(!socket)
         return -1;
 
-    frame = pico_zalloc(sizeof(struct zmtp_frame_t));
+    frame = PICO_ZALLOC(sizeof(struct zmtp_frame_t));
 
     if(!frame)
         return -1;
 
-    frame->buf = pico_zalloc(len);
+    frame->buf = PICO_ZALLOC(len);
 
     if(!frame->buf)
         return -1;
@@ -153,21 +146,6 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
     }
 
     return 0;
-}
-
-int zmq_recv(void* socket, char* txt)
-{
-    return 0;
-}
-
-void zmq_close(void* socket)
-{
-    
-}
-
-int zmq_msg_init_size(struct zmq_msg_t* msg, size_t size)
-{
-    
 }
 
 /* cyclic states

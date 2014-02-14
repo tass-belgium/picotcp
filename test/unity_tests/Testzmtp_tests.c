@@ -4,7 +4,7 @@
 #include "Mockpico_socket.h"
 #include <stdint.h>
 #include "Mockpico_vector.h"
-#include "Mockpico_zalloc.h"
+#include "Mockpico_mm.h"
 
 volatile pico_err_t pico_err;
 
@@ -26,7 +26,7 @@ void test_zmtp_socket_send(void)
     TEST_IGNORE();
 /*
     mocking variables
-    void* aBytestream: actual bytestream, used as return value of the mocked pico_zalloc
+    void* aBytestream: actual bytestream, used as return value of the mocked pico_mem_zalloc
     
     expected variables
     void* eBytestream: expected bytestream, 
@@ -79,7 +79,7 @@ void test_zmtp_socket_send(void)
 
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0); /* expect pointer to aBytestream but content of eBytestream */
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -110,7 +110,7 @@ void test_zmtp_socket_send(void)
 
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -141,7 +141,7 @@ void test_zmtp_socket_send(void)
 
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -173,7 +173,7 @@ void test_zmtp_socket_send(void)
 
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -205,7 +205,7 @@ void test_zmtp_socket_send(void)
 
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -249,7 +249,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -294,7 +294,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -339,7 +339,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -384,7 +384,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -429,7 +429,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -475,7 +475,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -521,7 +521,7 @@ void test_zmtp_socket_send(void)
     pico_vector_begin_ExpectAndReturn(vec, (struct pico_vector_iterator*)&frame1);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame1, (struct pico_vector_iterator*)&frame2);
     pico_vector_iterator_next_ExpectAndReturn((struct pico_vector_iterator*)&frame2, NULL);
-    pico_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
+    pico_mem_zalloc_ExpectAndReturn(eBytestreamLen, aBytestream);
     pico_socket_send_ExpectAndReturn(zmtp_s->sock, aBytestream, eBytestreamLen, 0);
     
     TEST_ASSERT_EQUAL_INT(0, zmtp_socket_send(zmtp_s, vec));
@@ -568,10 +568,11 @@ void test_zmtp_socket_connect(void)
 
 
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
-
+    pico_mem_zalloc_IgnoreAndReturn(NULL);
     /* Setting up zmtp_socket */
     pico_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, &zmtp_tcp_cb, pico_s);
     zmtp_s = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, socket_type, &dummy_callback);
+    TEST_ASSERT_NOT_NULL(zmtp_s);
     TEST_ASSERT_EQUAL_UINT8(zmtp_s->type, socket_type);
 
 

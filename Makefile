@@ -32,6 +32,8 @@ HTTP_SERVER?=1
 ZMQ?=1
 OLSR?=1
 SLAACV4?=1
+MEMORY_MANAGER?=0
+MEMORY_MANAGER_PROFILING?=0
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -85,6 +87,14 @@ endif
 ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
   -mlarge-code -mlarge-data -O0 -msmart-io=1 -msfr-warn=off
+endif
+
+ifeq ($(ARCH), avr)
+  CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
+endif
+
+ifeq ($(ARCH),str9)
+  CFLAGS+=-DSTR9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
 .c.o:
@@ -174,6 +184,12 @@ endif
 ifneq ($(SLAACV4),0)
   include rules/slaacv4.mk
 endif
+ifneq ($(MEMORY_MANAGER),0)
+  include rules/memory_manager.mk
+endif
+ifneq ($(MEMORY_MANAGER_PROFILING),0)
+  OPTIONS+=-DPICO_SUPPORT_MM_PROFILING
+endif
 
 all: mod core lib
 
@@ -234,6 +250,13 @@ devunits: mod core lib
 	@$(CC) -c -o $(PREFIX)/test/unit/device/picotcp_mock.o $(CFLAGS) -I stack -I modules -I includes -I test/unit test/unit/device/picotcp_mock.c
 	@$(CC) -c -o $(PREFIX)/test/unit/device/unit_dev_vde.o $(CFLAGS) -I stack -I modules -I includes -I test/unit test/unit/device/unit_dev_vde.c
 	@echo -e "\t[LD] $(PREFIX)/test/devunits"
+units_mm: mod core lib
+	@echo -e "\n\t[UNIT TESTS SUITE]"
+	@mkdir -p $(PREFIX)/test
+	@echo -e "\t[CC] units_mm.o"
+	@$(CC) -c -o $(PREFIX)/test/units_mm.o test/unit/unit_mem_manager.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
+	@echo -e "\t[LD] $(PREFIX)/test/units"
+	@$(CC) -o $(PREFIX)/test/units_mm $(CFLAGS) $(PREFIX)/test/units_mm.o -lcheck -lm -pthread -lrt
 	@$(CC) -o $(PREFIX)/test/devunits $(CFLAGS) $(PREFIX)/test/unit/device/*.o -lcheck -lm -pthread -lrt
 
 
