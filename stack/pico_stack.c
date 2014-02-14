@@ -561,9 +561,6 @@ struct pico_timer
 struct pico_timer_ref
 {
     pico_time expire;
-#ifdef JENKINS_DEBUG
-    void *caller;
-#endif
     struct pico_timer *tmr;
 };
 
@@ -820,24 +817,9 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     t->arg = arg;
     t->timer = timer;
     tref.tmr = t;
-    #ifdef JENKINS_DEBUG
-    /* jenkins_dbg("pico_timer_add: now have %d \t caller: %p\n", Timers->n, __builtin_return_address(0)); */
-    tref.caller = __builtin_return_address(0);
-    #endif
     heap_insert(Timers, &tref);
     if (Timers->n > PICO_MAX_TIMERS) {
-        /* dbg("Warning: I have %d timers\n", Timers->n); */
-        #ifdef JENKINS_DEBUG
-        {
-            struct pico_timer_ref *trf = heap_first(Timers);
-            int timer_it = 1;
-            for (timer_it = 1; timer_it <= Timers->n; timer_it++)
-            {
-                trf = &Timers->top[timer_it];
-                jenkins_dbg("timer %d [%p] - cb:%p\n", Timers->n - timer_it, trf->tmr, trf->caller, (trf->tmr->timer));
-            }
-        }
-        #endif
+        dbg("Warning: I have %d timers\n", Timers->n);
     }
 
     return t;
