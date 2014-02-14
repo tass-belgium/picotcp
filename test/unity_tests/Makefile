@@ -87,7 +87,7 @@ $(ZMTP_TESTS_SRC): %.o : %.c
 
 generate_zmq_mocks:
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMQ_TESTS) $(TEST_ZMQ_TESTS_RUNNER)
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h ../../modules/pico_mm.h
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../modules/pico_zmtp.h ../../include/pico_vector.h ../../modules/pico_mm.h ../../modules/pico_ipv4.h
 	
 generate_zmtp_mocks:
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
