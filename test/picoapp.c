@@ -2019,33 +2019,35 @@ void app_httpd(char __attribute__((unused)) *arg)
 #endif
 /* END HTTP server */
 
-void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
-{
-}
+
+//void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
+//{
+//}
 
 
 /* ZEROMQ PRODUCER */
 void app_zeromq_prod(char __attribute__((unused)) *arg)
 {
-    ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
-    if (!z) {
-        fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
-        exit(1);
-    }
-
-    while(1) {
-        pico_time last = 0;
-        pico_time now;
-        char zmsg[] = "HELLO";
-        pico_stack_tick();
-        now = PICO_TIME_MS();
-        if (now > last + 500) {
-            zmq_send(z, zmsg, 5);
-            last = now;
-        }
-
-        usleep(2000);
-    }
+    return;
+//    ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
+//    if (!z) {
+//        fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
+//        exit(1);
+//    }
+//
+//    while(1) {
+//        pico_time last = 0;
+//        pico_time now;
+//        char zmsg[] = "HELLO";
+//        pico_stack_tick();
+//        now = PICO_TIME_MS();
+//        if (now > last + 500) {
+//            zmq_send(z, zmsg, 5);
+//            last = now;
+//        }
+//
+//        usleep(2000);
+//    }
 }
 
 /* NOOP */
@@ -2193,7 +2195,6 @@ int main(int argc, char **argv)
     *macaddr_low ^= getpid();
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
-    pico_mem_init(100*4096);
     pico_stack_init();
     /* Parse args */
     while(1) {
