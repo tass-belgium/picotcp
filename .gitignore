@@ -7,4 +7,6 @@ tmp/
 *.swp
 *.orig
 *Runner.c
-*_tests
+mocks/
+obj/
+zmtp_tests

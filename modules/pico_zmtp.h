@@ -14,37 +14,41 @@
 
 #define SOCK_BUFF_CAP    10
 
-#define ZMTP_TYPE_PAIR     (uint8_t)0
-#define ZMTP_TYPE_PUB      (uint8_t)1
-#define ZMTP_TYPE_SUB      (uint8_t)2
-#define ZMTP_TYPE_REQ      (uint8_t)3
-#define ZMTP_TYPE_REP      (uint8_t)4
-#define ZMTP_TYPE_DEALER   (uint8_t)5
-#define ZMTP_TYPE_ROUTER   (uint8_t)6
-#define ZMTP_TYPE_PULL     (uint8_t)7
-#define ZMTP_TYPE_PUSH     (uint8_t)8
-#define ZMTP_TYPE_END      (uint8_t)9
+#define ZMTP_TYPE_PAIR     (uint8_t)0x00
+#define ZMTP_TYPE_PUB      (uint8_t)0x01
+#define ZMTP_TYPE_SUB      (uint8_t)0x02
+#define ZMTP_TYPE_REQ      (uint8_t)0x03
+#define ZMTP_TYPE_REP      (uint8_t)0x04
+#define ZMTP_TYPE_DEALER   (uint8_t)0x05
+#define ZMTP_TYPE_ROUTER   (uint8_t)0x06
+#define ZMTP_TYPE_PULL     (uint8_t)0x07
+#define ZMTP_TYPE_PUSH     (uint8_t)0x08
+#define ZMTP_TYPE_END      (uint8_t)0x09
 
 enum zmtp_state {
-    ST_SND_IDLE,
-    ST_SND_OPEN,
-    ST_SND_CONNECT,
-    ST_SND_GREETING,
-    ST_SND_RDY
+    ZMTP_ST_IDLE,
+    ZMTP_ST_SND_GREETING,
+    ZMTP_ST_RCVD_SIGNATURE,
+    ZMTP_ST_RCVD_REVISION,
+    ZMTP_ST_RCVD_TYPE,
+    ZMTP_ST_RCVD_ID_LEN,
+    ZMTP_ST_RDY
 };
 
 enum zmtp_ev {
-    EV_NONE=0,
-    EV_ERR=1
+    ZMTP_EV_NONE,
+    ZMTP_EV_
 };
-/*
-enum zmq_state {
-    ST_OPEN = 0,
-    ST_RDY,
-    ST_BUSY,
-    ST_END //Marks the end of the enum
+
+enum zmtp_error_e {
+    ZMTP_ERR_NOERR,
+    ZMTP_ERR_EINVAL,
+    ZMTP_ERR_ENOMEM,
+    ZMTP_ERR_NOTIMPL
 };
-*/
+
+enum zmtp_error_e zmtp_err;
+
 
 struct zmtp_frame_t {
     size_t len;
@@ -54,14 +58,15 @@ struct zmtp_frame_t {
 struct zmtp_socket {
     struct pico_socket* sock;
     /*enum zmq_state state;*/
-    enum zmtp_snd_state snd_state;
-    enum zmtp_rcv_state rcv_state;
+    enum zmtp_state state;
     uint8_t type;
     void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s);
 };
 
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s));
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec);
-int8_t zmtp_socket_close(struct zmtp_socket *s);
+int zmtp_socket_close(struct zmtp_socket *s);
+int zmtp_socket_read(struct zmtp_socket* s, void* buff, int len);
 #endif
