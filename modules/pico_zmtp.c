@@ -37,18 +37,11 @@ static inline struct zmtp_socket* get_zmtp_socket(struct pico_socket *s)
     return (pico_tree_findKey(&zmtp_sockets, &tst));
 }
 
-
+/* Checking zmtp2.0 header, discarding 9th byte */
 int8_t check_signature(uint8_t* buf)
 {
-    /* always 10 bytes */
-    uint8_t i;
-
-    printf("received signature: ");
-    for(i = 0; i < 10; i++)
-        printf("%x ",((uint8_t*)buf)[i]);
-    printf("\n");
-
     uint8_t sign[10] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x7f};
+
     for(i = 0; i < 8; i++)
         if(sign[i] != buf[i])
             return -1;
@@ -67,15 +60,47 @@ int8_t check_revision(uint8_t* buf)
     return 0;
 }
 
-int8_t check_socket_type(void* buf)
+int8_t check_socket_type(uint8_t* buf)
 {
     printf("received type: ");
     printf("%x ",*(uint8_t*)buf);
     printf("\n");
-    return 0;
+
+    switch(*buf)
+    {
+        case 0x00: 
+            return ZMTP_TYPE_PAIR;
+            break;
+        case 0x01:
+            return ZMTP_TYPE_PUB;
+            break;
+        case 0x02:
+            return ZMTP_TYPE_SUB;
+            break;
+        case 0x03:
+            return ZMTP_TYPE_REQ;
+            break;
+        case 0x04:
+            return ZMTP_TYPE_REP;
+            break;
+        case 0x05:
+            return ZMTP_TYPE_DEALER;
+            break;
+        case 0x06:
+            return ZMTP_TYPE_ROUTER;
+            break;
+        case 0x07:
+            return ZMTP_TYPE_PULL;
+            break;
+        case 0x08:
+            return ZMTP_TYPE_PUSH;
+            break;
+        default:
+            return -1;
+    }
 }
 
-int8_t get_identity_len(void* buf)
+int8_t get_identity_len(uint8_t* buf)
 {
     uint8_t i;
 
@@ -83,7 +108,10 @@ int8_t get_identity_len(void* buf)
     for(i = 0; i < 2; i++)
         printf("%x ",((uint8_t*)buf)[i]);
     printf("\n");
-    return 0;
+
+    if(0x00 != buf[0])
+        return -1;
+    return *((int8_t*)buf);
 }
 
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)

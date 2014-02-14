@@ -14,24 +14,18 @@
 
 #define SOCK_BUFF_CAP    10
 
-#define ZMTP_TYPE_PAIR   0
-#define ZMTP_TYPE_PUB    1
-#define ZMTP_TYPE_SUB    2
-#define ZMTP_TYPE_REQ    3
-#define ZMTP_TYPE_REP    4
-#define ZMTP_TYPE_END    5 
+#define ZMTP_TYPE_PAIR     (uint8_t)0
+#define ZMTP_TYPE_PUB      (uint8_t)1
+#define ZMTP_TYPE_SUB      (uint8_t)2
+#define ZMTP_TYPE_REQ      (uint8_t)3
+#define ZMTP_TYPE_REP      (uint8_t)4
+#define ZMTP_TYPE_DEALER   (uint8_t)5
+#define ZMTP_TYPE_ROUTER   (uint8_t)6
+#define ZMTP_TYPE_PULL     (uint8_t)7
+#define ZMTP_TYPE_PUSH     (uint8_t)8
+#define ZMTP_TYPE_END      (uint8_t)9
 
-enum zmtp_rcv_state {
-    ST_RCV_IDLE,
-    ST_RCV_SIGNATURE,
-    ST_RCV_REVISION,
-    ST_RCV_TYPE,
-    ST_RCV_ID_LEN,
-    ST_RCV_ID,
-    ST_RCV_RDY
-};
-
-enum zmtp_snd_state {
+enum zmtp_state {
     ST_SND_IDLE,
     ST_SND_OPEN,
     ST_SND_CONNECT,
