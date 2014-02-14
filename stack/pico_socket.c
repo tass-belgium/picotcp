@@ -63,9 +63,7 @@ static void *Mutex = NULL;
 # define IS_SOCK_IPV6(s) (0)
 #endif
 
-#ifdef PICO_SUPPORT_IPFRAG
 # define frag_dbg(...) do {} while(0)
-#endif
 
 
 static struct pico_sockport *sp_udp = NULL, *sp_tcp = NULL;
@@ -975,7 +973,9 @@ static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int spac
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
     /* transport header length field contains total length + header length */
     f->transport_len = (uint16_t)(space);
+#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be(PICO_IPV4_MOREFRAG);
+#endif
     f->payload += hdr_offset;
     f->payload_len = (uint16_t) space;
 }
@@ -986,13 +986,19 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload = f->transport_hdr;
     f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
     /* set offset in octets */
+#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be((uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u));
+#endif
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+#ifdef PICO_SUPPORT_IPFRAG
         f->frag |= short_be(PICO_IPV4_MOREFRAG);
+#endif
     } else {
         frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
+#ifdef PICO_SUPPORT_IPFRAG
         f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+#endif
     }
 }
 
@@ -1053,8 +1059,7 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
     (void) f;
     (void) hdr_offset;
     (void) total_payload_written;
-    len = space; 
-    return pico_socket_xmit_one(s, buf, len, src, ep);
+    return pico_socket_xmit_one(s, buf, space, src, ep);
 
 #endif
 }
