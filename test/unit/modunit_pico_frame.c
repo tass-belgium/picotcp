@@ -72,8 +72,11 @@ END_TEST
 
 START_TEST(tc_pico_frame_deepcopy)
 {
-
-
+    struct pico_frame *f = pico_frame_alloc(FRAME_SIZE);
+    struct pico_frame *dc = pico_frame_deepcopy(f);
+    fail_if(*f->usage_count != 1);  
+    fail_if(*dc->usage_count != 1);  
+    fail_if(dc->buffer == f->buffer);  
 }
 END_TEST
 
