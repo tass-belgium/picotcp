@@ -794,5 +794,28 @@ int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group
     return -1;
 }
 
+void pico_multicast_delete(struct pico_socket *s)
+{
+    (void)s;
+}
+
+int pico_getsockopt_mcast(struct pico_socket *s, int option, void *value) 
+{
+    (void)s;
+    (void)option;
+    (void)value;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
+int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
+{
+    (void)s;
+    (void)option;
+    (void)value;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+
+}
 #endif /* PICO_SUPPORT_MCAST */
 

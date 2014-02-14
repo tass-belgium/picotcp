@@ -88,6 +88,7 @@ generate_zmtp_mocks:
 	#ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_socket.h
 	
 zmq_tests: generate_zmq_mocks $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS)
+	@mkdir -p ./obj
 	@mv $(UNITY)/*.o ./obj/
 	@mv $(CMOCK)/*.o ./obj/
 	@mv ./mocks/*.o ./obj/
@@ -96,6 +97,7 @@ zmq_tests: generate_zmq_mocks $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TEST
 
 
 zmtp_tests: generate_zmtp_mocks $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC)
+	@mkdir -p ./obj
 	@mv $(UNITY)/*.o ./obj/
 	@mv $(CMOCK)/*.o ./obj/
 	@mv ./mocks/*.o ./obj/
@@ -111,5 +113,5 @@ vector_extension_tests: $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC)
 	$(CC) $(CFLAGS) -o $@ $(TEST_FRAMEWORK) $(VECTOR_EXTENSION_TESTS_SRC) $(TEST_VECTOR_EXTENSION_TESTS_RUNNER)
 
 clean:
-	rm -vf demo.elf demo.bin *.o ./obj/*.o
-	rm -vf zmq_tests vector_tests vector_extension_tests
+	rm -vrf demo.elf demo.bin *.o ./obj/
+	rm -vrf zmq_tests vector_tests vector_extension_tests

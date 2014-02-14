@@ -64,13 +64,13 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
-    struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
+    struct pico_remote_endpoint *remote_endpoint = (struct pico_remote_endpoint *) f->info;
 
     /* this (fragmented) frame should contain a transport header */
     if (f->transport_hdr != f->payload) {
         hdr->trans.sport = f->sock->local_port;
-        if (remote_duple) {
-            hdr->trans.dport = remote_duple->remote_port;
+        if (remote_endpoint) {
+            hdr->trans.dport = remote_endpoint->remote_port;
         } else {
             hdr->trans.dport = f->sock->remote_port;
         }

@@ -45,7 +45,7 @@ int32_t pico_ethernet_send(struct pico_frame *f);
 int32_t pico_sendto_dev(struct pico_frame *f);
 
 /* ----- Initialization ----- */
-void pico_stack_init(void);
+int pico_stack_init(void);
 
 /* ----- Loop Function. ----- */
 void pico_stack_tick(void);
