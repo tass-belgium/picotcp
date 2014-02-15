@@ -12,8 +12,7 @@
 #include "pico_mm.h"
 #include "pico_tree.h"
 #include "pico_config.h"
-//Include for pico_err
-#include "pico_protocol.h"
+#include "pico_protocol.h" /* For pico_err */
 
 #define DBG_MM(x,args...) //printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
 #define DBG_MM_RED(x,args...) //printf("\033[31m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
@@ -227,7 +226,7 @@ int compare_slab_keys(void* keyA, void* keyB)
  * Pico_mem_init_page is called to initialize a block of memory pointed to by pico_mem_page* page.
  * Slabs of size slabsize are created, and the page, heap and slab housekeeping is initialized.
  */
-static void _pico_mem_init_page(struct pico_mem_page* page, uint32_t slabsize)
+static void _pico_mem_init_page(struct pico_mem_page* page, size_t slabsize)
 {
     uint8_t* byteptr = (uint8_t*) page;
     struct pico_mem_block* slab_block;
@@ -235,22 +234,22 @@ static void _pico_mem_init_page(struct pico_mem_page* page, uint32_t slabsize)
     struct pico_tree_node* tree_node;
     struct pico_mem_slab_node* slab_node;
     void* temp;
-    int i;
+    uint16_t i;
     
     DBG_MM_YELLOW("Initializing page %p with slabsize %u", page, slabsize);
     
     page->next_page = manager->first_page;
     manager->first_page = page;
-	page->slab_size = slabsize;
-	page->slabs_max = (PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block))/(slabsize + sizeof(struct pico_mem_block));
-	page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + slabsize));
+	page->slab_size = (uint32_t)slabsize;
+	page->slabs_max = (uint16_t)((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block))/(slabsize + sizeof(struct pico_mem_block)));
+	page->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + slabsize)));
     if(page->heap_max_size < PICO_MIN_HEAP_SIZE)
     {
         DBG_MM_BLUE("Not enough heap size available with slabsize %u, allocating one slab to heap.", slabsize);
         page->slabs_max--;
         //DBG_MM_BLUE("Heap size %u -> %lu",page->heap_max_size, page->heap_max_size + sizeof(pico_mem_slab_block) + slabsize);
         DBG_MM_BLUE("Heap size %u -> %lu",page->heap_max_size, page->heap_max_size + sizeof(struct pico_mem_block) + slabsize);
-        page->heap_max_size += sizeof(struct pico_mem_block) + slabsize;
+        page->heap_max_size += (uint32_t)(sizeof(struct pico_mem_block) + slabsize);
     }
     page->slabs_free = page->slabs_max;
 	page->heap_max_free_space = page->heap_max_size;
@@ -417,8 +416,6 @@ void pico_mem_init(uint32_t memsize)
  */
 void pico_mem_deinit()
 {
-    int i = 1;
-    int j = 1;
     struct pico_mem_page* next_page;
     struct pico_mem_manager_extra* next_manager_page;
 
@@ -431,14 +428,12 @@ void pico_mem_deinit()
     {
         while(manager->first_page != NULL)
         {
-            DBG_MM_BLUE("Freeing page %i at %p", i++, manager->first_page);
             next_page = manager->first_page->next_page;
             pico_free(manager->first_page);
             manager->first_page = next_page;
         }
         while(manager->manager_extra != NULL)
         {
-            DBG_MM_BLUE("Freeing extra manager page %i at %p", j++, manager->manager_extra);
             next_manager_page = manager->manager_extra->next;
             pico_free(manager->manager_extra);
             manager->manager_extra = next_manager_page;
@@ -476,7 +471,7 @@ static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_p
 
     while(heap_block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE || heap_block->internals.heap_block.size < len)
     {
-        sizeleft -= sizeof(struct pico_mem_block);
+        sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
         sizeleft -= heap_block->internals.heap_block.size;
         //DBG_MM("Sizeleft=%i", sizeleft);
         //byteptr = (uint8_t*) (heap_block+1);
@@ -541,10 +536,10 @@ static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_p
     {
         DBG_MM_BLUE("End of heap, splitting up into a new block");
         heap_block->internals.heap_block.size = len;
-        sizeleft = sizeleft - sizeof(struct pico_mem_block) - len;
+        sizeleft = sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len;
         if(sizeleft > sizeof(struct pico_mem_block))
         {
-            sizeleft -= sizeof(struct pico_mem_block);
+            sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
             byteptr = (uint8_t*) heap_block + sizeof(struct pico_mem_block);
             byteptr += len;
             new_block = (struct pico_mem_block*) byteptr;
@@ -591,7 +586,7 @@ void* pico_mem_page0_zalloc(uint32_t len)
 	//while(heap_block != NULL && ( heap_block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE || heap_block->internals.heap_block.size < len))
 	while(heap_block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE || heap_block->internals.heap_block.size < len)
     {
-        sizeleft -= sizeof(struct pico_mem_block);
+        sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
 		sizeleft -= heap_block->internals.heap_block.size;
         //DBG_MM("Sizeleft=%i", sizeleft);
         byteptr = (uint8_t*) heap_block + sizeof(struct pico_mem_block);//byteptr points to start of heap block data
@@ -646,12 +641,12 @@ void* pico_mem_page0_zalloc(uint32_t len)
 
     if(heap_block->internals.heap_block.size == sizeleft-sizeof(struct pico_mem_block))
     {
-        sizeleft = sizeleft - sizeof(struct pico_mem_block) - len;
+        sizeleft = sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len;
         if(sizeleft > sizeof(struct pico_mem_block))
         {
             DBG_MM_BLUE("End of heap, splitting up into a new block");
             heap_block->internals.heap_block.size = len;
-            sizeleft -= sizeof(struct pico_mem_block);
+            sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
             byteptr = (uint8_t*) heap_block + sizeof(struct pico_mem_block);
             byteptr += len;
             new_block = (struct pico_mem_block*) byteptr;
@@ -702,7 +697,7 @@ static void _pico_mem_free_and_merge_heap_block(struct pico_mem_page* page, stru
         if(curr->internals.heap_block.free == HEAP_BLOCK_FREE && next->internals.heap_block.free == HEAP_BLOCK_FREE)
         {
             DBG_MM_BLUE("Merging blocks with sizes %u and %u", curr->internals.heap_block.size, next->internals.heap_block.size);
-            curr->internals.heap_block.size += sizeof(struct pico_mem_block) + next->internals.heap_block.size;
+            curr->internals.heap_block.size += (uint32_t)sizeof(struct pico_mem_block) + next->internals.heap_block.size;
         }
         prev = curr;
         byteptr = (uint8_t*) curr + sizeof(struct pico_mem_block);
@@ -716,7 +711,7 @@ static void _pico_mem_free_and_merge_heap_block(struct pico_mem_page* page, stru
     if(curr->type == HEAP_BLOCK_TYPE && prev->internals.heap_block.free == HEAP_BLOCK_FREE && curr->internals.heap_block.free == HEAP_BLOCK_FREE)
     {
         DBG_MM_BLUE("Merging blocks with sizes %u and %u", prev->internals.heap_block.size, curr->internals.heap_block.size);
-        prev->internals.heap_block.size += sizeof(struct pico_mem_block) + curr->internals.heap_block.size;
+        prev->internals.heap_block.size += (uint32_t)sizeof(struct pico_mem_block) + curr->internals.heap_block.size;
     }
 
     DBG_MM_GREEN("Heap block freed and heap space defragmentized");
@@ -827,7 +822,7 @@ static void _pico_mem_free_slab_block(struct pico_mem_block* slab_block)
 /*
  * This method zero initializes a block of memory pointed to by startOfData, of size len
  */
-static void _pico_mem_zero_initialize(void* startOfData, uint32_t len)
+static void _pico_mem_zero_initialize(void* startOfData, size_t len)
 {
     if(startOfData != NULL)
     {
@@ -844,7 +839,7 @@ static void _pico_mem_zero_initialize(void* startOfData, uint32_t len)
 /*
  * This method will try to find a free heap block of size len in a given page.
  */
-static void* _pico_mem_find_heap_block(struct pico_mem_page* page, uint32_t len)
+static void* _pico_mem_find_heap_block(struct pico_mem_page* page, size_t len)
 {
     struct pico_mem_block* mem_block;
     struct pico_mem_block* inserted_block;
@@ -894,9 +889,9 @@ static void* _pico_mem_find_heap_block(struct pico_mem_page* page, uint32_t len)
 		// Update newly inserted block
         inserted_block->type = HEAP_BLOCK_TYPE;
         inserted_block->internals.heap_block.free = HEAP_BLOCK_FREE;
-        inserted_block->internals.heap_block.size = mem_block->internals.heap_block.size - sizeof(struct pico_mem_block) - len;
+        inserted_block->internals.heap_block.size = (uint32_t)(mem_block->internals.heap_block.size - (uint32_t)sizeof(struct pico_mem_block) - len);
 		// Update block that was split up
-        mem_block->internals.heap_block.size = len;
+        mem_block->internals.heap_block.size = (uint32_t)len;
         DBG_MM_BLUE("Splitting up the block, creating a new block of size %u at %p", inserted_block->internals.heap_block.size, inserted_block);
 	}
 
@@ -915,10 +910,10 @@ static void* _pico_mem_find_heap_block(struct pico_mem_page* page, uint32_t len)
  * it is deleted from the RB tree and a pointer to the start of data in the slab object
  * is returned.
  */
-static void* _pico_mem_find_slab(uint32_t len)
+static void* _pico_mem_find_slab(size_t len)
 {
-	uint32_t* lenptr = &len;
-    uint32_t** doublelenptr = &lenptr;
+	size_t* lenptr = &len;
+    size_t** doublelenptr = &lenptr;
 	struct pico_tree_node* node;
 	uint8_t *returnVal = NULL;
 	
@@ -969,7 +964,8 @@ void pico_mem_free(void* ptr)
 {
     struct pico_mem_block* generic_block;
     struct pico_mem_page* page;
-    uint16_t i;
+    /*Uncomment i for debugging!*/
+    /*uint16_t i = 0;*/ 
     
     DBG_MM_YELLOW("Free called on %p", ptr);
     
@@ -1000,7 +996,6 @@ void pico_mem_free(void* ptr)
 
         //Update the page housekeeping
         //Update the housekeeping of the extra manager pages
-        i = 0;
         page = manager->first_page;
         while(page != NULL)
         {
@@ -1030,7 +1025,7 @@ static void _pico_mem_reset_slab_statistics(void)
     slab_size_statistics[2] = 0;
 }
 
-static uint32_t _pico_mem_determine_slab_size(uint32_t len)
+static size_t _pico_mem_determine_slab_size(size_t len)
 {
     DBG_MM_YELLOW("Determining slab size to use, request for %u bytes", len);
     if (len>slab_sizes[1])
@@ -1102,7 +1097,7 @@ static uint32_t _pico_mem_determine_slab_size(uint32_t len)
  *
  * In any other case, the manager will return NULL.
  */
-void* pico_mem_zalloc(uint32_t len)
+void* pico_mem_zalloc(size_t len)
 {
     struct pico_mem_page* page;
     void* returnCandidate;
@@ -1216,7 +1211,8 @@ void pico_mem_page0_free(void* ptr)
 {
     struct pico_mem_block* node = ptr;
     struct pico_mem_manager_extra* heap_page;
-    int i;
+    /* Uncomment for debugging! */
+    /* int i = 0; */
     
 	//TODO: should be able to merge free neighbouring blocks (??)
     DBG_MM_YELLOW("page0_free called");
@@ -1224,7 +1220,6 @@ void pico_mem_page0_free(void* ptr)
     node--;
     node->internals.heap_block.free = HEAP_BLOCK_FREE;
     //Update the housekeeping of the extra manager pages
-    i = 0;
     heap_page = manager->manager_extra;
     while(heap_page != NULL)
     {
@@ -1235,7 +1230,6 @@ void pico_mem_page0_free(void* ptr)
             //DBG_MM_RED("%p < %p < %p", (uint8_t*) heap_page, (uint8_t*) ptr, (uint8_t*) heap_page + PICO_MEM_PAGE_SIZE);
             heap_page->blocks--;
             DBG_MM_BLUE("Updating heap page housekeeping: %u->%u used blocks", heap_page->blocks+1, heap_page->blocks);
-            i = -1;
             break;
         }
         heap_page = heap_page->next;

@@ -30,7 +30,7 @@ void pico_mem_deinit();
  * or less optimally in the heap for a small variable size
  * The fixed size of the slabs can be changed dynamically via a statistics engine
  */
-void* pico_mem_zalloc(uint32_t len);
+void* pico_mem_zalloc(size_t len);
 /*
  * Free function, free a block of memory pointed to by ptr. 
  * Unused memory is only returned to the system's control by pico_mem_cleanup
