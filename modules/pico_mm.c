@@ -27,7 +27,7 @@
  * Therefore the following 2 functions are created so that pico_tree can use them to to put these nodes
  * into the correct memory regions.
  */
-void* pico_mem_page0_zalloc(uint32_t len);
+void* pico_mem_page0_zalloc(size_t len);
 void pico_mem_page0_free(void* ptr);
 
 
@@ -450,7 +450,7 @@ void pico_mem_deinit()
  * This function is called internally by page0_zalloc if there isn't enough space left in the heap of the initial memory page
  * This function allocates heap space in extra manager pages, creating new pages as necessary.
  */
-static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_page, uint32_t len)
+static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_page, size_t len)
 {
     struct pico_mem_manager_extra* extra_heap_page;
     struct pico_mem_block* heap_block;
@@ -535,8 +535,8 @@ static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_p
     if(heap_block->internals.heap_block.size == sizeleft-sizeof(struct pico_mem_block))
     {
         DBG_MM_BLUE("End of heap, splitting up into a new block");
-        heap_block->internals.heap_block.size = len;
-        sizeleft = sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len;
+        heap_block->internals.heap_block.size = (uint32_t)len;
+        sizeleft = (uint32_t)(sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len);
         if(sizeleft > sizeof(struct pico_mem_block))
         {
             sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
@@ -564,7 +564,7 @@ static void* _pico_mem_manager_extra_alloc(struct pico_mem_manager_extra* heap_p
  * Page0 zalloc is called by pico_tree.c so that nodes which contain pointers to the free slab objects are put in the
  * manager page. Additional manager pages can be created if necessary.
  */
-void* pico_mem_page0_zalloc(uint32_t len)
+void* pico_mem_page0_zalloc(size_t len)
 {
     struct pico_mem_manager_extra* heap_page;
     struct pico_mem_block* heap_block;
@@ -641,11 +641,11 @@ void* pico_mem_page0_zalloc(uint32_t len)
 
     if(heap_block->internals.heap_block.size == sizeleft-sizeof(struct pico_mem_block))
     {
-        sizeleft = sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len;
+        sizeleft = (uint32_t)(sizeleft - (uint32_t)sizeof(struct pico_mem_block) - len);
         if(sizeleft > sizeof(struct pico_mem_block))
         {
             DBG_MM_BLUE("End of heap, splitting up into a new block");
-            heap_block->internals.heap_block.size = len;
+            heap_block->internals.heap_block.size = (uint32_t)len;
             sizeleft -= (uint32_t)sizeof(struct pico_mem_block);
             byteptr = (uint8_t*) heap_block + sizeof(struct pico_mem_block);
             byteptr += len;

@@ -84,8 +84,8 @@ START_TEST (test_manager_extra_alloc)
     uint8_t* byteptr1;
     uint8_t* byteptr2;
     struct pico_mem_block* block;
-    uint32_t sizeLeft;
-    uint16_t size = 50;
+    size_t sizeLeft;
+    size_t size = 50;
 
     uint8_t* data0;
     uint8_t* data1;
@@ -135,7 +135,7 @@ START_TEST (test_manager_extra_alloc)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = size/2;
+    block->internals.heap_block.size = (uint32_t)(size/2);
     sizeLeft -= sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     byteptr += sizeof(struct pico_mem_block);
@@ -145,7 +145,7 @@ START_TEST (test_manager_extra_alloc)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = 100-size/2;
+    block->internals.heap_block.size = (uint32_t)(100-size/2);
     sizeLeft -= sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     byteptr1 = byteptr;
@@ -157,7 +157,7 @@ START_TEST (test_manager_extra_alloc)
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
     //Size of this block is thus that only one of the two testblocks will fit in the page
-    block->internals.heap_block.size = sizeLeft - 2*sizeof(struct pico_mem_block) - size;
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - 2*sizeof(struct pico_mem_block) - size);
     sizeLeft -= sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     byteptr += sizeof(struct pico_mem_block);
@@ -168,7 +168,7 @@ START_TEST (test_manager_extra_alloc)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
 
     //Second block will be used
     data0 = _pico_mem_manager_extra_alloc(heap_page, size);
@@ -243,12 +243,11 @@ END_TEST
 
 START_TEST (test_page0_zalloc)
 {
-
     uint8_t* byteptr;
     struct pico_mem_block* block;
-    uint32_t size1 = 50;
+    size_t size1 = 50;
     uint8_t* temp;
-    uint32_t sizeLeft;
+    size_t sizeLeft;
     struct pico_mem_manager_extra* heap_page;
     
     //Dependencies:
@@ -272,47 +271,47 @@ START_TEST (test_page0_zalloc)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = size1;
+    block->internals.heap_block.size = (uint32_t)size1;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Block 2: free, size1/2
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = size1/2;
+    block->internals.heap_block.size = (uint32_t)(size1/2);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Block 3: free, size1
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = size1;
+    block->internals.heap_block.size = (uint32_t)size1;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Block 4: free, size1*2
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = size1*2;
+    block->internals.heap_block.size = (uint32_t)(size1*2);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Rest of the heap space (free)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block); 
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
 
     pico_mem_page0_zalloc(size1);
     pico_mem_page0_zalloc(size1);
-    pico_mem_page0_zalloc(size1);
+    pico_mem_page0_zalloc((size_t)size1);
     sizeLeft -= sizeof(struct pico_mem_block);
     sizeLeft -= size1;
 
@@ -343,6 +342,7 @@ START_TEST (test_page0_zalloc)
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
 
     //Now, fill up the rest of the space minus a few bytes, so that the space can't be split up further
+    //pico_mem_page0_zalloc(sizeLeft - sizeof(struct pico_mem_block) - 3);
     pico_mem_page0_zalloc(sizeLeft - sizeof(struct pico_mem_block) - 3);
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE);
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
@@ -365,7 +365,7 @@ START_TEST (test_page0_zalloc)
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
 
     //Limit manager space
     manager->size = PICO_MEM_PAGE_SIZE;
@@ -655,7 +655,7 @@ START_TEST (test_mem_init_whitebox)
 
     page = manager->first_page;
     amountOfSlabs = (PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block))/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
-    ck_assert(page->heap_max_size == PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - amountOfSlabs*(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    ck_assert(page->heap_max_size == (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - ((size_t)amountOfSlabs)*(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     ck_assert(page->heap_max_free_space == page->heap_max_size);
     ck_assert(page->next_page == NULL);
     ck_assert(page->slab_size == PICO_MEM_DEFAULT_SLAB_SIZE);
@@ -693,9 +693,9 @@ START_TEST (test_free_and_merge_heap_block)
     page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
-    page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page->heap_max_free_space = page->heap_max_size;
-    sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Block 1:
     byteptr = (uint8_t*) (page+1);
@@ -705,7 +705,7 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block1 = block;
     //Block 2:
@@ -715,7 +715,7 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block2 = block;
     //Block 3:
@@ -725,7 +725,7 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block3 = block;
     //Block 4:
@@ -735,15 +735,15 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block4 = block;
     //Free space:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block);
-    sizeLeft -= sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     //Slab block 1 housekeeping
@@ -761,7 +761,7 @@ START_TEST (test_free_and_merge_heap_block)
     _pico_mem_free_and_merge_heap_block(page, block2);
     ck_assert(block1->type == HEAP_BLOCK_TYPE);
     ck_assert(block1->internals.heap_block.free == HEAP_BLOCK_FREE);
-    ck_assert(block1->internals.heap_block.size == sizeof(struct pico_mem_block) + 2*size);
+    ck_assert(block1->internals.heap_block.size == sizeof(struct pico_mem_block) + (size_t)(2*size));
 
     //Free Block4:
     _pico_mem_free_and_merge_heap_block(page, block4);
@@ -782,19 +782,19 @@ START_TEST (test_free_and_merge_heap_block)
     page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
-    page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page->heap_max_free_space = page->heap_max_size;
-    sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Block 1:
     byteptr = (uint8_t*) (page+1);
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block) - 2*(sizeof(struct pico_mem_block)+size);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block) - 2*(sizeof(struct pico_mem_block)+size));
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block1 = block;
     //Block 2:
@@ -804,7 +804,7 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block2 = block;
     //Block 3:
@@ -814,7 +814,7 @@ START_TEST (test_free_and_merge_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block3 = block;
     //Slab block 1 housekeeping
@@ -867,9 +867,9 @@ START_TEST (test_determine_max_free_space)
     page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
-    page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page->heap_max_free_space = size;
-    sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Block 1:
     byteptr = (uint8_t*) (page+1);
@@ -879,17 +879,17 @@ START_TEST (test_determine_max_free_space)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block1 = block;
     //Block 2:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = 2*size;
+    block->internals.heap_block.size = (uint32_t)(2*size);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block2 = block;
     //Block 3:
@@ -899,25 +899,25 @@ START_TEST (test_determine_max_free_space)
     block->internals.heap_block.size = size/2;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block3 = block;
     //Block 4:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = 3*size/2;
+    block->internals.heap_block.size = (uint32_t)(3*size/2);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block4 = block;
     //Rest of the space
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block);
-    sizeLeft -= sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     //Slab block 1 housekeeping
@@ -1114,12 +1114,12 @@ END_TEST
 START_TEST (test_zero_initialize)
 {
 
-    int i;
-    int size = 100;
-    int leftBound = 5;
-    int rightBound = 5;
-    int uninitialized = 0;
-    int initialized = 0;
+    size_t i;
+    size_t size = 100;
+    size_t leftBound = 5;
+    size_t rightBound = 5;
+    size_t uninitialized = 0;
+    size_t initialized = 0;
     char* bytestream;
     
     //Dependencies: none
@@ -1185,9 +1185,9 @@ START_TEST (test_find_heap_block)
     page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     page->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
-    page->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page->heap_max_free_space = page->heap_max_size;
-    sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Block 0:
     byteptr = (uint8_t*) (page+1);
@@ -1197,7 +1197,7 @@ START_TEST (test_find_heap_block)
     block->internals.heap_block.size = size/2;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Block 1:
     block = (struct pico_mem_block*) byteptr;
@@ -1206,17 +1206,17 @@ START_TEST (test_find_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Block 2:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = size+size/5;
+    block->internals.heap_block.size = (uint32_t)(size+size/5);
     block2Size = block->internals.heap_block.size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block2 = block;
     //Block 3:
@@ -1226,14 +1226,14 @@ START_TEST (test_find_heap_block)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     //Free space:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block);
-    sizeLeft -= sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     block4 = block;
@@ -1242,7 +1242,7 @@ START_TEST (test_find_heap_block)
     block->type = SLAB_BLOCK_TYPE;
     //Rest: don't care
 
-    page->heap_max_free_space = sizeLeft - sizeof(struct pico_mem_block);
+    page->heap_max_free_space = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block));
     noData = _pico_mem_find_heap_block(page, PICO_MEM_DEFAULT_SLAB_SIZE);
     startOfData1 = _pico_mem_find_heap_block(page, size);
     startOfData2 = _pico_mem_find_heap_block(page, size);
@@ -1414,9 +1414,9 @@ START_TEST (test_free)
     page0->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page0->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page0->slabs_free = page0->slabs_max;
-    page0->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page0->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page0->heap_max_free_space = page0->heap_max_size;
-    sizeLeft1 = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft1 = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Page 1 housekeeping
     page1->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
@@ -1424,9 +1424,9 @@ START_TEST (test_free)
     page1->next_page = NULL;
     page1->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page1->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
-    page1->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page1->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page1->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page1->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     page1->heap_max_free_space = page1->heap_max_size;
-    sizeLeft2 = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page1->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft2 = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page1->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     
     //Set up the slab block
     slab_block1 = pico_zalloc(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE);
@@ -1452,16 +1452,16 @@ START_TEST (test_free)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft1 -= sizeof(struct pico_mem_block);
+    sizeLeft1 -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft1 -= block->internals.heap_block.size;
     block1 = block;
     //Free space:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft1 - sizeof(struct pico_mem_block);
-    sizeLeft1 -= sizeof(struct pico_mem_block);
-    byteptr += sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft1 - sizeof(struct pico_mem_block));
+    sizeLeft1 -= (uint32_t)sizeof(struct pico_mem_block);
+    byteptr += (uint32_t)sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     //Block 2:
     byteptr = (uint8_t*) (page1+1);
@@ -1471,15 +1471,15 @@ START_TEST (test_free)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft2 -= sizeof(struct pico_mem_block);
+    sizeLeft2 -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft2 -= block->internals.heap_block.size;
     block2 = block;
     //Free space:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_FREE;
-    block->internals.heap_block.size = sizeLeft2 - sizeof(struct pico_mem_block);
-    sizeLeft2 -= sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft2 - sizeof(struct pico_mem_block));
+    sizeLeft2 -= (uint32_t)sizeof(struct pico_mem_block);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     
@@ -1511,7 +1511,7 @@ START_TEST (test_determine_slab_size)
 {
     uint32_t slab_size = 1000;
     uint32_t slab_size2 = 1400;
-    uint32_t result;
+    size_t result;
     
     //Dependencies:
     //>_pico_mem_reset_slab_statistics
@@ -1670,10 +1670,10 @@ START_TEST (test_zalloc)
     page0->slab_size = PICO_MEM_DEFAULT_SLAB_SIZE;
     page0->slabs_max = ((PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - PICO_MIN_HEAP_SIZE)/(sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
     page0->slabs_free = page0->slabs_max;
-    page0->heap_max_size = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    page0->heap_max_size = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - sizeof(struct pico_mem_block) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
     //page0->heap_max_free_space = page0->heap_max_size;
     page0->heap_max_free_space = 0;
-    sizeLeft1 = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE));
+    sizeLeft1 = (uint32_t)(PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_page) - (page0->slabs_max * (sizeof(struct pico_mem_block) + PICO_MEM_DEFAULT_SLAB_SIZE)));
 
     //Set up the blocks
     //Block 1:
@@ -1684,14 +1684,14 @@ START_TEST (test_zalloc)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft1 -= sizeof(struct pico_mem_block);
+    sizeLeft1 -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft1 -= block->internals.heap_block.size;
     //Free space:
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft1 - sizeof(struct pico_mem_block);
-    sizeLeft1 -= sizeof(struct pico_mem_block);
+    block->internals.heap_block.size = (uint32_t)(sizeLeft1 - sizeof(struct pico_mem_block));
+    sizeLeft1 -= (uint32_t)sizeof(struct pico_mem_block);
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
     //Slab block 1:
@@ -1829,14 +1829,14 @@ START_TEST (test_page0_free)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block1 = block;
 
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block); 
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block)); 
 
     heap_page = pico_zalloc(PICO_MEM_PAGE_SIZE);
     heap_page2 = pico_zalloc(PICO_MEM_PAGE_SIZE);
@@ -1854,14 +1854,14 @@ START_TEST (test_page0_free)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block2 = block;
 
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block); 
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block)); 
 
     sizeLeft = PICO_MEM_PAGE_SIZE - sizeof(struct pico_mem_manager_extra);
     byteptr = (uint8_t*) (heap_page2+1);
@@ -1871,14 +1871,14 @@ START_TEST (test_page0_free)
     block->internals.heap_block.size = size;
     byteptr += sizeof(struct pico_mem_block);
     byteptr += block->internals.heap_block.size;
-    sizeLeft -= sizeof(struct pico_mem_block);
+    sizeLeft -= (uint32_t)sizeof(struct pico_mem_block);
     sizeLeft -= block->internals.heap_block.size;
     block3 = block;
 
     block = (struct pico_mem_block*) byteptr;
     block->type = HEAP_BLOCK_TYPE;
     block->internals.heap_block.free = HEAP_BLOCK_NOT_FREE;
-    block->internals.heap_block.size = sizeLeft - sizeof(struct pico_mem_block); 
+    block->internals.heap_block.size = (uint32_t)(sizeLeft - sizeof(struct pico_mem_block)); 
 
     //Scenario 1
     pico_mem_page0_free(block1+1);

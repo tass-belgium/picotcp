@@ -51,7 +51,7 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
  * If pico_tree_insert is called from the memory manager module, then create_node should use 
  * pico_mem_page0_zalloc to create a node. The same for pico_tree_delete.
  */
-extern void* pico_mem_page0_zalloc(uint32_t len);
+extern void* pico_mem_page0_zalloc(size_t len);
 extern void pico_mem_page0_free(void* ptr);
 #endif  /* PICO_SUPPORT_MM */
 
