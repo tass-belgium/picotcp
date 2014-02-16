@@ -22,13 +22,32 @@ START_TEST(tc_pico_frame_alloc_discard)
     fail_if(f->len != f->buffer_len);
     fail_if(f->len != FRAME_SIZE);
     pico_frame_discard(f);
+
+#ifdef PICO_FAULTY
+    printf("Testing with faulty memory in frame_alloc (1)\n");
+    pico_set_mm_failure(1);
+    f = pico_frame_alloc(FRAME_SIZE);
+    fail_if(f); 
+
+    printf("Testing with faulty memory in frame_alloc (2)\n");
+    pico_set_mm_failure(2);
+    f = pico_frame_alloc(FRAME_SIZE);
+    fail_if(f); 
+    
+    printf("Testing with faulty memory in frame_alloc (2)\n");
+    pico_set_mm_failure(3);
+    f = pico_frame_alloc(FRAME_SIZE);
+    fail_if(f); 
+#endif
+
 }
 END_TEST
 
 START_TEST(tc_pico_frame_copy)
 {
     struct pico_frame *f = pico_frame_alloc(FRAME_SIZE);
-    struct pico_frame *c1, *c2;
+    struct pico_frame *c1, *c2, *c3;
+    (void)c3;
     fail_if(!f);
     fail_if(!f->buffer);
     fail_if(*f->usage_count != 1);
@@ -57,6 +76,15 @@ START_TEST(tc_pico_frame_copy)
     fail_if(c2->len != c2->buffer_len);
     fail_if(c2->len != FRAME_SIZE);
 
+
+#ifdef PICO_FAULTY
+    printf("Testing with faulty memory in frame_copy (1)\n");
+    pico_set_mm_failure(1);
+    c3 = pico_frame_copy(f);
+    fail_if(c3);
+    fail_if(!f); 
+#endif
+
     /* Discard 1 */
     pico_frame_discard(c1);
     fail_if(*f->usage_count != 2);
@@ -77,6 +105,13 @@ START_TEST(tc_pico_frame_deepcopy)
     fail_if(*f->usage_count != 1);
     fail_if(*dc->usage_count != 1);
     fail_if(dc->buffer == f->buffer);
+#ifdef PICO_FAULTY
+    printf("Testing with faulty memory in frame_deepcopy (1)\n");
+    pico_set_mm_failure(1);
+    dc = pico_frame_deepcopy(f);
+    fail_if(dc);
+    fail_if(!f); 
+#endif
 }
 END_TEST
 
