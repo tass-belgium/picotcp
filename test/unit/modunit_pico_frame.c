@@ -23,6 +23,9 @@ START_TEST(tc_pico_frame_alloc_discard)
     fail_if(f->len != FRAME_SIZE);
     pico_frame_discard(f);
 
+    /* Test empty discard */
+    pico_frame_discard(NULL);
+
 #ifdef PICO_FAULTY
     printf("Testing with faulty memory in frame_alloc (1)\n");
     pico_set_mm_failure(1);
