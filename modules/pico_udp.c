@@ -14,6 +14,8 @@
 #include "pico_socket.h"
 #include "pico_stack.h"
 
+#define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
+
 
 /* Queues */
 static struct pico_queue udp_in = {
@@ -62,13 +64,13 @@ static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_udp_hdr *hdr = (struct pico_udp_hdr *) f->transport_hdr;
-    struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
+    struct pico_remote_endpoint *remote_endpoint = (struct pico_remote_endpoint *) f->info;
 
     /* this (fragmented) frame should contain a transport header */
     if (f->transport_hdr != f->payload) {
         hdr->trans.sport = f->sock->local_port;
-        if (remote_duple) {
-            hdr->trans.dport = remote_duple->remote_port;
+        if (remote_endpoint) {
+            hdr->trans.dport = remote_endpoint->remote_port;
         } else {
             hdr->trans.dport = f->sock->remote_port;
         }
@@ -100,44 +102,6 @@ struct pico_protocol pico_proto_udp = {
 };
 
 
-#define PICO_UDP_MODE_UNICAST 0x01
-#define PICO_UDP_MODE_MULTICAST 0x02
-#define PICO_UDP_MODE_BROADCAST 0xFF
-
-struct pico_socket_udp
-{
-    struct pico_socket sock;
-    int mode;
-#ifdef PICO_SUPPORT_MCAST
-    uint8_t mc_ttl; /* Multicasting TTL */
-#endif
-};
-
-#ifdef PICO_SUPPORT_MCAST
-int pico_udp_set_mc_ttl(struct pico_socket *s, uint8_t ttl)
-{
-    struct pico_socket_udp *u;
-    if(!s) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    u = (struct pico_socket_udp *) s;
-    u->mc_ttl = ttl;
-    return 0;
-}
-
-int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
-{
-    struct pico_socket_udp *u;
-    if(!s)
-        return -1;
-
-    u = (struct pico_socket_udp *) s;
-    *ttl = u->mc_ttl;
-    return 0;
-}
-#endif /* PICO_SUPPORT_MCAST */
 
 struct pico_socket *pico_udp_open(void)
 {

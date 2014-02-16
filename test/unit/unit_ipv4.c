@@ -480,9 +480,9 @@ START_TEST (test_igmp_sockopts)
     fail_if(ret == 0, "PICO_IP_MULTICAST_LOOP succeeded with invalid (not 0 or 1) loop value\n");
     loop = 0;
     ret = pico_socket_setoption(s, PICO_IP_MULTICAST_LOOP, &loop);
-    fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed\n");
+    fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed disabling\n");
     ret = pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop);
-    fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed\n");
+    fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed getting value\n");
     fail_if(getloop != loop, "setoption loop != getoption loop\n");
 
     _mreq.mcast_group_addr = inaddr_dst;

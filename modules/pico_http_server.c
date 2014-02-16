@@ -61,6 +61,7 @@ struct httpClient
     uint16_t bufferSent;
     char *resource;
     uint16_t state;
+    uint16_t method;
 };
 
 /* Local states for clients */
@@ -97,12 +98,12 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 {
     struct pico_tree_node *index;
     struct httpClient *client = NULL;
-    uint8_t serverEvent = FALSE;
+    uint8_t serverEvent = 0u;
 
     /* determine the client for the socket */
     if( s == server.sck)
     {
-        serverEvent = TRUE;
+        serverEvent = 1u;
     }
     else
     {
@@ -115,7 +116,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
         }
     }
 
-    if(!client && !serverEvent)
+    if(!client || !serverEvent)
     {
         return;
     }
@@ -142,7 +143,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
     if(ev & PICO_SOCK_EV_CONN)
     {
-        server.accepted = FALSE;
+        server.accepted = 0u;
         server.wakeup(EV_HTTP_CON, HTTP_SERVER_ID);
         if(!server.accepted)
         {
@@ -234,7 +235,7 @@ int pico_http_server_accept(void)
         return HTTP_RETURN_ERROR;
     }
 
-    server.accepted = TRUE;
+    server.accepted = 1u;
     /* buffer used for async sending */
     client->state = HTTP_WAIT_HDR;
     client->buffer = NULL;
@@ -262,6 +263,23 @@ char *pico_http_getResource(uint16_t conn)
     else
         return client->resource;
 }
+
+/*
+ * Function used for getting the method coming from client
+ * (e.g. POST, GET...)
+ * Should only be used after header was read (EV_HTTP_REQ)
+ */
+
+int pico_http_getMethod(uint16_t conn)
+{
+    struct httpClient *client = findClient(conn);
+
+    if(!client)
+        return 0;
+    else
+        return client->method;
+}
+
 
 /*
  * After the resource was asked by the client (EV_HTTP_REQ)
@@ -335,6 +353,12 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     char chunkStr[10];
     int chunkCount;
 
+    if(!client)
+    {
+        dbg("Wrong connection ID\n");
+        return HTTP_RETURN_ERROR;
+    }
+
     if(client->state != HTTP_WAIT_DATA)
     {
         dbg("Client is in a different state than accepted\n");
@@ -347,11 +371,6 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         return HTTP_RETURN_ERROR;
     }
 
-    if(!client)
-    {
-        dbg("Wrong connection ID\n");
-        return HTTP_RETURN_ERROR;
-    }
 
     if(!buffer)
     {
@@ -386,7 +405,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         chunkStr[chunkCount++] = '\n';
         pico_socket_write(client->sck, chunkStr, chunkCount);
     }
-    else if(len == 0)
+    else
     {
         dbg("->\n");
         /* end of transmision */
@@ -481,72 +500,130 @@ int pico_http_close(uint16_t conn)
     }
 }
 
+static int parseRequestConsumeFullLine(struct httpClient *client, char *line)
+{
+    char c = 0;
+    uint32_t index = 0;
+    /* consume the full line */
+    while(consumeChar(c) > 0) /* read char by char only the first line */
+    {
+        line[++index] = c;
+        if(c == '\n')
+            break;
+
+        if(index >= HTTP_HEADER_MAX_LINE)
+        {
+            dbg("Size exceeded \n");
+            return HTTP_RETURN_ERROR;
+        }
+    }
+    return (int)index;
+}
+
+static int parseRequestExtractFunction(char *line, int index, const char *method)
+{
+    uint8_t len = (uint8_t)strlen(method);
+
+    /* extract the function and the resource */
+    if(memcmp(line, method, len) || line[len] != ' ' || index < 10 || line[index] != '\n')
+    {
+        dbg("Wrong command or wrong ending\n");
+        return HTTP_RETURN_ERROR;
+    }
+
+    return 0;
+}
+
+static int parseRequestReadResource(struct httpClient *client, int method_length, char *line)
+{
+    uint32_t index;
+
+    /* start reading the resource */
+    index = (uint32_t)method_length + 1; /* go after ' ' */
+    while(line[index] != ' ')
+    {
+        if(line[index] == '\n') /* no terminator ' ' */
+        {
+            dbg("No terminator...\n");
+            return HTTP_RETURN_ERROR;
+        }
+
+        index++;
+    }
+    client->resource = PICO_ZALLOC(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
+
+    if(!client->resource)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        return HTTP_RETURN_ERROR;
+    }
+
+    /* copy the resource */
+    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by PICO_ZALLOC */
+    return 0;
+}
+
+static int parseRequestGet(struct httpClient *client, char *line)
+{
+    int ret;
+
+    ret = parseRequestConsumeFullLine(client, line);
+    if(ret < 0)
+        return ret;
+
+    ret = parseRequestExtractFunction(line, ret, "GET");
+    if(ret)
+        return ret;
+
+    ret = parseRequestReadResource(client, strlen("GET"), line);
+    if(ret)
+        return ret;
+
+    client->state = HTTP_WAIT_EOF_HDR;
+    client->method = HTTP_METHOD_GET;
+    return HTTP_RETURN_OK;
+}
+
+static int parseRequestPost(struct httpClient *client, char *line)
+{
+    int ret;
+
+    ret = parseRequestConsumeFullLine(client, line);
+    if(ret < 0)
+        return ret;
+
+    ret = parseRequestExtractFunction(line, ret, "POST");
+    if(ret)
+        return ret;
+
+    ret = parseRequestReadResource(client, strlen("POST"), line);
+    if(ret)
+        return ret;
+
+    client->state = HTTP_WAIT_EOF_HDR;
+    client->method = HTTP_METHOD_POST;
+    return HTTP_RETURN_OK;
+}
+
 /* check the integrity of the request */
 int parseRequest(struct httpClient *client)
 {
-    char c;
+    char c = 0;
+    char line[HTTP_HEADER_MAX_LINE];
     /* read first line */
     consumeChar(c);
+    line[0] = c;
     if(c == 'G')
     { /* possible GET */
-
-        char line[HTTP_HEADER_MAX_LINE];
-        uint32_t index = 0;
-
-        line[index] = c;
-
-        /* consume the full line */
-        while(consumeChar(c) > 0) /* read char by char only the first line */
-        {
-            line[++index] = c;
-            if(c == '\n')
-                break;
-
-            if(index >= HTTP_HEADER_MAX_LINE)
-            {
-                dbg("Size exceeded \n");
-                return HTTP_RETURN_ERROR;
-            }
-        }
-        /* extract the function and the resource */
-        if(memcmp(line, "GET", 3u) || line[3u] != ' ' || index < 10u || line[index] != '\n')
-        {
-            dbg("Wrong command or wrong ending\n");
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* start reading the resource */
-        index = 4u; /* go after ' ' */
-        while(line[index] != ' ')
-        {
-            if(line[index] == '\n') /* no terminator ' ' */
-            {
-                dbg("No terminator...\n");
-                return HTTP_RETURN_ERROR;
-            }
-
-            index++;
-        }
-        client->resource = PICO_ZALLOC(index - 3u); /* allocate without the GET in front + 1 which is \0 */
-
-        if(!client)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            return HTTP_RETURN_ERROR;
-        }
-
-        /* copy the resource */
-        memcpy(client->resource, line + 4u, index - 4u); /* copy without the \0 which was already set by PICO_ZALLOC */
-
-        client->state = HTTP_WAIT_EOF_HDR;
-        return HTTP_RETURN_OK;
-
+        return parseRequestGet(client, line);
+    }
+    else if(c == 'P')
+    { /* possible POST */
+        return parseRequestPost(client, line);
     }
 
     return HTTP_RETURN_ERROR;
 }
-
-
 
 int readRemainingHeader(struct httpClient *client)
 {
@@ -609,6 +686,12 @@ void sendData(struct httpClient *client)
 
 int readData(struct httpClient *client)
 {
+    if(!client)
+    {
+        dbg("Wrong connection ID\n");
+        return HTTP_RETURN_ERROR;
+    }
+
     if(client->state == HTTP_WAIT_HDR)
     {
         if(parseRequest(client) < 0 || readRemainingHeader(client) < 0)
@@ -625,7 +708,6 @@ int readData(struct httpClient *client)
     if(client->state == HTTP_EOF_HDR)
     {
         client->state = HTTP_WAIT_RESPONSE;
-        pico_socket_shutdown(client->sck, PICO_SHUT_RD);
         server.wakeup(EV_HTTP_REQ, client->connectionID);
     }
 

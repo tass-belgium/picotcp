@@ -37,13 +37,16 @@ enum pico_err_e {
     /* ... */
     PICO_ERR_EINVAL = 22,
     /* ... */
+    PICO_ERR_ENONET = 64,
     PICO_ERR_EPROTO = 71,
     PICO_ERR_ENOPROTOOPT = 92,
     PICO_ERR_EPROTONOSUPPORT = 93,
 
     /* ... */
+    PICO_ERR_EOPNOTSUPP = 95,
     PICO_ERR_EADDRINUSE = 98,
     PICO_ERR_EADDRNOTAVAIL,
+    PICO_ERR_ENETDOWN,
     PICO_ERR_ENETUNREACH,
 
     /* ... */
@@ -58,16 +61,13 @@ enum pico_err_e {
     PICO_ERR_ECONNREFUSED = 111,
     PICO_ERR_EHOSTDOWN,
     PICO_ERR_EHOSTUNREACH,
-    /* ... */
-    PICO_ERR_EOPNOTSUPP = 122,
-
 };
 
 typedef enum pico_err_e pico_err_t;
 extern volatile pico_err_t pico_err;
 
-#define IS_IPV6(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60)
-#define IS_IPV4(f) ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40)
+#define IS_IPV6(f) (f && f->net_hdr && ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x60))
+#define IS_IPV4(f) (f && f->net_hdr && ((((uint8_t *)(f->net_hdr))[0] & 0xf0) == 0x40))
 
 #define MAX_PROTOCOL_NAME 16
 

@@ -15,6 +15,7 @@ RTOS?=0
 # Default compiled-in protocols
 TCP?=1
 UDP?=1
+ETH?=1
 IPV4?=1
 IPFRAG?=1
 NAT?=1
@@ -83,6 +84,12 @@ ifeq ($(ARCH),lpc)
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
 endif
 
+ifeq ($(ARCH),lpc-m4-hard)
+  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16  \
+  -fsingle-precision-constant -mthumb -MMD -MP -DLPC
+endif
 
 ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
@@ -109,12 +116,12 @@ CFLAGS+=$(OPTIONS)
 
 
 CORE_OBJ= stack/pico_stack.o \
-          stack/pico_arp.o \
           stack/pico_frame.o \
           stack/pico_device.o \
           stack/pico_protocol.o \
           stack/pico_socket.o \
-	  stack/pico_tree.o
+		  stack/pico_socket_multicast.o \
+			stack/pico_tree.o
 
 POSIX_OBJ=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
@@ -122,7 +129,9 @@ POSIX_OBJ=  modules/pico_dev_vde.o \
             modules/pico_dev_pcap.o \
 						modules/ptsocket/pico_ptsocket.o
 
-
+ifneq ($(ETH),0)
+  include rules/eth.mk
+endif
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
 endif
@@ -137,8 +146,6 @@ ifneq ($(TCP),0)
 endif
 ifneq ($(UDP),0)
   include rules/udp.mk
-else
-  MCAST=0
 endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk
@@ -229,6 +236,7 @@ lib: mod core
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
+
 loop: mod core
 	mkdir -p $(PREFIX)/test
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
@@ -241,6 +249,17 @@ units: mod core lib
 	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
 	@echo -e "\t[LD] $(PREFIX)/test/units"
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt
+	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt
+	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt
+
+devunits: mod core lib
+	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"
+	@mkdir -p $(PREFIX)/test/unit/device/
+	@echo -e "\t[CC] picotcp_mock.o"
+	@$(CC) -c -o $(PREFIX)/test/unit/device/picotcp_mock.o $(CFLAGS) -I stack -I modules -I includes -I test/unit test/unit/device/picotcp_mock.c
+	@$(CC) -c -o $(PREFIX)/test/unit/device/unit_dev_vde.o $(CFLAGS) -I stack -I modules -I includes -I test/unit test/unit/device/unit_dev_vde.c
+	@echo -e "\t[LD] $(PREFIX)/test/devunits"
+	@$(CC) -o $(PREFIX)/test/devunits $(CFLAGS) -I stack $(PREFIX)/test/unit/device/*.o -lcheck -lm -pthread -lrt
 
 units_mm: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE]"
@@ -269,3 +288,10 @@ mbed:
 style:
 	@find . -iname "*.[c|h]" |xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
 	@find . -iname "*unc-backup*" |xargs -x rm || true
+
+dummy: mod core lib
+	@echo testing configuration...
+	@$(CC) -c -o test/dummy.o test/dummy.c $(CFLAGS)
+	@$(CC) -o dummy test/dummy.o $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
+	@echo done.
+	@rm -f test/dummy.o dummy 

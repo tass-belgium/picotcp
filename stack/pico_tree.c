@@ -55,151 +55,9 @@ extern void* pico_mem_page0_zalloc(size_t len);
 extern void pico_mem_page0_free(void* ptr);
 #endif  /* PICO_SUPPORT_MM */
 
-
 /*
  * Exported functions
  */
- 
- 
-/* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
- * These nodes should be placed in the manager page which is in a different memory region then the nodes
- * which are used for the pico stack in general. 
- * Therefore the following 2 wrapper functions for pico_tree_insert and pico_tree_delete are created.
- * Their actual implementation can be found in pico_tree_insert_implementation and pico_tree_delete_implementation.
- */
-void *pico_tree_insert(struct pico_tree*tree, void *key)
-{
-    return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
-}
-
-void *pico_tree_delete(struct pico_tree *tree, void *key)
-{
-    return pico_tree_delete_implementation(tree, key, USE_PICO_ZALLOC);
-}
-
-void* pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
-{
-    struct pico_tree_node *last_node = INIT_LEAF;
-    struct pico_tree_node *temp = tree->root;
-    struct pico_tree_node *insert;
-    void *LocalKey;
-    int result = 0;
-
-    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
-    // if node already in, bail out
-    if(LocalKey)
-        return LocalKey;
-    else
-    {
-        if(allocator == USE_PICO_PAGE0_ZALLOC)
-            insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
-        else
-            insert = create_node(tree, key, USE_PICO_ZALLOC);
-        if(!insert)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            // to let the user know that it couldn't insert
-            return (void *)&LEAF;
-        }
-    }
-
-    // search for the place to insert the new node
-    while(IS_NOT_LEAF(temp))
-    {
-        last_node = temp;
-        result = tree->compare(insert->keyValue, temp->keyValue);
-
-        temp = (result < 0 ? temp->leftChild : temp->rightChild);
-    }
-    // make the needed connections
-    insert->parent = last_node;
-
-    if(IS_LEAF(last_node))
-        tree->root = insert;
-    else{
-        result = tree->compare(insert->keyValue, last_node->keyValue);
-        if(result < 0)
-            last_node->leftChild = insert;
-        else
-            last_node->rightChild = insert;
-    }
-
-    // fix colour issues
-    fix_insert_collisions(tree, insert);
-
-    return NULL;
-}
-
-void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
-{
-    uint8_t nodeColor; // keeps the color of the node to be deleted
-    void *lkey; // keeps a copy of the key which will be removed
-    struct pico_tree_node *delete;  // keeps a copy of the node to be extracted
-    struct pico_tree_node *temp;  // temporary
-    struct pico_tree_node *ltemp;  // used for switching nodes, as a copy
-
-    delete = pico_tree_findNode(tree, key);
-    ltemp = delete;
-
-    // this key isn't in the tree, bail out
-    if(!delete)
-        return NULL;
-
-#ifndef PICO_SUPPORT_MM
-    if(allocator != USE_PICO_ZALLOC)
-        return NULL;
-#endif
-
-    lkey = delete->keyValue;
-    nodeColor = delete->color;
-
-    if(IS_LEAF(delete->leftChild))
-    {
-        temp = ltemp->rightChild;
-        switchNodes(tree, ltemp, ltemp->rightChild);
-    }
-    else
-    if(IS_LEAF(delete->rightChild))
-    {
-        struct pico_tree_node *_ltemp = delete;
-        temp = _ltemp->leftChild;
-        switchNodes(tree, _ltemp, _ltemp->leftChild);
-    }
-    else{
-        struct pico_tree_node *min;
-        min = pico_tree_firstNode(delete->rightChild);
-        nodeColor = min->color;
-
-        temp = min->rightChild;
-        if(min->parent == ltemp && IS_NOT_LEAF(temp))
-            temp->parent = min;
-        else{
-            switchNodes(tree, min, min->rightChild);
-            min->rightChild = ltemp->rightChild;
-            if(IS_NOT_LEAF(min->rightChild)) min->rightChild->parent = min;
-        }
-
-        switchNodes(tree, ltemp, min);
-        min->leftChild = ltemp->leftChild;
-        if(IS_NOT_LEAF(min->leftChild)) min->leftChild->parent = min;
-
-        min->color = ltemp->color;
-    }
-
-    // deleted node is black, this will mess up the black path property
-    if(nodeColor == BLACK)
-        fix_delete_collisions(tree, temp);
-
-    if(allocator == USE_PICO_ZALLOC)
-        PICO_FREE(delete);
-#ifdef PICO_SUPPORT_MM
-    else
-        pico_mem_page0_free(delete);
-#endif
-
-    return lkey;
-}
-
 
 struct pico_tree_node *pico_tree_firstNode(struct pico_tree_node *node)
 {
@@ -256,6 +114,70 @@ struct pico_tree_node *pico_tree_prev(struct pico_tree_node *node)
     return node;
 }
 
+/* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
+ * These nodes should be placed in the manager page which is in a different memory region then the nodes
+ * which are used for the pico stack in general. 
+ * Therefore the following wrapper for pico_tree_insert is created.
+ * The actual implementation can be found in pico_tree_insert_implementation.
+ */
+void *pico_tree_insert(struct pico_tree *tree, void *key)
+{
+    return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
+}
+
+void *pico_tree_insert_implementation(struct pico_tree*tree, void *key, uint8_t allocator)
+{
+    struct pico_tree_node *last_node = INIT_LEAF;
+    struct pico_tree_node *temp = tree->root;
+    struct pico_tree_node *insert;
+    void *LocalKey;
+    int result = 0;
+
+    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
+    /* if node already in, bail out */
+    if(LocalKey)
+        return LocalKey;
+    else
+    {
+        if(allocator == USE_PICO_PAGE0_ZALLOC)
+            insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
+        else
+            insert = create_node(tree, key, USE_PICO_ZALLOC);
+        if(!insert)
+        {
+            pico_err = PICO_ERR_ENOMEM;
+            /* to let the user know that it couldn't insert */
+            return (void *)&LEAF;
+        }
+    }
+
+    /* search for the place to insert the new node */
+    while(IS_NOT_LEAF(temp))
+    {
+        last_node = temp;
+        result = tree->compare(insert->keyValue, temp->keyValue);
+
+        temp = (result < 0) ? (temp->leftChild) : (temp->rightChild);
+    }
+    /* make the needed connections */
+    insert->parent = last_node;
+
+    if(IS_LEAF(last_node))
+        tree->root = insert;
+    else{
+        result = tree->compare(insert->keyValue, last_node->keyValue);
+        if(result < 0)
+            last_node->leftChild = insert;
+        else
+            last_node->rightChild = insert;
+    }
+
+    /* fix colour issues */
+    fix_insert_collisions(tree, insert);
+
+    return NULL;
+}
+
 struct pico_tree_node *pico_tree_findNode(struct pico_tree *tree, void *key)
 {
     struct pico_tree_node *found;
@@ -309,6 +231,97 @@ void *pico_tree_first(struct pico_tree *tree)
 void *pico_tree_last(struct pico_tree *tree)
 {
     return pico_tree_lastNode(tree->root)->keyValue;
+}
+
+static uint8_t pico_tree_delete_node(struct pico_tree *tree, struct pico_tree_node *d, struct pico_tree_node **temp)
+{
+    struct pico_tree_node *min;
+    struct pico_tree_node *ltemp = d;
+    uint8_t nodeColor;
+    min = pico_tree_firstNode(d->rightChild);
+    nodeColor = min->color;
+
+    *temp = min->rightChild;
+    if(min->parent == ltemp && IS_NOT_LEAF(*temp))
+        (*temp)->parent = min;
+    else{
+        switchNodes(tree, min, min->rightChild);
+        min->rightChild = ltemp->rightChild;
+        if(IS_NOT_LEAF(min->rightChild)) min->rightChild->parent = min;
+    }
+
+    switchNodes(tree, ltemp, min);
+    min->leftChild = ltemp->leftChild;
+
+    if(IS_NOT_LEAF(min->leftChild))
+        min->leftChild->parent = min;
+
+    min->color = ltemp->color;
+    return nodeColor;
+}
+
+static uint8_t pico_tree_delete_check_switch(struct pico_tree *tree, struct pico_tree_node *delete, struct pico_tree_node **temp)
+{
+    struct pico_tree_node *ltemp = delete;
+    uint8_t nodeColor = delete->color;
+    if(IS_LEAF(delete->leftChild))
+    {
+        *temp = ltemp->rightChild;
+        switchNodes(tree, ltemp, ltemp->rightChild);
+    }
+    else
+    if(IS_LEAF(delete->rightChild))
+    {
+        struct pico_tree_node *_ltemp = delete;
+        *temp = _ltemp->leftChild;
+        switchNodes(tree, _ltemp, _ltemp->leftChild);
+    }
+    else{
+        nodeColor = pico_tree_delete_node(tree, delete, temp);
+    }
+
+    return nodeColor;
+
+}
+
+/* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
+ * These nodes should be placed in the manager page which is in a different memory region then the nodes
+ * which are used for the pico stack in general. 
+ * Therefore the following wrapper for pico_tree_delete is created.
+ * The actual implementation can be found in pico_tree_delete_implementation.
+ */
+void *pico_tree_delete(struct pico_tree *tree, void *key)
+{
+    return pico_tree_delete_implementation(tree, key, USE_PICO_ZALLOC);
+}
+
+void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
+{
+    struct pico_tree_node *temp;
+    uint8_t nodeColor; /* keeps the color of the node to be deleted */
+    void *lkey; /* keeps a copy of the key which will be removed */
+    struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
+
+    delete = pico_tree_findNode(tree, key);
+
+    /* this key isn't in the tree, bail out */
+    if(!delete)
+        return NULL;
+
+    lkey = delete->keyValue;
+    nodeColor = pico_tree_delete_check_switch(tree, delete, &temp);
+
+    /* deleted node is black, this will mess up the black path property */
+    if(nodeColor == BLACK)
+        fix_delete_collisions(tree, temp);
+    
+    if(allocator == USE_PICO_ZALLOC)
+        PICO_FREE(delete);
+#ifdef PICO_SUPPORT_MM
+    else
+        pico_mem_page0_free(delete);
+#endif
+    return lkey;
 }
 
 int pico_tree_empty(struct pico_tree *tree)
@@ -377,18 +390,14 @@ static void rotateToRight(struct pico_tree *tree, struct pico_tree_node *node)
 static struct pico_tree_node *create_node(struct pico_tree *tree, void*key, uint8_t allocator)
 {
     struct pico_tree_node *temp;
-
+    IGNORE_PARAMETER(tree);
     if(allocator == USE_PICO_ZALLOC)
         temp = (struct pico_tree_node *)PICO_ZALLOC(sizeof(struct pico_tree_node));
-    else
-    {
 #ifdef PICO_SUPPORT_MM
+    else
         temp = (struct pico_tree_node *)pico_mem_page0_zalloc(sizeof(struct pico_tree_node));
-#else
-        return NULL;
 #endif
-    }   
-    
+
     if(!temp)
         return NULL;
 
@@ -396,7 +405,7 @@ static struct pico_tree_node *create_node(struct pico_tree *tree, void*key, uint
     temp->parent = &LEAF;
     temp->leftChild = &LEAF;
     temp->rightChild = &LEAF;
-    // by default every new node is red
+    /* by default every new node is red */
     temp->color = RED;
     return temp;
 }

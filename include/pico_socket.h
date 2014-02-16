@@ -9,9 +9,10 @@
 #include "pico_addressing.h"
 #include "pico_config.h"
 #include "pico_protocol.h"
+#include "pico_tree.h"
 
 #ifdef __linux__
-    #define PICO_DEFAULT_SOCKETQ (128 * 1024) /* Linux host, so we want full throttle */
+    #define PICO_DEFAULT_SOCKETQ (16 * 1024) /* Linux host, so we want full throttle */
 #else
     #define PICO_DEFAULT_SOCKETQ (4 * 1024) /* seems like an acceptable default for small embedded systems */
 #endif
@@ -19,6 +20,13 @@
 #define PICO_SHUT_RD   1
 #define PICO_SHUT_WR   2
 #define PICO_SHUT_RDWR 3
+
+struct pico_sockport
+{
+    struct pico_tree socks; /* how you make the connection ? */
+    uint16_t number;
+    uint16_t proto;
+};
 
 
 struct pico_socket {
@@ -67,7 +75,7 @@ struct pico_socket {
     void *priv;
 };
 
-struct pico_remote_duple {
+struct pico_remote_endpoint {
     union {
         struct pico_ip4 ip4;
         struct pico_ip6 ip6;
@@ -208,6 +216,12 @@ int pico_sockets_loop(int loop_score);
 struct pico_socket*pico_sockets_find(uint16_t local, uint16_t remote);
 /* Port check */
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net);
+
+struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port);
+
+#define PICO_SOCKET_SETOPT_EN(socket, index)  (socket->opt_flags |=  (1 << index))
+#define PICO_SOCKET_SETOPT_DIS(socket, index) (socket->opt_flags &= (uint16_t) ~(1 << index))
+#define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1 << index)) != 0)
 
 
 #endif

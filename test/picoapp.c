@@ -148,7 +148,7 @@ void cb_udpclient(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev == PICO_SOCK_EV_ERR) {
-        printf("Socket Error received. Bailing out.\n");
+        fprintf(stderr, "Socket Error received: %s Bailing out.\n", strerror(pico_err));
         free(udpclient_pas);
         exit(7);
     }
@@ -335,7 +335,9 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
                     udpecho_exit++;
                 }
 
-                pico_socket_sendto(s, recvbuf, r, &peer, udpecho_pas->sendto_port ? short_be(udpecho_pas->sendto_port) : port);
+                printf("Received datagram (%d bytes, from port %d)... Echoing back!\n", r, short_be(port));
+
+                pico_socket_sendto(s, recvbuf, r, &peer, port);
             }
         } while (r > 0);
         free(recvbuf);
@@ -968,7 +970,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 100)
+#define TCPSIZ (1024 * 1024 * 10)
 static char *buffer1;
 static char *buffer0;
 
@@ -1039,9 +1041,9 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
         if (w_size < TCPSIZ) {
             do {
                 w = pico_socket_write(s, buffer0 + w_size, TCPSIZ - w_size);
+                /* printf("SOCKET WRITTEN - %d\n", w); */
                 if (w > 0) {
                     w_size += w;
-                    printf("SOCKET WRITTEN - %d\n", w_size);
                     if (w < 0)
                         exit(5);
                 }
@@ -1069,7 +1071,7 @@ void app_tcpclient(char *arg)
     uint16_t port_be = 0;
     struct pico_ip4 server_addr;
     char *nxt = cpy_arg(&dest, arg);
-    int yes = 0;
+    int yes = 1;
     if (!dest) {
         fprintf(stderr, "tcpclient needs the following format: tcpclient:dst_addr[:dport]\n");
         exit(255);
@@ -1093,7 +1095,7 @@ void app_tcpclient(char *arg)
 
     buffer0 = malloc(TCPSIZ);
     buffer1 = malloc(TCPSIZ);
-    printf("Buffer1 (%p)\n", buffer1);
+    /* printf("Buffer1 (%p)\n", buffer1); */
     for (i = 0; i < TCPSIZ; i++) {
         char c = (i % 26) + 'a';
         buffer0[i] = c;
@@ -1178,7 +1180,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         struct pico_ip4 orig;
         uint16_t port;
         char peer[30];
-        int yes = 0;
+        int yes = 1;
         sock_a = pico_socket_accept(s, &orig, &port);
         pico_socket_accept(s, &orig, &port);
         pico_ipv4_to_string(peer, orig.addr);
@@ -1222,7 +1224,7 @@ void app_tcpecho(char *arg)
     char *sport = arg;
     int port = 0;
     uint16_t port_be = 0;
-    int yes = 0;
+    int yes = 1;
     cpy_arg(&sport, arg);
     if (sport) {
         port = atoi(sport);
@@ -1301,7 +1303,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_rd_size += tcpbench_r;
             }
             else if (tcpbench_r < 0) {
-                printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                printf("tcpbench READ> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                 exit(5);
             }
         } while (tcpbench_r > 0);
@@ -1337,7 +1339,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
-        printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+        printf("tcpbench> EV_ERR: Socket Error received: %s. Bailing out.\n", strerror(pico_err));
         exit(1);
     }
 
@@ -1358,11 +1360,11 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
-                    /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
+/*                    printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
                 }
 
                 if (tcpbench_w < 0) {
-                    printf("tcpbench> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
+                    printf("tcpbench WR> Socket Error received: %s. Bailing out.\n", strerror(pico_err));
                     exit(5);
                 }
 
@@ -1396,7 +1398,7 @@ void app_tcpbench(char *arg)
     struct pico_ip4 server_addr;
     char *nxt;
     char *sport;
-    int yes = 0;
+    int yes = 1;
 
     nxt = cpy_arg(&mode, arg);
 
@@ -1428,7 +1430,7 @@ void app_tcpbench(char *arg)
 
         buffer0 = malloc(TCPSIZ);
         buffer1 = malloc(TCPSIZ);
-        printf("Buffer1 (%p)\n", buffer1);
+        /* printf("Buffer1 (%p)\n", buffer1); */
         for (i = 0; i < TCPSIZ; i++) {
             char c = (i % 26) + 'a';
             buffer0[i] = c;
@@ -1927,25 +1929,36 @@ void serverWakeup(uint16_t ev, uint16_t conn)
     {
         int read;
         char *resource;
+        int method;
         printf("Header request was received...\n");
         printf("> Resource : %s\n", pico_http_getResource(conn));
         resource = pico_http_getResource(conn);
+        method = pico_http_getMethod(conn);
 
         if(strcmp(resource, "/") == 0 || strcmp(resource, "index.html") == 0 || strcmp(resource, "/index.html") == 0)
         {
-            /* Accepting request */
-            printf("Accepted connection...\n");
-            pico_http_respond(conn, HTTP_RESOURCE_FOUND);
-            f = fopen("test/examples/index.html", "r");
-
-            if(!f)
+            if(method == HTTP_METHOD_GET)
             {
-                fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
-                exit(1);
-            }
+                /* Accepting request */
+                printf("Accepted connection...\n");
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                f = fopen("test/examples/index.html", "r");
 
-            read = fread(buffer, 1, SIZE, f);
-            pico_http_submitData(conn, buffer, read);
+                if(!f)
+                {
+                    fprintf(stderr, "Unable to open the file /test/examples/index.html\n");
+                    exit(1);
+                }
+
+                read = fread(buffer, 1, SIZE, f);
+                pico_http_submitData(conn, buffer, read);
+            }
+            else if(method == HTTP_METHOD_POST)
+            {
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
+                strcpy(buffer, "Thanks for posting your data");
+                pico_http_submitData(conn, buffer, strlen(buffer));
+            }
         }
         else
         { /* reject */

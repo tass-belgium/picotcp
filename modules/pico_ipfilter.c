@@ -136,6 +136,11 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
 
     new_filter = PICO_ZALLOC(sizeof(struct filter_node));
 
+    if (!new_filter) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
     new_filter->fdev = dev;
     new_filter->proto = proto;
 

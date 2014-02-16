@@ -26,6 +26,12 @@
 
 #define dbg(...)
 
+/* Intended for Mr. Jenkins endurance test loggings */
+#ifdef JENKINS_DEBUG
+#include "PicoTerm.h"
+#define jenkins_dbg ptm_dbg
+#endif
+
 #ifdef PICO_MEASURE_STACK
 
 extern int freeStack;
@@ -52,6 +58,13 @@ static inline void *pico_zalloc(int x)
         return NULL;
 
     ptr = (uint32_t *)calloc(x + 4, 1);
+
+    /* Intended for Mr. Jenkins endurance test loggings */
+    #ifdef JENKINS_DEBUG
+    if (!ptr)
+        jenkins_dbg(">> OUT OF MEM\n");
+
+    #endif
     *ptr = (uint32_t)x;
     cur_mem += x;
     if (cur_mem > max_mem) {

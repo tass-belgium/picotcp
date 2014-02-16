@@ -16,6 +16,9 @@
 #include "pico_protocol.c"
 #include "pico_ipv4.c"
 #include "pico_socket.c"
+#include "pico_socket_multicast.c"
+#include "pico_socket_tcp.c"
+#include "pico_socket_udp.c"
 #include "pico_dev_null.c"
 #include "pico_dev_mock.c"
 #include "pico_udp.c"
@@ -51,6 +54,7 @@
 #include "unit_rbtree.c"
 #include "unit_socket.c"
 #include "unit_timer.c"
+#include "unit_arp.c"
 
 START_TEST (test_frame)
 {
@@ -89,6 +93,7 @@ Suite *pico_suite(void)
     TCase *dhcp = tcase_create("DHCP");
     TCase *dns = tcase_create("DNS");
     TCase *rb = tcase_create("RB TREE");
+    TCase *rb2 = tcase_create("RB TREE 2");
     TCase *socket = tcase_create("SOCKET");
     TCase *nat = tcase_create("NAT");
     TCase *ipfilter = tcase_create("IPFILTER");
@@ -102,7 +107,7 @@ Suite *pico_suite(void)
     TCase *timers = tcase_create("TIMERS");
     TCase *slaacv4 = tcase_create("SLAACV4");
     TCase *tick = tcase_create("pico_tick");
-    
+    TCase *arp = tcase_create("ARP");
     tcase_add_test(ipv4, test_ipv4);
     suite_add_tcase(s, ipv4);
 
@@ -126,8 +131,12 @@ Suite *pico_suite(void)
     suite_add_tcase(s, dns);
 
     tcase_add_test(rb, test_rbtree);
-    tcase_set_timeout(rb, 4);
+    tcase_set_timeout(rb, 10);
     suite_add_tcase(s, rb);
+
+    tcase_add_test(rb2, test_rbtree2);
+    tcase_set_timeout(rb2, 10);
+    suite_add_tcase(s, rb2);
 
     tcase_add_test(socket, test_socket);
     suite_add_tcase(s, socket);
@@ -162,6 +171,15 @@ Suite *pico_suite(void)
 
     tcase_add_test(tick, test_tick);
     suite_add_tcase(s, tick);
+
+    tcase_add_test(arp, arp_check_pending_test);
+    tcase_add_test(arp, arp_update_max_arp_reqs_test);
+    tcase_add_test(arp, arp_compare_test);
+    tcase_add_test(arp, arp_lookup_test);
+    tcase_add_test(arp, arp_expire_test);
+    tcase_add_test(arp, arp_receive_test);
+    tcase_add_test(arp, arp_get_test);
+    suite_add_tcase(s, arp);
 
     return s;
 }

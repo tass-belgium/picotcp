@@ -19,6 +19,7 @@
 #include "pico_nat.h"
 #include "pico_igmp.h"
 #include "pico_tree.h"
+#include "pico_socket_multicast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -1172,7 +1173,7 @@ drop:
 static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_ip4 *dst;
-    struct pico_remote_duple *remote_duple = (struct pico_remote_duple *) f->info;
+    struct pico_remote_endpoint *remote_endpoint = (struct pico_remote_endpoint *) f->info;
     IGNORE_PARAMETER(self);
 
     if (!f->sock) {
@@ -1180,8 +1181,8 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
         return -1;
     }
 
-    if (remote_duple) {
-        dst = &remote_duple->remote_addr.ip4;
+    if (remote_endpoint) {
+        dst = &remote_endpoint->remote_addr.ip4;
     } else {
         dst = &f->sock->remote_addr.ip4;
     }
