@@ -64,6 +64,7 @@ endif
 ifeq ($(ARCH),faulty)
   CFLAGS+=-DFAULTY
   UNITS_OBJ+=test/pico_faulty.o
+  TEST_OBJ+=test/pico_faulty.o
 endif
 
 ifeq ($(ARCH),stm32-softfloat)
@@ -103,9 +104,9 @@ endif
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
 
-%.elf: %.o
+%.elf: %.o $(TEST_OBJ)
 	@echo -e "\t[LD] $@"
-	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS)
+	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS) $(TEST_OBJ)
 
 CFLAGS+=$(OPTIONS)
 
@@ -203,7 +204,7 @@ posix: all $(POSIX_OBJ)
 
 TEST_ELF= test/picoapp.elf
 
-test: posix $(TEST_ELF)
+test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
