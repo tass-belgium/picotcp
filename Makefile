@@ -61,6 +61,11 @@ ifeq ($(ARCH),stm32)
   -DSTM32
 endif
 
+ifeq ($(ARCH),faulty)
+  CFLAGS+=-DFAULTY
+  UNITS_OBJ+=test/pico_faulty.o
+endif
+
 ifeq ($(ARCH),stm32-softfloat)
   CFLAGS+=-mcpu=cortex-m3 \
   -mthumb -mlittle-endian \
@@ -113,7 +118,7 @@ CORE_OBJ= stack/pico_stack.o \
 		  stack/pico_socket_multicast.o \
 			stack/pico_tree.o
 
-POSIX_OBJ=  modules/pico_dev_vde.o \
+POSIX_OBJ+=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
 						modules/pico_dev_mock.o \
             modules/pico_dev_pcap.o \
@@ -226,15 +231,15 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
-units: mod core lib
+units: mod core lib $(UNITS_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
 	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt
-	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt
-	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

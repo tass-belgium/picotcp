@@ -131,7 +131,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, dns);
 
     tcase_add_test(rb, test_rbtree);
-    tcase_set_timeout(rb, 10);
+    tcase_set_timeout(rb, 20);
     suite_add_tcase(s, rb);
 
     tcase_add_test(rb2, test_rbtree2);
