@@ -24,11 +24,13 @@
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
  * which are used for the pico stack in general. 
- * Therefore the following 2 functions are created so that pico_tree can use them to to put these nodes
+ * Therefore the following 4 functions are created so that pico_tree can use them to to put these nodes
  * into the correct memory regions.
  */
 void* pico_mem_page0_zalloc(size_t len);
 void pico_mem_page0_free(void* ptr);
+void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator);
+void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator);
 
 
 /* this is a wrapper function for pico_tree_insert. The function pointers that are used by pico_tree 
