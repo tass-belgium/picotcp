@@ -120,7 +120,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
     }
 
     /* construct new filter */
-    pico_tree_foreach(index, &MCASTSockets)
+    pico_tree_foreach_safe(index, &MCASTSockets, _tmp)
     {
         mcast_sock = index->keyValue;
         listen = listen_find(mcast_sock, mcast_link, mcast_group);
