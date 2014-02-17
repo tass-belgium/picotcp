@@ -1837,6 +1837,15 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
         }
     }              /* End case duplicate ack detection */
 
+    /* Linux very special zero-window probe detection (see bug #107) */
+    if ((0 == (hdr->flags & (PICO_TCP_PSH | PICO_TCP_SYN))) && /* This is a pure ack, and... */
+        (ACKN(f) == t->snd_nxt) &&                           /* it's acking our snd_nxt, and... */
+        (seq_compare(SEQN(f), t->rcv_nxt) < 0) )            /* Has an old seq number */
+    {
+        tcp_send_ack(t);
+    }
+
+
     /* Do congestion control */
     tcp_congestion_control(t);
     if ((acked > 0) && t->sock.wakeup) {
