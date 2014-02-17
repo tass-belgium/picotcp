@@ -530,6 +530,7 @@ static int parseRequestExtractFunction(char *line, int index, const char *method
         dbg("Wrong command or wrong ending\n");
         return HTTP_RETURN_ERROR;
     }
+
     return 0;
 }
 
@@ -543,13 +544,13 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
     {
         if(line[index] == '\n') /* no terminator ' ' */
         {
-	    dbg("No terminator...\n");
-	    return HTTP_RETURN_ERROR;
+            dbg("No terminator...\n");
+            return HTTP_RETURN_ERROR;
         }
 
         index++;
     }
-    client->resource = pico_zalloc(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
+    client->resource = PICO_ZALLOC(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
 
     if(!client->resource)
     {
@@ -558,7 +559,7 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
     }
 
     /* copy the resource */
-    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by pico_zalloc */
+    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by PICO_ZALLOC */
     return 0;
 }
 

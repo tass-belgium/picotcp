@@ -140,6 +140,7 @@ struct pico_socket *pico_socket_tcp_open(void)
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
+
     s->proto = &pico_proto_tcp;
     /*check if Nagle enabled */
     /*
@@ -168,6 +169,6 @@ int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 void transport_flags_update(struct pico_frame *f, struct pico_socket *s)
 {
 #ifdef PICO_SUPPORT_TCP
-    pico_tcp_flags_update(f,s);
+    pico_tcp_flags_update(f, s);
 #endif
 }

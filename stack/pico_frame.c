@@ -20,6 +20,7 @@ void pico_frame_discard(struct pico_frame *f)
 {
     if (!f)
         return;
+
     (*f->usage_count)--;
     if (*f->usage_count <= 0) {
         PICO_FREE(f->usage_count);

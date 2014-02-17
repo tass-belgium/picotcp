@@ -277,9 +277,9 @@ void cb_getaddr(char *ip, void *arg)
   printf("DNS translation to ip %s (id %u)\n", ip, id_getaddr ? id_getaddr->id : 0);
   
   /* important: free the received pointers! */
-  pico_free(ip);
+  PICO_FREE(ip);
   if (id_getaddr)
-    pico_free(id_getaddr);
+    PICO_FREE(id_getaddr);
 }
 
 /* callback function of IP translation */
@@ -295,9 +295,9 @@ void cb_getname(char *url)
   printf("DNS translation to url %s (id %u)\n", url, id_getname ? id_getname->id : 0);
   
   /* important: free the received pointers! */
-  pico_free(url);
+  PICO_FREE(url);
   if (id_getname)
-    pico_free(id_getname);
+    PICO_FREE(id_getname);
 }
 
 /* initialize the dns */
@@ -311,12 +311,12 @@ void app_dns(char *url, char *ip)
   pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
 
   /* request translation of URL f.e. www.google.com */  
-  id_getaddr = pico_zalloc(sizeof(struct dns_identifier));
+  id_getaddr = PICO_ZALLOC(sizeof(struct dns_identifier));
   id_getaddr->id = 1;
   pico_dns_client_getaddr(url, &cb_getaddr, id_getaddr);
 
   /* request translation of IP f.e. 8.8.8.8 */
-  id_getname = pico_zalloc(sizeof(struct dns_identifier));
+  id_getname = PICO_ZALLOC(sizeof(struct dns_identifier));
   id_getname->id = 2;
   pico_dns_client_getname(ip, &cb_getname, id_getname);
 }

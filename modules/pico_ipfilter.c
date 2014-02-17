@@ -140,7 +140,7 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
-    
+
     new_filter->fdev = dev;
     new_filter->proto = proto;
 

@@ -870,6 +870,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         /* specific options */
         offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
         break;
@@ -883,6 +884,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         /* specific options */
         offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
         if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING) {
