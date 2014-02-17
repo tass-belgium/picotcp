@@ -75,6 +75,17 @@ int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
     return 0;
 }
 
+static int pico_string_check_null_args(const char *ipstr, uint32_t *ip)
+{
+
+    if(!ipstr || !ip) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    return 0;
+
+}
+
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
 {
     unsigned char buf[4] = {
@@ -83,10 +94,9 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     int cnt = 0;
     char p;
 
-    if(!ipstr || !ip) {
-        pico_err = PICO_ERR_EINVAL;
+    if (pico_string_check_null_args(ipstr, ip) < 0)
         return -1;
-    }
+
 
     while((p = *ipstr++) != 0)
     {
@@ -512,14 +522,86 @@ static int ipv4_link_compare(void *ka, void *kb)
 
 PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
 
+static int pico_ipv4_process_bcast_in(struct pico_frame *f)
+{
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+#ifdef PICO_SUPPORT_UDP
+    if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
+        /* Receiving UDP broadcast datagram */
+        f->flags |= PICO_FRAME_FLAG_BCAST;
+        pico_enqueue(pico_proto_udp.q_in, f);
+        return 1;
+    }
+#endif
+    return 0;
+}
+
+static int pico_ipv4_process_mcast_in(struct pico_frame *f)
+{
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    if (pico_ipv4_is_multicast(hdr->dst.addr)) {
+#ifdef PICO_SUPPORT_MCAST
+        /* Receiving UDP multicast datagram TODO set f->flags? */
+        if (hdr->proto == PICO_PROTO_IGMP) {
+            ip_mcast_dbg("MCAST: received IGMP message\n");
+            pico_transport_receive(f, PICO_PROTO_IGMP);
+            return 1;
+        } else if ((pico_ipv4_mcast_filter(f) == 0) && (hdr->proto == PICO_PROTO_UDP)) {
+            pico_enqueue(pico_proto_udp.q_in, f);
+            return 1;
+        }
+#endif
+        pico_frame_discard(f);
+        return 1;
+    }
+    return 0;
+}
+
+static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
+{
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    struct pico_ipv4_link test = {
+        .address = {.addr = PICO_IP4_ANY}, .dev = NULL
+    };
+    if (pico_ipv4_link_find(&hdr->dst)) {
+        if (pico_ipv4_nat_inbound(f, &hdr->dst) == 0)
+            pico_enqueue(pico_proto_ipv4.q_in, f); /* dst changed, reprocess */
+        else
+            pico_transport_receive(f, hdr->proto);
+        return 1;
+    } else if (pico_tree_findKey(&Tree_dev_link, &test)) {
+#ifdef PICO_SUPPORT_UDP
+        /* address of this device is apparently 0.0.0.0; might be a DHCP packet */
+        /* XXX KRO: is obsolete. Broadcast flag is set on outgoing DHCP messages.
+         * incomming DHCP messages are to be broadcasted. Our current DHCP server
+         * implementation does not take this flag into account yet though ... */
+        pico_enqueue(pico_proto_udp.q_in, f);
+        return 1;
+#endif
+    }
+    return 0;
+}
+
+static void pico_ipv4_process_finally_try_forward(struct pico_frame *f)
+{
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    if((pico_ipv4_is_broadcast(hdr->dst.addr)))
+    {
+        /* don't forward broadcast frame, discard! */
+        pico_frame_discard(f);
+    } else if (pico_ipv4_forward(f) != 0) {
+        pico_frame_discard(f);
+        /* dbg("Forward failed.\n"); */
+    }
+}
+
+
+
 static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
     uint8_t option_len = 0;
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    struct pico_ipv4_link test = {
-        .address = {.addr = PICO_IP4_ANY}, .dev = NULL
-    };
 
     /* NAT needs transport header information */
     if(((hdr->vhl) & 0x0F) > 5) {
@@ -535,7 +617,6 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         /*pico_frame is discarded as result of the filtering*/
         return 0;
     }
-
 #endif
 
     /* ret == 1 indicates to continue the function */
@@ -558,50 +639,16 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (0) {
-#ifdef PICO_SUPPORT_UDP
-    } else if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_UDP)) {
-        /* Receiving UDP broadcast datagram */
-        f->flags |= PICO_FRAME_FLAG_BCAST;
-        pico_enqueue(pico_proto_udp.q_in, f);
-#endif
-    } else if (pico_ipv4_is_multicast(hdr->dst.addr)) {
-#ifdef PICO_SUPPORT_MCAST
-        /* Receiving UDP multicast datagram TODO set f->flags? */
-        if (hdr->proto == PICO_PROTO_IGMP) {
-            ip_mcast_dbg("MCAST: received IGMP message\n");
-            pico_transport_receive(f, PICO_PROTO_IGMP);
-        } else if ((pico_ipv4_mcast_filter(f) == 0) && (hdr->proto == PICO_PROTO_UDP)) {
-            pico_enqueue(pico_proto_udp.q_in, f);
-        } else {
-            pico_frame_discard(f);
-        }
+    if (pico_ipv4_process_bcast_in(f) > 0)
+        return 0;
 
-#endif
-    } else if (pico_ipv4_link_find(&hdr->dst)) {
-        if (pico_ipv4_nat_inbound(f, &hdr->dst) == 0)
-            pico_enqueue(pico_proto_ipv4.q_in, f); /* dst changed, reprocess */
-        else
-            pico_transport_receive(f, hdr->proto);
-    } else if (pico_tree_findKey(&Tree_dev_link, &test)) {
-#ifdef PICO_SUPPORT_UDP
-        /* address of this device is apparently 0.0.0.0; might be a DHCP packet */
-        /* XXX KRO: is obsolete. Broadcast flag is set on outgoing DHCP messages.
-         * incomming DHCP messages are to be broadcasted. Our current DHCP server
-         * implementation does not take this flag into account yet though ... */
-        pico_enqueue(pico_proto_udp.q_in, f);
-#endif
-    } else {
+    if (pico_ipv4_process_mcast_in(f) > 0)
+        return 0;
 
-        if((pico_ipv4_is_broadcast(hdr->dst.addr)))
-        {
-            /* don't forward broadcast frame, discard! */
-            pico_frame_discard(f);
-        } else if (pico_ipv4_forward(f) != 0) {
-            pico_frame_discard(f);
-            /* dbg("Forward failed.\n"); */
-        }
-    }
+    if (pico_ipv4_process_local_unicast_in(f) > 0)
+        return 0;
+
+    pico_ipv4_process_finally_try_forward(f);
 
     return 0;
 }
