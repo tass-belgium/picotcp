@@ -134,7 +134,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
                 case PICO_IP_MULTICAST_INCLUDE:
                     /* filter = summation of INCLUDEs */
                     /* mode stays INCLUDE, add all sources to filter */
-                    pico_tree_foreach(index2, &listen->MCASTSources)
+                    pico_tree_foreach_safe(index2, &listen->MCASTSources, _tmp2)
                     {
                         source = index2->keyValue;
                         pico_tree_insert(&MCASTFilter, source);
