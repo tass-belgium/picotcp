@@ -6,7 +6,6 @@
    Authors: Frederik Van Slycken, Kristof Roelants
  *********************************************************************/
 
-#ifdef PICO_SUPPORT_DHCPD
 #include "pico_dhcp_server.h"
 #include "pico_config.h"
 #include "pico_addressing.h"
@@ -14,6 +13,8 @@
 #include "pico_udp.h"
 #include "pico_stack.h"
 #include "pico_arp.h"
+
+#ifdef PICO_SUPPORT_DHCPD
 
 #define dhcps_dbg(...) do {} while(0)
 /* #define dhcps_dbg dbg */
