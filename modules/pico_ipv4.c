@@ -257,12 +257,15 @@ static int pico_ipv4_fragmented_element_cmp(void *ka, void *kb)
 {
     struct pico_frame *frame_a = ka, *frame_b = kb;
     struct pico_ipv4_hdr *a, *b;
+    uint16_t a_frag, b_frag;
     a = (struct pico_ipv4_hdr *) frame_a->net_hdr;
     b = (struct pico_ipv4_hdr *) frame_b->net_hdr;
+    a_frag = short_be(a->frag & PICO_IPV4_FRAG_MASK);
+    b_frag = short_be(b->frag & PICO_IPV4_FRAG_MASK);
 
-    if (short_be((a->frag & PICO_IPV4_FRAG_MASK)) < short_be((b->frag & PICO_IPV4_FRAG_MASK)))
+    if (a_frag < b_frag)
         return -1;
-    else if (short_be((a->frag & PICO_IPV4_FRAG_MASK)) > short_be((b->frag & PICO_IPV4_FRAG_MASK)))
+    if (b_frag < a_frag)
         return 1;
     else
         return 0;
@@ -716,12 +719,15 @@ struct pico_ipv4_route
 static int ipv4_route_compare(void *ka, void *kb)
 {
     struct pico_ipv4_route *a = ka, *b = kb;
+    uint32_t a_nm, b_nm;
+
+    a_nm = long_be(a->netmask.addr);
+    b_nm = long_be(b->netmask.addr);
 
     /* Routes are sorted by (host side) netmask len, then by addr, then by metric. */
-    if (long_be(a->netmask.addr) < long_be(b->netmask.addr))
+    if (a_nm < b_nm)
         return -1;
-
-    if (long_be(a->netmask.addr) > long_be(b->netmask.addr))
+    if (b_nm < a_nm)
         return 1;
 
     if (a->dest.addr < b->dest.addr)

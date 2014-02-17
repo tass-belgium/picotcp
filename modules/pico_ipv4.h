@@ -19,7 +19,7 @@
 #define PICO_IPV4_FRAG_MASK 0x1FFF
 #define PICO_IPV4_DEFAULT_TTL 64
 #ifndef MBED
-    #define PICO_IPV4_FRAG_MAX_SIZE (63 * 1024)
+    #define PICO_IPV4_FRAG_MAX_SIZE (uint32_t)(63 * 1024)
 #else
     #define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
 #endif
