@@ -6,10 +6,10 @@
  *********************************************************************/
 
 
-/* This is a test implementation, with a faulty memory manager, 
- * intended to increase test coverage 
+/* This is a test implementation, with a faulty memory manager,
+ * intended to increase test coverage
  * Warning: not intended for production!
- * 
+ *
  */
 
 
@@ -48,10 +48,11 @@ static inline void mem_stat_store(void)
     char buffer[20];
     int fd;
     snprintf(fname, 200, fname_mod, getpid());
-    fd = open(fname, O_WRONLY| O_CREAT | O_TRUNC, 0660);
+    fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0660);
     if (fd < 0) {
         return;
     }
+
     snprintf(buffer, 20, "%d\n", max_mem);
     write(fd, buffer, strlen(buffer));
     close(fd);
@@ -60,13 +61,14 @@ static inline void mem_stat_store(void)
 
 static inline void *pico_zalloc(uint32_t x)
 {
-    uint32_t *ptr; 
+    uint32_t *ptr;
     if (mm_failure_count > 0) {
         if (--mm_failure_count == 0) {
             fprintf(stderr, "Malloc failed, for test purposes\n");
             return NULL;
         }
     }
+
     ptr = (uint32_t *)calloc(x + 4, 1);
     *ptr = (uint32_t)x;
     cur_mem += x;
@@ -76,8 +78,10 @@ static inline void *pico_zalloc(uint32_t x)
         max_mem = cur_mem;
         if ((MEM_LIMIT > 0) && (max_mem > MEM_LIMIT))
             abort();
+
         mem_stat_store();
     }
+
 #endif
     return (void*)(ptr + 1);
 }

@@ -157,7 +157,7 @@ START_TEST(tc_pico_protocol_generic_loop)
     struct pico_proto_rr rr = {
         0
     };
-    int ret; 
+    int ret;
     rr.node_in = &NODE_IN;
     rr.node_out = &NODE_OUT;
     ret = pico_protocol_generic_loop(&rr, 0, PICO_LOOP_DIR_IN);

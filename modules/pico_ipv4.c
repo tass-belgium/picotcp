@@ -82,6 +82,7 @@ static int pico_string_check_null_args(const char *ipstr, uint32_t *ip)
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     return 0;
 
 }
@@ -265,6 +266,7 @@ static int pico_ipv4_fragmented_element_cmp(void *ka, void *kb)
 
     if (a_frag < b_frag)
         return -1;
+
     if (b_frag < a_frag)
         return 1;
     else
@@ -535,6 +537,7 @@ static int pico_ipv4_process_bcast_in(struct pico_frame *f)
         pico_enqueue(pico_proto_udp.q_in, f);
         return 1;
     }
+
 #endif
     return 0;
 }
@@ -553,10 +556,12 @@ static int pico_ipv4_process_mcast_in(struct pico_frame *f)
             pico_enqueue(pico_proto_udp.q_in, f);
             return 1;
         }
+
 #endif
         pico_frame_discard(f);
         return 1;
     }
+
     return 0;
 }
 
@@ -571,6 +576,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
             pico_enqueue(pico_proto_ipv4.q_in, f); /* dst changed, reprocess */
         else
             pico_transport_receive(f, hdr->proto);
+
         return 1;
     } else if (pico_tree_findKey(&Tree_dev_link, &test)) {
 #ifdef PICO_SUPPORT_UDP
@@ -582,6 +588,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
         return 1;
 #endif
     }
+
     return 0;
 }
 
@@ -620,6 +627,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         /*pico_frame is discarded as result of the filtering*/
         return 0;
     }
+
 #endif
 
     /* ret == 1 indicates to continue the function */
@@ -727,6 +735,7 @@ static int ipv4_route_compare(void *ka, void *kb)
     /* Routes are sorted by (host side) netmask len, then by addr, then by metric. */
     if (a_nm < b_nm)
         return -1;
+
     if (b_nm < a_nm)
         return 1;
 

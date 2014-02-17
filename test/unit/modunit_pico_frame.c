@@ -30,17 +30,17 @@ START_TEST(tc_pico_frame_alloc_discard)
     printf("Testing with faulty memory in frame_alloc (1)\n");
     pico_set_mm_failure(1);
     f = pico_frame_alloc(FRAME_SIZE);
-    fail_if(f); 
+    fail_if(f);
 
     printf("Testing with faulty memory in frame_alloc (2)\n");
     pico_set_mm_failure(2);
     f = pico_frame_alloc(FRAME_SIZE);
-    fail_if(f); 
-    
+    fail_if(f);
+
     printf("Testing with faulty memory in frame_alloc (2)\n");
     pico_set_mm_failure(3);
     f = pico_frame_alloc(FRAME_SIZE);
-    fail_if(f); 
+    fail_if(f);
 #endif
 
 }
@@ -85,7 +85,7 @@ START_TEST(tc_pico_frame_copy)
     pico_set_mm_failure(1);
     c3 = pico_frame_copy(f);
     fail_if(c3);
-    fail_if(!f); 
+    fail_if(!f);
 #endif
 
     /* Discard 1 */
@@ -113,7 +113,7 @@ START_TEST(tc_pico_frame_deepcopy)
     pico_set_mm_failure(1);
     dc = pico_frame_deepcopy(f);
     fail_if(dc);
-    fail_if(!f); 
+    fail_if(!f);
 #endif
 }
 END_TEST

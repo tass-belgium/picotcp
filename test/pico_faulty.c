@@ -12,7 +12,7 @@ static int called_atexit = 0;
 
 static void memory_stats(void)
 {
-    fprintf(stderr," ################ MAX MEMORY USED in this test: %lu\n", max_mem);
+    fprintf(stderr, " ################ MAX MEMORY USED in this test: %lu\n", max_mem);
 
 }
 
@@ -22,6 +22,7 @@ int pico_set_mm_failure(uint32_t nxt)
         atexit(memory_stats);
         called_atexit++;
     }
+
     mm_failure_count = nxt;
     return 0;
 }

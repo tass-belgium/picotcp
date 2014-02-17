@@ -646,10 +646,10 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum /= 4 ;          /* divide by 4 to get average used score */
+            sum /= 4;           /* divide by 4 to get average used score */
 
             /* criterion to increase next loop score */
-            if (sum > (score[i] - (score[i] /4))  && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] / 2)) < max_total)) { /* > 3/4 */
+            if (sum > (score[i] - (score[i] / 4))  && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] / 2)) < max_total)) { /* > 3/4 */
                 score[i] *= 2; /* double loop score */
                 total += score[i];
                 continue;
@@ -684,7 +684,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
             sum /= 2;          /* divide by 4 to get average used score */
 
-            if ((sum == 0) && ((score[i] / 2 ) >= PROTO_MIN_SCORE)) {
+            if ((sum == 0) && ((score[i] / 2) >= PROTO_MIN_SCORE)) {
                 score[i] /= 2; /* half loop score */
                 total += score[i];
                 for (j = 0; j < PROTO_DEF_AVG_NR; j++)
