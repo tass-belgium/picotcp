@@ -153,7 +153,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
                     /* any record with filter mode EXCLUDE, causes the interface mode to be EXCLUDE */
                     filter_mode = PICO_IP_MULTICAST_EXCLUDE;
                     /* add to the interface EXCLUDE filter any socket source NOT in the former interface INCLUDE filter */
-                    pico_tree_foreach(index2, &listen->MCASTSources)
+                    pico_tree_foreach_safe(index2, &listen->MCASTSources, _tmp2)
                     {
                         source = pico_tree_insert(&MCASTFilter, index2->keyValue);
                         if (source)
