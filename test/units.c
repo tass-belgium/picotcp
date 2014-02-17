@@ -109,6 +109,7 @@ Suite *pico_suite(void)
     TCase *tick = tcase_create("pico_tick");
     TCase *arp = tcase_create("ARP");
     tcase_add_test(ipv4, test_ipv4);
+    tcase_set_timeout(ipv4, 20);
     suite_add_tcase(s, ipv4);
 
     tcase_add_test(icmp, test_icmp4_ping);
@@ -135,7 +136,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, rb);
 
     tcase_add_test(rb2, test_rbtree2);
-    tcase_set_timeout(rb2, 10);
+    tcase_set_timeout(rb2, 20);
     suite_add_tcase(s, rb2);
 
     tcase_add_test(socket, test_socket);

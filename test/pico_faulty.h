@@ -18,13 +18,19 @@
 
 #define PICO_FAULTY
 
+#define MEM_LIMIT (0)
+
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 extern uint32_t mm_failure_count;
 int pico_set_mm_failure(uint32_t nxt);
+extern uint32_t max_mem;
+extern uint32_t cur_mem;
 
 /*
    #define TIME_PRESCALE
@@ -35,20 +41,53 @@ int pico_set_mm_failure(uint32_t nxt);
 #define stack_count_free_words(...) do {} while(0)
 #define stack_get_free_words() (0)
 
+static inline void mem_stat_store(void)
+{
+    char fname_mod[] = "/tmp/pico-mem-report-%hu.txt";
+    char fname[200];
+    char buffer[20];
+    int fd;
+    snprintf(fname, 200, fname_mod, getpid());
+    fd = open(fname, O_WRONLY| O_CREAT | O_TRUNC, 0660);
+    if (fd < 0) {
+        return;
+    }
+    snprintf(buffer, 20, "%d\n", max_mem);
+    write(fd, buffer, strlen(buffer));
+    close(fd);
+}
+
 
 static inline void *pico_zalloc(uint32_t x)
 {
+    uint32_t *ptr; 
     if (mm_failure_count > 0) {
         if (--mm_failure_count == 0) {
             fprintf(stderr, "Malloc failed, for test purposes\n");
             return NULL;
         }
     }
-    return calloc(x, 1);
+    ptr = (uint32_t *)calloc(x + 4, 1);
+    *ptr = (uint32_t)x;
+    cur_mem += x;
+
+#ifndef DISABLE_MM_STATS
+    if (cur_mem > max_mem) {
+        max_mem = cur_mem;
+        if ((MEM_LIMIT > 0) && (max_mem > MEM_LIMIT))
+            abort();
+        mem_stat_store();
+    }
+#endif
+    return (void*)(ptr + 1);
 }
 
-#define pico_free(x) free(x)
-
+static inline void pico_free(void *x)
+{
+    uint32_t *ptr = (uint32_t*)(((uint8_t *)x) - 4);
+    cur_mem -= *ptr;
+    free(ptr);
+}
 
 /* time prescaler */
 #ifdef TIME_PRESCALE
