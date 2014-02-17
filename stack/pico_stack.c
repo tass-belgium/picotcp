@@ -613,7 +613,7 @@ void pico_timer_cancel(struct pico_timer *t)
 #define PROTO_LAT_IND     3   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
 #define PROTO_MAX_LOOP    (PROTO_MAX_SCORE << PROTO_LAT_IND) /* max global loop score, so per tick */
 
-static int calc_score(unsigned int *score, unsigned int *index, unsigned int avg[][PROTO_DEF_AVG_NR], unsigned int *ret)
+static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
 {
     int temp, i, j, sum;
     int max_total = PROTO_MAX_LOOP, total = 0;
@@ -735,14 +735,14 @@ static int calc_score(unsigned int *score, unsigned int *index, unsigned int avg
 
 void pico_stack_tick(void)
 {
-    static unsigned int score[PROTO_DEF_NR] = {
+    static int score[PROTO_DEF_NR] = {
         PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE
     };
-    static unsigned int index[PROTO_DEF_NR] = {
+    static int index[PROTO_DEF_NR] = {
         0, 0, 0, 0, 0, 0
     };
-    static unsigned int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
-    static unsigned int ret[PROTO_DEF_NR] = {
+    static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
+    static int ret[PROTO_DEF_NR] = {
         0
     };
 
@@ -793,7 +793,7 @@ void pico_stack_tick(void)
     pico_rand_feed((uint32_t)ret[10]);
 
     /* calculate new loop scores for next iteration */
-    calc_score(score, index, (unsigned int (*)[])avg, ret);
+    calc_score(score, index, (int (*)[])avg, ret);
 }
 
 void pico_stack_loop(void)
