@@ -116,7 +116,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
         }
     }
 
-    if(!client || !serverEvent)
+    if(!client && !serverEvent)
     {
         return;
     }
