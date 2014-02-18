@@ -1,6 +1,6 @@
-CC:=$(CROSS_COMPILE)gcc
-LD:=$(CROSS_COMPILE)ld
-AR:=$(CROSS_COMPILE)ar
+CC?=$(CROSS_COMPILE)gcc
+LD?=$(CROSS_COMPILE)ld
+AR?=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
@@ -108,8 +108,8 @@ endif
 	@echo -e "\t[LD] $@"
 	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS) $(TEST_OBJ)
 
-CFLAGS+=$(OPTIONS)
 
+CFLAGS+=$(OPTIONS)
 
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_frame.o \
