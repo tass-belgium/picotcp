@@ -184,7 +184,12 @@ int pico_ipv4_is_loopback(uint32_t address)
     return 0;
 }
 
-int pico_ipv4_is_valid_src(uint32_t address)
+static int pico_ipv4_is_invalid_loopback(uint32_t address, struct pico_device *dev)
+{
+    return pico_ipv4_is_loopback(address) && ((!dev) || strcmp(dev->name, "loop"));
+}
+
+int pico_ipv4_is_valid_src(uint32_t address, struct pico_device *dev)
 {
     if (pico_ipv4_is_broadcast(address)) {
         dbg("Source is a broadcast address, discard packet\n");
@@ -194,7 +199,7 @@ int pico_ipv4_is_valid_src(uint32_t address)
         dbg("Source is a multicast address, discard packet\n");
         return 0;
     }
-    else if (pico_ipv4_is_loopback(address)) {
+    else if (pico_ipv4_is_invalid_loopback(address, dev)) {
         dbg("Source is a loopback address, discard packet\n");
         return 0;
     }
@@ -640,7 +645,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return ret;
 
     /* Validate source IP address. Discard quietly if invalid */
-    if (!pico_ipv4_is_valid_src(hdr->src.addr)) {
+    if (!pico_ipv4_is_valid_src(hdr->src.addr, f->dev)) {
         pico_frame_discard(f);
         return 0;
     }

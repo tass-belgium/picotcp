@@ -5,6 +5,8 @@ rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
 
+echo "PING LOCALHOST"
+./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
 
 echo "PING TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:) &
