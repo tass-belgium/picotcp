@@ -45,14 +45,6 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
     return loop_score;
 }
 
-/* Public interface: create/destroy. */
-
-void pico_loop_destroy(struct pico_device *dev)
-{
-    if (dev)
-        pico_free(dev);
-
-}
 
 struct pico_device *pico_loop_create(void)
 {
@@ -62,13 +54,12 @@ struct pico_device *pico_loop_create(void)
 
     if( 0 != pico_device_init(loop, "loop", NULL)) {
         dbg ("Loop init failed.\n");
-        pico_loop_destroy(loop);
+        pico_device_destroy(loop);
         return NULL;
     }
 
     loop->send = pico_loop_send;
     loop->poll = pico_loop_poll;
-    loop->destroy = pico_loop_destroy;
     dbg("Device %s created.\n", loop->name);
     return loop;
 }
