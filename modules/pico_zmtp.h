@@ -59,6 +59,7 @@ struct zmtp_frame_t {
 
 struct zmtp_socket {
     struct pico_socket* sock;
+    struct pico_vector* out_buff;
     /*enum zmq_state state;*/
     enum zmtp_snd_state snd_state;
     enum zmtp_rcv_state rcv_state;

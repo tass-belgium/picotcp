@@ -11,10 +11,6 @@
 #include "pico_tree.h"
 #include "pico_protocol.h"
 
-//#include "pico_stack.h"
-//#include "pico_config.h"
-//#include "pico_ipv4.h"
-
 static int zmtp_socket_cmp(void *ka, void *kb)
 {
     struct zmtp_socket* a = ka;
@@ -184,7 +180,8 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
     {
         ret = pico_socket_bind(s->sock, local_addr, port);
     } else {
-        ret = PICO_ERR_EFAULT;
+        pico_err = PICO_ERR_EFAULT;
+        ret = -1;
     }
 
     return ret;
@@ -202,42 +199,139 @@ int zmtp_send_greeting(struct zmtp_socket* s)
 
 int zmtp_socket_connect(struct zmtp_socket* zmtp_s, void* srv_addr, uint16_t remote_port)
 {
-    int ret;
-
     if(zmtp_s == NULL)
     {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
 
-    ret = pico_socket_connect(zmtp_s->sock, srv_addr, remote_port);
-    if(ret == -1)
-        return -1;
+    return pico_socket_connect(zmtp_s->sock, srv_addr, remote_port);
+}
 
-    
+int save2OutBuffer(struct pico_vector* buff, struct pico_vector_iterator* it) 
+{
+    struct zmtp_frame_t* sendFrame;
+    struct zmtp_frame_t*  frame;
+    char*  newBuff;
+    size_t headerSize = 2;
+    if (!buff)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    sendFrame = PICO_ZALLOC(sizeof(struct zmtp_frame_t));
+    if (!sendFrame)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    while (it)
+    {
+        frame = (struct zmtp_frame_t*) it->data;
+        it = pico_vector_iterator_next(it);
+        if (frame)
+        {
+            newBuff = PICO_ZALLOC(frame->len + headerSize);
+            if (!newBuff)
+            {
+                pico_err = PICO_ERR_EINVAL;
+                return -1;
+            }
+            sendFrame->buf = newBuff;
+            sendFrame->len = frame->len + headerSize;
+            if (it)
+            {
+                /*more frame*/
+                newBuff[0] = 0x01;
+                newBuff[1] = frame->len;
+            } else {
+                /*final frame*/
+                newBuff[0] = 0x00;
+                newBuff[1] = frame->len;
+            }
+            memcpy(sendFrame->buf + headerSize, frame->buf, frame->len);
+            pico_vector_push_back(buff, (void*) sendFrame);
+        }
+    }
     return 0;
 }
 
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 {
-    uint8_t* data = NULL;
-    struct zmtp_frame_t* frame;
-    int i;
-    
-    //Should append the more-short/final-short field code
-    for(i=0; i<2; i++) {
-        frame = (struct zmtp_frame_t *)pico_vector_pop_front(vec);
-        data = PICO_ZALLOC(frame->len + 2);
-        if(i==0) 
-            data[0] = 0x01; /* Frame delimiter is more-short frame! */
-        else
-            data[0] = 0x00; /* Final short frame */
-        data[1] = frame->len;   /* Length final short frame */
-        memcpy(data+2, frame->buf, frame->len);
-        pico_socket_send(s->sock, data, frame->len + 2);
-        PICO_FREE(data);
+    size_t maxsize = 255;
+    if (!s || !vec || !s->sock || !s->out_buff)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
     }
-    return 0;
+    uint8_t* sendbuffer = PICO_ZALLOC(maxsize);
+    if (!sendbuffer)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+    int ret = 0;    
+    struct pico_vector_iterator* it  = pico_vector_begin(vec);
+    struct pico_vector_iterator* prevIt = PICO_ZALLOC(sizeof(struct pico_vector_iterator));
+    struct pico_vector_iterator* buffIt = pico_vector_begin(s->out_buff);
+    struct zmtp_frame_t* frame;
+
+    if (ST_SND_RDY == s->snd_state && ST_RCV_RDY == s->rcv_state)
+    {
+        while (buffIt && ret == 0)
+        {
+            /* we use the iterator instead of pop, because we don't want to lose any data
+            in case pico_socket_write fails*/
+            /*send the frames that are still in the buffer*/
+            frame = (struct zmtp_frame_t*) (buffIt->data);
+            ret = pico_socket_write(s->sock, frame->buf, frame->len);
+            if (0 == ret)
+            {
+                /*free the buffer from the frame, in case the write fails, we don't need to free*/
+                free(frame->buf);
+                pico_vector_pop_front(s->out_buff);
+            } 
+            buffIt = pico_vector_iterator_next(buffIt);
+        }
+        /*make a duplicate of the iterator, this one we only increment after trying to write*/
+        memcpy(prevIt, it, sizeof(struct pico_vector_iterator));
+        while (it && ret==0)
+        {
+            frame = (struct zmtp_frame_t*) it->data;
+            it = pico_vector_iterator_next(it);
+            if (it)
+            {
+                /*more frame*/
+                sendbuffer[0] = 0x01;
+                sendbuffer[1] = frame->len;
+            } else {
+                /*final frame*/
+                sendbuffer[0] = 0x00;
+                sendbuffer[1] = frame->len;
+            }
+            memcpy(sendbuffer+2, frame->buf, frame->len);
+            ret = pico_socket_write(s->sock, (void*) sendbuffer, frame->len+2);
+
+            if (ret != 0)
+            {
+                /*socket write went wrong, pushback starting from previous iterator*/
+                save2OutBuffer(s->out_buff, prevIt);
+            } else {
+                prevIt = pico_vector_iterator_next(prevIt);
+            }
+        }
+
+
+    } else {
+        save2OutBuffer(s->out_buff, it);    
+    }
+    if (it)
+        PICO_FREE(it);
+    if (buffIt)
+        PICO_FREE(buffIt);
+    PICO_FREE(sendbuffer);
+
+    return ret;
 }
 
 int8_t zmtp_socket_close(struct zmtp_socket *s)
@@ -270,7 +364,7 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
         return NULL;
     }
     
-    s = pico_zalloc(sizeof(struct zmtp_socket));
+    s = PICO_ZALLOC(sizeof(struct zmtp_socket));
     if (s == NULL)
     {
         pico_err = PICO_ERR_ENOMEM;
@@ -280,19 +374,18 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     s->type = type;
     s->zmq_cb = zmq_cb;
     
-    struct pico_vector* out_buff = pico_zalloc(sizeof(struct pico_vector));
-    pico_vector_init(out_buff, SOCK_BUFF_CAP, sizeof(struct zmtp_frame_t));
-
-    if (NULL == out_buff) 
+    s->out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
+    if (NULL == s->out_buff) 
     {
         pico_err = PICO_ERR_ENOMEM;
-        pico_free(s);
+        PICO_FREE(s);
         return NULL;
     }
+    pico_vector_init(s->out_buff, SOCK_BUFF_CAP, sizeof(struct zmtp_frame_t));
     struct pico_socket* pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
     if (pico_s == NULL) // Leave pico_err the same 
     {
-        PICO_FREE(s);
+        PICO_FREE(s->out_buff);
         return NULL;
     }
     s->sock = pico_s;
