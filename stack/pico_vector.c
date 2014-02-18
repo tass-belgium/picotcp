@@ -39,7 +39,7 @@ void* pico_vector_allocation_strategy_times2(struct pico_vector* vector)
 { 
     void* newmem = PICO_ZALLOC(vector->type_size*vector->capacity*2);
     memcpy(newmem, vector->data, vector->type_size*vector->capacity);
-    pico_free(vector->data);
+    PICO_FREE(vector->data);
     vector->data = newmem;
     vector->capacity *= 2;
     return vector->data;
@@ -55,7 +55,7 @@ void pico_vector_clear(struct pico_vector* vector)
 
 void pico_vector_destroy(struct pico_vector* vector)
 {
-    pico_free(vector->data);
+    PICO_FREE(vector->data);
     memset(vector, 0, sizeof(struct pico_vector));
 }
 
@@ -77,7 +77,7 @@ struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterat
 {
     if (iterator->data == (iterator->vector->data + iterator->vector->type_size * (iterator->vector->size - 1)))
     {
-        pico_free(iterator);
+        PICO_FREE(iterator);
         return NULL;
     }
     

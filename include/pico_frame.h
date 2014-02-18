@@ -70,7 +70,7 @@ struct pico_frame {
     /* Pointer to socket */
     struct pico_socket *sock;
 
-    /* Pointer to transport info, used to store remote UDP duple (IP + port) */
+    /* Pointer to transport info, used to store remote UDP endpoint (IP + port) */
     void *info;
 
     /*Priority. "best-effort" priority, the default value is 0. Priority can be in between -10 and +10*/

@@ -49,7 +49,9 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 
 void pico_loop_destroy(struct pico_device *dev)
 {
-    IGNORE_PARAMETER(dev);
+    if (dev)
+        PICO_FREE(dev);
+
 }
 
 struct pico_device *pico_loop_create(void)

@@ -1,5 +1,4 @@
 #include "unity.h"
-#include "zmtp_tests.h"
 #include "pico_zmtp.c"
 #include "Mockpico_socket.h"
 #include <stdint.h>

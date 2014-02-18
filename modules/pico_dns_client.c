@@ -461,6 +461,11 @@ static int pico_dns_client_check_qsuffix(struct pico_dns_query_suffix *suf, stru
 
 static int pico_dns_client_check_asuffix(struct pico_dns_answer_suffix *suf, struct pico_dns_query *q)
 {
+    if (!suf) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
     if (short_be(suf->qtype) != q->qtype || short_be(suf->qclass) != q->qclass) {
         dns_dbg("DNS WARNING: received qtype (%u) or qclass (%u) incorrect\n", short_be(suf->qtype), short_be(suf->qclass));
         return -1;
@@ -480,6 +485,8 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre,
     uint16_t comp = 0, compression = 0;
     uint16_t i = 0;
     char *psuffix = suf;
+    if (!suf)
+        return NULL;
 
     while (i++ < short_be(pre->ancount)) {
         comp = short_from(psuffix);
@@ -519,6 +526,11 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre,
 static int pico_dns_client_send(struct pico_dns_query *q)
 {
     uint16_t *paramID = PICO_ZALLOC(sizeof(uint16_t));
+    if (!paramID) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
     dns_dbg("DNS: sending query to %08X\n", q->q_ns.ns.addr);
     if (!q->s)
         goto failure;
@@ -582,6 +594,11 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     case PICO_DNS_TYPE_PTR:
         pico_dns_client_answer_domain((char *)asuffix->rdata);
         str = PICO_ZALLOC((size_t)(asuffix->rdlength - PICO_DNS_LABEL_INITIAL));
+        if (!str) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
         memcpy(str, asuffix->rdata + PICO_DNS_LABEL_INITIAL, short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL);
         break;
 
@@ -593,6 +610,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     if (q->retrans) {
         q->callback(str, q->arg);
         q->retrans = 0;
+        PICO_FREE(str);
         pico_dns_client_del_query(q->id);
     }
 
