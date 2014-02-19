@@ -661,7 +661,7 @@ int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *f)
  */
 static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
+    struct pico_frame *f =  pico_frame_alloc((uint32_t)size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
 
     IGNORE_PARAMETER(self);
 
@@ -674,7 +674,7 @@ static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t s
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP6HDR;
     f->transport_len = (uint16_t)size;
     /* PICO_SIZE_ETHHDR is accounted for in pico_ethernet_send */
-    f->len =  size + PICO_SIZE_IP6HDR;
+    f->len =  (uint32_t)size + PICO_SIZE_IP6HDR;
     return f;
 }
 
