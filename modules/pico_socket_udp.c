@@ -16,6 +16,7 @@ struct pico_socket *pico_socket_udp_open(void)
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
+
     s->proto = &pico_proto_udp;
     s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
 #endif
@@ -79,7 +80,8 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
     pico_frame_discard(f);
     if (s)
         return 0;
+
     pico_err = PICO_ERR_ENXIO;
   #endif
-        return -1;
+    return -1;
 }

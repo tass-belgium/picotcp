@@ -50,8 +50,8 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 void pico_loop_destroy(struct pico_device *dev)
 {
     if (dev)
-        pico_free(dev);
-    
+        PICO_FREE(dev);
+
 }
 
 struct pico_device *pico_loop_create(void)

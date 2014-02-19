@@ -73,6 +73,7 @@ struct zmtp_socket {
 
 struct zmtp_socket {
     struct pico_socket* sock;
+    struct pico_vector* out_buff;
     /*enum zmq_state state;*/
     enum zmtp_state state;
     uint8_t type;
@@ -85,5 +86,5 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec);
 int zmtp_socket_close(struct zmtp_socket *s);
-int zmtp_socket_read(struct zmtp_socket* s, void* buff, int len);
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 #endif

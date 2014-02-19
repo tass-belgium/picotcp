@@ -117,6 +117,11 @@ int pico_vector_push_back(struct pico_vector* vector, void* data);
  */
 void* pico_vector_pop_front(struct pico_vector* vector);
 
+/**
+ * @brief Pop an element from the start of the vector of which you assume ownership
+ * Doesn't change capacity!
+ */
+void* pico_vector_pop_front(struct pico_vector* vector);
 
 /**
  * @brief Clears all elements from the vector.

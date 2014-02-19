@@ -60,7 +60,7 @@ VECTOR_EXTENSION_TESTS_SRC = $(TEST_VECTOR_EXTENSION_TESTS) \
 
 PLUGIN_EXPECT = --plugins="expect;"
 PLUGIN_EXPECT_CALLBACK = --plugins="expect;callback"
-PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore" --ignore=args_only
+PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore"# --ignore=args_only
 
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
 

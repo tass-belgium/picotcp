@@ -217,6 +217,7 @@ static struct igmp_parameters *pico_igmp_find_parameter(struct pico_ip4 *mcast_l
     };
     if (!mcast_link || !mcast_group)
         return NULL;
+
     test.mcast_link.addr = mcast_link->addr;
     test.mcast_group.addr = mcast_group->addr;
     return pico_tree_findKey(&IGMPParameters, &test);
@@ -579,6 +580,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         if (!mcast_link || !mcast_group) {
             pico_err = PICO_ERR_EINVAL;
             return -1;
