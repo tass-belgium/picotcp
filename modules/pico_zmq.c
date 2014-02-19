@@ -166,16 +166,19 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
         /* Push the final frame to the out_vector */
         pico_vector_push_back(&bsock->out_vector, frame);
         
-        //iterator = pico_vector_begin(..); 
-        //while(iterator)
-        //{
-            if( zmtp_socket_send(bsock->sock, &bsock->out_vector) < 0 )
+        if(bsock->type == ZMTP_TYPE_PUB)
+            iterator = pico_vector_begin(&((struct zmq_socket_pub *)bsock)->subscribers);
+
+        /* Iteratore through all the registered ztmp sockets */
+        while(iterator)
+        {
+            if( zmtp_socket_send(iterator->data, &bsock->out_vector) < 0 )
             {
                 while(1);
                 //TODO: do some error handling!
             }
-            //iterator = pico_vector_iterator_next(iterator);
-        //}
+            iterator = pico_vector_iterator_next(iterator);
+        }
 
         if(bsock->type == ZMTP_TYPE_REQ)
             ((struct zmq_socket_req *)bsock)->send_enable = ZMQ_SEND_DISABLED;

@@ -148,6 +148,38 @@ void test_zmq_connect(void)
     TEST_ASSERT_EQUAL_INT(0, zmq_connect(temp, "tcp://10.40.0.1:5555"));
 }
 
+void test_zmq_pub_send(void)
+{
+    struct zmq_socket_pub pub_sock;
+    struct zmtp_socket zmtp_sock;
+    char* test_data = "Hello";
+    struct zmtp_frame_t frame;
+    struct pico_vector_iterator iterator;
+    
+    /* Create the pub_sock */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
+    pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
+    pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 
+
+    zmq_socket(NULL, ZMTP_TYPE_PUB);
+
+    iterator.data = &zmtp_sock;
+    
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_frame_t), &frame); 
+    pico_mem_zalloc_ExpectAndReturn(5, calloc(1, 5));
+    pico_vector_push_back_ExpectAndReturn(&pub_sock.base.out_vector, &frame, 0);
+    pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, &iterator);
+    
+    pico_vector_iterator_next_IgnoreAndReturn(NULL);    /* Test for only 1 subscriber so return NULL now */
+    
+    pico_vector_clear_Expect(&pub_sock.base.out_vector);
+    zmtp_socket_send_ExpectAndReturn(&zmtp_sock, &pub_sock.base.out_vector, 0);
+    zmq_send(&pub_sock, test_data, strlen(test_data), 0);
+
+}
+
 //void test_zmq_req_send(void)
 //{
 //    struct zmq_socket_base* dummy_zmq_sock = NULL;
