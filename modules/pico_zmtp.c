@@ -12,6 +12,7 @@
 #include "pico_zmq.h"
 #include "pico_tree.h"
 #include "pico_protocol.h"
+#include "pico_ipv4.h"
 
 //#include "pico_stack.h"
 //#include "pico_config.h"
@@ -39,105 +40,208 @@ static inline struct zmtp_socket* get_zmtp_socket(struct pico_socket *s)
     return (pico_tree_findKey(&zmtp_sockets, &tst));
 }
 
-int zmtp_send_greeting(struct zmtp_socket* s)
+void close_socket(struct zmtp_socket *zmtp_s)
 {
-    /* zmtp2.0 full greeting */
-    uint8_t* signature;
-    int ret;
+    IGNORE_PARAMETER(zmtp_s);
+}
 
-    signature = PICO_ZALLOC(14);
-    signature[0] = 0xff;
-    signature[9] = 0x7f;
-    signature[10] = 0x01;
-    signature[11] = s->type;
-    
-    ret = pico_socket_send(s->sock, signature, 14);
-    PICO_FREE(signature);
-    return ret;
+void zmtp_send_greeting(struct zmtp_socket* zmtp_s)
+{
+    int ret;
+    uint8_t greeting[14] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x7f, 0x01, zmtp_s->type, 0x00, 0x00};
+    ret = pico_socket_write(zmtp_s->sock, &greeting, 14);
+    if(ret == 0)
+        zmtp_s->state = ZMTP_ST_SND_GREETING;
+    else
+        close_socket(zmtp_s);
 }
 
 /* Checking zmtp2.0 header, discarding 9th byte */
-int8_t check_signature(uint8_t* buf)
+/* returns 0 when signature was ok, else -1 */
+int check_signature(struct zmtp_socket *zmtp_s)
 {
+    int ret = 0;
+    int len = 10;
+    uint8_t *buf;
+
     uint8_t i;
     uint8_t sign[10] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,0x7f};
 
+    buf = PICO_ZALLOC((size_t)len);
+    if(buf == NULL)
+    {
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    }
+
+    ret = pico_socket_read(zmtp_s->sock, buf, len);
+    if(ret == 0)
+    {
+        PICO_FREE(buf);
+        return -1;
+    }
+    else if(ret < len)
+    {
+        PICO_FREE(buf);
+        zmtp_err = ZMTP_ERR_NOTIMPL;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
+        return -1;
+    }
+
+    ret = 0;
     for(i = 0; i < 8; i++)
         if(sign[i] != buf[i])
-            return -1;
-    if(sign[9] != buf[i])
+            ret = -1;
+    if(sign[9] != buf[9])
+        ret = -1;
+
+    if(ret != 0)
+    {
+        PICO_FREE(buf);
+        close_socket(zmtp_s);
         return -1;
-    else
-        return 0;
+    }   
+
+    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
+    PICO_FREE(buf);
+
+    return ret;
 }
 
-
-/* Returns the socket type if valid, else -1 */
-int8_t check_socket_type(uint8_t* buf)
+int check_revision(struct zmtp_socket *zmtp_s)
 {
-    if(*buf > 8)
-        return -1;
-    else
-        return (int8_t)(*buf);
-/*    switch(*buf)
+    int ret;
+    int len = 1;
+    uint8_t *buf;
+
+    buf = PICO_ZALLOC((size_t)len);
+    if(buf == NULL)
     {
-        case 0x00: 
-            return ZMTP_TYPE_PAIR;
-            break;
-        case 0x01:
-            return ZMTP_TYPE_PUB;
-            break;
-        case 0x02:
-            return ZMTP_TYPE_SUB;
-            break;
-        case 0x03:
-            return ZMTP_TYPE_REQ;
-            break;
-        case 0x04:
-            return ZMTP_TYPE_REP;
-            break;
-        case 0x05:
-            return ZMTP_TYPE_DEALER;
-            break;
-        case 0x06:
-            return ZMTP_TYPE_ROUTER;
-            break;
-        case 0x07:
-            return ZMTP_TYPE_PULL;
-            break;
-        case 0x08:
-            return ZMTP_TYPE_PUSH;
-            break;
-        default:
-            return -1;
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
     }
-*/
+
+    ret = pico_socket_read(zmtp_s->sock, buf, len);
+    if(ret == 0)
+    {
+        PICO_FREE(buf);
+        return -1;
+    }
+    else if(ret < len)
+    {
+        PICO_FREE(buf);
+        zmtp_err = ZMTP_ERR_NOTIMPL;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
+        return -1;
+    }
+    else
+    
+    zmtp_s->state = ZMTP_ST_RCVD_REVISION;
+    PICO_FREE(buf);
+    
+    return 0;
+}
+
+int check_socket_type(struct zmtp_socket* zmtp_s)
+{
+    int ret;
+    int len = 1;
+    uint8_t* buf;
+
+    buf = PICO_ZALLOC((size_t)len);
+    if(buf == NULL)
+    {
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    }
+
+    ret = pico_socket_read(zmtp_s->sock, buf, len);
+
+    if(ret == 0)
+    {
+        PICO_FREE(buf);
+        return -1;
+    }
+    else if(ret < len)
+    {
+        PICO_FREE(buf);
+        zmtp_err = ZMTP_ERR_NOTIMPL;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
+        return -1;
+    }
+
+    if(*buf > 8)
+    {
+        PICO_FREE(buf);
+        close_socket(zmtp_s);
+        return -1;
+    }
+    
+    zmtp_s->state = ZMTP_ST_RCVD_TYPE;
+    PICO_FREE(buf);
+    
+    return 0;
 }
 
 /* takes the identity flags (2 bytes) and returns the length of the identity body */
-int16_t get_identity_len(uint8_t* buf)
+int check_identity(struct zmtp_socket* zmtp_s)
 {
-    if(0x00 != *buf)
+    int ret;
+    int len = 2;
+    uint8_t* buf;
+    uint8_t* ptr;
+
+    buf = PICO_ZALLOC((size_t)len);
+    if(buf == NULL)
+    {
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    }
+
+    ret = pico_socket_read(zmtp_s->sock, buf, len);
+    if(ret == 0)
+    {
+        PICO_FREE(buf);
         return -1;
-    buf++;
-    return *((int16_t*)buf);
+    }
+    else if(ret < len)
+    {
+        PICO_FREE(buf);
+        zmtp_err = ZMTP_ERR_NOTIMPL;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
+        return -1;
+    }
+
+    if(0x00 != *buf)
+    {
+        PICO_FREE(buf);
+        close_socket(zmtp_s);
+        return -1;
+    }
+    ptr = buf + 1;
+
+    if(*ptr == 0)
+    {
+        PICO_FREE(buf);
+        zmtp_s->state = ZMTP_ST_RDY;
+        return 0;
+    }
+    else
+    {
+        PICO_FREE(buf);
+        /* read identity */
+        return -1;
+    }
 }
 
 static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
 {
     int ret;
-    void* buf;
-    int len;
-
     struct zmtp_socket* zmtp_s = get_zmtp_socket(s);
-
 
     if(ev & PICO_SOCK_EV_CONN)
     {
-        ret = zmtp_send_greeting(zmtp_s);
-        if(ret == -1)
-             zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event for zmq? */
-        zmtp_s->state = ZMTP_ST_SND_GREETING;
+        zmtp_s->zmq_cb(ZMTP_EV_CONN, zmtp_s);
         return;
     }
     
@@ -145,68 +249,30 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
     {
         if(zmtp_s->state == ZMTP_ST_SND_GREETING)
         {
-            len = 10;
-            buf = PICO_ZALLOC((size_t)len);
-            ret = pico_socket_read(zmtp_s->sock, buf, len);
-            if(ret < len)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event unexpexted short data */
-            ret = check_signature(buf);
-            if(ret == -1)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event wrong signature */
-            zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
-            PICO_FREE(buf);
-            return;
+            ret = check_signature(zmtp_s);
+            if(ret != 0)
+                return;
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_SIGNATURE)
         {
-            len = 1;
-            buf = PICO_ZALLOC((size_t)len);
-            ret = pico_socket_read(zmtp_s->sock, buf, len);
-            if(ret < len)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event unexpexted short data */
-            /* ret = check_revision(buf); */
-            if(ret == -1)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event wrong (not supported?) revision */
-            zmtp_s->state = ZMTP_ST_RCVD_REVISION;
-            PICO_FREE(buf);
-            return;
+            ret = check_revision(zmtp_s);
+            if(ret != 0)
+                return;
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_REVISION)
         {
-            len = 1;
-            buf = PICO_ZALLOC((size_t)len);
-            ret = pico_socket_read(zmtp_s->sock, buf, len);
-            if(ret < len)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event unexpexted short data */
-            ret = check_socket_type(buf);
-            if(ret == -1)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event wrong type or just cancel yourself? */
-            zmtp_s->state = ZMTP_ST_RCVD_TYPE;
-            PICO_FREE(buf);
-            return;
+            ret = check_socket_type(zmtp_s);
+            if(ret != 0)
+                return;
         }
         
         if(zmtp_s->state == ZMTP_ST_RCVD_TYPE)
         {
-            len = 2;
-            buf = PICO_ZALLOC((size_t)len);
-            ret = pico_socket_read(zmtp_s->sock, buf, len);
-            if(ret < len)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event unexpexted short data */
-            ret = get_identity_len(buf);
-            if(ret == -1)
-                zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event wrong final-short in identity? */
-            if(ret == 0)
-                zmtp_s->state = ZMTP_ST_RDY;
-            else
-            {
-                zmtp_s->state = ZMTP_ST_RCVD_ID_LEN;
-                while(1);
-            }
-            PICO_FREE(buf);
-            return;
+            ret = check_identity(zmtp_s);
+            if(ret != 0)
+                return;
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_ID_LEN)
@@ -219,6 +285,37 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
         }
     }
 
+}
+
+struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
+{
+    struct zmtp_socket* new_zmtp_s;
+    struct pico_ip4 orig;
+    uint16_t port;
+
+    new_zmtp_s = PICO_ZALLOC(sizeof(struct zmtp_socket));
+    if(new_zmtp_s == NULL)
+    {
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    }
+
+    new_zmtp_s->sock = pico_socket_accept(zmtp_s->sock, &orig, &port);
+    if(new_zmtp_s->sock == NULL)
+    {
+        /* if EAGAIN try again */
+        /* if EINVAL */
+        zmtp_err = ZMTP_ERR_NOTIMPL;
+        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    }
+    new_zmtp_s->state = ZMTP_ST_IDLE;
+    new_zmtp_s->type = zmtp_s->type;
+    new_zmtp_s->zmq_cb = zmtp_s->zmq_cb;
+    pico_tree_insert(&zmtp_sockets, new_zmtp_s);
+
+    zmtp_send_greeting(new_zmtp_s);
+
+    return new_zmtp_s;
 }
 
 int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)

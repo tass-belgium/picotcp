@@ -46,6 +46,7 @@ ZMTP_TESTS_SRC = $(TEST_ZMTP_TESTS) \
       $(MOCKS)/Mockpico_socket.o \
       $(MOCKS)/Mockpico_vector.o \
       $(MOCKS)/Mockpico_mm.o \
+      $(MOCKS)/Mockpico_tree.o \
       $(TEST_ZMTP_TESTS_RUNNER) \
 
 VECTOR_TESTS_SRC = $(TEST_VECTOR_TESTS) \
@@ -59,7 +60,7 @@ VECTOR_EXTENSION_TESTS_SRC = $(TEST_VECTOR_EXTENSION_TESTS) \
 
 PLUGIN_EXPECT = --plugins="expect;"
 PLUGIN_EXPECT_CALLBACK = --plugins="expect;callback"
-PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore"
+PLUGIN_EXPECT_CALLBACK_IGNORE = --plugins="expect;callback;ignore" --ignore=args_only
 
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
 
@@ -91,7 +92,7 @@ generate_zmq_mocks:
 	
 generate_zmtp_mocks:
 	ruby $(GENERATE_TEST_RUNNER) $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
-	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_vector.h ../../modules/pico_mm.h
+	ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_vector.h ../../modules/pico_mm.h ../../include/pico_tree.h
 	#ruby $(GENERATE_MOCK) $(PLUGIN_EXPECT_CALLBACK_IGNORE) ../../include/pico_socket.h
 	
 generate_vector_mocks:
@@ -112,7 +113,7 @@ zmq_tests: generate_zmq_mocks $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TEST
 
 zmtp_tests: generate_zmtp_mocks $(TEST_FRAMEWORK) $(ZMTP_TESTS_SRC)
 	make prepare_objects
-	$(CC) -I$(PICOTCP)/include -I$(PICOTCP)/modules -c -o ./obj/pico_tree.o $(PICOTCP)/stack/pico_tree.c
+	#$(CC) -I$(PICOTCP)/include -I$(PICOTCP)/modules -c -o ./obj/pico_tree.o $(PICOTCP)/stack/pico_tree.c
 	$(CC) $(CFLAGS) -o $@ ./obj/* $(TEST_ZMTP_TESTS) $(TEST_ZMTP_TESTS_RUNNER)
 
 
