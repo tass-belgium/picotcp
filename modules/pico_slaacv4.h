@@ -4,8 +4,8 @@
 
    Authors: Bogdan Lupu
  *********************************************************************/
-#ifndef _INCLUDE_PICO_SUPPORT_SLAACV4
-#define _INCLUDE_PICO_SUPPORT_SLAACV4
+#ifndef INCLUDE_PICO_SUPPORT_SLAACV4
+#define INCLUDE_PICO_SUPPORT_SLAACV4
 #include "pico_arp.h"
 
 #define PICO_SLAACV4_SUCCESS  0

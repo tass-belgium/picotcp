@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_CONFIG
-#define _INCLUDE_PICO_CONFIG
+#ifndef INCLUDE_PICO_CONFIG
+#define INCLUDE_PICO_CONFIG
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

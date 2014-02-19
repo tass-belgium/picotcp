@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_STACK
-#define _INCLUDE_PICO_STACK
+#ifndef INCLUDE_PICO_STACK
+#define INCLUDE_PICO_STACK
 #include "pico_config.h"
 #include "pico_frame.h"
 

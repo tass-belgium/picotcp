@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_TCP
-#define _INCLUDE_PICO_TCP
+#ifndef INCLUDE_PICO_TCP
+#define INCLUDE_PICO_TCP
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_socket.h"

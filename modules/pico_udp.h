@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_UDP
-#define _INCLUDE_PICO_UDP
+#ifndef INCLUDE_PICO_UDP
+#define INCLUDE_PICO_UDP
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_socket.h"

@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _PICO_MODULE_IPV4_H
-#define _PICO_MODULE_IPV4_H
+#ifndef PICO_MODULE_IPV4_H
+#define PICO_MODULE_IPV4_H
 
 struct pico_arp_entry {
     struct eth dest;

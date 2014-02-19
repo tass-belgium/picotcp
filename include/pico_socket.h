@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_SOCKET
-#define _INCLUDE_PICO_SOCKET
+#ifndef INCLUDE_PICO_SOCKET
+#define INCLUDE_PICO_SOCKET
 #include "pico_queue.h"
 #include "pico_addressing.h"
 #include "pico_config.h"

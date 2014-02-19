@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_IPV4
-#define _INCLUDE_PICO_IPV4
+#ifndef INCLUDE_PICO_IPV4
+#define INCLUDE_PICO_IPV4
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_tree.h"

@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_ADDRESSING
-#define _INCLUDE_PICO_ADDRESSING
+#ifndef INCLUDE_PICO_ADDRESSING
+#define INCLUDE_PICO_ADDRESSING
 #include <stdint.h>
 
 

@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_ARP
-#define _INCLUDE_PICO_ARP
+#ifndef INCLUDE_PICO_ARP
+#define INCLUDE_PICO_ARP
 #include "pico_eth.h"
 #include "pico_device.h"
 

@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_CONST
-#define _INCLUDE_PICO_CONST
+#ifndef INCLUDE_PICO_CONST
+#define INCLUDE_PICO_CONST
 /* Included from pico_config.h */
 /** Endian-dependant constants **/
 typedef uint64_t pico_time;

@@ -1,5 +1,5 @@
-#ifndef __PICO_ZMQ_H
-#define __PICO_ZMQ_H
+#ifndef PICO_ZMQ_H
+#define PICO_ZMQ_H
 
 struct zmq_socket;
 typedef struct zmq_socket *ZMQ;

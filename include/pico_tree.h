@@ -5,8 +5,8 @@
    Author: Andrei Carp <andrei.carp@tass.be>
  *********************************************************************/
 
-#ifndef __PICO_RBTREE_H__
-#define __PICO_RBTREE_H__
+#ifndef PICO_RBTREE_H__
+#define PICO_RBTREE_H__
 
 #include <stdint.h>
 #include "pico_config.h"

@@ -4,8 +4,8 @@
 
    Authors: Daniele Lacamera
  *********************************************************************/
-#ifndef __PICO_OLSR_H
-#define __PICO_OLSR_H
+#ifndef PICO_OLSR_H
+#define PICO_OLSR_H
 
 
 void pico_olsr_init(void);

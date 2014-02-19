@@ -4,8 +4,8 @@
 
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_VDE
-#define _INCLUDE_PICO_VDE
+#ifndef INCLUDE_PICO_VDE
+#define INCLUDE_PICO_VDE
 #include "pico_config.h"
 #include "pico_device.h"
 #include <libvdeplug.h>
