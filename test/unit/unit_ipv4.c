@@ -834,16 +834,13 @@ START_TEST (test_slaacv4)
     /* verify case where dev->eth is NULL */
     dev = pico_null_create("dummy");
     tmp = pico_slaacv4_getip(dev, 0);
+    printf("SLAACv4 dummy : %08x, exp: %08x\n", tmp, (SLAACV4_ADDRESS | 0x00000100));
     fail_if(tmp != (SLAACV4_ADDRESS | 0x00000100));
 
     /* verify nominal case; two runs of slaacv4_get_ip need to return same value */
     mock = pico_mock_create(macaddr1);
     tmp = pico_slaacv4_getip(mock->dev, 0);
     fail_if(tmp != pico_slaacv4_getip(mock->dev, 0));
-
-    tmp = pico_slaacv4_getip(mock->dev, 1);
-    fail_if(tmp != pico_slaacv4_getip(mock->dev, 0));
-    fail_if((tmp > (SLAACV4_ADDRESS | 0x0000FEFF)) || (tmp < (SLAACV4_ADDRESS | 0x00000100)));
 
 }
 END_TEST

@@ -1,5 +1,0 @@
-OPTIONS+=-DPICO_SUPPORT_ICMP6
-MOD_OBJ+=modules/pico_icmp6.o
-ifneq ($(PING),0)
-  OPTIONS+=-DPICO_SUPPORT_PING
-endif

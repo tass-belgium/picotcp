@@ -36,7 +36,6 @@ SLAACV4?=1
 
 #IPv6 related
 IPV6?=1
-ICMP6?=1
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -193,9 +192,6 @@ endif
 ifneq ($(IPV6),0)
   include rules/ipv6.mk
 endif
-ifneq ($(ICMP6),0)
-  include rules/icmp6.mk
-endif
 
 all: mod core lib
 
@@ -219,7 +215,7 @@ test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
-	@cp $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
+	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
 
 tst: test
 

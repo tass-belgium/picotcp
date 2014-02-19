@@ -1619,4 +1619,19 @@ void pico_ipv4_unreachable(struct pico_frame *f, int err)
 #endif
 }
 
+int pico_ipv4_cleanup_links(struct pico_device *dev)
+{
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_ipv4_link *link = NULL;
+
+    pico_tree_foreach_safe(index, &Tree_dev_link, _tmp)
+    {
+        link = index->keyValue;
+        if (dev == link->dev)
+            pico_ipv4_link_del(dev, link->address);
+    }
+    return 0;
+}
+
+
 #endif

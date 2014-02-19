@@ -227,6 +227,7 @@ static int pico_port_in_use_with_this_ipv4_address(struct pico_sockport *sp, str
             }
         }
     }
+
     return 0;
 }
 
@@ -270,6 +271,7 @@ static int pico_port_in_use_with_this_ipv6_address(struct pico_sockport *sp, str
             }
         }
     }
+
     return 0;
 }
 
@@ -278,7 +280,7 @@ static int pico_port_in_use_ipv6(struct pico_sockport *sp, void *addr)
     struct pico_ip6 ip;
     /* IPv6 */
     if (addr)
-        memcpy(&ip.addr,((struct pico_ip6 *)addr)->addr, sizeof(struct pico_ip6));
+        memcpy(&ip.addr, ((struct pico_ip6 *)addr)->addr, sizeof(struct pico_ip6));
     else
         memcpy(&ip.addr, PICO_IP6_ANY, sizeof(struct pico_ip6));
 
@@ -290,6 +292,7 @@ static int pico_port_in_use_ipv6(struct pico_sockport *sp, void *addr)
             return 1;
         }
     }
+
     return pico_port_in_use_with_this_ipv6_address(sp, ip);
 }
 #endif
@@ -302,15 +305,18 @@ static int pico_generic_port_in_use(uint16_t proto, uint16_t port, struct pico_s
     if (pico_port_in_use_by_nat(proto, port)) {
         return 1;
     }
+
     if (pico_port_in_use_ipv4(sp, addr)) {
         return 1;
     }
+
 #endif
-    
+
 #ifdef PICO_SUPPORT_IPV6
     if (pico_port_in_use_ipv6(sp, addr)) {
         return 1;
     }
+
 #endif
 
     return 0;
@@ -319,7 +325,7 @@ static int pico_generic_port_in_use(uint16_t proto, uint16_t port, struct pico_s
 int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
 {
     struct pico_sockport *sp;
-    (void) net; 
+    (void) net;
     sp = pico_get_sockport(proto, port);
 
     if (pico_generic_port_in_use(proto, port, sp, addr))

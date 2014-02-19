@@ -122,6 +122,7 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
                 found = s;
             }
         }
+
         #endif
     } /* FOREACH */
     if (found != NULL) {

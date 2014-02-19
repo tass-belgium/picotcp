@@ -515,6 +515,7 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre,
         asuffix = (struct pico_dns_answer_suffix *)psuffix;
         if (!asuffix)
             break;
+
         if (pico_dns_client_check_asuffix(asuffix, q) < 0) {
             psuffix += (sizeof(struct pico_dns_answer_suffix) + short_be(asuffix->rdlength));
             continue;

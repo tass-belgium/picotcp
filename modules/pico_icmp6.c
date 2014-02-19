@@ -18,8 +18,8 @@
 
 #define PICO_ICMP6_OPT_SRC_LINK_LAYER_ADDR 1
 #define PICO_ICMP6_OPT_TGT_LINK_LAYER_ADDR 2
-#define icmp6_dbg(...) do {} while(0) 
-/* #define icmp6_dbg dbg  */
+#define icmp6_dbg(...) do {} while(0)
+/* #define icmp6_dbg dbg */
 
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;
@@ -52,7 +52,7 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
 
     IGNORE_PARAMETER(self);
 
-    icmp6_dbg("Process IN\n");
+    icmp6_dbg("Process IN, type = %d\n", hdr->type);
 
     switch (hdr->type)
     {
@@ -89,6 +89,7 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
         break;
 
     case PICO_ICMP6_ROUTER_SOL:
+        icmp6_dbg("ICMP6: received ROUTER SOL\n");
         pico_nd_router_sol_recv(f);
         break;
 
@@ -97,6 +98,7 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
         break;
 
     case PICO_ICMP6_NEIGH_SOL:
+        icmp6_dbg("ICMP6: received NEIGH SOL\n");
         pico_nd_neigh_sol_recv(f);
         break;
 

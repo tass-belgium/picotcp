@@ -62,6 +62,7 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
                 s->wakeup(PICO_SOCK_EV_RD, s);
         }
     }
+
     pico_frame_discard(f);
     return 0;
 }
@@ -86,6 +87,7 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
     pico_frame_discard(f);
     if (s)
         return 0;
+
     pico_err = PICO_ERR_ENXIO;
   #endif
     return -1;

@@ -141,8 +141,8 @@ static struct pico_neighbor *pico_nd_add_neighbor(struct pico_ip6 *host, struct 
     n->failure_count = 0;
     n->state_timestamp = PICO_TIME_MS();
     n->rate_timestamp = 0;
-    n->neighbor = *neighbor;
-    n->host = *host;
+    memcpy(&n->neighbor, neighbor, sizeof(struct pico_ip6));
+    memcpy(&n->host, host, sizeof(struct pico_ip6));
     n->dev = dev;
     n->pending.max_frames = PICO_ND_MAX_FRAMES_QUEUED;
     pico_tree_insert(&NDNeighbors, n);
@@ -523,6 +523,11 @@ static int pico_nd_send_solicitation(struct pico_neighbor *n, struct pico_frame 
         dev = n->dev;
     }
 
+    if (!dev) {
+        dbg("ND: No device set!\n");
+        return -1;
+    }
+
     /* RFC4861 $7.2.1
      * while awaiting a response, the sender SHOULD retransmit neighbor
      * solicitation messages approximately every RetransTimer milliseconds,
@@ -565,6 +570,7 @@ int pico_nd_neigh_sol_recv(struct pico_frame *f)
 #ifdef PICO_SUPPORT_CRC
     if (pico_icmp6_checksum(f) != 0)
         goto out;
+
 #endif
 
     if (f->transport_len < PICO_ICMP6HDR_NEIGH_SOL_SIZE)
@@ -611,7 +617,7 @@ int pico_nd_neigh_sol_recv(struct pico_frame *f)
     if (!link)
         goto out;
 
-    if (pico_ipv6_is_unicast(icmp6_hdr->msg.info.neigh_adv.target.addr))
+    if (pico_ipv6_is_unicast(&icmp6_hdr->msg.info.neigh_adv.target))
         if(link->dev != f->dev)
             goto out;
 
@@ -713,15 +719,20 @@ int pico_nd_neigh_adv_recv(struct pico_frame *f)
         neighbor->state_timestamp = PICO_TIME_MS();
 
         /* is a response to a solicitation? */
-        if (IS_SOLICITED(icmp6_hdr))
+        if (IS_SOLICITED(icmp6_hdr)) {
             neighbor->state = PICO_ND_STATE_REACHABLE;
-        else
+            pico_timer_add(1, &pico_nd_pending, neighbor);
+        }
+
+        else {
             neighbor->state = PICO_ND_STATE_STALE;
+        }
 
         if (IS_ROUTER(icmp6_hdr))
             neighbor->isrouter = 1;
         else
             neighbor->isrouter = 0;
+
     }
     else { /* any other state than INCOMPLETE */
         if (!IS_OVERRIDE(icmp6_hdr) && opt && !in_cache) {

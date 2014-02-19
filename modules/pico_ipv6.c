@@ -40,7 +40,7 @@
 #define PICO_IPV6_MAX_RTR_SOLICITATION_DELAY 1000
 
 #define ipv6_dbg(...) do {} while(0)
-/* #define ipv6_dbg dbg */ 
+/* #define ipv6_dbg dbg   */
 
 /* queues */
 static struct pico_queue ipv6_in;
@@ -312,24 +312,29 @@ int pico_ipv6_is_global(const uint8_t addr[PICO_SIZE_IP6])
 
 int pico_ipv6_is_localhost(const uint8_t addr[PICO_SIZE_IP6])
 {
-    const uint8_t localhost[PICO_SIZE_IP6] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
-    if (memcmp(addr, localhost, PICO_SIZE_IP6)== 0)
+    const uint8_t localhost[PICO_SIZE_IP6] = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1
+    };
+    if (memcmp(addr, localhost, PICO_SIZE_IP6) == 0)
         return 1;
+
     return 0;
 
 }
 
-int pico_ipv6_is_unicast(const uint8_t addr[PICO_SIZE_IP6])
+int pico_ipv6_is_unicast(struct pico_ip6 *a)
 {
-    if (pico_ipv6_is_global(addr))
+    if (pico_ipv6_is_global(a->addr))
         return 1;
-    else if (pico_ipv6_is_uniquelocal(addr))
+    else if (pico_ipv6_is_uniquelocal(a->addr))
         return 1;
-    else if (pico_ipv6_is_sitelocal(addr))
+    else if (pico_ipv6_is_sitelocal(a->addr))
         return 1;
-    else if (pico_ipv6_is_linklocal(addr))
+    else if (pico_ipv6_is_linklocal(a->addr))
         return 1;
-    else if (pico_ipv6_is_localhost(addr))
+    else if (pico_ipv6_is_localhost(a->addr))
+        return 1;
+    else if(pico_ipv6_link_get(a))
         return 1;
     else
         return 0;
@@ -628,7 +633,7 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     /* XXX: IPV6 filter implementation */
 
     if (0) {
-    } else if (pico_ipv6_is_unicast(hdr->dst.addr)) {
+    } else if (pico_ipv6_is_unicast(&hdr->dst)) {
         pico_transport_receive(f, f->proto);
     } else if (pico_ipv6_is_multicast(hdr->dst.addr)) {
         /* XXX perform multicast filtering: solicited-node multicast address MUST BE allowed! */
@@ -821,6 +826,8 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
+    ipv6_dbg("Adding IPV6 static route\n");
 
     new->dest = address;
     new->netmask = netmask;

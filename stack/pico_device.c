@@ -14,6 +14,7 @@
 #include "pico_protocol.h"
 #include "pico_tree.h"
 #include "pico_ipv6.h"
+#include "pico_ipv4.h"
 #include "pico_icmp6.h"
 
 struct pico_devices_rr_info {
@@ -79,6 +80,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
                 pico_free(dev->eth);
                 return -1;
             }
+
             #endif
         }
 
@@ -101,13 +103,14 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
                 linklocal.addr[15] = (uint8_t)(len >> 24);
                 pico_rand_feed(dev->hash);
             } while (pico_ipv6_link_get(&linklocal));
- 
+
             if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
                 pico_free(dev->q_in);
                 pico_free(dev->q_out);
                 return -1;
             }
         }
+
         #endif
     }
 
@@ -121,6 +124,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
         dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
         pico_icmp6_router_solicitation(dev, &linklocal);
     }
+
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
     #endif
 
@@ -146,6 +150,15 @@ void pico_device_destroy(struct pico_device *dev)
 
     if (dev->eth)
         pico_free(dev->eth);
+
+#ifdef PICO_SUPPORT_IPV4
+    pico_ipv4_cleanup_links(dev);
+#endif
+#ifdef PICO_SUPPORT_IPV6
+    pico_ipv6_cleanup_links(dev);
+#endif
+    pico_tree_delete(&Device_tree, dev);
+
 
     pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;

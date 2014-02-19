@@ -348,9 +348,11 @@ static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysou
         mreq_src = (struct pico_ip_mreq_source *) value;
         if (!mreq_src)
             return NULL;
+
         mcast_link = pico_socket_setoption_validate_s_mreq(mreq_src);
         if (!mcast_link)
             return NULL;
+
         if (!mreq_src->mcast_link_addr.addr)
             mreq_src->mcast_link_addr.addr = mcast_link->address.addr;
     }
