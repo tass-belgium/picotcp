@@ -655,7 +655,7 @@ int readRemainingHeader(struct httpClient *client)
     {
         char c;
         int index = 0;
-        int body_len = 0;
+        uint32_t body_len = 0;
         /* parse the response */
         while(index < len)
         {
@@ -670,10 +670,10 @@ int readRemainingHeader(struct httpClient *client)
                     client->state = HTTP_EOF_HDR;
                     dbg("End of header !\n");
                     
-                    body_len = len-index;
+                    body_len = (uint32_t)(len-index);
                     if(body_len > 0)
                     {
-						client->body = pico_zalloc(body_len+1);
+						client->body = pico_zalloc(body_len+1u);
 						memcpy(client->body, line+index, body_len);
 					}
                     
