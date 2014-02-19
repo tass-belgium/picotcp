@@ -115,6 +115,9 @@ static inline uint64_t long_long_be(uint64_t le)
 /*** *** *** *** *** *** ***
  ***     ARP CONFIG      ***
  *** *** *** *** *** *** ***/
+
+#include "pico_addressing.h"
+
 /* Maximum amount of accepted ARP requests per burst interval */
 #define PICO_ARP_MAX_RATE 1
 /* Duration of the burst interval in milliseconds */

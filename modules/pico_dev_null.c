@@ -36,11 +36,6 @@ static int pico_null_poll(struct pico_device *dev, int loop_score)
 
 /* Public interface: create/destroy. */
 
-void pico_null_destroy(struct pico_device *dev)
-{
-    struct pico_device_null *null = (struct pico_device_null *) dev;
-    pico_free(null);
-}
 
 struct pico_device *pico_null_create(char *name)
 {
@@ -50,8 +45,6 @@ struct pico_device *pico_null_create(char *name)
         return NULL;
 
     if( 0 != pico_device_init((struct pico_device *)null, name, NULL)) {
-        dbg ("Tun init failed.\n");
-        pico_null_destroy((struct pico_device *)null);
         return NULL;
     }
 
@@ -59,7 +52,6 @@ struct pico_device *pico_null_create(char *name)
     null->statistics_frames_out = 0;
     null->dev.send = pico_null_send;
     null->dev.poll = pico_null_poll;
-    null->dev.destroy = pico_null_destroy;
     dbg("Device %s created.\n", null->dev.name);
     return (struct pico_device *)null;
 }
