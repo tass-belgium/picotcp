@@ -273,7 +273,7 @@ int pico_socket_mcast_filter(struct pico_socket *s, struct pico_ip4 *mcast_group
 
 }
 
-static struct pico_ipv4_link *mcast_link(struct pico_ip4 *a)
+static struct pico_ipv4_link *get_mcast_link(struct pico_ip4 *a)
 {
     if (!a->addr)
         return pico_ipv4_get_default_mcastlink();
@@ -301,7 +301,7 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_ip
     if (pico_ipv4_is_unicast(mreq->mcast_group_addr.addr))
         return NULL;
 
-    return mcast_link(&mreq->mcast_link_addr);
+    return get_mcast_link(&mreq->mcast_link_addr);
 }
 
 static int pico_socket_setoption_pre_validation_s(struct pico_ip_mreq_source *mreq)
@@ -326,7 +326,7 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_
     if (!pico_ipv4_is_unicast(mreq->mcast_source_addr.addr))
         return NULL;
 
-    return mcast_link(&mreq->mcast_link_addr);
+    return get_mcast_link(&mreq->mcast_link_addr);
 }
 
 
