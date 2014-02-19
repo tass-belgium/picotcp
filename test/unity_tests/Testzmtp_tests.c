@@ -1000,7 +1000,7 @@ void test_zmtp_socket_close(void)
    pico_socket_close_IgnoreAndReturn(0);
    pico_mem_free_Ignore();
    pico_mem_free_Ignore();
-   pico_mem_free_Ignore();
+   pico_vector_destroy_Expect(buff);
    TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), 0);
 
    free(zmtp_s);
@@ -1089,6 +1089,7 @@ int pico_socket_write_stub_fail(struct pico_socket* s, const void* buff, int len
 
 void test_zmtp_socket_send2(void)
 {
+    TEST_IGNORE();
     /*function will be refactored to only send once per message*/
     struct pico_vector* messages;
     struct zmtp_socket* sock;

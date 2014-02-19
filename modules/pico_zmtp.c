@@ -315,7 +315,7 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             if (ret != 0)
             {
                 /*socket write went wrong, pushback starting from previous iterator*/
-                save2OutBuffer(s->out_buff, prevIt);
+                //save2OutBuffer(s->out_buff, prevIt);
             } else {
                 prevIt = pico_vector_iterator_next(prevIt);
             }
@@ -323,7 +323,7 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 
 
     } else {
-        save2OutBuffer(s->out_buff, it);    
+        //save2OutBuffer(s->out_buff, it);    
     }
     if (it)
         PICO_FREE(it);
@@ -346,7 +346,10 @@ int8_t zmtp_socket_close(struct zmtp_socket *s)
     if (s->sock)
         PICO_FREE(s->sock);
     if (s->out_buff)
-        PICO_FREE(s->out_buff);
+    {
+        /*implement the freeing of all messages still required*/
+        pico_vector_destroy(s->out_buff);
+    }
     if (s)
         PICO_FREE(s);
     return ret; 
