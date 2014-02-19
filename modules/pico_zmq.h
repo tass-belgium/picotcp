@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include "pico_vector.h"
 #include "pico_addressing.h"
+#include "pico_zmtp.h"
 
 
 /*  Send/recv options.  */
@@ -40,7 +41,7 @@ struct zmq_msg_t
 struct zmq_socket_base
 {
     uint8_t type;
-    struct zmtp_socket* sock;
+    struct zmtp_socket* sock; /* The local socket that is used */
     //State??
     //DECLARE_PICO_VECTOR(zmq_msg_t_in) out_vector;
     //DECLARE_PICO_VECTOR(zmq_msg_t_out) in_vector;
@@ -48,17 +49,23 @@ struct zmq_socket_base
     struct pico_vector in_vector;
 };
 
+struct zmq_socket_pub
+{
+    struct zmq_socket_base base;
+    struct pico_vector subscribers;
+};
+
 struct zmq_socket_req 
 {
     struct zmq_socket_base base;
     uint8_t send_enable;        //Req can send data but afterwards it should receive something before sending again!
-    struct zmtp_socket* sock;
+    struct zmtp_socket* sock; /* Remote socket. Should become a vector? */
 };
 
 void* zmq_socket(void* context, int type);
 int zmq_setsockopt (void* socket, int option_name, const void* option_value, size_t option_len);
 int zmq_getsockopt (void* socket, int option_name, void* option_value, size_t* option_len);
-int zmq_bind(void* s, char* address, uint16_t port);
+int zmq_bind(void* socket, const char* endpoint);
 int zmq_connect(void* socket, const char* endpoint);
 int zmq_send(void* socket, void* buf, size_t len, int flags);
 int zmq_recv(void* socket, char* txt);

@@ -7,8 +7,12 @@
 #include "Mockpico_vector.h"
 #include "Mockpico_mm.h"
 
+
+int pico_string_to_ipv4_cb(const char* ipstr, uint32_t *ip, int cmock_num_calls);
+
 struct zmtp_socket dummy_zmtp_sock;
 volatile pico_err_t pico_err;
+uint32_t* addr_pointer_to_verify;
 
 void setUp(void)
 {
@@ -52,28 +56,69 @@ void test_zmq_socket_req(void)
     TEST_ASSERT_NULL(zmq_socket(NULL, 9));    //is not one of the defined types (REP, REQ, SUBSCRIBER, PUBLISHE ... )
 }
 
-void test_zmq_socket_rep(void) 
+int zmtp_socket_bind_cb(struct zmtp_socket* s,  void *local_addr, uint16_t port, int cmock_num_calls)
 {
-    TEST_IGNORE();
+    IGNORE_PARAMETER(cmock_num_calls);
+    TEST_ASSERT_EQUAL_PTR(s, &dummy_zmtp_sock);
+    TEST_ASSERT_EQUAL_PTR(addr_pointer_to_verify, local_addr);
+    TEST_ASSERT_EQUAL_INT(short_be(5555), port);
+    return 0;
 }
 
 void test_zmq_socket_pub(void)
 {
-    TEST_IGNORE();
+    struct zmq_socket_pub* temp = NULL;
+    struct zmq_socket_pub pub_sock;
+
+    /* Make pico_mem_zalloc return NULL */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), NULL);
+    TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_PUB));
+
+    /* Make pico_zmtp_open return NULL */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, NULL);
+    pico_mem_free_Expect(&pub_sock);
+    TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_PUB));
+
+    /* Normal situation */
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
+    pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
+    pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 
+
+    temp = (struct zmq_socket_pub *)zmq_socket(NULL, ZMTP_TYPE_PUB);
+    TEST_ASSERT_NOT_NULL(temp);
+    TEST_ASSERT_EQUAL_PTR(&pub_sock, temp);
+    TEST_ASSERT_EQUAL(ZMTP_TYPE_PUB, temp->base.type);
+    
+    /* Bind the socket with bad arguments */
+    TEST_ASSERT_EQUAL_INT(-1, zmq_bind(NULL, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, zmq_bind(temp, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, zmq_bind(NULL, "tcp://*:5555"));
+    temp->base.type = ZMTP_TYPE_REQ;
+    TEST_ASSERT_EQUAL_INT(-1, zmq_bind(temp, "tcp://*:5555")); /* Pass wrong socket type */
+    temp->base.type = ZMTP_TYPE_PUB;
+
+    /* Bind the socket with good arguments */
+    zmtp_socket_bind_StubWithCallback(&zmtp_socket_bind_cb);
+    pico_string_to_ipv4_StubWithCallback(&pico_string_to_ipv4_cb);
+    TEST_ASSERT_EQUAL_INT(0, zmq_bind(temp, "tcp://*:5555"));
+
 }
 
-struct pico_ip4 addr;
-
-uint32_t* addr_pointer_to_verify;
-int pico_string_to_ipv4_cb(const char *ipstr, uint32_t *ip, int NumCalls)
+int pico_string_to_ipv4_cb(const char *ipstr, uint32_t *ip, int cmock_num_calls)
 {
-    TEST_ASSERT_EQUAL_STRING("10.40.0.1", ipstr);
+    IGNORE_PARAMETER(cmock_num_calls);
+    IGNORE_PARAMETER(ipstr);
     addr_pointer_to_verify = ip;
     return 0;
 }
 
 int zmtp_socket_connect_cb(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port, int cmock_num_calls)
 {
+    IGNORE_PARAMETER(cmock_num_calls);
+    IGNORE_PARAMETER(s);
     TEST_ASSERT_EQUAL_PTR(addr_pointer_to_verify, srv_addr);
     TEST_ASSERT_EQUAL_INT(45845, remote_port);    //45854 = short_be(5555)
     return 0;

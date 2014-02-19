@@ -35,13 +35,39 @@ static void zmq_zmtp_socket_del(struct zmtp_socket* z)
 
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
+    IGNORE_PARAMETER(ev);
+    IGNORE_PARAMETER(s);
     dbg("In cb_zmtp_sockets!");
     //TODO: process events!!
+    //In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!!    
+    if(ev == EV_CONNECT)
+    {
+        if(s->type == ZMTP_TYPE_PUB)
+        {
+            pico_vector_push_back(&((struct zmq_socket_pub *)s)->subscribers, s);
+        }
+    }
 }
 
-void* zmq_socket(void* __attribute__((unused)) context, int type)
+int zmq_bind(void* socket, const char *endpoint)
+{
+    struct pico_ip4 addr;
+
+    if( !socket || !endpoint || ((struct zmq_socket_base *)socket)->type != ZMTP_TYPE_PUB )
+        return -1;
+        //TODO: error handling! (EINVAL)
+
+    //TODO: parse endpoint!!
+    pico_string_to_ipv4("0.0.0.0", &addr.addr); 
+    return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, short_be(5555));
+}
+
+void* zmq_socket(void* context, int type)
 {
     struct zmq_socket_base* sock = NULL;
+
+    IGNORE_PARAMETER(context);
+
     switch(type)
     {
         case(ZMTP_TYPE_REQ): 
@@ -50,6 +76,7 @@ void* zmq_socket(void* __attribute__((unused)) context, int type)
         case(ZMTP_TYPE_REP):
             break; 
         case(ZMTP_TYPE_PUB):
+            sock = PICO_ZALLOC(sizeof(struct zmq_socket_pub));
             break;
         default:
             return NULL;
@@ -77,6 +104,9 @@ void* zmq_socket(void* __attribute__((unused)) context, int type)
     pico_vector_init(&sock->in_vector, 5, sizeof(struct zmq_msg_t));
     pico_vector_init(&sock->out_vector, 5, sizeof(struct zmq_msg_t));
 
+    if(type == ZMTP_TYPE_PUB)
+        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, 5, sizeof(struct zmtp_socket));
+
     return sock;
 }
 
@@ -100,6 +130,7 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
 {
     struct zmtp_frame_t* frame = NULL;
     struct zmq_socket_base* bsock = NULL;
+    struct pico_vector_iterator* iterator;
 
     if(!socket)
         return -1;
@@ -131,13 +162,20 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
     }
     else {
         /* Pass the vector to zmtp layer */
-        //TODO: should iterate trough all the zmtp sockets!
         
         /* Push the final frame to the out_vector */
         pico_vector_push_back(&bsock->out_vector, frame);
         
-        if( zmtp_socket_send(bsock->sock, &bsock->out_vector) < 0 )
-            return -1;
+        //iterator = pico_vector_begin(..); 
+        //while(iterator)
+        //{
+            if( zmtp_socket_send(bsock->sock, &bsock->out_vector) < 0 )
+            {
+                while(1);
+                //TODO: do some error handling!
+            }
+            //iterator = pico_vector_iterator_next(iterator);
+        //}
 
         if(bsock->type == ZMTP_TYPE_REQ)
             ((struct zmq_socket_req *)bsock)->send_enable = ZMQ_SEND_DISABLED;

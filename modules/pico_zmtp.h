@@ -41,7 +41,8 @@ enum zmtp_snd_state {
 
 enum zmtp_ev {
     EV_NONE=0,
-    EV_ERR=1
+    EV_CONNECT=2,
+    EV_ERR=3
 };
 /*
 enum zmq_state {
@@ -69,5 +70,6 @@ struct zmtp_socket {
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s));
 int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec);
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t port);
 int8_t zmtp_socket_close(struct zmtp_socket *s);
 #endif
