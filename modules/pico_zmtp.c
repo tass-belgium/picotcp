@@ -336,15 +336,20 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 
 int8_t zmtp_socket_close(struct zmtp_socket *s)
 {
-    int ret;
-    if(NULL==s || NULL==s->sock)
+    int ret = 0;
+    if(NULL==s)
     {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    s->snd_state = ST_SND_IDLE;
-    s->rcv_state = ST_RCV_IDLE;
-    return pico_socket_close(s->sock);
+    ret = pico_socket_close(s->sock);
+    if (s->sock)
+        PICO_FREE(s->sock);
+    if (s->out_buff)
+        PICO_FREE(s->out_buff);
+    if (s)
+        PICO_FREE(s);
+    return ret; 
 }
 
 

@@ -71,4 +71,5 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type,
 int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec);
 int8_t zmtp_socket_close(struct zmtp_socket *s);
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port);
 #endif

@@ -978,21 +978,35 @@ void test_zmtp_socket_close(void)
 {
    struct zmtp_socket* zmtp_s;
    struct pico_socket* pico_s;
+   struct pico_vector* buff;
    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
    pico_s = calloc(1, sizeof(struct pico_socket));
+   buff = calloc(1, sizeof(struct pico_vector));
+
    /*----=== Test empty sockets ===----*/
    TEST_ASSERT_EQUAL_INT(zmtp_socket_close(NULL), -1);
+   pico_socket_close_ExpectAndReturn(NULL, -1);
+   pico_mem_free_Ignore();
    TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s),-1);
 
    zmtp_s->sock = pico_s;
-   pico_socket_close_IgnoreAndReturn(-1);
+   pico_socket_close_ExpectAndReturn(pico_s, -1);
+   pico_mem_free_Ignore();
+   pico_mem_free_Ignore();
+
    TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), -1);
    /*----=== Test valid arguments ===----*/
+   zmtp_s->out_buff = buff;
    pico_socket_close_IgnoreAndReturn(0);
+   pico_mem_free_Ignore();
+   pico_mem_free_Ignore();
+   pico_mem_free_Ignore();
    TEST_ASSERT_EQUAL_INT(zmtp_socket_close(zmtp_s), 0);
 
    free(zmtp_s);
    free(pico_s);
+   free(buff);
+
 }
 
 void test_zmtp_socket_read(void)
