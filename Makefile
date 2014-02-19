@@ -34,6 +34,10 @@ ZMQ?=1
 OLSR?=1
 SLAACV4?=1
 
+#IPv6 related
+IPV6?=0
+ICMP6?=0
+
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion 
@@ -185,6 +189,12 @@ ifneq ($(OLSR),0)
 endif
 ifneq ($(SLAACV4),0)
   include rules/slaacv4.mk
+endif
+ifneq ($(IPV6),0)
+  include rules/ipv6.mk
+endif
+ifneq ($(ICMP6),0)
+  include rules/icmp6.mk
 endif
 
 all: mod core lib

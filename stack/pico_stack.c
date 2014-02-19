@@ -21,6 +21,7 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
+#include "pico_icmp6.h"
 #include "pico_igmp.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"

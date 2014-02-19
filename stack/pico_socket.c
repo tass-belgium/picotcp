@@ -92,7 +92,7 @@ static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
     (void)a;
     (void)b;
 #ifdef PICO_SUPPORT_IPV6
-    if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || memcmp((b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
+    if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || (memcmp(b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
         ret = 0;
     else
         ret = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
@@ -874,7 +874,7 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv6(struct p
         return NULL;
     }
 
-    memcpy(ep->remote_addr.ip6, dst, sizeof(struct pico_ip6));
+    memcpy(&ep->remote_addr.ip6, dst, sizeof(struct pico_ip6));
     ep->remote_port = port;
 #endif
     return ep;

@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "pico_socket.h"
 #include "pico_ipv4.h"
+#include "pico_ipv6.h"
 #include "pico_tcp.h"
 
 int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
@@ -104,16 +105,23 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
         #endif
         #ifdef PICO_SUPPORT_IPV6
         if (IS_IPV6(f)) {
-            struct pico_ipv6_hdr *ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
-            if ((s->remote_port == localport)) {
+            struct pico_ip6 s_local = {{0}}, s_remote = {{0}}, p_src = {{0}}, p_dst = {{0}};
+            struct pico_ipv6_hdr *ip6hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+            s_local = s->local_addr.ip6;
+            s_remote = s->remote_addr.ip6;
+            p_src = ip6hdr->src;
+            p_dst = ip6hdr->dst;
+            if ((s->remote_port == tr->sport) &&
+                (!memcmp(s_remote.addr, p_src.addr, PICO_SIZE_IP6)) &&
+                ((!memcmp(s_local.addr, PICO_IP6_ANY, PICO_SIZE_IP6)) || (!memcmp(s_local.addr, p_dst.addr, PICO_SIZE_IP6)))) {
                 found = s;
                 break;
-            } else if (s->remote_port == 0) {
+            } else if ((s->remote_port == 0)  && /* not connected... listening */
+                       ((!memcmp(s_local.addr, PICO_IP6_ANY, PICO_SIZE_IP6)) || (!memcmp(s_local.addr, p_dst.addr, PICO_SIZE_IP6)))) {
                 /* listen socket */
                 found = s;
             }
         }
-
         #endif
     } /* FOREACH */
     if (found != NULL) {
