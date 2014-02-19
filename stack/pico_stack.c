@@ -145,6 +145,13 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
         break;
 #endif
 
+#ifdef PICO_SUPPORT_ICMP6
+    case PICO_PROTO_ICMP6:
+        ret = pico_enqueue(pico_proto_icmp6.q_in, f);
+        break;
+#endif
+
+
 #ifdef PICO_SUPPORT_IGMP
     case PICO_PROTO_IGMP:
         ret = pico_enqueue(pico_proto_igmp.q_in, f);
@@ -839,6 +846,10 @@ int pico_stack_init(void)
 
 #ifdef PICO_SUPPORT_ICMP4
     pico_protocol_init(&pico_proto_icmp4);
+#endif
+
+#ifdef PICO_SUPPORT_ICMP6
+    pico_protocol_init(&pico_proto_icmp6);
 #endif
 
 #ifdef PICO_SUPPORT_IGMP

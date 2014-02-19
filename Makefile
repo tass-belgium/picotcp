@@ -35,8 +35,8 @@ OLSR?=1
 SLAACV4?=1
 
 #IPv6 related
-IPV6?=0
-ICMP6?=0
+IPV6?=1
+ICMP6?=1
 
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -213,11 +213,13 @@ posix: all $(POSIX_OBJ)
 
 
 TEST_ELF= test/picoapp.elf
+TEST6_ELF= test/picoapp6.elf
 
 test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
+	@cp $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
 
 tst: test
 
