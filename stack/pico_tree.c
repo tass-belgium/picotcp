@@ -139,7 +139,7 @@ void *pico_tree_insert_implementation(struct pico_tree*tree, void *key, uint8_t 
         return LocalKey;
     else
     {
-        if(allocator = USE_PICO_PAGE0_ZALLOC)
+        if(allocator == USE_PICO_PAGE0_ZALLOC)
             insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
         else
             insert = create_node(tree, key, USE_PICO_ZALLOC);
