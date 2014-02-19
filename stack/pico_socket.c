@@ -904,7 +904,7 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination(struct pico_s
     return ep;
 }
 
-static int pico_socket_sendto_set_localport(struct pico_socket *s)
+static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
 {
 
     if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
