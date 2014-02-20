@@ -332,7 +332,7 @@ START_TEST (test_crc_check)
     f->buffer = f_buffer;
     *(f->usage_count) = 1;
 
-    //hdr->crc = 0; 
+    hdr->crc = 0; 
     printf(">>>>>>>>>>>>>>>>>>>>> CRC VALUE = %X\n", pico_checksum(hdr, PICO_SIZE_IP4HDR)); 
     ret = pico_ipv4_crc_check(f);
     fail_if(ret == 0, "correct IPv4 checksum got rejected\n");
