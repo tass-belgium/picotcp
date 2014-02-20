@@ -107,7 +107,7 @@ struct __attribute__((packed)) pico_dhcp_opt
 {
     uint8_t code;
     uint8_t len;
-    union {
+    union dhcp_opt_ext_u {
         struct {
             struct pico_ip4 ip;
         } netmask;

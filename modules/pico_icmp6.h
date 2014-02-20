@@ -75,9 +75,9 @@ struct __attribute__((packed)) pico_icmp6_hdr {
     uint8_t code;
     uint16_t crc;
 
-    union {
+    union icmp6_msg_u {
         /* error messages */
-        union {
+        union icmp6_err_u {
             struct {
                 uint32_t unused;
                 uint8_t data[0];
@@ -97,7 +97,7 @@ struct __attribute__((packed)) pico_icmp6_hdr {
         } err;
 
         /* informational messages */
-        union {
+        union icmp6_info_u {
             struct {
                 uint16_t id;
                 uint16_t seq;
@@ -144,7 +144,7 @@ struct __attribute__((packed)) pico_icmp6_opt_lladdr
 {
     uint8_t type;
     uint8_t len;
-    union {
+    union icmp6_opt_hw_addr_u {
         struct pico_eth mac;
     } addr;
 };

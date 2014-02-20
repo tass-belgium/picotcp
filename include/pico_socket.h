@@ -33,15 +33,8 @@ struct pico_socket {
     struct pico_protocol *proto;
     struct pico_protocol *net;
 
-    union {
-        struct pico_ip4 ip4;
-        struct pico_ip6 ip6;
-    } local_addr;
-
-    union {
-        struct pico_ip4 ip4;
-        struct pico_ip6 ip6;
-    } remote_addr;
+    union pico_address local_addr;
+    union pico_address remote_addr;
 
     uint16_t local_port;
     uint16_t remote_port;
@@ -76,11 +69,7 @@ struct pico_socket {
 };
 
 struct pico_remote_endpoint {
-    union {
-        struct pico_ip4 ip4;
-        struct pico_ip6 ip6;
-    } remote_addr;
-
+    union pico_address remote_addr;
     uint16_t remote_port;
 };
 

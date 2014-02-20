@@ -48,7 +48,7 @@ struct pico_ipv6_link
 struct __attribute__((packed)) pico_ipv6_exthdr {
     uint8_t nxthdr;
 
-    union {
+    union ipv6_ext_u {
         struct {
             uint8_t len;
             uint8_t options[0];

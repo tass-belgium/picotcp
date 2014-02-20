@@ -78,16 +78,6 @@ struct __attribute__((packed)) pico_tcp_option
 {
     uint8_t kind;
     uint8_t len;
-#if 0
-    union {
-        uint16_t mss;
-        uint8_t wshift;
-        struct {
-            uint32_t tsval;
-            uint32_t tsecr;
-        } timestamp;
-    } data;
-#endif
 };
 
 struct pico_socket *pico_tcp_open(void);

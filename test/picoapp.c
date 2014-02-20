@@ -89,10 +89,7 @@ struct udpclient_pas {
     uint8_t subloops;
     uint16_t datasize;
     uint16_t sport;
-    union {
-        struct pico_ip4 addr4;
-        struct pico_ip6 addr6;
-    } dst;
+    union pico_address dst;
 }; /* per application struct */
 
 static struct udpclient_pas *udpclient_pas;
@@ -187,11 +184,11 @@ void app_udpclient(char *arg)
         nxt = cpy_arg(&daddr, arg);
         if (daddr) {
             if (!IPV6_MODE)
-                pico_string_to_ipv4(daddr, &udpclient_pas->dst.addr4.addr);
+                pico_string_to_ipv4(daddr, &udpclient_pas->dst.ip4.addr);
 
       #ifdef PICO_SUPPORT_IPV6
             else
-                pico_string_to_ipv6(daddr, udpclient_pas->dst.addr6.addr);
+                pico_string_to_ipv6(daddr, udpclient_pas->dst.ip6.addr);
       #endif
         } else {
             goto out;
@@ -297,9 +294,9 @@ void app_udpclient(char *arg)
     }
 
     if (!IPV6_MODE)
-        ret = pico_socket_connect(udpclient_pas->s, &udpclient_pas->dst.addr4, udpclient_pas->sport);
+        ret = pico_socket_connect(udpclient_pas->s, &udpclient_pas->dst.ip4, udpclient_pas->sport);
     else
-        ret = pico_socket_connect(udpclient_pas->s, &udpclient_pas->dst.addr6, udpclient_pas->sport);
+        ret = pico_socket_connect(udpclient_pas->s, &udpclient_pas->dst.ip6, udpclient_pas->sport);
 
     if (ret < 0) {
         printf("%s: error connecting to %s:%u: %s\n", __FUNCTION__, daddr, short_be(udpclient_pas->sport), strerror(pico_err));

@@ -21,6 +21,12 @@ struct pico_ip6
 };
 #define PICO_SIZE_IP6 16
 
+union pico_address
+{
+    struct pico_ip4 ip4;
+    struct pico_ip6 ip6;
+};
+
 struct pico_eth
 {
     uint8_t addr[6];
