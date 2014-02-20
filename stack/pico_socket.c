@@ -91,6 +91,9 @@ static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
     int32_t ret = 0;
     (void)a;
     (void)b;
+    if (!is_sock_ipv6(a) || !is_sock_ipv6(b))
+        return 0;
+
 #ifdef PICO_SUPPORT_IPV6
     if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || (memcmp(b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
         ret = 0;
@@ -106,6 +109,9 @@ static int32_t socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
     int32_t ret = 0;
     (void)a;
     (void)b;
+    if (!is_sock_ipv4(a) || !is_sock_ipv4(b))
+        return 0;
+
 #ifdef PICO_SUPPORT_IPV4
     if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
         ret = 0;
@@ -814,6 +820,7 @@ static void *pico_socket_sendto_get_ip6_src(struct pico_socket *s, struct pico_i
      * current connected endpoint
      */
     if ((s->state & PICO_SOCKET_STATE_CONNECTED)) {
+        src6 = &s->local_addr.ip6;
         if (memcmp(&s->remote_addr, dst, PICO_SIZE_IP6)) {
             pico_err = PICO_ERR_EADDRNOTAVAIL;
             return NULL;
@@ -882,10 +889,10 @@ static int pico_socket_sendto_initial_checks(struct pico_socket *s, const void *
 static void *pico_socket_sendto_get_src(struct pico_socket *s, void *dst)
 {
     void *src = NULL;
-    if (IS_SOCK_IPV4(s))
+    if (is_sock_ipv4(s))
         src = pico_socket_sendto_get_ip4_src(s, (struct pico_ip4 *)dst);
 
-    if (IS_SOCK_IPV6(s))
+    if (is_sock_ipv6(s))
         src = pico_socket_sendto_get_ip6_src(s, (struct pico_ip6 *)dst);
 
     return src;
@@ -940,12 +947,12 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination(struct pico_s
 #   ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
 #       ifdef PICO_SUPPORT_IPV6
-        if (IS_SOCK_IPV6(s))
+        if (is_sock_ipv6(s))
             ep = pico_socket_sendto_destination_ipv6(s, (struct pico_ip6 *)dst, port);
 
 #       endif
 #       ifdef PICO_SUPPORT_IPV4
-        if (IS_SOCK_IPV4(s))
+        if (is_sock_ipv4(s))
             ep = pico_socket_sendto_destination_ipv4(s, (struct pico_ip4 *)dst, port);
 
 #       endif
@@ -1156,7 +1163,7 @@ static int pico_socket_xmit_get_mtu(struct pico_socket *s)
 {
     (void)s;
 #ifdef PICO_SUPPORT_IPV6
-    if (IS_SOCK_IPV6(s))
+    if (is_sock_ipv6(s))
         return PICO_SOCKET6_MTU;
 
 #endif
@@ -1319,7 +1326,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
         return -1;
     }
 
-    if (IS_SOCK_IPV4(s)) {
+    if (is_sock_ipv4(s)) {
     #ifdef PICO_SUPPORT_IPV4
         struct pico_ip4 *ip = (struct pico_ip4 *)local_addr;
         if (ip->addr != PICO_IPV4_INADDR_ANY) {
@@ -1330,7 +1337,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
         }
 
     #endif
-    } else if (IS_SOCK_IPV6(s)) {
+    } else if (is_sock_ipv6(s)) {
     #ifdef PICO_SUPPORT_IPV6
         struct pico_ip6 *ip = (struct pico_ip6 *)local_addr;
         if (!pico_ipv6_is_unspecified(ip->addr)) {
@@ -1363,12 +1370,12 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 
     s->local_port = *port;
 
-    if (IS_SOCK_IPV4(s)) {
+    if (is_sock_ipv4(s)) {
     #ifdef PICO_SUPPORT_IPV4
         struct pico_ip4 *ip = (struct pico_ip4 *)local_addr;
         s->local_addr.ip4 = *ip;
     #endif
-    } else if (IS_SOCK_IPV6(s)) {
+    } else if (is_sock_ipv6(s)) {
     #ifdef PICO_SUPPORT_IPV6
         struct pico_ip6 *ip = (struct pico_ip6 *)local_addr;
         s->local_addr.ip6 = *ip;
@@ -1401,7 +1408,7 @@ int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t
         }
     }
 
-    if (IS_SOCK_IPV4(s)) {
+    if (is_sock_ipv4(s)) {
     #ifdef PICO_SUPPORT_IPV4
         struct pico_ip4 *local = NULL;
         const struct pico_ip4 *ip = (const struct pico_ip4 *)remote_addr;
@@ -1415,7 +1422,7 @@ int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t
         }
 
     #endif
-    } else if (IS_SOCK_IPV6(s)) {
+    } else if (is_sock_ipv6(s)) {
     #ifdef PICO_SUPPORT_IPV6
         struct pico_ip6 *local = NULL;
         const struct pico_ip6 *ip = (const struct pico_ip6 *)remote_addr;
@@ -1516,6 +1523,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
     if (TCPSTATE(s) == PICO_SOCKET_STATE_TCP_LISTEN) {
         struct pico_sockport *sp = pico_get_sockport(PICO_PROTO_TCP, s->local_port);
         struct pico_socket *found;
+        uint32_t socklen = sizeof(struct pico_ip4);
         /* If at this point no incoming connection socket is found,
          * the accept call is valid, but no connection is established yet.
          */
@@ -1528,7 +1536,12 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
                 if ((s == found->parent) && ((found->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
                     found->parent = NULL;
                     pico_err = PICO_ERR_NOERR;
-                    memcpy(orig, &found->remote_addr, sizeof(struct pico_ip4));
+                    #ifdef PICO_SUPPORT_IPV6
+                    if (is_sock_ipv6(s))
+                        socklen = sizeof(struct pico_ip6);
+
+                    #endif
+                    memcpy(orig, &found->remote_addr, socklen);
                     *port = found->remote_port;
                     s->number_of_pending_conn--;
                     return found;
@@ -1865,13 +1878,13 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len)
     struct pico_frame *f = NULL;
 
 #ifdef PICO_SUPPORT_IPV6
-    if (IS_SOCK_IPV6(s))
+    if (is_sock_ipv6(s))
         f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
 
 #endif
 
 #ifdef PICO_SUPPORT_IPV4
-    if (IS_SOCK_IPV4(s))
+    if (is_sock_ipv4(s))
         f = pico_proto_ipv4.alloc(&pico_proto_ipv4, len);
 
 #endif

@@ -62,7 +62,7 @@ struct httpClient
     char *resource;
     uint16_t state;
     uint16_t method;
-    char * body;
+    char *body;
 };
 
 /* Local states for clients */
@@ -479,9 +479,9 @@ int pico_http_close(uint16_t conn)
 
                 if(client->resource)
                     pico_free(client->resource);
-                
+
                 if(client->body)
-					pico_free(client->body);
+                    pico_free(client->body);
 
                 pico_socket_close(client->sck);
                 pico_tree_delete(&pico_http_clients, client);
@@ -669,14 +669,14 @@ int readRemainingHeader(struct httpClient *client)
                 {
                     client->state = HTTP_EOF_HDR;
                     dbg("End of header !\n");
-                    
-                    body_len = (uint32_t)(len-index);
+
+                    body_len = (uint32_t)(len - index);
                     if(body_len > 0)
                     {
-						client->body = pico_zalloc(body_len+1u);
-						memcpy(client->body, line+index, body_len);
-					}
-                    
+                        client->body = pico_zalloc(body_len + 1u);
+                        memcpy(client->body, line + index, body_len);
+                    }
+
                     break;
                 }
 

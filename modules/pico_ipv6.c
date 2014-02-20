@@ -81,6 +81,7 @@ int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
         lb = long_be(b_addr[i]);
         if (la < lb)
             return -1;
+
         if (la > lb)
             return 1;
     }
@@ -124,7 +125,7 @@ static int ipv6_route_compare(void *ka, void *kb)
 
     ret = pico_ipv6_compare(&a->dest, &b->dest);
     if (ret)
-        return ret;    
+        return ret;
 
     if (a->metric < b->metric)
         return -1;

@@ -4,12 +4,14 @@ sh ./test/vde_sock_start_user.sh
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
+killall picoapp.elf
+killall picoapp6.elf
 
 
-echo "IPV6 tests!"
-echo "PING6 LOCALHOST"
-./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
-
+#echo "IPV6 tests!"
+#echo "PING6 LOCALHOST"
+#./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
+#
 echo "PING6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a ping,aaaa::1, || exit 1

@@ -1459,7 +1459,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 /* sock_a = pico_socket_accept(s, &orig, &port); */
                 pico_socket_accept(s, &orig, &port);
                 pico_ipv6_to_string(peer, orig.addr);
-                printf("tcpbench> Connection established with %s:%d.\n", peer, short_be(port));
+                printf("tcpbench> Connection established with [%s]:%d.\n", peer, short_be(port));
             }
         }
     }
@@ -1501,6 +1501,8 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
                     /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
+                } else {
+                    /* printf("pico_socket_write returned %d\n", tcpbench_w); */
                 }
 
                 if (tcpbench_time_start == 0)
@@ -2541,8 +2543,8 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-            macaddr[4] ^ (getpid() >> 8);
-            macaddr[5] ^ (getpid() & 0xFF);
+            macaddr[4] ^= (getpid() >> 8);
+            macaddr[5] ^= (getpid() & 0xFF);
             dev = pico_vde_create(sock, name, macaddr);
             NXT_MAC(macaddr);
             if (!dev) {

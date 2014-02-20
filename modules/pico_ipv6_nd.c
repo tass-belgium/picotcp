@@ -515,10 +515,10 @@ static int pico_nd_send_solicitation(struct pico_neighbor *n, struct pico_frame 
     n->rate_timestamp = PICO_TIME_MS();
 
     if (n->failure_count++ < PICO_ND_MAX_SOLICIT) {
-        dbg ("================= NS REQUIRED: %d =============\n", n->failure_count);
+        /* dbg ("================= NS REQUIRED: %d =============\n", n->failure_count); */
         pico_icmp6_neighbor_solicitation(dev, dst, type);
     } else {
-        dbg("ND: Destination Unreachable\n");
+        /* dbg("ND: Destination Unreachable\n"); */
         pico_nd_del_neighbor(dst);
         return -1;
     }

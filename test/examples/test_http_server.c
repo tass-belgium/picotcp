@@ -90,20 +90,20 @@ void serverWakeup(uint16_t ev, uint16_t conn)
             }
             else if(method == HTTP_METHOD_POST)
             {
-				int len;
-				printf("Received POST request\n");
-				printf("Form fields: %s\n", pico_http_getBody(conn));
+                int len;
+                printf("Received POST request\n");
+                printf("Form fields: %s\n", pico_http_getBody(conn));
                 len = pico_http_respond(conn, HTTP_RESOURCE_FOUND);
-                //printf("%d bytes written\n", len);
+                /* printf("%d bytes written\n", len); */
                 strcpy(buffer, "Thanks for posting your data");
                 if(pico_http_submitData(conn, buffer, strlen(buffer)) == HTTP_RETURN_ERROR)
                 {
-					printf("error submitting data\n");
-				}
-				else
-				{
-					printf("data submitted correctly\n");
-				}
+                    printf("error submitting data\n");
+                }
+                else
+                {
+                    printf("data submitted correctly\n");
+                }
             }
         }
         else
@@ -123,30 +123,30 @@ void serverWakeup(uint16_t ev, uint16_t conn)
 
     if(ev & EV_HTTP_SENT) /* submitted data was fully sent */
     {
-		int method;
-		method = pico_http_getMethod(conn);
-		if(method == HTTP_METHOD_GET)
+        int method;
+        method = pico_http_getMethod(conn);
+        if(method == HTTP_METHOD_GET)
         {
-			int read;
-			read = fread(buffer, 1, SIZE, f);
-			printf("Chunk was sent...\n");
-			if(read > 0)
-			{
-				printf("Sending another chunk...\n");
-				pico_http_submitData(conn, buffer, read);
-			}
-			else
-			{
-				printf("Last chunk get !\n");
-				pico_http_submitData(conn, NULL, 0); /* send the final chunk */
-				fclose(f);
-			}
-		}
-		else if(method == HTTP_METHOD_POST)
+            int read;
+            read = fread(buffer, 1, SIZE, f);
+            printf("Chunk was sent...\n");
+            if(read > 0)
+            {
+                printf("Sending another chunk...\n");
+                pico_http_submitData(conn, buffer, read);
+            }
+            else
+            {
+                printf("Last chunk get !\n");
+                pico_http_submitData(conn, NULL, 0); /* send the final chunk */
+                fclose(f);
+            }
+        }
+        else if(method == HTTP_METHOD_POST)
         {
-			printf("Last chunk post !\n");
-			pico_http_submitData(conn, NULL, 0); /* send the final chunk */
-		}
+            printf("Last chunk post !\n");
+            pico_http_submitData(conn, NULL, 0); /* send the final chunk */
+        }
     }
 
     if(ev & EV_HTTP_CLOSE)
@@ -160,7 +160,8 @@ void serverWakeup(uint16_t ev, uint16_t conn)
         printf("Error on server...\n");
         pico_http_close(conn);
     }
-    //printf("end of wakeup (%d)\n", ev);
+
+    /* printf("end of wakeup (%d)\n", ev); */
 }
 /* END HTTP server */
 
@@ -224,58 +225,57 @@ int main(int argc, char **argv)
             break;
 
         switch(c) {
-			case 'v':
-			{
-				char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-				struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-				printf("+++ OPTARG %s\n", optarg);
-				do {
-					nxt = cpy_arg(&name, optarg);
-					if (!nxt) break;
+        case 'v':
+        {
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
 
-					nxt = cpy_arg(&sock, nxt);
-					if (!nxt) break;
+                nxt = cpy_arg(&sock, nxt);
+                if (!nxt) break;
 
-					nxt = cpy_arg(&addr, nxt);
-					if (!nxt) break;
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
 
-					nxt = cpy_arg(&nm, nxt);
-					if (!nxt) break;
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
 
-					nxt = cpy_arg(&gw, nxt);
-				} while(0);
-				if (!nm) {
-					fprintf(stderr, "Vde: bad configuration...\n");
-					exit(1);
-				}
+                nxt = cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
+            }
 
-				dev = pico_vde_create(sock, name, macaddr);
-				NXT_MAC(macaddr);
-				if (!dev) {
-					perror("Creating vde");
-					exit(1);
-				}
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
 
-				printf("Vde created.\n");
-				pico_string_to_ipv4(addr, &ipaddr.addr);
-				pico_string_to_ipv4(nm, &netmask.addr);
-				pico_ipv4_link_add(dev, ipaddr, netmask);
-				//bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
-				if (gw && *gw) {
-					pico_string_to_ipv4(gw, &gateway.addr);
-					pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-				}
-			}
-			break;
-		}
+            printf("Vde created.\n");
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            /* bcastAddr.addr = (ipaddr.addr) | (~netmask.addr); */
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
+        }
+        break;
+        }
     }
-    
     if( pico_http_server_start(0, serverWakeup) < 0)
     {
         fprintf(stderr, "Unable to start the HTTP server on port 80\n");
     } else {
-		printf("HTTP server started\n");
-	}
+        printf("HTTP server started\n");
+    }
 
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(1) {
