@@ -14,9 +14,9 @@
 struct pico_nd_hostvars {
     uint32_t mtu;
     uint8_t hoplimit;
-    uint32_t basetime;
-    uint32_t reachabletime;
-    uint32_t retranstime;
+    pico_time basetime;
+    pico_time reachabletime;
+    pico_time retranstime;
 };
 
 void pico_nd_init(void);

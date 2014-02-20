@@ -319,7 +319,8 @@ static struct pico_prefix *pico_nd_add_prefix(struct pico_ip6 *prefix, uint32_t 
 
     p->valid = 1;
     p->prefix = *prefix;
-    p->invalidation_time = PICO_TIME() + long_be(valid_time);
+    p->invalidation_time = PICO_TIME();
+    p->invalidation_time += long_be(valid_time);
     pico_tree_insert(&NDPrefix, p);
 
     if (long_be(valid_time) < PICO_ND_PREFIX_LIFETIME_INF) {
@@ -845,7 +846,9 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
     if (icmp6_hdr->msg.info.router_adv.reachable_time != 0 && long_be(icmp6_hdr->msg.info.router_adv.reachable_time) != hostvars->basetime) {
         hostvars->basetime = long_be(icmp6_hdr->msg.info.router_adv.reachable_time);
         /* value between 0.5 and 1.5 times basetime */
-        hostvars->reachabletime = ((5 + (pico_rand() % 10)) * long_be(icmp6_hdr->msg.info.router_adv.reachable_time)) / 10;
+        hostvars->reachabletime  = (pico_time)(5llu + (pico_rand() % 10));
+        hostvars->reachabletime *= (pico_time)(long_be(icmp6_hdr->msg.info.router_adv.reachable_time));
+        hostvars->reachabletime /= (pico_time)10u;
     }
 
     /* advertisement options */
@@ -883,8 +886,10 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
                 p = pico_nd_find_prefix(&prefix->prefix);
                 if (p) {
                     if (prefix->val_lifetime != 0) {
+                        pico_time t = PICO_TIME();
                         p->valid = 1;
-                        p->invalidation_time = PICO_TIME() + long_be(prefix->val_lifetime);
+                        t += (pico_time)long_be(prefix->val_lifetime);
+                        p->invalidation_time = t;
                     } else { /* time-out entry */
                         p->valid = 0;
                     }
