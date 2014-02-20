@@ -746,6 +746,12 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
         icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
         break;
     }
+    case PICO_PROTO_UDP:
+    {
+        struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
+        udp_hdr->crc = pico_udp_checksum_ipv6(f);
+        break;
+    }
 
     default:
         break;

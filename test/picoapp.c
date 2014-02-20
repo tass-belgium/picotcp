@@ -364,6 +364,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
 
         do {
             r = pico_socket_recvfrom(s, recvbuf, udpecho_pas->datasize, IPV6_MODE ? (void *)peer.ip6.addr : (void *)&peer.ip4.addr, &port);
+            /* printf("UDP recvfrom returned %d\n", r); */
             if (r > 0) {
                 if (strncmp(recvbuf, "end", 3) == 0) {
                     printf("Client requested to exit... test successful.\n");
@@ -477,15 +478,17 @@ void app_udpecho(char *arg)
 
     if (!IPV6_MODE)
         ret = pico_socket_bind(udpecho_pas->s, &inaddr_bind, &listen_port);
-    else
+    else {
         ret = pico_socket_bind(udpecho_pas->s, &inaddr_bind6, &listen_port);
+        printf("udpecho> Bound to [%s]:%d.\n", baddr, short_be(listen_port));
+    }
 
     if (ret != 0) {
         free(udpecho_pas);
         if (!IPV6_MODE)
             printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
         else
-            printf("%s: error binding socket to %s:%u: %s\n", __FUNCTION__, "TODO_IPV6_ADDR", short_be(listen_port), strerror(pico_err));
+            printf("%s: error binding socket to [%s]:%u: %s\n", __FUNCTION__, "TODO_IPV6_ADDR", short_be(listen_port), strerror(pico_err));
 
         exit(1);
     }

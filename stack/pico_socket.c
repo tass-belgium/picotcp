@@ -537,7 +537,6 @@ static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_state
 
 static int pico_socket_transport_deliver(struct pico_protocol *p, struct pico_sockport *sp, struct pico_frame *f)
 {
-
     if (p->proto_number == PICO_PROTO_TCP)
         return pico_socket_tcp_deliver(sp, f);
 
@@ -1664,7 +1663,7 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
     switch (net_hdr->proto)
     {
     case PICO_PROTO_TCP:
-        checksum_invalid = short_be(pico_tcp_checksum_ipv4(f));
+        checksum_invalid = short_be(pico_tcp_checksum(f->sock, f));
         /* dbg("TCP CRC validation == %u\n", checksum_invalid); */
         if (checksum_invalid) {
             /* dbg("TCP CRC: validation failed!\n"); */
@@ -1677,7 +1676,16 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
     case PICO_PROTO_UDP:
         udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
         if (short_be(udp_hdr->crc)) {
-            checksum_invalid = short_be(pico_udp_checksum_ipv4(f));
+#ifdef PICO_SUPPORT_IPV4
+            if (IS_IPV4(f))
+                checksum_invalid = short_be(pico_udp_checksum_ipv4(f));
+
+#endif
+#ifdef PICO_SUPPORT_IPV6
+            if (IS_IPV6(f))
+                checksum_invalid = short_be(pico_udp_checksum_ipv6(f));
+
+#endif
             /* dbg("UDP CRC validation == %u\n", checksum_invalid); */
             if (checksum_invalid) {
                 /* dbg("UDP CRC: validation failed!\n"); */

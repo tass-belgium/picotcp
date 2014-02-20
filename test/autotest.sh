@@ -22,6 +22,12 @@ echo "TCP6 TEST"
 time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
 killall picoapp6.elf
 
+echo "UDP6 TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a udpecho,aaaa::1,6667,) &
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a udpclient,aaaa::1,6667,6667,1400,100,10, || exit 1
+wait || exit 1
+wait
+
 echo
 echo
 echo
