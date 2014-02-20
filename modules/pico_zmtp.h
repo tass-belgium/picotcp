@@ -26,13 +26,13 @@
 #define ZMTP_TYPE_END      (uint8_t)0x09
 
 enum zmtp_state {
-    ZMTP_ST_IDLE,
-    ZMTP_ST_SND_GREETING,
-    ZMTP_ST_RCVD_SIGNATURE,
-    ZMTP_ST_RCVD_REVISION,
-    ZMTP_ST_RCVD_TYPE,
-    ZMTP_ST_RCVD_ID_LEN,
-    ZMTP_ST_RDY
+    ZMTP_ST_IDLE,           //0
+    ZMTP_ST_SND_GREETING,   //1
+    ZMTP_ST_RCVD_SIGNATURE, //2
+    ZMTP_ST_RCVD_REVISION,  //3
+    ZMTP_ST_RCVD_TYPE,      //4
+    ZMTP_ST_RCVD_ID_LEN,    //5
+    ZMTP_ST_RDY             //6
 };
 
 enum zmtp_ev {
