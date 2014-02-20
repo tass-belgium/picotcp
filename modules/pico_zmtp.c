@@ -320,7 +320,7 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     return new_zmtp_s;
 }
 
-int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t port)
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
     int ret = 0;
 
@@ -522,7 +522,7 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     s->type = type;
     s->zmq_cb = zmq_cb;
     
-    out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
+    s->out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
     if (NULL == s->out_buff) 
     {
         pico_err = PICO_ERR_ENOMEM;

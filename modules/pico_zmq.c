@@ -35,13 +35,16 @@ static void zmq_zmtp_socket_del(struct zmtp_socket* z)
 
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
+    struct zmtp_socket* client;
     IGNORE_PARAMETER(ev);
     IGNORE_PARAMETER(s);
+
     dbg("In cb_zmtp_sockets!");
     //TODO: process events!!
     //In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!!    
     if(ev == ZMTP_EV_CONN)
     {
+        client = zmtp_socket_accept(s);
         if(s->type == ZMTP_TYPE_PUB)
         {
             pico_vector_push_back(&((struct zmq_socket_pub *)s)->subscribers, s);
@@ -52,6 +55,7 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
 int zmq_bind(void* socket, const char *endpoint)
 {
     struct pico_ip4 addr;
+    uint16_t port;
 
     if( !socket || !endpoint || ((struct zmq_socket_base *)socket)->type != ZMTP_TYPE_PUB )
         return -1;
@@ -59,7 +63,8 @@ int zmq_bind(void* socket, const char *endpoint)
 
     //TODO: parse endpoint!!
     pico_string_to_ipv4("0.0.0.0", &addr.addr); 
-    return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, short_be(5555));
+    port = short_be(5555);
+    return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, &port);
 }
 
 void* zmq_socket(void* context, int type)
