@@ -1458,8 +1458,10 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             } else if (tcpbench_mode == TCP_BENCH_RX) {
                 /* sock_a = pico_socket_accept(s, &orig, &port); */
                 pico_socket_accept(s, &orig, &port);
+#ifdef PICO_SUPPORT_IPV6
                 pico_ipv6_to_string(peer, orig.addr);
                 printf("tcpbench> Connection established with [%s]:%d.\n", peer, short_be(port));
+#endif
             }
         }
     }
@@ -1607,9 +1609,10 @@ void app_tcpbench(char *arg)
                local_port = short_be(6666);
                pico_string_to_ipv4("10.40.0.11", &local_addr.addr);
                pico_socket_bind(s, &local_addr, &local_port);*/
-
+#ifdef PICO_SUPPORT_IPV6
             pico_string_to_ipv6(dest, server_addr.addr);
             pico_socket_connect(s, &server_addr, port_be);
+#endif
 
         }
 
