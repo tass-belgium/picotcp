@@ -445,17 +445,16 @@ uint16_t pico_tcp_checksum_ipv6(struct pico_frame *f)
 }
 #endif
 
-uint16_t pico_tcp_checksum(void *_s, struct pico_frame *f)
+uint16_t pico_tcp_checksum(struct pico_frame *f)
 {
-    struct pico_socket *s = (struct pico_socket *)_s;
     (void)f;
     #ifdef PICO_SUPPORT_IPV4
-    if (s->net->proto_number == PICO_PROTO_IPV4)
+    if (IS_IPV4(f))
         return pico_tcp_checksum_ipv4(f);
 
     #endif
     #ifdef PICO_SUPPORT_IPV6
-    else if (s->net->proto_number == PICO_PROTO_IPV6)
+    if (IS_IPV6(f))
         return pico_tcp_checksum_ipv6(f);
     #endif
 
@@ -734,7 +733,7 @@ inline static void tcp_add_header(struct pico_socket_tcp *t, struct pico_frame *
     hdr->flags |= PICO_TCP_PSH | PICO_TCP_ACK;
     hdr->ack = long_be(t->rcv_nxt);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(t, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
 }
 
 static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
@@ -875,7 +874,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(ts->wnd);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(ts, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
 
     /* TCP: ENQUEUE to PROTO ( Transmit ) */
     cpy = pico_frame_copy(f);
@@ -1042,7 +1041,7 @@ int pico_tcp_initconn(struct pico_socket *s)
     hdr->trans.dport = ts->sock.remote_port;
 
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(s, syn));
+    hdr->crc = short_be(pico_tcp_checksum(syn));
 
     /* TCP: ENQUEUE to PROTO ( SYN ) */
     tcp_dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
@@ -1111,7 +1110,7 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_kee
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(t->wnd);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(t, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
 
     /* TCP: ENQUEUE to PROTO */
     pico_enqueue(&tcp_out, f);
@@ -1175,7 +1174,7 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(t->wnd);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(s, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
 
     /* TCP: ENQUEUE to PROTO */
     pico_enqueue(&tcp_out, f);
@@ -1238,7 +1237,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     if(!(hdr1->flags & PICO_TCP_ACK))
         hdr->ack = long_be(long_be(((struct pico_tcp_hdr *)(fr->transport_hdr))->seq) + fr->payload_len);
 
-    hdr->crc = short_be(pico_tcp_checksum(fr->sock, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
     if (IS_IPV4(f)) {
         pico_ipv4_frame_push(f, &(((struct pico_ipv4_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP);
 #ifdef PICO_SUPPORT_IPV6
@@ -1297,7 +1296,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(t->wnd);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(s, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
 
     /* TCP: ENQUEUE to PROTO */
     pico_enqueue(&tcp_out, f);
@@ -1335,7 +1334,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(t->wnd);
     hdr->crc = 0;
-    hdr->crc = short_be(pico_tcp_checksum(t, f));
+    hdr->crc = short_be(pico_tcp_checksum(f));
     /* tcp_dbg("SENDING FIN...\n"); */
     /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
     pico_enqueue(&tcp_out, f);

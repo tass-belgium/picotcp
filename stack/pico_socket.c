@@ -1663,10 +1663,10 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
     switch (net_hdr->proto)
     {
     case PICO_PROTO_TCP:
-        checksum_invalid = short_be(pico_tcp_checksum(f->sock, f));
-        /* dbg("TCP CRC validation == %u\n", checksum_invalid); */
+        checksum_invalid = short_be(pico_tcp_checksum(f));
+         dbg("TCP CRC validation == %u\n", checksum_invalid);
         if (checksum_invalid) {
-            /* dbg("TCP CRC: validation failed!\n"); */
+            dbg("TCP CRC: validation failed!\n");
             pico_frame_discard(f);
             return 0;
         }
