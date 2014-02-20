@@ -235,8 +235,14 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
     int ret;
     struct zmtp_socket* zmtp_s = get_zmtp_socket(s);
 
+    printf("in zmtp_tcp_cb\n");
+    printf("zmtp_s: %p\n", zmtp_s);
+    if(zmtp_s == NULL)
+        return;
+    printf("state: %d\n", zmtp_s->state);
     if(ev & PICO_SOCK_EV_CONN)
     {
+        printf("connection\n");
         zmtp_s->zmq_cb(ZMTP_EV_CONN, zmtp_s);
         return;
     }
@@ -325,6 +331,7 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t port)
         ret = PICO_ERR_EINVAL;
         ret = -1;
     }
+    pico_socket_listen(s->sock, 10);
 
     return ret;
 }
@@ -420,7 +427,6 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             if (0 == ret)
             {
                 /*free the buffer from the frame, in case the write fails, we don't need to free*/
-                printf("should not get here");
                 PICO_FREE(frame->buf);
                 pico_vector_pop_front(s->out_buff);
             } 
@@ -491,9 +497,9 @@ int zmtp_socket_close(struct zmtp_socket *s)
 
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type , void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s))
 {  
-    struct zmtp_socket* s;
-    struct pico_vector* out_buff;
-    struct pico_socket* pico_s;
+    struct zmtp_socket* s = NULL;
+    struct pico_vector* out_buff = NULL;
+    struct pico_socket* pico_s = NULL;
     if (type >= ZMTP_TYPE_END)
     {
         pico_err = PICO_ERR_EINVAL;
@@ -523,10 +529,12 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
         PICO_FREE(s);
         return NULL;
     }
+    pico_s = pico_socket_open(net, proto, &zmtp_tcp_cb);
     pico_vector_init(s->out_buff, SOCK_BUFF_CAP, sizeof(struct zmtp_frame_t));
     if (pico_s == NULL) // Leave pico_err the same 
     {
         PICO_FREE(s->out_buff);
+        PICO_FREE(s);
         return NULL;
     }
     s->sock = pico_s;
