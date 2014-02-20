@@ -14,6 +14,8 @@
 #include "pico_protocol.h"
 #include "pico_ipv4.h"
 
+#define dbg printf
+
 static int zmtp_socket_cmp(void *ka, void *kb)
 {
     struct zmtp_socket* a = ka;
@@ -38,6 +40,7 @@ static inline struct zmtp_socket* get_zmtp_socket(struct pico_socket *s)
 
 void close_socket(struct zmtp_socket *zmtp_s)
 {
+    dbg("close socket\n");
     IGNORE_PARAMETER(zmtp_s);
 }
 
@@ -235,14 +238,15 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
     int ret;
     struct zmtp_socket* zmtp_s = get_zmtp_socket(s);
 
-    printf("in zmtp_tcp_cb\n");
-    printf("zmtp_s: %p\n", zmtp_s);
+    dbg("\n");
+    dbg("pico_s: %p event: %d\n", s, ev);
+    dbg("zmtp_s: %p\n", zmtp_s);
     if(zmtp_s == NULL)
         return;
-    printf("state: %d\n", zmtp_s->state);
+    dbg("state: %d\n", zmtp_s->state);
     if(ev & PICO_SOCK_EV_CONN)
     {
-        printf("connection\n");
+        dbg("connection\n");
         zmtp_s->zmq_cb(ZMTP_EV_CONN, zmtp_s);
         return;
     }
@@ -254,6 +258,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
             ret = check_signature(zmtp_s);
             if(ret != 0)
                 return;
+            dbg("zmtp_s->state: ZMTP_ST_RCVD_SIGNATURE\n");
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_SIGNATURE)
@@ -261,6 +266,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
             ret = check_revision(zmtp_s);
             if(ret != 0)
                 return;
+            dbg("zmtp_s->state: ZMTP_ST_RCVD_REVISION\n");
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_REVISION)
@@ -268,6 +274,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
             ret = check_socket_type(zmtp_s);
             if(ret != 0)
                 return;
+            dbg("zmtp_s->state: ZMTP_ST_RCVD_TYPE\n");
         }
         
         if(zmtp_s->state == ZMTP_ST_RCVD_TYPE)
@@ -275,6 +282,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
             ret = check_identity(zmtp_s);
             if(ret != 0)
                 return;
+            dbg("zmtp_s->state: ZMTP_ST_RCVD_IDENTITY\n");
         }
 
         if(zmtp_s->state == ZMTP_ST_RCVD_ID_LEN)
@@ -283,6 +291,7 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
         
         if(zmtp_s->state == ZMTP_ST_RDY)
         {
+            dbg("zmtp_s->state: ZMTP_ST_RDY\n");
             zmtp_s->zmq_cb(ZMTP_ERR_NOTIMPL, zmtp_s); /* event data available */
         }
     }
@@ -303,6 +312,7 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     }
 
     new_zmtp_s->sock = pico_socket_accept(zmtp_s->sock, &orig, &port);
+    dbg("new_zmtp_s->sock: %p\n", new_zmtp_s->sock);
     if(new_zmtp_s->sock == NULL)
     {
         /* if EAGAIN try again */
@@ -316,6 +326,7 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     pico_tree_insert(&zmtp_sockets, new_zmtp_s);
 
     zmtp_send_greeting(new_zmtp_s);
+    new_zmtp_s->state = ZMTP_ST_SND_GREETING;
 
     return new_zmtp_s;
 }

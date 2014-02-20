@@ -323,7 +323,7 @@ void test_zmtp_socket_accept(void)
 
     expect_greeting(new_pico_s, zmtp_s->type);
     new_zmtp_s = zmtp_socket_accept(zmtp_s);
-    TEST_ASSERT_EQUAL(ZMTP_ST_IDLE, new_zmtp_s->state);
+    TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, new_zmtp_s->state);
     TEST_ASSERT_EQUAL(zmtp_s->type, new_zmtp_s->type);
     TEST_ASSERT_EQUAL(new_pico_s, new_zmtp_s->sock);
     TEST_ASSERT_EQUAL(zmtp_s->zmq_cb, new_zmtp_s->zmq_cb);
