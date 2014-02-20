@@ -93,18 +93,9 @@ static struct pico_router *pico_nd_find_router(struct pico_ip6 *router);
 static int nd_neighbor_compare(void *ka, void *kb)
 {
     struct pico_neighbor *a = ka, *b = kb;
-    uint32_t *a_addr = (uint32_t *)a->neighbor.addr, *b_addr = (uint32_t *)b->neighbor.addr;
-    int i = 0;
-
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
-
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
-    return 0;
+    return pico_ipv6_compare(&a->neighbor, &b->neighbor);
 }
+
 /* neighbor cache */
 PICO_TREE_DECLARE(NDNeighbors, nd_neighbor_compare);
 
@@ -267,17 +258,8 @@ static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
 static int nd_prefix_compare(void *ka, void *kb)
 {
     struct pico_prefix *a = ka, *b = kb;
-    uint32_t *a_addr = (uint32_t *)a->prefix.addr, *b_addr = (uint32_t *)b->prefix.addr;
-    int i = 0;
+    return pico_ipv6_compare(&a->prefix, &b->prefix);
 
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
-
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
-    return 0;
 }
 /* prefix list */
 PICO_TREE_DECLARE(NDPrefix, nd_prefix_compare);
@@ -350,17 +332,8 @@ static struct pico_prefix *pico_nd_add_prefix(struct pico_ip6 *prefix, uint32_t 
 static int nd_destination_compare(void *ka, void *kb)
 {
     struct pico_destination *a = ka, *b = kb;
-    uint32_t *a_addr = (uint32_t *)a->dest.addr, *b_addr = (uint32_t *)b->dest.addr;
-    int i = 0;
+    return pico_ipv6_compare(&a->dest, &b->dest);
 
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
-
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
-    return 0;
 }
 /* prefix list */
 PICO_TREE_DECLARE(NDDestinations, nd_destination_compare);

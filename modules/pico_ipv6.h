@@ -73,6 +73,7 @@ struct __attribute__((packed)) pico_ipv6_exthdr {
     } ext;
 };
 
+int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b);
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip);
 int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6]);
 int pico_ipv6_is_unicast(struct pico_ip6 *a);

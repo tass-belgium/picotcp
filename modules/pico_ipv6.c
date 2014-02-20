@@ -71,7 +71,7 @@ struct pico_ipv6_route
     uint32_t metric;
 };
 
-static int ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
+int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
 {
     uint32_t *b_addr = (uint32_t *)b->addr, *a_addr = (uint32_t *)a->addr;
     uint32_t la, lb;
@@ -95,7 +95,7 @@ static int ipv6_link_compare(void *ka, void *kb)
     a_addr = &a->address;
     b_addr = &b->address;
 
-    ret = ipv6_compare(a_addr, b_addr);
+    ret = pico_ipv6_compare(a_addr, b_addr);
     if (ret)
         return ret;
 
@@ -118,11 +118,11 @@ static int ipv6_route_compare(void *ka, void *kb)
     int ret;
 
     /* Routes are sorted by (host side) netmask len, then by addr, then by metric. */
-    ret = ipv6_compare(&a->netmask, &b->netmask);
+    ret = pico_ipv6_compare(&a->netmask, &b->netmask);
     if (ret)
         return ret;
 
-    ret = ipv6_compare(&a->dest, &b->dest);
+    ret = pico_ipv6_compare(&a->dest, &b->dest);
     if (ret)
         return ret;    
 
