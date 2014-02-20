@@ -1,4 +1,4 @@
-PICOTCP?=../../
+PICOTCP?=../..
 
 TCPREFIX = 
 CC      = $(TCPREFIX)gcc
@@ -40,14 +40,11 @@ ZMQ_TESTS_SRC = $(MOCKS)/Mockpico_zmtp.o \
       $(MOCKS)/Mockpico_vector.o \
       $(MOCKS)/Mockpico_ipv4.o \
 	  $(MOCKS)/Mockpico_mm.o \
-	  $(TEST_ZMQ_TESTS_RUNNER) \
 
-ZMTP_TESTS_SRC = $(TEST_ZMTP_TESTS) \
-      $(MOCKS)/Mockpico_socket.o \
+ZMTP_TESTS_SRC = $(MOCKS)/Mockpico_socket.o \
       $(MOCKS)/Mockpico_vector.o \
       $(MOCKS)/Mockpico_mm.o \
       $(MOCKS)/Mockpico_tree.o \
-      $(TEST_ZMTP_TESTS_RUNNER) \
 
 VECTOR_TESTS_SRC = $(TEST_VECTOR_TESTS) \
       $(MOCKS)/Mockpico_mm.o \
@@ -81,7 +78,7 @@ $(TEST_FRAMEWORK): %.o : %.c
 	@$(CC) -ggdb -c $(TEST_FRAMEWORK_CFLAGS) $< -o $@
 
 $(ZMQ_TESTS_SRC): %.o : %.c
-	@$(CC) -c $(TEST_FRAMEWORK_CFLAGS) $(USE_MEM_MANAGER) -I$(PICOTCP)/modules/ -I$(MOCKS) -I$(PICOTCP)/include/ $< -o $@
+	@$(CC) -ggdb -c $(TEST_FRAMEWORK_CFLAGS) $(USE_MEM_MANAGER) -I$(PICOTCP)/modules/ -I$(MOCKS) -I$(PICOTCP)/include/ $< -o $@
 
 $(ZMTP_TESTS_SRC): %.o : %.c
 	@$(CC) -ggdb -c $(TEST_FRAMEWORK_CFLAGS) $(USE_MEM_MANAGER) -I$(PICOTCP)/modules/ -I$(MOCKS) -I$(PICOTCP)/include/ $< -o $@

@@ -56,12 +56,12 @@ void test_zmq_socket_req(void)
     TEST_ASSERT_NULL(zmq_socket(NULL, 9));    //is not one of the defined types (REP, REQ, SUBSCRIBER, PUBLISHE ... )
 }
 
-int zmtp_socket_bind_cb(struct zmtp_socket* s,  void *local_addr, uint16_t port, int cmock_num_calls)
+int zmtp_socket_bind_cb(struct zmtp_socket* s,  void* local_addr, uint16_t* port, int cmock_num_calls)
 {
     IGNORE_PARAMETER(cmock_num_calls);
     TEST_ASSERT_EQUAL_PTR(s, &dummy_zmtp_sock);
     TEST_ASSERT_EQUAL_PTR(addr_pointer_to_verify, local_addr);
-    TEST_ASSERT_EQUAL_INT(short_be(5555), port);
+    TEST_ASSERT_EQUAL_INT(short_be(5555), *port);
     return 0;
 }
 
@@ -152,8 +152,7 @@ void test_zmq_pub_send(void)
 {
     struct zmq_socket_pub pub_sock;
     struct zmtp_socket zmtp_sock;
-    char* test_data = "Hello";
-    struct zmtp_frame_t frame;
+    const char* test_data = "Hello";
     struct pico_vector_iterator iterator;
     
     /* Create the pub_sock */
@@ -167,9 +166,9 @@ void test_zmq_pub_send(void)
 
     iterator.data = &zmtp_sock;
     
-    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_frame_t), &frame); 
     pico_mem_zalloc_ExpectAndReturn(5, calloc(1, 5));
-    pico_vector_push_back_ExpectAndReturn(&pub_sock.base.out_vector, &frame, 0);
+    //pico_vector_push_back_ExpectAndReturn(&pub_sock.base.out_vector, &frame, 0);
+    pico_vector_push_back_IgnoreAndReturn(0);
     pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, &iterator);
     
     pico_vector_iterator_next_IgnoreAndReturn(NULL);    /* Test for only 1 subscriber so return NULL now */

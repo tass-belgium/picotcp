@@ -50,7 +50,7 @@ typedef struct _CMOCK_zmtp_socket_bind_CALL_INSTANCE
   int ReturnVal;
   struct zmtp_socket* Expected_s;
   void* Expected_local_addr;
-  uint16_t Expected_port;
+  uint16_t* Expected_port;
 
 } CMOCK_zmtp_socket_bind_CALL_INSTANCE;
 
@@ -392,7 +392,7 @@ void zmtp_socket_send_StubWithCallback(CMOCK_zmtp_socket_send_CALLBACK Callback)
   Mock.zmtp_socket_send_CallbackFunctionPointer = Callback;
 }
 
-int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t port)
+int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_bind_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_bind_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_bind_CallInstance);
@@ -417,12 +417,15 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t port)
     UNITY_TEST_ASSERT_EQUAL_PTR(cmock_call_instance->Expected_local_addr, local_addr, cmock_line, "Function 'zmtp_socket_bind' called with unexpected value for argument 'local_addr'.");
   }
   {
-    UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_port, port, cmock_line, "Function 'zmtp_socket_bind' called with unexpected value for argument 'port'.");
+    if (cmock_call_instance->Expected_port == NULL)
+      { UNITY_TEST_ASSERT_NULL(port, cmock_line, "Expected NULL. Function 'zmtp_socket_bind' called with unexpected value for argument 'port'."); }
+    else
+      { UNITY_TEST_ASSERT_EQUAL_HEX16_ARRAY(cmock_call_instance->Expected_port, port, 1, cmock_line, "Function 'zmtp_socket_bind' called with unexpected value for argument 'port'."); }
   }
   return cmock_call_instance->ReturnVal;
 }
 
-void CMockExpectParameters_zmtp_socket_bind(CMOCK_zmtp_socket_bind_CALL_INSTANCE* cmock_call_instance, struct zmtp_socket* s, void* local_addr, uint16_t port)
+void CMockExpectParameters_zmtp_socket_bind(CMOCK_zmtp_socket_bind_CALL_INSTANCE* cmock_call_instance, struct zmtp_socket* s, void* local_addr, uint16_t* port)
 {
   cmock_call_instance->Expected_s = s;
   cmock_call_instance->Expected_local_addr = local_addr;
@@ -440,7 +443,7 @@ void zmtp_socket_bind_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock
   Mock.zmtp_socket_bind_IgnoreBool = (int)1;
 }
 
-void zmtp_socket_bind_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* local_addr, uint16_t port, int cmock_to_return)
+void zmtp_socket_bind_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* local_addr, uint16_t* port, int cmock_to_return)
 {
   CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_zmtp_socket_bind_CALL_INSTANCE));
   CMOCK_zmtp_socket_bind_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_bind_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);

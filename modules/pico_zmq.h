@@ -67,7 +67,7 @@ int zmq_setsockopt (void* socket, int option_name, const void* option_value, siz
 int zmq_getsockopt (void* socket, int option_name, void* option_value, size_t* option_len);
 int zmq_bind(void* socket, const char* endpoint);
 int zmq_connect(void* socket, const char* endpoint);
-int zmq_send(void* socket, void* buf, size_t len, int flags);
+int zmq_send(void* socket, const void* buf, size_t len, int flags);
 int zmq_recv(void* socket, char* txt);
 void zmq_close(void* socket);
 

@@ -39,8 +39,8 @@ void zmtp_socket_send_StubWithCallback(CMOCK_zmtp_socket_send_CALLBACK Callback)
 #define zmtp_socket_bind_IgnoreAndReturn(cmock_retval) zmtp_socket_bind_CMockIgnoreAndReturn(__LINE__, cmock_retval)
 void zmtp_socket_bind_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock_to_return);
 #define zmtp_socket_bind_ExpectAndReturn(s, local_addr, port, cmock_retval) zmtp_socket_bind_CMockExpectAndReturn(__LINE__, s, local_addr, port, cmock_retval)
-void zmtp_socket_bind_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* local_addr, uint16_t port, int cmock_to_return);
-typedef int (* CMOCK_zmtp_socket_bind_CALLBACK)(struct zmtp_socket* s, void* local_addr, uint16_t port, int cmock_num_calls);
+void zmtp_socket_bind_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, struct zmtp_socket* s, void* local_addr, uint16_t* port, int cmock_to_return);
+typedef int (* CMOCK_zmtp_socket_bind_CALLBACK)(struct zmtp_socket* s, void* local_addr, uint16_t* port, int cmock_num_calls);
 void zmtp_socket_bind_StubWithCallback(CMOCK_zmtp_socket_bind_CALLBACK Callback);
 #define zmtp_socket_close_IgnoreAndReturn(cmock_retval) zmtp_socket_close_CMockIgnoreAndReturn(__LINE__, cmock_retval)
 void zmtp_socket_close_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmock_to_return);

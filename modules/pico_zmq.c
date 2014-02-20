@@ -36,8 +36,6 @@ static void zmq_zmtp_socket_del(struct zmtp_socket* z)
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
     struct zmtp_socket* client;
-    IGNORE_PARAMETER(ev);
-    IGNORE_PARAMETER(s);
 
     dbg("In cb_zmtp_sockets!");
     //TODO: process events!!
@@ -47,7 +45,7 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
         client = zmtp_socket_accept(s);
         if(s->type == ZMTP_TYPE_PUB)
         {
-            pico_vector_push_back(&((struct zmq_socket_pub *)s)->subscribers, s);
+            pico_vector_push_back(&((struct zmq_socket_pub *)s)->subscribers, client);
         }
     }
 }
@@ -131,27 +129,22 @@ int zmq_connect(void* socket, const char* endpoint)
     return zmtp_socket_connect(base->sock, &addr.addr, short_be(5555));
 }
 
-int zmq_send(void* socket, void* buf, size_t len, int flags)
+int zmq_send(void* socket, const void* buf, size_t len, int flags)
 {
-    struct zmtp_frame_t* frame = NULL;
+    struct zmtp_frame_t frame;
     struct zmq_socket_base* bsock = NULL;
     struct pico_vector_iterator* iterator;
 
     if(!socket)
         return -1;
 
-    frame = PICO_ZALLOC(sizeof(struct zmtp_frame_t));
+    frame.buf = PICO_ZALLOC(len);
 
-    if(!frame)
+    if(!frame.buf)
         return -1;
 
-    frame->buf = PICO_ZALLOC(len);
-
-    if(!frame->buf)
-        return -1;
-
-    memcpy(frame->buf, buf, len);
-    frame->len = len;
+    memcpy(frame.buf, buf, len);
+    frame.len = len;
 
     bsock = (struct zmq_socket_base *)socket;
     
@@ -163,13 +156,13 @@ int zmq_send(void* socket, void* buf, size_t len, int flags)
     if( (flags & ZMQ_SNDMORE) != 0)
     {
         /* More frames to come. Just add into pico_vector and wait for a later call with a final frame */
-        pico_vector_push_back(&bsock->out_vector, frame);
+        pico_vector_push_back(&bsock->out_vector, &frame);
     }
     else {
         /* Pass the vector to zmtp layer */
         
         /* Push the final frame to the out_vector */
-        pico_vector_push_back(&bsock->out_vector, frame);
+        pico_vector_push_back(&bsock->out_vector, &frame);
         
         if(bsock->type == ZMTP_TYPE_PUB)
             iterator = pico_vector_begin(&((struct zmq_socket_pub *)bsock)->subscribers);
