@@ -10,7 +10,7 @@
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 
-#define PICO_SIZE_IP6HDR ((sizeof(struct pico_ipv6_hdr)))
+#define PICO_SIZE_IP6HDR ((uint32_t)(sizeof(struct pico_ipv6_hdr)))
 #define PICO_IPV6_DEFAULT_HOP 64
 #define PICO_IPV6_MIN_MTU 1280
 

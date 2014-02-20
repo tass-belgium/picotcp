@@ -71,19 +71,34 @@ struct pico_ipv6_route
     uint32_t metric;
 };
 
+static int ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
+{
+    uint32_t *b_addr = (uint32_t *)b->addr, *a_addr = (uint32_t *)a->addr;
+    uint32_t la, lb;
+    int i;
+    for (i = 0; i < 4; ++i) {
+        la = long_be(a_addr[i]);
+        lb = long_be(b_addr[i]);
+        if (la < lb)
+            return -1;
+        if (la > lb)
+            return 1;
+    }
+    return 0;
+}
+
 static int ipv6_link_compare(void *ka, void *kb)
 {
     struct pico_ipv6_link *a = ka, *b = kb;
-    uint32_t *b_addr = (uint32_t *)b->address.addr, *a_addr = (uint32_t *)a->address.addr;
-    int i;
+    struct pico_ip6 *a_addr, *b_addr;
+    int ret;
+    a_addr = &a->address;
+    b_addr = &b->address;
 
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
+    ret = ipv6_compare(a_addr, b_addr);
+    if (ret)
+        return ret;
 
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
     /* zero can be assigned multiple times (e.g. for DHCP) */
     if (a->dev != NULL && b->dev != NULL && !memcmp(a->address.addr, PICO_IP6_ANY, PICO_SIZE_IP6) && !memcmp(b->address.addr, PICO_IP6_ANY, PICO_SIZE_IP6)) {
         /* XXX change PICO_IP6_ANY */
@@ -100,28 +115,17 @@ static int ipv6_link_compare(void *ka, void *kb)
 static int ipv6_route_compare(void *ka, void *kb)
 {
     struct pico_ipv6_route *a = ka, *b = kb;
-    uint32_t *b_addr, *a_addr = NULL;
-    int i;
+    int ret;
 
     /* Routes are sorted by (host side) netmask len, then by addr, then by metric. */
-    a_addr = (uint32_t *)a->netmask.addr;
-    b_addr = (uint32_t *)b->netmask.addr;
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
+    ret = ipv6_compare(&a->netmask, &b->netmask);
+    if (ret)
+        return ret;
 
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
-    a_addr = (uint32_t *)a->dest.addr;
-    b_addr = (uint32_t *)b->dest.addr;
-    for (i = 0; i < 4; ++i) {
-        if (long_be(a_addr[i]) < long_be(b_addr[i]))
-            return -1;
+    ret = ipv6_compare(&a->dest, &b->dest);
+    if (ret)
+        return ret;    
 
-        if (long_be(a_addr[i]) > long_be(b_addr[i]))
-            return 1;
-    }
     if (a->metric < b->metric)
         return -1;
 
@@ -661,7 +665,7 @@ int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *f)
  */
 static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc((uint32_t)size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
+    struct pico_frame *f =  pico_frame_alloc((uint32_t)(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR));
 
     IGNORE_PARAMETER(self);
 
@@ -674,7 +678,7 @@ static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t s
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP6HDR;
     f->transport_len = (uint16_t)size;
     /* PICO_SIZE_ETHHDR is accounted for in pico_ethernet_send */
-    f->len =  (uint32_t)size + PICO_SIZE_IP6HDR;
+    f->len =  (uint32_t)(size + PICO_SIZE_IP6HDR);
     return f;
 }
 
