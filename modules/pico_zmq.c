@@ -40,7 +40,7 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
     dbg("In cb_zmtp_sockets!");
     //TODO: process events!!
     //In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!!    
-    if(ev == EV_CONNECT)
+    if(ev == ZMTP_EV_CONN)
     {
         if(s->type == ZMTP_TYPE_PUB)
         {
