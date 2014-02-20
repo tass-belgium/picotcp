@@ -94,7 +94,11 @@ struct pico_socket *pico_tcp_open(void);
 uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
+uint16_t pico_tcp_checksum(void *_s, struct pico_frame *f);
 uint16_t pico_tcp_checksum_ipv4(struct pico_frame *f);
+#ifdef PICO_SUPPORT_IPV6
+uint16_t pico_tcp_checksum_ipv6(struct pico_frame *f);
+#endif
 uint16_t pico_tcp_overhead(struct pico_socket *s);
 int pico_tcp_output(struct pico_socket *s, int loop_score);
 int pico_tcp_queue_in_is_empty(struct pico_socket *s);

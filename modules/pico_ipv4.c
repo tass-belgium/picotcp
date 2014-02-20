@@ -452,7 +452,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             } else if (hdr->proto == PICO_PROTO_TCP) {
                 tcp_hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
                 tcp_hdr->crc = 0;
-                tcp_hdr->crc = short_be(pico_tcp_checksum_ipv4(f_new));
+                tcp_hdr->crc = short_be(pico_tcp_checksum(f_new->sock, f_new));
   #endif
   #ifdef PICO_SUPPORT_UDP
             } else if (hdr->proto == PICO_PROTO_UDP) {

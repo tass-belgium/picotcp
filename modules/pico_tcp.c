@@ -445,7 +445,7 @@ uint16_t pico_tcp_checksum_ipv6(struct pico_frame *f)
 }
 #endif
 
-static uint16_t pico_tcp_checksum(void *_s, struct pico_frame *f)
+uint16_t pico_tcp_checksum(void *_s, struct pico_frame *f)
 {
     struct pico_socket *s = (struct pico_socket *)_s;
     (void)f;
