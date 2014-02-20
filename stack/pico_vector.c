@@ -96,7 +96,7 @@ void* pico_vector_pop_front(struct pico_vector* vector)
     // is a malloc is used, we're bummed .. it bypasses PICO_ZALLOC
 
     for(from = vector->data+vector->type_size, to = vector->data;
-        from < vector->data+(vector->type_size*vector->size);
+        from < (uint8_t*)(vector->data+(vector->type_size*vector->size));
         ++to, ++from)
     {
         *to = *from;
