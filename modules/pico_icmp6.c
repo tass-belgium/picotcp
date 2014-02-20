@@ -436,7 +436,7 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
 
     cookie = (struct pico_icmp6_ping_cookie *)arg;
     if (pico_tree_findKey(&IPV6Pings, cookie)) {
-        if (cookie->seq < cookie->count) {
+        if (cookie->seq < (uint16_t)cookie->count) {
             new = pico_zalloc(sizeof(struct pico_icmp6_ping_cookie));
             if (!new)
                 return;
