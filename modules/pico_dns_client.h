@@ -7,8 +7,8 @@
    Authors: Kristof Roelants
  *********************************************************************/
 
-#ifndef _INCLUDE_PICO_DNS_CLIENT
-#define _INCLUDE_PICO_DNS_CLIENT
+#ifndef INCLUDE_PICO_DNS_CLIENT
+#define INCLUDE_PICO_DNS_CLIENT
 
 #define PICO_DNS_NS_DEL 0
 #define PICO_DNS_NS_ADD 1

@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_TCP
-#define _INCLUDE_PICO_TCP
+#ifndef INCLUDE_PICO_TCP
+#define INCLUDE_PICO_TCP
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_socket.h"
@@ -78,23 +78,17 @@ struct __attribute__((packed)) pico_tcp_option
 {
     uint8_t kind;
     uint8_t len;
-#if 0
-    union {
-        uint16_t mss;
-        uint8_t wshift;
-        struct {
-            uint32_t tsval;
-            uint32_t tsecr;
-        } timestamp;
-    } data;
-#endif
 };
 
 struct pico_socket *pico_tcp_open(void);
 uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
+uint16_t pico_tcp_checksum(struct pico_frame *f);
 uint16_t pico_tcp_checksum_ipv4(struct pico_frame *f);
+#ifdef PICO_SUPPORT_IPV6
+uint16_t pico_tcp_checksum_ipv6(struct pico_frame *f);
+#endif
 uint16_t pico_tcp_overhead(struct pico_socket *s);
 int pico_tcp_output(struct pico_socket *s, int loop_score);
 int pico_tcp_queue_in_is_empty(struct pico_socket *s);

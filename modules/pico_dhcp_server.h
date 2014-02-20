@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_DHCP_SERVER
-#define _INCLUDE_PICO_DHCP_SERVER
+#ifndef INCLUDE_PICO_DHCP_SERVER
+#define INCLUDE_PICO_DHCP_SERVER
 
 #include "pico_dhcp_common.h"
 #include "pico_addressing.h"

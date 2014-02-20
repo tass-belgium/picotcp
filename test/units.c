@@ -36,6 +36,11 @@
 #ifdef PICO_SUPPORT_MCAST
 #include "pico_igmp.c"
 #endif
+#ifdef PICO_SUPPORT_IPV6
+#include "pico_ipv6.c"
+#include "pico_ipv6_nd.c"
+#include "pico_icmp6.c"
+#endif
 
 
 /* Include Check. */
@@ -55,6 +60,7 @@
 #include "unit_socket.c"
 #include "unit_timer.c"
 #include "unit_arp.c"
+#include "unit_ipv6.c"
 
 START_TEST (test_frame)
 {
@@ -103,12 +109,16 @@ Suite *pico_suite(void)
 #ifdef PICO_SUPPORT_MCAST
     TCase *igmp = tcase_create("IGMP");
 #endif
+#ifdef PICO_SUPPORT_IPV6
+    TCase *ipv6 = tcase_create("IPv6");
+#endif
     TCase *frame = tcase_create("FRAME");
     TCase *timers = tcase_create("TIMERS");
     TCase *slaacv4 = tcase_create("SLAACV4");
     TCase *tick = tcase_create("pico_tick");
     TCase *arp = tcase_create("ARP");
     tcase_add_test(ipv4, test_ipv4);
+    tcase_set_timeout(ipv4, 20);
     suite_add_tcase(s, ipv4);
 
     tcase_add_test(icmp, test_icmp4_ping);
@@ -131,11 +141,11 @@ Suite *pico_suite(void)
     suite_add_tcase(s, dns);
 
     tcase_add_test(rb, test_rbtree);
-    tcase_set_timeout(rb, 10);
+    tcase_set_timeout(rb, 20);
     suite_add_tcase(s, rb);
 
     tcase_add_test(rb2, test_rbtree2);
-    tcase_set_timeout(rb2, 10);
+    tcase_set_timeout(rb2, 20);
     suite_add_tcase(s, rb2);
 
     tcase_add_test(socket, test_socket);
@@ -171,6 +181,11 @@ Suite *pico_suite(void)
 
     tcase_add_test(tick, test_tick);
     suite_add_tcase(s, tick);
+
+#ifdef PICO_SUPPORT_IPV6
+    tcase_add_test(ipv6, test_ipv6);
+    suite_add_tcase(s, ipv6);
+#endif
 
     tcase_add_test(arp, arp_check_pending_test);
     tcase_add_test(arp, arp_update_max_arp_reqs_test);

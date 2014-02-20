@@ -7,8 +7,8 @@
    Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
  *********************************************************************/
 
-#ifndef _INCLUDE_PICO_NAT
-#define _INCLUDE_PICO_NAT
+#ifndef INCLUDE_PICO_NAT
+#define INCLUDE_PICO_NAT
 #include "pico_frame.h"
 
 #define PICO_NAT_PORT_FORWARD_DEL 0

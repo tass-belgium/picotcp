@@ -62,6 +62,7 @@ struct httpClient
     char *resource;
     uint16_t state;
     uint16_t method;
+    char *body;
 };
 
 /* Local states for clients */
@@ -116,7 +117,7 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
         }
     }
 
-    if(!client || !serverEvent)
+    if(!client && !serverEvent)
     {
         return;
     }
@@ -240,6 +241,7 @@ int pico_http_server_accept(void)
     client->state = HTTP_WAIT_HDR;
     client->buffer = NULL;
     client->bufferSize = 0;
+    client->body = NULL;
     client->connectionID = pico_rand() & 0x7FFF;
 
     /* add element to the tree, if duplicate because the rand */
@@ -278,6 +280,21 @@ int pico_http_getMethod(uint16_t conn)
         return 0;
     else
         return client->method;
+}
+
+/*
+ * Function used for getting the body of the request header
+ * It is useful after a POST request header (EV_HTTP_REQ)
+ * from client was received, otherwise NULL is returned.
+ */
+char *pico_http_getBody(uint16_t conn)
+{
+    struct httpClient *client = findClient(conn);
+
+    if(!client)
+        return NULL;
+    else
+        return client->body;
 }
 
 
@@ -463,6 +480,9 @@ int pico_http_close(uint16_t conn)
                 if(client->resource)
                     PICO_FREE(client->resource);
 
+                if(client->body)
+                    pico_free(client->body);
+
                 pico_socket_close(client->sck);
                 pico_tree_delete(&pico_http_clients, client);
             }
@@ -627,14 +647,15 @@ int parseRequest(struct httpClient *client)
 
 int readRemainingHeader(struct httpClient *client)
 {
-    char line[100];
+    char line[1000];
     int count = 0;
     int len;
 
-    while((len = pico_socket_read(client->sck, line, 100u)) > 0)
+    while((len = pico_socket_read(client->sck, line, 1000u)) > 0)
     {
         char c;
         int index = 0;
+        uint32_t body_len = 0;
         /* parse the response */
         while(index < len)
         {
@@ -648,6 +669,14 @@ int readRemainingHeader(struct httpClient *client)
                 {
                     client->state = HTTP_EOF_HDR;
                     dbg("End of header !\n");
+
+                    body_len = (uint32_t)(len - index);
+                    if(body_len > 0)
+                    {
+                        client->body = pico_zalloc(body_len + 1u);
+                        memcpy(client->body, line + index, body_len);
+                    }
+
                     break;
                 }
 

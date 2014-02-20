@@ -302,6 +302,9 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
     void *lkey; /* keeps a copy of the key which will be removed */
     struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
 
+    if (!key)
+        return NULL;
+
     delete = pico_tree_findNode(tree, key);
 
     /* this key isn't in the tree, bail out */

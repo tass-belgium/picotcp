@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_IPV4
-#define _INCLUDE_PICO_IPV4
+#ifndef INCLUDE_PICO_IPV4
+#define INCLUDE_PICO_IPV4
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_tree.h"
@@ -20,7 +20,7 @@
 #define PICO_IPV4_FRAG_MASK 0x1FFF
 #define PICO_IPV4_DEFAULT_TTL 64
 #ifndef MBED
-    #define PICO_IPV4_FRAG_MAX_SIZE (63 * 1024)
+    #define PICO_IPV4_FRAG_MAX_SIZE (uint32_t)(63 * 1024)
 #else
     #define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
 #endif
@@ -81,7 +81,7 @@ int pico_ipv4_is_unicast(uint32_t address);
 int pico_ipv4_is_multicast(uint32_t address);
 int pico_ipv4_is_broadcast(uint32_t addr);
 int pico_ipv4_is_loopback(uint32_t addr);
-int pico_ipv4_is_valid_src(uint32_t addr);
+int pico_ipv4_is_valid_src(uint32_t addr, struct pico_device *dev);
 
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);
@@ -101,5 +101,6 @@ void pico_ipv4_unreachable(struct pico_frame *f, int err);
 int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter);
 int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter);
 struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void);
+int pico_ipv4_cleanup_links(struct pico_device *dev);
 
 #endif /* _INCLUDE_PICO_IPV4 */

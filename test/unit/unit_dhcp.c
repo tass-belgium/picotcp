@@ -223,8 +223,10 @@ START_TEST (test_dhcp)
     tick_it(3);
 
     /* check if state is changed and reply is received  */
-    len = pico_mock_network_read(mock, buf, BUFLEN);
-    fail_unless(len, "received msg on network of %d bytes", len);
+    do {
+        len = pico_mock_network_read(mock, buf, BUFLEN);
+    } while (buf[0] == 0x33);
+    printf("Received message: %d bytes\n");
     fail_unless(len, "received msg on network of %d bytes", len);
     printbuf(&(buf[0]), len, "DHCP-ACK msg", printbufactive);
     fail_unless(buf[0x11c] == 0x05, "No DHCP ACK received after discovery");

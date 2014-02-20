@@ -5,8 +5,6 @@
    Authors: Stijn Haers, Mathias Devos, Gustav Janssens, Sam Van Den Berge
  *********************************************************************/
 
-#ifndef __PICO_ZMQ_H
-#define __PICO_ZMQ_H
 
 #include <stdint.h>
 #include <stdio.h>

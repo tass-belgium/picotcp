@@ -5,8 +5,8 @@
 
    Author: Daniele Lacamera <daniele.lacamera@tass.be>
  *********************************************************************/
-#ifndef _INCLUDE_PICO_PCAP
-#define _INCLUDE_PICO_PCAP
+#ifndef INCLUDE_PICO_PCAP
+#define INCLUDE_PICO_PCAP
 #include "pico_config.h"
 #include "pico_device.h"
 #include <pcap.h>

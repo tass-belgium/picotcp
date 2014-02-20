@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_LOOP
-#define _INCLUDE_PICO_LOOP
+#ifndef INCLUDE_PICO_LOOP
+#define INCLUDE_PICO_LOOP
 #include "pico_config.h"
 #include "pico_device.h"
 

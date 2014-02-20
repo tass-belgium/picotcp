@@ -57,7 +57,6 @@ void pico_vde_destroy(struct pico_device *dev)
 {
     struct pico_device_vde *vde = (struct pico_device_vde *) dev;
     vde_close(vde->conn);
-    PICO_FREE(vde);
 }
 
 

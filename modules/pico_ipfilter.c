@@ -144,10 +144,10 @@ int pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto, struct pico_ip4
     new_filter->fdev = dev;
     new_filter->proto = proto;
 
-    new_filter->out_addr = (!out_addr) ? 0U : out_addr->addr;
-    new_filter->out_addr_netmask = (!out_addr_netmask) ? 0U : out_addr_netmask->addr;
-    new_filter->in_addr = (!in_addr) ? 0U : in_addr->addr;
-    new_filter->in_addr_netmask = (!in_addr_netmask) ? 0U : in_addr_netmask->addr;
+    new_filter->out_addr = (!out_addr) ? (0U) : (out_addr->addr);
+    new_filter->out_addr_netmask = (!out_addr_netmask) ? (0U) : (out_addr_netmask->addr);
+    new_filter->in_addr = (!in_addr) ? (0U) : (in_addr->addr);
+    new_filter->in_addr_netmask = (!in_addr_netmask) ? (0U) : (in_addr_netmask->addr);
 
     new_filter->out_port = out_port;
     new_filter->in_port = in_port;

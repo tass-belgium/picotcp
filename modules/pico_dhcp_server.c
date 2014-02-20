@@ -6,7 +6,6 @@
    Authors: Frederik Van Slycken, Kristof Roelants
  *********************************************************************/
 
-#ifdef PICO_SUPPORT_DHCPD
 #include "pico_dhcp_server.h"
 #include "pico_config.h"
 #include "pico_addressing.h"
@@ -14,6 +13,8 @@
 #include "pico_udp.h"
 #include "pico_stack.h"
 #include "pico_arp.h"
+
+#ifdef PICO_SUPPORT_DHCPD
 
 #define dhcps_dbg(...) do {} while(0)
 /* #define dhcps_dbg dbg */
@@ -205,6 +206,9 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
     optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_SERVERID + PICO_DHCP_OPTLEN_LEASETIME + PICO_DHCP_OPTLEN_NETMASK + PICO_DHCP_OPTLEN_ROUTER
              + PICO_DHCP_OPTLEN_BROADCAST + PICO_DHCP_OPTLEN_DNS + PICO_DHCP_OPTLEN_END;
     hdr = PICO_ZALLOC(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen);
+    if (!hdr) {
+        return;
+    }
 
     hdr->op = PICO_DHCP_OP_REPLY;
     hdr->htype = PICO_DHCP_HTYPE_ETH;

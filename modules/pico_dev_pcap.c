@@ -47,7 +47,6 @@ void pico_pcap_destroy(struct pico_device *dev)
 {
     struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
     pcap_close(pcap->conn);
-    PICO_FREE(pcap);
 }
 
 #define PICO_PCAP_MODE_LIVE 0

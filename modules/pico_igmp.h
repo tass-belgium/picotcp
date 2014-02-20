@@ -7,8 +7,8 @@
    Authors: Kristof Roelants, Simon Maes, Brecht Van Cauwenberghe
  *********************************************************************/
 
-#ifndef _INCLUDE_PICO_IGMP
-#define _INCLUDE_PICO_IGMP
+#ifndef INCLUDE_PICO_IGMP
+#define INCLUDE_PICO_IGMP
 
 #define PICO_IGMPV1               1
 #define PICO_IGMPV2               2

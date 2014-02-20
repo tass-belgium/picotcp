@@ -3,8 +3,8 @@
   See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_CONFIG
-#define _INCLUDE_PICO_CONFIG
+#ifndef INCLUDE_PICO_CONFIG
+#define INCLUDE_PICO_CONFIG
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,6 +31,8 @@
 # include "arch/pico_stellaris.h"
 #elif defined LPC
 # include "arch/pico_lpc1768.h"
+#elif defined LPC18XX
+# include "arch/pico_lpc18xx.h"
 #elif defined PIC24
 # include "arch/pico_pic24.h"
 #elif defined MSP430
@@ -39,6 +41,8 @@
 # include "arch/pico_mbed.h"
 #elif defined AVR
 # include "arch/pico_avr.h"
+#elif defined FAULTY
+# include "../test/pico_faulty.h"
 #elif defined STR9
 # include "arch/pico_str9.h"
 /* #elif defined ... */

@@ -21,6 +21,7 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
+#include "pico_icmp6.h"
 #include "pico_igmp.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
@@ -37,6 +38,14 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
+
+#ifdef PICO_SUPPORT_IPV6
+# define PICO_SIZE_MCAST6 2
+const uint8_t PICO_ETHADDR_MCAST6[6] = {
+    0x33, 0x33, 0x00, 0x00, 0x00, 0x00
+};
+#endif
+
 
 volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
@@ -143,6 +152,13 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
         ret = pico_enqueue(pico_proto_icmp4.q_in, f);
         break;
 #endif
+
+#ifdef PICO_SUPPORT_ICMP6
+    case PICO_PROTO_ICMP6:
+        ret = pico_enqueue(pico_proto_icmp6.q_in, f);
+        break;
+#endif
+
 
 #ifdef PICO_SUPPORT_IGMP
     case PICO_PROTO_IGMP:
@@ -308,6 +324,9 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
     hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     if ((memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) &&
         (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
+#ifdef PICO_SUPPORT_IPV6
+        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST6, PICO_SIZE_MCAST6) != 0) &&
+#endif
         (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
     {
         pico_frame_discard(f);
@@ -339,20 +358,25 @@ static int destination_is_bcast(struct pico_frame *f)
 
 static int destination_is_mcast(struct pico_frame *f)
 {
+    int ret = 0;
     if (!f)
         return 0;
 
-    if (IS_IPV6(f))
-        return 0;
+#ifdef PICO_SUPPORT_IPV6
+    if (IS_IPV6(f)) {
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+        ret = pico_ipv6_is_multicast(hdr->dst.addr);
+    }
 
+#endif
 #ifdef PICO_SUPPORT_IPV4
     else {
         struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-        return pico_ipv4_is_multicast(hdr->dst.addr);
+        ret = pico_ipv4_is_multicast(hdr->dst.addr);
     }
-#else
-    return 0;
 #endif
+
+    return ret;
 }
 
 static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
@@ -360,21 +384,47 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
     /* place 23 lower bits of IP in lower 23 bits of MAC */
-    pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FF);
-    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00) >> 8u);
-    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000) >> 16u);
+    pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FFu);
+    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00u) >> 8u);
+    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000u) >> 16u);
 
     return (struct pico_eth *)pico_mcast_mac;
 }
 
 
-
-
-int32_t pico_ethernet_send_ipv6(struct pico_frame *f)
+#ifdef PICO_SUPPORT_IPV6
+static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+
+    /* first 2 octets are 0x33, last four are the last four of dst */
+    pico_mcast6_mac[5] = hdr->dst.addr[PICO_SIZE_IP6 - 1];
+    pico_mcast6_mac[4] = hdr->dst.addr[PICO_SIZE_IP6 - 2];
+    pico_mcast6_mac[3] = hdr->dst.addr[PICO_SIZE_IP6 - 3];
+    pico_mcast6_mac[2] = hdr->dst.addr[PICO_SIZE_IP6 - 4];
+
+    return (struct pico_eth *)pico_mcast6_mac;
+}
+#endif
+
+struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
+{
+    struct pico_eth *dstmac = NULL;
+    #ifdef PICO_SUPPORT_IPV6
+    if (destination_is_mcast(f)) {
+        uint8_t pico_mcast6_mac[6] = {
+            0x33, 0x33, 0x00, 0x00, 0x00, 0x00
+        };
+        dstmac = pico_ethernet_mcast6_translate(f, pico_mcast6_mac);
+    } else {
+        dstmac = pico_nd_get(f);
+    }
+
+    #else
     (void)f;
-    /*TODO: Neighbor solicitation */
-    return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    #endif
+    return dstmac;
 }
 
 
@@ -424,11 +474,17 @@ int32_t pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
     int32_t ret = -1;
+    uint16_t proto = PICO_IDETH_IPV4;
 
-    if (IS_IPV6(f))
-        return pico_ethernet_send_ipv6(f);
+    if (IS_IPV6(f)) {
+        dstmac = pico_ethernet_ipv6_dst(f);
+        if (!dstmac)
+            return 0;
 
-    if (IS_BCAST(f) || destination_is_bcast(f))
+        proto = PICO_IDETH_IPV6;
+    }
+
+    else if (IS_BCAST(f) || destination_is_bcast(f))
         dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
 
     else if (destination_is_mcast(f)) {
@@ -454,7 +510,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr = (struct pico_eth_hdr *) f->datalink_hdr;
         memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
         memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
-        hdr->proto = PICO_IDETH_IPV4;
+        hdr->proto = proto;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
             return ret;
@@ -636,8 +692,8 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
             index[i]++;
 
-            if (ret[i] == 0 && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1)) < max_total)) { /* used all loop score -> increase next score directly */
-                score[i] <<= 1;
+            if (ret[i] == 0 && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] * 2)) < max_total)) { /* used all loop score -> increase next score directly */
+                score[i] *= 2;
                 total += score[i];
                 continue;
             }
@@ -646,18 +702,18 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum >>= 2u;          /* divide by 4 to get average used score */
+            sum /= 4;           /* divide by 4 to get average used score */
 
             /* criterion to increase next loop score */
-            if (sum > (score[i] - (score[i] >> 2u))  && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1u)) < max_total)) { /* > 3/4 */
-                score[i] <<= 1u; /* double loop score */
+            if (sum > (score[i] - (score[i] / 4))  && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] / 2)) < max_total)) { /* > 3/4 */
+                score[i] *= 2; /* double loop score */
                 total += score[i];
                 continue;
             }
 
             /* criterion to decrease next loop score */
-            if ((sum < (score[i] >> 2u)) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) { /* < 1/4 */
-                score[i] >>= 1u; /* half loop score */
+            if ((sum < (score[i] / 4)) && ((score[i] / 2) >= PROTO_MIN_SCORE)) { /* < 1/4 */
+                score[i] /= 2; /* half loop score */
                 total += score[i];
                 continue;
             }
@@ -682,10 +738,10 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum >>= 2;          /* divide by 4 to get average used score */
+            sum /= 2;          /* divide by 4 to get average used score */
 
-            if ((sum == 0) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) {
-                score[i] >>= 1u; /* half loop score */
+            if ((sum == 0) && ((score[i] / 2) >= PROTO_MIN_SCORE)) {
+                score[i] /= 2; /* half loop score */
                 total += score[i];
                 for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                     avg[i][j] = score[i];
@@ -838,6 +894,10 @@ int pico_stack_init(void)
 
 #ifdef PICO_SUPPORT_ICMP4
     pico_protocol_init(&pico_proto_icmp4);
+#endif
+
+#ifdef PICO_SUPPORT_ICMP6
+    pico_protocol_init(&pico_proto_icmp6);
 #endif
 
 #ifdef PICO_SUPPORT_IGMP

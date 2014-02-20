@@ -44,7 +44,7 @@ for i in commands:
   os.system('make clean >/dev/null')
   args = i.split(' ')
   subprocess.call(['make','clean'], shell=True, stdout=nul, stderr=nul)
-  subprocess.check_call(i, shell=True,stdout=nul, stderr=nul)==0 or sys.exit(1)
+  subprocess.call(args[-1], shell=True,stdout=nul, stderr=nul)==0 or sys.exit(1)
   print "CONFIG OK!"
   print
 sys.exit(0)

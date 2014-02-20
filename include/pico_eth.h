@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_ETH
-#define _INCLUDE_PICO_ETH
+#ifndef INCLUDE_PICO_ETH
+#define INCLUDE_PICO_ETH
 #include "pico_addressing.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"

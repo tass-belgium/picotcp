@@ -57,7 +57,6 @@ void pico_tun_destroy(struct pico_device *dev)
 {
     struct pico_device_tun *tun = (struct pico_device_tun *) dev;
     close(tun->fd);
-    PICO_FREE(tun);
 }
 
 
