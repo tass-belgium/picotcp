@@ -8,16 +8,15 @@ killall picoapp.elf
 killall picoapp6.elf
 
 
-#echo "IPV6 tests!"
-#echo "PING6 LOCALHOST"
-#./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
-#
+echo "IPV6 tests!"
+echo "PING6 LOCALHOST"
+./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
+
 echo "PING6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a ping,aaaa::1, || exit 1
 killall picoapp6.elf
 
-# WIP 
 echo "TCP6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,) &
 time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
@@ -28,6 +27,8 @@ echo
 echo
 echo
 echo
+
+echo "IPV4 tests!"
 
 echo "PING LOCALHOST"
 ./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
