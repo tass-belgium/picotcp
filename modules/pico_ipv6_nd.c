@@ -1016,6 +1016,8 @@ struct pico_eth *pico_nd_get(struct pico_frame *f)
     struct pico_ipv6_link *l = NULL;
     struct pico_neighbor *n = NULL;
     struct pico_ip6 gateway = {{0}}, addr = {{0}};
+    if (!f)
+        return NULL;
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
