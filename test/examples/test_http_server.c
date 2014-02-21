@@ -69,7 +69,7 @@ void serverWakeup(uint16_t ev, uint16_t conn)
 
     if(ev & EV_HTTP_REQ) /* new header received */
     {
-        int read;
+        uint16_t read;
         char *resource;
         int method;
         printf("Header request was received...\n");
@@ -92,18 +92,16 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                     exit(1);
                 }
 
-                read = fread(buffer, 1u, SIZE, f);
+                read = (uint16_t)fread(buffer, 1u, SIZE, f);
                 pico_http_submitData(conn, buffer, read);
             }
             else if(method == HTTP_METHOD_POST)
             {
-                int len;
                 printf("Received POST request\n");
                 printf("Form fields: %s\n", pico_http_getBody(conn));
-                len = pico_http_respond(conn, HTTP_RESOURCE_FOUND);
-                /* printf("%d bytes written\n", len); */
+                pico_http_respond(conn, HTTP_RESOURCE_FOUND);
                 strcpy(buffer, "Thanks for posting your data");
-                if(pico_http_submitData(conn, buffer, strlen(buffer)) == HTTP_RETURN_ERROR)
+                if(pico_http_submitData(conn, buffer, (uint16_t)strlen(buffer)) == HTTP_RETURN_ERROR)
                 {
                     printf("error submitting data\n");
                 }
@@ -147,7 +145,7 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                     
                     pico_http_respond(conn, HTTP_RESOURCE_FOUND);
                     strcpy(buffer, "Download started");
-                    if(pico_http_submitData(conn, buffer, strlen(buffer)) == HTTP_RETURN_ERROR)
+                    if(pico_http_submitData(conn, buffer, (uint16_t)strlen(buffer)) == HTTP_RETURN_ERROR)
                     {
                         printf("error submitting data\n");
                     }
@@ -185,8 +183,8 @@ void serverWakeup(uint16_t ev, uint16_t conn)
         method = pico_http_getMethod(conn);
         if(method == HTTP_METHOD_GET)
         {
-            int read;
-            read = fread(buffer, 1, SIZE, f);
+            uint16_t read;
+            read = (uint16_t)fread(buffer, 1, SIZE, f);
             printf("Chunk was sent...\n");
             if(read > 0)
             {
@@ -222,14 +220,14 @@ void serverWakeup(uint16_t ev, uint16_t conn)
 /* END HTTP server */
 
 /*** START HTTP Client ***/
-static int http_save_file(char *data, int len)
+static int http_save_file(char *data, uint32_t len)
 {
     int fd = open(url_filename, O_WRONLY | O_CREAT | O_TRUNC, 0660);
     int w, e;
     if (fd < 0)
         return fd;
 
-    w = write(fd, data, len);
+    w = (int)write(fd, data, len);
     e = errno;
     close(fd);
     errno = e;
@@ -269,7 +267,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
         printf("Reading data...\n");
         while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0)
         {
-            _length += len;
+            _length += (uint32_t)len;
         }
         
         if(header->contentLengthOrChunk == _length)
@@ -292,7 +290,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
 
         while((len = pico_http_client_readData(conn, data + _length, 1000u)) && len > 0)
         {
-            _length += len;
+            _length += (uint32_t)len;
         }
         printf("Read a total data of : %d bytes \n", _length);
 
@@ -385,18 +383,18 @@ static void urldecode(char *dst, const char *src)
             (isxdigit(a) && isxdigit(b)))
         {
             if (a >= 'a')
-                a -= 'a'-'A';
+                a = (char)(a-'a'-'A');
             if (a >= 'A')
-                a -= ('A' - 10);
+                a = (char)(a-'A' - 10);
             else
-                a -= '0';
+                a = (char)(a-'0');
             if (b >= 'a')
-                b -= 'a'-'A';
+                b = (char)(b-'a'-'A');
             if (b >= 'A')
-                b -= ('A' - 10);
+                b = (char)(b-('A' - 10));
             else
-                b -= '0';
-            *dst++ = 16*a+b;
+                b = (char)(b-'0');
+            *dst++ = (char)(16*a+b);
             src+=3;
         }
         else
@@ -428,7 +426,7 @@ int main(int argc, char **argv)
     int option_idx = 0;
     int c;
 
-    *macaddr_low ^= getpid();
+    *macaddr_low ^= (uint16_t)getpid();
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
 
     pico_stack_init();
