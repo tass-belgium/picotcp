@@ -92,7 +92,7 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                     exit(1);
                 }
 
-                read = fread(buffer, 1, SIZE, f);
+                read = fread(buffer, 1u, SIZE, f);
                 pico_http_submitData(conn, buffer, read);
             }
             else if(method == HTTP_METHOD_POST)
@@ -281,6 +281,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
     {
         struct pico_http_header *header = pico_http_client_readHeader(conn);
         int len;
+        uint32_t speed;
         printf("Connection was closed...\n");
         printf("Reading remaining data, if any ...\n");
         if(!header)
@@ -330,7 +331,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
         pico_http_client_close(conn);
         pico_free(url_filename);
         
-        uint32_t speed = _length / (PICO_TIME_MS()-start_time) * 8;
+        speed = _length / (PICO_TIME_MS()-start_time) * 8;
         printf("Download speed: %d kbps\n", speed);
     }
 
