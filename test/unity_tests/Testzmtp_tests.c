@@ -325,8 +325,9 @@ void test_zmtp_socket_accept(void)
     new_zmtp_s = zmtp_socket_accept(zmtp_s);
     TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, new_zmtp_s->state);
     TEST_ASSERT_EQUAL(zmtp_s->type, new_zmtp_s->type);
-    TEST_ASSERT_EQUAL(new_pico_s, new_zmtp_s->sock);
+    TEST_ASSERT_EQUAL_PTR(new_pico_s, new_zmtp_s->sock);
     TEST_ASSERT_EQUAL(zmtp_s->zmq_cb, new_zmtp_s->zmq_cb);
+    TEST_ASSERT_EQUAL_PTR(zmtp_s->parent, new_zmtp_s->parent);
 
     free(zmtp_s);
     free(new_zmtp_s);
@@ -458,8 +459,10 @@ void test_zmtp_socket_send_1msg_0char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
+    struct pico_vector_iterator* buffIt;
 
     struct zmtp_frame_t* frame1;
+    struct zmtp_frame_t* frame2;
 
     size_t msg1Len;
     uint8_t* msg1;
@@ -1305,57 +1308,69 @@ void test_zmtp_socket_connect(void)
 
 void test_zmtp_socket_open(void)
 {
-    TEST_IGNORE();
     uint16_t net = PICO_PROTO_IPV4;
     uint16_t proto = PICO_PROTO_TCP;
     uint8_t type = ZMTP_TYPE_PUB;
     struct zmtp_socket* zmtp_s;
     struct zmtp_socket* zmtp_ret_s;
     struct pico_socket* pico_s;
+    void* parent;
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     pico_s = calloc(1, sizeof(struct pico_socket));
     zmtp_s->sock = pico_s;
     struct pico_vector* vector = calloc(1, sizeof(struct pico_vector));
+    parent = calloc(1, 3); /* dummy size */
     zmtp_s->out_buff = vector;
-    pico_mem_free_Ignore();
     /* Test */
     /*----=== Test invalid arguments ===----*/
     /* test type < 0 */
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, -1, &zmtp_socket_callback));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, -1, parent, &zmtp_socket_callback));
 
     /* test type = ZMTP_TYPE_END */
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, ZMTP_TYPE_END, &zmtp_socket_callback));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, ZMTP_TYPE_END, parent, &zmtp_socket_callback));
 
     /* test cb == NULL */
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, NULL));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, parent, NULL));
+
+    /* test parent == NULL */
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, NULL, &zmtp_socket_callback));
 
 
     /* test zmtp_sock == NULL */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), NULL);
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, &zmtp_socket_callback));
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, parent, &zmtp_socket_callback));
 
     /* test outbuff == NULL */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), zmtp_s);
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), NULL);
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, &zmtp_socket_callback));
+    pico_mem_free_Expect(zmtp_s);
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, parent, &zmtp_socket_callback));
 
     /* test pico_sock == NULL */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), zmtp_s);
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), vector);
     pico_vector_init_IgnoreAndReturn(NULL);
     pico_socket_open_ExpectAndReturn(net, proto, &zmtp_tcp_cb, NULL);
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, &zmtp_socket_callback));
+    pico_mem_free_Expect(vector);
+    pico_mem_free_Expect(zmtp_s);
+    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, type, parent, &zmtp_socket_callback));
 
     /*----=== Test valid arguments ===----*/
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), zmtp_s);
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), vector);
     pico_socket_open_ExpectAndReturn(net, proto, &zmtp_tcp_cb, pico_s);
     pico_vector_init_IgnoreAndReturn(NULL);
-
-    zmtp_ret_s = zmtp_socket_open(net, proto, type, &zmtp_socket_callback); 
+    pico_tree_insert_IgnoreAndReturn(zmtp_s);
+ 
+    zmtp_ret_s = zmtp_socket_open(net, proto, type, parent, &zmtp_socket_callback); 
     TEST_ASSERT_EQUAL_PTR(pico_s, zmtp_ret_s->sock);
     TEST_ASSERT_EQUAL_INT(ZMTP_ST_IDLE, zmtp_ret_s->state);
+    TEST_ASSERT_EQUAL_PTR(parent, zmtp_ret_s->parent);
 
+    free(zmtp_s);
+    free(pico_s);
+    free(parent);
+    free(vector);
 }
 
 void test_zmtp_socket_bind(void)

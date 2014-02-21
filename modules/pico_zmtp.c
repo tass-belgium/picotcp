@@ -238,12 +238,8 @@ static void zmtp_tcp_cb(uint16_t ev, struct pico_socket* s)
     int ret;
     struct zmtp_socket* zmtp_s = get_zmtp_socket(s);
 
-    dbg("\n");
-    dbg("pico_s: %p event: %d\n", s, ev);
-    dbg("zmtp_s: %p\n", zmtp_s);
     if(zmtp_s == NULL)
         return;
-    dbg("state: %d\n", zmtp_s->state);
     if(ev & PICO_SOCK_EV_CONN)
     {
         dbg("connection\n");
@@ -323,6 +319,7 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     new_zmtp_s->state = ZMTP_ST_IDLE;
     new_zmtp_s->type = zmtp_s->type;
     new_zmtp_s->zmq_cb = zmtp_s->zmq_cb;
+    new_zmtp_s->parent = zmtp_s->parent;
     pico_tree_insert(&zmtp_sockets, new_zmtp_s);
 
     zmtp_send_greeting(new_zmtp_s);
@@ -506,11 +503,17 @@ int zmtp_socket_close(struct zmtp_socket *s)
 }
 
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type , void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s))
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void* parent, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s))
 {  
     struct zmtp_socket* s = NULL;
     struct pico_vector* out_buff = NULL;
     struct pico_socket* pico_s = NULL;
+
+    if (parent == NULL)
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
     if (type >= ZMTP_TYPE_END)
     {
         pico_err = PICO_ERR_EINVAL;
@@ -532,6 +535,7 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type 
     
     s->type = type;
     s->zmq_cb = zmq_cb;
+    s->parent = parent;
     
     s->out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
     if (NULL == s->out_buff) 

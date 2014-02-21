@@ -56,31 +56,16 @@ struct zmtp_frame_t {
     void* buf;
 };
 
-/*
-struct zmtp_listener_socket {
-    struct pico_socket* sock;
-    uint8_t type;
-    struct zmtp_socket* new_sock;
-    void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s);
-};
-struct zmtp_socket {
-    struct pico_socket* sock;
-    enum zmtp_state state;
-    uint8_t type;
-    void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s);
-};
-*/
-
 struct zmtp_socket {
     struct pico_socket* sock;
     struct pico_vector* out_buff;
-    /*enum zmq_state state;*/
     enum zmtp_state state;
     uint8_t type;
+    void* parent;
     void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s);
 };
 
-struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s));
+struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void* parent, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s));
 struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s);
 int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_port);
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec);
