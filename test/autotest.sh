@@ -18,12 +18,11 @@ echo "PING6 TEST"
 killall picoapp6.elf
 
 
-# WIP
-#echo "TCP6 TEST"
-#(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,) &
-#time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
-#killall picoapp6.elf
-#
+echo "TCP6 TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,) &
+time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
+killall picoapp6.elf
+
 echo "UDP6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a udpecho,aaaa::1,6667,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a udpclient,aaaa::1,6667,6667,1400,100,10, || exit 1
