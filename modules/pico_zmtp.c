@@ -357,10 +357,10 @@ int zmtp_socket_connect(struct zmtp_socket* zmtp_s, void* srv_addr, uint16_t rem
 
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 {
-     int ret = 0;    
+    int ret = 0;    
     struct pico_vector_iterator* it  = pico_vector_begin(vec);
-    struct zmtp_frame_t* frame;
-    uint8_t* msgBuffer;
+    struct zmtp_frame_t* frame = NULL;
+    uint8_t* msgBuffer = NULL;
     uint16_t totalLength = 0;
     uint16_t byteIndex = 0;
     uint8_t numFrames = 0;
@@ -371,7 +371,7 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
         return -1;
     }
 
-       while (it)
+    while (it)
     {
         frame = (struct zmtp_frame_t*) it->data;
         totalLength = (uint16_t) (totalLength + frame->len);
@@ -380,6 +380,8 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             totalLength = (uint16_t)(totalLength + 9);
         else
             totalLength =(uint16_t)(totalLength + 2);    
+        it = pico_vector_iterator_next(it);
+
     }
 
     msgBuffer = PICO_ZALLOC((size_t) totalLength);
