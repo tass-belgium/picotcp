@@ -33,13 +33,13 @@ void test_zmq_socket_req(void)
     
     /* Make pico_zmtp_open return NULL */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, NULL);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &req_sock, &cb_zmtp_sockets, NULL);
     pico_mem_free_Expect(&req_sock);
     TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_REQ));
 
     /* Normal situation */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &req_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&req_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&req_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
     
@@ -76,13 +76,13 @@ void test_zmq_socket_pub(void)
 
     /* Make pico_zmtp_open return NULL */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, NULL);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, NULL);
     pico_mem_free_Expect(&pub_sock);
     TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_PUB));
 
     /* Normal situation */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 
@@ -136,7 +136,7 @@ void test_zmq_connect(void)
 
     /* Test normal situation */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_req), &req_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_REQ, &req_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&req_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&req_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
     
@@ -157,7 +157,7 @@ void test_zmq_pub_send(void)
     
     /* Create the pub_sock */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &cb_zmtp_sockets, &dummy_zmtp_sock);
+    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 

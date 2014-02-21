@@ -96,7 +96,7 @@ void* zmq_socket(void* context, int type)
 
     sock->type = (uint8_t)type;
         
-    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, (uint8_t)type, &cb_zmtp_sockets);
+    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, (uint8_t)type, sock, &cb_zmtp_sockets);
     
     if(!sock->sock) {
         PICO_FREE(sock);
