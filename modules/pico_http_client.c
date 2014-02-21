@@ -63,10 +63,11 @@ struct pico_http_client
 };
 
 /* HTTP Client internal states */
-#define HTTP_READING_HEADER      0
-#define HTTP_READING_BODY                1
-#define HTTP_READING_CHUNK_VALUE 2
-#define HTTP_READING_CHUNK_TRAIL 3
+#define HTTP_START_READING_HEADER      0
+#define HTTP_READING_HEADER      1
+#define HTTP_READING_BODY        2
+#define HTTP_READING_CHUNK_VALUE 3
+#define HTTP_READING_CHUNK_TRAIL 4
 
 
 static int compareClients(void *ka, void *kb)
@@ -99,9 +100,16 @@ static inline void processConnErrClose(uint16_t ev, struct pico_http_client *cli
 static inline void waitForHeader(struct pico_http_client *client)
 {
     /* wait for header */
-    if(parseHeaderFromServer(client, client->header) < 0)
+    int http_ret;
+    
+    http_ret = parseHeaderFromServer(client, client->header);
+    if(http_ret < 0)
     {
         client->wakeup(EV_HTTP_ERROR, client->connectionID);
+    }
+    else if(http_ret == HTTP_RETURN_BUSY)
+    {
+        client->state = HTTP_READING_HEADER;
     }
     else
     {
@@ -120,7 +128,8 @@ static inline void waitForHeader(struct pico_http_client *client)
 static inline void treatReadEvent(struct pico_http_client *client)
 {
     /* read the header, if not read */
-    if(client->state == HTTP_READING_HEADER)
+    dbg("treat read event, client state: %d\n", client->state);
+    if(client->state == HTTP_START_READING_HEADER)
     {
         /* wait for header */
         client->header = pico_zalloc(sizeof(struct pico_http_header));
@@ -130,6 +139,10 @@ static inline void treatReadEvent(struct pico_http_client *client)
             return;
         }
 
+        waitForHeader(client);
+    }
+    else if(client->state == HTTP_READING_HEADER)
+    {
         waitForHeader(client);
     }
     else
@@ -144,6 +157,8 @@ void tcpCallback(uint16_t ev, struct pico_socket *s)
 
     struct pico_http_client *client = NULL;
     struct pico_tree_node *index;
+    
+    dbg("tcp callback (%d)\n", ev);
 
     /* find httpClient */
     pico_tree_foreach(index, &pico_client_list)
@@ -708,12 +723,16 @@ static inline void parseFields(struct pico_http_client *client, struct pico_http
     (*index) = 0u;
 }
 
-static inline void parseRestOfHeader(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
+static inline int parseRestOfHeader(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
 {
     char c;
+    int read_len = 0;
 
     /* parse the rest of the header */
-    while(consumeChar(c) > 0)
+    read_len = consumeChar(c);
+    if(read_len == 0)
+        return HTTP_RETURN_BUSY;
+    while(read_len > 0)
     {
         if(c == ':')
         {
@@ -729,7 +748,9 @@ static inline void parseRestOfHeader(struct pico_http_client *client, struct pic
         {
             line[(*index)++] = c;
         }
+        read_len = consumeChar(c);
     }
+    return HTTP_RETURN_OK;
 }
 
 int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header)
@@ -737,32 +758,36 @@ int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_head
     char line[HTTP_HEADER_LINE_SIZE];
     uint32_t index = 0;
 
-    readFirstLine(client, line, &index);
-    /* check the integrity of the response */
-    /* make sure we have enough characters to include the response code */
-    /* make sure the server response starts with HTTP/1. */
-    if((index < RESPONSE_INDEX + 2u) || isNotHTTPv1(line))
+    if(client->state == HTTP_START_READING_HEADER)
     {
-        /* wrong format of the the response */
-        pico_err = PICO_ERR_EINVAL;
-        return HTTP_RETURN_ERROR;
-    }
+        readFirstLine(client, line, &index);
+        /* check the integrity of the response */
+        /* make sure we have enough characters to include the response code */
+        /* make sure the server response starts with HTTP/1. */
+        if((index < RESPONSE_INDEX + 2u) || isNotHTTPv1(line))
+        {
+            /* wrong format of the the response */
+            pico_err = PICO_ERR_EINVAL;
+            return HTTP_RETURN_ERROR;
+        }
 
-    /* extract response code */
-    header->responseCode = (uint16_t)((line[RESPONSE_INDEX] - '0') * 100 +
-                                      (line[RESPONSE_INDEX + 1] - '0') * 10 +
-                                      (line[RESPONSE_INDEX + 2] - '0'));
+        /* extract response code */
+        header->responseCode = (uint16_t)((line[RESPONSE_INDEX] - '0') * 100 +
+                                          (line[RESPONSE_INDEX + 1] - '0') * 10 +
+                                          (line[RESPONSE_INDEX + 2] - '0'));
 
-    if(header->responseCode / 100u > 5u)
-    {
-        /* invalid response type */
-        header->responseCode = 0;
-        return HTTP_RETURN_ERROR;
+        if(header->responseCode / 100u > 5u)
+        {
+            /* invalid response type */
+            header->responseCode = 0;
+            return HTTP_RETURN_ERROR;
+        }
     }
 
     dbg("Server response : %d \n", header->responseCode);
 
-    parseRestOfHeader(client, header, line, &index);
+    if(parseRestOfHeader(client, header, line, &index) == HTTP_RETURN_BUSY)
+        return HTTP_RETURN_BUSY;
 
     startReadingBody(client, header);
     dbg("End of header\n");
