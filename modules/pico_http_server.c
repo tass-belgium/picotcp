@@ -154,12 +154,12 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
     if((ev & PICO_SOCK_EV_CLOSE) || (ev & PICO_SOCK_EV_FIN))
     {
-        server.wakeup(EV_HTTP_CLOSE, (uint16_t)(serverEvent ? HTTP_SERVER_ID : client->connectionID));
+        server.wakeup(EV_HTTP_CLOSE, (uint16_t)(serverEvent ? HTTP_SERVER_ID : (client->connectionID)));
     }
 
     if(ev & PICO_SOCK_EV_ERR)
     {
-        server.wakeup(EV_HTTP_ERROR, (uint16_t)(serverEvent ? HTTP_SERVER_ID : client->connectionID));
+        server.wakeup(EV_HTTP_ERROR, (uint16_t)(serverEvent ? HTTP_SERVER_ID : (client->connectionID)));
     }
 }
 
