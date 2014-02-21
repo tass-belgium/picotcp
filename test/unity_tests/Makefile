@@ -8,20 +8,20 @@ CP      = $(TCPREFIX)objcopy
 OD      = $(TCPREFIX)objdump
 GDBTUI  = $(TCPREFIX)gdbtui
 
-UNITY = ../../../Unity/src
-CMOCK = ../../../CMock/src
+UNITY = ../../../Unity
+CMOCK = ../../../CMock
 MOCKS = ./mocks
 
-GENERATE_TEST_RUNNER = ../../../Unity/auto/generate_test_runner.rb
-GENERATE_MOCK = ../../../CMock/lib/cmock.rb
+GENERATE_TEST_RUNNER = $(UNITY)/auto/generate_test_runner.rb
+GENERATE_MOCK = $(CMOCK)/lib/cmock.rb
 
 LIBS=Libraries
 
 
-TEST_FRAMEWORK = $(UNITY)/unity.o \
-	  $(CMOCK)/cmock.o \
+TEST_FRAMEWORK = $(UNITY)/src/unity.o \
+	  $(CMOCK)/src/cmock.o \
 
-TEST_FRAMEWORK_CFLAGS = -I$(UNITY) -I$(CMOCK)
+TEST_FRAMEWORK_CFLAGS = -I$(UNITY)/src -I$(CMOCK)/src
 
 ZMQ_SRC = $(PICOTCP)/modules/pico_zmq.c \
     $(PICOTCP)/modules/pico_zmq.h
@@ -61,7 +61,7 @@ PLUGIN_EXPECT_CALLBACK_IGNORE = --ignore=args_only --plugins="expect;callback;ig
 
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
 
-CFLAGS += -ggdb -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wconversion -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY) -I$(CMOCK) -I$(MOCKS)
+CFLAGS += -ggdb -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wconversion -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/ -I$(UNITY)/src -I$(CMOCK)/src -I$(MOCKS)
 
 CFLAGS += $(USE_MEM_MANAGER)
 
@@ -99,8 +99,8 @@ generate_vector_mocks:
 prepare_objects:
 	@mkdir -p ./obj
 	-rm ./obj/*
-	-mv $(UNITY)/*.o ./obj/
-	-mv $(CMOCK)/*.o ./obj/
+	-mv $(UNITY)/src/*.o ./obj/
+	-mv $(CMOCK)/src/*.o ./obj/
 	-mv ./mocks/*.o ./obj/
 	
 zmq_tests: generate_zmq_mocks $(TEST_FRAMEWORK) $(ZMQ_TESTS_SRC) $(TEST_ZMQ_TESTS)
