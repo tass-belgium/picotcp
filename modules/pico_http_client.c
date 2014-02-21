@@ -301,7 +301,7 @@ int32_t pico_http_client_sendHeader(uint16_t conn, char *header, uint8_t hdr)
         }
     }
 
-    length = pico_socket_write(http->sck, (void *)header, (int)strlen(header) + 1);
+    length = pico_socket_write(http->sck, (void *)header, (int)strlen(header));
 
     if(hdr == HTTP_HEADER_DEFAULT)
         pico_free(header);
