@@ -36,11 +36,13 @@ void tearDown(void)
 /* parameters to set: e_pico_s, e_buf, e_len e_data*/
 int pico_socket_write_cb(struct pico_socket* a_pico_s, const void* a_buf, int a_len, int numCalls)
 {
+    uint8_t buff[a_len];
+    memcpy(buff, a_buf, (size_t)a_len);
     IGNORE_PARAMETER(numCalls);
     TEST_ASSERT_EQUAL(e_pico_s, a_pico_s);
     TEST_ASSERT_EQUAL(e_buf, a_buf);
     TEST_ASSERT_EQUAL_INT(e_len, a_len);
-    TEST_ASSERT_EQUAL_MEMORY(e_data, a_buf, e_len);
+    TEST_ASSERT_EQUAL_MEMORY(e_data, buff, e_len);
 
     return e_len;
 }
@@ -51,10 +53,12 @@ int e_len_greeting;
 void* e_data_greeting;
 int pico_socket_write_greeting_cb(struct pico_socket* a_pico_s, const void* a_buf, int a_len, int numCalls)
 {
+    uint8_t buff[a_len];
+    memcpy(buff, a_buf, (size_t)a_len);
     IGNORE_PARAMETER(numCalls);
     TEST_ASSERT_EQUAL_PTR(e_pico_s_greeting, a_pico_s);
     TEST_ASSERT_EQUAL_INT(e_len_greeting, a_len);
-    TEST_ASSERT_EQUAL_MEMORY(e_data_greeting, a_buf, e_len);
+    TEST_ASSERT_EQUAL_MEMORY(e_data_greeting, buff, e_len);
 
     free(e_data_greeting);
 
@@ -98,8 +102,9 @@ int pico_socket_read_cb(struct pico_socket* a_pico_s, void* a_buf, int a_len, in
     return e_len;
 }
 
-struct pico_socket* pico_socket_accept_cb(struct pico_socket* pico_s, struct pico_ip4* orig, uint16_t* port)
+struct pico_socket* pico_socket_accept_cb(struct pico_socket* pico_s, void* orig, uint16_t* port, int numCalls)
 {
+    IGNORE_PARAMETER(numCalls);
     IGNORE_PARAMETER(orig);
     IGNORE_PARAMETER(port);
     TEST_ASSERT_EQUAL_PTR(e_pico_s, pico_s);
@@ -307,6 +312,7 @@ void test_zmtp_socket_accept(void)
     struct pico_socket* pico_s;
     struct pico_socket* new_pico_s;
 
+    new_pico_s = NULL;
     zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     pico_s = calloc(1,sizeof(struct pico_socket));
@@ -459,10 +465,8 @@ void test_zmtp_socket_send_1msg_0char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
 
     struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
 
     size_t msg1Len;
     uint8_t* msg1;
@@ -472,7 +476,6 @@ void test_zmtp_socket_send_1msg_0char(void)
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -484,7 +487,6 @@ void test_zmtp_socket_send_1msg_0char(void)
     zmtp_s->state = ZMTP_ST_RDY;
 
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
-    frame2 = calloc(1, sizeof(struct zmtp_frame_t));
 
     /* vec 1 msg, 0 char */
     msg1Len = 0;
@@ -538,22 +540,17 @@ void test_zmtp_socket_send_1msg_1char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
 
     struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
 
     size_t msg1Len;
-    size_t msg2Len;
     uint8_t* msg1;
-    uint8_t* msg2;
     
     uint8_t i;
     uint8_t* bytestreamPtr;
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -565,18 +562,17 @@ void test_zmtp_socket_send_1msg_1char(void)
     zmtp_s->state = ZMTP_ST_RDY;
 
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
-    frame2 = calloc(1, sizeof(struct zmtp_frame_t));
 
     /* vec 1 msg, 0 char */
     msg1Len = 1;
-    eBytestreamLen = 2 + msg1Len;
+    eBytestreamLen = 2 + (int) msg1Len;
     msg1 = (uint8_t*)calloc(1, msg1Len);
     for(i = 0; i < msg1Len; i++)
         msg1[i] = i; 
     frame1->len = msg1Len;
     frame1->buf = msg1;
 
-    eBytestream = calloc(1, eBytestreamLen);
+    eBytestream = calloc(1, (size_t)eBytestreamLen);
     ((uint8_t*)eBytestream)[0] = 0; /* final-short */
     ((uint8_t*)eBytestream)[1] = (uint8_t) msg1Len; 
 
@@ -619,11 +615,16 @@ void test_zmtp_socket_send_1msg_255char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
+
+    struct zmtp_frame_t* frame1;
+    size_t msg1Len;
+    uint8_t* msg1;
+    
+    uint8_t i;
+    uint8_t* bytestreamPtr;
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -634,28 +635,18 @@ void test_zmtp_socket_send_1msg_255char(void)
     zmtp_s->out_buff = out_buff;
     zmtp_s->state = ZMTP_ST_RDY;
 
-    struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
-    frame2 = calloc(1, sizeof(struct zmtp_frame_t));
-    size_t msg1Len;
-    size_t msg2Len;
-    uint8_t* msg1;
-    uint8_t* msg2;
-    
-    uint8_t i;
-    uint8_t* bytestreamPtr;
 
     /* vec 1 msg, 255 char */
     msg1Len = 255;
-    eBytestreamLen = 2 + msg1Len;
+    eBytestreamLen = 2 + (uint8_t) msg1Len;
     msg1 = (uint8_t*)calloc(1, msg1Len);
     for(i = 0; i < msg1Len; i++)
         msg1[i] = i; 
     frame1->len = msg1Len;
     frame1->buf = msg1;
 
-    eBytestream = calloc(1, eBytestreamLen);
+    eBytestream = calloc(1, (size_t)eBytestreamLen);
     ((uint8_t*)eBytestream)[0] = 0; /* final-short */
     ((uint8_t*)eBytestream)[1] = (uint8_t) msg1Len; 
 
@@ -687,7 +678,6 @@ void test_zmtp_socket_send_1msg_255char(void)
 //    //vec 1 msg, 256 char
 void test_zmtp_socket_send_1msg_256char(void)
 {
-    TEST_IGNORE();
     /* expected variables */
     void* eBytestream;
     int eBytestreamLen;
@@ -699,11 +689,18 @@ void test_zmtp_socket_send_1msg_256char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
+    
+    struct zmtp_frame_t* frame1;
+    size_t msg1Len;
+    uint8_t* msg1;
+    uint8_t i;
+    uint8_t* bytestreamPtr;
+
+
+    TEST_IGNORE();
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -714,26 +711,16 @@ void test_zmtp_socket_send_1msg_256char(void)
     zmtp_s->out_buff = out_buff;
     zmtp_s->state = ZMTP_ST_RDY;
 
-    struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
-    frame2 = calloc(1, sizeof(struct zmtp_frame_t));
-    size_t msg1Len;
-    size_t msg2Len;
-    uint8_t* msg1;
-    uint8_t* msg2;
-    
-    uint8_t i;
-    uint8_t* bytestreamPtr;
 
     msg1Len = 256;
-    eBytestreamLen = 9 + msg1Len;
+    eBytestreamLen = 9 + (int)msg1Len;
     msg1 = (uint8_t*)calloc(1, msg1Len);
     for(i = 0; i < msg1Len; i++)
         msg1[i] = i; 
     frame1->len = msg1Len;
     frame1->buf = msg1;
-    eBytestream = calloc(1, eBytestreamLen);
+    eBytestream = calloc(1, (size_t) eBytestreamLen);
     ((uint8_t*)eBytestream)[0] = 2; /* final-long */
     ((uint8_t*)eBytestream)[7] = 1; /* 256 in 8 bytes: 0 0 0 0 0 0 1 0 */
     ((uint8_t*)eBytestream)[8] = 0; 
@@ -765,7 +752,6 @@ void test_zmtp_socket_send_1msg_256char(void)
 
 void test_zmtp_socket_send_1msg_600char(void)
 {
-    TEST_IGNORE();/* expected variables */
     void* eBytestream;
     int eBytestreamLen;
 
@@ -776,11 +762,18 @@ void test_zmtp_socket_send_1msg_600char(void)
     uint8_t*  sendbuffer;
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
+
+    struct zmtp_frame_t* frame1;
+    size_t msg1Len;
+    uint8_t* msg1;
+    
+    uint8_t i;
+    uint8_t* bytestreamPtr;
+
+    TEST_IGNORE();/* expected variables */
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -790,27 +783,16 @@ void test_zmtp_socket_send_1msg_600char(void)
     zmtp_s->sock = pico_s;
     zmtp_s->out_buff = out_buff;
     zmtp_s->state = ZMTP_ST_RDY;
-
-    struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
-    frame2 = calloc(1, sizeof(struct zmtp_frame_t));
-    size_t msg1Len;
-    size_t msg2Len;
-    uint8_t* msg1;
-    uint8_t* msg2;
-    
-    uint8_t i;
-    uint8_t* bytestreamPtr;
 
     msg1Len = 600;
-    eBytestreamLen = 9 + msg1Len;
+    eBytestreamLen = 9 + (int)msg1Len;
     msg1 = (uint8_t*)calloc(1,msg1Len);
     for(i = 0; i < msg1Len; i++)
         msg1[i] = i; 
     frame1->len = msg1Len;
     frame1->buf = msg1;
-    eBytestream = calloc(1,eBytestreamLen);
+    eBytestream = calloc(1, (size_t)eBytestreamLen);
     ((uint8_t*)eBytestream)[0] = 0; /* final-long */
     ((uint8_t*)eBytestream)[7] = 2; /* 600 in 8 bytes: 0 0 0 0 0 0 2 88 */
     ((uint8_t*)eBytestream)[8] = 88; /* 512 + 88 */
@@ -841,7 +823,6 @@ void test_zmtp_socket_send_1msg_600char(void)
 
 void test_zmtp_socket_send_2msg_0char_0char(void)
 {
-    TEST_IGNORE();
     /* expected variables */
     void* eBytestream;
     int eBytestreamLen;
@@ -854,12 +835,20 @@ void test_zmtp_socket_send_2msg_0char_0char(void)
     struct pico_vector_iterator* it;
     struct pico_vector_iterator* it2;
     struct pico_vector_iterator* prevIt;
-    struct pico_vector_iterator* buffIt;
+    struct zmtp_frame_t* frame1;
+    struct zmtp_frame_t* frame2;
+    size_t msg1Len;
+    size_t msg2Len;
+    uint8_t* msg1;
+    uint8_t* msg2;
+    uint8_t i;
+    uint8_t* bytestreamPtr;
 
+
+    TEST_IGNORE();
     it = calloc(1, sizeof(struct pico_vector_iterator));
     it2 = calloc(1, sizeof(struct pico_vector_iterator));
     prevIt = calloc(1, sizeof(struct pico_vector_iterator));
-    buffIt = calloc(1, sizeof(struct pico_vector_iterator));
     sendbuffer = calloc(1, (size_t) 255);
     out_buff = calloc(1, sizeof(struct pico_vector));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
@@ -870,21 +859,13 @@ void test_zmtp_socket_send_2msg_0char_0char(void)
     zmtp_s->out_buff = out_buff;
     zmtp_s->state = ZMTP_ST_RDY;
 
-    struct zmtp_frame_t* frame1;
-    struct zmtp_frame_t* frame2;
     frame1 = calloc(1, sizeof(struct zmtp_frame_t));
     frame2 = calloc(1, sizeof(struct zmtp_frame_t));
-    size_t msg1Len;
-    size_t msg2Len;
-    uint8_t* msg1;
-    uint8_t* msg2;
     
-    uint8_t i;
-    uint8_t* bytestreamPtr;
 
     msg1Len = 0;
     msg2Len = 0;
-    eBytestreamLen = (2 + msg1Len) + (2 + msg2Len);
+    eBytestreamLen = (2 + (int) msg1Len) + (2 + (int)msg2Len);
     msg1 = (uint8_t*)calloc(1,msg1Len);
     msg2 = (uint8_t*)calloc(1,msg2Len);
     for(i = 0; i < msg1Len; i++)
@@ -895,7 +876,7 @@ void test_zmtp_socket_send_2msg_0char_0char(void)
     frame1->buf = msg1;
     frame2->len = msg2Len;
     frame2->buf = msg2;
-    eBytestream = calloc(1,eBytestreamLen);
+    eBytestream = calloc(1, (size_t) eBytestreamLen);
     ((uint8_t*)eBytestream)[0] = 1; /* more-short */
     ((uint8_t*)eBytestream)[1] = 0; 
     for(i = 0; i < msg1Len; i++)
@@ -1253,6 +1234,8 @@ void test_zmtp_socket_send_2msg_0char_0char(void)
 
 void dummy_callback(uint16_t ev, struct zmtp_socket*s)
 {
+    IGNORE_PARAMETER(ev);
+    IGNORE_PARAMETER(s);
     TEST_FAIL();
 }
 
@@ -1261,28 +1244,34 @@ int stub_callback1(struct pico_socket* zmtp_s, const void* buf, int len, int num
 {
     uint8_t greeting[14] = {0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7f, 0x01, ZMTP_TYPE_REQ, 0x00, 0x00};
     int greeting_len = 14;
+    uint8_t buff[len];
+    memcpy(buff, buf, (size_t) len);
+    IGNORE_PARAMETER(numCalls);
+    IGNORE_PARAMETER(zmtp_s);
 
     TEST_ASSERT_EQUAL_INT(greeting_len, len);
-    TEST_ASSERT_EQUAL_MEMORY(greeting, buf, greeting_len);
+    TEST_ASSERT_EQUAL_MEMORY(greeting, buff, greeting_len);
     
     return 0;
 }
 
 void zmtp_socket_callback(uint16_t ev, struct zmtp_socket* s)
 {
-
+    IGNORE_PARAMETER(ev);
+    IGNORE_PARAMETER(s);
 }
 
 void test_zmtp_socket_connect(void)
 {
-    TEST_IGNORE();
     /* Only supporting zmtp2.0 (whole greeting send at once) */
 
     /* Add tests for NULL arguments */ 
 
     struct zmtp_socket* zmtp_s;
-    void* srv_addr;
+    void* srv_addr =  NULL;
     uint16_t remote_port = 1320;
+
+    TEST_IGNORE();
 
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
 
@@ -1315,16 +1304,16 @@ void test_zmtp_socket_open(void)
     struct zmtp_socket* zmtp_ret_s;
     struct pico_socket* pico_s;
     void* parent;
+    struct pico_vector* vector;
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     pico_s = calloc(1, sizeof(struct pico_socket));
     zmtp_s->sock = pico_s;
-    struct pico_vector* vector = calloc(1, sizeof(struct pico_vector));
+    vector = calloc(1, sizeof(struct pico_vector));
     parent = calloc(1, 3); /* dummy size */
     zmtp_s->out_buff = vector;
     /* Test */
     /*----=== Test invalid arguments ===----*/
-    /* test type < 0 */
-    TEST_ASSERT_NULL(zmtp_socket_open(net, proto, -1, parent, &zmtp_socket_callback));
+    /* test type < 0 is not possible as type is uint8_t*/
 
     /* test type = ZMTP_TYPE_END */
     TEST_ASSERT_NULL(zmtp_socket_open(net, proto, ZMTP_TYPE_END, parent, &zmtp_socket_callback));
@@ -1375,10 +1364,11 @@ void test_zmtp_socket_open(void)
 
 void test_zmtp_socket_bind(void)
 {
-    TEST_IGNORE();
    struct zmtp_socket* zmtp_s;
    struct pico_socket* pico_s;
    uint16_t port = 23445;
+
+   TEST_IGNORE();
 
    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
    pico_s = calloc(1, sizeof(struct pico_socket));
@@ -1401,10 +1391,10 @@ void test_zmtp_socket_close(void)
     struct zmtp_socket* zmtp_s;
     struct pico_socket* pico_s;
     struct pico_vector* buff;
+    int i = 2;
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     pico_s = calloc(1, sizeof(struct pico_socket));
     buff = calloc(1, sizeof(struct pico_vector));
-    int i = 2;
 
     /*----=== Test empty sockets ===----*/
     if(i > 0)
@@ -1470,26 +1460,31 @@ void test_zmtp_socket_read(void)
 
 void * pico_vector_pop_front_stub(struct pico_vector* vec, int numCalls)
 {
+    IGNORE_PARAMETER(numCalls);
     vec->size--;
     return calloc(1, sizeof(struct pico_vector));
 }
 
 int pico_vector_push_back_stub(struct pico_vector* vec, void* data, int numCalls)
 {
+    IGNORE_PARAMETER(data);
+    IGNORE_PARAMETER(numCalls);
     vec->size++;
     return 0;
 }
 
 struct iterator_emulator {
-    int count;
+    uint8_t count;
     void* data;
 };
 struct pico_vector_iterator* pico_vector_begin_stub(const struct pico_vector* vec, int numCalls)
 {
+    struct iterator_emulator* it = malloc(sizeof(struct pico_vector_iterator));
+    IGNORE_PARAMETER(numCalls);
     if (0 != vec->size)
     {
-        struct iterator_emulator* it = malloc(sizeof(struct pico_vector_iterator));
-        it->count = vec->size;
+        it = malloc(sizeof(struct pico_vector_iterator));
+        it->count = (uint8_t) vec->size;
         it->data = (void*) it; /*just to have some data*/
         return (struct pico_vector_iterator*) it;
     } else {
@@ -1499,7 +1494,9 @@ struct pico_vector_iterator* pico_vector_begin_stub(const struct pico_vector* ve
 
 struct pico_vector_iterator* pico_vector_iterator_next_stub(struct pico_vector_iterator* iterator, int numCalls)
 {
-    struct iterator_emulator* it = (struct iterator_emulator*) iterator;
+    struct iterator_emulator* it;
+    IGNORE_PARAMETER(numCalls);
+    it = (struct iterator_emulator*) iterator;
     if (it->count<=1)
     {
         free(it);
@@ -1513,73 +1510,20 @@ struct pico_vector_iterator* pico_vector_iterator_next_stub(struct pico_vector_i
 
 int pico_socket_write_stub(struct pico_socket* s, const void* buff, int len, int numCalls)
 {
+    IGNORE_PARAMETER(s);
+    IGNORE_PARAMETER(buff);
+    IGNORE_PARAMETER(len);
+    IGNORE_PARAMETER(numCalls);
     return 0;
 }
 
 int pico_socket_write_stub_fail(struct pico_socket* s, const void* buff, int len, int numCalls)
 {
+    IGNORE_PARAMETER(s);
+    IGNORE_PARAMETER(buff);
+    IGNORE_PARAMETER(len);
+    IGNORE_PARAMETER(numCalls);
     return -1;
 }
 
 
-void test_zmtp_socket_send2(void)
-{
-    TEST_IGNORE();
-    /*function will be refactored to only send once per message*/
-    struct pico_vector* messages;
-    struct zmtp_socket* sock;
-    struct pico_socket* pico_s;
-    uint8_t* sendbuffer = calloc(1, sizeof(255));
-    int msgSize = 5;
-    pico_s = calloc(1, sizeof(struct pico_vector));
-    messages = calloc(1, sizeof(struct pico_vector));
-    sock = calloc(1, sizeof(struct zmtp_socket));
-    sock->sock = pico_s;
-    sock->out_buff = calloc(1, sizeof(struct pico_vector));
-    sock->out_buff->size = 0;
-    sock->state = ZMTP_ST_IDLE;
-    pico_vector_pop_front_StubWithCallback(pico_vector_pop_front_stub);
-    pico_vector_push_back_StubWithCallback(pico_vector_push_back_stub);
-    pico_vector_begin_StubWithCallback(pico_vector_begin_stub);
-    pico_vector_iterator_next_StubWithCallback(pico_vector_iterator_next_stub);
-    pico_mem_zalloc_IgnoreAndReturn(sendbuffer);
-    pico_mem_free_Ignore();
-    messages->size = msgSize; 
-    /*  Test if messages are queued if socket state is not ready,
-        The vector may not be altered */
-    zmtp_socket_send(sock, messages);
-    TEST_ASSERT_EQUAL_INT(msgSize, messages->size);
-    TEST_ASSERT_EQUAL_INT(msgSize, sock->out_buff->size);
-    
-}
-
-void test_save2OutBuffer(void)
-{
-    struct pico_vector* buffer = calloc(1, sizeof(struct pico_vector));
-    struct pico_vector_iterator* it = calloc(1, sizeof(struct pico_vector_iterator));
-    struct zmtp_frame_t* frame = calloc(1, sizeof(struct zmtp_frame_t));
-    struct zmtp_frame_t* emptyFrame = calloc(1, sizeof(struct zmtp_frame_t));
-    int datalen = 20;
-    void* emptyBuff = calloc(1, (size_t) datalen + 2);
-    char data[datalen]; 
-    int i;
-    for(i=0; i<datalen; i++)
-    {
-        data[i] = i;
-    }
-    frame->buf = data;
-    frame->len = datalen;
-
-    it->data = frame;
-    /*Test Nullpointer handling*/
-    TEST_ASSERT_EQUAL_INT(-1, save2OutBuffer(NULL, it));
-    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_frame_t), NULL);
-    TEST_ASSERT_EQUAL_INT(-1, save2OutBuffer(buffer, it));
-    
-    /*Test final frame (last frame in vector)*/
-    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_frame_t), emptyFrame);
-    pico_vector_iterator_next_ExpectAndReturn(it, NULL);
-    pico_mem_zalloc_ExpectAndReturn(datalen+2, emptyBuff); 
-    pico_vector_push_back_ExpectAndReturn(buffer, emptyFrame, 0);
-    TEST_ASSERT_EQUAL_INT(0, save2OutBuffer(buffer, it));
-}
