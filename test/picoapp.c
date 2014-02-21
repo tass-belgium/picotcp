@@ -1404,6 +1404,7 @@ out:
 /*** START TCP BENCH ***/
 #define TCP_BENCH_TX  1
 #define TCP_BENCH_RX  2
+#define TCP_BENCH_TX_FOREVER 3
 
 int tcpbench_mode = 0;
 struct pico_socket *tcpbench_sock = NULL;
@@ -1443,7 +1444,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     if (ev & PICO_SOCK_EV_CONN) {
         if (!IPV6_MODE) {
             struct pico_ip4 orig;
-            if (tcpbench_mode == TCP_BENCH_TX) {
+            if (tcpbench_mode == TCP_BENCH_TX || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
                 printf("tcpbench> Connection established with server.\n");
             } else if (tcpbench_mode == TCP_BENCH_RX) {
                 /* sock_a = pico_socket_accept(s, &orig, &port); */
@@ -1453,7 +1454,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             }
         } else {
             struct pico_ip6 orig;
-            if (tcpbench_mode == TCP_BENCH_TX) {
+            if (tcpbench_mode == TCP_BENCH_TX || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
                 printf("tcpbench> Connection established with server.\n");
             } else if (tcpbench_mode == TCP_BENCH_RX) {
                 /* sock_a = pico_socket_accept(s, &orig, &port); */
@@ -1490,16 +1491,16 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
         if (tcpbench_mode == TCP_BENCH_RX) {
             pico_socket_shutdown(s, PICO_SHUT_WR);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
-        } else if (tcpbench_mode == TCP_BENCH_TX) {
+        } else if (tcpbench_mode == TCP_BENCH_TX || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
             pico_socket_close(s);
             return;
         }
     }
 
     if (ev & PICO_SOCK_EV_WR) {
-        if (tcpbench_wr_size < TCPSIZ && tcpbench_mode == TCP_BENCH_TX) {
+        if (((tcpbench_wr_size < TCPSIZ) && (tcpbench_mode == TCP_BENCH_TX)) || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
             do {
-                tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + tcpbench_wr_size, TCPSIZ - tcpbench_wr_size);
+                tcpbench_w = pico_socket_write(tcpbench_sock, buffer0 + (tcpbench_wr_size % TCPSIZ), TCPSIZ - (tcpbench_wr_size % TCPSIZ));
                 if (tcpbench_w > 0) {
                     tcpbench_wr_size += tcpbench_w;
                     /* printf("tcpbench> SOCKET WRITTEN - %d\n",tcpbench_w); */
@@ -1546,8 +1547,11 @@ void app_tcpbench(char *arg)
 
     nxt = cpy_arg(&mode, arg);
 
-    if (*mode == 't') { /* TEST BENCH SEND MODE */
-        tcpbench_mode = TCP_BENCH_TX;
+    if ((*mode == 't') || (*mode == 'f')) { /* TEST BENCH SEND MODE */
+        if (*mode == 't')
+            tcpbench_mode = TCP_BENCH_TX;
+        else
+            tcpbench_mode = TCP_BENCH_TX_FOREVER;
         printf("tcpbench> TX\n");
 
         nxt = cpy_arg(&dest, nxt);
