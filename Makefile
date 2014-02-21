@@ -222,6 +222,13 @@ test: posix $(TEST_ELF) $(TEST_OBJ)
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
+	
+TEST_HTTPD_ELF= test/examples/test_http_server.elf
+
+test_httpd: posix $(TEST_HTTPD_ELF) $(TEST_OBJ)
+	@mkdir -p $(PREFIX)/test/
+	@rm test/examples/*.o
+	@mv test/examples/*.elf $(PREFIX)/test
 
 tst: test
 
