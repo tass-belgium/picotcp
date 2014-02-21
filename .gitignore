@@ -5,8 +5,12 @@ docs/user_manual/*
 .gitignore
 tmp/
 *.swp
+*.o
 *.orig
 *Runner.c
 mocks/
 obj/
 zmtp_tests
+zmq_tests
+vector_tests
+vector_extension_tests
