@@ -113,24 +113,24 @@ void serverWakeup(uint16_t ev, uint16_t conn)
         }
         else if(strcmp(resource, "/download") == 0)
         {
-            const char download_url_field []= "download_url=";
-            char * download_url = NULL;
-            char * download_basename = NULL;
-            char * decoded_download_url = NULL;
-            char * http_body = NULL;
-            
+            const char download_url_field [] = "download_url=";
+            char *download_url = NULL;
+            char *download_basename = NULL;
+            char *decoded_download_url = NULL;
+            char *http_body = NULL;
+
             http_body = pico_http_getBody(conn);
-            
+
             if(http_body != NULL)
             {
                 download_url = strstr(http_body, download_url_field);
                 if(download_url != NULL)
                 {
                     download_url = download_url + strlen(download_url_field);
-                    decoded_download_url = pico_zalloc(strlen(download_url)+1);
+                    decoded_download_url = pico_zalloc(strlen(download_url) + 1);
                     urldecode(decoded_download_url, download_url);
                     printf("Download url: %s\n", decoded_download_url);
-                    
+
                     if(pico_http_client_open(decoded_download_url, wget_callback) < 0)
                     {
                         fprintf(stderr, " error opening the url : %s, please check the format\n", decoded_download_url);
@@ -138,11 +138,11 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                     }
 
                     download_basename = basename(decoded_download_url);
-                    url_filename = pico_zalloc(strlen(download_basename)+1);
+                    url_filename = pico_zalloc(strlen(download_basename) + 1);
                     strcpy(url_filename, download_basename);
-                    
+
                     pico_free(decoded_download_url);
-                    
+
                     pico_http_respond(conn, HTTP_RESOURCE_FOUND);
                     strcpy(buffer, "Download started");
                     if(pico_http_submitData(conn, buffer, (uint16_t)strlen(buffer)) == HTTP_RETURN_ERROR)
@@ -269,7 +269,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
         {
             _length += (uint32_t)len;
         }
-        
         if(header->contentLengthOrChunk == _length)
             ev = EV_HTTP_CLOSE;
     }
@@ -328,8 +327,8 @@ void wget_callback(uint16_t ev, uint16_t conn)
 
         pico_http_client_close(conn);
         pico_free(url_filename);
-        
-        speed = _length / (PICO_TIME_MS()-start_time) * 8;
+
+        speed = _length / (PICO_TIME_MS() - start_time) * 8;
         printf("Download speed: %d kbps\n", speed);
     }
 
@@ -383,19 +382,23 @@ static void urldecode(char *dst, const char *src)
             (isxdigit(a) && isxdigit(b)))
         {
             if (a >= 'a')
-                a = (char)(a-'a'-'A');
+                a = (char)(a - 'a' - 'A');
+
             if (a >= 'A')
-                a = (char)(a-'A' - 10);
+                a = (char)(a - 'A' - 10);
             else
-                a = (char)(a-'0');
+                a = (char)(a - '0');
+
             if (b >= 'a')
-                b = (char)(b-'a'-'A');
+                b = (char)(b - 'a' - 'A');
+
             if (b >= 'A')
-                b = (char)(b-('A' - 10));
+                b = (char)(b - ('A' - 10));
             else
-                b = (char)(b-'0');
-            *dst++ = (char)(16*a+b);
-            src+=3;
+                b = (char)(b - '0');
+
+            *dst++ = (char)(16 * a + b);
+            src += 3;
         }
         else
         {
@@ -437,52 +440,51 @@ int main(int argc, char **argv)
             break;
 
         switch(c) {
-            case 'v':
-            {
-                char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-                struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-                printf("+++ OPTARG %s\n", optarg);
-                do {
-                    nxt = cpy_arg(&name, optarg);
-                    if (!nxt) break;
+        case 'v':
+        {
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
 
-                    nxt = cpy_arg(&sock, nxt);
-                    if (!nxt) break;
+                nxt = cpy_arg(&sock, nxt);
+                if (!nxt) break;
 
-                    nxt = cpy_arg(&addr, nxt);
-                    if (!nxt) break;
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
 
-                    nxt = cpy_arg(&nm, nxt);
-                    if (!nxt) break;
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
 
-                    nxt = cpy_arg(&gw, nxt);
-                } while(0);
-                if (!nm) {
-                    fprintf(stderr, "Vde: bad configuration...\n");
-                    exit(1);
-                }
-
-                dev = pico_vde_create(sock, name, macaddr);
-                NXT_MAC(macaddr);
-                if (!dev) {
-                    perror("Creating vde");
-                    exit(1);
-                }
-
-                printf("Vde created.\n");
-                pico_string_to_ipv4(addr, &ipaddr.addr);
-                pico_string_to_ipv4(nm, &netmask.addr);
-                pico_ipv4_link_add(dev, ipaddr, netmask);
-                //bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
-                if (gw && *gw) {
-                    pico_string_to_ipv4(gw, &gateway.addr);
-                    pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-                }
+                nxt = cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
             }
-            break;
+
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
+
+            printf("Vde created.\n");
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            /* bcastAddr.addr = (ipaddr.addr) | (~netmask.addr); */
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
+        }
+        break;
         }
     }
-    
     if( pico_http_server_start(0, serverWakeup) < 0)
     {
         fprintf(stderr, "Unable to start the HTTP server on port 80\n");

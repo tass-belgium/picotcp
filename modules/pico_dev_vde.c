@@ -20,7 +20,7 @@ struct pico_device_vde {
     VDECONN *conn;
 };
 
-#define VDE_MTU 2048
+#define VDE_MTU 65536
 
 static int pico_vde_send(struct pico_device *dev, void *buf, int len)
 {

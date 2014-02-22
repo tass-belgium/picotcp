@@ -101,7 +101,7 @@ static inline void waitForHeader(struct pico_http_client *client)
 {
     /* wait for header */
     int http_ret;
-    
+
     http_ret = parseHeaderFromServer(client, client->header);
     if(http_ret < 0)
     {
@@ -157,7 +157,7 @@ void tcpCallback(uint16_t ev, struct pico_socket *s)
 
     struct pico_http_client *client = NULL;
     struct pico_tree_node *index;
-    
+
     dbg("tcp callback (%d)\n", ev);
 
     /* find httpClient */
@@ -732,6 +732,7 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
     read_len = consumeChar(c);
     if(read_len == 0)
         return HTTP_RETURN_BUSY;
+
     while(read_len > 0)
     {
         if(c == ':')
@@ -748,6 +749,7 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
         {
             line[(*index)++] = c;
         }
+
         read_len = consumeChar(c);
     }
     return HTTP_RETURN_OK;

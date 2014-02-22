@@ -451,6 +451,7 @@ uint16_t pico_tcp_checksum(struct pico_frame *f)
     #ifdef PICO_SUPPORT_IPV4
     if (IS_IPV4(f))
         return pico_tcp_checksum_ipv4(f);
+
     if (f->sock && (f->sock->net == &pico_proto_ipv4))
         return pico_tcp_checksum_ipv4(f);
 
@@ -461,6 +462,7 @@ uint16_t pico_tcp_checksum(struct pico_frame *f)
 
     if (f->sock && (f->sock->net == &pico_proto_ipv6))
         return pico_tcp_checksum_ipv6(f);
+
     #endif
     return 0xffff;
 }

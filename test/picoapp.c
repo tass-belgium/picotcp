@@ -1552,6 +1552,7 @@ void app_tcpbench(char *arg)
             tcpbench_mode = TCP_BENCH_TX;
         else
             tcpbench_mode = TCP_BENCH_TX_FOREVER;
+
         printf("tcpbench> TX\n");
 
         nxt = cpy_arg(&dest, nxt);
