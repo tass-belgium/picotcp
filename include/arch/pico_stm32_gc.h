@@ -4,7 +4,8 @@
 // #define dbg(...) do {} while(0)
 #define dbg printf
 
-extern volatile pico_time __stm32_tick;
+extern volatile pico_time full_tick;
+extern volatile uint32_t sys_tick_counter;
 
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
@@ -15,7 +16,6 @@ extern volatile pico_time __stm32_tick;
     extern void vPortFree( void *pv );
 
     #define pico_free(x) vPortFree(x)
-    #define free(x)      vPortFree(x)
 
     static inline void *pico_zalloc(size_t size)
     {
@@ -27,14 +27,18 @@ extern volatile pico_time __stm32_tick;
         return ptr;
     }
 
-    static inline pico_time PICO_TIME_MS()
+    static inline pico_time PICO_TIME_MS(void)
     {
-        return __stm32_tick;
+        if ((full_tick & 0xFFFFFFFF) > sys_tick_counter) {
+            full_tick +=  0x100000000ULL;
+        }
+        full_tick = (full_tick & 0xFFFFFFFF00000000ULL) + sys_tick_counter;
+        return full_tick;
     }
 
     static inline pico_time PICO_TIME()
     {
-        return __stm32_tick / 1000;
+        return PICO_TIME_MS() >> 10; /* TODO: quick-hack bc no c-lib avail */
     }
 
     static inline void PICO_IDLE(void)

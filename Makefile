@@ -60,8 +60,13 @@ endif
 ifeq ($(ARCH),stm32)
   CFLAGS+=-mcpu=cortex-m4 \
   -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
-  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
-  -DSTM32
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
+endif
+
+ifeq ($(ARCH),stm32_gc)
+  CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 
+  CFLAGS_CORTEX_M4 += -mfloat-abi=hard -fsingle-precision-constant -Wdouble-promotion
+  CFLAGS+= $(CFLAGS_CORTEX_M4) -mlittle-endian -DSTM32_GC
 endif
 
 ifeq ($(ARCH),faulty)
