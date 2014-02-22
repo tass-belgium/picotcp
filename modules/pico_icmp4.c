@@ -52,7 +52,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
     if (hdr->type == PICO_ICMP_ECHO) {
         hdr->type = PICO_ICMP_ECHOREPLY;
         /* outgoing frames require a f->len without the ethernet header len */
-        if (f->dev->eth)
+        if (f->dev && f->dev->eth)
             f->len -= PICO_SIZE_ETHHDR;
 
         pico_icmp4_checksum(f);
@@ -138,6 +138,12 @@ int pico_icmp4_ttl_expired(struct pico_frame *f)
 {
     /*Parameter check executed in pico_icmp4_notify*/
     return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_INTRANS);
+}
+
+int pico_icmp4_mtu_exceeded(struct pico_frame *f)
+{
+    /*Parameter check executed in pico_icmp4_notify*/
+    return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_NEEDFRAG);
 }
 
 int pico_icmp4_packet_filtered(struct pico_frame *f)
