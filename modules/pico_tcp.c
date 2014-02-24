@@ -1209,16 +1209,20 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     struct pico_frame *f;
     uint16_t size = PICO_SIZE_TCPHDR;
 
-    tcp_dbg("TCP>>>>>>>>>>>>>>>> sending RST ... <<<<<<<<<<<<<<<<<<\n");
+    tcp_dbg("TCP> sending RST ... \n");
 
     hdr1 = (struct pico_tcp_hdr *) (fr->transport_hdr);
     f = fr->sock->net->alloc(fr->sock->net, size);
 
     /* fill in IP data from original frame */
-    if (IS_IPV4(f)) {
+    if (IS_IPV4(fr)) {
+        memcpy(f->net_hdr, fr->net_hdr, sizeof(struct pico_ipv4_hdr));
         ((struct pico_ipv4_hdr *)(f->net_hdr))->dst.addr = ((struct pico_ipv4_hdr *)(fr->net_hdr))->src.addr;
         ((struct pico_ipv4_hdr *)(f->net_hdr))->src.addr = ((struct pico_ipv4_hdr *)(fr->net_hdr))->dst.addr;
+        tcp_dbg("Making IPv4 reset frame...\n");
+        
     } else {
+        memcpy(f->net_hdr, fr->net_hdr, sizeof(struct pico_ipv6_hdr));
         ((struct pico_ipv6_hdr *)(f->net_hdr))->dst = ((struct pico_ipv6_hdr *)(fr->net_hdr))->src;
         ((struct pico_ipv6_hdr *)(f->net_hdr))->src = ((struct pico_ipv6_hdr *)(fr->net_hdr))->dst;
     }
@@ -1245,6 +1249,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
     hdr->crc = short_be(pico_tcp_checksum(f));
     if (IS_IPV4(f)) {
+        tcp_dbg("Pushing IPv4 reset frame...\n");
         pico_ipv4_frame_push(f, &(((struct pico_ipv4_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP);
 #ifdef PICO_SUPPORT_IPV6
     } else {
