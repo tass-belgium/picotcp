@@ -83,6 +83,11 @@ START_TEST(tc_proto_loop_in)
     pico_enqueue(p.q_in, &f);
     fail_if(proto_loop_in(&p, 1) != 0);
     fail_if(protocol_passby != KEY_IN);
+
+    /* Try to dequeue from empty queue, get same loop_score */
+    protocol_passby = 0;
+    fail_if(proto_loop_in(&p, 1) != 1);
+    fail_if(protocol_passby != 0);
 }
 END_TEST
 
@@ -96,6 +101,11 @@ START_TEST(tc_proto_loop_out)
     pico_enqueue(p.q_out, &f);
     fail_if(proto_loop_out(&p, 1) != 0);
     fail_if(protocol_passby != KEY_OUT);
+
+    /* Try to dequeue from empty queue, get same loop_score */
+    protocol_passby = 0;
+    fail_if(proto_loop_out(&p, 1) != 1);
+    fail_if(protocol_passby != 0);
 }
 END_TEST
 
@@ -144,7 +154,14 @@ END_TEST
 
 START_TEST(tc_pico_protocol_generic_loop)
 {
-    /* TODO: test this: static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, int direction) */
+    struct pico_proto_rr rr = {
+        0
+    };
+    int ret;
+    rr.node_in = &NODE_IN;
+    rr.node_out = &NODE_OUT;
+    ret = pico_protocol_generic_loop(&rr, 0, PICO_LOOP_DIR_IN);
+    pico_protocols_loop(0);
 }
 END_TEST
 

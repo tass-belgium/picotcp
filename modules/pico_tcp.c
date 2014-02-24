@@ -56,7 +56,8 @@
 #define tcp_dbg_options(...) do {} while(0)
 
 
-#define tcp_dbg(...) do {} while(0)
+//#define tcp_dbg(...) do {} while(0)
+#define tcp_dbg(...) printf(__VA_ARGS__)
 /* #define tcp_dbg dbg */
 
 #ifdef PICO_SUPPORT_MUTEX
@@ -835,7 +836,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
             ts->snd_nxt += f->payload_len; /* update next pointer here to prevent sending same segment twice when called twice in same tick */
         }
 
-        tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
+        tcp_dbg("DBG> [tcp output] state: %02x --> local port:%u remote port: %u seq: %08x ack: %08x flags: %02x = t_len: %u, hdr: %u payload: %d\n",
                 TCPSTATE(&ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
     } else {
         pico_frame_discard(cpy);
@@ -1787,7 +1788,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
         if (t->x_mode < PICO_TCP_RECOVER) {
             t->x_mode++;
             tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
-            tcp_dbg("ACK: %x - QUEUE: %x\n", ACKN(f), SEQN(first_segment(&t->tcpq_out)));
+            //tcp_dbg("ACK: %x - QUEUE: %x\n", ACKN(f), SEQN(first_segment(&t->tcpq_out)));
             if (t->x_mode == PICO_TCP_RECOVER) {              /* Switching mode */
                 t->snd_retry = SEQN((struct pico_frame *)first_segment(&t->tcpq_out));
                 if (t->ssthresh > t->cwnd)
@@ -1799,7 +1800,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
                     t->ssthresh = 2;
             }
         } else if (t->x_mode == PICO_TCP_RECOVER) {
-            tcp_dbg("TCP RECOVER> DUPACK! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", SEQN(first_segment(&t->tcpq_out)), t->snd_nxt, ACKN(f));
+            //tcp_dbg("TCP RECOVER> DUPACK! snd_una: %08x, snd_nxt: %08x, acked now: %08x\n", SEQN(first_segment(&t->tcpq_out)), t->snd_nxt, ACKN(f));
             if (t->in_flight <= t->cwnd) {
                 struct pico_frame *nxt = peek_segment(&t->tcpq_out, t->snd_retry);
                 if (!nxt)
@@ -1836,6 +1837,15 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
         }
     }              /* End case duplicate ack detection */
+
+    /* Linux very special zero-window probe detection (see bug #107) */
+    if ((0 == (hdr->flags & (PICO_TCP_PSH | PICO_TCP_SYN))) && /* This is a pure ack, and... */
+        (ACKN(f) == t->snd_nxt) &&                           /* it's acking our snd_nxt, and... */
+        (seq_compare(SEQN(f), t->rcv_nxt) < 0))             /* Has an old seq number */
+    {
+        tcp_send_ack(t);
+    }
+
 
     /* Do congestion control */
     tcp_congestion_control(t);
@@ -2310,9 +2320,11 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
     if(!flags)
         return 1;
 
-    for(i = 0; i < MAX_VALID_FLAGS; i++)
+    for(i = 0; i < MAX_VALID_FLAGS; i++) {
+        printf("Checking invalid flags: valid_flags[s->state >> 8u] =  %u ; flags =  %u ? \r\n", valid_flags[s->state >> 8u][i], flags);
         if(valid_flags[s->state >> 8u][i] == flags)
             return 0;
+    }
 
     return 1;
 }
@@ -2326,16 +2338,21 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     f->payload = (f->transport_hdr + ((hdr->len & 0xf0) >> 2));
     f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
 
-    tcp_dbg("[%lu] TCP> [tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n", TCP_TIME,
-            s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
+    printf("TRANSPORT_LEN = %u\n", f->transport_len);
+    tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
+    tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
+    tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
+    tcp_dbg("[%lu] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: %08x ack: %08x flags: %02x t_len: %u, hdr: %u payload: %d\n", TCP_TIME, s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
 
     /* This copy of the frame has the current socket as owner */
     f->sock = s;
     s->timestamp = TCP_TIME;
     /* Those are not supported at this time. */
     /* flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN); */
-    if(invalid_flags(s, flags))
+    if(invalid_flags(s, flags)) {
+        printf("INVALID FLAGS!!\r\n");
         pico_tcp_reply_rst(f);
+    }
     else if (flags == PICO_TCP_SYN) {
         if (action->syn)
             action->syn(s, f);

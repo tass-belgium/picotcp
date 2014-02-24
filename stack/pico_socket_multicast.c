@@ -120,7 +120,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
     }
 
     /* construct new filter */
-    pico_tree_foreach(index, &MCASTSockets)
+    pico_tree_foreach_safe(index, &MCASTSockets, _tmp)
     {
         mcast_sock = index->keyValue;
         listen = listen_find(mcast_sock, mcast_link, mcast_group);
@@ -134,7 +134,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
                 case PICO_IP_MULTICAST_INCLUDE:
                     /* filter = summation of INCLUDEs */
                     /* mode stays INCLUDE, add all sources to filter */
-                    pico_tree_foreach(index2, &listen->MCASTSources)
+                    pico_tree_foreach_safe(index2, &listen->MCASTSources, _tmp2)
                     {
                         source = index2->keyValue;
                         pico_tree_insert(&MCASTFilter, source);
@@ -153,7 +153,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
                     /* any record with filter mode EXCLUDE, causes the interface mode to be EXCLUDE */
                     filter_mode = PICO_IP_MULTICAST_EXCLUDE;
                     /* add to the interface EXCLUDE filter any socket source NOT in the former interface INCLUDE filter */
-                    pico_tree_foreach(index2, &listen->MCASTSources)
+                    pico_tree_foreach_safe(index2, &listen->MCASTSources, _tmp2)
                     {
                         source = pico_tree_insert(&MCASTFilter, index2->keyValue);
                         if (source)
@@ -173,7 +173,7 @@ static int pico_socket_aggregate_mcastfilters(struct pico_ip4 *mcast_link, struc
                     /* filter = EXCLUDE - INCLUDE */
                     /* any record with filter mode EXCLUDE, causes the interface mode to be EXCLUDE */
                     /* remove from the interface EXCLUDE filter any source in the socket INCLUDE filter */
-                    pico_tree_foreach(index2, &listen->MCASTSources)
+                    pico_tree_foreach_safe(index2, &listen->MCASTSources, _tmp2)
                     {
                         source = pico_tree_findKey(&MCASTFilter, index2->keyValue);
                         if (source)

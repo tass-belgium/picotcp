@@ -19,7 +19,7 @@
 #define PICO_IPV4_FRAG_MASK 0x1FFF
 #define PICO_IPV4_DEFAULT_TTL 64
 #ifndef MBED
-    #define PICO_IPV4_FRAG_MAX_SIZE (63 * 1024)
+    #define PICO_IPV4_FRAG_MAX_SIZE (uint32_t)(63 * 1024)
 #else
     #define PICO_IPV4_FRAG_MAX_SIZE PICO_DEFAULT_SOCKETQ
 #endif
@@ -80,7 +80,7 @@ int pico_ipv4_is_unicast(uint32_t address);
 int pico_ipv4_is_multicast(uint32_t address);
 int pico_ipv4_is_broadcast(uint32_t addr);
 int pico_ipv4_is_loopback(uint32_t addr);
-int pico_ipv4_is_valid_src(uint32_t addr);
+int pico_ipv4_is_valid_src(uint32_t addr, struct pico_device *dev);
 
 int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct pico_ip4 netmask);
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address);

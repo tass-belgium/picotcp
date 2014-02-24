@@ -360,9 +360,9 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
     /* place 23 lower bits of IP in lower 23 bits of MAC */
-    pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FF);
-    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00) >> 8u);
-    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000) >> 16u);
+    pico_mcast_mac[5] = (long_be(hdr->dst.addr) & 0x000000FFu);
+    pico_mcast_mac[4] = (uint8_t)((long_be(hdr->dst.addr) & 0x0000FF00u) >> 8u);
+    pico_mcast_mac[3] = (uint8_t)((long_be(hdr->dst.addr) & 0x007F0000u) >> 16u);
 
     return (struct pico_eth *)pico_mcast_mac;
 }
@@ -636,8 +636,8 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
 
             index[i]++;
 
-            if (ret[i] == 0 && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1)) < max_total)) { /* used all loop score -> increase next score directly */
-                score[i] <<= 1;
+            if (ret[i] == 0 && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] * 2)) < max_total)) { /* used all loop score -> increase next score directly */
+                score[i] *= 2;
                 total += score[i];
                 continue;
             }
@@ -646,18 +646,18 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum >>= 2u;          /* divide by 4 to get average used score */
+            sum /= 4;           /* divide by 4 to get average used score */
 
             /* criterion to increase next loop score */
-            if (sum > (score[i] - (score[i] >> 2u))  && (score[i] << 1 <= PROTO_MAX_SCORE) && ((total + (score[i] << 1u)) < max_total)) { /* > 3/4 */
-                score[i] <<= 1u; /* double loop score */
+            if (sum > (score[i] - (score[i] / 4))  && ((score[i] * 2) <= PROTO_MAX_SCORE) && ((total + (score[i] / 2)) < max_total)) { /* > 3/4 */
+                score[i] *= 2; /* double loop score */
                 total += score[i];
                 continue;
             }
 
             /* criterion to decrease next loop score */
-            if ((sum < (score[i] >> 2u)) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) { /* < 1/4 */
-                score[i] >>= 1u; /* half loop score */
+            if ((sum < (score[i] / 4)) && ((score[i] / 2) >= PROTO_MIN_SCORE)) { /* < 1/4 */
+                score[i] /= 2; /* half loop score */
                 total += score[i];
                 continue;
             }
@@ -682,10 +682,10 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
             for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                 sum += avg[i][j]; /* calculate sum */
 
-            sum >>= 2;          /* divide by 4 to get average used score */
+            sum /= 2;          /* divide by 4 to get average used score */
 
-            if ((sum == 0) && ((score[i] >> 1u) >= PROTO_MIN_SCORE)) {
-                score[i] >>= 1u; /* half loop score */
+            if ((sum == 0) && ((score[i] / 2) >= PROTO_MIN_SCORE)) {
+                score[i] /= 2; /* half loop score */
                 total += score[i];
                 for (j = 0; j < PROTO_DEF_AVG_NR; j++)
                     avg[i][j] = score[i];

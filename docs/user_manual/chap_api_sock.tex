@@ -68,7 +68,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len);
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
-\item \texttt{len} - Length of the string that was read from the socket (in bytes)
+\item \texttt{len} - Length of the buffer (in bytes), represents the maximum amount of bytes that can be read
 \end{itemize}
 
 \subsubsection*{Return value}

@@ -41,6 +41,9 @@
 # include "arch/pico_avr.h"
 #elif defined STR9
 # include "arch/pico_str9.h"
+#elif defined FAULTY
+# include "../test/pico_faulty.h"
+
 /* #elif defined ... */
 
 #else

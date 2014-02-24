@@ -36,7 +36,7 @@ SLAACV4?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 
-CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
+CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion 
 # request from Toon
@@ -61,6 +61,12 @@ ifeq ($(ARCH),stm32)
   -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
   -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
   -DSTM32
+endif
+
+ifeq ($(ARCH),faulty)
+  CFLAGS+=-DFAULTY
+  UNITS_OBJ+=test/pico_faulty.o
+  TEST_OBJ+=test/pico_faulty.o
 endif
 
 ifeq ($(ARCH),stm32-softfloat)
@@ -108,12 +114,12 @@ endif
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
 
-%.elf: %.o
+%.elf: %.o $(TEST_OBJ)
 	@echo -e "\t[LD] $@"
-	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS)
+	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS) $(TEST_OBJ)
+
 
 CFLAGS+=$(OPTIONS)
-
 
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_frame.o \
@@ -123,7 +129,7 @@ CORE_OBJ= stack/pico_stack.o \
 		  stack/pico_socket_multicast.o \
 			stack/pico_tree.o
 
-POSIX_OBJ=  modules/pico_dev_vde.o \
+POSIX_OBJ+=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
 						modules/pico_dev_mock.o \
             modules/pico_dev_pcap.o \
@@ -214,7 +220,7 @@ posix: all $(POSIX_OBJ)
 
 TEST_ELF= test/picoapp.elf
 
-test: posix $(TEST_ELF)
+test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
@@ -242,15 +248,15 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
-units: mod core lib
+units: mod core lib $(UNITS_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit
+	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit 
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt
-	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt
-	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ) 
+	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

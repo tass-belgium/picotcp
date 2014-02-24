@@ -32,7 +32,7 @@ int pico_itoaHex(uint16_t port, char *ptr)
         size++;
     }
     /* invert positions */
-    for(index = 0; index < (size >> 1u); index++)
+    for(index = 0; index < (size / 2); index++)
     {
         char c = ptr[index];
         ptr[index] = ptr[size - index - 1];
@@ -77,7 +77,7 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
         goto error;
     }
 
-    /* detect protocol => search for  "://" */
+    /* detect protocol => search for  "colon-slash-slash" */
     if(memcmp(uri, HTTP_PROTO_TOK, HTTP_PROTO_LEN) == 0) /* could be optimized */
     { /* protocol identified, it is http */
         urikey->protoHttp = TRUE;

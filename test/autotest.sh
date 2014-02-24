@@ -1,9 +1,12 @@
 #!/bin/bash
 
 sh ./test/vde_sock_start_user.sh
+rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
 
+echo "PING LOCALHOST"
+./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
 
 echo "PING TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:) &
@@ -64,5 +67,13 @@ echo "SLAACV4 TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:169.254.22.5:255.255.0.0:) &
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a slaacv4:pic0 || exit 1
 killall picoapp.elf
+
+
+MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
+echo
+echo
+echo
+echo "MAX memory used: $MAXMEM"
+rm -f /tmp/pico-mem-report-*
 
 echo "SUCCESS!" && exit 0
