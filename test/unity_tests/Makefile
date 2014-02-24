@@ -8,9 +8,9 @@ CP      = $(TCPREFIX)objcopy
 OD      = $(TCPREFIX)objdump
 GDBTUI  = $(TCPREFIX)gdbtui
 
-UNITY = ../../../Unity
-CMOCK = ../../../CMock
-MOCKS = ./mocks
+UNITY?= ../../../Unity
+CMOCK?= ../../../CMock
+MOCKS= ./mocks
 
 GENERATE_TEST_RUNNER = $(UNITY)/auto/generate_test_runner.rb
 GENERATE_MOCK = $(CMOCK)/lib/cmock.rb
