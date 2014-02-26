@@ -90,7 +90,7 @@ uint16_t pico_udp_checksum_ipv6(struct pico_frame *f)
 static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
     IGNORE_PARAMETER(self);
-    return pico_network_send(f);
+    return (int)pico_network_send(f);
 }
 
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)

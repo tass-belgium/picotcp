@@ -33,6 +33,9 @@
 # include "arch/pico_mbed.h"
 #elif defined FAULTY
 # include "../test/pico_faulty.h"
+#elif defined AVR
+# include "arch/pico_avr.h"
+
 /* #elif defined ... */
 
 #else

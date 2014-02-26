@@ -70,7 +70,7 @@ static struct pico_sockport *sp_udp = NULL, *sp_tcp = NULL;
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
-static int32_t socket_cmp_family(struct pico_socket *a, struct pico_socket *b)
+static int socket_cmp_family(struct pico_socket *a, struct pico_socket *b)
 {
     uint32_t a_is_ip6 = is_sock_ipv6(a);
     uint32_t b_is_ip6 = is_sock_ipv6(b);
@@ -86,9 +86,9 @@ static int32_t socket_cmp_family(struct pico_socket *a, struct pico_socket *b)
 }
 
 
-static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
+static int socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
 {
-    int32_t ret = 0;
+    int ret = 0;
     (void)a;
     (void)b;
     if (!is_sock_ipv6(a) || !is_sock_ipv6(b))
@@ -104,9 +104,9 @@ static int32_t socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
     return ret;
 }
 
-static int32_t socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
+static int socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
 {
-    int32_t ret = 0;
+    int ret = 0;
     (void)a;
     (void)b;
     if (!is_sock_ipv4(a) || !is_sock_ipv4(b))
@@ -116,26 +116,26 @@ static int32_t socket_cmp_ipv4(struct pico_socket *a, struct pico_socket *b)
     if ((a->local_addr.ip4.addr == PICO_IP4_ANY) || (b->local_addr.ip4.addr == PICO_IP4_ANY))
         ret = 0;
     else
-        ret = (int32_t)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
+        ret = (int)(a->local_addr.ip4.addr - b->local_addr.ip4.addr);
 
 #endif
     return ret;
 }
 
-static int32_t socket_cmp_remotehost(struct pico_socket *a, struct pico_socket *b)
+static int socket_cmp_remotehost(struct pico_socket *a, struct pico_socket *b)
 {
-    int32_t ret = 0;
+    int ret = 0;
     if (is_sock_ipv6(a))
         ret = memcmp(a->remote_addr.ip6.addr, b->remote_addr.ip6.addr, PICO_SIZE_IP6);
     else
-        ret = (int32_t)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
+        ret = (int)(a->remote_addr.ip4.addr - b->remote_addr.ip4.addr);
 
     return ret;
 }
 
-static int32_t socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
+static int socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
 {
-    int32_t ret = 0;
+    int ret = 0;
     /* At this point, sort by local host */
     ret = socket_cmp_ipv6(a, b);
 
@@ -149,10 +149,10 @@ static int32_t socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b
     return 0;
 }
 
-static int32_t socket_cmp(void *ka, void *kb)
+static int socket_cmp(void *ka, void *kb)
 {
     struct pico_socket *a = ka, *b = kb;
-    int32_t ret = 0;
+    int ret = 0;
 
     /* First, order by network family */
     ret = socket_cmp_family(a, b);
