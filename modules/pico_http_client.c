@@ -202,7 +202,6 @@ static void dnsCallback(char *ip, void *ptr)
 
         /* add the ip address to the client, and start a tcp connection socket */
         pico_string_to_ipv4(ip, &client->ip.addr);
-        pico_free(ip);
         client->sck = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &tcpCallback);
         if(!client->sck)
         {
