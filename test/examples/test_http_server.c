@@ -29,7 +29,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
-#include <ctype.h>
 
 static struct pico_ip4 ZERO_IP4 = {
     0
@@ -48,10 +47,7 @@ struct pico_ip4 inaddr_any = {
 };
 
 static char *cpy_arg(char **dst, char *str);
-static void urldecode(char *dst, const char *src);
 void wget_callback(uint16_t ev, uint16_t conn);
-
-
 
 /*** START HTTP server ***/
 #define SIZE 4 * 1024
@@ -128,7 +124,7 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                 {
                     download_url = download_url + strlen(download_url_field);
                     decoded_download_url = pico_zalloc(strlen(download_url) + 1);
-                    urldecode(decoded_download_url, download_url);
+                    url_decode(decoded_download_url, download_url);
                     printf("Download url: %s\n", decoded_download_url);
 
                     if(pico_http_client_open(decoded_download_url, wget_callback) < 0)
@@ -242,7 +238,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
 
     if(ev & EV_HTTP_CON)
     {
-
         printf("Connected to the download server\n");
         start_time = PICO_TIME_MS();
         pico_http_client_sendHeader(conn, NULL, HTTP_HEADER_DEFAULT);
@@ -304,7 +299,8 @@ void wget_callback(uint16_t ev, uint16_t conn)
             {
                 printf("Transfer ended with a zero chunk! OK !\n");
             }
-        } else
+        }
+        else
         {
             if(header->contentLengthOrChunk == _length)
             {
@@ -371,41 +367,6 @@ static char *cpy_arg(char **dst, char *str)
         p++;
     }
     return nxt;
-}
-
-static void urldecode(char *dst, const char *src)
-{
-    char a, b;
-    while (*src) {
-        if ((*src == '%') &&
-            ((a = src[1]) && (b = src[2])) &&
-            (isxdigit(a) && isxdigit(b)))
-        {
-            if (a >= 'a')
-                a = (char)(a - 'a' - 'A');
-
-            if (a >= 'A')
-                a = (char)(a - 'A' - 10);
-            else
-                a = (char)(a - '0');
-
-            if (b >= 'a')
-                b = (char)(b - 'a' - 'A');
-
-            if (b >= 'A')
-                b = (char)(b - ('A' - 10));
-            else
-                b = (char)(b - '0');
-
-            *dst++ = (char)(16 * a + b);
-            src += 3;
-        }
-        else
-        {
-            *dst++ = *src++;
-        }
-    }
-    *dst++ = '\0';
 }
 
 int main(int argc, char **argv)
