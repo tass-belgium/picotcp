@@ -2071,7 +2071,8 @@ void wget_callback(uint16_t ev, uint16_t conn)
             {
                 printf("Transfer ended with a zero chunk! OK !\n");
             }
-        } else
+        }
+        else
         {
             if(header->contentLengthOrChunk == (_length + _length_tot))
             {
@@ -2097,6 +2098,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
         }
 
         pico_http_client_close(conn);
+        pico_free(url_filename);
         exit(0);
     }
 
