@@ -1962,25 +1962,41 @@ out:
  */
 static char *url_filename = NULL;
 
-static int http_save_file(void *data, int len)
+
+static int http_open_file()
 {
-    int fd = open(url_filename, O_WRONLY | O_CREAT | O_TRUNC, 0660);
+    int fd;
+    printf("Opening file : %s\n", url_filename);
+    fd = open(url_filename, O_WRONLY | O_CREAT | O_TRUNC, 0660);
+    return fd;
+}
+
+static int http_save_file(int fd, void *data, int len)
+{
     int w, e;
+
+    printf("Appending data to fd:%d : %s\n", fd, url_filename);
+
     if (fd < 0)
         return fd;
 
-    printf("Saving data to : %s\n", url_filename);
     w = write(fd, data, len);
     e = errno;
-    close(fd);
-    errno = e;
     return w;
+}
+
+static int http_close_file(int fd)
+{
+    printf("Closing file : %s\n", url_filename);
+    return close(fd);
 }
 
 void wget_callback(uint16_t ev, uint16_t conn)
 {
-    static char data[1024 * 1024]; /* MAX: 1M */
+    static char data[1024 * 128]; /* Buffer: 128kb */
     static uint32_t _length = 0u;
+    static uint32_t _length_tot = 0u;
+    static int fd = -1;
 
 
     if(ev & EV_HTTP_CON)
@@ -1998,13 +2014,21 @@ void wget_callback(uint16_t ev, uint16_t conn)
         printf("Location : %s\n", header->location);
         printf("Transfer-Encoding : %d\n", header->transferCoding);
         printf("Size/Chunk : %d\n", header->contentLengthOrChunk);
+        fd = http_open_file();
     }
 
     if(ev & EV_HTTP_BODY)
     {
         int len;
 
-        printf("Reading data...\n");
+        printf("Reading data... len=%d\n", _length_tot + _length);
+        if (_length + 1024 >= sizeof(data))
+        {
+            http_save_file(fd, data, _length);
+            _length_tot += _length;
+            _length = 0u;
+        }
+        /* Read from buffer */
         while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0)
         {
             _length += len;
@@ -2025,11 +2049,16 @@ void wget_callback(uint16_t ev, uint16_t conn)
             exit(1);
         }
 
+        /* first save any open read bytes */
+        http_save_file(fd, data, _length);
+        _length_tot += _length;
+        _length = 0u;
+
         while((len = pico_http_client_readData(conn, data + _length, 1000u)) && len > 0)
         {
             _length += len;
         }
-        printf("Read a total data of : %d bytes \n", _length);
+        printf("Read a total data of : %d bytes \n", _length_tot);
 
         if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
         {
@@ -2044,13 +2073,13 @@ void wget_callback(uint16_t ev, uint16_t conn)
             }
         } else
         {
-            if(header->contentLengthOrChunk == _length)
+            if(header->contentLengthOrChunk == (_length + _length_tot))
             {
-                printf("Received the full : %d \n", _length);
+                printf("Received the full : %d \n", _length + _length_tot);
             }
             else
             {
-                printf("Received %d , waiting for %d\n", _length, header->contentLengthOrChunk);
+                printf("Received %d , waiting for %d\n", _length + _length_tot, header->contentLengthOrChunk);
                 exit(1);
             }
         }
@@ -2060,7 +2089,8 @@ void wget_callback(uint16_t ev, uint16_t conn)
             exit(1);
         }
 
-        len = http_save_file(data, _length);
+        len = http_save_file(fd, data, _length);
+        http_close_file(fd);
         if ((len < 0) || ((uint32_t)len < _length)) {
             printf("Failed to save file: %s\n", strerror(errno));
             exit(1);
@@ -2100,7 +2130,9 @@ void app_wget(char *arg)
         exit(1);
     }
 
-    url_filename = basename(url);
+    url_filename = strdup(basename(url));
+
+    pico_free(url);
 }
 #endif
 /* END HTTP client */
