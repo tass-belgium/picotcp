@@ -238,6 +238,7 @@ static void dnsCallback(char *ip, void *ptr)
 int pico_http_client_open(char *uri, void (*wakeup)(uint16_t ev, uint16_t conn))
 {
     struct pico_http_client *client;
+    uint32_t ip = 0;
 
     client = pico_zalloc(sizeof(struct pico_http_client));
     if(!client)
@@ -271,8 +272,16 @@ int pico_http_client_open(char *uri, void (*wakeup)(uint16_t ev, uint16_t conn))
     }
 
     /* dns query */
-    dbg("Querying : %s \n", client->uriKey->host);
-    pico_dns_client_getaddr(client->uriKey->host, dnsCallback, client);
+    if(pico_string_to_ipv4(client->uriKey->host, &ip) == -1)
+    {
+        dbg("Querying : %s \n", client->uriKey->host);
+        pico_dns_client_getaddr(client->uriKey->host, dnsCallback, client);
+    }
+    else
+    {
+        dbg("host already and ip address, no dns required");
+        dnsCallback(client->uriKey->host, client);
+    }
 
     /* return the connection ID */
     return client->connectionID;

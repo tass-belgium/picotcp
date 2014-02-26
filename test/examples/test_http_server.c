@@ -325,11 +325,11 @@ void wget_callback(uint16_t ev, uint16_t conn)
             printf("Failed to save file: %s\n", strerror(errno));
         }
 
-        pico_http_client_close(conn);
-        pico_free(url_filename);
-
         speed = _length / (PICO_TIME_MS() - start_time) * 8;
         printf("Download speed: %d kbps\n", speed);
+
+        pico_http_client_close(conn);
+        pico_free(url_filename);
     }
 
     if(ev & EV_HTTP_ERROR)
