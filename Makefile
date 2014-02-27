@@ -2,6 +2,7 @@ CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
+SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
 LIBNAME:="libpicotcp.a"
@@ -258,6 +259,7 @@ lib: mod core
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
 	@./mkdeps.sh $(PREFIX) $(CFLAGS) 
 
 loop: mod core
