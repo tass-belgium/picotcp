@@ -1975,7 +1975,7 @@ static int http_save_file(int fd, void *data, int len)
 {
     int w, e;
 
-    printf("Appending data to fd:%d : %s\n", fd, url_filename);
+    //printf("Appending data to fd:%d : %s\n", fd, url_filename);
 
     if (fd < 0)
         return fd;
@@ -2001,7 +2001,6 @@ void wget_callback(uint16_t ev, uint16_t conn)
 
     if(ev & EV_HTTP_CON)
     {
-
         printf(">>> Connected to the client \n");
         pico_http_client_sendHeader(conn, NULL, HTTP_HEADER_DEFAULT);
     }
@@ -2019,20 +2018,20 @@ void wget_callback(uint16_t ev, uint16_t conn)
 
     if(ev & EV_HTTP_BODY)
     {
-        int len;
+        int len = 0;
 
         printf("Reading data... len=%d\n", _length_tot + _length);
-        if (_length + 1024 >= sizeof(data))
-        {
-            http_save_file(fd, data, _length);
-            _length_tot += _length;
-            _length = 0u;
+        do {
+            _length += len;
+            if (_length + 1024 >= sizeof(data))
+            {
+                http_save_file(fd, data, _length);
+                _length_tot += _length;
+                _length = 0u;
+            }
         }
         /* Read from buffer */
-        while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0)
-        {
-            _length += len;
-        }
+        while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0);
     }
 
 
@@ -2135,6 +2134,182 @@ void app_wget(char *arg)
     url_filename = strdup(basename(url));
 
     pico_free(url);
+}
+
+
+
+/* WGET FOREVER */
+#define MAX_URLS 3
+static char * urls[MAX_URLS];
+static uint8_t current_url = MAX_URLS;
+
+void wget_forever_callback(uint16_t ev, uint16_t conn);
+
+void wget_forever_next_url()
+{
+    printf("current_url=%d\n",current_url);
+    current_url++;
+    if (current_url >= MAX_URLS)
+        current_url = 0;
+    if (url_filename)
+    {
+        pico_free(url_filename);
+        url_filename = NULL;
+    }
+    url_filename = strdup(basename(urls[current_url]));
+    printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
+    if(pico_http_client_open(urls[current_url], wget_forever_callback) < 0)
+    {
+        printf("http client open failed\n");
+        pico_free(url_filename);
+        exit(1); /* failed */
+    }
+}
+
+
+uint8_t wget_data[1024 * 128]; /* Buffer: 128kb */
+void wget_forever_callback(uint16_t ev, uint16_t conn)
+{
+    static uint32_t _length = 0u;
+    static volatile uint32_t _length_tot = 0u;
+    static int fd = -1;
+
+    if(ev & EV_HTTP_CON)
+    {
+        int32_t retval = 0;
+        printf(">>> Connected to the client \n");
+        retval = pico_http_client_sendHeader(conn, NULL, HTTP_HEADER_DEFAULT);
+        printf("    sendHeader returned: %d\n", retval);
+    }
+
+    if(ev & EV_HTTP_REQ)
+    {
+        struct pico_http_header *header = pico_http_client_readHeader(conn);
+        printf("Received header from server...\n");
+        printf("Server response : %d\n", header->responseCode);
+        printf("Location : %s\n", header->location);
+        printf("Transfer-Encoding : %d\n", header->transferCoding);
+        printf("Size/Chunk : %d\n", header->contentLengthOrChunk);
+        _length = 0;
+        _length_tot = 0;
+        //fd = http_open_file();
+    }
+
+    if(ev & EV_HTTP_BODY)
+    {
+        int len;
+
+        //printf(".");
+        if (_length + 1024 >= sizeof(wget_data))
+        {
+            //http_save_file(fd, wget_data, _length);
+            _length_tot += _length;
+            printf("    rcvd %lu kB\n", (_length_tot / 1024));
+            _length = 0u;
+        }
+
+        /* Read from buffer */
+        while((len = pico_http_client_readData(conn, wget_data + _length, 1024)) && len > 0)
+        {
+            _length += len;
+        }
+    }
+
+    if(ev & EV_HTTP_CLOSE)
+    {
+        struct pico_http_header *header = pico_http_client_readHeader(conn);
+        int len;
+        printf("Connection was closed...\n");
+        printf("Reading remaining data, if any ...\n");
+        if(!header)
+        {
+            printf("No header received\n");
+            pico_http_client_close(conn);
+            wget_forever_next_url();
+        }
+
+        /* first save any open read bytes */
+        //http_save_file(fd, wget_data, _length);
+        _length_tot += _length;
+        _length = 0u;
+
+        while((len = pico_http_client_readData(conn, wget_data, 1000u)) && len > 0)
+        {
+            _length += len;
+        }
+        printf("Read a total data of : %d bytes \n", _length_tot);
+
+        if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
+        {
+            if(header->contentLengthOrChunk)
+            {
+                printf("Last chunk data not fully read !\n");
+                wget_forever_next_url();
+            }
+            else
+            {
+                printf("Transfer ended with a zero chunk! OK !\n");
+            }
+        } else
+        {
+            if(header->contentLengthOrChunk == (_length + _length_tot))
+            {
+                printf("Received the full : %d \n", _length + _length_tot);
+            }
+            else
+            {
+                printf("Received %d , waiting for %d\n", _length + _length_tot, header->contentLengthOrChunk);
+                wget_forever_next_url();
+            }
+        }
+
+        if (!url_filename) {
+            printf("Failed to get local filename\n");
+            wget_forever_next_url();
+        }
+
+        //len = http_save_file(fd, wget_data, _length);
+        //http_close_file(fd);
+        //if ((len < 0) || ((uint32_t)len < _length)) {
+        //    printf("Failed to save file: %s\n", strerror(errno));
+        //    wget_forever_next_url();
+        //}
+
+        pico_http_client_close(conn);
+        
+        /* forever, so just start a new http request here! */
+        wget_forever_next_url();
+    }
+
+    if(ev & EV_HTTP_ERROR)
+    {
+        printf("Connection error (probably dns failed : check the routing table), trying to close the client...\n");
+        pico_http_client_close(conn);
+        wget_forever_next_url();
+    }
+
+    if(ev & EV_HTTP_DNS)
+    {
+        printf("The DNS query was successful ... \n");
+    }
+}
+
+void app_wget_forever()
+{
+    //urls[0] = "homer.tass.org.be/LPC1768.pdf";
+    //urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
+    //urls[2] = "bart.tass.org.be/";
+    /*
+    urls[0] = "download.linnrecords.com/test/mp3/tone.aspx";
+    urls[1] = "ipv4.download.thinkbroadband.com/5MB.zip";
+    urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
+    */
+
+    urls[0] = "10.40.0.1/zMidi_synth-debug-unaligned.apk";
+    urls[1] = "10.40.0.1/gdb-refcard.pdf";
+    urls[2] = "10.40.0.1/books.txt";
+
+    wget_forever_next_url();
 }
 #endif
 /* END HTTP client */
@@ -2722,54 +2897,61 @@ int main(int argc, char **argv)
                                                                 app_wget(args);
 #endif
                                                             }
-                                                            else IF_APPNAME("httpd") {
-#ifndef PICO_SUPPORT_HTTP_SERVER
+                                                            else IF_APPNAME("wget_forever") {
+#ifndef PICO_SUPPORT_HTTP_CLIENT
                                                                     return 0;
 #else
-                                                                    app_httpd(args);
+                                                                    app_wget_forever();
 #endif
                                                                 }
-                                                                else IF_APPNAME("bcast") {
-                                                                        struct pico_ip4 any = {
-                                                                            .addr = 0xFFFFFFFFu
-                                                                        };
-
-                                                                        struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
-                                                                        pico_socket_sendto(s, "abcd", 5u, &any, 1000);
-
-                                                                        pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
+                                                                else IF_APPNAME("httpd") {
+#ifndef PICO_SUPPORT_HTTP_SERVER
+                                                                        return 0;
+#else
+                                                                        app_httpd(args);
+#endif
                                                                     }
-                                                                    else IF_APPNAME("zeromq_prod"){
-                                                                            app_zeromq_prod(args);
+                                                                    else IF_APPNAME("bcast") {
+                                                                            struct pico_ip4 any = {
+                                                                                .addr = 0xFFFFFFFFu
+                                                                            };
+
+                                                                            struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
+                                                                            pico_socket_sendto(s, "abcd", 5u, &any, 1000);
+
+                                                                            pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
                                                                         }
-                                                                        else IF_APPNAME("noop") {
-                                                                                app_noop();
+                                                                        else IF_APPNAME("zeromq_prod"){
+                                                                                app_zeromq_prod(args);
                                                                             }
-                                                                            else IF_APPNAME("olsr") {
-                                                                                    pico_olsr_init();
-                                                                                    dev = pico_get_device("pic0");
-                                                                                    if(dev) {
-                                                                                        pico_olsr_add(dev);
-                                                                                    }
-
-                                                                                    dev = pico_get_device("pic1");
-                                                                                    if(dev) {
-                                                                                        pico_olsr_add(dev);
-                                                                                    }
-
+                                                                            else IF_APPNAME("noop") {
                                                                                     app_noop();
                                                                                 }
-                                                                                else IF_APPNAME("slaacv4"){
+                                                                                else IF_APPNAME("olsr") {
+                                                                                        pico_olsr_init();
+                                                                                        dev = pico_get_device("pic0");
+                                                                                        if(dev) {
+                                                                                            pico_olsr_add(dev);
+                                                                                        }
+
+                                                                                        dev = pico_get_device("pic1");
+                                                                                        if(dev) {
+                                                                                            pico_olsr_add(dev);
+                                                                                        }
+
+                                                                                        app_noop();
+                                                                                    }
+                                                                                    else IF_APPNAME("slaacv4"){
 #ifndef PICO_SUPPORT_SLAACV4
-                                                                                        return 0;
+                                                                                            return 0;
 #else
-                                                                                        app_slaacv4(args);
+                                                                                            app_slaacv4(args);
 #endif
-                                                                                    }
-                                                                                    else {
-                                                                                        fprintf(stderr, "Unknown application %s\n", name);
-                                                                                        usage(argv[0]);
-                                                                                    }
+                                                                                        }
+                                                                                        else {
+                                                                                            fprintf(stderr, "Unknown application %s\n", name);
+                                                                                            usage(argv[0]);
+                                                                                        }
         }
         break;
         }
