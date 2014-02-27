@@ -321,8 +321,6 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     uint16_t offset = 0;
     uint16_t data_len = 0;
     struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
-    struct pico_udp_hdr *udp_hdr = NULL;
-    struct pico_tcp_hdr *tcp_hdr = NULL;
     struct pico_ipv4_fragmented_packet *pfrag = NULL;
     struct pico_frame *f_new = NULL, *f_frag = NULL;
     struct pico_tree_node *index, *_tmp;
@@ -453,12 +451,14 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             if (0) {
   #ifdef PICO_SUPPORT_TCP
             } else if (hdr->proto == PICO_PROTO_TCP) {
+                struct pico_tcp_hdr *tcp_hdr = NULL;
                 tcp_hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
                 tcp_hdr->crc = 0;
                 tcp_hdr->crc = short_be(pico_tcp_checksum(f_new));
   #endif
   #ifdef PICO_SUPPORT_UDP
             } else if (hdr->proto == PICO_PROTO_UDP) {
+                struct pico_udp_hdr *udp_hdr = NULL;
                 udp_hdr = (struct pico_udp_hdr *) f_new->transport_hdr;
                 udp_hdr->crc = 0;
                 udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f_new));

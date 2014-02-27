@@ -384,6 +384,7 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         return -1;
 
     switch (net->proto) {
+#ifdef PICO_SUPPORT_TCP
     case PICO_PROTO_TCP:
     {
         struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
@@ -400,6 +401,8 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         tcp->crc = short_be(pico_tcp_checksum_ipv4(f));
         break;
     }
+#endif
+#ifdef PICO_SUPPORT_UDP
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
@@ -416,6 +419,7 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         udp->crc = short_be(pico_udp_checksum_ipv4(f));
         break;
     }
+#endif
     case PICO_PROTO_ICMP4:
         /* XXX reimplement */
         break;
@@ -445,6 +449,7 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         return -1;
 
     switch (net->proto) {
+#ifdef PICO_SUPPORT_TCP
     case PICO_PROTO_TCP:
     {
         struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
@@ -461,6 +466,8 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         tcp->crc = short_be(pico_tcp_checksum_ipv4(f));
         break;
     }
+#endif
+#ifdef PICO_SUPPORT_UDP
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
@@ -477,6 +484,7 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         udp->crc = short_be(pico_udp_checksum_ipv4(f));
         break;
     }
+#endif
     case PICO_PROTO_ICMP4:
         /* XXX reimplement */
         break;
