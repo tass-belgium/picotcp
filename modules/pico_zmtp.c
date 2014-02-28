@@ -355,128 +355,93 @@ int zmtp_socket_connect(struct zmtp_socket* zmtp_s, void* srv_addr, uint16_t rem
     return pico_socket_connect(zmtp_s->sock, srv_addr, remote_port);
 }
 
-int save2OutBuffer(struct pico_vector* buff, struct pico_vector_iterator* it) 
-{
-    struct zmtp_frame_t* sendFrame;
-    struct zmtp_frame_t*  frame;
-    char*  newBuff;
-    size_t headerSize = 2;
-    if (!buff)
-    {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-    sendFrame = PICO_ZALLOC(sizeof(struct zmtp_frame_t));
-    if (!sendFrame)
-    {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-    while (it)
-    {
-        frame = (struct zmtp_frame_t*) it->data;
-        it = pico_vector_iterator_next(it);
-        if (frame)
-        {
-            newBuff = PICO_ZALLOC(frame->len + headerSize);
-            if (!newBuff)
-            {
-                pico_err = PICO_ERR_EINVAL;
-                return -1;
-            }
-            sendFrame->buf = newBuff;
-            sendFrame->len = frame->len + headerSize;
-            if (it)
-            {
-                /*more frame*/
-                newBuff[0] = 0x01;
-                newBuff[1] = frame->len;
-            } else {
-                /*final frame*/
-                newBuff[0] = 0x00;
-                newBuff[1] = frame->len;
-            }
-            memcpy(sendFrame->buf + headerSize, frame->buf, frame->len);
-            pico_vector_push_back(buff, (void*) sendFrame);
-        }
-    }
-    return 0;
-}
-
 int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
 {
-    size_t maxsize = 255;
+    int ret = 0;    
+    struct pico_vector_iterator* it  = pico_vector_begin(vec);
+    struct zmtp_frame_t* frame = NULL;
+    uint8_t* msgBuffer = NULL;
+    uint16_t totalLength = 0;
+    uint16_t byteIndex = 0;
+    uint8_t numFrames = 0;
+
     if (!s || !vec || !s->sock || !s->out_buff)
     {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    uint8_t* sendbuffer = PICO_ZALLOC(maxsize);
-    if (!sendbuffer)
+
+    while (it)
     {
-        pico_err = PICO_ERR_ENOMEM;
+        frame = (struct zmtp_frame_t*) it->data;
+        totalLength = (uint16_t) (totalLength + frame->len);
+        numFrames++;
+        if (frame->len > 255)
+            totalLength = (uint16_t)(totalLength + 9);
+        else
+            totalLength =(uint16_t)(totalLength + 2);    
+        it = pico_vector_iterator_next(it);
+
+    }
+
+    msgBuffer = PICO_ZALLOC((size_t) totalLength);
+    if (!msgBuffer)
+    {
+        pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    int ret = 0;    
-    struct pico_vector_iterator* it  = pico_vector_begin(vec);
-    struct pico_vector_iterator* prevIt = PICO_ZALLOC(sizeof(struct pico_vector_iterator));
-    struct pico_vector_iterator* buffIt = pico_vector_begin(s->out_buff);
-    struct zmtp_frame_t* frame;
+
+    it  = pico_vector_begin(vec);
+    while (it)
+    {
+        frame = (struct zmtp_frame_t*) it->data;
+        it = pico_vector_iterator_next(it);
+        numFrames--;
+        if (frame->len <= 255)
+        {
+            if (numFrames > 0)
+            {
+                /*more frame*/
+                msgBuffer[byteIndex + 0] = 0x01;
+                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            } else {
+                /*final frame*/
+                msgBuffer[byteIndex + 0] = 0x00;
+                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            }
+            byteIndex = (uint16_t)(byteIndex + 2);
+        }
+        if (frame->len > 255)
+        {
+            /*this case should be extended to add proper size */
+            if (numFrames > 0)
+            {
+                /*more frame*/
+                msgBuffer[byteIndex + 0] = 0x03;
+                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            } else {
+                /*final frame*/
+                msgBuffer[byteIndex + 0] = 0x02;
+                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            }
+            byteIndex = (uint16_t) (byteIndex + 9);
+        }
+        
+        memcpy(msgBuffer+byteIndex, frame->buf, frame->len);
+        byteIndex = (uint16_t) (byteIndex + frame->len);
+    }
 
     if (ZMTP_ST_RDY == s->state)
     {
-        while (buffIt && ret == 0)
-        {
-            /* we use the iterator instead of pop, because we don't want to lose any data
-            in case pico_socket_write fails*/
-            /*send the frames that are still in the buffer*/
-            frame = (struct zmtp_frame_t*) (buffIt->data);
-            ret = pico_socket_write(s->sock, frame->buf, frame->len);
-            if (0 == ret)
-            {
-                /*free the buffer from the frame, in case the write fails, we don't need to free*/
-                PICO_FREE(frame->buf);
-                pico_vector_pop_front(s->out_buff);
-            } 
-            buffIt = pico_vector_iterator_next(buffIt);
-        }
-        /*make a duplicate of the iterator, this one we only increment after trying to write*/
-        memcpy(prevIt, it, sizeof(struct pico_vector_iterator));
-        while (it && ret==0)
-        {
-            frame = (struct zmtp_frame_t*) it->data;
-            it = pico_vector_iterator_next(it);
-            if (it)
-            {
-                /*more frame*/
-                sendbuffer[0] = 0x01;
-                sendbuffer[1] = frame->len;
-            } else {
-                /*final frame*/
-                sendbuffer[0] = 0x00;
-                sendbuffer[1] = frame->len;
-            }
-            memcpy(sendbuffer+2, frame->buf, frame->len);
-            ret = pico_socket_write(s->sock, (void*) sendbuffer, frame->len+2);
-
-            if (ret != 0)
-            {
-                /*socket write went wrong, pushback starting from previous iterator*/
-                //save2OutBuffer(s->out_buff, prevIt);
-            } else {
-                prevIt = pico_vector_iterator_next(prevIt);
-            }
-        }
-
-
+        ret = pico_socket_write(s->sock, (void*) msgBuffer, totalLength);
+        PICO_FREE(msgBuffer);
     } else {
-        //save2OutBuffer(s->out_buff, it);    
+        /* save it to the buffer */
+        /* do not free the buffer but pass on the pointer when this case is implemented */
+        PICO_FREE(msgBuffer);
     }
     if (it)
         PICO_FREE(it);
-    if (buffIt)
-        PICO_FREE(buffIt);
-    PICO_FREE(sendbuffer);
 
     return ret;
 }
@@ -506,7 +471,6 @@ int zmtp_socket_close(struct zmtp_socket *s)
 struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type, void* parent, void (*zmq_cb)(uint16_t ev, struct zmtp_socket* s))
 {  
     struct zmtp_socket* s = NULL;
-    struct pico_vector* out_buff = NULL;
     struct pico_socket* pico_s = NULL;
 
     if (parent == NULL)
