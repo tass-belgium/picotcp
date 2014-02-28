@@ -208,6 +208,7 @@ ifneq ($(SLAACV4),0)
 endif
 ifneq ($(MEMORY_MANAGER),0)
   include rules/memory_manager.mk
+endif
 ifneq ($(IPV6),0)
   include rules/ipv6.mk
 endif

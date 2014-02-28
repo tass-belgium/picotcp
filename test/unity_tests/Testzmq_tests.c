@@ -22,6 +22,18 @@ void tearDown(void)
 {
 }
 
+static void init_normal_publisher_socket(struct zmq_socket_pub* pub)
+{
+     /* Normal situation */
+     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), pub);
+     zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, pub, &cb_zmtp_sockets, &dummy_zmtp_sock);
+     pico_vector_init_ExpectAndReturn(&pub->base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
+     pico_vector_init_ExpectAndReturn(&pub->base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
+     pico_vector_init_ExpectAndReturn(&pub->subscribers, 5, sizeof(struct zmq_sock_flag_pair), 0);
+     pico_vector_init_ExpectAndReturn(&pub->subscriptions, 5, sizeof(struct zmq_sub_sub_pair), 0);
+}
+
+
 void test_zmq_socket_req(void)
 {
     struct zmq_socket_base* temp = NULL;
@@ -81,11 +93,7 @@ void test_zmq_socket_pub(void)
     TEST_ASSERT_NULL(zmq_socket(NULL, ZMTP_TYPE_PUB));
 
     /* Normal situation */
-    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
-    zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
-    pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
-    pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
-    pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 
+    init_normal_publisher_socket(&pub_sock);
 
     temp = (struct zmq_socket_pub *)zmq_socket(NULL, ZMTP_TYPE_PUB);
     TEST_ASSERT_NOT_NULL(temp);
@@ -104,8 +112,36 @@ void test_zmq_socket_pub(void)
     zmtp_socket_bind_StubWithCallback(&zmtp_socket_bind_cb);
     pico_string_to_ipv4_StubWithCallback(&pico_string_to_ipv4_cb);
     TEST_ASSERT_EQUAL_INT(0, zmq_bind(temp, "tcp://*:5555"));
+}
+
+void test_zmq_add_subscription(void)
+{
 
 }
+
+void test_zmq_socket_pub_add_subscriber_to_publisher_subscribers(void)
+{
+    struct zmq_socket_pub pub;
+    struct zmtp_socket test_zmtp_sock;
+    
+    init_normal_publisher_socket(&pub);
+    zmq_socket(NULL, ZMTP_TYPE_PUB);
+
+    /* Test for NULL arguments */
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(NULL, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(&pub, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(NULL, &test_zmtp_sock));
+
+    /* Test for wrong socket type */
+    pub.base.type = ZMTP_TYPE_REQ;
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(&pub, &test_zmtp_sock));
+    pub.base.type = ZMTP_TYPE_PUB;
+    /* Normal situation */
+    pico_vector_push_back_IgnoreAndReturn(0);
+
+    add_subscriber_to_publisher_subscribers(&pub, &test_zmtp_sock);
+}
+
 
 int pico_string_to_ipv4_cb(const char *ipstr, uint32_t *ip, int cmock_num_calls)
 {
@@ -160,7 +196,8 @@ void test_zmq_pub_send(void)
     zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.in_vector, 5, sizeof(struct zmq_msg_t), 0);
     pico_vector_init_ExpectAndReturn(&pub_sock.base.out_vector, 5, sizeof(struct zmq_msg_t), 0);
-    pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmtp_socket), 0); 
+    pico_vector_init_ExpectAndReturn(&pub_sock.subscribers, 5, sizeof(struct zmq_sock_flag_pair), 0); 
+    pico_vector_init_ExpectAndReturn(&pub_sock.subscriptions, 5, sizeof(struct zmq_sub_sub_pair), 0); 
 
     zmq_socket(NULL, ZMTP_TYPE_PUB);
 

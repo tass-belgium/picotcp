@@ -17,21 +17,15 @@
 
 
 /*  Send/recv options.  */
-#define ZMQ_DONTWAIT  1
-#define ZMQ_SNDMORE   2
+#define ZMQ_DONTWAIT                1
+#define ZMQ_SNDMORE                 2
 
-#define ZMQ_SEND_ENABLED 1
-#define ZMQ_SEND_DISABLED 2
+#define ZMQ_SEND_ENABLED            1
+#define ZMQ_SEND_DISABLED           2
 
+#define MARK_SOCKET_TO_SEND         1   /* Used by zmq_publisher socket to mark zmtp_sockets that should receive an update */
+#define CLEAR_MARK_SOCKET_TO_SEND   2   /* Used by zmq_publisher socket to mark zmtp_sockets that should receive an update */
 
-struct zmq_zmtp_list_item 
-{
-    struct zmtp_socket* sock;
-    struct zmq_zmtp_socket_item* next_item;
-};
-
-typedef struct zmq_msg_t zmq_msg_t_in;
-typedef struct zmq_msg_t zmq_msg_t_out;
 
 struct zmq_msg_t
 {
@@ -50,10 +44,24 @@ struct zmq_socket_base
     struct pico_vector in_vector;
 };
 
+struct zmq_sub_sub_pair
+{
+    void* subscription;         /* Subscription can be anything but will probably be a string for most of the time */
+    uint16_t subscription_len;
+    struct pico_vector subscribers;    /* vector of sock_flag_pair elements */
+};
+
+struct zmq_sock_flag_pair
+{
+    struct zmtp_socket* socket;
+    uint8_t mark;
+};
+
 struct zmq_socket_pub
 {
     struct zmq_socket_base base;
-    struct pico_vector subscribers;
+    struct pico_vector subscriptions;  /* vector of sub_sub_pair elements */
+    struct pico_vector subscribers;    /* vector of sock_flag_pair elements */
 };
 
 struct zmq_socket_req 
