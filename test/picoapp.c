@@ -2305,9 +2305,9 @@ void app_wget_forever()
     urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
     */
 
-    urls[0] = "10.40.0.1/zMidi_synth-debug-unaligned.apk";
-    urls[1] = "10.40.0.1/gdb-refcard.pdf";
-    urls[2] = "10.40.0.1/books.txt";
+    urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
+    urls[1] = "10.70.0.1/gdb-refcard.pdf";
+    urls[2] = "10.70.0.1/books.txt";
 
     wget_forever_next_url();
 }
