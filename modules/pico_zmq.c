@@ -21,25 +21,13 @@
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
 
-/*
-static void zmq_zmtp_add(void* socket, struct zmtp_socket* z)
-{
-
-}
-
-static void zmq_zmtp_socket_del(struct zmtp_socket* z)
-{
-
-}
-*/
-
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
     struct zmtp_socket* client;
 
     dbg("In cb_zmtp_sockets!");
-    //TODO: process events!!
-    //In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!!    
+    /* TODO: process events!! */
+    /* In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!! */ 
     if(ev == ZMTP_EV_CONN)
     {
         client = zmtp_socket_accept(s);
@@ -50,6 +38,71 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
     }
 }
 
+/* When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
+ * The reason why we use a pair of socket-mark is because when we want to send something out to subscribers,
+ * we mark every socket that matches with the subscription and in a later phase, we send the message to all
+ * marked sockets.
+ */
+static int8_t add_subscriber_to_publisher_subscribers(void* zmq_sock, struct zmtp_socket* zmtp_sock)
+{
+    struct zmq_socket_base* bsock = NULL;
+    struct zmq_socket_pub* psock = NULL;
+    struct zmq_sock_flag_pair pair;
+
+    if(!zmq_sock || !zmtp_sock)
+        return -1;
+    
+    bsock = (struct zmq_socket_base*)zmq_sock;
+    
+    if(bsock->type != ZMTP_TYPE_PUB)
+        return -1;
+
+    psock = (struct zmq_socket_pub*)zmq_sock;
+    pair.socket = zmtp_sock;
+    pair.mark = CLEAR_MARK_SOCKET_TO_SEND;  
+    pico_vector_push_back(&psock->subscribers, &pair);
+
+    return 0;
+}
+
+static int8_t add_subscription(void* subscription_in, size_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
+{
+    /* TODO: scan if subscritpion already exists */
+    /* TODO: if doesnt exist: add new sub_sub_pair into zmq_sock->subscriptions list */
+    /* TODO: if exists: add zmtp_sock into the subscribers of the found sub_sub_pair */
+
+    void* subscription = NULL;
+    struct zmq_socket_pub* pub;
+    struct zmq_sub_sub_pair pair;
+    struct pico_vector_iterator* it;
+
+    pub = (struct zmq_socket_pub*)zmq_sock;
+
+    /* Get the subscriptions iterator to search if the subscription already exists */
+    it = pico_vector_begin(&pub->subscriptions);
+    while(it)
+    {
+        if(memcmp(((struct zmq_sub_sub_pair*)it->data)->subscription, subscription_in, subscription_len) == 0)
+        {
+            /* The subscription already exists so add the new zmtp_sock into the subscribers of that specific subscription */
+            pico_vector_push_back(&((struct zmq_sub_sub_pair*)it->data)->subscribers, zmtp_sock);
+            PICO_FREE(it);
+            return 0;
+        }
+        it = pico_vector_iterator_next(it);
+    } 
+
+    /* If subscription doesn't exist in the subscriptions list, create a new one and add it into the subscriptions list */
+    subscription = PICO_ZALLOC(subscription_len);
+    memcpy(subscription, subscription_in, subscription_len);
+    pair.subscription = subscription;
+    pair.subscription_len = subscription_len;
+    pico_vector_init(&pair.subscribers, 5, sizeof(struct zmq_sock_flag_pair));
+    pico_vector_push_back(&pub->subscriptions, &pair);
+    
+    return 0;    
+}
+
 int zmq_bind(void* socket, const char *endpoint)
 {
     struct pico_ip4 addr;
@@ -57,9 +110,9 @@ int zmq_bind(void* socket, const char *endpoint)
 
     if( !socket || !endpoint || ((struct zmq_socket_base *)socket)->type != ZMTP_TYPE_PUB )
         return -1;
-        //TODO: error handling! (EINVAL)
+        /* TODO: error handling! (EINVAL) */
 
-    //TODO: parse endpoint!!
+    /* TODO: parse endpoint!! */
     pico_string_to_ipv4("0.0.0.0", &addr.addr); 
     port = short_be(5555);
     return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, &port);
@@ -107,8 +160,11 @@ void* zmq_socket(void* context, int type)
     pico_vector_init(&sock->in_vector, 5, sizeof(struct zmq_msg_t));
     pico_vector_init(&sock->out_vector, 5, sizeof(struct zmq_msg_t));
 
-    if(type == ZMTP_TYPE_PUB)
-        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, 5, sizeof(struct zmtp_socket));
+    if(type == ZMTP_TYPE_PUB) 
+    {
+        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, 5, sizeof(struct zmq_sock_flag_pair));  /* TODO: make initial size configurable */
+        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscriptions, 5, sizeof(struct zmq_sub_sub_pair));  /* TODO: make initial size configurable */
+    }
 
     return sock;
 }
@@ -120,9 +176,9 @@ int zmq_connect(void* socket, const char* endpoint)
     
     if(!socket || !endpoint)
         return -1;
-        //TODO: error handling! => EINVAL
+        /* TODO: error handling! => EINVAL */
 
-    //TODO: parse endpoint!!!
+    /* TODO: parse endpoint!!! */
     base = (struct zmq_socket_base *)socket;
     
     pico_string_to_ipv4("10.40.0.1", &addr.addr);
@@ -150,9 +206,8 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
     
 
     if(bsock->type == ZMTP_TYPE_REQ && ((struct zmq_socket_req *)bsock)->send_enable == ZMQ_SEND_DISABLED )
-        return -1; //For REQ, if send_enable is disabled, then return -1
+        return -1; /* For REQ, if send_enable is disabled, then return -1 */
     
-    /* Multi-part messages are described here: http://zguide.zeromq.org/page:all#Multipart-Messages */
     if( (flags & ZMQ_SNDMORE) != 0)
     {
         /* More frames to come. Just add into pico_vector and wait for a later call with a final frame */
@@ -173,7 +228,7 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
             if( zmtp_socket_send(iterator->data, &bsock->out_vector) < 0 )
             {
                 while(1);
-                //TODO: do some error handling!
+                /* TODO: do some error handling! */
             }
             iterator = pico_vector_iterator_next(iterator);
         }
@@ -181,21 +236,8 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
         if(bsock->type == ZMTP_TYPE_REQ)
             ((struct zmq_socket_req *)bsock)->send_enable = ZMQ_SEND_DISABLED;
 
-        pico_vector_clear(&bsock->out_vector);  //Who has ownership of the data pointers?
+        pico_vector_clear(&bsock->out_vector);  /* TODO: check if free(...) is needed somewhere!! */
     }
 
     return 0;
 }
-
-/* cyclic states
-    if(s->state == ST_OPEN && ev & PICO_SOCK_EV_CONN)
-    {
-        s->state = ST_CONNECTED;
-        zmtp_send_greeting(zmtp_s);
-    }
-    else if(s->state == ST_CONNECTED && ev & PICO_SOCK_EV_RD)
-    {
-        //read greeting
-    }
-    return;
-*/
