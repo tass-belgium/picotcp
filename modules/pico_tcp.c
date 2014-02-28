@@ -74,23 +74,24 @@ static void *Mutex = NULL;
 #endif
 
 
-static inline int seq_compare(uint32_t a, uint32_t b)
+static /* inline*/ int32_t seq_compare(uint32_t a, uint32_t b)
 {
     uint32_t thresh = ((uint32_t)(-1)) >> 1;
-    if (((a > thresh) && (b > thresh)) || ((a <= thresh) && (b <= thresh))) {
-        if (a > b)
-            return 1;
 
-        if (b > a)
-            return -1;
-    } else {
-        if (a > b)
-            return -2;
-
-        if (b > a)
-            return 2;
+    if (a > b) /* return positive number */
+    {
+        if ((a - b) > thresh) /* b wrapped */
+            return (int32_t)(b - a); /* b = very small,     a = very big      */
+        else
+            return (int32_t)(a - b); /* a = biggest,        b = a bit smaller */
     }
-
+    if (a < b) /* return negative number */
+    {
+        if ((b - a) > thresh) /* a wrapped */
+            return -(int32_t)(a - b); /* a = very small,     b = very big      */
+        else
+            return -(int32_t)(b - a); /* a = biggest,        b = a bit smaller */
+    }
     return 0;
 }
 
@@ -2468,6 +2469,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     struct pico_frame *f, *una;
     int sent = 0;
     int data_sent = 0;
+    int32_t seq_diff = 0;
 
     una = first_segment(&t->tcpq_out);
     f = peek_segment(&t->tcpq_out, t->snd_nxt);
@@ -2476,7 +2478,10 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         f->timestamp = TCP_TIME;
         add_retransmission_timer(t, t->rto + TCP_TIME);
         tcp_add_options_frame(t, f);
-        if (seq_compare((SEQN(f) + f->payload_len), (SEQN(una) + (uint32_t)(t->recv_wnd << t->recv_wnd_scale))) > 0) {
+        seq_diff = seq_compare(SEQN(f), SEQN(una));
+        if (seq_diff < 0)
+            dbg(">>> FATAL: seq diff is negative!\n");
+        if ((uint32_t)(seq_diff + f->payload_len) > (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
             t->cwnd = (uint16_t)t->in_flight;
             if (t->cwnd < 1)
                 t->cwnd = 1;
