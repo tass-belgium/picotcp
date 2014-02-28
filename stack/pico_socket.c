@@ -1198,11 +1198,11 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
     }
 
     while (total_payload_written < len) {
-        int w, chunk_len = len;
-        if (len > space)
+        int w, chunk_len = len - total_payload_written;
+        if (chunk_len > space)
             chunk_len = space;
 
-        w = pico_socket_xmit_one(s, buf, chunk_len, src, ep);
+        w = pico_socket_xmit_one(s, buf + total_payload_written, chunk_len, src, ep);
         if (w <= 0) {
             break;
         }
