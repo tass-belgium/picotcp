@@ -1368,13 +1368,12 @@ void test_zmtp_socket_open(void)
     free(vector);
 }
 
+
 void test_zmtp_socket_bind(void)
 {
    struct zmtp_socket* zmtp_s;
    struct pico_socket* pico_s;
    uint16_t port = 23445;
-
-   TEST_IGNORE();
 
    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
    pico_s = calloc(1, sizeof(struct pico_socket));
@@ -1388,6 +1387,7 @@ void test_zmtp_socket_bind(void)
 
    /*----=== Test valid arguments ===----*/
    pico_socket_bind_IgnoreAndReturn(0);
+   pico_socket_listen_IgnoreAndReturn(1);
    TEST_ASSERT_EQUAL_INT(0, zmtp_socket_bind(zmtp_s, NULL, &port));
    
 }

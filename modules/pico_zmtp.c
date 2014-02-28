@@ -339,7 +339,8 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
         ret = PICO_ERR_EINVAL;
         ret = -1;
     }
-    pico_socket_listen(s->sock, 10);
+    if (0==ret)
+        pico_socket_listen(s->sock, 10);
 
     return ret;
 }
