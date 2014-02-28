@@ -326,8 +326,6 @@ void test_zmtp_tcp_cb(void)
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     pico_s = calloc(1, sizeof(struct pico_socket));
 
-    pico_socket_read_Ignore();
-
     zmtp_s->sock = pico_s;
     zmtp_s->type = ZMTP_TYPE_PUB;
     zmtp_s->zmq_cb = &zmq_cb_mock;
