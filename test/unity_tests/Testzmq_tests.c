@@ -116,7 +116,32 @@ void test_zmq_socket_pub(void)
 
 void test_zmq_add_subscription(void)
 {
+    struct zmq_socket_pub pub;
+    struct zmtp_socket test_zmtp_sock;
+    struct zmq_sub_sub_pair pair;
+    struct pico_vector_iterator it;
 
+    pair.subscription = calloc(1, 6);
+    strncpy(pair.subscription, "Hello", 6);
+
+    init_normal_publisher_socket(&pub);
+    zmq_socket(NULL, ZMTP_TYPE_PUB);
+
+    /* Insert new subscription into the subscriptions list */
+    pico_vector_begin_ExpectAndReturn(&pub.subscriptions, NULL);    /* Simulate empty subscriptions vector */
+    pico_mem_zalloc_ExpectAndReturn(strlen(pair.subscription)+1, pair.subscription);
+    pico_vector_init_IgnoreAndReturn(0);    /* Init subscriberslist of the newly created subscription */
+    pico_vector_push_back_IgnoreAndReturn(0); 
+    add_subscription(pair.subscription, strlen(pair.subscription)+1, &pub, &test_zmtp_sock);
+
+    /* Add new subscriber to existing subscription */
+    it.data = &pair;
+    pico_vector_begin_ExpectAndReturn(&pub.subscriptions, &it);
+    pico_vector_push_back_IgnoreAndReturn(0);
+    pico_mem_free_Expect(&it);
+
+    add_subscription(pair.subscription, strlen(pair.subscription)+1, &pub, &test_zmtp_sock);
+    
 }
 
 void test_zmq_socket_pub_add_subscriber_to_publisher_subscribers(void)

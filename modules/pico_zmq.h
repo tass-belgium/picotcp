@@ -47,7 +47,7 @@ struct zmq_socket_base
 struct zmq_sub_sub_pair
 {
     void* subscription;         /* Subscription can be anything but will probably be a string for most of the time */
-    uint16_t subscription_len;
+    size_t subscription_len;
     struct pico_vector subscribers;    /* vector of sock_flag_pair elements */
 };
 

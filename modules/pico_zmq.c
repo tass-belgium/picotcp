@@ -65,7 +65,7 @@ static int8_t add_subscriber_to_publisher_subscribers(void* zmq_sock, struct zmt
     return 0;
 }
 
-static int8_t add_subscription(void* subscription_in, uint16_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
+static int8_t add_subscription(void* subscription_in, size_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
 {
     /* TODO: scan if subscritpion already exists */
     /* TODO: if doesnt exist: add new sub_sub_pair into zmq_sock->subscriptions list */
@@ -74,9 +74,25 @@ static int8_t add_subscription(void* subscription_in, uint16_t subscription_len,
     void* subscription = NULL;
     struct zmq_socket_pub* pub;
     struct zmq_sub_sub_pair pair;
+    struct pico_vector_iterator* it;
 
     pub = (struct zmq_socket_pub*)zmq_sock;
 
+    /* Get the subscriptions iterator to search if the subscription already exists */
+    it = pico_vector_begin(&pub->subscriptions);
+    while(it)
+    {
+        if(memcmp(((struct zmq_sub_sub_pair*)it->data)->subscription, subscription_in, subscription_len) == 0)
+        {
+            /* The subscription already exists so add the new zmtp_sock into the subscribers of that specific subscription */
+            pico_vector_push_back(&((struct zmq_sub_sub_pair*)it->data)->subscribers, zmtp_sock);
+            PICO_FREE(it);
+            return 0;
+        }
+        it = pico_vector_iterator_next(it);
+    } 
+
+    /* If subscription doesn't exist in the subscriptions list, create a new one and add it into the subscriptions list */
     subscription = PICO_ZALLOC(subscription_len);
     memcpy(subscription, subscription_in, subscription_len);
     pair.subscription = subscription;
@@ -84,6 +100,7 @@ static int8_t add_subscription(void* subscription_in, uint16_t subscription_len,
     pico_vector_init(&pair.subscribers, 5, sizeof(struct zmq_sock_flag_pair));
     pico_vector_push_back(&pub->subscriptions, &pair);
     
+    return 0;    
 }
 
 int zmq_bind(void* socket, const char *endpoint)
