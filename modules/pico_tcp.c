@@ -90,7 +90,7 @@ static /* inline*/ int32_t seq_compare(uint32_t a, uint32_t b)
         if ((b - a) > thresh) /* a wrapped */
             return -(int32_t)(a - b); /* a = very small,     b = very big      */
         else
-            return -(int32_t)(b - a); /* a = biggest,        b = a bit smaller */
+            return -(int32_t)(b - a); /* b = biggest,        a = a bit smaller */
     }
     return 0;
 }
