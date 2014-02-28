@@ -85,7 +85,6 @@ void serverWakeup(uint16_t ev, uint16_t conn)
                 if(!f)
                 {
                     fprintf(stderr, "Unable to open the file /test/examples/form.html\n");
-                    exit(1);
                 }
 
                 read = (uint16_t)fread(buffer, 1u, SIZE, f);
