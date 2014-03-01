@@ -1053,7 +1053,7 @@ int pico_tcp_initconn(struct pico_socket *s)
     /* TCP: ENQUEUE to PROTO ( SYN ) */
     tcp_dbg("Sending SYN... (ports: %d - %d) size: %d\n", short_be(ts->sock.local_port), short_be(ts->sock.remote_port), syn->buffer_len);
     pico_enqueue(&tcp_out, syn);
-    pico_timer_add(PICO_TCP_SYN_TO << ts->backoff, initconn_retry, ts);
+    ts->retrans_tmr = pico_timer_add(PICO_TCP_SYN_TO << ts->backoff, initconn_retry, ts);
     return 0;
 }
 
@@ -2118,6 +2118,11 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *)f->transport_hdr;
 
     if (ACKN(f) ==  (1 + t->snd_nxt)) {
+        /* Get rid of initconn retry */
+        if(t->retrans_tmr) {
+            pico_timer_cancel(t->retrans_tmr);
+            t->retrans_tmr = NULL;
+        }
         t->rcv_nxt = long_be(hdr->seq);
         t->rcv_processed = t->rcv_nxt + 1;
         tcp_ack(s, f);
