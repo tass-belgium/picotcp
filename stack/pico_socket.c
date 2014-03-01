@@ -495,7 +495,6 @@ int8_t pico_socket_del(struct pico_socket *s)
 
     PICOTCP_MUTEX_LOCK(Mutex);
     pico_tree_delete(&sp->socks, s);
-    s->net = NULL;
     pico_socket_check_empty_sockport(s, sp);
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
