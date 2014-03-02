@@ -130,7 +130,7 @@ static int dns_ns_cmp(void *ka, void *kb)
     if (a->ns.addr == b->ns.addr)
         return 0;
 
-    return (a->ns.addr < b->ns.addr) ? -1 : 1;
+    return (a->ns.addr < b->ns.addr) ? (-1) : (1);
 }
 PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
 
@@ -154,7 +154,7 @@ static int dns_query_cmp(void *ka, void *kb)
     if (a->id == b->id)
         return 0;
 
-    return (a->id < b->id) ? -1 : 1;
+    return (a->id < b->id) ? (-1) : (1);
 }
 PICO_TREE_DECLARE(DNSTable, dns_query_cmp);
 
@@ -720,7 +720,7 @@ static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
     } else
 #endif
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
+    pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
 
     q = pico_dns_client_add_query(prefix, len, qsuffix, callback, arg);
     if (!q) {
@@ -791,6 +791,7 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), vo
         pico_dns_client_del_query(q->id); /* frees msg */
         return -1;
     }
+
     return 0;
 }
 
@@ -820,12 +821,12 @@ static void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
     struct pico_ip6 ip6;
     int i, j = 0;
-    pico_string_to_ipv6(ip, ip6.addr);  
+    pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {
-        dst[j++] = dns_ptr_ip6_nibble_lo(ip6.addr[i]); 
-        dst[j++] = '.'; 
-        dst[j++] = dns_ptr_ip6_nibble_hi(ip6.addr[i]); 
-        dst[j++] = '.'; 
+        dst[j++] = dns_ptr_ip6_nibble_lo(ip6.addr[i]);
+        dst[j++] = '.';
+        dst[j++] = dns_ptr_ip6_nibble_hi(ip6.addr[i]);
+        dst[j++] = '.';
     }
 }
 
@@ -843,6 +844,7 @@ int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), v
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     arpalen = pico_dns_client_strlen(inaddr6_arpa);
     lblen = (uint16_t)(PICO_DNS_LABEL_INITIAL + STRLEN_PTR_IP6 + arpalen + PICO_DNS_LABEL_ROOT);
     len = (uint16_t)(sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix));
@@ -871,6 +873,7 @@ int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), v
         pico_dns_client_del_query(q->id); /* frees msg */
         return -1;
     }
+
     return 0;
 }
 #endif

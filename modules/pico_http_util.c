@@ -69,8 +69,9 @@ uint16_t pico_itoa(uint16_t port, char *ptr)
  * The function returns nonzero if chr is any of:
  * 0 1 2 3 4 5 6 7 8 9 a b c d e f A B C D E F
  */
-int is_digit(char chr) {
-    if(('0'<=chr && chr<='9')||('a'<=chr && chr<='z')||('0'<=chr && chr<='Z')){
+int is_digit(char chr)
+{
+    if(('0' <= chr && chr <= '9') || ('a' <= chr && chr <= 'z') || ('0' <= chr && chr <= 'Z')) {
         return 1;
     } else {
         return 0;

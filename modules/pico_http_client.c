@@ -85,6 +85,7 @@ static inline void processConnErrClose(uint16_t ev, struct pico_http_client *cli
 {
     if (!client)
         return;
+
     if(ev & PICO_SOCK_EV_CONN)
         client->wakeup(EV_HTTP_CON, client->connectionID);
 

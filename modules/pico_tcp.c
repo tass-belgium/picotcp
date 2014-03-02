@@ -84,14 +84,18 @@ static /* inline*/ int32_t seq_compare(uint32_t a, uint32_t b)
             return (int32_t)(b - a); /* b = very small,     a = very big      */
         else
             return (int32_t)(a - b); /* a = biggest,        b = a bit smaller */
+
     }
+
     if (a < b) /* return negative number */
     {
         if ((b - a) > thresh) /* a wrapped */
             return -(int32_t)(a - b); /* a = very small,     b = very big      */
         else
             return -(int32_t)(b - a); /* b = biggest,        a = a bit smaller */
+
     }
+
     return 0;
 }
 
@@ -1221,7 +1225,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
         ((struct pico_ipv4_hdr *)(f->net_hdr))->dst.addr = ((struct pico_ipv4_hdr *)(fr->net_hdr))->src.addr;
         ((struct pico_ipv4_hdr *)(f->net_hdr))->src.addr = ((struct pico_ipv4_hdr *)(fr->net_hdr))->dst.addr;
         tcp_dbg("Making IPv4 reset frame...\n");
-        
+
     } else {
         memcpy(f->net_hdr, fr->net_hdr, sizeof(struct pico_ipv6_hdr));
         ((struct pico_ipv6_hdr *)(f->net_hdr))->dst = ((struct pico_ipv6_hdr *)(fr->net_hdr))->src;
@@ -2123,6 +2127,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
             pico_timer_cancel(t->retrans_tmr);
             t->retrans_tmr = NULL;
         }
+
         t->rcv_nxt = long_be(hdr->seq);
         t->rcv_processed = t->rcv_nxt + 1;
         tcp_ack(s, f);
@@ -2486,6 +2491,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         seq_diff = seq_compare(SEQN(f), SEQN(una));
         if (seq_diff < 0)
             dbg(">>> FATAL: seq diff is negative!\n");
+
         if ((uint32_t)(seq_diff + f->payload_len) > (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
             t->cwnd = (uint16_t)t->in_flight;
             if (t->cwnd < 1)

@@ -1007,19 +1007,19 @@ void app_udpdnsclient(char *arg)
     pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
     pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
     if (!IPV6_MODE) {
-    /*
-        getaddr_id = calloc(1, sizeof(uint8_t));
-        *getaddr_id = 1;
-        printf(">>>>> DNS GET ADDR OF %s\n", dname);
-        pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
-    
-        getname_id = calloc(1, sizeof(uint8_t));
-        *getname_id = 2;
-        printf(">>>>> DNS GET NAME OF %s\n", daddr);
-        pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
-    */
-    
-#ifdef PICO_SUPPORT_IPV6 
+        /*
+            getaddr_id = calloc(1, sizeof(uint8_t));
+           *getaddr_id = 1;
+            printf(">>>>> DNS GET ADDR OF %s\n", dname);
+            pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
+
+            getname_id = calloc(1, sizeof(uint8_t));
+           *getname_id = 2;
+            printf(">>>>> DNS GET NAME OF %s\n", daddr);
+            pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
+         */
+
+#ifdef PICO_SUPPORT_IPV6
         getaddr6_id = calloc(1, sizeof(uint8_t));
         *getaddr6_id = 3;
         printf(">>>>> DNS GET ADDR6 OF %s\n", dname);
@@ -1030,6 +1030,7 @@ void app_udpdnsclient(char *arg)
         pico_dns_client_getname6("2a00:1450:400c:c06::64", &cb_udpdnsclient_getname, getname6_id);
 #endif
     }
+
     return;
 }
 /*** END UDP DNS CLIENT ***/
@@ -1987,7 +1988,7 @@ static int http_save_file(int fd, void *data, int len)
 {
     int w, e;
 
-    //printf("Appending data to fd:%d : %s\n", fd, url_filename);
+    /* printf("Appending data to fd:%d : %s\n", fd, url_filename); */
 
     if (fd < 0)
         return fd;
@@ -2152,22 +2153,24 @@ void app_wget(char *arg)
 
 /* WGET FOREVER */
 #define MAX_URLS 3
-static char * urls[MAX_URLS];
+static char *urls[MAX_URLS];
 static uint8_t current_url = MAX_URLS;
 
 void wget_forever_callback(uint16_t ev, uint16_t conn);
 
 void wget_forever_next_url()
 {
-    printf("current_url=%d\n",current_url);
+    printf("current_url=%d\n", current_url);
     current_url++;
     if (current_url >= MAX_URLS)
         current_url = 0;
+
     if (url_filename)
     {
         pico_free(url_filename);
         url_filename = NULL;
     }
+
     url_filename = strdup(basename(urls[current_url]));
     printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
     if(pico_http_client_open(urls[current_url], wget_forever_callback) < 0)
@@ -2204,17 +2207,17 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
         printf("Size/Chunk : %d\n", header->contentLengthOrChunk);
         _length = 0;
         _length_tot = 0;
-        //fd = http_open_file();
+        /* fd = http_open_file(); */
     }
 
     if(ev & EV_HTTP_BODY)
     {
         int len;
 
-        //printf(".");
+        /* printf("."); */
         if (_length + 1024 >= sizeof(wget_data))
         {
-            //http_save_file(fd, wget_data, _length);
+            /* http_save_file(fd, wget_data, _length); */
             _length_tot += _length;
             printf("    rcvd %lu kB\n", (_length_tot / 1024));
             _length = 0u;
@@ -2241,7 +2244,7 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
         }
 
         /* first save any open read bytes */
-        //http_save_file(fd, wget_data, _length);
+        /* http_save_file(fd, wget_data, _length); */
         _length_tot += _length;
         _length = 0u;
 
@@ -2280,15 +2283,15 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
             wget_forever_next_url();
         }
 
-        //len = http_save_file(fd, wget_data, _length);
-        //http_close_file(fd);
-        //if ((len < 0) || ((uint32_t)len < _length)) {
-        //    printf("Failed to save file: %s\n", strerror(errno));
-        //    wget_forever_next_url();
-        //}
+        /* len = http_save_file(fd, wget_data, _length); */
+        /* http_close_file(fd); */
+        /* if ((len < 0) || ((uint32_t)len < _length)) { */
+        /*    printf("Failed to save file: %s\n", strerror(errno)); */
+        /*    wget_forever_next_url(); */
+        /* } */
 
         pico_http_client_close(conn);
-        
+
         /* forever, so just start a new http request here! */
         wget_forever_next_url();
     }
@@ -2308,9 +2311,9 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
 
 void app_wget_forever()
 {
-    //urls[0] = "homer.tass.org.be/LPC1768.pdf";
-    //urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
-    //urls[2] = "bart.tass.org.be/";
+    /* urls[0] = "homer.tass.org.be/LPC1768.pdf"; */
+    /* urls[1] = "marge.tass.org.be/marge-simpson-picture.png"; */
+    /* urls[2] = "bart.tass.org.be/"; */
     urls[0] = "10.40.0.1/test1.bin";
     urls[1] = "10.40.0.1/test10.bin";
     urls[2] = "10.40.0.1/test5.bin";
@@ -2321,7 +2324,7 @@ void app_wget_forever()
     urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
     urls[1] = "10.70.0.1/gdb-refcard.pdf";
     urls[2] = "10.70.0.1/books.txt";
-*/
+ */
 
     wget_forever_next_url();
 }

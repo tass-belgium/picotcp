@@ -513,7 +513,7 @@ int pico_http_close(uint16_t conn)
             pico_free(client->buffer);
 
         if(client->body)
-                    pico_free(client->body);
+            pico_free(client->body);
 
         if(client->state != HTTP_CLOSED || !client->sck)
             pico_socket_close(client->sck);

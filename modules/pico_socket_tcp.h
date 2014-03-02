@@ -21,11 +21,11 @@ void transport_flags_update(struct pico_frame *, struct pico_socket *);
 #   define pico_setsockopt_tcp(...) (-1)
 #   define pico_socket_tcp_deliver(...) (-1)
 #   define IS_NAGLE_ENABLED(s) (0)
-#   define pico_socket_tcp_delete(...) do{}while(0)
-#   define pico_socket_tcp_cleanup(...) do{}while(0)
+#   define pico_socket_tcp_delete(...) do {} while(0)
+#   define pico_socket_tcp_cleanup(...) do {} while(0)
 #   define pico_socket_tcp_open() (NULL)
 #   define pico_socket_tcp_read(...) (-1)
-#   define transport_flags_update(...) do{}while(0)
+#   define transport_flags_update(...) do {} while(0)
 
 #endif
 

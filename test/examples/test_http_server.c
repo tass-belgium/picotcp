@@ -281,6 +281,7 @@ void wget_callback(uint16_t ev, uint16_t conn)
             _length_tot += _length;
             _length = 0u;
         }
+
         /* Read from buffer */
         while((len = pico_http_client_readData(conn, data + _length, 1024)) && len > 0)
         {

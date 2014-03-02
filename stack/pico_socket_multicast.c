@@ -618,6 +618,7 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
     struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
     if (!mcast_link)
         return -1;
+
     memset(&stest, 0, sizeof(union pico_address));
 
     listen = listen_find(s, (union pico_address *)&mreq->mcast_link_addr, (union pico_address *)&mreq->mcast_group_addr);
@@ -666,9 +667,10 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
     struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 1, 1);
     if (!mcast_link)
         return -1;
+
     memset(&stest, 0, sizeof(union pico_address));
 
-    listen = listen_find(s, (union pico_address *)&mreq->mcast_link_addr,(union pico_address *) &mreq->mcast_group_addr);
+    listen = listen_find(s, (union pico_address *)&mreq->mcast_link_addr, (union pico_address *) &mreq->mcast_group_addr);
     if (listen) {
         if (listen->filter_mode != PICO_IP_MULTICAST_INCLUDE) {
             so_mcast_dbg("pico_socket_setoption: ERROR source-specific multicast (include) on any-source multicast (exclude)\n");
@@ -734,6 +736,7 @@ static int mcast_so_dropsrcm(struct pico_socket *s, void *value)
     struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
     if (!mcast_link)
         return -1;
+
     memset(&stest, 0, sizeof(union pico_address));
 
     listen = listen_find(s, (union pico_address *)&mreq->mcast_link_addr, (union pico_address *)&mreq->mcast_group_addr);
