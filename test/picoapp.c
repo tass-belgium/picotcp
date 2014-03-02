@@ -945,7 +945,6 @@ void cb_udpdnsclient_getaddr(char *ip, void *arg)
     }
 
     printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
-    pico_free(ip);
     if (arg)
         pico_free(arg);
 }
@@ -960,7 +959,6 @@ void cb_udpdnsclient_getname(char *name, void *arg)
     }
 
     printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
-    pico_free(name);
     if (arg)
         pico_free(arg);
 }
@@ -970,7 +968,7 @@ void app_udpdnsclient(char *arg)
     struct pico_ip4 nameserver;
     char *dname, *daddr;
     char *nxt;
-    uint8_t *getaddr_id, *getname_id;
+    uint8_t *getaddr_id, *getname_id, *getaddr6_id, *getname6_id;
 
     nxt = cpy_arg(&dname, arg);
     if (!dname) {
@@ -1008,16 +1006,30 @@ void app_udpdnsclient(char *arg)
     picoapp_dbg("----- Adding 8.8.4.4 nameserver -----\n");
     pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
     pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
-
-    getaddr_id = calloc(1, sizeof(uint8_t));
-    *getaddr_id = 1;
-    printf(">>>>> DNS GET ADDR OF %s\n", dname);
-    pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
-    getname_id = calloc(1, sizeof(uint8_t));
-    *getname_id = 2;
-    printf(">>>>> DNS GET NAME OF %s\n", daddr);
-    pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
-
+    if (!IPV6_MODE) {
+    /*
+        getaddr_id = calloc(1, sizeof(uint8_t));
+        *getaddr_id = 1;
+        printf(">>>>> DNS GET ADDR OF %s\n", dname);
+        pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
+    
+        getname_id = calloc(1, sizeof(uint8_t));
+        *getname_id = 2;
+        printf(">>>>> DNS GET NAME OF %s\n", daddr);
+        pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
+    */
+    
+#ifdef PICO_SUPPORT_IPV6 
+        getaddr6_id = calloc(1, sizeof(uint8_t));
+        *getaddr6_id = 3;
+        printf(">>>>> DNS GET ADDR6 OF %s\n", dname);
+        pico_dns_client_getaddr6(dname, &cb_udpdnsclient_getaddr, getaddr6_id);
+        getname6_id = calloc(1, sizeof(uint8_t));
+        *getname6_id = 4;
+        printf(">>>>> DNS GET NAME OF ipv6 addr 2a00:1450:400c:c06::64\n");
+        pico_dns_client_getname6("2a00:1450:400c:c06::64", &cb_udpdnsclient_getname, getname6_id);
+#endif
+    }
     return;
 }
 /*** END UDP DNS CLIENT ***/
@@ -2299,15 +2311,17 @@ void app_wget_forever()
     //urls[0] = "homer.tass.org.be/LPC1768.pdf";
     //urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
     //urls[2] = "bart.tass.org.be/";
-    /*
+    urls[0] = "10.40.0.1/test1.bin";
+    urls[1] = "10.40.0.1/test10.bin";
+    urls[2] = "10.40.0.1/test5.bin";
+/*
     urls[0] = "download.linnrecords.com/test/mp3/tone.aspx";
     urls[1] = "ipv4.download.thinkbroadband.com/5MB.zip";
     urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
-    */
-
     urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
     urls[1] = "10.70.0.1/gdb-refcard.pdf";
     urls[2] = "10.70.0.1/books.txt";
+*/
 
     wget_forever_next_url();
 }
