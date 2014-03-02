@@ -83,6 +83,8 @@ int readChunkLine(struct pico_http_client *client);
 /*  */
 static inline void processConnErrClose(uint16_t ev, struct pico_http_client *client)
 {
+    if (!client)
+        return;
     if(ev & PICO_SOCK_EV_CONN)
         client->wakeup(EV_HTTP_CON, client->connectionID);
 
