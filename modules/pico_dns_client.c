@@ -17,8 +17,8 @@
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
-//#define dns_dbg(...) do {} while(0)
-#define dns_dbg dbg
+#define dns_dbg(...) do {} while(0)
+/* #define dns_dbg dbg */
 
 /* DNS response length */
 #define PICO_DNS_MAX_RESPONSE_LEN 256
@@ -844,7 +844,6 @@ int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), v
         return -1;
     }
     arpalen = pico_dns_client_strlen(inaddr6_arpa);
-    printf("Arpalen: %d\n", arpalen);
     lblen = (uint16_t)(PICO_DNS_LABEL_INITIAL + STRLEN_PTR_IP6 + arpalen + PICO_DNS_LABEL_ROOT);
     len = (uint16_t)(sizeof(struct pico_dns_prefix) + lblen + sizeof(struct pico_dns_query_suffix));
     msg = pico_zalloc(len);
