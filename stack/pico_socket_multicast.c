@@ -652,8 +652,8 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
 {
     int filter_mode = 0;
     struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
-    struct pico_mcast_listen *listen = NULL;
-    union pico_address *source = NULL, stest;
+    struct pico_mcast_listen *listen;
+    union pico_address *source, stest;
     struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
     if (!mcast_link)
         return -1;
@@ -770,8 +770,8 @@ static int mcast_so_dropsrcm(struct pico_socket *s, void *value)
 {
     int filter_mode = 0, reference_count = 0;
     struct pico_ip_mreq_source *mreq = (struct pico_ip_mreq_source *)value;
-    struct pico_mcast_listen *listen = NULL;
-    union pico_address *source = NULL, stest;
+    struct pico_mcast_listen *listen;
+    union pico_address *source, stest;
     struct pico_ipv4_link *mcast_link = setopt_multicast_check(s, value, 0, 1);
     if (!mcast_link)
         return -1;
