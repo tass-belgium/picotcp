@@ -144,7 +144,7 @@ void test_zmq_add_subscription(void)
     
 }
 
-void test_zmq_socket_pub_add_subscriber_to_publisher_subscribers(void)
+void test_zmq_socket_pub_add_subscriber_to_publisher(void)
 {
     struct zmq_socket_pub pub;
     struct zmtp_socket test_zmtp_sock;
@@ -153,18 +153,18 @@ void test_zmq_socket_pub_add_subscriber_to_publisher_subscribers(void)
     zmq_socket(NULL, ZMTP_TYPE_PUB);
 
     /* Test for NULL arguments */
-    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(NULL, NULL));
-    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(&pub, NULL));
-    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(NULL, &test_zmtp_sock));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher(NULL, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher(&pub, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher(NULL, &test_zmtp_sock));
 
     /* Test for wrong socket type */
     pub.base.type = ZMTP_TYPE_REQ;
-    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher_subscribers(&pub, &test_zmtp_sock));
+    TEST_ASSERT_EQUAL_INT(-1, add_subscriber_to_publisher(&pub, &test_zmtp_sock));
     pub.base.type = ZMTP_TYPE_PUB;
     /* Normal situation */
     pico_vector_push_back_IgnoreAndReturn(0);
 
-    add_subscriber_to_publisher_subscribers(&pub, &test_zmtp_sock);
+    add_subscriber_to_publisher(&pub, &test_zmtp_sock);
 }
 
 
@@ -185,7 +185,7 @@ int zmtp_socket_connect_cb(struct zmtp_socket* s, void* srv_addr, uint16_t remot
     return 0;
 }
 
-void test_zmq_connect(void)
+void test_zmq_req_connect(void)
 {
     struct zmq_socket_base* temp = NULL;
     struct zmq_socket_req req_sock;
