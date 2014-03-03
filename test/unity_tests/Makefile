@@ -17,9 +17,10 @@ CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
 $(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
 
-.PHONY: all clean deepclean
+.PHONY: all clean deepclean cppcheck
 
-all: Testzmtp_tests_Runner Testzmq_tests_Runner 
+ALL = Testzmtp_tests_Runner Testzmq_tests_Runner 
+all: $(ALL)
 
 TO_BE_MOCKED = pico_vector.h pico_ipv4.h pico_mm.h pico_zmtp.h pico_socket.h pico_tree.h
 $(call GenerateRulesForMocks,$(TO_BE_MOCKED))
@@ -39,9 +40,16 @@ Testzmtp_tests_Runner: $(CMOCK_DEP)  mocks/Mockpico_socket.o mocks/Mockpico_vect
 
 #-------------------------------------------------
 
-Testzmtp_dataflow_tests_Runner.o: Mockpico_socket.h Mockpico_mm.h Mockpico_tree.h $(PICOTCP)/include/pico_vector.h
+Testzmtp_dataflow_tests_Runner.o: Mockpico_socket.h Mockpico_mm.h Mockpico_tree.h $(PICOINCLUDE)/pico_vector.h
 
-Testzmtp_dataflow_tests_Runner: $(CMOCK_DEP)  mocks/Mockpico_socket.o mocks/Mockpico_mm.o mocks/Mockpico_tree.o $(PICOTCP)/stack/pico_vector.o Testzmtp_dataflow_tests.o Testzmtp_dataflow_tests_Runner.o 
+Testzmtp_dataflow_tests_Runner: $(CMOCK_DEP)  mocks/Mockpico_socket.o mocks/Mockpico_mm.o mocks/Mockpico_tree.o $(PICOSTACK)/pico_vector.o Testzmtp_dataflow_tests.o Testzmtp_dataflow_tests_Runner.o 
+
+#-------------------------------------------------
+
+# does this really belong here?
+# shouldn't there be like a cppunit_modules or something?
+cppcheck: 
+	cppcheck --enable=all --force $(CPPFLAGS) $(PICOMODULES)/pico_zm*.c *_tests.c
 
 #-------------------------------------------------
 
@@ -50,3 +58,4 @@ clean:
 
 deepclean: clean
 	rm -rf mocks
+	rm -f $(ALL)
