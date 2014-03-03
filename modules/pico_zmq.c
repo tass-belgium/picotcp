@@ -182,25 +182,34 @@ int zmq_connect(void* socket, const char* endpoint)
     return zmtp_socket_connect(base->sock, &addr.addr, short_be(5555));
 }
 
-//static void scan_and_mark(void* socket, struct pico_vector* vec)
-//{
-//    struct pico_vector_iterator* it;
-//    
-//}
+static void scan_and_mark(void* socket, struct pico_vector* vec)
+{
+    struct pico_vector_iterator* it;
+    struct zmq_sock_flag_pair* pair;
+    
+
+    it = pico_vector_begin(&((struct zmq_socket_pub*)socket)->subscribers);
+    while(it)
+    {
+        pair = it->data;
+        pair->mark = MARK_SOCKET_TO_SEND; /* Mark every socket for now! */
+        it = pico_vector_iterator_next(it);
+    } 
+}
 
 static int send_pub(void* socket, struct pico_vector* vec)
 {
-    /* TODO: iteratore through all the subscribers */
-    /* TODO: call zmtp_send_msg ... */
     struct zmq_socket_base* bsock = NULL;
     struct zmq_socket_pub* psock = NULL;
-    struct pico_vector_iterator* it;
+    struct pico_vector_iterator* it = NULL;
     struct zmq_sock_flag_pair* pair = NULL;
 
     bsock = (struct zmq_socket_base*)socket;
 
     if(!socket || !vec || bsock->type != ZMTP_TYPE_PUB)
         return -1;
+
+    scan_and_mark(socket, vec);
 
     psock = (struct zmq_socket_pub*)socket;
     it = pico_vector_begin(&psock->subscribers);

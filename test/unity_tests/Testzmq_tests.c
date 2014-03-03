@@ -209,6 +209,47 @@ void test_zmq_req_connect(void)
     TEST_ASSERT_EQUAL_INT(0, zmq_connect(temp, "tcp://10.40.0.1:5555"));
 }
 
+void test_send_pub(void)
+{
+    struct zmq_socket_pub psock;
+    struct pico_vector vector;
+    struct pico_vector_iterator it_marked; /* Iterator that will point to the marked pair */
+    struct pico_vector_iterator it_not_marked; /* Iterator that will point to the NOT marked pair */
+    struct zmq_sock_flag_pair pair_marked; /* Has mark = MARK_SOCKET_TO_SEND */
+    struct zmq_sock_flag_pair pair_not_marked; /* Has mark = CLEAR_MARK_SOCKET_TO_SEND */
+    struct zmtp_socket zmtp_sock;
+    
+    /* Test for NULL arguments */
+    TEST_ASSERT_EQUAL_INT(-1, send_pub(NULL, NULL));
+    TEST_ASSERT_EQUAL_INT(-1, send_pub(NULL, &vector));
+    TEST_ASSERT_EQUAL_INT(-1, send_pub(&psock, NULL));
+
+    /* Test for wrong socket type */
+    psock.base.type = ZMTP_TYPE_REQ;
+    TEST_ASSERT_EQUAL_INT(-1, send_pub(&psock, &vector));
+
+    /* Normal situation */
+    pair_marked.mark = MARK_SOCKET_TO_SEND;
+    pair_marked.socket = &zmtp_sock;
+    pair_not_marked.mark = CLEAR_MARK_SOCKET_TO_SEND;
+    pair_not_marked.socket = &zmtp_sock;
+    psock.subscribers = vector;
+    psock.base.type = ZMTP_TYPE_PUB;
+    it_marked.data = &pair_marked;
+    it_not_marked.data = &pair_not_marked;
+
+    /* Setup for scan_and_mark method */
+    pico_vector_begin_ExpectAndReturn(&psock.subscribers, NULL);
+
+    /* Setup for send_pub */
+    pico_vector_begin_ExpectAndReturn(&psock.subscribers, &it_marked);
+    zmtp_socket_send_ExpectAndReturn(&zmtp_sock, &vector, 0);
+    pico_vector_iterator_next_ExpectAndReturn(&it_marked, &it_not_marked);
+    pico_vector_iterator_next_ExpectAndReturn(&it_not_marked, NULL);
+
+    TEST_ASSERT_EQUAL_INT(0, send_pub(&psock, &vector));
+}
+
 void test_zmq_pub_send(void)
 {
     struct zmq_socket_pub pub_sock;

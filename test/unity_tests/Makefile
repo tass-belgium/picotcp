@@ -7,7 +7,7 @@ GMFLAGS += --ignore=args_only --plugins="expect;callback;ignore"
 
 # To enable pico features
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
-CFLAGS += $(USE_MEM_MANAGER)
+CFLAGS += $(USE_MEM_MANAGER) -ggdb
 
 CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 

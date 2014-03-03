@@ -156,5 +156,11 @@ void pico_is_port_free_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, int cmoc
 void pico_is_port_free_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t proto, uint16_t port, void* addr, void* net, int cmock_to_return);
 typedef int (* CMOCK_pico_is_port_free_CALLBACK)(uint16_t proto, uint16_t port, void* addr, void* net, int cmock_num_calls);
 void pico_is_port_free_StubWithCallback(CMOCK_pico_is_port_free_CALLBACK Callback);
+#define pico_get_sockport_IgnoreAndReturn(cmock_retval) pico_get_sockport_CMockIgnoreAndReturn(__LINE__, cmock_retval)
+void pico_get_sockport_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_sockport* cmock_to_return);
+#define pico_get_sockport_ExpectAndReturn(proto, port, cmock_retval) pico_get_sockport_CMockExpectAndReturn(__LINE__, proto, port, cmock_retval)
+void pico_get_sockport_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t proto, uint16_t port, struct pico_sockport* cmock_to_return);
+typedef struct pico_sockport* (* CMOCK_pico_get_sockport_CALLBACK)(uint16_t proto, uint16_t port, int cmock_num_calls);
+void pico_get_sockport_StubWithCallback(CMOCK_pico_get_sockport_CALLBACK Callback);
 
 #endif

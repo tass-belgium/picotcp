@@ -236,6 +236,15 @@ typedef struct _CMOCK_pico_is_port_free_CALL_INSTANCE
 
 } CMOCK_pico_is_port_free_CALL_INSTANCE;
 
+typedef struct _CMOCK_pico_get_sockport_CALL_INSTANCE
+{
+  UNITY_LINE_TYPE LineNumber;
+  struct pico_sockport* ReturnVal;
+  uint16_t Expected_proto;
+  uint16_t Expected_port;
+
+} CMOCK_pico_get_sockport_CALL_INSTANCE;
+
 static struct Mockpico_socketInstance
 {
   int pico_socket_open_IgnoreBool;
@@ -358,6 +367,11 @@ static struct Mockpico_socketInstance
   CMOCK_pico_is_port_free_CALLBACK pico_is_port_free_CallbackFunctionPointer;
   int pico_is_port_free_CallbackCalls;
   CMOCK_MEM_INDEX_TYPE pico_is_port_free_CallInstance;
+  int pico_get_sockport_IgnoreBool;
+  struct pico_sockport* pico_get_sockport_FinalReturn;
+  CMOCK_pico_get_sockport_CALLBACK pico_get_sockport_CallbackFunctionPointer;
+  int pico_get_sockport_CallbackCalls;
+  CMOCK_MEM_INDEX_TYPE pico_get_sockport_CallInstance;
 } Mock;
 
 extern jmp_buf AbortFrame;
@@ -365,126 +379,81 @@ extern jmp_buf AbortFrame;
 void Mockpico_socket_Verify(void)
 {
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
-  if (Mock.pico_socket_open_IgnoreBool)
-    Mock.pico_socket_open_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_open_CallInstance, cmock_line, "Function 'pico_socket_open' called less times than expected.");
   if (Mock.pico_socket_open_CallbackFunctionPointer != NULL)
     Mock.pico_socket_open_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_read_IgnoreBool)
-    Mock.pico_socket_read_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_read_CallInstance, cmock_line, "Function 'pico_socket_read' called less times than expected.");
   if (Mock.pico_socket_read_CallbackFunctionPointer != NULL)
     Mock.pico_socket_read_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_write_IgnoreBool)
-    Mock.pico_socket_write_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_write_CallInstance, cmock_line, "Function 'pico_socket_write' called less times than expected.");
   if (Mock.pico_socket_write_CallbackFunctionPointer != NULL)
     Mock.pico_socket_write_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_sendto_IgnoreBool)
-    Mock.pico_socket_sendto_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_sendto_CallInstance, cmock_line, "Function 'pico_socket_sendto' called less times than expected.");
   if (Mock.pico_socket_sendto_CallbackFunctionPointer != NULL)
     Mock.pico_socket_sendto_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_recvfrom_IgnoreBool)
-    Mock.pico_socket_recvfrom_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_recvfrom_CallInstance, cmock_line, "Function 'pico_socket_recvfrom' called less times than expected.");
   if (Mock.pico_socket_recvfrom_CallbackFunctionPointer != NULL)
     Mock.pico_socket_recvfrom_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_send_IgnoreBool)
-    Mock.pico_socket_send_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_send_CallInstance, cmock_line, "Function 'pico_socket_send' called less times than expected.");
   if (Mock.pico_socket_send_CallbackFunctionPointer != NULL)
     Mock.pico_socket_send_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_recv_IgnoreBool)
-    Mock.pico_socket_recv_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_recv_CallInstance, cmock_line, "Function 'pico_socket_recv' called less times than expected.");
   if (Mock.pico_socket_recv_CallbackFunctionPointer != NULL)
     Mock.pico_socket_recv_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_bind_IgnoreBool)
-    Mock.pico_socket_bind_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_bind_CallInstance, cmock_line, "Function 'pico_socket_bind' called less times than expected.");
   if (Mock.pico_socket_bind_CallbackFunctionPointer != NULL)
     Mock.pico_socket_bind_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_connect_IgnoreBool)
-    Mock.pico_socket_connect_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_connect_CallInstance, cmock_line, "Function 'pico_socket_connect' called less times than expected.");
   if (Mock.pico_socket_connect_CallbackFunctionPointer != NULL)
     Mock.pico_socket_connect_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_listen_IgnoreBool)
-    Mock.pico_socket_listen_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_listen_CallInstance, cmock_line, "Function 'pico_socket_listen' called less times than expected.");
   if (Mock.pico_socket_listen_CallbackFunctionPointer != NULL)
     Mock.pico_socket_listen_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_accept_IgnoreBool)
-    Mock.pico_socket_accept_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_accept_CallInstance, cmock_line, "Function 'pico_socket_accept' called less times than expected.");
   if (Mock.pico_socket_accept_CallbackFunctionPointer != NULL)
     Mock.pico_socket_accept_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_del_IgnoreBool)
-    Mock.pico_socket_del_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_del_CallInstance, cmock_line, "Function 'pico_socket_del' called less times than expected.");
   if (Mock.pico_socket_del_CallbackFunctionPointer != NULL)
     Mock.pico_socket_del_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_setoption_IgnoreBool)
-    Mock.pico_socket_setoption_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_setoption_CallInstance, cmock_line, "Function 'pico_socket_setoption' called less times than expected.");
   if (Mock.pico_socket_setoption_CallbackFunctionPointer != NULL)
     Mock.pico_socket_setoption_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_getoption_IgnoreBool)
-    Mock.pico_socket_getoption_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_getoption_CallInstance, cmock_line, "Function 'pico_socket_getoption' called less times than expected.");
   if (Mock.pico_socket_getoption_CallbackFunctionPointer != NULL)
     Mock.pico_socket_getoption_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_shutdown_IgnoreBool)
-    Mock.pico_socket_shutdown_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_shutdown_CallInstance, cmock_line, "Function 'pico_socket_shutdown' called less times than expected.");
   if (Mock.pico_socket_shutdown_CallbackFunctionPointer != NULL)
     Mock.pico_socket_shutdown_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_close_IgnoreBool)
-    Mock.pico_socket_close_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_close_CallInstance, cmock_line, "Function 'pico_socket_close' called less times than expected.");
   if (Mock.pico_socket_close_CallbackFunctionPointer != NULL)
     Mock.pico_socket_close_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_frame_alloc_IgnoreBool)
-    Mock.pico_socket_frame_alloc_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_frame_alloc_CallInstance, cmock_line, "Function 'pico_socket_frame_alloc' called less times than expected.");
   if (Mock.pico_socket_frame_alloc_CallbackFunctionPointer != NULL)
     Mock.pico_socket_frame_alloc_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_transport_process_in_IgnoreBool)
-    Mock.pico_transport_process_in_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_transport_process_in_CallInstance, cmock_line, "Function 'pico_transport_process_in' called less times than expected.");
   if (Mock.pico_transport_process_in_CallbackFunctionPointer != NULL)
     Mock.pico_transport_process_in_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_clone_IgnoreBool)
-    Mock.pico_socket_clone_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_clone_CallInstance, cmock_line, "Function 'pico_socket_clone' called less times than expected.");
   if (Mock.pico_socket_clone_CallbackFunctionPointer != NULL)
     Mock.pico_socket_clone_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_socket_add_IgnoreBool)
-    Mock.pico_socket_add_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_socket_add_CallInstance, cmock_line, "Function 'pico_socket_add' called less times than expected.");
   if (Mock.pico_socket_add_CallbackFunctionPointer != NULL)
     Mock.pico_socket_add_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_transport_error_IgnoreBool)
-    Mock.pico_transport_error_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_transport_error_CallInstance, cmock_line, "Function 'pico_transport_error' called less times than expected.");
   if (Mock.pico_transport_error_CallbackFunctionPointer != NULL)
     Mock.pico_transport_error_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_sockets_loop_IgnoreBool)
-    Mock.pico_sockets_loop_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_sockets_loop_CallInstance, cmock_line, "Function 'pico_sockets_loop' called less times than expected.");
   if (Mock.pico_sockets_loop_CallbackFunctionPointer != NULL)
     Mock.pico_sockets_loop_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_sockets_find_IgnoreBool)
-    Mock.pico_sockets_find_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_sockets_find_CallInstance, cmock_line, "Function 'pico_sockets_find' called less times than expected.");
   if (Mock.pico_sockets_find_CallbackFunctionPointer != NULL)
     Mock.pico_sockets_find_CallInstance = CMOCK_GUTS_NONE;
-  if (Mock.pico_is_port_free_IgnoreBool)
-    Mock.pico_is_port_free_CallInstance = CMOCK_GUTS_NONE;
   UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_is_port_free_CallInstance, cmock_line, "Function 'pico_is_port_free' called less times than expected.");
   if (Mock.pico_is_port_free_CallbackFunctionPointer != NULL)
     Mock.pico_is_port_free_CallInstance = CMOCK_GUTS_NONE;
+  UNITY_TEST_ASSERT(CMOCK_GUTS_NONE == Mock.pico_get_sockport_CallInstance, cmock_line, "Function 'pico_get_sockport' called less times than expected.");
+  if (Mock.pico_get_sockport_CallbackFunctionPointer != NULL)
+    Mock.pico_get_sockport_CallInstance = CMOCK_GUTS_NONE;
 }
 
 void Mockpico_socket_Init(void)
@@ -544,6 +513,8 @@ void Mockpico_socket_Destroy(void)
   Mock.pico_sockets_find_CallbackCalls = 0;
   Mock.pico_is_port_free_CallbackFunctionPointer = NULL;
   Mock.pico_is_port_free_CallbackCalls = 0;
+  Mock.pico_get_sockport_CallbackFunctionPointer = NULL;
+  Mock.pico_get_sockport_CallbackCalls = 0;
 }
 
 struct pico_socket* pico_socket_open(uint16_t net, uint16_t proto, cmock_pico_socket_func_ptr1 wakeup)
@@ -551,6 +522,12 @@ struct pico_socket* pico_socket_open(uint16_t net, uint16_t proto, cmock_pico_so
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_open_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_open_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_open_CallInstance);
   Mock.pico_socket_open_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_open_CallInstance);
+  if (Mock.pico_socket_open_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_open_CallbackFunctionPointer(net, proto, wakeup, Mock.pico_socket_open_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_open' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_open_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -558,12 +535,6 @@ struct pico_socket* pico_socket_open(uint16_t net, uint16_t proto, cmock_pico_so
     Mock.pico_socket_open_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_open_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_open_CallbackFunctionPointer(net, proto, wakeup, Mock.pico_socket_open_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_open' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_net, net, cmock_line, "Function 'pico_socket_open' called with unexpected value for argument 'net'.");
   }
@@ -615,6 +586,12 @@ int pico_socket_read(struct pico_socket* s, void* buf, int len)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_read_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_read_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_read_CallInstance);
   Mock.pico_socket_read_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_read_CallInstance);
+  if (Mock.pico_socket_read_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_read_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_read_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_read' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_read_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -622,12 +599,6 @@ int pico_socket_read(struct pico_socket* s, void* buf, int len)
     Mock.pico_socket_read_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_read_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_read_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_read_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_read' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_read' called with unexpected value for argument 's'.");
   }
@@ -679,6 +650,12 @@ int pico_socket_write(struct pico_socket* s, const void* buf, int len)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_write_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_write_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_write_CallInstance);
   Mock.pico_socket_write_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_write_CallInstance);
+  if (Mock.pico_socket_write_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_write_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_write_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_write' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_write_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -686,12 +663,6 @@ int pico_socket_write(struct pico_socket* s, const void* buf, int len)
     Mock.pico_socket_write_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_write_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_write_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_write_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_write' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_write' called with unexpected value for argument 's'.");
   }
@@ -743,6 +714,12 @@ int pico_socket_sendto(struct pico_socket* s, const void* buf, int len, void* ds
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_sendto_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_sendto_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_sendto_CallInstance);
   Mock.pico_socket_sendto_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_sendto_CallInstance);
+  if (Mock.pico_socket_sendto_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_sendto_CallbackFunctionPointer(s, buf, len, dst, remote_port, Mock.pico_socket_sendto_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_sendto' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_sendto_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -750,12 +727,6 @@ int pico_socket_sendto(struct pico_socket* s, const void* buf, int len, void* ds
     Mock.pico_socket_sendto_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_sendto_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_sendto_CallbackFunctionPointer(s, buf, len, dst, remote_port, Mock.pico_socket_sendto_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_sendto' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_sendto' called with unexpected value for argument 's'.");
   }
@@ -815,6 +786,12 @@ int pico_socket_recvfrom(struct pico_socket* s, void* buf, int len, void* orig, 
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_recvfrom_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_recvfrom_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_recvfrom_CallInstance);
   Mock.pico_socket_recvfrom_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_recvfrom_CallInstance);
+  if (Mock.pico_socket_recvfrom_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_recvfrom_CallbackFunctionPointer(s, buf, len, orig, local_port, Mock.pico_socket_recvfrom_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_recvfrom' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_recvfrom_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -822,12 +799,6 @@ int pico_socket_recvfrom(struct pico_socket* s, void* buf, int len, void* orig, 
     Mock.pico_socket_recvfrom_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_recvfrom_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_recvfrom_CallbackFunctionPointer(s, buf, len, orig, local_port, Mock.pico_socket_recvfrom_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_recvfrom' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_recvfrom' called with unexpected value for argument 's'.");
   }
@@ -890,6 +861,12 @@ int pico_socket_send(struct pico_socket* s, const void* buf, int len)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_send_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_send_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_send_CallInstance);
   Mock.pico_socket_send_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_send_CallInstance);
+  if (Mock.pico_socket_send_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_send_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_send_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_send' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_send_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -897,12 +874,6 @@ int pico_socket_send(struct pico_socket* s, const void* buf, int len)
     Mock.pico_socket_send_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_send_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_send_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_send_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_send' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_send' called with unexpected value for argument 's'.");
   }
@@ -954,6 +925,12 @@ int pico_socket_recv(struct pico_socket* s, void* buf, int len)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_recv_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_recv_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_recv_CallInstance);
   Mock.pico_socket_recv_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_recv_CallInstance);
+  if (Mock.pico_socket_recv_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_recv_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_recv_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_recv' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_recv_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -961,12 +938,6 @@ int pico_socket_recv(struct pico_socket* s, void* buf, int len)
     Mock.pico_socket_recv_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_recv_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_recv_CallbackFunctionPointer(s, buf, len, Mock.pico_socket_recv_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_recv' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_recv' called with unexpected value for argument 's'.");
   }
@@ -1018,6 +989,12 @@ int pico_socket_bind(struct pico_socket* s, void* local_addr, uint16_t* port)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_bind_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_bind_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_bind_CallInstance);
   Mock.pico_socket_bind_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_bind_CallInstance);
+  if (Mock.pico_socket_bind_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_bind_CallbackFunctionPointer(s, local_addr, port, Mock.pico_socket_bind_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_bind' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_bind_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1025,12 +1002,6 @@ int pico_socket_bind(struct pico_socket* s, void* local_addr, uint16_t* port)
     Mock.pico_socket_bind_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_bind_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_bind_CallbackFunctionPointer(s, local_addr, port, Mock.pico_socket_bind_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_bind' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_bind' called with unexpected value for argument 's'.");
   }
@@ -1085,6 +1056,12 @@ int pico_socket_connect(struct pico_socket* s, const void* srv_addr, uint16_t re
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_connect_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_connect_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_connect_CallInstance);
   Mock.pico_socket_connect_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_connect_CallInstance);
+  if (Mock.pico_socket_connect_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_connect_CallbackFunctionPointer(s, srv_addr, remote_port, Mock.pico_socket_connect_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_connect' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_connect_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1092,12 +1069,6 @@ int pico_socket_connect(struct pico_socket* s, const void* srv_addr, uint16_t re
     Mock.pico_socket_connect_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_connect_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_connect_CallbackFunctionPointer(s, srv_addr, remote_port, Mock.pico_socket_connect_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_connect' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_connect' called with unexpected value for argument 's'.");
   }
@@ -1149,6 +1120,12 @@ int pico_socket_listen(struct pico_socket* s, const int backlog)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_listen_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_listen_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_listen_CallInstance);
   Mock.pico_socket_listen_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_listen_CallInstance);
+  if (Mock.pico_socket_listen_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_listen_CallbackFunctionPointer(s, backlog, Mock.pico_socket_listen_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_listen' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_listen_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1156,12 +1133,6 @@ int pico_socket_listen(struct pico_socket* s, const int backlog)
     Mock.pico_socket_listen_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_listen_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_listen_CallbackFunctionPointer(s, backlog, Mock.pico_socket_listen_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_listen' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_listen' called with unexpected value for argument 's'.");
   }
@@ -1209,6 +1180,12 @@ struct pico_socket* pico_socket_accept(struct pico_socket* s, void* orig, uint16
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_accept_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_accept_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_accept_CallInstance);
   Mock.pico_socket_accept_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_accept_CallInstance);
+  if (Mock.pico_socket_accept_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_accept_CallbackFunctionPointer(s, orig, port, Mock.pico_socket_accept_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_accept' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_accept_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1216,12 +1193,6 @@ struct pico_socket* pico_socket_accept(struct pico_socket* s, void* orig, uint16
     Mock.pico_socket_accept_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_accept_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_accept_CallbackFunctionPointer(s, orig, port, Mock.pico_socket_accept_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_accept' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_accept' called with unexpected value for argument 's'.");
   }
@@ -1276,6 +1247,12 @@ int8_t pico_socket_del(struct pico_socket* s)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_del_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_del_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_del_CallInstance);
   Mock.pico_socket_del_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_del_CallInstance);
+  if (Mock.pico_socket_del_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_del_CallbackFunctionPointer(s, Mock.pico_socket_del_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_del' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_del_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1283,12 +1260,6 @@ int8_t pico_socket_del(struct pico_socket* s)
     Mock.pico_socket_del_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_del_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_del_CallbackFunctionPointer(s, Mock.pico_socket_del_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_del' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_del' called with unexpected value for argument 's'.");
   }
@@ -1332,6 +1303,12 @@ int pico_socket_setoption(struct pico_socket* s, int option, void* value)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_setoption_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_setoption_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_setoption_CallInstance);
   Mock.pico_socket_setoption_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_setoption_CallInstance);
+  if (Mock.pico_socket_setoption_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_setoption_CallbackFunctionPointer(s, option, value, Mock.pico_socket_setoption_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_setoption' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_setoption_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1339,12 +1316,6 @@ int pico_socket_setoption(struct pico_socket* s, int option, void* value)
     Mock.pico_socket_setoption_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_setoption_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_setoption_CallbackFunctionPointer(s, option, value, Mock.pico_socket_setoption_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_setoption' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_setoption' called with unexpected value for argument 's'.");
   }
@@ -1396,6 +1367,12 @@ int pico_socket_getoption(struct pico_socket* s, int option, void* value)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_getoption_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_getoption_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_getoption_CallInstance);
   Mock.pico_socket_getoption_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_getoption_CallInstance);
+  if (Mock.pico_socket_getoption_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_getoption_CallbackFunctionPointer(s, option, value, Mock.pico_socket_getoption_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_getoption' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_getoption_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1403,12 +1380,6 @@ int pico_socket_getoption(struct pico_socket* s, int option, void* value)
     Mock.pico_socket_getoption_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_getoption_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_getoption_CallbackFunctionPointer(s, option, value, Mock.pico_socket_getoption_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_getoption' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_getoption' called with unexpected value for argument 's'.");
   }
@@ -1460,6 +1431,12 @@ int pico_socket_shutdown(struct pico_socket* s, int mode)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_shutdown_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_shutdown_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_shutdown_CallInstance);
   Mock.pico_socket_shutdown_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_shutdown_CallInstance);
+  if (Mock.pico_socket_shutdown_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_shutdown_CallbackFunctionPointer(s, mode, Mock.pico_socket_shutdown_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_shutdown' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_shutdown_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1467,12 +1444,6 @@ int pico_socket_shutdown(struct pico_socket* s, int mode)
     Mock.pico_socket_shutdown_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_shutdown_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_shutdown_CallbackFunctionPointer(s, mode, Mock.pico_socket_shutdown_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_shutdown' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_shutdown' called with unexpected value for argument 's'.");
   }
@@ -1520,6 +1491,12 @@ int pico_socket_close(struct pico_socket* s)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_close_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_close_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_close_CallInstance);
   Mock.pico_socket_close_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_close_CallInstance);
+  if (Mock.pico_socket_close_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_close_CallbackFunctionPointer(s, Mock.pico_socket_close_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_close' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_close_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1527,12 +1504,6 @@ int pico_socket_close(struct pico_socket* s)
     Mock.pico_socket_close_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_close_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_close_CallbackFunctionPointer(s, Mock.pico_socket_close_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_close' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_close' called with unexpected value for argument 's'.");
   }
@@ -1576,6 +1547,12 @@ struct pico_frame* pico_socket_frame_alloc(struct pico_socket* s, uint16_t len)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_frame_alloc_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_frame_alloc_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_frame_alloc_CallInstance);
   Mock.pico_socket_frame_alloc_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_frame_alloc_CallInstance);
+  if (Mock.pico_socket_frame_alloc_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_frame_alloc_CallbackFunctionPointer(s, len, Mock.pico_socket_frame_alloc_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_frame_alloc' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_frame_alloc_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1583,12 +1560,6 @@ struct pico_frame* pico_socket_frame_alloc(struct pico_socket* s, uint16_t len)
     Mock.pico_socket_frame_alloc_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_frame_alloc_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_frame_alloc_CallbackFunctionPointer(s, len, Mock.pico_socket_frame_alloc_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_frame_alloc' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_frame_alloc' called with unexpected value for argument 's'.");
   }
@@ -1636,6 +1607,12 @@ int pico_transport_process_in(struct pico_protocol* self, struct pico_frame* f)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_transport_process_in_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_transport_process_in_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_transport_process_in_CallInstance);
   Mock.pico_transport_process_in_CallInstance = CMock_Guts_MemNext(Mock.pico_transport_process_in_CallInstance);
+  if (Mock.pico_transport_process_in_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_transport_process_in_CallbackFunctionPointer(self, f, Mock.pico_transport_process_in_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_transport_process_in' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_transport_process_in_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1643,12 +1620,6 @@ int pico_transport_process_in(struct pico_protocol* self, struct pico_frame* f)
     Mock.pico_transport_process_in_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_transport_process_in_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_transport_process_in_CallbackFunctionPointer(self, f, Mock.pico_transport_process_in_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_transport_process_in' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_self), (void*)(self), sizeof(struct pico_protocol), cmock_line, "Function 'pico_transport_process_in' called with unexpected value for argument 'self'.");
   }
@@ -1696,6 +1667,12 @@ struct pico_socket* pico_socket_clone(struct pico_socket* facsimile)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_clone_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_clone_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_clone_CallInstance);
   Mock.pico_socket_clone_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_clone_CallInstance);
+  if (Mock.pico_socket_clone_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_clone_CallbackFunctionPointer(facsimile, Mock.pico_socket_clone_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_clone' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_clone_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1703,12 +1680,6 @@ struct pico_socket* pico_socket_clone(struct pico_socket* facsimile)
     Mock.pico_socket_clone_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_clone_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_clone_CallbackFunctionPointer(facsimile, Mock.pico_socket_clone_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_clone' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_facsimile), (void*)(facsimile), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_clone' called with unexpected value for argument 'facsimile'.");
   }
@@ -1752,6 +1723,12 @@ int8_t pico_socket_add(struct pico_socket* s)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_socket_add_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_socket_add_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_socket_add_CallInstance);
   Mock.pico_socket_add_CallInstance = CMock_Guts_MemNext(Mock.pico_socket_add_CallInstance);
+  if (Mock.pico_socket_add_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_socket_add_CallbackFunctionPointer(s, Mock.pico_socket_add_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_add' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_socket_add_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1759,12 +1736,6 @@ int8_t pico_socket_add(struct pico_socket* s)
     Mock.pico_socket_add_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_socket_add_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_socket_add_CallbackFunctionPointer(s, Mock.pico_socket_add_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_socket_add' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct pico_socket), cmock_line, "Function 'pico_socket_add' called with unexpected value for argument 's'.");
   }
@@ -1808,6 +1779,12 @@ int pico_transport_error(struct pico_frame* f, uint8_t proto, int code)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_transport_error_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_transport_error_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_transport_error_CallInstance);
   Mock.pico_transport_error_CallInstance = CMock_Guts_MemNext(Mock.pico_transport_error_CallInstance);
+  if (Mock.pico_transport_error_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_transport_error_CallbackFunctionPointer(f, proto, code, Mock.pico_transport_error_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_transport_error' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_transport_error_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1815,12 +1792,6 @@ int pico_transport_error(struct pico_frame* f, uint8_t proto, int code)
     Mock.pico_transport_error_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_transport_error_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_transport_error_CallbackFunctionPointer(f, proto, code, Mock.pico_transport_error_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_transport_error' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_f), (void*)(f), sizeof(struct pico_frame), cmock_line, "Function 'pico_transport_error' called with unexpected value for argument 'f'.");
   }
@@ -1872,6 +1843,12 @@ int pico_sockets_loop(int loop_score)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_sockets_loop_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_sockets_loop_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_sockets_loop_CallInstance);
   Mock.pico_sockets_loop_CallInstance = CMock_Guts_MemNext(Mock.pico_sockets_loop_CallInstance);
+  if (Mock.pico_sockets_loop_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_sockets_loop_CallbackFunctionPointer(loop_score, Mock.pico_sockets_loop_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_sockets_loop' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_sockets_loop_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1879,12 +1856,6 @@ int pico_sockets_loop(int loop_score)
     Mock.pico_sockets_loop_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_sockets_loop_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_sockets_loop_CallbackFunctionPointer(loop_score, Mock.pico_sockets_loop_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_sockets_loop' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_INT(cmock_call_instance->Expected_loop_score, loop_score, cmock_line, "Function 'pico_sockets_loop' called with unexpected value for argument 'loop_score'.");
   }
@@ -1928,6 +1899,12 @@ struct pico_socket* pico_sockets_find(uint16_t local, uint16_t remote)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_sockets_find_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_sockets_find_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_sockets_find_CallInstance);
   Mock.pico_sockets_find_CallInstance = CMock_Guts_MemNext(Mock.pico_sockets_find_CallInstance);
+  if (Mock.pico_sockets_find_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_sockets_find_CallbackFunctionPointer(local, remote, Mock.pico_sockets_find_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_sockets_find' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_sockets_find_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1935,12 +1912,6 @@ struct pico_socket* pico_sockets_find(uint16_t local, uint16_t remote)
     Mock.pico_sockets_find_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_sockets_find_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_sockets_find_CallbackFunctionPointer(local, remote, Mock.pico_sockets_find_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_sockets_find' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_local, local, cmock_line, "Function 'pico_sockets_find' called with unexpected value for argument 'local'.");
   }
@@ -1988,6 +1959,12 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void* addr, void* net)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_is_port_free_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_is_port_free_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_is_port_free_CallInstance);
   Mock.pico_is_port_free_CallInstance = CMock_Guts_MemNext(Mock.pico_is_port_free_CallInstance);
+  if (Mock.pico_is_port_free_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_is_port_free_CallbackFunctionPointer(proto, port, addr, net, Mock.pico_is_port_free_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_is_port_free' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_is_port_free_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -1995,12 +1972,6 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void* addr, void* net)
     Mock.pico_is_port_free_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
-  if (Mock.pico_is_port_free_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_is_port_free_CallbackFunctionPointer(proto, port, addr, net, Mock.pico_is_port_free_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_is_port_free' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_proto, proto, cmock_line, "Function 'pico_is_port_free' called with unexpected value for argument 'proto'.");
   }
@@ -2049,5 +2020,65 @@ void pico_is_port_free_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t
 void pico_is_port_free_StubWithCallback(CMOCK_pico_is_port_free_CALLBACK Callback)
 {
   Mock.pico_is_port_free_CallbackFunctionPointer = Callback;
+}
+
+struct pico_sockport* pico_get_sockport(uint16_t proto, uint16_t port)
+{
+  UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
+  CMOCK_pico_get_sockport_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_get_sockport_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_get_sockport_CallInstance);
+  Mock.pico_get_sockport_CallInstance = CMock_Guts_MemNext(Mock.pico_get_sockport_CallInstance);
+  if (Mock.pico_get_sockport_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_get_sockport_CallbackFunctionPointer(proto, port, Mock.pico_get_sockport_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_get_sockport' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
+  if (Mock.pico_get_sockport_IgnoreBool)
+  {
+    if (cmock_call_instance == NULL)
+      return Mock.pico_get_sockport_FinalReturn;
+    Mock.pico_get_sockport_FinalReturn = cmock_call_instance->ReturnVal;
+    return cmock_call_instance->ReturnVal;
+  }
+  {
+    UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_proto, proto, cmock_line, "Function 'pico_get_sockport' called with unexpected value for argument 'proto'.");
+  }
+  {
+    UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_port, port, cmock_line, "Function 'pico_get_sockport' called with unexpected value for argument 'port'.");
+  }
+  return cmock_call_instance->ReturnVal;
+}
+
+void CMockExpectParameters_pico_get_sockport(CMOCK_pico_get_sockport_CALL_INSTANCE* cmock_call_instance, uint16_t proto, uint16_t port)
+{
+  cmock_call_instance->Expected_proto = proto;
+  cmock_call_instance->Expected_port = port;
+}
+
+void pico_get_sockport_CMockIgnoreAndReturn(UNITY_LINE_TYPE cmock_line, struct pico_sockport* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_get_sockport_CALL_INSTANCE));
+  CMOCK_pico_get_sockport_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_get_sockport_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_get_sockport_CallInstance = CMock_Guts_MemChain(Mock.pico_get_sockport_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  cmock_call_instance->ReturnVal = cmock_to_return;
+  Mock.pico_get_sockport_IgnoreBool = (int)1;
+}
+
+void pico_get_sockport_CMockExpectAndReturn(UNITY_LINE_TYPE cmock_line, uint16_t proto, uint16_t port, struct pico_sockport* cmock_to_return)
+{
+  CMOCK_MEM_INDEX_TYPE cmock_guts_index = CMock_Guts_MemNew(sizeof(CMOCK_pico_get_sockport_CALL_INSTANCE));
+  CMOCK_pico_get_sockport_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_get_sockport_CALL_INSTANCE*)CMock_Guts_GetAddressFor(cmock_guts_index);
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "CMock has run out of memory. Please allocate more.");
+  Mock.pico_get_sockport_CallInstance = CMock_Guts_MemChain(Mock.pico_get_sockport_CallInstance, cmock_guts_index);
+  cmock_call_instance->LineNumber = cmock_line;
+  CMockExpectParameters_pico_get_sockport(cmock_call_instance, proto, port);
+  cmock_call_instance->ReturnVal = cmock_to_return;
+}
+
+void pico_get_sockport_StubWithCallback(CMOCK_pico_get_sockport_CALLBACK Callback)
+{
+  Mock.pico_get_sockport_CallbackFunctionPointer = Callback;
 }
 
