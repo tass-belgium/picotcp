@@ -17,6 +17,11 @@
 #include "pico_protocol.h"
 
 
+#define INITIAL_CAPACITY_SUBSCRIBERS_VECTOR 5
+#define INITIAL_CAPACITY_SUBSCRIPTIONS_VECTOR 5
+#define INITIAL_CAPACITY_SUBSCRIBERS_PER_SUBSCRIPTION 5
+#define INITIAL_CAPACITY_OUT_VECTOR 5
+#define INITIAL_CAPACITY_IN_VECTOR 5
 
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
@@ -76,7 +81,7 @@ static int8_t add_subscription(void* subscription_in, size_t subscription_len, v
     memcpy(subscription, subscription_in, subscription_len);
     pair.subscription = subscription;
     pair.subscription_len = subscription_len;
-    pico_vector_init(&pair.subscribers, 5, sizeof(struct zmq_sock_flag_pair)); /* TODO: initial size should be configurable */
+    pico_vector_init(&pair.subscribers, INITIAL_CAPACITY_SUBSCRIBERS_PER_SUBSCRIPTION, sizeof(struct zmq_sock_flag_pair));
     pico_vector_push_back(&pub->subscriptions, &pair);
     
     return 0;    
@@ -88,7 +93,6 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
 
     dbg("In cb_zmtp_sockets!");
     /* TODO: process events!! */
-    /* In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!! */ 
     if(ev == ZMTP_EV_CONN)
     {
         client = zmtp_socket_accept(s);
@@ -97,6 +101,7 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
             add_subscriber_to_publisher(client->parent, client);
         }
     }
+    /* Else if read event for pub: zmtp_read(...); check if the first byte is 0x01 and then call add_subscription */
 }
 
 
@@ -154,13 +159,13 @@ void* zmq_socket(void* context, int type)
     }
     
     /* Init the pico_vector that is going to be used */
-    pico_vector_init(&sock->in_vector, 5, sizeof(struct zmq_msg_t));
-    pico_vector_init(&sock->out_vector, 5, sizeof(struct zmq_msg_t));
+    pico_vector_init(&sock->in_vector, INITIAL_CAPACITY_IN_VECTOR, sizeof(struct zmq_msg_t));
+    pico_vector_init(&sock->out_vector, INITIAL_CAPACITY_OUT_VECTOR, sizeof(struct zmq_msg_t));
 
     if(type == ZMTP_TYPE_PUB) 
     {
-        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, 5, sizeof(struct zmq_sock_flag_pair));  /* TODO: make initial size configurable */
-        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscriptions, 5, sizeof(struct zmq_sub_sub_pair));  /* TODO: make initial size configurable */
+        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, INITIAL_CAPACITY_SUBSCRIBERS_VECTOR, sizeof(struct zmq_sock_flag_pair));
+        pico_vector_init(&((struct zmq_socket_pub *)sock)->subscriptions, INITIAL_CAPACITY_SUBSCRIPTIONS_VECTOR, sizeof(struct zmq_sub_sub_pair));
     }
 
     return sock;
@@ -232,6 +237,7 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
 {
     struct zmtp_frame_t frame;
     struct zmq_socket_base* bsock = NULL;
+    struct pico_vector_iterator* it = NULL;
 
     if(!socket)
         return -1;
@@ -271,7 +277,14 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
                 return -1;
         }
 
-        pico_vector_clear(&bsock->out_vector);  /* TODO: check if free(...) is needed somewhere!! */
+        /* Clear the out_vector */
+        it = pico_vector_begin(&bsock->out_vector);
+        while(it)
+        {
+            PICO_FREE(((struct zmtp_frame_t *)it->data)->buf);
+            it = pico_vector_iterator_next(it);
+        }
+        pico_vector_clear(&bsock->out_vector); 
     }
 
     return 0;
