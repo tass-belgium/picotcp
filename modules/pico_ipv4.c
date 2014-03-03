@@ -917,12 +917,15 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                 pico_err = PICO_ERR_ENOMEM;
                 return -1;
             }
-
-            source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
-            pico_tree_insert(&g->MCASTSources, source);
+            if (index->keyValue) {
+                source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
+                pico_tree_insert(&g->MCASTSources, source);
+            } else {
+                pico_free(source);
+                return -1;
+            }
         }
     }
-
     g->filter_mode = filter_mode;
     return 0;
 }
