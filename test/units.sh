@@ -4,6 +4,7 @@ rm -f /tmp/pico-mem-report-*
 ./build/test/units || exit 1
 ./build/test/modunit_pico_protocol.elf || exit 1
 ./build/test/modunit_pico_frame.elf || exit 1
+./build/test/modunit_seq.elf || exit 1
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo

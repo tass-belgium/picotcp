@@ -6,10 +6,15 @@ START_TEST(tc_seq_compare)
     uint32_t big_b = 0xFFFFFF0blu;
     uint32_t small_a = 0xalu;
     uint32_t small_b = 0xblu;
+    uint32_t under_thresh = 0x7ffffffflu;
+    uint32_t over_thresh  = 0x80000000lu;
     uint32_t zero = 0lu;
 
     fail_if(seq_compare(small_a, small_b) >= 0);
     fail_if(seq_compare(small_b, small_a) <= 0);
+    
+    fail_if(seq_compare(over_thresh, under_thresh) <= 0);
+    fail_if(seq_compare(under_thresh, over_thresh) >= 0);
 
     fail_if(seq_compare(small_a, big_b) <= 0);
     fail_if(seq_compare(big_b, small_a) >= 0);
