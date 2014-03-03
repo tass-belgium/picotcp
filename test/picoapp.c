@@ -2170,7 +2170,7 @@ void wget_forever_next_url()
         pico_free(url_filename);
         url_filename = NULL;
     }
-
+    usleep(500000);
     url_filename = strdup(basename(urls[current_url]));
     printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
     if(pico_http_client_open(urls[current_url], wget_forever_callback) < 0)
@@ -2241,6 +2241,7 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
             printf("No header received\n");
             pico_http_client_close(conn);
             wget_forever_next_url();
+            return;
         }
 
         /* first save any open read bytes */
