@@ -19,6 +19,8 @@ GMFLAGS =
 CMOCK_OBJ = $(CMOCK)/src/cmock.o
 UNITY_OBJ = $(UNITY)/src/unity.o
 
+$(CMOCK_OBJ) $(UNITY_OBJ) : CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src
+
 CMOCK_DEP =  $(CMOCK_OBJ) $(UNITY_OBJ)
 
 # ----------------------------------------
