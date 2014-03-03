@@ -78,19 +78,19 @@ static /* inline*/ int32_t seq_compare(uint32_t a, uint32_t b)
 {
     uint32_t thresh = ((uint32_t)(-1)) >> 1;
 
-    if (a > b) /* return positive number */
+    if (a > b) /* return positive number, if not wrapped */
     {
         if ((a - b) > thresh) /* b wrapped */
-            return (int32_t)(b - a); /* b = very small,     a = very big      */
+            return -(int32_t)(b - a); /* b = very small,     a = very big      */
         else
             return (int32_t)(a - b); /* a = biggest,        b = a bit smaller */
 
     }
 
-    if (a < b) /* return negative number */
+    if (a < b) /* return negative number, if not wrapped */
     {
         if ((b - a) > thresh) /* a wrapped */
-            return -(int32_t)(a - b); /* a = very small,     b = very big      */
+            return (int32_t)(a - b); /* a = very small,     b = very big      */
         else
             return -(int32_t)(b - a); /* b = biggest,        a = a bit smaller */
 
@@ -343,23 +343,30 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
 {
     void *head = first_segment(q);
     int ret = 0;
-    int seq_result = 0;
-    if(head)
-        seq_result = IS_INPUT_QUEUE(q) ?
-                     seq_compare(((struct tcp_input_segment *)head)->seq + ((struct tcp_input_segment *)head)->payload_len, seq) :
-                     seq_compare(SEQN((struct pico_frame *)head) + ((struct pico_frame *)head)->payload_len, seq);
+    int32_t seq_result = 0;
 
-    while (head && (seq_result <= 0)) {
+    if (!head)
+        return ret;
+
+    do {
         void *cur = head;
-        head = next_segment(q, cur);
-        tcp_dbg("Releasing %p\n", q);
-        pico_discard_segment(q, cur);
-        ret++;
-        if(head)
-            seq_result = IS_INPUT_QUEUE(q) ?
-                         seq_compare(((struct tcp_input_segment *)head)->seq + ((struct tcp_input_segment *)head)->payload_len, seq) :
-                         seq_compare(SEQN((struct pico_frame *)head) + ((struct pico_frame *)head)->payload_len, seq);
-    }
+
+        if (IS_INPUT_QUEUE(q))
+            seq_result = seq_compare(((struct tcp_input_segment *)head)->seq + ((struct tcp_input_segment *)head)->payload_len, seq);
+        else
+            seq_result = seq_compare(SEQN((struct pico_frame *)head) + ((struct pico_frame *)head)->payload_len, seq);
+
+        if (seq_result <= 0)
+        {
+            head = next_segment(q, cur);
+            tcp_dbg("Releasing %p\n", q);
+            pico_discard_segment(q, cur);
+            ret++;
+        } else {
+            break;
+        }
+    } while (head);
+
     return ret;
 }
 
@@ -371,11 +378,15 @@ static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *
     int ret = 0;
     *timestamp = 0;
 
-    pico_tree_foreach_safe(idx, &q->pool, temp){
+    pico_tree_foreach_safe(idx, &q->pool, temp)
+    {
         f = idx->keyValue;
-        seq_result = IS_INPUT_QUEUE(q) ?
-                     seq_compare(((struct tcp_input_segment *)f)->seq + ((struct tcp_input_segment *)f)->payload_len, seq) :
-                     seq_compare(SEQN((struct pico_frame *)f) + ((struct pico_frame *)f)->payload_len, seq);
+
+        if (IS_INPUT_QUEUE(q))
+            seq_result = seq_compare(((struct tcp_input_segment *)f)->seq + ((struct tcp_input_segment *)f)->payload_len, seq);
+        else
+            seq_result = seq_compare(SEQN((struct pico_frame *)f) + ((struct pico_frame *)f)->payload_len, seq);
+
         if (seq_result <= 0) {
             tcp_dbg("Releasing %p\n", f);
             if(seq_result == 0)
@@ -383,13 +394,12 @@ static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *
 
             pico_discard_segment(q, f);
             ret++;
-        } else
+        } else {
             return ret;
+        }
     }
     return ret;
 }
-
-/* API calls */
 
 
 /* API calls */
@@ -950,7 +960,8 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 {
     struct pico_socket_tcp *t = TCP_SOCK(s);
     struct tcp_input_segment *f;
-    uint32_t in_frame_off, in_frame_len;
+    int32_t in_frame_off;
+    uint32_t in_frame_len;
     uint32_t tot_rd_len = 0;
 
     while (tot_rd_len < len) {
@@ -960,26 +971,26 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
         if (!f)
             goto out;
 
+        in_frame_off = seq_compare(t->rcv_processed, f->seq);
         /* Hole at the beginning of data, awaiting retransmissions. */
-        if (seq_compare(t->rcv_processed, f->seq) < 0) {
+        if (in_frame_off < 0) {
             tcp_dbg("TCP> read hole beginning of data, %08x - %08x. rcv_nxt is %08x\n", t->rcv_processed, f->seq, t->rcv_nxt);
             goto out;
         }
-
-        if(seq_compare(t->rcv_processed, f->seq) > 0) {
-            in_frame_off = t->rcv_processed - f->seq;
-            in_frame_len = f->payload_len - in_frame_off;
+        
+        else if (in_frame_off > 0)
+        {
+            if (in_frame_off > f->payload_len)
+                dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
+            in_frame_len = f->payload_len - (uint32_t)in_frame_off;
         } else {
-            in_frame_off = 0;
             in_frame_len = f->payload_len;
         }
+
 
         if ((in_frame_len + tot_rd_len) > (uint32_t)len) {
             in_frame_len = len - tot_rd_len;
         }
-
-        if (in_frame_len > f->payload_len - in_frame_off)
-            in_frame_len = f->payload_len - in_frame_off;
 
         memcpy((uint8_t *)buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
         tot_rd_len += in_frame_len;
