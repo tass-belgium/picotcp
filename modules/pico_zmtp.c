@@ -277,11 +277,17 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     struct pico_ip4 orig;
     uint16_t port;
 
+    if(zmtp_s == NULL)
+    {
+        zmtp_err = ZMTP_ERR_EINVAL;
+        return NULL;
+    }
+
     new_zmtp_s = PICO_ZALLOC(sizeof(struct zmtp_socket));
     if(new_zmtp_s == NULL)
     {
         zmtp_err = ZMTP_ERR_ENOMEM;
-        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+        return NULL;
     }
 
     new_zmtp_s->sock = pico_socket_accept(zmtp_s->sock, &orig, &port);
