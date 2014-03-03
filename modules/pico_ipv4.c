@@ -25,6 +25,7 @@
 
 #ifdef PICO_SUPPORT_MCAST
 # define ip_mcast_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+/* #define ip_mcast_dbg dbg */
 # define PICO_MCAST_ALL_HOSTS long_be(0xE0000001) /* 224.0.0.1 */
 /* Default network interface for multicast transmission */
 static struct pico_ipv4_link *mcast_default_link = NULL;
@@ -912,20 +913,19 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
     if (MCASTFilter) {
         pico_tree_foreach(index, MCASTFilter)
         {
-            source = pico_zalloc(sizeof(struct pico_ip4));
-            if (!source) {
-                pico_err = PICO_ERR_ENOMEM;
-                return -1;
-            }
             if (index->keyValue) {
+                source = pico_zalloc(sizeof(struct pico_ip4));
+                if (!source) {
+                    pico_err = PICO_ERR_ENOMEM;
+                    return -1;
+                }
+
                 source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
                 pico_tree_insert(&g->MCASTSources, source);
-            } else {
-                pico_free(source);
-                return -1;
             }
         }
     }
+
     g->filter_mode = filter_mode;
     return 0;
 }
@@ -966,8 +966,10 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
     }
 
-    if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
+    if (mcast_group_update(g, MCASTFilter, filter_mode) < 0) {
+        dbg("Error in mcast_group update\n");
         return -1;
+    }
 
     pico_ipv4_mcast_print_groups(link);
     return 0;

@@ -6,8 +6,8 @@
 #include "pico_udp.h"
 
 #ifdef PICO_SUPPORT_MCAST
-//# define so_mcast_dbg(...) do {} while(0) /* ip_mcast_dbg in pico_ipv4.c */
-#define so_mcast_dbg dbg
+# define so_mcast_dbg(...) do {} while(0) /* ip_mcast_dbg in pico_ipv4.c */
+/* #define so_mcast_dbg dbg */
 
 /*                       socket
  *                         |
@@ -156,7 +156,7 @@ static uint8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
     /* add to the interface EXCLUDE filter any socket source NOT in the former interface INCLUDE filter */
     pico_tree_foreach_safe(index, &listen->MCASTSources, _tmp)
     {
-        source = pico_tree_insert(&MCASTFilter, index2->keyValue);
+        source = pico_tree_insert(&MCASTFilter, index->keyValue);
         if (source)
             pico_tree_delete(&MCASTFilter, source);
     }
@@ -182,16 +182,16 @@ struct pico_mcast_filter_aggregation
     uint8_t (*call)(struct pico_mcast_listen *);
 };
 
-static const struct pico_mcast_filter_aggregation mcast_filter_aggr_call[2][2] = 
+static const struct pico_mcast_filter_aggregation mcast_filter_aggr_call[2][2] =
 {
     {
-    /* EXCL + EXCL */ {.call = pico_mcast_filter_excl_excl},
-    /* EXCL + INCL */ {.call = pico_mcast_filter_excl_incl}
+        /* EXCL + EXCL */ {.call = pico_mcast_filter_excl_excl},
+        /* EXCL + INCL */ {.call = pico_mcast_filter_excl_incl}
     },
 
     {
-    /* INCL + EXCL */ {.call = pico_mcast_filter_incl_excl},
-    /* INCL + INCL */ {.call = pico_mcast_filter_incl_incl}
+        /* INCL + EXCL */ {.call = pico_mcast_filter_incl_excl},
+        /* INCL + INCL */ {.call = pico_mcast_filter_incl_incl}
     }
 };
 
@@ -199,10 +199,13 @@ static int mcast_aggr_validate(uint8_t fm, struct pico_mcast_listen *l)
 {
     if (!l)
         return -1;
+
     if (fm > 1)
         return -1;
+
     if (l->filter_mode > 1)
         return -1;
+
     return 0;
 }
 
@@ -232,11 +235,12 @@ static int pico_socket_aggregate_mcastfilters(union pico_address *mcast_link, un
                 pico_err = PICO_ERR_EINVAL;
                 return -1;
             }
+
             if (mcast_filter_aggr_call[filter_mode][listen->filter_mode].call) {
                 filter_mode = mcast_filter_aggr_call[filter_mode][listen->filter_mode].call(listen);
                 if (filter_mode > 1)
                     return -1;
-            } 
+            }
         }
     }
     return filter_mode;
@@ -557,7 +561,7 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
     if (filter_mode < 0)
         return -1;
 
-    so_mcast_dbg("PICO_IP_ADD_MEMBERSHIP - success\n");
+    so_mcast_dbg("PICO_IP_ADD_MEMBERSHIP - success, added %p\n", s);
     return pico_ipv4_mcast_join(&mreq->mcast_link_addr, &mreq->mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter);
 }
 
@@ -680,6 +684,7 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
                 pico_err = PICO_ERR_ENOMEM;
                 return -1;
             }
+
             source->ip4.addr = mreq->mcast_source_addr.addr;
             pico_tree_insert(&listen->MCASTSources, source);
         }
@@ -813,19 +818,8 @@ static int mcast_so_dropsrcm(struct pico_socket *s, void *value)
 
     return pico_ipv4_mcast_leave(&mreq->mcast_link_addr, &mreq->mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter);
 }
-/*
-# define PICO_IP_MULTICAST_IF                 32
-# define PICO_IP_MULTICAST_TTL                33
-# define PICO_IP_MULTICAST_LOOP               34
-# define PICO_IP_ADD_MEMBERSHIP               35
-# define PICO_IP_DROP_MEMBERSHIP              36
-# define PICO_IP_UNBLOCK_SOURCE               37
-# define PICO_IP_BLOCK_SOURCE                 38
-# define PICO_IP_ADD_SOURCE_MEMBERSHIP        39
-# define PICO_IP_DROP_SOURCE_MEMBERSHIP       40
-*/
 
-struct pico_setsockopt_mcast_call 
+struct pico_setsockopt_mcast_call
 {
     int option;
     int (*call)(struct pico_socket *, void *);
@@ -834,7 +828,7 @@ struct pico_setsockopt_mcast_call
 static const struct pico_setsockopt_mcast_call mcast_so_calls[1 + PICO_IP_DROP_SOURCE_MEMBERSHIP - PICO_IP_MULTICAST_IF] =
 {
     { PICO_IP_MULTICAST_IF,             NULL },
-    { PICO_IP_MULTICAST_TTL,            pico_udp_set_mc_ttl }, 
+    { PICO_IP_MULTICAST_TTL,            pico_udp_set_mc_ttl },
     { PICO_IP_MULTICAST_LOOP,           mcast_so_loop },
     { PICO_IP_ADD_MEMBERSHIP,           mcast_so_addm },
     { PICO_IP_DROP_MEMBERSHIP,          mcast_so_dropm },
@@ -850,21 +844,25 @@ static int mcast_so_check_socket(struct pico_socket *s)
     pico_err = PICO_ERR_EINVAL;
     if (!s)
         return -1;
+
     if (!s->proto)
         return -1;
+
     if (s->proto->proto_number != PICO_PROTO_UDP)
         return -1;
+
     pico_err = PICO_ERR_NOERR;
     return 0;
 }
 
 int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
-{   
+{
     int arrayn = option - PICO_IP_MULTICAST_IF;
     if (option < PICO_IP_MULTICAST_IF || option > PICO_IP_DROP_SOURCE_MEMBERSHIP) {
         pico_err = PICO_ERR_EOPNOTSUPP;
         return -1;
     }
+
     if (mcast_so_check_socket(s) < 0)
         return -1;
 
@@ -872,6 +870,7 @@ int pico_setsockopt_mcast(struct pico_socket *s, int option, void *value)
         pico_err = PICO_ERR_EOPNOTSUPP;
         return -1;
     }
+
     return (mcast_so_calls[arrayn].call(s, value));
 }
 
