@@ -119,10 +119,10 @@ int check_revision(struct zmtp_socket *zmtp_s)
     {
         PICO_FREE(buf);
         zmtp_err = ZMTP_ERR_NOTIMPL;
+        /* Fatal error for this socket? */
         zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
         return -1;
-    }
-    else
+    } 
     
     zmtp_s->state = ZMTP_ST_RCVD_REVISION;
     PICO_FREE(buf);
@@ -327,7 +327,7 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
     {
         ret = pico_socket_bind(s->sock, local_addr, port);
     } else {
-        ret = PICO_ERR_EINVAL;
+        pico_err = PICO_ERR_EINVAL;
         ret = -1;
     }
     if (0==ret)
@@ -451,7 +451,7 @@ int zmtp_socket_close(struct zmtp_socket *s)
         PICO_FREE(s->sock);
     if (s->out_buff)
     {
-        /*implement the freeing of all messages still required*/
+        /* TODO: implement the freeing of all messages still required*/
         pico_vector_destroy(s->out_buff);
     }
     if (s)
