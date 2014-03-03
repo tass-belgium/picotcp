@@ -191,7 +191,8 @@ static void scan_and_mark(void* socket, struct pico_vector* vec)
 {
     struct pico_vector_iterator* it;
     struct zmq_sock_flag_pair* pair;
-    
+
+    IGNORE_PARAMETER(vec);
 
     it = pico_vector_begin(&((struct zmq_socket_pub*)socket)->subscribers);
     while(it)

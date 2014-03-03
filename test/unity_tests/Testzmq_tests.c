@@ -260,7 +260,6 @@ void test_zmq_pub_send(void)
     struct zmq_socket_pub pub_sock;
     struct zmtp_socket zmtp_sock;
     const char* test_data = "Hello";
-    struct pico_vector_iterator iterator;
     
     /* Create the pub_sock */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
@@ -272,8 +271,6 @@ void test_zmq_pub_send(void)
 
     zmq_socket(NULL, ZMTP_TYPE_PUB);
 
-    iterator.data = &zmtp_sock;
-    
     pico_mem_zalloc_ExpectAndReturn(5, calloc(1, 5));
     pico_vector_push_back_IgnoreAndReturn(0);
 
