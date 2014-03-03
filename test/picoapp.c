@@ -2160,24 +2160,28 @@ void wget_forever_callback(uint16_t ev, uint16_t conn);
 
 void wget_forever_next_url()
 {
-    printf("current_url=%d\n", current_url);
-    current_url++;
-    if (current_url >= MAX_URLS)
-        current_url = 0;
+    while(1) /* try until it succeeds */
+    {
+        current_url++;
+        if (current_url >= MAX_URLS)
+            current_url = 0;
+        printf("current_url=%d\n", current_url);
 
-    if (url_filename)
-    {
-        pico_free(url_filename);
-        url_filename = NULL;
-    }
-    usleep(500000);
-    url_filename = strdup(basename(urls[current_url]));
-    printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
-    if(pico_http_client_open(urls[current_url], wget_forever_callback) < 0)
-    {
-        printf("http client open failed\n");
-        pico_free(url_filename);
-        exit(1); /* failed */
+        if (url_filename)
+        {
+            pico_free(url_filename);
+            url_filename = NULL;
+        }
+        usleep(500000);
+        url_filename = strdup(basename(urls[current_url]));
+        printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
+        if(pico_http_client_open(urls[current_url], wget_forever_callback) < 0)
+        {
+            printf("http client open failed\n");
+            pico_free(url_filename);
+        } else {
+            break;
+        }
     }
 }
 
@@ -2253,14 +2257,14 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
         {
             _length += len;
         }
-        printf("Read a total data of : %d bytes \n", _length_tot);
+        printf("HTTP_CLOSE, now read a total data of : %d bytes \n", _length_tot);
 
         if(header->transferCoding == HTTP_TRANSFER_CHUNKED)
         {
             if(header->contentLengthOrChunk)
             {
                 printf("Last chunk data not fully read !\n");
-                wget_forever_next_url();
+                return;
             }
             else
             {
@@ -2275,7 +2279,7 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
             else
             {
                 printf("Received %d , waiting for %d\n", _length + _length_tot, header->contentLengthOrChunk);
-                wget_forever_next_url();
+                return;
             }
         }
 
@@ -2310,18 +2314,37 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
     }
 }
 
-void app_wget_forever()
+void app_wget_forever(char * arg)
 {
-    /* urls[0] = "homer.tass.org.be/LPC1768.pdf"; */
-    /* urls[1] = "marge.tass.org.be/marge-simpson-picture.png"; */
-    /* urls[2] = "bart.tass.org.be/"; */
+    uint8_t cnt = 0;
+    char *url;
+    char *nxt= arg;
+
+    while ((nxt!=NULL) && (cnt < 3))
+    {
+        nxt = cpy_arg(&url, nxt);
+        urls[cnt++] = url;
+    }
+
+    if (cnt < 3)
+    {
+        printf("wget_forever expects 3 urls, quitting.. \n");
+        exit(1);
+    }
+
+    /*
+    urls[0] = "homer.tass.org.be/LPC1768.pdf";
+    urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
+    urls[2] = "bart.tass.org.be/";
+
     urls[0] = "10.40.0.1/test1.bin";
     urls[1] = "10.40.0.1/test10.bin";
     urls[2] = "10.40.0.1/test5.bin";
-/*
+
     urls[0] = "download.linnrecords.com/test/mp3/tone.aspx";
     urls[1] = "ipv4.download.thinkbroadband.com/5MB.zip";
     urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
+
     urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
     urls[1] = "10.70.0.1/gdb-refcard.pdf";
     urls[2] = "10.70.0.1/books.txt";
@@ -2919,7 +2942,7 @@ int main(int argc, char **argv)
 #ifndef PICO_SUPPORT_HTTP_CLIENT
                                                                     return 0;
 #else
-                                                                    app_wget_forever();
+                                                                    app_wget_forever(args);
 #endif
                                                                 }
                                                                 else IF_APPNAME("httpd") {
