@@ -82,6 +82,7 @@
 /* Returns used  */
 #define HTTP_RETURN_ERROR    -1
 #define HTTP_RETURN_OK              0
+#define HTTP_RETURN_BUSY      1
 
 /* HTTP Methods */
 #define HTTP_METHOD_GET     1u
@@ -109,6 +110,9 @@ struct pico_http_uri
 int pico_itoaHex(uint16_t port, char *ptr);
 uint16_t pico_itoa(uint16_t port, char *ptr);
 int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey);
+
+int is_digit(char chr);
+void url_decode(char *dst, const char *src);
 
 /* HTTP Header parsing functions */
 int pico_http_parse_header(char *ptr, char **key, char **value); /* Returns next key and value, modifies buffer with zero terminations */

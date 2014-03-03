@@ -52,8 +52,8 @@ static inline void *pico_zalloc(size_t size)
     return ptr;
 }
 
-extern uint32_t lpc_tick;
-static pico_time full_tick = 0ULL;
+extern volatile uint32_t lpc_tick;
+extern volatile pico_time full_tick;
 
 static inline pico_time PICO_TIME_MS(void)
 {

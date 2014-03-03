@@ -27,6 +27,8 @@
  *** *** *** *** *** *** ***/
 #if defined STM32
 # include "arch/pico_stm32.h"
+#elif defined STM32_GC
+# include "arch/pico_stm32_gc.h"
 #elif defined STELLARIS
 # include "arch/pico_stellaris.h"
 #elif defined LPC
@@ -45,6 +47,7 @@
 # include "../test/pico_faulty.h"
 #elif defined STR9
 # include "arch/pico_str9.h"
+
 /* #elif defined ... */
 
 #else

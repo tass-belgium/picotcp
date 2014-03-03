@@ -8,11 +8,12 @@ GMFLAGS += --ignore=args_only --plugins="expect;callback;ignore"
 
 # To enable pico features
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
+PICO_WARNINGS = -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wconversion -Wcast-qual -Wwrite-strings -Wmissing-field-initializers
 CFLAGS += $(USE_MEM_MANAGER) -ggdb
 
 CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
-%_Runner.o %_tests.o mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks
+%_Runner.o %_tests.o mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
 
 $(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
 

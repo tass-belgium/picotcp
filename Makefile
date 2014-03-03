@@ -2,6 +2,7 @@ CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
+SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
 LIBNAME:="libpicotcp.a"
@@ -30,6 +31,7 @@ IPFILTER?=1
 CRC?=0
 HTTP_CLIENT?=1
 HTTP_SERVER?=1
+SIMPLE_HTTP?=1
 ZMQ?=1
 OLSR?=1
 SLAACV4?=1
@@ -62,8 +64,13 @@ endif
 ifeq ($(ARCH),stm32)
   CFLAGS+=-mcpu=cortex-m4 \
   -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
-  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
-  -DSTM32
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
+endif
+
+ifeq ($(ARCH),stm32_gc)
+  CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 
+  CFLAGS_CORTEX_M4 += -mfloat-abi=hard -fsingle-precision-constant -Wdouble-promotion
+  CFLAGS+= $(CFLAGS_CORTEX_M4) -mlittle-endian -DSTM32_GC
 endif
 
 ifeq ($(ARCH),faulty)
@@ -239,6 +246,13 @@ test: posix $(TEST_ELF) $(TEST_OBJ)
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
+	
+TEST_HTTPD_ELF= test/examples/test_http_server.elf
+
+test_httpd: posix $(TEST_HTTPD_ELF) $(TEST_OBJ)
+	@mkdir -p $(PREFIX)/test/
+	@rm test/examples/*.o
+	@mv test/examples/*.elf $(PREFIX)/test
 
 tst: test
 
@@ -257,6 +271,7 @@ lib: mod core
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
 	@./mkdeps.sh $(PREFIX) $(CFLAGS) 
 
 loop: mod core
