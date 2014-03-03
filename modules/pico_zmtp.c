@@ -290,6 +290,14 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
         return NULL;
     }
 
+    new_zmtp_s->out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
+    if(new_zmtp_s->out_buff == NULL)
+    {
+        zmtp_err = ZMTP_ERR_ENOMEM;
+        PICO_FREE(new_zmtp_s);
+        return NULL;
+    }
+
     new_zmtp_s->sock = pico_socket_accept(zmtp_s->sock, &orig, &port);
     dbg("new_zmtp_s->sock: %p\n", new_zmtp_s->sock);
     if(new_zmtp_s->sock == NULL)

@@ -290,11 +290,13 @@ void test_zmtp_socket_accept_normal(void)
     struct zmtp_socket* new_zmtp_s;
     struct pico_socket* pico_s;
     struct pico_socket* new_pico_s;
+    struct pico_vector* out_buff;
 
     new_pico_s = calloc(1,sizeof(struct pico_socket));
     zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     pico_s = calloc(1,sizeof(struct pico_socket));
+    out_buff = calloc(1,sizeof(struct pico_vector));
 
     /* setting the members of zmtp_s */
     zmtp_s->zmq_cb = &zmq_cb_mock;
@@ -304,6 +306,7 @@ void test_zmtp_socket_accept_normal(void)
     /* zmtp_socket_accept should accept the pico socket and store it in a new 
        zmtp socket */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), new_zmtp_s);
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), out_buff);
 
     /* zmtp_socket_accept calls pico_socket_accept to accept the new pico connection */
     /* e_pico_s and e_new_pico_s are global variables used in pico_socket_accept_cb */
@@ -338,6 +341,56 @@ void test_zmtp_socket_accept_zmtp_null(void)
     TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
 }
 
+/* no memory to allocate new zmtp socket */
+void test_zmtp_socket_accept_no_mem(void)
+{
+    struct zmtp_socket* zmtp_s;
+    struct pico_socket* pico_s;
+
+    zmtp_s = calloc(1,sizeof(struct zmtp_socket));
+    pico_s = calloc(1,sizeof(struct pico_socket));
+
+    zmtp_s->zmq_cb = &zmq_cb_mock;
+    zmtp_s->sock = pico_s;
+    zmtp_s->type = ZMTP_TYPE_PUB;
+    
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), NULL);
+
+    TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
+
+    free(zmtp_s);
+    free(pico_s);
+}
+
+/* no memory to allocate new out_buff */
+void test_zmtp_socket_accept_no_mem2(void)
+{
+    struct zmtp_socket* zmtp_s;
+    struct zmtp_socket* new_zmtp_s;
+    struct pico_socket* pico_s;
+    struct pico_socket* new_pico_s;
+
+    new_pico_s = calloc(1,sizeof(struct pico_socket));
+    zmtp_s = calloc(1,sizeof(struct zmtp_socket));
+    new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
+    pico_s = calloc(1,sizeof(struct pico_socket));
+
+    /* setting the members of zmtp_s */
+    zmtp_s->zmq_cb = &zmq_cb_mock;
+    zmtp_s->sock = pico_s;
+    zmtp_s->type = ZMTP_TYPE_PUB;
+    
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), new_zmtp_s);
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), NULL);
+    pico_mem_free_Expect(new_zmtp_s);
+
+    TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
+
+    free(zmtp_s);
+    free(new_zmtp_s);
+    free(pico_s);
+    free(new_pico_s);
+}
 /* zmq calls zmtp_socket_accept while pico has no new connection */
 /* What is the behaviour of pico_socket_accept in this case? */
 
