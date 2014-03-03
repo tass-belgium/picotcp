@@ -21,29 +21,12 @@
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
 
-static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
-{
-    struct zmtp_socket* client;
-
-    dbg("In cb_zmtp_sockets!");
-    /* TODO: process events!! */
-    /* In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!! */ 
-    if(ev == ZMTP_EV_CONN)
-    {
-        client = zmtp_socket_accept(s);
-        if(s->type == ZMTP_TYPE_PUB)
-        {
-            pico_vector_push_back(&((struct zmq_socket_pub *)s)->subscribers, client);
-        }
-    }
-}
-
 /* When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
  * The reason why we use a pair of socket-mark is because when we want to send something out to subscribers,
  * we mark every socket that matches with the subscription and in a later phase, we send the message to all
  * marked sockets.
  */
-static int8_t add_subscriber_to_publisher_subscribers(void* zmq_sock, struct zmtp_socket* zmtp_sock)
+static int8_t add_subscriber_to_publisher(void* zmq_sock, struct zmtp_socket* zmtp_sock)
 {
     struct zmq_socket_base* bsock = NULL;
     struct zmq_socket_pub* psock = NULL;
@@ -67,10 +50,6 @@ static int8_t add_subscriber_to_publisher_subscribers(void* zmq_sock, struct zmt
 
 static int8_t add_subscription(void* subscription_in, size_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
 {
-    /* TODO: scan if subscritpion already exists */
-    /* TODO: if doesnt exist: add new sub_sub_pair into zmq_sock->subscriptions list */
-    /* TODO: if exists: add zmtp_sock into the subscribers of the found sub_sub_pair */
-
     void* subscription = NULL;
     struct zmq_socket_pub* pub;
     struct zmq_sub_sub_pair pair;
@@ -86,7 +65,7 @@ static int8_t add_subscription(void* subscription_in, size_t subscription_len, v
         {
             /* The subscription already exists so add the new zmtp_sock into the subscribers of that specific subscription */
             pico_vector_push_back(&((struct zmq_sub_sub_pair*)it->data)->subscribers, zmtp_sock);
-            PICO_FREE(it);
+            PICO_FREE(it); /* Free the it. This must be done if you don't iterate through the end. See pico_vector for details. */
             return 0;
         }
         it = pico_vector_iterator_next(it);
@@ -97,11 +76,29 @@ static int8_t add_subscription(void* subscription_in, size_t subscription_len, v
     memcpy(subscription, subscription_in, subscription_len);
     pair.subscription = subscription;
     pair.subscription_len = subscription_len;
-    pico_vector_init(&pair.subscribers, 5, sizeof(struct zmq_sock_flag_pair));
+    pico_vector_init(&pair.subscribers, 5, sizeof(struct zmq_sock_flag_pair)); /* TODO: initial size should be configurable */
     pico_vector_push_back(&pub->subscriptions, &pair);
     
     return 0;    
 }
+
+static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
+{
+    struct zmtp_socket* client;
+
+    dbg("In cb_zmtp_sockets!");
+    /* TODO: process events!! */
+    /* In zmtp_socket will be a void* parent. Cast that one to a pub socket and add it to the subscribers vector. Don't forget to check type!! */ 
+    if(ev == ZMTP_EV_CONN)
+    {
+        client = zmtp_socket_accept(s);
+        if(s->type == ZMTP_TYPE_PUB)
+        {
+            add_subscriber_to_publisher(client->parent, client);
+        }
+    }
+}
+
 
 int zmq_bind(void* socket, const char *endpoint)
 {
@@ -185,11 +182,47 @@ int zmq_connect(void* socket, const char* endpoint)
     return zmtp_socket_connect(base->sock, &addr.addr, short_be(5555));
 }
 
+//static void scan_and_mark(void* socket, struct pico_vector* vec)
+//{
+//    struct pico_vector_iterator* it;
+//    
+//}
+
+static int send_pub(void* socket, struct pico_vector* vec)
+{
+    /* TODO: iteratore through all the subscribers */
+    /* TODO: call zmtp_send_msg ... */
+    struct zmq_socket_base* bsock = NULL;
+    struct zmq_socket_pub* psock = NULL;
+    struct pico_vector_iterator* it;
+    struct zmq_sock_flag_pair* pair = NULL;
+
+    bsock = (struct zmq_socket_base*)socket;
+
+    if(!socket || !vec || bsock->type != ZMTP_TYPE_PUB)
+        return -1;
+
+    psock = (struct zmq_socket_pub*)socket;
+    it = pico_vector_begin(&psock->subscribers);
+    while(it)
+    {
+        pair = it->data;
+        if(pair->mark == MARK_SOCKET_TO_SEND)
+        {
+            if(zmtp_socket_send(pair->socket, vec) < 0) 
+            {
+                /* TODO: do some error handling! */
+            }
+        }
+        it = pico_vector_iterator_next(it);
+    }
+    return 0;
+}
+
 int zmq_send(void* socket, const void* buf, size_t len, int flags)
 {
     struct zmtp_frame_t frame;
     struct zmq_socket_base* bsock = NULL;
-    struct pico_vector_iterator* iterator;
 
     if(!socket)
         return -1;
@@ -219,22 +252,15 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
         /* Push the final frame to the out_vector */
         pico_vector_push_back(&bsock->out_vector, &frame);
         
-        if(bsock->type == ZMTP_TYPE_PUB)
-            iterator = pico_vector_begin(&((struct zmq_socket_pub *)bsock)->subscribers);
-
-        /* Iteratore through all the registered ztmp sockets */
-        while(iterator)
+        switch(bsock->type)
         {
-            if( zmtp_socket_send(iterator->data, &bsock->out_vector) < 0 )
-            {
-                while(1);
-                /* TODO: do some error handling! */
-            }
-            iterator = pico_vector_iterator_next(iterator);
-        }
+            case ZMTP_TYPE_PUB:
+                send_pub(bsock, &bsock->out_vector); /* TODO: think about return type! */
+                break;
 
-        if(bsock->type == ZMTP_TYPE_REQ)
-            ((struct zmq_socket_req *)bsock)->send_enable = ZMQ_SEND_DISABLED;
+            default:
+                return -1;
+        }
 
         pico_vector_clear(&bsock->out_vector);  /* TODO: check if free(...) is needed somewhere!! */
     }
