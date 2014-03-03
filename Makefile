@@ -31,7 +31,6 @@ IPFILTER?=1
 CRC?=0
 HTTP_CLIENT?=1
 HTTP_SERVER?=1
-SIMPLE_HTTP?=1
 ZMQ?=1
 OLSR?=1
 SLAACV4?=1
@@ -182,9 +181,6 @@ ifneq ($(DHCP_SERVER),0)
 endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
-endif
-ifneq ($(SIMPLE_HTTP),0)
-  include rules/http.mk
 endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
