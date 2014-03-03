@@ -305,8 +305,11 @@ void test_check_identity(void)
     free(read_data);
 }
 
-void test_zmtp_socket_accept(void)
+/* zmq calls zmtp_socket_accept with good args */
+void test_zmtp_socket_accept_normal(void)
 {
+    /* zmtp_s is the listener socket of the publisher, pico_s is its pico socket */
+    /* new_zmtp_s is the socket that will be returned by zmtp_socket_accept() */
     struct zmtp_socket* zmtp_s;
     struct zmtp_socket* new_zmtp_s;
     struct pico_socket* pico_s;
@@ -317,17 +320,27 @@ void test_zmtp_socket_accept(void)
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     pico_s = calloc(1,sizeof(struct pico_socket));
 
+    /* setting the members of zmtp_s */
     zmtp_s->zmq_cb = &zmq_cb_mock;
     zmtp_s->sock = pico_s;
     zmtp_s->type = ZMTP_TYPE_PUB;
     
+    /* zmtp_socket_accept should accept the pico socket and store it in a new 
+       zmtp socket */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), new_zmtp_s);
-    e_pico_s = zmtp_s->sock;
+
+    /* zmtp_socket_accept calls pico_socket_accept to accept the new pico connection */
+    /* e_pico_s and e_new_pico_s are global variables used in pico_socket_accept_cb */
+    e_pico_s = pico_s;
     e_new_pico_s = new_pico_s;
     pico_socket_accept_StubWithCallback(&pico_socket_accept_cb);
+
+    /* the new zmtp socket should be stored in the pico tree */
     pico_tree_insert_IgnoreAndReturn(NULL);
 
+    /* zmtp sends greeting immediately */
     expect_greeting(new_pico_s, zmtp_s->type);
+
     new_zmtp_s = zmtp_socket_accept(zmtp_s);
     TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, new_zmtp_s->state);
     TEST_ASSERT_EQUAL(zmtp_s->type, new_zmtp_s->type);
@@ -340,6 +353,18 @@ void test_zmtp_socket_accept(void)
     free(pico_s);
     free(new_pico_s);
 }
+
+/* zmq calls zmtp_socket_accept with zmtp_s is NULL */
+void test_zmtp_socket_accept_zmtp_null(void)
+{
+    struct zmtp_socket* zmtp_s;
+    zmtp_s = NULL;
+    TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
+}
+
+/* zmq calls zmtp_socket_accept while pico has no new connection */
+/* What is the behaviour of pico_socket_accept in this case? */
+
 
 void test_zmtp_tcp_cb(void)
 {
