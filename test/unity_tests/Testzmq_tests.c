@@ -275,16 +275,13 @@ void test_zmq_pub_send(void)
     iterator.data = &zmtp_sock;
     
     pico_mem_zalloc_ExpectAndReturn(5, calloc(1, 5));
-    //pico_vector_push_back_ExpectAndReturn(&pub_sock.base.out_vector, &frame, 0);
     pico_vector_push_back_IgnoreAndReturn(0);
-    pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, &iterator);
-    
-    pico_vector_iterator_next_IgnoreAndReturn(NULL);    /* Test for only 1 subscriber so return NULL now */
+
+    pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, NULL); /* For scan_and_mark */
+    pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, NULL); /* For send_pub */
     
     pico_vector_clear_Expect(&pub_sock.base.out_vector);
-    zmtp_socket_send_ExpectAndReturn(&zmtp_sock, &pub_sock.base.out_vector, 0);
     zmq_send(&pub_sock, test_data, strlen(test_data), 0);
-
 }
 
 //void test_zmq_req_send(void)
