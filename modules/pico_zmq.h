@@ -15,6 +15,17 @@
 #include "pico_addressing.h"
 #include "pico_zmtp.h"
 
+#define ZMQ_PAIR      ZMTP_TYPE_PAIR
+#define ZMQ_PUB       ZMTP_TYPE_PUB
+#define ZMQ_SUB       ZMTP_TYPE_SUB
+#define ZMQ_REQ       ZMTP_TYPE_REQ
+#define ZMQ_REP       ZMTP_TYPE_REP
+#define ZMQ_DEALER    ZMTP_TYPE_DEALER
+#define ZMQ_ROUTER    ZMTP_TYPE_ROUTER
+#define ZMQ_PULL      ZMTP_TYPE_PULL
+#define ZMQ_PUSH      ZMTP_TYPE_PUSH
+#define ZMQ_END       ZMTP_TYPE_END
+
 
 /*  Send/recv options.  */
 #define ZMQ_DONTWAIT                1
