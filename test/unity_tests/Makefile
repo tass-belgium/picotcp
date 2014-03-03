@@ -48,8 +48,9 @@ Testzmtp_dataflow_tests_Runner: $(CMOCK_DEP)  mocks/Mockpico_socket.o mocks/Mock
 
 # does this really belong here?
 # shouldn't there be like a cppunit_modules or something?
+# add --xml to view error id's for the suppress
 cppcheck: 
-	cppcheck --enable=all --force $(CPPFLAGS) $(PICOMODULES)/pico_zm*.c *_tests.c
+	cppcheck --enable=all --force $(CPPFLAGS) $(PICOMODULES)/pico_zm*.c *_tests.c --suppress=unusedFunction:*tests.c
 
 #-------------------------------------------------
 
