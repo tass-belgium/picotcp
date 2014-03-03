@@ -209,6 +209,11 @@ void test_zmq_req_connect(void)
     TEST_ASSERT_EQUAL_INT(0, zmq_connect(temp, "tcp://10.40.0.1:5555"));
 }
 
+void test_scan_and_mark(void)
+{
+    TEST_IGNORE();
+}
+
 void test_send_pub(void)
 {
     struct zmq_socket_pub psock;
