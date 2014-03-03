@@ -9,8 +9,7 @@ GMFLAGS += --ignore=args_only --plugins="expect;callback;ignore"
 USE_MEM_MANAGER = -DPICO_SUPPORT_MM -DPICO_SUPPORT_MM_PROFILING
 CFLAGS += $(USE_MEM_MANAGER)
 
-CFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
-
+CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
 %_Runner.o %_tests.o mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks
 
