@@ -977,11 +977,12 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
             tcp_dbg("TCP> read hole beginning of data, %08x - %08x. rcv_nxt is %08x\n", t->rcv_processed, f->seq, t->rcv_nxt);
             goto out;
         }
-        
+
         else if (in_frame_off > 0)
         {
             if (in_frame_off > f->payload_len)
                 dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
+
             in_frame_len = f->payload_len - (uint32_t)in_frame_off;
         } else {
             in_frame_len = f->payload_len;

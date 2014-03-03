@@ -12,7 +12,7 @@ START_TEST(tc_seq_compare)
 
     fail_if(seq_compare(small_a, small_b) >= 0);
     fail_if(seq_compare(small_b, small_a) <= 0);
-    
+
     fail_if(seq_compare(over_thresh, under_thresh) <= 0);
     fail_if(seq_compare(under_thresh, over_thresh) >= 0);
 
