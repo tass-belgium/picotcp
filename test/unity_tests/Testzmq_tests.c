@@ -265,6 +265,7 @@ void test_zmq_pub_send(void)
     struct zmtp_frame_t tmp_frame;
     it.data = &tmp_frame;
     tmp_frame.buf = (void*)0x1234;
+    uint8_t buff[10];
 
     /* Create the pub_sock */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
@@ -276,7 +277,20 @@ void test_zmq_pub_send(void)
 
     zmq_socket(NULL, ZMTP_TYPE_PUB);
 
-    pico_mem_zalloc_ExpectAndReturn(5, calloc(1, 5));
+    /* Test for NULL argument */
+    TEST_ASSERT_EQUAL_INT(-1, zmq_send(NULL, test_data, strlen(test_data), 0));
+
+    /* Let PICO_ZALLOC return NULL */
+    pico_mem_zalloc_ExpectAndReturn(5, NULL);
+    TEST_ASSERT_EQUAL_INT(-1, zmq_send(&pub_sock, test_data, strlen(test_data), 0));
+
+    /* Normal situation - send more frame */
+    pico_mem_zalloc_ExpectAndReturn(5, &buff);
+    pico_vector_push_back_IgnoreAndReturn(0);
+    zmq_send(&pub_sock, test_data, strlen(test_data), ZMQ_SNDMORE);
+
+    /* Normal situation - send final frame */
+    pico_mem_zalloc_ExpectAndReturn(5, &buff);
     pico_vector_push_back_IgnoreAndReturn(0);
 
     pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, NULL); /* For scan_and_mark */

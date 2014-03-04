@@ -131,8 +131,6 @@ void* zmq_socket(void* context, uint8_t type)
         case(ZMTP_TYPE_REQ): 
             sock = PICO_ZALLOC(sizeof(struct zmq_socket_req));
             break;
-        case(ZMTP_TYPE_REP):
-            break; 
         case(ZMTP_TYPE_PUB):
             sock = PICO_ZALLOC(sizeof(struct zmq_socket_pub));
             break;
