@@ -370,7 +370,6 @@ void test_zmtp_socket_accept_no_mem2(void)
     struct pico_socket* pico_s;
     struct pico_socket* new_pico_s;
 
-    new_pico_s = calloc(1,sizeof(struct pico_socket));
     zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     pico_s = calloc(1,sizeof(struct pico_socket));
@@ -389,7 +388,6 @@ void test_zmtp_socket_accept_no_mem2(void)
     free(zmtp_s);
     free(new_zmtp_s);
     free(pico_s);
-    free(new_pico_s);
 }
 /* zmq calls zmtp_socket_accept while pico has no new connection */
 /* What is the behaviour of pico_socket_accept in this case? */
@@ -524,7 +522,6 @@ void test_zmtp_socket_send_1msg_0char(void)
     uint8_t* msg1;
     
     uint8_t i;
-    uint8_t* bytestreamPtr;
 
     TEST_IGNORE();
 
@@ -557,6 +554,7 @@ void test_zmtp_socket_send_1msg_0char(void)
 
     for(i = 0; i < msg1Len; i++)
     {
+        uint8_t* bytestreamPtr;
         bytestreamPtr = (uint8_t*)eBytestream + i + 2;
         *bytestreamPtr = msg1[i];
     }
@@ -601,7 +599,6 @@ void test_zmtp_socket_send_1msg_1char(void)
     uint8_t* msg1;
     
     uint8_t i;
-    uint8_t* bytestreamPtr;
     TEST_IGNORE();
 
     it = calloc(1, sizeof(struct pico_vector_iterator));
@@ -633,6 +630,7 @@ void test_zmtp_socket_send_1msg_1char(void)
 
     for(i = 0; i < msg1Len; i++)
     {
+        uint8_t* bytestreamPtr;
         bytestreamPtr = (uint8_t*)eBytestream + i + 2;
         *bytestreamPtr = msg1[i];
     }
@@ -676,7 +674,6 @@ void test_zmtp_socket_send_1msg_255char(void)
     uint8_t* msg1;
     
     uint8_t i;
-    uint8_t* bytestreamPtr;
 
     TEST_IGNORE();
 
@@ -709,6 +706,7 @@ void test_zmtp_socket_send_1msg_255char(void)
 
     for(i = 0; i < msg1Len; i++)
     {
+        uint8_t* bytestreamPtr;
         bytestreamPtr = (uint8_t*)eBytestream + i + 2;
         *bytestreamPtr = msg1[i];
     }
@@ -751,7 +749,6 @@ void test_zmtp_socket_send_1msg_256char(void)
     size_t msg1Len;
     uint8_t* msg1;
     uint8_t i;
-    uint8_t* bytestreamPtr;
 
 
     TEST_IGNORE();
@@ -784,6 +781,7 @@ void test_zmtp_socket_send_1msg_256char(void)
 
     for(i = 0; i < msg1Len; i++)
     {
+        uint8_t* bytestreamPtr;
         bytestreamPtr = (uint8_t*)eBytestream + i + 9;
         *bytestreamPtr = msg1[i];
     }
@@ -825,7 +823,6 @@ void test_zmtp_socket_send_1msg_600char(void)
     uint8_t* msg1;
     
     uint8_t i;
-    uint8_t* bytestreamPtr;
 
     TEST_IGNORE();/* expected variables */
 
@@ -855,6 +852,7 @@ void test_zmtp_socket_send_1msg_600char(void)
     ((uint8_t*)eBytestream)[8] = 88; /* 512 + 88 */
     for(i = 0; i < msg1Len; i++)
     {
+        uint8_t* bytestreamPtr;
         bytestreamPtr = (uint8_t*)eBytestream + i + 9;
         *bytestreamPtr = msg1[i];
     }
@@ -1532,13 +1530,13 @@ struct iterator_emulator {
     uint8_t count;
     void* data;
 };
+
 struct pico_vector_iterator* pico_vector_begin_stub(const struct pico_vector* vec, int numCalls)
 {
-    struct iterator_emulator* it = malloc(sizeof(struct pico_vector_iterator));
     IGNORE_PARAMETER(numCalls);
     if (0 != vec->size)
     {
-        it = malloc(sizeof(struct pico_vector_iterator));
+        struct iterator_emulator* it = malloc(sizeof(struct pico_vector_iterator));
         it->count = (uint8_t) vec->size;
         it->data = (void*) it; /*just to have some data*/
         return (struct pico_vector_iterator*) it;

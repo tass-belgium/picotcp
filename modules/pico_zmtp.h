@@ -35,9 +35,9 @@ enum zmtp_state {
     ZMTP_ST_RDY             //6
 };
 
-#define ZMTP_EV_NONE        (uint8_t)0
-#define ZMTP_EV_CONN        (uint8_t)4
-#define ZMTP_EV_ERR         (uint8_t)0x80
+#define ZMTP_EV_NONE        (uint16_t)0
+#define ZMTP_EV_CONN        (uint16_t)4
+#define ZMTP_EV_ERR         (uint16_t)0x80
 
 enum zmtp_error_e {
     ZMTP_ERR_NOERR,

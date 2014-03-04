@@ -120,7 +120,7 @@ int zmq_bind(void* socket, const char *endpoint)
     return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, &port);
 }
 
-void* zmq_socket(void* context, int type)
+void* zmq_socket(void* context, uint8_t type)
 {
     struct zmq_socket_base* sock = NULL;
 
