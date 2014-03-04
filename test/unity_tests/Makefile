@@ -55,8 +55,7 @@ cppcheck:
 #-------------------------------------------------
 
 clean:
-	rm -f *.o mocks/*.o
+	rm -f *.o mocks/*.o $(ALL)
 
 deepclean: clean
 	rm -rf mocks 
-	rm -f $(ALL)

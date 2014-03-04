@@ -368,7 +368,6 @@ void test_zmtp_socket_accept_no_mem2(void)
     struct zmtp_socket* zmtp_s;
     struct zmtp_socket* new_zmtp_s;
     struct pico_socket* pico_s;
-    struct pico_socket* new_pico_s;
 
     zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
