@@ -26,6 +26,11 @@
 
 #define dbg(...)
 
+/*
+#define MEMORY_MEASURE
+#define JENKINS_DEBUG
+*/
+
 /* Intended for Mr. Jenkins endurance test loggings */
 #ifdef JENKINS_DEBUG
 #include "PicoTerm.h"
@@ -65,7 +70,7 @@ static inline void *pico_zalloc(int x)
 
     stats = (struct mem_chunk_stats *)calloc(x + sizeof(struct mem_chunk_stats), 1);
     stats->signature = 0xdeadbeef;
-    stats->mem = ((uint8_t *)stats) + sizeof(stats);
+    stats->mem = ((uint8_t *)stats) + sizeof(struct mem_chunk_stats);
     stats->size = x;
 
     /* Intended for Mr. Jenkins endurance test loggings */
@@ -91,13 +96,13 @@ static inline void pico_free(void *x)
 
     #ifdef JENKINS_DEBUG
     if ((stats->signature != 0xdeadbeef) || (x != stats->mem)){
-        jenkins_dbg(">> FREE ERROR: caller is %p\n", __builtin_return_address(1));
+        jenkins_dbg(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
         while(1);;
     }
     #endif
 
     cur_mem -= stats->size;
-    memset(stats, 0, sizeof(stats));
+    memset(stats, 0, sizeof(struct mem_chunk_stats));
     free(stats);
 }
 #else
