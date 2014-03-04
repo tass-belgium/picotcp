@@ -26,9 +26,6 @@
 
 #define dbg(...)
 
-#define MEMORY_MEASURE
-#define JENKINS_DEBUG
-
 /* Intended for Mr. Jenkins endurance test loggings */
 #ifdef JENKINS_DEBUG
 #include "PicoTerm.h"
