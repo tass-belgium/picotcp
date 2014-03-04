@@ -150,12 +150,6 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type,
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_open_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_open_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_open_CallInstance);
   Mock.zmtp_socket_open_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_open_CallInstance);
-  if (Mock.zmtp_socket_open_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_open_CallbackFunctionPointer(net, proto, type, parent, zmq_cb, Mock.zmtp_socket_open_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_open' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_open_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -163,6 +157,12 @@ struct zmtp_socket* zmtp_socket_open(uint16_t net, uint16_t proto, uint8_t type,
     Mock.zmtp_socket_open_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_open_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_open_CallbackFunctionPointer(net, proto, type, parent, zmq_cb, Mock.zmtp_socket_open_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_open' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_HEX16(cmock_call_instance->Expected_net, net, cmock_line, "Function 'zmtp_socket_open' called with unexpected value for argument 'net'.");
   }
@@ -222,12 +222,6 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_accept_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_accept_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_accept_CallInstance);
   Mock.zmtp_socket_accept_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_accept_CallInstance);
-  if (Mock.zmtp_socket_accept_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_accept_CallbackFunctionPointer(zmtp_s, Mock.zmtp_socket_accept_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_accept' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_accept_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -235,6 +229,12 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     Mock.zmtp_socket_accept_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_accept_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_accept_CallbackFunctionPointer(zmtp_s, Mock.zmtp_socket_accept_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_accept' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_zmtp_s), (void*)(zmtp_s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_accept' called with unexpected value for argument 'zmtp_s'.");
   }
@@ -278,12 +278,6 @@ int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_p
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_connect_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_connect_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_connect_CallInstance);
   Mock.zmtp_socket_connect_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_connect_CallInstance);
-  if (Mock.zmtp_socket_connect_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_connect_CallbackFunctionPointer(s, srv_addr, remote_port, Mock.zmtp_socket_connect_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_connect' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_connect_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -291,6 +285,12 @@ int zmtp_socket_connect(struct zmtp_socket* s, void* srv_addr, uint16_t remote_p
     Mock.zmtp_socket_connect_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_connect_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_connect_CallbackFunctionPointer(s, srv_addr, remote_port, Mock.zmtp_socket_connect_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_connect' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_connect' called with unexpected value for argument 's'.");
   }
@@ -342,12 +342,6 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_send_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_send_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_send_CallInstance);
   Mock.zmtp_socket_send_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_send_CallInstance);
-  if (Mock.zmtp_socket_send_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_send_CallbackFunctionPointer(s, vec, Mock.zmtp_socket_send_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_send' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_send_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -355,6 +349,12 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
     Mock.zmtp_socket_send_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_send_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_send_CallbackFunctionPointer(s, vec, Mock.zmtp_socket_send_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_send' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_send' called with unexpected value for argument 's'.");
   }
@@ -402,12 +402,6 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_bind_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_bind_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_bind_CallInstance);
   Mock.zmtp_socket_bind_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_bind_CallInstance);
-  if (Mock.zmtp_socket_bind_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_bind_CallbackFunctionPointer(s, local_addr, port, Mock.zmtp_socket_bind_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_bind' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_bind_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -415,6 +409,12 @@ int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
     Mock.zmtp_socket_bind_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_bind_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_bind_CallbackFunctionPointer(s, local_addr, port, Mock.zmtp_socket_bind_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_bind' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_bind' called with unexpected value for argument 's'.");
   }
@@ -469,12 +469,6 @@ int zmtp_socket_close(struct zmtp_socket* s)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_zmtp_socket_close_CALL_INSTANCE* cmock_call_instance = (CMOCK_zmtp_socket_close_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.zmtp_socket_close_CallInstance);
   Mock.zmtp_socket_close_CallInstance = CMock_Guts_MemNext(Mock.zmtp_socket_close_CallInstance);
-  if (Mock.zmtp_socket_close_CallbackFunctionPointer != NULL)
-  {
-    return Mock.zmtp_socket_close_CallbackFunctionPointer(s, Mock.zmtp_socket_close_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_close' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.zmtp_socket_close_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -482,6 +476,12 @@ int zmtp_socket_close(struct zmtp_socket* s)
     Mock.zmtp_socket_close_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.zmtp_socket_close_CallbackFunctionPointer != NULL)
+  {
+    return Mock.zmtp_socket_close_CallbackFunctionPointer(s, Mock.zmtp_socket_close_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'zmtp_socket_close' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_s), (void*)(s), sizeof(struct zmtp_socket), cmock_line, "Function 'zmtp_socket_close' called with unexpected value for argument 's'.");
   }

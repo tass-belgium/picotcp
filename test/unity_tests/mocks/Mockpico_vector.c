@@ -176,12 +176,6 @@ void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t types
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_init_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_init_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_init_CallInstance);
   Mock.pico_vector_init_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_init_CallInstance);
-  if (Mock.pico_vector_init_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_init_CallbackFunctionPointer(vector, capacity, typesize, Mock.pico_vector_init_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_init' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_init_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -189,6 +183,12 @@ void* pico_vector_init(struct pico_vector* vector, size_t capacity, size_t types
     Mock.pico_vector_init_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_init_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_init_CallbackFunctionPointer(vector, capacity, typesize, Mock.pico_vector_init_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_init' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_init' called with unexpected value for argument 'vector'.");
   }
@@ -240,12 +240,6 @@ struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_begin_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_begin_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_begin_CallInstance);
   Mock.pico_vector_begin_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_begin_CallInstance);
-  if (Mock.pico_vector_begin_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_begin_CallbackFunctionPointer(vector, Mock.pico_vector_begin_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_begin' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_begin_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -253,6 +247,12 @@ struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
     Mock.pico_vector_begin_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_begin_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_begin_CallbackFunctionPointer(vector, Mock.pico_vector_begin_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_begin' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_begin' called with unexpected value for argument 'vector'.");
   }
@@ -296,12 +296,6 @@ struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterat
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_iterator_next_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_iterator_next_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_iterator_next_CallInstance);
   Mock.pico_vector_iterator_next_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_iterator_next_CallInstance);
-  if (Mock.pico_vector_iterator_next_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_iterator_next_CallbackFunctionPointer(iterator, Mock.pico_vector_iterator_next_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_iterator_next' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_iterator_next_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -309,6 +303,12 @@ struct pico_vector_iterator* pico_vector_iterator_next(struct pico_vector_iterat
     Mock.pico_vector_iterator_next_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_iterator_next_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_iterator_next_CallbackFunctionPointer(iterator, Mock.pico_vector_iterator_next_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_iterator_next' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_iterator), (void*)(iterator), sizeof(struct pico_vector_iterator), cmock_line, "Function 'pico_vector_iterator_next' called with unexpected value for argument 'iterator'.");
   }
@@ -352,12 +352,6 @@ int pico_vector_push_back(struct pico_vector* vector, void* data)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_push_back_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_push_back_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_push_back_CallInstance);
   Mock.pico_vector_push_back_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_push_back_CallInstance);
-  if (Mock.pico_vector_push_back_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_push_back_CallbackFunctionPointer(vector, data, Mock.pico_vector_push_back_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_push_back' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_push_back_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -365,6 +359,12 @@ int pico_vector_push_back(struct pico_vector* vector, void* data)
     Mock.pico_vector_push_back_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_push_back_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_push_back_CallbackFunctionPointer(vector, data, Mock.pico_vector_push_back_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_push_back' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_push_back' called with unexpected value for argument 'vector'.");
   }
@@ -412,12 +412,6 @@ void* pico_vector_pop_front(struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_pop_front_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_pop_front_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_pop_front_CallInstance);
   Mock.pico_vector_pop_front_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_pop_front_CallInstance);
-  if (Mock.pico_vector_pop_front_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_pop_front_CallbackFunctionPointer(vector, Mock.pico_vector_pop_front_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_pop_front' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_pop_front_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -425,6 +419,12 @@ void* pico_vector_pop_front(struct pico_vector* vector)
     Mock.pico_vector_pop_front_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_pop_front_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_pop_front_CallbackFunctionPointer(vector, Mock.pico_vector_pop_front_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_pop_front' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_pop_front' called with unexpected value for argument 'vector'.");
   }
@@ -468,6 +468,10 @@ void pico_vector_clear(struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_clear_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_clear_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_clear_CallInstance);
   Mock.pico_vector_clear_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_clear_CallInstance);
+  if (Mock.pico_vector_clear_IgnoreBool)
+  {
+    return;
+  }
   if (Mock.pico_vector_clear_CallbackFunctionPointer != NULL)
   {
     Mock.pico_vector_clear_CallbackFunctionPointer(vector, Mock.pico_vector_clear_CallbackCalls++);
@@ -475,10 +479,6 @@ void pico_vector_clear(struct pico_vector* vector)
   }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_clear' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
-  if (Mock.pico_vector_clear_IgnoreBool)
-  {
-    return;
-  }
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_clear' called with unexpected value for argument 'vector'.");
   }
@@ -514,6 +514,10 @@ void pico_vector_destroy(struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_destroy_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_destroy_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_destroy_CallInstance);
   Mock.pico_vector_destroy_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_destroy_CallInstance);
+  if (Mock.pico_vector_destroy_IgnoreBool)
+  {
+    return;
+  }
   if (Mock.pico_vector_destroy_CallbackFunctionPointer != NULL)
   {
     Mock.pico_vector_destroy_CallbackFunctionPointer(vector, Mock.pico_vector_destroy_CallbackCalls++);
@@ -521,10 +525,6 @@ void pico_vector_destroy(struct pico_vector* vector)
   }
   UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_destroy' called more times than expected.");
   cmock_line = cmock_call_instance->LineNumber;
-  if (Mock.pico_vector_destroy_IgnoreBool)
-  {
-    return;
-  }
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_destroy' called with unexpected value for argument 'vector'.");
   }
@@ -560,12 +560,6 @@ void* pico_vector_allocation_strategy_times2(struct pico_vector* vector)
   UNITY_LINE_TYPE cmock_line = TEST_LINE_NUM;
   CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE* cmock_call_instance = (CMOCK_pico_vector_allocation_strategy_times2_CALL_INSTANCE*)CMock_Guts_GetAddressFor(Mock.pico_vector_allocation_strategy_times2_CallInstance);
   Mock.pico_vector_allocation_strategy_times2_CallInstance = CMock_Guts_MemNext(Mock.pico_vector_allocation_strategy_times2_CallInstance);
-  if (Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer != NULL)
-  {
-    return Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer(vector, Mock.pico_vector_allocation_strategy_times2_CallbackCalls++);
-  }
-  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_allocation_strategy_times2' called more times than expected.");
-  cmock_line = cmock_call_instance->LineNumber;
   if (Mock.pico_vector_allocation_strategy_times2_IgnoreBool)
   {
     if (cmock_call_instance == NULL)
@@ -573,6 +567,12 @@ void* pico_vector_allocation_strategy_times2(struct pico_vector* vector)
     Mock.pico_vector_allocation_strategy_times2_FinalReturn = cmock_call_instance->ReturnVal;
     return cmock_call_instance->ReturnVal;
   }
+  if (Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer != NULL)
+  {
+    return Mock.pico_vector_allocation_strategy_times2_CallbackFunctionPointer(vector, Mock.pico_vector_allocation_strategy_times2_CallbackCalls++);
+  }
+  UNITY_TEST_ASSERT_NOT_NULL(cmock_call_instance, cmock_line, "Function 'pico_vector_allocation_strategy_times2' called more times than expected.");
+  cmock_line = cmock_call_instance->LineNumber;
   {
     UNITY_TEST_ASSERT_EQUAL_MEMORY((void*)(cmock_call_instance->Expected_vector), (void*)(vector), sizeof(struct pico_vector), cmock_line, "Function 'pico_vector_allocation_strategy_times2' called with unexpected value for argument 'vector'.");
   }
