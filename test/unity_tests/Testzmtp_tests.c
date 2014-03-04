@@ -121,31 +121,37 @@ void test_check_signature(void)
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     zmtp_s->sock = pico_s;
 
+    /* Setting variables for pico_socket_read_cb */
     e_len = 10;
     e_pico_s = pico_s;
     read_data = calloc(1, (size_t)e_len);
     read_data_len = e_len;
+    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
 
     /* Good signatures */
     zmtp_s->state = ZMTP_ST_SND_GREETING;
     memcpy(read_data, signature, (size_t)e_len);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
     TEST_ASSERT_EQUAL(0 ,check_signature(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_SIGNATURE, zmtp_s->state);
 
     signature[8] = 0x01;
     zmtp_s->state = ZMTP_ST_SND_GREETING;
     memcpy(read_data, signature, (size_t)e_len);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
     TEST_ASSERT_EQUAL(0 ,check_signature(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_SIGNATURE, zmtp_s->state);
 
-   /* Bad signatures */
+    /* No data available */
+    zmtp_s->state = ZMTP_ST_SND_GREETING;
+    read_data_len = 0;
+    TEST_ASSERT_EQUAL(-1, check_signature(zmtp_s));
+    TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, zmtp_s->state);
+
+    /* Bad signatures */
+    read_data_len = e_len;
     signature[8] = 0x00;
     signature[0] = 0xfe;
     zmtp_s->state = ZMTP_ST_SND_GREETING;
     memcpy(read_data, signature, (size_t)e_len);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
     TEST_ASSERT_EQUAL(-1 ,check_signature(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, zmtp_s->state);
 
@@ -153,7 +159,6 @@ void test_check_signature(void)
     signature[9] = 0x8f;
     zmtp_s->state = ZMTP_ST_SND_GREETING;
     memcpy(read_data, signature, (size_t)e_len);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
     TEST_ASSERT_EQUAL(-1, check_signature(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, zmtp_s->state);
 
@@ -161,7 +166,6 @@ void test_check_signature(void)
     signature[4] = 0x90;
     zmtp_s->state = ZMTP_ST_SND_GREETING;
     memcpy(read_data, signature, (size_t)e_len);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
     TEST_ASSERT_EQUAL(-1, check_signature(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_SND_GREETING, zmtp_s->state);
 
@@ -217,77 +221,43 @@ void test_check_revision(void)
     free(a_buf);
     free(read_data);
 }
-/*
-void test_check_revision(void)
-{
-    struct zmtp_socket *zmtp_s;
-    struct pico_socket *pico_s;
-    void* a_buf;
-    uint8_t revision[1] = {0x01};
 
-
-    pico_s = calloc(1, sizeof(struct pico_socket));
-    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
-    zmtp_s->sock = pico_s;
-
-    e_len = 1;
-    a_buf = calloc(1, (size_t)e_len);
-    e_buf = a_buf;
-    e_pico_s = pico_s;
-    read_data = calloc(1, (size_t)e_len);
-
-
-    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
-    memcpy(read_data, revision, (size_t)e_len);
-    pico_mem_zalloc_ExpectAndReturn((size_t)e_len, a_buf);
-    pico_mem_free_Expect(e_buf);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
-    TEST_ASSERT_EQUAL(0, check_revision(zmtp_s));
-    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_REVISION, zmtp_s->state);
-
-    revision[0] = 0x00;
-    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
-    memcpy(read_data, revision, (size_t)e_len);
-    pico_mem_zalloc_ExpectAndReturn((size_t)e_len, a_buf);
-    pico_mem_free_Expect(e_buf);
-    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
-    TEST_ASSERT_EQUAL(0, check_revision(zmtp_s));
-    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_REVISION, zmtp_s->state);
-
-
-    free(pico_s);
-    free(zmtp_s);
-    free(a_buf);
-    free(read_data);
-}
-*/
 void test_check_socket_type(void)
 {
     struct zmtp_socket *zmtp_s;
     struct pico_socket *pico_s;
     void* a_buf;
-    uint8_t type[1] = {0x01};
+    uint8_t type;
 
 
     pico_s = calloc(1, sizeof(struct pico_socket));
     zmtp_s = calloc(1, sizeof(struct zmtp_socket));
     zmtp_s->sock = pico_s;
 
-    e_len = 1;
     a_buf = calloc(1, (size_t)e_len);
     e_buf = a_buf;
+
+    /* Variables for pico_socket_read_cb */
     e_pico_s = pico_s;
+    e_len = 1;
     read_data = calloc(1, (size_t)e_len);
     read_data_len = e_len;
-
-
-    zmtp_s->state = ZMTP_ST_RCVD_REVISION;
-    memcpy(read_data, type, (size_t)e_len);
-    pico_mem_zalloc_ExpectAndReturn((size_t)e_len, a_buf);
-    pico_mem_free_Expect(e_buf);
     pico_socket_read_StubWithCallback(&pico_socket_read_cb);
+
+
+    /* Check for type is pub */
+    type = ZMTP_TYPE_PUB;
+    zmtp_s->state = ZMTP_ST_RCVD_REVISION;
+    memcpy(read_data, &type, (size_t)e_len);
     TEST_ASSERT_EQUAL(0, check_socket_type(zmtp_s));
     TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_TYPE, zmtp_s->state);
+
+    /* Check for type is to large */
+    type = ZMTP_TYPE_END;
+    zmtp_s->state = ZMTP_ST_RCVD_REVISION;
+    memcpy(read_data, &type, (size_t)e_len);
+    TEST_ASSERT_EQUAL(-1, check_socket_type(zmtp_s));
+    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_REVISION, zmtp_s->state);
 
 
     free(pico_s);
