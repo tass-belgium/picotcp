@@ -21,6 +21,7 @@ struct zmtp_socket* e_zmtp_s;
 void* e_buf;
 int e_len;
 void* read_data;
+int read_data_len;
 void* e_data;
 uint16_t e_ev;
 size_t zmq_cb_counter;
@@ -97,8 +98,8 @@ int pico_socket_read_cb(struct pico_socket* a_pico_s, void* a_buf, int a_len, in
     IGNORE_PARAMETER(numCalls);
     TEST_ASSERT_EQUAL(e_pico_s, a_pico_s);
     TEST_ASSERT_EQUAL(e_len, a_len);
-    memcpy(a_buf, read_data, (size_t)e_len);
-    return e_len;
+    memcpy(a_buf, read_data, (size_t)read_data_len);
+    return read_data_len;
 }
 
 struct pico_socket* pico_socket_accept_cb(struct pico_socket* pico_s, void* orig, uint16_t* port, int numCalls)
@@ -123,6 +124,7 @@ void test_check_signature(void)
     e_len = 10;
     e_pico_s = pico_s;
     read_data = calloc(1, (size_t)e_len);
+    read_data_len = e_len;
 
     /* Good signatures */
     zmtp_s->state = ZMTP_ST_SND_GREETING;
@@ -174,6 +176,53 @@ void test_check_revision(void)
     struct zmtp_socket *zmtp_s;
     struct pico_socket *pico_s;
     void* a_buf;
+    uint8_t revision = 0x01;
+
+    pico_s = calloc(1, sizeof(struct pico_socket));
+    zmtp_s = calloc(1, sizeof(struct zmtp_socket));
+    zmtp_s->sock = pico_s;
+
+    a_buf = calloc(1, (size_t)e_len);
+    e_buf = a_buf;
+
+    /* variables for pico_socket_read_cb */
+    e_pico_s = pico_s;
+    e_len = 1;
+    read_data = calloc(1, (size_t)e_len);
+    read_data_len = e_len;
+    pico_socket_read_StubWithCallback(&pico_socket_read_cb);
+
+    /* Check for revision 0x01 */
+    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
+    memcpy(read_data, &revision, (size_t)e_len);
+    TEST_ASSERT_EQUAL(0, check_revision(zmtp_s));
+    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_REVISION, zmtp_s->state);
+
+    /* Check for revision 0x00 */
+    revision = 0x00;
+    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
+    memcpy(read_data, &revision, (size_t)e_len);
+    TEST_ASSERT_EQUAL(0, check_revision(zmtp_s));
+    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_REVISION, zmtp_s->state);
+
+    /* If no data available */
+    zmtp_s->state = ZMTP_ST_RCVD_SIGNATURE;
+    read_data_len = 0;
+    TEST_ASSERT_EQUAL(-1, check_revision(zmtp_s));
+    TEST_ASSERT_EQUAL(ZMTP_ST_RCVD_SIGNATURE, zmtp_s->state);
+
+
+    free(pico_s);
+    free(zmtp_s);
+    free(a_buf);
+    free(read_data);
+}
+/*
+void test_check_revision(void)
+{
+    struct zmtp_socket *zmtp_s;
+    struct pico_socket *pico_s;
+    void* a_buf;
     uint8_t revision[1] = {0x01};
 
 
@@ -211,7 +260,7 @@ void test_check_revision(void)
     free(a_buf);
     free(read_data);
 }
-
+*/
 void test_check_socket_type(void)
 {
     struct zmtp_socket *zmtp_s;
@@ -229,6 +278,7 @@ void test_check_socket_type(void)
     e_buf = a_buf;
     e_pico_s = pico_s;
     read_data = calloc(1, (size_t)e_len);
+    read_data_len = e_len;
 
 
     zmtp_s->state = ZMTP_ST_RCVD_REVISION;
@@ -260,6 +310,7 @@ void test_check_identity(void)
     e_len = 2;
     e_pico_s = pico_s;
     read_data = calloc(1, (size_t)e_len);
+    read_data_len = e_len;
 
     /* Empty identity */
     zmtp_s->state = ZMTP_ST_RCVD_TYPE;
@@ -336,9 +387,7 @@ void test_zmtp_socket_accept_normal(void)
 /* zmq calls zmtp_socket_accept with zmtp_s is NULL */
 void test_zmtp_socket_accept_zmtp_null(void)
 {
-    struct zmtp_socket* zmtp_s;
-    zmtp_s = NULL;
-    TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
+    TEST_ASSERT_NULL(zmtp_socket_accept(NULL));
 }
 
 /* no memory to allocate new zmtp socket */
@@ -368,7 +417,6 @@ void test_zmtp_socket_accept_no_mem2(void)
     struct zmtp_socket* zmtp_s;
     struct zmtp_socket* new_zmtp_s;
     struct pico_socket* pico_s;
-    struct pico_socket* new_pico_s;
 
     zmtp_s = calloc(1,sizeof(struct zmtp_socket));
     new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
@@ -389,6 +437,42 @@ void test_zmtp_socket_accept_no_mem2(void)
     free(new_zmtp_s);
     free(pico_s);
 }
+
+/* Error when trying to read from pico socket*/
+void test_zmtp_socket_accept_error_when_reading(void)
+{
+    struct zmtp_socket* zmtp_s;
+    struct zmtp_socket* new_zmtp_s;
+    struct pico_socket* pico_s;
+    struct pico_vector* out_buff;
+
+    zmtp_s = calloc(1,sizeof(struct zmtp_socket));
+    new_zmtp_s = calloc(1,sizeof(struct zmtp_socket));
+    pico_s = calloc(1,sizeof(struct pico_socket));
+    out_buff = calloc(1,sizeof(struct pico_vector));
+
+    /* setting the members of zmtp_s */
+    zmtp_s->zmq_cb = &zmq_cb_mock;
+    zmtp_s->sock = pico_s;
+    zmtp_s->type = ZMTP_TYPE_PUB;
+    
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmtp_socket), new_zmtp_s);
+    pico_mem_zalloc_ExpectAndReturn(sizeof(struct pico_vector), out_buff);
+
+    e_pico_s = pico_s;
+    e_new_pico_s = NULL;
+    pico_socket_accept_StubWithCallback(&pico_socket_accept_cb);
+
+    pico_mem_free_Expect(out_buff);
+    pico_mem_free_Expect(new_zmtp_s);
+
+    TEST_ASSERT_NULL(zmtp_socket_accept(zmtp_s));
+
+    free(zmtp_s);
+    free(new_zmtp_s);
+    free(pico_s);
+}
+/* TODO: */
 /* zmq calls zmtp_socket_accept while pico has no new connection */
 /* What is the behaviour of pico_socket_accept in this case? */
 
