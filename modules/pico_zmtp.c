@@ -99,35 +99,16 @@ int check_signature(struct zmtp_socket *zmtp_s)
 int check_revision(struct zmtp_socket *zmtp_s)
 {
     int ret;
-    int len = 1;
-    uint8_t *buf;
+    uint8_t buf;
 
-    buf = PICO_ZALLOC((size_t)len);
-    if(buf == NULL)
-    {
-        zmtp_err = ZMTP_ERR_ENOMEM;
-        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
-    }
+    ret = pico_socket_read(zmtp_s->sock, &buf, 1);
+    if(ret < 1) goto check_revision_fail_read;
 
-    ret = pico_socket_read(zmtp_s->sock, buf, len);
-    if(ret == 0)
-    {
-        PICO_FREE(buf);
-        return -1;
-    }
-    else if(ret < len)
-    {
-        PICO_FREE(buf);
-        zmtp_err = ZMTP_ERR_NOTIMPL;
-        /* Fatal error for this socket? */
-        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s); /* event unexpexted short data */
-        return -1;
-    } 
-    
     zmtp_s->state = ZMTP_ST_RCVD_REVISION;
-    PICO_FREE(buf);
-    
     return 0;
+
+
+    check_revision_fail_read: return -1;
 }
 
 int check_socket_type(struct zmtp_socket* zmtp_s)
@@ -277,36 +258,17 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     struct pico_ip4 orig;
     uint16_t port;
 
-    if(zmtp_s == NULL)
-    {
-        zmtp_err = ZMTP_ERR_EINVAL;
-        return NULL;
-    }
+    if(zmtp_s == NULL) goto zmtp_socket_accept_fail_arg;
 
     new_zmtp_s = PICO_ZALLOC(sizeof(struct zmtp_socket));
-    if(new_zmtp_s == NULL)
-    {
-        zmtp_err = ZMTP_ERR_ENOMEM;
-        return NULL;
-    }
+    if(new_zmtp_s == NULL) goto zmtp_socket_accept_fail_new_zmtp_s;
 
     new_zmtp_s->out_buff = PICO_ZALLOC(sizeof(struct pico_vector));
-    if(new_zmtp_s->out_buff == NULL)
-    {
-        zmtp_err = ZMTP_ERR_ENOMEM;
-        PICO_FREE(new_zmtp_s);
-        return NULL;
-    }
+    if(new_zmtp_s->out_buff == NULL) goto zmtp_socket_accept_fail_out_buff;
 
     new_zmtp_s->sock = pico_socket_accept(zmtp_s->sock, &orig, &port);
-    dbg("new_zmtp_s->sock: %p\n", new_zmtp_s->sock);
-    if(new_zmtp_s->sock == NULL)
-    {
-        /* if EAGAIN try again */
-        /* if EINVAL */
-        zmtp_err = ZMTP_ERR_NOTIMPL;
-        zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
-    }
+    if(new_zmtp_s->sock == NULL) goto zmtp_socket_accept_fail_pico_sock;
+
     new_zmtp_s->state = ZMTP_ST_IDLE;
     new_zmtp_s->type = zmtp_s->type;
     new_zmtp_s->zmq_cb = zmtp_s->zmq_cb;
@@ -317,6 +279,23 @@ struct zmtp_socket* zmtp_socket_accept(struct zmtp_socket* zmtp_s)
     new_zmtp_s->state = ZMTP_ST_SND_GREETING;
 
     return new_zmtp_s;
+
+
+    zmtp_socket_accept_fail_pico_sock: zmtp_err = ZMTP_ERR_NOTIMPL;
+    //zmtp_s->zmq_cb(ZMTP_EV_ERR, zmtp_s);
+    PICO_FREE(new_zmtp_s->out_buff);
+    PICO_FREE(new_zmtp_s);
+    return NULL;
+
+    zmtp_socket_accept_fail_out_buff: zmtp_err = ZMTP_ERR_ENOMEM;
+    PICO_FREE(new_zmtp_s);
+    return NULL;
+
+    zmtp_socket_accept_fail_new_zmtp_s: zmtp_err = ZMTP_ERR_ENOMEM;
+    return NULL;
+
+    zmtp_socket_accept_fail_arg: zmtp_err = ZMTP_ERR_EINVAL;
+    return NULL;
 }
 
 int zmtp_socket_bind(struct zmtp_socket* s, void* local_addr, uint16_t* port)
@@ -356,6 +335,8 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
     uint16_t totalLength = 0;
     uint16_t byteIndex = 0;
     uint8_t numFrames = 0;
+    int16_t i;
+    size_t length;
 
     if (!s || !vec || !s->sock || !s->out_buff)
     {
@@ -395,12 +376,11 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x01;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x00;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             }
+            msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             byteIndex = (uint16_t)(byteIndex + 2);
         }
         if (frame->len > 255)
@@ -410,11 +390,20 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x03;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x02;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            }
+            
+            length = frame->len;
+            for (i=0; i<(int8_t)(8-sizeof(size_t)); i++)
+            {
+                msgBuffer[byteIndex+1+i] = 0x00;
+            }
+            for (i=0; i<(int8_t)(sizeof(size_t)); i++)
+            { 
+                msgBuffer[byteIndex +(7-i) + 1] = length & 0xff;
+                length = length>>8;
             }
             byteIndex = (uint16_t) (byteIndex + 9);
         }
@@ -422,7 +411,6 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
         memcpy(msgBuffer+byteIndex, frame->buf, frame->len);
         byteIndex = (uint16_t) (byteIndex + frame->len);
     }
-
     if (ZMTP_ST_RDY == s->state)
     {
         ret = pico_socket_write(s->sock, (void*) msgBuffer, totalLength);

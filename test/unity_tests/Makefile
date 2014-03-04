@@ -13,13 +13,15 @@ CFLAGS += $(USE_MEM_MANAGER) -ggdb
 
 CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
-%_Runner.o %_tests.o mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
+%_Runner.o %_tests.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
+
+mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks 
 
 $(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
 
 .PHONY: all clean deepclean cppcheck
 
-ALL = Testzmtp_tests_Runner Testzmq_tests_Runner 
+ALL = Testzmtp_tests_Runner Testzmq_tests_Runner Testzmtp_dataflow_tests_Runner
 all: $(ALL)
 
 TO_BE_MOCKED = pico_vector.h pico_ipv4.h pico_mm.h pico_zmtp.h pico_socket.h pico_tree.h
@@ -55,8 +57,7 @@ cppcheck:
 #-------------------------------------------------
 
 clean:
-	rm -f *.o mocks/*.o
+	rm -f *.o mocks/*.o $(ALL)
 
 deepclean: clean
-	rm -rf mocks
-	rm -f $(ALL)
+	rm -rf mocks 
