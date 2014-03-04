@@ -31,7 +31,6 @@ IPFILTER?=1
 CRC?=0
 HTTP_CLIENT?=1
 HTTP_SERVER?=1
-SIMPLE_HTTP?=1
 ZMQ?=1
 OLSR?=1
 SLAACV4?=1
@@ -189,9 +188,6 @@ endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
 endif
-ifneq ($(SIMPLE_HTTP),0)
-  include rules/http.mk
-endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
 endif
@@ -288,6 +284,7 @@ units: mod core lib $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ) 
 	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_seq.elf $(CFLAGS) -I. test/unit/modunit_seq.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

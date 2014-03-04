@@ -2167,6 +2167,7 @@ void wget_forever_next_url()
         current_url++;
         if (current_url >= MAX_URLS)
             current_url = 0;
+
         printf("current_url=%d\n", current_url);
 
         if (url_filename)
@@ -2174,6 +2175,7 @@ void wget_forever_next_url()
             pico_free(url_filename);
             url_filename = NULL;
         }
+
         usleep(500000);
         url_filename = strdup(basename(urls[current_url]));
         printf(">>> WGET #%d [%s]\n", current_url, urls[current_url]);
@@ -2316,18 +2318,17 @@ void wget_forever_callback(uint16_t ev, uint16_t conn)
     }
 }
 
-void app_wget_forever(char * arg)
+void app_wget_forever(char *arg)
 {
     uint8_t cnt = 0;
     char *url;
-    char *nxt= arg;
+    char *nxt = arg;
 
-    while ((nxt!=NULL) && (cnt < 3))
+    while ((nxt != NULL) && (cnt < 3))
     {
         nxt = cpy_arg(&url, nxt);
         urls[cnt++] = url;
     }
-
     if (cnt < 3)
     {
         printf("wget_forever expects 3 urls, quitting.. \n");
@@ -2335,22 +2336,22 @@ void app_wget_forever(char * arg)
     }
 
     /*
-    urls[0] = "homer.tass.org.be/LPC1768.pdf";
-    urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
-    urls[2] = "bart.tass.org.be/";
+       urls[0] = "homer.tass.org.be/LPC1768.pdf";
+       urls[1] = "marge.tass.org.be/marge-simpson-picture.png";
+       urls[2] = "bart.tass.org.be/";
 
-    urls[0] = "10.40.0.1/test1.bin";
-    urls[1] = "10.40.0.1/test10.bin";
-    urls[2] = "10.40.0.1/test5.bin";
+       urls[0] = "10.40.0.1/test1.bin";
+       urls[1] = "10.40.0.1/test10.bin";
+       urls[2] = "10.40.0.1/test5.bin";
 
-    urls[0] = "download.linnrecords.com/test/mp3/tone.aspx";
-    urls[1] = "ipv4.download.thinkbroadband.com/5MB.zip";
-    urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
+       urls[0] = "download.linnrecords.com/test/mp3/tone.aspx";
+       urls[1] = "ipv4.download.thinkbroadband.com/5MB.zip";
+       urls[2] = "ftp.belnet.be/PortablePython/v2.7/PortablePython_2.7.2.1.exe";
 
-    urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
-    urls[1] = "10.70.0.1/gdb-refcard.pdf";
-    urls[2] = "10.70.0.1/books.txt";
- */
+       urls[0] = "10.70.0.1/zMidi_synth-debug-unaligned.apk";
+       urls[1] = "10.70.0.1/gdb-refcard.pdf";
+       urls[2] = "10.70.0.1/books.txt";
+     */
 
     wget_forever_next_url();
 }
