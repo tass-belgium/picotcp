@@ -26,6 +26,9 @@
 
 #define dbg(...)
 
+#define MEMORY_MEASURE
+#define JENKINS_DEBUG
+
 /* Intended for Mr. Jenkins endurance test loggings */
 #ifdef JENKINS_DEBUG
 #include "PicoTerm.h"
@@ -51,21 +54,31 @@ int stack_get_free_words(void);
 extern uint32_t max_mem;
 extern uint32_t cur_mem;
 
+struct mem_chunk_stats {
+    uint32_t signature;
+    void *mem;
+    uint32_t size;
+};
+
 static inline void *pico_zalloc(int x)
 {
-    uint32_t *ptr;
+    struct mem_chunk_stats *stats;
     if ((cur_mem + x) > (10 * 1024))
         return NULL;
 
-    ptr = (uint32_t *)calloc(x + 4, 1);
+    stats = (uint32_t *)calloc(x + sizeof(struct mem_chunk_stats), 1);
+    stats->signature = 0xdeadbeef;
+    stats->mem = ((uint8_t *)stats) + sizeof(stats);
+    stats->size = x;
 
     /* Intended for Mr. Jenkins endurance test loggings */
     #ifdef JENKINS_DEBUG
-    if (!ptr)
+    if (!ptr) {
         jenkins_dbg(">> OUT OF MEM\n");
+        while(1);;
+    }
 
     #endif
-    *ptr = (uint32_t)x;
     cur_mem += x;
     if (cur_mem > max_mem) {
         max_mem = cur_mem;
@@ -77,9 +90,18 @@ static inline void *pico_zalloc(int x)
 
 static inline void pico_free(void *x)
 {
-    uint32_t *ptr = (uint32_t*)(((uint8_t *)x) - 4);
-    cur_mem -= *ptr;
-    free(ptr);
+    struct mem_chunk_stats *stats = (struct mem_chunk_stats *) ((uint8_t *)x - sizeof(struct mem_chunk_stats));
+
+    #ifdef JENKINS_DEBUG
+    if ((stats->signature != 0xdeadbeef) || (x != stats->mem)){
+        jenkins_dbg(">> FREE ERROR: caller is %p\n", __builtin_return_address(1));
+        while(1);;
+    }
+    #endif
+
+    cur_mem -= stats->size;
+    memset(stats, 0, sizeof(stats));
+    free(stats);
 }
 #else
 
