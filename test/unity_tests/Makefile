@@ -18,7 +18,7 @@ $(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
 
 .PHONY: all clean deepclean
 
-all: Testzmtp_tests_Runner Testzmq_tests_Runner 
+all: Testzmtp_tests_Runner Testzmq_tests_Runner Testzmtp_dataflow_tests_Runner
 
 TO_BE_MOCKED = pico_vector.h pico_ipv4.h pico_mm.h pico_zmtp.h pico_socket.h pico_tree.h
 $(call GenerateRulesForMocks,$(TO_BE_MOCKED))
@@ -48,4 +48,4 @@ clean:
 	rm -f *.o mocks/*.o
 
 deepclean: clean
-	rm -rf mocks
+	rm -rf mocks *tests_Runner

@@ -387,12 +387,11 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x01;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x00;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             }
+            msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             byteIndex = (uint16_t)(byteIndex + 2);
         }
         if (frame->len > 255)
@@ -402,11 +401,21 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x03;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x02;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            }
+            int16_t i;
+            size_t length;
+            length = frame->len;
+            for (i=0; i<8-sizeof(size_t); i++)
+            {
+                msgBuffer[byteIndex+1+i] = 0x00;
+            }
+            for (i=0; i<sizeof(size_t); i++)
+            { 
+                msgBuffer[byteIndex +(7-i) + 1] = length & 0xff;
+                length = length>>8;
             }
             byteIndex = (uint16_t) (byteIndex + 9);
         }
