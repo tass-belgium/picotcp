@@ -13,7 +13,9 @@ CFLAGS += $(USE_MEM_MANAGER) -ggdb
 
 CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
-%_Runner.o %_tests.o mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
+%_Runner.o %_tests.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
+
+mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks 
 
 $(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
 
