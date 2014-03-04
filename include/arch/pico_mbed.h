@@ -63,14 +63,14 @@ static inline void *pico_zalloc(int x)
     if ((cur_mem + x) > (10 * 1024))
         return NULL;
 
-    stats = (uint32_t *)calloc(x + sizeof(struct mem_chunk_stats), 1);
+    stats = (struct mem_chunk_stats *)calloc(x + sizeof(struct mem_chunk_stats), 1);
     stats->signature = 0xdeadbeef;
     stats->mem = ((uint8_t *)stats) + sizeof(stats);
     stats->size = x;
 
     /* Intended for Mr. Jenkins endurance test loggings */
     #ifdef JENKINS_DEBUG
-    if (!ptr) {
+    if (!stats) {
         jenkins_dbg(">> OUT OF MEM\n");
         while(1);;
     }
@@ -82,7 +82,7 @@ static inline void *pico_zalloc(int x)
         /*      printf("max mem: %lu\n", max_mem); */
     }
 
-    return (void*)(ptr + 1);
+    return (void*)(stats->mem);
 }
 
 static inline void pico_free(void *x)
