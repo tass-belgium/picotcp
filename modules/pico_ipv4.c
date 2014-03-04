@@ -30,6 +30,7 @@
 static struct pico_ipv4_link *mcast_default_link = NULL;
 #endif
 #ifdef PICO_SUPPORT_IPFRAG
+/* # define reassembly_dbg dbg */
 # define reassembly_dbg(...) do {} while(0)
 #endif
 
@@ -43,6 +44,7 @@ static struct pico_queue out = {
 
 /* Functions */
 static int ipv4_route_compare(void *ka, void *kb);
+static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size);
 
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
 {
@@ -319,8 +321,6 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     uint16_t offset = 0;
     uint16_t data_len = 0;
     struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
-    struct pico_udp_hdr *udp_hdr = NULL;
-    struct pico_tcp_hdr *tcp_hdr = NULL;
     struct pico_ipv4_fragmented_packet *pfrag = NULL;
     struct pico_frame *f_new = NULL, *f_frag = NULL;
     struct pico_tree_node *index, *_tmp;
@@ -406,6 +406,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             data_len = (uint16_t)(short_be(f_frag_hdr->len) - f_frag->net_len);
             memcpy(f_new->net_hdr, f_frag->net_hdr, f_frag->net_len);
             memcpy(f_new->transport_hdr, f_frag->transport_hdr, data_len);
+            f_new->dev = f_frag->dev;
             running_pointer = f_new->transport_hdr + data_len;
             offset = short_be(f_frag_hdr->frag) & PICO_IPV4_FRAG_MASK;
             running_offset = data_len / 8;
@@ -450,12 +451,14 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             if (0) {
   #ifdef PICO_SUPPORT_TCP
             } else if (hdr->proto == PICO_PROTO_TCP) {
+                struct pico_tcp_hdr *tcp_hdr = NULL;
                 tcp_hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
                 tcp_hdr->crc = 0;
                 tcp_hdr->crc = short_be(pico_tcp_checksum(f_new));
   #endif
   #ifdef PICO_SUPPORT_UDP
             } else if (hdr->proto == PICO_PROTO_UDP) {
+                struct pico_udp_hdr *udp_hdr = NULL;
                 udp_hdr = (struct pico_udp_hdr *) f_new->transport_hdr;
                 udp_hdr->crc = 0;
                 udp_hdr->crc = short_be(pico_udp_checksum_ipv4(f_new));
@@ -1179,7 +1182,11 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
-    if (f->transport_hdr != f->payload)
+    if ((f->transport_hdr != f->payload)  &&
+#ifdef PICO_SUPPORT_IPFRAG
+        (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
+#endif
+        1 )
         ipv4_progressive_id++;
 
     hdr->id = short_be(ipv4_progressive_id);
@@ -1199,7 +1206,10 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         hdr->frag = f->frag;
     }
 
-#  endif /* PICO_SUPPORT_UDP */
+    if (proto == PICO_PROTO_ICMP4)
+        hdr->frag = f->frag;
+
+#   endif
 #endif /* PICO_SUPPORT_IPFRAG */
     pico_ipv4_checksum(f);
 
@@ -1538,6 +1548,51 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
     return found->dev;
 }
 
+
+
+static int pico_ipv4_rebound_large(struct pico_frame *f)
+{
+    uint32_t total_payload_written = 0;
+    uint32_t len = f->transport_len;
+    struct pico_frame *fr;
+    struct pico_ip4 dst;
+    struct pico_ipv4_hdr *hdr;
+    hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    dst.addr = hdr->src.addr;
+
+#ifdef PICO_SUPPORT_IPFRAG
+    while(total_payload_written < len) {
+        uint32_t space = (uint32_t)len - total_payload_written;
+        if (space > PICO_IPV4_MAXPAYLOAD)
+            space = PICO_IPV4_MAXPAYLOAD;
+
+        fr = pico_ipv4_alloc(&pico_proto_ipv4, (uint16_t)space);
+        if (!fr) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        if (space + total_payload_written < len)
+            fr->frag |= short_be(PICO_IPV4_MOREFRAG);
+        else
+            fr->frag &= short_be(PICO_IPV4_FRAG_MASK);
+
+        fr->frag |= short_be((uint16_t)((total_payload_written) >> 3u));
+
+        memcpy(fr->transport_hdr, f->transport_hdr + total_payload_written, fr->transport_len);
+        if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
+            total_payload_written += fr->transport_len;
+        } else {
+            pico_frame_discard(fr);
+            break;
+        }
+    } /* while() */
+    return (int)total_payload_written;
+#else
+    return -1;
+#endif
+}
+
 int pico_ipv4_rebound(struct pico_frame *f)
 {
     struct pico_ip4 dst;
@@ -1554,6 +1609,10 @@ int pico_ipv4_rebound(struct pico_frame *f)
     }
 
     dst.addr = hdr->src.addr;
+    if (f->transport_len > PICO_IPV4_MAXPAYLOAD) {
+        return pico_ipv4_rebound_large(f);
+    }
+
     return pico_ipv4_frame_push(f, &dst, hdr->proto);
 }
 

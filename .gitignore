@@ -8,6 +8,7 @@ tmp/
 *.o
 *.orig
 *Runner.c
+*Runner
 mocks/
 obj/
 zmtp_tests

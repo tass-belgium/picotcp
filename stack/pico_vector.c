@@ -62,7 +62,7 @@ void pico_vector_destroy(struct pico_vector* vector)
 
 struct pico_vector_iterator* pico_vector_begin(const struct pico_vector* vector)
 {
-    struct pico_vector_iterator* it = malloc(5);
+    struct pico_vector_iterator* it;
     if (vector->size == 0)
         return NULL;
 
