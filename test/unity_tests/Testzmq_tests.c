@@ -260,7 +260,11 @@ void test_zmq_pub_send(void)
     struct zmq_socket_pub pub_sock;
     struct zmtp_socket zmtp_sock;
     const char* test_data = "Hello";
-    
+    struct pico_vector_iterator it;
+    struct zmtp_frame_t tmp_frame;
+    it.data = &tmp_frame;
+    tmp_frame.buf = 0x1234;
+
     /* Create the pub_sock */
     pico_mem_zalloc_ExpectAndReturn(sizeof(struct zmq_socket_pub), &pub_sock);
     zmtp_socket_open_ExpectAndReturn(PICO_PROTO_IPV4, PICO_PROTO_TCP, ZMTP_TYPE_PUB, &pub_sock, &cb_zmtp_sockets, &dummy_zmtp_sock);
@@ -276,6 +280,9 @@ void test_zmq_pub_send(void)
 
     pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, NULL); /* For scan_and_mark */
     pico_vector_begin_ExpectAndReturn(&pub_sock.subscribers, NULL); /* For send_pub */
+    pico_vector_begin_IgnoreAndReturn(&it); /* For freeing the buffers before clearing the vector */
+    pico_mem_free_Expect(0x1234);
+    pico_vector_iterator_next_ExpectAndReturn(&it, NULL);
     
     pico_vector_clear_Expect(&pub_sock.base.out_vector);
     zmq_send(&pub_sock, test_data, strlen(test_data), 0);

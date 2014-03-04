@@ -335,6 +335,8 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
     uint16_t totalLength = 0;
     uint16_t byteIndex = 0;
     uint8_t numFrames = 0;
+    int16_t i;
+    size_t length;
 
     if (!s || !vec || !s->sock || !s->out_buff)
     {
@@ -374,12 +376,11 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x01;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x00;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             }
+            msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             byteIndex = (uint16_t)(byteIndex + 2);
         }
         if (frame->len > 255)
@@ -389,11 +390,20 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
             {
                 /*more frame*/
                 msgBuffer[byteIndex + 0] = 0x03;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
             } else {
                 /*final frame*/
                 msgBuffer[byteIndex + 0] = 0x02;
-                msgBuffer[byteIndex + 1] = (uint8_t) frame->len;
+            }
+            
+            length = frame->len;
+            for (i=0; i<(int8_t)(8-sizeof(size_t)); i++)
+            {
+                msgBuffer[byteIndex+1+i] = 0x00;
+            }
+            for (i=0; i<(int8_t)(sizeof(size_t)); i++)
+            { 
+                msgBuffer[byteIndex +(7-i) + 1] = length & 0xff;
+                length = length>>8;
             }
             byteIndex = (uint16_t) (byteIndex + 9);
         }
@@ -401,7 +411,6 @@ int zmtp_socket_send(struct zmtp_socket* s, struct pico_vector* vec)
         memcpy(msgBuffer+byteIndex, frame->buf, frame->len);
         byteIndex = (uint16_t) (byteIndex + frame->len);
     }
-
     if (ZMTP_ST_RDY == s->state)
     {
         ret = pico_socket_write(s->sock, (void*) msgBuffer, totalLength);
