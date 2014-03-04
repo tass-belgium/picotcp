@@ -59,12 +59,12 @@ void test_zmtp_socket_send_1msg_0char(void)
     struct pico_vector sock_buf;
 
     uint8_t expectedBuff[2];
-    expectedBuff[0] = 0;
-    expectedBuff[1] = 0;
-
     uint8_t msg[0];
     size_t msgLength = 0;
     size_t byteStreamLength = msgLength + 2;
+
+    expectedBuff[0] = 0;
+    expectedBuff[1] = 0;
 
     pico_mem_zalloc_StubWithCallback(&pico_mem_zalloc_cb);
     pico_mem_free_StubWithCallback(&pico_mem_free_cb);
@@ -139,10 +139,10 @@ void test_zmtp_socket_send_1msg_255char(void)
     uint8_t expectedBuff[byteStreamLength];
     uint8_t msg[msgLength];
     expectedBuff[0] = 0x00;
-    expectedBuff[1] = msgLength;
+    expectedBuff[1] = (uint8_t)msgLength;
 
     //data:
-    for(i=0; i<msgLength; i++)
+    for(i=0; i<(int)msgLength; i++)
     {
         msg[i] = (uint8_t) i;
         expectedBuff[2+i] = (uint8_t) i;
@@ -192,7 +192,7 @@ void test_zmtp_socket_send_1msg_256char(void)
     expectedBuff[8] = 0;
 
     //data:
-    for(i=0; i<msgLength; i++)
+    for(i=0; i<(int)msgLength; i++)
     {
         msg[i] = (uint8_t) i;
         expectedBuff[9+i] = (uint8_t) i;
@@ -243,7 +243,7 @@ void test_zmtp_socket_send_1msg_600char(void)
     expectedBuff[8] = msgLength & 0xff;
 
     //data:
-    for(i=0; i<msgLength; i++)
+    for(i=0; i<(int)msgLength; i++)
     {
         msg[i] = (uint8_t) i;
         expectedBuff[9+i] = (uint8_t) i;
@@ -291,15 +291,15 @@ void test_zmtp_socket_send_2msg_0char_0char(void)
     expectedBuff[4] = 0;
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
         expectedBuff[2+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[2+msg1Length+2+i] = (uint8_t) i;
+        expectedBuff[2+(int)msg1Length+2+i] = (uint8_t) i;
     }
 
 
@@ -349,15 +349,15 @@ void test_zmtp_socket_send_2msg_0char_1char(void)
     expectedBuff[3] = 0x01; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
         expectedBuff[2+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[2+msg1Length+2+i] = (uint8_t) i;
+        expectedBuff[2+(int)msg1Length+2+i] = (uint8_t) i;
     }
 
 
@@ -406,15 +406,15 @@ void test_zmtp_socket_send_2msg_1char_0char(void)
     expectedBuff[3] = 0x00; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
         expectedBuff[2+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[2+msg1Length+2+i] = (uint8_t) i;
+        expectedBuff[2+(int)msg1Length+2+i] = (uint8_t) i;
     }
 
 
@@ -461,19 +461,19 @@ void test_zmtp_socket_send_2msg_255char_255char(void)
     uint8_t msg2[msg2Length];
     expectedBuff[0] = 0x01; //more short
     expectedBuff[1] = 0xff; //length msg1
-    expectedBuff[msg1Length +2 +0] = 0x00; // final short
-    expectedBuff[msg1Length +2 +1] = 0xff; //length msg2
+    expectedBuff[(int)msg1Length +2 +0] = 0x00; // final short
+    expectedBuff[(int)msg1Length +2 +1] = 0xff; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
         expectedBuff[2+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[2+msg1Length+2+i] = (uint8_t) i;
+        expectedBuff[2+(int)msg1Length+2+i] = (uint8_t) i;
     }
 
 
@@ -517,30 +517,30 @@ void test_zmtp_socket_send_2msg_256char_255char(void)
     uint8_t expectedBuff[byteStreamLength];
     uint8_t msg1[msg1Length];
     uint8_t msg2[msg2Length];
-    for(i=0; i<headerLen1; i++)
+    for(i=0; i<(int)headerLen1; i++)
     {
         expectedBuff[i] = 0x00;
     }
-    for(i=0; i<headerLen2; i++)
+    for(i=0; i<(int)headerLen2; i++)
     {
-        expectedBuff[msg1Length + headerLen1 + i] = 0x00;
+        expectedBuff[(int)(msg1Length + headerLen1) + i] = 0x00;
     }
     expectedBuff[0] = 0x03; //more long
     expectedBuff[7] = 0x01; //length msg1
     expectedBuff[8] = 0x00; //length msg1
-    expectedBuff[msg1Length + headerLen1 +0] = 0x00; // final short
-    expectedBuff[msg1Length + headerLen1 +1] = 0xff; //length msg2
+    expectedBuff[(int)(msg1Length + headerLen1) +0] = 0x00; // final short
+    expectedBuff[(int)(msg1Length + headerLen1) +1] = 0xff; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
-        expectedBuff[headerLen1+i] = (uint8_t) i;
+        expectedBuff[(int)headerLen1+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[msg1Length + headerLen1 + headerLen2 + i] = (uint8_t) i;
+        expectedBuff[(int)(msg1Length + headerLen1 + headerLen2) + i] = (uint8_t) i;
     }
 
 
@@ -585,30 +585,30 @@ void test_zmtp_socket_send_2msg_600char_255char(void)
     uint8_t expectedBuff[byteStreamLength];
     uint8_t msg1[msg1Length];
     uint8_t msg2[msg2Length];
-    for(i=0; i<headerLen1; i++)
+    for(i=0; i<(int)headerLen1; i++)
     {
         expectedBuff[i] = 0x00;
     }
-    for(i=0; i<headerLen2; i++)
+    for(i=0; i<(int)headerLen2; i++)
     {
-        expectedBuff[msg1Length + headerLen1 + i] = 0x00;
+        expectedBuff[(int)(msg1Length + headerLen1) + i] = 0x00;
     }
     expectedBuff[0] = 0x03; //more long
     expectedBuff[7] = 0x02; //length msg1
     expectedBuff[8] = 0x58; //length msg1
-    expectedBuff[msg1Length + headerLen1 +0] = 0x00; // final short
-    expectedBuff[msg1Length + headerLen1 +1] = 0xff; //length msg2
+    expectedBuff[(int)(msg1Length + headerLen1 +0)] = 0x00; // final short
+    expectedBuff[(int)(msg1Length + headerLen1 +1)] = 0xff; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
-        expectedBuff[headerLen1+i] = (uint8_t) i;
+        expectedBuff[(int)headerLen1+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[msg1Length + headerLen1 + headerLen2 + i] = (uint8_t) i;
+        expectedBuff[(int)(msg1Length + headerLen1 + headerLen2) + i] = (uint8_t) i;
     }
 
 
@@ -653,31 +653,31 @@ void test_zmtp_socket_send_2msg_600char_256char(void)
     uint8_t expectedBuff[byteStreamLength];
     uint8_t msg1[msg1Length];
     uint8_t msg2[msg2Length];
-    for(i=0; i<headerLen1; i++)
+    for(i=0; i<(int)headerLen1; i++)
     {
         expectedBuff[i] = 0x00;
     }
-    for(i=0; i<headerLen2; i++)
+    for(i=0; i<(int)headerLen2; i++)
     {
-        expectedBuff[msg1Length + headerLen1 + i] = 0x00;
+        expectedBuff[(int)(msg1Length + headerLen1) + i] = 0x00;
     }
     expectedBuff[0] = 0x03; //more long
     expectedBuff[7] = 0x02; //length msg1
     expectedBuff[8] = 0x58; //length msg1
-    expectedBuff[msg1Length + headerLen1 +0] = 0x02; //final long
-    expectedBuff[msg1Length + headerLen1 +7] = 0x01; //length msg2
-    expectedBuff[msg1Length + headerLen1 +8] = 0x00; //length msg2
+    expectedBuff[(int)(msg1Length + headerLen1) +0] = 0x02; //final long
+    expectedBuff[(int)(msg1Length + headerLen1) +7] = 0x01; //length msg2
+    expectedBuff[(int)(msg1Length + headerLen1) +8] = 0x00; //length msg2
 
     //data:
-    for(i=0; i<msg1Length; i++)
+    for(i=0; i<(int)msg1Length; i++)
     {
         msg1[i] = (uint8_t) i;
-        expectedBuff[headerLen1+i] = (uint8_t) i;
+        expectedBuff[(int)headerLen1+i] = (uint8_t) i;
     }
-    for(i=0; i<msg2Length; i++)
+    for(i=0; i<(int)msg2Length; i++)
     {
         msg2[i] = (uint8_t) i;
-        expectedBuff[msg1Length + headerLen1 + headerLen2 + i] = (uint8_t) i;
+        expectedBuff[(int)(msg1Length + headerLen1 + headerLen2) + i] = (uint8_t) i;
     }
 
 
