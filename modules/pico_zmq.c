@@ -26,7 +26,8 @@
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
 
-/* When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
+/*
+ * When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
  * The reason why we use a pair of socket-mark is because when we want to send something out to subscribers,
  * we mark every socket that matches with the subscription and in a later phase, we send the message to all
  * marked sockets.
@@ -52,7 +53,10 @@ static int8_t add_subscriber_to_publisher(void* zmq_sock, struct zmtp_socket* zm
 
     return 0;
 }
-// This function is in comments because we get punished for it as it is not yet called 
+//This function is in comments because we get punished for it as it is not yet called 
+//  /* This method gets called when the publisher receives a subscription from a subscriber. 
+//   * The function will then add the subscription into the zmq vector<zmq_sub_sub_pair>.
+//   */
 //  static int8_t add_subscription(void* subscription_in, size_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
 //  {
 //      void* subscription = NULL;
@@ -87,6 +91,11 @@ static int8_t add_subscriber_to_publisher(void* zmq_sock, struct zmtp_socket* zm
 //      return 0;    
 //  }
 //  
+
+/*
+ * This callback is called by the zmtp layer when an event occured 
+ * The zmtp_socket s represents the zmtp_socket on which the event ev occured.
+ */
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
     struct zmtp_socket* client;
@@ -103,7 +112,6 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
     }
     /* Else if read event for pub: zmtp_read(...); check if the first byte is 0x01 and then call add_subscription */
 }
-
 
 int zmq_bind(void* socket, const char *endpoint)
 {
@@ -250,11 +258,10 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
     frame.len = len;
 
     bsock = (struct zmq_socket_base *)socket;
-    
 
     if(bsock->type == ZMTP_TYPE_REQ && ((struct zmq_socket_req *)bsock)->send_enable == ZMQ_SEND_DISABLED )
         return -1; /* For REQ, if send_enable is disabled, then return -1 */
-    
+
     if( (flags & ZMQ_SNDMORE) != 0)
     {
         /* More frames to come. Just add into pico_vector and wait for a later call with a final frame */
