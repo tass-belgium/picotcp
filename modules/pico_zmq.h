@@ -82,7 +82,7 @@ struct zmq_socket_req
     struct zmtp_socket* sock; /* Remote socket. Should become a vector? */
 };
 
-void* zmq_socket(void* context, uint8_t type);
+void* zmq_socket(void* context, int type);
 int zmq_setsockopt (void* socket, int option_name, const void* option_value, size_t option_len);
 int zmq_getsockopt (void* socket, int option_name, void* option_value, size_t* option_len);
 int zmq_bind(void* socket, const char* endpoint);
