@@ -88,6 +88,7 @@ static struct httpServer server = {
 static int parseRequest(struct httpClient *client);
 static int readRemainingHeader(struct httpClient *client);
 static void sendData(struct httpClient *client);
+static void sendFinal(struct httpClient *client);
 static inline int readData(struct httpClient *client);  /* used only in a place */
 static inline struct httpClient *findClient(uint16_t conn);
 
