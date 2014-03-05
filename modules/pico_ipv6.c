@@ -1147,6 +1147,28 @@ struct pico_ipv6_link *pico_ipv6_link_by_dev(struct pico_device *dev)
     return NULL;
 }
 
+struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struct pico_ipv6_link *last)
+{
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_link *link = NULL;
+    int valid = 0;
+
+    if (last == NULL)
+        valid = 1;
+
+    pico_tree_foreach(index, &IPV6Links)
+    {
+        link = index->keyValue;
+        if (link->dev == dev) {
+            if (last == link)
+                valid = 1;
+            else if (valid > 0)
+                return link;
+        }
+    }
+    return NULL;
+}
+
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
