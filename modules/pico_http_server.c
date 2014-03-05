@@ -139,9 +139,13 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
     if(ev & PICO_SOCK_EV_WR)
     {
-        if(client->state == HTTP_SENDING_DATA)
+        if(client->state == HTTP_SENDING_DATA || client->state == HTTP_SENDING_STATIC_DATA)
         {
             sendData(client);
+        }
+        else if(client->state == HTTP_SENDING_FINAL)
+        {
+            sendFinal(client);
         }
     }
 
@@ -307,13 +311,13 @@ char *pico_http_getBody(uint16_t conn)
  * the client if the resource can be provided or not.
  *
  * This is controlled via the code parameter which can
- * have two values :
+ * have three values :
  *
- * HTTP_RESOURCE_FOUND or HTTP_RESOURCE_NOT_FOUND
+ * HTTP_RESOURCE_FOUND, HTTP_STATIC_RESOURCE_FOUND or HTTP_RESOURCE_NOT_FOUND
  *
  * If a resource is reported not found the 404 header will be sent and the connection
  * will be closed , otherwise the 200 header is sent and the user should
- * immediately submit data.
+ * immediately submit (static) data.
  *
  */
 int pico_http_respond(uint16_t conn, uint16_t code)
@@ -328,9 +332,9 @@ int pico_http_respond(uint16_t conn, uint16_t code)
 
     if(client->state == HTTP_WAIT_RESPONSE)
     {
-        if(code == HTTP_RESOURCE_FOUND)
+        if(code == HTTP_RESOURCE_FOUND || code == HTTP_STATIC_RESOURCE_FOUND)
         {
-            client->state = HTTP_WAIT_DATA;
+            client->state = (code == HTTP_RESOURCE_FOUND) ? HTTP_WAIT_DATA : HTTP_WAIT_STATIC_DATA;
             return pico_socket_write(client->sck, (const char *)returnOkHeader, sizeof(returnOkHeader) - 1); /* remove \0 */
         }
         else
@@ -357,7 +361,7 @@ int pico_http_respond(uint16_t conn, uint16_t code)
  * Server sends data only using Transfer-Encoding: chunked.
  *
  * With this function the user will submit a data chunk to
- * be sent.
+ * be sent. If it's static data the function will not allocate a buffer.
  * The function will send the chunk size in hex and the rest will
  * be sent using WR event from sockets.
  * After each transmision EV_HTTP_PROGRESS is called and at the
@@ -379,7 +383,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         return HTTP_RETURN_ERROR;
     }
 
-    if(client->state != HTTP_WAIT_DATA)
+    if(client->state != HTTP_WAIT_DATA && client->state != HTTP_WAIT_STATIC_DATA)
     {
         dbg("Client is in a different state than accepted\n");
         return HTTP_RETURN_ERROR;
@@ -399,15 +403,22 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
 
     if(len > 0)
     {
-        client->buffer = pico_zalloc(len);
-        if(!client->buffer)
+        if(client->state == HTTP_WAIT_STATIC_DATA)
         {
-            pico_err = PICO_ERR_ENOMEM;
-            return HTTP_RETURN_ERROR;
+            client->buffer = buffer;
         }
+        else
+        {
+            client->buffer = pico_zalloc(len);
+            if(!client->buffer)
+            {
+                pico_err = PICO_ERR_ENOMEM;
+                return HTTP_RETURN_ERROR;
+            }
 
-        /* taking over the buffer */
-        memcpy(client->buffer, buffer, len);
+            /* taking over the buffer */
+            memcpy(client->buffer, buffer, len);
+        }
     }
     else
         client->buffer = NULL;
@@ -419,7 +430,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     /* create the chunk size and send it */
     if(len > 0)
     {
-        client->state = HTTP_SENDING_DATA;
+        client->state = (client->state == HTTP_WAIT_DATA) ? HTTP_SENDING_DATA : HTTP_SENDING_STATIC_DATA;
         chunkCount = pico_itoaHex(client->bufferSize, chunkStr);
         chunkStr[chunkCount++] = '\r';
         chunkStr[chunkCount++] = '\n';
@@ -704,10 +715,14 @@ void sendData(struct httpClient *client)
         /* send chunk trail */
         if(pico_socket_write(client->sck, "\r\n", 2) > 0)
         {
-            client->state = HTTP_WAIT_DATA;
             /* free the buffer */
-            pico_free(client->buffer);
+            if(client->state == HTTP_SENDING_DATA)
+            {
+                pico_free(client->buffer);
+            }
             client->buffer = NULL;
+
+            client->state = HTTP_WAIT_DATA;
             server.wakeup(EV_HTTP_SENT, client->connectionID);
         }
     }
