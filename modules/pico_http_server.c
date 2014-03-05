@@ -67,13 +67,16 @@ struct httpClient
 
 /* Local states for clients */
 #define HTTP_WAIT_HDR               0
-#define HTTP_WAIT_EOF_HDR       1
+#define HTTP_WAIT_EOF_HDR           1
 #define HTTP_EOF_HDR                2
-#define HTTP_WAIT_RESPONSE  3
-#define HTTP_WAIT_DATA          4
-#define HTTP_SENDING_DATA       5
-#define HTTP_ERROR                  6
-#define HTTP_CLOSED                 7
+#define HTTP_WAIT_RESPONSE          3
+#define HTTP_WAIT_DATA              4
+#define HTTP_WAIT_STATIC_DATA       5
+#define HTTP_SENDING_DATA           6
+#define HTTP_SENDING_STATIC_DATA    7
+#define HTTP_SENDING_FINAL          8
+#define HTTP_ERROR                  9
+#define HTTP_CLOSED                 10
 
 static struct httpServer server = {
     0
@@ -424,12 +427,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     }
     else
     {
-        dbg("->\n");
-        /* end of transmision */
-        pico_socket_write(client->sck, "0\r\n\r\n", 5u);
-        /* nothing left, close the client */
-        pico_socket_close(client->sck);
-        client->state = HTTP_CLOSED;
+        sendFinal(client);
     }
 
     return HTTP_RETURN_OK;
@@ -714,6 +712,19 @@ void sendData(struct httpClient *client)
         }
     }
 
+}
+
+void sendFinal(struct httpClient *client)
+{
+    if(pico_socket_write(client->sck, "0\r\n\r\n", 5u) != 0)
+    {
+        pico_socket_close(client->sck);
+        client->state = HTTP_CLOSED;
+    }
+    else
+    {
+        client->state = HTTP_SENDING_FINAL;
+    }
 }
 
 int readData(struct httpClient *client)
