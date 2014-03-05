@@ -6,6 +6,7 @@
 
 extern volatile pico_time full_tick;
 extern volatile uint32_t sys_tick_counter;
+extern volatile uint32_t __stm32_tick;
 
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
