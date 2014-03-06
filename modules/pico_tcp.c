@@ -899,6 +899,10 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
 
     /* TCP: ENQUEUE to PROTO ( Transmit ) */
     cpy = pico_frame_copy(f);
+    if (!cpy) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
     if ((pico_enqueue(&tcp_out, cpy) > 0)) {
         if (f->payload_len > 0) {
             ts->in_flight++;
