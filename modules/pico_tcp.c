@@ -1230,6 +1230,10 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
     hdr1 = (struct pico_tcp_hdr *) (fr->transport_hdr);
     f = fr->sock->net->alloc(fr->sock->net, size);
+    if (!f) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
 
     /* fill in IP data from original frame */
     if (IS_IPV4(fr)) {
