@@ -13,14 +13,16 @@ CFLAGS += $(USE_MEM_MANAGER) -ggdb
 
 CPPFLAGS += -I$(PICOTCP)/include/ -I$(PICOTCP)/modules/
 
-%_Runner.o %_tests.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks $(PICO_WARNINGS)
+%_Runner.o %_tests.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks 
+%_Runner.o %_tests.o: CFLAGS +=  $(PICO_WARNINGS)
 
 mocks/Mock%.o: CPPFLAGS += -I$(UNITY)/src -I$(CMOCK)/src -Imocks 
 
-$(PICOTCP)/modules/%.c test_%.c: CPPFLAGS += $(PICO_WARNINGS)
+$(PICOTCP)/modules/%.c test_%.c tics: CFLAGS += $(PICO_WARNINGS)
 
-.PHONY: all clean deepclean cppcheck
+.PHONY: all clean deepclean cppcheck ticsclean
 
+# ALL is used for clean as well
 ALL = Testzmtp_tests_Runner Testzmq_tests_Runner Testzmtp_dataflow_tests_Runner
 all: $(ALL)
 
@@ -56,8 +58,16 @@ cppcheck:
 
 #-------------------------------------------------
 
+# doesn't belong here ... but for now ...
+tics: $(PICOMODULES)/pico_zmq.o $(PICOMODULES)/pico_zmtp.o
+
+#-------------------------------------------------
+
 clean:
 	rm -f *.o mocks/*.o $(ALL)
 
-deepclean: clean
+deepclean: clean ticsclean
 	rm -rf mocks 
+
+ticsclean:
+	rm -f  $(PICOMODULES)/pico_zmq.o $(PICOMODULES)/pico_zmtp.o
