@@ -42,10 +42,10 @@ int pico_itoaHex(uint16_t port, char *ptr)
     return size;
 }
 
-uint16_t pico_itoa(uint16_t port, char *ptr)
+uint32_t pico_itoa(uint32_t port, char *ptr)
 {
-    uint16_t size = 0;
-    uint16_t index;
+    uint32_t size = 0;
+    uint32_t index;
 
     /* transform to from number to string [ in backwards ] */
     while(port)
