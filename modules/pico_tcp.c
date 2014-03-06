@@ -1613,6 +1613,9 @@ static int tcp_rto_xmit(struct pico_socket_tcp *t, struct pico_frame *f)
     struct pico_frame *cpy;
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
     cpy = pico_frame_copy(f);
+    if (!cpy) {
+        return -1;
+    }
     if (pico_enqueue(&tcp_out, cpy) > 0) {
         t->snd_last_out = SEQN(cpy);
         add_retransmission_timer(t, (t->rto << (++t->backoff)) + TCP_TIME);
@@ -1740,6 +1743,9 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
         tcp_add_header(t, f);
         /* TCP: ENQUEUE to PROTO ( retransmit )*/
         cpy = pico_frame_copy(f);
+        if (!cpy) {
+            return -1;
+        }
         if (pico_enqueue(&tcp_out, cpy) > 0) {
             t->in_flight++;
             t->snd_last_out = SEQN(cpy);
