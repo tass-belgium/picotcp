@@ -519,7 +519,7 @@ int pico_http_close(uint16_t conn)
         if(client->resource)
             pico_free(client->resource);
 
-        if(client->buffer)
+        if(client->state != HTTP_SENDING_STATIC_DATA && client->buffer)
             pico_free(client->buffer);
 
         if(client->body)
