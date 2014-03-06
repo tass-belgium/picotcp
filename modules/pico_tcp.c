@@ -1685,6 +1685,8 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
         if(t->sock.wakeup)
             t->sock.wakeup(PICO_SOCK_EV_FIN, &t->sock);
 
+        /* delete socket */
+        pico_socket_del(&t->sock);
         return;
     } else {
         tcp_dbg("Retransmission not allowed, rescheduling\n");

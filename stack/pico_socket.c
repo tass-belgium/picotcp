@@ -1611,13 +1611,12 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     if (!s) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
-    } else {
-        /* check if exists in tree */
-        /* See task #178 */
-        if (pico_check_socket(s) != 0) {
-            pico_free(s); /* close socket after bind or connect failed */
-            return 0;
-        }
+    }
+
+    /* Check if the socket has already been closed */
+    if (s->state & PICO_SOCKET_STATE_CLOSED) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
     }
 
 #ifdef PICO_SUPPORT_UDP
