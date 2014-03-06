@@ -26,7 +26,8 @@
 #undef dbg
 #define dbg(x,args...) printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
 
-/* When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
+/*
+ * When a new subscribers connects to the publisher, that zmtp_socket should be added into a list of subscribers. 
  * The reason why we use a pair of socket-mark is because when we want to send something out to subscribers,
  * we mark every socket that matches with the subscription and in a later phase, we send the message to all
  * marked sockets.
@@ -52,7 +53,10 @@ static int8_t add_subscriber_to_publisher(void* zmq_sock, struct zmtp_socket* zm
 
     return 0;
 }
-// This function is in comments because we get punished for it as it is not yet called 
+//This function is in comments because we get punished for it as it is not yet called 
+//  /* This method gets called when the publisher receives a subscription from a subscriber. 
+//   * The function will then add the subscription into the zmq vector<zmq_sub_sub_pair>.
+//   */
 //  static int8_t add_subscription(void* subscription_in, size_t subscription_len, void *zmq_sock, struct zmtp_socket* zmtp_sock)
 //  {
 //      void* subscription = NULL;
@@ -87,6 +91,11 @@ static int8_t add_subscriber_to_publisher(void* zmq_sock, struct zmtp_socket* zm
 //      return 0;    
 //  }
 //  
+
+/*
+ * This callback is called by the zmtp layer when an event occured 
+ * The zmtp_socket s represents the zmtp_socket on which the event ev occured.
+ */
 static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s) 
 {
     struct zmtp_socket* client;
@@ -104,15 +113,16 @@ static void cb_zmtp_sockets(uint16_t ev, struct zmtp_socket* s)
     /* Else if read event for pub: zmtp_read(...); check if the first byte is 0x01 and then call add_subscription */
 }
 
-
 int zmq_bind(void* socket, const char *endpoint)
 {
     struct pico_ip4 addr;
     uint16_t port;
 
     if( !socket || !endpoint || ((struct zmq_socket_base *)socket)->type != ZMTP_TYPE_PUB )
+    {
+        pico_err = PICO_ERR_EINVAL;
         return -1;
-        /* TODO: error handling! (EINVAL) */
+    }
 
     /* TODO: parse endpoint!! */
     pico_string_to_ipv4("0.0.0.0", &addr.addr); 
@@ -120,13 +130,14 @@ int zmq_bind(void* socket, const char *endpoint)
     return zmtp_socket_bind(((struct zmq_socket_base *)socket)->sock, &addr.addr, &port);
 }
 
-void* zmq_socket(void* context, uint8_t type)
+void* zmq_socket(void* context, int type)
 {
     struct zmq_socket_base* sock = NULL;
-
+    uint8_t tmp_type;
     IGNORE_PARAMETER(context);
 
-    switch(type)
+    tmp_type = (uint8_t)type;
+    switch(tmp_type)
     {
         case(ZMTP_TYPE_REQ): 
             sock = PICO_ZALLOC(sizeof(struct zmq_socket_req));
@@ -135,7 +146,7 @@ void* zmq_socket(void* context, uint8_t type)
             sock = PICO_ZALLOC(sizeof(struct zmq_socket_pub));
             break;
         default:
-            return NULL;
+            return NULL; /* TODO: set err to unknown type? */
     }
     
     if(!sock) 
@@ -144,12 +155,12 @@ void* zmq_socket(void* context, uint8_t type)
         return NULL;
     }
     
-    if(type == ZMTP_TYPE_REQ)
+    if(tmp_type == ZMTP_TYPE_REQ)
         ((struct zmq_socket_req *)sock)->send_enable = ZMQ_SEND_ENABLED;
 
-    sock->type = (uint8_t)type;
+    sock->type = tmp_type;
         
-    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, (uint8_t)type, sock, &cb_zmtp_sockets);
+    sock->sock = zmtp_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, tmp_type, sock, &cb_zmtp_sockets);
     
     if(!sock->sock) {
         PICO_FREE(sock);
@@ -160,7 +171,7 @@ void* zmq_socket(void* context, uint8_t type)
     pico_vector_init(&sock->in_vector, INITIAL_CAPACITY_IN_VECTOR, sizeof(struct zmq_msg_t));
     pico_vector_init(&sock->out_vector, INITIAL_CAPACITY_OUT_VECTOR, sizeof(struct zmq_msg_t));
 
-    if(type == ZMTP_TYPE_PUB) 
+    if(tmp_type == ZMTP_TYPE_PUB) 
     {
         pico_vector_init(&((struct zmq_socket_pub *)sock)->subscribers, INITIAL_CAPACITY_SUBSCRIBERS_VECTOR, sizeof(struct zmq_sock_flag_pair));
         pico_vector_init(&((struct zmq_socket_pub *)sock)->subscriptions, INITIAL_CAPACITY_SUBSCRIPTIONS_VECTOR, sizeof(struct zmq_sub_sub_pair));
@@ -185,6 +196,11 @@ int zmq_connect(void* socket, const char* endpoint)
     return zmtp_socket_connect(base->sock, &addr.addr, short_be(5555));
 }
 
+/*
+ * Before a publisher sends a message out, all the subscribers where their subscription matches with the 
+ * message must be marked. The message is then sent to all the marked subscribers. 
+ * This function will check which subscribers should receive the message and will mark those sockets.
+ */
 static void scan_and_mark(void* socket, struct pico_vector* vec)
 {
     struct pico_vector_iterator* it;
@@ -192,6 +208,7 @@ static void scan_and_mark(void* socket, struct pico_vector* vec)
 
     IGNORE_PARAMETER(vec);
 
+    /* FOR NOW WE MARK EVERY SUBSCRIBER THAT IS CONNECTED TO THE PUBLISHER!*/
     it = pico_vector_begin(&((struct zmq_socket_pub*)socket)->subscribers);
     while(it)
     {
@@ -250,12 +267,11 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
     frame.len = len;
 
     bsock = (struct zmq_socket_base *)socket;
-    
 
     if(bsock->type == ZMTP_TYPE_REQ && ((struct zmq_socket_req *)bsock)->send_enable == ZMQ_SEND_DISABLED )
         return -1; /* For REQ, if send_enable is disabled, then return -1 */
-    
-    if( (flags & ZMQ_SNDMORE) != 0)
+
+    if( (flags & ZMQ_SNDMORE) )
     {
         /* More frames to come. Just add into pico_vector and wait for a later call with a final frame */
         pico_vector_push_back(&bsock->out_vector, &frame);
@@ -273,6 +289,7 @@ int zmq_send(void* socket, const void* buf, size_t len, int flags)
                 break;
 
             default:
+                /* TODO: set error invalid type? */
                 return -1;
         }
 

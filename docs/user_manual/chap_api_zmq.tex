@@ -3,6 +3,9 @@
 The zmq library has been implemented in a slightly different way because it is not
 possible to use blocking calls.
 
+
+% ----------------------------------------- zmq_socket(void* context, uint8_t type) --------------------------------------------
+
 \subsection{zmq$\_$socket}
 
 \subsubsection*{Description}
@@ -15,10 +18,94 @@ void *zmq_socket(void* context, int type);
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{context} - Context of the socket
+\item \texttt{context} - Context of the socket. (this parameter is ignored, but is present to be compliant with the zeromq library. It is perfectly valid to pass a NULL pointer here.)
 \item \texttt{type} - Possible types at this moment:
 \begin{itemize}[noitemsep]
 \item \texttt{ZMQ$\_$PUB}
+\end{itemize}
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns a pointer to the declared zmq$\_$socket. 
+On error the socket is not created, \texttt{NULL} is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+void* sock;
+sock = zmq_socket(NULL, ZMQ_PUB);
+\end{verbatim}
+
+
+
+
+
+
+\subsection{zmq$\_$bind}
+
+\subsubsection*{Description}
+This will bind a server to local socket. At the moment it's only possible to bind ZMQ$\_$PUB sockets. 
+The parameter context is ignored at the moment and the PUB socket will bind on any interface on port 5555. 
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int zmq_bind(void* socket, const char* endpoint);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{socket} - A ZMQ socket (only PUB is currently supported);
+\item \texttt{endpoint} - A string representation of the local endpoint. (This paramter is ignored for now!)
+\end{itemize}
+
+\subsubsection*{Possible events for sockets}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$SOCK$\_$EV$\_$RD} - bla bla.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0. If the function fails, -1 is returned and pico$\_$err is set.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+zmq_bind(sock, "tcp://*:5555");
+\end{verbatim}
+
+
+
+
+
+
+
+
+\subsection{zmq$\_$send}
+
+\subsubsection*{Description}
+This function will send the contents of buf to all sockets that are associated with the socket.
+A successful invocation of zmq$\_$send() does not indicate that the message has been transmitted to the network, only that it has been queued on the socket and zeromq has assumed responsibility for the message.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int zmq_send(void* socket, const void* buf, size_t len, int flags);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{socket} - A ZMQ socket (only PUB is currently supported);
+\item \texttt{buf} - A buffer containing the data that has to be sent
+\item \texttt{len} - the length of the data
+\item \texttt{flags}
+\begin{itemize}[noitemsep]
+\item \texttt{ZMQ$\_$SNDMORE} - Specifies that the message being sent is a multi-part message, and that further message parts are to follow.
 \end{itemize}
 \end{itemize}
 
@@ -28,21 +115,16 @@ void *zmq_socket(void* context, int type);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns a pointer to the declared socket (\texttt{struct pico$\_$socket *}).
-On error the socket is not created, \texttt{NULL} is returned, and \texttt{pico$\_$err} is set appropriately.
+On success, this call returns 0. If the function fails, -1 is returned and pico$\_$err is set.
 
 \subsubsection*{Errors}
-\begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
-\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - protocol not supported
-\item \texttt{PICO$\_$ERR$\_$ENETUNREACH} - network unreachable 
-\end{itemize}
+%\begin{itemize}[noitemsep]
+%\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+%\end{itemize}
 
 \subsubsection*{Example}
 \begin{verbatim}
-sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
+zmq_send(sock, "Hello", 5, 0);
 \end{verbatim}
 
-
-\subsection{pico$\_$socket$\_$read}
 
