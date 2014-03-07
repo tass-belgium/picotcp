@@ -12,9 +12,10 @@
 #include "pico_http_util.h"
 
 /* Response codes */
-#define HTTP_RESOURCE_FOUND         0
-#define HTTP_STATIC_RESOURCE_FOUND  1
-#define HTTP_RESOURCE_NOT_FOUND     2
+#define HTTP_RESOURCE_NOT_FOUND     1u
+#define HTTP_RESOURCE_FOUND         2u
+#define HTTP_STATIC_RESOURCE        4u
+#define HTTP_CACHEABLE_RESOURCE      8u
 
 /* Generic id for the server */
 #define HTTP_SERVER_ID                  0u

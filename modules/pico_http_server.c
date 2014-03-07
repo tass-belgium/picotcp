@@ -29,6 +29,14 @@ Transfer-Encoding: chunked\r\n\
 Connection: close\r\n\
 \r\n";
 
+static const char returnOkCacheableHeader[] =
+    "HTTP/1.1 200 OK\r\n\
+Host: localhost\r\n\
+Cache-control: public, max-age=86400\r\n\
+Transfer-Encoding: chunked\r\n\
+Connection: close\r\n\
+\r\n";
+
 static const char returnFailHeader[] =
     "HTTP/1.1 404 Not Found\r\n\
 Host: localhost\r\n\
@@ -333,10 +341,17 @@ int pico_http_respond(uint16_t conn, uint16_t code)
 
     if(client->state == HTTP_WAIT_RESPONSE)
     {
-        if(code == HTTP_RESOURCE_FOUND || code == HTTP_STATIC_RESOURCE_FOUND)
+        if(code & HTTP_RESOURCE_FOUND)
         {
-            client->state = (code == HTTP_RESOURCE_FOUND) ? HTTP_WAIT_DATA : HTTP_WAIT_STATIC_DATA;
-            return pico_socket_write(client->sck, (const char *)returnOkHeader, sizeof(returnOkHeader) - 1); /* remove \0 */
+            client->state = (code & HTTP_STATIC_RESOURCE) ? HTTP_WAIT_STATIC_DATA : HTTP_WAIT_DATA;
+            if(code & HTTP_CACHEABLE_RESOURCE)
+            {
+                return pico_socket_write(client->sck, (const char *)returnOkCacheableHeader, sizeof(returnOkCacheableHeader) - 1); /* remove \0 */
+            }
+            else
+            {
+                return pico_socket_write(client->sck, (const char *)returnOkHeader, sizeof(returnOkHeader) - 1); /* remove \0 */
+            }
         }
         else
         {
