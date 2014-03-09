@@ -1573,7 +1573,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #endif
 
 
-int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX no check against proto (vs setsockopt) or implicit by socket? */
+int pico_socket_setoption(struct pico_socket *s, int option, void *value)
 {
 
     if (s == NULL) {
@@ -1581,12 +1581,15 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value) /* XXX
         return -1;
     }
 
-    pico_err = PICO_ERR_NOERR;
 
-    if ((pico_setsockopt_tcp(s, option, value) < 0) &&
-        (pico_setsockopt_mcast(s, option, value) < 0))
-        return -1;
-    else return 0;
+    if (PROTO(s) == PICO_PROTO_TCP)
+        return pico_setsockopt_tcp(s, option, value);
+    
+    if (PROTO(s) == PICO_PROTO_UDP)
+        return pico_setsockopt_udp(s, option, value);
+
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 
@@ -1597,12 +1600,15 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
         return -1;
     }
 
-    pico_err = PICO_ERR_NOERR;
 
-    if ((pico_getsockopt_tcp(s, option, value) < 0) &&
-        (pico_getsockopt_mcast(s, option, value) < 0))
-        return -1;
-    else return 0;
+    if (PROTO(s) == PICO_PROTO_TCP)
+        return pico_getsockopt_tcp(s, option, value);
+    
+    if (PROTO(s) == PICO_PROTO_UDP)
+        return pico_getsockopt_udp(s, option, value);
+
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
 }
 
 

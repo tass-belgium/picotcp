@@ -6,15 +6,25 @@
 
 int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
 {
+    if (!value) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    if (s->proto->proto_number != PICO_PROTO_TCP) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
+        return -1;
+    }
 #ifdef PICO_SUPPORT_TCP
     if (option == PICO_TCP_NODELAY) {
-        if (s->proto->proto_number == PICO_PROTO_TCP)
             /* state of the NODELAY option */
             *(int *)value = PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_TCPNODELAY);
-        else
-            *(int *)value = 0;
-
-        return 0;
+            return 0;
+    }
+    else if (option == PICO_SOCKET_OPT_RCVBUF) {
+        return pico_tcp_get_bufsize_in(s, (uint32_t *)value);
+    }
+    if (option == PICO_SOCKET_OPT_SNDBUF) {
+        return pico_tcp_get_bufsize_out(s, (uint32_t *)value);
     }
 
 #endif
@@ -23,30 +33,39 @@ int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
 
 int pico_setsockopt_tcp(struct pico_socket *s, int option, void *value)
 {
+    if (!value) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    if (s->proto->proto_number != PICO_PROTO_TCP) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
+        return -1;
+    }
 #ifdef PICO_SUPPORT_TCP
     if (option ==  PICO_TCP_NODELAY) {
-        if (!value) {
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-
-        if (s->proto->proto_number == PICO_PROTO_TCP) {
-            int *val = (int*)value;
-            if (*val > 0) {
-                dbg("setsockopt: Nagle algorithm disabled.\n");
-                PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_TCPNODELAY);
-            } else {
-                dbg("setsockopt: Nagle algorithm enabled.\n");
-                PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_TCPNODELAY);
-            }
-
-            return 0;
+        int *val = (int*)value;
+        if (*val > 0) {
+            dbg("setsockopt: Nagle algorithm disabled.\n");
+            PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_TCPNODELAY);
         } else {
-            pico_err = PICO_ERR_EINVAL;
+            dbg("setsockopt: Nagle algorithm enabled.\n");
+            PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_TCPNODELAY);
         }
+        return 0;
+    }
+    if (option == PICO_SOCKET_OPT_RCVBUF) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_bufsize_in(s, *val);
+        return 0;
+    }
+    if (option == PICO_SOCKET_OPT_SNDBUF) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_bufsize_out(s, *val);
+        return 0;
     }
 
 #endif
+    pico_err = PICO_ERR_EINVAL;
     return -1;
 }
 

@@ -96,5 +96,8 @@ int pico_tcp_reply_rst(struct pico_frame *f);
 void pico_tcp_cleanup_queues(struct pico_socket *sck);
 void pico_tcp_notify_closing(struct pico_socket *sck);
 void pico_tcp_flags_update(struct pico_frame *f, struct pico_socket *s);
-
+int pico_tcp_set_bufsize_in(struct pico_socket *s, uint32_t value);
+int pico_tcp_set_bufsize_out(struct pico_socket *s, uint32_t value);
+int pico_tcp_get_bufsize_in(struct pico_socket *s, uint32_t *value);
+int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value);
 #endif

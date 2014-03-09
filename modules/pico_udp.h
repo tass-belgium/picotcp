@@ -40,4 +40,6 @@ uint16_t pico_udp_checksum_ipv6(struct pico_frame *f);
 #endif
 
 
+int pico_udp_setsockopt(struct pico_socket *s, int option, void *value);
+
 #endif

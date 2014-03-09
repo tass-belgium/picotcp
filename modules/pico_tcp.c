@@ -2804,4 +2804,33 @@ void pico_tcp_flags_update(struct pico_frame *f, struct pico_socket *s)
 {
     f->transport_flags_saved = ((struct pico_socket_tcp *)s)->ts_ok;
 }
+
+int pico_tcp_set_bufsize_in(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->tcpq_in.max_size = value;
+    return 0;
+}
+
+int pico_tcp_set_bufsize_out(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->tcpq_out.max_size = value;
+    return 0;
+}
+
+int pico_tcp_get_bufsize_in(struct pico_socket *s, uint32_t *value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    *value = t->tcpq_in.max_size;
+    return 0;
+}
+
+int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    *value = t->tcpq_out.max_size;
+    return 0;
+}
+
 #endif /* PICO_SUPPORT_TCP */

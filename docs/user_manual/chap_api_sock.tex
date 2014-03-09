@@ -515,7 +515,9 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 
 \subsubsection*{Available socket options}
 \begin{itemize}[noitemsep]
-\item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables/enables the Nagle algorithm
+\item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables/enables the Nagle algorithm (TCP Only). 
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$RCVBUF} - Set receive buffer size for the socket
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$SNDBUF} - Set send buffer size for the socket 
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Set link multicast datagrams are sent from, default is first added link
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - Set TTL (0-255) of multicast datagrams, default is 1
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Specifies if a copy of an outgoing multicast datagram is looped back as long as it is a member of the multicast group, default is enabled
@@ -573,6 +575,8 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 \subsubsection*{Available socket options}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$TCP$\_$NODELAY} - Nagle algorithm, \texttt{value} casted to \texttt{(int *)} (0 = disabled, 1 = enabled)
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$RCVBUF} - Read current receive buffer size for the socket
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$SNDBUF} - Read current receive buffer size for the socket
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Link multicast datagrams are sent from
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - TTL (0-255) of multicast datagrams
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Loop back a copy of an outgoing multicast datagram, as long as it is a member of the multicast group, or not.
