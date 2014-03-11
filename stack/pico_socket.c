@@ -1187,6 +1187,8 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 {
     int space = pico_socket_xmit_avail_space(s);
     int total_payload_written = 0;
+    int retval = 0;
+    
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
@@ -1203,6 +1205,7 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 
         w = pico_socket_xmit_one(s, buf + total_payload_written, chunk_len, src, ep);
         if (w <= 0) {
+            retval = -1;
             break;
         }
 
@@ -1213,6 +1216,9 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
         }
     }
     pico_endpoint_free(ep);
+    if ((retval < 0) && (total_payload_written <= 0))     {
+        return retval;
+    }
     return total_payload_written;
 }
 

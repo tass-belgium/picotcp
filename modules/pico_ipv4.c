@@ -400,6 +400,8 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
             }
 
             f_new = self->alloc(self, pfrag->total_len);
+            if (!f_new)
+                return -1;
 
             f_frag = pico_tree_first(pfrag->t);
             reassembly_dbg("REASSEMBLY: copy IP header information len = %lu\n", f_frag->net_len);
