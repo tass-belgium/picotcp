@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_ADDRESSING
-#define _INCLUDE_PICO_ADDRESSING
+#ifndef INCLUDE_PICO_ADDRESSING
+#define INCLUDE_PICO_ADDRESSING
 #include <stdint.h>
 
 
@@ -20,6 +20,12 @@ struct pico_ip6
     uint8_t addr[16];
 };
 #define PICO_SIZE_IP6 16
+
+union pico_address
+{
+    struct pico_ip4 ip4;
+    struct pico_ip6 ip6;
+};
 
 struct pico_eth
 {

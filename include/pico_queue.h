@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_QUEUE
-#define _INCLUDE_PICO_QUEUE
+#ifndef INCLUDE_PICO_QUEUE
+#define INCLUDE_PICO_QUEUE
 #include <stdint.h>
 #include "pico_config.h"
 #include "pico_frame.h"
@@ -61,18 +61,20 @@ static void debug_q(struct pico_queue *q)
 
 static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 {
+    printf("pico_queue!!!\r\n");
     if ((q->max_frames) && (q->max_frames <= q->frames))
         return -1;
 
     if ((Q_LIMIT) && (Q_LIMIT < p->buffer_len + q->size))
         return -1;
 
+    printf("q->max_size = %lu, q->size = %lu\r\n", q->max_size, q->size);
     if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
         return -1;
 
     if (q->shared)
         PICOTCP_MUTEX_LOCK(q->mutex);
-
+    printf("Should come here \r\n");
     p->next = NULL;
     if (!q->head) {
         q->head = p;
@@ -83,7 +85,7 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
         q->tail->next = p;
         q->tail = p;
     }
-
+    printf("Should come here too!\r\n");
     q->size += p->buffer_len + q->overhead;
     q->frames++;
     debug_q(q);

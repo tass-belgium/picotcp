@@ -26,7 +26,6 @@ struct pico_device_tun {
 static int pico_tun_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    dbg("[%s] send %d bytes.\n", dev->name, len);
     return write(tun->fd, buf, len);
 }
 
@@ -57,7 +56,6 @@ void pico_tun_destroy(struct pico_device *dev)
 {
     struct pico_device_tun *tun = (struct pico_device_tun *) dev;
     close(tun->fd);
-    PICO_FREE(tun);
 }
 
 

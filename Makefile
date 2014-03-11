@@ -2,6 +2,7 @@ CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
+SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
 LIBNAME:="libpicotcp.a"
@@ -36,6 +37,9 @@ SLAACV4?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 
+#IPv6 related
+IPV6?=1
+
 CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion 
@@ -59,8 +63,13 @@ endif
 ifeq ($(ARCH),stm32)
   CFLAGS+=-mcpu=cortex-m4 \
   -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
-  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant \
-  -DSTM32
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
+endif
+
+ifeq ($(ARCH),stm32_gc)
+  CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 
+  CFLAGS_CORTEX_M4 += -mfloat-abi=hard -fsingle-precision-constant -Wdouble-promotion
+  CFLAGS+= $(CFLAGS_CORTEX_M4) -mlittle-endian -DSTM32_GC
 endif
 
 ifeq ($(ARCH),faulty)
@@ -85,13 +94,19 @@ ifeq ($(ARCH),stellaris)
 endif
 
 ifeq ($(ARCH),lpc)
-  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
   -ffunction-sections -fdata-sections -mlittle-endian \
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
 endif
 
+ifeq ($(ARCH),lpc18xx)
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC18XX
+endif
+
 ifeq ($(ARCH),lpc-m4-hard)
-  CFLAGS+=-O0 -g3 -fmessage-length=0 -fno-builtin \
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
   -ffunction-sections -fdata-sections -mlittle-endian \
   -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16  \
   -fsingle-precision-constant -mthumb -MMD -MP -DLPC
@@ -99,7 +114,11 @@ endif
 
 ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
-  -mlarge-code -mlarge-data -O0 -msmart-io=1 -msfr-warn=off
+  -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
+endif
+
+ifeq ($(ARCH), avr)
+	CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
 endif
 
 ifeq ($(ARCH), avr)
@@ -172,9 +191,6 @@ endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
 endif
-ifneq ($(SIMPLE_HTTP),0)
-  include rules/http.mk
-endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
 endif
@@ -195,6 +211,9 @@ ifneq ($(OLSR),0)
 endif
 ifneq ($(SLAACV4),0)
   include rules/slaacv4.mk
+endif
+ifneq ($(IPV6),0)
+  include rules/ipv6.mk
 endif
 ifneq ($(MEMORY_MANAGER),0)
   include rules/memory_manager.mk
@@ -219,11 +238,20 @@ posix: all $(POSIX_OBJ)
 
 
 TEST_ELF= test/picoapp.elf
+TEST6_ELF= test/picoapp6.elf
 
 test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mkdir -p $(PREFIX)/test/
 	@rm test/*.o
 	@mv test/*.elf $(PREFIX)/test
+	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
+	
+TEST_HTTPD_ELF= test/examples/test_http_server.elf
+
+test_httpd: posix $(TEST_HTTPD_ELF) $(TEST_OBJ)
+	@mkdir -p $(PREFIX)/test/
+	@rm test/examples/*.o
+	@mv test/examples/*.elf $(PREFIX)/test
 
 tst: test
 
@@ -242,6 +270,8 @@ lib: mod core
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
+	@./mkdeps.sh $(PREFIX) $(CFLAGS) 
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
@@ -257,6 +287,7 @@ units: mod core lib $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ) 
 	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_seq.elf $(CFLAGS) -I. test/unit/modunit_seq.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

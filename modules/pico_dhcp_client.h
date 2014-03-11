@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_DHCP_CLIENT
-#define _INCLUDE_PICO_DHCP_CLIENT
+#ifndef INCLUDE_PICO_DHCP_CLIENT
+#define INCLUDE_PICO_DHCP_CLIENT
 #include "pico_dhcp_common.h"
 #include "pico_addressing.h"
 #include "pico_protocol.h"

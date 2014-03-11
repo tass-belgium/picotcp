@@ -1,36 +1,60 @@
-#define dbg(...) do {} while(0)
-/* #define dbg printf */
 
 /*************************/
 
-/*** MACHINE CONFIGURATION ***/
-/* Temporary (POSIX) stuff. */
-#include <string.h>
-#include <stdio.h>
-#include <sys/time.h>
-#include <unistd.h>
+/* #define dbg(...) do {} while(0) */
+#define dbg printf
 
-extern volatile uint32_t __stm32_tick;
+extern volatile pico_time __stm32_tick;
 
+#ifdef PICO_SUPPORT_RTOS
+    #define PICO_SUPPORT_MUTEX
+extern void *pico_mutex_init(void);
+extern void pico_mutex_lock(void*);
+extern void pico_mutex_unlock(void*);
+extern void *pvPortMalloc( size_t xSize );
+extern void vPortFree( void *pv );
 
-#ifdef PICO_SUPPORT_DEBUG_MEMORY
-static inline void *pico_zalloc(int len)
+    #define pico_free(x) vPortFree(x)
+    #define free(x)      vPortFree(x)
+
+static inline void *pico_zalloc(size_t size)
 {
-    /* dbg("%s: Alloc object of len %d, caller: %p\n", __FUNCTION__, len, __builtin_return_address(0)); */
-    return calloc(len, 1);
+    void *ptr = pvPortMalloc(size);
+
+    if(ptr)
+        memset(ptr, 0u, size);
+
+    return ptr;
 }
 
-static inline void pico_free(void *tgt)
+static inline pico_time PICO_TIME_MS()
 {
-    /* dbg("%s: Discarded object @%p, caller: %p\n", __FUNCTION__, tgt, __builtin_return_address(0)); */
-    free(tgt);
+    return __stm32_tick;
 }
-#else
-# define pico_zalloc(x) calloc(x, 1)
-# define pico_free(x) free(x)
-#endif
 
+static inline pico_time PICO_TIME()
+{
+    return __stm32_tick / 1000;
+}
 
+static inline void PICO_IDLE(void)
+{
+    uint32_t now = PICO_TIME_MS();
+    while(now == PICO_TIME_MS()) ;
+}
+
+#else /* NO RTOS SUPPORT */
+    #define pico_free(x) free(x)
+
+static inline void *pico_zalloc(size_t size)
+{
+    void *ptr = malloc(size);
+
+    if(ptr)
+        memset(ptr, 0u, size);
+
+    return ptr;
+}
 
 static inline unsigned long PICO_TIME(void)
 {
@@ -45,7 +69,9 @@ static inline unsigned long PICO_TIME_MS(void)
 
 static inline void PICO_IDLE(void)
 {
-    unsigned long tick_now = __stm32_tick;
-    while(tick_now == __stm32_tick) ;
+    uint32_t now = PICO_TIME_MS();
+    while(now == PICO_TIME_MS()) ;
 }
+
+#endif /* IFNDEF RTOS */
 

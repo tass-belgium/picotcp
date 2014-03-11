@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_DHCP_COMMON
-#define _INCLUDE_PICO_DHCP_COMMON
+#ifndef INCLUDE_PICO_DHCP_COMMON
+#define INCLUDE_PICO_DHCP_COMMON
 #include "pico_addressing.h"
 
 #define PICO_DHCPD_PORT (short_be(67))
@@ -107,7 +107,7 @@ struct __attribute__((packed)) pico_dhcp_opt
 {
     uint8_t code;
     uint8_t len;
-    union {
+    union dhcp_opt_ext_u {
         struct {
             struct pico_ip4 ip;
         } netmask;

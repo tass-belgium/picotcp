@@ -4,6 +4,47 @@ sh ./test/vde_sock_start_user.sh
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
+killall picoapp.elf
+killall picoapp6.elf
+
+
+echo "IPV6 tests!"
+echo "PING6 LOCALHOST"
+./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
+
+echo "PING6 TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,) &
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a ping,aaaa::1, || exit 1
+killall picoapp6.elf
+
+
+echo "TCP6 TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,) &
+time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
+killall picoapp6.elf
+
+echo "UDP6 TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a udpecho,aaaa::1,6667,) &
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a udpclient,aaaa::1,6667,6667,1400,100,10, || exit 1
+wait || exit 1
+wait
+
+killall picoapp6.elf
+#echo "MULTICAST TEST"
+#(./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
+#(./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667) &
+#(./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667) &
+#sleep 2
+#./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667 || exit 1
+#(wait && wait && wait) || exit 1
+#
+echo
+echo
+echo
+echo
+echo
+
+echo "IPV4 tests!"
 
 echo "PING LOCALHOST"
 ./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
@@ -67,6 +108,13 @@ echo "SLAACV4 TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:169.254.22.5:255.255.0.0:) &
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a slaacv4:pic0 || exit 1
 killall picoapp.elf
+
+
+
+
+
+
+
 
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`

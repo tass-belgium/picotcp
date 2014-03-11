@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_MOCK
-#define _INCLUDE_PICO_MOCK
+#ifndef INCLUDE_PICO_MOCK
+#define INCLUDE_PICO_MOCK
 #include "pico_config.h"
 #include "pico_device.h"
 

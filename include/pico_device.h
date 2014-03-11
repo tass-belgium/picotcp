@@ -3,12 +3,13 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_DEVICE
-#define _INCLUDE_PICO_DEVICE
+#ifndef INCLUDE_PICO_DEVICE
+#define INCLUDE_PICO_DEVICE
 #include "pico_queue.h"
 #include "pico_frame.h"
 #include "pico_addressing.h"
 #include "pico_tree.h"
+#include "pico_ipv6_nd.h"
 #define MAX_DEVICE_NAME 16
 
 
@@ -30,6 +31,9 @@ struct pico_device {
     int __serving_interrupt;
     /* used to signal the upper layer the number of events arrived since the last processing */
     volatile int eventCnt;
+  #ifdef PICO_SUPPORT_IPV6
+    struct pico_nd_hostvars hostvars;
+  #endif
 };
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac);

@@ -21,6 +21,7 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_icmp4.h"
+#include "pico_icmp6.h"
 #include "pico_igmp.h"
 #include "pico_udp.h"
 #include "pico_tcp.h"
@@ -37,6 +38,14 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
+
+#ifdef PICO_SUPPORT_IPV6
+# define PICO_SIZE_MCAST6 2
+const uint8_t PICO_ETHADDR_MCAST6[6] = {
+    0x33, 0x33, 0x00, 0x00, 0x00, 0x00
+};
+#endif
+
 
 volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
@@ -143,6 +152,13 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
         ret = pico_enqueue(pico_proto_icmp4.q_in, f);
         break;
 #endif
+
+#ifdef PICO_SUPPORT_ICMP6
+    case PICO_PROTO_ICMP6:
+        ret = pico_enqueue(pico_proto_icmp6.q_in, f);
+        break;
+#endif
+
 
 #ifdef PICO_SUPPORT_IGMP
     case PICO_PROTO_IGMP:
@@ -308,6 +324,9 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
     hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     if ((memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) &&
         (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
+#ifdef PICO_SUPPORT_IPV6
+        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST6, PICO_SIZE_MCAST6) != 0) &&
+#endif
         (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
     {
         pico_frame_discard(f);
@@ -339,20 +358,25 @@ static int destination_is_bcast(struct pico_frame *f)
 
 static int destination_is_mcast(struct pico_frame *f)
 {
+    int ret = 0;
     if (!f)
         return 0;
 
-    if (IS_IPV6(f))
-        return 0;
+#ifdef PICO_SUPPORT_IPV6
+    if (IS_IPV6(f)) {
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+        ret = pico_ipv6_is_multicast(hdr->dst.addr);
+    }
 
+#endif
 #ifdef PICO_SUPPORT_IPV4
     else {
         struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-        return pico_ipv4_is_multicast(hdr->dst.addr);
+        ret = pico_ipv4_is_multicast(hdr->dst.addr);
     }
-#else
-    return 0;
 #endif
+
+    return ret;
 }
 
 static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
@@ -368,13 +392,39 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 }
 
 
-
-
-int32_t pico_ethernet_send_ipv6(struct pico_frame *f)
+#ifdef PICO_SUPPORT_IPV6
+static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+
+    /* first 2 octets are 0x33, last four are the last four of dst */
+    pico_mcast6_mac[5] = hdr->dst.addr[PICO_SIZE_IP6 - 1];
+    pico_mcast6_mac[4] = hdr->dst.addr[PICO_SIZE_IP6 - 2];
+    pico_mcast6_mac[3] = hdr->dst.addr[PICO_SIZE_IP6 - 3];
+    pico_mcast6_mac[2] = hdr->dst.addr[PICO_SIZE_IP6 - 4];
+
+    return (struct pico_eth *)pico_mcast6_mac;
+}
+#endif
+
+struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
+{
+    struct pico_eth *dstmac = NULL;
+    #ifdef PICO_SUPPORT_IPV6
+    if (destination_is_mcast(f)) {
+        uint8_t pico_mcast6_mac[6] = {
+            0x33, 0x33, 0x00, 0x00, 0x00, 0x00
+        };
+        dstmac = pico_ethernet_mcast6_translate(f, pico_mcast6_mac);
+    } else {
+        dstmac = pico_nd_get(f);
+    }
+
+    #else
     (void)f;
-    /*TODO: Neighbor solicitation */
-    return -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    #endif
+    return dstmac;
 }
 
 
@@ -424,11 +474,17 @@ int32_t pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
     int32_t ret = -1;
+    uint16_t proto = PICO_IDETH_IPV4;
 
-    if (IS_IPV6(f))
-        return pico_ethernet_send_ipv6(f);
+    if (IS_IPV6(f)) {
+        dstmac = pico_ethernet_ipv6_dst(f);
+        if (!dstmac)
+            return 0;
 
-    if (IS_BCAST(f) || destination_is_bcast(f))
+        proto = PICO_IDETH_IPV6;
+    }
+
+    else if (IS_BCAST(f) || destination_is_bcast(f))
         dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
 
     else if (destination_is_mcast(f)) {
@@ -454,7 +510,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr = (struct pico_eth_hdr *) f->datalink_hdr;
         memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
         memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
-        hdr->proto = PICO_IDETH_IPV4;
+        hdr->proto = proto;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
             return ret;
@@ -530,6 +586,7 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     memcpy(f->buffer, buffer, len);
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
+        printf("pico_stack_recv: discarding frame!!\r\n");
         pico_frame_discard(f);
     }
 
@@ -838,6 +895,10 @@ int pico_stack_init(void)
 
 #ifdef PICO_SUPPORT_ICMP4
     pico_protocol_init(&pico_proto_icmp4);
+#endif
+
+#ifdef PICO_SUPPORT_ICMP6
+    pico_protocol_init(&pico_proto_icmp6);
 #endif
 
 #ifdef PICO_SUPPORT_IGMP

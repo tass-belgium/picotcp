@@ -3,8 +3,8 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_PROTOCOL
-#define _INCLUDE_PICO_PROTOCOL
+#ifndef INCLUDE_PICO_PROTOCOL
+#define INCLUDE_PICO_PROTOCOL
 #include <stdint.h>
 #include "pico_queue.h"
 

@@ -3,12 +3,12 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_STACK
-#define _INCLUDE_PICO_STACK
+#ifndef INCLUDE_PICO_STACK
+#define INCLUDE_PICO_STACK
 #include "pico_config.h"
 #include "pico_frame.h"
 
-#define PICO_MAX_TIMERS 10
+#define PICO_MAX_TIMERS 20
 
 #define PICO_ETH_MTU 1514
 #define PICO_IP_MTU 1500u

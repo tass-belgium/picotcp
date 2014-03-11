@@ -13,6 +13,9 @@
 #include "pico_stack.h"
 #include "pico_protocol.h"
 #include "pico_tree.h"
+#include "pico_ipv6.h"
+#include "pico_ipv4.h"
+#include "pico_icmp6.h"
 
 struct pico_devices_rr_info {
     struct pico_tree_node *node_in, *node_out;
@@ -38,6 +41,11 @@ PICO_TREE_DECLARE(Device_tree, pico_dev_cmp);
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
+    #ifdef PICO_SUPPORT_IPV6
+    struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
+    struct pico_ip6 netmask6 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    #endif
+
     uint32_t len = (uint32_t)strlen(name);
     if(len > MAX_DEVICE_NAME)
         len = MAX_DEVICE_NAME;
@@ -45,22 +53,81 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     memcpy(dev->name, name, len);
     dev->hash = pico_hash(dev->name, len);
 
-    pico_tree_insert(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
     dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_in || !dev->q_out)
+        return -1;
+
+    pico_tree_insert(&Device_tree, dev);
 
     if (mac) {
         dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
-        if (dev->eth)
+        if (dev->eth) {
             memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
+            #ifdef PICO_SUPPORT_IPV6
+            /* modified EUI-64 + invert universal/local bit */
+            linklocal.addr[8] = (mac[0] ^ 0x02);
+            linklocal.addr[9] = mac[1];
+            linklocal.addr[10] = mac[2];
+            linklocal.addr[13] = mac[3];
+            linklocal.addr[14] = mac[4];
+            linklocal.addr[15] = mac[5];
+            if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+                pico_free(dev->q_in);
+                pico_free(dev->q_out);
+                pico_free(dev->eth);
+                return -1;
+            }
+
+            #endif
+        }
+
+
     } else {
         dev->eth = NULL;
+        #ifdef PICO_SUPPORT_IPV6
+        if (strcmp(dev->name, "loop")) {
+            do {
+                /* privacy extension + unset universal/local and individual/group bit */
+                len = pico_rand();
+                linklocal.addr[8]  = (uint8_t)((len & 0xff) & (uint8_t)(~0x03));
+                linklocal.addr[9]  = (uint8_t)(len >> 8);
+                linklocal.addr[10] = (uint8_t)(len >> 16);
+                linklocal.addr[11] = (uint8_t)(len >> 24);
+                len = pico_rand();
+                linklocal.addr[12] = (uint8_t)len;
+                linklocal.addr[13] = (uint8_t)(len >> 8);
+                linklocal.addr[14] = (uint8_t)(len >> 16);
+                linklocal.addr[15] = (uint8_t)(len >> 24);
+                pico_rand_feed(dev->hash);
+            } while (pico_ipv6_link_get(&linklocal));
+
+            if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+                pico_free(dev->q_in);
+                pico_free(dev->q_out);
+                return -1;
+            }
+        }
+
+        #endif
     }
 
-    if (!dev->q_in || !dev->q_out || (mac && !dev->eth))
-        return -1;
+    #ifdef PICO_SUPPORT_IPV6
+    if (dev->eth)
+    {
+        dev->hostvars.mtu = PICO_ETH_MTU;
+        dev->hostvars.basetime = PICO_ND_REACHABLE_TIME;
+        /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
+        dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
+        dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
+        pico_icmp6_router_solicitation(dev, &linklocal);
+    }
+
+    dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
+    #endif
+
 
     return 0;
 }
@@ -83,6 +150,15 @@ void pico_device_destroy(struct pico_device *dev)
 
     if (dev->eth)
         PICO_FREE(dev->eth);
+
+#ifdef PICO_SUPPORT_IPV4
+    pico_ipv4_cleanup_links(dev);
+#endif
+#ifdef PICO_SUPPORT_IPV6
+    pico_ipv6_cleanup_links(dev);
+#endif
+    pico_tree_delete(&Device_tree, dev);
+
 
     pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;

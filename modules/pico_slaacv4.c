@@ -89,7 +89,7 @@ static void pico_slaacv4_send_announce_timer(pico_time __attribute__((unused)) n
 {
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
     struct pico_ip4 netmask = {
-        .addr = 0x0000FFFF
+        .addr = long_be(0xFFFF0000)
     };
 
     if (tmp->announce_nb < ANNOUNCE_NB)

@@ -4,8 +4,8 @@
 
    Authors: Simon Maes
  *********************************************************************/
-#ifndef _INCLUDE_PICO_IPFILTER
-#define _INCLUDE_PICO_IPFILTER
+#ifndef INCLUDE_PICO_IPFILTER
+#define INCLUDE_PICO_IPFILTER
 
 #include "pico_device.h"
 

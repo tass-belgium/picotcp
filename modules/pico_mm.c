@@ -20,6 +20,7 @@
 #define DBG_MM_YELLOW(x,args...) //printf("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
 #define DBG_MM_BLUE(x,args...) //printf("\033[34m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
 
+int total_used_size = 0;
 
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
@@ -993,6 +994,8 @@ void pico_mem_free(void* ptr)
         }
 
 		DBG_MM_BLUE("Request to free a heap block");
+        total_used_size -= generic_block->internals.heap_block.size;
+        printf("pico_mem_free: total used size = %i\r\n", total_used_size);
 
         //Update the page housekeeping
         //Update the housekeeping of the extra manager pages
@@ -1107,6 +1110,9 @@ void* pico_mem_zalloc(size_t len)
     DBG_MM_YELLOW("===> pico_mem_zalloc(%i) called", len);
     len += (len%4 == 0) ? 0 : 4-len%4;
     DBG_MM_YELLOW("Aligned size: %i", len);
+
+    total_used_size += len;
+    printf("pico_mem_zalloc: total_used_size = %i\r\n", total_used_size);
     
     if(manager == NULL)
     {

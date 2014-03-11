@@ -5,8 +5,8 @@
    .
 
  *********************************************************************/
-#ifndef _INCLUDE_PICO_ICMP4
-#define _INCLUDE_PICO_ICMP4
+#ifndef INCLUDE_PICO_ICMP4
+#define INCLUDE_PICO_ICMP4
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 
@@ -18,7 +18,7 @@ struct __attribute__((packed)) pico_icmp4_hdr {
     uint16_t crc;
 
     /* hun */
-    union {
+    union hun_u {
         uint8_t ih_pptr;
         struct pico_ip4 ih_gwaddr;
         struct {
@@ -38,7 +38,7 @@ struct __attribute__((packed)) pico_icmp4_hdr {
     } hun;
 
     /* dun */
-    union {
+    union dun_u {
         struct {
             uint32_t ts_otime;
             uint32_t ts_rtime;

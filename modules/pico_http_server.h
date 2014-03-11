@@ -29,6 +29,7 @@ int pico_http_server_accept(void);
  */
 char *pico_http_getResource(uint16_t conn);
 int pico_http_getMethod(uint16_t conn);
+char *pico_http_getBody(uint16_t conn);
 int      pico_http_getProgress(uint16_t conn, uint16_t *sent, uint16_t *total);
 
 /*

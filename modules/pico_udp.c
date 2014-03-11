@@ -54,11 +54,43 @@ uint16_t pico_udp_checksum_ipv4(struct pico_frame *f)
     return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv4_pseudo_hdr), udp_hdr, f->transport_len);
 }
 
+#ifdef PICO_SUPPORT_IPV6
+uint16_t pico_udp_checksum_ipv6(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *)f->transport_hdr;
+    struct pico_ipv6_pseudo_hdr pseudo;
+    struct pico_socket *s = f->sock;
+    struct pico_remote_endpoint *remote_endpoint = (struct pico_remote_endpoint *)f->info;
+
+    /* XXX If the IPv6 packet contains a Routing header, the Destination
+     *     Address used in the pseudo-header is that of the final destination */
+    if (s) {
+        /* Case of outgoing frame */
+        pseudo.src = s->local_addr.ip6;
+        if (remote_endpoint)
+            pseudo.dst = remote_endpoint->remote_addr.ip6;
+        else
+            pseudo.dst = s->remote_addr.ip6;
+    } else {
+        /* Case of incomming frame */
+        pseudo.src = ipv6_hdr->src;
+        pseudo.dst = ipv6_hdr->dst;
+    }
+
+    pseudo.len = long_be(f->transport_len);
+    pseudo.nxthdr = PICO_PROTO_UDP;
+
+    return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv6_pseudo_hdr), udp_hdr, f->transport_len);
+}
+#endif
+
+
 
 static int pico_udp_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
     IGNORE_PARAMETER(self);
-    return pico_network_send(f);
+    return (int)pico_network_send(f);
 }
 
 static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
@@ -76,9 +108,11 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
         }
 
         hdr->len = short_be(f->transport_len);
+
         /* do not perform CRC validation. If you want to, a system needs to be
            implemented to calculate the CRC over the total payload of a
-           fragmented payload */
+           fragmented payload
+         */
         hdr->crc = 0;
     }
 
@@ -129,7 +163,7 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
             f->payload_len = (uint16_t)(f->transport_len - sizeof(struct pico_udp_hdr));
         }
 
-/*    dbg("expected: %d, got: %d\n", len, f->payload_len); */
+        /*    dbg("expected: %d, got: %d\n", len, f->payload_len); */
         if (src)
             pico_store_network_origin(src, f);
 
