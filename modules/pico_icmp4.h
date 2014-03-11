@@ -11,8 +11,8 @@
 #include "pico_protocol.h"
 
 extern struct pico_protocol pico_proto_icmp4;
-
-struct __attribute__((packed)) pico_icmp4_hdr {
+#pragma pack 4
+struct pico_icmp4_hdr {
     uint8_t type;
     uint8_t code;
     uint16_t crc;
