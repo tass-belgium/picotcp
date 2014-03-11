@@ -1187,6 +1187,7 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 {
     int space = pico_socket_xmit_avail_space(s);
     int total_payload_written = 0;
+    
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;

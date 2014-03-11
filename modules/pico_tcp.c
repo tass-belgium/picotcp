@@ -1444,6 +1444,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2u));
+    int ret = 0;
 
     if (payload_len == 0 && (hdr->flags & PICO_TCP_PSH)) {
         tcp_send_ack(t);
@@ -1462,11 +1463,15 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
             if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
                 /* Create new segment and enqueue it */
                 struct tcp_input_segment *input = segment_from_frame(f);
-                if(input && pico_enqueue_segment(&t->tcpq_in, input) <= 0)
+                if (!input) {
+                    pico_err = PICO_ERR_ENOMEM;
+                }
+                if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
                 {
                     /* failed to enqueue, destroy segment */
                     pico_free(input->payload);
                     pico_free(input);
+                    ret = -1;
                 }
 
                 t->rcv_nxt = SEQN(f) + f->payload_len;
@@ -1484,10 +1489,15 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
             tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
             if (t->sack_ok) {
                 struct tcp_input_segment *input = segment_from_frame(f);
-                if(input && pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
+                if (!input) {
+                    pico_err = PICO_ERR_ENOMEM;
+                    ret = -1;
+                }
+                if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
                     /* failed to enqueue, destroy segment */
                     pico_free(input->payload);
                     pico_free(input);
+                    return -1;
                 }
 
                 tcp_sack_prepare(t);
@@ -1502,7 +1512,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
             /* tcp_dbg("SENDACK PREVENTED IN SYNSENT STATE\n"); */
         }
 
-        return 0;
+        return ret;
     } else {
         tcp_dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", (hdr->len & 0xf0) >> 2, f->transport_len);
         return -1;
@@ -2388,7 +2398,7 @@ struct tcp_action_entry {
     int (*rst)(struct pico_socket *s, struct pico_frame *f);
 };
 
-static struct tcp_action_entry tcp_fsm[] = {
+static const struct tcp_action_entry tcp_fsm[] = {
     /* State                              syn              synack             ack                data             fin              finack           rst*/
     { PICO_SOCKET_STATE_TCP_UNDEF,        NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
     { PICO_SOCKET_STATE_TCP_CLOSED,       NULL,            NULL,              NULL,              NULL,            NULL,            NULL,            NULL     },
@@ -2439,7 +2449,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
     int ret = 0;
     uint8_t flags = hdr->flags;
-    struct tcp_action_entry *action = &tcp_fsm[s->state >> 8];
+    const struct tcp_action_entry *action = &tcp_fsm[s->state >> 8];
 
     f->payload = (f->transport_hdr + ((hdr->len & 0xf0) >> 2));
     f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
