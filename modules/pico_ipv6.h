@@ -98,4 +98,6 @@ struct pico_ipv6_link *pico_ipv6_link_get(struct pico_ip6 *address);
 struct pico_device *pico_ipv6_link_find(struct pico_ip6 *address);
 struct pico_ip6 pico_ipv6_route_get_gateway(struct pico_ip6 *addr);
 struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst);
+struct pico_ipv6_link *pico_ipv6_link_by_dev(struct pico_device *dev);
+struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struct pico_ipv6_link *last);
 #endif

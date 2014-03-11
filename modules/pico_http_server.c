@@ -29,6 +29,14 @@ Transfer-Encoding: chunked\r\n\
 Connection: close\r\n\
 \r\n";
 
+static const char returnOkCacheableHeader[] =
+    "HTTP/1.1 200 OK\r\n\
+Host: localhost\r\n\
+Cache-control: public, max-age=86400\r\n\
+Transfer-Encoding: chunked\r\n\
+Connection: close\r\n\
+\r\n";
+
 static const char returnFailHeader[] =
     "HTTP/1.1 404 Not Found\r\n\
 Host: localhost\r\n\
@@ -67,13 +75,16 @@ struct httpClient
 
 /* Local states for clients */
 #define HTTP_WAIT_HDR               0
-#define HTTP_WAIT_EOF_HDR       1
+#define HTTP_WAIT_EOF_HDR           1
 #define HTTP_EOF_HDR                2
-#define HTTP_WAIT_RESPONSE  3
-#define HTTP_WAIT_DATA          4
-#define HTTP_SENDING_DATA       5
-#define HTTP_ERROR                  6
-#define HTTP_CLOSED                 7
+#define HTTP_WAIT_RESPONSE          3
+#define HTTP_WAIT_DATA              4
+#define HTTP_WAIT_STATIC_DATA       5
+#define HTTP_SENDING_DATA           6
+#define HTTP_SENDING_STATIC_DATA    7
+#define HTTP_SENDING_FINAL          8
+#define HTTP_ERROR                  9
+#define HTTP_CLOSED                 10
 
 static struct httpServer server = {
     0
@@ -85,6 +96,7 @@ static struct httpServer server = {
 static int parseRequest(struct httpClient *client);
 static int readRemainingHeader(struct httpClient *client);
 static void sendData(struct httpClient *client);
+static void sendFinal(struct httpClient *client);
 static inline int readData(struct httpClient *client);  /* used only in a place */
 static inline struct httpClient *findClient(uint16_t conn);
 
@@ -136,9 +148,13 @@ void httpServerCbk(uint16_t ev, struct pico_socket *s)
 
     if(ev & PICO_SOCK_EV_WR)
     {
-        if(client->state == HTTP_SENDING_DATA)
+        if(client->state == HTTP_SENDING_DATA || client->state == HTTP_SENDING_STATIC_DATA)
         {
             sendData(client);
+        }
+        else if(client->state == HTTP_SENDING_FINAL)
+        {
+            sendFinal(client);
         }
     }
 
@@ -304,13 +320,13 @@ char *pico_http_getBody(uint16_t conn)
  * the client if the resource can be provided or not.
  *
  * This is controlled via the code parameter which can
- * have two values :
+ * have three values :
  *
- * HTTP_RESOURCE_FOUND or HTTP_RESOURCE_NOT_FOUND
+ * HTTP_RESOURCE_FOUND, HTTP_STATIC_RESOURCE_FOUND or HTTP_RESOURCE_NOT_FOUND
  *
  * If a resource is reported not found the 404 header will be sent and the connection
  * will be closed , otherwise the 200 header is sent and the user should
- * immediately submit data.
+ * immediately submit (static) data.
  *
  */
 int pico_http_respond(uint16_t conn, uint16_t code)
@@ -325,10 +341,17 @@ int pico_http_respond(uint16_t conn, uint16_t code)
 
     if(client->state == HTTP_WAIT_RESPONSE)
     {
-        if(code == HTTP_RESOURCE_FOUND)
+        if(code & HTTP_RESOURCE_FOUND)
         {
-            client->state = HTTP_WAIT_DATA;
-            return pico_socket_write(client->sck, (const char *)returnOkHeader, sizeof(returnOkHeader) - 1); /* remove \0 */
+            client->state = (code & HTTP_STATIC_RESOURCE) ? HTTP_WAIT_STATIC_DATA : HTTP_WAIT_DATA;
+            if(code & HTTP_CACHEABLE_RESOURCE)
+            {
+                return pico_socket_write(client->sck, (const char *)returnOkCacheableHeader, sizeof(returnOkCacheableHeader) - 1); /* remove \0 */
+            }
+            else
+            {
+                return pico_socket_write(client->sck, (const char *)returnOkHeader, sizeof(returnOkHeader) - 1); /* remove \0 */
+            }
         }
         else
         {
@@ -354,7 +377,7 @@ int pico_http_respond(uint16_t conn, uint16_t code)
  * Server sends data only using Transfer-Encoding: chunked.
  *
  * With this function the user will submit a data chunk to
- * be sent.
+ * be sent. If it's static data the function will not allocate a buffer.
  * The function will send the chunk size in hex and the rest will
  * be sent using WR event from sockets.
  * After each transmision EV_HTTP_PROGRESS is called and at the
@@ -376,7 +399,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         return HTTP_RETURN_ERROR;
     }
 
-    if(client->state != HTTP_WAIT_DATA)
+    if(client->state != HTTP_WAIT_DATA && client->state != HTTP_WAIT_STATIC_DATA)
     {
         dbg("Client is in a different state than accepted\n");
         return HTTP_RETURN_ERROR;
@@ -396,15 +419,22 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
 
     if(len > 0)
     {
-        client->buffer = PICO_ZALLOC(len);
-        if(!client->buffer)
+        if(client->state == HTTP_WAIT_STATIC_DATA)
         {
-            pico_err = PICO_ERR_ENOMEM;
-            return HTTP_RETURN_ERROR;
+            client->buffer = buffer;
         }
+        else
+        {
+            client->buffer = PICO_ZALLOC(len);
+            if(!client->buffer)
+            {
+                pico_err = PICO_ERR_ENOMEM;
+                return HTTP_RETURN_ERROR;
+            }
 
-        /* taking over the buffer */
-        memcpy(client->buffer, buffer, len);
+            /* taking over the buffer */
+            memcpy(client->buffer, buffer, len);
+        }
     }
     else
         client->buffer = NULL;
@@ -416,7 +446,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     /* create the chunk size and send it */
     if(len > 0)
     {
-        client->state = HTTP_SENDING_DATA;
+        client->state = (client->state == HTTP_WAIT_DATA) ? HTTP_SENDING_DATA : HTTP_SENDING_STATIC_DATA;
         chunkCount = pico_itoaHex(client->bufferSize, chunkStr);
         chunkStr[chunkCount++] = '\r';
         chunkStr[chunkCount++] = '\n';
@@ -424,12 +454,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
     }
     else
     {
-        dbg("->\n");
-        /* end of transmision */
-        pico_socket_write(client->sck, "0\r\n\r\n", 5u);
-        /* nothing left, close the client */
-        pico_socket_close(client->sck);
-        client->state = HTTP_CLOSED;
+        sendFinal(client);
     }
 
     return HTTP_RETURN_OK;
@@ -509,7 +534,7 @@ int pico_http_close(uint16_t conn)
         if(client->resource)
             PICO_FREE(client->resource);
 
-        if(client->buffer)
+        if(client->state != HTTP_SENDING_STATIC_DATA && client->buffer)
             PICO_FREE(client->buffer);
 
         if(client->body)
@@ -706,14 +731,31 @@ void sendData(struct httpClient *client)
         /* send chunk trail */
         if(pico_socket_write(client->sck, "\r\n", 2) > 0)
         {
-            client->state = HTTP_WAIT_DATA;
             /* free the buffer */
-            PICO_FREE(client->buffer);
+            if(client->state == HTTP_SENDING_DATA)
+            {
+                PICO_FREE(client->buffer);
+            }
             client->buffer = NULL;
+
+            client->state = HTTP_WAIT_DATA;
             server.wakeup(EV_HTTP_SENT, client->connectionID);
         }
     }
 
+}
+
+void sendFinal(struct httpClient *client)
+{
+    if(pico_socket_write(client->sck, "0\r\n\r\n", 5u) != 0)
+    {
+        pico_socket_close(client->sck);
+        client->state = HTTP_CLOSED;
+    }
+    else
+    {
+        client->state = HTTP_SENDING_FINAL;
+    }
 }
 
 int readData(struct httpClient *client)

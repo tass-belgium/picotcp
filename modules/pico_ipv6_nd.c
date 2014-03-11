@@ -846,9 +846,11 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
     if (icmp6_hdr->msg.info.router_adv.reachable_time != 0 && long_be(icmp6_hdr->msg.info.router_adv.reachable_time) != hostvars->basetime) {
         hostvars->basetime = long_be(icmp6_hdr->msg.info.router_adv.reachable_time);
         /* value between 0.5 and 1.5 times basetime */
-        hostvars->reachabletime  = (pico_time)(5llu + (pico_rand() % 10));
+        hostvars->reachabletime  = (pico_time)(4llu + (pico_rand() % 12));
         hostvars->reachabletime *= (pico_time)(long_be(icmp6_hdr->msg.info.router_adv.reachable_time));
-        hostvars->reachabletime /= (pico_time)10u;
+        /* hostvars->reachabletime /= (pico_time)10u; WARNING: Can't divide u64's on many platforms...*/
+        /* Using an approximation (division by 8) */
+        hostvars->reachabletime >>=8;
     }
 
     /* advertisement options */

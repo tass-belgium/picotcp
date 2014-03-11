@@ -155,6 +155,10 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
             len = PICO_IPV6_MIN_MTU - (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_DEST_UNREACH_SIZE);
 
         notice = pico_proto_ipv6.alloc(&pico_proto_ipv6, (uint16_t)(PICO_ICMP6HDR_DEST_UNREACH_SIZE + len));
+        if (!notice) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
         notice->payload = notice->transport_hdr + PICO_ICMP6HDR_DEST_UNREACH_SIZE;
         notice->payload_len = len;
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
@@ -167,6 +171,10 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
             len = PICO_IPV6_MIN_MTU - (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_TIME_XCEEDED_SIZE);
 
         notice = pico_proto_ipv6.alloc(&pico_proto_ipv6, (uint16_t)(PICO_ICMP6HDR_TIME_XCEEDED_SIZE + len));
+        if (!notice) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
         notice->payload = notice->transport_hdr + PICO_ICMP6HDR_TIME_XCEEDED_SIZE;
         notice->payload_len = len;
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
@@ -230,6 +238,10 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
         len = (uint16_t)(len + 8);
 
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+    if (!sol) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
     sol->payload = sol->transport_hdr + len;
     sol->payload_len = 0;
 
@@ -270,6 +282,10 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
 
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, PICO_ICMP6HDR_NEIGH_ADV_SIZE + 8);
+    if (!adv) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
     adv->payload = adv->transport_hdr + PICO_ICMP6HDR_NEIGH_ADV_SIZE + 8;
     adv->payload_len = 0;
 
@@ -320,6 +336,10 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         len = (uint16_t)(len + 8);
 
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+    if (!sol) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
     sol->payload = sol->transport_hdr + len;
     sol->payload_len = 0;
 
@@ -377,6 +397,10 @@ static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
     struct pico_icmp6_hdr *hdr = NULL;
 
     echo = pico_proto_ipv6.alloc(&pico_proto_ipv6, (uint16_t)(PICO_ICMP6HDR_ECHO_REQUEST_SIZE + cookie->size));
+    if (!echo) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
     echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     echo->payload_len = cookie->size;
 
@@ -438,8 +462,10 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
     if (pico_tree_findKey(&IPV6Pings, cookie)) {
         if (cookie->seq < (uint16_t)cookie->count) {
             new = PICO_ZALLOC(sizeof(struct pico_icmp6_ping_cookie));
-            if (!new)
+            if (!new) {
+                pico_err = PICO_ERR_ENOMEM;
                 return;
+            }
 
             memcpy(new, cookie, sizeof(struct pico_icmp6_ping_cookie));
             new->seq++;

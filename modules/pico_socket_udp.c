@@ -136,3 +136,45 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
   #endif
     return -1;
 }
+
+int pico_setsockopt_udp(struct pico_socket *s, int option, void *value)
+{
+    switch(option) {
+        case PICO_SOCKET_OPT_RCVBUF:
+            s->q_in.max_size = (*(uint32_t*)value);
+            return 0;
+        case PICO_SOCKET_OPT_SNDBUF:
+            s->q_out.max_size = (*(uint32_t*)value);
+            return 0;
+    }
+
+    /* switch's default */
+#ifdef PICO_SUPPORT_MCAST
+    return pico_setsockopt_mcast(s, option, value);
+#else
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+#endif
+}
+
+int pico_getsockopt_udp(struct pico_socket *s, int option, void *value)
+{
+    uint32_t *val = (uint32_t *)value;
+    switch(option) {
+        case PICO_SOCKET_OPT_RCVBUF:
+            *val = s->q_in.max_size;
+            return 0;
+        case PICO_SOCKET_OPT_SNDBUF:
+            *val = s->q_out.max_size;
+            return 0;
+    }
+
+    /* switch's default */
+#ifdef PICO_SUPPORT_MCAST
+    return pico_getsockopt_mcast(s, option, value);
+#else
+    pico_err = PICO_ERR_EINVAL;
+    return -1;
+#endif
+}
+

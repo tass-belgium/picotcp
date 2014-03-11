@@ -109,8 +109,9 @@ struct pico_ip_mreq_source {
 # define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00
 # define PICO_SOCKET_STATE_TCP_ARRAYSIZ       0x0c
 
-# define PICO_TCP_NODELAY                     1
 
+/* Socket options */
+# define PICO_TCP_NODELAY                     1
 # define PICO_SOCKET_OPT_TCPNODELAY           0x0000
 
 # define PICO_IP_MULTICAST_EXCLUDE            0
@@ -127,6 +128,10 @@ struct pico_ip_mreq_source {
 
 # define PICO_SOCKET_OPT_MULTICAST_LOOP       1
 
+# define PICO_SOCKET_OPT_RCVBUF               52
+# define PICO_SOCKET_OPT_SNDBUF               53
+
+/* Constants */
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
 

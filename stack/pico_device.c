@@ -75,9 +75,9 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
             linklocal.addr[14] = mac[4];
             linklocal.addr[15] = mac[5];
             if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                pico_free(dev->q_in);
-                pico_free(dev->q_out);
-                pico_free(dev->eth);
+                PICO_FREE(dev->q_in);
+                PICO_FREE(dev->q_out);
+                PICO_FREE(dev->eth);
                 return -1;
             }
 
@@ -105,8 +105,8 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
             } while (pico_ipv6_link_get(&linklocal));
 
             if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                pico_free(dev->q_in);
-                pico_free(dev->q_out);
+                PICO_FREE(dev->q_in);
+                PICO_FREE(dev->q_out);
                 return -1;
             }
         }

@@ -105,11 +105,11 @@ ifeq ($(ARCH),lpc18xx)
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC18XX
 endif
 
-ifeq ($(ARCH),lpc-m4-hard)
+ifeq ($(ARCH),lpc43xx)
   CFLAGS+=-fmessage-length=0 -fno-builtin \
   -ffunction-sections -fdata-sections -mlittle-endian \
   -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16  \
-  -fsingle-precision-constant -mthumb -MMD -MP -DLPC
+  -fsingle-precision-constant -mthumb -MMD -MP -DLPC43XX
 endif
 
 ifeq ($(ARCH),pic24)

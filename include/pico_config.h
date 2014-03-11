@@ -33,6 +33,8 @@
 # include "arch/pico_stellaris.h"
 #elif defined LPC
 # include "arch/pico_lpc1768.h"
+#elif defined LPC43XX
+# include "arch/pico_lpc43xx.h"
 #elif defined LPC18XX
 # include "arch/pico_lpc18xx.h"
 #elif defined PIC24
