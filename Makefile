@@ -117,11 +117,11 @@ ifeq ($(ARCH),pic24)
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
 endif
 
-ifeq ($(ARCH), avr)
+ifeq ($(ARCH),avr)
 	CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
 endif
 
-ifeq ($(ARCH), avr)
+ifeq ($(ARCH),avr)
   CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
 endif
 

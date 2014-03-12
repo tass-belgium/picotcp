@@ -50,7 +50,6 @@
 #elif defined FAULTY
 # include "../test/pico_faulty.h"
 
-# include "arch/pico_avr.h"
 
 /* #elif defined ... */
 
