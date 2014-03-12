@@ -281,7 +281,7 @@ static void ping_recv_reply(struct pico_frame *f)
     if (cookie) {
         struct pico_icmp4_stats stats;
         cookie->err = PICO_PING_ERR_REPLIED;
-        stats.dst = cookie->dst;
+        stats.dst = ((struct pico_ipv4_hdr *)f->net_hdr)->src;
         stats.seq = cookie->seq;
         stats.size = cookie->size;
         stats.time = pico_tick - cookie->timestamp;
