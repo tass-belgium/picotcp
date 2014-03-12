@@ -57,7 +57,6 @@
 
 
 #define tcp_dbg(...) do {} while(0)
-//#define tcp_dbg(...) printf(__VA_ARGS__)
 /* #define tcp_dbg dbg */
 
 #ifdef PICO_SUPPORT_MUTEX

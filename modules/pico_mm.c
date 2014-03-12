@@ -14,11 +14,11 @@
 #include "pico_config.h"
 #include "pico_protocol.h" /* For pico_err */
 
-#define DBG_MM(x,args...) //printf("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
-#define DBG_MM_RED(x,args...) //printf("\033[31m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
-#define DBG_MM_GREEN(x,args...) //printf("\033[32m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
-#define DBG_MM_YELLOW(x,args...) //printf("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
-#define DBG_MM_BLUE(x,args...) //printf("\033[34m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM(x,args...) //dbg("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_RED(x,args...) //dbg("\033[31m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_GREEN(x,args...) //dbg("\033[32m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_YELLOW(x,args...) //dbg("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_BLUE(x,args...) //dbg("\033[34m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
 
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
@@ -1548,7 +1548,7 @@ void pico_mem_profile_collect_data(struct profiling_data* profiling_struct)
                 }
                 else
                 {
-                    //printf("Block: size=%u\n", mem_block->internals.heap_block.size);
+                    //dbg("Block: size=%u\n", mem_block->internals.heap_block.size);
                     profiling_struct->used_heap_space += mem_block->internals.heap_block.size;
                 }
 

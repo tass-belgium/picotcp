@@ -392,7 +392,7 @@ static void rotateToRight(struct pico_tree *tree, struct pico_tree_node *node)
 
 static struct pico_tree_node *create_node(struct pico_tree *tree, void*key, uint8_t allocator)
 {
-    struct pico_tree_node *temp;
+    struct pico_tree_node *temp = NULL;
     IGNORE_PARAMETER(tree);
     if(allocator == USE_PICO_ZALLOC)
         temp = (struct pico_tree_node *)PICO_ZALLOC(sizeof(struct pico_tree_node));
