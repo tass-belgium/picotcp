@@ -72,7 +72,6 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 
     if (q->shared)
         PICOTCP_MUTEX_LOCK(q->mutex);
-
     p->next = NULL;
     if (!q->head) {
         q->head = p;
@@ -83,7 +82,6 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
         q->tail->next = p;
         q->tail = p;
     }
-
     q->size += p->buffer_len + q->overhead;
     q->frames++;
     debug_q(q);
@@ -131,7 +129,7 @@ static inline void pico_queue_empty(struct pico_queue *q)
 {
     struct pico_frame *p = pico_dequeue(q);
     while(p) {
-        pico_free(p);
+        PICO_FREE(p);
         p = pico_dequeue(q);
     }
 }

@@ -19,6 +19,9 @@
         compareFunction \
     }
 
+#define USE_PICO_PAGE0_ZALLOC (1)
+#define USE_PICO_ZALLOC (2)
+
 struct pico_tree_node
 {
     void*keyValue; /* generic key */
@@ -37,6 +40,13 @@ struct pico_tree
 };
 
 extern struct pico_tree_node LEAF; /* generic leaf node */
+
+#ifdef PICO_SUPPORT_MM
+void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator);
+void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator);
+#endif
+
+
 /*
  * Manipulation functions
  */

@@ -243,7 +243,7 @@ static void pico_arp_add_entry(struct pico_arp *entry)
 
 int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
 {
-    struct pico_arp*arp = pico_zalloc(sizeof(struct pico_arp));
+    struct pico_arp*arp = PICO_ZALLOC(sizeof(struct pico_arp));
     if(!arp) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;

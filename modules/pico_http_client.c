@@ -135,7 +135,7 @@ static inline void treatReadEvent(struct pico_http_client *client)
     if(client->state == HTTP_START_READING_HEADER)
     {
         /* wait for header */
-        client->header = pico_zalloc(sizeof(struct pico_http_header));
+        client->header = PICO_ZALLOC(sizeof(struct pico_http_header));
         if(!client->header)
         {
             pico_err = PICO_ERR_ENOMEM;
@@ -243,7 +243,7 @@ int pico_http_client_open(char *uri, void (*wakeup)(uint16_t ev, uint16_t conn))
     struct pico_http_client *client;
     uint32_t ip = 0;
 
-    client = pico_zalloc(sizeof(struct pico_http_client));
+    client = PICO_ZALLOC(sizeof(struct pico_http_client));
     if(!client)
     {
         /* memory error */
@@ -254,12 +254,12 @@ int pico_http_client_open(char *uri, void (*wakeup)(uint16_t ev, uint16_t conn))
     client->wakeup = wakeup;
     client->connectionID = (uint16_t)pico_rand() & 0x7FFFu; /* negative values mean error, still not good generation */
 
-    client->uriKey = pico_zalloc(sizeof(struct pico_http_uri));
+    client->uriKey = PICO_ZALLOC(sizeof(struct pico_http_uri));
 
     if(!client->uriKey)
     {
         pico_err = PICO_ERR_ENOMEM;
-        pico_free(client);
+        PICO_FREE(client);
         return HTTP_RETURN_ERROR;
     }
 
@@ -269,8 +269,8 @@ int pico_http_client_open(char *uri, void (*wakeup)(uint16_t ev, uint16_t conn))
     {
         /* already in */
         pico_err = PICO_ERR_EEXIST;
-        pico_free(client->uriKey);
-        pico_free(client);
+        PICO_FREE(client->uriKey);
+        PICO_FREE(client);
         return HTTP_RETURN_ERROR;
     }
 
@@ -330,7 +330,7 @@ int32_t pico_http_client_sendHeader(uint16_t conn, char *header, uint8_t hdr)
     length = pico_socket_write(http->sck, (void *)header, (int)strlen(header));
 
     if(hdr == HTTP_HEADER_DEFAULT)
-        pico_free(header);
+        PICO_FREE(header);
 
     return length;
 }
@@ -535,9 +535,9 @@ static inline void freeHeader(struct pico_http_client *toBeRemoved)
     {
         /* free space used */
         if(toBeRemoved->header->location)
-            pico_free(toBeRemoved->header->location);
+            PICO_FREE(toBeRemoved->header->location);
 
-        pico_free(toBeRemoved->header);
+        PICO_FREE(toBeRemoved->header);
     }
 }
 
@@ -546,12 +546,12 @@ static inline void freeUri(struct pico_http_client *toBeRemoved)
     if(toBeRemoved->uriKey)
     {
         if(toBeRemoved->uriKey->host)
-            pico_free(toBeRemoved->uriKey->host);
+            PICO_FREE(toBeRemoved->uriKey->host);
 
         if(toBeRemoved->uriKey->resource)
-            pico_free(toBeRemoved->uriKey->resource);
+            PICO_FREE(toBeRemoved->uriKey->resource);
 
-        pico_free(toBeRemoved->uriKey);
+        PICO_FREE(toBeRemoved->uriKey);
     }
 }
 int pico_http_client_close(uint16_t conn)
@@ -577,7 +577,7 @@ int pico_http_client_close(uint16_t conn)
     freeHeader(toBeRemoved);
     freeUri(toBeRemoved);
 
-    pico_free(toBeRemoved);
+    PICO_FREE(toBeRemoved);
 
     return 0;
 }
@@ -604,7 +604,7 @@ char *pico_http_client_buildHeader(const struct pico_http_uri *uriData)
     headerSize = (headerSize + strlen(uriData->host));
     headerSize = (headerSize + strlen(uriData->resource));
     headerSize = (headerSize + pico_itoa(uriData->port, port) + 4u); /* 3 = size(CRLF + \0) */
-    header = pico_zalloc(headerSize);
+    header = PICO_ZALLOC(headerSize);
 
     if(!header)
     {
@@ -671,7 +671,7 @@ static inline int parseLocAndCont(struct pico_http_client *client, struct pico_h
             line[(*index)++] = c;
         }
         /* allocate space for the field */
-        header->location = pico_zalloc((*index) + 1u);
+        header->location = PICO_ZALLOC((*index) + 1u);
 
         memcpy(header->location, line, (*index));
         return 1;

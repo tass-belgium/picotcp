@@ -46,7 +46,7 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
     if (len > MOCK_MTU)
         return 0;
 
-    frame = pico_zalloc(sizeof(struct mock_frame));
+    frame = PICO_ZALLOC(sizeof(struct mock_frame));
     if(!frame) {
         return 0;
     }
@@ -58,7 +58,7 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 
     mock->out_tail = frame;
 
-    mock->out_tail->buffer = pico_zalloc(len);
+    mock->out_tail->buffer = PICO_ZALLOC(len);
     if(!mock->out_tail->buffer)
         return 0;
 
@@ -88,16 +88,16 @@ static int pico_mock_poll(struct pico_device *dev, int loop_score)
         pico_stack_recv(dev, mock->in_head->buffer, mock->in_head->len);
         loop_score--;
 
-        pico_free(mock->in_head->buffer);
+        PICO_FREE(mock->in_head->buffer);
 
         if(mock->in_tail == mock->in_head) {
-            pico_free(mock->in_head);
+            PICO_FREE(mock->in_head);
             mock->in_tail = mock->in_head = NULL;
             return loop_score;
         }
 
         nxt = mock->in_head->next;
-        pico_free(mock->in_head);
+        PICO_FREE(mock->in_head);
         mock->in_head = nxt;
     }
     return loop_score;
@@ -119,16 +119,16 @@ int pico_mock_network_read(struct mock_device*mock, void *buf, int len)
         return len;
     }
 
-    pico_free(mock->out_head->buffer);
+    PICO_FREE(mock->out_head->buffer);
 
     if(mock->out_tail == mock->out_head) {
-        pico_free(mock->out_head);
+        PICO_FREE(mock->out_head);
         mock->out_tail = mock->out_head = NULL;
         return len;
     }
 
     nxt = mock->out_head->next;
-    pico_free(mock->out_head);
+    PICO_FREE(mock->out_head);
     mock->out_head = nxt;
 
     return len;
@@ -140,7 +140,7 @@ int pico_mock_network_write(struct mock_device*mock, const void *buf, int len)
     if (len > MOCK_MTU)
         return 0;
 
-    frame = pico_zalloc(sizeof(struct mock_frame));
+    frame = PICO_ZALLOC(sizeof(struct mock_frame));
     if(!frame) {
         return 0;
     }
@@ -152,7 +152,7 @@ int pico_mock_network_write(struct mock_device*mock, const void *buf, int len)
 
     mock->in_tail = frame;
 
-    mock->in_tail->buffer = pico_zalloc(len);
+    mock->in_tail->buffer = PICO_ZALLOC(len);
     if(!mock->in_tail->buffer)
         return 0;
 
@@ -179,13 +179,13 @@ void pico_mock_destroy(struct pico_device *dev)
     nxt = mock->in_head;
     while(nxt != NULL) {
         mock->in_head = mock->in_head->next;
-        pico_free(nxt);
+        PICO_FREE(nxt);
         nxt = mock->in_head;
     }
     nxt = mock->out_head;
     while(nxt != NULL) {
         mock->out_head = mock->out_head->next;
-        pico_free(nxt);
+        PICO_FREE(nxt);
         nxt = mock->out_head;
     }
     pico_tree_delete(&mock_device_tree, mock);
@@ -194,21 +194,21 @@ void pico_mock_destroy(struct pico_device *dev)
 struct mock_device *pico_mock_create(uint8_t*mac)
 {
 
-    struct mock_device*mock = pico_zalloc(sizeof(struct mock_device));
+    struct mock_device*mock = PICO_ZALLOC(sizeof(struct mock_device));
     if(!mock)
         return NULL;
 
-    mock->dev = pico_zalloc(sizeof(struct pico_device));
+    mock->dev = PICO_ZALLOC(sizeof(struct pico_device));
     if (!mock->dev) {
-        pico_free(mock);
+        PICO_FREE(mock);
         return NULL;
     }
 
     if(mac != NULL) {
-        mock->mac = pico_zalloc(6 * sizeof(uint8_t));
+        mock->mac = PICO_ZALLOC(6 * sizeof(uint8_t));
         if(!mock->mac) {
-            pico_free(mock->mac);
-            pico_free(mock);
+            PICO_FREE(mock->mac);
+            PICO_FREE(mock);
             return NULL;
         }
 
@@ -219,9 +219,9 @@ struct mock_device *pico_mock_create(uint8_t*mac)
         dbg ("Loop init failed.\n");
         pico_mock_destroy((struct pico_device *)mock->dev);
         if(mock->mac != NULL)
-            pico_free(mock->mac);
+            PICO_FREE(mock->mac);
 
-        pico_free(mock);
+        PICO_FREE(mock);
         return NULL;
     }
 

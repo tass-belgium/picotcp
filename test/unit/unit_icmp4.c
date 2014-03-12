@@ -232,7 +232,7 @@ START_TEST (test_icmp4_unreachable_send)
         0x0a, 0x28, 0x00, 0x04
     };
 
-    struct pico_frame*f = pico_zalloc(sizeof(struct pico_frame));
+    struct pico_frame*f = PICO_ZALLOC(sizeof(struct pico_frame));
     uint8_t nullbuf[8] = {};
     printf("*********************** starting %s * \n", __func__);
 

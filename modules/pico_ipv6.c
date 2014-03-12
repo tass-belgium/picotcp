@@ -832,7 +832,7 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         return -1;
     }
 
-    new = pico_zalloc(sizeof(struct pico_ipv6_route));
+    new = PICO_ZALLOC(sizeof(struct pico_ipv6_route));
     if (!new) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -851,13 +851,13 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         struct pico_ipv6_route *r = pico_ipv6_route_find(&gateway);
         if (!r ) { /* Specified Gateway is unreachable */
             pico_err = PICO_ERR_EHOSTUNREACH;
-            pico_free(new);
+            PICO_FREE(new);
             return -1;
         }
 
         if (memcmp(r->gateway.addr, zerogateway.addr, PICO_SIZE_IP6) != 0) { /* Specified Gateway is not a neighbor */
             pico_err = PICO_ERR_ENETUNREACH;
-            pico_free(new);
+            PICO_FREE(new);
             return -1;
         }
 
@@ -866,7 +866,7 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
 
     if (!new->link) {
         pico_err = PICO_ERR_EINVAL;
-        pico_free(new);
+        PICO_FREE(new);
         return -1;
     }
 
@@ -893,7 +893,7 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
     found = pico_tree_findKey(&IPV6Routes, &test);
     if (found) {
         pico_tree_delete(&IPV6Routes, found);
-        pico_free(found);
+        PICO_FREE(found);
         pico_ipv6_dbg_route();
         return 0;
     }
@@ -963,7 +963,7 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
     }
 
     /** XXX: Check for network already in use (e.g. trying to assign 10.0.0.1/24 where 10.1.0.1/8 is in use) **/
-    new = pico_zalloc(sizeof(struct pico_ipv6_link));
+    new = PICO_ZALLOC(sizeof(struct pico_ipv6_link));
     if (!new) {
         dbg("IPv6: out of memory!\n");
         pico_err = PICO_ERR_ENOMEM;
@@ -1051,7 +1051,7 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
     pico_ipv6_cleanup_routes(found);
     pico_tree_delete(&IPV6Links, found);
     /* XXX MUST leave the solicited-node multicast address corresponding to the address (RFC 4861 $7.2.1) */
-    pico_free(found);
+    PICO_FREE(found);
     return 0;
 }
 

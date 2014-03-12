@@ -57,6 +57,7 @@
 
 
 #define tcp_dbg(...) do {} while(0)
+//#define tcp_dbg(...) printf(__VA_ARGS__)
 /* #define tcp_dbg dbg */
 
 #ifdef PICO_SUPPORT_MUTEX
@@ -117,14 +118,14 @@ static int input_segment_compare(void *ka, void *kb)
 
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
-    struct tcp_input_segment *seg = pico_zalloc(sizeof(struct tcp_input_segment));
+    struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
     if(!seg)
         return NULL;
 
-    seg->payload = pico_zalloc(f->payload_len);
+    seg->payload = PICO_ZALLOC(f->payload_len);
     if(!seg->payload)
     {
-        pico_free(seg);
+        PICO_FREE(seg);
         return NULL;
     }
 
@@ -248,8 +249,8 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
     if(f1 && IS_INPUT_QUEUE(tq))
     {
         struct tcp_input_segment *inp = f1;
-        pico_free(inp->payload);
-        pico_free(inp);
+        PICO_FREE(inp->payload);
+        PICO_FREE(inp);
     }
     else
         pico_frame_discard(f);
@@ -577,7 +578,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
                 memcpy(f->start + i, sb, 2 * sizeof(uint32_t));
                 i += (2 * (uint32_t)sizeof(uint32_t));
                 f->start[len_off] = (uint8_t)(f->start[len_off] + (2 * sizeof(uint32_t)));
-                pico_free(sb);
+                PICO_FREE(sb);
             }
         }
     }
@@ -909,7 +910,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
             ts->snd_nxt += f->payload_len; /* update next pointer here to prevent sending same segment twice when called twice in same tick */
         }
 
-        tcp_dbg("DBG> [tcp output] state: %02x --> local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n",
+        tcp_dbg("DBG> [tcp output] state: %02x --> local port:%u remote port: %u seq: %08x ack: %08x flags: %02x = t_len: %u, hdr: %u payload: %d\n",
                 TCPSTATE(&ts->sock) >> 8, short_be(hdr->trans.sport), short_be(hdr->trans.dport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
     } else {
         pico_frame_discard(cpy);
@@ -932,7 +933,7 @@ static void sock_stats(uint32_t when, void *arg)
 
 struct pico_socket *pico_tcp_open(void)
 {
-    struct pico_socket_tcp *t = pico_zalloc(sizeof(struct pico_socket_tcp));
+    struct pico_socket_tcp *t = PICO_ZALLOC(sizeof(struct pico_socket_tcp));
     if (!t)
         return NULL;
 
@@ -1390,7 +1391,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
     while(n < 3) {
         if (!pkt) {
             if(left) {
-                sb = pico_zalloc(sizeof(struct tcp_sack_block));
+                sb = PICO_ZALLOC(sizeof(struct tcp_sack_block));
                 if (!sb)
                     break;
 
@@ -1423,7 +1424,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
             pkt = next_segment(&t->tcpq_in, pkt);
             continue;
         } else {
-            sb = pico_zalloc(sizeof(struct tcp_sack_block));
+            sb = PICO_ZALLOC(sizeof(struct tcp_sack_block));
             if (!sb)
                 break;
 
@@ -1469,8 +1470,8 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
                 {
                     /* failed to enqueue, destroy segment */
-                    pico_free(input->payload);
-                    pico_free(input);
+                    PICO_FREE(input->payload);
+                    PICO_FREE(input);
                     ret = -1;
                 }
 
@@ -1495,8 +1496,8 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 }
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
                     /* failed to enqueue, destroy segment */
-                    pico_free(input->payload);
-                    pico_free(input);
+                    PICO_FREE(input->payload);
+                    PICO_FREE(input);
                     return -1;
                 }
 
@@ -2434,9 +2435,11 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
     if(!flags)
         return 1;
 
-    for(i = 0; i < MAX_VALID_FLAGS; i++)
+    for(i = 0; i < MAX_VALID_FLAGS; i++) {
+        printf("Checking invalid flags: valid_flags[s->state >> 8u] =  %u ; flags =  %u ? \r\n", valid_flags[s->state >> 8u][i], flags);
         if(valid_flags[s->state >> 8u][i] == flags)
             return 0;
+    }
 
     return 1;
 }
@@ -2450,16 +2453,21 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     f->payload = (f->transport_hdr + ((hdr->len & 0xf0) >> 2));
     f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
 
-    tcp_dbg("[%lu] TCP> [tcp input] socket: %p state: %d <-- local port:%d remote port: %d seq: %08x ack: %08x flags: %02x = t_len: %d, hdr: %u payload: %d\n", TCP_TIME,
-            s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
+    printf("TRANSPORT_LEN = %u\n", f->transport_len);
+    tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
+    tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
+    tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
+    tcp_dbg("[%lu] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: %08x ack: %08x flags: %02x t_len: %u, hdr: %u payload: %d\n", TCP_TIME, s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
 
     /* This copy of the frame has the current socket as owner */
     f->sock = s;
     s->timestamp = TCP_TIME;
     /* Those are not supported at this time. */
     /* flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN); */
-    if(invalid_flags(s, flags))
+    if(invalid_flags(s, flags)) {
+        printf("INVALID FLAGS!!\r\n");
         pico_tcp_reply_rst(f);
+    }
     else if (flags == PICO_TCP_SYN) {
         if (action->syn)
             action->syn(s, f);
@@ -2733,8 +2741,8 @@ inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
         if(IS_INPUT_QUEUE(tq))
         {
             struct tcp_input_segment *inp = (struct tcp_input_segment *)f;
-            pico_free(inp->payload);
-            pico_free(inp);
+            PICO_FREE(inp->payload);
+            PICO_FREE(inp);
         }
         else
             pico_frame_discard(f);

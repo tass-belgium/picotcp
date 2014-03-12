@@ -55,15 +55,15 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
-    dev->q_in = pico_zalloc(sizeof(struct pico_queue));
-    dev->q_out = pico_zalloc(sizeof(struct pico_queue));
+    dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
     if (!dev->q_in || !dev->q_out)
         return -1;
 
     pico_tree_insert(&Device_tree, dev);
 
     if (mac) {
-        dev->eth = pico_zalloc(sizeof(struct pico_ethdev));
+        dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
         if (dev->eth) {
             memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
             #ifdef PICO_SUPPORT_IPV6
@@ -75,9 +75,9 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
             linklocal.addr[14] = mac[4];
             linklocal.addr[15] = mac[5];
             if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                pico_free(dev->q_in);
-                pico_free(dev->q_out);
-                pico_free(dev->eth);
+                PICO_FREE(dev->q_in);
+                PICO_FREE(dev->q_out);
+                PICO_FREE(dev->eth);
                 return -1;
             }
 
@@ -105,8 +105,8 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
             } while (pico_ipv6_link_get(&linklocal));
 
             if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                pico_free(dev->q_in);
-                pico_free(dev->q_out);
+                PICO_FREE(dev->q_in);
+                PICO_FREE(dev->q_out);
                 return -1;
             }
         }
@@ -136,7 +136,7 @@ static void pico_queue_destroy(struct pico_queue *q)
 {
     if (q) {
         pico_queue_empty(q);
-        pico_free(q);
+        PICO_FREE(q);
     }
 }
 
@@ -149,7 +149,7 @@ void pico_device_destroy(struct pico_device *dev)
     pico_queue_destroy(dev->q_out);
 
     if (dev->eth)
-        pico_free(dev->eth);
+        PICO_FREE(dev->eth);
 
 #ifdef PICO_SUPPORT_IPV4
     pico_ipv4_cleanup_links(dev);
@@ -163,7 +163,7 @@ void pico_device_destroy(struct pico_device *dev)
     pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
-    pico_free(dev);
+    PICO_FREE(dev);
 }
 
 static int check_dev_serve_interrupt(struct pico_device *dev, int loop_score)

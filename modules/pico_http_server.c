@@ -236,7 +236,7 @@ int pico_http_server_accept(void)
     struct httpClient *client;
     uint16_t port;
 
-    client = pico_zalloc(sizeof(struct httpClient));
+    client = PICO_ZALLOC(sizeof(struct httpClient));
     if(!client)
     {
         pico_err = PICO_ERR_ENOMEM;
@@ -248,7 +248,7 @@ int pico_http_server_accept(void)
     if(!client->sck)
     {
         pico_err = PICO_ERR_ENOMEM;
-        pico_free(client);
+        PICO_FREE(client);
         return HTTP_RETURN_ERROR;
     }
 
@@ -425,7 +425,7 @@ int8_t pico_http_submitData(uint16_t conn, void *buffer, uint16_t len)
         }
         else
         {
-            client->buffer = pico_zalloc(len);
+            client->buffer = PICO_ZALLOC(len);
             if(!client->buffer)
             {
                 pico_err = PICO_ERR_ENOMEM;
@@ -503,10 +503,10 @@ int pico_http_close(uint16_t conn)
                 struct httpClient *client = index->keyValue;
 
                 if(client->resource)
-                    pico_free(client->resource);
+                    PICO_FREE(client->resource);
 
                 if(client->body)
-                    pico_free(client->body);
+                    PICO_FREE(client->body);
 
                 pico_socket_close(client->sck);
                 pico_tree_delete(&pico_http_clients, client);
@@ -532,18 +532,18 @@ int pico_http_close(uint16_t conn)
         pico_tree_delete(&pico_http_clients, client);
 
         if(client->resource)
-            pico_free(client->resource);
+            PICO_FREE(client->resource);
 
         if(client->state != HTTP_SENDING_STATIC_DATA && client->buffer)
-            pico_free(client->buffer);
+            PICO_FREE(client->buffer);
 
         if(client->body)
-            pico_free(client->body);
+            PICO_FREE(client->body);
 
         if(client->state != HTTP_CLOSED || !client->sck)
             pico_socket_close(client->sck);
 
-        pico_free(client);
+        PICO_FREE(client);
         return HTTP_RETURN_OK;
     }
 }
@@ -598,7 +598,7 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
 
         index++;
     }
-    client->resource = pico_zalloc(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
+    client->resource = PICO_ZALLOC(index - (uint32_t)method_length); /* allocate without the method in front + 1 which is \0 */
 
     if(!client->resource)
     {
@@ -607,7 +607,7 @@ static int parseRequestReadResource(struct httpClient *client, int method_length
     }
 
     /* copy the resource */
-    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by pico_zalloc */
+    memcpy(client->resource, line + method_length + 1, index - (uint32_t)method_length - 1); /* copy without the \0 which was already set by PICO_ZALLOC */
     return 0;
 }
 
@@ -701,7 +701,7 @@ int readRemainingHeader(struct httpClient *client)
                     body_len = (uint32_t)(len - index);
                     if(body_len > 0)
                     {
-                        client->body = pico_zalloc(body_len + 1u);
+                        client->body = PICO_ZALLOC(body_len + 1u);
                         memcpy(client->body, line + index, body_len);
                     }
 
@@ -734,7 +734,7 @@ void sendData(struct httpClient *client)
             /* free the buffer */
             if(client->state == HTTP_SENDING_DATA)
             {
-                pico_free(client->buffer);
+                PICO_FREE(client->buffer);
             }
             client->buffer = NULL;
 
