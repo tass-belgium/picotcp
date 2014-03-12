@@ -87,12 +87,12 @@ uint32_t pico_mem_profile_used_size();
  * This can be used to collect data about the memory in user defined functions.
  * Use with care!
  */
-void* pico_mem_profile_manager();
+void*pico_mem_profile_manager();
 
 /*
  * paramter manager is a pointer to a struct pico_mem_manager
  */
-void pico_mem_init_profiling(void* manager, uint32_t memsize);
+void pico_mem_init_profiling(void*manager, uint32_t memsize);
 #endif /* PICO_SUPPORT_MM_PROFILING */
 
 #endif /* _INCLUDE_PICO_MM */
