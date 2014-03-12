@@ -13,7 +13,7 @@
 
 #define PICO_IPV4_INADDR_ANY 0x00000000U
 
-#define PICO_IPV4_MTU (1500u)
+#define PICO_IPV4_MTU (100u)
 #define PICO_SIZE_IP4HDR (uint32_t)((sizeof(struct pico_ipv4_hdr)))
 #define PICO_IPV4_MAXPAYLOAD (PICO_IPV4_MTU - PICO_SIZE_IP4HDR)
 #define PICO_IPV4_DONTFRAG 0x4000
