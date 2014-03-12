@@ -2649,6 +2649,9 @@ int main(int argc, char **argv)
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
     printf("My macaddr is: %02x %02x %02x %02x %02x %02x\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 
+#ifdef PICO_SUPPORT_MM
+    pico_mem_init(64 * 1024);
+#endif
     pico_stack_init();
     /* Parse args */
     while(1) {
