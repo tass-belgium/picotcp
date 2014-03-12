@@ -2436,7 +2436,6 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
         return 1;
 
     for(i = 0; i < MAX_VALID_FLAGS; i++) {
-        printf("Checking invalid flags: valid_flags[s->state >> 8u] =  %u ; flags =  %u ? \r\n", valid_flags[s->state >> 8u][i], flags);
         if(valid_flags[s->state >> 8u][i] == flags)
             return 0;
     }
@@ -2453,7 +2452,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     f->payload = (f->transport_hdr + ((hdr->len & 0xf0) >> 2));
     f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
 
-    printf("TRANSPORT_LEN = %u\n", f->transport_len);
     tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
     tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
     tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
@@ -2465,7 +2463,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     /* Those are not supported at this time. */
     /* flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN); */
     if(invalid_flags(s, flags)) {
-        printf("INVALID FLAGS!!\r\n");
         pico_tcp_reply_rst(f);
     }
     else if (flags == PICO_TCP_SYN) {
