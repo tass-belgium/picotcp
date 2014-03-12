@@ -946,7 +946,7 @@ void cb_udpdnsclient_getaddr(char *ip, void *arg)
 
     printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void cb_udpdnsclient_getname(char *name, void *arg)
@@ -960,7 +960,7 @@ void cb_udpdnsclient_getname(char *name, void *arg)
 
     printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void app_udpdnsclient(char *arg)

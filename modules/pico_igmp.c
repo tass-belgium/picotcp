@@ -226,7 +226,7 @@ static struct igmp_parameters *pico_igmp_find_parameter(struct pico_ip4 *mcast_l
 static int pico_igmp_delete_parameter(struct igmp_parameters *p)
 {
     if (pico_tree_delete(&IGMPParameters, p))
-        pico_free(p);
+        PICO_FREE(p);
     else
         return -1;
 
@@ -251,7 +251,7 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
     }
 
     if (timer->stopped == IGMP_TIMER_STOPPED) {
-        pico_free(t);
+        PICO_FREE(t);
         return;
     }
 
@@ -260,7 +260,7 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
         if (timer->callback)
             timer->callback(timer);
 
-        pico_free(timer);
+        PICO_FREE(timer);
     } else {
         igmp_dbg("IGMP: restart timer for %08X, delay %lu, new delay %lu\n", t->mcast_group.addr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
         pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_igmp_timer_expired, timer);
@@ -302,7 +302,7 @@ static int pico_igmp_timer_start(struct igmp_timer *t)
     if (timer)
         return pico_igmp_timer_reset(t);
 
-    timer = pico_zalloc(sizeof(struct igmp_timer));
+    timer = PICO_ZALLOC(sizeof(struct igmp_timer));
     if (!timer) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -491,7 +491,7 @@ static struct igmp_parameters *pico_igmp_analyse_packet(struct pico_frame *f)
     mcast_group.addr = message->mcast_group;
     p = pico_igmp_find_parameter(&link->address, &mcast_group);
     if (!p && mcast_group.addr == 0) { /* general query */
-        p = pico_zalloc(sizeof(struct igmp_parameters));
+        p = PICO_ZALLOC(sizeof(struct igmp_parameters));
         if (!p)
             return NULL;
 
@@ -575,7 +575,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
 
     p = pico_igmp_find_parameter(mcast_link, mcast_group);
     if (!p && state == PICO_IGMP_STATE_CREATE) {
-        p = pico_zalloc(sizeof(struct igmp_parameters));
+        p = PICO_ZALLOC(sizeof(struct igmp_parameters));
         if (!p) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;

@@ -439,7 +439,7 @@ static void pico_icmp6_ping_timeout(pico_time now, void *arg)
         }
 
         pico_tree_delete(&IPV6Pings, cookie);
-        pico_free(cookie);
+        PICO_FREE(cookie);
     }
 }
 
@@ -461,7 +461,7 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
     cookie = (struct pico_icmp6_ping_cookie *)arg;
     if (pico_tree_findKey(&IPV6Pings, cookie)) {
         if (cookie->seq < (uint16_t)cookie->count) {
-            new = pico_zalloc(sizeof(struct pico_icmp6_ping_cookie));
+            new = PICO_ZALLOC(sizeof(struct pico_icmp6_ping_cookie));
             if (!new) {
                 pico_err = PICO_ERR_ENOMEM;
                 return;
@@ -515,7 +515,7 @@ int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, v
         return -1;
     }
 
-    cookie = pico_zalloc(sizeof(struct pico_icmp6_ping_cookie));
+    cookie = PICO_ZALLOC(sizeof(struct pico_icmp6_ping_cookie));
     if (!cookie) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -523,7 +523,7 @@ int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, v
 
     if (pico_string_to_ipv6(dst, cookie->dst.addr) < 0) {
         pico_err = PICO_ERR_EINVAL;
-        pico_free(cookie);
+        PICO_FREE(cookie);
         return -1;
     }
 

@@ -113,7 +113,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_add_cookie(uint32_t xid,
         return NULL;
     }
 
-    dhcpc = pico_zalloc(sizeof(struct pico_dhcp_client_cookie));
+    dhcpc = PICO_ZALLOC(sizeof(struct pico_dhcp_client_cookie));
     if (!dhcpc) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -145,7 +145,7 @@ static int pico_dhcp_client_del_cookie(uint32_t xid)
     pico_socket_close(found->s);
     pico_ipv4_link_del(found->dev, found->address);
     pico_tree_delete(&DHCPCookies, found);
-    pico_free(found);
+    PICO_FREE(found);
     return 0;
 }
 
@@ -865,7 +865,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
     case PICO_DHCP_MSG_DISCOVER:
         dhcpc_dbg("DHCP client: sent DHCPDISCOVER\n");
         optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_MAXMSGSIZE + PICO_DHCP_OPTLEN_PARAMLIST + PICO_DHCP_OPTLEN_END;
-        hdr = pico_zalloc((size_t)(sizeof(struct pico_dhcp_hdr) + optlen));
+        hdr = PICO_ZALLOC((size_t)(sizeof(struct pico_dhcp_hdr) + optlen));
         if (!hdr) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -879,7 +879,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
         dhcpc_dbg("DHCP client: sent DHCPREQUEST\n");
         optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_MAXMSGSIZE + PICO_DHCP_OPTLEN_PARAMLIST + PICO_DHCP_OPTLEN_REQIP + PICO_DHCP_OPTLEN_SERVERID
                  + PICO_DHCP_OPTLEN_END;
-        hdr = pico_zalloc(sizeof(struct pico_dhcp_hdr) + optlen);
+        hdr = PICO_ZALLOC(sizeof(struct pico_dhcp_hdr) + optlen);
         if (!hdr) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -935,7 +935,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
     memcpy(hdr->hwaddr, &dhcpc->dev->eth->mac, PICO_SIZE_ETH);
 
     r = pico_socket_sendto(dhcpc->s, hdr, (int)(sizeof(struct pico_dhcp_hdr) + optlen), &destination, PICO_DHCPD_PORT);
-    pico_free(hdr);
+    PICO_FREE(hdr);
     if (r < 0)
         return -1;
 
