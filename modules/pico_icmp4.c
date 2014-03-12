@@ -54,7 +54,6 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
         /* outgoing frames require a f->len without the ethernet header len */
         if (f->dev && f->dev->eth)
             f->len -= PICO_SIZE_ETHHDR;
-
         pico_icmp4_checksum(f);
         pico_ipv4_rebound(f);
     } else if (hdr->type == PICO_ICMP_UNREACH) {
@@ -281,7 +280,7 @@ static void ping_recv_reply(struct pico_frame *f)
     if (cookie) {
         struct pico_icmp4_stats stats;
         cookie->err = PICO_PING_ERR_REPLIED;
-        stats.dst = cookie->dst;
+        stats.dst = ((struct pico_ipv4_hdr *)f->net_hdr)->src;
         stats.seq = cookie->seq;
         stats.size = cookie->size;
         stats.time = pico_tick - cookie->timestamp;
