@@ -48,7 +48,7 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 
 struct pico_device *pico_loop_create(void)
 {
-    struct pico_device *loop = pico_zalloc(sizeof(struct pico_device));
+    struct pico_device *loop = PICO_ZALLOC(sizeof(struct pico_device));
     if (!loop)
         return NULL;
 

@@ -391,7 +391,7 @@ int8_t pico_socket_add(struct pico_socket *s)
     PICOTCP_MUTEX_LOCK(Mutex);
     if (!sp) {
         /* dbg("Creating sockport..%04x\n", s->local_port); / * In comment due to spam during test * / */
-        sp = pico_zalloc(sizeof(struct pico_sockport));
+        sp = PICO_ZALLOC(sizeof(struct pico_sockport));
 
         if (!sp) {
             pico_err = PICO_ERR_ENOMEM;
@@ -459,7 +459,7 @@ static void socket_garbage_collect(pico_time now, void *arg)
     IGNORE_PARAMETER(now);
 
     socket_clean_queues(s);
-    pico_free(s);
+    PICO_FREE(s);
 }
 
 
@@ -481,7 +481,7 @@ static void pico_socket_check_empty_sockport(struct pico_socket *s, struct pico_
         if(sp_udp == sp)
             sp_udp = NULL;
 
-        pico_free(sp);
+        PICO_FREE(sp);
     }
 }
 
@@ -611,7 +611,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
     }
 
     if (pico_socket_set_family(s, net) != 0) {
-        pico_free(s);
+        PICO_FREE(s);
         pico_err = PICO_ERR_ENETUNREACH;
         return NULL;
     }
@@ -662,7 +662,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
     s->state = facsimile->state;
     pico_socket_clone_assign_address(s, facsimile);
     if (!s->net) {
-        pico_free(s);
+        PICO_FREE(s);
         pico_err = PICO_ERR_ENETUNREACH;
         return NULL;
     }
@@ -900,7 +900,7 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv4(struct p
 {
     struct pico_remote_endpoint *ep = NULL;
     (void)s;
-    ep = pico_zalloc(sizeof(struct pico_remote_endpoint));
+    ep = PICO_ZALLOC(sizeof(struct pico_remote_endpoint));
     if (!ep) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -914,7 +914,7 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv4(struct p
 static void pico_endpoint_free(struct pico_remote_endpoint *ep)
 {
     if (ep)
-        pico_free(ep);
+        PICO_FREE(ep);
 }
 
 static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv6(struct pico_socket *s, struct pico_ip6 *dst, uint16_t port)
@@ -924,7 +924,7 @@ static struct pico_remote_endpoint *pico_socket_sendto_destination_ipv6(struct p
     (void)dst;
     (void)port;
 #ifdef PICO_SUPPORT_IPV6
-    ep = pico_zalloc(sizeof(struct pico_remote_endpoint));
+    ep = PICO_ZALLOC(sizeof(struct pico_remote_endpoint));
     if (!ep) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -995,7 +995,7 @@ static int pico_socket_sendto_transport_offset(struct pico_socket *s)
 static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endpoint *ep)
 {
     struct pico_remote_endpoint *info;
-    info = pico_zalloc(sizeof(struct pico_remote_endpoint));
+    info = PICO_ZALLOC(sizeof(struct pico_remote_endpoint));
     if (!info) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -1187,7 +1187,7 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 {
     int space = pico_socket_xmit_avail_space(s);
     int total_payload_written = 0;
-    
+
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
@@ -1585,7 +1585,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value)
 
     if (PROTO(s) == PICO_PROTO_TCP)
         return pico_setsockopt_tcp(s, option, value);
-    
+
     if (PROTO(s) == PICO_PROTO_UDP)
         return pico_setsockopt_udp(s, option, value);
 
@@ -1604,7 +1604,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
     if (PROTO(s) == PICO_PROTO_TCP)
         return pico_getsockopt_tcp(s, option, value);
-    
+
     if (PROTO(s) == PICO_PROTO_UDP)
         return pico_getsockopt_udp(s, option, value);
 

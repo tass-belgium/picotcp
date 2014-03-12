@@ -946,7 +946,7 @@ void cb_udpdnsclient_getaddr(char *ip, void *arg)
 
     printf("%s: ip %s (id: %u)\n", __FUNCTION__, ip, *id);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void cb_udpdnsclient_getname(char *name, void *arg)
@@ -960,7 +960,7 @@ void cb_udpdnsclient_getname(char *name, void *arg)
 
     printf("%s: name %s (id: %u)\n", __FUNCTION__, name, *id);
     if (arg)
-        pico_free(arg);
+        PICO_FREE(arg);
 }
 
 void app_udpdnsclient(char *arg)
@@ -2649,6 +2649,9 @@ int main(int argc, char **argv)
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
     printf("My macaddr is: %02x %02x %02x %02x %02x %02x\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 
+#ifdef PICO_SUPPORT_MM
+    pico_mem_init(64 * 1024);
+#endif
     pico_stack_init();
     /* Parse args */
     while(1) {
@@ -2892,101 +2895,101 @@ int main(int argc, char **argv)
             IF_APPNAME("udpecho") {
                 app_udpecho(args);
             } else IF_APPNAME("tcpecho") {
-                app_tcpecho(args);
-            } else IF_APPNAME("udpclient") {
-                app_udpclient(args);
-            } else IF_APPNAME("tcpclient") {
-                app_tcpclient(args);
-            } else IF_APPNAME("tcpbench") {
-                app_tcpbench(args);
-            } else IF_APPNAME("natbox") {
-                app_natbox(args);
-            } else IF_APPNAME("udpdnsclient") {
-                app_udpdnsclient(args);
-            } else IF_APPNAME("udpnatclient") {
-                app_udpnatclient(args);
-            } else IF_APPNAME("mcastsend") {
+                    app_tcpecho(args);
+                } else IF_APPNAME("udpclient") {
+                        app_udpclient(args);
+                    } else IF_APPNAME("tcpclient") {
+                            app_tcpclient(args);
+                        } else IF_APPNAME("tcpbench") {
+                                app_tcpbench(args);
+                            } else IF_APPNAME("natbox") {
+                                    app_natbox(args);
+                                } else IF_APPNAME("udpdnsclient") {
+                                        app_udpdnsclient(args);
+                                    } else IF_APPNAME("udpnatclient") {
+                                            app_udpnatclient(args);
+                                        } else IF_APPNAME("mcastsend") {
 #ifndef PICO_SUPPORT_MCAST
-                return 0;
+                                                return 0;
 #endif
-                app_mcastsend(args);
-            } else IF_APPNAME("mcastreceive") {
+                                                app_mcastsend(args);
+                                            } else IF_APPNAME("mcastreceive") {
 #ifndef PICO_SUPPORT_MCAST
-                return 0;
+                                                    return 0;
 #endif
-                app_mcastreceive(args);
-            }
+                                                    app_mcastreceive(args);
+                                                }
 #ifdef PICO_SUPPORT_PING
-            else IF_APPNAME("ping") {
-                app_ping(args);
-            }
+                                                else IF_APPNAME("ping") {
+                                                        app_ping(args);
+                                                    }
 #endif
-            else IF_APPNAME("dhcpserver") {
+                                                else IF_APPNAME("dhcpserver") {
 #ifndef PICO_SUPPORT_DHCPD
-                return 0;
+                                                        return 0;
 #else
-                app_dhcp_server(args);
+                                                        app_dhcp_server(args);
 #endif
-            } else IF_APPNAME("dhcpclient") {
+                                                    } else IF_APPNAME("dhcpclient") {
 #ifndef PICO_SUPPORT_DHCPC
-                return 0;
+                                                            return 0;
 #else
-                app_dhcp_client(args);
+                                                            app_dhcp_client(args);
 #endif
-            } else IF_APPNAME("wget") {
+                                                        } else IF_APPNAME("wget") {
 #ifndef PICO_SUPPORT_HTTP_CLIENT
-                return 0;
+                                                                return 0;
 #else
-                app_wget(args);
+                                                                app_wget(args);
 #endif
-            } else IF_APPNAME("wget_forever") {
+                                                            } else IF_APPNAME("wget_forever") {
 #ifndef PICO_SUPPORT_HTTP_CLIENT
-                return 0;
+                                                                    return 0;
 #else
-                app_wget_forever(args);
+                                                                    app_wget_forever(args);
 #endif
-            } else IF_APPNAME("httpd") {
+                                                                } else IF_APPNAME("httpd") {
 #ifndef PICO_SUPPORT_HTTP_SERVER
-                return 0;
+                                                                        return 0;
 #else
-                app_httpd(args);
+                                                                        app_httpd(args);
 #endif
-            } else IF_APPNAME("bcast") {
-                struct pico_ip4 any = {
-                    .addr = 0xFFFFFFFFu
-                };
+                                                                    } else IF_APPNAME("bcast") {
+                                                                            struct pico_ip4 any = {
+                                                                                .addr = 0xFFFFFFFFu
+                                                                            };
 
-                struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
-                pico_socket_sendto(s, "abcd", 5u, &any, 1000);
+                                                                            struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
+                                                                            pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
-                pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
-            } else IF_APPNAME("zeromq_prod"){
-                app_zeromq_prod(args);
-            } else IF_APPNAME("noop") {
-                app_noop();
-            } else IF_APPNAME("olsr") {
-                pico_olsr_init();
-                dev = pico_get_device("pic0");
-                if(dev) {
-                    pico_olsr_add(dev);
-                }
+                                                                            pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
+                                                                        } else IF_APPNAME("zeromq_prod"){
+                                                                                app_zeromq_prod(args);
+                                                                            } else IF_APPNAME("noop") {
+                                                                                    app_noop();
+                                                                                } else IF_APPNAME("olsr") {
+                                                                                        pico_olsr_init();
+                                                                                        dev = pico_get_device("pic0");
+                                                                                        if(dev) {
+                                                                                            pico_olsr_add(dev);
+                                                                                        }
 
-                dev = pico_get_device("pic1");
-                if(dev) {
-                    pico_olsr_add(dev);
-                }
+                                                                                        dev = pico_get_device("pic1");
+                                                                                        if(dev) {
+                                                                                            pico_olsr_add(dev);
+                                                                                        }
 
-                app_noop();
-            } else IF_APPNAME("slaacv4"){
+                                                                                        app_noop();
+                                                                                    } else IF_APPNAME("slaacv4"){
 #ifndef PICO_SUPPORT_SLAACV4
-                return 0;
+                                                                                            return 0;
 #else
-                app_slaacv4(args);
+                                                                                            app_slaacv4(args);
 #endif
-            } else {
-                fprintf(stderr, "Unknown application %s\n", name);
-                usage(argv[0]);
-            }
+                                                                                        } else {
+                                                                                            fprintf(stderr, "Unknown application %s\n", name);
+                                                                                            usage(argv[0]);
+                                                                                        }
         }
         break;
         }

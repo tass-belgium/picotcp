@@ -12,7 +12,7 @@ START_TEST (test_socket)
     int nodelay = -1;
 
     uint32_t getsocket_buffer = 0;
-    uint32_t socket_buffer = 0; 
+    uint32_t socket_buffer = 0;
 
     pico_stack_init();
 
@@ -283,13 +283,13 @@ START_TEST (test_socket)
     ret = pico_socket_getoption(sk_tcp, PICO_TCP_NODELAY, &getnodelay);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_TCP_NODELAY failed\n");
     fail_if(getnodelay != 0, "socket> socket_setoption: PICO_TCP_NODELAY is on (expected: off!)\n");
-    
+
 
     /* Set/get recv buffer (TCP) */
     ret = pico_socket_getoption(sk_tcp, PICO_SOCKET_OPT_RCVBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_RCVBUF failed\n");
-    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ, 
-            "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT\n"); 
+    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ,
+            "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT\n");
 
     socket_buffer = PICO_DEFAULT_SOCKETQ;
     ret = pico_socket_setoption(sk_tcp, PICO_SOCKET_OPT_RCVBUF, &socket_buffer);
@@ -304,12 +304,12 @@ START_TEST (test_socket)
     ret = pico_socket_getoption(sk_tcp, PICO_SOCKET_OPT_RCVBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_RCVBUF failed\n");
     fail_if(getsocket_buffer != socket_buffer, "UDP socket> socket_setoption: PICO_SOCKET_OPT_RCVBUF is != than expected\n");
-    
+
     /* Set/get send buffer (TCP) */
     ret = pico_socket_getoption(sk_tcp, PICO_SOCKET_OPT_SNDBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");
-    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ , 
-            "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT got: %d exp: %d\n", getsocket_buffer, PICO_DEFAULT_SOCKETQ); 
+    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ,
+            "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT got: %d exp: %d\n", getsocket_buffer, PICO_DEFAULT_SOCKETQ);
 
     socket_buffer = PICO_DEFAULT_SOCKETQ;
     ret = pico_socket_setoption(sk_tcp, PICO_SOCKET_OPT_SNDBUF, &socket_buffer);
@@ -317,7 +317,7 @@ START_TEST (test_socket)
     ret = pico_socket_getoption(sk_tcp, PICO_SOCKET_OPT_SNDBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");
     fail_if(getsocket_buffer != socket_buffer, "UDP socket> socket_setoption: PICO_SOCKET_OPT_SNDBUF is != than expected\n");
-    
+
     socket_buffer = 2 * PICO_DEFAULT_SOCKETQ;
     ret = pico_socket_setoption(sk_tcp, PICO_SOCKET_OPT_SNDBUF, &socket_buffer);
     fail_if(ret < 0, "socket> socket_setoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");
@@ -328,7 +328,7 @@ START_TEST (test_socket)
     /* Set/get recv buffer (UDP) */
     ret = pico_socket_getoption(sk_udp, PICO_SOCKET_OPT_RCVBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_RCVBUF failed\n");
-    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ , 
+    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ,
             "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT\n");
 
     socket_buffer = PICO_DEFAULT_SOCKETQ;
@@ -344,11 +344,11 @@ START_TEST (test_socket)
     ret = pico_socket_getoption(sk_udp, PICO_SOCKET_OPT_RCVBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_RCVBUF failed\n");
     fail_if(getsocket_buffer != socket_buffer, "UDP socket> socket_setoption: PICO_SOCKET_OPT_RCVBUF is != than expected\n");
-    
+
     /* Set/get send buffer (UDP) */
     ret = pico_socket_getoption(sk_udp, PICO_SOCKET_OPT_SNDBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");
-    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ , 
+    fail_if(getsocket_buffer != PICO_DEFAULT_SOCKETQ,
             "socket> socket_setoption: default PICO_SOCKET_OPT_SNDBUF != DEFAULT\n");
 
     socket_buffer = PICO_DEFAULT_SOCKETQ;
@@ -357,7 +357,7 @@ START_TEST (test_socket)
     ret = pico_socket_getoption(sk_udp, PICO_SOCKET_OPT_SNDBUF, &getsocket_buffer);
     fail_if(ret < 0, "socket> socket_getoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");
     fail_if(getsocket_buffer != socket_buffer, "UDP socket> socket_setoption: PICO_SOCKET_OPT_SNDBUF is != than expected\n");
-    
+
     socket_buffer = 2 * PICO_DEFAULT_SOCKETQ;
     ret = pico_socket_setoption(sk_udp, PICO_SOCKET_OPT_SNDBUF, &socket_buffer);
     fail_if(ret < 0, "socket> socket_setoption: supported PICO_SOCKET_OPT_SNDBUF failed\n");

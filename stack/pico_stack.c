@@ -637,7 +637,7 @@ void pico_check_timers(void)
             t->timer(pico_tick, t->arg);
 
         if (t)
-            pico_free(t);
+            PICO_FREE(t);
 
         t = NULL;
         heap_peek(Timers, &tref_unused);
@@ -655,7 +655,7 @@ void pico_timer_cancel(struct pico_timer *t)
     for (i = 1; i <= Timers->n; i++) {
         if (tref[i].tmr == t) {
             Timers->top[i].tmr = NULL;
-            pico_free(t);
+            PICO_FREE(t);
             break;
         }
     }
@@ -862,7 +862,7 @@ void pico_stack_loop(void)
 
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
-    struct pico_timer *t = pico_zalloc(sizeof(struct pico_timer));
+    struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
     struct pico_timer_ref tref;
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;

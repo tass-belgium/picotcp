@@ -160,7 +160,7 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
     else
     {
         /* extract host */
-        urikey->host = (char *)pico_zalloc((uint32_t)(index - lastIndex + 1));
+        urikey->host = (char *)PICO_ZALLOC((uint32_t)(index - lastIndex + 1));
 
         if(!urikey->host)
         {
@@ -176,7 +176,7 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
     {
         /* nothing specified */
         urikey->port = 80u;
-        urikey->resource = pico_zalloc(2u);
+        urikey->resource = PICO_ZALLOC(2u);
         if (!urikey->resource) {
             /* no memory */
             pico_err = PICO_ERR_ENOMEM;
@@ -205,7 +205,7 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
     /* extract resource */
     if(!uri[index])
     {
-        urikey->resource = pico_zalloc(2u);
+        urikey->resource = PICO_ZALLOC(2u);
         if (!urikey->resource) {
             /* no memory */
             pico_err = PICO_ERR_ENOMEM;
@@ -218,7 +218,7 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
     {
         lastIndex = index;
         while(uri[index] && uri[index] != '?' && uri[index] != '&' && uri[index] != '#') index++;
-        urikey->resource = (char *)pico_zalloc((size_t)(index - lastIndex + 1));
+        urikey->resource = (char *)PICO_ZALLOC((size_t)(index - lastIndex + 1));
 
         if(!urikey->resource)
         {
@@ -235,13 +235,13 @@ int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
 error:
     if(urikey->resource)
     {
-        pico_free(urikey->resource);
+        PICO_FREE(urikey->resource);
         urikey->resource = NULL;
     }
 
     if(urikey->host)
     {
-        pico_free(urikey->host);
+        PICO_FREE(urikey->host);
         urikey->host = NULL;
     }
 

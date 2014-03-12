@@ -23,14 +23,14 @@ void pico_frame_discard(struct pico_frame *f)
 
     (*f->usage_count)--;
     if (*f->usage_count <= 0) {
-        pico_free(f->usage_count);
+        PICO_FREE(f->usage_count);
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
         dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
         dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
 #endif
-        pico_free(f->buffer);
+        PICO_FREE(f->buffer);
         if (f->info)
-            pico_free(f->info);
+            PICO_FREE(f->info);
     }
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
@@ -38,12 +38,12 @@ void pico_frame_discard(struct pico_frame *f)
         dbg("Removed frame @%p(copy), usage count now: %d\n", f, *f->usage_count);
     }
 #endif
-    pico_free(f);
+    PICO_FREE(f);
 }
 
 struct pico_frame *pico_frame_copy(struct pico_frame *f)
 {
-    struct pico_frame *new = pico_zalloc(sizeof(struct pico_frame));
+    struct pico_frame *new = PICO_ZALLOC(sizeof(struct pico_frame));
     if (!new)
         return NULL;
 
@@ -59,20 +59,20 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 
 struct pico_frame *pico_frame_alloc(uint32_t size)
 {
-    struct pico_frame *p = pico_zalloc(sizeof(struct pico_frame));
+    struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
     if (!p)
         return NULL;
 
-    p->buffer = pico_zalloc(size);
+    p->buffer = PICO_ZALLOC(size);
     if (!p->buffer) {
-        pico_free(p);
+        PICO_FREE(p);
         return NULL;
     }
 
-    p->usage_count = pico_zalloc(sizeof(uint32_t));
+    p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     if (!p->usage_count) {
-        pico_free(p->buffer);
-        pico_free(p);
+        PICO_FREE(p->buffer);
+        PICO_FREE(p);
         return NULL;
     }
 

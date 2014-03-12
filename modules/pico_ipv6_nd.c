@@ -122,7 +122,7 @@ static struct pico_neighbor *pico_nd_add_neighbor(struct pico_ip6 *host, struct 
 {
     struct pico_neighbor *n = NULL;
 
-    n = pico_zalloc(sizeof(struct pico_neighbor));
+    n = PICO_ZALLOC(sizeof(struct pico_neighbor));
     if (!n)
         return NULL;
 
@@ -167,7 +167,7 @@ static int pico_nd_del_neighbor(struct pico_ip6 *neighbor)
         r->neighbor = NULL;
 
     pico_tree_delete(&NDNeighbors, found);
-    pico_free(found);
+    PICO_FREE(found);
     return 0;
 }
 
@@ -221,7 +221,7 @@ static int pico_nd_del_router(struct pico_router *r)
         return -1;
 
     pico_tree_delete(&NDRouters, found);
-    pico_free(found);
+    PICO_FREE(found);
 
     return 0;
 }
@@ -243,7 +243,7 @@ static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
 {
     struct pico_router *r = NULL;
 
-    r = pico_zalloc(sizeof(struct pico_router));
+    r = PICO_ZALLOC(sizeof(struct pico_router));
     if (!r)
         return 0;
 
@@ -293,7 +293,7 @@ static int pico_nd_del_prefix(struct pico_ip6 *prefix)
         return -1;
 
     pico_tree_delete(&NDPrefix, found);
-    pico_free(found);
+    PICO_FREE(found);
     return 0;
 }
 
@@ -313,7 +313,7 @@ static struct pico_prefix *pico_nd_add_prefix(struct pico_ip6 *prefix, uint32_t 
 {
     struct pico_prefix *p = NULL;
 
-    p = pico_zalloc(sizeof(struct pico_prefix));
+    p = PICO_ZALLOC(sizeof(struct pico_prefix));
     if (!p)
         return NULL;
 
@@ -368,7 +368,7 @@ static int pico_nd_del_destination(struct pico_ip6 *dest)
         return -1;
 
     pico_tree_delete(&NDDestinations, found);
-    pico_free(found);
+    PICO_FREE(found);
     return 0;
 }
 
@@ -376,7 +376,7 @@ static struct pico_destination *pico_nd_add_destination(struct pico_ip6 *dest, s
 {
     struct pico_destination *d = NULL;
 
-    d = pico_zalloc(sizeof(struct pico_destination));
+    d = PICO_ZALLOC(sizeof(struct pico_destination));
     if (!d)
         return NULL;
 
@@ -850,7 +850,7 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
         hostvars->reachabletime *= (pico_time)(long_be(icmp6_hdr->msg.info.router_adv.reachable_time));
         /* hostvars->reachabletime /= (pico_time)10u; WARNING: Can't divide u64's on many platforms...*/
         /* Using an approximation (division by 8) */
-        hostvars->reachabletime >>=8;
+        hostvars->reachabletime >>= 8;
     }
 
     /* advertisement options */

@@ -82,7 +82,7 @@ static int tun_open(char *name)
 
 struct pico_device *pico_tun_create(char *name)
 {
-    struct pico_device_tun *tun = pico_zalloc(sizeof(struct pico_device_tun));
+    struct pico_device_tun *tun = PICO_ZALLOC(sizeof(struct pico_device_tun));
 
     if (!tun)
         return NULL;
