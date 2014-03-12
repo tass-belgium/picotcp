@@ -1,4 +1,4 @@
-#define dbg(...) do{}while(0)
+#define dbg(...) do {} while(0)
 
 /******************/
 
@@ -26,6 +26,6 @@ static inline unsigned long PICO_TIME_MS(void)
 static inline void PICO_IDLE(void)
 {
     unsigned long tick_now = __str9_tick;
-    while(tick_now == __str9_tick);
+    while(tick_now == __str9_tick) ;
 }
 

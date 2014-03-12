@@ -159,6 +159,7 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         notice->payload = notice->transport_hdr + PICO_ICMP6HDR_DEST_UNREACH_SIZE;
         notice->payload_len = len;
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
@@ -175,6 +176,7 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
+
         notice->payload = notice->transport_hdr + PICO_ICMP6HDR_TIME_XCEEDED_SIZE;
         notice->payload_len = len;
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
@@ -242,6 +244,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     sol->payload = sol->transport_hdr + len;
     sol->payload_len = 0;
 
@@ -286,6 +289,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     adv->payload = adv->transport_hdr + PICO_ICMP6HDR_NEIGH_ADV_SIZE + 8;
     adv->payload_len = 0;
 
@@ -340,6 +344,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     sol->payload = sol->transport_hdr + len;
     sol->payload_len = 0;
 
@@ -401,6 +406,7 @@ static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     echo->payload_len = cookie->size;
 

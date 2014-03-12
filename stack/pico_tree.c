@@ -45,14 +45,14 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
 #ifdef PICO_SUPPORT_MM
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
- * which are used for the pico stack in general. 
+ * which are used for the pico stack in general.
  * Therefore the following 2 functions are created so that pico_tree can use them to to put these nodes
  * into the correct memory regions.
- * If pico_tree_insert is called from the memory manager module, then create_node should use 
+ * If pico_tree_insert is called from the memory manager module, then create_node should use
  * pico_mem_page0_zalloc to create a node. The same for pico_tree_delete.
  */
-extern void* pico_mem_page0_zalloc(size_t len);
-extern void pico_mem_page0_free(void* ptr);
+extern void*pico_mem_page0_zalloc(size_t len);
+extern void pico_mem_page0_free(void*ptr);
 #endif  /* PICO_SUPPORT_MM */
 
 /*
@@ -116,7 +116,7 @@ struct pico_tree_node *pico_tree_prev(struct pico_tree_node *node)
 
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
- * which are used for the pico stack in general. 
+ * which are used for the pico stack in general.
  * Therefore the following wrapper for pico_tree_insert is created.
  * The actual implementation can be found in pico_tree_insert_implementation.
  */
@@ -143,6 +143,7 @@ void *pico_tree_insert_implementation(struct pico_tree*tree, void *key, uint8_t 
             insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
         else
             insert = create_node(tree, key, USE_PICO_ZALLOC);
+
         if(!insert)
         {
             pico_err = PICO_ERR_ENOMEM;
@@ -286,7 +287,7 @@ static uint8_t pico_tree_delete_check_switch(struct pico_tree *tree, struct pico
 
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes
- * which are used for the pico stack in general. 
+ * which are used for the pico stack in general.
  * Therefore the following wrapper for pico_tree_delete is created.
  * The actual implementation can be found in pico_tree_delete_implementation.
  */
@@ -317,9 +318,10 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
     /* deleted node is black, this will mess up the black path property */
     if(nodeColor == BLACK)
         fix_delete_collisions(tree, temp);
-    
+
     if(allocator == USE_PICO_ZALLOC)
         PICO_FREE(delete);
+
 #ifdef PICO_SUPPORT_MM
     else
         pico_mem_page0_free(delete);
@@ -396,6 +398,7 @@ static struct pico_tree_node *create_node(struct pico_tree *tree, void*key, uint
     IGNORE_PARAMETER(tree);
     if(allocator == USE_PICO_ZALLOC)
         temp = (struct pico_tree_node *)PICO_ZALLOC(sizeof(struct pico_tree_node));
+
 #ifdef PICO_SUPPORT_MM
     else
         temp = (struct pico_tree_node *)pico_mem_page0_zalloc(sizeof(struct pico_tree_node));

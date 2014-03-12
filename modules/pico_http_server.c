@@ -736,6 +736,7 @@ void sendData(struct httpClient *client)
             {
                 PICO_FREE(client->buffer);
             }
+
             client->buffer = NULL;
 
             client->state = HTTP_WAIT_DATA;

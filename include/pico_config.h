@@ -1,6 +1,6 @@
 /*********************************************************************
-  PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-  See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
  *********************************************************************/
 #ifndef INCLUDE_PICO_CONFIG

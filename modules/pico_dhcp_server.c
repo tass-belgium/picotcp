@@ -166,7 +166,7 @@ static struct pico_dhcp_server_negotiation *pico_dhcp_server_add_negotiation(str
 
     dhcpn->xid = hdr->xid;
     dhcpn->state = PICO_DHCP_STATE_DISCOVER;
-    dhcpn->bcast = ((short_be(hdr->flags) & PICO_DHCP_FLAG_BROADCAST)!= 0)?(1):(0);
+    dhcpn->bcast = ((short_be(hdr->flags) & PICO_DHCP_FLAG_BROADCAST) != 0) ? (1) : (0);
     memcpy(dhcpn->hwaddr.addr, hdr->hwaddr, PICO_SIZE_ETH);
 
     test.dev = dev;
@@ -237,6 +237,7 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
         hdr->flags |= short_be(PICO_DHCP_FLAG_BROADCAST);
         destination.addr = broadcast.addr;
     }
+
     r = pico_socket_sendto(dhcpn->dhcps->s, hdr, (int)(sizeof(struct pico_dhcp_hdr) + (uint32_t)optlen), &destination, PICO_DHCP_CLIENT_PORT);
     if (r < 0)
         dhcps_dbg("DHCP server WARNING: failure sending: %s!\n", strerror(pico_err));

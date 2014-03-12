@@ -548,6 +548,7 @@ static int pico_ipv4_process_bcast_in(struct pico_frame *f)
         pico_enqueue(pico_proto_udp.q_in, f);
         return 1;
     }
+
     if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_ICMP4)) {
         /* Receiving ICMP4 bcast packet */
         f->flags |= PICO_FRAME_FLAG_BCAST;

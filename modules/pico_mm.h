@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Gustav Janssens, Jonas Van Nieuwenberg, Sam Van Den Berge 
+   Authors: Gustav Janssens, Jonas Van Nieuwenberg, Sam Van Den Berge
  *********************************************************************/
 
 
@@ -30,12 +30,12 @@ void pico_mem_deinit();
  * or less optimally in the heap for a small variable size
  * The fixed size of the slabs can be changed dynamically via a statistics engine
  */
-void* pico_mem_zalloc(size_t len);
+void*pico_mem_zalloc(size_t len);
 /*
- * Free function, free a block of memory pointed to by ptr. 
+ * Free function, free a block of memory pointed to by ptr.
  * Unused memory is only returned to the system's control by pico_mem_cleanup
  */
-void pico_mem_free(void* ptr);
+void pico_mem_free(void*ptr);
 /*
  * This cleanup function will be provided by the memory manager
  * It can be called during processor downtime
@@ -49,10 +49,10 @@ void pico_mem_cleanup(uint32_t timestamp);
 #ifdef PICO_SUPPORT_MM_PROFILING
 /***********************************************************************************************************************
  ***********************************************************************************************************************
- MEMORY PROFILING FUNCTIONS
+   MEMORY PROFILING FUNCTIONS
  ***********************************************************************************************************************
  ***********************************************************************************************************************/
-//General info struct
+/* General info struct */
 struct profiling_data
 {
     uint32_t free_heap_space;
@@ -65,7 +65,7 @@ struct profiling_data
  * This function fills up a struct with used and free slab and heap space in the memory manager
  * The user is responsible for resource managment
  */
-void pico_mem_profile_collect_data(struct profiling_data* profiling_page_struct);
+void pico_mem_profile_collect_data(struct profiling_data*profiling_page_struct);
 
 /*
  * This function prints the general structure of the memory manager
@@ -75,9 +75,9 @@ void pico_mem_profile_scan_data();
 
 /*
  * This function returns the total size that the manager has received from the system
- * This can give an indication of the total system resource commitment, but keep in mind that 
+ * This can give an indication of the total system resource commitment, but keep in mind that
  * there can be many free blocks in this "used" size
- * Together with pico_mem_profile_collect_data, this can give a good estimation of the total 
+ * Together with pico_mem_profile_collect_data, this can give a good estimation of the total
  * resource commitment
  */
 uint32_t pico_mem_profile_used_size();
@@ -87,9 +87,9 @@ uint32_t pico_mem_profile_used_size();
  * This can be used to collect data about the memory in user defined functions.
  * Use with care!
  */
-struct pico_mem_manager* pico_mem_profile_manager();
+struct pico_mem_manager*pico_mem_profile_manager();
 
-void pico_mem_init_profiling(struct pico_mem_manager* manager, uint32_t memsize);
-#endif //PICO_SUPPORT_MM_PROFILING
+void pico_mem_init_profiling(struct pico_mem_manager*manager, uint32_t memsize);
+#endif /* PICO_SUPPORT_MM_PROFILING */
 
 #endif /* _INCLUDE_PICO_MM */

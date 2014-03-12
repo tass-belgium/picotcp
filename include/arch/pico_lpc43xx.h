@@ -41,14 +41,14 @@ static inline void *pico_zalloc(size_t x)
 
     /* check for -1 malloc */
     if (x == 0xffffffff)
-        while (1);
-
+        while (1) ;
     /* allocated size + stats */
     stats = (struct mem_chunk_stats *)pvPortMalloc(x + sizeof(struct mem_chunk_stats));
     if(stats)
         memset(stats, 0u, x + sizeof(struct mem_chunk_stats));
     else
         return -1;
+
     /* fill in stats */
     stats->signature = 0xdeadbeef;
     stats->mem = ((uint8_t *)stats) + sizeof(struct mem_chunk_stats);
@@ -67,9 +67,9 @@ static inline void pico_free(void *x)
 {
     struct mem_chunk_stats *stats = (struct mem_chunk_stats *) ((uint8_t *)x - sizeof(struct mem_chunk_stats));
 
-    if ((stats->signature != 0xdeadbeef) || (x != stats->mem)){
+    if ((stats->signature != 0xdeadbeef) || (x != stats->mem)) {
         printf(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
-        while(1);
+        while(1) ;
     }
 
     cur_mem -= stats->size;

@@ -903,6 +903,7 @@ static int tcp_send(struct pico_socket_tcp *ts, struct pico_frame *f)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     if ((pico_enqueue(&tcp_out, cpy) > 0)) {
         if (f->payload_len > 0) {
             ts->in_flight++;
@@ -1466,6 +1467,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 if (!input) {
                     pico_err = PICO_ERR_ENOMEM;
                 }
+
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
                 {
                     /* failed to enqueue, destroy segment */
@@ -1493,6 +1495,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                     pico_err = PICO_ERR_ENOMEM;
                     ret = -1;
                 }
+
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
                     /* failed to enqueue, destroy segment */
                     PICO_FREE(input->payload);
@@ -1626,6 +1629,7 @@ static int tcp_rto_xmit(struct pico_socket_tcp *t, struct pico_frame *f)
     if (!cpy) {
         return -1;
     }
+
     if (pico_enqueue(&tcp_out, cpy) > 0) {
         t->snd_last_out = SEQN(cpy);
         add_retransmission_timer(t, (t->rto << (++t->backoff)) + TCP_TIME);
@@ -1756,6 +1760,7 @@ static int tcp_retrans(struct pico_socket_tcp *t, struct pico_frame *f)
         if (!cpy) {
             return -1;
         }
+
         if (pico_enqueue(&tcp_out, cpy) > 0) {
             t->in_flight++;
             t->snd_last_out = SEQN(cpy);
@@ -2247,6 +2252,7 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     } else {
         tcp_send_ack(t);              /* return ACK */
     }
+
     if (s->wakeup) {
         s->wakeup(PICO_SOCK_EV_CLOSE, s);
     }
@@ -2438,7 +2444,6 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
         if(valid_flags[s->state >> 8u][i] == flags)
             return 0;
     }
-
     return 1;
 }
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)

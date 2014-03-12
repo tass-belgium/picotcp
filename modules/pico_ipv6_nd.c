@@ -850,7 +850,7 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
         hostvars->reachabletime *= (pico_time)(long_be(icmp6_hdr->msg.info.router_adv.reachable_time));
         /* hostvars->reachabletime /= (pico_time)10u; WARNING: Can't divide u64's on many platforms...*/
         /* Using an approximation (division by 8) */
-        hostvars->reachabletime >>=8;
+        hostvars->reachabletime >>= 8;
     }
 
     /* advertisement options */

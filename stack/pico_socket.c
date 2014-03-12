@@ -1187,7 +1187,7 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 {
     int space = pico_socket_xmit_avail_space(s);
     int total_payload_written = 0;
-    
+
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
@@ -1585,7 +1585,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value)
 
     if (PROTO(s) == PICO_PROTO_TCP)
         return pico_setsockopt_tcp(s, option, value);
-    
+
     if (PROTO(s) == PICO_PROTO_UDP)
         return pico_setsockopt_udp(s, option, value);
 
@@ -1604,7 +1604,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value)
 
     if (PROTO(s) == PICO_PROTO_TCP)
         return pico_getsockopt_tcp(s, option, value);
-    
+
     if (PROTO(s) == PICO_PROTO_UDP)
         return pico_getsockopt_udp(s, option, value);
 
