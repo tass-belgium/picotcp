@@ -203,9 +203,6 @@ endif
 ifneq ($(HTTP_CLIENT),0)
   include rules/httpClient.mk
 endif
-ifneq ($(ZMQ),0)
-  include rules/zmq.mk
-endif
 ifneq ($(OLSR),0)
   include rules/olsr.mk
 endif
