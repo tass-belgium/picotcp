@@ -18,7 +18,6 @@
 #include "pico_http_client.h"
 #include "pico_http_server.h"
 #include "pico_http_util.h"
-#include "pico_zmq.h"
 #include "pico_olsr.h"
 
 #include <poll.h>
@@ -2454,35 +2453,6 @@ void app_httpd(char __attribute__((unused)) *arg)
 #endif
 /* END HTTP server */
 
-void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
-{
-}
-
-
-/* ZEROMQ PRODUCER */
-void app_zeromq_prod(char __attribute__((unused)) *arg)
-{
-    ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
-    if (!z) {
-        fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
-        exit(1);
-    }
-
-    while(1) {
-        pico_time last = 0;
-        pico_time now;
-        char zmsg[] = "HELLO";
-        pico_stack_tick();
-        now = PICO_TIME_MS();
-        if (now > last + 500) {
-            zmq_send(z, zmsg, 5);
-            last = now;
-        }
-
-        usleep(2000);
-    }
-}
-
 /* NOOP */
 void app_noop(void)
 {
@@ -2963,8 +2933,6 @@ int main(int argc, char **argv)
                                                                             pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
                                                                             pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
-                                                                        } else IF_APPNAME("zeromq_prod"){
-                                                                                app_zeromq_prod(args);
                                                                             } else IF_APPNAME("noop") {
                                                                                     app_noop();
                                                                                 } else IF_APPNAME("olsr") {
