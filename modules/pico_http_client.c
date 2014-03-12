@@ -256,6 +256,10 @@ static inline void waitForHeader(struct pico_http_client *client)
     {
         client->state = HTTP_READING_HEADER;
     }
+    else if(http_ret == HTTP_RETURN_NOT_FOUND)
+    {
+        client->wakeup(EV_HTTP_REQ, client->connectionID);
+    }
     else
     {
         /* call wakeup */
@@ -931,8 +935,11 @@ static int parseHeaderFromServer(struct pico_http_client *client, struct pico_ht
         header->responseCode = (uint16_t)((line[RESPONSE_INDEX] - '0') * 100 +
                                           (line[RESPONSE_INDEX + 1] - '0') * 10 +
                                           (line[RESPONSE_INDEX + 2] - '0'));
-
-        if(header->responseCode / 100u > 5u)
+        if(header->responseCode == HTTP_NOT_FOUND)
+        {
+            return HTTP_RETURN_NOT_FOUND;
+        }
+        else if(header->responseCode >= HTTP_INTERNAL_SERVER_ERR)
         {
             /* invalid response type */
             header->responseCode = 0;

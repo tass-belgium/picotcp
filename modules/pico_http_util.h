@@ -80,9 +80,10 @@
 #define HTTP_PERMISSION_DENIED      550u
 
 /* Returns used  */
-#define HTTP_RETURN_ERROR    -1
-#define HTTP_RETURN_OK              0
-#define HTTP_RETURN_BUSY      1
+#define HTTP_RETURN_ERROR       -1
+#define HTTP_RETURN_OK          0
+#define HTTP_RETURN_BUSY        1
+#define HTTP_RETURN_NOT_FOUND   2
 
 /* HTTP Methods */
 #define HTTP_METHOD_GET     1u
