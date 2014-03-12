@@ -100,6 +100,8 @@ static void sendFinal(struct httpClient *client);
 static inline int readData(struct httpClient *client);  /* used only in a place */
 static inline struct httpClient *findClient(uint16_t conn);
 
+
+
 static int compareClients(void *ka, void *kb)
 {
     return ((struct httpClient *)ka)->connectionID - ((struct httpClient *)kb)->connectionID;
