@@ -220,8 +220,8 @@ static int compareClients(void *ka, void *kb)
 PICO_TREE_DECLARE(pico_client_list, compareClients);
 
 /* Local functions */
-int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header);
-int readChunkLine(struct pico_http_client *client);
+static int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header);
+static int readChunkLine(struct pico_http_client *client);
 /*  */
 static inline void processConnErrClose(uint16_t ev, struct pico_http_client *client)
 {
@@ -297,7 +297,8 @@ static inline void treatReadEvent(struct pico_http_client *client)
         client->wakeup(EV_HTTP_BODY, client->connectionID);
     }
 }
-void tcpCallback(uint16_t ev, struct pico_socket *s)
+
+static void tcpCallback(uint16_t ev, struct pico_socket *s)
 {
 
     struct pico_http_client *client = NULL;
@@ -908,7 +909,7 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
     return HTTP_RETURN_OK;
 }
 
-int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header)
+static int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header)
 {
     char line[HTTP_HEADER_LINE_SIZE];
     uint32_t index = 0;
@@ -981,7 +982,8 @@ static inline void readChunkValue(struct pico_http_client *client)
     }
     if(c == '\r' || c == ';') client->state = HTTP_READING_CHUNK_TRAIL;
 }
-int readChunkLine(struct pico_http_client *client)
+
+static int readChunkLine(struct pico_http_client *client)
 {
     setClientChunkState(client);
 
