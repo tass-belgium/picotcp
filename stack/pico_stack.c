@@ -586,7 +586,6 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     memcpy(f->buffer, buffer, len);
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
-        printf("pico_stack_recv: discarding frame!!\r\n");
         pico_frame_discard(f);
     }
 
