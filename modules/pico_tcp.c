@@ -15,7 +15,6 @@
 #include "pico_socket.h"
 #include "pico_queue.h"
 #include "pico_tree.h"
-#include <PicoTerm.h>
 
 #define TCP_IS_STATE(s, st) (s->state & st)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
@@ -1010,6 +1009,13 @@ out:
     }
     if (t->remote_closed) {
         s->ev_pending |= (uint16_t)(PICO_SOCK_EV_CLOSE);
+       s->state &= 0x00FFU;
+       s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+       /* set SHUT_REMOTE */
+       s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+       if (s->wakeup) {
+           s->wakeup(PICO_SOCK_EV_CLOSE, s);
+       }
     }
 
     return tot_rd_len;
@@ -2231,7 +2237,6 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
 
-    ptm_dbg("in %s\n", __FUNCTION__);
 
     if (f->payload_len > 0)
         tcp_data_in(s, f);
@@ -2240,19 +2245,17 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
         tcp_ack(s, f);
 
     if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
-        ptm_dbg("Entering TCP_CLOSEWAIT, rcv_nxt: %08x, rcv_ackd: %08x, rcv_processed: %08x\n",
-            long_be(t->rcv_nxt), long_be(t->rcv_ackd), long_be(t->rcv_processed));
         /* received FIN, increase ACK nr */
         t->rcv_nxt = long_be(hdr->seq) + 1;
-        s->state &= 0x00FFU;
-        s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-        /* set SHUT_REMOTE */
-        s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
-        tcp_dbg("TCP> Close-wait\n");
-        if (t->tcpq_in.size == 0) {
+        if (seq_compare(SEQN(f), t->rcv_processed) == 0) {
             if (s->wakeup) {
                 s->wakeup(PICO_SOCK_EV_CLOSE, s);
             }
+            s->state &= 0x00FFU;
+            s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+            /* set SHUT_REMOTE */
+            s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+            tcp_dbg("TCP> Close-wait\n");
         } else {
             t->remote_closed = 1;
         }
@@ -2502,6 +2505,8 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
                 action->rst(s, f);
         }
     }
+    if (s->ev_pending)
+        tcp_wakeup_pending(s, s->ev_pending);
 
 /* discard: */
     pico_frame_discard(f);
