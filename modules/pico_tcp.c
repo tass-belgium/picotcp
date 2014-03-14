@@ -2517,6 +2517,64 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 inline static int checkLocalClosing(struct pico_socket *s);
 inline static int checkRemoteClosing(struct pico_socket *s);
 
+static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pico_frame *f, uint16_t size)
+{
+    struct pico_frame *f1, *f2;
+    uint16_t size1, size2, size_f;
+    uint16_t overhead;
+    struct pico_tcp_hdr *hdr1, *hdr2, *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
+    overhead = pico_tcp_overhead(&t->sock);
+    size_f = f->payload_len;
+
+
+    if (size >= size_f)
+        return f; /* no need to split! */
+
+    size1 = size;
+    size2 = (uint16_t)(size_f - size);
+
+    f1 = pico_socket_frame_alloc(&t->sock, (uint16_t) (size1 + overhead));
+    f2 = pico_socket_frame_alloc(&t->sock, (uint16_t) (size2 + overhead));
+
+    if (!f1 || !f2) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
+
+    /* Advance payload pointer to the beginning of segment data */
+    f1->payload += overhead;
+    f1->payload_len = (uint16_t)(f1->payload_len - overhead);
+    f2->payload += overhead;
+    f2->payload_len = (uint16_t)(f2->payload_len - overhead);
+    
+    hdr1 = (struct pico_tcp_hdr *)f1->transport_hdr;
+    hdr2 = (struct pico_tcp_hdr *)f2->transport_hdr;
+
+    /* Copy payload */
+    memcpy(f1->payload, f->payload, size1);
+    memcpy(f2->payload, f->payload + size1, size2);
+    
+    /* Copy tcp hdr */
+    memcpy(hdr1, hdr, sizeof(struct pico_tcp_hdr));
+    memcpy(hdr2, hdr, sizeof(struct pico_tcp_hdr));
+
+    /* Adjust f2's sequence number */
+    hdr2->seq = long_be(SEQN(f) + size1);
+   
+    /* Add TCP options */ 
+    tcp_add_options_frame(t, f1);
+    tcp_add_options_frame(t, f2);
+    
+    /* Get rid of the full frame */
+    pico_frame_discard(f);
+
+    /* Enqueue f2 for later send... */
+    pico_enqueue_segment(&t->tcpq_out, f2);
+
+    /* Return the partial frame */
+    return f1;
+}
+
 
 int pico_tcp_output(struct pico_socket *s, int loop_score)
 {
@@ -2534,29 +2592,32 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         add_retransmission_timer(t, t->rto + TCP_TIME);
         tcp_add_options_frame(t, f);
         seq_diff = seq_compare(SEQN(f), SEQN(una));
-        if (seq_diff < 0)
+        if (seq_diff < 0) {
             dbg(">>> FATAL: seq diff is negative!\n");
-
-        if ((uint32_t)(seq_diff + f->payload_len) > (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
-            t->cwnd = (uint16_t)t->in_flight;
-            if (t->cwnd < 1)
-                t->cwnd = 1;
-
+            break;
+        }
+        /* Check if advertised window is full */
+        if (seq_diff >= (t->recv_wnd << t->recv_wnd_scale)) {
             if (t->x_mode != PICO_TCP_WINDOW_FULL) {
                 tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n", t->recv_wnd << t->recv_wnd_scale, f->payload_len);
                 tcp_dbg("In window full...\n");
-                t->snd_nxt = SEQN(una);              /* XXX prevent out-of-order-packets ! */ /*DLA re-enabled.*/
-                t->snd_retry = SEQN(una);              /* XXX replace by retry pointer? */
-
-                /* Alternative to the line above:  (better performance, but seems to lock anyway with larger buffers)
-                   if (seq_compare(t->snd_nxt, SEQN(una)) > 0)
-                   t->snd_nxt -= f->payload_len;
-                 */
-
+                t->snd_nxt = SEQN(una);              
+                t->snd_retry = SEQN(una);           
                 t->x_mode = PICO_TCP_WINDOW_FULL;
             }
-
             break;
+        }
+
+        /* Check if the advertised window is too small to receive the current frame */
+        if ((uint32_t)(seq_diff + f->payload_len) > (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
+            f = tcp_split_segment(t, f, (uint16_t)(t->recv_wnd << t->recv_wnd_scale));
+            if (!f)
+                break;
+
+            /* Limit sending window to packets in flight (right sizing) */
+            t->cwnd = (uint16_t)t->in_flight;
+            if (t->cwnd < 1)
+                t->cwnd = 1;
         }
 
         tcp_dbg("TCP> DEQUEUED (for output) frame %08x, acks %08x len= %d, remaining frames %d\n", SEQN(f), ACKN(f), f->payload_len, t->tcpq_out.frames);
