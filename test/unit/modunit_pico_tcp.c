@@ -125,9 +125,27 @@ START_TEST(tc_tcp_discard_all_segments)
     fail_if(t->tcpq_in.frames != 0);
 }
 END_TEST
+
 START_TEST(tc_release_until)
 {
-    /* TODO: test this: static int release_until(struct pico_tcp_queue *q, uint32_t seq) */
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
+    struct pico_frame *f;
+    int i = 0, ret;
+    fail_if(!t);
+    for (i = 0; i < 32; i++) {
+        f = pico_frame_alloc(84);
+        fail_if(!f);
+        f->transport_hdr = f->start;
+        f->transport_len = f->buffer_len;
+        ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
+        printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
+        fail_if(pico_enqueue_segment(&t->tcpq_out, f) <= 0);
+    }
+    ret = release_until(&t->tcpq_out, 0xaa00 + f->buffer_len * 30);
+    printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
+    printf("Ret is %d\n", ret);
+    printf("Remaining is %d\n", t->tcpq_out.frames);
+    fail_if(t->tcpq_out.frames != 2);
 }
 END_TEST
 START_TEST(tc_release_all_until)
@@ -147,7 +165,8 @@ START_TEST(tc_pico_tcp_process_out)
 END_TEST
 START_TEST(tc_pico_paws)
 {
-    /* TODO: test this: static uint32_t pico_paws(void) */
+    pico_paws();
+    /* Nothing to test for a random function...*/
 }
 END_TEST
 START_TEST(tc_tcp_add_options)

@@ -146,7 +146,6 @@ struct pico_tcp_queue
     uint32_t max_size;
     uint32_t size;
     uint32_t frames;
-    uint16_t overhead;
 };
 
 static void tcp_discard_all_segments(struct pico_tcp_queue *tq);
@@ -220,7 +219,7 @@ static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
         goto out;
     }
 
-    tq->size += (uint16_t)(payload_len + tq->overhead);
+    tq->size += (uint16_t)payload_len;
     if (payload_len > 0)
         tq->frames++;
 
@@ -240,7 +239,7 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
     PICOTCP_MUTEX_LOCK(Mutex);
     f1 = pico_tree_delete(&tq->pool, f);
     if (f1) {
-        tq->size -= (uint16_t)(payload_len + tq->overhead);
+        tq->size -= (uint16_t)payload_len;
         if (payload_len > 0)
             tq->frames--;
     }
@@ -529,7 +528,7 @@ static uint32_t pico_paws(void)
 {
     static uint32_t _paws = 0;
     _paws = pico_rand();
-    return long_be(_paws); /*XXX: implement paws */
+    return long_be(_paws); 
 }
 
 static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, uint16_t flags, uint16_t optsiz)
@@ -634,15 +633,13 @@ static void tcp_send_ack(struct pico_socket_tcp *t);
 
 static void tcp_set_space(struct pico_socket_tcp *t)
 {
-    uint32_t mtu;
     int32_t space;
     uint32_t shift = 0;
 
-    mtu = t->mss + PICO_SIZE_TCPHDR + PICO_SIZE_TCPOPT_SYN;
     if (t->tcpq_in.max_size == 0) {
         space = 1024 * 1024 * 1024; /* One Gigabyte, for unlimited sockets. */
     } else {
-        space = (int32_t)(((t->tcpq_in.max_size - t->tcpq_in.size) / mtu) * t->mss);
+        space = (int32_t)(t->tcpq_in.max_size - t->tcpq_in.size);
     }
 
     if (space < 0)
@@ -946,8 +943,6 @@ struct pico_socket *pico_tcp_open(void)
     t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_hold.max_size = 2 * PICO_TCP_DEFAULT_MSS;
-    t->tcpq_in.overhead = (sizeof(struct tcp_input_segment) + sizeof(struct pico_tree_node));
-    t->tcpq_out.overhead = t->tcpq_hold.overhead = sizeof(struct pico_frame) + sizeof(struct pico_tree_node);
     /* disable Nagle by default */
     t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
     /* Nagle is enabled by default */
@@ -2129,8 +2124,6 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_hold.max_size = 2 * PICO_TCP_DEFAULT_MSS;
-    new->tcpq_in.overhead = (sizeof(struct tcp_input_segment) + sizeof(struct pico_tree_node));
-    new->tcpq_out.overhead = new->tcpq_hold.overhead = sizeof(struct pico_frame) + sizeof(struct pico_tree_node);
 
     f->sock = &new->sock;
     tcp_parse_options(f);
