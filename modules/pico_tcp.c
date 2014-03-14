@@ -1147,7 +1147,7 @@ static void tcp_send_ack(struct pico_socket_tcp *t)
 static void tcp_send_probe(struct pico_socket_tcp *t)
 {
     /* tcp_dbg("Sending probe\n"); */
-    tcp_send_empty(t, PICO_TCP_PSH, 0);
+    tcp_send_empty(t, PICO_TCP_PSHACK, 1);
 }
 
 static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
