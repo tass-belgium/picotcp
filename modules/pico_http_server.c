@@ -704,7 +704,14 @@ int readRemainingHeader(struct httpClient *client)
                     if(body_len > 0)
                     {
                         client->body = PICO_ZALLOC(body_len + 1u);
-                        memcpy(client->body, line + index, body_len);
+                        if(client->body)
+                        {
+                            memcpy(client->body, line + index, body_len);
+                        }
+                        else
+                        {
+                            return HTTP_RETURN_ERROR;
+                        }
                     }
 
                     break;

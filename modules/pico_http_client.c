@@ -819,9 +819,15 @@ static inline int parseLocAndCont(struct pico_http_client *client, struct pico_h
         }
         /* allocate space for the field */
         header->location = PICO_ZALLOC((*index) + 1u);
-
-        memcpy(header->location, line, (*index));
-        return 1;
+        if(header->location)
+        {
+            memcpy(header->location, line, (*index));
+            return 1;
+        }
+        else
+        {
+            return -1;
+        }
     }    /* Content-Length: */
     else if(isContentLength(line))
     {
@@ -863,22 +869,30 @@ static inline int parseTransferEncoding(struct pico_http_client *client, struct 
 }
 
 
-static inline void parseFields(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
+static inline int parseFields(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
 {
     char c;
+    int ret_val;
 
-    if(!parseLocAndCont(client, header, line, index))
+    ret_val = parseLocAndCont(client, header, line, index);
+    if(ret_val == 0)
     {
         if(!parseTransferEncoding(client, header, line, index))
         {
             while(consumeChar(c) > 0 && c != '\r') nop();
         }
     }
+    else if (ret_val == -1)
+    {
+        return -1;
+    }
 
     /* consume the next one */
     consumeChar(c);
     /* reset the index */
     (*index) = 0u;
+
+    return 0;
 }
 
 static inline int parseRestOfHeader(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
@@ -895,7 +909,8 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
     {
         if(c == ':')
         {
-            parseFields(client, header, line, index);
+            if(parseFields(client, header, line, index) == -1)
+                return HTTP_RETURN_ERROR;
         }
         else if(c == '\r' && !(*index))
         {
