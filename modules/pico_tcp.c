@@ -359,7 +359,7 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
         if (seq_result <= 0)
         {
             head = next_segment(q, cur);
-            tcp_dbg("Releasing %p\n", q);
+            tcp_dbg("Releasing %08x, len: %d\n", SEQN((struct pico_frame *)head), ((struct pico_frame *)head)->payload_len);
             pico_discard_segment(q, cur);
             ret++;
         } else {

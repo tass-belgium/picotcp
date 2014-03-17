@@ -109,6 +109,15 @@ START_TEST(tc_tcp_discard_all_segments)
     fail_if(pico_enqueue_segment(&t->tcpq_out, f) > 0);
     pico_set_mm_failure(1);
     fail_if(pico_enqueue_segment(&t->tcpq_in, is) > 0);
+
+    printf("Testing input segment conversion with faulty mm(1)\n");
+    pico_set_mm_failure(1);
+    is = segment_from_frame(f);
+    fail_if(is);
+    printf("Testing input segment conversion with faulty mm(2)\n");
+    pico_set_mm_failure(2);
+    is = segment_from_frame(f);
+    fail_if(is);
 #endif
 
     /* Discard all segments */
@@ -131,28 +140,105 @@ START_TEST(tc_release_until)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
     struct pico_frame *f;
     int i = 0, ret;
+    struct tcp_input_segment *is;
     fail_if(!t);
+    ret = release_until(&t->tcpq_out, 0);
+    fail_unless(ret == 0);
+
+    /* Test with output queue */
     for (i = 0; i < 32; i++) {
         f = pico_frame_alloc(84);
         fail_if(!f);
         f->transport_hdr = f->start;
         f->transport_len = f->buffer_len;
+        f->payload_len = f->transport_len;
         ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
         printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
         fail_if(pico_enqueue_segment(&t->tcpq_out, f) <= 0);
     }
-/* WIP  
     ret = release_until(&t->tcpq_out, 0xaa00 + f->buffer_len * 30);
     printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
+    fail_if(ret != 30);
     printf("Ret is %d\n", ret);
     printf("Remaining is %d\n", t->tcpq_out.frames);
     fail_if(t->tcpq_out.frames != 2);
-*/
+
+    /* Test with input queue */
+    for (i = 0; i < 32; i++) {
+        f = pico_frame_alloc(84);
+        fail_if(!f);
+        f->transport_hdr = f->start;
+        f->transport_len = f->buffer_len;
+        f->payload_len = f->transport_len;
+        f->payload = f->start;
+        ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
+        is = segment_from_frame(f);
+        fail_if(!is);
+        printf("inserting Input frame seq = %08x len = %d\n", long_be(is->seq), is->payload_len);
+        fail_if(!is);
+        fail_if(pico_enqueue_segment(&t->tcpq_in, is) <= 0);
+    }
+    ret = release_until(&t->tcpq_in, 0xaa00 + f->buffer_len * 30);
+    printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
+    fail_if(ret != 30);
+    printf("Ret is %d\n", ret);
+    printf("Remaining is %d\n", t->tcpq_out.frames);
+    fail_if(t->tcpq_out.frames != 2);
 }
 END_TEST
+
 START_TEST(tc_release_all_until)
 {
-    /* TODO: test this: static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *timestamp) */
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
+    struct pico_frame *f;
+    int i = 0, ret;
+    struct tcp_input_segment *is;
+    pico_time tm;
+    fail_if(!t);
+    ret = release_all_until(&t->tcpq_out, 0, &tm);
+    fail_unless(ret == 0);
+
+    /* Test with output queue */
+    for (i = 0; i < 32; i++) {
+        f = pico_frame_alloc(84);
+        fail_if(!f);
+        f->transport_hdr = f->start;
+        f->transport_len = f->buffer_len;
+        f->payload_len = f->transport_len;
+        ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
+        printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
+        fail_if(pico_enqueue_segment(&t->tcpq_out, f) <= 0);
+    }
+    ret = release_all_until(&t->tcpq_out, 0xaa00 + f->buffer_len * 30, &tm);
+    printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
+    fail_if(ret != 30);
+    printf("Ret is %d\n", ret);
+    printf("Remaining is %d\n", t->tcpq_out.frames);
+    fail_if(t->tcpq_out.frames != 2);
+
+    /* Test with input queue */
+    for (i = 0; i < 32; i++) {
+        f = pico_frame_alloc(84);
+        fail_if(!f);
+        f->transport_hdr = f->start;
+        f->transport_len = f->buffer_len;
+        f->payload_len = f->transport_len;
+        f->payload = f->start;
+        ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
+        is = segment_from_frame(f);
+        fail_if(!is);
+        printf("inserting Input frame seq = %08x len = %d\n", long_be(is->seq), is->payload_len);
+        fail_if(!is);
+        fail_if(pico_enqueue_segment(&t->tcpq_in, is) <= 0);
+    }
+    ret = release_all_until(&t->tcpq_in, 0xaa00 + f->buffer_len * 30, &tm);
+    printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
+    fail_if(ret != 30);
+    printf("Ret is %d\n", ret);
+    printf("Remaining is %d\n", t->tcpq_out.frames);
+    fail_if(t->tcpq_out.frames != 2);
+
+
 }
 END_TEST
 START_TEST(tc_tcp_send_fin)
