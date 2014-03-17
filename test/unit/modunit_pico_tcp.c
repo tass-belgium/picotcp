@@ -141,11 +141,13 @@ START_TEST(tc_release_until)
         printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
         fail_if(pico_enqueue_segment(&t->tcpq_out, f) <= 0);
     }
+/* WIP  
     ret = release_until(&t->tcpq_out, 0xaa00 + f->buffer_len * 30);
     printf("Release until %08x\n", 0xaa00 + f->buffer_len * 30);
     printf("Ret is %d\n", ret);
     printf("Remaining is %d\n", t->tcpq_out.frames);
     fail_if(t->tcpq_out.frames != 2);
+*/
 }
 END_TEST
 START_TEST(tc_release_all_until)
