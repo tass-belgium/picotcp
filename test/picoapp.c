@@ -967,26 +967,35 @@ void app_udpdnsclient(char *arg)
     struct pico_ip4 nameserver;
     char *dname, *daddr;
     char *nxt;
+    char *ipver;
+    int v = 4;
     uint8_t *getaddr_id, *getname_id, *getaddr6_id, *getname6_id;
 
     nxt = cpy_arg(&dname, arg);
     if (!dname) {
-        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
         exit(255);
     }
 
     if (nxt) {
         nxt = cpy_arg(&daddr, nxt);
         if (!daddr) {
-            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
             fprintf(stderr, " missing dest_ip\n");
             exit(255);
         }
     } else {
-        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
         fprintf(stderr, " missing dest_ip\n");
         exit(255);
     }
+
+    nxt = cpy_arg(&ipver, nxt);
+    if (!ipver || strcmp("ipv6",ipver) != 0)
+        v = 4;
+    else
+        v = 6;
+    
 
     printf("UDP DNS client started.\n");
 
@@ -1006,17 +1015,20 @@ void app_udpdnsclient(char *arg)
     pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
     pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
     if (!IPV6_MODE) {
-        /*
+        if (v == 4) {
+            printf("Mode: IPv4\n");
             getaddr_id = calloc(1, sizeof(uint8_t));
-           *getaddr_id = 1;
+            *getaddr_id = 1;
             printf(">>>>> DNS GET ADDR OF %s\n", dname);
             pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
-
+    
             getname_id = calloc(1, sizeof(uint8_t));
-           *getname_id = 2;
+            *getname_id = 2;
             printf(">>>>> DNS GET NAME OF %s\n", daddr);
             pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
-         */
+            return;
+        }
+        printf("Mode: IPv6\n");
 
 #ifdef PICO_SUPPORT_IPV6
         getaddr6_id = calloc(1, sizeof(uint8_t));
