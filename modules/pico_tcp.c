@@ -202,8 +202,8 @@ static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
 
     if (payload_len <= 0) {
         tcp_dbg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TRIED TO ENQUEUE INVALID SEGMENT!\n");
-        /* abort(); */
-        return -1;
+        ret = -2; /* Fail harder */
+        goto out;
     }
 
     PICOTCP_MUTEX_LOCK(Mutex);
@@ -2567,7 +2567,7 @@ static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pi
     tcp_add_options_frame(t, f2);
     
     /* Get rid of the full frame */
-    pico_frame_discard(f);
+    pico_discard_segment(&t->tcpq_out, f);
 
     /* Enqueue f2 for later send... */
     pico_enqueue_segment(&t->tcpq_out, f2);
