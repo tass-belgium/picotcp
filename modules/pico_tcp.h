@@ -58,11 +58,11 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 #define PICO_TCPOPTLEN_TIMESTAMP  10u
 
 /* TCP flags */
-#define PICO_TCP_FIN 0x01
-#define PICO_TCP_SYN 0x02
-#define PICO_TCP_RST 0x04
-#define PICO_TCP_PSH 0x08
-#define PICO_TCP_ACK 0x10
+#define PICO_TCP_FIN 0x01u
+#define PICO_TCP_SYN 0x02u
+#define PICO_TCP_RST 0x04u
+#define PICO_TCP_PSH 0x08u
+#define PICO_TCP_ACK 0x10u
 #define PICO_TCP_URG 0x20u
 #define PICO_TCP_ECN 0x40u
 #define PICO_TCP_CWR 0x80u

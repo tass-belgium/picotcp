@@ -92,7 +92,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
             do {
                 /* privacy extension + unset universal/local and individual/group bit */
                 len = pico_rand();
-                linklocal.addr[8]  = (uint8_t)((len & 0xff) & (uint8_t)(~0x03));
+                linklocal.addr[8]  = (uint8_t)((len & 0xffu) & (uint8_t)(~0x03));
                 linklocal.addr[9]  = (uint8_t)(len >> 8);
                 linklocal.addr[10] = (uint8_t)(len >> 16);
                 linklocal.addr[11] = (uint8_t)(len >> 24);

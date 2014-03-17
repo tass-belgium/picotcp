@@ -1075,7 +1075,7 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
     /* set offset in octets */
 #ifdef PICO_SUPPORT_IPFRAG
-    f->frag = short_be((uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u));
+    f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
 #endif
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));

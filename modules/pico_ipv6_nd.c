@@ -828,7 +828,8 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
             }
 
             r->valid = 1;
-            r->invalidation_time = PICO_TIME() + short_be(icmp6_hdr->msg.info.router_adv.life_time);
+            r->invalidation_time = PICO_TIME();
+            r->invalidation_time += short_be(icmp6_hdr->msg.info.router_adv.life_time);
         }
         else { /* time-out entry */
             r->valid = 0;

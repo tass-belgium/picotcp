@@ -41,7 +41,7 @@
 #define PICO_TCP_WINDOW_FULL    0x06
 
 /* check if the Nagle algorithm is enabled on the socket */
-#define IS_NAGLE_ENABLED(s)     (!(!(!(s->opt_flags & (1 << PICO_SOCKET_OPT_TCPNODELAY)))))
+#define IS_NAGLE_ENABLED(s)     (!(!(!(s->opt_flags & (1u << PICO_SOCKET_OPT_TCPNODELAY)))))
 /* check if tcp connection is "idle" according to Nagle (RFC 896) */
 #define IS_TCP_IDLE(t)          ((t->in_flight == 0) && (t->tcpq_out.size == 0))
 /* check if the hold queue contains data (again Nagle) */
@@ -198,7 +198,7 @@ static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
     int32_t ret = -1;
     uint16_t payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
                                       (((struct tcp_input_segment *)f)->payload_len) :
-                                      ((struct pico_frame *)f)->buffer_len);
+                                      (((struct pico_frame *)f)->buffer_len));
 
     if (payload_len <= 0) {
         tcp_dbg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TRIED TO ENQUEUE INVALID SEGMENT!\n");
@@ -235,7 +235,7 @@ static void pico_discard_segment(struct pico_tcp_queue *tq, void *f)
     void *f1;
     uint16_t payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
                                       (((struct tcp_input_segment *)f)->payload_len) :
-                                      ((struct pico_frame *)f)->buffer_len);
+                                      (((struct pico_frame *)f)->buffer_len));
     PICOTCP_MUTEX_LOCK(Mutex);
     f1 = pico_tree_delete(&tq->pool, f);
     if (f1) {
@@ -647,10 +647,10 @@ static void tcp_set_space(struct pico_socket_tcp *t)
         space = 0;
 
     while(space > 0xFFFF) {
-        space >>= 1u;
+        space = (int32_t)((uint32_t)(space >> 1u));
         shift++;
     }
-    if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (space >> 2u))) {
+    if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (int32_t)((uint32_t)space >> 2u))) {
         t->wnd = (uint16_t)space;
         t->wnd_scale = (uint16_t)shift;
 
@@ -981,7 +981,7 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 
         else if (in_frame_off > 0)
         {
-            if (in_frame_off > f->payload_len)
+            if ((uint32_t)in_frame_off > f->payload_len)
                 dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
 
             in_frame_len = f->payload_len - (uint32_t)in_frame_off;
@@ -1450,7 +1450,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-    uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2u));
+    uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
     int ret = 0;
 
     if (payload_len == 0 && (hdr->flags & PICO_TCP_PSH)) {
@@ -1459,9 +1459,9 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     }
 
 
-    if (((hdr->len & 0xf0) >> 2u) <= f->transport_len) {
+    if (((hdr->len & 0xf0u) >> 2u) <= f->transport_len) {
         tcp_parse_options(f);
-        f->payload = f->transport_hdr + ((hdr->len & 0xf0) >> 2u);
+        f->payload = f->transport_hdr + ((hdr->len & 0xf0u) >> 2u);
         f->payload_len = payload_len;
         tcp_dbg("TCP> Received segment. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
 
@@ -1936,7 +1936,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
                 if (nxt && (seq_compare(SEQN(nxt), t->snd_nxt)) > 0)
                     nxt = NULL;
 
-                if (nxt && (seq_compare(SEQN(nxt), SEQN((struct pico_frame *)first_segment(&t->tcpq_out))) > (t->recv_wnd << t->recv_wnd_scale)))
+                if (nxt && (seq_compare(SEQN(nxt), SEQN((struct pico_frame *)first_segment(&t->tcpq_out))) > (int)(t->recv_wnd << t->recv_wnd_scale)))
                     nxt = NULL;
 
                 if(!nxt)
@@ -2453,8 +2453,8 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     uint8_t flags = hdr->flags;
     const struct tcp_action_entry *action = &tcp_fsm[s->state >> 8];
 
-    f->payload = (f->transport_hdr + ((hdr->len & 0xf0) >> 2));
-    f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0) >> 2));
+    f->payload = (f->transport_hdr + ((hdr->len & 0xf0u) >> 2u));
+    f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
 
     tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
     tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
@@ -2597,7 +2597,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
             break;
         }
         /* Check if advertised window is full */
-        if (seq_diff >= (t->recv_wnd << t->recv_wnd_scale)) {
+        if ((uint32_t)seq_diff >= (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
             if (t->x_mode != PICO_TCP_WINDOW_FULL) {
                 tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n", t->recv_wnd << t->recv_wnd_scale, f->payload_len);
                 tcp_dbg("In window full...\n");
