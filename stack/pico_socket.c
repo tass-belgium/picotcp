@@ -1497,7 +1497,7 @@ int pico_socket_listen(struct pico_socket *s, int backlog)
     if (PROTO(s) == PICO_PROTO_TCP)
         pico_socket_alter_state(s, PICO_SOCKET_STATE_TCP_SYN_SENT, 0, PICO_SOCKET_STATE_TCP_LISTEN);
 
-    s->max_backlog = backlog;
+    s->max_backlog = (uint16_t)backlog;
 
     return 0;
 }

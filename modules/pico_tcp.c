@@ -647,10 +647,10 @@ static void tcp_set_space(struct pico_socket_tcp *t)
         space = 0;
 
     while(space > 0xFFFF) {
-        space = (int32_t)((uint32_t)(space >> 1u));
+        space = (int32_t)(((uint32_t)space >> 1u));
         shift++;
     }
-    if ((space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (int32_t)((uint32_t)space >> 2u))) {
+    if (((uint32_t)space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (int32_t)((uint32_t)space >> 2u))) {
         t->wnd = (uint16_t)space;
         t->wnd_scale = (uint16_t)shift;
 
@@ -2168,7 +2168,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *)f->transport_hdr;
 
-    if (ACKN(f) ==  (1 + t->snd_nxt)) {
+    if (ACKN(f) ==  (1u + t->snd_nxt)) {
         /* Get rid of initconn retry */
         if(t->retrans_tmr) {
             pico_timer_cancel(t->retrans_tmr);
@@ -2339,7 +2339,8 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
     } else {              /* all other states */
         /* all reset (RST) segments are validated by checking their SEQ-fields,
            a reset is valid if its sequence number is in the window */
-        if ((long_be(hdr->seq) >= t->rcv_ackd) && (long_be(hdr->seq) <= ((uint32_t)(short_be(hdr->rwnd) << (t->wnd_scale)) + t->rcv_ackd))) {
+        uint32_t this_seq = long_be(hdr->seq);
+        if ((this_seq >= t->rcv_ackd) && (this_seq <= ((uint32_t)(short_be(hdr->rwnd) << (t->wnd_scale)) + t->rcv_ackd))) {
             if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
                 tcp_force_closed(s);
                 pico_err = PICO_ERR_ECONNRESET;
@@ -2702,7 +2703,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
         pico_discard_segment(&t->tcpq_hold, f_temp);
         f_temp = first_segment(&t->tcpq_hold);
     }
-    hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2u | t->jumbo);
+    hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2u | (int8_t)t->jumbo);
 
     tcp_dbg_nagle("NAGLE make - joined %d segments, len %d bytes\n", test, total_payload_len);
 
@@ -2722,7 +2723,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
     hdr->trans.sport = t->sock.local_port;
     hdr->trans.dport = t->sock.remote_port;
     hdr->seq = long_be(t->snd_last + 1);
-    hdr->len = (uint8_t)((f->payload - f->transport_hdr) << 2u | t->jumbo);
+    hdr->len = (uint8_t)((f->payload - f->transport_hdr) << 2u | (int8_t)t->jumbo);
 
     if ((uint32_t)f->payload_len > (uint32_t)(t->tcpq_out.max_size - t->tcpq_out.size))
         t->sock.ev_pending &= (uint16_t)(~PICO_SOCK_EV_WR);
