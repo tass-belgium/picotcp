@@ -249,7 +249,8 @@ static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
 
     r->valid = 1;
     r->neighbor = router;
-    r->invalidation_time = PICO_TIME() + short_be(lifetime);
+    r->invalidation_time = PICO_TIME();
+    r->invalidation_time += short_be(lifetime);
     pico_tree_insert(&NDRouters, r);
     pico_timer_add((uint32_t)(short_be(lifetime) * 1000), &pico_nd_router_timer, r);
     return 1;

@@ -810,8 +810,8 @@ static inline char dns_ptr_ip6_nibble_lo(uint8_t byte)
 
 static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
 {
-    uint8_t nibble = (byte & 0xf0) >> 4;
-    if (nibble < 10)
+    uint8_t nibble = (byte & 0xf0u) >> 4u;
+    if (nibble < 10u)
         return (char)(nibble + '0');
     else
         return (char)(nibble - 0xa + 'a');

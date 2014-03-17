@@ -1162,7 +1162,7 @@ static int rtimrtct(struct igmp_parameters *p)
         return -1;
 
     time_to_run = (uint32_t)(t->start + t->delay - PICO_TIME_MS());
-    if ((p->max_resp_time * 100) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
+    if ((p->max_resp_time * 100u) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
         t->delay = pico_rand() % (p->max_resp_time * 100u);
         pico_igmp_timer_reset(t);
     }
