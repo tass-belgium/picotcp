@@ -1094,7 +1094,7 @@ struct pico_eth *pico_nd_get(struct pico_frame *f)
     return &n->mac;
 }
 
-void pico_nd_init(void)
+void pico_ipv6_nd_init(void)
 {
     /* garbage collect Least Recently Used (LRU) */
     pico_timer_add(PICO_ND_DESTINATION_LRU_TIME * 1000, pico_nd_destination_garbage_collect, NULL);

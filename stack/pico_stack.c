@@ -924,7 +924,13 @@ int pico_stack_init(void)
         return -1;
 
 #if ((defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH))
+    /* Initialize ARP module */
     pico_arp_init();
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+    /* Initialize Neighbor discovery module */
+    pico_ipv6_nd_init();
 #endif
     pico_stack_tick();
     pico_stack_tick();

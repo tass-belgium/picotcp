@@ -19,7 +19,7 @@ struct pico_nd_hostvars {
     pico_time retranstime;
 };
 
-void pico_nd_init(void);
+void pico_ipv6_nd_init(void);
 struct pico_eth *pico_nd_get(struct pico_frame *f);
 int pico_nd_neigh_sol_recv(struct pico_frame *f);
 int pico_nd_neigh_adv_recv(struct pico_frame *f);
