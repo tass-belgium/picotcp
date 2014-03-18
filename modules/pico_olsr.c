@@ -69,14 +69,14 @@ struct olsr_dev_entry
 
 /* Headers */
 
-struct __attribute__((packed)) olsr_link
+PACKED_STRUCT_DEF olsr_link
 {
     uint8_t link_code;
     uint8_t reserved;
     uint16_t link_msg_size;
 };
 
-struct __attribute__((packed)) olsr_neighbor
+PACKED_STRUCT_DEF olsr_neighbor
 {
     uint32_t addr;
     uint8_t lq;
@@ -84,21 +84,21 @@ struct __attribute__((packed)) olsr_neighbor
     uint16_t reserved;
 };
 
-struct __attribute__((packed)) olsr_hmsg_hello
+PACKED_STRUCT_DEF olsr_hmsg_hello
 {
     uint16_t reserved;
     uint8_t htime;
     uint8_t willingness;
 };
 
-struct __attribute__((packed)) olsr_hmsg_tc
+PACKED_STRUCT_DEF olsr_hmsg_tc
 {
     uint16_t ansn;
     uint16_t reserved;
 };
 
 
-struct __attribute__((packed)) olsrmsg
+PACKED_STRUCT_DEF olsrmsg
 {
     uint8_t type;
     uint8_t vtime;
@@ -109,7 +109,7 @@ struct __attribute__((packed)) olsrmsg
     uint16_t seq;
 };
 
-struct __attribute__((packed)) olsrhdr
+PACKED_STRUCT_DEF olsrhdr
 {
     uint16_t len;
     uint16_t seq;

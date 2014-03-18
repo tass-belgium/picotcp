@@ -10,7 +10,7 @@
 #include "pico_ipv6.h"
 
 
-struct __attribute__((packed)) pico_eth_hdr {
+PACKED_STRUCT_DEF pico_eth_hdr {
     uint8_t daddr[6];
     uint8_t saddr[6];
     uint16_t proto;

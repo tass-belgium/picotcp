@@ -24,7 +24,7 @@ struct pico_socket_udp
 
 extern struct pico_protocol pico_proto_udp;
 
-struct __attribute__((packed)) pico_udp_hdr {
+PACKED_STRUCT_DEF pico_udp_hdr {
     struct pico_trans trans;
     uint16_t len;
     uint16_t crc;

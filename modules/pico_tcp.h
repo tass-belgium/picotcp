@@ -13,7 +13,7 @@
 
 extern struct pico_protocol pico_proto_tcp;
 
-struct __attribute__((packed)) pico_tcp_hdr {
+PACKED_STRUCT_DEF pico_tcp_hdr {
     struct pico_trans trans;
     uint32_t seq;
     uint32_t ack;
@@ -24,7 +24,7 @@ struct __attribute__((packed)) pico_tcp_hdr {
     uint16_t urgent;
 };
 
-struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
+PACKED_STRUCT_DEF tcp_pseudo_hdr_ipv4
 {
     struct pico_ip4 src;
     struct pico_ip4 dst;
@@ -74,7 +74,7 @@ struct __attribute__((packed)) tcp_pseudo_hdr_ipv4
 #define PICO_TCP_RSTACK    (PICO_TCP_RST | PICO_TCP_ACK)
 
 
-struct __attribute__((packed)) pico_tcp_option
+PACKED_STRUCT_DEF pico_tcp_option
 {
     uint8_t kind;
     uint8_t len;

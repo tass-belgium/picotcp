@@ -79,14 +79,14 @@
 #define IP_OPTION_ROUTER_ALERT_LEN        (4u)
 #define IGMP_MAX_GROUPS                   (32) /* max 255 */
 
-struct __attribute__((packed)) igmp_message {
+PACKED_STRUCT_DEF igmp_message {
     uint8_t type;
     uint8_t max_resp_time;
     uint16_t crc;
     uint32_t mcast_group;
 };
 
-struct __attribute__((packed)) igmpv3_query {
+PACKED_STRUCT_DEF igmpv3_query {
     uint8_t type;
     uint8_t max_resp_time;
     uint16_t crc;
@@ -97,7 +97,7 @@ struct __attribute__((packed)) igmpv3_query {
     uint32_t source_addr[];
 };
 
-struct __attribute__((packed)) igmpv3_group_record {
+PACKED_STRUCT_DEF igmpv3_group_record {
     uint8_t type;
     uint8_t aux;
     uint16_t sources;
@@ -105,7 +105,7 @@ struct __attribute__((packed)) igmpv3_group_record {
     uint32_t source_addr[];
 };
 
-struct __attribute__((packed)) igmpv3_report {
+PACKED_STRUCT_DEF igmpv3_report {
     uint8_t type;
     uint8_t res0;
     uint16_t crc;

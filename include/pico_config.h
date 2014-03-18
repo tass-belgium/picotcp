@@ -65,5 +65,11 @@
 #define PICO_FREE(x) pico_free(x)
 #endif  /* PICO_SUPPORT_MM */
 
+#ifdef __IAR_SYSTEMS_ICC__
+#   define PACKED_STRUCT_DEF __packed struct
+#else
+#   define PACKED_STRUCT_DEF struct __attribute__((packed))
+#endif
+
 
 #endif

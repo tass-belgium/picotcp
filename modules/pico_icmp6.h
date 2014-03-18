@@ -70,7 +70,7 @@
 
 extern struct pico_protocol pico_proto_icmp6;
 
-struct __attribute__((packed)) pico_icmp6_hdr {
+PACKED_STRUCT_DEF pico_icmp6_hdr {
     uint8_t type;
     uint8_t code;
     uint16_t crc;
@@ -140,7 +140,7 @@ struct __attribute__((packed)) pico_icmp6_hdr {
     } msg;
 };
 
-struct __attribute__((packed)) pico_icmp6_opt_lladdr
+PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
 {
     uint8_t type;
     uint8_t len;
@@ -149,7 +149,7 @@ struct __attribute__((packed)) pico_icmp6_opt_lladdr
     } addr;
 };
 
-struct __attribute__((packed)) pico_icmp6_opt_prefix
+PACKED_STRUCT_DEF pico_icmp6_opt_prefix
 {
     uint8_t type;
     uint8_t len;
@@ -163,7 +163,7 @@ struct __attribute__((packed)) pico_icmp6_opt_prefix
     struct pico_ip6 prefix;
 };
 
-struct __attribute__((packed)) pico_icmp6_opt_mtu
+PACKED_STRUCT_DEF pico_icmp6_opt_mtu
 {
     uint8_t type;
     uint8_t len;
@@ -171,7 +171,7 @@ struct __attribute__((packed)) pico_icmp6_opt_mtu
     uint32_t mtu;
 };
 
-struct __attribute__((packed)) pico_icmp6_opt_redirect
+PACKED_STRUCT_DEF pico_icmp6_opt_redirect
 {
     uint8_t type;
     uint8_t len;
@@ -180,7 +180,7 @@ struct __attribute__((packed)) pico_icmp6_opt_redirect
     uint8_t data[0];
 };
 
-struct __attribute__((packed)) pico_icmp6_opt_na
+PACKED_STRUCT_DEF pico_icmp6_opt_na
 {
     uint8_t type;
     uint8_t len;

@@ -29,7 +29,7 @@
 
 extern struct pico_protocol pico_proto_ipv4;
 
-struct __attribute__((packed)) pico_ipv4_hdr {
+PACKED_STRUCT_DEF pico_ipv4_hdr {
     uint8_t vhl;
     uint8_t tos;
     uint16_t len;
@@ -43,7 +43,7 @@ struct __attribute__((packed)) pico_ipv4_hdr {
     uint8_t options[];
 };
 
-struct __attribute__((packed)) pico_ipv4_pseudo_hdr
+PACKED_STRUCT_DEF pico_ipv4_pseudo_hdr
 {
     struct pico_ip4 src;
     struct pico_ip4 dst;

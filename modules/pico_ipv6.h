@@ -17,7 +17,7 @@
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
 extern struct pico_protocol pico_proto_ipv6;
 
-struct __attribute__((packed)) pico_ipv6_hdr {
+PACKED_STRUCT_DEF pico_ipv6_hdr {
     uint32_t vtf;
     uint16_t len;
     uint8_t nxthdr;
@@ -27,7 +27,7 @@ struct __attribute__((packed)) pico_ipv6_hdr {
     uint8_t extensions[0];
 };
 
-struct __attribute__((packed)) pico_ipv6_pseudo_hdr
+PACKED_STRUCT_DEF pico_ipv6_pseudo_hdr
 {
     struct pico_ip6 src;
     struct pico_ip6 dst;
@@ -45,7 +45,7 @@ struct pico_ipv6_link
     uint8_t isduplicate : 1;
 };
 
-struct __attribute__((packed)) pico_ipv6_exthdr {
+PACKED_STRUCT_DEF pico_ipv6_exthdr {
     uint8_t nxthdr;
 
     union ipv6_ext_u {

@@ -7,6 +7,7 @@
  *********************************************************************/
 #ifndef INCLUDE_PICO_DHCP_COMMON
 #define INCLUDE_PICO_DHCP_COMMON
+#include "pico_config.h"
 #include "pico_addressing.h"
 
 #define PICO_DHCPD_PORT (short_be(67))
@@ -82,7 +83,7 @@
 #define PICO_DHCP_EVENT_LEASE           11
 #define PICO_DHCP_EVENT_RETRANSMIT      12
 
-struct __attribute__((packed)) pico_dhcp_hdr
+PACKED_STRUCT_DEF pico_dhcp_hdr
 {
     uint8_t op;
     uint8_t htype;
@@ -103,7 +104,7 @@ struct __attribute__((packed)) pico_dhcp_hdr
     uint8_t options[0];
 };
 
-struct __attribute__((packed)) pico_dhcp_opt
+PACKED_STRUCT_DEF pico_dhcp_opt
 {
     uint8_t code;
     uint8_t len;
