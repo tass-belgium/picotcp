@@ -60,9 +60,7 @@ void pico_arp_init(void)
     pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
 }
 
-struct
-__attribute__ ((__packed__))
-pico_arp_hdr
+PACKED_STRUCT_DEF pico_arp_hdr
 {
     uint16_t htype;
     uint16_t ptype;
