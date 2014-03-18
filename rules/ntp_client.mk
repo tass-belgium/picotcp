@@ -1,0 +1,2 @@
+OPTIONS+=-DPICO_SUPPORT_NTP_CLIENT
+MOD_OBJ+=$(LIBBASE)modules/pico_ntp_client.o
