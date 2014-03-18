@@ -1472,6 +1472,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 struct tcp_input_segment *input = segment_from_frame(f);
                 if (!input) {
                     pico_err = PICO_ERR_ENOMEM;
+                    return -1;
                 }
 
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
