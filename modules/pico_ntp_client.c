@@ -42,13 +42,13 @@ static uint16_t ntp_port = 123;
 
 struct pico_ip4 inaddr_any = { };
 
-struct __attribute__((packed)) pico_ntp_timestamp
+PACKED_STRUCT_DEF pico_ntp_timestamp
 {
     uint32_t sec;       /* Seconds */
     uint32_t frac;      /* Fraction */
 }
 
-struct __attribute__((packed)) pico_ntp_header
+PACKED_STRUCT_DEF pico_ntp_header
 {
     uint8_t li : 2;     /* Leap indicator */
     uint8_t stat : 6;   /* Status */
@@ -74,7 +74,7 @@ static void pico_ntp_parse(char *buf, int len)
 {
     struct pico_ntp_header * header;
     printf("To parse:%s, length:%d", buf, len);
-    header = (struct pico_ntp_header*) buf; 
+    header = (struct pico_ntp_header*) buf;
 }
 
 /* callback for UDP socket events */
