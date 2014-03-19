@@ -365,4 +365,21 @@ int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *setting)
 
     return 0;
 }
+
+int pico_dhcp_server_destroy(struct pico_device *dev)
+{
+    struct pico_dhcp_server_setting *found, test = {
+        .dev = dev,
+    };
+    found = pico_tree_findKey(&DHCPSettings, &test);
+    if (!found) {
+        pico_err = PICO_ERR_ENOENT;
+        return -1;
+    }
+
+    pico_tree_delete(&DHCPSettings, found);
+    PICO_FREE(found);
+    return 0;
+}
+
 #endif /* PICO_SUPPORT_DHCP */
