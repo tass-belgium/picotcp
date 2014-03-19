@@ -1473,7 +1473,6 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                     /* failed to enqueue, destroy segment */
                     PICO_FREE(input->payload);
                     PICO_FREE(input);
-                    ptm_dbg("Enqueuing FAILED!\n"); 
                     ret = -1;
                 } else {
                     t->rcv_nxt = SEQN(f) + f->payload_len;
@@ -1511,6 +1510,9 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
         /* In either case, ack til recv_nxt. */
         if (((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
             /* tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state); */
+            if (hdr->flags & PICO_TCP_RST)
+                return -1;
+
             tcp_send_ack(t);
         }
         return ret;
