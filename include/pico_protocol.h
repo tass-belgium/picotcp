@@ -81,6 +81,7 @@ struct pico_protocol {
     int (*push)(struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
     int (*process_out)(struct pico_protocol *self, struct pico_frame *p);  /* Send loop. */
     int (*process_in)(struct pico_protocol *self, struct pico_frame *p);  /* Recv loop. */
+    uint16_t (*get_mtu)(struct pico_protocol *self);
 };
 
 int pico_protocols_loop(int loop_score);

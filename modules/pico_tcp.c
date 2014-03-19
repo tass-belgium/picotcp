@@ -1452,13 +1452,6 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
     int ret = 0;
-
-    if (payload_len == 0 && (hdr->flags & PICO_TCP_PSH)) {
-        tcp_send_ack(t);
-        return 0;
-    }
-
-
     if (((hdr->len & 0xf0u) >> 2u) <= f->transport_len) {
         tcp_parse_options(f);
         f->payload = f->transport_hdr + ((hdr->len & 0xf0u) >> 2u);
@@ -1480,17 +1473,18 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                     /* failed to enqueue, destroy segment */
                     PICO_FREE(input->payload);
                     PICO_FREE(input);
+                    ptm_dbg("Enqueuing FAILED!\n"); 
                     ret = -1;
-                }
-
-                t->rcv_nxt = SEQN(f) + f->payload_len;
-                nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-                while(nxt) {
-                    tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
-                    t->rcv_nxt += nxt->payload_len;
+                } else {
+                    t->rcv_nxt = SEQN(f) + f->payload_len;
                     nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+                    while(nxt) {
+                        tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
+                        t->rcv_nxt += nxt->payload_len;
+                        nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+                    }
+                    t->sock.ev_pending |= PICO_SOCK_EV_RD;
                 }
-                t->sock.ev_pending |= PICO_SOCK_EV_RD;
             } else {
                 tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
             }
@@ -1518,10 +1512,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
         if (((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
             /* tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state); */
             tcp_send_ack(t);
-        } else {
-            /* tcp_dbg("SENDACK PREVENTED IN SYNSENT STATE\n"); */
         }
-
         return ret;
     } else {
         tcp_dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", (hdr->len & 0xf0) >> 2, f->transport_len);
@@ -2132,14 +2123,13 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 
 #endif
 
-    /* Set socket limits */
-    new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
-    new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
-    new->tcpq_hold.max_size = 2 * PICO_TCP_DEFAULT_MSS;
 
     f->sock = &new->sock;
     tcp_parse_options(f);
     new->mss = PICO_TCP_DEFAULT_MSS;
+    new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
+    new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
+    new->tcpq_hold.max_size = 2 * PICO_TCP_DEFAULT_MSS;
     new->rcv_nxt = long_be(hdr->seq) + 1;
     new->snd_nxt = long_be(pico_paws());
     new->snd_last = new->snd_nxt;
