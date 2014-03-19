@@ -2252,8 +2252,10 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
             if (s->wakeup) {
                 s->wakeup(PICO_SOCK_EV_CLOSE, s);
             }
-            s->state &= 0x00FFU;
-            s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+            if (s->state & (PICO_SOCKET_STATE_TCP == PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
+                s->state &= 0x00FFU;
+                s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+            }
             /* set SHUT_REMOTE */
             s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
             tcp_dbg("TCP> Close-wait\n");
@@ -2874,7 +2876,6 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
             pico_timer_cancel(t->retrans_tmr);
             t->retrans_tmr = NULL;
         }
-
         if(!checkLocalClosing(sck))
             checkRemoteClosing(sck);
     }
