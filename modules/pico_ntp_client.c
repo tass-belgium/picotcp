@@ -4,6 +4,7 @@
 
     Author: Toon Stegen
  *********************************************************************/
+#include "pico_ntp_client.h"
 #include "pico_config.h"
 #include "pico_stack.h"
 #include "pico_addressing.h"
@@ -31,24 +32,19 @@
 
 #define NTP_VERSION 4
 
-/* Ntp modes */
+/* Ntp mode */
 #define NTP_MODE_CLIENT 3
-#define NTP_MODE_SERVER 4
 
+/* NTP conversion parameters */
+#define NTP_FRAC_TO_PICOSEC (232llu)
+#define NTP_BILLION (1000000000llu)
+#define NTP_UNIX_OFFSET (2208988800llu) /* nr of seconds from 1900 to 1970 */
 
-uint16_t ntp_port = 123;
-
-union pico_address ntp_inaddr_any = {.ip6.addr = {} };
-struct pico_timeval
-{
-    pico_time tv_sec;
-    pico_time tv_msec;
-};
 
 PACKED_STRUCT_DEF pico_ntp_ts
 {
     uint32_t sec;       /* Seconds */
-    int32_t frac;      /* Fraction */
+    uint32_t frac;      /* Fraction */
 };
 
 PACKED_STRUCT_DEF pico_ntp_header
@@ -69,15 +65,30 @@ PACKED_STRUCT_DEF pico_ntp_header
 
 };
 
+struct ntp_server_ns_cookie {
+    uint16_t proto;
+    char *hostname;
+    void (*cb_synced)();
+};
+
+/* global variables */
+static uint16_t ntp_port = 123u;
+static struct pico_timeval server_time;
+static pico_time tick_stamp;
+static union pico_address ntp_inaddr_any = {.ip6.addr = {} };
+
+/*************************************************************************/
+
+/* Converts a ntp time stamp to a pico_timeval struct */
 static struct pico_timeval timestamp_convert(struct pico_ntp_ts *ts)
 {
     struct pico_timeval tv;
-    ntp_dbg("Inside timestamp convert function\n");
-    tv.tv_sec = (pico_time) (long_be(ts->sec) - 0x83AA7E80);   /* nr of seconds from Jan 1, 1900 to Jan 1, 1970 */
-    tv.tv_msec = (pico_time) (long_be(ts->frac)*232/1000000000);  //Temporary inaccurate solution
+    tv.tv_sec = (pico_time) (long_be(ts->sec) - NTP_UNIX_OFFSET);
+    tv.tv_msec = (pico_time) (((uint64_t)long_be(ts->frac)*NTP_FRAC_TO_PICOSEC)/NTP_BILLION);
     return tv;
 }
 
+/* Sends an ntp packet on sock to dst*/
 static void pico_ntp_send(struct pico_socket *sock, union pico_address *dst)
 {
     struct pico_ntp_header header;
@@ -85,22 +96,24 @@ static void pico_ntp_send(struct pico_socket *sock, union pico_address *dst)
     header.li = 0;  /* no leap seconds */
     header.vn = NTP_VERSION;
     header.mode = NTP_MODE_CLIENT;
-    header.stratum = 15;    /* secondary reference with highest stratum */
+    header.stratum = 15u;    /* secondary reference with highest stratum */
 
     pico_socket_sendto(sock, &header, sizeof(header), dst, short_be(ntp_port));
 }
 
-static void pico_ntp_parse(char *buf, int len)
+/* Extracts the current time from a server ntp packet*/
+static void pico_ntp_parse(char *buf, struct ntp_server_ns_cookie *ck)
 {
     struct pico_ntp_header *hp;
-    struct pico_timeval server_time;
-
-    //ntp_dbg("To parse:%s, length:%d\n", buf, len);
     hp = (struct pico_ntp_header*) buf;
     ntp_dbg("Received mode: %u, version: %u, stratum: %u\n",hp->mode, hp->vn, hp->stratum);
-    
     server_time = timestamp_convert(&(hp->trs_ts));
-    ntp_dbg("Server time: %u seconds and %u milisecs since 1970\n",server_time.tv_sec, server_time.tv_msec);
+    ntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
+    tick_stamp = pico_tick;
+
+    /* Call back the user saying the time is synced */
+    ntp_dbg("Calling back user...triiiing...\n");
+    ck->cb_synced();
 }
 
 /* callback for UDP socket events */
@@ -110,7 +123,6 @@ static void pico_ntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     int read = 0;
     uint32_t peer;
     uint16_t port;
-    int len = 1400;
 
     /* process read event, data available */
     if (ev == PICO_SOCK_EV_RD) {
@@ -118,7 +130,7 @@ static void pico_ntp_client_wakeup(uint16_t ev, struct pico_socket *s)
         do {
             read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
         } while(read > 0);
-        pico_ntp_parse(recvbuf, len);
+        pico_ntp_parse(recvbuf, s->priv);
     }
     /* process error event, socket error occured */
     else if(ev == PICO_SOCK_EV_ERR) {
@@ -127,12 +139,6 @@ static void pico_ntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     }
     ntp_dbg("Received data from %08X:%u\n", peer, port);
 }
-
-
-struct ntp_server_ns_cookie {
-    uint16_t proto;
-    char *hostname;
-};
 
 /* used for getting a response from DNS servers */
 static void dnsCallback(char *ip, void *arg)
@@ -148,14 +154,18 @@ static void dnsCallback(char *ip, void *arg)
         return;
     }
 
+#ifdef PICO_SUPPORT_IPV6
     if(ck->proto == PICO_PROTO_IPV6)
     {
-        if (ip) { 
+        if (ip) {
             /* add the ip address to the client, and start a tcp connection socket */
             ntp_dbg("using IPv6 address: %s\n", ip);
             retval = pico_string_to_ipv6(ip, address.ip6.addr);
         }
-    } else {
+    }
+#endif
+    if(ck->proto == PICO_PROTO_IPV4)
+    {
         if(ip) {
             ntp_dbg("using IPv4 address: %s\n", ip);
             retval = pico_string_to_ipv4(ip, &address.ip4.addr);
@@ -166,6 +176,7 @@ static void dnsCallback(char *ip, void *arg)
 
     if (retval >= 0) {
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_ntp_client_wakeup);
+        sock->priv = ck;
         if ((sock) && (pico_socket_bind(sock, &ntp_inaddr_any, &ntp_port) == 0))
             pico_ntp_send(sock, &address);
     }
@@ -173,8 +184,8 @@ static void dnsCallback(char *ip, void *arg)
     PICO_FREE(ck);
 }
 
-
-int pico_ntp_sync(char *ntp_server)
+/* user function to sync the time from a given ntp source */
+int pico_ntp_sync(char *ntp_server, void (*cb_synced)(int status))
 {
     struct ntp_server_ns_cookie *ck;
     struct ntp_server_ns_cookie *ck6;
@@ -197,6 +208,8 @@ int pico_ntp_sync(char *ntp_server)
         return -1;
     }
     strcpy(ck->hostname, ntp_server);
+    ck->cb_synced = cb_synced;
+
 #ifdef PICO_SUPPORT_IPV6
     /* IPv6 query */
     ck6 = PICO_ZALLOC(sizeof(struct ntp_server_ns_cookie));
@@ -212,6 +225,7 @@ int pico_ntp_sync(char *ntp_server)
     }
     strcpy(ck6->hostname, ntp_server);
     ck6->proto = PICO_PROTO_IPV6;
+    ck6->cb_synced = cb_synced;
     ntp_dbg("Resolving AAAA %s\n", ck6->hostname);
     retval6 = pico_dns_client_getaddr6(ntp_server, &dnsCallback, ck6);
 #endif
@@ -221,6 +235,23 @@ int pico_ntp_sync(char *ntp_server)
     if (!retval || !retval6)
         return 0;
     return -1;
+}
+
+/* user function to get the current time */
+int pico_ntp_gettimeofday(struct pico_timeval *tv)
+{
+    int ret = -1;
+    pico_time diff = pico_tick - tick_stamp;
+    pico_time temp = server_time.tv_msec + diff%1000llu;
+    tv->tv_sec = server_time.tv_sec + diff/1000llu;
+    if(temp>1000)
+    {
+        temp %= 1000;
+        tv->tv_sec++;
+    }
+    tv->tv_msec = temp;
+    ntp_dbg("Time of day: %llu seconds and %llu milisecs since 1970\n", tv->tv_sec,  tv->tv_msec);
+    return ret;
 }
 
 #endif /* PICO_SUPPORT_NTP_CLIENT */

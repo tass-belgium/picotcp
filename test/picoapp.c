@@ -2467,10 +2467,22 @@ void app_httpd(char __attribute__((unused)) *arg)
 /* END HTTP server */
 
 #ifdef PICO_SUPPORT_NTP_CLIENT
+
+void ntp_timeout(pico_time __attribute__((unused)) now, void *arg)
+{
+    struct pico_timeval tv;
+    pico_ntp_gettimeofday(&tv);
+}
+
+void cb_synced()
+{
+    pico_timer_add(2000, ntp_timeout, NULL);
+}
+
 void app_ntp(char *servername)
 {
     printf("Starting NTP query towards %s\n", servername);
-    pico_ntp_sync(servername);
+    pico_ntp_sync(servername, &cb_synced);
 }
 #endif
 
