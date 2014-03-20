@@ -95,7 +95,7 @@ static inline void *pico_zalloc(int x)
 #ifdef MEMORY_MEASURE_ADV
     return (void*)(stats->mem);
 #else
-    return (void*) ((uint8_t *)stats) + sizeof(struct mem_chunk_stats);
+    return (void*) (((uint8_t *)stats) + sizeof(struct mem_chunk_stats));
 #endif
 }
 
