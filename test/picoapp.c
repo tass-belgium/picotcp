@@ -19,6 +19,7 @@
 #include "pico_http_server.h"
 #include "pico_http_util.h"
 #include "pico_olsr.h"
+#include "pico_ntp_client.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -2465,6 +2466,14 @@ void app_httpd(char __attribute__((unused)) *arg)
 #endif
 /* END HTTP server */
 
+#ifdef PICO_SUPPORT_NTP_CLIENT
+void app_ntp(char *servername)
+{
+    printf("Starting NTP query towards %s\n", servername);
+    pico_ntp_sync(servername);
+}
+#endif
+
 /* NOOP */
 void app_noop(void)
 {
@@ -2935,6 +2944,10 @@ int main(int argc, char **argv)
                                                                         return 0;
 #else
                                                                         app_httpd(args);
+#endif
+#ifdef PICO_SUPPORT_NTP_CLIENT
+                                                                }else IF_APPNAME("ntp") {
+                                                                    app_ntp(args);
 #endif
                                                                     } else IF_APPNAME("bcast") {
                                                                             struct pico_ip4 any = {
