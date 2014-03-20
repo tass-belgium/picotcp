@@ -123,6 +123,25 @@ uint16_t my_ansn = 0;
 static struct olsr_route_entry  *Local_interfaces = NULL;
 static struct olsr_dev_entry    *Local_devices    = NULL;
 
+static int olsr_print_route_entry(struct olsr_route_entry * entry){
+    char addr[16],gateway[16];
+    pico_ipv4_to_string(addr, entry->destination.addr);
+    if (entry->gateway==NULL){
+       printf("Address=%s;gateway=NULL;metric=%d,time_left=%d",addr,entry->metric,entry->time_left);
+    }else{
+       pico_ipv4_to_string(gateway, entry->gateway->destination.addr);
+       printf("Address=%s;gateway=%s;metric=%d,time_left=%d",addr,gateway,entry->metric,entry->time_left);
+    }
+    printfflush();
+    if (entry->children){
+    printf("\n->Child: ");
+      olsr_print_route_entry(entry->children);
+    }
+    printf("\n");
+    printfflush();
+    return 0;
+}
+
 static struct olsr_dev_entry *olsr_get_deventry(struct pico_device *dev)
 {
     struct olsr_dev_entry *cur = Local_devices;
@@ -480,6 +499,7 @@ static void refresh_routes(void)
 
             local = olsr_get_ethentry(icur->dev);
             if (local) {
+                olsr_print_route_entry(local);
                 local->time_left = (OLSR_HELLO_INTERVAL << 2);
             } else if (lnk) {
                 struct olsr_route_entry *e = PICO_ZALLOC(sizeof (struct olsr_route_entry));
@@ -875,6 +895,8 @@ static void olsr_recv(uint8_t *buffer, uint32_t len)
             e->lq = 0xFF;
             e->nlq = 0xFF;
             olsr_route_add(e);
+            printf("Adding :");
+            olsr_print_route_entry(e); 
             parsed += short_be(msg->size);
             continue;
         }
