@@ -29,9 +29,6 @@ DHCP_SERVER?=1
 DNS_CLIENT?=1
 IPFILTER?=1
 CRC?=0
-HTTP_CLIENT?=1
-HTTP_SERVER?=1
-ZMQ?=1
 OLSR?=1
 SLAACV4?=1
 MEMORY_MANAGER?=0
@@ -197,12 +194,6 @@ endif
 ifneq ($(CRC),0)
   include rules/crc.mk
 endif
-ifneq ($(HTTP_SERVER),0)
-  include rules/httpServer.mk
-endif
-ifneq ($(HTTP_CLIENT),0)
-  include rules/httpClient.mk
-endif
 ifneq ($(OLSR),0)
   include rules/olsr.mk
 endif
@@ -243,13 +234,6 @@ test: posix $(TEST_ELF) $(TEST_OBJ)
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
 	
-TEST_HTTPD_ELF= test/examples/test_http_server.elf
-
-test_httpd: posix $(TEST_HTTPD_ELF) $(TEST_OBJ)
-	@mkdir -p $(PREFIX)/test/
-	@rm test/examples/*.o
-	@mv test/examples/*.elf $(PREFIX)/test
-
 tst: test
 
 lib: mod core
