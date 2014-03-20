@@ -2237,6 +2237,8 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     if (f->flags & PICO_TCP_ACK)
         tcp_ack(s, f);
 
+    tcp_dbg("called close_wait, in state %08x\n", s->state);
+
     if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
         /* received FIN, increase ACK nr */
         t->rcv_nxt = long_be(hdr->seq) + 1;
@@ -2261,8 +2263,11 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
      * did not put us in LAST_ACK state before sending the ACK: i.e. if 
      * pico_socket_close() has been called in the socket callback, we don't need to send
      * an ACK here. 
+     *
      */
-    if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) {
+    if ( ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) || 
+        ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) )
+    {
         tcp_dbg("In closewait: Sending ack! (state is %08x)\n", s->state);
         tcp_send_ack(t);
     }
