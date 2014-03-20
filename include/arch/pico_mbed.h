@@ -41,7 +41,7 @@
 
 extern int freeStack;
 #define STACK_TOTAL_WORDS   1000u
-#define STACK_PATTERN       (0xC0CAC01A)
+#define STACK_PATTERN       (0xC0CAC01Au)
 
 void stack_fill_pattern(void *ptr);
 void stack_count_free_words(void *ptr);
@@ -57,8 +57,10 @@ extern uint32_t max_mem;
 extern uint32_t cur_mem;
 
 struct mem_chunk_stats {
+#ifdef MEMORY_MEASURE_ADV
     uint32_t signature;
     void *mem;
+#endif
     uint32_t size;
 };
 
@@ -69,8 +71,10 @@ static inline void *pico_zalloc(int x)
         return NULL;
 
     stats = (struct mem_chunk_stats *)calloc(x + sizeof(struct mem_chunk_stats), 1);
+#ifdef MEMORY_MEASURE_ADV
     stats->signature = 0xdeadbeef;
     stats->mem = ((uint8_t *)stats) + sizeof(struct mem_chunk_stats);
+#endif
     stats->size = x;
 
     /* Intended for Mr. Jenkins endurance test loggings */
@@ -88,7 +92,11 @@ static inline void *pico_zalloc(int x)
         /*      printf("max mem: %lu\n", max_mem); */
     }
 
+#ifdef MEMORY_MEASURE_ADV
     return (void*)(stats->mem);
+#else
+    return (void*) ((uint8_t *)stats) + sizeof(struct mem_chunk_stats);
+#endif
 }
 
 static inline void pico_free(void *x)
@@ -96,11 +104,13 @@ static inline void pico_free(void *x)
     struct mem_chunk_stats *stats = (struct mem_chunk_stats *) ((uint8_t *)x - sizeof(struct mem_chunk_stats));
 
     #ifdef JENKINS_DEBUG
+    #ifdef MEMORY_MEASURE_ADV
     if ((stats->signature != 0xdeadbeef) || (x != stats->mem)) {
         jenkins_dbg(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
         while(1) ;
         ;
     }
+    #endif
 
     #endif
 
