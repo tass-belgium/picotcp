@@ -9,6 +9,8 @@ LIBNAME:="libpicotcp.a"
 
 PREFIX?=./build
 DEBUG?=1
+PROFILE?=0
+PERF?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
@@ -46,9 +48,18 @@ CFLAGS+= -Wcast-align
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
-else
-  CFLAGS+=-Os
+else 
+    ifeq ($(PERF), 1)
+        CFLAGS+=-O3
+    else
+        CFLAGS+=-Os
+    endif
 endif
+
+ifeq ($(PROFILE),1)
+  CFLAGS+=-pg
+endif
+
 
 ifneq ($(ENDIAN),little)
   CFLAGS+=-DPICO_BIGENDIAN
