@@ -29,7 +29,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
-NTP_CLIENT?=1
+SNTP_CLIENT?=1
 IPFILTER?=1
 CRC?=0
 OLSR?=1
@@ -221,8 +221,8 @@ endif
 ifneq ($(MEMORY_MANAGER_PROFILING),0)
   OPTIONS+=-DPICO_SUPPORT_MM_PROFILING
 endif
-ifneq ($(NTP_CLIENT),0)
-  include rules/ntp_client.mk
+ifneq ($(SNTP_CLIENT),0)
+  include rules/sntp_client.mk
 endif
 all: mod core lib
 

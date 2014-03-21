@@ -16,7 +16,7 @@
 #include "pico_dhcp_server.h"
 #include "pico_ipfilter.h"
 #include "pico_olsr.h"
-#include "pico_ntp_client.h"
+#include "pico_sntp_client.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -1978,29 +1978,29 @@ out:
 #endif
 /*** END DHCP Client ***/
 
-#ifdef PICO_SUPPORT_NTP_CLIENT
+#ifdef PICO_SUPPORT_SNTP_CLIENT
 
-void ntp_timeout(pico_time __attribute__((unused)) now, void *arg)
+void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
 {
     struct pico_timeval tv;
-    pico_ntp_gettimeofday(&tv);
+    pico_sntp_gettimeofday(&tv);
 }
 
 void cb_synced()
 {
-    pico_timer_add(2000, ntp_timeout, NULL);
+    pico_timer_add(2000, sntp_timeout, NULL);
 }
 
-void app_ntp(char *servername)
+void app_sntp(char *servername)
 {
-    printf("Starting NTP query towards %s\n", servername);
+    printf("Starting SNTP query towards %s\n", servername);
     struct pico_timeval tv;
-    if(pico_ntp_gettimeofday(&tv)==0)
+    if(pico_sntp_gettimeofday(&tv)==0)
         printf("Wrongly succesfull gettimeofday\n");
     else
         printf("Unsuccesfull gettimeofday (not synced)\n");
 
-    if(pico_ntp_sync(servername, &cb_synced)==0)
+    if(pico_sntp_sync(servername, &cb_synced)==0)
         printf("Succesfull sync!\n");
     else
         printf("Error in  sync\n");
@@ -2462,9 +2462,9 @@ int main(int argc, char **argv)
 #else
                                                             app_dhcp_client(args);
 #endif
-#ifdef PICO_SUPPORT_NTP_CLIENT
-                                                                }else IF_APPNAME("ntp") {
-                                                                    app_ntp(args);
+#ifdef PICO_SUPPORT_SNTP_CLIENT
+                                                                }else IF_APPNAME("sntp") {
+                                                                    app_sntp(args);
 #endif
                                                                     } else IF_APPNAME("bcast") {
                                                                             struct pico_ip4 any = {
