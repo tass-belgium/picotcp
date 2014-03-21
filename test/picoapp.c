@@ -1994,7 +1994,16 @@ void cb_synced()
 void app_ntp(char *servername)
 {
     printf("Starting NTP query towards %s\n", servername);
-    pico_ntp_sync(servername, &cb_synced);
+    struct pico_timeval tv;
+    if(pico_ntp_gettimeofday(&tv)==0)
+        printf("Wrongly succesfull gettimeofday\n");
+    else
+        printf("Unsuccesfull gettimeofday (not synced)\n");
+
+    if(pico_ntp_sync(servername, &cb_synced)==0)
+        printf("Succesfull sync!\n");
+    else
+        printf("Error in  sync\n");
 }
 #endif
 

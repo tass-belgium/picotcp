@@ -74,18 +74,26 @@ struct ntp_server_ns_cookie {
 /* global variables */
 static uint16_t ntp_port = 123u;
 static struct pico_timeval server_time;
-static pico_time tick_stamp;
+static pico_time tick_stamp = 0ull;
 static union pico_address ntp_inaddr_any = {.ip6.addr = {} };
 
 /*************************************************************************/
 
 /* Converts a ntp time stamp to a pico_timeval struct */
-static struct pico_timeval timestamp_convert(struct pico_ntp_ts *ts)
+static int timestamp_convert(struct pico_ntp_ts *ts, struct pico_timeval *tv)
 {
-    struct pico_timeval tv;
-    tv.tv_sec = (pico_time) (long_be(ts->sec) - NTP_UNIX_OFFSET);
-    tv.tv_msec = (pico_time) (((uint64_t)long_be(ts->frac)*NTP_FRAC_TO_PICOSEC)/NTP_BILLION);
-    return tv;
+    if(long_be(ts->sec) < NTP_UNIX_OFFSET)
+    {
+        //TODO set pico_err
+        ntp_dbg("Error: input too low\n");
+        tv->tv_sec = 0;
+        tv->tv_msec = 0;
+        return -1;
+    }
+
+    tv->tv_sec = (pico_time) (long_be(ts->sec) - NTP_UNIX_OFFSET);
+    tv->tv_msec = (pico_time) (((uint64_t)long_be(ts->frac)*NTP_FRAC_TO_PICOSEC)/NTP_BILLION);
+    return 0;
 }
 
 /* Sends an ntp packet on sock to dst*/
@@ -104,10 +112,11 @@ static void pico_ntp_send(struct pico_socket *sock, union pico_address *dst)
 /* Extracts the current time from a server ntp packet*/
 static void pico_ntp_parse(char *buf, struct ntp_server_ns_cookie *ck)
 {
-    struct pico_ntp_header *hp;
-    hp = (struct pico_ntp_header*) buf;
+    int ret = -1;
+    struct pico_ntp_header *hp = (struct pico_ntp_header*) buf;
     ntp_dbg("Received mode: %u, version: %u, stratum: %u\n",hp->mode, hp->vn, hp->stratum);
-    server_time = timestamp_convert(&(hp->trs_ts));
+
+    ret = timestamp_convert(&(hp->trs_ts), &server_time);
     ntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
     tick_stamp = pico_tick;
 
@@ -185,7 +194,7 @@ static void dnsCallback(char *ip, void *arg)
 }
 
 /* user function to sync the time from a given ntp source */
-int pico_ntp_sync(char *ntp_server, void (*cb_synced)(int status))
+int pico_ntp_sync(const char *ntp_server, void (*cb_synced)(int status))
 {
     struct ntp_server_ns_cookie *ck;
     struct ntp_server_ns_cookie *ck6;
@@ -241,6 +250,12 @@ int pico_ntp_sync(char *ntp_server, void (*cb_synced)(int status))
 int pico_ntp_gettimeofday(struct pico_timeval *tv)
 {
     int ret = -1;
+    if (tick_stamp == 0)
+    {
+        //TODO: set pico_err
+        ntp_dbg("Error: Unsynchronised\n");
+        return ret;
+    }
     pico_time diff = pico_tick - tick_stamp;
     pico_time temp = server_time.tv_msec + diff%1000llu;
     tv->tv_sec = server_time.tv_sec + diff/1000llu;
