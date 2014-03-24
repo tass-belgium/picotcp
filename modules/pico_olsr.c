@@ -188,6 +188,7 @@ static struct olsr_route_entry *get_next_hop(struct olsr_route_entry *dst)
 
 static inline void olsr_route_add(struct olsr_route_entry *el)
 {
+    char dest[16],nxdest[16];
     struct olsr_route_entry *nexthop;
 
     my_ansn++;
@@ -199,10 +200,15 @@ static inline void olsr_route_add(struct olsr_route_entry *el)
         el->gateway->children = el;
         printf("added child and shifted !!!!!!\n");
         el->link_type = OLSRLINK_MPR;
+        pico_ipv4_to_string(dest, el->destination.addr);
+        pico_ipv4_to_string(nxdest, nexthop->destination.addr);
         if (nexthop->destination.addr != el->destination.addr) {
+            printf("[OLSR] Adding route to %08s via %08s metric %d..................", dest, nxdest, el->metric);
             /* dbg("[OLSR] Adding route to %08x via %08x metric %d..................", el->destination.addr, nexthop->destination.addr, el->metric); */
             pico_ipv4_route_add(el->destination, HOST_NETMASK, nexthop->destination, el->metric, NULL);
             /* dbg("route added: %d err: %s\n", ret, strerror(pico_err)); */
+        }else{
+            printf("[OLSR] %08s == %08s\n ", dest, nxdest);
         }
     } else if (el->iface) {
         /* neighbor */

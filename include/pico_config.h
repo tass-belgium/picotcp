@@ -67,6 +67,9 @@
 
 #ifdef __IAR_SYSTEMS_ICC__
 #   define PACKED_STRUCT_DEF __packed struct
+#elif defined PLATFORM_TELOSB 
+#   pragma pack (4) 
+#   define PACKED_STRUCT_DEF struct
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #endif
