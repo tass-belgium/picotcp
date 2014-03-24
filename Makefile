@@ -203,9 +203,6 @@ endif
 ifneq ($(HTTP_CLIENT),0)
   include rules/httpClient.mk
 endif
-ifneq ($(ZMQ),0)
-  include rules/zmq.mk
-endif
 ifneq ($(OLSR),0)
   include rules/olsr.mk
 endif
@@ -288,6 +285,9 @@ units: mod core lib $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_seq.elf $(CFLAGS) -I. test/unit/modunit_seq.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_tcp.elf $(CFLAGS) -I. test/unit/modunit_pico_tcp.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_dns_client.elf $(CFLAGS) -I. test/unit/modunit_pico_dns_client.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_dev_loop.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_loop.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

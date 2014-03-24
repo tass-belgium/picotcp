@@ -45,8 +45,8 @@
         }                     \
         memcpy(first, &heap->top[1], sizeof(type));   \
         last = &heap->top[heap->n--];                 \
-        for(i = 1; (i * 2) <= heap->n; i = child) {   \
-            child = 2 * i;                              \
+        for(i = 1; (i * 2u) <= heap->n; i = child) {   \
+            child = 2u * i;                              \
             if ((child != heap->n) &&                   \
                 (heap->top[child + 1]).orderby          \
                 < (heap->top[child]).orderby)           \

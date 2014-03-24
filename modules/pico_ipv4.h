@@ -10,6 +10,7 @@
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_tree.h"
+#include "pico_device.h"
 
 #define PICO_IPV4_INADDR_ANY 0x00000000U
 
@@ -28,8 +29,7 @@
 
 extern struct pico_protocol pico_proto_ipv4;
 
-#pragma pack 4
-struct pico_ipv4_hdr {
+PACKED_STRUCT_DEF pico_ipv4_hdr {
     uint8_t vhl;
     uint8_t tos;
     uint16_t len;
@@ -43,7 +43,7 @@ struct pico_ipv4_hdr {
     uint8_t options[];
 };
 
-struct pico_ipv4_pseudo_hdr
+PACKED_STRUCT_DEF pico_ipv4_pseudo_hdr
 {
     struct pico_ip4 src;
     struct pico_ip4 dst;

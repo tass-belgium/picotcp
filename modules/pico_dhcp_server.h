@@ -25,4 +25,7 @@ struct pico_dhcp_server_setting
 /* required field: IP address of the interface to serve, only IPs of this network will be served. */
 int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *dhcps);
 
+/* To destroy an existing DHCP server configuration, running on a given interface */
+int pico_dhcp_server_destroy(struct pico_device *dev);
+
 #endif /* _INCLUDE_PICO_DHCP_SERVER */

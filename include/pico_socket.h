@@ -50,8 +50,8 @@ struct pico_socket {
     struct pico_socket *backlog;
     struct pico_socket *next;
     struct pico_socket *parent;
-    int max_backlog;
-    uint8_t number_of_pending_conn;
+    uint16_t max_backlog;
+    uint16_t number_of_pending_conn;
 #endif
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTListen;
@@ -86,33 +86,33 @@ struct pico_ip_mreq_source {
     struct pico_ip4 mcast_link_addr;
 };
 
-#define PICO_SOCKET_STATE_UNDEFINED       0x0000
-#define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001
-#define PICO_SOCKET_STATE_SHUT_REMOTE     0x0002
-#define PICO_SOCKET_STATE_BOUND           0x0004
-#define PICO_SOCKET_STATE_CONNECTED       0x0008
-#define PICO_SOCKET_STATE_CLOSING         0x0010
-#define PICO_SOCKET_STATE_CLOSED          0x0020
+#define PICO_SOCKET_STATE_UNDEFINED       0x0000u
+#define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001u
+#define PICO_SOCKET_STATE_SHUT_REMOTE     0x0002u
+#define PICO_SOCKET_STATE_BOUND           0x0004u
+#define PICO_SOCKET_STATE_CONNECTED       0x0008u
+#define PICO_SOCKET_STATE_CLOSING         0x0010u
+#define PICO_SOCKET_STATE_CLOSED          0x0020u
 
-# define PICO_SOCKET_STATE_TCP                0xFF00
-# define PICO_SOCKET_STATE_TCP_UNDEF          0x00FF
-# define PICO_SOCKET_STATE_TCP_CLOSED         0x0100
-# define PICO_SOCKET_STATE_TCP_LISTEN         0x0200
-# define PICO_SOCKET_STATE_TCP_SYN_SENT       0x0300
-# define PICO_SOCKET_STATE_TCP_SYN_RECV       0x0400
-# define PICO_SOCKET_STATE_TCP_ESTABLISHED    0x0500
-# define PICO_SOCKET_STATE_TCP_CLOSE_WAIT     0x0600
-# define PICO_SOCKET_STATE_TCP_LAST_ACK       0x0700
-# define PICO_SOCKET_STATE_TCP_FIN_WAIT1      0x0800
-# define PICO_SOCKET_STATE_TCP_FIN_WAIT2      0x0900
-# define PICO_SOCKET_STATE_TCP_CLOSING        0x0a00
-# define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00
-# define PICO_SOCKET_STATE_TCP_ARRAYSIZ       0x0c
+# define PICO_SOCKET_STATE_TCP                0xFF00u
+# define PICO_SOCKET_STATE_TCP_UNDEF          0x00FFu
+# define PICO_SOCKET_STATE_TCP_CLOSED         0x0100u
+# define PICO_SOCKET_STATE_TCP_LISTEN         0x0200u
+# define PICO_SOCKET_STATE_TCP_SYN_SENT       0x0300u
+# define PICO_SOCKET_STATE_TCP_SYN_RECV       0x0400u
+# define PICO_SOCKET_STATE_TCP_ESTABLISHED    0x0500u
+# define PICO_SOCKET_STATE_TCP_CLOSE_WAIT     0x0600u
+# define PICO_SOCKET_STATE_TCP_LAST_ACK       0x0700u
+# define PICO_SOCKET_STATE_TCP_FIN_WAIT1      0x0800u
+# define PICO_SOCKET_STATE_TCP_FIN_WAIT2      0x0900u
+# define PICO_SOCKET_STATE_TCP_CLOSING        0x0a00u
+# define PICO_SOCKET_STATE_TCP_TIME_WAIT      0x0b00u
+# define PICO_SOCKET_STATE_TCP_ARRAYSIZ       0x0cu
 
 
 /* Socket options */
 # define PICO_TCP_NODELAY                     1
-# define PICO_SOCKET_OPT_TCPNODELAY           0x0000
+# define PICO_SOCKET_OPT_TCPNODELAY           0x0000u
 
 # define PICO_IP_MULTICAST_EXCLUDE            0
 # define PICO_IP_MULTICAST_INCLUDE            1
@@ -138,16 +138,16 @@ struct pico_ip_mreq_source {
 #define PICO_SOCKET_TIMEOUT                   90000u /* 90 seconds */
 #define PICO_SOCKET_BOUND_TIMEOUT             30000u /* 30 seconds */
 
-#define PICO_SOCKET_SHUTDOWN_WRITE 0x01
-#define PICO_SOCKET_SHUTDOWN_READ  0x02
+#define PICO_SOCKET_SHUTDOWN_WRITE 0x01u
+#define PICO_SOCKET_SHUTDOWN_READ  0x02u
 #define TCPSTATE(s) ((s)->state & PICO_SOCKET_STATE_TCP)
 
-#define PICO_SOCK_EV_RD 1
-#define PICO_SOCK_EV_WR 2
-#define PICO_SOCK_EV_CONN 4
-#define PICO_SOCK_EV_CLOSE 8
-#define PICO_SOCK_EV_FIN 0x10
-#define PICO_SOCK_EV_ERR 0x80
+#define PICO_SOCK_EV_RD 1u
+#define PICO_SOCK_EV_WR 2u
+#define PICO_SOCK_EV_CONN 4u
+#define PICO_SOCK_EV_CLOSE 8u
+#define PICO_SOCK_EV_FIN 0x10u
+#define PICO_SOCK_EV_ERR 0x80u
 
 
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s));
@@ -215,7 +215,7 @@ struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port);
 
 #define PICO_SOCKET_SETOPT_EN(socket, index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket, index) (socket->opt_flags &= (uint16_t) ~(1 << index))
-#define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1 << index)) != 0)
+#define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1u << index)) != 0)
 
 
 #endif

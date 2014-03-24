@@ -20,17 +20,17 @@ enum pico_layer {
 
 enum pico_err_e {
     PICO_ERR_NOERR = 0,
-    PICO_ERR_EPERM,
-    PICO_ERR_ENOENT,
+    PICO_ERR_EPERM = 1,
+    PICO_ERR_ENOENT = 2,
     /* ... */
     PICO_ERR_EINTR = 4,
-    PICO_ERR_EIO,
-    PICO_ERR_ENXIO,
+    PICO_ERR_EIO = 5,
+    PICO_ERR_ENXIO = 6,
     /* ... */
     PICO_ERR_EAGAIN = 11,
-    PICO_ERR_ENOMEM,
-    PICO_ERR_EACCESS,
-    PICO_ERR_EFAULT,
+    PICO_ERR_ENOMEM = 12,
+    PICO_ERR_EACCESS = 13,
+    PICO_ERR_EFAULT = 14,
     /* ... */
     PICO_ERR_EBUSY = 16,
     PICO_ERR_EEXIST = 17,
@@ -38,29 +38,28 @@ enum pico_err_e {
     PICO_ERR_EINVAL = 22,
     /* ... */
     PICO_ERR_ENONET = 64,
+    /* ... */
     PICO_ERR_EPROTO = 71,
+    /* ... */
     PICO_ERR_ENOPROTOOPT = 92,
     PICO_ERR_EPROTONOSUPPORT = 93,
-
     /* ... */
     PICO_ERR_EOPNOTSUPP = 95,
     PICO_ERR_EADDRINUSE = 98,
-    PICO_ERR_EADDRNOTAVAIL,
-    PICO_ERR_ENETDOWN,
-    PICO_ERR_ENETUNREACH,
-
+    PICO_ERR_EADDRNOTAVAIL = 99,
+    PICO_ERR_ENETDOWN = 100,
+    PICO_ERR_ENETUNREACH = 101,
     /* ... */
     PICO_ERR_ECONNRESET = 104,
-
     /* ... */
     PICO_ERR_EISCONN = 106,
-    PICO_ERR_ENOTCONN,
-    PICO_ERR_ESHUTDOWN,
+    PICO_ERR_ENOTCONN = 107,
+    PICO_ERR_ESHUTDOWN = 108,
     /* ... */
     PICO_ERR_ETIMEDOUT = 110,
     PICO_ERR_ECONNREFUSED = 111,
-    PICO_ERR_EHOSTDOWN,
-    PICO_ERR_EHOSTUNREACH,
+    PICO_ERR_EHOSTDOWN = 112,
+    PICO_ERR_EHOSTUNREACH = 113,
 };
 
 typedef enum pico_err_e pico_err_t;
@@ -82,6 +81,7 @@ struct pico_protocol {
     int (*push)(struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
     int (*process_out)(struct pico_protocol *self, struct pico_frame *p);  /* Send loop. */
     int (*process_in)(struct pico_protocol *self, struct pico_frame *p);  /* Recv loop. */
+    uint16_t (*get_mtu)(struct pico_protocol *self);
 };
 
 int pico_protocols_loop(int loop_score);

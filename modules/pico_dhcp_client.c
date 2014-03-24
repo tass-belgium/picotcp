@@ -96,7 +96,7 @@ static int dhcp_cookies_cmp(void *ka, void *kb)
     if (a->xid == b->xid)
         return 0;
 
-    return (a->xid < b->xid) ? -1 : 1;
+    return (a->xid < b->xid) ? (-1) : (1);
 }
 PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
 

@@ -18,7 +18,6 @@
 #include "pico_http_client.h"
 #include "pico_http_server.h"
 #include "pico_http_util.h"
-#include "pico_zmq.h"
 #include "pico_olsr.h"
 
 #include <poll.h>
@@ -968,26 +967,35 @@ void app_udpdnsclient(char *arg)
     struct pico_ip4 nameserver;
     char *dname, *daddr;
     char *nxt;
+    char *ipver;
+    int v = 4;
     uint8_t *getaddr_id, *getname_id, *getaddr6_id, *getname6_id;
 
     nxt = cpy_arg(&dname, arg);
     if (!dname) {
-        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
         exit(255);
     }
 
     if (nxt) {
         nxt = cpy_arg(&daddr, nxt);
         if (!daddr) {
-            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
             fprintf(stderr, " missing dest_ip\n");
             exit(255);
         }
     } else {
-        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip\n");
+        fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
         fprintf(stderr, " missing dest_ip\n");
         exit(255);
     }
+
+    nxt = cpy_arg(&ipver, nxt);
+    if (!ipver || strcmp("ipv6",ipver) != 0)
+        v = 4;
+    else
+        v = 6;
+    
 
     printf("UDP DNS client started.\n");
 
@@ -1007,17 +1015,20 @@ void app_udpdnsclient(char *arg)
     pico_string_to_ipv4("8.8.4.4", &nameserver.addr);
     pico_dns_client_nameserver(&nameserver, PICO_DNS_NS_ADD);
     if (!IPV6_MODE) {
-        /*
+        if (v == 4) {
+            printf("Mode: IPv4\n");
             getaddr_id = calloc(1, sizeof(uint8_t));
-           *getaddr_id = 1;
+            *getaddr_id = 1;
             printf(">>>>> DNS GET ADDR OF %s\n", dname);
             pico_dns_client_getaddr(dname, &cb_udpdnsclient_getaddr, getaddr_id);
-
+    
             getname_id = calloc(1, sizeof(uint8_t));
-           *getname_id = 2;
+            *getname_id = 2;
             printf(">>>>> DNS GET NAME OF %s\n", daddr);
             pico_dns_client_getname(daddr, &cb_udpdnsclient_getname, getname_id);
-         */
+            return;
+        }
+        printf("Mode: IPv6\n");
 
 #ifdef PICO_SUPPORT_IPV6
         getaddr6_id = calloc(1, sizeof(uint8_t));
@@ -2454,35 +2465,6 @@ void app_httpd(char __attribute__((unused)) *arg)
 #endif
 /* END HTTP server */
 
-void cb_zeromq_prod(ZMQ __attribute__((unused)) z)
-{
-}
-
-
-/* ZEROMQ PRODUCER */
-void app_zeromq_prod(char __attribute__((unused)) *arg)
-{
-    ZMQ z = zmq_publisher(1207, &cb_zeromq_prod);
-    if (!z) {
-        fprintf(stderr, "Unable to start zeromq producer: %s\n", strerror(pico_err));
-        exit(1);
-    }
-
-    while(1) {
-        pico_time last = 0;
-        pico_time now;
-        char zmsg[] = "HELLO";
-        pico_stack_tick();
-        now = PICO_TIME_MS();
-        if (now > last + 500) {
-            zmq_send(z, zmsg, 5);
-            last = now;
-        }
-
-        usleep(2000);
-    }
-}
-
 /* NOOP */
 void app_noop(void)
 {
@@ -2963,8 +2945,6 @@ int main(int argc, char **argv)
                                                                             pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
                                                                             pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
-                                                                        } else IF_APPNAME("zeromq_prod"){
-                                                                                app_zeromq_prod(args);
                                                                             } else IF_APPNAME("noop") {
                                                                                     app_noop();
                                                                                 } else IF_APPNAME("olsr") {

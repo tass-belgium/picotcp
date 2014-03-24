@@ -79,14 +79,14 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
 static void pico_dns_client_retransmission(pico_time now, void *arg);
 
 /* RFC 1035 section 4. MESSAGES */
-struct __attribute__((packed)) pico_dns_name
+PACKED_STRUCT_DEF pico_dns_name
 {
     char name[0];
 };
 
 /* prefix = header + name pointer
  * flags splitted in 2x uint8 due to endianness */
-struct __attribute__((packed)) pico_dns_prefix
+PACKED_STRUCT_DEF pico_dns_prefix
 {
     uint16_t id;
     uint8_t rd : 1; /* recursion desired  */
@@ -104,13 +104,13 @@ struct __attribute__((packed)) pico_dns_prefix
     struct pico_dns_name domain;
 };
 
-struct __attribute__((packed)) pico_dns_query_suffix
+PACKED_STRUCT_DEF pico_dns_query_suffix
 {
     uint16_t qtype;
     uint16_t qclass;
 };
 
-struct __attribute__((packed)) pico_dns_answer_suffix
+PACKED_STRUCT_DEF pico_dns_answer_suffix
 {
     uint16_t qtype;
     uint16_t qclass;
@@ -810,8 +810,8 @@ static inline char dns_ptr_ip6_nibble_lo(uint8_t byte)
 
 static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
 {
-    uint8_t nibble = (byte & 0xf0) >> 4;
-    if (nibble < 10)
+    uint8_t nibble = (byte & 0xf0u) >> 4u;
+    if (nibble < 10u)
         return (char)(nibble + '0');
     else
         return (char)(nibble - 0xa + 'a');

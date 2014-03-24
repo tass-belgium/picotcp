@@ -249,7 +249,8 @@ static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
 
     r->valid = 1;
     r->neighbor = router;
-    r->invalidation_time = PICO_TIME() + short_be(lifetime);
+    r->invalidation_time = PICO_TIME();
+    r->invalidation_time += short_be(lifetime);
     pico_tree_insert(&NDRouters, r);
     pico_timer_add((uint32_t)(short_be(lifetime) * 1000), &pico_nd_router_timer, r);
     return 1;
@@ -828,7 +829,8 @@ int pico_nd_router_adv_recv(struct pico_frame *f)
             }
 
             r->valid = 1;
-            r->invalidation_time = PICO_TIME() + short_be(icmp6_hdr->msg.info.router_adv.life_time);
+            r->invalidation_time = PICO_TIME();
+            r->invalidation_time += short_be(icmp6_hdr->msg.info.router_adv.life_time);
         }
         else { /* time-out entry */
             r->valid = 0;
@@ -1094,7 +1096,7 @@ struct pico_eth *pico_nd_get(struct pico_frame *f)
     return &n->mac;
 }
 
-void pico_nd_init(void)
+void pico_ipv6_nd_init(void)
 {
     /* garbage collect Least Recently Used (LRU) */
     pico_timer_add(PICO_ND_DESTINATION_LRU_TIME * 1000, pico_nd_destination_garbage_collect, NULL);

@@ -28,8 +28,6 @@
 /* maximum size of a DHCP message */
 #define DHCP_SERVER_MAXMSGSIZE (PICO_IP_MTU - sizeof(struct pico_ipv4_hdr) - sizeof(struct pico_udp_hdr))
 
-#define ip_inrange(x) ((long_be(x) >= long_be(dhcpn->dhcps->pool_start)) && (long_be(x) <= long_be(dhcpn->dhcps->pool_end)))
-
 enum dhcp_server_state {
     PICO_DHCP_STATE_DISCOVER = 0,
     PICO_DHCP_STATE_OFFER,
@@ -47,6 +45,18 @@ struct pico_dhcp_server_negotiation {
     uint8_t bcast;
 };
 
+static inline int ip_address_is_in_dhcp_range(struct pico_dhcp_server_negotiation *n, uint32_t x)
+{
+    uint32_t ip_hostendian = long_be(x);
+    if (ip_hostendian < long_be(n->dhcps->pool_start))
+        return 0;
+
+    if (ip_hostendian > long_be(n->dhcps->pool_end))
+        return 0;
+    return 1;
+}
+
+
 static void pico_dhcpd_wakeup(uint16_t ev, struct pico_socket *s);
 
 static int dhcp_settings_cmp(void *ka, void *kb)
@@ -55,7 +65,7 @@ static int dhcp_settings_cmp(void *ka, void *kb)
     if (a->dev == b->dev)
         return 0;
 
-    return (a->dev < b->dev) ? -1 : 1;
+    return (a->dev < b->dev) ? (-1) : (1);
 }
 PICO_TREE_DECLARE(DHCPSettings, dhcp_settings_cmp);
 
@@ -65,7 +75,7 @@ static int dhcp_negotiations_cmp(void *ka, void *kb)
     if (a->xid == b->xid)
         return 0;
 
-    return (a->xid < b->xid) ? -1 : 1;
+    return (a->xid < b->xid) ? (-1) : (1);
 }
 PICO_TREE_DECLARE(DHCPNegotiations, dhcp_negotiations_cmp);
 
@@ -267,7 +277,7 @@ static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, uint32_t 
     if (!dhcpn)
         dhcpn = pico_dhcp_server_add_negotiation(dev, hdr);
 
-    if (!ip_inrange(dhcpn->ciaddr.addr))
+    if (!ip_address_is_in_dhcp_range(dhcpn, dhcpn->ciaddr.addr))
         return;
 
     do {
@@ -355,4 +365,21 @@ int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *setting)
 
     return 0;
 }
+
+int pico_dhcp_server_destroy(struct pico_device *dev)
+{
+    struct pico_dhcp_server_setting *found, test = {
+        .dev = dev,
+    };
+    found = pico_tree_findKey(&DHCPSettings, &test);
+    if (!found) {
+        pico_err = PICO_ERR_ENOENT;
+        return -1;
+    }
+
+    pico_tree_delete(&DHCPSettings, found);
+    PICO_FREE(found);
+    return 0;
+}
+
 #endif /* PICO_SUPPORT_DHCP */

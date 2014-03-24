@@ -69,6 +69,148 @@ struct pico_http_client
 #define HTTP_READING_CHUNK_VALUE 3
 #define HTTP_READING_CHUNK_TRAIL 4
 
+/* HTTP URI string parsing */
+#define HTTP_PROTO_TOK      "http://"
+#define HTTP_PROTO_LEN      7u
+
+struct pico_http_uri
+{
+    uint8_t protoHttp; /* is the protocol Http ? */
+    char *host;              /* hostname */
+    uint16_t port;       /* port if specified */
+    char *resource;      /* resource , ignoring the other possible parameters */
+};
+
+static int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey)
+{
+
+    uint16_t lastIndex = 0, index;
+
+    if(!uri || !urikey || uri[0] == '/')
+    {
+        pico_err = PICO_ERR_EINVAL;
+        goto error;
+    }
+
+    /* detect protocol => search for  "colon-slash-slash" */
+    if(memcmp(uri, HTTP_PROTO_TOK, HTTP_PROTO_LEN) == 0) /* could be optimized */
+    { /* protocol identified, it is http */
+        urikey->protoHttp = 1;
+        lastIndex = HTTP_PROTO_LEN;
+    }
+    else
+    {
+        if(strstr(uri, "://")) /* different protocol specified */
+        {
+            urikey->protoHttp = 0;
+            goto error;
+        }
+
+        /* no protocol specified, assuming by default it's http */
+        urikey->protoHttp = 1;
+    }
+
+    /* detect hostname */
+    index = lastIndex;
+    while(uri[index] && uri[index] != '/' && uri[index] != ':') index++;
+    if(index == lastIndex)
+    {
+        /* wrong format */
+        urikey->host = urikey->resource = NULL;
+        urikey->port = urikey->protoHttp = 0u;
+        pico_err = PICO_ERR_EINVAL;
+        goto error;
+    }
+    else
+    {
+        /* extract host */
+        urikey->host = (char *)PICO_ZALLOC((uint32_t)(index - lastIndex + 1));
+
+        if(!urikey->host)
+        {
+            /* no memory */
+            pico_err = PICO_ERR_ENOMEM;
+            goto error;
+        }
+
+        memcpy(urikey->host, uri + lastIndex, (size_t)(index - lastIndex));
+    }
+
+    if(!uri[index])
+    {
+        /* nothing specified */
+        urikey->port = 80u;
+        urikey->resource = PICO_ZALLOC(2u);
+        if (!urikey->resource) {
+            /* no memory */
+            pico_err = PICO_ERR_ENOMEM;
+            goto error;
+        }
+
+        urikey->resource[0] = '/';
+        return HTTP_RETURN_OK;
+    }
+    else if(uri[index] == '/')
+    {
+        urikey->port = 80u;
+    }
+    else if(uri[index] == ':')
+    {
+        urikey->port = 0u;
+        index++;
+        while(uri[index] && uri[index] != '/')
+        {
+            /* should check if every component is a digit */
+            urikey->port = (uint16_t)(urikey->port * 10 + (uri[index] - '0'));
+            index++;
+        }
+    }
+
+    /* extract resource */
+    if(!uri[index])
+    {
+        urikey->resource = PICO_ZALLOC(2u);
+        if (!urikey->resource) {
+            /* no memory */
+            pico_err = PICO_ERR_ENOMEM;
+            goto error;
+        }
+
+        urikey->resource[0] = '/';
+    }
+    else
+    {
+        lastIndex = index;
+        while(uri[index] && uri[index] != '?' && uri[index] != '&' && uri[index] != '#') index++;
+        urikey->resource = (char *)PICO_ZALLOC((size_t)(index - lastIndex + 1));
+
+        if(!urikey->resource)
+        {
+            /* no memory */
+            pico_err = PICO_ERR_ENOMEM;
+            goto error;
+        }
+
+        memcpy(urikey->resource, uri + lastIndex, (size_t)(index - lastIndex));
+    }
+
+    return HTTP_RETURN_OK;
+
+error:
+    if(urikey->resource)
+    {
+        PICO_FREE(urikey->resource);
+        urikey->resource = NULL;
+    }
+
+    if(urikey->host)
+    {
+        PICO_FREE(urikey->host);
+        urikey->host = NULL;
+    }
+
+    return HTTP_RETURN_ERROR;
+}
 
 static int compareClients(void *ka, void *kb)
 {
@@ -78,8 +220,8 @@ static int compareClients(void *ka, void *kb)
 PICO_TREE_DECLARE(pico_client_list, compareClients);
 
 /* Local functions */
-int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header);
-int readChunkLine(struct pico_http_client *client);
+static int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header);
+static int readChunkLine(struct pico_http_client *client);
 /*  */
 static inline void processConnErrClose(uint16_t ev, struct pico_http_client *client)
 {
@@ -113,6 +255,10 @@ static inline void waitForHeader(struct pico_http_client *client)
     else if(http_ret == HTTP_RETURN_BUSY)
     {
         client->state = HTTP_READING_HEADER;
+    }
+    else if(http_ret == HTTP_RETURN_NOT_FOUND)
+    {
+        client->wakeup(EV_HTTP_REQ, client->connectionID);
     }
     else
     {
@@ -155,7 +301,8 @@ static inline void treatReadEvent(struct pico_http_client *client)
         client->wakeup(EV_HTTP_BODY, client->connectionID);
     }
 }
-void tcpCallback(uint16_t ev, struct pico_socket *s)
+
+static void tcpCallback(uint16_t ev, struct pico_socket *s)
 {
 
     struct pico_http_client *client = NULL;
@@ -672,9 +819,15 @@ static inline int parseLocAndCont(struct pico_http_client *client, struct pico_h
         }
         /* allocate space for the field */
         header->location = PICO_ZALLOC((*index) + 1u);
-
-        memcpy(header->location, line, (*index));
-        return 1;
+        if(header->location)
+        {
+            memcpy(header->location, line, (*index));
+            return 1;
+        }
+        else
+        {
+            return -1;
+        }
     }    /* Content-Length: */
     else if(isContentLength(line))
     {
@@ -716,22 +869,30 @@ static inline int parseTransferEncoding(struct pico_http_client *client, struct 
 }
 
 
-static inline void parseFields(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
+static inline int parseFields(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
 {
     char c;
+    int ret_val;
 
-    if(!parseLocAndCont(client, header, line, index))
+    ret_val = parseLocAndCont(client, header, line, index);
+    if(ret_val == 0)
     {
         if(!parseTransferEncoding(client, header, line, index))
         {
             while(consumeChar(c) > 0 && c != '\r') nop();
         }
     }
+    else if (ret_val == -1)
+    {
+        return -1;
+    }
 
     /* consume the next one */
     consumeChar(c);
     /* reset the index */
     (*index) = 0u;
+
+    return 0;
 }
 
 static inline int parseRestOfHeader(struct pico_http_client *client, struct pico_http_header *header, char *line, uint32_t *index)
@@ -748,7 +909,8 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
     {
         if(c == ':')
         {
-            parseFields(client, header, line, index);
+            if(parseFields(client, header, line, index) == -1)
+                return HTTP_RETURN_ERROR;
         }
         else if(c == '\r' && !(*index))
         {
@@ -766,7 +928,7 @@ static inline int parseRestOfHeader(struct pico_http_client *client, struct pico
     return HTTP_RETURN_OK;
 }
 
-int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header)
+static int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_header *header)
 {
     char line[HTTP_HEADER_LINE_SIZE];
     uint32_t index = 0;
@@ -788,8 +950,11 @@ int parseHeaderFromServer(struct pico_http_client *client, struct pico_http_head
         header->responseCode = (uint16_t)((line[RESPONSE_INDEX] - '0') * 100 +
                                           (line[RESPONSE_INDEX + 1] - '0') * 10 +
                                           (line[RESPONSE_INDEX + 2] - '0'));
-
-        if(header->responseCode / 100u > 5u)
+        if(header->responseCode == HTTP_NOT_FOUND)
+        {
+            return HTTP_RETURN_NOT_FOUND;
+        }
+        else if(header->responseCode >= HTTP_INTERNAL_SERVER_ERR)
         {
             /* invalid response type */
             header->responseCode = 0;
@@ -839,7 +1004,8 @@ static inline void readChunkValue(struct pico_http_client *client)
     }
     if(c == '\r' || c == ';') client->state = HTTP_READING_CHUNK_TRAIL;
 }
-int readChunkLine(struct pico_http_client *client)
+
+static int readChunkLine(struct pico_http_client *client)
 {
     setClientChunkState(client);
 

@@ -80,9 +80,10 @@
 #define HTTP_PERMISSION_DENIED      550u
 
 /* Returns used  */
-#define HTTP_RETURN_ERROR    -1
-#define HTTP_RETURN_OK              0
-#define HTTP_RETURN_BUSY      1
+#define HTTP_RETURN_ERROR       -1
+#define HTTP_RETURN_OK          0
+#define HTTP_RETURN_BUSY        1
+#define HTTP_RETURN_NOT_FOUND   2
 
 /* HTTP Methods */
 #define HTTP_METHOD_GET     1u
@@ -98,23 +99,10 @@
 #define EV_HTTP_BODY            64u
 #define EV_HTTP_DNS             128u
 
-struct pico_http_uri
-{
-    uint8_t protoHttp; /* is the protocol Http ? */
-    char *host;              /* hostname */
-    uint16_t port;       /* port if specified */
-    char *resource;      /* resource , ignoring the other possible parameters */
-};
 
 /* used for chunks */
 int pico_itoaHex(uint16_t port, char *ptr);
 uint32_t pico_itoa(uint32_t port, char *ptr);
-int8_t pico_processURI(const char *uri, struct pico_http_uri *urikey);
-
-int is_digit(char chr);
-void url_decode(char *dst, const char *src);
-
-/* HTTP Header parsing functions */
-int pico_http_parse_header(char *ptr, char **key, char **value); /* Returns next key and value, modifies buffer with zero terminations */
+void pico_http_url_decode(char *dst, const char *src);
 
 #endif /* PICO_HTTP_UTIL_H_ */

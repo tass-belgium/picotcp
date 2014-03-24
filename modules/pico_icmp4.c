@@ -241,7 +241,7 @@ static void ping_timeout(pico_time now, void *arg)
 static void next_ping(pico_time now, void *arg);
 static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
-    (void)(pico_icmp4_send_echo(cookie));
+    pico_icmp4_send_echo(cookie);
     cookie->timestamp = pico_tick;
     pico_timer_add((uint32_t)cookie->timeout, ping_timeout, cookie);
     if (cookie->seq < (uint16_t)cookie->count)
