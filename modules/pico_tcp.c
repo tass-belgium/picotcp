@@ -1063,7 +1063,7 @@ int pico_tcp_initconn(struct pico_socket *s)
 
     ts->snd_last = ts->snd_nxt;
     ts->cwnd = PICO_TCP_IW;
-    ts->ssthresh = 40;
+    ts->ssthresh = (PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) - ((PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) >> 3);
     syn->sock = s;
     hdr->seq = long_be(ts->snd_nxt);
     hdr->len = (uint8_t)((PICO_SIZE_TCPHDR + opt_len) << 2 | ts->jumbo);
@@ -2138,7 +2138,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     new->snd_nxt = long_be(pico_paws());
     new->snd_last = new->snd_nxt;
     new->cwnd = PICO_TCP_IW;
-    new->ssthresh = 40;
+    new->ssthresh = (PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) - ((PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) >> 3);
     new->recv_wnd = short_be(hdr->rwnd);
     new->jumbo = hdr->len & 0x07;
     s->number_of_pending_conn++;
