@@ -23,8 +23,8 @@
 
 #define TCP_TIME (PICO_TIME_MS())
 
-#define PICO_TCP_RTO_MIN 50
-#define PICO_TCP_RTO_MAX 120000
+#define PICO_TCP_RTO_MIN (150)
+#define PICO_TCP_RTO_MAX (120000)
 #define PICO_TCP_IW          2
 #define PICO_TCP_SYN_TO  1000u
 #define PICO_TCP_ZOMBIE_TO 30000
@@ -1540,6 +1540,15 @@ static uint16_t time_diff(pico_time a, pico_time b)
         return (uint16_t)(b - a);
 }
 
+static inline void rto_set(struct pico_socket_tcp *t, uint32_t rto)
+{
+    if (rto < PICO_TCP_RTO_MIN)
+        rto = PICO_TCP_RTO_MIN;
+    if (rto > PICO_TCP_RTO_MAX)
+        rto = PICO_TCP_RTO_MAX;
+    t->rto = rto;
+}
+
 static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
 
@@ -1555,7 +1564,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
          */
         t->avg_rtt = rtt;
         t->rttvar = rtt >> 1;
-        t->rto = t->avg_rtt + (t->rttvar << 4);
+        rto_set(t, t->avg_rtt + (t->rttvar << 4));
     } else {
         int32_t var = (int32_t)t->avg_rtt - (int32_t)rtt;
         if (var < 0)
@@ -1576,7 +1585,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
         t->avg_rtt >>= 3;
 
         /* Finally, assign a new value for the RTO, as specified in the RFC, with K=4 */
-        t->rto = t->avg_rtt + (t->rttvar << 2);
+        rto_set(t, t->avg_rtt + (t->rttvar << 2));
     }
 
     tcp_dbg(" -----=============== RTT CUR: %u AVG: %u RTTVAR: %u RTO: %u ======================----\n", rtt, t->avg_rtt, t->rttvar, t->rto);
@@ -2646,8 +2655,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         }
     }
     if ((sent > 0 && data_sent > 0)) {
-        if (t->rto < PICO_TCP_RTO_MIN)
-            t->rto = PICO_TCP_RTO_MIN;
+        rto_set(t, t->rto);
     } else {
         /* Nothing to transmit. */
     }
