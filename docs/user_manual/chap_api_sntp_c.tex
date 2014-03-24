@@ -39,7 +39,7 @@ ret = pico_sntp_sync("ntp:ntp.nasa.gov", &callback);
 \subsection{pico$\_$sntp$\_$gettimeofday}
 
 \subsubsection*{Description}
-Function to get the current time.
+Function to get the current time. Be sure to call the pico$\_$sntp$\_$sync function to synchronise BEFORE calling this function.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}

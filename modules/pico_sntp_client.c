@@ -32,7 +32,7 @@
 
 #define SNTP_VERSION 4
 
-/* Ntp mode */
+/* Sntp mode */
 #define SNTP_MODE_CLIENT 3
 
 /* SNTP conversion parameters */
@@ -67,45 +67,55 @@ PACKED_STRUCT_DEF pico_sntp_header
 
 struct sntp_server_ns_cookie {
     uint16_t proto;
+    pico_time stamp;
     char *hostname;
     void (*cb_synced)();
 };
 
 /* global variables */
 static uint16_t sntp_port = 123u;
-static struct pico_timeval server_time;
+static struct pico_timeval server_time = {0};
 static pico_time tick_stamp = 0ull;
 static union pico_address sntp_inaddr_any = {.ip6.addr = {} };
 
 /*************************************************************************/
 
 /* Converts a sntp time stamp to a pico_timeval struct */
-static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv)
+static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, pico_time delay)
 {
     if(long_be(ts->sec) < SNTP_UNIX_OFFSET)
     {
         //TODO set pico_err
         sntp_dbg("Error: input too low\n");
-        tv->tv_sec = 0;
-        tv->tv_msec = 0;
         return -1;
     }
 
-    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET);
+    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET - delay/1000);
     tv->tv_msec = (pico_time) (((uint64_t)long_be(ts->frac)*SNTP_FRAC_TO_PICOSEC)/SNTP_BILLION);
+
+    sntp_dbg("Delay is %llu\n", delay);
+    if(delay%1000 < tv->tv_msec)
+    {
+        tv->tv_msec -= delay%1000;
+    }
+    else
+    {
+        tv->tv_sec--;
+        tv->tv_msec = 1000ull - delay%1000;
+    }
     return 0;
 }
 
 /* Sends an sntp packet on sock to dst*/
 static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
 {
-    struct pico_sntp_header header;
+    struct pico_sntp_header header = {0};
+    struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)sock->priv;
 
-    header.li = 0;  /* no leap seconds */
     header.vn = SNTP_VERSION;
     header.mode = SNTP_MODE_CLIENT;
-    header.stratum = 15u;    /* secondary reference with highest stratum */
 
+    ck->stamp = pico_tick;
     pico_socket_sendto(sock, &header, sizeof(header), dst, short_be(sntp_port));
 }
 
@@ -116,9 +126,10 @@ static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
     struct pico_sntp_header *hp = (struct pico_sntp_header*) buf;
     sntp_dbg("Received mode: %u, version: %u, stratum: %u\n",hp->mode, hp->vn, hp->stratum);
 
-    ret = timestamp_convert(&(hp->trs_ts), &server_time);
-    sntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
     tick_stamp = pico_tick;
+    /* tick_stamp - ck->stamp is the delay between sending and receiving the ntp packet */
+    ret = timestamp_convert(&(hp->trs_ts), &server_time,(tick_stamp - ck->stamp)/2);
+    sntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
 
     /* Call back the user saying the time is synced */
     sntp_dbg("Calling back user...triiiing...\n");
@@ -211,6 +222,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(int status))
         return -1;
     }
     ck->proto = PICO_PROTO_IPV4;
+    ck->stamp = 0ull;
     ck->hostname = PICO_ZALLOC(strlen(sntp_server));
     if (!ck->hostname) {
         pico_err = PICO_ERR_ENOMEM;
@@ -234,6 +246,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(int status))
     }
     strcpy(ck6->hostname, sntp_server);
     ck6->proto = PICO_PROTO_IPV6;
+    ck6->stamp = 0ull;
     ck6->cb_synced = cb_synced;
     sntp_dbg("Resolving AAAA %s\n", ck6->hostname);
     retval6 = pico_dns_client_getaddr6(sntp_server, &dnsCallback, ck6);
