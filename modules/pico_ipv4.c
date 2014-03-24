@@ -1644,9 +1644,6 @@ static int pico_ipv4_forward(struct pico_frame *f)
         return -1;
     }
 
-    if (f->dev == rt->link->dev)
-        return -1;
-
     f->dev = rt->link->dev;
     hdr->ttl = (uint8_t)(hdr->ttl - 1);
     if (hdr->ttl < 1) {
