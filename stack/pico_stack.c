@@ -188,16 +188,6 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
     return ret;
 }
 
-int32_t pico_transport_send(struct pico_frame *f)
-{
-    if (!f || !f->sock || !f->sock->proto) {
-        pico_frame_discard(f);
-        return -1;
-    }
-
-    return f->sock->proto->push(f->sock->net, f);
-}
-
 int32_t pico_network_receive(struct pico_frame *f)
 {
     if (0) {}
@@ -230,24 +220,6 @@ int32_t pico_network_send(struct pico_frame *f)
     }
 
     return f->sock->net->push(f->sock->net, f);
-}
-
-int pico_destination_is_local(struct pico_frame *f)
-{
-    if (0) { }
-
-#ifdef PICO_SUPPORT_IPV4
-    else if (IS_IPV4(f)) {
-        struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
-        if (pico_ipv4_link_find(&hdr->dst))
-            return 1;
-    }
-#endif
-#ifdef PICO_SUPPORT_IPV6
-    else if (IS_IPV6(f)) {
-    }
-#endif
-    return 0;
 }
 
 int pico_source_is_local(struct pico_frame *f)
