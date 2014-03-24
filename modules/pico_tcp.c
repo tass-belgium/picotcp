@@ -1596,14 +1596,6 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
     if (t->x_mode > PICO_TCP_LOOKAHEAD)
         return;
 
-    if (t->cwnd > t->tcpq_out.frames) {
-        tcp_dbg("Limited by app: %d\n", t->cwnd);
-        if (t->sock.wakeup)
-            t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
-
-        return;
-    }
-
     tcp_dbg("Doing congestion control\n");
     if (t->cwnd < t->ssthresh) {
         t->cwnd++;
@@ -1916,6 +1908,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
             tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
             /* tcp_dbg("ACK: %x - QUEUE: %x\n", ACKN(f), SEQN(first_segment(&t->tcpq_out))); */
             if (t->x_mode == PICO_TCP_RECOVER) {              /* Switching mode */
+                t->cwnd = (uint16_t)t->in_flight;
                 t->snd_retry = SEQN((struct pico_frame *)first_segment(&t->tcpq_out));
                 if (t->ssthresh > t->cwnd)
                     t->ssthresh >>= 2;
