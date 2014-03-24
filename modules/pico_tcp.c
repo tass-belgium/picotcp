@@ -23,8 +23,8 @@
 
 #define TCP_TIME (PICO_TIME_MS())
 
-#define PICO_TCP_RTO_MIN 50
-#define PICO_TCP_RTO_MAX 120000
+#define PICO_TCP_RTO_MIN (150)
+#define PICO_TCP_RTO_MAX (120000)
 #define PICO_TCP_IW          2
 #define PICO_TCP_SYN_TO  1000u
 #define PICO_TCP_ZOMBIE_TO 30000
@@ -1063,7 +1063,7 @@ int pico_tcp_initconn(struct pico_socket *s)
 
     ts->snd_last = ts->snd_nxt;
     ts->cwnd = PICO_TCP_IW;
-    ts->ssthresh = 40;
+    ts->ssthresh = (PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) - ((PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) >> 3);
     syn->sock = s;
     hdr->seq = long_be(ts->snd_nxt);
     hdr->len = (uint8_t)((PICO_SIZE_TCPHDR + opt_len) << 2 | ts->jumbo);
@@ -1493,7 +1493,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
                 struct tcp_input_segment *input = segment_from_frame(f);
                 if (!input) {
                     pico_err = PICO_ERR_ENOMEM;
-                    ret = -1;
+                    return -1;
                 }
 
                 if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
@@ -1540,6 +1540,15 @@ static uint16_t time_diff(pico_time a, pico_time b)
         return (uint16_t)(b - a);
 }
 
+static inline void rto_set(struct pico_socket_tcp *t, uint32_t rto)
+{
+    if (rto < PICO_TCP_RTO_MIN)
+        rto = PICO_TCP_RTO_MIN;
+    if (rto > PICO_TCP_RTO_MAX)
+        rto = PICO_TCP_RTO_MAX;
+    t->rto = rto;
+}
+
 static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
 
@@ -1555,7 +1564,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
          */
         t->avg_rtt = rtt;
         t->rttvar = rtt >> 1;
-        t->rto = t->avg_rtt + (t->rttvar << 4);
+        rto_set(t, t->avg_rtt + (t->rttvar << 4));
     } else {
         int32_t var = (int32_t)t->avg_rtt - (int32_t)rtt;
         if (var < 0)
@@ -1576,7 +1585,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
         t->avg_rtt >>= 3;
 
         /* Finally, assign a new value for the RTO, as specified in the RFC, with K=4 */
-        t->rto = t->avg_rtt + (t->rttvar << 2);
+        rto_set(t, t->avg_rtt + (t->rttvar << 2));
     }
 
     tcp_dbg(" -----=============== RTT CUR: %u AVG: %u RTTVAR: %u RTO: %u ======================----\n", rtt, t->avg_rtt, t->rttvar, t->rto);
@@ -1586,14 +1595,6 @@ static void tcp_congestion_control(struct pico_socket_tcp *t)
 {
     if (t->x_mode > PICO_TCP_LOOKAHEAD)
         return;
-
-    if (t->cwnd > t->tcpq_out.frames) {
-        tcp_dbg("Limited by app: %d\n", t->cwnd);
-        if (t->sock.wakeup)
-            t->sock.wakeup(PICO_SOCK_EV_WR, &t->sock);
-
-        return;
-    }
 
     tcp_dbg("Doing congestion control\n");
     if (t->cwnd < t->ssthresh) {
@@ -1907,6 +1908,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
             tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
             /* tcp_dbg("ACK: %x - QUEUE: %x\n", ACKN(f), SEQN(first_segment(&t->tcpq_out))); */
             if (t->x_mode == PICO_TCP_RECOVER) {              /* Switching mode */
+                t->cwnd = (uint16_t)t->in_flight;
                 t->snd_retry = SEQN((struct pico_frame *)first_segment(&t->tcpq_out));
                 if (t->ssthresh > t->cwnd)
                     t->ssthresh >>= 2;
@@ -2136,7 +2138,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     new->snd_nxt = long_be(pico_paws());
     new->snd_last = new->snd_nxt;
     new->cwnd = PICO_TCP_IW;
-    new->ssthresh = 40;
+    new->ssthresh = (PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) - ((PICO_DEFAULT_SOCKETQ / PICO_TCP_DEFAULT_MSS) >> 3);
     new->recv_wnd = short_be(hdr->rwnd);
     new->jumbo = hdr->len & 0x07;
     s->number_of_pending_conn++;
@@ -2230,31 +2232,47 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
 
+
     if (f->payload_len > 0)
         tcp_data_in(s, f);
 
     if (f->flags & PICO_TCP_ACK)
         tcp_ack(s, f);
 
+    tcp_dbg("called close_wait, in state %08x\n", s->state);
+
     if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
         /* received FIN, increase ACK nr */
         t->rcv_nxt = long_be(hdr->seq) + 1;
         if (seq_compare(SEQN(f), t->rcv_processed) == 0) {
-            if (s->wakeup) {
-                s->wakeup(PICO_SOCK_EV_CLOSE, s);
-            }
-            if (s->state & (PICO_SOCKET_STATE_TCP == PICO_SOCKET_STATE_TCP_ESTABLISHED)) {
+            if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) {
+                tcp_dbg("Changing state to CLOSE_WAIT\n");
                 s->state &= 0x00FFU;
                 s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-            }
+            } 
             /* set SHUT_REMOTE */
             s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
             tcp_dbg("TCP> Close-wait\n");
+            if (s->wakeup) {
+                s->wakeup(PICO_SOCK_EV_CLOSE, s);
+            }
         } else {
             t->remote_closed = 1;
         }
     }
-    tcp_send_ack(t);              /* return ACK */
+
+    /* Ensure that the notification given to the socket 
+     * did not put us in LAST_ACK state before sending the ACK: i.e. if 
+     * pico_socket_close() has been called in the socket callback, we don't need to send
+     * an ACK here. 
+     *
+     */
+    if ( ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) || 
+        ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) )
+    {
+        tcp_dbg("In closewait: Sending ack! (state is %08x)\n", s->state);
+        tcp_send_ack(t);
+    }
     return 0;
 }
 
@@ -2630,8 +2648,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         }
     }
     if ((sent > 0 && data_sent > 0)) {
-        if (t->rto < PICO_TCP_RTO_MIN)
-            t->rto = PICO_TCP_RTO_MIN;
+        rto_set(t, t->rto);
     } else {
         /* Nothing to transmit. */
     }
