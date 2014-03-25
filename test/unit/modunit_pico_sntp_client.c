@@ -1,57 +1,163 @@
 #include "pico_sntp_client.h"
-#include "pico_config.h"
-#include "pico_stack.h"
-#include "pico_addressing.h"
-#include "pico_socket.h"
-#include "pico_ipv4.h"
-#include "pico_ipv6.h"
-#include "pico_dns_client.h"
-#include "pico_tree.h"
 #include "modules/pico_sntp_client.c"
 #include "check.h"
 
+/* Mocking functions, variables, ... */
+volatile pico_time pico_tick = 0ull;
+volatile pico_err_t pico_err = 0;
+
+/* Used in dnsCallback */ 
+struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s))
+{
+    static struct pico_socket sock = {0};
+    return &sock;
+}
+
+/* Used in dnsCallback */ 
+int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
+{
+   return 0; 
+}
+
+/* Used in dnsCallback */ 
+int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
+{
+   return 0; 
+}
+
+/* Used in dnsCallback */ 
+int pico_string_to_ipv6(const char *ipstr, uint8_t *ip)
+{
+   return 0; 
+}
+
+/* Used in pico_sntp_client_wakeup */ 
+int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
+{
+
+    return 0;
+}
+
+/* Used in pico_sntp_send */ 
+int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *dst, uint16_t remote_port)
+{
+    return 0;
+}
+
+/* Used in pico_sntp_sync, not tested */ 
+int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg)
+{
+    return 0;
+}
+
+/* Used in pico_sntp_sync, not tested */ 
+int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), void *arg)
+{
+    return 0;
+}
+/* Used in pico_sntp_parse */
+void cb_synced(pico_err_t status)
+{
+    
+}
 
 START_TEST(tc_timestamp_convert)
 {
-   /* TODO: test this: static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv) */
     struct pico_sntp_ts ts;
     struct pico_timeval tv;  
+    pico_time delay = 0ull;
     int ret = 0;
 
-    ts.sec = 0;
-    ts.frac = 0;
-    ret = timestamp_convert(&ts, &tv);
+    /* Input is all zero */
+    ts.sec = long_be(0ul);
+    ts.frac = long_be(0ul);
+    ret = timestamp_convert(&ts, &tv, delay);
     ck_assert(ret == -1);
     ck_assert(tv.tv_sec == 0);
     ck_assert(tv.tv_msec == 0);
-
-    ts.sec = SNTP_UNIX_OFFSET+1395408816ull;
-    ts.frac = 1000000ull;
-    ret = timestamp_convert(&ts, &tv);
-    ck_assert(ret == 0);
-    ck_assert(tv.tv_sec == 0);  //TO CHANGE
-    ck_assert(tv.tv_msec == 0); //TO CHANGE
-}
-END_TEST
-START_TEST(tc_pico_sntp_send)
-{
-   /* TODO: test this: static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst) */
     
+    /* Minimum input*/
+    ts.sec = long_be(SNTP_UNIX_OFFSET+1390000000ul);
+    ts.frac = long_be(4310344ul);     //MIN value: 1msec
+    ret = timestamp_convert(&ts, &tv, delay);
+    ck_assert(ret == 0);
+    ck_assert_int_eq(tv.tv_sec, 1390000000);
+    ck_assert_int_eq(tv.tv_msec, 1);
+
+    /* Intermediate input */
+    ts.sec = long_be(SNTP_UNIX_OFFSET+1390000000ul);
+    ts.frac = long_be(3865470566ul);    //value: 899msec
+    ret = timestamp_convert(&ts, &tv, delay);
+    ck_assert(ret == 0);
+    ck_assert_int_eq(tv.tv_sec, 1390000000);
+    ck_assert_int_eq(tv.tv_msec, 900);
+
+    /* Maximum input */
+    ts.sec = long_be(SNTP_UNIX_OFFSET+1390000000ul);
+    ts.frac = long_be(4294967295ul);    //MAX value: 999msec
+    ret = timestamp_convert(&ts, &tv, delay);
+    ck_assert(ret == 0);
+    ck_assert_int_eq(tv.tv_sec, 1390000001);
+    ck_assert_int_eq(tv.tv_msec, 0);
+
+    /* Intermediate input with delay */
+    ts.sec = long_be(SNTP_UNIX_OFFSET+1390000000ul);
+    ts.frac = long_be(3865470566ul);    //value: 899msec
+    delay = 200ull;
+    ret = timestamp_convert(&ts, &tv, delay);
+    ck_assert(ret == 0);
+    ck_assert_int_eq(tv.tv_sec, 1390000001);
+    ck_assert_int_eq(tv.tv_msec, 100);
 }
 END_TEST
 START_TEST(tc_pico_sntp_parse)
 {
-   /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
+    /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
+    struct sntp_server_ns_cookie ck = {0};
+    struct pico_sntp_header header = {0};
+    
+    ck.stamp = 0ull;
+    ck.cb_synced = cb_synced;
+
+    header.mode = 4;    // server mode
+    header.vn = 4;      // sntp version 4
+    header.stratum = 1; // primary reference
+    header.trs_ts.sec = long_be(SNTP_UNIX_OFFSET+1390000000ul);
+    header.trs_ts.frac = long_be(3865470566ul);    //value: 899msec
+
+    pico_sntp_parse((char *) &header, &ck);
 }
 END_TEST
 START_TEST(tc_pico_sntp_client_wakeup)
 {
-   /* TODO: test this: static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s) */
+    /* TODO: test this: static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s) */
+    uint16_t event = PICO_SOCK_EV_RD;
+    struct pico_socket sock = {0};
+    struct sntp_server_ns_cookie ck = {0};
+    sock.priv = &ck;
+
+    pico_sntp_client_wakeup(event, &sock);
+}
+END_TEST
+START_TEST(tc_pico_sntp_send)
+{
+    /* TODO: test this: static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst) */
+    struct pico_socket sock = {0};
+    union pico_address dst; 
+    struct sntp_server_ns_cookie ck = {0};
+    sock.priv = &ck;
+
+    pico_sntp_send(&sock, &dst);
 }
 END_TEST
 START_TEST(tc_dnsCallback)
 {
-   /* TODO: test this: static void dnsCallback(char *ip, void *arg) */
+    /* TODO: test this: static void dnsCallback(char *ip, void *arg) */
+    char *ip = "Ip address";
+    struct sntp_server_ns_cookie *ck;
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
+
+    dnsCallback(ip, ck);
 }
 END_TEST
 
@@ -60,15 +166,15 @@ Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");             
 
-    TCase *TCase_pico_timeval = tcase_create("Unit test for pico_timeval");
+    TCase *TCase_timestamp_convert = tcase_create("Unit test for pico_timeval");
     TCase *TCase_pico_sntp_send = tcase_create("Unit test for pico_sntp_send");
     TCase *TCase_pico_sntp_parse = tcase_create("Unit test for pico_sntp_parse");
     TCase *TCase_pico_sntp_client_wakeup = tcase_create("Unit test for pico_sntp_client_wakeup");
     TCase *TCase_dnsCallback = tcase_create("Unit test for dnsCallback");
 
 
-    tcase_add_test(TCase_pico_timeval, tc_pico_timeval);
-    suite_add_tcase(s, TCase_pico_timeval);
+    tcase_add_test(TCase_timestamp_convert, tc_timestamp_convert);
+    suite_add_tcase(s, TCase_timestamp_convert);
     tcase_add_test(TCase_pico_sntp_send, tc_pico_sntp_send);
     suite_add_tcase(s, TCase_pico_sntp_send);
     tcase_add_test(TCase_pico_sntp_parse, tc_pico_sntp_parse);

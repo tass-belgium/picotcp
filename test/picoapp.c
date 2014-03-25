@@ -1982,8 +1982,12 @@ out:
 
 void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
 {
-    struct pico_timeval tv;
-    pico_sntp_gettimeofday(&tv);
+    struct pico_timeval ptv;
+    struct timeval tv;
+    pico_sntp_gettimeofday(&ptv);
+    gettimeofday(&tv, NULL);
+    printf("Linux   sec: %u, msec: %u\n", tv.tv_sec, tv.tv_usec/1000);
+    printf("Picotcp sec: %u, msec: %u\n", ptv.tv_sec, ptv.tv_msec);
 }
 
 void cb_synced()
