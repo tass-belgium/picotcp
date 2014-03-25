@@ -105,6 +105,11 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 
     /* Call back the user saying the time is synced */
     sntp_dbg("Calling back user...triiiing...\n");
+    if(ck->cb_synced == NULL){
+        sntp_dbg("User did not provide valid cb_synced!\n");
+        return -1;
+    }
+        
     ck->cb_synced(PICO_ERR_NOERR);  //TODO: implement correct error mechanism
     return ret;
 }
