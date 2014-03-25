@@ -8,6 +8,7 @@
 #define INCLUDE_PICO_SNTP_CLIENT
 
 #include "pico_config.h"
+#include "pico_protocol.h"
 
 struct pico_timeval
 {
