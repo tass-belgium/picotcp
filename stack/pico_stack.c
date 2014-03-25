@@ -564,21 +564,21 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     return ret;
 }
 
-int32_t pico_stack_recv_zerocopy(struct pico_device *dev, void *buf, int len)
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
     struct pico_frame *f;
     int ret;
     if (len <= 0)
         return -1;
 
-    f = pico_frame_alloc_skeleton((uint32_t)len);
+    f = pico_frame_alloc_skeleton(len);
     if (!f)
     {
         dbg("Cannot alloc incoming frame!\n");
         return -1;
     }
     
-    if (pico_frame_skeleton_set_buffer(f, buf) < 0)
+    if (pico_frame_skeleton_set_buffer(f, buffer) < 0)
     {
         dbg("Invalid zero-copy buffer!\n");
         PICO_FREE(f->usage_count);
