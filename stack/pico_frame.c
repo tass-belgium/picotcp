@@ -57,21 +57,26 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 }
 
 
-struct pico_frame *pico_frame_alloc(uint32_t size)
+static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
     if (!p)
         return NULL;
 
-    p->buffer = PICO_ZALLOC(size);
-    if (!p->buffer) {
-        PICO_FREE(p);
-        return NULL;
+    if (!zerocopy) {
+        p->buffer = PICO_ZALLOC(size);
+        if (!p->buffer) {
+            PICO_FREE(p);
+            return NULL;
+        }
+    } else {
+        p->buffer = NULL;
     }
 
     p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     if (!p->usage_count) {
-        PICO_FREE(p->buffer);
+        if (p->buffer)
+            PICO_FREE(p->buffer);
         PICO_FREE(p);
         return NULL;
     }
@@ -88,6 +93,25 @@ struct pico_frame *pico_frame_alloc(uint32_t size)
     dbg("DEBUG MEMORY: %d frames in use.\n", ++n_frames_allocated);
 #endif
     return p;
+}
+
+struct pico_frame *pico_frame_alloc(uint32_t size)
+{
+    return pico_frame_do_alloc(size, 0);
+}
+
+struct pico_frame *pico_frame_alloc_skeleton(uint32_t size)
+{
+   return pico_frame_do_alloc(size, 1); 
+}
+
+int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf)
+{
+    if (!buf)
+        return -1;
+    f->buffer = (uint8_t *) buf;
+    f->start = f->buffer;
+    return 0;
 }
 
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)

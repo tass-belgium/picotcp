@@ -188,16 +188,6 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
     return ret;
 }
 
-int32_t pico_transport_send(struct pico_frame *f)
-{
-    if (!f || !f->sock || !f->sock->proto) {
-        pico_frame_discard(f);
-        return -1;
-    }
-
-    return f->sock->proto->push(f->sock->net, f);
-}
-
 int32_t pico_network_receive(struct pico_frame *f)
 {
     if (0) {}
@@ -230,24 +220,6 @@ int32_t pico_network_send(struct pico_frame *f)
     }
 
     return f->sock->net->push(f->sock->net, f);
-}
-
-int pico_destination_is_local(struct pico_frame *f)
-{
-    if (0) { }
-
-#ifdef PICO_SUPPORT_IPV4
-    else if (IS_IPV4(f)) {
-        struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
-        if (pico_ipv4_link_find(&hdr->dst))
-            return 1;
-    }
-#endif
-#ifdef PICO_SUPPORT_IPV6
-    else if (IS_IPV6(f)) {
-    }
-#endif
-    return 0;
 }
 
 int pico_source_is_local(struct pico_frame *f)
@@ -589,6 +561,35 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
         pico_frame_discard(f);
     }
 
+    return ret;
+}
+
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    struct pico_frame *f;
+    int ret;
+    if (len <= 0)
+        return -1;
+
+    f = pico_frame_alloc_skeleton(len);
+    if (!f)
+    {
+        dbg("Cannot alloc incoming frame!\n");
+        return -1;
+    }
+    
+    if (pico_frame_skeleton_set_buffer(f, buffer) < 0)
+    {
+        dbg("Invalid zero-copy buffer!\n");
+        PICO_FREE(f->usage_count);
+        PICO_FREE(f);
+        return -1;
+    }
+    f->dev = dev;
+    ret = pico_enqueue(dev->q_in, f);
+    if (ret <= 0) {
+        pico_frame_discard(f);
+    }
     return ret;
 }
 

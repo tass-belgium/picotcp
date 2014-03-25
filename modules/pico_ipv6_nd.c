@@ -239,13 +239,13 @@ static void pico_nd_router_timer(pico_time now, void *arg)
         pico_timer_add((r->invalidation_time - PICO_TIME()) * 1000, &pico_nd_router_timer, r);
 }
 
-static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
+static struct pico_router *pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
 {
     struct pico_router *r = NULL;
 
     r = PICO_ZALLOC(sizeof(struct pico_router));
     if (!r)
-        return 0;
+        return NULL;
 
     r->valid = 1;
     r->neighbor = router;
@@ -253,7 +253,7 @@ static int pico_nd_add_router(struct pico_neighbor *router, uint16_t lifetime)
     r->invalidation_time += short_be(lifetime);
     pico_tree_insert(&NDRouters, r);
     pico_timer_add((uint32_t)(short_be(lifetime) * 1000), &pico_nd_router_timer, r);
-    return 1;
+    return r;
 }
 
 static int nd_prefix_compare(void *ka, void *kb)
@@ -482,6 +482,11 @@ static int pico_nd_send_solicitation(struct pico_neighbor *n, struct pico_frame 
 {
     struct pico_frame *p = NULL;
     struct pico_device *dev = NULL;
+
+    if (!n) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
 
     if (f) { /* solicitation triggered by traffic */
         dev = f->dev;
