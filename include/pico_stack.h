@@ -33,8 +33,11 @@ int32_t pico_ethernet_receive(struct pico_frame *f);
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
+ * The zerocopy version will associate the current buffer to the newly created frame.
+ * Warning: the buffer used in the zerocopy version MUST have been allocated using PICO_ZALLOC()
  */
 int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
