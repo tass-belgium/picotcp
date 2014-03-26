@@ -2171,6 +2171,16 @@ static void tcp_set_init_point(struct pico_socket *s)
     t->rcv_processed = t->rcv_nxt;
 }
 
+
+uint16_t pico_tcp_get_socket_mss(struct pico_socket *s)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+    if (t->mss > 0)
+        return (uint16_t)(t->mss + PICO_SIZE_TCPHDR);
+    else
+        return pico_socket_get_mtu(s);
+}
+
 static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;

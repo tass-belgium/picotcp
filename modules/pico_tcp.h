@@ -96,4 +96,5 @@ int pico_tcp_set_bufsize_in(struct pico_socket *s, uint32_t value);
 int pico_tcp_set_bufsize_out(struct pico_socket *s, uint32_t value);
 int pico_tcp_get_bufsize_in(struct pico_socket *s, uint32_t *value);
 int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value);
+uint16_t pico_tcp_get_socket_mss(struct pico_socket *s);
 #endif

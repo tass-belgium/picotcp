@@ -1171,8 +1171,16 @@ uint16_t pico_socket_get_mtu(struct pico_socket *s)
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s)
 {
-    int transport_len = pico_socket_get_mtu(s);
-    int header_offset = pico_socket_sendto_transport_offset(s);
+    int transport_len;
+    int header_offset;
+
+#ifdef PICO_SUPPORT_TCP
+    if (PROTO(s) == PICO_PROTO_TCP) {
+        transport_len = pico_tcp_get_socket_mss(s);
+    } else 
+#endif
+    transport_len = pico_socket_get_mtu(s);
+    header_offset = pico_socket_sendto_transport_offset(s);
     if (header_offset < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
