@@ -167,11 +167,12 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
     }
 }
 
-struct pico_socket *pico_socket_tcp_open(void)
+struct pico_socket *pico_socket_tcp_open(uint16_t family)
 {
     struct pico_socket *s = NULL;
+    (void) family;
 #ifdef PICO_SUPPORT_TCP
-    s = pico_tcp_open();
+    s = pico_tcp_open(family);
     if (!s) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
