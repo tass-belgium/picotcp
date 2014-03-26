@@ -1996,14 +1996,23 @@ void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
 void cb_synced(pico_err_t status)
 {
     if(status == PICO_ERR_ENETDOWN) {
-        printf("Cannot resolve ntp server name\n");
+        printf("SNTP: Cannot resolve ntp server name\n");
         exit(1);
     } else if (status == PICO_ERR_ETIMEDOUT) {
-        printf("Timed out, did not receive ntp packet from server\n");
+        printf("SNTP: Timed out, did not receive ntp packet from server\n");
+        exit(1);
+    } else if (status == PICO_ERR_EINVAL) {
+        printf("SNTP: Conversion error\n");
+        exit(1);
+    } else if (status == PICO_ERR_ENOTCONN) {
+        printf("SNTP: Socket error\n");
+        exit(1);
+    } else if (status == PICO_ERR_NOERR) {
+        pico_timer_add(2000, sntp_timeout, NULL);
+    } else {
+        printf("Invalid status received in cb_synced\n");
         exit(1);
     }
-
-    pico_timer_add(2000, sntp_timeout, NULL);
 }
 
 void app_sntp(char *servername)

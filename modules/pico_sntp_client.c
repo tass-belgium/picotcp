@@ -17,7 +17,7 @@
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
 #define sntp_dbg(...) do {} while(0)
-/* #define sntp_dbg printf */
+/*#define sntp_dbg printf*/
 
 #define SNTP_VERSION 4
 
@@ -97,6 +97,14 @@ static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, p
     return 0;
 }
 
+static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t status)
+{
+    ck->cb_synced(status);
+    sntp_dbg("FREE!\n");
+    PICO_FREE(ck->hostname);
+    PICO_FREE(ck);
+}
+
 /* Extracts the current time from a server sntp packet*/
 static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 {
@@ -109,7 +117,7 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
     ret = timestamp_convert(&(hp->trs_ts), &server_time, (tick_stamp - ck->stamp) / 2);
     if(ret != 0) {
         sntp_dbg("Conversion error!\n");
-        ck->cb_synced(PICO_ERR_EINVAL);
+        pico_sntp_cleanup(ck, PICO_ERR_EINVAL);
         return ret;
     }
 
@@ -118,7 +126,7 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
     /* Call back the user saying the time is synced */
     sntp_dbg("Changed ipv6 state to SYNC\n");
     ck->state = SNTP_SYNC;
-    ck->cb_synced(PICO_ERR_NOERR);
+    pico_sntp_cleanup(ck, PICO_ERR_NOERR);
     return ret;
 }
 
@@ -144,7 +152,7 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     /* process error event, socket error occured */
     else if(ev == PICO_SOCK_EV_ERR) {
         sntp_dbg("Socket Error received. Bailing out.\n");
-        ck->cb_synced(PICO_ERR_ENOTCONN);
+        pico_sntp_cleanup(ck, PICO_ERR_ENOTCONN);
         return;
     }
 
@@ -156,7 +164,7 @@ static void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)arg;
     if(ck->state == SNTP_SENT) {
         sntp_dbg("cb_sync called with error\n");
-        ck->cb_synced(PICO_ERR_ETIMEDOUT);
+        pico_sntp_cleanup(ck, PICO_ERR_ETIMEDOUT);
     }
 
     sntp_dbg("Timer expired! State: %d \n", ck->state);
@@ -208,7 +216,7 @@ static void dnsCallback(char *ip, void *arg)
         } else {
             sntp_dbg("Invalid query response, cannot continue\n");
             retval = -1;
-            ck->cb_synced(PICO_ERR_ENETDOWN);
+            pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }
     }
 
