@@ -12,7 +12,7 @@ int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value);
 int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f);
 void pico_socket_tcp_delete(struct pico_socket *s);
 void pico_socket_tcp_cleanup(struct pico_socket *sock);
-struct pico_socket *pico_socket_tcp_open(void);
+struct pico_socket *pico_socket_tcp_open(uint16_t family);
 int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 void transport_flags_update(struct pico_frame *, struct pico_socket *);
 
@@ -23,7 +23,7 @@ void transport_flags_update(struct pico_frame *, struct pico_socket *);
 #   define IS_NAGLE_ENABLED(s) (0)
 #   define pico_socket_tcp_delete(...) do {} while(0)
 #   define pico_socket_tcp_cleanup(...) do {} while(0)
-#   define pico_socket_tcp_open() (NULL)
+#   define pico_socket_tcp_open(f) (NULL)
 #   define pico_socket_tcp_read(...) (-1)
 #   define transport_flags_update(...) do {} while(0)
 

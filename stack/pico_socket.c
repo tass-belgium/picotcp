@@ -563,7 +563,7 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     return pico_socket_transport_deliver(p, sp, f);
 }
 
-static int pico_socket_set_family(struct pico_socket *s, uint16_t family)
+int pico_socket_set_family(struct pico_socket *s, uint16_t family)
 {
     (void) family;
 
@@ -585,14 +585,14 @@ static int pico_socket_set_family(struct pico_socket *s, uint16_t family)
     return 0;
 }
 
-static struct pico_socket *pico_socket_transport_open(uint16_t proto)
+static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t family)
 {
     struct pico_socket *s = NULL;
     if (proto == PICO_PROTO_UDP)
         s = pico_socket_udp_open();
 
     if (proto == PICO_PROTO_TCP)
-        s = pico_socket_tcp_open();
+        s = pico_socket_tcp_open(family);
 
     return s;
 
@@ -603,7 +603,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 
     struct pico_socket *s = NULL;
 
-    s = pico_socket_transport_open(proto);
+    s = pico_socket_transport_open(proto, net);
 
     if (!s) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
@@ -651,7 +651,7 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 {
     struct pico_socket *s = NULL;
 
-    s = pico_socket_transport_open(facsimile->proto->proto_number);
+    s = pico_socket_transport_open(facsimile->proto->proto_number, facsimile->net->proto_number);
     if (!s) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return NULL;
@@ -1157,7 +1157,7 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 #endif
 }
 
-static int pico_socket_xmit_get_mtu(struct pico_socket *s)
+uint16_t pico_socket_get_mtu(struct pico_socket *s)
 {
     (void)s;
 #ifdef PICO_SUPPORT_IPV6
@@ -1171,8 +1171,16 @@ static int pico_socket_xmit_get_mtu(struct pico_socket *s)
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s)
 {
-    int transport_len = pico_socket_xmit_get_mtu(s);
-    int header_offset = pico_socket_sendto_transport_offset(s);
+    int transport_len;
+    int header_offset;
+
+#ifdef PICO_SUPPORT_TCP
+    if (PROTO(s) == PICO_PROTO_TCP) {
+        transport_len = pico_tcp_get_socket_mss(s);
+    } else 
+#endif
+    transport_len = pico_socket_get_mtu(s);
+    header_offset = pico_socket_sendto_transport_offset(s);
     if (header_offset < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;

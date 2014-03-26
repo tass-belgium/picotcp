@@ -80,7 +80,7 @@ START_TEST(tc_segment_compare)
 END_TEST
 START_TEST(tc_tcp_discard_all_segments)
 {
-    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV4);
     struct pico_frame *f = pico_frame_alloc(40);
     struct tcp_input_segment *is;
     fail_if(!t);
@@ -145,7 +145,7 @@ END_TEST
 
 START_TEST(tc_release_until)
 {
-    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV6);
     struct pico_frame *f;
     int i = 0, ret;
     struct tcp_input_segment *is;
@@ -197,7 +197,7 @@ END_TEST
 
 START_TEST(tc_release_all_until)
 {
-    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open();
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV4);
     struct pico_frame *f;
     int i = 0, ret;
     struct tcp_input_segment *is;

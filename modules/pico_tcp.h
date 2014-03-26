@@ -37,10 +37,6 @@ PACKED_STRUCT_DEF tcp_pseudo_hdr_ipv4
 #define PICO_SIZE_TCPOPT_SYN 20
 #define PICO_SIZE_TCPHDR (uint32_t)(sizeof(struct pico_tcp_hdr))
 
-#define PICO_TCP_DEFAULT_MSS 1444
-
-
-
 /* TCP options */
 #define PICO_TCP_OPTION_END         0x00
 #define PICO_TCPOPTLEN_END        1u
@@ -80,7 +76,7 @@ PACKED_STRUCT_DEF pico_tcp_option
     uint8_t len;
 };
 
-struct pico_socket *pico_tcp_open(void);
+struct pico_socket *pico_tcp_open(uint16_t family);
 uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
@@ -100,4 +96,5 @@ int pico_tcp_set_bufsize_in(struct pico_socket *s, uint32_t value);
 int pico_tcp_set_bufsize_out(struct pico_socket *s, uint32_t value);
 int pico_tcp_get_bufsize_in(struct pico_socket *s, uint32_t *value);
 int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value);
+uint16_t pico_tcp_get_socket_mss(struct pico_socket *s);
 #endif
