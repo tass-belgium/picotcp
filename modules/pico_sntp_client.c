@@ -1,8 +1,8 @@
 /*********************************************************************
-    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-    See LICENSE and COPYING for usage.
+  PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+  See LICENSE and COPYING for usage.
 
-    Author: Toon Stegen
+Author: Toon Stegen
  *********************************************************************/
 #include "pico_sntp_client.h"
 #include "pico_config.h"
@@ -60,10 +60,11 @@ enum state_en
 
 struct sntp_server_ns_cookie
 {
-    enum state_en state;    /* state of the ntp client */
-    uint16_t proto;         /* IPV4 or IPV6 prototype */
-    pico_time stamp;        /* Timestamp of the moment the sntp packet is sent */
-    char *hostname;         /* Hostname of the (s)ntp server*/
+    enum state_en state;        /* state of the ntp client */
+    uint16_t proto;             /* IPV4 or IPV6 prototype */
+    pico_time stamp;            /* Timestamp of the moment the sntp packet is sent */
+    char *hostname;             /* Hostname of the (s)ntp server*/
+    struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user wheter/when the time is synchronised */
 };
 
@@ -99,7 +100,11 @@ static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, p
 
 static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t status)
 {
+    if(!ck)
+        return;
     ck->cb_synced(status);
+    if(ck->sock)
+    ck->sock->priv = NULL;
     sntp_dbg("FREE!\n");
     PICO_FREE(ck->hostname);
     PICO_FREE(ck);
@@ -110,6 +115,12 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 {
     int ret = 0;
     struct pico_sntp_header *hp = (struct pico_sntp_header*) buf;
+
+    if(!ck) {
+        sntp_dbg("pico_sntp_parse: invalid cookie\n");
+        return -1;
+    }
+
     sntp_dbg("Received mode: %u, version: %u, stratum: %u\n", hp->mode, hp->vn, hp->stratum);
 
     tick_stamp = pico_tick;
@@ -139,6 +150,11 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     uint32_t peer;
     uint16_t port;
 
+    if(!ck) {
+        sntp_dbg("pico_sntp_client_wakeup: invalid cookie\n");
+        return;
+    }
+
     /* process read event, data available */
     if (ev == PICO_SOCK_EV_RD) {
         sntp_dbg("Changed ipv6 state to RECV\n");
@@ -162,6 +178,12 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
 static void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
 {
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)arg;
+
+    if(!ck) {
+        sntp_dbg("sntp_timeout: invalid cookie\n");
+        return;
+    }
+
     if(ck->state == SNTP_SENT) {
         sntp_dbg("cb_sync called with error\n");
         pico_sntp_cleanup(ck, PICO_ERR_ETIMEDOUT);
@@ -177,6 +199,11 @@ static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
         0
     };
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)sock->priv;
+
+    if(!ck) {
+        sntp_dbg("pico_sntp_sent: invalid cookie\n");
+        return;
+    }
 
     pico_timer_add(5000, sntp_timeout, ck);
     header.vn = SNTP_VERSION;
@@ -223,6 +250,7 @@ static void dnsCallback(char *ip, void *arg)
     if (retval >= 0) {
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);
         sock->priv = ck;
+        ck->sock = sock;
         if ((sock) && (pico_socket_bind(sock, &sntp_inaddr_any, &sntp_port) == 0)) {
             sntp_dbg("Changed state to SENT\n");
             ck->state = SNTP_SENT;
@@ -230,9 +258,6 @@ static void dnsCallback(char *ip, void *arg)
             pico_sntp_send(sock, &address);
         }
     }
-
-    /* sntp_dbg("FREE!\n"); */
-    /* PICO_FREE(ck); */
 }
 
 /* user function to sync the time from a given sntp source */
@@ -257,6 +282,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck->stamp = 0ull;
     sntp_dbg("Changed state to UNRES\n");
     ck->state = SNTP_UNRES;
+    ck->sock = NULL;
     ck->hostname = PICO_ZALLOC(strlen(sntp_server));
     if (!ck->hostname) {
         pico_err = PICO_ERR_ENOMEM;
@@ -292,6 +318,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck6->stamp = 0ull;
     sntp_dbg("Changed ipv6 state to UNRES\n");
     ck6->state = SNTP_UNRES;
+    ck6->sock = NULL;
     ck6->cb_synced = cb_synced;
     sntp_dbg("Resolving AAAA %s\n", ck6->hostname);
     retval6 = pico_dns_client_getaddr6(sntp_server, &dnsCallback, ck6);

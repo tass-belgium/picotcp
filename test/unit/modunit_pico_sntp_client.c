@@ -1,7 +1,7 @@
 #include "pico_sntp_client.h"
 #include "modules/pico_sntp_client.c"
 #include "check.h"
-
+#include "pico_socket.h"
 /* Mocking functions, variables, ... */
 volatile pico_time pico_tick = 0ull;
 volatile pico_err_t pico_err = 0;
@@ -9,10 +9,9 @@ volatile pico_err_t pico_err = 0;
 /* Used in dnsCallback */
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s))
 {
-    static struct pico_socket sock = {
-        0
-    };
-    return &sock;
+    struct pico_socket *sock = PICO_ZALLOC(sizeof(struct pico_socket));
+    fail_unless (sock);
+    return sock;
 }
 
 /* Used in dnsCallback */
@@ -120,14 +119,19 @@ START_TEST(tc_pico_sntp_parse)
 {
     /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
     struct sntp_server_ns_cookie *ck; 
+    struct pico_socket *sock;
     struct pico_sntp_header header = {0};
 
-    ck = malloc(sizeof(struct sntp_server_ns_cookie));
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
     fail_unless (ck);
-    ck->hostname = malloc(sizeof(char)*5);
+    ck->hostname = PICO_ZALLOC(sizeof(char)*5);
     fail_unless (ck->hostname);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
+
+    sock = pico_socket_open(NULL, NULL, &pico_sntp_client_wakeup);
+    ck->sock = sock;
+    sock->priv = ck;
 
     header.mode = 4;    /* server mode */
     header.vn = 4;      /* sntp version 4 */
@@ -142,13 +146,18 @@ START_TEST(tc_pico_sntp_client_wakeup)
 {
     /* TODO: test this: static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s) */
     uint16_t event = PICO_SOCK_EV_ERR;
-    struct pico_socket sock = {
-        0
-    };
     struct sntp_server_ns_cookie *ck;
-    ck = malloc(sizeof(struct sntp_server_ns_cookie));
+    struct pico_socket *sock;
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
     fail_unless (ck);
-    sock.priv = ck;
+    ck->hostname = PICO_ZALLOC(sizeof(char)*5);
+    fail_unless (ck->hostname);
+    ck->stamp = 0ull;
+    ck->cb_synced = cb_synced;
+
+    sock = pico_socket_open(NULL, NULL, &pico_sntp_client_wakeup);
+    ck->sock = sock;
+    sock->priv = ck;
 
     ck->cb_synced = cb_synced;
     printf("Started wakeup unit test\n");
@@ -176,7 +185,7 @@ START_TEST(tc_dnsCallback)
     /* TODO: test this: static void dnsCallback(char *ip, void *arg) */
     char ip[] = "198.123.30.132";
     struct sntp_server_ns_cookie *ck;
-    ck = malloc(sizeof(struct sntp_server_ns_cookie));
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
 
     dnsCallback(ip, ck);
 }
