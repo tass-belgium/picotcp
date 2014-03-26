@@ -119,15 +119,15 @@ END_TEST
 START_TEST(tc_pico_sntp_parse)
 {
     /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
-    struct sntp_server_ns_cookie ck = {
-        0
-    };
-    struct pico_sntp_header header = {
-        0
-    };
+    struct sntp_server_ns_cookie *ck; 
+    struct pico_sntp_header header = {0};
 
-    ck.stamp = 0ull;
-    ck.cb_synced = cb_synced;
+    ck = malloc(sizeof(struct sntp_server_ns_cookie));
+    fail_unless (ck);
+    ck->hostname = malloc(sizeof(char)*5);
+    fail_unless (ck->hostname);
+    ck->stamp = 0ull;
+    ck->cb_synced = cb_synced;
 
     header.mode = 4;    /* server mode */
     header.vn = 4;      /* sntp version 4 */
@@ -135,22 +135,22 @@ START_TEST(tc_pico_sntp_parse)
     header.trs_ts.sec = long_be(SNTP_UNIX_OFFSET + 1390000000ul);
     header.trs_ts.frac = long_be(3865470566ul);    /* value: 899msec */
 
-    pico_sntp_parse((char *) &header, &ck);
+    pico_sntp_parse((char *) &header, ck);
 }
 END_TEST
 START_TEST(tc_pico_sntp_client_wakeup)
 {
     /* TODO: test this: static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s) */
-    uint16_t event = PICO_SOCK_EV_RD;
+    uint16_t event = PICO_SOCK_EV_ERR;
     struct pico_socket sock = {
         0
     };
-    struct sntp_server_ns_cookie ck = {
-        0
-    };
-    sock.priv = &ck;
+    struct sntp_server_ns_cookie *ck;
+    ck = malloc(sizeof(struct sntp_server_ns_cookie));
+    fail_unless (ck);
+    sock.priv = ck;
 
-    ck.cb_synced = cb_synced;
+    ck->cb_synced = cb_synced;
     printf("Started wakeup unit test\n");
 
     pico_sntp_client_wakeup(event, &sock);
@@ -176,7 +176,7 @@ START_TEST(tc_dnsCallback)
     /* TODO: test this: static void dnsCallback(char *ip, void *arg) */
     char ip[] = "198.123.30.132";
     struct sntp_server_ns_cookie *ck;
-    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
+    ck = malloc(sizeof(struct sntp_server_ns_cookie));
 
     dnsCallback(ip, ck);
 }
