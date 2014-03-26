@@ -529,7 +529,7 @@ static uint32_t pico_paws(void)
 {
     static uint32_t _paws = 0;
     _paws = pico_rand();
-    return long_be(_paws); 
+    return long_be(_paws);
 }
 
 static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, uint16_t flags, uint16_t optsiz)
@@ -1007,15 +1007,16 @@ out:
     if (t->tcpq_in.size == 0) {
         s->ev_pending &= (uint16_t)(~PICO_SOCK_EV_RD);
     }
+
     if (t->remote_closed) {
         s->ev_pending |= (uint16_t)(PICO_SOCK_EV_CLOSE);
-       s->state &= 0x00FFU;
-       s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-       /* set SHUT_REMOTE */
-       s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
-       if (s->wakeup) {
-           s->wakeup(PICO_SOCK_EV_CLOSE, s);
-       }
+        s->state &= 0x00FFU;
+        s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
+        /* set SHUT_REMOTE */
+        s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
+        if (s->wakeup) {
+            s->wakeup(PICO_SOCK_EV_CLOSE, s);
+        }
     }
 
     return tot_rd_len;
@@ -1515,6 +1516,7 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 
             tcp_send_ack(t);
         }
+
         return ret;
     } else {
         tcp_dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", (hdr->len & 0xf0) >> 2, f->transport_len);
@@ -1544,8 +1546,10 @@ static inline void rto_set(struct pico_socket_tcp *t, uint32_t rto)
 {
     if (rto < PICO_TCP_RTO_MIN)
         rto = PICO_TCP_RTO_MIN;
+
     if (rto > PICO_TCP_RTO_MAX)
         rto = PICO_TCP_RTO_MAX;
+
     t->rto = rto;
 }
 
@@ -2249,7 +2253,8 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
                 tcp_dbg("Changing state to CLOSE_WAIT\n");
                 s->state &= 0x00FFU;
                 s->state |= PICO_SOCKET_STATE_TCP_CLOSE_WAIT;
-            } 
+            }
+
             /* set SHUT_REMOTE */
             s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
             tcp_dbg("TCP> Close-wait\n");
@@ -2261,18 +2266,19 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
         }
     }
 
-    /* Ensure that the notification given to the socket 
-     * did not put us in LAST_ACK state before sending the ACK: i.e. if 
+    /* Ensure that the notification given to the socket
+     * did not put us in LAST_ACK state before sending the ACK: i.e. if
      * pico_socket_close() has been called in the socket callback, we don't need to send
-     * an ACK here. 
+     * an ACK here.
      *
      */
-    if ( ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) || 
-        ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED) )
+    if (((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT) ||
+        ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED))
     {
         tcp_dbg("In closewait: Sending ack! (state is %08x)\n", s->state);
         tcp_send_ack(t);
     }
+
     return 0;
 }
 
@@ -2517,6 +2523,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
                 action->rst(s, f);
         }
     }
+
     if (s->ev_pending)
         tcp_wakeup_pending(s, s->ev_pending);
 
@@ -2558,25 +2565,25 @@ static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pi
     f1->payload_len = (uint16_t)(f1->payload_len - overhead);
     f2->payload += overhead;
     f2->payload_len = (uint16_t)(f2->payload_len - overhead);
-    
+
     hdr1 = (struct pico_tcp_hdr *)f1->transport_hdr;
     hdr2 = (struct pico_tcp_hdr *)f2->transport_hdr;
 
     /* Copy payload */
     memcpy(f1->payload, f->payload, size1);
     memcpy(f2->payload, f->payload + size1, size2);
-    
+
     /* Copy tcp hdr */
     memcpy(hdr1, hdr, sizeof(struct pico_tcp_hdr));
     memcpy(hdr2, hdr, sizeof(struct pico_tcp_hdr));
 
     /* Adjust f2's sequence number */
     hdr2->seq = long_be(SEQN(f) + size1);
-   
-    /* Add TCP options */ 
+
+    /* Add TCP options */
     tcp_add_options_frame(t, f1);
     tcp_add_options_frame(t, f2);
-    
+
     /* Get rid of the full frame */
     pico_discard_segment(&t->tcpq_out, f);
 
@@ -2608,15 +2615,17 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
             dbg(">>> FATAL: seq diff is negative!\n");
             break;
         }
+
         /* Check if advertised window is full */
         if ((uint32_t)seq_diff >= (uint32_t)(t->recv_wnd << t->recv_wnd_scale)) {
             if (t->x_mode != PICO_TCP_WINDOW_FULL) {
                 tcp_dbg("TCP> RIGHT SIZING (rwnd: %d, frame len: %d\n", t->recv_wnd << t->recv_wnd_scale, f->payload_len);
                 tcp_dbg("In window full...\n");
-                t->snd_nxt = SEQN(una);              
-                t->snd_retry = SEQN(una);           
+                t->snd_nxt = SEQN(una);
+                t->snd_retry = SEQN(una);
                 t->x_mode = PICO_TCP_WINDOW_FULL;
             }
+
             break;
         }
 
@@ -2883,6 +2892,7 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
             pico_timer_cancel(t->retrans_tmr);
             t->retrans_tmr = NULL;
         }
+
         if(!checkLocalClosing(sck))
             checkRemoteClosing(sck);
     }

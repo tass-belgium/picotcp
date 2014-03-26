@@ -33,13 +33,13 @@ START_TEST(tc_pico_neighbor)
 
     ne0 = pico_nd_add_neighbor(&host, &n0, PICO_ND_STATE_REACHABLE, NULL);
     fail_if(!ne0);
-    
+
     ne1 = pico_nd_add_neighbor(&host, &n1, PICO_ND_STATE_REACHABLE, NULL);
     fail_if(!ne1);
 
 
     /* Check comparison */
-    fail_if(nd_neighbor_compare((void *)ne0, (void*)ne1) >= 0); 
+    fail_if(nd_neighbor_compare((void *)ne0, (void*)ne1) >= 0);
 
 
     /* Lookup node by address */
@@ -52,7 +52,7 @@ START_TEST(tc_pico_neighbor)
 
     /* Delete invalid neighbor */
     fail_if(pico_nd_del_neighbor(NULL) >= 0);
-    
+
     /* Delete non-existing neighbor */
     fail_if(pico_nd_del_neighbor(&host) >= 0);
 
@@ -98,15 +98,15 @@ START_TEST(tc_pico_router)
 
     ro0 = pico_nd_add_router(ne0, 100);
     fail_unless(ro0);
-    
+
     ro1 = pico_nd_add_router(ne1, 200);
     fail_unless(ro1);
 
     /* Check comparison = this is done via neighbor pointer addresses */
-    if (ne0 > ne1) 
-        fail_if(nd_router_compare((void *)ro0, (void*)ro1) <= 0); 
+    if (ne0 > ne1)
+        fail_if(nd_router_compare((void *)ro0, (void*)ro1) <= 0);
     else
-        fail_if(nd_router_compare((void *)ro0, (void*)ro1) >= 0); 
+        fail_if(nd_router_compare((void *)ro0, (void*)ro1) >= 0);
 
 
     /* Lookup node by address */
@@ -119,7 +119,7 @@ START_TEST(tc_pico_router)
 
     /* Delete invalid node */
     fail_if(pico_nd_del_router(NULL) >= 0);
-    
+
     /* Delete non-existing node */
     fail_if(pico_nd_del_router(&host) >= 0);
 
@@ -136,7 +136,7 @@ END_TEST
 
 START_TEST(tc_pico_nd_router_timer)
 {
-   /* TODO: test this: static void pico_nd_router_timer(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_router_timer(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_prefix)
@@ -160,12 +160,12 @@ START_TEST(tc_pico_prefix)
 
     ro0 = pico_nd_add_prefix(&n0, 100);
     fail_unless(ro0);
-    
+
     ro1 = pico_nd_add_prefix(&n1, 200);
     fail_unless(ro1);
 
     /* Check comparison = this is done via neighbor IPv6 addresses */
-    fail_if(nd_prefix_compare((void *)ro0, (void*)ro1) >= 0); 
+    fail_if(nd_prefix_compare((void *)ro0, (void*)ro1) >= 0);
 
 
     /* Lookup node by address */
@@ -178,7 +178,7 @@ START_TEST(tc_pico_prefix)
 
     /* Delete invalid node */
     fail_if(pico_nd_del_prefix(NULL) >= 0);
-    
+
     /* Delete non-existing node */
     fail_if(pico_nd_del_prefix(&host) >= 0);
 
@@ -193,7 +193,7 @@ END_TEST
 
 START_TEST(tc_pico_nd_prefix_timer)
 {
-   /* TODO: test this: static void pico_nd_prefix_timer(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_prefix_timer(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_destination)
@@ -217,12 +217,12 @@ START_TEST(tc_pico_destination)
 
     ro0 = pico_nd_add_destination(&n0, &host);
     fail_unless(ro0);
-    
+
     ro1 = pico_nd_add_destination(&n1, &host);
     fail_unless(ro1);
 
     /* Check comparison = this is done via neighbor IPv6 addresses */
-    fail_if(nd_destination_compare((void *)ro0, (void*)ro1) >= 0); 
+    fail_if(nd_destination_compare((void *)ro0, (void*)ro1) >= 0);
 
 
     /* Lookup node by address */
@@ -235,7 +235,7 @@ START_TEST(tc_pico_destination)
 
     /* Delete invalid node */
     fail_if(pico_nd_del_destination(NULL) >= 0);
-    
+
     /* Delete non-existing node */
     fail_if(pico_nd_del_destination(&host) >= 0);
 
@@ -249,29 +249,29 @@ START_TEST(tc_pico_destination)
 END_TEST
 START_TEST(tc_pico_nd_destination_garbage_collect)
 {
-   /* TODO: test this: static void pico_nd_destination_garbage_collect(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_destination_garbage_collect(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_nd_pending)
 {
-   /* TODO: test this: static void pico_nd_pending(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_pending(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_nd_first_probe)
 {
-   /* TODO: test this: static void pico_nd_first_probe(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_first_probe(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_nd_probe)
 {
-   /* TODO: test this: static void pico_nd_probe(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_nd_probe(pico_time now, void *arg) */
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_neighbor = tcase_create("Unit test for pico_neighbor");
     TCase *TCase_pico_router = tcase_create("Unit test for pico_router");
@@ -307,14 +307,14 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_nd_probe);
     return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

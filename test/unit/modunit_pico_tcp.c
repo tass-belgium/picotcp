@@ -12,15 +12,23 @@
 
 START_TEST(tc_input_segment_compare)
 {
-    struct tcp_input_segment A =  {.seq = 0xFFFFFFFF};
-    struct tcp_input_segment B =  {.seq = 0xFFFFFFFe};
-    struct tcp_input_segment a =  {.seq = 0x01};
-    struct tcp_input_segment b =  {.seq = 0x02};
+    struct tcp_input_segment A =  {
+        .seq = 0xFFFFFFFF
+    };
+    struct tcp_input_segment B =  {
+        .seq = 0xFFFFFFFe
+    };
+    struct tcp_input_segment a =  {
+        .seq = 0x01
+    };
+    struct tcp_input_segment b =  {
+        .seq = 0x02
+    };
 
-    fail_if(input_segment_compare(&A,&B) <= 0);
-    fail_if(input_segment_compare(&a,&b) >= 0);
-    fail_if(input_segment_compare(&A,&b) >= 0);
-    fail_if(input_segment_compare(&A,&A) != 0);
+    fail_if(input_segment_compare(&A, &B) <= 0);
+    fail_if(input_segment_compare(&a, &b) >= 0);
+    fail_if(input_segment_compare(&A, &b) >= 0);
+    fail_if(input_segment_compare(&A, &A) != 0);
 }
 END_TEST
 START_TEST(tc_tcp_input_segment)
@@ -52,7 +60,7 @@ START_TEST(tc_tcp_input_segment)
     pico_set_mm_failure(2);
     seg = segment_from_frame(f);
     fail_if(seg);
-#endif 
+#endif
 }
 END_TEST
 START_TEST(tc_segment_compare)
@@ -67,7 +75,7 @@ START_TEST(tc_segment_compare)
     ((struct pico_tcp_hdr *)((a)->transport_hdr))->seq = long_be(0xffffaa00);
     fail_if(segment_compare(a, b) >= 0);
     fail_if(segment_compare(a, a) != 0);
-    
+
 }
 END_TEST
 START_TEST(tc_tcp_discard_all_segments)
@@ -101,7 +109,7 @@ START_TEST(tc_tcp_discard_all_segments)
     fail_if(pico_enqueue_segment(&t->tcpq_out, f) != 0);
     fail_if(pico_enqueue_segment(&t->tcpq_in, is) != 0);
 
-    
+
 #ifdef PICO_FAULTY
     /* Fail because the tree cannot allocate a new node. Should return 0 */
     printf("Testing with faulty memory (1)\n");

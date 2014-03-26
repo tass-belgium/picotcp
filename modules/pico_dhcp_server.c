@@ -53,6 +53,7 @@ static inline int ip_address_is_in_dhcp_range(struct pico_dhcp_server_negotiatio
 
     if (ip_hostendian > long_be(n->dhcps->pool_end))
         return 0;
+
     return 1;
 }
 

@@ -16,8 +16,8 @@
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
-//#define sntp_dbg(...) do {} while(0)
-#define sntp_dbg printf
+#define sntp_dbg(...) do {} while(0)
+/* #define sntp_dbg printf */
 
 #define SNTP_VERSION 4
 
@@ -69,9 +69,13 @@ struct sntp_server_ns_cookie
 
 /* global variables */
 static uint16_t sntp_port = 123u;
-static struct pico_timeval server_time = {0};
+static struct pico_timeval server_time = {
+    0
+};
 static pico_time tick_stamp = 0ull;
-static union pico_address sntp_inaddr_any = {.ip6.addr = {} };
+static union pico_address sntp_inaddr_any = {
+    .ip6.addr = {}
+};
 
 /*************************************************************************/
 
@@ -85,9 +89,10 @@ static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, p
         sntp_dbg("Error: input too low\n");
         return -1;
     }
+
     sntp_dbg("Delay: %llu\n", delay);
-    tv->tv_msec = (pico_time) (((uint64_t)(long_be(ts->frac)))*SNTP_THOUSAND/SNTP_FRAC_TO_PICOSEC+delay);
-    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET + tv->tv_msec/SNTP_THOUSAND);
+    tv->tv_msec = (pico_time) (((uint64_t)(long_be(ts->frac))) * SNTP_THOUSAND / SNTP_FRAC_TO_PICOSEC + delay);
+    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET + tv->tv_msec / SNTP_THOUSAND);
     tv->tv_msec %= SNTP_THOUSAND;
     return 0;
 }
@@ -97,16 +102,17 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 {
     int ret = 0;
     struct pico_sntp_header *hp = (struct pico_sntp_header*) buf;
-    sntp_dbg("Received mode: %u, version: %u, stratum: %u\n",hp->mode, hp->vn, hp->stratum);
+    sntp_dbg("Received mode: %u, version: %u, stratum: %u\n", hp->mode, hp->vn, hp->stratum);
 
     tick_stamp = pico_tick;
     /* tick_stamp - ck->stamp is the delay between sending and receiving the ntp packet */
-    ret = timestamp_convert(&(hp->trs_ts), &server_time,(tick_stamp - ck->stamp)/2);
+    ret = timestamp_convert(&(hp->trs_ts), &server_time, (tick_stamp - ck->stamp) / 2);
     if(ret != 0) {
         sntp_dbg("Conversion error!\n");
         ck->cb_synced(PICO_ERR_EINVAL);
         return ret;
     }
+
     sntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
 
     /* Call back the user saying the time is synced */
@@ -141,6 +147,7 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
         ck->cb_synced(PICO_ERR_ENOTCONN);
         return;
     }
+
     sntp_dbg("Received data from %08X:%u\n", peer, port);
 }
 
@@ -151,19 +158,22 @@ static void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
         sntp_dbg("cb_sync called with error\n");
         ck->cb_synced(PICO_ERR_ETIMEDOUT);
     }
+
     sntp_dbg("Timer expired! State: %d \n", ck->state);
 }
 
 /* Sends an sntp packet on sock to dst*/
 static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
 {
-    struct pico_sntp_header header = {0};
+    struct pico_sntp_header header = {
+        0
+    };
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)sock->priv;
 
     pico_timer_add(5000, sntp_timeout, ck);
     header.vn = SNTP_VERSION;
     header.mode = SNTP_MODE_CLIENT;
-    //header.trs_ts.frac = long_be(3865470566ul);
+    /* header.trs_ts.frac = long_be(3865470566ul); */
     ck->stamp = pico_tick;
     pico_socket_sendto(sock, &header, sizeof(header), dst, short_be(sntp_port));
 }
@@ -189,6 +199,7 @@ static void dnsCallback(char *ip, void *arg)
             retval = pico_string_to_ipv6(ip, address.ip6.addr);
         }
     }
+
 #endif
     if(ck->proto == PICO_PROTO_IPV4) {
         if(ip) {
@@ -211,8 +222,9 @@ static void dnsCallback(char *ip, void *arg)
             pico_sntp_send(sock, &address);
         }
     }
-    //sntp_dbg("FREE!\n");
-    //PICO_FREE(ck);
+
+    /* sntp_dbg("FREE!\n"); */
+    /* PICO_FREE(ck); */
 }
 
 /* user function to sync the time from a given sntp source */
@@ -232,6 +244,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     ck->proto = PICO_PROTO_IPV4;
     ck->stamp = 0ull;
     sntp_dbg("Changed state to UNRES\n");
@@ -241,12 +254,14 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     strcpy(ck->hostname, sntp_server);
 
-    if(cb_synced == NULL){
+    if(cb_synced == NULL) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     ck->cb_synced = cb_synced;
 
 #ifdef PICO_SUPPORT_IPV6
@@ -256,12 +271,14 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     ck6->proto = PICO_PROTO_IPV6;
     ck6->hostname = PICO_ZALLOC(strlen(sntp_server));
     if (!ck6->hostname) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     strcpy(ck6->hostname, sntp_server);
     ck6->proto = PICO_PROTO_IPV6;
     ck6->stamp = 0ull;
@@ -276,6 +293,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
 
     if (!retval || !retval6)
         return 0;
+
     return -1;
 }
 
@@ -285,15 +303,16 @@ int pico_sntp_gettimeofday(struct pico_timeval *tv)
     pico_time diff, temp;
     int ret = 0;
     if (tick_stamp == 0) {
-        //TODO: set pico_err
+        /* TODO: set pico_err */
         ret = -1;
         sntp_dbg("Error: Unsynchronised\n");
         return ret;
     }
+
     diff = pico_tick - tick_stamp;
-    temp = server_time.tv_msec + diff%SNTP_THOUSAND;
-    tv->tv_sec = server_time.tv_sec + diff/SNTP_THOUSAND + temp/SNTP_THOUSAND;
-    tv->tv_msec = temp%SNTP_THOUSAND;
+    temp = server_time.tv_msec + diff % SNTP_THOUSAND;
+    tv->tv_sec = server_time.tv_sec + diff / SNTP_THOUSAND + temp / SNTP_THOUSAND;
+    tv->tv_msec = temp % SNTP_THOUSAND;
     sntp_dbg("Time of day: %llu seconds and %llu milisecs since 1970\n", tv->tv_sec,  tv->tv_msec);
     return ret;
 }

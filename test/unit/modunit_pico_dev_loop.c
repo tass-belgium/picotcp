@@ -8,6 +8,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
     if (fail)
         return -1;
+
     return 0;
 }
 
@@ -50,7 +51,7 @@ END_TEST
 
 START_TEST(tc_pico_loop_create)
 {
-    
+
 #ifdef PICO_FAULTY
     printf("Testing with faulty memory in pico_loop_create (1)\n");
     pico_set_mm_failure(1);
@@ -65,9 +66,9 @@ START_TEST(tc_pico_loop_create)
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_loop_send = tcase_create("Unit test for pico_loop_send");
     TCase *TCase_pico_loop_poll = tcase_create("Unit test for pico_loop_poll");
@@ -80,16 +81,16 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_loop_poll);
     tcase_add_test(TCase_pico_loop_create, tc_pico_loop_create);
     suite_add_tcase(s, TCase_pico_loop_create);
-return s;
+    return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

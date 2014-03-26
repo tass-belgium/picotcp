@@ -77,6 +77,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy)
     if (!p->usage_count) {
         if (p->buffer)
             PICO_FREE(p->buffer);
+
         PICO_FREE(p);
         return NULL;
     }
@@ -102,13 +103,14 @@ struct pico_frame *pico_frame_alloc(uint32_t size)
 
 struct pico_frame *pico_frame_alloc_skeleton(uint32_t size)
 {
-   return pico_frame_do_alloc(size, 1); 
+    return pico_frame_do_alloc(size, 1);
 }
 
 int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf)
 {
     if (!buf)
         return -1;
+
     f->buffer = (uint8_t *) buf;
     f->start = f->buffer;
     return 0;

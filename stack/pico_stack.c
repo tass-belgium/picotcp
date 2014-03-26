@@ -577,7 +577,7 @@ int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint3
         dbg("Cannot alloc incoming frame!\n");
         return -1;
     }
-    
+
     if (pico_frame_skeleton_set_buffer(f, buffer) < 0)
     {
         dbg("Invalid zero-copy buffer!\n");
@@ -585,11 +585,13 @@ int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint3
         PICO_FREE(f);
         return -1;
     }
+
     f->dev = dev;
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
         pico_frame_discard(f);
     }
+
     return ret;
 }
 

@@ -85,7 +85,7 @@ START_TEST(tc_stack_generic)
     pico_set_mm_failure(1);
     fail_if(pico_timer_add(0, fake_timer, NULL) != NULL);
 #endif
-    
+
 
 }
 END_TEST
