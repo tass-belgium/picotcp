@@ -196,7 +196,12 @@ static void *next_segment(struct pico_tcp_queue *tq, void *cur)
 static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
 {
     int32_t ret = -1;
-    uint16_t payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
+    uint16_t payload_len;
+   
+    if (!f)
+       return -1;
+      
+    payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
                                       (((struct tcp_input_segment *)f)->payload_len) :
                                       (((struct pico_frame *)f)->buffer_len));
 
@@ -372,7 +377,7 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
 
 static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *timestamp)
 {
-    void *f = NULL, *tmp __attribute__((unused));
+    void *f = NULL, *tmp;
     struct pico_tree_node *idx, *temp;
     int seq_result;
     int ret = 0;
@@ -2442,8 +2447,8 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
 {
     uint8_t i;
     static uint8_t valid_flags[PICO_SOCKET_STATE_TCP_ARRAYSIZ][MAX_VALID_FLAGS] = {
-        { /* PICO_SOCKET_STATE_TCP_UNDEF      */ },
-        { /* PICO_SOCKET_STATE_TCP_CLOSED     */ },
+        { /* PICO_SOCKET_STATE_TCP_UNDEF      */ 0, },
+        { /* PICO_SOCKET_STATE_TCP_CLOSED     */ 0, },
         { /* PICO_SOCKET_STATE_TCP_LISTEN     */ PICO_TCP_SYN },
         { /* PICO_SOCKET_STATE_TCP_SYN_SENT   */ PICO_TCP_SYNACK, PICO_TCP_RST, PICO_TCP_RSTACK},
         { /* PICO_SOCKET_STATE_TCP_SYN_RECV   */ PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},

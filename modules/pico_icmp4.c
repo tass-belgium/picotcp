@@ -310,7 +310,7 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
         return -1;
     }
 
-    if (pico_string_to_ipv4(dst, &cookie->dst.addr) < 0) {
+    if (pico_string_to_ipv4(dst, (uint32_t *)&cookie->dst.addr) < 0) {
         pico_err = PICO_ERR_EINVAL;
         PICO_FREE(cookie);
         return -1;

@@ -5,17 +5,18 @@
  *********************************************************************/
 #ifndef INCLUDE_PICO_ADDRESSING
 #define INCLUDE_PICO_ADDRESSING
+
 #include <stdint.h>
+#include "pico_config.h"
 
-
-struct pico_ip4
+PACKED_STRUCT_DEF pico_ip4
 {
     uint32_t addr;
 };
 #define PICO_SIZE_IP4 4
 
 
-struct pico_ip6
+PACKED_STRUCT_DEF pico_ip6
 {
     uint8_t addr[16];
 };

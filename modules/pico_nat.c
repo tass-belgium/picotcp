@@ -93,7 +93,7 @@ PICO_TREE_DECLARE(NATInbound, nat_cmp_inbound);
 
 void pico_ipv4_nat_print_table(void)
 {
-    struct pico_nat_tuple __attribute__((unused)) *t = NULL;
+    struct pico_nat_tuple *t = NULL;
     struct pico_tree_node *index = NULL;
 
     nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
@@ -227,13 +227,13 @@ static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
     case PICO_PROTO_TCP:
     {
         struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
-        trans = &tcp->trans;
+        trans = (struct pico_trans *)&tcp->trans;
         break;
     }
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
-        trans = &udp->trans;
+        trans = (struct pico_trans *)&udp->trans;
         break;
     }
     case PICO_PROTO_ICMP4:
@@ -388,7 +388,7 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
     case PICO_PROTO_TCP:
     {
         struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
-        trans = &tcp->trans;
+        trans = (struct pico_trans *)&tcp->trans;
         tuple = pico_ipv4_nat_find_tuple(trans->dport, 0, 0, net->proto);
         if (!tuple)
             return -1;
@@ -406,7 +406,7 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
-        trans = &udp->trans;
+        trans = (struct pico_trans *)&udp->trans;
         tuple = pico_ipv4_nat_find_tuple(trans->dport, 0, 0, net->proto);
         if (!tuple)
             return -1;
@@ -453,7 +453,7 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
     case PICO_PROTO_TCP:
     {
         struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
-        trans = &tcp->trans;
+        trans = (struct pico_trans *)&tcp->trans;
         tuple = pico_ipv4_nat_find_tuple(0, &net->src, trans->sport, net->proto);
         if (!tuple)
             tuple = pico_ipv4_nat_generate_tuple(f);
@@ -471,7 +471,7 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
-        trans = &udp->trans;
+        trans = (struct pico_trans *)&udp->trans;
         tuple = pico_ipv4_nat_find_tuple(0, &net->src, trans->sport, net->proto);
         if (!tuple)
             tuple = pico_ipv4_nat_generate_tuple(f);

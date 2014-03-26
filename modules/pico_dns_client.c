@@ -81,7 +81,7 @@ static void pico_dns_client_retransmission(pico_time now, void *arg);
 /* RFC 1035 section 4. MESSAGES */
 PACKED_STRUCT_DEF pico_dns_name
 {
-    char name[0];
+    char name[1];
 };
 
 /* prefix = header + name pointer
@@ -196,7 +196,7 @@ static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
     }
 
     /* default NS found, remove it */
-    pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &test.ns.addr);
+    pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, (uint32_t *)&test.ns.addr);
     found = pico_tree_findKey(&NSTable, &test);
     if (found && (found->ns.addr != ns_addr->addr))
         pico_dns_client_del_ns(&found->ns);
@@ -914,7 +914,7 @@ int pico_dns_client_init(void)
         0
     };
 
-    if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, &default_ns.addr) < 0)
+    if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, (uint32_t *)&default_ns.addr) < 0)
         return -1;
 
     return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);

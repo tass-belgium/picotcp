@@ -8,6 +8,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifdef __IAR_SYSTEMS_ICC__
+#   define PACKED_STRUCT_DEF __packed struct
+#else
+#   define PACKED_STRUCT_DEF struct __attribute__((packed))
+#endif
+
 #include "pico_constants.h"
 #include "pico_mm.h"
 
@@ -64,12 +71,5 @@
 #define PICO_ZALLOC(x) pico_zalloc(x)
 #define PICO_FREE(x) pico_free(x)
 #endif  /* PICO_SUPPORT_MM */
-
-#ifdef __IAR_SYSTEMS_ICC__
-#   define PACKED_STRUCT_DEF __packed struct
-#else
-#   define PACKED_STRUCT_DEF struct __attribute__((packed))
-#endif
-
 
 #endif

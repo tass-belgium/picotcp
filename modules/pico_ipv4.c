@@ -883,8 +883,8 @@ static int ipv4_mcast_sources_cmp(void *ka, void *kb)
 static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
 {
     uint16_t i = 0;
-    struct pico_mcast_group __attribute__ ((unused)) *g = NULL;
-    struct pico_ip4 __attribute__ ((unused)) *source = NULL;
+    struct pico_mcast_group *g = NULL;
+    struct pico_ip4 *source = NULL;
     struct pico_tree_node *index = NULL, *index2 = NULL;
 
     ip_mcast_dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
