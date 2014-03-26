@@ -60,6 +60,10 @@ void cb_synced(pico_err_t status)
 {
     
 }
+struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+{
+    return NULL;
+}
 
 START_TEST(tc_timestamp_convert)
 {
@@ -135,6 +139,9 @@ START_TEST(tc_pico_sntp_client_wakeup)
     struct pico_socket sock = {0};
     struct sntp_server_ns_cookie ck = {0};
     sock.priv = &ck;
+
+    ck.cb_synced = cb_synced;
+    printf("Started wakeup unit test\n");
 
     pico_sntp_client_wakeup(event, &sock);
 }

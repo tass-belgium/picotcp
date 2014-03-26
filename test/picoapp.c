@@ -2007,8 +2007,8 @@ void cb_synced(pico_err_t status)
 
 void app_sntp(char *servername)
 {
-    printf("Starting SNTP query towards %s\n", servername);
     struct pico_timeval tv;
+    printf("Starting SNTP query towards %s\n", servername);
     if(pico_sntp_gettimeofday(&tv)==0)
         printf("Wrongly succesfull gettimeofday\n");
     else

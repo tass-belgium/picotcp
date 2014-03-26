@@ -149,7 +149,7 @@ static void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)arg;
     if(ck->state == SNTP_SENT) {
         sntp_dbg("cb_sync called with error\n");
-        cb_synced(PICO_ERR_ETIMEDOUT);
+        ck->cb_synced(PICO_ERR_ETIMEDOUT);
     }
     sntp_dbg("Timer expired! State: %d \n", ck->state);
 }
