@@ -95,6 +95,7 @@ void pico_ipv4_nat_print_table(void)
 {
     struct pico_nat_tuple *t = NULL;
     struct pico_tree_node *index = NULL;
+    (void)t;
 
     nat_dbg("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     nat_dbg("+                                                        NAT table                                                       +\n");

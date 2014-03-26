@@ -886,6 +886,7 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
     struct pico_mcast_group *g = NULL;
     struct pico_ip4 *source = NULL;
     struct pico_tree_node *index = NULL, *index2 = NULL;
+    (void) source;
 
     ip_mcast_dbg("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     ip_mcast_dbg("+                           MULTICAST list interface %-16s             +\n", mcast_link->dev->name);

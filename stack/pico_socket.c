@@ -1202,7 +1202,7 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
         if (chunk_len > space)
             chunk_len = space;
 
-        w = pico_socket_xmit_one(s,(void *)((int)buf + total_payload_written), chunk_len, src, ep);
+        w = pico_socket_xmit_one(s,(const void *)((const uint8_t *)buf + total_payload_written), chunk_len, src, ep);
         if (w <= 0) {
             break;
         }

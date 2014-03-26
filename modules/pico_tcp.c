@@ -377,7 +377,7 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
 
 static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *timestamp)
 {
-    void *f = NULL, *tmp;
+    void *f = NULL;
     struct pico_tree_node *idx, *temp;
     int seq_result;
     int ret = 0;

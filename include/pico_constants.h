@@ -6,6 +6,13 @@
 #ifndef INCLUDE_PICO_CONST
 #define INCLUDE_PICO_CONST
 /* Included from pico_config.h */
+
+/** Non-endian dependant constants */
+#define PICO_SIZE_IP4    4
+#define PICO_SIZE_IP6   16
+#define PICO_SIZE_ETH    6
+#define PICO_SIZE_TRANS  8
+
 /** Endian-dependant constants **/
 typedef uint64_t pico_time;
 extern volatile uint64_t pico_tick;
