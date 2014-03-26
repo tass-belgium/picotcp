@@ -87,24 +87,24 @@ START_TEST(tc_timestamp_convert)
     ts.frac = long_be(4310344ul);     /* MIN value: 1msec */
     ret = timestamp_convert(&ts, &tv, delay);
     ck_assert(ret == 0);
-    ck_assert_uint_eq(tv.tv_sec, 1390000000);
-    ck_assert_uint_eq(tv.tv_msec, 1);
+    fail_unless(tv.tv_sec == 1390000000);
+    fail_unless(tv.tv_msec == 1);
 
     /* Intermediate input */
     ts.sec = long_be(SNTP_UNIX_OFFSET + 1390000000ul);
     ts.frac = long_be(3865470566ul);    /* value: 899msec */
     ret = timestamp_convert(&ts, &tv, delay);
     ck_assert(ret == 0);
-    ck_assert_uint_eq(tv.tv_sec, 1390000000);
-    ck_assert_uint_eq(tv.tv_msec, 900);
+    fail_unless(tv.tv_sec == 1390000000);
+    fail_unless(tv.tv_msec == 900);
 
     /* Maximum input */
     ts.sec = long_be(SNTP_UNIX_OFFSET + 1390000000ul);
     ts.frac = long_be(4294967295ul);    /* MAX value: 999msec */
     ret = timestamp_convert(&ts, &tv, delay);
     ck_assert(ret == 0);
-    ck_assert_uint_eq(tv.tv_sec, 1390000001);
-    ck_assert_uint_eq(tv.tv_msec, 0);
+    fail_unless(tv.tv_sec == 1390000001);
+    fail_unless(tv.tv_msec == 0);
 
     /* Intermediate input with delay */
     ts.sec = long_be(SNTP_UNIX_OFFSET + 1390000000ul);
@@ -112,8 +112,8 @@ START_TEST(tc_timestamp_convert)
     delay = 200ull;
     ret = timestamp_convert(&ts, &tv, delay);
     ck_assert(ret == 0);
-    ck_assert_uint_eq(tv.tv_sec, 1390000001);
-    ck_assert_uint_eq(tv.tv_msec, 100);
+    fail_unless(tv.tv_sec == 1390000001);
+    fail_unless(tv.tv_msec == 100);
 }
 END_TEST
 START_TEST(tc_pico_sntp_parse)
