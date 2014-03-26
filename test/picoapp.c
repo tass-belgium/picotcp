@@ -1988,10 +1988,20 @@ void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
     gettimeofday(&tv, NULL);
     printf("Linux   sec: %u, msec: %u\n", tv.tv_sec, tv.tv_usec/1000);
     printf("Picotcp sec: %u, msec: %u\n", ptv.tv_sec, ptv.tv_msec);
+    printf("SNTP test succesfull!\n");
+    exit(0);
 }
 
-void cb_synced()
+void cb_synced(pico_err_t status)
 {
+    if(status == PICO_ERR_ENETDOWN) {
+        printf("Cannot resolve ntp server name\n");
+        exit(1);
+    } else if (status == PICO_ERR_ETIMEDOUT) {
+        printf("Timed out, did not receive ntp packet from server\n");
+        exit(1);
+    }
+
     pico_timer_add(2000, sntp_timeout, NULL);
 }
 
@@ -2005,7 +2015,7 @@ void app_sntp(char *servername)
         printf("Unsuccesfull gettimeofday (not synced)\n");
 
     if(pico_sntp_sync(servername, &cb_synced)==0)
-        printf("Succesfull sync!\n");
+        printf("Succesfull sync call!\n");
     else
         printf("Error in  sync\n");
 }
