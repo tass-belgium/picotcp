@@ -587,7 +587,7 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
         }
     }
 
-    if (i < optsiz)
+    if ((optsiz > 0) && (i < optsiz))
         f->start[ optsiz - 1 ] = PICO_TCP_OPTION_END;
 }
 
@@ -606,7 +606,8 @@ static uint16_t tcp_options_size_frame(struct pico_frame *f)
     if (size > 0) 
         size = (uint16_t)(size + (uint16_t)(size + PICO_TCPOPTLEN_END));
 
-    size = (uint16_t)(((uint16_t)(size + 3u) >> 2u) << 2u);
+    if (size > 0)
+        size = (uint16_t)(((uint16_t)(size + 3u) >> 2u) << 2u);
     return size;
 }
 
@@ -616,15 +617,18 @@ static void tcp_add_options_frame(struct pico_socket_tcp *ts, struct pico_frame 
     uint32_t tsecr = long_be(ts->ts_nxt);
     uint32_t i = 0;
     uint16_t optsiz = tcp_options_size_frame(f);
+    struct pico_tcp_hdr *hdr;
+    hdr = (struct pico_tcp_hdr *)f->transport_hdr;
 
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
 
     memset(f->start, PICO_TCP_OPTION_NOOP, optsiz); /* fill blanks with noop */
 
-
-    f->start[i++] = PICO_TCP_OPTION_WS;
-    f->start[i++] = PICO_TCPOPTLEN_WS;
-    f->start[i++] = (uint8_t)(ts->wnd_scale);
+    if (hdr->flags & PICO_TCP_SYN) {
+        f->start[i++] = PICO_TCP_OPTION_WS;
+        f->start[i++] = PICO_TCPOPTLEN_WS;
+        f->start[i++] = (uint8_t)(ts->wnd_scale);
+    }
 
     if (f->transport_flags_saved) {
         f->start[i++] = PICO_TCP_OPTION_TIMESTAMP;
@@ -686,10 +690,10 @@ static uint16_t tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
         size = PICO_TCPOPTLEN_MSS + PICO_TCP_OPTION_SACK_OK + PICO_TCPOPTLEN_WS + PICO_TCPOPTLEN_TIMESTAMP;
     } else {
 
-        if (t->ts_ok)
+        if (t->ts_ok) {
             size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
-
-        size = (uint16_t)(size + PICO_TCPOPTLEN_END);
+            size = (uint16_t)(size + PICO_TCPOPTLEN_END);
+        }
     }
 
     if ((flags & PICO_TCP_ACK) && (t->sack_ok && sb)) {
@@ -700,7 +704,8 @@ static uint16_t tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
         }
     }
 
-    size = (uint16_t)(((size + 3u) >> 2u) << 2u);
+    if (size >= 0)
+        size = (uint16_t)(((size + 3u) >> 2u) << 2u);
     return size;
 }
 
