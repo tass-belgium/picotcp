@@ -1245,9 +1245,12 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     struct pico_frame *f;
     uint16_t size = PICO_SIZE_TCPHDR;
 
-    tcp_dbg("TCP> sending RST ... \n");
 
     hdr1 = (struct pico_tcp_hdr *) (fr->transport_hdr);
+    if ((hdr1->flags & PICO_TCP_RST) != 0)
+        return -1;
+    tcp_dbg("TCP> sending RST ... \n");
+
     f = fr->sock->net->alloc(fr->sock->net, size);
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1307,10 +1310,12 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     struct pico_frame *f;
     struct pico_tcp_hdr *hdr, *hdr_rcv;
     uint16_t opt_len = tcp_options_size(t, PICO_TCP_RST | PICO_TCP_ACK);
+    hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
 
     tcp_dbg("TCP SEND RST (NON-SYNC) >>>>>>>>>>>>>>>>>> state %x\n", (s->state & PICO_SOCKET_STATE_TCP));
     if (((s->state & PICO_SOCKET_STATE_TCP) ==  PICO_SOCKET_STATE_TCP_LISTEN)) {
-        /* XXX TODO NOTE: to prevent the parent socket from trying to send, because this socket has no knowledge of dst IP !!! */
+        if ((fr->flags & PICO_TCP_RST) != 0)
+            return 0;
         return pico_tcp_reply_rst(fr);
     }
 
@@ -1322,7 +1327,6 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
         return -1;
     }
 
-    hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
 
     f->sock = &t->sock;
     hdr = (struct pico_tcp_hdr *) f->transport_hdr;
@@ -2212,9 +2216,12 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 
         return 0;
 
-    } else {
+    } else if ((hdr->flags & PICO_TCP_RST) == 0) {
         tcp_dbg("TCP> Not established, RST sent.\n");
         tcp_nosync_rst(s, f);
+        return 0;
+    } else {
+        /* The segment has the reset flag on: Ignore! */
         return 0;
     }
 }
@@ -2222,6 +2229,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *)f->transport_hdr;
     tcp_dbg("ACK in SYN_RECV: expecting %08x got %08x\n", t->snd_nxt, ACKN(f));
     if (t->snd_nxt == ACKN(f)) {
         tcp_set_init_point(s);
@@ -2243,8 +2251,11 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
         s->ev_pending |= PICO_SOCK_EV_WR;
         tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
         return 0;
-    } else {
+    } else if ((hdr->flags & PICO_TCP_RST) == 0) {
         tcp_nosync_rst(s, f);
+        return 0;
+    } else {
+        /* The segment has the reset flag on: Ignore! */
         return 0;
     }
 }
@@ -2536,7 +2547,6 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
             if (action->finack)
                 action->finack(s, f);
         }
-
         if (flags & PICO_TCP_RST) {
             if (action->rst)
                 action->rst(s, f);
