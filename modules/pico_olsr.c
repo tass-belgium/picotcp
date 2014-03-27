@@ -106,50 +106,7 @@ static struct pico_socket *udpsock = NULL;
 uint16_t my_ansn = 0;
 static struct olsr_route_entry  *Local_interfaces = NULL;
 static struct olsr_dev_entry    *Local_devices    = NULL;
-#if 0
-static int olsr_print_child_recur(struct olsr_route_entry * child);
 
-static int olsr_print_route_entry(struct olsr_route_entry * entry){
-    char addr[16],gateway[16];
-    pico_ipv4_to_string(addr, entry->destination.addr);
-    if (entry->gateway==NULL){
-       printf("%12s ;         NULL ; %6d ; %9d ; %5d ;",addr,entry->metric,entry->time_left);
-    }else{
-       pico_ipv4_to_string(gateway, entry->gateway->destination.addr);
-       printf("%12s ; %12s ; %6d ; %9d ; %5d ;",addr,gateway,entry->metric,entry->time_left);
-    }
-    printfflush();
-}
-
-static int olsr_print_child_recur(struct olsr_route_entry * child) {
-    struct olsr_route_entry * proute;
-    if (child){
-      olsr_print_route_entry(child);
-      printf(" Child\n");
-      olsr_print_child_recur(child->children);
-      proute = child->next;
-      while (proute!=NULL){
-        olsr_print_route_entry(proute);
-        printf(" Next\n");
-        olsr_print_child_recur(proute->children);
-        proute = proute->next;
-      }
-    }
-}
-
-static int olsr_print_routes(struct olsr_route_entry * head){
-    struct olsr_route_entry * proute;
-    printf("\nAddress      ; Gateway      ; Metric ; Time_left ; info ;\n");
-    printf(  "=============;==============;========;===========;======\n");
-    olsr_print_route_entry(head);
-    printf("\n");
-    olsr_print_child_recur(head->children);
-    printf("\n");
-    printfflush();
-    return 0;
-}
-
-#endif
 static struct olsr_dev_entry *olsr_get_deventry(struct pico_device *dev)
 {
     struct olsr_dev_entry *cur = Local_devices;
@@ -198,21 +155,18 @@ static inline void olsr_route_add(struct olsr_route_entry *el)
         /* 2-hops route or more */
         el->next = el->gateway->children;
         el->gateway->children = el;
-        printf("added child and shifted !!!!!!\n");
         el->link_type = OLSRLINK_MPR;
         pico_ipv4_to_string(dest, el->destination.addr);
         pico_ipv4_to_string(nxdest, nexthop->destination.addr);
         if (nexthop->destination.addr != el->destination.addr) {
-            printf("[OLSR] Adding route to %08s via %08s metric %d..................", dest, nxdest, el->metric);
             /* dbg("[OLSR] Adding route to %08x via %08x metric %d..................", el->destination.addr, nexthop->destination.addr, el->metric); */
             pico_ipv4_route_add(el->destination, HOST_NETMASK, nexthop->destination, el->metric, NULL);
             /* dbg("route added: %d err: %s\n", ret, strerror(pico_err)); */
         }else{
-            printf("[OLSR] %08s == %08s\n ", dest, nxdest);
+            dbg("[OLSR] %08s == %08s\n ", dest, nxdest);
         }
     } else if (el->iface) {
         /* neighbor */
-        printf("ad child \n");
         struct olsr_route_entry *ei = olsr_get_ethentry(el->iface);
         if (el->link_type == OLSRLINK_UNKNOWN)
             el->link_type = OLSRLINK_SYMMETRIC;
@@ -914,13 +868,6 @@ static void olsr_recv(uint8_t *buffer, uint32_t len)
             e->lq = 0xFF;
             e->nlq = 0xFF;
             olsr_route_add(e);
-            printf("Adding :\n");
-            printf("\nAddress      ; Gateway      ; Metric ; Time_left ; info\n");
-            printf("=============;==============;========;===========;=====\n");
-#if 0
-            olsr_print_route_entry(e); 
-#endif
-            printf("\n");
             parsed += short_be(msg->size);
             continue;
         }
