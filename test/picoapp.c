@@ -2010,7 +2010,7 @@ void cb_synced(pico_err_t status)
     } else if (status == PICO_ERR_NOERR) {
         pico_timer_add(2000, sntp_timeout, NULL);
     } else {
-        printf("Invalid status received in cb_synced\n");
+        printf("SNTP: Invalid status received in cb_synced\n");
         exit(1);
     }
 }
