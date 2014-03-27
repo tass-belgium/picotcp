@@ -704,7 +704,7 @@ static uint16_t tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
         }
     }
 
-    if (size >= 0)
+    if (size > 0)
         size = (uint16_t)(((size + 3u) >> 2u) << 2u);
     return size;
 }
