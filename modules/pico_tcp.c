@@ -553,11 +553,11 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
         f->start[i++] = (uint8_t)(ts->mss & 0xFF);
         f->start[i++] = PICO_TCP_OPTION_SACK_OK;
         f->start[i++] = PICO_TCPOPTLEN_SACK_OK;
+        f->start[i++] = PICO_TCP_OPTION_WS;
+        f->start[i++] = PICO_TCPOPTLEN_WS;
+        f->start[i++] = (uint8_t)(ts->wnd_scale);
     }
 
-    f->start[i++] = PICO_TCP_OPTION_WS;
-    f->start[i++] = PICO_TCPOPTLEN_WS;
-    f->start[i++] = (uint8_t)(ts->wnd_scale);
 
     if ((flags & PICO_TCP_SYN) || ts->ts_ok) {
         f->start[i++] = PICO_TCP_OPTION_TIMESTAMP;
@@ -594,13 +594,18 @@ static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, ui
 static uint16_t tcp_options_size_frame(struct pico_frame *f)
 {
     uint16_t size = 0;
+    struct pico_tcp_hdr *hdr;
+    hdr = (struct pico_tcp_hdr *)f->transport_hdr;
 
-    /* Always update window scale. */
-    size = (uint16_t)(size + PICO_TCPOPTLEN_WS);
+    if ((hdr->flags & PICO_TCP_SYN) != 0)
+        size = (uint16_t) (size + (uint16_t)(size + PICO_TCPOPTLEN_WS));
+
     if (f->transport_flags_saved)
-        size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
+        size = (uint16_t) (size + (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP));
 
-    size = (uint16_t)(size + PICO_TCPOPTLEN_END);
+    if (size > 0) 
+        size = (uint16_t)(size + (uint16_t)(size + PICO_TCPOPTLEN_END));
+
     size = (uint16_t)(((uint16_t)(size + 3u) >> 2u) << 2u);
     return size;
 }
@@ -630,7 +635,7 @@ static void tcp_add_options_frame(struct pico_socket_tcp *ts, struct pico_frame 
         i += 4;
     }
 
-    if (i < optsiz)
+    if ((optsiz > 0) && (i < optsiz))
         f->start[ optsiz - 1 ] = PICO_TCP_OPTION_END;
 }
 
@@ -655,9 +660,11 @@ static void tcp_set_space(struct pico_socket_tcp *t)
         space = (int32_t)(((uint32_t)space >> 1u));
         shift++;
     }
-    if (((uint32_t)space != t->wnd) || (shift != t->wnd_scale) || ((space - t->wnd) > (int32_t)((uint32_t)space >> 2u))) {
+    if (((uint32_t)space != t->wnd) || (t->wnd_scale == 0) || ((space - t->wnd) > (int32_t)((uint32_t)space >> 2u))) {
         t->wnd = (uint16_t)space;
-        t->wnd_scale = (uint16_t)shift;
+
+        if (t->wnd_scale == 0)
+            t->wnd_scale = (uint16_t)shift;
 
         if(t->wnd == 0) /* mark the entering to zero window state */
             t->localZeroWindow = 1u;
@@ -678,9 +685,6 @@ static uint16_t tcp_options_size(struct pico_socket_tcp *t, uint16_t flags)
     if (flags & PICO_TCP_SYN) { /* Full options */
         size = PICO_TCPOPTLEN_MSS + PICO_TCP_OPTION_SACK_OK + PICO_TCPOPTLEN_WS + PICO_TCPOPTLEN_TIMESTAMP;
     } else {
-
-        /* Always update window scale. */
-        size = (uint16_t)(size + PICO_TCPOPTLEN_WS);
 
         if (t->ts_ok)
             size = (uint16_t)(size + PICO_TCPOPTLEN_TIMESTAMP);
