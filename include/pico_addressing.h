@@ -54,5 +54,6 @@ struct pico_trans
 #define PICO_PROTO_UDP    17
 #define PICO_PROTO_IPV6   41
 #define PICO_PROTO_ICMP6  58
+#define PICO_PROTO_MANET  138
 
 #endif
