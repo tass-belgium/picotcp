@@ -98,7 +98,7 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
 {
     struct pico_frame *p = q->head;
     if (!p)
-      return NULL;
+        return NULL;
 
     if (q->frames < 1)
         return NULL;
@@ -113,7 +113,7 @@ static inline struct pico_frame *pico_dequeue(struct pico_queue *q)
         q->tail = NULL;
 
     debug_q(q);
-    
+
     p->next = NULL;
     if (q->shared)
         PICOTCP_MUTEX_UNLOCK(q->mutex);

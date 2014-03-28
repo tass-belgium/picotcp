@@ -118,13 +118,15 @@ END_TEST
 START_TEST(tc_pico_sntp_parse)
 {
     /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
-    struct sntp_server_ns_cookie *ck; 
+    struct sntp_server_ns_cookie *ck;
     struct pico_socket *sock;
-    struct pico_sntp_header header = {0};
+    struct pico_sntp_header header = {
+        0
+    };
 
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
     fail_unless (ck);
-    ck->hostname = PICO_ZALLOC(sizeof(char)*5);
+    ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
     fail_unless (ck->hostname);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
@@ -150,7 +152,7 @@ START_TEST(tc_pico_sntp_client_wakeup)
     struct pico_socket *sock;
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
     fail_unless (ck);
-    ck->hostname = PICO_ZALLOC(sizeof(char)*5);
+    ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
     fail_unless (ck->hostname);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;

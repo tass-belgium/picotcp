@@ -1,8 +1,8 @@
 /*********************************************************************
-  PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
-  See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
-Author: Toon Stegen
+   Author: Toon Stegen
  *********************************************************************/
 #include "pico_sntp_client.h"
 #include "pico_config.h"
@@ -16,8 +16,8 @@ Author: Toon Stegen
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
-//#define sntp_dbg(...) do {} while(0)
-#define sntp_dbg printf
+#define sntp_dbg(...) do {} while(0)
+/* #define sntp_dbg dbg */
 
 #define SNTP_VERSION 4
 
@@ -101,9 +101,11 @@ static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t statu
     sntp_dbg("Cleanup called\n");
     if(!ck)
         return;
+
     ck->cb_synced(status);
     if(ck->sock)
         ck->sock->priv = NULL;
+
     sntp_dbg("FREE!\n");
     PICO_FREE(ck->hostname);
     PICO_FREE(ck);

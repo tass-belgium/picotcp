@@ -197,13 +197,13 @@ static int32_t pico_enqueue_segment(struct pico_tcp_queue *tq, void *f)
 {
     int32_t ret = -1;
     uint16_t payload_len;
-   
+
     if (!f)
-       return -1;
-      
+        return -1;
+
     payload_len = (uint16_t)((IS_INPUT_QUEUE(tq)) ?
-                                      (((struct tcp_input_segment *)f)->payload_len) :
-                                      (((struct pico_frame *)f)->buffer_len));
+                             (((struct tcp_input_segment *)f)->payload_len) :
+                             (((struct pico_frame *)f)->buffer_len));
 
     if (payload_len <= 0) {
         tcp_dbg("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! TRIED TO ENQUEUE INVALID SEGMENT!\n");
@@ -1249,6 +1249,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
     hdr1 = (struct pico_tcp_hdr *) (fr->transport_hdr);
     if ((hdr1->flags & PICO_TCP_RST) != 0)
         return -1;
+
     tcp_dbg("TCP> sending RST ... \n");
 
     f = fr->sock->net->alloc(fr->sock->net, size);
@@ -1316,6 +1317,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     if (((s->state & PICO_SOCKET_STATE_TCP) ==  PICO_SOCKET_STATE_TCP_LISTEN)) {
         if ((fr->flags & PICO_TCP_RST) != 0)
             return 0;
+
         return pico_tcp_reply_rst(fr);
     }
 
@@ -2547,6 +2549,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
             if (action->finack)
                 action->finack(s, f);
         }
+
         if (flags & PICO_TCP_RST) {
             if (action->rst)
                 action->rst(s, f);
