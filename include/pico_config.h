@@ -56,6 +56,8 @@
 # include "arch/pico_str9.h"
 #elif defined FAULTY
 # include "../test/pico_faulty.h"
+#elif defined ARCHNONE
+# include "arch/pico_none.h"
 
 
 /* #elif defined ... */

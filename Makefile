@@ -138,6 +138,10 @@ ifeq ($(ARCH),str9)
   CFLAGS+=-DSTR9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
+ifeq ($(ARCH),none)
+  CFLAGS+=-DARCHNONE
+endif
+
 .c.o:
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
