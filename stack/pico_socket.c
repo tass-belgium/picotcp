@@ -1176,7 +1176,7 @@ static int pico_socket_xmit_avail_space(struct pico_socket *s)
 
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
-        transport_len = pico_tcp_get_socket_mss(s);
+        transport_len = pico_tcp_get_socket_mtu(s);
     } else
 #endif
     transport_len = pico_socket_get_mtu(s);

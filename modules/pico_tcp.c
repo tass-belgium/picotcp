@@ -942,14 +942,13 @@ struct pico_socket *pico_tcp_open(uint16_t family)
 
     t->sock.timestamp = TCP_TIME;
     pico_socket_set_family(&t->sock, family);
-    t->mss = pico_socket_get_mtu(&t->sock);
-
+    t->mss = (uint16_t)(pico_socket_get_mtu(&t->sock) - PICO_SIZE_TCPHDR);
     t->tcpq_in.pool.root = t->tcpq_hold.pool.root = t->tcpq_out.pool.root = &LEAF;
     t->tcpq_hold.pool.compare = t->tcpq_out.pool.compare = segment_compare;
     t->tcpq_in.pool.compare = input_segment_compare;
     t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
-    t->tcpq_hold.max_size = 2u * pico_socket_get_mtu(&t->sock);
+    t->tcpq_hold.max_size = 2u * t->mss;
     /* disable Nagle by default */
     t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
     /* Nagle is enabled by default */
@@ -1071,7 +1070,8 @@ int pico_tcp_initconn(struct pico_socket *s)
     ts->snd_last = ts->snd_nxt;
     ts->cwnd = PICO_TCP_IW;
     mtu = pico_socket_get_mtu(s);
-    ts->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / mtu) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / mtu)) >> 3u));
+    ts->mss = (uint16_t)(mtu - PICO_SIZE_TCPHDR);
+    ts->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / ts->mss) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / ts->mss)) >> 3u));
     syn->sock = s;
     hdr->seq = long_be(ts->snd_nxt);
     hdr->len = (uint8_t)((PICO_SIZE_TCPHDR + opt_len) << 2 | ts->jumbo);
@@ -1994,7 +1994,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
     /* if Nagle enabled, check if no unack'ed data and fill out queue (till window) */
     if (IS_NAGLE_ENABLED((&(t->sock)))) {
-        while (!IS_TCP_HOLDQ_EMPTY(t) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= pico_socket_get_mtu(&t->sock))) {
+        while (!IS_TCP_HOLDQ_EMPTY(t) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {
             tcp_dbg_nagle("TCP_ACK - NAGLE add new segment\n");
             f_new = pico_hold_segment_make(t);
             if (f_new == NULL)
@@ -2148,16 +2148,16 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 
     f->sock = &new->sock;
     tcp_parse_options(f);
-    new->mss = pico_socket_get_mtu(s);
-    mtu = new->mss;
+    mtu = pico_socket_get_mtu(s);
+    new->mss = (uint16_t)(mtu - PICO_SIZE_TCPHDR);
     new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
-    new->tcpq_hold.max_size = 2u * pico_socket_get_mtu(s);
+    new->tcpq_hold.max_size = 2u * mtu;
     new->rcv_nxt = long_be(hdr->seq) + 1;
     new->snd_nxt = long_be(pico_paws());
     new->snd_last = new->snd_nxt;
     new->cwnd = PICO_TCP_IW;
-    new->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / mtu) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / mtu)) >> 3u));
+    new->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / new->mss) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / new->mss)) >> 3u));
     new->recv_wnd = short_be(hdr->rwnd);
     new->jumbo = hdr->len & 0x07;
     s->number_of_pending_conn++;
@@ -2178,7 +2178,7 @@ static void tcp_set_init_point(struct pico_socket *s)
 }
 
 
-uint16_t pico_tcp_get_socket_mss(struct pico_socket *s)
+uint16_t pico_tcp_get_socket_mtu(struct pico_socket *s)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     if (t->mss > 0)
@@ -2721,7 +2721,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
     f_temp = next_segment(&t->tcpq_hold, f_temp);
 
     /* check till total_len <= MSS */
-    while ((f_temp != NULL) && ((total_len + f_temp->payload_len) <= pico_socket_get_mtu(s))) {
+    while ((f_temp != NULL) && ((total_len + f_temp->payload_len) <= t->mss)) {
         total_len = (uint16_t)(total_len + f_temp->payload_len);
         f_temp = next_segment(&t->tcpq_hold, f_temp);
         if (f_temp == NULL)
@@ -2746,7 +2746,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
     hdr->trans.dport = t->sock.remote_port;
 
     /* check till total_payload_len <= MSS */
-    while ((f_temp != NULL) && ((total_payload_len + f_temp->payload_len) <= pico_socket_get_mtu(s))) {
+    while ((f_temp != NULL) && ((total_payload_len + f_temp->payload_len) <= t->mss)) {
         /* cpy data and discard frame */
         test++;
         memcpy(f_new->payload + total_payload_len, f_temp->payload, f_temp->payload_len);
@@ -2806,7 +2806,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
             }
         } else {                                    /* opt 2. hold data back */
             total_len = f->payload_len + t->tcpq_hold.size;
-            if ((total_len >= pico_socket_get_mtu(&t->sock)) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= pico_socket_get_mtu(&t->sock))) {              /* TODO check mss socket */
+            if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {              /* TODO check mss socket */
                 /* IF enough data in hold (>mss) AND space in out queue (>mss) */
                 /* add current frame in hold and make new segment */
                 if (pico_enqueue_segment(&t->tcpq_hold, f) > 0 ) {
