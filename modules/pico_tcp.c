@@ -2630,6 +2630,8 @@ static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pi
     hdr2->seq = long_be(SEQN(f) + size1);
 
     /* Add TCP options */
+    pico_tcp_flags_update(f1, &t->sock);
+    pico_tcp_flags_update(f2, &t->sock);
     tcp_add_options_frame(t, f1);
     tcp_add_options_frame(t, f2);
 
