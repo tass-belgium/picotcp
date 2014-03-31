@@ -1691,8 +1691,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
 
     if (t->retrans_tmr_due > val) {
         /* Timer was postponed... */
-        t->retrans_tmr = NULL;
-        add_retransmission_timer(t, (t->rto << (t->backoff)) + TCP_TIME);
+        add_retransmission_timer(t, t->retrans_tmr_due);
         return;
     }
 
