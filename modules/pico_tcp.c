@@ -23,7 +23,7 @@
 
 #define TCP_TIME (PICO_TIME_MS())
 
-#define PICO_TCP_RTO_MIN (150)
+#define PICO_TCP_RTO_MIN (70)
 #define PICO_TCP_RTO_MAX (120000)
 #define PICO_TCP_IW          2
 #define PICO_TCP_SYN_TO  1000u
@@ -1581,7 +1581,7 @@ static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
          */
         t->avg_rtt = rtt;
         t->rttvar = rtt >> 1;
-        rto_set(t, t->avg_rtt + (t->rttvar << 4));
+        rto_set(t, t->avg_rtt + (t->rttvar << 2));
     } else {
         int32_t var = (int32_t)t->avg_rtt - (int32_t)rtt;
         if (var < 0)
@@ -1685,11 +1685,13 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
 
     t->retrans_tmr = NULL;
 
-    if (t->retrans_tmr_due == 0ull)
+    if (t->retrans_tmr_due == 0ull) {
         return;
+    }
 
     if (t->retrans_tmr_due > val) {
         /* Timer was postponed... */
+        t->retrans_tmr = NULL;
         add_retransmission_timer(t, (t->rto << (t->backoff)) + TCP_TIME);
         return;
     }
@@ -1702,7 +1704,6 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
         f = first_segment(&t->tcpq_out);
         while (f) {
             if (t->x_mode == PICO_TCP_WINDOW_FULL) {
-                tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
                 tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
                 tcp_next_zerowindow_probe(t);
                 return;
@@ -1739,7 +1740,9 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
 static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_ts)
 {
     struct pico_tree_node *index;
+    pico_time now = TCP_TIME;
     pico_time val = 0;
+
 
     if (next_ts == 0) {
         struct pico_frame *f;
@@ -1755,15 +1758,14 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_t
         val = next_ts;
     }
 
-    if ((val > 0) || (val > TCP_TIME)) {
+    if ((val > 0) || (val > now)) {
         t->retrans_tmr_due = val;
     } else {
-        t->retrans_tmr_due = TCP_TIME + 1;
+        t->retrans_tmr_due = now + 1;
     }
 
     if (!t->retrans_tmr) {
-        t->retrans_tmr = pico_timer_add(t->retrans_tmr_due - TCP_TIME, tcp_retrans_timeout, t);
-    } else {
+        t->retrans_tmr = pico_timer_add(t->retrans_tmr_due - now, tcp_retrans_timeout, t);
     }
 }
 
