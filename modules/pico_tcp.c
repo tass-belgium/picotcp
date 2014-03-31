@@ -2178,6 +2178,10 @@ static int tcp_synrecv_syn(struct pico_socket *s, struct pico_frame *f)
     struct pico_socket_tcp *t = TCP_SOCK(s);
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     if (t->rcv_nxt == long_be(hdr->seq) + 1) {
+        /* take back our own SEQ number to its original value,
+         * so the synack retransmitted is identical to the original. 
+         */
+        t->snd_nxt--; 
         tcp_send_synack(s);
     } else {
         tcp_send_rst(s, f);
@@ -2482,14 +2486,11 @@ static const struct tcp_action_entry tcp_fsm[] = {
     { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            &tcp_ack,          &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
 };
 
-/*
-   NOTE: in SYN-RECV receiving syn when cloned by default (see yellow pos-it), should send reset.
- */
 #define MAX_VALID_FLAGS  9  /* Maximum number of valid flag combinations */
 static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
 {
     uint8_t i;
-    static uint8_t valid_flags[PICO_SOCKET_STATE_TCP_ARRAYSIZ][MAX_VALID_FLAGS] = {
+    static const uint8_t valid_flags[PICO_SOCKET_STATE_TCP_ARRAYSIZ][MAX_VALID_FLAGS] = {
         { /* PICO_SOCKET_STATE_TCP_UNDEF      */ 0, },
         { /* PICO_SOCKET_STATE_TCP_CLOSED     */ 0, },
         { /* PICO_SOCKET_STATE_TCP_LISTEN     */ PICO_TCP_SYN },
