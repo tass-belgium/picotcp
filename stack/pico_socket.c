@@ -1663,6 +1663,11 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 
 int pico_socket_close(struct pico_socket *s)
 {
+#ifdef PICO_SUPPORT_TCP
+    if (PROTO(s) == PICO_PROTO_TCP)
+        if (pico_tcp_check_listen_close(s) == 0)
+            return 0;
+#endif
     return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
 
