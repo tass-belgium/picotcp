@@ -16,7 +16,7 @@
 #include "pico_queue.h"
 #include "pico_tree.h"
 
-#define TCP_IS_STATE(s, st) (s->state & st)
+#define TCP_IS_STATE(s, st) ((s->state & PICO_SOCKET_STATE_TCP) == st)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->seq)) : 0)
 #define ACKN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->ack)) : 0)
