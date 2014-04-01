@@ -35,7 +35,7 @@ void pico_mem_page0_free(void*ptr);
  */
 static void *manager_tree_insert(struct pico_tree*tree, void *key)
 {
-    return pico_tree_insert_implementation(tree, key, USE_PICO_PAGE0_ZALLOC);
+    return (void*) pico_tree_insert_implementation(tree, key, USE_PICO_PAGE0_ZALLOC);
 }
 
 /* this is a wrapper function for pico_tree_insert. The function pointers that are used by pico_tree
@@ -43,7 +43,7 @@ static void *manager_tree_insert(struct pico_tree*tree, void *key)
  */
 static void *manager_tree_delete(struct pico_tree *tree, void *key)
 {
-    return pico_tree_delete_implementation(tree, key, USE_PICO_PAGE0_ZALLOC);
+    return (void *) pico_tree_delete_implementation(tree, key, USE_PICO_PAGE0_ZALLOC);
 }
 
 
@@ -82,53 +82,53 @@ static uint32_t slab_size_global = PICO_MEM_DEFAULT_SLAB_SIZE;
    +------------<------------+----------<-----------+
  |                         ^                      ^
         v                         |                      |
- |||+---------+------------+--+----+---------------+-+-----+---------------+
+ |||||+---------+------------+--+----+---------------+-+-----+---------------+
  |         |            |       |               |       |               |
  |  pico_  |            | pico_ |               | pico_ |               |
  |  mem_   | ...HEAP... | mem_  |     slab      | mem_  |     slab      |
  |  page   |            | block |               | block |               |
  |         |            |       |               |       |               |
- |||+---------+------------+-------+-----+---------+-------+----------+----+
+ |||||+---------+------------+-------+-----+---------+-------+----------+----+
                                ^             |         ^                  |
- |||+-------+     |         |                  |
+ |||||+-------+     |         |                  |
  |     |       +-+                  |
- |||+------|-----+       |                    |
+ |||||+------|-----+       |                    |
  |      |       +-----|--------------------+
                                 v      |       v     |
- |||+---------+-----+-------+------+-+-----+-----+--+
+ |||||+---------+-----+-------+------+-+-----+-----+--+
  |         |     |       |        |     |        |
  | pico_   |     | pico_ | pico_  |     | pico_  |
  | mem_    | ... | tree_ | mem_   | ... | mem_   |
  | manager |     | node  | slab_  |     | slab_  |
  |         |     |       | node   |     | node   |
- |||+---------+-----+-+-----+-----+--+-----+-----+--+
+ |||||+---------+-----+-+-----+-----+--+-----+-----+--+
  |     ^     |        ^     |
  |     |     +---->---+     |
- |||+-->--+----<-----------<---+
+ |||||+-->--+----<-----------<---+
 
         <----------------------------------------------->
                           manager page
 
 
- |||+----------------+
+ |||||+----------------+
  |                |
  | pico_tree_node +-------------------------------------+
  |    (size x)    |                                     |
- |||+--+----------+--+                                     |
+ |||||+--+----------+--+                                     |
  |          |                              +---------v----------+
  |          |                              |                    |
                         v          v                         +----> pico_mem_slab_node +----+
  |          |                         |    |                    |    |
- |||+----<----+          +---->----+               |    +--------------------+    |
+ |||||+----<----+          +---->----+               |    +--------------------+    |
  |                              |               |                              |
  |                              |               ^                              v
  |                              |               |                              |
  |                              |               |    +--------------------+    |
- |||+------v---------+          +---------v------+        +----+                    <----+
+ |||||+------v---------+          +---------v------+        +----+                    <----+
  |                |          |                |             | pico_mem_slab_node |
  | pico_tree_node |          | pico_tree_node |        +---->                    +----+
  |   (size x/2)   |          |    (size 2x)   |        |    +--------------------+    |
- |||+----------------+          +----------------+        |                              |
+ |||||+----------------+          +----------------+        |                              |
  |                              |
  |                              |
                                                              ^                              v

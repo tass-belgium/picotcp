@@ -172,7 +172,7 @@ int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6])
     }
 
     /* every nibble is one char */
-    for (i = 0; i < PICO_SIZE_IP6 * 2u; ++i) {
+    for (i = 0; i < ((uint8_t)PICO_SIZE_IP6) * 2u; ++i) {
         if (i % 4 == 0 && i != 0)
             *ipbuf++ = ':';
 

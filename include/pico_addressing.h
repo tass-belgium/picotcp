@@ -5,21 +5,19 @@
  *********************************************************************/
 #ifndef INCLUDE_PICO_ADDRESSING
 #define INCLUDE_PICO_ADDRESSING
+
 #include <stdint.h>
+#include "pico_config.h"
 
-
-struct pico_ip4
+PACKED_STRUCT_DEF pico_ip4
 {
     uint32_t addr;
 };
-#define PICO_SIZE_IP4 4
 
-
-struct pico_ip6
+PACKED_STRUCT_DEF pico_ip6
 {
     uint8_t addr[16];
 };
-#define PICO_SIZE_IP6 16
 
 union pico_address
 {
@@ -32,7 +30,6 @@ struct pico_eth
     uint8_t addr[6];
     uint8_t padding[2];
 };
-#define PICO_SIZE_ETH 6
 
 extern const uint8_t PICO_ETHADDR_ALL[];
 
@@ -43,8 +40,6 @@ struct pico_trans
     uint16_t dport;
 
 };
-#define PICO_SIZE_TRANS 8
-
 
 /* Here are some protocols. */
 #define PICO_PROTO_IPV4   0

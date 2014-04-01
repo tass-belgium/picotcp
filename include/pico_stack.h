@@ -33,13 +33,15 @@ int32_t pico_ethernet_receive(struct pico_frame *f);
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
+ * The zerocopy version will associate the current buffer to the newly created frame.
+ * Warning: the buffer used in the zerocopy version MUST have been allocated using PICO_ZALLOC()
  */
 int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
-int32_t pico_transport_send(struct pico_frame *f);
 int32_t pico_network_send(struct pico_frame *f);
 int32_t pico_ethernet_send(struct pico_frame *f);
 int32_t pico_sendto_dev(struct pico_frame *f);
@@ -60,7 +62,6 @@ int pico_notify_ttl_expired(struct pico_frame *f);
 /* Various. */
 struct pico_timer;
 int pico_source_is_local(struct pico_frame *f);
-int pico_destination_is_local(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg);
 void pico_timer_cancel(struct pico_timer *t);

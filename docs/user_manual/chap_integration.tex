@@ -40,6 +40,7 @@ internal applets as well as generic POSIX-compliant socket interfaces.
           described in the socket API documentation.
 \item \textbf{DNS client} A small DNS client is provided to resolve an IP address for a given name.
 					The API supports setting several DNS servers and a small cache.
+\item \textbf{SNTP client} The stack supports synchronizing time over the network using sntp with a precision of at least 10msec. Similar to unix a gettimeofday function is implemented.
 \item \textbf{DHCP client} A DHCP client can request an IP lease from a DHCP server to set the IP
 					adress of the device.
 \item \textbf{DHCP server} Also a small DHCP server is included to hand out IP addresses to hosts
@@ -172,6 +173,12 @@ DNS$\_$CLIENT&
 0,1&
 1&
 This feature is required to resolve host names into IP addresses and vice-versa.
+\\ \hline
+
+SNTP$\_$CLIENT&
+0,1&
+1&
+Enables snychronising the local time to a given ntp server.
 \\ \hline
 
 DHCP$\_$CLIENT&

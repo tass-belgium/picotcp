@@ -25,119 +25,119 @@ START_TEST(tc_pico_dns_client_callback)
 END_TEST
 START_TEST(tc_pico_dns_client_retransmission)
 {
-   /* TODO: test this: static void pico_dns_client_retransmission(pico_time now, void *arg); */
+    /* TODO: test this: static void pico_dns_client_retransmission(pico_time now, void *arg); */
 }
 END_TEST
 START_TEST(tc_dns_ns_cmp)
 {
-   /* TODO: test this: static int dns_ns_cmp(void *ka, void *kb) */
+    /* TODO: test this: static int dns_ns_cmp(void *ka, void *kb) */
 }
 END_TEST
 START_TEST(tc_dns_query_cmp)
 {
-   /* TODO: test this: static int dns_query_cmp(void *ka, void *kb) */
+    /* TODO: test this: static int dns_query_cmp(void *ka, void *kb) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_del_ns)
 {
-   /* TODO: test this: static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr) */
+    /* TODO: test this: static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_ns)
 {
-   /* TODO: test this: static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr) */
+    /* TODO: test this: static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_del_query)
 {
-   /* TODO: test this: static int pico_dns_client_del_query(uint16_t id) */
+    /* TODO: test this: static int pico_dns_client_del_query(uint16_t id) */
 }
 END_TEST
 START_TEST(tc_pico_dns_query)
 {
-   /* TODO: test this: static struct pico_dns_query *pico_dns_client_find_query(uint16_t id) */
+    /* TODO: test this: static struct pico_dns_query *pico_dns_client_find_query(uint16_t id) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_strlen)
 {
-   /* TODO: test this: static uint16_t pico_dns_client_strlen(const char *url) */
+    /* TODO: test this: static uint16_t pico_dns_client_strlen(const char *url) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_seek)
 {
-   /* TODO: test this: static char *pico_dns_client_seek(char *ptr) */
+    /* TODO: test this: static char *pico_dns_client_seek(char *ptr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_mirror)
 {
-   /* TODO: test this: static int8_t pico_dns_client_mirror(char *ptr) */
+    /* TODO: test this: static int8_t pico_dns_client_mirror(char *ptr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_query_prefix)
 {
-   /* TODO: test this: static int pico_dns_client_query_prefix(struct pico_dns_prefix *pre) */
+    /* TODO: test this: static int pico_dns_client_query_prefix(struct pico_dns_prefix *pre) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_query_suffix)
 {
-   /* TODO: test this: static int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t class) */
+    /* TODO: test this: static int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t class) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_query_domain)
 {
-   /* TODO: test this: static int pico_dns_client_query_domain(char *ptr) */
+    /* TODO: test this: static int pico_dns_client_query_domain(char *ptr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_answer_domain)
 {
-   /* TODO: test this: static int pico_dns_client_answer_domain(char *ptr) */
+    /* TODO: test this: static int pico_dns_client_answer_domain(char *ptr) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_check_prefix)
 {
-   /* TODO: test this: static int pico_dns_client_check_prefix(struct pico_dns_prefix *pre) */
+    /* TODO: test this: static int pico_dns_client_check_prefix(struct pico_dns_prefix *pre) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_check_qsuffix)
 {
-   /* TODO: test this: static int pico_dns_client_check_qsuffix(struct pico_dns_query_suffix *suf, struct pico_dns_query *q) */
+    /* TODO: test this: static int pico_dns_client_check_qsuffix(struct pico_dns_query_suffix *suf, struct pico_dns_query *q) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_check_asuffix)
 {
-   /* TODO: test this: static int pico_dns_client_check_asuffix(struct pico_dns_answer_suffix *suf, struct pico_dns_query *q) */
+    /* TODO: test this: static int pico_dns_client_check_asuffix(struct pico_dns_answer_suffix *suf, struct pico_dns_query *q) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_seek_suffix)
 {
-   /* TODO: test this: static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre, struct pico_dns_query *q) */
+    /* TODO: test this: static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_prefix *pre, struct pico_dns_query *q) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_send)
 {
-   /* TODO: test this: static int pico_dns_client_send(struct pico_dns_query *q) */
+    /* TODO: test this: static int pico_dns_client_send(struct pico_dns_query *q) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_user_callback)
 {
-   /* TODO: test this: static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix, struct pico_dns_query *q) */
+    /* TODO: test this: static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix, struct pico_dns_query *q) */
 }
 END_TEST
 START_TEST(tc_pico_dns_client_getaddr_init)
 {
-   /* TODO: test this: static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg) */
+    /* TODO: test this: static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_dns_ipv6_set_ptr)
 {
-   /* TODO: test this: static void pico_dns_ipv6_set_ptr(const char *ip, char *dst) */
+    /* TODO: test this: static void pico_dns_ipv6_set_ptr(const char *ip, char *dst) */
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_dns_client_callback = tcase_create("Unit test for pico_dns_client_callback");
     TCase *TCase_pico_dns_client_retransmission = tcase_create("Unit test for pico_dns_client_retransmission");
@@ -210,16 +210,16 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_dns_client_getaddr_init);
     tcase_add_test(TCase_pico_dns_ipv6_set_ptr, tc_pico_dns_ipv6_set_ptr);
     suite_add_tcase(s, TCase_pico_dns_ipv6_set_ptr);
-return s;
+    return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

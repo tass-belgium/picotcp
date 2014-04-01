@@ -83,6 +83,8 @@ void pico_frame_discard(struct pico_frame *f);
 struct pico_frame *pico_frame_copy(struct pico_frame *f);
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f);
 struct pico_frame *pico_frame_alloc(uint32_t size);
+struct pico_frame *pico_frame_alloc_skeleton(uint32_t size);
+int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf);
 uint16_t pico_checksum(void *inbuf, uint32_t len);
 uint16_t pico_dualbuffer_checksum(void *b1, uint32_t len1, void *b2, uint32_t len2);
 

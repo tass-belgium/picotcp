@@ -58,6 +58,7 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
         cpy = pico_frame_copy(f);
         if (!cpy)
             return -1;
+
         if (pico_enqueue(&s->q_in, cpy) > 0) {
             if (s->wakeup)
                 s->wakeup(PICO_SOCK_EV_RD, s);

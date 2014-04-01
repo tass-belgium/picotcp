@@ -29,6 +29,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
+SNTP_CLIENT?=1
 IPFILTER?=1
 CRC?=0
 OLSR?=1
@@ -137,6 +138,10 @@ ifeq ($(ARCH),str9)
   CFLAGS+=-DSTR9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
+ifeq ($(ARCH),none)
+  CFLAGS+=-DARCHNONE
+endif
+
 .c.o:
 	@echo -e "\t[CC] $<"
 	@$(CC) -c $(CFLAGS) -o $@ $<
@@ -220,7 +225,9 @@ endif
 ifneq ($(MEMORY_MANAGER_PROFILING),0)
   OPTIONS+=-DPICO_SUPPORT_MM_PROFILING
 endif
-
+ifneq ($(SNTP_CLIENT),0)
+  include rules/sntp_client.mk
+endif
 all: mod core lib
 
 core: $(CORE_OBJ)
@@ -263,7 +270,7 @@ lib: mod core
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
 	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
-	@./mkdeps.sh $(PREFIX) $(CFLAGS) 
+	@bash ./mkdeps.sh $(PREFIX) $(CFLAGS) 
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
@@ -283,6 +290,9 @@ units: mod core lib $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_tcp.elf $(CFLAGS) -I. test/unit/modunit_pico_tcp.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dns_client.elf $(CFLAGS) -I. test/unit/modunit_pico_dns_client.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_loop.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_loop.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_ipv6_nd.elf $(CFLAGS) -I. test/unit/modunit_pico_ipv6_nd.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_pico_stack.elf $(CFLAGS) -I. test/unit/modunit_pico_stack.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_sntp_client.elf $(CFLAGS) -I. test/unit/modunit_pico_sntp_client.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

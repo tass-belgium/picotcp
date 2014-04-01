@@ -85,12 +85,13 @@ static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
     tmp->timer = NULL;
 }
 
-static void pico_slaacv4_send_announce_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_slaacv4_send_announce_timer(pico_time now, void *arg)
 {
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
     struct pico_ip4 netmask = {
         .addr = long_be(0xFFFF0000)
     };
+    (void)now;
 
     if (tmp->announce_nb < ANNOUNCE_NB)
     {
@@ -107,10 +108,10 @@ static void pico_slaacv4_send_announce_timer(pico_time __attribute__((unused)) n
     }
 }
 
-static void pico_slaacv4_send_probe_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_slaacv4_send_probe_timer(pico_time now, void *arg)
 {
-
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
+    (void)now;
 
     if (tmp->probe_try_nb < PROBE_NB)
     {
