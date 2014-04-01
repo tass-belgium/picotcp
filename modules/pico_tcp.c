@@ -2952,7 +2952,6 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
 
 int pico_tcp_check_listen_close(struct pico_socket *s)
 {
-    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     if (TCP_IS_STATE(s, PICO_SOCKET_STATE_TCP_LISTEN)) {
         pico_socket_del(s);
         return 0;
