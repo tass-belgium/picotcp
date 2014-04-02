@@ -1,8 +1,8 @@
 
 /*************************/
 
-/* #define dbg(...) do {} while(0) */
-#define dbg printf
+ #define dbg(...) do {} while(0)
+/* #define dbg printf */
 
 extern volatile pico_time full_tick;
 extern volatile uint32_t sys_tick_counter;
@@ -45,7 +45,7 @@ static inline pico_time PICO_TIME()
 
 static inline void PICO_IDLE(void)
 {
-    uint32_t now = PICO_TIME_MS();
+    pico_time now = PICO_TIME_MS();
     while(now == PICO_TIME_MS()) ;
 }
 

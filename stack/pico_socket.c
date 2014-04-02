@@ -1326,6 +1326,35 @@ int pico_socket_recv(struct pico_socket *s, void *buf, int len)
     return pico_socket_recvfrom(s, buf, len, NULL, NULL);
 }
 
+
+int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port, uint16_t *proto)
+{
+
+    if (!s || !local_addr || !port || !proto) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    if (is_sock_ipv4(s)) {
+    #ifdef PICO_SUPPORT_IPV4
+        struct pico_ip4 *ip = (struct pico_ip4 *)local_addr;
+        ip->addr = s->local_addr.ip4.addr;
+        *proto = PICO_PROTO_IPV4;
+    #endif
+    } else if (is_sock_ipv6(s)) {
+    #ifdef PICO_SUPPORT_IPV6
+        struct pico_ip6 *ip = (struct pico_ip6 *)local_addr;
+        memcpy(ip->addr, s->local_addr.ip6.addr, PICO_SIZE_IP6);
+        *proto = PICO_PROTO_IPV6;
+    #endif
+    } else {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    *port = s->local_port;
+    return 0;
+}
+
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
     if (!s || !local_addr || !port) {
@@ -1663,6 +1692,14 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 
 int pico_socket_close(struct pico_socket *s)
 {
+    if (!s)
+        return -1;
+#ifdef PICO_SUPPORT_TCP
+    if (PROTO(s) == PICO_PROTO_TCP) {
+        if (pico_tcp_check_listen_close(s) == 0)
+            return 0;
+    }
+#endif
     return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
 

@@ -2,11 +2,11 @@
 START_TEST (test_socket)
 {
     int ret = 0;
-    uint16_t port_be = 0, porta;
+    uint16_t port_be = 0, porta, proto, port_got;
     char buf[] = "test";
     struct pico_socket *sk_tcp, *sk_udp, *s, *sl, *sa;
     struct pico_device *dev;
-    struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask, orig;
+    struct pico_ip4 inaddr_dst, inaddr_link, inaddr_incorrect, inaddr_uni, inaddr_null, netmask, orig, inaddr_got;
 
     int getnodelay = -1;
     int nodelay = -1;
@@ -55,15 +55,30 @@ START_TEST (test_socket)
     fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
     ret = pico_socket_bind(sk_tcp, &inaddr_link, NULL);
     fail_if(ret == 0, "socket> tcp socket bound wrong parameter");
+    /* socket_getname passing wrong parameters */
+    ret = pico_socket_getname(NULL, &inaddr_link, &port_be, &proto);
+    fail_if(ret == 0, "socket> tcp socket getname with wrong parameter");
+    ret = pico_socket_getname(sk_tcp, NULL, &port_be, &proto);
+    fail_if(ret == 0, "socket> tcp socket getname with wrong parameter");
+    ret = pico_socket_getname(sk_tcp, &inaddr_link, NULL, &proto);
+    fail_if(ret == 0, "socket> tcp socket getname with wrong parameter");
+    ret = pico_socket_getname(sk_tcp, &inaddr_link, &port_be, NULL);
+    fail_if(ret == 0, "socket> tcp socket getname with wrong parameter");
     /* socket_bind passing correct parameters */
     ret = pico_socket_bind(sk_tcp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> tcp socket bind failed");
-
     sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
     fail_if(sk_udp == NULL, "socket> udp socket open failed");
     port_be = short_be(5555);
     ret = pico_socket_bind(sk_udp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> udp socket bind failed");
+
+    ret = pico_socket_getname(sk_udp, &inaddr_got, &port_got, &proto);
+    fail_if(ret < 0, "socket> udp socket getname failed");
+    fail_if(inaddr_got.addr != inaddr_link.addr, "Getname: Address is different");
+    fail_if(port_be != port_got, "Getname: Port is different");
+    fail_if(proto != PICO_PROTO_IPV4, "Getname: proto is wrong");
+
     /* socket_close passing wrong parameter */
     ret = pico_socket_close(NULL);
     fail_if(ret == 0, "Error socket close with wrong parameters");

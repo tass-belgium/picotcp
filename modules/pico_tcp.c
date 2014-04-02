@@ -16,7 +16,7 @@
 #include "pico_queue.h"
 #include "pico_tree.h"
 
-#define TCP_IS_STATE(s, st) (s->state & st)
+#define TCP_IS_STATE(s, st) ((s->state & PICO_SOCKET_STATE_TCP) == st)
 #define TCP_SOCK(s) ((struct pico_socket_tcp *)s)
 #define SEQN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->seq)) : 0)
 #define ACKN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->ack)) : 0)
@@ -2753,6 +2753,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
         return f_new;
     }
 
+    pico_tcp_flags_update(f_new,&t->sock);
     hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
     /* init new frame */
     f_new->payload += off;
@@ -2776,6 +2777,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
     hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2u | (int8_t)t->jumbo);
 
     tcp_dbg_nagle("NAGLE make - joined %d segments, len %d bytes\n", test, total_payload_len);
+    tcp_add_options_frame(t,f_new);
 
     return f_new;
 }
@@ -2947,6 +2949,16 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
         if(!checkLocalClosing(sck))
             checkRemoteClosing(sck);
     }
+}
+
+
+int pico_tcp_check_listen_close(struct pico_socket *s)
+{
+    if (TCP_IS_STATE(s, PICO_SOCKET_STATE_TCP_LISTEN)) {
+        pico_socket_del(s);
+        return 0;
+    }
+    return -1;
 }
 
 void pico_tcp_flags_update(struct pico_frame *f, struct pico_socket *s)

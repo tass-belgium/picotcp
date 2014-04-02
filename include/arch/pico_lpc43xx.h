@@ -68,7 +68,7 @@ static inline void pico_free(void *x)
     struct mem_chunk_stats *stats = (struct mem_chunk_stats *) ((uint8_t *)x - sizeof(struct mem_chunk_stats));
 
     if ((stats->signature != 0xdeadbeef) || (x != stats->mem)) {
-        printf(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
+        //printf(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
         while(1) ;
     }
 
