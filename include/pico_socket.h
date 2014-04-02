@@ -162,6 +162,8 @@ int pico_socket_send(struct pico_socket *s, const void *buf, int len);
 int pico_socket_recv(struct pico_socket *s, void *buf, int len);
 
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
+int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port, uint16_t *proto);
+
 int pico_socket_connect(struct pico_socket *s, const void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s, const int backlog);
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port);
