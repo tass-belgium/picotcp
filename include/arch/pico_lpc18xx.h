@@ -52,6 +52,29 @@ static inline void PICO_IDLE(void)
 
 #else /* NO RTOS SUPPORT */
 
+#ifdef MEM_MEASURE
+void * pico_zzalloc(size_t x);
+void pico_ffree(void * x);
+
+extern uint32_t max_mem;
+extern uint32_t cur_mem;
+
+struct mem_chunk_stats {
+    uint32_t signature;
+    void *mem;
+    uint32_t size;
+};
+
+static inline void *pico_zalloc(size_t size)
+{
+    return pico_zzalloc(size);
+}
+static inline void pico_free(void * x)
+{
+    return pico_ffree(x);
+}
+
+#else
     #define pico_free(x) free(x)
 
 static inline void *pico_zalloc(size_t size)
@@ -63,6 +86,8 @@ static inline void *pico_zalloc(size_t size)
 
     return ptr;
 }
+
+#endif
 
 extern volatile uint32_t lpc_tick;
 extern volatile pico_time full_tick;
