@@ -13,6 +13,8 @@
 
 #ifdef __linux__
     #define PICO_DEFAULT_SOCKETQ (16 * 1024) /* Linux host, so we want full throttle */
+#elif defined TOS_NODE_ID
+    #define PICO_DEFAULT_SOCKETQ (4 * 128) /* Specific for TinyOS */
 #else
     #define PICO_DEFAULT_SOCKETQ (4 * 1024) /* seems like an acceptable default for small embedded systems */
 #endif
