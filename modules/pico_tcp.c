@@ -2753,6 +2753,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
         return f_new;
     }
 
+    pico_tcp_flags_update(f_new,&t->sock);
     hdr = (struct pico_tcp_hdr *) f_new->transport_hdr;
     /* init new frame */
     f_new->payload += off;
@@ -2776,6 +2777,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
     hdr->len = (uint8_t)((f_new->payload - f_new->transport_hdr) << 2u | (int8_t)t->jumbo);
 
     tcp_dbg_nagle("NAGLE make - joined %d segments, len %d bytes\n", test, total_payload_len);
+    tcp_add_options_frame(t,f_new);
 
     return f_new;
 }
