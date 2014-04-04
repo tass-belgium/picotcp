@@ -25,10 +25,10 @@
 #define SNTP_MODE_CLIENT 3
 
 /* SNTP conversion parameters */
-#define SNTP_FRAC_TO_PICOSEC (4294967295llu)
+#define SNTP_FRAC_TO_PICOSEC (4294967llu)
 #define SNTP_THOUSAND (1000llu)
-#define SNTP_UNIX_OFFSET (2208988800llu) /* nr of seconds from 1900 to 1970 */
-
+#define SNTP_UNIX_OFFSET (2208988800llu)    /* nr of seconds from 1900 to 1970 */
+#define SNTP_BITMASK (0X00000000FFFFFFFF)   /* mask to convert from 64 to 32 */
 
 PACKED_STRUCT_DEF pico_sntp_ts
 {
@@ -89,9 +89,10 @@ static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, p
     }
 
     sntp_dbg("Delay: %llu\n", delay);
-    tv->tv_msec = (pico_time) (((uint64_t)(long_be(ts->frac))) * SNTP_THOUSAND / SNTP_FRAC_TO_PICOSEC + delay);
-    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET + tv->tv_msec / SNTP_THOUSAND);
-    tv->tv_msec %= SNTP_THOUSAND;
+    tv->tv_msec = (pico_time) (((uint32_t)(long_be(ts->frac))) / SNTP_FRAC_TO_PICOSEC + delay);
+    tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET + (uint32_t)tv->tv_msec / SNTP_THOUSAND);
+    tv->tv_msec = (uint32_t) (tv->tv_msec & SNTP_BITMASK) % SNTP_THOUSAND;
+    sntp_dbg("Converted time stamp: %llusec, %llumsec\n", tv->tv_sec, tv->tv_msec);
     return 0;
 }
 
@@ -210,7 +211,7 @@ static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
     pico_timer_add(5000, sntp_receive_timeout, ck);
     header.vn = SNTP_VERSION;
     header.mode = SNTP_MODE_CLIENT;
-    /* header.trs_ts.frac = long_be(3865470566ul); */
+    /* header.trs_ts.frac = long_be(0ul); */
     ck->stamp = pico_tick;
     pico_socket_sendto(sock, &header, sizeof(header), dst, short_be(sntp_port));
 }
@@ -333,6 +334,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
 int pico_sntp_gettimeofday(struct pico_timeval *tv)
 {
     pico_time diff, temp;
+    uint32_t diffH, diffL;
     int ret = 0;
     if (tick_stamp == 0) {
         /* TODO: set pico_err */
@@ -342,9 +344,12 @@ int pico_sntp_gettimeofday(struct pico_timeval *tv)
     }
 
     diff = pico_tick - tick_stamp;
-    temp = server_time.tv_msec + diff % SNTP_THOUSAND;
-    tv->tv_sec = server_time.tv_sec + diff / SNTP_THOUSAND + temp / SNTP_THOUSAND;
-    tv->tv_msec = temp % SNTP_THOUSAND;
+    diffL = ((uint32_t) (diff & SNTP_BITMASK))/1000;
+    diffH = ((uint32_t) (diff >> 32))/1000;
+
+    temp = server_time.tv_msec + (uint32_t)(diff & SNTP_BITMASK) % SNTP_THOUSAND;
+    tv->tv_sec = server_time.tv_sec + ((uint64_t)diffH << 32) + diffL + (uint32_t)temp / SNTP_THOUSAND;
+    tv->tv_msec = (uint32_t)(temp & SNTP_BITMASK) % SNTP_THOUSAND;
     sntp_dbg("Time of day: %llu seconds and %llu milisecs since 1970\n", tv->tv_sec,  tv->tv_msec);
     return ret;
 }
