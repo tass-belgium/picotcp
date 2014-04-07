@@ -1645,6 +1645,7 @@ static int tcp_rto_xmit(struct pico_socket_tcp *t, struct pico_frame *f)
     /* TCP: ENQUEUE to PROTO ( retransmit )*/
     cpy = pico_frame_copy(f);
     if (!cpy) {
+        add_retransmission_timer(t, (t->rto << t->backoff) + TCP_TIME);
         return -1;
     }
 
@@ -1655,6 +1656,7 @@ static int tcp_rto_xmit(struct pico_socket_tcp *t, struct pico_frame *f)
         tcp_dbg("Sending RTO!\n");
         return 1;
     } else {
+        tcp_dbg("RTO fail, retry!\n");
         add_retransmission_timer(t, (t->rto << t->backoff) + TCP_TIME);
         pico_frame_discard(cpy);
         return 0;
@@ -1696,12 +1698,12 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
     }
 
     tcp_dbg("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
-    tcp_dbg("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
     t->retrans_tmr_due = 0ull;
 
     if (tcp_is_allowed_to_send(t)) {
         f = first_segment(&t->tcpq_out);
         while (f) {
+            tcp_dbg("Checking frame in queue \n");
             if (t->x_mode == PICO_TCP_WINDOW_FULL) {
                 tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
                 tcp_next_zerowindow_probe(t);
@@ -1722,7 +1724,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
     }
     else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
     {
-        dbg("Connection timeout!\n");
+        tcp_dbg("Connection timeout!\n");
         /* the retransmission timer, failed to get an ack for a frame, gives up on the connection */
         tcp_discard_all_segments(&t->tcpq_out);
         if(t->sock.wakeup)
@@ -1765,6 +1767,7 @@ static void add_retransmission_timer(struct pico_socket_tcp *t, pico_time next_t
 
     if (!t->retrans_tmr) {
         t->retrans_tmr = pico_timer_add(t->retrans_tmr_due - now, tcp_retrans_timeout, t);
+        tcp_dbg("Next timeout in %u msec\n", (uint32_t) (t->retrans_tmr_due - now));
     }
 }
 
