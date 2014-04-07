@@ -1,11 +1,20 @@
-
-/*************************/
+/*********************************************************************
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+ *********************************************************************/
 
  #define dbg(...) do {} while(0)
 /* #define dbg printf */
 
 extern volatile pico_time full_tick;
+
+/* Enable me if you are running stmhal */
+#if 0
+extern volatile uint32_t uwTick;
+#else
 extern volatile uint32_t sys_tick_counter;
+#define uwTick sys_tick_counter
+#endif
 extern volatile uint32_t __stm32_tick;
 
 #ifdef PICO_SUPPORT_RTOS
@@ -30,11 +39,11 @@ static inline void *pico_zalloc(size_t size)
 
 static inline pico_time PICO_TIME_MS(void)
 {
-    if ((full_tick & 0xFFFFFFFF) > sys_tick_counter) {
+    if ((full_tick & 0xFFFFFFFF) > uwTick) {
         full_tick +=  0x100000000ULL;
     }
 
-    full_tick = (full_tick & 0xFFFFFFFF00000000ULL) + sys_tick_counter;
+    full_tick = (full_tick & 0xFFFFFFFF00000000ULL) + uwTick;
     return full_tick;
 }
 
