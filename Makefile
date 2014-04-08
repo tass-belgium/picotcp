@@ -127,10 +127,6 @@ ifeq ($(ARCH),pic24)
 endif
 
 ifeq ($(ARCH),avr)
-	CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
-endif
-
-ifeq ($(ARCH),avr)
   CFLAGS+=-Wall -mmcu=$(MCU) -DAVR
 endif
 

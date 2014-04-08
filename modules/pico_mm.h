@@ -23,7 +23,7 @@ void pico_mem_init(uint32_t memsize);
  * Memory deinit function, this will free all memory occupied by the current
  * memory manager instance.
  */
-void pico_mem_deinit();
+void pico_mem_deinit(void);
 /*
  * Zero-initialized malloc function, will reserve a memory segment of length uint32_t len
  * This memory will be quickly allocated in a slab of fixed size if possible
