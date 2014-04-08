@@ -274,6 +274,7 @@ static int32_t pico_ll_receive(struct pico_frame *f)
         pico_frame_discard(f);
         return -1;
     }
+    return -1;
 }
 
 static void pico_ll_check_bcast(struct pico_frame *f)
