@@ -25,7 +25,7 @@ union pico_address
     struct pico_ip6 ip6;
 };
 
-struct pico_eth
+PEDANTIC_STRUCT_DEF pico_eth
 {
     uint8_t addr[6];
     uint8_t padding[2];
