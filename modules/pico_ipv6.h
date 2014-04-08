@@ -48,7 +48,7 @@ struct pico_ipv6_link
 PACKED_STRUCT_DEF pico_ipv6_exthdr {
     uint8_t nxthdr;
 
-    union ipv6_ext_u {
+    PACKED_UNION_DEF ipv6_ext_u {
         struct {
             uint8_t len;
             uint8_t options[0];

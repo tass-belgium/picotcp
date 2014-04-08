@@ -9,10 +9,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __IAR_SYSTEMS_ICC__
+#if defined __IAR_SYSTEMS_ICC__ || defined ATOP
 #   define PACKED_STRUCT_DEF __packed struct
+#   define PACKED_UNION_DEF  __packed union
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
+#   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
 #endif
 
 #include "pico_constants.h"

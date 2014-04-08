@@ -34,7 +34,7 @@ struct pico_eth
 extern const uint8_t PICO_ETHADDR_ALL[];
 
 
-struct pico_trans
+PACKED_STRUCT_DEF pico_trans
 {
     uint16_t sport;
     uint16_t dport;

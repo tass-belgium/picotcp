@@ -18,7 +18,7 @@ PACKED_STRUCT_DEF pico_icmp4_hdr {
     uint16_t crc;
 
     /* hun */
-    union hun_u {
+    PACKED_UNION_DEF hun_u {
         uint8_t ih_pptr;
         struct pico_ip4 ih_gwaddr;
         struct {
@@ -38,7 +38,7 @@ PACKED_STRUCT_DEF pico_icmp4_hdr {
     } hun;
 
     /* dun */
-    union dun_u {
+    PACKED_UNION_DEF dun_u {
         struct {
             uint32_t ts_otime;
             uint32_t ts_rtime;
