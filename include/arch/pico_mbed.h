@@ -128,6 +128,7 @@ static inline void pico_free(void *x)
 extern void *pico_mutex_init(void);
 extern void pico_mutex_lock(void*);
 extern void pico_mutex_unlock(void*);
+extern void pico_mutex_deinit(void*);
 
 extern uint32_t os_time;
 extern pico_time local_time;
