@@ -48,24 +48,24 @@ struct pico_ipv6_link
 PACKED_STRUCT_DEF pico_ipv6_exthdr {
     uint8_t nxthdr;
 
-    union ipv6_ext_u {
-        struct {
+    PACKED_UNION_DEF ipv6_ext_u {
+        PEDANTIC_STRUCT_DEF hopbyhop_s {
             uint8_t len;
             uint8_t options[0];
         } hopbyhop;
 
-        struct {
+        PEDANTIC_STRUCT_DEF destopt_s {
             uint8_t len;
             uint8_t options[0];
         } destopt;
 
-        struct {
+        PEDANTIC_STRUCT_DEF routing_s {
             uint8_t len;
             uint8_t routtype;
             uint8_t segleft;
         } routing;
 
-        struct {
+        PEDANTIC_STRUCT_DEF fragm_s {
             uint8_t res;
             uint8_t frm[2];
             uint8_t id[4];

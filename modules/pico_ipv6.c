@@ -616,7 +616,6 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
         }
         nxthdr = exthdr->nxthdr;
     }
-    return -1;
 }
 
 int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)

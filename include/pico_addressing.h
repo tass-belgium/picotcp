@@ -9,12 +9,12 @@
 #include <stdint.h>
 #include "pico_config.h"
 
-PACKED_STRUCT_DEF pico_ip4
+PEDANTIC_STRUCT_DEF pico_ip4
 {
     uint32_t addr;
 };
 
-PACKED_STRUCT_DEF pico_ip6
+PEDANTIC_STRUCT_DEF pico_ip6
 {
     uint8_t addr[16];
 };
@@ -25,7 +25,7 @@ union pico_address
     struct pico_ip6 ip6;
 };
 
-struct pico_eth
+PEDANTIC_STRUCT_DEF pico_eth
 {
     uint8_t addr[6];
     uint8_t padding[2];
@@ -34,7 +34,7 @@ struct pico_eth
 extern const uint8_t PICO_ETHADDR_ALL[];
 
 
-struct pico_trans
+PEDANTIC_STRUCT_DEF pico_trans
 {
     uint16_t sport;
     uint16_t dport;

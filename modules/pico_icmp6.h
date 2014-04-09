@@ -75,44 +75,44 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
     uint8_t code;
     uint16_t crc;
 
-    union icmp6_msg_u {
+    PACKED_UNION_DEF icmp6_msg_u {
         /* error messages */
-        union icmp6_err_u {
-            struct {
+        PACKED_UNION_DEF icmp6_err_u {
+            PEDANTIC_STRUCT_DEF  dest_unreach_s {
                 uint32_t unused;
                 uint8_t data[0];
             } dest_unreach;
-            struct {
+            PEDANTIC_STRUCT_DEF  pkt_too_big_s {
                 uint32_t mtu;
                 uint8_t data[0];
             } pkt_too_big;
-            struct {
+            PEDANTIC_STRUCT_DEF  time_exceeded_s {
                 uint32_t unused;
                 uint8_t data[0];
             } time_exceeded;
-            struct {
+            PEDANTIC_STRUCT_DEF  param_problem_s {
                 uint32_t ptr;
                 uint8_t data[0];
             } param_problem;
         } err;
 
         /* informational messages */
-        union icmp6_info_u {
-            struct {
+        PACKED_UNION_DEF icmp6_info_u {
+            PEDANTIC_STRUCT_DEF  echo_request_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_request;
-            struct {
+            PEDANTIC_STRUCT_DEF  echo_reply_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_reply;
-            struct {
+            PEDANTIC_STRUCT_DEF  router_sol_s {
                 uint32_t unused;
                 uint8_t options[0];
             } router_sol;
-            struct {
+            PEDANTIC_STRUCT_DEF  router_adv_s {
                 uint8_t hop;
                 uint8_t mor;
                 uint16_t life_time;
@@ -120,17 +120,17 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint32_t retrans_time;
                 uint8_t options[0];
             } router_adv;
-            struct {
+            PEDANTIC_STRUCT_DEF  neigh_sol_s {
                 uint32_t unused;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_sol;
-            struct {
+            PEDANTIC_STRUCT_DEF  neigh_adv_s {
                 uint32_t rsor;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_adv;
-            struct {
+            PEDANTIC_STRUCT_DEF  redirect_s {
                 uint32_t reserved;
                 struct pico_ip6 target;
                 struct pico_ip6 dest;
@@ -144,7 +144,7 @@ PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
 {
     uint8_t type;
     uint8_t len;
-    union icmp6_opt_hw_addr_u {
+    PACKED_UNION_DEF icmp6_opt_hw_addr_u {
         struct pico_eth mac;
     } addr;
 };

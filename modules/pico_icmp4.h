@@ -18,19 +18,19 @@ PACKED_STRUCT_DEF pico_icmp4_hdr {
     uint16_t crc;
 
     /* hun */
-    union hun_u {
+    PACKED_UNION_DEF hun_u {
         uint8_t ih_pptr;
         struct pico_ip4 ih_gwaddr;
-        struct {
+        PEDANTIC_STRUCT_DEF ih_idseq_s {
             uint16_t idseq_id;
             uint16_t idseq_seq;
         } ih_idseq;
         uint32_t ih_void;
-        struct {
+        PEDANTIC_STRUCT_DEF ih_pmtu_s {
             uint16_t ipm_void;
             uint16_t ipm_nmtu;
         } ih_pmtu;
-        struct {
+        PEDANTIC_STRUCT_DEF ih_rta_s {
             uint8_t rta_numgw;
             uint8_t rta_wpa;
             uint16_t rta_lifetime;
@@ -38,18 +38,18 @@ PACKED_STRUCT_DEF pico_icmp4_hdr {
     } hun;
 
     /* dun */
-    union dun_u {
-        struct {
+    PACKED_UNION_DEF dun_u {
+        PEDANTIC_STRUCT_DEF id_ts_s {
             uint32_t ts_otime;
             uint32_t ts_rtime;
             uint32_t ts_ttime;
         } id_ts;
-        struct {
+        PEDANTIC_STRUCT_DEF id_ip_s {
             uint32_t ip_options;
             uint32_t ip_data_hi;
             uint32_t ip_data_lo;
         } id_ip;
-        struct {
+        PEDANTIC_STRUCT_DEF id_ra_s {
             uint32_t ira_addr;
             uint32_t ira_pref;
         } id_ra;
