@@ -61,16 +61,6 @@
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
-#define PICOTCP_MUTEX_LOCK(x) { \
-        if (x == NULL) \
-            x = pico_mutex_init(); \
-        pico_mutex_lock(x); \
-}
-#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
-
-#else
-#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
-#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 
