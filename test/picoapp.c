@@ -970,21 +970,14 @@ void app_udpdnsclient(char *arg)
     uint8_t *getaddr_id, *getname_id, *getaddr6_id, *getname6_id;
 
     nxt = cpy_arg(&dname, arg);
-    if (!dname) {
+    if (!dname || !nxt) {
         fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
         exit(255);
     }
 
-    if (nxt) {
-        nxt = cpy_arg(&daddr, nxt);
-        if (!daddr) {
-            fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
-            fprintf(stderr, " missing dest_ip\n");
-            exit(255);
-        }
-    } else {
+    nxt = cpy_arg(&daddr, nxt);
+    if (!daddr || !nxt) {
         fprintf(stderr, " udpdnsclient expects the following format: udpdnsclient:dest_name:dest_ip:[ipv6]\n");
-        fprintf(stderr, " missing dest_ip\n");
         exit(255);
     }
 
@@ -993,7 +986,6 @@ void app_udpdnsclient(char *arg)
         v = 4;
     else
         v = 6;
-
 
     printf("UDP DNS client started.\n");
 
