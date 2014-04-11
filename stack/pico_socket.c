@@ -34,16 +34,6 @@
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
-#define PICOTCP_MUTEX_LOCK(x) { \
-        if (x == NULL) \
-            x = pico_mutex_init(); \
-        pico_mutex_lock(x); \
-}
-#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
-
-#else
-#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
-#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 
@@ -91,15 +81,14 @@ static int socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
     int ret = 0;
     (void)a;
     (void)b;
+#ifdef PICO_SUPPORT_IPV6
     if (!is_sock_ipv6(a) || !is_sock_ipv6(b))
         return 0;
 
-#ifdef PICO_SUPPORT_IPV6
     if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || (memcmp(b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
         ret = 0;
     else
         ret = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
-
 #endif
     return ret;
 }
@@ -450,6 +439,8 @@ static void socket_clean_queues(struct pico_socket *sock)
             f_out = pico_dequeue(&sock->q_out);
         }
     }
+    pico_queue_deinit(&sock->q_in);
+    pico_queue_deinit(&sock->q_out);
     pico_socket_tcp_cleanup(sock);
 }
 

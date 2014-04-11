@@ -260,20 +260,17 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 {
     struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    if (0) { }
 
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
-    else if (hdr->proto == PICO_IDETH_ARP)
+    if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
 #endif
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
-    else if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
+    if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
         return pico_network_receive(f);
 #endif
-    else {
-        pico_frame_discard(f);
-        return -1;
-    }
+    pico_frame_discard(f);
+    return -1;
 }
 
 static void pico_ll_check_bcast(struct pico_frame *f)

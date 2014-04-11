@@ -1,8 +1,6 @@
 /*********************************************************************
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
-   Do not redistribute without a written permission by the Copyright
-   holders.
 
    File: pico_mbed.h
    Author: Toon Peters
@@ -130,6 +128,7 @@ static inline void pico_free(void *x)
 extern void *pico_mutex_init(void);
 extern void pico_mutex_lock(void*);
 extern void pico_mutex_unlock(void*);
+extern void pico_mutex_deinit(void*);
 
 extern uint32_t os_time;
 extern pico_time local_time;

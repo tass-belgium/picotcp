@@ -36,10 +36,12 @@ struct pico_queue {
         pico_mutex_lock(x); \
 }
 #define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
+#define PICOTCP_MUTEX_DEL(x) pico_mutex_deinit(x)
 
 #else
 #define PICOTCP_MUTEX_LOCK(x) do {} while(0)
 #define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
+#define PICOTCP_MUTEX_DEL(x) do {} while(0)
 #endif
 
 #ifdef PICO_SUPPORT_DEBUG_TOOLS
@@ -129,6 +131,13 @@ static inline struct pico_frame *pico_queue_peek(struct pico_queue *q)
 
     debug_q(q);
     return p;
+}
+
+static inline void pico_queue_deinit(struct pico_queue *q)
+{
+    if (q->shared) {
+        PICOTCP_MUTEX_DEL(q->mutex);
+    }
 }
 
 static inline void pico_queue_empty(struct pico_queue *q)

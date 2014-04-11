@@ -199,8 +199,9 @@ int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
         return (int)(pico_tcp_read(s, buf, (uint32_t)len));
     }
 
-#endif
+#else
     return 0;
+#endif
 }
 
 void transport_flags_update(struct pico_frame *f, struct pico_socket *s)

@@ -1,3 +1,7 @@
+/*********************************************************************
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+ *********************************************************************/
 #ifndef PICO_SUPPORT_PIC24
 #define PICO_SUPPORT_PIC24
 #define dbg printf

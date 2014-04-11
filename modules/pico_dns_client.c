@@ -28,7 +28,7 @@
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
 /* Default nameservers + port */
-#define PICO_DNS_NS_GOOGLE "8.8.8.8"
+#define PICO_DNS_NS_DEFAULT "208.67.222.222"
 #define PICO_DNS_NS_PORT 53
 
 /* FLAG values */
@@ -196,7 +196,7 @@ static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
     }
 
     /* default NS found, remove it */
-    pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, (uint32_t *)&test.ns.addr);
+    pico_string_to_ipv4(PICO_DNS_NS_DEFAULT, (uint32_t *)&test.ns.addr);
     found = pico_tree_findKey(&NSTable, &test);
     if (found && (found->ns.addr != ns_addr->addr))
         pico_dns_client_del_ns(&found->ns);
@@ -914,7 +914,7 @@ int pico_dns_client_init(void)
         0
     };
 
-    if (pico_string_to_ipv4(PICO_DNS_NS_GOOGLE, (uint32_t *)&default_ns.addr) < 0)
+    if (pico_string_to_ipv4(PICO_DNS_NS_DEFAULT, (uint32_t *)&default_ns.addr) < 0)
         return -1;
 
     return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
