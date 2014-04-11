@@ -326,10 +326,10 @@ int pico_dns_client_query_header(struct pico_dns_header *pre)
     return 0;
 }
 
-int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t class)
+int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
 {
     suf->qtype = short_be(type);
-    suf->qclass = short_be(class);
+    suf->qclass = short_be(qclass);
     return 0;
 }
 

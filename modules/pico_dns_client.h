@@ -91,7 +91,7 @@ int pico_dns_client_getname6(const char *url, void (*callback)(char *, void *), 
 uint16_t pico_dns_client_strlen(const char *url);
 int pico_dns_client_query_header(struct pico_dns_header *pre);
 int pico_dns_client_query_domain(char *ptr);
-int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t class);
+int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass);
 int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen);
 
 #endif /* _INCLUDE_PICO_DNS_CLIENT */
