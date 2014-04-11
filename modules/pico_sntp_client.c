@@ -223,6 +223,7 @@ static void dnsCallback(char *ip, void *arg)
     union pico_address address;
     struct pico_socket *sock;
     int retval = -1;
+    uint16_t any_port = 0;
 
     if(!ck) {
         sntp_dbg("dnsCallback: Invalid argument\n");
@@ -254,7 +255,7 @@ static void dnsCallback(char *ip, void *arg)
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);
         sock->priv = ck;
         ck->sock = sock;
-        if ((sock) && (pico_socket_bind(sock, &sntp_inaddr_any, &sntp_port) == 0)) {
+        if ((sock) && (pico_socket_bind(sock, &sntp_inaddr_any, &any_port) == 0)) {
             pico_sntp_send(sock, &address);
         }
     }
