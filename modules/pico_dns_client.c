@@ -651,13 +651,14 @@ static void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
         dst[j++] = '.';
     }
 }
+#endif
 
 int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen)
 {
     char *domain;
     char inaddr_arpa[14];
     uint16_t strlen = 0, arpalen = 0;
-    
+
     if (!url) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -665,9 +666,13 @@ int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_que
 
     if(arpa == PICO_DNS_ARPA4) {
         strcpy(inaddr_arpa, ".in-addr.arpa");
-    } else if (arpa == PICO_DNS_ARPA6) {
+    }
+#ifdef PICO_SUPPORT_IPV6
+    else if (arpa == PICO_DNS_ARPA6) {
         strcpy(inaddr_arpa, ".IP6.ARPA");
-    } else
+    }
+#endif
+    else
         strcpy(inaddr_arpa, "");
 
     arpalen = pico_dns_client_strlen(inaddr_arpa);
@@ -688,10 +693,14 @@ int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_que
         memcpy(domain + PICO_DNS_LABEL_INITIAL, url, strlen);
         pico_dns_client_mirror(domain + PICO_DNS_LABEL_INITIAL);
         memcpy(domain + PICO_DNS_LABEL_INITIAL + strlen, inaddr_arpa, arpalen);
-    } else if (arpa == PICO_DNS_ARPA6) {
+    }
+#ifdef PICO_SUPPORT_IPV6
+    else if (arpa == PICO_DNS_ARPA6) {
         pico_dns_ipv6_set_ptr(url, domain + PICO_DNS_LABEL_INITIAL);
         memcpy(domain + PICO_DNS_LABEL_INITIAL + STRLEN_PTR_IP6, inaddr_arpa, arpalen);
-    } else {    
+    }
+#endif
+    else {
         memcpy(domain + PICO_DNS_LABEL_INITIAL, url, strlen);
     }
 
@@ -809,7 +818,6 @@ int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), v
 
     return 0;
 }
-#endif
 
 int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
 {
