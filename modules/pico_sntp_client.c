@@ -265,7 +265,9 @@ static void dnsCallback(char *ip, void *arg)
 int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status))
 {
     struct sntp_server_ns_cookie *ck;
+#ifdef PICO_SUPPORT_IPV6
     struct sntp_server_ns_cookie *ck6;
+#endif
     int retval = -1, retval6 = -1;
     if (sntp_server == NULL) {
         pico_err = PICO_ERR_EINVAL;

@@ -758,7 +758,7 @@ int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), 
     return pico_dns_client_getaddr_init(url, PICO_PROTO_IPV6, callback, arg);
 }
 
-int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), void *arg)
+static int pico_dns_getname_univ(const char *ip, void (*callback)(char *, void *), void *arg, enum pico_dns_arpa arpa)
 {
     struct pico_dns_header *header = NULL;
     struct pico_dns_query_suffix *qsuffix = NULL;
@@ -770,7 +770,7 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), vo
         return -1;
     }
 
-    if(pico_dns_create_message(&header, &qsuffix, PICO_DNS_ARPA4, ip, &lblen, &len)!=0)
+    if(pico_dns_create_message(&header, &qsuffix, arpa, ip, &lblen, &len)!=0)
         return -1;
 
     pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
@@ -788,35 +788,15 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), vo
     return 0;
 }
 
+int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), void *arg)
+{
+    return pico_dns_getname_univ(ip, callback, arg, PICO_DNS_ARPA4);
+}
+
 
 int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), void *arg)
 {
-    struct pico_dns_header *header = NULL;
-    struct pico_dns_query_suffix *qsuffix = NULL;
-    struct pico_dns_query *q = NULL;
-    uint16_t len = 0, lblen = 0;
-
-    if (!ip || !callback) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    if(pico_dns_create_message(&header, &qsuffix, PICO_DNS_ARPA4, ip, &lblen, &len)!=0)
-        return -1;
-
-    pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
-    q = pico_dns_client_add_query(header, len, qsuffix, callback, arg);
-    if (!q) {
-        PICO_FREE(header);
-        return -1;
-    }
-
-    if (pico_dns_client_send(q) < 0) {
-        pico_dns_client_del_query(q->id); /* frees header */
-        return -1;
-    }
-
-    return 0;
+    return pico_dns_getname_univ(ip, callback, arg, PICO_DNS_ARPA4);
 }
 
 int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
