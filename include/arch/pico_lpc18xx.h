@@ -71,7 +71,7 @@ static inline void *pico_zalloc(size_t size)
 }
 static inline void pico_free(void * x)
 {
-    return pico_ffree(x);
+    pico_ffree(x);
 }
 
 #else
