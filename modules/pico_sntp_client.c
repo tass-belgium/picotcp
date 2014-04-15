@@ -181,9 +181,10 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
 }
 
 /* Function that is called after the receive timer expires */
-static void sntp_receive_timeout(pico_time __attribute__((unused)) now, void *arg)
+static void sntp_receive_timeout(pico_time now, void *arg)
 {
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)arg;
+    (void) now;
 
     if(!ck) {
         sntp_dbg("sntp_timeout: invalid cookie\n");

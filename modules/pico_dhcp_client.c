@@ -634,10 +634,10 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     return 0;
 }
 
-static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
+static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     uint16_t port = PICO_DHCP_CLIENT_PORT;
-
+    (void) buf;
     dhcpc->state = DHCP_CLIENT_STATE_RENEWING;
     dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
     if (!dhcpc->s) {
