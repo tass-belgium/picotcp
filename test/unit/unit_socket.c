@@ -426,6 +426,7 @@ START_TEST (test_crc_check)
     f_usage_count = calloc(1, sizeof(uint32_t));
     f_buffer = calloc(1, sizeof(uint8_t));
     f->net_hdr = buffer;
+    f->net_len = PICO_SIZE_IP4HDR;
     f->transport_hdr = buffer + PICO_SIZE_IP4HDR;
     f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
     f->usage_count = f_usage_count;
@@ -434,6 +435,7 @@ START_TEST (test_crc_check)
 
     hdr->crc = 0;
     printf(">>>>>>>>>>>>>>>>>>>>> CRC VALUE = %X\n", pico_checksum(hdr, PICO_SIZE_IP4HDR));
+    hdr->crc = short_be(0x24CF); /* Make check pass */
     ret = pico_ipv4_crc_check(f);
     fail_if(ret == 0, "correct IPv4 checksum got rejected\n");
     hdr->crc = short_be(0x8899); /* Make check fail */
