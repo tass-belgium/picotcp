@@ -163,10 +163,10 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
         return NULL;
 }
 
-static void pico_dhcp_client_init_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_init_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-
+    (void) now;
     if (dhcpc->init_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
 
@@ -185,9 +185,10 @@ static void pico_dhcp_client_init_timer(pico_time __attribute__((unused)) now, v
     return;
 }
 
-static void pico_dhcp_client_requesting_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_requesting_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->requesting_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -205,9 +206,10 @@ static void pico_dhcp_client_requesting_timer(pico_time __attribute__((unused)) 
     return;
 }
 
-static void pico_dhcp_client_renewing_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_renewing_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->renewing_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -220,9 +222,10 @@ static void pico_dhcp_client_renewing_timer(pico_time __attribute__((unused)) no
     return;
 }
 
-static void pico_dhcp_client_rebinding_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_rebinding_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->rebinding_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -235,9 +238,10 @@ static void pico_dhcp_client_rebinding_timer(pico_time __attribute__((unused)) n
     return;
 }
 
-static void pico_dhcp_client_T1_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T1_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->T1_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -249,9 +253,10 @@ static void pico_dhcp_client_T1_timer(pico_time __attribute__((unused)) now, voi
     return;
 }
 
-static void pico_dhcp_client_T2_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_T2_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->T2_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -264,9 +269,10 @@ static void pico_dhcp_client_T2_timer(pico_time __attribute__((unused)) now, voi
     return;
 }
 
-static void pico_dhcp_client_lease_timer(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_lease_timer(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (dhcpc->lease_timer.state == DHCP_CLIENT_TIMER_STOPPED)
         return;
@@ -279,9 +285,10 @@ static void pico_dhcp_client_lease_timer(pico_time __attribute__((unused)) now, 
     return;
 }
 
-static void pico_dhcp_client_reinit(pico_time __attribute__((unused)) now, void *arg)
+static void pico_dhcp_client_reinit(pico_time now, void *arg)
 {
     struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    (void) now;
 
     if (++dhcpc->retry > DHCP_CLIENT_RETRIES) {
         pico_err = PICO_ERR_EAGAIN;
@@ -660,7 +667,7 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     return 0;
 }
 
-static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
+static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     struct pico_ip4 bcast = {
         .addr = 0xFFFFFFFF
@@ -669,6 +676,7 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((
     }, inaddr_any = {
         0
     };
+    (void) buf;
 
     dhcpc->state = DHCP_CLIENT_STATE_REBINDING;
     dhcpc->retry = 0;
@@ -680,11 +688,12 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((
     return 0;
 }
 
-static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
+static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     struct pico_ip4 address = {
         0
     };
+    (void) buf;
 
     if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
         address.addr = PICO_IP4_ANY;
@@ -709,8 +718,9 @@ static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((u
     return 0;
 }
 
-static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t __attribute__((unused)) *buf)
+static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
+    (void) buf;
     switch (dhcpc->state)
     {
     case DHCP_CLIENT_STATE_INIT:
