@@ -72,7 +72,7 @@ static struct pico_timeval server_time = {
 };
 static pico_time tick_stamp = 0ull;
 static union pico_address sntp_inaddr_any = {
-    .ip6.addr = {}
+    .ip6.addr = { 0 }
 };
 
 /*************************************************************************/
@@ -244,7 +244,7 @@ static void dnsCallback(char *ip, void *arg)
     if(ck->proto == PICO_PROTO_IPV4) {
         if(ip) {
             sntp_dbg("using IPv4 address: %s\n", ip);
-            retval = pico_string_to_ipv4(ip, &address.ip4.addr);
+            retval = pico_string_to_ipv4(ip, (uint32_t *)&address.ip4.addr);
         } else {
             sntp_dbg("Invalid query response, cannot continue\n");
             retval = -1;
