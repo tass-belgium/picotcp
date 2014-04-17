@@ -15,7 +15,7 @@
 #include "pico_stack.h"
 
 #define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
-
+#define udp_dbg(...) do {} while(0)
 
 /* Queues */
 static struct pico_queue udp_in = {
@@ -37,12 +37,12 @@ uint16_t pico_udp_checksum_ipv4(struct pico_frame *f)
 
     if (s) {
         /* Case of outgoing frame */
-        /* dbg("UDP CRC: on outgoing frame\n"); */
+        udp_dbg("UDP CRC: on outgoing frame\n");
         pseudo.src.addr = s->local_addr.ip4.addr;
         pseudo.dst.addr = s->remote_addr.ip4.addr;
     } else {
         /* Case of incomming frame */
-        /* dbg("UDP CRC: on incomming frame\n"); */
+        udp_dbg("UDP CRC: on incomming frame\n");
         pseudo.src.addr = hdr->src.addr;
         pseudo.dst.addr = hdr->dst.addr;
     }
@@ -163,7 +163,7 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
             f->payload_len = (uint16_t)(f->transport_len - sizeof(struct pico_udp_hdr));
         }
 
-        /*    dbg("expected: %d, got: %d\n", len, f->payload_len); */
+        udp_dbg("expected: %d, got: %d\n", len, f->payload_len);
         if (src)
             pico_store_network_origin(src, f);
 
