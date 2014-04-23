@@ -386,7 +386,7 @@ struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
         };
         dstmac = pico_ethernet_mcast6_translate(f, pico_mcast6_mac);
     } else {
-        dstmac = pico_nd_get(f);
+        dstmac = pico_ipv6_get_neighbor(f);
     }
 
     #else

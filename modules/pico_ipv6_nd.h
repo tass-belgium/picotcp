@@ -20,10 +20,6 @@ struct pico_nd_hostvars {
 };
 
 void pico_ipv6_nd_init(void);
-struct pico_eth *pico_nd_get(struct pico_frame *f);
-int pico_nd_neigh_sol_recv(struct pico_frame *f);
-int pico_nd_neigh_adv_recv(struct pico_frame *f);
-int pico_nd_router_sol_recv(struct pico_frame *f);
-int pico_nd_router_adv_recv(struct pico_frame *f);
-int pico_nd_redirect_recv(struct pico_frame *f);
+struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f);
+int pico_ipv6_nd_recv(struct pico_frame *f);
 #endif

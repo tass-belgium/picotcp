@@ -88,33 +88,10 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
         pico_frame_discard(f);
         break;
 
-    case PICO_ICMP6_ROUTER_SOL:
-        icmp6_dbg("ICMP6: received ROUTER SOL\n");
-        pico_nd_router_sol_recv(f);
-        break;
-
-    case PICO_ICMP6_ROUTER_ADV:
-        pico_nd_router_adv_recv(f);
-        break;
-
-    case PICO_ICMP6_NEIGH_SOL:
-        icmp6_dbg("ICMP6: received NEIGH SOL\n");
-        pico_nd_neigh_sol_recv(f);
-        break;
-
-    case PICO_ICMP6_NEIGH_ADV:
-        pico_nd_neigh_adv_recv(f);
-        break;
-
-    case PICO_ICMP6_REDIRECT:
-        pico_nd_redirect_recv(f);
-        break;
-
     default:
-        pico_frame_discard(f);
-        return -1;
+        return pico_ipv6_nd_recv(f); /* CAUTION -- Implies: pico_frame_discard in any case, keep in the default! */
     }
-    return 0;
+    return -1;
 }
 
 static int pico_icmp6_process_out(struct pico_protocol *self, struct pico_frame *f)
