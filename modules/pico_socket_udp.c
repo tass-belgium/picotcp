@@ -26,35 +26,21 @@ struct pico_socket *pico_socket_udp_open(void)
 
 
 #ifdef PICO_SUPPORT_IPV4
-static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame *f)
+static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip4 s_local, p_dst;
     struct pico_ipv4_hdr *ip4hdr;
     struct pico_frame *cpy;
+    struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
+
     ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
     s_local.addr = s->local_addr.ip4.addr;
     p_dst.addr = ip4hdr->dst.addr;
-    if ((pico_ipv4_is_broadcast(p_dst.addr)) || pico_ipv4_is_multicast(p_dst.addr)) {
-        struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
-        if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0))
-            return -1;
+    if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0))
+        return -1;
 
-        if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
+    if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
             (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
-            cpy = pico_frame_copy(f);
-            if (!cpy)
-                return -1;
-
-            if (pico_enqueue(&s->q_in, cpy) > 0) {
-                if (s->wakeup)
-                    s->wakeup(PICO_SOCK_EV_RD, s);
-            }
-            else
-                pico_frame_discard(cpy);
-
-        }
-    } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))
-    { /* Either local socket is ANY, or matches dst */
         cpy = pico_frame_copy(f);
         if (!cpy)
             return -1;
@@ -62,13 +48,46 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
         if (pico_enqueue(&s->q_in, cpy) > 0) {
             if (s->wakeup)
                 s->wakeup(PICO_SOCK_EV_RD, s);
-        } else {
-            pico_frame_discard(cpy);
         }
+        else
+            pico_frame_discard(cpy);
     }
-
-    pico_frame_discard(f);
     return 0;
+}
+
+static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pico_frame *f)
+{
+    struct pico_frame *cpy;
+    /* Either local socket is ANY, or matches dst */
+    cpy = pico_frame_copy(f);
+    if (!cpy)
+        return -1;
+
+    if (pico_enqueue(&s->q_in, cpy) > 0) {
+        if (s->wakeup)
+            s->wakeup(PICO_SOCK_EV_RD, s);
+    } else {
+        pico_frame_discard(cpy);
+    }
+    return 0;
+}
+
+
+static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame *f)
+{
+    int ret = 0;
+    struct pico_ip4 s_local, p_dst;
+    struct pico_ipv4_hdr *ip4hdr;
+    ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
+    s_local.addr = s->local_addr.ip4.addr;
+    p_dst.addr = ip4hdr->dst.addr;
+    if ((pico_ipv4_is_broadcast(p_dst.addr)) || pico_ipv4_is_multicast(p_dst.addr)) {
+        ret = pico_socket_udp_deliver_ipv4_mcast(s, f);
+    } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr)) {
+        ret = pico_socket_udp_deliver_ipv4_unicast(s, f);
+    }
+    pico_frame_discard(f);
+    return ret;
 }
 #endif
 
