@@ -73,16 +73,11 @@ struct pico_ipv6_route
 
 int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
 {
-    uint32_t *b_addr = (uint32_t *)b->addr, *a_addr = (uint32_t *)a->addr;
-    uint32_t la, lb;
-    int i;
-    for (i = 0; i < 4; ++i) {
-        la = long_be(a_addr[i]);
-        lb = long_be(b_addr[i]);
-        if (la < lb)
+    uint32_t i;
+    for (i = 0; i < sizeof(struct pico_ip6); i++) {
+        if (a->addr[i] < b->addr[i])
             return -1;
-
-        if (la > lb)
+        if (a->addr[i] > b->addr[i])
             return 1;
     }
     return 0;
@@ -386,22 +381,17 @@ static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
 {
     struct pico_ipv6_route *r = NULL;
     struct pico_tree_node *index = NULL;
-    uint32_t *netmask, *dest = NULL;
-    const uint32_t *addres;
     int i = 0;
 
     pico_tree_foreach_reverse(index, &IPV6Routes)
     {
         r = index->keyValue;
-        addres = (const uint32_t *)addr->addr;
-        netmask = (uint32_t *)r->netmask.addr;
-        dest = (uint32_t *)r->dest.addr;
-        for (i = 0; i < 4; ++i) {
-            if ((addres[i] & (netmask[i])) != (dest[i])) {
+        for (i = 0; i < PICO_SIZE_IP6; ++i) {
+            if ((addr->addr[i] & (r->netmask.addr[i])) != ((r->dest.addr[i]) & (r->netmask.addr[i])) ) {
                 break;
             }
 
-            if (i == 4 - 1) {
+            if (i + 1 == PICO_SIZE_IP6) {
                 return r;
             }
         }

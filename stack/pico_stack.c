@@ -442,7 +442,7 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
 int32_t pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
-    int32_t ret = -1;
+    int ret = -1;
     uint16_t proto = PICO_IDETH_IPV4;
 
     if (IS_IPV6(f)) {
@@ -482,7 +482,7 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr->proto = proto;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
-            return ret;
+            return (int32_t)ret;
         } else {
             return -1;
         }
@@ -547,9 +547,10 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     f->start = f->buffer;
     f->len = f->buffer_len;
     if (f->len > 8) {
-        uint32_t mid_frame = (f->buffer_len >> 2) << 1;
+        uint32_t rand, mid_frame = (f->buffer_len >> 2) << 1;
         mid_frame -= (mid_frame % 4);
-        pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+        memcpy(&rand, f->buffer + mid_frame, sizeof(uint32_t));
+        pico_rand_feed(rand);
     }
 
     memcpy(f->buffer, buffer, len);
@@ -599,9 +600,10 @@ int32_t pico_sendto_dev(struct pico_frame *f)
         return -1;
     } else {
         if (f->len > 8) {
-            uint32_t mid_frame = (f->buffer_len >> 2) << 1;
+            uint32_t rand, mid_frame = (f->buffer_len >> 2) << 1;
             mid_frame -= (mid_frame % 4);
-            pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+            memcpy(&rand, f->buffer + mid_frame, sizeof(uint32_t));
+            pico_rand_feed(rand);
         }
 
         return pico_enqueue(f->dev->q_out, f);

@@ -686,25 +686,25 @@ static inline void arp_storm(struct pico_ip4 *addr)
 
 static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
 {
-    uint32_t parsed = 0;
-    uint32_t *address;
+    uint32_t i;
+    struct pico_ip4 *address;
     struct olsr_route_entry *e;
 
     if (len % sizeof(uint32_t)) /*drop*/
         return;
-
-    while (len > parsed) {
-        address = (uint32_t *)(buffer + parsed);
-        e = get_route_by_address(Local_interfaces, *address);
+    
+    address = (struct pico_ip4 *) buffer; 
+    len = len / sizeof(uint32_t);
+    for (i = 0; i < len; i++) {
+        e = get_route_by_address(Local_interfaces, address[i].addr);
         if (!e) {
             e = PICO_ZALLOC(sizeof(struct olsr_route_entry));
             if (!e) {
                 dbg("olsr allocating route\n");
                 return;
             }
-
             e->time_left = (OLSR_HELLO_INTERVAL << 2);
-            e->destination.addr = *address;
+            e->destination.addr = address[i].addr;
             e->gateway = origin;
             e->iface = origin->iface;
             e->metric = (uint16_t)(origin->metric + 1u);
@@ -718,8 +718,6 @@ static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *ori
             e->gateway = origin;
             olsr_route_add(e);
         }
-
-        parsed += (uint32_t)sizeof(uint32_t);
     }
 }
 
