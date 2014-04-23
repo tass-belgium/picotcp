@@ -85,6 +85,7 @@ ifeq ($(ARCH),faulty)
   CFLAGS+=-DFAULTY
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
+  DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
 ifeq ($(ARCH),stm32-softfloat)
@@ -327,9 +328,9 @@ style:
 	@find . -iname "*.[c|h]" |xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
 	@find . -iname "*unc-backup*" |xargs -x rm || true
 
-dummy: mod core lib
+dummy: mod core lib $(DUMMY_EXTRA)
 	@echo testing configuration...
 	@$(CC) -c -o test/dummy.o test/dummy.c $(CFLAGS)
-	@$(CC) -o dummy test/dummy.o $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
+	@$(CC) -o dummy test/dummy.o $(DUMMY_EXTRA) $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
 	@echo done.
 	@rm -f test/dummy.o dummy 
