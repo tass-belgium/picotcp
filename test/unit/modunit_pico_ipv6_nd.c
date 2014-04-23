@@ -10,15 +10,62 @@
 #include "modules/pico_ipv6_nd.c"
 #include "check.h"
 
+#undef PICO_TIME
+#undef PICO_TIME_MS
+
+#define PICO_TIME_MS (0)
+#define PICO_TIME (0)
 
 START_TEST(tc_pico_nd_new_expire_time)
 {
-   /* TODO: test this: static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n) */
+    struct pico_ipv6_neighbor n = { 0 };
+    struct pico_device d = { 0 };
+    
+    /* TODO: how to test these time values */
+
+    n.dev = &d;
+
+    d.hostvars.retranstime = 666;
+
+    n.state = PICO_ND_STATE_INCOMPLETE;
+    pico_nd_new_expire_time(&n);
+
+    n.state = PICO_ND_STATE_REACHABLE;
+    pico_nd_new_expire_time(&n);
+
+
+    n.state = PICO_ND_STATE_STALE;
+    pico_nd_new_expire_time(&n);
+
+
+    n.state = PICO_ND_STATE_PROBE;
+    pico_nd_new_expire_time(&n);
+
 }
 END_TEST
 START_TEST(tc_pico_nd_new_expire_state)
 {
-   /* TODO: test this: static void pico_nd_new_expire_state(struct pico_ipv6_neighbor *n) */
+    struct pico_ipv6_neighbor n = { 0 };
+    int i;
+
+    /* INCOMPLETE won't change */
+    n.state = PICO_ND_STATE_INCOMPLETE;
+    pico_nd_new_expire_state(&n);
+    fail_unless(n.state == PICO_ND_STATE_INCOMPLETE);
+    
+    /* PROBE won't change */
+    n.state = PICO_ND_STATE_PROBE;
+    pico_nd_new_expire_state(&n);
+    fail_unless(n.state == PICO_ND_STATE_PROBE);
+
+    for (i = PICO_ND_STATE_INCOMPLETE +1; i < PICO_ND_STATE_PROBE; )
+    {
+        n.state = i;
+        pico_nd_new_expire_state(&n);
+        fail_unless(n.state == i + 1);
+        i = n.state;
+    }
+
 }
 END_TEST
 START_TEST(tc_pico_nd_discover)
