@@ -163,8 +163,6 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_nd_timer_callback = tcase_create("Unit test for pico_ipv6_nd_timer_callback");
 
 
-    tcase_add_test(TCase_pico_ipv6_neighbor, tc_pico_ipv6_neighbor);
-    suite_add_tcase(s, TCase_pico_ipv6_neighbor);
     tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
     suite_add_tcase(s, TCase_pico_nd_new_expire_time);
     tcase_add_test(TCase_pico_nd_new_expire_state, tc_pico_nd_new_expire_state);
@@ -213,7 +211,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_nd_redirect_recv);
     tcase_add_test(TCase_pico_ipv6_nd_timer_callback, tc_pico_ipv6_nd_timer_callback);
     suite_add_tcase(s, TCase_pico_ipv6_nd_timer_callback);
-return s;
+    return s;
 }
                       
 int main(void)                      
