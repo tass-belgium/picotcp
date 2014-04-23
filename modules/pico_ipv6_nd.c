@@ -174,7 +174,8 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     int optlen = 0;
     uint8_t *option = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    int type, len;
+    int len;
+    uint8_t type;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
