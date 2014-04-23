@@ -164,7 +164,7 @@ START_TEST(tc_pico_sntp_client_wakeup)
     ck->cb_synced = cb_synced;
     printf("Started wakeup unit test\n");
 
-    pico_sntp_client_wakeup(event, &sock);
+    pico_sntp_client_wakeup(event, sock);
 }
 END_TEST
 START_TEST(tc_pico_sntp_send)
