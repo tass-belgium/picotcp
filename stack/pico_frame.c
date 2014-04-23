@@ -164,7 +164,7 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
     for(i = 0; i < len; i += 2u) {
         tmp = buf[i];
         sum += (tmp << 8lu);
-        if (len > (i + 1))
+        if (len > (i + 1u))
             sum += buf[i + 1];
     }
     while (sum >> 16) { /* a second carry is possible! */
@@ -184,13 +184,13 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uin
     for(i = 0; i < len1; i += 2u) {
         tmp = b1[i];
         sum += (tmp << 8lu);
-        if (len1 > (i + 1))
+        if (len1 > (i + 1u))
             sum += b1[i + 1];
     }
     for(i = 0; i < len2; i += 2u) {
         tmp = b2[i];
         sum += (tmp << 8lu);
-        if (len2 > (i + 1))
+        if (len2 > (i + 1u))
             sum += b2[i + 1];
     }
     while (sum >> 16) { /* a second carry is possible! */
