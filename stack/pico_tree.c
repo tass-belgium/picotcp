@@ -296,6 +296,14 @@ void *pico_tree_delete(struct pico_tree *tree, void *key)
     return pico_tree_delete_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
+static inline void if_nodecolor_black_fix_collisions(struct pico_tree *tree, struct pico_tree_node *temp, uint8_t nodeColor)
+{
+    /* deleted node is black, this will mess up the black path property */
+    if(nodeColor == BLACK)
+        fix_delete_collisions(tree, temp);
+
+}
+
 void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
 {
     struct pico_tree_node *temp;
@@ -315,9 +323,7 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
     lkey = delete->keyValue;
     nodeColor = pico_tree_delete_check_switch(tree, delete, &temp);
 
-    /* deleted node is black, this will mess up the black path property */
-    if(nodeColor == BLACK)
-        fix_delete_collisions(tree, temp);
+    if_nodecolor_black_fix_collisions(tree, temp, nodeColor);
 
     if(allocator == USE_PICO_ZALLOC)
         PICO_FREE(delete);
