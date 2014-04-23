@@ -10,6 +10,9 @@ volatile pico_err_t pico_err = 0;
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s))
 {
     struct pico_socket *sock = PICO_ZALLOC(sizeof(struct pico_socket));
+    (void) net;
+    (void) proto;
+    (void) wakeup;
     fail_unless (sock);
     return sock;
 }
@@ -17,52 +20,78 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
 /* Used in dnsCallback */
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
+    (void) s;
+    (void) local_addr;
+    (void) port;
     return 0;
 }
 
 /* Used in dnsCallback */
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
 {
+    (void) ipstr;
+    (void) ip;
     return 0;
 }
 
 /* Used in dnsCallback */
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip)
 {
+    (void) ipstr;
+    (void) ip;
     return 0;
 }
 
 /* Used in pico_sntp_client_wakeup */
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *remote_port)
 {
-
+    (void) s;
+    (void) buf;
+    (void) len;
+    (void) orig;
+    (void) remote_port;
     return 0;
 }
 
 /* Used in pico_sntp_send */
 int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *dst, uint16_t remote_port)
 {
+    (void) s;
+    (void) buf;
+    (void) len;
+    (void) dst;
+    (void) remote_port;
     return 0;
 }
 
 /* Used in pico_sntp_sync, not tested */
 int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg)
 {
+    (void) url;
+    (void) callback;
+    (void) arg;
     return 0;
 }
 
 /* Used in pico_sntp_sync, not tested */
 int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), void *arg)
 {
+    (void) url;
+    (void) callback;
+    (void) arg;
     return 0;
 }
 /* Used in pico_sntp_parse */
 void cb_synced(pico_err_t status)
 {
+    (void) status;
 
 }
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    (void) expire;
+    (void) timer;
+    (void) arg;
     return NULL;
 }
 
@@ -115,6 +144,25 @@ START_TEST(tc_timestamp_convert)
     fail_unless(tv.tv_msec == 100);
 }
 END_TEST
+START_TEST(tc_pico_sntp_cleanup)
+{
+    struct sntp_server_ns_cookie *ck;
+    struct pico_socket *sock;
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
+    fail_unless (ck);
+    ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
+    fail_unless (ck->hostname);
+    ck->stamp = 0ull;
+    ck->cb_synced = cb_synced;
+
+    sock = pico_socket_open(0, 0, &pico_sntp_client_wakeup);
+    ck->sock = sock;
+    sock->priv = ck;
+
+
+    pico_sntp_cleanup(ck, PICO_ERR_NOERR);
+}
+END_TEST
 START_TEST(tc_pico_sntp_parse)
 {
     /* TODO: test this: static void pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck) */
@@ -131,7 +179,7 @@ START_TEST(tc_pico_sntp_parse)
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
-    sock = pico_socket_open(NULL, NULL, &pico_sntp_client_wakeup);
+    sock = pico_socket_open(0, 0, &pico_sntp_client_wakeup);
     ck->sock = sock;
     sock->priv = ck;
 
@@ -157,7 +205,7 @@ START_TEST(tc_pico_sntp_client_wakeup)
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
-    sock = pico_socket_open(NULL, NULL, &pico_sntp_client_wakeup);
+    sock = pico_socket_open(0, 0, &pico_sntp_client_wakeup);
     ck->sock = sock;
     sock->priv = ck;
 
@@ -165,6 +213,24 @@ START_TEST(tc_pico_sntp_client_wakeup)
     printf("Started wakeup unit test\n");
 
     pico_sntp_client_wakeup(event, sock);
+}
+END_TEST
+START_TEST(tc_sntp_receive_timeout)
+{
+    struct sntp_server_ns_cookie *ck;
+    struct pico_socket *sock;
+    ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
+    fail_unless (ck);
+    ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
+    fail_unless (ck->hostname);
+    ck->stamp = 0ull;
+    ck->cb_synced = cb_synced;
+
+    sock = pico_socket_open(0, 0, &pico_sntp_client_wakeup);
+    ck->sock = sock;
+    sock->priv = ck;
+    sntp_receive_timeout(0ull, ck);
+
 }
 END_TEST
 START_TEST(tc_pico_sntp_send)
@@ -199,20 +265,26 @@ Suite *pico_suite(void)
     Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_timestamp_convert = tcase_create("Unit test for pico_timeval");
+    TCase *TCase_pico_sntp_cleanup = tcase_create("Unit test for pico_sntp_cleanup");
     TCase *TCase_pico_sntp_send = tcase_create("Unit test for pico_sntp_send");
     TCase *TCase_pico_sntp_parse = tcase_create("Unit test for pico_sntp_parse");
     TCase *TCase_pico_sntp_client_wakeup = tcase_create("Unit test for pico_sntp_client_wakeup");
+    TCase *TCase_sntp_receive_timeout = tcase_create("Unit test for sntp_receive_timeout");
     TCase *TCase_dnsCallback = tcase_create("Unit test for dnsCallback");
 
 
     tcase_add_test(TCase_timestamp_convert, tc_timestamp_convert);
     suite_add_tcase(s, TCase_timestamp_convert);
-    tcase_add_test(TCase_pico_sntp_send, tc_pico_sntp_send);
-    suite_add_tcase(s, TCase_pico_sntp_send);
+    tcase_add_test(TCase_pico_sntp_cleanup, tc_pico_sntp_cleanup);
+    suite_add_tcase(s, TCase_pico_sntp_cleanup);
     tcase_add_test(TCase_pico_sntp_parse, tc_pico_sntp_parse);
     suite_add_tcase(s, TCase_pico_sntp_parse);
     tcase_add_test(TCase_pico_sntp_client_wakeup, tc_pico_sntp_client_wakeup);
     suite_add_tcase(s, TCase_pico_sntp_client_wakeup);
+    tcase_add_test(TCase_sntp_receive_timeout, tc_sntp_receive_timeout);
+    suite_add_tcase(s, TCase_sntp_receive_timeout);
+    tcase_add_test(TCase_pico_sntp_send, tc_pico_sntp_send);
+    suite_add_tcase(s, TCase_pico_sntp_send);
     tcase_add_test(TCase_dnsCallback, tc_dnsCallback);
     suite_add_tcase(s, TCase_dnsCallback);
     return s;
