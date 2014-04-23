@@ -44,13 +44,26 @@ struct pico_nat_tuple {
 
 static struct pico_ipv4_link *nat_link = NULL;
 
-static int nat_cmp_port(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
+static int nat_cmp_natport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 {
 
     if (a->nat_port < b->nat_port)
         return -1;
 
     if (a->nat_port > b->nat_port)
+
+        return 1;
+    return 0;
+
+}
+
+static int nat_cmp_srcport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
+{
+
+    if (a->src_port < b->src_port)
+        return -1;
+
+    if (a->src_port > b->src_port)
 
         return 1;
     return 0;
@@ -82,7 +95,7 @@ static int nat_cmp_address(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 static int nat_cmp_inbound(void *ka, void *kb)
 {
     struct pico_nat_tuple *a = ka, *b = kb;
-    int cport = nat_cmp_port(a, b);
+    int cport = nat_cmp_natport(a, b);
     if (cport)
         return cport;
 
@@ -99,7 +112,7 @@ static int nat_cmp_outbound(void *ka, void *kb)
     if (caddr)
         return caddr;
 
-    cport = nat_cmp_port(a, b);
+    cport = nat_cmp_srcport(a, b);
 
     if (cport)
         return cport;
