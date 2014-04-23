@@ -388,7 +388,7 @@ START_TEST (test_socket)
 }
 END_TEST
 
-#ifdef PICO_SUPPORT_CRC
+#ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
 START_TEST (test_crc_check)
 {
     uint8_t buffer[64] = {
@@ -421,7 +421,7 @@ START_TEST (test_crc_check)
     pico_stack_init();
 
     /* IPv4 CRC unit tests */
-    /* Allocated memory will be freed when pico_ipv4_crc_check fails */
+    /* Allocated memory will not be freed when pico_ipv4_crc_check fails */
     f = calloc(1, sizeof(struct pico_frame));
     f_usage_count = calloc(1, sizeof(uint32_t));
     f_buffer = calloc(1, sizeof(uint8_t));
@@ -431,7 +431,7 @@ START_TEST (test_crc_check)
     f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
     f->usage_count = f_usage_count;
     f->buffer = f_buffer;
-    *(f->usage_count) = 1;
+    *(f->usage_count) = 512;
 
     hdr->crc = 0;
     printf(">>>>>>>>>>>>>>>>>>>>> CRC VALUE = %X\n", pico_checksum(hdr, PICO_SIZE_IP4HDR));
