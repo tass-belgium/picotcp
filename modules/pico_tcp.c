@@ -2389,21 +2389,10 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
     }
 }
 
-static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
+static void tcp_attempt_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (f->transport_hdr);
-
-
-    if (f->payload_len > 0)
-        tcp_data_in(s, f);
-
-    if (f->flags & PICO_TCP_ACK)
-        tcp_ack(s, f);
-
-    tcp_dbg("called close_wait, in state %08x\n", s->state);
-
     if (seq_compare(SEQN(f), t->rcv_nxt) == 0) {
         /* received FIN, increase ACK nr */
         t->rcv_nxt = long_be(hdr->seq) + 1;
@@ -2425,6 +2414,22 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
         }
     }
 
+
+}
+
+static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
+{
+
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    if (f->payload_len > 0)
+        tcp_data_in(s, f);
+
+    if (f->flags & PICO_TCP_ACK)
+        tcp_ack(s, f);
+
+    tcp_dbg("called close_wait, in state %08x\n", s->state);
+    tcp_attempt_closewait(s, f);
+
     /* Ensure that the notification given to the socket
      * did not put us in LAST_ACK state before sending the ACK: i.e. if
      * pico_socket_close() has been called in the socket callback, we don't need to send
@@ -2437,7 +2442,6 @@ static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
         tcp_dbg("In closewait: Sending ack! (state is %08x)\n", s->state);
         tcp_send_ack(t);
     }
-
     return 0;
 }
 
@@ -2620,6 +2624,41 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
     }
     return 1;
 }
+
+static void tcp_action_call(int (*call)(struct pico_socket *s, struct pico_frame *f), struct pico_socket *s, struct pico_frame *f )
+{
+    if (call)
+        call(s,f);
+}
+
+static int tcp_action_by_flags(const struct tcp_action_entry *action, struct pico_socket *s, struct pico_frame *f, uint8_t flags)
+{
+    int ret = 0;
+    if ((flags == PICO_TCP_ACK) || (flags == (PICO_TCP_ACK | PICO_TCP_PSH))) {
+        tcp_action_call(action->ack, s, f);
+    }
+
+    if ((f->payload_len > 0 || (flags & PICO_TCP_PSH)) &&
+        !(s->state & PICO_SOCKET_STATE_CLOSED) && !TCP_IS_STATE(s, PICO_SOCKET_STATE_TCP_LISTEN))
+    {
+        ret = f->payload_len;
+        tcp_action_call(action->data, s, f);
+    }
+
+    if (flags == PICO_TCP_FIN) {
+        tcp_action_call(action->fin, s, f);
+    }
+
+    if ((flags == (PICO_TCP_FIN | PICO_TCP_ACK)) || (flags == (PICO_TCP_FIN | PICO_TCP_ACK | PICO_TCP_PSH))) {
+        tcp_action_call(action->finack, s, f);
+    }
+
+    if (flags & PICO_TCP_RST) {
+        tcp_action_call(action->rst, s, f);
+    }
+    return ret;
+}
+
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
@@ -2644,40 +2683,11 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
         pico_tcp_reply_rst(f);
     }
     else if (flags == PICO_TCP_SYN) {
-        if (action->syn)
-            action->syn(s, f);
+        tcp_action_call(action->syn, s, f);
     } else if (flags == (PICO_TCP_SYN | PICO_TCP_ACK)) {
-        if (action->synack)
-            action->synack(s, f);
+        tcp_action_call(action->synack, s, f);
     } else {
-        if ((flags == PICO_TCP_ACK) || (flags == (PICO_TCP_ACK | PICO_TCP_PSH))) {
-            if (action->ack) {
-                action->ack(s, f);
-            }
-        }
-
-        if ((f->payload_len > 0 || (flags & PICO_TCP_PSH)) &&
-            !(s->state & PICO_SOCKET_STATE_CLOSED) && !TCP_IS_STATE(s, PICO_SOCKET_STATE_TCP_LISTEN))
-        {
-            ret = f->payload_len;
-            if (action->data)
-                action->data(s, f);
-        }
-
-        if (flags == PICO_TCP_FIN) {
-            if (action->fin)
-                action->fin(s, f);
-        }
-
-        if ((flags == (PICO_TCP_FIN | PICO_TCP_ACK)) || (flags == (PICO_TCP_FIN | PICO_TCP_ACK | PICO_TCP_PSH))) {
-            if (action->finack)
-                action->finack(s, f);
-        }
-
-        if (flags & PICO_TCP_RST) {
-            if (action->rst)
-                action->rst(s, f);
-        }
+        ret = tcp_action_by_flags(action,s,f,flags);
     }
 
     if (s->ev_pending)
@@ -2889,14 +2899,75 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
     return f_new;
 }
 
+
+
+static int pico_tcp_push_nagle_enqueue(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    if (pico_enqueue_segment(&t->tcpq_out, f) > 0) {
+        tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
+        t->snd_last += f->payload_len;
+        return f->payload_len;
+    } else {
+        tcp_dbg("Enqueue failed.\n");
+        return 0;
+    }
+}
+
+static int pico_tcp_push_nagle_hold(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    struct pico_frame *f_new;
+    uint32_t total_len = 0;
+    total_len = f->payload_len + t->tcpq_hold.size;
+    if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {              /* TODO check mss socket */
+        /* IF enough data in hold (>mss) AND space in out queue (>mss) */
+        /* add current frame in hold and make new segment */
+        if (pico_enqueue_segment(&t->tcpq_hold, f) > 0 ) {
+            tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold, make new (enqueued frames out %d)\n", t->tcpq_out.frames);
+            t->snd_last += f->payload_len;              /* XXX  WATCH OUT */
+            f_new = pico_hold_segment_make(t);
+        } else {
+            tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 1\n");
+            return 0;
+        }
+
+        /* and put new frame in out queue */
+        if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out, f_new) > 0)) {
+            return f_new->payload_len;
+        } else {
+            tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n", f_new);
+            return -1;              /* XXX something seriously wrong */
+        }
+    } else {
+        /* ELSE put frame in hold queue */
+        if (pico_enqueue_segment(&t->tcpq_hold, f) > 0) {
+            tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold (enqueued frames out %d)\n", t->tcpq_out.frames);
+            t->snd_last += f->payload_len;              /* XXX  WATCH OUT */
+            return f->payload_len;
+        } else {
+            pico_err = PICO_ERR_EAGAIN;
+            tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
+        }
+    }
+    return 0;
+}
+
+
+static int pico_tcp_push_nagle_on(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    /* Nagle's algorithm enabled, check if ready to send, or put frame in hold queue */
+    if (IS_TCP_IDLE(t) && IS_TCP_HOLDQ_EMPTY(t)) 
+        return pico_tcp_push_nagle_enqueue(t, f);
+    return pico_tcp_push_nagle_hold(t, f);
+}
+
+
+
 /* original behavior kept when Nagle disabled;
    Nagle algorithm added here, keeping hold frame queue instead of eg linked list of data */
 int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *)f->transport_hdr;
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) f->sock;
-    struct pico_frame *f_new;
-    uint32_t total_len = 0;
     IGNORE_PARAMETER(self);
     pico_err = PICO_ERR_NOERR;
     hdr->trans.sport = t->sock.local_port;
@@ -2919,56 +2990,10 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
             tcp_dbg("Enqueue failed.\n");
             return 0;
         }
-    }
-    /***************************************************************************/
-    else {
-        /* Nagle's algorithm enabled, check if ready to send, or put frame in hold queue */
-        if (IS_TCP_IDLE(t) && IS_TCP_HOLDQ_EMPTY(t)) {              /* opt 1. send frame */
-            if (pico_enqueue_segment(&t->tcpq_out, f) > 0) {
-                tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
-                t->snd_last += f->payload_len;
-                return f->payload_len;
-            } else {
-                tcp_dbg("Enqueue failed.\n");
-                return 0;
-            }
-        } else {                                    /* opt 2. hold data back */
-            total_len = f->payload_len + t->tcpq_hold.size;
-            if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {              /* TODO check mss socket */
-                /* IF enough data in hold (>mss) AND space in out queue (>mss) */
-                /* add current frame in hold and make new segment */
-                if (pico_enqueue_segment(&t->tcpq_hold, f) > 0 ) {
-                    tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold, make new (enqueued frames out %d)\n", t->tcpq_out.frames);
-                    t->snd_last += f->payload_len;              /* XXX  WATCH OUT */
-                    f_new = pico_hold_segment_make(t);
-                } else {
-                    tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 1\n");
-                    return 0;
-                }
-
-                /* and put new frame in out queue */
-                if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out, f_new) > 0)) {
-                    return f_new->payload_len;
-                } else {
-                    tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n", f_new);
-                    return -1;              /* XXX something seriously wrong */
-                }
-            } else {
-                /* ELSE put frame in hold queue */
-                if (pico_enqueue_segment(&t->tcpq_hold, f) > 0) {
-                    tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushed into hold (enqueued frames out %d)\n", t->tcpq_out.frames);
-                    t->snd_last += f->payload_len;              /* XXX  WATCH OUT */
-                    return f->payload_len;
-                } else {
-                    pico_err = PICO_ERR_EAGAIN;
-                    tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue hold failed 2\n");
-                    return 0;
-                }
-            }
-        }
+    } else {
+        return pico_tcp_push_nagle_on(t, f);
     }
 
-    /***************************************************************************/
 }
 
 inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
