@@ -151,22 +151,29 @@ static int pico_igmp_process_event(struct igmp_parameters *p);
 /* state callback prototype */
 typedef int (*callback)(struct igmp_parameters *);
 
-/* redblack trees */
-static int igmp_timer_cmp(void *ka, void *kb)
+static inline int igmpt_type_compare(struct igmp_timer *a,  struct igmp_timer *b)
 {
-    struct igmp_timer *a = ka, *b = kb;
     if (a->type < b->type)
         return -1;
 
     if (a->type > b->type)
         return 1;
+    return 0;
+}
 
+
+static inline int igmpt_group_compare(struct igmp_timer *a,  struct igmp_timer *b)
+{
     if (a->mcast_group.addr < b->mcast_group.addr)
         return -1;
 
     if (a->mcast_group.addr > b->mcast_group.addr)
         return 1;
+    return 0;
+}
 
+static inline int igmpt_link_compare(struct igmp_timer *a,  struct igmp_timer *b)
+{
     if (a->mcast_link.addr < b->mcast_link.addr)
         return -1;
 
@@ -175,17 +182,36 @@ static int igmp_timer_cmp(void *ka, void *kb)
 
     return 0;
 }
+
+/* redblack trees */
+static int igmp_timer_cmp(void *ka, void *kb)
+{
+    struct igmp_timer *a = ka, *b = kb;
+    int cmp = igmpt_type_compare(a, b);
+    if (cmp)
+        return cmp;
+
+    cmp = igmpt_group_compare(a, b);
+    if (cmp)
+        return cmp;
+
+    return igmpt_link_compare(a, b);
+
+}
 PICO_TREE_DECLARE(IGMPTimers, igmp_timer_cmp);
 
-static int igmp_parameters_cmp(void *ka, void *kb)
+static inline int igmpparm_group_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
 {
-    struct igmp_parameters *a = ka, *b = kb;
     if (a->mcast_group.addr < b->mcast_group.addr)
         return -1;
 
     if (a->mcast_group.addr > b->mcast_group.addr)
         return 1;
+    return 0;
+}
 
+static inline int igmpparm_link_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
+{
     if (a->mcast_link.addr < b->mcast_link.addr)
         return -1;
 
@@ -193,6 +219,15 @@ static int igmp_parameters_cmp(void *ka, void *kb)
         return 1;
 
     return 0;
+}
+
+static int igmp_parameters_cmp(void *ka, void *kb)
+{
+    struct igmp_parameters *a = ka, *b = kb;
+    int cmp = igmpparm_group_compare(a, b);
+    if (cmp)
+        return cmp;
+    return igmpparm_link_compare(a, b);
 }
 PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
 
