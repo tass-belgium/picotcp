@@ -9,6 +9,7 @@
 #include "pico_addressing.h"
 #include "modules/pico_ipv6_nd.c"
 #include "check.h"
+#ifdef PICO_SUPPORT_IPV6
 
 #undef PICO_TIME
 #undef PICO_TIME_MS
@@ -209,7 +210,6 @@ Suite *pico_suite(void)
     TCase *TCase_pico_nd_redirect_recv = tcase_create("Unit test for pico_nd_redirect_recv");
     TCase *TCase_pico_ipv6_nd_timer_callback = tcase_create("Unit test for pico_ipv6_nd_timer_callback");
 
-
     tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
     suite_add_tcase(s, TCase_pico_nd_new_expire_time);
     tcase_add_test(TCase_pico_nd_new_expire_state, tc_pico_nd_new_expire_state);
@@ -271,3 +271,7 @@ int main(void)
     srunner_free(sr);                       
     return fails;                       
 }
+#else
+int main(void) {return 0;}
+
+#endif
