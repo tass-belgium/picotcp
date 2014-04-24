@@ -146,6 +146,9 @@ static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct
         /* listen socket */
         found = s;
     }
+    #else
+    (void) s;
+    (void) f;
     #endif
     return found;
 }
