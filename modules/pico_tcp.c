@@ -801,11 +801,58 @@ static void tcp_rcv_sack(struct pico_socket_tcp *t, uint8_t *opt, int len)
     }
 }
 
-#define TCPOPT_LEN_CHECK(idx, len, expected) \
-    if (len != expected) {   \
-        idx = idx + len - 2; \
-        break;               \
+static int tcpopt_len_check(uint32_t *idx, uint8_t len, uint8_t expected)
+{
+    if (len != expected) {
+        *idx = *idx + len - 2;
+        return -1;
     }
+    return 0;
+}
+
+static inline void tcp_parse_option_ws(struct pico_socket_tcp *t, uint8_t len, uint8_t *opt, uint32_t *idx)
+{
+    if (tcpopt_len_check(idx, len, PICO_TCPOPTLEN_WS) < 0)
+        return;
+     t->recv_wnd_scale = opt[(*idx)++];
+     tcp_dbg_options("TCP Window scale: received %d\n", t->recv_wnd_scale);
+
+}
+
+static inline void tcp_parse_option_sack_ok(struct pico_socket_tcp *t, struct pico_frame *f, uint8_t len, uint32_t *idx) 
+{
+    if (tcpopt_len_check(idx, len, PICO_TCPOPTLEN_SACK_OK) < 0)
+        return;
+    if(((struct pico_tcp_hdr *)(f->transport_hdr))->flags & PICO_TCP_SYN )
+        t->sack_ok = 1;
+}
+
+static inline void tcp_parse_option_mss(struct pico_socket_tcp *t, uint8_t len, uint8_t *opt, uint32_t *idx)
+{
+    uint16_t mss;
+    if (tcpopt_len_check(idx, len, PICO_TCPOPTLEN_MSS) < 0)
+        return;
+
+    t->mss_ok = 1;
+    mss = short_from(opt + *idx);
+    *idx += (uint32_t)sizeof(uint16_t);
+    if (t->mss > short_be(mss))
+        t->mss = short_be(mss);
+}
+
+static inline void tcp_parse_option_timestamp(struct pico_socket_tcp *t, struct pico_frame *f, uint8_t len, uint8_t *opt, uint32_t *idx)
+{
+    uint32_t tsval, tsecr;
+    if (tcpopt_len_check(idx, len, PICO_TCPOPTLEN_TIMESTAMP) < 0)
+        return;
+    t->ts_ok = 1;
+    tsval = long_from(opt + *idx);
+    *idx += (uint32_t)sizeof(uint32_t);
+    tsecr = long_from(opt + *idx);
+    f->timestamp = long_be(tsecr);
+    *idx += (uint32_t)sizeof(uint32_t);
+    t->ts_nxt = long_be(tsval);
+}
 
 static void tcp_parse_options(struct pico_frame *f)
 {
@@ -830,44 +877,22 @@ static void tcp_parse_options(struct pico_frame *f)
         case PICO_TCP_OPTION_END:
             break;
         case PICO_TCP_OPTION_WS:
-            TCPOPT_LEN_CHECK(i, len, PICO_TCPOPTLEN_WS);
-            t->recv_wnd_scale = opt[i++];
-            tcp_dbg_options("TCP Window scale: received %d\n", t->recv_wnd_scale);
+            tcp_parse_option_ws(t, len, opt, &i);
             break;
         case PICO_TCP_OPTION_SACK_OK:
-            TCPOPT_LEN_CHECK(i, len, PICO_TCPOPTLEN_SACK_OK);
-            if(((struct pico_tcp_hdr *)(f->transport_hdr))->flags & PICO_TCP_SYN )
-                t->sack_ok = 1;
+            tcp_parse_option_sack_ok(t, f, len, &i);
             break;
-        case PICO_TCP_OPTION_MSS: {
-            uint16_t mss;
-            TCPOPT_LEN_CHECK(i, len, PICO_TCPOPTLEN_MSS);
-            t->mss_ok = 1;
-            mss = short_from(opt + i);
-            i += (uint32_t)sizeof(uint16_t);
-            if (t->mss > short_be(mss))
-                t->mss = short_be(mss);
-
+        case PICO_TCP_OPTION_MSS: 
+            tcp_parse_option_mss(t, len, opt, &i);
             break;
-        }
-        case PICO_TCP_OPTION_TIMESTAMP: {
-            uint32_t tsval, tsecr;
-            TCPOPT_LEN_CHECK(i, len, PICO_TCPOPTLEN_TIMESTAMP);
-            t->ts_ok = 1;
-            tsval = long_from(opt + i);
-            i += (uint32_t)sizeof(uint32_t);
-            tsecr = long_from(opt + i);
-            f->timestamp = long_be(tsecr);
-            i += (uint32_t)sizeof(uint32_t);
-            t->ts_nxt = long_be(tsval);
+        case PICO_TCP_OPTION_TIMESTAMP: 
+            tcp_parse_option_timestamp(t, f, len, opt, &i);
             break;
-        }
+        
         case PICO_TCP_OPTION_SACK:
-        {
             tcp_rcv_sack(t, opt + i, len - 2);
             i = i + len - 2;
             break;
-        }
         default:
             tcp_dbg_options("TCP: received unsupported option %u\n", type);
             i = i + len - 2;
@@ -1514,12 +1539,80 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
     }
 }
 
+static inline int tcp_data_in_expected(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    struct tcp_input_segment *nxt;
+    if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
+        /* Create new segment and enqueue it */
+        struct tcp_input_segment *input = segment_from_frame(f);
+        if (!input) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
+        {
+            /* failed to enqueue, destroy segment */
+            PICO_FREE(input->payload);
+            PICO_FREE(input);
+            return -1;
+        } else {
+            t->rcv_nxt = SEQN(f) + f->payload_len;
+            nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+            while(nxt) {
+                tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
+                t->rcv_nxt += nxt->payload_len;
+                nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
+            }
+            t->sock.ev_pending |= PICO_SOCK_EV_RD;
+        }
+    } else {
+        tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
+    }
+    return 0;
+}
+
+static inline int tcp_data_in_high_segment(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
+    if (t->sack_ok) {
+        struct tcp_input_segment *input = segment_from_frame(f);
+        if (!input) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
+            /* failed to enqueue, destroy segment */
+            PICO_FREE(input->payload);
+            PICO_FREE(input);
+            return -1;
+        }
+
+        tcp_sack_prepare(t);
+    }
+    return 0;
+}
+
+static inline void tcp_data_in_send_ack(struct pico_socket_tcp *t, struct pico_frame *f)
+{
+    struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    /* In either case, ack til recv_nxt, unless received data raises a RST flag. */
+    if (((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && 
+           ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && 
+            ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV) &&
+            ((hdr->flags & PICO_TCP_RST) == 0) )
+        tcp_send_ack(t);
+}
+
 static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     uint16_t payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
     int ret = 0;
+    (void)hdr;
+
     if (((hdr->len & 0xf0u) >> 2u) <= f->transport_len) {
         tcp_parse_options(f);
         f->payload = f->transport_hdr + ((hdr->len & 0xf0u) >> 2u);
@@ -1527,63 +1620,11 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
         tcp_dbg("TCP> Received segment. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
 
         if (seq_compare(SEQN(f), t->rcv_nxt) <= 0) {
-            struct tcp_input_segment *nxt;
-            if (seq_compare(SEQN(f), t->rcv_nxt) == 0) { /* Exactly what we expected */
-                /* Create new segment and enqueue it */
-                struct tcp_input_segment *input = segment_from_frame(f);
-                if (!input) {
-                    pico_err = PICO_ERR_ENOMEM;
-                    return -1;
-                }
-
-                if(pico_enqueue_segment(&t->tcpq_in, input) <= 0)
-                {
-                    /* failed to enqueue, destroy segment */
-                    PICO_FREE(input->payload);
-                    PICO_FREE(input);
-                    ret = -1;
-                } else {
-                    t->rcv_nxt = SEQN(f) + f->payload_len;
-                    nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-                    while(nxt) {
-                        tcp_dbg("scrolling rcv_nxt...%08x\n", t->rcv_nxt);
-                        t->rcv_nxt += nxt->payload_len;
-                        nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
-                    }
-                    t->sock.ev_pending |= PICO_SOCK_EV_RD;
-                }
-            } else {
-                tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
-            }
+            ret = tcp_data_in_expected(t, f);
         } else {
-            tcp_dbg("TCP> hi segment. Possible packet loss. I'll dupack this. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
-            if (t->sack_ok) {
-                struct tcp_input_segment *input = segment_from_frame(f);
-                if (!input) {
-                    pico_err = PICO_ERR_ENOMEM;
-                    return -1;
-                }
-
-                if(pico_enqueue_segment(&t->tcpq_in, input) <= 0) {
-                    /* failed to enqueue, destroy segment */
-                    PICO_FREE(input->payload);
-                    PICO_FREE(input);
-                    return -1;
-                }
-
-                tcp_sack_prepare(t);
-            }
+            ret = tcp_data_in_high_segment(t, f);
         }
-
-        /* In either case, ack til recv_nxt. */
-        if (((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSE_WAIT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_SENT) && ((t->sock.state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_SYN_RECV)) {
-            /* tcp_dbg("SENDACK CALLED FROM OUTSIDE tcp_synack, state %x\n",t->sock.state); */
-            if (hdr->flags & PICO_TCP_RST)
-                return -1;
-
-            tcp_send_ack(t);
-        }
-
+        tcp_data_in_send_ack(t, f);
         return ret;
     } else {
         tcp_dbg("TCP: invalid data in pkt len, exp: %d, got %d\n", (hdr->len & 0xf0) >> 2, f->transport_len);
@@ -1597,7 +1638,6 @@ static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, 
     if (ret > 0) {
         t->sock.ev_pending |= PICO_SOCK_EV_WR;
     }
-
     return ret;
 }
 
@@ -1734,10 +1774,38 @@ static int tcp_is_allowed_to_send(struct pico_socket_tcp *t)
            ((t->backoff < PICO_TCP_MAX_RETRANS));
 }
 
+static inline int tcp_retrans_timeout_check_queue(struct pico_socket_tcp *t)
+{
+    struct pico_frame *f = NULL;
+    f = first_segment(&t->tcpq_out);
+    while (f) {
+        tcp_dbg("Checking frame in queue \n");
+        if (t->x_mode == PICO_TCP_WINDOW_FULL) {
+            tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
+            tcp_next_zerowindow_probe(t);
+            return -1;
+        }
+
+        if (t->x_mode != PICO_TCP_BLACKOUT)
+            tcp_first_timeout(t);
+
+        tcp_add_header(t, f);
+        if (tcp_rto_xmit(t, f) > 0) /* A segment has been rexmit'd */
+            return -1;
+
+        f = next_segment(&t->tcpq_out, f);
+    }
+    if (t->tcpq_out.size < t->tcpq_out.max_size)
+        t->sock.ev_pending |= PICO_SOCK_EV_WR;
+    return 0;
+
+
+
+}
+
 static void tcp_retrans_timeout(pico_time val, void *sock)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) sock;
-    struct pico_frame *f = NULL;
 
     t->retrans_tmr = NULL;
 
@@ -1755,26 +1823,8 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
     t->retrans_tmr_due = 0ull;
 
     if (tcp_is_allowed_to_send(t)) {
-        f = first_segment(&t->tcpq_out);
-        while (f) {
-            tcp_dbg("Checking frame in queue \n");
-            if (t->x_mode == PICO_TCP_WINDOW_FULL) {
-                tcp_dbg("TCP BLACKOUT> TIMED OUT (output) frame %08x, len= %d rto=%d Win full: %d frame flags: %04x\n", SEQN(f), f->payload_len, t->rto, t->x_mode == PICO_TCP_WINDOW_FULL, f->flags);
-                tcp_next_zerowindow_probe(t);
-                return;
-            }
-
-            if (t->x_mode != PICO_TCP_BLACKOUT)
-                tcp_first_timeout(t);
-
-            tcp_add_header(t, f);
-            if (tcp_rto_xmit(t, f) > 0) /* A segment has been rexmit'd */
-                return;
-
-            f = next_segment(&t->tcpq_out, f);
-        }
-        if (t->tcpq_out.size < t->tcpq_out.max_size)
-            t->sock.ev_pending |= PICO_SOCK_EV_WR;
+        if (tcp_retrans_timeout_check_queue(t) < 0)
+            return;
     }
     else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
     {
