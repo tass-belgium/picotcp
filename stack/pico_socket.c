@@ -860,9 +860,7 @@ static int pico_socket_sendto_dest_check(struct pico_socket *s, void *dst, uint1
 
 static int pico_socket_sendto_initial_checks(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
-    if (len == 0) {
-        return 0;
-    } else if (len < 0) {
+    if (len < 0) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -1229,6 +1227,8 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     struct pico_remote_endpoint *remote_endpoint = NULL;
     void *src = NULL;
 
+    if(len == 0)
+        return 0;
 
     if (pico_socket_sendto_initial_checks(s, buf, len, dst, remote_port) < 0)
         return -1;
