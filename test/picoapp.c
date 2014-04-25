@@ -1038,7 +1038,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 20)
+#define TCPSIZ (1024 * 1024 * 5) 
 static char *buffer1;
 static char *buffer0;
 
@@ -1548,11 +1548,12 @@ void app_tcpbench(char *arg)
     char *dport;
     char *dest;
     char *mode;
+    char *nagle;
     int port = 0, i;
     uint16_t port_be = 0;
     char *nxt;
     char *sport;
-    int yes = 1;
+    int nagle_off = 1;
     union {
         struct pico_ip4 ip4;
         struct pico_ip6 ip6;
@@ -1572,7 +1573,7 @@ void app_tcpbench(char *arg)
 
         nxt = cpy_arg(&dest, nxt);
         if (!dest) {
-            fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport]\n");
+            fprintf(stderr, "tcpbench send needs the following format: tcpbench:tx:dst_addr[:dport][:n] -- 'n' is for nagle\n");
             exit(255);
         }
 
@@ -1581,6 +1582,15 @@ void app_tcpbench(char *arg)
             printf("Next arg: %s\n", nxt);
             nxt = cpy_arg(&dport, nxt);
             printf("Dport: %s\n", dport);
+        }
+        if (nxt) {
+            printf("Next arg: %s\n", nxt);
+            nxt = cpy_arg(&nagle, nxt);
+            printf("nagle: %s\n", nagle);
+            if (strlen(nagle) == 1 && nagle[0] == 'n') {
+                nagle_off = 0;
+                printf("Nagle algorithm enabled\n");
+            }
         }
 
         if (dport) {
@@ -1608,7 +1618,7 @@ void app_tcpbench(char *arg)
             if (!s)
                 exit(1);
 
-            pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+            pico_socket_setoption(s, PICO_TCP_NODELAY, &nagle_off);
 
             /* NOTE: used to set a fixed local port and address
                local_port = short_be(6666);
@@ -1623,7 +1633,7 @@ void app_tcpbench(char *arg)
             if (!s)
                 exit(1);
 
-            pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
+            pico_socket_setoption(s, PICO_TCP_NODELAY, &nagle_off);
 
             /* NOTE: used to set a fixed local port and address
                local_port = short_be(6666);

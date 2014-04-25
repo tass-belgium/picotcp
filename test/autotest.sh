@@ -19,8 +19,13 @@ killall picoapp6.elf
 
 
 echo "TCP6 TEST"
-(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,) &
-time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667, || exit 1)
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,,) &
+time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667,, || exit 1)
+killall picoapp6.elf
+
+echo "TCP6 TEST (nagle)"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a tcpbench,r,6667,n,) &
+time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::, -a tcpbench,t,aaaa::1,6667,n, || exit 1)
 killall picoapp6.elf
 
 echo "UDP6 TEST"
@@ -55,8 +60,13 @@ echo "PING TEST"
 killall picoapp.elf
 
 echo "TCP TEST"
-(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0: -a tcpbench:r:6667:) &
-time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0: -a tcpbench:t:10.40.0.8:6667: || exit 1)
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0: -a tcpbench:r:6667::) &
+time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0: -a tcpbench:t:10.40.0.8:6667:: || exit 1)
+killall picoapp.elf
+
+echo "TCP TEST (nagle)"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0: -a tcpbench:r:6667:n:) &
+time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0: -a tcpbench:t:10.40.0.8:6667:n: || exit 1)
 killall picoapp.elf
 
 echo "UDP TEST"
