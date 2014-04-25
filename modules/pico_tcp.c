@@ -555,9 +555,9 @@ static inline void tcp_add_sack_option(struct pico_socket_tcp *ts, struct pico_f
         uint32_t len_off;
 
         if (ts->sack_ok && ts->sacks) {
-            f->start[*ii++] = PICO_TCP_OPTION_SACK;
+            f->start[(*ii)++] = PICO_TCP_OPTION_SACK;
             len_off = *ii;
-            f->start[*ii++] = PICO_TCPOPTLEN_SACK;
+            f->start[(*ii)++] = PICO_TCPOPTLEN_SACK;
             while(ts->sacks) {
                 sb = ts->sacks;
                 ts->sacks = sb->next;
