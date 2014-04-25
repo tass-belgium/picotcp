@@ -76,6 +76,7 @@ START_TEST(tc_segment_compare)
     fail_if(segment_compare(a, b) >= 0);
     fail_if(segment_compare(a, a) != 0);
 
+
 }
 END_TEST
 START_TEST(tc_tcp_discard_all_segments)
@@ -137,9 +138,16 @@ START_TEST(tc_tcp_discard_all_segments)
 
     fail_if(t->tcpq_in.size == 0);
     fail_if(t->tcpq_in.frames == 0);
+    fail_if(pico_tcp_queue_in_is_empty(&t->sock));
+
     tcp_discard_all_segments(&t->tcpq_in);
     fail_if(t->tcpq_in.size != 0);
     fail_if(t->tcpq_in.frames != 0);
+    fail_unless(pico_tcp_queue_in_is_empty(&t->sock));
+
+
+    /* Testing next_segment with NULLS */
+    fail_if(next_segment(NULL, NULL) != NULL);
 }
 END_TEST
 
@@ -245,6 +253,9 @@ START_TEST(tc_release_all_until)
     printf("Ret is %d\n", ret);
     printf("Remaining is %d\n", t->tcpq_out.frames);
     fail_if(t->tcpq_out.frames != 2);
+
+    /* Test enqueue_segment with NULL segment */
+    fail_if(pico_enqueue_segment(NULL, NULL) != -1);
 
 
 }
@@ -466,6 +477,7 @@ END_TEST
 START_TEST(tc_tcp_rtt)
 {
     /* TODO: test this: static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt) */
+    
 }
 END_TEST
 START_TEST(tc_tcp_congestion_control)
