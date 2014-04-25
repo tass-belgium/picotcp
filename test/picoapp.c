@@ -2269,8 +2269,9 @@ int main(int argc, char **argv)
         break;
         case 'v':
         {
-            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL;
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL ;
             struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            uint32_t i_pc = 0, o_pc = 0;
             printf("+++ OPTARG %s\n", optarg);
             do {
                 nxt = cpy_arg(&name, optarg);
@@ -2288,6 +2289,12 @@ int main(int argc, char **argv)
 
                     nxt = cpy_arg(&gw, nxt);
                     if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_in, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_out, nxt);
+                    if (!nxt) break;
                 } else {
 
                     nxt = cpy_arg(&addr6, nxt);
@@ -2297,6 +2304,13 @@ int main(int argc, char **argv)
                     if (!nxt) break;
 
                     nxt = cpy_arg(&gw6, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_in, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_out, nxt);
+                    if (!nxt) break;
                 }
             } while(0);
             if (!nm && !nm6) {
@@ -2339,8 +2353,20 @@ int main(int argc, char **argv)
                     pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
                 }
             }
-
 #endif
+            if (loss_in && (strlen(loss_in) > 0)) {
+                i_pc = atoi(loss_in);
+            }
+            if (loss_out && (strlen(loss_out) > 0)) {
+                o_pc = atoi(loss_out);
+            }
+
+            if (i_pc || o_pc) {
+                printf(" ---------- >Setting vde packet loss %u:%u\n", i_pc, o_pc);
+                pico_vde_set_packetloss(dev, i_pc, o_pc);
+            }
+
+
         }
         break;
         case 'b':
