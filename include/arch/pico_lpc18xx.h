@@ -36,7 +36,6 @@ static inline void *pico_zalloc(size_t size)
 
     #define PICO_TIME() (Time_ElapsedSec())
     #define PICO_TIME_MS() (Time_ElapsedMili())
-    #define PICO_IDLE()
 extern uint32_t Time_ElapsedSec(void);
 extern uint32_t Time_ElapsedMili(void);
 
