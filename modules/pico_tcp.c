@@ -2284,7 +2284,7 @@ static int tcp_synrecv_syn(struct pico_socket *s, struct pico_frame *f)
     struct pico_tcp_hdr *hdr = NULL;
     struct pico_socket_tcp *t = TCP_SOCK(s);
     hdr = (struct pico_tcp_hdr *)f->transport_hdr;
-    if (t->rcv_nxt == long_be(hdr->seq) + 1) {
+    if (t->rcv_nxt == long_be(hdr->seq) + 1u) {
         /* take back our own SEQ number to its original value,
          * so the synack retransmitted is identical to the original. 
          */
