@@ -13,6 +13,9 @@
 
 #define dbg(...)
 
+
+extern volatile uint32_t tassTick;
+
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
 extern void *pico_mutex_init(void);
@@ -34,19 +37,20 @@ static inline void *pico_zalloc(size_t size)
     return ptr;
 }
 
-    #define PICO_TIME() (Time_ElapsedSec())
-    #define PICO_TIME_MS() (Time_ElapsedMili())
-extern uint32_t Time_ElapsedSec(void);
-extern uint32_t Time_ElapsedMili(void);
+static inline pico_time PICO_TIME_MS()
+{
+    return tassTick;
+}
 
-
-extern volatile uint32_t lpc_tick;
-extern volatile pico_time full_tick;
+static inline pico_time PICO_TIME()
+{
+    return tassTick / 1000;
+}
 
 static inline void PICO_IDLE(void)
 {
-    uint32_t now = pico_time_ms();
-    while(now == pico_time_ms()) ;
+    uint32_t now = PICO_TIME_MS();
+    while(now == PICO_TIME_MS()) ;
 }
 
 #else /* NO RTOS SUPPORT */
@@ -70,7 +74,7 @@ static inline void *pico_zalloc(size_t size)
 }
 static inline void pico_free(void * x)
 {
-    pico_ffree(x);
+    return pico_ffree(x);
 }
 
 #else
