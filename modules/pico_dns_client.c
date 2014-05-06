@@ -666,17 +666,20 @@ int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_que
 
     if(arpa == PICO_DNS_ARPA4) {
         strcpy(inaddr_arpa, ".in-addr.arpa");
+        strlen = pico_dns_client_strlen(url);
     }
 #ifdef PICO_SUPPORT_IPV6
     else if (arpa == PICO_DNS_ARPA6) {
         strcpy(inaddr_arpa, ".IP6.ARPA");
+        strlen = STRLEN_PTR_IP6;
     }
 #endif
-    else
+    else {
         strcpy(inaddr_arpa, "");
+        strlen = pico_dns_client_strlen(url);
+    }
 
     arpalen = pico_dns_client_strlen(inaddr_arpa);
-    strlen = pico_dns_client_strlen(url);
     *urlen = (uint16_t)(PICO_DNS_LABEL_INITIAL + strlen + arpalen + PICO_DNS_LABEL_ROOT);
     *hdrlen = (uint16_t)(sizeof(struct pico_dns_header) + *urlen + sizeof(struct pico_dns_query_suffix));
     *header = PICO_ZALLOC(*hdrlen);
@@ -796,7 +799,7 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *, void *), vo
 
 int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), void *arg)
 {
-    return pico_dns_getname_univ(ip, callback, arg, PICO_DNS_ARPA4);
+    return pico_dns_getname_univ(ip, callback, arg, PICO_DNS_ARPA6);
 }
 
 int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)

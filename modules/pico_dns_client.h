@@ -38,6 +38,10 @@
 #define PICO_DNS_IPV4_ADDR_LEN 16
 #define PICO_DNS_IPV6_ADDR_LEN 54
 
+#ifdef PICO_SUPPORT_IPV6
+#define STRLEN_PTR_IP6 63
+#endif
+
 /* flags splitted in 2x uint8 due to endianness */
 PACKED_STRUCT_DEF pico_dns_header
 {
