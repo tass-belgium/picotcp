@@ -39,6 +39,14 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
     if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0))
         return -1;
 
+
+    if ( (pico_ipv4_link_get(&ip4hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u) ) {
+        /* Datagram from ourselves, Loop disabled, discarding. */
+        return 0;
+    }
+
+
+
     if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
             (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
@@ -92,15 +100,34 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
 #endif
 
 #ifdef PICO_SUPPORT_IPV6
-static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
+static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip6 s_local, p_dst;
     struct pico_ipv6_hdr *ip6hdr;
     struct pico_frame *cpy;
+    struct pico_device *dev = pico_ipv6_link_find(&s->local_addr.ip6);
+
     ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
+
+    /* TODO: Check filters like it's done for IPv4 */
+    (void)s_local;
+    (void)p_dst;
+#if 0
     s_local = s->local_addr.ip6;
     p_dst = ip6hdr->dst;
-    if ((pico_ipv6_is_multicast(p_dst.addr))) {
+    if (pico_ipv6_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip6hdr->dst, (union pico_address *)&ip6hdr->src) < 0))
+        return -1;
+#endif
+
+
+    if ( (pico_ipv6_link_get(&ip6hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u) ) {
+        /* Datagram from ourselves, Loop disabled, discarding. */
+        return 0;
+    }
+
+
+    if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) ||/* If our local ip is ANY, or.. */
+            (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
         if (!cpy)
             return -1;
@@ -111,6 +138,20 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
         }
         else
             pico_frame_discard(cpy);
+    }
+    return 0;
+}
+
+static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
+{
+    struct pico_ip6 s_local, p_dst;
+    struct pico_ipv6_hdr *ip6hdr;
+    struct pico_frame *cpy;
+    ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
+    s_local = s->local_addr.ip6;
+    p_dst = ip6hdr->dst;
+    if ((pico_ipv6_is_multicast(p_dst.addr))) {
+        return pico_socket_udp_deliver_ipv6_mcast(s, f);
     } else if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || (pico_ipv6_compare(&s_local, &p_dst) == 0))
     { /* Either local socket is ANY, or matches dst */
         cpy = pico_frame_copy(f);
