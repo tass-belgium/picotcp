@@ -40,7 +40,7 @@ MEMORY_MANAGER_PROFILING?=0
 #IPv6 related
 IPV6?=1
 
-CFLAGS=-Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion 
 # request from Toon
@@ -140,15 +140,12 @@ ifeq ($(ARCH),none)
 endif
 
 .c.o:
-	@echo -e "\t[CC] $<"
-	@$(CC) -c $(CFLAGS) -o $@ $<
+	$(CC) -c $(CFLAGS) -o $@ $<
 
 %.elf: %.o $(TEST_OBJ)
 	@echo -e "\t[LD] $@"
 	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS) $(TEST_OBJ)
 
-
-CFLAGS+=$(OPTIONS)
 
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_frame.o \
@@ -227,11 +224,11 @@ ifneq ($(SNTP_CLIENT),0)
 endif
 all: mod core lib
 
-core: $(CORE_OBJ)
+core: deps $(CORE_OBJ)
 	@mkdir -p $(PREFIX)/lib
 	@mv stack/*.o $(PREFIX)/lib
 
-mod: $(MOD_OBJ)
+mod: deps $(MOD_OBJ)
 	@mkdir -p $(PREFIX)/modules
 	@mv modules/*.o $(PREFIX)/modules || echo
 
@@ -251,9 +248,17 @@ test: posix $(TEST_ELF) $(TEST_OBJ)
 	
 tst: test
 
-lib: mod core
+$(PREFIX)/include/pico_defines.h: FORCE
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
+	@bash ./mkdeps.sh $(PREFIX) $(OPTIONS) 
+
+
+deps: $(PREFIX)/include/pico_defines.h
+
+
+
+lib: mod core
 	@cp -f include/*.h $(PREFIX)/include
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
@@ -267,7 +272,6 @@ lib: mod core
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
 	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
-	@bash ./mkdeps.sh $(PREFIX) $(CFLAGS) 
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
@@ -334,3 +338,6 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@$(CC) -o dummy test/dummy.o $(DUMMY_EXTRA) $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
 	@echo done.
 	@rm -f test/dummy.o dummy 
+
+
+FORCE:

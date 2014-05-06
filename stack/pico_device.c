@@ -7,7 +7,6 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_device.h"
 #include "pico_stack.h"

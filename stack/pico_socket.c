@@ -579,6 +579,7 @@ int pico_socket_set_family(struct pico_socket *s, uint16_t family)
 static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t family)
 {
     struct pico_socket *s = NULL;
+    (void)family;
     if (proto == PICO_PROTO_UDP)
         s = pico_socket_udp_open();
 
