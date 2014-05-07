@@ -68,6 +68,19 @@ uint32_t pico_rand(void)
     return _rand_seed;
 }
 
+void pico_to_lower(char *str)
+{
+    int i = 0;
+    if (!str)
+        return;
+
+    while(str[i]) {
+        if ((str[i] <= 'Z') && (str[i] >= 'A'))
+            str[i] -= 'A' - 'a';
+        i++;
+    }
+}
+
 /* NOTIFICATIONS: distributed notifications for stack internal errors.
  */
 
@@ -668,7 +681,7 @@ void pico_timer_cancel(struct pico_timer *t)
 #define PROTO_DEF_SCORE   32
 #define PROTO_MIN_SCORE   32
 #define PROTO_MAX_SCORE   128
-#define PROTO_LAT_IND     3   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
+#define PROTO_LAT_IND     3   /* latency indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
 #define PROTO_MAX_LOOP    (PROTO_MAX_SCORE << PROTO_LAT_IND) /* max global loop score, so per tick */
 
 static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)

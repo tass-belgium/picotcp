@@ -19,6 +19,7 @@
 #define PICO_DNS_TYPE_A 1
 #define PICO_DNS_TYPE_AAAA 28
 #define PICO_DNS_TYPE_PTR 12
+#define PICO_DNS_TYPE_ANY 255
 
 /* QCLASS values */
 #define PICO_DNS_CLASS_IN 1
@@ -72,7 +73,6 @@ PACKED_STRUCT_DEF pico_dns_answer_suffix
     uint16_t qclass;
     uint32_t ttl;
     uint16_t rdlength;
-    uint8_t rdata[0];
 };
 
 enum pico_dns_arpa
@@ -95,7 +95,10 @@ int pico_dns_client_getname6(const char *url, void (*callback)(char *, void *), 
 uint16_t pico_dns_client_strlen(const char *url);
 int pico_dns_client_query_header(struct pico_dns_header *pre);
 int pico_dns_client_query_domain(char *ptr);
+int pico_dns_client_answer_domain(char *ptr);
 int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass);
 int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen);
+int8_t pico_dns_client_mirror(char *ptr);
+void pico_dns_ipv6_set_ptr(const char *ip, char *dst);
 
 #endif /* _INCLUDE_PICO_DNS_CLIENT */

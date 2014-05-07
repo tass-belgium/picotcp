@@ -130,14 +130,18 @@ echo "SLAACV4 TEST"
 killall picoapp.elf
 
 
-
-
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:www.google.be:173.194.67.94:: &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:ipv6.google.be:doesntmatter:ipv6: &
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.0.0:10.50.0.1::: -a sntp:ntp.nasa.gov
 sleep 20
 killall picoapp.elf
 
+
+echo "MDNS TEST"
+#retrieve a local mdns host name from the avahi daemon
+export sysname=`avahi-browse -a -t | grep -m1 vde | awk '{print $4;}'`
+./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:toon.local:"$sysname".local
+killall picoapp.elf
 
 
 

@@ -29,6 +29,7 @@ PING?=1
 DHCP_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
+MDNS?=1
 SNTP_CLIENT?=1
 IPFILTER?=1
 CRC?=1
@@ -40,15 +41,15 @@ MEMORY_MANAGER_PROFILING?=0
 #IPv6 related
 IPV6?=1
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS) 
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS)
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
-CFLAGS+= -Wconversion 
+CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
-else 
+else
     ifeq ($(PERF), 1)
         CFLAGS+=-O3
     else
@@ -198,6 +199,9 @@ endif
 ifneq ($(DNS_CLIENT),0)
   include rules/dns_client.mk
 endif
+ifneq ($(MDNS),0)
+  include rules/mdns.mk
+endif
 ifneq ($(IPFILTER),0)
   include rules/ipfilter.mk
 endif
@@ -290,6 +294,7 @@ units: mod core lib $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_seq.elf $(CFLAGS) -I. test/unit/modunit_seq.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_tcp.elf $(CFLAGS) -I. test/unit/modunit_pico_tcp.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dns_client.elf $(CFLAGS) -I. test/unit/modunit_pico_dns_client.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_mdns.elf $(CFLAGS) -I. test/unit/modunit_pico_mdns.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_loop.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_loop.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_ipv6_nd.elf $(CFLAGS) -I. test/unit/modunit_pico_ipv6_nd.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_pico_stack.elf $(CFLAGS) -I. test/unit/modunit_pico_stack.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a

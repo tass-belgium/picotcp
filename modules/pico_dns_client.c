@@ -255,7 +255,7 @@ static char *pico_dns_client_seek(char *ptr)
 
 /* mirror ip address numbers
  * f.e. 192.168.0.1 => 1.0.168.192 */
-static int8_t pico_dns_client_mirror(char *ptr)
+int8_t pico_dns_client_mirror(char *ptr)
 {
     const unsigned char *addr = NULL;
     char *m = ptr;
@@ -359,7 +359,7 @@ int pico_dns_client_query_domain(char *ptr)
 
 /* replace the label length in the domain name by '.'
  * f.e. 3www6google2be0 => .www.google.be */
-static int pico_dns_client_answer_domain(char *ptr)
+int pico_dns_client_answer_domain(char *ptr)
 {
     char p = 0, *label = NULL;
 
@@ -425,27 +425,27 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_header *pre,
     struct pico_dns_answer_suffix *asuffix = NULL;
     uint16_t comp = 0, compression = 0;
     uint16_t i = 0;
-    char *psuffix = suf;
+
     if (!suf)
         return NULL;
 
     while (i++ < short_be(pre->ancount)) {
-        comp = short_from(psuffix);
+        comp = short_from(suf);
         compression = short_be(comp);
         switch (compression >> 14)
         {
         case PICO_DNS_POINTER:
             while (compression >> 14 == PICO_DNS_POINTER) {
                 dns_dbg("DNS: pointer\n");
-                psuffix += sizeof(uint16_t);
-                comp = short_from(psuffix);
+                suf += sizeof(uint16_t);
+                comp = short_from(suf);
                 compression = short_be(comp);
             }
             break;
 
         case PICO_DNS_LABEL:
             dns_dbg("DNS: label\n");
-            psuffix = pico_dns_client_seek(psuffix);
+            suf = pico_dns_client_seek(suf);
             break;
 
         default:
@@ -453,16 +453,16 @@ static char *pico_dns_client_seek_suffix(char *suf, struct pico_dns_header *pre,
             return NULL;
         }
 
-        asuffix = (struct pico_dns_answer_suffix *)psuffix;
+        asuffix = (struct pico_dns_answer_suffix *)suf;
         if (!asuffix)
             break;
 
         if (pico_dns_client_check_asuffix(asuffix, q) < 0) {
-            psuffix += (sizeof(struct pico_dns_answer_suffix) + short_be(asuffix->rdlength));
+            suf += (sizeof(struct pico_dns_answer_suffix) + short_be(asuffix->rdlength));
             continue;
         }
 
-        return psuffix;
+        return suf;
     }
     return NULL;
 }
@@ -526,11 +526,12 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 {
     uint32_t ip = 0;
     char *str = NULL;
+    char *rdata = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
 
     switch (q->qtype)
     {
     case PICO_DNS_TYPE_A:
-        ip = long_from(asuffix->rdata);
+        ip = long_from(rdata);
         str = PICO_ZALLOC(PICO_DNS_IPV4_ADDR_LEN);
         pico_ipv4_to_string(str, ip);
         break;
@@ -538,21 +539,21 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     case PICO_DNS_TYPE_AAAA:
     {
         struct pico_ip6 ip6;
-        memcpy(&ip6.addr, asuffix->rdata, sizeof(struct pico_ip6));
+        memcpy(&ip6.addr, rdata, sizeof(struct pico_ip6));
         str = PICO_ZALLOC(PICO_DNS_IPV6_ADDR_LEN);
         pico_ipv6_to_string(str, ip6.addr);
         break;
     }
 #endif
     case PICO_DNS_TYPE_PTR:
-        pico_dns_client_answer_domain((char *)asuffix->rdata);
+        pico_dns_client_answer_domain(rdata);
         str = PICO_ZALLOC((size_t)(asuffix->rdlength - PICO_DNS_LABEL_INITIAL));
         if (!str) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
 
-        memcpy(str, asuffix->rdata + PICO_DNS_LABEL_INITIAL, short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL);
+        memcpy(str, rdata + PICO_DNS_LABEL_INITIAL, short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL);
         break;
 
     default:
@@ -639,7 +640,7 @@ static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
         return (char)(nibble - 0xa + 'a');
 }
 
-static void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
+void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
     struct pico_ip6 ip6;
     int i, j = 0;

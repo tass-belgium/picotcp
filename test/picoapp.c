@@ -17,6 +17,7 @@
 #include "pico_ipfilter.h"
 #include "pico_olsr.h"
 #include "pico_sntp_client.h"
+#include "pico_mdns.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -1981,6 +1982,87 @@ out:
 #endif
 /*** END DHCP Client ***/
 
+#ifdef PICO_SUPPORT_MDNS
+
+void mdns_getname6_callback(char *str, void *arg)
+{
+    (void) arg;
+    printf("Getname6 callback called, str: %s\n", str);
+    exit(0);
+}
+
+void mdns_getaddr6_callback(char *str, void *arg)
+{
+    (void) arg;
+    printf("Getaddr6 callback called, str: %s\n", str);
+    if(pico_mdns_getname6(str, &mdns_getname6_callback, NULL)!=0)
+        printf("Getaddr returned with error!\n");
+}
+
+void mdns_getname_callback(char *str, void *arg)
+{
+    char *system_name = (char *)arg;
+    if(!system_name) {
+        printf("No system name supplied!\n");
+        exit(-1);
+    }
+    printf("Getname callback called, str: %s\n", str);
+    if(pico_mdns_getaddr6(system_name, &mdns_getaddr6_callback, NULL)!=0)
+        printf("Getname returned with error!\n");
+}
+
+void mdns_getaddr_callback(char *str, void *arg)
+{
+    (void) arg;
+    printf("Getaddr callback called, str: %s\n", str);
+    if(pico_mdns_getname(str, &mdns_getname_callback, arg)!=0)
+        printf("Getaddr returned with error!\n");
+}
+
+void mdns_init_callback(char *str, void *arg)
+{
+    char *system_name = (char *)arg;
+    printf("Init callback called, str: %s\n", str);
+    if(!system_name) {
+        printf("No system name supplied!\n");
+        exit(-1);
+    }
+
+    if(pico_mdns_getaddr(system_name, &mdns_getaddr_callback, system_name)!=0)
+        printf("Getaddr returned with error!\n");
+}
+
+void app_mdns(char *arg)
+{
+    char *hostname, *sysname;
+    char *nxt = arg;
+
+    if (!nxt)
+        exit(255);
+
+    nxt = cpy_arg(&hostname, nxt);
+    if(!hostname) {
+        exit(255);
+    }
+    if(!nxt){
+        printf("Not enough args supplied!\n");
+        exit(255);
+    }
+    nxt = cpy_arg(&sysname, nxt);
+    if(!sysname) {
+        exit(255);
+    }
+
+    printf("Starting to claim name: %s, system name: %s\n", hostname, sysname);
+    if(pico_mdns_init(hostname, &mdns_init_callback, sysname)!=0)
+        printf("Init returned with error\n");
+    while(1) {
+        pico_stack_tick();
+        usleep(2000);
+    }
+}
+#endif
+
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
 void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
@@ -2513,6 +2595,12 @@ int main(int argc, char **argv)
                                                             return 0;
 #else
                                                             app_dhcp_client(args);
+#endif
+                                                    } else IF_APPNAME("mdns") {
+#ifndef PICO_SUPPORT_MDNS
+                                                            return 0;
+#else
+                                                            app_mdns(args);
 #endif
 #ifdef PICO_SUPPORT_SNTP_CLIENT
                                                         }else IF_APPNAME("sntp") {
