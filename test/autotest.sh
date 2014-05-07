@@ -138,9 +138,10 @@ killall picoapp.elf
 
 
 echo "MDNS TEST"
-#retrieve a local mdns host name from the avahi daemon
-export sysname=`avahi-browse -a -t | grep -m1 vde | awk '{print $4;}'`
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:toon.local:"$sysname".local
+#retrieve a local mdns host name from the host 
+export sysname=`hostname`
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:toon.local:"$sysname".local) &
+sleep 20
 killall picoapp.elf
 
 
