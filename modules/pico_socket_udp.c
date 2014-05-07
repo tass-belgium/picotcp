@@ -54,7 +54,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
     s_local.addr = s->local_addr.ip4.addr;
 
     if (pico_socket_udp_deliver_ipv4_mcast_initial_checks(s, f) < 0)
-        return -1;
+        return 0;
 
 
 
