@@ -68,7 +68,7 @@ uint32_t pico_rand(void)
     return _rand_seed;
 }
 
-void pico_to_lower(char *str)
+void pico_to_lowercase(char *str)
 {
     int i = 0;
     if (!str)
@@ -76,7 +76,7 @@ void pico_to_lower(char *str)
 
     while(str[i]) {
         if ((str[i] <= 'Z') && (str[i] >= 'A'))
-            str[i] -= 'A' - 'a';
+            str[i] = (char) (str[i] - (char)('A' - 'a'));
         i++;
     }
 }

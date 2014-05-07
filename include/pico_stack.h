@@ -68,5 +68,6 @@ void pico_timer_cancel(struct pico_timer *t);
 pico_time pico_timer_get_expire(struct pico_timer *t);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
+void pico_to_lowercase(char *str);
 
 #endif

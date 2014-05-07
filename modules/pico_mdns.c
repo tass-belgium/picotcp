@@ -81,7 +81,7 @@ static struct pico_mdns_cookie *pico_mdns_add_cookie(struct pico_dns_header *hdr
 
     ck->header = hdr;
     ck->url = (char *)hdr + sizeof(struct pico_dns_header);
-    pico_to_lower(ck->url);
+    pico_to_lowercase(ck->url);
     ck->len = len;
     ck->qtype = short_be(suffix->qtype);
     if (short_be(suffix->qtype) == PICO_DNS_TYPE_PTR)
@@ -282,7 +282,7 @@ static struct pico_mdns_cookie *pico_mdns_find_cookie(char *url)
     struct pico_mdns_cookie test;
     char temp[256] = {0};
     strcpy(temp+1, url);
-    pico_to_lower(temp);
+    pico_to_lowercase(temp);
     test.url = temp;
     pico_dns_client_query_domain(test.url);
     return pico_tree_findKey(&QTable, &test);
