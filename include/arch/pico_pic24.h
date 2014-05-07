@@ -117,7 +117,7 @@ static inline void PICO_IDLE(void)
     unsigned long tick_now;
     /* Disable timer interrupts */
     TIMBASE_INT_E = 0;
-    tick_now = pico_tick;
+    tick_now = (unsigned long)pico_tick;
     /* Enable timer interrupts */
     TIMBASE_INT_E = 1;
     /* Doesn't matter that this call isn't interrupt safe, */
