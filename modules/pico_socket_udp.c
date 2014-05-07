@@ -26,15 +26,12 @@ struct pico_socket *pico_socket_udp_open(void)
 
 
 #ifdef PICO_SUPPORT_IPV4
-static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico_frame *f)
+static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_socket *s, struct pico_frame *f)
 {
-    struct pico_ip4 s_local, p_dst;
+    struct pico_ip4  p_dst;
     struct pico_ipv4_hdr *ip4hdr;
-    struct pico_frame *cpy;
-    struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
 
     ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
-    s_local.addr = s->local_addr.ip4.addr;
     p_dst.addr = ip4hdr->dst.addr;
     if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0))
         return -1;
@@ -42,8 +39,22 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
 
     if ( (pico_ipv4_link_get(&ip4hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u) ) {
         /* Datagram from ourselves, Loop disabled, discarding. */
-        return 0;
+        return -1;
     }
+    return 0;
+}
+
+
+static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico_frame *f)
+{
+    struct pico_ip4 s_local;
+    struct pico_frame *cpy;
+    struct pico_device *dev = pico_ipv4_link_find(&s->local_addr.ip4);
+
+    s_local.addr = s->local_addr.ip4.addr;
+
+    if (pico_socket_udp_deliver_ipv4_mcast_initial_checks(s, f) < 0)
+        return -1;
 
 
 
