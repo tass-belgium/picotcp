@@ -2001,13 +2001,13 @@ void mdns_getaddr6_callback(char *str, void *arg)
 
 void mdns_getname_callback(char *str, void *arg)
 {
-    char *system_name = (char *)arg;
-    if(!system_name) {
+    char *peername = (char *)arg;
+    if(!peername) {
         printf("No system name supplied!\n");
         exit(-1);
     }
     printf("Getname callback called, str: %s\n", str);
-    if(pico_mdns_getaddr6(system_name, &mdns_getaddr6_callback, NULL)!=0)
+    if(pico_mdns_getaddr6(peername, &mdns_getaddr6_callback, NULL)!=0)
         printf("Getname returned with error!\n");
 }
 
@@ -2021,20 +2021,20 @@ void mdns_getaddr_callback(char *str, void *arg)
 
 void mdns_init_callback(char *str, void *arg)
 {
-    char *system_name = (char *)arg;
+    char *peername = (char *)arg;
     printf("Init callback called, str: %s\n", str);
-    if(!system_name) {
+    if(!peername) {
         printf("No system name supplied!\n");
         exit(-1);
     }
 
-    if(pico_mdns_getaddr(system_name, &mdns_getaddr_callback, system_name)!=0)
+    if(pico_mdns_getaddr(peername, &mdns_getaddr_callback, peername)!=0)
         printf("Getaddr returned with error!\n");
 }
 
 void app_mdns(char *arg)
 {
-    char *hostname, *sysname;
+    char *hostname, *peername;
     char *nxt = arg;
 
     if (!nxt)
@@ -2048,13 +2048,13 @@ void app_mdns(char *arg)
         printf("Not enough args supplied!\n");
         exit(255);
     }
-    nxt = cpy_arg(&sysname, nxt);
-    if(!sysname) {
+    nxt = cpy_arg(&peername, nxt);
+    if(!peername) {
         exit(255);
     }
 
-    printf("Starting to claim name: %s, system name: %s\n", hostname, sysname);
-    if(pico_mdns_init(hostname, &mdns_init_callback, sysname)!=0)
+    printf("Starting to claim name: %s, system name: %s\n", hostname, peername);
+    if(pico_mdns_init(hostname, &mdns_init_callback, peername)!=0)
         printf("Init returned with error\n");
     while(1) {
         pico_stack_tick();
