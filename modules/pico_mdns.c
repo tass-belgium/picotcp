@@ -15,8 +15,8 @@ Author: Toon Stegen
 
 #ifdef PICO_SUPPORT_MDNS
 
-//#define mdns_dbg(...) do {} while(0)
-#define mdns_dbg dbg
+#define mdns_dbg(...) do {} while(0)
+/* #define mdns_dbg dbg */
 
 #define PICO_MDNS_PROBE 1
 #define PICO_MDNS_NO_PROBE 0
@@ -62,15 +62,11 @@ PICO_TREE_DECLARE(MDNSTable, mdns_cmp);
 /* tree containing queries */
 PICO_TREE_DECLARE(QTable, mdns_cmp);
 
-/* tree containing local hostnames */
-//PICO_TREE_DECLARE(NSTable, ns_cmp);
-
 /* sends an mdns packet on the global socket*/
 static int pico_mdns_send(struct pico_dns_header *hdr, uint16_t len)
 {
     struct pico_ip4 dst;
     pico_string_to_ipv4("224.0.0.251", &dst.addr);
-    //mdns_dbg("Mdns packet sent\n");
     return pico_socket_sendto(mdns_sock, hdr, len, &dst, short_be(mdns_port));
 }
 
@@ -373,7 +369,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
 static int pico_check_query_name(char *url)
 {
     char addr[29] = {0};
-    if(strcmp(url, mdns_global_host)==0) //&& short_be(suf->qclass) == PICO_DNS_CLASS_IN)
+    if(strcmp(url, mdns_global_host)==0)
         return 1;
     pico_ipv4_to_string(addr, mdns_sock->local_addr.ip4.addr);
     pico_dns_client_mirror(addr);
@@ -422,9 +418,6 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     mdns_dbg("Answer for record %s was received:\n", url);
     mdns_dbg("type: %u, class: %u, ttl: %lu, rdlen: %u\n", short_be(suf->qtype),
             short_be(suf->qclass), (unsigned long)long_be(suf->ttl), short_be(suf->rdlength));
-
-    /* insert string terminator at end of data */
-    //rdata[short_be(suf->rdlength)] = '\0';
 
     /* Check in the query tree whether a request was sent */
     ck = pico_mdns_find_cookie(url);
@@ -479,7 +472,6 @@ static unsigned int pico_mdns_namelen_comp(char *name)
     if(*ptr != '\0') {
         len++;
     }
-    //mdns_dbg("Detected comp len: %u\n", len);
     return len;
 }
 
@@ -501,7 +493,6 @@ static unsigned int pico_mdns_namelen_uncomp(char *name, char *buf)
         }
     }
     len += (unsigned int) (ptr - begin_comp);
-    //mdns_dbg("Detected uncomp len: %u\n", len);
     return len;
 }
 
@@ -517,7 +508,6 @@ static char *pico_mdns_expand_name_comp(char *url, char *buf)
     mdns_dbg("Uncomp len:%u, comp len:%u.\n", len ,pico_mdns_namelen_comp(url));
     if(len < pico_mdns_namelen_comp(url)){
         mdns_dbg("BOOM compressed longer than uncompressed!\n");
-        len = pico_mdns_namelen_uncomp(url, buf);   //FOR DEBUGGING
         return NULL;
     }
 
@@ -539,14 +529,13 @@ static char *pico_mdns_expand_name_comp(char *url, char *buf)
         sp++;
         ptr += (uint8_t)*ptr + 1;/* jump to next occurring dot */
         if(*ptr & 0x80){
-            len += (unsigned int) (ptr - begin_comp) + 1;   // +1 for the dot at the end of the label
+            len += (unsigned int) (ptr - begin_comp) + 1;   /* +1 for the dot at the end of the label */
             begin_comp = buf + *(ptr + 1);  /* set at beginning of compstring*/
             ptr = begin_comp;
         }
     }
     sp--;
     *sp = '\0';
-    //mdns_dbg("Completely expanded: %s\n", str);
 
     return str;
 }
@@ -613,11 +602,9 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
         /* receive while data available in socket buffer */
         while((pico_read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port)) > 0) {
             /* if pico_socket_setoption is implemented, this check is not needed */
-            //if(peer.addr!=s->local_addr.ip4.addr){
                 pico_ipv4_to_string(host, peer.addr);
                 mdns_dbg("Received data from %s:%u\n", host, short_be(port));
                 pico_mdns_recv(recvbuf, pico_read, peer);
-            //}
         }
     }
     /* socket is closed */
@@ -725,7 +712,7 @@ static int pico_mdns_probe(char *hostname, void (*cb_initialised)(char *str, voi
     struct pico_dns_header *header = NULL;
     uint16_t len = 0;
     char *host;
-    // QU question with unicast response bit set
+    /* QU question with unicast response bit set */
     header = pico_mdns_create_query(hostname, &len, 0, PICO_MDNS_PROBE, PICO_MDNS_NO_INVERT, cb_initialised, arg);
     if(!header || !len){
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
