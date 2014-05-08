@@ -63,11 +63,11 @@ PICO_TREE_DECLARE(MDNSTable, mdns_cmp);
 PICO_TREE_DECLARE(QTable, mdns_cmp);
 
 /* sends an mdns packet on the global socket*/
-static int pico_mdns_send(struct pico_dns_header *hdr, uint16_t len)
+static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
 {
     struct pico_ip4 dst;
     pico_string_to_ipv4("224.0.0.251", &dst.addr);
-    return pico_socket_sendto(mdns_sock, hdr, len, &dst, short_be(mdns_port));
+    return pico_socket_sendto(mdns_sock, hdr, (int)len, &dst, short_be(mdns_port));
 }
 
 /* populate and add cookie to the tree */
@@ -133,7 +133,7 @@ static void pico_mdns_answer_suffix(struct pico_dns_answer_suffix *asuf, uint16_
 }
 
 /* create an mdns answer */
-static struct pico_dns_header *pico_mdns_create_answer(char *url, uint16_t *len, uint16_t qtype, void *rdata)
+static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *len, uint16_t qtype, void *rdata)
 {
     struct pico_dns_header *header = NULL;
     char *domain = NULL;
@@ -155,7 +155,7 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, uint16_t *len,
         return NULL;
     }
     slen = (uint16_t)(pico_dns_client_strlen(url) + 2u);
-    *len = (uint16_t)(sizeof(struct pico_dns_header) + slen + sizeof(struct pico_dns_answer_suffix) + datalen);
+    *len = (unsigned int)(sizeof(struct pico_dns_header) + slen + sizeof(struct pico_dns_answer_suffix) + datalen);
 
     header = PICO_ZALLOC(*len);
     if(!header) {
@@ -312,7 +312,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
 {
     struct pico_dns_header *header = NULL;
     struct pico_ip4 *local_addr = NULL;
-    uint16_t len;
+    unsigned int len;
 
     local_addr = pico_ipv4_source_find(&peer);
 
@@ -323,7 +323,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
             mdns_dbg("Could not create answer header!\n");
             return -1;
         }
-        if(pico_mdns_send(header, len)!=len) {
+        if(pico_mdns_send(header, len)!=(int)len) {
             mdns_dbg("Send error occurred!\n");
             return -1;
         }
@@ -338,7 +338,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
             mdns_dbg("Could not create answer header!\n");
             return -1;
         }
-        if(pico_mdns_send(header, len)!=len) {
+        if(pico_mdns_send(header, len)!=(int)len) {
             mdns_dbg("Send error occurred!\n");
             return -1;
         }
@@ -358,7 +358,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
             mdns_dbg("Could not create answer header!\n");
             return -1;
         }
-        if(pico_mdns_send(header, len)!=len) {
+        if(pico_mdns_send(header, len)!=(int)len) {
             mdns_dbg("Send error occurred!\n");
             return -1;
         }
@@ -622,7 +622,7 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 static void pico_mdns_announce_timer(pico_time now, void *arg)
 {
     struct pico_dns_header *header = NULL;
-    uint16_t len;
+    unsigned int len;
     (void) now;
     (void) arg;
 
@@ -635,7 +635,7 @@ static void pico_mdns_announce_timer(pico_time now, void *arg)
         return ;
     }
 
-    if(pico_mdns_send(header, len)!=len){
+    if(pico_mdns_send(header, len)!=(int)len){
         mdns_dbg("send error occured!\n");
         return ;
     }
@@ -645,7 +645,7 @@ static void pico_mdns_announce_timer(pico_time now, void *arg)
 static int pico_mdns_announce()
 {
     struct pico_dns_header *header = NULL;
-    uint16_t len;
+    unsigned int len;
 
     if(!mdns_global_host)
         return -1;
@@ -656,7 +656,7 @@ static int pico_mdns_announce()
         return -1;
     }
 
-    if(pico_mdns_send(header, len)!=len){
+    if(pico_mdns_send(header, len)!=(int)len){
         mdns_dbg("send error occured!\n");
         return -1;
     }
