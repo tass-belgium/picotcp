@@ -794,7 +794,7 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
 static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip, void *arg), void *arg, uint16_t proto)
 {
     struct pico_dns_header *header = NULL;
-    unsigned int len = 0;
+    uint16_t len = 0;
 
     if(!mdns_sock){
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
