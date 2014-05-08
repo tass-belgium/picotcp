@@ -642,7 +642,7 @@ static void pico_mdns_announce_timer(pico_time now, void *arg)
 }
 
 /* announce the local hostname to the network */
-static int pico_mdns_announce()
+static int pico_mdns_announce(void)
 {
     struct pico_dns_header *header = NULL;
     unsigned int len;
@@ -695,7 +695,7 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
         ck->callback(ok, ck->arg);
         pico_mdns_del_cookie(url);
     } else {
-        if(pico_mdns_send(ck->header, ck->len)!=ck->len){
+        if(pico_mdns_send(ck->header, ck->len)!=(int)ck->len){
             mdns_dbg("Send error occurred!\n");
             PICO_FREE(arg);
             ck->callback(NULL, ck->arg);
@@ -794,7 +794,7 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
 static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip, void *arg), void *arg, uint16_t proto)
 {
     struct pico_dns_header *header = NULL;
-    uint16_t len = 0;
+    unsigned int len = 0;
 
     if(!mdns_sock){
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
@@ -805,7 +805,7 @@ static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip,
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
         return -1;
     }
-    if(pico_mdns_send(header, len)!=len){
+    if(pico_mdns_send(header, len)!=(int)len){
         mdns_dbg("Send error!\n");
         return -1;
     }
@@ -826,7 +826,7 @@ static int pico_mdns_getname_generic(const char *ip, void (*callback)(char *url,
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
         return -1;
     }
-    if(pico_mdns_send(header, len)!=len){
+    if(pico_mdns_send(header, len)!=(int)len){
         mdns_dbg("Send error!\n");
         return -1;
     }
