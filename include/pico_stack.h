@@ -38,7 +38,7 @@ int32_t pico_ethernet_receive(struct pico_frame *f);
  */
 int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
-
+int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
