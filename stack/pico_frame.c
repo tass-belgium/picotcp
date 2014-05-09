@@ -107,7 +107,7 @@ struct pico_frame *pico_frame_alloc(uint32_t size)
     return pico_frame_do_alloc(size, 0, 0);
 }
 
-struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int32_t ext_buffer)
+struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int ext_buffer)
 {
     return pico_frame_do_alloc(size, 1, ext_buffer);
 }
