@@ -575,14 +575,14 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     return ret;
 }
 
-int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len, int32_t ext_buffer)
 {
     struct pico_frame *f;
     int ret;
     if (len <= 0)
         return -1;
 
-    f = pico_frame_alloc_skeleton(len);
+    f = pico_frame_alloc_skeleton(len, ext_buffer);
     if (!f)
     {
         dbg("Cannot alloc incoming frame!\n");
@@ -604,6 +604,14 @@ int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint3
     }
 
     return ret;
+}
+
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len) {
+	return _pico_stack_recv_zerocopy(dev, buffer, len, 0);
+}
+
+int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len) {
+	return _pico_stack_recv_zerocopy(dev, buffer, len, 1);
 }
 
 int32_t pico_sendto_dev(struct pico_frame *f)
