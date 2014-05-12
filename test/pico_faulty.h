@@ -59,7 +59,7 @@ static inline void mem_stat_store(void)
 }
 
 
-static inline void *pico_zalloc(uint32_t x)
+static inline void *pico_zalloc(size_t x)
 {
     uint32_t *ptr;
     if (mm_failure_count > 0) {
@@ -69,9 +69,9 @@ static inline void *pico_zalloc(uint32_t x)
         }
     }
 
-    ptr = (uint32_t *)calloc(x + 4, 1);
-    *ptr = (uint32_t)x;
-    cur_mem += x;
+    ptr = (uint32_t *)calloc(x + sizeof(uint32_t), 1);
+    *ptr = (uint32_t)x; /* store size of alloc */
+    cur_mem += (uint32_t)x;
 
 #ifndef DISABLE_MM_STATS
     if (cur_mem > max_mem) {
@@ -88,7 +88,7 @@ static inline void *pico_zalloc(uint32_t x)
 
 static inline void pico_free(void *x)
 {
-    uint32_t *ptr = (uint32_t*)(((uint8_t *)x) - 4);
+    uint32_t *ptr = (uint32_t*)(((uint8_t *)x) - sizeof(uint32_t)); /* fetch size of the alloc */
     cur_mem -= *ptr;
     free(ptr);
 }
