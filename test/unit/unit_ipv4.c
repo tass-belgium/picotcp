@@ -319,6 +319,9 @@ START_TEST (test_ipfilter)
     sport = 1222u;
     filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
     fail_if(filter_id1 <= 0, "Error adding exact filter\n");
+    printf("Filter is added\n");
+    sync();
+    sleep(1);
 
     ret = ipfilter(f);
     fail_if(ret != 1, "Frame wasn't filtered\n");
