@@ -317,7 +317,7 @@ START_TEST (test_ipfilter)
     pico_string_to_ipv4("192.168.1.109", &src_addr.addr);
     pico_string_to_ipv4("255.255.255.255", &saddr_netmask.addr);
     sport = 1222u;
-    filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
+    filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_REJECT);
     fail_if(filter_id1 <= 0, "Error adding exact filter\n");
     printf("Filter is added\n");
     sync();
@@ -336,7 +336,7 @@ START_TEST (test_ipfilter)
     sport = 1222u;
 
     filter_id1 = pico_ipv4_filter_add(dev, proto, &src_addr, &saddr_netmask, &dst_addr, &daddr_netmask, sport, dport, priority, tos, FILTER_DROP);
-    fail_if(filter_id1 <= 0, "Error adding exact filter\n");
+    fail_if(filter_id1 <= 0, "Error adding masked filter\n");
 
     f = (struct pico_frame *)PICO_ZALLOC(200);
     f->buffer = PICO_ZALLOC(20);

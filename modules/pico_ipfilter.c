@@ -319,18 +319,13 @@ static const struct fp_function fp_function[FILTER_COUNT] =
     {&fp_drop}
 };
 
-static int pico_ipv4_filter_add_validate(uint8_t proto, int8_t priority, enum filter_action action, uint8_t tos)
+static int pico_ipv4_filter_add_validate(int8_t priority, enum filter_action action)
 {
-    if (proto != PICO_PROTO_IPV4 || tos != 0 )
-    {
-        return -1;
-    }
-
     if ( priority > MAX_PRIORITY || priority < MIN_PRIORITY) {
         return -1;
     }
 
-    if (action > FILTER_COUNT) {
+    if (action >= FILTER_COUNT) {
         return -1;
     }
     return 0;
@@ -347,7 +342,7 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
     static uint32_t filter_id = 1u; /* 0 is a special value used in the binary-tree search for packets being processed */
     struct filter_node *new_filter;
 
-    if (pico_ipv4_filter_add_validate(proto, priority, action, tos) < 0) {
+    if (pico_ipv4_filter_add_validate(priority, action) < 0) {
         pico_err = PICO_ERR_EINVAL;
         return 0;
     }
