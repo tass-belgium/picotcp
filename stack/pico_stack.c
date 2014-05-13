@@ -534,6 +534,22 @@ void pico_store_network_origin(void *src, struct pico_frame *f)
   #endif
 }
 
+int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t proto)
+{
+    #ifdef PICO_SUPPORT_IPV6
+    if (proto == PICO_PROTO_IPV6) {
+        return pico_ipv6_compare(&a->ip6, &b->ip6);
+    }
+    #endif
+    #ifdef PICO_SUPPORT_IPV4
+    if (proto == PICO_PROTO_IPV4) {
+        return pico_ipv4_compare(&a->ip4, &b->ip4);
+    }
+    #endif
+    return 0;
+
+}
+
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.

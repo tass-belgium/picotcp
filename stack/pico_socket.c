@@ -41,18 +41,6 @@ static void *Mutex = NULL;
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
-#ifdef PICO_SUPPORT_IPV4
-# define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
-#else
-# define IS_SOCK_IPV4(s) (0)
-#endif
-
-#ifdef PICO_SUPPORT_IPV6
-# define IS_SOCK_IPV6(s) ((s->net == &pico_proto_ipv6))
-#else
-# define IS_SOCK_IPV6(s) (0)
-#endif
-
 # define frag_dbg(...) do {} while(0)
 
 

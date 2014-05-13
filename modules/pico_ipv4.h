@@ -76,6 +76,7 @@ struct pico_mcast_group {
 };
 #endif
 
+int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b);
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
 int pico_ipv4_valid_netmask(uint32_t mask);

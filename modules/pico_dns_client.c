@@ -63,10 +63,7 @@ struct pico_dns_ns
 static int dns_ns_cmp(void *ka, void *kb)
 {
     struct pico_dns_ns *a = ka, *b = kb;
-    if (a->ns.addr == b->ns.addr)
-        return 0;
-
-    return (a->ns.addr < b->ns.addr) ? (-1) : (1);
+    return pico_ipv4_compare(&a->ns, &b->ns);
 }
 PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
 

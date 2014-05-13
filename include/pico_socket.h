@@ -21,6 +21,19 @@
 #define PICO_SHUT_WR   2
 #define PICO_SHUT_RDWR 3
 
+#ifdef PICO_SUPPORT_IPV4
+# define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
+#else
+# define IS_SOCK_IPV4(s) (0)
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+# define IS_SOCK_IPV6(s) ((s->net == &pico_proto_ipv6))
+#else
+# define IS_SOCK_IPV6(s) (0)
+#endif
+
+
 struct pico_sockport
 {
     struct pico_tree socks; /* how you make the connection ? */
@@ -85,6 +98,22 @@ struct pico_ip_mreq_source {
     struct pico_ip4 mcast_source_addr;
     struct pico_ip4 mcast_link_addr;
 };
+
+#ifdef PICO_SUPPORT_IPV6
+
+/* same as above, but ipv6 */
+struct pico_ipv6_mreq {
+    struct pico_ip6 mcast_group_addr;
+    struct pico_ip6 mcast_link_addr;
+};
+
+struct pico_ipv6_mreq_source {
+    struct pico_ip6 mcast_group_addr;
+    struct pico_ip6 mcast_source_addr;
+    struct pico_ip6 mcast_link_addr;
+};
+
+#endif
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000u
 #define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001u

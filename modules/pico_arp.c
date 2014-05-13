@@ -116,12 +116,7 @@ struct pico_arp {
 static int arp_compare(void *ka, void *kb)
 {
     struct pico_arp *a = ka, *b = kb;
-    if (a->ipv4.addr < b->ipv4.addr)
-        return -1;
-    else if (a->ipv4.addr > b->ipv4.addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(&a->ipv4, &b->ipv4);
 }
 
 PICO_TREE_DECLARE(arp_tree, arp_compare);

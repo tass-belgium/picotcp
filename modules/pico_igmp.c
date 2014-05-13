@@ -164,23 +164,12 @@ static inline int igmpt_type_compare(struct igmp_timer *a,  struct igmp_timer *b
 
 static inline int igmpt_group_compare(struct igmp_timer *a,  struct igmp_timer *b)
 {
-    if (a->mcast_group.addr < b->mcast_group.addr)
-        return -1;
-
-    if (a->mcast_group.addr > b->mcast_group.addr)
-        return 1;
-    return 0;
+    return pico_ipv4_compare(&a->mcast_group, &b->mcast_group);
 }
 
 static inline int igmpt_link_compare(struct igmp_timer *a,  struct igmp_timer *b)
 {
-    if (a->mcast_link.addr < b->mcast_link.addr)
-        return -1;
-
-    if (a->mcast_link.addr > b->mcast_link.addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(&a->mcast_link, &b->mcast_link);
 }
 
 /* redblack trees */
@@ -202,23 +191,12 @@ PICO_TREE_DECLARE(IGMPTimers, igmp_timer_cmp);
 
 static inline int igmpparm_group_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
 {
-    if (a->mcast_group.addr < b->mcast_group.addr)
-        return -1;
-
-    if (a->mcast_group.addr > b->mcast_group.addr)
-        return 1;
-    return 0;
+    return pico_ipv4_compare(&a->mcast_group, &b->mcast_group);
 }
 
 static inline int igmpparm_link_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
 {
-    if (a->mcast_link.addr < b->mcast_link.addr)
-        return -1;
-
-    if (a->mcast_link.addr > b->mcast_link.addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(&a->mcast_link, &b->mcast_link);
 }
 
 static int igmp_parameters_cmp(void *ka, void *kb)
@@ -234,13 +212,7 @@ PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
 static int igmp_sources_cmp(void *ka, void *kb)
 {
     struct pico_ip4 *a = ka, *b = kb;
-    if (a->addr < b->addr)
-        return -1;
-
-    if (a->addr > b->addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(a,b);
 }
 PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
 PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);

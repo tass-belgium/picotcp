@@ -47,6 +47,16 @@ static struct pico_queue out = {
 static int ipv4_route_compare(void *ka, void *kb);
 static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size);
 
+
+int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b)
+{
+    if (a->addr < b->addr)
+        return -1;
+    if (a->addr > b->addr)
+        return 1;
+    return 0;
+}
+
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip)
 {
     const unsigned char *addr = (const unsigned char *) &ip;
@@ -232,34 +242,40 @@ struct pico_ipv4_fragmented_packet {
     struct pico_tree *t;
 };
 
+static inline int pico_ipv4_cmp_frag_id(struct pico_ipv4_fragmented_packet *a, struct pico_ipv4_fragmented_packet *b)
+{
+    if (a->id < b->id)
+        return -1;
+    if (a->id > b->id)
+        return 1;
+    return 0;
+}
+
+static inline int pico_ipv4_cmp_frag_proto(struct pico_ipv4_fragmented_packet *a, struct pico_ipv4_fragmented_packet *b)
+{
+    if (a->proto < b->proto)
+        return -1;
+    if (a->proto > b->proto)
+        return 1;
+    return 0;
+}
+
 static int pico_ipv4_fragmented_packet_cmp(void *ka, void *kb)
 {
     struct pico_ipv4_fragmented_packet *a = ka, *b = kb;
+    int cmp = 0;
 
-    if (a->id < b->id)
-        return -1;
-    else if (a->id > b->id)
-        return 1;
-    else {
-        if (a->proto < b->proto)
-            return -1;
-        else if (a->proto > b->proto)
-            return 1;
-        else {
-            if (a->src.addr < b->src.addr)
-                return -1;
-            else if (a->src.addr > b->src.addr)
-                return 1;
-            else {
-                if (a->dst.addr < b->dst.addr)
-                    return -1;
-                else if (a->dst.addr > b->dst.addr)
-                    return 1;
-                else
-                    return 0;
-            }
-        }
-    }
+    cmp = pico_ipv4_cmp_frag_id(a,b);
+    if (cmp)
+        return cmp;
+    cmp = pico_ipv4_cmp_frag_proto(a,b);
+    if (cmp)
+        return cmp;
+    cmp = pico_ipv4_compare(&a->src, &b->src);
+    if (cmp)
+       return cmp;
+    cmp = pico_ipv4_compare(&a->dst, &b->dst);
+    return cmp;
 }
 
 static int pico_ipv4_fragmented_element_cmp(void *ka, void *kb)
@@ -537,11 +553,9 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f);
 static int ipv4_link_compare(void *ka, void *kb)
 {
     struct pico_ipv4_link *a = ka, *b = kb;
-    if (a->address.addr < b->address.addr)
-        return -1;
-
-    if (a->address.addr > b->address.addr)
-        return 1;
+    int cmp = pico_ipv4_compare(&a->address, &b->address);
+    if (cmp)
+        return cmp;
 
     /* zero can be assigned multiple times (e.g. for DHCP) */
     if (a->dev != NULL && b->dev != NULL && a->address.addr == PICO_IP4_ANY && b->address.addr == PICO_IP4_ANY) {
@@ -551,7 +565,6 @@ static int ipv4_link_compare(void *ka, void *kb)
         if (a->dev > b->dev)
             return 1;
     }
-
     return 0;
 }
 
@@ -765,6 +778,7 @@ static int ipv4_route_compare(void *ka, void *kb)
 {
     struct pico_ipv4_route *a = ka, *b = kb;
     uint32_t a_nm, b_nm;
+    int cmp;
 
     a_nm = long_be(a->netmask.addr);
     b_nm = long_be(b->netmask.addr);
@@ -776,11 +790,9 @@ static int ipv4_route_compare(void *ka, void *kb)
     if (b_nm < a_nm)
         return 1;
 
-    if (a->dest.addr < b->dest.addr)
-        return -1;
-
-    if (a->dest.addr > b->dest.addr)
-        return 1;
+    cmp = pico_ipv4_compare(&a->dest, &b->dest);
+    if (cmp)
+        return cmp;
 
     if (a->metric < b->metric)
         return -1;
@@ -878,25 +890,13 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
 static int ipv4_mcast_groups_cmp(void *ka, void *kb)
 {
     struct pico_mcast_group *a = ka, *b = kb;
-    if (a->mcast_addr.addr < b->mcast_addr.addr) {
-        return -1;
-    } else if (a->mcast_addr.addr > b->mcast_addr.addr) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return pico_ipv4_compare(&a->mcast_addr, &b->mcast_addr);
 }
 
 static int ipv4_mcast_sources_cmp(void *ka, void *kb)
 {
     struct pico_ip4 *a = ka, *b = kb;
-    if (a->addr < b->addr)
-        return -1;
-
-    if (a->addr > b->addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(a, b);
 }
 
 static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)

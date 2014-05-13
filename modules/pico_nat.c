@@ -83,13 +83,7 @@ static int nat_cmp_proto(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 
 static int nat_cmp_address(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 {
-    if (a->src_addr.addr < b->src_addr.addr)
-        return -1;
-
-    if (a->src_addr.addr > b->src_addr.addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(&a->src_addr, &b->src_addr);
 }
 
 static int nat_cmp_inbound(void *ka, void *kb)
