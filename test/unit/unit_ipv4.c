@@ -110,6 +110,7 @@ START_TEST (test_nat_enable_disable)
     fail_unless(pico_ipv4_nat_is_enabled(&link.address));
 
     fail_if(pico_ipv4_nat_outbound(f, &net->dst));
+    pico_ipv4_nat_table_cleanup(pico_tick, NULL);
 
     fail_if(pico_ipv4_nat_disable());
     fail_if(pico_ipv4_nat_is_enabled(&link.address));
@@ -191,6 +192,7 @@ START_TEST (test_nat_translation)
     fail_if(pico_ipv4_nat_inbound(f, &nat_link->address));
     fail_if(net->dst.addr != src_ori.addr, "destination address not translated correctly");
     fail_if(udp->trans.dport != short_be(5556), "ports not translated correctly");
+    pico_ipv4_nat_table_cleanup(pico_tick, NULL);
 
     fail_if(pico_ipv4_nat_disable());
 }
@@ -249,6 +251,7 @@ START_TEST (test_nat_port_forwarding)
     fail_if(udp->trans.dport != fport_priv, "destination port not translated correctly");
 
     fail_if(pico_ipv4_port_forward(nat_addr, fport_pub, src_addr, fport_priv, 17, PICO_NAT_PORT_FORWARD_DEL));
+    pico_ipv4_nat_table_cleanup(pico_tick, NULL);
 }
 END_TEST
 
