@@ -41,6 +41,7 @@ START_TEST(tc_pico_mdns_add_cookie)
     struct pico_dns_query_suffix suf = {0};
     unsigned int probe = 0;
     void *arg = NULL;
+    pico_stack_init();
     pico_mdns_add_cookie(&hdr, len, &suf, probe, callback, arg);
 }
 END_TEST
