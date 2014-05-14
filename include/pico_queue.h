@@ -144,7 +144,7 @@ static inline void pico_queue_empty(struct pico_queue *q)
 {
     struct pico_frame *p = pico_dequeue(q);
     while(p) {
-        PICO_FREE(p);
+        pico_frame_discard(p);
         p = pico_dequeue(q);
     }
 }
