@@ -622,6 +622,8 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
     for(i = 0; i<qcount ; i++) {
         qsuf = (struct pico_dns_query_suffix*) (ptr + pico_mdns_namelen_comp(ptr)+1);
         pico_dns_client_answer_domain(ptr);
+        if (!ptr)
+            return -1;
         pico_mdns_handle_query(ptr + 1, qsuf, peer);
         ptr = (char *)qsuf + sizeof(struct pico_dns_query_suffix);
         if(ptr - (char *)header > buflen){
