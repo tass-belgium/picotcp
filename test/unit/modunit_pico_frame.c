@@ -118,6 +118,35 @@ START_TEST(tc_pico_frame_deepcopy)
 }
 END_TEST
 
+START_TEST(tc_pico_is_digit)
+{
+    fail_if(pico_is_digit('a'));
+    fail_if(pico_is_digit('Z'));
+    fail_if(pico_is_digit('\0'));
+    fail_if(pico_is_digit('\n'));
+    fail_if(pico_is_digit('0' - 1));
+    fail_if(pico_is_digit('9' + 1));
+    fail_unless(pico_is_digit('0'));
+    fail_unless(pico_is_digit('9'));
+}
+END_TEST
+
+
+START_TEST(tc_pico_is_hex)
+{
+    fail_if(pico_is_hex('g'));
+    fail_if(pico_is_hex('Z'));
+    fail_if(pico_is_hex('\0'));
+    fail_if(pico_is_hex('\n'));
+    fail_if(pico_is_hex('0' - 1));
+    fail_if(pico_is_hex('f' + 1));
+    fail_if(pico_is_hex('F' + 1));
+    fail_unless(pico_is_hex('0'));
+    fail_unless(pico_is_hex('f'));
+    fail_unless(pico_is_hex('A'));
+    fail_unless(pico_is_hex('F'));
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
@@ -125,9 +154,13 @@ Suite *pico_suite(void)
     TCase *TCase_pico_frame_alloc_discard = tcase_create("Unit test for pico_frame_alloc_discard");
     TCase *TCase_pico_frame_copy = tcase_create("Unit test for pico_frame_copy");
     TCase *TCase_pico_frame_deepcopy = tcase_create("Unit test for pico_frame_deepcopy");
+    TCase *TCase_pico_is_digit = tcase_create("Unit test for pico_is_digit");
+    TCase *TCase_pico_is_hex = tcase_create("Unit test for pico_is_hex");
     tcase_add_test(TCase_pico_frame_alloc_discard, tc_pico_frame_alloc_discard);
     tcase_add_test(TCase_pico_frame_copy, tc_pico_frame_copy);
     tcase_add_test(TCase_pico_frame_deepcopy, tc_pico_frame_deepcopy);
+    tcase_add_test(TCase_pico_is_digit, tc_pico_is_digit);
+    tcase_add_test(TCase_pico_is_hex, tc_pico_is_hex);
     suite_add_tcase(s, TCase_pico_frame_alloc_discard);
     suite_add_tcase(s, TCase_pico_frame_copy);
     suite_add_tcase(s, TCase_pico_frame_deepcopy);
