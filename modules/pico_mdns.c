@@ -167,8 +167,30 @@ static void pico_mdns_answer_suffix(struct pico_dns_answer_suffix *asuf, uint16_
 
 }
 
+static uint16_t mdns_get_len(uint16_t qtype, char *rdata)
+{
+    uint16_t len = 0;
+    switch(qtype)
+    {   
+        case PICO_DNS_TYPE_A:
+            len = PICO_SIZE_IP4;
+            break;
+ #ifdef PICO_SUPPORT_IPV6
+        case PICO_DNS_TYPE_AAAA:
+            len = PICO_SIZE_IP6;
+            break;
+ #endif
+        case PICO_DNS_TYPE_PTR:
+            len = (uint16_t)(strlen(rdata) + 1u); /* +1 for null termination */
+            break;
+    }
+    return len;
+
+}
+
+
 /* create an mdns answer */
-static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *len, uint16_t qtype, void *rdata)
+static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *len, uint16_t qtype, void *_rdata)
 {
     struct pico_dns_header *header = NULL;
     char *domain = NULL;
@@ -176,19 +198,13 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
     struct pico_dns_answer_suffix *asuffix = NULL;
     uint32_t ttl = 224;
     uint16_t slen, datalen;
+    char *rdata = (char*)_rdata;
 
-    if(qtype  == PICO_DNS_TYPE_A)
-        datalen = PICO_SIZE_IP4;
-#ifdef PICO_SUPPORT_IPV6
-    else if(qtype  == PICO_DNS_TYPE_AAAA)
-        datalen = PICO_SIZE_IP6;
-#endif
-    else if (qtype == PICO_DNS_TYPE_PTR)
-        datalen = (uint16_t)(strlen(rdata) + 1u); /* +1 for null termination */
-    else{
-        mdns_dbg("Unknown qtype\n");
+
+    datalen = mdns_get_len(qtype, rdata);
+    if (!datalen)
         return NULL;
-    }
+
     slen = (uint16_t)(pico_dns_client_strlen(url) + 2u);
     *len = (unsigned int)(sizeof(struct pico_dns_header) + slen + sizeof(struct pico_dns_answer_suffix) + datalen);
 
@@ -212,17 +228,37 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
     return header;
 }
 
-
-/* create an mdns query */
-static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t *len, uint16_t proto, unsigned int probe, unsigned int inverse, void (*callback)(char *str, void *arg), void *arg)
+static int pico_mdns_perform_name_query(struct pico_dns_query_suffix *qsuffix, uint16_t proto)
 {
-    struct pico_dns_header *header = NULL;
-    char *domain = NULL;
-    struct pico_dns_query_suffix *qsuffix = NULL;
-    struct pico_mdns_cookie *ck = NULL;
-    char inaddr_arpa[14];
-    unsigned int slen, arpalen;
+#ifdef PICO_SUPPORT_IPV6
+    if(proto == PICO_PROTO_IPV6) {
+        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
+        return 0;
+    }
+#endif
+    if(proto == PICO_PROTO_IPV4) {
+        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
+        return 0;
+    }
+    return -1;
+}
+       
 
+static int pico_mdns_perform_query(struct pico_dns_query_suffix *qsuffix, uint16_t proto, unsigned int probe, unsigned int inv)
+{
+    if(probe)
+        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_ANY, PICO_DNS_CLASS_IN);
+    else if(inv)
+        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
+    else 
+        return pico_mdns_perform_name_query(qsuffix, proto);
+    return 0;
+
+}
+
+static unsigned int pico_mdns_prepare_query_string(const char *url, char *inaddr_arpa, unsigned int inverse, uint16_t proto)
+{
+    unsigned int slen = 0;
     if(inverse && proto == PICO_PROTO_IPV4) {
         strcpy(inaddr_arpa, ".in-addr.arpa");
         slen = (uint16_t)(pico_dns_client_strlen(url) + 2u);
@@ -237,6 +273,36 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
         strcpy(inaddr_arpa, "");
         slen = (uint16_t)(pico_dns_client_strlen(url) + 2u);
     }
+    return slen;
+}
+
+static int pico_mdns_create_query_valid_args(const char *url, uint16_t *len, uint16_t proto, void (*callback)(char *str, void *arg))
+{
+    if (!url || !len || !callback)
+        return -1;
+    if (proto != PICO_PROTO_IPV6 && proto != PICO_PROTO_IPV4)
+        return -1;
+    return 0;
+}
+
+
+/* create an mdns query */
+static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t *len, uint16_t proto, unsigned int probe, unsigned int inverse, void (*callback)(char *str, void *arg), void *arg)
+{
+    struct pico_dns_header *header = NULL;
+    char *domain = NULL;
+    struct pico_dns_query_suffix *qsuffix = NULL;
+    struct pico_mdns_cookie *ck = NULL;
+    char inaddr_arpa[14];
+    unsigned int slen, arpalen;
+
+    if (pico_mdns_create_query_valid_args(url, len, proto, callback) < 0) {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+
+
+    slen = pico_mdns_prepare_query_string(url, inaddr_arpa, inverse, proto);
 
     arpalen = (unsigned int)strlen(inaddr_arpa);
     *len = (uint16_t)(sizeof(struct pico_dns_header) + slen + arpalen + sizeof(struct pico_dns_query_suffix));
@@ -268,17 +334,7 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
     pico_mdns_fill_header(header, 1, 0);
     pico_dns_client_query_domain(domain);
 
-    if(probe)
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_ANY, PICO_DNS_CLASS_IN);
-    else if(inverse)
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
-#ifdef PICO_SUPPORT_IPV6
-    else if(proto == PICO_PROTO_IPV6)
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
-#endif
-    else if(proto == PICO_PROTO_IPV4)
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
-    else
+    if (pico_mdns_perform_query(qsuffix, proto, probe, inverse) < 0)
         return NULL;
 
     ck = pico_mdns_add_cookie(header, *len, qsuffix, probe, callback, arg);

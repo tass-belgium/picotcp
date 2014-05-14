@@ -81,12 +81,29 @@ START_TEST(tc_pico_mdns_create_query)
    /* TODO: test this: static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t *len, uint16_t proto, unsigned int probe, unsigned int inverse, void (*callback)(char *str, void *arg), void *arg) */
     char url[256] = {0};
     uint16_t len = 0;
-    uint16_t proto = 0;
+    uint16_t proto = 0xFFFF;
     unsigned int probe = 0;
     unsigned int inverse = 0;
     void *arg = NULL;
+    pico_stack_init();
 
-    pico_mdns_create_query(url, &len, proto, probe, inverse, callback, arg);
+    fail_if(pico_mdns_create_query(NULL, &len, proto, probe, inverse, callback, arg) != NULL);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+    fail_if(pico_mdns_create_query(url, &len, proto, probe, inverse, callback, arg) != NULL);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+    proto = PICO_PROTO_IPV4;
+    fail_if(pico_mdns_create_query(url, &len, proto, probe, inverse, NULL, arg) != NULL);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+    fail_if(pico_mdns_create_query(url, NULL, proto, probe, inverse, callback, arg) != NULL);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+
+#ifdef FAULTY
+    pico_set_mm_failure(1); 
+    fail_if(pico_mdns_create_query(url, &len, proto, probe, inverse, callback, arg) != NULL);
+    fail_if(pico_err != PICO_ERR_ENOMEM);
+#endif
+
+    fail_if(pico_mdns_create_query(url, &len, proto, probe, inverse, callback, arg) == NULL);
 }
 END_TEST
 START_TEST(tc_pico_mdns_del_cookie)
