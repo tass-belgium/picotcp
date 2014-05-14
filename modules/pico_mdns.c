@@ -15,6 +15,8 @@ Author: Toon Stegen
 
 #ifdef PICO_SUPPORT_MDNS
 
+#define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
+
 #define mdns_dbg(...) do {} while(0)
 /* #define mdns_dbg dbg */
 
@@ -36,6 +38,7 @@ struct pico_mdns_cookie {
     unsigned int probe;                 /* indicator for probing */
     void (*callback)(char *, void *);
     void *arg;
+    struct pico_timer *timer;
 };
 
 /* Global socket and port for all mdns communication */
@@ -68,6 +71,38 @@ static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
     struct pico_ip4 dst;
     pico_string_to_ipv4("224.0.0.251", &dst.addr);
     return pico_socket_sendto(mdns_sock, hdr, (int)len, &dst, short_be(mdns_port));
+}
+
+/* delete a cookie from the tree*/
+static int pico_mdns_del_cookie(char *url)
+{
+    struct pico_mdns_cookie test, *found = NULL;
+    char temp[256] = {0};
+    strcpy(temp+1, url);
+
+    test.url = temp;
+    pico_dns_client_query_domain(test.url);
+    found = pico_tree_findKey(&QTable, &test);
+
+    if (!found){
+        mdns_dbg("Could not find cookie to delete\n");
+        return -1;
+    }
+    pico_tree_delete(&QTable, found);
+    PICO_FREE(found->header);
+    PICO_FREE(found);
+    return 0;
+}
+
+static void pico_mdns_timeout(pico_time now, void *_arg)
+{
+    struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
+    (void)now;
+
+    printf("MDNS Query: timeout!\n");
+    if(ck->callback)
+        ck->callback(NULL, ck->arg);
+    pico_mdns_del_cookie(ck->url);
 }
 
 /* populate and add cookie to the tree */
@@ -177,6 +212,7 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
     return header;
 }
 
+
 /* create an mdns query */
 static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t *len, uint16_t proto, unsigned int probe, unsigned int inverse, void (*callback)(char *str, void *arg), void *arg)
 {
@@ -251,30 +287,11 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
         PICO_FREE(header);
         return NULL;
     }
+    ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
 
     return header;
 }
 
-/* delete a cookie from the tree*/
-static int pico_mdns_del_cookie(char *url)
-{
-    struct pico_mdns_cookie test, *found = NULL;
-    char temp[256] = {0};
-    strcpy(temp+1, url);
-
-    test.url = temp;
-    pico_dns_client_query_domain(test.url);
-    found = pico_tree_findKey(&QTable, &test);
-
-    if (!found){
-        mdns_dbg("Could not find cookie to delete\n");
-        return -1;
-    }
-    pico_tree_delete(&QTable, found);
-    PICO_FREE(found->header);
-    PICO_FREE(found);
-    return 0;
-}
 
 /* look for a cookie in the tree */
 static struct pico_mdns_cookie *pico_mdns_find_cookie(char *url)
@@ -452,6 +469,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
                 mdns_dbg("Unrecognised record type\n");
                 ck->callback(NULL, ck->arg);
             }
+            pico_timer_cancel(ck->timer);
             pico_mdns_del_cookie(url);
         }
     }
@@ -795,6 +813,11 @@ static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip,
 {
     struct pico_dns_header *header = NULL;
     uint16_t len = 0;
+    if (!url) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
 
     if(!mdns_sock){
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
@@ -816,6 +839,10 @@ static int pico_mdns_getname_generic(const char *ip, void (*callback)(char *url,
 {
     struct pico_dns_header *header = NULL;
     uint16_t len = 0;
+    if (!ip) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
 
     if(!mdns_sock){
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
