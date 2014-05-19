@@ -68,6 +68,7 @@ endif
 
 ifneq ($(RTOS),0)
   CFLAGS+=-DPICO_SUPPORT_RTOS
+  OPTIONS+=-DPICO_SUPPORT_RTOS
 endif
 
 ifeq ($(ARCH),stm32)
@@ -255,7 +256,7 @@ tst: test
 $(PREFIX)/include/pico_defines.h: FORCE
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
-	@bash ./mkdeps.sh $(PREFIX) $(OPTIONS) 
+	@bash ./mkdeps.sh $(PREFIX) $(OPTIONS)
 
 
 deps: $(PREFIX)/include/pico_defines.h
