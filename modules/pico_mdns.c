@@ -493,7 +493,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
             ck->probe = 0;
         } else {
             if(short_be(suf->qtype) == PICO_DNS_TYPE_A){
-                uint32_t rdata = *(uint32_t *)data;
+                uint32_t rdata = long_from(data);
                 char peer_addr[46];
                 pico_ipv4_to_string(peer_addr, long_from(&rdata));
                 ck->callback(peer_addr, ck->arg);
