@@ -28,7 +28,7 @@ struct pico_socket *pico_socket_udp_open(void)
 #ifdef PICO_SUPPORT_IPV4
 static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_socket *s, struct pico_frame *f)
 {
-    struct pico_ip4  p_dst;
+    struct pico_ip4 p_dst;
     struct pico_ipv4_hdr *ip4hdr;
 
     ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
@@ -37,10 +37,11 @@ static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_
         return -1;
 
 
-    if ( (pico_ipv4_link_get(&ip4hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u) ) {
+    if ((pico_ipv4_link_get(&ip4hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u)) {
         /* Datagram from ourselves, Loop disabled, discarding. */
         return -1;
     }
+
     return 0;
 }
 
@@ -59,7 +60,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
 
 
     if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
-            (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
+        (dev == f->dev)) {     /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
         if (!cpy)
             return -1;
@@ -71,6 +72,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
         else
             pico_frame_discard(cpy);
     }
+
     return 0;
 }
 
@@ -88,6 +90,7 @@ static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pi
     } else {
         pico_frame_discard(cpy);
     }
+
     return 0;
 }
 
@@ -105,6 +108,7 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
     } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr)) {
         ret = pico_socket_udp_deliver_ipv4_unicast(s, f);
     }
+
     pico_frame_discard(f);
     return ret;
 }
@@ -128,17 +132,18 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
     p_dst = ip6hdr->dst;
     if (pico_ipv6_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip6hdr->dst, (union pico_address *)&ip6hdr->src) < 0))
         return -1;
+
 #endif
 
 
-    if ( (pico_ipv6_link_get(&ip6hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u) ) {
+    if ((pico_ipv6_link_get(&ip6hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u)) {
         /* Datagram from ourselves, Loop disabled, discarding. */
         return 0;
     }
 
 
-    if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) ||/* If our local ip is ANY, or.. */
-            (dev == f->dev)) { /* the source of the bcast packet is a neighbor... */
+    if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || /* If our local ip is ANY, or.. */
+        (dev == f->dev)) {     /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
         if (!cpy)
             return -1;
@@ -150,6 +155,7 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
         else
             pico_frame_discard(cpy);
     }
+
     return 0;
 }
 

@@ -52,8 +52,10 @@ int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b)
 {
     if (a->addr < b->addr)
         return -1;
+
     if (a->addr > b->addr)
         return 1;
+
     return 0;
 }
 
@@ -246,8 +248,10 @@ static inline int pico_ipv4_cmp_frag_id(struct pico_ipv4_fragmented_packet *a, s
 {
     if (a->id < b->id)
         return -1;
+
     if (a->id > b->id)
         return 1;
+
     return 0;
 }
 
@@ -255,8 +259,10 @@ static inline int pico_ipv4_cmp_frag_proto(struct pico_ipv4_fragmented_packet *a
 {
     if (a->proto < b->proto)
         return -1;
+
     if (a->proto > b->proto)
         return 1;
+
     return 0;
 }
 
@@ -265,15 +271,18 @@ static int pico_ipv4_fragmented_packet_cmp(void *ka, void *kb)
     struct pico_ipv4_fragmented_packet *a = ka, *b = kb;
     int cmp = 0;
 
-    cmp = pico_ipv4_cmp_frag_id(a,b);
+    cmp = pico_ipv4_cmp_frag_id(a, b);
     if (cmp)
         return cmp;
-    cmp = pico_ipv4_cmp_frag_proto(a,b);
+
+    cmp = pico_ipv4_cmp_frag_proto(a, b);
     if (cmp)
         return cmp;
+
     cmp = pico_ipv4_compare(&a->src, &b->src);
     if (cmp)
-       return cmp;
+        return cmp;
+
     cmp = pico_ipv4_compare(&a->dst, &b->dst);
     return cmp;
 }
@@ -565,6 +574,7 @@ static int ipv4_link_compare(void *ka, void *kb)
         if (a->dev > b->dev)
             return 1;
     }
+
     return 0;
 }
 

@@ -289,20 +289,21 @@ static inline void parse_opt_msgtype(struct pico_dhcp_opt *opt, uint8_t *msgtype
 
 static inline void parse_opt_reqip(struct pico_dhcp_opt *opt, struct pico_ip4 *reqip)
 {
-    if (opt->code == PICO_DHCP_OPT_REQIP) 
+    if (opt->code == PICO_DHCP_OPT_REQIP)
         reqip->addr = opt->ext.req_ip.ip.addr;
 }
 
 static inline void parse_opt_serverid(struct pico_dhcp_opt *opt,  struct pico_ip4 *serverid)
 {
     if (opt->code == PICO_DHCP_OPT_SERVERID)
-            *serverid = opt->ext.server_id.ip;
+        *serverid = opt->ext.server_id.ip;
 }
 
 static inline void dhcps_make_reply_to_request_msg(struct pico_dhcp_server_negotiation *dhcpn, int bound_valid_flag)
 {
     if ((dhcpn->state == PICO_DHCP_STATE_BOUND) && bound_valid_flag)
         dhcpd_make_reply(dhcpn, PICO_DHCP_MSG_ACK);
+
     if (dhcpn->state == PICO_DHCP_STATE_OFFER) {
         dhcpn->state = PICO_DHCP_STATE_BOUND;
         dhcpd_make_reply(dhcpn, PICO_DHCP_MSG_ACK);
@@ -354,6 +355,7 @@ static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, uint32_t 
 
     if (!ip_address_is_in_dhcp_range(dhcpn, dhcpn->ciaddr.addr))
         return;
+
     dhcps_parse_options_loop(dhcpn, hdr);
 
 }

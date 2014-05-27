@@ -1039,7 +1039,7 @@ void app_udpdnsclient(char *arg)
 /*** END UDP DNS CLIENT ***/
 
 /*** TCP CLIENT ***/
-#define TCPSIZ (1024 * 1024 * 5) 
+#define TCPSIZ (1024 * 1024 * 5)
 static char *buffer1;
 static char *buffer0;
 
@@ -1584,6 +1584,7 @@ void app_tcpbench(char *arg)
             nxt = cpy_arg(&dport, nxt);
             printf("Dport: %s\n", dport);
         }
+
         if (nxt) {
             printf("Next arg: %s\n", nxt);
             nxt = cpy_arg(&nagle, nxt);
@@ -1989,8 +1990,9 @@ void mdns_getname6_callback(char *str, void *arg)
     (void) arg;
     if (!str)
         printf("Getname6: timeout occurred!\n");
-    else 
+    else
         printf("Getname6 callback called, str: %s\n", str);
+
     exit(0);
 }
 
@@ -2001,7 +2003,8 @@ void mdns_getaddr6_callback(char *str, void *arg)
         printf("Getaddr6: timeout occurred!\n");
     else
         printf("Getaddr6 callback called, str: %s\n", str);
-    if(pico_mdns_getname6(str, &mdns_getname6_callback, NULL)!=0)
+
+    if(pico_mdns_getname6(str, &mdns_getname6_callback, NULL) != 0)
         printf("Getaddr returned with error!\n");
 }
 
@@ -2012,11 +2015,13 @@ void mdns_getname_callback(char *str, void *arg)
         printf("No system name supplied!\n");
         exit(-1);
     }
+
     if (!str)
         printf("Getname: timeout occurred!\n");
-    else 
+    else
         printf("Getname callback called, str: %s\n", str);
-    if(pico_mdns_getaddr6(peername, &mdns_getaddr6_callback, NULL)!=0)
+
+    if(pico_mdns_getaddr6(peername, &mdns_getaddr6_callback, NULL) != 0)
         printf("Getname returned with error!\n");
 }
 
@@ -2026,7 +2031,8 @@ void mdns_getaddr_callback(char *str, void *arg)
         printf("Getaddr: timeout occurred!\n");
     else
         printf("Getaddr callback called, str: %s\n", str);
-    if(pico_mdns_getname(str, &mdns_getname_callback, arg)!=0)
+
+    if(pico_mdns_getname(str, &mdns_getname_callback, arg) != 0)
         printf("Getaddr returned with error!\n");
 }
 
@@ -2039,7 +2045,7 @@ void mdns_init_callback(char *str, void *arg)
         exit(-1);
     }
 
-    if(pico_mdns_getaddr(peername, &mdns_getaddr_callback, peername)!=0)
+    if(pico_mdns_getaddr(peername, &mdns_getaddr_callback, peername) != 0)
         printf("Getaddr returned with error!\n");
 }
 
@@ -2055,18 +2061,21 @@ void app_mdns(char *arg)
     if(!hostname) {
         exit(255);
     }
-    if(!nxt){
+
+    if(!nxt) {
         printf("Not enough args supplied!\n");
         exit(255);
     }
+
     nxt = cpy_arg(&peername, nxt);
     if(!peername) {
         exit(255);
     }
 
     printf("Starting to claim name: %s, system name: %s\n", hostname, peername);
-    if(pico_mdns_init(hostname, &mdns_init_callback, peername)!=0)
+    if(pico_mdns_init(hostname, &mdns_init_callback, peername) != 0)
         printf("Init returned with error\n");
+
     while(1) {
         pico_stack_tick();
         usleep(2000);
@@ -2362,7 +2371,7 @@ int main(int argc, char **argv)
         break;
         case 'v':
         {
-            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL ;
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL;
             struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
             uint32_t i_pc = 0, o_pc = 0;
             printf("+++ OPTARG %s\n", optarg);
@@ -2446,10 +2455,12 @@ int main(int argc, char **argv)
                     pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
                 }
             }
+
 #endif
             if (loss_in && (strlen(loss_in) > 0)) {
                 i_pc = atoi(loss_in);
             }
+
             if (loss_out && (strlen(loss_out) > 0)) {
                 o_pc = atoi(loss_out);
             }
@@ -2607,50 +2618,50 @@ int main(int argc, char **argv)
 #else
                                                             app_dhcp_client(args);
 #endif
-                                                    } else IF_APPNAME("mdns") {
+                                                        } else IF_APPNAME("mdns") {
 #ifndef PICO_SUPPORT_MDNS
-                                                            return 0;
+                                                                return 0;
 #else
-                                                            app_mdns(args);
+                                                                app_mdns(args);
 #endif
 #ifdef PICO_SUPPORT_SNTP_CLIENT
-                                                        }else IF_APPNAME("sntp") {
-                                                                app_sntp(args);
+                                                            }else IF_APPNAME("sntp") {
+                                                                    app_sntp(args);
 #endif
-                                                        } else IF_APPNAME("bcast") {
-                                                                struct pico_ip4 any = {
-                                                                    .addr = 0xFFFFFFFFu
-                                                                };
+                                                            } else IF_APPNAME("bcast") {
+                                                                    struct pico_ip4 any = {
+                                                                        .addr = 0xFFFFFFFFu
+                                                                    };
 
-                                                                struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
-                                                                pico_socket_sendto(s, "abcd", 5u, &any, 1000);
+                                                                    struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
+                                                                    pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
-                                                                pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
-                                                            } else IF_APPNAME("noop") {
-                                                                    app_noop();
-                                                                } else IF_APPNAME("olsr") {
-                                                                        pico_olsr_init();
-                                                                        dev = pico_get_device("pic0");
-                                                                        if(dev) {
-                                                                            pico_olsr_add(dev);
-                                                                        }
-
-                                                                        dev = pico_get_device("pic1");
-                                                                        if(dev) {
-                                                                            pico_olsr_add(dev);
-                                                                        }
-
+                                                                    pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
+                                                                } else IF_APPNAME("noop") {
                                                                         app_noop();
-                                                                    } else IF_APPNAME("slaacv4"){
+                                                                    } else IF_APPNAME("olsr") {
+                                                                            pico_olsr_init();
+                                                                            dev = pico_get_device("pic0");
+                                                                            if(dev) {
+                                                                                pico_olsr_add(dev);
+                                                                            }
+
+                                                                            dev = pico_get_device("pic1");
+                                                                            if(dev) {
+                                                                                pico_olsr_add(dev);
+                                                                            }
+
+                                                                            app_noop();
+                                                                        } else IF_APPNAME("slaacv4"){
 #ifndef PICO_SUPPORT_SLAACV4
-                                                                            return 0;
+                                                                                return 0;
 #else
-                                                                            app_slaacv4(args);
+                                                                                app_slaacv4(args);
 #endif
-                                                                        } else {
-                                                                            fprintf(stderr, "Unknown application %s\n", name);
-                                                                            usage(argv[0]);
-                                                                        }
+                                                                            } else {
+                                                                                fprintf(stderr, "Unknown application %s\n", name);
+                                                                                usage(argv[0]);
+                                                                            }
         }
         break;
         }

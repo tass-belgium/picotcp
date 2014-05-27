@@ -77,6 +77,7 @@ void pico_to_lowercase(char *str)
     while(str[i]) {
         if ((str[i] <= 'Z') && (str[i] >= 'A'))
             str[i] = (char) (str[i] - (char)('A' - 'a'));
+
         i++;
     }
 }
@@ -277,10 +278,12 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
     if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
+
 #endif
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
     if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
         return pico_network_receive(f);
+
 #endif
     pico_frame_discard(f);
     return -1;
@@ -540,11 +543,13 @@ int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t 
     if (proto == PICO_PROTO_IPV6) {
         return pico_ipv6_compare(&a->ip6, &b->ip6);
     }
+
     #endif
     #ifdef PICO_SUPPORT_IPV4
     if (proto == PICO_PROTO_IPV4) {
         return pico_ipv4_compare(&a->ip4, &b->ip4);
     }
+
     #endif
     return 0;
 
@@ -622,12 +627,14 @@ static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffe
     return ret;
 }
 
-int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len) {
-	return _pico_stack_recv_zerocopy(dev, buffer, len, 0);
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 0);
 }
 
-int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len) {
-	return _pico_stack_recv_zerocopy(dev, buffer, len, 1);
+int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 1);
 }
 
 int32_t pico_sendto_dev(struct pico_frame *f)

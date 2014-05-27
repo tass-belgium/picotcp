@@ -666,6 +666,7 @@ int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_que
         strcpy(inaddr_arpa, ".in-addr.arpa");
         strlen = pico_dns_client_strlen(url);
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if (arpa == PICO_DNS_ARPA6) {
         strcpy(inaddr_arpa, ".IP6.ARPA");
@@ -695,6 +696,7 @@ int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_que
         pico_dns_client_mirror(domain + PICO_DNS_LABEL_INITIAL);
         memcpy(domain + PICO_DNS_LABEL_INITIAL + strlen, inaddr_arpa, arpalen);
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if (arpa == PICO_DNS_ARPA6) {
         pico_dns_ipv6_set_ptr(url, domain + PICO_DNS_LABEL_INITIAL);
@@ -725,7 +727,7 @@ static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*
         return -1;
     }
 
-    if(pico_dns_create_message(&header, &qsuffix, PICO_DNS_NO_ARPA, url, &lblen, &len)!=0)
+    if(pico_dns_create_message(&header, &qsuffix, PICO_DNS_NO_ARPA, url, &lblen, &len) != 0)
         return -1;
 
 #ifdef PICO_SUPPORT_IPV6
@@ -771,7 +773,7 @@ static int pico_dns_getname_univ(const char *ip, void (*callback)(char *, void *
         return -1;
     }
 
-    if(pico_dns_create_message(&header, &qsuffix, arpa, ip, &lblen, &len)!=0)
+    if(pico_dns_create_message(&header, &qsuffix, arpa, ip, &lblen, &len) != 0)
         return -1;
 
     pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);

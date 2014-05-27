@@ -692,8 +692,8 @@ static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *ori
 
     if (len % sizeof(uint32_t)) /*drop*/
         return;
-    
-    address = (struct pico_ip4 *) buffer; 
+
+    address = (struct pico_ip4 *) buffer;
     len = len / sizeof(uint32_t);
     for (i = 0; i < len; i++) {
         e = get_route_by_address(Local_interfaces, address[i].addr);
@@ -703,6 +703,7 @@ static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *ori
                 dbg("olsr allocating route\n");
                 return;
             }
+
             e->time_left = (OLSR_HELLO_INTERVAL << 2);
             e->destination.addr = address[i].addr;
             e->gateway = origin;

@@ -77,6 +77,7 @@ static int socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
         ret = 0;
     else
         ret = memcmp(a->local_addr.ip6.addr, b->local_addr.ip6.addr, PICO_SIZE_IP6);
+
 #endif
     return ret;
 }
@@ -1331,6 +1332,7 @@ int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     *port = s->local_port;
     return 0;
 }
@@ -1674,11 +1676,13 @@ int pico_socket_close(struct pico_socket *s)
 {
     if (!s)
         return -1;
+
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
         if (pico_tcp_check_listen_close(s) == 0)
             return 0;
     }
+
 #endif
     return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }

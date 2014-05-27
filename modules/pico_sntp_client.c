@@ -348,8 +348,8 @@ int pico_sntp_gettimeofday(struct pico_timeval *tv)
     }
 
     diff = pico_tick - tick_stamp;
-    diffL = ((uint32_t) (diff & SNTP_BITMASK))/1000;
-    diffH = ((uint32_t) (diff >> 32))/1000;
+    diffL = ((uint32_t) (diff & SNTP_BITMASK)) / 1000;
+    diffH = ((uint32_t) (diff >> 32)) / 1000;
 
     temp = server_time.tv_msec + (uint32_t)(diff & SNTP_BITMASK) % SNTP_THOUSAND;
     tv->tv_sec = server_time.tv_sec + ((uint64_t)diffH << 32) + diffL + (uint32_t)temp / SNTP_THOUSAND;

@@ -1,8 +1,8 @@
 /*********************************************************************
-  PicoTCP. Copyright (c) 2014 TASS Belgium NV. Some rights reserved.
-  See LICENSE and COPYING for usage.
-  .
-Author: Toon Stegen
+   PicoTCP. Copyright (c) 2014 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+   .
+   Author: Toon Stegen
  *********************************************************************/
 #include "pico_config.h"
 #include "pico_stack.h"
@@ -25,7 +25,9 @@ Author: Toon Stegen
 #define PICO_MDNS_INVERT 1
 #define PICO_MDNS_NO_INVERT 0
 #define PICO_MDNS_CACHE_FLUSH_BIT 0x8000u
-static struct pico_ip4 inaddr_any = {0};
+static struct pico_ip4 inaddr_any = {
+    0
+};
 
 /* struct containing status of a query */
 struct pico_mdns_cookie {
@@ -77,17 +79,20 @@ static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
 static int pico_mdns_del_cookie(char *url)
 {
     struct pico_mdns_cookie test, *found = NULL;
-    char temp[256] = {0};
-    strcpy(temp+1, url);
+    char temp[256] = {
+        0
+    };
+    strcpy(temp + 1, url);
 
     test.url = temp;
     pico_dns_client_query_domain(test.url);
     found = pico_tree_findKey(&QTable, &test);
 
-    if (!found){
+    if (!found) {
         mdns_dbg("Could not find cookie to delete\n");
         return -1;
     }
+
     pico_tree_delete(&QTable, found);
     PICO_FREE(found->header);
     PICO_FREE(found);
@@ -101,6 +106,7 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
 
     if(ck->callback)
         ck->callback(NULL, ck->arg);
+
     pico_mdns_del_cookie(ck->url);
 }
 
@@ -120,6 +126,7 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
     ck->qtype = short_be(suffix->qtype);
     if (short_be(suffix->qtype) == PICO_DNS_TYPE_PTR)
         mdns_dbg("PTR\n");
+
     ck->qclass = short_be(suffix->qclass);
     ck->count = 3;
     ck->probe = probe;
@@ -148,6 +155,7 @@ static void pico_mdns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount,
         hdr->qr = 1;
         hdr->aa = 1;
     }
+
     hdr->opcode = 0;
     hdr->tc = 0;
     hdr->rd = 0;
@@ -162,7 +170,7 @@ static void pico_mdns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount,
 static void pico_mdns_answer_suffix(struct pico_dns_answer_suffix *asuf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength)
 {
     asuf->qtype = short_be(qtype);
-    asuf->qclass = short_be(qclass | (uint16_t)~PICO_MDNS_CACHE_FLUSH_BIT);
+    asuf->qclass = short_be(qclass | (uint16_t) ~PICO_MDNS_CACHE_FLUSH_BIT);
     asuf->ttl = long_be(ttl);
     asuf->rdlength = short_be(rdlength);
 
@@ -172,18 +180,18 @@ static uint16_t mdns_get_len(uint16_t qtype, char *rdata)
 {
     uint16_t len = 0;
     switch(qtype)
-    {   
-        case PICO_DNS_TYPE_A:
-            len = PICO_SIZE_IP4;
-            break;
+    {
+    case PICO_DNS_TYPE_A:
+        len = PICO_SIZE_IP4;
+        break;
  #ifdef PICO_SUPPORT_IPV6
-        case PICO_DNS_TYPE_AAAA:
-            len = PICO_SIZE_IP6;
-            break;
+    case PICO_DNS_TYPE_AAAA:
+        len = PICO_SIZE_IP6;
+        break;
  #endif
-        case PICO_DNS_TYPE_PTR:
-            len = (uint16_t)(strlen(rdata) + 1u); /* +1 for null termination */
-            break;
+    case PICO_DNS_TYPE_PTR:
+        len = (uint16_t)(strlen(rdata) + 1u);     /* +1 for null termination */
+        break;
     }
     return len;
 
@@ -214,6 +222,7 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
+
     domain = (char *)header + sizeof(struct pico_dns_header);
     memcpy(domain + 1u, url, strlen(url));
     asuffix = (struct pico_dns_answer_suffix *)(domain + slen);
@@ -236,14 +245,16 @@ static int pico_mdns_perform_name_query(struct pico_dns_query_suffix *qsuffix, u
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
         return 0;
     }
+
 #endif
     if(proto == PICO_PROTO_IPV4) {
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
         return 0;
     }
+
     return -1;
 }
-       
+
 
 static int pico_mdns_perform_query(struct pico_dns_query_suffix *qsuffix, uint16_t proto, unsigned int probe, unsigned int inv)
 {
@@ -251,8 +262,9 @@ static int pico_mdns_perform_query(struct pico_dns_query_suffix *qsuffix, uint16
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_ANY, PICO_DNS_CLASS_IN);
     else if(inv)
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
-    else 
+    else
         return pico_mdns_perform_name_query(qsuffix, proto);
+
     return 0;
 
 }
@@ -264,6 +276,7 @@ static unsigned int pico_mdns_prepare_query_string(const char *url, char *inaddr
         strcpy(inaddr_arpa, ".in-addr.arpa");
         slen = (uint16_t)(pico_dns_client_strlen(url) + 2u);
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if (inverse && proto == PICO_PROTO_IPV6) {
         strcpy(inaddr_arpa, ".IP6.ARPA");
@@ -281,8 +294,10 @@ static int pico_mdns_create_query_valid_args(const char *url, uint16_t *len, uin
 {
     if (!url || !len || !callback)
         return -1;
+
     if (proto != PICO_PROTO_IPV6 && proto != PICO_PROTO_IPV4)
         return -1;
+
     return 0;
 }
 
@@ -295,6 +310,7 @@ static void pico_mdns_populate_query_domain(const char *url, char *domain, char 
         pico_dns_client_mirror(domain + 1u);
         memcpy(domain + slen - 1, inaddr_arpa, arpalen);
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if (inverse && proto == PICO_PROTO_IPV6) {
         pico_dns_ipv6_set_ptr(url, domain + 1u);
@@ -351,8 +367,10 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
 static struct pico_mdns_cookie *pico_mdns_find_cookie(char *url)
 {
     struct pico_mdns_cookie test;
-    char temp[256] = {0};
-    strcpy(temp+1, url);
+    char temp[256] = {
+        0
+    };
+    strcpy(temp + 1, url);
     pico_to_lowercase(temp);
     test.url = temp;
     pico_dns_client_query_domain(test.url);
@@ -365,21 +383,23 @@ static struct pico_ip6 *pico_get_ip6_from_ip4(struct pico_ip4 *ipv4_addr)
 {
     struct pico_device *dev = NULL;
     struct pico_ipv6_link *link = NULL;
-    if((dev = pico_ipv4_link_find(ipv4_addr))==NULL){
+    if((dev = pico_ipv4_link_find(ipv4_addr)) == NULL) {
         mdns_dbg("Could not find device!\n");
         return NULL;
     }
-    if((link = pico_ipv6_link_by_dev(dev))==NULL) {
+
+    if((link = pico_ipv6_link_by_dev(dev)) == NULL) {
         mdns_dbg("Could not find link!\n");
         return NULL;
     }
+
     return &link->address;
 
 }
 #endif
 
-static struct pico_dns_header *pico_mdns_query_create_answer(union pico_address *local_addr, uint16_t qtype, 
-        unsigned int *len, char *name)
+static struct pico_dns_header *pico_mdns_query_create_answer(union pico_address *local_addr, uint16_t qtype,
+                                                             unsigned int *len, char *name)
 {
     if(qtype == PICO_DNS_TYPE_A || qtype == PICO_DNS_TYPE_ANY) {
         return pico_mdns_create_answer(mdns_global_host, len, qtype, local_addr);
@@ -387,18 +407,22 @@ static struct pico_dns_header *pico_mdns_query_create_answer(union pico_address 
 
 #ifdef PICO_SUPPORT_IPV6
     if(qtype == PICO_DNS_TYPE_AAAA || qtype == PICO_DNS_TYPE_ANY) {
-        struct pico_ip6 * ip6 = pico_get_ip6_from_ip4(&local_addr->ip4);
+        struct pico_ip6 *ip6 = pico_get_ip6_from_ip4(&local_addr->ip4);
         return pico_mdns_create_answer(mdns_global_host, len, qtype, ip6);
     }
+
 #endif
     /* reply to PTR records */
     if(qtype == PICO_DNS_TYPE_PTR) {
-        char host_conv[255] = {0};
+        char host_conv[255] = {
+            0
+        };
         mdns_dbg("Replying on PTR query...\n");
         strcpy(host_conv + 1, mdns_global_host);
         pico_dns_client_query_domain(host_conv);
         return pico_mdns_create_answer(name, len, qtype, host_conv);
     }
+
     return NULL;
 }
 
@@ -411,7 +435,7 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
     unsigned int len;
 
     local_addr = (union pico_address *) pico_ipv4_source_find(&peer);
-    if (!local_addr) { 
+    if (!local_addr) {
         pico_err = PICO_ERR_EHOSTUNREACH;
         return -1;
     }
@@ -421,23 +445,28 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
     if (!header)
         return -1;
 
-    if(pico_mdns_send(header, len)!=(int)len) {
+    if(pico_mdns_send(header, len) != (int)len) {
         mdns_dbg("Send error occurred!\n");
         return -1;
     }
+
     return 0;
 }
 
 static int pico_check_query_name(char *url)
 {
-    char addr[29] = {0};
-    if(strcmp(url, mdns_global_host)==0)
+    char addr[29] = {
+        0
+    };
+    if(strcmp(url, mdns_global_host) == 0)
         return 1;
+
     pico_ipv4_to_string(addr, mdns_sock->local_addr.ip4.addr);
     pico_dns_client_mirror(addr);
     memcpy(addr + strlen(addr), ".in-addr.arpa", 13);
-    if(strcmp(url, addr)==0)
+    if(strcmp(url, addr) == 0)
         return 1;
+
     return 0;
 }
 
@@ -448,12 +477,12 @@ static int pico_mdns_handle_query(char *name, struct pico_dns_query_suffix *suf,
     struct pico_mdns_cookie *ck = NULL;
 
     /* remove cache flush bit if set */
-    suf->qclass &= short_be((uint16_t)~PICO_MDNS_CACHE_FLUSH_BIT);
+    suf->qclass &= short_be((uint16_t) ~PICO_MDNS_CACHE_FLUSH_BIT);
 
     mdns_dbg("Query type: %u, class: %u\n", short_be(suf->qtype), short_be(suf->qclass));
 
     if(mdns_global_host) {
-        if(pico_check_query_name(name)){
+        if(pico_check_query_name(name)) {
             pico_mdns_reply_query(short_be(suf->qtype), peer, name);
         } else {
             mdns_dbg("Received request for unknown hostname\n");
@@ -466,6 +495,7 @@ static int pico_mdns_handle_query(char *name, struct pico_dns_query_suffix *suf,
             mdns_dbg("Received query before init\n");
         }
     }
+
     return 0;
 }
 
@@ -475,15 +505,15 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     struct pico_mdns_cookie *ck = NULL;
 
     /* remove cache flush bit if set */
-    suf->qclass &= short_be((uint16_t)~PICO_MDNS_CACHE_FLUSH_BIT);
+    suf->qclass &= short_be((uint16_t) ~PICO_MDNS_CACHE_FLUSH_BIT);
 
     mdns_dbg("Answer for record %s was received:\n", url);
     mdns_dbg("type: %u, class: %u, ttl: %lu, rdlen: %u\n", short_be(suf->qtype),
-            short_be(suf->qclass), (unsigned long)long_be(suf->ttl), short_be(suf->rdlength));
+             short_be(suf->qclass), (unsigned long)long_be(suf->ttl), short_be(suf->rdlength));
 
     /* Check in the query tree whether a request was sent */
     ck = pico_mdns_find_cookie(url);
-    if(!ck){
+    if(!ck) {
         mdns_dbg("We didn't ask for this answer.\n");
     } else {
         mdns_dbg("Found a corresponding cookie!\n");
@@ -492,21 +522,22 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
             mdns_dbg("Probe set to zero\n");
             ck->probe = 0;
         } else {
-            if(short_be(suf->qtype) == PICO_DNS_TYPE_A){
+            if(short_be(suf->qtype) == PICO_DNS_TYPE_A) {
                 uint32_t rdata = long_from(data);
                 char peer_addr[46];
                 pico_ipv4_to_string(peer_addr, long_from(&rdata));
                 ck->callback(peer_addr, ck->arg);
             }
+
 #ifdef PICO_SUPPORT_IPV6
-            else if(short_be(suf->qtype) == PICO_DNS_TYPE_AAAA){
+            else if(short_be(suf->qtype) == PICO_DNS_TYPE_AAAA) {
                 uint8_t *rdata = (uint8_t *) data;
                 char peer_addr[46];
                 pico_ipv6_to_string(peer_addr, rdata);
                 ck->callback(peer_addr, ck->arg);
             }
 #endif
-            else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR){
+            else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR) {
                 pico_dns_client_answer_domain(data);
                 ck->callback(data + 1, ck->arg);    /* +1 to discard the beginning dot */
             }
@@ -528,13 +559,14 @@ static unsigned int pico_mdns_namelen_comp(char *name)
     char *ptr;
 
     ptr = name;
-    while (*ptr != '\0' && !(*ptr & 0x80)){
+    while (*ptr != '\0' && !(*ptr & 0x80)) {
         ptr += (uint8_t) *ptr + 1;
     }
     len = (unsigned int) (ptr - name);
     if(*ptr != '\0') {
         len++;
     }
+
     return len;
 }
 
@@ -549,7 +581,7 @@ static unsigned int pico_mdns_namelen_uncomp(char *name, char *buf)
     ptr = begin_comp;
     while(*ptr != '\0') {
         ptr += (uint8_t)*ptr + 1;
-        if(*ptr & 0x80){
+        if(*ptr & 0x80) {
             len += (unsigned int) (ptr - begin_comp);
             begin_comp = buf + *(ptr + 1);  /* set at beginning of compstring*/
             ptr = begin_comp;
@@ -568,14 +600,14 @@ static char *pico_mdns_expand_name_comp(char *url, char *buf)
     char *ptr, *begin_comp, *str = NULL, *sp;
 
     len = pico_mdns_namelen_uncomp(url, buf);
-    mdns_dbg("Uncomp len:%u, comp len:%u.\n", len ,pico_mdns_namelen_comp(url));
-    if(len < pico_mdns_namelen_comp(url)){
+    mdns_dbg("Uncomp len:%u, comp len:%u.\n", len, pico_mdns_namelen_comp(url));
+    if(len < pico_mdns_namelen_comp(url)) {
         mdns_dbg("BOOM compressed longer than uncompressed!\n");
         return NULL;
     }
 
     str = PICO_ZALLOC(len + 1);     /* + 1 for null terminator */
-    if(!str){
+    if(!str) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
@@ -590,8 +622,8 @@ static char *pico_mdns_expand_name_comp(char *url, char *buf)
         sp += (uint8_t)*ptr;
         *sp = '.';
         sp++;
-        ptr += (uint8_t)*ptr + 1;/* jump to next occurring dot */
-        if(*ptr & 0x80){
+        ptr += (uint8_t)*ptr + 1; /* jump to next occurring dot */
+        if(*ptr & 0x80) {
             len += (unsigned int) (ptr - begin_comp) + 1;   /* +1 for the dot at the end of the label */
             begin_comp = buf + *(ptr + 1);  /* set at beginning of compstring*/
             ptr = begin_comp;
@@ -619,33 +651,34 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
 
 
     /* handle queries */
-    for(i = 0; i<qcount ; i++) {
-        qsuf = (struct pico_dns_query_suffix*) (ptr + pico_mdns_namelen_comp(ptr)+1);
+    for(i = 0; i < qcount; i++) {
+        qsuf = (struct pico_dns_query_suffix*) (ptr + pico_mdns_namelen_comp(ptr) + 1);
         pico_dns_client_answer_domain(ptr);
         if (!ptr)
             return -1;
+
         pico_mdns_handle_query(ptr + 1, qsuf, peer);
         ptr = (char *)qsuf + sizeof(struct pico_dns_query_suffix);
-        if(ptr - (char *)header > buflen){
-            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr-(char*)header, buflen);
+        if(ptr - (char *)header > buflen) {
+            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr - (char*)header, buflen);
             return -1;
         }
     }
-
     /* handle answers */
-    for(i = 0; i<acount ; i++) {
+    for(i = 0; i < acount; i++) {
         char *name;
-        asuf = (struct pico_dns_answer_suffix*) (ptr + pico_mdns_namelen_comp(ptr)+1);
-        if((name = pico_mdns_expand_name_comp(ptr, buf)) == NULL){
+        asuf = (struct pico_dns_answer_suffix*) (ptr + pico_mdns_namelen_comp(ptr) + 1);
+        if((name = pico_mdns_expand_name_comp(ptr, buf)) == NULL) {
             mdns_dbg("Received a zero name pointer\n");
             return -1;
         }
+
         data = (char *)asuf + sizeof(struct pico_dns_answer_suffix);
         pico_mdns_handle_answer(name + 1, asuf, data);  /* +1 for starting . */
         PICO_FREE(name);
         ptr = data + short_be(asuf->rdlength);
-        if(ptr - (char *)header > buflen){
-            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr-(char*)header, buflen);
+        if(ptr - (char *)header > buflen) {
+            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr - (char*)header, buflen);
             return -1;
         }
     }
@@ -657,7 +690,9 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 {
     char recvbuf[1400];
     int pico_read = 0;
-    struct pico_ip4 peer = {0};
+    struct pico_ip4 peer = {
+        0
+    };
     uint16_t port = 0;
     char host[30];
 
@@ -667,9 +702,9 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
         /* receive while data available in socket buffer */
         while((pico_read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port)) > 0) {
             /* if pico_socket_setoption is implemented, this check is not needed */
-                pico_ipv4_to_string(host, peer.addr);
-                mdns_dbg("Received data from %s:%u\n", host, short_be(port));
-                pico_mdns_recv(recvbuf, pico_read, peer);
+            pico_ipv4_to_string(host, peer.addr);
+            mdns_dbg("Received data from %s:%u\n", host, short_be(port));
+            pico_mdns_recv(recvbuf, pico_read, peer);
         }
     }
     /* socket is closed */
@@ -697,12 +732,12 @@ static void pico_mdns_announce_timer(pico_time now, void *arg)
     header = pico_mdns_create_answer(mdns_global_host, &len, PICO_DNS_TYPE_A, &mdns_sock->local_addr);
     if(!header) {
         mdns_dbg("Could not create answer header!\n");
-        return ;
+        return;
     }
 
-    if(pico_mdns_send(header, len)!=(int)len){
+    if(pico_mdns_send(header, len) != (int)len) {
         mdns_dbg("send error occured!\n");
-        return ;
+        return;
     }
 }
 
@@ -721,10 +756,11 @@ static int pico_mdns_announce(void)
         return -1;
     }
 
-    if(pico_mdns_send(header, len)!=(int)len){
+    if(pico_mdns_send(header, len) != (int)len) {
         mdns_dbg("send error occured!\n");
         return -1;
     }
+
     pico_timer_add(1000, pico_mdns_announce_timer, NULL);
     return 0;
 }
@@ -739,33 +775,36 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
 
     if(!arg)
         return;
+
     ck = pico_mdns_find_cookie(url);
 
-    if(!ck){
+    if(!ck) {
         mdns_dbg("Corresponding cookie not found!\n");
         PICO_FREE(arg);
         return;
     }
-    if(ck->probe == 0){
+
+    if(ck->probe == 0) {
         mdns_dbg("Hostname already in use!\n");
         PICO_FREE(arg);
         ck->callback(NULL, ck->arg);
         return;
     }
 
-    if(ck->count == 0){
+    if(ck->count == 0) {
         mdns_global_host = url;
         mdns_dbg("count is zero! Claimed %s\n", mdns_global_host);
         pico_mdns_announce();
         ck->callback(ok, ck->arg);
         pico_mdns_del_cookie(url);
     } else {
-        if(pico_mdns_send(ck->header, ck->len)!=(int)ck->len){
+        if(pico_mdns_send(ck->header, ck->len) != (int)ck->len) {
             mdns_dbg("Send error occurred!\n");
             PICO_FREE(arg);
             ck->callback(NULL, ck->arg);
             return;
         }
+
         ck->count--;
         pico_timer_add(250, pico_mdns_probe_timer, url);
     }
@@ -779,19 +818,20 @@ static int pico_mdns_probe(char *hostname, void (*cb_initialised)(char *str, voi
     char *host;
     /* QU question with unicast response bit set */
     header = pico_mdns_create_query(hostname, &len, 0, PICO_MDNS_PROBE, PICO_MDNS_NO_INVERT, cb_initialised, arg);
-    if(!header || !len){
+    if(!header || !len) {
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
         return -1;
     }
 
-    host = PICO_ZALLOC(strlen(hostname)+1);
-    if(!host){
+    host = PICO_ZALLOC(strlen(hostname) + 1);
+    if(!host) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     strcpy(host, hostname);
 
-    pico_timer_add(pico_rand()%250, pico_mdns_probe_timer, host);
+    pico_timer_add(pico_rand() % 250, pico_mdns_probe_timer, host);
 
     return 0;
 }
@@ -804,12 +844,13 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
     int loop = 0;
     int ttl = 255;
 
-    if(!hostname){
+    if(!hostname) {
         mdns_dbg("No hostname given!\n");
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    if(!cb_initialised){
+
+    if(!cb_initialised) {
         mdns_dbg("No callback function suplied!\n");
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -821,10 +862,11 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
         return -1;
     }
 
-    if(pico_string_to_ipv4("224.0.0.251", &mreq.mcast_group_addr.addr)!=0) {
+    if(pico_string_to_ipv4("224.0.0.251", &mreq.mcast_group_addr.addr) != 0) {
         mdns_dbg("String to ipv4 error\n");
         return -1;
     }
+
     mreq.mcast_link_addr = inaddr_any;
 
     if(pico_socket_setoption(mdns_sock, PICO_IP_MULTICAST_LOOP, &loop) < 0) {
@@ -866,19 +908,22 @@ static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip,
     }
 
 
-    if(!mdns_sock){
+    if(!mdns_sock) {
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
         return -1;
     }
+
     header = pico_mdns_create_query(url, &len, proto, PICO_MDNS_NO_PROBE, PICO_MDNS_NO_INVERT, callback, arg);
-    if(!header || !len){
+    if(!header || !len) {
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
         return -1;
     }
-    if(pico_mdns_send(header, len)!=(int)len){
+
+    if(pico_mdns_send(header, len) != (int)len) {
         mdns_dbg("Send error!\n");
         return -1;
     }
+
     return 0;
 }
 
@@ -891,19 +936,22 @@ static int pico_mdns_getname_generic(const char *ip, void (*callback)(char *url,
         return -1;
     }
 
-    if(!mdns_sock){
+    if(!mdns_sock) {
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
         return -1;
     }
+
     header = pico_mdns_create_query(ip, &len, proto, PICO_MDNS_NO_PROBE, PICO_MDNS_INVERT, callback, arg);
-    if(!header || !len){
+    if(!header || !len) {
         mdns_dbg("ERROR: mdns_create_query returned NULL\n");
         return -1;
     }
-    if(pico_mdns_send(header, len)!=(int)len){
+
+    if(pico_mdns_send(header, len) != (int)len) {
         mdns_dbg("Send error!\n");
         return -1;
     }
+
     return 0;
 }
 

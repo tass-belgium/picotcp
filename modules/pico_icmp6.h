@@ -78,19 +78,19 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
     PACKED_UNION_DEF icmp6_msg_u {
         /* error messages */
         PACKED_UNION_DEF icmp6_err_u {
-            PEDANTIC_STRUCT_DEF  dest_unreach_s {
+            PEDANTIC_STRUCT_DEF dest_unreach_s {
                 uint32_t unused;
                 uint8_t data[0];
             } dest_unreach;
-            PEDANTIC_STRUCT_DEF  pkt_too_big_s {
+            PEDANTIC_STRUCT_DEF pkt_too_big_s {
                 uint32_t mtu;
                 uint8_t data[0];
             } pkt_too_big;
-            PEDANTIC_STRUCT_DEF  time_exceeded_s {
+            PEDANTIC_STRUCT_DEF time_exceeded_s {
                 uint32_t unused;
                 uint8_t data[0];
             } time_exceeded;
-            PEDANTIC_STRUCT_DEF  param_problem_s {
+            PEDANTIC_STRUCT_DEF param_problem_s {
                 uint32_t ptr;
                 uint8_t data[0];
             } param_problem;
@@ -98,21 +98,21 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
 
         /* informational messages */
         PACKED_UNION_DEF icmp6_info_u {
-            PEDANTIC_STRUCT_DEF  echo_request_s {
+            PEDANTIC_STRUCT_DEF echo_request_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_request;
-            PEDANTIC_STRUCT_DEF  echo_reply_s {
+            PEDANTIC_STRUCT_DEF echo_reply_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_reply;
-            PEDANTIC_STRUCT_DEF  router_sol_s {
+            PEDANTIC_STRUCT_DEF router_sol_s {
                 uint32_t unused;
                 uint8_t options[0];
             } router_sol;
-            PEDANTIC_STRUCT_DEF  router_adv_s {
+            PEDANTIC_STRUCT_DEF router_adv_s {
                 uint8_t hop;
                 uint8_t mor;
                 uint16_t life_time;
@@ -120,17 +120,17 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint32_t retrans_time;
                 uint8_t options[0];
             } router_adv;
-            PEDANTIC_STRUCT_DEF  neigh_sol_s {
+            PEDANTIC_STRUCT_DEF neigh_sol_s {
                 uint32_t unused;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_sol;
-            PEDANTIC_STRUCT_DEF  neigh_adv_s {
+            PEDANTIC_STRUCT_DEF neigh_adv_s {
                 uint32_t rsor;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_adv;
-            PEDANTIC_STRUCT_DEF  redirect_s {
+            PEDANTIC_STRUCT_DEF redirect_s {
                 uint32_t reserved;
                 struct pico_ip6 target;
                 struct pico_ip6 dest;

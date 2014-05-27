@@ -158,6 +158,7 @@ static inline int igmpt_type_compare(struct igmp_timer *a,  struct igmp_timer *b
 
     if (a->type > b->type)
         return 1;
+
     return 0;
 }
 
@@ -205,6 +206,7 @@ static int igmp_parameters_cmp(void *ka, void *kb)
     int cmp = igmpparm_group_compare(a, b);
     if (cmp)
         return cmp;
+
     return igmpparm_link_compare(a, b);
 }
 PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
@@ -212,7 +214,7 @@ PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
 static int igmp_sources_cmp(void *ka, void *kb)
 {
     struct pico_ip4 *a = ka, *b = kb;
-    return pico_ipv4_compare(a,b);
+    return pico_ipv4_compare(a, b);
 }
 PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
 PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);

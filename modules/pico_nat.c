@@ -53,6 +53,7 @@ static int nat_cmp_natport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
     if (a->nat_port > b->nat_port)
 
         return 1;
+
     return 0;
 
 }
@@ -66,6 +67,7 @@ static int nat_cmp_srcport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
     if (a->src_port > b->src_port)
 
         return 1;
+
     return 0;
 
 }
@@ -79,7 +81,7 @@ static int nat_cmp_proto(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
         return 1;
 
     return 0;
-} 
+}
 
 static int nat_cmp_address(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 {
@@ -110,7 +112,7 @@ static int nat_cmp_outbound(void *ka, void *kb)
 
     if (cport)
         return cport;
-    
+
     return nat_cmp_proto(a, b);
 }
 
@@ -249,7 +251,7 @@ static struct pico_trans *pico_nat_generate_tuple_trans(struct pico_ipv4_hdr *ne
         /* XXX: implement */
         break;
     }
-    return trans; 
+    return trans;
 }
 
 static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
@@ -272,7 +274,7 @@ static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
 
     if (!retry)
         return NULL;
-    
+
     trans = pico_nat_generate_tuple_trans(net, f);
     if(!trans)
         return NULL;

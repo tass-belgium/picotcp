@@ -28,7 +28,7 @@ void pico_frame_discard(struct pico_frame *f)
         dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
         dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
 #endif
-        if (! (f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
+        if (!(f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
             PICO_FREE(f->buffer);
 
         if (f->info)

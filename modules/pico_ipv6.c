@@ -77,6 +77,7 @@ int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
     for (i = 0; i < sizeof(struct pico_ip6); i++) {
         if (a->addr[i] < b->addr[i])
             return -1;
+
         if (a->addr[i] > b->addr[i])
             return 1;
     }
@@ -393,7 +394,7 @@ static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
     {
         r = index->keyValue;
         for (i = 0; i < PICO_SIZE_IP6; ++i) {
-            if ((addr->addr[i] & (r->netmask.addr[i])) != ((r->dest.addr[i]) & (r->netmask.addr[i])) ) {
+            if ((addr->addr[i] & (r->netmask.addr[i])) != ((r->dest.addr[i]) & (r->netmask.addr[i]))) {
                 break;
             }
 
@@ -689,6 +690,7 @@ static inline int ipv6_pushed_frame_valid(struct pico_frame *f, struct pico_ip6 
         dbg("IPv6: IP header error\n");
         return -1;
     }
+
     return 0;
 }
 
@@ -710,6 +712,7 @@ static inline struct pico_ipv6_route *ipv6_pushed_frame_checks(struct pico_frame
         pico_err = PICO_ERR_EHOSTUNREACH;
         return NULL;
     }
+
     return route;
 }
 
@@ -795,10 +798,11 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
     if (pico_ipv6_is_multicast(hdr->dst.addr)) {
         /* XXX: reimplement loopback */
     }
+
     #endif
 
     ipv6_push_hdr_adjust(f, link, dst, proto);
-    
+
     return ipv6_frame_push_final(f);
 
 }
@@ -865,6 +869,7 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
         pico_err = PICO_ERR_ENETUNREACH;
         return NULL;
     }
+
     return r;
 }
 
@@ -903,6 +908,7 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
             PICO_FREE(new);
             return -1;
         }
+
         new->link = r->link;
     }
 

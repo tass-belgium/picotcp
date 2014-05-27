@@ -74,12 +74,14 @@ static int device_init_mac(struct pico_device *dev, uint8_t *mac)
             PICO_FREE(dev->eth);
             return -1;
         }
+
         device_init_ipv6_final(dev, &linklocal);
         #endif
     } else {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     return 0;
 }
 
@@ -134,6 +136,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
     if (!dev->q_in || !dev->q_out)
         return -1;
+
     pico_tree_insert(&Device_tree, dev);
     if (mac) {
         ret = device_init_mac(dev, mac);
@@ -141,6 +144,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     } else {
         ret = device_init_nomac(dev);
     }
+
     return ret;
 }
 

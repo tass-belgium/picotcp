@@ -32,8 +32,9 @@ static int pico_vde_send(struct pico_device *dev, void *buf, int len)
     /* dbg("[%s] send %d bytes.\n", dev->name, len); */
     if ((vde->lost_out == 0) || ((pico_rand() % 100) > vde->lost_out))
         return vde_send(vde->conn, buf, len, 0);
-    else 
+    else
         return len; /* Silently discarded "on the wire" */
+
 }
 
 static int pico_vde_poll(struct pico_device *dev, int loop_score)
@@ -51,7 +52,7 @@ static int pico_vde_poll(struct pico_device *dev, int loop_score)
         len = vde_recv(vde->conn, buf, VDE_MTU, 0);
         if (len > 0) {
             /* dbg("Received pkt.\n"); */
-            if ((vde->lost_in == 0) || ((pico_rand() % 100) > vde->lost_in) ) {
+            if ((vde->lost_in == 0) || ((pico_rand() % 100) > vde->lost_in)) {
                 loop_score--;
                 pico_stack_recv(dev, buf, len);
             }

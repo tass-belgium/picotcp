@@ -355,7 +355,7 @@ START_TEST(tc_tcp_add_options)
     fail_if(frame_opt_buff[1] != PICO_TCPOPTLEN_WS);
     fail_if(frame_opt_buff[2] != 66);
     fail_if(frame_opt_buff[3] != PICO_TCP_OPTION_SACK);
-    fail_if(frame_opt_buff[4] != PICO_TCPOPTLEN_SACK + 6 *(sizeof(uint32_t)));
+    fail_if(frame_opt_buff[4] != PICO_TCPOPTLEN_SACK + 6 * (sizeof(uint32_t)));
     fail_if(memcmp(frame_opt_buff + 5,  &al, 4) != 0);
     fail_if(memcmp(frame_opt_buff + 9,  &ar, 4) != 0);
     fail_if(memcmp(frame_opt_buff + 13, &bl, 4) != 0);
@@ -477,7 +477,7 @@ END_TEST
 START_TEST(tc_tcp_rtt)
 {
     /* TODO: test this: static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt) */
-    
+
 }
 END_TEST
 START_TEST(tc_tcp_congestion_control)

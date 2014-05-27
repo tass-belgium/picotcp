@@ -5,7 +5,11 @@
 #include "check.h"
 
 
-struct pico_queue q1 = { 0 } , q2 = { 0 };
+struct pico_queue q1 = {
+    0
+}, q2 = {
+    0
+};
 
 START_TEST(tc_q)
 {
@@ -50,29 +54,29 @@ START_TEST(tc_q)
 
     pico_queue_deinit(&q1);
     pico_queue_deinit(&q2);
-    
+
 
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("Packet Queues");             
+    Suite *s = suite_create("Packet Queues");
 
     TCase *TCase_q = tcase_create("Unit test for pico_queue.c");
     tcase_add_test(TCase_q, tc_q);
     suite_add_tcase(s, TCase_q);
     return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

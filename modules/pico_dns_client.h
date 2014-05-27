@@ -77,9 +77,9 @@ PACKED_STRUCT_DEF pico_dns_answer_suffix
 
 enum pico_dns_arpa
 {
-   PICO_DNS_ARPA4,
-   PICO_DNS_ARPA6,
-   PICO_DNS_NO_ARPA,
+    PICO_DNS_ARPA4,
+    PICO_DNS_ARPA6,
+    PICO_DNS_NO_ARPA,
 };
 
 int pico_dns_client_init(void);

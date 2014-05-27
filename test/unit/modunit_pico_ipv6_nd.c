@@ -19,9 +19,13 @@
 
 START_TEST(tc_pico_nd_new_expire_time)
 {
-    struct pico_ipv6_neighbor n = { 0 };
-    struct pico_device d = { 0 };
-    
+    struct pico_ipv6_neighbor n = {
+        0
+    };
+    struct pico_device d = {
+        0
+    };
+
     /* TODO: how to test these time values */
 
     n.dev = &d;
@@ -46,144 +50,145 @@ START_TEST(tc_pico_nd_new_expire_time)
 END_TEST
 START_TEST(tc_pico_nd_new_expire_state)
 {
-    struct pico_ipv6_neighbor n = { 0 };
+    struct pico_ipv6_neighbor n = {
+        0
+    };
     int i;
 
     /* INCOMPLETE won't change */
     n.state = PICO_ND_STATE_INCOMPLETE;
     pico_nd_new_expire_state(&n);
     fail_unless(n.state == PICO_ND_STATE_INCOMPLETE);
-    
+
     /* PROBE won't change */
     n.state = PICO_ND_STATE_PROBE;
     pico_nd_new_expire_state(&n);
     fail_unless(n.state == PICO_ND_STATE_PROBE);
 
-    for (i = PICO_ND_STATE_INCOMPLETE +1; i < PICO_ND_STATE_PROBE; )
+    for (i = PICO_ND_STATE_INCOMPLETE + 1; i < PICO_ND_STATE_PROBE; )
     {
         n.state = i;
         pico_nd_new_expire_state(&n);
         fail_unless(n.state == i + 1);
         i = n.state;
     }
-
 }
 END_TEST
 START_TEST(tc_pico_nd_discover)
 {
-   /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
+    /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
 }
 END_TEST
 START_TEST(tc_neigh_options)
 {
-   /* TODO: test this: static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt) */
+    /* TODO: test this: static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_complete)
 {
-   /* TODO: test this: static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt) */
+    /* TODO: test this: static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm_router_option)
 {
-   /* TODO: test this: static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter) */
+    /* TODO: test this: static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm)
 {
-   /* TODO: test this: static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr) */
+    /* TODO: test this: static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_check_solicited)
 {
-   /* TODO: test this: static void neigh_adv_check_solicited(struct pico_icmp6_hdr *ic6, struct pico_ipv6_neighbor *n) */
+    /* TODO: test this: static void neigh_adv_check_solicited(struct pico_icmp6_hdr *ic6, struct pico_ipv6_neighbor *n) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_process)
 {
-   /* TODO: test this: static int neigh_adv_process(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_adv_process(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor)
 {
-   /* TODO: test this: static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
+    /* TODO: test this: static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
 }
 END_TEST
 START_TEST(tc_neighbor_from_sol)
 {
-   /* TODO: test this: static void neighbor_from_sol(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
+    /* TODO: test this: static void neighbor_from_sol(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
 }
 END_TEST
 START_TEST(tc_neigh_sol_process)
 {
-   /* TODO: test this: static int neigh_sol_process(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_sol_process(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_icmp6_initial_checks)
 {
-   /* TODO: test this: static int icmp6_initial_checks(struct pico_frame *f) */
+    /* TODO: test this: static int icmp6_initial_checks(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_mcast_validity_checks)
 {
-   /* TODO: test this: static int neigh_adv_mcast_validity_check(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_adv_mcast_validity_check(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_sol_mcast_validity_checks)
 {
-   /* TODO: test this: static int neigh_sol_mcast_validity_check(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_sol_mcast_validity_check(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_validity_checks)
 {
-   /* TODO: test this: static int neigh_adv_validity_checks(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_adv_validity_checks(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_sol_validity_checks)
 {
-   /* TODO: test this: static int neigh_sol_validity_checks(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_sol_validity_checks(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_checks)
 {
-   /* TODO: test this: static int neigh_adv_checks(struct pico_frame *f) */
+    /* TODO: test this: static int neigh_adv_checks(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_router_sol_recv)
 {
-   /* TODO: test this: static int pico_nd_router_sol_recv(struct pico_frame *f) */
+    /* TODO: test this: static int pico_nd_router_sol_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_router_adv_recv)
 {
-   /* TODO: test this: static int pico_nd_router_adv_recv(struct pico_frame *f) */
+    /* TODO: test this: static int pico_nd_router_adv_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_neigh_sol_recv)
 {
-   /* TODO: test this: static int pico_nd_neigh_sol_recv(struct pico_frame *f) */
+    /* TODO: test this: static int pico_nd_neigh_sol_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_neigh_adv_recv)
 {
-   /* TODO: test this: static int pico_nd_neigh_adv_recv(struct pico_frame *f) */
+    /* TODO: test this: static int pico_nd_neigh_adv_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_redirect_recv)
 {
-   /* TODO: test this: static int pico_nd_redirect_recv(struct pico_frame *f) */
+    /* TODO: test this: static int pico_nd_redirect_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_nd_timer_callback)
 {
-   /* TODO: test this: static void pico_ipv6_nd_timer_callback(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_ipv6_nd_timer_callback(pico_time now, void *arg) */
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_nd_new_expire_time = tcase_create("Unit test for pico_nd_new_expire_time");
     TCase *TCase_pico_nd_new_expire_state = tcase_create("Unit test for pico_nd_new_expire_state");
@@ -260,18 +265,21 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_nd_timer_callback);
     return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }
 #else
-int main(void) {return 0;}
+int main(void)
+{
+    return 0;
+}
 
 #endif

@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#warning "COMPILING for MEMORY TESTS!"
+/* #warning "COMPILING for MEMORY TESTS!" */
 
 uint32_t mm_failure_count = 0;
 uint32_t cur_mem, max_mem;

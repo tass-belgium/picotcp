@@ -37,6 +37,7 @@ static int mcast_listen_link_cmp(struct pico_mcast_listen *a, struct pico_mcast_
 
     if (a->proto < b->proto)
         return -1;
+
     if (a->proto > b->proto)
         return 1;
 
@@ -59,9 +60,11 @@ static int mcast_listen_cmp(void *ka, void *kb)
     struct pico_mcast_listen *a = ka, *b = kb;
     if (a->proto < b->proto)
         return -1;
+
     if (a->proto > b->proto)
         return 1;
-    return mcast_listen_grp_cmp(a,b);
+
+    return mcast_listen_grp_cmp(a, b);
 }
 
 static int mcast_sources_cmp(void *ka, void *kb)

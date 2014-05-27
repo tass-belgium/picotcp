@@ -16,6 +16,7 @@ static int sockopt_validate_args(struct pico_socket *s,  void *value)
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
     }
+
     return 0;
 }
 
@@ -121,11 +122,12 @@ static struct pico_socket *socket_tcp_deliver_ipv4(struct pico_socket *s, struct
         /* listen socket */
         found = s;
     }
+
     #endif
     return found;
 }
 
-static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)      
+static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket *found = NULL;
     #ifdef PICO_SUPPORT_IPV6
@@ -146,6 +148,7 @@ static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct
         /* listen socket */
         found = s;
     }
+
     #else
     (void) s;
     (void) f;
@@ -162,8 +165,10 @@ static int socket_tcp_do_deliver(struct pico_socket *s, struct pico_frame *f)
             if(!s->parent)
                 s->ev_pending = 0;
         }
+
         return 0;
     }
+
     dbg("TCP SOCKET> Not s.\n");
     return -1;
 }
@@ -182,9 +187,11 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
         if (IS_IPV4(f)) {
             found = socket_tcp_deliver_ipv4(s, f);
         }
+
         if (IS_IPV6(f)) {
             found = socket_tcp_deliver_ipv6(s, f);
         }
+
         if (found)
             break;
     } /* FOREACH */
