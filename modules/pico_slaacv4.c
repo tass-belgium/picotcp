@@ -11,12 +11,12 @@
 
 #ifdef PICO_SUPPORT_SLAACV4
 
-#define SLAACV4_ADDRESS  0xa9fe0000
-#define SLAACV4_MASK     0x0000FFFF
-#define SLAACV4_MINRANGE 0x00000100
-#define SLAACV4_MAXRANGE 0x0000FD00
+#define SLAACV4_NETWORK  ((long_be(0xa9fe0000)))
+#define SLAACV4_NETMASK  ((long_be(0xFFFF0000)))
+#define SLAACV4_MINRANGE  (0x00000100) /* In host order */
+#define SLAACV4_MAXRANGE  (0x0000FDFF) /* In host order */
 
-#define SLAACV4_CREATE_IPV4(seed) (((seed % SLAACV4_MAXRANGE) + SLAACV4_MINRANGE) & SLAACV4_MASK) | SLAACV4_ADDRESS
+#define SLAACV4_CREATE_IPV4(seed) ((long_be((seed % SLAACV4_MAXRANGE) + SLAACV4_MINRANGE) & ~SLAACV4_NETMASK) | SLAACV4_NETWORK)
 
 #define PROBE_WAIT           1 /* delay between two tries during claim */
 #define PROBE_NB             3 /* number of probe packets during claim */
@@ -172,7 +172,7 @@ int pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip
         return -1;
     }
 
-    ip.addr = long_be(pico_slaacv4_getip(dev, 0));
+    ip.addr = pico_slaacv4_getip(dev, 0);
 
     pico_slaacv4_init_cookie(&ip, dev, &slaacv4_local, cb);
     pico_arp_register_ipconflict(&ip, &dev->eth->mac, pico_slaacv4_receive_ipconflict);
