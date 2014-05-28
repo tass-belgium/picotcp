@@ -988,6 +988,8 @@ static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be(PICO_IPV4_DONTFRAG);
+#else
+    (void)f;
 #endif
 }
 
@@ -1035,14 +1037,13 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s);
 
+#ifdef PICO_SUPPORT_IPFRAG
 static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int space, int hdr_offset)
 {
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
     /* transport header length field contains total length + header length */
     f->transport_len = (uint16_t)(space);
-#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be(PICO_IPV4_MOREFRAG);
-#endif
     f->payload += hdr_offset;
     f->payload_len = (uint16_t) space;
 }
@@ -1053,21 +1054,16 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload = f->transport_hdr;
     f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
     /* set offset in octets */
-#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
-#endif
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-#ifdef PICO_SUPPORT_IPFRAG
         f->frag |= short_be(PICO_IPV4_MOREFRAG);
-#endif
     } else {
         frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-#ifdef PICO_SUPPORT_IPFRAG
         f->frag &= short_be(PICO_IPV4_FRAG_MASK);
-#endif
     }
 }
+#endif
 
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
