@@ -52,7 +52,7 @@ START_TEST (test_ipv4)
     }
     /*string_to_ipv4 + ipv4_to_string*/
     pico_string_to_ipv4(ipstr, &(ipaddr.addr));
-    fail_if(ipaddr.addr != 0x0101a8c0, "Error string to ipv4");
+    fail_if(ipaddr.addr != long_be(0xc0a80101), "Error string to ipv4");
     memset(ipstr, 0, 12);
     pico_ipv4_to_string(ipstr, ipaddr.addr);
     fail_if(strncmp(ipstr, "192.168.1.1", 11) != 0, "Error ipv4 to string");
@@ -61,8 +61,8 @@ START_TEST (test_ipv4)
     fail_if(pico_ipv4_valid_netmask(long_be(nm32.addr)) != 32, "Error checking netmask");
 
     /*is_unicast*/
-    fail_if((pico_ipv4_is_unicast(0x0101a8c0)) != 1, "Error checking unicast");
-    fail_if((pico_ipv4_is_unicast(0x010000e0)) != 0, "Error checking unicast");
+    fail_if((pico_ipv4_is_unicast(long_be(0xc0a80101))) != 1, "Error checking unicast");
+    fail_if((pico_ipv4_is_unicast(long_be(0xe0000001))) != 0, "Error checking unicast");
 
     /*rebound*/
     fail_if(pico_ipv4_rebound(f_NULL) != -1, "Error rebound frame");
