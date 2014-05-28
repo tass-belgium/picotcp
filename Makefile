@@ -41,7 +41,7 @@ MEMORY_MANAGER_PROFILING?=0
 #IPv6 related
 IPV6?=1
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers $(EXTRA_CFLAGS)
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion
 # request from Toon

@@ -395,7 +395,7 @@ int8_t pico_socket_add(struct pico_socket *s)
     pico_tree_insert(&sp->socks, s);
     s->state |= PICO_SOCKET_STATE_BOUND;
     PICOTCP_MUTEX_UNLOCK(Mutex);
-#if DEBUG_SOCKET_TREE
+#ifdef DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
         /* RB_FOREACH(s, socket_tree, &sp->socks) { */
