@@ -776,15 +776,6 @@ struct pico_protocol pico_proto_ipv4 = {
     .q_out = &out,
 };
 
-struct pico_ipv4_route
-{
-    struct pico_ip4 dest;
-    struct pico_ip4 netmask;
-    struct pico_ip4 gateway;
-    struct pico_ipv4_link *link;
-    uint32_t metric;
-};
-
 
 static int ipv4_route_compare(void *ka, void *kb)
 {

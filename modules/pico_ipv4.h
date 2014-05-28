@@ -76,6 +76,18 @@ struct pico_mcast_group {
 };
 #endif
 
+struct pico_ipv4_route
+{
+    struct pico_ip4 dest;
+    struct pico_ip4 netmask;
+    struct pico_ip4 gateway;
+    struct pico_ipv4_link *link;
+    uint32_t metric;
+};
+
+extern struct pico_tree Routes;
+
+
 int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b);
 int pico_ipv4_to_string(char *ipbuf, const uint32_t ip);
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip);
