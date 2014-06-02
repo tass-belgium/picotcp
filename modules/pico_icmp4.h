@@ -141,9 +141,11 @@ int pico_icmp4_ttl_expired(struct pico_frame *f);
 int pico_icmp4_packet_filtered(struct pico_frame *f);
 
 int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *));
+int pico_icmp4_ping_abort(int id);
 #define PICO_PING_ERR_REPLIED 0
 #define PICO_PING_ERR_TIMEOUT 1
 #define PICO_PING_ERR_UNREACH 2
+#define PICO_PING_ERR_ABORTED 3
 #define PICO_PING_ERR_PENDING 0xFFFF
 
 #endif

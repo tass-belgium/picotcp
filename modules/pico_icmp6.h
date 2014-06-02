@@ -56,6 +56,7 @@
 #define PICO_PING6_ERR_REPLIED         0
 #define PICO_PING6_ERR_TIMEOUT         1
 #define PICO_PING6_ERR_UNREACH         2
+#define PICO_PING6_ERR_ABORTED         3
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
 /* custom defines */
@@ -198,6 +199,7 @@ struct pico_icmp6_stats
 };
 
 int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *));
+int pico_icmp6_ping_abort(int id);
 
 int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type);
 int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *target);

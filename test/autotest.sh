@@ -10,13 +10,18 @@ killall picoapp6.elf
 
 echo "IPV6 tests!"
 echo "PING6 LOCALHOST"
-./build/test/picoapp6.elf --loop -a ping,::1, || exit 1
+./build/test/picoapp6.elf --loop -a ping,::1,, || exit 1
 
 echo "PING6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
-./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1, || exit 1
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,, || exit 1
 killall picoapp6.elf
 
+echo "PING6 TEST (aborted in 4 seconds...)"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,4,) &
+sleep 7
+killall picoapp6.elf
 
 echo "TCP6 TEST"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a tcpbench,r,6667,,) &
@@ -61,7 +66,13 @@ echo "PING LOCALHOST"
 
 echo "PING TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8: || exit 1
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:: || exit 1
+killall picoapp.elf
+
+echo "PING TEST -- Aborted in 4 seconds"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:4:) &
+sleep 7
 killall picoapp.elf
 
 echo "TCP TEST"
