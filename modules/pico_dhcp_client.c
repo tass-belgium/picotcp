@@ -172,7 +172,9 @@ static void pico_dhcp_client_init_timer(pico_time now, void *arg)
 
     if (++dhcpc->retry >= DHCP_CLIENT_RETRIES) {
         pico_err = PICO_ERR_EAGAIN;
-        dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+        if (dhcpc->cb) {
+            dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+        }
         pico_dhcp_client_del_cookie(dhcpc->xid);
         pico_dhcp_client_mutex++;
         return;
@@ -292,7 +294,8 @@ static void pico_dhcp_client_reinit(pico_time now, void *arg)
 
     if (++dhcpc->retry > DHCP_CLIENT_RETRIES) {
         pico_err = PICO_ERR_EAGAIN;
-        dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+        if (dhcpc->cb)
+            dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
         pico_dhcp_client_del_cookie(dhcpc->xid);
         return;
     }
@@ -1000,9 +1003,13 @@ struct pico_ip4 pico_dhcp_get_netmask(void *dhcpc)
     return ((struct pico_dhcp_client_cookie*)dhcpc)->netmask;
 }
 
-
 struct pico_ip4 pico_dhcp_get_nameserver(void*dhcpc)
 {
     return ((struct pico_dhcp_client_cookie*)dhcpc)->nameserver;
+}
+
+int pico_dhcp_client_abort(uint32_t xid) 
+{
+    return pico_dhcp_client_del_cookie(xid);
 }
 #endif
