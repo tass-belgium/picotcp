@@ -33,6 +33,7 @@
 #define DHCP_CLIENT_STATUS_LINKED      3
 #define DHCP_CLIENT_STATUS_TRANSMITTED 4
 #define DHCP_CLIENT_STATUS_INITIALIZED 5
+#define DHCP_CLIENT_STATUS_ABORTED     0xFF
 
 /* maximum size of a DHCP message */
 #define DHCP_CLIENT_MAXMSGZISE         PICO_IP_MTU
@@ -52,10 +53,21 @@ enum dhcp_client_state {
     DHCP_CLIENT_STATE_REBINDING
 };
 
+
+#define PICO_DHCPC_TIMER_INIT    0
+#define PICO_DHCPC_TIMER_REQUEST 1 
+#define PICO_DHCPC_TIMER_RENEW   2 
+#define PICO_DHCPC_TIMER_REBIND  3 
+#define PICO_DHCPC_TIMER_T1      4 
+#define PICO_DHCPC_TIMER_T2      5 
+#define PICO_DHCPC_TIMER_LEASE   6
+#define PICO_DHCPC_TIMER_ARRAY_SIZE 7
+
 struct dhcp_client_timer
 {
     uint8_t state;
-    uint32_t time;
+    unsigned int type;
+    uint32_t xid;
 };
 
 struct pico_dhcp_client_cookie
@@ -75,13 +87,12 @@ struct pico_dhcp_client_cookie
     struct pico_ip4 nameserver;
     struct pico_ip4 server_id;
     struct pico_device *dev;
-    struct dhcp_client_timer init_timer;
-    struct dhcp_client_timer requesting_timer;
-    struct dhcp_client_timer renewing_timer;
-    struct dhcp_client_timer rebinding_timer;
-    struct dhcp_client_timer T1_timer;
-    struct dhcp_client_timer T2_timer;
-    struct dhcp_client_timer lease_timer;
+    struct dhcp_client_timer *timer[PICO_DHCPC_TIMER_ARRAY_SIZE];
+    uint32_t t1_time;
+    uint32_t t2_time;
+    uint32_t lease_time;
+    uint32_t renew_time;
+    uint32_t rebind_time;
 };
 
 static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc);
@@ -131,6 +142,7 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_add_cookie(uint32_t xid,
     return dhcpc;
 }
 
+static void pico_dhcp_client_stop_timers(struct pico_dhcp_client_cookie *dhcpc);
 static int pico_dhcp_client_del_cookie(uint32_t xid)
 {
     struct pico_dhcp_client_cookie test = {
@@ -142,6 +154,7 @@ static int pico_dhcp_client_del_cookie(uint32_t xid)
     if (!found)
         return -1;
 
+    pico_dhcp_client_stop_timers(found);
     pico_socket_close(found->s);
     pico_ipv4_link_del(found->dev, found->address);
     pico_tree_delete(&DHCPCookies, found);
@@ -163,129 +176,79 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
         return NULL;
 }
 
-static void pico_dhcp_client_init_timer(pico_time now, void *arg)
+static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
+static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-    if (dhcpc->init_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
+    struct dhcp_client_timer *t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
+    if (!t)
+        return NULL;
+    t->state = DHCP_CLIENT_TIMER_STARTED;
+    t->xid = ck->xid;
+    pico_timer_add(time, pico_dhcp_client_timer_handler, t);
+    ck->timer[type] = t;
+    return t;
+}
 
-    if (++dhcpc->retry >= DHCP_CLIENT_RETRIES) {
-        pico_err = PICO_ERR_EAGAIN;
-        if (dhcpc->cb) {
-            dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+static int dhcp_get_timer_event(struct pico_dhcp_client_cookie *dhcpc, unsigned int type)
+{
+    const int events[PICO_DHCPC_TIMER_ARRAY_SIZE] = 
+    {
+        PICO_DHCP_EVENT_RETRANSMIT,
+        PICO_DHCP_EVENT_RETRANSMIT,
+        PICO_DHCP_EVENT_RETRANSMIT,
+        PICO_DHCP_EVENT_RETRANSMIT,
+        PICO_DHCP_EVENT_T1,
+        PICO_DHCP_EVENT_T2,
+        PICO_DHCP_EVENT_LEASE
+    };
+
+    if (type == PICO_DHCPC_TIMER_INIT) {
+        if (++dhcpc->retry >= DHCP_CLIENT_RETRIES) {
+            pico_err = PICO_ERR_EAGAIN;
+            if (dhcpc->cb) {
+                dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+            }
+            pico_dhcp_client_del_cookie(dhcpc->xid);
+            pico_dhcp_client_mutex++;
+            return PICO_DHCP_EVENT_NONE;
         }
-        pico_dhcp_client_del_cookie(dhcpc->xid);
-        pico_dhcp_client_mutex++;
-        return;
+    } else if (type == PICO_DHCPC_TIMER_REQUEST) {
+        if (++dhcpc->retry > DHCP_CLIENT_RETRIES) {
+            pico_dhcp_client_mutex++;
+            reset(dhcpc, NULL);
+            return PICO_DHCP_EVENT_NONE;
+        }
+    } else if (type < PICO_DHCPC_TIMER_T1) {
+        dhcpc->retry++;
     }
 
-    /* init_timer is restarted in retransmit function,
-     * otherwise an old init_timer would go on indefinitely */
-    dhcpc->event = PICO_DHCP_EVENT_RETRANSMIT;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
+    return events[type];
 }
 
-static void pico_dhcp_client_requesting_timer(pico_time now, void *arg)
+static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
 {
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
+    struct dhcp_client_timer *t = (struct dhcp_client_timer *)arg; 
+    struct pico_dhcp_client_cookie *dhcpc;
     (void) now;
 
-    if (dhcpc->requesting_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    if (++dhcpc->retry > DHCP_CLIENT_RETRIES) {
-        pico_dhcp_client_mutex++;
-        reset(dhcpc, NULL);
-        return;
+    dhcpc = pico_dhcp_client_find_cookie(t->xid);
+    if (dhcpc) {
+        if (dhcpc->timer[PICO_DHCPC_TIMER_LEASE]->state != DHCP_CLIENT_TIMER_STOPPED) {
+            dhcpc->event = (uint8_t)dhcp_get_timer_event(dhcpc, t->type);
+            if (dhcpc->event != PICO_DHCP_EVENT_NONE)
+                pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
+        }
+        dhcpc->timer[t->type] = NULL;
     }
-
-    /* requesting_timer is restarted in retransmit function,
-     * otherwise an old requesting_timer would go on indefinitely */
-    dhcpc->event = PICO_DHCP_EVENT_RETRANSMIT;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
+    PICO_FREE(t);
 }
 
-static void pico_dhcp_client_renewing_timer(pico_time now, void *arg)
+static void pico_dhcp_client_timer_stop(struct pico_dhcp_client_cookie *dhcpc, int type)
 {
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-
-    if (dhcpc->renewing_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    /* renewing_timer is restarted in retransmit function,
-     * otherwise an old renewing_timer would go on indefinitely */
-    dhcpc->retry++;
-    dhcpc->event = PICO_DHCP_EVENT_RETRANSMIT;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
+    if (dhcpc->timer[type])
+        dhcpc->timer[type]->state = DHCP_CLIENT_TIMER_STOPPED; 
 }
 
-static void pico_dhcp_client_rebinding_timer(pico_time now, void *arg)
-{
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-
-    if (dhcpc->rebinding_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    /* rebinding_timer is restarted in retransmit function,
-     * otherwise an old rebinding_timer would go on indefinitely */
-    dhcpc->retry++;
-    dhcpc->event = PICO_DHCP_EVENT_RETRANSMIT;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
-}
-
-static void pico_dhcp_client_T1_timer(pico_time now, void *arg)
-{
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-
-    if (dhcpc->T1_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    /* T1 state is set to stopped in renew function,
-     * otherwise an old T1 could stop a valid T1 */
-    dhcpc->event = PICO_DHCP_EVENT_T1;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
-}
-
-static void pico_dhcp_client_T2_timer(pico_time now, void *arg)
-{
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-
-    if (dhcpc->T2_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    /* T2 state is set to stopped in rebind function,
-     * otherwise an old T2 could stop a valid T2.
-     * Likewise for renewing_timer */
-    dhcpc->event = PICO_DHCP_EVENT_T2;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
-}
-
-static void pico_dhcp_client_lease_timer(pico_time now, void *arg)
-{
-    struct pico_dhcp_client_cookie *dhcpc = (struct pico_dhcp_client_cookie *)arg;
-    (void) now;
-
-    if (dhcpc->lease_timer.state == DHCP_CLIENT_TIMER_STOPPED)
-        return;
-
-    /* lease state is set to stopped in reset function,
-     * otherwise an old lease could stop a valid lease.
-     * Likewise for rebinding_timer */
-    dhcpc->event = PICO_DHCP_EVENT_LEASE;
-    pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
-    return;
-}
 
 static void pico_dhcp_client_reinit(pico_time now, void *arg)
 {
@@ -304,31 +267,21 @@ static void pico_dhcp_client_reinit(pico_time now, void *arg)
     return;
 }
 
+
 static void pico_dhcp_client_stop_timers(struct pico_dhcp_client_cookie *dhcpc)
 {
+    int i;
     dhcpc->retry = 0;
-    dhcpc->init_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->requesting_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->renewing_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->rebinding_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->T1_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->T2_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->lease_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-
-    return;
+    for (i = 0; i < PICO_DHCPC_TIMER_ARRAY_SIZE; i++)
+        pico_dhcp_client_timer_stop(dhcpc, i);
 }
 
 static void pico_dhcp_client_start_init_timer(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint32_t time = 0;
-
     /* timer value is doubled with every retry (exponential backoff) */
-    dhcpc->init_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    dhcpc->init_timer.time = DHCP_CLIENT_RETRANS;
-    time = dhcpc->init_timer.time << dhcpc->retry;
-    pico_timer_add(time * 1000, pico_dhcp_client_init_timer, dhcpc);
-
-    return;
+    time = (uint32_t) (DHCP_CLIENT_RETRANS << dhcpc->retry);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, time * 1000, dhcpc);
 }
 
 static void pico_dhcp_client_start_requesting_timer(struct pico_dhcp_client_cookie *dhcpc)
@@ -336,13 +289,8 @@ static void pico_dhcp_client_start_requesting_timer(struct pico_dhcp_client_cook
     uint32_t time = 0;
 
     /* timer value is doubled with every retry (exponential backoff) */
-    dhcpc->init_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->requesting_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    dhcpc->requesting_timer.time = DHCP_CLIENT_RETRANS;
-    time = dhcpc->requesting_timer.time << dhcpc->retry;
-    pico_timer_add(time * 1000, pico_dhcp_client_requesting_timer, dhcpc);
-
-    return;
+    time = (uint32_t)(DHCP_CLIENT_RETRANS << dhcpc->retry);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_REQUEST, time * 1000, dhcpc);
 }
 
 static void pico_dhcp_client_start_renewing_timer(struct pico_dhcp_client_cookie *dhcpc)
@@ -351,13 +299,12 @@ static void pico_dhcp_client_start_renewing_timer(struct pico_dhcp_client_cookie
 
     /* wait one-half of the remaining time until T2, down to a minimum of 60 seconds */
     /* (dhcpc->retry + 1): initial -> divide by 2, 1st retry -> divide by 4, 2nd retry -> divide by 8, etc */
-    dhcpc->T1_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->renewing_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    halftime = dhcpc->renewing_timer.time >> (dhcpc->retry + 1);
+    pico_dhcp_client_timer_stop(dhcpc, PICO_DHCPC_TIMER_T1);
+    halftime = dhcpc->renew_time >> (dhcpc->retry + 1);
     if (halftime < 60)
         halftime = 60;
 
-    pico_timer_add(halftime * 1000, pico_dhcp_client_renewing_timer, dhcpc);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_RENEW, halftime * 1000, dhcpc);
 
     return;
 }
@@ -368,29 +315,23 @@ static void pico_dhcp_client_start_rebinding_timer(struct pico_dhcp_client_cooki
 
     /* wait one-half of the remaining time until T2, down to a minimum of 60 seconds */
     /* (dhcpc->retry + 1): initial -> divide by 2, 1st retry -> divide by 4, 2nd retry -> divide by 8, etc */
-    dhcpc->T2_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->renewing_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->rebinding_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    halftime = dhcpc->rebinding_timer.time >> (dhcpc->retry + 1);
+    pico_dhcp_client_timer_stop(dhcpc, PICO_DHCPC_TIMER_T2);
+    pico_dhcp_client_timer_stop(dhcpc, PICO_DHCPC_TIMER_RENEW);
+    pico_dhcp_client_timer_stop(dhcpc, PICO_DHCPC_TIMER_REBIND);
+    halftime = dhcpc->rebind_time >> (dhcpc->retry + 1);
     if (halftime < 60)
         halftime = 60;
-
-    pico_timer_add(halftime * 1000, pico_dhcp_client_rebinding_timer, dhcpc);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_REBIND, halftime * 1000, dhcpc);
 
     return;
 }
 
 static void pico_dhcp_client_start_reacquisition_timers(struct pico_dhcp_client_cookie *dhcpc)
 {
-    dhcpc->requesting_timer.state = DHCP_CLIENT_TIMER_STOPPED;
-    dhcpc->T1_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    dhcpc->T2_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    dhcpc->lease_timer.state = DHCP_CLIENT_TIMER_STARTED;
-    pico_timer_add(dhcpc->T1_timer.time * 1000, pico_dhcp_client_T1_timer, dhcpc);
-    pico_timer_add(dhcpc->T2_timer.time * 1000, pico_dhcp_client_T2_timer, dhcpc);
-    pico_timer_add(dhcpc->lease_timer.time * 1000, pico_dhcp_client_lease_timer, dhcpc);
-
-    return;
+    pico_dhcp_client_timer_stop(dhcpc, PICO_DHCPC_TIMER_REQUEST);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_T1, dhcpc->t1_time * 1000, dhcpc);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_T2, dhcpc->t2_time * 1000, dhcpc);
+    pico_dhcp_timer_add(PICO_DHCPC_TIMER_LEASE, dhcpc->lease_time * 1000, dhcpc);
 }
 
 static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
@@ -500,6 +441,7 @@ int pico_dhcp_initiate_negotiation(struct pico_device *dev, void (*cb)(void *dhc
         return -1;
 
     dhcpc_dbg("DHCP client: cookie with xid %u\n", dhcpc->xid);
+    *uid = xid;
     return pico_dhcp_client_init(dhcpc);
 }
 
@@ -520,18 +462,18 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
             break;
 
         case PICO_DHCP_OPT_LEASETIME:
-            dhcpc->lease_timer.time = long_be(opt->ext.lease_time.time);
-            dhcpc_dbg("DHCP client: lease time %u\n", dhcpc->lease_timer.time);
+            dhcpc->lease_time = long_be(opt->ext.lease_time.time);
+            dhcpc_dbg("DHCP client: lease time %u\n", dhcpc->lease_time);
             break;
 
         case PICO_DHCP_OPT_RENEWALTIME:
-            dhcpc->T1_timer.time = long_be(opt->ext.renewal_time.time);
-            dhcpc_dbg("DHCP client: renewal time %u\n", dhcpc->T1_timer.time);
+            dhcpc->t1_time = long_be(opt->ext.renewal_time.time);
+            dhcpc_dbg("DHCP client: renewal time %u\n", dhcpc->t1_time);
             break;
 
         case PICO_DHCP_OPT_REBINDINGTIME:
-            dhcpc->T2_timer.time = long_be(opt->ext.rebinding_time.time);
-            dhcpc_dbg("DHCP client: rebinding time %u\n", dhcpc->T2_timer.time);
+            dhcpc->t2_time = long_be(opt->ext.rebinding_time.time);
+            dhcpc_dbg("DHCP client: rebinding time %u\n", dhcpc->t2_time);
             break;
 
         case PICO_DHCP_OPT_ROUTER:
@@ -565,11 +507,11 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
     } while (pico_dhcp_next_option(&opt));
 
     /* default values for T1 and T2 when not provided */
-    if (!dhcpc->T1_timer.time)
-        dhcpc->T1_timer.time = dhcpc->lease_timer.time >> 1;
+    if (!dhcpc->t1_time)
+        dhcpc->t1_time = dhcpc->lease_time >> 1;
 
-    if (!dhcpc->T2_timer.time)
-        dhcpc->T2_timer.time = (dhcpc->lease_timer.time * 875) / 1000;
+    if (!dhcpc->t2_time)
+        dhcpc->t2_time = (dhcpc->lease_time * 875) / 1000;
 
     return;
 }
@@ -580,7 +522,7 @@ static int recv_offer(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
 
     pico_dhcp_client_recv_params(dhcpc, opt);
-    if ((dhcpc->event != PICO_DHCP_MSG_OFFER) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_timer.time)
+    if ((dhcpc->event != PICO_DHCP_MSG_OFFER) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
         return -1;
 
     dhcpc->address.addr = hdr->yiaddr;
@@ -606,7 +548,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     };
 
     pico_dhcp_client_recv_params(dhcpc, opt);
-    if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_timer.time)
+    if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
         return -1;
 
     /* Issue #20 the server can transmit on ACK a different IP than the one in OFFER */
@@ -628,18 +570,19 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     if (dhcpc->state == DHCP_CLIENT_STATE_REBINDING)
         pico_ipv4_route_del(bcast, netmask, 1);
 
-    dbg("DHCP client: renewal time (T1) %u\n", dhcpc->T1_timer.time);
-    dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->T2_timer.time);
-    dbg("DHCP client: lease time %u\n", dhcpc->lease_timer.time);
+    dbg("DHCP client: renewal time (T1) %u\n", dhcpc->t1_time);
+    dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->t2_time);
+    dbg("DHCP client: lease time %u\n", dhcpc->lease_time);
 
     dhcpc->retry = 0;
-    dhcpc->renewing_timer.time = dhcpc->T2_timer.time - dhcpc->T1_timer.time;
-    dhcpc->rebinding_timer.time = dhcpc->lease_timer.time - dhcpc->T2_timer.time;
+    dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
+    dhcpc->rebind_time = dhcpc->lease_time - dhcpc->t2_time;
     pico_dhcp_client_start_reacquisition_timers(dhcpc);
 
     pico_dhcp_client_mutex++;
     *(dhcpc->uid) = dhcpc->xid;
-    dhcpc->cb(dhcpc, PICO_DHCP_SUCCESS);
+    if (dhcpc->cb)
+        dhcpc->cb(dhcpc, PICO_DHCP_SUCCESS);
     dhcpc->state = DHCP_CLIENT_STATE_BOUND;
     return 0;
 }
@@ -652,14 +595,16 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
     if (!dhcpc->s) {
         dhcpc_dbg("DHCP client ERROR: failure opening socket on renew, aborting DHCP! (%s)\n", strerror(pico_err));
-        dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+        if (dhcpc->cb)
+            dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
         return -1;
     }
 
     if (pico_socket_bind(dhcpc->s, &dhcpc->address, &port) != 0) {
         dhcpc_dbg("DHCP client ERROR: failure binding socket on renew, aborting DHCP! (%s)\n", strerror(pico_err));
         pico_socket_close(dhcpc->s);
-        dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
+        if (dhcpc->cb)
+            dhcpc->cb(dhcpc, PICO_DHCP_ERROR);
         return -1;
     }
 
@@ -708,7 +653,8 @@ static int reset(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     /* delete the link with the currently in use address */
     pico_ipv4_link_del(dhcpc->dev, address);
 
-    dhcpc->cb(dhcpc, PICO_DHCP_RESET);
+    if (dhcpc->cb)
+        dhcpc->cb(dhcpc, PICO_DHCP_RESET);
     if (dhcpc->state < DHCP_CLIENT_STATE_BOUND)
     {
         pico_dhcp_client_mutex++;

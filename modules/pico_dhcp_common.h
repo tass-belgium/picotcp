@@ -82,6 +82,7 @@
 #define PICO_DHCP_EVENT_T2              10
 #define PICO_DHCP_EVENT_LEASE           11
 #define PICO_DHCP_EVENT_RETRANSMIT      12
+#define PICO_DHCP_EVENT_NONE            0xff
 
 PACKED_STRUCT_DEF pico_dhcp_hdr
 {
