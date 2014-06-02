@@ -61,7 +61,7 @@ START_TEST (test_icmp4_ping)
 
     pico_ipv4_link_add(mock->dev, local, netmask);
 
-    fail_if(pico_icmp4_ping(local_address, NUM_PING, interval, timeout, size, cb_ping));
+    fail_if(pico_icmp4_ping(local_address, NUM_PING, interval, timeout, size, cb_ping) < 0);
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();
