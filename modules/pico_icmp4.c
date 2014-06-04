@@ -344,7 +344,7 @@ int pico_icmp4_ping_abort(int id)
     {
         struct pico_icmp4_ping_cookie *ck = 
            (struct pico_icmp4_ping_cookie *) node->keyValue;
-        if (ck->id == id) {
+        if (ck->id == (uint16_t)id) {
             ck->err = PICO_PING_ERR_ABORTED;
             found++;
         }
