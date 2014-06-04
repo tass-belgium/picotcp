@@ -184,7 +184,11 @@ static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time
         return NULL;
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;
+    t->type = type;
     pico_timer_add(time, pico_dhcp_client_timer_handler, t);
+    if (ck->timer[type]) {
+        ck->timer[type]->state = DHCP_CLIENT_TIMER_STOPPED;
+    }
     ck->timer[type] = t;
     return t;
 }
@@ -317,6 +321,7 @@ static void pico_dhcp_client_start_rebinding_timer(struct pico_dhcp_client_cooki
 
 static void pico_dhcp_client_start_reacquisition_timers(struct pico_dhcp_client_cookie *dhcpc)
 {
+
     pico_dhcp_client_stop_timers(dhcpc);
     pico_dhcp_timer_add(PICO_DHCPC_TIMER_T1, dhcpc->t1_time * 1000, dhcpc);
     pico_dhcp_timer_add(PICO_DHCPC_TIMER_T2, dhcpc->t2_time * 1000, dhcpc);
@@ -742,6 +747,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
     };
     struct pico_dhcp_hdr *hdr = NULL;
 
+
     /* Set again default route for the bcast request */
     pico_ipv4_route_set_bcast_link(pico_ipv4_link_by_dev(dhcpc->dev));
 
@@ -761,7 +767,6 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
         break;
 
     case PICO_DHCP_MSG_REQUEST:
-        dhcpc_dbg("DHCP client: sent DHCPREQUEST\n");
         optlen = PICO_DHCP_OPTLEN_MSGTYPE + PICO_DHCP_OPTLEN_MAXMSGSIZE + PICO_DHCP_OPTLEN_PARAMLIST + PICO_DHCP_OPTLEN_REQIP + PICO_DHCP_OPTLEN_SERVERID
                  + PICO_DHCP_OPTLEN_END;
         hdr = PICO_ZALLOC(sizeof(struct pico_dhcp_hdr) + optlen);
