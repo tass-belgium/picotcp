@@ -806,6 +806,21 @@ static int ipv4_route_compare(void *ka, void *kb)
     return 0;
 }
 
+
+static struct pico_ipv4_route default_bcast_route = {
+    .dest = {PICO_IP4_BCAST},
+    .netmask = {PICO_IP4_BCAST},
+    .gateway  = { 0 },
+    .link = NULL,
+    .metric = 1000
+};
+
+static struct pico_ipv4_route *route_find_default_bcast(void)
+{
+    return &default_bcast_route;
+}
+
+
 static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
 {
     struct pico_ipv4_route *r;
@@ -819,21 +834,9 @@ static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
                 return r;
             }
         }
+        return NULL;
     }
-    else
-    {
-        r = pico_tree_first(&Routes);
-        if(!r->netmask.addr)
-        {
-            return r;
-        }
-        else
-        {
-            dbg("WARNING: no default route for a global broadcast found\n");
-        }
-    }
-
-    return NULL;
+    return route_find_default_bcast();
 }
 
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
@@ -867,7 +870,7 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     }
 
     rt = route_find(dst);
-    if (rt) {
+    if (rt && rt->link) {
         myself = &rt->link->address;
     } else
         pico_err = PICO_ERR_EHOSTUNREACH;
@@ -1398,7 +1401,6 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
     /** XXX: Valid netmask / unicast address test **/
 
     if(pico_tree_findKey(&Tree_dev_link, &test)) {
-        dbg("IPv4: Trying to assign an invalid address (in use)\n");
         pico_err = PICO_ERR_EADDRINUSE;
         return -1;
     }
@@ -1466,6 +1468,12 @@ static int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
             pico_ipv4_route_del(route->dest, route->netmask, (int)route->metric);
     }
     return 0;
+}
+
+void pico_ipv4_route_set_bcast_link(struct pico_ipv4_link *link)
+{
+    if (link)
+        default_bcast_route.link = link;
 }
 
 int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
@@ -1584,7 +1592,6 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
 
     return found->dev;
 }
-
 
 
 static int pico_ipv4_rebound_large(struct pico_frame *f)
