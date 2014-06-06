@@ -284,6 +284,7 @@ static void ping_recv_reply(struct pico_frame *f)
         struct pico_icmp4_stats stats;
         if (cookie->err == PICO_PING_ERR_ABORTED)
             return;
+
         cookie->err = PICO_PING_ERR_REPLIED;
         stats.dst = ((struct pico_ipv4_hdr *)f->net_hdr)->src;
         stats.seq = cookie->seq;
@@ -342,8 +343,8 @@ int pico_icmp4_ping_abort(int id)
     int found = 0;
     pico_tree_foreach(node, &Pings)
     {
-        struct pico_icmp4_ping_cookie *ck = 
-           (struct pico_icmp4_ping_cookie *) node->keyValue;
+        struct pico_icmp4_ping_cookie *ck =
+            (struct pico_icmp4_ping_cookie *) node->keyValue;
         if (ck->id == (uint16_t)id) {
             ck->err = PICO_PING_ERR_ABORTED;
             found++;
@@ -351,6 +352,7 @@ int pico_icmp4_ping_abort(int id)
     }
     if (found > 0)
         return 0; /* OK if at least one pending ping has been canceled */
+
     pico_err = PICO_ERR_ENOENT;
     return -1;
 }

@@ -1775,6 +1775,7 @@ void ping_abort_timer(pico_time now, void *_id)
     printf("Ping: aborting...\n");
     if (!IPV6_MODE)
         pico_icmp4_ping_abort(*id);
+
 #ifdef PICO_SUPPORT_IPV6
     else
         pico_icmp6_ping_abort(*id);
@@ -1802,6 +1803,7 @@ void app_ping(char *arg)
                 fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]\n");
                 exit(255);
             }
+
             printf("Aborting ping after %d seconds\n", timeout);
         }
     }

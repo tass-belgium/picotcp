@@ -836,6 +836,7 @@ static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
         }
         return NULL;
     }
+
     return route_find_default_bcast();
 }
 

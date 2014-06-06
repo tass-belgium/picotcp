@@ -445,6 +445,7 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
     if (pico_tree_findKey(&IPV6Pings, cookie)) {
         if (cookie->err == PICO_PING6_ERR_ABORTED)
             return;
+
         if (cookie->seq < (uint16_t)cookie->count) {
             new = PICO_ZALLOC(sizeof(struct pico_icmp6_ping_cookie));
             if (!new) {
@@ -478,6 +479,7 @@ static void pico_icmp6_ping_recv_reply(struct pico_frame *f)
         };
         if (cookie->err == PICO_PING6_ERR_ABORTED)
             return;
+
         cookie->err = PICO_PING6_ERR_REPLIED;
         stats.dst = cookie->dst;
         stats.seq = cookie->seq;
@@ -534,8 +536,8 @@ int pico_icmp6_ping_abort(int id)
     int found = 0;
     pico_tree_foreach(node, &IPV6Pings)
     {
-        struct pico_icmp6_ping_cookie *ck = 
-           (struct pico_icmp6_ping_cookie *) node->keyValue;
+        struct pico_icmp6_ping_cookie *ck =
+            (struct pico_icmp6_ping_cookie *) node->keyValue;
         if (ck->id == (uint16_t)id) {
             ck->err = PICO_PING6_ERR_ABORTED;
             found++;
@@ -543,6 +545,7 @@ int pico_icmp6_ping_abort(int id)
     }
     if (found > 0)
         return 0; /* OK if at least one pending ping has been canceled */
+
     pico_err = PICO_ERR_ENOENT;
     return -1;
 }
