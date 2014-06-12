@@ -505,6 +505,7 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     struct pico_ip4 address = {
         0
     };
+    struct pico_ip4 any_address = { 0 };
 
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
@@ -525,6 +526,11 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     dbg("DHCP client: renewal time (T1) %u\n", dhcpc->t1_time);
     dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->t2_time);
     dbg("DHCP client: lease time %u\n", dhcpc->lease_time);
+
+    /* If router option is received, use it as default gateway */
+    if (dhcpc->gateway.addr != 0U) {
+        pico_ipv4_route_add(any_address, any_address, dhcpc->gateway, 1, NULL);
+    }
 
     dhcpc->retry = 0;
     dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
