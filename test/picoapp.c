@@ -1932,10 +1932,8 @@ void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
         dbg("DHCP client: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
         if (s->seq >= 3) {
             dbg("DHCP client: TEST SUCCESS!\n");
-            /*
             if (--dhcpclient_devices <= 0)
                 exit(0);
-                */
         }
     } else {
         dbg("DHCP client: ping %lu to %s error %d\n", s->seq, host, s->err);
