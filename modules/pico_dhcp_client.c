@@ -179,7 +179,9 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
 static void pico_dhcp_client_reinit(pico_time now, void *arg);
 static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
-    struct dhcp_client_timer *t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
+    struct dhcp_client_timer *t;
+
+    t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
     if (!t)
         return NULL;
 
@@ -226,6 +228,7 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
     struct pico_dhcp_client_cookie *dhcpc;
     (void) now;
 
+
     dhcpc = pico_dhcp_client_find_cookie(t->xid);
     if (dhcpc && dhcpc->timer) {
         if (t->state != DHCP_CLIENT_TIMER_STOPPED) {
@@ -239,14 +242,16 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
             }
         }
     }
-
     PICO_FREE(t);
 }
 
 static void pico_dhcp_client_timer_stop(struct pico_dhcp_client_cookie *dhcpc, int type)
 {
-    if (dhcpc->timer[type])
+    if (dhcpc->timer[type]) {
         dhcpc->timer[type]->state = DHCP_CLIENT_TIMER_STOPPED;
+        dhcpc->timer[type] = NULL;
+    }
+
 }
 
 
