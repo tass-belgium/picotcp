@@ -18,6 +18,7 @@
 #include "pico_olsr.h"
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
+#include "pico_tftp.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -2116,6 +2117,7 @@ void app_mdns(char *arg)
     }
 }
 #endif
+/*** END MDNS ***/
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
@@ -2168,6 +2170,7 @@ void app_sntp(char *servername)
         printf("Error in  sync\n");
 }
 #endif
+/*** END SNTP ***/
 
 void ping_callback_slaacv4(struct pico_icmp4_stats *s)
 {
@@ -2233,6 +2236,42 @@ void app_slaacv4(char *arg)
 
     pico_slaacv4_claimip(dev, slaacv4_cb);
 }
+/*** END SLAACv4 ***/
+
+/* TFTP */
+#ifdef PICO_SUPPORT_TFTP
+#define TFTP_MODE_RX 0
+#define TFTP_MODE_TX 1
+
+void app_tftp(char *arg)
+{
+    char *nxt;
+    char *mode;
+    int tftp_mode;
+    nxt = cpy_arg(&mode, arg);
+
+    if ((*mode == 't')) { /* TEST BENCH SEND MODE */
+        if (*mode == 't') {
+            tftp_mode = TFTP_MODE_TX;
+            printf("tftp> TX\n");
+        } else {
+            tftp_mode = TFTP_MODE_RX;
+            printf("tftp> RX\n");
+        }
+    }
+    if (tftp_mode == TFTP_MODE_TX)
+    {
+        pico_tftp_listen();
+
+    }
+
+
+
+}
+#endif
+/* END TFTP */
+
+
 
 /* NOOP */
 void app_noop(void)

@@ -35,6 +35,7 @@ IPFILTER?=1
 CRC?=1
 OLSR?=1
 SLAACV4?=1
+TFTP?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 
@@ -59,6 +60,10 @@ endif
 
 ifeq ($(PROFILE),1)
   CFLAGS+=-pg
+endif
+
+ifeq ($(TFTP),1)
+  MOD_OBJ+=$(LIBBASE)modules/pico_tftp.o
 endif
 
 
