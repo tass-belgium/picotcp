@@ -738,7 +738,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
 #ifdef PICO_SUPPORT_TCP
         (proto == PICO_PROTO_TCP) ||
 #endif
-#ifdef PICO_SUPPORT_TCP
+#ifdef PICO_SUPPORT_UDP
         (proto == PICO_PROTO_UDP) ||
 #endif
         0) {
