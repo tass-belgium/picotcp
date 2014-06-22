@@ -5,12 +5,6 @@
 
 
 
-#define PICO_TFTP_NONE  0
-#define PICO_TFTP_RRQ   1
-#define PICO_TFTP_WRQ   2
-#define PICO_TFTP_DATA  3
-#define PICO_TFTP_ACK   4
-#define TFTP_ERROR 5
 
 #define PICO_TFTP_STATE_IDLE        0
 #define PICO_TFTP_STATE_RX          1
@@ -108,7 +102,7 @@ static void tftp_send_ack(void)
     (void)pico_socket_sendto(pico_tftp_socket, dh, (int) sizeof(struct pico_tftp_err_hdr), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
 }
 
-static void tftp_send_rx_req(union pico_address *a, uint16_t port, char *filename)
+static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, uint16_t opcode)
 {
 #   define OCTET_STRSIZ 7U
     static const char octet[OCTET_STRSIZ] = { 0, 'o', 'c', 't', 'e', 't', 0 };
@@ -121,10 +115,20 @@ static void tftp_send_rx_req(union pico_address *a, uint16_t port, char *filenam
         return;
     }
     hdr = (struct pico_tftp_hdr *)buf;
-    hdr->opcode = short_be(PICO_TFTP_RRQ);
+    hdr->opcode = short_be(opcode);
     memcpy(buf + sizeof(struct pico_tftp_hdr), filename, len);
     memcpy(buf + sizeof(struct pico_tftp_hdr) + len, octet, OCTET_STRSIZ);
     (void)pico_socket_sendto(pico_tftp_socket, buf, (int)(sizeof(hdr) + OCTET_STRSIZ + len), a, port); 
+}
+
+static void tftp_send_rx_req(union pico_address *a, uint16_t port, char *filename)
+{
+    tftp_send_req(a, port, filename, PICO_TFTP_RRQ);
+}
+
+static void tftp_send_tx_req(union pico_address *a, uint16_t port, char *filename)
+{
+    tftp_send_req(a, port, filename, PICO_TFTP_WRQ);
 }
 
 static void tftp_send_error(union pico_address *a, uint16_t port, uint16_t errcode, const char *errmsg)
@@ -199,7 +203,7 @@ static void tftp_ack(uint8_t *block, uint32_t len, union pico_address *a, uint16
         return;
     }
     dh = (struct pico_tftp_data_hdr *)block;
-    if (dh->block != (pico_tftp_counter)) {
+    if (short_be(dh->block) != (pico_tftp_counter - 1)) {
         tftp_send_error(a, port, TFTP_ERR_EILL, "TFTP connection broken! (Packet loss?)");
         return;
     }
@@ -216,12 +220,14 @@ static void tftp_timeout(pico_time t)
 }
 static void tftp_req(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
 {
-
-    (void)block;
-    (void)len;
-    (void)a;
+    struct pico_tftp_hdr *hdr = (struct pico_tftp_hdr *)block;
+    int ret = -1;
     (void)port;
-
+    pico_tftp_endpoint_port = port;
+    if ((len > 0) && pico_tftp_listen_cb) {
+        ret = pico_tftp_listen_cb(a, short_be(hdr->opcode), block + sizeof(struct pico_tftp_hdr));
+    }
+    return ret;
 }
 
 static void tftp_data_err(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
@@ -331,7 +337,10 @@ static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t por
     union pico_address local;
 
     if (!port)
-        port = PICO_TFTP_PORT;
+        port = pico_tftp_endpoint_port;
+
+    if (!port)
+        port = short_be(PICO_TFTP_PORT);
 
     memset(&local, 0, sizeof(union pico_address));
     if (pico_tftp_socket) {
@@ -351,7 +360,6 @@ static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t por
 /* Active RX request from PicoTCP */
 int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, char *filename, int (*user_cb)(uint16_t err, uint8_t *block, uint32_t len))
 {
-
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
     }
@@ -359,27 +367,23 @@ int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, ch
     pico_tftp_state = PICO_TFTP_STATE_RX;
     pico_tftp_user_cb = user_cb;
     pico_tftp_counter = 0u;
-    if (pico_tftp_state == PICO_TFTP_STATE_LISTEN)
-        user_cb(PICO_TFTP_ERR_OK, NULL, 0);
-    else
-        tftp_send_rx_req(a, port, filename);
+    tftp_send_rx_req(a, port, filename);
     return 0;
 }
 
 int pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, char *filename, int (*user_cb)(uint16_t err, uint8_t *block, uint32_t len))
 {
-    (void)filename; /* TODO: Send request */
-
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
     }
     tftp_socket_open(family, a, port);
     pico_tftp_state = PICO_TFTP_STATE_TX;
     pico_tftp_user_cb = user_cb;
-    pico_tftp_counter = 0u;
-    if (pico_tftp_state == PICO_TFTP_STATE_LISTEN)
+    pico_tftp_counter = 1u;
+    if (pico_tftp_server_on) {
         user_cb(PICO_TFTP_ERR_OK, NULL, 0);
-    /* else: TODO: send active TX */
+    } else
+        tftp_send_tx_req(a, port, filename);
        
     return 0;
 }
@@ -391,7 +395,7 @@ int pico_tftp_send(const uint8_t *data, int len)
         pico_err = PICO_ERR_ENOTCONN;
         return -1;
     }
-    if (len <= 0) {
+    if (len < 0) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -426,6 +430,7 @@ void pico_tftp_close(void)
         pico_tftp_socket = NULL;
     }
     pico_tftp_server_on = 0;
+    pico_tftp_endpoint_port = 0u;
     pico_tftp_state = PICO_TFTP_STATE_IDLE;
     /* TODO: cancel timer */
 }

@@ -2234,8 +2234,42 @@ void app_slaacv4(char *arg)
 
 /* TFTP */
 #ifdef PICO_SUPPORT_TFTP
-#define TFTP_MODE_RX 0
-#define TFTP_MODE_TX 1
+#define TFTP_MODE_SRV 0
+#define TFTP_MODE_CLI 1
+#define TFTP_TX_COUNT 2000
+#define TFTP_PAYLOAD_SIZE 512
+unsigned char tftp_txbuf[TFTP_PAYLOAD_SIZE];
+
+int cb_tftp_tx(uint16_t err, uint8_t *block, uint32_t len)
+{
+    static int fd = -1;
+    static int count = 1;
+    (void)block;
+
+    if (fd == -1) {
+        fd = open("/dev/urandom", O_RDONLY);
+        if (fd < 0) {
+            perror("open");
+            exit(1);
+        }
+    }
+
+    if (err != PICO_TFTP_ERR_OK) {
+        printf("TFTP: Error %d: %s\n", err, block);
+        exit(1);
+    }
+    if (count++ == TFTP_TX_COUNT) {
+        len = 0;
+        close(fd);
+        pico_timer_add(2000, deferred_exit, NULL);
+    } else {
+        len = read(fd, tftp_txbuf, PICO_TFTP_SIZE);
+    }
+    if (len >= 0) {
+        pico_tftp_send(tftp_txbuf, len);
+    }
+    return len;
+}
 
 int cb_tftp(uint16_t err, uint8_t *block, uint32_t len)
 {
@@ -2261,9 +2295,32 @@ int cb_tftp(uint16_t err, uint8_t *block, uint32_t len)
     } else {
         printf("Received last block, size:%d. Transfer complete.\n", len);
         close(fd);
-        exit(0);
+        pico_timer_add(2000, deferred_exit, NULL);
     }
     return len;
+
+}
+
+int tftp_listen_cb(union pico_address *addr, uint16_t opcode, char *filename)
+{
+    printf("TFTP listen callback.\n");
+    if (opcode == PICO_TFTP_RRQ) {
+        printf("Received TFTP get request for %s\n", filename);
+        if(pico_tftp_start_tx(addr, 0, PICO_PROTO_IPV4, filename, cb_tftp_tx) < 0) {
+            fprintf(stderr, "TFTP: Error in initialization\n");
+            exit(1);
+        }
+    } else if (opcode == PICO_TFTP_WRQ) {
+        printf("Received TFTP put request for %s\n", filename);
+        if(pico_tftp_start_rx(addr, short_be(PICO_TFTP_PORT), PICO_PROTO_IPV4, filename, cb_tftp) < 0) {
+            fprintf(stderr, "TFTP: Error in initialization\n");
+            exit(1);
+        }
+    } else {
+        printf ("Received invalid TFTP request %d\n", opcode);
+        return -1;
+    }
+    return 0;
 
 }
 
@@ -2275,15 +2332,15 @@ void app_tftp(char *arg)
     struct pico_ip4 server;
     nxt = cpy_arg(&mode, arg);
 
-    if ((*mode == 't') || (*mode == 'r')) { /* TEST BENCH SEND MODE */
-        if (*mode == 't') {
-            tftp_mode = TFTP_MODE_TX;
-            printf("tftp> TX\n");
+    if ((*mode == 's') || (*mode == 'c')) { /* TEST BENCH SEND MODE */
+        if (*mode == 's') {
+            tftp_mode = TFTP_MODE_SRV;
+            printf("tftp> Server\n");
         } else {
-            tftp_mode = TFTP_MODE_RX;
-            printf("tftp> RX\n");
+            tftp_mode = TFTP_MODE_CLI;
+            printf("tftp> Client\n");
             if (!nxt) {
-                printf("Usage: tftp:rx:host:file:\n");
+                printf("Usage: tftp:client:host:file:\n");
                 exit(1);
             }
             nxt = cpy_arg(&addr, nxt);
@@ -2292,38 +2349,30 @@ void app_tftp(char *arg)
                 exit(1);
             }
             if (!nxt) {
-                printf("Usage: tftp:rx:host:file:\n");
+                printf("Usage: tftp:client:host:file:\n");
                 exit(1);
             }
             nxt = cpy_arg(&file, nxt);
         }
     } else {
         printf("Usage: tftp:tx|rx:...\n");
-
     }
 
        
     
-    /* TODO: server test  */
-    #if 0
-    if (tftp_mode == TFTP_MODE_TX)
+    if (tftp_mode == TFTP_MODE_SRV)
     {
-        pico_tftp_listen();
-    }
-    #endif
-    if (tftp_mode == TFTP_MODE_RX)
+        pico_tftp_listen(PICO_PROTO_IPV4, tftp_listen_cb);
+    } else if (tftp_mode == TFTP_MODE_CLI)
     {
         if(pico_tftp_start_rx(&server, short_be(PICO_TFTP_PORT), PICO_PROTO_IPV4, file, cb_tftp) < 0) {
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
 
+    } else {
+        printf("Usage: tftp:tx|rx:...\n");
     }
-
-
-
-
-
 }
 #endif
 /* END TFTP */
