@@ -210,6 +210,7 @@ int pico_icmp6_proto_unreachable(struct pico_frame *f);
 int pico_icmp6_dest_unreachable(struct pico_frame *f);
 int pico_icmp6_ttl_expired(struct pico_frame *f);
 int pico_icmp6_packet_filtered(struct pico_frame *f);
+int pico_icmp6_parameter_problem(struct pico_frame *f, uint16_t problem);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f);
 

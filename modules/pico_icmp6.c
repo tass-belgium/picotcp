@@ -199,6 +199,11 @@ int pico_icmp6_packet_filtered(struct pico_frame *f)
 }
 #endif
 
+int pico_icmp6_parameter_problem(struct pico_frame *f, uint16_t problem)
+{
+    return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem);
+}
+
 /* RFC 4861 $7.2.2: sending neighbor solicitations */
 int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type)
 {
