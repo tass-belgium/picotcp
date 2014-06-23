@@ -36,12 +36,12 @@
 #define PICO_ND_OPT_MTU                5
 
 /* advertisement flags */
-#define PICO_ND_ROUTER_BIT             31u
-#define PICO_ND_SOLICITED_BIT          30u
-#define PICO_ND_OVERRIDE_BIT           29u
-#define IS_ROUTER(x) (long_be(x->msg.info.neigh_adv.rsor) & (1u << PICO_ND_ROUTER_BIT)) /* router flag set? */
-#define IS_SOLICITED(x) (long_be(x->msg.info.neigh_adv.rsor) & (1u << PICO_ND_SOLICITED_BIT)) /* solicited flag set? */
-#define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (1u << PICO_ND_OVERRIDE_BIT)) /* override flag set? */
+#define PICO_ND_ROUTER             0x80000000
+#define PICO_ND_SOLICITED          0x40000000
+#define PICO_ND_OVERRIDE           0x20000000
+#define IS_ROUTER(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_ROUTER))           /* router flag set? */
+#define IS_SOLICITED(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_SOLICITED))     /* solicited flag set? */
+#define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
 
 #define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
 #define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
