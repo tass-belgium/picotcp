@@ -40,6 +40,8 @@
 #define PICO_TCP_UNREACHABLE    0x05
 #define PICO_TCP_WINDOW_FULL    0x06
 
+#define ONE_GIGABYTE ((uint32_t)(1024UL * 1024UL * 1024UL))
+
 /* check if the Nagle algorithm is enabled on the socket */
 #define IS_NAGLE_ENABLED(s)     (!(!(!(s->opt_flags & (1u << PICO_SOCKET_OPT_TCPNODELAY)))))
 /* check if tcp connection is "idle" according to Nagle (RFC 896) */
@@ -677,7 +679,7 @@ static void tcp_set_space(struct pico_socket_tcp *t)
     uint32_t shift = 0;
 
     if (t->tcpq_in.max_size == 0) {
-        space = 1024 * 1024 * 1024; /* One Gigabyte, for unlimited sockets. */
+        space = ONE_GIGABYTE;
     } else {
         space = (int32_t)(t->tcpq_in.max_size - t->tcpq_in.size);
     }
