@@ -68,7 +68,12 @@ endif
 
 ifneq ($(RTOS),0)
   CFLAGS+=-DPICO_SUPPORT_RTOS
-  OPTIONS+=-DPICO_SUPPORT_RTOS
+endif
+
+ifeq ($(ARCH),stm32f4xx)
+  CFLAGS+=-mcpu=cortex-m4 \
+  -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
 endif
 
 ifeq ($(ARCH),stm32)
