@@ -199,7 +199,7 @@ int pico_icmp6_packet_filtered(struct pico_frame *f)
 }
 #endif
 
-int pico_icmp6_parameter_problem(struct pico_frame *f, uint16_t problem)
+int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem)
 {
     return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem);
 }
