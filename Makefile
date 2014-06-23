@@ -102,6 +102,15 @@ ifeq ($(ARCH),stm32-softfloat)
   -DSTM32
 endif
 
+
+ifeq ($(ARCH),stm32f1xx)
+  CFLAGS+=-mcpu=cortex-m3 \
+	-mthumb -mlittle-endian \
+	-mthumb-interwork \
+	-DSTM32F1
+endif
+
+
 ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif
