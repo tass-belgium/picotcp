@@ -598,18 +598,24 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
 
             break;
         case PICO_IPV6_EXTHDR_ESP:
-            /* not supported */
-            return -1;
+            /* not supported, ignored. */
+            return 0;
         case PICO_IPV6_EXTHDR_AUTH:
-            /* not supported */
-            return -1;
+            /* not supported, ignored */
+            return 0;
         case PICO_IPV6_EXTHDR_NONE:
             /* no next header */
-            return -1;
-        default:
+            return 0;
+
+        case PICO_PROTO_TCP:
+        case PICO_PROTO_UDP:
+        case PICO_PROTO_ICMP6:
             f->transport_hdr = f->net_hdr + f->net_len;
             f->transport_len = (uint16_t)(short_be(hdr->len) - (f->net_len - sizeof(struct pico_ipv6_hdr)));
             return nxthdr;
+        default:
+            pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT);
+            return -1;
         }
         nxthdr = exthdr->nxthdr;
     }
@@ -623,7 +629,7 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     IGNORE_PARAMETER(self);
 
     proto = pico_ipv6_extension_headers(f);
-    if (proto < 0) {
+    if (proto <= 0) {
         pico_frame_discard(f);
         return 0;
     }
@@ -631,7 +637,6 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     f->proto = (uint8_t)proto;
     ipv6_dbg("IPv6: payload %u net_len %u nxthdr %u\n", short_be(hdr->len), f->net_len, proto);
 
-    /* XXX: IPV6 filter implementation */
 
     if (0) {
     } else if (pico_ipv6_is_unicast(&hdr->dst)) {
