@@ -161,7 +161,12 @@ static void tftp_send_data(const uint8_t *data, uint32_t len)
     (void)pico_socket_sendto(pico_tftp_socket, dh, (int) (len + sizeof(struct pico_tftp_err_hdr)), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
 }
 
-
+static void eval_finish(uint32_t len)
+{
+    if (len < PICO_TFTP_BLOCK_SIZE) {
+        tftp_finish();
+    }
+}
 
 static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
 {
@@ -187,9 +192,7 @@ static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint1
         if ((pico_tftp_user_cb) && (pico_tftp_user_cb(PICO_TFTP_ERR_OK, tftp_payload(block), payload_len) >= 0)) {
             tftp_send_ack();
         }
-        if (len < PICO_TFTP_BLOCK_SIZE) {
-            tftp_finish();
-        }
+        eval_finish(len);
     }
     /*  TODO: postpone timer */
 }
@@ -221,13 +224,11 @@ static void tftp_timeout(pico_time t)
 static void tftp_req(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
 {
     struct pico_tftp_hdr *hdr = (struct pico_tftp_hdr *)block;
-    int ret = -1;
     (void)port;
     pico_tftp_endpoint_port = port;
     if ((len > 0) && pico_tftp_listen_cb) {
-        ret = pico_tftp_listen_cb(a, short_be(hdr->opcode), block + sizeof(struct pico_tftp_hdr));
+        (void)pico_tftp_listen_cb(a, short_be(hdr->opcode), (char *)(block + sizeof(struct pico_tftp_hdr)));
     }
-    return ret;
 }
 
 static void tftp_data_err(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
