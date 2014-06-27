@@ -48,6 +48,43 @@ START_TEST(tc_pico_nd_new_expire_time)
 
 }
 END_TEST
+START_TEST(tc_pico_nd_queue)
+{
+    struct pico_ip6 addr = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9 };
+    int i;
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
+    struct pico_ipv6_hdr *h = (struct pico_ipv6_hdr *) f->buffer;
+    f->net_hdr = h;
+    f->buffer[0] = 0x60; /* Ipv6 */
+    memcpy(h->dst.addr, addr.addr, PICO_SIZE_IP6);
+
+    fail_if(!f);
+
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
+    pico_ipv6_nd_unreachable(&addr);
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
+
+    pico_ipv6_nd_postpone(f);
+    fail_if(frames_queued_v6[0] != f);
+    pico_ipv6_nd_postpone(f);
+    fail_if(frames_queued_v6[1] != f);
+    pico_ipv6_nd_postpone(f);
+    fail_if(frames_queued_v6[2] != f);
+
+    /*
+    pico_ipv6_nd_unreachable(&addr);
+
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
+    */
+}
+END_TEST
+
 START_TEST(tc_pico_nd_new_expire_state)
 {
     struct pico_ipv6_neighbor n = {
@@ -214,6 +251,8 @@ Suite *pico_suite(void)
     TCase *TCase_pico_nd_neigh_adv_recv = tcase_create("Unit test for pico_nd_neigh_adv_recv");
     TCase *TCase_pico_nd_redirect_recv = tcase_create("Unit test for pico_nd_redirect_recv");
     TCase *TCase_pico_ipv6_nd_timer_callback = tcase_create("Unit test for pico_ipv6_nd_timer_callback");
+    TCase *TCase_pico_nd_queue = tcase_create("Unit test for pico_ipv6_nd: queue for pending frames");
+
 
     tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
     suite_add_tcase(s, TCase_pico_nd_new_expire_time);
@@ -263,6 +302,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_nd_redirect_recv);
     tcase_add_test(TCase_pico_ipv6_nd_timer_callback, tc_pico_ipv6_nd_timer_callback);
     suite_add_tcase(s, TCase_pico_ipv6_nd_timer_callback);
+    tcase_add_test(TCase_pico_nd_queue, tc_pico_nd_queue);
+    suite_add_tcase(s, TCase_pico_nd_queue);
     return s;
 }
 
