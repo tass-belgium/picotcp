@@ -69,6 +69,35 @@ START_TEST (arp_expire_test)
 }
 END_TEST
 
+START_TEST(tc_pico_arp_queue)
+{
+    struct pico_ip4 addr = { .addr = 0xaabbccdd };
+    int i;
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
+    struct pico_ipv4_hdr *h = (struct pico_ipv4_hdr *) f->buffer;
+    fail_if(!f);
+    f->net_hdr = h;
+    h->dst.addr = addr.addr;
+
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued[i] != NULL);
+    }
+    pico_arp_unreachable(&addr);
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued[i] != NULL);
+    }
+
+    pico_arp_postpone(f);
+    fail_if(frames_queued[0] != f);
+    pico_arp_postpone(f);
+    fail_if(frames_queued[1] != f);
+    pico_arp_postpone(f);
+    fail_if(frames_queued[2] != f);
+}
+END_TEST
+
+
+
 START_TEST (arp_receive_test)
 {
     struct mock_device *mock;
