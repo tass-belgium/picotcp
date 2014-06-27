@@ -252,12 +252,12 @@ int pico_source_is_local(struct pico_frame *f)
 #endif
 #ifdef PICO_SUPPORT_IPV6
     else if (IS_IPV6(f)) {
-        /* XXX */
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+        if (pico_ipv6_is_unspecified(hdr->src.addr) || pico_ipv6_link_find(&hdr->src))
+            return 1;
     }
 #endif
     return 0;
-
-
 }
 
 
@@ -450,10 +450,14 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
     if (*ret <= 0)
         return 0;
     else {
-        pico_frame_discard(f);
+        pico_frame_discard(f); 
         return 1;
     }
 }
+
+/* This function looks for the destination mac address
+ * in order to send the frame being processed.
+ */
 
 int32_t pico_ethernet_send(struct pico_frame *f)
 {
@@ -461,30 +465,48 @@ int32_t pico_ethernet_send(struct pico_frame *f)
     int ret = -1;
     uint16_t proto = PICO_IDETH_IPV4;
 
+
+
+#ifdef PICO_SUPPORT_IPV6
+    /* Step 1: If the frame has an IPv6 packet, 
+     * destination address is taken from the ND tables
+     */ 
     if (IS_IPV6(f)) {
         dstmac = pico_ethernet_ipv6_dst(f);
-        if (!dstmac)
+        if (!dstmac) {
+            /* When the dest mac is not available, frame is postponed. 
+             * ND is handling it now. No need to discard. */
+            pico_ipv6_nd_postpone(f);
             return 0;
-
+        }
         proto = PICO_IDETH_IPV6;
     }
+    else 
+#endif
 
-    else if (IS_BCAST(f) || destination_is_bcast(f))
+    /* In case of broadcast (IPV4 only), dst mac is FF:FF:... */
+    if (IS_BCAST(f) || destination_is_bcast(f))
         dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
 
+    /* In case of multicast, dst mac is translated from the group address */
     else if (destination_is_mcast(f)) {
         uint8_t pico_mcast_mac[6] = {
             0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
         };
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
-    else {
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
+    else {
         dstmac = pico_arp_get(f);
-        if (!dstmac)
-#endif
-        return 0;
+        /* At this point, ARP will discard the frame in any case.
+         * It is safe to return without discarding.
+         */
+        if (!dstmac) {
+            pico_arp_postpone(f);
+            return 0;
+        }
     }
+#endif
 
     /* This sets destination and source address, then pushes the packet to the device. */
     if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
@@ -498,12 +520,14 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr->proto = proto;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
-            return (int32_t)ret;
-        } else {
-            return -1;
+            /* one of the above functions has disposed of the frame accordingly. (returned != 0)
+             * It is safe to directly return the number of bytes processed here. 
+             * */
+            return (int32_t)ret;         
         }
     }
-
+    /* In all other cases,  it's up to us to get rid of the frame. */
+    pico_frame_discard(f);
     return -1;
 }
 

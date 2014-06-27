@@ -230,27 +230,13 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 
     int ret;
     if (dev->eth) {
-        ret = pico_ethernet_send(f);
-        if (0 <= ret) {
-            return -1;
-        } else {
-            if (!pico_source_is_local(f)) {
-                dbg("Destination unreachable -------> SEND ICMP\n");
-                pico_notify_dest_unreachable(f);
-            } else {
-                dbg("Destination unreachable -------> LOCAL\n");
-            }
-
-            pico_frame_discard(f);
-            return 1;
-        }
+        /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
+        return pico_ethernet_send(f);
     } else {
         /* non-ethernet */
-        if (dev->send(dev, f->start, (int)f->len) <= 0)
-            return -1;
-
+        ret = dev->send(dev, f->start, (int)f->len);
         pico_frame_discard(f);
-        return 1;
+        return ret;
     }
 }
 

@@ -18,6 +18,7 @@
 extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
 #define PICO_ARP_RETRY 300lu
+#define PICO_ARP_MAX_PENDING 5
 
 #ifdef DEBUG_ARP
     #define arp_dbg dbg
@@ -25,24 +26,21 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
     #define arp_dbg(...) do {} while(0)
 #endif
 
-static struct pico_queue pending;
-static int pending_timer_on = 0;
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
+static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { };
 
-
-static void check_pending(pico_time now, void *_unused)
+static void pico_arp_queued_trigger(void)
 {
-    struct pico_frame *f = pico_dequeue(&pending);
-    IGNORE_PARAMETER(now);
-    IGNORE_PARAMETER(_unused);
-    if (!f) {
-        pending_timer_on = 0;
-        return;
+    int i;
+    struct pico_frame *f;
+    for (i = 0; i < PICO_ARP_MAX_PENDING; i++) 
+    {
+        f = frames_queued[i];
+        if (f) {
+            pico_ethernet_send(f);
+            frames_queued[i] = NULL;
+        }
     }
-
-    pico_ethernet_send(f);
-
-    pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
 }
 
 static void update_max_arp_reqs(pico_time now, void *unused)
@@ -148,21 +146,39 @@ struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst)
     return NULL;
 }
 
+static void pico_arp_unreachable(struct pico_ip4 *a)
+{   
+    int i;
+    struct pico_frame *f;
+    struct pico_ipv4_hdr *hdr;
+    struct pico_ip4 dst;
+    for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
+    {
+        f = frames_queued[i];
+        if (f) {
+            hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+            dst = pico_ipv4_route_get_gateway(&hdr->dst);
+            if (!dst.addr)
+                dst.addr = hdr->dst.addr;
+            if (dst.addr ==  a->addr) {
+                if (!pico_source_is_local(f)) {
+                    pico_notify_dest_unreachable(f);
+                }
+                pico_frame_discard(f);
+                frames_queued[i] = NULL;
+            }
+        }
+    }
+}
+
 void pico_arp_retry(struct pico_frame *f, struct pico_ip4 *where)
 {
     if (++f->failure_count < 4) {
         arp_dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
         /* check if dst is local (gateway = 0), or if to use gateway */
         pico_arp_request(f->dev, where, PICO_ARP_QUERY);
-        pico_enqueue(&pending, f);
-        if (!pending_timer_on) {
-            pending_timer_on++;
-            pico_timer_add(PICO_ARP_RETRY, &check_pending, NULL);
-        }
     } else {
-        dbg("ARP: Destination Unreachable\n");
-        pico_notify_dest_unreachable(f);
-        pico_frame_discard(f);
+        pico_arp_unreachable(where);
     }
 }
 
@@ -196,6 +212,22 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
 
     return a4;
 }
+
+
+void pico_arp_postpone(struct pico_frame *f)
+{
+    int i;
+    for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
+    {
+        if (!frames_queued[i]) {
+            frames_queued[i] = f;
+            return;
+        }
+    }
+    /* Not possible to enqueue: discard packet */
+    pico_frame_discard(f);
+}
+
 
 #ifdef DEBUG_ARP
 void dbg_arp(void)
@@ -231,6 +263,7 @@ static void pico_arp_add_entry(struct pico_arp *entry)
 
     pico_tree_insert(&arp_tree, entry);
     arp_dbg("ARP ## reachable.\n");
+    pico_arp_queued_trigger();
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
 }
 

@@ -8,38 +8,6 @@ static struct pico_frame *init_frame(struct pico_device *dev)
     return f;
 }
 
-START_TEST (arp_check_pending_test)
-{
-    struct pico_frame *f = NULL;
-    struct mock_device *mock;
-    uint8_t macaddr[6] = {
-        0, 0, 0, 0xa, 0xb, 0xf
-    };
-    struct pico_ip4 netmask = {
-        .addr = long_be(0xffffff00)
-    };
-    struct pico_ip4 ip = {
-        .addr = long_be(0x0A28000A)
-    };
-
-    mock = pico_mock_create(macaddr);
-    fail_if(!mock, "MOCK DEVICE creation failed");
-    fail_if(pico_ipv4_link_add(mock->dev, ip, netmask), "add link to mock device failed");
-
-    pico_stack_init();
-    pending_timer_on = 1;
-    check_pending(0, NULL);
-    fail_unless(pending_timer_on == 0);
-
-    f = init_frame(mock->dev);
-    fail_if(!f, "FRAME INIT failed");
-    pico_enqueue(&pending, f);
-    pending_timer_on = 1;
-    check_pending(0, NULL);
-    fail_unless(pending_timer_on == 1);
-}
-END_TEST
-
 START_TEST (arp_update_max_arp_reqs_test)
 {
     pico_stack_init();
