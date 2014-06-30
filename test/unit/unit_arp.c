@@ -89,10 +89,10 @@ START_TEST(tc_pico_arp_queue)
 
     pico_arp_postpone(f);
     fail_if(frames_queued[0] != f);
-    pico_arp_postpone(f);
-    fail_if(frames_queued[1] != f);
-    pico_arp_postpone(f);
-    fail_if(frames_queued[2] != f);
+    pico_arp_unreachable(&addr);
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued[i] != NULL);
+    }
 }
 END_TEST
 
