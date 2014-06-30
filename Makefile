@@ -67,7 +67,7 @@ ifneq ($(ENDIAN),little)
 endif
 
 ifneq ($(RTOS),0)
-  CFLAGS+=-DPICO_SUPPORT_RTOS
+  OPTIONS+=-DPICO_SUPPORT_RTOS
 endif
 
 ifeq ($(ARCH),stm32f4xx)
