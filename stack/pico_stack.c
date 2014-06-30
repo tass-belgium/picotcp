@@ -459,7 +459,7 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
  * in order to send the frame being processed.
  */
 
-int32_t pico_ethernet_send(struct pico_frame *f)
+int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
     int ret = -1;

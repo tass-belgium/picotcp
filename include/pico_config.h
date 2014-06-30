@@ -20,6 +20,14 @@
 #   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
 #endif
 
+
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
+#endif
+
 #include "pico_constants.h"
 #include "pico_mm.h"
 
