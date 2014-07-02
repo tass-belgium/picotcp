@@ -261,6 +261,8 @@ static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_op
         return -1;
 
     memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
+    n->state = PICO_ND_STATE_REACHABLE;
+    pico_ipv6_nd_queued_trigger();
     return 0;
 }
 
@@ -406,29 +408,50 @@ static int neigh_adv_mcast_validity_check(struct pico_frame *f)
     return 0;
 }
 
-static int neigh_sol_mcast_validity_check(struct pico_frame *f)
-{
-    /* Step 3 validation */
-    struct pico_ipv6_hdr *ipv6_hdr = NULL;
-    ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    if (pico_ipv6_is_unspecified(ipv6_hdr->src.addr) && !pico_ipv6_is_solicited(ipv6_hdr->dst.addr))
-        return -1;
-
-    return 0;
-}
-
 static int neigh_adv_validity_checks(struct pico_frame *f)
 {
     /* Step 2 validation */
-    struct pico_icmp6_hdr *icmp6_hdr = NULL;
     if (f->transport_len < PICO_ICMP6HDR_NEIGH_SOL_SIZE)
         return -1;
 
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr))
-        return -1;
+    return neigh_adv_mcast_validity_check(f);
+}
 
-    return neigh_sol_mcast_validity_check(f);
+static int neigh_sol_mcast_validity_check(struct pico_frame *f)
+{
+    struct pico_ipv6_link *link;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    link = pico_ipv6_link_by_dev(f->dev);
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    while(link) {
+        if (pico_ipv6_is_linklocal(link->address.addr)) {
+            int i, match = 0;
+            for(i = 13; i < 16; i++) {
+                if (icmp6_hdr->msg.info.neigh_sol.target.addr[i] == link->address.addr[i])
+                    ++match;
+            }
+            /* Solicitation: last 3 bytes match a local address. */
+            if (match == 3)
+                return 0;
+        }
+        link = pico_ipv6_link_by_dev_next(f->dev, link);
+    }
+    return -1;
+}
+
+static int neigh_sol_unicast_validity_check(struct pico_frame *f)
+{
+    struct pico_ipv6_link *link;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    link = pico_ipv6_link_by_dev(f->dev);
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    while(link) {
+        if (pico_ipv6_compare(&link->address, &icmp6_hdr->msg.info.neigh_sol.target) == 0)
+            return 0;
+        link = pico_ipv6_link_by_dev_next(f->dev, link);
+    }
+    return -1;
+
 }
 
 static int neigh_sol_validity_checks(struct pico_frame *f)
@@ -440,9 +463,9 @@ static int neigh_sol_validity_checks(struct pico_frame *f)
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr))
-        return -1;
+        return neigh_sol_mcast_validity_check(f);
 
-    return neigh_adv_mcast_validity_check(f);
+    return neigh_sol_unicast_validity_check(f);
 }
 
 static int neigh_adv_checks(struct pico_frame *f)
