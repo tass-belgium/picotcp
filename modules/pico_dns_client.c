@@ -27,10 +27,6 @@
 #define PICO_DNS_CLIENT_RETRANS 4000
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
-/* Default nameservers + port */
-#define PICO_DNS_NS_DEFAULT "208.67.222.222"
-#define PICO_DNS_NS_PORT 53
-
 /* FLAG values */
 #define PICO_DNS_QR_QUERY 0
 #define PICO_DNS_QR_RESPONSE 1

@@ -43,6 +43,11 @@
 #define STRLEN_PTR_IP6 63
 #endif
 
+/* Default nameservers + port */
+#define PICO_DNS_NS_DEFAULT "208.67.222.222"
+#define PICO_DNS_NS_PORT 53
+
+
 /* flags splitted in 2x uint8 due to endianness */
 PACKED_STRUCT_DEF pico_dns_header
 {
