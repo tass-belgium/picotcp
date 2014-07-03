@@ -10,6 +10,7 @@ START_TEST (test_socket)
 
     int getnodelay = -1;
     int nodelay = -1;
+    int count = 0;
 
     uint32_t getsocket_buffer = 0;
     uint32_t socket_buffer = 0;
@@ -47,6 +48,7 @@ START_TEST (test_socket)
     sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
     fail_if(sk_tcp == NULL, "socket> tcp socket open failed");
 
+
     port_be = short_be(5555);
     /* socket_bind passing wrong parameters */
     ret = pico_socket_bind(NULL, &inaddr_link, &port_be);
@@ -67,11 +69,23 @@ START_TEST (test_socket)
     /* socket_bind passing correct parameters */
     ret = pico_socket_bind(sk_tcp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> tcp socket bind failed");
+    count = pico_count_sockets(PICO_PROTO_TCP);
+    printf("Count: %d\n", count);
+    fail_unless(count == 1);
+    count = pico_count_sockets(0);
+    printf("Count: %d\n", count);
+    fail_unless(count == 1);
+    
     sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
     fail_if(sk_udp == NULL, "socket> udp socket open failed");
+
     port_be = short_be(5555);
     ret = pico_socket_bind(sk_udp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> udp socket bind failed");
+
+    fail_if (pico_count_sockets(PICO_PROTO_UDP) != 1);
+    fail_if (pico_count_sockets(0) != 2);
+
 
     ret = pico_socket_getname(sk_udp, &inaddr_got, &port_got, &proto);
     fail_if(ret < 0, "socket> udp socket getname failed");

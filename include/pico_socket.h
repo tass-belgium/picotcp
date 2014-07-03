@@ -247,6 +247,8 @@ struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port);
 uint16_t pico_socket_get_mtu(struct pico_socket *s);
 int pico_socket_set_family(struct pico_socket *s, uint16_t family);
 
+int pico_count_sockets(uint8_t proto);
+
 #define PICO_SOCKET_SETOPT_EN(socket, index)  (socket->opt_flags |=  (1 << index))
 #define PICO_SOCKET_SETOPT_DIS(socket, index) (socket->opt_flags &= (uint16_t) ~(1 << index))
 #define PICO_SOCKET_GETOPT(socket, index) ((socket->opt_flags & (1u << index)) != 0)

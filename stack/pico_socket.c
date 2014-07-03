@@ -1910,6 +1910,33 @@ int pico_sockets_loop(int loop_score)
     return loop_score;
 }
 
+int pico_count_sockets(uint8_t proto)
+{
+    struct pico_sockport *sp;
+    struct pico_tree_node *idx_sp, *idx_s;
+    int count = 0;
+
+    if ((proto == 0) || (proto == PICO_PROTO_TCP)) {
+        pico_tree_foreach(idx_sp, &TCPTable) {
+            sp = idx_sp->keyValue;
+            if (sp) {
+                pico_tree_foreach(idx_s, &sp->socks)
+                    count++;
+            }
+        }
+    }
+    if ((proto == 0) || (proto == PICO_PROTO_UDP)) {
+        pico_tree_foreach(idx_sp, &UDPTable) {
+            sp = idx_sp->keyValue;
+            if (sp) {
+                pico_tree_foreach(idx_s, &sp->socks)
+                    count++;
+            }
+        }
+    }
+    return count;
+}
+
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len)
 {
