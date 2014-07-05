@@ -1208,7 +1208,7 @@ static void pico_socket_sendto_set_dport(struct pico_socket *s, uint16_t port)
 }
 
 
-int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
+int MOCKABLE pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
     struct pico_remote_endpoint *remote_endpoint = NULL;
     void *src = NULL;
@@ -1668,7 +1668,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     return 0;
 }
 
-int pico_socket_close(struct pico_socket *s)
+int MOCKABLE pico_socket_close(struct pico_socket *s)
 {
     if (!s)
         return -1;

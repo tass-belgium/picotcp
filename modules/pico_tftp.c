@@ -3,9 +3,6 @@
 #include <pico_socket.h>
 #include <pico_tftp.h>
 
-
-
-
 #define PICO_TFTP_STATE_IDLE        0
 #define PICO_TFTP_STATE_RX          1
 #define PICO_TFTP_STATE_TX          2
@@ -99,7 +96,8 @@ static void tftp_send_ack(void)
         return;
     dh->opcode = short_be(PICO_TFTP_ACK);
     dh->block = short_be(pico_tftp_counter);
-    (void)pico_socket_sendto(pico_tftp_socket, dh, (int) sizeof(struct pico_tftp_err_hdr), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
+    if (pico_tftp_socket)
+        (void)pico_socket_sendto(pico_tftp_socket, dh, (int) sizeof(struct pico_tftp_err_hdr), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
 }
 
 static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, uint16_t opcode)
