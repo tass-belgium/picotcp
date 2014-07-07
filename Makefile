@@ -64,7 +64,7 @@ endif
 
 ifeq ($(TFTP),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_tftp.o
-  CFLAGS+=-DPICO_SUPPORT_TFTP
+  OPTIONS+=-DPICO_SUPPORT_TFTP
 endif
 
 

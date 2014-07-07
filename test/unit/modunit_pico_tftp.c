@@ -9,6 +9,9 @@
 /* MOCKS */
 static int called_pico_socket_close = 0;
 static uint16_t expected_opcode = 0;
+static int called_user_cb = 0;
+static int called_sendto = 0;
+static struct pico_socket example_socket;
 
 int pico_socket_close(struct pico_socket *s)
 {
@@ -21,12 +24,22 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
 {
     struct pico_tftp_hdr *h = (struct pico_tftp_data_hdr *)buf; 
     fail_if(s != pico_tftp_socket);
-    fail_if(!s);
     fail_if(short_be(h->opcode) != expected_opcode);
     fail_if(len <= 0);
     (void)dst;
     (void)remote_port;
+    called_sendto++;
     return 0;
+
+}
+
+int tftp_user_cb(uint16_t err, uint8_t *block, uint32_t len)
+{
+    called_user_cb++;
+}
+
+struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+{
 
 }
 
@@ -46,7 +59,10 @@ END_TEST
 
 START_TEST(tc_tftp_finish)
 {
+
+
     /* Test case: client */
+    pico_tftp_socket = &example_socket;
     pico_tftp_server_on = 0;
     called_pico_socket_close = 0;
     tftp_finish();
@@ -54,7 +70,25 @@ START_TEST(tc_tftp_finish)
     fail_if(pico_tftp_socket);
     fail_if(!called_pico_socket_close);
 
+    /* Test eval_finish() len is 5*/
+    pico_tftp_socket = &example_socket;
+    pico_tftp_server_on = 0;
+    called_pico_socket_close = 0;
+    tftp_eval_finish(5);
+    fail_if(pico_tftp_state != PICO_TFTP_STATE_IDLE);
+    fail_if(pico_tftp_socket);
+    fail_if(!called_pico_socket_close);
+
+    /* Test eval_finish() len is PICO_TFTP_BLOCK_SIZE */
+    pico_tftp_socket = &example_socket;
+    pico_tftp_server_on = 0;
+    called_pico_socket_close = 0;
+    tftp_eval_finish(PICO_TFTP_BLOCK_SIZE);
+    fail_if(called_pico_socket_close);
+
+
     /* Test case: server */
+    pico_tftp_socket = &example_socket;
     pico_tftp_server_on = 1;
     called_pico_socket_close = 0;
     tftp_finish();
@@ -64,40 +98,116 @@ END_TEST
 
 START_TEST(tc_tftp_send_ack)
 {
+    pico_tftp_socket = &example_socket;
 #ifdef PICO_FAULTY
     /* send_ack must not segfault when out of memory */
     pico_set_mm_failure(1);
     tftp_send_ack();
+    fail_if(called_sendto > 0);
 #endif
     expected_opcode = PICO_TFTP_ACK;
     tftp_send_ack();
+    fail_if(called_sendto < 1);
+
 }
 END_TEST
+
 START_TEST(tc_tftp_send_req)
 {
-   /* TODO: test this: static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, uint16_t opcode) */
+    /* Not needed. The tftp_send_rx_req and tftp_send_tx_req cover this. */
 }
 END_TEST
+
 START_TEST(tc_tftp_send_rx_req)
 {
-   /* TODO: test this: static void tftp_send_rx_req(union pico_address *a, uint16_t port, char *filename) */
+    pico_tftp_socket = &example_socket;
+    called_user_cb = 0;
+    called_pico_socket_close = 0;
+    called_sendto = 0;
+#ifdef PICO_FAULTY
+    pico_tftp_user_cb = tftp_user_cb;
+
+    /* send_req must call error cb when out of memory */
+    pico_set_mm_failure(1);
+    tftp_send_rx_req(NULL, 0, "some filename");
+    fail_if(called_user_cb < 1);
+    fail_if(called_sendto > 0);
+#endif
+    expected_opcode = PICO_TFTP_RRQ;
+    tftp_send_rx_req(NULL, 0, NULL);
+    fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
+
+    tftp_send_rx_req(NULL, 0, "some filename");
+    fail_if(called_sendto < 0);
+
 }
 END_TEST
+
 START_TEST(tc_tftp_send_tx_req)
 {
-   /* TODO: test this: static void tftp_send_tx_req(union pico_address *a, uint16_t port, char *filename) */
+    pico_tftp_socket = &example_socket;
+    called_user_cb = 0;
+    called_pico_socket_close = 0;
+    called_sendto = 0;
+#ifdef PICO_FAULTY
+    pico_tftp_user_cb = tftp_user_cb;
+
+    /* send_req must call error cb when out of memory */
+    pico_set_mm_failure(1);
+    tftp_send_tx_req(NULL, 0, "some filename");
+    fail_if(called_user_cb < 1);
+    fail_if(called_sendto > 0);
+#endif
+    expected_opcode = PICO_TFTP_WRQ;
+    tftp_send_tx_req(NULL, 0, NULL);
+    fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
+
+    tftp_send_tx_req(NULL, 0, "some filename");
+    fail_if(called_sendto < 0);
 }
 END_TEST
+
 START_TEST(tc_tftp_send_error)
 {
-   /* TODO: test this: static void tftp_send_error(union pico_address *a, uint16_t port, uint16_t errcode, const char *errmsg) */
+    char longtext[1024];
+    pico_tftp_socket = &example_socket;
+    called_user_cb = 0;
+    called_pico_socket_close = 0;
+
+    /* Sending empty msg */
+    called_sendto = 0;
+    expected_opcode = TFTP_ERROR;
+    tftp_send_error(NULL, 0, 0, NULL);
+    fail_if(called_sendto < 1); 
+    /* Sending some msg */
+    called_sendto = 0;
+    expected_opcode = TFTP_ERROR;
+    tftp_send_error(NULL, 0, 0, "some text here");
+    fail_if(called_sendto < 1); 
+
+    /* sending some very long msg */
+    memset(longtext, 'a', 1023);
+    longtext[1023] = (char)0;
+    called_sendto = 0;
+    expected_opcode = TFTP_ERROR;
+    tftp_send_error(NULL, 0, 0, longtext);
+    fail_if(called_sendto < 1); 
 }
 END_TEST
+
 START_TEST(tc_tftp_send_data)
 {
-   /* TODO: test this: static void tftp_send_data(const uint8_t *data, uint32_t len) */
+    pico_tftp_socket = &example_socket;
+    called_sendto = 0;
+    expected_opcode = PICO_TFTP_DATA;
+    tftp_send_data("buffer", strlen("buffer"));
+    fail_if(called_sendto < 1);
+
 }
 END_TEST
+
+/* Receiving functions */
+
 START_TEST(tc_tftp_data)
 {
    /* TODO: test this: static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */

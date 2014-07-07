@@ -930,7 +930,7 @@ void pico_stack_loop(void)
     }
 }
 
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+MOCKABLE struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
     struct pico_timer_ref tref;
