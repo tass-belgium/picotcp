@@ -2236,6 +2236,7 @@ void app_slaacv4(char *arg)
 #ifdef PICO_SUPPORT_TFTP
 #define TFTP_MODE_SRV 0
 #define TFTP_MODE_CLI 1
+#define TFTP_MODE_PSH 2
 #define TFTP_TX_COUNT 2000
 #define TFTP_PAYLOAD_SIZE 512
 unsigned char tftp_txbuf[TFTP_PAYLOAD_SIZE];
@@ -2301,18 +2302,18 @@ int cb_tftp(uint16_t err, uint8_t *block, uint32_t len)
 
 }
 
-int tftp_listen_cb(union pico_address *addr, uint16_t opcode, char *filename)
+int tftp_listen_cb(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename)
 {
     printf("TFTP listen callback.\n");
     if (opcode == PICO_TFTP_RRQ) {
         printf("Received TFTP get request for %s\n", filename);
-        if(pico_tftp_start_tx(addr, 0, PICO_PROTO_IPV4, filename, cb_tftp_tx) < 0) {
+        if(pico_tftp_start_tx(addr, port, PICO_PROTO_IPV4, filename, cb_tftp_tx) < 0) {
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
     } else if (opcode == PICO_TFTP_WRQ) {
         printf("Received TFTP put request for %s\n", filename);
-        if(pico_tftp_start_rx(addr, short_be(PICO_TFTP_PORT), PICO_PROTO_IPV4, filename, cb_tftp) < 0) {
+        if(pico_tftp_start_rx(addr, port, PICO_PROTO_IPV4, filename, cb_tftp) < 0) {
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
@@ -2332,12 +2333,16 @@ void app_tftp(char *arg)
     struct pico_ip4 server;
     nxt = cpy_arg(&mode, arg);
 
-    if ((*mode == 's') || (*mode == 'c')) { /* TEST BENCH SEND MODE */
+    if ((*mode == 's') || (*mode == 'c') || (*mode == 'p')) { /* TEST BENCH SEND MODE */
         if (*mode == 's') {
             tftp_mode = TFTP_MODE_SRV;
             printf("tftp> Server\n");
         } else {
-            tftp_mode = TFTP_MODE_CLI;
+            if (*mode == 'c')
+                tftp_mode = TFTP_MODE_CLI;
+            if (*mode == 'p')
+                tftp_mode = TFTP_MODE_PSH;
+
             printf("tftp> Client\n");
             if (!nxt) {
                 printf("Usage: tftp:client:host:file:\n");
@@ -2355,7 +2360,7 @@ void app_tftp(char *arg)
             nxt = cpy_arg(&file, nxt);
         }
     } else {
-        printf("Usage: tftp:tx|rx:...\n");
+        printf("Usage: tftp:tx|rx|p:...\n");
     }
 
        
@@ -2369,9 +2374,14 @@ void app_tftp(char *arg)
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
-
+    } else if (tftp_mode == TFTP_MODE_PSH)
+    {
+        if(pico_tftp_start_tx(&server, short_be(PICO_TFTP_PORT), PICO_PROTO_IPV4, file, cb_tftp_tx) < 0) {
+            fprintf(stderr, "TFTP: Error in initialization\n");
+            exit(1);
+        }
     } else {
-        printf("Usage: tftp:tx|rx:...\n");
+        printf("Usage: tftp:tx|rx|p:...\n");
     }
 }
 #endif

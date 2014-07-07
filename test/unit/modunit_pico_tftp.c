@@ -30,7 +30,6 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     (void)remote_port;
     called_sendto++;
     return 0;
-
 }
 
 int tftp_user_cb(uint16_t err, uint8_t *block, uint32_t len)

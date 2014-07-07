@@ -153,13 +153,18 @@ echo "MDNS TEST"
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:hostfoo.local:hostbar.local:) &
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app mdns:hostbar.local:hostfoo.local:) &
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:hostfoobar.local:nonexisting.local:) &
-sleep 20
+sleep 10
 killall picoapp.elf
 
-
-echo "TFTP TEST"
+echo "TFTP GET TEST"
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:c:10.50.0.2:test.img: || exit 1
+
+echo "TFTP PUT TEST"
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
+./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:p:10.50.0.2:test.img: || exit 1
+
+
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo
