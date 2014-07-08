@@ -162,7 +162,10 @@ sync
 echo "TFTP GET TEST"
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:c:10.50.0.2:test.img: || exit 1
+sleep 2
+killall picoapp.elf
 
+sleep 1
 echo "TFTP PUT TEST"
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:p:10.50.0.2:test.img: || exit 1
