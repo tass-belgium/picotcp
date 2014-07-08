@@ -181,7 +181,7 @@ static void tftp_send_error(union pico_address *a, uint16_t port, uint16_t errco
     eh = (struct pico_tftp_err_hdr *) tftp_block;
     eh->opcode = short_be(TFTP_ERROR);
     eh->error_code = short_be(errcode);
-    if (len + 1 > maxlen)
+    if (len + 1U > maxlen)
         len = maxlen;
     if (len)
         memcpy(tftp_payload(eh), errmsg, len);
@@ -221,13 +221,13 @@ static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint1
     }
     pico_tftp_endpoint_port = port;
     dh = (struct pico_tftp_data_hdr *)block;
-    if (short_be(dh->block) > (pico_tftp_counter +  1)) {
+    if (short_be(dh->block) > (pico_tftp_counter +  1U)) {
         char errtxt[] = "Wrong/unexpected sequence number";
         pico_tftp_user_cb(PICO_TFTP_ERR_LOCAL, (uint8_t *)errtxt, 0);
         tftp_send_error(a, port, TFTP_ERR_EILL, "TFTP connection broken! (Packet loss?)");
         return;
     }
-    if (short_be(dh->block) == (pico_tftp_counter + 1)) {
+    if (short_be(dh->block) == (pico_tftp_counter + 1U)) {
         pico_tftp_counter++;
         if ((pico_tftp_user_cb) && (pico_tftp_user_cb(PICO_TFTP_ERR_OK, tftp_payload(block), payload_len) >= 0)) {
             tftp_send_ack();
@@ -247,7 +247,7 @@ static void tftp_ack(uint8_t *block, uint32_t len, union pico_address *a, uint16
     }
     dh = (struct pico_tftp_data_hdr *)block;
     block_n = short_be(dh->block);
-    if (block_n != (pico_tftp_counter - 1)) {
+    if (block_n != (pico_tftp_counter - 1U)) {
         tftp_send_error(a, port, TFTP_ERR_EILL, "TFTP connection broken! (Packet loss?)");
         return;
     }

@@ -7,7 +7,7 @@
 #ifndef PICO_TFTP_H
 #define PICO_TFTP_H
 #define PICO_TFTP_PORT       (69)
-#define PICO_TFTP_SIZE       (512)
+#define PICO_TFTP_SIZE       (512U)
 
 #define PICO_TFTP_NONE  0
 #define PICO_TFTP_RRQ   1
