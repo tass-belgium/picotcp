@@ -211,7 +211,7 @@ static void tftp_eval_finish(uint32_t len)
 static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
 {
     struct pico_tftp_data_hdr *dh;
-    uint32_t payload_len = len - sizeof(struct pico_tftp_data_hdr);
+    uint32_t payload_len = len - (uint32_t) sizeof(struct pico_tftp_data_hdr);
     if (!pico_tftp_socket)
         return;
 
