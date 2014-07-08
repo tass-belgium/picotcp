@@ -136,7 +136,7 @@ static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, 
         return;
     }
     
-    len = strlen(filename);
+    len = (unsigned int)strlen(filename);
     buf = PICO_ZALLOC(sizeof(hdr) + OCTET_STRSIZ + len);
     if (!buf) {
         char errtxt[] = "Out of memory";
@@ -171,7 +171,7 @@ static void tftp_send_error(union pico_address *a, uint16_t port, uint16_t errco
     if (!errmsg)
         len = 0;
     else
-        len = strlen(errmsg);
+        len = (uint32_t)strlen(errmsg);
 
     if (!a) {
         a = &pico_tftp_endpoint;
