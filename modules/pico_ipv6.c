@@ -436,6 +436,7 @@ int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *
     uint8_t *option = NULL;
     uint8_t len = 0, optlen = 0;
     uint32_t ptr = sizeof(struct pico_ipv6_hdr);
+    uint8_t *extensions_start = (uint8_t *)hbh;
 
     IGNORE_PARAMETER(f);
 
@@ -465,18 +466,17 @@ int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *
             case PICO_IPV6_EXTHDR_OPT_ACTION_DISCARD:
                 return -1;
             case PICO_IPV6_EXTHDR_OPT_ACTION_DISCARD_SI:
-                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, ptr);
+                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, ptr + (uint32_t)(option - extensions_start));
                 return -1;
             case PICO_IPV6_EXTHDR_OPT_ACTION_DISCARD_SINM:
                 /* TODO DLA: check if not multicast */
-                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, ptr);
+                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, ptr + (uint32_t)(option - extensions_start));
                 return -1;
             }
             ipv6_dbg("IPv6: option with type %u and length %u\n", *option, optlen);
             option += optlen;
             len = (uint8_t)(len - optlen);
         }
-        ptr += optlen;
     }
     return 0;
 }
