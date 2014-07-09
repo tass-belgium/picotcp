@@ -634,7 +634,7 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
         }
         nxthdr = exthdr->nxthdr;
         if (!is_ipv6_hdr)
-            ptr+=sizeof(struct pico_ipv6_exthdr);
+            ptr += (uint32_t)sizeof(struct pico_ipv6_exthdr);
         is_ipv6_hdr = 0;
     }
 }
