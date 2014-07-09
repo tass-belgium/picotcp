@@ -112,7 +112,7 @@ struct pico_protocol pico_proto_icmp6 = {
     .q_out = &icmp6_out,
 };
 
-static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
+static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code, uint32_t ptr)
 {
     struct pico_frame *notice = NULL;
     struct pico_ipv6_hdr *ipv6_hdr = NULL;
@@ -159,6 +159,23 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
         icmp6_hdr->msg.err.time_exceeded.unused = 0;
         break;
+    
+    case PICO_ICMP6_PARAM_PROBLEM:
+        if (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_PARAM_PROBLEM_SIZE + len > PICO_IPV6_MIN_MTU)
+            len = PICO_IPV6_MIN_MTU - (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_PARAM_PROBLEM_SIZE);
+
+        notice = pico_proto_ipv6.alloc(&pico_proto_ipv6, (uint16_t)(PICO_ICMP6HDR_PARAM_PROBLEM_SIZE + len));
+        if (!notice) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        notice->payload = notice->transport_hdr + PICO_ICMP6HDR_PARAM_PROBLEM_SIZE;
+        notice->payload_len = len;
+        icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
+        icmp6_hdr->msg.err.param_problem.ptr = long_be(ptr);
+        break;
+
 
     default:
         return -1;
@@ -174,34 +191,34 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 
 int pico_icmp6_port_unreachable(struct pico_frame *f)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_PORT);
+    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_PORT, 0);
 }
 
 int pico_icmp6_proto_unreachable(struct pico_frame *f)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR);
+    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR, 0);
 }
 
 int pico_icmp6_dest_unreachable(struct pico_frame *f)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR);
+    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR, 0);
 }
 
 int pico_icmp6_ttl_expired(struct pico_frame *f)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_INTRANS);
+    return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_INTRANS, 0);
 }
 
 #ifdef PICO_SUPPORT_IPFILTER
 int pico_icmp6_packet_filtered(struct pico_frame *f)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADMIN);
+    return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADMIN, 0);
 }
 #endif
 
-int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem)
+int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t ptr)
 {
-    return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem);
+    return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem, ptr);
 }
 
 /* RFC 4861 $7.2.2: sending neighbor solicitations */
