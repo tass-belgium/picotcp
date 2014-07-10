@@ -304,6 +304,9 @@ static struct pico_ipv4_link *pico_socket_mcast_filter_link_get(struct pico_sock
     if (!s->MCASTListen)
         return NULL;
 
+    if (!s->local_addr.ip4.addr)
+        return pico_ipv4_get_default_mcastlink();
+
     return pico_ipv4_link_get(&s->local_addr.ip4);
 }
 
