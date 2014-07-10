@@ -159,7 +159,7 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code, u
         icmp6_hdr = (struct pico_icmp6_hdr *)notice->transport_hdr;
         icmp6_hdr->msg.err.time_exceeded.unused = 0;
         break;
-    
+
     case PICO_ICMP6_PARAM_PROBLEM:
         if (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_PARAM_PROBLEM_SIZE + len > PICO_IPV6_MIN_MTU)
             len = PICO_IPV6_MIN_MTU - (PICO_SIZE_IP6HDR + PICO_ICMP6HDR_PARAM_PROBLEM_SIZE);

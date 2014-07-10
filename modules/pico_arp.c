@@ -33,7 +33,7 @@ static void pico_arp_queued_trigger(void)
 {
     int i;
     struct pico_frame *f;
-    for (i = 0; i < PICO_ARP_MAX_PENDING; i++) 
+    for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
     {
         f = frames_queued[i];
         if (f) {
@@ -147,7 +147,7 @@ struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst)
 }
 
 static void pico_arp_unreachable(struct pico_ip4 *a)
-{   
+{
     int i;
     struct pico_frame *f;
     struct pico_ipv4_hdr *hdr;
@@ -160,10 +160,12 @@ static void pico_arp_unreachable(struct pico_ip4 *a)
             dst = pico_ipv4_route_get_gateway(&hdr->dst);
             if (!dst.addr)
                 dst.addr = hdr->dst.addr;
+
             if (dst.addr ==  a->addr) {
                 if (!pico_source_is_local(f)) {
                     pico_notify_dest_unreachable(f);
                 }
+
                 pico_frame_discard(f);
                 frames_queued[i] = NULL;
             }

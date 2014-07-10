@@ -7,7 +7,7 @@ STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
 LIBNAME:="libpicotcp.a"
 
-PREFIX?=./build
+PREFIX?=$(PWD)/build
 DEBUG?=1
 PROFILE?=0
 PERF?=0
@@ -164,11 +164,6 @@ endif
 .c.o:
 	$(CC) -c $(CFLAGS) -o $@ $<
 
-%.elf: %.o $(TEST_OBJ)
-	@echo -e "\t[LD] $@"
-	@$(CC) $(CFLAGS) -o $@ $< $(TEST_LDFLAGS) $(TEST_OBJ)
-
-
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_frame.o \
           stack/pico_device.o \
@@ -265,9 +260,14 @@ posix: all $(POSIX_OBJ)
 TEST_ELF= test/picoapp.elf
 TEST6_ELF= test/picoapp6.elf
 
-test: posix $(TEST_ELF) $(TEST_OBJ)
+
+test: posix 
 	@mkdir -p $(PREFIX)/test/
-	@rm test/*.o
+	@make -C test/examples PREFIX=$(PREFIX)
+	@echo -e "\t[CC] picoapp.o"
+	@gcc -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
+	@echo -e "\t[LD] $@"
+	@$(CC) -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
 	
@@ -358,7 +358,7 @@ mbed:
 
 
 style:
-	@find . -iname "*.[c|h]" |xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*.[c|h]" |grep -v picoapp.c | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
 	@find . -iname "*unc-backup*" |xargs -x rm || true
 
 dummy: mod core lib $(DUMMY_EXTRA)

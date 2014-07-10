@@ -22,7 +22,7 @@ int pico_socket_close(struct pico_socket *s)
 
 int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
-    struct pico_tftp_hdr *h = (struct pico_tftp_data_hdr *)buf; 
+    struct pico_tftp_hdr *h = (struct pico_tftp_data_hdr *)buf;
     fail_if(s != pico_tftp_socket);
     fail_if(short_be(h->opcode) != expected_opcode);
     fail_if(len <= 0);
@@ -45,7 +45,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
 /* TESTS */
 START_TEST(tc_check_opcode)
 {
-   /* TODO: test this: static int check_opcode(struct pico_tftp_hdr *th) */
+    /* TODO: test this: static int check_opcode(struct pico_tftp_hdr *th) */
     struct pico_tftp_hdr th;
     th.opcode = 0;
     fail_unless(check_opcode(&th) == -1);
@@ -177,12 +177,12 @@ START_TEST(tc_tftp_send_error)
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
     tftp_send_error(NULL, 0, 0, NULL);
-    fail_if(called_sendto < 1); 
+    fail_if(called_sendto < 1);
     /* Sending some msg */
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
     tftp_send_error(NULL, 0, 0, "some text here");
-    fail_if(called_sendto < 1); 
+    fail_if(called_sendto < 1);
 
     /* sending some very long msg */
     memset(longtext, 'a', 1023);
@@ -190,7 +190,7 @@ START_TEST(tc_tftp_send_error)
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
     tftp_send_error(NULL, 0, 0, longtext);
-    fail_if(called_sendto < 1); 
+    fail_if(called_sendto < 1);
 }
 END_TEST
 
@@ -209,74 +209,74 @@ END_TEST
 
 START_TEST(tc_tftp_data)
 {
-   /* TODO: test this: static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_ack)
 {
-   /* TODO: test this: static void tftp_ack(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_ack(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_timeout)
 {
-   /* TODO: test this: static void tftp_timeout(pico_time t) */
+    /* TODO: test this: static void tftp_timeout(pico_time t) */
 }
 END_TEST
 START_TEST(tc_tftp_req)
 {
-   /* TODO: test this: static void tftp_req(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_req(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_data_err)
 {
-   /* TODO: test this: static void tftp_data_err(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_data_err(uint8_t *block, uint32_t len, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_fsm_receive_request)
 {
-   /* TODO: test this: static void tftp_fsm_receive_request(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_fsm_receive_request(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_fsm_receive)
 {
-   /* TODO: test this: static void tftp_fsm_receive(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_fsm_receive(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_fsm_error)
 {
-   /* TODO: test this: static void tftp_fsm_error(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_fsm_error(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_fsm_timeout)
 {
-   /* TODO: test this: static void tftp_fsm_timeout(pico_time now, void *arg) */
+    /* TODO: test this: static void tftp_fsm_timeout(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_tftp_receive)
 {
-   /* TODO: test this: static void tftp_receive(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static void tftp_receive(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port) */
 }
 END_TEST
 START_TEST(tc_tftp_cb)
 {
-   /* TODO: test this: static void tftp_cb(uint16_t ev, struct pico_socket *s) */
+    /* TODO: test this: static void tftp_cb(uint16_t ev, struct pico_socket *s) */
 }
 END_TEST
 START_TEST(tc_tftp_bind)
 {
-   /* TODO: test this: static void tftp_bind(void) */
+    /* TODO: test this: static void tftp_bind(void) */
 }
 END_TEST
 START_TEST(tc_tftp_socket_open)
 {
-   /* TODO: test this: static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t port) */
+    /* TODO: test this: static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t port) */
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_check_opcode = tcase_create("Unit test for check_opcode");
     TCase *TCase_tftp_finish = tcase_create("Unit test for tftp_finish");
@@ -343,16 +343,16 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_tftp_bind);
     tcase_add_test(TCase_tftp_socket_open, tc_tftp_socket_open);
     suite_add_tcase(s, TCase_tftp_socket_open);
-return s;
+    return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

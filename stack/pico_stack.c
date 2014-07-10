@@ -450,7 +450,7 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
     if (*ret <= 0)
         return 0;
     else {
-        pico_frame_discard(f); 
+        pico_frame_discard(f);
         return 1;
     }
 }
@@ -468,20 +468,21 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 
 
 #ifdef PICO_SUPPORT_IPV6
-    /* Step 1: If the frame has an IPv6 packet, 
+    /* Step 1: If the frame has an IPv6 packet,
      * destination address is taken from the ND tables
-     */ 
+     */
     if (IS_IPV6(f)) {
         dstmac = pico_ethernet_ipv6_dst(f);
         if (!dstmac) {
-            /* When the dest mac is not available, frame is postponed. 
+            /* When the dest mac is not available, frame is postponed.
              * ND is handling it now. No need to discard. */
             pico_ipv6_nd_postpone(f);
             return 0;
         }
+
         proto = PICO_IDETH_IPV6;
     }
-    else 
+    else
 #endif
 
     /* In case of broadcast (IPV4 only), dst mac is FF:FF:... */
@@ -495,6 +496,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         };
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
+
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
     else {
         dstmac = pico_arp_get(f);
@@ -521,11 +523,12 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
             /* one of the above functions has disposed of the frame accordingly. (returned != 0)
-             * It is safe to directly return the number of bytes processed here. 
+             * It is safe to directly return the number of bytes processed here.
              * */
-            return (int32_t)ret;         
+            return (int32_t)ret;
         }
     }
+
     /* In all other cases,  it's up to us to get rid of the frame. */
     pico_frame_discard(f);
     return -1;

@@ -71,7 +71,9 @@ END_TEST
 
 START_TEST(tc_pico_arp_queue)
 {
-    struct pico_ip4 addr = { .addr = 0xaabbccdd };
+    struct pico_ip4 addr = {
+        .addr = 0xaabbccdd
+    };
     int i;
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
     struct pico_ipv4_hdr *h = (struct pico_ipv4_hdr *) f->buffer;
@@ -86,7 +88,6 @@ START_TEST(tc_pico_arp_queue)
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
         fail_if(frames_queued[i] != NULL);
     }
-
     pico_arp_postpone(f);
     fail_if(frames_queued[0] != f);
     pico_arp_unreachable(&addr);

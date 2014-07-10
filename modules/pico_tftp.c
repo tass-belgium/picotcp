@@ -21,7 +21,7 @@
 #define PICO_TFTP_STATE_LISTEN      4
 #define PICO_TFTP_STATE_MAX     PICO_TFTP_STATE_LISTEN + 1
 
-/* TFTP ERROR CODES (internal) 
+/* TFTP ERROR CODES (internal)
  * */
 #define TFTP_ERR_UNDEF     0
 #define TFTP_ERR_ENOENT    1
@@ -75,8 +75,10 @@ static int check_opcode(struct pico_tftp_hdr *th)
     uint16_t be_opcode = short_be(th->opcode);
     if (be_opcode < PICO_TFTP_RRQ)
         return -1;
+
     if (be_opcode > TFTP_ERROR)
         return -1;
+
     return 0;
 }
 
@@ -88,7 +90,8 @@ static void tftp_schedule_timeout(pico_time interval)
 {
     if (wallclock_timeout == 0)
         pico_timer_add(interval + 1, tftp_fsm_timeout, NULL);
-    wallclock_timeout = PICO_TIME_MS() + interval;    
+
+    wallclock_timeout = PICO_TIME_MS() + interval;
 }
 
 struct pico_tftp_event_action_s {
@@ -104,6 +107,7 @@ static void tftp_finish(void)
         pico_tftp_state = PICO_TFTP_STATE_LISTEN;
         return;
     }
+
     pico_socket_close(pico_tftp_socket);
     pico_tftp_socket = NULL;
     pico_tftp_state = PICO_TFTP_STATE_IDLE;
@@ -116,10 +120,11 @@ static void tftp_send_ack(void)
     dh = PICO_ZALLOC(sizeof(struct pico_tftp_data_hdr));
     if (!dh)
         return;
+
     dh->opcode = short_be(PICO_TFTP_ACK);
     dh->block = short_be(pico_tftp_counter);
     if (pico_tftp_socket) {
-        (void)pico_socket_sendto(pico_tftp_socket, dh, (int) sizeof(struct pico_tftp_err_hdr), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
+        (void)pico_socket_sendto(pico_tftp_socket, dh, (int) sizeof(struct pico_tftp_err_hdr), &pico_tftp_endpoint, pico_tftp_endpoint_port);
         tftp_schedule_timeout(PICO_TFTP_TIMEOUT);
     }
 }
@@ -127,7 +132,9 @@ static void tftp_send_ack(void)
 static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, uint16_t opcode)
 {
 #   define OCTET_STRSIZ 7U
-    static const char octet[OCTET_STRSIZ] = { 0, 'o', 'c', 't', 'e', 't', 0 };
+    static const char octet[OCTET_STRSIZ] = {
+        0, 'o', 'c', 't', 'e', 't', 0
+    };
     struct pico_tftp_hdr *hdr;
     unsigned int len;
     uint8_t *buf;
@@ -135,7 +142,7 @@ static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, 
     if (!filename) {
         return;
     }
-    
+
     len = (unsigned int)strlen(filename);
     buf = PICO_ZALLOC(sizeof(hdr) + OCTET_STRSIZ + len);
     if (!buf) {
@@ -144,11 +151,12 @@ static void tftp_send_req(union pico_address *a, uint16_t port, char *filename, 
         tftp_finish();
         return;
     }
+
     hdr = (struct pico_tftp_hdr *)buf;
     hdr->opcode = short_be(opcode);
     memcpy(buf + sizeof(struct pico_tftp_hdr), filename, len);
     memcpy(buf + sizeof(struct pico_tftp_hdr) + len, octet, OCTET_STRSIZ);
-    (void)pico_socket_sendto(pico_tftp_socket, buf, (int)(sizeof(hdr) + OCTET_STRSIZ + len), a, port); 
+    (void)pico_socket_sendto(pico_tftp_socket, buf, (int)(sizeof(hdr) + OCTET_STRSIZ + len), a, port);
 }
 
 static void tftp_send_rx_req(union pico_address *a, uint16_t port, char *filename)
@@ -183,10 +191,12 @@ static void tftp_send_error(union pico_address *a, uint16_t port, uint16_t errco
     eh->error_code = short_be(errcode);
     if (len + 1U > maxlen)
         len = maxlen;
+
     if (len)
         memcpy(tftp_payload(eh), errmsg, len);
+
     tftp_payload(eh)[len++] = (char)0;
-    (void)pico_socket_sendto(pico_tftp_socket, eh, (int) (len + sizeof(struct pico_tftp_err_hdr)), a, port); 
+    (void)pico_socket_sendto(pico_tftp_socket, eh, (int) (len + sizeof(struct pico_tftp_err_hdr)), a, port);
     tftp_finish();
 }
 
@@ -197,7 +207,7 @@ static void tftp_send_data(const uint8_t *data, uint32_t len)
     dh->opcode = short_be(PICO_TFTP_DATA);
     dh->block = short_be(pico_tftp_counter++);
     memcpy(tftp_block + sizeof(struct pico_tftp_data_hdr), data, len);
-    (void)pico_socket_sendto(pico_tftp_socket, dh, (int) (len + sizeof(struct pico_tftp_err_hdr)), &pico_tftp_endpoint, pico_tftp_endpoint_port); 
+    (void)pico_socket_sendto(pico_tftp_socket, dh, (int) (len + sizeof(struct pico_tftp_err_hdr)), &pico_tftp_endpoint, pico_tftp_endpoint_port);
     tftp_schedule_timeout(PICO_TFTP_TIMEOUT);
 }
 
@@ -219,6 +229,7 @@ static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint1
         tftp_send_error(a, port, TFTP_ERR_EXCEEDED, "TFTP busy, try again later.");
         return;
     }
+
     pico_tftp_endpoint_port = port;
     dh = (struct pico_tftp_data_hdr *)block;
     if (short_be(dh->block) > (pico_tftp_counter +  1U)) {
@@ -227,11 +238,13 @@ static void tftp_data(uint8_t *block, uint32_t len, union pico_address *a, uint1
         tftp_send_error(a, port, TFTP_ERR_EILL, "TFTP connection broken! (Packet loss?)");
         return;
     }
+
     if (short_be(dh->block) == (pico_tftp_counter + 1U)) {
         pico_tftp_counter++;
         if ((pico_tftp_user_cb) && (pico_tftp_user_cb(PICO_TFTP_ERR_OK, tftp_payload(block), payload_len) >= 0)) {
             tftp_send_ack();
         }
+
         tftp_eval_finish(len);
     }
 }
@@ -245,16 +258,18 @@ static void tftp_ack(uint8_t *block, uint32_t len, union pico_address *a, uint16
         tftp_send_error(a, port, TFTP_ERR_EXCEEDED, "TFTP busy, try again later.");
         return;
     }
+
     dh = (struct pico_tftp_data_hdr *)block;
     block_n = short_be(dh->block);
     if (block_n != (pico_tftp_counter - 1U)) {
         tftp_send_error(a, port, TFTP_ERR_EILL, "TFTP connection broken! (Packet loss?)");
         return;
     }
+
     if (block_n == 0) {
-        pico_tftp_endpoint_port = port; 
+        pico_tftp_endpoint_port = port;
     }
-    
+
     pico_tftp_user_cb(PICO_TFTP_ERR_OK, NULL, 0);
 
     if (pico_tftp_state == PICO_TFTP_STATE_TX_LAST)
@@ -286,17 +301,18 @@ static void tftp_data_err(uint8_t *block, uint32_t len, union pico_address *a, u
     if (pico_address_compare(a, &pico_tftp_endpoint, pico_tftp_socket->net->proto_number) != 0) {
         return;
     }
+
     pico_tftp_user_cb(PICO_TFTP_ERR_PEER, block + 1, 0);
 }
 
 const struct pico_tftp_event_action_s pico_tftp_event_action[PICO_TFTP_STATE_MAX] = {
-      /* STATE                  ***   receive            receive_request             receive_error          timeout */     
-      /* ********************************************************************************************************** */     
-    { /* PICO_TFTP_STATE_IDLE   ***/  NULL,              NULL,                       NULL,                  NULL          },
-    { /* PICO_TFTP_STATE_RX     ***/  tftp_data,         NULL,                       tftp_data_err,         tftp_timeout  },
-    { /* PICO_TFTP_STATE_TX     ***/  tftp_ack,          NULL,                       tftp_data_err,         tftp_timeout  },
-    { /* PICO_TFTP_STATE_TX_LAST ***/  tftp_ack,         NULL,                       tftp_data_err,         tftp_timeout  },
-    { /* PICO_TFTP_STATE_LISTEN ***/  NULL,              tftp_req,                   NULL,                  NULL          },
+    /* STATE                  ***   receive            receive_request             receive_error          timeout */
+    /* ********************************************************************************************************** */
+    { /* PICO_TFTP_STATE_IDLE   ***/ NULL,              NULL,                       NULL,                  NULL          },
+    { /* PICO_TFTP_STATE_RX     ***/ tftp_data,         NULL,                       tftp_data_err,         tftp_timeout  },
+    { /* PICO_TFTP_STATE_TX     ***/ tftp_ack,          NULL,                       tftp_data_err,         tftp_timeout  },
+    { /* PICO_TFTP_STATE_TX_LAST ***/ tftp_ack,         NULL,                       tftp_data_err,         tftp_timeout  },
+    { /* PICO_TFTP_STATE_LISTEN ***/ NULL,              tftp_req,                   NULL,                  NULL          },
 };
 
 static void tftp_fsm_receive_request(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port)
@@ -324,9 +340,11 @@ static void tftp_fsm_timeout(pico_time now, void *arg)
         /* Timer is canceled. */
         return;
     }
+
     if (now >= wallclock_timeout) {
         if (pico_tftp_event_action[pico_tftp_state].timeout)
             pico_tftp_event_action[pico_tftp_state].timeout(now);
+
         wallclock_timeout = 0ULL;
     } else {
         tftp_schedule_timeout(wallclock_timeout - now);
@@ -336,11 +354,12 @@ static void tftp_fsm_timeout(pico_time now, void *arg)
 static void tftp_receive(uint8_t *block, uint32_t r, union pico_address *a, uint16_t port)
 {
     struct pico_tftp_hdr *th = (struct pico_tftp_hdr *) block;
-    uint16_t idx; 
+    uint16_t idx;
     if (check_opcode(th) < 0) {
         tftp_send_error(NULL, 0, TFTP_ERR_EILL, "Illegal opcode");
         return;
     }
+
     idx = short_be(th->opcode);
     if (idx < PICO_TFTP_DATA) {
         tftp_fsm_receive_request(block, r, a, port);
@@ -358,7 +377,7 @@ static void tftp_cb(uint16_t ev, struct pico_socket *s)
     uint16_t port;
     if (s != pico_tftp_socket)
         return;
-    
+
     if (ev == PICO_SOCK_EV_ERR) {
         char errtxt[] = "Socket Error";
         pico_tftp_user_cb(PICO_TFTP_ERR_LOCAL, (uint8_t *)errtxt, 0);
@@ -378,6 +397,7 @@ static void tftp_bind(void)
     uint16_t port = short_be(PICO_TFTP_PORT);
     if (!pico_tftp_socket)
         return;
+
     memset(&local, 0, sizeof(local));
     if (pico_socket_bind(pico_tftp_socket, &local, &port) < 0) {
         pico_socket_close(pico_tftp_socket);
@@ -399,14 +419,17 @@ static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t por
     if (pico_tftp_socket) {
         pico_socket_close(pico_tftp_socket);
     }
+
     pico_tftp_socket = pico_socket_open(family, PICO_PROTO_UDP, tftp_cb);
     tftp_bind();
     if (!pico_tftp_socket)
         return -1;
+
     if (a) {
         memcpy(&pico_tftp_endpoint, a, sizeof(union pico_address));
         pico_tftp_endpoint_port = port;
     }
+
     return 0;
 }
 
@@ -416,6 +439,7 @@ int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, ch
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
     }
+
     tftp_socket_open(family, a, port);
     pico_tftp_user_cb = user_cb;
     pico_tftp_counter = 0u;
@@ -424,6 +448,7 @@ int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, ch
     } else {
         tftp_send_rx_req(a, port, filename);
     }
+
     pico_tftp_state = PICO_TFTP_STATE_RX;
     return 0;
 }
@@ -433,6 +458,7 @@ int pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, ch
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
     }
+
     tftp_socket_open(family, a, port);
     pico_tftp_state = PICO_TFTP_STATE_TX;
     pico_tftp_user_cb = user_cb;
@@ -441,7 +467,7 @@ int pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, ch
         user_cb(PICO_TFTP_ERR_OK, NULL, 0);
     } else
         tftp_send_tx_req(a, port, filename);
-       
+
     return 0;
 }
 
@@ -452,16 +478,19 @@ int pico_tftp_send(const uint8_t *data, int len)
         pico_err = PICO_ERR_ENOTCONN;
         return -1;
     }
+
     if (len < 0) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     size = (uint32_t)len;
 
     if (size > (PICO_TFTP_BLOCK_SIZE - sizeof(struct pico_tftp_data_hdr))) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     tftp_send_data(data, size);
 
     return len;
@@ -481,11 +510,13 @@ void pico_tftp_close(void)
     if ((pico_tftp_state == PICO_TFTP_STATE_RX) || (pico_tftp_state == PICO_TFTP_STATE_TX)) {
         tftp_send_error(NULL, 0, TFTP_ERR_UNDEF, "Cancelled by user");
     }
+
     if (pico_tftp_socket)
     {
         pico_socket_close(pico_tftp_socket);
         pico_tftp_socket = NULL;
     }
+
     pico_tftp_server_on = 0;
     pico_tftp_endpoint_port = 0u;
     pico_tftp_state = PICO_TFTP_STATE_IDLE;

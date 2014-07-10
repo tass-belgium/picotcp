@@ -75,7 +75,7 @@ START_TEST (test_socket)
     count = pico_count_sockets(0);
     printf("Count: %d\n", count);
     fail_unless(count == 1);
-    
+
     sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
     fail_if(sk_udp == NULL, "socket> udp socket open failed");
 

@@ -50,7 +50,9 @@ START_TEST(tc_pico_nd_new_expire_time)
 END_TEST
 START_TEST(tc_pico_nd_queue)
 {
-    struct pico_ip6 addr = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,9 };
+    struct pico_ip6 addr = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9
+    };
     int i;
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
     struct pico_ipv6_hdr *h = (struct pico_ipv6_hdr *) f->buffer;
@@ -67,7 +69,6 @@ START_TEST(tc_pico_nd_queue)
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
         fail_if(frames_queued_v6[i] != NULL);
     }
-
     pico_ipv6_nd_postpone(f);
     fail_if(frames_queued_v6[0] != f);
 

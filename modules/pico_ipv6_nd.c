@@ -92,7 +92,7 @@ static void pico_ipv6_nd_queued_trigger(void)
 {
     int i;
     struct pico_frame *f;
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) 
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         f = frames_queued_v6[i];
         if (f) {
@@ -124,7 +124,7 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     struct pico_frame *f;
     struct pico_ipv6_hdr *hdr;
     struct pico_ip6 dst;
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) 
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         f = frames_queued_v6[i];
         if (f) {
@@ -132,10 +132,12 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
             dst = pico_ipv6_route_get_gateway(&hdr->dst);
             if (pico_ipv6_is_unspecified(dst.addr))
                 dst = hdr->dst;
+
             if (memcmp(dst.addr, a->addr, PICO_SIZE_IP6) == 0) {
                 if (!pico_source_is_local(f)) {
                     pico_notify_dest_unreachable(f);
                 }
+
                 pico_frame_discard(f);
                 frames_queued_v6[i] = NULL;
             }
@@ -434,6 +436,7 @@ static int neigh_sol_mcast_validity_check(struct pico_frame *f)
             if (match == 3)
                 return 0;
         }
+
         link = pico_ipv6_link_by_dev_next(f->dev, link);
     }
     return -1;
@@ -448,6 +451,7 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
     while(link) {
         if (pico_ipv6_compare(&link->address, &icmp6_hdr->msg.info.neigh_sol.target) == 0)
             return 0;
+
         link = pico_ipv6_link_by_dev_next(f->dev, link);
     }
     return -1;
@@ -572,7 +576,7 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     int i;
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) 
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         if (!frames_queued_v6[i]) {
             frames_queued_v6[i] = f;

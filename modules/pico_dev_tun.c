@@ -26,7 +26,7 @@ struct pico_device_tun {
 static int pico_tun_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    return write(tun->fd, buf, len);
+    return write(tun->fd, buf, (uint32_t)len);
 }
 
 static int pico_tun_poll(struct pico_device *dev, int loop_score)
@@ -44,7 +44,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score)
         len = read(tun->fd, buf, TUN_MTU);
         if (len > 0) {
             loop_score--;
-            pico_stack_recv(dev, buf, len);
+            pico_stack_recv(dev, buf, (uint32_t)len);
         }
     } while(loop_score > 0);
     return 0;

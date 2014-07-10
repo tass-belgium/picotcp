@@ -242,6 +242,7 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
             }
         }
     }
+
     PICO_FREE(t);
 }
 
@@ -505,7 +506,9 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     struct pico_ip4 address = {
         0
     };
-    struct pico_ip4 any_address = { 0 };
+    struct pico_ip4 any_address = {
+        0
+    };
 
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
