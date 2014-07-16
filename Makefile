@@ -38,6 +38,7 @@ SLAACV4?=1
 TFTP?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
+THOS=0
 
 #IPv6 related
 IPV6?=1
@@ -65,6 +66,14 @@ endif
 ifeq ($(TFTP),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_tftp.o
   OPTIONS+=-DPICO_SUPPORT_TFTP
+endif
+
+ifeq ($(THOS),1)
+  OPTIONS+=-DPICO_SUPPORT_THOS
+  CFLAGS+=-DTHOS -fmessage-length=0 -fno-builtin \
+	    -ffunction-sections -fdata-sections -mlittle-endian \
+		  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
+
 endif
 
 
