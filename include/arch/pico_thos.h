@@ -4,18 +4,21 @@
 
 
 extern volatile unsigned long jiffies;
+#define dbg thos_puts
 
 static inline void *pico_zalloc(int len)
 {
     /* TODO: 
     return calloc(len, 1);
     */
+    (void)len;
 
     return NULL;
 }
 
 static inline void pico_free(void *tgt)
 {
+    (void)tgt;
     /* TODO:
     free(tgt);
     */
@@ -25,13 +28,12 @@ static inline void pico_free(void *tgt)
 
 static inline unsigned long PICO_TIME(void)
 {
-    register uint32_t tick = stellaris_tick;
-    return jiffies / HZ;
+    return jiffies / 100;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-    return jiffies * (1000 / HZ);
+    return jiffies * 10;
 }
 
 static inline void PICO_IDLE(void)
@@ -39,8 +41,6 @@ static inline void PICO_IDLE(void)
     /* unused in thos */
 }
 
-#endif
-
-
 
 #endif
+

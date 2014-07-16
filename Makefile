@@ -72,7 +72,7 @@ ifeq ($(THOS),1)
   OPTIONS+=-DPICO_SUPPORT_THOS
   CFLAGS+=-DTHOS -fmessage-length=0 -fno-builtin \
 	    -ffunction-sections -fdata-sections -mlittle-endian \
-		  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
+		  -mcpu=cortex-m3 -mthumb -MMD -MP -ffreestanding
 
 endif
 
