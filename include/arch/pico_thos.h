@@ -4,7 +4,7 @@
 
 
 extern volatile unsigned long jiffies;
-#define dbg thos_puts
+#define dbg do{}while(0)
 
 static inline void *pico_zalloc(int len)
 {
