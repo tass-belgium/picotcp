@@ -55,7 +55,8 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score)
 void pico_tun_destroy(struct pico_device *dev)
 {
     struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    close(tun->fd);
+    if(tun->fd > 0)
+	close(tun->fd);
 }
 
 
@@ -71,7 +72,6 @@ static int tun_open(char *name)
     ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
     strncpy(ifr.ifr_name, name, IFNAMSIZ);
     if(ioctl(tun_fd, TUNSETIFF, &ifr) < 0) {
-        close(tun_fd);
         return(-1);
     }
 
@@ -88,7 +88,7 @@ struct pico_device *pico_tun_create(char *name)
         return NULL;
 
     if( 0 != pico_device_init((struct pico_device *)tun, name, NULL)) {
-        dbg ("Tun init failed.\n");
+        dbg("Tun init failed.\n");
         pico_tun_destroy((struct pico_device *)tun);
         return NULL;
     }
@@ -96,6 +96,7 @@ struct pico_device *pico_tun_create(char *name)
     tun->dev.overhead = 0;
     tun->fd = tun_open(name);
     if (tun->fd < 0) {
+        dbg("Tun creation failed.\n");
         pico_tun_destroy((struct pico_device *)tun);
         return NULL;
     }
