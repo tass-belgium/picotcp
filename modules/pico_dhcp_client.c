@@ -526,9 +526,9 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     pico_ipv4_link_del(dhcpc->dev, address);
     pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
 
-    dbg("DHCP client: renewal time (T1) %u\n", dhcpc->t1_time);
-    dbg("DHCP client: rebinding time (T2) %u\n", dhcpc->t2_time);
-    dbg("DHCP client: lease time %u\n", dhcpc->lease_time);
+    dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
+    dbg("DHCP client: rebinding time (T2) %u\n", (unsigned int)dhcpc->t2_time);
+    dbg("DHCP client: lease time %u\n", (unsigned int)dhcpc->lease_time);
 
     /* If router option is received, use it as default gateway */
     if (dhcpc->gateway.addr != 0U) {

@@ -948,7 +948,7 @@ MOCKABLE struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_
     tref.tmr = t;
     heap_insert(Timers, &tref);
     if (Timers->n > PICO_MAX_TIMERS) {
-        dbg("Warning: I have %d timers\n", Timers->n);
+        dbg("Warning: I have %d timers\n", (int)Timers->n);
     }
 
     return t;
