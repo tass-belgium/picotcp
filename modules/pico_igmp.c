@@ -441,7 +441,7 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
     datalen = (uint8_t)(short_be(hdr->len) - ihl);
     igmp_dbg("IGMP: IHL = %u, LEN = %u, OCTETS = %u\n", ihl, short_be(hdr->len), datalen);
 
-    if (datalen > 12) {
+    if (datalen >= 12) {
         /* IGMPv3 query */
         t.type = IGMP_TIMER_V2_QUERIER;
         if (pico_igmp_timer_is_running(&t)) { /* IGMPv2 querier present timer still running */
