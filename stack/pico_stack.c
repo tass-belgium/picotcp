@@ -364,7 +364,7 @@ static int destination_is_mcast(struct pico_frame *f)
     return ret;
 }
 
-static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
+struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
@@ -378,7 +378,7 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 
 
 #ifdef PICO_SUPPORT_IPV6
-static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
+struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
