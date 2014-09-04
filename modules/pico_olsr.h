@@ -28,8 +28,8 @@ struct olsr_route_entry
 
 void pico_olsr_init(void);
 int pico_olsr_add(struct pico_device *dev);
-#if 0
-int pico_olsr_add_someroutes(struct pico_device *dev);
+#if 1
+int pico_olsr_add_someroutes(struct pico_device *dev, uint32_t startId);
 #endif
 struct olsr_route_entry *olsr_get_ethentry(struct pico_device *vif);
 #endif

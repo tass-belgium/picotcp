@@ -48,6 +48,7 @@ CFLAGS+= -Wcast-align
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
+  CFLAGS+=-Os
 else 
     ifeq ($(PERF), 1)
         CFLAGS+=-O3
