@@ -511,7 +511,7 @@ static uint32_t olsr_build_hello_neighbors(uint8_t *buf, uint32_t size)
     local = Local_interfaces;
     while (local) {
         neighbor = local->children;
-        while (neighbor) {
+        while (neighbor && (size - ret) > sizeof(struct olsr_neighbor)) {
             struct olsr_link *li = (struct olsr_link *) (buf + ret);
             li->link_code = neighbor->link_type;
             li->reserved = 0;
@@ -541,7 +541,7 @@ static uint32_t olsr_build_tc_neighbors(uint8_t *buf, uint32_t size)
     local = Local_interfaces;
     while (local) {
         neighbor = local->children;
-        while (neighbor) {
+        while (neighbor && (size - ret >= sizeof(struct olsr_neighbor))) {
             dst->addr = neighbor->destination.addr;
             dst->nlq = neighbor->nlq;
             dst->lq = neighbor->lq;
@@ -619,11 +619,13 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
         hello->htime = seconds2olsr(OLSR_HELLO_INTERVAL);
         hello->htime = 0x05; /* Todo: find and define values */
         hello->willingness = 0x07;
-        r = olsr_build_hello_neighbors(dgram + size, DGRAM_MAX_SIZE - size);
-        if (r == 0) {
-            /* dbg("Building hello message\n"); */
-            PICO_FREE(dgram);
-            return;
+        if (DGRAM_MAX_SIZE > size) {
+            r = olsr_build_hello_neighbors(dgram + size, DGRAM_MAX_SIZE - size);
+            if (r == 0) {
+                /* dbg("Building hello message\n"); */
+                PICO_FREE(dgram);
+                return;
+            }
         }
 
         size += r;
@@ -658,9 +660,11 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
         tc = (struct olsr_hmsg_tc *)(dgram + size);
         size += (uint32_t)sizeof(struct olsr_hmsg_tc);
         tc->ansn = short_be(my_ansn);
-        r = olsr_build_tc_neighbors(dgram + size, DGRAM_MAX_SIZE  - size);
-        size += r;
-        msg_tc->size = short_be((uint16_t)(sizeof(struct olsrmsg) + sizeof(struct olsr_hmsg_tc) + r));
+        if (DGRAM_MAX_SIZE > size) {
+            r = olsr_build_tc_neighbors(dgram + size, DGRAM_MAX_SIZE  - size);
+            size += r;
+            msg_tc->size = short_be((uint16_t)(sizeof(struct olsrmsg) + sizeof(struct olsr_hmsg_tc) + r));
+        }
         interval = OLSR_TC_INTERVAL;
     } /*if full */
     /* Send the thing out */
