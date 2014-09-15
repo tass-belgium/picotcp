@@ -58,11 +58,11 @@ static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 
     mock->out_tail = frame;
 
-    mock->out_tail->buffer = PICO_ZALLOC(len);
+    mock->out_tail->buffer = PICO_ZALLOC((uint32_t)len);
     if(!mock->out_tail->buffer)
         return 0;
 
-    memcpy(mock->out_tail->buffer, buf, len);
+    memcpy(mock->out_tail->buffer, buf, (uint32_t)len);
     mock->out_tail->len = len;
 
     return len;
@@ -85,7 +85,7 @@ static int pico_mock_poll(struct pico_device *dev, int loop_score)
 
     while(mock->in_head != NULL && loop_score > 0)
     {
-        pico_stack_recv(dev, mock->in_head->buffer, mock->in_head->len);
+        pico_stack_recv(dev, mock->in_head->buffer, (uint32_t)mock->in_head->len);
         loop_score--;
 
         PICO_FREE(mock->in_head->buffer);
@@ -112,7 +112,7 @@ int pico_mock_network_read(struct mock_device*mock, void *buf, int len)
     if(len > mock->out_head->len - mock->out_head->read)
         len = mock->out_head->len - mock->out_head->read;
 
-    memcpy(buf, mock->out_head->buffer, len);
+    memcpy(buf, mock->out_head->buffer, (uint32_t)len);
 
     if(len + mock->out_head->read != mock->out_head->len) {
         mock->out_head->read += len;
@@ -152,11 +152,11 @@ int pico_mock_network_write(struct mock_device*mock, const void *buf, int len)
 
     mock->in_tail = frame;
 
-    mock->in_tail->buffer = PICO_ZALLOC(len);
+    mock->in_tail->buffer = PICO_ZALLOC((uint32_t)len);
     if(!mock->in_tail->buffer)
         return 0;
 
-    memcpy(mock->in_tail->buffer, buf, len);
+    memcpy(mock->in_tail->buffer, buf, (uint32_t)len);
     mock->in_tail->len = len;
 
     return len;

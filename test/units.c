@@ -103,7 +103,7 @@ Suite *pico_suite(void)
     TCase *socket = tcase_create("SOCKET");
     TCase *nat = tcase_create("NAT");
     TCase *ipfilter = tcase_create("IPFILTER");
-#ifdef PICO_SUPPORT_CRC
+#ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
     TCase *crc = tcase_create("CRC");
 #endif
 #ifdef PICO_SUPPORT_MCAST
@@ -141,7 +141,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, dns);
 
     tcase_add_test(rb, test_rbtree);
-    tcase_set_timeout(rb, 20);
+    tcase_set_timeout(rb, 120);
     suite_add_tcase(s, rb);
 
     tcase_add_test(rb2, test_rbtree2);
@@ -160,7 +160,7 @@ Suite *pico_suite(void)
     tcase_add_test(ipfilter, test_ipfilter);
     suite_add_tcase(s, ipfilter);
 
-#ifdef PICO_SUPPORT_CRC
+#ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
     tcase_add_test(crc, test_crc_check);
     suite_add_tcase(s, crc);
 #endif
@@ -187,13 +187,13 @@ Suite *pico_suite(void)
     suite_add_tcase(s, ipv6);
 #endif
 
-    tcase_add_test(arp, arp_check_pending_test);
     tcase_add_test(arp, arp_update_max_arp_reqs_test);
     tcase_add_test(arp, arp_compare_test);
     tcase_add_test(arp, arp_lookup_test);
     tcase_add_test(arp, arp_expire_test);
     tcase_add_test(arp, arp_receive_test);
     tcase_add_test(arp, arp_get_test);
+    tcase_add_test(arp, tc_pico_arp_queue);
     suite_add_tcase(s, arp);
 
     return s;

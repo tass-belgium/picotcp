@@ -1,0 +1,64 @@
+\section{MDNS client}
+
+% Short description/overview of module functions
+
+
+\subsection{pico$\_$mdns$\_$init}
+
+\subsubsection*{Description}
+Function to initialise the mdns client with a given hostname.
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg), void *arg);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{hostname} - Hostname to be used with MDNS. Should end with '.local'.
+\item \texttt{cb$\_$initialised} - Callback function that is called when the initialisation process is done. The status variable indicates wheter the synchronisation was succesfull or not.
+\item \texttt{arg} - Argument for callback supplied by user
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 if the synchronisation operation has succeeded.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+int ret = pico_mdns_sync("ntp.nasa.gov", &callback);
+\end{verbatim}
+
+
+
+\subsection{pico$\_$mdns$\_$gettimeofday}
+
+\subsubsection*{Description}
+Function to get the current time. Be sure to call the pico$\_$mdns$\_$sync function to synchronise BEFORE calling this function.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_mdns_gettimeofday(struct pico_timeval *tv);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{tv} - Pointer to a time$\_$val struct in which the current time will be set.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 if the time is set.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Example}
+\begin{verbatim}
+int ret = pico_mdns_gettimeofday(tv);
+\end{verbatim}
+
+
+

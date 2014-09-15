@@ -1,14 +1,31 @@
-all: test.elf
+PREFIX?=../../build
+CFLAGS+=-I../../include/ -I../../modules -I../../build/include -I . -ggdb
 
-test_http.o: test_http.c
-	gcc -c  test_http.c -I../../include -I../../modules -Os
 
-../../build/lib/picotcp.a:
-	make -C ../.. test
+$(PREFIX)/examples/%.o: %.c 
+	@mkdir -p $(PREFIX)/examples
+	@echo -e "\t[CC] $@"
+	@$(CC) -c $(CFLAGS) -o $@ $< 
 
-test.elf: test_http.o ../../build/lib/picotcp.a
-	gcc -o test.elf test_http.o ../../build/lib/picotcp.a -lvdeplug
-	strip test.elf
+OBJS:= \
+$(PREFIX)/examples/dhcp_client.o \
+$(PREFIX)/examples/dhcp_server.o \
+$(PREFIX)/examples/dnsclient.o \
+$(PREFIX)/examples/mdns.o \
+$(PREFIX)/examples/multicast_recv.o \
+$(PREFIX)/examples/multicast_send.o \
+$(PREFIX)/examples/natbox.o \
+$(PREFIX)/examples/noop.o \
+$(PREFIX)/examples/ping.o \
+$(PREFIX)/examples/slaacv4.o \
+$(PREFIX)/examples/sntp.o \
+$(PREFIX)/examples/tcpbench.o \
+$(PREFIX)/examples/tcpclient.o \
+$(PREFIX)/examples/tcpecho.o \
+$(PREFIX)/examples/tftp.o \
+$(PREFIX)/examples/udp_client.o \
+$(PREFIX)/examples/udp_echo.o \
+$(PREFIX)/examples/udpnat.o \
 
-clean:
-	rm -rf *.o *.elf
+
+all: $(OBJS)

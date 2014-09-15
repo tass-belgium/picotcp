@@ -471,7 +471,7 @@ gateway_addr = pico_ip4 pico_ipv4_route_get_gateway(&dest_addr)
 \end{verbatim}
 
 
-\subsection{int$\_$pico$\_$icmp4$\_$ping}
+\subsection{pico$\_$icmp4$\_$ping}
 
 \subsubsection*{Description}
 This function sends out a number of ping echo requests and checks if the replies are received correctly.
@@ -515,7 +515,7 @@ With \textbf{err} values:
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0.
+On success, this call returns a positive number, which is the ID of the ping operation just started.
 On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -526,7 +526,36 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_icmp4_ping(dst_addr, 30, 10, 100, 1000, callback);
+id = pico_icmp4_ping(dst_addr, 30, 10, 100, 1000, callback);
 \end{verbatim}
 
+
+\subsection{pico$\_$icmp4$\_$ping$\_$abort}
+
+\subsubsection*{Description}
+This function aborts an ongoing ping operation that has previously started using pico$\_$icmp4$\_$ping().
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_icmp4_ping_abort(int id);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+    \item \texttt{id} - identification number for the ping operation. This has been returned by \texttt{pico$\_$icmp4$\_$ping()} and it is intended to distinguish the operation to be cancelled.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0. 
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+ret = pico_icmp4_ping_abort(id);
+\end{verbatim}
 

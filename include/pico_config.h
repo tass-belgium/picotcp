@@ -3,19 +3,32 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
+#include "pico_defines.h"
 #ifndef INCLUDE_PICO_CONFIG
 #define INCLUDE_PICO_CONFIG
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __IAR_SYSTEMS_ICC__
+#if defined __IAR_SYSTEMS_ICC__ || defined ATOP
 #   define PACKED_STRUCT_DEF __packed struct
+#   define PEDANTIC_STRUCT_DEF __packed struct
+#   define PACKED_UNION_DEF  __packed union
 #elif defined PLATFORM_TELOSB 
 #   pragma pack (4) 
 #   define PACKED_STRUCT_DEF struct
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
+#   define PEDANTIC_STRUCT_DEF struct
+#   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
+#endif
+
+
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
 #endif
 
 #include "pico_constants.h"

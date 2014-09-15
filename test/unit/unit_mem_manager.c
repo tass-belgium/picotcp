@@ -68,12 +68,12 @@ START_TEST (test_compare_slab_keys)
     ck_assert(compare_slab_keys(&doublelenptr1, &node1) == 0);
     ck_assert(compare_slab_keys(&node3, &doublelenptr1) < 0);
 
-    PICO_FREE(block1);
-    PICO_FREE(block2);
-    PICO_FREE(block3);
-    PICO_FREE(node1);
-    PICO_FREE(node2);
-    PICO_FREE(node3);
+    pico_free(block1);
+    pico_free(block2);
+    pico_free(block3);
+    pico_free(node1);
+    pico_free(node2);
+    pico_free(node3);
 }
 END_TEST
 
@@ -347,7 +347,7 @@ START_TEST (test_page0_zalloc)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE);
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
 
-    PICO_FREE(manager);
+    pico_free(manager);
 
     /* Extra scenario's: */
     /* No more space left in the main heap, a second page doesn't exist yet */
@@ -400,8 +400,8 @@ START_TEST (test_page0_zalloc)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_NOT_FREE);
     ck_assert(block->internals.heap_block.size == size1);
 
-    PICO_FREE(manager->manager_extra);
-    PICO_FREE(manager);
+    pico_free(manager->manager_extra);
+    pico_free(manager);
 }
 END_TEST
 
@@ -778,7 +778,7 @@ START_TEST (test_free_and_merge_heap_block)
     ck_assert(block1->internals.heap_block.size == page->heap_max_size);
     /* printf("page->heap_max_size=%u ?= block1.size=%u\n", page->heap_max_size, block1->internals.heap_block.size); */
 
-    PICO_FREE(page);
+    pico_free(page);
 
     /* Additional scenario to test: |block1|block2|block3|slabs */
     page = pico_zalloc(PICO_MEM_PAGE_SIZE);
@@ -842,7 +842,7 @@ START_TEST (test_free_and_merge_heap_block)
     ck_assert(block1->internals.heap_block.free == HEAP_BLOCK_FREE);
     ck_assert(block1->internals.heap_block.size == page->heap_max_free_space);
 
-    PICO_FREE(page);
+    pico_free(page);
 }
 END_TEST
 
@@ -940,7 +940,7 @@ START_TEST (test_determine_max_free_space)
     ck_assert(temp == 0);
     ck_assert(page->heap_max_free_space == 0);
 
-    PICO_FREE(page);
+    pico_free(page);
 }
 END_TEST
 
@@ -1051,9 +1051,9 @@ START_TEST (test_free_slab_block)
     ck_assert(slab_node->next == NULL);
     ck_assert(slab_node->slab == slab_block2);
 
-    PICO_FREE(slab_block1);
-    PICO_FREE(slab_block2);
-    PICO_FREE(original_slab_block);
+    pico_free(slab_block1);
+    pico_free(slab_block2);
+    pico_free(original_slab_block);
     pico_mem_deinit();
 
     /* Extra scenario: Managerheap almost full (enough space for a slab_node, but not the necessary tree node), try to free the slab block */
@@ -1107,7 +1107,7 @@ START_TEST (test_free_slab_block)
     ck_assert(page0->slabs_free == 2);
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_FREE);
 
-    PICO_FREE(slab_block1);
+    pico_free(slab_block1);
     /* DEPENDENCY ON CLEANUP */
     pico_mem_deinit();
 }
@@ -1153,7 +1153,7 @@ START_TEST (test_zero_initialize)
     ck_assert(uninitialized == leftBound + rightBound);
     ck_assert(initialized == size - leftBound - rightBound);
 
-    PICO_FREE(bytestream);
+    pico_free(bytestream);
 }
 END_TEST
 
@@ -1268,7 +1268,7 @@ START_TEST (test_find_heap_block)
     ck_assert(block->internals.heap_block.free == HEAP_BLOCK_FREE);
     ck_assert(block->internals.heap_block.size == sizeLeft - sizeof(struct pico_mem_block));
 
-    PICO_FREE(page);
+    pico_free(page);
 }
 END_TEST
 
@@ -1363,8 +1363,8 @@ START_TEST (test_find_slab)
 
     /* DEPENDENCY ON CLEANUP */
     pico_mem_deinit();
-    PICO_FREE(slab_block1);
-    PICO_FREE(slab_block2);
+    pico_free(slab_block1);
+    pico_free(slab_block2);
 }
 END_TEST
 
@@ -1504,7 +1504,7 @@ START_TEST (test_free)
 
     /* DEPENDENCY ON CLEANUP */
     pico_mem_deinit();
-    PICO_FREE(slab_block1);
+    pico_free(slab_block1);
 }
 END_TEST
 
@@ -1898,9 +1898,9 @@ START_TEST (test_page0_free)
     ck_assert(heap_page2->blocks == blockAmount2 - 1);
 
     /* Cleanup */
-    PICO_FREE(manager);
-    PICO_FREE(heap_page);
-    PICO_FREE(heap_page2);
+    pico_free(manager);
+    pico_free(heap_page);
+    pico_free(heap_page2);
 }
 END_TEST
 

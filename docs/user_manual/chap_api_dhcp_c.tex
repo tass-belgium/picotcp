@@ -57,6 +57,22 @@ All errors are reported through the callback-function described above.
 pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &xid);
 \end{verbatim}
 
+\subsection{pico\_dhcp\_client\_abort}
+
+\subsubsection*{Description}
+Cancel the ongoing negotiation. To be used if the operation of obtaining an IP address from a remote DHCP server needs to be aborted, before the callback has been triggered.
+
+\subsubsection*{Function prototype}
+\texttt{struct pico\_ip4 pico\_dhcp\_client\_abort(uint32\_t xid);}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+    \item \texttt{xid} - the transaction id returned from the call \texttt{pico\_dhcp\_initiate\_negotiation}.
+\end{itemize}
+
+\subsubsection*{Return value}
+Returns 0 on success, -1 otherwise (i.e. the XID could not be found in the list of ongoing transactions).
+
 
 \subsection{pico\_dhcp\_get\_identifier}
 

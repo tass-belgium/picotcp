@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include "pico_stack.h"
 #include "pico_socket.h"
 #include "pico_socket_multicast.h"
 #include "pico_tree.h"
@@ -28,24 +29,23 @@ struct pico_mcast_listen
     union pico_address mcast_link;
     union pico_address mcast_group;
     struct pico_tree MCASTSources;
+    uint16_t proto;
 };
 
 static int mcast_listen_link_cmp(struct pico_mcast_listen *a, struct pico_mcast_listen *b)
 {
-    /* TODO: IPv6 */
-    if (a->mcast_link.ip4.addr < b->mcast_link.ip4.addr)
+
+    if (a->proto < b->proto)
         return -1;
 
-    /* TODO: IPv6 */
-    if (a->mcast_link.ip4.addr > b->mcast_link.ip4.addr)
+    if (a->proto > b->proto)
         return 1;
 
-    return 0;
+    return pico_address_compare(&a->mcast_link, &b->mcast_link, a->proto);
 }
 
-static int mcast_listen_cmp(void *ka, void *kb)
+static int mcast_listen_grp_cmp(struct pico_mcast_listen *a, struct pico_mcast_listen *b)
 {
-    struct pico_mcast_listen *a = ka, *b = kb;
     if (a->mcast_group.ip4.addr < b->mcast_group.ip4.addr)
         return -1;
 
@@ -53,7 +53,18 @@ static int mcast_listen_cmp(void *ka, void *kb)
         return 1;
 
     return mcast_listen_link_cmp(a, b);
+}
 
+static int mcast_listen_cmp(void *ka, void *kb)
+{
+    struct pico_mcast_listen *a = ka, *b = kb;
+    if (a->proto < b->proto)
+        return -1;
+
+    if (a->proto > b->proto)
+        return 1;
+
+    return mcast_listen_grp_cmp(a, b);
 }
 
 static int mcast_sources_cmp(void *ka, void *kb)
@@ -292,6 +303,9 @@ static struct pico_ipv4_link *pico_socket_mcast_filter_link_get(struct pico_sock
     /* check if no multicast enabled on socket */
     if (!s->MCASTListen)
         return NULL;
+
+    if (!s->local_addr.ip4.addr)
+        return pico_ipv4_get_default_mcastlink();
 
     return pico_ipv4_link_get(&s->local_addr.ip4);
 }
@@ -553,6 +567,7 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
         listen->mcast_group.ip4 = mreq->mcast_group_addr;
         listen->MCASTSources.root = &LEAF;
         listen->MCASTSources.compare = mcast_sources_cmp;
+        listen->proto = s->net->proto_number;
         pico_tree_insert(s->MCASTListen, listen);
     }
 

@@ -82,6 +82,7 @@
 #define PICO_DHCP_EVENT_T2              10
 #define PICO_DHCP_EVENT_LEASE           11
 #define PICO_DHCP_EVENT_RETRANSMIT      12
+#define PICO_DHCP_EVENT_NONE            0xff
 
 PACKED_STRUCT_DEF pico_dhcp_hdr
 {
@@ -108,59 +109,59 @@ PACKED_STRUCT_DEF pico_dhcp_opt
 {
     uint8_t code;
     uint8_t len;
-    union dhcp_opt_ext_u {
-        struct {
+    PACKED_UNION_DEF dhcp_opt_ext_u {
+        PEDANTIC_STRUCT_DEF netmask_s {
             struct pico_ip4 ip;
         } netmask;
-        struct {
+        PEDANTIC_STRUCT_DEF router_s {
             struct pico_ip4 ip;
         } router;
-        struct {
+        PEDANTIC_STRUCT_DEF dns_s {
             struct pico_ip4 ip;
         } dns;
-        struct {
+        PEDANTIC_STRUCT_DEF broadcast_s {
             struct pico_ip4 ip;
         } broadcast;
-        struct {
+        PEDANTIC_STRUCT_DEF req_ip_s {
             struct pico_ip4 ip;
         } req_ip;
-        struct {
+        PEDANTIC_STRUCT_DEF lease_time_s {
             uint32_t time;
         } lease_time;
-        struct {
+        PEDANTIC_STRUCT_DEF opt_overload_s {
             uint8_t value;
         } opt_overload;
-        struct {
+        PEDANTIC_STRUCT_DEF tftp_server_s {
             char name[1];
         } tftp_server;
-        struct {
+        PEDANTIC_STRUCT_DEF bootfile_s {
             char name[1];
         } bootfile;
-        struct {
+        PEDANTIC_STRUCT_DEF msg_type_s {
             uint8_t type;
         } msg_type;
-        struct {
+        PEDANTIC_STRUCT_DEF server_id_s {
             struct pico_ip4 ip;
         } server_id;
-        struct {
+        PEDANTIC_STRUCT_DEF param_list_s {
             uint8_t code[1];
         } param_list;
-        struct {
+        PEDANTIC_STRUCT_DEF message_s {
             char error[1];
         } message;
-        struct {
+        PEDANTIC_STRUCT_DEF max_msg_size_s {
             uint16_t size;
         } max_msg_size;
-        struct {
+        PEDANTIC_STRUCT_DEF renewal_time_s {
             uint32_t time;
         } renewal_time;
-        struct {
+        PEDANTIC_STRUCT_DEF rebinding_time_s {
             uint32_t time;
         } rebinding_time;
-        struct {
+        PEDANTIC_STRUCT_DEF vendor_id_s {
             uint8_t id[1];
         } vendor_id;
-        struct {
+        PEDANTIC_STRUCT_DEF client_id_s {
             uint8_t id[1];
         } client_id;
     } ext;

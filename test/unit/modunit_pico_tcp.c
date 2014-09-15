@@ -76,6 +76,7 @@ START_TEST(tc_segment_compare)
     fail_if(segment_compare(a, b) >= 0);
     fail_if(segment_compare(a, a) != 0);
 
+
 }
 END_TEST
 START_TEST(tc_tcp_discard_all_segments)
@@ -137,9 +138,16 @@ START_TEST(tc_tcp_discard_all_segments)
 
     fail_if(t->tcpq_in.size == 0);
     fail_if(t->tcpq_in.frames == 0);
+    fail_if(pico_tcp_queue_in_is_empty(&t->sock));
+
     tcp_discard_all_segments(&t->tcpq_in);
     fail_if(t->tcpq_in.size != 0);
     fail_if(t->tcpq_in.frames != 0);
+    fail_unless(pico_tcp_queue_in_is_empty(&t->sock));
+
+
+    /* Testing next_segment with NULLS */
+    fail_if(next_segment(NULL, NULL) != NULL);
 }
 END_TEST
 
@@ -246,6 +254,9 @@ START_TEST(tc_release_all_until)
     printf("Remaining is %d\n", t->tcpq_out.frames);
     fail_if(t->tcpq_out.frames != 2);
 
+    /* Test enqueue_segment with NULL segment */
+    fail_if(pico_enqueue_segment(NULL, NULL) != -1);
+
 
 }
 END_TEST
@@ -265,9 +276,102 @@ START_TEST(tc_pico_paws)
     /* Nothing to test for a random function...*/
 }
 END_TEST
+
+
 START_TEST(tc_tcp_add_options)
 {
     /* TODO: test this: static void tcp_add_options(struct pico_socket_tcp *ts, struct pico_frame *f, uint16_t flags, uint16_t optsiz) */
+    struct pico_socket_tcp ts = { };
+    struct pico_frame *f = pico_frame_alloc(100);
+    uint16_t flags = 0;
+    uint16_t optsiz = 50;
+    uint8_t *frame_opt_buff;
+    int i;
+    struct tcp_sack_block *a, *b, *c;
+    uint32_t al = 0xa0,
+             ar = 0xaf,
+             bl = 0xb0,
+             br = 0xbf,
+             cl = 0xc0,
+             cr = 0xcf;
+    f->transport_hdr = f->start;
+    f->transport_len = f->buffer_len;
+    f->payload_len = f->transport_len;
+    frame_opt_buff =  f->transport_hdr + PICO_SIZE_TCPHDR;
+
+    /* Window scale only */
+    printf("Testing window scale option\n");
+    ts.wnd_scale = 66;
+    tcp_add_options(&ts, f, flags, optsiz);
+    fail_if(frame_opt_buff[0] != PICO_TCP_OPTION_WS);
+    fail_if(frame_opt_buff[1] != PICO_TCPOPTLEN_WS);
+    fail_if(frame_opt_buff[2] != 66);
+    for (i = 3; i < optsiz - 1; i++)
+        fail_if(frame_opt_buff[i] != PICO_TCP_OPTION_NOOP);
+    fail_if(frame_opt_buff[optsiz - 1] != PICO_TCP_OPTION_END);
+
+    /* MSS + SACK_OK + WS + TIMESTAMPS */
+    printf("Testing full SYN options\n");
+    flags = PICO_TCP_SYN;
+    ts.wnd_scale = 66;
+    ts.mss = 0xAA88;
+    tcp_add_options(&ts, f, flags, optsiz);
+    fail_if(frame_opt_buff[0] != PICO_TCP_OPTION_MSS);
+    fail_if(frame_opt_buff[1] != PICO_TCPOPTLEN_MSS);
+    fail_if(frame_opt_buff[2] != 0xAA);
+    fail_if(frame_opt_buff[3] != 0x88);
+    fail_if(frame_opt_buff[4] != PICO_TCP_OPTION_SACK_OK);
+    fail_if(frame_opt_buff[5] != PICO_TCPOPTLEN_SACK_OK);
+    fail_if(frame_opt_buff[6] != PICO_TCP_OPTION_WS);
+    fail_if(frame_opt_buff[7] != PICO_TCPOPTLEN_WS);
+    fail_if(frame_opt_buff[8] != 66);
+    fail_if(frame_opt_buff[9] != PICO_TCP_OPTION_TIMESTAMP);
+    fail_if(frame_opt_buff[10] != PICO_TCPOPTLEN_TIMESTAMP);
+    /* Timestamps: up to byte 18 */
+    for (i = 19; i < optsiz - 1; i++)
+        fail_if(frame_opt_buff[i] != PICO_TCP_OPTION_NOOP);
+    fail_if(frame_opt_buff[optsiz - 1] != PICO_TCP_OPTION_END);
+
+    /* Testing SACKs */
+    printf("Testing full SACK options\n");
+    a = PICO_ZALLOC(sizeof (struct tcp_sack_block));
+    b = PICO_ZALLOC(sizeof (struct tcp_sack_block));
+    c = PICO_ZALLOC(sizeof (struct tcp_sack_block));
+    a->left = al;
+    a->right = ar;
+    a->next = b;
+    b->left = bl;
+    b->right = br;
+    b->next = c;
+    c->left = cl;
+    c->right = cr;
+    c->next = NULL;
+
+    ts.sack_ok = 1;
+    ts.sacks = a;
+    flags = PICO_TCP_ACK;
+    tcp_add_options(&ts, f, flags, optsiz);
+    fail_if(frame_opt_buff[0] != PICO_TCP_OPTION_WS);
+    fail_if(frame_opt_buff[1] != PICO_TCPOPTLEN_WS);
+    fail_if(frame_opt_buff[2] != 66);
+    fail_if(frame_opt_buff[3] != PICO_TCP_OPTION_SACK);
+    fail_if(frame_opt_buff[4] != PICO_TCPOPTLEN_SACK + 6 * (sizeof(uint32_t)));
+    fail_if(memcmp(frame_opt_buff + 5,  &al, 4) != 0);
+    fail_if(memcmp(frame_opt_buff + 9,  &ar, 4) != 0);
+    fail_if(memcmp(frame_opt_buff + 13, &bl, 4) != 0);
+    fail_if(memcmp(frame_opt_buff + 17, &br, 4) != 0);
+    fail_if(memcmp(frame_opt_buff + 21, &cl, 4) != 0);
+    fail_if(memcmp(frame_opt_buff + 25, &cr, 4) != 0);
+    fail_if(ts.sacks != NULL);
+    for (i = 29; i < optsiz - 1; i++)
+        fail_if(frame_opt_buff[i] != PICO_TCP_OPTION_NOOP);
+    fail_if(frame_opt_buff[optsiz - 1] != PICO_TCP_OPTION_END);
+
+
+
+
+
+
 }
 END_TEST
 START_TEST(tc_tcp_options_size_frame)
@@ -373,6 +477,7 @@ END_TEST
 START_TEST(tc_tcp_rtt)
 {
     /* TODO: test this: static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt) */
+
 }
 END_TEST
 START_TEST(tc_tcp_congestion_control)

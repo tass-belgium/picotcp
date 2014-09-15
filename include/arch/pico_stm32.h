@@ -1,10 +1,11 @@
+/*********************************************************************
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+ *********************************************************************/
+#define dbg(...) do {} while(0)
+/* #define dbg printf */
 
-/*************************/
-
-/* #define dbg(...) do {} while(0) */
-#define dbg printf
-
-extern volatile pico_time __stm32_tick;
+extern volatile uint32_t tassTick;
 
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
@@ -29,12 +30,12 @@ static inline void *pico_zalloc(size_t size)
 
 static inline pico_time PICO_TIME_MS()
 {
-    return __stm32_tick;
+    return tassTick;
 }
 
 static inline pico_time PICO_TIME()
 {
-    return __stm32_tick / 1000;
+    return tassTick / 1000;
 }
 
 static inline void PICO_IDLE(void)
@@ -58,13 +59,13 @@ static inline void *pico_zalloc(size_t size)
 
 static inline unsigned long PICO_TIME(void)
 {
-    register uint32_t tick = __stm32_tick;
+    register uint32_t tick = tassTick;
     return tick / 1000;
 }
 
 static inline unsigned long PICO_TIME_MS(void)
 {
-    return __stm32_tick;
+    return tassTick;
 }
 
 static inline void PICO_IDLE(void)

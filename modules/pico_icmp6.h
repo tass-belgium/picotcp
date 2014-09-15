@@ -15,6 +15,7 @@
 #define PICO_ICMP6HDR_ECHO_REQUEST_SIZE 8
 #define PICO_ICMP6HDR_DEST_UNREACH_SIZE 8
 #define PICO_ICMP6HDR_TIME_XCEEDED_SIZE 8
+#define PICO_ICMP6HDR_PARAM_PROBLEM_SIZE 8
 #define PICO_ICMP6HDR_NEIGH_SOL_SIZE    24
 #define PICO_ICMP6HDR_NEIGH_ADV_SIZE    24
 #define PICO_ICMP6HDR_ROUTER_SOL_SIZE   8
@@ -56,6 +57,7 @@
 #define PICO_PING6_ERR_REPLIED         0
 #define PICO_PING6_ERR_TIMEOUT         1
 #define PICO_PING6_ERR_UNREACH         2
+#define PICO_PING6_ERR_ABORTED         3
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
 /* custom defines */
@@ -75,44 +77,44 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
     uint8_t code;
     uint16_t crc;
 
-    union icmp6_msg_u {
+    PACKED_UNION_DEF icmp6_msg_u {
         /* error messages */
-        union icmp6_err_u {
-            struct {
+        PACKED_UNION_DEF icmp6_err_u {
+            PEDANTIC_STRUCT_DEF dest_unreach_s {
                 uint32_t unused;
                 uint8_t data[0];
             } dest_unreach;
-            struct {
+            PEDANTIC_STRUCT_DEF pkt_too_big_s {
                 uint32_t mtu;
                 uint8_t data[0];
             } pkt_too_big;
-            struct {
+            PEDANTIC_STRUCT_DEF time_exceeded_s {
                 uint32_t unused;
                 uint8_t data[0];
             } time_exceeded;
-            struct {
+            PEDANTIC_STRUCT_DEF param_problem_s {
                 uint32_t ptr;
                 uint8_t data[0];
             } param_problem;
         } err;
 
         /* informational messages */
-        union icmp6_info_u {
-            struct {
+        PACKED_UNION_DEF icmp6_info_u {
+            PEDANTIC_STRUCT_DEF echo_request_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_request;
-            struct {
+            PEDANTIC_STRUCT_DEF echo_reply_s {
                 uint16_t id;
                 uint16_t seq;
                 uint8_t data[0];
             } echo_reply;
-            struct {
+            PEDANTIC_STRUCT_DEF router_sol_s {
                 uint32_t unused;
                 uint8_t options[0];
             } router_sol;
-            struct {
+            PEDANTIC_STRUCT_DEF router_adv_s {
                 uint8_t hop;
                 uint8_t mor;
                 uint16_t life_time;
@@ -120,17 +122,17 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint32_t retrans_time;
                 uint8_t options[0];
             } router_adv;
-            struct {
+            PEDANTIC_STRUCT_DEF neigh_sol_s {
                 uint32_t unused;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_sol;
-            struct {
+            PEDANTIC_STRUCT_DEF neigh_adv_s {
                 uint32_t rsor;
                 struct pico_ip6 target;
                 uint8_t options[0];
             } neigh_adv;
-            struct {
+            PEDANTIC_STRUCT_DEF redirect_s {
                 uint32_t reserved;
                 struct pico_ip6 target;
                 struct pico_ip6 dest;
@@ -144,7 +146,7 @@ PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
 {
     uint8_t type;
     uint8_t len;
-    union icmp6_opt_hw_addr_u {
+    PACKED_UNION_DEF icmp6_opt_hw_addr_u {
         struct pico_eth mac;
     } addr;
 };
@@ -198,6 +200,7 @@ struct pico_icmp6_stats
 };
 
 int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *));
+int pico_icmp6_ping_abort(int id);
 
 int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type);
 int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *target);
@@ -208,6 +211,7 @@ int pico_icmp6_proto_unreachable(struct pico_frame *f);
 int pico_icmp6_dest_unreachable(struct pico_frame *f);
 int pico_icmp6_ttl_expired(struct pico_frame *f);
 int pico_icmp6_packet_filtered(struct pico_frame *f);
+int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t ptr);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f);
 

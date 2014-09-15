@@ -27,5 +27,6 @@ struct pico_ip4 *pico_arp_reverse_lookup(struct pico_eth *dst);
 int pico_arp_create_entry(uint8_t*hwaddr, struct pico_ip4 ipv4, struct pico_device*dev);
 int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, int maxlen);
 void pico_arp_register_ipconflict(struct pico_ip4 *ip, struct pico_eth *mac, void (*cb)(void));
+void pico_arp_postpone(struct pico_frame *f);
 void pico_arp_init(void);
 #endif

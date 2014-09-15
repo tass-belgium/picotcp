@@ -1,8 +1,6 @@
 /*********************************************************************
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
-   Do not redistribute without a written permission by the Copyright
-   holders.
  *********************************************************************/
 
 #ifndef PICO_SUPPORT_ARCHNONE
@@ -13,12 +11,12 @@
 #include <unistd.h>
 #include <sys/time.h>
 
-#define dbg(...) do{}while(0)
+#define dbg(...) do {} while(0)
 #define pico_zalloc(x) NULL
-#define pico_free(x) do{}while(0)
+#define pico_free(x) do {} while(0)
 #define PICO_TIME() 666
 #define PICO_TIME_MS() 666000
-#define PICO_IDLE() do{}while(0)
+#define PICO_IDLE() do {} while(0)
 
 #endif  /* PICO_SUPPORT_ARCHNONE */
 

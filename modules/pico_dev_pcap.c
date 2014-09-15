@@ -24,13 +24,14 @@ static int pico_pcap_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_pcap *pcap = (struct pico_device_pcap *) dev;
     /* dbg("[%s] send %d bytes.\n", dev->name, len); */
-    return pcap_inject(pcap->conn, buf, len);
+    return pcap_inject(pcap->conn, buf, (uint32_t)len);
 }
 
 static void pico_dev_pcap_cb(u_char *u, const struct pcap_pkthdr *h, const u_char *data)
 {
-    struct pico_dev *dev = (struct pico_dev *)u;
-    pico_stack_recv(dev, data, h->len);
+    struct pico_device *dev = (struct pico_device *)u;
+    const uint8_t *buf = (const uint8_t *)data;
+    pico_stack_recv(dev, buf, (uint32_t)h->len);
 }
 
 

@@ -44,48 +44,76 @@ struct pico_nat_tuple {
 
 static struct pico_ipv4_link *nat_link = NULL;
 
-static int nat_cmp_inbound(void *ka, void *kb)
+static int nat_cmp_natport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 {
-    struct pico_nat_tuple *a = ka, *b = kb;
 
     if (a->nat_port < b->nat_port)
         return -1;
 
     if (a->nat_port > b->nat_port)
+
         return 1;
 
-    if (a->proto < b->proto)
-        return -1;
+    return 0;
 
-    if (a->proto > b->proto)
-        return 1;
-
-    return 0; /* identical */
 }
 
-static int nat_cmp_outbound(void *ka, void *kb)
+static int nat_cmp_srcport(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
 {
-    struct pico_nat_tuple *a = ka, *b = kb;
-
-    if (a->src_addr.addr < b->src_addr.addr)
-        return -1;
-
-    if (a->src_addr.addr > b->src_addr.addr)
-        return 1;
 
     if (a->src_port < b->src_port)
         return -1;
 
     if (a->src_port > b->src_port)
+
         return 1;
 
+    return 0;
+
+}
+
+static int nat_cmp_proto(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
+{
     if (a->proto < b->proto)
         return -1;
 
     if (a->proto > b->proto)
         return 1;
 
-    return 0; /* identical */
+    return 0;
+}
+
+static int nat_cmp_address(struct pico_nat_tuple *a, struct pico_nat_tuple *b)
+{
+    return pico_ipv4_compare(&a->src_addr, &b->src_addr);
+}
+
+static int nat_cmp_inbound(void *ka, void *kb)
+{
+    struct pico_nat_tuple *a = ka, *b = kb;
+    int cport = nat_cmp_natport(a, b);
+    if (cport)
+        return cport;
+
+    return nat_cmp_proto(a, b);
+}
+
+
+static int nat_cmp_outbound(void *ka, void *kb)
+{
+    struct pico_nat_tuple *a = ka, *b = kb;
+    int caddr, cport;
+
+    caddr = nat_cmp_address(a, b);
+    if (caddr)
+        return caddr;
+
+    cport = nat_cmp_srcport(a, b);
+
+    if (cport)
+        return cport;
+
+    return nat_cmp_proto(a, b);
 }
 
 PICO_TREE_DECLARE(NATOutbound, nat_cmp_outbound);
@@ -203,6 +231,29 @@ static int pico_ipv4_nat_del(uint16_t nat_port, uint8_t proto)
     return 0;
 }
 
+static struct pico_trans *pico_nat_generate_tuple_trans(struct pico_ipv4_hdr *net, struct pico_frame *f)
+{
+    struct pico_trans *trans = NULL;
+    switch (net->proto) {
+    case PICO_PROTO_TCP:
+    {
+        struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
+        trans = (struct pico_trans *)&tcp->trans;
+        break;
+    }
+    case PICO_PROTO_UDP:
+    {
+        struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
+        trans = (struct pico_trans *)&udp->trans;
+        break;
+    }
+    case PICO_PROTO_ICMP4:
+        /* XXX: implement */
+        break;
+    }
+    return trans;
+}
+
 static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
 {
     struct pico_trans *trans = NULL;
@@ -224,51 +275,38 @@ static struct pico_nat_tuple *pico_ipv4_nat_generate_tuple(struct pico_frame *f)
     if (!retry)
         return NULL;
 
-    switch (net->proto) {
-    case PICO_PROTO_TCP:
-    {
-        struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
-        trans = (struct pico_trans *)&tcp->trans;
-        break;
-    }
-    case PICO_PROTO_UDP:
-    {
-        struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
-        trans = (struct pico_trans *)&udp->trans;
-        break;
-    }
-    case PICO_PROTO_ICMP4:
-        /* XXX: implement */
-        break;
-
-    default:
+    trans = pico_nat_generate_tuple_trans(net, f);
+    if(!trans)
         return NULL;
-    }
 
     return pico_ipv4_nat_add(net->dst, trans->dport, net->src, trans->sport, nat_link->address, nport, net->proto);
     /* XXX return pico_ipv4_nat_add(nat_link->address, port, net->src, trans->sport, net->proto); */
 }
 
-static int pico_ipv4_nat_snif_session(struct pico_nat_tuple *t, struct pico_frame *f, uint8_t direction)
+static inline void pico_ipv4_nat_set_tcp_flags(struct pico_nat_tuple *t, struct pico_frame *f, uint8_t direction)
+{
+    struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
+    if (tcp->flags & PICO_TCP_SYN)
+        t->syn = 1;
+
+    if (tcp->flags & PICO_TCP_RST)
+        t->rst = 1;
+
+    if ((tcp->flags & PICO_TCP_FIN) && (direction == PICO_NAT_INBOUND))
+        t->fin_in = 1;
+
+    if ((tcp->flags & PICO_TCP_FIN) && (direction == PICO_NAT_OUTBOUND))
+        t->fin_out = 1;
+}
+
+static int pico_ipv4_nat_sniff_session(struct pico_nat_tuple *t, struct pico_frame *f, uint8_t direction)
 {
     struct pico_ipv4_hdr *net = (struct pico_ipv4_hdr *)f->net_hdr;
 
     switch (net->proto) {
     case PICO_PROTO_TCP:
     {
-        struct pico_tcp_hdr *tcp = (struct pico_tcp_hdr *)f->transport_hdr;
-        if (tcp->flags & PICO_TCP_SYN)
-            t->syn = 1;
-
-        if (tcp->flags & PICO_TCP_RST)
-            t->rst = 1;
-
-        if ((tcp->flags & PICO_TCP_FIN) && (direction == PICO_NAT_INBOUND))
-            t->fin_in = 1;
-
-        if ((tcp->flags & PICO_TCP_FIN) && (direction == PICO_NAT_OUTBOUND))
-            t->fin_out = 1;
-
+        pico_ipv4_nat_set_tcp_flags(t, f, direction);
         break;
     }
 
@@ -430,7 +468,7 @@ int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         return -1;
     }
 
-    pico_ipv4_nat_snif_session(tuple, f, PICO_NAT_INBOUND);
+    pico_ipv4_nat_sniff_session(tuple, f, PICO_NAT_INBOUND);
     net->crc = 0;
     net->crc = short_be(pico_checksum(net, f->net_len));
 
@@ -495,7 +533,7 @@ int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
         return -1;
     }
 
-    pico_ipv4_nat_snif_session(tuple, f, PICO_NAT_OUTBOUND);
+    pico_ipv4_nat_sniff_session(tuple, f, PICO_NAT_OUTBOUND);
     net->crc = 0;
     net->crc = short_be(pico_checksum(net, f->net_len));
 

@@ -34,34 +34,12 @@
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
-#define PICOTCP_MUTEX_LOCK(x) { \
-        if (x == NULL) \
-            x = pico_mutex_init(); \
-        pico_mutex_lock(x); \
-}
-#define PICOTCP_MUTEX_UNLOCK(x) pico_mutex_unlock(x)
-
-#else
-#define PICOTCP_MUTEX_LOCK(x) do {} while(0)
-#define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #endif
 
 
 #define PROTO(s) ((s)->proto->proto_number)
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
-
-#ifdef PICO_SUPPORT_IPV4
-# define IS_SOCK_IPV4(s) ((s->net == &pico_proto_ipv4))
-#else
-# define IS_SOCK_IPV4(s) (0)
-#endif
-
-#ifdef PICO_SUPPORT_IPV6
-# define IS_SOCK_IPV6(s) ((s->net == &pico_proto_ipv6))
-#else
-# define IS_SOCK_IPV6(s) (0)
-#endif
 
 # define frag_dbg(...) do {} while(0)
 
@@ -91,10 +69,10 @@ static int socket_cmp_ipv6(struct pico_socket *a, struct pico_socket *b)
     int ret = 0;
     (void)a;
     (void)b;
+#ifdef PICO_SUPPORT_IPV6
     if (!is_sock_ipv6(a) || !is_sock_ipv6(b))
         return 0;
 
-#ifdef PICO_SUPPORT_IPV6
     if ((memcmp(a->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0) || (memcmp(b->local_addr.ip6.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0))
         ret = 0;
     else
@@ -417,7 +395,7 @@ int8_t pico_socket_add(struct pico_socket *s)
     pico_tree_insert(&sp->socks, s);
     s->state |= PICO_SOCKET_STATE_BOUND;
     PICOTCP_MUTEX_UNLOCK(Mutex);
-#if DEBUG_SOCKET_TREE
+#ifdef DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
         /* RB_FOREACH(s, socket_tree, &sp->socks) { */
@@ -450,6 +428,8 @@ static void socket_clean_queues(struct pico_socket *sock)
             f_out = pico_dequeue(&sock->q_out);
         }
     }
+    pico_queue_deinit(&sock->q_in);
+    pico_queue_deinit(&sock->q_out);
     pico_socket_tcp_cleanup(sock);
 }
 
@@ -588,6 +568,7 @@ int pico_socket_set_family(struct pico_socket *s, uint16_t family)
 static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t family)
 {
     struct pico_socket *s = NULL;
+    (void)family;
     if (proto == PICO_PROTO_UDP)
         s = pico_socket_udp_open();
 
@@ -757,7 +738,7 @@ uint16_t pico_socket_high_port(uint16_t proto)
 #ifdef PICO_SUPPORT_TCP
         (proto == PICO_PROTO_TCP) ||
 #endif
-#ifdef PICO_SUPPORT_TCP
+#ifdef PICO_SUPPORT_UDP
         (proto == PICO_PROTO_UDP) ||
 #endif
         0) {
@@ -869,9 +850,7 @@ static int pico_socket_sendto_dest_check(struct pico_socket *s, void *dst, uint1
 
 static int pico_socket_sendto_initial_checks(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
-    if (len == 0) {
-        return 0;
-    } else if (len < 0) {
+    if (len < 0) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -1009,6 +988,8 @@ static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be(PICO_IPV4_DONTFRAG);
+#else
+    (void)f;
 #endif
 }
 
@@ -1056,14 +1037,13 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s);
 
+#ifdef PICO_SUPPORT_IPFRAG
 static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int space, int hdr_offset)
 {
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
     /* transport header length field contains total length + header length */
     f->transport_len = (uint16_t)(space);
-#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be(PICO_IPV4_MOREFRAG);
-#endif
     f->payload += hdr_offset;
     f->payload_len = (uint16_t) space;
 }
@@ -1074,21 +1054,16 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload = f->transport_hdr;
     f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
     /* set offset in octets */
-#ifdef PICO_SUPPORT_IPFRAG
     f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
-#endif
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-#ifdef PICO_SUPPORT_IPFRAG
         f->frag |= short_be(PICO_IPV4_MOREFRAG);
-#endif
     } else {
         frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-#ifdef PICO_SUPPORT_IPFRAG
         f->frag &= short_be(PICO_IPV4_FRAG_MASK);
-#endif
     }
 }
+#endif
 
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len, void *src, struct pico_remote_endpoint *ep)
 {
@@ -1233,11 +1208,13 @@ static void pico_socket_sendto_set_dport(struct pico_socket *s, uint16_t port)
 }
 
 
-int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
+int MOCKABLE pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
     struct pico_remote_endpoint *remote_endpoint = NULL;
     void *src = NULL;
 
+    if(len == 0)
+        return 0;
 
     if (pico_socket_sendto_initial_checks(s, buf, len, dst, remote_port) < 0)
         return -1;
@@ -1351,6 +1328,7 @@ int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     *port = s->local_port;
     return 0;
 }
@@ -1690,15 +1668,17 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     return 0;
 }
 
-int pico_socket_close(struct pico_socket *s)
+int MOCKABLE pico_socket_close(struct pico_socket *s)
 {
     if (!s)
         return -1;
+
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
         if (pico_tcp_check_listen_close(s) == 0)
             return 0;
     }
+
 #endif
     return pico_socket_shutdown(s, PICO_SHUT_RDWR);
 }
@@ -1928,6 +1908,35 @@ int pico_sockets_loop(int loop_score)
     loop_score = pico_sockets_loop_udp(loop_score);
     loop_score = pico_sockets_loop_tcp(loop_score);
     return loop_score;
+}
+
+int pico_count_sockets(uint8_t proto)
+{
+    struct pico_sockport *sp;
+    struct pico_tree_node *idx_sp, *idx_s;
+    int count = 0;
+
+    if ((proto == 0) || (proto == PICO_PROTO_TCP)) {
+        pico_tree_foreach(idx_sp, &TCPTable) {
+            sp = idx_sp->keyValue;
+            if (sp) {
+                pico_tree_foreach(idx_s, &sp->socks)
+                count++;
+            }
+        }
+    }
+
+    if ((proto == 0) || (proto == PICO_PROTO_UDP)) {
+        pico_tree_foreach(idx_sp, &UDPTable) {
+            sp = idx_sp->keyValue;
+            if (sp) {
+                pico_tree_foreach(idx_s, &sp->socks)
+                count++;
+            }
+        }
+    }
+
+    return count;
 }
 
 

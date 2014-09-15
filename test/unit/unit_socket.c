@@ -10,6 +10,7 @@ START_TEST (test_socket)
 
     int getnodelay = -1;
     int nodelay = -1;
+    int count = 0;
 
     uint32_t getsocket_buffer = 0;
     uint32_t socket_buffer = 0;
@@ -47,6 +48,7 @@ START_TEST (test_socket)
     sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
     fail_if(sk_tcp == NULL, "socket> tcp socket open failed");
 
+
     port_be = short_be(5555);
     /* socket_bind passing wrong parameters */
     ret = pico_socket_bind(NULL, &inaddr_link, &port_be);
@@ -67,11 +69,23 @@ START_TEST (test_socket)
     /* socket_bind passing correct parameters */
     ret = pico_socket_bind(sk_tcp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> tcp socket bind failed");
+    count = pico_count_sockets(PICO_PROTO_TCP);
+    printf("Count: %d\n", count);
+    fail_unless(count == 1);
+    count = pico_count_sockets(0);
+    printf("Count: %d\n", count);
+    fail_unless(count == 1);
+
     sk_udp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
     fail_if(sk_udp == NULL, "socket> udp socket open failed");
+
     port_be = short_be(5555);
     ret = pico_socket_bind(sk_udp, &inaddr_link, &port_be);
     fail_if(ret < 0, "socket> udp socket bind failed");
+
+    fail_if (pico_count_sockets(PICO_PROTO_UDP) != 1);
+    fail_if (pico_count_sockets(0) != 2);
+
 
     ret = pico_socket_getname(sk_udp, &inaddr_got, &port_got, &proto);
     fail_if(ret < 0, "socket> udp socket getname failed");
@@ -388,7 +402,7 @@ START_TEST (test_socket)
 }
 END_TEST
 
-#ifdef PICO_SUPPORT_CRC
+#ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
 START_TEST (test_crc_check)
 {
     uint8_t buffer[64] = {
@@ -421,19 +435,21 @@ START_TEST (test_crc_check)
     pico_stack_init();
 
     /* IPv4 CRC unit tests */
-    /* Allocated memory will be freed when pico_ipv4_crc_check fails */
+    /* Allocated memory will not be freed when pico_ipv4_crc_check fails */
     f = calloc(1, sizeof(struct pico_frame));
     f_usage_count = calloc(1, sizeof(uint32_t));
     f_buffer = calloc(1, sizeof(uint8_t));
     f->net_hdr = buffer;
+    f->net_len = PICO_SIZE_IP4HDR;
     f->transport_hdr = buffer + PICO_SIZE_IP4HDR;
     f->transport_len = sizeof(buffer) - PICO_SIZE_IP4HDR;
     f->usage_count = f_usage_count;
     f->buffer = f_buffer;
-    *(f->usage_count) = 1;
+    *(f->usage_count) = 512;
 
     hdr->crc = 0;
     printf(">>>>>>>>>>>>>>>>>>>>> CRC VALUE = %X\n", pico_checksum(hdr, PICO_SIZE_IP4HDR));
+    hdr->crc = short_be(0x24CF); /* Make check pass */
     ret = pico_ipv4_crc_check(f);
     fail_if(ret == 0, "correct IPv4 checksum got rejected\n");
     hdr->crc = short_be(0x8899); /* Make check fail */

@@ -1,3 +1,7 @@
+/*********************************************************************
+   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   See LICENSE and COPYING for usage.
+ *********************************************************************/
 #ifndef PICO_SUPPORT_PIC24
 #define PICO_SUPPORT_PIC24
 #define dbg printf
@@ -15,47 +19,18 @@
 #define __PIC24F__
 #endif
 
+/*
 #ifndef __PIC24FJ256GA106__
 #define __PIC24FJ256GA106__
 #endif
-
-#ifndef PICO_SUPPORT_PING
-#define PICO_SUPPORT_PING
-#endif
-
-#ifndef PICO_SUPPORT_IPV4
-#define PICO_SUPPORT_IPV4
-#endif
-
-#ifndef PICO_SUPPORT_DHCP
-/* #define PICO_SUPPORT_DHCP */
-#endif
-
-#ifndef PICO_SUPPORT_TCP
-#define PICO_SUPPORT_TCP
-#endif
-
-#ifndef PICO_SUPPORT_ZMQ
-#define PICO_SUPPORT_ZMQ
-#endif
-
-#ifndef PICO_SUPPORT_ICMP4
-#define PICO_SUPPORT_ICMP4
-#endif
-
-#ifndef PICO_SUPPORT_OLSR
-#define PICO_SUPPORT_OLSR
-#endif
-
-#ifndef PICO_SUPPORT_UDP
-#define PICO_SUPPORT_UDP
-#endif
+*/
 
 #ifndef PICO_MAX_SOCKET_FRAMES
 #define PICO_MAX_SOCKET_FRAMES 16
 #endif
 
 /* Device header file */
+
 #if defined(__PIC24E__)
 # include <p24Exxxx.h>
 #elif defined(__PIC24F__)
@@ -63,6 +38,7 @@
 #elif defined(__PIC24H__)
 # include <p24Hxxxx.h>
 #endif
+
 
 #define TIMBASE_INT_E         IEC0bits.T2IE
 
@@ -84,7 +60,7 @@ static inline void pico_free(void *tgt)
 #endif
 
 extern void *pvPortMalloc( size_t xWantedSize );
-extern volatile unsigned long __pic24_tick;
+extern volatile pico_time __pic24_tick;
 
 static inline unsigned long PICO_TIME(void)
 {
@@ -113,7 +89,7 @@ static inline void PICO_IDLE(void)
     unsigned long tick_now;
     /* Disable timer interrupts */
     TIMBASE_INT_E = 0;
-    tick_now = pico_tick;
+    tick_now = (unsigned long)pico_tick;
     /* Enable timer interrupts */
     TIMBASE_INT_E = 1;
     /* Doesn't matter that this call isn't interrupt safe, */

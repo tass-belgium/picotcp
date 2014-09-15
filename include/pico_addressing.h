@@ -25,7 +25,7 @@ union pico_address
     struct pico_ip6 ip6;
 };
 
-struct pico_eth
+PACKED_STRUCT_DEF pico_eth
 {
     uint8_t addr[6];
     uint8_t padding[2];
@@ -34,7 +34,7 @@ struct pico_eth
 extern const uint8_t PICO_ETHADDR_ALL[];
 
 
-struct pico_trans
+PACKED_STRUCT_DEF pico_trans
 {
     uint16_t sport;
     uint16_t dport;

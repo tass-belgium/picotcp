@@ -16,6 +16,8 @@
 #define DGRAM_MAX_SIZE (100-28)
 #define MAX_OLSR_MEM (4 * DGRAM_MAX_SIZE)
 
+int OOM(void);
+
 
 #define OLSR_HELLO_INTERVAL   ((uint32_t)5000)
 #define OLSR_TC_INTERVAL      ((uint32_t)9000)
@@ -145,7 +147,6 @@ static struct olsr_route_entry *get_next_hop(struct olsr_route_entry *dst)
 
 static inline void olsr_route_add(struct olsr_route_entry *el)
 {
-    //char dest[16],nxdest[16];
     struct olsr_route_entry *nexthop;
 
     if(!el)
@@ -158,24 +159,21 @@ static inline void olsr_route_add(struct olsr_route_entry *el)
         el->next = el->gateway->children;
         el->gateway->children = el;
         el->link_type = OLSRLINK_MPR;
-        /* dbg("[OLSR] Adding route to %07x via %08x metric %d..................", el->destination.addr, nexthop->destination.addr, el->metric); */
-        //if (nexthop->destination.addr != el->destination.addr) {
-        if (el->metric != 1) { // multihop neighbor
+        dbg("[OLSR] Adding route to %07x via %08x metric %d\n", el->destination.addr, nexthop->destination.addr, el->metric); 
+        if (nexthop->destination.addr != el->destination.addr) {
             pico_ipv4_route_add(el->destination, HOST_NETMASK, el->gateway->destination,(int) el->metric, NULL);
         }
-        /* dbg("route added: %d err: %s\n", ret, strerror(pico_err)); */
-        //    pico_ipv4_to_string(dest, el->destination.addr);
-        //   pico_ipv4_to_string(nxdest, nexthop->destination.addr);
-        //   dbg("[OLSR] %08s == %08s\n ", dest, nxdest);
     } else if (el->iface) {
         /* neighbor */
         struct olsr_route_entry *ei = olsr_get_ethentry(el->iface);
+        struct pico_ip4 no_gw = {0U};
         if (el->link_type == OLSRLINK_UNKNOWN)
             el->link_type = OLSRLINK_SYMMETRIC;
         if (ei) {
             el->next = ei->children;
             ei->children = el;
         }
+        pico_ipv4_route_add(el->destination, HOST_NETMASK, no_gw, 1, pico_ipv4_link_by_dev(el->iface));
     }
 }
 
@@ -362,8 +360,7 @@ static void olsr_garbage_collector(struct olsr_route_entry *sublist)
         PICO_FREE(sublist);
         return;
     } else {
-        //sublist->time_left -= 2u;
-        sublist->time_left -= 8u;
+        sublist->time_left -= 2u;
     }
 
     olsr_garbage_collector(sublist->children);
@@ -424,7 +421,7 @@ void olsr_process_out(pico_time now, void *arg)
     }
 
 out_free:
-    PICO_FREE(p->buf);
+    PICO_FREE(p->buf); /* XXX <-- broken? */
     buffer_mem_used -= DGRAM_MAX_SIZE;
     PICO_FREE(p);
 }
@@ -452,13 +449,22 @@ static void olsr_scheduled_output(uint32_t when, void *buffer, uint16_t size, st
 
 static void refresh_routes(void)
 {
-    struct olsr_route_entry *local, *neighbor = NULL;
+    struct olsr_route_entry *local;
     struct olsr_dev_entry *icur = Local_devices;
 
     /* Refresh local entries */
     /* Step 1: set zero expire time for local addresses and neighbors*/
     local = Local_interfaces;
     while(local) {
+	    #if 0
+        local->time_left = 0;
+        neighbor = local->children;
+        while (neighbor && (neighbor->metric < 2)) {
+            /* dbg("Setting to zero. Neigh: %08x metric %d\n", neighbor->destination, neighbor->metric); */
+            neighbor->time_left = 0;
+            neighbor = neighbor->next;
+        }
+	    #endif
         local = local->next;
     }
     /* Step 2: refresh timer for entries that are still valid.
@@ -509,7 +515,7 @@ static uint32_t olsr_build_hello_neighbors(uint8_t *buf, uint32_t size)
     local = Local_interfaces;
     while (local) {
         neighbor = local->children;
-        while (neighbor) {
+        while (neighbor && (size - ret) > sizeof(struct olsr_neighbor)) {
             struct olsr_link *li = (struct olsr_link *) (buf + ret);
             li->link_code = neighbor->link_type;
             li->reserved = 0;
@@ -539,7 +545,7 @@ static uint32_t olsr_build_tc_neighbors(uint8_t *buf, uint32_t size)
     local = Local_interfaces;
     while (local) {
         neighbor = local->children;
-        while (neighbor) {
+        while (neighbor && (size - ret >= sizeof(struct olsr_neighbor))) {
             dst->addr = neighbor->destination.addr;
             dst->nlq = neighbor->nlq;
             dst->lq = neighbor->lq;
@@ -617,11 +623,13 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
         hello->htime = seconds2olsr(OLSR_HELLO_INTERVAL);
         hello->htime = 0x05; /* Todo: find and define values */
         hello->willingness = 0x07;
-        r = olsr_build_hello_neighbors(dgram + size, DGRAM_MAX_SIZE - size);
-        if (r == 0) {
-            /* dbg("Building hello message\n"); */
-            PICO_FREE(dgram);
-            return;
+        if (DGRAM_MAX_SIZE > size) {
+            r = olsr_build_hello_neighbors(dgram + size, DGRAM_MAX_SIZE - size);
+            if (r == 0) {
+                /* dbg("Building hello message\n"); */
+                PICO_FREE(dgram);
+                return;
+            }
         }
 
         size += r;
@@ -656,9 +664,11 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
         tc = (struct olsr_hmsg_tc *)(dgram + size);
         size += (uint32_t)sizeof(struct olsr_hmsg_tc);
         tc->ansn = short_be(my_ansn);
-        r = olsr_build_tc_neighbors(dgram + size, DGRAM_MAX_SIZE  - size);
-        size += r;
-        msg_tc->size = short_be((uint16_t)(sizeof(struct olsrmsg) + sizeof(struct olsr_hmsg_tc) + r));
+        if (DGRAM_MAX_SIZE > size) {
+            r = olsr_build_tc_neighbors(dgram + size, DGRAM_MAX_SIZE  - size);
+            size += r;
+            msg_tc->size = short_be((uint16_t)(sizeof(struct olsrmsg) + sizeof(struct olsr_hmsg_tc) + r));
+        }
         interval = OLSR_TC_INTERVAL;
     } /*if full */
     /* Send the thing out */
@@ -676,8 +686,7 @@ static inline void arp_storm(struct pico_ip4 *addr)
 #else
 #define arp_storm(...) do{}while(0)
 #endif
-//static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
-void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
+static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
 {
     uint32_t parsed = 0;
     uint32_t *address;
@@ -716,8 +725,7 @@ void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
     }
 }
 
-//static void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
-void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
+static void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
 {
     struct olsr_link *li;
     struct olsr_route_entry *e;
@@ -759,8 +767,7 @@ void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
     }
 }
 
-//static uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e)
-uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e)
+static uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e)
 {
     struct olsr_hmsg_tc *tc = (struct olsr_hmsg_tc *) buf;
     uint16_t new_ansn = short_be(tc->ansn);
@@ -774,7 +781,7 @@ uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entr
 
     if (e->advertised_tc && fresher(new_ansn, e->ansn))
     {
-        PICO_FREE(e->advertised_tc);
+        PICO_FREE(e->advertised_tc); /* <--- XXX check invalid free? */
         e->advertised_tc = NULL;
         retval = 1;
     }
@@ -812,9 +819,9 @@ uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entr
                 rt->iface = e->iface;
                 rt->gateway = e;
                 rt->metric = (uint16_t)(e->metric + 1);
-                rt->lq = n->lq; //0xff
-                rt->nlq = n->nlq;//0xff
-                rt->time_left = e->time_left; //256
+                rt->lq = n->lq;
+                rt->nlq = n->nlq;
+                rt->time_left = e->time_left;
                 olsr_route_add(rt);
             }
         }
@@ -1082,7 +1089,8 @@ int pico_olsr_add(struct pico_device *dev)
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    /* dbg("OLSR: Adding device %s\n", dev->name); */
+
+    dbg("OLSR: Adding device %s\n", dev->name);
     od = PICO_ZALLOC(sizeof(struct olsr_dev_entry));
     if (!od) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1101,7 +1109,7 @@ int pico_olsr_add(struct pico_device *dev)
             struct olsr_route_entry *e = PICO_ZALLOC(sizeof(struct olsr_route_entry));
             /* dbg("OLSR: Found IP address %08x\n", long_be(lnk->address.addr)); */
             pico_ipv4_to_string(ipaddr, (lnk->address.addr));
-            /* dbg("OLSR: Found IP address %s\n", ipaddr); */
+            dbg("OLSR: Found IP address %s\n", ipaddr);
             if (!e) {
                 dbg("olsr allocating route\n");
                 pico_err = PICO_ERR_ENOMEM;

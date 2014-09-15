@@ -38,7 +38,7 @@ int32_t pico_ethernet_receive(struct pico_frame *f);
  */
 int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
-
+int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
@@ -68,5 +68,7 @@ void pico_timer_cancel(struct pico_timer *t);
 pico_time pico_timer_get_expire(struct pico_timer *t);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
+void pico_to_lowercase(char *str);
+int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t proto);
 
 #endif

@@ -18,6 +18,10 @@ struct pico_device_vde {
     struct pico_device dev;
     char *sock;
     VDECONN *conn;
+    uint32_t counter_in;
+    uint32_t counter_out;
+    uint32_t lost_in;
+    uint32_t lost_out;
 };
 
 #define VDE_MTU 65536
@@ -26,7 +30,11 @@ static int pico_vde_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_vde *vde = (struct pico_device_vde *) dev;
     /* dbg("[%s] send %d bytes.\n", dev->name, len); */
-    return vde_send(vde->conn, buf, len, 0);
+    if ((vde->lost_out == 0) || ((pico_rand() % 100) > vde->lost_out))
+        return (int)vde_send(vde->conn, buf, (uint32_t)len, 0);
+    else
+        return len; /* Silently discarded "on the wire" */
+
 }
 
 static int pico_vde_poll(struct pico_device *dev, int loop_score)
@@ -44,8 +52,10 @@ static int pico_vde_poll(struct pico_device *dev, int loop_score)
         len = vde_recv(vde->conn, buf, VDE_MTU, 0);
         if (len > 0) {
             /* dbg("Received pkt.\n"); */
-            loop_score--;
-            pico_stack_recv(dev, buf, len);
+            if ((vde->lost_in == 0) || ((pico_rand() % 100) > vde->lost_in)) {
+                loop_score--;
+                pico_stack_recv(dev, buf, (uint32_t)len);
+            }
         }
     } while(loop_score > 0);
     return 0;
@@ -57,6 +67,13 @@ void pico_vde_destroy(struct pico_device *dev)
 {
     struct pico_device_vde *vde = (struct pico_device_vde *) dev;
     vde_close(vde->conn);
+}
+
+void pico_vde_set_packetloss(struct pico_device *dev, uint32_t in_pct, uint32_t out_pct)
+{
+    struct pico_device_vde *vde = (struct pico_device_vde *) dev;
+    vde->lost_in = in_pct;
+    vde->lost_out = out_pct;
 }
 
 

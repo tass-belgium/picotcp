@@ -68,6 +68,20 @@ uint32_t pico_rand(void)
     return _rand_seed;
 }
 
+void pico_to_lowercase(char *str)
+{
+    int i = 0;
+    if (!str)
+        return;
+
+    while(str[i]) {
+        if ((str[i] <= 'Z') && (str[i] >= 'A'))
+            str[i] = (char) (str[i] - (char)('A' - 'a'));
+
+        i++;
+    }
+}
+
 /* NOTIFICATIONS: distributed notifications for stack internal errors.
  */
 
@@ -238,12 +252,12 @@ int pico_source_is_local(struct pico_frame *f)
 #endif
 #ifdef PICO_SUPPORT_IPV6
     else if (IS_IPV6(f)) {
-        /* XXX */
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+        if (pico_ipv6_is_unspecified(hdr->src.addr) || pico_ipv6_link_find(&hdr->src))
+            return 1;
     }
 #endif
     return 0;
-
-
 }
 
 
@@ -260,20 +274,19 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 {
     struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    if (0) { }
 
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
-    else if (hdr->proto == PICO_IDETH_ARP)
+    if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
+
 #endif
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
-    else if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
+    if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
         return pico_network_receive(f);
+
 #endif
-    else {
-        pico_frame_discard(f);
-        return -1;
-    }
+    pico_frame_discard(f);
+    return -1;
 }
 
 static void pico_ll_check_bcast(struct pico_frame *f)
@@ -351,7 +364,7 @@ static int destination_is_mcast(struct pico_frame *f)
     return ret;
 }
 
-static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
+struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
@@ -365,7 +378,7 @@ static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint
 
 
 #ifdef PICO_SUPPORT_IPV6
-static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
+struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
@@ -389,7 +402,7 @@ struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
         };
         dstmac = pico_ethernet_mcast6_translate(f, pico_mcast6_mac);
     } else {
-        dstmac = pico_nd_get(f);
+        dstmac = pico_ipv6_get_neighbor(f);
     }
 
     #else
@@ -442,36 +455,60 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
     }
 }
 
-int32_t pico_ethernet_send(struct pico_frame *f)
+/* This function looks for the destination mac address
+ * in order to send the frame being processed.
+ */
+
+int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
-    int32_t ret = -1;
+    int ret = -1;
     uint16_t proto = PICO_IDETH_IPV4;
 
+
+
+#ifdef PICO_SUPPORT_IPV6
+    /* Step 1: If the frame has an IPv6 packet,
+     * destination address is taken from the ND tables
+     */
     if (IS_IPV6(f)) {
         dstmac = pico_ethernet_ipv6_dst(f);
-        if (!dstmac)
+        if (!dstmac) {
+            /* When the dest mac is not available, frame is postponed.
+             * ND is handling it now. No need to discard. */
+            pico_ipv6_nd_postpone(f);
             return 0;
+        }
 
         proto = PICO_IDETH_IPV6;
     }
+    else
+#endif
 
-    else if (IS_BCAST(f) || destination_is_bcast(f))
+    /* In case of broadcast (IPV4 only), dst mac is FF:FF:... */
+    if (IS_BCAST(f) || destination_is_bcast(f))
         dstmac = (const struct pico_eth *) PICO_ETHADDR_ALL;
 
+    /* In case of multicast, dst mac is translated from the group address */
     else if (destination_is_mcast(f)) {
         uint8_t pico_mcast_mac[6] = {
             0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
         };
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
-    else {
+
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
+    else {
         dstmac = pico_arp_get(f);
-        if (!dstmac)
-#endif
-        return 0;
+        /* At this point, ARP will discard the frame in any case.
+         * It is safe to return without discarding.
+         */
+        if (!dstmac) {
+            pico_arp_postpone(f);
+            return 0;
+        }
     }
+#endif
 
     /* This sets destination and source address, then pushes the packet to the device. */
     if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
@@ -485,12 +522,15 @@ int32_t pico_ethernet_send(struct pico_frame *f)
         hdr->proto = proto;
 
         if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
-            return ret;
-        } else {
-            return -1;
+            /* one of the above functions has disposed of the frame accordingly. (returned != 0)
+             * It is safe to directly return the number of bytes processed here.
+             * */
+            return (int32_t)ret;
         }
     }
 
+    /* In all other cases,  it's up to us to get rid of the frame. */
+    pico_frame_discard(f);
     return -1;
 }
 
@@ -524,6 +564,24 @@ void pico_store_network_origin(void *src, struct pico_frame *f)
   #endif
 }
 
+int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t proto)
+{
+    #ifdef PICO_SUPPORT_IPV6
+    if (proto == PICO_PROTO_IPV6) {
+        return pico_ipv6_compare(&a->ip6, &b->ip6);
+    }
+
+    #endif
+    #ifdef PICO_SUPPORT_IPV4
+    if (proto == PICO_PROTO_IPV4) {
+        return pico_ipv4_compare(&a->ip4, &b->ip4);
+    }
+
+    #endif
+    return 0;
+
+}
+
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
@@ -550,9 +608,10 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     f->start = f->buffer;
     f->len = f->buffer_len;
     if (f->len > 8) {
-        uint32_t mid_frame = (f->buffer_len >> 2) << 1;
+        uint32_t rand, mid_frame = (f->buffer_len >> 2) << 1;
         mid_frame -= (mid_frame % 4);
-        pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+        memcpy(&rand, f->buffer + mid_frame, sizeof(uint32_t));
+        pico_rand_feed(rand);
     }
 
     memcpy(f->buffer, buffer, len);
@@ -564,14 +623,14 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     return ret;
 }
 
-int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len, int ext_buffer)
 {
     struct pico_frame *f;
     int ret;
     if (len <= 0)
         return -1;
 
-    f = pico_frame_alloc_skeleton(len);
+    f = pico_frame_alloc_skeleton(len, ext_buffer);
     if (!f)
     {
         dbg("Cannot alloc incoming frame!\n");
@@ -595,6 +654,16 @@ int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint3
     return ret;
 }
 
+int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 0);
+}
+
+int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 1);
+}
+
 int32_t pico_sendto_dev(struct pico_frame *f)
 {
     if (!f->dev) {
@@ -602,9 +671,10 @@ int32_t pico_sendto_dev(struct pico_frame *f)
         return -1;
     } else {
         if (f->len > 8) {
-            uint32_t mid_frame = (f->buffer_len >> 2) << 1;
+            uint32_t rand, mid_frame = (f->buffer_len >> 2) << 1;
             mid_frame -= (mid_frame % 4);
-            pico_rand_feed(*(uint32_t*)(f->buffer + mid_frame));
+            memcpy(&rand, f->buffer + mid_frame, sizeof(uint32_t));
+            pico_rand_feed(rand);
         }
 
         return pico_enqueue(f->dev->q_out, f);
@@ -669,7 +739,7 @@ void pico_timer_cancel(struct pico_timer *t)
 #define PROTO_DEF_SCORE   32
 #define PROTO_MIN_SCORE   32
 #define PROTO_MAX_SCORE   128
-#define PROTO_LAT_IND     3   /* latecy indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
+#define PROTO_LAT_IND     3   /* latency indication 0-3 (lower is better latency performance), x1, x2, x4, x8 */
 #define PROTO_MAX_LOOP    (PROTO_MAX_SCORE << PROTO_LAT_IND) /* max global loop score, so per tick */
 
 static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *ret)
@@ -863,7 +933,7 @@ void pico_stack_loop(void)
     }
 }
 
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+MOCKABLE struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
     struct pico_timer_ref tref;
@@ -878,7 +948,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     tref.tmr = t;
     heap_insert(Timers, &tref);
     if (Timers->n > PICO_MAX_TIMERS) {
-        dbg("Warning: I have %d timers\n", Timers->n);
+        dbg("Warning: I have %d timers\n", (int)Timers->n);
     }
 
     return t;

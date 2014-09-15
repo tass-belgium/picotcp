@@ -6,265 +6,214 @@
 #include "pico_stack.h"
 #include "pico_device.h"
 #include "pico_eth.h"
+#include "pico_addressing.h"
 #include "modules/pico_ipv6_nd.c"
 #include "check.h"
+#ifdef PICO_SUPPORT_IPV6
 
-START_TEST(tc_pico_neighbor)
+#undef PICO_TIME
+#undef PICO_TIME_MS
+
+#define PICO_TIME_MS (0)
+#define PICO_TIME (0)
+
+START_TEST(tc_pico_nd_new_expire_time)
 {
-    struct pico_neighbor *ne0, *ne1, *ne2;
-    struct pico_frame *f = NULL;
-    struct pico_ip6 host, n0, n1;
-    uint8_t type = 0;
+    struct pico_ipv6_neighbor n = {
+        0
+    };
+    struct pico_device d = {
+        0
+    };
 
-    pico_stack_init();
+    /* TODO: how to test these time values */
 
-    pico_string_to_ipv6("7a55::150", host.addr);
+    n.dev = &d;
 
-    pico_string_to_ipv6("7a55::0", n0.addr);
-    pico_string_to_ipv6("7a55::1", n1.addr);
+    d.hostvars.retranstime = 666;
 
+    n.state = PICO_ND_STATE_INCOMPLETE;
+    pico_nd_new_expire_time(&n);
 
-#ifdef PICO_FAULTY
-    printf("Testing with faulty memory in pico_nd_add_neighbor (1)\n");
-    pico_set_mm_failure(1);
-    ne0 = pico_nd_add_neighbor(&host, &n0, PICO_ND_STATE_REACHABLE, NULL);
-    fail_if(ne0 != NULL);
-#endif
-
-    ne0 = pico_nd_add_neighbor(&host, &n0, PICO_ND_STATE_REACHABLE, NULL);
-    fail_if(!ne0);
-
-    ne1 = pico_nd_add_neighbor(&host, &n1, PICO_ND_STATE_REACHABLE, NULL);
-    fail_if(!ne1);
+    n.state = PICO_ND_STATE_REACHABLE;
+    pico_nd_new_expire_time(&n);
 
 
-    /* Check comparison */
-    fail_if(nd_neighbor_compare((void *)ne0, (void*)ne1) >= 0);
+    n.state = PICO_ND_STATE_STALE;
+    pico_nd_new_expire_time(&n);
 
 
-    /* Lookup node by address */
-    ne2 = pico_nd_lookup(&n1);
-    fail_if(ne2 != ne1);
-
-    /* Lookup non-existing node */
-    ne2 = pico_nd_lookup(&host);
-    fail_if(ne2);
-
-    /* Delete invalid neighbor */
-    fail_if(pico_nd_del_neighbor(NULL) >= 0);
-
-    /* Delete non-existing neighbor */
-    fail_if(pico_nd_del_neighbor(&host) >= 0);
-
-    /* Delete existing neighbor... */
-    fail_if(pico_nd_del_neighbor(&n1) != 0);
-
-    /* Try to find that again... */
-    ne2 = pico_nd_lookup(&n1);
-    fail_if(ne2);
-
-    /* Check invalid solicitation */
-    fail_if(pico_nd_send_solicitation(NULL, NULL, NULL, 0) != -1);
-
-
+    n.state = PICO_ND_STATE_PROBE;
+    pico_nd_new_expire_time(&n);
 
 }
 END_TEST
-START_TEST(tc_pico_router)
+START_TEST(tc_pico_nd_queue)
 {
-    struct pico_neighbor *ne0, *ne1, *ne2;
-    struct pico_router *ro0, *ro1, *ro2;
-    struct pico_frame *f = NULL;
-    struct pico_ip6 host, n0, n1;
-    uint8_t type = 0;
-    pico_stack_init();
+    struct pico_ip6 addr = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9
+    };
+    int i;
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
+    struct pico_ipv6_hdr *h = (struct pico_ipv6_hdr *) f->buffer;
+    f->net_hdr = h;
+    f->buffer[0] = 0x60; /* Ipv6 */
+    memcpy(h->dst.addr, addr.addr, PICO_SIZE_IP6);
 
-    pico_string_to_ipv6("7a55::150", host.addr);
+    fail_if(!f);
 
-    pico_string_to_ipv6("7a55::0", n0.addr);
-    pico_string_to_ipv6("7a55::1", n1.addr);
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
+    pico_ipv6_nd_unreachable(&addr);
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
+    pico_ipv6_nd_postpone(f);
+    fail_if(frames_queued_v6[0] != f);
 
-    ne0 = pico_nd_add_neighbor(&host, &n0, PICO_ND_STATE_REACHABLE, NULL);
-    fail_if(!ne0);
+    pico_ipv6_nd_unreachable(&addr);
 
-    ne1 = pico_nd_add_neighbor(&host, &n1, PICO_ND_STATE_REACHABLE, NULL);
-    fail_if(!ne0);
-
-#ifdef PICO_FAULTY
-    printf("Testing with faulty memory in pico_nd_add_router (1)\n");
-    pico_set_mm_failure(1);
-    fail_if (pico_nd_add_router(ne0, 0) != NULL);
-#endif
-
-    ro0 = pico_nd_add_router(ne0, 100);
-    fail_unless(ro0);
-
-    ro1 = pico_nd_add_router(ne1, 200);
-    fail_unless(ro1);
-
-    /* Check comparison = this is done via neighbor pointer addresses */
-    if (ne0 > ne1)
-        fail_if(nd_router_compare((void *)ro0, (void*)ro1) <= 0);
-    else
-        fail_if(nd_router_compare((void *)ro0, (void*)ro1) >= 0);
-
-
-    /* Lookup node by address */
-    ro2 = pico_nd_find_router(&n1);
-    fail_if(ro2 != ro1);
-
-    /* Lookup non-existing node */
-    ro2 = pico_nd_find_router(&host);
-    fail_if(ro2);
-
-    /* Delete invalid node */
-    fail_if(pico_nd_del_router(NULL) >= 0);
-
-    /* Delete non-existing node */
-    fail_if(pico_nd_del_router(&host) >= 0);
-
-    /* Delete existing node... */
-    fail_if(pico_nd_del_router(ro1) != 0);
-
-    /* Try to find that again... */
-    ro2 = pico_nd_find_router(&n1);
-    fail_if(ro2);
-
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
+        fail_if(frames_queued_v6[i] != NULL);
+    }
 }
 END_TEST
 
-
-START_TEST(tc_pico_nd_router_timer)
+START_TEST(tc_pico_nd_new_expire_state)
 {
-    /* TODO: test this: static void pico_nd_router_timer(pico_time now, void *arg) */
+    struct pico_ipv6_neighbor n = {
+        0
+    };
+    int i;
+
+    /* INCOMPLETE won't change */
+    n.state = PICO_ND_STATE_INCOMPLETE;
+    pico_nd_new_expire_state(&n);
+    fail_unless(n.state == PICO_ND_STATE_INCOMPLETE);
+
+    /* PROBE won't change */
+    n.state = PICO_ND_STATE_PROBE;
+    pico_nd_new_expire_state(&n);
+    fail_unless(n.state == PICO_ND_STATE_PROBE);
+
+    for (i = PICO_ND_STATE_INCOMPLETE + 1; i < PICO_ND_STATE_PROBE; )
+    {
+        n.state = i;
+        pico_nd_new_expire_state(&n);
+        fail_unless(n.state == i + 1);
+        i = n.state;
+    }
 }
 END_TEST
-START_TEST(tc_pico_prefix)
+START_TEST(tc_pico_nd_discover)
 {
-    struct pico_prefix *ro0, *ro1, *ro2;
-    struct pico_frame *f = NULL;
-    struct pico_ip6 host, n0, n1;
-    uint8_t type = 0;
-    pico_stack_init();
-
-    pico_string_to_ipv6("7a55::150", host.addr);
-
-    pico_string_to_ipv6("7a55::0", n0.addr);
-    pico_string_to_ipv6("7a55::1", n1.addr);
-
-#ifdef PICO_FAULTY
-    printf("Testing with faulty memory in pico_nd_add_prefix (1)\n");
-    pico_set_mm_failure(1);
-    fail_if (pico_nd_add_prefix(&n0, 0) != NULL);
-#endif
-
-    ro0 = pico_nd_add_prefix(&n0, 100);
-    fail_unless(ro0);
-
-    ro1 = pico_nd_add_prefix(&n1, 200);
-    fail_unless(ro1);
-
-    /* Check comparison = this is done via neighbor IPv6 addresses */
-    fail_if(nd_prefix_compare((void *)ro0, (void*)ro1) >= 0);
-
-
-    /* Lookup node by address */
-    ro2 = pico_nd_find_prefix(&n1);
-    fail_if(ro2 != ro1);
-
-    /* Lookup non-existing node */
-    ro2 = pico_nd_find_prefix(&host);
-    fail_if(ro2);
-
-    /* Delete invalid node */
-    fail_if(pico_nd_del_prefix(NULL) >= 0);
-
-    /* Delete non-existing node */
-    fail_if(pico_nd_del_prefix(&host) >= 0);
-
-    /* Delete existing node... */
-    fail_if(pico_nd_del_prefix(&n1) != 0);
-
-    /* Try to find that again... */
-    ro2 = pico_nd_find_prefix(&n1);
-    fail_if(ro2);
+    /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
 }
 END_TEST
-
-START_TEST(tc_pico_nd_prefix_timer)
+START_TEST(tc_neigh_options)
 {
-    /* TODO: test this: static void pico_nd_prefix_timer(pico_time now, void *arg) */
+    /* TODO: test this: static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt) */
 }
 END_TEST
-START_TEST(tc_pico_destination)
+START_TEST(tc_neigh_adv_complete)
 {
-    struct pico_destination *ro0, *ro1, *ro2;
-    struct pico_frame *f = NULL;
-    struct pico_ip6 host, n0, n1;
-    uint8_t type = 0;
-    pico_stack_init();
-
-    pico_string_to_ipv6("7a55::150", host.addr);
-
-    pico_string_to_ipv6("7a55::0", n0.addr);
-    pico_string_to_ipv6("7a55::1", n1.addr);
-
-#ifdef PICO_FAULTY
-    printf("Testing with faulty memory in pico_nd_add_destination (1)\n");
-    pico_set_mm_failure(1);
-    fail_if (pico_nd_add_destination(&n0, 0) != NULL);
-#endif
-
-    ro0 = pico_nd_add_destination(&n0, &host);
-    fail_unless(ro0);
-
-    ro1 = pico_nd_add_destination(&n1, &host);
-    fail_unless(ro1);
-
-    /* Check comparison = this is done via neighbor IPv6 addresses */
-    fail_if(nd_destination_compare((void *)ro0, (void*)ro1) >= 0);
-
-
-    /* Lookup node by address */
-    ro2 = pico_nd_find_destination(&n1);
-    fail_if(ro2 != ro1);
-
-    /* Lookup non-existing node */
-    ro2 = pico_nd_find_destination(&host);
-    fail_if(ro2);
-
-    /* Delete invalid node */
-    fail_if(pico_nd_del_destination(NULL) >= 0);
-
-    /* Delete non-existing node */
-    fail_if(pico_nd_del_destination(&host) >= 0);
-
-    /* Delete existing node... */
-    fail_if(pico_nd_del_destination(&n1) != 0);
-
-    /* Try to find that again... */
-    ro2 = pico_nd_find_destination(&n1);
-    fail_if(ro2);
+    /* TODO: test this: static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt) */
 }
 END_TEST
-START_TEST(tc_pico_nd_destination_garbage_collect)
+START_TEST(tc_neigh_adv_reconfirm_router_option)
 {
-    /* TODO: test this: static void pico_nd_destination_garbage_collect(pico_time now, void *arg) */
+    /* TODO: test this: static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter) */
 }
 END_TEST
-START_TEST(tc_pico_nd_pending)
+START_TEST(tc_neigh_adv_reconfirm)
 {
-    /* TODO: test this: static void pico_nd_pending(pico_time now, void *arg) */
+    /* TODO: test this: static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr) */
 }
 END_TEST
-START_TEST(tc_pico_nd_first_probe)
+START_TEST(tc_neigh_adv_check_solicited)
 {
-    /* TODO: test this: static void pico_nd_first_probe(pico_time now, void *arg) */
+    /* TODO: test this: static void neigh_adv_check_solicited(struct pico_icmp6_hdr *ic6, struct pico_ipv6_neighbor *n) */
 }
 END_TEST
-START_TEST(tc_pico_nd_probe)
+START_TEST(tc_neigh_adv_process)
 {
-    /* TODO: test this: static void pico_nd_probe(pico_time now, void *arg) */
+    /* TODO: test this: static int neigh_adv_process(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_ipv6_neighbor)
+{
+    /* TODO: test this: static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
+}
+END_TEST
+START_TEST(tc_neighbor_from_sol)
+{
+    /* TODO: test this: static void neighbor_from_sol(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
+}
+END_TEST
+START_TEST(tc_neigh_sol_process)
+{
+    /* TODO: test this: static int neigh_sol_process(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_icmp6_initial_checks)
+{
+    /* TODO: test this: static int icmp6_initial_checks(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_neigh_adv_mcast_validity_checks)
+{
+    /* TODO: test this: static int neigh_adv_mcast_validity_check(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_neigh_sol_mcast_validity_checks)
+{
+    /* TODO: test this: static int neigh_sol_mcast_validity_check(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_neigh_adv_validity_checks)
+{
+    /* TODO: test this: static int neigh_adv_validity_checks(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_neigh_sol_validity_checks)
+{
+    /* TODO: test this: static int neigh_sol_validity_checks(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_neigh_adv_checks)
+{
+    /* TODO: test this: static int neigh_adv_checks(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_nd_router_sol_recv)
+{
+    /* TODO: test this: static int pico_nd_router_sol_recv(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_nd_router_adv_recv)
+{
+    /* TODO: test this: static int pico_nd_router_adv_recv(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_nd_neigh_sol_recv)
+{
+    /* TODO: test this: static int pico_nd_neigh_sol_recv(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_nd_neigh_adv_recv)
+{
+    /* TODO: test this: static int pico_nd_neigh_adv_recv(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_nd_redirect_recv)
+{
+    /* TODO: test this: static int pico_nd_redirect_recv(struct pico_frame *f) */
+}
+END_TEST
+START_TEST(tc_pico_ipv6_nd_timer_callback)
+{
+    /* TODO: test this: static void pico_ipv6_nd_timer_callback(pico_time now, void *arg) */
 }
 END_TEST
 
@@ -273,38 +222,83 @@ Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
-    TCase *TCase_pico_neighbor = tcase_create("Unit test for pico_neighbor");
-    TCase *TCase_pico_router = tcase_create("Unit test for pico_router");
-    TCase *TCase_pico_nd_router_timer = tcase_create("Unit test for pico_nd_router_timer");
-    TCase *TCase_pico_prefix = tcase_create("Unit test for pico_prefix");
-    TCase *TCase_pico_nd_prefix_timer = tcase_create("Unit test for pico_nd_prefix_timer");
-    TCase *TCase_pico_destination = tcase_create("Unit test for pico_destination");
-    TCase *TCase_pico_nd_destination_garbage_collect = tcase_create("Unit test for pico_nd_destination_garbage_collect");
-    TCase *TCase_pico_nd_pending = tcase_create("Unit test for pico_nd_pending");
-    TCase *TCase_pico_nd_first_probe = tcase_create("Unit test for pico_nd_first_probe");
-    TCase *TCase_pico_nd_probe = tcase_create("Unit test for pico_nd_probe");
+    TCase *TCase_pico_nd_new_expire_time = tcase_create("Unit test for pico_nd_new_expire_time");
+    TCase *TCase_pico_nd_new_expire_state = tcase_create("Unit test for pico_nd_new_expire_state");
+    TCase *TCase_pico_nd_discover = tcase_create("Unit test for pico_nd_discover");
+    TCase *TCase_neigh_options = tcase_create("Unit test for neigh_options");
+    TCase *TCase_neigh_adv_complete = tcase_create("Unit test for neigh_adv_complete");
+    TCase *TCase_neigh_adv_reconfirm_router_option = tcase_create("Unit test for neigh_adv_reconfirm_router_option");
+    TCase *TCase_neigh_adv_reconfirm = tcase_create("Unit test for neigh_adv_reconfirm");
+    TCase *TCase_neigh_adv_check_solicited = tcase_create("Unit test for neigh_adv_check_solicited");
+    TCase *TCase_neigh_adv_process = tcase_create("Unit test for neigh_adv_process");
+    TCase *TCase_pico_ipv6_neighbor = tcase_create("Unit test for pico_ipv6_neighbor");
+    TCase *TCase_neighbor_from_sol = tcase_create("Unit test for neighbor_from_sol");
+    TCase *TCase_neigh_sol_process = tcase_create("Unit test for neigh_sol_process");
+    TCase *TCase_icmp6_initial_checks = tcase_create("Unit test for icmp6_initial_checks");
+    TCase *TCase_neigh_sol_mcast_validity_checks = tcase_create("Unit test for neigh_sol_mcast_validity_checks");
+    TCase *TCase_neigh_sol_validity_checks = tcase_create("Unit test for neigh_sol_validity_checks");
+    TCase *TCase_neigh_adv_checks = tcase_create("Unit test for neigh_adv_checks");
+    TCase *TCase_neigh_adv_validity_checks = tcase_create("Unit test for neigh_adv_validity_checks");
+    TCase *TCase_neigh_adv_mcast_validity_checks = tcase_create("Unit test for neigh_adv_mcast_validity_checks");
+    TCase *TCase_pico_nd_router_sol_recv = tcase_create("Unit test for pico_nd_router_sol_recv");
+    TCase *TCase_pico_nd_router_adv_recv = tcase_create("Unit test for pico_nd_router_adv_recv");
+    TCase *TCase_pico_nd_neigh_sol_recv = tcase_create("Unit test for pico_nd_neigh_sol_recv");
+    TCase *TCase_pico_nd_neigh_adv_recv = tcase_create("Unit test for pico_nd_neigh_adv_recv");
+    TCase *TCase_pico_nd_redirect_recv = tcase_create("Unit test for pico_nd_redirect_recv");
+    TCase *TCase_pico_ipv6_nd_timer_callback = tcase_create("Unit test for pico_ipv6_nd_timer_callback");
+    TCase *TCase_pico_nd_queue = tcase_create("Unit test for pico_ipv6_nd: queue for pending frames");
 
 
-    tcase_add_test(TCase_pico_neighbor, tc_pico_neighbor);
-    suite_add_tcase(s, TCase_pico_neighbor);
-    tcase_add_test(TCase_pico_router, tc_pico_router);
-    suite_add_tcase(s, TCase_pico_router);
-    tcase_add_test(TCase_pico_nd_router_timer, tc_pico_nd_router_timer);
-    suite_add_tcase(s, TCase_pico_nd_router_timer);
-    tcase_add_test(TCase_pico_prefix, tc_pico_prefix);
-    suite_add_tcase(s, TCase_pico_prefix);
-    tcase_add_test(TCase_pico_nd_prefix_timer, tc_pico_nd_prefix_timer);
-    suite_add_tcase(s, TCase_pico_nd_prefix_timer);
-    tcase_add_test(TCase_pico_destination, tc_pico_destination);
-    suite_add_tcase(s, TCase_pico_destination);
-    tcase_add_test(TCase_pico_nd_destination_garbage_collect, tc_pico_nd_destination_garbage_collect);
-    suite_add_tcase(s, TCase_pico_nd_destination_garbage_collect);
-    tcase_add_test(TCase_pico_nd_pending, tc_pico_nd_pending);
-    suite_add_tcase(s, TCase_pico_nd_pending);
-    tcase_add_test(TCase_pico_nd_first_probe, tc_pico_nd_first_probe);
-    suite_add_tcase(s, TCase_pico_nd_first_probe);
-    tcase_add_test(TCase_pico_nd_probe, tc_pico_nd_probe);
-    suite_add_tcase(s, TCase_pico_nd_probe);
+    tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
+    suite_add_tcase(s, TCase_pico_nd_new_expire_time);
+    tcase_add_test(TCase_pico_nd_new_expire_state, tc_pico_nd_new_expire_state);
+    suite_add_tcase(s, TCase_pico_nd_new_expire_state);
+    tcase_add_test(TCase_pico_nd_discover, tc_pico_nd_discover);
+    suite_add_tcase(s, TCase_pico_nd_discover);
+    tcase_add_test(TCase_neigh_options, tc_neigh_options);
+    suite_add_tcase(s, TCase_neigh_options);
+    tcase_add_test(TCase_neigh_adv_complete, tc_neigh_adv_complete);
+    suite_add_tcase(s, TCase_neigh_adv_complete);
+    tcase_add_test(TCase_neigh_adv_reconfirm_router_option, tc_neigh_adv_reconfirm_router_option);
+    suite_add_tcase(s, TCase_neigh_adv_reconfirm_router_option);
+    tcase_add_test(TCase_neigh_adv_reconfirm, tc_neigh_adv_reconfirm);
+    suite_add_tcase(s, TCase_neigh_adv_reconfirm);
+    tcase_add_test(TCase_neigh_adv_check_solicited, tc_neigh_adv_check_solicited);
+    suite_add_tcase(s, TCase_neigh_adv_check_solicited);
+    tcase_add_test(TCase_neigh_adv_process, tc_neigh_adv_process);
+    suite_add_tcase(s, TCase_neigh_adv_process);
+    tcase_add_test(TCase_pico_ipv6_neighbor, tc_pico_ipv6_neighbor);
+    suite_add_tcase(s, TCase_pico_ipv6_neighbor);
+    tcase_add_test(TCase_neighbor_from_sol, tc_neighbor_from_sol);
+    suite_add_tcase(s, TCase_neighbor_from_sol);
+    tcase_add_test(TCase_neigh_sol_process, tc_neigh_sol_process);
+    suite_add_tcase(s, TCase_neigh_sol_process);
+    tcase_add_test(TCase_icmp6_initial_checks, tc_icmp6_initial_checks);
+    suite_add_tcase(s, TCase_icmp6_initial_checks);
+    tcase_add_test(TCase_neigh_adv_mcast_validity_checks, tc_neigh_adv_mcast_validity_checks);
+    suite_add_tcase(s, TCase_neigh_adv_mcast_validity_checks);
+    tcase_add_test(TCase_neigh_sol_mcast_validity_checks, tc_neigh_sol_mcast_validity_checks);
+    suite_add_tcase(s, TCase_neigh_sol_mcast_validity_checks);
+    tcase_add_test(TCase_neigh_adv_validity_checks, tc_neigh_adv_validity_checks);
+    suite_add_tcase(s, TCase_neigh_adv_validity_checks);
+    tcase_add_test(TCase_neigh_sol_validity_checks, tc_neigh_sol_validity_checks);
+    suite_add_tcase(s, TCase_neigh_sol_validity_checks);
+    tcase_add_test(TCase_neigh_adv_checks, tc_neigh_adv_checks);
+    suite_add_tcase(s, TCase_neigh_adv_checks);
+    tcase_add_test(TCase_pico_nd_router_sol_recv, tc_pico_nd_router_sol_recv);
+    suite_add_tcase(s, TCase_pico_nd_router_sol_recv);
+    tcase_add_test(TCase_pico_nd_router_adv_recv, tc_pico_nd_router_adv_recv);
+    suite_add_tcase(s, TCase_pico_nd_router_adv_recv);
+    tcase_add_test(TCase_pico_nd_neigh_sol_recv, tc_pico_nd_neigh_sol_recv);
+    suite_add_tcase(s, TCase_pico_nd_neigh_sol_recv);
+    tcase_add_test(TCase_pico_nd_neigh_adv_recv, tc_pico_nd_neigh_adv_recv);
+    suite_add_tcase(s, TCase_pico_nd_neigh_adv_recv);
+    tcase_add_test(TCase_pico_nd_redirect_recv, tc_pico_nd_redirect_recv);
+    suite_add_tcase(s, TCase_pico_nd_redirect_recv);
+    tcase_add_test(TCase_pico_ipv6_nd_timer_callback, tc_pico_ipv6_nd_timer_callback);
+    suite_add_tcase(s, TCase_pico_ipv6_nd_timer_callback);
+    tcase_add_test(TCase_pico_nd_queue, tc_pico_nd_queue);
+    suite_add_tcase(s, TCase_pico_nd_queue);
     return s;
 }
 
@@ -318,3 +312,10 @@ int main(void)
     srunner_free(sr);
     return fails;
 }
+#else
+int main(void)
+{
+    return 0;
+}
+
+#endif

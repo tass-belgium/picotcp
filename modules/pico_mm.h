@@ -23,7 +23,7 @@ void pico_mem_init(uint32_t memsize);
  * Memory deinit function, this will free all memory occupied by the current
  * memory manager instance.
  */
-void pico_mem_deinit();
+void pico_mem_deinit(void);
 /*
  * Zero-initialized malloc function, will reserve a memory segment of length uint32_t len
  * This memory will be quickly allocated in a slab of fixed size if possible
@@ -71,7 +71,7 @@ void pico_mem_profile_collect_data(struct profiling_data*profiling_page_struct);
  * This function prints the general structure of the memory manager
  * Printf in this function can be rerouted to send this data over a serial port, or to write it away to memory
  */
-void pico_mem_profile_scan_data();
+void pico_mem_profile_scan_data(void);
 
 /*
  * This function returns the total size that the manager has received from the system
@@ -80,14 +80,14 @@ void pico_mem_profile_scan_data();
  * Together with pico_mem_profile_collect_data, this can give a good estimation of the total
  * resource commitment
  */
-uint32_t pico_mem_profile_used_size();
+uint32_t pico_mem_profile_used_size(void);
 
 /*
  * This function returns a pointer to page 0, the main memory manager housekeeping (struct pico_mem_manager).
  * This can be used to collect data about the memory in user defined functions.
  * Use with care!
  */
-void*pico_mem_profile_manager();
+void*pico_mem_profile_manager(void);
 
 /*
  * paramter manager is a pointer to a struct pico_mem_manager

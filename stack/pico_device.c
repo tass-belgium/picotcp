@@ -7,7 +7,6 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_device.h"
 #include "pico_stack.h"
@@ -39,14 +38,92 @@ static int pico_dev_cmp(void *ka, void *kb)
 
 PICO_TREE_DECLARE(Device_tree, pico_dev_cmp);
 
-int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
+#ifdef PICO_SUPPORT_IPV6
+static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *linklocal)
+{
+    dev->hostvars.mtu = PICO_ETH_MTU;
+    dev->hostvars.basetime = PICO_ND_REACHABLE_TIME;
+    /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
+    dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
+    dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
+    pico_icmp6_router_solicitation(dev, linklocal);
+    dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
+}
+#endif
+
+static int device_init_mac(struct pico_device *dev, uint8_t *mac)
 {
     #ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
     struct pico_ip6 netmask6 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     #endif
+    dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
+    if (dev->eth) {
+        memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
+        #ifdef PICO_SUPPORT_IPV6
+        /* modified EUI-64 + invert universal/local bit */
+        linklocal.addr[8] = (mac[0] ^ 0x02);
+        linklocal.addr[9] = mac[1];
+        linklocal.addr[10] = mac[2];
+        linklocal.addr[13] = mac[3];
+        linklocal.addr[14] = mac[4];
+        linklocal.addr[15] = mac[5];
+        if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+            PICO_FREE(dev->q_in);
+            PICO_FREE(dev->q_out);
+            PICO_FREE(dev->eth);
+            return -1;
+        }
+
+        device_init_ipv6_final(dev, &linklocal);
+        #endif
+    } else {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
+    return 0;
+}
+
+static int device_init_nomac(struct pico_device *dev)
+{
+    #ifdef PICO_SUPPORT_IPV6
+    struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
+    struct pico_ip6 netmask6 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    uint32_t len = (uint32_t)strlen(dev->name);
+    if (strcmp(dev->name, "loop")) {
+        do {
+            /* privacy extension + unset universal/local and individual/group bit */
+            len = pico_rand();
+            linklocal.addr[8]  = (uint8_t)((len & 0xffu) & (uint8_t)(~0x03));
+            linklocal.addr[9]  = (uint8_t)(len >> 8);
+            linklocal.addr[10] = (uint8_t)(len >> 16);
+            linklocal.addr[11] = (uint8_t)(len >> 24);
+            len = pico_rand();
+            linklocal.addr[12] = (uint8_t)len;
+            linklocal.addr[13] = (uint8_t)(len >> 8);
+            linklocal.addr[14] = (uint8_t)(len >> 16);
+            linklocal.addr[15] = (uint8_t)(len >> 24);
+            pico_rand_feed(dev->hash);
+        } while (pico_ipv6_link_get(&linklocal));
+
+        if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+            PICO_FREE(dev->q_in);
+            PICO_FREE(dev->q_out);
+            return -1;
+        }
+    }
+
+    #endif
+    dev->eth = NULL;
+    return 0;
+}
+
+int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
+{
 
     uint32_t len = (uint32_t)strlen(name);
+    int ret = 0;
     if(len > MAX_DEVICE_NAME)
         len = MAX_DEVICE_NAME;
 
@@ -61,75 +138,14 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
         return -1;
 
     pico_tree_insert(&Device_tree, dev);
-
     if (mac) {
-        dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
-        if (dev->eth) {
-            memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
-            #ifdef PICO_SUPPORT_IPV6
-            /* modified EUI-64 + invert universal/local bit */
-            linklocal.addr[8] = (mac[0] ^ 0x02);
-            linklocal.addr[9] = mac[1];
-            linklocal.addr[10] = mac[2];
-            linklocal.addr[13] = mac[3];
-            linklocal.addr[14] = mac[4];
-            linklocal.addr[15] = mac[5];
-            if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                PICO_FREE(dev->q_in);
-                PICO_FREE(dev->q_out);
-                PICO_FREE(dev->eth);
-                return -1;
-            }
-
-            #endif
-        }
-
+        ret = device_init_mac(dev, mac);
 
     } else {
-        dev->eth = NULL;
-        #ifdef PICO_SUPPORT_IPV6
-        if (strcmp(dev->name, "loop")) {
-            do {
-                /* privacy extension + unset universal/local and individual/group bit */
-                len = pico_rand();
-                linklocal.addr[8]  = (uint8_t)((len & 0xffu) & (uint8_t)(~0x03));
-                linklocal.addr[9]  = (uint8_t)(len >> 8);
-                linklocal.addr[10] = (uint8_t)(len >> 16);
-                linklocal.addr[11] = (uint8_t)(len >> 24);
-                len = pico_rand();
-                linklocal.addr[12] = (uint8_t)len;
-                linklocal.addr[13] = (uint8_t)(len >> 8);
-                linklocal.addr[14] = (uint8_t)(len >> 16);
-                linklocal.addr[15] = (uint8_t)(len >> 24);
-                pico_rand_feed(dev->hash);
-            } while (pico_ipv6_link_get(&linklocal));
-
-            if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-                PICO_FREE(dev->q_in);
-                PICO_FREE(dev->q_out);
-                return -1;
-            }
-        }
-
-        #endif
+        ret = device_init_nomac(dev);
     }
 
-    #ifdef PICO_SUPPORT_IPV6
-    if (dev->eth)
-    {
-        dev->hostvars.mtu = PICO_ETH_MTU;
-        dev->hostvars.basetime = PICO_ND_REACHABLE_TIME;
-        /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
-        dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
-        dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
-        pico_icmp6_router_solicitation(dev, &linklocal);
-    }
-
-    dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
-    #endif
-
-
-    return 0;
+    return ret;
 }
 
 static void pico_queue_destroy(struct pico_queue *q)
@@ -214,27 +230,13 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 
     int ret;
     if (dev->eth) {
-        ret = pico_ethernet_send(f);
-        if (0 <= ret) {
-            return -1;
-        } else {
-            if (!pico_source_is_local(f)) {
-                dbg("Destination unreachable -------> SEND ICMP\n");
-                pico_notify_dest_unreachable(f);
-            } else {
-                dbg("Destination unreachable -------> LOCAL\n");
-            }
-
-            pico_frame_discard(f);
-            return 1;
-        }
+        /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
+        return pico_ethernet_send(f);
     } else {
         /* non-ethernet */
-        if (dev->send(dev, f->start, (int)f->len) <= 0)
-            return -1;
-
+        ret = dev->send(dev, f->start, (int)f->len);
         pico_frame_discard(f);
-        return 1;
+        return ret;
     }
 }
 

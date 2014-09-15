@@ -16,10 +16,6 @@ int pico_sntp_sync(char *sntp_server, void (*cb_synced)(pico_err_t status));
 \begin{itemize}[noitemsep]
 \item \texttt{sntp$\_$server} - String with the sntp server to get the time from
 \item \texttt{cb$\_$synced} - Callback function that is called when the synchronisation process is done. The status variable indicates wheter the synchronisation was succesfull or not.
-\item \texttt{wakeup} - Callback function that accepts 1 parameter:
-\begin{itemize}[noitemsep]
-\item \texttt{status} - \texttt{pico$\_$err$\_$t}
-\end{itemize}
 \end{itemize}
 
 \subsubsection*{Return value}

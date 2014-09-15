@@ -94,7 +94,7 @@ PACKED_STRUCT_DEF igmpv3_query {
     uint8_t rsq;
     uint8_t qqic;
     uint16_t sources;
-    uint32_t source_addr[];
+    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_group_record {
@@ -102,7 +102,7 @@ PACKED_STRUCT_DEF igmpv3_group_record {
     uint8_t aux;
     uint16_t sources;
     uint32_t mcast_group;
-    uint32_t source_addr[];
+    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_report {
@@ -111,7 +111,7 @@ PACKED_STRUCT_DEF igmpv3_report {
     uint16_t crc;
     uint16_t res1;
     uint16_t groups;
-    struct igmpv3_group_record record[];
+    struct igmpv3_group_record record[0];
 };
 
 struct igmp_parameters {
@@ -151,61 +151,70 @@ static int pico_igmp_process_event(struct igmp_parameters *p);
 /* state callback prototype */
 typedef int (*callback)(struct igmp_parameters *);
 
-/* redblack trees */
-static int igmp_timer_cmp(void *ka, void *kb)
+static inline int igmpt_type_compare(struct igmp_timer *a,  struct igmp_timer *b)
 {
-    struct igmp_timer *a = ka, *b = kb;
     if (a->type < b->type)
         return -1;
 
     if (a->type > b->type)
         return 1;
 
-    if (a->mcast_group.addr < b->mcast_group.addr)
-        return -1;
-
-    if (a->mcast_group.addr > b->mcast_group.addr)
-        return 1;
-
-    if (a->mcast_link.addr < b->mcast_link.addr)
-        return -1;
-
-    if (a->mcast_link.addr > b->mcast_link.addr)
-        return 1;
-
     return 0;
 }
+
+
+static inline int igmpt_group_compare(struct igmp_timer *a,  struct igmp_timer *b)
+{
+    return pico_ipv4_compare(&a->mcast_group, &b->mcast_group);
+}
+
+static inline int igmpt_link_compare(struct igmp_timer *a,  struct igmp_timer *b)
+{
+    return pico_ipv4_compare(&a->mcast_link, &b->mcast_link);
+}
+
+/* redblack trees */
+static int igmp_timer_cmp(void *ka, void *kb)
+{
+    struct igmp_timer *a = ka, *b = kb;
+    int cmp = igmpt_type_compare(a, b);
+    if (cmp)
+        return cmp;
+
+    cmp = igmpt_group_compare(a, b);
+    if (cmp)
+        return cmp;
+
+    return igmpt_link_compare(a, b);
+
+}
 PICO_TREE_DECLARE(IGMPTimers, igmp_timer_cmp);
+
+static inline int igmpparm_group_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
+{
+    return pico_ipv4_compare(&a->mcast_group, &b->mcast_group);
+}
+
+static inline int igmpparm_link_compare(struct igmp_parameters *a,  struct igmp_parameters *b)
+{
+    return pico_ipv4_compare(&a->mcast_link, &b->mcast_link);
+}
 
 static int igmp_parameters_cmp(void *ka, void *kb)
 {
     struct igmp_parameters *a = ka, *b = kb;
-    if (a->mcast_group.addr < b->mcast_group.addr)
-        return -1;
+    int cmp = igmpparm_group_compare(a, b);
+    if (cmp)
+        return cmp;
 
-    if (a->mcast_group.addr > b->mcast_group.addr)
-        return 1;
-
-    if (a->mcast_link.addr < b->mcast_link.addr)
-        return -1;
-
-    if (a->mcast_link.addr > b->mcast_link.addr)
-        return 1;
-
-    return 0;
+    return igmpparm_link_compare(a, b);
 }
 PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
 
 static int igmp_sources_cmp(void *ka, void *kb)
 {
     struct pico_ip4 *a = ka, *b = kb;
-    if (a->addr < b->addr)
-        return -1;
-
-    if (a->addr > b->addr)
-        return 1;
-
-    return 0;
+    return pico_ipv4_compare(a, b);
 }
 PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
 PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);
@@ -432,7 +441,7 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
     datalen = (uint8_t)(short_be(hdr->len) - ihl);
     igmp_dbg("IGMP: IHL = %u, LEN = %u, OCTETS = %u\n", ihl, short_be(hdr->len), datalen);
 
-    if (datalen > 12) {
+    if (datalen >= 12) {
         /* IGMPv3 query */
         t.type = IGMP_TIMER_V2_QUERIER;
         if (pico_igmp_timer_is_running(&t)) { /* IGMPv2 querier present timer still running */

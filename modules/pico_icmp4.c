@@ -175,7 +175,6 @@ struct pico_icmp4_ping_cookie
     int interval;
     int timeout;
     void (*cb)(struct pico_icmp4_stats*);
-
 };
 
 static int cookie_compare(void *ka, void *kb)
@@ -254,6 +253,9 @@ static void next_ping(pico_time now, void *arg)
     IGNORE_PARAMETER(now);
 
     if(pico_tree_findKey(&Pings, cookie)) {
+        if (cookie->err == PICO_PING_ERR_ABORTED)
+            return;
+
         if (cookie->seq < (uint16_t)cookie->count) {
             newcookie = PICO_ZALLOC(sizeof(struct pico_icmp4_ping_cookie));
             if (!newcookie)
@@ -279,6 +281,9 @@ static void ping_recv_reply(struct pico_frame *f)
     cookie = pico_tree_findKey(&Pings, &test);
     if (cookie) {
         struct pico_icmp4_stats stats;
+        if (cookie->err == PICO_PING_ERR_ABORTED)
+            return;
+
         cookie->err = PICO_PING_ERR_REPLIED;
         stats.dst = ((struct pico_ipv4_hdr *)f->net_hdr)->src;
         stats.seq = cookie->seq;
@@ -327,8 +332,28 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
     pico_tree_insert(&Pings, cookie);
     send_ping(cookie);
 
-    return 0;
+    return cookie->id;
 
+}
+
+int pico_icmp4_ping_abort(int id)
+{
+    struct pico_tree_node *node;
+    int found = 0;
+    pico_tree_foreach(node, &Pings)
+    {
+        struct pico_icmp4_ping_cookie *ck =
+            (struct pico_icmp4_ping_cookie *) node->keyValue;
+        if (ck->id == (uint16_t)id) {
+            ck->err = PICO_PING_ERR_ABORTED;
+            found++;
+        }
+    }
+    if (found > 0)
+        return 0; /* OK if at least one pending ping has been canceled */
+
+    pico_err = PICO_ERR_ENOENT;
+    return -1;
 }
 
 #endif
