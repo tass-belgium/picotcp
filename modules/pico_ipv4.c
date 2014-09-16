@@ -1133,16 +1133,21 @@ struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void)
     return NULL;
 }
 #endif /* PICO_SUPPORT_MCAST */
-
+//#define DEBUG_ROUTE
 #ifdef DEBUG_ROUTE
-static void dbg_route(void)
+void dbg_route(void)
 {
     struct pico_ipv4_route *r;
     struct pico_tree_node *index;
+    int count_hosts = 0;
+    dbg("==== ROUTING TABLE =====\n");
     pico_tree_foreach(index, &Routes){
         r = index->keyValue;
         dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
+        if (r->netmask.addr == 0xFFFFFFFF)
+            count_hosts++;
     }
+    dbg("================ total HOST nodes: %d ======\n\n\n", count_hosts);
 }
 #else
 #define dbg_route() do { } while(0)
@@ -1358,7 +1363,7 @@ int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct
     }
 
     pico_tree_insert(&Routes, new);
-    /* dbg_route(); */
+    dbg_route();
     return 0;
 }
 
@@ -1376,7 +1381,7 @@ int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int me
         pico_tree_delete(&Routes, found);
         PICO_FREE(found);
 
-        /* dbg_route(); */
+        dbg_route();
         return 0;
     }
 
