@@ -17,6 +17,8 @@
 #elif defined PLATFORM_TELOSB 
 #   pragma pack (4) 
 #   define PACKED_STRUCT_DEF struct
+#   define PEDANTIC_STRUCT_DEF struct
+#   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #   define PEDANTIC_STRUCT_DEF struct
