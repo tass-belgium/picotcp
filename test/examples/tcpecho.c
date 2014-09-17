@@ -19,7 +19,6 @@ int send_tcpecho(struct pico_socket *s)
                     pos = 0;
                     len = 0;
                 }
-            } else {
             }
         } while((w > 0) && (pos < len));
     }
@@ -46,6 +45,10 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
                 flag |= PICO_SOCK_EV_RD;
                 break;
             }
+        }
+        if (flag & PICO_SOCK_EV_WR) {
+            flag &= ~PICO_SOCK_EV_WR;
+            send_tcpecho(s);
         }
     }
 
@@ -80,8 +83,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 
     if (ev & PICO_SOCK_EV_CLOSE) {
         printf("Socket received close from peer.\n");
-        flag |= PICO_SOCK_EV_CLOSE;
-        if ((flag & PICO_SOCK_EV_RD) && (flag & PICO_SOCK_EV_CLOSE)) {
+        if (flag & PICO_SOCK_EV_RD) {
             pico_socket_shutdown(s, PICO_SHUT_WR);
             printf("SOCKET> Called shutdown write, ev = %d\n", ev);
         }
@@ -158,24 +160,5 @@ void app_tcpecho(char *arg)
 out:
     fprintf(stderr, "tcpecho expects the following format: tcpecho:listen_port\n");
     exit(255);
-
-#ifdef PICOAPP_IPFILTER
-    if (!IPV6_MODE) {
-        struct pico_ip4 address, in_addr_netmask, in_addr;
-        int ret = 0;
-        address.addr = 0x0800280a;
-        in_addr_netmask.addr = 0x00FFFFFF;
-        in_addr.addr = 0x0000320a;
-
-        printf("tcpecho> IPFILTER ENABLED\n");
-
-        /*Adjust your IPFILTER*/
-        ret |= pico_ipv4_filter_add(NULL, 6, NULL, NULL, &in_addr, &in_addr_netmask, 0, 5555, 0, 0, FILTER_REJECT);
-
-        if (ret < 0)
-            printf("Filter_add invalid argument\n");
-    }
-
-#endif
 }
 /*** END TCP ECHO ***/
