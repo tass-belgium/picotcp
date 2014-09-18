@@ -154,7 +154,7 @@ START_TEST(tc_pico_mdns_reply_query)
     struct pico_ip4 peer = {
         0
     };
-    char *name;
+    char *name = NULL;
 
     pico_mdns_reply_query(qtype, peer, name);
 }

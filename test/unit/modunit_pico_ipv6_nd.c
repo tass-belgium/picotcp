@@ -19,12 +19,8 @@
 
 START_TEST(tc_pico_nd_new_expire_time)
 {
-    struct pico_ipv6_neighbor n = {
-        0
-    };
-    struct pico_device d = {
-        0
-    };
+    struct pico_ipv6_neighbor n = { 0 };
+    struct pico_device d = { {0} };
 
     /* TODO: how to test these time values */
 
@@ -50,13 +46,11 @@ START_TEST(tc_pico_nd_new_expire_time)
 END_TEST
 START_TEST(tc_pico_nd_queue)
 {
-    struct pico_ip6 addr = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9
-    };
+    struct pico_ip6 addr = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9 }};
     int i;
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
     struct pico_ipv6_hdr *h = (struct pico_ipv6_hdr *) f->buffer;
-    f->net_hdr = h;
+    f->net_hdr = (uint8_t*) h;
     f->buffer[0] = 0x60; /* Ipv6 */
     memcpy(h->dst.addr, addr.addr, PICO_SIZE_IP6);
 
@@ -85,7 +79,7 @@ START_TEST(tc_pico_nd_new_expire_state)
     struct pico_ipv6_neighbor n = {
         0
     };
-    int i;
+    unsigned int i;
 
     /* INCOMPLETE won't change */
     n.state = PICO_ND_STATE_INCOMPLETE;
