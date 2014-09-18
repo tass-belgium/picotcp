@@ -34,12 +34,19 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
 
 int tftp_user_cb(uint16_t err, uint8_t *block, uint32_t len)
 {
+    (void)err;
+    (void)block;
+    (void)len;
     called_user_cb++;
+    return 0;
 }
 
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
-
+    (void)expire;
+    (void)timer;
+    (void)arg;
+    return NULL;
 }
 
 /* TESTS */
@@ -119,6 +126,8 @@ END_TEST
 
 START_TEST(tc_tftp_send_rx_req)
 {
+    char filename[14] = "some filename";
+    
     pico_tftp_socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;
@@ -128,7 +137,7 @@ START_TEST(tc_tftp_send_rx_req)
 
     /* send_req must call error cb when out of memory */
     pico_set_mm_failure(1);
-    tftp_send_rx_req(NULL, 0, "some filename");
+    tftp_send_rx_req(NULL, 0, filename);
     fail_if(called_user_cb < 1);
     fail_if(called_sendto > 0);
 #endif
@@ -136,14 +145,15 @@ START_TEST(tc_tftp_send_rx_req)
     tftp_send_rx_req(NULL, 0, NULL);
     fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
 
-    tftp_send_rx_req(NULL, 0, "some filename");
+    tftp_send_rx_req(NULL, 0, filename);
     fail_if(called_sendto < 0);
-
 }
 END_TEST
 
 START_TEST(tc_tftp_send_tx_req)
 {
+    char filename[14] = "some filename";
+
     pico_tftp_socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;
@@ -153,7 +163,7 @@ START_TEST(tc_tftp_send_tx_req)
 
     /* send_req must call error cb when out of memory */
     pico_set_mm_failure(1);
-    tftp_send_tx_req(NULL, 0, "some filename");
+    tftp_send_tx_req(NULL, 0, filename);
     fail_if(called_user_cb < 1);
     fail_if(called_sendto > 0);
 #endif
@@ -161,7 +171,7 @@ START_TEST(tc_tftp_send_tx_req)
     tftp_send_tx_req(NULL, 0, NULL);
     fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
 
-    tftp_send_tx_req(NULL, 0, "some filename");
+    tftp_send_tx_req(NULL, 0, filename);
     fail_if(called_sendto < 0);
 }
 END_TEST
