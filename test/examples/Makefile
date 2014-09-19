@@ -26,6 +26,7 @@ $(PREFIX)/examples/tftp.o \
 $(PREFIX)/examples/udp_client.o \
 $(PREFIX)/examples/udp_echo.o \
 $(PREFIX)/examples/udpnat.o \
+$(PREFIX)/examples/udp_sendto_test.o \
 
 
 all: $(OBJS)
