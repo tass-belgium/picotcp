@@ -127,7 +127,7 @@ END_TEST
 START_TEST(tc_tftp_send_rx_req)
 {
     char filename[14] = "some filename";
-    
+
     pico_tftp_socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;

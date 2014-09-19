@@ -20,10 +20,10 @@
 #endif
 
 /*
-#ifndef __PIC24FJ256GA106__
-#define __PIC24FJ256GA106__
-#endif
-*/
+   #ifndef __PIC24FJ256GA106__
+   #define __PIC24FJ256GA106__
+   #endif
+ */
 
 #ifndef PICO_MAX_SOCKET_FRAMES
 #define PICO_MAX_SOCKET_FRAMES 16
