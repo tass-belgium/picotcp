@@ -145,6 +145,7 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
     ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
     return hdr;
 }
+
 static void pico_mdns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount)
 {
     hdr->id = short_be(0);
@@ -173,7 +174,6 @@ static void pico_mdns_answer_suffix(struct pico_dns_answer_suffix *asuf, uint16_
     asuf->qclass = short_be(qclass | (uint16_t) ~PICO_MDNS_CACHE_FLUSH_BIT);
     asuf->ttl = long_be(ttl);
     asuf->rdlength = short_be(rdlength);
-
 }
 
 static uint16_t mdns_get_len(uint16_t qtype, char *rdata)
@@ -194,7 +194,6 @@ static uint16_t mdns_get_len(uint16_t qtype, char *rdata)
         break;
     }
     return len;
-
 }
 
 
@@ -208,7 +207,6 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
     uint32_t ttl = 224;
     uint16_t slen, datalen;
     char *rdata = (char*)_rdata;
-
 
     datalen = mdns_get_len(qtype, rdata);
     if (!datalen)
@@ -266,7 +264,6 @@ static int pico_mdns_perform_query(struct pico_dns_query_suffix *qsuffix, uint16
         return pico_mdns_perform_name_query(qsuffix, proto);
 
     return 0;
-
 }
 
 static unsigned int pico_mdns_prepare_query_string(const char *url, char *inaddr_arpa, unsigned int inverse, uint16_t proto)
@@ -335,7 +332,6 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
         return NULL;
     }
 
-
     slen = pico_mdns_prepare_query_string(url, inaddr_arpa, inverse, proto);
 
     arpalen = (unsigned int)strlen(inaddr_arpa);
@@ -394,7 +390,6 @@ static struct pico_ip6 *pico_get_ip6_from_ip4(struct pico_ip4 *ipv4_addr)
     }
 
     return &link->address;
-
 }
 #endif
 
@@ -515,43 +510,46 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     ck = pico_mdns_find_cookie(url);
     if(!ck) {
         mdns_dbg("We didn't ask for this answer.\n");
-    } else {
-        mdns_dbg("Found a corresponding cookie!\n");
-        /* if we are probing, set probe to zero so the probe timer stops the next time it goes off */
-        if (ck->probe) {
-            mdns_dbg("Probe set to zero\n");
-            ck->probe = 0;
-        } else {
-            if(short_be(suf->qtype) == PICO_DNS_TYPE_A) {
-                uint32_t rdata = long_from(data);
-                char peer_addr[46];
-                pico_ipv4_to_string(peer_addr, long_from(&rdata));
-                ck->callback(peer_addr, ck->arg);
-            }
+        return 0;
+    }
+
+    mdns_dbg("Found a corresponding cookie!\n");
+    /* if we are probing, set probe to zero so the probe timer stops the next time it goes off */
+    if (ck->probe) {
+        mdns_dbg("Probe set to zero\n");
+        ck->probe = 0;
+        return 0;
+    }
+
+    if(short_be(suf->qtype) == PICO_DNS_TYPE_A) {
+        uint32_t rdata = long_from(data);
+        char peer_addr[46];
+        pico_ipv4_to_string(peer_addr, long_from(&rdata));
+        ck->callback(peer_addr, ck->arg);
+    }
 
 #ifdef PICO_SUPPORT_IPV6
-            else if(short_be(suf->qtype) == PICO_DNS_TYPE_AAAA) {
-                uint8_t *rdata = (uint8_t *) data;
-                char peer_addr[46];
-                pico_ipv6_to_string(peer_addr, rdata);
-                ck->callback(peer_addr, ck->arg);
-            }
-#endif
-            else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR) {
-                pico_dns_client_answer_domain(data);
-                ck->callback(data + 1, ck->arg);    /* +1 to discard the beginning dot */
-            }
-            else {
-                mdns_dbg("Unrecognised record type\n");
-                ck->callback(NULL, ck->arg);
-            }
-            pico_timer_cancel(ck->timer);
-            pico_mdns_del_cookie(url);
-        }
+    else if(short_be(suf->qtype) == PICO_DNS_TYPE_AAAA) {
+        uint8_t *rdata = (uint8_t *) data;
+        char peer_addr[46];
+        pico_ipv6_to_string(peer_addr, rdata);
+        ck->callback(peer_addr, ck->arg);
     }
+#endif
+    else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR) {
+        pico_dns_client_answer_domain(data);
+        ck->callback(data + 1, ck->arg);    /* +1 to discard the beginning dot */
+    }
+    else {
+        mdns_dbg("Unrecognised record type\n");
+        ck->callback(NULL, ck->arg);
+    }
+    pico_timer_cancel(ck->timer);
+    pico_mdns_del_cookie(url);
 
     return 0;
 }
+
 /* returns the compressed length of the compressed name without NULL terminator */
 static unsigned int pico_mdns_namelen_comp(char *name)
 {
@@ -648,7 +646,6 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
     qcount = short_be(header->qdcount);
     acount = short_be(header->ancount);
     mdns_dbg("\n>>>>>>> QDcount: %u, ANcount: %u\n", qcount, acount);
-
 
     /* handle queries */
     for(i = 0; i < qcount; i++) {
@@ -797,17 +794,18 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
         pico_mdns_announce();
         ck->callback(ok, ck->arg);
         pico_mdns_del_cookie(url);
-    } else {
-        if(pico_mdns_send(ck->header, ck->len) != (int)ck->len) {
-            mdns_dbg("Send error occurred!\n");
-            PICO_FREE(arg);
-            ck->callback(NULL, ck->arg);
-            return;
-        }
-
-        ck->count--;
-        pico_timer_add(250, pico_mdns_probe_timer, url);
+        return;
     }
+
+    if(pico_mdns_send(ck->header, ck->len) != (int)ck->len) {
+        mdns_dbg("Send error occurred!\n");
+        PICO_FREE(arg);
+        ck->callback(NULL, ck->arg);
+        return;
+    }
+
+    ck->count--;
+    pico_timer_add(250, pico_mdns_probe_timer, url);
 }
 
 /* checks whether the given name is in use */
@@ -830,9 +828,7 @@ static int pico_mdns_probe(char *hostname, void (*cb_initialised)(char *str, voi
     }
 
     strcpy(host, hostname);
-
     pico_timer_add(pico_rand() % 250, pico_mdns_probe_timer, host);
-
     return 0;
 }
 
@@ -906,7 +902,6 @@ static int pico_mdns_getaddr_generic(const char *url, void (*callback)(char *ip,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-
 
     if(!mdns_sock) {
         mdns_dbg("Mdns socket not yet populated. Did you call pico_mdns_init()?\n");
