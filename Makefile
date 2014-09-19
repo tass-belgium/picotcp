@@ -358,7 +358,7 @@ mbed:
 
 
 style:
-	@find . -iname "*.[c|h]" |grep -v picoapp.c | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*.[c|h]" | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
 	@find . -iname "*unc-backup*" |xargs -x rm || true
 
 dummy: mod core lib $(DUMMY_EXTRA)
