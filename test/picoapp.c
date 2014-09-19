@@ -78,7 +78,9 @@ struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
 int IPV6_MODE;
 
 
-struct pico_ip4 inaddr_any = { 0 };
+struct pico_ip4 inaddr_any = {
+    0
+};
 struct pico_ip6 inaddr6_any = {{0}};
 
 char *cpy_arg(char **dst, char *str);
@@ -197,360 +199,361 @@ int main(int argc, char **argv)
             break;
 
         switch(c) {
-            case 'h':
-                usage(argv[0]);
-                break;
-            case 't':
-                {
-                    char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
-                    struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-                    do {
-                        nxt = cpy_arg(&name, optarg);
-                        if (!nxt) break;
+        case 'h':
+            usage(argv[0]);
+            break;
+        case 't':
+        {
+            char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
 
-                        nxt = cpy_arg(&addr, nxt);
-                        if (!nxt) break;
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
 
-                        nxt = cpy_arg(&nm, nxt);
-                        if (!nxt) break;
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
 
-                        cpy_arg(&gw, nxt);
-                    } while(0);
-                    if (!nm) {
-                        fprintf(stderr, "Tun: bad configuration...\n");
-                        exit(1);
-                    }
+                cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Tun: bad configuration...\n");
+                exit(1);
+            }
 
-                    dev = pico_tun_create(name);
-                    if (!dev) {
-                        perror("Creating tun");
-                        exit(1);
-                    }
+            dev = pico_tun_create(name);
+            if (!dev) {
+                perror("Creating tun");
+                exit(1);
+            }
 
-                    pico_string_to_ipv4(addr, &ipaddr.addr);
-                    pico_string_to_ipv4(nm, &netmask.addr);
-                    pico_ipv4_link_add(dev, ipaddr, netmask);
-                    bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
-                    if (gw && *gw) {
-                        pico_string_to_ipv4(gw, &gateway.addr);
-                        printf("Adding default route via %08x\n", gateway.addr);
-                        pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-                    }
-
-#ifdef PICO_SUPPORT_IPV6
-                    if (IPV6_MODE) {
-                        struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}}, gateway6 = {{0}}, zero6 = {{0}};
-                        pico_string_to_ipv6(addr, ipaddr6.addr);
-                        pico_string_to_ipv6(nm, netmask6.addr);
-                        pico_ipv6_link_add(dev, ipaddr6, netmask6);
-                        if (gw && *gw) {
-                            pico_string_to_ipv6(gw, gateway6.addr);
-                            pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
-                        }
-                    }
-
-#endif
-                }
-                break;
-            case 'v':
-                {
-                    char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL;
-                    struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
-                    uint32_t i_pc = 0, o_pc = 0;
-                    printf("+++ OPTARG %s\n", optarg);
-                    do {
-                        nxt = cpy_arg(&name, optarg);
-                        if (!nxt) break;
-
-                        nxt = cpy_arg(&sock, nxt);
-                        if (!nxt) break;
-
-                        if (!IPV6_MODE) {
-                            nxt = cpy_arg(&addr, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&nm, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&gw, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&loss_in, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&loss_out, nxt);
-                            if (!nxt) break;
-                        } else {
-
-                            nxt = cpy_arg(&addr6, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&nm6, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&gw6, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&loss_in, nxt);
-                            if (!nxt) break;
-
-                            nxt = cpy_arg(&loss_out, nxt);
-                            if (!nxt) break;
-                        }
-                    } while(0);
-                    if (!nm && !nm6) {
-                        fprintf(stderr, "Vde: bad configuration...\n");
-                        exit(1);
-                    }
-
-                    macaddr[4] ^= (uint8_t)(getpid() >> 8);
-                    macaddr[5] ^= (uint8_t) (getpid() & 0xFF);
-                    dev = pico_vde_create(sock, name, macaddr);
-                    NXT_MAC(macaddr);
-                    if (!dev) {
-                        perror("Creating vde");
-                        exit(1);
-                    }
-
-                    printf("Vde created.\n");
-
-                    if (!IPV6_MODE) {
-
-                        pico_string_to_ipv4(addr, &ipaddr.addr);
-                        pico_string_to_ipv4(nm, &netmask.addr);
-                        pico_ipv4_link_add(dev, ipaddr, netmask);
-                        bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
-                        if (gw && *gw) {
-                            pico_string_to_ipv4(gw, &gateway.addr);
-                            pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
-                        }
-                    }
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                printf("Adding default route via %08x\n", gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
 
 #ifdef PICO_SUPPORT_IPV6
-                    if (IPV6_MODE) {
-                        struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}}, gateway6 = {{0}}, zero6 = {{0}};
-                        printf("SETTING UP IPV6 ADDRESS\n");
-                        pico_string_to_ipv6(addr6, ipaddr6.addr);
-                        pico_string_to_ipv6(nm6, netmask6.addr);
-                        pico_ipv6_link_add(dev, ipaddr6, netmask6);
-                        if (gw6 && *gw6) {
-                            pico_string_to_ipv6(gw6, gateway6.addr);
-                            pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
-                        }
-                    }
+            if (IPV6_MODE) {
+                struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}}, gateway6 = {{0}}, zero6 = {{0}};
+                pico_string_to_ipv6(addr, ipaddr6.addr);
+                pico_string_to_ipv6(nm, netmask6.addr);
+                pico_ipv6_link_add(dev, ipaddr6, netmask6);
+                if (gw && *gw) {
+                    pico_string_to_ipv6(gw, gateway6.addr);
+                    pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
+                }
+            }
 
 #endif
-                    if (loss_in && (strlen(loss_in) > 0)) {
-                        i_pc = (uint32_t)atoi(loss_in);
-                    }
+        }
+        break;
+        case 'v':
+        {
+            char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            uint32_t i_pc = 0, o_pc = 0;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
 
-                    if (loss_out && (strlen(loss_out) > 0)) {
-                        o_pc = (uint32_t)atoi(loss_out);
-                    }
+                nxt = cpy_arg(&sock, nxt);
+                if (!nxt) break;
 
-                    if (i_pc || o_pc) {
-                        printf(" ---------- >Setting vde packet loss %u:%u\n", i_pc, o_pc);
-                        pico_vde_set_packetloss(dev, i_pc, o_pc);
-                    }
+                if (!IPV6_MODE) {
+                    nxt = cpy_arg(&addr, nxt);
+                    if (!nxt) break;
 
+                    nxt = cpy_arg(&nm, nxt);
+                    if (!nxt) break;
 
+                    nxt = cpy_arg(&gw, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_in, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_out, nxt);
+                    if (!nxt) break;
+                } else {
+
+                    nxt = cpy_arg(&addr6, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&nm6, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&gw6, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_in, nxt);
+                    if (!nxt) break;
+
+                    nxt = cpy_arg(&loss_out, nxt);
+                    if (!nxt) break;
                 }
-                break;
-            case 'b':
-                {
-                    char *nxt, *name = NULL, *sock = NULL;
-                    printf("+++ OPTARG %s\n", optarg);
-                    do {
-                        nxt = cpy_arg(&name, optarg);
-                        if (!nxt) break;
+            } while(0);
+            if (!nm && !nm6) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
+            }
 
-                        nxt = cpy_arg(&sock, nxt);
-                    } while(0);
-                    if (!sock) {
-                        fprintf(stderr, "Vde: bad configuration...\n");
-                        exit(1);
-                    }
+            macaddr[4] ^= (uint8_t)(getpid() >> 8);
+            macaddr[5] ^= (uint8_t) (getpid() & 0xFF);
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
 
-                    macaddr[4] ^= (uint8_t)(getpid() >> 8);
-                    macaddr[5] ^= (uint8_t)(getpid() & 0xFF);
-                    dev = pico_vde_create(sock, name, macaddr);
-                    NXT_MAC(macaddr);
-                    if (!dev) {
-                        perror("Creating vde");
-                        exit(1);
-                    }
+            printf("Vde created.\n");
 
-                    printf("Vde created.\n");
-                }
-                break;
-            case 'l':
-                {
-                    struct pico_ip4 ipaddr, netmask;
+            if (!IPV6_MODE) {
 
-                    dev = pico_loop_create();
-                    if (!dev) {
-                        perror("Creating loop");
-                        exit(1);
-                    }
-
-                    pico_string_to_ipv4("127.0.0.1", &ipaddr.addr);
-                    pico_string_to_ipv4("255.0.0.0", &netmask.addr);
-                    pico_ipv4_link_add(dev, ipaddr, netmask);
-                    printf("Loopback created\n");
-#ifdef PICO_SUPPORT_IPV6
-                    if (IPV6_MODE) {
-                        struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}};
-                        pico_string_to_ipv6("::1", ipaddr6.addr);
-                        pico_string_to_ipv6("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", netmask6.addr);
-                        pico_ipv6_link_add(dev, ipaddr6, netmask6);
-                    }
-
-#endif
-                }
-                break;
-            case 'r':
-                {
-                    char *nxt, *addr, *nm, *gw;
-                    struct pico_ip4 ipaddr, netmask, gateway;
-                    /* XXX adjust for IPv6 */
-                    addr = NULL, nm = NULL, gw = NULL;
-                    printf("+++ ROUTEOPTARG %s\n", optarg);
-                    do {
-                        nxt = cpy_arg(&addr, optarg);
-                        if (!nxt) break;
-
-                        nxt = cpy_arg(&nm, nxt);
-                        if (!nxt) break;
-
-                        nxt = cpy_arg(&gw, nxt);
-                    } while(0);
-                    if (!addr || !nm || !gw) {
-                        fprintf(stderr, "--route expects addr:nm:gw:\n");
-                        usage(argv[0]);
-                    }
-
-                    pico_string_to_ipv4(addr, &ipaddr.addr);
-                    pico_string_to_ipv4(nm, &netmask.addr);
+                pico_string_to_ipv4(addr, &ipaddr.addr);
+                pico_string_to_ipv4(nm, &netmask.addr);
+                pico_ipv4_link_add(dev, ipaddr, netmask);
+                bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+                if (gw && *gw) {
                     pico_string_to_ipv4(gw, &gateway.addr);
-                    if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0)
-                        fprintf(stderr, "ROUTE ADDED *** to %s via %s\n", addr, gw);
-                    else
-                        fprintf(stderr, "ROUTE ADD: ERROR %s \n", strerror(pico_err));
-
-                    break;
+                    pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
                 }
-            case 'd':
-                {
-                    /* Add a DNS nameserver IP address */
-                    char *straddr;
-                    struct pico_ip4 ipaddr;
-                    printf("DNS nameserver address = %s\n", optarg);
-                    cpy_arg(&straddr, optarg);
-                    pico_string_to_ipv4(straddr, &ipaddr.addr);
-                    pico_dns_client_nameserver(&ipaddr, PICO_DNS_NS_ADD);
-                    break;
-                }
-            case 'a':
-                {
-                    char *name = NULL, *args = NULL;
-                    printf("+++ OPTARG %s\n", optarg);
-                    args = cpy_arg(&name, optarg);
+            }
 
-                    printf("+++ NAME: %s ARGS: %s\n", name, args);
-                    IF_APPNAME("udpecho") {
-                        app_udpecho(args);
-                    } else IF_APPNAME("tcpecho") {
-                        app_tcpecho(args);
-                    } else IF_APPNAME("udpclient") {
-                        app_udpclient(args);
-                    } else IF_APPNAME("tcpclient") {
-                        app_tcpclient(args);
-                    } else IF_APPNAME("tcpbench") {
-                        app_tcpbench(args);
-                    } else IF_APPNAME("natbox") {
-                        app_natbox(args);
-                    } else IF_APPNAME("udpdnsclient") {
-                        app_udpdnsclient(args);
-                    } else IF_APPNAME("udpnatclient") {
-                        app_udpnatclient(args);
-                    } else IF_APPNAME("mcastsend") {
-#ifndef PICO_SUPPORT_MCAST
-                        return 0;
+#ifdef PICO_SUPPORT_IPV6
+            if (IPV6_MODE) {
+                struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}}, gateway6 = {{0}}, zero6 = {{0}};
+                printf("SETTING UP IPV6 ADDRESS\n");
+                pico_string_to_ipv6(addr6, ipaddr6.addr);
+                pico_string_to_ipv6(nm6, netmask6.addr);
+                pico_ipv6_link_add(dev, ipaddr6, netmask6);
+                if (gw6 && *gw6) {
+                    pico_string_to_ipv6(gw6, gateway6.addr);
+                    pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
+                }
+            }
+
 #endif
-                        app_mcastsend(args);
-                    } else IF_APPNAME("mcastreceive") {
-#ifndef PICO_SUPPORT_MCAST
-                        return 0;
+            if (loss_in && (strlen(loss_in) > 0)) {
+                i_pc = (uint32_t)atoi(loss_in);
+            }
+
+            if (loss_out && (strlen(loss_out) > 0)) {
+                o_pc = (uint32_t)atoi(loss_out);
+            }
+
+            if (i_pc || o_pc) {
+                printf(" ---------- >Setting vde packet loss %u:%u\n", i_pc, o_pc);
+                pico_vde_set_packetloss(dev, i_pc, o_pc);
+            }
+
+
+        }
+        break;
+        case 'b':
+        {
+            char *nxt, *name = NULL, *sock = NULL;
+            printf("+++ OPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&sock, nxt);
+            } while(0);
+            if (!sock) {
+                fprintf(stderr, "Vde: bad configuration...\n");
+                exit(1);
+            }
+
+            macaddr[4] ^= (uint8_t)(getpid() >> 8);
+            macaddr[5] ^= (uint8_t)(getpid() & 0xFF);
+            dev = pico_vde_create(sock, name, macaddr);
+            NXT_MAC(macaddr);
+            if (!dev) {
+                perror("Creating vde");
+                exit(1);
+            }
+
+            printf("Vde created.\n");
+        }
+        break;
+        case 'l':
+        {
+            struct pico_ip4 ipaddr, netmask;
+
+            dev = pico_loop_create();
+            if (!dev) {
+                perror("Creating loop");
+                exit(1);
+            }
+
+            pico_string_to_ipv4("127.0.0.1", &ipaddr.addr);
+            pico_string_to_ipv4("255.0.0.0", &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            printf("Loopback created\n");
+#ifdef PICO_SUPPORT_IPV6
+            if (IPV6_MODE) {
+                struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}};
+                pico_string_to_ipv6("::1", ipaddr6.addr);
+                pico_string_to_ipv6("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", netmask6.addr);
+                pico_ipv6_link_add(dev, ipaddr6, netmask6);
+            }
+
 #endif
-                        app_mcastreceive(args);
-                    }
+        }
+        break;
+        case 'r':
+        {
+            char *nxt, *addr, *nm, *gw;
+            struct pico_ip4 ipaddr, netmask, gateway;
+            /* XXX adjust for IPv6 */
+            addr = NULL, nm = NULL, gw = NULL;
+            printf("+++ ROUTEOPTARG %s\n", optarg);
+            do {
+                nxt = cpy_arg(&addr, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&gw, nxt);
+            } while(0);
+            if (!addr || !nm || !gw) {
+                fprintf(stderr, "--route expects addr:nm:gw:\n");
+                usage(argv[0]);
+            }
+
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_string_to_ipv4(gw, &gateway.addr);
+            if (pico_ipv4_route_add(ipaddr, netmask, gateway, 1, NULL) == 0)
+                fprintf(stderr, "ROUTE ADDED *** to %s via %s\n", addr, gw);
+            else
+                fprintf(stderr, "ROUTE ADD: ERROR %s \n", strerror(pico_err));
+
+            break;
+        }
+        case 'd':
+        {
+            /* Add a DNS nameserver IP address */
+            char *straddr;
+            struct pico_ip4 ipaddr;
+            printf("DNS nameserver address = %s\n", optarg);
+            cpy_arg(&straddr, optarg);
+            pico_string_to_ipv4(straddr, &ipaddr.addr);
+            pico_dns_client_nameserver(&ipaddr, PICO_DNS_NS_ADD);
+            break;
+        }
+        case 'a':
+        {
+            char *name = NULL, *args = NULL;
+            printf("+++ OPTARG %s\n", optarg);
+            args = cpy_arg(&name, optarg);
+
+            printf("+++ NAME: %s ARGS: %s\n", name, args);
+            IF_APPNAME("udpecho") {
+                app_udpecho(args);
+            } else IF_APPNAME("tcpecho") {
+                app_tcpecho(args);
+            } else IF_APPNAME("udpclient") {
+                app_udpclient(args);
+            } else IF_APPNAME("tcpclient") {
+                app_tcpclient(args);
+            } else IF_APPNAME("tcpbench") {
+                app_tcpbench(args);
+            } else IF_APPNAME("natbox") {
+                app_natbox(args);
+            } else IF_APPNAME("udpdnsclient") {
+                app_udpdnsclient(args);
+            } else IF_APPNAME("udpnatclient") {
+                app_udpnatclient(args);
+            } else IF_APPNAME("mcastsend") {
+#ifndef PICO_SUPPORT_MCAST
+                return 0;
+#endif
+                app_mcastsend(args);
+            } else IF_APPNAME("mcastreceive") {
+#ifndef PICO_SUPPORT_MCAST
+                return 0;
+#endif
+                app_mcastreceive(args);
+            }
+
 #ifdef PICO_SUPPORT_PING
-                    else IF_APPNAME("ping") {
-                        app_ping(args);
-                    }
+            else IF_APPNAME("ping") {
+                app_ping(args);
+            }
 #endif
-                    else IF_APPNAME("dhcpserver") {
+            else IF_APPNAME("dhcpserver") {
 #ifndef PICO_SUPPORT_DHCPD
-                        return 0;
+                return 0;
 #else
-                        app_dhcp_server(args);
+                app_dhcp_server(args);
 #endif
-                    } else IF_APPNAME("dhcpclient") {
+            } else IF_APPNAME("dhcpclient") {
 #ifndef PICO_SUPPORT_DHCPC
-                        return 0;
+                return 0;
 #else
-                        app_dhcp_client(args);
+                app_dhcp_client(args);
 #endif
-                    } else IF_APPNAME("mdns") {
+            } else IF_APPNAME("mdns") {
 #ifndef PICO_SUPPORT_MDNS
-                        return 0;
+                return 0;
 #else
-                        app_mdns(args);
+                app_mdns(args);
 #endif
 #ifdef PICO_SUPPORT_SNTP_CLIENT
-                    }else IF_APPNAME("sntp") {
-                        app_sntp(args);
+            }else IF_APPNAME("sntp") {
+                app_sntp(args);
 #endif
-                    } else IF_APPNAME("bcast") {
-                        struct pico_ip4 any = {
-                            .addr = 0xFFFFFFFFu
-                        };
+            } else IF_APPNAME("bcast") {
+                struct pico_ip4 any = {
+                    .addr = 0xFFFFFFFFu
+                };
 
-                        struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
-                        pico_socket_sendto(s, "abcd", 5u, &any, 1000);
+                struct pico_socket *s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &__wakeup);
+                pico_socket_sendto(s, "abcd", 5u, &any, 1000);
 
-                        pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
+                pico_socket_sendto(s, "abcd", 5u, &bcastAddr, 1000);
 #ifdef PICO_SUPPORT_TFTP
-                    } else IF_APPNAME("tftp") {
-                        app_tftp(args);
+            } else IF_APPNAME("tftp") {
+                app_tftp(args);
 #endif
-                    } else IF_APPNAME("noop") {
-                        app_noop();
-                    } else IF_APPNAME("olsr") {
-                        pico_olsr_init();
-                        dev = pico_get_device("pic0");
-                        if(dev) {
-                            pico_olsr_add(dev);
-                        }
-
-                        dev = pico_get_device("pic1");
-                        if(dev) {
-                            pico_olsr_add(dev);
-                        }
-
-                        app_noop();
-                    } else IF_APPNAME("slaacv4"){
-#ifndef PICO_SUPPORT_SLAACV4
-                        return 0;
-#else
-                        app_slaacv4(args);
-#endif
-                    } else {
-                        fprintf(stderr, "Unknown application %s\n", name);
-                        usage(argv[0]);
-                    }
+            } else IF_APPNAME("noop") {
+                app_noop();
+            } else IF_APPNAME("olsr") {
+                pico_olsr_init();
+                dev = pico_get_device("pic0");
+                if(dev) {
+                    pico_olsr_add(dev);
                 }
-                break;
+
+                dev = pico_get_device("pic1");
+                if(dev) {
+                    pico_olsr_add(dev);
+                }
+
+                app_noop();
+            } else IF_APPNAME("slaacv4") {
+#ifndef PICO_SUPPORT_SLAACV4
+                return 0;
+#else
+                app_slaacv4(args);
+#endif
+            } else {
+                fprintf(stderr, "Unknown application %s\n", name);
+                usage(argv[0]);
+            }
+        }
+        break;
         }
     }
     if (!dev) {

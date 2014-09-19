@@ -4,7 +4,7 @@ static int called = 0;
 static int fail = 0;
 
 
-int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
+int pico_device_init(struct pico_device __attribute__((unused)) *dev, const char __attribute__((unused)) *name, uint8_t __attribute__((unused)) *mac)
 {
     if (fail)
         return -1;
@@ -14,10 +14,10 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 
 void pico_device_destroy(struct pico_device *dev)
 {
-
+	dev=dev;
 }
 
-int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+int32_t pico_stack_recv(struct pico_device __attribute__((unused)) *dev, uint8_t __attribute__((unused)) *buffer, uint32_t __attribute__((unused)) len)
 {
     called = 1;
     return 1;

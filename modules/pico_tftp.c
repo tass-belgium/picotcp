@@ -438,6 +438,7 @@ int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, ch
 {
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
+        return -1;
     }
 
     tftp_socket_open(family, a, port);
@@ -457,6 +458,7 @@ int pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, ch
 {
     if ((pico_tftp_state != PICO_TFTP_STATE_IDLE) && (pico_tftp_state != PICO_TFTP_STATE_LISTEN)) {
         pico_err = PICO_ERR_EINVAL;
+        return -1;
     }
 
     tftp_socket_open(family, a, port);

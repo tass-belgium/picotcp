@@ -1133,7 +1133,7 @@ struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void)
     return NULL;
 }
 #endif /* PICO_SUPPORT_MCAST */
-//#define DEBUG_ROUTE
+/* #define DEBUG_ROUTE */
 #ifdef DEBUG_ROUTE
 void dbg_route(void)
 {

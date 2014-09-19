@@ -13,7 +13,7 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
     (void) net;
     (void) proto;
     (void) wakeup;
-    fail_unless (sock);
+    fail_unless (sock != NULL);
     return sock;
 }
 
@@ -149,9 +149,9 @@ START_TEST(tc_pico_sntp_cleanup)
     struct sntp_server_ns_cookie *ck;
     struct pico_socket *sock;
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
-    fail_unless (ck);
+    fail_unless (ck != NULL);
     ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
-    fail_unless (ck->hostname);
+    fail_unless (ck->hostname != NULL);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
@@ -173,9 +173,9 @@ START_TEST(tc_pico_sntp_parse)
     };
 
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
-    fail_unless (ck);
+    fail_unless (ck != NULL);
     ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
-    fail_unless (ck->hostname);
+    fail_unless (ck->hostname != NULL);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
@@ -199,9 +199,9 @@ START_TEST(tc_pico_sntp_client_wakeup)
     struct sntp_server_ns_cookie *ck;
     struct pico_socket *sock;
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
-    fail_unless (ck);
+    fail_unless (ck != NULL);
     ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
-    fail_unless (ck->hostname);
+    fail_unless (ck->hostname != NULL);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
@@ -220,9 +220,9 @@ START_TEST(tc_sntp_receive_timeout)
     struct sntp_server_ns_cookie *ck;
     struct pico_socket *sock;
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
-    fail_unless (ck);
+    fail_unless (ck != NULL);
     ck->hostname = PICO_ZALLOC(sizeof(char) * 5);
-    fail_unless (ck->hostname);
+    fail_unless (ck->hostname != NULL);
     ck->stamp = 0ull;
     ck->cb_synced = cb_synced;
 
