@@ -1667,6 +1667,42 @@ int pico_ipv4_rebound(struct pico_frame *f)
     return pico_ipv4_frame_push(f, &dst, hdr->proto);
 }
 
+static int pico_ipv4_pre_forward_checks(struct pico_frame *f)
+{
+    static uint16_t last_id = 0;
+    static uint16_t last_proto = 0;
+    static struct pico_ip4 last_src = {0};
+    static struct pico_ip4 last_dst = {0};
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+   
+    /* Decrease TTL, check if expired */ 
+    hdr->ttl = (uint8_t)(hdr->ttl - 1);
+    if (hdr->ttl < 1) {
+        pico_notify_ttl_expired(f);
+        dbg(" ------------------- TTL EXPIRED\n");
+        return -1;
+    }
+
+    /* HACK: increase crc to compensate decreased TTL */
+    hdr->crc++;
+
+    /* If source is local, discard anyway (packets bouncing back and forth) */
+    if (pico_ipv4_link_get(&hdr->src))
+        return -1;
+
+    /* If this was the last forwarded packet, silently discard to prevent duplications */
+    if ((last_src.addr == hdr->src.addr) && (last_id == hdr->id)
+           && (last_dst.addr == hdr->dst.addr) && (last_proto == hdr->proto)) {
+        return -1;
+    } else {
+        last_src.addr = hdr->src.addr;
+        last_dst.addr = hdr->dst.addr;
+        last_id = hdr->id;
+        last_proto = hdr->proto;
+    }
+    return 0;
+}
+
 static int pico_ipv4_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
@@ -1682,18 +1718,9 @@ static int pico_ipv4_forward(struct pico_frame *f)
     }
 
     f->dev = rt->link->dev;
-    hdr->ttl = (uint8_t)(hdr->ttl - 1);
-    if (hdr->ttl < 1) {
-        pico_notify_ttl_expired(f);
-        dbg(" ------------------- TTL EXPIRED\n");
-        return -1;
-    }
 
-    /* If source is local, discard anyway (packets bouncing back and forth) */
-    if (pico_ipv4_link_get(&hdr->src))
+    if (pico_ipv4_pre_forward_checks(f) < 0)
         return -1;
-
-    hdr->crc++;
 
     pico_ipv4_nat_outbound(f, &rt->link->address);
 
