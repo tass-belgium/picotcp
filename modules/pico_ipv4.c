@@ -1689,6 +1689,10 @@ static int pico_ipv4_forward(struct pico_frame *f)
         return -1;
     }
 
+    /* If source is local, discard anyway (packets bouncing back and forth) */
+    if (pico_ipv4_link_get(&hdr->src))
+        return -1;
+
     hdr->crc++;
 
     pico_ipv4_nat_outbound(f, &rt->link->address);
