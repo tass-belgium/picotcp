@@ -948,6 +948,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
+        s->state |= PICO_SOCKET_STATE_BOUND;
     }
 
     return s->local_port;
