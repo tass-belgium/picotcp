@@ -1134,7 +1134,6 @@ struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void)
 }
 #endif /* PICO_SUPPORT_MCAST */
 /* #define DEBUG_ROUTE */
-#ifdef DEBUG_ROUTE
 void dbg_route(void)
 {
     struct pico_ipv4_route *r;
@@ -1149,9 +1148,6 @@ void dbg_route(void)
     }
     dbg("================ total HOST nodes: %d ======\n\n\n", count_hosts);
 }
-#else
-#define dbg_route() do { } while(0)
-#endif
 
 int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t proto)
 {

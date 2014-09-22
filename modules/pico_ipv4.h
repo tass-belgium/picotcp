@@ -118,5 +118,6 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
 int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter);
 struct pico_ipv4_link *pico_ipv4_get_default_mcastlink(void);
 int pico_ipv4_cleanup_links(struct pico_device *dev);
+void dbg_route(void);
 
 #endif /* _INCLUDE_PICO_IPV4 */
