@@ -5,6 +5,7 @@
    .
 
  *********************************************************************/
+#include "pico_defines.h"
 #ifdef PICO_SUPPORT_UDP
 #ifndef INCLUDE_PICO_DHCP_CLIENT
 #define INCLUDE_PICO_DHCP_CLIENT
