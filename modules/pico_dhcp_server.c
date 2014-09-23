@@ -14,7 +14,7 @@
 #include "pico_stack.h"
 #include "pico_arp.h"
 
-#ifdef PICO_SUPPORT_DHCPD
+#if defined PICO_SUPPORT_DHCPD && defined PICO_SUPPORT_UDP
 
 #define dhcps_dbg(...) do {} while(0)
 /* #define dhcps_dbg dbg */

@@ -3,6 +3,7 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
+#ifdef PICO_SUPPORT_UDP
 #ifndef INCLUDE_PICO_DHCP_SERVER
 #define INCLUDE_PICO_DHCP_SERVER
 
@@ -29,3 +30,4 @@ int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *dhcps);
 int pico_dhcp_server_destroy(struct pico_device *dev);
 
 #endif /* _INCLUDE_PICO_DHCP_SERVER */
+#endif

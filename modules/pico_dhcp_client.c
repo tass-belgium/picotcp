@@ -14,7 +14,7 @@
 #include "pico_socket.h"
 #include "pico_eth.h"
 
-#ifdef PICO_SUPPORT_DHCPC
+#if defined PICO_SUPPORT_DHCPC && defined PICO_SUPPORT_UDP
 #define dhcpc_dbg(...) do {} while(0)
 /* #define dhcpc_dbg dbg */
 
