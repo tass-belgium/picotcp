@@ -592,14 +592,15 @@ static int pico_ipv4_process_bcast_in(struct pico_frame *f)
         pico_enqueue(pico_proto_udp.q_in, f);
         return 1;
     }
+#endif
 
+#ifdef PICO_SUPPORT_ICMP4
     if (pico_ipv4_is_broadcast(hdr->dst.addr) && (hdr->proto == PICO_PROTO_ICMP4)) {
         /* Receiving ICMP4 bcast packet */
         f->flags |= PICO_FRAME_FLAG_BCAST;
         pico_enqueue(pico_proto_icmp4.q_in, f);
         return 1;
     }
-
 #endif
     return 0;
 }
@@ -708,14 +709,14 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     }
 
     if (hdr->frag & 0x80) {
-        pico_icmp4_param_problem(f, 0);
+        (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
     }
 
     if ((hdr->vhl & 0x0f) < 5) {
         /* RFC 791: IHL minimum value is 5 */
-        pico_icmp4_param_problem(f, 0);
+        (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f);
         return 0;
     }

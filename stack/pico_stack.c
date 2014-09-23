@@ -223,7 +223,34 @@ int32_t pico_network_receive(struct pico_frame *f)
     }
     return (int32_t)f->buffer_len;
 }
+#ifdef PICO_SUPPORT_IPV4
+static int32_t pico_ipv4_network_receive(struct pico_frame *f)
+{
+    if (IS_IPV4(f)) {
+        pico_enqueue(pico_proto_ipv4.q_in, f);
+    } else {
+        (void)pico_icmp4_param_problem(f, 0);
+        pico_frame_discard(f);
+        return -1;
+    }
+    return (int32_t)f->buffer_len;
+}
+#endif
 
+#ifdef PICO_SUPPORT_IPV6
+static int32_t pico_ipv6_network_receive(struct pico_frame *f)
+{
+    if (IS_IPV6(f)) {
+        pico_enqueue(pico_proto_ipv6.q_in, f);
+    } else {
+        /* Wrong version for link layer type */
+        (void)pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 0);
+        pico_frame_discard(f);
+        return -1;
+    }
+    return (int32_t)f->buffer_len;
+}
+#endif
 
 /* Network layer: interface towards socket for frame sending */
 int32_t pico_network_send(struct pico_frame *f)
@@ -278,13 +305,18 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
     if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
-
 #endif
-#if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
-    if ((hdr->proto == PICO_IDETH_IPV4) || (hdr->proto == PICO_IDETH_IPV6))
-        return pico_network_receive(f);
 
+#if defined (PICO_SUPPORT_IPV4)
+    if (hdr->proto == PICO_IDETH_IPV4)
+        return pico_ipv4_network_receive(f);
 #endif
+
+#if defined (PICO_SUPPORT_IPV6)
+    if (hdr->proto == PICO_IDETH_IPV6)
+        return pico_ipv6_network_receive(f);
+#endif
+
     pico_frame_discard(f);
     return -1;
 }

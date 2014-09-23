@@ -315,7 +315,7 @@ static int fp_reject(struct filter_node *filter, struct pico_frame *f)
 /* TODO check first if sender is pico itself or not */
     IGNORE_PARAMETER(filter);
     ipf_dbg("ipfilter> reject\n");
-    pico_icmp4_packet_filtered(f);
+    (void)pico_icmp4_packet_filtered(f);
     pico_frame_discard(f);
     return 1;
 }
