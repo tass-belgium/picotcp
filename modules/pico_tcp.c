@@ -1384,9 +1384,12 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
     tcp_fill_rst_header(fr, hdr1, f, hdr);
 
-    if (IS_IPV4(f)) {
+    if (0) {
+#ifdef PICO_SUPPORT_IPV4     
+    } else if (IS_IPV4(f)) {
         tcp_dbg("Pushing IPv4 reset frame...\n");
         pico_ipv4_frame_push(f, &(((struct pico_ipv4_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP);
+#endif
 #ifdef PICO_SUPPORT_IPV6
     } else {
         pico_ipv6_frame_push(f, &(((struct pico_ipv6_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP);
