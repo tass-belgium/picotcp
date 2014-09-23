@@ -213,7 +213,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
         if (f) {
             if (dev->eth) {
                 f->datalink_hdr = f->buffer;
-                pico_ethernet_receive(f);
+                (void)pico_ethernet_receive(f);
             } else {
                 f->net_hdr = f->buffer;
                 pico_network_receive(f);

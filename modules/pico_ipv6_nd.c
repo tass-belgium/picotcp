@@ -96,7 +96,7 @@ static void pico_ipv6_nd_queued_trigger(void)
     {
         f = frames_queued_v6[i];
         if (f) {
-            pico_ethernet_send(f);
+            (void)pico_ethernet_send(f);
             frames_queued_v6[i] = NULL;
         }
     }

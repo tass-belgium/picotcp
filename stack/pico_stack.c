@@ -223,34 +223,6 @@ int32_t pico_network_receive(struct pico_frame *f)
     }
     return (int32_t)f->buffer_len;
 }
-#ifdef PICO_SUPPORT_IPV4
-static int32_t pico_ipv4_network_receive(struct pico_frame *f)
-{
-    if (IS_IPV4(f)) {
-        pico_enqueue(pico_proto_ipv4.q_in, f);
-    } else {
-        (void)pico_icmp4_param_problem(f, 0);
-        pico_frame_discard(f);
-        return -1;
-    }
-    return (int32_t)f->buffer_len;
-}
-#endif
-
-#ifdef PICO_SUPPORT_IPV6
-static int32_t pico_ipv6_network_receive(struct pico_frame *f)
-{
-    if (IS_IPV6(f)) {
-        pico_enqueue(pico_proto_ipv6.q_in, f);
-    } else {
-        /* Wrong version for link layer type */
-        (void)pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 0);
-        pico_frame_discard(f);
-        return -1;
-    }
-    return (int32_t)f->buffer_len;
-}
-#endif
 
 /* Network layer: interface towards socket for frame sending */
 int32_t pico_network_send(struct pico_frame *f)
@@ -287,7 +259,7 @@ int pico_source_is_local(struct pico_frame *f)
     return 0;
 }
 
-
+#ifdef PICO_SUPPORT_ETH
 /* DATALINK LEVEL: interface from network to the device
  * and vice versa.
  */
@@ -296,64 +268,6 @@ int pico_source_is_local(struct pico_frame *f)
  * those devices supporting ETH in order to push packets up
  * into the stack.
  */
-
-static int32_t pico_ll_receive(struct pico_frame *f)
-{
-    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-
-#if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
-    if (hdr->proto == PICO_IDETH_ARP)
-        return pico_arp_receive(f);
-#endif
-
-#if defined (PICO_SUPPORT_IPV4)
-    if (hdr->proto == PICO_IDETH_IPV4)
-        return pico_ipv4_network_receive(f);
-#endif
-
-#if defined (PICO_SUPPORT_IPV6)
-    if (hdr->proto == PICO_IDETH_IPV6)
-        return pico_ipv6_network_receive(f);
-#endif
-
-    pico_frame_discard(f);
-    return -1;
-}
-
-static void pico_ll_check_bcast(struct pico_frame *f)
-{
-    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-    /* Indicate a link layer broadcast packet */
-    if (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) == 0)
-        f->flags |= PICO_FRAME_FLAG_BCAST;
-}
-
-int32_t pico_ethernet_receive(struct pico_frame *f)
-{
-    struct pico_eth_hdr *hdr;
-    if (!f || !f->dev || !f->datalink_hdr)
-    {
-        pico_frame_discard(f);
-        return -1;
-    }
-
-    hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-    if ((memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) &&
-        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
-#ifdef PICO_SUPPORT_IPV6
-        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST6, PICO_SIZE_MCAST6) != 0) &&
-#endif
-        (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
-    {
-        pico_frame_discard(f);
-        return -1;
-    }
-
-    pico_ll_check_bcast(f);
-
-    return pico_ll_receive(f);
-}
 
 static int destination_is_bcast(struct pico_frame *f)
 {
@@ -394,6 +308,92 @@ static int destination_is_mcast(struct pico_frame *f)
 #endif
 
     return ret;
+}
+
+#ifdef PICO_SUPPORT_IPV4
+static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
+{
+    if (IS_IPV4(f)) {
+        pico_enqueue(pico_proto_ipv4.q_in, f);
+    } else {
+        (void)pico_icmp4_param_problem(f, 0);
+        pico_frame_discard(f);
+        return -1;
+    }
+    return (int32_t)f->buffer_len;
+}
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+static int32_t pico_ipv6_ethernet_receive(struct pico_frame *f)
+{
+    if (IS_IPV6(f)) {
+        pico_enqueue(pico_proto_ipv6.q_in, f);
+    } else {
+        /* Wrong version for link layer type */
+        (void)pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 0);
+        pico_frame_discard(f);
+        return -1;
+    }
+    return (int32_t)f->buffer_len;
+}
+#endif
+
+static int32_t pico_ll_receive(struct pico_frame *f)
+{
+    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
+
+#if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
+    if (hdr->proto == PICO_IDETH_ARP)
+        return pico_arp_receive(f);
+#endif
+
+#if defined (PICO_SUPPORT_IPV4)
+    if (hdr->proto == PICO_IDETH_IPV4)
+        return pico_ipv4_ethernet_receive(f);
+#endif
+
+#if defined (PICO_SUPPORT_IPV6)
+    if (hdr->proto == PICO_IDETH_IPV6)
+        return pico_ipv6_ethernet_receive(f);
+#endif
+
+    pico_frame_discard(f);
+    return -1;
+}
+
+static void pico_ll_check_bcast(struct pico_frame *f)
+{
+    struct pico_eth_hdr *hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    /* Indicate a link layer broadcast packet */
+    if (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) == 0)
+        f->flags |= PICO_FRAME_FLAG_BCAST;
+}
+
+int32_t pico_ethernet_receive(struct pico_frame *f)
+{
+    struct pico_eth_hdr *hdr;
+    if (!f || !f->dev || !f->datalink_hdr)
+    {
+        pico_frame_discard(f);
+        return -1;
+    }
+
+    hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+    if ((memcmp(hdr->daddr, f->dev->eth->mac.addr, PICO_SIZE_ETH) != 0) &&
+        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST, PICO_SIZE_MCAST) != 0) &&
+#ifdef PICO_SUPPORT_IPV6
+        (memcmp(hdr->daddr, PICO_ETHADDR_MCAST6, PICO_SIZE_MCAST6) != 0) &&
+#endif
+        (memcmp(hdr->daddr, PICO_ETHADDR_ALL, PICO_SIZE_ETH) != 0))
+    {
+        pico_frame_discard(f);
+        return -1;
+    }
+
+    pico_ll_check_bcast(f);
+    return pico_ll_receive(f);
 }
 
 struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
@@ -487,6 +487,9 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
     }
 }
 
+
+
+
 /* This function looks for the destination mac address
  * in order to send the frame being processed.
  */
@@ -529,7 +532,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         dstmac = pico_ethernet_mcast_translate(f, pico_mcast_mac);
     }
 
-#if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
+#if (defined PICO_SUPPORT_IPV4)
     else {
         dstmac = pico_arp_get(f);
         /* At this point, ARP will discard the frame in any case.
@@ -565,6 +568,9 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     pico_frame_discard(f);
     return -1;
 }
+
+#endif /* PICO_SUPPORT_ETH */
+
 
 void pico_store_network_origin(void *src, struct pico_frame *f)
 {

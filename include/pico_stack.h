@@ -23,12 +23,6 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto);
 /* interface towards ethernet */
 int32_t pico_network_receive(struct pico_frame *f);
 
-/* The pico_ethernet_receive() function is used by
- * those devices supporting ETH in order to push packets up
- * into the stack.
- */
-/* DATALINK LEVEL */
-int32_t pico_ethernet_receive(struct pico_frame *f);
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
@@ -43,8 +37,22 @@ int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *bu
 /* ===== SENDIING FUNCTIONS (from socket down to dev) ===== */
 
 int32_t pico_network_send(struct pico_frame *f);
-int32_t pico_ethernet_send(struct pico_frame *f);
 int32_t pico_sendto_dev(struct pico_frame *f);
+
+#ifdef PICO_SUPPORT_ETH
+int32_t pico_ethernet_send(struct pico_frame *f);
+
+/* The pico_ethernet_receive() function is used by
+ * those devices supporting ETH in order to push packets up
+ * into the stack.
+ */
+/* DATALINK LEVEL */
+int32_t pico_ethernet_receive(struct pico_frame *f);
+#else
+    /* When ETH is not supported by the stack... */
+#   define pico_ethernet_send(f)    (-1)
+#   define pico_ethernet_receive(f) (-1)
+#endif
 
 /* ----- Initialization ----- */
 int pico_stack_init(void);
