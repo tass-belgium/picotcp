@@ -153,6 +153,11 @@ int pico_icmp4_packet_filtered(struct pico_frame *f)
     return pico_icmp4_notify(f, PICO_ICMP_UNREACH, PICO_ICMP_UNREACH_FILTER_PROHIB);
 }
 
+int pico_icmp4_param_problem(struct pico_frame *f, uint8_t code)
+{
+    return pico_icmp4_notify(f, PICO_ICMP_PARAMPROB, code);
+}
+
 /***********************/
 /* Ping implementation */
 /***********************/

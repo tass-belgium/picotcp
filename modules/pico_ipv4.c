@@ -708,7 +708,15 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     }
 
     if (hdr->frag & 0x80) {
+        pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
+        return 0;
+    }
+
+    if ((hdr->vhl & 0x0f) < 5) {
+        /* RFC 791: IHL minimum value is 5 */
+        pico_icmp4_param_problem(f, 0);
+        pico_frame_discard(f);
         return 0;
     }
 
