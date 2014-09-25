@@ -20,12 +20,15 @@
 #define PICO_TFTP_ERR_OK    0
 #define PICO_TFTP_ERR_PEER  1
 #define PICO_TFTP_ERR_LOCAL 2
-int pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family,
-                       char *filename, int (*user_cb)(uint16_t err, uint8_t *block, uint32_t len));
-int pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family,
-                       char *filename, int (*user_cb)(uint16_t err, uint8_t *block, uint32_t len));
-int pico_tftp_send(const uint8_t *data, int len);
+
+struct pico_tftp_session;
+
+struct pico_tftp_session * pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
+                       int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg);
+struct pico_tftp_session * pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
+                       int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg);
+int pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int len);
 int pico_tftp_listen(uint16_t family, int (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename));
-void pico_tftp_close(void);
+int pico_tftp_abort(struct pico_tftp_session *session);
 
 #endif
