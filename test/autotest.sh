@@ -159,17 +159,55 @@ killall picoapp.elf
 sleep 1
 sync
 
+TFTP_EXEC_DIR="$(pwd)/build/test"
+TFTP_WORK_DIR="${TFTP_EXEC_DIR}/tmp"
+TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
+TFTP_WORK_FILE="test.img"
+
+if [ ! -d $TFTP_WORK_DIR ]; then
+        mkdir $TFTP_WORK_DIR || exit 1
+fi
+if [ ! -d ${TFTP_WORK_SUBDIR}/server ]; then
+        mkdir $TFTP_WORK_SUBDIR || exit 1
+fi
+
+function tftp_setup() {
+dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
+}
+
+function tftp_cleanup() {
+echo CLEANUP
+pwd;ls
+killall picoapp.elf
+rm -rf $TFTP_WORK_DIR
+if [ $1 ]; then
+	exit $1
+fi
+}
+
+pushd $TFTP_WORK_DIR
+
 echo "TFTP GET TEST"
-(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:c:10.50.0.2:test.img: || exit 1
-sleep 2
+tftp_setup $TFTP_WORK_DIR
+(${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
+cd $TFTP_WORK_SUBDIR
+${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:R:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
+sleep 3
 killall picoapp.elf
 
 sleep 1
-echo "TFTP PUT TEST"
-(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:s:) &
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:p:10.50.0.2:test.img: || exit 1
 
+rm $TFTP_WORK_FILE
+
+echo "TFTP PUT TEST"
+(${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
+cd $TFTP_WORK_DIR
+tftp_setup $TFTP_WORK_DIR
+${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:T:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
+sleep 3
+
+tftp_cleanup
+popd
 
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
