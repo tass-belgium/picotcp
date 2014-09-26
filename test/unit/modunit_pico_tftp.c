@@ -12,10 +12,11 @@ static uint16_t expected_opcode = 0;
 static int called_user_cb = 0;
 static int called_sendto = 0;
 static struct pico_socket example_socket;
+static struct pico_tftp_session example_session;
 
 int pico_socket_close(struct pico_socket *s)
 {
-    fail_if(s != pico_tftp_socket);
+    fail_if(s != example_session.socket);
     called_pico_socket_close++;
     return 0;
 }
@@ -65,54 +66,48 @@ END_TEST
 
 START_TEST(tc_tftp_finish)
 {
-
+    tftp_sessions = 0;
 
     /* Test case: client */
-    pico_tftp_socket = &example_socket;
-    pico_tftp_server_on = 0;
+    example_session.socket = &example_socket;
     called_pico_socket_close = 0;
-    tftp_finish();
+    tftp_finish(&example_session);
     fail_if(pico_tftp_state != PICO_TFTP_STATE_IDLE);
-    fail_if(pico_tftp_socket);
     fail_if(!called_pico_socket_close);
 
     /* Test eval_finish() len is 5*/
-    pico_tftp_socket = &example_socket;
-    pico_tftp_server_on = 0;
+    example_session.socket = &example_socket;
     called_pico_socket_close = 0;
-    tftp_eval_finish(5);
-    fail_if(pico_tftp_state != PICO_TFTP_STATE_IDLE);
-    fail_if(pico_tftp_socket);
+    tftp_eval_finish(&example_session, 5);
+    fail_if(example_session.state != PICO_TFTP_STATE_RX_LAST);
     fail_if(!called_pico_socket_close);
 
     /* Test eval_finish() len is PICO_TFTP_BLOCK_SIZE */
-    pico_tftp_socket = &example_socket;
-    pico_tftp_server_on = 0;
+    example_session.socket = &example_socket;
     called_pico_socket_close = 0;
-    tftp_eval_finish(PICO_TFTP_BLOCK_SIZE);
+    tftp_eval_finish(&example_session, PICO_TFTP_BLOCK_SIZE);
     fail_if(called_pico_socket_close);
 
 
     /* Test case: server */
-    pico_tftp_socket = &example_socket;
-    pico_tftp_server_on = 1;
+    example_session.socket = &example_socket;
     called_pico_socket_close = 0;
-    tftp_finish();
+    tftp_finish(&example_session);
     fail_if(called_pico_socket_close);
 }
 END_TEST
 
 START_TEST(tc_tftp_send_ack)
 {
-    pico_tftp_socket = &example_socket;
+    example_session.socket = &example_socket;
 #ifdef PICO_FAULTY
     /* send_ack must not segfault when out of memory */
     pico_set_mm_failure(1);
-    tftp_send_ack();
+    tftp_send_ack(&example_session);
     fail_if(called_sendto > 0);
 #endif
     expected_opcode = PICO_TFTP_ACK;
-    tftp_send_ack();
+    tftp_send_ack(&example_session);
     fail_if(called_sendto < 1);
 
 }
@@ -128,24 +123,24 @@ START_TEST(tc_tftp_send_rx_req)
 {
     char filename[14] = "some filename";
 
-    pico_tftp_socket = &example_socket;
+    example_session.socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;
     called_sendto = 0;
 #ifdef PICO_FAULTY
-    pico_tftp_user_cb = tftp_user_cb;
+    example_session.callback = tftp_user_cb;
 
     /* send_req must call error cb when out of memory */
     pico_set_mm_failure(1);
-    tftp_send_rx_req(NULL, 0, filename);
+    tftp_send_rx_req(&example_session, NULL, 0, filename);
     fail_if(called_user_cb < 1);
     fail_if(called_sendto > 0);
 #endif
     expected_opcode = PICO_TFTP_RRQ;
-    tftp_send_rx_req(NULL, 0, NULL);
+    tftp_send_rx_req(&example_session, NULL, 0, NULL);
     fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
 
-    tftp_send_rx_req(NULL, 0, filename);
+    tftp_send_rx_req(&example_session, NULL, 0, filename);
     fail_if(called_sendto < 0);
 }
 END_TEST
@@ -154,24 +149,24 @@ START_TEST(tc_tftp_send_tx_req)
 {
     char filename[14] = "some filename";
 
-    pico_tftp_socket = &example_socket;
+    example_session.socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;
     called_sendto = 0;
 #ifdef PICO_FAULTY
-    pico_tftp_user_cb = tftp_user_cb;
+    example_session.callback = tftp_user_cb;
 
     /* send_req must call error cb when out of memory */
     pico_set_mm_failure(1);
-    tftp_send_tx_req(NULL, 0, filename);
+    tftp_send_tx_req(&example_session, NULL, 0, filename);
     fail_if(called_user_cb < 1);
     fail_if(called_sendto > 0);
 #endif
     expected_opcode = PICO_TFTP_WRQ;
-    tftp_send_tx_req(NULL, 0, NULL);
+    tftp_send_tx_req(&example_session, NULL, 0, NULL);
     fail_if(called_sendto > 0); /* Calling with filename = NULL: not good */
 
-    tftp_send_tx_req(NULL, 0, filename);
+    tftp_send_tx_req(&example_session, NULL, 0, filename);
     fail_if(called_sendto < 0);
 }
 END_TEST
@@ -179,19 +174,19 @@ END_TEST
 START_TEST(tc_tftp_send_error)
 {
     char longtext[1024];
-    pico_tftp_socket = &example_socket;
+    example_session.socket = &example_socket;
     called_user_cb = 0;
     called_pico_socket_close = 0;
 
     /* Sending empty msg */
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
-    tftp_send_error(NULL, 0, 0, NULL);
+    tftp_send_error(&example_session, NULL, 0, 0, NULL);
     fail_if(called_sendto < 1);
     /* Sending some msg */
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
-    tftp_send_error(NULL, 0, 0, "some text here");
+    tftp_send_error(&example_session, NULL, 0, 0, "some text here");
     fail_if(called_sendto < 1);
 
     /* sending some very long msg */
@@ -199,19 +194,20 @@ START_TEST(tc_tftp_send_error)
     longtext[1023] = (char)0;
     called_sendto = 0;
     expected_opcode = TFTP_ERROR;
-    tftp_send_error(NULL, 0, 0, longtext);
+    tftp_send_error(&example_session, NULL, 0, 0, longtext);
     fail_if(called_sendto < 1);
 }
 END_TEST
 
 START_TEST(tc_tftp_send_data)
 {
-    pico_tftp_socket = &example_socket;
+    example_session.state = 0;
+    example_session.socket = &example_socket;
     called_sendto = 0;
     expected_opcode = PICO_TFTP_DATA;
-    tftp_send_data("buffer", strlen("buffer"));
+    tftp_send_data(&example_session, "buffer", strlen("buffer"));
     fail_if(called_sendto < 1);
-
+    fail_if(example_session.state != PICO_TFTP_STATE_TX_LAST);
 }
 END_TEST
 
