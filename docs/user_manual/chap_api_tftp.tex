@@ -121,7 +121,7 @@ int pico_tftp_send(struc pico_tftp_session *session, const uint8_t *data, int le
 \begin{itemize}[noitemsep]
 \item \texttt{session} - the session handler.
 \item \texttt{data} - the content of the block to be transferred.
-\item \texttt{len} - the size of the buffer being transmitted. If < BLOCKSIZE, the transfer is concluded. In order to terminate a transfer where the content is aligned to BLOCKSIZE, a zero-sized \texttt{pico\_tftp\_send} must be called at the end of the transfer.
+\item \texttt{len} - the size of the buffer being transmitted. If $<$ \texttt{BLOCKSIZE}, the transfer is concluded. In order to terminate a transfer where the content is aligned to \texttt{BLOCKSIZE}, a zero-sized \texttt{pico\_tftp\_send} must be called at the end of the transfer.
 \end{itemize}
 
 \subsubsection*{Return value}
