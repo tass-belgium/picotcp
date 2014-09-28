@@ -23,8 +23,8 @@ int pico_socket_close(struct pico_socket *s)
 
 int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
-    struct pico_tftp_hdr *h = (struct pico_tftp_data_hdr *)buf;
-    fail_if(s != pico_tftp_socket);
+    const struct pico_tftp_hdr *h = (const struct pico_tftp_hdr *)buf;
+    fail_if(s != &example_socket);
     fail_if(short_be(h->opcode) != expected_opcode);
     fail_if(len <= 0);
     (void)dst;
@@ -33,11 +33,13 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     return 0;
 }
 
-int tftp_user_cb(uint16_t err, uint8_t *block, uint32_t len)
+int tftp_user_cb(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg)
 {
+    (void)session;
     (void)err;
     (void)block;
     (void)len;
+    (void)arg;
     called_user_cb++;
     return 0;
 }
@@ -72,7 +74,6 @@ START_TEST(tc_tftp_finish)
     example_session.socket = &example_socket;
     called_pico_socket_close = 0;
     tftp_finish(&example_session);
-    fail_if(pico_tftp_state != PICO_TFTP_STATE_IDLE);
     fail_if(!called_pico_socket_close);
 
     /* Test eval_finish() len is 5*/
@@ -86,13 +87,6 @@ START_TEST(tc_tftp_finish)
     example_session.socket = &example_socket;
     called_pico_socket_close = 0;
     tftp_eval_finish(&example_session, PICO_TFTP_BLOCK_SIZE);
-    fail_if(called_pico_socket_close);
-
-
-    /* Test case: server */
-    example_session.socket = &example_socket;
-    called_pico_socket_close = 0;
-    tftp_finish(&example_session);
     fail_if(called_pico_socket_close);
 }
 END_TEST
@@ -205,7 +199,7 @@ START_TEST(tc_tftp_send_data)
     example_session.socket = &example_socket;
     called_sendto = 0;
     expected_opcode = PICO_TFTP_DATA;
-    tftp_send_data(&example_session, "buffer", strlen("buffer"));
+    tftp_send_data(&example_session, (const uint8_t*)"buffer", strlen("buffer"));
     fail_if(called_sendto < 1);
     fail_if(example_session.state != PICO_TFTP_STATE_TX_LAST);
 }
