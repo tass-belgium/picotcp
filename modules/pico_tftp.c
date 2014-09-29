@@ -483,13 +483,9 @@ static struct pico_socket * tftp_socket_open(uint16_t family, uint16_t localport
     return sock;
 }
 
-/* Active RX request from PicoTCP */
-struct pico_tftp_session * pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
-        int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg)
+static struct pico_socket * tftp_start_check_and_open(uint16_t port, uint16_t family,
+        int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg))
 {
-    struct pico_socket *sock;
-    struct pico_tftp_session *session;
-
     if (!user_cb) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
@@ -499,7 +495,18 @@ struct pico_tftp_session * pico_tftp_start_rx(union pico_address *a, uint16_t po
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
-    sock = tftp_socket_open(family, 0); // a, port);
+
+    return tftp_socket_open(family, 0);
+}
+
+/* Active RX request from PicoTCP */
+struct pico_tftp_session * pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
+        int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg)
+{
+    struct pico_socket *sock;
+    struct pico_tftp_session *session;
+
+    sock = tftp_start_check_and_open(port, family, user_cb);
     if (!sock)
         return NULL;
 
@@ -527,17 +534,7 @@ struct pico_tftp_session * pico_tftp_start_tx(union pico_address *a, uint16_t po
     struct pico_socket *sock;
     struct pico_tftp_session *session;
 
-    if (!user_cb) {
-        pico_err = PICO_ERR_EINVAL;
-        return NULL;
-    }
-
-    if ((!listen_socket) && (port != short_be(PICO_TFTP_PORT))) {
-        pico_err = PICO_ERR_EINVAL;
-        return NULL;
-    }
-
-    sock = tftp_socket_open(family, 0);
+    sock = tftp_start_check_and_open(port, family, user_cb);
     if (!sock)
         return NULL;
 
