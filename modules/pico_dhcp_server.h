@@ -3,10 +3,10 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#include "pico_defines.h"
-#ifdef PICO_SUPPORT_UDP
 #ifndef INCLUDE_PICO_DHCP_SERVER
 #define INCLUDE_PICO_DHCP_SERVER
+#include "pico_defines.h"
+#ifdef PICO_SUPPORT_UDP
 
 #include "pico_dhcp_common.h"
 #include "pico_addressing.h"
