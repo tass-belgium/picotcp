@@ -622,5 +622,5 @@ int pico_tftp_abort(struct pico_tftp_session *session)
     tftp_send_error(session, NULL, 0, TFTP_ERR_UNDEF, "Cancelled by user");
 
     ret = pico_socket_close(session->socket);
-    return del_session(session)? -1: ret;
+    return del_session(session)? (-1): ret;
 }
