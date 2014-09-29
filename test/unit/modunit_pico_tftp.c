@@ -205,6 +205,27 @@ START_TEST(tc_tftp_send_data)
 }
 END_TEST
 
+START_TEST(tc_pico_tftp_abort)
+{
+    int ret;
+    union pico_address address;
+    struct pico_tftp_session *session = NULL;
+
+    listen_socket = NULL;
+
+    /*first case: no session and no listening socket*/
+    ret = pico_tftp_abort(NULL);
+    fail_if(ret != -1);
+    /*second case: no session but listening socket*/
+    listen_socket = example_session.socket = &example_socket;
+    pico_tftp_abort(NULL);
+    fail_if(ret != -1);
+    /*tirdh case: session non into list*/
+    ret = pico_tftp_abort(&example_session);
+    fail_if(ret != -1);
+}
+END_TEST
+
 /* Receiving functions */
 
 START_TEST(tc_tftp_data)
@@ -286,6 +307,7 @@ Suite *pico_suite(void)
     TCase *TCase_tftp_send_tx_req = tcase_create("Unit test for tftp_send_tx_req");
     TCase *TCase_tftp_send_error = tcase_create("Unit test for tftp_send_error");
     TCase *TCase_tftp_send_data = tcase_create("Unit test for tftp_send_data");
+    TCase *Tcase_pico_tftp_abort = tcase_create("Unit test for pico_tftp_abort");
     TCase *TCase_tftp_data = tcase_create("Unit test for tftp_data");
     TCase *TCase_tftp_ack = tcase_create("Unit test for tftp_ack");
     TCase *TCase_tftp_timeout = tcase_create("Unit test for tftp_timeout");
@@ -318,6 +340,8 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_tftp_send_data, tc_tftp_send_data);
     suite_add_tcase(s, TCase_tftp_send_data);
     tcase_add_test(TCase_tftp_data, tc_tftp_data);
+    suite_add_tcase(s, Tcase_pico_tftp_abort);
+    tcase_add_test(Tcase_pico_tftp_abort, tc_pico_tftp_abort);
     suite_add_tcase(s, TCase_tftp_data);
     tcase_add_test(TCase_tftp_ack, tc_tftp_ack);
     suite_add_tcase(s, TCase_tftp_ack);
