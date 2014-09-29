@@ -303,21 +303,29 @@ static inline void tftp_eval_finish(struct pico_tftp_session *session, uint32_t 
     }
 }
 
+static inline int tftp_data_prepare(struct pico_tftp_session *session, union pico_address *a, uint16_t port)
+{
+    if (!session->socket)
+        return -1;
+
+    if (pico_address_compare(a, &session->remote_address, session->socket->net->proto_number) != 0) {
+        tftp_send_error(session, a, port, TFTP_ERR_EXCEEDED, "TFTP busy, try again later.");
+        return -1;
+    }
+
+    if (!session->remote_port)
+        session->remote_port = port;
+
+    return 0;
+}
+
 static void tftp_data(struct pico_tftp_session *session, uint8_t *block, uint32_t len, union pico_address *a, uint16_t port)
 {
     struct pico_tftp_data_hdr *dh;
     uint32_t payload_len = len - (uint32_t) sizeof(struct pico_tftp_data_hdr);
 
-    if (!session->socket)
+    if (tftp_data_prepare(session, a, port))
         return;
-
-    if (pico_address_compare(a, &session->remote_address, session->socket->net->proto_number) != 0) {
-        tftp_send_error(session, a, port, TFTP_ERR_EXCEEDED, "TFTP busy, try again later.");
-        return;
-    }
-
-    if (!session->remote_port)
-        session->remote_port = port;
 
     dh = (struct pico_tftp_data_hdr *)block;
     if (short_be(dh->block) > (session->packet_counter +  1U)) {
