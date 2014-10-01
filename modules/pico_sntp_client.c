@@ -288,6 +288,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck->sock = NULL;
     ck->hostname = PICO_ZALLOC(strlen(sntp_server));
     if (!ck->hostname) {
+        PICO_FREE(ck);
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
@@ -295,6 +296,8 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     strcpy(ck->hostname, sntp_server);
 
     if(cb_synced == NULL) {
+        PICO_FREE(ck->hostname);
+        PICO_FREE(ck);
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -312,6 +315,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck6->proto = PICO_PROTO_IPV6;
     ck6->hostname = PICO_ZALLOC(strlen(sntp_server));
     if (!ck6->hostname) {
+        PICO_FREE(ck6);
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
@@ -324,14 +328,18 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck6->cb_synced = cb_synced;
     sntp_dbg("Resolving AAAA %s\n", ck6->hostname);
     retval6 = pico_dns_client_getaddr6(sntp_server, &dnsCallback, ck6);
+
+    PICO_FREE(ck6->hostname);
+    PICO_FREE(ck6);
+
 #endif
     sntp_dbg("Resolving A %s\n", ck->hostname);
     retval = pico_dns_client_getaddr(sntp_server, &dnsCallback, ck);
 
-    if (!retval || !retval6)
-        return 0;
+    PICO_FREE(ck->hostname);
+    PICO_FREE(ck);
 
-    return -1;
+    return (!retval || !retval6)? 0: (-1);
 }
 
 /* user function to get the current time */
