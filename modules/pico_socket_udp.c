@@ -117,24 +117,11 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
 #ifdef PICO_SUPPORT_IPV6
 static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, struct pico_frame *f)
 {
-    struct pico_ip6 s_local, p_dst;
     struct pico_ipv6_hdr *ip6hdr;
     struct pico_frame *cpy;
     struct pico_device *dev = pico_ipv6_link_find(&s->local_addr.ip6);
 
     ip6hdr = (struct pico_ipv6_hdr*)(f->net_hdr);
-
-    /* TODO: Check filters like it's done for IPv4 */
-    (void)s_local;
-    (void)p_dst;
-#if 0
-    s_local = s->local_addr.ip6;
-    p_dst = ip6hdr->dst;
-    if (pico_ipv6_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip6hdr->dst, (union pico_address *)&ip6hdr->src) < 0))
-        return -1;
-
-#endif
-
 
     if ((pico_ipv6_link_get(&ip6hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u)) {
         /* Datagram from ourselves, Loop disabled, discarding. */
