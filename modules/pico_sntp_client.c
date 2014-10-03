@@ -78,7 +78,7 @@ static union pico_address sntp_inaddr_any = {
 /*************************************************************************/
 
 /* Converts a sntp time stamp to a pico_timeval struct */
-static int timestamp_convert(struct pico_sntp_ts *ts, struct pico_timeval *tv, pico_time delay)
+static int timestamp_convert(const struct pico_sntp_ts *ts, struct pico_timeval *tv, pico_time delay)
 {
     if(long_be(ts->sec) < SNTP_UNIX_OFFSET) {
         pico_err = PICO_ERR_EINVAL;
@@ -254,9 +254,11 @@ static void dnsCallback(char *ip, void *arg)
 
     if (retval >= 0) {
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);
+        if (!sock)
+            return;
         sock->priv = ck;
         ck->sock = sock;
-        if ((sock) && (pico_socket_bind(sock, &sntp_inaddr_any, &any_port) == 0)) {
+        if ((pico_socket_bind(sock, &sntp_inaddr_any, &any_port) == 0)) {
             pico_sntp_send(sock, &address);
         }
     }
