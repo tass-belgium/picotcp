@@ -221,16 +221,9 @@ static struct pico_dns_query *pico_dns_client_find_query(uint16_t id)
 /* determine len of string */
 uint16_t pico_dns_client_strlen(const char *url)
 {
-    uint16_t len;
-
     if (!url)
         return 0;
-
-    for (len = 0; len < 0xFFFF; len++) {
-        if (url[len] == 0)
-            break;
-    }
-    return len;
+    return (uint16_t)strlen(url);
 }
 
 /* seek end of string */
@@ -385,6 +378,9 @@ static int pico_dns_client_check_header(struct pico_dns_header *pre)
 
 static int pico_dns_client_check_qsuffix(struct pico_dns_query_suffix *suf, struct pico_dns_query *q)
 {
+    if (!suf)
+        return -1;
+
     if (short_be(suf->qtype) != q->qtype || short_be(suf->qclass) != q->qclass) {
         dns_dbg("DNS ERROR: received qtype (%u) or qclass (%u) incorrect\n", short_be(suf->qtype), short_be(suf->qclass));
         return -1;
@@ -557,9 +553,11 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     if (q->retrans) {
         q->callback(str, q->arg);
         q->retrans = 0;
-        PICO_FREE(str);
         pico_dns_client_del_query(q->id);
     }
+
+    if (str)
+        PICO_FREE(str);
 
     return 0;
 }
@@ -635,7 +633,7 @@ static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
 
 void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
-    struct pico_ip6 ip6;
+    struct pico_ip6 ip6 = {.addr = {}};
     int i, j = 0;
     pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {
