@@ -28,6 +28,7 @@
 /*
  * Debugging info
  */
+#define dbg_tap_info(...)   // tap info messages
 #define dbg_tap(...)        // first level debug
 #define dbg_win32(...)      // second level detailed win32 debug
 #define dbg_reg(...)        // third level: registry debug
@@ -363,7 +364,7 @@ void show_tap_win_adapters (void)
   if (!(tap_reg && panel_reg))
     return;
 
-  printf("Available TAP-WIN32 adapters [name, GUID]:\n");
+  dbg_tap_info("Available TAP-WIN32 adapters [name, GUID]:\n");
 
   /* loop through each TAP-Windows adapter registry entry */
   for (tr = tap_reg; tr != NULL; tr = tr->next)
@@ -375,7 +376,7 @@ void show_tap_win_adapters (void)
     {
       if (!strcmp (tr->guid, pr->guid))
       {
-        printf("\t>> '%s' %s\n", pr->name, tr->guid);
+        dbg_tap_info("\t>> '%s' %s\n", pr->name, tr->guid);
         ++links;
       }
     }
@@ -389,7 +390,7 @@ void show_tap_win_adapters (void)
       /* a TAP adapter exists without a link from the network
          connections control panel */
       warn_panel_null = 1;
-      printf("\t>> [NULL] %s\n", tr->guid);
+      dbg_tap_info("\t>> [NULL] %s\n", tr->guid);
     }
   }
 
@@ -405,13 +406,13 @@ void show_tap_win_adapters (void)
 
   /* warn on registry inconsistencies */
   if (warn_tap_dup)
-    printf("WARNING: Some TAP-Windows adapters have duplicate GUIDs\n");
+    dbg_tap_info("WARNING: Some TAP-Windows adapters have duplicate GUIDs\n");
 
   if (warn_panel_dup)
-    printf("WARNING: Some TAP-Windows adapters have duplicate links from the Network Connections control panel\n");
+    dbg_tap_info("WARNING: Some TAP-Windows adapters have duplicate links from the Network Connections control panel\n");
 
   if (warn_panel_null)
-    printf("WARNING: Some TAP-Windows adapters have no link from the Network Connections control panel\n");
+    dbg_tap_info("WARNING: Some TAP-Windows adapters have no link from the Network Connections control panel\n");
 }
 
 
@@ -428,7 +429,7 @@ const char * get_first_device_guid(const struct tap_reg *tap_reg, const struct p
     {
       if (!strcmp (tr->guid, pr->guid))
       {
-        printf("Using first TAP device: '%s' %s\n", pr->name, tr->guid);
+        dbg_tap_info("Using first TAP device: '%s' %s\n", pr->name, tr->guid);
         if (name)
           strcpy(name, pr->name);
         return tr->guid;
@@ -446,11 +447,11 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
     const char *device_guid = NULL;
     DWORD len;
 
-    printf("open_tun, tt->ipv6=%d\n", tt->ipv6 );
+    dbg_tap_info("open_tun, tt->ipv6=%d\n", tt->ipv6 );
 
     if (!(tt->type == DEV_TYPE_TAP || tt->type == DEV_TYPE_TUN))
     {
-        printf("Unknown virtual device type: '%s'\n", dev);
+        dbg_tap_info("Unknown virtual device type: '%s'\n", dev);
         return -1;
     }
 
@@ -464,7 +465,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
 
         if (!(tap_reg && panel_reg))
         {
-            printf("No TUN/TAP devices found\n");
+            dbg_tap_info("No TUN/TAP devices found\n");
             return -1;
         }
 
@@ -472,7 +473,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
         device_guid = get_first_device_guid (tap_reg, panel_reg, name);
 
         if (!device_guid)
-            printf("TAP-Windows adapter '%s' not found\n", dev_node);
+            dbg_tap_info("TAP-Windows adapter '%s' not found\n", dev_node);
 
         /* Open Windows TAP-Windows adapter */
         snprintf (device_path, sizeof(device_path), "%s%s%s",
@@ -491,7 +492,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
                 );
 
         if (tt->hand == INVALID_HANDLE_VALUE)
-            printf("CreateFile failed on TAP device: %s\n", device_path);
+            dbg_tap_info("CreateFile failed on TAP device: %s\n", device_path);
 
         /* translate high-level device name into a device instance
            GUID using the registry */
@@ -500,7 +501,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
             strcpy(tt->actual_name, name);
     }
 
-    printf("TAP-WIN32 device [%s] opened: %s\n", tt->actual_name, device_path);
+    dbg_tap_info("TAP-WIN32 device [%s] opened: %s\n", tt->actual_name, device_path);
     // TODO TODO TODO
     //tt->adapter_index = get_adapter_index (device_guid);
 
@@ -511,7 +512,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
         //CLEAR (info);
         if (DeviceIoControl (tt->hand, TAP_WIN_IOCTL_GET_VERSION, &info, sizeof (info), &info, sizeof (info), &len, NULL))
         {
-            printf ("TAP-Windows Driver Version %d.%d %s\n",
+            dbg_tap_info ("TAP-Windows Driver Version %d.%d %s\n",
                     (int) info[0],
                     (int) info[1],
                     (info[2] ? "(DEBUG)" : ""));
@@ -519,7 +520,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
         }
 
         if (!(info[0] == TAP_WIN_MIN_MAJOR && info[1] >= TAP_WIN_MIN_MINOR))
-            printf ("ERROR:  This version of " PACKAGE_NAME " requires a TAP-Windows driver that is at least version %d.%d  \
+            dbg_tap_info ("ERROR:  This version of " PACKAGE_NAME " requires a TAP-Windows driver that is at least version %d.%d  \
                     -- If you recently upgraded your " PACKAGE_NAME " distribution,                             \
                     a reboot is probably required at this point to get Windows to see the new driver.\n",
                     TAP_WIN_MIN_MAJOR,
@@ -530,7 +531,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
          */
         if ( tt->ipv6 && tt->type == DEV_TYPE_TUN && info[0] == 9 && info[1] < 8)
         {
-            printf("WARNING:  Tap-Win32 driver version %d.%d does not support IPv6 in TUN mode.  IPv6 will be disabled. \
+            dbg_tap_info("WARNING:  Tap-Win32 driver version %d.%d does not support IPv6 in TUN mode.  IPv6 will be disabled. \
                     Upgrade to Tap-Win32 9.8 (2.2-beta3 release or later) or use TAP mode to get IPv6\n", (int) info[0], (int) info[1] );
             tt->ipv6 = 0;
         }
@@ -539,7 +540,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
         */
         if ( tt->type == DEV_TYPE_TUN && info[0] == 9 && info[1] == 8)
         {
-            printf("ERROR:  Tap-Win32 driver version %d.%d is buggy regarding small IPv4 packets in TUN mode.  Upgrade to Tap-Win32 9.9 (2.2.2 release or later) or use TAP mode\n", (int) info[0], (int) info[1] );
+            dbg_tap_info("ERROR:  Tap-Win32 driver version %d.%d is buggy regarding small IPv4 packets in TUN mode.  Upgrade to Tap-Win32 9.9 (2.2.2 release or later) or use TAP mode\n", (int) info[0], (int) info[1] );
         }
     }
 
@@ -551,7 +552,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
                     &mtu, sizeof (mtu), &len, NULL))
         {
             tt->post_open_mtu = (int) mtu;
-            printf("TAP-Windows MTU=%d\n", (int) mtu);
+            dbg_tap_info("TAP-Windows MTU=%d\n", (int) mtu);
         }
     }
 
@@ -563,7 +564,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
                     mac, sizeof (mac),
                     mac, sizeof (mac), &len, NULL))
         {
-            printf("TAP-Windows MAC=[%x,%x,%x,%x,%x,%x]\n", mac[0], mac[1], mac[2],
+            dbg_tap_info("TAP-Windows MAC=[%x,%x,%x,%x,%x,%x]\n", mac[0], mac[1], mac[2],
                     mac[2], mac[4], mac[5]);
             memcpy(tt->mac, mac, sizeof(mac));
         }
@@ -573,12 +574,12 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
 
     if (tt->type == DEV_TYPE_TUN)
     {
-        printf("TUN type not supported for now...\n");
+        dbg_tap_info("TUN type not supported for now...\n");
         return -1;
     }
     else if (tt->type == DEV_TYPE_TAP)
     { /* TAP DEVICE */
-        printf("TODO: Set Point-to-point through DeviceIoControl\n");
+        dbg_tap_info("TODO: Set Point-to-point through DeviceIoControl\n");
     }
 
     /* set driver media status to 'connected' */
@@ -587,7 +588,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
         if (!DeviceIoControl (tt->hand, TAP_WIN_IOCTL_SET_MEDIA_STATUS,
                     &status, sizeof (status),
                     &status, sizeof (status), &len, NULL))
-            printf("WARNING: The TAP-Windows driver rejected a TAP_WIN_IOCTL_SET_MEDIA_STATUS DeviceIoControl call.");
+            dbg_tap_info("WARNING: The TAP-Windows driver rejected a TAP_WIN_IOCTL_SET_MEDIA_STATUS DeviceIoControl call.");
     }
 
     return 0;
@@ -631,7 +632,7 @@ void tun_show_debug (struct tuntap *tt, char * buf, int bufsize)
                     buf, bufsize,
                     &len, NULL))
         {
-            printf ("TAP-Windows: %s\n", buf);
+            dbg_tap_info("TAP-Windows: %s\n", buf);
         }
     }
 }
