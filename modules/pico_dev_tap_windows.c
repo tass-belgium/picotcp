@@ -198,15 +198,15 @@ const struct tap_reg * get_tap_reg (void)
           if (!strcmp (component_id, TAP_WIN_COMPONENT_ID))
           {
             struct tap_reg *reg;
-            reg = calloc(sizeof(struct tap_reg), 1);
+            reg = PICO_ZALLOC(sizeof(struct tap_reg), 1);
             //ALLOC_OBJ_CLEAR_GC (reg, struct tap_reg, gc);
             if (!reg)
               return NULL;
             //reg->guid = string_alloc (net_cfg_instance_id, gc);
-            reg->guid = calloc (strlen(net_cfg_instance_id)+1, 1);
+            reg->guid = PICO_ZALLOC (strlen(net_cfg_instance_id)+1, 1);
             if (!(reg->guid))
             {
-              free(reg);
+              PICO_FREE(reg);
               return NULL;
             }
             strcpy((char *)reg->guid, net_cfg_instance_id);
@@ -305,25 +305,25 @@ const struct panel_reg * get_panel_reg (void)
         struct panel_reg *reg;
 
         //ALLOC_OBJ_CLEAR_GC (reg, struct panel_reg, gc);
-        reg = calloc(sizeof(struct panel_reg), 1);
+        reg = PICO_ZALLOC(sizeof(struct panel_reg), 1);
         if (!reg)
           return NULL;
         n = WideCharToMultiByte (CP_UTF8, 0, name_data, -1, NULL, 0, NULL, NULL);
         //name = gc_malloc (n, false, gc);
-        name = calloc(n, 1);
+        name = PICO_ZALLOC(n, 1);
         if (!name)
         {
-          free(reg);
+          PICO_FREE(reg);
           return NULL;
         }
         WideCharToMultiByte (CP_UTF8, 0, name_data, -1, name, n, NULL, NULL);
         reg->name = name;
         //reg->guid = string_alloc (enum_name, gc);
-        reg->guid = calloc(strlen(enum_name)+1, 1);
+        reg->guid = PICO_ZALLOC(strlen(enum_name)+1, 1);
         if (!reg->guid)
         {
-          free((void *)reg->name);
-          free((void *)reg);
+          PICO_FREE((void *)reg->name);
+          PICO_FREE((void *)reg);
           return NULL;
         }
         strcpy((char *)reg->guid, enum_name);
@@ -496,7 +496,7 @@ int open_tun (const char *dev, const char *dev_type, const char *dev_node, struc
 
         /* translate high-level device name into a device instance
            GUID using the registry */
-        tt->actual_name = malloc(strlen(name)+1);
+        tt->actual_name = PICO_ZALLOC(strlen(name)+1);
         if (tt->actual_name)
             strcpy(tt->actual_name, name);
     }
@@ -1019,7 +1019,7 @@ void init_tun_post (struct tuntap *tt)
 struct pico_device *pico_tap_create(char *name, uint8_t *mac)
 {
     struct pico_device_tap *tap = PICO_ZALLOC(sizeof(struct pico_device_tap));
-    struct tuntap *tt = calloc(sizeof(struct tuntap),1);
+    struct tuntap *tt = PICO_ZALLOC(sizeof(struct tuntap),1);
 
     if (!(tap) || !(tt))
         return NULL;
@@ -1035,8 +1035,8 @@ struct pico_device *pico_tap_create(char *name, uint8_t *mac)
     if (open_tun(NULL, NULL, "tap0", tt))
     {
         dbg_tap("Failed to create TAP device!\n");
-        free(tt);
-        free(tap);
+        PICO_FREE(tt);
+        PICO_FREE(tap);
         return NULL;
     }
     tap->tt = tt;
