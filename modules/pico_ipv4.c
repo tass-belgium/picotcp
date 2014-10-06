@@ -984,7 +984,8 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
 
     if (mcast_link)
         link = pico_ipv4_link_get(mcast_link);
-    else
+   
+    if(!link)
         link = mcast_default_link;
 
     test.mcast_addr = *mcast_group;
