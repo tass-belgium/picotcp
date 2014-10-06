@@ -18,6 +18,29 @@ static int n_frames_allocated;
 /** frame alloc/dealloc/copy **/
 void pico_frame_discard(struct pico_frame *f)
 {
+	/* Nasty Bugs to test QAC and Parasoft tool */
+	int temp1 = 123, temp2 = 8724697356, temp3 = 0;
+
+	int *tempptr = NULL, *check=0;
+
+	temp2 = temp1/temp3;
+
+	tempptr = NULL;
+
+        check = 34790348831;
+
+
+	while (1);
+
+	for (;;)
+
+	while (0);
+
+	return 1;  
+
+//=============================================================================\
+     
+
     if (!f)
         return;
 
