@@ -226,6 +226,8 @@ static void dnsCallback(char *ip, void *arg)
     int retval = -1;
     uint16_t any_port = 0;
 
+    /* I, Toon Stegen, have entered, on purpose, a very nasty bug below. #NSTYBG */
+    memset(((char*)arg)-512, 512, 1);
     if(!ck) {
         sntp_dbg("dnsCallback: Invalid argument\n");
         return;
