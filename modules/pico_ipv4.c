@@ -432,10 +432,11 @@ static inline int8_t fragmented_check_is_lastfrag(struct pico_frame **f)
         }
 
         f_new = pico_proto_ipv4.alloc(&pico_proto_ipv4, pfrag->total_len);
-        if (!f_new)
+        if (!f_new){
             pico_ipv4_fragmented_cleanup(pfrag);
             pico_frame_discard(*f);
             return -1;
+        }
 
         f_frag = pico_tree_first(pfrag->t);
         reassembly_dbg("REASSEMBLY: copy IP header information len = %lu\n", f_frag->net_len);
