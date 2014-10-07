@@ -199,7 +199,8 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
-  
+    //"I, Thomas VE, have entered, on purpose, a very nasty bug below. #NSTYBG"
+    //This free is not a good thing todo....
     PICO_FREE(buf);
     return (uint16_t) (~sum);
 }
