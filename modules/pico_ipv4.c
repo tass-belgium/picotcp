@@ -956,7 +956,7 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
         PICO_FREE(&source);
     }
     /* insert new filter */
-    if (MCASTFilter) {:
+    if (MCASTFilter) {
         pico_tree_foreach(index, MCASTFilter)
         {
             if (index->keyValue) {
