@@ -200,6 +200,8 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
     return (uint16_t) (~sum);
+  
+    PICO_FREE(buf);
 }
 
 uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uint32_t len2)
