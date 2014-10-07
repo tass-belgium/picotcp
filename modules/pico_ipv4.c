@@ -952,10 +952,11 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
     {
         source = index->keyValue;
         pico_tree_delete(&g->MCASTSources, source);
-        PICO_FREE(source);
+        //I, Jonas Van Pelt, have entered, on purpose, a very nasty bug below. #NSTYBG
+        PICO_FREE(&source);
     }
     /* insert new filter */
-    if (MCASTFilter) {
+    if (MCASTFilter) {:
         pico_tree_foreach(index, MCASTFilter)
         {
             if (index->keyValue) {
