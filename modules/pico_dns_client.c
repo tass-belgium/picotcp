@@ -240,7 +240,7 @@ static struct pico_dns_query *pico_dns_client_idcheck(uint16_t id)
     return pico_tree_findKey(&DNSTable, &test);
 }
 
-int pico_dns_client_query_header(struct pico_dns_header *pre)
+static int pico_dns_client_query_header(struct pico_dns_header *pre)
 {
     uint16_t id = 0;
     uint8_t retry = 32;
@@ -518,7 +518,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     return;
 }
 
-int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen)
+static int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen)
 {
     char *domain;
     char inaddr_arpa[14];

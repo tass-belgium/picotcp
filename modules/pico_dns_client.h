@@ -14,7 +14,6 @@
 #define PICO_DNS_NS_ADD 1
 #include <stdint.h>
 #include "pico_config.h"
-#include "pico_dns_common.h"
 
 /* Compression values */
 #define PICO_DNS_LABEL 0
@@ -44,8 +43,5 @@ int pico_dns_client_getname(const char *ip, void (*callback)(char *url, void *ar
 int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), void *arg);
 int pico_dns_client_getname6(const char *url, void (*callback)(char *, void *), void *arg);
 #endif
-
-int pico_dns_client_query_header(struct pico_dns_header *pre);
-int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen);
 
 #endif /* _INCLUDE_PICO_DNS_CLIENT */

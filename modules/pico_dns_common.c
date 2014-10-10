@@ -12,6 +12,7 @@
 #include "pico_socket.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
+#include "pico_dns_common.h"
 #include "pico_dns_client.h"
 #include "pico_tree.h"
 
