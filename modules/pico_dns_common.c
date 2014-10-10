@@ -107,6 +107,26 @@ int8_t pico_dns_client_mirror(char *ptr)
 }
 
 #ifdef PICO_SUPPORT_IPV6
+#define STRLEN_PTR_IP6 63
+
+static inline char dns_ptr_ip6_nibble_lo(uint8_t byte)
+{
+    uint8_t nibble = byte & 0x0f;
+    if (nibble < 10)
+        return (char)(nibble + '0');
+    else
+        return (char)(nibble - 0xa + 'a');
+}
+
+static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
+{
+    uint8_t nibble = (byte & 0xf0u) >> 4u;
+    if (nibble < 10u)
+        return (char)(nibble + '0');
+    else
+        return (char)(nibble - 0xa + 'a');
+}
+
 void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
     struct pico_ip6 ip6 = {.addr = {}};

@@ -518,29 +518,6 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     return;
 }
 
-#ifdef PICO_SUPPORT_IPV6
-#define STRLEN_PTR_IP6 63
-
-static inline char dns_ptr_ip6_nibble_lo(uint8_t byte)
-{
-    uint8_t nibble = byte & 0x0f;
-    if (nibble < 10)
-        return (char)(nibble + '0');
-    else
-        return (char)(nibble - 0xa + 'a');
-}
-
-static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
-{
-    uint8_t nibble = (byte & 0xf0u) >> 4u;
-    if (nibble < 10u)
-        return (char)(nibble + '0');
-    else
-        return (char)(nibble - 0xa + 'a');
-}
-
-#endif
-
 int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen)
 {
     char *domain;
