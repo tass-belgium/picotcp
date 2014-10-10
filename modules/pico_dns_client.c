@@ -13,6 +13,7 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_dns_client.h"
+#include "pico_dns_common.h"
 #include "pico_tree.h"
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
@@ -218,14 +219,6 @@ static struct pico_dns_query *pico_dns_client_find_query(uint16_t id)
         return NULL;
 }
 
-/* determine len of string */
-uint16_t pico_dns_client_strlen(const char *url)
-{
-    if (!url)
-        return 0;
-    return (uint16_t)strlen(url);
-}
-
 /* seek end of string */
 static char *pico_dns_client_seek(char *ptr)
 {
@@ -235,42 +228,6 @@ static char *pico_dns_client_seek(char *ptr)
     while (*ptr != 0)
         ptr++;
     return ptr + 1;
-}
-
-/* mirror ip6 */
-
-/* mirror ip address numbers
- * f.e. 192.168.0.1 => 1.0.168.192 */
-int8_t pico_dns_client_mirror(char *ptr)
-{
-    const unsigned char *addr = NULL;
-    char *m = ptr;
-    uint32_t ip = 0;
-    int8_t i = 0;
-
-    if (pico_string_to_ipv4(ptr, &ip) < 0)
-        return -1;
-
-    ptr = m;
-    addr = (unsigned char *)&ip;
-    for (i = 3; i >= 0; i--) {
-        if (addr[i] > 99) {
-            *ptr++ = (char)('0' + (addr[i] / 100));
-            *ptr++ = (char)('0' + ((addr[i] % 100) / 10));
-            *ptr++ = (char)('0' + ((addr[i] % 100) % 10));
-        } else if(addr[i] > 9) {
-            *ptr++ = (char)('0' + (addr[i] / 10));
-            *ptr++ = (char)('0' + (addr[i] % 10));
-        } else {
-            *ptr++ = (char)('0' + addr[i]);
-        }
-
-        if(i > 0)
-            *ptr++ = '.';
-    }
-    *ptr = '\0';
-
-    return 0;
 }
 
 static struct pico_dns_query *pico_dns_client_idcheck(uint16_t id)
@@ -309,55 +266,6 @@ int pico_dns_client_query_header(struct pico_dns_header *pre)
     pre->nscount = short_be(0);
     pre->arcount = short_be(0);
 
-    return 0;
-}
-
-int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
-{
-    suf->qtype = short_be(type);
-    suf->qclass = short_be(qclass);
-    return 0;
-}
-
-/* replace '.' in the domain name by the label length
- * f.e. www.google.be => 3www6google2be0 */
-int pico_dns_client_query_domain(char *ptr)
-{
-    char p = 0, *label = NULL;
-    uint8_t len = 0;
-
-    if (!ptr)
-        return -1;
-
-    label = ptr++;
-    while ((p = *ptr++) != 0) {
-        if (p == '.') {
-            *label = (char)len;
-            label = ptr - 1;
-            len = 0;
-        } else {
-            len++;
-        }
-    }
-    *label = (char)len;
-    return 0;
-}
-
-/* replace the label length in the domain name by '.'
- * f.e. 3www6google2be0 => .www.google.be */
-int pico_dns_client_answer_domain(char *ptr)
-{
-    char p = 0, *label = NULL;
-
-    if (!ptr)
-        return -1;
-
-    label = ptr;
-    while ((p = *ptr++) != 0) {
-        ptr += p;
-        *label = '.';
-        label = ptr;
-    }
     return 0;
 }
 
@@ -631,18 +539,6 @@ static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
         return (char)(nibble - 0xa + 'a');
 }
 
-void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
-{
-    struct pico_ip6 ip6 = {.addr = {}};
-    int i, j = 0;
-    pico_string_to_ipv6(ip, ip6.addr);
-    for (i = 15; i >= 0; i--) {
-        dst[j++] = dns_ptr_ip6_nibble_lo(ip6.addr[i]);
-        dst[j++] = '.';
-        dst[j++] = dns_ptr_ip6_nibble_hi(ip6.addr[i]);
-        dst[j++] = '.';
-    }
-}
 #endif
 
 int pico_dns_create_message(struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, enum pico_dns_arpa arpa, const char *url, uint16_t *urlen, uint16_t *hdrlen)
@@ -837,5 +733,6 @@ int pico_dns_client_init(void)
 
     return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
 }
+
 
 #endif /* PICO_SUPPORT_DNS_CLIENT */
