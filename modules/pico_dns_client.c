@@ -22,7 +22,6 @@
 /* #define dns_dbg dbg */
 
 /* DNS response length */
-#define PICO_DNS_MAX_QUERY_LEN 63
 #define PICO_DNS_MAX_RESPONSE_LEN 256
 
 /* DNS client retransmission time (msec) + frequency */
@@ -582,25 +581,6 @@ static int pico_dns_create_message(struct pico_dns_header **header, struct pico_
     return 0;
 }
 
-static int pico_dns_client_getaddr_check(const char *url, void (*callback)(char *, void*), 
-          struct pico_dns_header **header, struct pico_dns_query_suffix **qsuffix, uint16_t *len, uint16_t *lblen)
-{
-    if (!url || !callback) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    if (strlen(url) > PICO_DNS_MAX_QUERY_LEN) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    if(pico_dns_create_message(header, qsuffix, PICO_DNS_NO_ARPA, url, lblen, len) != 0)
-        return -1;
-
-    return 0;
-}
-
 static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg)
 {
     struct pico_dns_header *header = NULL;
@@ -609,7 +589,12 @@ static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*
     uint16_t len = 0, lblen = 0;
     (void)proto;
 
-    if (pico_dns_client_getaddr_check(url, callback, &header, &qsuffix, &lblen, &len) < 0)
+    if (!url || !callback) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    if(pico_dns_create_message(&header, &qsuffix, PICO_DNS_NO_ARPA, url, &lblen, &len) != 0)
         return -1;
 
 #ifdef PICO_SUPPORT_IPV6
