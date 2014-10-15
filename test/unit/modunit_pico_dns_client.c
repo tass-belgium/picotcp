@@ -123,9 +123,21 @@ START_TEST(tc_pico_dns_client_user_callback)
     /* TODO: test this: static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix, struct pico_dns_query *q) */
 }
 END_TEST
+
+
+void getaddr_callback(char *u, void *a)
+{
+    /* Do nothing. */
+}
+
+
+
 START_TEST(tc_pico_dns_client_getaddr_init)
 {
+    char longstr[PICO_DNS_MAX_QUERY_LEN + 1] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"; 
     /* TODO: test this: static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg) */
+
+    fail_if(pico_dns_client_getaddr_init(longstr, PICO_PROTO_IPV4, getaddr_callback, NULL) >= 0);
 }
 END_TEST
 START_TEST(tc_pico_dns_ipv6_set_ptr)
