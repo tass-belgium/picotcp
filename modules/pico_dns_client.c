@@ -22,7 +22,6 @@
 /* #define dns_dbg dbg */
 
 /* DNS response length */
-#define PICO_DNS_MAX_RESPONSE_LEN (256 + sizeof(struct pico_dns_header) + sizeof(struct pico_dns_answer_suffix))
 #define PICO_DNS_MAX_QUERY_LEN 255
 #define PICO_DNS_MAX_QUERY_LABEL_LEN 63
 
@@ -472,10 +471,6 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     return 0;
 }
     
-static char dns_response[PICO_DNS_MAX_RESPONSE_LEN + 1] = {
-       0
-};
-
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
     struct pico_dns_header *header = NULL;
@@ -484,7 +479,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     struct pico_dns_answer_suffix *asuffix = NULL;
     struct pico_dns_query *q = NULL;
     char *p_asuffix = NULL;
-    int   response_len;
+    char dns_response[PICO_IP_MTU];
 
     if (ev == PICO_SOCK_EV_ERR) {
         dns_dbg("DNS: socket error received\n");
@@ -492,8 +487,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_RD) {
-        response_len = pico_socket_read(s, dns_response, PICO_DNS_MAX_RESPONSE_LEN + 1);
-        if (response_len <= 0  || response_len > (int)PICO_DNS_MAX_RESPONSE_LEN)
+        if (pico_socket_read(s, dns_response, PICO_IP_MTU) < 0)
             return;
     }
 
@@ -595,8 +589,11 @@ static int pico_dns_client_addr_label_check_len(const char *url)
 
     while(*p != (char) 0) {
         count = 0;
-        label = ++p;
-        while((*p != (char)0) && (*p != '.')) {
+        while((*p != (char)0)) {
+            if (*p == '.'){
+                label = ++p;
+                break;
+            }
             count++;
             p++;
             if (count > PICO_DNS_MAX_QUERY_LABEL_LEN)
