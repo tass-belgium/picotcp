@@ -657,7 +657,15 @@ struct pico_socket *pico_socket_clone(struct pico_socket *facsimile)
 static int pico_socket_transport_read(struct pico_socket *s, void *buf, int len)
 {
     if (PROTO(s) == PICO_PROTO_UDP)
+    {
+        /* make sure cast to uint16_t doesn't give unexpected results */
+        if(len > 0xFFFF) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+
         return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
+    }
     else if (PROTO(s) == PICO_PROTO_TCP)
         return pico_socket_tcp_read(s, buf, (uint32_t)len);
     else return 0;
@@ -1278,6 +1286,12 @@ int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, 
 
 #ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
+        /* make sure cast to uint16_t doesn't give unexpected results */
+        if(len > 0xFFFF) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+
         return pico_udp_recv(s, buf, (uint16_t)len, orig, remote_port);
     }
 

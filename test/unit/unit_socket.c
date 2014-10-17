@@ -234,6 +234,8 @@ START_TEST (test_socket)
     fail_if(ret == 0, "Error socket read succeeded, wrong argument\n");
     ret = pico_socket_read(sk_udp, (void *)buf, 0);
     fail_if(ret > 0, "Error socket read succeeded, wrong argument\n");
+    ret = pico_socket_read(sk_udp, (void *)buf, 0xFFFF + 1);
+    fail_if(ret >= 0, "Error socket read succeeded while len was > 0xFFFF");
     /* socket_read passing correct parameters */
     ret = pico_socket_read(sk_udp, (void *)buf, sizeof(buf));
     fail_if(ret != 0, "socket> udp socket read failed, ret = %d: %s\n", ret, strerror(pico_err));
@@ -257,6 +259,8 @@ START_TEST (test_socket)
     fail_if(ret == 0, "Error socket recv succeeded, wrong argument\n");
     ret = pico_socket_recv(sk_udp, (void *)buf, 0);
     fail_if(ret > 0, "Error socket recv succeeded, wrong argument\n");
+    ret = pico_socket_recv(sk_udp, (void *)buf, 0xFFFF + 1);
+    fail_if(ret >= 0, "Error socket recv succeeded while len was > 0xFFFF");
     /* socket_recv passing correct parameters */
     ret = pico_socket_recv(sk_udp, (void *)buf, sizeof(buf));
     fail_if(ret != 0, "socket> udp socket recv failed, ret = %d: %s\n", ret, strerror(pico_err));
@@ -282,6 +286,8 @@ START_TEST (test_socket)
     fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
     ret = pico_socket_recvfrom(sk_udp, NULL, sizeof(buf), &orig, &porta);
     fail_if(ret >= 0, "Error socket recvfrom succeeded, wrong argument\n");
+    ret = pico_socket_recvfrom(sk_udp, (void *)buf, 0xFFFF + 1, &orig, &porta);
+    fail_if(ret >= 0, "Error socket recvfrom succeeded while len was > 0xFFFF");
     /* socket_recvfrom passing correct parameters */
     ret = pico_socket_recvfrom(sk_udp, (void *)buf, 0, &orig, &porta);
     fail_if(ret != 0, "socket> udp socket recvfrom failed, ret = %d: %s\n", ret, strerror(pico_err));
