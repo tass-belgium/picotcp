@@ -470,6 +470,10 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 
     return 0;
 }
+
+static char dns_response[PICO_IP_MTU] = {
+     0
+};
     
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
@@ -479,7 +483,6 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     struct pico_dns_answer_suffix *asuffix = NULL;
     struct pico_dns_query *q = NULL;
     char *p_asuffix = NULL;
-    char dns_response[PICO_IP_MTU];
 
     if (ev == PICO_SOCK_EV_ERR) {
         dns_dbg("DNS: socket error received\n");
