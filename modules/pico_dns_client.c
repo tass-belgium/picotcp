@@ -22,7 +22,7 @@
 /* #define dns_dbg dbg */
 
 /* DNS response length */
-#define PICO_DNS_MAX_RESPONSE_LEN 256
+#define PICO_DNS_MAX_RESPONSE_LEN (256 + sizeof(struct pico_dns_header) + sizeof(struct pico_dns_answer_suffix))
 #define PICO_DNS_MAX_QUERY_LEN 255
 #define PICO_DNS_MAX_QUERY_LABEL_LEN 63
 
@@ -471,6 +471,10 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 
     return 0;
 }
+    
+static char dns_response[PICO_DNS_MAX_RESPONSE_LEN + 1] = {
+       0
+};
 
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
@@ -480,9 +484,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     struct pico_dns_answer_suffix *asuffix = NULL;
     struct pico_dns_query *q = NULL;
     char *p_asuffix = NULL;
-    char msg[PICO_DNS_MAX_RESPONSE_LEN] = {
-        0
-    };
+    int   response_len;
 
     if (ev == PICO_SOCK_EV_ERR) {
         dns_dbg("DNS: socket error received\n");
@@ -490,11 +492,12 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_RD) {
-        if (pico_socket_read(s, msg, PICO_DNS_MAX_RESPONSE_LEN) <= 0)
+        response_len = pico_socket_read(s, dns_response, PICO_DNS_MAX_RESPONSE_LEN + 1);
+        if (response_len <= 0  || response_len > (int)PICO_DNS_MAX_RESPONSE_LEN)
             return;
     }
 
-    header = (struct pico_dns_header *)msg;
+    header = (struct pico_dns_header *)dns_response;
     domain = (char *)header + sizeof(struct pico_dns_header);
     qsuffix = (struct pico_dns_query_suffix *)pico_dns_client_seek(domain);
     /* valid asuffix is determined dynamically later on */
@@ -618,7 +621,6 @@ static int pico_dns_client_getaddr_check(const char *url, void (*callback)(char 
         return -1;
     }
     return 0;
-
 }
 
 static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg)
