@@ -14,6 +14,7 @@ PERF?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
+GCOV?=0
 
 # Default compiled-in protocols
 TCP?=1
@@ -56,6 +57,10 @@ else
     else
         CFLAGS+=-Os
     endif
+endif
+
+ifeq ($(GCOV),1)
+  CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(PROFILE),1)
