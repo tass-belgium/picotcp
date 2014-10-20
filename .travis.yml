@@ -1,3 +1,7 @@
+before_install:
+    - sudo apt-get update -qq
+    - sudo apt-get install -y vde2
+
 install: make get-deps
 language: c
 script: make && make units ARCH=faulty && make test
