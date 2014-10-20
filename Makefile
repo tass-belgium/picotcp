@@ -61,6 +61,8 @@ endif
 
 ifeq ($(GCOV),1)
   CFLAGS+=-fprofile-arcs -ftest-coverage
+  LDFLAGS+=-fprofile-arcs
+  TEST_LDFLAGS+=-fprofile-arcs
 endif
 
 ifeq ($(PROFILE),1)
