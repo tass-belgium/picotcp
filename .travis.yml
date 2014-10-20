@@ -1,5 +1,6 @@
 before_install:
     - sudo apt-get update -qq
+    - apt-cache search vde
     - sudo apt-get install -y vde2 check libvdeplug-dev
 
 install: make && make units ARCH=faulty && make test
