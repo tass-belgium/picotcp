@@ -1,6 +1,6 @@
 before_install:
     - sudo apt-get update -qq
-    - sudo apt-get install -y vde2 check libvdeplug2-dev
+    - sudo apt-get install -y vde2 check libvdeplug2-dev libpcap-dev
 
 install: make && make units ARCH=faulty && make test
 language: c
