@@ -8,4 +8,10 @@ language: c
 script: 
     - ./test/units.sh && ./test/autotest.sh || true
 after_success: 
-    - coveralls --exclude test/ --exclude modules/pico_dev --gcov-options='\-lp'
+    - coveralls --exclude test/ --exclude modules/ptsocket --exclude build \ 
+       --exclude modules/pico_dev_mock.c \
+       --exclude modules/pico_dev_null.c \
+       --exclude modules/pico_dev_pcap.c \
+       --exclude modules/pico_dev_tap_windows.c \
+       --exclude modules/pico_dev_tun.c \
+       --gcov-options='\-lp'
