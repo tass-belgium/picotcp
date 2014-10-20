@@ -410,7 +410,8 @@ static void pico_dns_client_retransmission(pico_time now, void *arg)
         return;
     }
 
-    if (q->retrans++ <= PICO_DNS_CLIENT_MAX_RETRANS) {
+    q->retrans++;
+    if (q->retrans <= PICO_DNS_CLIENT_MAX_RETRANS) {
         q->q_ns = pico_dns_client_next_ns(&q->q_ns.ns);
         pico_dns_client_send(q);
     } else {

@@ -30,14 +30,14 @@
 PACKED_STRUCT_DEF pico_dns_header
 {
     uint16_t id;
-    uint8_t rd : 1; /* recursion desired  */
-    uint8_t tc : 1; /* truncation  */
-    uint8_t aa : 1; /* authoritative answer  */
+    uint8_t rd : 1;     /* recursion desired  */
+    uint8_t tc : 1;     /* truncation  */
+    uint8_t aa : 1;     /* authoritative answer  */
     uint8_t opcode : 4; /* opcode  */
-    uint8_t qr : 1; /* query  */
-    uint8_t rcode : 4; /* response code */
-    uint8_t z : 3; /* zero */
-    uint8_t ra : 1; /* recursion available  */
+    uint8_t qr : 1;     /* query  */
+    uint8_t rcode : 4;  /* response code */
+    uint8_t z : 3;      /* zero */
+    uint8_t ra : 1;     /* recursion available  */
     uint16_t qdcount;
     uint16_t ancount;
     uint16_t nscount;

@@ -102,7 +102,7 @@ static int pico_mdns_del_cookie(char *url)
 static void pico_mdns_timeout(pico_time now, void *_arg)
 {
     struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
-    (void)now;
+    IGNORE_PARAMETER(now);
 
     if(ck->callback)
         ck->callback(NULL, ck->arg);
@@ -720,8 +720,8 @@ static void pico_mdns_announce_timer(pico_time now, void *arg)
 {
     struct pico_dns_header *header = NULL;
     unsigned int len;
-    (void) now;
-    (void) arg;
+    IGNORE_PARAMETER(now);
+    IGNORE_PARAMETER(arg);
 
     if(!mdns_global_host)
         return;
@@ -768,7 +768,7 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
     char *url = (char *)arg;
     struct pico_mdns_cookie *ck;
     char ok[] = "OK";
-    (void) now;
+    IGNORE_PARAMETER(now);
 
     if(!arg)
         return;
