@@ -1,0 +1,4 @@
+install: make get-deps
+language: c
+script: make && make units ARCH=faulty && make test
+
