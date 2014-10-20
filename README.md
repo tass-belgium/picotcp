@@ -1,6 +1,8 @@
 PicoTCP
 ---------------
 
+[![Coverage Status](https://img.shields.io/coveralls/tass-belgium/picotcp.svg)](https://coveralls.io/r/tass-belgium/picotcp?branch=master)
+
 Welcome to the one and only <font color=ff00f0>PicoTCP repository</font>. 
 
 PicoTCP is a TCP/IP stack designed for embedded systems, and developed by *[TASS Belgium NV](http://www.tass.be)*
