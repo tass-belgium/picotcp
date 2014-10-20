@@ -1,6 +1,6 @@
 PicoTCP
 ---------------
-
+[![Travis CI build status](https://api.travis-ci.org/tass-belgium/picotcp.svg)](https://travis-ci.org/tass-belgium/picotcp)
 [![Coverage Status](https://img.shields.io/coveralls/tass-belgium/picotcp.svg)](https://coveralls.io/r/tass-belgium/picotcp?branch=master)
 
 Welcome to the one and only <font color=ff00f0>PicoTCP repository</font>. 
