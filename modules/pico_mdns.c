@@ -10,6 +10,7 @@
 #include "pico_socket.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
+#include "pico_mdns.h"
 #include "pico_dns_common.h"
 #include "pico_tree.h"
 
@@ -71,7 +72,7 @@ PICO_TREE_DECLARE(QTable, mdns_cmp);
 static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
 {
     struct pico_ip4 dst;
-    pico_string_to_ipv4("224.0.0.251", &dst.addr);
+    pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &dst.addr);
     return pico_socket_sendto(mdns_sock, hdr, (int)len, &dst, short_be(mdns_port));
 }
 
@@ -150,18 +151,18 @@ static void pico_mdns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount,
 {
     hdr->id = short_be(0);
     if(qdcount) {
-        hdr->qr = 0;
-        hdr->aa = 0;
+        hdr->qr = PICO_DNS_QR_QUERY;
+        hdr->aa = PICO_DNS_AA_NO_AUTHORITY;
     } else {
-        hdr->qr = 1;
-        hdr->aa = 1;
+        hdr->qr = PICO_DNS_QR_RESPONSE;
+        hdr->aa = PICO_DNS_AA_IS_AUTHORITY;
     }
 
-    hdr->opcode = 0;
-    hdr->tc = 0;
-    hdr->rd = 0;
-    hdr->ra = 0;
-    hdr->z = 0;
+    hdr->opcode = PICO_DNS_OPCODE_QUERY;
+    hdr->tc = PICO_DNS_TC_NO_TRUNCATION;
+    hdr->rd = PICO_DNS_RD_NO_DESIRE;
+    hdr->ra = PICO_DNS_RA_NO_SUPPORT;
+    hdr->z = 0; /* 3 reserved zero bits */
     hdr->qdcount = short_be(qdcount);
     hdr->ancount = short_be(ancount);
     hdr->nscount = short_be(0);
@@ -858,7 +859,7 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
         return -1;
     }
 
-    if(pico_string_to_ipv4("224.0.0.251", &mreq.mcast_group_addr.addr) != 0) {
+    if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq.mcast_group_addr.addr) != 0) {
         mdns_dbg("String to ipv4 error\n");
         return -1;
     }

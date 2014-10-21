@@ -29,27 +29,6 @@
 #define PICO_DNS_CLIENT_RETRANS 4000
 #define PICO_DNS_CLIENT_MAX_RETRANS 3
 
-/* FLAG values */
-#define PICO_DNS_QR_QUERY 0
-#define PICO_DNS_QR_RESPONSE 1
-#define PICO_DNS_OPCODE_QUERY 0
-#define PICO_DNS_OPCODE_IQUERY 1
-#define PICO_DNS_OPCODE_STATUS 2
-#define PICO_DNS_AA_NO_AUTHORITY 0
-#define PICO_DNS_AA_IS_AUTHORITY 1
-#define PICO_DNS_TC_NO_TRUNCATION 0
-#define PICO_DNS_TC_IS_TRUNCATED 1
-#define PICO_DNS_RD_NO_DESIRE 0
-#define PICO_DNS_RD_IS_DESIRED 1
-#define PICO_DNS_RA_NO_SUPPORT 0
-#define PICO_DNS_RA_IS_SUPPORTED 1
-#define PICO_DNS_RCODE_NO_ERROR 0
-#define PICO_DNS_RCODE_EFORMAT 1
-#define PICO_DNS_RCODE_ESERVER 2
-#define PICO_DNS_RCODE_ENAME 3
-#define PICO_DNS_RCODE_ENOIMP 4
-#define PICO_DNS_RCODE_EREFUSED 5
-
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
 static void pico_dns_client_retransmission(pico_time now, void *arg);
 static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg);
