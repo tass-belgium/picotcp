@@ -14,7 +14,6 @@ PERF?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
-GCOV?=0
 
 # Default compiled-in protocols
 TCP?=1
@@ -58,12 +57,6 @@ else
     else
         CFLAGS+=-Os
     endif
-endif
-
-ifeq ($(GCOV),1)
-  CFLAGS+=-fprofile-arcs -ftest-coverage
-  LDFLAGS+=-fprofile-arcs
-  TEST_LDFLAGS+=-fprofile-arcs
 endif
 
 ifeq ($(PROFILE),1)
@@ -167,6 +160,10 @@ endif
 
 ifeq ($(ARCH),none)
   CFLAGS+=-DARCHNONE
+endif
+
+ifeq ($(ARCH),shared)
+  CFLAGS+=-fPIC
 endif
 
 .c.o:
