@@ -39,6 +39,7 @@ SLAACV4?=1
 TFTP?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
+TUN?=0
 
 #IPv6 related
 IPV6?=1
@@ -249,6 +250,10 @@ endif
 ifneq ($(SNTP_CLIENT),0)
   include rules/sntp_client.mk
 endif
+ifneq ($(TUN),0)
+  include rules/tun.mk
+endif
+
 all: mod core lib
 
 core: deps $(CORE_OBJ)
