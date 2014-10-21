@@ -52,6 +52,7 @@
 
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s);
 static void pico_dns_client_retransmission(pico_time now, void *arg);
+static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*callback)(char *, void *), void *arg);
 
 struct pico_dns_ns
 {
@@ -475,6 +476,38 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 static char dns_response[PICO_IP_MTU] = {
      0
 };
+
+static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dns_header *h, struct pico_dns_query_suffix *qsuffix)
+{
+    uint16_t type = q->qtype;
+    uint16_t proto = PICO_PROTO_IPV4;
+    struct pico_dns_answer_suffix *asuffix = NULL;
+    char *p_asuffix = NULL;
+    char *cname = NULL;
+
+    /* Try to use CNAME only if A or AAAA query is ongoing */
+    if (type != PICO_DNS_TYPE_A && type != PICO_DNS_TYPE_AAAA)
+        return;
+
+    if (type == PICO_DNS_TYPE_AAAA)
+        proto = PICO_PROTO_IPV6;
+
+    q->qtype = PICO_DNS_TYPE_CNAME;
+    p_asuffix = (char *)qsuffix + sizeof(struct pico_dns_query_suffix);
+    p_asuffix = pico_dns_client_seek_suffix(p_asuffix, h, q);
+    if (!p_asuffix) {
+        return;
+    }
+    /* Found CNAME response. Re-initiating query. */
+    asuffix = (struct pico_dns_answer_suffix *)p_asuffix;
+    cname = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
+    pico_dns_client_answer_domain(cname);
+    if (cname[0] == '.')
+       cname++; 
+    dns_dbg("Restarting query for name '%s'\n", cname);
+    pico_dns_client_getaddr_init(cname, proto, q->callback, q->arg);
+    pico_dns_client_del_query(q->id);
+}
     
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
@@ -512,8 +545,10 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 
     p_asuffix = (char *)qsuffix + sizeof(struct pico_dns_query_suffix);
     p_asuffix = pico_dns_client_seek_suffix(p_asuffix, header, q);
-    if (!p_asuffix)
+    if (!p_asuffix) {
+        pico_dns_try_fallback_cname(q, header, qsuffix);
         return;
+    }
 
     asuffix = (struct pico_dns_answer_suffix *)p_asuffix;
     pico_dns_client_user_callback(asuffix, q);
