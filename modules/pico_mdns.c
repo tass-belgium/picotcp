@@ -121,7 +121,7 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
         return NULL;
 
     ck->header = hdr;
-    ck->url = (char *)(hdr + sizeof(struct pico_dns_header));
+    ck->url = (char *)hdr + sizeof(struct pico_dns_header);
     pico_to_lowercase(ck->url);
     ck->len = len;
     ck->qtype = short_be(suffix->qtype);
