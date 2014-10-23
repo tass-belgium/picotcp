@@ -395,8 +395,10 @@ static void olsr_scheduled_output(uint32_t when, void *buffer, uint16_t size, st
 {
     struct olsr_fwd_pkt *p;
     /* dbg("Scheduling olsr packet, type:%s, size: %x\n", when == OLSR_HELLO_INTERVAL?"HELLO":"TC", size); */
-    if ((buffer_mem_used + DGRAM_MAX_SIZE) > MAX_OLSR_MEM)
+    if ((buffer_mem_used + DGRAM_MAX_SIZE) > MAX_OLSR_MEM) {
+        PICO_FREE(buffer);
         return;
+    }
 
     p = PICO_ZALLOC(sizeof(struct olsr_fwd_pkt));
     if (!p) {
@@ -1086,32 +1088,6 @@ int picoERR(void)
     d++;
     return -1;
 }
-
-#if 1
-int pico_olsr_add_someroutes(struct pico_device *dev, uint32_t startId){
-    struct olsr_route_entry *entry1;
-    static uint32_t i=9;
-    int j = 0;
-
-    for(j=0; j < 1; j++){
-        entry1 = PICO_ZALLOC(sizeof(struct olsr_route_entry));
-        if (!entry1){
-            OOM();
-            return -1;
-        }
-        entry1->time_left = 3000;
-        entry1->link_type = OLSRLINK_SYMMETRIC;
-        entry1->gateway = olsr_get_ethentry(dev);
-        entry1->iface = dev;
-        entry1->metric = 1;
-        entry1->lq = 0xff;
-        entry1->nlq = 0xff;
-        entry1->destination.addr = long_be(i)+startId;
-        olsr_route_add(entry1);
-    }
-    return 0;
-}
-#endif
 
 int pico_olsr_add(struct pico_device *dev)
 {
