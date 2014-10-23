@@ -108,7 +108,8 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
     if(ck->callback)
         ck->callback(NULL, ck->arg);
 
-    pico_mdns_del_cookie(ck->url);
+    pico_dns_client_answer_domain(ck->url);
+    pico_mdns_del_cookie(ck->url+1);
 }
 
 /* populate and add cookie to the tree */
