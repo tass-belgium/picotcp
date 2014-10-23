@@ -391,8 +391,10 @@ static void olsr_scheduled_output(uint32_t when, void *buffer, uint16_t size, st
 {
     struct olsr_fwd_pkt *p;
     /* dbg("Scheduling olsr packet, type:%s, size: %x\n", when == OLSR_HELLO_INTERVAL?"HELLO":"TC", size); */
-    if ((buffer_mem_used + DGRAM_MAX_SIZE) > MAX_OLSR_MEM)
+    if ((buffer_mem_used + DGRAM_MAX_SIZE) > MAX_OLSR_MEM) {
+        PICO_FREE(buffer);
         return;
+    }
 
     p = PICO_ZALLOC(sizeof(struct olsr_fwd_pkt));
     if (!p) {
