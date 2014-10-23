@@ -143,7 +143,8 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
         return NULL;
     }
 
-    ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
+    if(!probe)
+        ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
     return hdr;
 }
 
