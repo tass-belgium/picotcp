@@ -17,6 +17,7 @@
 #ifdef PICO_SUPPORT_MDNS
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
+#define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
 
 #define mdns_dbg(...) do {} while(0)
 /* #define mdns_dbg dbg */
@@ -44,12 +45,43 @@ struct pico_mdns_cookie {
     struct pico_timer *timer;
 };
 
+struct pico_mdns_cache_rr {
+    char *url;
+    struct pico_dns_answer_suffix *suf;
+    char *rdata;
+    struct pico_timer *timer;
+};
+
 /* Global socket and port for all mdns communication */
 static struct pico_socket *mdns_sock = NULL;
 static uint16_t mdns_port = 5353u;
 
 /* only one hostname can be claimed at the time */
 static char *mdns_global_host;
+
+static int mdns_cache_cmp(void *ka, void *kb)
+{
+    struct pico_mdns_cache_rr *a = ka, *b = kb;
+    uint32_t ha = 0, hb = 0;
+
+    /* Cache is sorted by qtype, name and address */
+    if(a->suf->qtype < b->suf->qtype)
+        return -1;
+    if(b->suf->qtype < a->suf->qtype)
+        return 1;
+
+    ha = pico_hash(a->url, strlen(a->url));
+    hb = pico_hash(b->url, strlen(b->url));
+
+    if(ha < hb)
+        return -1;
+    if(hb < ha)
+        return 1;
+
+    /* TODO IP address cmp for IPv4 and IPv6 */
+
+    return 0;
+}
 
 /* Function for comparing two queries in a tree */
 static int mdns_cmp(void *ka, void *kb)
@@ -62,8 +94,8 @@ static int mdns_cmp(void *ka, void *kb)
     return (ret) ? (-1) : (1);
 }
 
-/* cache records for the mdns hosts in the network */
-PICO_TREE_DECLARE(MDNSTable, mdns_cmp);
+/* cache records for the mDNS hosts in the network */
+PICO_TREE_DECLARE(CacheTable, mdns_cache_cmp);
 
 /* tree containing queries */
 PICO_TREE_DECLARE(QTable, mdns_cmp);
@@ -74,6 +106,29 @@ static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
     struct pico_ip4 dst;
     pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &dst.addr);
     return pico_socket_sendto(mdns_sock, hdr, (int)len, &dst, short_be(mdns_port));
+}
+
+static int pico_mdns_cache_del_rr(char *url, uint16_t qtype, char *rdata)
+{
+    struct pico_mdns_cache_rr test, *found = NULL;
+    char temp[256] = { 0 };
+    strcpy(temp + 1, url);
+    test.url = temp;
+    pico_dns_client_query_domain(test.url);
+    test.suf->qclass = PICO_DNS_CLASS_IN; /* We only support IN */
+    test.suf->qtype = qtype;
+    test.rdata = rdata;
+
+    found = pico_tree_findKey(&CacheTable, &test);
+    if(!found) {
+        mdns_dbg("Couldn't find cache RR to delete");
+        return -1;
+    }
+
+    pico_tree_delete(&CacheTable, found);
+    PICO_FREE(found->suf);
+    PICO_FREE(found);
+    return 0;
 }
 
 /* delete a cookie from the tree*/
@@ -100,6 +155,18 @@ static int pico_mdns_del_cookie(char *url)
     return 0;
 }
 
+static void pico_mdns_cache_tick(pico_time now, void *_arg)
+{
+    struct pico_mdns_cache_rr *rr = (struct pico_mdns_cache_rr *)_arg;
+    IGNORE_PARAMETER(now);
+
+    rr->suf->ttl--;
+    if(rr->suf->ttl < 1)
+        ;    /* TODO TTL expired, remove RR from cache */
+    else
+        rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
+}
+
 static void pico_mdns_timeout(pico_time now, void *_arg)
 {
     struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
@@ -110,6 +177,27 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
 
     pico_dns_client_answer_domain(ck->url);
     pico_mdns_del_cookie(ck->url+1);
+}
+
+static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf, char *rdata)
+{
+    struct pico_mdns_cache_rr *rr = NULL, *found = NULL;
+
+    rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
+    if(!rr)
+        return NULL;
+
+    rr->url = url;
+    rr->suf = suf;
+    rr->rdata = rdata;
+
+    found = pico_tree_insert(&CacheTable, rr);
+    if(found) {
+        /* TODO Update RR that is in the cache appropriately */
+        mdns_dbg("RR already in cache, updating...");
+    }
+
+    rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
 }
 
 /* populate and add cookie to the tree */
