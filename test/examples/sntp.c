@@ -10,8 +10,8 @@ void sntp_timeout(pico_time __attribute__((unused)) now, void *arg)
     struct timeval tv;
     pico_sntp_gettimeofday(&ptv);
     gettimeofday(&tv, NULL);
-    printf("Linux   sec: %u, msec: %u\n", tv.tv_sec, tv.tv_usec / 1000);
-    printf("Picotcp sec: %u, msec: %u\n", ptv.tv_sec, ptv.tv_msec);
+    printf("Linux   sec: %u, msec: %u\n", (unsigned int)tv.tv_sec, (unsigned int)tv.tv_usec / 1000);
+    printf("Picotcp sec: %u, msec: %u\n", (unsigned int)ptv.tv_sec, (unsigned int)ptv.tv_msec);
     printf("SNTP test succesfull!\n");
     exit(0);
 }

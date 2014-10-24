@@ -10,7 +10,8 @@ void cb_ping(struct pico_icmp4_stats *s)
     char host[30];
     pico_ipv4_to_string(host, s->dst.addr);
     if (s->err == 0) {
-        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
+        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
+                s->ttl, (long unsigned int)s->time);
         if (s->seq >= NUM_PING)
             exit(0);
     } else {
@@ -25,7 +26,8 @@ void cb_ping6(struct pico_icmp6_stats *s)
     char host[30];
     pico_ipv6_to_string(host, s->dst.addr);
     if (s->err == 0) {
-        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq, s->ttl, s->time);
+        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
+                s->ttl, (long unsigned int)s->time);
         if (s->seq >= NUM_PING)
             exit(0);
     } else {
