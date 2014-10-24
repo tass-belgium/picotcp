@@ -58,7 +58,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *ar
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{url} - Pointer to text string containing url text string (e.g. www.google.com).
-\item \texttt{calback} - Callback function, returning the internet host address IP and the provided argument. The returned string has to be freed by the user.
+\item \texttt{callback} - Callback function, returning the internet host address IP and the provided argument. The returned string has to be freed by the user.
 \item \texttt{arg} - Pointer to an identifier for the request. The pointer is returned in the callback.
 \end{itemize}
 
