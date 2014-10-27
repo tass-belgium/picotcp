@@ -19,8 +19,8 @@
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
 
-#define mdns_dbg(...) do {} while(0)
-/* #define mdns_dbg dbg */
+/* #define mdns_dbg(...) do {} while(0) */
+#define mdns_dbg dbg
 
 #define PICO_MDNS_PROBE 1
 #define PICO_MDNS_NO_PROBE 0
@@ -64,7 +64,7 @@ static int mdns_cache_cmp(void *ka, void *kb)
     struct pico_mdns_cache_rr *a = ka, *b = kb;
     uint32_t ha = 0, hb = 0;
 
-    /* Cache is sorted by qtype, name and address */
+    /* Cache is sorted by qtype, name */
     if(a->suf->qtype < b->suf->qtype)
         return -1;
     if(b->suf->qtype < a->suf->qtype)
@@ -78,8 +78,6 @@ static int mdns_cache_cmp(void *ka, void *kb)
     if(hb < ha)
         return 1;
 
-    /* TODO IP address cmp for IPv4 and IPv6 */
-
     return 0;
 }
 
@@ -87,11 +85,23 @@ static int mdns_cache_cmp(void *ka, void *kb)
 static int mdns_cmp(void *ka, void *kb)
 {
     struct pico_mdns_cookie *a = ka, *b = kb;
-    int ret = strcmp(a->url, b->url);
-    if (!ret)
-        return 0;
+    uint32_t ha = 0, hb = 0;
 
-    return (ret) ? (-1) : (1);
+    /* Cookie is sorted by qtype, name */
+    if(a->qtype < b->qtype)
+        return -1;
+    if(b->qtype < a->qtype)
+        return 1;
+
+    ha = pico_hash(a->url, strlen(a->url));
+    hb = pico_hash(b->url, strlen(b->url));
+
+    if(ha < hb)
+        return -1;
+    if(hb < ha)
+        return 1;
+
+    return 0;
 }
 
 /* cache records for the mDNS hosts in the network */
@@ -111,19 +121,23 @@ static int pico_mdns_send(struct pico_dns_header *hdr, unsigned int len)
 static int pico_mdns_cache_del_rr(char *url, uint16_t qtype, char *rdata)
 {
     struct pico_mdns_cache_rr test, *found = NULL;
-    char temp[256] = { 0 };
-    strcpy(temp + 1, url);
-    test.url = temp;
-    pico_dns_client_query_domain(test.url);
+
+    test.suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
+    if(!test.suf)
+        return -1;
+
+    test.url = url;
     test.suf->qclass = PICO_DNS_CLASS_IN; /* We only support IN */
     test.suf->qtype = qtype;
     test.rdata = rdata;
 
     found = pico_tree_findKey(&CacheTable, &test);
     if(!found) {
-        mdns_dbg("Couldn't find cache RR to delete");
+        mdns_dbg("Couldn't find cache RR to delete\n");
         return -1;
     }
+
+    mdns_dbg("Removing RR: qtype '%d' url '%s'\n", qtype, url);
 
     pico_tree_delete(&CacheTable, found);
     PICO_FREE(found->suf);
@@ -161,8 +175,10 @@ static void pico_mdns_cache_tick(pico_time now, void *_arg)
     IGNORE_PARAMETER(now);
 
     rr->suf->ttl--;
-    if(rr->suf->ttl < 1)
-        ;    /* TODO TTL expired, remove RR from cache */
+    mdns_dbg("TTL UPDATE: '%s' - qtype: %d - TTL: %d\n", rr->url, rr->suf->qtype, rr->suf->ttl);
+    if(rr->suf->ttl < 1) {
+        pico_mdns_cache_del_rr(rr->url, rr->suf->qtype, rr->rdata);
+    }
     else
         rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
 }
@@ -182,22 +198,47 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
 static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf, char *rdata)
 {
     struct pico_mdns_cache_rr *rr = NULL, *found = NULL;
+    struct pico_dns_answer_suffix *rr_suf = NULL;
+    char temp[256] = {
+        0
+    };
+    /* Don't cache PTR answers */
+    if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR ) {
+        mdns_dbg("Not caching PTR answer\n");
+        return;
+    }
+
+    /* TODO Don't cache RR from "known answer" sections, don't cache if not authorative */
 
     rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
-    if(!rr)
-        return NULL;
+    rr_suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
+    if(!rr || !rr_suf)
+        return;
 
-    rr->url = url;
-    rr->suf = suf;
-    rr->rdata = rdata;
+    strcpy(temp + 1, url);
+    rr->url = temp;
+    pico_dns_client_query_domain(rr->url);
+    memcpy(rr_suf, suf, sizeof(struct pico_dns_answer_suffix ));
+    rr->suf = rr_suf;
+    rr->suf->qtype = short_be(rr->suf->qtype);
+    rr->suf->qclass = short_be(rr->suf->qclass);
+    rr->suf->ttl = long_be(suf->ttl);
+    rr->suf->rdlength = short_be(suf->rdlength);
+    rr->rdata = strdup(rdata);
+
+    /* TTL 0 means delete from cache but we need to wait one second */
+    if(rr->suf->ttl == 0)
+        rr->suf->ttl = 1;
 
     found = pico_tree_insert(&CacheTable, rr);
     if(found) {
-        /* TODO Update RR that is in the cache appropriately */
-        mdns_dbg("RR already in cache, updating...");
+        mdns_dbg("RR already in cache, updating TTL (was %ds now %ds)\n", found->suf->ttl, rr->suf->ttl);
+        found->suf->ttl = rr->suf->ttl;
     }
-
-    rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
+    else {
+        mdns_dbg("RR cached. Starting TTL counter, TICK TACK TICK TACK..\n");
+        rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
+    }
 }
 
 /* populate and add cookie to the tree */
@@ -449,18 +490,40 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
     return pico_mdns_add_cookie(header, *len, qsuffix, probe, callback, arg);
 }
 
+/* Look for a RR in cache matching hostname and qtype */
+static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint16_t qtype)
+{
+    struct pico_dns_answer_suffix *suf = NULL;
+    struct pico_mdns_cache_rr test;
+    char temp[256] = { 0 };
+
+    suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
+    if(!suf)
+        return NULL;
+    test.suf = suf;
+    suf->qtype = qtype;
+
+    strcpy(temp+1, url);
+    pico_to_lowercase(temp);
+    test.url = temp;
+    pico_dns_client_query_domain(test.url);
+
+    mdns_dbg("Looking for '%s' with qtype '%d' in cache\n", url, qtype);
+
+    return pico_tree_findKey(&CacheTable, &test);
+}
 
 /* look for a cookie in the tree */
-static struct pico_mdns_cookie *pico_mdns_find_cookie(char *url)
+static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *url, uint16_t qtype)
 {
     struct pico_mdns_cookie test;
-    char temp[256] = {
-        0
-    };
+    char temp[256] = { 0 };
+
     strcpy(temp + 1, url);
     pico_to_lowercase(temp);
     test.url = temp;
     pico_dns_client_query_domain(test.url);
+    test.qtype = qtype;
     return pico_tree_findKey(&QTable, &test);
 }
 
@@ -574,7 +637,7 @@ static int pico_mdns_handle_query(char *name, struct pico_dns_query_suffix *suf,
             mdns_dbg("Received request for unknown hostname\n");
         }
     } else {
-        ck = pico_mdns_find_cookie(name);
+        ck = pico_mdns_find_cookie(name, short_be(suf->qtype));
         if(ck && ck->count < 3) {
             /* we are probing, go probe tiebreaking */
         } else {
@@ -598,9 +661,9 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
              short_be(suf->qclass), (unsigned long)long_be(suf->ttl), short_be(suf->rdlength));
 
     /* Check in the query tree whether a request was sent */
-    ck = pico_mdns_find_cookie(url);
+    ck = pico_mdns_find_cookie(url, short_be(suf->qtype));
     if(!ck) {
-        mdns_dbg("We didn't ask for this answer.\n");
+        pico_mdns_cache_add_rr(url, suf, data);
         return 0;
     }
 
@@ -864,7 +927,7 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
     if(!arg)
         return;
 
-    ck = pico_mdns_find_cookie(url);
+    ck = pico_mdns_find_cookie(url, PICO_DNS_TYPE_ANY);
 
     if(!ck) {
         mdns_dbg("Corresponding cookie not found!\n");
@@ -1043,7 +1106,20 @@ static int pico_mdns_getname_generic(const char *ip, void (*callback)(char *url,
 
 int pico_mdns_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg)
 {
-    return pico_mdns_getaddr_generic(url, callback, arg, PICO_PROTO_IPV4);
+    struct pico_mdns_cache_rr *rr = NULL;
+    char addr[46];
+    rr = pico_mdns_cache_find_rr(url, PICO_DNS_TYPE_A);
+    
+    if(rr && rr->rdata) {
+        pico_ipv4_to_string(addr, long_from(rr->rdata));
+        mdns_dbg("Cache hit! Found qtype A for '%s' with addr '%s'\n", url, addr);
+        callback(addr, arg);
+        return 0;
+    }
+    else {
+        mdns_dbg("Cache miss for qtype A - url '%s'\n", url);
+        return pico_mdns_getaddr_generic(url, callback, arg, PICO_PROTO_IPV4);
+    }
 }
 
 int pico_mdns_getname(const char *ip, void (*callback)(char *url, void *arg), void *arg)
