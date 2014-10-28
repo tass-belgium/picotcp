@@ -136,7 +136,7 @@ START_TEST(tc_pico_mdns_find_cookie)
         0
     };
 
-    pico_mdns_find_cookie(url);
+    pico_mdns_find_cookie(url, PICO_DNS_TYPE_A);
 }
 END_TEST
 START_TEST(tc_pico_get_ip6_from_ip4)
