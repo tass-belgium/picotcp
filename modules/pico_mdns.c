@@ -470,19 +470,19 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
     return pico_tree_findKey(&CacheTable, &test);
 }
 
-static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf, char *rdata)
+static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf, char *rdata)
 {
     struct pico_mdns_cache_rr *rr = NULL, *found = NULL;
     struct pico_dns_answer_suffix *rr_suf = NULL;
     char *rr_url = NULL;
 
     if(!url || !suf || !rdata)
-      return;
+      return -1;
 
     /* Don't cache PTR answers */
     if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR ) {
         mdns_dbg("Not caching PTR answer\n");
-        return;
+        return 0;
     }
 
     rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
@@ -531,6 +531,7 @@ static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf
             PICO_FREE(rr);
         }
     }
+    return 0;
 }
 
 /* look for a cookie in the tree */

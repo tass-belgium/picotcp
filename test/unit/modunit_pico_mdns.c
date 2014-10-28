@@ -14,15 +14,46 @@ void callback(char *str, void *arg)
     (void) str;
     (void) arg;
 }
+START_TEST(tc_mdns_cache_cmp)
+{
+    struct pico_mdns_cache_rr ka;
+    struct pico_dns_answer_suffix sa;
+    struct pico_mdns_cache_rr kb;
+    struct pico_dns_answer_suffix sb;
 
+    char url1[] = "test_1";
+    char url2[] = "test_2";
+
+    ka.url = url1;
+    sa.qtype = PICO_DNS_TYPE_A;
+    ka.suf = &sa;
+    kb.url = url2;
+    sb.qtype = PICO_DNS_TYPE_A;
+    kb.suf = &sb;
+    fail_unless(mdns_cache_cmp(&ka, &kb) != 0, "RR cmp returned equal!");
+
+    ka.url = url1;
+    kb.url = url1;
+    fail_unless(mdns_cache_cmp(&ka, &kb) == 0, "RR cmp returned different!");
+}
+END_TEST
 START_TEST(tc_mdns_cmp)
 {
-    /* TODO: test this: static int mdns_cmp(void *ka, void *kb) */
     struct pico_mdns_cookie ka;
     struct pico_mdns_cookie kb;
-    ka.url = strdup("test1");
-    kb.url = strdup("test2");
-    mdns_cmp(&ka, &kb);
+
+    char url1[] = "test_1";
+    char url2[] = "test_2";
+
+    ka.url = url1;
+    ka.qtype = PICO_DNS_TYPE_A;
+    kb.url = url2;
+    kb.qtype = PICO_DNS_TYPE_A;
+    fail_unless(mdns_cmp(&ka, &kb) != 0, "cmp returned equal!");
+
+    ka.url = url1;
+    kb.url = url1;
+    fail_unless(mdns_cmp(&ka, &kb) == 0, "cmp returned different!");
 }
 END_TEST
 START_TEST(tc_pico_mdns_send)
@@ -35,20 +66,27 @@ START_TEST(tc_pico_mdns_send)
     pico_mdns_send(&hdr, len);
 }
 END_TEST
+START_TEST(tc_pico_mdns_cache_del_rr)
+{
+    char *url = NULL;
+    uint16_t qtype = PICO_DNS_TYPE_A;
+    char *rdata = NULL;
+
+    fail_unless(pico_mdns_cache_del_rr(url, qtype, rdata) == -1, "Deleted a nonexisting RR from cache!\n");
+}
+END_TEST
 START_TEST(tc_pico_mdns_add_cookie)
 {
     /* TODO: test this: static struct pico_mdns_cookie *pico_mdns_add_cookie(struct pico_dns_header *hdr, uint16_t len, struct pico_dns_query_suffix *suffix, unsigned int probe, void (*callback)(char *str, void *arg), void *arg) */
-    struct pico_dns_header hdr = {
-        0
-    };
     uint16_t len = 0;
     struct pico_dns_query_suffix suf = {
         0
     };
+    struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header)+1); /* +1 for empty URL */
     unsigned int probe = 0;
     void *arg = NULL;
     pico_stack_init();
-    pico_mdns_add_cookie(&hdr, len, &suf, probe, callback, arg);
+    pico_mdns_add_cookie(hdr, len, &suf, probe, callback, arg);
 }
 END_TEST
 START_TEST(tc_pico_mdns_fill_header)
@@ -127,6 +165,44 @@ START_TEST(tc_pico_mdns_del_cookie)
     };
 
     pico_mdns_del_cookie(url);
+}
+END_TEST
+START_TEST(tc_pico_mdns_cache_find_rr)
+{
+    char url[] = "pico.local";
+    uint16_t qtype = PICO_DNS_TYPE_A;
+    struct pico_mdns_cache_rr *rr = NULL;
+    /*struct pico_dns_answer_suffix suf = {
+        .qtype = PICO_DNS_TYPE_A,
+        .qclass = PICO_DNS_CLASS_IN,
+        .ttl = 100
+    };
+    char rdata[] = "somedata";*/
+
+    rr = pico_mdns_cache_find_rr(url, qtype);
+    fail_unless(rr == NULL, "Found nonexistent RR in cache!\n");
+
+    /* TODO add a record and try to find it again
+    rr = NULL;
+    pico_mdns_cache_add_rr(url, &suf, rdata);
+    //rr = pico_mdns_cache_find_rr(url, qtype);
+    fail_unless(rr != NULL, "RR not found in cache!\n"); */
+}
+END_TEST
+START_TEST(tc_pico_mdns_cache_add_rr)
+{
+    /* TODO
+    char *url = "pico.local";
+    uint16_t qtype = PICO_DNS_TYPE_A;
+    struct pico_mdns_cache_rr *rr = NULL;
+    struct pico_dns_answer_suffix suf = {
+        .qtype = PICO_DNS_TYPE_A,
+        .qclass = PICO_DNS_CLASS_IN,
+        .ttl = 100
+    };
+    char *rdata = "somedata";
+
+    fail_unless(pico_mdns_cache_add_rr(url, &suf, rdata) == 0, "Failed to add RR to cache\n"); */
 }
 END_TEST
 START_TEST(tc_pico_mdns_find_cookie)
@@ -314,14 +390,19 @@ Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
+
+    TCase *TCase_mdns_cache_cmp = tcase_create("Unit test for mdns_cache_cmp");
     TCase *TCase_mdns_cmp = tcase_create("Unit test for mdns_cmp");
     TCase *TCase_pico_mdns_send = tcase_create("Unit test for pico_mdns_send");
+    TCase *TCase_pico_mdns_cache_del_rr = tcase_create("Unit test for pico_mdns_cache_del_rr");
     TCase *TCase_pico_mdns_add_cookie = tcase_create("Unit test for pico_mdns_add_cookie");
     TCase *TCase_pico_mdns_fill_header = tcase_create("Unit test for pico_mdns_fill_header");
     TCase *TCase_pico_mdns_answer_suffix = tcase_create("Unit test for pico_mdns_answer_suffix");
     TCase *TCase_pico_mdns_create_answer = tcase_create("Unit test for pico_mdns_create_answer");
     TCase *TCase_pico_mdns_create_query = tcase_create("Unit test for pico_mdns_create_query");
     TCase *TCase_pico_mdns_del_cookie = tcase_create("Unit test for pico_mdns_del_cookie");
+    TCase *TCase_pico_mdns_cache_find_rr = tcase_create("Unit test for pico_mdns_cache_find_rr");
+    TCase *TCase_pico_mdns_cache_add_rr = tcase_create("Unit test for pico_mdns_cache_add_rr");
     TCase *TCase_pico_mdns_find_cookie = tcase_create("Unit test for pico_mdns_find_cookie");
     TCase *TCase_pico_get_ip6_from_ip4 = tcase_create("Unit test for pico_get_ip6_from_ip4");
     TCase *TCase_pico_mdns_reply_query = tcase_create("Unit test for pico_mdns_reply_query");
@@ -341,11 +422,14 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mdns_getaddr_generic = tcase_create("Unit test for pico_mdns_getaddr_generic");
     TCase *TCase_pico_mdns_getname_generic = tcase_create("Unit test for pico_mdns_getname_generic");
 
-
+    tcase_add_test(TCase_mdns_cache_cmp, tc_mdns_cache_cmp);
+    suite_add_tcase(s, TCase_mdns_cache_cmp);
     tcase_add_test(TCase_mdns_cmp, tc_mdns_cmp);
     suite_add_tcase(s, TCase_mdns_cmp);
     tcase_add_test(TCase_pico_mdns_send, tc_pico_mdns_send);
     suite_add_tcase(s, TCase_pico_mdns_send);
+    tcase_add_test(TCase_pico_mdns_cache_del_rr, tc_pico_mdns_cache_del_rr);
+    suite_add_tcase(s, TCase_pico_mdns_cache_del_rr);
     tcase_add_test(TCase_pico_mdns_add_cookie, tc_pico_mdns_add_cookie);
     suite_add_tcase(s, TCase_pico_mdns_add_cookie);
     tcase_add_test(TCase_pico_mdns_fill_header, tc_pico_mdns_fill_header);
@@ -358,6 +442,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mdns_create_query);
     tcase_add_test(TCase_pico_mdns_del_cookie, tc_pico_mdns_del_cookie);
     suite_add_tcase(s, TCase_pico_mdns_del_cookie);
+    tcase_add_test(TCase_pico_mdns_cache_find_rr, tc_pico_mdns_cache_find_rr);
+    suite_add_tcase(s, TCase_pico_mdns_cache_find_rr);
+    tcase_add_test(TCase_pico_mdns_cache_add_rr, tc_pico_mdns_cache_add_rr);
+    suite_add_tcase(s, TCase_pico_mdns_cache_add_rr);
     tcase_add_test(TCase_pico_mdns_find_cookie, tc_pico_mdns_find_cookie);
     suite_add_tcase(s, TCase_pico_mdns_find_cookie);
     tcase_add_test(TCase_pico_get_ip6_from_ip4, tc_pico_get_ip6_from_ip4);
