@@ -475,6 +475,10 @@ static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf
     struct pico_mdns_cache_rr *rr = NULL, *found = NULL;
     struct pico_dns_answer_suffix *rr_suf = NULL;
     char *rr_url = NULL;
+
+    if(!url || !suf || !rdata)
+      return;
+
     /* Don't cache PTR answers */
     if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR ) {
         mdns_dbg("Not caching PTR answer\n");
@@ -484,8 +488,12 @@ static void pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf
     rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
     rr_suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
     rr_url = PICO_ZALLOC(strlen(url)+1);
-    if(!rr || !rr_suf || !rr_url)
-        return;
+
+    if(!rr || !rr_suf || !rr_url) {
+        PICO_FREE(rr);
+        PICO_FREE(rr_suf);
+        PICO_FREE(rr_url);
+    }
 
     memcpy(rr_url+1, url, strlen(url));
     rr->url = rr_url;
