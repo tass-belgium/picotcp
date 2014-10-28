@@ -3,7 +3,7 @@
 % Short description/overview of module functions
 This module can take an mDNS hostname and announce it to the network. It will defend the name when
 a peer tries to claim it. It can get the IP address of other peers using their hostname, as well as their hostname from the IP address.
-It doesn't have caching support, so each time you want to resolve a name an mDNS query is sent over the network. 
+mDNS answers are cached and called upon when a request is matched until the TTL has expired.
 
 \subsection{pico$\_$mdns$\_$init}
 
