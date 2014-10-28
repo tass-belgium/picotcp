@@ -80,7 +80,7 @@ START_TEST(tc_pico_mdns_create_answer)
 {
     /* TODO: test this: static struct pico_dns_header *pico_mdns_create_answer(char *url, uint16_t *len, uint16_t qtype, union pico_address *rdata) */
     char *url = NULL;
-    uint16_t len = 0;
+    unsigned int len = 0;
     uint16_t qtype = 0;
     union pico_address *rdata = NULL;
 
@@ -227,7 +227,6 @@ START_TEST(tc_pico_mdns_expand_name_comp)
 {
     /* TODO: test this: static char *pico_mdns_expand_name_comp(char *url, char *buf) */
     char name[] = "\3www\4tass\2be\0";
-    char name_comp[] = "\3www\4tass\2be\xc0\x02";  /* two bytes ofset from start of buf */
     char buf[] = "00\5index\0";
     char *ret;
     ret = pico_mdns_expand_name_comp(name, buf);

@@ -5,6 +5,8 @@ void callback_dhcpclient(void*cli, int code)
 {
     struct pico_ip4 gateway;
     char gw_txt_addr[30];
+    IGNORE_PARAMETER(cli);
+
     if(code == PICO_DHCP_SUCCESS) {
         gateway = pico_dhcp_get_gateway(&dhcp_client_ptr);
         pico_ipv4_to_string(gw_txt_addr, gateway.addr);

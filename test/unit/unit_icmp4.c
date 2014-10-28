@@ -328,6 +328,8 @@ END_TEST
 int icmp4_socket_unreach_status = 0;
 void icmp4_unreach_socket_cb(uint16_t ev, struct pico_socket *s)
 {
+    IGNORE_PARAMETER(s);
+
     if (ev == PICO_SOCK_EV_ERR) {
         icmp4_socket_unreach_status = 1;
     }

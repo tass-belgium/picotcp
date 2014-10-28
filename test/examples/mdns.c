@@ -25,7 +25,7 @@ void mdns_getaddr6_callback(char *str, void *arg)
         printf("Getaddr6 callback called, str: %s\n", str);
 
     if(pico_mdns_getname6(str, &mdns_getname6_callback, NULL) != 0)
-        printf("Getaddr returned with error!\n");
+        printf("Getname6 returned with error!\n");
 }
 
 void mdns_getname_callback(char *str, void *arg)
@@ -42,7 +42,7 @@ void mdns_getname_callback(char *str, void *arg)
         printf("Getname callback called, str: %s\n", str);
 
     if(pico_mdns_getaddr6(peername, &mdns_getaddr6_callback, NULL) != 0)
-        printf("Getname returned with error!\n");
+        printf("Getaddr6 returned with error!\n");
 }
 
 void mdns_getaddr_callback(char *str, void *arg)
@@ -53,7 +53,7 @@ void mdns_getaddr_callback(char *str, void *arg)
         printf("Getaddr callback called, str: %s\n", str);
 
     if(pico_mdns_getname(str, &mdns_getname_callback, arg) != 0)
-        printf("Getaddr returned with error!\n");
+        printf("Getname returned with error!\n");
 }
 
 void mdns_init_callback(char *str, void *arg)
