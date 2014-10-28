@@ -145,3 +145,16 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 \begin{verbatim}
 pico_mdns_getname6("fc00:aaaa:bbbb:cccc::", &callback, NULL);
 \end{verbatim}
+
+\subsection{pico$\_$mdns$\_$flush$\_$cache}
+
+\subsubsection*{Description}
+Function to flush the mDNS resource record cache.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_mdns_flush_cache(void);
+\end{verbatim}
+
+\subsubsection*{Return value}
+This call returns 0.

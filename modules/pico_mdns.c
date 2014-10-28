@@ -19,8 +19,8 @@
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
 
-#define mdns_dbg(...) do {} while(0)
-/* #define mdns_dbg dbg */
+/* #define mdns_dbg(...) do {} while(0) */
+#define mdns_dbg dbg
 
 #define PICO_MDNS_PROBE 1
 #define PICO_MDNS_NO_PROBE 0
@@ -1058,6 +1058,25 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
         return -1;
     }
 
+    return 0;
+}
+
+int pico_mdns_flush_cache()
+{
+    struct pico_mdns_cache_rr *rr = NULL;
+    struct pico_tree_node *index = NULL;
+
+    mdns_dbg("Flushing mDNS RR cache\n");
+    pico_tree_foreach(index, &CacheTable) {
+        rr = index->keyValue;
+        mdns_dbg("Deleting '%s' (%d)\n", rr->url, rr->suf->qtype);
+        pico_tree_delete(&CacheTable, rr);
+        pico_timer_cancel(rr->timer);
+        PICO_FREE(rr->url);
+        PICO_FREE(rr->suf);
+        PICO_FREE(rr->rdata);
+        PICO_FREE(rr);
+    }
     return 0;
 }
 
