@@ -824,7 +824,7 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
         pico_mdns_handle_query(ptr + 1, qsuf, peer);
         ptr = (char *)qsuf + sizeof(struct pico_dns_query_suffix);
         if(ptr - (char *)header > buflen) {
-            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr - (char*)header, buflen);
+            mdns_dbg("buffer is too short! ptr offset=%d buflen=%d\n", ptr - (char*)header, buflen);
             return -1;
         }
     }
@@ -842,7 +842,7 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
         PICO_FREE(name);
         ptr = data + short_be(asuf->rdlength);
         if(ptr - (char *)header > buflen) {
-            mdns_dbg("buffer is too short! ptr offset=%ld buflen=%d\n", ptr - (char*)header, buflen);
+            mdns_dbg("buffer is too short! ptr offset=%d buflen=%d\n", ptr - (char*)header, buflen);
             return -1;
         }
     }
@@ -1167,7 +1167,7 @@ int pico_mdns_getaddr6(const char *url, void (*callback)(char *ip, void *arg), v
     rr = pico_mdns_cache_find_rr(url, PICO_DNS_TYPE_AAAA);
 
     if(rr && rr->rdata) {
-        pico_ipv6_to_string(addr, rr->rdata);
+        pico_ipv6_to_string(addr, (uint8_t *)rr->rdata);
         mdns_dbg("Cache hit! Found AAAA record for '%s' with addr '%s'\n", url, addr);
         callback(addr, arg);
         return 0;

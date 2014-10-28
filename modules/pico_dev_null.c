@@ -20,6 +20,7 @@ struct pico_device_null {
 static int pico_null_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_null *null = (struct pico_device_null *) dev;
+    IGNORE_PARAMETER(buf);
 
     /* Increase the statistic count */
     null->statistics_frames_out++;
@@ -31,6 +32,7 @@ static int pico_null_send(struct pico_device *dev, void *buf, int len)
 static int pico_null_poll(struct pico_device *dev, int loop_score)
 {
     /* We never have packet to receive, no score is used. */
+    IGNORE_PARAMETER(dev);
     return loop_score;
 }
 
