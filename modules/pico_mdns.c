@@ -475,6 +475,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
     struct pico_mdns_cache_rr *rr = NULL, *found = NULL;
     struct pico_dns_answer_suffix *rr_suf = NULL;
     char *rr_url = NULL;
+    char *rr_rdata = NULL;
 
     if(!url || !suf || !rdata)
       return -1;
@@ -488,11 +489,13 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
     rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
     rr_suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
     rr_url = PICO_ZALLOC(strlen(url)+1);
+    rr_rdata = PICO_ZALLOC(short_be(suf->rdlength));
 
-    if(!rr || !rr_suf || !rr_url) {
+    if(!rr || !rr_suf || !rr_url || !rr_rdata) {
         PICO_FREE(rr);
         PICO_FREE(rr_suf);
         PICO_FREE(rr_url);
+        PICO_FREE(rr_rdata);
         return -1;
     }
 
@@ -505,7 +508,8 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
     rr->suf->qclass = short_be(rr->suf->qclass);
     rr->suf->ttl = long_be(suf->ttl);
     rr->suf->rdlength = short_be(suf->rdlength);
-    rr->rdata = strdup(rdata);
+    memcpy(rr_rdata, rdata, rr->suf->rdlength);
+    rr->rdata = rr_rdata;
 
     found = pico_mdns_cache_find_rr(url, rr->suf->qtype);
     if(found) {
