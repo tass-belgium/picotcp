@@ -70,8 +70,8 @@ static int mdns_cache_cmp(void *ka, void *kb)
     if(b->suf->qtype < a->suf->qtype)
         return 1;
 
-    ha = pico_hash(a->url, strlen(a->url));
-    hb = pico_hash(b->url, strlen(b->url));
+    ha = pico_hash(a->url, (uint32_t)strlen(a->url));
+    hb = pico_hash(b->url, (uint32_t)strlen(b->url));
 
     if(ha < hb)
         return -1;
@@ -93,8 +93,8 @@ static int mdns_cmp(void *ka, void *kb)
     if(b->qtype < a->qtype)
         return 1;
 
-    ha = pico_hash(a->url, strlen(a->url));
-    hb = pico_hash(b->url, strlen(b->url));
+    ha = pico_hash(a->url, (uint32_t)strlen(a->url));
+    hb = pico_hash(b->url, (uint32_t)strlen(b->url));
 
     if(ha < hb)
         return -1;
