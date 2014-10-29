@@ -1071,7 +1071,7 @@ int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg),
     return 0;
 }
 
-int pico_mdns_flush_cache()
+int pico_mdns_flush_cache(void)
 {
     struct pico_mdns_cache_rr *rr = NULL;
     struct pico_tree_node *index = NULL;
