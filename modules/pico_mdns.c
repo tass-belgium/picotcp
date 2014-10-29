@@ -162,13 +162,14 @@ static int pico_mdns_del_cookie(char *url, uint16_t qtype)
     found = pico_tree_findKey(&QTable, &test);
 
     if (!found) {
-        mdns_dbg("Could not find cookie to delete\n");
+        mdns_dbg("Could not find cookie '%s' to delete\n", url);
         return -1;
     }
 
     pico_tree_delete(&QTable, found);
     PICO_FREE(found->header);
     PICO_FREE(found);
+
     return 0;
 }
 
@@ -191,13 +192,16 @@ static void pico_mdns_cache_tick(pico_time now, void *_arg)
 static void pico_mdns_timeout(pico_time now, void *_arg)
 {
     struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
+    char url[256] = { 0 };
     IGNORE_PARAMETER(now);
 
     if(ck->callback)
         ck->callback(NULL, ck->arg);
 
-    pico_dns_client_answer_domain(ck->url);
-    pico_mdns_del_cookie(ck->url+1, ck->qtype);
+    strcpy(url, ck->url);
+
+    pico_dns_client_answer_domain(url);
+    pico_mdns_del_cookie(url+1, ck->qtype);
 }
 
 /* populate and add cookie to the tree */
@@ -232,7 +236,7 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
         return NULL;
     }
 
-    if(!probe)
+    if(probe == 0)
         ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
     return hdr;
 }
@@ -346,7 +350,7 @@ static int pico_mdns_perform_name_query(struct pico_dns_query_suffix *qsuffix, u
 
 static int pico_mdns_perform_query(struct pico_dns_query_suffix *qsuffix, uint16_t proto, unsigned int probe, unsigned int inv)
 {
-    if(probe)
+    if(probe == 1)
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_ANY, PICO_DNS_CLASS_IN);
     else if(inv)
         pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);

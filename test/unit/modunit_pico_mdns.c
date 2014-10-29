@@ -87,6 +87,7 @@ START_TEST(tc_pico_mdns_add_cookie)
     void *arg = NULL;
     pico_stack_init();
     pico_mdns_add_cookie(hdr, len, &suf, probe, callback, arg);
+    PICO_FREE(hdr);
 }
 END_TEST
 START_TEST(tc_pico_mdns_fill_header)
@@ -192,7 +193,6 @@ START_TEST(tc_pico_mdns_cache_add_rr)
 {
     char url[] = "pico.local";
     uint16_t qtype = PICO_DNS_TYPE_A;
-    struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix suf = {
         .qtype = short_be(qtype),
         .ttl = long_be(100)
@@ -235,12 +235,30 @@ START_TEST(tc_pico_mdns_flush_cache)
 END_TEST
 START_TEST(tc_pico_mdns_find_cookie)
 {
-    /* TODO: test this: static struct pico_mdns_cookie *pico_mdns_find_cookie(char *url) */
-    char url[256] = {
-        0
+    struct pico_mdns_cookie *ck = NULL;
+    char *addr = NULL;
+    char url[] = "pico.local";
+    uint16_t qtype = PICO_DNS_TYPE_A;
+    uint16_t len = 0;
+    struct pico_dns_query_suffix suf = {
+        .qtype = short_be(qtype)
     };
+    unsigned int probe = 0;
+    void *arg = NULL;
+    struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header)+strlen(url)+1);
+    addr = (char *)hdr + sizeof(struct pico_dns_header);
+    memcpy(addr+1, url, strlen(url));
+    pico_dns_client_query_domain(addr);
 
-    pico_mdns_find_cookie(url, PICO_DNS_TYPE_A);
+    pico_stack_init();
+    ck = pico_mdns_find_cookie(url, qtype);
+    fail_unless(ck == NULL, "Found nonexisting cookie in table!\n");
+
+    ck = NULL;
+    fail_unless(pico_mdns_add_cookie(hdr, len, &suf, probe, callback, arg) != NULL, "Failed adding cookie!\n");
+    ck = pico_mdns_find_cookie(url, qtype);
+    fail_unless(ck != NULL, "Cookie not found in table!\n");
+    PICO_FREE(hdr);
 }
 END_TEST
 START_TEST(tc_pico_get_ip6_from_ip4)
@@ -290,6 +308,7 @@ START_TEST(tc_pico_mdns_handle_answer)
 
     url = PICO_ZALLOC(sizeof(char));
     pico_mdns_handle_answer(url, &suf, data);
+    PICO_FREE(url);
 }
 END_TEST
 START_TEST(tc_pico_mdns_namelen_comp)
