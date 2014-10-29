@@ -493,6 +493,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
         PICO_FREE(rr);
         PICO_FREE(rr_suf);
         PICO_FREE(rr_url);
+        return -1;
     }
 
     memcpy(rr_url+1, url, strlen(url));
