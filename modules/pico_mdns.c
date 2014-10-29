@@ -20,7 +20,7 @@
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
 
 #define mdns_dbg(...) do {} while(0)
-/* #define mdns_dbg dbg */
+/*#define mdns_dbg dbg*/
 
 #define PICO_MDNS_PROBE 1
 #define PICO_MDNS_NO_PROBE 0
@@ -148,7 +148,7 @@ static int pico_mdns_cache_del_rr(char *url, uint16_t qtype, char *rdata)
 }
 
 /* delete a cookie from the tree*/
-static int pico_mdns_del_cookie(char *url)
+static int pico_mdns_del_cookie(char *url, uint16_t qtype)
 {
     struct pico_mdns_cookie test, *found = NULL;
     char temp[256] = {
@@ -158,6 +158,7 @@ static int pico_mdns_del_cookie(char *url)
 
     test.url = temp;
     pico_dns_client_query_domain(test.url);
+    test.qtype = qtype;
     found = pico_tree_findKey(&QTable, &test);
 
     if (!found) {
@@ -196,7 +197,7 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
         ck->callback(NULL, ck->arg);
 
     pico_dns_client_answer_domain(ck->url);
-    pico_mdns_del_cookie(ck->url+1);
+    pico_mdns_del_cookie(ck->url+1, ck->qtype);
 }
 
 /* populate and add cookie to the tree */
@@ -450,6 +451,7 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
 /* Look for a RR in cache matching hostname and qtype */
 static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint16_t qtype)
 {
+    struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix *suf = NULL;
     struct pico_mdns_cache_rr test;
     char temp[256] = { 0 };
@@ -467,7 +469,9 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
 
     mdns_dbg("Looking for '%s' with qtype '%d' in cache\n", url, qtype);
 
-    return pico_tree_findKey(&CacheTable, &test);
+    rr = pico_tree_findKey(&CacheTable, &test);
+    PICO_FREE(suf);
+    return rr;
 }
 
 static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf, char *rdata)
@@ -726,7 +730,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
         ck->callback(NULL, ck->arg);
     }
     pico_timer_cancel(ck->timer);
-    pico_mdns_del_cookie(url);
+    pico_mdns_del_cookie(url, ck->qtype);
 
     return 0;
 }
@@ -974,7 +978,7 @@ static void pico_mdns_probe_timer(pico_time now, void *arg)
         mdns_dbg("count is zero! Claimed %s\n", mdns_global_host);
         pico_mdns_announce();
         ck->callback(ok, ck->arg);
-        pico_mdns_del_cookie(url);
+        pico_mdns_del_cookie(url, ck->qtype);
         return;
     }
 
