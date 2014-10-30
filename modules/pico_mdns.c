@@ -236,6 +236,8 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
         return NULL;
     }
 
+    mdns_dbg("Cookie '%s' qtype '%d' added to QTable\n", ck->url, ck->qtype);
+
     if(probe == 0)
         ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
     return hdr;
@@ -835,6 +837,11 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
     qcount = short_be(header->qdcount);
     acount = short_be(header->ancount);
     mdns_dbg("\n>>>>>>> QDcount: %u, ANcount: %u\n", qcount, acount);
+
+    if(qcount == 0 && acount == 0) {
+        mdns_dbg("Query and answer count is 0!\n");
+        return -1;
+    }
 
     /* handle queries */
     for(i = 0; i < qcount; i++) {

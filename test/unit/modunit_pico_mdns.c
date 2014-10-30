@@ -58,36 +58,59 @@ START_TEST(tc_mdns_cmp)
 END_TEST
 START_TEST(tc_pico_mdns_send)
 {
-    /* TODO: test this: static int pico_mdns_send(struct pico_dns_header *hdr, uint16_t len) */
     struct pico_dns_header hdr = {
         0
     };
-    uint16_t len = 0;
-    pico_mdns_send(&hdr, len);
+    int len = 0;
+    int sentlen = 0;
+    sentlen = pico_mdns_send(&hdr, (unsigned int)len);
+    fail_unless(sentlen == len, "Sent %d iso expected %d bytes!\n", sentlen, len);
 }
 END_TEST
 START_TEST(tc_pico_mdns_cache_del_rr)
 {
-    char *url = NULL;
+    char url[] = "delrr.local";
+    char *addr = NULL;
     uint16_t qtype = PICO_DNS_TYPE_A;
-    char *rdata = NULL;
+    struct pico_dns_answer_suffix suf = {
+        .qtype = short_be(qtype),
+        .ttl = long_be(100)
+    };
+    char rdata[] = "somedata";
 
+    pico_stack_init();
     fail_unless(pico_mdns_cache_del_rr(url, qtype, rdata) == -1, "Deleted a nonexisting RR from cache!\n");
+    fail_unless(pico_mdns_cache_add_rr(url, &suf, rdata) == 0, "Failed to add RR to cache\n");
+
+    addr = PICO_ZALLOC(strlen(url)+1);
+    memcpy(addr+1, url, strlen(url));
+    pico_dns_client_query_domain(addr);
+    fail_unless(pico_mdns_cache_del_rr(addr, qtype, rdata) == 0, "Unable to delete RR from cache!\n");
+    PICO_FREE(addr);
 }
 END_TEST
 START_TEST(tc_pico_mdns_add_cookie)
 {
     /* TODO: test this: static struct pico_mdns_cookie *pico_mdns_add_cookie(struct pico_dns_header *hdr, uint16_t len, struct pico_dns_query_suffix *suffix, unsigned int probe, void (*callback)(char *str, void *arg), void *arg) */
+    /*char url[] = "addck.local";
+    uint16_t qtype = PICO_DNS_TYPE_A;
     uint16_t len = 0;
     struct pico_dns_query_suffix suf = {
-        0
+        .qtype = short_be(qtype)
     };
-    struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header)+1); /* +1 for empty URL */
     unsigned int probe = 0;
     void *arg = NULL;
+    struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header)+strlen(url)+1);
+    char *addr = (char *)hdr + sizeof(struct pico_dns_header);
+    pico_mdns_populate_query_domain(url, addr, NULL, 0, 0, PICO_PROTO_IPV4, 0);
+    pico_dns_client_query_domain(addr);
+
+    printf("First char %02x\n", addr[0]);
+
     pico_stack_init();
-    pico_mdns_add_cookie(hdr, len, &suf, probe, callback, arg);
-    PICO_FREE(hdr);
+    fail_unless(pico_mdns_add_cookie(hdr, len, &suf, probe, callback, arg) != NULL, "Failed adding cookie!\n");
+    fail_unless(pico_mdns_find_cookie(url, qtype) != NULL, "Cookie not found in table!\n");
+    PICO_FREE(hdr);*/
 }
 END_TEST
 START_TEST(tc_pico_mdns_fill_header)
@@ -117,13 +140,14 @@ START_TEST(tc_pico_mdns_answer_suffix)
 END_TEST
 START_TEST(tc_pico_mdns_create_answer)
 {
-    /* TODO: test this: static struct pico_dns_header *pico_mdns_create_answer(char *url, uint16_t *len, uint16_t qtype, union pico_address *rdata) */
-    char *url = NULL;
+    char url[] = "cr-ans.local";
     unsigned int len = 0;
-    uint16_t qtype = 0;
-    union pico_address *rdata = NULL;
+    uint16_t qtype = PICO_DNS_TYPE_A;
+    char rdata[] = "somedata";
 
-    pico_mdns_create_answer(url, &len, qtype, rdata);
+    fail_unless(pico_mdns_create_answer(url, &len, qtype, rdata) != NULL, "Header returned is NULL!\n");
+    qtype = 0;
+    fail_unless(pico_mdns_create_answer(url, &len, qtype, rdata) == NULL, "Header returned is invalid!\n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_create_query)
@@ -166,11 +190,15 @@ START_TEST(tc_pico_mdns_del_cookie)
     uint16_t qtype = PICO_DNS_TYPE_A;
 
     fail_unless(pico_mdns_del_cookie(url, qtype) == -1, "Deleted nonexisting cookie!\n");
+    /* TODO
+     * Add cookie
+     * Try to delete cookie
+     * Look for cookie & see if it's deleted */
 }
 END_TEST
 START_TEST(tc_pico_mdns_cache_find_rr)
 {
-    char url[] = "pico.local";
+    char url[] = "findrr.local";
     uint16_t qtype = PICO_DNS_TYPE_A;
     struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix suf = {
@@ -191,7 +219,7 @@ START_TEST(tc_pico_mdns_cache_find_rr)
 END_TEST
 START_TEST(tc_pico_mdns_cache_add_rr)
 {
-    char url[] = "pico.local";
+    char url[] = "addrr.local";
     uint16_t qtype = PICO_DNS_TYPE_A;
     struct pico_dns_answer_suffix suf = {
         .qtype = short_be(qtype),
@@ -205,8 +233,8 @@ START_TEST(tc_pico_mdns_cache_add_rr)
 END_TEST
 START_TEST(tc_pico_mdns_flush_cache)
 {
-    char url[] = "pico.local";
-    char url2[] = "pico2.local";
+    char url[] = "flush.local";
+    char url2[] = "flush2.local";
     uint16_t qtype = PICO_DNS_TYPE_A;
     struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix suf = {
@@ -235,9 +263,10 @@ START_TEST(tc_pico_mdns_flush_cache)
 END_TEST
 START_TEST(tc_pico_mdns_find_cookie)
 {
+    /* TODO Needs reworking! Cfr add_cookie */
     struct pico_mdns_cookie *ck = NULL;
     char *addr = NULL;
-    char url[] = "pico.local";
+    char url[] = "findck.local";
     uint16_t qtype = PICO_DNS_TYPE_A;
     uint16_t len = 0;
     struct pico_dns_query_suffix suf = {
@@ -266,7 +295,7 @@ START_TEST(tc_pico_get_ip6_from_ip4)
     /* TODO: test this: static struct pico_ip6 *pico_get_ip6_from_ip4(struct pico_ip4 *ipv4_addr) */
     struct pico_ip4 *ipv4_addr = NULL;
 
-    pico_get_ip6_from_ip4(ipv4_addr);
+    fail_unless(pico_get_ip6_from_ip4(ipv4_addr) == NULL, "Got an invalid IP!\n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_reply_query)
@@ -278,7 +307,7 @@ START_TEST(tc_pico_mdns_reply_query)
     };
     char *name = NULL;
 
-    pico_mdns_reply_query(qtype, peer, name);
+    fail_unless(pico_mdns_reply_query(qtype, peer, name) == -1, "Replied to query with invalid arg \n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_handle_query)
@@ -300,36 +329,31 @@ END_TEST
 START_TEST(tc_pico_mdns_handle_answer)
 {
     /* TODO: test this: static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf, char *data) */
-    char *url;
+    char url[] = "han-ans.local";
     struct pico_dns_answer_suffix suf = {
         0
     };
-    char *data = NULL;
-
-    url = PICO_ZALLOC(sizeof(char));
+    char data[] = "somedata";
     pico_mdns_handle_answer(url, &suf, data);
-    PICO_FREE(url);
 }
 END_TEST
 START_TEST(tc_pico_mdns_namelen_comp)
 {
-    /* TODO: test this: static unsigned int pico_mdns_namelen_comp(char *name) */
     char name[] = "\3www\4tass\2be\0";
     char name_comp[] = "\3www\4tass\2be\xc0\x02";  /* two bytes ofset from start of buf */
     unsigned int ret = 0;
 
     /* name without compression */
     ret = pico_mdns_namelen_comp(name);
-    ck_assert(ret == 12);
+    fail_unless(ret == 12, "Namelength is wrong!\n");
 
     /* name with compression */
     ret = pico_mdns_namelen_comp(name_comp);
-    ck_assert(ret == 13);
+    fail_unless(ret == 13, "Namelength is wrong!\n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_namelen_uncomp)
 {
-    /* TODO: test this: static unsigned int pico_mdns_namelen_uncomp(char *name, char *buf) */
     char name[] = "\3www\4tass\2be\0";
     char name_comp[] = "\3www\4tass\2be\xc0\x02";  /* two bytes ofset from start of buf */
     char buf[] = "00\5index\0";
@@ -337,35 +361,32 @@ START_TEST(tc_pico_mdns_namelen_uncomp)
 
     /* name without compression */
     ret = pico_mdns_namelen_uncomp(name, buf);
-    printf("ret: %u\n", ret);
-    ck_assert(ret == 12);
+    fail_unless(ret == 12, "Namelength is wrong!\n");
 
     /* name with compression */
     ret = pico_mdns_namelen_uncomp(name_comp, buf);
-    printf("ret: %u\n", ret);
-    ck_assert(ret == 18);
+    fail_unless(ret == 18, "Namelength is wrong!\n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_expand_name_comp)
 {
-    /* TODO: test this: static char *pico_mdns_expand_name_comp(char *url, char *buf) */
     char name[] = "\3www\4tass\2be\0";
     char buf[] = "00\5index\0";
     char *ret;
     ret = pico_mdns_expand_name_comp(name, buf);
-    ck_assert(ret != NULL);
+    fail_unless(ret != NULL, "Name ptr returned is NULL");
 }
 END_TEST
 START_TEST(tc_pico_mdns_recv)
 {
     /* TODO: test this: static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer) */
-    char buf[256];
+    char buf[256] = { 0 };
     int buflen = 0;
     struct pico_ip4 peer = {
         0
     };
 
-    pico_mdns_recv(buf, buflen, peer);
+    fail_unless(pico_mdns_recv(buf, buflen, peer) == -1, "No error with invalid args!\n");
 }
 END_TEST
 START_TEST(tc_pico_mdns_wakeup)
