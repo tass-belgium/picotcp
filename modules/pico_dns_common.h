@@ -88,6 +88,7 @@ enum pico_dns_arpa
     PICO_DNS_NO_ARPA,
 };
 
+void pico_dns_fill_record_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount);
 uint16_t pico_dns_client_strlen(const char *url);
 int pico_dns_client_query_domain(char *ptr);
 int pico_dns_client_answer_domain(char *ptr);

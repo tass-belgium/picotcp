@@ -16,6 +16,32 @@
 #include "pico_dns_client.h"
 #include "pico_tree.h"
 
+void pico_dns_fill_record_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount)
+{
+
+    /* hdr->id should be filled by caller */
+
+    if(qdcount > 0) {
+        hdr->qr = PICO_DNS_QR_QUERY;
+        hdr->aa = PICO_DNS_AA_NO_AUTHORITY;
+    }
+    else {
+        hdr->qr = PICO_DNS_QR_RESPONSE;
+        hdr->aa = PICO_DNS_AA_IS_AUTHORITY;
+    }
+
+    hdr->opcode = PICO_DNS_OPCODE_QUERY;
+    hdr->tc = PICO_DNS_TC_NO_TRUNCATION;
+    hdr->rd = PICO_DNS_RD_NO_DESIRE;
+    hdr->ra = PICO_DNS_RA_NO_SUPPORT;
+    hdr->z = 0; /* Z, AD, CD are 0 */
+    hdr->rcode = PICO_DNS_RCODE_NO_ERROR;
+    hdr->qdcount = short_be(qdcount);
+    hdr->ancount = short_be(ancount);
+    hdr->nscount = short_be(0);
+    hdr->arcount = short_be(0);
+}
+
 /* determine len of string */
 uint16_t pico_dns_client_strlen(const char *url)
 {

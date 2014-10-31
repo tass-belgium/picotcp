@@ -221,7 +221,7 @@ static struct pico_dns_query *pico_dns_client_idcheck(uint16_t id)
     return pico_tree_findKey(&DNSTable, &test);
 }
 
-static int pico_dns_client_query_header(struct pico_dns_header *pre)
+static int pico_dns_client_query_header(struct pico_dns_header *hdr)
 {
     uint16_t id = 0;
     uint8_t retry = 32;
@@ -233,19 +233,8 @@ static int pico_dns_client_query_header(struct pico_dns_header *pre)
     if (!retry)
         return -1;
 
-    pre->id = short_be(id);
-    pre->qr = PICO_DNS_QR_QUERY;
-    pre->opcode = PICO_DNS_OPCODE_QUERY;
-    pre->aa = PICO_DNS_AA_NO_AUTHORITY;
-    pre->tc = PICO_DNS_TC_NO_TRUNCATION;
-    pre->rd = PICO_DNS_RD_IS_DESIRED;
-    pre->ra = PICO_DNS_RA_NO_SUPPORT;
-    pre->z = 0;
-    pre->rcode = PICO_DNS_RCODE_NO_ERROR;
-    pre->qdcount = short_be(1);
-    pre->ancount = short_be(0);
-    pre->nscount = short_be(0);
-    pre->arcount = short_be(0);
+    hdr->id = short_be(id);
+    pico_dns_fill_record_header(hdr, 1, 0); /* 1 query, no answers */
 
     return 0;
 }
