@@ -4,8 +4,8 @@ sh ./test/vde_sock_start_user.sh
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
-killall picoapp.elf
-killall picoapp6.elf
+killall picoapp.elf &> /dev/null
+killall picoapp6.elf &> /dev/null
 
 
 echo "IPV6 tests!"
