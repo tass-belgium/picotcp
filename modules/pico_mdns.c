@@ -132,6 +132,8 @@ static int pico_mdns_cache_del_rr(char *url, uint16_t qtype, char *rdata)
     test.rdata = rdata;
 
     found = pico_tree_findKey(&CacheTable, &test);
+    PICO_FREE(test.suf);
+
     if(!found) {
         mdns_dbg("Couldn't find cache RR to delete\n");
         return -1;
@@ -154,6 +156,8 @@ static int pico_mdns_del_cookie(char *url, uint16_t qtype)
     char temp[256] = {
         0
     };
+    if(!url)
+        return -1;
     strcpy(temp + 1, url);
 
     test.url = temp;
@@ -513,15 +517,16 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
             pico_tree_insert(&CacheTable, rr);
             mdns_dbg("RR cached. Starting TTL counter, TICK TACK TICK TACK..\n");
             rr->timer = pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_cache_tick, rr);
+            return 0;
         }
         else {
             mdns_dbg("RR not in cache but TTL = 0\n");
-            PICO_FREE(rr->suf);
-            PICO_FREE(rr->url);
-            PICO_FREE(rr->rdata);
-            PICO_FREE(rr);
         }
     }
+    PICO_FREE(rr->suf);
+    PICO_FREE(rr->url);
+    PICO_FREE(rr->rdata);
+    PICO_FREE(rr);
     return 0;
 }
 
@@ -530,6 +535,9 @@ static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *url, uint16_t 
 {
     struct pico_mdns_cookie test;
     char temp[256] = { 0 };
+
+    if(!url)
+        return NULL;
 
     strcpy(temp + 1, url);
     pico_to_lowercase(temp);
