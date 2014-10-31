@@ -234,7 +234,7 @@ static int pico_dns_client_query_header(struct pico_dns_header *hdr)
         return -1;
 
     hdr->id = short_be(id);
-    pico_dns_fill_record_header(hdr, 1, 0); /* 1 query, no answers */
+    pico_dns_fill_header(hdr, 1, 0); /* 1 question, 0 answers */
 
     return 0;
 }
@@ -414,7 +414,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     }
 #endif
     case PICO_DNS_TYPE_PTR:
-        pico_dns_client_answer_domain(rdata);
+        pico_dns_notation_to_name(rdata);
         str = PICO_ZALLOC((size_t)(asuffix->rdlength - PICO_DNS_LABEL_INITIAL));
         if (!str) {
             pico_err = PICO_ERR_ENOMEM;
@@ -469,7 +469,7 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
     /* Found CNAME response. Re-initiating query. */
     asuffix = (struct pico_dns_answer_suffix *)p_asuffix;
     cname = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
-    pico_dns_client_answer_domain(cname);
+    pico_dns_notation_to_name(cname);
     if (cname[0] == '.')
        cname++; 
     dns_dbg("Restarting query for name '%s'\n", cname);
@@ -566,7 +566,7 @@ static int pico_dns_create_message(struct pico_dns_header **header, struct pico_
 
     if(arpa == PICO_DNS_ARPA4) {
         memcpy(domain + PICO_DNS_LABEL_INITIAL, url, strlen);
-        pico_dns_client_mirror(domain + PICO_DNS_LABEL_INITIAL);
+        pico_dns_mirror_addr(domain + PICO_DNS_LABEL_INITIAL);
         memcpy(domain + PICO_DNS_LABEL_INITIAL + strlen, inaddr_arpa, arpalen);
     }
 
@@ -582,7 +582,7 @@ static int pico_dns_create_message(struct pico_dns_header **header, struct pico_
 
     /* assemble dns message */
     pico_dns_client_query_header(*header);
-    pico_dns_client_query_domain(domain);
+    pico_dns_name_to_dns_notation(domain);
 
     return 0;
 }
@@ -643,10 +643,10 @@ static int pico_dns_client_getaddr_init(const char *url, uint16_t proto, void (*
 
 #ifdef PICO_SUPPORT_IPV6
     if (proto == PICO_PROTO_IPV6) {
-        pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
+        pico_dns_fill_query_suffix(qsuffix, PICO_DNS_TYPE_AAAA, PICO_DNS_CLASS_IN);
     } else
 #endif
-    pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
+    pico_dns_fill_query_suffix(qsuffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN);
 
     q = pico_dns_client_add_query(header, len, qsuffix, callback, arg);
     if (!q) {
@@ -687,7 +687,7 @@ static int pico_dns_getname_univ(const char *ip, void (*callback)(char *, void *
     if(pico_dns_create_message(&header, &qsuffix, arpa, ip, &lblen, &len) != 0)
         return -1;
 
-    pico_dns_client_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
+    pico_dns_fill_query_suffix(qsuffix, PICO_DNS_TYPE_PTR, PICO_DNS_CLASS_IN);
     q = pico_dns_client_add_query(header, len, qsuffix, callback, arg);
     if (!q) {
         PICO_FREE(header);

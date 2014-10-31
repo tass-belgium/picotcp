@@ -84,7 +84,7 @@ START_TEST(tc_pico_mdns_cache_del_rr)
 
     addr = PICO_ZALLOC(strlen(url)+1);
     memcpy(addr+1, url, strlen(url));
-    pico_dns_client_query_domain(addr);
+    pico_dns_name_to_dns_notation(addr);
     fail_unless(pico_mdns_cache_del_rr(addr, qtype, rdata) == 0, "Unable to delete RR from cache!\n");
     PICO_FREE(addr);
 }
@@ -122,20 +122,6 @@ START_TEST(tc_pico_mdns_fill_header)
     uint16_t qdcount = 0;
     uint16_t ancount = 0;
     pico_mdns_fill_header(&hdr, qdcount, ancount);
-}
-END_TEST
-START_TEST(tc_pico_mdns_answer_suffix)
-{
-    /* TODO: test this: static void pico_mdns_answer_suffix(struct pico_dns_answer_suffix *asuf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength) */
-    struct pico_dns_answer_suffix asuf = {
-        0
-    };
-    uint16_t qtype = 0;
-    uint16_t qclass = 0;
-    uint32_t ttl = 0;
-    uint16_t rdlength = 0;
-
-    pico_mdns_answer_suffix(&asuf, qtype, qclass, ttl, rdlength);
 }
 END_TEST
 START_TEST(tc_pico_mdns_create_answer)
@@ -277,7 +263,7 @@ START_TEST(tc_pico_mdns_find_cookie)
     struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header)+strlen(url)+1);
     addr = (char *)hdr + sizeof(struct pico_dns_header);
     memcpy(addr+1, url, strlen(url));
-    pico_dns_client_query_domain(addr);
+    pico_dns_name_to_dns_notation(addr);
 
     pico_stack_init();
     ck = pico_mdns_find_cookie(url, qtype);
@@ -465,7 +451,6 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mdns_cache_del_rr = tcase_create("Unit test for pico_mdns_cache_del_rr");
     TCase *TCase_pico_mdns_add_cookie = tcase_create("Unit test for pico_mdns_add_cookie");
     TCase *TCase_pico_mdns_fill_header = tcase_create("Unit test for pico_mdns_fill_header");
-    TCase *TCase_pico_mdns_answer_suffix = tcase_create("Unit test for pico_mdns_answer_suffix");
     TCase *TCase_pico_mdns_create_answer = tcase_create("Unit test for pico_mdns_create_answer");
     TCase *TCase_pico_mdns_create_query = tcase_create("Unit test for pico_mdns_create_query");
     TCase *TCase_pico_mdns_del_cookie = tcase_create("Unit test for pico_mdns_del_cookie");
@@ -503,8 +488,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mdns_add_cookie);
     tcase_add_test(TCase_pico_mdns_fill_header, tc_pico_mdns_fill_header);
     suite_add_tcase(s, TCase_pico_mdns_fill_header);
-    tcase_add_test(TCase_pico_mdns_answer_suffix, tc_pico_mdns_answer_suffix);
-    suite_add_tcase(s, TCase_pico_mdns_answer_suffix);
     tcase_add_test(TCase_pico_mdns_create_answer, tc_pico_mdns_create_answer);
     suite_add_tcase(s, TCase_pico_mdns_create_answer);
     tcase_add_test(TCase_pico_mdns_create_query, tc_pico_mdns_create_query);

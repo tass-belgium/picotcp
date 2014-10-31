@@ -16,7 +16,7 @@
 #include "pico_dns_client.h"
 #include "pico_tree.h"
 
-void pico_dns_fill_record_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount)
+void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount)
 {
 
     /* hdr->id should be filled by caller */
@@ -52,7 +52,7 @@ uint16_t pico_dns_client_strlen(const char *url)
 
 /* replace '.' in the domain name by the label length
  * f.e. www.google.be => 3www6google2be0 */
-int pico_dns_client_query_domain(char *ptr)
+int pico_dns_name_to_dns_notation(char *ptr)
 {
     char p = 0, *label = NULL;
     uint8_t len = 0;
@@ -76,7 +76,7 @@ int pico_dns_client_query_domain(char *ptr)
 
 /* replace the label length in the domain name by '.'
  * f.e. 3www6google2be0 => .www.google.be */
-int pico_dns_client_answer_domain(char *ptr)
+int pico_dns_notation_to_name(char *ptr)
 {
     char p = 0, *label = NULL;
 
@@ -92,16 +92,23 @@ int pico_dns_client_answer_domain(char *ptr)
     return 0;
 }
 
-int pico_dns_client_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
+void pico_dns_fill_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
 {
     suf->qtype = short_be(type);
     suf->qclass = short_be(qclass);
-    return 0;
+}
+
+void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength)
+{
+    suf->qtype = short_be(qtype);
+    suf->qclass = short_be(qclass);
+    suf->ttl = long_be(ttl);
+    suf->rdlength = short_be(rdlength);
 }
 
 /* mirror ip address numbers
  * f.e. 192.168.0.1 => 1.0.168.192 */
-int8_t pico_dns_client_mirror(char *ptr)
+int8_t pico_dns_mirror_addr(char *ptr)
 {
     const unsigned char *addr = NULL;
     char *m = ptr;
