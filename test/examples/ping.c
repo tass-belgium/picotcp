@@ -23,7 +23,7 @@ void cb_ping(struct pico_icmp4_stats *s)
 #ifdef PICO_SUPPORT_IPV6
 void cb_ping6(struct pico_icmp6_stats *s)
 {
-    char host[30];
+    char host[50];
     pico_ipv6_to_string(host, s->dst.addr);
     if (s->err == 0) {
         dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
