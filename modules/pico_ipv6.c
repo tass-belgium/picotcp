@@ -168,7 +168,7 @@ int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6])
 {
     uint8_t dec = 0, i = 0;
 
-    if (!ipbuf) {
+    if (!ipbuf || !ip) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
