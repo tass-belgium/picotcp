@@ -168,7 +168,7 @@ int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6])
 {
     uint8_t dec = 0, i = 0;
 
-    if (!ipbuf) {
+    if (!ipbuf || !ip) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -504,8 +504,10 @@ int pico_ipv6_process_routing(struct pico_ipv6_exthdr *routing, struct pico_fram
 int pico_ipv6_process_frag(struct pico_ipv6_exthdr *fragm, struct pico_frame *f)
 {
     IGNORE_PARAMETER(fragm);
-    IGNORE_PARAMETER(f);
-
+    if (!f) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
     ipv6_dbg("IPv6: fragmentation extension header\n");
     return 0;
 }
@@ -984,6 +986,8 @@ void pico_ipv6_nd_dad(unsigned long now, void *arg)
     IGNORE_PARAMETER(now);
 
     l = pico_ipv6_link_istentative(&address);
+    if (!l)
+        return;
     if (l->isduplicate) {
         dbg("IPv6: duplicate address.\n");
         if (pico_ipv6_is_linklocal(address.addr)) {
