@@ -123,6 +123,10 @@ ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif
 
+ifeq ($(ARCH),esp8266)
+  CFLAGS+=-DESP8266
+endif
+
 ifeq ($(ARCH),stellaris)
   CFLAGS+=-mthumb -DSTELLARIS
 endif
