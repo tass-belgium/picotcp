@@ -1658,7 +1658,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 
 #ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
-        if (mode & PICO_SHUT_RDWR)
+        if ((mode & PICO_SHUT_RDWR) == PICO_SHUT_RDWR)
             pico_socket_alter_state(s, PICO_SOCKET_STATE_CLOSED, PICO_SOCKET_STATE_CLOSING | PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED, 0);
         else if (mode & PICO_SHUT_RD)
             pico_socket_alter_state(s, 0, PICO_SOCKET_STATE_BOUND, 0);
@@ -1667,7 +1667,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
 #endif
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
-        if(mode & PICO_SHUT_RDWR)
+        if ((mode & PICO_SHUT_RDWR) == PICO_SHUT_RDWR)
         {
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL | PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
             pico_tcp_notify_closing(s);
