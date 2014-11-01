@@ -16,6 +16,7 @@ STRIP?=0
 RTOS?=0
 
 # Default compiled-in protocols
+#
 TCP?=1
 UDP?=1
 ETH?=1
@@ -124,7 +125,15 @@ ifeq ($(ARCH),msp430)
 endif
 
 ifeq ($(ARCH),esp8266)
-  CFLAGS+=-DESP8266
+  CFLAGS +=  -DESP8266              \
+             -g                     \
+             -Wpointer-arith        \
+             -Wundef                \
+             -Wl,-EL                \
+             -fno-inline-functions  \
+             -nostdlib              \
+             -mlongcalls            \
+             -mtext-section-literals
 endif
 
 ifeq ($(ARCH),stellaris)

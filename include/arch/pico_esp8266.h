@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2014 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
@@ -11,28 +11,27 @@
 #include <string.h>
 #include "pico_constants.h"
 
-extern pico_time esp8266_time_s(void);
-extern pico_time esp8266_time_ms(void);
-extern void *malloc(size_t);
-extern void free(void *);
-
-
-#define PICO_TIME() esp8266_time_s()
-#define PICO_TIME_MS() esp8266_time_ms()
-#define PICO_IDLE() do {} while(0)
-
-#define pico_free(x) free(x)
-
-static inline void *pico_zalloc(size_t size)
-{
-    void *ptr = malloc(size);
-
-    if(ptr)
-        memset(ptr, 0u, size);
-
-    return ptr;
-}
 
 #define dbg(...)
+#define pico_free       vPortFree
+#define pico_zalloc     pvPortCalloc
+
+extern volatile uint32_t esp_tick;
+
+static inline pico_time PICO_TIME_MS(void)
+{
+    return (pico_time)esp_tick;
+}
+
+static inline pico_time PICO_TIME(void)
+{
+    return PICO_TIME_MS() / 1000;
+}
+
+static inline void PICO_IDLE(void)
+{
+    uint32_t now = esp_tick;
+    while(now == esp_tick) ;
+}
 
 #endif
