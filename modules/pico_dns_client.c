@@ -471,12 +471,12 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
     cname = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
     pico_dns_notation_to_name(cname);
     if (cname[0] == '.')
-       cname++; 
+       cname++;
     dns_dbg("Restarting query for name '%s'\n", cname);
     pico_dns_client_getaddr_init(cname, proto, q->callback, q->arg);
     pico_dns_client_del_query(q->id);
 }
-    
+
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
     struct pico_dns_header *header = NULL;

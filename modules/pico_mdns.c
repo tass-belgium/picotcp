@@ -1154,7 +1154,7 @@ int pico_mdns_getaddr(const char *url, void (*callback)(char *ip, void *arg), vo
     struct pico_mdns_cache_rr *rr = NULL;
     char addr[46];
     rr = pico_mdns_cache_find_rr(url, PICO_DNS_TYPE_A);
-    
+
     if(rr && rr->rdata) {
         pico_ipv4_to_string(addr, long_from(rr->rdata));
         mdns_dbg("Cache hit! Found A record for '%s' with addr '%s'\n", url, addr);

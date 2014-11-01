@@ -987,7 +987,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
 
     if (mcast_link)
         link = pico_ipv4_link_get(mcast_link);
-   
+
     if(!link)
         link = mcast_default_link;
 
@@ -1036,7 +1036,7 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
 
     if (mcast_link)
         link = pico_ipv4_link_get(mcast_link);
-    
+
     if(!link)
         link = mcast_default_link;
 
@@ -1688,8 +1688,8 @@ static int pico_ipv4_pre_forward_checks(struct pico_frame *f)
     static struct pico_ip4 last_src = {0};
     static struct pico_ip4 last_dst = {0};
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
-   
-    /* Decrease TTL, check if expired */ 
+
+    /* Decrease TTL, check if expired */
     hdr->ttl = (uint8_t)(hdr->ttl - 1);
     if (hdr->ttl < 1) {
         pico_notify_ttl_expired(f);
