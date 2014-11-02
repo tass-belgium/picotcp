@@ -12,9 +12,25 @@
 #include "pico_constants.h"
 
 
-#define dbg(...)
-#define pico_free       vPortFree
-#define pico_zalloc     pvPortCalloc
+/* -------------- DEBUG ------------- */
+
+//#define dbg(...)
+#define dbg             os_printf
+
+
+/* -------------- MEMORY ------------- */
+
+#define pico_free       os_free
+
+static inline void *pico_zalloc(size_t size)
+{
+    void *ptr = (void *)os_malloc(size);
+    if(ptr)
+        memset(ptr, 0u, size);
+    return ptr;
+}
+
+/* -------------- TIME ------------- */
 
 extern volatile uint32_t esp_tick;
 
