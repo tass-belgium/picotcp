@@ -12,47 +12,51 @@
 
 
 #define LOOP_MTU 1500
+
+#define ZERO (uint8_t)0
+#define ONE (uint8_t)1
+
 static uint8_t l_buf[LOOP_MTU];
-static uint8_t l_bufsize = 0;
+static uint8_t l_bufsize = ZERO;
 
 
-static uint8_t pico_loop_send(struct pico_device *dev, void *buf, uint8_t len)
+static uint8_t pico_loop_send(struct pico_device *dev, void *buf, uint32_t len)
 {
-    uint8_t retval=1;
+    uint8_t retval=ONE;
 
     IGNORE_PARAMETER(dev);
     if (len > LOOP_MTU)
     {
-        retval = 0;
+        retval = ZERO;
     }
 
-    if ((l_bufsize == 0) && (retval == 1)) {
+    if ((l_bufsize == ZERO) && (retval == ONE)) {
         (void) memcpy(l_buf,buf,(size_t)len);
         l_bufsize += len;
         retval = len;
     }
     else
     {
-        retval = 0;
+        retval = ZERO;
     }
     return retval;
 }
 
 static uint8_t pico_loop_poll(struct pico_device *dev, uint8_t loop_score)
 {
-    uint8_t retval=1;
+    uint8_t retval=ONE;
 
-    if (loop_score <= 0){
-        retval=0;
+    if (loop_score <= ZERO){
+        retval=ZERO;
     }
 
-    if ((l_bufsize > 0)&&(retval==1)) {
+    if ((l_bufsize > ZERO)&&(retval==ONE)) {
         (void)pico_stack_recv(dev, l_buf, (uint32_t)l_bufsize);
-        l_bufsize = 0;
+        l_bufsize = ZERO;
         loop_score--;
     }
     
-    if (retval==1)
+    if (retval==ONE)
     {
         retval = loop_score;
     }
@@ -64,24 +68,28 @@ struct pico_device *pico_loop_create(void)
 {
     struct pico_device *loop = PICO_ZALLOC(sizeof(struct pico_device));
     struct pico_device *retval = NULL;
-    uint8_t checkflag=0; 
+    uint8_t checkflag=ZERO; 
 
     if (!loop){
-        checkflag=1;
+        checkflag=ONE;
     }
 
-    if(( 0 != pico_device_init(loop, "loop", NULL))&&(checkflag==0)) {
+    if(( 0 != pico_device_init(loop, "loop", NULL))&&(checkflag==ZERO)) {
         (void)dbg ("Loop init failed.\n");
         pico_device_destroy(loop);
         retval=NULL;
     }
-    else if(checkflag==0)
+    else if(checkflag==ZERO)
     {
         loop->send = pico_loop_send;
         loop->poll = pico_loop_poll;
         (void)dbg("Device %s created.\n", loop->name);
         retval=loop;
     }
+    else{
+        /*Do nothing*/
+    }
+
     return retval;
 }
 
