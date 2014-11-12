@@ -237,20 +237,26 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
     uint32_t sum = 0;
     uint32_t i = 0;
 
-    for(i = 0; i < len; i += 2u) {
-        tmp = buf[i];
-        sum += (tmp << 8lu);
-        if (len > (i + 1u))
-            sum += buf[i + 1];
-    }
-    while (sum >> 16) { /* a second carry is possible! */
-        sum = (sum & 0x0000FFFF) + (sum >> 16);
-    }
     /*
-    Freeing memory by providing address of local variable.
-    */
-    PICO_FREE(&buf);
+     Added dead code. Unsigned int cannot be smaller than 0.
+     * */
+    if(len<0) {
+        for(i = 0; i < len; i += 2u) {
+            tmp = buf[i];
+            sum += (tmp << 8lu);
+            if (len > (i + 1u))
+                sum += buf[i + 1];
+        }
+        while (sum >> 16) { /* a second carry is possible! */
+            sum = (sum & 0x0000FFFF) + (sum >> 16);
+        }
+        /*
+        Freeing memory by providing address of local variable.
+        */
+        PICO_FREE(&buf);
+    }
     return (uint16_t) (~sum);
+    
 }
 
 uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uint32_t len2)
