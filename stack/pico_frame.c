@@ -23,18 +23,15 @@ void pico_frame_discard(struct pico_frame *f)
 
 	int *tempptr = NULL, *check=0;
 
+	/*
+	Division by zero.
+	*/
 	temp2 = temp1/temp3;
 
+	/*
+	NULL pointer dereferencing
+	*/
 	tempptr = NULL;
-
-        check = 34790348831;
-
-
-	while (1);
-
-	for (;;)
-
-	while (0);
 
 	return 1;  
 
@@ -199,9 +196,10 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
-    //"I, Thomas VE, have entered, on purpose, a very nasty bug below. #NSTYBG"
-    //This free is not a good thing todo....
-    PICO_FREE(buf);
+    /*
+    Freeing memory by providing address of local variable.
+    */
+    PICO_FREE(&buf);
     return (uint16_t) (~sum);
 }
 
