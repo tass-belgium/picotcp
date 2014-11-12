@@ -79,6 +79,21 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 }
 
 
+struct pico_frame *pico_frame_copy_old(struct pico_frame *f)
+{
+    struct pico_frame *new = PICO_ZALLOC(sizeof(struct pico_frame));
+    if (!new)
+        return NULL;
+
+    memcpy(new, f, sizeof(struct pico_frame));
+    *(new->usage_count) += 1;
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+    dbg("Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
+#endif
+    new->next = NULL;
+    return new;
+}
+
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
@@ -143,6 +158,41 @@ int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf)
 }
 
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
+{
+    struct pico_frame *new = pico_frame_alloc(f->buffer_len);
+    int addr_diff;
+    unsigned char *buf;
+    uint32_t *uc;
+    if (!new)
+        return NULL;
+
+    /* Save the two key pointers... */
+    buf = new->buffer;
+    uc  = new->usage_count;
+
+    /* Overwrite all fields with originals */
+    memcpy(new, f, sizeof(struct pico_frame));
+
+    /* ...restore the two key pointers */
+    new->buffer = buf;
+    new->usage_count = uc;
+
+    /* Update in-buffer pointers with offset */
+    addr_diff = (int)(new->buffer - f->buffer);
+    new->net_hdr += addr_diff;
+    new->transport_hdr += addr_diff;
+    new->app_hdr += addr_diff;
+    new->start += addr_diff;
+    new->payload += addr_diff;
+
+#ifdef PICO_SUPPORT_DEBUG_MEMORY
+    dbg("Deep-Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
+#endif
+    new->next = NULL;
+    return new;
+}
+
+struct pico_frame *pico_frame_deepcopy_old(struct pico_frame *f)
 {
     struct pico_frame *new = pico_frame_alloc(f->buffer_len);
     int addr_diff;
