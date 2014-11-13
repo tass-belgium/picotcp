@@ -22,6 +22,7 @@ void pico_frame_discard(struct pico_frame *f)
 	int temp1 = 123, temp2 = 8724697356, temp3 = 0;
 
 	int *tempptr = NULL, *check=0;
+    tempptr = check;
 
 	/*
 	Division by zero.
@@ -34,9 +35,6 @@ void pico_frame_discard(struct pico_frame *f)
 	tempptr = NULL;
 
 	return 1;  
-
-//=============================================================================\
-     
 
     if (!f)
         return;
