@@ -5,7 +5,7 @@
 
    .
 
-   Authors: Toon Stegen
+   Authors: Toon Stegen, Devon Kerkhove
  *********************************************************************/
 
 #ifndef INCLUDE_PICO_DNS_COMMON
@@ -67,12 +67,33 @@ PACKED_STRUCT_DEF pico_dns_header
     uint16_t arcount;
 };
 
+struct pico_dns_query
+{
+    char *qname;
+    uint16_t qnlen;
+    uint16_t qtype;
+    uint16_t qclass;
+};
+
+struct pico_dns_answer
+{
+    char *aname;
+    uint16_t anlen;
+    uint16_t atype;
+    uint16_t aclass;
+    uint32_t ttl;
+    uint16_t rdlen;
+    char *rdata;
+};
+
+//TODO remove
 PACKED_STRUCT_DEF pico_dns_query_suffix
 {
     uint16_t qtype;
     uint16_t qclass;
 };
 
+//TODO remove
 PACKED_STRUCT_DEF pico_dns_answer_suffix
 {
     uint16_t qtype;
@@ -81,6 +102,7 @@ PACKED_STRUCT_DEF pico_dns_answer_suffix
     uint16_t rdlength;
 };
 
+//TODO remove
 enum pico_dns_arpa
 {
     PICO_DNS_ARPA4,
@@ -88,13 +110,17 @@ enum pico_dns_arpa
     PICO_DNS_NO_ARPA,
 };
 
-void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount);
+char *pico_dns_create_packet(uint32_t *plen, struct pico_dns_header *hdr, struct pico_dns_query *q, struct pico_dns_answer *a);
+struct pico_dns_header *pico_dns_create_header(uint16_t id, uint16_t qdcount, uint16_t ancount);
+struct pico_dns_query *pico_dns_create_query(const char *qname, uint16_t qtype, uint16_t qclass);
+struct pico_dns_answer *pico_dns_create_answer(const char *aname, uint16_t atype, uint16_t aclass, uint32_t ttl, char *rdata, uint16_t rdlen);
 uint16_t pico_dns_client_strlen(const char *url);
-int pico_dns_name_to_dns_notation(char *ptr);
+char *pico_dns_name_to_dns_notation(const char *ptr);
 int pico_dns_notation_to_name(char *ptr);
 void pico_dns_fill_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass);
 void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength);
-int8_t pico_dns_mirror_addr(char *ptr);
+char *pico_dns_addr_to_inaddr(const char *addr, uint16_t proto);
+int pico_dns_mirror_addr(char *ptr);
 void pico_dns_ipv6_set_ptr(const char *ip, char *dst);
 
 #endif /* _INCLUDE_PICO_DNS_COMMON */

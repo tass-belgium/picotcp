@@ -4,7 +4,7 @@
 
    .
 
-   Authors: Toon Stegen
+   Authors: Toon Stegen, Devon Kerkhove
  *********************************************************************/
 #include "pico_config.h"
 #include "pico_stack.h"
@@ -16,10 +16,172 @@
 #include "pico_dns_client.h"
 #include "pico_tree.h"
 
-void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount)
+//TODO remove/adjust
+/* determine len of string */
+uint16_t pico_dns_client_strlen(const char *url)
 {
+    if (!url)
+        return 0;
+    return (uint16_t)strlen(url);
+}
 
-    /* hdr->id should be filled by caller */
+/* replace '.' in the domain name by the label length
+ * f.e. www.google.be => 3www6google2be0 */
+char *pico_dns_name_to_dns_notation(const char *ptr)
+{
+    char *dns_url = NULL;
+    char *temp = NULL;
+    char p = 0, *label = NULL;
+    uint8_t len = 0;
+
+    if (!ptr)
+        return NULL;
+
+    dns_url = PICO_ZALLOC(strlen(ptr)+2);
+    if(!dns_url)
+        return NULL;
+    temp = dns_url;
+
+    strcpy(dns_url+1, ptr);
+
+    label = dns_url++;
+    while ((p = *dns_url++) != 0) {
+        if (p == '.') {
+            *label = (char)len;
+            label = dns_url - 1;
+            len = 0;
+        } else {
+            len++;
+        }
+    }
+    *label = (char)len;
+    return temp;
+}
+
+//TODO make const and return new char *
+/* replace the label length in the domain name by '.'
+ * f.e. 3www6google2be0 => .www.google.be */
+int pico_dns_notation_to_name(char *ptr)
+{
+    char p = 0, *label = NULL;
+
+    if (!ptr)
+        return -1;
+
+    label = ptr;
+    while ((p = *ptr++) != 0) {
+        ptr += p;
+        *label = '.';
+        label = ptr;
+    }
+    return 0;
+}
+
+//TODO remove
+void pico_dns_fill_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
+{
+    suf->qtype = short_be(type);
+    suf->qclass = short_be(qclass);
+}
+
+//TODO remove
+void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength)
+{
+    suf->qtype = short_be(qtype);
+    suf->qclass = short_be(qclass);
+    suf->ttl = long_be(ttl);
+    suf->rdlength = short_be(rdlength);
+}
+
+//TODO ipv6 doesn't seem to work properly when mirroring
+char *pico_dns_addr_to_inaddr(const char *addr, uint16_t proto)
+{
+    char *inaddr = NULL;
+    char arpa_suf[14] = { 0 };
+
+    if(!addr)
+        return NULL;
+
+    if(proto == PICO_PROTO_IPV4) {
+        strcpy(arpa_suf, ".in-addr.arpa");
+    }
+#ifdef PICO_SUPPORT_IPV6
+    else if(proto == PICO_PROTO_IPV6) {
+         strcpy(arpa_suf, ".IP6.ARPA");
+    }
+#endif
+
+    inaddr = PICO_ZALLOC(strlen(addr)+strlen(arpa_suf)+1);
+    if(!inaddr)
+        return NULL;
+
+    memcpy(inaddr, addr, strlen(addr));
+    if(proto == PICO_PROTO_IPV4)
+        pico_dns_mirror_addr(inaddr);
+#ifdef PICO_SUPPORT_IPV6
+    else if(proto == PICO_PROTO_IPV6)
+        pico_dns_ipv6_set_ptr(addr, inaddr);
+#endif
+    else
+        return NULL;
+
+    memcpy(inaddr + strlen(inaddr), arpa_suf , strlen(arpa_suf));
+
+    return inaddr;
+}
+
+char *pico_dns_create_packet(uint32_t *plen, struct pico_dns_header *hdr, struct pico_dns_query *q, struct pico_dns_answer *a)
+{
+    char *dns_packet = NULL;
+    uint16_t qlen = 0;
+    uint16_t alen = 0;
+
+    if(!plen || !hdr || (!q && !a))
+        return NULL;
+
+    *plen = (uint32_t) (sizeof(struct pico_dns_header));
+        
+    if(q)
+        qlen = (uint16_t)(q->qnlen + sizeof(q->qtype) + sizeof(q->qclass));
+    if(a)
+        alen = (uint16_t)(a->anlen + sizeof(a->atype) + sizeof(a->aclass) + sizeof(a->ttl) + sizeof(a->rdlen) + short_be(a->rdlen));
+
+    *plen += (uint32_t)(qlen + alen);
+
+    dns_packet = PICO_ZALLOC(*plen);
+
+    if(!dns_packet)
+        return NULL;
+
+    /* Assemble the packet */
+    memcpy(dns_packet, hdr, sizeof(struct pico_dns_header));
+    PICO_FREE(hdr);
+    if(q) {
+        memcpy(dns_packet + sizeof(struct pico_dns_header), q->qname, q->qnlen);
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + q->qnlen, &(q->qtype), sizeof(q->qtype));
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + q->qnlen + sizeof(q->qtype), &(q->qclass), sizeof(q->qclass));
+    }
+    if(a) {
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen, a->aname, a->anlen);
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen + a->anlen, &(a->atype), sizeof(a->atype));
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen + a->anlen + sizeof(a->atype), &(a->aclass), sizeof(a->aclass));
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen + a->anlen + sizeof(a->atype) + sizeof(a->aclass), &(a->ttl), sizeof(a->ttl));
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen + a->anlen + sizeof(a->atype) + sizeof(a->aclass) + sizeof(a->ttl), 
+                            &(a->rdlen), sizeof(a->rdlen));
+        memcpy(dns_packet + sizeof(struct pico_dns_header) + qlen + a->anlen + sizeof(a->atype) + sizeof(a->aclass) + sizeof(a->ttl) + 
+                            sizeof(a->rdlen), a->rdata, short_be(a->rdlen));
+    }
+
+    return dns_packet;
+}
+
+struct pico_dns_header *pico_dns_create_header(uint16_t id, uint16_t qdcount, uint16_t ancount)
+{
+    struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header));
+    if(!hdr)
+        return NULL;
+
+    hdr->id = short_be(id);
 
     if(qdcount > 0) {
         hdr->qr = PICO_DNS_QR_QUERY;
@@ -40,80 +202,88 @@ void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_
     hdr->ancount = short_be(ancount);
     hdr->nscount = short_be(0);
     hdr->arcount = short_be(0);
+
+    return hdr;
 }
 
-/* determine len of string */
-uint16_t pico_dns_client_strlen(const char *url)
+struct pico_dns_query *pico_dns_create_query(const char *name, uint16_t qtype, uint16_t qclass)
 {
-    if (!url)
-        return 0;
-    return (uint16_t)strlen(url);
+    char *qname = NULL;
+    uint16_t qname_len = 0;
+    struct pico_dns_query *query = NULL;
+
+    if(!name)
+        return NULL;
+
+    qname_len = (uint16_t)(strlen(name)+1);
+    qname = PICO_ZALLOC(qname_len);
+    if(!qname)
+        return NULL;
+
+    query = PICO_ZALLOC(sizeof(struct pico_dns_query));
+    if(!query)
+        return NULL;
+
+    qtype = short_be(qtype);
+    qclass = short_be(qclass);
+    strcpy(qname, name);
+
+    query->qname = qname;
+    query->qnlen = qname_len;
+    query->qtype = qtype;
+    query->qclass = qclass;
+
+    return query;
 }
 
-/* replace '.' in the domain name by the label length
- * f.e. www.google.be => 3www6google2be0 */
-int pico_dns_name_to_dns_notation(char *ptr)
+struct pico_dns_answer *pico_dns_create_answer(const char *name, uint16_t atype, uint16_t aclass, uint32_t ttl, char *data, uint16_t rdlen)
 {
-    char p = 0, *label = NULL;
-    uint8_t len = 0;
+    char *aname = NULL;
+    uint16_t aname_len = 0;
+    char *rdata = NULL;
+    struct pico_dns_answer *answer = NULL;
 
-    if (!ptr)
-        return -1;
+    if(!name)
+        return NULL;
+    aname_len = (uint16_t)(strlen(name)+1);
+    aname = PICO_ZALLOC(aname_len);
+    if(!aname)
+        return NULL;
 
-    label = ptr++;
-    while ((p = *ptr++) != 0) {
-        if (p == '.') {
-            *label = (char)len;
-            label = ptr - 1;
-            len = 0;
-        } else {
-            len++;
-        }
-    }
-    *label = (char)len;
-    return 0;
-}
+    rdata = PICO_ZALLOC(rdlen);
+    if(!rdata)
+        return NULL;
 
-/* replace the label length in the domain name by '.'
- * f.e. 3www6google2be0 => .www.google.be */
-int pico_dns_notation_to_name(char *ptr)
-{
-    char p = 0, *label = NULL;
+    answer = PICO_ZALLOC(sizeof(struct pico_dns_answer));
+    if(!answer)
+        return NULL;
 
-    if (!ptr)
-        return -1;
+    strcpy(aname, name);
+    atype = short_be(atype);
+    aclass = short_be(aclass);
+    ttl = long_be(ttl);
+    memcpy(rdata, data, rdlen);
+    rdlen = short_be(rdlen);
 
-    label = ptr;
-    while ((p = *ptr++) != 0) {
-        ptr += p;
-        *label = '.';
-        label = ptr;
-    }
-    return 0;
-}
+    answer->aname = aname;
+    answer->anlen = aname_len;
+    answer->atype = atype;
+    answer->aclass = aclass;
+    answer->ttl = ttl;
+    answer->rdlen = rdlen;
+    answer->rdata = rdata;
 
-void pico_dns_fill_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass)
-{
-    suf->qtype = short_be(type);
-    suf->qclass = short_be(qclass);
-}
-
-void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength)
-{
-    suf->qtype = short_be(qtype);
-    suf->qclass = short_be(qclass);
-    suf->ttl = long_be(ttl);
-    suf->rdlength = short_be(rdlength);
+    return answer;
 }
 
 /* mirror ip address numbers
  * f.e. 192.168.0.1 => 1.0.168.192 */
-int8_t pico_dns_mirror_addr(char *ptr)
+int pico_dns_mirror_addr(char *ptr)
 {
     const unsigned char *addr = NULL;
     char *m = ptr;
     uint32_t ip = 0;
-    int8_t i = 0;
+    int i = 0;
 
     if (pico_string_to_ipv4(ptr, &ip) < 0)
         return -1;
