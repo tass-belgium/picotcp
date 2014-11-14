@@ -31,8 +31,6 @@
 #define PICO_MDNS_PACKET_ID 0
 #define PICO_MDNS_DEFAULT_TTL 224
 
-// TODO check for mem leaks!! 
-
 static struct pico_ip4 inaddr_any = {
     0
 };
@@ -172,6 +170,7 @@ static int pico_mdns_del_cookie(char *qname, uint16_t qtype)
     test.q = q;
 
     found = pico_tree_findKey(&QTable, &test);
+    PICO_FREE(q);
 
     if (!found) {
         mdns_dbg("Could not find cookie '%s' to delete\n", q->qname);
@@ -179,6 +178,7 @@ static int pico_mdns_del_cookie(char *qname, uint16_t qtype)
     }
 
     pico_tree_delete(&QTable, found);
+    PICO_FREE(found->q);
     PICO_FREE(found);
 
     return 0;
@@ -279,7 +279,6 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
     strcpy(temp+1, url);
     pico_to_lowercase(temp);
     test.url = temp;
-    pico_dns_name_to_dns_notation(test.url);
 
     mdns_dbg("Looking for '%s' with qtype '%d' in cache\n", url, qtype);
 
@@ -319,7 +318,6 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 
     memcpy(rr_url+1, url, strlen(url));
     rr->url = rr_url;
-    pico_dns_name_to_dns_notation(rr->url);
     memcpy(rr_suf, suf, sizeof(struct pico_dns_answer_suffix));
     rr->suf = rr_suf;
     rr->suf->qtype = short_be(rr->suf->qtype);
@@ -361,7 +359,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 /* look for a cookie in the tree */
 static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *qname, uint16_t qtype)
 {
-    struct pico_mdns_cookie test;
+    struct pico_mdns_cookie test, *found = NULL;
     struct pico_dns_query *q = NULL;
 
     if(!qname)
@@ -375,9 +373,10 @@ static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *qname, uint16_
     q->qtype = qtype;
 
     test.q = q;
-    return pico_tree_findKey(&QTable, &test);
+    found = pico_tree_findKey(&QTable, &test);
+    PICO_FREE(q);
+    return found;
 }
-
 
 #ifdef PICO_SUPPORT_IPV6
 static struct pico_ip6 *pico_get_ip6_from_ip4(struct pico_ip4 *ipv4_addr)
@@ -435,12 +434,14 @@ static int pico_mdns_reply_query(uint16_t qtype, struct pico_ip4 peer, char *nam
     if(qtype == PICO_DNS_TYPE_PTR) {
         dns_name = pico_dns_name_to_dns_notation(name);
         answer = pico_dns_create_answer(dns_name, qtype, PICO_DNS_CLASS_IN, PICO_MDNS_DEFAULT_TTL, mdns_global_host, (uint16_t)(strlen(mdns_global_host)+1));
+        PICO_FREE(dns_name);
     }
     if(!answer)
         return -1;
 
     dns_packet = pico_dns_create_packet(&plen, header, NULL, answer);
 
+    mdns_dbg("Replying for '%s'\n", name);
     if(pico_mdns_send(dns_packet, plen) != (int)plen) {
         mdns_dbg("Send error occurred!\n");
         return -1;
@@ -474,6 +475,7 @@ static int pico_check_query_name(char *url)
     pico_ipv4_to_string(addr, mdns_sock->local_addr.ip4.addr);
     inaddr = pico_dns_addr_to_inaddr(addr, PICO_PROTO_IPV4);
     if(strcmp(url, inaddr) == 0) {
+        PICO_FREE(dns_url);
         PICO_FREE(inaddr);
         return 1;
     }
@@ -565,6 +567,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     }
     pico_timer_cancel(ck->timer);
     pico_mdns_del_cookie(dns_url, suf->qtype);
+    PICO_FREE(dns_url);
 
     return 0;
 }
@@ -1088,7 +1091,6 @@ int pico_mdns_getaddr6(const char *url, void (*callback)(char *ip, void *arg), v
     }
 }
 
-// TODO inaddr for ipv6 has a bug in mirroring the IP
 int pico_mdns_getname6(const char *ip, void (*callback)(char *url, void *arg), void *arg)
 {
     return pico_mdns_getname_generic(ip, callback, arg, PICO_PROTO_IPV6);

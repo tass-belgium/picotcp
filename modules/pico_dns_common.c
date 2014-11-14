@@ -93,25 +93,27 @@ void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype,
     suf->rdlength = short_be(rdlength);
 }
 
-//TODO ipv6 doesn't seem to work properly when mirroring
 char *pico_dns_addr_to_inaddr(const char *addr, uint16_t proto)
 {
     char *inaddr = NULL;
     char arpa_suf[14] = { 0 };
+    uint8_t inaddr_len = 0;
 
     if(!addr)
         return NULL;
 
     if(proto == PICO_PROTO_IPV4) {
         strcpy(arpa_suf, ".in-addr.arpa");
+        inaddr_len = strlen(addr);
     }
 #ifdef PICO_SUPPORT_IPV6
     else if(proto == PICO_PROTO_IPV6) {
-         strcpy(arpa_suf, ".IP6.ARPA");
+         strcpy(arpa_suf, "IP6.ARPA");
+         inaddr_len = STRLEN_PTR_IP6 + 1;
     }
 #endif
 
-    inaddr = PICO_ZALLOC(strlen(addr)+strlen(arpa_suf)+1);
+    inaddr = PICO_ZALLOC(inaddr_len+strlen(arpa_suf)+1);
     if(!inaddr)
         return NULL;
 
@@ -125,7 +127,7 @@ char *pico_dns_addr_to_inaddr(const char *addr, uint16_t proto)
     else
         return NULL;
 
-    memcpy(inaddr + strlen(inaddr), arpa_suf , strlen(arpa_suf));
+    memcpy(inaddr + strlen(inaddr), arpa_suf, strlen(arpa_suf));
 
     return inaddr;
 }
@@ -311,7 +313,6 @@ int pico_dns_mirror_addr(char *ptr)
 }
 
 #ifdef PICO_SUPPORT_IPV6
-#define STRLEN_PTR_IP6 63
 
 static inline char dns_ptr_ip6_nibble_lo(uint8_t byte)
 {
