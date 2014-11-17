@@ -9,11 +9,11 @@
 
 #define PICO_MDNS_DEST_ADDR4 "224.0.0.251"
 
+int pico_mdns_flush_cache(void);
 int pico_mdns_init(char *hostname, void (*cb_initialised)(char *str, void *arg), void *arg);
 int pico_mdns_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg);
 int pico_mdns_getname(const char *ip, void (*callback)(char *url, void *arg), void *arg);
-int pico_mdns_flush_cache(void);
-int pico_mdns_getservice(const char *url, void (*callback)(char *ip, void *arg), void *arg);
+int pico_mdns_getservicename(const char *url, void (*callback)(char *ip, void *arg), void *arg);
 
 #ifdef PICO_SUPPORT_IPV6
 #define PICO_MDNS_DEST_ADDR6 "FF02::FB"

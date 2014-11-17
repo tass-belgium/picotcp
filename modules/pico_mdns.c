@@ -1072,10 +1072,12 @@ int pico_mdns_getname(const char *ip, void (*callback)(char *url, void *arg), vo
     return pico_mdns_getname_generic(ip, callback, arg, PICO_PROTO_IPV4);
 }
 
-int pico_mdns_getservice(const char *url, void (*callback)(char *ip, void *arg), void *arg)
+int pico_mdns_getservicename(const char *url, void (*callback)(char *ip, void *arg), void *arg)
 {
     char *service = NULL;
-    char *domain = ".local";
+    char domain[] = ".local";
+    uint8_t dom_len = (uint8_t)strlen(domain);
+    uint8_t url_len = 0;
 
     if (!url) {
         pico_err = PICO_ERR_EINVAL;
@@ -1092,13 +1094,15 @@ int pico_mdns_getservice(const char *url, void (*callback)(char *ip, void *arg),
      * Send query for IP of SIN
      * Receive SRV & TXT with info about SIN
      */
-    service = PICO_ZALLOC(strlen(url) + strlen(domain) + 1);
+
+    url_len = (uint8_t)strlen(url);
+
+    service = PICO_ZALLOC((size_t)(url_len + dom_len +1));
     if(!service)
         return -1;
     strcpy(service, url);
     strcpy(service+strlen(url), domain);
     pico_mdns_getaddr_generic(service, callback, arg, PICO_PROTO_IPV4, PICO_DNS_TYPE_PTR);
-
 
     return 0;
 }

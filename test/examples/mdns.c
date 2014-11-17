@@ -5,6 +5,16 @@
 
 #ifdef PICO_SUPPORT_MDNS
 
+void mdns_getservicename_callback(char *str, void *arg)
+{
+    (void) arg;
+    if (!str)
+        printf("Getservicename: timeout occurred!\n");
+    else
+        printf("Getservicename callback called, str: %s\n", str);
+
+    //exit(0);
+}
 void mdns_getname6_callback(char *str, void *arg)
 {
     (void) arg;
@@ -13,9 +23,9 @@ void mdns_getname6_callback(char *str, void *arg)
     else
         printf("Getname6 callback called, str: %s\n", str);
 
-    exit(0);
+    if(pico_mdns_getservicename("_printer._tcp.local", &mdns_getservicename_callback, NULL) != 0)
+        printf("Getservicename returned with error!\n");
 }
-
 void mdns_getaddr6_callback(char *str, void *arg)
 {
     (void) arg;
@@ -65,8 +75,10 @@ void mdns_init_callback(char *str, void *arg)
         exit(-1);
     }
 
-    if(pico_mdns_getaddr(peername, &mdns_getaddr_callback, peername) != 0)
-        printf("Getaddr returned with error!\n");
+    /*if(pico_mdns_getaddr(peername, &mdns_getaddr_callback, peername) != 0)
+        printf("Getaddr returned with error!\n");*/
+    if(pico_mdns_getservicename("_printer._tcp", &mdns_getservicename_callback, NULL) != 0)
+        printf("Getservicename returned with error!\n");
 }
 
 void app_mdns(char *arg)
