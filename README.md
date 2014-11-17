@@ -19,7 +19,7 @@ For more information, visit [the project's website](http://www.picotcp.com)
 Continuous integration
 
 Jenkins Functional tests: 
-[![Jenkins autotest](http://162.13.84.104:8080/job/PicoTCP_dev_autotest/)](http://162.13.84.104:8080/job/PicoTCP_dev_autotest)
+[![Jenkins autotest](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_dev_autotest/)](http://162.13.84.104:8080/job/PicoTCP_dev_autotest)
 
 Jenkins Unit tests      : 
 [![Jenkins unit tests](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_dev_unit_tests)](http://162.13.84.104:8080/job/PicoTCP_dev_unit_tests/)
