@@ -19,16 +19,16 @@ For more information, visit [the project's website](http://www.picotcp.com)
 Continuous integration
 
 Jenkins Functional tests: 
-[![Jenkins autotest](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_autotest)](https://http://162.13.84.104:8080/job/PicoTCP_autotest)
+[![Jenkins autotest](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_rel_autotest)](http://162.13.84.104:8080/job/PicoTCP_rel_autotest)
 
 Jenkins Unit tests      : 
-[![Jenkins unit tests](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_unit_tests)](http://162.13.84.104:8080/job/PicoTCP_unit_tests)
+[![Jenkins unit tests](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_rel_unit_tests)](http://162.13.84.104:8080/job/PicoTCP_rel_unit_tests)
 
 Jenkins RFC compliance  :
-[![Jenkins RFC Compliance](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_RF_mbed)](http://162.13.84.104:8080/job/PicoTCP_RF_mbed)
+[![Jenkins RFC Compliance](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_rel_RF_mbed)](http://162.13.84.104:8080/job/PicoTCP_rel_RF_mbed)
 
 Jenkins TICS quality    :
-[![Jenkins TICS](http://162.13.84.104:8080/buildStatus/icon?job=TICS_PICOTCP)](http://162.13.84.104:8080/job/TICS_PicoTCP/)
+[![Jenkins TICS](http://162.13.84.104:8080/buildStatus/icon?job=PicoTCP_rel_TICS)](http://162.13.84.104:8080/job/PicoTCP_rel_TICS/)
 
 Travis: 
 [![Travis CI build status](https://api.travis-ci.org/tass-belgium/picotcp.svg)](https://travis-ci.org/tass-belgium/picotcp)
