@@ -18,8 +18,8 @@
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
-#define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+/* #define dns_dbg(...) do {} while(0) */
+#define dns_dbg dbg
 
 /* DNS response length */
 #define PICO_DNS_MAX_QUERY_LEN 255
@@ -715,6 +715,8 @@ int pico_dns_client_getname6(const char *ip, void (*callback)(char *, void *), v
 
 int pico_dns_client_nameserver(struct pico_ip4 *ns, uint8_t flag)
 {
+    dns_dbg("nameserver call\n");
+
     if (!ns) {
         pico_err = PICO_ERR_EINVAL;
         return -1;

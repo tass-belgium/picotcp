@@ -104,7 +104,7 @@ char *pico_dns_addr_to_inaddr(const char *addr, uint16_t proto)
 
     if(proto == PICO_PROTO_IPV4) {
         strcpy(arpa_suf, ".in-addr.arpa");
-        inaddr_len = strlen(addr);
+        inaddr_len = (uint8_t)strlen(addr);
     }
 #ifdef PICO_SUPPORT_IPV6
     else if(proto == PICO_PROTO_IPV6) {

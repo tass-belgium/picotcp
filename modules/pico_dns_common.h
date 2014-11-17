@@ -16,8 +16,10 @@
 /* QTYPE values */
 #define PICO_DNS_TYPE_A 1
 #define PICO_DNS_TYPE_CNAME 5
-#define PICO_DNS_TYPE_AAAA 28
 #define PICO_DNS_TYPE_PTR 12
+#define PICO_DNS_TYPE_TXT 16
+#define PICO_DNS_TYPE_AAAA 28
+#define PICO_DNS_TYPE_SRV 33
 #define PICO_DNS_TYPE_ANY 255
 
 
