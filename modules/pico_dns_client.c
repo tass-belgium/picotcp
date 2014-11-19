@@ -234,7 +234,8 @@ static int pico_dns_client_query_header(struct pico_dns_header *hdr)
         return -1;
 
     hdr->id = short_be(id);
-    pico_dns_create_header(hdr, 1, 0); /* 1 question, 0 answers */
+    //TODO
+    //pico_dns_create_header(hdr, 1, 0); /* 1 question, 0 answers */
 
     return 0;
 }
@@ -280,7 +281,7 @@ static int pico_dns_client_check_asuffix(struct pico_dns_answer_suffix *suf, str
     }
 
     if (long_be(suf->ttl) > PICO_DNS_MAX_TTL) {
-        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", short_be(suf->ttl), PICO_DNS_MAX_TTL);
+        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", long_be(suf->ttl), PICO_DNS_MAX_TTL);
         return -1;
     }
 
