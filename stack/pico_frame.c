@@ -157,14 +157,10 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     return new;
 }
 
-/**
- * Calculate checksum of a given string
- */
-uint16_t pico_checksum(void *inbuf, uint32_t len)
+static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t len)
 {
-    uint8_t *buf = (uint8_t *) inbuf;
+    uint8_t *buf = (uint8_t *) data;
     uint32_t tmp = 0;
-    uint32_t sum = 0;
     uint32_t i = 0;
 
     for(i = 0; i < len; i += 2u) {
@@ -173,6 +169,19 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
         if (len > (i + 1u))
             sum += buf[i + 1];
     }
+
+    return sum;
+}
+
+/**
+ * Calculate checksum of a given string
+ */
+uint16_t pico_checksum(void *inbuf, uint32_t len)
+{
+    uint32_t sum;
+
+    sum = pico_checksum_adder(0, inbuf, len);
+
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
@@ -181,24 +190,11 @@ uint16_t pico_checksum(void *inbuf, uint32_t len)
 
 uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uint32_t len2)
 {
-    uint8_t *b1 = (uint8_t *) inbuf1;
-    uint8_t *b2 = (uint8_t *) inbuf2;
-    uint32_t tmp = 0;
-    uint32_t sum = 0;
-    uint32_t i = 0;
+    uint32_t sum;
 
-    for(i = 0; i < len1; i += 2u) {
-        tmp = b1[i];
-        sum += (tmp << 8lu);
-        if (len1 > (i + 1u))
-            sum += b1[i + 1];
-    }
-    for(i = 0; i < len2; i += 2u) {
-        tmp = b2[i];
-        sum += (tmp << 8lu);
-        if (len2 > (i + 1u))
-            sum += b2[i + 1];
-    }
+    sum = pico_checksum_adder(0, inbuf1, len1);
+    sum = pico_checksum_adder(sum, inbuf2, len2);
+
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
