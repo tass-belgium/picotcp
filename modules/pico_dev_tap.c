@@ -122,12 +122,12 @@ struct pico_device *pico_tap_create(char *name)
         return NULL;
     }
 
-    if (tap_get_mac(name, mac) < 0) { 
+    if (tap_get_mac(name, mac) < 0) {
         dbg("Tap mac query failed.\n");
         pico_tap_destroy((struct pico_device *)tap);
         return NULL;
     }
-    
+
     mac[5]++;
 
     if( 0 != pico_device_init((struct pico_device *)tap, name, mac)) {

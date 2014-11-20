@@ -22,7 +22,7 @@
 
 #include <Windows.h>
 #include <Winreg.h>
-#include <winioctl.h> 
+#include <winioctl.h>
 #include "pico_dev_tap_windows_private.h"
 
 /*
@@ -42,7 +42,7 @@
 #define DEV_TYPE_TAP   3    /* ethernet (802.3) tunnel */
 
 
-/* 
+/*
  * We try to do all Win32 I/O using overlapped
  * (i.e. asynchronous) I/O for a performance win.
  */
@@ -76,7 +76,7 @@ struct tuntap
   int post_open_mtu;
   uint8_t mac[6];
 
-  /* Windows stuff */ 
+  /* Windows stuff */
   DWORD adapter_index; /*adapter index for TAP-Windows adapter, ~0 if undefined */
   HANDLE hand;
   struct overlapped_io reads;  /* for overlapped IO */
@@ -183,7 +183,7 @@ const struct tap_reg * get_tap_reg (void)
         dbg_reg("Error opening registry key: %s\\%s\n", unit_string, component_id_string);
       }
       else
-      {	      
+      {
         len = sizeof (net_cfg_instance_id);
         status = RegQueryValueEx(
             unit_key,
@@ -679,11 +679,11 @@ int tun_read_queue (struct tuntap *tt, uint8_t * buffer, int maxsize)
 
             dbg_win32 ("WIN32 I/O: TAP Read immediate return [%d,%d]\n",
                     (int) len,
-                    (int) tt->reads.size);	       
+                    (int) tt->reads.size);
         }
         else
         {
-            err = GetLastError (); 
+            err = GetLastError ();
             if (err == ERROR_IO_PENDING) /* operation queued? */
             {
                 tt->reads.iostate = IOSTATE_QUEUED;
@@ -826,11 +826,11 @@ int tun_write_queue (struct tuntap *tt, uint8_t *buf, uint32_t buf_len)
 
             dbg_win32 ("WIN32 I/O: TAP Write immediate return [%d,%d]\n",
                     (int)(tt->writes.buf_len),
-                    (int)tt->writes.size);	       
+                    (int)tt->writes.size);
         }
         else
         {
-            err = GetLastError (); 
+            err = GetLastError ();
             if (err == ERROR_IO_PENDING) /* operation queued? */
             {
                 tt->writes.iostate = IOSTATE_QUEUED;
@@ -1014,7 +1014,7 @@ void init_tun_post (struct tuntap *tt)
 /*
  * Public interface: pico_tap_create
  * TODO: pico_tap_destroy
- */ 
+ */
 
 struct pico_device *pico_tap_create(char *name, uint8_t *mac)
 {
