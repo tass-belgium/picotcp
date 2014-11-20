@@ -4,6 +4,7 @@
 #include "pico_ipv6.h"
 #include "pico_tcp.h"
 
+#define ZERO_U16 (uint16_t)0
 
 static int sockopt_validate_args(struct pico_socket *s,  void *value)
 {
@@ -12,7 +13,7 @@ static int sockopt_validate_args(struct pico_socket *s,  void *value)
         return -1;
     }
 
-    if (s->proto->proto_number != PICO_PROTO_TCP) {
+    if (s->proto->proto_number != (uint8_t)PICO_PROTO_TCP) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
     }
@@ -22,8 +23,9 @@ static int sockopt_validate_args(struct pico_socket *s,  void *value)
 
 int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
 {
-    if (sockopt_validate_args(s, value) < 0)
+    if (sockopt_validate_args(s, value) < 0){
         return -1;
+    }
 
 #ifdef PICO_SUPPORT_TCP
     if (option == PICO_TCP_NODELAY) {
@@ -38,6 +40,9 @@ int pico_getsockopt_tcp(struct pico_socket *s, int option, void *value)
     else if (option == PICO_SOCKET_OPT_SNDBUF) {
         return pico_tcp_get_bufsize_out(s, (uint32_t *)value);
     }
+    else{
+        /* Do nothing */
+    }
 
 #endif
     return -1;
@@ -49,7 +54,8 @@ static void tcp_set_nagle_option(struct pico_socket *s, void *value)
     if (*val > 0) {
         dbg("setsockopt: Nagle algorithm disabled.\n");
         PICO_SOCKET_SETOPT_EN(s, PICO_SOCKET_OPT_TCPNODELAY);
-    } else {
+    } 
+    else {
         dbg("setsockopt: Nagle algorithm enabled.\n");
         PICO_SOCKET_SETOPT_DIS(s, PICO_SOCKET_OPT_TCPNODELAY);
     }
@@ -57,8 +63,9 @@ static void tcp_set_nagle_option(struct pico_socket *s, void *value)
 
 int pico_setsockopt_tcp(struct pico_socket *s, int option, void *value)
 {
-    if (sockopt_validate_args(s, value) < 0)
+    if (sockopt_validate_args(s, value) < 0){
         return -1;
+    }
 
 #ifdef PICO_SUPPORT_TCP
     if (option ==  PICO_TCP_NODELAY) {
@@ -67,14 +74,17 @@ int pico_setsockopt_tcp(struct pico_socket *s, int option, void *value)
     }
     else if (option == PICO_SOCKET_OPT_RCVBUF) {
         uint32_t *val = (uint32_t*)value;
-        pico_tcp_set_bufsize_in(s, *val);
+        (void)pico_tcp_set_bufsize_in(s, *val);
         return 0;
     }
     else if (option == PICO_SOCKET_OPT_SNDBUF) {
         uint32_t *val = (uint32_t*)value;
-        pico_tcp_set_bufsize_out(s, *val);
+        (void)pico_tcp_set_bufsize_out(s, *val);
         return 0;
     }
+    else{
+        /* Do nothing */
+    }   
 
 #endif
     pico_err = PICO_ERR_EINVAL;
@@ -85,8 +95,9 @@ void pico_socket_tcp_cleanup(struct pico_socket *sock)
 {
 #ifdef PICO_SUPPORT_TCP
     /* for tcp sockets go further and clean the sockets inside queue */
-    if(sock->proto == &pico_proto_tcp)
+    if(sock->proto == &pico_proto_tcp){
         pico_tcp_cleanup_queues(sock);
+    }
 
 #endif
 }
@@ -95,8 +106,9 @@ void pico_socket_tcp_cleanup(struct pico_socket *sock)
 void pico_socket_tcp_delete(struct pico_socket *s)
 {
 #ifdef PICO_SUPPORT_TCP
-    if(s->parent)
+    if(s->parent){
         s->parent->number_of_pending_conn--;
+    }
 
 #endif
 }
@@ -117,11 +129,14 @@ static struct pico_socket *socket_tcp_deliver_ipv4(struct pico_socket *s, struct
         ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))) { /* Either local socket is ANY, or matches dst */
         found = s;
         return found;
-    } else if ((s->remote_port == 0)  && /* not connected... listening */
+    } else if ((s->remote_port == ZERO_U16)  && /* not connected... listening */
                ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr))) { /* Either local socket is ANY, or matches dst */
         /* listen socket */
         found = s;
     }
+    else{
+        /* Do nothing */
+    } 
 
     #endif
     return found;
@@ -143,11 +158,14 @@ static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct
         ((!memcmp(s_local.addr, PICO_IP6_ANY, PICO_SIZE_IP6)) || (!memcmp(s_local.addr, p_dst.addr, PICO_SIZE_IP6)))) {
         found = s;
         return found;
-    } else if ((s->remote_port == 0)  && /* not connected... listening */
+    } else if ((s->remote_port == ZERO_U16)  && /* not connected... listening */
                ((!memcmp(s_local.addr, PICO_IP6_ANY, PICO_SIZE_IP6)) || (!memcmp(s_local.addr, p_dst.addr, PICO_SIZE_IP6)))) {
         /* listen socket */
         found = s;
     }
+    else{
+        /* Do nothing */
+    } 
 
     #else
     (void) s;
@@ -159,11 +177,11 @@ static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct
 static int socket_tcp_do_deliver(struct pico_socket *s, struct pico_frame *f)
 {
     if (s != NULL) {
-        pico_tcp_input(s, f);
+        (void)pico_tcp_input(s, f);
         if ((s->ev_pending) && s->wakeup) {
             s->wakeup(s->ev_pending, s);
             if(!s->parent)
-                s->ev_pending = 0;
+                s->ev_pending = ZERO_U16;
         }
 
         return 0;
@@ -192,8 +210,9 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
             found = socket_tcp_deliver_ipv6(s, f);
         }
 
-        if (found)
+        if (found){
             break;
+        }
     } /* FOREACH */
 
     return socket_tcp_do_deliver(found, f);
