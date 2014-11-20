@@ -19,7 +19,8 @@ struct pico_socket *pico_socket_udp_open(void)
     }
 
     s->proto = &pico_proto_udp;
-    s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
+    s->q_in.overhead = UDP_FRAME_OVERHEAD;
+    s->q_out.overhead = UDP_FRAME_OVERHEAD;
 #endif
     return s;
 }
@@ -33,9 +34,9 @@ static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_
 
     ip4hdr = (struct pico_ipv4_hdr*)(f->net_hdr);
     p_dst.addr = ip4hdr->dst.addr;
-    if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0))
+    if (pico_ipv4_is_multicast(p_dst.addr) && (pico_socket_mcast_filter(s, (union pico_address *)&ip4hdr->dst, (union pico_address *)&ip4hdr->src) < 0)){
         return -1;
-
+    }
 
     if ((pico_ipv4_link_get(&ip4hdr->src)) && (PICO_SOCKET_GETOPT(s, PICO_SOCKET_OPT_MULTICAST_LOOP) == 0u)) {
         /* Datagram from ourselves, Loop disabled, discarding. */
@@ -54,23 +55,25 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
 
     s_local.addr = s->local_addr.ip4.addr;
 
-    if (pico_socket_udp_deliver_ipv4_mcast_initial_checks(s, f) < 0)
+    if (pico_socket_udp_deliver_ipv4_mcast_initial_checks(s, f) < 0){
         return 0;
-
-
+    }
 
     if ((s_local.addr == PICO_IPV4_INADDR_ANY) || /* If our local ip is ANY, or.. */
         (dev == f->dev)) {     /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
-        if (!cpy)
+        if (!cpy){
             return -1;
+        }
 
         if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
+            if (s->wakeup){
                 s->wakeup(PICO_SOCK_EV_RD, s);
+            }
         }
-        else
+        else{
             pico_frame_discard(cpy);
+        }
     }
 
     return 0;
@@ -81,19 +84,20 @@ static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pi
     struct pico_frame *cpy;
     /* Either local socket is ANY, or matches dst */
     cpy = pico_frame_copy(f);
-    if (!cpy)
+    if (!cpy){
         return -1;
+    }
 
     if (pico_enqueue(&s->q_in, cpy) > 0) {
-        if (s->wakeup)
+        if (s->wakeup){
             s->wakeup(PICO_SOCK_EV_RD, s);
+        }
     } else {
         pico_frame_discard(cpy);
     }
 
     return 0;
 }
-
 
 static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame *f)
 {
@@ -107,6 +111,8 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
         ret = pico_socket_udp_deliver_ipv4_mcast(s, f);
     } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr)) {
         ret = pico_socket_udp_deliver_ipv4_unicast(s, f);
+    }else{
+        /* Do nothing */
     }
 
     pico_frame_discard(f);
@@ -132,15 +138,18 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
     if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || /* If our local ip is ANY, or.. */
         (dev == f->dev)) {     /* the source of the bcast packet is a neighbor... */
         cpy = pico_frame_copy(f);
-        if (!cpy)
+        if (!cpy){
             return -1;
+        }
 
         if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
+            if (s->wakeup){
                 s->wakeup(PICO_SOCK_EV_RD, s);
+            }
         }
-        else
+        else{
             pico_frame_discard(cpy);
+        }
     }
 
     return 0;
@@ -159,12 +168,14 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
     } else if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || (pico_ipv6_compare(&s_local, &p_dst) == 0))
     { /* Either local socket is ANY, or matches dst */
         cpy = pico_frame_copy(f);
-        if (!cpy)
+        if (!cpy){
             return -1;
+        }
 
         if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
+            if (s->wakeup){
                 s->wakeup(PICO_SOCK_EV_RD, s);
+            }
         }
     }
 
@@ -195,8 +206,9 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
         }
     } /* FOREACH */
     pico_frame_discard(f);
-    if (s)
+    if (s){
         return 0;
+    }
 
     pico_err = PICO_ERR_ENXIO;
   #endif
@@ -212,6 +224,8 @@ int pico_setsockopt_udp(struct pico_socket *s, int option, void *value)
     case PICO_SOCKET_OPT_SNDBUF:
         s->q_out.max_size = (*(uint32_t*)value);
         return 0;
+    default: /* Do nothing */
+        break;
     }
 
     /* switch's default */
@@ -233,6 +247,8 @@ int pico_getsockopt_udp(struct pico_socket *s, int option, void *value)
     case PICO_SOCKET_OPT_SNDBUF:
         *val = s->q_out.max_size;
         return 0;
+    default: /* Do nothing */
+        break;
     }
 
     /* switch's default */
