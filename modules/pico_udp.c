@@ -25,6 +25,7 @@ static struct pico_queue udp_out = {
     0
 };
 
+#define ZERO_U16 (uint16_t)0
 
 /* Functions */
 
@@ -47,8 +48,8 @@ uint16_t pico_udp_checksum_ipv4(struct pico_frame *f)
         pseudo.dst.addr = hdr->dst.addr;
     }
 
-    pseudo.zeros = 0;
-    pseudo.proto = PICO_PROTO_UDP;
+    pseudo.zeros = (uint8_t)0;
+    pseudo.proto = (uint8_t)PICO_PROTO_UDP;
     pseudo.len = short_be(f->transport_len);
 
     return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv4_pseudo_hdr), udp_hdr, f->transport_len);
@@ -68,10 +69,12 @@ uint16_t pico_udp_checksum_ipv6(struct pico_frame *f)
     if (s) {
         /* Case of outgoing frame */
         pseudo.src = s->local_addr.ip6;
-        if (remote_endpoint)
+        if (remote_endpoint){
             pseudo.dst = remote_endpoint->remote_addr.ip6;
-        else
+        }
+        else{
             pseudo.dst = s->remote_addr.ip6;
+        }
     } else {
         /* Case of incomming frame */
         pseudo.src = ipv6_hdr->src;
@@ -79,7 +82,7 @@ uint16_t pico_udp_checksum_ipv6(struct pico_frame *f)
     }
 
     pseudo.len = long_be(f->transport_len);
-    pseudo.nxthdr = PICO_PROTO_UDP;
+    pseudo.nxthdr = (uint8_t)PICO_PROTO_UDP;
 
     return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv6_pseudo_hdr), udp_hdr, f->transport_len);
 }
@@ -113,11 +116,11 @@ static int pico_udp_push(struct pico_protocol *self, struct pico_frame *f)
            implemented to calculate the CRC over the total payload of a
            fragmented payload
          */
-        hdr->crc = 0;
+        hdr->crc = ZERO_U16;
     }
 
     if (pico_enqueue(self->q_out, f) > 0) {
-        return f->payload_len;
+        return (int)f->payload_len;
     } else {
         return 0;
     }
@@ -140,13 +143,14 @@ struct pico_protocol pico_proto_udp = {
 struct pico_socket *pico_udp_open(void)
 {
     struct pico_socket_udp *u = PICO_ZALLOC(sizeof(struct pico_socket_udp));
-    if (!u)
+    if (!u){
         return NULL;
+    }
 
     u->mode = PICO_UDP_MODE_UNICAST;
 
 #ifdef PICO_SUPPORT_MCAST
-    u->mc_ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
+    u->mc_ttl = (uint8_t)PICO_IP_DEFAULT_MULTICAST_TTL;
     /* enable multicast loopback by default */
     u->sock.opt_flags |= (1 << PICO_SOCKET_OPT_MULTICAST_LOOP);
 #endif
@@ -164,8 +168,9 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
         }
 
         udp_dbg("expected: %d, got: %d\n", len, f->payload_len);
-        if (src)
+        if (src){
             pico_store_network_origin(src, f);
+        }
 
         if (port) {
             struct pico_trans *hdr = (struct pico_trans *)f->transport_hdr;
@@ -173,17 +178,20 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
         }
 
         if (f->payload_len > len) {
-            memcpy(buf, f->payload, len);
+            (void)memcpy(buf, f->payload, len);
             f->payload += len;
             f->payload_len = (uint16_t)(f->payload_len - len);
             return len;
         } else {
             uint16_t ret = f->payload_len;
-            memcpy(buf, f->payload, f->payload_len);
+            (void)memcpy(buf, f->payload, f->payload_len);
             f = pico_dequeue(&s->q_in);
             pico_frame_discard(f);
             return ret;
         }
-    } else return 0;
+    } 
+    else{
+        return ZERO_U16;
+    }
 }
 

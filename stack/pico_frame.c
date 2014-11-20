@@ -15,24 +15,30 @@
 static int n_frames_allocated;
 #endif
 
+#define ONE_U32 (uint32_t)1
+#define ZERO_U32 (uint32_t)0
+
 /** frame alloc/dealloc/copy **/
 void pico_frame_discard(struct pico_frame *f)
 {
-    if (!f)
+    if (!f){
         return;
+    }
 
     (*f->usage_count)--;
-    if (*f->usage_count <= 0) {
+    if (*f->usage_count <= ZERO_U32) {
         PICO_FREE(f->usage_count);
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
         dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
         dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
 #endif
-        if (!(f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
+        if (!(f->flags & (uint8_t)PICO_FRAME_FLAG_EXT_BUFFER)){
             PICO_FREE(f->buffer);
+        }
 
-        if (f->info)
+        if (f->info){
             PICO_FREE(f->info);
+        }
     }
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
@@ -46,11 +52,12 @@ void pico_frame_discard(struct pico_frame *f)
 struct pico_frame *pico_frame_copy(struct pico_frame *f)
 {
     struct pico_frame *new = PICO_ZALLOC(sizeof(struct pico_frame));
-    if (!new)
+    if (!new){
         return NULL;
+    }
 
-    memcpy(new, f, sizeof(struct pico_frame));
-    *(new->usage_count) += 1;
+    (void)memcpy(new, f, sizeof(struct pico_frame));
+    *(new->usage_count) += ONE_U32;
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
     dbg("Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
 #endif
@@ -62,8 +69,9 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
-    if (!p)
+    if (!p){
         return NULL;
+    }
 
     if (!zerocopy) {
         p->buffer = PICO_ZALLOC(size);
@@ -77,8 +85,9 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
 
     p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     if (!p->usage_count) {
-        if (p->buffer && !ext_buffer)
+        if (p->buffer && !ext_buffer){
             PICO_FREE(p->buffer);
+        }
 
         PICO_FREE(p);
         return NULL;
@@ -86,14 +95,14 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
 
     p->buffer_len = size;
 
-
     /* By default, frame content is the full buffer. */
     p->start = p->buffer;
     p->len = p->buffer_len;
-    *p->usage_count = 1;
+    *p->usage_count = ONE_U32;
 
-    if (ext_buffer)
-        p->flags = PICO_FRAME_FLAG_EXT_BUFFER;
+    if (ext_buffer){
+        p->flags = (uint8_t)PICO_FRAME_FLAG_EXT_BUFFER;
+    }
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
     dbg("Allocated buffer @%p, len= %d caller: %p\n", p->buffer, p->buffer_len, __builtin_return_address(2));
@@ -114,8 +123,9 @@ struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int ext_buffer)
 
 int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf)
 {
-    if (!buf)
+    if (!buf){
         return -1;
+    }
 
     f->buffer = (uint8_t *) buf;
     f->start = f->buffer;
@@ -128,15 +138,16 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     int addr_diff;
     unsigned char *buf;
     uint32_t *uc;
-    if (!new)
+    if (!new){
         return NULL;
+    }
 
     /* Save the two key pointers... */
     buf = new->buffer;
     uc  = new->usage_count;
 
     /* Overwrite all fields with originals */
-    memcpy(new, f, sizeof(struct pico_frame));
+    (void)memcpy(new, f, sizeof(struct pico_frame));
 
     /* ...restore the two key pointers */
     new->buffer = buf;
@@ -163,15 +174,16 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
 uint16_t pico_checksum(void *inbuf, uint32_t len)
 {
     uint8_t *buf = (uint8_t *) inbuf;
-    uint32_t tmp = 0;
-    uint32_t sum = 0;
-    uint32_t i = 0;
+    uint32_t tmp = ZERO_U32;
+    uint32_t sum = ZERO_U32 ;
+    uint32_t i = ZERO_U32 ;
 
-    for(i = 0; i < len; i += 2u) {
+    for(i = ZERO_U32; i < len; i += 2u) {
         tmp = buf[i];
         sum += (tmp << 8lu);
-        if (len > (i + 1u))
-            sum += buf[i + 1];
+        if (len > (i + 1u)){
+            sum += buf[i + ONE_U32];
+        }
     }
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
@@ -183,21 +195,23 @@ uint16_t pico_dualbuffer_checksum(void *inbuf1, uint32_t len1, void *inbuf2, uin
 {
     uint8_t *b1 = (uint8_t *) inbuf1;
     uint8_t *b2 = (uint8_t *) inbuf2;
-    uint32_t tmp = 0;
-    uint32_t sum = 0;
-    uint32_t i = 0;
+    uint32_t tmp = ZERO_U32;
+    uint32_t sum = ZERO_U32;
+    uint32_t i = ZERO_U32;
 
-    for(i = 0; i < len1; i += 2u) {
+    for(i = ZERO_U32; i < len1; i += 2u) {
         tmp = b1[i];
         sum += (tmp << 8lu);
-        if (len1 > (i + 1u))
-            sum += b1[i + 1];
+        if (len1 > (i + 1u)){
+            sum += b1[i + ONE_U32];
+        }
     }
-    for(i = 0; i < len2; i += 2u) {
+    for(i = ZERO_U32; i < len2; i += 2u) {
         tmp = b2[i];
         sum += (tmp << 8lu);
-        if (len2 > (i + 1u))
-            sum += b2[i + 1];
+        if (len2 > (i + 1u)){
+            sum += b2[i + ONE_U32];
+        }
     }
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
