@@ -19,7 +19,8 @@ struct pico_socket *pico_socket_udp_open(void)
     }
 
     s->proto = &pico_proto_udp;
-    s->q_in.overhead = s->q_out.overhead = UDP_FRAME_OVERHEAD;
+    s->q_in.overhead = UDP_FRAME_OVERHEAD;
+    s->q_out.overhead = UDP_FRAME_OVERHEAD;
 #endif
     return s;
 }
