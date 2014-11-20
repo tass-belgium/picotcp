@@ -18,6 +18,7 @@
 #include "pico_ipv6.h"
 #include "pico_socket.h"
 #include "pico_dev_tun.h"
+#include "pico_dev_tap.h"
 #include "pico_nat.h"
 #include "pico_icmp4.h"
 #include "pico_icmp6.h"
@@ -163,6 +164,7 @@ int main(int argc, char **argv)
         {"vde", 1, 0, 'v'},
         {"barevde", 1, 0, 'b'},
         {"tun", 1, 0, 't'},
+        {"tap", 1, 0, 'T'},
         {"route", 1, 0, 'r'},
         {"app", 1, 0, 'a'},
         {"dns", 1, 0, 'd'},
@@ -196,7 +198,7 @@ int main(int argc, char **argv)
     pico_stack_init();
     /* Parse args */
     while(1) {
-        c = getopt_long(argc, argv, "v:b:t:a:r:hl", long_options, &option_idx);
+        c = getopt_long(argc, argv, "v:b:t:T:a:r:hl", long_options, &option_idx);
         if (c < 0)
             break;
 
@@ -204,6 +206,58 @@ int main(int argc, char **argv)
         case 'h':
             usage(argv[0]);
             break;
+        case 'T':
+        {
+            char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
+            struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&addr, nxt);
+                if (!nxt) break;
+
+                nxt = cpy_arg(&nm, nxt);
+                if (!nxt) break;
+
+                cpy_arg(&gw, nxt);
+            } while(0);
+            if (!nm) {
+                fprintf(stderr, "Tun: bad configuration...\n");
+                exit(1);
+            }
+
+            dev = pico_tap_create(name);
+            if (!dev) {
+                perror("Creating tap");
+                exit(1);
+            }
+
+            pico_string_to_ipv4(addr, &ipaddr.addr);
+            pico_string_to_ipv4(nm, &netmask.addr);
+            pico_ipv4_link_add(dev, ipaddr, netmask);
+            bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
+            if (gw && *gw) {
+                pico_string_to_ipv4(gw, &gateway.addr);
+                printf("Adding default route via %08x\n", gateway.addr);
+                pico_ipv4_route_add(zero, zero, gateway, 1, NULL);
+            }
+
+#ifdef PICO_SUPPORT_IPV6
+            if (IPV6_MODE) {
+                struct pico_ip6 ipaddr6 = {{0}}, netmask6 = {{0}}, gateway6 = {{0}}, zero6 = {{0}};
+                pico_string_to_ipv6(addr, ipaddr6.addr);
+                pico_string_to_ipv6(nm, netmask6.addr);
+                pico_ipv6_link_add(dev, ipaddr6, netmask6);
+                if (gw && *gw) {
+                    pico_string_to_ipv6(gw, gateway6.addr);
+                    pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
+                }
+            }
+
+#endif
+        }
+        break;
         case 't':
         {
             char *nxt, *name = NULL, *addr = NULL, *nm = NULL, *gw = NULL;
