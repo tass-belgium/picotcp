@@ -445,45 +445,47 @@ struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
 }
 
 
-
-/* This is called by dev loop in order to ensure correct ethernet addressing.
- * Returns 0 if the destination is unknown, and -1 if the packet is not deliverable
- * due to ethernet addressing (i.e., no arp association was possible.
- *
- * Only IP packets must pass by this. ARP will always use direct dev->send() function, so
- * we assume IP is used.
- */
-
-static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr, int *ret)
+/* Ethernet send, first attempt: try our own address.
+ * Returns 0 if the packet is not for us.
+ * Returns 1 if the packet is cloned to our own receive queue, so the caller can discard the original frame.
+ * */
+static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr)
 {
     /* Check own mac */
     if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
+        struct pico_frame *clone = pico_frame_copy(f);
         dbg("sending out packet destined for our own mac\n");
-        *ret = (int32_t)pico_ethernet_receive(f);
+        (void)pico_ethernet_receive(clone);
         return 1;
     }
 
     return 0;
 }
 
-static int32_t pico_ethsend_bcast(struct pico_frame *f, int *ret)
+/* Ethernet send, second attempt: try bcast.
+ * Returns 0 if the packet is not bcast, so it will be handled somewhere else.
+ * Returns 1 if the packet is handled by the pico_device_broadcast() function, so it can be discarded.
+ * */
+static int32_t pico_ethsend_bcast(struct pico_frame *f)
 {
     if (IS_LIMITED_BCAST(f)) {
-        *ret = pico_device_broadcast(f);
+        (void)pico_device_broadcast(f); /* We can discard broadcast even if it's not sent. */
         return 1;
     }
-
     return 0;
 }
 
-static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
+/* Ethernet send, third attempt: try unicast.
+ * If the device driver is busy, we return 0, so the stack won't discard the frame.
+ * In case of success, we can safely return 1.
+ */
+static int32_t pico_ethsend_dispatch(struct pico_frame *f)
 {
-    *ret = f->dev->send(f->dev, f->start, (int) f->len);
-    if (*ret <= 0)
-        return 0;
+    int ret = f->dev->send(f->dev, f->start, (int) f->len);
+    if (ret <= 0)
+        return 0; /* Failure to deliver! */
     else {
-        pico_frame_discard(f);
-        return 1;
+        return 1; /* Frame is in flight by now. */
     }
 }
 
@@ -497,10 +499,7 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f, int *ret)
 int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 {
     const struct pico_eth *dstmac = NULL;
-    int ret = -1;
     uint16_t proto = PICO_IDETH_IPV4;
-
-
 
 #ifdef PICO_SUPPORT_IPV6
     /* Step 1: If the frame has an IPv6 packet,
@@ -509,12 +508,9 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     if (IS_IPV6(f)) {
         dstmac = pico_ethernet_ipv6_dst(f);
         if (!dstmac) {
-            /* When the dest mac is not available, frame is postponed.
-             * ND is handling it now. No need to discard. */
             pico_ipv6_nd_postpone(f);
-            return 0;
+            return 0; /* I don't care if frame was actually postponed. If there is no room in the ND table, discard safely. */
         }
-
         proto = PICO_IDETH_IPV6;
     }
     else
@@ -541,6 +537,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         if (!dstmac) {
             pico_arp_postpone(f);
             return 0;
+            /* Same case as for IPv6 ... */
         }
     }
 #endif
@@ -556,16 +553,14 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
         hdr->proto = proto;
 
-        if (pico_ethsend_local(f, hdr, &ret) || pico_ethsend_bcast(f, &ret) || pico_ethsend_dispatch(f, &ret)) {
-            /* one of the above functions has disposed of the frame accordingly. (returned != 0)
-             * It is safe to directly return the number of bytes processed here.
+        if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
+            /* one of the above functions has delivered the frame accordingly. (returned != 0)
+             * It is safe to directly return success.
              * */
-            return (int32_t)ret;
+            return 0;
         }
     }
-
-    /* In all other cases,  it's up to us to get rid of the frame. */
-    pico_frame_discard(f);
+    /* Failure: do not dequeue the frame, keep it for later. */
     return -1;
 }
 

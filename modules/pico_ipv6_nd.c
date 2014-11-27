@@ -579,12 +579,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         if (!frames_queued_v6[i]) {
-            frames_queued_v6[i] = f;
+            frames_queued_v6[i] = pico_frame_copy(f);
             return;
         }
     }
-    /* Not possible to enqueue: discard packet */
-    pico_frame_discard(f);
+    /* Not possible to enqueue: caller will discard */
 }
 
 

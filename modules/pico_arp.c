@@ -222,12 +222,11 @@ void pico_arp_postpone(struct pico_frame *f)
     for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
     {
         if (!frames_queued[i]) {
-            frames_queued[i] = f;
+            frames_queued[i] = pico_frame_copy(f);
             return;
         }
     }
-    /* Not possible to enqueue: discard packet */
-    pico_frame_discard(f);
+    /* Not possible to enqueue: caller will discard packet */
 }
 
 

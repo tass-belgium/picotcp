@@ -64,7 +64,7 @@ START_TEST(tc_pico_nd_queue)
         fail_if(frames_queued_v6[i] != NULL);
     }
     pico_ipv6_nd_postpone(f);
-    fail_if(frames_queued_v6[0] != f);
+    fail_if(frames_queued_v6[0]->buffer != f->buffer);
 
     pico_ipv6_nd_unreachable(&addr);
 
