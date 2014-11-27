@@ -62,7 +62,7 @@ void pico_rand_feed(uint32_t feed)
     _rand_seed ^= ~(feed);
 }
 
-uint32_t pico_rand(void)
+uint32_t WEAK pico_rand(void)
 {
     pico_rand_feed((uint32_t)pico_tick);
     return _rand_seed;
