@@ -451,6 +451,9 @@ struct pico_eth *pico_ethernet_ipv6_dst(struct pico_frame *f)
  * */
 static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr)
 {
+    if (!hdr)
+        return 0;
+
     /* Check own mac */
     if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
         struct pico_frame *clone = pico_frame_copy(f);
@@ -543,16 +546,19 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 #endif
 
     /* This sets destination and source address, then pushes the packet to the device. */
-    if (dstmac && (f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR)) {
+    if (dstmac) {
         struct pico_eth_hdr *hdr;
-        f->start -= PICO_SIZE_ETHHDR;
-        f->len += PICO_SIZE_ETHHDR;
-        f->datalink_hdr = f->start;
         hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-        memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-        memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
-        hdr->proto = proto;
-
+        if ((f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR))
+        {
+            f->start -= PICO_SIZE_ETHHDR;
+            f->len += PICO_SIZE_ETHHDR;
+            f->datalink_hdr = f->start;
+            hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+            memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+            memcpy(hdr->daddr, dstmac, PICO_SIZE_ETH);
+            hdr->proto = proto;
+        }
         if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
             /* one of the above functions has delivered the frame accordingly. (returned != 0)
              * It is safe to directly return success.
