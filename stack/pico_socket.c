@@ -516,11 +516,15 @@ static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_state
 
 static int pico_socket_transport_deliver(struct pico_protocol *p, struct pico_sockport *sp, struct pico_frame *f)
 {
+#ifdef PICO_SUPPORT_TCP
     if (p->proto_number == PICO_PROTO_TCP)
         return pico_socket_tcp_deliver(sp, f);
+#endif
 
+#ifdef PICO_SUPPORT_UDP
     if (p->proto_number == PICO_PROTO_UDP)
         return pico_socket_udp_deliver(sp, f);
+#endif
 
     return -1;
 }
@@ -569,11 +573,15 @@ static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t f
 {
     struct pico_socket *s = NULL;
     (void)family;
+#ifdef PICO_SUPPORT_UDP
     if (proto == PICO_PROTO_UDP)
         s = pico_socket_udp_open();
+#endif
 
+#ifdef PICO_SUPPORT_TCP
     if (proto == PICO_PROTO_TCP)
         s = pico_socket_tcp_open(family);
+#endif
 
     return s;
 
