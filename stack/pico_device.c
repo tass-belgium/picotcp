@@ -228,15 +228,12 @@ static int devloop_in(struct pico_device *dev, int loop_score)
 static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 {
 
-    int ret;
     if (dev->eth) {
         /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
         return pico_ethernet_send(f);
     } else {
-        /* non-ethernet */
-        ret = dev->send(dev, f->start, (int)f->len);
-        pico_frame_discard(f);
-        return ret;
+        /* non-ethernet: no post-processing needed */
+        return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
     }
 }
 
@@ -248,14 +245,16 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             break;
 
         /* Device dequeue + send */
-        f = pico_dequeue(dev->q_out);
+        f = pico_queue_peek(dev->q_out);
         if (!f)
             break;
 
-        if (devloop_sendto_dev(dev, f) < 0)
-            break;
-
-        loop_score--;
+        if (devloop_sendto_dev(dev, f) == 0) { /* success. */
+            f = pico_dequeue(dev->q_out);
+            pico_frame_discard(f); /* SINGLE POINT OF DISCARD for OUTGOING FRAMES */
+            loop_score--;
+        } else 
+            break; /* Don't discard */
     }
     return loop_score;
 }
@@ -356,7 +355,7 @@ int32_t pico_device_broadcast(struct pico_frame *f)
             struct pico_frame *copy = pico_frame_copy(f);
 
             if(!copy)
-                return -1;
+                break;
 
             copy->dev = dev;
             copy->dev->send(copy->dev, copy->start, (int)copy->len);
@@ -367,6 +366,5 @@ int32_t pico_device_broadcast(struct pico_frame *f)
             ret = f->dev->send(f->dev, f->start, (int)f->len);
         }
     }
-
     return ret;
 }

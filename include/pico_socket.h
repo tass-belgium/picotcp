@@ -14,7 +14,7 @@
 #ifdef __linux__
     #define PICO_DEFAULT_SOCKETQ (16 * 1024) /* Linux host, so we want full throttle */
 #else
-    #define PICO_DEFAULT_SOCKETQ (4 * 1024) /* seems like an acceptable default for small embedded systems */
+    #define PICO_DEFAULT_SOCKETQ (6 * 1024) /* seems like an acceptable default for small embedded systems */
 #endif
 
 #define PICO_SHUT_RD   1
