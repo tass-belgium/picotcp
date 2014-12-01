@@ -662,7 +662,7 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     return ret;
 }
 
-static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len, int ext_buffer)
+static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len, int ext_buffer, void (*notify_free)(uint8_t *))
 {
     struct pico_frame *f;
     int ret;
@@ -684,6 +684,10 @@ static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffe
         return -1;
     }
 
+    if (notify_free) {
+        f->notify_free = notify_free;
+    }
+
     f->dev = dev;
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
@@ -695,12 +699,17 @@ static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffe
 
 int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
-    return _pico_stack_recv_zerocopy(dev, buffer, len, 0);
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 0, NULL);
 }
 
 int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
-    return _pico_stack_recv_zerocopy(dev, buffer, len, 1);
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 1, NULL);
+}
+
+int32_t pico_stack_recv_zerocopy_ext_buffer_notify(struct pico_device *dev, uint8_t *buffer, uint32_t len, void (*notify_free)(uint8_t *buffer))
+{
+    return _pico_stack_recv_zerocopy(dev, buffer, len, 1, notify_free);
 }
 
 int32_t pico_sendto_dev(struct pico_frame *f)

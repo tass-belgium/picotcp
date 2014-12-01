@@ -30,6 +30,8 @@ void pico_frame_discard(struct pico_frame *f)
 #endif
         if (!(f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
             PICO_FREE(f->buffer);
+        else if (f->notify_free)
+            f->notify_free(f->buffer);
 
         if (f->info)
             PICO_FREE(f->info);
