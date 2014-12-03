@@ -16,6 +16,7 @@
 #include "pico_addressing.h"
 #include "pico_dns_client.h"
 
+#include "pico_olsr.h"
 #include "pico_eth.h"
 #include "pico_arp.h"
 #include "pico_ipv4.h"
@@ -1053,6 +1054,11 @@ int pico_stack_init(void)
     /* Initialize Neighbor discovery module */
     pico_ipv6_nd_init();
 #endif
+
+#ifdef PICO_SUPPORT_OLSR
+    pico_olsr_init();
+#endif
+
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();
