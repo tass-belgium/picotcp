@@ -587,7 +587,6 @@ int main(int argc, char **argv)
                 app_noop();
 #ifdef PICO_SUPPORT_OLSR
             } else IF_APPNAME("olsr") {
-                pico_olsr_init();
                 dev = pico_get_device("pic0");
                 if(dev) {
                     pico_olsr_add(dev);
