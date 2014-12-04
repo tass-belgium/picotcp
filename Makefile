@@ -35,7 +35,7 @@ MDNS?=1
 SNTP_CLIENT?=1
 IPFILTER?=1
 CRC?=1
-OLSR?=1
+OLSR?=0
 SLAACV4?=1
 TFTP?=1
 MEMORY_MANAGER?=0
@@ -337,7 +337,7 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
-units: mod core lib $(UNITS_OBJ)
+units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
