@@ -20,7 +20,12 @@
 #   define PEDANTIC_STRUCT_DEF struct
 #   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
 #   define WEAK __attribute__((weak))
-#   define BYTESWAP_GCC
+#   ifdef __GNUC__
+#       define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
+#       if ((GCC_VERSION >= 40800))
+#           define BYTESWAP_GCC
+#       endif
+#   endif
 #endif
 
 #ifdef PICO_BIGENDIAN
