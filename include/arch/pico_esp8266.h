@@ -20,6 +20,11 @@
 
 /* -------------- MEMORY ------------- */
 
+
+#define os_malloc   pvPortMalloc
+#define os_free     vPortFree
+#define os_zalloc   pvPortZalloc
+
 #define pico_free       os_free
 
 static inline void *pico_zalloc(size_t size)
