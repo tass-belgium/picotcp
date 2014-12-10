@@ -585,8 +585,8 @@ int main(int argc, char **argv)
 #endif
             } else IF_APPNAME("noop") {
                 app_noop();
+#ifdef PICO_SUPPORT_OLSR
             } else IF_APPNAME("olsr") {
-                pico_olsr_init();
                 dev = pico_get_device("pic0");
                 if(dev) {
                     pico_olsr_add(dev);
@@ -598,6 +598,7 @@ int main(int argc, char **argv)
                 }
 
                 app_noop();
+#endif
             } else IF_APPNAME("slaacv4") {
 #ifndef PICO_SUPPORT_SLAACV4
                 return 0;

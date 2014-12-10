@@ -35,7 +35,7 @@ MDNS?=1
 SNTP_CLIENT?=1
 IPFILTER?=1
 CRC?=1
-OLSR?=1
+OLSR?=0
 SLAACV4?=1
 TFTP?=1
 MEMORY_MANAGER?=0
@@ -45,6 +45,8 @@ TAP?=0
 
 #IPv6 related
 IPV6?=1
+
+EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 
 CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -335,7 +337,7 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/modules/pico_dev_loop.o modules/pico_dev_loop.c $(CFLAGS)
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
-units: mod core lib $(UNITS_OBJ)
+units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
