@@ -276,6 +276,8 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
     if (r < 0)
         dhcps_dbg("DHCP server WARNING: failure sending: %s!\n", strerror(pico_err));
 
+    PICO_FREE(hdr);
+
     return;
 }
 
