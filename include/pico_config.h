@@ -6,9 +6,11 @@
 #include "pico_defines.h"
 #ifndef INCLUDE_PICO_CONFIG
 #define INCLUDE_PICO_CONFIG
+#ifndef __KERNEL__
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
 
 #if defined __IAR_SYSTEMS_ICC__ || defined ATOP
 #   define PACKED_STRUCT_DEF __packed struct
