@@ -8,7 +8,6 @@
 #ifndef PICO_RBTREE_H
 #define PICO_RBTREE_H
 
-#include <stdint.h>
 #include "pico_config.h"
 
 /* This is used to declare a new tree, leaf root by default */

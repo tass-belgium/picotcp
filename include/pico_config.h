@@ -10,6 +10,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#else
+#include <linux/types.h>
 #endif
 
 #if defined __IAR_SYSTEMS_ICC__ || defined ATOP
@@ -210,6 +212,8 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "../test/pico_faulty.h"
 #elif defined ARCHNONE
 # include "arch/pico_none.h"
+#elif defined __KERNEL__
+# include "arch/pico_linux.h"
 
 
 /* #elif defined ... */

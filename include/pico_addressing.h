@@ -6,7 +6,6 @@
 #ifndef INCLUDE_PICO_ADDRESSING
 #define INCLUDE_PICO_ADDRESSING
 
-#include <stdint.h>
 #include "pico_config.h"
 
 PACKED_STRUCT_DEF pico_ip4

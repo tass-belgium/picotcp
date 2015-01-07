@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include "pico_config.h"
 #include "pico_stack.h"
 #include "pico_socket.h"
 #include "pico_socket_multicast.h"

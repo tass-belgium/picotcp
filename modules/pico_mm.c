@@ -5,10 +5,7 @@
    Authors: Gustav Janssens, Jonas Van Nieuwenberg, Sam Van Den Berge
  *********************************************************************/
 
-
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "pico_config.h"
 #include "pico_mm.h"
 #include "pico_tree.h"
 #include "pico_config.h"
