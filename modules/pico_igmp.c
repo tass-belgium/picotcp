@@ -1114,7 +1114,7 @@ static int st(struct igmp_parameters *p)
     t.type = IGMP_TIMER_GROUP_REPORT;
     t.mcast_link = p->mcast_link;
     t.mcast_group = p->mcast_group;
-    t.delay = (pico_rand() % (p->max_resp_time * 100u));
+    t.delay = (pico_rand() % ((1u + p->max_resp_time) * 100u));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
     pico_igmp_timer_start(&t);
@@ -1172,7 +1172,7 @@ static int rtimrtct(struct igmp_parameters *p)
 
     time_to_run = (uint32_t)(t->start + t->delay - PICO_TIME_MS());
     if ((p->max_resp_time * 100u) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
-        t->delay = pico_rand() % (p->max_resp_time * 100u);
+        t->delay = pico_rand() % ((1u + p->max_resp_time) * 100u);
         pico_igmp_timer_reset(t);
     }
 
