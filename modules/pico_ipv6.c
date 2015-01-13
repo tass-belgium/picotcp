@@ -445,6 +445,7 @@ struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst)
 
 static int pico_ipv6_forward(struct pico_frame *f)
 {
+    /* TODO: Implement forwarding on ipv6 */
     pico_frame_discard(f);
     return 0;
 }
