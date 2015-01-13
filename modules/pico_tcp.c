@@ -999,7 +999,7 @@ struct pico_socket *pico_tcp_open(uint16_t family)
 
     t->sock.timestamp = TCP_TIME;
     pico_socket_set_family(&t->sock, family);
-    t->mss = (uint16_t)(pico_socket_get_mtu(&t->sock) - PICO_SIZE_TCPHDR);
+    t->mss = (uint16_t)(pico_socket_get_mss(&t->sock) - PICO_SIZE_TCPHDR);
     t->tcpq_in.pool.root = t->tcpq_hold.pool.root = t->tcpq_out.pool.root = &LEAF;
     t->tcpq_hold.pool.compare = t->tcpq_out.pool.compare = segment_compare;
     t->tcpq_in.pool.compare = input_segment_compare;
@@ -1146,7 +1146,7 @@ int pico_tcp_initconn(struct pico_socket *s)
 
     ts->snd_last = ts->snd_nxt;
     ts->cwnd = PICO_TCP_IW;
-    mtu = pico_socket_get_mtu(s);
+    mtu = (uint16_t)pico_socket_get_mss(s);
     ts->mss = (uint16_t)(mtu - PICO_SIZE_TCPHDR);
     ts->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / ts->mss) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / ts->mss)) >> 3u));
     syn->sock = s;
@@ -1218,8 +1218,9 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_kee
     hdr->trans.sport = t->sock.local_port;
     hdr->trans.dport = t->sock.remote_port;
     hdr->seq = long_be(t->snd_nxt);
-    if ((flags & PICO_TCP_ACK) != 0)
+    if ((flags & PICO_TCP_ACK) != 0) {
         hdr->ack = long_be(t->rcv_nxt);
+    }
 
     if (is_keepalive)
         hdr->seq = long_be(t->snd_nxt - 1);
@@ -2273,11 +2274,9 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     }
 
 #endif
-
-
     f->sock = &new->sock;
     tcp_parse_options(f);
-    mtu = pico_socket_get_mtu(s);
+    mtu = (uint16_t)pico_socket_get_mss(&new->sock);
     new->mss = (uint16_t)(mtu - PICO_SIZE_TCPHDR);
     new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
@@ -2326,13 +2325,13 @@ static void tcp_set_init_point(struct pico_socket *s)
 }
 
 
-uint16_t pico_tcp_get_socket_mtu(struct pico_socket *s)
+uint16_t pico_tcp_get_socket_mss(struct pico_socket *s)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     if (t->mss > 0)
         return (uint16_t)(t->mss + PICO_SIZE_TCPHDR);
     else
-        return pico_socket_get_mtu(s);
+        return (uint16_t)pico_socket_get_mss(s);
 }
 
 static int tcp_synack(struct pico_socket *s, struct pico_frame *f)

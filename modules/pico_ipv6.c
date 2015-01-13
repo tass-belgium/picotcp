@@ -425,6 +425,24 @@ struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst)
     return myself;
 }
 
+struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst)
+{
+    struct pico_device *dev = NULL;
+    struct pico_ipv6_route *rt;
+
+    if(!dst) {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+
+    rt = pico_ipv6_route_find(dst);
+    if (rt && rt->link) {
+        dev = rt->link->dev;
+    } else
+        pico_err = PICO_ERR_EHOSTUNREACH;
+    return dev;
+}
+
 static int pico_ipv6_forward(struct pico_frame *f)
 {
     pico_frame_discard(f);
@@ -818,8 +836,11 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
 
     if (f->sock && f->sock->dev)
         f->dev = f->sock->dev;
-    else
+    else {
         f->dev = link->dev;
+        if (f->sock)
+            f->sock->dev = f->dev;
+    }
 
 
     #if 0

@@ -891,6 +891,26 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     return myself;
 }
 
+struct pico_device *pico_ipv4_source_dev_find(const struct pico_ip4 *dst)
+{
+    struct pico_device *dev = NULL;
+    struct pico_ipv4_route *rt;
+
+    if(!dst) {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+
+    rt = route_find(dst);
+    if (rt && rt->link) {
+        dev = rt->link->dev;
+    } else {
+        pico_err = PICO_ERR_EHOSTUNREACH;
+    }
+
+    return dev;
+}
+
 
 #ifdef PICO_SUPPORT_MCAST
 /*                        link
@@ -1278,6 +1298,8 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         f->dev = f->sock->dev;
     } else {
         f->dev = link->dev;
+        if (f->sock) 
+            f->sock->dev = f->dev;
     }
 
 #ifdef PICO_SUPPORT_MCAST

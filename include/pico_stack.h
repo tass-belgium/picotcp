@@ -10,8 +10,8 @@
 
 #define PICO_MAX_TIMERS 20
 
-#define PICO_ETH_MTU 1514
-#define PICO_IP_MTU 1500u
+#define PICO_ETH_MRU (1514u)
+#define PICO_IP_MRU (1500u)
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
