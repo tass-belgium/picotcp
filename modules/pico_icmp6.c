@@ -209,6 +209,11 @@ int pico_icmp6_ttl_expired(struct pico_frame *f)
     return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_INTRANS, 0);
 }
 
+int pico_icmp6_pkt_too_big(struct pico_frame *f)
+{
+    return pico_icmp6_notify(f, PICO_ICMP6_PKT_TOO_BIG, 0, 0); 
+}
+
 #ifdef PICO_SUPPORT_IPFILTER
 int pico_icmp6_packet_filtered(struct pico_frame *f)
 {

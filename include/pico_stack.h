@@ -67,6 +67,7 @@ int pico_notify_socket_unreachable(struct pico_frame *f);
 int pico_notify_proto_unreachable(struct pico_frame *f);
 int pico_notify_dest_unreachable(struct pico_frame *f);
 int pico_notify_ttl_expired(struct pico_frame *f);
+int pico_notify_pkt_too_big(struct pico_frame *f);
 
 /* Various. */
 struct pico_timer;

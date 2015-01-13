@@ -1739,6 +1739,18 @@ static int pico_ipv4_pre_forward_checks(struct pico_frame *f)
     return 0;
 }
 
+static int pico_ipv4_forward_check_dev(struct pico_frame *f)
+{
+    if(f->dev->eth != NULL)
+        f->len -= PICO_SIZE_ETHHDR;
+
+    if(f->len > f->dev->mtu) {
+        pico_notify_pkt_too_big(f);
+        return -1;
+    }
+    return 0;
+}
+
 static int pico_ipv4_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
@@ -1761,8 +1773,9 @@ static int pico_ipv4_forward(struct pico_frame *f)
     pico_ipv4_nat_outbound(f, &rt->link->address);
 
     f->start = f->net_hdr;
-    if(f->dev->eth != NULL)
-        f->len -= PICO_SIZE_ETHHDR;
+
+    if (pico_ipv4_forward_check_dev(f) < 0)
+        return -1;
 
     pico_sendto_dev(f);
     return 0;

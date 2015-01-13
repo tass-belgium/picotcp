@@ -155,6 +155,24 @@ int pico_notify_ttl_expired(struct pico_frame *f)
     return 0;
 }
 
+int pico_notify_pkt_too_big(struct pico_frame *f)
+{
+    if (0) {}
+
+#ifdef PICO_SUPPORT_ICMP4
+    else if (IS_IPV4(f)) {
+        pico_icmp4_mtu_exceeded(f);
+    }
+#endif
+#ifdef PICO_SUPPORT_ICMP6
+    else if (IS_IPV6(f)) {
+        pico_icmp6_pkt_too_big(f);
+    }
+#endif
+    return 0;
+}
+
+
 
 /* Transport layer */
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
