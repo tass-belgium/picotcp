@@ -19,3 +19,6 @@ cscope.out
 *.log
 *.pyc
 *.elf
+*.gcov
+*.gcda
+*.gcno
