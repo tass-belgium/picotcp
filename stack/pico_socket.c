@@ -1092,6 +1092,13 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
         return pico_socket_xmit_one(s, buf, len, src, ep);
     }
 
+#ifdef PICO_SUPPORT_IPV6
+    /* Can't fragment IPv6 */
+    if (is_sock_ipv6(s)) {
+        return pico_socket_xmit_one(s, buf, space, src, ep);
+    }
+#endif
+
 #ifdef PICO_SUPPORT_IPFRAG
     while(total_payload_written < len) {
         /* Always allocate the max space available: space + offset */

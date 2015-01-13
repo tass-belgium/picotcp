@@ -39,12 +39,12 @@ time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tc
 killall picoapp6.elf
 
 echo "UDP6 TEST"
-(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a udpecho,aaaa::1,6667,) &
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a udpecho,::0,6667,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a udpclient,aaaa::1,6667,6667,1400,100,10, || exit 1
 wait || exit 1
 wait
-
 killall picoapp6.elf
+
 echo "MULTICAST TEST"
 (./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
 (./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667) &
@@ -93,6 +93,12 @@ killall picoapp.elf
 echo "UDP TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667) &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:1400:100:10 || exit 1
+wait || exit 1
+wait
+
+echo "UDP TEST with fragmentation"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667) &
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:4500:100:10 || exit 1
 wait || exit 1
 wait
 
