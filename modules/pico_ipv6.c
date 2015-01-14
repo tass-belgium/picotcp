@@ -443,10 +443,66 @@ struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst)
     return dev;
 }
 
+static int pico_ipv6_forward_check_dev(struct pico_frame *f)
+{
+    if(f->dev->eth != NULL)
+        f->len -= PICO_SIZE_ETHHDR;
+
+    if(f->len > f->dev->mtu) {
+        pico_notify_pkt_too_big(f);
+        return -1;
+    }
+    return 0;
+}
+
+static int pico_ipv6_pre_forward_checks(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+   
+    /* Decrease HOP count, check if expired */ 
+    hdr->hop = (uint8_t)(hdr->hop - 1);
+    if (hdr->hop < 1) {
+        pico_notify_ttl_expired(f);
+        dbg(" ------------------- HOP COUNT EXPIRED\n");
+        return -1;
+    }
+
+    /* If source is local, discard anyway (packets bouncing back and forth) */
+    if (pico_ipv6_link_get(&hdr->src))
+        return -1;
+
+    if (pico_ipv6_forward_check_dev(f) < 0)
+        return -1;
+
+    pico_sendto_dev(f);
+    return 0;
+}
+
 static int pico_ipv6_forward(struct pico_frame *f)
 {
-    /* TODO: Implement forwarding on ipv6 */
-    pico_frame_discard(f);
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    struct pico_ipv6_route *rt;
+    if (!hdr) {
+        return -1;
+    }
+
+    rt = pico_ipv6_route_find(&hdr->dst);
+    if (!rt) {
+        pico_notify_dest_unreachable(f);
+        return -1;
+    }
+
+    f->dev = rt->link->dev;
+
+    if (pico_ipv6_pre_forward_checks(f) < 0)
+        return -1;
+
+    f->start = f->net_hdr;
+
+    if (pico_ipv6_forward_check_dev(f) < 0)
+        return -1;
+
+    pico_sendto_dev(f);
     return 0;
 }
 
