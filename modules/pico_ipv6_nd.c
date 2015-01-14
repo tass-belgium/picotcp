@@ -19,32 +19,6 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
-/* configuration */
-#define PICO_ND_MAX_FRAMES_QUEUED      3 /* max frames queued while awaiting address resolution */
-
-/* RFC constants */
-#define PICO_ND_MAX_SOLICIT            3
-#define PICO_ND_MAX_NEIGHBOR_ADVERT    3
-#define PICO_ND_DELAY_INCOMPLETE       1000 /* msec */
-#define PICO_ND_DELAY_FIRST_PROBE_TIME 5000 /* msec */
-
-/* neighbor discovery options */
-#define PICO_ND_OPT_LLADDR_SRC         1
-#define PICO_ND_OPT_LLADDR_TGT         2
-#define PICO_ND_OPT_PREFIX             3
-#define PICO_ND_OPT_REDIRECT           4
-#define PICO_ND_OPT_MTU                5
-
-/* advertisement flags */
-#define PICO_ND_ROUTER             0x80000000
-#define PICO_ND_SOLICITED          0x40000000
-#define PICO_ND_OVERRIDE           0x20000000
-#define IS_ROUTER(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_ROUTER))           /* router flag set? */
-#define IS_SOLICITED(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_SOLICITED))     /* solicited flag set? */
-#define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
-
-#define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
-#define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
 
 #define nd_dbg(...) do {} while(0)
 
@@ -203,7 +177,6 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
 
 }
 
-
 static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device *dev)
 {
     struct pico_ip6 gateway = {{0}}, addr = {{0}};
@@ -238,7 +211,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
         option = icmp6_hdr->msg.info.neigh_adv.options;
 
 
-    while (optlen) {
+    while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)option)->type;
         len = ((struct pico_icmp6_opt_lladdr *)option)->len;
         optlen -= len * 8; /* len in units of 8 octets */
@@ -327,8 +300,9 @@ static int neigh_adv_process(struct pico_frame *f)
 
     neigh_adv_check_solicited(icmp6_hdr, n);
     return 0;
-
 }
+
+
 
 static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
 {
@@ -472,6 +446,14 @@ static int neigh_sol_validity_checks(struct pico_frame *f)
     return neigh_sol_unicast_validity_check(f);
 }
 
+static int router_adv_validity_checks(struct pico_frame *f)
+{
+    /* Step 2 validation */
+    if (f->transport_len < PICO_ICMP6HDR_ROUTER_ADV_SIZE)
+        return -1;
+    return 0;
+}
+
 static int neigh_adv_checks(struct pico_frame *f)
 {
     /* Step 1 validation */
@@ -489,11 +471,92 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
     return 0;
 }
 
+static int radv_process(struct pico_frame *f)
+{
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_hdr *ipv6_hdr = NULL;
+    struct pico_ip6 netmask = {{0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0,0,0,0,0,0,0,0}};
+    uint8_t *nxtopt, *opt_start;
+    int optlen;
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
+    opt_start = (uint8_t *)icmp6_hdr->msg.info.router_adv.options;
+    nxtopt = opt_start;
+
+    while (optlen > 0) {
+        uint8_t *type = (uint8_t *)nxtopt;
+        switch (*type) {
+            case PICO_ND_OPT_PREFIX:
+                {
+                    struct pico_icmp6_opt_prefix *prefix = 
+                        (struct pico_icmp6_opt_prefix *) nxtopt;
+                    if (prefix->val_lifetime > 0) {
+                        if (prefix->prefix_len == 64) {
+                            pico_ipv6_route_add(prefix->prefix, netmask, ipv6_hdr->src, 1, NULL);
+                        } else {
+                            pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
+                                sizeof(struct pico_ipv6_hdr) + PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
+                            return -1;
+                        }
+                    }
+                    optlen -= (prefix->len << 3);
+                    nxtopt += (prefix->len << 3);
+                }
+                break;
+            case PICO_ND_OPT_LLADDR_SRC:
+                {
+                    struct pico_icmp6_opt_lladdr *lladdr_src = 
+                        (struct pico_icmp6_opt_lladdr *) nxtopt;
+                    optlen -= (lladdr_src->len << 3);
+                    nxtopt += (lladdr_src->len << 3);
+                }
+                break;
+            case PICO_ND_OPT_MTU:
+                {
+                    struct pico_icmp6_opt_mtu *mtu = 
+                        (struct pico_icmp6_opt_mtu *) nxtopt;
+                    /* Skip this */
+                    optlen -= (mtu->len << 3);
+                    nxtopt += (mtu->len << 3);
+                }
+                break;
+            case PICO_ND_OPT_REDIRECT:
+                {
+                    struct pico_icmp6_opt_redirect *redirect = 
+                        (struct pico_icmp6_opt_redirect *) nxtopt;
+                    /* Skip this */
+                    optlen -= (redirect->len << 3);
+                    nxtopt += (redirect->len << 3);
+
+                }
+                break;
+            case PICO_ND_OPT_RDNSS:
+                {
+                    struct pico_icmp6_opt_rdnss *rdnss = 
+                        (struct pico_icmp6_opt_rdnss *) nxtopt;
+                    /* Skip this */
+                    optlen -= (rdnss->len << 3);
+                    nxtopt += (rdnss->len << 3);
+                }
+                break;
+            default:
+               pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
+                       sizeof(struct pico_ipv6_hdr) + PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
+               return -1;
+        }
+    }
+    return 0;
+}
+
 static int pico_nd_router_adv_recv(struct pico_frame *f)
 {
-    (void)f;
-    /* TODO */
-    return 0;
+    if (icmp6_initial_checks(f) < 0)
+        return -1;
+    if (router_adv_validity_checks(f) < 0)
+        return -1;
+    return radv_process(f);
 }
 
 static int pico_nd_neigh_sol_recv(struct pico_frame *f)
@@ -505,7 +568,6 @@ static int pico_nd_neigh_sol_recv(struct pico_frame *f)
         return -1;
 
     return neigh_sol_process(f);
-
 }
 
 static int pico_nd_neigh_adv_recv(struct pico_frame *f)

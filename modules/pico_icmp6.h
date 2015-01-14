@@ -60,6 +60,34 @@
 #define PICO_PING6_ERR_ABORTED         3
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
+/* ND configuration */
+#define PICO_ND_MAX_FRAMES_QUEUED      3 /* max frames queued while awaiting address resolution */
+
+/* ND RFC constants */
+#define PICO_ND_MAX_SOLICIT            3
+#define PICO_ND_MAX_NEIGHBOR_ADVERT    3
+#define PICO_ND_DELAY_INCOMPLETE       1000 /* msec */
+#define PICO_ND_DELAY_FIRST_PROBE_TIME 5000 /* msec */
+
+/* neighbor discovery options */
+#define PICO_ND_OPT_LLADDR_SRC         1
+#define PICO_ND_OPT_LLADDR_TGT         2
+#define PICO_ND_OPT_PREFIX             3
+#define PICO_ND_OPT_REDIRECT           4
+#define PICO_ND_OPT_MTU                5
+#define PICO_ND_OPT_RDNSS             25 /* RFC 5006 */
+
+/* ND advertisement flags */
+#define PICO_ND_ROUTER             0x80000000
+#define PICO_ND_SOLICITED          0x40000000
+#define PICO_ND_OVERRIDE           0x20000000
+#define IS_ROUTER(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_ROUTER))           /* router flag set? */
+#define IS_SOLICITED(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_SOLICITED))     /* solicited flag set? */
+#define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
+
+#define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
+#define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
+
 /* custom defines */
 #define PICO_ICMP6_ND_UNICAST          0
 #define PICO_ICMP6_ND_ANYCAST          1
@@ -180,6 +208,15 @@ PACKED_STRUCT_DEF pico_icmp6_opt_redirect
     uint16_t res0;
     uint32_t res1;
     uint8_t data[0];
+};
+
+PACKED_STRUCT_DEF pico_icmp6_opt_rdnss
+{
+    uint8_t type;
+    uint8_t len;
+    uint16_t res0;
+    uint32_t lifetime;
+    struct pico_ip6 addr[];
 };
 
 PACKED_STRUCT_DEF pico_icmp6_opt_na
