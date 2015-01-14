@@ -441,7 +441,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     return 0;
 }
 
-static char dns_response[PICO_IP_MTU] = {
+static char dns_response[PICO_IP_MRU] = {
      0
 };
 
@@ -492,7 +492,7 @@ static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_RD) {
-        if (pico_socket_read(s, dns_response, PICO_IP_MTU) < 0)
+        if (pico_socket_read(s, dns_response, PICO_IP_MRU) < 0)
             return;
     }
 

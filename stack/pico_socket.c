@@ -28,8 +28,7 @@
 
 
 #define PROTO(s) ((s)->proto->proto_number)
-#define PICO_SOCKET4_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
-#define PICO_SOCKET6_MTU 1460 /* Ethernet MTU(1500) - IP header size(40) */
+#define PICO_MIN_MSS (1280)
 #define TCP_STATE(s) (s->state & PICO_SOCKET_STATE_TCP)
 
 #ifdef PICO_SUPPORT_MUTEX
@@ -1069,7 +1068,7 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
 {
     /* no transport header in fragmented IP */
     f->payload = f->transport_hdr;
-    f->payload_len = (uint16_t)(f->payload_len + hdr_offset);
+    f->payload_len = (uint16_t)(f->payload_len - hdr_offset);
     /* set offset in octets */
     f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
     if (total_payload_written + f->payload_len < len) {
@@ -1093,11 +1092,21 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
         return pico_socket_xmit_one(s, buf, len, src, ep);
     }
 
+#ifdef PICO_SUPPORT_IPV6
+    /* Can't fragment IPv6 */
+    if (is_sock_ipv6(s)) {
+        return pico_socket_xmit_one(s, buf, space, src, ep);
+    }
+#endif
+
 #ifdef PICO_SUPPORT_IPFRAG
     while(total_payload_written < len) {
         /* Always allocate the max space available: space + offset */
         if (len < space)
             space = len;
+
+        if (space > len - total_payload_written)
+            space = len - total_payload_written;
 
         f = pico_socket_frame_alloc(s, (uint16_t)(space + hdr_offset));
         if (!f) {
@@ -1116,7 +1125,7 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
             }
         }
 
-        if (!total_payload_written == 0) {
+        if (total_payload_written == 0) {
             /* First fragment: no payload written yet! */
             pico_socket_xmit_first_fragment_setup(f, space, hdr_offset);
         } else {
@@ -1149,15 +1158,41 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 #endif
 }
 
-uint16_t pico_socket_get_mtu(struct pico_socket *s)
+static void get_sock_dev(struct pico_socket *s)
 {
-    (void)s;
 #ifdef PICO_SUPPORT_IPV6
     if (is_sock_ipv6(s))
-        return PICO_SOCKET6_MTU;
-
+        s->dev = pico_ipv6_source_dev_find(&s->remote_addr.ip6);
+    else
 #endif
-    return PICO_SOCKET4_MTU;
+        s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+}
+
+
+static uint32_t pico_socket_adapt_mss_to_proto(struct pico_socket *s, uint32_t mss)
+{
+#ifdef PICO_SUPPORT_IPV6
+    if (is_sock_ipv6(s))
+        mss -= PICO_SIZE_IP6HDR;
+    else
+#endif
+        mss -= PICO_SIZE_IP4HDR;
+    return mss;
+}
+
+uint32_t pico_socket_get_mss(struct pico_socket *s)
+{
+    uint32_t mss = PICO_MIN_MSS;
+    if (!s)
+        return mss;
+    if (!s->dev)
+        get_sock_dev(s);
+    if (!s->dev) {
+        mss = PICO_MIN_MSS;
+    } else {
+        mss = s->dev->mtu;
+    }
+    return pico_socket_adapt_mss_to_proto(s, mss);
 }
 
 
@@ -1168,10 +1203,10 @@ static int pico_socket_xmit_avail_space(struct pico_socket *s)
 
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
-        transport_len = pico_tcp_get_socket_mtu(s);
+        transport_len = (uint16_t)pico_tcp_get_socket_mss(s);
     } else
 #endif
-    transport_len = pico_socket_get_mtu(s);
+    transport_len = (uint16_t)pico_socket_get_mss(s);
     header_offset = pico_socket_sendto_transport_offset(s);
     if (header_offset < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
@@ -1452,6 +1487,7 @@ int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t
         s->remote_addr.ip4 = *ip;
         local = pico_ipv4_source_find(ip);
         if (local) {
+            get_sock_dev(s);
             s->local_addr.ip4 = *local;
         } else {
             pico_err = PICO_ERR_EHOSTUNREACH;
@@ -1466,6 +1502,7 @@ int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t
         s->remote_addr.ip6 = *ip;
         local = pico_ipv6_source_find(ip);
         if (local) {
+            get_sock_dev(s);
             s->local_addr.ip6 = *local;
         } else {
             pico_err = PICO_ERR_EHOSTUNREACH;

@@ -19,7 +19,7 @@
 #include "pico_socket.h"
 
 #define igmp_dbg(...) do {} while(0)
-/* #define igmp_dbg dbg */
+//#define igmp_dbg dbg
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER             (0x0)
@@ -445,9 +445,11 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
         /* IGMPv3 query */
         t.type = IGMP_TIMER_V2_QUERIER;
         if (pico_igmp_timer_is_running(&t)) { /* IGMPv2 querier present timer still running */
+            igmp_dbg("Timer is already running\n");
             return -1;
         } else {
             link->mcast_compatibility = PICO_IGMPV3;
+            igmp_dbg("IGMP Compatibility: v3\n");
             return 0;
         }
     } else if (datalen == 8) {
@@ -729,6 +731,11 @@ static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
             p->MCASTFilter = NULL;
         }
 
+        if (p->event == IGMP_EVENT_QUERY_RECV) {
+            goto igmp3_report;
+        }
+
+
         /* cleanup filters */
         pico_tree_foreach_safe(index, &IGMPAllow, _tmp)
         {
@@ -893,6 +900,7 @@ static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
             return -1;
         }
 
+igmp3_report:
         len = (uint16_t)(sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (sources * sizeof(struct pico_ip4)));
         p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(IP_OPTION_ROUTER_ALERT_LEN + len));
         p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
@@ -913,7 +921,7 @@ static int8_t pico_igmp_generate_report(struct igmp_parameters *p)
         record->aux = 0;
         record->sources = short_be(sources);
         record->mcast_group = p->mcast_group.addr;
-        if (!pico_tree_empty(IGMPFilter)) {
+        if (IGMPFilter && !pico_tree_empty(IGMPFilter)) {
             i = 0;
             pico_tree_foreach(index, IGMPFilter)
             {
@@ -1105,16 +1113,20 @@ static int st(struct igmp_parameters *p)
 
     igmp_dbg("IGMP: event = query received | action = start timer\n");
 
-    if (pico_igmp_generate_report(p) < 0)
+    if (pico_igmp_generate_report(p) < 0) {
+        igmp_dbg("Failed to generate report\n");
         return -1;
+    }
 
-    if (!p->f)
+    if (!p->f) {
+        igmp_dbg("No pending frame\n");
         return -1;
+    }
 
     t.type = IGMP_TIMER_GROUP_REPORT;
     t.mcast_link = p->mcast_link;
     t.mcast_group = p->mcast_group;
-    t.delay = (pico_rand() % (p->max_resp_time * 100u));
+    t.delay = (pico_rand() % ((1u + p->max_resp_time) * 100u));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
     pico_igmp_timer_start(&t);
@@ -1172,7 +1184,7 @@ static int rtimrtct(struct igmp_parameters *p)
 
     time_to_run = (uint32_t)(t->start + t->delay - PICO_TIME_MS());
     if ((p->max_resp_time * 100u) < time_to_run) { /* max_resp_time in units of 1/10 seconds */
-        t->delay = pico_rand() % (p->max_resp_time * 100u);
+        t->delay = pico_rand() % ((1u + p->max_resp_time) * 100u);
         pico_igmp_timer_reset(t);
     }
 
