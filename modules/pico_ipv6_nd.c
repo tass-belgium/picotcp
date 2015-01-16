@@ -497,7 +497,7 @@ static int radv_process(struct pico_frame *f)
                             pico_ipv6_route_add(prefix->prefix, netmask, ipv6_hdr->src, 1, NULL);
                         } else {
                             pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
-                                sizeof(struct pico_ipv6_hdr) + PICO_ICMP6HDR_ROUTER_ADV_SIZE + ((uint32_t)nxtopt - (uint32_t)opt_start));
+                                (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
                             return -1;
                         }
                     }
@@ -543,7 +543,7 @@ static int radv_process(struct pico_frame *f)
                 break;
             default:
                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
-                       sizeof(struct pico_ipv6_hdr) + PICO_ICMP6HDR_ROUTER_ADV_SIZE + ((uint32_t)nxtopt - (uint32_t)opt_start));
+                       (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
                return -1;
         }
     }
