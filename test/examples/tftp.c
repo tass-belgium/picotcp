@@ -112,7 +112,7 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t err, uint8_t *block, 
     } else {
         perror("read");
         fprintf(stderr, "Filesystem error reading file %s, cancelling current transfer\n", note->filename);
-        pico_tftp_abort(session);
+        pico_tftp_abort(session, TFTP_ERR_EACC, "Error on read");
         del_note(note);
     }
 
@@ -136,7 +136,7 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t err, uint8_t *block, 
     if (write(note->fd, block, len) < 0) {
         perror("write");
         fprintf(stderr, "Filesystem error writing file %s, cancelling current transfer\n", note->filename);
-        pico_tftp_abort(session);
+        pico_tftp_abort(session, TFTP_ERR_EACC, "Error on write");
         del_note(note);
     } else {
         if (len != PICO_TFTP_SIZE) {
@@ -152,21 +152,37 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t err, uint8_t *block, 
     return len;
 }
 
+struct pico_tftp_session * make_session_or_die(union pico_address *addr, uint16_t family)
+{
+    struct pico_tftp_session * session;
+
+    session = pico_tftp_session_setup(addr, family);
+    if (!session) {
+        fprintf(stderr, "TFTP: Error in session setup\n");
+        exit(3);
+    }
+    return session;
+}
+
 int tftp_listen_cb(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename)
 {
     struct note_t *note;
+    struct pico_tftp_session * session;
+
     printf("TFTP listen callback from remote port %d.\n", short_be(port));
     if (opcode == PICO_TFTP_RRQ) {
         note = setup_transfer('T', filename);
         printf("Received TFTP get request for %s\n", filename);
-        if(!pico_tftp_start_tx(addr, port, family, filename, cb_tftp_tx, (void *)note)) {
+        session = make_session_or_die(addr, family);
+        if(pico_tftp_start_tx(session, port, filename, cb_tftp_tx, (void *)note)) {
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
     } else if (opcode == PICO_TFTP_WRQ) {
         note = setup_transfer('R', filename);
         printf("Received TFTP put request for %s\n", filename);
-        if(!pico_tftp_start_rx(addr, port, family, filename, cb_tftp_rx, (void *)note)) {
+        session = make_session_or_die(addr, family);
+        if(pico_tftp_start_rx(session, port, filename, cb_tftp_rx, (void *)note)) {
             fprintf(stderr, "TFTP: Error in initialization\n");
             exit(1);
         }
@@ -264,6 +280,7 @@ void app_tftp(char *arg)
 {
     struct command_t *commands;
     struct note_t *note;
+    struct pico_tftp_session *session;
     int is_server_enabled = 0;
 
     family = IPV6_MODE? PICO_PROTO_IPV6: PICO_PROTO_IPV4;
@@ -279,16 +296,18 @@ void app_tftp(char *arg)
             break;
         case 'T':
             note = setup_transfer(commands->operation, commands->filename);
-            if (!pico_tftp_start_tx(&commands->server_address, short_be(PICO_TFTP_PORT),
-                family, commands->filename, cb_tftp_tx, (void *)note)) {
+            session = make_session_or_die(&commands->server_address, family);
+            if (pico_tftp_start_tx(session, short_be(PICO_TFTP_PORT),
+                commands->filename, cb_tftp_tx, (void *)note)) {
                 fprintf(stderr, "TFTP: Error in initialization\n");
                 exit(3);
             }
             break;
         case 'R':
             note = setup_transfer(commands->operation, commands->filename);
-            if (!pico_tftp_start_rx(&commands->server_address, short_be(PICO_TFTP_PORT),
-                family, commands->filename, cb_tftp_rx, (void *)note)) {
+            session = make_session_or_die(&commands->server_address, family);
+            if (pico_tftp_start_rx(session, short_be(PICO_TFTP_PORT),
+                commands->filename, cb_tftp_rx, (void *)note)) {
                 fprintf(stderr, "TFTP: Error in initialization\n");
                 exit(3);
             }

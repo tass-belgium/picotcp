@@ -69,7 +69,7 @@ ifeq ($(PROFILE),1)
 endif
 
 ifeq ($(TFTP),1)
-  MOD_OBJ+=$(LIBBASE)modules/pico_tftp.o
+  MOD_OBJ+=$(LIBBASE)modules/pico_strings.o $(LIBBASE)modules/pico_tftp.o
   OPTIONS+=-DPICO_SUPPORT_TFTP
 endif
 
