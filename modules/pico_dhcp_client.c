@@ -27,7 +27,7 @@
 #define DHCP_CLIENT_TIMER_STARTED      1
 
 /* maximum size of a DHCP message */
-#define DHCP_CLIENT_MAXMSGZISE         PICO_IP_MTU
+#define DHCP_CLIENT_MAXMSGZISE         (PICO_IP_MRU - PICO_SIZE_IP4HDR)
 
 enum dhcp_client_state {
     DHCP_CLIENT_STATE_INIT_REBOOT = 0,

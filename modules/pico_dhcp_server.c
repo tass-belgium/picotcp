@@ -26,7 +26,7 @@
 #define DHCP_SERVER_LEASE_TIME long_be(0x00000078)
 
 /* maximum size of a DHCP message */
-#define DHCP_SERVER_MAXMSGSIZE (PICO_IP_MTU - sizeof(struct pico_ipv4_hdr) - sizeof(struct pico_udp_hdr))
+#define DHCP_SERVER_MAXMSGSIZE (PICO_IP_MRU - sizeof(struct pico_ipv4_hdr) - sizeof(struct pico_udp_hdr))
 
 enum dhcp_server_state {
     PICO_DHCP_STATE_DISCOVER = 0,

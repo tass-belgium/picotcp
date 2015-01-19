@@ -21,6 +21,7 @@ struct pico_device {
     char name[MAX_DEVICE_NAME];
     uint32_t hash;
     uint32_t overhead;
+    uint32_t mtu;
     struct pico_ethdev *eth; /* Null if non-ethernet */
     struct pico_queue *q_in;
     struct pico_queue *q_out;

@@ -425,9 +425,84 @@ struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst)
     return myself;
 }
 
+struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst)
+{
+    struct pico_device *dev = NULL;
+    struct pico_ipv6_route *rt;
+
+    if(!dst) {
+        pico_err = PICO_ERR_EINVAL;
+        return NULL;
+    }
+
+    rt = pico_ipv6_route_find(dst);
+    if (rt && rt->link) {
+        dev = rt->link->dev;
+    } else
+        pico_err = PICO_ERR_EHOSTUNREACH;
+    return dev;
+}
+
+static int pico_ipv6_forward_check_dev(struct pico_frame *f)
+{
+    if(f->dev->eth != NULL)
+        f->len -= PICO_SIZE_ETHHDR;
+
+    if(f->len > f->dev->mtu) {
+        pico_notify_pkt_too_big(f);
+        return -1;
+    }
+    return 0;
+}
+
+static int pico_ipv6_pre_forward_checks(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+   
+    /* Decrease HOP count, check if expired */ 
+    hdr->hop = (uint8_t)(hdr->hop - 1);
+    if (hdr->hop < 1) {
+        pico_notify_ttl_expired(f);
+        dbg(" ------------------- HOP COUNT EXPIRED\n");
+        return -1;
+    }
+
+    /* If source is local, discard anyway (packets bouncing back and forth) */
+    if (pico_ipv6_link_get(&hdr->src))
+        return -1;
+
+    if (pico_ipv6_forward_check_dev(f) < 0)
+        return -1;
+
+    pico_sendto_dev(f);
+    return 0;
+}
+
 static int pico_ipv6_forward(struct pico_frame *f)
 {
-    pico_frame_discard(f);
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    struct pico_ipv6_route *rt;
+    if (!hdr) {
+        return -1;
+    }
+
+    rt = pico_ipv6_route_find(&hdr->dst);
+    if (!rt) {
+        pico_notify_dest_unreachable(f);
+        return -1;
+    }
+
+    f->dev = rt->link->dev;
+
+    if (pico_ipv6_pre_forward_checks(f) < 0)
+        return -1;
+
+    f->start = f->net_hdr;
+
+    if (pico_ipv6_forward_check_dev(f) < 0)
+        return -1;
+
+    pico_sendto_dev(f);
     return 0;
 }
 
@@ -818,8 +893,11 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
 
     if (f->sock && f->sock->dev)
         f->dev = f->sock->dev;
-    else
+    else {
         f->dev = link->dev;
+        if (f->sock)
+            f->sock->dev = f->dev;
+    }
 
 
     #if 0
@@ -978,34 +1056,38 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
     return -1;
 }
 
-void pico_ipv6_nd_dad(unsigned long now, void *arg)
+void pico_ipv6_nd_dad(pico_time now, void *arg)
 {
-    struct pico_ip6 address = *(struct pico_ip6 *)arg;
+    struct pico_ip6 *address = (struct pico_ip6 *)arg;
     struct pico_ipv6_link *l = NULL;
+    struct pico_ip6 old_address;
+    if (!arg)
+        return;
 
     IGNORE_PARAMETER(now);
 
-    l = pico_ipv6_link_istentative(&address);
+    l = pico_ipv6_link_istentative(address);
     if (!l)
         return;
     if (l->isduplicate) {
         dbg("IPv6: duplicate address.\n");
-        if (pico_ipv6_is_linklocal(address.addr)) {
-            address.addr[8] = ((uint8_t)(pico_rand() & 0xff) & (uint8_t)(~0x03));
-            address.addr[9] = pico_rand() & 0xff;
-            address.addr[10] = pico_rand() & 0xff;
-            address.addr[11] = pico_rand() & 0xff;
-            address.addr[12] = pico_rand() & 0xff;
-            address.addr[13] = pico_rand() & 0xff;
-            address.addr[14] = pico_rand() & 0xff;
-            address.addr[15] = pico_rand() & 0xff;
-            pico_ipv6_link_add(l->dev, address, l->netmask);
+        old_address = *address;
+        if (pico_ipv6_is_linklocal(address->addr)) {
+            address->addr[8] = ((uint8_t)(pico_rand() & 0xff) & (uint8_t)(~0x03));
+            address->addr[9] = pico_rand() & 0xff;
+            address->addr[10] = pico_rand() & 0xff;
+            address->addr[11] = pico_rand() & 0xff;
+            address->addr[12] = pico_rand() & 0xff;
+            address->addr[13] = pico_rand() & 0xff;
+            address->addr[14] = pico_rand() & 0xff;
+            address->addr[15] = pico_rand() & 0xff;
+            pico_ipv6_link_add(l->dev, *address, l->netmask);
         }
 
-        pico_ipv6_link_del(l->dev, l->address);
+        pico_ipv6_link_del(l->dev, old_address);
     }
     else {
-        dbg("IPv6: non duplicate address.\n");
+        dbg("IPv6: DAD verified valid address.\n");
         l->istentative = 0;
     }
 }
@@ -1065,7 +1147,6 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
      *     the solicited-node multicast address corresponding to each of the IP
      *     addresses assigned to the interface. (RFC 4861 $7.2.1)
      */
-#if 0
     /* Duplicate Address Detection */
     if (!pico_ipv6_is_unspecified(address.addr)) {
         new->istentative = 1;
@@ -1073,7 +1154,6 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
         pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
     }
 
-#endif
     pico_ipv6_to_string(ipstr, new->address.addr);
     dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
     return 0;

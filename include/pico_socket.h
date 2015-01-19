@@ -244,7 +244,7 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net);
 
 struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port);
 
-uint16_t pico_socket_get_mtu(struct pico_socket *s);
+uint32_t pico_socket_get_mss(struct pico_socket *s);
 int pico_socket_set_family(struct pico_socket *s, uint16_t family);
 
 int pico_count_sockets(uint8_t proto);

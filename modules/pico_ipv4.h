@@ -108,6 +108,7 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev);
 struct pico_ipv4_link *pico_ipv4_link_by_dev_next(struct pico_device *dev, struct pico_ipv4_link *last);
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address);
 struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst);
+struct pico_device *pico_ipv4_source_dev_find(const struct pico_ip4 *dst);
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int metric);
 struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr);

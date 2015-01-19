@@ -5,7 +5,7 @@
  *********************************************************************/
 #ifndef INCLUDE_PICO_PROTOCOL
 #define INCLUDE_PICO_PROTOCOL
-#include <stdint.h>
+#include "pico_config.h"
 #include "pico_queue.h"
 
 #define PICO_LOOP_DIR_IN   1

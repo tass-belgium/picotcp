@@ -12,7 +12,6 @@
 
 #define PICO_DNS_NS_DEL 0
 #define PICO_DNS_NS_ADD 1
-#include <stdint.h>
 #include "pico_config.h"
 
 /* Compression values */

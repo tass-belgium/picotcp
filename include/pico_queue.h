@@ -5,7 +5,6 @@
  *********************************************************************/
 #ifndef INCLUDE_PICO_QUEUE
 #define INCLUDE_PICO_QUEUE
-#include <stdint.h>
 #include "pico_config.h"
 #include "pico_frame.h"
 

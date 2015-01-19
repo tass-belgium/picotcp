@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include "pico_config.h"
 #include "pico_socket.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
