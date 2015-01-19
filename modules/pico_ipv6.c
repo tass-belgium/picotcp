@@ -869,7 +869,8 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
             return -1;
         }
         link = pico_ipv6_linklocal_get(f->dev);
-        goto push_final;
+        if (link)
+            goto push_final;
     }
 
     route = ipv6_pushed_frame_checks(f, dst);
