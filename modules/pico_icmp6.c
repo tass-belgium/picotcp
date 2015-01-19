@@ -270,6 +270,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     } else {
         daddr = *dst;
     }
+    sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
     pico_ipv6_frame_push(sol, &daddr, PICO_PROTO_ICMP6);
@@ -322,6 +323,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
     opt->type = PICO_ND_OPT_LLADDR_TGT;
     opt->len = 1;
     memcpy(opt->addr.mac.addr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+    adv->dev = f->dev;
 
     /* f->src is set in frame_push, checksum calculated there */
     pico_ipv6_frame_push(adv, &dst, PICO_PROTO_ICMP6);
@@ -360,6 +362,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         lladdr->len = 1;
         memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
     }
+    sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
     pico_ipv6_frame_push(sol, &daddr, PICO_PROTO_ICMP6);
