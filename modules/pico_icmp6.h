@@ -97,6 +97,7 @@
 #define PICO_ICMP6_MAX_RTR_SOL_DELAY   1000
 
 #define PICO_SIZE_ICMP6HDR ((sizeof(struct pico_icmp6_hdr)))
+#define PICO_ICMP6_OPT_LLADDR_SIZE (8)
 
 extern struct pico_protocol pico_proto_icmp6;
 
@@ -252,5 +253,6 @@ int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t
 int pico_icmp6_pkt_too_big(struct pico_frame *f);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f);
+int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *dst);
 
 #endif

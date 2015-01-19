@@ -50,27 +50,6 @@ const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6] = {
     0
 };
 
-struct pico_ipv6_hbhoption {
-    uint8_t type;
-    uint8_t len;
-    uint8_t options[0];
-};
-
-struct pico_ipv6_destoption {
-    uint8_t type;
-    uint8_t len;
-    uint8_t options[0];
-};
-
-struct pico_ipv6_route
-{
-    struct pico_ip6 dest;
-    struct pico_ip6 netmask;
-    struct pico_ip6 gateway;
-    struct pico_ipv6_link *link;
-    uint32_t metric;
-};
-
 int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
 {
     uint32_t i;
@@ -877,11 +856,21 @@ static int ipv6_frame_push_final(struct pico_frame *f)
 
 }
 
+struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
+
 int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t proto)
 {
     struct pico_ipv6_route *route = NULL;
     struct pico_ipv6_link *link = NULL;
 
+    if (pico_ipv6_is_linklocal(dst->addr) ||  pico_ipv6_is_multicast(dst->addr) || pico_ipv6_is_sitelocal(dst->addr)) {
+        if (!f->dev) {
+            pico_frame_discard(f);
+            return -1;
+        }
+        link = pico_ipv6_linklocal_get(f->dev);
+        goto push_final;
+    }
 
     route = ipv6_pushed_frame_checks(f, dst);
     if (!route) {
@@ -907,6 +896,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
 
     #endif
 
+push_final:
     ipv6_push_hdr_adjust(f, link, dst, proto);
 
     return ipv6_frame_push_final(f);
@@ -1325,6 +1315,28 @@ struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struc
         }
     }
     return NULL;
+}
+
+struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev)
+{
+    struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
+    while (link && !pico_ipv6_is_linklocal(link->address.addr)) {
+        link = pico_ipv6_link_by_dev_next(dev, link);
+    }
+    return link;
+}
+
+
+int pico_ipv6_dev_routing_enable(struct pico_device *dev)
+{
+    dev->hostvars.routing = 1;
+    return 0;
+}
+
+int pico_ipv6_dev_routing_disable(struct pico_device *dev)
+{
+    dev->hostvars.routing = 0;
+    return 0;
 }
 
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code)

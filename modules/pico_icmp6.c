@@ -16,8 +16,6 @@
 #include "pico_tree.h"
 #include "pico_socket.h"
 
-#define PICO_ICMP6_OPT_SRC_LINK_LAYER_ADDR 1
-#define PICO_ICMP6_OPT_TGT_LINK_LAYER_ADDR 2
 #define icmp6_dbg(...) do {} while(0)
 /* #define icmp6_dbg dbg */
 
@@ -260,7 +258,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
 
     if (type != PICO_ICMP6_ND_DAD) {
         opt = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.neigh_sol.options;
-        opt->type = PICO_ICMP6_OPT_SRC_LINK_LAYER_ADDR;
+        opt->type = PICO_ND_OPT_LLADDR_SRC;
         opt->len = 1;
         memcpy(opt->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
     }
@@ -321,7 +319,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
      */
 
     opt = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.neigh_adv.options;
-    opt->type = PICO_ICMP6_OPT_TGT_LINK_LAYER_ADDR;
+    opt->type = PICO_ND_OPT_LLADDR_TGT;
     opt->len = 1;
     memcpy(opt->addr.mac.addr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
 
@@ -358,13 +356,68 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 
     if (!pico_ipv6_is_unspecified(src->addr)) {
         lladdr = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.router_sol.options;
-        lladdr->type = PICO_ICMP6_OPT_SRC_LINK_LAYER_ADDR;
+        lladdr->type = PICO_ND_OPT_LLADDR_SRC;
         lladdr->len = 1;
         memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
     }
 
     /* f->src is set in frame_push, checksum calculated there */
     pico_ipv6_frame_push(sol, &daddr, PICO_PROTO_ICMP6);
+    return 0;
+}
+
+#define PICO_RADV_VAL_LIFETIME (long_be(86400))
+#define PICO_RADV_PREF_LIFETIME (long_be(14400))
+
+/* RFC 4861: sending router advertisements */
+int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *dst)
+{
+    struct pico_frame *adv = NULL;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_icmp6_opt_lladdr *lladdr;
+    struct pico_icmp6_opt_prefix *prefix;
+    uint16_t len = 0;
+    struct pico_ip6 dst_mcast = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
+    uint8_t *nxt_opt;
+
+    len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
+
+    adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+    if (!adv) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
+    adv->payload = adv->transport_hdr + len;
+    adv->payload_len = 0;
+    adv->dev = dev;
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)adv->transport_hdr;
+    icmp6_hdr->type = PICO_ICMP6_ROUTER_ADV;
+    icmp6_hdr->code = 0;
+    icmp6_hdr->msg.info.router_adv.life_time = short_be(45);
+    icmp6_hdr->msg.info.router_adv.hop = 64;
+    nxt_opt = (uint8_t *) icmp6_hdr->msg.info.router_adv.options;
+
+    prefix =  (struct pico_icmp6_opt_prefix *)nxt_opt;
+    prefix->type = PICO_ND_OPT_PREFIX;
+    prefix->len = sizeof(struct pico_icmp6_opt_prefix) >> 3;
+    prefix->prefix_len = 64; /* Only /64 are forwarded */
+    prefix->aac = 1;
+    prefix->onlink = 1;
+    prefix->val_lifetime = PICO_RADV_VAL_LIFETIME;
+    prefix->pref_lifetime = PICO_RADV_PREF_LIFETIME;
+    memcpy(&prefix->prefix, dst, sizeof(struct pico_ip6));
+
+    nxt_opt += (sizeof (struct pico_icmp6_opt_prefix));
+    lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
+    lladdr->type = PICO_ND_OPT_LLADDR_SRC;
+    lladdr->len = 1;
+    memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+    icmp6_hdr->crc = 0;
+    icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
+    /* f->src is set in frame_push, checksum calculated there */
+    pico_ipv6_frame_push(adv, &dst_mcast, PICO_PROTO_ICMP6);
     return 0;
 }
 
