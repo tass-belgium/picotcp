@@ -785,7 +785,7 @@ void pico_check_timers(void)
     }
 }
 
-void pico_timer_cancel(struct pico_timer *t)
+void MOCKABLE pico_timer_cancel(struct pico_timer *t)
 {
     uint32_t i;
     struct pico_timer_ref *tref = Timers->top;
