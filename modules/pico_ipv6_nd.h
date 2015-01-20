@@ -12,7 +12,7 @@
 #define PICO_ND_RETRANS_TIMER          1000 /* msec */
 
 struct pico_nd_hostvars {
-    uint32_t mtu;
+    uint8_t routing;
     uint8_t hoplimit;
     pico_time basetime;
     pico_time reachabletime;

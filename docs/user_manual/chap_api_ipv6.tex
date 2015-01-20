@@ -478,3 +478,56 @@ On error a \texttt{null} address is returned (\texttt{0.0.0.0}) and \texttt{pico
 gateway_addr = pico_ip6 pico_ipv6_route_get_gateway(&dest_addr)
 \end{verbatim}
 
+\subsection{pico$\_$ipv6$\_$dev$\_$routing$\_$enable}
+
+\subsubsection*{Description}
+Enable IPv6 Routing messages through the specified interface. On a picoTCP IPv6 machine, 
+when routing is enabled, all possible routes to other links are advertised to the target interfaces.
+This allows the hosts connected to the target interface to use the picoTCP IPv6 machine as a router
+towards public IPv6 addresses configured on other interfaces, or reachable through known gateways.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+struct pico_ip6 pico_ipv6_dev_routing_enable(struct pico_device *dev)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - Pointer to the target device struct \texttt{pico$\_$device}.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, zero is returned.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Example}
+\begin{verbatim}
+retval = pico_ipv6_dev_routing_enable(eth1);
+\end{verbatim}
+
+\subsection{pico$\_$ipv6$\_$dev$\_$routing$\_$disable}
+
+\subsubsection*{Description}
+Enable IPv6 Routing messages through the specified interface. On a picoTCP IPv6 machine, 
+when routing is enabled, all possible routes to other links are advertised to the target interface.
+This function will stop advertising reachable routes to public IPv6 addresses configured on other 
+interfaces, or reachable through known gateways.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+struct pico_ip6 pico_ipv6_dev_routing_disable(struct pico_device *dev)
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - Pointer to the target device struct \texttt{pico$\_$device}.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, zero is returned.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Example}
+\begin{verbatim}
+retval = pico_ipv6_dev_routing_disable(eth1);
+\end{verbatim}

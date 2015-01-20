@@ -16,6 +16,7 @@
 
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
 extern struct pico_protocol pico_proto_ipv6;
+extern struct pico_tree IPV6Routes;
 
 PACKED_STRUCT_DEF pico_ipv6_hdr {
     uint32_t vtf;
@@ -43,6 +44,27 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+};
+
+struct pico_ipv6_hbhoption {
+    uint8_t type;
+    uint8_t len;
+    uint8_t options[0];
+};
+
+struct pico_ipv6_destoption {
+    uint8_t type;
+    uint8_t len;
+    uint8_t options[0];
+};
+
+struct pico_ipv6_route
+{
+    struct pico_ip6 dest;
+    struct pico_ip6 netmask;
+    struct pico_ip6 gateway;
+    struct pico_ipv6_link *link;
+    uint32_t metric;
 };
 
 PACKED_STRUCT_DEF pico_ipv6_exthdr {
@@ -101,4 +123,6 @@ struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst);
 struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst);
 struct pico_ipv6_link *pico_ipv6_link_by_dev(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struct pico_ipv6_link *last);
+int pico_ipv6_dev_routing_enable(struct pico_device *dev);
+int pico_ipv6_dev_routing_disable(struct pico_device *dev);
 #endif

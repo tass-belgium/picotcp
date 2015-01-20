@@ -9,6 +9,7 @@
 #include "pico_frame.h"
 #include "pico_addressing.h"
 #include "pico_tree.h"
+extern struct pico_tree Device_tree;
 #include "pico_ipv6_nd.h"
 #define MAX_DEVICE_NAME 16
 
@@ -36,6 +37,7 @@ struct pico_device {
     struct pico_nd_hostvars hostvars;
   #endif
 };
+
 
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac);
 void pico_device_destroy(struct pico_device *dev);

@@ -1,0 +1,49 @@
+\section{Optimized Link State Routing (OLSR) Module}
+
+
+OLSR is a proactive routing protocol for mobile ad-hoc networks
+(MANETs).  It is well suited to large and dense mobile
+networks, as the optimization achieved using the MPRs works well in
+this context.  The larger and more dense a network, the more
+optimization can be achieved as compared to the classic link state
+algorithm.  OLSR uses hop-by-hop routing, i.e., each node uses its
+local information to route packets.
+
+OLSR is well suited for networks, where the traffic is random and
+sporadic between a larger set of nodes rather than being almost
+exclusively between a small specific set of nodes.  As a proactive
+protocol, OLSR is also suitable for scenarios where the communicating
+pairs change over time: no additional control traffic is generated in
+this situation since routes are maintained for all known destinations
+at all times. -- cfr. RFC3626
+
+
+\subsection{pico\_olsr\_add}
+
+\subsubsection*{Description}
+This function will add the target device to the OLSR mechanism on the machine, 
+meaning that it will be possible to advertise and collect routing information 
+using Optimized Link State Routing protocol, as described in RFC3626, through the
+target device.
+
+In order to use multiple devices in the OLSR system, this function needs to be called
+multiple times, once per device.
+
+\subsubsection*{Function prototype}
+\texttt{pico\_olsr\_add(struct pico\_device *dev);}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the device is successfully added.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_olsr_add(dev);
+
+\end{verbatim}
+
