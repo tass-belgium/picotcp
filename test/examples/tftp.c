@@ -94,7 +94,7 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t err, uint8_t *block, 
 {
     struct note_t *note = (struct note_t *) arg;
 
-    if (err != PICO_TFTP_ERR_OK) {
+    if (err != PICO_TFTP_EV_OK) {
         fprintf(stderr, "TFTP: Error %d: %s\n", err, block);
         exit(1);
     }
@@ -127,7 +127,7 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t err, uint8_t *block, 
     struct note_t *note = (struct note_t *) arg;
     int ret;
 
-    if (err != PICO_TFTP_ERR_OK) {
+    if (err != PICO_TFTP_EV_OK) {
         fprintf(stderr, "TFTP: Error %d: %s\n", err, block);
         exit(1);
     }
