@@ -15,7 +15,7 @@ char *get_string_terminator_position(char * const block, size_t len)
 {
     size_t length = pico_strnlen(block, len);
 
-    return len != length? block + length: 0;
+    return (len != length)? (block + length): 0;
 }
 
 int pico_strncasecmp(const char * const str1, const char * const str2, size_t n)
@@ -42,7 +42,11 @@ size_t pico_strnlen(const char *str, size_t n)
 {
     size_t len = 0;
 
-    for (; len < n && *(str + len); ++len);
+    if (!str)
+        return 0;
+
+    for (; len < n && *(str + len); ++len)
+        ; /* TICS require this empty statement here */
 
     return len;
 }
