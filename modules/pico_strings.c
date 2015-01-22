@@ -51,21 +51,39 @@ size_t pico_strnlen(const char *str, size_t n)
     return len;
 }
 
-int num2string(uint32_t num, char *buf, int len)
+static inline int num2string_validate(uint32_t num, int len)
 {
-    ldiv_t res;
-    int pos = 0;
-    int i;
-
     if (num > INT32_MAX)
         return -1;
 
     if (len < 2)
         return -2;
 
+    return 0;
+}
+
+static inline int revert_and_shift(char *buf, int len, int pos)
+{
+    int i;
+
+    len -= pos;
+    for (i = 0; i < len; ++i)
+        buf[i] = buf[i + pos];
+
+    return len;
+}
+
+int num2string(uint32_t num, char *buf, int len)
+{
+    ldiv_t res;
+    int pos = 0;
+
+    if (num2string_validate(num, len))
+        return -1;
+
     pos = len;
     buf[--pos] = '\0';
-    
+
     res.quot = (long)num;
 
     do {
@@ -75,9 +93,5 @@ int num2string(uint32_t num, char *buf, int len)
         buf[--pos] = (char)((res.rem + '0') & 0xFF);
     } while (res.quot);
 
-    len -= pos;
-    for (i = 0; i < len; ++i)
-        buf[i] = buf[i + pos];
-
-    return len;
+    return revert_and_shift(buf, len, pos);
 }
