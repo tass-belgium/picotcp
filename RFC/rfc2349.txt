@@ -1,0 +1,283 @@
+
+
+
+
+
+
+Network Working Group                                          G. Malkin
+Request for Commments: 2349                                 Bay Networks
+Updates: 1350                                                  A. Harkin
+Obsoletes: 1784                                      Hewlett Packard Co.
+Category: Standards Track                                       May 1998
+
+
+            TFTP Timeout Interval and Transfer Size Options
+
+Status of this Memo
+
+   This document specifies an Internet standards track protocol for the
+   Internet community, and requests discussion and suggestions for
+   improvements.  Please refer to the current edition of the "Internet
+   Official Protocol Standards" (STD 1) for the standardization state
+   and status of this protocol.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (1998).  All Rights Reserved.
+
+Abstract
+
+   The Trivial File Transfer Protocol [1] is a simple, lock-step, file
+   transfer protocol which allows a client to get or put a file onto a
+   remote host.
+
+   This document describes two TFTP options. The first allows the client
+   and server to negotiate the Timeout Interval.  The second allows the
+   side receiving the file to determine the ultimate size of the
+   transfer before it begins.  The TFTP Option Extension mechanism is
+   described in [2].
+
+Timeout Interval Option Specification
+
+   The TFTP Read Request or Write Request packet is modified to include
+   the timeout option as follows:
+
+      +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+      |  opc  |filename| 0 |  mode  | 0 | timeout| 0 |  #secs | 0 |
+      +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+
+      opc
+         The opcode field contains either a 1, for Read Requests, or 2,
+         for Write Requests, as defined in [1].
+
+
+
+
+
+
+Malkin & Harkin             Standards Track                     [Page 1]
+
+RFC 2349    TFTP Timeout Interval and Transfer Size Options     May 1998
+
+
+      filename
+         The name of the file to be read or written, as defined in [1].
+         This is a NULL-terminated field.
+
+      mode
+         The mode of the file transfer: "netascii", "octet", or "mail",
+         as defined in [1].  This is a NULL-terminated field.
+
+      timeout
+         The Timeout Interval option, "timeout" (case in-sensitive).
+         This is a NULL-terminated field.
+
+      #secs
+         The number of seconds to wait before retransmitting, specified
+         in ASCII.  Valid values range between "1" and "255" seconds,
+         inclusive.  This is a NULL-terminated field.
+
+   For example:
+
+      +-------+--------+---+--------+---+--------+---+-------+---+
+      |   1   | foobar | 0 | octet  | 0 | timeout| 0 |   1   | 0 |
+      +-------+--------+---+--------+---+--------+---+-------+---+
+
+   is a Read Request, for the file named "foobar", in octet (binary)
+   transfer mode, with a timeout interval of 1 second.
+
+   If the server is willing to accept the timeout option, it sends an
+   Option Acknowledgment (OACK) to the client.  The specified timeout
+   value must match the value specified by the client.
+
+Transfer Size Option Specification
+
+   The TFTP Read Request or Write Request packet is modified to include
+   the tsize option as follows:
+
+      +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+      |  opc  |filename| 0 |  mode  | 0 | tsize  | 0 |  size  | 0 |
+      +-------+---~~---+---+---~~---+---+---~~---+---+---~~---+---+
+
+      opc
+         The opcode field contains either a 1, for Read Requests, or 2,
+         for Write Requests, as defined in [1].
+
+      filename
+         The name of the file to be read or written, as defined in [1].
+         This is a NULL-terminated field.
+
+
+
+
+
+Malkin & Harkin             Standards Track                     [Page 2]
+
+RFC 2349    TFTP Timeout Interval and Transfer Size Options     May 1998
+
+
+      mode
+         The mode of the file transfer: "netascii", "octet", or "mail",
+         as defined in [1].  This is a NULL-terminated field.
+
+      tsize
+         The Transfer Size option, "tsize" (case in-sensitive).  This is
+         a NULL-terminated field.
+
+      size
+         The size of the file to be transfered.  This is a NULL-
+         terminated field.
+
+   For example:
+
+      +-------+--------+---+--------+---+--------+---+--------+---+
+      |   2   | foobar | 0 | octet  | 0 | tsize  | 0 | 673312 | 0 |
+      +-------+--------+---+--------+---+--------+---+--------+---+
+
+   is a Write Request, with the 673312-octet file named "foobar", in
+   octet (binary) transfer mode.
+
+   In Read Request packets, a size of "0" is specified in the request
+   and the size of the file, in octets, is returned in the OACK.  If the
+   file is too large for the client to handle, it may abort the transfer
+   with an Error packet (error code 3).  In Write Request packets, the
+   size of the file, in octets, is specified in the request and echoed
+   back in the OACK.  If the file is too large for the server to handle,
+   it may abort the transfer with an Error packet (error code 3).
+
+Security Considerations
+
+   The basic TFTP protocol has no security mechanism.  This is why it
+   has no rename, delete, or file overwrite capabilities.  This document
+   does not add any security to TFTP; however, the specified extensions
+   do not add any additional security risks.
+
+References
+
+   [1] Sollins, K., "The TFTP Protocol (Revision 2)", STD 33, RFC 1350,
+       October 92.
+
+   [2] Malkin, G., and A. Harkin, "TFTP Option Extension", RFC 2347,
+       May 1998.
+
+
+
+
+
+
+
+
+Malkin & Harkin             Standards Track                     [Page 3]
+
+RFC 2349    TFTP Timeout Interval and Transfer Size Options     May 1998
+
+
+Authors' Addresses
+
+   Gary Scott Malkin
+   Bay Networks
+   8 Federal Street
+   Billerica, MA  01821
+
+   Phone:  (978) 916-4237
+   EMail:  gmalkin@baynetworks.com
+
+
+   Art Harkin
+   Internet Services Project
+   Information Networks Division
+   19420 Homestead Road MS 43LN
+   Cupertino, CA  95014
+
+   Phone: (408) 447-3755
+   EMail: ash@cup.hp.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Malkin & Harkin             Standards Track                     [Page 4]
+
+RFC 2349    TFTP Timeout Interval and Transfer Size Options     May 1998
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (1998).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Malkin & Harkin             Standards Track                     [Page 5]
+
