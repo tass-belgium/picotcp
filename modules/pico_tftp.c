@@ -99,7 +99,7 @@ struct pico_tftp_session {
 };
 
 struct server_t {
-    int (*listen_callback)(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename);
+    void (*listen_callback)(union pico_address *addr, uint16_t port, uint16_t opcode, const char *filename, size_t len);
     struct pico_socket *listen_socket;
     int options; ///FIXME: really useful?
     uint8_t tftp_block[PICO_TFTP_BLOCK_SIZE];
@@ -132,7 +132,7 @@ static inline void session_status_clear(struct pico_tftp_session * session, int 
     session->status &= ~status;
 }
 
-static char * extract_arg_pointer(char * arg, char * end_arg, char ** value)
+static char * extract_arg_pointer(char * arg, char * end_arg, char **value)
 {
     char * pos;
 
@@ -166,31 +166,33 @@ static int extract_value(char * str, uint32_t * value, uint32_t max)
     return 0;
 }
 
-static int parse_optional_arguments(char * option_string, size_t len, int * options, uint8_t * timeout, uint32_t * filesize)
+static int parse_optional_arguments(char *option_string, size_t len, int *options, uint8_t *timeout, uint32_t *filesize)
 {
     char *pos;
     char *end_args = option_string + len;
+    char *current_option;
     int ret;
-    unsigned int value;
+    uint32_t value;
 
     *options = 0;
 
     while (option_string < end_args) {
+        current_option = option_string;
         option_string = extract_arg_pointer(option_string, end_args, &pos);
         if (!option_string)
             return 0;
-        if (pico_strncasecmp("timeout", option_string, (size_t)(pos - option_string))) {
+        if (!pico_strncasecmp("timeout", current_option, (size_t)(pos - current_option))) {
             ret = extract_value(pos, &value, PICO_TFTP_MAX_TIMEOUT);
             if (ret)
                 return -1;
             *timeout = (uint8_t)value;
             *options |= PICO_TFTP_OPTION_TIME;
         } else {
-            if (pico_strncasecmp("tsize", option_string, (size_t)(pos - option_string))) {
+            if (!pico_strncasecmp("tsize", current_option, (size_t)(pos - current_option))) {
                 ret = extract_value(pos, filesize, PICO_TFTP_MAX_FILESIZE);
                 if (ret)
                     return -1;
-                *options |= PICO_TFTP_OPTION_SIZE;
+                *options |= PICO_TFTP_OPTION_FILE;
             }
         }
     }
@@ -314,7 +316,7 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
     } else
         session->bigger_wallclock = new_timeout;
 
-    session->wallclock_timeout = PICO_TIME_MS() + interval;
+    session->wallclock_timeout = new_timeout;
 }
 
 static void tftp_finish(struct pico_tftp_session *session)
@@ -374,7 +376,7 @@ static size_t prepare_options_string(struct pico_tftp_session *session, char *st
         len += (size_t)res;
     }
 
-    if (session->options & PICO_TFTP_OPTION_SIZE) {
+    if (session->options & PICO_TFTP_OPTION_FILE) {
         strcpy(&str_options[len], "tsize");
         len += 6;
         res = num2string(filesize, &str_options[len], 11);
@@ -409,7 +411,6 @@ static void tftp_send_oack(struct pico_tftp_session *session)
     memcpy(buf + options_pos, str_options, options_size);
     (void)pico_socket_sendto(session->socket, buf, (int)(options_pos + options_size), &session->remote_address, session->remote_port);
     PICO_FREE(buf);
-    session->state = TFTP_STATE_TX;
 }
 
 static void tftp_send_req(struct pico_tftp_session *session, union pico_address *a, uint16_t port, const char *filename, uint16_t opcode)
@@ -463,6 +464,31 @@ static void tftp_send_tx_req(struct pico_tftp_session *session, union pico_addre
     tftp_send_req(session, a, port, filename, PICO_TFTP_WRQ);
     session->state = TFTP_STATE_WRITE_REQUESTED;
     tftp_schedule_timeout(session, PICO_TFTP_TIMEOUT);
+}
+
+static int send_error(uint8_t *buf, struct pico_socket *sock, union pico_address *a, uint16_t port, uint16_t errcode, const char *errmsg)
+{
+    struct pico_tftp_err_hdr *eh;
+    uint32_t len;
+    uint32_t maxlen = PICO_TFTP_BLOCK_SIZE - sizeof(struct pico_tftp_err_hdr);
+
+    if (!errmsg)
+        len = 0;
+    else
+        len = (uint32_t)strlen(errmsg);
+
+    eh = (struct pico_tftp_err_hdr *) buf;
+    eh->opcode = short_be(PICO_TFTP_ERROR);
+    eh->error_code = short_be(errcode);
+    if (len + 1U > maxlen)
+        len = maxlen;
+
+    if (len)
+        memcpy(tftp_payload(eh), errmsg, len);
+
+    tftp_payload(eh)[len++] = (char)0;
+
+    return pico_socket_sendto(sock, eh, (int) (len + sizeof(struct pico_tftp_err_hdr)), a, port);
 }
 
 static void tftp_send_error(struct pico_tftp_session *session, union pico_address *a, uint16_t port, uint16_t errcode, const char *errmsg)
@@ -588,16 +614,24 @@ static void tftp_req(uint8_t *block, uint32_t len, union pico_address *a, uint16
         len -= (uint32_t)sizeof(struct pico_tftp_hdr);
 
         pos = extract_arg_pointer(filename, filename + len, &mode);
-
-        //ret = parse_request_args((char *)(block + sizeof(struct pico_tftp_hdr)), len - sizeof(struct pico_tftp_hdr), &options, &timeout, &filesize);
-        ret = strcmp("octet", mode);
-        if (!pos || ret) {
+        if (!pos) {
             tftp_send_error(NULL, a, port, TFTP_ERR_EILL, "Invalid argument in request");
             return;
         }
 
+        ret = strcmp("octet", mode);
+        if (ret) {
+            tftp_send_error(NULL, a, port, TFTP_ERR_EILL, "Unsupported mode");
+            return;
+        }
+        /*ret = parse_optional_arguments((char *)(block + sizeof(struct pico_tftp_hdr)), len - sizeof(struct pico_tftp_hdr), &new_options, &new_timeout, &new_filesize);
+        if (ret) {
+            tftp_send_error(NULL, a, port, TFTP_ERR_EILL, "Bad request");
+            return;
+        } */
+
         if (server.listen_callback) {
-            server.listen_callback(a, port, short_be(hdr->opcode), (char *)(block + sizeof(struct pico_tftp_hdr)));
+            server.listen_callback(a, port, short_be(hdr->opcode), filename, len);
         }
         break;
     default:
@@ -719,14 +753,16 @@ static inline void event_oack(struct pico_tftp_session *session, uint32_t len, u
 {
     char * option_string = (char *)session->tftp_block + sizeof(struct pico_tftp_hdr);
     int ret;
+    int proposed_options = session->options;
 
     (void)a;
 
     session->remote_port = port;
 
     ret = parse_optional_arguments(option_string, len - sizeof(struct pico_tftp_hdr), &session->options, &session->option_timeout, &session->file_size);
-    if (ret) {
+    if (ret || (session->options & ~proposed_options)) {
         do_callback(session, PICO_TFTP_EV_ERR_PEER, session->tftp_block, len);
+        tftp_send_error(session, a, port, TFTP_ERR_EOPT, "Invalid option");
         return;
     }
 
@@ -944,7 +980,7 @@ struct pico_tftp_session * pico_tftp_session_setup(union pico_address *a, uint16
     return pico_tftp_session_create(sock, a);
 }
 
-int pico_tftp_get_options(struct pico_tftp_session *session, uint8_t type, uint32_t *value)
+int pico_tftp_get_option(struct pico_tftp_session *session, uint8_t type, uint32_t *value)
 {
     if (!session) {
         pico_err = PICO_ERR_EINVAL;
@@ -952,8 +988,8 @@ int pico_tftp_get_options(struct pico_tftp_session *session, uint8_t type, uint3
     }
 
     switch (type) {
-    case PICO_TFTP_OPTION_SIZE:
-        if (session->options & PICO_TFTP_OPTION_SIZE)
+    case PICO_TFTP_OPTION_FILE:
+        if (session->options & PICO_TFTP_OPTION_FILE)
             *value = session->file_size;
         else {
             pico_err = PICO_ERR_ENOENT;
@@ -976,7 +1012,7 @@ int pico_tftp_get_options(struct pico_tftp_session *session, uint8_t type, uint3
     return 0;
 }
 
-int pico_tftp_set_options(struct pico_tftp_session *session, uint8_t type, uint32_t value)
+int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, uint32_t value)
 {
     if (!session) {
         pico_err = PICO_ERR_EINVAL;
@@ -984,9 +1020,9 @@ int pico_tftp_set_options(struct pico_tftp_session *session, uint8_t type, uint3
     }
 
     switch (type) {
-    case PICO_TFTP_OPTION_SIZE:
+    case PICO_TFTP_OPTION_FILE:
         session->file_size = value;
-        session->options |= PICO_TFTP_OPTION_SIZE;
+        session->options |= PICO_TFTP_OPTION_FILE;
         break;
     case PICO_TFTP_OPTION_TIME:
         if (value > PICO_TFTP_MAX_TIMEOUT) {
@@ -1020,7 +1056,7 @@ int pico_tftp_start_rx(struct pico_tftp_session *session, uint16_t port, const c
     if (port != short_be(PICO_TFTP_PORT)) {
         session->remote_port = port;
         session->state = TFTP_STATE_RX;
-        if (session->status & (PICO_TFTP_OPTION_SIZE|PICO_TFTP_OPTION_TIME))
+        if (session_status_get(session, PICO_TFTP_OPTION_FILE | PICO_TFTP_OPTION_TIME))
             tftp_send_oack(session);
         else
             tftp_send_ack(session);
@@ -1045,12 +1081,21 @@ int pico_tftp_start_tx(struct pico_tftp_session *session, uint16_t port, const c
 
     if (port != short_be(PICO_TFTP_PORT)) {
         session->remote_port = port;
-        session->state = TFTP_STATE_WAIT_OPT_CONFIRM;
-        user_cb(session, PICO_TFTP_EV_OK, NULL, 0, arg);
+        if (session->options) {
+            tftp_send_oack(session);
+            session->state = TFTP_STATE_WAIT_OPT_CONFIRM;
+        } else {
+            do_callback(session, PICO_TFTP_EV_OK, NULL, 0);
+        }
     } else
         tftp_send_tx_req(session, &session->remote_address, port, filename);
 
     return 0;
+}
+
+int pico_tftp_reject_request(union pico_address* addr, uint16_t port, uint16_t error_code, const char* error_message)
+{
+    return send_error(server.tftp_block, server.listen_socket, addr, port, error_code, error_message);
 }
 
 int pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int len)
@@ -1075,7 +1120,7 @@ int pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int l
     return len;
 }
 
-int pico_tftp_listen(uint16_t family, int (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename))
+int pico_tftp_listen(uint16_t family, void (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, const char *filename, size_t len))
 {
     struct pico_socket *sock;
 

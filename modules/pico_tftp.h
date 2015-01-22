@@ -8,6 +8,7 @@
 #define PICO_TFTP_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define PICO_TFTP_PORT       (69)
 #define PICO_TFTP_SIZE       (512U)
@@ -39,7 +40,7 @@
 
 
 /* Session options */
-#define PICO_TFTP_OPTION_SIZE 1
+#define PICO_TFTP_OPTION_FILE 1
 
 /* timeout: 0 -> adaptative, 1-255 -> fixed */
 #define PICO_TFTP_OPTION_TIME 2
@@ -49,17 +50,6 @@
 #define PICO_TFTP_MAX_FILESIZE (65535 * 512 - 1)
 
 struct pico_tftp_session;
-/*
-struct pico_tftp_session * old_pico_tftp_start_rx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
-                       int (*user_cb)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg), void *arg);
-struct pico_tftp_session * old_pico_tftp_start_tx(union pico_address *a, uint16_t port, uint16_t family, char *filename,
-                       int (*user_cb)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg), void *arg);
-int old_pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int len);
-int old_pico_tftp_listen(uint16_t family, int (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename));
-int old_pico_tftp_abort(struct pico_tftp_session *session);
-
-*/
-/*************** +++++++++     N E W   I N T E R F A C E     +++++++++ ***************/
 
 struct pico_tftp_session * pico_tftp_session_setup(union pico_address *a, uint16_t family);
 int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, uint32_t value);
@@ -70,10 +60,13 @@ int pico_tftp_start_rx(struct pico_tftp_session *session, uint16_t port, const c
                        int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg);
 int pico_tftp_start_tx(struct pico_tftp_session *session, uint16_t port, const char *filename,
                        int (*user_cb)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg), void *arg);
-int pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int len);
-int pico_tftp_listen(uint16_t family, int (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename));
 
-int pico_tftp_parse_request_args(char * args, uint32_t len, int * options, uint8_t * timeout, uint32_t * filesize);
+int pico_tftp_reject_request(union pico_address *addr, uint16_t port, uint16_t error_code, const char *error_message);
+int pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, int len);
+
+int pico_tftp_listen(uint16_t family, void (*cb)(union pico_address *addr, uint16_t port, uint16_t opcode, const char *filename, size_t len));
+
+int pico_tftp_parse_request_args(char *args, uint32_t len, int *options, uint8_t *timeout, uint32_t *filesize);
 
 
 int pico_tftp_abort(struct pico_tftp_session *session, uint16_t error, const char *reason);
