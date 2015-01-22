@@ -201,6 +201,7 @@ echo "TFTP GET TEST"
 tftp_setup $TFTP_WORK_DIR
 (${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
 cd $TFTP_WORK_SUBDIR
+sleep 2
 ${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:R:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
 sleep 3
 killall picoapp.elf
@@ -213,6 +214,7 @@ echo "TFTP PUT TEST"
 (${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
 cd $TFTP_WORK_DIR
 tftp_setup $TFTP_WORK_DIR
+sleep 2
 ${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:T:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
 sleep 3
 
