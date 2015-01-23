@@ -307,14 +307,16 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
 {
     pico_time new_timeout = PICO_TIME_MS() + interval;
 
-    if (session->bigger_wallclock == 0)
-        session->bigger_wallclock = new_timeout;
-
-    if (session->bigger_wallclock >= new_timeout) {
+    if (session->active_timers) {
+        if (session->bigger_wallclock > new_timeout) {
+            session->timer = pico_timer_add(interval + 1, timer_callback, session);
+            session->active_timers++;
+        }
+    } else {
         session->timer = pico_timer_add(interval + 1, timer_callback, session);
         session->active_timers++;
-    } else
         session->bigger_wallclock = new_timeout;
+    }
 
     session->wallclock_timeout = new_timeout;
 }
@@ -909,7 +911,7 @@ static void timer_callback(pico_time now, void *arg)
 
     --session->active_timers;
     if (session->wallclock_timeout == 0) {
-        /* Timer is canceled. */
+        /* Timer is cancelled. */
         return;
     }
 
