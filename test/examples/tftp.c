@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 /* Let's use linux fs */
 #include <fcntl.h>
@@ -33,7 +34,7 @@ struct note_t {
     char *filename;
     int fd;
     char direction;
-    uint32_t filesize;
+    int32_t filesize;
     struct note_t *next;
 };
 
@@ -81,7 +82,7 @@ struct command_t * add_command(struct command_t * commands, char operation,
     return command;
 }
 
-int get_filesize(const char *filename)
+int32_t get_filesize(const char *filename)
 {
     int ret;
     struct stat buf;
@@ -106,12 +107,12 @@ struct note_t * setup_transfer(char operation, const char *filename)
     return add_note(filename, fd, operation);
 }
 
-int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg)
+int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg)
 {
     struct note_t *note = (struct note_t *) arg;
 
     if (event != PICO_TFTP_EV_OK) {
-        fprintf(stderr, "TFTP: Error %d: %s\n", event, block);
+        fprintf(stderr, "TFTP: Error %" PRIu16 ": %s\n", event, block);
         exit(1);
     }
 
@@ -121,7 +122,7 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         note->filesize += len;
         pico_tftp_send(session, tftp_txbuf, len);
         if (len < PICO_TFTP_SIZE) {
-            printf("TFTP: file %s (%u bytes) TX transfer complete!\n", note->filename, note->filesize);
+            printf("TFTP: file %s (%" PRId32 " bytes) TX transfer complete!\n", note->filename, note->filesize);
             close(note->fd);
             del_note(note);
         }
@@ -138,30 +139,30 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
     return len;
 }
 
-int cb_tftp_tx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg)
+int cb_tftp_tx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg)
 {
     int ret;
-    uint32_t filesize;
+    int32_t filesize;
 
     if (event == PICO_TFTP_EV_OPT) {
         ret = pico_tftp_get_option(session, PICO_TFTP_OPTION_FILE, &filesize);
         if (ret)
             printf("TFTP: Option filesize is not used\n");
         else
-            printf("TFTP: We expect to transmit %lu bytes\n", filesize);
+            printf("TFTP: We expect to transmit %" PRId32 " bytes\n", filesize);
         event = PICO_TFTP_EV_OK;
     }
 
     return cb_tftp_tx(session, event, block, len, arg);
 }
 
-int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg)
+int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg)
 {
     struct note_t *note = (struct note_t *) arg;
     int ret;
 
     if (event != PICO_TFTP_EV_OK) {
-        fprintf(stderr, "TFTP: Error %d: %s\n", event, block);
+        fprintf(stderr, "TFTP: Error %" PRIu16 ": %s\n", event, block);
         exit(1);
     }
 
@@ -173,7 +174,7 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         del_note(note);
     } else {
         if (len != PICO_TFTP_SIZE) {
-            printf("TFTP: file %s (%u bytes) RX transfer complete!\n", note->filename, note->filesize);
+            printf("TFTP: file %s (%" PRId32 " bytes) RX transfer complete!\n", note->filename, note->filesize);
             close(note->fd);
             del_note(note);
         }
@@ -185,17 +186,17 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
     return len;
 }
 
-int cb_tftp_rx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *block, uint32_t len, void *arg)
+int cb_tftp_rx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg)
 {
     int ret;
-    uint32_t filesize;
+    int32_t filesize;
 
     if (event == PICO_TFTP_EV_OPT) {
         ret = pico_tftp_get_option(session, PICO_TFTP_OPTION_FILE, &filesize);
         if (ret)
             printf("TFTP: Option filesize is not used\n");
         else
-            printf("TFTP: We expect to receive %lu bytes\n", filesize);
+            printf("TFTP: We expect to receive %" PRId32 " bytes\n", filesize);
 
         return 0;
     }
@@ -225,7 +226,7 @@ struct note_t * transfer_prepare(struct pico_tftp_session ** psession, char oper
 }
 
 void start_rx(struct pico_tftp_session *session, const char *filename, uint16_t port,
-    int (*rx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg),
+    int (*rx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
     struct note_t *note)
 {
     if(pico_tftp_start_rx(session, port, filename, rx_callback, note)) {
@@ -235,7 +236,7 @@ void start_rx(struct pico_tftp_session *session, const char *filename, uint16_t 
 }
 
 void start_tx(struct pico_tftp_session *session, const char *filename, uint16_t port,
-    int (*tx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg),
+    int (*tx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
     struct note_t *note)
 {
     if(pico_tftp_start_tx(session, port, filename, tx_callback, note)) {
@@ -244,12 +245,12 @@ void start_tx(struct pico_tftp_session *session, const char *filename, uint16_t 
     }
 }
 
-void tftp_listen_cb(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename, size_t len)
+void tftp_listen_cb(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename, int32_t len)
 {
     struct note_t *note;
     struct pico_tftp_session *session;
 
-    printf("TFTP listen callback (BASIC) from remote port %d.\n", short_be(port));
+    printf("TFTP listen callback (BASIC) from remote port %" PRIu16 ".\n", short_be(port));
     if (opcode == PICO_TFTP_RRQ) {
         printf("Received TFTP get request for %s\n", filename);
         note = transfer_prepare(&session, 't', filename, addr, family);
@@ -261,7 +262,7 @@ void tftp_listen_cb(union pico_address *addr, uint16_t port, uint16_t opcode, ch
     }
 }
 
-void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename, size_t len)
+void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode, char *filename, int32_t len)
 {
     struct note_t *note;
     struct pico_tftp_session *session;
@@ -270,7 +271,7 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
     uint32_t filesize;
     int ret;
 
-    printf("TFTP listen callback (OPTIONS) from remote port %d.\n", short_be(port));
+    printf("TFTP listen callback (OPTIONS) from remote port %" PRIu16 ".\n", short_be(port));
     /* declare the options we want to support */
     ret = pico_tftp_parse_request_args(filename, len, &options, &timeout, &filesize);
     if (ret)
@@ -421,7 +422,7 @@ void app_tftp(char *arg)
                 fprintf(stderr, "TFTP: unable to read size of file %s\n", commands->filename);
                 exit(3);
             }
-            pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, 0);
+            pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, filesize);
             start_tx(session, commands->filename, short_be(PICO_TFTP_PORT), cb_tftp_tx_opt, note);
             break;
         case 't':
