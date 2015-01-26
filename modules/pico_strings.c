@@ -51,13 +51,16 @@ size_t pico_strnlen(const char *str, size_t n)
     return len;
 }
 
-static inline int num2string_validate(uint32_t num, int len)
+static inline int num2string_validate(int32_t num, char *buf, int len)
 {
-    if (num > INT32_MAX)
+    if (num < 0)
         return -1;
 
-    if (len < 2)
+    if (!buf)
         return -2;
+
+    if (len < 2)
+        return -3;
 
     return 0;
 }
@@ -73,12 +76,12 @@ static inline int revert_and_shift(char *buf, int len, int pos)
     return len;
 }
 
-int num2string(uint32_t num, char *buf, int len)
+int num2string(int32_t num, char *buf, int len)
 {
     ldiv_t res;
     int pos = 0;
 
-    if (num2string_validate(num, len))
+    if (num2string_validate(num, buf, len))
         return -1;
 
     pos = len;
