@@ -268,7 +268,7 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
     struct pico_tftp_session *session;
     int options;
     uint8_t timeout;
-    uint32_t filesize;
+    int32_t filesize;
     int ret;
 
     printf("TFTP listen callback (OPTIONS) from remote port %" PRIu16 ".\n", short_be(port));
@@ -289,7 +289,7 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
                 pico_tftp_reject_request(addr, port, TFTP_ERR_ENOENT, "File not found");
                 return;
             }
-            pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, (uint32_t) ret);
+            pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, ret);
         }
 
         start_tx(session, filename, port, cb_tftp_tx_opt, note);
