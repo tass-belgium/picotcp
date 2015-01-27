@@ -229,9 +229,9 @@ void start_rx(struct pico_tftp_session *session, const char *filename, uint16_t 
     int (*rx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
     struct note_t *note)
 {
-    if(pico_tftp_start_rx(session, port, filename, rx_callback, note)) {
-            fprintf(stderr, "TFTP: Error in initialization\n");
-            exit(1);
+    if (pico_tftp_start_rx(session, port, filename, rx_callback, note)) {
+        fprintf(stderr, "TFTP: Error in initialization\n");
+        exit(1);
     }
 }
 
@@ -239,9 +239,9 @@ void start_tx(struct pico_tftp_session *session, const char *filename, uint16_t 
     int (*tx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
     struct note_t *note)
 {
-    if(pico_tftp_start_tx(session, port, filename, tx_callback, note)) {
-            fprintf(stderr, "TFTP: Error in initialization\n");
-            exit(1);
+    if (pico_tftp_start_tx(session, port, filename, tx_callback, note)) {
+        fprintf(stderr, "TFTP: Error in initialization\n");
+        exit(1);
     }
 }
 
