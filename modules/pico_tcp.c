@@ -2028,12 +2028,12 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
         /* First, try with timestamps, using the value from options */
         if(f && (f->timestamp != 0)) {
             rtt = time_diff(TCP_TIME, f->timestamp);
-            if (rtt && (hdr->flags & PICO_TCP_SYN == 0))
+            if (rtt)
                 tcp_rtt(t, rtt);
         } else if(acked_timestamp) {
             /* If no timestamps are there, use conservatve estimation on the una */
             rtt = time_diff(TCP_TIME, acked_timestamp);
-            if (rtt && (hdr->flags & PICO_TCP_SYN == 0))
+            if (rtt)
                 tcp_rtt(t, rtt);
         }
 
@@ -2055,7 +2055,10 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
             tcp_dbg("Mode: DUPACK %d, due to PURE ACK %0x, len = %d\n", t->x_mode, SEQN(f), f->payload_len);
             /* tcp_dbg("ACK: %x - QUEUE: %x\n", ACKN(f), SEQN(first_segment(&t->tcpq_out))); */
             if (t->x_mode == PICO_TCP_RECOVER) {              /* Switching mode */
-                //t->cwnd = (uint16_t)t->in_flight; // MVI: FIXME: need to reinit to default cwnd
+                if (t->in_flight > PICO_TCP_IW)
+                    t->cwnd = (uint16_t)t->in_flight;
+                else
+                    t->cwnd = PICO_TCP_IW;
                 t->snd_retry = SEQN((struct pico_frame *)first_segment(&t->tcpq_out));
                 if (t->ssthresh > t->cwnd)
                     t->ssthresh >>= 2;
