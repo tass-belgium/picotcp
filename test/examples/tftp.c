@@ -116,12 +116,12 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         exit(1);
     }
 
-    len = read(note->fd, tftp_txbuf, PICO_TFTP_SIZE);
+    len = read(note->fd, tftp_txbuf, PICO_TFTP_PAYLOAD_SIZE);
 
     if (len >= 0) {
         note->filesize += len;
         pico_tftp_send(session, tftp_txbuf, len);
-        if (len < PICO_TFTP_SIZE) {
+        if (len < PICO_TFTP_PAYLOAD_SIZE) {
             printf("TFTP: file %s (%" PRId32 " bytes) TX transfer complete!\n", note->filename, note->filesize);
             close(note->fd);
             del_note(note);
@@ -173,7 +173,7 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         pico_tftp_abort(session, TFTP_ERR_EACC, "Error on write");
         del_note(note);
     } else {
-        if (len != PICO_TFTP_SIZE) {
+        if (len != PICO_TFTP_PAYLOAD_SIZE) {
             printf("TFTP: file %s (%" PRId32 " bytes) RX transfer complete!\n", note->filename, note->filesize);
             close(note->fd);
             del_note(note);
