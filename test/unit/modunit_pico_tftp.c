@@ -34,7 +34,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     return 0;
 }
 
-int tftp_user_cb(struct pico_tftp_session *session, uint16_t err, uint8_t *block, uint32_t len, void *arg)
+int tftp_user_cb(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg)
 {
     (void)session;
     (void)err;
@@ -103,10 +103,10 @@ START_TEST(tc_tftp_finish)
     fail_if(example_session.state != TFTP_STATE_CLOSING);
     fail_if(!called_pico_socket_close);
 
-    /* Test eval_finish() len is PICO_TFTP_BLOCK_SIZE */
+    /* Test eval_finish() len is PICO_TFTP_TOTAL_BLOCK_SIZE */
     example_session.socket = &example_socket;
     called_pico_socket_close = 0;
-    tftp_eval_finish(&example_session, PICO_TFTP_BLOCK_SIZE);
+    tftp_eval_finish(&example_session, PICO_TFTP_TOTAL_BLOCK_SIZE);
     fail_if(called_pico_socket_close);
 }
 END_TEST
