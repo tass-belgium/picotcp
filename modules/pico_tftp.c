@@ -284,7 +284,6 @@ static inline int do_callback(struct pico_tftp_session *session, uint16_t err, u
 {
     int ret;
 
-    printf("%s:%d STATE=%d \n", __func__, __LINE__, session->state);
     session_status_set(session, SESSION_STATUS_IN_CALLBACK);
     ret = session->callback(session, err, data, len, session->argument);
     session_status_clear(session, SESSION_STATUS_IN_CALLBACK);
@@ -298,23 +297,18 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
 {
     pico_time new_timeout = PICO_TIME_MS() + interval;
 
-    printf("%s:%d num_timers(before)=%u interval=%lu (now=%u) STATE=%d\n", __func__, __LINE__, session->active_timers, interval, PICO_TIME_MS(), session->state);
     if (session->active_timers) {
         if (session->bigger_wallclock > new_timeout) {
             session->timer = pico_timer_add(interval + 1, timer_callback, session);
             session->active_timers++;
-            printf("Timer started, active_timers=%d\n", session->active_timers);
         }
     } else {
         session->timer = pico_timer_add(interval + 1, timer_callback, session);
         session->active_timers++;
-        printf("No previous timers... timer started, active_timers=%d\n", session->active_timers);
         session->bigger_wallclock = new_timeout;
-        printf("Updated bigger_wallclock to %lu\n", new_timeout);
     }
 
     session->wallclock_timeout = new_timeout;
-    printf("wallclock set to %lu\n", new_timeout);
 }
 
 static void tftp_finish(struct pico_tftp_session *session)
@@ -333,7 +327,6 @@ static void tftp_finish(struct pico_tftp_session *session)
 
 static void tftp_send(struct pico_tftp_session *session, int len)
 {
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     if (len)
         session->len = len;
     else
@@ -346,7 +339,6 @@ static void tftp_send_ack(struct pico_tftp_session *session)
 {
     struct pico_tftp_data_hdr *dh;
 
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     dh = PICO_ZALLOC(sizeof(struct pico_tftp_data_hdr));
     if (!dh)
         return;
@@ -399,7 +391,6 @@ static void tftp_send_oack(struct pico_tftp_session *session)
     uint8_t *buf;
     char str_options[MAX_OPTIONS_SIZE];
 
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     options_size = prepare_options_string(session, str_options, session->file_size);
 
     buf = PICO_ZALLOC(options_pos + options_size);
@@ -429,7 +420,6 @@ static void tftp_send_req(struct pico_tftp_session *session, union pico_address 
     uint8_t *buf;
     char str_options[MAX_OPTIONS_SIZE];
 
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     if (!filename) {
         return;
     }
@@ -458,7 +448,6 @@ static void tftp_send_req(struct pico_tftp_session *session, union pico_address 
 
 static void tftp_send_rx_req(struct pico_tftp_session *session, union pico_address *a, uint16_t port, const char *filename)
 {
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     tftp_send_req(session, a, port, filename, PICO_TFTP_RRQ);
     session->state = TFTP_STATE_READ_REQUESTED;
     tftp_schedule_timeout(session, PICO_TFTP_TIMEOUT);
@@ -466,7 +455,6 @@ static void tftp_send_rx_req(struct pico_tftp_session *session, union pico_addre
 
 static void tftp_send_tx_req(struct pico_tftp_session *session, union pico_address *a, uint16_t port, const char *filename)
 {
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     tftp_send_req(session, a, port, filename, PICO_TFTP_WRQ);
     session->state = TFTP_STATE_WRITE_REQUESTED;
     tftp_schedule_timeout(session, PICO_TFTP_TIMEOUT);
@@ -478,7 +466,6 @@ static int send_error(uint8_t *buf, struct pico_socket *sock, union pico_address
     int32_t len;
     int32_t maxlen = PICO_TFTP_TOTAL_BLOCK_SIZE - sizeof(struct pico_tftp_err_hdr);
 
-    printf("%s:%d \n", __func__, __LINE__);
     if (!errmsg)
         len = 0;
     else
@@ -504,7 +491,6 @@ static void tftp_send_error(struct pico_tftp_session *session, union pico_addres
     int32_t len;
     int32_t maxlen = PICO_TFTP_TOTAL_BLOCK_SIZE - sizeof(struct pico_tftp_err_hdr);
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!errmsg)
         len = 0;
     else
@@ -536,7 +522,6 @@ static void tftp_send_data(struct pico_tftp_session *session, const uint8_t *dat
 {
     struct pico_tftp_data_hdr *dh;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     dh = (struct pico_tftp_data_hdr *) session->tftp_block;
     dh->opcode = short_be(PICO_TFTP_DATA);
     dh->block = short_be(session->packet_counter++);
@@ -554,7 +539,6 @@ static void tftp_send_data(struct pico_tftp_session *session, const uint8_t *dat
 
 static inline void tftp_eval_finish(struct pico_tftp_session *session, int32_t len)
 {
-    printf("%s:%d  STATE=%d   len=%d\n", __func__, __LINE__, session->state, len);
     if (len < PICO_TFTP_PAYLOAD_SIZE) {
         pico_socket_close(session->socket);
         session->state = TFTP_STATE_CLOSING;
@@ -563,7 +547,6 @@ static inline void tftp_eval_finish(struct pico_tftp_session *session, int32_t l
 
 static inline int tftp_data_prepare(struct pico_tftp_session *session, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!session->socket)
         return -1;
 
@@ -583,7 +566,6 @@ static void tftp_req(uint8_t *block, int32_t len, union pico_address *a, uint16_
     char * mode;
     int ret;
 
-    printf("%s:%d \n", __func__, __LINE__);
     switch (short_be(hdr->opcode)) {
     case PICO_TFTP_RRQ:
     case PICO_TFTP_WRQ:
@@ -666,7 +648,6 @@ static inline int event_ack0_check(struct pico_tftp_session *session, int32_t le
 
 static void event_ack0_wr(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!event_ack0_check(session, len, a, port)) {
         session->remote_port = port;
         do_callback(session, PICO_TFTP_EV_OK, session->tftp_block, 0);
@@ -675,21 +656,18 @@ static void event_ack0_wr(struct pico_tftp_session *session, int32_t len, union 
 
 static void event_ack0_woc(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!event_ack0_check(session, len, a, port))
         do_callback(session, PICO_TFTP_EV_OPT, session->tftp_block, 0);
 }
 
 static void event_ack(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!event_ack_base(session, len, a, port))
         do_callback(session, PICO_TFTP_EV_OK, session->tftp_block, 0);
 }
 
 static void event_ack_last(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!event_ack_base(session, len, a, port))
         tftp_finish(session);
 }
@@ -699,7 +677,6 @@ static void event_data(struct pico_tftp_session *session, int32_t len, union pic
     struct pico_tftp_data_hdr *dh;
     int32_t payload_len = len - (int32_t)sizeof(struct pico_tftp_data_hdr);
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (tftp_data_prepare(session, a, port))
         return;
 
@@ -738,7 +715,6 @@ static void event_data_rpl(struct pico_tftp_session *session, int32_t len, union
     struct pico_tftp_data_hdr *dh;
 
     (void)len;
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (tftp_data_prepare(session, a, port))
         return;
 
@@ -750,7 +726,6 @@ static void event_data_rpl(struct pico_tftp_session *session, int32_t len, union
 
 static void event_err(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     (void)a;
     (void)port;
     do_callback(session, PICO_TFTP_EV_ERR_PEER, session->tftp_block, len);
@@ -763,7 +738,6 @@ static inline void event_oack(struct pico_tftp_session *session, int32_t len, un
     int ret;
     int proposed_options = session->options;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     (void)a;
 
     session->remote_port = port;
@@ -796,7 +770,6 @@ static void event_timeout(struct pico_tftp_session *session, pico_time t)
     pico_time new_timeout;
     int factor;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     (void)t;
     if (++session->retry == TFTP_MAX_RETRY) {
         strcpy((char *)session->tftp_block, "Network timeout");
@@ -827,20 +800,17 @@ static void event_timeout_final(struct pico_tftp_session *session, pico_time t)
 {
     (void)t;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     tftp_finish(session);
 }
 
 void unexpected(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     (void)len;
     tftp_send_error(session, a, port, TFTP_ERR_EILL, "Unexpected message");
 }
 
 void null(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     (void)session;
     (void)len;
     (void)a;
@@ -864,7 +834,6 @@ static void tftp_message_received(struct pico_tftp_session *session, uint8_t *bl
 {
     struct pico_tftp_hdr *th = (struct pico_tftp_hdr *) block;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!session->callback)
         return;
 
@@ -899,7 +868,6 @@ static void tftp_cb(uint16_t ev, struct pico_socket *s)
     union pico_address ep;
     uint16_t port;
 
-    printf("%s:%d \n", __func__, __LINE__);
     session = find_session_by_socket(s);
     if (session) {
         if (ev == PICO_SOCK_EV_ERR) {
@@ -915,7 +883,6 @@ static void tftp_cb(uint16_t ev, struct pico_socket *s)
         tftp_message_received(session, session->tftp_block, r, &ep, port);
     } else {
         if (!server.listen_socket || s != server.listen_socket) {
-            printf("%s: Noises\n", __func__);
             return;
         }
         r = pico_socket_recvfrom(s, server.tftp_block, PICO_TFTP_TOTAL_BLOCK_SIZE, &ep, &port);
@@ -960,10 +927,8 @@ static void timer_callback(pico_time now, void *arg)
 {
     struct pico_tftp_session *session = (struct pico_tftp_session *)arg;
 
-    printf("%s:%d num_timers (before)=%u now=%lu wall=%lu\n", __func__, __LINE__, session->active_timers, now, session->wallclock_timeout);
     --session->active_timers;
     if (session->wallclock_timeout == 0) {
-        printf("Timer is cancelled\n");
         /* Timer is cancelled. */
         return;
     }
@@ -1028,7 +993,6 @@ struct pico_tftp_session * pico_tftp_session_setup(union pico_address *a, uint16
 {
     struct pico_socket *sock;
 
-    printf("%s:%d \n", __func__, __LINE__);
     sock = tftp_socket_open(family, 0);
     if (!sock)
         return NULL;
@@ -1038,7 +1002,6 @@ struct pico_tftp_session * pico_tftp_session_setup(union pico_address *a, uint16
 
 int pico_tftp_get_option(struct pico_tftp_session *session, uint8_t type, int32_t *value)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!session) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -1071,7 +1034,6 @@ int pico_tftp_get_option(struct pico_tftp_session *session, uint8_t type, int32_
 
 int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, int32_t value)
 {
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     if (!session) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -1110,7 +1072,6 @@ int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, int32_
 int pico_tftp_start_rx(struct pico_tftp_session *session, uint16_t port, const char *filename,
         int (*user_cb)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg), void *arg)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (tftp_start_check(session, port, filename, user_cb))
         return -1;
 
@@ -1137,7 +1098,6 @@ int pico_tftp_start_rx(struct pico_tftp_session *session, uint16_t port, const c
 int pico_tftp_start_tx(struct pico_tftp_session *session, uint16_t port, const char *filename,
         int (*user_cb)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg), void *arg)
 {
-    printf("%s:%d STATE=%d\n", __func__, __LINE__, session->state);
     if (tftp_start_check(session, port, filename, user_cb))
         return -1;
 
@@ -1170,7 +1130,6 @@ int32_t pico_tftp_send(struct pico_tftp_session *session, const uint8_t *data, i
 {
     int32_t size;
 
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
 
     if (len < 0) {
         pico_err = PICO_ERR_EINVAL;
@@ -1193,7 +1152,6 @@ int pico_tftp_listen(uint16_t family, void (*cb)(union pico_address *addr, uint1
 {
     struct pico_socket *sock;
 
-    printf("%s:%d \n", __func__, __LINE__);
     if (server.listen_socket) {
         pico_err = PICO_ERR_EEXIST;
         return -1;
@@ -1214,7 +1172,6 @@ int pico_tftp_parse_request_args(char * args, int32_t len, int * options, uint8_
     char *pos;
     char *end_args = args + len;
 
-    printf("%s:%d \n", __func__, __LINE__);
     args = extract_arg_pointer(args, end_args, &pos);
 
     return parse_optional_arguments(args, (int32_t)(end_args - args), options, timeout, filesize);
@@ -1222,7 +1179,6 @@ int pico_tftp_parse_request_args(char * args, int32_t len, int * options, uint8_
 
 int pico_tftp_abort(struct pico_tftp_session *session, uint16_t error, const char *reason)
 {
-    printf("%s:%d  STATE=%d\n", __func__, __LINE__, session->state);
     if (!session) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -1240,7 +1196,6 @@ int pico_tftp_abort(struct pico_tftp_session *session, uint16_t error, const cha
 
 int pico_tftp_close_server(void)
 {
-    printf("%s:%d \n", __func__, __LINE__);
     if (!server.listen_socket) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
