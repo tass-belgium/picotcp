@@ -369,3 +369,10 @@ int32_t pico_device_broadcast(struct pico_frame *f)
     }
     return ret;
 }
+
+int pico_device_link_state(struct pico_device *dev)
+{
+    if (!dev->link_state)
+        return 1; /* Not supported, assuming link is always up */
+    return dev->link_state(dev);
+}
