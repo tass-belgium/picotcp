@@ -894,41 +894,6 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     return 0;
 }
 
-
-
-/*
-
-         .
-       .vS.
-     <aoSo.
-    .XoS22.
-    .S2S22.             ._...              ......            ..._.
-   :=|2S2X2|=++;      <vSX2XX2z+          |vSSSXSSs>.      :iXXZUZXXe=
-   )2SS2SS2S2S2I    =oS2S2S2S2X22;.    _vuXS22S2S2S22i  ._wZZXZZZXZZXZX=
-   )22S2S2S2S2Sl    |S2S2S22S2SSSXc:  .S2SS2S2S22S2SS= .]#XZZZXZXZZZZZZ:
-   )oSS2SS2S2Sol     |2}!"""!32S22S(. uS2S2Se**12oS2e  ]dXZZXX2?YYXXXZ*
-   .:2S2So:..-.      .      :]S2S2e;=X2SS2o     .)oc  ]XZZXZ(     =nX:
-    .S2S22.          ___s_i,.)oS2So(;2SS2So,       `  3XZZZZc,      -
-    .S2SSo.        =oXXXSSS2XoS2S2o( XS2S2XSos;.      ]ZZZZXXXX|=
-    .S2S22.      .)S2S2S22S2S2S2S2o( "X2SS2S2S2Sus,,  +3XZZZZZXZZoos_
-    .S2S22.     .]2S2SS22S222S2SS2o(  ]S22S2S2S222So   :3XXZZZZZZZZXXv
-    .S2S22.     =u2SS2e"~---"{2S2So(   -"12S2S2SSS2Su.   "?SXXXZXZZZZXo
-    .S2SSo.     )SS22z;      :S2S2o(       ={vS2S2S22v      .<vXZZZZZZZ;
-    .S2S2S:     ]oSS2c;      =22S2o(          -"S2SS2n          ~4XXZXZ(
-    .2S2S2i     )2S2S2[.    .)XS2So(  <;.      .2S2S2o :<.       ]XZZZX(
-     nX2S2S,,_s_=3oSS2SoaasuXXS2S2o( .oXoasi_aioSSS22l.]dZoaas_aadXZZXZ'
-     vS2SSSXXX2; )S2S2S2SoS2S2S2S2o( iS2S222XSoSS22So.)nXZZXXXZZXXZZXZo
-     x32S22S2Sn  -+S2S2S2S2So22S2So( 12S2SS2S2SS22S}- )SXXZZZZZZZZZXX!-
-      .)S22222i    .i2S2S2o>;:S2S2o(  .<vSoSoSo2S(;     :nXXXXXZXXX(
-       .-~~~~-        --- .   - -        --~~~--           --^^~~-
-                                  .
-
-
-   ... curious about our source code? We are hiring! mailto:<recruiting@tass.be>
-
-
- */
-
 void pico_stack_tick(void)
 {
     static int score[PROTO_DEF_NR] = {
