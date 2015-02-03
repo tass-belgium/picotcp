@@ -6,8 +6,9 @@ sleep 2
 (iperf -s >/tmp/iperf.log)&
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app iperfc:10.50.0.1: &>/dev/null
 killall iperf
-SPEED=`cat /tmp/iperf.log |grep Mbits |cut -d " " -f 12`
-UNITS=`cat /tmp/iperf.log |grep Mbits |cut -d " " -f 13`
+RES=`cat /tmp/iperf.log |grep Mbits |sed -e "s/.*Bytes//g" |sed -e "s/^[ ]*//g"`
+SPEED=`echo $RES | cut -d " " -f 1`
+UNITS=`echo $RES | cut -d " " -f 2`
 
 if [ ["$UNITS"] != ["Mbits/sec"] ]; then
     echo "Wrong test result units: expected Mbits/sec, got $UNITS"
