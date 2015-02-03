@@ -1,5 +1,7 @@
 #!/bin/bash
 THRESHOLD=300
+sh ./test/vde_sock_start_user.sh
+sleep 2
 
 (iperf -s >/tmp/iperf.log)&
 ./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app iperfc:10.50.0.1: &>/dev/null
