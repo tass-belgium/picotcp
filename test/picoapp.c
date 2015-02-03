@@ -62,6 +62,7 @@ void app_slaacv4(char *args);
 void app_udpecho(char *args);
 void app_sendto_test(char *args);
 void app_noop(void);
+void app_iperfc(char *args);
 
 
 struct pico_ip4 ZERO_IP4 = {
@@ -611,6 +612,8 @@ int main(int argc, char **argv)
 #endif
             } else IF_APPNAME("udp_sendto_test") {
                 app_sendto_test(args);
+            } else IF_APPNAME("iperfc") {
+                app_iperfc(args);
             } else {
                 fprintf(stderr, "Unknown application %s\n", name);
                 usage(argv[0]);
