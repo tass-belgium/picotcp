@@ -60,15 +60,17 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
         return;
     }
 
-    if (ev & PICO_SOCK_EV_WR) {
+    if ((!end) && (ev & PICO_SOCK_EV_WR)) {
         if (PICO_TIME_MS() > deadline) {
             pico_socket_close(s);
             pico_timer_add(2000, deferred_exit, NULL);
+            end++;
         }
         pico_socket_write(s, buf, MTU);
     }
     if (!(end) && (ev & (PICO_SOCK_EV_FIN | PICO_SOCK_EV_CLOSE))) {
         pico_timer_add(2000, deferred_exit, NULL);
+        end++;
     }
 }
 
