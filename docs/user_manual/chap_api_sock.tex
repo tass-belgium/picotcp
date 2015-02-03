@@ -365,6 +365,47 @@ if (errMsg == 0) {
 }
 \end{verbatim}
 
+\subsection{pico$\_$socket$\_$getpeername}
+
+\subsubsection*{Description}
+This function returns the IP-address of the remote peer connected to the specified socket.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *port, 
+                            uint16_t *proto);
+\end{verbatim}
+
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{remote$\_$addr} - Address (IPv4 or IPv6) associated to the socket remote endpoint
+\item \texttt{port} - Local portnumber associated to the socket
+\item \texttt{proto} - Proto of the address returned in the \texttt{local$\_$addr} field. Can be either \texttt{PICO$\_$PROTO$\_$IPV4} or \texttt{PICO$\_$PROTO$\_$IPV6}
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 and populates the three fields {local$\_$addr} \texttt{port} and \texttt{proto} accordingly.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument(s) provided
+\item \texttt{PICO$\_$ERR$\_$ENOTCONN} - the socket is not connected to any peer
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+errMsg = pico_socket_getpeername(sk_tcp, address, &port, &proto);
+if (errMsg == 0) {
+    if (proto == PICO_PROTO_IPV4)
+        addr4 = (struct pico_ip4 *)address;
+    else
+        addr6 = (struct pico_ip6 *)address;
+}
+\end{verbatim}
+
 
 \subsection{pico$\_$socket$\_$connect}
 

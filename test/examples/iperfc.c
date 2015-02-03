@@ -21,6 +21,7 @@ struct iperf_hdr {
 
 char *cpy_arg(char **dst, char *str);
 extern int IPV6_MODE;
+void deferred_exit(pico_time now, void *arg);
 
 static pico_time deadline;
 
@@ -53,6 +54,7 @@ static void send_hdr(struct pico_socket *s)
 static void iperf_cb(uint16_t ev, struct pico_socket *s)
 {
     int r;
+    static int end = 0;
     if (ev & PICO_SOCK_EV_CONN) {
         send_hdr(s);
         return;
@@ -61,9 +63,12 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
     if (ev & PICO_SOCK_EV_WR) {
         if (PICO_TIME_MS() > deadline) {
             pico_socket_close(s);
-            return;
+            pico_timer_add(2000, deferred_exit, NULL);
         }
         pico_socket_write(s, buf, MTU);
+    }
+    if (!(end) && (ev & (PICO_SOCK_EV_FIN | PICO_SOCK_EV_CLOSE))) {
+        pico_timer_add(2000, deferred_exit, NULL);
     }
 }
 

@@ -1391,6 +1391,40 @@ int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port,
     return 0;
 }
 
+int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *port, uint16_t *proto)
+{
+    if (!s || !remote_addr || !port || !proto) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
+        pico_err = PICO_ERR_ENOTCONN;
+        return -1;
+    }
+
+    if (is_sock_ipv4(s)) {
+    #ifdef PICO_SUPPORT_IPV4
+        struct pico_ip4 *ip = (struct pico_ip4 *)remote_addr;
+        ip->addr = s->remote_addr.ip4.addr;
+        *proto = PICO_PROTO_IPV4;
+    #endif
+    } else if (is_sock_ipv6(s)) {
+    #ifdef PICO_SUPPORT_IPV6
+        struct pico_ip6 *ip = (struct pico_ip6 *)remote_addr;
+        memcpy(ip->addr, s->remote_addr.ip6.addr, PICO_SIZE_IP6);
+        *proto = PICO_PROTO_IPV6;
+    #endif
+    } else {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    *port = s->remote_port;
+    return 0;
+
+}
+
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
     if (!s || !local_addr || !port) {
