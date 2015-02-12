@@ -191,9 +191,11 @@ static inline uint64_t long_long_be(uint64_t le)
 #elif defined STELLARIS
 # include "arch/pico_stellaris.h"
 #elif defined LPC
-# include "arch/pico_lpc1768.h"
+# include "arch/pico_lpc17xx.h"
 #elif defined LPC43XX
 # include "arch/pico_lpc43xx.h"
+#elif defined LPC17XX
+# include "arch/pico_lpc17xx.h"
 #elif defined LPC18XX
 # include "arch/pico_lpc18xx.h"
 #elif defined PIC24

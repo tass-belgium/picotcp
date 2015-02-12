@@ -159,6 +159,12 @@ ifeq ($(ARCH),lpc18xx)
   -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC18XX
 endif
 
+ifeq ($(ARCH),lpc17xx)
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC17XX
+endif
+
 ifeq ($(ARCH),lpc43xx)
   CFLAGS+=-fmessage-length=0 -fno-builtin \
   -ffunction-sections -fdata-sections -mlittle-endian \

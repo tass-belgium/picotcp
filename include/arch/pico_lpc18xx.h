@@ -13,8 +13,7 @@
 
 #define dbg(...)
 
-
-extern volatile uint32_t tassTick;
+extern volatile unsigned int tassTick;
 
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
@@ -78,18 +77,24 @@ static inline void pico_free(void *x)
 }
 
 #else
+//#define MEM_MEAS
+#ifdef MEM_MEAS
+    extern void * memmeas_zalloc(size_t size);
+    extern void memmeas_free(void *);
+    #define pico_free(x)    memmeas_free(x)
+    #define pico_zalloc(x)  memmeas_zalloc(x)
+#else
     #define pico_free(x) free(x)
-
-static inline void *pico_zalloc(size_t size)
-{
-    void *ptr = malloc(size);
-
-    if(ptr)
-        memset(ptr, 0u, size);
-
-    return ptr;
-}
-
+    static inline void *pico_zalloc(size_t size)
+    {
+        void *ptr = malloc(size);
+    
+        if(ptr)
+            memset(ptr, 0u, size);
+    
+        return ptr;
+    }
+#endif
 #endif
 
 extern volatile uint32_t lpc_tick;
