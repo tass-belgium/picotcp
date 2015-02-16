@@ -15,7 +15,7 @@
 #define AODV_TYPE_RERR 3
 #define AODV_TYPE_RACK 4
 
-struct __attribute__((packed)) pico_aodv_rreq
+PACKED_STRUCT_DEF pico_aodv_rreq
 {
     uint8_t type;
     uint16_t req_flags;
@@ -34,9 +34,7 @@ struct __attribute__((packed)) pico_aodv_rreq
 #define AODV_RREQ_FLAG_U 0x0800
 #define AODV_RREQ_FLAG_RESERVED 0x07FF
 
-
-
-struct __attribute__((packed)) pico_aodv_rrep
+PACKED_STRUCT_DEF pico_aodv_rrep
 {
     uint8_t type;
     uint8_t rep_flags;
@@ -53,13 +51,13 @@ struct __attribute__((packed)) pico_aodv_rrep
 #define AODV_RREP_FLAG_A 0x40
 #define AODV_RREQ_FLAG_RESERVED 0x3F
 
-struct __attribute__((packed)) pico_aodv_node
+PACKED_STRUCT_DEF pico_aodv_node
 {
     uint32_t dest;
     uint32_t dseq;  
 };
 
-struct __attribute__((packed)) pico_aodv_rerr
+PACKED_STRUCT_DEF pico_aodv_rerr
 {
     uint8_t type;
     uint16_t rerr_flags;
