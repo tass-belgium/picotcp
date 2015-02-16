@@ -10,6 +10,8 @@
 #define PICO_AODV_H_
 #include <stdint.h>
 
+#define PICO_AODV_PORT (654)
+
 #define AODV_TYPE_RREQ 1
 #define AODV_TYPE_RREP 2
 #define AODV_TYPE_RERR 3
@@ -49,11 +51,11 @@ PACKED_STRUCT_DEF pico_aodv_rrep
 #define AODV_RREP_MAX_PREFIX 0x1F
 #define AODV_RREP_FLAG_R 0x80
 #define AODV_RREP_FLAG_A 0x40
-#define AODV_RREQ_FLAG_RESERVED 0x3F
+#define AODV_RREP_FLAG_RESERVED 0x3F
 
 PACKED_STRUCT_DEF pico_aodv_node
 {
-    uint32_t dest;
+    union pico_address dest;
     uint32_t dseq;  
 };
 

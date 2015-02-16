@@ -38,6 +38,7 @@ CRC?=1
 OLSR?=0
 SLAACV4?=1
 TFTP?=1
+AODV?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
@@ -71,6 +72,11 @@ endif
 ifeq ($(TFTP),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_strings.o $(LIBBASE)modules/pico_tftp.o
   OPTIONS+=-DPICO_SUPPORT_TFTP
+endif
+
+ifeq ($(AODV),1)
+  MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o 
+  OPTIONS+=-DPICO_SUPPORT_AODV
 endif
 
 

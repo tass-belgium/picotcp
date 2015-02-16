@@ -766,6 +766,31 @@ DECLARE_HEAP(pico_timer_ref, expire);
 
 static heap_pico_timer_ref *Timers;
 
+int32_t pico_seq_compare(uint32_t a, uint32_t b)
+{
+    uint32_t thresh = ((uint32_t)(-1)) >> 1;
+
+    if (a > b) /* return positive number, if not wrapped */
+    {
+        if ((a - b) > thresh) /* b wrapped */
+            return -(int32_t)(b - a); /* b = very small,     a = very big      */
+        else
+            return (int32_t)(a - b); /* a = biggest,        b = a bit smaller */
+
+    }
+
+    if (a < b) /* return negative number, if not wrapped */
+    {
+        if ((b - a) > thresh) /* a wrapped */
+            return (int32_t)(a - b); /* a = very small,     b = very big      */
+        else
+            return -(int32_t)(b - a); /* b = biggest,        a = a bit smaller */
+
+    }
+
+    return 0;
+}
+
 void pico_check_timers(void)
 {
     struct pico_timer *t;
