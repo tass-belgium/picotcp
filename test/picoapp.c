@@ -28,6 +28,7 @@
 #include "pico_dhcp_server.h"
 #include "pico_ipfilter.h"
 #include "pico_olsr.h"
+#include "pico_aodv.h"
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
@@ -601,6 +602,25 @@ int main(int argc, char **argv)
                 if(dev) {
                     pico_olsr_add(dev);
                 }
+
+                app_noop();
+#endif
+#ifdef PICO_SUPPORT_AODV
+            } else IF_APPNAME("aodv") {
+                union pico_address aaa;
+                pico_string_to_ipv4("10.10.10.10", &aaa.ip4.addr);
+                dev = pico_get_device("pic0");
+                if(dev) {
+                    pico_aodv_add(dev);
+                }
+
+                dev = pico_get_device("pic1");
+                if(dev) {
+                    pico_aodv_add(dev);
+                }
+
+                /* TEST */
+                pico_aodv_lookup(&aaa);
 
                 app_noop();
 #endif

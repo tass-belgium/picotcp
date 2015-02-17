@@ -10,7 +10,34 @@
 #define PICO_AODV_H_
 #include <stdint.h>
 
+/* RFC3561 */
 #define PICO_AODV_PORT (654)
+
+/* RFC3561 $10 */
+#define AODV_TTL_VALUE(f) (((struct pico_ipv4_hdr *)f->net_hdr)->ttl)
+#define AODV_ACTIVE_ROUTE_TIMEOUT     5000 /* Conservative value for link breakage detection */
+#define AODV_DELETE_PERIOD            (5 * AODV_ACTIVE_ROUTE_TIMEOUT) /* Recommended value K = 5 */
+#define AODV_ALLOWED_HELLO_LOSS       (4) /* conservative */
+#define AODV_NET_DIAMETER             (35)
+#define AODV_RREQ_RETRIES             (2)
+#define AODV_NODE_TRAVERSAL_TIME      (40)
+#define AODV_HELLO_INTERVAL           (1)
+#define AODV_LOCAL_ADD_TTL            (2)
+#define AODV_RREQ_RATELIMIT           (10)
+#define AODV_TIMEOUT_BUFFER           (2)
+#define AODV_TTL_START                (1)
+#define AODV_TTL_INCREMENT            (2)
+#define AODV_TTL_THRESHOLD            (7)
+#define AODV_RERR_RATELIMIT           (10)
+#define AODV_MAX_REPAIR_TTL           (AODV_NET_DIAMETER / 3)
+#define AODV_MY_ROUTE_TIMEOUT         (2 * AODV_ACTIVE_ROUTE_TIMEOUT)
+#define AODV_NET_TRAVERSAL_TIME       (2 * AODV_NODE_TRAVERSAL_TIME * AODV_NET_DIAMETER)
+#define AODV_BLACKLIST_TIMEOUT        (AODV_RREQ_RETRIES * AODV_NET_TRAVERSAL_TIME)
+#define AODV_NEXT_HOP_WAIT            (AODV_NODE_TRAVERSAL_TIME + 10)
+#define AODV_PATH_DISCOVERY_TIME      (2 * AODV_NET_TRAVERSAL_TIME)
+#define AODV_RING_TRAVERSAL_TIME(f)   (2 * AODV_NODE_TRAVERSAL_TIME * (AODV_TTL_VALUE(f) + AODV_TIMEOUT_BUFFER))
+/* End section RFC3561 $10 */
+
 
 #define AODV_TYPE_RREQ 1
 #define AODV_TYPE_RREP 2
@@ -53,10 +80,18 @@ PACKED_STRUCT_DEF pico_aodv_rrep
 #define AODV_RREP_FLAG_A 0x40
 #define AODV_RREP_FLAG_RESERVED 0x3F
 
-PACKED_STRUCT_DEF pico_aodv_node
+struct pico_aodv_node
 {
     union pico_address dest;
     uint32_t dseq;  
+    int valid_dseq;
+    pico_time last_seen;
+};
+
+PACKED_STRUCT_DEF pico_aodv_unreachable
+{
+    uint32_t addr;
+    uint32_t dseq;
 };
 
 PACKED_STRUCT_DEF pico_aodv_rerr
@@ -64,7 +99,12 @@ PACKED_STRUCT_DEF pico_aodv_rerr
     uint8_t type;
     uint16_t rerr_flags;
     uint8_t dst_count;
-    struct pico_aodv_node unreach[1]; /* unrechable nodes: must be at least 1. See dst_count field above */
+    uint32_t unreach_addr;
+    uint32_t unreach_dseq;
+    struct pico_aodv_unreachable unreach[1]; /* unrechable nodes: must be at least 1. See dst_count field above */
 };
 
+int pico_aodv_init(void);
+int pico_aodv_add(struct pico_device *dev);
+int pico_aodv_lookup(const union pico_address *addr);
 #endif
