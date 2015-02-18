@@ -812,6 +812,14 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     hdr->src = link->address;
     hdr->dst = *dst;
 
+    if (f->send_ttl) {
+        hdr->hop = f->send_ttl;
+    }
+
+    if (f->send_tos) {
+        hdr->vtf |= ((uint32_t)f->send_tos << 20u);
+    }
+
     /* make adjustments to defaults according to proto */
     switch (proto)
     {

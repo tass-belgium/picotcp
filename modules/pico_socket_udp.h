@@ -8,7 +8,7 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f);
 #ifdef PICO_SUPPORT_UDP
 int pico_setsockopt_udp(struct pico_socket *s, int option, void *value);
 int pico_getsockopt_udp(struct pico_socket *s, int option, void *value);
-#   define pico_socket_udp_recv(s, buf, len, addr, port) pico_udp_recv(s, buf, len, addr, port)
+#   define pico_socket_udp_recv(s, buf, len, addr, port) pico_udp_recv(s, buf, len, addr, port, NULL)
 #else
 #   define pico_socket_udp_recv(...) (0)
 #   define pico_getsockopt_udp(...) (-1)

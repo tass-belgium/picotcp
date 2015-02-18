@@ -1205,6 +1205,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         return -1;
     }
 
+
     hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     if (!hdr) {
         dbg("IP header error\n");
@@ -1269,10 +1270,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         1 )
         ipv4_progressive_id++;
 
+    if (f->send_ttl > 0) {
+        ttl = f->send_ttl;    
+    }
+
     hdr->id = short_be(ipv4_progressive_id);
     hdr->dst.addr = dst->addr;
     hdr->src.addr = link->address.addr;
     hdr->ttl = ttl;
+    hdr->tos = f->send_tos;
     hdr->proto = proto;
     hdr->frag = short_be(PICO_IPV4_DONTFRAG);
 #ifdef PICO_SUPPORT_IPFRAG

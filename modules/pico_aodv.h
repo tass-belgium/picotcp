@@ -84,7 +84,9 @@ struct pico_aodv_node
 {
     union pico_address dest;
     uint32_t dseq;  
+    uint16_t metric;
     int valid_dseq;
+    int active;
     pico_time last_seen;
 };
 
@@ -102,6 +104,12 @@ PACKED_STRUCT_DEF pico_aodv_rerr
     uint32_t unreach_addr;
     uint32_t unreach_dseq;
     struct pico_aodv_unreachable unreach[1]; /* unrechable nodes: must be at least 1. See dst_count field above */
+};
+
+PACKED_STRUCT_DEF pico_aodv_rack
+{
+    uint8_t type;
+    uint8_t reserved;
 };
 
 int pico_aodv_init(void);
