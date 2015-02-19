@@ -1563,7 +1563,7 @@ int pico_socket_connect(struct pico_socket *s, const void *remote_addr, uint16_t
 #ifdef PICO_SUPPORT_TCP
     if (PROTO(s) == PICO_PROTO_TCP) {
         if (pico_tcp_initconn(s) == 0) {
-            pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, 0, 0);
+            pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, PICO_SOCKET_STATE_CLOSED, 0);
             pico_err = PICO_ERR_NOERR;
             ret = 0;
         } else {
