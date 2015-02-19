@@ -208,6 +208,16 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
 
 /* Parser functions */
 
+static int aodv_send_req(struct pico_aodv_node *node);
+
+static void aodv_reverse_path_discover(pico_time now, void *arg)
+{
+    struct pico_aodv_node *origin = (struct pico_aodv_node *)arg;
+    (void)now;
+    printf("Sending G RREP to ORIGIN.\n");
+    aodv_send_req(origin);
+}
+
 static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req, struct pico_msginfo *info)
 {
     struct pico_device *dev;
@@ -215,6 +225,15 @@ static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_r
     if (dev || node->active) {
         /* if destination is ourselves, or we have a possible route: Send reply. */
         aodv_send_reply(node, req, dev != NULL, info);
+        if (dev) { 
+            /* if really for us, we need to build the return route. Initiate a gratuitous request. */
+            union pico_address origin_addr;
+            struct pico_aodv_node *origin;
+            origin_addr.ip4.addr = req->orig;
+            origin = get_node_by_addr(&origin_addr);
+            if (origin) 
+                pico_timer_add(AODV_PATH_DISCOVERY_TIME, aodv_reverse_path_discover, origin);
+        }
     } else {
         /* destination unknown. Evaluate forwarding. */
         aodv_forward(req, info, 0);
