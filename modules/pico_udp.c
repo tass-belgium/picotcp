@@ -193,6 +193,10 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
             *port = hdr->sport;
         }
 
+        if (msginfo) {
+            pico_udp_get_msginfo(f, msginfo);
+        }
+
         if (f->payload_len > len) {
             memcpy(buf, f->payload, len);
             f->payload += len;
@@ -204,9 +208,6 @@ uint16_t pico_udp_recv(struct pico_socket *s, void *buf, uint16_t len, void *src
             f = pico_dequeue(&s->q_in);
             pico_frame_discard(f);
             return ret;
-        }
-        if (msginfo) {
-            pico_udp_get_msginfo(f, msginfo);
         }
     } else return 0;
 }

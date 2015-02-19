@@ -19,6 +19,7 @@
 #include "pico_nat.h"
 #include "pico_igmp.h"
 #include "pico_tree.h"
+#include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 
 #ifdef PICO_SUPPORT_IPV4
@@ -885,9 +886,12 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     rt = route_find(dst);
     if (rt && rt->link) {
         myself = &rt->link->address;
-    } else
+    } else {
+#ifdef PICO_SUPPORT_AODV
+        pico_aodv_lookup((const union pico_address *)dst);
+#endif
         pico_err = PICO_ERR_EHOSTUNREACH;
-
+    }
     return myself;
 }
 

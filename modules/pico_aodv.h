@@ -14,8 +14,7 @@
 #define PICO_AODV_PORT (654)
 
 /* RFC3561 $10 */
-#define AODV_TTL_VALUE(f) (((struct pico_ipv4_hdr *)f->net_hdr)->ttl)
-#define AODV_ACTIVE_ROUTE_TIMEOUT     5000 /* Conservative value for link breakage detection */
+#define AODV_ACTIVE_ROUTE_TIMEOUT     (5000u) /* Conservative value for link breakage detection */
 #define AODV_DELETE_PERIOD            (5 * AODV_ACTIVE_ROUTE_TIMEOUT) /* Recommended value K = 5 */
 #define AODV_ALLOWED_HELLO_LOSS       (4) /* conservative */
 #define AODV_NET_DIAMETER             (35)
@@ -35,7 +34,7 @@
 #define AODV_BLACKLIST_TIMEOUT        (AODV_RREQ_RETRIES * AODV_NET_TRAVERSAL_TIME)
 #define AODV_NEXT_HOP_WAIT            (AODV_NODE_TRAVERSAL_TIME + 10)
 #define AODV_PATH_DISCOVERY_TIME      (2 * AODV_NET_TRAVERSAL_TIME)
-#define AODV_RING_TRAVERSAL_TIME(f)   (2 * AODV_NODE_TRAVERSAL_TIME * (AODV_TTL_VALUE(f) + AODV_TIMEOUT_BUFFER))
+#define AODV_RING_TRAVERSAL_TIME(ttl)   (2 * AODV_NODE_TRAVERSAL_TIME * (ttl + AODV_TIMEOUT_BUFFER))
 /* End section RFC3561 $10 */
 
 
@@ -84,10 +83,13 @@ struct pico_aodv_node
 {
     union pico_address dest;
     uint32_t dseq;  
-    uint16_t metric;
+    uint8_t metric;
     int valid_dseq;
     int active;
     pico_time last_seen;
+    pico_time fwd_time;
+    int ring_ttl;
+    int rreq_retry;
 };
 
 PACKED_STRUCT_DEF pico_aodv_unreachable

@@ -619,8 +619,6 @@ int main(int argc, char **argv)
                     pico_aodv_add(dev);
                 }
 
-                /* TEST */
-                pico_aodv_lookup(&aaa);
 
                 app_noop();
 #endif
