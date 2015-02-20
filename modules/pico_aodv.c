@@ -556,7 +556,7 @@ static void pico_aodv_collector(pico_time now, void *arg)
     pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
 }
 
-int pico_aodv_init(void) 
+MOCKABLE int pico_aodv_init(void) 
 {
     struct pico_ip4 any = { .addr = 0u};
     uint16_t port = short_be(PICO_AODV_PORT);
