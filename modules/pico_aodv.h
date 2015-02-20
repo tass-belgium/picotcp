@@ -17,18 +17,18 @@
 #define AODV_ACTIVE_ROUTE_TIMEOUT     (5000u) /* Conservative value for link breakage detection */
 #define AODV_DELETE_PERIOD            (5 * AODV_ACTIVE_ROUTE_TIMEOUT) /* Recommended value K = 5 */
 #define AODV_ALLOWED_HELLO_LOSS       (4) /* conservative */
-#define AODV_NET_DIAMETER             (35)
+#define AODV_NET_DIAMETER             ((uint8_t)(35))
 #define AODV_RREQ_RETRIES             (2)
 #define AODV_NODE_TRAVERSAL_TIME      (40)
 #define AODV_HELLO_INTERVAL           (1)
-#define AODV_LOCAL_ADD_TTL            (2)
+#define AODV_LOCAL_ADD_TTL            2
 #define AODV_RREQ_RATELIMIT           (10)
 #define AODV_TIMEOUT_BUFFER           (2)
-#define AODV_TTL_START                (1)
-#define AODV_TTL_INCREMENT            (2)
-#define AODV_TTL_THRESHOLD            (7)
+#define AODV_TTL_START                ((uint8_t)(1))
+#define AODV_TTL_INCREMENT            ((uint8_t)(2))
+#define AODV_TTL_THRESHOLD            ((uint8_t)(7))
 #define AODV_RERR_RATELIMIT           (10)
-#define AODV_MAX_REPAIR_TTL           (AODV_NET_DIAMETER / 3)
+#define AODV_MAX_REPAIR_TTL           ((uint8_t)(AODV_NET_DIAMETER / 3))
 #define AODV_MY_ROUTE_TIMEOUT         (2 * AODV_ACTIVE_ROUTE_TIMEOUT)
 #define AODV_NET_TRAVERSAL_TIME       (2 * AODV_NODE_TRAVERSAL_TIME * AODV_NET_DIAMETER)
 #define AODV_BLACKLIST_TIMEOUT        (AODV_RREQ_RETRIES * AODV_NET_TRAVERSAL_TIME)
@@ -79,17 +79,27 @@ PACKED_STRUCT_DEF pico_aodv_rrep
 #define AODV_RREP_FLAG_A 0x40
 #define AODV_RREP_FLAG_RESERVED 0x3F
 
+#define PICO_AODV_NODE_NEW          0x0000
+#define PICO_AODV_NODE_SYNC         0x0001
+#define PICO_AODV_NODE_REQUESTING   0x0002
+#define PICO_AODV_NODE_ROUTE_UP     0x0004
+#define PICO_AODV_NODE_ROUTE_DOWN   0x0008
+#define PICO_AODV_NODE_IDLING       0x0010
+#define PICO_AODV_NODE_UNREACH      0x0020
+
+#define PICO_AODV_ACTIVE(node) ((node->flags & PICO_AODV_NODE_ROUTE_UP) && (node->flags & PICO_AODV_NODE_ROUTE_DOWN))
+
+
 struct pico_aodv_node
 {
     union pico_address dest;
-    uint32_t dseq;  
-    uint8_t metric;
-    int valid_dseq;
-    int active;
     pico_time last_seen;
     pico_time fwd_time;
-    int ring_ttl;
-    int rreq_retry;
+    uint32_t dseq;  
+    uint16_t flags;
+    uint8_t metric;
+    uint8_t ring_ttl;
+    uint8_t rreq_retry;
 };
 
 PACKED_STRUCT_DEF pico_aodv_unreachable
