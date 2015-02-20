@@ -14,13 +14,13 @@
 #define PICO_AODV_PORT (654)
 
 /* RFC3561 $10 */
-#define AODV_ACTIVE_ROUTE_TIMEOUT     (5000u) /* Conservative value for link breakage detection */
+#define AODV_ACTIVE_ROUTE_TIMEOUT     (8000u) /* Conservative value for link breakage detection */
 #define AODV_DELETE_PERIOD            (5 * AODV_ACTIVE_ROUTE_TIMEOUT) /* Recommended value K = 5 */
 #define AODV_ALLOWED_HELLO_LOSS       (4) /* conservative */
 #define AODV_NET_DIAMETER             ((uint8_t)(35))
 #define AODV_RREQ_RETRIES             (2)
 #define AODV_NODE_TRAVERSAL_TIME      (40)
-#define AODV_HELLO_INTERVAL           (1)
+#define AODV_HELLO_INTERVAL           (1000)
 #define AODV_LOCAL_ADD_TTL            2
 #define AODV_RREQ_RATELIMIT           (10)
 #define AODV_TIMEOUT_BUFFER           (2)
@@ -127,4 +127,5 @@ PACKED_STRUCT_DEF pico_aodv_rack
 int pico_aodv_init(void);
 int pico_aodv_add(struct pico_device *dev);
 int pico_aodv_lookup(const union pico_address *addr);
+void pico_aodv_refresh(const union pico_address *addr);
 #endif

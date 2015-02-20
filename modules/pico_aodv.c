@@ -529,6 +529,33 @@ static int aodv_send_req(struct pico_aodv_node *node)
     return n;   
 }
 
+static void pico_aodv_expired(struct pico_aodv_node *node)
+{
+    node->flags |= PICO_AODV_NODE_UNREACH;
+    node->flags &= (~PICO_AODV_NODE_ROUTE_UP);
+    node->flags &= (~PICO_AODV_NODE_ROUTE_DOWN);
+    pico_ipv4_route_del(node->dest.ip4, HOST_NETMASK, node->metric);
+    node->ring_ttl = 0;
+    /* TODO: send err */
+
+}
+
+static void pico_aodv_collector(pico_time now, void *arg)
+{
+    struct pico_tree_node *index;
+    struct pico_aodv_node *node;
+    (void)arg;
+    pico_tree_foreach(index, &aodv_nodes){
+        node = index->keyValue;
+        if (PICO_AODV_ACTIVE(node)) {
+            uint32_t lifetime = aodv_lifetime(node);
+            if (lifetime == 0)
+                pico_aodv_expired(node);
+        }
+    }
+    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
+}
+
 int pico_aodv_init(void) 
 {
     struct pico_ip4 any = { .addr = 0u};
@@ -549,6 +576,7 @@ int pico_aodv_init(void)
         return -1;
     }
     pico_aodv_local_id = pico_rand();
+    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
     return 0;
 }
 
@@ -556,6 +584,14 @@ int pico_aodv_init(void)
 int pico_aodv_add(struct pico_device *dev)
 {
     return (pico_tree_insert(&aodv_devices, dev))?(0):(-1);
+}
+
+void pico_aodv_refresh(const union pico_address *addr)
+{
+    struct pico_aodv_node *node = get_node_by_addr(addr);
+    if (node) {
+        node->last_seen = PICO_TIME_MS();
+    }
 }
 
 int pico_aodv_lookup(const union pico_address *addr)

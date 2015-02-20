@@ -220,6 +220,11 @@ int pico_ipv4_is_valid_src(uint32_t address, struct pico_device *dev)
         return 0;
     }
     else {
+#ifdef PICO_SUPPORT_AODV
+        union pico_address src;
+        src.ip4.addr = address;
+        pico_aodv_refresh(&src);
+#endif
         return 1;
     }
 }
@@ -696,6 +701,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     }
 
 #endif
+
 
     /* ret == 1 indicates to continue the function */
     ret = pico_ipv4_crc_check(f);
