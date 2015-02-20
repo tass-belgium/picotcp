@@ -888,7 +888,10 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
         myself = &rt->link->address;
     } else {
 #ifdef PICO_SUPPORT_AODV
-        pico_aodv_lookup((const union pico_address *)dst);
+        union pico_address node_address;
+        node_address.ip4.addr = dst->addr;
+        if(dst->addr && pico_ipv4_is_unicast(dst->addr))
+            pico_aodv_lookup(&node_address);
 #endif
         pico_err = PICO_ERR_EHOSTUNREACH;
     }
@@ -1323,6 +1326,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         }
     }
 
+#endif
+
+#ifdef PICO_SUPPORT_AODV
+    {
+    union pico_address node_address;
+    node_address.ip4.addr = hdr->dst.addr;
+    if(hdr->dst.addr && pico_ipv4_is_unicast(hdr->dst.addr))
+        pico_aodv_lookup(&node_address);
+    }
 #endif
 
     if(pico_ipv4_link_get(&hdr->dst)) {
