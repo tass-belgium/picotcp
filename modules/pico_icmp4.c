@@ -59,7 +59,6 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
 
         if ((hdr->hun.ih_idseq.idseq_id ==  last_id) && (last_seq == hdr->hun.ih_idseq.idseq_seq)) {
             /* The network duplicated the echo. Do not reply. */
-            printf("DUP!\n");
             pico_frame_discard(f);
             return 0;
         }

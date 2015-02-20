@@ -25,7 +25,7 @@
 #define AODV_RREQ_RATELIMIT           (10)
 #define AODV_TIMEOUT_BUFFER           (2)
 #define AODV_TTL_START                ((uint8_t)(1))
-#define AODV_TTL_INCREMENT            ((uint8_t)(2))
+#define AODV_TTL_INCREMENT            2
 #define AODV_TTL_THRESHOLD            ((uint8_t)(7))
 #define AODV_RERR_RATELIMIT           (10)
 #define AODV_MAX_REPAIR_TTL           ((uint8_t)(AODV_NET_DIAMETER / 3))
