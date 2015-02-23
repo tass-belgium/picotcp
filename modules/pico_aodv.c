@@ -86,9 +86,11 @@ static void aodv_elect_route(struct pico_aodv_node *node, union pico_address *gw
         pico_ipv4_route_del(node->dest.ip4, HOST_NETMASK, node->metric);
         if (!gw) {
             pico_ipv4_route_add(node->dest.ip4, HOST_NETMASK, ANY_HOST, 1, pico_ipv4_link_by_dev(dev));
+            printf("Added neighbor %08x\n", node->dest.ip4);
             node->metric = 1;
         } else {
             node->metric = metric;
+            printf("Added node %08x via %08x metric %d\n", node->dest.ip4, gw->ip4, metric);
             pico_ipv4_route_add(node->dest.ip4, HOST_NETMASK, gw->ip4, metric, NULL);
         }
     }
@@ -343,7 +345,7 @@ static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, str
     (void)buf;
     (void)len;
     (void)msginfo;
-    /* TODO: invalidate routes... */
+    /* TODO: invalidate routes. This only makes sense if we are using HELLO messages. */
 }
 
 static void aodv_parse_rack(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo)
