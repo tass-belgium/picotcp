@@ -127,19 +127,62 @@ END_TEST
 
 START_TEST(tc_aodv_peer_new)
 {
-   /* TODO: test this: static struct pico_aodv_node *aodv_peer_new(const union pico_address *addr) */
+    union pico_address addr;
+    struct pico_aodv_node *new;
+    addr.ip4.addr = 0x44444444;
+    new = aodv_peer_new(&addr);
+    fail_if(!new);
+    fail_if(!get_node_by_addr(&addr));
+    pico_set_mm_failure(1);
+    new = aodv_peer_new(&addr);
+    fail_if(new);
 }
 END_TEST
 START_TEST(tc_aodv_peer_eval)
 {
-   /* TODO: test this: static struct pico_aodv_node *aodv_peer_eval(union pico_address *addr, uint32_t seq, int valid_seq) */
+    union pico_address addr;
+    struct pico_aodv_node *node = NULL;
+    /* Case 0: Creation */
+    addr.ip4.addr = 0x11224433;
+    node = aodv_peer_eval(&addr, 0, 0);
+    fail_if(!node);
+    fail_if((node->flags & PICO_AODV_NODE_SYNC) != 0); /* Not synced! */
+
+    /* Case 1: retrieve, unsynced */
+    node->metric = 42;
+    node = aodv_peer_eval(&addr, 0, 0); /* Should get existing node! */
+    fail_if(!node);
+    fail_if(node->metric != 42);
+    fail_if((node->flags & PICO_AODV_NODE_SYNC) != 0); /* Not synced! */
+
+
+    /* Case 2: new node, invalid allocation */
+    addr.ip4.addr = 0x11224455;
+    pico_set_mm_failure(1);
+    node = aodv_peer_eval(&addr, long_be(10), 1);
+    fail_if(node);
+
+    /* Case 3: existing node, setting the new sequence */
+    addr.ip4.addr = 0x11224433;
+    node = aodv_peer_eval(&addr, long_be(10), 1); /* Should get existing node! */
+    fail_if(node->metric != 42);
+    fail_if((node->flags & PICO_AODV_NODE_SYNC) == 0);
+    fail_if(node->dseq!= 10);
 }
 END_TEST
+
 START_TEST(tc_aodv_lifetime)
 {
-   /* TODO: test this: static uint32_t aodv_lifetime(struct pico_aodv_node *node) */
+    struct pico_aodv_node node;
+    pico_time now = PICO_TIME_MS();
+    memset(&node, 0, sizeof(node));
+    fail_if(aodv_lifetime(&node) == 0);
+    fail_if(node.last_seen < now);
+    node.last_seen = now - AODV_ACTIVE_ROUTE_TIMEOUT;
+    fail_if(aodv_lifetime(&node) != 0);
 }
 END_TEST
+
 START_TEST(tc_aodv_send_reply)
 {
    /* TODO: test this: static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *req, int node_is_local, struct pico_msginfo *info) */
