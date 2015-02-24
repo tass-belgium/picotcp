@@ -193,10 +193,10 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
     reply.dest = req->dest;
     reply.dseq = req->dseq;
     reply.orig = req->orig;
-    reply.hop_count = (uint8_t)(orig->metric - 1u);
-
     if (!orig)
         return;
+    reply.hop_count = (uint8_t)(orig->metric - 1u);
+
 
     dest.ip4.addr = 0xFFFFFFFF; /* wide broadcast */
 
@@ -515,7 +515,7 @@ static int aodv_send_req(struct pico_aodv_node *node)
     }
 
     aodv_make_rreq(node, &rreq);
-    pico_tree_foreach(index, &aodv_devices){
+    pico_tree_foreach(index, &aodv_devices) {
         dev = index->keyValue;
         pico_aodv_set_dev(dev);
         ip4l = pico_ipv4_link_by_dev(dev);

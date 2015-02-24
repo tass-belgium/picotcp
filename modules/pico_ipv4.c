@@ -1609,7 +1609,7 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
         return found;
 }
 
-struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
+struct pico_ipv4_link * MOCKABLE pico_ipv4_link_by_dev(struct pico_device *dev)
 {
     struct pico_tree_node *index = NULL;
     struct pico_ipv4_link *link = NULL;
@@ -1645,7 +1645,7 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev_next(struct pico_device *dev, struc
     return NULL;
 }
 
-struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
+struct pico_device * MOCKABLE pico_ipv4_link_find(struct pico_ip4 *address)
 {
     struct pico_ipv4_link test, *found;
     if(!address) {

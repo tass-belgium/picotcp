@@ -55,7 +55,6 @@ END_TEST
 static int set_bcast_link_called = 0;
 void pico_ipv4_route_set_bcast_link(struct pico_ipv4_link *link)
 {
-    fail_if(link);
     set_bcast_link_called++;
 }
 
@@ -183,71 +182,212 @@ START_TEST(tc_aodv_lifetime)
 }
 END_TEST
 
+static uint8_t sent_pkt_type = 0xFF;
+static uint32_t dest_addr = 0;
+static int pico_socket_sendto_called = 0;
+static int pico_socket_sendto_extended_called = 0;
+uint32_t expected_dseq = 0;
+int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
+{
+    uint8_t *pkt = (uint8_t *)buf;
+    printf("Sendto called!\n");
+    pico_socket_sendto_called++;
+    fail_if(remote_port != short_be(PICO_AODV_PORT));
+    fail_if (s != aodv_socket);
+    fail_if(pkt[0] > 4);
+    fail_if(pkt[0] < 1);
+    sent_pkt_type = pkt[0];
+    dest_addr = ((union pico_address *)dst)->ip4.addr;
+    if (sent_pkt_type == AODV_TYPE_RREQ) {
+        struct pico_aodv_rreq *req = (struct pico_aodv_rreq *)buf;
+        fail_if(len != sizeof(struct pico_aodv_rreq));
+    }
+    else if (sent_pkt_type == AODV_TYPE_RREP) {
+        struct pico_aodv_rrep *rep = (struct pico_aodv_rrep *)buf;
+        fail_if(len != sizeof(struct pico_aodv_rrep));
+        fail_if(rep->dest != 0x11111111);
+        fail_if(rep->orig != 0x22222222);
+        printf("rep->dseq= %08x, exp: %08x\n", rep->dseq, expected_dseq);
+        fail_if(rep->dseq != expected_dseq);
+    }
+    return len;
+}
+
+int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len, 
+        void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
+{
+    pico_socket_sendto_extended_called++;
+    return pico_socket_sendto(s, buf, len, dst, remote_port);
+}
+
 START_TEST(tc_aodv_send_reply)
 {
-   /* TODO: test this: static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *req, int node_is_local, struct pico_msginfo *info) */
+    struct pico_aodv_node node;
+    struct pico_aodv_rreq req;
+    struct pico_msginfo info;
+    union pico_address addr;
+    addr.ip4.addr = 0x22222222;
+    memset(&node, 0, sizeof(node));
+    memset(&req, 0, sizeof(req));
+    memset(&info, 0, sizeof(info));
+
+    req.dest = 0x11111111;
+    req.orig = addr.ip4.addr;
+    req.dseq = 99;
+
+    aodv_send_reply(&node, &req, 1, &info);
+    fail_if(pico_socket_sendto_called != 0); /* Call should have no effect, due to non-existing origin node */
+
+    /* Creating origin... */
+    fail_if(aodv_peer_new(&addr) == NULL);
+    aodv_send_reply(&node, &req, 0, &info);
+    fail_if(pico_socket_sendto_called != 0); /* Call should have no effect, node non-local, non sync'd */
+
+    expected_dseq = long_be(pico_aodv_local_id + 1);
+    aodv_send_reply(&node, &req, 1, &info);
+    fail_if(pico_socket_sendto_called != 1);  /* Call should succeed */
+    pico_socket_sendto_called = 0;
+
+    node.flags = PICO_AODV_NODE_SYNC;
+    node.dseq = 42;
+    expected_dseq = long_be(42);
+    aodv_send_reply(&node, &req, 0, &info);
+    fail_if(pico_socket_sendto_called != 1);  /* Call should succeed */
+    pico_socket_sendto_called = 0;
 }
 END_TEST
+
+static struct pico_ipv4_link global_link;
+struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
+{
+    if (!global_link.address.addr)
+        return NULL;
+    printf("Setting link!\n");
+    return &global_link;
+}
+
+static int timer_set = 0;
+struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+{
+    printf("Timer set!\n");
+    timer_set++;
+    return (struct pico_timer *) 0x99999999;
+
+}
+
 START_TEST(tc_aodv_send_req)
 {
-   /* TODO: test this: static int aodv_send_req(struct pico_aodv_node *node); */
+    struct pico_aodv_node node;
+    struct pico_device d;
+    aodv_socket = NULL;
+
+    memset(&node, 0, sizeof(node));
+    node.flags = PICO_AODV_NODE_ROUTE_DOWN | PICO_AODV_NODE_ROUTE_UP;
+    fail_if(aodv_send_req(&node) != 0); /* Should fail: node already active */
+    fail_if(pico_socket_sendto_called != 0);
+    fail_if(pico_socket_sendto_extended_called != 0);
+
+    node.flags = 0;
+    fail_if(aodv_send_req(&node) != 0); /* Should fail: no devices in tree */
+    fail_if(pico_socket_sendto_called != 0);
+    fail_if(pico_socket_sendto_extended_called != 0);
+
+    pico_tree_insert(&aodv_devices, &d);
+    fail_if(aodv_send_req(&node) != -1); /* Should fail: aodv_socket == NULL */
+    fail_if(pico_err != PICO_ERR_EINVAL);
+    fail_if(pico_socket_sendto_called != 0);
+    fail_if(pico_socket_sendto_extended_called != 0);
+
+
+    /* No valid link, timer is set, call does not send packets */
+    aodv_socket = 1;
+    global_link.address.addr = 0;
+    fail_if(aodv_send_req(&node) != 0);
+    fail_if(pico_socket_sendto_called != 0);
+    fail_if(pico_socket_sendto_extended_called != 0);
+    fail_if(timer_set != 1);
+    timer_set = 0;
+
+
+    /* One valid link, timer is set, one packet is sent */
+    global_link.address.addr = 0xFEFEFEFE;
+    fail_if(aodv_send_req(&node) != 1);
+    fail_if(pico_socket_sendto_called != 1);
+    fail_if(pico_socket_sendto_extended_called != 1);
+    fail_if(timer_set != 1);
+    pico_socket_sendto_called = 0;
+    pico_socket_sendto_extended_called = 0;
+    timer_set = 0;
+
 }
 END_TEST
+
 START_TEST(tc_aodv_reverse_path_discover)
 {
    /* TODO: test this: static void aodv_reverse_path_discover(pico_time now, void *arg) */
 }
 END_TEST
+
 START_TEST(tc_aodv_recv_valid_rreq)
 {
    /* TODO: test this: static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req, struct pico_msginfo *info) */
 }
 END_TEST
+
 START_TEST(tc_aodv_parse_rreq)
 {
    /* TODO: test this: static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
+
 START_TEST(tc_aodv_parse_rrep)
 {
    /* TODO: test this: static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
+
 START_TEST(tc_aodv_parse_rerr)
 {
    /* TODO: test this: static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
+
 START_TEST(tc_aodv_parse_rack)
 {
    /* TODO: test this: static void aodv_parse_rack(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
+
 START_TEST(tc_pico_aodv_parse)
 {
    /* TODO: test this: static void pico_aodv_parse(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
+
 START_TEST(tc_pico_aodv_socket_callback)
 {
    /* TODO: test this: static void pico_aodv_socket_callback(uint16_t ev, struct pico_socket *s) */
 }
 END_TEST
+
 START_TEST(tc_aodv_make_rreq)
 {
    /* TODO: test this: static void aodv_make_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req) */
 }
 END_TEST
+
 START_TEST(tc_aodv_retrans_rreq)
 {
    /* TODO: test this: static void aodv_retrans_rreq(pico_time now, void *arg) */
 }
 END_TEST
+
 START_TEST(tc_pico_aodv_expired)
 {
    /* TODO: test this: static void pico_aodv_expired(struct pico_aodv_node *node) */
 }
 END_TEST
+
 START_TEST(tc_pico_aodv_collector)
 {
    /* TODO: test this: static void pico_aodv_collector(pico_time now, void *arg) */

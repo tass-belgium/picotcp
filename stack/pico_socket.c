@@ -1268,7 +1268,7 @@ static void pico_socket_sendto_set_dport(struct pico_socket *s, uint16_t port)
 }
 
 
-int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len, 
+int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len, 
         void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
 {
     struct pico_remote_endpoint *remote_endpoint = NULL;
