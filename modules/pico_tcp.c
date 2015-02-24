@@ -2511,7 +2511,6 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
             tcp_force_closed(s);
             pico_err = PICO_ERR_ECONNRESET;
             tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
-            pico_socket_del(&t->sock);              /* delete socket */
         } else {                  /* not valid, ignore */
             tcp_dbg("TCP RST> IGNORE\n");
             return 0;
