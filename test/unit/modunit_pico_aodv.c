@@ -266,6 +266,15 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
     return &global_link;
 }
 
+static struct pico_device global_dev;
+static int link_find_success = 0;
+struct pico_device *pico_ipv4_link_find(struct pico_ip4 *ip4)
+{
+    if (link_find_success)
+        return &global_dev;
+    return NULL;
+}
+
 static int timer_set = 0;
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
@@ -324,13 +333,50 @@ END_TEST
 
 START_TEST(tc_aodv_reverse_path_discover)
 {
-   /* TODO: test this: static void aodv_reverse_path_discover(pico_time now, void *arg) */
+    struct pico_aodv_node node;
+    memset(&node, 0, sizeof(node));
+    aodv_reverse_path_discover(0, &node);
 }
 END_TEST
 
 START_TEST(tc_aodv_recv_valid_rreq)
 {
-   /* TODO: test this: static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req, struct pico_msginfo *info) */
+    struct pico_aodv_node node;
+    struct pico_aodv_rreq req;
+    struct pico_msginfo info;
+    union pico_address addr;
+    memset(&node, 0, sizeof(node));
+    memset(&req, 0, sizeof(req));
+    memset(&info, 0, sizeof(info));
+    
+    addr.ip4.addr = 0x22222222;
+
+    link_find_success = 0;
+    aodv_recv_valid_rreq(&node, &req, &info);
+    fail_if(pico_socket_sendto_called > 0);
+
+    /* link not local, but active node, set to send reply, no timer */
+    link_find_success = 0;
+    fail_if(aodv_peer_new(&addr) == NULL);
+    global_link.address.addr = 0x44444444;
+    req.orig = addr.ip4.addr;
+    req.dest = 0x11111111;
+    node.flags = PICO_AODV_NODE_SYNC | PICO_AODV_NODE_ROUTE_UP| PICO_AODV_NODE_ROUTE_DOWN;
+    node.dseq = 42;
+    expected_dseq = long_be(42);
+    aodv_recv_valid_rreq(&node, &req, &info);
+    fail_if(pico_socket_sendto_called < 1);
+    fail_if(timer_set > 0);
+    pico_socket_sendto_called = 0;
+
+    /* link local, active node. Full send + set timer. */
+    link_find_success = 1;
+    expected_dseq = long_be(pico_aodv_local_id + 1);
+    aodv_peer_new(&addr);
+    aodv_recv_valid_rreq(&node, &req, &info);
+    fail_if(pico_socket_sendto_called < 1);
+    fail_if(timer_set < 1);
+
 }
 END_TEST
 
@@ -354,13 +400,12 @@ END_TEST
 
 START_TEST(tc_aodv_parse_rack)
 {
-   /* TODO: test this: static void aodv_parse_rack(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
+    aodv_parse_rack(NULL, NULL, 0, NULL);
 }
 END_TEST
 
 START_TEST(tc_pico_aodv_parse)
 {
-   /* TODO: test this: static void pico_aodv_parse(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
 

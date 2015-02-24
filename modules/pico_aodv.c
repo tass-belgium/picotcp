@@ -14,7 +14,8 @@
 
 #include <pico_ipv4.h>
 
-#define pico_aodv_dbg(...) do{}while(0)
+//#define pico_aodv_dbg(...) do{}while(0)
+#define pico_aodv_dbg dbg
 
 #define AODV_MAX_PKT (64)
 static const struct pico_ip4 HOST_NETMASK = {
@@ -216,6 +217,7 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
         pico_aodv_dbg("Generating RREP for node %x, id=%x\n", reply.dest, reply.dseq);
         pico_socket_sendto(aodv_socket, &reply, sizeof(reply), &dest, short_be(PICO_AODV_PORT));
     }
+    pico_aodv_dbg("no rrep generated.\n");
 }
 
 /* Parser functions */
