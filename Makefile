@@ -43,6 +43,7 @@ MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
+PPP?=0
 
 #IPv6 related
 IPV6?=1
@@ -287,6 +288,9 @@ endif
 ifneq ($(TAP),0)
   include rules/tap.mk
 endif
+ifneq ($(PPP),0)
+  include rules/ppp.mk
+endif
 
 all: mod core lib
 
@@ -414,6 +418,11 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@$(CC) -o dummy test/dummy.o $(DUMMY_EXTRA) $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
 	@echo done.
 	@rm -f test/dummy.o dummy 
+
+ppptest: test/ppp.c lib
+	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
+	gcc -o ppp ppp.o build/lib/libpicotcp.a 
+	rm -f ppp.o
 
 
 FORCE:
