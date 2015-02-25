@@ -561,7 +561,7 @@ static void pico_aodv_collector(pico_time now, void *arg)
 
 MOCKABLE int pico_aodv_init(void) 
 {
-    struct pico_ip4 any = { .addr = 0u};
+    struct pico_ip4 any;
     uint16_t port = short_be(PICO_AODV_PORT);
     if (aodv_socket) {
         pico_err = PICO_ERR_EADDRINUSE;
@@ -570,6 +570,8 @@ MOCKABLE int pico_aodv_init(void)
     aodv_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, pico_aodv_socket_callback);
     if (!aodv_socket)
         return -1;
+
+    memset(&any, 0, sizeof(union pico_address));
 
     if (pico_socket_bind(aodv_socket, &any, &port) != 0) {
         uint16_t err = pico_err;
