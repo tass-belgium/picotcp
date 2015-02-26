@@ -5,18 +5,37 @@
 #include <termios.h>
 #define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
+#define DEBUG_FLOW 
 static int fd = -1;
+static int idx;
 
 int modem_read(struct pico_device *dev, void *data, int len)
 {
     int r;
     r = read(fd, data, len);
+#ifdef DEBUG_FLOW
+    if (r > 0) {
+        printf(" <<< ");
+        for(idx = 0; idx < r; idx++) {
+            printf(" %02x", ((uint8_t*)data)[idx]);
+        }
+        printf("\n");
+    }
+#endif
+
     return r;
 }
 
-int modem_write(struct pico_device *dev, void *data, int len)
+int modem_write(struct pico_device *dev, const void *data, int len)
 {
     int r;
+#ifdef DEBUG_FLOW
+    printf(" >>> ");
+    for(idx = 0; idx < len; idx++) {
+        printf(" %02x", ((uint8_t*)data)[idx]);
+    }
+    printf("\n");
+#endif
     r = write(fd, data, len);
     return r;
 }
