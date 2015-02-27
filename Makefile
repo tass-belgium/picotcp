@@ -44,6 +44,7 @@ MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
 PPP?=0
+CYASSL?=0
 
 #IPv6 related
 IPV6?=1
@@ -209,7 +210,8 @@ CORE_OBJ= stack/pico_stack.o \
           stack/pico_protocol.o \
           stack/pico_socket.o \
 		  stack/pico_socket_multicast.o \
-			stack/pico_tree.o
+ 	      stack/pico_tree.o \
+		  stack/pico_md5.o
 
 POSIX_OBJ+=  modules/pico_dev_vde.o \
 						modules/pico_dev_tun.o \
@@ -290,6 +292,9 @@ ifneq ($(TAP),0)
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
+endif
+ifneq ($(CYASSL),0)
+  include rules/cyassl.mk
 endif
 
 all: mod core lib
@@ -420,8 +425,8 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@rm -f test/dummy.o dummy 
 
 ppptest: test/ppp.c lib
-	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
-	gcc -o ppp ppp.o build/lib/libpicotcp.a 
+	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/ 
+	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS)
 	rm -f ppp.o
 
 
