@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Daniele Lacamera
+   Authors: Daniele Lacamera, Maxime Vincent
  *********************************************************************/
 
 
@@ -224,7 +224,6 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     uint16_t fcs = 0;
     int fcs_start;
     int i = 0;
-    printf("In %s\n", __FUNCTION__);
     if (ppp->state != PPP_NETWORK)
         return len;
 
@@ -248,11 +247,11 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     memcpy(pico_ppp_data_buffer + i, buf, len);
     i += len;
     fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, i - fcs_start);
+    fcs = ppp_fcs_finish(fcs);
     pico_ppp_data_buffer[i++] = fcs & 0xFF;
     pico_ppp_data_buffer[i++] = (fcs & 0xFF00) >> 8;
     pico_ppp_data_buffer[i++] = PPPF_STARTSTOP;
     ppp->serial_send(&ppp->dev, pico_ppp_data_buffer, i);
-    printf("Sent one IP packet, ip len: %d, total ppp frame len: %d\n", len, i);
     return len;
 }
 
@@ -715,10 +714,6 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
     uint8_t *p = pkt + sizeof(struct pico_ipcp_hdr);
     int idx;
     int reject = 0;
-    dbg(" <<<< IPCP ");
-    for(idx = 0; idx < len; idx++) {
-       dbg(" %02x", ((uint8_t*)pkt)[idx]);
-    }
     while (p < pkt + len) {
         if (p[0] == IPCP_OPT_VJ) {
             reject++;
@@ -747,7 +742,6 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 
     switch(ih->code) {
         case PICO_CONF_ACK:
-            dbg("ACK\n");
             if (ppp->ipcp_ip) {
                 char my_ip[16], my_dns[16];
                 pico_ipv4_to_string(my_ip, ppp->ipcp_ip);
@@ -759,15 +753,12 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
             }
             break;
         case PICO_CONF_REQ:
-            dbg("REQ\n");
             ipcp_ack(ppp, pkt, len);
             break;
         case PICO_CONF_NAK:
-            dbg("NAK\n");
             ipcp_request(ppp);
             break;
         case PICO_CONF_REJ:
-            dbg("REJ\n");
             ipcp_request(ppp);
             break;
     }
@@ -780,7 +771,7 @@ static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 
 static void ppp_recv_ipv4(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 {
-    printf("Recv IPv4!\n");
+    pico_stack_recv(&ppp->dev, pkt, len);
 
 }
 
@@ -919,7 +910,6 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
             r = ppp->serial_recv(&ppp->dev, ppp_recv_buf, PPP_MAXPKT);
             if (r <= 0)
                 break;
-            dbg("Received %d bytes from peer.\n", r);
             if (ppp->state >= PPP_MODEM_CONNECT) {
                 pico_ppp_fsm[ppp->state].recv(ppp, ppp_recv_buf, r);
             } else {

@@ -7,7 +7,7 @@
 #include <pico_socket.h>
 #define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
-#define DEBUG_FLOW 
+//#define DEBUG_FLOW 
 static int fd = -1;
 static int idx;
 static int ping_on = 0;
@@ -80,7 +80,7 @@ static void ping(void)
     pico_string_to_ipv4("80.68.95.85", &dst.addr);
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, cb_sock);
     pico_socket_connect(s, &dst, short_be(80));
-    pico_icmp4_ping("80.68.95.85", 10, 1000, 4000, 64, cb_ping);
+    pico_icmp4_ping("80.68.95.85", 10, 1000, 4000, 8, cb_ping);
 
 
 }
