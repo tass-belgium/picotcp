@@ -3,11 +3,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
+#include <pico_icmp4.h>
+#include <pico_socket.h>
 #define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
 #define DEBUG_FLOW 
 static int fd = -1;
 static int idx;
+static int ping_on = 0;
 
 int modem_read(struct pico_device *dev, void *data, int len)
 {
@@ -53,6 +56,35 @@ int modem_set_speed(struct pico_device *dev, uint32_t speed)
     return 0;
 }
 
+void cb_ping(struct pico_icmp4_stats *s)
+{
+    char host[30];
+    pico_ipv4_to_string(host, s->dst.addr);
+    if (s->err == 0) {
+        dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
+    } else {
+        dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+    }
+}
+
+static void cb_sock(uint16_t ev, struct pico_socket *s)
+{
+
+}
+
+static void ping(void) 
+{
+    struct pico_socket *s;
+    struct pico_ip4 dst;
+
+    pico_string_to_ipv4("80.68.95.85", &dst.addr);
+    s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, cb_sock);
+    pico_socket_connect(s, &dst, short_be(80));
+    pico_icmp4_ping("80.68.95.85", 10, 1000, 4000, 64, cb_ping);
+
+
+}
+
 int main(void)
 {
     struct pico_device *dev;
@@ -75,5 +107,9 @@ int main(void)
     while(1) {
         pico_stack_tick();
         usleep(1000);
+        if (dev->link_state(dev) && !ping_on) {
+            ping_on++;
+            ping();
+        }
     }
 }
