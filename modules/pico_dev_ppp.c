@@ -9,11 +9,14 @@
 #include "pico_device.h"
 #include "pico_dev_ppp.h"
 #include "pico_stack.h"
+#include "pico_md5.h"
 
 #define PICO_PPP_MRU 1514
 #define PICO_PPP_MTU 1500
 #define PPP_MAXPKT 2048
-#define PPP_MAX_APN 140
+#define PPP_MAX_APN 134
+#define PPP_MAX_USERNAME 134
+#define PPP_MAX_PASSWORD 134
 #define PPP_HDR_SIZE 3
 #define PPP_PROTO_SLOT_SIZE 2
 #define PPP_FCS_SIZE 2
@@ -52,6 +55,12 @@ PACKED_STRUCT_DEF pico_lcp_hdr {
    uint16_t len;
 };
 
+PACKED_STRUCT_DEF pico_chap_hdr {
+   uint8_t code;
+   uint8_t id;
+   uint16_t len;
+};
+
 #ifdef DEBUG_PPP
 static int fifo_fd = -1; 
 #endif
@@ -78,6 +87,8 @@ struct pico_device_ppp {
     enum pico_ppp_state state;
     uint8_t frame_id;
     char apn[PPP_MAX_APN];
+    char password[PPP_MAX_PASSWORD];
+    char username[PPP_MAX_USERNAME];
     uint16_t lcpopt_local;
     uint16_t lcpopt_peer;
     uint16_t auth;
@@ -484,10 +495,68 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 
 }
 
+#define CHAP_MD5_SIZE   16
+#define CHAP_CHALLENGE  1
+#define CHAP_RESPONSE   2
+#define CHAP_SUCCESS    3
+#define CHAP_FAILURE    4
+#define CHALLENGE_SIZE(ppp, ch) (1 + strlen(ppp->password)+ short_be((ch)->len))
+
+
 static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 {
+    int idx;
+    struct pico_chap_hdr *ch = (struct pico_chap_hdr *)pkt;
+    uint8_t resp[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE + PPP_FCS_SIZE + 1];
+    struct pico_chap_hdr *rh = (struct pico_chap_hdr *) (resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    uint8_t *md5resp = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr); 
+    uint8_t *challenge;
+    int i = 0, pwdlen;
 
+    dbg("CHAP!\n");
+    switch(ch->code) {
+        case CHAP_CHALLENGE:
+            challenge = PICO_ZALLOC(CHALLENGE_SIZE(ppp, ch));
+            if (!challenge)
+                return;
+            pwdlen = strlen(ppp->password);
+            dbg("Received challenge from peer\n");
+            challenge[i++] = ch->id;
+            memcpy(challenge + i, ppp->password, pwdlen);
+            i += pwdlen;
+            memcpy(challenge + i, pkt + sizeof(struct pico_chap_hdr), short_be(ch->len));
+            i += ch->len;
+            pico_md5sum(md5resp, challenge, i);
+            pico_free(challenge);
+            rh->id = ch->id;
+            rh->code = CHAP_RESPONSE;
+            rh->len = short_be(CHAP_MD5_SIZE + sizeof(struct pico_chap_hdr));
+            pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_CHAP, 
+                resp,                         /* Start of PPP packet */
+                PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
+                sizeof(struct pico_chap_hdr) +   /* CHAP HDR */
+                CHAP_MD5_SIZE +                   /* Actual payload size */
+                PPP_FCS_SIZE +                  /* FCS at the end of the frame */
+                1,                              /* STOP Byte */
+                PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+            break;
+        case CHAP_SUCCESS:
+            printf("AUTH: SUCCESS!!\n");
+            break;
+        case CHAP_FAILURE:
+            printf("AUTH: FAILURE!!\n");
+            break;
+    }
 }
+
+
+#if 0
+    for(idx = 0; idx < len; idx++) {
+       printf(" %02x", ((uint8_t*)pkt)[idx]);
+    }
+    printf("\n");
+#endif
+
 
 static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 {
@@ -697,6 +766,7 @@ struct pico_device *pico_ppp_create(void)
     ppp->dev.link_state  = pico_ppp_link_state;
     ppp->frame_id = (uint8_t)(pico_rand() % 0xFF);
     strcpy(ppp->apn, "web.be");
+    strcpy(ppp->password, "zio");
 
     LCPOPT_SET_LOCAL(ppp, LCPOPT_MRU);
     LCPOPT_SET_LOCAL(ppp, LCPOPT_AUTH); /* We support authentication, even if it's not part of the req */
