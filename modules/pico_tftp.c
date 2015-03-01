@@ -1259,7 +1259,7 @@ int32_t pico_tftp_get(struct pico_tftp_session *session, uint8_t *data, int32_t 
     if (synchro < 0)
         return synchro;
 
-    memcpy(data, session->tftp_block, (size_t)session->len);
+    memcpy(data, tftp_payload(session->tftp_block), (size_t)session->len);
     len = session->len;
 
     tftp_send_ack(session);
