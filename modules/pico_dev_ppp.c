@@ -462,7 +462,6 @@ static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
     ack_hdr->code = PICO_CONF_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
-    dbg("Sending ACK!\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack, 
             PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
             short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
@@ -595,7 +594,6 @@ static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
     ack_hdr->code = PICO_CONF_ACK;
     ack_hdr->id = ipcpreq->id;
     ack_hdr->len = ipcpreq->len;
-    dbg("Sending ACK!\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, ack, 
             PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
             short_be(ipcpreq->len) +                         /* Actual options size + hdr (whole ipcp packet) */
