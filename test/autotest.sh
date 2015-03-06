@@ -65,6 +65,14 @@ wait || exit 1
 wait
 killall picoapp6.elf
 
+echo "IPV6 FWD TCP TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,aaaa::ff,, -a tcpbench,t,aabb::2,6667,,) &
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::ff,ffff::,,, --vde pic1,/tmp/pic1.ctl,aabb::ff,ffff::,,, -a noop,) &
+./build/test/picoapp6.elf --vde pic0,/tmp/pic1.ctl,aabb::2,ffff::,aabb::ff,, -a tcpbench,r,6667,, || exit 1
+sleep 2
+killall picoapp.elf
+
+
 echo "MULTICAST TEST"
 (./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
 (./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667) &

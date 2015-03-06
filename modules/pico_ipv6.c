@@ -453,7 +453,6 @@ static int pico_ipv6_pre_forward_checks(struct pico_frame *f)
     if (pico_ipv6_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
     return 0;
 }
 
@@ -481,8 +480,7 @@ static int pico_ipv6_forward(struct pico_frame *f)
     if (pico_ipv6_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
-    return 0;
+    return pico_sendto_dev(f);
 }
 
 int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *f)
@@ -717,15 +715,16 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
 
     if (0) {
     } else if (pico_ipv6_is_unicast(&hdr->dst)) {
-        pico_transport_receive(f, f->proto);
+        if (pico_ipv6_link_get(&hdr->dst)) {
+            pico_transport_receive(f, f->proto);
+        } else {
+            /* not local, try to forward. */
+            return pico_ipv6_forward(f);
+        }
     } else if (pico_ipv6_is_multicast(hdr->dst.addr)) {
         /* XXX perform multicast filtering: solicited-node multicast address MUST BE allowed! */
         pico_transport_receive(f, f->proto);
-    } else {
-        /* not local, try to forward. */
-        pico_ipv6_forward(f);
     }
-
     return 0;
 }
 
@@ -853,15 +852,12 @@ static int ipv6_frame_push_final(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-
     if(pico_ipv6_link_get(&hdr->dst)) {
         return pico_enqueue(&ipv6_in, f);
     }
     else {
         return pico_enqueue(&ipv6_out, f);
     }
-
-
 }
 
 struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
@@ -907,9 +903,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
 
 push_final:
     ipv6_push_hdr_adjust(f, link, dst, proto);
-
     return ipv6_frame_push_final(f);
-
 }
 
 static int pico_ipv6_frame_sock_push(struct pico_protocol *self, struct pico_frame *f)
