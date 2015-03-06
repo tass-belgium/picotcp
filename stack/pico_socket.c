@@ -1811,6 +1811,7 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
 
     switch (net_hdr->proto)
     {
+#ifdef PICO_SUPPORT_TCP
     case PICO_PROTO_TCP:
         checksum_invalid = short_be(pico_tcp_checksum(f));
         /* dbg("TCP CRC validation == %u\n", checksum_invalid); */
@@ -1821,7 +1822,9 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
         }
 
         break;
+#endif /* PICO_SUPPORT_TCP */
 
+#ifdef PICO_SUPPORT_UDP
     case PICO_PROTO_UDP:
         udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
         if (short_be(udp_hdr->crc)) {
@@ -1844,6 +1847,7 @@ static inline int pico_transport_crc_check(struct pico_frame *f)
         }
 
         break;
+#endif /* PICO_SUPPORT_UDP */
 
     default:
         /* Do nothing */
