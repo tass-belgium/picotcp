@@ -477,9 +477,6 @@ static int pico_ipv6_forward(struct pico_frame *f)
 
     f->start = f->net_hdr;
 
-    if (pico_ipv6_forward_check_dev(f) < 0)
-        return -1;
-
     return pico_sendto_dev(f);
 }
 
@@ -703,6 +700,11 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
 
     IGNORE_PARAMETER(self);
 
+    if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
+        /* not local, try to forward. */
+        return pico_ipv6_forward(f);
+    }
+
     proto = pico_ipv6_extension_headers(f);
     if (proto <= 0) {
         pico_frame_discard(f);
@@ -712,15 +714,8 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     f->proto = (uint8_t)proto;
     ipv6_dbg("IPv6: payload %u net_len %u nxthdr %u\n", short_be(hdr->len), f->net_len, proto);
 
-
-    if (0) {
-    } else if (pico_ipv6_is_unicast(&hdr->dst)) {
-        if (pico_ipv6_link_get(&hdr->dst)) {
+    if (pico_ipv6_is_unicast(&hdr->dst)) {
             pico_transport_receive(f, f->proto);
-        } else {
-            /* not local, try to forward. */
-            return pico_ipv6_forward(f);
-        }
     } else if (pico_ipv6_is_multicast(hdr->dst.addr)) {
         /* XXX perform multicast filtering: solicited-node multicast address MUST BE allowed! */
         pico_transport_receive(f, f->proto);
