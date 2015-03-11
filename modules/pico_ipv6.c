@@ -346,23 +346,6 @@ int pico_ipv6_is_unspecified(const uint8_t addr[PICO_SIZE_IP6])
     return !memcmp(PICO_IP6_ANY, addr, PICO_SIZE_IP6);
 }
 
-int pico_ipv6_rebound(struct pico_frame *f)
-{
-    struct pico_ip6 dst = {{0}};
-    struct pico_ipv6_hdr *hdr = NULL;
-
-    if(!f)
-        return -1;
-
-    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    if (!hdr)
-        return -1;
-
-    dst = hdr->src;
-
-    return pico_ipv6_frame_push(f, &dst, hdr->nxthdr);
-}
-
 static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
 {
     struct pico_ipv6_route *r = NULL;
