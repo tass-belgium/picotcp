@@ -182,6 +182,7 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code, u
     icmp6_hdr->type = type;
     icmp6_hdr->code = code;
     memcpy(notice->payload, f->net_hdr, notice->payload_len);
+    notice->dev = f->dev;
     /* f->src is set in frame_push, checksum calculated there */
     pico_ipv6_frame_push(notice, &ipv6_hdr->src, PICO_PROTO_ICMP6);
     return 0;
