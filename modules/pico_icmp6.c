@@ -61,21 +61,10 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
     case PICO_ICMP6_ECHO_REQUEST:
         icmp6_dbg("ICMP6: Received ECHO REQ\n");
         hdr->type = PICO_ICMP6_ECHO_REPLY;
-        /* XXX these pointers and len should already be set correctly in pico_ipv6_process_in */
-        /* Ugly, but the best way to get ICMP data size here. */
-        f->transport_len = (uint16_t)(f->buffer_len - PICO_SIZE_IP6HDR);
-        if (f->dev->eth)
-            f->transport_len = (uint16_t)(f->transport_len - PICO_SIZE_ETHHDR);
-
+        f->transport_len = (uint16_t)(f->len - f->net_len - (uint16_t)(f->net_hdr - f->buffer));
         hdr->crc = 0;
         hdr->crc = short_be(pico_icmp6_checksum(f));
-
-        f->net_hdr = f->transport_hdr - PICO_SIZE_IP6HDR;
-        f->start = f->net_hdr;
-        f->len = f->buffer_len;
-        if (f->dev->eth)
-            f->len -= PICO_SIZE_ETHHDR;
-
+        f->len = (uint32_t)(f->transport_len + f->net_len);
         pico_ipv6_rebound(f);
         break;
 

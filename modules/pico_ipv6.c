@@ -480,6 +480,8 @@ static int pico_ipv6_forward(struct pico_frame *f)
     return pico_sendto_dev(f);
 }
 
+#define HBH_LEN(hbh) ((((hbh->ext.hopbyhop.len + 1) << 3) - 2)) /* len in bytes, minus nxthdr and len byte */
+
 int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *f)
 {
     uint8_t *option = NULL;
@@ -490,7 +492,7 @@ int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *
     IGNORE_PARAMETER(f);
 
     option = hbh->ext.hopbyhop.options;
-    len = (uint8_t)(((hbh->ext.hopbyhop.len + 1) << 3) - 2); /* len in bytes, minus nxthdr and len byte */
+    len = (uint8_t)HBH_LEN(hbh);
     ipv6_dbg("IPv6: hop by hop extension header length %u\n", len + 2);
     while (len) {
         switch (*option)
@@ -715,7 +717,7 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     ipv6_dbg("IPv6: payload %u net_len %u nxthdr %u\n", short_be(hdr->len), f->net_len, proto);
 
     if (pico_ipv6_is_unicast(&hdr->dst)) {
-            pico_transport_receive(f, f->proto);
+        pico_transport_receive(f, f->proto);
     } else if (pico_ipv6_is_multicast(hdr->dst.addr)) {
         /* XXX perform multicast filtering: solicited-node multicast address MUST BE allowed! */
         pico_transport_receive(f, f->proto);
