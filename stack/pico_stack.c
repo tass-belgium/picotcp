@@ -351,7 +351,6 @@ static int32_t pico_ipv6_ethernet_receive(struct pico_frame *f)
         pico_enqueue(pico_proto_ipv6.q_in, f);
     } else {
         /* Wrong version for link layer type */
-        (void)pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 0);
         pico_frame_discard(f);
         return -1;
     }
