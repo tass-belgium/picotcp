@@ -87,11 +87,10 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
             uint8_t segleft;
         } routing;
 
-        PEDANTIC_STRUCT_DEF fragm_s {
+        PEDANTIC_STRUCT_DEF fragmentation_s {
             uint8_t res;
-            uint8_t frm[2];
-            uint8_t id[4];
-        } fragm;
+            uint16_t om;
+        } frag;
     } ext;
 };
 
