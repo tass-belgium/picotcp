@@ -174,7 +174,6 @@ int pico_notify_pkt_too_big(struct pico_frame *f)
 }
 
 
-
 /* Transport layer */
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {

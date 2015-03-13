@@ -549,6 +549,7 @@ static int pico_ipv6_frag_compare(void *ka, void *kb)
     return 0;
 }
 PICO_TREE_DECLARE(ipv6_fragments, pico_ipv6_frag_compare);
+struct pico_timer *ipv6_fragments_timer = NULL;
 
 
 static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
@@ -575,6 +576,10 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
             pico_frame_discard(f);
         }
         pico_transport_receive(full, proto);
+        if (ipv6_fragments_timer) {
+            pico_timer_cancel(ipv6_fragments_timer);
+            ipv6_fragments_timer = NULL;
+        }
     }
 }
 
@@ -594,10 +599,68 @@ static void pico_ipv6_fragments_check_complete(uint8_t proto)
     }
 }
 
+static void pico_ipv6_frag_expire(pico_time now, void *arg)
+{
+    struct pico_tree_node *index, *tmp;
+    struct pico_frame *f;
+    struct pico_frame *first = pico_tree_first(&ipv6_fragments);
+    (void)arg;
+    (void)now;
+    if (!first) {
+        return;
+    }
+
+    /* Empty the tree */
+    pico_tree_foreach_safe(index, &ipv6_fragments, tmp) {
+        f = index->keyValue;
+        pico_tree_delete(&ipv6_fragments, f);
+        if (f != first)
+            pico_frame_discard(f); /* Later, after ICMP notification...*/
+    }
+    pico_icmp6_frag_expired(first);
+    pico_frame_discard(first);
+}
+
+#define PICO_IPV6_FRAG_TIMEOUT 60000
+
+#define FRAG_ID(x) ((uint32_t)((x->ext.frag.id[0] << 24) + (x->ext.frag.id[1] << 16) + \
+       (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
+static void pico_ipv6_frag_timer_on(void)
+{
+    ipv6_fragments_timer = pico_timer_add(PICO_IPV6_FRAG_TIMEOUT, pico_ipv6_frag_expire, NULL);
+}
+
+static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
+{
+    struct pico_ipv6_hdr *ha, *hb;
+    if (!a || !b)
+        return 0;
+    ha = (struct pico_ipv6_hdr *)a->net_hdr;
+    hb = (struct pico_ipv6_hdr *)b->net_hdr;
+    if (!ha || !hb)
+        return 0;
+
+    if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
+        return 0;
+
+    if (memcmp(ha->dst.addr, hb->dst.addr, PICO_SIZE_IP6) != 0)
+        return 0;
+
+    return 1;
+}
+
 static void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f, uint8_t proto)
 {
+    struct pico_frame *first = pico_tree_first(&ipv6_fragments);
+    static uint32_t ipv6_cur_frag_id = 0u;
     f->frag = (uint16_t)((frag->ext.frag.om[0] << 8) + frag->ext.frag.om[1]);
-    pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
+    if (!first) {
+        pico_ipv6_frag_timer_on();
+        ipv6_cur_frag_id = FRAG_ID(frag); 
+    }
+    if (!first || (pico_ipv6_frag_match(f, first) && (FRAG_ID(frag) == ipv6_cur_frag_id))) {
+        pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
+    }
     pico_ipv6_fragments_check_complete(proto);
 }
 

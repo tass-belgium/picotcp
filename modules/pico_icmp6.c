@@ -190,7 +190,6 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code, u
         icmp6_hdr->msg.err.param_problem.ptr = long_be(ptr);
         break;
 
-
     default:
         return -1;
     }
@@ -239,6 +238,11 @@ int pico_icmp6_packet_filtered(struct pico_frame *f)
 int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t ptr)
 {
     return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem, ptr);
+}
+
+int pico_icmp6_frag_expired(struct pico_frame *f)
+{
+    return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_REASS, 0);
 }
 
 /* RFC 4861 $7.2.2: sending neighbor solicitations */
