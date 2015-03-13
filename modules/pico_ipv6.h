@@ -89,7 +89,7 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
 
         PEDANTIC_STRUCT_DEF fragmentation_s {
             uint8_t res;
-            uint16_t om;
+            uint8_t om[2];
         } frag;
     } ext;
 };
