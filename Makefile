@@ -199,7 +199,7 @@ ifeq ($(ARCH),shared)
   CFLAGS+=-fPIC
 endif
 
-.c.o:
+%.o:%.c deps
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 CORE_OBJ= stack/pico_stack.o \
@@ -290,11 +290,11 @@ endif
 
 all: mod core lib
 
-core: deps $(CORE_OBJ)
+core: $(CORE_OBJ)
 	@mkdir -p $(PREFIX)/lib
 	@mv stack/*.o $(PREFIX)/lib
 
-mod: deps $(MOD_OBJ)
+mod: $(MOD_OBJ)
 	@mkdir -p $(PREFIX)/modules
 	@mv modules/*.o $(PREFIX)/modules || echo
 
