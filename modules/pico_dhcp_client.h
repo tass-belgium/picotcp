@@ -14,7 +14,6 @@
 #include "pico_protocol.h"
 
 int pico_dhcp_initiate_negotiation(struct pico_device *device, void (*callback)(void*cli, int code), uint32_t *xid);
-void pico_dhcp_process_incoming_message(uint8_t *data, int len);
 void *pico_dhcp_get_identifier(uint32_t xid);
 struct pico_ip4 pico_dhcp_get_address(void *cli);
 struct pico_ip4 pico_dhcp_get_gateway(void *cli);
