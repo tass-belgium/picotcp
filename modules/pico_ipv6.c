@@ -523,6 +523,9 @@ int pico_ipv6_process_routing(struct pico_ipv6_exthdr *routing, struct pico_fram
 {
     IGNORE_PARAMETER(f);
 
+    if (routing->ext.routing.segleft == 0)
+        return 0;
+
     ipv6_dbg("IPv6: routing extension header with len %u\n", routing->ext.routing.len + 2);
     switch (routing->ext.routing.routtype) {
     case 0x00:
