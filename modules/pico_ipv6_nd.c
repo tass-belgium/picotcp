@@ -493,7 +493,7 @@ static int radv_process(struct pico_frame *f)
                         (struct pico_icmp6_opt_prefix *) nxtopt;
                     if (prefix->val_lifetime > 0) {
                         if (prefix->prefix_len == 64) {
-                            pico_ipv6_route_add(prefix->prefix, netmask, ipv6_hdr->src, 1, NULL);
+                            pico_ipv6_route_add(prefix->prefix, netmask, ipv6_hdr->src, 10, NULL);
                         } else {
                             pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
                                 (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));

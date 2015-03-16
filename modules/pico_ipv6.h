@@ -122,6 +122,8 @@ struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst);
 struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst);
 struct pico_ipv6_link *pico_ipv6_link_by_dev(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struct pico_ipv6_link *last);
+struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev);
+struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
 #endif

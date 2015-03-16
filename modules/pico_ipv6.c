@@ -352,6 +352,9 @@ static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
     struct pico_tree_node *index = NULL;
     int i = 0;
 
+    if (pico_ipv6_is_linklocal(addr->addr) || pico_ipv6_is_multicast(addr->addr) || pico_ipv6_is_sitelocal(addr->addr))
+        return NULL;
+
     pico_tree_foreach_reverse(index, &IPV6Routes)
     {
         r = index->keyValue;
@@ -958,12 +961,22 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
         icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
         break;
     }
+#ifdef PICO_SUPPORT_UDP
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
         udp_hdr->crc = pico_udp_checksum_ipv6(f);
         break;
     }
+#endif
+#ifdef PICO_SUPPORT_TCP
+    case PICO_PROTO_TCP:
+    {
+        struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+        tcp_hdr->crc = pico_tcp_checksum_ipv6(f);
+        break;
+    }
+#endif
 
     default:
         break;
@@ -1092,6 +1105,7 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
         return NULL;
     }
 
+
     return r;
 }
 
@@ -1134,11 +1148,16 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         new->link = r->link;
     }
 
+    if (new->link && (!pico_ipv6_is_global(new->link->address.addr))) {
+        new->link = pico_ipv6_global_get(new->link->dev);
+    }
+
     if (!new->link) {
         pico_err = PICO_ERR_EINVAL;
         PICO_FREE(new);
         return -1;
     }
+
 
     pico_tree_insert(&IPV6Routes, new);
     pico_ipv6_dbg_route();
@@ -1454,6 +1473,16 @@ struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev)
     }
     return link;
 }
+
+struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
+{
+    struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
+    while (link && !pico_ipv6_is_global(link->address.addr)) {
+        link = pico_ipv6_link_by_dev_next(dev, link);
+    }
+    return link;
+}
+
 
 
 int pico_ipv6_dev_routing_enable(struct pico_device *dev)
