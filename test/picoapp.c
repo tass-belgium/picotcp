@@ -468,7 +468,6 @@ int main(int argc, char **argv)
                 pico_ipv6_link_add(dev, ipaddr6, netmask6);
             }
             pico_ipv6_dev_routing_enable(dev);
-
 #endif
         }
         break;

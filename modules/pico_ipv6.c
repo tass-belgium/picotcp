@@ -352,7 +352,7 @@ static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
     struct pico_tree_node *index = NULL;
     int i = 0;
 
-    if (pico_ipv6_is_linklocal(addr->addr) || pico_ipv6_is_multicast(addr->addr) || pico_ipv6_is_sitelocal(addr->addr))
+    if (!pico_ipv6_is_localhost(addr->addr) && (pico_ipv6_is_linklocal(addr->addr) || pico_ipv6_is_multicast(addr->addr) || pico_ipv6_is_sitelocal(addr->addr)))
         return NULL;
 
     pico_tree_foreach_reverse(index, &IPV6Routes)
@@ -917,7 +917,7 @@ static inline struct pico_ipv6_route *ipv6_pushed_frame_checks(struct pico_frame
     }
 
     route = pico_ipv6_route_find(dst);
-    if (!route) {
+    if (!route && !f->dev) {
         dbg("IPv6: route not found.\n");
         pico_err = PICO_ERR_EHOSTUNREACH;
         return NULL;
@@ -1014,6 +1014,10 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
         link = pico_ipv6_linklocal_get(f->dev);
         if (link)
             goto push_final;
+    }
+
+    if (pico_ipv6_is_localhost(dst->addr)) {
+        f->dev = pico_get_device("loop");
     }
 
     route = ipv6_pushed_frame_checks(f, dst);
@@ -1151,7 +1155,7 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         new->link = r->link;
     }
 
-    if (new->link && (!pico_ipv6_is_global(new->link->address.addr))) {
+    if (new->link && (pico_ipv6_is_global(address.addr)) && (!pico_ipv6_is_global(new->link->address.addr))) {
         new->link = pico_ipv6_global_get(new->link->dev);
     }
 
