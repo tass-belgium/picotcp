@@ -659,15 +659,8 @@ static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 static void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f, uint8_t proto)
 {
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
-    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     static uint32_t ipv6_cur_frag_id = 0u;
-    f->frag = (uint16_t)((frag->ext.frag.om[0] << 8) + frag->ext.frag.om[1]);
 
-    /* If M-Flag is set, and packet is not 8B aligned, discard and alert */
-    if (IP6FRAG_MORE(f->frag) && ((short_be(hdr->len) % 8) != 0)) {
-        pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 4);
-        return;
-    }
 
     if (!first) {
         if (ipv6_cur_frag_id && (FRAG_ID(frag) == ipv6_cur_frag_id)) {
@@ -735,18 +728,68 @@ static int pico_ipv6_process_destopt(struct pico_ipv6_exthdr *destopt, struct pi
 
 #define IPV6_OPTLEN(x) ((uint16_t)(((x + 1) << 3)))
 
+static int pico_ipv6_check_headers_sequence(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    int ptr = sizeof(struct pico_ipv6_hdr);
+    int cur_nexthdr = 6; /* Starts with nexthdr field in ipv6 pkt */
+    uint8_t nxthdr = hdr->nxthdr;
+    for (;;) {
+        uint8_t optlen = *(f->net_hdr + ptr + 1);
+        switch (nxthdr) {
+        case PICO_IPV6_EXTHDR_DESTOPT:
+        case PICO_IPV6_EXTHDR_ROUTING:
+        case PICO_IPV6_EXTHDR_HOPBYHOP:
+        case PICO_IPV6_EXTHDR_ESP:
+        case PICO_IPV6_EXTHDR_AUTH:
+            optlen = (uint8_t)IPV6_OPTLEN(optlen);
+            break;
+        case PICO_IPV6_EXTHDR_FRAG:
+            optlen = 8;
+            break;
+        case PICO_IPV6_EXTHDR_NONE:
+            return 0;
+
+        case PICO_PROTO_TCP:
+        case PICO_PROTO_UDP:
+        case PICO_PROTO_ICMP6:
+            return 0;
+        default:
+            /* Invalid next header */
+            pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_NXTHDR, (uint32_t)cur_nexthdr); 
+            return -1;
+        }
+        cur_nexthdr = ptr;
+        nxthdr = *(f->net_hdr + ptr);
+        ptr += optlen;
+    }
+}
+
+static int pico_ipv6_check_aligned(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    if ((short_be(hdr->len) % 8) != 0) {
+        pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 4);
+        return -1;
+    }
+    return 0;
+}
+
 static int pico_ipv6_extension_headers(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     uint8_t nxthdr = hdr->nxthdr;
-    struct pico_ipv6_exthdr *exthdr = NULL;
+    struct pico_ipv6_exthdr *exthdr = NULL, *frag_hdr = NULL;
     uint32_t ptr = sizeof(struct pico_ipv6_hdr);
-    struct pico_ipv6_exthdr *frag_hdr = NULL;
     uint16_t cur_optlen;
     uint32_t cur_nexthdr = 6;
     int must_align = 0;
-
+    
     f->net_len = sizeof(struct pico_ipv6_hdr);
+
+    if (pico_ipv6_check_headers_sequence(f) < 0)
+        return -1;
+
     for (;;) {
         exthdr = (struct pico_ipv6_exthdr *)(f->net_hdr + f->net_len);
         cur_optlen = 0;
@@ -762,9 +805,9 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
             }
             cur_optlen = IPV6_OPTLEN(exthdr->ext.hopbyhop.len);
             f->net_len = (uint16_t) (f->net_len + cur_optlen);
+            must_align = 1;
             if (pico_ipv6_process_hopbyhop(exthdr, f) < 0)
                 return -1;
-            must_align = 1;
 
             break;
         case PICO_IPV6_EXTHDR_ROUTING:
@@ -775,16 +818,22 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
 
             break;
         case PICO_IPV6_EXTHDR_FRAG:
-            frag_hdr = exthdr;
             cur_optlen = 8u;
             f->net_len = (uint16_t) (f->net_len + cur_optlen);
+            frag_hdr = exthdr;
+            f->frag = (uint16_t)((frag_hdr->ext.frag.om[0] << 8) + frag_hdr->ext.frag.om[1]);
+            /* If M-Flag is set, and packet is not 8B aligned, discard and alert */
+            if (IP6FRAG_MORE(f->frag) && ((short_be(hdr->len) % 8) != 0)) {
+                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 4);
+                return -1;
+            }
             break;
         case PICO_IPV6_EXTHDR_DESTOPT:
             cur_optlen = IPV6_OPTLEN(exthdr->ext.destopt.len);
             f->net_len = (uint16_t) (f->net_len + cur_optlen);
+            must_align = 1;
             if (pico_ipv6_process_destopt(exthdr, f, ptr) < 0)
                 return -1;
-            must_align = 1;
             break;
         case PICO_IPV6_EXTHDR_ESP:
             /* not supported, ignored. */
@@ -794,27 +843,24 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
             return 0;
         case PICO_IPV6_EXTHDR_NONE:
             /* no next header */
-            if ((must_align) && ((short_be(hdr->len) % 8) != 0)) {
-                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 4);
+            if (must_align && (pico_ipv6_check_aligned(f) < 0))
                 return -1;
-            }
             return 0;
 
         case PICO_PROTO_TCP:
         case PICO_PROTO_UDP:
         case PICO_PROTO_ICMP6:
+            if (must_align && (pico_ipv6_check_aligned(f) < 0))
+                    return -1;
             f->transport_hdr = f->net_hdr + f->net_len;
             f->transport_len = (uint16_t)(short_be(hdr->len) - (f->net_len - sizeof(struct pico_ipv6_hdr)));
-            if ((must_align) && ((short_be(hdr->len) % 8) != 0)) {
-                pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_HDRFIELD, 4);
-                return -1;
-            }
-            if (!frag_hdr)
-                return nxthdr;
-            else {
+            if (frag_hdr) {
                 pico_ipv6_process_frag(frag_hdr, f, nxthdr);
-                return 0;
+                return -1;
+            } else {
+                return nxthdr;
             }
+            break;
         default:
             /* Invalid next header */
             pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_NXTHDR, cur_nexthdr); 
