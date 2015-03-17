@@ -1052,6 +1052,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     if (msginfo) {
         f->send_ttl = (uint8_t)msginfo->ttl;
         f->send_tos = (uint8_t)msginfo->tos;
+        f->dev = msginfo->dev;
     }
 
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
@@ -1286,6 +1287,17 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
 
     src = pico_socket_sendto_get_src(s, dst);
     if (!src) {
+#ifdef PICO_SUPPORT_IPV6
+        if((s->net->proto_number == PICO_PROTO_IPV6) 
+                && msginfo && msginfo->dev 
+                && pico_ipv6_is_linklocal(((struct pico_ip6 *)dst)->addr))
+        {
+            src = &(pico_ipv6_linklocal_get(msginfo->dev)->address);
+            if(!src)
+                return -1;
+        }
+        else
+#endif
         return -1;
     }
 
