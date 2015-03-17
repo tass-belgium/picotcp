@@ -42,6 +42,7 @@ MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
+UNIT_TEST?=0
 
 #IPv6 related
 IPV6?=1
@@ -53,6 +54,10 @@ CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-stateme
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
+
+ifeq ($(UNIT_TEST),1)
+  CFLAGS+=-DUNIT_TEST
+endif
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
