@@ -1,5 +1,25 @@
 #!/bin/bash
 
+TFTP_EXEC_DIR="$(pwd)/build/test"
+TFTP_WORK_DIR="${TFTP_EXEC_DIR}/tmp"
+TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
+TFTP_WORK_FILE="test.img"
+
+function tftp_setup() {
+	dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
+}
+
+function tftp_cleanup() {
+	echo CLEANUP
+	pwd;ls
+	killall picoapp.elf
+	rm -rf $TFTP_WORK_DIR
+	if [ $1 ]; then
+		exit $1
+	fi
+}
+
+
 sh ./test/vde_sock_start_user.sh
 rm -f /tmp/pico-mem-report-*
 sleep 2
@@ -44,6 +64,17 @@ echo "UDP6 TEST"
 wait || exit 1
 wait
 killall picoapp6.elf
+
+echo
+echo
+echo
+echo "IPV6 FWD TCP TEST"
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic1.ctl,2001:aabb::2,ffff:ffff::,2001:aabb::ff,, -a tcpbench,r,6667,,) &
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,2001:aaaa::ff,ffff:ffff::,,, --vde pic1,/tmp/pic1.ctl,2001:aabb::ff,ffff:ffff::,,, -a noop,) &
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,2001:aaaa::1,ffff:ffff::,2001:aaaa::ff,, -a tcpbench,t,2001:aabb::2,6667,, || exit 1
+sleep 2
+killall picoapp6.elf
+
 
 echo "MULTICAST TEST"
 (./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
@@ -149,7 +180,7 @@ killall picoapp.elf
 
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:www.google.be:173.194.67.94:: &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:ipv6.google.be:doesntmatter:ipv6: &
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.0.0:10.50.0.1::: -a sntp:ntp.nasa.gov
+./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.0.0:10.50.0.1::: -a sntp:ntp.nasa.gov &
 sleep 20
 killall picoapp.elf
 
@@ -165,10 +196,8 @@ killall picoapp.elf
 sleep 1
 sync
 
-TFTP_EXEC_DIR="$(pwd)/build/test"
-TFTP_WORK_DIR="${TFTP_EXEC_DIR}/tmp"
-TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
-TFTP_WORK_FILE="test.img"
+
+# TFTP TEST BEGINS...
 
 if [ ! -d $TFTP_WORK_DIR ]; then
         mkdir $TFTP_WORK_DIR || exit 1
@@ -177,26 +206,13 @@ if [ ! -d ${TFTP_WORK_SUBDIR}/server ]; then
         mkdir $TFTP_WORK_SUBDIR || exit 1
 fi
 
-function tftp_setup() {
-dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
-}
-
-function tftp_cleanup() {
-echo CLEANUP
-pwd;ls
-killall picoapp.elf
-rm -rf $TFTP_WORK_DIR
-if [ $1 ]; then
-	exit $1
-fi
-}
-
 pushd $TFTP_WORK_DIR
 
 echo "TFTP GET TEST"
 tftp_setup $TFTP_WORK_DIR
 (${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
 cd $TFTP_WORK_SUBDIR
+sleep 2
 ${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:R:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
 sleep 3
 killall picoapp.elf
@@ -209,12 +225,13 @@ echo "TFTP PUT TEST"
 (${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
 cd $TFTP_WORK_DIR
 tftp_setup $TFTP_WORK_DIR
+sleep 2
 ${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app tftp:T:${TFTP_WORK_FILE}:10.50.0.2 || tftp_cleanup 1
 sleep 3
 
 tftp_cleanup
 popd
-
+# TFTP TEST ENDS.
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo

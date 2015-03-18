@@ -28,6 +28,7 @@
 #include "pico_dhcp_server.h"
 #include "pico_ipfilter.h"
 #include "pico_olsr.h"
+#include "pico_aodv.h"
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
@@ -62,6 +63,7 @@ void app_slaacv4(char *args);
 void app_udpecho(char *args);
 void app_sendto_test(char *args);
 void app_noop(void);
+void app_iperfc(char *args);
 
 
 struct pico_ip4 ZERO_IP4 = {
@@ -466,7 +468,6 @@ int main(int argc, char **argv)
                 pico_ipv6_link_add(dev, ipaddr6, netmask6);
             }
             pico_ipv6_dev_routing_enable(dev);
-
 #endif
         }
         break;
@@ -603,6 +604,23 @@ int main(int argc, char **argv)
 
                 app_noop();
 #endif
+#ifdef PICO_SUPPORT_AODV
+            } else IF_APPNAME("aodv") {
+                union pico_address aaa;
+                pico_string_to_ipv4("10.10.10.10", &aaa.ip4.addr);
+                dev = pico_get_device("pic0");
+                if(dev) {
+                    pico_aodv_add(dev);
+                }
+
+                dev = pico_get_device("pic1");
+                if(dev) {
+                    pico_aodv_add(dev);
+                }
+
+
+                app_noop();
+#endif
             } else IF_APPNAME("slaacv4") {
 #ifndef PICO_SUPPORT_SLAACV4
                 return 0;
@@ -611,6 +629,8 @@ int main(int argc, char **argv)
 #endif
             } else IF_APPNAME("udp_sendto_test") {
                 app_sendto_test(args);
+            } else IF_APPNAME("iperfc") {
+                app_iperfc(args);
             } else {
                 fprintf(stderr, "Unknown application %s\n", name);
                 usage(argv[0]);

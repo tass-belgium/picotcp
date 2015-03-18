@@ -87,11 +87,11 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
             uint8_t segleft;
         } routing;
 
-        PEDANTIC_STRUCT_DEF fragm_s {
+        PEDANTIC_STRUCT_DEF fragmentation_s {
             uint8_t res;
-            uint8_t frm[2];
+            uint8_t om[2];
             uint8_t id[4];
-        } fragm;
+        } frag;
     } ext;
 };
 
@@ -108,7 +108,6 @@ int pico_ipv6_is_solicited(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_unspecified(const uint8_t addr[PICO_SIZE_IP6]);
 
 int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t proto);
-int pico_ipv6_rebound(struct pico_frame *f);
 int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 gateway, int metric, struct pico_ipv6_link *link);
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code);
 
@@ -123,6 +122,8 @@ struct pico_ip6 *pico_ipv6_source_find(const struct pico_ip6 *dst);
 struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst);
 struct pico_ipv6_link *pico_ipv6_link_by_dev(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_by_dev_next(struct pico_device *dev, struct pico_ipv6_link *last);
+struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev);
+struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
 #endif

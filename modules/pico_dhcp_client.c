@@ -668,8 +668,7 @@ struct dhcp_action_entry {
 
 static struct dhcp_action_entry dhcp_fsm[] =
 { /* event                |offer      |ack      |nak    |T1    |T2     |lease  |retransmit */
-/* state init-reboot */
-    { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
+/* state init-reboot */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state rebooting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state init        */ { recv_offer, NULL,     NULL,   NULL,  NULL,   NULL,  retransmit },
 /* state selecting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },

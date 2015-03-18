@@ -26,6 +26,7 @@ struct pico_device {
     struct pico_ethdev *eth; /* Null if non-ethernet */
     struct pico_queue *q_in;
     struct pico_queue *q_out;
+    int (*link_state)(struct pico_device *self);
     int (*send)(struct pico_device *self, void *buf, int len); /* Send function. Return 0 if busy */
     int (*poll)(struct pico_device *self, int loop_score);
     void (*destroy)(struct pico_device *self);
@@ -44,5 +45,6 @@ void pico_device_destroy(struct pico_device *dev);
 int pico_devices_loop(int loop_score, int direction);
 struct pico_device*pico_get_device(const char*name);
 int32_t pico_device_broadcast(struct pico_frame *f);
+int pico_device_link_state(struct pico_device *dev);
 
 #endif
