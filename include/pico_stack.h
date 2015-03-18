@@ -80,5 +80,6 @@ uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
 void pico_to_lowercase(char *str);
 int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t proto);
+int32_t pico_seq_compare(uint32_t a, uint32_t b);
 
 #endif

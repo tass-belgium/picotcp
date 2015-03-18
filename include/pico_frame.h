@@ -80,6 +80,9 @@ struct pico_frame {
 
     /* Callback to notify listener when the buffer has been discarded */
     void (*notify_free)(uint8_t *);
+
+    uint8_t send_ttl; /* Special TTL/HOPS value, 0 = auto assign */
+    uint8_t send_tos; /* Type of service */
 };
 
 /** frame alloc/dealloc/copy **/

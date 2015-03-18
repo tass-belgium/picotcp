@@ -19,6 +19,7 @@
 #include "pico_nat.h"
 #include "pico_igmp.h"
 #include "pico_tree.h"
+#include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 
 #ifdef PICO_SUPPORT_IPV4
@@ -219,6 +220,11 @@ int pico_ipv4_is_valid_src(uint32_t address, struct pico_device *dev)
         return 0;
     }
     else {
+#ifdef PICO_SUPPORT_AODV
+        union pico_address src;
+        src.ip4.addr = address;
+        pico_aodv_refresh(&src);
+#endif
         return 1;
     }
 }
@@ -696,6 +702,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 
 #endif
 
+
     /* ret == 1 indicates to continue the function */
     ret = pico_ipv4_crc_check(f);
     if (ret < 1)
@@ -876,6 +883,12 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
 {
     struct pico_ip4 *myself = NULL;
     struct pico_ipv4_route *rt;
+#ifdef PICO_SUPPORT_AODV
+        union pico_address node_address;
+        node_address.ip4.addr = dst->addr;
+        if(dst->addr && pico_ipv4_is_unicast(dst->addr))
+            pico_aodv_lookup(&node_address);
+#endif
 
     if(!dst) {
         pico_err = PICO_ERR_EINVAL;
@@ -885,9 +898,9 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     rt = route_find(dst);
     if (rt && rt->link) {
         myself = &rt->link->address;
-    } else
+    } else {
         pico_err = PICO_ERR_EHOSTUNREACH;
-
+    }
     return myself;
 }
 
@@ -1205,6 +1218,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         return -1;
     }
 
+
     hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     if (!hdr) {
         dbg("IP header error\n");
@@ -1269,10 +1283,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         1 )
         ipv4_progressive_id++;
 
+    if (f->send_ttl > 0) {
+        ttl = f->send_ttl;    
+    }
+
     hdr->id = short_be(ipv4_progressive_id);
     hdr->dst.addr = dst->addr;
     hdr->src.addr = link->address.addr;
     hdr->ttl = ttl;
+    hdr->tos = f->send_tos;
     hdr->proto = proto;
     hdr->frag = short_be(PICO_IPV4_DONTFRAG);
 #ifdef PICO_SUPPORT_IPFRAG
@@ -1315,6 +1334,16 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
 #endif
 
+//#ifdef PICO_SUPPORT_AODV
+#if 0
+    {
+    union pico_address node_address;
+    node_address.ip4.addr = hdr->dst.addr;
+    if(hdr->dst.addr && pico_ipv4_is_unicast(hdr->dst.addr))
+        pico_aodv_lookup(&node_address);
+    }
+#endif
+
     if(pico_ipv4_link_get(&hdr->dst)) {
         /* it's our own IP */
         return pico_enqueue(&in, f);
@@ -1350,7 +1379,7 @@ static int pico_ipv4_frame_sock_push(struct pico_protocol *self, struct pico_fra
 }
 
 
-int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
+int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
     struct pico_ipv4_route test, *new;
     test.dest.addr = address.addr;
@@ -1512,7 +1541,7 @@ static int pico_ipv4_cleanup_routes(struct pico_ipv4_link *link)
     return 0;
 }
 
-void pico_ipv4_route_set_bcast_link(struct pico_ipv4_link *link)
+void MOCKABLE pico_ipv4_route_set_bcast_link(struct pico_ipv4_link *link)
 {
     if (link)
         default_bcast_route.link = link;
@@ -1580,7 +1609,7 @@ struct pico_ipv4_link *pico_ipv4_link_get(struct pico_ip4 *address)
         return found;
 }
 
-struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
+struct pico_ipv4_link * MOCKABLE pico_ipv4_link_by_dev(struct pico_device *dev)
 {
     struct pico_tree_node *index = NULL;
     struct pico_ipv4_link *link = NULL;
@@ -1616,7 +1645,7 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev_next(struct pico_device *dev, struc
     return NULL;
 }
 
-struct pico_device *pico_ipv4_link_find(struct pico_ip4 *address)
+struct pico_device * MOCKABLE pico_ipv4_link_find(struct pico_ip4 *address)
 {
     struct pico_ipv4_link test, *found;
     if(!address) {

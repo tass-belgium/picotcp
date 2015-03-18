@@ -8,7 +8,7 @@ or write operations. The provided transport protocols are UDP and TCP.
 
 \subsubsection*{Description}
 This function will be called to open a socket from the application level. The created
-socket will be unbound.
+socket will be unbound and not connected. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -57,7 +57,7 @@ sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, &wakeup);
 \subsection{pico$\_$socket$\_$read}
 
 \subsubsection*{Description}
-This function will be called to read a string from a socket from the application level. The function checks whether or not the socket is bound.
+This function will be called to read data from a connected socket. The function checks that the socket is bound and connected before attempting to receive data. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -67,7 +67,7 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
+\item \texttt{buf} - Void pointer to the start of the buffer where the received data will be stored
 \item \texttt{len} - Length of the buffer (in bytes), represents the maximum amount of bytes that can be read
 \end{itemize}
 
@@ -92,10 +92,9 @@ bytesRead = pico_socket_read(sk_tcp, buffer, bufferLength);
 \subsection{pico$\_$socket$\_$write}
 
 \subsubsection*{Description}
-This function will be called to write a string to a socket from the application level.
-This function also checks if the socket is bound, connected and that it isn't shutdown
-locally. This is the preferred function to use when writing strings from application
-level. 
+This function will be called to write the content of a buffer to a socket that has been previously connected.
+This function checks that the socket is bound, connected and that it is allowed to send data, i.e. there hasn't been a local shutdown.
+This is the preferred function to use when writing data from the application to a connected stream. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -105,8 +104,8 @@ int pico_socket_write(struct pico_socket *s, void *buf, int len);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
-\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
+\item \texttt{buf} - Void pointer to the start of a (constant) buffer where the data is stored
+\item \texttt{len} - Length of the data buffer \texttt{buf} 
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -134,9 +133,10 @@ bytesWritten = pico_socket_write(sk_tcp, buffer, bufLength);
 \subsection{pico$\_$socket$\_$sendto}
 
 \subsubsection*{Description}
-This function is be called by the \texttt{pico$\_$socket$\_$write} and \texttt{pico$\_$socket$\_$send} functions.
-This function sends a string from the local address to the remote address, without checking
-if the remote is connected or not.
+This function sends data from the local address to the remote address, without checking
+whether the remote endpoint is connected. Specifying the destination is particularly useful while sending single datagrams
+to different destinations upon consecutive calls. This is the preferred mechanism to send datagrams to a remote destination
+using a UDP socket.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -147,8 +147,8 @@ void *dst, uint16_t remote_port);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
-\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Length of the buffer \texttt{buf}
 \item \texttt{dst} - Pointer to the origin of the IPv4/IPv6 frame header
 \item \texttt{remote$\_$port} - Portnumber of the receiving socket
 \end{itemize}
@@ -176,7 +176,7 @@ sk_tcp->remote_port);
 \subsection{pico$\_$socket$\_$recvfrom}
 
 \subsubsection*{Description}
-This function is called to receive a string of data from the specified socket.
+This function is called to receive data from the specified socket.
 It is useful when called in the context of a non-connected socket, to receive
 the information regarding the origin of the data, namely the origin address and 
 the remote port number.
@@ -190,8 +190,8 @@ void *orig, uint16_t *remote_port);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
-\item \texttt{len} - Length of the string that will be stored in the buffer (in bytes)
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Maximum allowed length for the data to be stored in the buffer \texttt{buf}
 \item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header, can be NULL
 \item \texttt{remote$\_$port} - Pointer to the port number of the sender socket, can be NULL
 \end{itemize}
@@ -216,12 +216,119 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 bytesRcvd = pico_socket_recvfrom(sk_tcp, buf, bufLen, &peer, &port);
 \end{verbatim}
 
+\subsection{Extended Socket operations}
+The interface provided by sendto/recvfrom can be extended to include more information about the network communication. 
+This is especially useful in UDP communication, and whenever extended information is needed about the single datagram and its encapsulation in the networking layer.
+
+PicoTCP offers an extra structure that can be used to set and retrieve message information while transmitting and receiving datagrams, respectively. The structure \texttt{pico$\_$msginfo} is defined as follows:
+\begin{verbatim}
+struct pico_msginfo {
+    struct pico_device *dev;
+    uint8_t ttl;
+    uint8_t tos;
+};
+\end{verbatim}
+
+
+
+\subsection{pico$\_$socket$\_$sendto$\_$extended}
+
+\subsubsection*{Description}
+This function is an extension of the \texttt{pico$\_$socket$\_$sendto} function described above. It's exactly the same but it adds up an additional argument to set TTL and QOS information on the outgoing packet which contains the datagram.
+
+The usage of the extended argument makes sense in UDP context only, as the information is set at packet level, and only with UDP there is a 1:1 correspondence between datagrams and IP packets.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, int len,
+void *dst, uint16_t remote_port, struct pico_msginfo *info);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Length of the data that is stored in the buffer (in bytes)
+\item \texttt{dst} - Pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{remote$\_$port} - Port number of the receiving socket at the remote endpoint
+\item \texttt{info} - Extended information about the packet containing this datagram. Only the fields "ttl" and "tos" are taken into consideeration, while "dev" is ignored.
+
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns an integer representing the number of bytes written to the socket.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$EHOSTUNREACH} - host is unreachable
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - resource temporarily unavailable
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+struct pico_msginfo info = { };
+info.ttl = 5;
+bytesWritten = pico_socket_sendto_extended(sk_tcp, buf, len, &sk_tcp->remote_addr,
+sk_tcp->remote_port, &info);
+\end{verbatim}
+
+
+\subsection{pico$\_$socket$\_$recvfrom$\_$extended}
+
+\subsubsection*{Description}
+This function is an extension to the normal \texttt{pico$\_$socket$\_$recvfrom} function, which allows to retrieve additional information about the networking layer that has been involved in the delivery of the datagram.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len,
+void *orig, uint16_t *remote_port, struct pico_msginfo *info);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Maximum allowed length for the data to be stored in the buffer \texttt{buf}
+\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header, can be NULL
+\item \texttt{remote$\_$port} - Pointer to the port number of the sender socket, can be NULL
+\item \texttt{info} - Extended information about the incoming packet containing this datagram. The device where the packet was received is pointed by info->dev, the maximum TTL for the packet is stored in info->ttl, and finally the field info->tos keeps track of the flags in IP header's QoS.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns an integer representing the number of bytes read from the socket. On success, if \texttt{orig}
+is not NULL, The address of the remote endpoint is stored in the memory area pointed by \texttt{orig}. 
+In the same way, \texttt{remote$\_$port} will contain the portnumber of the sending socket, unless a NULL is passed
+from the caller.
+
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ESHUTDOWN} - cannot read after transport endpoint shutdown
+\item \texttt{PICO$\_$ERR$\_$EADDRNOTAVAIL} - address not available
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+struct pico_msginfo info;
+bytesRcvd = pico_socket_recvfrom_extended(sk_tcp, buf, bufLen, &peer, &port, &info);
+if (info && info->dev) {
+    printf("Socket received a datagram via device %s, ttl:%d, tos: %08x\n", 
+        info->dev->name, info->ttl, info->tos);
+}
+\end{verbatim}
+
 
 \subsection{pico$\_$socket$\_$send}
 
 \subsubsection*{Description}
-This function is called to send a string of data to the specified socket.
-This function also checks if the socket is connected and then calls the
+This function is called to send data to the specified socket.
+It checks if the socket is connected and then calls the
 \texttt{pico$\_$socket$\_$sendto} function.
 
 \subsubsection*{Function prototype}
@@ -233,8 +340,8 @@ int pico_socket_send(struct pico_socket *s, const void *buf, int len);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string is stored
-\item \texttt{len} - Length of the string that is stored in the buffer (in bytes)
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Length of the buffer \texttt{buf}
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -270,8 +377,8 @@ int pico_socket_recv(struct pico_socket *s, void *buf, int len);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
-\item \texttt{buf} - Void pointer to the start of a string buffer where the string will be stored
-\item \texttt{len} - Length of the string in the socket buffer (in bytes)
+\item \texttt{buf} - Void pointer to the start of the buffer
+\item \texttt{len} - Maximum allowed length for the data to be stored in the buffer \texttt{buf}
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -357,6 +464,47 @@ On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Example}
 \begin{verbatim}
 errMsg = pico_socket_getname(sk_tcp, address, &port, &proto);
+if (errMsg == 0) {
+    if (proto == PICO_PROTO_IPV4)
+        addr4 = (struct pico_ip4 *)address;
+    else
+        addr6 = (struct pico_ip6 *)address;
+}
+\end{verbatim}
+
+\subsection{pico$\_$socket$\_$getpeername}
+
+\subsubsection*{Description}
+This function returns the IP-address of the remote peer connected to the specified socket.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *port, 
+                            uint16_t *proto);
+\end{verbatim}
+
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
+\item \texttt{remote$\_$addr} - Address (IPv4 or IPv6) associated to the socket remote endpoint
+\item \texttt{port} - Local portnumber associated to the socket
+\item \texttt{proto} - Proto of the address returned in the \texttt{local$\_$addr} field. Can be either \texttt{PICO$\_$PROTO$\_$IPV4} or \texttt{PICO$\_$PROTO$\_$IPV6}
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 and populates the three fields {local$\_$addr} \texttt{port} and \texttt{proto} accordingly.
+On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument(s) provided
+\item \texttt{PICO$\_$ERR$\_$ENOTCONN} - the socket is not connected to any peer
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+errMsg = pico_socket_getpeername(sk_tcp, address, &port, &proto);
 if (errMsg == 0) {
     if (proto == PICO_PROTO_IPV4)
         addr4 = (struct pico_ip4 *)address;

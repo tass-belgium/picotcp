@@ -47,6 +47,9 @@ static void ping_recv_reply(struct pico_frame *f);
 static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
     struct pico_icmp4_hdr *hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
+    static int firstpkt = 1;
+    static uint16_t last_id = 0;
+    static uint16_t last_seq = 0;
     IGNORE_PARAMETER(self);
 
     if (hdr->type == PICO_ICMP_ECHO) {
@@ -55,6 +58,14 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
         if (f->dev && f->dev->eth)
             f->len -= PICO_SIZE_ETHHDR;
 
+        if (!firstpkt && (hdr->hun.ih_idseq.idseq_id ==  last_id) && (last_seq == hdr->hun.ih_idseq.idseq_seq)) {
+            /* The network duplicated the echo. Do not reply. */
+            pico_frame_discard(f);
+            return 0;
+        }
+        firstpkt = 0;
+        last_id = hdr->hun.ih_idseq.idseq_id;
+        last_seq = hdr->hun.ih_idseq.idseq_seq;
         pico_icmp4_checksum(f);
         pico_ipv4_rebound(f);
     } else if (hdr->type == PICO_ICMP_UNREACH) {
