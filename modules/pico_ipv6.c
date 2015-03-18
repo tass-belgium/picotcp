@@ -1014,15 +1014,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     case PICO_PROTO_UDP:
     {
         struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *) f->transport_hdr;
-        udp_hdr->crc = pico_udp_checksum_ipv6(f);
-        break;
-    }
-#endif
-#ifdef PICO_SUPPORT_TCP
-    case PICO_PROTO_TCP:
-    {
-        struct pico_tcp_hdr *tcp_hdr = (struct pico_tcp_hdr *) f->transport_hdr;
-        tcp_hdr->crc = pico_tcp_checksum_ipv6(f);
+        udp_hdr->crc = short_be(pico_udp_checksum_ipv6(f));
         break;
     }
 #endif
