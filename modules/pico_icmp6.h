@@ -237,7 +237,7 @@ struct pico_icmp6_stats
     struct pico_ip6 dst;
 };
 
-int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *));
+int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *), struct pico_device *dev);
 int pico_icmp6_ping_abort(int id);
 
 int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type);

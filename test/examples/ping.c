@@ -81,7 +81,7 @@ void app_ping(char *arg)
 
 #ifdef PICO_SUPPORT_IPV6
     else
-        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6);
+        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6, NULL);
 #endif
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);

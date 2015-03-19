@@ -610,6 +610,7 @@ static void pico_ipv6_frag_expire(pico_time now, void *arg)
     struct pico_tree_node *index, *tmp;
     struct pico_frame *f;
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)first->net_hdr;
     (void)arg;
     (void)now;
     if (!first) {
@@ -623,7 +624,7 @@ static void pico_ipv6_frag_expire(pico_time now, void *arg)
         if (f != first)
             pico_frame_discard(f); /* Later, after ICMP notification...*/
     }
-    if (IP6FRAG_OFF(first->frag) == 0)
+    if ((IP6FRAG_OFF(first->frag) == 0) && (!pico_ipv6_is_multicast(hdr->dst.addr)))
         pico_icmp6_frag_expired(first);
     pico_frame_discard(first);
 }
@@ -1049,7 +1050,11 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
             pico_frame_discard(f);
             return -1;
         }
-        link = pico_ipv6_linklocal_get(f->dev);
+
+        if (pico_ipv6_is_sitelocal(dst->addr))
+            link = pico_ipv6_sitelocal_get(f->dev);
+        else 
+            link = pico_ipv6_linklocal_get(f->dev);
         if (link)
             goto push_final;
     }
@@ -1514,6 +1519,15 @@ struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev)
 {
     struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
     while (link && !pico_ipv6_is_linklocal(link->address.addr)) {
+        link = pico_ipv6_link_by_dev_next(dev, link);
+    }
+    return link;
+}
+
+struct pico_ipv6_link *pico_ipv6_sitelocal_get(struct pico_device *dev)
+{
+    struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
+    while (link && !pico_ipv6_is_sitelocal(link->address.addr)) {
         link = pico_ipv6_link_by_dev_next(dev, link);
     }
     return link;
