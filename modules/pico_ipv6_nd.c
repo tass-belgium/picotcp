@@ -220,7 +220,6 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     if (optlen)
         option = icmp6_hdr->msg.info.neigh_adv.options;
 
-
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)option)->type;
         len = ((struct pico_icmp6_opt_lladdr *)option)->len;
@@ -410,9 +409,37 @@ static int icmp6_initial_checks(struct pico_frame *f)
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
+    /* RFC4861 - 7.1.2 :
+     *       - The IP Hop Limit field has a value of 255, i.e., the packet
+     *               could not possibly have been forwarded by a router.
+     *       - ICMP Checksum is valid.
+     *       - ICMP Code is 0.
+     */
     if (ipv6_hdr->hop != 255 || pico_icmp6_checksum(f) != 0 || icmp6_hdr->code != 0)
         return -1;
 
+    return 0;
+}
+
+static int neigh_adv_option_len_validity_check(struct pico_frame *f)
+{
+    /* Step 4 validation */
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    uint8_t *opt;
+    int optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
+    /* RFC4861 - 7.1.2 :
+     *       - All included options have a length that is greater than zero.
+     */
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    opt = icmp6_hdr->msg.info.neigh_adv.options;
+
+    while(optlen > 0) {
+        int opt_size = (opt[1] << 3);
+        if (opt_size == 0)
+            return -1;
+        opt = opt + opt_size;
+        optlen -= opt_size;
+    } 
     return 0;
 }
 
@@ -421,19 +448,25 @@ static int neigh_adv_mcast_validity_check(struct pico_frame *f)
     /* Step 3 validation */
     struct pico_ipv6_hdr *ipv6_hdr = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-
+    /* RFC4861 - 7.1.2 :
+     *       - If the IP Destination Address is a multicast address the
+     *         Solicited flag is zero.
+     */
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     if (pico_ipv6_is_multicast(ipv6_hdr->dst.addr) && IS_SOLICITED(icmp6_hdr))
         return -1;
 
-    return 0;
+    return neigh_adv_option_len_validity_check(f);
 }
 
 static int neigh_adv_validity_checks(struct pico_frame *f)
 {
     /* Step 2 validation */
-    if (f->transport_len < PICO_ICMP6HDR_NEIGH_SOL_SIZE)
+    /* RFC4861 - 7.1.2:
+     * - ICMP length (derived from the IP length) is 24 or more octets.
+     */
+    if (f->transport_len < PICO_ICMP6HDR_NEIGH_ADV_SIZE)
         return -1;
 
     return neigh_adv_mcast_validity_check(f);
