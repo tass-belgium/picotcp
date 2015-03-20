@@ -86,7 +86,7 @@ static int device_init_mac(struct pico_device *dev, uint8_t *mac)
     return 0;
 }
 
-static int device_init_nomac(struct pico_device *dev)
+int pico_device_ipv6_random_ll(struct pico_device *dev)
 {
     #ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
@@ -109,13 +109,20 @@ static int device_init_nomac(struct pico_device *dev)
         } while (pico_ipv6_link_get(&linklocal));
 
         if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-            PICO_FREE(dev->q_in);
-            PICO_FREE(dev->q_out);
             return -1;
         }
     }
-
     #endif
+    return 0;
+}
+
+static int device_init_nomac(struct pico_device *dev)
+{
+    if (pico_device_ipv6_random_ll(dev) < 0) {
+        PICO_FREE(dev->q_in);
+        PICO_FREE(dev->q_out); 
+        return -1;
+    }
     dev->eth = NULL;
     return 0;
 }

@@ -76,6 +76,17 @@ static void pico_ipv6_nd_queued_trigger(void)
     }
 }
 
+static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
+{
+    struct pico_device *dev;
+    int is_ll = pico_ipv6_is_linklocal(l->address.addr);
+    dev = l->dev;
+    dbg("IPV6: Duplicate address detected. Removing link.\n");
+    pico_ipv6_link_del(l->dev, l->address);
+    if (is_ll)
+        pico_device_ipv6_random_ll(dev);
+}
+
 static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
@@ -219,14 +230,14 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
 
         if (type == expected_opt) {
             memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, sizeof(struct pico_icmp6_opt_lladdr));
-            break;
+            return 0;
         } else if (optlen > 0) {
             option += len * 8;
         } else { /* no target link-layer address option */
             return -1;
         }
     }
-    return 0;
+    return -1;
 }
 
 static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
@@ -335,21 +346,57 @@ static void neighbor_from_sol(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr 
     }
 }
 
+static int neigh_sol_detect_dad(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *ipv6_hdr = NULL;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_link *link = NULL;
+    ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    link = pico_ipv6_link_istentative(&icmp6_hdr->msg.info.neigh_adv.target);
+    if (link) {
+        if (pico_ipv6_is_unicast(&ipv6_hdr->src)) 
+        {
+            /* RFC4862 5.4.3 : sender is performing address resolution,
+             * our address is not yet valid, discard silently.
+             */
+            dbg("DAD:Sender performing AR\n");
+        }
+
+        else if (pico_ipv6_is_unspecified(ipv6_hdr->src.addr) && 
+                !pico_ipv6_is_allhosts_multicast(ipv6_hdr->dst.addr)) 
+        {
+            /* RFC4862 5.4.3 : sender is performing DaD */
+            dbg("DAD:Sender performing DaD\n");
+            ipv6_duplicate_detected(link);
+        }
+        return 0;
+    }
+    return -1; /* Current link is not tentative */
+}
+
 static int neigh_sol_process(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_link *link = NULL;
+    int valid_lladdr;
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
+
+    valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
     neighbor_from_sol(&ipv6_hdr->src, &opt, f->dev);
-    if (!pico_ipv6_link_get(&icmp6_hdr->msg.info.neigh_adv.target)) { /* Not for us. */
+
+    if ((valid_lladdr < 0) && (neigh_sol_detect_dad(f) == 0))
+        return 0;
+
+    link = pico_ipv6_link_get(&icmp6_hdr->msg.info.neigh_adv.target);
+    if (!link) { /* Not for us. */
         return -1;
     }
-
     pico_icmp6_neighbor_advertisement(f,  &icmp6_hdr->msg.info.neigh_adv.target);
     return 0;
 }
@@ -549,6 +596,7 @@ static int radv_process(struct pico_frame *f)
     return 0;
 }
 
+
 static int pico_nd_router_adv_recv(struct pico_frame *f)
 {
     if (icmp6_initial_checks(f) < 0)
@@ -581,8 +629,7 @@ static int pico_nd_neigh_adv_recv(struct pico_frame *f)
 
     link = pico_ipv6_link_istentative(&icmp6_hdr->msg.info.neigh_adv.target);
     if (link)
-        link->isduplicate = 1;
-
+        ipv6_duplicate_detected(link);
     return neigh_adv_process(f);
 }
 

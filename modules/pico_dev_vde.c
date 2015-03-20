@@ -67,6 +67,8 @@ void pico_vde_destroy(struct pico_device *dev)
 {
     struct pico_device_vde *vde = (struct pico_device_vde *) dev;
     vde_close(vde->conn);
+    usleep(100000);
+    sync();
 }
 
 void pico_vde_set_packetloss(struct pico_device *dev, uint32_t in_pct, uint32_t out_pct)
