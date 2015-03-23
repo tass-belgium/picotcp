@@ -553,13 +553,10 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    struct pico_ipv6_hdr *ipv6_hdr = NULL;
-    struct pico_ip6 netmask = {{0xff,0xff,0xff,0xff,0xff,0xff,0xff,0xff,0,0,0,0,0,0,0,0}};
     uint8_t *nxtopt, *opt_start;
     int optlen;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
     opt_start = (uint8_t *)icmp6_hdr->msg.info.router_adv.options;
     nxtopt = opt_start;
@@ -571,15 +568,36 @@ static int radv_process(struct pico_frame *f)
                 {
                     struct pico_icmp6_opt_prefix *prefix = 
                         (struct pico_icmp6_opt_prefix *) nxtopt;
-                    if (prefix->val_lifetime > 0) {
-                        if (prefix->prefix_len == 64) {
-                            pico_ipv6_route_add(prefix->prefix, netmask, ipv6_hdr->src, 10, NULL);
-                        } else {
-                            pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
+                    /* RFC4862 5.5.3 */
+                    /* a) If the Autonomous flag is not set, silently ignore the Prefix
+                     *       Information option.
+                     */
+                    if (prefix->aac == 0)
+                        goto ignore_opt_prefix;
+                    /* b) If the prefix is the link-local prefix, silently ignore the
+                     *       Prefix Information option
+                     */
+                    if (pico_ipv6_is_linklocal(prefix->prefix.addr))
+                        goto ignore_opt_prefix;
+                    /* c) If the preferred lifetime is greater than the valid lifetime,
+                     *       silently ignore the Prefix Information option 
+                     */
+                    if (prefix->val_lifetime <= 0)
+                        goto ignore_opt_prefix;
+
+
+
+                    if (prefix->prefix_len != 64) {
+                        pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
                                 (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
-                            return -1;
-                        }
+                        return -1;
                     }
+
+                    if (pico_ipv6_prefix_configured(&prefix->prefix)) {
+                        goto ignore_opt_prefix;
+                    }
+                    pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+                ignore_opt_prefix:
                     optlen -= (prefix->len << 3);
                     nxtopt += (prefix->len << 3);
                 }
