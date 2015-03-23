@@ -223,15 +223,15 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)option)->type;
         len = ((struct pico_icmp6_opt_lladdr *)option)->len;
-        optlen -= len * 8; /* len in units of 8 octets */
+        optlen -= len << 3; /* len in units of 8 octets */
         if (len <= 0)
             return -1;
 
         if (type == expected_opt) {
-            memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, sizeof(struct pico_icmp6_opt_lladdr));
+            memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, (size_t)(len << 3));
             return 0;
         } else if (optlen > 0) {
-            option += len * 8;
+            option += len << 3;
         } else { /* no target link-layer address option */
             return -1;
         }
