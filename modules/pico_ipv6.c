@@ -1284,7 +1284,7 @@ void pico_ipv6_nd_dad(pico_time now, void *arg)
 }
 
 
-int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
+struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
 {
     struct pico_ipv6_link test = {
         0
@@ -1300,7 +1300,7 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
 
     if (!dev) {
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        return NULL;
     }
 
     test.address = address;
@@ -1310,7 +1310,7 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
     if (pico_tree_findKey(&IPV6Links, &test)) {
         dbg("IPv6: trying to assign an invalid address (in use)\n");
         pico_err = PICO_ERR_EADDRINUSE;
-        return -1;
+        return NULL;
     }
 
     /** XXX: Check for network already in use (e.g. trying to assign 10.0.0.1/24 where 10.1.0.1/8 is in use) **/
@@ -1318,7 +1318,7 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
     if (!new) {
         dbg("IPv6: out of memory!\n");
         pico_err = PICO_ERR_ENOMEM;
-        return -1;
+        return NULL;
     }
 
     new->address = address;
@@ -1349,7 +1349,7 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
 
     pico_ipv6_to_string(ipstr, new->address.addr);
     dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
-    return 0;
+    return new;
 }
 
 int pico_ipv6_cleanup_routes(struct pico_ipv6_link *link)
@@ -1401,6 +1401,8 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
 
     pico_ipv6_cleanup_routes(found);
     pico_tree_delete(&IPV6Links, found);
+    if (found->lifetimer)
+        pico_timer_cancel(found->lifetimer);
     /* XXX MUST leave the solicited-node multicast address corresponding to the address (RFC 4861 $7.2.1) */
     PICO_FREE(found);
     return 0;
@@ -1560,7 +1562,36 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
     return link;
 }
 
+#define TWO_HOURS ((pico_time)(1000 * 60 * 60 * 2))
 
+void pico_ipv6_lifetime_expired(pico_time now, void *arg)
+{
+    struct pico_ipv6_link *link = (struct pico_ipv6_link *)arg;
+    (void)now;
+    dbg("Warning: IPv6 address has expired.\n");
+    link->lifetimer = NULL;
+    pico_ipv6_link_del(link->dev, link->address);
+}
+
+int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire)
+{
+    pico_time now = PICO_TIME_MS();
+    if (expire <= now) {
+        return -1;
+    }
+    if (l->lifetimer) {
+        pico_timer_cancel(l->lifetimer);
+    }
+    if (expire > 0xFFFFFFFE) {
+        return 0;
+    }else if ((expire > (now + TWO_HOURS)) || (expire > l->expire_time)) {
+        l->expire_time = expire;
+    } else {
+        l->expire_time = now + TWO_HOURS;
+    }
+    l->lifetimer = pico_timer_add(l->expire_time - now, pico_ipv6_lifetime_expired, l);
+    return 0;
+}
 
 int pico_ipv6_dev_routing_enable(struct pico_device *dev)
 {

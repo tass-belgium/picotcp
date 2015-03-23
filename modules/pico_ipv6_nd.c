@@ -554,6 +554,7 @@ static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
+    struct pico_ipv6_link *link;
     int optlen;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
@@ -566,6 +567,7 @@ static int radv_process(struct pico_frame *f)
         switch (*type) {
             case PICO_ND_OPT_PREFIX:
                 {
+                    pico_time now = PICO_TIME_MS();
                     struct pico_icmp6_opt_prefix *prefix = 
                         (struct pico_icmp6_opt_prefix *) nxtopt;
                     /* RFC4862 5.5.3 */
@@ -582,9 +584,11 @@ static int radv_process(struct pico_frame *f)
                     /* c) If the preferred lifetime is greater than the valid lifetime,
                      *       silently ignore the Prefix Information option 
                      */
-                    if (prefix->val_lifetime <= 0)
+                    if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
                         goto ignore_opt_prefix;
 
+                    if (prefix->val_lifetime <= 0)
+                        goto ignore_opt_prefix;
 
 
                     if (prefix->prefix_len != 64) {
@@ -593,10 +597,14 @@ static int radv_process(struct pico_frame *f)
                         return -1;
                     }
 
-                    if (pico_ipv6_prefix_configured(&prefix->prefix)) {
+                    link = pico_ipv6_prefix_configured(&prefix->prefix);
+                    if (link) {
+                        pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->pref_lifetime))));
                         goto ignore_opt_prefix;
                     }
-                    pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+                    link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+                    if (link)
+                        pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
                 ignore_opt_prefix:
                     optlen -= (prefix->len << 3);
                     nxtopt += (prefix->len << 3);

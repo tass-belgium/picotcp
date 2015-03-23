@@ -51,10 +51,11 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 
-int pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
+struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
 {
     struct pico_ip6 newaddr;
     struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    struct pico_ipv6_link *link;
     memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
     /* modified EUI-64 + invert universal/local bit */
     newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
@@ -65,11 +66,11 @@ int pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *pre
     newaddr.addr[13] = dev->eth->mac.addr[3];
     newaddr.addr[14] = dev->eth->mac.addr[4];
     newaddr.addr[15] = dev->eth->mac.addr[5];
-    if (pico_ipv6_link_add(dev, newaddr, netmask64) == 0) {
+    link = pico_ipv6_link_add(dev, newaddr, netmask64);
+    if (link) {
         device_init_ipv6_final(dev, &newaddr);
-        return 0;
     }
-    return -1;
+    return link;
 }
 #endif
 
@@ -82,7 +83,7 @@ static int device_init_mac(struct pico_device *dev, uint8_t *mac)
     if (dev->eth) {
         memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
         #ifdef PICO_SUPPORT_IPV6
-        if (pico_ipv6_link_add_local(dev, &linklocal)) {
+        if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
             PICO_FREE(dev->q_in);
             PICO_FREE(dev->q_out);
             PICO_FREE(dev->eth);
@@ -118,7 +119,7 @@ int pico_device_ipv6_random_ll(struct pico_device *dev)
             pico_rand_feed(dev->hash);
         } while (pico_ipv6_link_get(&linklocal));
 
-        if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+        if (pico_ipv6_link_add(dev, linklocal, netmask6) == NULL) {
             return -1;
         }
     }

@@ -44,6 +44,8 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+    pico_time expire_time;
+    struct pico_timer *lifetimer;
 };
 
 struct pico_ipv6_hbhoption {
@@ -112,7 +114,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
 int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 gateway, int metric, struct pico_ipv6_link *link);
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code);
 
-int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
+struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
 int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address);
 int pico_ipv6_cleanup_links(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_istentative(struct pico_ip6 *address);
@@ -127,6 +129,7 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_sitelocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_prefix_configured(struct pico_ip6 *prefix);
+int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
 #endif
