@@ -1341,10 +1341,10 @@ int pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct 
 
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
-//    if (!pico_ipv6_is_unspecified(address.addr)) {
-        pico_icmp6_neighbor_solicitation(dev, &address, PICO_ICMP6_ND_DAD);
-        pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
-//    }
+    pico_icmp6_neighbor_solicitation(dev, &address, PICO_ICMP6_ND_DAD);
+    pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
+#else
+    new->istentative = 0;
 #endif
 
     pico_ipv6_to_string(ipstr, new->address.addr);
