@@ -592,14 +592,12 @@ static int radv_process(struct pico_frame *f)
 
 
                     if (prefix->prefix_len != 64) {
-                        pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT, 
-                                (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
                         return -1;
                     }
 
                     link = pico_ipv6_prefix_configured(&prefix->prefix);
                     if (link) {
-                        pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->pref_lifetime))));
+                        pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
                         goto ignore_opt_prefix;
                     }
                     link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
