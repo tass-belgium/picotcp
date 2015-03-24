@@ -555,8 +555,11 @@ static int radv_process(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
+    struct pico_ipv6_hdr *hdr;
+    struct pico_ip6 zero = {.addr = {0}};
     int optlen;
 
+    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
     opt_start = (uint8_t *)icmp6_hdr->msg.info.router_adv.options;
@@ -601,8 +604,10 @@ static int radv_process(struct pico_frame *f)
                         goto ignore_opt_prefix;
                     }
                     link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
-                    if (link)
+                    if (link) {
                         pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                        pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
+                    }
                 ignore_opt_prefix:
                     optlen -= (prefix->len << 3);
                     nxtopt += (prefix->len << 3);

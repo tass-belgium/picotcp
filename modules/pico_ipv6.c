@@ -1197,11 +1197,15 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
     } else {
         struct pico_ipv6_route *r = ipv6_route_add_link(gateway);
         if (!r) {
-            PICO_FREE(new);
-            return -1;
+            if (link)
+                new->link = link;
+            else {
+                PICO_FREE(new);
+                return -1;
+            }
+        } else {
+            new->link = r->link;
         }
-
-        new->link = r->link;
     }
 
     if (new->link && (pico_ipv6_is_global(address.addr)) && (!pico_ipv6_is_global(new->link->address.addr))) {
