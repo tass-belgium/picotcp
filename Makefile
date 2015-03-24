@@ -105,7 +105,7 @@ ifeq ($(ARCH),cortexm4-softfloat)
 endif
 
 ifeq ($(ARCH),cortexm3)
-  CFLAGS+=DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
+  CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
 endif
 
 ifeq ($(ARCH),arm9)
