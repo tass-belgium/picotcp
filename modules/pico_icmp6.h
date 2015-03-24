@@ -61,7 +61,7 @@
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
 /* ND configuration */
-#define PICO_ND_MAX_FRAMES_QUEUED      3 /* max frames queued while awaiting address resolution */
+#define PICO_ND_MAX_FRAMES_QUEUED      4 /* max frames queued while awaiting address resolution */
 
 /* ND RFC constants */
 #define PICO_ND_MAX_SOLICIT            3

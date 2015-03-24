@@ -774,14 +774,20 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     int i;
+    static int last_enq = -1;
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         if (!frames_queued_v6[i]) {
             frames_queued_v6[i] = pico_frame_copy(f);
+            last_enq = i;
             return;
         }
     }
-    /* Not possible to enqueue: caller will discard */
+    /* Overwrite the oldest frame in the buffer */
+    if (++last_enq >= PICO_ND_MAX_FRAMES_QUEUED) {
+        last_enq = 0;
+    }
+    frames_queued_v6[last_enq] = pico_frame_copy(f);
 }
 
 
