@@ -4,7 +4,7 @@ picoTCP
 
 Welcome to the one and only <font color=ff00f0>picoTCP repository</font>. 
 
-picoTCP is a TCP/IP stack designed for embedded systems developed by *[Altran ISY](http://intelligent-systems.altran.com/)*
+picoTCP is a TCP/IP stack designed for embedded systems developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*
 
 This code is released under the terms of GNU GPL v2 only. Some rights reserved.
 Other licenses may apply at the sole discretion of the copyright holders.
