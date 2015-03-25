@@ -141,7 +141,6 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
     else
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
 
-    nd_dbg("Expiring in %lu ms \n", n->expire - PICO_TIME_MS());
 }
 
 static void pico_nd_new_expire_state(struct pico_ipv6_neighbor *n)
@@ -152,6 +151,7 @@ static void pico_nd_new_expire_state(struct pico_ipv6_neighbor *n)
 
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
+    char IPADDR[64];
     if (n->expire != 0ull)
         return;
 
@@ -160,6 +160,8 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
         pico_tree_delete(&NCache, n);
         return;
     }
+
+    pico_ipv6_to_string(IPADDR, n->address.addr);
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
@@ -830,6 +832,7 @@ void pico_ipv6_nd_init(void)
 {
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
     pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
+    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
 }
 
 #endif

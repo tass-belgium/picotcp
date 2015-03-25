@@ -1405,8 +1405,6 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
 
     pico_ipv6_cleanup_routes(found);
     pico_tree_delete(&IPV6Links, found);
-    if (found->lifetimer)
-        pico_timer_cancel(found->lifetimer);
     /* XXX MUST leave the solicited-node multicast address corresponding to the address (RFC 4861 $7.2.1) */
     PICO_FREE(found);
     return 0;
@@ -1568,13 +1566,19 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 
 #define TWO_HOURS ((pico_time)(1000 * 60 * 60 * 2))
 
-void pico_ipv6_lifetime_expired(pico_time now, void *arg)
+void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 {
-    struct pico_ipv6_link *link = (struct pico_ipv6_link *)arg;
-    (void)now;
-    dbg("Warning: IPv6 address has expired.\n");
-    link->lifetimer = NULL;
-    pico_ipv6_link_del(link->dev, link->address);
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_link *link = NULL;
+    (void)arg;
+    pico_tree_foreach(index, &IPV6Links) {
+        link = index->keyValue;
+        if ((link->expire_time > 0) && (link->expire_time < now)) {
+            dbg("Warning: IPv6 address has expired.\n");
+            pico_ipv6_link_del(link->dev, link->address);
+        }
+    }
+    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
 }
 
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire)
@@ -1583,17 +1587,13 @@ int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire)
     if (expire <= now) {
         return -1;
     }
-    if (l->lifetimer) {
-        pico_timer_cancel(l->lifetimer);
-    }
     if (expire > 0xFFFFFFFE) {
-        return 0;
+        l->expire_time = 0u;
     }else if ((expire > (now + TWO_HOURS)) || (expire > l->expire_time)) {
         l->expire_time = expire;
     } else {
         l->expire_time = now + TWO_HOURS;
     }
-    l->lifetimer = pico_timer_add(l->expire_time - now, pico_ipv6_lifetime_expired, l);
     return 0;
 }
 

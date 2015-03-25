@@ -45,7 +45,6 @@ struct pico_ipv6_link
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
     pico_time expire_time;
-    struct pico_timer *lifetimer;
 };
 
 struct pico_ipv6_hbhoption {
@@ -130,6 +129,7 @@ struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_sitelocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_prefix_configured(struct pico_ip6 *prefix);
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
+void pico_ipv6_check_lifetime_expired(pico_time now, void *arg);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
 #endif
