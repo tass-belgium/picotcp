@@ -261,14 +261,14 @@ static void add_session(struct pico_tftp_session *idx)
 /* Returns 0 if OK and -1 in case of errors */
 static int del_session(struct pico_tftp_session *idx)
 {
-    struct pico_tftp_session *prev;
+    struct pico_tftp_session *prev = NULL;
     struct pico_tftp_session *pos;
 
     for (pos = tftp_sessions; pos; pos = pos->next) {
         if (pos == idx) {
             if (pos == tftp_sessions)
                 tftp_sessions = tftp_sessions->next;
-            else
+            else if (prev)
                 prev->next = pos->next;
 
             PICO_FREE(idx);
