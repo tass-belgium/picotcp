@@ -1346,7 +1346,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
     pico_icmp6_neighbor_solicitation(dev, &address, PICO_ICMP6_ND_DAD);
-    pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
+    new->dad_timer = pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
 #else
     new->istentative = 0;
 #endif
@@ -1404,6 +1404,8 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
     }
 
     pico_ipv6_cleanup_routes(found);
+    if (found->dad_timer)
+        pico_timer_cancel(found->dad_timer);
     pico_tree_delete(&IPV6Links, found);
     /* XXX MUST leave the solicited-node multicast address corresponding to the address (RFC 4861 $7.2.1) */
     PICO_FREE(found);
@@ -1568,10 +1570,10 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 
 void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 {
-    struct pico_tree_node *index = NULL;
+    struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
     (void)arg;
-    pico_tree_foreach(index, &IPV6Links) {
+    pico_tree_foreach_safe(index, &IPV6Links, temp) {
         link = index->keyValue;
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");

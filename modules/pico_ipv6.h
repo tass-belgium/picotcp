@@ -44,6 +44,7 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+    struct pico_timer *dad_timer;
     pico_time expire_time;
 };
 
