@@ -787,6 +787,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     if (++last_enq >= PICO_ND_MAX_FRAMES_QUEUED) {
         last_enq = 0;
     }
+    if (frames_queued_v6[last_enq])
+        pico_frame_discard(frames_queued_v6[last_enq]);
     frames_queued_v6[last_enq] = pico_frame_copy(f);
 }
 
