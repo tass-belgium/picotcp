@@ -597,10 +597,10 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
 
 static void pico_ipv6_fragments_check_complete(uint8_t proto)
 {
-    struct pico_tree_node *index;
+    struct pico_tree_node *index, *temp;
     struct pico_frame *cur;
     unsigned int bookmark = 0;
-    pico_tree_foreach(index, &ipv6_fragments) {
+    pico_tree_foreach_safe(index, &ipv6_fragments, temp) {
         cur = index->keyValue; 
         if (IP6FRAG_OFF(cur->frag) != bookmark)
             return;
