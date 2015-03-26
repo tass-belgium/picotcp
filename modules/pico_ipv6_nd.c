@@ -777,10 +777,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     int i;
     static int last_enq = -1;
+    struct pico_frame *cp = pico_frame_copy(f);
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         if (!frames_queued_v6[i]) {
-            frames_queued_v6[i] = pico_frame_copy(f);
+            frames_queued_v6[i] = cp;
             last_enq = i;
             return;
         }
@@ -791,7 +792,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     }
     if (frames_queued_v6[last_enq])
         pico_frame_discard(frames_queued_v6[last_enq]);
-    frames_queued_v6[last_enq] = pico_frame_copy(f);
+    frames_queued_v6[last_enq] = cp;
 }
 
 

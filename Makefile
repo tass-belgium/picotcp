@@ -113,7 +113,8 @@ ifeq ($(ARCH),arm9)
 endif
 
 ifeq ($(ARCH),faulty)
-  CFLAGS+=-DFAULTY -DUNIT_TEST
+  CFLAGS+=-DFAULTY -DUNIT_TEST -fsanitize=address -fno-omit-frame-pointer -m32
+  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o
