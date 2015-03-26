@@ -652,6 +652,7 @@ static int mcast_so_unblock_src(struct pico_socket *s, void *value)
             return -1;
         } else {
             pico_tree_delete(&listen->MCASTSources, source);
+            pico_tree_delete(&MCASTFilter, source);
             PICO_FREE(source);
         }
     }

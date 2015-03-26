@@ -18,6 +18,7 @@ ENDIAN?=little
 STRIP?=0
 RTOS?=0
 CHECKSUMFUN?=young
+ADDRESS_SANITIZER?=0
 
 # Default compiled-in protocols
 #
@@ -112,9 +113,13 @@ ifeq ($(ARCH),arm9)
   CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
-ifeq ($(ARCH),faulty)
-  CFLAGS+=-DFAULTY -DUNIT_TEST -fsanitize=address -fno-omit-frame-pointer -m32
+ifeq ($(ADDRESS_SANITIZER),1)
+  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
   TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+endif
+
+ifeq ($(ARCH),faulty)
+  CFLAGS+=-DFAULTY -DUNIT_TEST
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o
