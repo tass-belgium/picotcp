@@ -183,20 +183,12 @@ static inline uint64_t long_long_be(uint64_t le)
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***
  *** *** *** *** *** *** ***/
-#if defined STM32
-# include "arch/pico_stm32.h"
-#elif defined STM32_GC
-# include "arch/pico_stm32_gc.h"
-#elif defined STELLARIS
-# include "arch/pico_stellaris.h"
-#elif defined LPC
-# include "arch/pico_lpc17xx.h"
-#elif defined LPC43XX
-# include "arch/pico_lpc43xx.h"
-#elif defined LPC17XX
-# include "arch/pico_lpc17xx.h"
-#elif defined LPC18XX
-# include "arch/pico_lpc18xx.h"
+#if defined CORTEX_M4_HARDFLOAT
+# include "arch/pico_cortex_m.h"
+#elif defined CORTEX_M4_SOFTFLOAT
+# include "arch/pico_cortex_m.h"
+#elif defined CORTEX_M3
+# include "arch/pico_cortex_m.h"
 #elif defined PIC24
 # include "arch/pico_pic24.h"
 #elif defined MSP430
@@ -205,8 +197,8 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_mbed.h"
 #elif defined AVR
 # include "arch/pico_avr.h"
-#elif defined STR9
-# include "arch/pico_str9.h"
+#elif defined ARM9
+# include "arch/pico_arm9.h"
 #elif defined ESP8266
 # include "arch/pico_esp8266.h"
 #elif defined FAULTY
@@ -215,10 +207,7 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_none.h"
 #elif defined __KERNEL__
 # include "arch/pico_linux.h"
-
-
 /* #elif defined ... */
-
 #else
 # include "arch/pico_posix.h"
 #endif

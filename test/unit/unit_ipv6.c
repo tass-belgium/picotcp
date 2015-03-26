@@ -226,7 +226,7 @@ START_TEST (test_ipv6)
         dev[i] = pico_null_create(devname);
         a[i] = iphex_a;
         a[i].addr[4] += i;
-        fail_if(pico_ipv6_link_add(dev[i], a[i], nm64) != 0, "Error adding link");
+        fail_if(pico_ipv6_link_add(dev[i], a[i], nm64) == NULL, "Error adding link");
     }
     /*link_find + link_get + route_add*/
     for (i = 0; i < 10; ++i) {
@@ -252,10 +252,10 @@ START_TEST (test_ipv6)
         fail_if(pico_ipv6_link_del(dev[i], a[i]) != 0, "Error deleting link");
     }
     /* add 2 links to dev[0] */
-    ret = pico_ipv6_link_add(dev[0], a[0], nm64);
-    fail_if(ret != 0, "Error adding link");
-    ret = pico_ipv6_link_add(dev[0], a[1], nm64);
-    fail_if(ret != 0, "Error adding link");
+    _link = pico_ipv6_link_add(dev[0], a[0], nm64);
+    fail_if (!_link, "Error adding link");
+    _link = pico_ipv6_link_add(dev[0], a[1], nm64);
+    fail_if (!_link, "Error adding link");
     /* add 2 routes to each of the links */
     ret = pico_ipv6_route_add(r[0], nm128, a[0], 1, l[0]);
     fail_if(ret != 0, "Error adding route");
@@ -267,10 +267,10 @@ START_TEST (test_ipv6)
     fail_if(ret != 0, "Error adding route");
 
     /* add 2 links to dev[1] */
-    ret = pico_ipv6_link_add(dev[1], a[8], nm64);
-    fail_if(ret != 0, "Error adding link");
-    ret = pico_ipv6_link_add(dev[1], a[9], nm64);
-    fail_if(ret != 0, "Error adding link");
+    _link = pico_ipv6_link_add(dev[1], a[8], nm64);
+    fail_if (!_link, "Error adding link");
+    _link = pico_ipv6_link_add(dev[1], a[9], nm64);
+    fail_if (!_link, "Error adding link");
     /* add 2 routes to each of the links */
     ret = pico_ipv6_route_add(r[6], nm128, a[8], 1, l[8]);
     fail_if(ret != 0, "Error adding route");
