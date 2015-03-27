@@ -601,7 +601,6 @@ static int mcast_so_dropm(struct pico_socket *s, void *value)
         {
             source = index->keyValue;
             pico_tree_delete(&listen->MCASTSources, source);
-            PICO_FREE(source);
         }
         pico_tree_delete(s->MCASTListen, listen);
         PICO_FREE(listen);
@@ -652,8 +651,6 @@ static int mcast_so_unblock_src(struct pico_socket *s, void *value)
             return -1;
         } else {
             pico_tree_delete(&listen->MCASTSources, source);
-            pico_tree_delete(&MCASTFilter, source);
-            PICO_FREE(source);
         }
     }
 
@@ -814,7 +811,6 @@ static int mcast_so_dropsrcm(struct pico_socket *s, void *value)
             return -1;
         } else {
             pico_tree_delete(&listen->MCASTSources, source);
-            PICO_FREE(source);
             if (pico_tree_empty(&listen->MCASTSources)) { /* 1 if empty, 0 otherwise */
                 reference_count = 1;
                 pico_tree_delete(s->MCASTListen, listen);
