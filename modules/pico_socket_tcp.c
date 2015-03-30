@@ -85,7 +85,7 @@ void pico_socket_tcp_cleanup(struct pico_socket *sock)
 {
 #ifdef PICO_SUPPORT_TCP
     /* for tcp sockets go further and clean the sockets inside queue */
-    if(sock->proto == &pico_proto_tcp)
+    if(is_sock_tcp(sock))
         pico_tcp_cleanup_queues(sock);
 
 #endif
@@ -239,6 +239,7 @@ int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 void transport_flags_update(struct pico_frame *f, struct pico_socket *s)
 {
 #ifdef PICO_SUPPORT_TCP
-    pico_tcp_flags_update(f, s);
+    if(is_sock_tcp(s))
+        pico_tcp_flags_update(f, s);
 #endif
 }
