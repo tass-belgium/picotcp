@@ -45,6 +45,7 @@ TUN?=0
 TAP?=0
 PPP?=0
 CYASSL?=0
+POLARSSL?=0
 
 #IPv6 related
 IPV6?=1
@@ -56,6 +57,8 @@ CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-stateme
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
+# Let the C preprocessor include configuration header in every source file
+CFLAGS += -include pico_config.h
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
@@ -295,6 +298,9 @@ ifneq ($(PPP),0)
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
+endif
+ifneq ($(POLARSSL),0)
+  include rules/polarssl.mk
 endif
 
 all: mod core lib

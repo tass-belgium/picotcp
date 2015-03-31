@@ -5,8 +5,13 @@
  *    Authors: Daniele Lacamera
  *    *********************************************************************/
 
-#ifdef PICO_MD5_INCLUDE
+#ifndef PICO_MD5_INCLUDE
 #define PICO_MD5_INCLUDE
-void pico_md5sum(uint8_t *dst, uint8_t *src, int len)
-void pico_register_md5sum(void (*md5)(uint8_t *, const uint8_t *, int))
-#endif
+
+#include <stdint.h>
+#include <stdlib.h>
+
+void pico_md5sum(uint8_t *dst, const uint8_t *src, size_t len);
+void pico_register_md5sum(void (*md5)(uint8_t *, const uint8_t *, size_t));
+
+#endif /* PICO_MD5_INCLUDE */
