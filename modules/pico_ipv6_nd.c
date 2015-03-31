@@ -103,6 +103,13 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     return n;
 }
 
+static void pico_nd_create_stale_entry(struct pico_ip6 *addr, struct pico_device *dev)
+{
+    struct pico_ipv6_neighbor *n = pico_nd_add(addr, dev);
+    if (n)
+        n->state = PICO_ND_STATE_STALE;
+}
+
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 {
     int i;
@@ -143,23 +150,12 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 
 }
 
-static void pico_nd_new_expire_state(struct pico_ipv6_neighbor *n)
-{
-    if (n->state > PICO_ND_STATE_INCOMPLETE && n->state < PICO_ND_STATE_PROBE)
-        n->state++;
-}
-
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
     if (n->expire != 0ull)
         return;
 
-    if (++n->failure_count > PICO_ND_MAX_SOLICIT) {
-        pico_ipv6_nd_unreachable(&n->address);
-        pico_tree_delete(&NCache, n);
-        return;
-    }
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
 
@@ -169,7 +165,6 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
     }
 
-    pico_nd_new_expire_state(n);
     pico_nd_new_expire_time(n);
 }
 
@@ -241,15 +236,14 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     return -1;
 }
 
-static int neigh_adv_complete(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
+static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
 {
-    if (!opt)
-        return -1;
-
     memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
-    n->state = PICO_ND_STATE_REACHABLE;
-    pico_ipv6_nd_queued_trigger();
-    return 0;
+}
+
+static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
+{
+    return memcmp(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
 }
 
 static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter)
@@ -262,29 +256,49 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
 
 static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr)
 {
-    if (!IS_OVERRIDE(hdr)) {
-        if (memcmp(opt->addr.mac.addr, n->mac.addr, PICO_SIZE_ETH) != 0)
-            n->state = PICO_ND_STATE_STALE;
-    } else {
-        n->mac = opt->addr.mac;
+    if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) == 0)) {
+        n->state = PICO_ND_STATE_REACHABLE;
+        pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
+    }
+    
+    if (IS_SOLICITED(hdr) && IS_OVERRIDE(hdr)) {
+        pico_ipv6_neighbor_update(n, opt);
+        n->state = PICO_ND_STATE_REACHABLE;
+        pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
     }
 
-    neigh_adv_reconfirm_router_option(n, IS_ROUTER(hdr));
-    return 0;
+    if (!IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr)) {
+        pico_ipv6_neighbor_update(n, opt);
+        pico_ipv6_nd_queued_trigger();
+        n->state = PICO_ND_STATE_STALE;
+        return 0;
+    }
+    return -1;
 }
 
-static void neigh_adv_check_solicited(struct pico_icmp6_hdr *ic6, struct pico_ipv6_neighbor *n)
+static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt)
 {
-    /* is a response to a solicitation? */
-    if (IS_SOLICITED(ic6)) {
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+
+    if (IS_SOLICITED(icmp6_hdr)) {
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_count = 0;
     } else {
         n->state = PICO_ND_STATE_STALE;
     }
 
+    if (opt)
+        pico_ipv6_neighbor_update(n, opt);
+    pico_ipv6_nd_queued_trigger();
     pico_nd_new_expire_time(n);
 }
+    
 
 static int neigh_adv_process(struct pico_frame *f)
 {
@@ -293,29 +307,34 @@ static int neigh_adv_process(struct pico_frame *f)
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
+    int optres = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_TGT); 
+
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-
-
     n = pico_nd_find_neighbor(&icmp6_hdr->msg.info.neigh_adv.target);
-    if (!n)
-        return -1;
+    if (!n) {
+        pico_nd_create_stale_entry(&icmp6_hdr->msg.info.neigh_adv.target, f->dev);
+        if (optres >= 0) {
+            pico_ipv6_neighbor_update(n, &opt);
+        }
+        return 0; 
+    }
 
-    if (neigh_options(f, &opt, PICO_ND_OPT_LLADDR_TGT) < 0)
-        return -1;
-
-    if (n->state == PICO_ND_STATE_INCOMPLETE)
-        neigh_adv_complete(n, &opt);
-    else
-        neigh_adv_reconfirm(n, &opt, icmp6_hdr);
-
-    neigh_adv_check_solicited(icmp6_hdr, n);
-    return 0;
+    if (n->state == PICO_ND_STATE_INCOMPLETE) {
+        neigh_adv_process_incomplete(n, f, &opt);
+        return 0;
+    }
+    
+    if (neigh_options(f, &opt, PICO_ND_OPT_LLADDR_TGT) < 0) {
+        neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
+        return 0;
+    }
+    return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
 }
 
 
 
-static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
+static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *n = NULL;
     n = pico_nd_add(ip, dev);
@@ -323,27 +342,35 @@ static struct pico_ipv6_neighbor *neighbor_from_sol_new(struct pico_ip6 *ip, str
         return NULL;
 
     memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
-    n->state = PICO_ND_STATE_REACHABLE;
+    n->state = PICO_ND_STATE_STALE;
+    pico_ipv6_nd_queued_trigger();
     return n;
 }
 
-static void neighbor_from_sol(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
+static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
-    /* Hello, neighbor! */
-    if (!pico_ipv6_is_unspecified(ip->addr) && opt) {
-        n = pico_nd_find_neighbor(ip);
-        if (!n) {
-            n = neighbor_from_sol_new(ip, opt, dev);
-        } else if (memcmp(opt->addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
-            memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
-            n->state = PICO_ND_STATE_STALE;
-        }
+    struct pico_icmp6_opt_lladdr opt = {
+        0
+    };
+    struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
+    int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
+    if (!pico_ipv6_is_unspecified(ip->src.addr) && (valid_lladdr >= 0)) {
+        n = pico_nd_find_neighbor(&ip->src);
+        if (!n) {
+            n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
+        } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
+            memcpy(n->mac.addr, opt.addr.mac.addr, PICO_SIZE_ETH);
+            if (n->state == PICO_ND_STATE_INCOMPLETE) {
+                n->state = PICO_ND_STATE_STALE;
+                pico_ipv6_nd_queued_trigger();
+                pico_nd_new_expire_time(n);
+            }
+            /* In all other cases, state is unchanged */
+        }
         if (!n)
             return;
-
-        pico_nd_new_expire_time(n);
     }
 }
 
@@ -378,18 +405,16 @@ static int neigh_sol_detect_dad(struct pico_frame *f)
 
 static int neigh_sol_process(struct pico_frame *f)
 {
-    struct pico_ipv6_hdr *ipv6_hdr = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_link *link = NULL;
     int valid_lladdr;
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
-    ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
     valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
-    neighbor_from_sol(&ipv6_hdr->src, &opt, f->dev);
+    pico_ipv6_neighbor_from_unsolicited(f);
 
     if ((valid_lladdr < 0) && (neigh_sol_detect_dad(f) == 0))
         return 0;
@@ -547,8 +572,8 @@ static int neigh_adv_checks(struct pico_frame *f)
 
 static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
+    pico_ipv6_neighbor_from_unsolicited(f);
     /* Host only: router solicitation is discarded. */
-    (void)f;
     return 0;
 }
 
@@ -667,6 +692,7 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
         return -1;
     if (router_adv_validity_checks(f) < 0)
         return -1;
+    pico_ipv6_neighbor_from_unsolicited(f);
     return radv_process(f);
 }
 
@@ -699,9 +725,42 @@ static int pico_nd_neigh_adv_recv(struct pico_frame *f)
 
 static int pico_nd_redirect_recv(struct pico_frame *f)
 {
-    (void)f;
+    pico_ipv6_neighbor_from_unsolicited(f);
     /* TODO */
     return 0;
+}
+
+static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n)
+{ 
+    (void)now;
+    switch(n->state) {
+        case PICO_ND_STATE_INCOMPLETE:
+        case PICO_ND_STATE_PROBE:
+            n->expire = 0ull;
+            if (++n->failure_count > PICO_ND_MAX_SOLICIT) {
+                pico_ipv6_nd_unreachable(&n->address);
+                pico_tree_delete(&NCache, n);
+                return;
+            } else {
+                pico_nd_discover(n);
+            }
+            break;
+
+        case PICO_ND_STATE_REACHABLE:
+            n->state = PICO_ND_STATE_STALE;
+            break;
+
+        case PICO_ND_STATE_STALE:
+            n->state = PICO_ND_STATE_DELAY;
+            break;
+
+        case PICO_ND_STATE_DELAY:
+            n->state = PICO_ND_STATE_PROBE;
+            break;
+        default:
+            dbg("IPv6_ND: neighbor in wrong state!\n");
+    }
+    pico_nd_new_expire_time(n);
 }
 
 static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
@@ -714,8 +773,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     {
         n = index->keyValue;
         if ( now > n->expire) {
-            n->expire = 0ull;
-            pico_nd_discover(n);
+            pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
