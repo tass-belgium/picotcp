@@ -417,6 +417,7 @@ static inline int8_t fragmented_check_is_lastfrag(struct pico_frame **f)
     uint16_t running_offset = 0;
     uint16_t offset = 0;
     uint16_t data_len = 0;
+    uint16_t frag_len = 0;
     struct pico_ipv4_hdr *f_frag_hdr = NULL, *hdr = (struct pico_ipv4_hdr *) (*f)->net_hdr;
     struct pico_ipv4_fragmented_packet *pfrag = NULL;
     struct pico_frame *f_new = NULL, *f_frag = NULL;
@@ -477,6 +478,7 @@ static inline int8_t fragmented_check_is_lastfrag(struct pico_frame **f)
             pico_frame_discard(f_frag);
             reassembly_dbg("REASSEMBLY: reassembled intermediate packet of %u data bytes, offset = %u next expected offset = %u\n", data_len, offset, running_offset);
         }
+        frag_len = pfrag->total_len;
         pico_tree_delete(&pico_ipv4_fragmented_tree, pfrag);
         PICO_FREE(pfrag);
 
@@ -487,7 +489,7 @@ static inline int8_t fragmented_check_is_lastfrag(struct pico_frame **f)
         reassembly_dbg("REASSEMBLY: reassembled last packet of %u data bytes, offset = %u\n", data_len, offset);
 
         hdr = (struct pico_ipv4_hdr *)f_new->net_hdr;
-        hdr->len = pfrag->total_len;
+        hdr->len = frag_len;
         hdr->frag = 0; /* flags cleared and no offset */
         hdr->crc = 0;
         hdr->crc = short_be(pico_checksum(hdr, f_new->net_len));

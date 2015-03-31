@@ -83,13 +83,13 @@ void app_mcastreceive(char *arg)
     printf("\n%s: multicast receive started. Receiving packets on %s:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
 
     /* udpecho:bind_addr:listen_port[:sendto_port:datasize] */
-    new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64") + 1);
+    new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64:") + 1);
     p = strcat(new_arg, laddr);
     p = strcat(p + strlen(laddr), ":");
     p = strcat(p + 1, lport);
     p = strcat(p + strlen(lport), ":");
     p = strcat(p + 1, sport);
-    p = strcat(p + strlen(sport), ":64");
+    p = strcat(p + strlen(sport), ":64:");
 
     app_udpecho(new_arg);
 

@@ -229,9 +229,9 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
     (void) now;
 
 
-    dhcpc = pico_dhcp_client_find_cookie(t->xid);
-    if (dhcpc && dhcpc->timer) {
-        if (t->state != DHCP_CLIENT_TIMER_STOPPED) {
+    if (t->state != DHCP_CLIENT_TIMER_STOPPED) {
+        dhcpc = pico_dhcp_client_find_cookie(t->xid);
+        if (dhcpc && dhcpc->timer) {
             t->state = DHCP_CLIENT_TIMER_STOPPED;
             if (t->type == PICO_DHCPC_TIMER_INIT) {
                 pico_dhcp_client_reinit(now, dhcpc);
@@ -342,6 +342,8 @@ static void pico_dhcp_client_start_reacquisition_timers(struct pico_dhcp_client_
 static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint16_t port = PICO_DHCP_CLIENT_PORT;
+    if (!dhcpc)
+        return -1;
     /* adding a link with address 0.0.0.0 and netmask 0.0.0.0,
      * automatically adds a route for a global broadcast */
     pico_ipv4_link_add(dhcpc->dev, inaddr_any, bcast_netmask);

@@ -250,7 +250,8 @@ int pico_string_to_ipv6(const char *ipstr, uint8_t *ip)
         shift = PICO_SIZE_IP6 - zeros - doublecolon;
         for (i = shift; i >= 0; --i) {
             /* (i-1) as arrays are indexed from 0 onwards */
-            buf[doublecolon + zeros + (i - 1)] = buf[doublecolon + (i - 1)];
+            if ((doublecolon + (i - 1)) >= 0)
+                buf[doublecolon + zeros + (i - 1)] = buf[doublecolon + (i - 1)];
         }
         memset(&buf[doublecolon], 0, (size_t)zeros);
     }
