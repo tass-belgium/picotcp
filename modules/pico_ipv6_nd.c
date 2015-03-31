@@ -103,7 +103,7 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     return n;
 }
 
-static void pico_nd_create_stale_entry(struct pico_ip6 *addr, struct pico_device *dev)
+static struct pico_ipv6_neighbor *pico_nd_create_stale_entry(struct pico_ip6 *addr, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *n = pico_nd_add(addr, dev);
     if (n)
@@ -283,8 +283,13 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
 static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    if (!n || !f)
+        return;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+
+    if (!icmp6_hdr)
+        return;
 
     if (IS_SOLICITED(icmp6_hdr)) {
         n->state = PICO_ND_STATE_REACHABLE;
@@ -313,8 +318,8 @@ static int neigh_adv_process(struct pico_frame *f)
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     n = pico_nd_find_neighbor(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!n) {
-        pico_nd_create_stale_entry(&icmp6_hdr->msg.info.neigh_adv.target, f->dev);
-        if (optres >= 0) {
+        n = pico_nd_create_stale_entry(&icmp6_hdr->msg.info.neigh_adv.target, f->dev);
+        if (n && optres >= 0) {
             pico_ipv6_neighbor_update(n, &opt);
         }
         return 0; 
