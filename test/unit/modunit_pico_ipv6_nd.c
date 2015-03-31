@@ -74,32 +74,6 @@ START_TEST(tc_pico_nd_queue)
 }
 END_TEST
 
-START_TEST(tc_pico_nd_new_expire_state)
-{
-    struct pico_ipv6_neighbor n = {
-        0
-    };
-    unsigned int i;
-
-    /* INCOMPLETE won't change */
-    n.state = PICO_ND_STATE_INCOMPLETE;
-    pico_nd_new_expire_state(&n);
-    fail_unless(n.state == PICO_ND_STATE_INCOMPLETE);
-
-    /* PROBE won't change */
-    n.state = PICO_ND_STATE_PROBE;
-    pico_nd_new_expire_state(&n);
-    fail_unless(n.state == PICO_ND_STATE_PROBE);
-
-    for (i = PICO_ND_STATE_INCOMPLETE + 1; i < PICO_ND_STATE_PROBE; )
-    {
-        n.state = i;
-        pico_nd_new_expire_state(&n);
-        fail_unless(n.state == i + 1);
-        i = n.state;
-    }
-}
-END_TEST
 START_TEST(tc_pico_nd_discover)
 {
     /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
@@ -217,7 +191,6 @@ Suite *pico_suite(void)
     Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_nd_new_expire_time = tcase_create("Unit test for pico_nd_new_expire_time");
-    TCase *TCase_pico_nd_new_expire_state = tcase_create("Unit test for pico_nd_new_expire_state");
     TCase *TCase_pico_nd_discover = tcase_create("Unit test for pico_nd_discover");
     TCase *TCase_neigh_options = tcase_create("Unit test for neigh_options");
     TCase *TCase_neigh_adv_complete = tcase_create("Unit test for neigh_adv_complete");
@@ -245,8 +218,6 @@ Suite *pico_suite(void)
 
     tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
     suite_add_tcase(s, TCase_pico_nd_new_expire_time);
-    tcase_add_test(TCase_pico_nd_new_expire_state, tc_pico_nd_new_expire_state);
-    suite_add_tcase(s, TCase_pico_nd_new_expire_state);
     tcase_add_test(TCase_pico_nd_discover, tc_pico_nd_discover);
     suite_add_tcase(s, TCase_pico_nd_discover);
     tcase_add_test(TCase_neigh_options, tc_neigh_options);
