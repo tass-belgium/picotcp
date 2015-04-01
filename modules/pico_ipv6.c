@@ -574,9 +574,9 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
 
     full = pico_frame_alloc((uint16_t)(PICO_SIZE_IP6HDR + len)); 
-    full->net_hdr = full->buffer;
-    full->net_len = PICO_SIZE_IP6HDR;
     if (full) {
+        full->net_hdr = full->buffer;
+        full->net_len = PICO_SIZE_IP6HDR;
         memcpy(full->net_hdr, first->net_hdr, full->net_len); 
         full->transport_hdr = full->net_hdr + full->net_len;
         full->transport_len = (uint16_t)len;
