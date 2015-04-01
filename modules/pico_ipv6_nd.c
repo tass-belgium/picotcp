@@ -108,6 +108,7 @@ static struct pico_ipv6_neighbor *pico_nd_create_stale_entry(struct pico_ip6 *ad
     struct pico_ipv6_neighbor *n = pico_nd_add(addr, dev);
     if (n)
         n->state = PICO_ND_STATE_STALE;
+    return n;
 }
 
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
