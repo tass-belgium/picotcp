@@ -159,6 +159,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
+    //dbg("Sending NS for %s\n", IPADDR);
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
@@ -171,15 +172,19 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
 static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_ipv6_neighbor *n, struct pico_device *dev)
 {
+    //dbg("Finding neighbor %02x:...:%02x, state = %d\n", addr->addr[0], addr->addr[15], n?n->state:-1);
+
     if (!n) {
         n = pico_nd_add(addr, dev);
         pico_nd_discover(n);
         return NULL;
     }
-
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
         return NULL;
     }
+
+    if (n->state != PICO_ND_STATE_REACHABLE)
+        pico_nd_discover(n);
 
     return &n->mac;
 
