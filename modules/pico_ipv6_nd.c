@@ -140,33 +140,33 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 
 static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 {
-    if (n->state == PICO_ND_STATE_INCOMPLETE)
-        n->expire = PICO_TIME_MS() + PICO_ND_DELAY_INCOMPLETE;
-    else if (n->state == PICO_ND_STATE_REACHABLE)
+    if (n->state == PICO_ND_STATE_REACHABLE)
         n->expire = PICO_TIME_MS() + PICO_ND_DESTINATION_LRU_TIME;
     else if (n->state == PICO_ND_STATE_STALE)
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
-    else
+    else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
+    }
+
 
 }
 
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
-    if (n->expire != 0ull)
+    if (n->expire != (pico_time)0)
         return;
-
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
     //dbg("Sending NS for %s\n", IPADDR);
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
+        if (++n->failure_count > PICO_ND_MAX_SOLICIT)
+            return;
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
     } else {
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
     }
-
     pico_nd_new_expire_time(n);
 }
 
@@ -693,6 +693,9 @@ static int radv_process(struct pico_frame *f)
                return -1;
         }
     }
+    if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
+        f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
+    }
     return 0;
 }
 
@@ -748,7 +751,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
         case PICO_ND_STATE_INCOMPLETE:
         case PICO_ND_STATE_PROBE:
             n->expire = 0ull;
-            if (++n->failure_count > PICO_ND_MAX_SOLICIT) {
+            if (n->failure_count > PICO_ND_MAX_SOLICIT) {
                 pico_ipv6_nd_unreachable(&n->address);
                 pico_tree_delete(&NCache, n);
                 return;
@@ -758,6 +761,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
             break;
 
         case PICO_ND_STATE_REACHABLE:
+            n->expire = 0ull;
             n->state = PICO_ND_STATE_STALE;
             break;
 
@@ -766,6 +770,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
             break;
 
         case PICO_ND_STATE_DELAY:
+            n->expire = 0ull;
             n->state = PICO_ND_STATE_PROBE;
             break;
         default:
