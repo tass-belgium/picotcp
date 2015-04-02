@@ -141,14 +141,12 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 {
     if (n->state == PICO_ND_STATE_REACHABLE)
-        n->expire = PICO_TIME_MS() + PICO_ND_DESTINATION_LRU_TIME;
+        n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
     else if (n->state == PICO_ND_STATE_STALE)
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
     }
-
-
 }
 
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
@@ -159,10 +157,10 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
     //dbg("Sending NS for %s\n", IPADDR);
+    if (++n->failure_count > PICO_ND_MAX_SOLICIT)
+        return;
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        if (++n->failure_count > PICO_ND_MAX_SOLICIT)
-            return;
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
     } else {
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
@@ -182,6 +180,9 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
         return NULL;
     }
+
+    if (n->state == PICO_ND_STATE_STALE)
+        n->state = PICO_ND_STATE_DELAY;
 
     if (n->state != PICO_ND_STATE_REACHABLE)
         pico_nd_discover(n);
@@ -749,24 +750,23 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     (void)now;
     switch(n->state) {
         case PICO_ND_STATE_INCOMPLETE:
+            /* intentional fall through */
         case PICO_ND_STATE_PROBE:
-            n->expire = 0ull;
             if (n->failure_count > PICO_ND_MAX_SOLICIT) {
                 pico_ipv6_nd_unreachable(&n->address);
                 pico_tree_delete(&NCache, n);
                 return;
-            } else {
-                pico_nd_discover(n);
             }
+            n->expire = 0ull;
+            pico_nd_discover(n);
             break;
 
         case PICO_ND_STATE_REACHABLE:
-            n->expire = 0ull;
             n->state = PICO_ND_STATE_STALE;
-            break;
+            dbg("IPv6_ND: neighbor expired!\n");
+            return;
 
         case PICO_ND_STATE_STALE:
-            n->state = PICO_ND_STATE_DELAY;
             break;
 
         case PICO_ND_STATE_DELAY:
