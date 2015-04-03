@@ -103,14 +103,6 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     return n;
 }
 
-static struct pico_ipv6_neighbor *pico_nd_create_stale_entry(struct pico_ip6 *addr, struct pico_device *dev)
-{
-    struct pico_ipv6_neighbor *n = pico_nd_add(addr, dev);
-    if (n)
-        n->state = PICO_ND_STATE_STALE;
-    return n;
-}
-
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 {
     int i;
@@ -343,9 +335,6 @@ static int neigh_adv_process(struct pico_frame *f)
 
     n = pico_nd_find_neighbor(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!n) {
-        n = pico_nd_create_stale_entry(&icmp6_hdr->msg.info.neigh_adv.target, f->dev);
-        if (n && (optres > 0))
-            pico_ipv6_neighbor_update(n, &opt);
         return 0; 
     }
     if (optres == 0) {
