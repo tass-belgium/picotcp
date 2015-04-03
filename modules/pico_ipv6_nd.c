@@ -538,6 +538,12 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
 {
     struct pico_ipv6_link *link;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+
+    if (pico_ipv6_is_unspecified(hdr->src.addr)) {
+        dbg("Warning: Received unicast NS with unspecified source address!\n");
+        return -1;
+    }
     link = pico_ipv6_link_by_dev(f->dev);
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     while(link) {
