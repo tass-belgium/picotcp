@@ -980,7 +980,7 @@ static inline struct pico_ipv6_route *ipv6_pushed_frame_checks(struct pico_frame
     return route;
 }
 
-static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_link *link, struct pico_ip6 *dst,  uint8_t proto, int is_dad)
+static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_link *link, struct pico_ip6 *src, struct pico_ip6 *dst,  uint8_t proto, int is_dad)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_hdr *hdr = NULL;
@@ -992,7 +992,14 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     hdr->nxthdr = proto;
     hdr->hop = f->dev->hostvars.hoplimit;
     hdr->dst = *dst;
-    hdr->src = link->address;
+
+    if (!src)
+        /* Address defaults to the link information: src address selection is done via link */
+        hdr->src = link->address;
+    else {
+        /* Sender protocol is forcing an IPv6 address */
+        memcpy(hdr->src.addr, src->addr, PICO_SIZE_IP6);
+    }
 
     if (f->send_ttl) {
         hdr->hop = f->send_ttl;
@@ -1047,7 +1054,7 @@ static int ipv6_frame_push_final(struct pico_frame *f)
 
 struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 
-int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t proto, int is_dad)
+int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico_ip6 *dst, uint8_t proto, int is_dad)
 {
     struct pico_ipv6_route *route = NULL;
     struct pico_ipv6_link *link = NULL;
@@ -1095,7 +1102,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t pro
     #endif
 
 push_final:
-    ipv6_push_hdr_adjust(f, link, dst, proto, is_dad);
+    ipv6_push_hdr_adjust(f, link, src, dst, proto, is_dad);
     return ipv6_frame_push_final(f);
 }
 
@@ -1118,7 +1125,7 @@ static int pico_ipv6_frame_sock_push(struct pico_protocol *self, struct pico_fra
         dst = &f->sock->remote_addr.ip6;
     }
 
-    return pico_ipv6_frame_push(f, dst, (uint8_t)f->sock->proto->proto_number, 0);
+    return pico_ipv6_frame_push(f, NULL, dst, (uint8_t)f->sock->proto->proto_number, 0);
 }
 
 /* interface: protocol definition */

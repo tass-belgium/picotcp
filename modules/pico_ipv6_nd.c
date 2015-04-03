@@ -763,7 +763,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
         case PICO_ND_STATE_REACHABLE:
             n->state = PICO_ND_STATE_STALE;
-            dbg("IPv6_ND: neighbor expired!\n");
+            //dbg("IPv6_ND: neighbor expired!\n");
             return;
 
         case PICO_ND_STATE_STALE:

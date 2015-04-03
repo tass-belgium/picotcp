@@ -49,6 +49,7 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
     struct pico_frame *reply = NULL;
     struct pico_icmp6_hdr *ehdr = NULL, *rhdr = NULL;
     struct pico_ip6 src;
+    struct pico_ip6 dst;
 
     reply = pico_proto_ipv6.alloc(&pico_proto_ipv6, (uint16_t)(echo->transport_len));
     if (!reply) {
@@ -69,8 +70,10 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
     memcpy(reply->payload, echo->payload, (uint32_t)(echo->transport_len - PICO_ICMP6HDR_ECHO_REQUEST_SIZE)); 
     rhdr->crc = 0;
     rhdr->crc = short_be(pico_icmp6_checksum(reply));
-    memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
-    pico_ipv6_frame_push(reply, &src, PICO_PROTO_ICMP6, 0);
+    /* Get destination and source swapped */
+    memcpy(dst.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
+    memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, PICO_SIZE_IP6);
+    pico_ipv6_frame_push(reply, &src, &dst, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -199,7 +202,7 @@ static int pico_icmp6_notify(struct pico_frame *f, uint8_t type, uint8_t code, u
     memcpy(notice->payload, f->net_hdr, notice->payload_len);
     notice->dev = f->dev;
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(notice, &ipv6_hdr->src, PICO_PROTO_ICMP6, 0);
+    pico_ipv6_frame_push(notice, NULL, &ipv6_hdr->src, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -312,7 +315,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(sol, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
+    pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
     return 0;
 }
 
@@ -365,7 +368,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
     adv->dev = f->dev;
 
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(adv, &dst, PICO_PROTO_ICMP6, 0);
+    pico_ipv6_frame_push(adv, NULL, &dst, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -404,7 +407,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(sol, &daddr, PICO_PROTO_ICMP6, 0);
+    pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -459,7 +462,7 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     icmp6_hdr->crc = 0;
     icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(adv, &dst_mcast, PICO_PROTO_ICMP6, 0);
+    pico_ipv6_frame_push(adv, NULL, &dst_mcast, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -519,7 +522,7 @@ static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
     hdr->crc = 0;
     hdr->crc = short_be(pico_icmp6_checksum(echo));
     echo->dev = cookie->dev;
-    pico_ipv6_frame_push(echo, &cookie->dst, PICO_PROTO_ICMP6, 0);
+    pico_ipv6_frame_push(echo, NULL, &cookie->dst, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 

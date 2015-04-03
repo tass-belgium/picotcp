@@ -1369,7 +1369,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 #endif
 #ifdef PICO_SUPPORT_IPV6
     } else {
-        pico_ipv6_frame_push(f, &(((struct pico_ipv6_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP, 0);
+        pico_ipv6_frame_push(f, NULL, &(((struct pico_ipv6_hdr *)(f->net_hdr))->dst), PICO_PROTO_TCP, 0);
 #endif
     }
 
