@@ -63,11 +63,11 @@ CFLAGS+= -Wcast-align
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
 else
-    ifeq ($(PERF), 1)
-        CFLAGS+=-O3
-    else
-        CFLAGS+=-Os
-    endif
+  ifeq ($(PERF), 1)
+    CFLAGS+=-O3
+  else
+    CFLAGS+=-Os
+  endif
 endif
 
 ifeq ($(PROFILE),1)
@@ -139,7 +139,7 @@ ifeq ($(ARCH),pic24)
 endif
 
 ifeq ($(ARCH),atmega128)
-	CFLAGS+=-Wall -mmcu=atmega128 -DAVR
+  CFLAGS+=-Wall -mmcu=atmega128 -DAVR
 endif
 
 ifeq ($(ARCH),none)
@@ -158,15 +158,15 @@ CORE_OBJ= stack/pico_stack.o \
           stack/pico_device.o \
           stack/pico_protocol.o \
           stack/pico_socket.o \
-		  stack/pico_socket_multicast.o \
-			stack/pico_tree.o
+          stack/pico_socket_multicast.o \
+          stack/pico_tree.o
 
-POSIX_OBJ+=  modules/pico_dev_vde.o \
-						modules/pico_dev_tun.o \
-						modules/pico_dev_tap.o \
-						modules/pico_dev_mock.o \
+POSIX_OBJ+= modules/pico_dev_vde.o \
+            modules/pico_dev_tun.o \
+            modules/pico_dev_tap.o \
+            modules/pico_dev_mock.o \
             modules/pico_dev_pcap.o \
-						modules/ptsocket/pico_ptsocket.o
+            modules/ptsocket/pico_ptsocket.o
 
 ifneq ($(ETH),0)
   include rules/eth.mk
