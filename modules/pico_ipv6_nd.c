@@ -218,6 +218,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     int len;
     uint8_t type;
+    int found = 0;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
@@ -229,18 +230,21 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
         len = ((struct pico_icmp6_opt_lladdr *)option)->len;
         optlen -= len << 3; /* len in units of 8 octets */
         if (len <= 0)
-            return -1;
+            return -1; /* malformed option. */
 
         if (type == expected_opt) {
+            if (found > 0)
+                return -1; /* malformed option: option is there twice. */
             memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, (size_t)(len << 3));
-            return 0;
-        } else if (optlen > 0) {
+            found++;
+        }
+        if (optlen > 0) {
             option += len << 3;
-        } else { /* no target link-layer address option */
-            return -1;
+        } else { /* parsing options: terminated. */
+            return found; 
         }
     }
-    return -1;
+    return found;
 }
 
 static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
@@ -326,7 +330,7 @@ static int neigh_adv_process(struct pico_frame *f)
     n = pico_nd_find_neighbor(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!n) {
         n = pico_nd_create_stale_entry(&icmp6_hdr->msg.info.neigh_adv.target, f->dev);
-        if (n && optres >= 0) {
+        if (n && (optres > 0)) {
             pico_ipv6_neighbor_update(n, &opt);
         }
         return 0; 
@@ -337,10 +341,15 @@ static int neigh_adv_process(struct pico_frame *f)
         return 0;
     }
     
-    if (neigh_options(f, &opt, PICO_ND_OPT_LLADDR_TGT) < 0) {
+    optres = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_TGT);
+    if (optres == 0) {
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
         return 0;
     }
+    if (optres < 0) { /* Malformed packet: option field cannot be processed. */
+        return -1;
+    }
+
     return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
 }
 
@@ -368,7 +377,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
     int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
-    if (!pico_ipv6_is_unspecified(ip->src.addr) && (valid_lladdr >= 0)) {
+    if (!pico_ipv6_is_unspecified(ip->src.addr) && (valid_lladdr > 0)) {
         n = pico_nd_find_neighbor(&ip->src);
         if (!n) {
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
@@ -428,8 +437,11 @@ static int neigh_sol_process(struct pico_frame *f)
     valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
     pico_ipv6_neighbor_from_unsolicited(f);
 
-    if ((valid_lladdr < 0) && (neigh_sol_detect_dad(f) == 0))
+    if ((valid_lladdr == 0) && (neigh_sol_detect_dad(f) == 0))
         return 0;
+
+    if (valid_lladdr < 0)
+        return -1; /* Malformed packet. */
 
     link = pico_ipv6_link_get(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!link) { /* Not for us. */
