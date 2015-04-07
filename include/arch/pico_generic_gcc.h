@@ -13,7 +13,7 @@
 
 /* monotonically increasing tick,
  * typically incremented every millisecond in a systick interrupt */
-extern volatile unsigned int tassTick;
+extern volatile unsigned int pico_ms_tick;
 
 #define dbg(...)
 
@@ -41,12 +41,12 @@ extern volatile unsigned int tassTick;
     
     static inline pico_time PICO_TIME_MS()
     {
-        return tassTick;
+        return pico_ms_tick;
     }
     
     static inline pico_time PICO_TIME()
     {
-        return tassTick / 1000;
+        return pico_ms_tick / 1000;
     }
     
     static inline void PICO_IDLE(void)
@@ -77,7 +77,7 @@ extern volatile unsigned int tassTick;
     
     static inline pico_time PICO_TIME_MS(void)
     {
-        return tassTick;
+        return pico_ms_tick;
     }
     
     static inline pico_time PICO_TIME(void)
@@ -87,8 +87,8 @@ extern volatile unsigned int tassTick;
     
     static inline void PICO_IDLE(void)
     {
-        unsigned int now = tassTick;
-        while(now == tassTick) ;
+        unsigned int now = pico_ms_tick;
+        while(now == pico_ms_tick) ;
     }
 
 #endif /* IFNDEF RTOS */
