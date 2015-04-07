@@ -79,7 +79,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
 
     p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     if (!p->usage_count) {
-        if (p->buffer && !ext_buffer)
+        if (p->buffer)
             PICO_FREE(p->buffer);
 
         PICO_FREE(p);
@@ -87,7 +87,6 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
     }
 
     p->buffer_len = size;
-
 
     /* By default, frame content is the full buffer. */
     p->start = p->buffer;
