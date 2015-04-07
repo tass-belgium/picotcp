@@ -152,9 +152,13 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
-    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
-    if (!dev->q_in || !dev->q_out)
+    if (!dev->q_in)
         return -1;
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_out) {
+        PICO_FREE(dev->q_in);
+        return -1;
+    }
 
     pico_tree_insert(&Device_tree, dev);
     if (!dev->mtu)
