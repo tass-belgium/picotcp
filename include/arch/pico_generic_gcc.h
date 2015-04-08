@@ -51,7 +51,7 @@ extern volatile unsigned int pico_ms_tick;
     
     static inline void PICO_IDLE(void)
     {
-        uint32_t now = PICO_TIME_MS();
+        pico_time now = PICO_TIME_MS();
         while(now == PICO_TIME_MS()) ;
     }
 
