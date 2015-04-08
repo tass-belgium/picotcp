@@ -183,7 +183,9 @@ static inline uint64_t long_long_be(uint64_t le)
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***
  *** *** *** *** *** *** ***/
-#if defined CORTEX_M4_HARDFLOAT
+#if defined PICO_PORT_CUSTOM
+# include "pico_port.h"
+#elif defined CORTEX_M4_HARDFLOAT
 # include "arch/pico_cortex_m.h"
 #elif defined CORTEX_M4_SOFTFLOAT
 # include "arch/pico_cortex_m.h"
