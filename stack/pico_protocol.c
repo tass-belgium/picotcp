@@ -123,8 +123,8 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
 
     if (!next_node)
         return loop_score;
-    else
-        next = next_node->keyValue;
+
+    next = next_node->keyValue;
 
     /* init start node */
     start = next;
