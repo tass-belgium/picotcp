@@ -10,6 +10,6 @@ done
 wget -O rfc3927.txt http://tools.ietf.org/rfc/rfc3927.txt
 
 # Get PPP related RFC's
-for RFC in $(echo 1332 1334 1661 1662 1994 | sed -r "s/[^ ]+/rfc&.txt/g"); do
+for RFC in $(echo 1332 1334 1661 1662 1877 1994 | sed -r "s/[^ ]+/rfc&.txt/g"); do
 	wget -O ${RFC} http://tools.ietf.org/rfc/${RFC}
 done
