@@ -14,7 +14,7 @@
 
 /* -------------- DEBUG ------------- */
 
-//#define dbg(...)
+/* #define dbg(...) */
 #define dbg             os_printf
 
 
@@ -27,6 +27,7 @@ static inline void *pico_zalloc(size_t size)
     void *ptr = (void *)os_malloc(size);
     if(ptr)
         memset(ptr, 0u, size);
+
     return ptr;
 }
 

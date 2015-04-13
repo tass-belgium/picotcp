@@ -14,12 +14,12 @@
 #define NULL ((void *)0)
 #endif
 
-void * pico_mutex_init(void);
-void pico_mutex_deinit(void * mutex);
-void pico_mutex_lock(void * mutex);
-int pico_mutex_lock_timeout(void * mutex, int timeout);
-void pico_mutex_unlock(void * mutex);
-void pico_mutex_unlock_ISR(void * mutex);
+void *pico_mutex_init(void);
+void pico_mutex_deinit(void *mutex);
+void pico_mutex_lock(void *mutex);
+int pico_mutex_lock_timeout(void *mutex, int timeout);
+void pico_mutex_unlock(void *mutex);
+void pico_mutex_unlock_ISR(void *mutex);
 
 struct pico_queue {
     uint32_t frames;

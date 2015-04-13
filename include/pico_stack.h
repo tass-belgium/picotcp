@@ -50,7 +50,7 @@ int32_t pico_ethernet_send(struct pico_frame *f);
 /* DATALINK LEVEL */
 int32_t pico_ethernet_receive(struct pico_frame *f);
 #else
-    /* When ETH is not supported by the stack... */
+/* When ETH is not supported by the stack... */
 #   define pico_ethernet_send(f)    (-1)
 #   define pico_ethernet_receive(f) (-1)
 #endif

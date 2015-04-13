@@ -241,5 +241,6 @@ void transport_flags_update(struct pico_frame *f, struct pico_socket *s)
 #ifdef PICO_SUPPORT_TCP
     if(is_sock_tcp(s))
         pico_tcp_flags_update(f, s);
+
 #endif
 }

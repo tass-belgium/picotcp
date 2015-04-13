@@ -344,6 +344,7 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
     uint16_t port = PICO_DHCP_CLIENT_PORT;
     if (!dhcpc)
         return -1;
+
     /* adding a link with address 0.0.0.0 and netmask 0.0.0.0,
      * automatically adds a route for a global broadcast */
     pico_ipv4_link_add(dhcpc->dev, inaddr_any, bcast_netmask);
@@ -670,7 +671,8 @@ struct dhcp_action_entry {
 
 static struct dhcp_action_entry dhcp_fsm[] =
 { /* event                |offer      |ack      |nak    |T1    |T2     |lease  |retransmit */
-/* state init-reboot */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
+/* state init-reboot */
+    { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state rebooting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state init        */ { recv_offer, NULL,     NULL,   NULL,  NULL,   NULL,  retransmit },
 /* state selecting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },

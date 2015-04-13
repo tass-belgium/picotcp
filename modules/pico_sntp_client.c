@@ -256,6 +256,7 @@ static void dnsCallback(char *ip, void *arg)
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);
         if (!sock)
             return;
+
         sock->priv = ck;
         ck->sock = sock;
         if ((pico_socket_bind(sock, &sntp_inaddr_any, &any_port) == 0)) {
@@ -341,7 +342,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     PICO_FREE(ck->hostname);
     PICO_FREE(ck);
 
-    return (!retval || !retval6)? 0: (-1);
+    return (!retval || !retval6) ? 0 : (-1);
 }
 
 /* user function to get the current time */

@@ -8,11 +8,11 @@
    NOTES: This is the Windows-only driver, a Linux-equivalent is available, too
           You need to have an OpenVPN TUN/TAP network adapter installed, first
           This driver is barely working:
-          * Only TAP-mode is supported (TUN is not)
-          * it will simply open the first TAP device it can find
-          * there is memory being allocated that's never freed
-          * there is no destroy function, yet
-          * it has only been tested on a Windows 7 machine
+ * Only TAP-mode is supported (TUN is not)
+ * it will simply open the first TAP device it can find
+ * there is memory being allocated that's never freed
+ * there is no destroy function, yet
+ * it has only been tested on a Windows 7 machine
  *********************************************************************/
 
 #ifndef __PICO_DEV_TAP_WINDOWS_PRIVATE_H
@@ -27,15 +27,15 @@
 /* Extra structs */
 struct tap_reg
 {
-  const char *guid;
-  struct tap_reg *next;
+    const char *guid;
+    struct tap_reg *next;
 };
 
 struct panel_reg
 {
-  const char *name;
-  const char *guid;
-  struct panel_reg *next;
+    const char *name;
+    const char *guid;
+    struct panel_reg *next;
 };
 
 
@@ -45,8 +45,8 @@ struct panel_reg
  * =============
  */
 
-#define TAP_WIN_CONTROL_CODE(request,method) \
-  CTL_CODE (FILE_DEVICE_UNKNOWN, request, method, FILE_ANY_ACCESS)
+#define TAP_WIN_CONTROL_CODE(request, method) \
+    CTL_CODE (FILE_DEVICE_UNKNOWN, request, method, FILE_ANY_ACCESS)
 
 /* Present in 8.1 */
 

@@ -66,7 +66,7 @@ START_TEST(tc_calc_score)
 END_TEST
 
 #ifdef PICO_FAULTY
-void fake_timer(pico_time __attribute__((unused)) now, void  __attribute__((unused)) *n)
+void fake_timer(pico_time __attribute__((unused)) now, void __attribute__((unused)) *n)
 {
 
 }

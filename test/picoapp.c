@@ -255,6 +255,7 @@ int main(int argc, char **argv)
                     pico_string_to_ipv6(gw, gateway6.addr);
                     pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
                 }
+
                 pico_ipv6_dev_routing_enable(dev);
             }
 
@@ -308,6 +309,7 @@ int main(int argc, char **argv)
                     pico_string_to_ipv6(gw, gateway6.addr);
                     pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
                 }
+
                 pico_ipv6_dev_routing_enable(dev);
             }
 
@@ -399,6 +401,7 @@ int main(int argc, char **argv)
                     pico_string_to_ipv6(gw6, gateway6.addr);
                     pico_ipv6_route_add(zero6, zero6, gateway6, 1, NULL);
                 }
+
                 pico_ipv6_dev_routing_enable(dev);
             }
 
@@ -467,6 +470,7 @@ int main(int argc, char **argv)
                 pico_string_to_ipv6("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", netmask6.addr);
                 pico_ipv6_link_add(dev, ipaddr6, netmask6);
             }
+
             pico_ipv6_dev_routing_enable(dev);
 #endif
         }

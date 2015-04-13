@@ -47,6 +47,7 @@ uint16_t pico_dns_client_strlen(const char *url)
 {
     if (!url)
         return 0;
+
     return (uint16_t)strlen(url);
 }
 
@@ -163,7 +164,9 @@ static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
 
 void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
-    struct pico_ip6 ip6 = {.addr = {}};
+    struct pico_ip6 ip6 = {
+        .addr = {}
+    };
     int i, j = 0;
     pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {

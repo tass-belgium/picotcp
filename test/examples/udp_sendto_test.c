@@ -29,7 +29,7 @@ void app_sendto_test(char *arg)
     uint16_t dport;
     struct pico_socket *sock;
     int ret;
-    
+
     /* start of argument parsing */
     if (nxt) {
         nxt = cpy_arg(&dstaddr, nxt);
@@ -48,7 +48,7 @@ void app_sendto_test(char *arg)
         /* missing bind_addr */
         goto out;
     }
-    
+
     if (nxt) {
         nxt = cpy_arg(&dstport, nxt);
         if (dstport && atoi(dstport)) {
@@ -60,27 +60,27 @@ void app_sendto_test(char *arg)
         /* missing listen_port */
         goto out;
     }
-    
+
     if (!IPV6_MODE)
         sock = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &dummy_cb);
     else
         sock = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &dummy_cb);
-    
-    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE)? (void *)(&inaddr_dst6): (void *)(&inaddr_dst)), dport);
+
+    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE) ? (void *)(&inaddr_dst6) : (void *)(&inaddr_dst)), dport);
     if (ret < 0)
         printf("Failure in first pico_socket_send\n");
-    
-    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE)? (void *)(&inaddr_dst6): (void *)(&inaddr_dst)), dport);
+
+    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE) ? (void *)(&inaddr_dst6) : (void *)(&inaddr_dst)), dport);
     if (ret < 0)
         printf("Failure in second pico_socket_send\n");
-    
+
     ret = pico_socket_close(sock);
     if (ret)
         printf("Failure in pico_socket_close\n");
-    
+
     printf("\n%s: UDP sendto test launched. Sending packets to ip %s port %u\n\n", __FUNCTION__, dstaddr, short_be(dport));
     return;
-    
+
 out:
     fprintf(stderr, "udp_sendto_test expects the following format: udp_sendto_test:dest_addr:[dest_por]t\n");
     exit(255);

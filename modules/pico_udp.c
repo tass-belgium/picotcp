@@ -59,7 +59,9 @@ uint16_t pico_udp_checksum_ipv6(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     struct pico_udp_hdr *udp_hdr = (struct pico_udp_hdr *)f->transport_hdr;
-    struct pico_ipv6_pseudo_hdr pseudo = { .src = {{0}}, .dst = {{0}}, .len = 0, .zero = {0}, .nxthdr = 0};
+    struct pico_ipv6_pseudo_hdr pseudo = {
+        .src = {{0}}, .dst = {{0}}, .len = 0, .zero = {0}, .nxthdr = 0
+    };
     struct pico_socket *s = f->sock;
     struct pico_remote_endpoint *remote_endpoint = (struct pico_remote_endpoint *)f->info;
 

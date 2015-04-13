@@ -179,7 +179,7 @@ struct pico_ipv6_mreq_source {
 #define PICO_SOCK_EV_ERR 0x80u
 
 struct pico_msginfo {
-    struct pico_device *dev; 
+    struct pico_device *dev;
     uint8_t ttl;
     uint8_t tos;
 };
@@ -190,12 +190,12 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len);
 int pico_socket_write(struct pico_socket *s, const void *buf, int len);
 
 int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *dst, uint16_t remote_port);
-int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len, 
-        void *dst, uint16_t remote_port, struct pico_msginfo *msginfo);
+int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
+                                void *dst, uint16_t remote_port, struct pico_msginfo *msginfo);
 
 int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig, uint16_t *local_port);
-int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len, void *orig, 
-        uint16_t *remote_port, struct pico_msginfo *msginfo);
+int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len, void *orig,
+                                  uint16_t *remote_port, struct pico_msginfo *msginfo);
 
 int pico_socket_send(struct pico_socket *s, const void *buf, int len);
 int pico_socket_recv(struct pico_socket *s, void *buf, int len);

@@ -23,6 +23,7 @@ int32_t get_filesize(const char *filename)
     ret = stat(filename, &buf);
     if (ret)
         return -1;
+
     return buf.st_size;
 }
 
@@ -57,8 +58,8 @@ void start_rx(struct pico_tftp_session *session, int *synchro, const char *filen
         countdown = 1;
     }
 
-    for(;left; left -= countdown) {
-        usleep(2000); //PICO_IDLE();
+    for(; left; left -= countdown) {
+        usleep(2000); /* PICO_IDLE(); */
         pico_stack_tick();
         if (countdown)
             continue;
@@ -71,6 +72,7 @@ void start_rx(struct pico_tftp_session *session, int *synchro, const char *filen
                 countdown = 1;
                 continue;
             }
+
             ret = write(fd, buf, len);
             if (ret < 0) {
                 fprintf(stderr, "Error in write\n");
@@ -79,6 +81,7 @@ void start_rx(struct pico_tftp_session *session, int *synchro, const char *filen
                 countdown = 1;
                 continue;
             }
+
             printf("Written %" PRId32 " bytes to file (synchro=%d)\n", len, *synchro);
 
             if (len != PICO_TFTP_PAYLOAD_SIZE) {
@@ -128,8 +131,8 @@ void start_tx(struct pico_tftp_session *session, int *synchro, const char *filen
         countdown = 1;
     }
 
-    for(;left; left -= countdown) {
-        usleep(2000); //PICO_IDLE();
+    for(; left; left -= countdown) {
+        usleep(2000); /* PICO_IDLE(); */
         pico_stack_tick();
         if (countdown)
             continue;
@@ -143,6 +146,7 @@ void start_tx(struct pico_tftp_session *session, int *synchro, const char *filen
                 countdown = 1;
                 continue;
             }
+
             printf("Read %" PRId32 " bytes from file (synchro=%d)\n", len, *synchro);
 
             len = pico_tftp_put(session, buf, ret);
@@ -165,16 +169,16 @@ void start_tx(struct pico_tftp_session *session, int *synchro, const char *filen
 void usage(const char *text)
 {
     fprintf(stderr, "%s\nArguments must be <filename> <mode>\n"
-                        "<mode> can be:\n"
-                        "\tg => GET request without options\n"
-                        "\tG => GET request WITH options\n"
-                        "\tp => PUT request without options\n"
-                        "\tP => PUT request WITH options\n\n",
+            "<mode> can be:\n"
+            "\tg => GET request without options\n"
+            "\tG => GET request WITH options\n"
+            "\tp => PUT request without options\n"
+            "\tP => PUT request WITH options\n\n",
             text);
     exit(1);
 }
 
-int main(int argc, char** argv)
+int main(int argc, char**argv)
 {
     struct pico_ip4 my_ip;
     union pico_address server_address;

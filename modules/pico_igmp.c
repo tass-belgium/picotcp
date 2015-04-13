@@ -19,7 +19,7 @@
 #include "pico_socket.h"
 
 #define igmp_dbg(...) do {} while(0)
-//#define igmp_dbg dbg
+/* #define igmp_dbg dbg */
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER             (0x0)

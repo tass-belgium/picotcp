@@ -339,6 +339,7 @@ static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
         pico_frame_discard(f);
         return -1;
     }
+
     return (int32_t)f->buffer_len;
 }
 #endif
@@ -353,6 +354,7 @@ static int32_t pico_ipv6_ethernet_receive(struct pico_frame *f)
         pico_frame_discard(f);
         return -1;
     }
+
     return (int32_t)f->buffer_len;
 }
 #endif
@@ -365,16 +367,19 @@ static int32_t pico_ll_receive(struct pico_frame *f)
 #if (defined PICO_SUPPORT_IPV4) && (defined PICO_SUPPORT_ETH)
     if (hdr->proto == PICO_IDETH_ARP)
         return pico_arp_receive(f);
+
 #endif
 
 #if defined (PICO_SUPPORT_IPV4)
     if (hdr->proto == PICO_IDETH_IPV4)
         return pico_ipv4_ethernet_receive(f);
+
 #endif
 
 #if defined (PICO_SUPPORT_IPV6)
     if (hdr->proto == PICO_IDETH_IPV6)
         return pico_ipv6_ethernet_receive(f);
+
 #endif
 
     pico_frame_discard(f);
@@ -442,7 +447,7 @@ struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *p
 }
 #endif
 
-int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth * const dstmac)
+int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const dstmac)
 {
     int retval = -1;
     if (!dstmac)
@@ -457,7 +462,7 @@ int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth * const dstmac)
         memcpy(dstmac, pico_mcast6_mac, PICO_SIZE_ETH);
         retval = 0;
     } else {
-        struct pico_eth * neighbor = pico_ipv6_get_neighbor(f);
+        struct pico_eth *neighbor = pico_ipv6_get_neighbor(f);
         if (neighbor)
         {
             memcpy(dstmac, neighbor, PICO_SIZE_ETH);
@@ -503,6 +508,7 @@ static int32_t pico_ethsend_bcast(struct pico_frame *f)
         (void)pico_device_broadcast(f); /* We can discard broadcast even if it's not sent. */
         return 1;
     }
+
     return 0;
 }
 
@@ -543,6 +549,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             pico_ipv6_nd_postpone(f);
             return 0; /* I don't care if frame was actually postponed. If there is no room in the ND table, discard safely. */
         }
+
         dstmac_valid = 1;
         proto = PICO_IDETH_IPV6;
     }
@@ -568,12 +575,12 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 
 #if (defined PICO_SUPPORT_IPV4)
     else {
-        struct pico_eth * arp_get;
+        struct pico_eth *arp_get;
         arp_get = pico_arp_get(f);
         if (arp_get) {
             memcpy(&dstmac, arp_get, PICO_SIZE_ETH);
             dstmac_valid = 1;
-        } else { 
+        } else {
             /* At this point, ARP will discard the frame in any case.
              * It is safe to return without discarding.
              */
@@ -599,6 +606,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             memcpy(hdr->daddr, &dstmac, PICO_SIZE_ETH);
             hdr->proto = proto;
         }
+
         if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
             /* one of the above functions has delivered the frame accordingly. (returned != 0)
              * It is safe to directly return success.
@@ -606,6 +614,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             return 0;
         }
     }
+
     /* Failure: do not dequeue the frame, keep it for later. */
     return -1;
 }

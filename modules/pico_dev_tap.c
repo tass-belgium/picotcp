@@ -86,18 +86,21 @@ static int tap_get_mac(char *name, uint8_t *mac)
     int retval = -1;
 
     sck = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sck < 0){
+    if(sck < 0) {
         return retval;
     }
+
     memset(&eth, 0, sizeof(struct ifreq));
-    strcpy(eth.ifr_name,name);
+    strcpy(eth.ifr_name, name);
 
 
     /* call the IOCTL */
     if (ioctl(sck, SIOCGIFHWADDR, &eth) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
-        return -1;;
+        return -1;
+        ;
     }
+
     memcpy (mac, &eth.ifr_hwaddr.sa_data, 6);
 
     close(sck);
@@ -122,12 +125,12 @@ struct pico_device *pico_tap_create(char *name)
         return NULL;
     }
 
-    if (tap_get_mac(name, mac) < 0) { 
+    if (tap_get_mac(name, mac) < 0) {
         dbg("Tap mac query failed.\n");
         pico_tap_destroy((struct pico_device *)tap);
         return NULL;
     }
-    
+
     mac[5]++;
 
     if( 0 != pico_device_init((struct pico_device *)tap, name, mac)) {

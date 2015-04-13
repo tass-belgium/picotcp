@@ -180,7 +180,6 @@ static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t le
     while (buf < stop) {
         sum += *buf++;
     }
-
     return sum;
 }
 
@@ -189,7 +188,7 @@ static inline uint16_t pico_checksum_finalize(uint32_t sum)
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
-    return short_be((uint16_t)~sum);
+    return short_be((uint16_t) ~sum);
 }
 
 #else
@@ -207,7 +206,6 @@ static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t le
         if (len > (i + 1u))
             sum += buf[i + 1];
     }
-
     return sum;
 }
 

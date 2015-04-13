@@ -56,6 +56,7 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     reply->payload = reply->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     reply->payload_len = echo->transport_len;
@@ -67,7 +68,7 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
     rhdr->code = 0;
     rhdr->msg.info.echo_reply.id = ehdr->msg.info.echo_reply.id;
     rhdr->msg.info.echo_reply.seq = ehdr->msg.info.echo_request.seq;
-    memcpy(reply->payload, echo->payload, (uint32_t)(echo->transport_len - PICO_ICMP6HDR_ECHO_REQUEST_SIZE)); 
+    memcpy(reply->payload, echo->payload, (uint32_t)(echo->transport_len - PICO_ICMP6HDR_ECHO_REQUEST_SIZE));
     rhdr->crc = 0;
     rhdr->crc = short_be(pico_icmp6_checksum(reply));
     /* Get destination and source swapped */
@@ -211,6 +212,7 @@ int pico_icmp6_port_unreachable(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
+
     return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_PORT, 0);
 }
 
@@ -219,6 +221,7 @@ int pico_icmp6_proto_unreachable(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
+
     return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR, 0);
 }
 
@@ -227,6 +230,7 @@ int pico_icmp6_dest_unreachable(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
+
     return pico_icmp6_notify(f, PICO_ICMP6_DEST_UNREACH, PICO_ICMP6_UNREACH_ADDR, 0);
 }
 
@@ -235,6 +239,7 @@ int pico_icmp6_ttl_expired(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
+
     return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_INTRANS, 0);
 }
 
@@ -243,7 +248,8 @@ int pico_icmp6_pkt_too_big(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
-    return pico_icmp6_notify(f, PICO_ICMP6_PKT_TOO_BIG, 0, 0); 
+
+    return pico_icmp6_notify(f, PICO_ICMP6_PKT_TOO_BIG, 0, 0);
 }
 
 #ifdef PICO_SUPPORT_IPFILTER
@@ -263,6 +269,7 @@ int pico_icmp6_frag_expired(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))
         return 0;
+
     return pico_icmp6_notify(f, PICO_ICMP6_TIME_EXCEEDED, PICO_ICMP6_TIMXCEED_REASS, 0);
 }
 
@@ -312,6 +319,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     } else {
         daddr = *dst;
     }
+
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
@@ -404,6 +412,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         lladdr->len = 1;
         memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
     }
+
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */

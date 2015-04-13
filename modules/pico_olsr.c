@@ -15,7 +15,7 @@
 #ifdef PICO_SUPPORT_OLSR
 #define DGRAM_MAX_SIZE (100 - 28)
 #define MAX_OLSR_MEM (4 * DGRAM_MAX_SIZE)
-#define olsr_dbg(...) do{}while(0)
+#define olsr_dbg(...) do {} while(0)
 
 int OOM(void);
 

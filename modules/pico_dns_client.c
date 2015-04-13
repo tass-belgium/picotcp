@@ -442,7 +442,7 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
 }
 
 static char dns_response[PICO_IP_MRU] = {
-     0
+    0
 };
 
 static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dns_header *h, struct pico_dns_query_suffix *qsuffix)
@@ -466,17 +466,19 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
     if (!p_asuffix) {
         return;
     }
+
     /* Found CNAME response. Re-initiating query. */
     asuffix = (struct pico_dns_answer_suffix *)p_asuffix;
     cname = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
     pico_dns_notation_to_name(cname);
     if (cname[0] == '.')
-       cname++; 
+        cname++;
+
     dns_dbg("Restarting query for name '%s'\n", cname);
     pico_dns_client_getaddr_init(cname, proto, q->callback, q->arg);
     pico_dns_client_del_query(q->id);
 }
-    
+
 static void pico_dns_client_callback(uint16_t ev, struct pico_socket *s)
 {
     struct pico_dns_header *header = NULL;
@@ -597,10 +599,11 @@ static int pico_dns_client_addr_label_check_len(const char *url)
     while(*p != (char) 0) {
         count = 0;
         while((*p != (char)0)) {
-            if (*p == '.'){
+            if (*p == '.') {
                 label = ++p;
                 break;
             }
+
             count++;
             p++;
             if (count > PICO_DNS_MAX_QUERY_LABEL_LEN)
@@ -616,14 +619,17 @@ static int pico_dns_client_getaddr_check(const char *url, void (*callback)(char 
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     if (strlen(url) > PICO_DNS_MAX_QUERY_LEN) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     if (pico_dns_client_addr_label_check_len(url) < 0) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     return 0;
 }
 
