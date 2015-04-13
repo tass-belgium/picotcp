@@ -85,10 +85,13 @@ static void ping(void)
 
 }
 
-int main(void)
+int main(int argc, const char *argv[])
 {
     struct pico_device *dev;
-    fd = open(MODEM, O_RDWR);
+    const char *path = MODEM;
+    if (argv[1])
+        path = argv[1];
+    fd = open(path, O_RDWR);
     if (fd < 0)
         return 1;
 
