@@ -54,7 +54,7 @@ volatile pico_err_t pico_err;
 
 static uint32_t _rand_seed;
 
-void pico_rand_feed(uint32_t feed)
+void WEAK pico_rand_feed(uint32_t feed)
 {
     if (!feed)
         return;
