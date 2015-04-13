@@ -66,8 +66,6 @@ void del_note(struct note_t *note)
                 break;
             }
         }
-    free(note->filename);
-    free(note);
 }
 
 struct command_t * add_command(struct command_t * commands, char operation,
@@ -165,6 +163,8 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         fprintf(stderr, "TFTP: Error %" PRIu16 ": %s\n", event, block);
         exit(1);
     }
+    if (!note)
+        return 0; 
 
     note->filesize += len;
     if (write(note->fd, block, len) < 0) {

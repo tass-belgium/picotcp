@@ -9,6 +9,7 @@
 #ifndef PICO_SUPPORT_MBED
 #define PICO_SUPPORT_MBED
 #include <stdio.h>
+#include <pico_queue.h>
 /* #include "mbed.h" */
 /* #include "serial_api.h" */
 

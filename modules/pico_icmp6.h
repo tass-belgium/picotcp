@@ -61,7 +61,7 @@
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
 /* ND configuration */
-#define PICO_ND_MAX_FRAMES_QUEUED      3 /* max frames queued while awaiting address resolution */
+#define PICO_ND_MAX_FRAMES_QUEUED      4 /* max frames queued while awaiting address resolution */
 
 /* ND RFC constants */
 #define PICO_ND_MAX_SOLICIT            3
@@ -86,7 +86,7 @@
 #define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
 
 #define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
-#define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
+//#define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
 
 /* custom defines */
 #define PICO_ICMP6_ND_UNICAST          0

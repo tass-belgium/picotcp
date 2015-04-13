@@ -230,13 +230,13 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 #endif
 
 #ifdef PICO_SUPPORT_UDP
-# define is_sock_udp(x) (x->net == &pico_proto_udp)
+# define is_sock_udp(x) (x->proto == &pico_proto_udp)
 #else
 # define is_sock_udp(x) (0)
 #endif
 
 #ifdef PICO_SUPPORT_TCP
-# define is_sock_tcp(x) (x->net == &pico_proto_tcp)
+# define is_sock_tcp(x) (x->proto == &pico_proto_tcp)
 #else
 # define is_sock_tcp(x) (0)
 #endif
