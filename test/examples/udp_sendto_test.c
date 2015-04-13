@@ -66,11 +66,11 @@ void app_sendto_test(char *arg)
     else
         sock = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &dummy_cb);
     
-    ret = pico_socket_sendto(sock, "Testing", 7u, IPV6_MODE? &inaddr_dst6: &inaddr_dst, dport);
+    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE)? (void *)(&inaddr_dst6): (void *)(&inaddr_dst)), dport);
     if (ret < 0)
         printf("Failure in first pico_socket_send\n");
     
-    ret = pico_socket_sendto(sock, "Testing", 7u, IPV6_MODE? &inaddr_dst6: &inaddr_dst, dport);
+    ret = pico_socket_sendto(sock, "Testing", 7u, ((IPV6_MODE)? (void *)(&inaddr_dst6): (void *)(&inaddr_dst)), dport);
     if (ret < 0)
         printf("Failure in second pico_socket_send\n");
     
