@@ -1,4 +1,4 @@
-#define EXISTING_TIMERS 4
+#define EXISTING_TIMERS 5
 
 
 START_TEST (test_timers)

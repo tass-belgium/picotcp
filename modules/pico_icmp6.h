@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -61,7 +61,7 @@
 #define PICO_PING6_ERR_PENDING         0xFFFF
 
 /* ND configuration */
-#define PICO_ND_MAX_FRAMES_QUEUED      3 /* max frames queued while awaiting address resolution */
+#define PICO_ND_MAX_FRAMES_QUEUED      4 /* max frames queued while awaiting address resolution */
 
 /* ND RFC constants */
 #define PICO_ND_MAX_SOLICIT            3
@@ -86,7 +86,7 @@
 #define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
 
 #define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
-#define PICO_ND_DESTINATION_LRU_TIME   600000u /* msecs (10min) */
+/* #define PICO_ND_DESTINATION_LRU_TIME   600000u / * msecs (10min) * / */
 
 /* custom defines */
 #define PICO_ICMP6_ND_UNICAST          0
@@ -237,7 +237,7 @@ struct pico_icmp6_stats
     struct pico_ip6 dst;
 };
 
-int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *));
+int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *), struct pico_device *dev);
 int pico_icmp6_ping_abort(int id);
 
 int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type);
@@ -251,6 +251,7 @@ int pico_icmp6_ttl_expired(struct pico_frame *f);
 int pico_icmp6_packet_filtered(struct pico_frame *f);
 int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t ptr);
 int pico_icmp6_pkt_too_big(struct pico_frame *f);
+int pico_icmp6_frag_expired(struct pico_frame *f);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f);
 int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *dst);

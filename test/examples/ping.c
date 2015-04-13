@@ -11,7 +11,7 @@ void cb_ping(struct pico_icmp4_stats *s)
     pico_ipv4_to_string(host, s->dst.addr);
     if (s->err == 0) {
         dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
-                s->ttl, (long unsigned int)s->time);
+            s->ttl, (long unsigned int)s->time);
         if (s->seq >= NUM_PING)
             exit(0);
     } else {
@@ -27,7 +27,7 @@ void cb_ping6(struct pico_icmp6_stats *s)
     pico_ipv6_to_string(host, s->dst.addr);
     if (s->err == 0) {
         dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
-                s->ttl, (long unsigned int)s->time);
+            s->ttl, (long unsigned int)s->time);
         if (s->seq >= NUM_PING)
             exit(0);
     } else {
@@ -81,7 +81,7 @@ void app_ping(char *arg)
 
 #ifdef PICO_SUPPORT_IPV6
     else
-        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6);
+        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6, NULL);
 #endif
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);

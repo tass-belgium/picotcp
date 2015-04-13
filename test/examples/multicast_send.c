@@ -80,13 +80,13 @@ void app_mcastsend(char *arg)
     picoapp_dbg("\n%s: mcastsend started. Sending packets to %08X:%u\n\n", __FUNCTION__, long_be(inaddr_mcast.addr), short_be(sendto_port));
 
     /* udpclient:dest_addr:sendto_port[:listen_port:datasize:loops:subloops] */
-    new_arg = calloc(1, strlen(maddr) + 1 + strlen(sport) + 1 + strlen(lport) + strlen(":64:10:5") + 1);
+    new_arg = calloc(1, strlen(maddr) + 1 + strlen(sport) + 1 + strlen(lport) + strlen(":64:10:5:") + 1);
     p = strcat(new_arg, maddr);
     p = strcat(p + strlen(maddr), ":");
     p = strcat(p + 1, sport);
     p = strcat(p + strlen(sport), ":");
     p = strcat(p + 1, lport);
-    p = strcat(p + strlen(lport), ":64:10:5");
+    p = strcat(p + strlen(lport), ":64:10:5:");
 
     app_udpclient(new_arg);
 

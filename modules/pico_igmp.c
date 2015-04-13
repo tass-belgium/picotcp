@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    RFC 1112, 2236, 3376, 3569, 3678, 4607
@@ -19,7 +19,7 @@
 #include "pico_socket.h"
 
 #define igmp_dbg(...) do {} while(0)
-//#define igmp_dbg dbg
+/* #define igmp_dbg dbg */
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER             (0x0)

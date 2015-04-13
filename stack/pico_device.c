@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -50,33 +50,47 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     pico_icmp6_router_solicitation(dev, linklocal);
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
+
+struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
+{
+    struct pico_ip6 newaddr;
+    struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    struct pico_ipv6_link *link;
+    memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
+    /* modified EUI-64 + invert universal/local bit */
+    newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
+    newaddr.addr[9] = dev->eth->mac.addr[1];
+    newaddr.addr[10] = dev->eth->mac.addr[2];
+    newaddr.addr[11] = 0xff;
+    newaddr.addr[12] = 0xfe;
+    newaddr.addr[13] = dev->eth->mac.addr[3];
+    newaddr.addr[14] = dev->eth->mac.addr[4];
+    newaddr.addr[15] = dev->eth->mac.addr[5];
+    link = pico_ipv6_link_add(dev, newaddr, netmask64);
+    if (link) {
+        device_init_ipv6_final(dev, &newaddr);
+    }
+
+    return link;
+}
 #endif
 
 static int device_init_mac(struct pico_device *dev, uint8_t *mac)
 {
     #ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
-    struct pico_ip6 netmask6 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     #endif
     dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
     if (dev->eth) {
         memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
         #ifdef PICO_SUPPORT_IPV6
-        /* modified EUI-64 + invert universal/local bit */
-        linklocal.addr[8] = (mac[0] ^ 0x02);
-        linklocal.addr[9] = mac[1];
-        linklocal.addr[10] = mac[2];
-        linklocal.addr[13] = mac[3];
-        linklocal.addr[14] = mac[4];
-        linklocal.addr[15] = mac[5];
-        if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
+        if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
             PICO_FREE(dev->q_in);
             PICO_FREE(dev->q_out);
             PICO_FREE(dev->eth);
             return -1;
         }
 
-        device_init_ipv6_final(dev, &linklocal);
         #endif
     } else {
         pico_err = PICO_ERR_ENOMEM;
@@ -86,7 +100,7 @@ static int device_init_mac(struct pico_device *dev, uint8_t *mac)
     return 0;
 }
 
-static int device_init_nomac(struct pico_device *dev)
+int pico_device_ipv6_random_ll(struct pico_device *dev)
 {
     #ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
@@ -108,14 +122,23 @@ static int device_init_nomac(struct pico_device *dev)
             pico_rand_feed(dev->hash);
         } while (pico_ipv6_link_get(&linklocal));
 
-        if (pico_ipv6_link_add(dev, linklocal, netmask6)) {
-            PICO_FREE(dev->q_in);
-            PICO_FREE(dev->q_out);
+        if (pico_ipv6_link_add(dev, linklocal, netmask6) == NULL) {
             return -1;
         }
     }
 
     #endif
+    return 0;
+}
+
+static int device_init_nomac(struct pico_device *dev)
+{
+    if (pico_device_ipv6_random_ll(dev) < 0) {
+        PICO_FREE(dev->q_in);
+        PICO_FREE(dev->q_out);
+        return -1;
+    }
+
     dev->eth = NULL;
     return 0;
 }
@@ -134,18 +157,25 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
-    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
-    if (!dev->q_in || !dev->q_out)
+    if (!dev->q_in)
         return -1;
+
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_out) {
+        PICO_FREE(dev->q_in);
+        return -1;
+    }
 
     pico_tree_insert(&Device_tree, dev);
     if (!dev->mtu)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
+
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
         ret = device_init_nomac(dev);
     }
+
     return ret;
 }
 
@@ -176,8 +206,6 @@ void pico_device_destroy(struct pico_device *dev)
 #endif
     pico_tree_delete(&Device_tree, dev);
 
-
-    pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     PICO_FREE(dev);
@@ -254,8 +282,9 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             f = pico_dequeue(dev->q_out);
             pico_frame_discard(f); /* SINGLE POINT OF DISCARD for OUTGOING FRAMES */
             loop_score--;
-        } else 
+        } else
             break; /* Don't discard */
+
     }
     return loop_score;
 }
@@ -374,5 +403,6 @@ int pico_device_link_state(struct pico_device *dev)
 {
     if (!dev->link_state)
         return 1; /* Not supported, assuming link is always up */
+
     return dev->link_state(dev);
 }

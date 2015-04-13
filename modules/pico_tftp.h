@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -50,7 +50,7 @@
 
 struct pico_tftp_session;
 
-struct pico_tftp_session * pico_tftp_session_setup(union pico_address *a, uint16_t family);
+struct pico_tftp_session *pico_tftp_session_setup(union pico_address *a, uint16_t family);
 int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, int32_t value);
 int pico_tftp_get_option(struct pico_tftp_session *session, uint8_t type, int32_t *value);
 
@@ -72,7 +72,7 @@ int pico_tftp_close_server(void);
 int pico_tftp_get_file_size(struct pico_tftp_session *session, int32_t *file_size);
 
 /* SPECIFIC APPLICATION DRIVEN FUNCTIONS */
-struct pico_tftp_session * pico_tftp_app_setup(union pico_address *a, uint16_t port, uint16_t family, int *synchro);
+struct pico_tftp_session *pico_tftp_app_setup(union pico_address *a, uint16_t port, uint16_t family, int *synchro);
 
 int pico_tftp_app_start_rx(struct pico_tftp_session *session, const char *filename);
 int pico_tftp_app_start_tx(struct pico_tftp_session *session, const char *filename);

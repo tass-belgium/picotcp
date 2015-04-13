@@ -4,7 +4,7 @@
 
    .
 
-  Author: Daniele Lacamera <daniele.lacamera@altran.com>
+   Author: Daniele Lacamera <daniele.lacamera@altran.com>
  *********************************************************************/
 #ifndef PICO_AODV_H_
 #define PICO_AODV_H_
@@ -95,7 +95,7 @@ struct pico_aodv_node
     union pico_address dest;
     pico_time last_seen;
     pico_time fwd_time;
-    uint32_t dseq;  
+    uint32_t dseq;
     uint16_t flags;
     uint8_t metric;
     uint8_t ring_ttl;

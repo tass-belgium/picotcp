@@ -3,13 +3,10 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
-#ifndef INCLUDE_PICO_TUN
-#define INCLUDE_PICO_TUN
-#include "pico_config.h"
-#include "pico_device.h"
+#ifndef _INCLUDE_PICO_CORTEX_M
+#define _INCLUDE_PICO_CORTEX_M
 
-void pico_tun_destroy(struct pico_device *tun);
-struct pico_device *pico_tun_create(char *name);
+#include "pico_generic_gcc.h"
 
-#endif
+#endif  /* PICO_CORTEX_M */
 

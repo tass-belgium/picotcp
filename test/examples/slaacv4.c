@@ -10,7 +10,7 @@ void ping_callback_slaacv4(struct pico_icmp4_stats *s)
     pico_ipv4_to_string(host, s->dst.addr);
     if (s->err == 0) {
         dbg("SLAACV4: %lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host,
-                s->seq, (long unsigned int)s->time);
+            s->seq, (long unsigned int)s->time);
         if (s->seq >= 3) {
             dbg("SLAACV4: TEST SUCCESS!\n");
             pico_slaacv4_unregisterip();

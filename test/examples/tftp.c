@@ -11,7 +11,7 @@
 /* Let's use linux fs */
 #include <fcntl.h>
 
-#include<ctype.h>
+#include <ctype.h>
 
 /*** START TFTP ***/
 #ifdef PICO_SUPPORT_TFTP
@@ -40,7 +40,7 @@ struct note_t {
 
 struct note_t *clipboard = NULL;
 
-struct note_t * add_note(const char *filename, int fd, char direction)
+struct note_t *add_note(const char *filename, int fd, char direction)
 {
     struct note_t *note = PICO_ZALLOC(sizeof(struct note_t));
 
@@ -65,13 +65,12 @@ void del_note(struct note_t *note)
                 prev->next = note->next;
                 break;
             }
-        }
-    free(note->filename);
-    free(note);
+
+    }
 }
 
-struct command_t * add_command(struct command_t * commands, char operation,
-                               char *filename, union pico_address *server_address)
+struct command_t *add_command(struct command_t *commands, char operation,
+                              char *filename, union pico_address *server_address)
 {
     struct command_t *command = PICO_ZALLOC(sizeof(struct command_t));
 
@@ -90,20 +89,22 @@ int32_t get_filesize(const char *filename)
     ret = stat(filename, &buf);
     if (ret)
         return -1;
+
     return buf.st_size;
 }
 
-struct note_t * setup_transfer(char operation, const char *filename)
+struct note_t *setup_transfer(char operation, const char *filename)
 {
     int fd;
 
     printf("operation %c\n", operation);
-    fd = open(filename, (toupper(operation) == 'T')? O_RDONLY: O_WRONLY | O_EXCL | O_CREAT, 0666);
+    fd = open(filename, (toupper(operation) == 'T') ? O_RDONLY : O_WRONLY | O_EXCL | O_CREAT, 0666);
     if (fd < 0) {
         perror("open");
         fprintf(stderr, "Unable to handle file %s\n", filename);
         return NULL;
     }
+
     return add_note(filename, fd, operation);
 }
 
@@ -150,6 +151,7 @@ int cb_tftp_tx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *b
             printf("TFTP: Option filesize is not used\n");
         else
             printf("TFTP: We expect to transmit %" PRId32 " bytes\n", filesize);
+
         event = PICO_TFTP_EV_OK;
     }
 
@@ -165,6 +167,9 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         fprintf(stderr, "TFTP: Error %" PRIu16 ": %s\n", event, block);
         exit(1);
     }
+
+    if (!note)
+        return 0;
 
     note->filesize += len;
     if (write(note->fd, block, len) < 0) {
@@ -204,19 +209,20 @@ int cb_tftp_rx_opt(struct pico_tftp_session *session, uint16_t event, uint8_t *b
     return cb_tftp_rx(session, event, block, len, arg);
 }
 
-struct pico_tftp_session * make_session_or_die(union pico_address *addr, uint16_t family)
+struct pico_tftp_session *make_session_or_die(union pico_address *addr, uint16_t family)
 {
-    struct pico_tftp_session * session;
+    struct pico_tftp_session *session;
 
     session = pico_tftp_session_setup(addr, family);
     if (!session) {
         fprintf(stderr, "TFTP: Error in session setup\n");
         exit(3);
     }
+
     return session;
 }
 
-struct note_t * transfer_prepare(struct pico_tftp_session ** psession, char operation, const char *filename, union pico_address *addr, uint16_t family)
+struct note_t *transfer_prepare(struct pico_tftp_session **psession, char operation, const char *filename, union pico_address *addr, uint16_t family)
 {
     struct note_t *note;
 
@@ -226,8 +232,8 @@ struct note_t * transfer_prepare(struct pico_tftp_session ** psession, char oper
 }
 
 void start_rx(struct pico_tftp_session *session, const char *filename, uint16_t port,
-    int (*rx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
-    struct note_t *note)
+              int (*rx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
+              struct note_t *note)
 {
     if (pico_tftp_start_rx(session, port, filename, rx_callback, note)) {
         fprintf(stderr, "TFTP: Error in initialization\n");
@@ -236,8 +242,8 @@ void start_rx(struct pico_tftp_session *session, const char *filename, uint16_t 
 }
 
 void start_tx(struct pico_tftp_session *session, const char *filename, uint16_t port,
-    int (*tx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
-    struct note_t *note)
+              int (*tx_callback)(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg),
+              struct note_t *note)
 {
     if (pico_tftp_start_tx(session, port, filename, tx_callback, note)) {
         fprintf(stderr, "TFTP: Error in initialization\n");
@@ -283,12 +289,14 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
 
         if (options & PICO_TFTP_OPTION_TIME)
             pico_tftp_set_option(session, PICO_TFTP_OPTION_TIME, timeout);
+
         if (options & PICO_TFTP_OPTION_FILE) {
             ret = get_filesize(filename);
             if (ret < 0) {
                 pico_tftp_reject_request(addr, port, TFTP_ERR_ENOENT, "File not found");
                 return;
             }
+
             pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, ret);
         }
 
@@ -299,6 +307,7 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
         note = transfer_prepare(&session, 'R', filename, addr, family);
         if (options & PICO_TFTP_OPTION_TIME)
             pico_tftp_set_option(session, PICO_TFTP_OPTION_TIME, timeout);
+
         if (options & PICO_TFTP_OPTION_FILE)
             pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, filesize);
 
@@ -309,19 +318,19 @@ void tftp_listen_cb_opt(union pico_address *addr, uint16_t port, uint16_t opcode
 void print_usage(int exit_code)
 {
     printf("\nUsage: tftp:OPTION:[OPTION]...\n"
-            "\nOtions can be repeated. Every option may be one of the following:\n"
-            "\ts\t\t\t starts the basic server (RFC1350)\n"
-            "\tS\t\t\t starts the server with option handling capability\n"
-            "\tt:file:ip\t\t PUT request (without options) for file to server ip\n"
-            "\tT:file:ip\t\t PUT request for file to server ip\n"
-            "\tr:file:ip\t\t GET request (without options) for file to server ip\n"
-            "\tR:file:ip\t\t GET request for file to server ip\n"
-            "Example:\n"
-            "\t\t tftp:S:T:firstFile:10.40.0.2:R:another.file:10.40.0.5:T:secondFile:10.40.0.2\n\n");
+           "\nOtions can be repeated. Every option may be one of the following:\n"
+           "\ts\t\t\t starts the basic server (RFC1350)\n"
+           "\tS\t\t\t starts the server with option handling capability\n"
+           "\tt:file:ip\t\t PUT request (without options) for file to server ip\n"
+           "\tT:file:ip\t\t PUT request for file to server ip\n"
+           "\tr:file:ip\t\t GET request (without options) for file to server ip\n"
+           "\tR:file:ip\t\t GET request for file to server ip\n"
+           "Example:\n"
+           "\t\t tftp:S:T:firstFile:10.40.0.2:R:another.file:10.40.0.5:T:secondFile:10.40.0.2\n\n");
     exit(exit_code);
 }
 
-struct command_t * parse_arguments_recursive(struct command_t *commands, char *arg)
+struct command_t *parse_arguments_recursive(struct command_t *commands, char *arg)
 {
     char *next;
     char *operation;
@@ -347,11 +356,13 @@ struct command_t * parse_arguments_recursive(struct command_t *commands, char *a
             fprintf(stderr, "Incomplete client command %s (filename componet is missing)\n", arg);
             return NULL;
         }
+
         next = cpy_arg(&filename, next);
         if (!next) {
             fprintf(stderr, "Incomplete client command %s (address component is missing)\n", arg);
             return NULL;
         }
+
         next = cpy_arg(&address, next);
         if (!IPV6_MODE)
             ret = pico_string_to_ipv4(address, &remote_address.ip4.addr);
@@ -359,9 +370,10 @@ struct command_t * parse_arguments_recursive(struct command_t *commands, char *a
             ret = pico_string_to_ipv6(address, remote_address.ip6.addr);
 
         if (ret < 0) {
-                fprintf(stderr, "Invalid IP address %s\n", address);
-                print_usage(2);
-            }
+            fprintf(stderr, "Invalid IP address %s\n", address);
+            print_usage(2);
+        }
+
         break;
     default:
         fprintf(stderr, "Invalid command %s\n", operation);
@@ -371,7 +383,7 @@ struct command_t * parse_arguments_recursive(struct command_t *commands, char *a
     return parse_arguments_recursive(add_command(commands, *operation, filename, &remote_address), next);
 }
 
-struct command_t * parse_arguments(char *arg)
+struct command_t *parse_arguments(char *arg)
 {
     struct command_t *reversed = parse_arguments_recursive(NULL, arg);
     struct command_t *commands = NULL;
@@ -388,7 +400,6 @@ struct command_t * parse_arguments(char *arg)
         current->next = commands;
         commands = current;
     }
-
     return commands;
 }
 
@@ -400,7 +411,7 @@ void app_tftp(char *arg)
     int is_server_enabled = 0;
     int filesize;
 
-    family = IPV6_MODE? PICO_PROTO_IPV6: PICO_PROTO_IPV4;
+    family = IPV6_MODE ? PICO_PROTO_IPV6 : PICO_PROTO_IPV4;
 
     commands = parse_arguments(arg);
     while (commands) {
@@ -415,6 +426,7 @@ void app_tftp(char *arg)
                 pico_tftp_listen(PICO_PROTO_IPV4, (commands->operation == 'S') ? tftp_listen_cb_opt : tftp_listen_cb);
                 is_server_enabled = 1;
             }
+
             break;
         case 'T':
             filesize = get_filesize(commands->filename);
@@ -422,6 +434,7 @@ void app_tftp(char *arg)
                 fprintf(stderr, "TFTP: unable to read size of file %s\n", commands->filename);
                 exit(3);
             }
+
             pico_tftp_set_option(session, PICO_TFTP_OPTION_FILE, filesize);
             start_tx(session, commands->filename, short_be(PICO_TFTP_PORT), cb_tftp_tx_opt, note);
             break;

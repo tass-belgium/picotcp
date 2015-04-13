@@ -61,18 +61,18 @@ void pico_timer_cancel(struct pico_timer *t)
 
 /* TESTS */
 
-//START_TEST(tc_check_opcode)
-//{
-//    /* TODO: test this: static int check_opcode(struct pico_tftp_hdr *th) */
-//    struct pico_tftp_hdr th;
-//    th.opcode = 0;
-//    fail_unless(check_opcode(&th) == -1);
-//    th.opcode = short_be(PICO_TFTP_RRQ);
-//    fail_unless(check_opcode(&th) == 0);
-//    th.opcode = short_be(0xFF);
-//    fail_unless(check_opcode(&th) == -1);
-//}
-//END_TEST
+/* START_TEST(tc_check_opcode) */
+/* { */
+/*    / * TODO: test this: static int check_opcode(struct pico_tftp_hdr *th) * / */
+/*    struct pico_tftp_hdr th; */
+/*    th.opcode = 0; */
+/*    fail_unless(check_opcode(&th) == -1); */
+/*    th.opcode = short_be(PICO_TFTP_RRQ); */
+/*    fail_unless(check_opcode(&th) == 0); */
+/*    th.opcode = short_be(0xFF); */
+/*    fail_unless(check_opcode(&th) == -1); */
+/* } */
+/* END_TEST */
 
 
 START_TEST(tc_find_session_by_socket)
@@ -227,20 +227,20 @@ END_TEST
 
 START_TEST(tc_pico_tftp_abort)
 {
-//    int ret;
-//
-//    server.listen_socket = NULL;
+/*    int ret; */
+/*  */
+/*    server.listen_socket = NULL; */
 
     /*first case: no session and no listening socket*/
-//    ret = pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test");
-//    fail_if(ret != -1);
+/*    ret = pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test"); */
+/*    fail_if(ret != -1); */
     /*second case: no session but listening socket*/
-//    server.listen_socket = example_session.socket = &example_socket;
-//    pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test");
-//    fail_if(ret != -1);
+/*    server.listen_socket = example_session.socket = &example_socket; */
+/*    pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test"); */
+/*    fail_if(ret != -1); */
     /*tirdh case: session non into list*/
-//    ret = pico_tftp_abort(&example_session, TFTP_ERR_EUSR, "test");
-//    fail_if(ret != -1);
+/*    ret = pico_tftp_abort(&example_session, TFTP_ERR_EUSR, "test"); */
+/*    fail_if(ret != -1); */
 }
 END_TEST
 
@@ -297,7 +297,7 @@ Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
-//    TCase *TCase_check_opcode = tcase_create("Unit test for check_opcode");
+/*    TCase *TCase_check_opcode = tcase_create("Unit test for check_opcode"); */
     TCase *TCase_find_session_by_socket = tcase_create("Unit test for find_session_by_socket");
     TCase *TCase_tftp_finish = tcase_create("Unit test for tftp_finish");
     TCase *TCase_tftp_send_ack = tcase_create("Unit test for tftp_send_ack");
@@ -318,8 +318,8 @@ Suite *pico_suite(void)
     TCase *TCase_tftp_socket_open = tcase_create("Unit test for tftp_socket_open");
 
 
-//    tcase_add_test(TCase_check_opcode, tc_check_opcode);
-//    suite_add_tcase(s, TCase_check_opcode);
+/*    tcase_add_test(TCase_check_opcode, tc_check_opcode); */
+/*    suite_add_tcase(s, TCase_check_opcode); */
     tcase_add_test(TCase_find_session_by_socket, tc_find_session_by_socket);
     suite_add_tcase(s, TCase_find_session_by_socket);
     tcase_add_test(TCase_tftp_finish, tc_tftp_finish);

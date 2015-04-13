@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -29,18 +29,23 @@ int pico_ipv4_nat_is_enabled(struct pico_ip4 *link_addr);
 #define pico_ipv4_nat_print_table() do {} while(0)
 static inline int pico_ipv4_nat_inbound(struct pico_frame *f, struct pico_ip4 *link_addr)
 {
+    (void)f;
+    (void)link_addr;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 static inline int pico_ipv4_nat_outbound(struct pico_frame *f, struct pico_ip4 *link_addr)
 {
+    (void)f;
+    (void)link_addr;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 static inline int pico_ipv4_nat_enable(struct pico_ipv4_link *link)
 {
+    (void)link;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
@@ -53,18 +58,29 @@ static inline int pico_ipv4_nat_disable(void)
 
 static inline int pico_ipv4_nat_is_enabled(struct pico_ip4 *link_addr)
 {
+    (void)link_addr;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 static inline int pico_ipv4_nat_find(uint16_t nat_port, struct pico_ip4 *src_addr, uint16_t src_port, uint8_t proto)
 {
+    (void)nat_port;
+    (void)src_addr;
+    (void)src_port;
+    (void)proto;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 static inline int pico_ipv4_port_forward(struct pico_ip4 nat_addr, uint16_t nat_port, struct pico_ip4 src_addr, uint16_t src_port, uint8_t proto, uint8_t flag)
 {
+    (void)nat_addr;
+    (void)nat_port;
+    (void)src_addr;
+    (void)src_port;
+    (void)proto;
+    (void)flag;
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
