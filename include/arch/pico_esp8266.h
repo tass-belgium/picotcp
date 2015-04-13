@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2014 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2014-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
