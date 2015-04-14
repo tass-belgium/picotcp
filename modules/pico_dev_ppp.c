@@ -951,6 +951,18 @@ static void pico_ppp_tick(pico_time now, void *arg)
     pico_timer_add(1000, pico_ppp_tick, ppp);
 }
 
+void pico_ppp_destroy(struct pico_device *ppp)
+{
+    if (!ppp)
+        return;
+
+    /* Perform custom cleanup here before calling 'pico_device_destroy'
+     * or register a custom cleanup function during initialization
+     * by setting 'ppp->dev.destroy'. */
+
+    pico_device_destroy(ppp);
+}
+
 struct pico_device *pico_ppp_create(void)
 {
     struct pico_device_ppp *ppp = PICO_ZALLOC(sizeof(struct pico_device_ppp));
@@ -978,8 +990,19 @@ struct pico_device *pico_ppp_create(void)
     LCPOPT_SET_LOCAL(ppp, LCPOPT_ADDRCTL_COMP);
 
     dbg("Device %s created.\n", ppp->dev.name);
-    pico_timer_add(500, pico_ppp_tick, ppp);
     return (struct pico_device *)ppp;
+}
+
+int pico_ppp_connect(struct pico_device *dev)
+{
+    struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    pico_timer_add(500, pico_ppp_tick, ppp);
+}
+
+int pico_ppp_disconnect(struct pico_device *dev, void (*disconnect_cb)(void *), void *arg)
+{
+    disconnect_cb(arg);
 }
 
 int pico_ppp_set_serial_read(struct pico_device *dev, int (*sread)(struct pico_device *, void *, int))

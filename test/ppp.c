@@ -13,6 +13,7 @@
 static int fd = -1;
 static int idx;
 static int ping_on = 0;
+static int disconnected = 0;
 
 int modem_read(struct pico_device *dev, void *data, int len)
 {
@@ -83,8 +84,18 @@ static void ping(void)
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, cb_sock);
     pico_socket_connect(s, &dst, short_be(80));
     pico_icmp4_ping("80.68.95.85", 10, 1000, 4000, 8, cb_ping);
+}
 
+static void disconnect_cb(void *arg)
+{
+    disconnected = 1;
+}
 
+static void timer(pico_time now, void *arg)
+{
+    struct pico_device *dev = (struct pico_device *)arg;
+
+    pico_ppp_disconnect(dev, disconnect_cb, NULL);
 }
 
 int main(int argc, const char *argv[])
@@ -120,12 +131,18 @@ int main(int argc, const char *argv[])
     pico_ppp_set_apn(dev, apn);
     pico_ppp_set_password(dev, passwd);
 
-    while(1) {
+    pico_ppp_connect(dev);
+
+    while(!disconnected) {
         pico_stack_tick();
         usleep(1000);
         if (dev->link_state(dev) && !ping_on) {
             ping_on++;
             ping();
+            pico_timer_add(60 * 1000, timer, dev);
         }
     }
+
+    pico_ppp_destroy(dev);
+
 }
