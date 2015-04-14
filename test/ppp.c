@@ -7,6 +7,8 @@
 #include <pico_socket.h>
 #define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
+#define APN "gprs.base.be"
+#define PASSWD "base"
 //#define DEBUG_FLOW 
 static int fd = -1;
 static int idx;
@@ -89,8 +91,16 @@ int main(int argc, const char *argv[])
 {
     struct pico_device *dev;
     const char *path = MODEM;
+    const char *apn = APN;
+    const char *passwd = PASSWD;
+
     if (argv[1])
         path = argv[1];
+    if (argv[2])
+        apn = argv[2];
+    if (argv[3])
+        passwd = argv[3];
+
     fd = open(path, O_RDWR);
     if (fd < 0)
         return 1;
@@ -106,6 +116,9 @@ int main(int argc, const char *argv[])
     pico_ppp_set_serial_read(dev, modem_read);
     pico_ppp_set_serial_write(dev, modem_write);
     pico_ppp_set_serial_set_speed(dev, modem_set_speed);
+
+    pico_ppp_set_apn(dev, apn);
+    pico_ppp_set_password(dev, passwd);
 
     while(1) {
         pico_stack_tick();

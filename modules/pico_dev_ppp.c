@@ -971,8 +971,6 @@ struct pico_device *pico_ppp_create(void)
     ppp->dev.poll = pico_ppp_poll;
     ppp->dev.link_state  = pico_ppp_link_state;
     ppp->frame_id = (uint8_t)(pico_rand() % 0xFF);
-    strcpy(ppp->apn, "web.be");
-    strcpy(ppp->password, "web");
 
     LCPOPT_SET_LOCAL(ppp, LCPOPT_MRU);
     LCPOPT_SET_LOCAL(ppp, LCPOPT_AUTH); /* We support authentication, even if it's not part of the req */
@@ -984,23 +982,77 @@ struct pico_device *pico_ppp_create(void)
     return (struct pico_device *)ppp;
 }
 
-void pico_ppp_set_serial_read(struct pico_device *dev, int (*sread)(struct pico_device *, void *, int))
+int pico_ppp_set_serial_read(struct pico_device *dev, int (*sread)(struct pico_device *, void *, int))
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
     ppp->serial_recv = sread;
-    
-
+    return 0;
 }
 
-void pico_ppp_set_serial_write(struct pico_device *dev, int (*swrite)(struct pico_device *, const void *, int))
+int pico_ppp_set_serial_write(struct pico_device *dev, int (*swrite)(struct pico_device *, const void *, int))
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
     ppp->serial_send = swrite;
-
+    return 0;
 }
 
-void pico_ppp_set_serial_set_speed(struct pico_device *dev, int (*sspeed)(struct pico_device *, uint32_t))
+int pico_ppp_set_serial_set_speed(struct pico_device *dev, int (*sspeed)(struct pico_device *, uint32_t))
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
     ppp->serial_set_speed = sspeed;
+    return 0;
+}
+
+int pico_ppp_set_apn(struct pico_device *dev, const char *apn)
+{
+    struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
+    if (!apn)
+        return -1;
+
+    strncpy(ppp->apn, apn, sizeof(ppp->apn) - 1);
+    return 0;
+}
+
+int pico_ppp_set_username(struct pico_device *dev, const char *username)
+{
+    struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
+    if (!username)
+        return -1;
+
+    strncpy(ppp->username, username, sizeof(ppp->username) - 1);
+    return 0;
+}
+
+int pico_ppp_set_password(struct pico_device *dev, const char *password)
+{
+    struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
+
+    if (!dev)
+        return -1;
+
+    if (!password)
+        return -1;
+
+    strncpy(ppp->password, password, sizeof(ppp->password) - 1);
+    return 0;
 }
