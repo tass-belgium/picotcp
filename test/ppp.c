@@ -105,11 +105,11 @@ int main(int argc, const char *argv[])
     const char *apn = APN;
     const char *passwd = PASSWD;
 
-    if (argv[1])
+    if (argc > 1)
         path = argv[1];
-    if (argv[2])
+    if (argc > 2)
         apn = argv[2];
-    if (argv[3])
+    if (argc > 3)
         passwd = argv[3];
 
     fd = open(path, O_RDWR);
