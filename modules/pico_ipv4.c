@@ -105,7 +105,7 @@ static int pico_string_check_null_args(const char *ipstr, uint32_t *ip)
 
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
 {
-    unsigned char buf[4] = {
+    unsigned char buf[PICO_SIZE_IP4] = {
         0
     };
     int cnt = 0;
@@ -114,8 +114,7 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     if (pico_string_check_null_args(ipstr, ip) < 0)
         return -1;
 
-
-    while((p = *ipstr++) != 0)
+    while((p = *ipstr++) != 0 && cnt < PICO_SIZE_IP4)
     {
         if (pico_is_digit(p)) {
             buf[cnt] = (uint8_t)((10 * buf[cnt]) + (p - '0'));
@@ -141,7 +140,6 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     *ip = long_from(buf);
 
     return 0;
-
 }
 
 int pico_ipv4_valid_netmask(uint32_t mask)
