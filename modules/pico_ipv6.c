@@ -16,6 +16,7 @@
 #include "pico_socket.h"
 #include "pico_device.h"
 #include "pico_tree.h"
+#include "pico_fragments.h"
 
 #ifdef PICO_SUPPORT_IPV6
 
@@ -552,9 +553,10 @@ int pico_ipv6_process_routing(struct pico_ipv6_exthdr *routing, struct pico_fram
     return 0;
 }
 
+#define IP6FRAG_MORE(x) ((x & 0x0001))
+#if 0
 
 #define IP6FRAG_OFF(x) ((x & 0xFFF8))
-#define IP6FRAG_MORE(x) ((x & 0x0001))
 
 static int pico_ipv6_frag_compare(void *ka, void *kb)
 {
@@ -697,6 +699,7 @@ static void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_fr
 
     pico_ipv6_fragments_check_complete(proto);
 }
+#endif
 
 static int pico_ipv6_process_destopt(struct pico_ipv6_exthdr *destopt, struct pico_frame *f, uint32_t opt_ptr)
 {

@@ -21,6 +21,7 @@
 #include "pico_tree.h"
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
+#include "pico_fragments.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -237,6 +238,7 @@ static int pico_ipv4_checksum(struct pico_frame *f)
     return 0;
 }
 
+#if 0 // frag_dev
 #ifdef PICO_SUPPORT_IPFRAG
 struct pico_ipv4_fragmented_packet {
     uint16_t id;
@@ -538,6 +540,7 @@ static inline int8_t pico_ipv4_fragmented_check(struct pico_protocol *self, stru
     return 1;
 }
 #endif /* PICO_SUPPORT_IPFRAG */
+#endif
 
 #ifdef PICO_SUPPORT_CRC
 static inline int pico_ipv4_crc_check(struct pico_frame *f)
@@ -682,6 +685,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint8_t option_len = 0;
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    (void)self;
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
@@ -705,8 +709,36 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     ret = pico_ipv4_crc_check(f);
     if (ret < 1)
         return ret;
-
+#if 0   // frag_dev                                                                             
     ret = pico_ipv4_fragmented_check(self, &f);
+#else
+#ifdef PICO_SUPPORT_IPFRAG
+
+    uint16_t offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
+    
+#define IPFRAG_OFF(frag)  ((frag & 0xFFF8))
+#define IPFRAG_MORE(frag) ((frag & 0x0001))
+
+#define PICO_IPV4_DONTFRAG 0x4000
+#define PICO_IPV4_MOREFRAG 0x2000
+#define PICO_IPV4_FRAG_MASK 0x1FFF
+
+    
+printf("[LUM:%s:%d] PICO_SUPPORT_IPFRAG offset:%d frag:0x%X short_be(hdr->frag):0x%X myoffset:%d mymore:%d \n",__FILE__,__LINE__,offset,hdr->frag,short_be(hdr->frag),IPFRAG_OFF(hdr->frag),IPFRAG_MORE(hdr->frag));
+    if ((short_be(hdr->frag) & PICO_IPV4_MOREFRAG) || offset) 
+    {
+printf("[LUM:%s:%d] frame with more fragments detected offset:%d\n",__FILE__,__LINE__,offset);
+        ret = pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto: 0 );
+    } 
+    else 
+    {
+printf("[LUM:%s:%d] packet is not fragmented \n",__FILE__,__LINE__);
+        ret = 1;
+    }
+#else
+    ret = 1;
+#endif
+#endif
     if (ret < 1)
         return ret;
 
