@@ -262,9 +262,9 @@ test: posix
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
-	@gcc -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
+	@gcc -g -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
 	@echo -e "\t[LD] $@"
-	@$(CC) -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
+	@$(CC) -g -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
 	
