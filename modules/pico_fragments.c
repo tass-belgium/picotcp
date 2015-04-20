@@ -45,7 +45,6 @@ typedef struct
 //    PICO_TREE_DECLARE(holes, hole_compare); // this macro contains an initialisation to a global variable: can not use it here 
     struct pico_tree    holes;
  
-    uint16_t            hdrsize;
     struct pico_frame * frame;
     pico_time           expire;
 }pico_fragment_t;
@@ -91,6 +90,7 @@ static struct pico_timer*      pico_fragment_timer = NULL;
 
 extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
 {
+    int retval = 0;
     if(exthdr && f)
     {
         // does the fragment already has its fragment tree?
@@ -121,8 +121,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
                 }
                 // todo: copy exthdr and clear frag options
                 // copy hdrs and options
-                fragment->hdrsize = PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR;
-                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,fragment->hdrsize);
+                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
 
                 fragment->frag_id = IP6FRAG_ID(exthdr);
                 fragment->proto = proto;
@@ -137,9 +136,12 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         }
         if(fragment)
         {
-            pico_fragment_arrived(fragment, f, IP6FRAG_OFF(f->frag), IP6FRAG_MORE(f->frag) );
-            pico_frame_discard(f);
-            f=NULL;
+            retval = pico_fragment_arrived(fragment, f, IP6FRAG_OFF(f->frag), IP6FRAG_MORE(f->frag) );
+            if(retval < 1)
+            {
+                pico_frame_discard(f);
+                f=NULL;
+            }
         }
     }
 }
@@ -200,8 +202,7 @@ printf("[LUM:%s:%d] Searching for frag_id:0x%X proto:%d(%s): %s \n",
                     //fragment->start_payload = PICO_SIZE_IP4HDR;
                 }
                 //TODO: copy ext + clear frag options
-                fragment->hdrsize =  PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR;
-                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,fragment->hdrsize);
+                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
 
                 fragment->frag_id = key.frag_id; //short_be(IP4FRAG_ID(hdr));
                 fragment->proto = proto;
@@ -373,6 +374,7 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
     struct pico_tree_node *idx=NULL;
     struct pico_tree_node *tmp=NULL;
 
+printf("[LUM:%s%d] inside pico_ip_frag_expired \n");
     pico_tree_foreach_safe(idx, &pico_fragments, tmp) 
     {
         fragment = idx->keyValue;
@@ -464,12 +466,12 @@ printf("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last)
             pico_hole_t *hole = pico_hole_alloc((uint16_t)0,(uint16_t)INFINITY);
             if(hole)
             {
-printf("[LUM:%s:%d] first fragment of packet arrived \n",__FILE__,__LINE__);
                 pico_tree_insert(&fragment->holes,hole);
             }
             if(pico_fragment_timer == NULL)
             {
                 pico_fragment_timer = pico_timer_add(1000, /*cleanup expired fragments every sec*/ pico_ip_frag_expired, NULL);
+printf("[LUM:%s:%d] added timer %p \n",__FILE__,__LINE__,pico_fragment_timer);
             }
             fragment->expire = PICO_TIME_MS() + PICO_IP_FRAG_TIMEOUT;  // fragment expires when the packet is not complete after timeout
         }

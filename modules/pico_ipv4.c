@@ -488,6 +488,7 @@ static inline int8_t fragmented_check_is_lastfrag(struct pico_frame **f)
         hdr = (struct pico_ipv4_hdr *)f_new->net_hdr;
         hdr->len = frag_len;
         hdr->frag = 0; /* flags cleared and no offset */
+printf("[LUM:%s%d] hdr->frag = 0 \n",__FILE__,__LINE__);        
         hdr->crc = 0;
         hdr->crc = short_be(pico_checksum(hdr, f_new->net_len));
         /* Optional, the UDP/TCP CRC should already be correct */
@@ -714,27 +715,29 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
 #else
 #ifdef PICO_SUPPORT_IPFRAG
 
-    uint16_t offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
-    
-#define IPFRAG_OFF(frag)  ((frag & 0xFFF8))
-#define IPFRAG_MORE(frag) ((frag & 0x0001))
-
-#define PICO_IPV4_DONTFRAG 0x4000
-#define PICO_IPV4_MOREFRAG 0x2000
-#define PICO_IPV4_FRAG_MASK 0x1FFF
-
-    
-printf("[LUM:%s:%d] PICO_SUPPORT_IPFRAG offset:%d frag:0x%X short_be(hdr->frag):0x%X myoffset:%d mymore:%d \n",__FILE__,__LINE__,offset,hdr->frag,short_be(hdr->frag),IPFRAG_OFF(hdr->frag),IPFRAG_MORE(hdr->frag));
-    if ((short_be(hdr->frag) & PICO_IPV4_MOREFRAG) || offset) 
-    {
-printf("[LUM:%s:%d] frame with more fragments detected offset:%d\n",__FILE__,__LINE__,offset);
+//    uint16_t offset = short_be(hdr->frag) & PICO_IPV4_FRAG_MASK;
+//    
+//    #define IPFRAG_OFF(frag)  ((frag & 0xFFF8))
+//    #define IPFRAG_MORE(frag) ((frag & 0x0001))
+//
+//    #define PICO_IPV4_DONTFRAG 0x4000
+//    #define PICO_IPV4_MOREFRAG 0x2000
+//    #define PICO_IPV4_FRAG_MASK 0x1FFF
+//
+//    printf("[LUM:%s:%d] PICO_SUPPORT_IPFRAG offset:%d frag:0x%X short_be(hdr->frag):0x%X myoffset:%d mymore:%d \n",__FILE__,__LINE__,offset,hdr->frag,short_be(hdr->frag),IPFRAG_OFF(hdr->frag),IPFRAG_MORE(hdr->frag));
+//    printf("[LUM:%s:%d] PICO_SUPPORT_IPFRAG hdr->frag:0x%X f->frag:0x%X \n",__FILE__,__LINE__,hdr->frag,f->frag);
+//
+//    if ((short_be(hdr->frag) & PICO_IPV4_MOREFRAG) || offset) 
+//    {
+//        printf("[LUM:%s:%d] frame with more fragments detected offset:%d\n",__FILE__,__LINE__,offset);
         ret = pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto: 0 );
-    } 
-    else 
-    {
-printf("[LUM:%s:%d] packet is not fragmented \n",__FILE__,__LINE__);
-        ret = 1;
-    }
+//    } 
+//    else 
+//    {
+//        //printf("[LUM:%s:%d] packet is not fragmented \n",__FILE__,__LINE__);
+//        ret = 1;
+//    }
+
 #else
     ret = 1;
 #endif
@@ -747,6 +750,7 @@ printf("[LUM:%s:%d] packet is not fragmented \n",__FILE__,__LINE__);
         pico_frame_discard(f);
         return 0;
     }
+printf("[LUM:%s%d] hdr->frag & 0x80  hdr->frag:0x%X\n",__FILE__,__LINE__,hdr->frag);        
 
     if (hdr->frag & 0x80) {
         (void)pico_icmp4_param_problem(f, 0);
@@ -1301,6 +1305,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
+printf("[LUM:%s%d] f->frag:0x%X PICO_IPV4_MOREFRAG:0x%X\n",__FILE__,__LINE__,f->frag,PICO_IPV4_MOREFRAG);        
     if ((f->transport_hdr != f->payload)  &&
 #ifdef PICO_SUPPORT_IPFRAG
         (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
@@ -1319,6 +1324,10 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     hdr->tos = f->send_tos;
     hdr->proto = proto;
     hdr->frag = short_be(PICO_IPV4_DONTFRAG);
+
+printf("[LUM:%s%d] hdr->id:0x%X  short_be(hdr->id):0x%X\n",__FILE__,__LINE__,hdr->id,short_be(hdr->id));        
+printf("[LUM:%s%d] hdr->frag:0x%X short_be(hdr->frag):0x%X\n",__FILE__,__LINE__,hdr->frag,short_be(hdr->frag));        
+    
 #ifdef PICO_SUPPORT_IPFRAG
 #  ifdef PICO_SUPPORT_UDP
     if (proto == PICO_PROTO_UDP) {
@@ -1327,11 +1336,24 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
             hdr->len = short_be((uint16_t)(f->payload_len + sizeof(struct pico_udp_hdr) + f->net_len));
 
         /* set fragmentation flags and offset calculated in socket layer */
+#if 1
         hdr->frag = f->frag;
+#else
+        hdr->frag = short_be(f->frag);
+#endif
+printf("[LUM:%s%d] hdr->frag:0x%X f->frag:0x%X\n",__FILE__,__LINE__,hdr->frag,f->frag);        
+        
     }
 
     if (proto == PICO_PROTO_ICMP4)
+    {
+#if 1
         hdr->frag = f->frag;
+#else
+        hdr->frag = short_be(f->frag);
+#endif
+printf("[LUM:%s%d] hdr->frag:0x%X f->frag:0x%X\n",__FILE__,__LINE__,hdr->frag,f->frag);        
+    }
 
 #   endif
 #endif /* PICO_SUPPORT_IPFRAG */
@@ -1709,11 +1731,18 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         }
 
         if (space + total_payload_written < len)
+        {
             fr->frag |= short_be(PICO_IPV4_MOREFRAG);
+printf("[LUM:%s%d] fr->frag |= short_be(PICO_IPV4_MOREFRAG); fr->frag:0x%X\n",__FILE__,__LINE__,fr->frag);        
+        }
         else
+        {
             fr->frag &= short_be(PICO_IPV4_FRAG_MASK);
+printf("[LUM:%s%d] fr->frag &= short_be(PICO_IPV4_FRAG_MASK); fr->frag:0x%X\n",__FILE__,__LINE__,fr->frag);        
+        }
 
         fr->frag |= short_be((uint16_t)((total_payload_written) >> 3u));
+printf("[LUM:%s%d] fr->frag |= short_be((uint16_t)((total_payload_written) >> 3u)); f->frag:0x%X total_payload_written:0x%X\n",__FILE__,__LINE__,fr->frag,total_payload_written);        
 
         memcpy(fr->transport_hdr, f->transport_hdr + total_payload_written, fr->transport_len);
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
