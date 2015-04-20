@@ -18,6 +18,7 @@
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
+#define PICO_MDNS_MAXBUF (1400)
 
 #define mdns_dbg(...) do {} while(0)
 /*#define mdns_dbg dbg*/
@@ -879,7 +880,7 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
 /* callback for UDP socket events */
 static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 {
-    char recvbuf[1400];
+    char *recvbuf;
     int pico_read = 0;
     struct pico_ip4 peer = {
         0
@@ -889,14 +890,18 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 
     /* process read event, data available */
     if (ev == PICO_SOCK_EV_RD) {
+        recvbuf = PICO_ZALLOC(PICO_MDNS_MAXBUF);
+        if (!recvbuf)
+            return;
         mdns_dbg("READ EVENT!\n");
         /* receive while data available in socket buffer */
-        while((pico_read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port)) > 0) {
+        while((pico_read = pico_socket_recvfrom(s, recvbuf, PICO_MDNS_MAXBUF, &peer, &port)) > 0) {
             /* if pico_socket_setoption is implemented, this check is not needed */
             pico_ipv4_to_string(host, peer.addr);
             mdns_dbg("Received data from %s:%u\n", host, short_be(port));
             pico_mdns_recv(recvbuf, pico_read, peer);
         }
+        PICO_FREE(recvbuf);
     }
     /* socket is closed */
     else if(ev == PICO_SOCK_EV_CLOSE) {
