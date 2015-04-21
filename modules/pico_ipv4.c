@@ -416,9 +416,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         pico_frame_discard(f);
         return 0;
     }
-printf("[LUM:%s%d]   short_be(hdr->frag):0x%X\n",__FILE__,__LINE__,short_be(hdr->frag));        
 
-//    if (hdr->frag & 0x80) {
     if (hdr->frag & short_be(PICO_IPV4_EVIL)) {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
@@ -972,7 +970,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
-printf("[LUM:%s%d] f->frag:0x%X more:%d\n",__FILE__,__LINE__,f->frag,(f->frag & PICO_IPV4_MOREFRAG)?1:0);        
     if ((f->transport_hdr != f->payload)  &&
 #ifdef PICO_SUPPORT_IPFRAG
         (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
@@ -992,9 +989,6 @@ printf("[LUM:%s%d] f->frag:0x%X more:%d\n",__FILE__,__LINE__,f->frag,(f->frag & 
     hdr->proto = proto;
     hdr->frag = short_be(PICO_IPV4_DONTFRAG);
 
-//printf("[LUM:%s%d] short_be(hdr->id):0x%X\n",__FILE__,__LINE__,short_be(hdr->id));        
-//printf("[LUM:%s%d] short_be(hdr->frag):0x%X\n",__FILE__,__LINE__,short_be(hdr->frag));        
-    
 #ifdef PICO_SUPPORT_IPFRAG
 #  ifdef PICO_SUPPORT_UDP
     if (proto == PICO_PROTO_UDP) {
@@ -1004,14 +998,11 @@ printf("[LUM:%s%d] f->frag:0x%X more:%d\n",__FILE__,__LINE__,f->frag,(f->frag & 
 
         /* set fragmentation flags and offset calculated in socket layer */
         hdr->frag = short_be(f->frag);
-//printf("[LUM:%s%d] short_be(hdr->frag):0x%X f->frag:0x%X\n",__FILE__,__LINE__,short_be(hdr->frag),f->frag);        
-        
     }
 
     if (proto == PICO_PROTO_ICMP4)
     {
         hdr->frag = short_be(f->frag);
-printf("[LUM:%s%d] short_be(hdr->frag):0x%X f->frag:0x%X\n",__FILE__,__LINE__,short_be(hdr->frag),f->frag);        
     }
 
 #   endif
@@ -1392,12 +1383,10 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (space + total_payload_written < len)
         {
             fr->frag |= PICO_IPV4_MOREFRAG;
-printf("[LUM:%s%d] fr->frag |= short_be(PICO_IPV4_MOREFRAG); fr->frag:0x%X\n",__FILE__,__LINE__,fr->frag);        
         }
         else
         {
             fr->frag &= PICO_IPV4_FRAG_MASK;
-printf("[LUM:%s%d] fr->frag &= short_be(PICO_IPV4_FRAG_MASK); fr->frag:0x%X\n",__FILE__,__LINE__,fr->frag);        
         }
 
         fr->frag |= (uint16_t)((total_payload_written) >> 3u);
