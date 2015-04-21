@@ -28,6 +28,11 @@
 
 #define PICO_IP_FRAG_TIMEOUT 60000
 
+#ifdef IPFRAG_DEBUG
+#  define frag_dbg  dbg
+#else
+# define frag_dbg(...) do{}while(0);
+#endif
 
 
 //PICO_IPV4_MTU
@@ -228,7 +233,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
         fragment = pico_tree_findKey( &pico_fragments,  &key); 
 
-printf("[LUM:%s:%d] Searching for frag_id:0x%X proto:%d(%s): %s \n",
+        frag_dbg("[LUM:%s:%d] Searching for frag_id:0x%X proto:%d(%s): %s \n",
                     __FILE__,__LINE__,
                     key.frag_id,
                     key.proto,
@@ -283,9 +288,6 @@ printf("[LUM:%s:%d] Searching for frag_id:0x%X proto:%d(%s): %s \n",
             uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
             uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag)) ? 1 : 0;
 
-//printf("[LUM:%s:%d] short_be(hdr->frag):0x%X\n",__FILE__,__LINE__,short_be(hdr->frag));
-//printf("[LUM:%s:%d] offset:%d more:%d\n",__FILE__,__LINE__,offset,more ? 1 : 0);
-
             retval = pico_fragment_arrived(fragment, f, offset, more);
             if(retval < 1)  // the original frame is re-used when retval ==1 , so dont discard here
             {
@@ -294,7 +296,6 @@ printf("[LUM:%s:%d] Searching for frag_id:0x%X proto:%d(%s): %s \n",
             }
         }
     }
-printf("[LUM:%s:%d] \n",__FILE__,__LINE__);
     return retval;
 }
 #endif
@@ -328,7 +329,7 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsiz
 
     if(fragment)
     {
-        struct pico_frame* frame  = pico_frame_alloc(/*exthdr_size +*/ bufsize + iphdrsize + (int)PICO_SIZE_ETHHDR);
+        struct pico_frame* frame  = pico_frame_alloc(/*exthdr_size +*/ bufsize + iphdrsize + (uint32_t)PICO_SIZE_ETHHDR);
         
         if(frame)
         {
@@ -336,8 +337,8 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsiz
             frame->net_hdr = frame->buffer + PICO_SIZE_ETHHDR;
             frame->net_len = iphdrsize;
             frame->transport_hdr = frame->net_hdr + iphdrsize;
-            frame->transport_len = (uint16_t)bufsize;
-            frame->len =  bufsize + iphdrsize;
+            frame->transport_len = bufsize;
+            frame->len =  (uint32_t)(bufsize + iphdrsize);
 
             fragment->frame = frame;
         }
@@ -437,14 +438,16 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
 
     (void)arg;
     pico_fragment_timer = NULL;  // timer expired
-printf("[LUM:%s%d] inside pico_ip_frag_expired \n",__FILE__,__LINE__);
+    frag_dbg("[LUM:%s%d] inside pico_ip_frag_expired \n",__FILE__,__LINE__);
+    
     pico_tree_foreach_safe(idx, &pico_fragments, tmp) 
     {
         fragment = idx->keyValue;
         if(fragment->expire < now)
         {
-//TODO notify ICMP
-printf("[LUM:%s%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
+            frag_dbg("[%s:%d]//TODO notify ICMP \n", ,__FILE__,__LINE__);
+            frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
+            
             pico_fragment_free(fragment);
             fragment=NULL;
         }
@@ -454,7 +457,7 @@ printf("[LUM:%s%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragme
         // once the timer is expired, it is removed from the queue
         // if there are still fragments in the tree, restart the timer
         pico_fragment_timer = pico_timer_add(1000, /*cleanup expired fragments every sec*/ pico_ip_frag_expired, NULL);
-printf("[LUM:%s:%d] added timer %p \n",__FILE__,__LINE__,pico_fragment_timer);
+        frag_dbg("[LUM:%s:%d] added timer %p \n",__FILE__,__LINE__,pico_fragment_timer);
     }
 }
 
@@ -471,19 +474,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
     if(fragment && frame)
     {
         pico_hole_t *first = pico_tree_first(&fragment->holes);
-//        uint32_t payload_offset = fragment->start_payload;
-
-printf("[LUM:%s:%d] offset:%d more:%d \n",__FILE__,__LINE__,offset,more);
         if(!more &&  (offset == 0))
         {
             // no need for reassemble packet
-//printf("[LUM:%s:%d] offset:%d more:%d  pico_fragment_arrived return 1 \n",__FILE__,__LINE__,offset,more);
             return 1;    // process orig packet
         }
-
-printf("[LUM:%s:%d] frame->buffer_len:%d frame->transport_len:%d\n",__FILE__,__LINE__,frame->buffer_len,frame->transport_len);
-printf("[LUM:%s:%d] fragment->frame->buffer_len:%d fragment->frame->transport_len:%d\n",__FILE__,__LINE__,fragment->frame->buffer_len,fragment->frame->transport_len);
-
 
         
         if(first == NULL)   /*first fragment of packet arrived*/
@@ -496,7 +491,6 @@ printf("[LUM:%s:%d] fragment->frame->buffer_len:%d fragment->frame->transport_le
             if(pico_fragment_timer == NULL)
             {
                 pico_fragment_timer = pico_timer_add(1000, /*cleanup expired fragments every sec*/ pico_ip_frag_expired, NULL);
-printf("[LUM:%s:%d] added timer %p \n",__FILE__,__LINE__,pico_fragment_timer);
             }
             fragment->expire = PICO_TIME_MS() + PICO_IP_FRAG_TIMEOUT;  // fragment expires when the packet is not complete after timeout
         }
@@ -506,8 +500,9 @@ printf("[LUM:%s:%d] added timer %p \n",__FILE__,__LINE__,pico_fragment_timer);
             pico_hole_t* hole = pico_tree_last(&fragment->holes);
             if(hole /*&& IS_LEAF(hole)*/)
             {
-                hole->last = offset + frame->transport_len;
-printf("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last);
+                hole->last = (uint16_t)(offset + frame->transport_len);
+                frag_dbg("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last);
+                
                 if(hole->first == hole->last)
                 {
                     pico_tree_delete(&fragment->holes,hole);    // all done!
@@ -517,16 +512,15 @@ printf("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last)
 
 
         // copy the received frame into the reassembled packet
-//printf("[LUM:%s:%d] fragment->frame->transport_hdr:%p offset:%d frame->transport_hdr:%p frame->transport_len:%d\n",__FILE__,__LINE__,fragment->frame->transport_hdr,offset,frame->transport_hdr,frame->transport_len);
-printf("[LUM:%s:%d] offset:%d frame->transport_len:%d fragment->frame->buffer_len:%d\n",__FILE__,__LINE__,offset,frame->transport_len,fragment->frame->buffer_len);
+        frag_dbg("[LUM:%s:%d] offset:%d frame->transport_len:%d fragment->frame->buffer_len:%d\n",__FILE__,__LINE__,offset,frame->transport_len,fragment->frame->buffer_len);
         if( (offset + frame->transport_len) < fragment->frame->buffer_len ) // check for buffer space 
         {
 
             if(fragment->frame->transport_hdr && frame->transport_hdr)
             {
-printf("[LUM:%s:%d]  Reassemble packet:      fragment:%p fragment->frame:%p fragment->frame->transport_hdr:%p frame:%p frame->transport_hdr:%p frame->transport_len:%d\n",
-        __FILE__,__LINE__, fragment,   fragment->frame,   fragment->frame->transport_hdr,   frame,   frame->transport_hdr,   frame->transport_len);
-//                memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
+                frag_dbg("[LUM:%s:%d]  Reassemble packet:      fragment:%p fragment->frame:%p fragment->frame->transport_hdr:%p frame:%p frame->transport_hdr:%p frame->transport_len:%d\n",
+                            __FILE__,__LINE__, fragment,   fragment->frame,   fragment->frame->transport_hdr,   frame,   frame->transport_hdr,   frame->transport_len);
+                memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
             }
             else
             {
@@ -543,7 +537,7 @@ printf("[LUM:%s:%d]  Reassemble packet:      fragment:%p fragment->frame:%p frag
             struct pico_frame* newframe = pico_frame_alloc( alloc_len); // make it twice as big
             struct pico_frame* oldframe = NULL;
 
-printf("[LUM:%s:%d] frame->buffer is too small realloc'd:%p\n",__FILE__,__LINE__,newframe);
+            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p\n",__FILE__,__LINE__,newframe);
             
             // copy hdrs + options + data
             if(newframe)
@@ -568,15 +562,12 @@ printf("[LUM:%s:%d] frame->buffer is too small realloc'd:%p\n",__FILE__,__LINE__
     {
         struct pico_tree_node *idx=NULL, *tmp=NULL;
         pico_hole_t *hole = NULL;
-        uint32_t    frame_first = offset; 
-        uint32_t    frame_last  = frame_first + frame->transport_len; 
+        uint16_t    frame_first = offset; 
+        uint16_t    frame_last  = frame_first + frame->transport_len; 
         
 
-printf("[LUM:%s:%d] frame_first:%d frame->frag:0x%X\n",__FILE__,__LINE__,frame_first,frame->frag);
-printf("[LUM:%s:%d] frame_last:%d frame->transport_len:%d \n",__FILE__,__LINE__,frame_last,frame->transport_len);
-
-
-
+        frag_dbg("[LUM:%s:%d] frame_first:%d frame->frag:0x%X\n",__FILE__,__LINE__,frame_first,frame->frag);
+        frag_dbg("[LUM:%s:%d] frame_last:%d frame->transport_len:%d \n",__FILE__,__LINE__,frame_last,frame->transport_len);
 
         /*RFC 815 step 1*/
         //pico_tree_foreach_safe(index, &fragment->holes, hole) 
@@ -598,7 +589,7 @@ printf("[LUM:%s:%d] frame_last:%d frame->transport_len:%d \n",__FILE__,__LINE__,
             /*RFC 815 step 5*/
             if(frame_first > hole->first)
             {
-                pico_hole_t *new_hole =  pico_hole_alloc(hole->first,frame_first - 1);
+                pico_hole_t *new_hole =  pico_hole_alloc(hole->first,frame_first - 1u);
                 if(new_hole)
                 {
                     pico_tree_insert(&fragment->holes, new_hole);
@@ -607,7 +598,7 @@ printf("[LUM:%s:%d] frame_last:%d frame->transport_len:%d \n",__FILE__,__LINE__,
             /*RFC 815 step 6*/
             if(frame_last < hole->last)
             {
-                pico_hole_t *new_hole =  pico_hole_alloc(frame_last +1,hole->last);
+                pico_hole_t *new_hole =  pico_hole_alloc(frame_last + 1u,hole->last);
                 if(new_hole)
                 {
                     pico_tree_insert(&fragment->holes, new_hole);
@@ -632,16 +623,22 @@ printf("[LUM:%s:%d] frame_last:%d frame->transport_len:%d \n",__FILE__,__LINE__,
             
             // all done with this fragment: free it
             pico_fragment_free(fragment);
+            fragment=NULL;
         }
 
-printf("[LUM:%s:%d] printing hole tree:\n",__FILE__,__LINE__);
-        pico_tree_foreach_safe(idx, &fragment->holes, tmp) 
+#ifdef IPFRAG_DEBUG
+        if(fragment)
         {
-            hole = idx->keyValue;
+            frag_dbg("[LUM:%s:%d] printing hole tree for fragment:%p id:0x%X\n",__FILE__,__LINE__,fragment,fragment->frag_id);
+            pico_tree_foreach_safe(idx, &fragment->holes, tmp) 
+            {
+                hole = idx->keyValue;
 
-printf("[LUM:%s:%d] first:%d last:%d \n",__FILE__,__LINE__,hole?hole->first:0,hole?hole->last:0);
+                frag_dbg("[LUM:%s:%d] first:%d last:%d \n",__FILE__,__LINE__,hole?hole->first:0,hole?hole->last:0);
+            }
+            frag_dbg("[LUM:%s:%d] done \n",__FILE__,__LINE__);
         }
-printf("[LUM:%s:%d] done \n",__FILE__,__LINE__);
+#endif
     }
     return 0;
 }
