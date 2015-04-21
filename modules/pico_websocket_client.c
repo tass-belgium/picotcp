@@ -28,79 +28,79 @@ static uint16_t GlobalWebSocketConnectionID= 0;
 
 struct pico_websocket_client
 {
-struct pico_socket *sck;
-void (*wakeup)(uint16_t ev, uint16_t conn);
-uint16_t connectionID;
-uint8_t* buffer;
-struct pico_websocket_header* hdr;
-struct pico_http_uri* uriKey;
-struct pico_ip4 ip;
-uint8_t state;
+        struct pico_socket *sck;
+        void (*wakeup)(uint16_t ev, uint16_t conn);
+        uint16_t connectionID;
+        uint8_t* buffer;
+        struct pico_websocket_header* hdr;
+        struct pico_http_uri* uriKey;
+        struct pico_ip4 ip;
+        uint8_t state;
 };
 
 PACKED_STRUCT_DEF pico_websocket_header
 {
-uint8_t opcode : 4;
-uint8_t RSV3 : 1;
-uint8_t RSV2 : 1;
-uint8_t RSV1 : 1;
-uint8_t fin : 1;
-uint8_t payload_length : 7; //TODO : read up + Multibyte length quantities are expressed in network byte order.
-uint8_t mask : 1;
-uint32_t masking_key; //only needed if mask == WS_MASK_ENABLE
+        uint8_t opcode : 4;
+        uint8_t RSV3 : 1;
+        uint8_t RSV2 : 1;
+        uint8_t RSV1 : 1;
+        uint8_t fin : 1;
+        uint8_t payload_length : 7; //TODO : read up + Multibyte length quantities are expressed in network byte order.
+        uint8_t mask : 1;
+        uint32_t masking_key; //only needed if mask == WS_MASK_ENABLE
 };
 
 static int compareWebsocketClientsWithConnID(void *ka, void *kb)
 {
-return ((struct pico_websocket_client *)ka)->connectionID - ((struct pico_websocket_client *)kb)->connectionID;
+        return ((struct pico_websocket_client *)ka)->connectionID - ((struct pico_websocket_client *)kb)->connectionID;
 }
 
 PICO_TREE_DECLARE(pico_websocket_client_list, compareWebsocketClientsWithConnID);
 
 static struct pico_websocket_client* retrieve_websocket_client_with_conn_ID(uint16_t wsConnID)
 {
-struct pico_websocket_client dummy = {
-.connectionID = wsConnID
-         };
-struct pico_websocket_client *client = pico_tree_findKey(&pico_websocket_client_list, &dummy);
+        struct pico_websocket_client dummy = {
+                .connectionID = wsConnID
+        };
+        struct pico_websocket_client *client = pico_tree_findKey(&pico_websocket_client_list, &dummy);
 
-if(!client)
-{
-dbg("Wrong connection id !\n");
-pico_err = PICO_ERR_EINVAL;
-return NULL;
-}
+        if(!client)
+        {
+                dbg("Wrong connection id !\n");
+                pico_err = PICO_ERR_EINVAL;
+                return NULL;
+        }
 
-return client;
+        return client;
 
 }
 
 static struct pico_websocket_client* find_websocket_client_with_socket(struct pico_socket* s)
 {
-struct pico_websocket_client *client = NULL;
-struct pico_tree_node *index;
+        struct pico_websocket_client *client = NULL;
+        struct pico_tree_node *index;
 
-if (!s)
-{
-return NULL;
-}
+        if (!s)
+        {
+                return NULL;
+        }
 
-pico_tree_foreach(index, &pico_websocket_client_list)
-{
-if(((struct pico_websocket_client *)index->keyValue)->sck == s )
-{
-client = (struct pico_websocket_client *)index->keyValue;
-break;
-}
-}
+        pico_tree_foreach(index, &pico_websocket_client_list)
+        {
+                if(((struct pico_websocket_client *)index->keyValue)->sck == s )
+                {
+                        client = (struct pico_websocket_client *)index->keyValue;
+                        break;
+                }
+        }
 
-if(!client)
-{
-dbg("Client not found using given socket...Something went wrong !\n");
-return NULL;
-}
+        if(!client)
+        {
+                dbg("Client not found using given socket...Something went wrong !\n");
+                return NULL;
+        }
 
-return client;
+        return client;
 
 }
 
@@ -108,161 +108,161 @@ return client;
 static int8_t pico_process_URI(const char *uri, struct pico_http_uri *urikey)
 {
 
-uint16_t lastIndex = 0, index;
+        uint16_t lastIndex = 0, index;
 
-if(!uri || !urikey || uri[0] == '/')
-{
-pico_err = PICO_ERR_EINVAL;
-goto error;
-}
+        if(!uri || !urikey || uri[0] == '/')
+        {
+                pico_err = PICO_ERR_EINVAL;
+                goto error;
+        }
 
 /* detect protocol => search for  "colon-slash-slash" */
-if(memcmp(uri, WS_PROTO_TOK, WS_PROTO_LEN) == 0) /* could be optimized */
-{ /* protocol identified, it is ws */
-urikey->protoHttp = 1;
-lastIndex = WS_PROTO_LEN;
-}
+        if(memcmp(uri, WS_PROTO_TOK, WS_PROTO_LEN) == 0) /* could be optimized */
+        { /* protocol identified, it is ws */
+                urikey->protoHttp = 1;
+                lastIndex = WS_PROTO_LEN;
+        }
 
 /* detect hostname */
-index = lastIndex;
-while(uri[index] && uri[index] != '/' && uri[index] != ':') index++;
-if(index == lastIndex)
-{
+        index = lastIndex;
+        while(uri[index] && uri[index] != '/' && uri[index] != ':') index++;
+        if(index == lastIndex)
+        {
 /* wrong format */
-urikey->host = urikey->resource = NULL;
-urikey->port = urikey->protoHttp = 0u;
-pico_err = PICO_ERR_EINVAL;
-goto error;
-}
-else
-{
+                urikey->host = urikey->resource = NULL;
+                urikey->port = urikey->protoHttp = 0u;
+                pico_err = PICO_ERR_EINVAL;
+                goto error;
+        }
+        else
+        {
 /* extract host */
-urikey->host = (char *)PICO_ZALLOC((uint32_t)(index - lastIndex + 1));
+                urikey->host = (char *)PICO_ZALLOC((uint32_t)(index - lastIndex + 1));
 
-if(!urikey->host)
-{
+                if(!urikey->host)
+                {
 /* no memory */
-pico_err = PICO_ERR_ENOMEM;
-goto error;
-}
+                        pico_err = PICO_ERR_ENOMEM;
+                        goto error;
+                }
 
-memcpy(urikey->host, uri + lastIndex, (size_t)(index - lastIndex));
-}
+                memcpy(urikey->host, uri + lastIndex, (size_t)(index - lastIndex));
+        }
 
-if(!uri[index])
-{
+        if(!uri[index])
+        {
 /* nothing specified */
-urikey->port = 80u;
-urikey->resource = PICO_ZALLOC(2u);
-if (!urikey->resource) {
+                urikey->port = 80u;
+                urikey->resource = PICO_ZALLOC(2u);
+                if (!urikey->resource) {
 /* no memory */
-pico_err = PICO_ERR_ENOMEM;
-goto error;
-}
+                        pico_err = PICO_ERR_ENOMEM;
+                        goto error;
+                }
 
-urikey->resource[0] = '/';
-return 0;
-}
-else if(uri[index] == '/')
-{
-urikey->port = 80u;
-}
-else if(uri[index] == ':')
-{
-urikey->port = 0u;
-index++;
-while(uri[index] && uri[index] != '/')
-{
+                urikey->resource[0] = '/';
+                return 0;
+        }
+        else if(uri[index] == '/')
+        {
+                urikey->port = 80u;
+        }
+        else if(uri[index] == ':')
+        {
+                urikey->port = 0u;
+                index++;
+                while(uri[index] && uri[index] != '/')
+                {
 /* should check if every component is a digit */
-urikey->port = (uint16_t)(urikey->port * 10 + (uri[index] - '0'));
-index++;
-}
-}
+                        urikey->port = (uint16_t)(urikey->port * 10 + (uri[index] - '0'));
+                        index++;
+                }
+        }
 
 /* extract resource */
-if(!uri[index])
-{
-urikey->resource = PICO_ZALLOC(2u);
-if (!urikey->resource) {
+        if(!uri[index])
+        {
+                urikey->resource = PICO_ZALLOC(2u);
+                if (!urikey->resource) {
 /* no memory */
-pico_err = PICO_ERR_ENOMEM;
-goto error;
-}
+                        pico_err = PICO_ERR_ENOMEM;
+                        goto error;
+                }
 
-urikey->resource[0] = '/';
-}
-else
-{
-lastIndex = index;
-while(uri[index]) index++;
-urikey->resource = (char *)PICO_ZALLOC((size_t)(index - lastIndex + 1));
+                urikey->resource[0] = '/';
+        }
+        else
+        {
+                lastIndex = index;
+                while(uri[index]) index++;
+                urikey->resource = (char *)PICO_ZALLOC((size_t)(index - lastIndex + 1));
 
-if(!urikey->resource)
-{
+                if(!urikey->resource)
+                {
 /* no memory */
-pico_err = PICO_ERR_ENOMEM;
-goto error;
-}
+                        pico_err = PICO_ERR_ENOMEM;
+                        goto error;
+                }
 
-memcpy(urikey->resource, uri + lastIndex, (size_t)(index - lastIndex));
-}
+                memcpy(urikey->resource, uri + lastIndex, (size_t)(index - lastIndex));
+        }
 
-return 0;
+        return 0;
 
 error:
-if(urikey->resource)
-{
-PICO_FREE(urikey->resource);
-urikey->resource = NULL;
-}
+        if(urikey->resource)
+        {
+                PICO_FREE(urikey->resource);
+                urikey->resource = NULL;
+        }
 
-if(urikey->host)
-{
-PICO_FREE(urikey->host);
-urikey->host = NULL;
-}
+        if(urikey->host)
+        {
+                PICO_FREE(urikey->host);
+                urikey->host = NULL;
+        }
 
-return -1;
+        return -1;
 }
 
 static int pico_websocket_client_cleanup(struct pico_websocket_client* client)
 {
-struct pico_websocket_client *toBeRemoved = NULL;
-int ret = -1;
+        struct pico_websocket_client *toBeRemoved = NULL;
+        int ret = -1;
 
-dbg("Closing the websocket client...\n");
+        dbg("Closing the websocket client...\n");
 
-toBeRemoved = pico_tree_delete(&pico_websocket_client_list, client);
-if(!toBeRemoved)
-{
-dbg("Warning ! Websocket to be closed not found ...");
-return -1;
-}
+        toBeRemoved = pico_tree_delete(&pico_websocket_client_list, client);
+        if(!toBeRemoved)
+        {
+                dbg("Warning ! Websocket to be closed not found ...");
+                return -1;
+        }
 
-if (client->buffer)
-{
-PICO_FREE(client->buffer);
-}
+        if (client->buffer)
+        {
+                PICO_FREE(client->buffer);
+        }
 
-if (client->sck)
-{
-pico_socket_close(client->sck);
-}
-return 0;
+        if (client->sck)
+        {
+                pico_socket_close(client->sck);
+        }
+        return 0;
 }
 
 static void handle_websocket_body(struct pico_websocket_client* client)
 {
-int len;
+        int len;
 
-len = pico_socket_read(client->sck, client->buffer , WEBSOCKET_BUFFER_SIZE);
-if (len <0)
-{
-client->wakeup(EV_WS_ERR, client->connectionID);
-return;
-}
+        len = pico_socket_read(client->sck, client->buffer , WEBSOCKET_BUFFER_SIZE);
+        if (len <0)
+        {
+                client->wakeup(EV_WS_ERR, client->connectionID);
+                return;
+        }
 
-client->wakeup(EV_WS_BODY, client->connectionID);
+        client->wakeup(EV_WS_BODY, client->connectionID);
 }
 
 static char* pico_websocket_upgradeHeader_build(void)
