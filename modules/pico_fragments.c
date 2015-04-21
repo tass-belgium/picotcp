@@ -307,12 +307,27 @@ static int fragments_compare(void *a, void *b)
     pico_fragment_t *fa = a;
     pico_fragment_t *fb = b;
     if(fa && fb)
-    {                                                             // sort on dest addr, source addr
+    {                                                             
         return  (fa->frag_id > fb->frag_id)     ?  1 :        // fragid
-                (fa->frag_id < fb->frag_id)     ? -1 : 
+                (fa->frag_id < fb->frag_id)     ? -1 :
                 (fa->proto   > fb->proto)       ?  1 :        // and protocol
                 (fa->proto   < fb->proto)       ? -1 :
+                (fa->proto == PICO_PROTO_IPV4)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):  // sort on source addr
+                (fa->proto == PICO_PROTO_ICMP4) ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_IGMP)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_TCP)   ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_UDP)   ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_IPV6)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip6)):
+                (fa->proto == PICO_PROTO_ICMP6) ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip6)):
+                (fa->proto == PICO_PROTO_IPV4)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):  // sort on dest addr
+                (fa->proto == PICO_PROTO_ICMP4) ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_IGMP)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_TCP)   ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_UDP)   ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
+                (fa->proto == PICO_PROTO_IPV6)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip6)):
+                (fa->proto == PICO_PROTO_ICMP6) ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip6)):
                 0;
+
     }
     else
     {
@@ -614,6 +629,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         {
             /* now send the reassembled packet upstream*/
             // TODO calc crc of complete packet and send upstream 
+
+            struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) full->net_hdr;
+            
+            hdr->crc = 0;
+            hdr->crc = short_be(pico_checksum(hdr, full->net_len));
             
             fragment->frame=NULL;
             
