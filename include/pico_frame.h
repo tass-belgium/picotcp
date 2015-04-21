@@ -64,7 +64,7 @@ struct pico_frame {
     uint16_t payload_len;
 
 #ifdef PICO_SUPPORT_IPFRAG
-    /* Payload fragmentation info (big endian)*/
+    /* Payload fragmentation info */
     uint16_t frag;
 #endif
 

@@ -14,6 +14,18 @@
 #define PICO_IPV6_DEFAULT_HOP 64
 #define PICO_IPV6_MIN_MTU 1280
 
+
+#define PICO_IPV6_EXTHDR_HOPBYHOP 0
+#define PICO_IPV6_EXTHDR_ROUTING 43
+#define PICO_IPV6_EXTHDR_FRAG 44
+#define PICO_IPV6_EXTHDR_ESP 50
+#define PICO_IPV6_EXTHDR_AUTH 51
+#define PICO_IPV6_EXTHDR_NONE 59
+#define PICO_IPV6_EXTHDR_DESTOPT 60
+
+
+
+
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
 extern struct pico_protocol pico_proto_ipv6;
 extern struct pico_tree IPV6Routes;
