@@ -1013,9 +1013,7 @@ static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endp
 static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
-//LUM    f->frag = short_be(PICO_IPV4_DONTFRAG);
     f->frag = PICO_IPV4_DONTFRAG;
-printf("[LUM:%s%d] pico_xmit_frame_set_nofrag f->frag:0x%X\n",__FILE__,__LINE__,f->frag);
 #else
     (void)f;
 #endif
