@@ -76,6 +76,7 @@ START_TEST (test_icmp4_ping)
     /* get the packet from the mock_device */
     memset(buffer, 0, bufferlen);
     len = pico_mock_network_read(mock, buffer, bufferlen);
+    fail_if(len < 20);
     /* inspect it */
     fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer, len) == 8);
