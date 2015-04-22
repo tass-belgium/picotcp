@@ -306,33 +306,37 @@ static int fragments_compare(void *a, void *b)
 {
     pico_fragment_t *fa = a;
     pico_fragment_t *fb = b;
+    int retval=0;
     if(fa && fb)
     {                                                             
-        return  (fa->frag_id > fb->frag_id)     ?  1 :        // fragid
-                (fa->frag_id < fb->frag_id)     ? -1 :
-                (fa->proto   > fb->proto)       ?  1 :        // and protocol
-                (fa->proto   < fb->proto)       ? -1 :
-                (fa->proto == PICO_PROTO_IPV4)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):  // sort on source addr
-                (fa->proto == PICO_PROTO_ICMP4) ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_IGMP)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_TCP)   ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_UDP)   ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_IPV6)  ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip6)):
-                (fa->proto == PICO_PROTO_ICMP6) ? memcmp(&fa->src,&fb->src,sizeof(struct pico_ip6)):
-                (fa->proto == PICO_PROTO_IPV4)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):  // sort on dest addr
-                (fa->proto == PICO_PROTO_ICMP4) ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_IGMP)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_TCP)   ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_UDP)   ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4)):
-                (fa->proto == PICO_PROTO_IPV6)  ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip6)):
-                (fa->proto == PICO_PROTO_ICMP6) ? memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip6)):
-                0;
-
+        if((retval = (fa->frag_id - fb->frag_id)) == 0)    // fragid
+        {
+            if((retval = (fa->proto - fb->proto)) == 0)  // and protocol
+            {
+                if((fa->proto == PICO_PROTO_IPV4)  || (fa->proto == PICO_PROTO_ICMP4)  || 
+                    (fa->proto == PICO_PROTO_IGMP) || (fa->proto == PICO_PROTO_TCP)    || 
+                        (fa->proto == PICO_PROTO_UDP))
+                {
+                    if((retval = memcmp(&fa->src,&fb->src,sizeof(struct pico_ip4))) == 0) //src ip4
+                    {
+                        retval = memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip4));       //dst
+                    }  //  source addr   & dest addr
+                }
+                else if ((fa->proto == PICO_PROTO_IPV6)  ||                  (fa->proto == PICO_PROTO_ICMP6)) 
+                {
+                    if((retval = memcmp(&fa->src,&fb->src,sizeof(struct pico_ip6))) == 0) //src ip6
+                    {
+                        retval = memcmp(&fa->dst,&fb->dst,sizeof(struct pico_ip6));   // dst ip6
+                    }
+                }
+            }
+        }
     }
     else
     {
-        return 0;
+        retval = 0;
     }
+    return retval;
 }
 
 
@@ -411,9 +415,7 @@ static int hole_compare(void* a,void* b)
     pico_hole_t *hb = (pico_hole_t *)b;
     if(ha && hb)
     {
-        return  (ha->first > hb->first)     ?  1 : 
-                (ha->first < hb->first)     ? -1 :
-                0;
+        return  (ha->first - hb->first);
     }
     else
     {

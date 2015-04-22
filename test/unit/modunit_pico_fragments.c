@@ -17,12 +17,37 @@
 
 START_TEST(tc_fragments_compare)
 {
-   /* TODO: test this: static int fragments_compare(void *fa, void *fb);   */
+   pico_fragment_t f1={1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},NULL,0};
+   pico_fragment_t f2={2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
+   
+   fail_unless( fragments_compare(&f1, &f1) == 0);  
+   fail_unless( fragments_compare(&f1, &f2) < 0);  
+   
 }
 END_TEST
 START_TEST(tc_hole_compare)
 {
-   /* TODO: test this: static int hole_compare(void *a, void *b);          */
+   pico_hole_t a; 
+   pico_hole_t b;
+   
+   a.first=1;
+   a.last=2; 
+
+   b.first=1;
+   b.last=2; 
+
+   fail_unless( hole_compare(&a, &b) == 0);  
+
+   b.first=2;
+   b.last=2; 
+
+   fail_unless( hole_compare(&a, &b) < 0);  
+
+   a.first=3;
+   a.last=3; 
+
+   fail_unless( hole_compare(&a, &b) > 0);  
+
 }
 END_TEST
 START_TEST(tc_pico_fragment_alloc)
