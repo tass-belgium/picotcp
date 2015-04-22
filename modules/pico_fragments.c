@@ -27,9 +27,9 @@
 /*** macros ***/
 
 #define PICO_IP_FRAG_TIMEOUT 60000
-
+#define frag_dbg
 #ifdef IPFRAG_DEBUG
-#  define frag_dbg  dbg
+#  define frag_dbg  printf
 #else
 # define frag_dbg(...) do{}while(0);
 #endif
@@ -263,7 +263,14 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
                     //fragment->start_payload = PICO_SIZE_IP4HDR;
                 }
                 //TODO: copy ext + clear frag options
-                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                if(fragment->frame->datalink_hdr &&  f->datalink_hdr)
+                {
+                    memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                }
+                else
+                {
+                    frag_dbg("[%s:%d] fragment->frame->datalink_hdr:%p f->datalink_hdr:%p PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR:%d);",__FILE__,__LINE__,fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                }
 
                 fragment->frag_id = key.frag_id;
                 fragment->frame->frag = 0;  // remove frag options
