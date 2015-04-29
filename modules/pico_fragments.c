@@ -27,7 +27,7 @@
 /*** macros ***/
 
 #define PICO_IP_FRAG_TIMEOUT 60000
-#define frag_dbg
+#define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
 #  define frag_dbg  printf
 #else
@@ -86,7 +86,7 @@ static struct pico_timer*      pico_fragment_timer = NULL;
 #ifdef PICO_SUPPORT_IPV6
 // byte offset and more flag from exthdr (RFC2460)
 #define IP6FRAG_OFF(frag)  ((frag & 0xFFF8))
-#define IP6FRAG_MORE(frag) ((frag & 0x0001))
+#define IP6FRAG_MORE(frag) ((frag & 0x0001) ? 1 : 0)
 
 #define IP6FRAG_ID(exthdr) ((uint32_t)((exthdr->ext.frag.id[0] << 24)   |   \
                                        (exthdr->ext.frag.id[1] << 16)   |   \
@@ -95,7 +95,7 @@ static struct pico_timer*      pico_fragment_timer = NULL;
 
 
 
-static void copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* src)
+static int copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* src)
 {
     int done = 0;
     struct pico_ipv6_hdr *srchdr = (struct pico_ipv6_hdr *)src->net_hdr;
@@ -103,6 +103,7 @@ static void copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* s
     int srcidx = 0;
     int dstidx = 0;
     uint8_t nxthdr = srchdr->nxthdr;
+    uint8_t* pdstnxthdr = &dsthdr->nxthdr;
     // parse ext hdrs
     while(!done)
     {
@@ -118,6 +119,8 @@ static void copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* s
             memcpy(&dsthdr->extensions[dstidx],&srchdr->extensions[srcidx],(size_t)len);
             srcidx += len;
             dstidx += len;
+            *pdstnxthdr = nxthdr;
+            pdstnxthdr = &dsthdr->extensions[dstidx];
         }
         break;
         case PICO_IPV6_EXTHDR_FRAG: 
@@ -127,17 +130,21 @@ static void copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* s
         case PICO_PROTO_TCP:
         case PICO_PROTO_UDP:
         case PICO_PROTO_ICMP6:
+            *pdstnxthdr = nxthdr;
             done=1;
         break;
         default:
         /* Invalid next header */
             pico_icmp6_parameter_problem(src, PICO_ICMP6_PARAMPROB_NXTHDR, (uint32_t)nxthdr);
             done=1;
+        break;
         }
         nxthdr = srchdr->extensions[srcidx];   // advance pointer
     }
     dst->payload = &dsthdr->extensions[dstidx];  
     dst->transport_hdr = dst->payload;
+
+    return dstidx;
 }
 
 
@@ -174,7 +181,10 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
                 }
                 
                 // copy ip hdr
-                memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
+                if(fragment->frame->net_hdr && f->net_hdr)
+                {
+                    memcpy(fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
+                }
                 // copy ext hdr
                 copy_ipv6_exthdr_nofrag(fragment->frame, f);   // copy exthdr except for frag option
                 // copy payload
@@ -197,7 +207,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         }
         if(fragment)
         {
-            retval = pico_fragment_arrived(fragment, f, IP6FRAG_OFF(f->frag), IP6FRAG_MORE(f->frag) ? 1 : 0 );
+            retval = pico_fragment_arrived(fragment, f, IP6FRAG_OFF(f->frag), IP6FRAG_MORE(f->frag) );
             if(retval < 1)
             {
                 pico_frame_discard(f);
@@ -215,7 +225,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 
 // byte offset and more flag from iphdr (RFC791)
 #define IP4FRAG_OFF(frag)  (((uint32_t)frag & PICO_IPV4_FRAG_MASK) << 3ul)
-#define IP4FRAG_MORE(frag) (((uint32_t)frag & PICO_IPV4_MOREFRAG))
+#define IP4FRAG_MORE(frag) ((frag & PICO_IPV4_MOREFRAG) ? 1 : 0)
 
 
 extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
@@ -263,13 +273,13 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
                     //fragment->start_payload = PICO_SIZE_IP4HDR;
                 }
                 //TODO: copy ext + clear frag options
-                if(fragment->frame->datalink_hdr &&  f->datalink_hdr)
+                if(fragment->frame->net_hdr &&  f->net_hdr)
                 {
-                    memcpy(fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                    memcpy(fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
                 }
                 else
                 {
-                    frag_dbg("[%s:%d] fragment->frame->datalink_hdr:%p f->datalink_hdr:%p PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR:%d);",__FILE__,__LINE__,fragment->frame->datalink_hdr,f->datalink_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                    frag_dbg("[%s:%d] fragment->frame->net_hdr:%p f->net_hdr:%p PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR:%d);",__FILE__,__LINE__,fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
                 }
 
                 fragment->frag_id = key.frag_id;
@@ -293,7 +303,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         {
             //  hdr is stored in network order !!! oh crap
             uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
-            uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag)) ? 1 : 0;
+            uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
 
             retval = pico_fragment_arrived(fragment, f, offset, more);
             if(retval < 1)  // the original frame is re-used when retval ==1 , so dont discard here
@@ -469,7 +479,7 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
         fragment = idx->keyValue;
         if(fragment->expire < now)
         {
-            frag_dbg("[%s:%d]//TODO notify ICMP \n", ,__FILE__,__LINE__);
+            frag_dbg("[%s:%d]//TODO notify ICMP \n",__FILE__,__LINE__);
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
             
             pico_fragment_free(fragment);
