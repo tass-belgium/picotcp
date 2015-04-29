@@ -14,7 +14,7 @@ int pico_device_init(struct pico_device __attribute__((unused)) *dev, const char
 
 void pico_device_destroy(struct pico_device *dev)
 {
-	dev=dev;
+    dev = dev;
 }
 
 int32_t pico_stack_recv(struct pico_device __attribute__((unused)) *dev, uint8_t __attribute__((unused)) *buffer, uint32_t __attribute__((unused)) len)

@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    Authors: Daniele Lacamera
@@ -15,7 +15,7 @@
 #ifdef PICO_SUPPORT_OLSR
 #define DGRAM_MAX_SIZE (100 - 28)
 #define MAX_OLSR_MEM (4 * DGRAM_MAX_SIZE)
-#define olsr_dbg(...) do{}while(0)
+#define olsr_dbg(...) do {} while(0)
 
 int OOM(void);
 

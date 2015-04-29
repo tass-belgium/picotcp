@@ -1,9 +1,9 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
 
-   Author: Daniele Lacamera <daniele.lacamera@tass.be>
+   Author: Daniele Lacamera <daniele.lacamera@altran.com>
  *********************************************************************/
 #ifndef INCLUDE_PICO_PCAP
 #define INCLUDE_PICO_PCAP

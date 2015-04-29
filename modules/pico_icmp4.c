@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -63,6 +63,7 @@ static int pico_icmp4_process_in(struct pico_protocol *self, struct pico_frame *
             pico_frame_discard(f);
             return 0;
         }
+
         firstpkt = 0;
         last_id = hdr->hun.ih_idseq.idseq_id;
         last_seq = hdr->hun.ih_idseq.idseq_seq;

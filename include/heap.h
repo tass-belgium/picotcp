@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
@@ -17,8 +17,10 @@
         type *newTop; \
         if (++heap->n >= heap->size) {                                                \
             newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
-            if(!newTop) \
+            if(!newTop) {\
+                heap->n--;\
                 return -1; \
+            } \
             if (heap->top)  { \
                 memcpy(newTop, heap->top, heap->n * sizeof(type)); \
                 PICO_FREE(heap->top); \

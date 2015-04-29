@@ -270,7 +270,7 @@ test: posix
 	
 tst: test
 
-$(PREFIX)/include/pico_defines.h: FORCE
+$(PREFIX)/include/pico_defines.h:
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
 	@bash ./mkdeps.sh $(PREFIX) $(OPTIONS)

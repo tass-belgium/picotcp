@@ -11,14 +11,14 @@
 #include <stdlib.h>
 #include "pico_strings.h"
 
-char *get_string_terminator_position(char * const block, size_t len)
+char *get_string_terminator_position(char *const block, size_t len)
 {
     size_t length = pico_strnlen(block, len);
 
-    return (len != length)? (block + length): 0;
+    return (len != length) ? (block + length) : 0;
 }
 
-int pico_strncasecmp(const char * const str1, const char * const str2, size_t n)
+int pico_strncasecmp(const char *const str1, const char *const str2, size_t n)
 {
     int ch1;
     int ch2;
@@ -29,12 +29,13 @@ int pico_strncasecmp(const char * const str1, const char * const str2, size_t n)
         ch2 = toupper(*(str2 + i));
         if (ch1 < ch2)
             return -1;
+
         if (ch1 > ch2)
             return 1;
+
         if ((!ch1) && (!ch2))
             return 0;
     }
-
     return 1;
 }
 
@@ -72,7 +73,6 @@ static inline int revert_and_shift(char *buf, int len, int pos)
     len -= pos;
     for (i = 0; i < len; ++i)
         buf[i] = buf[i + pos];
-
     return len;
 }
 
@@ -92,6 +92,7 @@ int num2string(int32_t num, char *buf, int len)
     do {
         if (!pos)
             return -3;
+
         res = ldiv(res.quot, 10);
         buf[--pos] = (char)((res.rem + '0') & 0xFF);
     } while (res.quot);

@@ -4,7 +4,7 @@
 
    .
 
-  Author: Daniele Lacamera <daniele.lacamera@altran.com>
+   Author: Daniele Lacamera <daniele.lacamera@altran.com>
  *********************************************************************/
 #include <pico_stack.h>
 #include <pico_tree.h>
@@ -14,14 +14,16 @@
 
 #include <pico_ipv4.h>
 
-#define pico_aodv_dbg(...) do{}while(0)
-//#define pico_aodv_dbg dbg
+#define pico_aodv_dbg(...) do {} while(0)
+/* #define pico_aodv_dbg dbg */
 
 #define AODV_MAX_PKT (64)
 static const struct pico_ip4 HOST_NETMASK = {
     0xffffffff
 };
-static struct pico_ip4 all_bcast = { .addr = 0xFFFFFFFFu };
+static struct pico_ip4 all_bcast = {
+    .addr = 0xFFFFFFFFu
+};
 
 static const struct pico_ip4 ANY_HOST = {
     0x0
@@ -33,8 +35,10 @@ static int aodv_node_compare(void *ka, void *kb)
     struct pico_aodv_node *a = ka, *b = kb;
     if (a->dest.ip4.addr < b->dest.ip4.addr)
         return -1;
+
     if (b->dest.ip4.addr < a->dest.ip4.addr)
         return 1;
+
     return 0;
 }
 
@@ -77,6 +81,7 @@ static int aodv_peer_refresh(struct pico_aodv_node *node, uint32_t seq)
         node->last_seen = PICO_TIME_MS();
         return 0;
     }
+
     return -1;
 }
 
@@ -100,6 +105,7 @@ static struct pico_aodv_node *aodv_peer_new(const union pico_address *addr)
     struct pico_aodv_node *node = PICO_ZALLOC(sizeof(struct pico_aodv_node));
     if (!node)
         return NULL;
+
     memcpy(&node->dest, addr, sizeof(union pico_address));
     pico_tree_insert(&aodv_nodes, node);
     return node;
@@ -108,7 +114,7 @@ static struct pico_aodv_node *aodv_peer_new(const union pico_address *addr)
 
 static struct pico_aodv_node *aodv_peer_eval(union pico_address *addr, uint32_t seq, int valid_seq)
 {
-    struct pico_aodv_node *node = NULL; 
+    struct pico_aodv_node *node = NULL;
     node = get_node_by_addr(addr);
     if (!node) {
         node = aodv_peer_new(addr);
@@ -119,6 +125,7 @@ static struct pico_aodv_node *aodv_peer_eval(union pico_address *addr, uint32_t 
 
     if (node && (aodv_peer_refresh(node, long_be(seq)) == 0))
         return node;
+
     return NULL;
 }
 
@@ -131,7 +138,7 @@ void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
     pico_time now;
     int size;
 
-    pico_aodv_dbg("Forwarding %s packet\n", reply?"REPLY":"REQUEST");
+    pico_aodv_dbg("Forwarding %s packet\n", reply ? "REPLY" : "REQUEST");
 
     if (reply) {
         struct pico_aodv_rrep *rep = (struct pico_aodv_rrep *)pkt;
@@ -149,21 +156,22 @@ void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
     orig = get_node_by_addr(&orig_addr);
     if (!orig)
         orig = aodv_peer_new(&orig_addr);
+
     if (!orig)
         return;
 
     now = PICO_TIME_MS();
 
-    pico_aodv_dbg("Forwarding %s: last fwd_time: %llu now: %llu ttl: %d ==== \n", reply?"REPLY":"REQUEST", 
-            orig->fwd_time, now, info->ttl);
-    if ( ((orig->fwd_time == 0) || ((now - orig->fwd_time) > AODV_NODE_TRAVERSAL_TIME)) && (--info->ttl > 0)) {
+    pico_aodv_dbg("Forwarding %s: last fwd_time: %llu now: %llu ttl: %d ==== \n", reply ? "REPLY" : "REQUEST",
+                  orig->fwd_time, now, info->ttl);
+    if (((orig->fwd_time == 0) || ((now - orig->fwd_time) > AODV_NODE_TRAVERSAL_TIME)) && (--info->ttl > 0)) {
         orig->fwd_time = now;
         info->dev = NULL;
         pico_tree_foreach(index, &aodv_devices){
             dev = index->keyValue;
             pico_aodv_set_dev(dev);
             pico_socket_sendto_extended(aodv_socket, pkt, size, &all_bcast, short_be(PICO_AODV_PORT), info);
-            pico_aodv_dbg("Forwarding %s: complete! ==== \n", reply?"REPLY":"REQUEST");
+            pico_aodv_dbg("Forwarding %s: complete! ==== \n", reply ? "REPLY" : "REQUEST");
         }
     }
 }
@@ -196,6 +204,7 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
     reply.orig = req->orig;
     if (!orig)
         return;
+
     reply.hop_count = (uint8_t)(orig->metric - 1u);
 
 
@@ -203,7 +212,7 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
 
     if (short_be(req->req_flags) & AODV_RREQ_FLAG_G) {
         dest.ip4.addr = req->orig;
-    } else { 
+    } else {
         pico_aodv_set_dev(info->dev);
     }
 
@@ -217,6 +226,7 @@ static void aodv_send_reply(struct pico_aodv_node *node, struct pico_aodv_rreq *
         pico_aodv_dbg("Generating RREP for node %x, id=%x\n", reply.dest, reply.dseq);
         pico_socket_sendto(aodv_socket, &reply, sizeof(reply), &dest, short_be(PICO_AODV_PORT));
     }
+
     pico_aodv_dbg("no rrep generated.\n");
 }
 
@@ -241,7 +251,7 @@ static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_r
     if (dev || PICO_AODV_ACTIVE(node)) {
         /* if destination is ourselves, or we have a possible route: Send reply. */
         aodv_send_reply(node, req, dev != NULL, info);
-        if (dev) { 
+        if (dev) {
             /* if really for us, we need to build the return route. Initiate a gratuitous request. */
             union pico_address origin_addr;
             struct pico_aodv_node *origin;
@@ -252,6 +262,7 @@ static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_r
                 pico_timer_add(AODV_PATH_DISCOVERY_TIME, aodv_reverse_path_discover, origin);
             }
         }
+
         pico_aodv_dbg("Replied.\n");
     } else {
         /* destination unknown. Evaluate forwarding. */
@@ -264,7 +275,7 @@ static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_r
 static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo)
 {
     struct pico_aodv_rreq *req = (struct pico_aodv_rreq *) buf;
-    struct pico_aodv_node *node = NULL; 
+    struct pico_aodv_node *node = NULL;
     struct pico_device *dev;
     union pico_address orig, dest;
     (void)from;
@@ -278,13 +289,13 @@ static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, str
         return;
     }
 
-    node = aodv_peer_eval(&orig, req->oseq, 1); 
+    node = aodv_peer_eval(&orig, req->oseq, 1);
     if (!node) {
         pico_aodv_dbg("RREQ: Neighbor is not valid. oseq=%d\n", long_be(req->oseq));
         return;
     }
 
-    if (req->hop_count > 0) 
+    if (req->hop_count > 0)
         aodv_elect_route(node, from, req->hop_count, msginfo->dev);
     else
         aodv_elect_route(node, NULL, 0, msginfo->dev);
@@ -295,15 +306,17 @@ static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, str
         node = aodv_peer_new(&dest);
         pico_aodv_dbg("RREQ: New peer! %08x\n", dest.ip4.addr);
     }
+
     if (!node)
         return;
+
     aodv_recv_valid_rreq(node, req, msginfo);
 }
 
 static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo)
 {
     struct pico_aodv_rrep *rep = (struct pico_aodv_rrep *) buf;
-    struct pico_aodv_node *node = NULL; 
+    struct pico_aodv_node *node = NULL;
     union pico_address dest;
     union pico_address orig;
     struct pico_device *dev = NULL;
@@ -338,9 +351,10 @@ static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, str
 
 static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo)
 {
-    if ((uint32_t)len < sizeof(struct pico_aodv_rerr) ||  
-            (((uint32_t)len - sizeof(struct pico_aodv_rerr)) % sizeof(struct pico_aodv_unreachable)) > 0)
+    if ((uint32_t)len < sizeof(struct pico_aodv_rerr) ||
+        (((uint32_t)len - sizeof(struct pico_aodv_rerr)) % sizeof(struct pico_aodv_unreachable)) > 0)
         return;
+
     (void)from;
     (void)buf;
     (void)len;
@@ -352,6 +366,7 @@ static void aodv_parse_rack(union pico_address *from, uint8_t *buf, int len, str
 {
     if (len != sizeof(struct pico_aodv_rack))
         return;
+
     (void)from;
     (void)buf;
     (void)len;
@@ -379,19 +394,23 @@ static void pico_aodv_parse(union pico_address *from, uint8_t *buf, int len, str
         /* Type is invalid. Discard silently. */
         return;
     }
-    
+
     if (buf[0] == AODV_TYPE_RREQ) {
         hopcount = ((struct pico_aodv_rreq *)buf)->hop_count;
     }
+
     if (buf[0] == AODV_TYPE_RREP) {
         hopcount = ((struct pico_aodv_rrep *)buf)->hop_count;
     }
-    node = aodv_peer_eval(from, 0, 0); 
+
+    node = aodv_peer_eval(from, 0, 0);
     if (!node)
         node = aodv_peer_new(from);
+
     if (node && (hopcount == 0)) {
         aodv_elect_route(node, NULL, hopcount, msginfo->dev);
     }
+
     pico_aodv_dbg("Received AODV packet, ttl = %d\n", msginfo->ttl);
     aodv_parser[buf[0]].call(from, buf, len, msginfo);
 }
@@ -405,10 +424,12 @@ static void pico_aodv_socket_callback(uint16_t ev, struct pico_socket *s)
     int r;
     if (s != aodv_socket)
         return;
+
     if (ev & PICO_SOCK_EV_RD) {
         r = pico_socket_recvfrom_extended(s, aodv_pkt, AODV_MAX_PKT, &from, &sport, &msginfo);
         if (r <= 0)
             return;
+
         pico_aodv_dbg("Received AODV packet: %d bytes \n", r);
 
         pico_aodv_parse(&from, aodv_pkt, r, &msginfo);
@@ -427,6 +448,7 @@ static void aodv_make_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *r
         req->dseq = long_be(node->dseq);
         req->req_flags |= short_be(AODV_RREQ_FLAG_G); /* RFC3561 $6.3: we SHOULD set G flag as originators */
     }
+
     /* Hop count = 0; */
     req->rreq_id = long_be(++pico_aodv_local_id);
     req->dest = node->dest.ip4.addr;
@@ -467,12 +489,12 @@ static void aodv_retrans_rreq(pico_time now, void *arg)
     }
 
     if (node->ring_ttl == AODV_NET_DIAMETER) {
-        node->rreq_retry++; 
+        node->rreq_retry++;
         pico_aodv_dbg("Retry #%d\n", node->rreq_retry);
     }
 
     aodv_make_rreq(node, &rreq);
-    info.ttl = (uint8_t)node->ring_ttl; 
+    info.ttl = (uint8_t)node->ring_ttl;
     pico_tree_foreach(index, &aodv_devices){
         dev = index->keyValue;
         pico_aodv_set_dev(dev);
@@ -484,6 +506,7 @@ static void aodv_retrans_rreq(pico_time now, void *arg)
     }
     if (node->ring_ttl < AODV_NET_DIAMETER)
         node->ring_ttl = (uint8_t)(node->ring_ttl + AODV_TTL_INCREMENT);
+
     pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(node->ring_ttl), aodv_retrans_rreq, node);
 }
 
@@ -528,7 +551,7 @@ static int aodv_send_req(struct pico_aodv_node *node)
         }
     }
     pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(1), aodv_retrans_rreq, node);
-    return n;   
+    return n;
 }
 
 static void pico_aodv_expired(struct pico_aodv_node *node)
@@ -559,14 +582,17 @@ static void pico_aodv_collector(pico_time now, void *arg)
     pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
 }
 
-MOCKABLE int pico_aodv_init(void) 
+MOCKABLE int pico_aodv_init(void)
 {
-    struct pico_ip4 any = { 0 };
+    struct pico_ip4 any = {
+        0
+    };
     uint16_t port = short_be(PICO_AODV_PORT);
     if (aodv_socket) {
         pico_err = PICO_ERR_EADDRINUSE;
         return -1;
     }
+
     aodv_socket = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, pico_aodv_socket_callback);
     if (!aodv_socket)
         return -1;
@@ -578,6 +604,7 @@ MOCKABLE int pico_aodv_init(void)
         aodv_socket = NULL;
         return -1;
     }
+
     pico_aodv_local_id = pico_rand();
     pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
     return 0;
@@ -586,7 +613,7 @@ MOCKABLE int pico_aodv_init(void)
 
 int pico_aodv_add(struct pico_device *dev)
 {
-    return (pico_tree_insert(&aodv_devices, dev))?(0):(-1);
+    return (pico_tree_insert(&aodv_devices, dev)) ? (0) : (-1);
 }
 
 void pico_aodv_refresh(const union pico_address *addr)
@@ -602,17 +629,19 @@ int pico_aodv_lookup(const union pico_address *addr)
     struct pico_aodv_node *node = get_node_by_addr(addr);
     if (!node)
         node = aodv_peer_new(addr);
+
     if (!node)
         return -1;
 
     if ((node->flags & PICO_AODV_NODE_ROUTE_UP) || (node->flags & PICO_AODV_NODE_ROUTE_DOWN))
         return 0;
-    
+
     if (node->ring_ttl < AODV_TTL_START) {
         node->ring_ttl = AODV_TTL_START;
         aodv_send_req(node);
         return 0;
     }
+
     pico_err = PICO_ERR_EINVAL;
     return -1;
 }

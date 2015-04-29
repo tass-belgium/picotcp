@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -32,7 +32,7 @@ void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_
 
     hdr->opcode = PICO_DNS_OPCODE_QUERY;
     hdr->tc = PICO_DNS_TC_NO_TRUNCATION;
-    hdr->rd = PICO_DNS_RD_NO_DESIRE;
+    hdr->rd = PICO_DNS_RD_IS_DESIRED;
     hdr->ra = PICO_DNS_RA_NO_SUPPORT;
     hdr->z = 0; /* Z, AD, CD are 0 */
     hdr->rcode = PICO_DNS_RCODE_NO_ERROR;
@@ -47,6 +47,7 @@ uint16_t pico_dns_client_strlen(const char *url)
 {
     if (!url)
         return 0;
+
     return (uint16_t)strlen(url);
 }
 
@@ -163,7 +164,9 @@ static inline char dns_ptr_ip6_nibble_hi(uint8_t byte)
 
 void pico_dns_ipv6_set_ptr(const char *ip, char *dst)
 {
-    struct pico_ip6 ip6 = {.addr = {}};
+    struct pico_ip6 ip6 = {
+        .addr = {}
+    };
     int i, j = 0;
     pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {

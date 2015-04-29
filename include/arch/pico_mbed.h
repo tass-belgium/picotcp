@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    File: pico_mbed.h
@@ -9,6 +9,7 @@
 #ifndef PICO_SUPPORT_MBED
 #define PICO_SUPPORT_MBED
 #include <stdio.h>
+#include <pico_queue.h>
 /* #include "mbed.h" */
 /* #include "serial_api.h" */
 

@@ -68,7 +68,7 @@ END_TEST
 
 START_TEST(tc_aodv_peer_refresh)
 {
-   /* TODO: test this: static int aodv_peer_refresh(struct pico_aodv_node *node, uint32_t seq) */
+    /* TODO: test this: static int aodv_peer_refresh(struct pico_aodv_node *node, uint32_t seq) */
     struct pico_aodv_node node;
     memset(&node, 0, sizeof(node));
     node.dseq = 0xFFFF;
@@ -111,7 +111,7 @@ START_TEST(tc_aodv_elect_route)
     node.flags = PICO_AODV_NODE_ROUTE_DOWN | PICO_AODV_NODE_ROUTE_UP;
     aodv_elect_route(&node, &gateway, 150, NULL);
     fail_if(called_route_add != 0); /* Already active, existing metric is lower */
-    
+
     called_route_add = 0;
     route_add_metric = 0;
     route_add_gw = 0u;
@@ -166,7 +166,7 @@ START_TEST(tc_aodv_peer_eval)
     node = aodv_peer_eval(&addr, long_be(10), 1); /* Should get existing node! */
     fail_if(node->metric != 42);
     fail_if((node->flags & PICO_AODV_NODE_SYNC) == 0);
-    fail_if(node->dseq!= 10);
+    fail_if(node->dseq != 10);
 }
 END_TEST
 
@@ -210,11 +210,12 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
         printf("rep->dseq= %08x, exp: %08x\n", rep->dseq, expected_dseq);
         fail_if(rep->dseq != expected_dseq);
     }
+
     return len;
 }
 
-int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len, 
-        void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
+int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
+                                void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
 {
     pico_socket_sendto_extended_called++;
     return pico_socket_sendto(s, buf, len, dst, remote_port);
@@ -262,6 +263,7 @@ struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
 {
     if (!global_link.address.addr)
         return NULL;
+
     printf("Setting link!\n");
     return &global_link;
 }
@@ -272,6 +274,7 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *ip4)
 {
     if (link_find_success)
         return &global_dev;
+
     return NULL;
 }
 
@@ -348,7 +351,7 @@ START_TEST(tc_aodv_recv_valid_rreq)
     memset(&node, 0, sizeof(node));
     memset(&req, 0, sizeof(req));
     memset(&info, 0, sizeof(info));
-    
+
     addr.ip4.addr = 0x22222222;
 
     link_find_success = 0;
@@ -361,7 +364,7 @@ START_TEST(tc_aodv_recv_valid_rreq)
     global_link.address.addr = 0x44444444;
     req.orig = addr.ip4.addr;
     req.dest = 0x11111111;
-    node.flags = PICO_AODV_NODE_SYNC | PICO_AODV_NODE_ROUTE_UP| PICO_AODV_NODE_ROUTE_DOWN;
+    node.flags = PICO_AODV_NODE_SYNC | PICO_AODV_NODE_ROUTE_UP | PICO_AODV_NODE_ROUTE_DOWN;
     node.dseq = 42;
     expected_dseq = long_be(42);
     aodv_recv_valid_rreq(&node, &req, &info);
@@ -382,19 +385,19 @@ END_TEST
 
 START_TEST(tc_aodv_parse_rreq)
 {
-   /* TODO: test this: static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
+    /* TODO: test this: static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
 
 START_TEST(tc_aodv_parse_rrep)
 {
-   /* TODO: test this: static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
+    /* TODO: test this: static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
 
 START_TEST(tc_aodv_parse_rerr)
 {
-   /* TODO: test this: static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
+    /* TODO: test this: static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo) */
 }
 END_TEST
 
@@ -411,38 +414,38 @@ END_TEST
 
 START_TEST(tc_pico_aodv_socket_callback)
 {
-   /* TODO: test this: static void pico_aodv_socket_callback(uint16_t ev, struct pico_socket *s) */
+    /* TODO: test this: static void pico_aodv_socket_callback(uint16_t ev, struct pico_socket *s) */
 }
 END_TEST
 
 START_TEST(tc_aodv_make_rreq)
 {
-   /* TODO: test this: static void aodv_make_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req) */
+    /* TODO: test this: static void aodv_make_rreq(struct pico_aodv_node *node, struct pico_aodv_rreq *req) */
 }
 END_TEST
 
 START_TEST(tc_aodv_retrans_rreq)
 {
-   /* TODO: test this: static void aodv_retrans_rreq(pico_time now, void *arg) */
+    /* TODO: test this: static void aodv_retrans_rreq(pico_time now, void *arg) */
 }
 END_TEST
 
 START_TEST(tc_pico_aodv_expired)
 {
-   /* TODO: test this: static void pico_aodv_expired(struct pico_aodv_node *node) */
+    /* TODO: test this: static void pico_aodv_expired(struct pico_aodv_node *node) */
 }
 END_TEST
 
 START_TEST(tc_pico_aodv_collector)
 {
-   /* TODO: test this: static void pico_aodv_collector(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_aodv_collector(pico_time now, void *arg) */
 }
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_aodv_node_compare = tcase_create("Unit test for aodv_node_compare");
     TCase *TCase_aodv_dev_cmp = tcase_create("Unit test for aodv_dev_cmp");
@@ -515,16 +518,16 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_aodv_expired);
     tcase_add_test(TCase_pico_aodv_collector, tc_pico_aodv_collector);
     suite_add_tcase(s, TCase_pico_aodv_collector);
-return s;
+    return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2014 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2014-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
    .
    Author: Toon Stegen
@@ -18,6 +18,7 @@
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
+#define PICO_MDNS_MAXBUF (1400)
 
 #define mdns_dbg(...) do {} while(0)
 /*#define mdns_dbg dbg*/
@@ -67,6 +68,7 @@ static int mdns_cache_cmp(void *ka, void *kb)
     /* Cache is sorted by qtype, name */
     if(a->suf->qtype < b->suf->qtype)
         return -1;
+
     if(b->suf->qtype < a->suf->qtype)
         return 1;
 
@@ -75,6 +77,7 @@ static int mdns_cache_cmp(void *ka, void *kb)
 
     if(ha < hb)
         return -1;
+
     if(hb < ha)
         return 1;
 
@@ -90,6 +93,7 @@ static int mdns_cmp(void *ka, void *kb)
     /* Cookie is sorted by qtype, name */
     if(a->qtype < b->qtype)
         return -1;
+
     if(b->qtype < a->qtype)
         return 1;
 
@@ -98,6 +102,7 @@ static int mdns_cmp(void *ka, void *kb)
 
     if(ha < hb)
         return -1;
+
     if(hb < ha)
         return 1;
 
@@ -158,6 +163,7 @@ static int pico_mdns_del_cookie(char *url, uint16_t qtype)
     };
     if(!url)
         return -1;
+
     strcpy(temp + 1, url);
 
     test.url = temp;
@@ -196,7 +202,9 @@ static void pico_mdns_cache_tick(pico_time now, void *_arg)
 static void pico_mdns_timeout(pico_time now, void *_arg)
 {
     struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
-    char url[256] = { 0 };
+    char url[256] = {
+        0
+    };
     IGNORE_PARAMETER(now);
 
     if(ck->callback)
@@ -205,7 +213,7 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
     strcpy(url, ck->url);
 
     pico_dns_notation_to_name(url);
-    pico_mdns_del_cookie(url+1, ck->qtype);
+    pico_mdns_del_cookie(url + 1, ck->qtype);
 }
 
 /* populate and add cookie to the tree */
@@ -244,6 +252,7 @@ static struct pico_dns_header *pico_mdns_add_cookie(struct pico_dns_header *hdr,
 
     if(probe == 0)
         ck->timer = pico_timer_add(PICO_MDNS_QUERY_TIMEOUT, pico_mdns_timeout, ck);
+
     return hdr;
 }
 
@@ -440,15 +449,18 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
     struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix *suf = NULL;
     struct pico_mdns_cache_rr test;
-    char temp[256] = { 0 };
+    char temp[256] = {
+        0
+    };
 
     suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
     if(!suf)
         return NULL;
+
     test.suf = suf;
     suf->qtype = qtype;
 
-    strcpy(temp+1, url);
+    strcpy(temp + 1, url);
     pico_to_lowercase(temp);
     test.url = temp;
     pico_dns_name_to_dns_notation(test.url);
@@ -468,7 +480,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
     char *rr_rdata = NULL;
 
     if(!url || !suf || !rdata)
-      return -1;
+        return -1;
 
     /* Don't cache PTR answers */
     if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR ) {
@@ -478,7 +490,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 
     rr = PICO_ZALLOC(sizeof(struct pico_mdns_cache_rr));
     rr_suf = PICO_ZALLOC(sizeof(struct pico_dns_answer_suffix));
-    rr_url = PICO_ZALLOC(strlen(url)+1);
+    rr_url = PICO_ZALLOC(strlen(url) + 1);
     rr_rdata = PICO_ZALLOC(short_be(suf->rdlength));
 
     if(!rr || !rr_suf || !rr_url || !rr_rdata) {
@@ -489,7 +501,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
         return -1;
     }
 
-    memcpy(rr_url+1, url, strlen(url));
+    memcpy(rr_url + 1, url, strlen(url));
     rr->url = rr_url;
     pico_dns_name_to_dns_notation(rr->url);
     memcpy(rr_suf, suf, sizeof(struct pico_dns_answer_suffix));
@@ -523,6 +535,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
             mdns_dbg("RR not in cache but TTL = 0\n");
         }
     }
+
     PICO_FREE(rr->suf);
     PICO_FREE(rr->url);
     PICO_FREE(rr->rdata);
@@ -534,7 +547,9 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *url, uint16_t qtype)
 {
     struct pico_mdns_cookie test;
-    char temp[256] = { 0 };
+    char temp[256] = {
+        0
+    };
 
     if(!url)
         return NULL;
@@ -865,7 +880,7 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
 /* callback for UDP socket events */
 static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 {
-    char recvbuf[1400];
+    char *recvbuf;
     int pico_read = 0;
     struct pico_ip4 peer = {
         0
@@ -875,14 +890,18 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
 
     /* process read event, data available */
     if (ev == PICO_SOCK_EV_RD) {
+        recvbuf = PICO_ZALLOC(PICO_MDNS_MAXBUF);
+        if (!recvbuf)
+            return;
         mdns_dbg("READ EVENT!\n");
         /* receive while data available in socket buffer */
-        while((pico_read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port)) > 0) {
+        while((pico_read = pico_socket_recvfrom(s, recvbuf, PICO_MDNS_MAXBUF, &peer, &port)) > 0) {
             /* if pico_socket_setoption is implemented, this check is not needed */
             pico_ipv4_to_string(host, peer.addr);
             mdns_dbg("Received data from %s:%u\n", host, short_be(port));
             pico_mdns_recv(recvbuf, pico_read, peer);
         }
+        PICO_FREE(recvbuf);
     }
     /* socket is closed */
     else if(ev == PICO_SOCK_EV_CLOSE) {
@@ -1154,7 +1173,7 @@ int pico_mdns_getaddr(const char *url, void (*callback)(char *ip, void *arg), vo
     struct pico_mdns_cache_rr *rr = NULL;
     char addr[46];
     rr = pico_mdns_cache_find_rr(url, PICO_DNS_TYPE_A);
-    
+
     if(rr && rr->rdata) {
         pico_ipv4_to_string(addr, long_from(rr->rdata));
         mdns_dbg("Cache hit! Found A record for '%s' with addr '%s'\n", url, addr);

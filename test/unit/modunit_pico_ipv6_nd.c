@@ -19,7 +19,9 @@
 
 START_TEST(tc_pico_nd_new_expire_time)
 {
-    struct pico_ipv6_neighbor n = { 0 };
+    struct pico_ipv6_neighbor n = {
+        0
+    };
     struct pico_device d = { {0} };
 
     /* TODO: how to test these time values */

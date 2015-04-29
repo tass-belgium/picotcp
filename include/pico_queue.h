@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
@@ -13,6 +13,13 @@
 #ifndef NULL
 #define NULL ((void *)0)
 #endif
+
+void *pico_mutex_init(void);
+void pico_mutex_deinit(void *mutex);
+void pico_mutex_lock(void *mutex);
+int pico_mutex_lock_timeout(void *mutex, int timeout);
+void pico_mutex_unlock(void *mutex);
+void pico_mutex_unlock_ISR(void *mutex);
 
 struct pico_queue {
     uint32_t frames;
