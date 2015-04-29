@@ -68,6 +68,9 @@ struct pico_socket {
 #endif
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTListen;
+#ifdef PICO_SUPPORT_IPV6
+    struct pico_tree *MCASTListen_ipv6;
+#endif 
 #endif
     uint16_t ev_pending;
 
@@ -113,6 +116,14 @@ struct pico_ipv6_mreq_source {
     struct pico_ip6 mcast_link_addr;
 };
 
+union pico_mreq {
+    struct pico_ipv6_mreq ipv6;
+    struct pico_ip_mreq ipv4;
+};
+union pico_mreq_source {
+    struct pico_ipv6_mreq_source ipv6;
+    struct pico_ip_mreq_source ipv4;
+};
 #endif
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000u
