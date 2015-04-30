@@ -16,6 +16,9 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
+/* We should define this in a global header. */
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 #define PICO_PPP_MRU 1514
 #define PICO_PPP_MTU 1500
 #define PPP_MAXPKT 2048
@@ -62,8 +65,10 @@
 static uint8_t LCPOPT_LEN[9] = { 0, 4, 0, 4, 4, 6, 2, 2, 2 };
 
 /* Protocol defines */
-static const unsigned char  PPPF_STARTSTOP = 0x7eu;
-static const unsigned char  PPPF_CONT      = 0x7du;
+static const unsigned char  AT_S3          = 0x0du;
+static const unsigned char  AT_S4          = 0x0au;
+static const unsigned char  PPPF_FLAG_SEQ  = 0x7eu;
+static const unsigned char  PPPF_CTRL_ESC  = 0x7du;
 static const unsigned char  PPPF_ADDR      = 0xffu;
 static const unsigned char  PPPF_CTRL      = 0x03u;
 static const unsigned char  PPP_PROTO_IP_C = 0x21u;
@@ -314,7 +319,7 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
         return len;
     
     /* PPP Header */
-    ptr[i++] = PPPF_STARTSTOP;
+    ptr[i++] = PPPF_FLAG_SEQ;
     ptr[i++] = PPPF_ADDR;
     ptr[i++] = PPPF_CTRL;
     /* protocol */
@@ -326,7 +331,7 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
     fcs = ppp_fcs_finish(fcs);
     pkt[len - 3] = fcs & 0xFF;
     pkt[len - 2] = ((fcs & 0xFF00) >> 8);
-    pkt[len - 1] = PPPF_STARTSTOP;
+    pkt[len - 1] = PPPF_FLAG_SEQ;
 
     ppp->serial_send(&ppp->dev, pkt, len);
     return len;
@@ -345,7 +350,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     if (!ppp->serial_send)
         return len;
 
-    pico_ppp_data_buffer[i++] = PPPF_STARTSTOP;
+    pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
     if (!LCPOPT_ISSET_PEER(ppp, LCPOPT_ADDRCTL_COMP)) 
     {
             pico_ppp_data_buffer[i++] = PPPF_ADDR;
@@ -365,7 +370,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     fcs = ppp_fcs_finish(fcs);
     pico_ppp_data_buffer[i++] = fcs & 0xFF;
     pico_ppp_data_buffer[i++] = (fcs & 0xFF00) >> 8;
-    pico_ppp_data_buffer[i++] = PPPF_STARTSTOP;
+    pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
     ppp->serial_send(&ppp->dev, pico_ppp_data_buffer, i);
     return len;
 }
@@ -623,14 +628,6 @@ void ppp_lcp_req(struct pico_device_ppp *ppp)
             prefix);
     PICO_FREE(lcpbuf);
 }
-
-static void ppp_shift(uint8_t *buf, int i, int len)
-{
-    for(; i < len; i++) {
-        buf[i] = buf[i + 1];
-    }
-}
-
 
 static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, int len)
 {
@@ -1037,28 +1034,19 @@ static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, int le
 
 static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, int len)
 {
-    int i;
+    size_t idx;
     uint8_t *pkt = (uint8_t *)data;
 
-    /* This operation could be optimized by reading byte-per-byte
-     * from the interface and filling the buffer with the already
-     * transformed data. */
-    for (i = 0; i < len; i++) {
-        if (pkt[i] == PPPF_CONT) {
-            pkt[i] = pkt[i + 1] ^ 0x20;
-            ppp_shift(pkt, i + 1, len);
-            len--;
+    if (len > 0) {
+        dbg("PPP   <<<<< ");
+        for(idx = 0; idx < len; idx++) {
+            dbg(" %02x", ((uint8_t *)data)[idx]);
         }
+        dbg("\n");
     }
 
-    if ((pkt[0] != PPPF_STARTSTOP) || (pkt[len -1] != PPPF_STARTSTOP))
-        return;
-    /* Remove start byte */
-    pkt++; len--;
-    /* Remove end byte */
-    len--;
     ppp_process_packet(ppp, pkt, len);
-}   
+}
 
 
 
@@ -1669,30 +1657,61 @@ struct pico_ppp_fsm_action pico_ppp_fsm[PPP_MODEM_MAXSTATE] = {
 static int pico_ppp_poll(struct pico_device *dev, int loop_score)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *) dev;
+    static size_t len = 0;
     int r;
     uint8_t *p, *endcmd, *end;
     if (ppp->serial_recv) {
         do {
-            r = ppp->serial_recv(&ppp->dev, ppp_recv_buf, PPP_MAXPKT);
+            r = ppp->serial_recv(&ppp->dev, &ppp_recv_buf[len], 1);
             if (r <= 0)
                 break;
+
             if (ppp->modem_state == PPP_MODEM_STATE_CONNECTED) {
-                ppp_recv_data(ppp, ppp_recv_buf, r);
-            } else {
-                p = ppp_recv_buf;
-                endcmd = p + r;
-                while (p < endcmd) {
-                    end = p;
-                    while( *end != '\r')
-                        end++;
-                    *end = 0;
-                    if (strlen(p) > 0)
-                        ppp_modem_recv(ppp, p, strlen(p));
-                    p = end + 2;
+                static int control_escape = 0;
+
+                if (ppp_recv_buf[len] == PPPF_FLAG_SEQ) {
+                    if (control_escape) {
+                        /* Illegal sequence, discard frame */
+                        control_escape = 0;
+                        len = 0;
+                    }
+                    if (len > 0) {
+                        ppp_recv_data(ppp, ppp_recv_buf, len);
+                        len = 0;
+                    }
+                } else if (control_escape) {
+                    ppp_recv_buf[len] ^= 0x20;
+                    control_escape = 0;
+                    len++;
+                } else if (ppp_recv_buf[len] == PPPF_CTRL_ESC) {
+                    control_escape = 1;
+                } else {
+                    len++;
                 }
-                loop_score--;
+            } else {
+                static int s3 = 0;
+
+                if (ppp_recv_buf[len] == AT_S3) {
+                    s3 = 1;
+                    if (len > 0) {
+                        ppp_recv_buf[len] = '\0';
+                        ppp_modem_recv(ppp, ppp_recv_buf, len);
+                        len = 0;
+                    }
+                } else if (ppp_recv_buf[len] == AT_S4) {
+                    if (!s3) {
+                        len++;
+                    }
+                    s3 = 0;
+                } else {
+                    s3 = 0;
+                    len++;
+                }
+
+                /* TODO: check usage */
+                /* loop_score--; */
             }
-        } while ((r > 0) && (loop_score > 0));
+        } while ((r > 0) && (len < ARRAY_SIZE(ppp_recv_buf)) && (loop_score > 0));
     }
     return loop_score;
 }
