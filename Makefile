@@ -47,7 +47,7 @@ MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
-PPP?=0
+PPP?=1
 CYASSL?=0
 POLARSSL?=0
 
@@ -383,7 +383,7 @@ dummy: mod core lib $(DUMMY_EXTRA)
 
 ppptest: test/ppp.c lib
 	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
-	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS)
+	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) -lpolarssl
 	rm -f ppp.o
 
 

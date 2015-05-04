@@ -5,6 +5,7 @@
 #include <termios.h>
 #include <pico_icmp4.h>
 #include <pico_socket.h>
+#include <polarssl/md5.h>
 #define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
 #define APN "gprs.base.be"
@@ -14,6 +15,11 @@ static int fd = -1;
 static int idx;
 static int ping_on = 0;
 static int disconnected = 0;
+
+static void md5sum(uint8_t *dst, const uint8_t *src, size_t len)
+{
+    md5(src, len, dst);
+}
 
 int modem_read(struct pico_device *dev, void *data, int len)
 {
@@ -119,6 +125,8 @@ int main(int argc, const char *argv[])
     fcntl(fd, F_SETFL, O_NONBLOCK);
 
     pico_stack_init();
+
+    pico_register_md5sum(md5sum);
 
     dev = pico_ppp_create();
     if (!dev)
