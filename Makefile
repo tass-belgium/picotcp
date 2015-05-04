@@ -62,8 +62,6 @@ CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-stateme
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
-# Let the C preprocessor include configuration header in every source file
-CFLAGS += -include pico_config.h
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
