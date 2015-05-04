@@ -20,6 +20,7 @@
 /* #define sntp_dbg dbg */
 
 #define SNTP_VERSION 4
+#define PICO_SNTP_MAXBUF (1400)
 
 /* Sntp mode */
 #define SNTP_MODE_CLIENT 3
@@ -145,7 +146,7 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
 {
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)s->priv;
-    char recvbuf[1400];
+    char *recvbuf;
     int read = 0;
     uint32_t peer;
     uint16_t port;
@@ -159,10 +160,14 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     if (ev == PICO_SOCK_EV_RD) {
         ck->rec = 1;
         /* receive while data available in socket buffer */
+        recvbuf = PICO_ZALLOC(PICO_SNTP_MAXBUF);
+        if (!recvbuf)
+            return;
         do {
-            read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+            read = pico_socket_recvfrom(s, recvbuf, PICO_SNTP_MAXBUF, &peer, &port);
         } while(read > 0);
         pico_sntp_parse(recvbuf, s->priv);
+        PICO_FREE(recvbuf);
     }
     /* socket is closed */
     else if(ev == PICO_SOCK_EV_CLOSE) {

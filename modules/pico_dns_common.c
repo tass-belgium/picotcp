@@ -32,7 +32,7 @@ void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_
 
     hdr->opcode = PICO_DNS_OPCODE_QUERY;
     hdr->tc = PICO_DNS_TC_NO_TRUNCATION;
-    hdr->rd = PICO_DNS_RD_NO_DESIRE;
+    hdr->rd = PICO_DNS_RD_IS_DESIRED;
     hdr->ra = PICO_DNS_RA_NO_SUPPORT;
     hdr->z = 0; /* Z, AD, CD are 0 */
     hdr->rcode = PICO_DNS_RCODE_NO_ERROR;
