@@ -13,6 +13,7 @@
 #include "pico_ipv6.h"
 #include "pico_dns_client.h"
 #include "pico_tree.h"
+#include "pico_stack.h"
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
