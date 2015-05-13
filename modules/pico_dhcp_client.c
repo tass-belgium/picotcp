@@ -513,6 +513,8 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
         0
     };
 
+    struct pico_ipv4_link *l;
+
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
         return -1;
@@ -526,7 +528,15 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     /* close the socket used for address (re)acquisition */
     pico_socket_close(dhcpc->s);
     dhcpc->s = NULL;
+
+    /* Delete all the links before adding the address */
     pico_ipv4_link_del(dhcpc->dev, address);
+    l = pico_ipv4_link_by_dev(dhcpc->dev);
+    while(l) {
+        pico_ipv4_link_del(dhcpc->dev, l->address);
+        l = pico_ipv4_link_by_dev_next(dhcpc->dev, l);
+    }
+
     pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
 
     dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
