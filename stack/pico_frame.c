@@ -78,7 +78,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
         unsigned int align = size % sizeof(uint32_t);
         /* Ensure that usage_count starts on an aligned address */
         if (align) {
-            size += sizeof(uint32_t) - align;
+            size += (uint32_t)sizeof(uint32_t) - align;
         }
         p->buffer = PICO_ZALLOC(size + sizeof(uint32_t));
         if (!p->buffer) {
