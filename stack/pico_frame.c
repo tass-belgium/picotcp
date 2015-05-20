@@ -65,6 +65,7 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
+    uint32_t frame_buffer_size = size;
     if (!p)
         return NULL;
 
@@ -78,9 +79,9 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
         unsigned int align = size % sizeof(uint32_t);
         /* Ensure that usage_count starts on an aligned address */
         if (align) {
-            size += (uint32_t)sizeof(uint32_t) - align;
+            frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
         }
-        p->buffer = PICO_ZALLOC(size + sizeof(uint32_t));
+        p->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
         if (!p->buffer) {
             PICO_FREE(p);
             return NULL;
