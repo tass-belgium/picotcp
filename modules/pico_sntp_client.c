@@ -298,7 +298,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck->stamp = 0ull;
     ck->rec = 0;
     ck->sock = NULL;
-    ck->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck->hostname) {
         PICO_FREE(ck);
         pico_err = PICO_ERR_ENOMEM;
@@ -325,7 +325,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     }
 
     ck6->proto = PICO_PROTO_IPV6;
-    ck6->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck6->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck6->hostname) {
         PICO_FREE(ck6);
         pico_err = PICO_ERR_ENOMEM;
