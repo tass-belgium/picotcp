@@ -513,6 +513,8 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
         0
     };
 
+    struct pico_ipv4_link *l;
+
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
         return -1;
@@ -526,7 +528,15 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     /* close the socket used for address (re)acquisition */
     pico_socket_close(dhcpc->s);
     dhcpc->s = NULL;
+
+    /* Delete all the links before adding the address */
     pico_ipv4_link_del(dhcpc->dev, address);
+    l = pico_ipv4_link_by_dev(dhcpc->dev);
+    while(l) {
+        pico_ipv4_link_del(dhcpc->dev, l->address);
+        l = pico_ipv4_link_by_dev_next(dhcpc->dev, l);
+    }
+
     pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
 
     dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
@@ -869,19 +879,23 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
 
 static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s)
 {
-    uint8_t buf[DHCP_CLIENT_MAXMSGZISE] = {
-        0
-    };
+
+    uint8_t *buf;
     int r = 0;
     struct pico_dhcp_hdr *hdr = NULL;
     struct pico_dhcp_client_cookie *dhcpc = NULL;
-
+    
     if (ev != PICO_SOCK_EV_RD)
         return;
 
+    buf = PICO_ZALLOC(DHCP_CLIENT_MAXMSGZISE);
+    if (!buf) {
+        return;
+    }
+
     r = pico_socket_recvfrom(s, buf, DHCP_CLIENT_MAXMSGZISE, NULL, NULL);
     if (r < 0)
-        return;
+        goto out_discard_buf;
 
     /* If the 'xid' of an arriving message does not match the 'xid'
      * of the most recent transmitted message, the message must be
@@ -889,10 +903,13 @@ static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s)
     hdr = (struct pico_dhcp_hdr *)buf;
     dhcpc = pico_dhcp_client_find_cookie(hdr->xid);
     if (!dhcpc)
-        return;
+        goto out_discard_buf;
 
     dhcpc->event = (uint8_t)pico_dhcp_client_opt_parse(buf, (uint16_t)r);
     pico_dhcp_state_machine(dhcpc->event, dhcpc, buf);
+
+out_discard_buf:
+    PICO_FREE(buf);
 }
 
 void *pico_dhcp_get_identifier(uint32_t xid)
