@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
@@ -18,7 +18,7 @@
 #   define PACKED_STRUCT_DEF __packed struct
 #   define PEDANTIC_STRUCT_DEF __packed struct
 #   define PACKED_UNION_DEF  __packed union
-#   define WEAK 
+#   define WEAK
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #   define PEDANTIC_STRUCT_DEF struct
@@ -135,24 +135,24 @@ static inline uint64_t long_long_be(uint64_t le)
 }
 #   else
 /*
-extern uint32_t __builtin_bswap32(uint32_t);
-extern uint16_t __builtin_bswap16(uint16_t);
-extern uint64_t __builtin_bswap64(uint64_t);
-*/
+   extern uint32_t __builtin_bswap32(uint32_t);
+   extern uint16_t __builtin_bswap16(uint16_t);
+   extern uint64_t __builtin_bswap64(uint64_t);
+ */
 
-static inline uint32_t long_be(uint32_t le) 
+static inline uint32_t long_be(uint32_t le)
 {
-   return (uint32_t)__builtin_bswap32(le);
+    return (uint32_t)__builtin_bswap32(le);
 }
 
-static inline uint16_t short_be(uint16_t le) 
+static inline uint16_t short_be(uint16_t le)
 {
-   return (uint16_t)__builtin_bswap16(le);
+    return (uint16_t)__builtin_bswap16(le);
 }
 
 static inline uint64_t long_long_be(uint64_t le)
 {
-   return (uint64_t)__builtin_bswap64(le);
+    return (uint64_t)__builtin_bswap64(le);
 }
 
 #   endif /* BYTESWAP_GCC */
@@ -183,7 +183,9 @@ static inline uint64_t long_long_be(uint64_t le)
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***
  *** *** *** *** *** *** ***/
-#if defined CORTEX_M4_HARDFLOAT
+#if defined PICO_PORT_CUSTOM
+# include "pico_port.h"
+#elif defined CORTEX_M4_HARDFLOAT
 # include "arch/pico_cortex_m.h"
 #elif defined CORTEX_M4_SOFTFLOAT
 # include "arch/pico_cortex_m.h"

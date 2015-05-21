@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -79,7 +79,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
 
     p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
     if (!p->usage_count) {
-        if (p->buffer && !ext_buffer)
+        if (p->buffer)
             PICO_FREE(p->buffer);
 
         PICO_FREE(p);
@@ -87,7 +87,6 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
     }
 
     p->buffer_len = size;
-
 
     /* By default, frame content is the full buffer. */
     p->start = p->buffer;
@@ -181,7 +180,6 @@ static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t le
     while (buf < stop) {
         sum += *buf++;
     }
-
     return sum;
 }
 
@@ -190,7 +188,7 @@ static inline uint16_t pico_checksum_finalize(uint32_t sum)
     while (sum >> 16) { /* a second carry is possible! */
         sum = (sum & 0x0000FFFF) + (sum >> 16);
     }
-    return short_be((uint16_t)~sum);
+    return short_be((uint16_t) ~sum);
 }
 
 #else
@@ -208,7 +206,6 @@ static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t le
         if (len > (i + 1u))
             sum += buf[i + 1];
     }
-
     return sum;
 }
 

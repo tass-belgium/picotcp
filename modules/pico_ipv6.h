@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -44,6 +44,7 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+    struct pico_timer *dad_timer;
     pico_time expire_time;
 };
 
@@ -109,7 +110,7 @@ int pico_ipv6_is_linklocal(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_solicited(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_unspecified(const uint8_t addr[PICO_SIZE_IP6]);
 
-int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *dst, uint8_t proto, int is_dad);
+int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico_ip6 *dst, uint8_t proto, int is_dad);
 int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 gateway, int metric, struct pico_ipv6_link *link);
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code);
 

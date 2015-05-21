@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -123,8 +123,8 @@ static int pico_protocol_generic_loop(struct pico_proto_rr *rr, int loop_score, 
 
     if (!next_node)
         return loop_score;
-    else
-        next = next_node->keyValue;
+
+    next = next_node->keyValue;
 
     /* init start node */
     start = next;

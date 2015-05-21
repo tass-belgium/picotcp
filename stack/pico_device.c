@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    .
@@ -70,6 +70,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     if (link) {
         device_init_ipv6_final(dev, &newaddr);
     }
+
     return link;
 }
 #endif
@@ -89,11 +90,13 @@ static int device_init_mac(struct pico_device *dev, uint8_t *mac)
             PICO_FREE(dev->eth);
             return -1;
         }
+
         #endif
     } else {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
+
     return 0;
 }
 
@@ -123,6 +126,7 @@ int pico_device_ipv6_random_ll(struct pico_device *dev)
             return -1;
         }
     }
+
     #endif
     return 0;
 }
@@ -131,9 +135,10 @@ static int device_init_nomac(struct pico_device *dev)
 {
     if (pico_device_ipv6_random_ll(dev) < 0) {
         PICO_FREE(dev->q_in);
-        PICO_FREE(dev->q_out); 
+        PICO_FREE(dev->q_out);
         return -1;
     }
+
     dev->eth = NULL;
     return 0;
 }
@@ -152,18 +157,25 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
-    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
-    if (!dev->q_in || !dev->q_out)
+    if (!dev->q_in)
         return -1;
+
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_out) {
+        PICO_FREE(dev->q_in);
+        return -1;
+    }
 
     pico_tree_insert(&Device_tree, dev);
     if (!dev->mtu)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
+
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
         ret = device_init_nomac(dev);
     }
+
     return ret;
 }
 
@@ -194,8 +206,6 @@ void pico_device_destroy(struct pico_device *dev)
 #endif
     pico_tree_delete(&Device_tree, dev);
 
-
-    pico_tree_delete(&Device_tree, dev);
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
     PICO_FREE(dev);
@@ -272,8 +282,9 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             f = pico_dequeue(dev->q_out);
             pico_frame_discard(f); /* SINGLE POINT OF DISCARD for OUTGOING FRAMES */
             loop_score--;
-        } else 
+        } else
             break; /* Don't discard */
+
     }
     return loop_score;
 }
@@ -392,5 +403,6 @@ int pico_device_link_state(struct pico_device *dev)
 {
     if (!dev->link_state)
         return 1; /* Not supported, assuming link is always up */
+
     return dev->link_state(dev);
 }

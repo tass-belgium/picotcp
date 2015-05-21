@@ -10,7 +10,7 @@ struct iperf_hdr {
     int32_t flags;          /* 0 */
     int32_t numThreads;     /* 1 */
     int32_t mPort;          /* 5001  */
-    int32_t bufferlen;      /* 0 */ 
+    int32_t bufferlen;      /* 0 */
     int32_t mWinBand;       /* 0 */
     int32_t mAmount;        /* 0xfffffc18 */
 };
@@ -27,7 +27,7 @@ static pico_time deadline;
 
 static void panic(void)
 {
-    for(;;);
+    for(;; ) ;
 }
 
 static char buf[MTU] = {};
@@ -43,7 +43,7 @@ static void buf_paint(void)
 
 static void send_hdr(struct pico_socket *s)
 {
-    struct iperf_hdr hdr = {} ;
+    struct iperf_hdr hdr = {};
     hdr.numThreads = long_be(1);
     hdr.mPort = long_be(5001);
     hdr.mAmount = long_be(0xfffffc18);
@@ -66,8 +66,10 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
             pico_timer_add(2000, deferred_exit, NULL);
             end++;
         }
+
         pico_socket_write(s, buf, MTU);
     }
+
     if (!(end) && (ev & (PICO_SOCK_EV_FIN | PICO_SOCK_EV_CLOSE))) {
         pico_timer_add(2000, deferred_exit, NULL);
         end++;
@@ -76,7 +78,7 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
 
 static void iperfc_socket_setup(union pico_address *addr, uint16_t family)
 {
-	int yes = 1;
+    int yes = 1;
     uint16_t send_port = 0;
     struct pico_socket *s = NULL;
     uint32_t bufsize = SEND_BUF_SIZ;
@@ -124,7 +126,7 @@ void app_iperfc(char *arg)
         goto out;
     }
 
-	iperfc_socket_setup(&dst, family);
+    iperfc_socket_setup(&dst, family);
     return;
 out:
     dbg("Error parsing options!\n");

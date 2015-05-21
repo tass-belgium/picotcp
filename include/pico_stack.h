@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
@@ -50,7 +50,7 @@ int32_t pico_ethernet_send(struct pico_frame *f);
 /* DATALINK LEVEL */
 int32_t pico_ethernet_receive(struct pico_frame *f);
 #else
-    /* When ETH is not supported by the stack... */
+/* When ETH is not supported by the stack... */
 #   define pico_ethernet_send(f)    (-1)
 #   define pico_ethernet_receive(f) (-1)
 #endif
