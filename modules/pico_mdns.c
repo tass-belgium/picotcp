@@ -728,7 +728,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     }
 #endif
     else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR) {
-        pico_dns_notation_to_name(data, strlen(data)); /* This is not the right way, where do I get the lenght of the data field? */
+        pico_dns_notation_to_name(data, (unsigned int)strlen(data)); /* This is not the right way, where do I get the lenght of the data field? */
         ck->callback(data + 1, ck->arg);    /* +1 to discard the beginning dot */
     }
     else {
