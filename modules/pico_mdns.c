@@ -19,6 +19,7 @@
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000) /* One second */
 #define PICO_MDNS_MAXBUF (1400)
+#define PICO_MDNS_CHARBUF_SIZE (256)
 
 #define mdns_dbg(...) do {} while(0)
 /*#define mdns_dbg dbg*/
@@ -158,7 +159,7 @@ static int pico_mdns_cache_del_rr(char *url, uint16_t qtype, char *rdata)
 static int pico_mdns_del_cookie(char *url, uint16_t qtype)
 {
     struct pico_mdns_cookie test, *found = NULL;
-    char temp[256] = {
+    char temp[PICO_MDNS_CHARBUF_SIZE] = {
         0
     };
     if(!url)
@@ -167,7 +168,7 @@ static int pico_mdns_del_cookie(char *url, uint16_t qtype)
     strcpy(temp + 1, url);
 
     test.url = temp;
-    pico_dns_name_to_dns_notation(test.url);
+    pico_dns_name_to_dns_notation(test.url, PICO_MDNS_CHARBUF_SIZE);
     test.qtype = qtype;
     found = pico_tree_findKey(&QTable, &test);
 
@@ -202,7 +203,7 @@ static void pico_mdns_cache_tick(pico_time now, void *_arg)
 static void pico_mdns_timeout(pico_time now, void *_arg)
 {
     struct pico_mdns_cookie *ck = (struct pico_mdns_cookie *)_arg;
-    char url[256] = {
+    char url[PICO_MDNS_CHARBUF_SIZE] = {
         0
     };
     IGNORE_PARAMETER(now);
@@ -212,7 +213,7 @@ static void pico_mdns_timeout(pico_time now, void *_arg)
 
     strcpy(url, ck->url);
 
-    pico_dns_notation_to_name(url);
+    pico_dns_notation_to_name(url, PICO_MDNS_CHARBUF_SIZE);
     pico_mdns_del_cookie(url + 1, ck->qtype);
 }
 
@@ -314,7 +315,7 @@ static struct pico_dns_header *pico_mdns_create_answer(char *url, unsigned int *
 
     /* assemble dns message */
     pico_mdns_fill_header(header, 0, 1); /* 0 questions, 1 answer */
-    pico_dns_name_to_dns_notation(domain);
+    pico_dns_name_to_dns_notation(domain, PICO_MDNS_CHARBUF_SIZE);
 
     pico_dns_fill_rr_suffix(asuffix, qtype, PICO_DNS_CLASS_IN, ttl, datalen);
 
@@ -435,7 +436,7 @@ static struct pico_dns_header *pico_mdns_create_query(const char *url, uint16_t 
 
     /* assemble dns message */
     pico_mdns_fill_header(header, 1, 0);
-    pico_dns_name_to_dns_notation(domain);
+    pico_dns_name_to_dns_notation(domain, PICO_MDNS_CHARBUF_SIZE);
 
     if (pico_mdns_perform_query(qsuffix, proto, probe, inverse) < 0)
         return NULL;
@@ -449,7 +450,7 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
     struct pico_mdns_cache_rr *rr = NULL;
     struct pico_dns_answer_suffix *suf = NULL;
     struct pico_mdns_cache_rr test;
-    char temp[256] = {
+    char temp[PICO_MDNS_CHARBUF_SIZE] = {
         0
     };
 
@@ -463,7 +464,7 @@ static struct pico_mdns_cache_rr *pico_mdns_cache_find_rr(const char *url, uint1
     strcpy(temp + 1, url);
     pico_to_lowercase(temp);
     test.url = temp;
-    pico_dns_name_to_dns_notation(test.url);
+    pico_dns_name_to_dns_notation(test.url, PICO_MDNS_CHARBUF_SIZE);
 
     mdns_dbg("Looking for '%s' with qtype '%d' in cache\n", url, qtype);
 
@@ -503,7 +504,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 
     memcpy(rr_url + 1, url, strlen(url));
     rr->url = rr_url;
-    pico_dns_name_to_dns_notation(rr->url);
+    pico_dns_name_to_dns_notation(rr->url, PICO_MDNS_CHARBUF_SIZE);
     memcpy(rr_suf, suf, sizeof(struct pico_dns_answer_suffix));
     rr->suf = rr_suf;
     rr->suf->qtype = short_be(rr->suf->qtype);
@@ -547,7 +548,7 @@ static int pico_mdns_cache_add_rr(char *url, struct pico_dns_answer_suffix *suf,
 static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *url, uint16_t qtype)
 {
     struct pico_mdns_cookie test;
-    char temp[256] = {
+    char temp[PICO_MDNS_CHARBUF_SIZE] = {
         0
     };
 
@@ -557,7 +558,7 @@ static struct pico_mdns_cookie *pico_mdns_find_cookie(const char *url, uint16_t 
     strcpy(temp + 1, url);
     pico_to_lowercase(temp);
     test.url = temp;
-    pico_dns_name_to_dns_notation(test.url);
+    pico_dns_name_to_dns_notation(test.url, PICO_MDNS_CHARBUF_SIZE);
     test.qtype = qtype;
     return pico_tree_findKey(&QTable, &test);
 }
@@ -598,12 +599,12 @@ static struct pico_dns_header *pico_mdns_query_create_answer(union pico_address 
 #endif
     /* reply to PTR records */
     if(qtype == PICO_DNS_TYPE_PTR) {
-        char host_conv[255] = {
+        char host_conv[PICO_MDNS_CHARBUF_SIZE] = {
             0
         };
         mdns_dbg("Replying on PTR query...\n");
         strcpy(host_conv + 1, mdns_global_host);
-        pico_dns_name_to_dns_notation(host_conv);
+        pico_dns_name_to_dns_notation(host_conv, PICO_MDNS_CHARBUF_SIZE);
         return pico_mdns_create_answer(name, len, qtype, host_conv);
     }
 
@@ -727,7 +728,7 @@ static int pico_mdns_handle_answer(char *url, struct pico_dns_answer_suffix *suf
     }
 #endif
     else if(short_be(suf->qtype) == PICO_DNS_TYPE_PTR) {
-        pico_dns_notation_to_name(data);
+        pico_dns_notation_to_name(data, strlen(data)); /* This is not the right way, where do I get the lenght of the data field? */
         ck->callback(data + 1, ck->arg);    /* +1 to discard the beginning dot */
     }
     else {
@@ -845,7 +846,7 @@ static int pico_mdns_recv(void *buf, int buflen, struct pico_ip4 peer)
     /* handle queries */
     for(i = 0; i < qcount; i++) {
         qsuf = (struct pico_dns_query_suffix*) (ptr + pico_mdns_namelen_comp(ptr) + 1);
-        pico_dns_notation_to_name(ptr);
+        pico_dns_notation_to_name(ptr, PICO_MDNS_CHARBUF_SIZE);
         if (!ptr)
             return -1;
 

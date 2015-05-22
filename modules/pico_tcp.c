@@ -26,7 +26,7 @@
 #define PICO_TCP_RTO_MIN (70)
 #define PICO_TCP_RTO_MAX (120000)
 #define PICO_TCP_IW          2
-#define PICO_TCP_SYN_TO  1000u
+#define PICO_TCP_SYN_TO  2000u
 #define PICO_TCP_ZOMBIE_TO 30000
 
 #define PICO_TCP_MAX_RETRANS         10
