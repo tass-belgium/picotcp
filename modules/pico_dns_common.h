@@ -90,8 +90,8 @@ enum pico_dns_arpa
 
 void pico_dns_fill_header(struct pico_dns_header *hdr, uint16_t qdcount, uint16_t ancount);
 uint16_t pico_dns_client_strlen(const char *url);
-int pico_dns_name_to_dns_notation(char *ptr);
-int pico_dns_notation_to_name(char *ptr);
+int pico_dns_name_to_dns_notation(char *ptr, unsigned int maxlen);
+int pico_dns_notation_to_name(char *ptr, unsigned int maxlen);
 void pico_dns_fill_query_suffix(struct pico_dns_query_suffix *suf, uint16_t type, uint16_t qclass);
 void pico_dns_fill_rr_suffix(struct pico_dns_answer_suffix *suf, uint16_t qtype, uint16_t qclass, uint32_t ttl, uint16_t rdlength);
 int8_t pico_dns_mirror_addr(char *ptr);
