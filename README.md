@@ -31,7 +31,3 @@ Jenkins RFC compliance  :
 
 Jenkins TICS quality    :
 [![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_TICS/)
-
-Travis: 
-[![Travis CI build status](https://api.travis-ci.org/tass-belgium/picotcp.svg)](https://travis-ci.org/tass-belgium/picotcp)
-[![Coverage Status](https://img.shields.io/coveralls/tass-belgium/picotcp.svg)](https://coveralls.io/r/tass-belgium/picotcp?branch=master)
