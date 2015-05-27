@@ -26,9 +26,9 @@
 #define PPP_MAX_APN 134
 #define PPP_MAX_USERNAME 134
 #define PPP_MAX_PASSWORD 134
-#define PPP_HDR_SIZE 3
-#define PPP_PROTO_SLOT_SIZE 2
-#define PPP_FCS_SIZE 2
+#define PPP_HDR_SIZE 3U
+#define PPP_PROTO_SLOT_SIZE 2U
+#define PPP_FCS_SIZE 2U
 #define PPP_PROTO_LCP short_be(0xc021)
 #define PPP_PROTO_IP  short_be(0x0021)
 #define PPP_PROTO_PAP short_be(0xc023)
@@ -337,7 +337,7 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
     pkt[len - 2] = (uint8_t)((fcs & 0xFF00) >> 8);
     pkt[len - 1] = PPPF_FLAG_SEQ;
 
-    ppp->serial_send(&ppp->dev, pkt, len);
+    ppp->serial_send(&ppp->dev, pkt, (int)len);
     return (int)len;
 }
 
@@ -370,7 +370,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     pico_ppp_data_buffer[i++] = 0x21;
     memcpy(pico_ppp_data_buffer + i, buf, (size_t)len);
     i += len;
-    fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, i - fcs_start);
+    fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, (size_t)(i - fcs_start));
     fcs = ppp_fcs_finish(fcs);
     pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFF);
     pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00) >> 8);
@@ -409,15 +409,6 @@ static void ppp_modem_send_creg(struct pico_device_ppp *ppp)
     ppp->serial_send(&ppp->dev, PPP_AT_CREG2, strlen(PPP_AT_CREG2));
 }
 
-#define PPP_AT_CREG3 "AT+CREG?\r\n"
-static void ppp_modem_send_creg_q(struct pico_device_ppp *ppp)
-{
-    if (!ppp->serial_send)
-        return;
-
-    ppp->serial_send(&ppp->dev, PPP_AT_CREG3, strlen(PPP_AT_CREG3));
-}
-
 #define PPP_AT_CGREG "AT+CGREG=1\r\n"
 static void ppp_modem_send_cgreg(struct pico_device_ppp *ppp)
 {
@@ -425,6 +416,47 @@ static void ppp_modem_send_cgreg(struct pico_device_ppp *ppp)
         return;
 
     ppp->serial_send(&ppp->dev, PPP_AT_CGREG, strlen(PPP_AT_CGREG));
+}
+
+
+#define PPP_AT_CGDCONT "AT+CGDCONT=1,\"IP\",\"%s\",,,\r\n"
+static void ppp_modem_send_cgdcont(struct pico_device_ppp *ppp)
+{
+    char at_cgdcont[200];
+
+    if (!ppp->serial_send)
+        return;
+
+    snprintf(at_cgdcont, 200, PPP_AT_CGDCONT, ppp->apn);
+    ppp->serial_send(&ppp->dev, at_cgdcont, (int)strlen(at_cgdcont));
+}
+
+
+#define PPP_AT_CGATT "AT+CGATT=1\r\n"
+static void ppp_modem_send_cgatt(struct pico_device_ppp *ppp)
+{
+    if (!ppp->serial_send)
+        return;
+
+    ppp->serial_send(&ppp->dev, PPP_AT_CGATT, strlen(PPP_AT_CGATT));
+}
+
+#ifdef PICOTCP_PPP_SUPPORT_QUERIES
+#define PPP_AT_CGATT_Q "AT+CGATT?\r\n"
+static void ppp_modem_send_cgatt_q(struct pico_device_ppp *ppp)
+{
+    if (!ppp->serial_send)
+        return;
+
+    ppp->serial_send(&ppp->dev, PPP_AT_CGATT_Q, strlen(PPP_AT_CGATT_Q));
+}
+#define PPP_AT_CGDCONT_Q "AT+CGDCONT?\r\n"
+static void ppp_modem_send_cgdcont_q(struct pico_device_ppp *ppp)
+{
+    if (!ppp->serial_send)
+        return;
+
+    ppp->serial_send(&ppp->dev, PPP_AT_CGDCONT_Q, strlen(PPP_AT_CGDCONT_Q));
 }
 
 #define PPP_AT_CGREG_Q "AT+CGREG?\r\n"
@@ -436,44 +468,15 @@ static void ppp_modem_send_cgreg_q(struct pico_device_ppp *ppp)
     ppp->serial_send(&ppp->dev, PPP_AT_CGREG_Q, strlen(PPP_AT_CGREG_Q));
 }
 
-#define PPP_AT_CGDCONT "AT+CGDCONT=1,\"IP\",\"%s\",,,\r\n"
-static void ppp_modem_send_cgdcont(struct pico_device_ppp *ppp)
-{
-    char at_cgdcont[200];
-
-    if (!ppp->serial_send)
-        return;
-
-    snprintf(at_cgdcont, 200, PPP_AT_CGDCONT, ppp->apn);
-    ppp->serial_send(&ppp->dev, at_cgdcont, strlen(at_cgdcont));
-}
-
-#define PPP_AT_CGDCONT_Q "AT+CGDCONT?\r\n"
-static void ppp_modem_send_cgdcont_q(struct pico_device_ppp *ppp)
+#define PPP_AT_CREG3 "AT+CREG?\r\n"
+static void ppp_modem_send_creg_q(struct pico_device_ppp *ppp)
 {
     if (!ppp->serial_send)
         return;
 
-    ppp->serial_send(&ppp->dev, PPP_AT_CGDCONT_Q, strlen(PPP_AT_CGDCONT_Q));
+    ppp->serial_send(&ppp->dev, PPP_AT_CREG3, strlen(PPP_AT_CREG3));
 }
-
-#define PPP_AT_CGATT "AT+CGATT=1\r\n"
-static void ppp_modem_send_cgatt(struct pico_device_ppp *ppp)
-{
-    if (!ppp->serial_send)
-        return;
-
-    ppp->serial_send(&ppp->dev, PPP_AT_CGATT, strlen(PPP_AT_CGATT));
-}
-
-#define PPP_AT_CGATT_Q "AT+CGATT?\r\n"
-static void ppp_modem_send_cgatt_q(struct pico_device_ppp *ppp)
-{
-    if (!ppp->serial_send)
-        return;
-
-    ppp->serial_send(&ppp->dev, PPP_AT_CGATT_Q, strlen(PPP_AT_CGATT_Q));
-}
+#endif /* PICOTCP_PPP_SUPPORT_QUERIES */
 
 #define PPP_AT_DIALIN "ATD*99#\r\n"
 static void ppp_modem_send_dial(struct pico_device_ppp *ppp)
@@ -962,12 +965,6 @@ static void ppp_recv_ipv6(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
     IGNORE_PARAMETER(ppp);
     IGNORE_PARAMETER(pkt);
     IGNORE_PARAMETER(len);
-}
-
-
-static void ppp_netconf(struct pico_device_ppp *ppp) 
-{
-    ipcp_request(ppp);
 }
 
 static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
@@ -1648,35 +1645,6 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
         fsm->event_handler(ppp);
 }
 
-static void ppp_recv(struct pico_device_ppp *ppp, void *data, size_t len)
-{
-    IGNORE_PARAMETER(ppp);
-    IGNORE_PARAMETER(data);
-    IGNORE_PARAMETER(len);
-}
-
-struct pico_ppp_fsm_action {
-    void (*timeout)(struct pico_device_ppp *ppp);
-    void (*recv)(struct pico_device_ppp *ppp, void *data, int len);
-};
-
-struct pico_ppp_fsm_action pico_ppp_fsm[PPP_MODEM_MAXSTATE] = {
-      /* State                        timeout                 recv        */
-//  { /* PPP_MODEM_RESET   */         ppp_send_creg,          ppp_recv_creg    },
-//  { /* PPP_MODEM_CREG    */         ppp_send_cgreg,         ppp_recv_cgreg   },
-//  { /* PPP_MODEM_CGREG   */         ppp_send_cgdcont,       ppp_recv_cgdcont },
-//  { /* PPP_MODEM_CGDCONT */         ppp_send_cgatt,         ppp_recv_cgatt   },
-//  { /* PPP_MODEM_CGATT   */         ppp_dial,               ppp_recv_connect },
-//  { /* PPP_MODEM_CONNECT */         ppp_lcp_req,            ppp_recv_data    },
-//  { /* PPP_ESTABLISH     */         ppp_lcp_req,            ppp_recv_data    },
-//  { /* PPP_AUTH          */         NULL,                   ppp_recv_data    },
-//  { /* PPP_NETCONFIG     */         ppp_netconf,            ppp_recv_data    },
-//  { /* PPP_NETWORK       */         NULL,                   ppp_recv_data    },
-//  { NULL, NULL}
-};
-
-
-
 static int pico_ppp_poll(struct pico_device *dev, int loop_score)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *) dev;
@@ -1746,20 +1714,6 @@ static int pico_ppp_link_state(struct pico_device *dev)
     if (ppp->ipcp_state == PPP_IPCP_STATE_OPENED)
         return 1;
     return 0;
-}
-
-
-static void pico_ppp_tick(pico_time now, void *arg)
-{
-    struct pico_device_ppp *ppp = (struct pico_device_ppp *)arg;
-
-    IGNORE_PARAMETER(now);
-
-    if (pico_ppp_fsm[ppp->state].timeout)
-        pico_ppp_fsm[ppp->state].timeout(ppp);
-
-
-    pico_timer_add(1000, pico_ppp_tick, ppp);
 }
 
 void pico_ppp_destroy(struct pico_device *ppp)
