@@ -1046,18 +1046,6 @@ static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
     IGNORE_PARAMETER(len);
 }
 
-static void ppp_recv_ipv4(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
-{
-    pico_stack_recv(&ppp->dev, pkt, len);
-}
-
-static void ppp_recv_ipv6(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
-{
-    IGNORE_PARAMETER(ppp);
-    IGNORE_PARAMETER(pkt);
-    IGNORE_PARAMETER(len);
-}
-
 static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     if (pkt[0] == 0xc0) {
@@ -1097,13 +1085,9 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
         len--;
     }
 
-    if (pkt[0] == 0x21) {
-        /* IPv4 Data */
-        ppp_recv_ipv4(ppp, pkt + 1, len - 1);
-        return;
-    }
-    if (pkt[0] == 0x57) {
-        ppp_recv_ipv6(ppp, pkt + 1, len - 1);
+    if ((pkt[0] == 0x21) || (pkt[0] == 0x57)) {
+        /* IPv4 /v6 Data */
+        pico_stack_recv(&ppp->dev, pkt + 1, len - 1);
         return;
     }
     dbg("PPP: Unrecognized protocol %02x%02x\n", pkt[0], pkt[1]);
