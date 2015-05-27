@@ -53,10 +53,11 @@ uint16_t pico_dns_client_strlen(const char *url)
 
 /* replace '.' in the domain name by the label length
  * f.e. www.google.be => 3www6google2be0 */
-int pico_dns_name_to_dns_notation(char *ptr)
+int pico_dns_name_to_dns_notation(char *ptr, unsigned int maxlen)
 {
     char p = 0, *label = NULL;
     uint8_t len = 0;
+    char *start = ptr;
 
     if (!ptr)
         return -1;
@@ -70,6 +71,8 @@ int pico_dns_name_to_dns_notation(char *ptr)
         } else {
             len++;
         }
+        if ((unsigned int)(ptr - start) > maxlen)
+            break;
     }
     *label = (char)len;
     return 0;
@@ -77,10 +80,10 @@ int pico_dns_name_to_dns_notation(char *ptr)
 
 /* replace the label length in the domain name by '.'
  * f.e. 3www6google2be0 => .www.google.be */
-int pico_dns_notation_to_name(char *ptr)
+int pico_dns_notation_to_name(char *ptr, unsigned int maxlen)
 {
     char p = 0, *label = NULL;
-
+    char *start = ptr;
     if (!ptr)
         return -1;
 
@@ -89,6 +92,8 @@ int pico_dns_notation_to_name(char *ptr)
         ptr += p;
         *label = '.';
         label = ptr;
+        if ((unsigned int)(ptr - start) > maxlen)
+            break;
     }
     return 0;
 }

@@ -414,8 +414,8 @@ static int pico_dns_client_user_callback(struct pico_dns_answer_suffix *asuffix,
     }
 #endif
     case PICO_DNS_TYPE_PTR:
-        pico_dns_notation_to_name(rdata);
-        str = PICO_ZALLOC((size_t)(asuffix->rdlength - PICO_DNS_LABEL_INITIAL));
+        pico_dns_notation_to_name(rdata, short_be(asuffix->rdlength));
+        str = PICO_ZALLOC((size_t)(short_be(asuffix->rdlength) - PICO_DNS_LABEL_INITIAL));
         if (!str) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -470,7 +470,7 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
     /* Found CNAME response. Re-initiating query. */
     asuffix = (struct pico_dns_answer_suffix *)p_asuffix;
     cname = (char *) asuffix + sizeof(struct pico_dns_answer_suffix);
-    pico_dns_notation_to_name(cname);
+    pico_dns_notation_to_name(cname, short_be(asuffix->rdlength));
     if (cname[0] == '.')
         cname++;
 
@@ -584,7 +584,7 @@ static int pico_dns_create_message(struct pico_dns_header **header, struct pico_
 
     /* assemble dns message */
     pico_dns_client_query_header(*header);
-    pico_dns_name_to_dns_notation(domain);
+    pico_dns_name_to_dns_notation(domain, strlen);
 
     return 0;
 }

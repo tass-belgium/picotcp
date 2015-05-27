@@ -680,6 +680,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint8_t option_len = 0;
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    uint16_t max_allowed = (uint16_t) (f->buffer_len - (f->net_hdr - f->buffer) - PICO_SIZE_IP4HDR);
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
@@ -689,6 +690,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
     f->transport_len = (uint16_t)(short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len);
     f->net_len = (uint16_t)(PICO_SIZE_IP4HDR + option_len);
+
+    if (f->transport_len > max_allowed) {
+        pico_frame_discard(f);
+        return 0; /* Packet is discarded due to unfeasible length */
+    }
 
 #ifdef PICO_SUPPORT_IPFILTER
     if (ipfilter(f)) {
@@ -1515,6 +1521,8 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
     pico_ipv4_route_add(network, netmask, gateway, 1, new);
     pico_ipv4_to_string(ipstr, new->address.addr);
     dbg("Assigned ipv4 %s to device %s\n", ipstr, new->dev->name);
+    if (default_bcast_route.link == NULL)
+        default_bcast_route.link = new;
     return 0;
 }
 
@@ -1578,6 +1586,8 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
 
     pico_ipv4_cleanup_routes(found);
     pico_tree_delete(&Tree_dev_link, found);
+    if (default_bcast_route.link == found)
+        default_bcast_route.link = NULL;
     PICO_FREE(found);
 
     return 0;

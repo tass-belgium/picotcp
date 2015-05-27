@@ -82,9 +82,9 @@ START_TEST(tc_pico_mdns_cache_del_rr)
     fail_unless(pico_mdns_cache_del_rr(url, qtype, rdata) == -1, "Deleted a nonexisting RR from cache!\n");
     fail_unless(pico_mdns_cache_add_rr(url, &suf, rdata) == 0, "Failed to add RR to cache\n");
 
-    addr = PICO_ZALLOC(strlen(url) + 1);
+    addr = PICO_ZALLOC(strlen(url) + 2);
     memcpy(addr + 1, url, strlen(url));
-    pico_dns_name_to_dns_notation(addr);
+    pico_dns_name_to_dns_notation(addr, strlen(url) + 1);
     fail_unless(pico_mdns_cache_del_rr(addr, qtype, rdata) == 0, "Unable to delete RR from cache!\n");
     PICO_FREE(addr);
 }
@@ -263,7 +263,7 @@ START_TEST(tc_pico_mdns_find_cookie)
     struct pico_dns_header *hdr = PICO_ZALLOC(sizeof(struct pico_dns_header) + strlen(url) + 1);
     addr = (char *)hdr + sizeof(struct pico_dns_header);
     memcpy(addr + 1, url, strlen(url));
-    pico_dns_name_to_dns_notation(addr);
+    pico_dns_name_to_dns_notation(addr, strlen(url));
 
     pico_stack_init();
     ck = pico_mdns_find_cookie(url, qtype);

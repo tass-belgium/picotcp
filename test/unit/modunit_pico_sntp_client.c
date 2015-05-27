@@ -95,6 +95,11 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     return NULL;
 }
 
+void pico_timer_cancel(struct pico_timer *t)
+{
+
+}
+
 START_TEST(tc_timestamp_convert)
 {
     struct pico_sntp_ts ts;

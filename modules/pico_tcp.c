@@ -26,7 +26,7 @@
 #define PICO_TCP_RTO_MIN (70)
 #define PICO_TCP_RTO_MAX (120000)
 #define PICO_TCP_IW          2
-#define PICO_TCP_SYN_TO  1000u
+#define PICO_TCP_SYN_TO  2000u
 #define PICO_TCP_ZOMBIE_TO 30000
 
 #define PICO_TCP_MAX_RETRANS         10
@@ -86,7 +86,7 @@ static int input_segment_compare(void *ka, void *kb)
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
     struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
-    if(!seg)
+    if ((!seg) || (!f->payload_len))
         return NULL;
 
     seg->payload = PICO_ZALLOC(f->payload_len);
@@ -2597,7 +2597,7 @@ static const struct tcp_action_entry tcp_fsm[] = {
     { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            &tcp_ack,          &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
 };
 
-#define MAX_VALID_FLAGS  9  /* Maximum number of valid flag combinations */
+#define MAX_VALID_FLAGS  10  /* Maximum number of valid flag combinations */
 static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
 {
     uint8_t i;
@@ -2607,7 +2607,7 @@ static uint8_t invalid_flags(struct pico_socket *s, uint8_t flags)
         { /* PICO_SOCKET_STATE_TCP_LISTEN     */ PICO_TCP_SYN },
         { /* PICO_SOCKET_STATE_TCP_SYN_SENT   */ PICO_TCP_SYNACK, PICO_TCP_RST, PICO_TCP_RSTACK},
         { /* PICO_SOCKET_STATE_TCP_SYN_RECV   */ PICO_TCP_SYN, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
-        { /* PICO_SOCKET_STATE_TCP_ESTABLISHED*/ PICO_TCP_SYN, PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
+        { /* PICO_SOCKET_STATE_TCP_ESTABLISHED*/ PICO_TCP_SYN, PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST, PICO_TCP_RSTACK},
         { /* PICO_SOCKET_STATE_TCP_CLOSE_WAIT */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
         { /* PICO_SOCKET_STATE_TCP_LAST_ACK   */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},
         { /* PICO_SOCKET_STATE_TCP_FIN_WAIT1  */ PICO_TCP_SYNACK, PICO_TCP_ACK, PICO_TCP_PSH, PICO_TCP_PSHACK, PICO_TCP_FIN, PICO_TCP_FINACK, PICO_TCP_FINPSHACK, PICO_TCP_RST},

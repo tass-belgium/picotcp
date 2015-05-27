@@ -13,6 +13,7 @@
 #include "pico_ipv6.h"
 #include "pico_dns_client.h"
 #include "pico_tree.h"
+#include "pico_stack.h"
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
@@ -64,6 +65,7 @@ struct sntp_server_ns_cookie
     struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user
                                                 wheter/when the time is synchronised */
+    struct pico_timer *timer;   /* Timer that will signal timeout */
 };
 
 /* global variables */
@@ -111,6 +113,7 @@ static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t statu
     sntp_dbg("FREE!\n");
     PICO_FREE(ck->hostname);
     PICO_FREE(ck);
+
 }
 
 /* Extracts the current time from a server sntp packet*/
@@ -167,6 +170,7 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
             read = pico_socket_recvfrom(s, recvbuf, PICO_SNTP_MAXBUF, &peer, &port);
         } while(read > 0);
         pico_sntp_parse(recvbuf, s->priv);
+        pico_timer_cancel(ck->timer);
         PICO_FREE(recvbuf);
     }
     /* socket is closed */
@@ -214,7 +218,7 @@ static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
         return;
     }
 
-    pico_timer_add(5000, sntp_receive_timeout, ck);
+    ck->timer = pico_timer_add(5000, sntp_receive_timeout, ck);
     header.vn = SNTP_VERSION;
     header.mode = SNTP_MODE_CLIENT;
     /* header.trs_ts.frac = long_be(0ul); */
@@ -294,7 +298,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck->stamp = 0ull;
     ck->rec = 0;
     ck->sock = NULL;
-    ck->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck->hostname) {
         PICO_FREE(ck);
         pico_err = PICO_ERR_ENOMEM;
@@ -321,7 +325,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     }
 
     ck6->proto = PICO_PROTO_IPV6;
-    ck6->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck6->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck6->hostname) {
         PICO_FREE(ck6);
         pico_err = PICO_ERR_ENOMEM;
