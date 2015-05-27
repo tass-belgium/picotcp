@@ -1694,6 +1694,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                     }
                     if (len > 0) {
                         ppp_recv_data(ppp, ppp_recv_buf, len);
+                        loop_score--;
                         len = 0;
                     }
                 } else if (control_escape) {
@@ -1724,9 +1725,6 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                     s3 = 0;
                     len++;
                 }
-
-                /* TODO: check usage */
-                /* loop_score--; */
             }
         } while ((r > 0) && (len < ARRAY_SIZE(ppp_recv_buf)) && (loop_score > 0));
     }
