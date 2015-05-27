@@ -680,7 +680,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint8_t option_len = 0;
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    uint16_t max_allowed = (uint16_t) (f->buffer_len - (f->net_hdr - f->buffer) - PICO_SIZE_IP4HDR);
+    uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
