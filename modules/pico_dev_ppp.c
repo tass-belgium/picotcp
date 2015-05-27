@@ -26,9 +26,9 @@
 #define PPP_MAX_APN 134
 #define PPP_MAX_USERNAME 134
 #define PPP_MAX_PASSWORD 134
-#define PPP_HDR_SIZE 3U
-#define PPP_PROTO_SLOT_SIZE 2U
-#define PPP_FCS_SIZE 2U
+#define PPP_HDR_SIZE 3u
+#define PPP_PROTO_SLOT_SIZE 2u
+#define PPP_FCS_SIZE 2u
 #define PPP_PROTO_LCP short_be(0xc021)
 #define PPP_PROTO_IP  short_be(0x0021)
 #define PPP_PROTO_PAP short_be(0xc023)
@@ -47,15 +47,15 @@
 #define LCPOPT_PROTO_COMP 7
 #define LCPOPT_ADDRCTL_COMP 8
 
-#define CHAP_MD5_SIZE   16
+#define CHAP_MD5_SIZE   16u
 #define CHAP_CHALLENGE  1
 #define CHAP_RESPONSE   2
 #define CHAP_SUCCESS    3
 #define CHAP_FAILURE    4
 #define CHALLENGE_SIZE(ppp, ch) (1 + strlen(ppp->password)+ short_be((ch)->len))
 
-#define IPCP_ADDR_LEN 6
-#define IPCP_VJ_LEN 6
+#define IPCP_ADDR_LEN 6u
+#define IPCP_VJ_LEN 6u
 #define IPCP_OPT_IP 0x03
 #define IPCP_OPT_VJ 0x02
 #define IPCP_OPT_DNS1 0x81
@@ -629,11 +629,11 @@ void ppp_lcp_req(struct pico_device_ppp *ppp)
 
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, 
             lcpbuf,                         /* Start of PPP packet */
-            prefix +                        /* PPP Header, etc. */
+            (uint32_t)(prefix +                        /* PPP Header, etc. */
             sizeof(struct pico_lcp_hdr) +   /* LCP HDR */
             optsize +                       /* Actual options size */
             PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1                               /* STOP Byte */
+            1u)                               /* STOP Byte */
             );
     PICO_FREE(lcpbuf);
 }
@@ -695,11 +695,11 @@ static void lcp_reject(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, 
     lcprej->len = short_be((uint16_t)(dstopts_len + sizeof(struct pico_lcp_hdr)));
     dbg("Sending LCP CONF REJ\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reject, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
+            (uint32_t)(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
             sizeof(struct pico_lcp_hdr) +                   /* LCP HDR */
             dstopts_len +                                   /* Actual options size */
             PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
+            1u)                                               /* STOP Byte */
             );
 }
 
@@ -841,11 +841,11 @@ static void ipcp_request(struct pico_device_ppp *ppp)
     dbg("Sending IPCP CONF REQ\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, 
             ipcp_req,                       /* Start of PPP packet */
-            prefix +                        /* PPP Header, etc. */
+            (uint32_t)(prefix +                        /* PPP Header, etc. */
             sizeof(struct pico_ipcp_hdr) +  /* LCP HDR */
             ipcp_request_options_size(ppp) +/* Actual options size */
             PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1                               /* STOP Byte */
+            1u)                               /* STOP Byte */
             );
 }
 
@@ -867,11 +867,11 @@ static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req)
     dbg("Sending IPCP CONF REJ VJ\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, 
             ipcp_req,                       /* Start of PPP packet */
-            prefix +                        /* PPP Header, etc. */
+            (uint32_t)(prefix +                        /* PPP Header, etc. */
             sizeof(struct pico_ipcp_hdr) +  /* LCP HDR */
             IPCP_VJ_LEN +                 /* Actual options size */
             PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1                               /* STOP Byte */
+            1u)                              /* STOP Byte */
             );
 }
 
@@ -1452,7 +1452,7 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     if (!challenge)
         return;
 
-    pwdlen = strlen(ppp->password);
+    pwdlen = (uint32_t)strlen(ppp->password);
     challenge[i++] = ch->id;
     memcpy(challenge + i, ppp->password, pwdlen);
     i += pwdlen;
@@ -1466,11 +1466,12 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     dbg("Sending CHAP RESPONSE\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_CHAP,
         resp,                         /* Start of PPP packet */
+        (uint32_t)(
         PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
         sizeof(struct pico_chap_hdr) +   /* CHAP HDR */
         CHAP_MD5_SIZE +                   /* Actual payload size */
         PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-        1                               /* STOP Byte */
+        1)                               /* STOP Byte */
         );
 }
 
