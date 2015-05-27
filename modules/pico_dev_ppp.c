@@ -273,7 +273,7 @@ static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
     }
 }
 
-static void lcp_timer_zerocount(struct pico_device_ppp *ppp) 
+static void lcp_zero_restart_count(struct pico_device_ppp *ppp)
 {
     lcp_timer_start(ppp, 0);
 }
@@ -642,7 +642,7 @@ static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len
     }
 }
 
-void ppp_lcp_req(struct pico_device_ppp *ppp)
+static void lcp_send_configure_request(struct pico_device_ppp *ppp)
 {
 #   define MY_LCP_REQ_SIZE 12 /* Max value. */
     struct pico_lcp_hdr *req; 
@@ -691,6 +691,7 @@ void ppp_lcp_req(struct pico_device_ppp *ppp)
             1u)                               /* STOP Byte */
             );
     PICO_FREE(lcpbuf);
+    lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
 }
 
 static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
@@ -708,12 +709,12 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
     return flags;
 } 
 
-static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
+static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
 {
-    uint8_t ack[len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    uint8_t ack[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_lcp_hdr *ack_hdr = (struct pico_lcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
-    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)pkt;
-    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, pkt, len);
+    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
+    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
     ack_hdr->code = PICO_CONF_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
@@ -726,7 +727,7 @@ static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
             );
 }
 
-static void lcp_terminate(struct pico_device_ppp *ppp)
+static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
 {
     uint8_t term[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_lcp_hdr *term_hdr = (struct pico_lcp_hdr *) (term + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
@@ -740,14 +741,15 @@ static void lcp_terminate(struct pico_device_ppp *ppp)
             PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
             1                                               /* STOP Byte */
             );
+    lcp_timer_start(ppp, PPP_TIMER_ON_LCPTERM);
 }
 
-static void lcp_terminate_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
+static void lcp_send_terminate_ack(struct pico_device_ppp *ppp)
 {
-    uint8_t ack[len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    uint8_t ack[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_lcp_hdr *ack_hdr = (struct pico_lcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
-    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)pkt;
-    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, pkt, len);
+    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
+    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
     ack_hdr->code = PICO_CONF_TERM_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
@@ -760,17 +762,17 @@ static void lcp_terminate_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_
             );
 }
 
-static void lcp_reject(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, uint16_t rejected)
+static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
 {
     uint8_t reject[64];
-    uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
-    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)pkt;
+    uint8_t *p = ppp->pkt +  sizeof(struct pico_lcp_hdr);
+    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
     struct pico_lcp_hdr *lcprej = (struct pico_lcp_hdr *)(reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
     uint8_t *dst_opts = reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr);
     uint32_t dstopts_len = 0;
-    while (p < (pkt + len)) {
+    while (p < (ppp->pkt + ppp->len)) {
         int i = 0;
-        if ((1 << p[0]) & rejected || (p[0] > 8)) {
+        if ((1 << p[0]) & ppp->rej || (p[0] > 8)) {
             dst_opts[dstopts_len++] = p[0];
             dst_opts[dstopts_len++] = p[1];
             for(i = 0; i < p[1]; i++) {
@@ -1125,8 +1127,6 @@ static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, uint32
     
 }
 
-
-
 static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
     uint32_t idx;
@@ -1184,38 +1184,6 @@ static void lcp_this_layer_finished(struct pico_device_ppp *ppp)
 static void lcp_initialize_restart_count(struct pico_device_ppp *ppp)
 {
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
-}
-
-static void lcp_zero_restart_count(struct pico_device_ppp *ppp)
-{
-    lcp_timer_zerocount(ppp);
-}
-
-static void lcp_send_configure_request(struct pico_device_ppp *ppp)
-{
-    ppp_lcp_req(ppp);
-    lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
-}
-
-static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
-{
-    lcp_ack(ppp, ppp->pkt, ppp->len);
-}
-
-static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
-{
-    lcp_reject(ppp, ppp->pkt, ppp->len, ppp->rej);
-}
-
-static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
-{
-    lcp_terminate(ppp);
-    lcp_timer_start(ppp, PPP_TIMER_ON_LCPTERM);
-}
-
-static void lcp_send_terminate_ack(struct pico_device_ppp *ppp)
-{
-    lcp_terminate_ack(ppp, ppp->pkt, ppp->len);
 }
 
 static void lcp_send_code_reject(struct pico_device_ppp *ppp)
