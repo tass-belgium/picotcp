@@ -1502,33 +1502,42 @@ static void auth_rsp(struct pico_device_ppp *ppp)
         );
 }
 
+static void auth_start_timer(struct pico_device_ppp *ppp)
+{
+    ppp->timer_on = ppp->timer_on | PPP_TIMER_ON_AUTH;
+    ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
+}
+
 static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT_MAX] = {
     [PPP_AUTH_STATE_INITIAL] = {
             [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {auth_req} },
+            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
             [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
             [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {} },
             [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_INITIAL, {} },
             [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_INITIAL, {} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {} }
+            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {} },
+            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {} }
     },
     [PPP_AUTH_STATE_STARTING] = {
             [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_STARTING, {} },
             [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_STARTING, {} },
             [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
             [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {} }
+            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
+            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_RSP_SENT] = {
             [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_RSP_SENT, {} },
             [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_RSP_SENT, {} },
             [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_RSP_SENT, {} },
             [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
+            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
             [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {} }
+            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_STARTING, {auth_start_timer} }
     },
     [PPP_AUTH_STATE_REQ_SENT] = {
             [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_REQ_SENT, {} },
@@ -1537,7 +1546,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
             [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
             [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_REQ_SENT, {} },
             [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_req} }
+            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
+            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_AUTHENTICATED] = {
             [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {} },
@@ -1546,7 +1556,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
             [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
             [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
             [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_AUTHENTICATED, {} }
+            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+            [PPP_AUTH_EVENT_TO]      = { PPP_AUTH_STATE_AUTHENTICATED, {} },
     }
 };
 
@@ -1595,14 +1606,21 @@ static void ipcp_bring_down(struct pico_device_ppp *ppp)
     dbg("PPP: IPCP down.\n");
 }
 
+static void ipcp_start_timer(struct pico_device_ppp *ppp)
+{
+    ppp->timer_on = ppp->timer_on | PPP_TIMER_ON_IPCP;
+    ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
+}
+
 static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT_MAX] = {
     [PPP_IPCP_STATE_INITIAL] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
             [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_INITIAL, {} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_INITIAL, {} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_INITIAL, {} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_INITIAL, {} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_INITIAL, {} }
     },
     [PPP_IPCP_STATE_REQ_SENT] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {} },
@@ -1610,7 +1628,8 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_ACK_RCVD, {} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_ACK_RCVD] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_RCVD, {} },
@@ -1618,7 +1637,8 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_OPENED, {ipcp_send_ack, ipcp_bring_up} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_RCVD, {} }
     },
     [PPP_IPCP_STATE_ACK_SENT] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_SENT, {} },
@@ -1626,7 +1646,8 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_OPENED, {ipcp_bring_up} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req} }
     },
     [PPP_IPCP_STATE_OPENED] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_OPENED, {} },
@@ -1634,7 +1655,8 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_ack} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_OPENED, {} }
     }
 };
 
@@ -1758,14 +1780,20 @@ static void check_to_lcp(struct pico_device_ppp *ppp)
 static void check_to_auth(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_AUTH) {
-
+        if (--ppp->timer_val == 0) {
+            evaluate_auth_state(ppp, PPP_AUTH_EVENT_TO);
+            ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
+        }
     }
 }
 
 static void check_to_ipcp(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_IPCP) {
-
+        if (--ppp->timer_val == 0) {
+            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_TO);
+            ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_IPCP));
+        }
     }
 }
 
