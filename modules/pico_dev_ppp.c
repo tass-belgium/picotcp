@@ -225,7 +225,7 @@ struct pico_device_ppp {
     uint16_t lcpopt_local;
     uint16_t lcpopt_peer;
     uint8_t *pkt;
-    size_t len;
+    uint32_t len;
     uint16_t rej;
     uint16_t auth;
     int (*serial_recv)(struct pico_device *dev, void *buf, int len);
@@ -256,9 +256,9 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
 static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event);
 
 
-static size_t ppp_ctl_packet_size(struct pico_device_ppp *ppp, uint16_t proto, size_t *size)
+static uint32_t ppp_ctl_packet_size(struct pico_device_ppp *ppp, uint16_t proto, uint32_t *size)
 {
-    size_t prefix = 0;
+    uint32_t prefix = 0;
 
     IGNORE_PARAMETER(ppp);
     IGNORE_PARAMETER(proto);
@@ -280,7 +280,7 @@ static uint16_t ppp_fcs_char(uint16_t old_crc, uint8_t data)
     return ((old_crc >> 8) ^ word);
 }
 
-static uint16_t ppp_fcs_continue(uint16_t fcs, uint8_t *buf, size_t len)
+static uint16_t ppp_fcs_continue(uint16_t fcs, uint8_t *buf, uint32_t len)
 {
     uint8_t * pos = buf;
     for (pos = buf; pos < buf + len; pos++)
@@ -295,13 +295,13 @@ static uint16_t ppp_fcs_finish(uint16_t fcs)
     return fcs ^ 0xFFFF;
 }
 
-static uint16_t ppp_fcs_start(uint8_t *buf, size_t len)
+static uint16_t ppp_fcs_start(uint8_t *buf, uint32_t len)
 {
     uint16_t fcs = 0xFFFF;
     return ppp_fcs_continue(fcs, buf, len);
 }
 
-static int ppp_fcs_verify(uint8_t *buf, size_t len)
+static int ppp_fcs_verify(uint8_t *buf, uint32_t len)
 {
     uint16_t fcs = ppp_fcs_start(buf, len - 2);
     fcs = ppp_fcs_finish(fcs);
@@ -312,7 +312,7 @@ static int ppp_fcs_verify(uint8_t *buf, size_t len)
 }
 
 /* Serial send (DTE->DCE) functions */
-static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pkt, size_t len)
+static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pkt, uint32_t len)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *) dev;
     uint16_t fcs;
@@ -368,9 +368,9 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     }
 
     pico_ppp_data_buffer[i++] = 0x21;
-    memcpy(pico_ppp_data_buffer + i, buf, (size_t)len);
+    memcpy(pico_ppp_data_buffer + i, buf, (uint32_t)len);
     i += len;
-    fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, (size_t)(i - fcs_start));
+    fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, (uint32_t)(i - fcs_start));
     fcs = ppp_fcs_finish(fcs);
     pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFF);
     pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00) >> 8);
@@ -570,7 +570,7 @@ static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_eve
         fsm->event_handler(ppp);
 }
 
-static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, size_t len)
+static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
     IGNORE_PARAMETER(len);
 
@@ -592,9 +592,9 @@ void ppp_lcp_req(struct pico_device_ppp *ppp)
 #   define MY_LCP_REQ_SIZE 12 /* Max value. */
     struct pico_lcp_hdr *req; 
     uint8_t *lcpbuf, *opts;
-    size_t size = MY_LCP_REQ_SIZE;
-    size_t prefix;
-    size_t optsize = 0;
+    uint32_t size = MY_LCP_REQ_SIZE;
+    uint32_t prefix;
+    uint32_t optsize = 0;
 
     prefix = ppp_ctl_packet_size(ppp, PPP_PROTO_LCP, &size);
     lcpbuf = PICO_ZALLOC(size);
@@ -638,7 +638,7 @@ void ppp_lcp_req(struct pico_device_ppp *ppp)
     PICO_FREE(lcpbuf);
 }
 
-static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint16_t flags = 0;
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
@@ -653,7 +653,7 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, size_t l
     return flags;
 } 
 
-static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint8_t ack[len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_lcp_hdr *ack_hdr = (struct pico_lcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
@@ -671,14 +671,14 @@ static void lcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
             );
 }
 
-static void lcp_reject(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len, uint16_t rejected)
+static void lcp_reject(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, uint16_t rejected)
 {
     uint8_t reject[64];
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
     struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)pkt;
     struct pico_lcp_hdr *lcprej = (struct pico_lcp_hdr *)(reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
     uint8_t *dst_opts = reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr);
-    size_t dstopts_len = 0;
+    uint32_t dstopts_len = 0;
     while (p < (pkt + len)) {
         int i = 0;
         if ((1 << p[0]) & rejected || (p[0] > 8)) {
@@ -703,7 +703,7 @@ static void lcp_reject(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len, ui
             );
 }
 
-static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint16_t optflags;
     if (pkt[0] == PICO_CONF_REQ) {
@@ -739,7 +739,7 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len
     }
 }
 
-static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     IGNORE_PARAMETER(ppp);
     IGNORE_PARAMETER(pkt);
@@ -747,7 +747,7 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len
 }
 
 
-static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     struct pico_chap_hdr *ch = (struct pico_chap_hdr *)pkt;
 
@@ -770,7 +770,7 @@ static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t le
 }
 
 
-static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint8_t ack[len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_ipcp_hdr *ack_hdr = (struct pico_ipcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
@@ -788,9 +788,9 @@ static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
             );
 }
 
-static inline size_t ipcp_request_options_size(struct pico_device_ppp *ppp)
+static inline uint32_t ipcp_request_options_size(struct pico_device_ppp *ppp)
 {
-    size_t size = IPCP_ADDR_LEN;
+    uint32_t size = IPCP_ADDR_LEN;
     if (ppp->ipcp_dns1) 
         size += IPCP_ADDR_LEN;
     if (ppp->ipcp_dns2) 
@@ -830,7 +830,7 @@ static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 static void ipcp_request(struct pico_device_ppp *ppp)
 {
     uint8_t ipcp_req[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_ipcp_hdr) + ipcp_request_options_size(ppp) + PPP_FCS_SIZE + 1];
-    size_t prefix = PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE;
+    uint32_t prefix = PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE;
     struct pico_ipcp_hdr *ih = (struct pico_ipcp_hdr *) (ipcp_req + prefix);
     uint8_t *p = ipcp_req + prefix + sizeof(struct pico_ipcp_hdr);
     ih->id = ppp->frame_id++;
@@ -852,10 +852,10 @@ static void ipcp_request(struct pico_device_ppp *ppp)
 static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req)
 {
     uint8_t ipcp_req[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_ipcp_hdr) + IPCP_VJ_LEN + PPP_FCS_SIZE + 1];
-    size_t prefix = PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE;
+    uint32_t prefix = PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE;
     struct pico_ipcp_hdr *ih = (struct pico_ipcp_hdr *) (ipcp_req + prefix);
     uint8_t *p = ipcp_req + prefix + sizeof(struct pico_ipcp_hdr);
-    size_t i;
+    uint32_t i;
 
     ih->id = ppp->frame_id++;
     ih->code = PICO_CONF_REQ;
@@ -894,7 +894,7 @@ static void ppp_ipv4_conf(struct pico_device_ppp *ppp)
 }
 
 
-static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     struct pico_ipcp_hdr *ih = (struct pico_ipcp_hdr *)pkt;
     uint8_t *p = pkt + sizeof(struct pico_ipcp_hdr);
@@ -948,26 +948,26 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t le
     }
 }
 
-static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     IGNORE_PARAMETER(ppp);
     IGNORE_PARAMETER(pkt);
     IGNORE_PARAMETER(len);
 }
 
-static void ppp_recv_ipv4(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ppp_recv_ipv4(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     pico_stack_recv(&ppp->dev, pkt, len);
 }
 
-static void ppp_recv_ipv6(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ppp_recv_ipv6(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     IGNORE_PARAMETER(ppp);
     IGNORE_PARAMETER(pkt);
     IGNORE_PARAMETER(len);
 }
 
-static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     if (pkt[0] == 0xc0) {
         /* Link control packet */
@@ -1018,7 +1018,7 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
     dbg("PPP: Unrecognized protocol %02x%02x\n", pkt[0], pkt[1]);
 }
 
-static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, size_t len)
+static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     /* Verify incoming FCS */
     if (ppp_fcs_verify(pkt, len) != 0)
@@ -1038,9 +1038,9 @@ static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, size_t
 
 
 
-static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, size_t len)
+static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
-    size_t idx;
+    uint32_t idx;
     uint8_t *pkt = (uint8_t *)data;
 
     if (len > 0) {
@@ -1445,7 +1445,7 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     struct pico_chap_hdr *rh = (struct pico_chap_hdr *) (resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
     uint8_t *md5resp = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr);
     uint8_t *challenge;
-    size_t i = 0, pwdlen;
+    uint32_t i = 0, pwdlen;
 
     challenge = PICO_ZALLOC(CHALLENGE_SIZE(ppp, ch));
 
@@ -1648,7 +1648,7 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
 static int pico_ppp_poll(struct pico_device *dev, int loop_score)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *) dev;
-    static size_t len = 0;
+    static uint32_t len = 0;
     int r;
     if (ppp->serial_recv) {
         do {
