@@ -540,31 +540,113 @@ END_TEST
 START_TEST(tc_ipcp_ack)
 {
    /* TODO: test this: static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
+    uint8_t pkt[20] = "";
+    struct pico_ipcp_hdr *ipcp; 
+    called_serial_send = 0;
+    memset(&ppp, 0, sizeof(ppp));
+    ppp.serial_send = unit_serial_send;
+    ppp.pkt = pkt;
+    ppp.len = 4; 
+    ipcp = (struct pico_ipcp_hdr *)ppp.pkt;
+    ipcp->len = short_be(4); 
+    ipcp_send_ack(&ppp);
+    fail_if(called_serial_send != 1);
+    fail_if(serial_out_len != 12);
+
 }
 END_TEST
 START_TEST(tc_uint32_t)
 {
-   /* TODO: test this: static inline uint32_t ipcp_request_options_size(struct pico_device_ppp *ppp) */
+    memset(&ppp, 0, sizeof(ppp));
+    fail_if(ipcp_request_options_size(&ppp) != IPCP_ADDR_LEN);
+
+    ppp.ipcp_dns1 = 1;
+    fail_if(ipcp_request_options_size(&ppp) != 2 *IPCP_ADDR_LEN);
+
+    ppp.ipcp_dns2 = 1;
+    fail_if(ipcp_request_options_size(&ppp) != 3 *IPCP_ADDR_LEN);
+
+    ppp.ipcp_nbns1 = 1;
+    fail_if(ipcp_request_options_size(&ppp) != 4 *IPCP_ADDR_LEN);
+
+    ppp.ipcp_nbns2 = 1;
+    fail_if(ipcp_request_options_size(&ppp) != 5 *IPCP_ADDR_LEN);
+
 }
 END_TEST
 START_TEST(tc_ipcp_request_add_address)
 {
-   /* TODO: test this: static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg) */
+    uint8_t dst[6];
+    ipcp_request_add_address(dst, 0x42, 0xDDCCBBAA);
+    fail_if(dst[0] != 0x42);
+    fail_if(dst[1] != IPCP_ADDR_LEN); 
+    fail_if(dst[2] != 0xAA); 
+    fail_if(dst[3] != 0xBB); 
+    fail_if(dst[4] != 0xCC); 
+    fail_if(dst[5] != 0xDD); 
 }
 END_TEST
+
 START_TEST(tc_ipcp_request_fill)
 {
-   /* TODO: test this: static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts) */
+
+    uint8_t opts[5 * IPCP_ADDR_LEN];
+    memset(&ppp, 0, sizeof(ppp));
+
+    ppp.ipcp_ip = 1;
+    ipcp_request_fill(&ppp, opts);
+    fail_if(opts[0] != IPCP_OPT_IP);
+
+    ppp.ipcp_dns1 = 1;
+    ipcp_request_fill(&ppp, opts);
+    fail_if(opts[0] != IPCP_OPT_IP);
+    fail_if(opts[6] != IPCP_OPT_DNS1);
+    
+    ppp.ipcp_nbns1 = 1;
+    ipcp_request_fill(&ppp, opts);
+    fail_if(opts[0] != IPCP_OPT_IP);
+    fail_if(opts[6] != IPCP_OPT_DNS1);
+    fail_if(opts[12] != IPCP_OPT_NBNS1);
+
+    ppp.ipcp_dns2 = 1;
+    ipcp_request_fill(&ppp, opts);
+    fail_if(opts[0] != IPCP_OPT_IP);
+    fail_if(opts[6] != IPCP_OPT_DNS1);
+    fail_if(opts[12] != IPCP_OPT_NBNS1);
+    fail_if(opts[18] != IPCP_OPT_DNS2);
+
+    ppp.ipcp_nbns2 = 1;
+    ipcp_request_fill(&ppp, opts);
+    fail_if(opts[0] != IPCP_OPT_IP);
+    fail_if(opts[6] != IPCP_OPT_DNS1);
+    fail_if(opts[12] != IPCP_OPT_NBNS1);
+    fail_if(opts[18] != IPCP_OPT_DNS2);
+    fail_if(opts[24] != IPCP_OPT_NBNS2);
 }
 END_TEST
 START_TEST(tc_ipcp_send_req)
 {
-   /* TODO: test this: static void ipcp_send_req(struct pico_device_ppp *ppp) */
+    memset(&ppp, 0, sizeof(ppp));
+    ppp.serial_send = unit_serial_send;
+
+    /* With no options... */
+    called_serial_send = 0;
+    ipcp_send_req(&ppp);
+    fail_if(called_serial_send != 1);
+    fail_if(serial_out_len != 18);
 }
 END_TEST
+
 START_TEST(tc_ipcp_reject_vj)
 {
    /* TODO: test this: static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req) */
+    uint8_t buf[IPCP_OPT_VJ + sizeof(struct pico_ipcp_hdr)] = { };
+    memset(&ppp, 0, sizeof(ppp));
+    ppp.serial_send = unit_serial_send;
+    called_serial_send = 0;
+    ipcp_reject_vj(&ppp, buf);
+    fail_if(called_serial_send != 1);
+    fail_if(serial_out_len != 18);
 }
 END_TEST
 START_TEST(tc_ppp_ipv4_conf)
@@ -932,12 +1014,12 @@ return s;
 int main(void)                      
 {                       
     int fails;                      
+    Suite *s = pico_suite();                        
+    SRunner *sr = srunner_create(s);                        
     mock_modem_state = modem_state;
     mock_lcp_state = lcp_state;
     mock_auth_state = auth_state;
     mock_ipcp_state = ipcp_state;
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
     srunner_run_all(sr, CK_NORMAL);                     
     fails = srunner_ntests_failed(sr);                      
     srunner_free(sr);                       
