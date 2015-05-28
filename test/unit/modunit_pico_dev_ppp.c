@@ -7,7 +7,6 @@
 #include "pico_ipv4.h"
 #include "pico_md5.h"
 #include "pico_dns_client.h"
-#define PPP_UNIT_TEST
 #include "modules/pico_dev_ppp.c"
 #include "check.h"
 
@@ -17,19 +16,19 @@ static enum ppp_lcp_event ppp_lcp_ev;
 static enum ppp_auth_event ppp_auth_ev;
 static enum ppp_ipcp_event ppp_ipcp_ev;
 
-static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
+static void modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
 {
     ppp_modem_ev = event;
 }
-static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
+static void lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
 {
     ppp_lcp_ev = event;
 }
-static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
+static void auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
 {
     ppp_auth_ev = event;
 }
-static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
+static void ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
 {
     ppp_ipcp_ev = event;
 }
@@ -929,6 +928,10 @@ return s;
 int main(void)                      
 {                       
     int fails;                      
+    mock_modem_state = modem_state;
+    mock_lcp_state = lcp_state;
+    mock_auth_state = auth_state;
+    mock_ipcp_state = ipcp_state;
     Suite *s = pico_suite();                        
     SRunner *sr = srunner_create(s);                        
     srunner_run_all(sr, CK_NORMAL);                     

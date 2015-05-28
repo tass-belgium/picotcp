@@ -74,6 +74,7 @@
 
 static uint8_t LCPOPT_LEN[9] = { 0, 4, 0, 4, 4, 6, 2, 2, 2 };
 
+
 /* Protocol defines */
 static const unsigned char  AT_S3          = 0x0du;
 static const unsigned char  AT_S4          = 0x0au;
@@ -253,6 +254,13 @@ struct pico_device_ppp {
     uint8_t frame_id;
     uint8_t timer_on;
 };
+
+
+/* Unit test interceptor */
+static void (*mock_modem_state)(struct pico_device_ppp *ppp, enum ppp_modem_event event) = NULL;
+static void (*mock_lcp_state)(struct pico_device_ppp *ppp, enum ppp_lcp_event event) = NULL;
+static void (*mock_auth_state)(struct pico_device_ppp *ppp, enum ppp_auth_event event) = NULL;
+static void (*mock_ipcp_state)(struct pico_device_ppp *ppp, enum ppp_ipcp_event event) = NULL;
 
 #define PPP_TIMER_ON_MODEM      0x01
 #define PPP_TIMER_ON_LCPREQ     0x04
@@ -611,11 +619,14 @@ static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EV
             [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CONNECTED, {} }
     }
 };
-#ifndef PPP_UNIT_TEST
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
 {
     const struct pico_ppp_fsm *fsm;
     int i;
+    if (mock_modem_state) {
+        mock_modem_state(ppp, event);
+        return;
+    }
 
     fsm = &ppp_modem_fsm[ppp->modem_state][event];
 
@@ -626,7 +637,6 @@ static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_eve
             fsm->event_handler[i](ppp); 
     }
 }
-#endif
 
 static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
@@ -1378,11 +1388,14 @@ static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MA
     }
 };
 
-#ifndef PPP_UNIT_TEST
 static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
 {
     const struct pico_ppp_fsm *fsm, *next_fsm_to;
     int i;
+    if (mock_lcp_state) {
+        mock_lcp_state(ppp, event);
+        return;
+    }
     fsm = &ppp_lcp_fsm[ppp->lcp_state][event];
     ppp->lcp_state = fsm->next_state;
     /* RFC1661: The states in which the Restart timer is running are identifiable by
@@ -1403,7 +1416,6 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
             fsm->event_handler[i](ppp);
     }
 }
-#endif
 
 static void auth(struct pico_device_ppp *ppp)
 {
@@ -1518,11 +1530,14 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
     }
 };
 
-#ifndef PPP_UNIT_TEST
 static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
 {
     const struct pico_ppp_fsm *fsm;
     int i;
+    if (mock_auth_state) {
+        mock_auth_state(ppp,event);
+        return;
+    }
 
     fsm = &ppp_auth_fsm[ppp->auth_state][event];
 
@@ -1532,7 +1547,6 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
             fsm->event_handler[i](ppp);
     }
 }
-#endif
 
 static void ipcp_send_ack(struct pico_device_ppp *ppp)
 {
@@ -1619,11 +1633,14 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
     }
 };
 
-#ifndef PPP_UNIT_TEST
 static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
 {
     const struct pico_ppp_fsm *fsm;
     int i;
+    if (mock_ipcp_state) {
+        mock_ipcp_state(ppp,event);
+        return;
+    }
 
     fsm = &ppp_ipcp_fsm[ppp->ipcp_state][event];
 
@@ -1633,7 +1650,6 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
             fsm->event_handler[i](ppp);
     }
 }
-#endif
 
 static int pico_ppp_poll(struct pico_device *dev, int loop_score)
 {
