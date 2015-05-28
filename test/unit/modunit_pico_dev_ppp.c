@@ -18,18 +18,22 @@ static enum ppp_ipcp_event ppp_ipcp_ev;
 
 static void modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
 {
+    printf("Called MODEM FSM mock\n");
     ppp_modem_ev = event;
 }
 static void lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
 {
+    printf("Called LCP FSM mock\n");
     ppp_lcp_ev = event;
 }
 static void auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
 {
+    printf("Called AUTH FSM mock\n");
     ppp_auth_ev = event;
 }
 static void ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
 {
+    printf("Called IPCP FSM mock\n");
     ppp_ipcp_ev = event;
 }
 
