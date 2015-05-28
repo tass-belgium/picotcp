@@ -1453,9 +1453,9 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     memcpy(challenge + i, ppp->password, pwdlen);
     i += pwdlen;
     memcpy(challenge + i, ppp->pkt + sizeof(struct pico_chap_hdr), short_be(ch->len));
-    i += ch->len;
+    i += short_be(ch->len);
     pico_md5sum(md5resp, challenge, i);
-    pico_free(challenge);
+    PICO_FREE(challenge);
     rh->id = ch->id;
     rh->code = CHAP_RESPONSE;
     rh->len = short_be(CHAP_MD5_SIZE + sizeof(struct pico_chap_hdr));
