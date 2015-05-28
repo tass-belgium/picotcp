@@ -270,6 +270,7 @@ static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
     } else if (timer_type == PPP_TIMER_ON_LCPTERM) {
         ppp->timer_count = PICO_PPP_DEFAULT_MAX_TERMINATE;
     } else {
+        ppp->timer_on |= PPP_TIMER_ON_LCPREQ;
         ppp->timer_count = 0;
     }
 }
@@ -610,7 +611,7 @@ static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EV
             [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CONNECTED, {} }
     }
 };
-
+#ifndef UNIT_TEST
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
 {
     const struct pico_ppp_fsm *fsm;
@@ -625,6 +626,7 @@ static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_eve
             fsm->event_handler[i](ppp); 
     }
 }
+#endif
 
 static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
@@ -754,7 +756,7 @@ static void lcp_send_terminate_ack(struct pico_device_ppp *ppp)
     ack_hdr->code = PICO_CONF_TERM_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
-    dbg("Sending LCP CONF ACK\n");
+    dbg("Sending LCP TERM ACK\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack, 
             PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
             short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
@@ -1376,6 +1378,7 @@ static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MA
     }
 };
 
+#ifndef UNIT_TEST
 static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
 {
     const struct pico_ppp_fsm *fsm, *next_fsm_to;
@@ -1400,6 +1403,7 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
             fsm->event_handler[i](ppp);
     }
 }
+#endif
 
 static void auth(struct pico_device_ppp *ppp)
 {
@@ -1514,6 +1518,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
     }
 };
 
+#ifndef UNIT_TEST
 static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
 {
     const struct pico_ppp_fsm *fsm;
@@ -1527,6 +1532,7 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
             fsm->event_handler[i](ppp);
     }
 }
+#endif
 
 static void ipcp_send_ack(struct pico_device_ppp *ppp)
 {
@@ -1613,6 +1619,7 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
     }
 };
 
+#ifndef UNIT_TEST
 static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
 {
     const struct pico_ppp_fsm *fsm;
@@ -1626,6 +1633,7 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
             fsm->event_handler[i](ppp);
     }
 }
+#endif
 
 static int pico_ppp_poll(struct pico_device *dev, int loop_score)
 {
