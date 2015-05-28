@@ -874,12 +874,12 @@ static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
 }
 
 
-static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
+static void ipcp_send_ack(struct pico_device_ppp *ppp)
 {
-    uint8_t ack[len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    uint8_t ack[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
     struct pico_ipcp_hdr *ack_hdr = (struct pico_ipcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
-    struct pico_ipcp_hdr *ipcpreq = (struct pico_ipcp_hdr *)pkt;
-    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, pkt, len);
+    struct pico_ipcp_hdr *ipcpreq = (struct pico_ipcp_hdr *)ppp->pkt;
+    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
     ack_hdr->code = PICO_CONF_ACK;
     ack_hdr->id = ipcpreq->id;
     ack_hdr->len = ipcpreq->len;
@@ -1546,11 +1546,6 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
         if (fsm->event_handler[i])
             fsm->event_handler[i](ppp);
     }
-}
-
-static void ipcp_send_ack(struct pico_device_ppp *ppp)
-{
-    ipcp_ack(ppp, ppp->pkt, ppp->len);
 }
 
 static void ipcp_send_nack(struct pico_device_ppp *ppp)
