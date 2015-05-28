@@ -611,7 +611,7 @@ static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EV
             [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CONNECTED, {} }
     }
 };
-#ifndef UNIT_TEST
+#ifndef PPP_UNIT_TEST
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
 {
     const struct pico_ppp_fsm *fsm;
@@ -1378,7 +1378,7 @@ static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MA
     }
 };
 
-#ifndef UNIT_TEST
+#ifndef PPP_UNIT_TEST
 static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event)
 {
     const struct pico_ppp_fsm *fsm, *next_fsm_to;
@@ -1518,7 +1518,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
     }
 };
 
-#ifndef UNIT_TEST
+#ifndef PPP_UNIT_TEST
 static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event event)
 {
     const struct pico_ppp_fsm *fsm;
@@ -1619,7 +1619,7 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
     }
 };
 
-#ifndef UNIT_TEST
+#ifndef PPP_UNIT_TEST
 static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event event)
 {
     const struct pico_ppp_fsm *fsm;

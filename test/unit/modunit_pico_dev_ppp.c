@@ -7,6 +7,7 @@
 #include "pico_ipv4.h"
 #include "pico_md5.h"
 #include "pico_dns_client.h"
+#define PPP_UNIT_TEST
 #include "modules/pico_dev_ppp.c"
 #include "check.h"
 
