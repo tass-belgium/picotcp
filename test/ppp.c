@@ -5,8 +5,13 @@
 #include <termios.h>
 #include <pico_icmp4.h>
 #include <pico_socket.h>
+#ifdef PICO_SUPPORT_POLARSSL
 #include <polarssl/md5.h>
-#define MODEM "/dev/ttyUSB0"
+#endif
+#ifdef PICO_SUPPORT_CYASSL
+#include <cyassl/ctaocrypt/md5.h>
+#endif
+#define MODEM "/dev/ttyUSB2"
 #define SPEED 236800
 #define APN "gprs.base.be"
 #define PASSWD "base"
@@ -16,10 +21,22 @@ static int idx;
 static int ping_on = 0;
 static int disconnected = 0;
 
+#ifdef PICO_SUPPORT_POLARSSL
 static void md5sum(uint8_t *dst, const uint8_t *src, size_t len)
 {
     md5(src, len, dst);
 }
+#endif
+
+#ifdef PICO_SUPPORT_CYASSL
+static void md5sum(uint8_t *dst, const uint8_t *src, size_t len)
+{
+    Md5 md5;
+    InitMd5(&md5);
+    Md5Update(&md5, src, len);
+    Md5Final(&md5, dst);
+}
+#endif
 
 int modem_read(struct pico_device *dev, void *data, int len)
 {

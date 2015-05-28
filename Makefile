@@ -382,7 +382,7 @@ dummy: mod core lib $(DUMMY_EXTRA)
 
 ppptest: test/ppp.c lib
 	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
-	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) -lpolarssl
+	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) 
 	rm -f ppp.o
 
 

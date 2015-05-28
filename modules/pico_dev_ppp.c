@@ -264,6 +264,7 @@ static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
 {
     ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
     ppp->timer_on |= timer_type;
+
     if (timer_type == PPP_TIMER_ON_LCPREQ) {
         ppp->timer_count = PICO_PPP_DEFAULT_MAX_CONFIGURE;
     } else if (timer_type == PPP_TIMER_ON_LCPTERM) {
@@ -280,7 +281,7 @@ static void lcp_zero_restart_count(struct pico_device_ppp *ppp)
 
 static void lcp_timer_stop(struct pico_device_ppp *ppp, uint8_t timer_type)
 {
-    ppp->timer_val = (uint8_t)ppp->timer_val & (uint8_t)(~timer_type);
+    ppp->timer_on = (uint8_t)ppp->timer_on & (uint8_t)(~timer_type);
 }
 
 
@@ -550,7 +551,7 @@ static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EV
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_INITIAL, {} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_INITIAL, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_RESET] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_RESET, {} },
@@ -571,35 +572,35 @@ static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EV
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGREG, { ppp_modem_send_cgreg } },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CREG, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CREG, {ppp_modem_send_creg} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGREG] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGREG, {} },
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGDCONT, { ppp_modem_send_cgdcont } },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGREG, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CGREG, {ppp_modem_send_cgreg} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGDCONT] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGDCONT, {} },
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGATT, { ppp_modem_send_cgatt } },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGDCONT, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CGDCONT, {ppp_modem_send_cgdcont} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGATT] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGATT, {} },
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, { ppp_modem_send_dial } },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGATT, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CGATT, {ppp_modem_send_cgatt} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_DIAL] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_DIAL, {} },
             [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
             [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, {} },
             [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CONNECTED, { ppp_modem_connected } },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_DIAL, {} }
+            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CONNECTED] = {
             [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CONNECTED, {} },
@@ -1711,8 +1712,8 @@ static void check_to_modem(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_MODEM) {
         if (--ppp->timer_val == 0) {
-            evaluate_modem_state(ppp, PPP_MODEM_EVENT_TIMEOUT);
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_MODEM));
+            evaluate_modem_state(ppp, PPP_MODEM_EVENT_TIMEOUT);
         }
     }
 }
@@ -1733,8 +1734,8 @@ static void check_to_auth(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_AUTH) {
         if (--ppp->timer_val == 0) {
-            evaluate_auth_state(ppp, PPP_AUTH_EVENT_TO);
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
+            evaluate_auth_state(ppp, PPP_AUTH_EVENT_TO);
         }
     }
 }
@@ -1743,8 +1744,8 @@ static void check_to_ipcp(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_IPCP) {
         if (--ppp->timer_val == 0) {
-            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_TO);
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_IPCP));
+            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_TO);
         }
     }
 }
