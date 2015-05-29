@@ -11,10 +11,11 @@
 #ifdef PICO_SUPPORT_CYASSL
 #include <cyassl/ctaocrypt/md5.h>
 #endif
-#define MODEM "/dev/ttyUSB2"
+#define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
-#define APN "gprs.base.be"
-#define PASSWD "base"
+//#define APN "gprs.base.be"
+#define APN "web.be"
+#define PASSWD "web"
 //#define DEBUG_FLOW 
 static int fd = -1;
 static int idx;

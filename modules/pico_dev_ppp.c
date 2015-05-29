@@ -901,10 +901,13 @@ static void ipcp_send_ack(struct pico_device_ppp *ppp)
 
 static inline uint32_t ipcp_request_options_size(struct pico_device_ppp *ppp)
 {
-    uint32_t size = IPCP_ADDR_LEN;
-    if (ppp->ipcp_dns1) 
+    uint32_t size = 0;
+
+//    if (ppp->ipcp_ip) 
         size += IPCP_ADDR_LEN;
-    if (ppp->ipcp_dns2) 
+//    if (ppp->ipcp_dns1)
+        size += IPCP_ADDR_LEN;
+//    if (ppp->ipcp_dns2)
         size += IPCP_ADDR_LEN;
     if (ppp->ipcp_nbns1) 
         size += IPCP_ADDR_LEN;
@@ -927,13 +930,14 @@ static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg)
 
 static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 {
-    opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
-    if (ppp->ipcp_dns1)
+//    if (ppp->ipcp_ip) 
+        opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
+//    if (ppp->ipcp_dns1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
+//    if (ppp->ipcp_dns2)
+        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
     if (ppp->ipcp_nbns1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS1, ppp->ipcp_nbns1);
-    if (ppp->ipcp_dns2)
-        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
     if (ppp->ipcp_nbns2)
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS2, ppp->ipcp_nbns2);
 }
@@ -944,19 +948,20 @@ static void ipcp_send_req(struct pico_device_ppp *ppp)
     uint32_t prefix = PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE;
     struct pico_ipcp_hdr *ih = (struct pico_ipcp_hdr *) (ipcp_req + prefix);
     uint8_t *p = ipcp_req + prefix + sizeof(struct pico_ipcp_hdr);
+    uint16_t len = (uint16_t)(ipcp_request_options_size(ppp) + sizeof(struct pico_ipcp_hdr));
+
     ih->id = ppp->frame_id++;
     ih->code = PICO_CONF_REQ;
-    ih->len = short_be(IPCP_ADDR_LEN + sizeof(struct pico_ipcp_hdr));
+    ih->len = short_be(len);
     ipcp_request_fill(ppp, p);
 
-    dbg("Sending IPCP CONF REQ\n");
+    dbg("Sending IPCP CONF REQ, ipcp size = %d\n", len); 
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, 
             ipcp_req,                       /* Start of PPP packet */
-            (uint32_t)(prefix +                        /* PPP Header, etc. */
-            sizeof(struct pico_ipcp_hdr) +  /* LCP HDR */
-            ipcp_request_options_size(ppp) +/* Actual options size */
+            (uint32_t)(prefix +             /* PPP Header, etc. */
+            (uint32_t)len +                 /* IPCP Header + options */
             PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1u)                               /* STOP Byte */
+            1u)                             /* STOP Byte */
             );
 }
 
@@ -1018,16 +1023,28 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
             ppp->ipcp_ip = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
         }
         if (p[0] == IPCP_OPT_DNS1) {
-            ppp->ipcp_dns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            if (ih->code != PICO_CONF_REJ)
+                ppp->ipcp_dns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            else
+                ppp->ipcp_dns1 = 0;
         }
         if (p[0] == IPCP_OPT_NBNS1) {
-            ppp->ipcp_nbns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            if (ih->code != PICO_CONF_REJ)
+                ppp->ipcp_nbns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            else
+                ppp->ipcp_nbns1 = 0;
         }
         if (p[0] == IPCP_OPT_DNS2) {
-            ppp->ipcp_dns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            if (ih->code != PICO_CONF_REJ)
+                ppp->ipcp_dns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            else
+                ppp->ipcp_dns2 = 0;
         }
         if (p[0] == IPCP_OPT_NBNS2) {
-            ppp->ipcp_nbns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            if (ih->code != PICO_CONF_REJ)
+                ppp->ipcp_nbns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            else
+                ppp->ipcp_nbns2 = 0;
         }
         p += p[1];
     }
@@ -1054,6 +1071,7 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
             break;
         case PICO_CONF_REJ:
             dbg("Received IPCP CONF REJ\n");
+            
             evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCN);
             break;
     }
@@ -1136,6 +1154,8 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
     uint32_t idx;
     uint8_t *pkt = (uint8_t *)data;
 
+
+#ifdef PPP_DEBUG
     if (len > 0) {
         dbg("PPP   <<<<< ");
         for(idx = 0; idx < len; idx++) {
@@ -1143,6 +1163,7 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
         }
         dbg("\n");
     }
+#endif
 
     ppp_process_packet(ppp, pkt, len);
 }
@@ -1446,32 +1467,38 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     struct pico_chap_hdr *ch = (struct pico_chap_hdr *)ppp->pkt;
     uint8_t resp[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE + PPP_FCS_SIZE + 1];
     struct pico_chap_hdr *rh = (struct pico_chap_hdr *) (resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
-    uint8_t *md5resp = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr);
+    uint8_t *md5resp = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + 1;
+    uint8_t *md5resp_len = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr);
     uint8_t *challenge;
     uint32_t i = 0, pwdlen;
+    uint8_t *recvd_challenge_len = ppp->pkt + sizeof(struct pico_chap_hdr);
+    uint8_t *recvd_challenge = recvd_challenge_len + 1;
 
     challenge = PICO_ZALLOC(CHALLENGE_SIZE(ppp, ch));
 
     if (!challenge)
         return;
 
+
     pwdlen = (uint32_t)strlen(ppp->password);
     challenge[i++] = ch->id;
     memcpy(challenge + i, ppp->password, pwdlen);
     i += pwdlen;
-    memcpy(challenge + i, ppp->pkt + sizeof(struct pico_chap_hdr), short_be(ch->len));
-    i += short_be(ch->len);
+    memcpy(challenge + i, recvd_challenge, *recvd_challenge_len);
+    i += *recvd_challenge_len; 
     pico_md5sum(md5resp, challenge, i);
     PICO_FREE(challenge);
     rh->id = ch->id;
     rh->code = CHAP_RESPONSE;
-    rh->len = short_be(CHAP_MD5_SIZE + sizeof(struct pico_chap_hdr));
-    dbg("Sending CHAP RESPONSE\n");
+    rh->len = short_be(CHAP_MD5_SIZE + sizeof(struct pico_chap_hdr) + 1);
+    *md5resp_len = CHAP_MD5_SIZE;
+    dbg("Sending CHAP RESPONSE, \n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_CHAP,
         resp,                         /* Start of PPP packet */
         (uint32_t)(
         PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
         sizeof(struct pico_chap_hdr) +   /* CHAP HDR */
+        1                            +   /* Value length */
         CHAP_MD5_SIZE +                   /* Actual payload size */
         PPP_FCS_SIZE +                  /* FCS at the end of the frame */
         1)                               /* STOP Byte */
@@ -1584,7 +1611,7 @@ static void ipcp_bring_down(struct pico_device_ppp *ppp)
 static void ipcp_start_timer(struct pico_device_ppp *ppp)
 {
     ppp->timer_on = ppp->timer_on | PPP_TIMER_ON_IPCP;
-    ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
+    ppp->timer_val = PICO_PPP_DEFAULT_TIMER * PICO_PPP_DEFAULT_MAX_FAILURE;
 }
 
 static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT_MAX] = {
@@ -1603,7 +1630,7 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_ACK_RCVD, {} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
             [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_ACK_RCVD] = {
@@ -1611,9 +1638,9 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_OPENED, {ipcp_send_ack, ipcp_bring_up} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_nack} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_RCVD, {} }
+            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_ACK_SENT] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_SENT, {} },
@@ -1621,8 +1648,8 @@ static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT
             [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
             [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
             [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_OPENED, {ipcp_bring_up} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req} }
+            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} },
+            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_OPENED] = {
             [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_OPENED, {} },
