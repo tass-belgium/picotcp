@@ -2,7 +2,14 @@
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Daniele Lacamera, Maxime Vincent
+   Authors: Serge Gadeyne, Daniele Lacamera, Maxime Vincent
+
+    TODO:
+    * Implement LCP echo reply
+    * Review and test autoreconnect feature
+    * Documentation
+    * Web article?
+
  *********************************************************************/
 
 
