@@ -13,7 +13,7 @@ void pico_ppp_destroy(struct pico_device *ppp);
 struct pico_device *pico_ppp_create(void);
 
 int pico_ppp_connect(struct pico_device *dev);
-int pico_ppp_disconnect(struct pico_device *dev, void (*disconnect_cb)(void *), void *arg);
+int pico_ppp_disconnect(struct pico_device *dev);
 
 int pico_ppp_set_serial_read(struct pico_device *dev, int (*sread)(struct pico_device *, void *, int));
 int pico_ppp_set_serial_write(struct pico_device *dev, int (*swrite)(struct pico_device *, const void *, int));

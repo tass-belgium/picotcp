@@ -232,7 +232,7 @@ enum pico_ppp_state {
 
 struct pico_device_ppp {
     struct pico_device dev;
-    int statistics_frames_out;
+    int autoreconnect;
     enum ppp_modem_state modem_state;
     enum ppp_lcp_state lcp_state;
     enum ppp_auth_state auth_state;
@@ -277,17 +277,25 @@ static void (*mock_ipcp_state)(struct pico_device_ppp *ppp, enum ppp_ipcp_event 
 
 static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
 {
-    ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
+    uint8_t count = 0;
     ppp->timer_on |= timer_type;
 
-    if (timer_type == PPP_TIMER_ON_LCPREQ) {
-        ppp->timer_count = PICO_PPP_DEFAULT_MAX_CONFIGURE;
-    } else if (timer_type == PPP_TIMER_ON_LCPTERM) {
-        ppp->timer_count = PICO_PPP_DEFAULT_MAX_TERMINATE;
-    } else {
+    if (ppp->timer_val == 0) {
+        ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
+    }
+
+    if (timer_type == PPP_TIMER_ON_LCPTERM) {
+        count = PICO_PPP_DEFAULT_MAX_TERMINATE;
+    } 
+    if (timer_type == PPP_TIMER_ON_LCPREQ){
+        count = PICO_PPP_DEFAULT_MAX_CONFIGURE;
+    }
+    if (timer_type == 0) {
         ppp->timer_on |= PPP_TIMER_ON_LCPREQ;
         ppp->timer_count = 0;
     }
+    if (ppp->timer_count == 0)
+        ppp->timer_count = count;
 }
 
 static void lcp_zero_restart_count(struct pico_device_ppp *ppp)
@@ -555,9 +563,12 @@ static void ppp_modem_connected(struct pico_device_ppp *ppp)
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_UP);
 }
 
+#define PPP_ATH "+++ATH"
 static void ppp_modem_disconnected(struct pico_device_ppp *ppp)
 {
-    dbg("PPP: Modem disconnected from peer.\n");
+    dbg("PPP: Modem disconnected.\n");
+    if (ppp->serial_send)
+        ppp->serial_send(&ppp->dev, PPP_ATH, strlen(PPP_ATH));
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_DOWN);
 }
 
@@ -930,11 +941,8 @@ static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg)
 
 static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 {
-//    if (ppp->ipcp_ip) 
         opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
-//    if (ppp->ipcp_dns1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
-//    if (ppp->ipcp_dns2)
         opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
     if (ppp->ipcp_nbns1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS1, ppp->ipcp_nbns1);
@@ -1151,11 +1159,11 @@ static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, uint32
 
 static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
-    uint32_t idx;
     uint8_t *pkt = (uint8_t *)data;
 
 
 #ifdef PPP_DEBUG
+    uint32_t idx;
     if (len > 0) {
         dbg("PPP   <<<<< ");
         for(idx = 0; idx < len; idx++) {
@@ -1764,7 +1772,7 @@ void pico_ppp_destroy(struct pico_device *ppp)
 static void check_to_modem(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_MODEM) {
-        if (--ppp->timer_val == 0) {
+        if (ppp->timer_val == 0) {
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_MODEM));
             evaluate_modem_state(ppp, PPP_MODEM_EVENT_TIMEOUT);
         }
@@ -1774,11 +1782,13 @@ static void check_to_modem(struct pico_device_ppp *ppp)
 static void check_to_lcp(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & ( PPP_TIMER_ON_LCPREQ | PPP_TIMER_ON_LCPTERM ) ) {
-        if (--ppp->timer_val == 0) {
-            if (--ppp->timer_count == 0)
+        if (ppp->timer_val == 0) {
+            if (ppp->timer_count == 0)
                 evaluate_lcp_state(ppp, PPP_LCP_EVENT_TO_NEG);
-            else
+            else{ 
                 evaluate_lcp_state(ppp, PPP_LCP_EVENT_TO_POS);
+                ppp->timer_count--;
+            }
         }
     }
 }
@@ -1786,7 +1796,7 @@ static void check_to_lcp(struct pico_device_ppp *ppp)
 static void check_to_auth(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_AUTH) {
-        if (--ppp->timer_val == 0) {
+        if (ppp->timer_val == 0) {
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
             evaluate_auth_state(ppp, PPP_AUTH_EVENT_TO);
         }
@@ -1796,7 +1806,7 @@ static void check_to_auth(struct pico_device_ppp *ppp)
 static void check_to_ipcp(struct pico_device_ppp *ppp)
 {
     if (ppp->timer_on & PPP_TIMER_ON_IPCP) {
-        if (--ppp->timer_val == 0) {
+        if (ppp->timer_val == 0) {
             ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_IPCP));
             evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_TO);
         }
@@ -1807,10 +1817,17 @@ static void pico_ppp_tick(pico_time t, void *arg)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *) arg;
     (void)t;
+    if (ppp->timer_val > 0)
+        ppp->timer_val--;
     check_to_modem(ppp);
     check_to_lcp(ppp);
     check_to_auth(ppp);
     check_to_ipcp(ppp);
+
+    if (ppp->autoreconnect && ppp->lcp_state == PPP_LCP_STATE_INITIAL) {
+        dbg("(Re)connecting...\n");
+        evaluate_lcp_state(ppp, PPP_LCP_EVENT_OPEN);
+    }
     pico_timer_add(1000, pico_ppp_tick, arg);
 }
 
@@ -1855,19 +1872,15 @@ struct pico_device *pico_ppp_create(void)
 int pico_ppp_connect(struct pico_device *dev)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
-
-    evaluate_lcp_state(ppp, PPP_LCP_EVENT_OPEN);
-
+    ppp->autoreconnect = 1;
     return 0;
 }
 
-int pico_ppp_disconnect(struct pico_device *dev, void (*disconnect_cb)(void *), void *arg)
+int pico_ppp_disconnect(struct pico_device *dev)
 {
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
-
+    ppp->autoreconnect = 0;
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_CLOSE);
-    disconnect_cb(arg);
-
     return 0;
 }
 

@@ -1,5 +1,6 @@
 #include <pico_stack.h>
 #include <pico_dev_ppp.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -11,7 +12,7 @@
 #ifdef PICO_SUPPORT_CYASSL
 #include <cyassl/ctaocrypt/md5.h>
 #endif
-#define MODEM "/dev/ttyUSB0"
+#define MODEM "/dev/ttyUSB1"
 #define SPEED 236800
 //#define APN "gprs.base.be"
 #define APN "web.be"
@@ -20,7 +21,23 @@
 static int fd = -1;
 static int idx;
 static int ping_on = 0;
-static int disconnected = 0;
+static struct pico_device *ppp = NULL;
+
+static void sigusr1_hdl(int signo)
+{
+   fprintf(stderr, "SIGUSR1: Connecting!\n"); 
+   if (ppp)
+      pico_ppp_connect(ppp); 
+}
+
+static void sigusr2_hdl(int signo)
+{
+   fprintf(stderr, "SIGUSR2/SIGINT: Disconnecting!\n"); 
+   if (ppp)
+      pico_ppp_disconnect(ppp); 
+   if (signo == SIGINT)
+       exit(0);
+}
 
 #ifdef PICO_SUPPORT_POLARSSL
 static void md5sum(uint8_t *dst, const uint8_t *src, size_t len)
@@ -110,21 +127,9 @@ static void ping(void)
     pico_icmp4_ping("80.68.95.85", 10, 1000, 4000, 8, cb_ping);
 }
 
-static void disconnect_cb(void *arg)
-{
-    disconnected = 1;
-}
-
-static void timer(pico_time now, void *arg)
-{
-    struct pico_device *dev = (struct pico_device *)arg;
-
-    pico_ppp_disconnect(dev, disconnect_cb, NULL);
-}
 
 int main(int argc, const char *argv[])
 {
-    struct pico_device *dev;
     const char *path = MODEM;
     const char *apn = APN;
     const char *passwd = PASSWD;
@@ -142,33 +147,34 @@ int main(int argc, const char *argv[])
 
     fcntl(fd, F_SETFL, O_NONBLOCK);
 
+    signal(SIGUSR1, sigusr1_hdl);
+    signal(SIGUSR2, sigusr2_hdl);
+    signal(SIGINT, sigusr2_hdl);
+
     pico_stack_init();
 
     pico_register_md5sum(md5sum);
 
-    dev = pico_ppp_create();
-    if (!dev)
+    ppp = pico_ppp_create();
+    if (!ppp)
         return 2; 
 
-    pico_ppp_set_serial_read(dev, modem_read);
-    pico_ppp_set_serial_write(dev, modem_write);
-    pico_ppp_set_serial_set_speed(dev, modem_set_speed);
+    pico_ppp_set_serial_read(ppp, modem_read);
+    pico_ppp_set_serial_write(ppp, modem_write);
+    pico_ppp_set_serial_set_speed(ppp, modem_set_speed);
 
-    pico_ppp_set_apn(dev, apn);
-    pico_ppp_set_password(dev, passwd);
+    pico_ppp_set_apn(ppp, apn);
+    pico_ppp_set_password(ppp, passwd);
 
-    pico_ppp_connect(dev);
+    pico_ppp_connect(ppp);
 
-    while(!disconnected) {
+    while(1 < 2) {
         pico_stack_tick();
         usleep(1000);
-        if (dev->link_state(dev) && !ping_on) {
+        if (ppp->link_state(ppp) && !ping_on) {
             ping_on++;
             ping();
-            pico_timer_add(60 * 1000, timer, dev);
         }
     }
-
-    pico_ppp_destroy(dev);
 
 }

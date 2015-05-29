@@ -578,12 +578,6 @@ END_TEST
 START_TEST(tc_uint32_t)
 {
     memset(&ppp, 0, sizeof(ppp));
-    fail_if(ipcp_request_options_size(&ppp) != IPCP_ADDR_LEN);
-
-    ppp.ipcp_dns1 = 1;
-    fail_if(ipcp_request_options_size(&ppp) != 2 *IPCP_ADDR_LEN);
-
-    ppp.ipcp_dns2 = 1;
     fail_if(ipcp_request_options_size(&ppp) != 3 *IPCP_ADDR_LEN);
 
     ppp.ipcp_nbns1 = 1;
@@ -613,34 +607,24 @@ START_TEST(tc_ipcp_request_fill)
     uint8_t opts[5 * IPCP_ADDR_LEN];
     memset(&ppp, 0, sizeof(ppp));
 
-    ppp.ipcp_ip = 1;
-    ipcp_request_fill(&ppp, opts);
-    fail_if(opts[0] != IPCP_OPT_IP);
-
-    ppp.ipcp_dns1 = 1;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);
+    fail_if(opts[12] != IPCP_OPT_DNS2);
     
     ppp.ipcp_nbns1 = 1;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);
-    fail_if(opts[12] != IPCP_OPT_NBNS1);
-
-    ppp.ipcp_dns2 = 1;
-    ipcp_request_fill(&ppp, opts);
-    fail_if(opts[0] != IPCP_OPT_IP);
-    fail_if(opts[6] != IPCP_OPT_DNS1);
-    fail_if(opts[12] != IPCP_OPT_NBNS1);
-    fail_if(opts[18] != IPCP_OPT_DNS2);
+    fail_if(opts[12] != IPCP_OPT_DNS2);
+    fail_if(opts[18] != IPCP_OPT_NBNS1);
 
     ppp.ipcp_nbns2 = 1;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);
-    fail_if(opts[12] != IPCP_OPT_NBNS1);
-    fail_if(opts[18] != IPCP_OPT_DNS2);
+    fail_if(opts[12] != IPCP_OPT_DNS2);
+    fail_if(opts[18] != IPCP_OPT_NBNS1);
     fail_if(opts[24] != IPCP_OPT_NBNS2);
 }
 END_TEST
@@ -653,7 +637,6 @@ START_TEST(tc_ipcp_send_req)
     called_serial_send = 0;
     ipcp_send_req(&ppp);
     fail_if(called_serial_send != 1);
-    fail_if(serial_out_len != 18);
 }
 END_TEST
 
@@ -959,7 +942,7 @@ START_TEST(tc_ipcp_start_timer)
     memset(&ppp, 0, sizeof(ppp));
     ipcp_start_timer(&ppp);
     fail_if (ppp.timer_on != PPP_TIMER_ON_IPCP);
-    fail_if (ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
+    fail_if (ppp.timer_val != PICO_PPP_DEFAULT_TIMER * PICO_PPP_DEFAULT_MAX_FAILURE);
 }
 END_TEST
 START_TEST(tc_pico_ppp_poll)
@@ -983,13 +966,15 @@ START_TEST(tc_check_to_modem)
     check_to_modem(&ppp);
     fail_if(ppp_modem_ev != 0);
 
-    /* Timer set to 2 */
+    /* Timer set to 1 */
     ppp.timer_on = PPP_TIMER_ON_MODEM;
-    ppp.timer_val = 2;
+    ppp.timer_val = 1;
     check_to_modem(&ppp);
     fail_if(ppp_modem_ev != 0);
+    ppp.timer_val--; 
     /* Timer expired */
     check_to_modem(&ppp);
+    printf("Modem event: %02x\n");
     fail_if(ppp_modem_ev != PPP_MODEM_EVENT_TIMEOUT);
 
 }
@@ -1002,24 +987,26 @@ START_TEST(tc_check_to_lcp)
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != 0);
 
-    /* Count set to 2 */
-    ppp.timer_count = 2;
+    /* Count set to 1 */
+    ppp.timer_count = 1;
 
-    /* Timer set to 2 */
+    /* Timer set to 1 */
     ppp.timer_on = PPP_TIMER_ON_LCPTERM;
-    ppp.timer_val = 2;
+    ppp.timer_val = 1;
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != 0);
+    ppp.timer_val--; 
     /* Timer expired */
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_TO_POS);
 
-    /* Timer set to 2 */
+    /* Timer set to 1 */
     ppp_lcp_ev = 0;
     ppp.timer_on = PPP_TIMER_ON_LCPREQ;
-    ppp.timer_val = 2;
+    ppp.timer_val = 1;
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != 0);
+    ppp.timer_val--; 
     /* Timer expired */
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_TO_NEG);
@@ -1034,12 +1021,13 @@ START_TEST(tc_check_to_auth)
     check_to_auth(&ppp);
     fail_if(ppp_auth_ev != 0);
 
-    /* Timer set to 2 */
+    /* Timer set to 1 */
     ppp.timer_on = PPP_TIMER_ON_AUTH;
-    ppp.timer_val = 2;
+    ppp.timer_val = 1;
     check_to_auth(&ppp);
     fail_if(ppp_auth_ev != 0);
     /* Timer expired */
+    ppp.timer_val--; 
     check_to_auth(&ppp);
     fail_if(ppp_auth_ev != PPP_AUTH_EVENT_TO);
 }
@@ -1052,12 +1040,13 @@ START_TEST(tc_check_to_ipcp)
     check_to_ipcp(&ppp);
     fail_if(ppp_ipcp_ev != 0);
 
-    /* Timer set to 2 */
+    /* Timer set to 1 */
     ppp.timer_on = PPP_TIMER_ON_IPCP;
-    ppp.timer_val = 2;
+    ppp.timer_val = 1;
     check_to_ipcp(&ppp);
     fail_if(ppp_ipcp_ev != 0);
     /* Timer expired */
+    ppp.timer_val--; 
     check_to_ipcp(&ppp);
     fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_TO);
 }
