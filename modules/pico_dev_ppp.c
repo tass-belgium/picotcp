@@ -6,7 +6,6 @@
 
     TODO:
     * Implement LCP echo reply
-    * Review and test autoreconnect feature
     * Documentation
     * Web article?
 
