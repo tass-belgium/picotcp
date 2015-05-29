@@ -728,13 +728,17 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
 {
     uint16_t flags = 0;
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
+    int off; 
     while(p < (pkt + len)) {
         flags |= (uint16_t)(1 << p[0]);
         if ((p[0] == 3) && ppp) {
             dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
             ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
         }
-        p += p[1];
+        off = p[1];
+        if (!off)
+            break;
+        p += off;
     }
     return flags;
 } 
@@ -1472,7 +1476,7 @@ static void auth_req(struct pico_device_ppp *ppp)
 static void auth_rsp(struct pico_device_ppp *ppp)
 {
     struct pico_chap_hdr *ch = (struct pico_chap_hdr *)ppp->pkt;
-    uint8_t resp[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE + PPP_FCS_SIZE + 1];
+    uint8_t resp[PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE + PPP_FCS_SIZE + 2];
     struct pico_chap_hdr *rh = (struct pico_chap_hdr *) (resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
     uint8_t *md5resp = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr) + 1;
     uint8_t *md5resp_len = resp + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_chap_hdr);
