@@ -1,0 +1,257 @@
+\section{Point-to-Point Protocol (PPP)}
+
+PPP consists in a family of data-link protocols, providing link control, 
+configuration and authentication over a point-to-point link. In a connected
+embedded system, it is often used to access dial-up modems over serial lines.
+
+This module supports GSM modem configuration by implementing part of ETSI TS 127 007.
+
+From the picoTCP perspective, each PPP capable device may be abstracted into its own instance 
+that can be created using \texttt{pico\_ppp\_create}.
+
+Any GSM/GPRS/3G/HSDPA module, exporting a non-blocking serial interface, such as SPI or UART,
+can be connected to the ppp device abstraction, using \texttt{pico\_ppp\_set\_serial\_read}, 
+\texttt{pico\_ppp\_set\_serial\_write}, \texttt{pico\_ppp\_set\_serial\_set\_speed}.
+
+Once the physical interface is attached, the access to the remote access point gateway
+can be configured using \texttt{pico\_ppp\_set\_apn},   \texttt{pico\_ppp\_set\_username} and
+\texttt{pico\_ppp\_set\_password}.
+
+When the interface is configured, the connection may be established using
+\texttt{pico\_ppp\_connect}. Even if the peer disconnects, the connection will be brought up 
+again automatically afterwords.
+
+To interrupt the connection and stop the automatic reconnection, \texttt{pico\_ppp\_disconnect}
+can be called.
+
+\subsection{pico\_ppp\_create}
+
+\subsubsection*{Description}
+This function will create a new device association to be used with the ppp driver. The driver
+must then afterwards be associated with lower-level serial functions in order to be used.
+
+\subsubsection*{Function prototype}
+\texttt{struct pico\_device *pico\_ppp\_create(void);}
+
+\subsubsection*{Return value}
+A new pico\_device is allocated and returned if the device is successfully created.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ppp = pico_ppp_create();
+
+\end{verbatim}
+
+\subsection{pico\_ppp\_set\_serial\_read}
+\subsubsection*{Description}
+This function will associate the read function from an external source (e.g. a UART device API)
+to the read functionality of the PPP driver. Setting up a proper read/write interface is necessary
+for the PPP driver to work properly.
+
+The function associated with the read must be non-blocking, no matter the execution model of the system.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_serial\_read(struct pico\_device *dev, int (*sread)(struct pico\_device *, void *, int))}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{sread} - a pointer to a function of type \texttt{int fn(struct pico\_device *, void *, int)} 
+    specifying the target serial read function. The function prototype will be called with the device pointer,
+    a buffer to be filled with serial data, and the maximum lenght of the usable buffer.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the serial read function is successfully associated.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+static int my_serial_read(struct pico_device *dev, void *buf, int len)
+{
+    return nonblock_uart_read(buf, len);
+}
+
+pico_ppp_set_serial_read(ppp, my_serial_read);
+\end{verbatim}
+
+\subsection{pico\_ppp\_set\_serial\_write}
+\subsubsection*{Description}
+This function will associate the write function from an external source (e.g. a UART device API)
+to the write functionality of the PPP driver. Setting up a proper read/write interface is necessary
+for the PPP driver to work properly.
+
+The function associated with the write must be non-blocking, no matter the execution model of the system.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_serial\_write(struct pico\_device *dev, int (*swrite)(struct pico\_device *, const void *, int))}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{swrite} - a pointer to a function of type \texttt{int fn(struct pico\_device *, const void *, int)} 
+    specifying the target serial write function. The function prototype will be called with the device pointer,
+    a buffer to be filled with serial data, and the maximum lenght of the usable buffer.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the serial write function is successfully associated.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+static int my_serial_write(struct pico_device *dev, const void *buf, int len)
+{
+    return nonblock_uart_write(buf, len);
+}
+
+pico_ppp_set_serial_write(ppp, my_serial_write);
+\end{verbatim}
+
+\subsection{pico\_ppp\_set\_serial\_set\_speed}
+\subsubsection*{Description}
+This function will associate the set\_speed function from an external source (e.g. a UART device API)
+to dynamically set the UART speed for the interface with the PPP driver. 
+
+Calling this function is not mandatory for the PPP UART interface to work. 
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_serial\_set\_speed(struct pico\_device *dev, int (*sset\_speed)(struct pico\_device *, uint32\_t))}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{sset\_speed} - a pointer to a function of type \texttt{int fn(struct pico\_device *, uint32\_t speed)} 
+    specifying the target serial set\_speed function. The function prototype will be called with the device pointer and
+    the speed at which the UART should be configured by PPP.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the serial set\_speed function is successfully associated.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+static int my_serial_set_speed(struct pico_device *dev, uint32_t speed)
+{
+    return uart_set_speed(speed);
+}
+
+pico_ppp_set_serial_set_speed(ppp, my_serial_set_speed);
+\end{verbatim}
+
+
+\subsection{pico\_ppp\_set\_apn}
+\subsubsection*{Description}
+This function allows the configuration of the APN name in order for PPP to correctly establish the connection
+to the remote Access Point gateway.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_apn(struct pico\_device *dev, const char *apn);}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{apn} - a string containing the Access Point Name. 
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the APN is correctly configured. 
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_ppp_set_apn(dev, "internet.apn.name");
+
+\end{verbatim}
+\subsection{pico\_ppp\_set\_username}
+\subsubsection*{Description}
+This function will set an username for the PAP/CHAP authentication mechanism.  
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_username(struct pico\_device *dev, const char *username); }
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{username} - a string specifying the desired username.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the username is successfully configured.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_ppp_set_username(dev, "john");
+
+\end{verbatim}
+\subsection{pico\_ppp\_set\_password}
+\subsubsection*{Description}
+This function will set the password for the PAP/CHAP authentication mechanism.  
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_set\_password(struct pico\_device *dev, const char *password); }
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\item \texttt{username} - a string specifying the desired password.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the password is successfully configured.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_ppp_set_password(dev, "secret");
+\end{verbatim}
+
+\subsection{pico\_ppp\_connect}
+\subsubsection*{Description}
+This function will enable the PPP connection, by triggering the startup of the handshakes
+required at all levels. If the connection is dropped, the system will try to reconnect by restarting
+the handshakes, until \texttt{pico\_ppp\_disconnect} is finally called.
+
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_connect(struct pico\_device *ppp)}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the device is successfully connecting.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_ppp_connect(dev);
+
+\end{verbatim}
+\subsection{pico\_ppp\_disconnect}
+\subsubsection*{Description}
+This function will disable the PPP connection, by triggering a disconnection, and by disabling the
+reconnect feature, if enabled.
+
+\subsubsection*{Function prototype}
+\texttt{int pico\_ppp\_disconnect(struct pico\_device *ppp)}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{dev} - a pointer to a struct \texttt{pico\_device} specifying the target interface.
+\end{itemize}
+
+\subsubsection*{Return value}
+0 returned if the device is successfully put in disconnected state.
+
+\subsubsection*{Example}
+\begin{verbatim}
+
+ret = pico_ppp_disconnect(dev);
+
+\end{verbatim}
