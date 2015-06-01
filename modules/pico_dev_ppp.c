@@ -6,7 +6,6 @@
 
     TODO:
     * Implement LCP echo reply
-    * Documentation
     * Web article?
 
  *********************************************************************/
