@@ -169,8 +169,7 @@ POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o \
-            modules/pico_dev_pcap.o \
-            modules/ptsocket/pico_ptsocket.o
+            modules/pico_dev_pcap.o 
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -264,7 +263,6 @@ mod: $(MOD_OBJ)
 
 posix: all $(POSIX_OBJ)
 	@mv modules/*.o $(PREFIX)/modules || echo
-	@mv modules/ptsocket/*.o $(PREFIX)/modules || echo
 
 
 TEST_ELF= test/picoapp.elf
@@ -364,7 +362,7 @@ mbed:
 	@cp include/pico_socket.h include/socket.tmp
 	@echo "#define MBED\n" > include/mbed.tmp
 	@cat include/mbed.tmp include/socket.tmp > include/pico_socket.h
-	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/ptsocket/* modules/ptsocket/ modules/ptsocket/test/ modules/ptsocket/test/* modules/pico_dev_*
+	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/pico_dev_*
 	@rm include/pico_socket.h include/mbed.tmp
 	@mv include/socket.tmp include/pico_socket.h
 
