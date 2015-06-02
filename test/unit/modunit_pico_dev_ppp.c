@@ -850,8 +850,17 @@ START_TEST(tc_lcp_send_code_reject)
 END_TEST
 START_TEST(tc_lcp_send_echo_reply)
 {
-   /* TODO: test this: static void lcp_send_echo_reply(struct pico_device_ppp *ppp) */
+    uint8_t pkt[20] = "";
+    struct pico_lcp_hdr *lcpreq; 
+    called_serial_send = 0;
+    memset(&ppp, 0, sizeof(ppp));
+    ppp.serial_send = unit_serial_send;
+    ppp.pkt = pkt;
+    ppp.len = 4; 
+    lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
+    lcpreq->len = short_be(4); 
     lcp_send_echo_reply(&ppp);
+    fail_if(called_serial_send != 1);
 }
 END_TEST
 START_TEST(tc_auth)

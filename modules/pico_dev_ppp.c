@@ -4,10 +4,6 @@
 
    Authors: Serge Gadeyne, Daniele Lacamera, Maxime Vincent
 
-    TODO:
-    * Implement LCP echo reply
-    * Web article?
-
  *********************************************************************/
 
 
@@ -46,6 +42,12 @@
 #define PICO_CONF_REJ 4
 #define PICO_CONF_TERM      5
 #define PICO_CONF_TERM_ACK  6
+#define PICO_CONF_CODE_REJ  7
+#define PICO_CONF_PROTO_REJ 8
+#define PICO_CONF_ECHO_REQ  9 
+#define PICO_CONF_ECHO_REP  10
+#define PICO_CONF_DISCARD_REQ 11
+
 
 
 #define LCPOPT_MRU 1
@@ -861,6 +863,11 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
+    if (pkt[0] == PICO_CONF_ECHO_REQ) {
+        dbg("Received LCP ECHO REQ\n");
+        evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXR);
+        return;
+    }
 }
 
 static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
@@ -1228,7 +1235,20 @@ static void lcp_send_code_reject(struct pico_device_ppp *ppp)
 
 static void lcp_send_echo_reply(struct pico_device_ppp *ppp)
 {
-    IGNORE_PARAMETER(ppp);
+    uint8_t reply[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    struct pico_lcp_hdr *reply_hdr = (struct pico_lcp_hdr *) (reply + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
+    memcpy(reply + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    reply_hdr->code = PICO_CONF_ECHO_REP;
+    reply_hdr->id = lcpreq->id;
+    reply_hdr->len = lcpreq->len;
+    dbg("Sending LCP ECHO REPLY\n");
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reply, 
+            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
+            short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
+            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
+            1                                               /* STOP Byte */
+            );
 }
 
 static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MAX] = {
