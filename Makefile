@@ -17,7 +17,6 @@ PERF?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
-CHECKSUMFUN?=young
 ADDRESS_SANITIZER?=0
 
 # Default compiled-in protocols
@@ -90,10 +89,6 @@ endif
 
 ifneq ($(ENDIAN),little)
   CFLAGS+=-DPICO_BIGENDIAN
-endif
-
-ifeq ($(CHECKSUMFUN),young)
-  CFLAGS+=-DPICO_YOUNG_CHECKSUM
 endif
 
 ifneq ($(RTOS),0)

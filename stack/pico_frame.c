@@ -170,9 +170,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     return new;
 }
 
-#ifdef PICO_YOUNG_CHECKSUM
 
-/* YOUNG CHECKSUM */
 static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t len)
 {
     uint16_t *buf = (uint16_t *)data;
@@ -202,34 +200,6 @@ static inline uint16_t pico_checksum_finalize(uint32_t sum)
     }
     return short_be((uint16_t) ~sum);
 }
-
-#else
-
-/* OLD CHECKSUM */
-static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t len)
-{
-    uint8_t *buf = (uint8_t *) data;
-    uint32_t tmp = 0;
-    uint32_t i = 0;
-
-    for(i = 0; i < len; i += 2u) {
-        tmp = buf[i];
-        sum += (tmp << 8lu);
-        if (len > (i + 1u))
-            sum += buf[i + 1];
-    }
-    return sum;
-}
-
-static inline uint16_t pico_checksum_finalize(uint32_t sum)
-{
-    while (sum >> 16) { /* a second carry is possible! */
-        sum = (sum & 0x0000FFFF) + (sum >> 16);
-    }
-    return (uint16_t) (~sum);
-}
-
-#endif /* PICO_YOUNG_CHECKSUM */
 
 /**
  * Calculate checksum of a given string
