@@ -47,6 +47,9 @@ MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
+PPP?=1
+CYASSL?=0
+POLARSSL?=0
 
 #IPv6 related
 IPV6?=1
@@ -80,7 +83,7 @@ ifeq ($(TFTP),1)
 endif
 
 ifeq ($(AODV),1)
-  MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o 
+  MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o
   OPTIONS+=-DPICO_SUPPORT_AODV
 endif
 
@@ -159,14 +162,14 @@ CORE_OBJ= stack/pico_stack.o \
           stack/pico_protocol.o \
           stack/pico_socket.o \
           stack/pico_socket_multicast.o \
-          stack/pico_tree.o
+          stack/pico_tree.o \
+          stack/pico_md5.o
 
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o \
-            modules/pico_dev_pcap.o \
-            modules/ptsocket/pico_ptsocket.o
+            modules/pico_dev_pcap.o 
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -238,6 +241,15 @@ endif
 ifneq ($(TAP),0)
   include rules/tap.mk
 endif
+ifneq ($(PPP),0)
+  include rules/ppp.mk
+endif
+ifneq ($(CYASSL),0)
+  include rules/cyassl.mk
+endif
+ifneq ($(POLARSSL),0)
+  include rules/polarssl.mk
+endif
 
 all: mod core lib
 
@@ -251,14 +263,13 @@ mod: $(MOD_OBJ)
 
 posix: all $(POSIX_OBJ)
 	@mv modules/*.o $(PREFIX)/modules || echo
-	@mv modules/ptsocket/*.o $(PREFIX)/modules || echo
 
 
 TEST_ELF= test/picoapp.elf
 TEST6_ELF= test/picoapp6.elf
 
 
-test: posix 
+test: posix
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
@@ -286,12 +297,12 @@ lib: mod core
 	@cp -f modules/*.h $(PREFIX)/include
 	@echo -e "\t[AR] $(PREFIX)/lib/$(LIBNAME)"
 	@$(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
-	  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o 
+	  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/$(LIBNAME)"
 	@$(RANLIB) $(PREFIX)/lib/$(LIBNAME)
 	@test $(STRIP) -eq 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
-     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)" 
+     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)"
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
 	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
 
@@ -321,6 +332,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_ipfilter.elf $(CFLAGS) -I. test/unit/modunit_pico_ipfilter.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_aodv.elf $(CFLAGS) -I. test/unit/modunit_pico_aodv.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_queue.elf $(CFLAGS) -I. test/unit/modunit_queue.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ)
+	@$(CC) -o $(PREFIX)/test/modunit_dev_ppp.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_ppp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"
@@ -350,7 +362,7 @@ mbed:
 	@cp include/pico_socket.h include/socket.tmp
 	@echo "#define MBED\n" > include/mbed.tmp
 	@cat include/mbed.tmp include/socket.tmp > include/pico_socket.h
-	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/ptsocket/* modules/ptsocket/ modules/ptsocket/test/ modules/ptsocket/test/* modules/pico_dev_*
+	@zip -0 PicoTCP.zip -r include modules stack -x include/arch/ include/arch/* include/pico_config.h include/*.tmp modules/pico_dev_*
 	@rm include/pico_socket.h include/mbed.tmp
 	@mv include/socket.tmp include/pico_socket.h
 
@@ -364,7 +376,12 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@$(CC) -c -o test/dummy.o test/dummy.c $(CFLAGS)
 	@$(CC) -o dummy test/dummy.o $(DUMMY_EXTRA) $(PREFIX)/lib/libpicotcp.a $(LDFLAGS)
 	@echo done.
-	@rm -f test/dummy.o dummy 
+	@rm -f test/dummy.o dummy
+
+ppptest: test/ppp.c lib
+	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
+	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) 
+	rm -f ppp.o
 
 
 FORCE:

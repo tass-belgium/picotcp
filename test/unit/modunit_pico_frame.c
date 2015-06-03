@@ -37,11 +37,14 @@ START_TEST(tc_pico_frame_alloc_discard)
     f = pico_frame_alloc(FRAME_SIZE);
     fail_if(f);
 
-    printf("Testing with faulty memory in frame_alloc (2)\n");
-    pico_set_mm_failure(3);
-    f = pico_frame_alloc(FRAME_SIZE);
+    printf("Testing with faulty memory in frame_do_alloc, with external buffer, failing to allocate usage_count \n");
+    pico_set_mm_failure(2);
+    f = pico_frame_do_alloc(FRAME_SIZE, 1, 1);
     fail_if(f);
 #endif
+    printf("Testing frame_do_alloc, with invalid flags combination\n");
+    f = pico_frame_do_alloc(FRAME_SIZE, 0, 1);
+    fail_if(f);
 
 }
 END_TEST
