@@ -17,6 +17,10 @@ extern volatile unsigned int pico_ms_tick;
 
 #define dbg(...)
 
+#ifdef PICO_SUPPORT_PTHREAD
+    #define PICO_SUPPORT_MUTEX
+#endif
+
 #ifdef PICO_SUPPORT_RTOS
     #define PICO_SUPPORT_MUTEX
 
@@ -78,12 +82,12 @@ static inline void *pico_zalloc(size_t size)
 
 static inline pico_time PICO_TIME_MS(void)
 {
-    return pico_ms_tick;
+    return (pico_time)pico_ms_tick;
 }
 
 static inline pico_time PICO_TIME(void)
 {
-    return PICO_TIME_MS() / 1000;
+    return (pico_time)(PICO_TIME_MS() / 1000);
 }
 
 static inline void PICO_IDLE(void)

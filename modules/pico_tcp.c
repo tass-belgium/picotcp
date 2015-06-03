@@ -21,7 +21,7 @@
 #define SEQN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->seq)) : 0)
 #define ACKN(f) ((f) ? (long_be(((struct pico_tcp_hdr *)((f)->transport_hdr))->ack)) : 0)
 
-#define TCP_TIME (PICO_TIME_MS())
+#define TCP_TIME (pico_time)(PICO_TIME_MS())
 
 #define PICO_TCP_RTO_MIN (70)
 #define PICO_TCP_RTO_MAX (120000)

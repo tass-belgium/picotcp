@@ -59,6 +59,23 @@ static inline void pico_free(void *x)
 extern int32_t prescale_time;
 #endif
 
+#if defined(PICO_SUPPORT_RTOS) || defined (PICO_SUPPORT_PTHREAD)
+/* pico_ms_tick must be defined */
+extern volatile unsigned long int pico_ms_tick;
+
+
+static inline uint32_t PICO_TIME(void)
+{
+    return pico_ms_tick / 1000;
+}
+
+static inline uint32_t PICO_TIME_MS(void)
+{
+    return pico_ms_tick;
+}
+
+#else
+
 static inline uint32_t PICO_TIME(void)
 {
     struct timeval t;
@@ -83,6 +100,7 @@ static inline uint32_t PICO_TIME_MS(void)
     return (uint32_t)((t.tv_sec * 1000) + (t.tv_usec / 1000));
   #endif
 }
+#endif
 
 #ifdef PICO_SUPPORT_THREADING
 #define PICO_SUPPORT_MUTEX

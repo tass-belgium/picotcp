@@ -17,6 +17,8 @@ PERF?=0
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
+GENERIC?=0
+PTHREAD?=0
 ADDRESS_SANITIZER?=0
 
 # Default compiled-in protocols
@@ -84,6 +86,14 @@ endif
 ifeq ($(AODV),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o
   OPTIONS+=-DPICO_SUPPORT_AODV
+endif
+
+ifeq ($(GENERIC),1)
+  CFLAGS+=-DGENERIC
+endif
+
+ifeq ($(PTHREAD),1)
+  CFLAGS+=-DPICO_SUPPORT_PTHREAD
 endif
 
 
