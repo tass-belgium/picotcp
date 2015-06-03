@@ -44,7 +44,7 @@
 #define PICO_CONF_TERM_ACK  6
 #define PICO_CONF_CODE_REJ  7
 #define PICO_CONF_PROTO_REJ 8
-#define PICO_CONF_ECHO_REQ  9 
+#define PICO_CONF_ECHO_REQ  9
 #define PICO_CONF_ECHO_REP  10
 #define PICO_CONF_DISCARD_REQ 11
 
@@ -62,7 +62,7 @@
 #define CHAP_RESPONSE   2
 #define CHAP_SUCCESS    3
 #define CHAP_FAILURE    4
-#define CHALLENGE_SIZE(ppp, ch) (1 + strlen(ppp->password)+ short_be((ch)->len))
+#define CHALLENGE_SIZE(ppp, ch) (1 + strlen(ppp->password) + short_be((ch)->len))
 
 #define PICO_PPP_DEFAULT_TIMER (3) /* seconds */
 #define PICO_PPP_DEFAULT_MAX_TERMINATE (2)
@@ -79,41 +79,43 @@
 #define IPCP_OPT_DNS2 0x83
 #define IPCP_OPT_NBNS2 0x84
 
-static uint8_t LCPOPT_LEN[9] = { 0, 4, 0, 4, 4, 6, 2, 2, 2 };
+static uint8_t LCPOPT_LEN[9] = {
+    0, 4, 0, 4, 4, 6, 2, 2, 2
+};
 
 
 /* Protocol defines */
-static const unsigned char  AT_S3          = 0x0du;
-static const unsigned char  AT_S4          = 0x0au;
-static const unsigned char  PPPF_FLAG_SEQ  = 0x7eu;
-static const unsigned char  PPPF_CTRL_ESC  = 0x7du;
-static const unsigned char  PPPF_ADDR      = 0xffu;
-static const unsigned char  PPPF_CTRL      = 0x03u;
-static const unsigned char  PPP_PROTO_IP_C = 0x21u;
+static const unsigned char AT_S3          = 0x0du;
+static const unsigned char AT_S4          = 0x0au;
+static const unsigned char PPPF_FLAG_SEQ  = 0x7eu;
+static const unsigned char PPPF_CTRL_ESC  = 0x7du;
+static const unsigned char PPPF_ADDR      = 0xffu;
+static const unsigned char PPPF_CTRL      = 0x03u;
+static const unsigned char PPP_PROTO_IP_C = 0x21u;
 
 static int ppp_devnum = 0;
 static uint8_t ppp_recv_buf[PPP_MAXPKT];
 
 PACKED_STRUCT_DEF pico_lcp_hdr {
-   uint8_t code;
-   uint8_t id;
-   uint16_t len;
+    uint8_t code;
+    uint8_t id;
+    uint16_t len;
 };
 
 PACKED_STRUCT_DEF pico_chap_hdr {
-   uint8_t code;
-   uint8_t id;
-   uint16_t len;
+    uint8_t code;
+    uint8_t id;
+    uint16_t len;
 };
 
 PACKED_STRUCT_DEF pico_ipcp_hdr {
-   uint8_t code;
-   uint8_t id;
-   uint16_t len;
+    uint8_t code;
+    uint8_t id;
+    uint16_t len;
 };
 
 #ifdef DEBUG_PPP
-static int fifo_fd = -1; 
+static int fifo_fd = -1;
 #endif
 
 enum ppp_modem_state {
@@ -286,14 +288,17 @@ static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
 
     if (timer_type == PPP_TIMER_ON_LCPTERM) {
         count = PICO_PPP_DEFAULT_MAX_TERMINATE;
-    } 
-    if (timer_type == PPP_TIMER_ON_LCPREQ){
+    }
+
+    if (timer_type == PPP_TIMER_ON_LCPREQ) {
         count = PICO_PPP_DEFAULT_MAX_CONFIGURE;
     }
+
     if (timer_type == 0) {
         ppp->timer_on |= PPP_TIMER_ON_LCPREQ;
         ppp->timer_count = 0;
     }
+
     if (ppp->timer_count == 0)
         ppp->timer_count = count;
 }
@@ -313,7 +318,7 @@ static void lcp_timer_stop(struct pico_device_ppp *ppp, uint8_t timer_type)
 
 struct pico_ppp_fsm {
     int next_state;
-    void (*event_handler[PPP_FSM_MAX_ACTIONS])(struct pico_device_ppp *);
+    void (*event_handler[PPP_FSM_MAX_ACTIONS]) (struct pico_device_ppp *);
 };
 
 #define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1 << opt)
@@ -355,7 +360,7 @@ static uint16_t ppp_fcs_char(uint16_t old_crc, uint8_t data)
 
 static uint16_t ppp_fcs_continue(uint16_t fcs, uint8_t *buf, uint32_t len)
 {
-    uint8_t * pos = buf;
+    uint8_t *pos = buf;
     for (pos = buf; pos < buf + len; pos++)
     {
         fcs = ppp_fcs_char(fcs, *pos);
@@ -378,9 +383,10 @@ static int ppp_fcs_verify(uint8_t *buf, uint32_t len)
 {
     uint16_t fcs = ppp_fcs_start(buf, len - 2);
     fcs = ppp_fcs_finish(fcs);
-    if ( (((fcs & 0xFF00) >> 8) != buf[len -1]) || ((fcs & 0xFF) != buf[len -2]) ) {
+    if ((((fcs & 0xFF00) >> 8) != buf[len - 1]) || ((fcs & 0xFF) != buf[len - 2])) {
         return -1;
     }
+
     return 0;
 }
 
@@ -394,7 +400,7 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
 
     if (!ppp->serial_send)
         return (int)len;
-    
+
     /* PPP Header */
     ptr[i++] = PPPF_FLAG_SEQ;
     ptr[i++] = PPPF_ADDR;
@@ -428,14 +434,15 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
         return len;
 
     pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
-    if (!LCPOPT_ISSET_PEER(ppp, LCPOPT_ADDRCTL_COMP)) 
+    if (!LCPOPT_ISSET_PEER(ppp, LCPOPT_ADDRCTL_COMP))
     {
-            pico_ppp_data_buffer[i++] = PPPF_ADDR;
-            pico_ppp_data_buffer[i++] = PPPF_CTRL;
+        pico_ppp_data_buffer[i++] = PPPF_ADDR;
+        pico_ppp_data_buffer[i++] = PPPF_CTRL;
     }
+
     fcs_start = i;
 
-    if (!LCPOPT_ISSET_PEER(ppp, LCPOPT_PROTO_COMP)) 
+    if (!LCPOPT_ISSET_PEER(ppp, LCPOPT_PROTO_COMP))
     {
         pico_ppp_data_buffer[i++] = 0x00;
     }
@@ -466,6 +473,7 @@ static void ppp_modem_send_reset(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CREG0, strlen(PPP_AT_CREG0));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -474,6 +482,7 @@ static void ppp_modem_send_echo(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CREG1, strlen(PPP_AT_CREG1));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -482,6 +491,7 @@ static void ppp_modem_send_creg(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CREG2, strlen(PPP_AT_CREG2));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -490,6 +500,7 @@ static void ppp_modem_send_cgreg(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CGREG, strlen(PPP_AT_CGREG));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -503,6 +514,7 @@ static void ppp_modem_send_cgdcont(struct pico_device_ppp *ppp)
         snprintf(at_cgdcont, 200, PPP_AT_CGDCONT, ppp->apn);
         ppp->serial_send(&ppp->dev, at_cgdcont, (int)strlen(at_cgdcont));
     }
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -512,6 +524,7 @@ static void ppp_modem_send_cgatt(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CGATT, strlen(PPP_AT_CGATT));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -521,6 +534,7 @@ static void ppp_modem_send_cgatt_q(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CGATT_Q, strlen(PPP_AT_CGATT_Q));
+
     ppp_modem_start_timer(ppp);
 }
 #define PPP_AT_CGDCONT_Q "AT+CGDCONT?\r\n"
@@ -528,6 +542,7 @@ static void ppp_modem_send_cgdcont_q(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CGDCONT_Q, strlen(PPP_AT_CGDCONT_Q));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -536,6 +551,7 @@ static void ppp_modem_send_cgreg_q(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CGREG_Q, strlen(PPP_AT_CGREG_Q));
+
     ppp_modem_start_timer(ppp);
 }
 
@@ -544,6 +560,7 @@ static void ppp_modem_send_creg_q(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_CREG3, strlen(PPP_AT_CREG3));
+
     ppp_modem_start_timer(ppp);
 }
 #endif /* PICOTCP_PPP_SUPPORT_QUERIES */
@@ -553,6 +570,7 @@ static void ppp_modem_send_dial(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_AT_DIALIN, strlen(PPP_AT_DIALIN));
+
     ppp_modem_start_timer(ppp);
     ppp->timer_val = PICO_PPP_DEFAULT_MAX_DIALTIME;
 }
@@ -569,72 +587,73 @@ static void ppp_modem_disconnected(struct pico_device_ppp *ppp)
     dbg("PPP: Modem disconnected.\n");
     if (ppp->serial_send)
         ppp->serial_send(&ppp->dev, PPP_ATH, strlen(PPP_ATH));
+
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_DOWN);
 }
 
 static const struct pico_ppp_fsm ppp_modem_fsm[PPP_MODEM_STATE_MAX][PPP_MODEM_EVENT_MAX] = {
     [PPP_MODEM_STATE_INITIAL] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_INITIAL, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_INITIAL, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_RESET] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_RESET, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_ECHO, { ppp_modem_send_echo } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_RESET, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_RESET, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_ECHO, { ppp_modem_send_echo } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_RESET, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_ECHO] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_ECHO, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CREG, { ppp_modem_send_creg } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_ECHO, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_ECHO, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CREG, { ppp_modem_send_creg } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_ECHO, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CREG] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CREG, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGREG, { ppp_modem_send_cgreg } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CREG, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CREG, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGREG, { ppp_modem_send_cgreg } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CREG, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGREG] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGREG, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGDCONT, { ppp_modem_send_cgdcont } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGREG, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGREG, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGDCONT, { ppp_modem_send_cgdcont } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGREG, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGDCONT] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGDCONT, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGATT, { ppp_modem_send_cgatt } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGDCONT, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGDCONT, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CGATT, { ppp_modem_send_cgatt } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGDCONT, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CGATT] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGATT, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, { ppp_modem_send_dial } },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGATT, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CGATT, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, { ppp_modem_send_dial } },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CGATT, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_DIAL] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_DIAL, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, {} },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CONNECTED, { ppp_modem_connected } },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_DIAL, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, {} },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_DIAL, {} },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CONNECTED, { ppp_modem_connected } },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_RESET, {ppp_modem_send_reset} }
     },
     [PPP_MODEM_STATE_CONNECTED] = {
-            [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CONNECTED, {} },
-            [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, { ppp_modem_disconnected } },
-            [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CONNECTED, {} },
-            [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CONNECTED, {} },
-            [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CONNECTED, {} }
+        [PPP_MODEM_EVENT_START]   = { PPP_MODEM_STATE_CONNECTED, {} },
+        [PPP_MODEM_EVENT_STOP]    = { PPP_MODEM_STATE_INITIAL, { ppp_modem_disconnected } },
+        [PPP_MODEM_EVENT_OK]      = { PPP_MODEM_STATE_CONNECTED, {} },
+        [PPP_MODEM_EVENT_CONNECT] = { PPP_MODEM_STATE_CONNECTED, {} },
+        [PPP_MODEM_EVENT_TIMEOUT] = { PPP_MODEM_STATE_CONNECTED, {} }
     }
 };
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event)
@@ -652,7 +671,7 @@ static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_eve
 
     for (i = 0; i < PPP_FSM_MAX_ACTIONS; i++) {
         if (fsm->event_handler[i])
-            fsm->event_handler[i](ppp); 
+            fsm->event_handler[i](ppp);
     }
 }
 
@@ -665,9 +684,11 @@ static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len
     if (strcmp(data, "OK") == 0) {
         evaluate_modem_state(ppp, PPP_MODEM_EVENT_OK);
     }
+
     if (strcmp(data, "ERROR") == 0) {
         evaluate_modem_state(ppp, PPP_MODEM_EVENT_STOP);
     }
+
     if (strncmp(data, "CONNECT", 7) == 0) {
         evaluate_modem_state(ppp, PPP_MODEM_EVENT_CONNECT);
     }
@@ -676,7 +697,7 @@ static void ppp_modem_recv(struct pico_device_ppp *ppp, void *data, uint32_t len
 static void lcp_send_configure_request(struct pico_device_ppp *ppp)
 {
 #   define MY_LCP_REQ_SIZE 12 /* Max value. */
-    struct pico_lcp_hdr *req; 
+    struct pico_lcp_hdr *req;
     uint8_t *lcpbuf, *opts;
     uint32_t size = MY_LCP_REQ_SIZE;
     uint32_t prefix;
@@ -686,10 +707,11 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
     lcpbuf = PICO_ZALLOC(size);
     if (!lcpbuf)
         return;
+
     req = (struct pico_lcp_hdr *)(lcpbuf + prefix);
-        
+
     opts = lcpbuf + prefix + (sizeof(struct pico_lcp_hdr));
-    //uint8_t my_pkt[] = { 0x7e, 0xff, 0x03, 0xc0, 0x21, 0x01, 0x00, 0x00, 0x06, 0x07, 0x02, 0x64, 0x7b, 0x7e };
+    /* uint8_t my_pkt[] = { 0x7e, 0xff, 0x03, 0xc0, 0x21, 0x01, 0x00, 0x00, 0x06, 0x07, 0x02, 0x64, 0x7b, 0x7e }; */
 
     dbg("Sending LCP CONF REQ\n");
     req->code = PICO_CONF_REQ;
@@ -711,16 +733,17 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
         opts[optsize++] = LCPOPT_ADDRCTL_COMP;
         opts[optsize++] = LCPOPT_LEN[LCPOPT_ADDRCTL_COMP];
     }
+
     req->len = short_be((uint16_t)((unsigned long)optsize + sizeof(struct pico_lcp_hdr)));
 
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, 
-            lcpbuf,                         /* Start of PPP packet */
-            (uint32_t)(prefix +                        /* PPP Header, etc. */
-            sizeof(struct pico_lcp_hdr) +   /* LCP HDR */
-            optsize +                       /* Actual options size */
-            PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1u)                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP,
+                      lcpbuf,               /* Start of PPP packet */
+                      (uint32_t)(prefix +              /* PPP Header, etc. */
+                                 sizeof(struct pico_lcp_hdr) + /* LCP HDR */
+                                 optsize +  /* Actual options size */
+                                 PPP_FCS_SIZE + /* FCS at the end of the frame */
+                                 1u)          /* STOP Byte */
+                      );
     PICO_FREE(lcpbuf);
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
 }
@@ -729,20 +752,22 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
 {
     uint16_t flags = 0;
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
-    int off; 
+    int off;
     while(p < (pkt + len)) {
         flags |= (uint16_t)(1 << p[0]);
         if ((p[0] == 3) && ppp) {
             dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
             ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
         }
+
         off = p[1];
         if (!off)
             break;
+
         p += off;
     }
     return flags;
-} 
+}
 
 static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
 {
@@ -754,12 +779,12 @@ static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
     dbg("Sending LCP CONF ACK\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
 }
 
 static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
@@ -770,12 +795,12 @@ static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
     term_hdr->id = ppp->frame_id++;
     term_hdr->len = short_be((uint16_t)sizeof(struct pico_lcp_hdr));
     dbg("Sending LCP TERMINATE REQUEST\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, term, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            sizeof(struct pico_lcp_hdr) +                   /* Actual options size + hdr (whole lcp packet) */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, term,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      sizeof(struct pico_lcp_hdr) +         /* Actual options size + hdr (whole lcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPTERM);
 }
 
@@ -789,12 +814,12 @@ static void lcp_send_terminate_ack(struct pico_device_ppp *ppp)
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
     dbg("Sending LCP TERM ACK\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
 }
 
 static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
@@ -813,20 +838,21 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
             for(i = 0; i < p[1]; i++) {
                 dst_opts[dstopts_len++] = p[1 + i];
             }
-        }  
+        }
+
         p += p[1];
     }
     lcprej->code = PICO_CONF_REJ;
     lcprej->id = lcpreq->id;
     lcprej->len = short_be((uint16_t)(dstopts_len + sizeof(struct pico_lcp_hdr)));
     dbg("Sending LCP CONF REJ\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reject, 
-            (uint32_t)(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            sizeof(struct pico_lcp_hdr) +                   /* LCP HDR */
-            dstopts_len +                                   /* Actual options size */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1u)                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reject,
+                      (uint32_t)(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                                 sizeof(struct pico_lcp_hdr) + /* LCP HDR */
+                                 dstopts_len +              /* Actual options size */
+                                 PPP_FCS_SIZE +             /* FCS at the end of the frame */
+                                 1u)                          /* STOP Byte */
+                      );
 }
 
 static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
@@ -835,7 +861,7 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
     if (pkt[0] == PICO_CONF_REQ) {
         uint16_t rejected = 0;
         dbg("Received LCP CONF REQ\n");
-        optflags = lcp_optflags(ppp, pkt,len);
+        optflags = lcp_optflags(ppp, pkt, len);
         rejected = (uint16_t)(optflags & (~ppp->lcpopt_local));
         ppp->pkt = pkt;
         ppp->len = len;
@@ -846,23 +872,28 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
             ppp->lcpopt_peer = optflags;
             evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCR_POS);
         }
+
         return;
     }
+
     if (pkt[0] == PICO_CONF_ACK) {
         dbg("Received LCP CONF ACK\nOptflags: %04x\n", lcp_optflags(NULL, pkt, len));
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCA);
         return;
     }
+
     if (pkt[0] == PICO_CONF_NAK) {
         dbg("Received LCP CONF NAK\n");
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
+
     if (pkt[0] == PICO_CONF_REJ) {
         dbg("Received LCP CONF REJ\n");
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
+
     if (pkt[0] == PICO_CONF_ECHO_REQ) {
         dbg("Received LCP ECHO REQ\n");
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXR);
@@ -883,20 +914,20 @@ static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
     struct pico_chap_hdr *ch = (struct pico_chap_hdr *)pkt;
 
     switch(ch->code) {
-        case CHAP_CHALLENGE:
-            dbg("Received CHAP CHALLENGE\n");
-            ppp->pkt = pkt;
-            ppp->len = len;
-            evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAC);
-            break;
-        case CHAP_SUCCESS:
-            dbg("Received CHAP SUCCESS\n");
-            evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAA);
-            break;
-        case CHAP_FAILURE:
-            dbg("Received CHAP FAILURE\n");
-            evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN);
-            break;
+    case CHAP_CHALLENGE:
+        dbg("Received CHAP CHALLENGE\n");
+        ppp->pkt = pkt;
+        ppp->len = len;
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAC);
+        break;
+    case CHAP_SUCCESS:
+        dbg("Received CHAP SUCCESS\n");
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAA);
+        break;
+    case CHAP_FAILURE:
+        dbg("Received CHAP FAILURE\n");
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN);
+        break;
     }
 }
 
@@ -911,28 +942,30 @@ static void ipcp_send_ack(struct pico_device_ppp *ppp)
     ack_hdr->id = ipcpreq->id;
     ack_hdr->len = ipcpreq->len;
     dbg("Sending IPCP CONF ACK\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, ack, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            short_be(ipcpreq->len) +                         /* Actual options size + hdr (whole ipcp packet) */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, ack,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      short_be(ipcpreq->len) +               /* Actual options size + hdr (whole ipcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
 }
 
 static inline uint32_t ipcp_request_options_size(struct pico_device_ppp *ppp)
 {
     uint32_t size = 0;
 
-//    if (ppp->ipcp_ip) 
+/*    if (ppp->ipcp_ip) */
+    size += IPCP_ADDR_LEN;
+/*    if (ppp->ipcp_dns1) */
+    size += IPCP_ADDR_LEN;
+/*    if (ppp->ipcp_dns2) */
+    size += IPCP_ADDR_LEN;
+    if (ppp->ipcp_nbns1)
         size += IPCP_ADDR_LEN;
-//    if (ppp->ipcp_dns1)
+
+    if (ppp->ipcp_nbns2)
         size += IPCP_ADDR_LEN;
-//    if (ppp->ipcp_dns2)
-        size += IPCP_ADDR_LEN;
-    if (ppp->ipcp_nbns1) 
-        size += IPCP_ADDR_LEN;
-    if (ppp->ipcp_nbns2) 
-        size += IPCP_ADDR_LEN;
+
     return size;
 }
 
@@ -950,11 +983,12 @@ static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg)
 
 static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 {
-        opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
-        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
-        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
+    opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
+    opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
+    opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
     if (ppp->ipcp_nbns1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS1, ppp->ipcp_nbns1);
+
     if (ppp->ipcp_nbns2)
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS2, ppp->ipcp_nbns2);
 }
@@ -972,14 +1006,14 @@ static void ipcp_send_req(struct pico_device_ppp *ppp)
     ih->len = short_be(len);
     ipcp_request_fill(ppp, p);
 
-    dbg("Sending IPCP CONF REQ, ipcp size = %d\n", len); 
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, 
-            ipcp_req,                       /* Start of PPP packet */
-            (uint32_t)(prefix +             /* PPP Header, etc. */
-            (uint32_t)len +                 /* IPCP Header + options */
-            PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1u)                             /* STOP Byte */
-            );
+    dbg("Sending IPCP CONF REQ, ipcp size = %d\n", len);
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP,
+                      ipcp_req,             /* Start of PPP packet */
+                      (uint32_t)(prefix +   /* PPP Header, etc. */
+                                 (uint32_t)len + /* IPCP Header + options */
+                                 PPP_FCS_SIZE + /* FCS at the end of the frame */
+                                 1u)        /* STOP Byte */
+                      );
 }
 
 static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req)
@@ -995,17 +1029,15 @@ static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req)
     ih->len = short_be(IPCP_VJ_LEN + sizeof(struct pico_ipcp_hdr));
     for(i = 0; i < IPCP_OPT_VJ; i++)
         p[i] = comp_req[i + sizeof(struct pico_ipcp_hdr)];
-    
-
     dbg("Sending IPCP CONF REJ VJ\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP, 
-            ipcp_req,                       /* Start of PPP packet */
-            (uint32_t)(prefix +                        /* PPP Header, etc. */
-            sizeof(struct pico_ipcp_hdr) +  /* LCP HDR */
-            IPCP_VJ_LEN +                 /* Actual options size */
-            PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-            1u)                              /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_IPCP,
+                      ipcp_req,             /* Start of PPP packet */
+                      (uint32_t)(prefix +              /* PPP Header, etc. */
+                                 sizeof(struct pico_ipcp_hdr) + /* LCP HDR */
+                                 IPCP_VJ_LEN + /* Actual options size */
+                                 PPP_FCS_SIZE + /* FCS at the end of the frame */
+                                 1u)         /* STOP Byte */
+                      );
 }
 
 static void ppp_ipv4_conf(struct pico_device_ppp *ppp)
@@ -1014,7 +1046,9 @@ static void ppp_ipv4_conf(struct pico_device_ppp *ppp)
     struct pico_ip4 nm;
     struct pico_ip4 dns1;
     struct pico_ip4 dns2;
-    struct pico_ip4 any = { 0 };
+    struct pico_ip4 any = {
+        0
+    };
     ip.addr = ppp->ipcp_ip;
     nm.addr = 0xFFFFFF00;
     pico_ipv4_link_add(&ppp->dev, ip, nm);
@@ -1036,33 +1070,39 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
         if (p[0] == IPCP_OPT_VJ) {
             reject++;
         }
+
         if (p[0] == IPCP_OPT_IP) {
             ppp->ipcp_ip = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
         }
+
         if (p[0] == IPCP_OPT_DNS1) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_dns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
             else
                 ppp->ipcp_dns1 = 0;
         }
+
         if (p[0] == IPCP_OPT_NBNS1) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_nbns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
             else
                 ppp->ipcp_nbns1 = 0;
         }
+
         if (p[0] == IPCP_OPT_DNS2) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_dns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
             else
                 ppp->ipcp_dns2 = 0;
         }
+
         if (p[0] == IPCP_OPT_NBNS2) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_nbns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
             else
                 ppp->ipcp_nbns2 = 0;
         }
+
         p += p[1];
     }
     if (reject) {
@@ -1074,23 +1114,23 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
     ppp->len = len;
 
     switch(ih->code) {
-        case PICO_CONF_ACK:
-            dbg("Received IPCP CONF ACK\n");
-            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCA);
-            break;
-        case PICO_CONF_REQ:
-            dbg("Received IPCP CONF REQ\n");
-            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCR_POS);
-            break;
-        case PICO_CONF_NAK:
-            dbg("Received IPCP CONF NAK\n");
-            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCN);
-            break;
-        case PICO_CONF_REJ:
-            dbg("Received IPCP CONF REJ\n");
-            
-            evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCN);
-            break;
+    case PICO_CONF_ACK:
+        dbg("Received IPCP CONF ACK\n");
+        evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCA);
+        break;
+    case PICO_CONF_REQ:
+        dbg("Received IPCP CONF REQ\n");
+        evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCR_POS);
+        break;
+    case PICO_CONF_NAK:
+        dbg("Received IPCP CONF NAK\n");
+        evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCN);
+        break;
+    case PICO_CONF_REJ:
+        dbg("Received IPCP CONF REJ\n");
+
+        evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_RCN);
+        break;
     }
 }
 
@@ -1108,16 +1148,19 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
         if (pkt[1] == 0x21) {
             /* LCP */
             lcp_process_in(ppp, pkt + 2, len - 2);
-        } 
+        }
+
         if (pkt[1] == 0x23) {
             /* PAP */
             pap_process_in(ppp, pkt + 2, len - 2);
         }
+
         return;
     }
+
     if ((pkt[0] == 0xc2) && (pkt[1] == 0x23)) {
         /*  CHAP */
-        chap_process_in(ppp, pkt + 2, len -2);
+        chap_process_in(ppp, pkt + 2, len - 2);
         return;
     }
 
@@ -1127,10 +1170,12 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
             /* IPCP */
             ipcp_process_in(ppp, pkt + 2, len - 2);
         }
+
         if (pkt[1] == 0x57) {
             /* IPCP6 */
             ipcp6_process_in(ppp, pkt + 2, len - 2);
         }
+
         return;
     }
 
@@ -1145,6 +1190,7 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
         pico_stack_recv(&ppp->dev, pkt + 1, len - 1);
         return;
     }
+
     dbg("PPP: Unrecognized protocol %02x%02x\n", pkt[0], pkt[1]);
 }
 
@@ -1159,11 +1205,12 @@ static void ppp_process_packet(struct pico_device_ppp *ppp, uint8_t *pkt, uint32
 
     /* Remove ADDR/CTRL, then process */
     if ((pkt[0] == PPPF_ADDR) && (pkt[1] == PPPF_CTRL)) {
-        pkt+=2;
-        len-=2;
+        pkt += 2;
+        len -= 2;
     }
+
     ppp_process_packet_payload(ppp, pkt, len);
-    
+
 }
 
 static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
@@ -1180,6 +1227,7 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
         }
         dbg("\n");
     }
+
 #endif
 
     ppp_process_packet(ppp, pkt, len);
@@ -1243,206 +1291,200 @@ static void lcp_send_echo_reply(struct pico_device_ppp *ppp)
     reply_hdr->id = lcpreq->id;
     reply_hdr->len = lcpreq->len;
     dbg("Sending LCP ECHO REPLY\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reply, 
-            PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +            /* PPP Header, etc. */
-            short_be(lcpreq->len) +                         /* Actual options size + hdr (whole lcp packet) */
-            PPP_FCS_SIZE +                                  /* FCS at the end of the frame */
-            1                                               /* STOP Byte */
-            );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reply,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
 }
 
 static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MAX] = {
     [PPP_LCP_STATE_INITIAL] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STARTING, { lcp_this_layer_started } },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_INITIAL, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STARTING, { lcp_this_layer_started } },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_INITIAL, {} }
     },
     [PPP_LCP_STATE_STARTING] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_REQ_SENT, {  lcp_send_configure_request } },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_INITIAL, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STARTING, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_REQ_SENT, {  lcp_send_configure_request } },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_INITIAL, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STARTING, {} }
     },
     [PPP_LCP_STATE_CLOSED] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_CLOSED, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_CLOSED, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_CLOSED, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_CLOSED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_CLOSED, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_CLOSED, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_CLOSED, {} }
     },
     [PPP_LCP_STATE_STOPPED] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_STOPPED, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, { lcp_this_layer_started } },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPED, {}},
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSED, {}},
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STOPPED, {} },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, {} },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, 
-                { lcp_send_configure_request, lcp_send_configure_ack} 
-            },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT,
-                { lcp_send_configure_request, lcp_send_configure_nack} 
-            },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STOPPED, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STOPPED, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STOPPED, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STOPPED, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_STOPPED, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, { lcp_this_layer_started } },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPED, {}},
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSED, {}},
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STOPPED, {} },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, {} },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT,
+                                    { lcp_send_configure_request, lcp_send_configure_ack}},
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT,
+                                    { lcp_send_configure_request, lcp_send_configure_nack}},
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPED, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STOPPED, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STOPPED, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STOPPED, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STOPPED, {} }
     },
     [PPP_LCP_STATE_CLOSING] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_request } },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_CLOSING, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_CLOSING, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_INITIAL, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_request } },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_CLOSING, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_CLOSED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_CLOSING, {} }
     },
     [PPP_LCP_STATE_STOPPING] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, {} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STOPPING, { lcp_send_terminate_request } },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPING, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STOPPING, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STOPPING, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STOPPING, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, {} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_STOPPING, { lcp_send_terminate_request } },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPING, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_STOPPING, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_STOPPING, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_STOPPING, {} }
     },
     [PPP_LCP_STATE_REQ_SENT] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_request } },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_ack } },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_nack } },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_ACK_RCVD, { lcp_initialize_restart_count } },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, {  lcp_send_configure_request} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_REQ_SENT, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, { lcp_send_terminate_request } },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_ack } },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_nack } },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_ACK_RCVD, { lcp_initialize_restart_count } },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, {  lcp_send_configure_request} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_REQ_SENT, {} }
     },
     [PPP_LCP_STATE_ACK_RCVD] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_ACK_RCVD, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_ACK_RCVD, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING,  {  lcp_send_terminate_request} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_OPENED,   { lcp_send_configure_ack, lcp_this_layer_up} },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_ACK_RCVD, { lcp_send_configure_nack } },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_ACK_RCVD, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_REQ_SENT, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_ACK_RCVD, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_ACK_RCVD, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_ACK_RCVD, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING,  {  lcp_send_terminate_request} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_OPENED,   { lcp_send_configure_ack, lcp_this_layer_up} },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_ACK_RCVD, { lcp_send_configure_nack } },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_request } },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_ACK_RCVD, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_REQ_SENT, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_ACK_RCVD, {} }
     },
     [PPP_LCP_STATE_ACK_SENT] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_ACK_SENT, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_ACK_SENT, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING,  { lcp_send_terminate_request} },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_request } },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_ack } },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_nack } },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_OPENED,   { lcp_this_layer_up} },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_request} },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_ACK_SENT, {} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_ACK_SENT, { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_ACK_SENT, {} },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_ACK_SENT, {} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_ACK_SENT, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {} },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_ACK_SENT, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING,  { lcp_send_terminate_request} },
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_request } },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_STOPPED,  { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_ack } },
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT, { lcp_send_configure_nack } },
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_OPENED,   { lcp_this_layer_up} },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_ACK_SENT, { lcp_send_configure_request} },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_REQ_SENT, { lcp_send_terminate_ack } },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_ACK_SENT, {} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_ACK_SENT, { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_ACK_SENT, {} },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPED, { lcp_this_layer_finished } },
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_ACK_SENT, {} }
     },
     [PPP_LCP_STATE_OPENED] = {
-            [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_OPENED, {} },
-            [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {lcp_this_layer_down } },
-            [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_OPENED, {} },
-            [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING, 
-                { lcp_this_layer_down, lcp_send_terminate_request } 
-            },
-            [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_OPENED, {} },
-            [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_OPENED, {} },
-            [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT, 
-                { lcp_this_layer_down, lcp_send_terminate_request, lcp_send_configure_ack } 
-            },
-            [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT, 
-                { lcp_this_layer_down, lcp_send_configure_request, lcp_send_configure_nack } 
-            },
-            [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request } },
-            [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request } },
-            [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPING, { lcp_this_layer_down, lcp_zero_restart_count, lcp_send_terminate_ack} },
-            [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request} },
-            [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_OPENED,   { lcp_send_code_reject } },
-            [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_OPENED,   { } },
-            [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPING, 
-                {lcp_this_layer_down, lcp_send_terminate_request} 
-            },
-            [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_OPENED, { lcp_send_echo_reply} }
+        [PPP_LCP_EVENT_UP]      = { PPP_LCP_STATE_OPENED, {} },
+        [PPP_LCP_EVENT_DOWN]    = { PPP_LCP_STATE_STARTING, {lcp_this_layer_down } },
+        [PPP_LCP_EVENT_OPEN]    = { PPP_LCP_STATE_OPENED, {} },
+        [PPP_LCP_EVENT_CLOSE]   = { PPP_LCP_STATE_CLOSING,
+                                    { lcp_this_layer_down, lcp_send_terminate_request }},
+        [PPP_LCP_EVENT_TO_POS]  = { PPP_LCP_STATE_OPENED, {} },
+        [PPP_LCP_EVENT_TO_NEG]  = { PPP_LCP_STATE_OPENED, {} },
+        [PPP_LCP_EVENT_RCR_POS] = { PPP_LCP_STATE_ACK_SENT,
+                                    { lcp_this_layer_down, lcp_send_terminate_request, lcp_send_configure_ack }},
+        [PPP_LCP_EVENT_RCR_NEG] = { PPP_LCP_STATE_REQ_SENT,
+                                    { lcp_this_layer_down, lcp_send_configure_request, lcp_send_configure_nack }},
+        [PPP_LCP_EVENT_RCA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request } },
+        [PPP_LCP_EVENT_RCN]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request } },
+        [PPP_LCP_EVENT_RTR]     = { PPP_LCP_STATE_STOPPING, { lcp_this_layer_down, lcp_zero_restart_count, lcp_send_terminate_ack} },
+        [PPP_LCP_EVENT_RTA]     = { PPP_LCP_STATE_REQ_SENT, { lcp_this_layer_down, lcp_send_terminate_request} },
+        [PPP_LCP_EVENT_RUC]     = { PPP_LCP_STATE_OPENED,   { lcp_send_code_reject } },
+        [PPP_LCP_EVENT_RXJ_POS] = { PPP_LCP_STATE_OPENED,   { } },
+        [PPP_LCP_EVENT_RXJ_NEG] = { PPP_LCP_STATE_STOPPING,
+                                    {lcp_this_layer_down, lcp_send_terminate_request}},
+        [PPP_LCP_EVENT_RXR]     = { PPP_LCP_STATE_OPENED, { lcp_send_echo_reply} }
     }
 };
 
@@ -1454,10 +1496,11 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
         mock_lcp_state(ppp, event);
         return;
     }
+
     fsm = &ppp_lcp_fsm[ppp->lcp_state][event];
     ppp->lcp_state = fsm->next_state;
     /* RFC1661: The states in which the Restart timer is running are identifiable by
-     * the presence of TO events. 
+     * the presence of TO events.
      */
     next_fsm_to = &ppp_lcp_fsm[ppp->lcp_state][PPP_LCP_EVENT_TO_POS];
     if (!next_fsm_to->event_handler[0]) {
@@ -1515,7 +1558,7 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     memcpy(challenge + i, ppp->password, pwdlen);
     i += pwdlen;
     memcpy(challenge + i, recvd_challenge, *recvd_challenge_len);
-    i += *recvd_challenge_len; 
+    i += *recvd_challenge_len;
     pico_md5sum(md5resp, challenge, i);
     PICO_FREE(challenge);
     rh->id = ch->id;
@@ -1524,15 +1567,15 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     *md5resp_len = CHAP_MD5_SIZE;
     dbg("Sending CHAP RESPONSE, \n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_CHAP,
-        resp,                         /* Start of PPP packet */
-        (uint32_t)(
-        PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
-        sizeof(struct pico_chap_hdr) +   /* CHAP HDR */
-        1                            +   /* Value length */
-        CHAP_MD5_SIZE +                   /* Actual payload size */
-        PPP_FCS_SIZE +                  /* FCS at the end of the frame */
-        1)                               /* STOP Byte */
-        );
+                      resp,           /* Start of PPP packet */
+                      (uint32_t)(
+                          PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
+                          sizeof(struct pico_chap_hdr) + /* CHAP HDR */
+                          1                            + /* Value length */
+                          CHAP_MD5_SIZE + /* Actual payload size */
+                          PPP_FCS_SIZE + /* FCS at the end of the frame */
+                          1)             /* STOP Byte */
+                      );
 }
 
 static void auth_start_timer(struct pico_device_ppp *ppp)
@@ -1543,54 +1586,54 @@ static void auth_start_timer(struct pico_device_ppp *ppp)
 
 static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT_MAX] = {
     [PPP_AUTH_STATE_INITIAL] = {
-            [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
-            [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
-            [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_INITIAL, {} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_INITIAL, {} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {} },
-            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {} }
+        [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
+        [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
+        [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
+        [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {} },
+        [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_INITIAL, {} },
+        [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_INITIAL, {} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {} },
+        [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {} }
     },
     [PPP_AUTH_STATE_STARTING] = {
-            [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_STARTING, {} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_STARTING, {} },
-            [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
-            [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
-            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {auth_req, auth_start_timer} }
+        [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_STARTING, {} },
+        [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_STARTING, {} },
+        [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_STARTING, {} },
+        [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
+        [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
+        [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+        [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_RSP_SENT] = {
-            [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_RSP_SENT, {} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_RSP_SENT, {} },
-            [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_RSP_SENT, {} },
-            [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
-            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_STARTING, {auth_start_timer} }
+        [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_RSP_SENT, {} },
+        [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_RSP_SENT, {} },
+        [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_RSP_SENT, {} },
+        [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
+        [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
+        [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+        [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_STARTING, {auth_start_timer} }
     },
     [PPP_AUTH_STATE_REQ_SENT] = {
-            [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_REQ_SENT, {} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {} },
-            [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_REQ_SENT, {} },
-            [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_REQ_SENT, {} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
-            [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} }
+        [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_REQ_SENT, {} },
+        [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_REQ_SENT, {} },
+        [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_REQ_SENT, {} },
+        [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
+        [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_REQ_SENT, {} },
+        [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
+        [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_AUTHENTICATED] = {
-            [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
-            [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
-            [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-            [PPP_AUTH_EVENT_TO]      = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_UP_NONE] = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_UP_PAP]  = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_UP_CHAP] = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
+        [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
+        [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_TO]      = { PPP_AUTH_STATE_AUTHENTICATED, {} },
     }
 };
 
@@ -1599,7 +1642,7 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
     const struct pico_ppp_fsm *fsm;
     int i;
     if (mock_auth_state) {
-        mock_auth_state(ppp,event);
+        mock_auth_state(ppp, event);
         return;
     }
 
@@ -1622,7 +1665,7 @@ static void ipcp_bring_up(struct pico_device_ppp *ppp)
     dbg("PPP: IPCP up.\n");
 
     if (ppp->ipcp_ip) {
-    char my_ip[16], my_dns[16];
+        char my_ip[16], my_dns[16];
         pico_ipv4_to_string(my_ip, ppp->ipcp_ip);
         dbg("Received IP config %s\n", my_ip);
         pico_ipv4_to_string(my_dns, ppp->ipcp_dns1);
@@ -1646,49 +1689,49 @@ static void ipcp_start_timer(struct pico_device_ppp *ppp)
 
 static const struct pico_ppp_fsm ppp_ipcp_fsm[PPP_IPCP_STATE_MAX][PPP_IPCP_EVENT_MAX] = {
     [PPP_IPCP_STATE_INITIAL] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
-            [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_INITIAL, {} }
+        [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+        [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_INITIAL, {} }
     },
     [PPP_IPCP_STATE_REQ_SENT] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {} },
-            [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
-            [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_ACK_RCVD, {} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} }
+        [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_REQ_SENT, {} },
+        [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
+        [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
+        [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_ACK_RCVD, {} },
+        [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+        [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_ACK_RCVD] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_RCVD, {} },
-            [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_OPENED, {ipcp_send_ack, ipcp_bring_up} },
-            [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_nack} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_req, ipcp_start_timer} }
+        [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_RCVD, {} },
+        [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_OPENED, {ipcp_send_ack, ipcp_bring_up} },
+        [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_nack} },
+        [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+        [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req, ipcp_start_timer} },
+        [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_RCVD, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_ACK_SENT] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_SENT, {} },
-            [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
-            [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
-            [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_OPENED, {ipcp_bring_up} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} }
+        [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_ACK_SENT, {} },
+        [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {} },
+        [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_ack} },
+        [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_nack} },
+        [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_OPENED, {ipcp_bring_up} },
+        [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} },
+        [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_ACK_SENT, {ipcp_send_req, ipcp_start_timer} }
     },
     [PPP_IPCP_STATE_OPENED] = {
-            [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_OPENED, {} },
-            [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {ipcp_bring_down} },
-            [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_ack} },
-            [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_nack} },
-            [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
-            [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_OPENED, {} }
+        [PPP_IPCP_EVENT_UP]      = { PPP_IPCP_STATE_OPENED, {} },
+        [PPP_IPCP_EVENT_DOWN]    = { PPP_IPCP_STATE_INITIAL, {ipcp_bring_down} },
+        [PPP_IPCP_EVENT_RCR_POS] = { PPP_IPCP_STATE_ACK_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_ack} },
+        [PPP_IPCP_EVENT_RCR_NEG] = { PPP_IPCP_STATE_REQ_SENT, {ipcp_bring_down, ipcp_send_req, ipcp_send_nack} },
+        [PPP_IPCP_EVENT_RCA]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+        [PPP_IPCP_EVENT_RCN]     = { PPP_IPCP_STATE_REQ_SENT, {ipcp_send_req} },
+        [PPP_IPCP_EVENT_TO]      = { PPP_IPCP_STATE_OPENED, {} }
     }
 };
 
@@ -1697,7 +1740,7 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
     const struct pico_ppp_fsm *fsm;
     int i;
     if (mock_ipcp_state) {
-        mock_ipcp_state(ppp,event);
+        mock_ipcp_state(ppp, event);
         return;
     }
 
@@ -1730,6 +1773,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                         control_escape = 0;
                         len = 0;
                     }
+
                     if (len > 0) {
                         ppp_recv_data(ppp, ppp_recv_buf, len);
                         loop_score--;
@@ -1758,6 +1802,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                     if (!s3) {
                         len++;
                     }
+
                     s3 = 0;
                 } else {
                     s3 = 0;
@@ -1766,6 +1811,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
             }
         } while ((r > 0) && (len < ARRAY_SIZE(ppp_recv_buf)) && (loop_score > 0));
     }
+
     return loop_score;
 }
 
@@ -1776,6 +1822,7 @@ static int pico_ppp_link_state(struct pico_device *dev)
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
     if (ppp->ipcp_state == PPP_IPCP_STATE_OPENED)
         return 1;
+
     return 0;
 }
 
@@ -1803,11 +1850,11 @@ static void check_to_modem(struct pico_device_ppp *ppp)
 
 static void check_to_lcp(struct pico_device_ppp *ppp)
 {
-    if (ppp->timer_on & ( PPP_TIMER_ON_LCPREQ | PPP_TIMER_ON_LCPTERM ) ) {
+    if (ppp->timer_on & (PPP_TIMER_ON_LCPREQ | PPP_TIMER_ON_LCPTERM)) {
         if (ppp->timer_val == 0) {
             if (ppp->timer_count == 0)
                 evaluate_lcp_state(ppp, PPP_LCP_EVENT_TO_NEG);
-            else{ 
+            else{
                 evaluate_lcp_state(ppp, PPP_LCP_EVENT_TO_POS);
                 ppp->timer_count--;
             }
@@ -1841,6 +1888,7 @@ static void pico_ppp_tick(pico_time t, void *arg)
     (void)t;
     if (ppp->timer_val > 0)
         ppp->timer_val--;
+
     check_to_modem(ppp);
     check_to_lcp(ppp);
     check_to_auth(ppp);
@@ -1850,6 +1898,7 @@ static void pico_ppp_tick(pico_time t, void *arg)
         dbg("(Re)connecting...\n");
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_OPEN);
     }
+
     pico_timer_add(1000, pico_ppp_tick, arg);
 }
 

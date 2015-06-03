@@ -25,6 +25,7 @@ void pico_frame_discard(struct pico_frame *f)
     if (*f->usage_count <= 0) {
         if (f->flags & PICO_FRAME_FLAG_EXT_USAGE_COUNTER)
             PICO_FREE(f->usage_count);
+
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
         dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
         dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
@@ -81,11 +82,13 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
         if (align) {
             frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
         }
+
         p->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
         if (!p->buffer) {
             PICO_FREE(p);
             return NULL;
         }
+
         p->usage_count = (uint32_t *)(((uint8_t*)p->buffer) + size);
     } else {
         p->buffer = NULL;

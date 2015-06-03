@@ -10,7 +10,7 @@
 #include "modules/pico_dev_ppp.c"
 #include "check.h"
 
-struct pico_device_ppp ppp = {} ;
+struct pico_device_ppp ppp = {};
 static enum ppp_modem_event ppp_modem_ev;
 static enum ppp_lcp_event ppp_lcp_ev;
 static enum ppp_auth_event ppp_auth_ev;
@@ -60,13 +60,14 @@ static int unit_serial_send(struct pico_device *dev, const void *buf, int len)
     } else {
         memcpy(serial_buffer, buf, 64);
     }
+
     serial_out_first_char = *(uint8_t *)(buf);
     called_serial_send++;
     printf(" First char : %02x, len: %d\n", serial_out_first_char, serial_out_len);
-    printf("  ---- %02x %02x %02x %02x %02x %02x %02x %02x\n", 
-            serial_buffer[0], serial_buffer[1], serial_buffer[2], 
-            serial_buffer[3], serial_buffer[4], serial_buffer[5], 
-            serial_buffer[6], serial_buffer[7]);
+    printf("  ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           serial_buffer[0], serial_buffer[1], serial_buffer[2],
+           serial_buffer[3], serial_buffer[4], serial_buffer[5],
+           serial_buffer[6], serial_buffer[7]);
 }
 
 
@@ -76,21 +77,21 @@ START_TEST(tc_lcp_timer_start)
     /* Reset counter, LCP REQ */
     memset(&ppp, 0, sizeof(ppp));
     lcp_timer_start(&ppp, 0);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ);
     fail_if(ppp.timer_count != 0);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 
     /* LCP CONFIG REQ, Normal case */
     memset(&ppp, 0, sizeof(ppp));
     lcp_timer_start(&ppp, PPP_TIMER_ON_LCPREQ);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ);
     fail_if(ppp.timer_count != PICO_PPP_DEFAULT_MAX_CONFIGURE);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 
-    /* LCP TERMINATE REQ, Normal case */ 
+    /* LCP TERMINATE REQ, Normal case */
     memset(&ppp, 0, sizeof(ppp));
     lcp_timer_start(&ppp, PPP_TIMER_ON_LCPTERM);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPTERM); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPTERM);
     fail_if(ppp.timer_count != PICO_PPP_DEFAULT_MAX_TERMINATE);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 }
@@ -100,7 +101,7 @@ START_TEST(tc_lcp_zero_restart_count)
     /* Reset counter, LCP REQ */
     memset(&ppp, 0, sizeof(ppp));
     lcp_zero_restart_count(&ppp);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ);
     fail_if(ppp.timer_count != 0);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 }
@@ -110,7 +111,7 @@ START_TEST(tc_lcp_timer_stop)
     /* LCP CONFIG REQ, Normal case */
     memset(&ppp, 0, sizeof(ppp));
     lcp_timer_start(&ppp, PPP_TIMER_ON_LCPREQ);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ);
     fail_if(ppp.timer_count != PICO_PPP_DEFAULT_MAX_CONFIGURE);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
     /* Releasing timer */
@@ -123,7 +124,7 @@ START_TEST(tc_ppp_ctl_packet_size)
     uint32_t size = 10;
     uint32_t prefix = ppp_ctl_packet_size(&ppp, 0, &size);
     fail_if(prefix != (PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE));
-    fail_if(size != (10 + prefix + PPP_FCS_SIZE + 1)); 
+    fail_if(size != (10 + prefix + PPP_FCS_SIZE + 1));
 }
 END_TEST
 START_TEST(tc_ppp_fcs_char)
@@ -199,7 +200,7 @@ START_TEST(tc_pico_ppp_send)
     ppp.serial_send = unit_serial_send;
     fail_if(pico_ppp_send(&ppp.dev, pkt, 30) != 30);
     fail_if(called_serial_send != 0);
-    
+
     /* No serial_send associated */
     ppp.serial_send = NULL;
     ppp.ipcp_state = PPP_IPCP_STATE_OPENED;
@@ -223,7 +224,7 @@ START_TEST(tc_pico_ppp_send)
     fail_if(serial_out_first_char != 0x7e);
     fail_if(serial_out_len != 37);
     LCPOPT_UNSET_PEER((&ppp), LCPOPT_PROTO_COMP);
-    
+
     /* with LCPOPT_ADDRCTL_COMP set */
     called_serial_send = 0;
     LCPOPT_SET_PEER((&ppp), LCPOPT_ADDRCTL_COMP);
@@ -240,7 +241,7 @@ START_TEST(tc_ppp_modem_start_timer)
 {
     memset(&ppp, 0, sizeof(ppp));
     ppp_modem_start_timer(&ppp);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_MODEM); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_MODEM);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 }
 END_TEST
@@ -256,7 +257,7 @@ START_TEST(tc_ppp_modem_send_reset)
     ppp_modem_send_reset(&ppp);
     fail_if(called_serial_send != 1);
     fail_if(serial_out_len != 5);
-    
+
 }
 END_TEST
 START_TEST(tc_ppp_modem_send_echo)
@@ -419,7 +420,7 @@ START_TEST(tc_lcp_optflags)
     p[2] = 0x56;
     p[3] = 0x99;
     memset(&ppp, 0, sizeof(ppp));
-    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr)) != 0x08); 
+    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr)) != 0x08);
     fail_if(ppp.auth != 0x5699);
 }
 END_TEST
@@ -427,14 +428,14 @@ END_TEST
 START_TEST(tc_lcp_send_configure_ack)
 {
     uint8_t pkt[20] = "";
-    struct pico_lcp_hdr *lcpreq; 
+    struct pico_lcp_hdr *lcpreq;
     called_serial_send = 0;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
-    lcpreq->len = short_be(4); 
+    lcpreq->len = short_be(4);
     lcp_send_configure_ack(&ppp);
     fail_if(called_serial_send != 1);
 }
@@ -454,14 +455,14 @@ END_TEST
 START_TEST(tc_lcp_send_terminate_ack)
 {
     uint8_t pkt[20] = "";
-    struct pico_lcp_hdr *lcpreq; 
+    struct pico_lcp_hdr *lcpreq;
     called_serial_send = 0;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
-    lcpreq->len = short_be(4); 
+    lcpreq->len = short_be(4);
     lcp_send_terminate_ack(&ppp);
     fail_if(called_serial_send != 1);
 }
@@ -469,14 +470,14 @@ END_TEST
 START_TEST(tc_lcp_send_configure_nack)
 {
     uint8_t pkt[20] = "";
-    struct pico_lcp_hdr *lcpreq; 
+    struct pico_lcp_hdr *lcpreq;
     called_serial_send = 0;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
-    lcpreq->len = short_be(4); 
+    lcpreq->len = short_be(4);
     lcp_send_configure_nack(&ppp);
     fail_if(called_serial_send != 1);
 }
@@ -491,44 +492,44 @@ START_TEST(tc_lcp_process_in)
 
     /* Receive ACK (RCA) */
     ppp_lcp_ev = 0;
-    pkt[0] = PICO_CONF_ACK; 
+    pkt[0] = PICO_CONF_ACK;
     lcp_process_in(&ppp, pkt, 64);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCA);
 
     /* Receive NACK (RCN) */
     ppp_lcp_ev = 0;
-    pkt[0] = PICO_CONF_NAK; 
+    pkt[0] = PICO_CONF_NAK;
     lcp_process_in(&ppp, pkt, 64);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCN);
 
     /* Receive REJ (RCN) */
     ppp_lcp_ev = 0;
-    pkt[0] = PICO_CONF_REJ; 
+    pkt[0] = PICO_CONF_REJ;
     lcp_process_in(&ppp, pkt, 64);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCN);
 
     /* Receive REQ, with unwanted option field  (RCR-) */
     ppp_lcp_ev = 0;
-    pkt[0] = PICO_CONF_REQ; 
+    pkt[0] = PICO_CONF_REQ;
     pkt[sizeof(struct pico_lcp_hdr)] = 0x04;
     pkt[sizeof(struct pico_lcp_hdr) + 1] = 0x02;
-    lcp_process_in(&ppp, pkt,sizeof(struct pico_lcp_hdr) + 2);
+    lcp_process_in(&ppp, pkt, sizeof(struct pico_lcp_hdr) + 2);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCR_NEG);
-    
+
     /* Receive REQ, with valid option field  (RCR+) */
     ppp_lcp_ev = 0;
-    pkt[0] = PICO_CONF_REQ; 
+    pkt[0] = PICO_CONF_REQ;
     pkt[sizeof(struct pico_lcp_hdr)] = 0x04;
     pkt[sizeof(struct pico_lcp_hdr) + 1] = 0x02;
     ppp.lcpopt_local = (1 << 4);
-    lcp_process_in(&ppp, pkt,sizeof(struct pico_lcp_hdr) + 2);
+    lcp_process_in(&ppp, pkt, sizeof(struct pico_lcp_hdr) + 2);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCR_POS);
 }
 END_TEST
 START_TEST(tc_pap_process_in)
 {
-   /* TODO: test this: static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
-    pap_process_in(NULL, NULL, 0); 
+    /* TODO: test this: static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
+    pap_process_in(NULL, NULL, 0);
 }
 END_TEST
 START_TEST(tc_chap_process_in)
@@ -538,19 +539,19 @@ START_TEST(tc_chap_process_in)
 
     /* Receive challenge (RAC) */
     ppp_auth_ev = 0;
-    hdr.code = CHAP_CHALLENGE; 
+    hdr.code = CHAP_CHALLENGE;
     chap_process_in(&ppp, &hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAC);
 
     /* Receive SUCCESS (RAA) */
     ppp_auth_ev = 0;
-    hdr.code = CHAP_SUCCESS; 
+    hdr.code = CHAP_SUCCESS;
     chap_process_in(&ppp, &hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAA);
 
     /* Receive FAILURE (RAN) */
     ppp_auth_ev = 0;
-    hdr.code = CHAP_FAILURE; 
+    hdr.code = CHAP_FAILURE;
     chap_process_in(&ppp, &hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN);
 
@@ -559,16 +560,16 @@ END_TEST
 
 START_TEST(tc_ipcp_ack)
 {
-   /* TODO: test this: static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
+    /* TODO: test this: static void ipcp_ack(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
     uint8_t pkt[20] = "";
-    struct pico_ipcp_hdr *ipcp; 
+    struct pico_ipcp_hdr *ipcp;
     called_serial_send = 0;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     ipcp = (struct pico_ipcp_hdr *)ppp.pkt;
-    ipcp->len = short_be(4); 
+    ipcp->len = short_be(4);
     ipcp_send_ack(&ppp);
     fail_if(called_serial_send != 1);
     fail_if(serial_out_len != 12);
@@ -578,13 +579,13 @@ END_TEST
 START_TEST(tc_uint32_t)
 {
     memset(&ppp, 0, sizeof(ppp));
-    fail_if(ipcp_request_options_size(&ppp) != 3 *IPCP_ADDR_LEN);
+    fail_if(ipcp_request_options_size(&ppp) != 3 * IPCP_ADDR_LEN);
 
     ppp.ipcp_nbns1 = 1;
-    fail_if(ipcp_request_options_size(&ppp) != 4 *IPCP_ADDR_LEN);
+    fail_if(ipcp_request_options_size(&ppp) != 4 * IPCP_ADDR_LEN);
 
     ppp.ipcp_nbns2 = 1;
-    fail_if(ipcp_request_options_size(&ppp) != 5 *IPCP_ADDR_LEN);
+    fail_if(ipcp_request_options_size(&ppp) != 5 * IPCP_ADDR_LEN);
 
 }
 END_TEST
@@ -593,11 +594,11 @@ START_TEST(tc_ipcp_request_add_address)
     uint8_t dst[6];
     ipcp_request_add_address(dst, 0x42, 0xDDCCBBAA);
     fail_if(dst[0] != 0x42);
-    fail_if(dst[1] != IPCP_ADDR_LEN); 
-    fail_if(dst[2] != 0xAA); 
-    fail_if(dst[3] != 0xBB); 
-    fail_if(dst[4] != 0xCC); 
-    fail_if(dst[5] != 0xDD); 
+    fail_if(dst[1] != IPCP_ADDR_LEN);
+    fail_if(dst[2] != 0xAA);
+    fail_if(dst[3] != 0xBB);
+    fail_if(dst[4] != 0xCC);
+    fail_if(dst[5] != 0xDD);
 }
 END_TEST
 
@@ -611,7 +612,7 @@ START_TEST(tc_ipcp_request_fill)
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);
     fail_if(opts[12] != IPCP_OPT_DNS2);
-    
+
     ppp.ipcp_nbns1 = 1;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
@@ -642,7 +643,7 @@ END_TEST
 
 START_TEST(tc_ipcp_reject_vj)
 {
-   /* TODO: test this: static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req) */
+    /* TODO: test this: static void ipcp_reject_vj(struct pico_device_ppp *ppp, uint8_t *comp_req) */
     uint8_t buf[IPCP_OPT_VJ + sizeof(struct pico_ipcp_hdr)] = { };
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
@@ -654,22 +655,23 @@ START_TEST(tc_ipcp_reject_vj)
 END_TEST
 START_TEST(tc_ppp_ipv4_conf)
 {
-   /* TODO: test this: static void ppp_ipv4_conf(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void ppp_ipv4_conf(struct pico_device_ppp *ppp) */
     /* This test needs an actual device */
 }
 END_TEST
 
 START_TEST(tc_ipcp_process_in)
 {
-   /* TODO: test this: static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
+    /* TODO: test this: static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
     uint8_t req[sizeof(struct pico_ipcp_hdr) + 5 * IPCP_ADDR_LEN];
-    uint8_t *p = req + sizeof(struct pico_ipcp_hdr);;
+    uint8_t *p = req + sizeof(struct pico_ipcp_hdr);
+    ;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
-    
+
     /* * * ACK * * */
     req[0] = PICO_CONF_ACK;
-    
+
     /* Fill addresses */
     *(p++) = IPCP_OPT_IP;
     *(p++) = IPCP_ADDR_LEN;
@@ -685,7 +687,7 @@ START_TEST(tc_ipcp_process_in)
     *(p++) = IPCP_ADDR_LEN;
     *(((uint32_t*)p)) = 0x99AABBCC;
     p += sizeof(uint32_t);
-    
+
     *(p++) = IPCP_OPT_DNS2;
     *(p++) = IPCP_ADDR_LEN;
     *(((uint32_t*)p)) = 0xDDEEFF00;
@@ -727,7 +729,7 @@ START_TEST(tc_ipcp_process_in)
     req[0] = PICO_CONF_NAK;
     ipcp_process_in(&ppp, req, sizeof(struct pico_ipcp_hdr));
     fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_RCN);
-    
+
     /* * * REJ * * */
     ppp_ipcp_ev = 0;
     req[0] = PICO_CONF_REJ;
@@ -739,7 +741,7 @@ END_TEST
 
 START_TEST(tc_ipcp6_process_in)
 {
-   /* TODO: test this: static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
+    /* TODO: test this: static void ipcp6_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
     /* When implemented, do... */
     uint8_t req[sizeof(struct pico_ipcp_hdr)];
     ppp_ipcp_ev = 0;
@@ -762,7 +764,7 @@ END_TEST
 START_TEST(tc_ppp_recv_data)
 {
     uint8_t pkt[20] = "";
-    struct pico_lcp_hdr *lcpreq; 
+    struct pico_lcp_hdr *lcpreq;
 
     /* This creates an LCP ack */
     printf("Unit test: Packet forgery. Creating LCP ACK... \n");
@@ -770,9 +772,9 @@ START_TEST(tc_ppp_recv_data)
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
-    lcpreq->len = short_be(4); 
+    lcpreq->len = short_be(4);
     lcp_send_configure_ack(&ppp);
     fail_if(called_serial_send != 1);
     /* LCP ack is now in the buffer, and can be processed */
@@ -781,84 +783,84 @@ START_TEST(tc_ppp_recv_data)
     ppp_recv_data(&ppp, serial_buffer + 1, serial_out_len - 2);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCA);
     printf("OK!\n");
-    /* TODO: Increase coverage. */ 
+    /* TODO: Increase coverage. */
 }
 END_TEST
 
 START_TEST(tc_lcp_this_layer_up)
 {
-   /* TODO: test this: static void lcp_this_layer_up(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void lcp_this_layer_up(struct pico_device_ppp *ppp) */
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
 
     ppp_auth_ev = 0;
     lcp_this_layer_up(&ppp);
-    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_NONE); 
+    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_NONE);
 
     ppp_auth_ev = 0;
     ppp.auth = 0xc023;
     lcp_this_layer_up(&ppp);
-    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_PAP); 
-    
+    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_PAP);
+
     ppp_auth_ev = 0;
     ppp.auth = 0xc223;
     lcp_this_layer_up(&ppp);
-    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_CHAP); 
+    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_UP_CHAP);
 
     ppp_auth_ev = 0;
     ppp.auth = 0xfefe;
     lcp_this_layer_up(&ppp);
-    fail_if(ppp_auth_ev != 0); 
+    fail_if(ppp_auth_ev != 0);
 }
 END_TEST
 START_TEST(tc_lcp_this_layer_down)
 {
     ppp_auth_ev = 0;
     lcp_this_layer_down(&ppp);
-    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_DOWN); 
+    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_DOWN);
 }
 END_TEST
 START_TEST(tc_lcp_this_layer_started)
 {
     ppp_modem_ev = 0;
     lcp_this_layer_started(&ppp);
-    fail_if(ppp_modem_ev != PPP_MODEM_EVENT_START); 
+    fail_if(ppp_modem_ev != PPP_MODEM_EVENT_START);
 }
 END_TEST
 START_TEST(tc_lcp_this_layer_finished)
 {
     ppp_modem_ev = 0;
     lcp_this_layer_finished(&ppp);
-    fail_if(ppp_modem_ev != PPP_MODEM_EVENT_STOP); 
+    fail_if(ppp_modem_ev != PPP_MODEM_EVENT_STOP);
 }
 END_TEST
 START_TEST(tc_lcp_initialize_restart_count)
 {
-   /* TODO: test this: static void lcp_initialize_restart_count(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void lcp_initialize_restart_count(struct pico_device_ppp *ppp) */
     memset(&ppp, 0, sizeof(ppp));
     lcp_initialize_restart_count(&ppp);
-    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ); 
+    fail_if(ppp.timer_on != PPP_TIMER_ON_LCPREQ);
     fail_if(ppp.timer_count != PICO_PPP_DEFAULT_MAX_CONFIGURE);
     fail_if(ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 }
 END_TEST
 START_TEST(tc_lcp_send_code_reject)
 {
-   /* TODO: test this: static void lcp_send_code_reject(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void lcp_send_code_reject(struct pico_device_ppp *ppp) */
     lcp_send_code_reject(&ppp);
 }
 END_TEST
 START_TEST(tc_lcp_send_echo_reply)
 {
     uint8_t pkt[20] = "";
-    struct pico_lcp_hdr *lcpreq; 
+    struct pico_lcp_hdr *lcpreq;
     called_serial_send = 0;
     memset(&ppp, 0, sizeof(ppp));
     ppp.serial_send = unit_serial_send;
     ppp.pkt = pkt;
-    ppp.len = 4; 
+    ppp.len = 4;
     lcpreq = (struct pico_lcp_hdr *)ppp.pkt;
-    lcpreq->len = short_be(4); 
+    lcpreq->len = short_be(4);
     lcp_send_echo_reply(&ppp);
     fail_if(called_serial_send != 1);
 }
@@ -867,14 +869,14 @@ START_TEST(tc_auth)
 {
     ppp_ipcp_ev = 0;
     auth(&ppp);
-    fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_UP); 
+    fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_UP);
 }
 END_TEST
 START_TEST(tc_deauth)
 {
     ppp_ipcp_ev = 0;
     deauth(&ppp);
-    fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_DOWN); 
+    fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_DOWN);
 }
 END_TEST
 START_TEST(tc_auth_req)
@@ -893,7 +895,7 @@ START_TEST(tc_auth_rsp)
     hdr->code = CHAP_CHALLENGE;
     hdr->len = short_be((uint16_t)(sizeof (struct pico_chap_hdr) + CHAP_MD5_SIZE));
     ppp.pkt = req;
-    ppp.len = sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE; 
+    ppp.len = sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE;
     auth_rsp(&ppp);
     fail_if(called_serial_send != 1);
     printf("OK!\n");
@@ -915,10 +917,10 @@ START_TEST(tc_ipcp_send_ack)
     memset(&ppp, 0, sizeof(ppp));
     called_serial_send = 0;
     ppp.serial_send = unit_serial_send;
-    hdr->code = PICO_CONF_REQ; 
+    hdr->code = PICO_CONF_REQ;
     hdr->len = short_be((uint16_t)(sizeof (struct pico_ipcp_hdr) + 4));
     ppp.pkt = req;
-    ppp.len = sizeof(struct pico_chap_hdr) + 4; 
+    ppp.len = sizeof(struct pico_chap_hdr) + 4;
     ipcp_send_ack(&ppp);
     fail_if(called_serial_send != 1);
     printf("OK!\n");
@@ -942,7 +944,7 @@ START_TEST(tc_ipcp_bring_up)
 END_TEST
 START_TEST(tc_ipcp_bring_down)
 {
-   /* TODO: test this: static void ipcp_bring_down(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void ipcp_bring_down(struct pico_device_ppp *ppp) */
     ipcp_bring_down(&ppp);
 }
 END_TEST
@@ -956,7 +958,7 @@ START_TEST(tc_ipcp_start_timer)
 END_TEST
 START_TEST(tc_pico_ppp_poll)
 {
-   /* TODO: test this: static int pico_ppp_poll(struct pico_device *dev, int loop_score) */
+    /* TODO: test this: static int pico_ppp_poll(struct pico_device *dev, int loop_score) */
 }
 END_TEST
 START_TEST(tc_pico_ppp_link_state)
@@ -980,7 +982,7 @@ START_TEST(tc_check_to_modem)
     ppp.timer_val = 1;
     check_to_modem(&ppp);
     fail_if(ppp_modem_ev != 0);
-    ppp.timer_val--; 
+    ppp.timer_val--;
     /* Timer expired */
     check_to_modem(&ppp);
     printf("Modem event: %02x\n");
@@ -1004,7 +1006,7 @@ START_TEST(tc_check_to_lcp)
     ppp.timer_val = 1;
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != 0);
-    ppp.timer_val--; 
+    ppp.timer_val--;
     /* Timer expired */
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_TO_POS);
@@ -1015,7 +1017,7 @@ START_TEST(tc_check_to_lcp)
     ppp.timer_val = 1;
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != 0);
-    ppp.timer_val--; 
+    ppp.timer_val--;
     /* Timer expired */
     check_to_lcp(&ppp);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_TO_NEG);
@@ -1023,7 +1025,7 @@ START_TEST(tc_check_to_lcp)
 END_TEST
 START_TEST(tc_check_to_auth)
 {
-   /* TODO: test this: static void check_to_auth(struct pico_device_ppp *ppp) */
+    /* TODO: test this: static void check_to_auth(struct pico_device_ppp *ppp) */
     ppp_auth_ev = 0;
     memset(&ppp, 0, sizeof(ppp));
     /* No timer on ... */
@@ -1036,7 +1038,7 @@ START_TEST(tc_check_to_auth)
     check_to_auth(&ppp);
     fail_if(ppp_auth_ev != 0);
     /* Timer expired */
-    ppp.timer_val--; 
+    ppp.timer_val--;
     check_to_auth(&ppp);
     fail_if(ppp_auth_ev != PPP_AUTH_EVENT_TO);
 }
@@ -1055,7 +1057,7 @@ START_TEST(tc_check_to_ipcp)
     check_to_ipcp(&ppp);
     fail_if(ppp_ipcp_ev != 0);
     /* Timer expired */
-    ppp.timer_val--; 
+    ppp.timer_val--;
     check_to_ipcp(&ppp);
     fail_if(ppp_ipcp_ev != PPP_IPCP_EVENT_TO);
 }
@@ -1071,9 +1073,9 @@ START_TEST(tc_pico_ppp_tick)
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_lcp_timer_start = tcase_create("Unit test for lcp_timer_start");
     TCase *TCase_lcp_zero_restart_count = tcase_create("Unit test for lcp_zero_restart_count");
@@ -1278,20 +1280,20 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_check_to_ipcp);
     tcase_add_test(TCase_pico_ppp_tick, tc_pico_ppp_tick);
     suite_add_tcase(s, TCase_pico_ppp_tick);
-return s;
+    return s;
 }
-                      
-int main(void)                      
-{                       
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
+
+int main(void)
+{
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
     mock_modem_state = modem_state;
     mock_lcp_state = lcp_state;
     mock_auth_state = auth_state;
     mock_ipcp_state = ipcp_state;
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 }

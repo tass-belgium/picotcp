@@ -263,15 +263,17 @@ static int pico_dns_client_check_qsuffix(struct pico_dns_query_suffix *suf, stru
         dns_dbg("DNS ERROR: received qtype (%u) or qclass (%u) incorrect\n", short_be(suf->qtype), short_be(suf->qclass));
         return -1;
     }
+
     return 0;
 }
 
 static int pico_dns_client_check_url(struct pico_dns_header *resp, struct pico_dns_query *q)
 {
     char *recv_name = (char*)(resp) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL;
-    char *exp_name = (char *)(q->query) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL; 
-    if (strcmp(recv_name,  exp_name) != 0)  
+    char *exp_name = (char *)(q->query) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL;
+    if (strcmp(recv_name,  exp_name) != 0)
         return -1;
+
     return 0;
 }
 

@@ -71,6 +71,7 @@ int pico_dns_name_to_dns_notation(char *ptr, unsigned int maxlen)
         } else {
             len++;
         }
+
         if ((unsigned int)(ptr - start) > maxlen)
             break;
     }

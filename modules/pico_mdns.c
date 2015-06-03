@@ -894,6 +894,7 @@ static void pico_mdns_wakeup(uint16_t ev, struct pico_socket *s)
         recvbuf = PICO_ZALLOC(PICO_MDNS_MAXBUF);
         if (!recvbuf)
             return;
+
         mdns_dbg("READ EVENT!\n");
         /* receive while data available in socket buffer */
         while((pico_read = pico_socket_recvfrom(s, recvbuf, PICO_MDNS_MAXBUF, &peer, &port)) > 0) {

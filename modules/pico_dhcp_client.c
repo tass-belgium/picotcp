@@ -536,7 +536,6 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
         pico_ipv4_link_del(dhcpc->dev, l->address);
         l = pico_ipv4_link_by_dev_next(dhcpc->dev, l);
     }
-
     pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
 
     dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
@@ -884,7 +883,7 @@ static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s)
     int r = 0;
     struct pico_dhcp_hdr *hdr = NULL;
     struct pico_dhcp_client_cookie *dhcpc = NULL;
-    
+
     if (ev != PICO_SOCK_EV_RD)
         return;
 

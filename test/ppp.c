@@ -14,10 +14,10 @@
 #endif
 #define MODEM "/dev/ttyUSB1"
 #define SPEED 236800
-//#define APN "gprs.base.be"
+/* #define APN "gprs.base.be" */
 #define APN "web.be"
 #define PASSWD "web"
-//#define DEBUG_FLOW 
+/* #define DEBUG_FLOW */
 static int fd = -1;
 static int idx;
 static int ping_on = 0;
@@ -25,18 +25,19 @@ static struct pico_device *ppp = NULL;
 
 static void sigusr1_hdl(int signo)
 {
-   fprintf(stderr, "SIGUSR1: Connecting!\n"); 
-   if (ppp)
-      pico_ppp_connect(ppp); 
+    fprintf(stderr, "SIGUSR1: Connecting!\n");
+    if (ppp)
+        pico_ppp_connect(ppp);
 }
 
 static void sigusr2_hdl(int signo)
 {
-   fprintf(stderr, "SIGUSR2/SIGINT: Disconnecting!\n"); 
-   if (ppp)
-      pico_ppp_disconnect(ppp); 
-   if (signo == SIGINT)
-       exit(0);
+    fprintf(stderr, "SIGUSR2/SIGINT: Disconnecting!\n");
+    if (ppp)
+        pico_ppp_disconnect(ppp);
+
+    if (signo == SIGINT)
+        exit(0);
 }
 
 #ifdef PICO_SUPPORT_POLARSSL
@@ -68,6 +69,7 @@ int modem_read(struct pico_device *dev, void *data, int len)
         }
         printf("\n");
     }
+
 #endif
 
     return r;
@@ -92,10 +94,13 @@ int modem_set_speed(struct pico_device *dev, uint32_t speed)
     struct termios term;
     if (tcgetattr(fd, &term) != 0)
         return 6;
+
     if (cfsetspeed(&term, B115200) != 0)
         return 7;
+
     if (tcsetattr(fd, TCSANOW, &term) != 0)
         return 8;
+
     printf("Speed set to 115200.\n");
     return 0;
 }
@@ -116,7 +121,7 @@ static void cb_sock(uint16_t ev, struct pico_socket *s)
 
 }
 
-static void ping(void) 
+static void ping(void)
 {
     struct pico_socket *s;
     struct pico_ip4 dst;
@@ -136,8 +141,10 @@ int main(int argc, const char *argv[])
 
     if (argc > 1)
         path = argv[1];
+
     if (argc > 2)
         apn = argv[2];
+
     if (argc > 3)
         passwd = argv[3];
 
@@ -157,7 +164,7 @@ int main(int argc, const char *argv[])
 
     ppp = pico_ppp_create();
     if (!ppp)
-        return 2; 
+        return 2;
 
     pico_ppp_set_serial_read(ppp, modem_read);
     pico_ppp_set_serial_write(ppp, modem_write);
@@ -176,5 +183,4 @@ int main(int argc, const char *argv[])
             ping();
         }
     }
-
 }
