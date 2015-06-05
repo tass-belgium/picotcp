@@ -362,7 +362,11 @@ void olsr_process_out(pico_time now, void *arg)
             goto out_free;
 
         ohdr->seq = short_be((uint16_t)(odev->pkt_counter)++);
-        bcast.addr = (addr->netmask.addr & addr->address.addr) | (~addr->netmask.addr);
+        if (addr->address.addr)
+            bcast.addr = (addr->netmask.addr & addr->address.addr) | (~addr->netmask.addr);
+        else
+            bcast.addr = 0xFFFFFFFFu;
+
         if ( 0 > pico_socket_sendto(udpsock, p->buf, p->len, &bcast, OLSR_PORT)) {
             olsr_dbg("olsr send\n");
         }
@@ -373,7 +377,11 @@ void olsr_process_out(pico_time now, void *arg)
             if (!addr)
                 continue;
 
-            bcast.addr = (addr->netmask.addr & addr->address.addr) | (~addr->netmask.addr);
+            if (addr->address.addr)
+                bcast.addr = (addr->netmask.addr & addr->address.addr) | (~addr->netmask.addr);
+            else
+                bcast.addr = 0xFFFFFFFFu;
+
             if ( 0 > pico_socket_sendto(udpsock, p->buf, p->len, &bcast, OLSR_PORT)) {
                 olsr_dbg("olsr send\n");
             }
