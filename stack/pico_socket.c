@@ -1048,7 +1048,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     f->sock = s;
     transport_flags_update(f, s);
     pico_xmit_frame_set_nofrag(f);
-    if (ep) {
+    if (ep && !f->info) {
         f->info = pico_socket_set_info(ep);
         if (!f->info) {
             pico_frame_discard(f);
@@ -1322,7 +1322,6 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
     }
 
     pico_socket_sendto_set_dport(s, remote_port);
-
     return pico_socket_xmit(s, buf, len, src, remote_endpoint, msginfo); /* Implies discarding the endpoint */
 }
 
