@@ -1299,7 +1299,7 @@ void pico_ipv6_nd_dad(pico_time now, void *arg)
         dbg("IPv6: duplicate address.\n");
         old_address = *address;
         if (pico_ipv6_is_linklocal(address->addr)) {
-            address->addr[8] = ((uint8_t)(pico_rand() & 0xff) & (uint8_t)(~0x03));
+            address->addr[8] = (uint8_t)((uint8_t)(pico_rand() & 0xff) & (uint8_t)(~0x03));
             address->addr[9] = pico_rand() & 0xff;
             address->addr[10] = pico_rand() & 0xff;
             address->addr[11] = pico_rand() & 0xff;
