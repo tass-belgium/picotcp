@@ -52,6 +52,10 @@ typedef struct
  
     struct pico_frame * frame;
     pico_time           expire;
+    
+	uint32_t 			net_hdr_offset;
+	uint32_t 			transport_hdr_offset;
+    
 }pico_fragment_t;
 
 typedef     struct
@@ -108,7 +112,26 @@ static int copy_ipv6_exthdr_nofrag(struct pico_frame* dst, struct pico_frame* sr
     // parse ext hdrs
     while(!done)
     {
-		frag_dbg("[LUM:%s:%d] nxthdr:%d \n", __FILE__,__LINE__,nxthdr);
+		frag_dbg("[LUM:%s:%d] nxthdr:%d %s\n", __FILE__,__LINE__,nxthdr,
+				nxthdr == PICO_IPV6_EXTHDR_DESTOPT  ? "PICO_IPV6_EXTHDR_DESTOPT":
+        		nxthdr == PICO_IPV6_EXTHDR_ROUTING	? "PICO_IPV6_EXTHDR_ROUTING":
+        		nxthdr == PICO_IPV6_EXTHDR_HOPBYHOP ? "PICO_IPV6_EXTHDR_HOPBYHOP":
+        		nxthdr == PICO_IPV6_EXTHDR_ESP      ? "PICO_IPV6_EXTHDR_ESP":
+        		nxthdr == PICO_IPV6_EXTHDR_AUTH		? "PICO_IPV6_EXTHDR_AUTH":
+        		nxthdr == PICO_IPV6_EXTHDR_NONE		? "PICO_IPV6_EXTHDR_NONE":
+        		nxthdr == PICO_PROTO_TCP			? "PICO_PROTO_TCP":
+        		nxthdr == PICO_PROTO_UDP			? "PICO_PROTO_UDP":
+        		nxthdr == PICO_PROTO_ICMP6			? "PICO_PROTO_ICMP6":
+				nxthdr == PICO_ICMP6_ECHO_REQUEST	? "PICO_ICMP6_ECHO_REQUEST":
+				nxthdr == PICO_ICMP6_DEST_UNREACH	? "PICO_ICMP6_DEST_UNREACH":
+				nxthdr == PICO_ICMP6_PKT_TOO_BIG	? "PICO_ICMP6_PKT_TOO_BIG":
+				nxthdr == PICO_ICMP6_ECHO_REPLY		? "PICO_ICMP6_ECHO_REPLY":
+				nxthdr == PICO_ICMP6_ROUTER_SOL		? "PICO_ICMP6_ROUTER_SOL":
+				nxthdr == PICO_ICMP6_ROUTER_ADV		? "PICO_ICMP6_ROUTER_ADV":
+				nxthdr == PICO_ICMP6_NEIGH_SOL		? "PICO_ICMP6_NEIGH_SOL":
+				nxthdr == PICO_ICMP6_NEIGH_ADV		? "PICO_ICMP6_NEIGH_ADV":
+				nxthdr == PICO_ICMP6_REDIRECT		? "PICO_ICMP6_REDIRECT":
+				"unknown");
 
         switch(nxthdr)
         {
@@ -134,6 +157,7 @@ frag_dbg("[LUM:%s:%d] nxthdr:%d len:%d pdstnxthdr:%p\n", __FILE__,__LINE__,nxthd
         case PICO_PROTO_TCP:
         case PICO_PROTO_UDP:
         case PICO_PROTO_ICMP6:
+        /*
 		case PICO_ICMP6_ECHO_REQUEST:
 		case PICO_ICMP6_DEST_UNREACH:
 		case PICO_ICMP6_PKT_TOO_BIG:
@@ -143,6 +167,7 @@ frag_dbg("[LUM:%s:%d] nxthdr:%d len:%d pdstnxthdr:%p\n", __FILE__,__LINE__,nxthd
 		case PICO_ICMP6_NEIGH_SOL:
 		case PICO_ICMP6_NEIGH_ADV:
 		case PICO_ICMP6_REDIRECT:
+		*/
 /*
 #define PICO_ICMP6_PKT_TOO_BIG         2
 #define PICO_ICMP6_TIME_EXCEEDED       3
@@ -172,65 +197,6 @@ frag_dbg("[LUM:%s:%d] nxthdr:%d len:%d pdstnxthdr:%p\n", __FILE__,__LINE__,nxthd
     dst->payload = &dsthdr->extensions[dstidx];  
     dst->transport_hdr = dst->payload;
 #else
-    int done = 0;
-    struct pico_ipv6_hdr *srchdr = (struct pico_ipv6_hdr *)src->net_hdr;
-    struct pico_ipv6_hdr *dsthdr = (struct pico_ipv6_hdr *)dst->net_hdr;
-    int srcidx = 0;
-    int dstidx = 0;
-    uint8_t nxthdr = srchdr->nxthdr;
-    // parse ext hdrs
-    while(!done)
-    {
-		frag_dbg("[LUM:%s:%d] nxthdr:%d \n", __FILE__,__LINE__,nxthdr);
-
-        switch(nxthdr)
-        {
-        case PICO_IPV6_EXTHDR_DESTOPT:
-        case PICO_IPV6_EXTHDR_ROUTING:
-        case PICO_IPV6_EXTHDR_HOPBYHOP:
-        case PICO_IPV6_EXTHDR_ESP:
-        case PICO_IPV6_EXTHDR_AUTH:
-        {
-            uint8_t len = (uint8_t)(srchdr->extensions[srcidx+1] << 3); 
-frag_dbg("[LUM:%s:%d] nxthdr:%d len:%d \n", __FILE__,__LINE__,nxthdr,len);
-            memcpy(&dsthdr->extensions[dstidx],&srchdr->extensions[srcidx],(size_t)len);
-            srcidx += len;
-            dstidx += len;
-        }
-        break;
-        case PICO_IPV6_EXTHDR_FRAG:
-            srcidx += 8;            // remove frag field from dsthdr
-frag_dbg("[LUM:%s:%d] nxthdr:%d len:%d \n", __FILE__,__LINE__,nxthdr,8);
-            memcpy(&dsthdr->extensions[dstidx],&srchdr->extensions[srcidx],(size_t)8);
-            srcidx += 8;
-            dstidx += 8;
-        break;
-        case PICO_IPV6_EXTHDR_NONE:
-        case PICO_PROTO_TCP:
-        case PICO_PROTO_UDP:
-        case PICO_PROTO_ICMP6:
-		case PICO_ICMP6_ECHO_REQUEST:
-		case PICO_ICMP6_DEST_UNREACH:
-		case PICO_ICMP6_PKT_TOO_BIG:
-		case PICO_ICMP6_ECHO_REPLY:
-		case PICO_ICMP6_ROUTER_SOL:
-		case PICO_ICMP6_ROUTER_ADV:
-		case PICO_ICMP6_NEIGH_SOL:
-		case PICO_ICMP6_NEIGH_ADV:
-		case PICO_ICMP6_REDIRECT:
-            done=1;
-        break;
-        default:
-        /* Invalid next header */
-			frag_dbg("[LUM:%s:%d] unrecognised nxthdr:%d \n",__FILE__,__LINE__,nxthdr);
-            pico_icmp6_parameter_problem(src, PICO_ICMP6_PARAMPROB_NXTHDR, (uint32_t)nxthdr);
-            done=1;
-        break;
-        }
-        nxthdr = srchdr->extensions[srcidx];   // advance pointer
-    }
-    dst->payload = &dsthdr->extensions[dstidx];  
-    dst->transport_hdr = dst->payload;
 #endif
     return dstidx;
 }
@@ -263,13 +229,13 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         if(!fragment)  // this is a new frag_id
         {
             // allocate fragment tree
-            fragment = pico_fragment_alloc( PICO_SIZE_IP6HDR + PICO_SIZE_IP6HDR, /*2**/PICO_IPV6_MIN_MTU + 64 /*max lenght of options RFC815*/);
+            fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, 2*PICO_IPV6_MIN_MTU + 64 /*max lenght of options RFC815*/);
 
-			frag_dbg("[LUM:%s:%d] frag_id not found in fragment tree. frag_id:0x%X fragment:%p \n",
-                    __FILE__,__LINE__,IP6FRAG_ID(exthdr),fragment);
+			frag_dbg("[LUM:%s:%d] frag_id not found in fragment tree. frag_id:0x%X \n",__FILE__,__LINE__,IP6FRAG_ID(exthdr));
 
             if(fragment)
             {
+
                 if(IP6FRAG_OFF(f->frag) == 0)  // offset is 0
                 {
                     // if first frame: copy options  see RFC815
@@ -284,10 +250,11 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
                 // copy ip hdr
                 if(fragment->frame->net_hdr && f->net_hdr)
                 {
-                    memcpy(fragment->frame->net_hdr,f->net_hdr,/*PICO_SIZE_ETHHDR +*/ PICO_SIZE_IP6HDR);
+                    //memcpy(fragment->frame->net_hdr,f->net_hdr,/*PICO_SIZE_ETHHDR +*/ PICO_SIZE_IP6HDR);
+                    memcpy(fragment->frame->buffer,f->buffer, PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
                 }
                 // copy ext hdr
-                copy_ipv6_exthdr_nofrag(fragment->frame, f);   // copy exthdr except for frag option
+                copy_ipv6_exthdr_nofrag(fragment->frame, f);   // copy exthdr but not the frag option
                 // copy payload
                 memcpy(fragment->frame->transport_hdr,f->transport_hdr,f->transport_len);
                 
@@ -479,11 +446,16 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsiz
 #endif
             frame->net_hdr = frame->buffer + PICO_SIZE_ETHHDR;
             frame->net_len = iphdrsize;
+frag_dbg("[LUM:%s:%d] frame->net_len:%d  \n",__FILE__,__LINE__, frame->net_len);
 
             frame->transport_hdr = frame->net_hdr + iphdrsize;
             frame->transport_len = bufsize;
 
             frame->datalink_hdr = frame->buffer;
+
+            fragment->net_hdr_offset = PICO_SIZE_ETHHDR;
+			fragment->transport_hdr_offset = PICO_SIZE_ETHHDR + iphdrsize;
+
 
             fragment->frame = frame;
         }
@@ -616,15 +588,30 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 {
     struct pico_frame* full=NULL;
 
+
+#ifdef IPFRAG_DEBUG
+	frag_dbg("[LUM:%s:%d] content of fragmented packet: %p net_len:%d transport_len:%d\n",__FILE__,__LINE__,fragment->frame->buffer,fragment->frame->net_len,fragment->frame->transport_len);
+	if(1)
+	{
+		int i;
+		for(i=0;i < fragment->frame->net_len;i=i+8)
+		{
+			frag_dbg("0x%04X: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X \n",i,
+				frame->buffer[i+0],frame->buffer[i+1],frame->buffer[i+2],frame->buffer[i+3],
+				frame->buffer[i+4],frame->buffer[i+5],frame->buffer[i+6],frame->buffer[i+7]);
+		}
+	}
+#endif
+
+	if(!more &&  (offset == 0))
+	{
+		// no need for reassemble packet
+		return 1;    // process orig packet
+	}
+
     if(fragment && frame)
     {
         pico_hole_t *first = pico_tree_first(&fragment->holes);
-        if(!more &&  (offset == 0))
-        {
-            // no need for reassemble packet
-            return 1;    // process orig packet
-        }
-
         
         if(first == NULL)   /*first fragment of packet arrived*/
         {
@@ -635,11 +622,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             {
                 pico_tree_insert(&fragment->holes,hole);
             }
+            fragment->expire = PICO_TIME_MS() + PICO_IP_FRAG_TIMEOUT;  // fragment expires when the packet is not complete after timeout
             if(pico_fragment_timer == NULL)
             {
                 pico_fragment_timer = pico_timer_add(1000, /*cleanup expired fragments every sec*/ pico_ip_frag_expired, NULL);
             }
-            fragment->expire = PICO_TIME_MS() + PICO_IP_FRAG_TIMEOUT;  // fragment expires when the packet is not complete after timeout
         }
         if(!more)    /*last fragment of packet arrived*/
         {
@@ -649,6 +636,10 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             {
                 hole->last = (uint16_t)(offset + frame->transport_len);
                 frag_dbg("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last);
+                // adjust transport len
+                frag_dbg("[LUM:%s:%d] before adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
+                fragment->frame->transport_len = offset + frame->transport_len;
+                frag_dbg("[LUM:%s:%d] after adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
                 
                 if(hole->first == hole->last)
                 {
@@ -662,12 +653,12 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         frag_dbg("[LUM:%s:%d] offset:%d frame->transport_len:%d fragment->frame->buffer_len:%d\n",__FILE__,__LINE__,offset,frame->transport_len,fragment->frame->buffer_len);
         if( (offset + frame->transport_len) < fragment->frame->buffer_len ) // check for buffer space 
         {
-
             if(fragment->frame->transport_hdr && frame->transport_hdr)
             {
                 //frag_dbg("[LUM:%s:%d]  Reassemble packet:      fragment:%p fragment->frame:%p fragment->frame->transport_hdr:%p frame:%p frame->transport_hdr:%p frame->transport_len:%d\n",
                 //            __FILE__,__LINE__, fragment,   fragment->frame,   fragment->frame->transport_hdr,   frame,   frame->transport_hdr,   frame->transport_len);
                 memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
+                
             }
             else
             {
@@ -684,12 +675,19 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             struct pico_frame* newframe = pico_frame_alloc( alloc_len); // make it twice as big
             struct pico_frame* oldframe = NULL;
 
-            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p\n",__FILE__,__LINE__,newframe);
+            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,newframe,newframe->buffer );
             
             // copy hdrs + options + data
             if(newframe)
             {
                 memcpy(newframe->buffer,fragment->frame->buffer,fragment->frame->buffer_len);
+                
+                // set pointers 
+                fragment->frame->net_hdr       = fragment->frame->buffer + fragment->net_hdr_offset;
+                fragment->frame->transport_hdr = fragment->frame->buffer + fragment->transport_hdr_offset;
+
+                frag_dbg("[LUM:%s:%d] net_hdr:%p transport_hdr:%p\n",__FILE__,__LINE__,fragment->frame->net_hdr,fragment->frame->transport_hdr);
+            
                 oldframe = fragment->frame;
                 fragment->frame = newframe;
                 pico_frame_discard(oldframe);
@@ -698,6 +696,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             }
             else
             {
+				frag_dbg("[LUM:%s:%d] Failed to allocate frame buffer \n",__FILE__,__LINE__ );
                 // discard packet: no more memory
                 pico_fragment_free(fragment);
                 // notify icmp
@@ -758,7 +757,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             hole=NULL;
         }    
 
-#ifdef IPFRAG_DEBUG
+#if 0 //def IPFRAG_DEBUG
         if(fragment)
         {
             struct pico_tree_node *idx2=NULL, *tmp2=NULL;
@@ -783,16 +782,44 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             /* now send the reassembled packet upstream*/
             // TODO calc crc of complete packet and send upstream 
 
-            struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) full->net_hdr;
+            struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) full->net_hdr;
             
             frag_dbg("[LUM:%s:%d] send the reassembled packet upstream \n",__FILE__,__LINE__);
-            
-            hdr->crc = 0;
-            hdr->crc = short_be(pico_checksum(hdr, full->net_len));
-            
-            fragment->frame=NULL;
-            
+            if(net_hdr)
+            {
+				net_hdr->crc = 0;
+				net_hdr->crc = short_be(pico_checksum(net_hdr, full->net_len));
+            }
+            else
+            {
+				frag_dbg("[LUM:%s:%d] net_hdr NULL \n",__FILE__,__LINE__);
+			}
+				
+
+#ifdef IPFRAG_DEBUG
             /*complete packet arrived: send full frame*/
+            frag_dbg("[LUM:%s:%d] content of reassembled packet:  %p net_len:%d transport_len:%d\n",__FILE__,__LINE__,fragment->frame->buffer,fragment->frame->net_len,fragment->frame->transport_len);
+            if(1)
+            {
+				int i;
+				int s=full->net_len + 6;
+				for(i=0;i < full->net_len + 6/*eth hdr*/;i=i+8)
+				{
+					frag_dbg("0x%04X: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X \n",i,
+						full->buffer[i+0],full->buffer[i+1],full->buffer[i+2],full->buffer[i+3],
+						full->buffer[i+4],full->buffer[i+5],full->buffer[i+6],full->buffer[i+7]);
+				}
+				frag_dbg("-----------------------------\n");
+				for(i=0;i < full->transport_len;i=i+8)
+				{
+					frag_dbg("0x%04X: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X \n",i,
+						full->buffer[s+i+0],full->buffer[s+i+1],full->buffer[s+i+2],full->buffer[s+i+3],
+						full->buffer[s+i+4],full->buffer[s+i+5],full->buffer[s+i+6],full->buffer[s+i+7]);
+				}
+			}
+#endif
+            fragment->frame=NULL;
+
             pico_transport_receive(full, fragment->proto);
             full=NULL;
             
