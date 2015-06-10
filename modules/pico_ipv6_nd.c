@@ -263,8 +263,22 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
 }
 
 
+static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico_icmp6_hdr *hdr)
+{
+    if (IS_SOLICITED(hdr)) {
+        n->state = PICO_ND_STATE_REACHABLE;
+        n->failure_count = 0;
+        pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
+    }
+    return -1;
+}
+
+
 static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr)
 {
+
     if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) == 0)) {
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_count = 0;
@@ -272,7 +286,6 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         pico_nd_new_expire_time(n);
         return 0;
     }
-
 
     if ((n->state == PICO_ND_STATE_REACHABLE) && IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr)) {
         n->state = PICO_ND_STATE_STALE;
@@ -360,17 +373,20 @@ static int neigh_adv_process(struct pico_frame *f)
         return 0;
     }
 
-    if (optres == 0) {
+    if ((optres == 0) || IS_OVERRIDE(icmp6_hdr) || (pico_ipv6_neighbor_compare_stored(n, &opt) == 0) ) {
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
-        return 0;
     }
 
-    if (n->state == PICO_ND_STATE_INCOMPLETE) {
+    if ((optres > 0) && (n->state == PICO_ND_STATE_INCOMPLETE)) {
         neigh_adv_process_incomplete(n, f, &opt);
         return 0;
     }
 
-    return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
+    if (optres > 0)
+        return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
+    else 
+        return neigh_adv_reconfirm_no_tlla(n, icmp6_hdr);
+        
 }
 
 
