@@ -1281,6 +1281,21 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
     return -1;
 }
 
+void pico_ipv6_router_down(struct pico_ip6 *address)
+{
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_ipv6_route *route = NULL;
+    if (!address)
+        return;
+
+    pico_tree_foreach_safe(index, &IPV6Routes, _tmp)
+    {
+        route = index->keyValue;
+        if (pico_ipv6_compare(address, &route->gateway) == 0)
+            pico_ipv6_route_del(route->dest, route->netmask, route->gateway, (int)route->metric, route->link);
+    }
+}
+
 void pico_ipv6_nd_dad(pico_time now, void *arg)
 {
     struct pico_ip6 *address = (struct pico_ip6 *)arg;

@@ -258,8 +258,12 @@ static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struc
 static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter)
 {
     if (!isRouter && n->is_router) {
-        /* TODO: delete all routes going through this gateway */
+        pico_ipv6_router_down(&n->address);
     }
+    if (isRouter)
+        n->is_router = 1;
+    else
+        n->is_router = 0;
 }
 
 
