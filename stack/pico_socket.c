@@ -148,7 +148,7 @@ static int socket_cmp(void *ka, void *kb)
 
 #define INIT_SOCKPORT { {&LEAF, socket_cmp}, 0, 0 }
 
-int sockport_cmp(void *ka, void *kb)
+static int sockport_cmp(void *ka, void *kb)
 {
     struct pico_sockport *a = ka, *b = kb;
     if (a->number < b->number)
@@ -755,7 +755,7 @@ int pico_socket_write(struct pico_socket *s, const void *buf, int len)
     return pico_socket_write_attempt(s, buf, len);
 }
 
-uint16_t pico_socket_high_port(uint16_t proto)
+static uint16_t pico_socket_high_port(uint16_t proto)
 {
     uint16_t port;
     if (0 ||
