@@ -134,7 +134,7 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 {
     if (n->state == PICO_ND_STATE_REACHABLE)
         n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
-    else if (n->state == PICO_ND_STATE_DELAY)
+    else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE))
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
@@ -292,6 +292,23 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         pico_ipv6_neighbor_update(n, opt);
         n->state = PICO_ND_STATE_STALE;
         pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
+    }
+
+    if ((n->state == PICO_ND_STATE_REACHABLE) && (!IS_SOLICITED(hdr)) && (!IS_OVERRIDE(hdr)) && 
+            (pico_ipv6_neighbor_compare_stored(n, opt) != 0)) {
+  
+     /* I.  If the Override flag is clear and the supplied link-layer address
+      *     differs from that in the cache, then one of two actions takes
+      *     place:
+      *     a. If the state of the entry is REACHABLE, set it to STALE, but
+      *        do not update the entry in any other way.
+      *     b. Otherwise, the received advertisement should be ignored and
+      *        MUST NOT update the cache.
+      */
+        n->state = PICO_ND_STATE_STALE;
+        pico_nd_new_expire_time(n);
         return 0;
     }
 
