@@ -302,7 +302,10 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 
 	        if(!more &&  (offset == 0))
 	        {
-				// no need for reassemble packet
+                // no need for reassemble packet
+                // TODO: do we need to handle the frame like below (first set fragment->frame to NULL)?
+                fragment->frame = NULL;
+                pico_fragment_free(fragment);
 			}
 			else
 			{
@@ -372,6 +375,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
         if(!fragment)  // this is a new frag_id
         {
+            frag_dbg("[LUM:%s:%d] frag_id:0x%X not found, allocate a new fragment.",__FILE__,__LINE__, key.frag_id);
             // allocate fragment tree
             fragment = pico_fragment_alloc( PICO_SIZE_IP4HDR, /*2**/PICO_IPV4_MTU + 64 /*max length of options*/);
             if(fragment)
@@ -415,6 +419,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         }
         if(fragment)
         {
+            frag_dbg("[LUM:%s:%d] frag_id:0x%X found.",__FILE__,__LINE__, key.frag_id);
             //  hdr is stored in network order !!! oh crap
             uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
             uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
@@ -422,11 +427,13 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
 	        if(!more &&  (offset == 0))
 	        {
-				// no need for reassemble packet
+                frag_dbg("[LUM:%s:%d] Not a fragmented packet, carry on.",__FILE__,__LINE__);
+                // no need for reassemble packet
 				retval = 1;    // process orig packet
 			}
 			else
 			{
+                frag_dbg("[LUM:%s:%d] recv a fragmented packet, handle it.",__FILE__,__LINE__);
 				retval = pico_fragment_arrived(fragment, f, offset, more);
 
 				if (retval == PICO_IP_LAST_FRAG_RECV)
@@ -640,9 +647,12 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
         fragment = idx->keyValue;
         if(fragment->expire < now)
         {
-            frag_dbg("[%s:%d]//TODO notify ICMP \n",__FILE__,__LINE__);
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
 
+            pico_icmp6_frag_expired(fragment->frame);
+
+            //TODO: is the following necessary?:
+            fragment->frame = NULL;
             pico_fragment_free(fragment);
             fragment=NULL;
         }
@@ -751,6 +761,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             }
             else
             {
+                frag_dbg("[LUM:%s:%d] TODO: notify ICMP, no transport_hdrs",__FILE__,__LINE__);
                 // notify icmp
                 pico_fragment_free(fragment);
                 fragment=NULL;
