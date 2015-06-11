@@ -99,7 +99,13 @@ static struct pico_timer*      pico_fragment_timer = NULL;
                                        (exthdr->ext.frag.id[2] << 8)    |   \
                                         exthdr->ext.frag.id[3]))
 
+static void copy_eth_hdr(struct pico_frame* dst, struct pico_frame* src)
+{
+    struct pico_eth_hdr *srchdr = (struct pico_eth_hdr *)src->datalink_hdr;
+    struct pico_eth_hdr *dsthdr = (struct pico_eth_hdr *)dst->datalink_hdr;
 
+    memcpy(dsthdr, srchdr, PICO_SIZE_ETHHDR);
+}
 
 static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 {
@@ -111,9 +117,6 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
     int retval = 0;
     uint8_t nxthdr = srchdr->nxthdr;
     uint8_t* pdstnxthdr = &dsthdr->nxthdr;
-
-    // copy ethernet header
-    memcpy(dsthdr, srchdr, PICO_SIZE_IP6HDR);
 
     if(dst && src && srchdr && dsthdr && nxthdr && pdstnxthdr)
     {
@@ -273,6 +276,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
                 }
 
                 // copy headers to reassambled package (but delete the fragment header)
+                copy_eth_hdr(fragment->frame, f);
                 netlen_without_frag = copy_ipv6_hdrs_nofrag(fragment->frame, f) - PICO_SIZE_ETHHDR;
                 // copy payload
                 memcpy(fragment->frame->transport_hdr,f->transport_hdr,f->transport_len);
@@ -308,8 +312,8 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
                 pico_fragment_free(fragment);
 			}
 			else
-			{
-				retval = pico_fragment_arrived(fragment, f, offset, more);
+            {
+                retval = pico_fragment_arrived(fragment, f, offset, more);
 
 				if (retval == PICO_IP_LAST_FRAG_RECV)
 				{
@@ -649,13 +653,16 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
         {
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
 
-
-            //TODO: what does IPV4 expect?
-            if (fragment->proto == PICO_PROTO_IPV6)
+            uint16_t ip_version = ((struct pico_eth_hdr *) fragment->frame->datalink_hdr)->proto;
+            if (ip_version == PICO_IDETH_IPV6)
             {
+                frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
                 pico_icmp6_frag_expired(fragment->frame);
             }
-
+            if (ip_version == PICO_IDETH_IPV4)
+            {
+                //TODO: what does IPV4 expect?
+            }
 
             //TODO: is the following necessary?:
             fragment->frame = NULL;
@@ -810,6 +817,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 addr_diff = (int)(newframe->buffer - fragment->frame->buffer);
                 newframe->net_hdr += addr_diff;
                 newframe->transport_hdr += addr_diff;
+                newframe->datalink_hdr += addr_diff;
                 newframe->app_hdr += addr_diff;
                 newframe->start += addr_diff;
                 newframe->payload += addr_diff;
