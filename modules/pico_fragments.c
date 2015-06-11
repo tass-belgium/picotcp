@@ -55,8 +55,8 @@ typedef struct
     struct pico_frame * frame;
     pico_time           expire;
 
-	uint32_t 			net_hdr_offset;
-	uint32_t 			transport_hdr_offset;
+    uint32_t 			net_hdr_offset;
+    uint32_t 			transport_hdr_offset;
 
 }pico_fragment_t;
 
@@ -126,7 +126,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 		while(!done)
 		{
 			frag_dbg("[LUM:%s:%d] nxthdr:%d %s\n", __FILE__,__LINE__,nxthdr,
-					nxthdr == PICO_IPV6_EXTHDR_DESTOPT  ? "PICO_IPV6_EXTHDR_DESTOPT":
+                    nxthdr == PICO_IPV6p_EXTHDR_DESTOPT  ? "PICO_IPV6_EXTHDR_DESTOPT":
 					nxthdr == PICO_IPV6_EXTHDR_ROUTING	? "PICO_IPV6_EXTHDR_ROUTING":
 					nxthdr == PICO_IPV6_EXTHDR_HOPBYHOP ? "PICO_IPV6_EXTHDR_HOPBYHOP":
 					nxthdr == PICO_IPV6_EXTHDR_ESP      ? "PICO_IPV6_EXTHDR_ESP":
@@ -649,7 +649,13 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
         {
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
 
-            pico_icmp6_frag_expired(fragment->frame);
+
+            //TODO: what does IPV4 expect?
+            if (fragment->proto == PICO_PROTO_IPV6)
+            {
+                pico_icmp6_frag_expired(fragment->frame);
+            }
+
 
             //TODO: is the following necessary?:
             fragment->frame = NULL;
