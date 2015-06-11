@@ -423,11 +423,9 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
         } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
-            if (n->state != PICO_ND_STATE_INCOMPLETE) {
-                n->state = PICO_ND_STATE_STALE;
-            }
-
+            n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger();
+            pico_nd_new_expire_time(n);
         }
 
         if (!n)
