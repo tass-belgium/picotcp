@@ -1014,7 +1014,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     hdr->hop = f->dev->hostvars.hoplimit;
     hdr->dst = *dst;
 
-    if (!src)
+    if (!src || !pico_ipv6_is_unicast(src->addr))
         /* Address defaults to the link information: src address selection is done via link */
         hdr->src = link->address;
     else {
