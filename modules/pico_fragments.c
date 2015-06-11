@@ -254,7 +254,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         {
             // allocate fragment tree
             /* fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, 2*PICO_IPV6_MIN_MTU + 64 /\*max lenght of options RFC815*\/); */
-            fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, PICO_IPV6_MIN_MTU);
+            fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, f->buffer_len);
 
 			frag_dbg("[LUM:%s:%d] frag_id not found in fragment tree. frag_id:0x%X \n",__FILE__,__LINE__,IP6FRAG_ID(exthdr));
 
