@@ -81,7 +81,7 @@ static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last);
 
 /*** static declarations ***/
 //static     PICO_TREE_DECLARE(ip_fragments, fragments_compare);
-static     struct pico_tree    pico_fragments = { &LEAF, fragments_compare};
+static struct pico_tree    pico_fragments = { &LEAF, fragments_compare};
 // our timer: allocoate one instance
 static struct pico_timer*      pico_fragment_timer = NULL;
 
@@ -757,7 +757,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 
         // copy the received frame into the reassembled packet
         frag_dbg("[LUM:%s:%d] offset:%d frame->transport_len:%d fragment->frame->buffer_len:%d\n",__FILE__,__LINE__,offset,frame->transport_len,fragment->frame->buffer_len);
-        if( (offset + frame->transport_len) < fragment->frame->buffer_len ) // check for buffer space
+        if( (offset + frame->transport_len) < fragment->frame->transport_len ) // check for buffer space
         {
             if(fragment->frame->transport_hdr && frame->transport_hdr)
             {
@@ -775,10 +775,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         }
         else
         {
+
             // frame->buffer is too small
             // allocate new frame and copy all
-            uint32_t alloc_len= frame->buffer_len > fragment->frame->buffer_len ? 2*frame->buffer_len : 2*fragment->frame->buffer_len ;
-            struct pico_frame* newframe = pico_frame_alloc( alloc_len); // make it twice as big
+            uint32_t alloc_len= frame->buffer_len + fragment->frame->buffer_len;
+            struct pico_frame* newframe = pico_frame_alloc(alloc_len);
             struct pico_frame* oldframe = NULL;
 
             frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,newframe,newframe->buffer );
@@ -786,11 +787,33 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             // copy hdrs + options + data
             if(newframe)
             {
+                /* TODO: find better way to do this */
+                int addr_diff;
+                unsigned char *buf;
+                uint32_t *uc;
+
+                /* Copy the buffer */
                 memcpy(newframe->buffer,fragment->frame->buffer,fragment->frame->buffer_len);
 
-                // set pointers
-                fragment->frame->net_hdr       = fragment->frame->buffer + fragment->net_hdr_offset;
-                fragment->frame->transport_hdr = fragment->frame->buffer + fragment->transport_hdr_offset;
+                /* Save the two key pointers... */
+                buf = newframe->buffer;
+                uc  = newframe->usage_count;
+
+                /* Overwrite all fields with originals */
+                memcpy(newframe, fragment->frame, sizeof(struct pico_frame));
+
+                /* ...restore the two key pointers */
+                newframe->buffer = buf;
+                newframe->usage_count = uc;
+
+                /* Update in-buffer pointers with offset */
+                addr_diff = (int)(newframe->buffer - fragment->frame->buffer);
+                newframe->net_hdr += addr_diff;
+                newframe->transport_hdr += addr_diff;
+                newframe->app_hdr += addr_diff;
+                newframe->start += addr_diff;
+                newframe->payload += addr_diff;
+                newframe->next = NULL;
 
                 frag_dbg("[LUM:%s:%d] net_hdr:%p transport_hdr:%p\n",__FILE__,__LINE__,fragment->frame->net_hdr,fragment->frame->transport_hdr);
 
@@ -799,6 +822,9 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 pico_frame_discard(oldframe);
                 newframe=NULL;
                 oldframe=NULL;
+
+                /* Copy new frame */
+                memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
             }
             else
             {
