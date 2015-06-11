@@ -126,7 +126,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 		while(!done)
 		{
 			frag_dbg("[LUM:%s:%d] nxthdr:%d %s\n", __FILE__,__LINE__,nxthdr,
-                    nxthdr == PICO_IPV6p_EXTHDR_DESTOPT  ? "PICO_IPV6_EXTHDR_DESTOPT":
+                    nxthdr == PICO_IPV6_EXTHDR_DESTOPT  ? "PICO_IPV6_EXTHDR_DESTOPT":
 					nxthdr == PICO_IPV6_EXTHDR_ROUTING	? "PICO_IPV6_EXTHDR_ROUTING":
 					nxthdr == PICO_IPV6_EXTHDR_HOPBYHOP ? "PICO_IPV6_EXTHDR_HOPBYHOP":
 					nxthdr == PICO_IPV6_EXTHDR_ESP      ? "PICO_IPV6_EXTHDR_ESP":
