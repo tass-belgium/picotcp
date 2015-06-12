@@ -452,6 +452,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
 					// all done with this fragment: send it up and free it
 					pico_transport_receive(fragment->frame, fragment->proto);
+					fragment->frame = NULL;
 					pico_fragment_free(fragment);
 				}
 				else
