@@ -810,54 +810,38 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         }
         else
         {
+            int addr_diff;
 
             // frame->buffer is too small
             // allocate new frame and copy all
             uint32_t alloc_len= frame->buffer_len + fragment->frame->buffer_len;
-            struct pico_frame* newframe = pico_frame_alloc(alloc_len);
-            struct pico_frame* oldframe = NULL;
+            uint8_t *old_buffer = fragment->frame->buffer;
+            uint8_t *new_buffer = PICO_ZALLOC(alloc_len);
 
-            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,newframe,newframe->buffer );
+            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,old_buffer,new_buffer );
 
             // copy hdrs + options + data
-            if(newframe)
+            if(new_buffer)
             {
-                /* TODO: find better way to do this */
-                int addr_diff;
-                unsigned char *buf;
-                uint32_t *uc;
 
                 /* Copy the buffer */
-                memcpy(newframe->buffer,fragment->frame->buffer,fragment->frame->buffer_len);
-
-                /* Save the two key pointers... */
-                buf = newframe->buffer;
-                uc  = newframe->usage_count;
-
-                /* Overwrite all fields with originals */
-                memcpy(newframe, fragment->frame, sizeof(struct pico_frame));
-
-                /* ...restore the two key pointers */
-                newframe->buffer = buf;
-                newframe->usage_count = uc;
-
-                /* Update in-buffer pointers with offset */
-                addr_diff = (int)(newframe->buffer - fragment->frame->buffer);
-                newframe->net_hdr += addr_diff;
-                newframe->transport_hdr += addr_diff;
-                newframe->datalink_hdr += addr_diff;
-                newframe->app_hdr += addr_diff;
-                newframe->start += addr_diff;
-                newframe->payload += addr_diff;
-                newframe->next = NULL;
+                memcpy(new_buffer,fragment->frame->buffer,fragment->frame->buffer_len);
 
                 frag_dbg("[LUM:%s:%d] net_hdr:%p transport_hdr:%p\n",__FILE__,__LINE__,fragment->frame->net_hdr,fragment->frame->transport_hdr);
 
-                oldframe = fragment->frame;
-                fragment->frame = newframe;
-                pico_frame_discard(oldframe);
-                newframe=NULL;
-                oldframe=NULL;
+                fragment->frame->buffer = new_buffer;
+                addr_diff = (int)(new_buffer - old_buffer);
+                fragment->frame->net_hdr += addr_diff;
+                fragment->frame->transport_hdr += addr_diff;
+                fragment->frame->datalink_hdr += addr_diff;
+                fragment->frame->app_hdr += addr_diff;
+                fragment->frame->start += addr_diff;
+                fragment->frame->payload += addr_diff;
+                fragment->frame->next = NULL;
+
+                PICO_FREE(old_buffer);
+                new_buffer=NULL;
+                old_buffer=NULL;
 
                 /* Copy new frame */
                 memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
