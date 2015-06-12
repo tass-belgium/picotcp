@@ -26,8 +26,10 @@
 
 /*** macros ***/
 
-#define PICO_IP_FRAG_TIMEOUT     60000
-#define PICO_IP_LAST_FRAG_RECV   1 //TODO: check if this return value is what picoTCP expects
+#define PICO_IP_FRAG_TIMEOUT          60000
+#define PICO_IP_LAST_FRAG_RECV        1 //TODO: check if this return value is what picoTCP expects
+#define PICO_IP_FIRST_FRAG_RECV       1
+#define PICO_IP_FIRST_FRAG_NOT_RECV   2
 
 #define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
@@ -70,6 +72,8 @@ typedef     struct
 
 static int fragments_compare(void *fa, void *fb);   /*pico_fragment_t*/
 static int hole_compare(void *a, void *b);          /*pico_hole_t*/
+static int first_fragment_received(struct pico_tree *holes);
+
 // alloc and free of fragment tree
 static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsize);
 static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment);
@@ -304,36 +308,24 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 			uint16_t offset = IP6FRAG_OFF(f->frag);
             uint16_t more   = IP6FRAG_MORE(f->frag);
 
-	        if(!more &&  (offset == 0))
-	        {
-                // no need for reassemble packet
-                // TODO: do we need to handle the frame like below (first set fragment->frame to NULL)?
+            retval = pico_fragment_arrived(fragment, f, offset, more);
+
+            if (retval == PICO_IP_LAST_FRAG_RECV)
+            {
+                //This was the last packet
+                //TODO: Calculate crc of final reassambled packet
+
+                // all done with this fragment: send it up and free it
+                pico_transport_receive(fragment->frame, fragment->proto);
+                // picoTCP still needs the fragment->frame, but we don't
+                // make fragment->frame NULL so that the fragment_free does not clean it up (else we lost the packet)
                 fragment->frame = NULL;
                 pico_fragment_free(fragment);
-			}
-			else
+            }
+            else
             {
-                retval = pico_fragment_arrived(fragment, f, offset, more);
-
-				if (retval == PICO_IP_LAST_FRAG_RECV)
-				{
-					//This was the last packet
-					//TODO: Calculate crc of final reassambled packet
-
-					// all done with this fragment: send it up and free it
-					pico_transport_receive(fragment->frame, fragment->proto);
-					// picoTCP still needs the fragment->frame, but we don't
-					// make fragment->frame NULL so that the fragment_free does not clean it up (else we lost the packet)
-					fragment->frame = NULL;
-					pico_fragment_free(fragment);
-				}
-				else
-				{
-
-				}
-			}
-
-
+                /* TODO:  */
+            }
         }
     }
 }
@@ -634,6 +626,34 @@ static pico_hole_t* pico_hole_free(pico_hole_t *hole)
     return hole;
 }
 
+static int first_fragment_received(struct pico_tree *holes)
+{
+    pico_hole_t *hole = NULL;
+    struct pico_tree_node *idx=NULL, *tmp=NULL;
+    int retval = PICO_IP_FIRST_FRAG_RECV;
+
+    if (holes)
+    {
+        pico_tree_foreach_safe(idx, holes, tmp)
+        {
+            hole = idx->keyValue;
+            frag_dbg("[LUM:%s:%d] examining hole:%d-%d \n",__FILE__,__LINE__,hole->first,hole->last);
+            if (hole->first == 0)
+            {
+                /* We did not receive the first fragment, do not send notify*/
+                frag_dbg("[LUM:%s:%d] we did not recv the first fragment, do not send notify \n",__FILE__,__LINE__);
+                retval = PICO_IP_FIRST_FRAG_NOT_RECV;
+                break;
+            }
+        }
+    }
+    else
+    {
+        retval = -1;
+    }
+
+    return retval;
+}
 
 static void pico_ip_frag_expired(pico_time now, void *arg)
 {
@@ -656,8 +676,16 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
             uint16_t ip_version = ((struct pico_eth_hdr *) fragment->frame->datalink_hdr)->proto;
             if (ip_version == PICO_IDETH_IPV6)
             {
-                frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
-                pico_icmp6_frag_expired(fragment->frame);
+                /* Check if we received the first fragment of the packet
+                 * If so, we send a "frag expired". Else we don't.
+                 */
+                if (first_fragment_received(&fragment->holes) == PICO_IP_FIRST_FRAG_RECV)
+                {
+                    /* First fragment was recv, send notify */
+                    frag_dbg("LUM[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
+                    pico_icmp6_frag_expired(fragment->frame);
+                }
+
             }
             if (ip_version == PICO_IDETH_IPV4)
             {
