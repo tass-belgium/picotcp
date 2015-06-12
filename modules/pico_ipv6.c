@@ -348,6 +348,27 @@ int pico_ipv6_is_solicited(const uint8_t addr[PICO_SIZE_IP6])
     return !memcmp(solicited_node.addr, addr, 13);
 }
 
+int pico_ipv6_is_solnode_multicast(const uint8_t addr[PICO_SIZE_IP6], struct pico_device *dev) {
+    struct pico_ipv6_link *link;
+    if (pico_ipv6_is_multicast(addr) == 0)
+        return 0;
+    link = pico_ipv6_link_by_dev(dev);
+    while(link) {
+        if (pico_ipv6_is_linklocal(link->address.addr)) {
+            int i, match = 0;
+            for(i = 13; i < 16; i++) {
+                if (addr[i] == link->address.addr[i])
+                    ++match;
+            }
+            /* Solicitation: last 3 bytes match a local address. */
+            if (match == 3)
+                return 1;
+        }
+        link = pico_ipv6_link_by_dev_next(dev, link);
+    }
+    return 0;
+}
+
 int pico_ipv6_is_unspecified(const uint8_t addr[PICO_SIZE_IP6])
 {
     return !memcmp(PICO_IP6_ANY, addr, PICO_SIZE_IP6);
@@ -1014,7 +1035,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     hdr->hop = f->dev->hostvars.hoplimit;
     hdr->dst = *dst;
 
-    if (!src || !pico_ipv6_is_unicast(src->addr))
+    if (!src || !pico_ipv6_is_unicast(src))
         /* Address defaults to the link information: src address selection is done via link */
         hdr->src = link->address;
     else {

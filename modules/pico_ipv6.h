@@ -103,6 +103,7 @@ int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6]);
 int pico_ipv6_is_unicast(struct pico_ip6 *a);
 int pico_ipv6_is_multicast(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_allhosts_multicast(const uint8_t addr[PICO_SIZE_IP6]);
+int pico_ipv6_is_solnode_multicast(const uint8_t addr[PICO_SIZE_IP6], struct pico_device *dev);
 int pico_ipv6_is_global(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_uniquelocal(const uint8_t addr[PICO_SIZE_IP6]);
 int pico_ipv6_is_sitelocal(const uint8_t addr[PICO_SIZE_IP6]);

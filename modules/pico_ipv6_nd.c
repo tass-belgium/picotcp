@@ -565,27 +565,14 @@ static int neigh_adv_validity_checks(struct pico_frame *f)
     return neigh_adv_mcast_validity_check(f);
 }
 
+
 static int neigh_sol_mcast_validity_check(struct pico_frame *f)
 {
-    struct pico_ipv6_link *link;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    link = pico_ipv6_link_by_dev(f->dev);
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    while(link) {
-        if (pico_ipv6_is_linklocal(link->address.addr)) {
-            int i, match = 0;
-            for(i = 13; i < 16; i++) {
-                if (icmp6_hdr->msg.info.neigh_sol.target.addr[i] == link->address.addr[i])
-                    ++match;
-            }
-            /* Solicitation: last 3 bytes match a local address. */
-            if (match == 3)
-                return 0;
-        }
-
-        link = pico_ipv6_link_by_dev_next(f->dev, link);
-    }
-    return -1;
+    if (pico_ipv6_is_solnode_multicast(icmp6_hdr->msg.info.neigh_sol.target.addr, f->dev) == 0)
+        return -1;
+    return 0;
 }
 
 static int neigh_sol_unicast_validity_check(struct pico_frame *f)
@@ -605,17 +592,50 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
 
 }
 
+static int neigh_sol_validate_unspec(struct pico_frame *f)
+{
+    /* RFC4861, 7.1.1:
+     *
+     * - If the IP source address is the unspecified address, the IP
+     *   destination address is a solicited-node multicast address.
+     *
+     * - If the IP source address is the unspecified address, there is no
+     *   source link-layer address option in the message.
+     *
+     */
+
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+    struct pico_icmp6_opt_lladdr opt = {
+        0
+    };
+    struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
+    int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
+    if (pico_ipv6_is_solnode_multicast(hdr->dst.addr, f->dev) == 0) {
+        return -1;
+    }
+    if (valid_lladdr) {
+        return -1;
+    }
+    return 0;
+}
+
 static int neigh_sol_validity_checks(struct pico_frame *f)
 {
     /* Step 2 validation */
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
     if (f->transport_len < PICO_ICMP6HDR_NEIGH_ADV_SIZE)
         return -1;
 
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr))
-        return neigh_sol_mcast_validity_check(f);
+    if ((pico_ipv6_is_unspecified(hdr->src.addr)) && (neigh_sol_validate_unspec(f) < 0))
+    {
+        return -1;
+    }
 
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr)) {
+        return neigh_sol_mcast_validity_check(f);
+    }
     return neigh_sol_unicast_validity_check(f);
 }
 
