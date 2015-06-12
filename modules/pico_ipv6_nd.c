@@ -608,7 +608,6 @@ static int neigh_sol_validate_unspec(struct pico_frame *f)
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
-    struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
     int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
     if (pico_ipv6_is_solnode_multicast(hdr->dst.addr, f->dev) == 0) {
         return -1;
