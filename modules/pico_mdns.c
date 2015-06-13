@@ -1394,11 +1394,12 @@ pico_mdns_cache_add( struct pico_mdns_record *record )
     }
 
     /* Add copy to cache */
-	if (rttl > 0) {
-		mdns_dbg("RR cached. TICK TACK TICK TACK...\n");
-        if (pico_tree_insert(&Cache, record) != NULL)
-            return -1;
-    }
+	if (!rttl)
+		return -1;
+	if (pico_tree_insert(&Cache, record) != NULL)
+		return -1;
+	mdns_dbg("RR cached. TICK TACK TICK TACK...\n");
+
     return 0;
 }
 
