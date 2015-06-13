@@ -142,6 +142,10 @@ ifeq ($(ARCH),esp8266)
   CFLAGS+=-DESP8266 -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals
 endif
 
+ifeq ($(ARCH),mt7681)
+  CFLAGS+=-DMT7681 -fno-builtin -ffunction-sections -fno-strict-aliasing -m16bit -mabi=2 -mbaseline=V2 -mcpu=n9 -mno-div -mel -mmw-count=8 -mno-ext-mac -mno-dx-regs
+endif
+
 ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
