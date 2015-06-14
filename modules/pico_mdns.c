@@ -2244,6 +2244,23 @@ pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
 	return 0;
 }
 
+void
+pico_rtree_add_copy( pico_mdns_rtree *tree, struct pico_mdns_record *record )
+{
+	struct pico_mdns_record *copy = NULL;
+
+	if (!tree || !record) {
+		pico_err = PICO_ERR_EINVAL;
+		return;
+	}
+
+	if ((copy = pico_mdns_record_copy(record)) &&
+		(pico_tree_insert(tree,copy))) {
+		if (copy)
+			pico_mdns_record_delete((void **)&copy);
+	}
+}
+
 /* ****************************************************************************
  *  When a service is found additional records should be generated and added to
  *  the either the answer section or the additional sections. This happens here
@@ -2294,8 +2311,12 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
 		pico_mdns_record_delete((void **)&meta_record);
 		return -1;
 	}
+	ptr_record->flags |= 0xC0;
+	meta_record->flags |= 0xC0;
 
 	/* Add them to the answer tree */
+	pico_rtree_add_copy(&MyRecords, meta_record);
+	pico_rtree_add_copy(&MyRecords, ptr_record);
 	pico_tree_insert(antree,  meta_record);
 	pico_tree_insert(antree,  ptr_record);
 	return 0;
