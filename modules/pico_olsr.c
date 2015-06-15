@@ -251,7 +251,7 @@ static struct olsr_route_entry *get_route_by_address(struct olsr_route_entry *ls
 #define OLSR_C_SHIFT (uint32_t)4 /* 1/16 */
 #define DEFAULT_VTIME 288UL
 
-uint8_t seconds2olsr(uint32_t seconds)
+static uint8_t seconds2olsr(uint32_t seconds)
 {
     uint16_t a, b;
     /* olsr_dbg("seconds=%u\n", (uint16_t)seconds); */
@@ -294,7 +294,7 @@ uint8_t seconds2olsr(uint32_t seconds)
     return (uint8_t)((a << 4u) + b);
 }
 
-uint32_t olsr2seconds(uint8_t olsr)
+static uint32_t olsr2seconds(uint8_t olsr)
 {
     uint8_t a, b;
     uint16_t seconds;
@@ -338,7 +338,7 @@ struct olsr_fwd_pkt
 
 static uint32_t buffer_mem_used = 0U;
 
-void olsr_process_out(pico_time now, void *arg)
+static void olsr_process_out(pico_time now, void *arg)
 {
     struct olsr_fwd_pkt *p = (struct olsr_fwd_pkt *)arg;
     struct pico_ip4 bcast;
@@ -697,7 +697,7 @@ static void olsr_make_dgram(struct pico_device *pdev, int full)
 /* Old code was relying on ethernet arp requests */
 #define arp_storm(...) do {} while(0)
 
-void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
+static void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
 {
     uint32_t parsed = 0;
     uint32_t *address;
@@ -740,7 +740,7 @@ void recv_mid(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin)
 }
 
 /* static void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin) */
-void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin, uint16_t hops)
+static void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin, uint16_t hops)
 {
     struct olsr_link *li;
     struct olsr_route_entry *e;
@@ -794,7 +794,7 @@ void recv_hello(uint8_t *buffer, uint32_t len, struct olsr_route_entry *origin, 
 }
 
 /* static uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e) */
-uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e)
+static uint32_t reconsider_topology(uint8_t *buf, uint32_t size, struct olsr_route_entry *e)
 {
     struct olsr_hmsg_tc *tc = (struct olsr_hmsg_tc *) buf;
     uint16_t new_ansn = short_be(tc->ansn);
@@ -1082,15 +1082,6 @@ int OOM(void)
     c++;
     c++;
     c++;
-    return -1;
-}
-
-int picoERR(void)
-{
-    volatile int d = 3600;
-    d++;
-    d++;
-    d++;
     return -1;
 }
 
