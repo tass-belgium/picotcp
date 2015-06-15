@@ -17,8 +17,8 @@
         type *newTop; \
         if (++heap->n >= heap->size) {                                                \
             newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
-            if(!newTop) {\
-                heap->n--;\
+            if(!newTop) { \
+                heap->n--; \
                 return -1; \
             } \
             if (heap->top)  { \

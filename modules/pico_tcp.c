@@ -1765,8 +1765,8 @@ static int tcp_is_allowed_to_send(struct pico_socket_tcp *t)
 {
     return t->sock.net &&
            (
-               ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) ||
-               ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT)
+        ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) ||
+        ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT)
            ) &&
            ((t->backoff < PICO_TCP_MAX_RETRANS));
 }

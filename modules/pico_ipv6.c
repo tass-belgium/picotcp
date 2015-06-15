@@ -349,10 +349,12 @@ int pico_ipv6_is_solicited(const uint8_t addr[PICO_SIZE_IP6])
     return !memcmp(solicited_node.addr, addr, 13);
 }
 
-int pico_ipv6_is_solnode_multicast(const uint8_t addr[PICO_SIZE_IP6], struct pico_device *dev) {
+int pico_ipv6_is_solnode_multicast(const uint8_t addr[PICO_SIZE_IP6], struct pico_device *dev)
+{
     struct pico_ipv6_link *link;
     if (pico_ipv6_is_multicast(addr) == 0)
         return 0;
+
     link = pico_ipv6_link_by_dev(dev);
     while(link) {
         if (pico_ipv6_is_linklocal(link->address.addr)) {
@@ -365,6 +367,7 @@ int pico_ipv6_is_solnode_multicast(const uint8_t addr[PICO_SIZE_IP6], struct pic
             if (match == 3)
                 return 1;
         }
+
         link = pico_ipv6_link_by_dev_next(dev, link);
     }
     return 0;
