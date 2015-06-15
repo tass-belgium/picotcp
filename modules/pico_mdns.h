@@ -12,13 +12,13 @@
 #include "pico_ipv4.h"
 
 /* ********************************* CONFIG ***********************************/
-#define PICO_MDNS_PROBE_UNICAST 1		/* Probe queries as QU-questions      */
+#define PICO_MDNS_PROBE_UNICAST 1       /* Probe queries as QU-questions      */
 #define PICO_MDNS_CONTINUOUS_REFRESH 0  /* Continuously update cache          */
-#define PICO_MDNS_ALLOW_CACHING 1		/* Enable caching on this host		  */
-#define PICO_MDNS_DEFAULT_TTL 120		/* Default TTL of mDNS records        */
-#define PICO_MDNS_SERVICE_TTL 120		/* Default TTL of SRV/TXT/PTR/NSEC    */
-#define PICO_MDNS_PROBE_COUNT 4			/* Amount of probes to send           */
-#define PICO_MDNS_ANNOUNCEMENT_COUNT 3	/* Amount of announcements to send    */
+#define PICO_MDNS_ALLOW_CACHING 1       /* Enable caching on this host		  */
+#define PICO_MDNS_DEFAULT_TTL 120       /* Default TTL of mDNS records        */
+#define PICO_MDNS_SERVICE_TTL 120       /* Default TTL of SRV/TXT/PTR/NSEC    */
+#define PICO_MDNS_PROBE_COUNT 4         /* Amount of probes to send           */
+#define PICO_MDNS_ANNOUNCEMENT_COUNT 3  /* Amount of announcements to send    */
 /* ****************************************************************************/
 
 #define PICO_MDNS_DEST_ADDR4 "224.0.0.251"
@@ -30,15 +30,15 @@
 /* Flag to check for when records are returned, to determine the hostname */
 #define PICO_MDNS_RECORD_HOSTNAME 0x02u
 #define IS_HOSTNAME_RECORD(x) \
-        ((x) ? ((((x)->flags) & PICO_MDNS_RECORD_HOSTNAME) ? (1) : (0)) : (0))
+    ((x) ? ((((x)->flags) & PICO_MDNS_RECORD_HOSTNAME) ? (1) : (0)) : (0))
 
 /* --- MDNS resource record --- */
 struct pico_mdns_record
 {
-    struct pico_dns_record *record; // DNS Resource Record
-    uint32_t current_ttl;           // Current TTL
-    uint8_t flags;                  // Resource Record flags
-    uint8_t claim_id;               // Claim ID number
+    struct pico_dns_record *record; /* DNS Resource Record */
+    uint32_t current_ttl;           /* Current TTL */
+    uint8_t flags;                  /* Resource Record flags */
+    uint8_t claim_id;               /* Claim ID number */
 };
 
 /* ****************************************************************************
@@ -95,11 +95,11 @@ pico_mdns_record_create( const char *url,
  * ****************************************************************************/
 typedef struct pico_tree pico_mdns_rtree;
 #define PICO_MDNS_RTREE_DECLARE(name) \
-		pico_mdns_rtree (name) = {&LEAF, pico_mdns_record_cmp}
+    pico_mdns_rtree (name) = {&LEAF, pico_mdns_record_cmp}
 #define PICO_MDNS_RTREE_DESTROY(rtree) \
-		pico_tree_destroy((rtree), pico_mdns_record_delete)
+    pico_tree_destroy((rtree), pico_mdns_record_delete)
 #define PICO_MDNS_RTREE_ADD(tree, record) \
-		pico_tree_insert((tree), (record))
+    pico_tree_insert((tree), (record))
 
 /* ****************************************************************************
  *  API-call to query a record with a certain URL and type. First checks the

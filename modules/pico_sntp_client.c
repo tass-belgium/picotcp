@@ -166,6 +166,7 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
         recvbuf = PICO_ZALLOC(PICO_SNTP_MAXBUF);
         if (!recvbuf)
             return;
+
         do {
             read = pico_socket_recvfrom(s, recvbuf, PICO_SNTP_MAXBUF, &peer, &port);
         } while(read > 0);
@@ -354,6 +355,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
         PICO_FREE(ck);
         return -1;
     }
+
     return 0;
 }
 

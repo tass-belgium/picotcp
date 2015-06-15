@@ -19,7 +19,7 @@ void app_mdns(char *arg, struct pico_ip4 address)
 {
     char *hostname, *peername;
     char *nxt = arg;
-    
+
     if (!nxt)
         exit(255);
 
@@ -37,14 +37,15 @@ void app_mdns(char *arg, struct pico_ip4 address)
     if(!peername) {
         exit(255);
     }
-    
+
     printf("\nStarting mDNS module...\n");
     if (pico_mdns_init(hostname, address, &mdns_init_callback, NULL)) {
         printf("Initialisation returned with Error!\n");
         exit(255);
     }
+
     printf("DONE - Initialising mDNS module.\n");
-    
+
     while(1) {
         pico_stack_tick();
         usleep(2000);

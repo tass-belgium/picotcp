@@ -22,7 +22,7 @@ typedef struct
 } kv_vector;
 
 #define PICO_DNS_SD_KV_VECTOR_DECLARE(name) \
-		kv_vector (name) = {0}
+    kv_vector (name) = {0}
 
 /* ****************************************************************************
  *  Just calls pico_mdns_init in it's turn to initialise the mDNS-module.
@@ -30,11 +30,11 @@ typedef struct
  * ****************************************************************************/
 int
 pico_dns_sd_init( const char *_hostname,
-				  struct pico_ip4 address,
-				  void (*callback)(pico_mdns_rtree *,
-								   char *,
-								   void *),
-				  void *arg );
+                  struct pico_ip4 address,
+                  void (*callback)(pico_mdns_rtree *,
+                                   char *,
+                                   void *),
+                  void *arg );
 
 /* ****************************************************************************
  *  Register a DNS-SD service via Multicast DNS on the local network.
@@ -51,14 +51,14 @@ pico_dns_sd_init( const char *_hostname,
  * ****************************************************************************/
 int
 pico_dns_sd_register_service( const char *name,
-							  const char *type,
-							  uint16_t port,
-							  kv_vector *txt_data,
-							  uint16_t ttl,
-							  void (*callback)(pico_mdns_rtree *,
-											   char *,
-											   void *),
-							  void *arg);
+                              const char *type,
+                              uint16_t port,
+                              kv_vector *txt_data,
+                              uint16_t ttl,
+                              void (*callback)(pico_mdns_rtree *,
+                                               char *,
+                                               void *),
+                              void *arg);
 
 /* ****************************************************************************
  *  Does nothing for now.

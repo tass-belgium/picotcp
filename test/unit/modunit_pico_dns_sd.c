@@ -14,25 +14,31 @@ void callback( pico_mdns_rtree *tree,
                char *str,
                void *arg )
 {
-	kv_vector vector = {0};
+    kv_vector vector = {
+        0
+    };
 
     /* This doesn't even gets called, tests exit before possible callback */
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(tree);
-	fail_unless(pico_dns_sd_register_service("Hello World!",
-											 "_kerberos._udp",
-											 88, &vector, 120,
-											 callback, NULL) == 0,
-				"dns_sd_register_service failed!\n");
+    fail_unless(pico_dns_sd_register_service("Hello World!",
+                                             "_kerberos._udp",
+                                             88, &vector, 120,
+                                             callback, NULL) == 0,
+                "dns_sd_register_service failed!\n");
 }
 
 int dns_sd_init()
 {
     struct mock_device *mock = NULL;
 
-    struct pico_ip4 local = {.addr = long_be(0x0a280064)};
-    struct pico_ip4 netmask = {.addr = long_be(0xffffff00)};
+    struct pico_ip4 local = {
+        .addr = long_be(0x0a280064)
+    };
+    struct pico_ip4 netmask = {
+        .addr = long_be(0xffffff00)
+    };
 
     mock = pico_mock_create(NULL);
     if (!mock)
@@ -46,7 +52,9 @@ int dns_sd_init()
 
 START_TEST(tc_dns_sd_kv_vector_strlen)
 {
-    kv_vector pairs = {0};
+    kv_vector pairs = {
+        0
+    };
 
     pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
     pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
@@ -62,10 +70,12 @@ START_TEST(tc_dns_sd_srv_record_create)
 {
     struct pico_mdns_record *record = NULL;
 
-    uint8_t buf[19] = { 0,0, 0,0, 0,80,
-                        5,'h','i','t','e','x',
-                        5,'l','o','c','a','l',
-                        0 };
+    uint8_t buf[19] = {
+        0, 0, 0, 0, 0, 80,
+        5, 'h', 'i', 't', 'e', 'x',
+        5, 'l', 'o', 'c', 'a', 'l',
+        0
+    };
 
     record = pico_dns_sd_srv_record_create("test.local", 0, 0, 80,
                                            "hitex.local", 10,
@@ -89,11 +99,15 @@ END_TEST
 START_TEST(tc_dns_sd_txt_record_create)
 {
     struct pico_mdns_record *record = NULL;
-    kv_vector pairs = {0};
+    kv_vector pairs = {
+        0
+    };
 
-    uint8_t buf[23] = { 10,'t','e','x','t','v','e','r','s','=','1',
-                        4,'p','a','s','s',
-                        6,'c','o','l','o','r','=' };
+    uint8_t buf[23] = {
+        10, 't', 'e', 'x', 't', 'v', 'e', 'r', 's', '=', '1',
+        4, 'p', 'a', 's', 's',
+        6, 'c', 'o', 'l', 'o', 'r', '='
+    };
 
     pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
     pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
@@ -190,11 +204,11 @@ START_TEST(tc_dns_sd_check_type_format)
 
     /* Test too long subtype */
     fail_unless(pico_dns_sd_check_type_format(
-"1234567891123456789212345678931234567894123456789512345678961234._sub._http._tcp"), "dns_sd_check_type_format failed with too big subtype!\n");
+                    "1234567891123456789212345678931234567894123456789512345678961234._sub._http._tcp"), "dns_sd_check_type_format failed with too big subtype!\n");
 
     /* Test too long service type with subtype */
     fail_unless(pico_dns_sd_check_type_format(
-                                        "printer._sub.0123456789112345678._tcp"),
+                    "printer._sub.0123456789112345678._tcp"),
                 "dns_sd_check_type_format failed with too big sn w/ sub!\n");
 
     /* Test too long service type with subtype */
@@ -207,7 +221,7 @@ START_TEST(tc_dns_sd_check_instance_name_format)
 {
     /* Test too long name */
     fail_unless(pico_dns_sd_check_instance_name_format(
-"1234567891123456789212345678931234567894123456789512345678961234"),
+                    "1234567891123456789212345678931234567894123456789512345678961234"),
                 "dns_sd_check_instance_name_format failed with too big name!\n");
 
     fail_unless(pico_dns_sd_check_instance_name_format("Hello World!") == 0,
@@ -244,7 +258,9 @@ START_TEST(tc_dns_sd_browse_service)
 END_TEST
 START_TEST(tc_dns_sd_kv_vector_add)
 {
-    kv_vector pairs = {0};
+    kv_vector pairs = {
+        0
+    };
     char *key = NULL;
 
     pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
@@ -258,7 +274,9 @@ START_TEST(tc_dns_sd_kv_vector_add)
 END_TEST
 START_TEST(tc_dns_sd_kv_vector_get)
 {
-    kv_vector pairs = {0};
+    kv_vector pairs = {
+        0
+    };
     char *key = NULL;
 
     pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
@@ -275,7 +293,9 @@ START_TEST(tc_dns_sd_kv_vector_get)
 END_TEST
 START_TEST(tc_dns_sd_kv_vector_erase)
 {
-    kv_vector pairs = {0};
+    kv_vector pairs = {
+        0
+    };
 
     pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
     pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);

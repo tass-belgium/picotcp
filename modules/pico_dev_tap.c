@@ -105,6 +105,7 @@ static int tap_get_mac(char *name, uint8_t *mac)
     if(sck < 0) {
         return retval;
     }
+
     memset(&eth, 0, sizeof(struct ifreq));
     strcpy(eth.ifr_name, name);
     /* call the IOCTL */
@@ -136,11 +137,12 @@ static int tap_get_mac(char *name, uint8_t *mac)
     while(ifap) {
         if (strcmp(name, ifap->ifa_name) == 0)
             sdl = (struct sockaddr_dl *) ifap->ifa_addr;
-            if (sdl->sdl_type == IFT_ETHER) {
-                memcpy(mac, LLADDR(sdl), 6);
-                freeifaddrs(root);
-                return 0;
-            }
+
+        if (sdl->sdl_type == IFT_ETHER) {
+            memcpy(mac, LLADDR(sdl), 6);
+            freeifaddrs(root);
+            return 0;
+        }
 
         ifap = ifap->ifa_next;
     }

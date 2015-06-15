@@ -14,7 +14,7 @@ void dns_sd_claimed_callback( pico_mdns_rtree *tree,
                               char *str,
                               void *arg )
 {
-	IGNORE_PARAMETER(tree);
+    IGNORE_PARAMETER(tree);
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
 }
@@ -23,7 +23,9 @@ void dns_sd_init_callback( pico_mdns_rtree *tree,
                            char *str,
                            void *arg )
 {
-    kv_vector key_value_pair_vector = {0};
+    kv_vector key_value_pair_vector = {
+        0
+    };
 
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);

@@ -260,6 +260,7 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
     if (!isRouter && n->is_router) {
         pico_ipv6_router_down(&n->address);
     }
+
     if (isRouter)
         n->is_router = 1;
     else
@@ -276,6 +277,7 @@ static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico
         pico_nd_new_expire_time(n);
         return 0;
     }
+
     return -1;
 }
 
@@ -313,17 +315,17 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         return 0;
     }
 
-    if ((n->state == PICO_ND_STATE_REACHABLE) && (!IS_SOLICITED(hdr)) && (!IS_OVERRIDE(hdr)) && 
-            (pico_ipv6_neighbor_compare_stored(n, opt) != 0)) {
-  
-     /* I.  If the Override flag is clear and the supplied link-layer address
-      *     differs from that in the cache, then one of two actions takes
-      *     place:
-      *     a. If the state of the entry is REACHABLE, set it to STALE, but
-      *        do not update the entry in any other way.
-      *     b. Otherwise, the received advertisement should be ignored and
-      *        MUST NOT update the cache.
-      */
+    if ((n->state == PICO_ND_STATE_REACHABLE) && (!IS_SOLICITED(hdr)) && (!IS_OVERRIDE(hdr)) &&
+        (pico_ipv6_neighbor_compare_stored(n, opt) != 0)) {
+
+        /* I.  If the Override flag is clear and the supplied link-layer address
+         *     differs from that in the cache, then one of two actions takes
+         *     place:
+         *     a. If the state of the entry is REACHABLE, set it to STALE, but
+         *        do not update the entry in any other way.
+         *     b. Otherwise, the received advertisement should be ignored and
+         *        MUST NOT update the cache.
+         */
         n->state = PICO_ND_STATE_STALE;
         pico_nd_new_expire_time(n);
         return 0;
@@ -377,7 +379,7 @@ static int neigh_adv_process(struct pico_frame *f)
         return 0;
     }
 
-    if ((optres == 0) || IS_OVERRIDE(icmp6_hdr) || (pico_ipv6_neighbor_compare_stored(n, &opt) == 0) ) {
+    if ((optres == 0) || IS_OVERRIDE(icmp6_hdr) || (pico_ipv6_neighbor_compare_stored(n, &opt) == 0)) {
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
     }
 
@@ -388,9 +390,9 @@ static int neigh_adv_process(struct pico_frame *f)
 
     if (optres > 0)
         return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
-    else 
+    else
         return neigh_adv_reconfirm_no_tlla(n, icmp6_hdr);
-        
+
 }
 
 
@@ -572,6 +574,7 @@ static int neigh_sol_mcast_validity_check(struct pico_frame *f)
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     if (pico_ipv6_is_solnode_multicast(icmp6_hdr->msg.info.neigh_sol.target.addr, f->dev) == 0)
         return -1;
+
     return 0;
 }
 
@@ -612,9 +615,11 @@ static int neigh_sol_validate_unspec(struct pico_frame *f)
     if (pico_ipv6_is_solnode_multicast(hdr->dst.addr, f->dev) == 0) {
         return -1;
     }
+
     if (valid_lladdr) {
         return -1;
     }
+
     return 0;
 }
 
@@ -635,6 +640,7 @@ static int neigh_sol_validity_checks(struct pico_frame *f)
     if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr)) {
         return neigh_sol_mcast_validity_check(f);
     }
+
     return neigh_sol_unicast_validity_check(f);
 }
 
