@@ -87,8 +87,12 @@ const uint8_t escape_string[5][12] = {
     { 0x7e, 0xed, 0x7d, 0x5d, 0xff, 0x7d, 0x5d, 0x3F, 'c', 0x20, 0x7e }
 };
 
-const int test_string_len[] = { 6, 6, 6, 6, 9 };
-const int escape_string_len[] = { 6, 7, 7, 8, 11 };
+const int test_string_len[] = {
+    6, 6, 6, 6, 9
+};
+const int escape_string_len[] = {
+    6, 7, 7, 8, 11
+};
 
 START_TEST(tc_ppp_serial_send_escape)
 {
@@ -102,15 +106,15 @@ START_TEST(tc_ppp_serial_send_escape)
         fail_if(called_serial_send != 1);
         fail_if(serial_out_len != escape_string_len[i]);
         printf("  test string    ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
-           test_string[i][0], test_string[i][1], test_string[i][2],
-           test_string[i][3], test_string[i][4], test_string[i][5],
-           test_string[i][6], test_string[i][7]);
+               test_string[i][0], test_string[i][1], test_string[i][2],
+               test_string[i][3], test_string[i][4], test_string[i][5],
+               test_string[i][6], test_string[i][7]);
         printf("  escaped string ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
-           escape_string[i][0], escape_string[i][1], escape_string[i][2],
-           escape_string[i][3], escape_string[i][4], escape_string[i][5],
-           escape_string[i][6], escape_string[i][7]);
-        
-        fail_if(memcmp(escape_string[i], serial_buffer, serial_out_len) != 0); 
+               escape_string[i][0], escape_string[i][1], escape_string[i][2],
+               escape_string[i][3], escape_string[i][4], escape_string[i][5],
+               escape_string[i][6], escape_string[i][7]);
+
+        fail_if(memcmp(escape_string[i], serial_buffer, serial_out_len) != 0);
     }
 }
 END_TEST

@@ -50,12 +50,12 @@
 
 
 
-#define LCPOPT_MRU 1
-#define LCPOPT_AUTH 3
-#define LCPOPT_QUALITY 4
-#define LCPOPT_MAGIC 5
-#define LCPOPT_PROTO_COMP 7
-#define LCPOPT_ADDRCTL_COMP 8
+#define LCPOPT_MRU          1u
+#define LCPOPT_AUTH         3u
+#define LCPOPT_QUALITY      4u
+#define LCPOPT_MAGIC        5u
+#define LCPOPT_PROTO_COMP   7u
+#define LCPOPT_ADDRCTL_COMP 8u
 
 #define CHAP_MD5_SIZE   16u
 #define CHAP_CHALLENGE  1
@@ -271,11 +271,11 @@ static void (*mock_lcp_state)(struct pico_device_ppp *ppp, enum ppp_lcp_event ev
 static void (*mock_auth_state)(struct pico_device_ppp *ppp, enum ppp_auth_event event) = NULL;
 static void (*mock_ipcp_state)(struct pico_device_ppp *ppp, enum ppp_ipcp_event event) = NULL;
 
-#define PPP_TIMER_ON_MODEM      0x01
-#define PPP_TIMER_ON_LCPREQ     0x04
-#define PPP_TIMER_ON_LCPTERM    0x08
-#define PPP_TIMER_ON_AUTH       0x10
-#define PPP_TIMER_ON_IPCP       0x20
+#define PPP_TIMER_ON_MODEM      0x01u
+#define PPP_TIMER_ON_LCPREQ     0x04u
+#define PPP_TIMER_ON_LCPTERM    0x08u
+#define PPP_TIMER_ON_AUTH       0x10u
+#define PPP_TIMER_ON_IPCP       0x20u
 
 /* Escape and send */
 static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int len)
@@ -284,22 +284,22 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
     uint8_t *out_buf = NULL;
     int esc_char_count = 0;
     int newlen = 0, ret = -1;
-    int i,j;
+    int i, j;
 
-    for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */ 
+    for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */
     {
         if (((in_buf[i] + 1) >> 1) == 0x3Fu)
             esc_char_count++;
     }
-
     if (!esc_char_count) {
         return ppp->serial_send(&ppp->dev, buf, len);
     }
 
     newlen = len + esc_char_count;
-    out_buf = PICO_ZALLOC(newlen);
+    out_buf = PICO_ZALLOC((uint32_t)newlen);
     if(!out_buf)
         return -1;
+
     /* Start byte. */
     out_buf[0] = in_buf[0];
     for(i = 1, j = 1; i < (len - 1); i++) {
@@ -317,6 +317,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
     ret = ppp->serial_send(&ppp->dev, out_buf, newlen);
     if (ret == newlen)
         return len;
+
     return ret;
 
 }
@@ -362,15 +363,15 @@ static void lcp_timer_stop(struct pico_device_ppp *ppp, uint8_t timer_type)
 
 struct pico_ppp_fsm {
     int next_state;
-    void (*event_handler[PPP_FSM_MAX_ACTIONS])(struct pico_device_ppp *);
+    void (*event_handler[PPP_FSM_MAX_ACTIONS]) (struct pico_device_ppp *);
 };
 
-#define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1 << opt)
-#define LCPOPT_SET_PEER(ppp, opt) ppp->lcpopt_peer |= (1 << opt)
-#define LCPOPT_UNSET_LOCAL(ppp, opt) ppp->lcpopt_local &= ~(1 << opt)
-#define LCPOPT_UNSET_PEER(ppp, opt) ppp->lcpopt_peer &= ~(1 << opt)
-#define LCPOPT_ISSET_LOCAL(ppp, opt) ((ppp->lcpopt_local & (1 << opt)) != 0)
-#define LCPOPT_ISSET_PEER(ppp, opt) ((ppp->lcpopt_peer & (1 << opt)) != 0)
+#define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1u << opt)
+#define LCPOPT_SET_PEER(ppp, opt) ppp->lcpopt_peer |= (1u << opt)
+#define LCPOPT_UNSET_LOCAL(ppp, opt) ppp->lcpopt_local &= ~(1u << opt)
+#define LCPOPT_UNSET_PEER(ppp, opt) ppp->lcpopt_peer &= ~(1u << opt)
+#define LCPOPT_ISSET_LOCAL(ppp, opt) ((ppp->lcpopt_local & (1u << opt)) != 0)
+#define LCPOPT_ISSET_PEER(ppp, opt) ((ppp->lcpopt_peer & (1u << opt)) != 0)
 
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event);
 static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event);
@@ -396,10 +397,10 @@ static uint32_t ppp_ctl_packet_size(struct pico_device_ppp *ppp, uint16_t proto,
 /* CRC16 / FCS Calculation */
 static uint16_t ppp_fcs_char(uint16_t old_crc, uint8_t data)
 {
-    uint16_t word = (old_crc ^ data) & 0xFF;
-    word = (uint16_t)(word ^ ((word << 4) & 0xFF));
-    word = (uint16_t)((word << 8) ^ (word << 3) ^ (word >> 4));
-    return ((old_crc >> 8) ^ word);
+    uint16_t word = (old_crc ^ data) & (uint16_t)0x00FFu;
+    word = (uint16_t)(word ^ (uint16_t)((word << 4u) & (uint16_t)0x00FFu));
+    word = (uint16_t)((word << 8u) ^ (word << 3u) ^ (word >> 4u));
+    return ((old_crc >> 8u) ^ word);
 }
 
 static uint16_t ppp_fcs_continue(uint16_t fcs, uint8_t *buf, uint32_t len)
@@ -427,7 +428,7 @@ static int ppp_fcs_verify(uint8_t *buf, uint32_t len)
 {
     uint16_t fcs = ppp_fcs_start(buf, len - 2);
     fcs = ppp_fcs_finish(fcs);
-    if ((((fcs & 0xFF00) >> 8) != buf[len - 1]) || ((fcs & 0xFF) != buf[len - 2])) {
+    if ((((fcs & 0xFF00u) >> 8) != buf[len - 1]) || ((fcs & 0xFFu) != buf[len - 2])) {
         return -1;
     }
 
@@ -450,14 +451,14 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
     ptr[i++] = PPPF_ADDR;
     ptr[i++] = PPPF_CTRL;
     /* protocol */
-    ptr[i++] = (uint8_t)(code & 0xFF);
-    ptr[i++] = (uint8_t)((code & 0xFF00) >> 8);
+    ptr[i++] = (uint8_t)(code & 0xFFu);
+    ptr[i++] = (uint8_t)((code & 0xFF00u) >> 8);
 
     /* payload is already in place. Calculate FCS. */
     fcs = ppp_fcs_start(pkt + 1, len - 4); /* FCS excludes: start (1), FCS(2), stop(1), total 4 bytes */
     fcs = ppp_fcs_finish(fcs);
-    pkt[len - 3] = (uint8_t)(fcs & 0xFF);
-    pkt[len - 2] = (uint8_t)((fcs & 0xFF00) >> 8);
+    pkt[len - 3] = (uint8_t)(fcs & 0xFFu);
+    pkt[len - 2] = (uint8_t)((fcs & 0xFF00u) >> 8);
     pkt[len - 1] = PPPF_FLAG_SEQ;
     ppp_serial_send_escape(ppp, pkt, (int)len);
     return (int)len;
@@ -495,8 +496,8 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     i += len;
     fcs = ppp_fcs_start(pico_ppp_data_buffer + fcs_start, (uint32_t)(i - fcs_start));
     fcs = ppp_fcs_finish(fcs);
-    pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFF);
-    pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00) >> 8);
+    pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFFu);
+    pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00u) >> 8);
     pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
     ppp_serial_send_escape(ppp, pico_ppp_data_buffer, i);
     return len;
@@ -874,8 +875,8 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
     uint8_t *dst_opts = reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr);
     uint32_t dstopts_len = 0;
     while (p < (ppp->pkt + ppp->len)) {
-        int i = 0;
-        if ((1 << p[0]) & ppp->rej || (p[0] > 8)) {
+        uint8_t i = 0;
+        if ((1u << p[0]) & ppp->rej || (p[0] > 8u)) {
             dst_opts[dstopts_len++] = p[0];
             dst_opts[dstopts_len++] = p[1];
             for(i = 0; i < p[1]; i++) {
@@ -1017,10 +1018,10 @@ static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg)
     uint32_t addr = long_be(arg);
     dst[0] = tag;
     dst[1] = IPCP_ADDR_LEN;
-    dst[2] = (uint8_t)((addr & 0xFF000000) >> 24);
-    dst[3] = (uint8_t)((addr & 0x00FF0000) >> 16);
-    dst[4] = (uint8_t)((addr & 0x0000FF00) >> 8);
-    dst[5] = (addr & 0x000000FF);
+    dst[2] = (uint8_t)((addr & 0xFF000000u) >> 24);
+    dst[3] = (uint8_t)((addr & 0x00FF0000u) >> 16);
+    dst[4] = (uint8_t)((addr & 0x0000FF00u) >> 8);
+    dst[5] = (addr & 0x000000FFu);
     return IPCP_ADDR_LEN;
 }
 
@@ -1589,8 +1590,9 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     uint32_t i = 0, pwdlen;
     uint8_t *recvd_challenge_len = ppp->pkt + sizeof(struct pico_chap_hdr);
     uint8_t *recvd_challenge = recvd_challenge_len + 1;
+    uint32_t challenge_size = CHALLENGE_SIZE(ppp, ch);
 
-    challenge = PICO_ZALLOC(CHALLENGE_SIZE(ppp, ch));
+    challenge = PICO_ZALLOC(challenge_size);
 
     if (!challenge)
         return;
@@ -1614,7 +1616,7 @@ static void auth_rsp(struct pico_device_ppp *ppp)
                       (uint32_t)(
                           PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
                           sizeof(struct pico_chap_hdr) + /* CHAP HDR */
-                          1                            +/* Value length */
+                          1                            + /* Value length */
                           CHAP_MD5_SIZE + /* Actual payload size */
                           PPP_FCS_SIZE + /* FCS at the end of the frame */
                           1)             /* STOP Byte */
