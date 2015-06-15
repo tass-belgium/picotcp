@@ -518,4 +518,6 @@ pico_dns_answer_create( struct pico_tree *antree,
 					    struct pico_tree *artree,
 					    uint16_t *len );
 
+int pico_mdns_flush_cache( void );
+
 #endif /* _INCLUDE_PICO_DNS_COMMON */
