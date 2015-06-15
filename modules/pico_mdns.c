@@ -1319,7 +1319,6 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
 {
 	struct pico_tree_node *node = NULL;
 	struct pico_mdns_record *record = NULL, *found = NULL;
-	struct pico_dns_record_suffix *suffix = NULL;
 
 	pico_tree_foreach(node, records) {
 		if ((record = node->keyValue)) {
