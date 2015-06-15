@@ -43,7 +43,7 @@ struct pico_ipv6_neighbor {
     pico_time expire;
 };
 
-int pico_ipv6_neighbor_compare(void *ka, void *kb)
+static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
     return pico_ipv6_compare(&a->address, &b->address);

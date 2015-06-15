@@ -1324,7 +1324,6 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
 {
 	struct pico_tree_node *node = NULL;
 	struct pico_mdns_record *record = NULL, *found = NULL;
-	struct pico_dns_record_suffix *suffix = NULL;
 
 	pico_tree_foreach(node, records) {
 		if ((record = node->keyValue)) {
@@ -1995,7 +1994,7 @@ pico_mdns_handle_data_as_questions ( uint8_t **ptr,
  *  @param type   Which record section to handle. ANSWER/AUTHORITY/ADDITIONAL
  *  @return 0 When section is properly handled.
  * ****************************************************************************/
-int
+static int
 pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
                                           uint16_t count,
                                           pico_dns_packet *packet,
@@ -2138,7 +2137,7 @@ pico_mdns_nsec_gen_bitmap( uint8_t *ptr, pico_mdns_rtree *rtree )
  *  @param name Name of the records you want to generate a bitmap for.
  *  @return Pointer to newly created NSEC record on succes, NULL on failure.
  * ****************************************************************************/
-struct pico_mdns_record *
+static struct pico_mdns_record *
 pico_mdns_gen_nsec_record( char *name )
 {
 	PICO_MDNS_RTREE_DECLARE(rtree);
@@ -2198,7 +2197,7 @@ pico_mdns_gen_nsec_record( char *name )
  *  @return 0 when NSEC is present in additional, whether it was already present
  *			or a new one is generated doesn't matter.
  * ****************************************************************************/
-int
+static int
 pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
 								char *name )
 {
@@ -2235,7 +2234,7 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
  *  @return 0 when hostname records are added succesfully to additionals. Rets
  *			something else on failure.
  * ****************************************************************************/
-int
+static int
 pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
 {
 	struct pico_tree_node *node = NULL;
@@ -2254,7 +2253,7 @@ pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
 	return 0;
 }
 
-void
+static void
 pico_rtree_add_copy( pico_mdns_rtree *tree, struct pico_mdns_record *record )
 {
 	struct pico_mdns_record *copy = NULL;
@@ -2280,7 +2279,7 @@ pico_rtree_add_copy( pico_mdns_rtree *tree, struct pico_mdns_record *record )
  *  @param srv_record Found SRV record in the answers
  *  @return 0 When additional records are properly generated
  * ****************************************************************************/
-int
+static int
 pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
 							   pico_mdns_rtree *artree,
 							   struct pico_mdns_record *srv_record )
@@ -2340,7 +2339,7 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
  *  @param artree mDNS record tree with additionals to send
  *  @return Returns 0 when additionals are properly generated and added
  * ****************************************************************************/
-int
+static int
 pico_mdns_gather_additionals( pico_mdns_rtree *antree,
 							  pico_mdns_rtree *artree )
 {

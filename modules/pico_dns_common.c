@@ -459,8 +459,7 @@ pico_dns_ipv6_set_ptr( const char *ip, char *dst )
  *  @param question Void-point to DNS Question
  *  @return Size in bytes of single DNS Question if it was copied flat.
  * ****************************************************************************/
-uint16_t
-pico_dns_question_size( void *question )
+static uint16_t pico_dns_question_size( void *question )
 {
 	uint16_t size = 0;
 	struct pico_dns_question *q = (struct pico_dns_question *)question;
@@ -703,7 +702,7 @@ pico_dns_record_copy_flat( struct pico_dns_record *record,
  *  @param record void-pointer to DNS record you want to know the size of.
  *  @return Size of single DNS record if it was copied flat.
  * ****************************************************************************/
-uint16_t
+static uint16_t
 pico_dns_record_size( void *record )
 {
 	uint16_t size = 0;
