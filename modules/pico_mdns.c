@@ -76,6 +76,8 @@
 /* Set and clear MSB of BE short */
 #define PICO_MDNS_SET_MSB(x) (x = x | (uint16_t)(0x8000u))
 #define PICO_MDNS_CLR_MSB(x) (x = x & (uint16_t)(0x7fffu))
+#define PICO_MDNS_SET_MSB_BE(x) (x = x | (uint16_t)(short_be(0x8000u)))
+#define PICO_MDNS_CLR_MSB_BE(x) (x = x & (uint16_t)(short_be(0x7fffu)))
 #define PICO_MDNS_IS_MSB_SET(x) ((x & 0x8000u) ? 1 : 0)
 
 /* ****************************************************************************
@@ -1317,11 +1319,12 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
 {
 	struct pico_tree_node *node = NULL;
 	struct pico_mdns_record *record = NULL, *found = NULL;
+	struct pico_dns_record_suffix *suffix = NULL;
 
 	pico_tree_foreach(node, records) {
 		if ((record = node->keyValue)) {
 			/* Set the cache flush bit again */
-			record->record->rsuffix->rclass |= 0x0080;
+			PICO_MDNS_SET_MSB_BE(record->record->rsuffix->rclass);
 			if ((found = pico_tree_findKey(&MyRecords, record))) {
 				PICO_MDNS_SET_FLAG(found->flags, PICO_MDNS_RECORD_PROBED);
 				PICO_MDNS_CLR_FLAG(found->flags,
@@ -2918,7 +2921,7 @@ pico_mdns_gen_probe_auths( pico_mdns_rtree *records )
 	pico_tree_foreach(node, records) {
 		if ((record = node->keyValue)) {
 			/* Clear the cache flush bit for authority records in probes */
-			record->record->rsuffix->rclass &= 0xff7f;
+			PICO_MDNS_CLR_MSB_BE(record->record->rsuffix->rclass);
 			/* Only the actual DNS records is required */
 			pico_tree_insert(&nstree, record->record);
 		}
