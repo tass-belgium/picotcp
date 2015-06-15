@@ -498,7 +498,7 @@ static int pico_ipv6_forward(struct pico_frame *f)
 
 #define HBH_LEN(hbh) ((((hbh->ext.hopbyhop.len + 1) << 3) - 2)) /* len in bytes, minus nxthdr and len byte */
 
-int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *f)
+static int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *f)
 {
     uint8_t *option = NULL;
     uint8_t len = 0, optlen = 0;
@@ -550,7 +550,7 @@ int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_frame *
 }
 
 
-int pico_ipv6_process_routing(struct pico_ipv6_exthdr *routing, struct pico_frame *f, uint32_t ptr)
+static int pico_ipv6_process_routing(struct pico_ipv6_exthdr *routing, struct pico_frame *f, uint32_t ptr)
 {
     IGNORE_PARAMETER(f);
 
@@ -921,7 +921,7 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
     }
 }
 
-int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
+static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
     int proto = 0;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -953,7 +953,7 @@ int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f)
     return 0;
 }
 
-int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *f)
+static int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
     IGNORE_PARAMETER(self);
 
@@ -1317,7 +1317,7 @@ void pico_ipv6_router_down(struct pico_ip6 *address)
     }
 }
 
-void pico_ipv6_nd_dad(pico_time now, void *arg)
+static void pico_ipv6_nd_dad(pico_time now, void *arg)
 {
     struct pico_ip6 *address = (struct pico_ip6 *)arg;
     struct pico_ipv6_link *l = NULL;
@@ -1423,7 +1423,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     return new;
 }
 
-int pico_ipv6_cleanup_routes(struct pico_ipv6_link *link)
+static int pico_ipv6_cleanup_routes(struct pico_ipv6_link *link)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ipv6_route *route = NULL;

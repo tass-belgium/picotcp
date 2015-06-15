@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "utils.h"
+
 #include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_dev_vde.h"
@@ -136,13 +138,13 @@ char *cpy_arg(char **dst, char *str)
     return nxt;
 }
 
-void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
+static void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
 {
 
 }
 
 
-void usage(char *arg0)
+static void usage(char *arg0)
 {
     printf("Usage: %s [--vde name:sock:address:netmask[:gateway]] [--vde ...] [--tun name:address:netmask[:gateway]] [--tun ...] [--app name[:args]]\n\n\n", arg0);
     printf("\tall arguments can be repeated, e.g. to run on multiple links or applications\n");

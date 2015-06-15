@@ -173,7 +173,7 @@ static void pico_arp_unreachable(struct pico_ip4 *a)
     }
 }
 
-void pico_arp_retry(struct pico_frame *f, struct pico_ip4 *where)
+static void pico_arp_retry(struct pico_frame *f, struct pico_ip4 *where)
 {
     if (++f->failure_count < 4) {
         arp_dbg ("================= ARP REQUIRED: %d =============\n\n", f->failure_count);
@@ -439,7 +439,7 @@ int pico_arp_receive(struct pico_frame *f)
 
 }
 
-int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, struct pico_ip4 *src, struct pico_ip4 *dst, uint8_t type)
+static int32_t pico_arp_request_xmit(struct pico_device *dev, struct pico_frame *f, struct pico_ip4 *src, struct pico_ip4 *dst, uint8_t type)
 {
     struct pico_arp_hdr *ah = (struct pico_arp_hdr *) (f->start + PICO_SIZE_ETHHDR);
     int ret;

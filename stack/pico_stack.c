@@ -419,7 +419,7 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
     return pico_ll_receive(f);
 }
 
-struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
+static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
@@ -433,7 +433,7 @@ struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pi
 
 
 #ifdef PICO_SUPPORT_IPV6
-struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
+static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
@@ -447,7 +447,7 @@ struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *p
 }
 #endif
 
-int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const dstmac)
+static int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const dstmac)
 {
     int retval = -1;
     if (!dstmac)
@@ -821,7 +821,7 @@ int32_t pico_seq_compare(uint32_t a, uint32_t b)
     return 0;
 }
 
-void pico_check_timers(void)
+static void pico_check_timers(void)
 {
     struct pico_timer *t;
     struct pico_timer_ref tref_unused, *tref = heap_first(Timers);

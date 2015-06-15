@@ -129,7 +129,7 @@ static struct pico_aodv_node *aodv_peer_eval(union pico_address *addr, uint32_t 
     return NULL;
 }
 
-void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
+static void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
 {
     struct pico_aodv_node *orig;
     union pico_address orig_addr;
