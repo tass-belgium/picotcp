@@ -45,6 +45,7 @@ struct pico_ipv6_link
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
     struct pico_timer *dad_timer;
+    uint16_t dup_detect_retrans;
     pico_time expire_time;
 };
 

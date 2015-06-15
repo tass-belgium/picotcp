@@ -38,6 +38,7 @@
 #define PICO_IPV6_EXTHDR_OPT_ACTION_DISCARD_SINM 0xC0 /* discard and send ICMP parameter problem if not multicast */
 
 #define PICO_IPV6_MAX_RTR_SOLICITATION_DELAY 1000
+#define PICO_IPV6_DEFAULT_DAD_RETRANS  1
 
 #define ipv6_dbg(...) do {} while(0)
 /* #define ipv6_dbg dbg   */
@@ -1350,8 +1351,14 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
         pico_ipv6_link_del(l->dev, old_address);
     }
     else {
-        dbg("IPv6: DAD verified valid address.\n");
-        l->istentative = 0;
+        if (--l->dup_detect_retrans == 0) {
+            dbg("IPv6: DAD verified valid address.\n");
+            l->istentative = 0;
+        } else {
+            /* Duplicate Address Detection */
+            pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD);
+            l->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &l->address);
+        }
     }
 }
 #endif
@@ -1411,11 +1418,11 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
      *     the solicited-node multicast address corresponding to each of the IP
      *     addresses assigned to the interface. (RFC 4861 $7.2.1)
      */
-
+    new->dup_detect_retrans = PICO_IPV6_DEFAULT_DAD_RETRANS;
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
     pico_icmp6_neighbor_solicitation(dev, &address, PICO_ICMP6_ND_DAD);
-    new->dad_timer = pico_timer_add(pico_rand() % PICO_ICMP6_MAX_RTR_SOL_DELAY, &pico_ipv6_nd_dad, &new->address);
+    new->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &new->address);
 #else
     new->istentative = 0;
 #endif
