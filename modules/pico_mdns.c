@@ -23,51 +23,56 @@
 #define PICO_MDNS_RR_TTL_TICK (1000)    /* One second */
 
 /* mDNS MTU size */
-#define PICO_MDNS_MAXBUF 1400u
+#define PICO_MDNS_MAXBUF (1400u)
 
 /* --- Cookie flags --- */
-#define PICO_MDNS_PACKET_TYPE_ANNOUNCEMENT 0x01u
-#define PICO_MDNS_PACKET_TYPE_ANSWER 0x02u
-#define PICO_MDNS_PACKET_TYPE_QUERY 0x04u
-#define PICO_MDNS_PACKET_TYPE_PROBE 0x08u
-#define PICO_MDNS_PACKET_TYPE_QUERY_ANY 0x00u
+#define PICO_MDNS_PACKET_TYPE_ANNOUNCEMENT (0x01u)
+#define PICO_MDNS_PACKET_TYPE_ANSWER (0x02u)
+#define PICO_MDNS_PACKET_TYPE_QUERY (0x04u)
+#define PICO_MDNS_PACKET_TYPE_PROBE (0x08u)
+#define PICO_MDNS_PACKET_TYPE_QUERY_ANY (0x00u)
 /* --- Cookie status ---  */
-#define PICO_MDNS_COOKIE_STATUS_ACTIVE 0xffu
-#define PICO_MDNS_COOKIE_STATUS_INACTIVE 0x00u
-#define PICO_MDNS_COOKIE_STATUS_CANCELLED 0x77u
+#define PICO_MDNS_COOKIE_STATUS_ACTIVE (0xffu)
+#define PICO_MDNS_COOKIE_STATUS_INACTIVE (0x00u)
+#define PICO_MDNS_COOKIE_STATUS_CANCELLED (0x77u)
+#define PICO_MDNS_COOKIE_TIMEOUT (10u)
+
+#define PICO_MDNS_SECTION_ANSWERS (0)
+#define PICO_MDNS_SECTION_AUTHORITIES (1)
+#define PICO_MDNS_SETCTIO_ADDITIONALS (2)
 
 /* --- Question flags --- */
-#define PICO_MDNS_QUESTION_FLAG_PROBE 0x01u
-#define PICO_MDNS_QUESTION_FLAG_NO_PROBE 0x00u
-#define PICO_MDNS_QUESTION_FLAG_UNICAST_RES 0x02u
-#define PICO_MDNS_QUESTION_FLAG_MULTICAST_RES 0x00u
+#define PICO_MDNS_QUESTION_FLAG_PROBE (0x01u)
+#define PICO_MDNS_QUESTION_FLAG_NO_PROBE (0x00u)
+#define PICO_MDNS_QUESTION_FLAG_UNICAST_RES (0x02u)
+#define PICO_MDNS_QUESTION_FLAG_MULTICAST_RES (0x00u)
 
 #define IS_QUESTION_PROBE_FLAG_SET(x) \
-(((x) & PICO_MDNS_QUESTION_FLAG_PROBE) ? 1 : 0 )
+(((x) & PICO_MDNS_QUESTION_FLAG_PROBE) ? (1) : (0) )
 #define IS_QUESTION_UNICAST_FLAG_SET(x) \
-(((x) & PICO_MDNS_QUESTION_FLAG_UNICAST_RES) ? 1 : 0 )
+(((x) & PICO_MDNS_QUESTION_FLAG_UNICAST_RES) ? (1) : (0) )
 #define IS_QUESTION_MULTICAST_FLAG_SET(x) \
-(((x) & PICO_MDNS_QUESTION_FLAG_UNICAST_RES) ? 0 : 1 )
+(((x) & PICO_MDNS_QUESTION_FLAG_UNICAST_RES) ? (0) : (1) )
 
 /* Resource Record flags */
-#define PICO_MDNS_RECORD_ADDITIONAL 0x08u
-#define PICO_MDNS_RECORD_SEND_UNICAST 0x10u
-#define PICO_MDNS_RECORD_CURRENTLY_PROBING 0x20u
-#define PICO_MDNS_RECORD_PROBED 0x40u
-#define PICO_MDNS_RECORD_CLAIMED 0x80u
+#define PICO_MDNS_RECORD_ADDITIONAL (0x08u)
+#define PICO_MDNS_RECORD_SEND_UNICAST (0x10u)
+#define PICO_MDNS_RECORD_CURRENTLY_PROBING (0x20u)
+#define PICO_MDNS_RECORD_PROBED (0x40u)
+#define PICO_MDNS_RECORD_CLAIMED (0x80u)
 
 #define IS_SHARED_RECORD(x) \
-		(((x)->flags & PICO_MDNS_RECORD_SHARED) ? 1 : 0)
+		(((x)->flags & PICO_MDNS_RECORD_SHARED) ? (1) : (0))
 #define IS_UNIQUE_RECORD(x) \
-		(((x)->flags & PICO_MDNS_RECORD_SHARED) ? 0 : 1)
+		(((x)->flags & PICO_MDNS_RECORD_SHARED) ? (0) : (1))
 #define IS_RECORD_PROBING(x) \
-		(((x)->flags & PICO_MDNS_RECORD_CURRENTLY_PROBING) ? 1 : 0)
+		(((x)->flags & PICO_MDNS_RECORD_CURRENTLY_PROBING) ? (1) : (0))
 #define IS_UNICAST_REQUESTED(x) \
-		(((x)->flags & PICO_MDNS_RECORD_SEND_UNICAST) ? 1 : 0)
+		(((x)->flags & PICO_MDNS_RECORD_SEND_UNICAST) ? (1) : (0))
 #define IS_RECORD_VERIFIED(x) \
-		(((x)->flags & PICO_MDNS_RECORD_PROBED) ? 1 : 0)
+		(((x)->flags & PICO_MDNS_RECORD_PROBED) ? (1) : (0))
 #define IS_RECORD_CLAIMED(x) \
-		(((x)->flags & PICO_MDNS_RECORD_CLAIMED) ? 1 : 0)
+		(((x)->flags & PICO_MDNS_RECORD_CLAIMED) ? (1) : (0))
 
 /* Set and clear flags */
 #define PICO_MDNS_SET_FLAG(x, b) (x = ((x) | (uint8_t)(b)))
@@ -1004,7 +1009,7 @@ pico_mdns_cookie_create( pico_dns_qtree qtree,
     cookie->count = count;
     cookie->type = type;
     cookie->status = PICO_MDNS_COOKIE_STATUS_INACTIVE;
-    cookie->timeout = 10u;
+    cookie->timeout = PICO_MDNS_COOKIE_TIMEOUT;
     cookie->send_timer = NULL;
     cookie->callback = callback;
     cookie->arg = arg;
@@ -1046,7 +1051,7 @@ pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
         cookie->status = PICO_MDNS_COOKIE_STATUS_ACTIVE;
     } else {
         pico_timer_cancel(cookie->send_timer);
-        cookie->timeout = 10u;
+        cookie->timeout = PICO_MDNS_COOKIE_TIMEOUT;
         cookie->count = PICO_MDNS_PROBE_COUNT;
         cookie->send_timer = pico_timer_add(1000, pico_mdns_send_probe_packet,
                                             cookie);
