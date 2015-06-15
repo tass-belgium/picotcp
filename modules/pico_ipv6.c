@@ -1334,7 +1334,6 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
         return;
 
     if (pico_device_link_state(l->dev) == 0) {
-        pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD);
         l->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &l->address);
         return;
     }
@@ -1357,7 +1356,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
         pico_ipv6_link_del(l->dev, old_address);
     }
     else {
-        if (--l->dup_detect_retrans == 0) {
+        if (l->dup_detect_retrans-- == 0) {
             dbg("IPv6: DAD verified valid address.\n");
             l->istentative = 0;
         } else {
@@ -1427,8 +1426,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->dup_detect_retrans = PICO_IPV6_DEFAULT_DAD_RETRANS;
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
-    pico_icmp6_neighbor_solicitation(dev, &address, PICO_ICMP6_ND_DAD);
-    new->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &new->address);
+    new->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &new->address);
 #else
     new->istentative = 0;
 #endif
