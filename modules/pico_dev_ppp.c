@@ -277,6 +277,50 @@ static void (*mock_ipcp_state)(struct pico_device_ppp *ppp, enum ppp_ipcp_event 
 #define PPP_TIMER_ON_AUTH       0x10
 #define PPP_TIMER_ON_IPCP       0x20
 
+/* Escape and send */
+static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int len)
+{
+    uint8_t *in_buf = (uint8_t *)buf;
+    uint8_t *out_buf = NULL;
+    int esc_char_count = 0;
+    int newlen = 0, ret = -1;
+    int i,j;
+
+    for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */ 
+    {
+        if (((in_buf[i] + 1) >> 1) == 0x3Fu)
+            esc_char_count++;
+    }
+
+    if (!esc_char_count) {
+        return ppp->serial_send(&ppp->dev, buf, len);
+    }
+
+    newlen = len + esc_char_count;
+    out_buf = PICO_ZALLOC(newlen);
+    if(!out_buf)
+        return -1;
+    /* Start byte. */
+    out_buf[0] = in_buf[0];
+    for(i = 1, j = 1; i < (len - 1); i++) {
+        if (((in_buf[i] + 1) >> 1) == 0x3Fu) {
+            out_buf[j++] = PPPF_CTRL_ESC;
+            out_buf[j++] = in_buf[i] ^ 0x20;
+        } else {
+            out_buf[j++] = in_buf[i];
+        }
+    }
+    PICO_FREE(out_buf);
+    /* Stop byte. */
+    out_buf[newlen - 1] = in_buf[len - 1];
+
+    ret = ppp->serial_send(&ppp->dev, out_buf, newlen);
+    if (ret == newlen)
+        return len;
+    return ret;
+
+}
+
 static void lcp_timer_start(struct pico_device_ppp *ppp, uint8_t timer_type)
 {
     uint8_t count = 0;
@@ -415,8 +459,7 @@ static int pico_ppp_ctl_send(struct pico_device *dev, uint16_t code, uint8_t *pk
     pkt[len - 3] = (uint8_t)(fcs & 0xFF);
     pkt[len - 2] = (uint8_t)((fcs & 0xFF00) >> 8);
     pkt[len - 1] = PPPF_FLAG_SEQ;
-
-    ppp->serial_send(&ppp->dev, pkt, (int)len);
+    ppp_serial_send_escape(ppp, pkt, (int)len);
     return (int)len;
 }
 
@@ -455,7 +498,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFF);
     pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00) >> 8);
     pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
-    ppp->serial_send(&ppp->dev, pico_ppp_data_buffer, i);
+    ppp_serial_send_escape(ppp, pico_ppp_data_buffer, i);
     return len;
 }
 

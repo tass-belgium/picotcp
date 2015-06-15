@@ -68,7 +68,52 @@ static int unit_serial_send(struct pico_device *dev, const void *buf, int len)
            serial_buffer[0], serial_buffer[1], serial_buffer[2],
            serial_buffer[3], serial_buffer[4], serial_buffer[5],
            serial_buffer[6], serial_buffer[7]);
+    return len;
 }
+
+const uint8_t test_string[5][10] = {
+    { 0x7e, 'a', 'b', 'c', 'd', 0x7e },
+    { 0x7e, 'a', 0x7e, 'c', 'd', 0x7e },
+    { 0x7e, 'a', 'b', 0x7d, 'd', 0x7e },
+    { 0x7e, 0x7d, 'b', 'c', 0x7e, 0x7e },
+    { 0x7e, 0xed, 0x7d, 0xff, 0x7d, 0x3F, 'c', 0x20, 0x7e }
+};
+
+const uint8_t escape_string[5][12] = {
+    { 0x7e, 'a', 'b', 'c', 'd', 0x7e },
+    { 0x7e, 'a', 0x7d, 0x5e, 'c', 'd', 0x7e },
+    { 0x7e, 'a', 'b', 0x7d, 0x5d, 'd', 0x7e },
+    { 0x7e, 0x7d, 0x5d, 'b', 'c', 0x7d, 0x5e, 0x7e },
+    { 0x7e, 0xed, 0x7d, 0x5d, 0xff, 0x7d, 0x5d, 0x3F, 'c', 0x20, 0x7e }
+};
+
+const int test_string_len[] = { 6, 6, 6, 6, 9 };
+const int escape_string_len[] = { 6, 7, 7, 8, 11 };
+
+START_TEST(tc_ppp_serial_send_escape)
+{
+    int i;
+    memset(&ppp, 0, sizeof(ppp));
+    ppp.serial_send = unit_serial_send;
+
+    for (i = 0; i < 5; i++) {
+        called_serial_send = 0;
+        fail_if(ppp_serial_send_escape(&ppp, test_string[i], test_string_len[i]) != test_string_len[i]);
+        fail_if(called_serial_send != 1);
+        fail_if(serial_out_len != escape_string_len[i]);
+        printf("  test string    ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           test_string[i][0], test_string[i][1], test_string[i][2],
+           test_string[i][3], test_string[i][4], test_string[i][5],
+           test_string[i][6], test_string[i][7]);
+        printf("  escaped string ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           escape_string[i][0], escape_string[i][1], escape_string[i][2],
+           escape_string[i][3], escape_string[i][4], escape_string[i][5],
+           escape_string[i][6], escape_string[i][7]);
+        
+        fail_if(memcmp(escape_string[i], serial_buffer, serial_out_len) != 0); 
+    }
+}
+END_TEST
 
 
 START_TEST(tc_lcp_timer_start)
@@ -1077,6 +1122,7 @@ Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
+    TCase *TCase_ppp_serial_send_escape = tcase_create("Unit test for ppp_serial_send_escape");
     TCase *TCase_lcp_timer_start = tcase_create("Unit test for lcp_timer_start");
     TCase *TCase_lcp_zero_restart_count = tcase_create("Unit test for lcp_zero_restart_count");
     TCase *TCase_lcp_timer_stop = tcase_create("Unit test for lcp_timer_stop");
@@ -1146,6 +1192,8 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ppp_tick = tcase_create("Unit test for pico_ppp_tick");
 
 
+    tcase_add_test(TCase_ppp_serial_send_escape, tc_ppp_serial_send_escape);
+    suite_add_tcase(s, TCase_ppp_serial_send_escape);
     tcase_add_test(TCase_lcp_timer_start, tc_lcp_timer_start);
     suite_add_tcase(s, TCase_lcp_timer_start);
     tcase_add_test(TCase_lcp_zero_restart_count, tc_lcp_zero_restart_count);
