@@ -28,8 +28,8 @@
 
 #define PICO_IP_FRAG_TIMEOUT          60000
 #define PICO_IP_LAST_FRAG_RECV        1 //TODO: check if this return value is what picoTCP expects
-#define PICO_IP_FIRST_FRAG_RECV       1
-#define PICO_IP_FIRST_FRAG_NOT_RECV   2
+#define PICO_IP_FIRST_FRAG_RECV       2
+#define PICO_IP_FIRST_FRAG_NOT_RECV   3
 
 #define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
@@ -371,11 +371,12 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
         if(!fragment)  // this is a new frag_id
         {
-            frag_dbg("[LUM:%s:%d] frag_id:0x%X not found, allocate a new fragment.",__FILE__,__LINE__, key.frag_id);
+            frag_dbg("[LUM:%s:%d] frag_id:0x%X not found, allocate a new fragment.\n",__FILE__,__LINE__, key.frag_id);
             // allocate fragment tree
-            fragment = pico_fragment_alloc( PICO_SIZE_IP4HDR, /*2**/PICO_IPV4_MTU + 64 /*max length of options*/);
+            fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR, PICO_IPV4_MTU + 64 /*max length of options*/);
             if(fragment)
             {
+                /* TODO: options are not being copied properly (no support yet in picoTCP so it doesn't matter now) */
                 if(IP4FRAG_OFF(f->frag) == 0)
                 {
                     // if first frame: TODO copy options  see RFC815
@@ -389,11 +390,11 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
                 //TODO: copy ext + clear frag options
                 if(fragment->frame->net_hdr &&  f->net_hdr)
                 {
-                    memcpy(fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                    memcpy(fragment->frame->net_hdr, f->net_hdr, f->net_len);
                 }
                 else
                 {
-                    frag_dbg("[%s:%d] fragment->frame->net_hdr:%p f->net_hdr:%p PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR:%d);",__FILE__,__LINE__,fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
+                    frag_dbg("[%s:%d] fragment->frame->net_hdr:%p f->net_hdr:%p PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR:%d);\n",__FILE__,__LINE__,fragment->frame->net_hdr,f->net_hdr,PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR);
                 }
 
                 fragment->frag_id = key.frag_id;
@@ -415,7 +416,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         }
         if(fragment)
         {
-            frag_dbg("[LUM:%s:%d] frag_id:0x%X found.",__FILE__,__LINE__, key.frag_id);
+            frag_dbg("[LUM:%s:%d] frag_id:0x%X found.\n",__FILE__,__LINE__, key.frag_id);
             //  hdr is stored in network order !!! oh crap
             uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
             uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
@@ -423,13 +424,14 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
 
 	        if(!more &&  (offset == 0))
 	        {
-                frag_dbg("[LUM:%s:%d] Not a fragmented packet, carry on.",__FILE__,__LINE__);
+                frag_dbg("[LUM:%s:%d] Not a fragmented packet, carry on.\n",__FILE__,__LINE__);
                 // no need for reassemble packet
 				retval = 1;    // process orig packet
+                pico_fragment_free(fragment);
 			}
 			else
 			{
-                frag_dbg("[LUM:%s:%d] recv a fragmented packet, handle it.",__FILE__,__LINE__);
+                frag_dbg("[LUM:%s:%d] recv a fragmented packet, handle it.\n",__FILE__,__LINE__);
 				retval = pico_fragment_arrived(fragment, f, offset, more);
 
 				if (retval == PICO_IP_LAST_FRAG_RECV)
@@ -528,7 +530,7 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsiz
 #endif
             frame->net_hdr = frame->buffer + PICO_SIZE_ETHHDR;
             frame->net_len = iphdrsize;
-frag_dbg("[LUM:%s:%d] frame->net_len:%d  \n",__FILE__,__LINE__, frame->net_len);
+            frag_dbg("[LUM:%s:%d] frame->net_len:%d  \n",__FILE__,__LINE__, frame->net_len);
 
             frame->transport_hdr = frame->net_hdr + iphdrsize;
             frame->transport_len = bufsize;
