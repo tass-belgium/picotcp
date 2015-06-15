@@ -27,11 +27,11 @@
 /*** macros ***/
 
 #define PICO_IP_FRAG_TIMEOUT          60000
-#define PICO_IP_LAST_FRAG_RECV        1 //TODO: check if this return value is what picoTCP expects
+#define PICO_IP_LAST_FRAG_RECV        1
 #define PICO_IP_FIRST_FRAG_RECV       2
 #define PICO_IP_FIRST_FRAG_NOT_RECV   3
 
-#define IPFRAG_DEBUG
+//#define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
 #  define frag_dbg  printf
 #else
@@ -350,6 +350,19 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         pico_fragment_t key;
         pico_fragment_t *fragment = NULL;
 
+        //  hdr is stored in network order !!! oh crap
+        uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
+        uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
+
+
+        if(!more &&  (offset == 0))
+        {
+            frag_dbg("[LUM:%s:%d] Not a fragmented packet, carry on.\n",__FILE__,__LINE__);
+            // no need for reassemble packet
+            return PICO_IP_LAST_FRAG_RECV;    // process orig packet (return 1)
+        }
+
+
         memset(&key,0,sizeof(pico_fragment_t));
         key.frag_id = short_be(IP4FRAG_ID(hdr));
         key.proto = proto;
@@ -417,50 +430,31 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         if(fragment)
         {
             frag_dbg("[LUM:%s:%d] frag_id:0x%X found.\n",__FILE__,__LINE__, key.frag_id);
-            //  hdr is stored in network order !!! oh crap
-            uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
-            uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
+            frag_dbg("[LUM:%s:%d] recv a fragmented packet, handle it.\n",__FILE__,__LINE__);
+            retval = pico_fragment_arrived(fragment, f, offset, more);
 
+            if (retval == PICO_IP_LAST_FRAG_RECV)
+            {
+                //This was the last packet
+                //Calculate crc of final reassambled packet
 
-	        if(!more &&  (offset == 0))
-	        {
-                frag_dbg("[LUM:%s:%d] Not a fragmented packet, carry on.\n",__FILE__,__LINE__);
-                // no need for reassemble packet
-				retval = 1;    // process orig packet
+                struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) fragment->frame->net_hdr;
+
+                if(net_hdr)
+                {
+                    net_hdr->crc = 0;
+                    net_hdr->crc = short_be(pico_checksum(net_hdr, fragment->frame->net_len));
+                }
+                else
+                {
+                    frag_dbg("[LUM:%s:%d] net_hdr NULL \n",__FILE__,__LINE__);
+                }
+                frag_dbg("[LUM:%s:%d] send the reassembled packet upstream \n",__FILE__,__LINE__);
+
+                // all done with this fragment: send it up and free it
+                pico_transport_receive(fragment->frame, fragment->proto);
+                fragment->frame = NULL;
                 pico_fragment_free(fragment);
-			}
-			else
-			{
-                frag_dbg("[LUM:%s:%d] recv a fragmented packet, handle it.\n",__FILE__,__LINE__);
-				retval = pico_fragment_arrived(fragment, f, offset, more);
-
-				if (retval == PICO_IP_LAST_FRAG_RECV)
-				{
-					//This was the last packet
-					//Calculate crc of final reassambled packet
-
-					struct pico_ipv4_hdr *net_hdr = (struct pico_ipv4_hdr *) fragment->frame->net_hdr;
-
-					if(net_hdr)
-					{
-						net_hdr->crc = 0;
-						net_hdr->crc = short_be(pico_checksum(net_hdr, fragment->frame->net_len));
-					}
-					else
-					{
-						frag_dbg("[LUM:%s:%d] net_hdr NULL \n",__FILE__,__LINE__);
-					}
-					frag_dbg("[LUM:%s:%d] send the reassembled packet upstream \n",__FILE__,__LINE__);
-
-					// all done with this fragment: send it up and free it
-					pico_transport_receive(fragment->frame, fragment->proto);
-					fragment->frame = NULL;
-					pico_fragment_free(fragment);
-				}
-				else
-				{
-						//TODO
-				}
             }
         }
     }
