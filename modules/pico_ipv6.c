@@ -1317,6 +1317,7 @@ void pico_ipv6_router_down(struct pico_ip6 *address)
     }
 }
 
+#ifndef UNIT_TEST
 static void pico_ipv6_nd_dad(pico_time now, void *arg)
 {
     struct pico_ip6 *address = (struct pico_ip6 *)arg;
@@ -1353,6 +1354,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
         l->istentative = 0;
     }
 }
+#endif
 
 
 struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
