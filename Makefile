@@ -64,6 +64,7 @@ CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-stateme
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
+CFLAGS+= -Wmissing-prototypes
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
@@ -286,7 +287,7 @@ test: posix
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
-	@gcc -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
+	@gcc -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS) -Itest/examples
 	@echo -e "\t[LD] $@"
 	@$(CC) -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test

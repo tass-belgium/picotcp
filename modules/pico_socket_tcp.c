@@ -3,6 +3,7 @@
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
 #include "pico_tcp.h"
+#include "pico_socket_tcp.h"
 
 
 static int sockopt_validate_args(struct pico_socket *s,  void *value)
