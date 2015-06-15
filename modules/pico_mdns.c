@@ -693,7 +693,9 @@ pico_mdns_generate_new_records( pico_mdns_rtree *conflict_records,
 				mdns_dbg("Could not create new non-confliction record!\n");
 				return new_records;
 			}
-			new_record->flags &= 0x1F;
+			new_record->flags &= (uint8_t)(~(PICO_MDNS_RECORD_PROBED |
+								   PICO_MDNS_RECORD_SHARED |
+								   PICO_MDNS_RECORD_CURRENTLY_PROBING));
 
 			/* Add the record to the new tree */
 			pico_tree_insert(&new_records, new_record);
