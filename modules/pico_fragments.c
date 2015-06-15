@@ -31,7 +31,7 @@
 #define PICO_IP_FIRST_FRAG_RECV       2
 #define PICO_IP_FIRST_FRAG_NOT_RECV   3
 
-//#define IPFRAG_DEBUG
+#define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
 #  define frag_dbg  printf
 #else
@@ -354,6 +354,19 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
         uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
 
+        struct pico_ipv4_hdr *ip4hdr=(struct pico_ipv4_hdr*)f->net_hdr;
+        union pico_address src = {0};
+        union pico_address dst = {0};
+
+        src.ip4 = ip4hdr->src;
+        dst.ip4 = ip4hdr->dst;
+
+        memset(&key,0,sizeof(pico_fragment_t));
+
+        key.src = src; //src ip4
+        key.dst = dst;   // dst ip4
+        key.frag_id = short_be(IP4FRAG_ID(hdr));
+        key.proto = proto;
 
         if(!more &&  (offset == 0))
         {
@@ -361,11 +374,6 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
             // no need for reassemble packet
             return PICO_IP_LAST_FRAG_RECV;    // process orig packet (return 1)
         }
-
-
-        memset(&key,0,sizeof(pico_fragment_t));
-        key.frag_id = short_be(IP4FRAG_ID(hdr));
-        key.proto = proto;
 
         fragment = pico_tree_findKey( &pico_fragments,  &key);
 
@@ -781,8 +789,8 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 
             // Update total buffer len
             // TODO: not sure about this
-            fragment->frame->buffer_len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is not necessary
-            fragment->frame->len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is necessary
+            /* fragment->frame->buffer_len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is not necessary */
+            /* fragment->frame->len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is necessary */
 
         }
 
@@ -811,12 +819,14 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 
             // frame->buffer is too small
             // allocate new frame and copy all
-            uint32_t alloc_len= frame->buffer_len + fragment->frame->buffer_len;
+            uint32_t alloc_len= frame->transport_len + fragment->frame->buffer_len;
             uint8_t *old_buffer = fragment->frame->buffer;
             uint8_t *new_buffer = PICO_ZALLOC(alloc_len);
 
             frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,old_buffer,new_buffer );
-
+            frag_dbg("[LUM:%s:%d] frame->buffer original size: %d \n",__FILE__,__LINE__,fragment->frame->buffer_len);
+            frag_dbg("[LUM:%s:%d] frame->buffer new size: %d \n",__FILE__,__LINE__, alloc_len);
+            frag_dbg("[LUM:%s:%d] recv frame size: %d \n",__FILE__,__LINE__, frame->buffer_len);
             // copy hdrs + options + data
             if(new_buffer)
             {
@@ -835,6 +845,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 fragment->frame->start += addr_diff;
                 fragment->frame->payload += addr_diff;
                 fragment->frame->next = NULL;
+
+                // Update total buffer len
+                // TODO: not sure about this
+                fragment->frame->buffer_len = fragment->frame->buffer_len + frame->transport_len;
+                fragment->frame->len = fragment->frame->buffer_len + frame->transport_len;
 
                 PICO_FREE(old_buffer);
                 new_buffer=NULL;
