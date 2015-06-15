@@ -1333,6 +1333,12 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
     if (!l)
         return;
 
+    if (pico_device_link_state(l->dev) == 0) {
+        pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD);
+        l->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &l->address);
+        return;
+    }
+
     if (l->isduplicate) {
         dbg("IPv6: duplicate address.\n");
         old_address = *address;
