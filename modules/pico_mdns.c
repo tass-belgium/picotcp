@@ -2311,8 +2311,8 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
 		pico_mdns_record_delete((void **)&meta_record);
 		return -1;
 	}
-	ptr_record->flags |= 0xC0;
-	meta_record->flags |= 0xC0;
+	ptr_record->flags |= (PICO_MDNS_RECORD_PROBED | PICO_MDNS_RECORD_CLAIMED);
+	meta_record->flags |= (PICO_MDNS_RECORD_PROBED | PICO_MDNS_RECORD_CLAIMED);
 
 	/* Add them to the answer tree */
 	pico_rtree_add_copy(&MyRecords, meta_record);
