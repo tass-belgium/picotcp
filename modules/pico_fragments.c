@@ -762,38 +762,6 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             fragment->frame->dev = frame->dev;
 
         }
-        if(!more)    /*last fragment of packet arrived*/
-        {
-            // retrieve the size of the reassembled packet
-            pico_hole_t* hole = pico_tree_last(&fragment->holes);
-            uint16_t reassambled_payload_len = offset + frame->transport_len;
-
-            if(hole /*&& IS_LEAF(hole)*/)
-            {
-                hole->last = reassambled_payload_len;
-                frag_dbg("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last);
-                // adjust transport len
-                frag_dbg("[LUM:%s:%d] before adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
-                fragment->frame->transport_len = offset + frame->transport_len;
-                frag_dbg("[LUM:%s:%d] after adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
-
-                if(hole->first == hole->last)
-                {
-                    pico_tree_delete(&fragment->holes,hole);    // all done!
-                }
-            }
-
-            // Update net_len in hdr
-            fragment->frame->net_hdr[4] = (reassambled_payload_len >> 8) & 0xFF;
-            fragment->frame->net_hdr[5] = (reassambled_payload_len) & 0xFF;
-
-            // Update total buffer len
-            // TODO: not sure about this
-            /* fragment->frame->buffer_len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is not necessary */
-            /* fragment->frame->len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is necessary */
-
-        }
-
 
         // copy the received frame into the reassembled packet
         frag_dbg("[LUM:%s:%d] offset:%d frame->transport_len:%d fragment->frame->buffer_len:%d\n",__FILE__,__LINE__,offset,frame->transport_len,fragment->frame->buffer_len);
@@ -866,6 +834,42 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 // notify icmp
             }
         }
+
+
+
+        if(!more)    /*last fragment of packet arrived*/
+        {
+            // retrieve the size of the reassembled packet
+            pico_hole_t* hole = pico_tree_last(&fragment->holes);
+            uint16_t reassambled_payload_len = offset + frame->transport_len;
+
+            if(hole /*&& IS_LEAF(hole)*/)
+            {
+                hole->last = reassambled_payload_len;
+                frag_dbg("[LUM:%s:%d] reassembled packet size:%d \n",__FILE__,__LINE__,hole->last);
+                // adjust transport len
+                frag_dbg("[LUM:%s:%d] before adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
+                fragment->frame->transport_len = offset + frame->transport_len;
+                frag_dbg("[LUM:%s:%d] after adjusted transportlen:%d \n",__FILE__,__LINE__,fragment->frame->transport_len);
+
+                if(hole->first == hole->last)
+                {
+                    pico_tree_delete(&fragment->holes,hole);    // all done!
+                }
+            }
+
+            // Update net_len in hdr
+            fragment->frame->net_hdr[4] = (reassambled_payload_len >> 8) & 0xFF;
+            fragment->frame->net_hdr[5] = (reassambled_payload_len) & 0xFF;
+
+            // Update total buffer len
+            // TODO: not sure about this
+            fragment->frame->buffer_len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is not necessary
+            fragment->frame->len = reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR; // This one is necessary
+
+        }
+
+
     }
     // do the administration of the missing holes
     if(fragment && (full=fragment->frame))
