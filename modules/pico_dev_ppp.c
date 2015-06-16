@@ -62,7 +62,7 @@
 #define CHAP_RESPONSE   2
 #define CHAP_SUCCESS    3
 #define CHAP_FAILURE    4
-#define CHALLENGE_SIZE(ppp, ch) (uint32_t)((1 + strlen(ppp->password) + short_be((ch)->len)))
+#define CHALLENGE_SIZE(ppp, ch) ((size_t)((1 + strlen(ppp->password) + short_be((ch)->len))))
 
 #define PICO_PPP_DEFAULT_TIMER (3) /* seconds */
 #define PICO_PPP_DEFAULT_MAX_TERMINATE (2)

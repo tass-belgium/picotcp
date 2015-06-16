@@ -105,14 +105,18 @@ START_TEST(tc_ppp_serial_send_escape)
         fail_if(ppp_serial_send_escape(&ppp, test_string[i], test_string_len[i]) != test_string_len[i]);
         fail_if(called_serial_send != 1);
         fail_if(serial_out_len != escape_string_len[i]);
-        printf("  test string    ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+        printf("  test string     ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
                test_string[i][0], test_string[i][1], test_string[i][2],
                test_string[i][3], test_string[i][4], test_string[i][5],
                test_string[i][6], test_string[i][7]);
-        printf("  escaped string ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+        printf("  expected string ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
                escape_string[i][0], escape_string[i][1], escape_string[i][2],
                escape_string[i][3], escape_string[i][4], escape_string[i][5],
                escape_string[i][6], escape_string[i][7]);
+        printf("  received string ---- %02x %02x %02x %02x %02x %02x %02x %02x\n",
+               serial_buffer[0], serial_buffer[1], serial_buffer[2],
+               serial_buffer[3], serial_buffer[4], serial_buffer[5],
+               serial_buffer[6], serial_buffer[7]);
 
         fail_if(memcmp(escape_string[i], serial_buffer, serial_out_len) != 0);
     }
