@@ -75,7 +75,7 @@ static int hole_compare(void *a, void *b);          /*pico_hole_t*/
 static int first_fragment_received(struct pico_tree *holes);
 
 // alloc and free of fragment tree
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uin32_t bufsize);
+static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize);
 static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment);
 
 static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag );
