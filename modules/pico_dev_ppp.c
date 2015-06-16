@@ -310,11 +310,13 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
             out_buf[j++] = in_buf[i];
         }
     }
-    PICO_FREE(out_buf);
     /* Stop byte. */
     out_buf[newlen - 1] = in_buf[len - 1];
 
     ret = ppp->serial_send(&ppp->dev, out_buf, newlen);
+
+    PICO_FREE(out_buf);
+
     if (ret == newlen)
         return len;
 
