@@ -1967,7 +1967,7 @@ pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
 										 uint8_t type )
 {
 	struct pico_mdns_record mdns_answer = {.record = NULL, .current_ttl = 0,
-										   .flags = NULL, .claim_id = 0};
+										   .flags = 0, .claim_id = 0};
 	struct pico_dns_record answer;
 	char *orname = NULL;
 	uint16_t i = 0;

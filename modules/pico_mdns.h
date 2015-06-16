@@ -14,7 +14,7 @@
 /* ********************************* CONFIG ***********************************/
 #define PICO_MDNS_PROBE_UNICAST 1       /* Probe queries as QU-questions      */
 #define PICO_MDNS_CONTINUOUS_REFRESH 0  /* Continuously update cache          */
-#define PICO_MDNS_ALLOW_CACHING 0       /* Enable caching on this host		  */
+#define PICO_MDNS_ALLOW_CACHING 1       /* Enable caching on this host		  */
 #define PICO_MDNS_DEFAULT_TTL 120       /* Default TTL of mDNS records        */
 #define PICO_MDNS_SERVICE_TTL 120       /* Default TTL of SRV/TXT/PTR/NSEC    */
 #define PICO_MDNS_PROBE_COUNT 4         /* Amount of probes to send           */

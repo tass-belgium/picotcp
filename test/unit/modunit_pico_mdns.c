@@ -894,46 +894,6 @@ START_TEST(tc_mdns_record_am_i_lexi_later) /* MARK: mdns_record_am_i_lexi_later 
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-START_TEST(tc_mdns_record_create_from_dns) /* MARK: mdns_record_create_from_dns */
-{
-    struct pico_mdns_record *record = NULL;
-    struct pico_dns_record *a = NULL;
-    const char *url = "picotcp.com";
-    uint8_t rdata[4] = {
-        10, 10, 0, 1
-    };
-    uint16_t len = 0;
-
-    printf("*********************** starting %s * \n", __func__);
-    a = pico_dns_record_create (url,
-                                (void *)rdata, 4,
-                                &len,
-                                PICO_DNS_TYPE_A,
-                                PICO_DNS_CLASS_IN,
-                                120);
-    fail_if(!a, "mdns_dns_record_create returned NULL!\n");
-
-    /* Try to create an mDNS record from a DNS record */
-    record = pico_mdns_record_create_from_dns(a);
-    fail_if(!record, "mdns_record_create_from_dns returned NULL!\n");
-    fail_unless(strcmp(record->record->rname, "\x7picotcp\x3com"),
-                "mdns_record_create_from_dns failed!\n");
-    fail_unless(record->record->rsuffix->rtype == short_be(PICO_DNS_TYPE_A),
-                "mdns_record_create_from_dns failed setting rtype!\n");
-    fail_unless(0x0001 == short_be(record->record->rsuffix->rclass),
-                "mdns_record_create_from_dns failed setting rclass!\n");
-    fail_unless(record->record->rsuffix->rttl == long_be(120),
-                "mdns_record_create_from_dns failed setting rttl!\n");
-    fail_unless(record->record->rsuffix->rdlength == short_be(4),
-                "mdns_record_create_from_dns failed setting rdlenth!\n");
-    fail_unless(memcmp(record->record->rdata, rdata, 4) == 0,
-                "mdns_record_create_from_dns failed setting rdata!\n");
-
-    pico_mdns_record_delete((void **)&record);
-
-    printf("*********************** ending %s * \n", __func__);
-}
-END_TEST
 START_TEST(tc_mdns_record_copy_with_new_name) /* MARK: copy_with_new_name */
 {
     struct pico_mdns_record *record = NULL, *copy = NULL;
@@ -1779,7 +1739,6 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
     int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
-
     /* Create an A record with URL */
     record = pico_mdns_record_create(url, &rdata, 4, PICO_DNS_TYPE_A, 80,
                                      PICO_MDNS_RECORD_UNIQUE);
@@ -1800,7 +1759,6 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
 
     ret = pico_mdns_getrecord("bar.local", PICO_DNS_TYPE_A, callback, NULL);
     fail_unless(0 == ret, "mdns_getrecord failed!\n");
-
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
@@ -1997,7 +1955,6 @@ Suite *pico_suite(void)
     /* Record functions */
     TCase *TCase_mdns_record_resolve_conflict = tcase_create("Unit test for mdns_record_resolve_conflict");
     TCase *TCase_mdns_record_am_i_lexi_later = tcase_create("Unit test for mdns_record_am_i_lexi_later");
-    TCase *TCase_mdns_record_create_from_dns = tcase_create("Unit test for mdns_recod_create_from_dns");
     TCase *TCase_mdns_record_copy_with_new_name = tcase_create("Unit test for mdns_record_copy");
     TCase *TCase_mdns_record_copy = tcase_create("Unit test for mdns_record_copy");
     TCase *TCase_mdns_record_create = tcase_create("Unit test for mdns_record_create");
@@ -2093,8 +2050,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_mdns_record_resolve_conflict);
     tcase_add_test(TCase_mdns_record_am_i_lexi_later, tc_mdns_record_am_i_lexi_later);
     suite_add_tcase(s, TCase_mdns_record_am_i_lexi_later);
-    tcase_add_test(TCase_mdns_record_create_from_dns, tc_mdns_record_create_from_dns);
-    suite_add_tcase(s, TCase_mdns_record_create_from_dns);
     tcase_add_test(TCase_mdns_record_copy_with_new_name, tc_mdns_record_copy_with_new_name);
     suite_add_tcase(s, TCase_mdns_record_copy_with_new_name);
     tcase_add_test(TCase_mdns_record_copy, tc_mdns_record_copy);
