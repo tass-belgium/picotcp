@@ -75,7 +75,7 @@ static int hole_compare(void *a, void *b);          /*pico_hole_t*/
 static int first_fragment_received(struct pico_tree *holes);
 
 // alloc and free of fragment tree
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsize);
+static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize);
 static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment);
 
 static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag );
@@ -238,9 +238,12 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 
     if(exthdr && f)
     {
-		struct pico_ipv6_hdr *ip6hdr=(struct pico_ipv6_hdr*)f->net_hdr;
-		union pico_address src = {0};
-        union pico_address dst = {0};
+        struct pico_ipv6_hdr *ip6hdr=(struct pico_ipv6_hdr*)f->net_hdr;
+        /* Double braces to get rid of (gcc) compiler warning
+         * is a bug in gcc: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119
+         */
+        union pico_address src = { {0} };
+        union pico_address dst = { {0} };
 
         // does the fragment already has its fragment tree?
         pico_fragment_t key;
@@ -355,8 +358,11 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
         uint16_t more   = IP4FRAG_MORE(short_be(hdr->frag));
 
         struct pico_ipv4_hdr *ip4hdr=(struct pico_ipv4_hdr*)f->net_hdr;
-        union pico_address src = {0};
-        union pico_address dst = {0};
+        /* Double braces to get rid of (gcc) compiler warning
+         * is a bug in gcc: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=53119
+         */
+        union pico_address src = { {0} };
+        union pico_address dst = { {0} };
 
         src.ip4 = ip4hdr->src;
         dst.ip4 = ip4hdr->dst;
@@ -512,7 +518,7 @@ static int fragments_compare(void *a, void *b)
 
 
 
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsize )  // size = exthdr + payload (MTU)
+static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize )  // size = exthdr + payload (MTU)
 {
     pico_fragment_t* fragment = PICO_ZALLOC(sizeof(pico_fragment_t) );
 
@@ -530,7 +536,7 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsiz
             frag_dbg("[LUM:%s:%d] frame->net_len:%d  \n",__FILE__,__LINE__, frame->net_len);
 
             frame->transport_hdr = frame->net_hdr + iphdrsize;
-            frame->transport_len = bufsize;
+            frame->transport_len = 0;
 
             frame->datalink_hdr = frame->buffer;
 
