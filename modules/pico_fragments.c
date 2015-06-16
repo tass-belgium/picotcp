@@ -75,7 +75,7 @@ static int hole_compare(void *a, void *b);          /*pico_hole_t*/
 static int first_fragment_received(struct pico_tree *holes);
 
 // alloc and free of fragment tree
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize);
+static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uin32_t bufsize);
 static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment);
 
 static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag );
@@ -179,32 +179,7 @@ static uint16_t copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame*
 			case PICO_PROTO_TCP:
 			case PICO_PROTO_UDP:
 			case PICO_PROTO_ICMP6:
-			case PICO_ICMP6_ECHO_REQUEST:
-			/*
-			case PICO_ICMP6_ECHO_REQUEST:
-			case PICO_ICMP6_DEST_UNREACH:
-			case PICO_ICMP6_PKT_TOO_BIG:
-			case PICO_ICMP6_ECHO_REPLY:
-			case PICO_ICMP6_ROUTER_SOL:
-			case PICO_ICMP6_ROUTER_ADV:
-			case PICO_ICMP6_NEIGH_SOL:
-			case PICO_ICMP6_NEIGH_ADV:
-			case PICO_ICMP6_REDIRECT:
-			*/
-	/*
-	#define PICO_ICMP6_PKT_TOO_BIG         2
-	#define PICO_ICMP6_TIME_EXCEEDED       3
-	#define PICO_ICMP6_PARAM_PROBLEM       4
-
-	#define PICO_ICMP6_ECHO_REPLY          129
-	#define PICO_ICMP6_ROUTER_SOL          133
-	#define PICO_ICMP6_ROUTER_ADV          134
-	#define PICO_ICMP6_NEIGH_SOL           135
-	#define PICO_ICMP6_NEIGH_ADV           136
-	#define PICO_ICMP6_REDIRECT            137
-	*/
-
-
+            case PICO_ICMP6_ECHO_REQUEST:
 				*pdstnxthdr = nxthdr;
                 frag_dbg("[LUM:%s:%d] offset for pdstnxthdr:%d\n", __FILE__,__LINE__, (uint32_t)(pdstnxthdr - (uint8_t*)dsthdr));
 
@@ -245,7 +220,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         union pico_address src = { {0} };
         union pico_address dst = { {0} };
 
-        // does the fragment already has its fragment tree?
+        // does the fragment already have its fragment tree?
         pico_fragment_t key;
         pico_fragment_t *fragment = NULL;
 
@@ -263,23 +238,21 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
         if(!fragment)  // this is a new frag_id
         {
             // allocate fragment tree
-            /* fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, 2*PICO_IPV6_MIN_MTU + 64 /\*max lenght of options RFC815*\/); */
             fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR, f->buffer_len);
 
 			frag_dbg("[LUM:%s:%d] frag_id not found in fragment tree. frag_id:0x%X \n",__FILE__,__LINE__,IP6FRAG_ID(exthdr));
 
             if(fragment)
             {
+                /* TODO:  options are not being handled now */
 
                 if(IP6FRAG_OFF(f->frag) == 0)  // offset is 0
                 {
                     // if first frame: copy options  see RFC815
-                    //fragment->start_payload = PICO_SIZE_IP6HDR;
                 }
                 else
                 {
                     //fragment is not the first fragment: assume no options, and add them later
-                    //fragment->start_payload = PICO_SIZE_IP6HDR;
                 }
 
                 // copy headers to reassambled package (but delete the fragment header)
@@ -315,9 +288,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 
             if (retval == PICO_IP_LAST_FRAG_RECV)
             {
-                //This was the last packet
-                //TODO: Calculate crc of final reassambled packet
-
+                // This was the last packet
                 // all done with this fragment: send it up and free it
                 pico_transport_receive(fragment->frame, fragment->proto);
                 // picoTCP still needs the fragment->frame, but we don't
@@ -403,7 +374,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
             fragment = pico_fragment_alloc( PICO_SIZE_ETHHDR + PICO_SIZE_IP4HDR, PICO_IPV4_MTU + 64 /*max length of options*/);
             if(fragment)
             {
-                /* TODO: options are not being copied properly (no support yet in picoTCP so it doesn't matter now) */
+                /* TODO: options are not being copied properly */
                 if(IP4FRAG_OFF(f->frag) == 0)
                 {
                     // if first frame: TODO copy options  see RFC815
@@ -414,7 +385,7 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
                     //fragment is not the first fragment: assume no options, and add them later
                     //fragment->start_payload = PICO_SIZE_IP4HDR;
                 }
-                //TODO: copy ext + clear frag options
+
                 if(fragment->frame->net_hdr &&  f->net_hdr)
                 {
                     memcpy(fragment->frame->net_hdr, f->net_hdr, f->net_len);
@@ -692,14 +663,12 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
                     frag_dbg("LUM[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
                     pico_icmp6_frag_expired(fragment->frame);
                 }
-
             }
             if (ip_version == PICO_IDETH_IPV4)
             {
                 //TODO: what does IPV4 expect?
             }
 
-            //TODO: is the following necessary?:
             fragment->frame = NULL;
             pico_fragment_free(fragment);
             fragment=NULL;
@@ -719,7 +688,7 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
 #define INFINITY 55555 /* just a big number <16bits*/
 
 // note: offset and more flag are located differently in ipv4(iphdr) and ipv6(exthdr)
-// offset in expressed in octets (bytes) (not the 8 byte unit used in ip)
+// offset is expressed in octets (bytes) (not the 8 byte unit used in ip)
 
 static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t offset, uint16_t more )
 {
@@ -817,7 +786,6 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 fragment->frame->next = NULL;
 
                 // Update total buffer len
-                // TODO: not sure about this
                 fragment->frame->buffer_len = fragment->frame->buffer_len + frame->transport_len;
                 fragment->frame->len = fragment->frame->buffer_len + frame->transport_len;
 
@@ -865,10 +833,8 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             fragment->frame->net_hdr[5] = (uint8_t)((reassambled_payload_len) & 0xFF);
 
             // Update total buffer len
-            // TODO: not sure about this
-            fragment->frame->buffer_len = (uint32_t)(reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR); // This one is not necessary
-            fragment->frame->len = (uint32_t)(reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR); // This one is necessary
-
+            fragment->frame->buffer_len = (uint32_t)(reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR);
+            fragment->frame->len = (uint32_t)(reassambled_payload_len + fragment->frame->net_len + PICO_SIZE_ETHHDR);
         }
 
 
@@ -885,7 +851,6 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         frag_dbg("[LUM:%s:%d] frame_first:%d frame_last:%d offset:%d more:%d fragment->holes:%p \n",__FILE__,__LINE__,frame_first,frame_last,offset,more,&fragment->holes );
 
         /*RFC 815 step 1*/
-        //pico_tree_foreach_safe(index, &fragment->holes, hole)
         pico_tree_foreach_safe(idx, &fragment->holes, tmp)
         {
             hole = idx->keyValue;
@@ -950,7 +915,6 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         if(pico_tree_empty(&fragment->holes))
         {
             /* now send the reassembled packet upstream*/
-            // TODO calc crc of complete packet and send upstream
 
 #ifdef IPFRAG_DEBUG
             /*complete packet arrived: send full frame*/
