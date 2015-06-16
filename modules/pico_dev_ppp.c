@@ -1592,7 +1592,7 @@ static void auth_rsp(struct pico_device_ppp *ppp)
     uint32_t i = 0, pwdlen;
     uint8_t *recvd_challenge_len = ppp->pkt + sizeof(struct pico_chap_hdr);
     uint8_t *recvd_challenge = recvd_challenge_len + 1;
-    uint32_t challenge_size = CHALLENGE_SIZE(ppp, ch);
+    size_t challenge_size = CHALLENGE_SIZE(ppp, ch);
 
     challenge = PICO_ZALLOC(challenge_size);
 
