@@ -56,7 +56,7 @@ pico_mdns_record_cmp( void *a, void *b );
  *
  *  @param record Void-pointer to mDNS Resource Record. Can be used with pico_-
  *         tree-destroy.
- *  @return Returns 0 on succes, something else on failure.
+ *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_mdns_record_delete( void **record );
@@ -137,12 +137,12 @@ pico_mdns_claim( pico_mdns_rtree record_tree,
  *  Sets the hostname for this machine. Claims automatically a unique A record
  *  with the IPv4-address of this host. The hostname won't be set directly when
  *  this functions returns, but only if the claiming of the unique record succ-
- *  eeded. Init-callback will be called when the hostname-record is succesfully
+ *  eeded. Init-callback will be called when the hostname-record is successfully
  *  registered.
  *
  *  @param url URL to set the hostname to.
  *  @param arg Argument to pass to the init-callback.
- *  @return 0 when the host started registering the hostname-record succesfully,
+ *  @return 0 when the host started registering the hostname-record successfully,
  *			Returns something else when it didn't succeeded.
  * ****************************************************************************/
 int
@@ -170,7 +170,7 @@ pico_mdns_get_hostname( void );
  *					Passive conflicts occur, so changes in records can be
  *					tracked in this callback.
  *	@param arg		Argument to pass to the init-callback.
- *  @return 0 when the module is properly initalised and the host started regi-
+ *  @return 0 when the module is properly initialised and the host started regis-
  *			tering the hostname. Returns something else went the host failed
  *			initialising the module or registering the hostname.
  * ****************************************************************************/

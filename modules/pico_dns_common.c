@@ -163,7 +163,7 @@ pico_dns_url_get_reverse_len( const char *url,
 /* ****************************************************************************
  *  Converts a DNS name in URL format to a reverse name in DNS name format.
  *  Provides space for the DNS name as well. PICO_FREE() should be called on the
- *  returned stringbuffer that contains the reverse DNS name.
+ *  returned string buffer that contains the reverse DNS name.
  *
  *  @param url   DNS name in URL format to convert to reverse name
  *  @param proto Depending on the protocol given the ARPA-suffix will be added.
@@ -203,7 +203,7 @@ pico_dns_url_to_reverse_qname( const char *url, uint8_t proto )
                PICO_ARPA_IPV6_SUFFIX, arpalen);
     }
 #endif
-    else { /* This souldn't happen */
+    else { /* This shouldn't happen */
         PICO_FREE(reverse_qname);
         return NULL;
     }
@@ -215,10 +215,10 @@ pico_dns_url_to_reverse_qname( const char *url, uint8_t proto )
 /* ****************************************************************************
  *  Converts a DNS name in DNS name format to a name in URL format. Provides
  *  space for the name in URL format as well. PICO_FREE() should be called on
- *  the returned stringbuffer that contains the name in URL format.
+ *  the returned string buffer that contains the name in URL format.
  *
  *  @param qname DNS name in DNS name format to convert
- *  @return Returns a pointer to a string-buffer with the URL name on succes.
+ *  @return Returns a pointer to a string-buffer with the URL name on success.
  * ****************************************************************************/
 char *
 pico_dns_qname_to_url( const char *qname )
@@ -252,10 +252,10 @@ pico_dns_qname_to_url( const char *qname )
 /* ****************************************************************************
  *  Converts a DNS name in URL format to a name in DNS name format. Provides
  *  space for the DNS name as well. PICO_FREE() should be called on the returned
- *  stringbuffer that contains the DNS name.
+ *  string buffer that contains the DNS name.
  *
  *  @param url DNS name in URL format to convert
- *  @return Returns a pointer to a string-buffer with the DNS name on succes.
+ *  @return Returns a pointer to a string-buffer with the DNS name on success.
  * ****************************************************************************/
 char *
 pico_dns_url_to_qname( const char *url )
@@ -303,7 +303,7 @@ pico_dns_strlen( const char *url )
  *                be +1 byte offset in the actual buffer. Size is should be
  *                pico_dns_strlen(url) + 2.
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen )
 {
@@ -337,7 +337,7 @@ int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen )
  *
  *  @param ptr    Location to buffer with name in DNS name format
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 int pico_dns_notation_to_name( char *ptr, unsigned int maxlen )
 {
@@ -380,7 +380,7 @@ pico_dns_first_label_length( const char *url )
  *	f.e. 192.168.0.1 => 1.0.168.192
  *
  *  @param ptr
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_dns_mirror_addr( char *ip )
@@ -434,7 +434,7 @@ dns_ptr_ip6_nibble_hi( uint8_t byte )
 }
 
 /* ****************************************************************************
- *  Convert an IPv6-address in string-format to a IPv6-adress in nibble-format.
+ *  Convert an IPv6-address in string-format to a IPv6-address in nibble-format.
  *	Doesn't add a IPv6 ARPA-suffix though.
  *
  *  @param ip  IPv6-address stored as a string
@@ -486,7 +486,7 @@ static uint16_t pico_dns_question_size( void *question )
  *
  *  @param question Void-pointer to DNS Question. Can be used with pico_tree_-
  *					destroy.
- *  @return Returns 0 on succes, something else on failure.
+ *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_dns_question_delete( void **question )
@@ -588,7 +588,7 @@ pico_dns_question_fill_name( char **qname,
  *  @param qclass  DNS class of the question to be.
  *  @param reverse When this is true, a reverse resolution name will be gene-
  *				   from the URL
- *  @return Returns pointer to the created DNS Question on succes, NULL on
+ *  @return Returns pointer to the created DNS Question on success, NULL on
  *			failure.
  * ****************************************************************************/
 struct pico_dns_question *
@@ -683,7 +683,7 @@ pico_dns_record_copy_flat( struct pico_dns_record *record,
         return -1;
     }
 
-    /* Initialise the destiation pointers to the right locations */
+    /* Initialise the destination pointers to the right locations */
     dest_rname = (char *) *destination;
     dest_rsuffix = (struct pico_dns_record_suffix *)
                    (dest_rname + record->rname_length);
@@ -817,8 +817,8 @@ pico_dns_record_copy( struct pico_dns_record *record )
  *  @param rtype    DNS type of the resource record to be.
  *  @param rclass   DNS class of the resource record to be.
  *  @param rttl     DNS ttl of the resource record to be.
- *  @param rdlength DNS rdlength of the resoruce record to be.
- *  @return Returns 0 on succes, something else on failure.
+ *  @param rdlength DNS rdlength of the resource record to be.
+ *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 static int
 pico_dns_record_fill_suffix( struct pico_dns_record_suffix **suf,
@@ -1119,7 +1119,7 @@ pico_dns_record_cmp( void *ra,
  *
  *  @param tree        Pointer to a pico_tree-instance
  *  @param node_delete Helper-function for type-specific deleting.
- *  @return Returns 0 on succes, something else on failure.
+ *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_tree_destroy( struct pico_tree *tree, int (*node_delete)(void **))
@@ -1206,7 +1206,7 @@ pico_tree_count( struct pico_tree *tree )
  *
  *  @param qtree Pointer to pico_tree-instance which contains DNS questions
  *  @param name  Name of the questions you want to delete
- *  @return Returns 0 on succes, something else on failure.
+ *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_dns_qtree_del_name( struct pico_tree *qtree,
@@ -1312,7 +1312,7 @@ pico_dns_fill_packet_header( struct pico_dns_header *hdr,
  *  @param rtree Tree that contains the DNS resource records.
  *  @param dest  Pointer-pointer to location where you want to insert records.
  *				 Will point to location after current section on return.
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 static int
 pico_dns_fill_packet_rr_section( struct pico_tree *rtree,
@@ -1340,7 +1340,7 @@ pico_dns_fill_packet_rr_section( struct pico_tree *rtree,
  *  @param antree DNS records to put in Answer section
  *  @param nstree DNS records to put in Authority section
  *  @param artree DNS records to put in Additional section
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 static int
 pico_dns_fill_packet_rr_sections( pico_dns_packet *packet,
@@ -1385,7 +1385,7 @@ pico_dns_fill_packet_rr_sections( pico_dns_packet *packet,
  *
  *  @param packet Packet you want to fill
  *  @param qtree  Question tree with question you want to insert
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 static int
 pico_dns_fill_packet_question_section( pico_dns_packet *packet,
@@ -1402,7 +1402,7 @@ pico_dns_fill_packet_question_section( pico_dns_packet *packet,
         return -1;
     }
 
-    /* Initalise pointer */
+    /* Initialise pointer */
     dest_qname = (char *)((char *)packet + sizeof(struct pico_dns_header));
 
     pico_tree_foreach(node, qtree) {
@@ -1605,7 +1605,7 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 
 /* ****************************************************************************
  *  Calculates how big a packet needs be in order to store all the question &
- *  recors in the tree. Als determines the amount of questions and records.
+ *  records in the tree. Also determines the amount of questions and records.
  *
  *  @param qtree   Tree with Questions.
  *  @param antree  Tree with Answer Records.

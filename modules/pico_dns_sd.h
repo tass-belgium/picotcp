@@ -65,7 +65,7 @@ pico_dns_sd_register_service( const char *name,
  *
  *  @param type     Type to browse for.
  *  @param callback Callback to call when something particular happens.
- *  @return When the module succesfully staterd browsing the servicetype.
+ *  @return When the module successfully started browsing the servicetype.
  * ****************************************************************************/
 int
 pico_dns_sd_browse_service( const char *type,
@@ -80,7 +80,7 @@ pico_dns_sd_browse_service( const char *type,
  *  @param vector Vector to add the pair to.
  *  @param key    Key of the pair, cannot be NULL.
  *  @param value  Value of the pair, can be NULL, empty ("") or filled ("qkejq")
- *  @return Returns 0 when the pair is added succesfully, something else on
+ *  @return Returns 0 when the pair is added successfully, something else on
  *			failure.
  * ****************************************************************************/
 int

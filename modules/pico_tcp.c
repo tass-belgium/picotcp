@@ -403,8 +403,8 @@ uint16_t pico_tcp_checksum_ipv4(struct pico_frame *f)
         pseudo.src.addr = s->local_addr.ip4.addr;
         pseudo.dst.addr = s->remote_addr.ip4.addr;
     } else {
-        /* Case of incomming frame */
-        /* dbg("TCP CRC: on incomming frame\n"); */
+        /* Case of incoming frame */
+        /* dbg("TCP CRC: on incoming frame\n"); */
         pseudo.src.addr = hdr->src.addr;
         pseudo.dst.addr = hdr->dst.addr;
     }
@@ -431,7 +431,7 @@ uint16_t pico_tcp_checksum_ipv6(struct pico_frame *f)
         pseudo.src = s->local_addr.ip6;
         pseudo.dst = s->remote_addr.ip6;
     } else {
-        /* Case of incomming frame */
+        /* Case of incoming frame */
         pseudo.src = ipv6_hdr->src;
         pseudo.dst = ipv6_hdr->dst;
     }
@@ -2007,7 +2007,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
             if (rtt)
                 tcp_rtt(t, rtt);
         } else if(acked_timestamp) {
-            /* If no timestamps are there, use conservatve estimation on the una */
+            /* If no timestamps are there, use conservative estimation on the una */
             rtt = time_diff(TCP_TIME, acked_timestamp);
             if (rtt)
                 tcp_rtt(t, rtt);
@@ -2831,7 +2831,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         /* Nothing to transmit. */
     }
 
-    if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {              /* if no more packets in queue, XXX replacled !f by tcpq check */
+    if ((t->tcpq_out.frames == 0) && (s->state & PICO_SOCKET_STATE_SHUT_LOCAL)) {              /* if no more packets in queue, XXX replaced !f by tcpq check */
         if(!checkLocalClosing(&t->sock))              /* check if local closing started and send fin */
         {
             checkRemoteClosing(&t->sock);              /* check if remote closing started and send fin */

@@ -52,7 +52,7 @@ pico_dns_sd_kv_vector_strlen( kv_vector *vector )
                           strlen(iterator->key) /* Length of the key */);
         if (iterator->value)
             len = (uint16_t) (len + 1u /* '=' char */ +
-                              strlen(iterator->value) /* Lenght of value */);
+                              strlen(iterator->value) /* Length of value */);
     }
     return len;
 }
@@ -67,7 +67,7 @@ pico_dns_sd_kv_vector_strlen( kv_vector *vector )
  *  @param target_url Hostname of the service-target, in URL-format
  *  @param ttl        TTL of the SRV Record
  *  @param flags      mDNS record flags to set specifications of the record.
- *  @return Pointer to newly created record on succes, NULL on failure.
+ *  @return Pointer to newly created record on success, NULL on failure.
  * ****************************************************************************/
 static struct pico_mdns_record *
 pico_dns_sd_srv_record_create( const char *url,
@@ -128,7 +128,7 @@ pico_dns_sd_srv_record_create( const char *url,
  *  @param key_value_pairs Key-Value pair vector to generate the data from.
  *  @param ttl             TTL of the TXT record.
  *  @param flags           mDNS record flags to set specifications of the record
- *  @return Pointer to newly created record on succes, NULL on failure.
+ *  @return Pointer to newly created record on success, NULL on failure.
  * ****************************************************************************/
 static struct pico_mdns_record *
 pico_dns_sd_txt_record_create( const char *url,
@@ -299,7 +299,7 @@ pico_dns_sd_check_type_format( const char *type )
  *  Checks whether the service instance name is correctly formatted and it's
  *  label length falls between the allowed boundaries.
  *
- *  @param name Instnace name to check the format of.
+ *  @param name Instance name to check the format of.
  *  @return Returns 0 when the name is correctly formatted, something else when
  *			it's not.
  * ****************************************************************************/
@@ -318,7 +318,7 @@ pico_dns_sd_check_instance_name_format( const char *name )
  *
  *  @param name Instance Name of the service, f.e. "Printer 2nd Floor".
  *  @param type ServiceType of the service, f.e. "_http._tcp".
- *  @return Pointer to newly created SIN on succes, NULL on failure.
+ *  @return Pointer to newly created SIN on success, NULL on failure.
  * ****************************************************************************/
 static char *
 pico_dns_sd_create_service_url( const char *name,
@@ -435,7 +435,7 @@ pico_dns_sd_register_service( const char *name,
  *
  *  @param type     Type to browse for.
  *  @param callback Callback to call when something particular happens.
- *  @return When the module succesfully staterd browsing the servicetype.
+ *  @return When the module successfully started browsing the servicetype.
  * ****************************************************************************/
 int
 pico_dns_sd_browse_service( const char *type,
@@ -456,7 +456,7 @@ pico_dns_sd_browse_service( const char *type,
  *  @param vector Vector to add the pair to.
  *  @param key    Key of the pair, cannot be NULL.
  *  @param value  Value of the pair, can be NULL, empty ("") or filled ("qkejq")
- *  @return Returns 0 when the pair is added succesfully, something else on
+ *  @return Returns 0 when the pair is added successfully, something else on
  *			failure.
  * ****************************************************************************/
 int
@@ -501,7 +501,7 @@ pico_dns_sd_kv_vector_add( kv_vector *vector, char *key, char *value )
  *
  *  @param vector Vector to get KV-pair from.
  *  @param index  Index of the KV-pair.
- *  @return key_value_pair_t* on succes, NULL on failure.
+ *  @return key_value_pair_t* on success, NULL on failure.
  * ****************************************************************************/
 key_value_pair_t *
 pico_dns_sd_kv_vector_get( kv_vector *vector, uint16_t index )
@@ -521,7 +521,7 @@ pico_dns_sd_kv_vector_get( kv_vector *vector, uint16_t index )
  *  Erase all the contents of a key-value pair vector.
  *
  *  @param vector Key-Value pair vector.
- *  @return 0 on succes, something else on failure.
+ *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 int
 pico_dns_sd_kv_vector_erase( kv_vector *vector )
