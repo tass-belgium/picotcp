@@ -83,6 +83,9 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 static pico_hole_t* pico_hole_free(pico_hole_t *hole);
 static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last);
 
+static void pico_ip_frag_expired(pico_time now, void *arg);
+
+
 /*** static declarations ***/
 //static     PICO_TREE_DECLARE(ip_fragments, fragments_compare);
 static struct pico_tree    pico_fragments = { &LEAF, fragments_compare};
@@ -272,8 +275,8 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 				fragment->src.ip6 = src.ip6;
 				fragment->dst.ip6 = dst.ip6;
 
-                fragment->holes.compare = hole_compare;
-                fragment->holes.root = &LEAF;
+                /* fragment->holes.compare = hole_compare; */
+                /* fragment->holes.root = &LEAF; */
 
                 pico_tree_insert(&pico_fragments, fragment);
 
@@ -401,8 +404,8 @@ extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *
                 fragment->frame->frag = 0;  // remove frag options
                 fragment->frame->proto = proto;
                 fragment->proto = proto;
-                fragment->holes.compare = hole_compare;
-                fragment->holes.root = &LEAF;
+                /* fragment->holes.compare = hole_compare; */
+                /* fragment->holes.root = &LEAF; */
 
                 pico_tree_insert(&pico_fragments, fragment);
             }
@@ -449,6 +452,7 @@ static int fragments_compare(void *a, void *b)
     pico_fragment_t *fa = a;
     pico_fragment_t *fb = b;
     int retval=0;
+
     if(fa && fb)
     {
         if((retval = (int)(fa->frag_id - fb->frag_id)) == 0)    // fragid
@@ -481,7 +485,7 @@ static int fragments_compare(void *a, void *b)
     }
     else
     {
-        retval = 0;
+        retval = -1;
     }
     return retval;
 }
@@ -491,7 +495,14 @@ static int fragments_compare(void *a, void *b)
 
 static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize )  // size = exthdr + payload (MTU)
 {
-    pico_fragment_t* fragment = PICO_ZALLOC(sizeof(pico_fragment_t) );
+    pico_fragment_t* fragment;
+
+    if (iphdrsize <= 0 || bufsize<= 0)
+    {
+        return NULL;
+    }
+
+    fragment = PICO_ZALLOC(sizeof(pico_fragment_t) );
 
     if(fragment)
     {
@@ -516,6 +527,9 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsiz
 
 
             fragment->frame = frame;
+
+            fragment->holes.compare = hole_compare;
+            fragment->holes.root = &LEAF;
         }
     }
     return fragment;
@@ -576,7 +590,7 @@ static int hole_compare(void* a,void* b)
     }
     else
     {
-        return 0;
+        return -1;
     }
 }
 
