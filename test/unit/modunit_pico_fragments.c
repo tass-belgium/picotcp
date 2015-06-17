@@ -118,6 +118,26 @@ END_TEST
 
 START_TEST(tc_first_fragment_received)
 {
+    struct pico_tree holes;
+    pico_hole_t first_hole;
+
+    holes.root = &LEAF;
+    holes.compare = hole_compare;
+
+    /* holes is NULL */
+    fail_unless( first_fragment_received(NULL) == -1 );
+
+    /* First fragment has NOT arrived, there is a hole that starts at 0 */
+    first_hole = (pico_hole_t){ 0, 1000};
+    pico_tree_insert(&holes, &first_hole);
+
+    fail_unless( first_fragment_received(&holes) == PICO_IP_FIRST_FRAG_NOT_RECV);
+    pico_tree_delete(&holes, &first_hole);
+
+    /* First fragment has arrived, there is NO hole that starts at 0 */
+    first_hole = (pico_hole_t){ 500, 1000};
+    pico_tree_insert(&holes, &first_hole);
+    fail_unless( first_fragment_received(&holes) == PICO_IP_FIRST_FRAG_RECV);
 
 }
 END_TEST
