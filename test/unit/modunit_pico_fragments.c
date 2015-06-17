@@ -20,19 +20,65 @@
 
 START_TEST(tc_fragments_compare)
 {
-   pico_fragment_t f1={1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},NULL,0};
-   pico_fragment_t f2={2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
+   uint32_t frag_id_1 = 1;
+   uint32_t frag_id_2 = 1;
+   pico_fragment_t f1={frag_id_1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
+   pico_fragment_t f2={frag_id_2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
 
-   fail_unless( fragments_compare(&f1, &f1) == 0);
-   fail_unless( fragments_compare(&f1, &f2) < 0);
+   /* One of the fragments is NULL */
+   fail_unless( fragments_compare(&f1, NULL) == -1);
 
+   /* Fragments are the same */
+   fail_unless( fragments_compare(&f1, &f2) == 0);
+
+   /* Frag id is not the same */
+   f1.frag_id++;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+   f2.frag_id = f1.frag_id;
+
+   /* Proto is not the same */
+   f1.proto = PICO_PROTO_IPV6;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+   f1.proto = PICO_PROTO_IPV4;
+
+   /* ipv4 src/dest address */
+   fail_unless( fragments_compare(&f1, &f2) == 0);
+
+   f1.src.ip4.addr++;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+
+   f1.src = f2.src;
+   f1.dst.ip4.addr++;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+   f1.dst.ip4.addr = f2.dst.ip4.addr;
+
+   /* ipv6 src/dest address */
+   memset(f1.src.ip6.addr, 0, sizeof(f1.src.ip6));
+   memset(f2.src.ip6.addr, 0, sizeof(f1.src.ip6));
+   memset(f1.dst.ip6.addr, 0, sizeof(f1.src.ip6));
+   memset(f2.dst.ip6.addr, 0, sizeof(f1.src.ip6));
+
+   fail_unless( fragments_compare(&f1, &f2) == 0);
+
+   f1.src.ip6.addr[0] = 1;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+   memset(f1.src.ip6.addr, 0, sizeof(f1.src.ip6));
+
+   f1.dst.ip6.addr[0] = 1;
+   fail_unless( fragments_compare(&f1, &f2) > 0);
+   memset(f1.src.ip6.addr, 0, sizeof(f1.src.ip6));
 }
 END_TEST
+
 START_TEST(tc_hole_compare)
 {
    pico_hole_t a;
    pico_hole_t b;
 
+   /* One of the holes is NULL */
+   fail_unless( hole_compare(&a, NULL) == -1);
+
+   /* Equal holes */
    a.first=1;
    a.last=2;
 
@@ -41,6 +87,7 @@ START_TEST(tc_hole_compare)
 
    fail_unless( hole_compare(&a, &b) == 0);
 
+   /* Holes are not equal */
    b.first=2;
    b.last=2;
 
@@ -55,9 +102,26 @@ START_TEST(tc_hole_compare)
 END_TEST
 START_TEST(tc_pico_fragment_alloc)
 {
+    pico_fragment_t *fragment;
+
+    /* One of the sizes is zero */
+    fragment = pico_fragment_alloc(0, 1);
+    fail_unless( fragment == NULL);
+    fragment = NULL;
+
+    /* Both are greater than zero */
+    fragment = pico_fragment_alloc(1, 1);
+    fail_if( fragment == NULL);
+    pico_fragment_free(fragment);
+}
+END_TEST
+
+START_TEST(tc_first_fragment_received)
+{
 
 }
 END_TEST
+
 START_TEST(tc_pico_fragment_free)
 {
    /* TODO: test this: static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment); */
@@ -91,6 +155,7 @@ Suite *pico_suite(void)
 
     TCase *TCase_fragments_compare = tcase_create("Unit test for fragments_compare");
     TCase *TCase_hole_compare = tcase_create("Unit test for hole_compare");
+    TCase *TCase_first_fragment_received = tcase_create("Unit test for first_fragment_received");
     TCase *TCase_pico_fragment_alloc = tcase_create("Unit test for *pico_fragment_alloc");
     TCase *TCase_pico_fragment_free = tcase_create("Unit test for *pico_fragment_free");
     TCase *TCase_pico_fragment_arrived = tcase_create("Unit test for pico_fragment_arrived");
@@ -103,6 +168,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_fragments_compare);
     tcase_add_test(TCase_hole_compare, tc_hole_compare);
     suite_add_tcase(s, TCase_hole_compare);
+    tcase_add_test(TCase_fragments_compare, tc_first_fragment_received);
+    suite_add_tcase(s, TCase_first_fragment_received);
     tcase_add_test(TCase_pico_fragment_alloc, tc_pico_fragment_alloc);
     suite_add_tcase(s, TCase_pico_fragment_alloc);
     tcase_add_test(TCase_pico_fragment_free, tc_pico_fragment_free);
