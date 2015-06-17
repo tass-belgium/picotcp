@@ -144,7 +144,14 @@ END_TEST
 
 START_TEST(tc_pico_fragment_free)
 {
-   /* TODO: test this: static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment); */
+    pico_fragment_t *fragment = NULL;
+
+    /* fragment is NULL */
+    fail_unless(pico_fragment_free(NULL) == NULL);
+
+    /* fragment is not NULL */
+    fragment = pico_fragment_alloc( 1, 1);
+    fail_unless(pico_fragment_free(fragment) == NULL);
 }
 END_TEST
 START_TEST(tc_pico_fragment_arrived)
