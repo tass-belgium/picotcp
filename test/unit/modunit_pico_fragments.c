@@ -151,22 +151,87 @@ START_TEST(tc_pico_fragment_free)
 
     /* fragment is not NULL */
     fragment = pico_fragment_alloc( 1, 1);
+    fail_if(!fragment);
     fail_unless(pico_fragment_free(fragment) == NULL);
 }
 END_TEST
+
+static int pico_timer_add_called = 0;
+
+struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+{
+    pico_timer_add_called++;
+    return NULL;
+}
+
 START_TEST(tc_pico_fragment_arrived)
 {
-   /* TODO: test this: static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag ); */
+    /* We don't check for non fragmented packages,
+     *this is handled in pico_ipv4/6_process_frag
+     */
+    pico_fragment_t *fragment = NULL;
+    struct pico_frame *frame = NULL;
+    uint16_t offset;
+    uint16_t more;
+    int frame_transport_size = 2;
+
+    /* Fragment or frame is NULL */
+    frame = pico_frame_alloc(frame_transport_size);
+    fail_if(!frame);
+    fail_unless(pico_fragment_arrived(NULL, frame, offset, more) == -1);
+    fragment = pico_fragment_alloc( 1, 1);
+    fail_if(!fragment);
+    fail_unless(pico_fragment_arrived(fragment, NULL, offset, more) == -1);
+
+    /* First fragment arrived:
+     * - is it copied properly?
+     * - global fragment timer should be initiated.
+     * - fragment->holes should be intantiated and the hole where the recv frame is should be 'deleted'
+     * fragment->frame->buffer should be large enough so no reallocation
+     */
+
+    /* Is the packet copied to the fragment frame? */
+    /* fail_unless(pico_fragment_arrived(fragment, frame, 0, 1) == frame_transport_size); */
+    /* Is the global expiration timer added? */
+    /* fail_unless(pico_timer_add_called == 1); */
+    /* Are the holes initiated */
+
+    /* Second fragment arrived:
+     * - is it copied properly to the fragment->frame?
+     * - is the frame properly reallocd?
+     * - is the hole deleted from the fragment->holes?
+     */
+
+    /* Third fragment arrived:
+     * - is it copied properly?
+     * - is the frame properly reallocd?
+     * - is the return value LAST_FRAG_RECV?
+     */
+
+
 }
 END_TEST
 START_TEST(tc_pico_hole_free)
 {
-   /* TODO: test this: static pico_hole_t* pico_hole_free(pico_hole_t *hole); */
+    pico_hole_t *hole = NULL;
+
+    fail_unless(pico_hole_free(NULL) == NULL);
+    hole = pico_hole_alloc(0, 100);
+    fail_if(!hole);
+    fail_unless(pico_hole_free(hole) == NULL);
 }
 END_TEST
 START_TEST(tc_pico_hole_alloc)
 {
-   /* TODO: test this: static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last); */
+    pico_hole_t *hole = NULL;
+
+    /* first should be greater than last */
+    hole = pico_hole_alloc(100, 0);
+    fail_if(hole);
+
+    hole = pico_hole_alloc(0, 100);
+    fail_if(!hole);
+    pico_hole_free(hole);
 }
 END_TEST
 START_TEST(tc_pico_ip_frag_expired)
