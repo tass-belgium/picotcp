@@ -22,40 +22,40 @@ START_TEST(tc_fragments_compare)
 {
    pico_fragment_t f1={1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},NULL,0};
    pico_fragment_t f2={2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
-   
-   fail_unless( fragments_compare(&f1, &f1) == 0);  
-   fail_unless( fragments_compare(&f1, &f2) < 0);  
-   
+
+   fail_unless( fragments_compare(&f1, &f1) == 0);
+   fail_unless( fragments_compare(&f1, &f2) < 0);
+
 }
 END_TEST
 START_TEST(tc_hole_compare)
 {
-   pico_hole_t a; 
+   pico_hole_t a;
    pico_hole_t b;
-   
+
    a.first=1;
-   a.last=2; 
+   a.last=2;
 
    b.first=1;
-   b.last=2; 
+   b.last=2;
 
-   fail_unless( hole_compare(&a, &b) == 0);  
+   fail_unless( hole_compare(&a, &b) == 0);
 
    b.first=2;
-   b.last=2; 
+   b.last=2;
 
-   fail_unless( hole_compare(&a, &b) < 0);  
+   fail_unless( hole_compare(&a, &b) < 0);
 
    a.first=3;
-   a.last=3; 
+   a.last=3;
 
-   fail_unless( hole_compare(&a, &b) > 0);  
+   fail_unless( hole_compare(&a, &b) > 0);
 
 }
 END_TEST
 START_TEST(tc_pico_fragment_alloc)
 {
-   
+
 }
 END_TEST
 START_TEST(tc_pico_fragment_free)
@@ -85,9 +85,9 @@ START_TEST(tc_pico_ip_frag_expired)
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_fragments_compare = tcase_create("Unit test for fragments_compare");
     TCase *TCase_hole_compare = tcase_create("Unit test for hole_compare");
@@ -117,7 +117,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ip_frag_expired);
 return s;
 }
-     
+
 
 #if 0
 #include "pico_icmp4.h"
@@ -147,21 +147,21 @@ void cb_ping(struct pico_icmp4_stats *s)
 
 
 
-                      
-int main(void)                      
-{                       
+
+int main(void)
+{
 
 #if 1
-    int fails;                      
-    Suite *s = pico_suite();                        
-    SRunner *sr = srunner_create(s);                        
-    srunner_run_all(sr, CK_NORMAL);                     
-    fails = srunner_ntests_failed(sr);                      
-    srunner_free(sr);                       
-    return fails;                       
+    int fails;
+    Suite *s = pico_suite();
+    SRunner *sr = srunner_create(s);
+    srunner_run_all(sr, CK_NORMAL);
+    fails = srunner_ntests_failed(sr);
+    srunner_free(sr);
+    return fails;
 #else
    /* TODO: test this: static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsize); */
-   
+
     struct pico_ip4 local = {
         0
     };
@@ -245,7 +245,7 @@ printf("[LUM:%s%d]  buffer \n",__FILE__,__LINE__);
     /* using the mock-device because otherwise I have to put everything in a pico_frame correctly myself. */
     pico_mock_network_write(mock, buffer, len);
     /* check if it is received */
-    
+
     pico_check_timers();
 
     pico_stack_tick();
