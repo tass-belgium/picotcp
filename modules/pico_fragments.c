@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012 TASS Belgium NV. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Ludo Mondelaers
+   Authors: Ludo Mondelaers, Laurens Miers
  *********************************************************************/
 
 
@@ -23,6 +23,7 @@
 #include "pico_device.h"
 #include "pico_tree.h"
 #include "pico_constants.h"
+#include "pico_fragments.h"
 
 /*** macros ***/
 
@@ -237,7 +238,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 }
 
 
-extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
+void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
 {
     int retval = 0;
     uint16_t netlen_without_frag = 0;
@@ -358,7 +359,7 @@ extern void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_
 #define IP4FRAG_MORE(frag) ((frag & PICO_IPV4_MOREFRAG) ? 1 : 0)
 
 
-extern int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
+int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
 {
     int retval = 0;
     if(hdr && f)
@@ -716,7 +717,7 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
             uint16_t ip_version = ((struct pico_eth_hdr *) fragment->frame->datalink_hdr)->proto;
 
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
-
+#ifdef PICO_SUPPORT_IPV6
             if (ip_version == PICO_IDETH_IPV6)
             {
                 /* Check if we received the first fragment of the packet
@@ -729,6 +730,7 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
                     pico_icmp6_frag_expired(fragment->frame);
                 }
             }
+#endif
             if (ip_version == PICO_IDETH_IPV4)
             {
                 //TODO: what does IPV4 expect?
