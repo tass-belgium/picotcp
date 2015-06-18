@@ -287,7 +287,7 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     struct pico_dns_header *header = NULL;
     uint8_t answer_buf[12] = {
         0x00, 0x00,
-        0x84, 0x00,
+        0x85, 0x00,
         0x00, 0x00,
         0x00, 0x01,
         0x00, 0x01,
@@ -295,7 +295,7 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     };
     uint8_t query_buf[12] = {
         0x00, 0x00,
-        0x00, 0x00,
+        0x01, 0x00,
         0x00, 0x01,
         0x00, 0x01,
         0x00, 0x01,
@@ -312,6 +312,9 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     /* Create a query header */
     pico_dns_fill_packet_header(header, 1, 1, 1, 1);
 
+    int i;
+    for (i = 0; i < 12; i++)
+        printf("### %02x :: %02x\n", ((uint8_t*)header)[i], query_buf[i]);
     fail_unless(0 == memcmp((void *)header, (void *)query_buf, 12),
                 "Comparing query header failed!\n");
 
@@ -683,7 +686,7 @@ START_TEST(tc_pico_dns_query_create) /* MARK: dns_query_create */
     const char *qurl2 = "google.com";
     uint8_t buf[42] = {
         0x00u, 0x00u,
-        0x00u, 0x00u,
+        0x01u, 0x00u,
         0x00u, 0x02u,
         0x00u, 0x00u,
         0x00u, 0x00u,
@@ -896,7 +899,7 @@ START_TEST(tc_pico_dns_answer_create) /* MARK: dns_answer_create */
     int ret = 0, i = 0;
     uint8_t buf[62] = {
         0x00u, 0x00u,
-        0x84u, 0x00u,
+        0x85u, 0x00u,
         0x00u, 0x00u,
         0x00u, 0x02u,
         0x00u, 0x00u,
