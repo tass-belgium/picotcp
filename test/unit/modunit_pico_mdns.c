@@ -1001,7 +1001,7 @@ END_TEST
 void add_records( void ) /* MARK: helper to add records to MyRecords s*/
 {
     struct pico_mdns_record *record = NULL, *record1 = NULL, *record2 = NULL,
-                            *record3 = NULL;
+    *record3 = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -1123,7 +1123,7 @@ START_TEST(tc_mdns_record_tree_del_name) /* MARK: mdns_record_tree_del_name */
 {
     PICO_MDNS_RTREE_DECLARE(hits);
     struct pico_mdns_record *record = NULL, *record1 = NULL, *record2 = NULL,
-                            *record3 = NULL;
+    *record3 = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -1215,7 +1215,7 @@ START_TEST(tc_mdns_my_records_add) /* MARK: mdns_my_records_add */
 {
     PICO_MDNS_RTREE_DECLARE(rtree);
     struct pico_mdns_record *record = NULL, *record1 = NULL, *record2 = NULL,
-                            *record3 = NULL;
+    *record3 = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -1296,7 +1296,7 @@ START_TEST(tc_mdns_my_records_claimed_id) /* MARK: mnds_my_records_claimed_id */
 {
     PICO_MDNS_RTREE_DECLARE(hits);
     struct pico_mdns_record *record = NULL, *record1 = NULL, *record2 = NULL,
-                            *record3 = NULL;
+    *record3 = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -1354,7 +1354,7 @@ START_TEST(tc_mdns_my_records_claimed) /* MARK: mdns_my_records_claimed */
 {
     PICO_MDNS_RTREE_DECLARE(rtree);
     struct pico_mdns_record *record = NULL, *record1 = NULL, *record2 = NULL,
-                            *record3 = NULL;
+    *record3 = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
