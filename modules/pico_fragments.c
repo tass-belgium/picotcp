@@ -31,7 +31,7 @@
 #define PICO_IP_FIRST_FRAG_RECV       2
 #define PICO_IP_FIRST_FRAG_NOT_RECV   3
 
-#define IPFRAG_DEBUG
+//#define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
 #  define frag_dbg  printf
 #else
@@ -109,13 +109,16 @@ static struct pico_timer*      pico_fragment_timer = NULL;
 
 static int copy_eth_hdr(struct pico_frame* dst, struct pico_frame* src)
 {
+    struct pico_eth_hdr *srchdr = NULL;
+    struct pico_eth_hdr *dsthdr = NULL;
+
     if (!dst || !src)
     {
         return -1;
     }
 
-    struct pico_eth_hdr *srchdr = (struct pico_eth_hdr *)src->datalink_hdr;
-    struct pico_eth_hdr *dsthdr = (struct pico_eth_hdr *)dst->datalink_hdr;
+    srchdr = (struct pico_eth_hdr *)src->datalink_hdr;
+    dsthdr = (struct pico_eth_hdr *)dst->datalink_hdr;
 
     if (!srchdr || !dsthdr)
     {
@@ -205,7 +208,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
         break;
         case PICO_IPV6_EXTHDR_FRAG:
             srcidx += 8;            // remove frag field from dsthdr
-            retval -= 8;
+            retval = (uint16_t)(retval + 8u);
 			break;
         case PICO_IPV6_EXTHDR_NONE:
         case PICO_PROTO_TCP:
@@ -756,6 +759,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 {
     struct pico_frame* full=NULL;
     int retval = -1;
+    pico_hole_t *first = NULL;
 
     if(fragment && frame)
     {
@@ -774,7 +778,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         }
 #endif
 
-        pico_hole_t *first = pico_tree_first(&fragment->holes);
+        first = pico_tree_first(&fragment->holes);
 
         if(first == NULL)   /*first fragment of packet arrived*/
         {
