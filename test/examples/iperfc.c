@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "pico_stack.h"
 #include "pico_socket.h"
+#include "utils.h"
 
 #define DURATION 30
 
@@ -21,13 +22,12 @@ struct iperf_hdr {
 
 char *cpy_arg(char **dst, char *str);
 extern int IPV6_MODE;
-void deferred_exit(pico_time now, void *arg);
 
 static pico_time deadline;
 
 static void panic(void)
 {
-    for(;; ) ;
+    for(;; );
 }
 
 static char buf[MTU] = {};

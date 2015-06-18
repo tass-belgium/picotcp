@@ -4,6 +4,7 @@
 #include "pico_socket_multicast.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
+#include "pico_socket_udp.h"
 
 #define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
 

@@ -43,7 +43,7 @@ struct pico_ipv6_neighbor {
     pico_time expire;
 };
 
-int pico_ipv6_neighbor_compare(void *ka, void *kb)
+static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
     return pico_ipv6_compare(&a->address, &b->address);
@@ -134,7 +134,7 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 {
     if (n->state == PICO_ND_STATE_REACHABLE)
         n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
-    else if (n->state == PICO_ND_STATE_DELAY)
+    else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE))
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
@@ -258,14 +258,19 @@ static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struc
 static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter)
 {
     if (!isRouter && n->is_router) {
-        /* TODO: delete all routes going through this gateway */
+        pico_ipv6_router_down(&n->address);
     }
+
+    if (isRouter)
+        n->is_router = 1;
+    else
+        n->is_router = 0;
 }
 
 
-static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr)
+static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico_icmp6_hdr *hdr)
 {
-    if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) == 0)) {
+    if (IS_SOLICITED(hdr)) {
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_count = 0;
         pico_ipv6_nd_queued_trigger();
@@ -273,6 +278,20 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         return 0;
     }
 
+    return -1;
+}
+
+
+static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr)
+{
+
+    if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) == 0)) {
+        n->state = PICO_ND_STATE_REACHABLE;
+        n->failure_count = 0;
+        pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
+    }
 
     if ((n->state == PICO_ND_STATE_REACHABLE) && IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr)) {
         n->state = PICO_ND_STATE_STALE;
@@ -292,6 +311,23 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         pico_ipv6_neighbor_update(n, opt);
         n->state = PICO_ND_STATE_STALE;
         pico_ipv6_nd_queued_trigger();
+        pico_nd_new_expire_time(n);
+        return 0;
+    }
+
+    if ((n->state == PICO_ND_STATE_REACHABLE) && (!IS_SOLICITED(hdr)) && (!IS_OVERRIDE(hdr)) &&
+        (pico_ipv6_neighbor_compare_stored(n, opt) != 0)) {
+
+        /* I.  If the Override flag is clear and the supplied link-layer address
+         *     differs from that in the cache, then one of two actions takes
+         *     place:
+         *     a. If the state of the entry is REACHABLE, set it to STALE, but
+         *        do not update the entry in any other way.
+         *     b. Otherwise, the received advertisement should be ignored and
+         *        MUST NOT update the cache.
+         */
+        n->state = PICO_ND_STATE_STALE;
+        pico_nd_new_expire_time(n);
         return 0;
     }
 
@@ -343,17 +379,20 @@ static int neigh_adv_process(struct pico_frame *f)
         return 0;
     }
 
-    if (optres == 0) {
+    if ((optres == 0) || IS_OVERRIDE(icmp6_hdr) || (pico_ipv6_neighbor_compare_stored(n, &opt) == 0)) {
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
-        return 0;
     }
 
-    if (n->state == PICO_ND_STATE_INCOMPLETE) {
+    if ((optres > 0) && (n->state == PICO_ND_STATE_INCOMPLETE)) {
         neigh_adv_process_incomplete(n, f, &opt);
         return 0;
     }
 
-    return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
+    if (optres > 0)
+        return neigh_adv_reconfirm(n, &opt, icmp6_hdr);
+    else
+        return neigh_adv_reconfirm_no_tlla(n, icmp6_hdr);
+
 }
 
 
@@ -386,11 +425,9 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
         } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
-            if (n->state != PICO_ND_STATE_INCOMPLETE) {
-                n->state = PICO_ND_STATE_STALE;
-            }
-
+            n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger();
+            pico_nd_new_expire_time(n);
         }
 
         if (!n)
@@ -530,39 +567,21 @@ static int neigh_adv_validity_checks(struct pico_frame *f)
     return neigh_adv_mcast_validity_check(f);
 }
 
+
 static int neigh_sol_mcast_validity_check(struct pico_frame *f)
 {
-    struct pico_ipv6_link *link;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    link = pico_ipv6_link_by_dev(f->dev);
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    while(link) {
-        if (pico_ipv6_is_linklocal(link->address.addr)) {
-            int i, match = 0;
-            for(i = 13; i < 16; i++) {
-                if (icmp6_hdr->msg.info.neigh_sol.target.addr[i] == link->address.addr[i])
-                    ++match;
-            }
-            /* Solicitation: last 3 bytes match a local address. */
-            if (match == 3)
-                return 0;
-        }
+    if (pico_ipv6_is_solnode_multicast(icmp6_hdr->msg.info.neigh_sol.target.addr, f->dev) == 0)
+        return -1;
 
-        link = pico_ipv6_link_by_dev_next(f->dev, link);
-    }
-    return -1;
+    return 0;
 }
 
 static int neigh_sol_unicast_validity_check(struct pico_frame *f)
 {
     struct pico_ipv6_link *link;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-
-    if (pico_ipv6_is_unspecified(hdr->src.addr)) {
-        dbg("Warning: Received unicast NS with unspecified source address!\n");
-        return -1;
-    }
 
     link = pico_ipv6_link_by_dev(f->dev);
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
@@ -576,16 +595,51 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
 
 }
 
+static int neigh_sol_validate_unspec(struct pico_frame *f)
+{
+    /* RFC4861, 7.1.1:
+     *
+     * - If the IP source address is the unspecified address, the IP
+     *   destination address is a solicited-node multicast address.
+     *
+     * - If the IP source address is the unspecified address, there is no
+     *   source link-layer address option in the message.
+     *
+     */
+
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+    struct pico_icmp6_opt_lladdr opt = {
+        0
+    };
+    int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
+    if (pico_ipv6_is_solnode_multicast(hdr->dst.addr, f->dev) == 0) {
+        return -1;
+    }
+
+    if (valid_lladdr) {
+        return -1;
+    }
+
+    return 0;
+}
+
 static int neigh_sol_validity_checks(struct pico_frame *f)
 {
     /* Step 2 validation */
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
     if (f->transport_len < PICO_ICMP6HDR_NEIGH_ADV_SIZE)
         return -1;
 
+    if ((pico_ipv6_is_unspecified(hdr->src.addr)) && (neigh_sol_validate_unspec(f) < 0))
+    {
+        return -1;
+    }
+
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr))
+    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.neigh_adv.target.addr)) {
         return neigh_sol_mcast_validity_check(f);
+    }
 
     return neigh_sol_unicast_validity_check(f);
 }

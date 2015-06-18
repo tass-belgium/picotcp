@@ -148,7 +148,7 @@ static int socket_cmp(void *ka, void *kb)
 
 #define INIT_SOCKPORT { {&LEAF, socket_cmp}, 0, 0 }
 
-int sockport_cmp(void *ka, void *kb)
+static int sockport_cmp(void *ka, void *kb)
 {
     struct pico_sockport *a = ka, *b = kb;
     if (a->number < b->number)
@@ -755,7 +755,7 @@ int pico_socket_write(struct pico_socket *s, const void *buf, int len)
     return pico_socket_write_attempt(s, buf, len);
 }
 
-uint16_t pico_socket_high_port(uint16_t proto)
+static uint16_t pico_socket_high_port(uint16_t proto)
 {
     uint16_t port;
     if (0 ||
@@ -1048,7 +1048,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     f->sock = s;
     transport_flags_update(f, s);
     pico_xmit_frame_set_nofrag(f);
-    if (ep) {
+    if (ep && !f->info) {
         f->info = pico_socket_set_info(ep);
         if (!f->info) {
             pico_frame_discard(f);
@@ -1248,11 +1248,14 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
+        pico_endpoint_free(ep);
         return -1;
     }
 
     if ((PROTO(s) == PICO_PROTO_UDP) && (len > space)) {
-        return pico_socket_xmit_fragments(s, buf, len, src, ep, msginfo);
+        total_payload_written = pico_socket_xmit_fragments(s, buf, len, src, ep, msginfo);
+        /* Implies ep discarding */
+        return total_payload_written;
     }
 
     while (total_payload_written < len) {
@@ -1313,12 +1316,13 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
     }
 
     remote_endpoint = pico_socket_sendto_destination(s, dst, remote_port);
-    if (pico_socket_sendto_set_localport(s) < 0)
+    if (pico_socket_sendto_set_localport(s) < 0) {
+        pico_endpoint_free(remote_endpoint);
         return -1;
+    }
 
     pico_socket_sendto_set_dport(s, remote_port);
-
-    return pico_socket_xmit(s, buf, len, src, remote_endpoint, msginfo);
+    return pico_socket_xmit(s, buf, len, src, remote_endpoint, msginfo); /* Implies discarding the endpoint */
 }
 
 int MOCKABLE pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)

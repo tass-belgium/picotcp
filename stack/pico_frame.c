@@ -23,7 +23,9 @@ void pico_frame_discard(struct pico_frame *f)
 
     (*f->usage_count)--;
     if (*f->usage_count <= 0) {
-        PICO_FREE(f->usage_count);
+        if (f->flags & PICO_FRAME_FLAG_EXT_USAGE_COUNTER)
+            PICO_FREE(f->usage_count);
+
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
         dbg("Discarded buffer @%p, caller: %p\n", f->buffer, __builtin_return_address(3));
         dbg("DEBUG MEMORY: %d frames in use.\n", --n_frames_allocated);
@@ -64,27 +66,40 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
+    uint32_t frame_buffer_size = size;
     if (!p)
         return NULL;
 
+    if (ext_buffer && !zerocopy) {
+        /* external buffer implies zerocopy flag! */
+        PICO_FREE(p);
+        return NULL;
+    }
+
     if (!zerocopy) {
-        p->buffer = PICO_ZALLOC(size);
+        unsigned int align = size % sizeof(uint32_t);
+        /* Ensure that usage_count starts on an aligned address */
+        if (align) {
+            frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
+        }
+
+        p->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
         if (!p->buffer) {
             PICO_FREE(p);
             return NULL;
         }
+
+        p->usage_count = (uint32_t *)(((uint8_t*)p->buffer) + size);
     } else {
         p->buffer = NULL;
+        p->flags = PICO_FRAME_FLAG_EXT_USAGE_COUNTER;
+        p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
+        if (!p->usage_count) {
+            PICO_FREE(p);
+            return NULL;
+        }
     }
 
-    p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
-    if (!p->usage_count) {
-        if (p->buffer)
-            PICO_FREE(p->buffer);
-
-        PICO_FREE(p);
-        return NULL;
-    }
 
     p->buffer_len = size;
 
@@ -158,9 +173,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     return new;
 }
 
-#ifdef PICO_YOUNG_CHECKSUM
 
-/* YOUNG CHECKSUM */
 static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t len)
 {
     uint16_t *buf = (uint16_t *)data;
@@ -190,34 +203,6 @@ static inline uint16_t pico_checksum_finalize(uint32_t sum)
     }
     return short_be((uint16_t) ~sum);
 }
-
-#else
-
-/* OLD CHECKSUM */
-static inline uint32_t pico_checksum_adder(uint32_t sum, void *data, uint32_t len)
-{
-    uint8_t *buf = (uint8_t *) data;
-    uint32_t tmp = 0;
-    uint32_t i = 0;
-
-    for(i = 0; i < len; i += 2u) {
-        tmp = buf[i];
-        sum += (tmp << 8lu);
-        if (len > (i + 1u))
-            sum += buf[i + 1];
-    }
-    return sum;
-}
-
-static inline uint16_t pico_checksum_finalize(uint32_t sum)
-{
-    while (sum >> 16) { /* a second carry is possible! */
-        sum = (sum & 0x0000FFFF) + (sum >> 16);
-    }
-    return (uint16_t) (~sum);
-}
-
-#endif /* PICO_YOUNG_CHECKSUM */
 
 /**
  * Calculate checksum of a given string

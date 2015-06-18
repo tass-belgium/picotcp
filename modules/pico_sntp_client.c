@@ -13,6 +13,7 @@
 #include "pico_ipv6.h"
 #include "pico_dns_client.h"
 #include "pico_tree.h"
+#include "pico_stack.h"
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
@@ -20,6 +21,7 @@
 /* #define sntp_dbg dbg */
 
 #define SNTP_VERSION 4
+#define PICO_SNTP_MAXBUF (1400)
 
 /* Sntp mode */
 #define SNTP_MODE_CLIENT 3
@@ -63,6 +65,7 @@ struct sntp_server_ns_cookie
     struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user
                                                 wheter/when the time is synchronised */
+    struct pico_timer *timer;   /* Timer that will signal timeout */
 };
 
 /* global variables */
@@ -110,6 +113,7 @@ static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t statu
     sntp_dbg("FREE!\n");
     PICO_FREE(ck->hostname);
     PICO_FREE(ck);
+
 }
 
 /* Extracts the current time from a server sntp packet*/
@@ -145,7 +149,7 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
 static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
 {
     struct sntp_server_ns_cookie *ck = (struct sntp_server_ns_cookie *)s->priv;
-    char recvbuf[1400];
+    char *recvbuf;
     int read = 0;
     uint32_t peer;
     uint16_t port;
@@ -159,10 +163,16 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
     if (ev == PICO_SOCK_EV_RD) {
         ck->rec = 1;
         /* receive while data available in socket buffer */
+        recvbuf = PICO_ZALLOC(PICO_SNTP_MAXBUF);
+        if (!recvbuf)
+            return;
+
         do {
-            read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
+            read = pico_socket_recvfrom(s, recvbuf, PICO_SNTP_MAXBUF, &peer, &port);
         } while(read > 0);
         pico_sntp_parse(recvbuf, s->priv);
+        pico_timer_cancel(ck->timer);
+        PICO_FREE(recvbuf);
     }
     /* socket is closed */
     else if(ev == PICO_SOCK_EV_CLOSE) {
@@ -209,7 +219,7 @@ static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
         return;
     }
 
-    pico_timer_add(5000, sntp_receive_timeout, ck);
+    ck->timer = pico_timer_add(5000, sntp_receive_timeout, ck);
     header.vn = SNTP_VERSION;
     header.mode = SNTP_MODE_CLIENT;
     /* header.trs_ts.frac = long_be(0ul); */
@@ -289,7 +299,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck->stamp = 0ull;
     ck->rec = 0;
     ck->sock = NULL;
-    ck->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck->hostname) {
         PICO_FREE(ck);
         pico_err = PICO_ERR_ENOMEM;
@@ -316,7 +326,7 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     }
 
     ck6->proto = PICO_PROTO_IPV6;
-    ck6->hostname = PICO_ZALLOC(strlen(sntp_server));
+    ck6->hostname = PICO_ZALLOC(strlen(sntp_server) + 1);
     if (!ck6->hostname) {
         PICO_FREE(ck6);
         pico_err = PICO_ERR_ENOMEM;
@@ -331,18 +341,22 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     ck6->cb_synced = cb_synced;
     sntp_dbg("Resolving AAAA %s\n", ck6->hostname);
     retval6 = pico_dns_client_getaddr6(sntp_server, &dnsCallback, ck6);
-
-    PICO_FREE(ck6->hostname);
-    PICO_FREE(ck6);
+    if (retval6 != 0) {
+        PICO_FREE(ck6->hostname);
+        PICO_FREE(ck6);
+        return -1;
+    }
 
 #endif
     sntp_dbg("Resolving A %s\n", ck->hostname);
     retval = pico_dns_client_getaddr(sntp_server, &dnsCallback, ck);
+    if (retval != 0) {
+        PICO_FREE(ck->hostname);
+        PICO_FREE(ck);
+        return -1;
+    }
 
-    PICO_FREE(ck->hostname);
-    PICO_FREE(ck);
-
-    return (!retval || !retval6) ? 0 : (-1);
+    return 0;
 }
 
 /* user function to get the current time */

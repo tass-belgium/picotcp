@@ -18,7 +18,7 @@ void *pico_dhcp_get_identifier(uint32_t xid);
 struct pico_ip4 pico_dhcp_get_address(void *cli);
 struct pico_ip4 pico_dhcp_get_gateway(void *cli);
 struct pico_ip4 pico_dhcp_get_netmask(void *cli);
-struct pico_ip4 pico_dhcp_get_nameserver(void*cli);
+struct pico_ip4 pico_dhcp_get_nameserver(void*cli, int index);
 int pico_dhcp_client_abort(uint32_t xid);
 
 /* possible codes for the callback */
