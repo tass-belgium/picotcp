@@ -20,7 +20,7 @@ function tftp_cleanup() {
 }
 
 export VFRUN_OUT="|/opt/vectorfabrics/pareon-2.21/verify/tools/bin/vfana"
-export VFPROJECT=/home/demo/pico_testing/pareon_new
+export VFPROJECT=/var/lib/jenkins/pareon_verify_project
 
 sh ./test/vde_sock_start_user.sh
 rm -f /tmp/pico-mem-report-*
