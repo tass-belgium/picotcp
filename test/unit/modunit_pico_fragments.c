@@ -14,10 +14,6 @@
 #include "modules/pico_fragments.c"
 #include "check.h"
 
-
-
-
-
 START_TEST(tc_fragments_compare)
 {
    uint32_t frag_id_1 = 1;
@@ -171,6 +167,7 @@ START_TEST(tc_pico_fragment_arrived)
      */
     pico_fragment_t *fragment = NULL;
     struct pico_frame *frame = NULL;
+    unsigned char *old_frame_buffer = NULL;
     uint16_t offset;
     uint16_t more;
     int frame_transport_size = 2;
@@ -187,14 +184,37 @@ START_TEST(tc_pico_fragment_arrived)
      * - is it copied properly?
      * - global fragment timer should be initiated.
      * - fragment->holes should be intantiated and the hole where the recv frame is should be 'deleted'
-     * fragment->frame->buffer should be large enough so no reallocation
+     * - fragment->frame->buffer should be large enough so no reallocation
      */
 
+    /* Init of frame and fragment
+     * pico_fragment_arrived uses the transport_len and hdr
+     * we set these to the buffer_len and buffer for testing purposes
+     */
+    frame->transport_hdr = frame->buffer;
+    frame->transport_len = frame_transport_size;
+    fragment->frame->transport_len = fragment->frame->buffer_len;
+    fragment->frame->transport_hdr = fragment->frame->buffer;
+
+    frame->transport_hdr[0] = '0';
+    frame->transport_hdr[1] = '1';
+
+    old_frame_buffer = fragment->frame->buffer;
+
     /* Is the packet copied to the fragment frame? */
-    /* fail_unless(pico_fragment_arrived(fragment, frame, 0, 1) == frame_transport_size); */
+    fail_unless(pico_fragment_arrived(fragment, frame, 0, 1) == frame_transport_size);
+    fail_unless(memcmp(fragment->frame->buffer, frame->transport_hdr, frame_transport_size) == 0);
+
     /* Is the global expiration timer added? */
-    /* fail_unless(pico_timer_add_called == 1); */
+    fail_unless(pico_timer_add_called == 1);
+    pico_timer_add_called = 0;
+
     /* Are the holes initiated */
+    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->first == (frame_transport_size + 1));
+    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->last == INFINITY);
+
+    /* Is the buffer reallocated? it was big enough so we expect it not to be */
+    fail_unless(old_frame_buffer == fragment->frame->buffer);
 
     /* Second fragment arrived:
      * - is it copied properly to the fragment->frame?
@@ -202,12 +222,60 @@ START_TEST(tc_pico_fragment_arrived)
      * - is the hole deleted from the fragment->holes?
      */
 
+    /* Init of frame and fragment
+     * pico_fragment_arrived uses the transport_len and hdr
+     * we set these to the buffer_len and buffer for testing purposes
+     */
+    frame->transport_hdr = frame->buffer;
+    frame->transport_len = frame_transport_size;
+    old_frame_buffer = fragment->frame->buffer;
+
+    /* Is the packet copied to the fragment frame? */
+    fail_unless(pico_fragment_arrived(fragment, frame, frame_transport_size, 1) == frame_transport_size);
+    fail_unless(memcmp(fragment->frame->buffer + frame_transport_size, frame->transport_hdr, frame_transport_size) == 0);
+
+    /* There was already a pico expiration timer, so we don't have to add it again. */
+    fail_unless(pico_timer_add_called == 0);
+
+    /* Are the holes updated? */
+    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->first == (frame_transport_size * 2 + 1));
+    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->last == INFINITY);
+
+    /* Is the buffer reallocated? it should be because it was not big enough*/
+    fail_unless(old_frame_buffer != fragment->frame->buffer);
+
+
     /* Third fragment arrived:
      * - is it copied properly?
      * - is the frame properly reallocd?
      * - is the return value LAST_FRAG_RECV?
      */
 
+    /* Init of frame and fragment
+     * pico_fragment_arrived uses the transport_len and hdr
+     * we set these to the buffer_len and buffer for testing purposes
+     */
+    frame->transport_hdr = frame->buffer;
+    frame->transport_len = frame_transport_size;
+    old_frame_buffer = fragment->frame->buffer;
+
+    /* Is the packet copied to the fragment frame? */
+    fail_unless(pico_fragment_arrived(fragment, frame, frame_transport_size * 2, 0) == PICO_IP_LAST_FRAG_RECV);
+    fail_unless(memcmp(fragment->frame->buffer + (frame_transport_size * 2), frame->transport_hdr, frame_transport_size) == 0);
+
+    /* There was already a pico expiration timer, so we don't have to add it again. */
+    fail_unless(pico_timer_add_called == 0);
+
+    /* Are the holes updated?
+     * This was the last packet so fragment->holes
+     */
+    fail_unless(fragment->holes.root == &LEAF);
+
+    /* Is the buffer reallocated? it should be because it was not big enough*/
+    fail_unless(old_frame_buffer != fragment->frame->buffer);
+
+    pico_fragment_free(fragment);
+    pico_frame_discard(frame);
 
 }
 END_TEST
@@ -229,16 +297,136 @@ START_TEST(tc_pico_hole_alloc)
     hole = pico_hole_alloc(100, 0);
     fail_if(hole);
 
+    /* Normal case */
     hole = pico_hole_alloc(0, 100);
     fail_if(!hole);
     pico_hole_free(hole);
 }
 END_TEST
+
 START_TEST(tc_pico_ip_frag_expired)
 {
-   /* TODO: test this: static void pico_ip_frag_expired(pico_time now, void *arg) */
+    /* TODO */
 }
 END_TEST
+
+START_TEST(tc_pico_ipv4_process_frag)
+{
+    /* TODO */
+}
+END_TEST
+
+START_TEST(tc_pico_ipv6_process_frag)
+{
+    /* TODO */
+}
+END_TEST
+
+START_TEST(tc_copy_eth_hdr)
+{
+    struct pico_frame *dst=NULL, *src=NULL;
+
+    fail_unless(copy_eth_hdr(NULL, NULL) == -1);
+    dst = pico_frame_alloc(40);
+    fail_if(!dst);
+    fail_unless(copy_eth_hdr(dst, NULL) == -1);
+    src = pico_frame_alloc(40);
+    fail_if(!src);
+    fail_unless(copy_eth_hdr(NULL, src) == -1);
+
+    /* datalink headers are not set */
+    fail_unless(copy_eth_hdr(dst, src) == -1);
+
+    /* datalink headers set */
+    dst->datalink_hdr = dst->buffer;
+    src->datalink_hdr = src->buffer;
+    fail_unless(copy_eth_hdr(dst, src) == 0);
+
+    pico_frame_discard(dst);
+    pico_frame_discard(src);
+}
+END_TEST
+
+START_TEST(tc_copy_ipv6_hdrs_nofrag)
+{
+    struct pico_frame *dst=NULL, *src=NULL;
+    struct pico_ipv6_hdr *srchdr = NULL;
+    struct pico_ipv6_hdr *dsthdr = NULL;
+    int udp_size = 1;
+    int frame_size = PICO_SIZE_ETH + PICO_SIZE_IP6HDR + sizeof(struct pico_ipv6_exthdr) + 8 + udp_size; /* 8 is the size of a fragment header */
+
+    fail_unless(copy_ipv6_hdrs_nofrag(NULL, NULL) == -1);
+    dst = pico_frame_alloc(frame_size);
+    fail_if(!dst);
+    fail_unless(copy_ipv6_hdrs_nofrag(dst, NULL) == -1);
+    src = pico_frame_alloc(frame_size);
+    fail_if(!src);
+    fail_unless(copy_ipv6_hdrs_nofrag(NULL, src) == -1);
+
+    /* Case 1 : net headers are not set */
+    fail_unless(copy_eth_hdr(dst, src) == -1);
+
+    /* reset buffers */
+    memset(dst->buffer, 0, frame_size);
+    memset(src->buffer, 0, frame_size);
+
+    /* Case 2 : net headers set, with fragment header */
+    dst->net_hdr = dst->buffer;
+    src->net_hdr = src->buffer;
+    src->net_len = frame_size - udp_size;
+    srchdr = (struct pico_ipv6_hdr *)src->net_hdr;
+    dsthdr = (struct pico_ipv6_hdr *)dst->net_hdr;
+
+    /* Set nxthdr to frag header */
+    srchdr->nxthdr= PICO_IPV6_EXTHDR_ROUTING;
+    srchdr->extensions[1] = 1;  /* Size of the routing header in 8-octets (so 1*8 bytes long) */
+    /* Set the nxthdr after the routing header */
+    srchdr->extensions[8] = PICO_IPV6_EXTHDR_FRAG;
+    srchdr->extensions[16] = PICO_PROTO_UDP;
+
+    /* copy_ipv6_hdrs_nofrag returns the length of the net header, this should not contain the fragment header (so PICO_SIZE-8) */
+    fail_unless(copy_ipv6_hdrs_nofrag(dst, src) == src->net_len - 8);
+
+    /* first ip6hdr should be the same */
+    fail_unless(memcmp(dst->buffer, src->buffer, PICO_SIZE_IP6HDR) == 0);
+    /* routing header should be copied*/
+    fail_unless(memcmp(dst->buffer + PICO_SIZE_IP6HDR, src->buffer + PICO_SIZE_IP6HDR, 8) == 0);
+    /* Everything past the fragment header should be copied
+     *(right after the routing header, so dst should not contain the fragment header)
+     */
+    fail_unless(memcmp(dst->buffer + PICO_SIZE_IP6HDR + 8, src->buffer +PICO_SIZE_IP6HDR + 16, frame_size - PICO_SIZE_IP6HDR - 8 - PICO_SIZE_ETH) == 0);
+
+    /* reset buffers */
+    memset(dst->buffer, 0, frame_size);
+    memset(src->buffer, 0, frame_size);
+
+    /* Case 3: net headers set, WITHOUT fragment header */
+    dst->net_hdr = dst->buffer;
+    src->net_hdr = src->buffer;
+    src->net_len = frame_size - 8 - udp_size; /* We implied a fragment header in the frame_size so -8 for this case */
+    srchdr = (struct pico_ipv6_hdr *)src->net_hdr;
+    dsthdr = (struct pico_ipv6_hdr *)dst->net_hdr;
+
+    /* Set nxthdr to frag header */
+    srchdr->nxthdr= PICO_IPV6_EXTHDR_ROUTING;
+    srchdr->extensions[1] = 1;  /* Size of the routing header in 8-octets (so 1*8 bytes long) */
+    /* Set the nxthdr after the routing header */
+    srchdr->extensions[8] = PICO_ICMP6_ECHO_REQUEST;
+
+    /* copy_ipv6_hdrs_nofrag returns the length of the net header
+     * There is no frag header so the length should not have changed.
+     */
+    fail_unless(copy_ipv6_hdrs_nofrag(dst, src) == src->net_len);
+
+    /* everything but the udp should be copied since there was no fragment header */
+    fail_unless(memcmp(dst->buffer, src->buffer, src->net_len) == 0);
+
+    /* Cleanup */
+    pico_frame_discard(dst);
+    pico_frame_discard(src);
+}
+END_TEST
+
 
 
 Suite *pico_suite(void)
@@ -254,6 +442,10 @@ Suite *pico_suite(void)
     TCase *TCase_pico_hole_free = tcase_create("Unit test for pico_hole_free");
     TCase *TCase_pico_hole_alloc = tcase_create("Unit test for pico_hole_alloc");
     TCase *TCase_pico_ip_frag_expired = tcase_create("Unit test for pico_ip_frag_expired");
+    TCase *TCase_pico_ipv6_process_frag = tcase_create("Unit test for pico_ipv6_process_frag");
+    TCase *TCase_pico_ipv4_process_frag = tcase_create("Unit test for pico_ipv4_process_frag");
+    TCase *TCase_copy_eth_hdr = tcase_create("Unit test for copy_eth_hdr");
+    TCase *TCase_copy_ipv6_hdrs_nofrag = tcase_create("Unit test for copy_ipv6_hdrs_nofrag");
 
 
     tcase_add_test(TCase_fragments_compare, tc_fragments_compare);
@@ -274,43 +466,22 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_hole_alloc);
     tcase_add_test(TCase_pico_ip_frag_expired, tc_pico_ip_frag_expired);
     suite_add_tcase(s, TCase_pico_ip_frag_expired);
-return s;
+    tcase_add_test(TCase_pico_ipv6_process_frag, tc_pico_ipv6_process_frag);
+    suite_add_tcase(s, TCase_pico_ipv6_process_frag);
+    tcase_add_test(TCase_pico_ipv4_process_frag, tc_pico_ipv4_process_frag);
+    suite_add_tcase(s, TCase_pico_ipv4_process_frag);
+    tcase_add_test(TCase_copy_eth_hdr, tc_copy_eth_hdr);
+    suite_add_tcase(s, TCase_copy_eth_hdr);
+    tcase_add_test(TCase_copy_ipv6_hdrs_nofrag, tc_copy_ipv6_hdrs_nofrag);
+    suite_add_tcase(s, TCase_copy_ipv6_hdrs_nofrag);
+
+
+    return s;
 }
-
-
-#if 0
-#include "pico_icmp4.h"
-#define NUM_PING 1
-int ping_test_var = 0;
-
-void cb_ping(struct pico_icmp4_stats *s)
-{
-    char host[30];
-    pico_ipv4_to_string(host, s->dst.addr);
-    if (s->err == 0) {
-        dbg("%lu bytes from %s: icmp_req=%lu ttl=64 time=%lu ms\n", s->size, host, s->seq, s->time);
-        if (s->seq == NUM_PING) {
-            ping_test_var++;
-        }
-
-        fail_if (s->seq > NUM_PING);
-    } else {
-        dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
-        exit(1);
-    }
-}
-#include "pico_dev_null.c"
-#include "pico_dev_mock.c"
-
-#endif
-
-
 
 
 int main(void)
 {
-
-#if 1
     int fails;
     Suite *s = pico_suite();
     SRunner *sr = srunner_create(s);
@@ -318,129 +489,4 @@ int main(void)
     fails = srunner_ntests_failed(sr);
     srunner_free(sr);
     return fails;
-#else
-   /* TODO: test this: static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint16_t bufsize); */
-
-    struct pico_ip4 local = {
-        0
-    };
-    struct pico_ip4 remote = {
-        0
-    };
-    struct pico_ip4 netmask = {
-        0
-    };
-    struct mock_device *mock = NULL;
-    char local_address[] = {
-        "192.168.1.102"
-    };
-    char remote_address[] = {
-        "192.168.1.103"
-    };
-    uint16_t interval = 1000;
-    uint16_t timeout  = 5000;
-    uint8_t size  = 48;
-
-    int bufferlen = 80;
-    uint8_t buffer[bufferlen];
-    int len;
-    uint8_t temp_buf[4];
-
-    printf("*********************** starting %s * \n", __func__);
-
-    pico_string_to_ipv4(local_address, &(local.addr));
-    pico_string_to_ipv4("255.255.255.0", &(netmask.addr));
-
-    pico_string_to_ipv4(remote_address, &(remote.addr));
-    pico_string_to_ipv4("255.255.255.0", &(netmask.addr));
-
-    pico_stack_init();
-
-    mock = pico_mock_create(NULL);
-    fail_if(mock == NULL, "No device created");
-
-    pico_ipv4_link_add(mock->dev, local, netmask);
-
-    fail_if(pico_icmp4_ping(local_address, NUM_PING, interval, timeout, size, cb_ping) < 0);
-    pico_stack_tick();
-    pico_stack_tick();
-    pico_stack_tick();
-
-    fail_if(ping_test_var != 1);
-
-    pico_icmp4_ping(remote_address, NUM_PING, interval, timeout, size, cb_ping);
-    pico_stack_tick();
-    pico_stack_tick();
-    pico_stack_tick();
-
-    /* get the packet from the mock_device */
-    memset(buffer, 0, bufferlen);
-printf("[LUM:%s%d]  buffer:%p bufferlen:%d\n",__FILE__,__LINE__,buffer,bufferlen);
-    len = pico_mock_network_read(mock, buffer, bufferlen);
-    fail_if(len < 20);
-printf("[LUM:%s%d]  buffer:%p len:%d\n",__FILE__,__LINE__,buffer,len);
-    /* inspect it */
-    fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
-    fail_unless(mock_icmp_type(mock, buffer, len) == 8);
-    fail_unless(mock_icmp_code(mock, buffer, len) == 0);
-printf("[LUM:%s%d]  buffer:%p len:%d\n",__FILE__,__LINE__,buffer,len);
-printf("[LUM:%s%d]  buffer \n",__FILE__,__LINE__);
-{
-    int i;
-    for(i=0;i < bufferlen;i++)
-    {
-        if((i%16) ==0) printf("\n");
-        printf("0x%02X ",buffer[i]);
-    }
-}
-    fail_unless(pico_checksum(&buffer[20], len - 20) == 0);
-
-    /* cobble up a reply */
-    buffer[20] = 0; /* type 0 : reply */
-    memcpy(temp_buf, buffer + 12, 4);
-    memcpy(buffer + 12, buffer + 16, 4);
-    memcpy(&buffer[16], temp_buf, 4);
-
-    /* using the mock-device because otherwise I have to put everything in a pico_frame correctly myself. */
-    pico_mock_network_write(mock, buffer, len);
-    /* check if it is received */
-
-    pico_check_timers();
-
-    pico_stack_tick();
-    pico_stack_tick();
-    pico_stack_tick();
-    fail_unless(ping_test_var == 2);
-
-    /* repeat but make it an invalid reply... */
-
-    pico_icmp4_ping(remote_address, NUM_PING, interval, timeout, size, cb_ping);
-    pico_stack_tick();
-    pico_stack_tick();
-    pico_stack_tick();
-
-    /* get the packet from the mock_device */
-    memset(buffer, 0, bufferlen);
-    len = pico_mock_network_read(mock, buffer, bufferlen);
-    /* inspect it */
-    fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
-    fail_unless(mock_icmp_type(mock, buffer, len) == 8);
-    fail_unless(mock_icmp_code(mock, buffer, len) == 0);
-    fail_unless(pico_checksum(buffer + 20, len - 20) == 0);
-
-    /* cobble up a reply */
-    buffer[20] = 0; /* type 0 : reply */
-    memcpy(temp_buf, buffer + 12, 4);
-    memcpy(buffer + 12, buffer + 16, 4);
-    memcpy(buffer + 16, temp_buf, 4);
-    buffer[26] = ~buffer[26]; /* flip some bits in the sequence number, to see if the packet gets ignored properly */
-
-    /* using the mock-device because otherwise I have to put everything in a pico_frame correctly myself. */
-    pico_mock_network_write(mock, buffer, len);
-    /* check if it is received */
-    pico_stack_tick();
-    pico_stack_tick();
-    pico_stack_tick();
-    fail_unless(ping_test_var == 2);
-#endif
 }
