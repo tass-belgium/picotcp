@@ -1,8 +1,10 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
-CC:=$(CROSS_COMPILE)gcc
-LD:=$(CROSS_COMPILE)ld
+#CC:=$(CROSS_COMPILE)gcc
+#LD:=$(CROSS_COMPILE)ld
+CC:=x86_64-linux-gnu-vfcc
+LD:=x86_64-linux-gnu-vfcc
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
@@ -18,7 +20,6 @@ ENDIAN?=little
 STRIP?=0
 RTOS?=0
 CHECKSUMFUN?=young
-ADDRESS_SANITIZER?=0
 
 # Default compiled-in protocols
 #
@@ -42,7 +43,6 @@ CRC?=1
 OLSR?=0
 SLAACV4?=1
 TFTP?=1
-AODV?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
@@ -52,7 +52,6 @@ TAP?=0
 IPV6?=1
 
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
-EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
 CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
@@ -63,11 +62,11 @@ CFLAGS+= -Wcast-align
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
 else
-  ifeq ($(PERF), 1)
-    CFLAGS+=-O3
-  else
-    CFLAGS+=-Os
-  endif
+    ifeq ($(PERF), 1)
+        CFLAGS+=-O3
+    else
+        CFLAGS+=-Os
+    endif
 endif
 
 ifeq ($(PROFILE),1)
@@ -77,11 +76,6 @@ endif
 ifeq ($(TFTP),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_strings.o $(LIBBASE)modules/pico_tftp.o
   OPTIONS+=-DPICO_SUPPORT_TFTP
-endif
-
-ifeq ($(AODV),1)
-  MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o 
-  OPTIONS+=-DPICO_SUPPORT_AODV
 endif
 
 
@@ -97,25 +91,22 @@ ifneq ($(RTOS),0)
   OPTIONS+=-DPICO_SUPPORT_RTOS
 endif
 
-ifeq ($(ARCH),cortexm4-hardfloat)
-  CFLAGS+=-DCORTEX_M4_HARDFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
+ifeq ($(ARCH),stm32f4xx)
+  CFLAGS+=-mcpu=cortex-m4 \
+  -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
 endif
 
-ifeq ($(ARCH),cortexm4-softfloat)
-  CFLAGS+=-DCORTEX_M4_SOFTFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfloat-abi=soft -mthumb-interwork
+ifeq ($(ARCH),stm32)
+  CFLAGS+=-mcpu=cortex-m4 \
+  -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 \
+  -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant -DSTM32
 endif
 
-ifeq ($(ARCH),cortexm3)
-  CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
-endif
-
-ifeq ($(ARCH),arm9)
-  CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
-endif
-
-ifeq ($(ADDRESS_SANITIZER),1)
-  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
-  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+ifeq ($(ARCH),stm32_gc)
+  CFLAGS_CORTEX_M4 = -mthumb -mtune=cortex-m4 -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 
+  CFLAGS_CORTEX_M4 += -mfloat-abi=hard -fsingle-precision-constant -Wdouble-promotion
+  CFLAGS+= $(CFLAGS_CORTEX_M4) -mlittle-endian -DSTM32_GC
 endif
 
 ifeq ($(ARCH),faulty)
@@ -125,12 +116,59 @@ ifeq ($(ARCH),faulty)
   DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
+ifeq ($(ARCH),stm32-softfloat)
+  CFLAGS+=-mcpu=cortex-m3 \
+  -mthumb -mlittle-endian \
+  -mfloat-abi=soft -mthumb-interwork \
+  -DSTM32
+endif
+
+
+ifeq ($(ARCH),stm32f1xx)
+  CFLAGS+=-mcpu=cortex-m3 \
+	-mthumb -mlittle-endian \
+	-mthumb-interwork \
+	-DSTM32F1
+endif
+
+
 ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif
 
 ifeq ($(ARCH),esp8266)
-  CFLAGS+=-DESP8266 -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals
+  CFLAGS +=  -DESP8266              \
+             -g                     \
+             -Wpointer-arith        \
+             -Wundef                \
+             -Wl,-EL                \
+             -fno-inline-functions  \
+             -nostdlib              \
+             -mlongcalls            \
+             -mtext-section-literals
+endif
+
+ifeq ($(ARCH),stellaris)
+  CFLAGS+=-mthumb -DSTELLARIS
+endif
+
+ifeq ($(ARCH),lpc)
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC
+endif
+
+ifeq ($(ARCH),lpc18xx)
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m3 -mthumb -MMD -MP -DLPC18XX
+endif
+
+ifeq ($(ARCH),lpc43xx)
+  CFLAGS+=-fmessage-length=0 -fno-builtin \
+  -ffunction-sections -fdata-sections -mlittle-endian \
+  -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16  \
+  -fsingle-precision-constant -mthumb -MMD -MP -DLPC43XX
 endif
 
 ifeq ($(ARCH),pic24)
@@ -139,7 +177,11 @@ ifeq ($(ARCH),pic24)
 endif
 
 ifeq ($(ARCH),atmega128)
-  CFLAGS+=-Wall -mmcu=atmega128 -DAVR
+	CFLAGS+=-Wall -mmcu=atmega128 -DAVR
+endif
+
+ifeq ($(ARCH),str9)
+  CFLAGS+=-DSTR9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
 ifeq ($(ARCH),none)
@@ -150,7 +192,7 @@ ifeq ($(ARCH),shared)
   CFLAGS+=-fPIC
 endif
 
-%.o:%.c deps
+.c.o:
 	$(CC) -c $(CFLAGS) -o $@ $<
 
 CORE_OBJ= stack/pico_stack.o \
@@ -158,15 +200,15 @@ CORE_OBJ= stack/pico_stack.o \
           stack/pico_device.o \
           stack/pico_protocol.o \
           stack/pico_socket.o \
-          stack/pico_socket_multicast.o \
-          stack/pico_tree.o
+		  stack/pico_socket_multicast.o \
+			stack/pico_tree.o
 
-POSIX_OBJ+= modules/pico_dev_vde.o \
-            modules/pico_dev_tun.o \
-            modules/pico_dev_tap.o \
-            modules/pico_dev_mock.o \
+POSIX_OBJ+=  modules/pico_dev_vde.o \
+						modules/pico_dev_tun.o \
+						modules/pico_dev_tap.o \
+						modules/pico_dev_mock.o \
             modules/pico_dev_pcap.o \
-            modules/ptsocket/pico_ptsocket.o
+						modules/ptsocket/pico_ptsocket.o
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -241,11 +283,11 @@ endif
 
 all: mod core lib
 
-core: $(CORE_OBJ)
+core: deps $(CORE_OBJ)
 	@mkdir -p $(PREFIX)/lib
 	@mv stack/*.o $(PREFIX)/lib
 
-mod: $(MOD_OBJ)
+mod: deps $(MOD_OBJ)
 	@mkdir -p $(PREFIX)/modules
 	@mv modules/*.o $(PREFIX)/modules || echo
 
@@ -262,7 +304,7 @@ test: posix
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
-	@gcc -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
+	@$(CC) -c -o $(PREFIX)/examples/picoapp.o test/picoapp.c $(CFLAGS)
 	@echo -e "\t[LD] $@"
 	@$(CC) -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test
@@ -270,7 +312,7 @@ test: posix
 	
 tst: test
 
-$(PREFIX)/include/pico_defines.h:
+$(PREFIX)/include/pico_defines.h: FORCE
 	@mkdir -p $(PREFIX)/lib
 	@mkdir -p $(PREFIX)/include
 	@bash ./mkdeps.sh $(PREFIX) $(OPTIONS)
@@ -306,7 +348,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\t[CC] units.o"
 	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/modules/pico_aodv.o
+	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt $(UNITS_OBJ) 
 	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_pico_frame.elf $(CFLAGS) -I. test/unit/modunit_pico_frame.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_seq.elf $(CFLAGS) -I. test/unit/modunit_seq.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
@@ -319,7 +361,6 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_tftp.elf $(CFLAGS) -I. test/unit/modunit_pico_tftp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_sntp_client.elf $(CFLAGS) -I. test/unit/modunit_pico_sntp_client.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_ipfilter.elf $(CFLAGS) -I. test/unit/modunit_pico_ipfilter.c stack/pico_tree.c -lcheck -lm -pthread -lrt $(UNITS_OBJ)
-	@$(CC) -o $(PREFIX)/test/modunit_aodv.elf $(CFLAGS) -I. test/unit/modunit_pico_aodv.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_queue.elf $(CFLAGS) -I. test/unit/modunit_queue.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 
 devunits: mod core lib

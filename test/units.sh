@@ -1,5 +1,7 @@
 #!/bin/bash
 rm -f /tmp/pico-mem-report-*
+export VFRUN_OUT="|/opt/vectorfabrics/pareon-2.21/verify/tools/bin/vfana"
+export VFPROJECT=/home/demo/pico_testing/pico_pareon_verify
 
 ./build/test/units || exit 1
 ./build/test/modunit_pico_stack.elf || exit 1
@@ -15,7 +17,6 @@ rm -f /tmp/pico-mem-report-*
 ./build/test/modunit_ipfilter.elf || exit 1
 ./build/test/modunit_queue.elf || exit 1
 ./build/test/modunit_tftp.elf || exit 1
-./build/test/modunit_aodv.elf || exit 1
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo

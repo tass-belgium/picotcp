@@ -1,4 +1,5 @@
-CC=gcc
+#CC=gcc
+CC=x86_64-linux-gnu-vfcc
 CFLAGS=-ggdb -I../build/include/ -L../build/lib/ -lpicotcp -lvdeplug
 APPNAME=test_tftp_app_client
 
