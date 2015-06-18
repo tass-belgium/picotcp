@@ -680,7 +680,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint8_t option_len = 0;
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    uint16_t max_allowed = (uint16_t) (f->buffer_len - (f->net_hdr - f->buffer) - PICO_SIZE_IP4HDR);
+    uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
@@ -1523,6 +1523,7 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
     dbg("Assigned ipv4 %s to device %s\n", ipstr, new->dev->name);
     if (default_bcast_route.link == NULL)
         default_bcast_route.link = new;
+
     return 0;
 }
 
@@ -1588,6 +1589,7 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
     pico_tree_delete(&Tree_dev_link, found);
     if (default_bcast_route.link == found)
         default_bcast_route.link = NULL;
+
     PICO_FREE(found);
 
     return 0;

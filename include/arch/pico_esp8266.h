@@ -48,7 +48,7 @@ static inline pico_time PICO_TIME(void)
 static inline void PICO_IDLE(void)
 {
     uint32_t now = esp_tick;
-    while(now == esp_tick) ;
+    while(now == esp_tick);
 }
 
 #endif
