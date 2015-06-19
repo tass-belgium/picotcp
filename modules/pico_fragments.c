@@ -209,7 +209,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
         break;
         case PICO_IPV6_EXTHDR_FRAG:
             srcidx += 8;            // remove frag field from dsthdr
-            retval = (uint16_t)(retval + 8u);
+            retval = (uint16_t)(retval - 8u);
 			break;
         case PICO_IPV6_EXTHDR_NONE:
         case PICO_PROTO_TCP:
