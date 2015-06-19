@@ -159,6 +159,7 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
     /* Update hdr fields to new buffer*/
     addr_diff = (int)(f->buffer - oldbuf);
     f->net_hdr += addr_diff;
+    f->datalink_hdr += addr_diff;
     f->transport_hdr += addr_diff;
     f->app_hdr += addr_diff;
     f->start += addr_diff;
@@ -213,6 +214,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
 
     /* Update in-buffer pointers with offset */
     addr_diff = (int)(new->buffer - f->buffer);
+    new->datalink_hdr += addr_diff;
     new->net_hdr += addr_diff;
     new->transport_hdr += addr_diff;
     new->app_hdr += addr_diff;
