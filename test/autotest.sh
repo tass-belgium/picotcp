@@ -171,13 +171,8 @@ killall -w picoapp.elf
 echo "DHCP DUAL TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0::: -a dhcpserver:pic0:10.40.0.2:255.255.255.0:64:128:) &
 (./build/test/picoapp.elf --vde pic1:/tmp/pic1.ctl:10.50.0.2:255.255.0.0::: -a dhcpserver:pic1:10.50.0.2:255.255.255.0:64:128:) &
-<<<<<<< Updated upstream
-./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: --barevde pic1:/tmp/pic1.ctl: -a dhcpclient:pic0:pic1 || exit 1
-killall picoapp.elf
-=======
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: --barevde pic1:/tmp/pic1.ctl: -a dhcpclient:pic0:pic1: || exit 1
 killall -w picoapp.elf
->>>>>>> Stashed changes
 
 #TO DO: the ping address 169.254.22.5 is hardcoded in the slaacv4 test. Nice to pass that by parameter
 echo "SLAACV4 TEST"
