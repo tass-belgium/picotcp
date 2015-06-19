@@ -72,8 +72,10 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
     if ((q->max_frames) && (q->max_frames <= q->frames))
         return -1;
 
-    if ((Q_LIMIT) && (Q_LIMIT < p->buffer_len + q->size))
+#if (Q_LIMIT != 0)
+    if ((Q_LIMIT < p->buffer_len + q->size))
         return -1;
+#endif
 
     if ((q->max_size) && (q->max_size < (p->buffer_len + q->size)))
         return -1;
