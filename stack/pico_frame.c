@@ -132,6 +132,7 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
     uint32_t frame_buffer_size;
     uint32_t oldsize;
     unsigned int align, oldalign;
+    int addr_diff = 0;
 
     if (!f || (size < f->buffer_len) || (f->flags & (PICO_FRAME_FLAG_EXT_BUFFER | PICO_FRAME_FLAG_EXT_USAGE_COUNTER)) ) {
         return -1;
@@ -157,7 +158,17 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
     *f->usage_count = usage_count;
     f->buffer_len = size;
     memcpy(f->buffer, oldbuf, oldsize);
+
+    /* Update hdr fields to new buffer*/
+    addr_diff = (int)(f->buffer - oldbuf);
+    f->net_hdr += addr_diff;
+    f->transport_hdr += addr_diff;
+    f->app_hdr += addr_diff;
+    f->start += addr_diff;
+    f->payload += addr_diff;
+
     PICO_FREE(oldbuf);
+
     return 0;
 }
 
