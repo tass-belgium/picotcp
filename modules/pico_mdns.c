@@ -1305,15 +1305,14 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
         if ((record = node->keyValue)) {
             /* Set the cache flush bit again */
             PICO_MDNS_SET_MSB_BE(record->record->rsuffix->rclass);
-            if ((found = pico_tree_findKey(&MyRecords, record))) {
+			if ((found = pico_tree_findKey(&MyRecords, record))) {
+				if (IS_HOSTNAME_RECORD(found)) {
+					if (_hostname)
+						PICO_FREE(_hostname);
+					_hostname = pico_dns_qname_to_url(found->record->rname);
+				}
                 PICO_MDNS_SET_FLAG(found->flags, PICO_MDNS_RECORD_PROBED);
-                PICO_MDNS_CLR_FLAG(found->flags,
-                                   PICO_MDNS_RECORD_CURRENTLY_PROBING);
-                if (IS_HOSTNAME_RECORD(found)) {
-                    if (_hostname) PICO_FREE(_hostname);
-
-                    _hostname = pico_dns_qname_to_url(found->record->rname);
-                }
+                PICO_MDNS_CLR_FLAG(found->flags, PICO_MDNS_RECORD_CURRENTLY_PROBING);
             } else
                 mdns_dbg("Could not find my corresponding record...\n");
         }
