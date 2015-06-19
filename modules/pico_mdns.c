@@ -1994,7 +1994,7 @@ pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
 		/* Make an mDNS record from the DNS answer */
 		orname = pico_dns_record_decompress(&answer, packet);
 		mdns_answer.record = &answer;
-		mdns_answer.record->rname_length = pico_dns_strlen(answer.rname);
+		mdns_answer.record->rname_length = (uint16_t)(pico_dns_strlen(answer.rname) + 1u);
 
 		/* Handle a single aswer */
 		switch (type) {
