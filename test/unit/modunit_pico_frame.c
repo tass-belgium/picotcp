@@ -65,10 +65,6 @@ START_TEST(tc_pico_frame_grow)
     /* First, the failing cases. */
     fail_if(pico_frame_grow(NULL, 30) == 0);
     fail_if(pico_frame_grow(f, 2) == 0);
-    f->flags = PICO_FRAME_FLAG_EXT_BUFFER;
-    fail_if(pico_frame_grow(f, 21) == 0);
-    f->flags = PICO_FRAME_FLAG_EXT_USAGE_COUNTER;
-    fail_if(pico_frame_grow(f, 21) == 0);
     f->flags = 0;
     
     pico_set_mm_failure(1);
@@ -86,6 +82,16 @@ START_TEST(tc_pico_frame_grow)
     fail_if(*f->usage_count != 12);
 
     *f->usage_count = 1;
+    pico_frame_discard(f);
+
+    f = pico_frame_alloc_skeleton(10,1);
+    fail_if(!f);
+    fail_if(f->buffer);
+    fail_if(!f->flags);
+    f->buffer = PICO_ZALLOC(10);
+
+    fail_if(pico_frame_grow(f, 22) != 0);
+    fail_if (f->flags);
     pico_frame_discard(f);
 
 }
