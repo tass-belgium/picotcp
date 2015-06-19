@@ -298,6 +298,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *
 
                 if (retval <= 0)
                 {
+                    pico_fragment_free(fragment);
                     return;
                 }
 
@@ -827,44 +828,23 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             int addr_diff;
 
             // frame->buffer is too small
-            // allocate new frame and copy all
+            // grow frame and copy new recv frame
             uint32_t alloc_len= frame->transport_len + fragment->frame->buffer_len;
-            uint8_t *old_buffer = fragment->frame->buffer;
-            uint8_t *new_buffer = PICO_ZALLOC(alloc_len);
 
             frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,old_buffer,new_buffer );
             frag_dbg("[LUM:%s:%d] frame->buffer original size: %d \n",__FILE__,__LINE__,fragment->frame->buffer_len);
             frag_dbg("[LUM:%s:%d] frame->buffer new size: %d \n",__FILE__,__LINE__, alloc_len);
             frag_dbg("[LUM:%s:%d] recv frame size: %d \n",__FILE__,__LINE__, frame->buffer_len);
             // copy hdrs + options + data
-            if(new_buffer)
+            if(pico_frame_grow(fragment->frame, alloc_len) == 0)
             {
-
-                /* Copy the buffer */
-                memcpy(new_buffer,fragment->frame->buffer,fragment->frame->buffer_len);
 
                 frag_dbg("[LUM:%s:%d] net_hdr:%p transport_hdr:%p\n",__FILE__,__LINE__,fragment->frame->net_hdr,fragment->frame->transport_hdr);
 
-                fragment->frame->buffer = new_buffer;
-                addr_diff = (int)(new_buffer - old_buffer);
-                fragment->frame->net_hdr += addr_diff;
-                fragment->frame->transport_hdr += addr_diff;
-                fragment->frame->datalink_hdr += addr_diff;
-                fragment->frame->app_hdr += addr_diff;
-                fragment->frame->start += addr_diff;
-                fragment->frame->payload += addr_diff;
-                fragment->frame->next = NULL;
-
-                // Update total buffer len
-                fragment->frame->buffer_len = fragment->frame->buffer_len + frame->transport_len;
-                fragment->frame->len = fragment->frame->buffer_len + frame->transport_len;
-
-                PICO_FREE(old_buffer);
-                new_buffer=NULL;
-                old_buffer=NULL;
-
                 /* Copy new frame */
                 memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
+                /* Update transport len */
+                fragment->frame->transport_len += frame->transport_len;
                 retval = frame->transport_len;
             }
             else
@@ -872,6 +852,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 				frag_dbg("[LUM:%s:%d] Failed to allocate frame buffer \n",__FILE__,__LINE__ );
                 // discard packet: no more memory
                 pico_fragment_free(fragment);
+                return -1;
                 // notify icmp
             }
         }

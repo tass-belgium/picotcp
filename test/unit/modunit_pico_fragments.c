@@ -170,13 +170,15 @@ START_TEST(tc_pico_fragment_arrived)
     unsigned char *old_frame_buffer = NULL;
     uint16_t offset;
     uint16_t more;
-    int frame_transport_size = 2;
+    int frame_transport_size = 8;
+    int iphdr_size = 20;
+    int buf_size = 8;
 
     /* Fragment or frame is NULL */
-    frame = pico_frame_alloc(frame_transport_size);
+    frame = pico_frame_alloc(iphdr_size + buf_size + PICO_SIZE_ETHHDR);
     fail_if(!frame);
     fail_unless(pico_fragment_arrived(NULL, frame, offset, more) == -1);
-    fragment = pico_fragment_alloc( 1, 1);
+    fragment = pico_fragment_alloc( iphdr_size, buf_size + PICO_SIZE_ETHHDR);
     fail_if(!fragment);
     fail_unless(pico_fragment_arrived(fragment, NULL, offset, more) == -1);
 
@@ -187,23 +189,18 @@ START_TEST(tc_pico_fragment_arrived)
      * - fragment->frame->buffer should be large enough so no reallocation
      */
 
-    /* Init of frame and fragment
-     * pico_fragment_arrived uses the transport_len and hdr
-     * we set these to the buffer_len and buffer for testing purposes
-     */
-    frame->transport_hdr = frame->buffer;
-    frame->transport_len = frame_transport_size;
-    fragment->frame->transport_len = fragment->frame->buffer_len;
-    fragment->frame->transport_hdr = fragment->frame->buffer;
+    frame->transport_hdr = frame->buffer + iphdr_size + PICO_SIZE_ETHHDR;
+    frame->transport_len = buf_size;
+    fragment->frame->transport_len = fragment->frame->buffer_len - iphdr_size - PICO_SIZE_ETHHDR;
+    fragment->frame->transport_hdr = fragment->frame->buffer + iphdr_size + PICO_SIZE_ETHHDR;
 
-    frame->transport_hdr[0] = '0';
-    frame->transport_hdr[1] = '1';
+    memset(frame->transport_hdr, '1', frame_transport_size);
 
     old_frame_buffer = fragment->frame->buffer;
 
     /* Is the packet copied to the fragment frame? */
     fail_unless(pico_fragment_arrived(fragment, frame, 0, 1) == frame_transport_size);
-    fail_unless(memcmp(fragment->frame->buffer, frame->transport_hdr, frame_transport_size) == 0);
+    fail_unless(memcmp(fragment->frame->transport_hdr, frame->transport_hdr, frame_transport_size) == 0);
 
     /* Is the global expiration timer added? */
     fail_unless(pico_timer_add_called == 1);
@@ -222,17 +219,15 @@ START_TEST(tc_pico_fragment_arrived)
      * - is the hole deleted from the fragment->holes?
      */
 
-    /* Init of frame and fragment
-     * pico_fragment_arrived uses the transport_len and hdr
-     * we set these to the buffer_len and buffer for testing purposes
-     */
     frame->transport_hdr = frame->buffer;
     frame->transport_len = frame_transport_size;
     old_frame_buffer = fragment->frame->buffer;
 
+    memset(frame->transport_hdr, '2', frame_transport_size);
+
     /* Is the packet copied to the fragment frame? */
-    fail_unless(pico_fragment_arrived(fragment, frame, frame_transport_size, 1) == frame_transport_size);
-    fail_unless(memcmp(fragment->frame->buffer + frame_transport_size, frame->transport_hdr, frame_transport_size) == 0);
+    fail_unless(pico_fragment_arrived(fragment, frame, buf_size, 1) == frame_transport_size);
+    fail_unless(memcmp(fragment->frame->transport_hdr + frame_transport_size, frame->transport_hdr, frame_transport_size) == 0);
 
     /* There was already a pico expiration timer, so we don't have to add it again. */
     fail_unless(pico_timer_add_called == 0);
@@ -251,17 +246,15 @@ START_TEST(tc_pico_fragment_arrived)
      * - is the return value LAST_FRAG_RECV?
      */
 
-    /* Init of frame and fragment
-     * pico_fragment_arrived uses the transport_len and hdr
-     * we set these to the buffer_len and buffer for testing purposes
-     */
     frame->transport_hdr = frame->buffer;
     frame->transport_len = frame_transport_size;
     old_frame_buffer = fragment->frame->buffer;
 
+    memset(frame->transport_hdr, '3', frame_transport_size);
+
     /* Is the packet copied to the fragment frame? */
     fail_unless(pico_fragment_arrived(fragment, frame, frame_transport_size * 2, 0) == PICO_IP_LAST_FRAG_RECV);
-    fail_unless(memcmp(fragment->frame->buffer + (frame_transport_size * 2), frame->transport_hdr, frame_transport_size) == 0);
+    fail_unless(memcmp(fragment->frame->transport_hdr + (frame_transport_size * 2), frame->transport_hdr, frame_transport_size) == 0);
 
     /* There was already a pico expiration timer, so we don't have to add it again. */
     fail_unless(pico_timer_add_called == 0);
@@ -274,11 +267,11 @@ START_TEST(tc_pico_fragment_arrived)
     /* Is the buffer reallocated? it should be because it was not big enough*/
     fail_unless(old_frame_buffer != fragment->frame->buffer);
 
-    /* pico_fragment_free(fragment); */
-    /* pico_frame_discard(frame); */
-
+    pico_fragment_free(fragment);
+    pico_frame_discard(frame);
 }
 END_TEST
+
 START_TEST(tc_pico_hole_free)
 {
     pico_hole_t *hole = NULL;
@@ -458,8 +451,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_fragment_alloc);
     tcase_add_test(TCase_pico_fragment_free, tc_pico_fragment_free);
     suite_add_tcase(s, TCase_pico_fragment_free);
-    /* tcase_add_test(TCase_pico_fragment_arrived, tc_pico_fragment_arrived); */
-    /* suite_add_tcase(s, TCase_pico_fragment_arrived); */
+    tcase_add_test(TCase_pico_fragment_arrived, tc_pico_fragment_arrived);
+    suite_add_tcase(s, TCase_pico_fragment_arrived);
     tcase_add_test(TCase_pico_hole_free, tc_pico_hole_free);
     suite_add_tcase(s, TCase_pico_hole_free);
     tcase_add_test(TCase_pico_hole_alloc, tc_pico_hole_alloc);
