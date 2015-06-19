@@ -1450,7 +1450,7 @@ pico_dns_packet_compress_find_ptr( uint8_t *name,
         /* Compare in each iteration of current name is equal to a section of
            the DNS packet and if so return the pointer to that section */
         if (memcmp((void *)iterator++, (void *)name,
-                   strlen((char *)name) + 1u) == 0)
+                   pico_dns_strlen((char *)name) + 1u) == 0)
             return (iterator - 1);
     }
     return NULL;

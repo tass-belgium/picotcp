@@ -460,14 +460,15 @@ END_TEST
 START_TEST(tc_pico_dns_packet_compress_find_ptr) /* MARK: dns_packet_compress_find_ptr */
 {
     uint8_t *data = (uint8_t *)"abcdef\5local\0abcdef\4test\5local";
-    uint8_t *name = (uint8_t *)"\5local";
+    uint8_t *name = (uint8_t *)(data + 24);
     uint16_t len = 31;
     uint8_t *ptr = NULL;
 
     printf("*********************** starting %s * \n", __func__);
 
     ptr = pico_dns_packet_compress_find_ptr(name, data, len);
-    fail_unless(ptr == (data + 6), "Finding compression ptr failed!\n");
+    fail_unless(ptr == (data + 6), "Finding compression ptr failed %p - %p!\n", ptr,
+				data + 6);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
