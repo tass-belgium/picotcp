@@ -108,6 +108,8 @@ START_TEST(tc_pico_fragment_alloc)
     /* Both are greater than zero */
     fragment = pico_fragment_alloc(1, 1);
     fail_if( fragment == NULL);
+
+    /* Cleanup */
     pico_fragment_free(fragment);
 }
 END_TEST
@@ -238,6 +240,10 @@ START_TEST(tc_pico_fragment_arrived)
 
     /* Is the buffer reallocated? it should be because it was not big enough*/
     fail_unless(old_frame_buffer != fragment->frame->buffer);
+    /* The buffer was reallocated, are the necessary headers updated? */
+    fail_unless(fragment->frame->datalink_hdr == fragment->frame->buffer);
+    fail_unless(fragment->frame->net_hdr == fragment->frame->buffer + PICO_SIZE_ETHHDR);
+    fail_unless(fragment->frame->transport_hdr == fragment->frame->buffer + PICO_SIZE_ETHHDR + iphdr_size);
 
 
     /* Third fragment arrived:
@@ -266,7 +272,12 @@ START_TEST(tc_pico_fragment_arrived)
 
     /* Is the buffer reallocated? it should be because it was not big enough*/
     fail_unless(old_frame_buffer != fragment->frame->buffer);
+    /* The buffer was reallocated, are the necessary headers updated? */
+    fail_unless(fragment->frame->datalink_hdr == fragment->frame->buffer);
+    fail_unless(fragment->frame->net_hdr == fragment->frame->buffer + PICO_SIZE_ETHHDR);
+    fail_unless(fragment->frame->transport_hdr == fragment->frame->buffer + PICO_SIZE_ETHHDR + iphdr_size);
 
+    /* Cleanup */
     pico_fragment_free(fragment);
     pico_frame_discard(frame);
 }
@@ -293,6 +304,8 @@ START_TEST(tc_pico_hole_alloc)
     /* Normal case */
     hole = pico_hole_alloc(0, 100);
     fail_if(!hole);
+
+    /* Cleanup */
     pico_hole_free(hole);
 }
 END_TEST
@@ -335,6 +348,7 @@ START_TEST(tc_copy_eth_hdr)
     src->datalink_hdr = src->buffer;
     fail_unless(copy_eth_hdr(dst, src) == 0);
 
+    /* Cleanup */
     pico_frame_discard(dst);
     pico_frame_discard(src);
 }
