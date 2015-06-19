@@ -676,6 +676,8 @@ static int first_fragment_received(struct pico_tree *holes)
     struct pico_tree_node *idx=NULL, *tmp=NULL;
     int retval = PICO_IP_FIRST_FRAG_RECV;
 
+    frag_dbg("[LUM:%s:%d] Examine if first fragment was received. \n",__FILE__,__LINE__);
+
     if (holes)
     {
         pico_tree_foreach_safe(idx, holes, tmp)
@@ -825,13 +827,11 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         }
         else
         {
-            int addr_diff;
-
             // frame->buffer is too small
             // grow frame and copy new recv frame
             uint32_t alloc_len= frame->transport_len + fragment->frame->buffer_len;
 
-            frag_dbg("[LUM:%s:%d] frame->buffer is too small realloc'd:%p buffer:%p \n",__FILE__,__LINE__,old_buffer,new_buffer );
+            frag_dbg("[LUM:%s:%d] frame->buffer is too small-> realloc", __FILE__,__LINE__);
             frag_dbg("[LUM:%s:%d] frame->buffer original size: %d \n",__FILE__,__LINE__,fragment->frame->buffer_len);
             frag_dbg("[LUM:%s:%d] frame->buffer new size: %d \n",__FILE__,__LINE__, alloc_len);
             frag_dbg("[LUM:%s:%d] recv frame size: %d \n",__FILE__,__LINE__, frame->buffer_len);
@@ -844,7 +844,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
                 /* Copy new frame */
                 memcpy(fragment->frame->transport_hdr + offset , frame->transport_hdr, frame->transport_len);
                 /* Update transport len */
-                fragment->frame->transport_len += frame->transport_len;
+                fragment->frame->transport_len = (uint16_t)(fragment->frame->transport_len + frame->transport_len);
                 retval = frame->transport_len;
             }
             else
