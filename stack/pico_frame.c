@@ -10,6 +10,8 @@
 
 #include "pico_config.h"
 #include "pico_frame.h"
+#include "pico_protocol.h"
+#include "pico_stack.h"
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
 static int n_frames_allocated;
@@ -89,10 +91,10 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
             return NULL;
         }
 
-        p->usage_count = (uint32_t *)(((uint8_t*)p->buffer) + size);
+        p->usage_count = (uint32_t *)(((uint8_t*)p->buffer) + frame_buffer_size);
     } else {
         p->buffer = NULL;
-        p->flags = PICO_FRAME_FLAG_EXT_USAGE_COUNTER;
+        p->flags |= PICO_FRAME_FLAG_EXT_USAGE_COUNTER;
         p->usage_count = PICO_ZALLOC(sizeof(uint32_t));
         if (!p->usage_count) {
             PICO_FREE(p);
@@ -109,7 +111,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
     *p->usage_count = 1;
 
     if (ext_buffer)
-        p->flags = PICO_FRAME_FLAG_EXT_BUFFER;
+        p->flags |= PICO_FRAME_FLAG_EXT_BUFFER;
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
     dbg("Allocated buffer @%p, len= %d caller: %p\n", p->buffer, p->buffer_len, __builtin_return_address(2));
@@ -121,6 +123,58 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
 struct pico_frame *pico_frame_alloc(uint32_t size)
 {
     return pico_frame_do_alloc(size, 0, 0);
+}
+
+int pico_frame_grow(struct pico_frame *f, uint32_t size)
+{
+    uint8_t *oldbuf;
+    uint32_t usage_count, *p_old_usage;
+    uint32_t frame_buffer_size;
+    uint32_t oldsize;
+    unsigned int align;
+    int addr_diff = 0;
+
+    if (!f || (size < f->buffer_len)) {
+        return -1;
+    }
+    align = size % sizeof(uint32_t);
+    frame_buffer_size = size;
+    if (align) {
+        frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
+    }
+    oldbuf = f->buffer;
+    oldsize = f->buffer_len;
+    usage_count = *(f->usage_count);
+    p_old_usage = f->usage_count;
+    f->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
+    if (!f->buffer) {
+        f->buffer = oldbuf;
+        return -1;
+    }
+    f->usage_count = (uint32_t *)(((uint8_t*)f->buffer) + frame_buffer_size);
+    *f->usage_count = usage_count;
+    f->buffer_len = size;
+    memcpy(f->buffer, oldbuf, oldsize);
+
+    /* Update hdr fields to new buffer*/
+    addr_diff = (int)(f->buffer - oldbuf);
+    f->net_hdr += addr_diff;
+    f->datalink_hdr += addr_diff;
+    f->transport_hdr += addr_diff;
+    f->app_hdr += addr_diff;
+    f->start += addr_diff;
+    f->payload += addr_diff;
+
+    if (f->flags & PICO_FRAME_FLAG_EXT_USAGE_COUNTER)
+        PICO_FREE(p_old_usage);
+    if (!(f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
+        PICO_FREE(oldbuf);
+    else if (f->notify_free)
+        f->notify_free(oldbuf);
+
+    f->flags = 0; 
+    /* Now, the frame is not zerocopy anymore, and the usage counter has been moved within it */
+    return 0;
 }
 
 struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int ext_buffer)
@@ -160,6 +214,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
 
     /* Update in-buffer pointers with offset */
     addr_diff = (int)(new->buffer - f->buffer);
+    new->datalink_hdr += addr_diff;
     new->net_hdr += addr_diff;
     new->transport_hdr += addr_diff;
     new->app_hdr += addr_diff;
