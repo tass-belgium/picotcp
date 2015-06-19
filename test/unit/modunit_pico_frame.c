@@ -49,6 +49,48 @@ START_TEST(tc_pico_frame_alloc_discard)
 }
 END_TEST
 
+START_TEST(tc_pico_frame_grow)
+{
+    struct pico_frame *f = pico_frame_alloc(3);
+    fail_if(f->buffer_len != 3);
+    /* Ensure that the usage_count starts at byte 4, for good alignment */
+    fail_if(((void*)f->usage_count - (void *)f->buffer ) != 4);
+
+    ((uint8_t *)f->buffer)[0] = 'a';
+    ((uint8_t *)f->buffer)[1] = 'b';
+    ((uint8_t *)f->buffer)[2] = 'c';
+    *f->usage_count = 12; 
+
+
+    /* First, the failing cases. */
+    fail_if(pico_frame_grow(NULL, 30) == 0);
+    fail_if(pico_frame_grow(f, 2) == 0);
+    f->flags = PICO_FRAME_FLAG_EXT_BUFFER;
+    fail_if(pico_frame_grow(f, 21) == 0);
+    f->flags = PICO_FRAME_FLAG_EXT_USAGE_COUNTER;
+    fail_if(pico_frame_grow(f, 21) == 0);
+    f->flags = 0;
+    
+    pico_set_mm_failure(1);
+    fail_if(pico_frame_grow(f, 21) == 0);
+
+    /* Now, the good one. */
+    fail_if(pico_frame_grow(f, 21) != 0);
+    fail_if(f->buffer_len != 21);
+    fail_if(((void *)f->usage_count - (void *)f->buffer) != 24);
+
+
+    fail_if(((uint8_t *)f->buffer)[0] != 'a');
+    fail_if(((uint8_t *)f->buffer)[1] != 'b');
+    fail_if(((uint8_t *)f->buffer)[2] != 'c');
+    fail_if(*f->usage_count != 12);
+
+    *f->usage_count = 1;
+    pico_frame_discard(f);
+
+}
+END_TEST
+
 START_TEST(tc_pico_frame_copy)
 {
     struct pico_frame *f = pico_frame_alloc(FRAME_SIZE);
@@ -156,16 +198,19 @@ Suite *pico_suite(void)
     Suite *s = suite_create("pico_frame.c");
     TCase *TCase_pico_frame_alloc_discard = tcase_create("Unit test for pico_frame_alloc_discard");
     TCase *TCase_pico_frame_copy = tcase_create("Unit test for pico_frame_copy");
+    TCase *TCase_pico_frame_grow = tcase_create("Unit test for pico_frame_grow");
     TCase *TCase_pico_frame_deepcopy = tcase_create("Unit test for pico_frame_deepcopy");
     TCase *TCase_pico_is_digit = tcase_create("Unit test for pico_is_digit");
     TCase *TCase_pico_is_hex = tcase_create("Unit test for pico_is_hex");
     tcase_add_test(TCase_pico_frame_alloc_discard, tc_pico_frame_alloc_discard);
     tcase_add_test(TCase_pico_frame_copy, tc_pico_frame_copy);
+    tcase_add_test(TCase_pico_frame_grow, tc_pico_frame_grow);
     tcase_add_test(TCase_pico_frame_deepcopy, tc_pico_frame_deepcopy);
     tcase_add_test(TCase_pico_is_digit, tc_pico_is_digit);
     tcase_add_test(TCase_pico_is_hex, tc_pico_is_hex);
     suite_add_tcase(s, TCase_pico_frame_alloc_discard);
     suite_add_tcase(s, TCase_pico_frame_copy);
+    suite_add_tcase(s, TCase_pico_frame_grow);
     suite_add_tcase(s, TCase_pico_frame_deepcopy);
     return s;
 }
