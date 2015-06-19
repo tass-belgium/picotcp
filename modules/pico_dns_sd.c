@@ -142,11 +142,10 @@ pico_dns_sd_txt_record_create( const char *url,
     uint16_t i = 0, txt_i = 0, pair_len = 0, key_len = 0, value_len = 0;
 
     /* Determine the length of the string to fit in all pairs */
-    uint16_t len = pico_dns_sd_kv_vector_strlen(&key_value_pairs);
+    uint16_t len = (uint16_t)(pico_dns_sd_kv_vector_strlen(&key_value_pairs) + 1u);
 
     /* Provide space for the txt buf */
-    txt = (char *)PICO_ZALLOC(len);
-    if (!txt) {
+    if (!(txt = (char *)PICO_ZALLOC(len))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
@@ -180,7 +179,7 @@ pico_dns_sd_txt_record_create( const char *url,
             txt_i = (uint16_t) (txt_i + 1u + key_len);
         }
     }
-    record = pico_mdns_record_create(url, txt, len, PICO_DNS_TYPE_TXT,
+    record = pico_mdns_record_create(url, txt, (uint16_t)(len - 1u), PICO_DNS_TYPE_TXT,
                                      ttl, flags);
     PICO_FREE(txt);
 
