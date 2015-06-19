@@ -833,7 +833,6 @@ static void pico_check_timers(void)
 
         if (t)
         {
-//TIMER printf("[LUM %s%d] TIMER EXPIRE:%p \n",__FILE__,__LINE__,t);            
             PICO_FREE(t);
         }
         t = NULL;
@@ -852,7 +851,6 @@ void MOCKABLE pico_timer_cancel(struct pico_timer *t)
     for (i = 1; i <= Timers->n; i++) {
         if (tref[i].tmr == t) {
             Timers->top[i].tmr = NULL;
-//TIMER printf("[LUM %s%d] TIMER CANCEL:%p \n",__FILE__,__LINE__,t);            
             PICO_FREE(t);
             break;
         }
@@ -1031,7 +1029,6 @@ MOCKABLE struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
-//printf("[LUM %s%d] TIMER_ADD:%p \n",__FILE__,__LINE__,t);            
 
     tref.expire = PICO_TIME_MS() + expire;
     t->arg = arg;
