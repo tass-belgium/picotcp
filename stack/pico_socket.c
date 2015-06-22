@@ -1179,12 +1179,16 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 
 static void get_sock_dev(struct pico_socket *s)
 {
+    if (0) {}
 #ifdef PICO_SUPPORT_IPV6
-    if (is_sock_ipv6(s))
+    else if (is_sock_ipv6(s))
         s->dev = pico_ipv6_source_dev_find(&s->remote_addr.ip6);
-    else
 #endif
-    s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#ifdef PICO_SUPPORT_IPV4
+    else if (is_sock_ipv4(s))
+        s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#endif
+
 }
 
 
