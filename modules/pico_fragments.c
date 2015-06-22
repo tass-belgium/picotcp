@@ -495,10 +495,8 @@ int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint
                 fragment->frame = NULL;
                 pico_fragment_free(fragment);
             }
-            else
-            {
-                pico_fragment_tree_mempressure_cleanup();
-            }
+        } else {
+            pico_fragment_tree_mempressure_cleanup();
         }
     }
     return retval;
@@ -734,28 +732,14 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
         fragment = idx->keyValue;
         if(fragment->expire < now)
         {
-            uint16_t ip_version = ((struct pico_eth_hdr *) fragment->frame->datalink_hdr)->proto;
-
             frag_dbg("[%s:%d] fragment expired:%p frag_id:0x%X \n",__FILE__,__LINE__,fragment, fragment->frag_id);
-#ifdef PICO_SUPPORT_IPV6
-            if (ip_version == PICO_IDETH_IPV6)
+            if (first_fragment_received(&fragment->holes) == PICO_IP_FIRST_FRAG_RECV)
             {
-                /* Check if we received the first fragment of the packet
-                 * If so, we send a "frag expired". Else we don't.
-                 */
-                if (first_fragment_received(&fragment->holes) == PICO_IP_FIRST_FRAG_RECV)
-                {
-                    /* First fragment was recv, send notify */
-                    frag_dbg("LUM[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
-                    pico_icmp6_frag_expired(fragment->frame);
-                }
+                /* First fragment was recv, send notify */
+                frag_dbg("LUM[%s:%d] fragment expired:%p frag_id:0x%X, sending notify \n",__FILE__,__LINE__,fragment, fragment->frag_id);
+                pico_notify_frag_expired(fragment->frame);
+                fragment->frame = NULL; /* Because it's being used by the stack to send notify */
             }
-#endif
-            if (ip_version == PICO_IDETH_IPV4)
-            {
-                //TODO: what does IPV4 expect?
-            }
-
             pico_fragment_free(fragment);
             fragment=NULL;
         }

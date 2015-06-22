@@ -152,6 +152,12 @@ int pico_icmp4_ttl_expired(struct pico_frame *f)
     return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_INTRANS);
 }
 
+int pico_icmp4_frag_expired(struct pico_frame *f)
+{
+    /*Parameter check executed in pico_icmp4_notify*/
+    return pico_icmp4_notify(f, PICO_ICMP_TIME_EXCEEDED, PICO_ICMP_TIMXCEED_REASS);
+}
+
 int pico_icmp4_mtu_exceeded(struct pico_frame *f)
 {
     /*Parameter check executed in pico_icmp4_notify*/

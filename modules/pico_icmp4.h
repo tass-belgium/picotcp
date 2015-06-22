@@ -141,6 +141,7 @@ int pico_icmp4_proto_unreachable(struct pico_frame *f);
 int pico_icmp4_dest_unreachable(struct pico_frame *f);
 int pico_icmp4_mtu_exceeded(struct pico_frame *f);
 int pico_icmp4_ttl_expired(struct pico_frame *f);
+int pico_icmp4_frag_expired(struct pico_frame *f);
 int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp4_stats *));
 int pico_icmp4_ping_abort(int id);
 
