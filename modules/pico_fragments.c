@@ -44,7 +44,7 @@
 
 /*** Type definitions ***/
 
-typedef struct
+struct pico_fragment
 {
     // uniquely identify fragments by: (RFC 791 & RFC 2460)
     uint32_t            frag_id;
@@ -61,28 +61,28 @@ typedef struct
     uint32_t 			net_hdr_offset;
     uint32_t 			transport_hdr_offset;
 
-}pico_fragment_t;
+};
 
-typedef     struct
+struct pico_frag_hole
 {
     uint16_t first;
     uint16_t last;
-}pico_hole_t;
+};
 
 /***  Prototypes ***/
 
-static int fragments_compare(void *fa, void *fb);   /*pico_fragment_t*/
-static int hole_compare(void *a, void *b);          /*pico_hole_t*/
+static int fragments_compare(void *fa, void *fb);   /*struct pico_fragment*/
+static int hole_compare(void *a, void *b);          /*struct pico_frag_hole*/
 static int first_fragment_received(struct pico_tree *holes);
 
 // alloc and free of fragment tree
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize);
-static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment);
+static struct pico_fragment *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize);
+static struct pico_fragment *pico_fragment_free(struct pico_fragment * fragment);
 
-static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag );
+static int pico_fragment_arrived(struct pico_fragment* fragment, struct pico_frame* frame, uint16_t byte_offset, uint16_t more_flag );
 // alloc and free for the hole tree
-static pico_hole_t* pico_hole_free(pico_hole_t *hole);
-static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last);
+static struct pico_frag_hole* pico_hole_free(struct pico_frag_hole *hole);
+static struct pico_frag_hole* pico_hole_alloc(uint16_t first,uint16_t last);
 
 static void pico_ip_frag_expired(pico_time now, void *arg);
 static int copy_eth_hdr(struct pico_frame* dst, struct pico_frame* src);
@@ -239,7 +239,7 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 
 static void pico_fragment_tree_mempressure_cleanup(void)
 {
-    pico_fragment_t * fragment = NULL;
+    struct pico_fragment * fragment = NULL;
     struct pico_tree_node *idx = NULL;
     struct pico_tree_node *tmp = NULL;
 
@@ -267,13 +267,13 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *
         union pico_address dst = { {0} };
 
         // does the fragment already have its fragment tree?
-        pico_fragment_t key;
-        pico_fragment_t *fragment = NULL;
+        struct pico_fragment key;
+        struct pico_fragment *fragment = NULL;
 
 		src.ip6 = ip6hdr->src;
         dst.ip6 = ip6hdr->dst;
 
-        memset(&key,0,sizeof(pico_fragment_t));
+        memset(&key,0,sizeof(struct pico_fragment));
         key.frag_id = IP6FRAG_ID(exthdr);
         key.proto = proto;
 
@@ -380,8 +380,8 @@ int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint
     if(hdr && f)
     {
         // does the fragment already has its fragment tree?
-        pico_fragment_t key;
-        pico_fragment_t *fragment = NULL;
+        struct pico_fragment key;
+        struct pico_fragment *fragment = NULL;
 
         //  hdr is stored in network order !!! oh crap
         uint16_t offset = IP4FRAG_OFF(short_be(hdr->frag));
@@ -397,7 +397,7 @@ int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint
         src.ip4 = ip4hdr->src;
         dst.ip4 = ip4hdr->dst;
 
-        memset(&key,0,sizeof(pico_fragment_t));
+        memset(&key,0,sizeof(struct pico_fragment));
 
         key.src = src; //src ip4
         key.dst = dst;   // dst ip4
@@ -509,8 +509,8 @@ int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint
 
 static int fragments_compare(void *a, void *b)
 {
-    pico_fragment_t *fa = a;
-    pico_fragment_t *fb = b;
+    struct pico_fragment *fa = a;
+    struct pico_fragment *fb = b;
     int retval=0;
 
     if(fa && fb)
@@ -553,16 +553,16 @@ static int fragments_compare(void *a, void *b)
 
 
 
-static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize )  // size = exthdr + payload (MTU)
+static struct pico_fragment *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsize )  // size = exthdr + payload (MTU)
 {
-    pico_fragment_t* fragment;
+    struct pico_fragment* fragment;
 
     if (iphdrsize <= 0 || bufsize<= 0)
     {
         return NULL;
     }
 
-    fragment = PICO_ZALLOC(sizeof(pico_fragment_t) );
+    fragment = PICO_ZALLOC(sizeof(struct pico_fragment) );
 
     if(fragment)
     {
@@ -599,7 +599,7 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsiz
 }
 
 
-static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment)
+static struct pico_fragment *pico_fragment_free(struct pico_fragment * fragment)
 {
     if(fragment)
     {
@@ -615,7 +615,7 @@ static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment)
         /*empty hole tree*/
         pico_tree_foreach_safe(idx, &fragment->holes, tmp)
         {
-            pico_hole_t *hole = idx->keyValue;
+            struct pico_frag_hole *hole = idx->keyValue;
 
             pico_tree_delete(&fragment->holes, hole);
             pico_hole_free(hole);
@@ -645,8 +645,8 @@ static pico_fragment_t *pico_fragment_free(pico_fragment_t * fragment)
 
 static int hole_compare(void* a,void* b)
 {
-    pico_hole_t *ha = (pico_hole_t *)a;
-    pico_hole_t *hb = (pico_hole_t *)b;
+    struct pico_frag_hole *ha = (struct pico_frag_hole *)a;
+    struct pico_frag_hole *hb = (struct pico_frag_hole *)b;
     if(ha && hb)
     {
         return  (ha->first - hb->first);
@@ -658,16 +658,16 @@ static int hole_compare(void* a,void* b)
 }
 
 
-static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last)
+static struct pico_frag_hole* pico_hole_alloc(uint16_t first,uint16_t last)
 {
-    pico_hole_t* hole = NULL;
+    struct pico_frag_hole* hole = NULL;
 
     if (first > last)
     {
         return NULL;
     }
 
-    hole = PICO_ZALLOC(sizeof(pico_hole_t));
+    hole = PICO_ZALLOC(sizeof(struct pico_frag_hole));
     if(hole)
     {
         hole->first=first;
@@ -677,7 +677,7 @@ static pico_hole_t* pico_hole_alloc(uint16_t first,uint16_t last)
 }
 
 
-static pico_hole_t* pico_hole_free(pico_hole_t *hole)
+static struct pico_frag_hole* pico_hole_free(struct pico_frag_hole *hole)
 {
     if(hole)
     {
@@ -689,7 +689,7 @@ static pico_hole_t* pico_hole_free(pico_hole_t *hole)
 
 static int first_fragment_received(struct pico_tree *holes)
 {
-    pico_hole_t *hole = NULL;
+    struct pico_frag_hole *hole = NULL;
     struct pico_tree_node *idx=NULL, *tmp=NULL;
     int retval = PICO_IP_FIRST_FRAG_RECV;
 
@@ -720,7 +720,7 @@ static int first_fragment_received(struct pico_tree *holes)
 
 static void pico_ip_frag_expired(pico_time now, void *arg)
 {
-    pico_fragment_t * fragment = NULL;
+    struct pico_fragment * fragment = NULL;
     struct pico_tree_node *idx = NULL;
     struct pico_tree_node *tmp = NULL;
     uint32_t empty = 1;
@@ -779,11 +779,11 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
 
 
 
-static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t offset, uint16_t more )
+static int pico_fragment_arrived(struct pico_fragment* fragment, struct pico_frame* frame, uint16_t offset, uint16_t more )
 {
     struct pico_frame* full=NULL;
     int retval = -1;
-    pico_hole_t *first = NULL;
+    struct pico_frag_hole *first = NULL;
 
     if(fragment && frame)
     {
@@ -806,7 +806,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 
         if(first == NULL)   /*first fragment of packet arrived*/
         {
-            pico_hole_t *hole = pico_hole_alloc((uint16_t)0,(uint16_t)INFINITY);
+            struct pico_frag_hole *hole = pico_hole_alloc((uint16_t)0,(uint16_t)INFINITY);
             frag_dbg("[LUM:%s:%d] first fragment of packet arrived:fragment:%p fragment->holes:%p \n",__FILE__,__LINE__,fragment,&fragment->holes);
 
             if(hole)
@@ -883,7 +883,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
         if(!more)    /*last fragment of packet arrived*/
         {
             // retrieve the size of the reassembled packet
-            pico_hole_t* hole = pico_tree_last(&fragment->holes);
+            struct pico_frag_hole* hole = pico_tree_last(&fragment->holes);
             uint16_t reassambled_payload_len = (uint16_t)(offset + frame->transport_len);
 
             if(hole /*&& IS_LEAF(hole)*/)
@@ -916,7 +916,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
     if(fragment && (full=fragment->frame) && frame)
     {
         struct pico_tree_node *idx=NULL, *tmp=NULL;
-        pico_hole_t *hole = NULL;
+        struct pico_frag_hole *hole = NULL;
         uint16_t    frame_first = offset;
         uint16_t    frame_last  = (uint16_t)(frame_first + frame->transport_len);
 
@@ -943,7 +943,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             /*RFC 815 step 5*/
             if(frame_first > hole->first)
             {
-                pico_hole_t *new_hole =  pico_hole_alloc(hole->first,(uint16_t)(frame_first - 1u));
+                struct pico_frag_hole *new_hole =  pico_hole_alloc(hole->first,(uint16_t)(frame_first - 1u));
                 if(new_hole)
                 {
                     frag_dbg("[LUM:%s:%d] inserting new hole:%d-%d \n",__FILE__,__LINE__,new_hole->first,new_hole->last);
@@ -953,7 +953,7 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             /*RFC 815 step 6*/
             else if(frame_last < hole->last)
             {
-                pico_hole_t *new_hole =  pico_hole_alloc((uint16_t)(frame_last + 1u),hole->last);
+                struct pico_frag_hole *new_hole =  pico_hole_alloc((uint16_t)(frame_last + 1u),hole->last);
                 if(new_hole)
                 {
                     frag_dbg("[LUM:%s:%d] inserting new hole:%d-%d \n",__FILE__,__LINE__,new_hole->first,new_hole->last);
@@ -964,25 +964,6 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
             PICO_FREE(hole);
             hole=NULL;
         }
-
-#if 0 //def IPFRAG_DEBUG
-        if(fragment)
-        {
-            struct pico_tree_node *idx2=NULL, *tmp2=NULL;
-            pico_hole_t *hole2 = NULL;
-            uint32_t empty=1;
-
-            frag_dbg("[LUM:%s:%d] printing hole tree for fragment:%p id:0x%X fragment->holes:%p\n",__FILE__,__LINE__,fragment,fragment->frag_id,fragment->holes);
-            pico_tree_foreach_safe(idx2, &fragment->holes, tmp2)
-            {
-                hole2 = idx2->keyValue;
-                empty=0;
-
-                frag_dbg("[LUM:%s:%d] first:%d last:%d \n",__FILE__,__LINE__,hole2?hole2->first:0,hole2?hole2->last:0);
-            }
-            frag_dbg("[LUM:%s:%d] %s \n",__FILE__,__LINE__,empty?"empty":"done");
-        }
-#endif
 
         /*RFC 815 step 8*/
         if(pico_tree_empty(&fragment->holes))
