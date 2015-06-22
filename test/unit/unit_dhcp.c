@@ -166,7 +166,7 @@ START_TEST (test_dhcp)
     uint8_t *buf;
     uint8_t printbufactive = 0;
 
-    buf = pico_zalloc(600);
+    buf = PICO_ZALLOC(600);
 
     printf("*********************** starting %s * \n", __func__);
 
