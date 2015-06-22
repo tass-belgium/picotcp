@@ -16,6 +16,8 @@
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
+#ifdef PICO_SUPPORT_IPV4
+
 #define dns_dbg(...) do {} while(0)
 /* #define dns_dbg dbg */
 
@@ -772,5 +774,15 @@ int pico_dns_client_init(void)
     return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
 }
 
+#else 
+
+int pico_dns_client_init(void)
+{
+    dbg("ERROR Trying to initialize DNS module: IPv4 not supported in this build.\n");
+    return -1;
+}
+#endif /* PICO_SUPPORT_IPV4 */
+
 
 #endif /* PICO_SUPPORT_DNS_CLIENT */
+

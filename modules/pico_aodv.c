@@ -13,6 +13,7 @@
 #include <pico_device.h>
 
 #include <pico_ipv4.h>
+#ifdef PICO_SUPPORT_IPV4
 
 #define pico_aodv_dbg(...) do {} while(0)
 /* #define pico_aodv_dbg dbg */
@@ -646,3 +647,28 @@ int pico_aodv_lookup(const union pico_address *addr)
     return -1;
 }
 
+#else
+
+int pico_aodv_init(void)
+{
+    return -1;
+}
+
+int pico_aodv_add(struct pico_device *dev)
+{
+    (void)dev;
+    return -1;
+}
+
+int pico_aodv_lookup(const union pico_address *addr)
+{
+    (void)addr;
+    return -1;
+}
+
+void pico_aodv_refresh(const union pico_address *addr)
+{
+    (void)addr;
+}
+
+#endif

@@ -96,6 +96,23 @@ static struct pico_timer*      pico_fragment_timer = NULL;
 
 
 
+static void pico_fragment_tree_mempressure_cleanup(void)
+{
+    struct pico_fragment * fragment = NULL;
+    struct pico_tree_node *idx = NULL;
+    struct pico_tree_node *tmp = NULL;
+
+    dbg("Frag module: under memory pressure. Discarding all fragments.\n");
+
+    pico_tree_foreach_safe(idx, &pico_fragments, tmp) {
+        fragment = idx->keyValue;
+        pico_fragment_free(fragment);
+    }
+}
+
+
+
+
 /*** global function called from pico_ipv6.c ***/
 
 #ifdef PICO_SUPPORT_IPV6
@@ -236,21 +253,6 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
 
     return retval;
 }
-
-static void pico_fragment_tree_mempressure_cleanup(void)
-{
-    struct pico_fragment * fragment = NULL;
-    struct pico_tree_node *idx = NULL;
-    struct pico_tree_node *tmp = NULL;
-
-    dbg("Frag module: under memory pressure. Discarding all fragments.\n");
-
-    pico_tree_foreach_safe(idx, &pico_fragments, tmp) {
-        fragment = idx->keyValue;
-        pico_fragment_free(fragment);
-    }
-}
-
 
 void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
 {
