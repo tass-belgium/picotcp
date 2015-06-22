@@ -18,8 +18,8 @@ START_TEST(tc_fragments_compare)
 {
    uint32_t frag_id_1 = 1;
    uint32_t frag_id_2 = 1;
-   pico_fragment_t f1={frag_id_1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
-   pico_fragment_t f2={frag_id_2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
+   struct pico_fragment f1={frag_id_1,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
+   struct pico_fragment f2={frag_id_2,PICO_PROTO_IPV4,{0x00000001},{0x00000002},{0},NULL,0};
 
    /* One of the fragments is NULL */
    fail_unless( fragments_compare(&f1, NULL) == -1);
@@ -68,8 +68,8 @@ END_TEST
 
 START_TEST(tc_hole_compare)
 {
-   pico_hole_t a;
-   pico_hole_t b;
+   struct pico_frag_hole a;
+   struct pico_frag_hole b;
 
    /* One of the holes is NULL */
    fail_unless( hole_compare(&a, NULL) == -1);
@@ -98,7 +98,7 @@ START_TEST(tc_hole_compare)
 END_TEST
 START_TEST(tc_pico_fragment_alloc)
 {
-    pico_fragment_t *fragment;
+    struct pico_fragment *fragment;
 
     /* One of the sizes is zero */
     fragment = pico_fragment_alloc(0, 1);
@@ -117,7 +117,7 @@ END_TEST
 START_TEST(tc_first_fragment_received)
 {
     struct pico_tree holes;
-    pico_hole_t first_hole;
+    struct pico_frag_hole first_hole;
 
     holes.root = &LEAF;
     holes.compare = hole_compare;
@@ -126,14 +126,14 @@ START_TEST(tc_first_fragment_received)
     fail_unless( first_fragment_received(NULL) == -1 );
 
     /* First fragment has NOT arrived, there is a hole that starts at 0 */
-    first_hole = (pico_hole_t){ 0, 1000};
+    first_hole = (struct pico_frag_hole){ 0, 1000};
     pico_tree_insert(&holes, &first_hole);
 
     fail_unless( first_fragment_received(&holes) == PICO_IP_FIRST_FRAG_NOT_RECV);
     pico_tree_delete(&holes, &first_hole);
 
     /* First fragment has arrived, there is NO hole that starts at 0 */
-    first_hole = (pico_hole_t){ 500, 1000};
+    first_hole = (struct pico_frag_hole){ 500, 1000};
     pico_tree_insert(&holes, &first_hole);
     fail_unless( first_fragment_received(&holes) == PICO_IP_FIRST_FRAG_RECV);
 
@@ -142,7 +142,7 @@ END_TEST
 
 START_TEST(tc_pico_fragment_free)
 {
-    pico_fragment_t *fragment = NULL;
+    struct pico_fragment *fragment = NULL;
 
     /* fragment is NULL */
     fail_unless(pico_fragment_free(NULL) == NULL);
@@ -167,7 +167,7 @@ START_TEST(tc_pico_fragment_arrived)
     /* We don't check for non fragmented packages,
      *this is handled in pico_ipv4/6_process_frag
      */
-    pico_fragment_t *fragment = NULL;
+    struct pico_fragment *fragment = NULL;
     struct pico_frame *frame = NULL;
     unsigned char *old_frame_buffer = NULL;
     uint16_t offset;
@@ -209,8 +209,8 @@ START_TEST(tc_pico_fragment_arrived)
     pico_timer_add_called = 0;
 
     /* Are the holes initiated */
-    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->first == (frame_transport_size + 1));
-    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->last == INFINITY);
+    fail_unless(((struct pico_frag_hole*)(fragment->holes.root->keyValue))->first == (frame_transport_size + 1));
+    fail_unless(((struct pico_frag_hole*)(fragment->holes.root->keyValue))->last == INFINITY);
 
     /* Is the buffer reallocated? it was big enough so we expect it not to be */
     fail_unless(old_frame_buffer == fragment->frame->buffer);
@@ -235,8 +235,8 @@ START_TEST(tc_pico_fragment_arrived)
     fail_unless(pico_timer_add_called == 0);
 
     /* Are the holes updated? */
-    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->first == (frame_transport_size * 2 + 1));
-    fail_unless(((pico_hole_t*)(fragment->holes.root->keyValue))->last == INFINITY);
+    fail_unless(((struct pico_frag_hole*)(fragment->holes.root->keyValue))->first == (frame_transport_size * 2 + 1));
+    fail_unless(((struct pico_frag_hole*)(fragment->holes.root->keyValue))->last == INFINITY);
 
     /* Is the buffer reallocated? it should be because it was not big enough*/
     fail_unless(old_frame_buffer != fragment->frame->buffer);
@@ -285,7 +285,7 @@ END_TEST
 
 START_TEST(tc_pico_hole_free)
 {
-    pico_hole_t *hole = NULL;
+    struct pico_frag_hole *hole = NULL;
 
     fail_unless(pico_hole_free(NULL) == NULL);
     hole = pico_hole_alloc(0, 100);
@@ -295,7 +295,7 @@ START_TEST(tc_pico_hole_free)
 END_TEST
 START_TEST(tc_pico_hole_alloc)
 {
-    pico_hole_t *hole = NULL;
+    struct pico_frag_hole *hole = NULL;
 
     /* first should be greater than last */
     hole = pico_hole_alloc(100, 0);
