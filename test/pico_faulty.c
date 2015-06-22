@@ -11,7 +11,7 @@ uint32_t cur_mem, max_mem;
 static int called_atexit = 0;
 
 
-static void memory_stats(void)
+void memory_stats(void)
 {
     fprintf(stderr, " ################ MAX MEMORY USED in this test: %u\n", max_mem);
 

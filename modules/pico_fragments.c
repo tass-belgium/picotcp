@@ -237,6 +237,20 @@ static int copy_ipv6_hdrs_nofrag(struct pico_frame* dst, struct pico_frame* src)
     return retval;
 }
 
+static void pico_fragment_tree_mempressure_cleanup(void)
+{
+    pico_fragment_t * fragment = NULL;
+    struct pico_tree_node *idx = NULL;
+    struct pico_tree_node *tmp = NULL;
+
+    dbg("Frag module: under memory pressure. Discarding all fragments.\n");
+
+    pico_tree_foreach_safe(idx, &pico_fragments, tmp) {
+        fragment = idx->keyValue;
+        pico_fragment_free(fragment);
+    }
+}
+
 
 void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *f, uint8_t proto /* see pico_addressing.h */)
 {
@@ -343,7 +357,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *exthdr, struct pico_frame *
             }
             else
             {
-                /* TODO:  */
+                pico_fragment_tree_mempressure_cleanup();
             }
         }
     }
@@ -483,7 +497,7 @@ int pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint
             }
             else
             {
-                /* TODO:  */
+                pico_fragment_tree_mempressure_cleanup();
             }
         }
     }
@@ -742,7 +756,6 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
                 //TODO: what does IPV4 expect?
             }
 
-            fragment->frame = NULL;
             pico_fragment_free(fragment);
             fragment=NULL;
         }
@@ -762,6 +775,9 @@ static void pico_ip_frag_expired(pico_time now, void *arg)
 
 // note: offset and more flag are located differently in ipv4(iphdr) and ipv6(exthdr)
 // offset is expressed in octets (bytes) (not the 8 byte unit used in ip)
+//
+
+
 
 static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* frame, uint16_t offset, uint16_t more )
 {
@@ -855,6 +871,8 @@ static int pico_fragment_arrived(pico_fragment_t* fragment, struct pico_frame* f
 				frag_dbg("[LUM:%s:%d] Failed to allocate frame buffer \n",__FILE__,__LINE__ );
                 // discard packet: no more memory
                 pico_fragment_free(fragment);
+                pico_fragment_tree_mempressure_cleanup();
+                
                 return -1;
                 // notify icmp
             }
