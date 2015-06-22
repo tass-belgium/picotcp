@@ -578,7 +578,7 @@ static struct pico_fragment *pico_fragment_alloc( uint16_t iphdrsize, uint32_t b
             frag_dbg("[LUM:%s:%d] frame->net_len:%d  \n",__FILE__,__LINE__, frame->net_len);
 
             frame->transport_hdr = frame->net_hdr + iphdrsize;
-            frame->transport_len = 0;
+            frame->transport_len = bufsize;
 
             frame->datalink_hdr = frame->buffer;
 
