@@ -34,7 +34,7 @@
 
 //#define IPFRAG_DEBUG
 #ifdef IPFRAG_DEBUG
-#  define frag_dbg  printf
+#  define frag_dbg dbg 
 #else
 # define frag_dbg(...) do{}while(0);
 #endif
@@ -576,6 +576,9 @@ static pico_fragment_t *pico_fragment_alloc( uint16_t iphdrsize, uint32_t bufsiz
 
             fragment->holes.compare = hole_compare;
             fragment->holes.root = &LEAF;
+        } else {
+            PICO_FREE(fragment);
+            fragment = NULL;
         }
     }
     return fragment;
