@@ -108,21 +108,33 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
     struct pico_frame *reply;
     struct pico_icmp4_hdr *hdr;
     struct pico_ipv4_hdr *info;
+    uint16_t f_tot_len;
+
+    f_tot_len = short_be(((struct pico_ipv4_hdr *)f->net_hdr)->len);
+
+    if (f_tot_len < (sizeof(struct pico_ipv4_hdr)))
+        return -1;
+
+    /* Truncate tot len to be at most 8 bytes + iphdr */
+    if (f_tot_len > (sizeof(struct pico_ipv4_hdr) + 8)) {
+        f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8); 
+    }
+
     if (f == NULL) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
 
-    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, 8 + sizeof(struct pico_ipv4_hdr) + PICO_ICMPHDR_UN_SIZE);
+    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
     info = (struct pico_ipv4_hdr*)(f->net_hdr);
     hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
     hdr->type = type;
     hdr->code = code;
     hdr->hun.ih_pmtu.ipm_nmtu = short_be(1500);
     hdr->hun.ih_pmtu.ipm_void = 0;
-    reply->transport_len = 8 + sizeof(struct pico_ipv4_hdr) +  PICO_ICMPHDR_UN_SIZE;
+    reply->transport_len = (uint16_t)(f_tot_len +  PICO_ICMPHDR_UN_SIZE);
     reply->payload = reply->transport_hdr + PICO_ICMPHDR_UN_SIZE;
-    memcpy(reply->payload, f->net_hdr, 8 + sizeof(struct pico_ipv4_hdr));
+    memcpy(reply->payload, f->net_hdr, f_tot_len);
     pico_icmp4_checksum(reply);
     pico_ipv4_frame_push(reply, &info->src, PICO_PROTO_ICMP4);
     return 0;
