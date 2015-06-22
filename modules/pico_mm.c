@@ -197,7 +197,7 @@ static struct pico_mem_manager*manager = NULL;
  * We want to compare slab_nodes by their size. We also want to be able to directly compare an integer, which explains
  * the casts from void* to uint32_t***
  */
-int compare_slab_keys(void*keyA, void*keyB)
+static int compare_slab_keys(void*keyA, void*keyB)
 {
     /* keyValues are pico_mem_slab_nodes */
     /* We want to compare the sizes */
