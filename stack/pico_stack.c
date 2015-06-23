@@ -687,6 +687,32 @@ int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t 
 
 }
 
+int pico_frame_dst_is_unicast(struct pico_frame *f)
+{
+    if (0) {
+        return 0;
+    }
+
+#ifdef PICO_SUPPORT_IPV4
+    if (IS_IPV4(f)) {
+        struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+        if (pico_ipv4_is_multicast(hdr->dst.addr) || pico_ipv4_is_broadcast(hdr->dst.addr))
+            return 0;
+        return 1;
+    }
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+    if (IS_IPV6(f)) {
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+        if (pico_ipv6_is_multicast(hdr->dst.addr) || pico_ipv6_is_unspecified(hdr->dst.addr))
+            return 0;
+        return 1;
+    }
+#endif
+    else return 0;
+}
+
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
