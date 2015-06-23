@@ -7,7 +7,7 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug 
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
@@ -49,6 +49,7 @@ MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
+PCAP?=0
 PPP?=1
 CYASSL?=0
 POLARSSL?=0
@@ -179,8 +180,7 @@ CORE_OBJ= stack/pico_stack.o \
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_tap.o \
-            modules/pico_dev_mock.o \
-            modules/pico_dev_pcap.o 
+            modules/pico_dev_mock.o 
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -254,6 +254,9 @@ ifneq ($(TUN),0)
 endif
 ifneq ($(TAP),0)
   include rules/tap.mk
+endif
+ifneq ($(PCAP),0)
+  include rules/pcap.mk
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
