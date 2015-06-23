@@ -381,6 +381,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
+    uint16_t flag = short_be(hdr->frag);
 
     (void)self;
     /* NAT needs transport header information */
@@ -411,10 +412,6 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     if (ret < 1)
         return ret;
 
-    ret = pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto: 0 );
-    if (ret < 1)
-        return ret;
-
     /* Validate source IP address. Discard quietly if invalid */
     if (!pico_ipv4_is_valid_src(hdr->src.addr, f->dev)) {
         pico_frame_discard(f);
@@ -431,6 +428,17 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         /* RFC 791: IHL minimum value is 5 */
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f);
+        return 0;
+    }
+
+    if ((flag & PICO_IPV4_MOREFRAG) || (flag & PICO_IPV4_FRAG_MASK))
+    {
+#ifdef PICO_SUPPORT_IPFRAG
+        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto: 0 );
+#else
+        /* We do not support fragmentation, discard frame quietly */
+        pico_frame_discard(f);
+#endif
         return 0;
     }
 
