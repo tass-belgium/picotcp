@@ -25,7 +25,7 @@
 #include "pico_constants.h"
 #include "pico_fragments.h"
 
-#define IP6_FRAG_OFF(x)         ((x & 0xFFF8))
+#define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))
 #define IP6_FRAG_MORE(x)        ((x & 0x0001))
 #define IP6_FRAG_ID(x)          ((uint32_t)((x->ext.frag.id[0] << 24) + (x->ext.frag.id[1] << 16) + \
                                     (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
