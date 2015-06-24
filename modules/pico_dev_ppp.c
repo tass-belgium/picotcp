@@ -800,7 +800,7 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
     int off;
     while(p < (pkt + len)) {
-        flags |= (uint16_t)(1 << p[0]);
+        flags = (uint16_t)((uint16_t)(1u << (uint16_t)p[0]) | flags);
         if ((p[0] == 3) && ppp) {
             dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
             ppp->auth = (uint16_t)((p[2] << 8) + p[3]);

@@ -1380,7 +1380,7 @@ struct pico_device *MOCKABLE pico_ipv4_link_find(struct pico_ip4 *address)
 static int pico_ipv4_rebound_large(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
-    uint32_t total_payload_written = 0;
+    uint16_t total_payload_written = 0;
     uint32_t len = f->transport_len;
     struct pico_frame *fr;
     struct pico_ip4 dst;
@@ -1408,11 +1408,11 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
             fr->frag &= PICO_IPV4_FRAG_MASK;
         }
 
-        fr->frag |= (uint16_t)((total_payload_written) >> 3u);
+        fr->frag = (((total_payload_written) >> 3u) & 0xffffu) | fr->frag;
 
         memcpy(fr->transport_hdr, f->transport_hdr + total_payload_written, fr->transport_len);
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
-            total_payload_written += fr->transport_len;
+            total_payload_written = (uint16_t)((uint16_t)fr->transport_len + total_payload_written);
         } else {
             pico_frame_discard(fr);
             break;

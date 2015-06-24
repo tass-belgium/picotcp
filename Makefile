@@ -66,6 +66,8 @@ CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
 CFLAGS+= -Wmissing-prototypes
+CFLAGS+= -Wno-int-conversion
+
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb

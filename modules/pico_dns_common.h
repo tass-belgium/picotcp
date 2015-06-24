@@ -123,7 +123,7 @@ struct pico_dns_record
  *  @param namelen Length of the DNS name-string including zero-byte
  *  @return 0 when the length is correct
  * ****************************************************************************/
-inline int
+int
 pico_dns_check_namelen( uint16_t namelen );
 
 /* ****************************************************************************

@@ -194,7 +194,7 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
 static void pico_frag_expire(pico_time now, void *arg)
 {
     struct pico_tree_node *index, *tmp;
-    struct pico_frame *f;
+    struct pico_frame *f = NULL;
     struct pico_tree *tree = (struct pico_tree *) arg;
     struct pico_frame *first = pico_tree_first(tree);
     uint8_t net = 0;
@@ -229,7 +229,8 @@ static void pico_frag_expire(pico_time now, void *arg)
         pico_notify_frag_expired(first);
     }
 
-    pico_tree_delete(tree, f);
+    if (f)
+        pico_tree_delete(tree, f);
     pico_frame_discard(first);
 }
 
