@@ -24,6 +24,7 @@
 #include "pico_tree.h"
 #include "pico_constants.h"
 #include "pico_fragments.h"
+#define frag_dbg(...) do{}while(0)
 
 #define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))
 #define IP6_FRAG_MORE(x)        ((x & 0x0001))
@@ -202,15 +203,15 @@ static void pico_frag_expire(pico_time now, void *arg)
     if (IS_IPV4(first))
     {
         net = PICO_PROTO_IPV4;
-        ipv4_cur_frag_id = 0u;
     }
     else
     {
         net = PICO_PROTO_IPV6;
-        ipv6_cur_frag_id = 0u;
+        frag_dbg("Packet expired! ID:%hu\n", ipv6_cur_frag_id);
     }
 
     if (!first) {
+        frag_dbg("not first - not sending notif\n");
         return;
     }
 
@@ -223,7 +224,10 @@ static void pico_frag_expire(pico_time now, void *arg)
     }
 
     if (((FRAG_OFF(net, first->frag) == 0) && (pico_frame_dst_is_unicast(first))))
+    {
+        frag_dbg("sending notif\n");
         pico_notify_frag_expired(first);
+    }
 
     pico_tree_delete(tree, f);
     pico_frame_discard(first);
@@ -286,23 +290,23 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
 
     if (!first) {
-        if (ipv6_cur_frag_id && (IP6_FRAG_ID(frag) != ipv6_cur_frag_id)) {
-            /* Discard late arrivals, without firing the timer,
-             * just to make TAHI happy in-between two consecutive tests
+        if (ipv6_cur_frag_id && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id)) {
+            /* Discard late arrivals, without firing the timer.
              */
+            frag_dbg("discarded late arrival, exp:%hu found:%hu\n", ipv6_cur_frag_id, IP6_FRAG_ID(frag));
             return;
         }
 
         pico_ipv6_frag_timer_on();
         ipv6_cur_frag_id = IP6_FRAG_ID(frag);
+        frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
     }
 
     if (!first || (pico_ipv6_frag_match(f, first) && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
         pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
     }
 
-    if (pico_fragments_check_complete(proto, PICO_PROTO_IPV6) > 0)
-        ipv6_cur_frag_id = 0u;
+    pico_fragments_check_complete(proto, PICO_PROTO_IPV6);
 }
 
 void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto)
@@ -311,11 +315,9 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
 
     f->frag = short_be(hdr->frag);
     if (!first) {
-        if (ipv4_cur_frag_id && (IP4_FRAG_ID(hdr) != ipv4_cur_frag_id)) {
+        if (ipv4_cur_frag_id && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id)) {
             /* Discard late arrivals, without firing the timer,
-             * just to make TAHI happy in-between two consecutive tests
              */
-            pico_frame_discard(f);
             return;
         }
 
@@ -327,6 +329,5 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         pico_tree_insert(&ipv4_fragments, pico_frame_copy(f));
     }
 
-    if (pico_fragments_check_complete(proto, PICO_PROTO_IPV4))
-        ipv4_cur_frag_id = 0u;
+    pico_fragments_check_complete(proto, PICO_PROTO_IPV4);
 }
