@@ -264,7 +264,7 @@ int pico_icmp6_parameter_problem(struct pico_frame *f, uint8_t problem, uint32_t
     return pico_icmp6_notify(f, PICO_ICMP6_PARAM_PROBLEM, problem, ptr);
 }
 
-int pico_icmp6_frag_expired(struct pico_frame *f)
+MOCKABLE int pico_icmp6_frag_expired(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     if (pico_ipv6_is_multicast(hdr->dst.addr))

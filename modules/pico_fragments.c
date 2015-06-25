@@ -196,23 +196,32 @@ static void pico_frag_expire(pico_time now, void *arg)
     struct pico_tree_node *index, *tmp;
     struct pico_frame *f = NULL;
     struct pico_tree *tree = (struct pico_tree *) arg;
-    struct pico_frame *first = pico_tree_first(tree);
+    struct pico_frame *first = NULL;
     uint8_t net = 0;
     (void)now;
+
+    if (!tree)
+    {
+        frag_dbg("Expired packet but no tree supplied!\n");
+        return;
+    }
+
+    first = pico_tree_first(tree);
+
+    if (!first) {
+        frag_dbg("not first - not sending notify\n");
+        return;
+    }
 
     if (IS_IPV4(first))
     {
         net = PICO_PROTO_IPV4;
+        frag_dbg("Packet expired! ID:%hu\n", ipv4_cur_frag_id);
     }
     else
     {
         net = PICO_PROTO_IPV6;
         frag_dbg("Packet expired! ID:%hu\n", ipv6_cur_frag_id);
-    }
-
-    if (!first) {
-        frag_dbg("not first - not sending notif\n");
-        return;
     }
 
     /* Empty the tree */
@@ -226,7 +235,7 @@ static void pico_frag_expire(pico_time now, void *arg)
 
     if (((FRAG_OFF(net, first->frag) == 0) && (pico_frame_dst_is_unicast(first))))
     {
-        frag_dbg("sending notif\n");
+        frag_dbg("sending notify\n");
         pico_notify_frag_expired(first);
     }
 
@@ -255,7 +264,7 @@ static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 
     ha = (struct pico_ipv6_hdr *)a->net_hdr;
     hb = (struct pico_ipv6_hdr *)b->net_hdr;
-    if (!ha || !hb)
+    if (!ha || !hb || !ha->src.addr || !ha->dst.addr|| !hb->src.addr || !hb->dst.addr)
         return 0;
 
     if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
