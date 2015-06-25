@@ -264,7 +264,7 @@ static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 
     ha = (struct pico_ipv6_hdr *)a->net_hdr;
     hb = (struct pico_ipv6_hdr *)b->net_hdr;
-    if (!ha || !hb || !ha->src.addr || !ha->dst.addr|| !hb->src.addr || !hb->dst.addr)
+    if (!ha || !hb)
         return 0;
 
     if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
