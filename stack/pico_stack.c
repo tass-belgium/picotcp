@@ -698,8 +698,10 @@ int pico_frame_dst_is_unicast(struct pico_frame *f)
         struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
         if (pico_ipv4_is_multicast(hdr->dst.addr) || pico_ipv4_is_broadcast(hdr->dst.addr))
             return 0;
+
         return 1;
     }
+
 #endif
 
 #ifdef PICO_SUPPORT_IPV6
@@ -707,8 +709,10 @@ int pico_frame_dst_is_unicast(struct pico_frame *f)
         struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
         if (pico_ipv6_is_multicast(hdr->dst.addr) || pico_ipv6_is_unspecified(hdr->dst.addr))
             return 0;
+
         return 1;
     }
+
 #endif
     else return 0;
 }
@@ -878,6 +882,7 @@ static void pico_check_timers(void)
         {
             PICO_FREE(t);
         }
+
         t = NULL;
         heap_peek(Timers, &tref_unused);
         tref = heap_first(Timers);

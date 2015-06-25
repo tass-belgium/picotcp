@@ -468,7 +468,7 @@ START_TEST(tc_pico_dns_packet_compress_find_ptr) /* MARK: dns_packet_compress_fi
 
     ptr = pico_dns_packet_compress_find_ptr(name, data, len);
     fail_unless(ptr == (data + 6), "Finding compression ptr failed %p - %p!\n", ptr,
-				data + 6);
+                data + 6);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST

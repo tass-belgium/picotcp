@@ -18,7 +18,7 @@
 /* Mock! */
 static int transport_recv_called = 0;
 #define TESTPROTO 0x99
-int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto) 
+int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
     fail_if(proto != TESTPROTO);
     transport_recv_called++;
@@ -36,10 +36,10 @@ START_TEST(tc_pico_ipv6_frag_compare)
     fail_if(!b);
     a->frag = 0xaa00;
     b->frag = 0xbb00;
-    fail_unless(pico_ipv6_frag_compare(a,b) < 0);
-    fail_unless(pico_ipv6_frag_compare(b,a) > 0);
+    fail_unless(pico_ipv6_frag_compare(a, b) < 0);
+    fail_unless(pico_ipv6_frag_compare(b, a) > 0);
     b->frag = 0xaa00;
-    fail_unless(pico_ipv6_frag_compare(a,b) == 0);
+    fail_unless(pico_ipv6_frag_compare(a, b) == 0);
     pico_frame_discard(a);
     pico_frame_discard(b);
 }
@@ -54,10 +54,10 @@ START_TEST(tc_pico_ipv4_frag_compare)
     fail_if(!b);
     a->frag = 0xaa00;
     b->frag = 0xbb00;
-    fail_unless(pico_ipv4_frag_compare(a,b) < 0);
-    fail_unless(pico_ipv4_frag_compare(b,a) > 0);
+    fail_unless(pico_ipv4_frag_compare(a, b) < 0);
+    fail_unless(pico_ipv4_frag_compare(b, a) > 0);
     b->frag = 0xaa00;
-    fail_unless(pico_ipv4_frag_compare(a,b) == 0);
+    fail_unless(pico_ipv4_frag_compare(a, b) == 0);
     pico_frame_discard(a);
     pico_frame_discard(b);
 }
@@ -67,10 +67,10 @@ START_TEST(tc_pico_ipv6_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
-    a = pico_frame_alloc(32+20);
+    a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
-    b = pico_frame_alloc(32+20);
+    b = pico_frame_alloc(32 + 20);
     fail_if(!b);
     printf("Allocated frame, %p\n", b);
 
@@ -102,10 +102,10 @@ START_TEST(tc_pico_ipv4_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
-    a = pico_frame_alloc(32+20);
+    a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
-    b = pico_frame_alloc(32+20);
+    b = pico_frame_alloc(32 + 20);
     fail_if(!b);
     printf("Allocated frame, %p\n", b);
 
@@ -146,10 +146,10 @@ START_TEST(tc_pico_fragments_check_complete)
     fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV6) != 0);
 
     transport_recv_called = 0;
-    a = pico_frame_alloc(32+20);
+    a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
-    b = pico_frame_alloc(32+20);
+    b = pico_frame_alloc(32 + 20);
     fail_if(!b);
     printf("Allocated frame, %p\n", b);
 
@@ -175,27 +175,27 @@ START_TEST(tc_pico_fragments_check_complete)
 END_TEST
 START_TEST(tc_pico_frag_expire)
 {
-   /* TODO: test this: static void pico_frag_expire(pico_time now, void *arg) */
+    /* TODO: test this: static void pico_frag_expire(pico_time now, void *arg) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_frag_timer_on)
 {
-   /* TODO: test this: static void pico_ipv6_frag_timer_on(void) */
+    /* TODO: test this: static void pico_ipv6_frag_timer_on(void) */
 }
 END_TEST
 START_TEST(tc_pico_ipv4_frag_timer_on)
 {
-   /* TODO: test this: static void pico_ipv4_frag_timer_on(void) */
+    /* TODO: test this: static void pico_ipv4_frag_timer_on(void) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_frag_match)
 {
-   /* TODO: test this: static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b) */
+    /* TODO: test this: static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b) */
 }
 END_TEST
 START_TEST(tc_pico_ipv4_frag_match)
 {
-   /* TODO: test this: static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b) */
+    /* TODO: test this: static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b) */
 }
 END_TEST
 
@@ -239,7 +239,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_frag_match);
     tcase_add_test(TCase_pico_ipv4_frag_match, tc_pico_ipv4_frag_match);
     suite_add_tcase(s, TCase_pico_ipv4_frag_match);
-return s;
+    return s;
 }
 
 int main(void)

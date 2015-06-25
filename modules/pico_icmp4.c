@@ -117,7 +117,7 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
 
     /* Truncate tot len to be at most 8 bytes + iphdr */
     if (f_tot_len > (sizeof(struct pico_ipv4_hdr) + 8u)) {
-        f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u); 
+        f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u);
     }
 
     if (f == NULL) {

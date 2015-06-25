@@ -190,7 +190,7 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
 #ifdef PICO_SUPPORT_IPV4
             return pico_socket_udp_deliver_ipv4(s, f);
 #endif
-        } else if IS_IPV6(f){
+        } else if (IS_IPV6(f)) {
 #ifdef PICO_SUPPORT_IPV6
             return pico_socket_udp_deliver_ipv6(s, f);
 #endif

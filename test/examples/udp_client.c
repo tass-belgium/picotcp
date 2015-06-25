@@ -28,7 +28,7 @@ static void request_exit_echo(pico_time now, void *arg)
     if (exit_retry++ > 3) {
         pico_timer_add(1000, deferred_exit, udpclient_pas);
     } else {
-        pico_timer_add(1000, request_exit_echo, s); 
+        pico_timer_add(1000, request_exit_echo, s);
         printf("%s: requested exit of echo\n", __FUNCTION__);
     }
 }
@@ -41,7 +41,7 @@ void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((u
     static uint16_t loop = 0;
 
     if (++loop > udpclient_pas->loops) {
-        pico_timer_add(1000, request_exit_echo, s); 
+        pico_timer_add(1000, request_exit_echo, s);
         return;
     } else {
         buf = calloc(1, udpclient_pas->datasize);

@@ -56,7 +56,7 @@ static inline pico_time PICO_TIME()
 static inline void PICO_IDLE(void)
 {
     pico_time now = PICO_TIME_MS();
-    while(now == PICO_TIME_MS());
+    while(now == PICO_TIME_MS()) ;
 }
 
 #else /* NO RTOS SUPPORT */
@@ -93,7 +93,7 @@ static inline pico_time PICO_TIME(void)
 static inline void PICO_IDLE(void)
 {
     unsigned int now = pico_ms_tick;
-    while(now == pico_ms_tick);
+    while(now == pico_ms_tick) ;
 }
 
 #endif /* IFNDEF RTOS */

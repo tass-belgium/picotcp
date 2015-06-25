@@ -54,19 +54,19 @@ START_TEST(tc_pico_frame_grow)
     struct pico_frame *f = pico_frame_alloc(3);
     fail_if(f->buffer_len != 3);
     /* Ensure that the usage_count starts at byte 4, for good alignment */
-    fail_if(((void*)f->usage_count - (void *)f->buffer ) != 4);
+    fail_if(((void*)f->usage_count - (void *)f->buffer) != 4);
 
     ((uint8_t *)f->buffer)[0] = 'a';
     ((uint8_t *)f->buffer)[1] = 'b';
     ((uint8_t *)f->buffer)[2] = 'c';
-    *f->usage_count = 12; 
+    *f->usage_count = 12;
 
 
     /* First, the failing cases. */
     fail_if(pico_frame_grow(NULL, 30) == 0);
     fail_if(pico_frame_grow(f, 2) == 0);
     f->flags = 0;
-    
+
     pico_set_mm_failure(1);
     fail_if(pico_frame_grow(f, 21) == 0);
 
@@ -84,7 +84,7 @@ START_TEST(tc_pico_frame_grow)
     *f->usage_count = 1;
     pico_frame_discard(f);
 
-    f = pico_frame_alloc_skeleton(10,1);
+    f = pico_frame_alloc_skeleton(10, 1);
     fail_if(!f);
     fail_if(f->buffer);
     fail_if(!f->flags);

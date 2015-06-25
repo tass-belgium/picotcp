@@ -137,11 +137,13 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
     if (!f || (size < f->buffer_len)) {
         return -1;
     }
+
     align = size % sizeof(uint32_t);
     frame_buffer_size = size;
     if (align) {
         frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
     }
+
     oldbuf = f->buffer;
     oldsize = f->buffer_len;
     usage_count = *(f->usage_count);
@@ -151,6 +153,7 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
         f->buffer = oldbuf;
         return -1;
     }
+
     f->usage_count = (uint32_t *)(((uint8_t*)f->buffer) + frame_buffer_size);
     *f->usage_count = usage_count;
     f->buffer_len = size;
@@ -167,12 +170,13 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
 
     if (f->flags & PICO_FRAME_FLAG_EXT_USAGE_COUNTER)
         PICO_FREE(p_old_usage);
+
     if (!(f->flags & PICO_FRAME_FLAG_EXT_BUFFER))
         PICO_FREE(oldbuf);
     else if (f->notify_free)
         f->notify_free(oldbuf);
 
-    f->flags = 0; 
+    f->flags = 0;
     /* Now, the frame is not zerocopy anymore, and the usage counter has been moved within it */
     return 0;
 }

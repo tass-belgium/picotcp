@@ -1305,12 +1305,14 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
         if ((record = node->keyValue)) {
             /* Set the cache flush bit again */
             PICO_MDNS_SET_MSB_BE(record->record->rsuffix->rclass);
-			if ((found = pico_tree_findKey(&MyRecords, record))) {
-				if (IS_HOSTNAME_RECORD(found)) {
-					if (_hostname)
-						PICO_FREE(_hostname);
-					_hostname = pico_dns_qname_to_url(found->record->rname);
-				}
+            if ((found = pico_tree_findKey(&MyRecords, record))) {
+                if (IS_HOSTNAME_RECORD(found)) {
+                    if (_hostname)
+                        PICO_FREE(_hostname);
+
+                    _hostname = pico_dns_qname_to_url(found->record->rname);
+                }
+
                 PICO_MDNS_SET_FLAG(found->flags, PICO_MDNS_RECORD_PROBED);
                 PICO_MDNS_CLR_FLAG(found->flags, PICO_MDNS_RECORD_CURRENTLY_PROBING);
             } else
@@ -1961,64 +1963,66 @@ pico_mdns_handle_data_as_questions ( uint8_t **ptr,
 
 static int
 pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
-										 uint16_t count,
-										 pico_dns_packet *packet,
-										 uint8_t type )
+                                          uint16_t count,
+                                          pico_dns_packet *packet,
+                                          uint8_t type )
 {
-	struct pico_mdns_record mdns_answer = {.record = NULL, .current_ttl = 0,
-										   .flags = 0, .claim_id = 0};
-	struct pico_dns_record answer;
-	char *orname = NULL;
-	uint16_t i = 0;
+    struct pico_mdns_record mdns_answer = {
+        .record = NULL, .current_ttl = 0,
+        .flags = 0, .claim_id = 0
+    };
+    struct pico_dns_record answer;
+    char *orname = NULL;
+    uint16_t i = 0;
 
-	/* Check params */
-	if ((!ptr) || !packet || !(*ptr)) {
-		pico_err = PICO_ERR_EINVAL;
-		return -1;
-	}
+    /* Check params */
+    if ((!ptr) || !packet || !(*ptr)) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
 
-	for (i = 0; i < count; i++) {
-		/* Set rname of the record to the correct location */
-		answer.rname = (char *)(*ptr);
+    for (i = 0; i < count; i++) {
+        /* Set rname of the record to the correct location */
+        answer.rname = (char *)(*ptr);
 
-		/* Set rsuffix of the record to the correct location */
-		answer.rsuffix = (struct pico_dns_record_suffix *)
-		(answer.rname +
-		 pico_dns_namelen_comp(answer.rname) + 1u);
+        /* Set rsuffix of the record to the correct location */
+        answer.rsuffix = (struct pico_dns_record_suffix *)
+                         (answer.rname +
+                          pico_dns_namelen_comp(answer.rname) + 1u);
 
-		/* Set rdata of the record to the correct location */
-		answer.rdata = (uint8_t *) answer.rsuffix +
-		sizeof(struct pico_dns_record_suffix);
+        /* Set rdata of the record to the correct location */
+        answer.rdata = (uint8_t *) answer.rsuffix +
+                       sizeof(struct pico_dns_record_suffix);
 
-		/* Make an mDNS record from the DNS answer */
-		orname = pico_dns_record_decompress(&answer, packet);
-		mdns_answer.record = &answer;
-		mdns_answer.record->rname_length = (uint16_t)(pico_dns_strlen(answer.rname) + 1u);
+        /* Make an mDNS record from the DNS answer */
+        orname = pico_dns_record_decompress(&answer, packet);
+        mdns_answer.record = &answer;
+        mdns_answer.record->rname_length = (uint16_t)(pico_dns_strlen(answer.rname) + 1u);
 
-		/* Handle a single aswer */
-		switch (type) {
-			case 1:
-				pico_mdns_handle_single_authority(&mdns_answer);
-				break;
-			case 2:
-				pico_mdns_handle_single_additional(&mdns_answer);
-				break;
-			default:
-				pico_mdns_handle_single_answer(&mdns_answer);
+        /* Handle a single aswer */
+        switch (type) {
+        case 1:
+            pico_mdns_handle_single_authority(&mdns_answer);
+            break;
+        case 2:
+            pico_mdns_handle_single_additional(&mdns_answer);
+            break;
+        default:
+            pico_mdns_handle_single_answer(&mdns_answer);
 #if PICO_MDNS_ALLOW_CACHING == 1
-				pico_mdns_cache_add_record(&mdns_answer);
+            pico_mdns_cache_add_record(&mdns_answer);
 #endif
-				break;
-		}
+            break;
+        }
 
-		/* Free decompressed name and mDNS record */
-		PICO_FREE(mdns_answer.record->rname);
-		answer.rname = orname;
+        /* Free decompressed name and mDNS record */
+        PICO_FREE(mdns_answer.record->rname);
+        answer.rname = orname;
 
-		/* Move to next record */
-		*ptr = (uint8_t *) answer.rdata + short_be(answer.rsuffix->rdlength);
-	}
-	return 0;
+        /* Move to next record */
+        *ptr = (uint8_t *) answer.rdata + short_be(answer.rsuffix->rdlength);
+    }
+    return 0;
 }
 
 /* ****************************************************************************

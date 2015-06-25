@@ -80,7 +80,7 @@ static inline void *pico_zalloc(int x)
     #ifdef JENKINS_DEBUG
     if (!stats) {
         jenkins_dbg(">> OUT OF MEM\n");
-        while(1);
+        while(1) ;
         ;
     }
 
@@ -106,7 +106,7 @@ static inline void pico_free(void *x)
     #ifdef MEMORY_MEASURE_ADV
     if ((stats->signature != 0xdeadbeef) || (x != stats->mem)) {
         jenkins_dbg(">> FREE ERROR: caller is %p\n", __builtin_return_address(0));
-        while(1);
+        while(1) ;
         ;
     }
 

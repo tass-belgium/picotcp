@@ -434,7 +434,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     if ((flag & PICO_IPV4_MOREFRAG) || (flag & PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPFRAG
-        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto: 0 );
+        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
         /* Frame can be discarded, frag will handle its own copy */
 #endif
         /* We do not support fragmentation, discard frame quietly */
@@ -985,7 +985,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     if ((f->transport_hdr != f->payload)  &&
 #ifdef PICO_SUPPORT_IPFRAG
         (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
-        (0 == (f->frag & PICO_IPV4_FRAG_MASK)) && 
+        (0 == (f->frag & PICO_IPV4_FRAG_MASK)) &&
 #endif
         1 )
         ipv4_progressive_id++;

@@ -24,19 +24,19 @@
 #include "pico_tree.h"
 #include "pico_constants.h"
 #include "pico_fragments.h"
-#define frag_dbg(...) do{}while(0)
+#define frag_dbg(...) do {} while(0)
 
 #define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))
 #define IP6_FRAG_MORE(x)        ((x & 0x0001))
 #define IP6_FRAG_ID(x)          ((uint32_t)((x->ext.frag.id[0] << 24) + (x->ext.frag.id[1] << 16) + \
-                                    (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
+                                            (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
 
 #define IP4_FRAG_OFF(frag)      (((uint32_t)frag & PICO_IPV4_FRAG_MASK) << 3ul)
 #define IP4_FRAG_MORE(frag)     ((frag & PICO_IPV4_MOREFRAG) ? 1 : 0)
 #define IP4_FRAG_ID(hdr)        (hdr->id)
 
-#define FRAG_OFF(net, frag)     ( (net== PICO_PROTO_IPV4) ? (IP4_FRAG_OFF(frag) ) : (IP6_FRAG_OFF(frag))  )
-#define FRAG_MORE(net, frag)    ( (net== PICO_PROTO_IPV4) ? (IP4_FRAG_MORE(frag)) : (IP6_FRAG_MORE(frag)) )
+#define FRAG_OFF(net, frag)     ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_OFF(frag)) : (IP6_FRAG_OFF(frag)))
+#define FRAG_MORE(net, frag)    ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_MORE(frag)) : (IP6_FRAG_MORE(frag)))
 
 #define PICO_IPV6_FRAG_TIMEOUT   60000
 #define PICO_IPV4_FRAG_TIMEOUT   15000
@@ -52,7 +52,7 @@ static void pico_ipv6_frag_timer_on(void);
 static void pico_ipv4_frag_timer_on(void);
 static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b);
 static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b);
-    
+
 static uint32_t ipv6_cur_frag_id = 0u;
 static uint32_t ipv4_cur_frag_id = 0u;
 
@@ -221,6 +221,7 @@ static void pico_frag_expire(pico_time now, void *arg)
         pico_tree_delete(tree, f);
         if (f != first)
             pico_frame_discard(f); /* Later, after ICMP notification...*/
+
     }
 
     if (((FRAG_OFF(net, first->frag) == 0) && (pico_frame_dst_is_unicast(first))))
@@ -231,6 +232,7 @@ static void pico_frag_expire(pico_time now, void *arg)
 
     if (f)
         pico_tree_delete(tree, f);
+
     pico_frame_discard(first);
 }
 

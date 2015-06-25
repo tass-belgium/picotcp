@@ -459,6 +459,7 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
                 dhcpc->nameserver[1] = opt->ext.dns2.ip;
                 dhcpc_dbg("DHCP client: dns1 %08X\n", dhcpc->nameserver[1].addr);
             }
+
             break;
 
         case PICO_DHCP_OPT_NETMASK:
@@ -943,9 +944,12 @@ struct pico_ip4 pico_dhcp_get_netmask(void *dhcpc)
 
 struct pico_ip4 pico_dhcp_get_nameserver(void*dhcpc, int index)
 {
-    struct pico_ip4 fault = { .addr = 0xFFFFFFFFU };
+    struct pico_ip4 fault = {
+        .addr = 0xFFFFFFFFU
+    };
     if ((index != 0) && (index != 1))
-        return fault; 
+        return fault;
+
     return ((struct pico_dhcp_client_cookie*)dhcpc)->nameserver[index];
 }
 
