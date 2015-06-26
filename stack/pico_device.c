@@ -143,6 +143,9 @@ static int device_init_nomac(struct pico_device *dev)
     return 0;
 }
 
+static void devloop_all_in(void *arg);
+static void devloop_all_out(void *arg);
+
 int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 {
 
@@ -165,6 +168,8 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
         PICO_FREE(dev->q_in);
         return -1;
     }
+    pico_queue_register_listener(dev->q_in, devloop_all_in, dev);
+    pico_queue_register_listener(dev->q_out, devloop_all_out, dev);
 
     pico_tree_insert(&Device_tree, dev);
     if (!dev->mtu)
@@ -284,9 +289,51 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             loop_score--;
         } else
             break; /* Don't discard */
-
     }
     return loop_score;
+}
+
+static void devloop_all_out(void *arg)
+{
+    struct pico_device *dev = (struct pico_device *)arg;
+    struct pico_frame *f;
+    while(1) {
+        if (dev->q_out->frames <= 0)
+            break;
+
+        /* Device dequeue + send */
+        f = pico_queue_peek(dev->q_out);
+        if (!f)
+            break;
+
+        if (devloop_sendto_dev(dev, f) == 0) { /* success. */
+            f = pico_dequeue(dev->q_out);
+            pico_frame_discard(f); /* SINGLE POINT OF DISCARD for OUTGOING FRAMES */
+        } else
+            break; /* Don't discard */
+    }
+}
+
+static void devloop_all_in(void *arg)
+{
+    struct pico_device *dev = (struct pico_device *)arg;
+    struct pico_frame *f;
+    while(1) {
+        if (dev->q_in->frames <= 0)
+            break;
+
+        /* Receive */
+        f = pico_dequeue(dev->q_in);
+        if (f) {
+            if (dev->eth) {
+                f->datalink_hdr = f->buffer;
+                (void)pico_ethernet_receive(f);
+            } else {
+                f->net_hdr = f->buffer;
+                pico_network_receive(f);
+            }
+        }
+    }
 }
 
 static int devloop(struct pico_device *dev, int loop_score, int direction)

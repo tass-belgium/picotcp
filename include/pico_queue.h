@@ -7,6 +7,7 @@
 #define INCLUDE_PICO_QUEUE
 #include "pico_config.h"
 #include "pico_frame.h"
+#include "pico_jobs.h"
 
 #define Q_LIMIT 0
 
@@ -31,6 +32,10 @@ struct pico_queue {
 #ifdef PICO_SUPPORT_MUTEX
     void *mutex;
 #endif
+#ifdef PICO_SUPPORT_TICKLESS
+    void (*listener)(void *arg);
+    void *listener_arg;
+#endif
     uint8_t shared;
     uint16_t overhead;
 };
@@ -48,6 +53,23 @@ struct pico_queue {
 #define PICOTCP_MUTEX_LOCK(x) do {} while(0)
 #define PICOTCP_MUTEX_UNLOCK(x) do {} while(0)
 #define PICOTCP_MUTEX_DEL(x) do {} while(0)
+#endif
+
+#ifdef PICO_SUPPORT_TICKLESS
+static inline void pico_queue_register_listener(struct pico_queue *q, void (*fn)(void *), void *arg)
+{
+    q->listener = fn;
+    q->listener_arg = arg;
+} 
+
+static inline void pico_queue_wakeup(struct pico_queue *q)
+{
+    pico_schedule_job(q->listener, q->listener_arg);
+}
+
+#else
+#define pico_queue_register_listener(q, fn, arg) do{}while(0)
+#define pico_queue_wakeup(q) do{}while(0)
 #endif
 
 #ifdef PICO_SUPPORT_DEBUG_TOOLS
@@ -101,6 +123,9 @@ static inline int32_t pico_enqueue(struct pico_queue *q, struct pico_frame *p)
 
     if (q->shared)
         PICOTCP_MUTEX_UNLOCK(q->mutex);
+
+    if (q->frames == 1)
+        pico_queue_wakeup(q);
 
     return (int32_t)q->size;
 }

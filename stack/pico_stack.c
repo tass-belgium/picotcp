@@ -29,6 +29,7 @@
 #include "pico_tcp.h"
 #include "pico_socket.h"
 #include "heap.h"
+#include "pico_jobs.h"
 
 #define IS_LIMITED_BCAST(f) (((struct pico_ipv4_hdr *) f->net_hdr)->dst.addr == PICO_IP4_BCAST)
 
@@ -888,6 +889,20 @@ static void pico_check_timers(void)
         tref = heap_first(Timers);
     }
 }
+
+
+#ifdef PICO_SUPPORT_TICKLESS
+long long int pico_stack_go(void)
+{
+    struct pico_timer_ref *tref; 
+    pico_execute_pending_jobs();
+    pico_check_timers();
+    tref = heap_first(Timers);
+    if (!tref)
+        return -1;
+    return(long long int)(tref->expire - pico_tick); 
+}
+#endif
 
 void MOCKABLE pico_timer_cancel(struct pico_timer *t)
 {
