@@ -580,7 +580,8 @@ static void pico_aodv_collector(pico_time now, void *arg)
                 pico_aodv_expired(node);
         }
     }
-    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
+    if (!pico_tree_empty(&aodv_devices))
+        pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
 }
 
 MOCKABLE int pico_aodv_init(void)
@@ -607,13 +608,14 @@ MOCKABLE int pico_aodv_init(void)
     }
 
     pico_aodv_local_id = pico_rand();
-    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
     return 0;
 }
 
 
 int pico_aodv_add(struct pico_device *dev)
 {
+    if (pico_tree_empty(&aodv_devices))
+        pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
     return (pico_tree_insert(&aodv_devices, dev)) ? (0) : (-1);
 }
 

@@ -1123,7 +1123,6 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         return -1;
     }
 
-
     pico_tree_insert(&IPV6Routes, new);
     pico_ipv6_dbg_route();
     return 0;
@@ -1265,6 +1264,8 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->istentative = 1;
     new->isduplicate = 0;
 
+    if (pico_tree_empty(&IPV6Links))
+        pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
     pico_tree_insert(&IPV6Links, new);
 
     for (i = 0; i < PICO_SIZE_IP6; ++i) {
@@ -1514,7 +1515,8 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             pico_ipv6_link_del(link->dev, link->address);
         }
     }
-    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
+    if (!pico_tree_empty(&IPV6Links))
+        pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
 }
 
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire)

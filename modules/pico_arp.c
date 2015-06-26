@@ -28,6 +28,7 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
 static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { };
+static struct pico_timer *arp_rate_timer = NULL;
 
 static void pico_arp_queued_trigger(void)
 {
@@ -47,10 +48,12 @@ static void update_max_arp_reqs(pico_time now, void *unused)
 {
     IGNORE_PARAMETER(now);
     IGNORE_PARAMETER(unused);
-    if (max_arp_reqs < PICO_ARP_MAX_RATE)
+    if (max_arp_reqs < PICO_ARP_MAX_RATE) {
+        arp_rate_timer = pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
         max_arp_reqs++;
-
-    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+    } else {
+        arp_rate_timer = NULL;
+    }
 }
 
 void pico_arp_init(void)
@@ -391,6 +394,10 @@ static int pico_arp_check_flooding(struct pico_frame *f, struct pico_ip4 me)
     /* Check if we are the target IP address */
     if (link_dev != f->dev)
         return -1;
+
+    /* Check if rate timer is running, or reschedule */
+    if (!arp_rate_timer)
+        arp_rate_timer = pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
 
     return 0;
 }
