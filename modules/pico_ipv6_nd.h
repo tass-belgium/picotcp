@@ -11,6 +11,9 @@
 #define PICO_ND_REACHABLE_TIME         30000 /* msec */
 #define PICO_ND_RETRANS_TIMER          1000 /* msec */
 
+#define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
+#define PICO_IPV6_ND_MAX_RADV_INTERVAL (15000)
+
 struct pico_nd_hostvars {
     uint8_t routing;
     uint8_t hoplimit;
@@ -23,4 +26,5 @@ void pico_ipv6_nd_init(void);
 struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f);
 void pico_ipv6_nd_postpone(struct pico_frame *f);
 int pico_ipv6_nd_recv(struct pico_frame *f);
+void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg);
 #endif

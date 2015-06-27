@@ -18,7 +18,7 @@
 #include "pico_ipv6_nd.h"
 
 #ifdef PICO_SUPPORT_IPV6
-#define PICO_NEIGH_CHECK_INTERVAL 200
+#define PICO_NEIGH_CHECK_INTERVAL 400
 #define PICO_ROUTE_CHECK_INTERVAL 200
 #define PICO_LIFET_CHECK_INTERVAL 1000
 
@@ -863,34 +863,30 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
 
 
 
-#define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
-#define PICO_IPV6_ND_MAX_RADV_INTERVAL (15000)
 
-static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
+void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
 {
-    struct pico_tree_node *devindex = NULL;
     struct pico_tree_node *rindex = NULL;
-    struct pico_device *dev;
+    struct pico_device *dev = (struct pico_device *)arg;
     struct pico_ipv6_route *rt;
     struct pico_ip6 nm64 = { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0 } };
     pico_time next_timer_expire = 0u;
 
-    (void)arg;
+    if (!dev || !dev->hostvars.routing)
+        return;
+
     (void)now;
     pico_tree_foreach(rindex, &IPV6Routes)
     {
         rt = rindex->keyValue;
         if (pico_ipv6_compare(&nm64, &rt->netmask) == 0) {
-            pico_tree_foreach(devindex, &Device_tree) {
-                dev = devindex->keyValue;
-                if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link) && (dev != rt->link->dev)) {
-                    pico_icmp6_router_advertisement(dev, &rt->dest);
-                }
+            if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && (rt->link) && (dev != rt->link->dev)) {
+                pico_icmp6_router_advertisement(dev, &rt->dest);
             }
         }
     }
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
-    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
+    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, dev);
 }
 
 /* Public API */
@@ -1011,8 +1007,6 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 void pico_ipv6_nd_init(void)
 {
     pico_timer_add(PICO_NEIGH_CHECK_INTERVAL, pico_ipv6_nd_timer_callback, NULL);
-    pico_timer_add(PICO_ROUTE_CHECK_INTERVAL, pico_ipv6_nd_ra_timer_callback, NULL);
-    pico_timer_add(PICO_LIFET_CHECK_INTERVAL, pico_ipv6_check_lifetime_expired, NULL);
 }
 
 #endif
