@@ -185,6 +185,7 @@ int main(int argc, char **argv)
     int option_idx = 0;
     int c;
     char *app = NULL, *p = argv[0];
+    int uses_vde = 0;
     /* parse till we find the name of the executable */
     while (p) {
         if (*p == '/')
@@ -330,6 +331,7 @@ int main(int argc, char **argv)
             char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL;
             struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
             uint32_t i_pc = 0, o_pc = 0;
+            uses_vde++;
             printf("+++ OPTARG %s\n", optarg);
             do {
                 nxt = cpy_arg(&name, optarg);
@@ -648,6 +650,21 @@ int main(int argc, char **argv)
 
 #ifdef FAULTY
     atexit(memory_stats);
+#endif
+
+#ifdef PICO_SUPPORT_TICKLESS
+    if (uses_vde == 1) {
+        int interval = 0;
+        printf("%s: launching PicoTCP loop in TICKLESS mode\n", __FUNCTION__);
+        while(1) {
+            interval = pico_stack_go();
+            if (interval != 0) {
+//              printf("Interval: %lld\n", interval);
+                pico_vde_WFI(dev, interval);
+            }
+        }
+    }
+    exit(0);
 #endif
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(1) {

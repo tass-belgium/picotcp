@@ -7,9 +7,11 @@ struct pico_job
 };
 
 
+
 struct pico_job *pico_jobs_backlog = NULL;
 struct pico_job *pico_jobs_backlog_tail = NULL;
 
+/* static int max_jobs; */
 
 void pico_schedule_job(void (*exe)(void*), void *arg)
 {
@@ -30,6 +32,7 @@ void pico_schedule_job(void (*exe)(void*), void *arg)
 void pico_execute_pending_jobs(void)
 {
     struct pico_job *job;
+    /* int count = 0; */
     while(pico_jobs_backlog) {
         job = pico_jobs_backlog;
         if (job->exe) {
@@ -37,7 +40,14 @@ void pico_execute_pending_jobs(void)
         }
         pico_jobs_backlog = job->next;
         PICO_FREE(job);
+        /* count++; */
         if (!pico_jobs_backlog)
             pico_jobs_backlog_tail = NULL;
     }
+    /*
+    if (count > max_jobs) {
+        printf("Max jobs = %d\n", count);
+        max_jobs = count;
+    }
+    */
 }

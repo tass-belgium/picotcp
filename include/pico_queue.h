@@ -64,7 +64,8 @@ static inline void pico_queue_register_listener(struct pico_queue *q, void (*fn)
 
 static inline void pico_queue_wakeup(struct pico_queue *q)
 {
-    pico_schedule_job(q->listener, q->listener_arg);
+    if (q->listener)
+        pico_schedule_job(q->listener, q->listener_arg);
 }
 
 #else

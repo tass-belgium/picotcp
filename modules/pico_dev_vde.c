@@ -37,6 +37,34 @@ static int pico_vde_send(struct pico_device *dev, void *buf, int len)
 
 }
 
+
+#ifdef PICO_SUPPORT_TICKLESS
+#include "pico_jobs.h"
+
+void pico_vde_dsr(void *arg)
+{
+   int len;
+   struct pico_device_vde *vde = (struct pico_device_vde *)arg;
+   unsigned char buf[VDE_MTU];
+   len = vde_recv(vde->conn, buf, VDE_MTU, 0);
+   if (len > 0) {
+       pico_stack_recv(&vde->dev, buf, (uint32_t)len);
+   }
+}
+
+int pico_vde_WFI(struct pico_device *dev, int timeout_ms)
+{
+   struct pollfd pfd;
+   struct pico_device_vde *vde = (struct pico_device_vde *) dev;
+   pfd.fd = vde_datafd(vde->conn);
+   pfd.events = POLLIN;
+   if (poll(&pfd, 1, timeout_ms) <= 0)
+       return 0;
+   pico_schedule_job(pico_vde_dsr, vde);
+   return 1;
+}
+#endif
+
 static int pico_vde_poll(struct pico_device *dev, int loop_score)
 {
     struct pico_device_vde *vde = (struct pico_device_vde *) dev;
