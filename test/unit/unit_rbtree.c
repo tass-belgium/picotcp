@@ -50,7 +50,7 @@ END_TEST
 
 START_TEST (test_rbtree)
 {
-    struct pico_tree_node  *s;
+    struct pico_tree_node  *s, *tmp;
     elem t, *e;
     int i;
     struct timeval start, end;
@@ -76,7 +76,7 @@ START_TEST (test_rbtree)
     fail_if(!e, "Search failed...");
     fail_if(e->value != t.value, "Wrong element returned...");
 
-    pico_tree_foreach_reverse(s, &test_tree){
+    pico_tree_foreach_reverse_safe(s, &test_tree, tmp){
         fail_if(!s, "Reverse safe returned null");
         e = (elem *)pico_tree_delete(&test_tree, s->keyValue);
         free(e);

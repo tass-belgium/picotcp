@@ -30,7 +30,7 @@
 /* Flag to check for when records are returned, to determine the hostname */
 #define PICO_MDNS_RECORD_HOSTNAME 0x02u
 #define IS_HOSTNAME_RECORD(x) \
-    ((x) ? ((((x)->flags) & PICO_MDNS_RECORD_HOSTNAME) ? (1) : (0)) : (0))
+    (((x)->flags) & PICO_MDNS_RECORD_HOSTNAME) ? (1) : (0)
 
 /* --- MDNS resource record --- */
 struct pico_mdns_record

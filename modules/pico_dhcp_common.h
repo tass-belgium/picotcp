@@ -57,7 +57,7 @@
 #define PICO_DHCP_OPTLEN_OPTOVERLOAD    3
 #define PICO_DHCP_OPTLEN_MSGTYPE        3
 #define PICO_DHCP_OPTLEN_SERVERID       6
-#define PICO_DHCP_OPTLEN_PARAMLIST      8 /* PicoTCP specific */
+#define PICO_DHCP_OPTLEN_PARAMLIST      9 /* PicoTCP specific */
 #define PICO_DHCP_OPTLEN_MAXMSGSIZE     4
 #define PICO_DHCP_OPTLEN_RENEWALTIME    6
 #define PICO_DHCP_OPTLEN_REBINDINGTIME  6
@@ -118,7 +118,8 @@ PACKED_STRUCT_DEF pico_dhcp_opt
         } router;
         PEDANTIC_STRUCT_DEF dns_s {
             struct pico_ip4 ip;
-        } dns;
+        } dns1;
+        struct dns_s dns2;
         PEDANTIC_STRUCT_DEF broadcast_s {
             struct pico_ip4 ip;
         } broadcast;

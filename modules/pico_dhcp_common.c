@@ -90,7 +90,7 @@ uint8_t pico_dhcp_opt_dns(void *ptr, struct pico_ip4 *ip)
     /* option: dns */
     opt->code = PICO_DHCP_OPT_DNS;
     opt->len = PICO_DHCP_OPTLEN_DNS - PICO_DHCP_OPTLEN_HDR;
-    opt->ext.dns.ip = *ip;
+    opt->ext.dns1.ip = *ip;
     return PICO_DHCP_OPTLEN_DNS;
 }
 
@@ -162,6 +162,7 @@ uint8_t pico_dhcp_opt_paramlist(void *ptr)
     opt->ext.param_list.code[3] = PICO_DHCP_OPT_HOSTNAME;
     opt->ext.param_list.code[4] = PICO_DHCP_OPT_RENEWALTIME;
     opt->ext.param_list.code[5] = PICO_DHCP_OPT_REBINDINGTIME;
+    opt->ext.param_list.code[6] = PICO_DHCP_OPT_DNS;
     return PICO_DHCP_OPTLEN_PARAMLIST;
 }
 

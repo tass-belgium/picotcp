@@ -18,23 +18,30 @@
 
 struct udpclient_pas *udpclient_pas;
 
+static int exit_retry = 0;
+
+static void request_exit_echo(pico_time now, void *arg)
+{
+    struct pico_socket *s = (struct pico_socket *)arg;
+    char end[4] = "end";
+    pico_socket_send(s, end, 4);
+    if (exit_retry++ > 3) {
+        pico_timer_add(1000, deferred_exit, udpclient_pas);
+    } else {
+        pico_timer_add(1000, request_exit_echo, s);
+        printf("%s: requested exit of echo\n", __FUNCTION__);
+    }
+}
+
 void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((unused))  *arg)
 {
     struct pico_socket *s = udpclient_pas->s;
-    char end[4] = "end";
     char *buf = NULL;
     int i = 0, w = 0;
     static uint16_t loop = 0;
 
     if (++loop > udpclient_pas->loops) {
-        for (i = 0; i < 3; i++) {
-            w = pico_socket_send(s, end, 4);
-            if (w <= 0)
-                break;
-
-            printf("%s: requested exit of echo\n", __FUNCTION__);
-        }
-        pico_timer_add(1000, deferred_exit, udpclient_pas);
+        pico_timer_add(1000, request_exit_echo, s);
         return;
     } else {
         buf = calloc(1, udpclient_pas->datasize);

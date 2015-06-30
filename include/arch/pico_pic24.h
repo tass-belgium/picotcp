@@ -94,7 +94,7 @@ static inline void PICO_IDLE(void)
     TIMBASE_INT_E = 1;
     /* Doesn't matter that this call isn't interrupt safe, */
     /* we just check for the value to change */
-    while(tick_now == __pic24_tick);
+    while(tick_now == __pic24_tick) ;
 }
 
 #endif

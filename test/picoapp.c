@@ -44,6 +44,10 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+#ifdef FAULTY
+#include "pico_faulty.h"
+#endif
+
 void app_udpecho(char *args);
 void app_tcpecho(char *args);
 void app_udpclient(char *args);
@@ -101,6 +105,7 @@ void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
     printf("%s: quitting\n", __FUNCTION__);
     exit(0);
 }
+
 
 
 /** From now on, parsing the command line **/
@@ -199,7 +204,7 @@ int main(int argc, char **argv)
     printf("My macaddr is: %02x %02x %02x %02x %02x %02x\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 
 #ifdef PICO_SUPPORT_MM
-    pico_mem_init(64 * 1024);
+    pico_mem_init(128 * 1024);
 #endif
     pico_stack_init();
     /* Parse args */
@@ -641,6 +646,9 @@ int main(int argc, char **argv)
         usage(argv[0]);
     }
 
+#ifdef FAULTY
+    atexit(memory_stats);
+#endif
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(1) {
         pico_stack_tick();

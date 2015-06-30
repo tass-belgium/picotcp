@@ -1013,7 +1013,7 @@ static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endp
 static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
-    f->frag = short_be(PICO_IPV4_DONTFRAG);
+    f->frag = PICO_IPV4_DONTFRAG;
 #else
     (void)f;
 #endif
@@ -1076,7 +1076,7 @@ static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int spac
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
     /* transport header length field contains total length + header length */
     f->transport_len = (uint16_t)(space);
-    f->frag = short_be(PICO_IPV4_MOREFRAG);
+    f->frag = PICO_IPV4_MOREFRAG;
     f->payload += hdr_offset;
     f->payload_len = (uint16_t) space;
 }
@@ -1087,13 +1087,13 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload = f->transport_hdr;
     f->payload_len = (uint16_t)(f->payload_len - hdr_offset);
     /* set offset in octets */
-    f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
+    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u);
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-        f->frag |= short_be(PICO_IPV4_MOREFRAG);
+        f->frag |= PICO_IPV4_MOREFRAG;
     } else {
         frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-        f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+        f->frag &= PICO_IPV4_FRAG_MASK;
     }
 }
 #endif
@@ -1179,12 +1179,17 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 
 static void get_sock_dev(struct pico_socket *s)
 {
+    if (0) {}
+
 #ifdef PICO_SUPPORT_IPV6
-    if (is_sock_ipv6(s))
+    else if (is_sock_ipv6(s))
         s->dev = pico_ipv6_source_dev_find(&s->remote_addr.ip6);
-    else
 #endif
-    s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#ifdef PICO_SUPPORT_IPV4
+    else if (is_sock_ipv4(s))
+        s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#endif
+
 }
 
 

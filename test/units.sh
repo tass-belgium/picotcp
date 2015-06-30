@@ -4,6 +4,7 @@ export VFRUN_OUT="|/opt/vectorfabrics/pareon-2.21/verify/tools/bin/vfana"
 export VFPROJECT=/var/lib/jenkins/pareon_verify_project
 
 ./build/test/units || exit 1
+./build/test/modunit_fragments.elf || exit 1
 ./build/test/modunit_pico_stack.elf || exit 1
 ./build/test/modunit_pico_protocol.elf || exit 1
 ./build/test/modunit_pico_frame.elf || exit 1

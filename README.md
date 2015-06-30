@@ -4,16 +4,16 @@ picoTCP
 
 Welcome to the one and only <font color=ff00f0>picoTCP repository</font>. 
 
-picoTCP is a TCP/IP stack designed for embedded systems developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*
+picoTCP is a small-footprint, modular TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*.
 
 This code is released under the terms of GNU GPL v2 only. Some rights reserved.
 Other licenses may apply at the sole discretion of the copyright holders.
 
-The getting started guide can be found on the GitHub wiki (https://github.com/tass-belgium/picotcp/wiki)
+Learn how to use picoTCP in your project by going through the Getting Started guide on our [GitHub wiki](https://github.com/tass-belgium/picotcp/wiki).
 
-For more information, visit [the project's website](http://www.picotcp.com)
+For more information visit the [picoTCP website](http://www.picotcp.com), send us an email or contact us on [Twitter](https://twitter.com/picotcp), [Facebook](https://www.facebook.com/picoTCP) or [Reddit](http://www.reddit.com/r/picotcp/).
 
-[Check our code quality](http://tics.picotcp.com:42506/TIOBEPortal/TICS/treeviewer?)
+Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picotcp.com:42506/TIOBEPortal/TICS/treeviewer?)
 
 
 ---------------
@@ -31,7 +31,3 @@ Jenkins RFC compliance  :
 
 Jenkins TICS quality    :
 [![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_TICS/)
-
-Travis: 
-[![Travis CI build status](https://api.travis-ci.org/tass-belgium/picotcp.svg)](https://travis-ci.org/tass-belgium/picotcp)
-[![Coverage Status](https://img.shields.io/coveralls/tass-belgium/picotcp.svg)](https://coveralls.io/r/tass-belgium/picotcp?branch=master)

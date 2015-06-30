@@ -375,7 +375,7 @@ static int release_all_until(struct pico_tcp_queue *q, uint32_t seq, pico_time *
 
         if (seq_result <= 0) {
             tcp_dbg("Releasing %p\n", f);
-            if(seq_result == 0)
+            if ((seq_result == 0) && !IS_INPUT_QUEUE(q))
                 *timestamp = ((struct pico_frame *)f)->timestamp;
 
             pico_discard_segment(q, f);
@@ -1765,8 +1765,8 @@ static int tcp_is_allowed_to_send(struct pico_socket_tcp *t)
 {
     return t->sock.net &&
            (
-        ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) ||
-        ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT)
+               ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED) ||
+               ((t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT)
            ) &&
            ((t->backoff < PICO_TCP_MAX_RETRANS));
 }

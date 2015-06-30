@@ -70,7 +70,7 @@ struct pico_dhcp_client_cookie
     struct pico_ip4 address;
     struct pico_ip4 netmask;
     struct pico_ip4 gateway;
-    struct pico_ip4 nameserver;
+    struct pico_ip4 nameserver[2];
     struct pico_ip4 server_id;
     struct pico_device *dev;
     struct dhcp_client_timer *timer[PICO_DHCPC_TIMER_ARRAY_SIZE];
@@ -453,8 +453,13 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
             break;
 
         case PICO_DHCP_OPT_DNS:
-            dhcpc->nameserver = opt->ext.dns.ip;
-            dhcpc_dbg("DHCP client: dns %08X\n", dhcpc->nameserver.addr);
+            dhcpc->nameserver[0] = opt->ext.dns1.ip;
+            dhcpc_dbg("DHCP client: dns1 %08X\n", dhcpc->nameserver[0].addr);
+            if (opt->len >= 8) {
+                dhcpc->nameserver[1] = opt->ext.dns2.ip;
+                dhcpc_dbg("DHCP client: dns1 %08X\n", dhcpc->nameserver[1].addr);
+            }
+
             break;
 
         case PICO_DHCP_OPT_NETMASK:
@@ -937,9 +942,15 @@ struct pico_ip4 pico_dhcp_get_netmask(void *dhcpc)
     return ((struct pico_dhcp_client_cookie*)dhcpc)->netmask;
 }
 
-struct pico_ip4 pico_dhcp_get_nameserver(void*dhcpc)
+struct pico_ip4 pico_dhcp_get_nameserver(void*dhcpc, int index)
 {
-    return ((struct pico_dhcp_client_cookie*)dhcpc)->nameserver;
+    struct pico_ip4 fault = {
+        .addr = 0xFFFFFFFFU
+    };
+    if ((index != 0) && (index != 1))
+        return fault;
+
+    return ((struct pico_dhcp_client_cookie*)dhcpc)->nameserver[index];
 }
 
 int pico_dhcp_client_abort(uint32_t xid)

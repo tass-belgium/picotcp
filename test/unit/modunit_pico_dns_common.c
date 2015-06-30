@@ -287,7 +287,7 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     struct pico_dns_header *header = NULL;
     uint8_t answer_buf[12] = {
         0x00, 0x00,
-        0x84, 0x00,
+        0x85, 0x00,
         0x00, 0x00,
         0x00, 0x01,
         0x00, 0x01,
@@ -295,7 +295,7 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     };
     uint8_t query_buf[12] = {
         0x00, 0x00,
-        0x00, 0x00,
+        0x01, 0x00,
         0x00, 0x01,
         0x00, 0x01,
         0x00, 0x01,
@@ -312,6 +312,9 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     /* Create a query header */
     pico_dns_fill_packet_header(header, 1, 1, 1, 1);
 
+    int i;
+    for (i = 0; i < 12; i++)
+        printf("### %02x :: %02x\n", ((uint8_t*)header)[i], query_buf[i]);
     fail_unless(0 == memcmp((void *)header, (void *)query_buf, 12),
                 "Comparing query header failed!\n");
 
@@ -457,14 +460,15 @@ END_TEST
 START_TEST(tc_pico_dns_packet_compress_find_ptr) /* MARK: dns_packet_compress_find_ptr */
 {
     uint8_t *data = (uint8_t *)"abcdef\5local\0abcdef\4test\5local";
-    uint8_t *name = (uint8_t *)"\5local";
+    uint8_t *name = (uint8_t *)(data + 24);
     uint16_t len = 31;
     uint8_t *ptr = NULL;
 
     printf("*********************** starting %s * \n", __func__);
 
     ptr = pico_dns_packet_compress_find_ptr(name, data, len);
-    fail_unless(ptr == (data + 6), "Finding compression ptr failed!\n");
+    fail_unless(ptr == (data + 6), "Finding compression ptr failed %p - %p!\n", ptr,
+                data + 6);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
@@ -683,7 +687,7 @@ START_TEST(tc_pico_dns_query_create) /* MARK: dns_query_create */
     const char *qurl2 = "google.com";
     uint8_t buf[42] = {
         0x00u, 0x00u,
-        0x00u, 0x00u,
+        0x01u, 0x00u,
         0x00u, 0x02u,
         0x00u, 0x00u,
         0x00u, 0x00u,
@@ -896,7 +900,7 @@ START_TEST(tc_pico_dns_answer_create) /* MARK: dns_answer_create */
     int ret = 0, i = 0;
     uint8_t buf[62] = {
         0x00u, 0x00u,
-        0x84u, 0x00u,
+        0x85u, 0x00u,
         0x00u, 0x00u,
         0x00u, 0x02u,
         0x00u, 0x00u,

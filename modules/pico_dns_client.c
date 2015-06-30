@@ -16,6 +16,8 @@
 
 #ifdef PICO_SUPPORT_DNS_CLIENT
 
+#ifdef PICO_SUPPORT_IPV4
+
 #define dns_dbg(...) do {} while(0)
 /* #define dns_dbg dbg */
 
@@ -268,9 +270,10 @@ static int pico_dns_client_check_qsuffix(struct pico_dns_question_suffix *suf, s
 static int pico_dns_client_check_url(struct pico_dns_header *resp, struct pico_dns_query *q)
 {
     char *recv_name = (char*)(resp) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL;
-    char *exp_name = (char *)(q->query) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL; 
-    if (strcmp(recv_name,  exp_name) != 0)  
+    char *exp_name = (char *)(q->query) + sizeof(struct pico_dns_header) + PICO_DNS_LABEL_INITIAL;
+    if (strcmp(recv_name,  exp_name) != 0)
         return -1;
+
     return 0;
 }
 
@@ -772,5 +775,15 @@ int pico_dns_client_init(void)
     return pico_dns_client_nameserver(&default_ns, PICO_DNS_NS_ADD);
 }
 
+#else
+
+int pico_dns_client_init(void)
+{
+    dbg("ERROR Trying to initialize DNS module: IPv4 not supported in this build.\n");
+    return -1;
+}
+#endif /* PICO_SUPPORT_IPV4 */
+
 
 #endif /* PICO_SUPPORT_DNS_CLIENT */
+

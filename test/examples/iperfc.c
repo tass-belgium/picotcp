@@ -27,7 +27,7 @@ static pico_time deadline;
 
 static void panic(void)
 {
-    for(;; );
+    for(;; ) ;
 }
 
 static char buf[MTU] = {};
