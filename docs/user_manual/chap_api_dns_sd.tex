@@ -47,7 +47,8 @@ Returns 0 when the module successfully started registering the service, somethin
 \subsubsection*{Example}
 \begin{verbatim}
 PICO_DNS_SD_KV_VECTOR_DECLARE(dictionary);
-pico_dns_sd_register_service("Printer 2nd Floor", "_printer._sub._http._tcp", 80, &dictionary, 240, &reg_cb, NULL);
+pico_dns_sd_register_service("Printer 2nd Floor", "_printer._sub._http._tcp", 80, \\
+&dictionary, 240, &reg_cb, NULL);
 \end{verbatim}
 
 
