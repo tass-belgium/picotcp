@@ -22,7 +22,7 @@ RTOS?=0
 CHECKSUMFUN?=young
 GENERIC?=0
 PTHREAD?=0
-ADDRESS_SANITIZER?=1
+ADDRESS_SANITIZER?=0
 
 # Default compiled-in protocols
 #
