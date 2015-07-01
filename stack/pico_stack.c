@@ -1013,7 +1013,7 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR], int *
     return 0;
 }
 
-void pico_stack_tick(void)
+static void legacy_pico_stack_tick(void)
 {
     static int score[PROTO_DEF_NR] = {
         PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE
@@ -1075,6 +1075,7 @@ void pico_stack_tick(void)
     /* calculate new loop scores for next iteration */
     calc_score(score, index, (int (*)[])avg, ret);
 }
+
 
 void pico_stack_loop(void)
 {
@@ -1170,3 +1171,14 @@ int pico_stack_init(void)
     return 0;
 }
 
+void pico_stack_tick(void)
+{
+#ifdef PICO_SUPPORT_TICKLESS
+    int interval = 
+        pico_stack_go();
+    pico_device_WFI(interval);
+#else
+    legacy_pico_stack_tick();
+#endif
+
+}

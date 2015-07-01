@@ -211,6 +211,9 @@ struct pico_device *pico_tap_create(char *name)
 
     tap->dev.send = pico_tap_send;
     tap->dev.poll = pico_tap_poll;
+#ifdef PICO_SUPPORT_TICKLESS
+    tap->dev.wfi = pico_tap_WFI;
+#endif
     tap->dev.destroy = pico_tap_destroy;
     dbg("Device %s created.\n", tap->dev.name);
     return (struct pico_device *)tap;

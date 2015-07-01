@@ -1532,6 +1532,7 @@ static void tcp_sack_prepare(struct pico_socket_tcp *t)
     }
 }
 
+void pico_tcp_out_all(void *arg);
 static inline int tcp_data_in_expected(struct pico_socket_tcp *t, struct pico_frame *f)
 {
     struct tcp_input_segment *nxt;
@@ -1558,6 +1559,7 @@ static inline int tcp_data_in_expected(struct pico_socket_tcp *t, struct pico_fr
                 nxt = peek_segment(&t->tcpq_in, t->rcv_nxt);
             }
             t->sock.ev_pending |= PICO_SOCK_EV_RD;
+            pico_schedule_job(pico_tcp_out_all, t);
         }
     } else {
         tcp_dbg("TCP> lo segment. Uninteresting retransmission. (exp: %x got: %x)\n", t->rcv_nxt, SEQN(f));
@@ -1628,7 +1630,6 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     }
 }
 
-void pico_tcp_out_all(void *arg);
 static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, pico_time *timestamp)
 {
     int ret =  release_all_until(&t->tcpq_out, ACKN(f), timestamp);
@@ -1819,6 +1820,8 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
         add_retransmission_timer(t, t->retrans_tmr_due);
         return;
     }
+
+    pico_schedule_job(pico_tcp_out_all, t);
 
     tcp_dbg("TIMEOUT! backoff = %d, rto: %d\n", t->backoff, t->rto);
     t->retrans_tmr_due = 0ull;
@@ -2342,6 +2345,7 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
             s->wakeup(PICO_SOCK_EV_CONN, s);
 
         s->ev_pending |= PICO_SOCK_EV_WR;
+        pico_schedule_job(pico_tcp_out_all, t);
 
         t->rcv_nxt++;
         t->snd_nxt++;
@@ -2382,6 +2386,7 @@ static int tcp_first_ack(struct pico_socket *s, struct pico_frame *f)
         }
 
         s->ev_pending |= PICO_SOCK_EV_WR;
+        pico_schedule_job(pico_tcp_out_all, t);
         tcp_dbg("%s: snd_nxt is now %08x\n", __FUNCTION__, t->snd_nxt);
         return 0;
     } else if ((hdr->flags & PICO_TCP_RST) == 0) {
@@ -2852,7 +2857,7 @@ void pico_tcp_out_all(void *arg)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
     if (t) {
         struct pico_socket *s = &t->sock;
-        pico_tcp_output(&t->sock, t->tcpq_out.frames);
+        pico_tcp_output(&t->sock, (uint32_t)t->tcpq_out.frames);
         if ((s->ev_pending) && s->wakeup) {
             s->wakeup(s->ev_pending, s);
             if(!s->parent)
@@ -2944,6 +2949,7 @@ static int pico_tcp_push_nagle_hold(struct pico_socket_tcp *t, struct pico_frame
 {
     struct pico_frame *f_new;
     uint32_t total_len = 0;
+    pico_schedule_job(pico_tcp_out_all, t);
     total_len = f->payload_len + t->tcpq_hold.size;
     if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {              /* TODO check mss socket */
         /* IF enough data in hold (>mss) AND space in out queue (>mss) */
@@ -2959,7 +2965,6 @@ static int pico_tcp_push_nagle_hold(struct pico_socket_tcp *t, struct pico_frame
 
         /* and put new frame in out queue */
         if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out, f_new) > 0)) {
-            pico_schedule_job(pico_tcp_out_all, t);
             return f_new->payload_len;
         } else {
             tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n", f_new);

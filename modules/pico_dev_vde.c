@@ -136,6 +136,9 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
 
     vde->dev.send = pico_vde_send;
     vde->dev.poll = pico_vde_poll;
+#ifdef PICO_SUPPORT_TICKLESS
+    vde->dev.wfi = pico_vde_WFI;
+#endif
     vde->dev.destroy = pico_vde_destroy;
     dbg("Device %s created.\n", vde->dev.name);
     return (struct pico_device *)vde;

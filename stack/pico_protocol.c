@@ -195,17 +195,6 @@ int pico_protocol_socket_loop(int loop_score, int direction)
     return pico_protocol_generic_loop(&proto_rr_socket, loop_score, direction);
 }
 
-int pico_protocols_loop(int loop_score)
-{
-/*
-   loop_score = pico_protocol_datalink_loop(loop_score);
-   loop_score = pico_protocol_network_loop(loop_score);
-   loop_score = pico_protocol_transport_loop(loop_score);
-   loop_score = pico_protocol_socket_loop(loop_score);
- */
-    return loop_score;
-}
-
 static void proto_layer_rr_reset(struct pico_proto_rr *rr)
 {
     rr->node_in = NULL;

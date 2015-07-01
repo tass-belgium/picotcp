@@ -160,6 +160,7 @@ static void usage(char *arg0)
 
 int main(int argc, char **argv)
 {
+    int uses_vde = 0;
     unsigned char macaddr[6] = {
         0, 0, 0, 0xa, 0xb, 0x0
     };
@@ -185,7 +186,6 @@ int main(int argc, char **argv)
     int option_idx = 0;
     int c;
     char *app = NULL, *p = argv[0];
-    int uses_vde = 0;
     /* parse till we find the name of the executable */
     while (p) {
         if (*p == '/')
@@ -613,6 +613,7 @@ int main(int argc, char **argv)
 #endif
             } else IF_APPNAME("noop") {
                 app_noop();
+                exit(0);
 #ifdef PICO_SUPPORT_OLSR
             } else IF_APPNAME("olsr") {
                 dev = pico_get_device("pic0");
@@ -626,6 +627,7 @@ int main(int argc, char **argv)
                 }
 
                 app_noop();
+                exit(0);
 #endif
             } else IF_APPNAME("slaacv4") {
 #ifndef PICO_SUPPORT_SLAACV4
@@ -652,21 +654,23 @@ int main(int argc, char **argv)
     atexit(memory_stats);
 #endif
 
+    printf("==========================================================\n");
+    printf("number of vde devices: %d\n", uses_vde);
 #ifdef PICO_SUPPORT_TICKLESS
-    if (uses_vde == 1) {
-        int interval = 0;
-        printf("%s: launching PicoTCP loop in TICKLESS mode\n", __FUNCTION__);
-        while(1) {
-            interval = pico_stack_go();
-            if (interval != 0) {
-//              printf("Interval: %lld\n", interval);
-                pico_vde_WFI(dev, interval);
-            }
+    int interval = 0;
+    printf("%s: launching PicoTCP loop in TICKLESS mode\n", __FUNCTION__);
+    while(1) {
+        interval = pico_stack_go();
+        if (interval != 0) {
+            //              printf("Interval: %lld\n", interval);
+                            pico_device_WFI(interval);
+            //pico_vde_WFI(dev, interval);
+
         }
     }
     exit(0);
 #endif
-    printf("%s: launching PicoTCP loop\n", __FUNCTION__);
+    printf("-~-~-~-~-~-~-~-~-~ %s: launching PicoTCP loop -~-~-~-~-~-~-~-~-~\n", __FUNCTION__);
     while(1) {
         pico_stack_tick();
         usleep(2000);
