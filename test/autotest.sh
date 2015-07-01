@@ -19,7 +19,7 @@ function tftp_cleanup() {
 	fi
 }
 
-export VFRUN_OUT="|pareon verify -f xml -o report.xml"
+export VFRUN_OUT="|pareon analyze" 
 export VFPROJECT=/var/lib/jenkins/pareon_verify_project
 
 sh ./test/vde_sock_start_user.sh
