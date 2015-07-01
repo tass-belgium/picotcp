@@ -1,10 +1,8 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
-#CC:=$(CROSS_COMPILE)gcc
-#LD:=$(CROSS_COMPILE)ld
-CC:=x86_64-linux-gnu-vfcc
-LD:=x86_64-linux-gnu-vfcc
+CC:=i686-linux-gnu-vfcc
+LD:=i686-linux-gnu-vfcc
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
