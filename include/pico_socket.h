@@ -237,6 +237,7 @@ struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, uint16_t len);
 
 #ifdef PICO_SUPPORT_TCP
 # define is_sock_tcp(x) (x->proto == &pico_proto_tcp)
+int pico_socket_sanity_check(struct pico_socket *s);
 #else
 # define is_sock_tcp(x) (0)
 #endif

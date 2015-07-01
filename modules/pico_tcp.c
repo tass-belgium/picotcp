@@ -1628,12 +1628,14 @@ static int tcp_data_in(struct pico_socket *s, struct pico_frame *f)
     }
 }
 
+void pico_tcp_out_all(void *arg);
 static int tcp_ack_advance_una(struct pico_socket_tcp *t, struct pico_frame *f, pico_time *timestamp)
 {
     int ret =  release_all_until(&t->tcpq_out, ACKN(f), timestamp);
     if (ret > 0) {
         t->sock.ev_pending |= PICO_SOCK_EV_WR;
     }
+    pico_schedule_job(pico_tcp_out_all, t);
 
     return ret;
 }
@@ -1794,6 +1796,7 @@ static inline int tcp_retrans_timeout_check_queue(struct pico_socket_tcp *t)
     }
     if (t->tcpq_out.size < t->tcpq_out.max_size)
         t->sock.ev_pending |= PICO_SOCK_EV_WR;
+    pico_schedule_job(pico_tcp_out_all, t);
 
     return 0;
 
@@ -2100,6 +2103,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
             t->sock.wakeup(PICO_SOCK_EV_WR, &(t->sock));
 
         /* t->sock.ev_pending |= PICO_SOCK_EV_WR; */
+        pico_schedule_job(pico_tcp_out_all, t);
     }
 
     /* if Nagle enabled, check if no unack'ed data and fill out queue (till window) */
@@ -2556,6 +2560,7 @@ static int tcp_closeconn(struct pico_socket *s, struct pico_frame *fr)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
     struct pico_tcp_hdr *hdr  = (struct pico_tcp_hdr *) (fr->transport_hdr);
 
+    pico_schedule_job(pico_tcp_out_all, t);
     if (pico_seq_compare(SEQN(fr), t->rcv_nxt) == 0) {
         /* received FIN, increase ACK nr */
         t->rcv_nxt = long_be(hdr->seq) + 1;
@@ -2841,6 +2846,26 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
     return loop_score;
 }
 
+int pico_tcp_output(struct pico_socket *s, int loop_score);
+void pico_tcp_out_all(void *arg)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+    if (t) {
+        struct pico_socket *s = &t->sock;
+        pico_tcp_output(&t->sock, t->tcpq_out.frames);
+        if ((s->ev_pending) && s->wakeup) {
+            s->wakeup(s->ev_pending, s);
+            if(!s->parent)
+                s->ev_pending = 0;
+        }
+
+        if(pico_socket_sanity_check(s) < 0)
+        {
+            pico_socket_del(s);
+        }
+    }
+}
+
 /* function to make new segment from hold queue with specific size (mss) */
 static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
 {
@@ -2907,6 +2932,7 @@ static int pico_tcp_push_nagle_enqueue(struct pico_socket_tcp *t, struct pico_fr
     if (pico_enqueue_segment(&t->tcpq_out, f) > 0) {
         tcp_dbg_nagle("TCP_PUSH - NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
         t->snd_last += f->payload_len;
+        pico_schedule_job(pico_tcp_out_all, t);
         return f->payload_len;
     } else {
         tcp_dbg("Enqueue failed.\n");
@@ -2933,6 +2959,7 @@ static int pico_tcp_push_nagle_hold(struct pico_socket_tcp *t, struct pico_frame
 
         /* and put new frame in out queue */
         if ((f_new != NULL) && (pico_enqueue_segment(&t->tcpq_out, f_new) > 0)) {
+            pico_schedule_job(pico_tcp_out_all, t);
             return f_new->payload_len;
         } else {
             tcp_dbg_nagle("TCP_PUSH - NAGLE - enqueue out failed, f_new = %p\n", f_new);
@@ -2986,6 +3013,7 @@ int pico_tcp_push(struct pico_protocol *self, struct pico_frame *f)
     if (!IS_NAGLE_ENABLED((&(t->sock)))) {
         /* TCP_NODELAY enabled, original behavior */
         if (pico_enqueue_segment(&t->tcpq_out, f) > 0) {
+            pico_schedule_job(pico_tcp_out_all, t);
             tcp_dbg_nagle("TCP_PUSH - NO NAGLE - Pushing segment %08x, len %08x to socket %p\n", t->snd_last + 1, f->payload_len, t);
             t->snd_last += f->payload_len;
             return f->payload_len;
