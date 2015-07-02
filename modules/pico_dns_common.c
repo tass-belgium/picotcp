@@ -1134,8 +1134,9 @@ pico_tree_destroy( struct pico_tree *tree, int (*node_delete)(void **))
     }
 
     pico_tree_foreach_safe(node, tree, next) {
-        if ((item = node->keyValue)) {
-            pico_tree_delete(tree, node->keyValue);
+        item = node->keyValue;
+        pico_tree_delete(tree, node->keyValue);
+        if (item && node_delete) {
             node_delete((void **)&item);
         }
     }
