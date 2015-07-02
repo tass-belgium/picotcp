@@ -973,7 +973,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
             return -1;
         }
 
-        s->state |= PICO_SOCKET_STATE_BOUND;
+        pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
     }
 
     return s->local_port;
