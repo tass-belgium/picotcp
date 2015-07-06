@@ -873,6 +873,9 @@ pico_dns_record_fill_rdata( uint8_t **rdata,
         }
     } else {
         /* Otherwise just copy in the databuffer */
+        if (datalen == 0) {
+            return datalen;
+        }
         _datalen = datalen;
         if (!(*rdata = (uint8_t *)PICO_ZALLOC((size_t)datalen))) {
             pico_err = PICO_ERR_ENOMEM;
