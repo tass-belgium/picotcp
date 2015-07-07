@@ -1022,8 +1022,9 @@ static inline uint32_t tcp_read_in_frame_len(struct tcp_input_segment *f, int32_
     uint32_t in_frame_len = 0;
     if (in_frame_off > 0)
     {
-        if ((uint32_t)in_frame_off > f->payload_len)
+        if ((uint32_t)in_frame_off > f->payload_len) {
             dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
+        }
 
         in_frame_len = f->payload_len - (uint32_t)in_frame_off;
     } else { /* in_frame_off == 0 */
@@ -1085,9 +1086,8 @@ static void initconn_retry(pico_time when, void *arg)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
     IGNORE_PARAMETER(when);
-    if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_SYN_SENT
-        && !(t->sock.state & PICO_SOCKET_STATE_SHUT_LOCAL)
-        && !(t->sock.state & PICO_SOCKET_STATE_SHUT_REMOTE)) {
+    if (TCPSTATE(&t->sock) != PICO_SOCKET_STATE_TCP_ESTABLISHED)
+    {
         if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
             tcp_dbg("TCP> Connection timeout. \n");
             if (t->sock.wakeup)
