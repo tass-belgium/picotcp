@@ -164,7 +164,7 @@ struct pico_ipv6_mreq_source {
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
 # define PICO_IP_DEFAULT_MULTICAST_LOOP       1
 
-#define PICO_SOCKET_TIMEOUT                   90000u /* 90 seconds */
+#define PICO_SOCKET_TIMEOUT                   3000u /* 3 seconds */
 #define PICO_SOCKET_BOUND_TIMEOUT             30000u /* 30 seconds */
 
 #define PICO_SOCKET_SHUTDOWN_WRITE 0x01u
