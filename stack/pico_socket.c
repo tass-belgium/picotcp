@@ -973,7 +973,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
             return -1;
         }
 
-        s->state |= PICO_SOCKET_STATE_BOUND;
+        pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
     }
 
     return s->local_port;
@@ -1928,7 +1928,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 #define SL_LOOP_MIN 1
 
 #ifdef PICO_SUPPORT_TCP
-static int checkSocketSanity(struct pico_socket *s)
+static int check_socket_sanity(struct pico_socket *s)
 {
 
     /* checking for pending connections */
@@ -1939,7 +1939,7 @@ static int checkSocketSanity(struct pico_socket *s)
 
     if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
         /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED))
+        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
             return -1;
     }
 
@@ -2027,7 +2027,7 @@ static int pico_sockets_loop_tcp(int loop_score)
                 break;
             }
 
-            if(checkSocketSanity(s) < 0)
+            if(check_socket_sanity(s) < 0)
             {
                 pico_socket_del(s);
                 index_tcp = NULL; /* forcing the restart of loop */

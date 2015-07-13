@@ -426,7 +426,12 @@ pico_dns_sd_register_service( const char *name,
 
     pico_tree_insert(&rtree, txt_record);
     pico_tree_insert(&rtree, srv_record);
-    return pico_mdns_claim(rtree, callback, arg);
+    if (pico_mdns_claim(rtree, callback, arg)) {
+        PICO_MDNS_RTREE_DESTROY(&rtree);
+        return -1;
+    }
+    pico_tree_destroy(&rtree, NULL);
+    return 0;
 }
 
 /* ****************************************************************************
