@@ -791,6 +791,7 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
                                  1u)          /* STOP Byte */
                       );
     PICO_FREE(lcpbuf);
+    ppp->timer_val = PICO_PPP_DEFAULT_TIMER;
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
 }
 
