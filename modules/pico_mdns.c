@@ -1283,6 +1283,7 @@ pico_mdns_my_records_claimed( pico_mdns_rtree rtree,
     /* If all_claimed is still true */
     if (pico_mdns_my_records_claimed_id(claim_id, &claimed_records))
         callback(&claimed_records, _hostname, arg);
+    pico_tree_destroy(&claimed_records, NULL);
 
     mdns_dbg(">>>>>> DONE - CLAIM SESSION: %d\n", claim_id);
 
@@ -1640,6 +1641,7 @@ pico_mdns_unicast_reply( pico_dns_rtree *unicast_tree,
 
             mdns_dbg("Unicast response sent successfully!\n");
         }
+        PICO_FREE(packet);
     }
 
     return 0;
@@ -1676,6 +1678,8 @@ pico_mdns_multicast_reply( pico_dns_rtree *multicast_tree,
         }
 
         mdns_dbg("Multicast response sent successfully!\n");
+
+        PICO_FREE(packet);
     }
 
     return 0;
@@ -1949,6 +1953,7 @@ pico_mdns_handle_data_as_questions ( uint8_t **ptr,
         /* Handle a single question and merge the returned tree */
         rtree = pico_mdns_handle_single_question(&question, packet);
         pico_tree_merge(&antree, &rtree);
+        pico_tree_destroy(&rtree, NULL);
 
         /* Move to next question */
         *ptr = (uint8_t *)question.qsuffix +
@@ -2138,6 +2143,7 @@ pico_mdns_gen_nsec_record( char *name )
     *(ptr = (uint8_t *)(rdata + pico_dns_strlen(name) + 2)) = bitmap_len;
     /* Generate the bitmap */
     pico_mdns_nsec_gen_bitmap(ptr, &rtree);
+    pico_tree_destroy(&rtree, NULL);
 
     /* Generate the actual mDNS NSEC record */
     if (!(url = pico_dns_qname_to_url(name))) {
@@ -2295,8 +2301,12 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
     /* Add them to the answer tree */
     pico_rtree_add_copy(&MyRecords, meta_record);
     pico_rtree_add_copy(&MyRecords, ptr_record);
-    pico_tree_insert(antree,  meta_record);
-    pico_tree_insert(antree,  ptr_record);
+    if (pico_tree_insert(antree,  meta_record)) {
+        pico_mdns_record_delete((void **)&meta_record);
+    }
+    if (pico_tree_insert(antree,  ptr_record)) {
+        pico_mdns_record_delete((void **)&ptr_record);
+    }
     return 0;
 }
 
@@ -2390,6 +2400,10 @@ pico_mdns_reply( pico_mdns_rtree *antree, struct pico_ip4 peer )
         return -1;
     }
 
+    pico_tree_destroy(&antree_m, NULL);
+    pico_tree_destroy(&antree_u, NULL);
+    pico_tree_destroy(&artree_dummy, NULL);
+    pico_tree_destroy(&artree_dns, NULL);
     PICO_MDNS_RTREE_DESTROY(&artree);
 
     return 0;
@@ -2493,6 +2507,9 @@ pico_mdns_handle_query_packet( pico_dns_packet *packet, struct pico_ip4 peer )
     /* Try to reply with the left-over answers */
     pico_mdns_reply(&antree, peer);
 
+    //PICO_MDNS_RTREE_DESTROY(&antree);
+    pico_tree_destroy(&antree, NULL);
+
     return 0;
 }
 
@@ -2523,8 +2540,11 @@ pico_mdns_handle_probe_packet( pico_dns_packet *packet, struct pico_ip4 peer )
     pico_mdns_handle_data_as_answers_generic(&data, nscount, packet, 1);
 
     /* Try to reply with the answers */
-    if (pico_tree_count(&antree) != 0)
-        return pico_mdns_reply(&antree, peer);
+    if (pico_tree_count(&antree) != 0){
+        int retval = pico_mdns_reply(&antree, peer);
+        PICO_MDNS_RTREE_DESTROY(&antree);
+        return retval;
+    }
 
     return 0;
 }
@@ -2698,6 +2718,7 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
         cookie = pico_tree_delete(&Cookies, cookie);
         pico_mdns_cookie_delete(&cookie);
     }
+    PICO_FREE(packet);
 }
 
 /* ****************************************************************************
@@ -2944,15 +2965,18 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
         /* Create an mDNS answer */
         if (!(packet = pico_dns_query_create(&(cookie->qtree), NULL,
                                              &nstree, NULL, &len))) {
+            PICO_DNS_RTREE_DESTROY(&nstree);
             mdns_dbg("Could not create probe packet!\n");
             return;
         }
+        pico_tree_destroy(&nstree, NULL);
 
         /* Send the mDNS answer unsolicited via multicast */
         if(pico_mdns_send_packet(packet, len) != (int)len) {
             mdns_dbg("Send error occurred!\n");
             return;
         }
+        PICO_FREE(packet);
 
         mdns_dbg("DONE - Sent probe!\n");
 
@@ -2971,6 +2995,7 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
         cookie->type = PICO_MDNS_PACKET_TYPE_ANNOUNCEMENT;
         pico_mdns_send_announcement_packet(0, (void*) cookie);
     }
+
 
     return;
 }
@@ -3217,6 +3242,7 @@ pico_mdns_set_hostname( const char *url, void *arg )
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
     }
+    pico_tree_destroy(&rtree, NULL);
 
     return 0;
 }

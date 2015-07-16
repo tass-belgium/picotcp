@@ -873,6 +873,9 @@ pico_dns_record_fill_rdata( uint8_t **rdata,
         }
     } else {
         /* Otherwise just copy in the databuffer */
+        if (datalen == 0) {
+            return datalen;
+        }
         _datalen = datalen;
         if (!(*rdata = (uint8_t *)PICO_ZALLOC((size_t)datalen))) {
             pico_err = PICO_ERR_ENOMEM;
@@ -1134,8 +1137,9 @@ pico_tree_destroy( struct pico_tree *tree, int (*node_delete)(void **))
     }
 
     pico_tree_foreach_safe(node, tree, next) {
-        if ((item = node->keyValue)) {
-            pico_tree_delete(tree, node->keyValue);
+        item = node->keyValue;
+        pico_tree_delete(tree, node->keyValue);
+        if (item && node_delete) {
             node_delete((void **)&item);
         }
     }

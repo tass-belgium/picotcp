@@ -247,6 +247,10 @@ static void dnsCallback(char *ip, void *arg)
             /* add the ip address to the client, and start a tcp connection socket */
             sntp_dbg("using IPv6 address: %s\n", ip);
             retval = pico_string_to_ipv6(ip, address.ip6.addr);
+        } else {
+            sntp_dbg("Invalid query response for AAAA\n");
+            retval = -1;
+            pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }
     }
 
@@ -256,7 +260,7 @@ static void dnsCallback(char *ip, void *arg)
             sntp_dbg("using IPv4 address: %s\n", ip);
             retval = pico_string_to_ipv4(ip, (uint32_t *)&address.ip4.addr);
         } else {
-            sntp_dbg("Invalid query response, cannot continue\n");
+            sntp_dbg("Invalid query response for A\n");
             retval = -1;
             pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }

@@ -78,7 +78,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
     do {
       read = pico_socket_recvfrom(s, recvbuf, 1400, &peer, &port);
       if (read > 0)
-        pico_socket_sendto(s, recvbuf, r, &peer, port);
+        pico_socket_sendto(s, recvbuf, read, &peer, port);
     } while(read > 0);
   }
 

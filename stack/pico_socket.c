@@ -483,7 +483,7 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
-    pico_timer_add(3000, socket_garbage_collect, s);
+    pico_timer_add(PICO_SOCKET_LINGER_TIMEOUT, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
@@ -973,7 +973,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
             return -1;
         }
 
-        s->state |= PICO_SOCKET_STATE_BOUND;
+        pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
     }
 
     return s->local_port;
@@ -1939,7 +1939,7 @@ int pico_socket_sanity_check(struct pico_socket *s)
 
     if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
         /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED))
+        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
             return -1;
     }
 
