@@ -1176,7 +1176,6 @@ void pico_stack_tick(void)
 #ifdef PICO_SUPPORT_TICKLESS
     int interval = 
         pico_stack_go();
-    pico_device_WFI(interval);
 #else
     legacy_pico_stack_tick();
 #endif

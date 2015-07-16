@@ -58,11 +58,9 @@ int pico_vde_WFI(struct pico_device *dev, int timeout_ms)
    struct pico_device_vde *vde = (struct pico_device_vde *) dev;
    pfd.fd = vde_datafd(vde->conn);
    pfd.events = POLLIN;
-   if (poll(&pfd, 1, timeout_ms) <= 0)
-       return 0;
-   pico_schedule_job(pico_vde_dsr, vde);
-   return 1;
+   return poll(&pfd, 1, timeout_ms);
 }
+
 #endif
 
 static int pico_vde_poll(struct pico_device *dev, int loop_score)
@@ -136,9 +134,6 @@ struct pico_device *pico_vde_create(char *sock, char *name, uint8_t *mac)
 
     vde->dev.send = pico_vde_send;
     vde->dev.poll = pico_vde_poll;
-#ifdef PICO_SUPPORT_TICKLESS
-    vde->dev.wfi = pico_vde_WFI;
-#endif
     vde->dev.destroy = pico_vde_destroy;
     dbg("Device %s created.\n", vde->dev.name);
     return (struct pico_device *)vde;

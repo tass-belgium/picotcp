@@ -48,6 +48,10 @@
 #include "pico_faulty.h"
 #endif
 
+#ifdef PICO_SUPPORT_TICKLESS
+#include "pthread.h"
+#endif
+
 void app_udpecho(char *args);
 void app_tcpecho(char *args);
 void app_udpclient(char *args);
@@ -105,6 +109,39 @@ void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
     printf("%s: quitting\n", __FUNCTION__);
     exit(0);
 }
+#ifdef PICO_SUPPORT_TICKLESS
+#include "pico_jobs.h"
+pthread_mutex_t IRQ_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  IRQ_condition = PTHREAD_COND_INITIALIZER;
+struct pico_device *irqdev = NULL;
+
+/* Called by main loop when an IRQ occurs */
+static void IRQ_dispatcher(void) 
+{
+    if (irqdev)
+        pico_schedule_job(pico_vde_dsr, irqdev);
+}
+
+/* Thread body, to emulate IRQ emission from a vde device 
+ *
+ * The IRQ line is in fact the pthead_cond_t IRQ_condition
+ *
+ * */
+static void *pico_dev_vde_backend(void *arg)
+{
+    struct pico_device *dev = (struct pico_device *)arg;
+    printf("####### VDE Back-end started, simulating IRQ for device %s\n", dev->name);
+
+    while (1 < 2) {
+        if (pico_vde_WFI(dev, 2000) != 0) {
+            irqdev = dev;
+            pthread_cond_signal(&IRQ_condition);
+        }
+    }
+    return NULL;
+}
+
+#endif
 
 
 
@@ -331,6 +368,10 @@ int main(int argc, char **argv)
             char *nxt, *name = NULL, *sock = NULL, *addr = NULL, *nm = NULL, *gw = NULL, *addr6 = NULL, *nm6 = NULL, *gw6 = NULL, *loss_in = NULL, *loss_out = NULL;
             struct pico_ip4 ipaddr, netmask, gateway, zero = ZERO_IP4;
             uint32_t i_pc = 0, o_pc = 0;
+#ifdef PICO_SUPPORT_TICKLESS
+            pthread_t IRQthread;
+#endif
+
             uses_vde++;
             printf("+++ OPTARG %s\n", optarg);
             do {
@@ -387,6 +428,10 @@ int main(int argc, char **argv)
                 perror("Creating vde");
                 exit(1);
             }
+#ifdef PICO_SUPPORT_TICKLESS
+            pthread_create(&IRQthread, NULL, pico_dev_vde_backend, dev);
+            pthread_detach(IRQthread);
+#endif
 
             printf("Vde created.\n");
 
@@ -657,14 +702,29 @@ int main(int argc, char **argv)
     printf("==========================================================\n");
     printf("number of vde devices: %d\n", uses_vde);
 #ifdef PICO_SUPPORT_TICKLESS
-    int interval = 0;
+    pico_time interval = 0;
+    struct timespec idle_time = {0, 0};
     printf("%s: launching PicoTCP loop in TICKLESS mode\n", __FUNCTION__);
     while(1) {
         interval = pico_stack_go();
         if (interval != 0) {
-            //              printf("Interval: %lld\n", interval);
-                            pico_device_WFI(interval);
-            //pico_vde_WFI(dev, interval);
+            int ret;
+            clock_gettime(CLOCK_REALTIME, &idle_time);
+            idle_time.tv_sec += interval / 1000LLU;
+            idle_time.tv_nsec += ((interval % 1000) * 1000000LLU);
+            while (idle_time.tv_nsec > 1000000000) {
+                idle_time.tv_nsec -= 1000000000;
+                idle_time.tv_sec++;
+            }
+
+            pthread_mutex_lock(&IRQ_mutex);
+            ret = pthread_cond_timedwait(&IRQ_condition, &IRQ_mutex, &idle_time);
+            //printf("Unlocked PicoTCP! ret = %d was idle=%llu\n", ret, interval);
+            pthread_mutex_unlock(&IRQ_mutex);
+            if (ret == 0)  {
+                IRQ_dispatcher();
+            }
+
 
         }
     }

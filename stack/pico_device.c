@@ -446,38 +446,6 @@ int32_t pico_device_broadcast(struct pico_frame *f)
     return ret;
 }
 
-#ifdef PICO_SUPPORT_TICKLESS
-void pico_device_WFI(int timeout)
-{
-    pico_time expire = 0;
-    struct pico_tree_node *index;
-    struct pico_device *dev, *single_dev;
-    int devcount = 0;
-    void (*single_wfi)(struct pico_device*, int) = NULL;
-    pico_tree_foreach(index, &Device_tree)
-    {
-        dev = index->keyValue;
-        single_wfi = dev->wfi;
-        single_dev = dev;
-        devcount++;
-    }
-    if ((devcount == 1) && single_wfi) {
-        single_wfi(single_dev, timeout);
-        return;
-    }
-
-
-    expire = PICO_TIME_MS + timeout;
-    while(timeout < 0 || (PICO_TIME_MS() < expire)) {
-        pico_tree_foreach(index, &Device_tree) {
-            dev = index->keyValue;
-            if (devloop(dev, 32, PICO_LOOP_DIR_IN) < 32)
-                return;
-        }
-    }
-}
-#endif
-
 int pico_device_link_state(struct pico_device *dev)
 {
     if (!dev->link_state)

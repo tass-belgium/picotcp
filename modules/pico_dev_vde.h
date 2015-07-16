@@ -16,6 +16,7 @@ void pico_vde_set_packetloss(struct pico_device *dev, uint32_t in_pct, uint32_t 
 
 #ifdef PICO_SUPPORT_TICKLESS
 int pico_vde_WFI(struct pico_device *dev, int timeout_ms);
+void pico_vde_dsr(void *arg);
 #endif
 
 #endif
