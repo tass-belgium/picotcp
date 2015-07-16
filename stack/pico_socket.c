@@ -483,7 +483,7 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
-    pico_timer_add(3000, socket_garbage_collect, s);
+    pico_timer_add(PICO_SOCKET_LINGER_TIMEOUT, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
