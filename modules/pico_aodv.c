@@ -13,6 +13,7 @@
 #include <pico_device.h>
 
 #include <pico_ipv4.h>
+#ifdef PICO_SUPPORT_IPV4
 
 #define pico_aodv_dbg(...) do {} while(0)
 /* #define pico_aodv_dbg dbg */
@@ -129,7 +130,7 @@ static struct pico_aodv_node *aodv_peer_eval(union pico_address *addr, uint32_t 
     return NULL;
 }
 
-void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
+static void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
 {
     struct pico_aodv_node *orig;
     union pico_address orig_addr;
@@ -279,7 +280,7 @@ static void aodv_parse_rreq(union pico_address *from, uint8_t *buf, int len, str
     struct pico_device *dev;
     union pico_address orig, dest;
     (void)from;
-    if (len != sizeof(struct pico_aodv_rreq))
+    if (len != (int)sizeof(struct pico_aodv_rreq))
         return;
 
     orig.ip4.addr = req->orig;
@@ -320,7 +321,7 @@ static void aodv_parse_rrep(union pico_address *from, uint8_t *buf, int len, str
     union pico_address dest;
     union pico_address orig;
     struct pico_device *dev = NULL;
-    if (len != sizeof(struct pico_aodv_rrep))
+    if (len != (int)sizeof(struct pico_aodv_rrep))
         return;
 
     dest.ip4.addr = rep->dest;
@@ -364,7 +365,7 @@ static void aodv_parse_rerr(union pico_address *from, uint8_t *buf, int len, str
 
 static void aodv_parse_rack(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo)
 {
-    if (len != sizeof(struct pico_aodv_rack))
+    if (len != (int)sizeof(struct pico_aodv_rack))
         return;
 
     (void)from;
@@ -646,3 +647,28 @@ int pico_aodv_lookup(const union pico_address *addr)
     return -1;
 }
 
+#else
+
+int pico_aodv_init(void)
+{
+    return -1;
+}
+
+int pico_aodv_add(struct pico_device *dev)
+{
+    (void)dev;
+    return -1;
+}
+
+int pico_aodv_lookup(const union pico_address *addr)
+{
+    (void)addr;
+    return -1;
+}
+
+void pico_aodv_refresh(const union pico_address *addr)
+{
+    (void)addr;
+}
+
+#endif

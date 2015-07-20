@@ -156,6 +156,23 @@ int pico_notify_ttl_expired(struct pico_frame *f)
     return 0;
 }
 
+int pico_notify_frag_expired(struct pico_frame *f)
+{
+    if (0) {}
+
+#ifdef PICO_SUPPORT_ICMP4
+    else if (IS_IPV4(f)) {
+        pico_icmp4_frag_expired(f);
+    }
+#endif
+#ifdef PICO_SUPPORT_ICMP6
+    else if (IS_IPV6(f)) {
+        pico_icmp6_frag_expired(f);
+    }
+#endif
+    return 0;
+}
+
 int pico_notify_pkt_too_big(struct pico_frame *f)
 {
     if (0) {}
@@ -175,7 +192,7 @@ int pico_notify_pkt_too_big(struct pico_frame *f)
 
 
 /* Transport layer */
-int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
+MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
     int32_t ret = -1;
     switch (proto) {
@@ -419,7 +436,7 @@ int32_t pico_ethernet_receive(struct pico_frame *f)
     return pico_ll_receive(f);
 }
 
-struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
+static struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pico_mcast_mac)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
@@ -433,7 +450,7 @@ struct pico_eth *pico_ethernet_mcast_translate(struct pico_frame *f, uint8_t *pi
 
 
 #ifdef PICO_SUPPORT_IPV6
-struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
+static struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *pico_mcast6_mac)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
@@ -447,7 +464,7 @@ struct pico_eth *pico_ethernet_mcast6_translate(struct pico_frame *f, uint8_t *p
 }
 #endif
 
-int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const dstmac)
+static int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const dstmac)
 {
     int retval = -1;
     if (!dstmac)
@@ -670,6 +687,36 @@ int pico_address_compare(union pico_address *a, union pico_address *b, uint16_t 
 
 }
 
+int pico_frame_dst_is_unicast(struct pico_frame *f)
+{
+    if (0) {
+        return 0;
+    }
+
+#ifdef PICO_SUPPORT_IPV4
+    if (IS_IPV4(f)) {
+        struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *)f->net_hdr;
+        if (pico_ipv4_is_multicast(hdr->dst.addr) || pico_ipv4_is_broadcast(hdr->dst.addr))
+            return 0;
+
+        return 1;
+    }
+
+#endif
+
+#ifdef PICO_SUPPORT_IPV6
+    if (IS_IPV6(f)) {
+        struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+        if (pico_ipv6_is_multicast(hdr->dst.addr) || pico_ipv6_is_unspecified(hdr->dst.addr))
+            return 0;
+
+        return 1;
+    }
+
+#endif
+    else return 0;
+}
+
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
@@ -821,7 +868,7 @@ int32_t pico_seq_compare(uint32_t a, uint32_t b)
     return 0;
 }
 
-void pico_check_timers(void)
+static void pico_check_timers(void)
 {
     struct pico_timer *t;
     struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
@@ -832,7 +879,9 @@ void pico_check_timers(void)
             t->timer(pico_tick, t->arg);
 
         if (t)
+        {
             PICO_FREE(t);
+        }
 
         t = NULL;
         heap_peek(Timers, &tref_unused);

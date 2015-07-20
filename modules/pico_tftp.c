@@ -812,13 +812,13 @@ static void event_timeout_final(struct pico_tftp_session *session, pico_time t)
     tftp_finish(session);
 }
 
-void unexpected(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
+static void unexpected(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
     (void)len;
     tftp_send_error(session, a, port, TFTP_ERR_EILL, "Unexpected message");
 }
 
-void null(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
+static void null(struct pico_tftp_session *session, int32_t len, union pico_address *a, uint16_t port)
 {
     (void)session;
     (void)len;
@@ -1069,7 +1069,7 @@ int pico_tftp_set_option(struct pico_tftp_session *session, uint8_t type, int32_
             return -1;
         }
 
-        session->option_timeout = (uint8_t)value & 0xFF;
+        session->option_timeout = (uint8_t)(value & 0xFF);
         if (value) {
             session->options |= PICO_TFTP_OPTION_TIME;
         } else {

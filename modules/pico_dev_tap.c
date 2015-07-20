@@ -9,10 +9,13 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include <linux/if_tun.h>
 #include "pico_device.h"
 #include "pico_dev_tap.h"
 #include "pico_stack.h"
+
+#ifndef __FreeBSD__
+#include <linux/if_tun.h>
+#endif
 
 #include <sys/poll.h>
 
@@ -59,7 +62,7 @@ void pico_tap_destroy(struct pico_device *dev)
         close(tap->fd);
 }
 
-
+#ifndef __FreeBSD__
 static int tap_open(char *name)
 {
     struct ifreq ifr;
@@ -77,13 +80,26 @@ static int tap_open(char *name)
 
     return tap_fd;
 }
+#else
+static int tap_open(char *name)
+{
+    int tap_fd;
+    (void)name;
+    tap_fd = open("/dev/tap0", O_RDWR);
+    return tap_fd;
+}
+#endif
 
 
+#ifndef __FreeBSD__
 static int tap_get_mac(char *name, uint8_t *mac)
 {
     int sck;
     struct ifreq eth;
     int retval = -1;
+
+
+
 
     sck = socket(AF_INET, SOCK_DGRAM, 0);
     if(sck < 0) {
@@ -92,8 +108,6 @@ static int tap_get_mac(char *name, uint8_t *mac)
 
     memset(&eth, 0, sizeof(struct ifreq));
     strcpy(eth.ifr_name, name);
-
-
     /* call the IOCTL */
     if (ioctl(sck, SIOCGIFHWADDR, &eth) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
@@ -103,11 +117,39 @@ static int tap_get_mac(char *name, uint8_t *mac)
 
     memcpy (mac, &eth.ifr_hwaddr.sa_data, 6);
 
+
     close(sck);
     return 0;
 
 }
+#else
+#include <net/if_dl.h>
+#include <ifaddrs.h>
+#include <net/if_types.h>
+static int tap_get_mac(char *name, uint8_t *mac)
+{
+    struct sockaddr_dl *sdl;
+    struct ifaddrs *ifap, *root;
+    if (getifaddrs(&ifap) != 0)
+        return -1;
 
+    root = ifap;
+    while(ifap) {
+        if (strcmp(name, ifap->ifa_name) == 0)
+            sdl = (struct sockaddr_dl *) ifap->ifa_addr;
+
+        if (sdl->sdl_type == IFT_ETHER) {
+            memcpy(mac, LLADDR(sdl), 6);
+            freeifaddrs(root);
+            return 0;
+        }
+
+        ifap = ifap->ifa_next;
+    }
+    freeifaddrs(root);
+    return 0;
+}
+#endif
 
 struct pico_device *pico_tap_create(char *name)
 {

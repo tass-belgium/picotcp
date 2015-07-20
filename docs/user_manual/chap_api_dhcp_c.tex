@@ -144,20 +144,21 @@ only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}.
 \subsection{pico\_dhcp\_get\_nameserver}
 
 \subsubsection*{Description}
-Get the address of the nameserver that was assigned through DHCP. This function should
-only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
+Get the address of the first or the second nameserver that was assigned through DHCP. 
+This function should only be called after a callback occurred with code \texttt{PICO\_DHCP\_SUCCESS}. 
 
 \subsubsection*{Function prototype}
-\texttt{struct pico\_ip4 pico\_dhcp\_get\_nameserver(void *cli);}
+\texttt{struct pico\_ip4 pico\_dhcp\_get\_nameserver(void *cli, int index);}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{cli} - the identifier that was provided by the callback on \texttt{PICO\_DHCP\_SUCCESS}.
+\item \texttt{index} - the indes of the domain name server received. Can be either "0" or "1".
 \end{itemize}
 
 \subsubsection*{Return value}
 \begin{itemize}[noitemsep]
-\item \texttt{struct pico\_ip4} - the address of the nameserver that should be used. 
+\item \texttt{struct pico\_ip4} - the address of the nameserver that should be used. On failure, e.g. an invalid index was passed, it returns "255.255.255.255". If the IP address of the DNS has not been set, it may return INADDR\_ANY.
 \end{itemize}
 
 

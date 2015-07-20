@@ -8,9 +8,10 @@
 #include "pico_config.h"
 
 
-#define PICO_FRAME_FLAG_BCAST      (0x01)
-#define PICO_FRAME_FLAG_EXT_BUFFER (0x02)
-#define PICO_FRAME_FLAG_SACKED     (0x80)
+#define PICO_FRAME_FLAG_BCAST               (0x01)
+#define PICO_FRAME_FLAG_EXT_BUFFER          (0x02)
+#define PICO_FRAME_FLAG_EXT_USAGE_COUNTER   (0x04)
+#define PICO_FRAME_FLAG_SACKED              (0x80)
 #define IS_BCAST(f) ((f->flags & PICO_FRAME_FLAG_BCAST) == PICO_FRAME_FLAG_BCAST)
 
 
@@ -64,7 +65,7 @@ struct pico_frame {
     uint16_t payload_len;
 
 #ifdef PICO_SUPPORT_IPFRAG
-    /* Payload fragmentation info (big endian)*/
+    /* Payload fragmentation info */
     uint16_t frag;
 #endif
 
@@ -90,6 +91,7 @@ void pico_frame_discard(struct pico_frame *f);
 struct pico_frame *pico_frame_copy(struct pico_frame *f);
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f);
 struct pico_frame *pico_frame_alloc(uint32_t size);
+int pico_frame_grow(struct pico_frame *f, uint32_t size);
 struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int ext_buffer);
 int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf);
 uint16_t pico_checksum(void *inbuf, uint32_t len);

@@ -1,0 +1,85 @@
+\section{DNS SD client}
+
+% Short description/overview of module functions
+With this module DNS-SD services can be registered on the network to allow Zero Configuration Networking on the device. This is merely a small layer on top of Multicast DNS.
+
+\subsection{pico$\_$dns$\_$sd$\_$init}
+
+\subsubsection*{Description}
+Just calls pico$\_$mdns$\_$init in its turn to initialise the mDNS-module. See 'pico$\_$mdns$\_$init' for more information.
+
+
+\subsection{pico$\_$dns$\_$sd$\_$register$\_$service}
+
+\subsubsection*{Description}
+Registers the service with a certain name and type on the network via Multicast DNS.
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_dns_sd_register_service( const char *name,
+                                  const char *type,
+                                  uint16_t port,
+                                  kv_vector *txt_data,
+                                  uint16_t ttl,
+                                  void (*callback)(pico_mdns_rtree *,char *,void *),
+                                  void *arg);
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{name} - Instance-name of the service. Use a descriptive name for it but not longer than 63 characters.
+\item \texttt{type} - The type of the service. For all the possible service types see: \url{http://www.dns-sd.org/servicetypes.html}
+\item \texttt{port} - The portnumber on which the service runs.
+\item \texttt{txt$\_$data} - Pointer to vector with key-value pairs to insert into the TXT record to give additional information about the service. Use the 'PICO$\_$DNS$\_$SD$\_$KV$\_$VECTOR$\_$DECLARE'-macro to declare a vector for key-value-pairs. This vector will be destroyed when the function returns since there's no need in keeping the contents.
+\item \texttt{ttl} - TTL of the service on the network before it needs to be reconfirmed. In seconds.
+\item \texttt{callback} - Callback function that gets called when the service is successfully registered on the network.
+\item \texttt{arg} -  Argument for callback supplied by user. This can be used if you want to pass some variable into your callback function.
+\end{itemize}
+
+\subsubsection*{Return value}
+Returns 0 when the module successfully started registering the service, something else on failure. \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+PICO_DNS_SD_KV_VECTOR_DECLARE(dictionary);
+pico_dns_sd_register_service("Printer 2nd Floor", "_printer._sub._http._tcp", 80, \\
+&dictionary, 240, &reg_cb, NULL);
+\end{verbatim}
+
+
+\subsection{pico$\_$dns$\_$sd$\_$kv$\_$vector$\_$add}
+
+\subsubsection*{Description}
+Add a key-value pair the a key-value pair vector.
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_dns_sd_kv_vector_add( kv_vector *vector, char *key, char *value );
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{vector} - Pointer to vector to add the pair to. Declare a key-value vector with the 'PICO$\_$DNS$\_$SD$\_$KV$\_$VECTOR$\_$DECLARE'-macro.
+\item \texttt{key} - Key of the pair. Cannot be NULL.
+\item \texttt{value} - Value of the pair. can be NULL, empty ("") or filled ("value").
+\end{itemize}
+
+\subsubsection*{Return value}
+Returns 0 when the pair is added successfully, something else on failure. \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+PICO_DNS_SD_KV_VECTOR_DECLARE(dictionary);
+pico_dns_sd_kv_vector_add(&dictionary, "pass", "1234");
+pico_dns_sd_kv_vector_add(&dictionary, "color", NULL);
+\end{verbatim}

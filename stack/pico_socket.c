@@ -148,7 +148,7 @@ static int socket_cmp(void *ka, void *kb)
 
 #define INIT_SOCKPORT { {&LEAF, socket_cmp}, 0, 0 }
 
-int sockport_cmp(void *ka, void *kb)
+static int sockport_cmp(void *ka, void *kb)
 {
     struct pico_sockport *a = ka, *b = kb;
     if (a->number < b->number)
@@ -483,7 +483,7 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
-    pico_timer_add(3000, socket_garbage_collect, s);
+    pico_timer_add(PICO_SOCKET_LINGER_TIMEOUT, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
@@ -755,7 +755,7 @@ int pico_socket_write(struct pico_socket *s, const void *buf, int len)
     return pico_socket_write_attempt(s, buf, len);
 }
 
-uint16_t pico_socket_high_port(uint16_t proto)
+static uint16_t pico_socket_high_port(uint16_t proto)
 {
     uint16_t port;
     if (0 ||
@@ -973,7 +973,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
             return -1;
         }
 
-        s->state |= PICO_SOCKET_STATE_BOUND;
+        pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
     }
 
     return s->local_port;
@@ -1013,7 +1013,7 @@ static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endp
 static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_IPFRAG
-    f->frag = short_be(PICO_IPV4_DONTFRAG);
+    f->frag = PICO_IPV4_DONTFRAG;
 #else
     (void)f;
 #endif
@@ -1048,7 +1048,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     f->sock = s;
     transport_flags_update(f, s);
     pico_xmit_frame_set_nofrag(f);
-    if (ep) {
+    if (ep && !f->info) {
         f->info = pico_socket_set_info(ep);
         if (!f->info) {
             pico_frame_discard(f);
@@ -1076,7 +1076,7 @@ static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int spac
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
     /* transport header length field contains total length + header length */
     f->transport_len = (uint16_t)(space);
-    f->frag = short_be(PICO_IPV4_MOREFRAG);
+    f->frag = PICO_IPV4_MOREFRAG;
     f->payload += hdr_offset;
     f->payload_len = (uint16_t) space;
 }
@@ -1087,13 +1087,13 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
     f->payload = f->transport_hdr;
     f->payload_len = (uint16_t)(f->payload_len - hdr_offset);
     /* set offset in octets */
-    f->frag = short_be((uint16_t)((uint16_t)(total_payload_written + (uint16_t)hdr_offset) >> 3u));
+    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u);
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-        f->frag |= short_be(PICO_IPV4_MOREFRAG);
+        f->frag |= PICO_IPV4_MOREFRAG;
     } else {
         frag_dbg("FRAG: last fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
-        f->frag &= short_be(PICO_IPV4_FRAG_MASK);
+        f->frag &= PICO_IPV4_FRAG_MASK;
     }
 }
 #endif
@@ -1179,12 +1179,17 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 
 static void get_sock_dev(struct pico_socket *s)
 {
+    if (0) {}
+
 #ifdef PICO_SUPPORT_IPV6
-    if (is_sock_ipv6(s))
+    else if (is_sock_ipv6(s))
         s->dev = pico_ipv6_source_dev_find(&s->remote_addr.ip6);
-    else
 #endif
-    s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#ifdef PICO_SUPPORT_IPV4
+    else if (is_sock_ipv4(s))
+        s->dev = pico_ipv4_source_dev_find(&s->remote_addr.ip4);
+#endif
+
 }
 
 
@@ -1248,11 +1253,14 @@ static int pico_socket_xmit(struct pico_socket *s, const void *buf, const int le
 
     if (space < 0) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
+        pico_endpoint_free(ep);
         return -1;
     }
 
     if ((PROTO(s) == PICO_PROTO_UDP) && (len > space)) {
-        return pico_socket_xmit_fragments(s, buf, len, src, ep, msginfo);
+        total_payload_written = pico_socket_xmit_fragments(s, buf, len, src, ep, msginfo);
+        /* Implies ep discarding */
+        return total_payload_written;
     }
 
     while (total_payload_written < len) {
@@ -1313,12 +1321,13 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
     }
 
     remote_endpoint = pico_socket_sendto_destination(s, dst, remote_port);
-    if (pico_socket_sendto_set_localport(s) < 0)
+    if (pico_socket_sendto_set_localport(s) < 0) {
+        pico_endpoint_free(remote_endpoint);
         return -1;
+    }
 
     pico_socket_sendto_set_dport(s, remote_port);
-
-    return pico_socket_xmit(s, buf, len, src, remote_endpoint, msginfo);
+    return pico_socket_xmit(s, buf, len, src, remote_endpoint, msginfo); /* Implies discarding the endpoint */
 }
 
 int MOCKABLE pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
@@ -1919,7 +1928,7 @@ int pico_transport_process_in(struct pico_protocol *self, struct pico_frame *f)
 #define SL_LOOP_MIN 1
 
 #ifdef PICO_SUPPORT_TCP
-static int checkSocketSanity(struct pico_socket *s)
+static int check_socket_sanity(struct pico_socket *s)
 {
 
     /* checking for pending connections */
@@ -1930,7 +1939,7 @@ static int checkSocketSanity(struct pico_socket *s)
 
     if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
         /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED))
+        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
             return -1;
     }
 
@@ -2018,7 +2027,7 @@ static int pico_sockets_loop_tcp(int loop_score)
                 break;
             }
 
-            if(checkSocketSanity(s) < 0)
+            if(check_socket_sanity(s) < 0)
             {
                 pico_socket_del(s);
                 index_tcp = NULL; /* forcing the restart of loop */

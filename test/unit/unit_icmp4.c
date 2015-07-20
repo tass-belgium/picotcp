@@ -76,6 +76,7 @@ START_TEST (test_icmp4_ping)
     /* get the packet from the mock_device */
     memset(buffer, 0, bufferlen);
     len = pico_mock_network_read(mock, buffer, bufferlen);
+    fail_if(len < 20);
     /* inspect it */
     fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer, len) == 8);
@@ -254,7 +255,7 @@ START_TEST (test_icmp4_unreachable_send)
 
     len = pico_mock_network_read(mock, buffer2, bufferlen);
 
-    fail_unless(len == 56);
+    fail_unless(len == 56, "len is indeed %d\n", len);
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 1); /* host unreachable */
@@ -312,7 +313,7 @@ START_TEST (test_icmp4_unreachable_send)
 
     len = pico_mock_network_read(mock, buffer2, bufferlen);
 
-    fail_unless(len == 56);
+    fail_unless(len == 48); /* Buffer 3 is shorter, reply is shorter too... */
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 2); /* proto unreachable */

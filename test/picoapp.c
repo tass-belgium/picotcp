@@ -11,6 +11,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "utils.h"
+
 #include "pico_stack.h"
 #include "pico_config.h"
 #include "pico_dev_vde.h"
@@ -28,7 +30,6 @@
 #include "pico_dhcp_server.h"
 #include "pico_ipfilter.h"
 #include "pico_olsr.h"
-#include "pico_aodv.h"
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
@@ -43,6 +44,10 @@
 #include <fcntl.h>
 #include <libgen.h>
 
+#ifdef FAULTY
+#include "pico_faulty.h"
+#endif
+
 void app_udpecho(char *args);
 void app_tcpecho(char *args);
 void app_udpclient(char *args);
@@ -56,14 +61,14 @@ void app_mcastreceive(char *args);
 void app_ping(char *args);
 void app_dhcp_server(char *args);
 void app_dhcp_client(char *args);
-void app_mdns(char *args);
+void app_dns_sd(char *arg, struct pico_ip4 addr);
+void app_mdns(char *arg, struct pico_ip4 addr);
 void app_sntp(char *args);
 void app_tftp(char *args);
 void app_slaacv4(char *args);
 void app_udpecho(char *args);
 void app_sendto_test(char *args);
 void app_noop(void);
-void app_iperfc(char *args);
 
 
 struct pico_ip4 ZERO_IP4 = {
@@ -102,6 +107,7 @@ void deferred_exit(pico_time __attribute__((unused)) now, void *arg)
 }
 
 
+
 /** From now on, parsing the command line **/
 #define NXT_MAC(x) ++ x[5]
 
@@ -136,13 +142,13 @@ char *cpy_arg(char **dst, char *str)
     return nxt;
 }
 
-void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
+static void __wakeup(uint16_t __attribute__((unused)) ev, struct pico_socket __attribute__((unused)) *s)
 {
 
 }
 
 
-void usage(char *arg0)
+static void usage(char *arg0)
 {
     printf("Usage: %s [--vde name:sock:address:netmask[:gateway]] [--vde ...] [--tun name:address:netmask[:gateway]] [--tun ...] [--app name[:args]]\n\n\n", arg0);
     printf("\tall arguments can be repeated, e.g. to run on multiple links or applications\n");
@@ -159,6 +165,9 @@ int main(int argc, char **argv)
     };
     uint16_t *macaddr_low = (uint16_t *) (macaddr + 2);
     struct pico_device *dev = NULL;
+    struct pico_ip4 addr4 = {
+        0
+    };
     struct pico_ip4 bcastAddr = ZERO_IP4;
 
     struct option long_options[] = {
@@ -195,7 +204,7 @@ int main(int argc, char **argv)
     printf("My macaddr is: %02x %02x %02x %02x %02x %02x\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 
 #ifdef PICO_SUPPORT_MM
-    pico_mem_init(64 * 1024);
+    pico_mem_init(128 * 1024);
 #endif
     pico_stack_init();
     /* Parse args */
@@ -345,9 +354,10 @@ int main(int argc, char **argv)
                     nxt = cpy_arg(&loss_out, nxt);
                     if (!nxt) break;
                 } else {
-
                     nxt = cpy_arg(&addr6, nxt);
                     if (!nxt) break;
+
+                    printf("addr6: %s\n", addr6);
 
                     nxt = cpy_arg(&nm6, nxt);
                     if (!nxt) break;
@@ -379,10 +389,10 @@ int main(int argc, char **argv)
             printf("Vde created.\n");
 
             if (!IPV6_MODE) {
-
                 pico_string_to_ipv4(addr, &ipaddr.addr);
                 pico_string_to_ipv4(nm, &netmask.addr);
                 pico_ipv4_link_add(dev, ipaddr, netmask);
+                addr4 = ipaddr;
                 bcastAddr.addr = (ipaddr.addr) | (~netmask.addr);
                 if (gw && *gw) {
                     pico_string_to_ipv4(gw, &gateway.addr);
@@ -472,6 +482,7 @@ int main(int argc, char **argv)
             }
 
             pico_ipv6_dev_routing_enable(dev);
+
 #endif
         }
         break;
@@ -569,14 +580,20 @@ int main(int argc, char **argv)
 #else
                 app_dhcp_client(args);
 #endif
+            } else IF_APPNAME("dns_sd") {
+#ifndef PICO_SUPPORT_DNS_SD
+                return 0;
+#else
+                app_dns_sd(args, addr4);
+#endif
             } else IF_APPNAME("mdns") {
 #ifndef PICO_SUPPORT_MDNS
                 return 0;
 #else
-                app_mdns(args);
+                app_mdns(args, addr4);
 #endif
 #ifdef PICO_SUPPORT_SNTP_CLIENT
-            }else IF_APPNAME("sntp") {
+            } else IF_APPNAME("sntp") {
                 app_sntp(args);
 #endif
             } else IF_APPNAME("bcast") {
@@ -608,23 +625,6 @@ int main(int argc, char **argv)
 
                 app_noop();
 #endif
-#ifdef PICO_SUPPORT_AODV
-            } else IF_APPNAME("aodv") {
-                union pico_address aaa;
-                pico_string_to_ipv4("10.10.10.10", &aaa.ip4.addr);
-                dev = pico_get_device("pic0");
-                if(dev) {
-                    pico_aodv_add(dev);
-                }
-
-                dev = pico_get_device("pic1");
-                if(dev) {
-                    pico_aodv_add(dev);
-                }
-
-
-                app_noop();
-#endif
             } else IF_APPNAME("slaacv4") {
 #ifndef PICO_SUPPORT_SLAACV4
                 return 0;
@@ -633,8 +633,6 @@ int main(int argc, char **argv)
 #endif
             } else IF_APPNAME("udp_sendto_test") {
                 app_sendto_test(args);
-            } else IF_APPNAME("iperfc") {
-                app_iperfc(args);
             } else {
                 fprintf(stderr, "Unknown application %s\n", name);
                 usage(argv[0]);
@@ -648,6 +646,9 @@ int main(int argc, char **argv)
         usage(argv[0]);
     }
 
+#ifdef FAULTY
+    atexit(memory_stats);
+#endif
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(1) {
         pico_stack_tick();

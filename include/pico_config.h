@@ -203,10 +203,14 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_arm9.h"
 #elif defined ESP8266
 # include "arch/pico_esp8266.h"
+#elif defined MT7681
+# include "arch/pico_generic_gcc.h"
 #elif defined FAULTY
 # include "../test/pico_faulty.h"
 #elif defined ARCHNONE
 # include "arch/pico_none.h"
+#elif defined GENERIC
+# include "arch/pico_generic_gcc.h"
 #elif defined __KERNEL__
 # include "arch/pico_linux.h"
 /* #elif defined ... */

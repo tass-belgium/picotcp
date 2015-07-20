@@ -34,13 +34,14 @@ END_TEST
 START_TEST(tc_tcp_input_segment)
 {
     /* TODO: test this: static struct tcp_input_segment *segment_from_frame(struct pico_frame *f) */
-    struct pico_frame *f = pico_frame_alloc(40);
+    struct pico_frame *f = pico_frame_alloc(60);
     struct tcp_input_segment *seg;
 
     fail_if(!f);
     f->payload = f->start;
+    f->payload_len = 60;
     f->transport_hdr = f->payload;
-    f->transport_len = f->payload_len;
+    f->transport_len = f->payload_len - 40;
     memset(f->payload, 'c', f->payload_len);
     ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xdeadbeef);
 
@@ -61,6 +62,11 @@ START_TEST(tc_tcp_input_segment)
     seg = segment_from_frame(f);
     fail_if(seg);
 #endif
+    printf("Testing segment_from_frame with empty payload\n");
+    f->payload_len = 0;
+    seg = segment_from_frame(f);
+    fail_if(seg);
+
 }
 END_TEST
 START_TEST(tc_segment_compare)
@@ -82,7 +88,7 @@ END_TEST
 START_TEST(tc_tcp_discard_all_segments)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV4);
-    struct pico_frame *f = pico_frame_alloc(40);
+    struct pico_frame *f = pico_frame_alloc(80);
     struct tcp_input_segment *is;
     fail_if(!t);
     fail_if(!f);
@@ -90,9 +96,11 @@ START_TEST(tc_tcp_discard_all_segments)
     printf("Testing enqueuing bogus frame\n");
     f->buffer_len = 0;
     fail_if(pico_enqueue_segment(&t->tcpq_out, f) >= 0);
-    f->buffer_len = 40;
+    f->buffer_len = 80;
     f->transport_hdr = f->start;
-    f->transport_len = f->buffer_len;
+    f->transport_len = f->buffer_len - 40;
+    f->payload = f->start + 40;
+    f->payload_len = 40;
     memset(f->payload, 'c', f->payload_len);
     is = segment_from_frame(f);
     fail_if(!is);

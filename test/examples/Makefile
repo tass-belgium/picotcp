@@ -1,5 +1,5 @@
 PREFIX?=../../build
-CFLAGS+=-I../../include/ -I../../modules -I../../build/include -I . -ggdb
+CFLAGS+=-I../../include/ -I../../modules -I../../build/include -I . -ggdb -m32
 
 
 $(PREFIX)/examples/%.o: %.c 
@@ -10,6 +10,7 @@ $(PREFIX)/examples/%.o: %.c
 OBJS:= \
 $(PREFIX)/examples/dhcp_client.o \
 $(PREFIX)/examples/dhcp_server.o \
+$(PREFIX)/examples/dns_sd.o \
 $(PREFIX)/examples/dnsclient.o \
 $(PREFIX)/examples/mdns.o \
 $(PREFIX)/examples/multicast_recv.o \

@@ -128,5 +128,7 @@ static inline void PICO_IDLE(void)
     usleep(5000);
 }
 
+void memory_stats(void);
+
 #endif  /* PICO_SUPPORT_POSIX */
 
