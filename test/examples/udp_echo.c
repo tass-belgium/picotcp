@@ -190,6 +190,16 @@ void app_udpecho(char *arg)
 
     printf("\n%s: UDP echo launched. Receiving packets of %u bytes on port %u\n\n", __FUNCTION__, udpecho_pas->datasize, short_be(listen_port));
 
+    /* free strdups */
+    if (baddr)
+      free (baddr);
+    if (lport)
+      free (lport);
+    if (sport)
+      free (sport);
+    if (s_datasize)
+      free (s_datasize);
+
     return;
 
 out:

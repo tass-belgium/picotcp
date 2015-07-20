@@ -53,7 +53,8 @@ void ping_abort_timer(pico_time now, void *_id)
 void app_ping(char *arg)
 {
     char *dest = NULL;
-    char *next, *abort;
+    char *next = NULL;
+    char *abort = NULL;
     static int id;
     int timeout = 0;
     next = cpy_arg(&dest, arg);
