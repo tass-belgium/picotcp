@@ -131,10 +131,10 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 void app_tcpbench(char *arg)
 {
     struct pico_socket *s;
-    char *dport;
-    char *dest;
-    char *mode;
-    char *nagle;
+    char *dport = NULL;
+    char *dest = NULL;
+    char *mode = NULL;
+    char *nagle = NULL;
     int port = 0, i;
     uint16_t port_be = 0;
     char *nxt;
@@ -287,6 +287,15 @@ void app_tcpbench(char *arg)
 
     tcpbench_sock = s;
 
+    /* free strdups */
+    if (dport)
+      free(dport);
+    if (dest)
+      free (dest);
+    if (mode)
+      free (mode);
+    if (nagle)
+      free (nagle);
 
     return;
 }
