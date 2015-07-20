@@ -71,6 +71,8 @@ static void pico_ipv6_nd_queued_trigger(void)
         f = frames_queued_v6[i];
         if (f) {
             (void)pico_ethernet_send(f);
+            if(frames_queued_v6[i])
+              pico_frame_discard(frames_queued_v6[i]);
             frames_queued_v6[i] = NULL;
         }
     }
