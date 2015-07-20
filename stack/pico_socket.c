@@ -1098,22 +1098,28 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
 }
 #endif
 
+/* Implies ep discarding! */
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len,
                                       void *src, struct pico_remote_endpoint *ep, struct pico_msginfo *msginfo)
 {
     int space = pico_socket_xmit_avail_space(s);
     int hdr_offset = pico_socket_sendto_transport_offset(s);
     int total_payload_written = 0;
+    int retval = 0;
     struct pico_frame *f = NULL;
 
     if (space > len) {
-        return pico_socket_xmit_one(s, buf, len, src, ep, msginfo);
+        retval = pico_socket_xmit_one(s, buf, len, src, ep, msginfo);
+        pico_endpoint_free(ep);
+        return retval;
     }
 
 #ifdef PICO_SUPPORT_IPV6
     /* Can't fragment IPv6 */
     if (is_sock_ipv6(s)) {
-        return pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+        retval =  pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+        pico_endpoint_free(ep);
+        return retval;
     }
 
 #endif
@@ -1172,7 +1178,9 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
     (void) f;
     (void) hdr_offset;
     (void) total_payload_written;
-    return pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+    retval = pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+    pico_endpoint_free(ep);
+    return retval;
 
 #endif
 }
