@@ -1295,6 +1295,7 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
             pico_tree_delete(found->MCASTGroups, g);
             PICO_FREE(g);
         }
+        PICO_FREE(found->MCASTGroups);
     } while(0);
 #endif
 

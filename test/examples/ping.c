@@ -53,7 +53,8 @@ void ping_abort_timer(pico_time now, void *_id)
 void app_ping(char *arg)
 {
     char *dest = NULL;
-    char *next, *abort;
+    char *next = NULL;
+    char *abort = NULL;
     static int id;
     int timeout = 0;
     next = cpy_arg(&dest, arg);
@@ -87,6 +88,12 @@ void app_ping(char *arg)
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
         pico_timer_add(timeout * 1000, ping_abort_timer, &id);
     }
+
+    /* free copied args */
+    if (dest)
+      free(dest);
+    if (abort)
+      free(abort);
 }
 #endif
 /*** END PING ***/

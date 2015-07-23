@@ -89,6 +89,7 @@ void app_mcastsend(char *arg)
     p = strcat(p + strlen(lport), ":64:10:5:");
 
     app_udpclient(new_arg);
+    free(new_arg);
 
     mreq.mcast_group_addr = inaddr_mcast;
     mreq.mcast_link_addr = inaddr_link;
@@ -96,6 +97,16 @@ void app_mcastsend(char *arg)
         picoapp_dbg("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
         exit(1);
     }
+
+    /* free strdups */
+    if (maddr)
+      free(maddr);
+    if (laddr)
+      free(laddr);
+    if (lport)
+      free(lport);
+    if (sport)
+      free(sport);
 
     return;
 
