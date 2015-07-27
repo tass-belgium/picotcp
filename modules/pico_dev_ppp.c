@@ -963,6 +963,8 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
 {
     struct pico_pap_hdr *p = (struct pico_pap_hdr *)pkt;
     (void)len;
+    if (!p)
+        return;
     switch(p->code) {
     case PAP_AUTH_ACK:
         dbg("PAP: Received Authentication OK!\n");
