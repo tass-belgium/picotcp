@@ -622,7 +622,7 @@ static void ppp_modem_send_creg_q(struct pico_device_ppp *ppp)
 }
 #endif /* PICOTCP_PPP_SUPPORT_QUERIES */
 
-#define PPP_AT_DIALIN "ATD*99#\r\n"
+#define PPP_AT_DIALIN "ATD*99***1#\r\n"
 static void ppp_modem_send_dial(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
