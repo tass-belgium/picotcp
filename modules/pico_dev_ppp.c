@@ -1609,19 +1609,19 @@ static void auth_req(struct pico_device_ppp *ppp)
     uint8_t *req = NULL, *p;
     struct pico_pap_hdr *hdr;
     uint16_t pap_len = 0;
-    uint16_t field_len = 0;
+    uint8_t field_len = 0;
     if (ppp->username)
         ppp_usr_len = (uint16_t)strlen(ppp->username);
     if (ppp->password)
         ppp_pwd_len = (uint16_t)strlen(ppp->password);
 
-    pap_len = (uint16_t)(sizeof(struct pico_pap_hdr) + 2u + 2u + ppp_usr_len + ppp_pwd_len);
+    pap_len = (uint16_t)(sizeof(struct pico_pap_hdr) + 1u + 1u + ppp_usr_len + ppp_pwd_len);
 
-    req = PICO_ZALLOC(pap_len);
+    req = PICO_ZALLOC(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + pap_len + PPP_FCS_SIZE + 1);
     if (!req)
         return;
 
-    hdr = (struct pico_pap_hdr *)req;
+    hdr = (struct pico_pap_hdr *) (req + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
 
     hdr->code = PAP_AUTH_REQ;
     hdr->id = ppp->frame_id++;
@@ -1630,29 +1630,29 @@ static void auth_req(struct pico_device_ppp *ppp)
     p = req + sizeof(struct pico_pap_hdr);
 
     /* Populate authentication domain */
-    field_len = short_be((uint16_t)ppp_usr_len);
-    memcpy(p, &field_len, 2);
-    p+=2;
+    field_len = (uint8_t)(ppp_usr_len & 0xFF);
+    *p = field_len;
+    ++p;
     if (ppp_usr_len > 0) {
         memcpy(p, ppp->username, ppp_usr_len);
         p += ppp_usr_len;
     }
 
     /* Populate authentication password */
-    field_len = short_be((uint16_t)ppp_pwd_len);
-    memcpy(p, &field_len, 2);
-    p+=2;
+    field_len = (uint8_t)(ppp_pwd_len & 0xFF);
+    *p = field_len;
+    ++p;
     if (ppp_pwd_len > 0) {
         memcpy(p, ppp->password, ppp_pwd_len);
         p += ppp_pwd_len;
     }
-
     dbg("PAP: Sending authentication request.\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_PAP,
             req,           /* Start of PPP packet */
             (uint32_t)(
                 PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
                 pap_len + /* Authentication packet len */
+                PPP_FCS_SIZE + /* FCS */
                 1)             /* STOP Byte */
             );
     PICO_FREE(req);
