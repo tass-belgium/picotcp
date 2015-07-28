@@ -64,6 +64,11 @@
 #define CHAP_FAILURE    4
 #define CHALLENGE_SIZE(ppp, ch) ((size_t)((1 + strlen(ppp->password) + short_be((ch)->len))))
 
+#define PAP_AUTH_REQ 1
+#define PAP_AUTH_ACK 2
+#define PAP_AUTH_NAK 3
+
+
 #define PICO_PPP_DEFAULT_TIMER (3) /* seconds */
 #define PICO_PPP_DEFAULT_MAX_TERMINATE (2)
 #define PICO_PPP_DEFAULT_MAX_CONFIGURE (10)
@@ -106,6 +111,12 @@ PACKED_STRUCT_DEF pico_chap_hdr {
     uint8_t code;
     uint8_t id;
     uint16_t len;
+};
+
+PACKED_STRUCT_DEF pico_pap_hdr {
+    uint8_t code;
+    uint8_t id;
+    uint8_t len;
 };
 
 PACKED_STRUCT_DEF pico_ipcp_hdr {
@@ -611,7 +622,7 @@ static void ppp_modem_send_creg_q(struct pico_device_ppp *ppp)
 }
 #endif /* PICOTCP_PPP_SUPPORT_QUERIES */
 
-#define PPP_AT_DIALIN "ATD*99#\r\n"
+#define PPP_AT_DIALIN "ATD*99***1#\r\n"
 static void ppp_modem_send_dial(struct pico_device_ppp *ppp)
 {
     if (ppp->serial_send)
@@ -950,9 +961,23 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
 
 static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
-    IGNORE_PARAMETER(ppp);
-    IGNORE_PARAMETER(pkt);
-    IGNORE_PARAMETER(len);
+    struct pico_pap_hdr *p = (struct pico_pap_hdr *)pkt;
+    (void)len;
+    if (!p)
+        return;
+    switch(p->code) {
+    case PAP_AUTH_ACK:
+        dbg("PAP: Received Authentication OK!\n");
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAA);
+        break;
+    case PAP_AUTH_NAK:
+        dbg("PAP: Received Authentication Reject!\n");
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN);
+        break;
+
+    default:
+        dbg("PAP: Received invalid packet with code %d\n", p->code);
+    }
 }
 
 
@@ -1579,7 +1604,58 @@ static void deauth(struct pico_device_ppp *ppp)
 
 static void auth_req(struct pico_device_ppp *ppp)
 {
-    IGNORE_PARAMETER(ppp);
+    uint16_t ppp_usr_len = 0; 
+    uint16_t ppp_pwd_len = 0;
+    uint8_t *req = NULL, *p;
+    struct pico_pap_hdr *hdr;
+    uint16_t pap_len = 0;
+    uint8_t field_len = 0;
+    if (ppp->username)
+        ppp_usr_len = (uint16_t)strlen(ppp->username);
+    if (ppp->password)
+        ppp_pwd_len = (uint16_t)strlen(ppp->password);
+
+    pap_len = (uint16_t)(sizeof(struct pico_pap_hdr) + 1u + 1u + ppp_usr_len + ppp_pwd_len);
+
+    req = PICO_ZALLOC(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + pap_len + PPP_FCS_SIZE + 1);
+    if (!req)
+        return;
+
+    hdr = (struct pico_pap_hdr *) (req + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+
+    hdr->code = PAP_AUTH_REQ;
+    hdr->id = ppp->frame_id++;
+    hdr->len = (uint8_t)(pap_len & 0xFF);
+
+    p = req + sizeof(struct pico_pap_hdr);
+
+    /* Populate authentication domain */
+    field_len = (uint8_t)(ppp_usr_len & 0xFF);
+    *p = field_len;
+    ++p;
+    if (ppp_usr_len > 0) {
+        memcpy(p, ppp->username, ppp_usr_len);
+        p += ppp_usr_len;
+    }
+
+    /* Populate authentication password */
+    field_len = (uint8_t)(ppp_pwd_len & 0xFF);
+    *p = field_len;
+    ++p;
+    if (ppp_pwd_len > 0) {
+        memcpy(p, ppp->password, ppp_pwd_len);
+        p += ppp_pwd_len;
+    }
+    dbg("PAP: Sending authentication request.\n");
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_PAP,
+            req,           /* Start of PPP packet */
+            (uint32_t)(
+                PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
+                pap_len + /* Authentication packet len */
+                PPP_FCS_SIZE + /* FCS */
+                1)             /* STOP Byte */
+            );
+    PICO_FREE(req);
 }
 
 static void auth_rsp(struct pico_device_ppp *ppp)
@@ -1822,7 +1898,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                         len = 0;
                     }
 
-                    if (len > 0) {
+                    if (len > 1) {
                         ppp_recv_data(ppp, ppp_recv_buf, len);
                         loop_score--;
                         len = 0;

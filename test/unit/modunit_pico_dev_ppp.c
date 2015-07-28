@@ -393,7 +393,7 @@ START_TEST(tc_ppp_modem_send_dial)
     ppp.serial_send = unit_serial_send;
     ppp_modem_send_dial(&ppp);
     fail_if(called_serial_send != 1);
-    fail_if(serial_out_len != 9);
+    fail_if(serial_out_len != 13);
 }
 END_TEST
 
@@ -581,8 +581,20 @@ START_TEST(tc_lcp_process_in)
 END_TEST
 START_TEST(tc_pap_process_in)
 {
-    /* TODO: test this: static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
-    pap_process_in(NULL, NULL, 0);
+    struct pico_pap_hdr hdr;
+    memset(&ppp, 0, sizeof(ppp));
+
+    /* Receive SUCCESS (RAA) */
+    ppp_auth_ev = 0;
+    hdr.code = PAP_AUTH_ACK;
+    pap_process_in(&ppp, &hdr, sizeof(hdr));
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAA);
+
+    /* Receive FAILURE (RAN) */
+    ppp_auth_ev = 0;
+    hdr.code = PAP_AUTH_NAK;
+    pap_process_in(&ppp, &hdr, sizeof(hdr));
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN);
 }
 END_TEST
 START_TEST(tc_chap_process_in)

@@ -183,7 +183,7 @@ static void pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_cl
 
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
     if (!t)
-        return NULL;
+        return;
 
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;

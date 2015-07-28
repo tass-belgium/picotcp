@@ -12,7 +12,7 @@
 #ifdef PICO_SUPPORT_CYASSL
 #include <cyassl/ctaocrypt/md5.h>
 #endif
-#define MODEM "/dev/ttyUSB1"
+#define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
 /* #define APN "gprs.base.be" */
 #define APN "web.be"
