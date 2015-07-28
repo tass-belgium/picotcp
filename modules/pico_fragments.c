@@ -109,7 +109,11 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
             pico_tree_delete(&ipv6_fragments, f);
             pico_frame_discard(f);
         }
-        pico_transport_receive(full, proto);
+        if (pico_transport_receive(full, proto) == -1)
+        {
+            pico_frame_discard(full);
+        }
+
         if (ipv6_fragments_timer) {
             pico_timer_cancel(ipv6_fragments_timer);
             ipv6_fragments_timer = NULL;
@@ -140,7 +144,12 @@ static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
             pico_tree_delete(&ipv4_fragments, f);
             pico_frame_discard(f);
         }
-        pico_transport_receive(full, proto);
+        ipv4_cur_frag_id = 0;
+        if (pico_transport_receive(full, proto) == -1)
+        {
+            pico_frame_discard(full);
+        }
+
         if (ipv4_fragments_timer) {
             pico_timer_cancel(ipv4_fragments_timer);
             ipv4_fragments_timer = NULL;
@@ -303,8 +312,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 
     if (!first) {
         if (ipv6_cur_frag_id && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id)) {
-            /* Discard late arrivals, without firing the timer.
-             */
+            /* Discard late arrivals, without firing the timer. */
             frag_dbg("discarded late arrival, exp:%hu found:%hu\n", ipv6_cur_frag_id, IP6_FRAG_ID(frag));
             return;
         }
@@ -325,11 +333,24 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
 {
     struct pico_frame *first = pico_tree_first(&ipv4_fragments);
 
+    /* fragments from old packets still in tree, and new first fragment ? */
+    if (first && (IP4_FRAG_ID(hdr) != ipv4_cur_frag_id) && (IP4_FRAG_OFF(f->frag) == 0))
+    {
+        /* Empty the tree */
+        struct pico_tree_node *index, *tmp;
+        pico_tree_foreach_safe(index, &ipv4_fragments, tmp) {
+            struct pico_frame * old = index->keyValue;
+            pico_tree_delete(&ipv4_fragments, old);
+            pico_frame_discard(old);
+        }
+        first = NULL;
+        ipv4_cur_frag_id = 0;
+    }
+
     f->frag = short_be(hdr->frag);
     if (!first) {
         if (ipv4_cur_frag_id && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id)) {
-            /* Discard late arrivals, without firing the timer,
-             */
+            /* Discard late arrivals, without firing the timer */
             return;
         }
 

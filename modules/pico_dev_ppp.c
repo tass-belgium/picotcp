@@ -96,7 +96,6 @@ static const unsigned char PPPF_FLAG_SEQ  = 0x7eu;
 static const unsigned char PPPF_CTRL_ESC  = 0x7du;
 static const unsigned char PPPF_ADDR      = 0xffu;
 static const unsigned char PPPF_CTRL      = 0x03u;
-static const unsigned char PPP_PROTO_IP_C = 0x21u;
 
 static int ppp_devnum = 0;
 static uint8_t ppp_recv_buf[PPP_MAXPKT];
@@ -116,7 +115,7 @@ PACKED_STRUCT_DEF pico_chap_hdr {
 PACKED_STRUCT_DEF pico_pap_hdr {
     uint8_t code;
     uint8_t id;
-    uint8_t len;
+    uint16_t len;
 };
 
 PACKED_STRUCT_DEF pico_ipcp_hdr {
@@ -724,7 +723,7 @@ static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_eve
 
     fsm = &ppp_modem_fsm[ppp->modem_state][event];
 
-    ppp->modem_state = fsm->next_state;
+    ppp->modem_state = (enum ppp_modem_state)fsm->next_state;
 
     for (i = 0; i < PPP_FSM_MAX_ACTIONS; i++) {
         if (fsm->event_handler[i])
@@ -1570,7 +1569,7 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
     }
 
     fsm = &ppp_lcp_fsm[ppp->lcp_state][event];
-    ppp->lcp_state = fsm->next_state;
+    ppp->lcp_state = (enum ppp_lcp_state)fsm->next_state;
     /* RFC1661: The states in which the Restart timer is running are identifiable by
      * the presence of TO events.
      */
@@ -1625,9 +1624,9 @@ static void auth_req(struct pico_device_ppp *ppp)
 
     hdr->code = PAP_AUTH_REQ;
     hdr->id = ppp->frame_id++;
-    hdr->len = (uint8_t)(pap_len & 0xFF);
+    hdr->len = short_be(pap_len);
 
-    p = req + sizeof(struct pico_pap_hdr);
+    p = req + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_pap_hdr);
 
     /* Populate authentication domain */
     field_len = (uint8_t)(ppp_usr_len & 0xFF);
@@ -1772,7 +1771,7 @@ static void evaluate_auth_state(struct pico_device_ppp *ppp, enum ppp_auth_event
 
     fsm = &ppp_auth_fsm[ppp->auth_state][event];
 
-    ppp->auth_state = fsm->next_state;
+    ppp->auth_state = (enum ppp_auth_state)fsm->next_state;
     for (i = 0; i < PPP_FSM_MAX_ACTIONS; i++) {
         if (fsm->event_handler[i])
             fsm->event_handler[i](ppp);
@@ -1870,7 +1869,7 @@ static void evaluate_ipcp_state(struct pico_device_ppp *ppp, enum ppp_ipcp_event
 
     fsm = &ppp_ipcp_fsm[ppp->ipcp_state][event];
 
-    ppp->ipcp_state = fsm->next_state;
+    ppp->ipcp_state = (enum ppp_ipcp_state)fsm->next_state;
     for (i = 0; i < PPP_FSM_MAX_ACTIONS; i++) {
         if (fsm->event_handler[i])
             fsm->event_handler[i](ppp);

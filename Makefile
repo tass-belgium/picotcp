@@ -7,7 +7,7 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -m32 
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
@@ -45,6 +45,7 @@ CRC?=1
 OLSR?=0
 SLAACV4?=1
 TFTP?=1
+AODV?=0
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
@@ -59,12 +60,13 @@ IPV6?=1
 
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wmissing-field-initializers -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
 # extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
 CFLAGS+= -Wmissing-prototypes
+CFLAGS+= -Wno-missing-field-initializers
 
 
 ifeq ($(DEBUG),1)
@@ -129,12 +131,12 @@ ifeq ($(ARCH),arm9)
 endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
-  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
 endif
 
 ifeq ($(ARCH),faulty)
   CFLAGS+=-DFAULTY -DUNIT_TEST
-  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o

@@ -1078,16 +1078,14 @@ static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int spac
     f->transport_len = (uint16_t)(space);
     f->frag = PICO_IPV4_MOREFRAG;
     f->payload += hdr_offset;
-    f->payload_len = (uint16_t) space;
 }
 
 static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_offset, int total_payload_written, int len)
 {
     /* no transport header in fragmented IP */
     f->payload = f->transport_hdr;
-    f->payload_len = (uint16_t)(f->payload_len - hdr_offset);
     /* set offset in octets */
-    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u);
+    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u); /* first fragment had a header offset */
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
         f->frag |= PICO_IPV4_MOREFRAG;
@@ -1130,7 +1128,7 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
         if (len < space)
             space = len;
 
-        if (space > len - total_payload_written)
+        if (space > len - total_payload_written) /* update space for last fragment */
             space = len - total_payload_written;
 
         f = pico_socket_frame_alloc(s, (uint16_t)(space + hdr_offset));
@@ -1150,12 +1148,15 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
             }
         }
 
+        f->payload_len = (uint16_t) space;
         if (total_payload_written == 0) {
             /* First fragment: no payload written yet! */
             pico_socket_xmit_first_fragment_setup(f, space, hdr_offset);
+            space += hdr_offset; /* only first fragments contains transport header */
+            hdr_offset = 0;
         } else {
             /* Next fragment */
-            pico_socket_xmit_next_fragment_setup(f, hdr_offset, total_payload_written, len);
+            pico_socket_xmit_next_fragment_setup(f, pico_socket_sendto_transport_offset(s), total_payload_written, len);
         }
 
         memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
@@ -1798,6 +1799,13 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     if (s->state & PICO_SOCKET_STATE_CLOSED) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
+    }
+
+    /* unbound sockets can be deleted immediately */
+    if (!(s->state & PICO_SOCKET_STATE_BOUND))
+    {
+        socket_garbage_collect((pico_time)0, s);
+        return 0;
     }
 
 #ifdef PICO_SUPPORT_UDP

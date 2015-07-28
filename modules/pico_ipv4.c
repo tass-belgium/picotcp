@@ -39,10 +39,8 @@ static struct pico_ipv4_link *mcast_default_link = NULL;
 
 /* Queues */
 static struct pico_queue in = {
-    0
 };
 static struct pico_queue out = {
-    0
 };
 
 /* Functions */
@@ -431,7 +429,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if ((flag & PICO_IPV4_MOREFRAG) || (flag & PICO_IPV4_FRAG_MASK))
+    if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPFRAG
         pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
@@ -984,8 +982,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
     if ((f->transport_hdr != f->payload)  &&
 #ifdef PICO_SUPPORT_IPFRAG
-        (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
-        (0 == (f->frag & PICO_IPV4_FRAG_MASK)) &&
+        ( (0 == (f->frag & PICO_IPV4_MOREFRAG)) ||
+          (0 == (f->frag & PICO_IPV4_FRAG_MASK)) )
+        &&
 #endif
         1 )
         ipv4_progressive_id++;
