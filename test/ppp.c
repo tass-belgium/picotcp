@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <termios.h>
 #include <pico_icmp4.h>
+#include <pico_ipv4.h>
+#include <pico_md5.h>
 #include <pico_socket.h>
 #ifdef PICO_SUPPORT_POLARSSL
 #include <polarssl/md5.h>

@@ -1625,9 +1625,9 @@ static void auth_req(struct pico_device_ppp *ppp)
 
     hdr->code = PAP_AUTH_REQ;
     hdr->id = ppp->frame_id++;
-    hdr->len = (uint8_t)(pap_len & 0xFF);
+    hdr->len = short_be(pap_len);
 
-    p = req + sizeof(struct pico_pap_hdr);
+    p = req + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_pap_hdr);
 
     /* Populate authentication domain */
     field_len = (uint8_t)(ppp_usr_len & 0xFF);
