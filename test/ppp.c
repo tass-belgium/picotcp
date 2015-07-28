@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <termios.h>
 #include <pico_icmp4.h>
+#include <pico_ipv4.h>
+#include <pico_md5.h>
 #include <pico_socket.h>
 #ifdef PICO_SUPPORT_POLARSSL
 #include <polarssl/md5.h>
@@ -12,7 +14,7 @@
 #ifdef PICO_SUPPORT_CYASSL
 #include <cyassl/ctaocrypt/md5.h>
 #endif
-#define MODEM "/dev/ttyUSB1"
+#define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
 /* #define APN "gprs.base.be" */
 #define APN "web.be"

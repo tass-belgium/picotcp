@@ -87,10 +87,6 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
 static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s);
 static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf);
 
-static const struct pico_ip4 bcast = {
-    .addr = 0xFFFFFFFF
-};
-
 static const struct pico_ip4 bcast_netmask = {
     .addr = 0xFFFFFFFF
 };
@@ -183,7 +179,7 @@ static void pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_cl
 
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
     if (!t)
-        return NULL;
+        return;
 
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;

@@ -29,7 +29,7 @@ struct pico_device_tap {
 static int pico_tap_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_device_tap *tap = (struct pico_device_tap *) dev;
-    return write(tap->fd, buf, (uint32_t)len);
+    return (int)write(tap->fd, buf, (uint32_t)len);
 }
 
 static int pico_tap_poll(struct pico_device *dev, int loop_score)
@@ -44,7 +44,7 @@ static int pico_tap_poll(struct pico_device *dev, int loop_score)
         if (poll(&pfd, 1, 0) <= 0)
             return loop_score;
 
-        len = read(tap->fd, buf, TUN_MTU);
+        len = (int)read(tap->fd, buf, TUN_MTU);
         if (len > 0) {
             loop_score--;
             pico_stack_recv(dev, buf, (uint32_t)len);

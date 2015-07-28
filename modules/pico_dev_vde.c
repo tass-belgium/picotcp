@@ -75,7 +75,7 @@ static int pico_vde_poll(struct pico_device *dev, int loop_score)
         if (poll(&pfd, 1, 0) <= 0)
             return loop_score;
 
-        len = vde_recv(vde->conn, buf, VDE_MTU, 0);
+        len = (int)vde_recv(vde->conn, buf, VDE_MTU, 0);
         if (len > 0) {
             /* dbg("Received pkt.\n"); */
             if ((vde->lost_in == 0) || ((pico_rand() % 100) > vde->lost_in)) {

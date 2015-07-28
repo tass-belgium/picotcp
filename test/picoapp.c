@@ -237,7 +237,7 @@ int main(int argc, char **argv)
     if (strcmp(app, "picoapp6.elf") == 0)
         IPV6_MODE = 1;
 
-    *macaddr_low = *macaddr_low ^ (uint16_t)((uint16_t)getpid() & (uint16_t)0xFFFFU);
+    *macaddr_low = (uint16_t)(*macaddr_low ^ (uint16_t)((uint16_t)getpid() & (uint16_t)0xFFFFU));
     printf("My macaddr base is: %02x %02x\n", macaddr[2], macaddr[3]);
     printf("My macaddr is: %02x %02x %02x %02x %02x %02x\n", macaddr[0], macaddr[1], macaddr[2], macaddr[3], macaddr[4], macaddr[5]);
 

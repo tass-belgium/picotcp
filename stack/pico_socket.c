@@ -1800,6 +1800,13 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
         return -1;
     }
 
+    /* unbound sockets can be deleted immediately */
+    if (!(s->state & PICO_SOCKET_STATE_BOUND))
+    {
+        socket_garbage_collect((pico_time)0, s);
+        return 0;
+    }
+
 #ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
         if ((mode & PICO_SHUT_RDWR) == PICO_SHUT_RDWR)
