@@ -79,7 +79,7 @@ void app_udpecho(char *arg)
 
     udpecho_pas->s = NULL;
     udpecho_pas->sendto_port = 0;
-    udpecho_pas->datasize = 1400;
+    udpecho_pas->datasize = 5000;
 
     /* start of argument parsing */
     if (nxt) {
