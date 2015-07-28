@@ -104,11 +104,6 @@ static struct server_t server;
 
 static struct pico_tftp_session *tftp_sessions = NULL;
 
-static inline int session_status_get(struct pico_tftp_session *session, int status)
-{
-    return session->status & status;
-}
-
 static inline void session_status_set(struct pico_tftp_session *session, int status)
 {
     session->status |= status;
