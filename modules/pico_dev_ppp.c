@@ -116,7 +116,7 @@ PACKED_STRUCT_DEF pico_chap_hdr {
 PACKED_STRUCT_DEF pico_pap_hdr {
     uint8_t code;
     uint8_t id;
-    uint8_t len;
+    uint16_t len;
 };
 
 PACKED_STRUCT_DEF pico_ipcp_hdr {
