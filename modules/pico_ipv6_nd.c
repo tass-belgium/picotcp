@@ -126,7 +126,6 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     if (pico_tree_empty(&NCache))
         pico_timer_add(PICO_NEIGH_CHECK_INTERVAL, pico_ipv6_nd_timer_callback, NULL);
     pico_tree_insert(&NCache, n);
-    pico_ipv6_nd_queued_trigger();
     return n;
 }
 
