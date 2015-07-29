@@ -848,6 +848,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
         if (n->failure_count > PICO_ND_MAX_SOLICIT) {
             pico_ipv6_nd_unreachable(&n->address);
             pico_tree_delete(&NCache, n);
+            PICO_FREE(n);
             return;
         }
 
