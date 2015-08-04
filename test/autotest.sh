@@ -12,21 +12,29 @@ function tftp_setup() {
 function tftp_cleanup() {
 	echo CLEANUP
 	pwd;ls
-	killall -w picoapp.elf
+	killall -wq picoapp.elf
 	rm -rf $TFTP_WORK_DIR
 	if [ $1 ]; then
 		exit $1
 	fi
 }
 
+function on_exit(){
+	killall -wq picoapp.elf 
+	killall -wq picoapp6.elf 
+	./test/vde_sock_start_user.sh stop
+}
 
-sh ./test/vde_sock_start_user.sh
+trap on_exit exit
+
+./test/vde_sock_start_user.sh start
+
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
-killall -w picoapp.elf &> /dev/null
-killall -w picoapp6.elf &> /dev/null
-
+killall -wq picoapp.elf 
+killall -wq picoapp6.elf
+ 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ IPV6 tests! ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -296,4 +304,5 @@ echo
 echo "MAX memory used: $MAXMEM"
 rm -f /tmp/pico-mem-report-*
 
+./test/vde_sock_start_user.sh stop
 echo "SUCCESS!" && exit 0
