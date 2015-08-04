@@ -16,8 +16,6 @@ function stop_vde(){
 		sudo /sbin/ifconfig vde0 down
 		sudo vdecmd -s /tmp/pico.mgmt shutdown
 		sudo vdecmd -s /tmp/pici.mgmt shutdown
-		sudo rm -f /tmp/pic0.ctl
-		sudo rm -f /tmp/pic1.ctl
 }
 
 case $1 in
