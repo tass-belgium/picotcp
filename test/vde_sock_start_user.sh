@@ -36,6 +36,4 @@ stop)
 		echo 'Wrong syntax!'
 		help
 		;;
-
-
-
+esac
