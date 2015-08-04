@@ -39,8 +39,10 @@ static struct pico_ipv4_link *mcast_default_link = NULL;
 
 /* Queues */
 static struct pico_queue in = {
+    0
 };
 static struct pico_queue out = {
+    0
 };
 
 /* Functions */
