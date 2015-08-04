@@ -25,7 +25,7 @@ function on_exit(){
 	./test/vde_sock_start_user.sh stop
 }
 
-trap on_exit exit
+trap on_exit exit term
 
 ./test/vde_sock_start_user.sh start
 
