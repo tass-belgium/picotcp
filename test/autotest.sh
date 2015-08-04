@@ -305,4 +305,4 @@ echo "MAX memory used: $MAXMEM"
 rm -f /tmp/pico-mem-report-*
 
 ./test/vde_sock_start_user.sh stop
-echo "SUCCESS!" && exit 0
+echo "SUCCESS!" 
