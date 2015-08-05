@@ -162,7 +162,9 @@ int main(int argc, const char *argv[])
 
     pico_stack_init();
 
+#if defined PICO_SUPPORT_POLARSSL || defined PICO_SUPPORT_CYASSL
     pico_register_md5sum(md5sum);
+#endif
 
     ppp = pico_ppp_create();
     if (!ppp)
