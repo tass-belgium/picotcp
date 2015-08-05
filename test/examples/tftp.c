@@ -463,7 +463,8 @@ void app_tftp(char *arg)
         commands = commands->next;
         if (old_cmd->filename)
             free(old_cmd->filename);
-        free(old_cmd);
+        /* commands are allocated using PICO_ZALLOC, so use PICO_FREE */
+        PICO_FREE(old_cmd);
     }
 }
 
