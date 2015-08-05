@@ -281,6 +281,11 @@ static void (*mock_lcp_state)(struct pico_device_ppp *ppp, enum ppp_lcp_event ev
 static void (*mock_auth_state)(struct pico_device_ppp *ppp, enum ppp_auth_event event) = NULL;
 static void (*mock_ipcp_state)(struct pico_device_ppp *ppp, enum ppp_ipcp_event event) = NULL;
 
+/* Debug prints */
+#ifdef PPP_DEBUG
+static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint32_t opts_len);
+#endif
+
 #define PPP_TIMER_ON_MODEM      0x01u
 #define PPP_TIMER_ON_LCPREQ     0x04u
 #define PPP_TIMER_ON_LCPTERM    0x08u
@@ -295,6 +300,19 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
     int esc_char_count = 0;
     int newlen = 0, ret = -1;
     int i, j;
+
+#ifdef PPP_DEBUG
+    {
+        uint32_t idx;
+        if (len > 0) {
+            dbg("PPP >>>> ");
+            for(idx = 0; idx < len; idx++) {
+                dbg(" %02x", ((uint8_t *)buf)[idx]);
+            }
+            dbg("\n");
+        }
+    }
+#endif
 
     for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */
     {
@@ -381,6 +399,7 @@ struct pico_ppp_fsm {
 #define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1u << opt)
 #define LCPOPT_SET_PEER(ppp, opt) ppp->lcpopt_peer |= (1u << opt)
 #define LCPOPT_UNSET_LOCAL(ppp, opt) ppp->lcpopt_local &= ~(1u << opt)
+#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt) ppp->lcpopt_local &= ~(opt)
 #define LCPOPT_UNSET_PEER(ppp, opt) ppp->lcpopt_peer &= ~(1u << opt)
 #define LCPOPT_ISSET_LOCAL(ppp, opt) ((ppp->lcpopt_local & (1u << opt)) != 0)
 #define LCPOPT_ISSET_PEER(ppp, opt) ((ppp->lcpopt_peer & (1u << opt)) != 0)
@@ -483,6 +502,9 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     uint16_t fcs = 0;
     int fcs_start;
     int i = 0;
+
+    printf(" >>>>>>>>> PPP OUT\n");
+
     if (ppp->ipcp_state != PPP_IPCP_STATE_OPENED)
         return len;
 
@@ -511,6 +533,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     pico_ppp_data_buffer[i++] = (uint8_t)(fcs & 0xFFu);
     pico_ppp_data_buffer[i++] = (uint8_t)((fcs & 0xFF00u) >> 8);
     pico_ppp_data_buffer[i++] = PPPF_FLAG_SEQ;
+
     ppp_serial_send_escape(ppp, pico_ppp_data_buffer, i);
     return len;
 }
@@ -792,6 +815,10 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
 
     req->len = short_be((uint16_t)((unsigned long)optsize + sizeof(struct pico_lcp_hdr)));
 
+#ifdef PPP_DEBUG
+    lcp_optflags_print(ppp, opts, optsize);
+#endif
+
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP,
                       lcpbuf,               /* Start of PPP packet */
                       (uint32_t)(prefix +              /* PPP Header, etc. */
@@ -805,17 +832,22 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
 }
 
-static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
+#ifdef PPP_DEBUG
+static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint32_t opts_len)
 {
     uint16_t flags = 0;
-    uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
+    uint8_t *p = opts;
     int off;
-    while(p < (pkt + len)) {
-        flags = (uint16_t)((uint16_t)(1u << (uint16_t)p[0]) | flags);
-        if ((p[0] == 3) && ppp) {
-            dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
-            ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
+    dbg("Parsing options:\n");
+    while(p < (opts + opts_len)) {
+        int i;
+
+        dbg("-- LCP opt: %d - len: %d - data:", p[0], p[1]);
+        for (i=0; i<p[1]-2; i++)
+        {
+            dbg(" %02X", p[2+i]);
         }
+        dbg("\n");
 
         off = p[1];
         if (!off)
@@ -823,8 +855,34 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
 
         p += off;
     }
+}
+#endif
+
+static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, int parse_auth)
+{
+    uint16_t flags = 0;
+    uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
+    int off;
+    while(p < (pkt + len)) {
+        flags = (uint16_t)((uint16_t)(1u << (uint16_t)p[0]) | flags);
+
+        if (parse_auth && (p[0] == 3) && ppp) {
+            dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
+            ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
+        }
+
+        off = p[1]; /* opt length field */
+        if (!off)
+            break;
+
+        p += off;
+    }
+#ifdef PPP_DEBUG
+    lcp_optflags_print(ppp, pkt +  sizeof(struct pico_lcp_hdr), len - sizeof(struct pico_lcp_hdr) );
+#endif
     return flags;
 }
+
 
 static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
 {
@@ -887,14 +945,22 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
     struct pico_lcp_hdr *lcprej = (struct pico_lcp_hdr *)(reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
     uint8_t *dst_opts = reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr);
     uint32_t dstopts_len = 0;
+    dbg("CONF_NACK: rej = %04X\n", ppp->rej);
     while (p < (ppp->pkt + ppp->len)) {
         uint8_t i = 0;
-        if ((1u << p[0]) & ppp->rej || (p[0] > 8u)) {
+        if ((1u << p[0]) & ppp->rej || (p[0] > 8u)) {       /* Reject anything we dont support or with option id >8 */
+            dbg("rejecting option %d -- ", p[0]);
             dst_opts[dstopts_len++] = p[0];
+
+            dbg("len: %d -- ", p[1]);
             dst_opts[dstopts_len++] = p[1];
-            for(i = 0; i < p[1]; i++) {
-                dst_opts[dstopts_len++] = p[1 + i];
+
+            dbg("data: ");
+            for(i = 0; i < p[1]-2; i++) {                   /* length includes type, length and data fields */
+                dst_opts[dstopts_len++] = p[2 + i];
+                dbg("%02X ", p[2+i]);
             }
+            dbg("\n");
         }
 
         p += p[1];
@@ -902,7 +968,12 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
     lcprej->code = PICO_CONF_REJ;
     lcprej->id = lcpreq->id;
     lcprej->len = short_be((uint16_t)(dstopts_len + sizeof(struct pico_lcp_hdr)));
+
     dbg("Sending LCP CONF REJ\n");
+#ifdef PPP_DEBUG
+    lcp_optflags_print(ppp, dst_opts, dstopts_len);
+#endif
+
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reject,
                       (uint32_t)(PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
                                  sizeof(struct pico_lcp_hdr) + /* LCP HDR */
@@ -918,7 +989,7 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
     if (pkt[0] == PICO_CONF_REQ) {
         uint16_t rejected = 0;
         dbg("Received LCP CONF REQ\n");
-        optflags = lcp_optflags(ppp, pkt, len);
+        optflags = lcp_optflags(ppp, pkt, len, 1u);
         rejected = (uint16_t)(optflags & (~ppp->lcpopt_local));
         ppp->pkt = pkt;
         ppp->len = len;
@@ -934,19 +1005,27 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
     }
 
     if (pkt[0] == PICO_CONF_ACK) {
-        dbg("Received LCP CONF ACK\nOptflags: %04x\n", lcp_optflags(NULL, pkt, len));
+        dbg("Received LCP CONF ACK\nOptflags: %04x\n", lcp_optflags(NULL, pkt, len, 0u));
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCA);
         return;
     }
 
     if (pkt[0] == PICO_CONF_NAK) {
-        dbg("Received LCP CONF NAK\n");
+        /* Every instance of the received Configuration Options is recognizable, but some values are not acceptable */
+        optflags = lcp_optflags(ppp, pkt, len, 0u);
+        dbg("Received LCP CONF NAK - will disble optflags: %04X\n", optflags);
+        /* Disable the options that are not supported by the peer */
+        LCPOPT_UNSET_LOCAL_MASK(ppp, optflags);
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
 
     if (pkt[0] == PICO_CONF_REJ) {
-        dbg("Received LCP CONF REJ\n");
+        /* Some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation */
+        optflags = lcp_optflags(ppp, pkt, len, 0u);
+        dbg("Received LCP CONF REJ - will disable optflags: %04X\n", optflags);
+        /* Disable the options that are not supported by the peer */
+        LCPOPT_UNSET_LOCAL_MASK(ppp, optflags);
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
@@ -1288,7 +1367,6 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
 {
     uint8_t *pkt = (uint8_t *)data;
 
-
 #ifdef PPP_DEBUG
     uint32_t idx;
     if (len > 0) {
@@ -1298,7 +1376,6 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
         }
         dbg("\n");
     }
-
 #endif
 
     ppp_process_packet(ppp, pkt, len);
