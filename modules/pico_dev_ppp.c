@@ -501,7 +501,7 @@ static int pico_ppp_send(struct pico_device *dev, void *buf, int len)
     int fcs_start;
     int i = 0;
 
-    printf(" >>>>>>>>> PPP OUT\n");
+    dbg(" >>>>>>>>> PPP OUT\n");
 
     if (ppp->ipcp_state != PPP_IPCP_STATE_OPENED)
         return len;
