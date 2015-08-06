@@ -48,8 +48,6 @@
 #define PICO_CONF_ECHO_REP  10
 #define PICO_CONF_DISCARD_REQ 11
 
-
-
 #define LCPOPT_MRU          1u
 #define LCPOPT_AUTH         3u
 #define LCPOPT_QUALITY      4u
@@ -399,7 +397,7 @@ struct pico_ppp_fsm {
 #define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1u << opt)
 #define LCPOPT_SET_PEER(ppp, opt) ppp->lcpopt_peer |= (1u << opt)
 #define LCPOPT_UNSET_LOCAL(ppp, opt) ppp->lcpopt_local &= ~(1u << opt)
-#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt) ppp->lcpopt_local &= ~(opt)
+#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt) ppp->lcpopt_local &=(uint16_t) ~(opt)
 #define LCPOPT_UNSET_PEER(ppp, opt) ppp->lcpopt_peer &= ~(1u << opt)
 #define LCPOPT_ISSET_LOCAL(ppp, opt) ((ppp->lcpopt_local & (1u << opt)) != 0)
 #define LCPOPT_ISSET_PEER(ppp, opt) ((ppp->lcpopt_peer & (1u << opt)) != 0)
