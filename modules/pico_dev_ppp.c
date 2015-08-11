@@ -18,10 +18,6 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
-#undef dbg
-#define dbg printf
-#define PPP_DEBUG 1
-
 /* We should define this in a global header. */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -309,7 +305,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
         uint32_t idx;
         if (len > 0) {
             dbg("PPP >>>> ");
-            for(idx = 0; idx < len; idx++) {
+            for(idx = 0; idx < (uint32_t)len; idx++) {
                 dbg(" %02x", ((uint8_t *)buf)[idx]);
             }
             dbg("\n");
@@ -840,9 +836,9 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
 #ifdef PPP_DEBUG
 static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint32_t opts_len)
 {
-    uint16_t flags = 0;
     uint8_t *p = opts;
     int off;
+    IGNORE_PARAMETER(ppp);
     dbg("Parsing options:\n");
     while(p < (opts + opts_len)) {
         int i;
@@ -897,7 +893,7 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
         p += off;
     }
 #ifdef PPP_DEBUG
-    lcp_optflags_print(ppp, pkt +  sizeof(struct pico_lcp_hdr), len - sizeof(struct pico_lcp_hdr) );
+    lcp_optflags_print(ppp, pkt +  sizeof(struct pico_lcp_hdr), (uint32_t)(len - sizeof(struct pico_lcp_hdr)) );
 #endif
     return flags;
 }

@@ -12,6 +12,7 @@
 #include "pico_ipv6.h"
 #include "pico_dns_common.h"
 #include "pico_tree.h"
+#include <ctype.h> /* for tolower */
 
 #define dns_dbg(...) do {} while(0)
 /* #define dns_dbg dbg */
