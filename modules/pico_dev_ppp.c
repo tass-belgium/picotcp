@@ -18,10 +18,14 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
+#undef dbg
+#define dbg printf
+#define PPP_DEBUG 1
+
 /* We should define this in a global header. */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define PICO_PPP_MRU 1514
+#define PICO_PPP_MRU 1514 /* RFC default MRU */
 #define PICO_PPP_MTU 1500
 #define PPP_MAXPKT 2048
 #define PPP_MAX_APN 134
@@ -48,12 +52,12 @@
 #define PICO_CONF_ECHO_REP  10
 #define PICO_CONF_DISCARD_REQ 11
 
-#define LCPOPT_MRU          1u
-#define LCPOPT_AUTH         3u
-#define LCPOPT_QUALITY      4u
-#define LCPOPT_MAGIC        5u
-#define LCPOPT_PROTO_COMP   7u
-#define LCPOPT_ADDRCTL_COMP 8u
+#define LCPOPT_MRU          1u /* param size: 4, fixed: MRU     */
+#define LCPOPT_AUTH         3u /* param size: 4-5: AUTH proto   */
+#define LCPOPT_QUALITY      4u /* unused for now                */
+#define LCPOPT_MAGIC        5u /* param size: 6, fixed: Magic   */
+#define LCPOPT_PROTO_COMP   7u /* param size: 0, flag           */
+#define LCPOPT_ADDRCTL_COMP 8u /* param size: 0, flag           */
 
 #define CHAP_MD5_SIZE   16u
 #define CHAP_CHALLENGE  1
@@ -270,6 +274,7 @@ struct pico_device_ppp {
     uint8_t timer_count;
     uint8_t frame_id;
     uint8_t timer_on;
+    uint16_t mru;
 };
 
 
@@ -394,13 +399,13 @@ struct pico_ppp_fsm {
     void (*event_handler[PPP_FSM_MAX_ACTIONS]) (struct pico_device_ppp *);
 };
 
-#define LCPOPT_SET_LOCAL(ppp, opt) ppp->lcpopt_local |= (1u << opt)
-#define LCPOPT_SET_PEER(ppp, opt) ppp->lcpopt_peer |= (1u << opt)
-#define LCPOPT_UNSET_LOCAL(ppp, opt) ppp->lcpopt_local &= ~(1u << opt)
-#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt) ppp->lcpopt_local &=(uint16_t) ~(opt)
-#define LCPOPT_UNSET_PEER(ppp, opt) ppp->lcpopt_peer &= ~(1u << opt)
-#define LCPOPT_ISSET_LOCAL(ppp, opt) ((ppp->lcpopt_local & (1u << opt)) != 0)
-#define LCPOPT_ISSET_PEER(ppp, opt) ((ppp->lcpopt_peer & (1u << opt)) != 0)
+#define LCPOPT_SET_LOCAL(ppp, opt)          ppp->lcpopt_local |= (uint16_t)(1u << opt)
+#define LCPOPT_SET_PEER(ppp, opt)           ppp->lcpopt_peer  |= (uint16_t)(1u << opt)
+#define LCPOPT_UNSET_LOCAL(ppp, opt)        ppp->lcpopt_local &= (uint16_t)~(1u << opt)
+#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt)   ppp->lcpopt_local &= (uint16_t)~(opt)
+#define LCPOPT_UNSET_PEER(ppp, opt)         ppp->lcpopt_peer  &= (uint16_t)~(1u << opt)
+#define LCPOPT_ISSET_LOCAL(ppp, opt)      ((ppp->lcpopt_local & (uint16_t)(1u << opt)) != 0)
+#define LCPOPT_ISSET_PEER(ppp, opt)       ((ppp->lcpopt_peer  & (uint16_t)(1u << opt)) != 0)
 
 static void evaluate_modem_state(struct pico_device_ppp *ppp, enum ppp_modem_event event);
 static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event event);
@@ -802,8 +807,10 @@ static void lcp_send_configure_request(struct pico_device_ppp *ppp)
     if (LCPOPT_ISSET_LOCAL(ppp, LCPOPT_MRU)) {
         opts[optsize++] = LCPOPT_MRU;
         opts[optsize++] = LCPOPT_LEN[LCPOPT_MRU];
-        opts[optsize++] = (uint8_t)((PICO_PPP_MRU >> 8) & 0xFF);
-        opts[optsize++] = (uint8_t)(PICO_PPP_MRU & 0xFF);
+        opts[optsize++] = (uint8_t)((ppp->mru >> 8) & 0xFF);
+        opts[optsize++] = (uint8_t)(ppp->mru & 0xFF);
+    } else {
+        ppp->mru = PICO_PPP_MRU;
     }
 
     if (LCPOPT_ISSET_LOCAL(ppp, LCPOPT_ADDRCTL_COMP)) {
@@ -856,7 +863,8 @@ static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint3
 }
 #endif
 
-static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, int parse_auth)
+/* setting adjust_opts will adjust our options to the ones supplied */
+static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len, int adjust_opts)
 {
     uint16_t flags = 0;
     uint8_t *p = pkt +  sizeof(struct pico_lcp_hdr);
@@ -864,9 +872,22 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
     while(p < (pkt + len)) {
         flags = (uint16_t)((uint16_t)(1u << (uint16_t)p[0]) | flags);
 
-        if (parse_auth && (p[0] == 3) && ppp) {
-            dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
-            ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
+        if (adjust_opts && ppp)
+        {
+            switch (p[0])
+            {
+                case LCPOPT_MRU:
+                    //XXX: Can we accept any MRU ?
+                    dbg("Adjusting MRU to %02x%02x\n", p[2], p[3]);
+                    ppp->mru = (uint16_t)((p[2] << 8) + p[3]);
+                    break;
+                case LCPOPT_AUTH:
+                    dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
+                    ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
+                    break;
+                default:
+                    break;
+            }
         }
 
         off = p[1]; /* opt length field */
@@ -1010,10 +1031,8 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
 
     if (pkt[0] == PICO_CONF_NAK) {
         /* Every instance of the received Configuration Options is recognizable, but some values are not acceptable */
-        optflags = lcp_optflags(ppp, pkt, len, 0u);
-        dbg("Received LCP CONF NAK - will disble optflags: %04X\n", optflags);
-        /* Disable the options that are not supported by the peer */
-        LCPOPT_UNSET_LOCAL_MASK(ppp, optflags);
+        optflags = lcp_optflags(ppp, pkt, len, 1u); /* We want our options adjusted */
+        dbg("Received LCP CONF NAK - changed optflags: %04X\n", optflags);
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RCN);
         return;
     }
@@ -1968,6 +1987,7 @@ static int pico_ppp_poll(struct pico_device *dev, int loop_score)
                 if (ppp_recv_buf[len] == PPPF_FLAG_SEQ) {
                     if (control_escape) {
                         /* Illegal sequence, discard frame */
+                        dbg("Illegal sequence, ppp_recv_buf[%d] = %d\n", len, ppp_recv_buf[len]);
                         control_escape = 0;
                         len = 0;
                     }
@@ -2127,6 +2147,7 @@ struct pico_device *pico_ppp_create(void)
     ppp->ipcp_state = PPP_IPCP_STATE_INITIAL;
 
     ppp->timer = pico_timer_add(1000, pico_ppp_tick, ppp);
+    ppp->mru = PICO_PPP_MRU;
 
     LCPOPT_SET_LOCAL(ppp, LCPOPT_MRU);
     LCPOPT_SET_LOCAL(ppp, LCPOPT_AUTH); /* We support authentication, even if it's not part of the req */
