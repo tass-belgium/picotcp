@@ -1050,6 +1050,8 @@ static int
 pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
                                    char *rname )
 {
+    struct pico_tree_node *node = NULL;
+    struct pico_dns_question *question = NULL;
     PICO_MDNS_RTREE_DECLARE(new_records);
     PICO_MDNS_RTREE_DECLARE(antree);
     char *new_name = NULL;
@@ -1066,6 +1068,15 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     /* Convert rname to url */
     mdns_dbg("CONFLICT for probe query with name '%s' occurred!\n", rname);
 
+    /* DNS conflict is case-insensitive. However, we want to keep the original
+     * capitalisation for the new probe. */
+    pico_tree_foreach(node, &(cookie->qtree)) {
+        question = (struct pico_dns_question *)node->keyValue;
+        if ((question) && (strcasecmp(question->qname, rname) == 0))
+            /* Create a new name depending on current name */
+            new_name = pico_mdns_resolve_name_conflict(question->qname);
+    }
+
     /* Step 1: Remove question with that name from cookie and store some
      * useful information */
     pico_dns_qtree_del_name(&(cookie->qtree), rname);
@@ -1081,8 +1092,8 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
         pico_mdns_cookie_delete(&cookie);
     }
 
-    /* Step 2: Create a new name depending on current name */
-    if (!(new_name = pico_mdns_resolve_name_conflict(rname)))
+    /* Step 2: Check if the new name succeeded, if not: error. */
+    if (!(new_name))
         return -1;
 
     /* Step 3: Create records with new name for the records with that name */
