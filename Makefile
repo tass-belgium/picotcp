@@ -52,6 +52,7 @@ TAP?=0
 PCAP?=0
 PPP?=1
 CYASSL?=0
+WOLFSSL?=0
 POLARSSL?=0
 
 #IPv6 related
@@ -265,6 +266,9 @@ ifneq ($(PPP),0)
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
+endif
+ifneq ($(WOLFSSL),0)
+  include rules/wolfssl.mk
 endif
 ifneq ($(POLARSSL),0)
   include rules/polarssl.mk
