@@ -479,7 +479,7 @@ pico_mdns_rtree_find_name( pico_mdns_rtree *tree,
     /* Iterate over tree */
     pico_tree_foreach(node, tree) {
         record = node->keyValue;
-        if (record && strcmp(record->record->rname, name) == 0)
+        if (record && strcasecmp(record->record->rname, name) == 0)
             pico_tree_insert(&hits, record);
     }
 
@@ -547,7 +547,7 @@ pico_mdns_rtree_del_name( pico_mdns_rtree *tree,
     /* Iterate over tree */
     pico_tree_foreach_safe(node, tree, safe) {
         record = node->keyValue;
-        if (record && strcmp(record->record->rname, name) == 0) {
+        if (record && strcasecmp(record->record->rname, name) == 0) {
             record = pico_tree_delete(tree, record);
             pico_mdns_record_delete((void **)&record);
         }
@@ -699,7 +699,7 @@ pico_mdns_generate_new_records( pico_mdns_rtree *conflict_records,
 
     pico_tree_foreach_safe(node, conflict_records, next) {
         record = node->keyValue;
-        if (record && strcmp(record->record->rname, conflict_name) == 0) {
+        if (record && strcasecmp(record->record->rname, conflict_name) == 0) {
             /* Create a new record */
             new_record = pico_mdns_record_copy_with_new_name(record, new_name);
             if (!new_record) {
@@ -2189,7 +2189,7 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
         if (node != &LEAF && (record = node->keyValue)) {
             type = short_be(record->record->rsuffix->rtype);
             if (PICO_DNS_TYPE_NSEC == type) {
-                if (strcmp(record->record->rname, name) == 0)
+                if (strcasecmp(record->record->rname, name) == 0)
                     return 0;
             }
         }
