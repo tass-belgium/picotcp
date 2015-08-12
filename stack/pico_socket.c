@@ -1992,7 +1992,8 @@ static int pico_sockets_loop_udp(int loop_score)
             while (f && (loop_score > 0)) {
                 pico_proto_udp.push(&pico_proto_udp, f);
                 loop_score -= 1;
-                f = pico_dequeue(&s->q_out);
+                if (loop_score > 0) /* only dequeue if there is still loop_score, otherwise f might get lost */
+                    f = pico_dequeue(&s->q_out);
             }
         }
 
