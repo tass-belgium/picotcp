@@ -244,10 +244,10 @@ pico_mdns_reclaim( pico_mdns_rtree record_tree,
 
 #define IS_NUM(c) (((c) >= '0') && ((c) <= '9'))
 /* ****************************************************************************
- *  Tries to convert the characters in between '(' and ')' to a numeric value.
+ *  Tries to convert the characters after '-' to a numeric value.
  *
- *  @param opening Pointer to opening bracket index.
- *  @param closing Pointer to closing bracket index.
+ *  @param opening Pointer to dash index.
+ *  @param closing Pointer to end of label.
  *  @return Numeric value of suffix on success
  * ****************************************************************************/
 static inline uint16_t
@@ -282,8 +282,8 @@ pico_mdns_suffix_to_uint16( char *opening, char *closing)
  *  first label of a name or not.
  *
  *  @param name   Name in DNS name notation you want to check for a suffix.
- *  @param o_i    Pointer-pointer, will get filled with location to '('-char.
- *  @param c_i    Pointer-pointer, will get filled with location to ')'-char.
+ *  @param o_i    Pointer-pointer, will get filled with location to '-'-char.
+ *  @param c_i    Pointer-pointer, will get filled with end of label.
  *  @return Returns value of the suffix, when it's present, 0 when no correct
  *          suffix is present.
  * ****************************************************************************/
@@ -298,13 +298,12 @@ pico_mdns_is_suffix_present( char name[],
     *o_i = NULL; /* Clear out indexes */
     *c_i = NULL;
 
-    iterate_first_label_name_reverse(i, name) {
-        /* Find the last closing bracket */
-        if (*i == ')')
-            *c_i = i;
+    /* Find the end of label. */
+    *c_i = (name + *name + 1);
 
-        /* Find the last opening bracket */
-        if ((*c_i) && (i < *c_i) && *i == '(') {
+    iterate_first_label_name_reverse(i, name) {
+        /* Find the last dash */
+        if ((*c_i) && (i < *c_i) && *i == '-') {
             *o_i = i;
             break;
         }
@@ -380,8 +379,8 @@ pico_mdns_resolve_name_conflict( char rname[] )
     } else {
         /* If no suffix is present */
         c_i = (o_i = rname + *rname) + 1;
-        new_len = (uint16_t)(new_len + 4u);
-        memcpy((void *)nsuffix, " (2)\0", (size_t)5);
+        new_len = (uint16_t)(new_len + 2u);
+        memcpy((void *)nsuffix, "-2\0", (size_t)3);
     }
 
     /* Provide space for the new name */
