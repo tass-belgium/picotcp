@@ -19,6 +19,7 @@
 /* #define APN "gprs.base.be" */
 #define APN "web.be"
 #define PASSWD "web"
+#define USERNAME "altran"
 /* #define DEBUG_FLOW */
 static int fd = -1;
 static int idx;
@@ -140,6 +141,7 @@ int main(int argc, const char *argv[])
     const char *path = MODEM;
     const char *apn = APN;
     const char *passwd = PASSWD;
+    const char *username = USERNAME;
 
     if (argc > 1)
         path = argv[1];
@@ -176,6 +178,7 @@ int main(int argc, const char *argv[])
 
     pico_ppp_set_apn(ppp, apn);
     pico_ppp_set_password(ppp, passwd);
+    pico_ppp_set_username(ppp, username);
 
     pico_ppp_connect(ppp);
 
