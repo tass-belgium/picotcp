@@ -51,6 +51,7 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+SIXLOWPAN?=1
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -263,6 +264,9 @@ ifneq ($(PCAP),0)
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
+endif
+ifneq ($(SIXLOWPAN), 0)
+  include rules/sixlowpan.mk
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk

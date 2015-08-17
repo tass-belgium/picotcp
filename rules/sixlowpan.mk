@@ -1,0 +1,2 @@
+OPTIONS+=-DPICO_SUPPORT_SIXLOWPAN
+MOD_OBJ+=$(LIBBASE)modules/pico_dev_sixlowpan.o
