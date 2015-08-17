@@ -179,6 +179,51 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
     return ret;
 }
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
+int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t EUI64[8])
+{
+    struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                   0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa }};
+    struct pico_ip6 netmask = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+    uint32_t len = (uint32_t)strlen(name);
+    
+    if (len > MAX_DEVICE_NAME)
+        len = MAX_DEVICE_NAME;
+    
+    /* Copy in the device name */
+    memcpy(dev->name, name, len);
+    dev->hash = pico_hash(dev->name, len);
+    
+    Devices_rr_info.node_in  = NULL;
+    Devices_rr_info.node_out = NULL;
+    dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_in)
+        return -1;
+    
+    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
+    if (!dev->q_out) {
+        PICO_FREE(dev->q_in);
+        return -1;
+    }
+    
+    /* Copy in the Interface Identifier */
+    memcpy(linklocal.addr + 8, EUI64, 8);
+    
+    /* Insert the device in the pico-device tree */
+    pico_tree_insert(&Device_tree, dev);
+    if (!dev->mtu)
+        dev->mtu = PICO_DEVICE_DEFAULT_MTU;
+    
+    /* Add an IPv6 link to the device */
+    if (pico_ipv6_link_add(dev, linklocal, netmask) == NULL) {
+        return -1;
+    }
+    
+    return 0;
+}
+#endif
+
 static void pico_queue_destroy(struct pico_queue *q)
 {
     if (q) {

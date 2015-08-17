@@ -50,5 +50,8 @@ int pico_device_ipv6_random_ll(struct pico_device *dev);
 #ifdef PICO_SUPPORT_IPV6
 struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix);
 #endif
+#ifdef PICO_SUPPORT_SIXLOWPAN
+int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t EUI64[8]);
+#endif
 
 #endif
