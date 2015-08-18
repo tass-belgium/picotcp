@@ -125,7 +125,7 @@ void *pico_tree_insert(struct pico_tree *tree, void *key)
     return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
-void *pico_tree_insert_implementation(struct pico_tree*tree, void *key, uint8_t allocator)
+void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
 {
     struct pico_tree_node *last_node = INIT_LEAF;
     struct pico_tree_node *temp = tree->root;

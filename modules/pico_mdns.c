@@ -739,6 +739,7 @@ static int
 pico_mdns_record_resolve_conflict( struct pico_mdns_record *record,
                                    char *rname )
 {
+    int retval;
     PICO_MDNS_RTREE_DECLARE(new_records);
     struct pico_mdns_record *copy = NULL;
     char *new_name = NULL;
@@ -762,7 +763,9 @@ pico_mdns_record_resolve_conflict( struct pico_mdns_record *record,
     pico_mdns_record_delete((void **)&record);
 
     /* Step 4: Try to reclaim the newly created records */
-    return pico_mdns_reclaim(new_records, init_callback, NULL);
+    retval = pico_mdns_reclaim(new_records, init_callback, NULL);
+    pico_tree_destroy(&new_records, NULL);
+    return retval;
 }
 
 /* ****************************************************************************
@@ -1057,6 +1060,7 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     void (*callback)(pico_mdns_rtree *, char *, void *);
     void *arg = NULL;
     uint16_t qc = 0;
+    int retval;
 
     /* Check params */
     if ((!cookie) || !rname || (cookie->type != PICO_MDNS_PACKET_TYPE_PROBE)) {
@@ -1100,7 +1104,9 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     PICO_FREE(new_name);
 
     /* Step 4: Try to reclaim the newly created records */
-    return pico_mdns_reclaim(new_records, callback, arg);
+    retval = pico_mdns_reclaim(new_records, callback, arg);
+    pico_tree_destroy(&new_records, NULL);
+    return retval;
 }
 
 /* ****************************************************************************
