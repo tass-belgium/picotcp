@@ -180,7 +180,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 }
 
 #ifdef PICO_SUPPORT_SIXLOWPAN
-int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t addr_ext[8], uint16_t addr_short)
+int pico_sixlowpan_init(struct pico_device *dev, const char *name, struct pico_sixlowpan_addr addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa }};
@@ -198,6 +198,9 @@ int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t addr_
     /* Set the device's interface identifier */
     if (!(dev->sixlowpan = PICO_ZALLOC(sizeof(struct pico_sixlowpan_addr))))
         return -1;
+    memcpy(dev->sixlowpan->_ext.addr, addr._ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+    dev->sixlowpan->_short.addr = addr._short.addr;
+    dev->sixlowpan->_mode = addr._mode;
     
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
@@ -212,16 +215,8 @@ int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t addr_
         return -1;
     }
     
-    /* Set the link layer extended addresses of the device */
-    memcpy(dev->sixlowpan->_ext.addr, addr_ext, 8);
-    dev->sixlowpan->_short.addr = addr_short;
-    
-    dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_EXTENDED;
-    if (0xFFFF != dev->sixlowpan->_short.addr)
-        dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_BOTH;
-    
     /* Copy in the Interface Identifier */
-    memcpy(linklocal.addr + 8, addr_ext, 8);
+    memcpy(linklocal.addr + 8, dev->sixlowpan->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
     
     /* Insert the device in the pico-device tree */
     pico_tree_insert(&Device_tree, dev);

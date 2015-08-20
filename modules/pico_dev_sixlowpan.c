@@ -357,6 +357,8 @@ static int pico_sixlowpan_net_prepare(struct sixlowpan_frame *f, struct pico_fra
         memcpy(f->net_hdr, pf->net_hdr, f->net_len);
     }
     pan_dbg("[SIXLOWPAN]$ net_len: %d\n", f->net_len);
+    
+    return 0;
 }
 
 /**
@@ -638,22 +640,24 @@ static int pico_sixlowpan_poll(struct pico_device *dev, int loop_score)
 struct pico_device *pico_sixlowpan_create(radio_t *radio)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
+    struct pico_sixlowpan_addr slp;
     char dev_name[MAX_DEVICE_NAME];
-    uint16_t _short;
-    uint8_t _ext[8];
     
     CHECK_PARAM_NULL(radio, __LINE__);
 
     if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
         return NULL;
     
-    
+    /* Generat pico_sixlowpan_addr */
+    radio->get_addr_ext(radio, slp._ext.addr);
+    slp._short.addr = radio->get_addr_short(radio);
+    slp._mode = IEEE802154_ADDRESS_MODE_EXTENDED;
+    if (0xFFFF != slp._short.addr)
+        slp._mode = IEEE802154_ADDRESS_MODE_BOTH;
     
 	/* Try to init & register the device to picoTCP */
-    radio->get_EUI64(radio, addr_ext);
-    addr_short = radio->get_short_16(radio);
     snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", pico_sixlowpan_devnum++);
-    if (0 != pico_sixlowpan_init((struct pico_device *)sixlowpan, dev_name, addr_ext, addr_short)) {
+    if (0 != pico_sixlowpan_init((struct pico_device *)sixlowpan, dev_name, slp)) {
         dbg("Device init failed.\n");
         return NULL;
     }

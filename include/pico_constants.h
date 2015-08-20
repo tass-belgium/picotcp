@@ -12,6 +12,8 @@
 #define PICO_SIZE_IP6   16
 #define PICO_SIZE_ETH    6
 #define PICO_SIZE_TRANS  8
+#define PICO_SIZE_SIXLOWPAN_EXT (8u)
+#define PICO_SIZE_SIXLOWPAN_SHORT (2u)
 
 /** Endian-dependant constants **/
 typedef uint64_t pico_time;
