@@ -30,6 +30,37 @@ PACKED_STRUCT_DEF pico_eth
     uint8_t padding[2];
 };
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
+PACKED_STRUCT_DEF pico_sixlowpan_addr_short
+{
+    uint16_t addr;
+};
+
+PACKED_STRUCT_DEF pico_sixlowpan_addr_ext
+{
+    uint8_t addr[8];
+};
+
+/**
+ *  ADDRESS MODE DEFINITIONS (IEEE802.15.4)
+ */
+typedef enum
+{
+    IEEE802154_ADDRESS_MODE_NONE,
+    IEEE802154_ADDRESS_MODE_RES,
+    IEEE802154_ADDRESS_MODE_SHORT,
+    IEEE802154_ADDRESS_MODE_EXTENDED,
+    IEEE802154_ADDRESS_MODE_BOTH
+} __attribute__((packed)) IEEE802154_address_mode_t;
+
+struct pico_sixlowpan_addr
+{
+    struct pico_sixlowpan_addr_short _short;
+    struct pico_sixlowpan_addr_ext _ext;
+    IEEE802154_address_mode_t _mode;
+};
+#endif
+
 extern const uint8_t PICO_ETHADDR_ALL[];
 
 

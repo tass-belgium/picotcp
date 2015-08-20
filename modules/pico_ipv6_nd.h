@@ -23,4 +23,9 @@ void pico_ipv6_nd_init(void);
 struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f);
 void pico_ipv6_nd_postpone(struct pico_frame *f);
 int pico_ipv6_nd_recv(struct pico_frame *f);
+
+#ifdef PICO_SUPPORT_SIXLOWPAN
+struct pico_sixlowpan_addr *pico_ipv6_get_sixlowpan_neighbor(struct pico_frame *f);
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+
 #endif

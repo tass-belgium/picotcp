@@ -941,6 +941,12 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     return pico_nd_get(&hdr->dst, f->dev);
 }
 
+struct pico_sixlowpan_addr *pico_ipv6_get_sixlowpan_neighbor(struct pico_frame *f)
+{
+    /* TODO: Do neighbor discovery with 6LoWPAN options */
+    return NULL;
+}
+
 void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     int i;

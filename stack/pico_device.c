@@ -180,7 +180,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 }
 
 #ifdef PICO_SUPPORT_SIXLOWPAN
-int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t EUI64[8])
+int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t addr_ext[8], uint16_t addr_short)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa }};
@@ -195,20 +195,33 @@ int pico_sixlowpan_init(struct pico_device *dev, const char *name, uint8_t EUI64
     memcpy(dev->name, name, len);
     dev->hash = pico_hash(dev->name, len);
     
-    Devices_rr_info.node_in  = NULL;
-    Devices_rr_info.node_out = NULL;
-    dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue));
-    if (!dev->q_in)
+    /* Set the device's interface identifier */
+    if (!(dev->sixlowpan = PICO_ZALLOC(sizeof(struct pico_sixlowpan_addr))))
         return -1;
     
-    dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue));
-    if (!dev->q_out) {
+    Devices_rr_info.node_in  = NULL;
+    Devices_rr_info.node_out = NULL;
+    if (!(dev->q_in = PICO_ZALLOC(sizeof(struct pico_queue)))) {
+        PICO_FREE(dev->sixlowpan);
+        return -1;
+    }
+    
+    if (!(dev->q_out = PICO_ZALLOC(sizeof(struct pico_queue)))) {
+        PICO_FREE(dev->sixlowpan);
         PICO_FREE(dev->q_in);
         return -1;
     }
     
+    /* Set the link layer extended addresses of the device */
+    memcpy(dev->sixlowpan->_ext.addr, addr_ext, 8);
+    dev->sixlowpan->_short.addr = addr_short;
+    
+    dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_EXTENDED;
+    if (0xFFFF != dev->sixlowpan->_short.addr)
+        dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_BOTH;
+    
     /* Copy in the Interface Identifier */
-    memcpy(linklocal.addr + 8, EUI64, 8);
+    memcpy(linklocal.addr + 8, addr_ext, 8);
     
     /* Insert the device in the pico-device tree */
     pico_tree_insert(&Device_tree, dev);
@@ -305,7 +318,14 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
     if (dev->eth) {
         /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
         return pico_ethernet_send(f);
-    } else {
+    }
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    else if (dev->sixlowpan) {
+        /* Send the entire pico_frame to the sixlowpan_device */
+        return (dev->send(dev, (void *)f, 0) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
+    }
+#endif
+    else {
         /* non-ethernet: no post-processing needed */
         return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
     }
