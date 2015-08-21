@@ -14,6 +14,8 @@
 #define IEEE802154_PHY_MTU (128u)
 #define IEEE802154_MAC_MTU (125u)
 
+#define PACKED __attribute__((packed))
+
 /**
  *  FRAME TYPE DEFINITIONS (IEEE802.15.4)
  */
@@ -23,7 +25,7 @@ typedef enum
     IEEE802154_FRAME_TYPE_DATA,
     IEEE802154_FRAME_TYPE_ACKNOWLEDGEMENT,
     IEEE802154_FRAME_TYPE_COMMAND
-} __attribute__((packed)) IEEE802154_frame_type_t;
+} PACKED IEEE802154_frame_type_t;
 
 /**
  *  FCF FLAG VALUE DEFINITIONS (IEEE802.15.4)
@@ -32,7 +34,7 @@ typedef enum
 {
     IEEE802154_FALSE,
     IEEE802154_TRUE
-} __attribute__((packed)) IEEE802154_flag_t;
+} PACKED IEEE802154_flag_t;
 
 /**
  *  FRAME VERSION DEFINITIONS (IEEE802.15.4)
@@ -41,7 +43,7 @@ typedef enum
 {
     IEEE802154_FRAME_VERSION_2003,
     IEEE802154_FRAME_VERSION_2006
-} __attribute__((packed)) IEEE802154_frame_version_t;
+} PACKED IEEE802154_frame_version_t;
 
 /**
  *  SECURITY LEVEL DEFINITIONS (IEEE802.15.4)
@@ -56,7 +58,7 @@ typedef enum
     IEEE802154_SECURITY_LVL_ENC_MIC_32,
     IEEE802154_SECURITY_LVL_ENC_MIC_64,
     IEEE802154_SECURITY_LVL_ENC_MIC_128
-} __attribute__((packed)) IEEE802154_security_level_t;
+} PACKED IEEE802154_security_level_t;
 
 /**
  *  SECURITY CONTROL FIELD (IEEE802154)
@@ -108,10 +110,13 @@ typedef union
  */
 typedef enum
 {
+    /* PLATFORM ERRORS */
 	RADIO_ERR_NOERR = 0,
 	RADIO_ERR_EINVAL,
-	RADIO_ERR_ENOMEM,
-	RADIO_ERR_ENOCONN
+    RADIO_ERR_ENOMEM,
+    /* RADIO ERRORS */
+	RADIO_ERR_ENOCONN,
+    RADIO_ERR_ERX
 }
 radio_rcode_t;
 
@@ -130,7 +135,7 @@ typedef struct RADIO
 	/**
 	 *
 	 */
-	int (*receive)(struct RADIO *radio, void *buf, int len);
+	radio_rcode_t (*receive)(struct RADIO *radio, uint8_t buf[IEEE802154_PHY_MTU]);
 	
 	/**
 	 *
@@ -153,6 +158,18 @@ typedef struct RADIO
 	radio_rcode_t (*set_addr_short)(struct RADIO *radio, uint16_t short_16);
 }
 radio_t;
+
+/**
+ *  The radio may or may not already have had a short 16-bit address
+ *  configured. If it didn't, this function allows the radio to notify the
+ *  6LoWPAN layer when it did configured a short 16-bit address after the
+ *  initialisation-procedure. This can be possible due to an association
+ *  event while comminissioning the IEEE802.15.4 PAN.
+ *  This function will call radio_t->get_addr_short in it's turn.
+ *
+ *  @param dev pico_device *, the 6LoWPAN pico_device-instance.
+ */
+void pico_sixlowpan_short_addr_configured(struct pico_device *dev);
 
 /**
  *  Creates a picoTCP-compatible pico_device. Creates the
