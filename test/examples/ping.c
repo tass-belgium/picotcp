@@ -53,7 +53,7 @@ void ping_abort_timer(pico_time now, void *_id)
 void app_ping(char *arg)
 {
     char *dest = NULL;
-    char *next, *abort;
+    char *next, *abort = NULL;
     static int id;
     int timeout = 0;
     next = cpy_arg(&dest, arg);
@@ -61,7 +61,6 @@ void app_ping(char *arg)
         fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]\n");
         exit(255);
     }
-
     if (next) {
         next = cpy_arg(&abort, next);
         if (strlen(abort) > 0) {
@@ -75,10 +74,9 @@ void app_ping(char *arg)
             printf("Aborting ping after %d seconds\n", timeout);
         }
     }
-
-    if (!IPV6_MODE)
+    if (!IPV6_MODE) {
         id = pico_icmp4_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping);
-
+    }
 #ifdef PICO_SUPPORT_IPV6
     else
         id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6, NULL);
@@ -87,7 +85,6 @@ void app_ping(char *arg)
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
         pico_timer_add(timeout * 1000, ping_abort_timer, &id);
     }
-
     /* free copied args */
     if (dest)
       free(dest);

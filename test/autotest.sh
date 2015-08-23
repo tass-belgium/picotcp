@@ -6,17 +6,17 @@ TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
 TFTP_WORK_FILE="test.img"
 
 function tftp_setup() {
-	dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
+    dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
 }
 
 function tftp_cleanup() {
-	echo CLEANUP
-	pwd;ls
-	killall -w picoapp.elf
-	rm -rf $TFTP_WORK_DIR
-	if [ $1 ]; then
-		exit $1
-	fi
+    echo CLEANUP
+    pwd;ls
+    killall -w picoapp.elf
+    rm -rf $TFTP_WORK_DIR
+    if [ $1 ]; then
+        exit $1
+    fi
 }
 
 
@@ -91,6 +91,21 @@ echo
 echo
 echo
 
+echo "MULTICAST IPV6 TEST"
+(./build/test/picoapp6.elf --vde pic1,/tmp/pic0.ctl,fe80::a28:3,ffff::, -a mcastreceive_ipv6,fe80::a28:3,ff00::e007:707,6667,6667,) &
+(./build/test/picoapp6.elf --vde pic2,/tmp/pic0.ctl,fe80::a28:4,ffff::, -a mcastreceive_ipv6,fe80::a28:4,ff00::e007:707,6667,6667,) &
+(./build/test/picoapp6.elf --vde pic3,/tmp/pic0.ctl,fe80::a28:5,ffff::, -a mcastreceive_ipv6,fe80::a28:5,ff00::e007:707,6667,6667,) &
+sleep 2
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,fe80::a28:2,ffff::, -a  mcastsend_ipv6,fe80::a28:2,ff00::e007:707,6667,6667, || exit 1
+(wait && wait && wait) || exit 1
+
+echo
+echo
+echo
+echo
+echo
+
+
 echo "IPV4 tests!"
 
 echo "PING LOCALHOST"
@@ -100,7 +115,6 @@ echo "PING TEST"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:: || exit 1
 killall -w picoapp.elf
-
 echo "PING TEST -- Aborted in 4 seconds"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:4:) &

@@ -1516,7 +1516,6 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
         return -1;
     }
 
-
     /* When given port = 0, get a random high port to bind to. */
     if (*port == 0) {
         *port = pico_socket_high_port(PROTO(s));

@@ -204,6 +204,7 @@ endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk
   include rules/igmp.mk
+  include rules/mld.mk
 endif
 ifneq ($(NAT),0)
   include rules/nat.mk
@@ -333,7 +334,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
+	@$(CC) -g -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
 	@echo -e "\t[LD] $(PREFIX)/test/units"
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt \
 		$(UNITS_OBJ) $(PREFIX)/modules/pico_aodv.o \

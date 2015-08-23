@@ -9,7 +9,7 @@
 #define _INCLUDE_PICO_ICMP6
 #include "pico_addressing.h"
 #include "pico_protocol.h"
-
+#include "pico_mld.h"
 /* ICMP header sizes */
 #define PICO_ICMP6HDR_DRY_SIZE          4
 #define PICO_ICMP6HDR_ECHO_REQUEST_SIZE 8
@@ -167,6 +167,16 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 struct pico_ip6 dest;
                 uint8_t options[0];
             } redirect;
+            PEDANTIC_STRUCT_DEF mld_s { 
+                uint16_t max_resp_time;
+                uint16_t reserved;
+                struct pico_ip6 mmcast_group;
+                /*MLDv2*/
+                uint8_t reserverd; // With S and QRV
+                uint8_t QQIC;
+                uint16_t nbr_src;
+                struct pico_ip6 src[0];
+            } mld;          
         } info;
     } msg;
 };

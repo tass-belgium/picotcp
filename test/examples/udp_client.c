@@ -230,7 +230,7 @@ void app_udpclient(char *arg)
         ret = pico_socket_connect(udpclient_pas->s, &udpclient_pas->dst.ip6, udpclient_pas->sport);
 
     if (ret < 0) {
-        printf("%s: error connecting to %s:%u: %s\n", __FUNCTION__, daddr, short_be(udpclient_pas->sport), strerror(pico_err));
+        printf("%s: error connecting to [%s]:%u: %s\n", __FUNCTION__, daddr, short_be(udpclient_pas->sport), strerror(pico_err));
         free(udpclient_pas);
         exit(1);
     }

@@ -14,7 +14,9 @@ $(PREFIX)/examples/dns_sd.o \
 $(PREFIX)/examples/dnsclient.o \
 $(PREFIX)/examples/mdns.o \
 $(PREFIX)/examples/multicast_recv.o \
+$(PREFIX)/examples/multicast_ip6_recv.o \
 $(PREFIX)/examples/multicast_send.o \
+$(PREFIX)/examples/multicast_ip6_send.o \
 $(PREFIX)/examples/natbox.o \
 $(PREFIX)/examples/noop.o \
 $(PREFIX)/examples/ping.o \

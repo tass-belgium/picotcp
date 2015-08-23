@@ -163,7 +163,7 @@ void app_udpecho(char *arg)
         if (!IPV6_MODE)
             printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
         else
-            printf("%s: error binding socket to [%s]:%u: %s\n", __FUNCTION__, "TODO_IPV6_ADDR", short_be(listen_port), strerror(pico_err));
+            printf("%s: error binding socket to [%s]:%u: %s\n", __FUNCTION__, baddr, short_be(listen_port), strerror(pico_err));
 
         exit(1);
     }

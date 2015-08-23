@@ -383,8 +383,8 @@ START_TEST (test_igmp_sockopts)
     int i = 0, j = 0, k = 0, ret = 0;
     struct pico_socket *s, *s1 = NULL;
     struct pico_device *dev = NULL;
-    struct pico_ip4 *source = NULL;
-    struct pico_ip4 inaddr_dst = {
+    union pico_address *source = NULL;
+    union pico_address inaddr_dst = {
         0
     }, inaddr_incorrect = {
         0
@@ -395,18 +395,18 @@ START_TEST (test_igmp_sockopts)
     }, netmask = {
         0
     };
-    struct pico_ip4 inaddr_link[2] = {{0}};
-    struct pico_ip4 inaddr_mcast[8] = {{0}};
-    struct pico_ip4 inaddr_source[8] = {{0}};
-    struct pico_ip_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
-    struct pico_ip_mreq_source mreq_source[128] = {{{0}}};
+    union pico_address inaddr_link[2] = {{0}};
+    union pico_address inaddr_mcast[8] = {{0}};
+    union pico_address inaddr_source[8] = {{0}};
+    union pico_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
+    union pico_mreq_source mreq_source[128] = {{{0}}};
     struct pico_tree_node *index = NULL;
 
     int ttl = 64;
     int getttl = 0;
     int loop = 9;
     int getloop = 0;
-    struct pico_ip4 mcast_default_link = {
+    union pico_address mcast_default_link = {
         0
     };
 
@@ -414,54 +414,54 @@ START_TEST (test_igmp_sockopts)
 
     printf("START IGMP SOCKOPTS TEST\n");
 
-    pico_string_to_ipv4("224.7.7.7", &inaddr_dst.addr);
-    pico_string_to_ipv4("10.40.0.2", &inaddr_uni.addr);
-    pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.addr);
-    pico_string_to_ipv4("0.0.0.0", &inaddr_null.addr);
+    pico_string_to_ipv4("224.7.7.7", &inaddr_dst.ip4.addr);
+    pico_string_to_ipv4("10.40.0.2", &inaddr_uni.ip4.addr);
+    pico_string_to_ipv4("224.8.8.8", &inaddr_incorrect.ip4.addr);
+    pico_string_to_ipv4("0.0.0.0", &inaddr_null.ip4.addr);
 
-    pico_string_to_ipv4("10.40.0.1", &inaddr_link[0].addr); /* 0 */
-    pico_string_to_ipv4("10.50.0.1", &inaddr_link[1].addr); /* 1 */
+    pico_string_to_ipv4("10.40.0.1", &inaddr_link[0].ip4.addr); /* 0 */
+    pico_string_to_ipv4("10.50.0.1", &inaddr_link[1].ip4.addr); /* 1 */
 
-    pico_string_to_ipv4("232.1.1.0", &inaddr_mcast[0].addr); /* 0 */
-    pico_string_to_ipv4("232.2.2.1", &inaddr_mcast[1].addr); /* 1 */
-    pico_string_to_ipv4("232.3.3.2", &inaddr_mcast[2].addr); /* 2 */
-    pico_string_to_ipv4("232.4.4.3", &inaddr_mcast[3].addr); /* 3 */
-    pico_string_to_ipv4("232.5.5.4", &inaddr_mcast[4].addr); /* 4 */
-    pico_string_to_ipv4("232.6.6.5", &inaddr_mcast[5].addr); /* 5 */
-    pico_string_to_ipv4("232.7.7.6", &inaddr_mcast[6].addr); /* 6 */
-    pico_string_to_ipv4("232.8.8.7", &inaddr_mcast[7].addr); /* 7 */
+    pico_string_to_ipv4("232.1.1.0", &inaddr_mcast[0].ip4.addr); /* 0 */
+    pico_string_to_ipv4("232.2.2.1", &inaddr_mcast[1].ip4.addr); /* 1 */
+    pico_string_to_ipv4("232.3.3.2", &inaddr_mcast[2].ip4.addr); /* 2 */
+    pico_string_to_ipv4("232.4.4.3", &inaddr_mcast[3].ip4.addr); /* 3 */
+    pico_string_to_ipv4("232.5.5.4", &inaddr_mcast[4].ip4.addr); /* 4 */
+    pico_string_to_ipv4("232.6.6.5", &inaddr_mcast[5].ip4.addr); /* 5 */
+    pico_string_to_ipv4("232.7.7.6", &inaddr_mcast[6].ip4.addr); /* 6 */
+    pico_string_to_ipv4("232.8.8.7", &inaddr_mcast[7].ip4.addr); /* 7 */
 
-    pico_string_to_ipv4("10.40.1.0", &inaddr_source[0].addr); /* 0 */
-    pico_string_to_ipv4("10.40.1.1", &inaddr_source[1].addr); /* 1 */
-    pico_string_to_ipv4("10.40.1.2", &inaddr_source[2].addr); /* 2 */
-    pico_string_to_ipv4("10.40.1.3", &inaddr_source[3].addr); /* 3 */
-    pico_string_to_ipv4("10.40.1.4", &inaddr_source[4].addr); /* 4 */
-    pico_string_to_ipv4("10.40.1.5", &inaddr_source[5].addr); /* 5 */
-    pico_string_to_ipv4("10.40.1.6", &inaddr_source[6].addr); /* 6 */
-    pico_string_to_ipv4("10.40.1.7", &inaddr_source[7].addr); /* 7 */
+    pico_string_to_ipv4("10.40.1.0", &inaddr_source[0].ip4.addr); /* 0 */
+    pico_string_to_ipv4("10.40.1.1", &inaddr_source[1].ip4.addr); /* 1 */
+    pico_string_to_ipv4("10.40.1.2", &inaddr_source[2].ip4.addr); /* 2 */
+    pico_string_to_ipv4("10.40.1.3", &inaddr_source[3].ip4.addr); /* 3 */
+    pico_string_to_ipv4("10.40.1.4", &inaddr_source[4].ip4.addr); /* 4 */
+    pico_string_to_ipv4("10.40.1.5", &inaddr_source[5].ip4.addr); /* 5 */
+    pico_string_to_ipv4("10.40.1.6", &inaddr_source[6].ip4.addr); /* 6 */
+    pico_string_to_ipv4("10.40.1.7", &inaddr_source[7].ip4.addr); /* 7 */
 
     /* 00 01 02 03 04 05 06 07 | 10 11 12 13 14 15 16 17 */
     for (i = 0; i < 16; i++) {
-        mreq[i].mcast_link_addr = inaddr_link[i / 8];
-        mreq[i].mcast_group_addr = inaddr_mcast[i % 8];
+        mreq[i].ipv4.mcast_link_addr = inaddr_link[i / 8].ip4;
+        mreq[i].ipv4.mcast_group_addr = inaddr_mcast[i % 8].ip4;
     }
     /* 000 001 002 003 004 005 006 007 | 010 011 012 013 014 015 016 017  */
     for (i = 0; i < 16; i++) {
         for (j = 0; j < 8; j++) {
             /* printf(">>>>> mreq_source[%d]: link[%d] mcast[%d] source[%d]\n", (i*8)+j, i/8, i%8, j); */
-            mreq_source[(i * 8) + j].mcast_link_addr = inaddr_link[i / 8];
-            mreq_source[(i * 8) + j].mcast_group_addr = inaddr_mcast[i % 8];
-            mreq_source[(i * 8) + j].mcast_source_addr = inaddr_source[j];
+            mreq_source[(i * 8) + j].ipv4.mcast_link_addr = inaddr_link[i / 8].ip4;
+            mreq_source[(i * 8) + j].ipv4.mcast_group_addr = inaddr_mcast[i % 8].ip4;
+            mreq_source[(i * 8) + j].ipv4.mcast_source_addr = inaddr_source[j].ip4;
         }
     }
     dev = pico_null_create("dummy0");
-    netmask.addr = long_be(0xFFFF0000);
-    ret = pico_ipv4_link_add(dev, inaddr_link[0], netmask);
+    netmask.ip4.addr = long_be(0xFFFF0000);
+    ret = pico_ipv4_link_add(dev, inaddr_link[0].ip4, netmask.ip4);
     fail_if(ret < 0, "link add failed");
 
     dev = pico_null_create("dummy1");
-    netmask.addr = long_be(0xFFFF0000);
-    ret = pico_ipv4_link_add(dev, inaddr_link[1], netmask);
+    netmask.ip4.addr = long_be(0xFFFF0000);
+    ret = pico_ipv4_link_add(dev, inaddr_link[1].ip4, netmask.ip4);
     fail_if(ret < 0, "link add failed");
 
     s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, NULL);
@@ -490,45 +490,44 @@ START_TEST (test_igmp_sockopts)
     ret = pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop);
     fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed getting value\n");
     fail_if(getloop != loop, "setoption loop != getoption loop\n");
-
-    _mreq.mcast_group_addr = inaddr_dst;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_dst.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "supported PICO_IP_ADD_MEMBERSHIP failed\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "supported PICO_IP_DROP_MEMBERSHIP failed\n");
-    _mreq.mcast_group_addr = inaddr_dst;
-    _mreq.mcast_link_addr = inaddr_null;
+    _mreq.ipv4.mcast_group_addr = inaddr_dst.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_null.ip4;
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
-    _mreq.mcast_group_addr = inaddr_uni;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_uni.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-    _mreq.mcast_group_addr = inaddr_null;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_null.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-    _mreq.mcast_group_addr = inaddr_dst;
-    _mreq.mcast_link_addr = inaddr_uni;
+    _mreq.ipv4.mcast_group_addr = inaddr_dst.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_uni.ip4;
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
-    _mreq.mcast_group_addr = inaddr_incorrect;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_incorrect.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (not added) group address\n");
-    _mreq.mcast_group_addr = inaddr_uni;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_uni.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-    _mreq.mcast_group_addr = inaddr_null;
-    _mreq.mcast_link_addr = inaddr_link[0];
+    _mreq.ipv4.mcast_group_addr = inaddr_null.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_link[0].ip4;
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-    _mreq.mcast_group_addr = inaddr_dst;
-    _mreq.mcast_link_addr = inaddr_uni;
+    _mreq.ipv4.mcast_group_addr = inaddr_dst.ip4;
+    _mreq.ipv4.mcast_link_addr = inaddr_uni.ip4;
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
 
@@ -693,9 +692,9 @@ START_TEST (test_igmp_sockopts)
             fail("MCASTFilter (INCLUDE + INCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */
+        if (source->ip4.addr == mreq_source[0].ipv4.mcast_source_addr.addr) { /* OK */
         }
-        else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */
+        else if (source->ip4.addr == mreq_source[1].ipv4.mcast_source_addr.addr) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + INCLUDE) incorrect\n");
@@ -724,7 +723,7 @@ START_TEST (test_igmp_sockopts)
             fail("MCASTFilter (INCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (source->addr == mreq_source[2].mcast_source_addr.addr) { /* OK */
+        if (source->ip4.addr == mreq_source[2].ipv4.mcast_source_addr.addr) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + EXCLUDE) incorrect\n");
@@ -757,9 +756,9 @@ START_TEST (test_igmp_sockopts)
             fail("MCASTFilter (EXCLUDE + INCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (source->addr == mreq_source[0].mcast_source_addr.addr) { /* OK */
+        if (source->ip4.addr == mreq_source[0].ipv4.mcast_source_addr.addr) { /* OK */
         }
-        else if (source->addr == mreq_source[1].mcast_source_addr.addr) { /* OK */
+        else if (source->ip4.addr == mreq_source[1].ipv4.mcast_source_addr.addr) { /* OK */
         }
         else {
             fail("MCASTFilter (EXCLUDE + INCLUDE) incorrect\n");
@@ -798,9 +797,9 @@ START_TEST (test_igmp_sockopts)
             fail("MCASTFilter (EXCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (source->addr == mreq_source[3].mcast_source_addr.addr) { /* OK */
+        if (source->ip4.addr == mreq_source[3].ipv4.mcast_source_addr.addr) { /* OK */
         }
-        else if (source->addr == mreq_source[4].mcast_source_addr.addr) { /* OK */
+        else if (source->ip4.addr == mreq_source[4].ipv4.mcast_source_addr.addr) { /* OK */
         }
         else {
             fail("MCASTFilter (EXCLUDE + EXCLUDE) incorrect\n");
