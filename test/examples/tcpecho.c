@@ -53,7 +53,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
     }
 
     if (ev & PICO_SOCK_EV_CONN) {
-        uint32_t ka_val = 0;
         struct pico_socket *sock_a = {
             0
         };
@@ -70,13 +69,6 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         pico_ipv4_to_string(peer, orig.addr);
         printf("Connection established with %s:%d.\n", peer, short_be(port));
         pico_socket_setoption(sock_a, PICO_TCP_NODELAY, &yes);
-        /* Set keepalive options */
-        ka_val = 5;
-        pico_socket_setoption(sock_a, PICO_SOCKET_OPT_KEEPCNT, &ka_val);
-        ka_val = 30000;
-        pico_socket_setoption(sock_a, PICO_SOCKET_OPT_KEEPIDLE, &ka_val);
-        ka_val = 5000;
-        pico_socket_setoption(sock_a, PICO_SOCKET_OPT_KEEPINTVL, &ka_val);
     }
 
     if (ev & PICO_SOCK_EV_FIN) {
@@ -146,8 +138,6 @@ void app_tcpecho(char *arg)
     }
 
     pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
-
-
 
     if (!IPV6_MODE)
         ret = pico_socket_bind(s, &inaddr_any.ip4, &listen_port);
