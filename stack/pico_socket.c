@@ -1012,7 +1012,7 @@ static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endp
 
 static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
     f->frag = PICO_IPV4_DONTFRAG;
 #else
     (void)f;
@@ -1070,7 +1070,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s);
 
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
 static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int space, int hdr_offset)
 {
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
@@ -1122,7 +1122,7 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
 
 #endif
 
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
     while(total_payload_written < len) {
         /* Always allocate the max space available: space + offset */
         if (len < space)

@@ -27,7 +27,8 @@ TCP?=1
 UDP?=1
 ETH?=1
 IPV4?=1
-IPFRAG?=1
+IPV4FRAG?=1
+IPV6FRAG?=0
 NAT?=1
 ICMP4?=1
 MCAST?=1
@@ -183,7 +184,7 @@ CORE_OBJ= stack/pico_stack.o \
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_tap.o \
-            modules/pico_dev_mock.o 
+            modules/pico_dev_mock.o
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -191,8 +192,8 @@ endif
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
 endif
-ifneq ($(IPFRAG),0)
-  include rules/ipfrag.mk
+ifneq ($(IPV4FRAG),0)
+  include rules/ipv4frag.mk
 endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk
@@ -301,7 +302,7 @@ test: posix
 	@$(CC) -g -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
-	
+
 tst: test
 
 $(PREFIX)/include/pico_defines.h:
