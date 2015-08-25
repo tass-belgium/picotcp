@@ -64,7 +64,7 @@ struct pico_frame {
     unsigned char *payload;
     uint16_t payload_len;
 
-#ifdef PICO_SUPPORT_IPFRAG
+#if defined(PICO_SUPPORT_IPV4FRAG) || defined(PICO_SUPPORT_IPV6FRAG)
     /* Payload fragmentation info */
     uint16_t frag;
 #endif

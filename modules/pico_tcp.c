@@ -300,6 +300,14 @@ struct pico_socket_tcp {
     uint8_t dupacks;
     uint8_t backoff;
     uint8_t localZeroWindow;
+
+    /* Keepalive */
+    struct pico_timer *keepalive_tmr;
+    pico_time ack_timestamp;
+    uint32_t ka_time;
+    uint32_t ka_intvl;
+    uint32_t ka_probes;
+    uint32_t ka_retries_count;
 };
 
 /* Queues */
@@ -967,6 +975,34 @@ static void sock_stats(uint32_t when, void *arg)
 }
 #endif
 
+static void tcp_send_probe(struct pico_socket_tcp *t);
+
+static void pico_tcp_keepalive(pico_time now, void *arg)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+    if (((t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED)  && (t->ka_time > 0)) {
+        if (t->ka_time < (now - t->ack_timestamp)) {
+            if (t->ka_retries_count == 0) {
+                /* First probe */
+                tcp_send_probe(t);
+                t->ka_retries_count++;
+            }
+            if (t->ka_retries_count > t->ka_probes) {
+                if (t->sock.wakeup)
+                    t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+            }
+            if (((t->ka_retries_count * t->ka_intvl) + t->ka_time) < (now - t->ack_timestamp)) {
+                /* Next probe */
+                tcp_send_probe(t);
+                t->ka_retries_count++;
+            }
+        } else {
+            t->ka_retries_count = 0;
+        }
+    }
+    t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
+}
+
 struct pico_socket *pico_tcp_open(uint16_t family)
 {
     struct pico_socket_tcp *t = PICO_ZALLOC(sizeof(struct pico_socket_tcp));
@@ -990,6 +1026,8 @@ struct pico_socket *pico_tcp_open(uint16_t family)
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
     pico_timer_add(2000, sock_stats, t);
 #endif
+
+    t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
     tcp_set_space(t);
 
     return &t->sock;
@@ -1973,6 +2011,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
     acked = (uint16_t)tcp_ack_advance_una(t, f, &acked_timestamp);
     una = first_segment(&t->tcpq_out);
+    t->ack_timestamp = TCP_TIME;
 
     if ((t->x_mode == PICO_TCP_BLACKOUT) ||
         ((t->x_mode == PICO_TCP_WINDOW_FULL) && ((t->recv_wnd << t->recv_wnd_scale) > t->mss))) {
@@ -3031,7 +3070,9 @@ void pico_tcp_cleanup_queues(struct pico_socket *sck)
         pico_timer_cancel(tcp->retrans_tmr);
         tcp->retrans_tmr = NULL;
     }
-
+    if(tcp->keepalive_tmr) {
+        pico_timer_cancel(tcp->keepalive_tmr);
+    }
     tcp_discard_all_segments(&tcp->tcpq_in);
     tcp_discard_all_segments(&tcp->tcpq_out);
     tcp_discard_all_segments(&tcp->tcpq_hold);
@@ -3127,6 +3168,27 @@ int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     *value = t->tcpq_out.max_size;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_probes(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_probes = value;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_intvl(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_intvl = value;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_time(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_time = value;
     return 0;
 }
 

@@ -24,16 +24,29 @@
 #include "pico_tree.h"
 #include "pico_constants.h"
 #include "pico_fragments.h"
+
 #define frag_dbg(...) do {} while(0)
 
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
 #define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))
 #define IP6_FRAG_MORE(x)        ((x & 0x0001))
 #define IP6_FRAG_ID(x)          ((uint32_t)((x->ext.frag.id[0] << 24) + (x->ext.frag.id[1] << 16) + \
                                             (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
+#else
+#define IP6_FRAG_OFF(x)         (0)
+#define IP6_FRAG_MORE(x)        (0)
+#define IP6_FRAG_ID(x)          (0)
+#endif
 
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
 #define IP4_FRAG_OFF(frag)      (((uint32_t)frag & PICO_IPV4_FRAG_MASK) << 3ul)
 #define IP4_FRAG_MORE(frag)     ((frag & PICO_IPV4_MOREFRAG) ? 1 : 0)
 #define IP4_FRAG_ID(hdr)        (hdr->id)
+#else
+#define IP4_FRAG_OFF(frag)      (0)
+#define IP4_FRAG_MORE(frag)     (0)
+#define IP4_FRAG_ID(hdr)        (0)
+#endif
 
 #define FRAG_OFF(net, frag)     ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_OFF(frag)) : (IP6_FRAG_OFF(frag)))
 #define FRAG_MORE(net, frag)    ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_MORE(frag)) : (IP6_FRAG_MORE(frag)))
@@ -41,20 +54,13 @@
 #define PICO_IPV6_FRAG_TIMEOUT   60000
 #define PICO_IPV4_FRAG_TIMEOUT   15000
 
-static int pico_ipv6_frag_compare(void *ka, void *kb);
-static int pico_ipv4_frag_compare(void *ka, void *kb);
-static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto);
-static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto);
+static void pico_frag_expire(pico_time now, void *arg);
 static void pico_fragments_complete(unsigned int bookmark, uint8_t proto, uint8_t net);
 static int pico_fragments_check_complete(uint8_t proto, uint8_t net);
-static void pico_frag_expire(pico_time now, void *arg);
-static void pico_ipv6_frag_timer_on(void);
-static void pico_ipv4_frag_timer_on(void);
-static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b);
-static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b);
 
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 static uint32_t ipv6_cur_frag_id = 0u;
-static uint32_t ipv4_cur_frag_id = 0u;
+struct pico_timer *ipv6_fragments_timer = NULL;
 
 static int pico_ipv6_frag_compare(void *ka, void *kb)
 {
@@ -68,23 +74,6 @@ static int pico_ipv6_frag_compare(void *ka, void *kb)
     return 0;
 }
 PICO_TREE_DECLARE(ipv6_fragments, pico_ipv6_frag_compare);
-
-struct pico_timer *ipv6_fragments_timer = NULL;
-
-static int pico_ipv4_frag_compare(void *ka, void *kb)
-{
-    struct pico_frame *a = ka, *b = kb;
-    if (IP4_FRAG_OFF(a->frag) > IP4_FRAG_OFF(b->frag))
-        return 1;
-
-    if (IP4_FRAG_OFF(a->frag) < IP4_FRAG_OFF(b->frag))
-        return -1;
-
-    return 0;
-}
-PICO_TREE_DECLARE(ipv4_fragments, pico_ipv4_frag_compare);
-
-struct pico_timer *ipv4_fragments_timer = NULL;
 
 static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
 {
@@ -120,6 +109,49 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
         }
     }
 }
+
+static void pico_ipv6_frag_timer_on(void)
+{
+    ipv6_fragments_timer = pico_timer_add(PICO_IPV6_FRAG_TIMEOUT, pico_frag_expire, &ipv6_fragments);
+}
+
+static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
+{
+    struct pico_ipv6_hdr *ha, *hb;
+    if (!a || !b)
+        return 0;
+
+    ha = (struct pico_ipv6_hdr *)a->net_hdr;
+    hb = (struct pico_ipv6_hdr *)b->net_hdr;
+    if (!ha || !hb)
+        return 0;
+
+    if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
+        return 0;
+
+    if (memcmp(ha->dst.addr, hb->dst.addr, PICO_SIZE_IP6) != 0)
+        return 0;
+
+    return 1;
+}
+#endif
+
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
+static uint32_t ipv4_cur_frag_id = 0u;
+struct pico_timer *ipv4_fragments_timer = NULL;
+
+static int pico_ipv4_frag_compare(void *ka, void *kb)
+{
+    struct pico_frame *a = ka, *b = kb;
+    if (IP4_FRAG_OFF(a->frag) > IP4_FRAG_OFF(b->frag))
+        return 1;
+
+    if (IP4_FRAG_OFF(a->frag) < IP4_FRAG_OFF(b->frag))
+        return -1;
+
+    return 0;
+}
+PICO_TREE_DECLARE(ipv4_fragments, pico_ipv4_frag_compare);
 
 static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
 {
@@ -157,16 +189,48 @@ static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
     }
 }
 
+static void pico_ipv4_frag_timer_on(void)
+{
+    ipv4_fragments_timer = pico_timer_add( PICO_IPV4_FRAG_TIMEOUT, pico_frag_expire, &ipv4_fragments);
+}
+
+static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b)
+{
+    struct pico_ipv4_hdr *ha, *hb;
+    if (!a || !b)
+        return 0;
+
+    ha = (struct pico_ipv4_hdr *)a->net_hdr;
+    hb = (struct pico_ipv4_hdr *)b->net_hdr;
+    if (!ha || !hb)
+        return 0;
+
+    if (memcmp(&(ha->src.addr), &(hb->src.addr), PICO_SIZE_IP4) != 0)
+        return 0;
+
+    if (memcmp(&(ha->dst.addr), &(hb->dst.addr), PICO_SIZE_IP4) != 0)
+        return 0;
+
+    return 1;
+}
+#endif
+
 static void pico_fragments_complete(unsigned int bookmark, uint8_t proto, uint8_t net)
 {
-    if (net == PICO_PROTO_IPV4)
+    if (0) {}
+
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
+    else if (net == PICO_PROTO_IPV4)
     {
         pico_ipv4_fragments_complete(bookmark, proto);
     }
-    else
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    else if (net == PICO_PROTO_IPV6)
     {
         pico_ipv6_fragments_complete(bookmark, proto);
     }
+#endif
 }
 
 static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
@@ -176,15 +240,18 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
     unsigned int bookmark = 0;
     struct pico_tree *tree = NULL;
 
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     if (net == PICO_PROTO_IPV4)
     {
         tree = &ipv4_fragments;
     }
-    else
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    if (net == PICO_PROTO_IPV6)
     {
         tree = &ipv6_fragments;
     }
-
+#endif
 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
@@ -222,16 +289,20 @@ static void pico_frag_expire(pico_time now, void *arg)
         return;
     }
 
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     if (IS_IPV4(first))
     {
         net = PICO_PROTO_IPV4;
         frag_dbg("Packet expired! ID:%hu\n", ipv4_cur_frag_id);
     }
-    else
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    if (IS_IPV6(first))
     {
         net = PICO_PROTO_IPV6;
         frag_dbg("Packet expired! ID:%hu\n", ipv6_cur_frag_id);
     }
+#endif
 
     /* Empty the tree */
     pico_tree_foreach_safe(index, tree, tmp) {
@@ -254,60 +325,9 @@ static void pico_frag_expire(pico_time now, void *arg)
     pico_frame_discard(first);
 }
 
-static void pico_ipv6_frag_timer_on(void)
-{
-    ipv6_fragments_timer = pico_timer_add(PICO_IPV6_FRAG_TIMEOUT, pico_frag_expire, &ipv6_fragments);
-}
-
-static void pico_ipv4_frag_timer_on(void)
-{
-    ipv4_fragments_timer = pico_timer_add( PICO_IPV4_FRAG_TIMEOUT, pico_frag_expire, &ipv4_fragments);
-}
-
-
-static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
-{
-    struct pico_ipv6_hdr *ha, *hb;
-    if (!a || !b)
-        return 0;
-
-    ha = (struct pico_ipv6_hdr *)a->net_hdr;
-    hb = (struct pico_ipv6_hdr *)b->net_hdr;
-    if (!ha || !hb)
-        return 0;
-
-    if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
-        return 0;
-
-    if (memcmp(ha->dst.addr, hb->dst.addr, PICO_SIZE_IP6) != 0)
-        return 0;
-
-    return 1;
-}
-
-static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b)
-{
-    struct pico_ipv4_hdr *ha, *hb;
-    if (!a || !b)
-        return 0;
-
-    ha = (struct pico_ipv4_hdr *)a->net_hdr;
-    hb = (struct pico_ipv4_hdr *)b->net_hdr;
-    if (!ha || !hb)
-        return 0;
-
-    if (memcmp(&(ha->src.addr), &(hb->src.addr), PICO_SIZE_IP4) != 0)
-        return 0;
-
-    if (memcmp(&(ha->dst.addr), &(hb->dst.addr), PICO_SIZE_IP4) != 0)
-        return 0;
-
-    return 1;
-}
-
-
 void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f, uint8_t proto)
 {
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
 
     if (!first) {
@@ -327,10 +347,16 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
     }
 
     pico_fragments_check_complete(proto, PICO_PROTO_IPV6);
+#else
+    IGNORE_PARAMETER(frag);
+    IGNORE_PARAMETER(f);
+    IGNORE_PARAMETER(proto);
+#endif
 }
 
 void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto)
 {
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     struct pico_frame *first = pico_tree_first(&ipv4_fragments);
 
     /* fragments from old packets still in tree, and new first fragment ? */
@@ -363,4 +389,9 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
     }
 
     pico_fragments_check_complete(proto, PICO_PROTO_IPV4);
+#else
+    IGNORE_PARAMETER(hdr);
+    IGNORE_PARAMETER(f);
+    IGNORE_PARAMETER(proto);
+#endif
 }
