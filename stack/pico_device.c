@@ -183,7 +183,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
 int pico_sixlowpan_init(struct pico_device *dev, const char *name, struct pico_sixlowpan_addr addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                   0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa }};
+                                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     struct pico_ip6 netmask = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     uint32_t len = (uint32_t)strlen(name);
@@ -215,19 +215,32 @@ int pico_sixlowpan_init(struct pico_device *dev, const char *name, struct pico_s
         return -1;
     }
     
-    /* Copy in the Interface Identifier */
-    memcpy(linklocal.addr + 8, dev->sixlowpan->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
-    
     /* Insert the device in the pico-device tree */
     pico_tree_insert(&Device_tree, dev);
     if (!dev->mtu)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
     
+    /* Copy in the Interface Identifier */
+    memcpy(linklocal.addr + 8, addr._ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+    linklocal.addr[8] = linklocal.addr[8] ^ 0x02; /* Toggle U/L bit */
+    
     /* Add an IPv6 link to the device */
     if (pico_ipv6_link_add(dev, linklocal, netmask) == NULL) {
         return -1;
+    } else {
+        device_init_ipv6_final(dev, &linklocal);
     }
     
+    if (addr._short.addr != 0xFFFF) {
+        memset(linklocal.addr + 8, 0x00, 8);
+        linklocal.addr[11] = 0xFF;
+        linklocal.addr[12] = 0xFE;
+        linklocal.addr[14] = (uint8_t)((addr._short.addr >> 8) & 0xFF);
+        linklocal.addr[15] = (uint8_t)(addr._short.addr & 0xFF);
+        if (pico_ipv6_link_add(dev, linklocal, netmask) == NULL)
+            return -1;
+    }
+
     return 0;
 }
 #endif
@@ -346,6 +359,7 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             break; /* Don't discard */
 
     }
+    
     return loop_score;
 }
 

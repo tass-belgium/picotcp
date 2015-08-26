@@ -390,8 +390,13 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }};
 
     len = PICO_ICMP6HDR_ROUTER_SOL_SIZE;
-    if (!pico_ipv6_is_unspecified(src->addr))
+    if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
+#ifdef PICO_SUPPORT_SIXLOWPAN
+        if (dev->sixlowpan && IEEE802154_ADDRESS_MODE_EXTENDED == dev->sixlowpan->_mode)
+            len = (uint16_t)(len + 8);
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+    }
 
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
     if (!sol) {
@@ -409,8 +414,28 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     if (!pico_ipv6_is_unspecified(src->addr)) {
         lladdr = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.router_sol.options;
         lladdr->type = PICO_ND_OPT_LLADDR_SRC;
-        lladdr->len = 1;
-        memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+        
+        if (dev->eth) {
+            lladdr->len = 1;
+            memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+        }
+#ifdef PICO_SUPPORT_SIXLOWPAN
+        else if (dev->sixlowpan) {
+            if (IEEE802154_ADDRESS_MODE_BOTH == dev->sixlowpan->_mode ||
+                IEEE802154_ADDRESS_MODE_SHORT == dev->sixlowpan->_mode) {
+                lladdr->len = 1;
+                memcpy(&(lladdr->addr._short.addr), &(dev->sixlowpan->_short.addr), PICO_SIZE_SIXLOWPAN_SHORT);
+                memset(&(lladdr->addr._short.addr) + PICO_SIZE_SIXLOWPAN_SHORT, 0x00, 4);
+            } else {
+                lladdr->len = 2;
+                memcpy(lladdr->addr._ext.addr, dev->sixlowpan->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+                memset(lladdr->addr._ext.addr + PICO_SIZE_SIXLOWPAN_EXT, 0x00, 6);
+            }
+        }
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+        else {
+            return -1;
+        }
     }
 
     sol->dev = dev;

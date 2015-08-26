@@ -13,8 +13,8 @@
 
 #define IEEE802154_PHY_MTU (128u)
 #define IEEE802154_MAC_MTU (125u)
-
-#define PACKED __attribute__((packed))
+#define IEEE802154_PHY_OVERHEAD (3u)
+#define IEEE802154_MAC_OVERHEAD (2u)
 
 /**
  *  FRAME TYPE DEFINITIONS (IEEE802.15.4)
@@ -106,6 +106,17 @@ typedef union
 } IEEE802154_fcf_t;
 
 /**
+ *  FRAME HEADER (IEEE802.15.4)
+ */
+typedef PACKED_STRUCT_DEF
+{
+    struct IEEE802154_fcf fcf;
+    uint8_t seq;
+    uint16_t pan;
+    uint8_t addresses[0];
+} IEEE802154_hdr_t;
+
+/**
  *  RADIO DRIVER RETURN CODES (DRIVER)
  */
 typedef enum
@@ -116,7 +127,8 @@ typedef enum
     RADIO_ERR_ENOMEM,
     /* RADIO ERRORS */
 	RADIO_ERR_ENOCONN,
-    RADIO_ERR_ERX
+    RADIO_ERR_ERX,
+    RADIO_ERR_ETX
 }
 radio_rcode_t;
 
@@ -158,6 +170,8 @@ typedef struct RADIO
 	radio_rcode_t (*set_addr_short)(struct RADIO *radio, uint16_t short_16);
 }
 radio_t;
+
+void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
 
 /**
  *  The radio may or may not already have had a short 16-bit address

@@ -20,7 +20,8 @@
 #ifdef PICO_SUPPORT_IPV6
 
 
-#define nd_dbg(...) do {} while(0)
+//#define nd_dbg(...) do {} while(0)
+#define nd_dbg dbg
 
 static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { };
 
@@ -900,7 +901,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
     struct pico_ipv6_route *rt;
     struct pico_ip6 nm64 = { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0 } };
     pico_time next_timer_expire = 0u;
-
+    
     (void)arg;
     (void)now;
     pico_tree_foreach(rindex, &IPV6Routes)

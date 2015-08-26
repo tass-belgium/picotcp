@@ -177,7 +177,18 @@ PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
     uint8_t len;
     PACKED_UNION_DEF icmp6_opt_hw_addr_u {
         struct pico_eth mac;
+#ifdef PICO_SUPPORT_SIXLOWPAN
+        struct pico_sixlowpan_addr_short _short;
+        struct pico_sixlowpan_addr_ext _ext;
+#endif /* PICO_SUPPORT_SIXLOWPAN */
     } addr;
+};
+
+PACKED_STRUCT_DEF pico_icmp6_opt_6lowpan_addr
+{
+    uint8_t type;
+    uint8_t len;
+    
 };
 
 PACKED_STRUCT_DEF pico_icmp6_opt_prefix
