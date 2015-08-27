@@ -171,6 +171,8 @@ typedef struct RADIO
 }
 radio_t;
 
+void pico_sixlowpan_transmitted(void);
+
 void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
 
 /**

@@ -90,6 +90,15 @@
 
 static int sixlowpan_devnum = 0;
 
+typedef enum
+{
+    SIXLOWPAN_NREADY = -1,
+    SIXLOWPAN_READY,
+    SIXLOWPAN_TRANSMITTING
+} PACKED sixlowpan_state_t;
+
+static volatile sixlowpan_state_t sixlowpan_state = SIXLOWPAN_READY;
+
 /* -------------------------------------------------------------------------------- */
 // MARK: 6LoWPAN types
 
@@ -114,6 +123,28 @@ struct pico_device_sixlowpan
 };
 
 /**
+ *  Frame Status definitions
+ *  MARK: Frame Status
+ */
+typedef enum
+{
+    FRAME_ERROR = -1,
+    FRAME_OK,
+    FRAME_FITS,
+    FRAME_FITS_COMPRESSED,
+    FRAME_COMPRESSED,
+    FRAME_COMPRESSIBLE_NH,
+    FRAME_FRAGMENTED,
+    FRAME_PENDING,
+    FRAME_SENT,
+    FRAME_ACKED,
+    /* ------------------- */
+    FRAME_COMPRESSED_NHC,
+    FRAME_NOT_COMPRESSED_NHC,
+    FRAME_DECOMPRESSED
+} PACKED frame_status_t;
+
+/**
  *  Definition of a 6LoWPAN frame
  */
 struct sixlowpan_frame
@@ -135,6 +166,9 @@ struct sixlowpan_frame
     
     uint8_t *fcs;
     
+    uint8_t max_bytes;
+    uint16_t to_send;
+    
     /* Next Header field */
     uint8_t nxthdr;
 
@@ -154,28 +188,6 @@ struct sixlowpan_frame
      */
     struct pico_sixlowpan_addr local;
 };
-
-/**
- *  Frame Status definitions
- *  MARK: Frame Status
- */
-typedef enum
-{
-    FRAME_ERROR = -1,
-    FRAME_OK,
-    FRAME_FITS,
-    FRAME_FITS_COMPRESSED,
-    FRAME_COMPRESSED,
-    FRAME_COMPRESSIBLE_NH,
-    FRAME_FRAGMENTED,
-    FRAME_PENDING,
-    FRAME_SENT,
-    FRAME_ACKED,
-    /* ------------------- */
-    FRAME_COMPRESSED_NHC,
-    FRAME_NOT_COMPRESSED_NHC,
-    FRAME_DECOMPRESSED
-} frame_status_t;
 
 /**
  *  Possible 6LoWPAN dispatch type definitions
@@ -495,10 +507,11 @@ static uint8_t *FRAME_BUF_INSERT(struct sixlowpan_frame *f, uint8_t *buf, range_
     }
     
     r.offset = (uint16_t)((uint16_t)(buf - f->phy_hdr) + r.offset);
-    ret = (uint8_t *)(f->phy_hdr + r.offset);
     
     if (!(MEM_INSERT(f->phy_hdr, f->size, r)))
         return NULL;
+
+    ret = (uint8_t *)(f->phy_hdr + r.offset);
     
     /* Set the new buffer size */
     f->size = (uint16_t)(f->size + r.length);
@@ -1907,6 +1920,153 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     return frame;
 }
 
+typedef PACKED_STRUCT_DEF
+{
+    uint8_t size0: 3;
+    uint8_t dispatch: 5;
+    uint8_t size1;
+    uint16_t datagram_tag;
+} sixlowpan_frag1_t;
+
+typedef PACKED_STRUCT_DEF
+{
+    uint8_t size0: 3;
+    uint8_t dispatch: 5;
+    uint8_t size1;
+    uint16_t datagram_tag;
+    uint8_t offset;
+} sixlowpan_fragn_t;
+
+#define SET_FRAG_SIZE(frag, size) \
+        frag->size0 = (uint8_t)short_be(short_be(size) >> 0xD); \
+        frag->size1 = (uint8_t)size
+
+static int sixlowpan_frame_frag(struct sixlowpan_frame *f)
+{
+    range_t r = {0, .length = dispatch_info[SIXLOWPAN_FRAGN][INFO_HDR_LEN]};
+    uint8_t max_psize = 0, n = 0, i = 0;
+    sixlowpan_frag1_t *frag1 = NULL;
+    sixlowpan_fragn_t *fragn = NULL;
+    static uint16_t dtag = 0;
+    uint8_t *buf = NULL;
+    
+    CHECK_PARAM(f);
+    
+    f->to_send = (uint16_t)(f->size + IEEE802154_PHY_OVERHEAD - f->link_hdr_len); /* Entire size of the payload */
+    max_psize = (uint8_t)(IEEE802154_MAC_MTU - f->link_hdr_len - sizeof(sixlowpan_fragn_t));
+    f->max_bytes = (uint8_t)((uint8_t)((uint8_t)max_psize / 8) * 8);
+    n = (uint8_t)(f->to_send / f->max_bytes); /* Number of packets to send an entire payload */
+    
+    /* Prepend space for the first Fragmentation header */
+    if (!FRAME_BUF_PREPEND(f, f->net_hdr, sizeof(sixlowpan_frag1_t)))
+        return -1;
+    frag1 = (sixlowpan_frag1_t *)f->net_hdr;
+    
+    /* Set the LOWPAN_FRAG1-fields */
+    frag1->dispatch = 0x18;
+    SET_FRAG_SIZE(frag1, f->to_send);
+    frag1->datagram_tag = short_be(++dtag);
+    buf = (uint8_t *)(f->net_hdr + f->max_bytes + sizeof(sixlowpan_frag1_t));
+    
+    /* Iterate of the network header until the end and insert fragmentation headers */
+    for (i = 0; i < n; i++) {
+        r.offset = (uint16_t)(buf - f->net_hdr);
+        if (!(buf = FRAME_BUF_INSERT(f, f->net_hdr, r)))
+            return -1;
+        
+        /* Set the fields of the current frag-header */
+        pan_dbg("buf offset %d should be 104 + 4\n", (uint16_t)(buf - f->net_hdr));
+        fragn = (sixlowpan_fragn_t *)buf;
+        fragn->dispatch = 0x1C;
+        SET_FRAG_SIZE(fragn, f->to_send);
+        fragn->datagram_tag = short_be(dtag);
+        fragn->offset = (uint8_t)((i + 1) * (f->max_bytes / 8));
+        
+        /* Move to next place to insert a fragmentation header */
+        buf = buf + f->max_bytes + sizeof(sixlowpan_fragn_t);
+    }
+    
+    pan_dbg("TOTAL PSIZE %d %d / MAX_BYTES %d\n", f->to_send, (f->net_len + f->transport_len), f->max_bytes);
+    dbg_mem("FRAG:", f->net_hdr, (uint16_t)(f->net_len + f->transport_len));
+    
+    return 0;
+}
+
+static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
+{
+    range_t r = {.offset = 0, .length = 0};
+    uint8_t *buf = NULL;
+    uint8_t fragl = 0;
+    
+    CHECK_PARAM_NULL(f);
+    CHECK_PARAM_NULL(len);
+    
+    if (0 == f->to_send)
+        return NULL;
+
+    if (CHECK_DISPATCH((*f->net_hdr), SIXLOWPAN_FRAG1)) {
+        fragl = (uint8_t)(f->max_bytes + sizeof(sixlowpan_frag1_t));
+        f->to_send = (uint16_t)(f->to_send - f->max_bytes);
+    } else {
+        /* Determine if we're at the rest or not */
+        if (f->to_send < f->max_bytes) {
+            fragl = (uint8_t)(f->to_send + sizeof(sixlowpan_fragn_t));
+            f->to_send = (uint16_t)0;
+        } else {
+            fragl = (uint8_t)(f->max_bytes + sizeof(sixlowpan_fragn_t));
+            f->to_send = (uint16_t)(f->to_send - f->max_bytes);
+        }
+    }
+    
+    *len = (uint8_t)(f->link_hdr_len + (uint8_t)(fragl + IEEE802154_PHY_OVERHEAD));
+    pan_dbg("LEN OF FRAGMENT: %d whereof pure data %d\n", *len, fragl);
+    if (!(buf = PICO_ZALLOC((size_t)(*len)))) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
+    
+    memcpy(buf + IEEE802154_LEN_LEN, f->link_hdr, (size_t)(*len - IEEE802154_PHY_OVERHEAD));
+    
+    /* Remove the fragment from the frame */
+    r.length = (uint16_t)fragl;
+    FRAME_BUF_DELETE(f, f->net_hdr, r, 0);
+    
+    return buf;
+}
+
+typedef struct
+{
+    struct sixlowpan_frame *f;
+    struct pico_device_sixlowpan *dev;
+} stream_info_t;
+
+static void sixlowpan_frame_tx_stream_start(pico_time now, void *arg)
+{
+    stream_info_t *i = NULL;
+    uint8_t len = 0;
+    uint8_t *buf = NULL;
+    
+    IGNORE_PARAMETER(now);
+    CHECK_PARAM_VOID(arg);
+    i = (stream_info_t *)arg;
+    
+    while ((buf = sixlowpan_frame_tx_next(i->f, &len))) {
+        if (i->dev->radio->transmit(i->dev->radio, buf, len) > 0) {
+            PICO_FREE(buf);
+        } else {
+            PICO_FREE(buf);
+            PICO_FREE(i->f);
+            PICO_FREE(i);
+            return;
+        }
+    }
+    
+    /* Free the allocated frame and stream-info */
+    sixlowpan_frame_destroy(i->f);
+    PICO_FREE(i);
+    sixlowpan_state = SIXLOWPAN_READY;
+}
+
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
 {
 	/* Parse the pico_device structure to the internal sixlowpan-structure */
@@ -1914,7 +2074,12 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     struct pico_frame *f = (struct pico_frame *)buf;
     struct sixlowpan_frame *frame = NULL;
     frame_status_t s = FRAME_ERROR;
+    stream_info_t *i = NULL;
     int ret = 0;
+    
+    /* While transmitting no frames can be passed to the 6LoWPAN-device */
+    if (SIXLOWPAN_TRANSMITTING == sixlowpan_state)
+        return 0;
     
     CHECK_PARAM(dev);
     CHECK_PARAM(buf);
@@ -1928,29 +2093,43 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     
     /* Try to compress the 6LoWPAN-frame */
     if (FRAME_COMPRESSED == (s = sixlowpan_compress(frame))) {
-        /* TODO: [6LOWPAN ADAPTION LAYER] prepend FRAG HEADER */
-        
         /* 1. - Split up the entire compressed frame */
-        /* 2. - Schedule for sending*/
+        if (sixlowpan_frame_frag(frame)) {
+            sixlowpan_frame_destroy(frame);
+            return -1;
+        }
         
-        /* For now don't sent */
+        if (!(i = PICO_ZALLOC(sizeof(stream_info_t)))) {
+            pico_err = PICO_ERR_ENOMEM;
+            sixlowpan_frame_destroy(frame);
+            return -1;
+        }
         
-        /* TODO: [6LOWPAN ADAPTION LAYER] prepend BROADCASTING/MESH ROUTING */
+        i->f = frame;
+        i->dev = sixlowpan;
         
-        /* 1. - Whether or not the packet need to broadcasted */
-        /* 2. - Whether or not the packet needs to be mesh routed */
+        /* Schedule for sending */
+        sixlowpan_state = SIXLOWPAN_TRANSMITTING;
         
+        ret = frame->size;
+        
+        pico_timer_add(0, sixlowpan_frame_tx_stream_start, (void *)i);
+        
+        return ret;
     } else if (FRAME_ERROR == s) {
         pan_dbg("FRAME_ERROR occured during compressing!\n");
         sixlowpan_frame_destroy(frame);
         return -1;
+    } else {
+        ret = sixlowpan->radio->transmit(sixlowpan->radio, frame->phy_hdr, frame->size);
+        sixlowpan_frame_destroy(frame);
     }
     
-    /* Call the transmit-callback on this sixlowpan's specific radio-instance */
-    ret = sixlowpan->radio->transmit(sixlowpan->radio, frame->phy_hdr, frame->size);
+    /* TODO: [6LOWPAN ADAPTION LAYER] prepend BROADCASTING/MESH ROUTING */
     
-    /* Discard the frame */
-    sixlowpan_frame_destroy(frame);
+    /* 1. - Whether or not the packet need to broadcasted */
+    /* 2. - Whether or not the packet needs to be mesh routed */
+    
     
     return ret;
 }
