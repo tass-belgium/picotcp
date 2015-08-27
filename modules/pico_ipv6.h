@@ -23,7 +23,7 @@
 #define PICO_IPV6_EXTHDR_NONE 59
 #define PICO_IPV6_EXTHDR_DESTOPT 60
 
-
+#define IPV6_OPTLEN(x) ((uint16_t)(((x + 1) << 3)))
 
 
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
@@ -81,6 +81,7 @@ struct pico_ipv6_route
     struct pico_ipv6_link *link;
     uint32_t metric;
 };
+
 
 PACKED_STRUCT_DEF pico_ipv6_exthdr {
     uint8_t nxthdr;

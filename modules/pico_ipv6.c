@@ -627,8 +627,6 @@ static int pico_ipv6_process_destopt(struct pico_ipv6_exthdr *destopt, struct pi
     return 0;
 }
 
-#define IPV6_OPTLEN(x) ((uint16_t)(((x + 1) << 3)))
-
 static int pico_ipv6_check_headers_sequence(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
