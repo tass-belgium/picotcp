@@ -90,23 +90,23 @@
 
 static int sixlowpan_devnum = 0;
 
-typedef enum
+enum sixlowpan_state
 {
     SIXLOWPAN_NREADY = -1,
     SIXLOWPAN_READY,
     SIXLOWPAN_TRANSMITTING
-} PACKED sixlowpan_state_t;
+};
 
-static volatile sixlowpan_state_t sixlowpan_state = SIXLOWPAN_READY;
+static volatile enum sixlowpan_state sixlowpan_state = SIXLOWPAN_READY;
 
 /* -------------------------------------------------------------------------------- */
 // MARK: 6LoWPAN types
 
-typedef enum
+enum endian_mode
 {
     ENDIAN_IEEE802154 = 0,
     ENDIAN_SIXLOWPAN
-} PACKED endian_mode_t;
+};
 
 /**
  *  Definition of 6LoWPAN pico_device
@@ -126,7 +126,7 @@ struct pico_device_sixlowpan
  *  Frame Status definitions
  *  MARK: Frame Status
  */
-typedef enum
+enum frame_status
 {
     FRAME_ERROR = -1,
     FRAME_OK,
@@ -142,7 +142,7 @@ typedef enum
     FRAME_COMPRESSED_NHC,
     FRAME_NOT_COMPRESSED_NHC,
     FRAME_DECOMPRESSED
-} PACKED frame_status_t;
+};
 
 /**
  *  Definition of a 6LoWPAN frame
@@ -255,7 +255,7 @@ enum dispatch_info_type
  *  LOWPAN_IPHC Header structure
  *  MARK: LOWPAN_IPHC types
  */
-typedef PACKED_STRUCT_DEF
+PACKED_STRUCT_DEF sixlowpan_iphc
 {
     uint8_t hop_limit: 2;
     uint8_t next_header: 1;
@@ -267,124 +267,122 @@ typedef PACKED_STRUCT_DEF
     uint8_t sam: 2;
     uint8_t sac: 1;
     uint8_t context_ext: 1;
-} sixlowpan_iphc_t;
+};
 
-typedef enum
+enum iphc_tf
 {
     TF_COMPRESSED_NONE = 0,
     TF_COMPRESSED_TC,
     TF_COMPRESSED_FL,
     TF_COMPRESSED_FULL
-} PACKED iphc_tf_t;
+}; /* Traffic class / Flow label*/
 
-typedef enum
+enum iphc_nh
 {
-    NH_COMPRESSED_NONE,
+    NH_COMPRESSED_NONE = 0,
     NH_COMPRESSED
-} PACKED iphc_nh_t;
+}; /* Next Header */
 
-typedef enum
+enum iphc_hl
 {
     HL_COMPRESSED_NONE = 0,
     HL_COMPRESSED_1,
     HL_COMPRESSED_64,
     HL_COMPRESSED_255
-} PACKED iphc_hl_t;
+}; /* Hop Limit */
 
-typedef enum
+enum iphc_cid
 {
     CID_CONTEXT_NONE = 0,
     CID_CONTEXT_EXTENSION
-} PACKED iphc_cid_t;
+}; /* Context extension IDentifier present */
 
-typedef enum
+enum iphc_ac
 {
     AC_COMPRESSION_STATELESS = 0,
     AC_COMPRESSION_STATEFULL
-} PACKED iphc_ac_t;
+}; /* Address Compression */
 
-typedef enum
+enum iphc_am
 {
     AM_COMPRESSED_NONE = 0,
     AM_COMPRESSED_64,
     AM_COMPRESSED_16,
     AM_COMPRESSED_FULL
-} PACKED iphc_am_t;
+}; /* Addressing compression Mode */
 
-typedef enum
+enum iphc_mcast
 {
     MCAST_MULTICAST_NONE = 0,
     MCAST_MULTICAST
-} PACKED iphc_mcast_t;
+}; /* Multicast destination */
 
-typedef enum
+enum iphc_mcast_dam
 {
     MCAST_COMPRESSED_NONE = 0,
     MCAST_COMPRESSED_48,
     MCAST_COMPRESSED_32,
     MCAST_COMPRESSED_8
-} PACKED iphc_dam_mcast_t;
+}; /* Multicast compression */
 
 /**
  *  LOWPAN_NHC_EXT Header structure
  *  MARK: LOWPAN_NHC types
  */
-typedef PACKED_STRUCT_DEF
+PACKED_STRUCT_DEF sixlowpan_nhc_ext
 {
     uint8_t nh: 1;
     uint8_t eid: 3;
     uint8_t dispatch: 4;
-} sixlowpan_nhc_ext_t;
+}; /* NHC_EXT Header */
 
-typedef enum
+enum nhc_ext_eid
 {
-    EXT_EID_HOPBYHOP = 0,
-    EXT_EID_ROUTING,
-    EXT_EID_FRAGMENT,
-    EXT_EID_DESTOPT,
-} PACKED nhc_ext_eid_t;
+    EID_HOPBYHOP = 0,
+    EID_ROUTING,
+    EID_FRAGMENT,
+    EID_DESTOPT,
+}; /* IPv6 Extension IDentifier */
 
 /**
  *  LOWPAN_NHC_UDP Header structure
  */
-typedef PACKED_STRUCT_DEF
+PACKED_STRUCT_DEF sixlowpan_nhc_udp
 {
     uint8_t ports: 2;
     uint8_t checksum: 1;
     uint8_t dispatch: 5;
-} sixlowpan_nhc_udp_t;
+}; /* NHC_UDP Header */
 
-typedef enum
+enum nhc_udp_ports
 {
     PORTS_COMPRESSED_NONE = 0,  /* [ 16 | 16 ] (4) */
     PORTS_COMPRESSED_DST,       /* [ 16 |  8 ] (3) */
     PORTS_COMPRESSED_SRC,       /* [  8 | 16 ] (3) */
     PORTS_COMPRESSED_FULL,      /* [  4 |  4 ] (1) */
-} PACKED nhc_udp_ports_t;
+}; /* UDP Ports compression mode */
 
-typedef enum
+enum nhc_udp_checksum
 {
     CHECKSUM_COMPRESSED_NONE = 0,
     CHECKSUM_COMPRESSED
-} PACKED nhc_udp_checksum_t;
+}; /* UDP Checksum compression mode */
 
 union nhc_hdr
 {
-    sixlowpan_nhc_ext_t ext;
-    sixlowpan_nhc_udp_t udp;
+    struct sixlowpan_nhc_ext ext;
+    struct sixlowpan_nhc_udp udp;
 };
 
 /**
  *  LOWPAN_NHC Header structure
  *  MARK: Generic types
  */
-typedef struct
+struct range
 {
     uint16_t offset;
     uint16_t length;
-} range_t;
-
-typedef uint8_t ipv6_addr_id_t;
+};
 
 /* -------------------------------------------------------------------------------- */
 // MARK: DEBUG
@@ -434,7 +432,7 @@ static void UNUSED dbg_mem(const char *pre, void *buf, uint16_t len)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: MEMORY
-static uint16_t buf_delete(void *buf, uint16_t len, range_t r)
+static uint16_t buf_delete(void *buf, uint16_t len, struct range r)
 {
     uint16_t rend = (uint16_t)(r.offset + r.length);
     
@@ -449,7 +447,7 @@ static uint16_t buf_delete(void *buf, uint16_t len, range_t r)
 }
 #define MEM_DELETE(buf, len, range) (len) = (uint16_t)buf_delete((buf),(uint16_t)(len),(range))
 
-static void *buf_insert(void *buf, uint16_t len, range_t r)
+static void *buf_insert(void *buf, uint16_t len, struct range r)
 {
     uint16_t rend = (uint16_t)(r.offset + r.length);
     void *new = NULL;
@@ -485,7 +483,7 @@ static inline int FRAME_REARRANGE_PTRS(struct sixlowpan_frame *f)
     return 0;
 }
 
-static uint8_t *FRAME_BUF_INSERT(struct sixlowpan_frame *f, uint8_t *buf, range_t r)
+static uint8_t *FRAME_BUF_INSERT(struct sixlowpan_frame *f, uint8_t *buf, struct range r)
 {
     uint8_t *ret = NULL;
     
@@ -525,11 +523,11 @@ static uint8_t *FRAME_BUF_INSERT(struct sixlowpan_frame *f, uint8_t *buf, range_
 
 static uint8_t *FRAME_BUF_PREPEND(struct sixlowpan_frame *f, uint8_t *buf, uint16_t len)
 {
-    range_t r = {.offset = 0, .length = len};
+    struct range r = {.offset = 0, .length = len};
     return FRAME_BUF_INSERT(f, buf, r);
 }
 
-static int FRAME_BUF_DELETE(struct sixlowpan_frame *f, uint8_t *buf, range_t r, uint16_t offset)
+static int FRAME_BUF_DELETE(struct sixlowpan_frame *f, uint8_t *buf, struct range r, uint16_t offset)
 {
     CHECK_PARAM(f);
     CHECK_PARAM(buf);
@@ -722,7 +720,7 @@ static void sixlowpan_frame_destroy(struct sixlowpan_frame *f)
 static int sixlowpan_addr_copy_flat(void *d,
                                     struct pico_sixlowpan_addr addr,
                                     uint8_t offset,
-                                    endian_mode_t e)
+                                    enum endian_mode e)
 {
     CHECK_PARAM(d);
     
@@ -811,7 +809,7 @@ static int sixlowpan_ipv6_derive_local(struct pico_sixlowpan_addr *addr,
     return ret;
 }
 
-static int sixlowpan_ipv6_derive_mcast(iphc_dam_mcast_t am, uint8_t *addr)
+static int sixlowpan_ipv6_derive_mcast(enum iphc_mcast_dam am, uint8_t *addr)
 {
     struct pico_ip6 mcast = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
@@ -909,7 +907,8 @@ static int sixlowpan_ll_derive_nd(struct pico_frame *f,
 
 /* -------------------------------------------------------------------------------- */
 // MARK: COMPRESSION
-
+/* -------------------------------------------------------------------------------- */
+// MARK: LOWPAN_NHC
 inline static int sixlowpan_nh_is_compressible(uint8_t nh)
 {
     switch (nh) {
@@ -930,7 +929,7 @@ inline static int sixlowpan_nh_is_compressible(uint8_t nh)
 #define UINT32_4LSB(lsb)            (((uint32_t)lsb) & 0x000F)
 #define UINT32_8LSB(lsb)            (((uint32_t)lsb) & 0x00FF)
 
-static void sixlowpan_nhc_udp_ports_undo(nhc_udp_ports_t ports, struct sixlowpan_frame *f)
+static void sixlowpan_nhc_udp_ports_undo(enum nhc_udp_ports ports, struct sixlowpan_frame *f)
 {
     struct pico_udp_hdr *hdr = NULL;
     uint16_t sport = 0xF000, dport = 0xF000;
@@ -972,7 +971,7 @@ static void sixlowpan_nhc_udp_ports_undo(nhc_udp_ports_t ports, struct sixlowpan
     hdr->trans.dport = dport;
 }
 
-inline static nhc_udp_ports_t sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, uint32_t *comp)
+inline static enum nhc_udp_ports sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, uint32_t *comp)
 {
     CHECK_PARAM_ZERO(comp);
     
@@ -994,12 +993,12 @@ inline static nhc_udp_ports_t sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst
     }
 }
 
-static uint8_t sixlowpan_nhc_udp_undo(sixlowpan_nhc_udp_t *udp, struct sixlowpan_frame *f)
+static uint8_t sixlowpan_nhc_udp_undo(struct sixlowpan_nhc_udp *udp, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_NHC_UDP][INFO_HDR_LEN]};
+    struct range r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_NHC_UDP][INFO_HDR_LEN]};
     struct pico_ipv6_hdr *hdr = NULL;
     uint16_t *len = NULL;
-    nhc_udp_ports_t ports = PORTS_COMPRESSED_NONE;
+    enum nhc_udp_ports ports = PORTS_COMPRESSED_NONE;
     
     _CHECK_PARAM(udp, 0xFF);
     _CHECK_PARAM(f, 0xFF);
@@ -1021,11 +1020,11 @@ static uint8_t sixlowpan_nhc_udp_undo(sixlowpan_nhc_udp_t *udp, struct sixlowpan
     return PICO_PROTO_UDP;
 }
 
-static frame_status_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_nhc_udp(struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     struct pico_udp_hdr *udp = NULL;
-    sixlowpan_nhc_udp_t *nhc = NULL;
+    struct sixlowpan_nhc_udp *nhc = NULL;
     
     CHECK_PARAM(f);
     
@@ -1034,7 +1033,7 @@ static frame_status_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
     
     /* Parse in the UDP header */
     udp = (struct pico_udp_hdr *)(f->transport_hdr + 1);
-    nhc = (sixlowpan_nhc_udp_t *)f->transport_hdr;
+    nhc = (struct sixlowpan_nhc_udp *)f->transport_hdr;
     
     nhc->dispatch = 0x1E;
     nhc->ports = sixlowpan_nhc_udp_ports(udp->trans.sport, udp->trans.dport, (uint32_t *)udp);
@@ -1056,25 +1055,25 @@ static frame_status_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
     return FRAME_COMPRESSED_NHC;
 }
 
-inline static uint8_t sixlowpan_nh_from_eid(nhc_ext_eid_t eid)
+inline static uint8_t sixlowpan_nh_from_eid(enum nhc_ext_eid eid)
 {
     switch (eid) {
-        case EXT_EID_HOPBYHOP:
+        case EID_HOPBYHOP:
             return PICO_IPV6_EXTHDR_HOPBYHOP;
-        case EXT_EID_DESTOPT:
+        case EID_DESTOPT:
             return PICO_IPV6_EXTHDR_DESTOPT;
-        case EXT_EID_FRAGMENT:
+        case EID_FRAGMENT:
             return PICO_IPV6_EXTHDR_FRAG;
-        case EXT_EID_ROUTING:
+        case EID_ROUTING:
             return PICO_IPV6_EXTHDR_ROUTING;
         default:
             return PICO_IPV6_EXTHDR_NONE;
     }
 }
 
-static uint8_t sixlowpan_nhc_ext_undo(sixlowpan_nhc_ext_t *ext, struct sixlowpan_frame *f)
+static uint8_t sixlowpan_nhc_ext_undo(struct sixlowpan_nhc_ext *ext, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_NHC_EXT][INFO_HDR_LEN]};
+    struct range r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_NHC_EXT][INFO_HDR_LEN]};
     struct pico_ipv6_exthdr *exthdr = NULL;
     uint8_t *nh = NULL;
     uint8_t d = 0;
@@ -1094,7 +1093,7 @@ static uint8_t sixlowpan_nhc_ext_undo(sixlowpan_nhc_ext_t *ext, struct sixlowpan
             exthdr = (struct pico_ipv6_exthdr *)ext;
             
             /* Get the following Next Header location */
-            if (EXT_EID_FRAGMENT == ext->eid) {
+            if (EID_FRAGMENT == ext->eid) {
                 nh = ((uint8_t *)ext) + 8;
                 f->net_len = (uint16_t)(f->net_len + 8);
             } else {
@@ -1103,24 +1102,24 @@ static uint8_t sixlowpan_nhc_ext_undo(sixlowpan_nhc_ext_t *ext, struct sixlowpan
             }
             
             /* Get the nxthdr recursively */
-            exthdr->nxthdr = sixlowpan_nhc_ext_undo((sixlowpan_nhc_ext_t *)nh, f);
+            exthdr->nxthdr = sixlowpan_nhc_ext_undo((struct sixlowpan_nhc_ext *)nh, f);
         }
         return sixlowpan_nh_from_eid(ext->eid);
     } else if (CHECK_DISPATCH(d, SIXLOWPAN_NHC_UDP)) {
         FRAME_REARRANGE_PTRS(f);
-        return sixlowpan_nhc_udp_undo((sixlowpan_nhc_udp_t *)f->transport_hdr, f);
+        return sixlowpan_nhc_udp_undo((struct sixlowpan_nhc_udp *)f->transport_hdr, f);
     } else {
         /* Shouldn't be possible */
         return 0xFF;
     }
 }
 
-static frame_status_t sixlowpan_nhc_ext(nhc_ext_eid_t eid, uint8_t **buf, struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_nhc_ext(enum nhc_ext_eid eid, uint8_t **buf, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     struct pico_ipv6_exthdr *ext = NULL;
-    sixlowpan_nhc_ext_t *nhc = NULL;
-    frame_status_t ret = 0;
+    struct sixlowpan_nhc_ext *nhc = NULL;
+    enum frame_status ret = 0;
     
     CHECK_PARAM(f);
     CHECK_PARAM(buf);
@@ -1128,7 +1127,7 @@ static frame_status_t sixlowpan_nhc_ext(nhc_ext_eid_t eid, uint8_t **buf, struct
     
     /* Parse in the extension header */
     ext = (struct pico_ipv6_exthdr *)(*buf);
-    nhc = (sixlowpan_nhc_ext_t *)(*buf);
+    nhc = (struct sixlowpan_nhc_ext *)(*buf);
     
     if (sixlowpan_nh_is_compressible(f->nxthdr)) {
         ret = FRAME_COMPRESSIBLE_NH;
@@ -1142,7 +1141,7 @@ static frame_status_t sixlowpan_nhc_ext(nhc_ext_eid_t eid, uint8_t **buf, struct
         
         /* Rearrange the pointers */
         ext = (struct pico_ipv6_exthdr *)(*buf + dispatch_info[SIXLOWPAN_NHC_EXT][INFO_HDR_LEN]);
-        nhc = (sixlowpan_nhc_ext_t *)*buf;
+        nhc = (struct sixlowpan_nhc_ext *)*buf;
         
         ret = FRAME_COMPRESSED_NHC;
         nhc->nh = NH_COMPRESSED_NONE;
@@ -1154,7 +1153,7 @@ static frame_status_t sixlowpan_nhc_ext(nhc_ext_eid_t eid, uint8_t **buf, struct
     f->nxthdr = ext->nxthdr; /* Get the next header */
     
     /* Set the pointer to the next header */
-    if (EXT_EID_FRAGMENT != eid)
+    if (EID_FRAGMENT != eid)
         *buf = ((uint8_t *)*buf) + IPV6_OPTLEN(ext->ext.destopt.len);
     else
         *buf = ((uint8_t *)*buf) + 8u;
@@ -1162,18 +1161,18 @@ static frame_status_t sixlowpan_nhc_ext(nhc_ext_eid_t eid, uint8_t **buf, struct
     return ret;
 }
 
-static frame_status_t sixlowpan_nhc(struct sixlowpan_frame *f, uint8_t **buf)
+static enum frame_status sixlowpan_nhc(struct sixlowpan_frame *f, uint8_t **buf)
 {
     /* Check which type of next header we heave to deal with */
     switch (f->nxthdr) {
         case PICO_IPV6_EXTHDR_HOPBYHOP:
-            return sixlowpan_nhc_ext(EXT_EID_HOPBYHOP, buf, f);
+            return sixlowpan_nhc_ext(EID_HOPBYHOP, buf, f);
         case PICO_IPV6_EXTHDR_ROUTING:
-            return sixlowpan_nhc_ext(EXT_EID_ROUTING, buf, f);
+            return sixlowpan_nhc_ext(EID_ROUTING, buf, f);
         case PICO_IPV6_EXTHDR_FRAG:
-            return sixlowpan_nhc_ext(EXT_EID_FRAGMENT, buf, f);
+            return sixlowpan_nhc_ext(EID_FRAGMENT, buf, f);
         case PICO_IPV6_EXTHDR_DESTOPT:
-            return sixlowpan_nhc_ext(EXT_EID_DESTOPT, buf, f);
+            return sixlowpan_nhc_ext(EID_DESTOPT, buf, f);
         case PICO_PROTO_UDP:
             /* Will always in the transport layer so we can just pass the frame */
             return sixlowpan_nhc_udp(f);
@@ -1182,9 +1181,9 @@ static frame_status_t sixlowpan_nhc(struct sixlowpan_frame *f, uint8_t **buf)
     }
 }
 
-static frame_status_t sixlowpan_nhc_compress(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_nhc_compress(struct sixlowpan_frame *f)
 {
-    frame_status_t ret = FRAME_COMPRESSIBLE_NH;
+    enum frame_status ret = FRAME_COMPRESSIBLE_NH;
     uint8_t *nh = NULL;
     CHECK_PARAM(f);
     
@@ -1197,9 +1196,11 @@ static frame_status_t sixlowpan_nhc_compress(struct sixlowpan_frame *f)
     return ret;
 }
 
-static int sixlowpan_iphc_am_undo(iphc_am_t am, ipv6_addr_id_t id, struct pico_sixlowpan_addr addr, struct sixlowpan_frame *f)
+/* -------------------------------------------------------------------------------- */
+// MARK: LOWPAN_IPHC
+static int sixlowpan_iphc_am_undo(enum iphc_am am, uint8_t id, struct pico_sixlowpan_addr addr, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = IPV6_ADDR_OFFSET(id), .length = IPV6_LEN_SRC};
+    struct range r = {.offset = IPV6_ADDR_OFFSET(id), .length = IPV6_LEN_SRC};
     
     /* For now, the src-address is either fully elided or sent inline */
     if (AM_COMPRESSED_FULL == am) {
@@ -1217,9 +1218,9 @@ static int sixlowpan_iphc_am_undo(iphc_am_t am, ipv6_addr_id_t id, struct pico_s
     return 0;
 }
 
-inline static range_t sixlowpan_iphc_mcast_dam(iphc_dam_mcast_t am)
+inline static struct range sixlowpan_iphc_mcast_dam(enum iphc_mcast_dam am)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     
     switch (am) {
         case MCAST_COMPRESSED_8:
@@ -1242,7 +1243,7 @@ inline static range_t sixlowpan_iphc_mcast_dam(iphc_dam_mcast_t am)
     return r;
 }
 
-static int sixlowpan_iphc_dam_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame *f)
+static int sixlowpan_iphc_dam_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     CHECK_PARAM(iphc);
@@ -1264,7 +1265,7 @@ static int sixlowpan_iphc_dam_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_fram
     return 0;
 }
 
-static range_t sixlowpan_iphc_rearrange_mcast(uint8_t *addr, sixlowpan_iphc_t *iphc)
+static struct range sixlowpan_iphc_rearrange_mcast(uint8_t *addr, struct sixlowpan_iphc *iphc)
 {
     iphc->mcast = MCAST_MULTICAST; /* Set MCAST-flag of IPHC */
     
@@ -1290,9 +1291,9 @@ static range_t sixlowpan_iphc_rearrange_mcast(uint8_t *addr, sixlowpan_iphc_t *i
     return sixlowpan_iphc_mcast_dam(iphc->dam);
 }
 
-static range_t sixlowpan_iphc_dam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802154_address_mode_t dam)
+static struct range sixlowpan_iphc_dam(struct sixlowpan_iphc *iphc, uint8_t *addr, IEEE802154_address_mode_t dam)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     
     IGNORE_PARAMETER(dam);
     if (!iphc || !addr) /* Checking params */
@@ -1317,7 +1318,7 @@ static range_t sixlowpan_iphc_dam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802
     return r;
 }
 
-static int sixlowpan_iphc_sam_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame *f)
+static int sixlowpan_iphc_sam_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
     CHECK_PARAM(iphc);
     CHECK_PARAM(f);
@@ -1325,9 +1326,9 @@ static int sixlowpan_iphc_sam_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_fram
     return sixlowpan_iphc_am_undo(iphc->sam, IPV6_SOURCE, f->peer, f);
 }
 
-static range_t sixlowpan_iphc_sam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802154_address_mode_t sam)
+static struct range sixlowpan_iphc_sam(struct sixlowpan_iphc *iphc, uint8_t *addr, IEEE802154_address_mode_t sam)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     IGNORE_PARAMETER(sam);
     if (!iphc || !addr) /* Checking params */
         return r;
@@ -1348,9 +1349,9 @@ static range_t sixlowpan_iphc_sam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802
     return r;
 }
 
-static int sixlowpan_iphc_hl_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame *f)
+static int sixlowpan_iphc_hl_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = IPV6_OFFSET_HL, .length = IPV6_LEN_HL};
+    struct range r = {.offset = IPV6_OFFSET_HL, .length = IPV6_LEN_HL};
     struct pico_ipv6_hdr *hdr = NULL;
     
     CHECK_PARAM(iphc);
@@ -1377,9 +1378,9 @@ static int sixlowpan_iphc_hl_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame
     return 0;
 }
 
-static range_t sixlowpan_iphc_hl(sixlowpan_iphc_t *iphc, uint8_t hl)
+static struct range sixlowpan_iphc_hl(struct sixlowpan_iphc *iphc, uint8_t hl)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     
     if (!iphc) /* Checking params */
         return r;
@@ -1407,9 +1408,9 @@ static range_t sixlowpan_iphc_hl(sixlowpan_iphc_t *iphc, uint8_t hl)
     return r;
 }
 
-static frame_status_t sixlowpan_iphc_nh_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_iphc_nh_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = IPV6_OFFSET_NH, .length = IPV6_LEN_NH};
+    struct range r = {.offset = IPV6_OFFSET_NH, .length = IPV6_LEN_NH};
     
     CHECK_PARAM(iphc);
     CHECK_PARAM(f);
@@ -1429,9 +1430,9 @@ static frame_status_t sixlowpan_iphc_nh_undo(sixlowpan_iphc_t *iphc, struct sixl
     return FRAME_NOT_COMPRESSED_NHC;
 }
 
-static range_t sixlowpan_iphc_nh(sixlowpan_iphc_t *iphc, uint8_t nh, struct sixlowpan_frame *f, frame_status_t *status)
+static struct range sixlowpan_iphc_nh(struct sixlowpan_iphc *iphc, uint8_t nh, struct sixlowpan_frame *f, enum frame_status *status)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     
     _CHECK_PARAM(iphc, r);
     _CHECK_PARAM(f, r);
@@ -1452,9 +1453,9 @@ static range_t sixlowpan_iphc_nh(sixlowpan_iphc_t *iphc, uint8_t nh, struct sixl
     return r;
 }
 
-inline static range_t sixlowpan_iphc_pl(void)
+inline static struct range sixlowpan_iphc_pl(void)
 {
-    range_t r = {.offset = IPV6_OFFSET_LEN, .length = IPV6_LEN_LEN};
+    struct range r = {.offset = IPV6_OFFSET_LEN, .length = IPV6_LEN_LEN};
     return r;
 }
 
@@ -1477,9 +1478,9 @@ static int sixlowpan_iphc_pl_undo(struct sixlowpan_frame *f)
     return sixlowpan_iphc_pl_redo(f);
 }
 
-inline static range_t sixlowpan_iphc_tf_get_range(iphc_tf_t tf)
+inline static struct range sixlowpan_iphc_get_range(enum iphc_tf tf)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     
     switch (tf) {
         case TF_COMPRESSED_TC:
@@ -1502,7 +1503,7 @@ inline static range_t sixlowpan_iphc_tf_get_range(iphc_tf_t tf)
     return r;
 }
 
-static int sixlowpan_iphc_tf_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame *f)
+static int sixlowpan_iphc_tf_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     uint32_t *vtf = NULL;
@@ -1511,7 +1512,7 @@ static int sixlowpan_iphc_tf_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame
     CHECK_PARAM(f);
     
     /* Insert the right amount of bytes so that the VTF-field is again 32-bits */
-    if (!FRAME_BUF_INSERT(f, f->net_hdr, sixlowpan_iphc_tf_get_range(iphc->tf)))
+    if (!FRAME_BUF_INSERT(f, f->net_hdr, sixlowpan_iphc_get_range(iphc->tf)))
         return -1;
     
     /* Parse in the IPv6 header */
@@ -1544,10 +1545,10 @@ static int sixlowpan_iphc_tf_undo(sixlowpan_iphc_t *iphc, struct sixlowpan_frame
     return 0;
 }
 
-static range_t sixlowpan_iphc_tf(sixlowpan_iphc_t *iphc, uint32_t *vtf)
+static struct range sixlowpan_iphc_tf(struct sixlowpan_iphc *iphc, uint32_t *vtf)
 {
     uint32_t dscp = 0, ecn = 0, fl = 0;
-    range_t r = { 0, 0 };
+    struct range r = { 0, 0 };
     
     if (!iphc || !vtf) /* Checking params */
         return r;
@@ -1574,15 +1575,15 @@ static range_t sixlowpan_iphc_tf(sixlowpan_iphc_t *iphc, uint32_t *vtf)
         *vtf = IPHC_ECN(*vtf) | IPHC_DSCP(*vtf) | IPHC_FL(*vtf);
     }
     
-    return sixlowpan_iphc_tf_get_range(iphc->tf);
+    return sixlowpan_iphc_get_range(iphc->tf);
 }
 
-static frame_status_t sixlowpan_iphc_compress(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_iphc_compress(struct sixlowpan_frame *f)
 {
-    range_t deletions[IPV6_FIELDS_NUM];
+    struct range deletions[IPV6_FIELDS_NUM];
     struct pico_ipv6_hdr *hdr = NULL;
-    sixlowpan_iphc_t iphc;
-    frame_status_t ret;
+    struct sixlowpan_iphc iphc;
+    enum frame_status ret;
     uint8_t i = 0;
     
     CHECK_PARAM(f);
@@ -1602,7 +1603,7 @@ static frame_status_t sixlowpan_iphc_compress(struct sixlowpan_frame *f)
     deletions[5] = sixlowpan_iphc_dam(&iphc, hdr->dst.addr, f->peer._mode);
     
     /* 2b. - Copy the the IPHC header into the buffer */
-    memcpy(f->net_hdr, (void *)&iphc, sizeof(sixlowpan_iphc_t));
+    memcpy(f->net_hdr, (void *)&iphc, sizeof(struct sixlowpan_iphc));
     
     /* 2c. - Apply LOWPAN_NHC if the flag is set */
     if (FRAME_COMPRESSIBLE_NH == ret)
@@ -1621,7 +1622,7 @@ static frame_status_t sixlowpan_iphc_compress(struct sixlowpan_frame *f)
     return FRAME_COMPRESSED;
 }
 
-static frame_status_t sixlowpan_uncompressed(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_uncompressed(struct sixlowpan_frame *f)
 {
     CHECK_PARAM(f);
     
@@ -1635,9 +1636,9 @@ static frame_status_t sixlowpan_uncompressed(struct sixlowpan_frame *f)
     return FRAME_FITS;
 }
 
-static frame_status_t sixlowpan_compress(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_compress(struct sixlowpan_frame *f)
 {
-    frame_status_t ret = FRAME_ERROR;
+    enum frame_status ret = FRAME_ERROR;
     CHECK_PARAM(f);
     
     /* Check whether or not the frame actually needs compression */
@@ -1653,7 +1654,7 @@ static frame_status_t sixlowpan_compress(struct sixlowpan_frame *f)
     return FRAME_COMPRESSED;
 }
 
-static frame_status_t sixlowpan_decompress_nhc(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_decompress_nhc(struct sixlowpan_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     union nhc_hdr *nhc = NULL;
@@ -1664,27 +1665,27 @@ static frame_status_t sixlowpan_decompress_nhc(struct sixlowpan_frame *f)
     d = *(uint8_t *)(nhc);
     
     if (CHECK_DISPATCH(d, SIXLOWPAN_NHC_EXT)) {
-        hdr->nxthdr = sixlowpan_nhc_ext_undo((sixlowpan_nhc_ext_t *)nhc, f);
+        hdr->nxthdr = sixlowpan_nhc_ext_undo((struct sixlowpan_nhc_ext *)nhc, f);
     } else if (CHECK_DISPATCH(d, SIXLOWPAN_NHC_UDP)) {
         f->net_len = PICO_SIZE_IP6HDR;
         FRAME_REARRANGE_PTRS(f);
-        hdr->nxthdr = sixlowpan_nhc_udp_undo((sixlowpan_nhc_udp_t *)f->transport_hdr, f);
+        hdr->nxthdr = sixlowpan_nhc_udp_undo((struct sixlowpan_nhc_udp *)f->transport_hdr, f);
     } else {
         return FRAME_ERROR;
     }
     return FRAME_DECOMPRESSED;
 }
 
-static frame_status_t sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_IPHC][INFO_HDR_LEN]};
-    sixlowpan_iphc_t *iphc = NULL;
-    frame_status_t f_state;
+    struct range r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_IPHC][INFO_HDR_LEN]};
+    struct sixlowpan_iphc *iphc = NULL;
+    enum frame_status f_state;
     
     CHECK_PARAM(f);
     
     /* Provide space for a copy of the LOWPAN_IPHC-header */
-    if (!(iphc = PICO_ZALLOC(sizeof(sixlowpan_iphc_t)))) {
+    if (!(iphc = PICO_ZALLOC(sizeof(struct sixlowpan_iphc)))) {
         pico_err = PICO_ERR_ENOMEM;
         return FRAME_ERROR;
     }
@@ -1721,9 +1722,9 @@ static frame_status_t sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
     return f_state;
 }
 
-static frame_status_t sixlowpan_decompress_ipv6(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_decompress_ipv6(struct sixlowpan_frame *f)
 {
-    range_t r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_IPV6][INFO_HDR_LEN]};
+    struct range r = {.offset = 0, .length = dispatch_info[SIXLOWPAN_IPV6][INFO_HDR_LEN]};
     
     CHECK_PARAM(f);
     
@@ -1732,9 +1733,9 @@ static frame_status_t sixlowpan_decompress_ipv6(struct sixlowpan_frame *f)
     return FRAME_DECOMPRESSED;
 }
 
-static frame_status_t sixlowpan_decompress(struct sixlowpan_frame *f)
+static enum frame_status sixlowpan_decompress(struct sixlowpan_frame *f)
 {
-    frame_status_t ret;
+    enum frame_status ret;
     uint8_t d = 0;
     
     CHECK_PARAM(f);
@@ -1943,7 +1944,7 @@ typedef PACKED_STRUCT_DEF
 
 static int sixlowpan_frame_frag(struct sixlowpan_frame *f)
 {
-    range_t r = {0, .length = dispatch_info[SIXLOWPAN_FRAGN][INFO_HDR_LEN]};
+    struct range r = {0, .length = dispatch_info[SIXLOWPAN_FRAGN][INFO_HDR_LEN]};
     uint8_t max_psize = 0, n = 0, i = 0;
     sixlowpan_frag1_t *frag1 = NULL;
     sixlowpan_fragn_t *fragn = NULL;
@@ -1994,7 +1995,7 @@ static int sixlowpan_frame_frag(struct sixlowpan_frame *f)
 
 static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
 {
-    range_t r = {.offset = 0, .length = 0};
+    struct range r = {.offset = 0, .length = 0};
     uint8_t *buf = NULL;
     uint8_t fragl = 0;
     
@@ -2034,21 +2035,21 @@ static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
     return buf;
 }
 
-typedef struct
+struct stream_info
 {
     struct sixlowpan_frame *f;
     struct pico_device_sixlowpan *dev;
-} stream_info_t;
+};
 
 static void sixlowpan_frame_tx_stream_start(pico_time now, void *arg)
 {
-    stream_info_t *i = NULL;
+    struct stream_info *i = NULL;
     uint8_t len = 0;
     uint8_t *buf = NULL;
     
     IGNORE_PARAMETER(now);
     CHECK_PARAM_VOID(arg);
-    i = (stream_info_t *)arg;
+    i = (struct stream_info *)arg;
     
     while ((buf = sixlowpan_frame_tx_next(i->f, &len))) {
         if (i->dev->radio->transmit(i->dev->radio, buf, len) > 0) {
@@ -2067,14 +2068,16 @@ static void sixlowpan_frame_tx_stream_start(pico_time now, void *arg)
     sixlowpan_state = SIXLOWPAN_READY;
 }
 
+/* -------------------------------------------------------------------------------- */
+// MARK: PICO_DEV
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
 {
 	/* Parse the pico_device structure to the internal sixlowpan-structure */
     struct pico_device_sixlowpan *sixlowpan = (struct pico_device_sixlowpan *)dev;
     struct pico_frame *f = (struct pico_frame *)buf;
     struct sixlowpan_frame *frame = NULL;
-    frame_status_t s = FRAME_ERROR;
-    stream_info_t *i = NULL;
+    enum frame_status s = FRAME_ERROR;
+    struct stream_info *i = NULL;
     int ret = 0;
     
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
@@ -2099,7 +2102,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
             return -1;
         }
         
-        if (!(i = PICO_ZALLOC(sizeof(stream_info_t)))) {
+        if (!(i = PICO_ZALLOC(sizeof(struct stream_info)))) {
             pico_err = PICO_ERR_ENOMEM;
             sixlowpan_frame_destroy(frame);
             return -1;
