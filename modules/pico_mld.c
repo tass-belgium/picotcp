@@ -483,12 +483,11 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
         0
     };
     struct pico_ipv6_link *link = NULL;
-    int i;
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link)
         return -1;
+
     memcpy(&mcast_group.addr,&p->mcast_group.addr, sizeof(struct pico_ip6));
-    
     switch (link->mcast_compatibility) {
     case PICO_MLDV1:
         if (p->event == MLD_EVENT_STOP_LISTENING)
@@ -507,6 +506,7 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
         return -1;
     }
     /*TODO*/
+
     mld_dbg("MLD: send membership report on group TODO to TODO\n");
     pico_ipv6_frame_push(f, NULL, &dst, PICO_PROTO_ICMP6,0);
     return 0;
@@ -519,8 +519,6 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link) {
         pico_err = PICO_ERR_EINVAL;
-        char tt[70];
-        pico_ipv6_to_string(&tt, &p->mcast_link);
         return -1;
     }
     if( !pico_ipv6_is_multicast(p->mcast_group.addr) ) {
@@ -533,10 +531,10 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         struct mld_message *report = NULL; 
         uint8_t report_type = PICO_MLD_REPORT;
 
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct pico_icmp6_hdr));
+        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct mld_message));
         p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
-        p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
-        p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
+        //p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
+        //p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
         p->f->dev = pico_ipv6_link_find(&p->mcast_link);
         /* p->f->len is correctly set by alloc */
 
@@ -546,7 +544,7 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         report->mcast_group = p->mcast_group;
 
         report->crc = 0;
-        report->crc = short_be(pico_checksum(report, sizeof(struct mld_message  )));
+        report->crc = short_be(pico_icmp6_checksum(p->f));
         break;
     }
 
