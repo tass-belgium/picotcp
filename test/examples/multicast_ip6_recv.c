@@ -25,8 +25,8 @@ void app_mcastreceive_ipv6(char *arg)
     },   src[5] = {
          { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0 }, 
          { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x10 },  
-         { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 1 },   
-         { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 1 },   
+         { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x01 },   
+         { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 0x01 },   
     };
     struct pico_ipv6_mreq mreq = ZERO_MREQ_IP6;
     struct pico_ipv6_mreq_source mreq_source = ZERO_MREQ_SRC_IP6;
@@ -151,13 +151,13 @@ void app_mcastreceive_ipv6(char *arg)
     memcpy(&mreq_source.mcast_source_addr, &src[2],sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-    }
+      }
 
-    memcpy(&mreq_source.mcast_source_addr, &src[3],sizeof(struct pico_ip6));
+    memcpy(&mreq_source.mcast_group_addr, &src[3],sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
     }
-
+    printf("Client set-up...\n"); 
     return;
 
 out:
