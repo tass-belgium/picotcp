@@ -531,10 +531,7 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         struct mld_message *report = NULL; 
         uint8_t report_type = PICO_MLD_REPORT;
 
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct mld_message));
-        p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
-        //p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
-        //p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
+        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message));
         p->f->dev = pico_ipv6_link_find(&p->mcast_link);
         /* p->f->len is correctly set by alloc */
 
