@@ -133,13 +133,20 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
     struct mld_timer *t = NULL, *timer = NULL, test = {
         0
     };
-
+    char ipstr[40] = {
+        0
+    },   grpstr[40] = {
+        0
+    };
+    
     IGNORE_PARAMETER(now);
     t = (struct mld_timer *)arg;
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
-    mld_dbg("MLD: timer expired for %08X link %08X type %u, delay %lu\n", t->mcast_group.addr, t->mcast_link.addr, t->type, t->delay);
+    pico_ipv6_to_string(&ipstr, t->mcast_link.addr);
+    pico_ipv6_to_string(&grpstr, t->mcast_group.addr);
+    mld_dbg("MLD: timer expired for %s link %s type %u, delay %lu\n", grpstr, ipstr, t->type, t->delay);
     timer = pico_tree_findKey(&MLDTimers, &test);
     if (!timer) {
         return;
@@ -157,7 +164,7 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
 
         PICO_FREE(timer);
     } else {
-        mld_dbg("MLD: restart timer for %08X, delay %lu, new delay %lu\n", t->mcast_group.addr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
+        mld_dbg("MLD: restart timer for %s, delay %lu, new delay %lu\n", grpstr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
         pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer);
     }
 
@@ -169,8 +176,12 @@ static int pico_mld_timer_reset(struct mld_timer *t)
     struct mld_timer *timer = NULL, test = {
         0
     };
+    char grpstr[40] = {
+        0
+    };
 
-    mld_dbg("MLD: reset timer for %08X, delay %lu\n", t->mcast_group.addr, t->delay);
+    pico_ipv6_to_string(&grpstr, t->mcast_group.addr);
+    mld_dbg("MLD: reset timer for %s, delay %lu\n", grpstr, t->delay);
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
@@ -188,8 +199,15 @@ static int pico_mld_timer_start(struct mld_timer *t)
     struct mld_timer *timer = NULL, test = {
         0
     };
-
-    mld_dbg("MLD: start timer for %08X link %08X type %u, delay %lu\n", t->mcast_group.addr, t->mcast_link.addr, t->type, t->delay);
+    char ipstr[40] = {
+        0
+    },   grpstr[40] = {
+        0
+    };
+ 
+    pico_ipv6_to_string(&ipstr, t->mcast_link.addr);
+    pico_ipv6_to_string(&grpstr, t->mcast_group.addr);
+    mld_dbg("MLD: start timer for %s link %s type %u, delay %lu\n", grpstr, ipstr, t->type, t->delay);
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
@@ -216,7 +234,9 @@ static int pico_mld_timer_stop(struct mld_timer *t)
     struct mld_timer *timer = NULL, test = {
         0
     };
-
+    char grpstr[40] = {
+        0
+    };
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
@@ -224,7 +244,8 @@ static int pico_mld_timer_stop(struct mld_timer *t)
     if (!timer)
         return 0;
 
-    mld_dbg("MLD: stop timer for %08X, delay %lu\n", timer->mcast_group.addr, timer->delay);
+    pico_ipv6_to_string(&grpstr, timer->mcast_group.addr);
+    mld_dbg("MLD: stop timer for %s, delay %lu\n", grpstr, timer->delay);
     timer->stopped = MLD_TIMER_STOPPED;
     return 0;
 }
@@ -451,7 +472,6 @@ int pico_mld_process_in(struct pico_frame *f)
 {
     struct mld_parameters *p = NULL;
    
-    mld_dbg("CHECKSUM 0x%X\n" , pico_icmp6_checksum(f) );
     if (!pico_mld_is_checksum_valid(f))
         goto out;
     if (pico_mld_compatibility_mode(f) < 0)
@@ -482,6 +502,11 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
     struct pico_ip6 mcast_group = {
         0
     };
+    char ipstr[40] = {
+        0
+    },  grpstr[40] = {
+        0
+    };
     struct pico_ipv6_link *link = NULL;
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link)
@@ -505,9 +530,9 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
     }
-    /*TODO*/
-
-    mld_dbg("MLD: send membership report on group TODO to TODO\n");
+    pico_ipv6_to_string(&ipstr, dst.addr);
+    pico_ipv6_to_string(&grpstr, mcast_group.addr);
+    mld_dbg("MLD: send membership report on group %s to %s\n", grpstr, ipstr);
     pico_ipv6_frame_push(f, NULL, &dst, PICO_PROTO_ICMP6,0);
     return 0;
 }
