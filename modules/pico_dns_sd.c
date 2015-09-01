@@ -7,6 +7,8 @@
 
 #include "pico_dns_sd.h"
 
+#ifdef PICO_SUPPORT_DNS_SD
+
 /* --- Debugging --- */
 #define dns_sd_dbg(...) do {} while(0)
 /* #define dns_sd_dbg dbg */
@@ -544,3 +546,5 @@ pico_dns_sd_kv_vector_erase( kv_vector *vector )
 
     return 0;
 }
+
+#endif

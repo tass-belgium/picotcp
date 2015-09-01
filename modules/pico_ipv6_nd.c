@@ -862,9 +862,6 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
     return 0;
 }
 
-
-
-
 void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
 {
     struct pico_tree_node *rindex = NULL;

@@ -762,7 +762,9 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
             f->transport_hdr = f->net_hdr + f->net_len;
             f->transport_len = (uint16_t)(short_be(hdr->len) - (f->net_len - sizeof(struct pico_ipv6_hdr)));
             if (frag_hdr) {
+#ifdef PICO_SUPPORT_IPV6FRAG
                 pico_ipv6_process_frag(frag_hdr, f, nxthdr);
+#endif
                 return -1;
             } else {
                 return nxthdr;

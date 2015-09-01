@@ -90,7 +90,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
     if (ev & PICO_SOCK_EV_CLOSE) {
         printf("tcpbench> event close\n");
         if (tcpbench_mode == TCP_BENCH_RX) {
-            pico_socket_shutdown(s, PICO_SHUT_WR);
+            pico_socket_close(s);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         } else if (tcpbench_mode == TCP_BENCH_TX || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
             pico_socket_close(s);
@@ -138,7 +138,7 @@ void app_tcpbench(char *arg)
     int port = 0, i;
     uint16_t port_be = 0;
     char *nxt;
-    char *sport;
+    char *sport = NULL;
     int nagle_off = 1;
     union {
         struct pico_ip4 ip4;
@@ -249,6 +249,7 @@ void app_tcpbench(char *arg)
             port = atoi(sport);
             port_be = short_be((uint16_t)port);
             printf("tcpbench> Got port %d\n", port);
+            free(sport);
         }
 
         if (port == 0) {

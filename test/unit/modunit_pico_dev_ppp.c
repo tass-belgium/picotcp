@@ -473,7 +473,7 @@ START_TEST(tc_lcp_optflags)
     p[2] = 0x56;
     p[3] = 0x99;
     memset(&ppp, 0, sizeof(ppp));
-    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr)) != 0x08);
+    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr), 1u) != 0x08);
     fail_if(ppp.auth != 0x5699);
 }
 END_TEST
