@@ -7,43 +7,131 @@
 #include "modules/pico_dev_sixlowpan.c"
 #include "check.h"
 
+#define STARTING() printf("*********************** STARTING %s ***\n", __func__)
+#define TRYING() printf("Trying %s, normally...\n", __func__)
+#define CHECKING() printf("Checking the results for %s\n", __func__)
+#define BREAKING() printf("Breaking %s...\n",__func__)
+#define ENDING() printf("*********************** ENDING %s ***\n",__func__)
+
+#define DBG(s, ...) printf(s, ##__VA_ARGS__)
+
+#define SIZE_DUMMY_FRAME 60
+struct sixlowpan_frame *create_dummy_frame(void)
+{
+    struct sixlowpan_frame *new = NULL;
+    
+    if (!(new = PICO_ZALLOC(sizeof(struct sixlowpan_frame))))
+        return NULL;
+    if (!(new->phy_hdr = PICO_ZALLOC((size_t)SIZE_DUMMY_FRAME))) {
+        PICO_FREE(new);
+        return NULL;
+    }
+    new->size = SIZE_DUMMY_FRAME;
+    return new;
+}
 
 START_TEST(tc_buf_delete)
 {
     /* Works with not allocated buffers as well, since it doesn't free anything */
-    uint8_t *str = "Sing Hello, World!";
+    uint8_t str[] = "Sing Hello, World!";
     uint16_t len = strlen(str) + 1;
     uint16_t nlen = 0;
     
     /* Test removing the Hello-word including the preceding space */
     struct range r = {.offset = 4, .length = 6};
     
+    STARTING();
     
-    printf("*********************** starting %s * \n", __func__);
-    
+    TRYING();
     nlen = buf_delete(str, len, r);
     
-    fail_if(strcmp(str, "Sing, World"), "%s didnt't correctly delete chunk!\n", __func__);
-    fail_unless(((strlen(str) + 1 - r.length) == nlen), "%s didn't return the right nlen\n", __func__);
+    CHECKING();
+    fail_if(0 == strcmp(str, "Sing, World"), "%s didnt't correctly delete chunk!\n", __func__);
+    fail_unless(nlen == (len - r.length), "%s didn't return the right nlen expected %d and is %d\n", __func__,  (len - r.length), nlen);
     
-    /* Try to break it! */
+    BREAKING();
     fail_if(buf_delete(NULL, 4, r), "%s didn't check params!\n", __func__);
     
-    printf("*********************** ending %s * \n", __func__);
+    /* Try with out of boundary offset */
+    r.offset = len;
+    r.length = 0;
+    fail_unless(buf_delete(str, len, r), "%s didn't check offset!\n", __func__);
+    
+    /* Try with out of boundary range */
+    r.offset = len - 1;
+    r.length = 2;
+    fail_unless(len == buf_delete(str, len, r), "%s didn't check range!\n", __func__);
+    
+    ENDING();
 }
 END_TEST
 START_TEST(tc_buf_insert)
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static void *buf_insert(void *buf, uint16_t len, range_t r) */
+    struct range r = {.offset = 0, .length = 0};
+    uint8_t *buf = NULL;
+    uint8_t cmp[] = {5,5,0,0,0,5,5,5};
+    uint16_t len = 0;
+    uint16_t nlen = 0;
+    
+    STARTING();
+    BREAKING();
+    /* Invalid arguments */
+    fail_unless(NULL == buf_insert(buf, 4, r), "%s failed checking args!\n", __func__);
+    
+    if (!(buf = PICO_ZALLOC(5))) {
+        pico_err = PICO_ERR_ENOMEM;
+        DBG("Failed allocating mem for test!\n");
+        return;
+    }
+    
+    /* OOB range */
+    r.offset = 1;
+    r.length = 1;
+    fail_unless(buf == buf_insert(buf, 0, r), "%s failed checking offset!\n", __func__);
+    
+    r.offset = 0;
+    r.length = 5;
+    fail_unless(buf == buf_insert(buf, 3, r), "%s failed checking range!\n", __func__);
+    
+    TRYING();
+    
+    memset(buf, 5, 5);
+    
+    r.offset = 2;
+    r.length = 3;
+    buf = buf_insert(buf, 5, r);
+    
+    fail_unless(buf, "%s returned NULL!\n", __func__);
+    fail_unless(0 == memcmp(buf, cmp, 5 + r.length), "%s isn't formatted correctly!\n");
+    
+    CHECKING();
+    
+    ENDING();
 }
 END_TEST
 START_TEST(tc_FRAME_REARRANGE_PTRS)
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static inline int FRAME_REARRANGE_PTRS(struct sixlowpan_frame *f) */
+    struct sixlowpan_frame *new = NULL;
+    STARTING();
+    BREAKING();
+    new = create_dummy_frame();
+    
+    /* Invalid args */
+    FRAME_REARRANGE_PTRS(new);
+    fail_unless(new->link_hdr == (IEEE802154_hdr_t *)(new->phy_hdr + IEEE802154_LEN_LEN), "%s failed rearranging PTRS!\n", __func__);
+    
+    TRYING();
+    new->link_hdr_len = 9;
+    new->net_len = 40;
+    new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
+    FRAME_REARRANGE_PTRS(new);
+    
+    CHECKING();
+    fail_unless(new->link_hdr == (IEEE802154_hdr_t *)(new->phy_hdr + IEEE802154_LEN_LEN), "%s failed rearranging link header!\n", __func__);
+    fail_unless(new->net_hdr == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + 9), "%s failed rearranging network header!\n", __func__);
+    fail_unless(new->transport_hdr == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + 49), "%s failed rearranging transport header!\n", __func__);
+    
+    ENDING();
 }
 END_TEST
 START_TEST(tc_FRAME_BUF_INSERT)
