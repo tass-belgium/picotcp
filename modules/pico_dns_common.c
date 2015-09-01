@@ -1034,7 +1034,7 @@ pico_dns_question_cmp( void *qa,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the qtypes */
@@ -1069,7 +1069,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the rrtypes */
@@ -1102,7 +1102,7 @@ pico_dns_record_cmp( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* Compare type and name */
