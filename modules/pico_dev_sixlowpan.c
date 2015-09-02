@@ -392,6 +392,17 @@ static volatile enum sixlowpan_state sixlowpan_state = SIXLOWPAN_READY;
 static struct sixlowpan_frame *cur_frame = NULL;
 static uint16_t sixlowpan_devnum = 0;
 
+static int sixlowpan_frag_cmp(void *a, void *b)
+{
+    struct sixlowpan_frame *fa = NULL, *fb = NULL;
+    
+    if (!a || !b) {
+        pico_err = PICO_ERR_EINVAL;
+        PAN_ERR("Invalid arguments for comparison!\n");
+        return -1;
+    }
+}
+
 /* -------------------------------------------------------------------------------- */
 // MARK: DEBUG
 #ifdef DEBUG
@@ -2027,6 +2038,31 @@ static int sixlowpan_send_cur_frame(struct pico_device_sixlowpan *slp)
     return ret;
 }
 
+static void sixlowpan_init_defrag(struct sixlowpan_frame *f)
+{
+    
+}
+
+static struct sixlowpan_frame *sixlowpan_unfragment_frame(struct sixlowpan_frame *f)
+{
+    uint8_t d = 0;
+    
+    CHECK_PARAM_NULL(f);
+    
+    d = f->net_hdr[0];
+    /* Check for LOWPAN_FRAG1 dispatch header */
+    if (CHECK_DISPATCH(d, SIXLOWPAN_FRAG1)) {
+        
+        
+        /* Check for LOWPAN_FRAGN dispatch header */
+    } else if (CHECK_DISPATCH(d, SIXLOWPAN_FRAGN)) {
+        
+    } else {
+        /* No compression is needed just return the passed frame */
+        return f;
+    }
+}
+
 /* -------------------------------------------------------------------------------- */
 // MARK: PICO_DEV
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
@@ -2105,12 +2141,12 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                 /* 1. Check for MESH Dispatch header */
                 /* 2. Check for BROADCAST header */
                 
-                /* TODO: [6LOWPAN ADAPTION LAYER] unfragment */
-                
-                
                 /* [IEEE802.15.4 LINK LAYER] decapsulate MAC frame to IPv6 */
                 if (!(f = IEEE802154_unbuf(dev, buf, len)))
                     return loop_score;
+                
+                /* TODO: [6LOWPAN ADAPTION LAYER] unfragment */
+                sixlowpan_unfragment_frame()
                 
                 /* [6LOWPAN ADAPTION LAYER] apply decompression/defragmentation */
                 sixlowpan_decompress(f);

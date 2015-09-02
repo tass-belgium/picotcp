@@ -12,7 +12,6 @@
 #include "pico_ipv6.h"
 #include "pico_dns_common.h"
 #include "pico_tree.h"
-#include <ctype.h> /* for tolower */
 
 #define dns_dbg(...) do {} while(0)
 /* #define dns_dbg dbg */
@@ -975,6 +974,13 @@ pico_dns_record_decompress( struct pico_dns_record *record,
     return rname_original;
 }
 
+static int pico_tolower(int c)
+{
+    if ((c >= 'A')  && (c <= 'Z'))
+        c += 'a' - 'A';
+    return c;
+}
+
 /* MARK: ^ RESOURCE RECORD FUNCTIONS */
 /* MARK: v COMPARING */
 
@@ -1008,7 +1014,7 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
 
     /* Iterate 'the smallest length' times */
     for (i = 0; i < slen; i++) {
-        if ((dif = (int)((int)tolower(a[i]) - (int)tolower(b[i]))))
+        if ((dif = (int)((int)pico_tolower(a[i]) - (int)pico_tolower(b[i]))))
             return dif;
     }
     /* Return difference of buffer lengths */
@@ -1034,7 +1040,7 @@ pico_dns_question_cmp( void *qa,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the qtypes */
@@ -1069,7 +1075,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the rrtypes */
@@ -1102,7 +1108,7 @@ pico_dns_record_cmp( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* Compare type and name */
