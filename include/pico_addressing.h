@@ -30,6 +30,11 @@ PACKED_STRUCT_DEF pico_eth
     uint8_t padding[2];
 };
 
+enum pico_ll_mode {
+    LL_MODE_ETHERNET = 0,
+    LL_MODE_SIXLOWPAN
+};
+
 #ifdef PICO_SUPPORT_SIXLOWPAN
 PACKED_STRUCT_DEF pico_sixlowpan_addr_short
 {

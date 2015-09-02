@@ -1946,7 +1946,7 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     }
     
     frame->dev = f->dev;
-    frame->local = *(f->dev->sixlowpan); /* Set the LL-address of the local host */
+    frame->local = *(struct pico_sixlowpan_addr *)f->dev->eth; /* Set the LL-address of the local host */
     
     /* Determine the link-layer address of the destination */
     if (sixlowpan_ll_derive_dst(f, &frame->peer) < 0) {
@@ -2316,6 +2316,8 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                     return loop_score;
                 
                 /* 1. Check for MESH Dispatch header */
+                
+                
                 /* 2. Check for BROADCAST header */
                 
                 /* [6LOWPAN ADAPTION LAYER] unfragment */
@@ -2332,7 +2334,6 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                         return loop_score;
                     } else if (FRAME_DEFRAGMENTED == f->state) {
                         /* IPv6-datagram is completely defragged, do nothing */
-                        dbg_mem("DEFRAGGED", f->net_hdr, f->net_len);
                     } else {
                         /* [6LOWPAN ADAPTION LAYER] apply decompression/defragmentation */
                         sixlowpan_decompress(f);
@@ -2370,16 +2371,18 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
     struct pico_ip6 netmask = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     struct pico_ip6 routable;
+    struct pico_sixlowpan_addr *slp_addr = NULL;
     struct pico_device_sixlowpan *slp = NULL;
     struct pico_ipv6_link *link = NULL;
     CHECK_PARAM_VOID(dev);
     
     /* Parse the pico_device structure to the internal sixlowpan-structure */
     slp = (struct pico_device_sixlowpan *) dev;
+    slp_addr = (struct pico_sixlowpan_addr *)dev->eth;
     
     /* Set a routable-address */
     memcpy(routable.addr, prefix.addr, PICO_SIZE_IP6);
-    memcpy(routable.addr + 8, dev->sixlowpan->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+    memcpy(routable.addr + 8, slp_addr->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
     routable.addr[8] = routable.addr[8] ^ 0x02;
     
     /* Store the PAN-prefix in the device-instance */
@@ -2389,11 +2392,11 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
     if (!(link = pico_ipv6_link_add(dev, routable, netmask)))
         return;
     
-    if (dev->sixlowpan->_short.addr != IEEE802154_BCST_ADDR) {
+    if (slp_addr->_short.addr != IEEE802154_BCST_ADDR) {
         memset(routable.addr + 8, 0x00, 8);
         routable.addr[11] = 0xFF;
         routable.addr[12] = 0xFE;
-        memcpy(routable.addr + 14, &(dev->sixlowpan->_short.addr), PICO_SIZE_SIXLOWPAN_SHORT);
+        memcpy(routable.addr + 14, &(slp_addr->_short.addr), PICO_SIZE_SIXLOWPAN_SHORT);
         
         /* Add another link with IPv6-address generated from the short 16-bit address */
         if (!(link = pico_ipv6_link_add(dev, routable, netmask)))
@@ -2403,28 +2406,30 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
 
 void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
 {
+    struct pico_sixlowpan_addr *slp_addr = NULL;
     struct pico_device_sixlowpan *slp = NULL;
     
     CHECK_PARAM_VOID(dev);
     
     /* Parse the pico_device structure to the internal sixlowpan-structure */
     slp = (struct pico_device_sixlowpan *) dev;
+    slp_addr = (struct pico_sixlowpan_addr *)dev->eth;
     
-    if (dev->sixlowpan) {
+    if (LL_MODE_SIXLOWPAN == dev->mode) {
         /**
          *  Set the short-address of the device. A check whether or not
          *  the device already had a short-address is not needed. I assume
          *  the device-driver has priority of configuring addresses and assume
          *  it takes this into account.
          */
-        dev->sixlowpan->_short.addr = slp->radio->get_addr_short(slp->radio);
+        slp_addr->_short.addr = slp->radio->get_addr_short(slp->radio);
         
         /* Set the address mode accordingly */
-        if (IEEE802154_BCST_ADDR != dev->sixlowpan->_short.addr) {
-            if (IEEE802154_ADDRESS_MODE_EXTENDED == dev->sixlowpan->_mode)
-                dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_BOTH;
+        if (IEEE802154_BCST_ADDR != slp_addr->_short.addr) {
+            if (IEEE802154_ADDRESS_MODE_EXTENDED == slp_addr->_mode)
+                slp_addr->_mode = IEEE802154_ADDRESS_MODE_BOTH;
             else
-                dev->sixlowpan->_mode = IEEE802154_ADDRESS_MODE_SHORT;
+                slp_addr->_mode = IEEE802154_ADDRESS_MODE_SHORT;
         }
     }
 }
@@ -2449,7 +2454,9 @@ struct pico_device *pico_sixlowpan_create(radio_t *radio)
     
 	/* Try to init & register the device to picoTCP */
     snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);
-    if (0 != pico_sixlowpan_init((struct pico_device *)sixlowpan, dev_name, slp)) {
+    
+    sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
+    if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
         dbg("Device init failed.\n");
         return NULL;
     }
