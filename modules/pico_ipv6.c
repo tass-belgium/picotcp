@@ -310,20 +310,21 @@ int pico_ipv6_is_localhost(const uint8_t addr[PICO_SIZE_IP6])
 
 int pico_ipv6_is_unicast(struct pico_ip6 *a)
 {
-    if (pico_ipv6_is_global(a->addr))
+    if (pico_ipv6_is_global(a->addr)) 
         return 1;
-    else if (pico_ipv6_is_uniquelocal(a->addr))
+    else if (pico_ipv6_is_uniquelocal(a->addr)) 
         return 1;
-    else if (pico_ipv6_is_sitelocal(a->addr))
+    else if (pico_ipv6_is_sitelocal(a->addr)) 
         return 1;
-    else if (pico_ipv6_is_linklocal(a->addr))
+    else if (pico_ipv6_is_linklocal(a->addr)) 
         return 1;
-    else if (pico_ipv6_is_localhost(a->addr))
+    else if (pico_ipv6_is_localhost(a->addr)) 
         return 1;
-    else if(pico_ipv6_link_get(a))
+    else if(pico_ipv6_link_get(a)) 
         return 1;
-    else
+    else 
         return 0;
+    
 }
 
 int pico_ipv6_is_multicast(const uint8_t addr[PICO_SIZE_IP6])
@@ -1184,7 +1185,8 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
 
         if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL)
             memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
-
+        if(icmp6_hdr->type >= PICO_MLD_QUERY && icmp6_hdr->type <= PICO_MLD_DONE)
+            hdr->hop = 1; 
         icmp6_hdr->crc = 0;
         icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
         break;
