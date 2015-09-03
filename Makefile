@@ -28,7 +28,8 @@ TCP?=1
 UDP?=1
 ETH?=1
 IPV4?=1
-IPFRAG?=1
+IPV4FRAG?=1
+IPV6FRAG?=0
 NAT?=1
 ICMP4?=1
 MCAST?=1
@@ -53,6 +54,7 @@ TAP?=0
 PCAP?=0
 PPP?=1
 CYASSL?=0
+WOLFSSL?=0
 POLARSSL?=0
 
 #IPv6 related
@@ -237,7 +239,7 @@ CORE_OBJ= stack/pico_stack.o \
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_tap.o \
-            modules/pico_dev_mock.o 
+            modules/pico_dev_mock.o
 
 ifneq ($(ETH),0)
   include rules/eth.mk
@@ -245,8 +247,8 @@ endif
 ifneq ($(IPV4),0)
   include rules/ipv4.mk
 endif
-ifneq ($(IPFRAG),0)
-  include rules/ipfrag.mk
+ifneq ($(IPV4FRAG),0)
+  include rules/ipv4frag.mk
 endif
 ifneq ($(ICMP4),0)
   include rules/icmp4.mk
@@ -321,6 +323,9 @@ endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
 endif
+ifneq ($(WOLFSSL),0)
+  include rules/wolfssl.mk
+endif
 ifneq ($(POLARSSL),0)
   include rules/polarssl.mk
 endif
@@ -352,7 +357,7 @@ test: posix
 	@$(CC) -g -o $(TEST_ELF) -I include -I modules -I $(PREFIX)/include -Wl,--start-group $(TEST_LDFLAGS) $(TEST_OBJ) $(PREFIX)/examples/*.o -Wl,--end-group
 	@mv test/*.elf $(PREFIX)/test
 	@install $(PREFIX)/$(TEST_ELF) $(PREFIX)/$(TEST6_ELF)
-	
+
 tst: test
 
 $(PREFIX)/include/pico_defines.h: FORCE
@@ -458,8 +463,8 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@rm -f test/dummy.o dummy
 
 ppptest: test/ppp.c lib
-	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/
-	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) 
+	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/ $(CFLAGS)
+	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
 	rm -f ppp.o
 
 

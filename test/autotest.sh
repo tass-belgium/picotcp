@@ -12,7 +12,7 @@ function tftp_setup() {
 function tftp_cleanup() {
 	echo CLEANUP
 	pwd;ls
-	killall -w picoapp.elf
+	killall -wq picoapp.elf
 	rm -rf $TFTP_WORK_DIR
 	if [ $1 ]; then
 		exit $1
@@ -21,47 +21,70 @@ function tftp_cleanup() {
 
 export VFRUN_OUT="|pareon analyze" 
 export VFPROJECT=/var/lib/jenkins/pareon_verify_project
+function on_exit(){
+	killall -wq picoapp.elf 
+	killall -wq picoapp6.elf 
+	./test/vde_sock_start_user.sh stop
+}
 
-sh ./test/vde_sock_start_user.sh
+trap on_exit exit term
+
+./test/vde_sock_start_user.sh start
+
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
-killall -w picoapp.elf &> /dev/null
-killall -w picoapp6.elf &> /dev/null
-
-
-echo "IPV6 tests!"
-echo "PING6 LOCALHOST"
+killall -wq picoapp.elf 
+killall -wq picoapp6.elf
+ 
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ IPV6 tests! ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING6 LOCALHOST TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 ./build/test/picoapp6.elf --loop -a ping,::1,, || exit 1
 wait
 
-echo "PING6 TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING6 TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,, || exit 1
 killall -w picoapp6.elf
 
-echo "PING6 TEST (aborted in 4 seconds...)"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING6 TEST (aborted in 4 seconds...) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,4,) &
 sleep 7
 killall -w picoapp6.elf
 
-echo "TCP6 TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP6 TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a tcpbench,r,6667,,) &
 time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1)
 killall -w picoapp6.elf
 
-echo "TCP6 TEST (with 2% packet loss on both directions)"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP6 TEST (with 2% packet loss on both directions) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,2,2, -a tcpbench,r,6667,,) &
 time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1)
 killall -w picoapp6.elf
 
-echo "TCP6 TEST (nagle)"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP6 TEST (nagle) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a tcpbench,r,6667,n,) &
 time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,n, || exit 1)
 killall -w picoapp6.elf
 
-echo "UDP6 TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ UDP6 TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a udpecho,::0,6667,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a udpclient,aaaa::1,6667,6667,1400,100,10, || exit 1
 wait || exit 1
@@ -71,18 +94,21 @@ killall -w picoapp6.elf
 echo
 echo
 echo
-echo "IPV6 FWD TCP TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ IPV6 FWD TCP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic1.ctl,2001:aabb::2,ffff:ffff::,2001:aabb::ff,, -a tcpbench,r,6667,,) &
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,2001:aaaa::ff,ffff:ffff::,,, --vde pic1,/tmp/pic1.ctl,2001:aabb::ff,ffff:ffff::,,, -a noop,) &
 ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,2001:aaaa::1,ffff:ffff::,2001:aaaa::ff,, -a tcpbench,t,2001:aabb::2,6667,, || exit 1
 sleep 2
 killall -w picoapp6.elf
 
-
-echo "MULTICAST TEST"
-(./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
-(./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667) &
-(./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667) &
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ MULTICAST TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667:) &
+(./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667:) &
+(./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667:) &
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667 || exit 1
 (wait && wait && wait) || exit 1
@@ -93,50 +119,70 @@ echo
 echo
 echo
 
-echo "IPV4 tests!"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ IPV4 tests! ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-echo "PING LOCALHOST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING LOCALHOST TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 ./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
 
-echo "PING TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:: || exit 1
 killall -w picoapp.elf
 
-echo "PING TEST -- Aborted in 4 seconds"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ PING TEST -- Aborted in 4 seconds ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:4:) &
 sleep 7
 killall -w picoapp.elf
 
-echo "TCP TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::: -a tcpbench:r:6667::) &
 time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1)
 killall -w picoapp.elf
 
-echo "TCP TEST (with 2% packet loss on both directions)"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP TEST (with 2% packet loss on both directions) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::2:2: -a tcpbench:r:6667::) &
 time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1)
 killall -w picoapp.elf
 
-echo "TCP TEST (nagle)"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP TEST (nagle) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a tcpbench:r:6667:n:) &
 time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:n: || exit 1)
 killall -w picoapp.elf
 
-echo "UDP TEST"
-(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667) &
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:1400:100:10 || exit 1
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ UDP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667:) &
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:1400:100:10: || exit 1
 wait || exit 1
 wait
 
-echo "UDP TEST with fragmentation"
-(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667) &
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:4500:100:10 || exit 1
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ UDP TEST with fragmentation ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a udpecho:10.40.0.8:6667:) &
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a udpclient:10.40.0.8:6667:6667:4500:100:10: || exit 1
 wait || exit 1
 wait
 
-echo "NAT TCP TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ NAT TCP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.10:255.255.0.0::: --vde pic1:/tmp/pic1.ctl:10.50.0.10:255.255.0.0: -a natbox:10.50.0.10) &
 sleep 2
 (./build/test/picoapp.elf --vde pic0:/tmp/pic1.ctl:10.50.0.8:255.255.0.0::: -a tcpbench:r:6667) &
@@ -144,7 +190,9 @@ sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0:10.40.0.10::: -a tcpbench:t:10.50.0.8:6667: || exit 1
 killall -w picoapp.elf
 
-echo "NAT UDP TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ NAT UDP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.10:255.255.0.0::: --vde pic1:/tmp/pic1.ctl:10.50.0.10:255.255.0.0::: -a natbox:10.50.0.10) &
 (./build/test/picoapp.elf --vde pic0:/tmp/pic1.ctl:10.50.0.8:255.255.0.0::: -a udpecho:10.50.0.8:6667) &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0:10.40.0.10::: -a udpclient:10.50.0.8:6667:6667:1400:100:10 || exit 1
@@ -153,29 +201,37 @@ echo "NAT UDP TEST"
 
 killall -w picoapp.elf
 
-echo "MULTICAST TEST"
-(./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0::: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667) &
-(./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0::: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667) &
-(./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0::: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667) &
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ MULTICAST TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0::: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667:) &
+(./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0::: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667:) &
+(./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0::: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667:) &
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0::: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667 || exit 1
 (wait && wait && wait) || exit 1
 
 killall -w picoapp.elf
 
-echo "DHCP TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ DHCP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.1:255.255.0.0::: -a dhcpserver:pic0:10.40.0.1:255.255.255.0:64:128:) &
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a dhcpclient:pic0 || exit 1
 killall -w picoapp.elf
 
-echo "DHCP DUAL TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ DHCP DUAL TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0::: -a dhcpserver:pic0:10.40.0.2:255.255.255.0:64:128:) &
 (./build/test/picoapp.elf --vde pic1:/tmp/pic1.ctl:10.50.0.2:255.255.0.0::: -a dhcpserver:pic1:10.50.0.2:255.255.255.0:64:128:) &
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: --barevde pic1:/tmp/pic1.ctl: -a dhcpclient:pic0:pic1: || exit 1
 killall -w picoapp.elf
 
 #TO DO: the ping address 169.254.22.5 is hardcoded in the slaacv4 test. Nice to pass that by parameter
-echo "SLAACV4 TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ SLAACV4 TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:169.254.22.5:255.255.0.0:::) &
 ./build/test/picoapp.elf --barevde pic0:/tmp/pic0.ctl: -a slaacv4:pic0 || exit 1
 killall -w picoapp.elf
@@ -188,7 +244,9 @@ sleep 20
 killall -w picoapp.elf
 
 
-echo "MDNS TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ MDNS TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 #retrieve a local mdns host name from the host
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:hostfoo.local:hostbar.local:) &
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app mdns:hostbar.local:hostfoo.local:) &
@@ -211,7 +269,9 @@ fi
 
 pushd $TFTP_WORK_DIR
 
-echo "TFTP GET TEST"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TFTP GET TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 tftp_setup $TFTP_WORK_DIR
 (${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
 cd $TFTP_WORK_SUBDIR
@@ -224,8 +284,10 @@ sleep 1
 
 rm $TFTP_WORK_FILE
 
-echo "TFTP PUT TEST"
-(${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S) &
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TFTP PUT TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(${TFTP_EXEC_DIR}/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app tftp:S:) &
 cd $TFTP_WORK_DIR
 tftp_setup $TFTP_WORK_DIR
 sleep 2
@@ -243,4 +305,5 @@ echo
 echo "MAX memory used: $MAXMEM"
 rm -f /tmp/pico-mem-report-*
 
-echo "SUCCESS!" && exit 0
+./test/vde_sock_start_user.sh stop
+echo "SUCCESS!" 

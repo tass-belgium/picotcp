@@ -156,9 +156,13 @@ struct pico_ipv6_mreq_source {
 # define PICO_IP_DROP_SOURCE_MEMBERSHIP       40
 
 # define PICO_SOCKET_OPT_MULTICAST_LOOP       1
+# define PICO_SOCKET_OPT_KEEPIDLE              4
+# define PICO_SOCKET_OPT_KEEPINTVL             5
+# define PICO_SOCKET_OPT_KEEPCNT               6
 
 # define PICO_SOCKET_OPT_RCVBUF               52
 # define PICO_SOCKET_OPT_SNDBUF               53
+
 
 /* Constants */
 # define PICO_IP_DEFAULT_MULTICAST_TTL        1
