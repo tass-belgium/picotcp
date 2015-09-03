@@ -322,7 +322,6 @@ static int pico_mld_compatibility_mode(struct pico_frame *f)
     if (f->dev->eth) {
         datalen = (uint16_t)(datalen - PICO_SIZE_ETHHDR);
     } 
-    datalen -= IP_OPTION_ROUTER_ALERT_LEN ; 
     mld_dbg("MLD: LEN = %u, OCTETS = %u\n", short_be(ipv6_hdr->len), datalen);
     if( datalen >= 28) {
         /* MLDv2 */
@@ -343,7 +342,9 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
 {
     struct mld_parameters *p = NULL;
     struct pico_ip6 ipv6;
-    pico_string_to_ipv6(MLD_ALL_HOST_GROUP, &ipv6);
+    char tmp[50]= "FF01:0:0:0:0:0:0:1";
+    
+    pico_string_to_ipv6(tmp, &ipv6);
 
     if (!memcmp(&mcast_group->addr, &ipv6, sizeof(struct pico_ip6)))
         return 0;
@@ -365,7 +366,6 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         p->mcast_link = *mcast_link;
         p->mcast_group = *mcast_group;
         pico_tree_insert(&MLDParameters, p);
-        char *tmp= PICO_ZALLOC(50);
         pico_ipv6_to_string(tmp, mcast_link->addr);
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
@@ -374,7 +374,7 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
 
     switch (state) {
     case PICO_MLD_STATE_CREATE:
-        p->event = MLD_EVENT_CREATE_GROUP;
+        p->event = MLD_EVENT_START_LISTENING;
         break;
 
     case PICO_MLD_STATE_UPDATE:
@@ -382,9 +382,8 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         break;
 
     case PICO_MLD_STATE_DELETE:
-        p->event = MLD_EVENT_DELETE_GROUP;
+        p->event = MLD_EVENT_STOP_LISTENING;
         break;
-
     default:
         return -1;
     }
@@ -472,13 +471,16 @@ int pico_mld_process_in(struct pico_frame *f)
 {
     struct mld_parameters *p = NULL;
    
-    if (!pico_mld_is_checksum_valid(f))
+    if (!pico_mld_is_checksum_valid(f)) 
+       goto out;
+    
+    if (pico_mld_compatibility_mode(f) < 0) 
         goto out;
-    if (pico_mld_compatibility_mode(f) < 0)
-        goto out;
+    
     p = pico_mld_analyse_packet(f);
-    if (!p)
+    if (!p) 
         goto out;
+    
     return pico_mld_process_event(p);
 
 out:
@@ -490,6 +492,7 @@ out:
 
 
 static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f) {
+    mld_dbg("send done\n");
     return 0;
 }
 #define IPV6_MAX_STRLEN \
@@ -553,7 +556,8 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
 
     case PICO_MLDV1:
     {
-        struct mld_message *report = NULL; 
+        struct mld_message *report = NULL;
+        struct pico_ipv6_hdr * hdr; 
         uint8_t report_type = PICO_MLD_REPORT;
 
         p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message));
@@ -567,9 +571,12 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
 
         report->crc = 0;
         report->crc = short_be(pico_icmp6_checksum(p->f));
-        break;
+        hdr = (struct pico_ipv6_hdr *)  p->f->net_hdr;
+        hdr->hop = MLD_HOP_LIMIT;
+        struct pico_ipv6_exthdr *hbh = hdr+hdr->nxthdr;
+        hbh->ext.routing.routtype = 0;
+        break;    
     }
-
     
     default:
         pico_err = PICO_ERR_EINVAL;
@@ -611,8 +618,9 @@ static int mld_srsfst(struct mld_parameters *p)
     mld_dbg("MLD: event = start listening | action = send report, set flag, start timer\n");
 
     p->last_host = MLD_HOST_LAST;
-    if (pico_mld_generate_report(p) < 0)
-        return -1;
+    if (pico_mld_generate_report(p) < 0) 
+       return -1;
+    
     if (!p->f)
         return 0;
     copy_frame = pico_frame_copy(p->f);
@@ -749,12 +757,11 @@ static int mld_discard(struct mld_parameters *p)
 
     
 /* finite state machine table */
-static const mld_callback mld_state_diagram[3][6] =
-{ /* event                    |Query received  |Done reveive |Report receive |Timer expired  | Stop Listening  | Start listening */
-/* state Non-Member      */
-/* none listener*/          { mld_discard ,         mld_srsfst,       mld_discard,        mld_discard,         mld_discard,          mld_srsfst},
-/* idle listener */         {   mld_st ,         mld_discard,       mld_discard,        mld_discard,           mld_sdifs,          mld_discard },
-/* delaying listener     */ { mld_rtimrtct,         mld_discard,          mld_stcl,           mld_srsf,         mld_stsdifs,          mld_discard }
+static const mld_callback mld_state_diagram[3][7] =
+{ /* event                    | Stop Listening | Start Listening | Update Group |Query reveive |Report receive |Timer expired */
+/* none listener*/           { mld_discard ,    mld_srsfst,         mld_discard,  mld_discard,    mld_discard,    mld_discard},
+/* idle listener */          { mld_st ,         mld_discard,        mld_discard,  mld_rtimrtct,   mld_stcl,       mld_srsf },
+/* delaying listener     */  { mld_rtimrtct,    mld_discard,        mld_discard,  mld_srsf,       mld_stsdifs,    mld_discard }
 };
 
 static int pico_mld_process_event(struct mld_parameters *p) {
