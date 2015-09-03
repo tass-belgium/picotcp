@@ -1,13 +1,13 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
-CC:=i686-linux-gnu-vfcc
-LD:=i686-linux-gnu-vfcc
+CC:=x86_64-linux-gnu-vfcc
+LD:=x86_64-linux-gnu-vfcc
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -m32 
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug 
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
@@ -133,12 +133,12 @@ ifeq ($(ARCH),arm9)
 endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
-  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer 
 endif
 
 ifeq ($(ARCH),faulty)
   CFLAGS+=-DFAULTY -DUNIT_TEST
-  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer -m32
+  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer 
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o
