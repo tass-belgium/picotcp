@@ -32,9 +32,9 @@
 
 #define UNUSED __attribute__((unused))
 
-#define IEEE802154_MIN_HDR_LEN      (5u)
-#define IEEE802154_LEN_LEN          (1u)
-#define IEEE802154_BCST_ADDR        (0xFFFFu)
+#define IEEE_MIN_HDR_LEN      (5u)
+#define IEEE_LEN_LEN          (1u)
+#define IEEE_BCST_ADDR        (0xFFFFu)
 
 #define IPV6_FIELDS_NUM             (6u)
 #define IPV6_SOURCE                 (0u)
@@ -99,7 +99,7 @@
 #define SIXLOWPAN_NALP              DISPATCH_NALP
 #define SIXLOWPAN_IPV6              DISPATCH_IPV6
 #define SIXLOWPAN_HC1               DISPATCH_HC1
-#define SIXLOPWAN_BC0               DISPATCH_BC0
+#define SIXLOWPAN_BC0               DISPATCH_BC0
 #define SIXLOWPAN_ESC               DISPATCH_ESC
 #define SIXLOWPAN_MESH              DISPATCH_MESH
 #define SIXLOWPAN_FRAG1             DISPATCH_FRAG1
@@ -142,7 +142,7 @@ enum sixlowpan_state
 
 enum endian_mode
 {
-    ENDIAN_IEEE802154 = 0,
+    ENDIAN_IEEE = 0,
     ENDIAN_SIXLOWPAN
 };
 
@@ -154,7 +154,7 @@ struct pico_device_sixlowpan
 	struct pico_device dev;
 	
 	/* Interface between pico_device-structure & 802.15.4-device driver */
-	radio_t *radio;
+	struct ieee_radio *radio;
     
     /* Every PAN has to have a routable IPv6 prefix. */
     struct pico_ip6 prefix;
@@ -191,7 +191,7 @@ struct sixlowpan_frame
     uint16_t size;
     
     /* Link header buffer */
-    IEEE802154_hdr_t *link_hdr;
+    struct ieee_hdr *link_hdr;
     uint8_t link_hdr_len;
     
     /* IPv6 header buffer */
@@ -451,15 +451,17 @@ static void UNUSED dbg_mem(const char *pre, void *buf, uint16_t len)
 static uint16_t buf_delete(void *buf, uint16_t len, struct range r)
 {
     uint16_t rend = (uint16_t)(r.offset + r.length);
-    
+    uint16_t clr_offset = (uint16_t)(len - r.length);
+    uint16_t rest = (uint16_t)((len - rend));
     CHECK_PARAM_ZERO(buf);
     
     /* OOB Check */
-    if (!rend || rend > len || r.offset > len)
+    if (!rend || len < rend || len <= r.offset)
         return len;
     
     /* Replace the deleted chunk at the offset by the data after the end of the deleted chunk */
-    memmove(buf + r.offset, buf + rend, (size_t)(len - rend));
+    memmove(buf + r.offset, buf + rend, (size_t)rest);
+    memset(buf + clr_offset, 0, r.length);
     
     /* Return the new length */
     return (uint16_t)(len - r.length);
@@ -467,13 +469,10 @@ static uint16_t buf_delete(void *buf, uint16_t len, struct range r)
 
 static void *buf_insert(void *buf, uint16_t len, struct range r)
 {
-    uint16_t rend = (uint16_t)(r.offset + r.length);
     void *new = NULL;
     
-    CHECK_PARAM_NULL(buf);
-    
     /* OOB Check */
-    if (!rend || r.offset > len || rend > len)
+    if (r.offset > len)
         return buf;
     
     /* OOM Check */
@@ -481,11 +480,12 @@ static void *buf_insert(void *buf, uint16_t len, struct range r)
         return buf;
     
     /* Assemble buffer again */
-    memmove(new, buf, (size_t)r.offset);
-    memmove(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
-    memset(new + r.offset, 0x00, r.length);
-    
-    PICO_FREE(buf); /* Give back previous buffer to the system */
+    if (NULL != buf && new) {
+        memmove(new, buf, (size_t)r.offset);
+        memmove(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
+        memset(new + r.offset, 0x00, r.length);
+        PICO_FREE(buf); /* Give back previous buffer to the system */
+    }
     
     return new;
 }
@@ -494,7 +494,7 @@ static inline void FRAME_REARRANGE_PTRS(struct sixlowpan_frame *f)
 {
     CHECK_PARAM_VOID(f);
     
-    f->link_hdr = (IEEE802154_hdr_t *)(f->phy_hdr + IEEE802154_LEN_LEN);
+    f->link_hdr = (struct ieee_hdr *)(f->phy_hdr + IEEE_LEN_LEN);
     f->net_hdr = ((uint8_t *)f->link_hdr) + f->link_hdr_len;
     f->transport_hdr = f->net_hdr + f->net_len;
 }
@@ -558,28 +558,28 @@ static uint8_t *FRAME_BUF_DELETE(struct sixlowpan_frame *f,  enum pico_layer l, 
 /* -------------------------------------------------------------------------------- */
 // MARK: IEEE802.15.4
 
-inline static void IEEE802154_EUI64_LE(uint8_t EUI64[8])
+inline static void ieee_ext_to_le(uint8_t ext[8])
 {
     uint8_t i = 0, temp = 0;
-    CHECK_PARAM_VOID(EUI64);
+    CHECK_PARAM_VOID(ext);
     
     for (i = 0; i < 4; i++) {
-        temp = EUI64[i];
-        EUI64[i] = EUI64[8 - (i + 1)];
-        EUI64[8 - (i + 1)] = temp;
+        temp = ext[i];
+        ext[i] = ext[8 - (i + 1)];
+        ext[8 - (i + 1)] = temp;
     }
 }
 
-inline static uint8_t IEEE802154_ADDR_LEN(IEEE802154_address_mode_t am)
+inline static uint8_t ieee_addr_len(enum ieee_am am)
 {
     uint8_t len = 0;
     switch (am) {
-        case IEEE802154_ADDRESS_MODE_BOTH:
+        case IEEE_AM_BOTH:
             /* intentional fall through */
-        case IEEE802154_ADDRESS_MODE_SHORT:
+        case IEEE_AM_SHORT:
             len = 2;
             break;
-        case IEEE802154_ADDRESS_MODE_EXTENDED:
+        case IEEE_AM_EXTENDED:
             len = 8;
             break;
         default:
@@ -589,59 +589,59 @@ inline static uint8_t IEEE802154_ADDR_LEN(IEEE802154_address_mode_t am)
     return len;
 }
 
-inline static uint8_t IEEE802154_hdr_len(struct sixlowpan_frame *f)
+inline static uint8_t ieee_hdr_len(struct sixlowpan_frame *f)
 {
     CHECK_PARAM_ZERO(f);
     
-    f->link_hdr_len = (uint8_t)(IEEE802154_MIN_HDR_LEN +
-                                IEEE802154_ADDR_LEN(f->peer._mode) +
-                                IEEE802154_ADDR_LEN(f->local._mode));
+    f->link_hdr_len = (uint8_t)(IEEE_MIN_HDR_LEN +
+                                ieee_addr_len(f->peer._mode) +
+                                ieee_addr_len(f->local._mode));
     
     /* Add Auxiliary Security Header in the future */
     
     return f->link_hdr_len;
 }
 
-inline static uint8_t IEEE802154_len(struct sixlowpan_frame *f)
+inline static uint8_t ieee_len(struct sixlowpan_frame *f)
 {
     CHECK_PARAM_ZERO(f);
     
-    f->size = (uint16_t)(IEEE802154_hdr_len(f) + (uint16_t)(f->net_len + (uint16_t)(f->transport_len + 3u)));
+    f->size = (uint16_t)(ieee_hdr_len(f) + (uint16_t)(f->net_len + (uint16_t)(f->transport_len + 3u)));
     
     return (uint8_t)(f->size);
 }
 
-inline static uint8_t IEEE802154_hdr_buf_len(IEEE802154_hdr_t *hdr)
+inline static uint8_t ieee_hdr_buf_len(struct ieee_hdr *hdr)
 {
-    return (uint8_t)(IEEE802154_MIN_HDR_LEN + (uint8_t)(IEEE802154_ADDR_LEN(hdr->fcf.sam) + IEEE802154_ADDR_LEN(hdr->fcf.dam)));
+    return (uint8_t)(IEEE_MIN_HDR_LEN + (uint8_t)(ieee_addr_len(hdr->fcf.sam) + ieee_addr_len(hdr->fcf.dam)));
 }
 
-static void IEEE802154_process_address(uint8_t *buf, struct pico_sixlowpan_addr *addr, IEEE802154_address_mode_t am)
+static void ieee_process_address(uint8_t *buf, struct pico_sixlowpan_addr *addr, enum ieee_am am)
 {
-    if (am == IEEE802154_ADDRESS_MODE_SHORT) {
+    if (am == IEEE_AM_SHORT) {
         addr->_short.addr = (uint16_t)((((uint16_t)buf[0]) << 8) | (uint16_t)buf[1]);
-        addr->_mode = IEEE802154_ADDRESS_MODE_SHORT;
-    } else if (am == IEEE802154_ADDRESS_MODE_EXTENDED) {
+        addr->_mode = IEEE_AM_SHORT;
+    } else if (am == IEEE_AM_EXTENDED) {
         memcpy(addr->_ext.addr, buf, PICO_SIZE_SIXLOWPAN_EXT);
-        addr->_mode = IEEE802154_ADDRESS_MODE_EXTENDED;
-        IEEE802154_EUI64_LE(addr->_ext.addr);
+        addr->_mode = IEEE_AM_EXTENDED;
+        ieee_ext_to_le(addr->_ext.addr);
     } else {
-        addr->_mode = IEEE802154_ADDRESS_MODE_NONE;
+        addr->_mode = IEEE_AM_NONE;
     }
 }
 
-static void IEEE802154_process_addresses(IEEE802154_hdr_t *hdr, struct pico_sixlowpan_addr *dst, struct pico_sixlowpan_addr *src)
+static void ieee_process_addresses(struct ieee_hdr *hdr, struct pico_sixlowpan_addr *dst, struct pico_sixlowpan_addr *src)
 {
     CHECK_PARAM_VOID(hdr);
     CHECK_PARAM_VOID(dst);
     CHECK_PARAM_VOID(src);
     
     /* Process SRC and DST adresses seperately*/
-    IEEE802154_process_address(hdr->addresses, dst, hdr->fcf.dam);
-    IEEE802154_process_address(hdr->addresses + IEEE802154_ADDR_LEN(hdr->fcf.dam), src, hdr->fcf.sam);
+    ieee_process_address(hdr->addresses, dst, hdr->fcf.dam);
+    ieee_process_address(hdr->addresses + ieee_addr_len(hdr->fcf.dam), src, hdr->fcf.sam);
 }
 
-static struct sixlowpan_frame *IEEE802154_unbuf(struct pico_device *dev, uint8_t *buf, uint8_t len)
+static struct sixlowpan_frame *ieee_unbuf(struct pico_device *dev, uint8_t *buf, uint8_t len)
 {
     struct sixlowpan_frame *f = NULL;
     
@@ -663,12 +663,12 @@ static struct sixlowpan_frame *IEEE802154_unbuf(struct pico_device *dev, uint8_t
     memcpy(f->phy_hdr, buf, len);
     
     /* Parse in IEEE802.15.4-header */
-    f->link_hdr = (IEEE802154_hdr_t *)(f->phy_hdr + IEEE802154_LEN_LEN);
-    f->link_hdr_len = IEEE802154_hdr_buf_len(f->link_hdr);
+    f->link_hdr = (struct ieee_hdr *)(f->phy_hdr + IEEE_LEN_LEN);
+    f->link_hdr_len = ieee_hdr_buf_len(f->link_hdr);
     
     /* Parse in IPv6-header */
     f->net_hdr = (uint8_t *)(((uint8_t *)f->link_hdr) + f->link_hdr_len);
-    f->net_len = (uint16_t)(f->size - IEEE802154_PHY_OVERHEAD - f->link_hdr_len);
+    f->net_len = (uint16_t)(f->size - IEEE_PHY_OVERHEAD - f->link_hdr_len);
     
     /* Set the device */
     f->dev = dev;
@@ -677,7 +677,7 @@ static struct sixlowpan_frame *IEEE802154_unbuf(struct pico_device *dev, uint8_t
     f->state = FRAME_COMPRESSED;
     
     /* Process the addresses-fields seperately */
-    IEEE802154_process_addresses(f->link_hdr, &(f->local), &(f->peer));
+    ieee_process_addresses(f->link_hdr, &(f->local), &(f->peer));
 
     return f;
 }
@@ -699,7 +699,7 @@ static int sixlowpan_addr_cmp(struct pico_sixlowpan_addr *a, struct pico_sixlowp
     if (a->_mode || b->_mode)
         return (int)((int)a->_mode - (int)b->_mode);
     
-    if (a->_mode == IEEE802154_ADDRESS_MODE_EXTENDED) {
+    if (a->_mode == IEEE_AM_EXTENDED) {
         ret = memcmp(a->_ext.addr, b->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
     } else {
         ret = memcmp(&a->_short.addr, &b->_short.addr, PICO_SIZE_SIXLOWPAN_SHORT);
@@ -747,17 +747,6 @@ static int sixlowpan_frag_cmp(void *a, void *b)
     return 0;
 }
 
-static uint16_t pico_tree_count(struct pico_tree *t)
-{
-    struct pico_tree_node *node = NULL;
-    uint16_t count = 0;
-    
-    pico_tree_foreach(node, t) {
-        count++;
-    }
-    return count;
-}
-
 PICO_TREE_DECLARE(Frags, &sixlowpan_frag_cmp);
 
 /* -------------------------------------------------------------------------------- */
@@ -785,7 +774,7 @@ static void sixlowpan_frame_destroy(struct sixlowpan_frame *f)
  *
  *  @param d      void *, destination-pointer to buffer to copy address to.
  *                Needs to be big enough to store the entire address, defined by
- *                addr.mode. If addr.mode is IEEE802154_ADDRESS_MODE_BOTH, the short-
+ *                addr.mode. If addr.mode is IEEE_AM_BOTH, the short-
  *                address will be copied in.
  *  @param addr   struct pico_sixlowpan_addr, address to copy.
  *  @param offset uint8_t, offset to add to 'd' for where to copy the address.
@@ -800,13 +789,13 @@ static int sixlowpan_addr_copy_flat(void *d,
 {
     CHECK_PARAM(d);
     
-    if (addr._mode == IEEE802154_ADDRESS_MODE_SHORT ||
-        addr._mode == IEEE802154_ADDRESS_MODE_BOTH) {
+    if (addr._mode == IEEE_AM_SHORT ||
+        addr._mode == IEEE_AM_BOTH) {
         memcpy(d + offset, &addr._short.addr, PICO_SIZE_SIXLOWPAN_SHORT);
-    } else if (addr._mode == IEEE802154_ADDRESS_MODE_EXTENDED) {
+    } else if (addr._mode == IEEE_AM_EXTENDED) {
         memcpy(d + offset, addr._ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
-        if (ENDIAN_IEEE802154 == e) /* Convert to Small Endian */
-            IEEE802154_EUI64_LE(d + offset);
+        if (ENDIAN_IEEE == e) /* Convert to Small Endian */
+            ieee_ext_to_le(d + offset);
     } else {
         return -1;
     }
@@ -844,11 +833,11 @@ static int sixlowpan_addr_from_iid(struct pico_sixlowpan_addr *addr, uint8_t in[
     CHECK_PARAM(addr);
     CHECK_PARAM(in);
     if (sixlowpan_iid_is_derived_16(in)) {
-        addr->_mode = IEEE802154_ADDRESS_MODE_SHORT;
+        addr->_mode = IEEE_AM_SHORT;
         memcpy(&addr->_short.addr, in + 6, PICO_SIZE_SIXLOWPAN_SHORT);
         addr->_short.addr = short_be(addr->_short.addr); /* Memcpy is endian-dependent */
     } else {
-        addr->_mode = IEEE802154_ADDRESS_MODE_EXTENDED;
+        addr->_mode = IEEE_AM_EXTENDED;
         memcpy(addr->_ext.addr, in, PICO_SIZE_SIXLOWPAN_EXT);
         in[0] = (uint8_t)(in[0] ^ 0x02); /* Set the U/L to unique */
     }
@@ -868,7 +857,7 @@ static int sixlowpan_ipv6_derive_local(struct pico_sixlowpan_addr *addr,
     CHECK_PARAM(addr);
     CHECK_PARAM(ip);
     
-    if (addr->_mode == IEEE802154_ADDRESS_MODE_SHORT || addr->_mode == IEEE802154_ADDRESS_MODE_BOTH) {
+    if (addr->_mode == IEEE_AM_SHORT || addr->_mode == IEEE_AM_BOTH) {
         ret = sixlowpan_iid_from_short(addr->_short, linklocal.addr + 8);
     } else {
         ret = sixlowpan_iid_from_extended(addr->_ext, linklocal.addr + 8);
@@ -945,8 +934,8 @@ inline static int sixlowpan_ll_derive_mcast(struct pico_sixlowpan_addr *l,
     
     /*  RFC: IPv6 level multicast packets MUST be carried as link-layer broadcast
      *  frame in IEEE802.15.4 networks. */
-    l->_mode = IEEE802154_ADDRESS_MODE_SHORT;
-    l->_short.addr = IEEE802154_BCST_ADDR;
+    l->_mode = IEEE_AM_SHORT;
+    l->_short.addr = IEEE_BCST_ADDR;
     
     return 0;
 }
@@ -968,7 +957,7 @@ static int sixlowpan_ll_derive_nd(struct pico_frame *f,
     CHECK_PARAM(l);
     
     /* Discover neighbor link address using 6LoWPAN ND for dst address */
-    if ((neighbor = pico_ipv6_get_sixlowpan_neighbor(f))) {
+    if ((neighbor = (struct pico_sixlowpan_addr *)pico_ipv6_get_neighbor(f))) {
         memcpy(l, neighbor, sizeof(struct pico_sixlowpan_addr));
         return 0;
     }
@@ -1707,7 +1696,7 @@ static void sixlowpan_iphc_compress(struct sixlowpan_frame *f)
     }
 
     /* Check whether packet now fits inside the frame */
-    if ((IEEE802154_len(f) <= IEEE802154_MAC_MTU)) {
+    if ((ieee_len(f) <= IEEE_MAC_MTU)) {
         f->state = FRAME_FITS_COMPRESSED;
     } else {
         f->state = FRAME_COMPRESSED;
@@ -1733,7 +1722,7 @@ static void sixlowpan_compress(struct sixlowpan_frame *f)
     CHECK_PARAM_VOID(f);
     
     /* Check whether or not the frame actually needs compression */
-    if ((IEEE802154_len(f) + DISPATCH_IPV6(INFO_HDR_LEN)) <= IEEE802154_MAC_MTU) {
+    if ((ieee_len(f) + DISPATCH_IPV6(INFO_HDR_LEN)) <= IEEE_MAC_MTU) {
         sixlowpan_uncompressed(f);
     } else {
         sixlowpan_iphc_compress(f);
@@ -1854,10 +1843,10 @@ static int sixlowpan_ll_derive_dst(struct pico_frame *f,
  */
 static int sixlowpan_ll_provide(struct sixlowpan_frame *f)
 {
-    struct IEEE802154_fcf *fcf = NULL;
-    IEEE802154_hdr_t *hdr = NULL;
+    struct ieee_radio *radio = NULL;
+    struct ieee_fcf *fcf = NULL;
+    struct ieee_hdr *hdr = NULL;
     static uint8_t seq = 0; /* STATIC SEQUENCE NUMBER */
-    radio_t *radio = NULL;
     
     CHECK_PARAM(f);
     
@@ -1868,20 +1857,20 @@ static int sixlowpan_ll_provide(struct sixlowpan_frame *f)
     fcf = &(hdr->fcf);
     
     /* Set Frame Control Field flags. */
-    fcf->frame_type = IEEE802154_FRAME_TYPE_DATA;
-    fcf->security_enabled = IEEE802154_FALSE;
-    fcf->frame_pending = IEEE802154_FALSE;
-    fcf->ack_required = IEEE802154_FALSE;
-    fcf->intra_pan = IEEE802154_TRUE;
-    fcf->frame_version = IEEE802154_FRAME_VERSION_2003;
+    fcf->frame_type = IEEE_FRAME_TYPE_DATA;
+    fcf->security_enabled = IEEE_FALSE;
+    fcf->frame_pending = IEEE_FALSE;
+    fcf->ack_required = IEEE_FALSE;
+    fcf->intra_pan = IEEE_TRUE;
+    fcf->frame_version = IEEE_FRAME_VERSION_2003;
     
     /* Set the addressing modes */
-    if (IEEE802154_ADDRESS_MODE_BOTH == f->peer._mode)
-        fcf->dam = IEEE802154_ADDRESS_MODE_SHORT;
+    if (IEEE_AM_BOTH == f->peer._mode)
+        fcf->dam = IEEE_AM_SHORT;
     else
         fcf->dam = f->peer._mode;
-    if (IEEE802154_ADDRESS_MODE_BOTH == f->local._mode)
-        fcf->sam = IEEE802154_ADDRESS_MODE_SHORT;
+    if (IEEE_AM_BOTH == f->local._mode)
+        fcf->sam = IEEE_AM_SHORT;
     else
         fcf->sam = f->local._mode;
     
@@ -1889,8 +1878,8 @@ static int sixlowpan_ll_provide(struct sixlowpan_frame *f)
     hdr->seq = seq;
     hdr->pan = radio->get_pan_id(radio);
     
-    sixlowpan_addr_copy_flat(hdr->addresses, f->peer, 0, ENDIAN_IEEE802154);
-    sixlowpan_addr_copy_flat(hdr->addresses, f->local, IEEE802154_ADDR_LEN(f->peer._mode), ENDIAN_IEEE802154);
+    sixlowpan_addr_copy_flat(hdr->addresses, f->peer, 0, ENDIAN_IEEE);
+    sixlowpan_addr_copy_flat(hdr->addresses, f->local, ieee_addr_len(f->peer._mode), ENDIAN_IEEE);
     
     seq++; /* Increment sequence number for the next time */
     return 0;
@@ -1917,7 +1906,7 @@ static int sixlowpan_frame_convert(struct sixlowpan_frame *f, struct pico_frame 
     f->dgram_size = (uint16_t)(f->net_len + f->transport_len);
     
     /* Determine the size */
-    IEEE802154_len(f);
+    ieee_len(f);
     if (!(f->phy_hdr = PICO_ZALLOC(f->size))) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -1979,7 +1968,7 @@ static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
     f->to_send = (uint16_t)(f->net_len + f->transport_len);
     
     /* Determine how many bytes fits inside a single IEEE802.15.4-frame including 802.15.4-header and frag-header */
-    max_psize = (uint8_t)(IEEE802154_MAC_MTU - f->link_hdr_len);
+    max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len);
     max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn));
     
     diff = (uint8_t)(f->dgram_size - f->to_send);
@@ -2054,13 +2043,13 @@ static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
         }
     }
     
-    *len = (uint8_t)(f->link_hdr_len + (uint8_t)(fragl + IEEE802154_PHY_OVERHEAD));
+    *len = (uint8_t)(f->link_hdr_len + (uint8_t)(fragl + IEEE_PHY_OVERHEAD));
     if (!(buf = PICO_ZALLOC((size_t)(*len)))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
     
-    memcpy(buf + IEEE802154_LEN_LEN, f->link_hdr, (size_t)(*len - IEEE802154_PHY_OVERHEAD));
+    memcpy(buf + IEEE_LEN_LEN, f->link_hdr, (size_t)(*len - IEEE_PHY_OVERHEAD));
     
     /* Remove the fragment from the frame */
     r.length = (uint16_t)fragl;
@@ -2144,7 +2133,7 @@ static int sixlowpan_defrag_init(struct sixlowpan_frame *f, uint16_t offset)
     }
     
     /* [ PHY | ~~LINK~~ | IPv6-PAYLOAD ... | PHY ] <- size */
-    reassembly->size = (uint16_t)(IEEE802154_PHY_OVERHEAD + f->link_hdr_len + f->dgram_size);
+    reassembly->size = (uint16_t)(IEEE_PHY_OVERHEAD + f->link_hdr_len + f->dgram_size);
     reassembly->link_hdr_len = f->link_hdr_len;
     reassembly->net_len = f->dgram_size;
     reassembly->transport_len = 0;
@@ -2164,7 +2153,7 @@ static int sixlowpan_defrag_init(struct sixlowpan_frame *f, uint16_t offset)
     FRAME_REARRANGE_PTRS(reassembly);
     
     /* Copy in the buffer fields from the received frame */
-    memmove(reassembly->phy_hdr, f->phy_hdr, IEEE802154_LEN_LEN);
+    memmove(reassembly->phy_hdr, f->phy_hdr, IEEE_LEN_LEN);
     memmove(reassembly->link_hdr, f->link_hdr, f->link_hdr_len);
     memmove(reassembly->net_hdr + offset, f->net_hdr, f->net_len);
     
@@ -2243,6 +2232,75 @@ static struct sixlowpan_frame *sixlowpan_defrag(struct sixlowpan_frame *f)
     return f;
 }
 
+PACKED_STRUCT_DEF sixlowpan_bc0
+{
+    uint8_t dispatch;
+    uint8_t seq;
+};
+
+static void sixlowpan_check_broadcast_out(struct sixlowpan_frame *f)
+{
+    struct sixlowpan_bc0 *bc = NULL;
+    static uint8_t seq = 0;
+    CHECK_PARAM_VOID(f);
+    
+    if (f->link_hdr->fcf.dam == IEEE_AM_SHORT &&
+        0xFF == f->link_hdr->addresses[0] &&
+        0xFF == f->link_hdr->addresses[1]) {
+        
+        if (!FRAME_BUF_PREPEND(f, PICO_LAYER_NETWORK, DISPATCH_BC0(INFO_HDR_LEN))) {
+            f->state = FRAME_ERROR;
+            return;
+        }
+        bc = (struct sixlowpan_bc0 *)f->net_hdr;
+        
+        bc->dispatch = DISPATCH_BC0(INFO_VAL);
+        bc->seq = ++seq;
+        
+        /* TODO: Start a timer for duplicate broadcast suppression */
+    }
+}
+
+static int sixlowpan_check_broadcast_in(struct sixlowpan_frame *f)
+{
+    struct pico_device_sixlowpan *slp = NULL;
+    struct pico_sixlowpan_addr *src = NULL;
+    struct range r = {IEEE_MIN_HDR_LEN, 0};
+    uint8_t d = 0;
+    int diff = 0;
+    CHECK_PARAM_VOID(f);
+    
+    d = f->net_hdr[0];
+    if (CHECK_DISPATCH(d, SIXLOWPAN_BC0)) {
+        /* TODO: Check for duplicates */
+        
+        src = (struct pico_sixlowpan_addr *)f->dev->eth;
+        if (ieee_addr_len(f->link_hdr->fcf.sam) != ieee_addr_len(src->_mode)) {
+            /* Insert or delete diff */
+            diff = (int)ieee_addr_len(f->link_hdr->fcf.sam) - (int)ieee_addr_len(src->_mode);
+            if (diff < 0) {
+                /* Insert diff */
+                r.length = (uint16_t)(ieee_addr_len(src->_mode) - ieee_addr_len(f->link_hdr->fcf.sam));
+                FRAME_BUF_INSERT(f, PICO_LAYER_DATALINK, r);
+            } else {
+                /* Delete diff */
+                r.length = (uint16_t)diff;
+                FRAME_BUF_DELETE(f, PICO_LAYER_DATALINK, r, 0);
+            }
+        }
+        
+        sixlowpan_addr_copy_flat(f->link_hdr->addresses, *src, 0, ENDIAN_IEEE);
+        
+        /* Forward the packet */
+        slp = (struct pico_device_sixlowpan *)f->dev;
+        slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
+        
+        return 1;
+    }
+    
+    return 0;
+}
+
 /* -------------------------------------------------------------------------------- */
 // MARK: PICO_DEV
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
@@ -2284,9 +2342,14 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
     
-    /* TODO: [6LOWPAN ADAPTION LAYER] prepend BROADCASTING/MESH ROUTING */
+    /* Whether or not the packet need to broadcasted */
+//    sixlowpan_check_broadcast_out(frame);
+//    if (FRAME_ERROR == frame->state) {
+//        PAN_ERR("Failed prepending broadcast header.\n");
+//        sixlowpan_frame_destroy(f);
+//        return -1;
+//    }
     
-    /* 1. - Whether or not the packet need to broadcasted */
     /* 2. - Whether or not the packet needs to be mesh routed */
     
     /* Schedule for sending */
@@ -2304,21 +2367,22 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 	/* Parse the pico_device structure to the internal sixlowpan-structure */
     struct pico_device_sixlowpan *sixlowpan = (struct pico_device_sixlowpan *) dev;
     struct sixlowpan_frame *f = NULL;
-    radio_t *radio = sixlowpan->radio;
-    uint8_t buf[IEEE802154_PHY_MTU];
+    struct ieee_radio *radio = sixlowpan->radio;
+    uint8_t buf[IEEE_PHY_MTU];
     uint8_t len = 0;
     
     do {
         if (RADIO_ERR_NOERR == radio->receive(radio, buf)) {
             if ((len = buf[0]) > 0) {
                 /* [IEEE802.15.4 LINK LAYER] decapsulate MAC frame to IPv6 */
-                if (!(f = IEEE802154_unbuf(dev, buf, len)))
+                if (!(f = ieee_unbuf(dev, buf, len)))
                     return loop_score;
                 
                 /* 1. Check for MESH Dispatch header */
                 
                 
                 /* 2. Check for BROADCAST header */
+                
                 
                 /* [6LOWPAN ADAPTION LAYER] unfragment */
                 f = sixlowpan_defrag(f);
@@ -2392,7 +2456,7 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
     if (!(link = pico_ipv6_link_add(dev, routable, netmask)))
         return;
     
-    if (slp_addr->_short.addr != IEEE802154_BCST_ADDR) {
+    if (slp_addr->_short.addr != IEEE_BCST_ADDR) {
         memset(routable.addr + 8, 0x00, 8);
         routable.addr[11] = 0xFF;
         routable.addr[12] = 0xFE;
@@ -2425,16 +2489,16 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
         slp_addr->_short.addr = slp->radio->get_addr_short(slp->radio);
         
         /* Set the address mode accordingly */
-        if (IEEE802154_BCST_ADDR != slp_addr->_short.addr) {
-            if (IEEE802154_ADDRESS_MODE_EXTENDED == slp_addr->_mode)
-                slp_addr->_mode = IEEE802154_ADDRESS_MODE_BOTH;
+        if (IEEE_BCST_ADDR != slp_addr->_short.addr) {
+            if (IEEE_AM_EXTENDED == slp_addr->_mode)
+                slp_addr->_mode = IEEE_AM_BOTH;
             else
-                slp_addr->_mode = IEEE802154_ADDRESS_MODE_SHORT;
+                slp_addr->_mode = IEEE_AM_SHORT;
         }
     }
 }
 
-struct pico_device *pico_sixlowpan_create(radio_t *radio)
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
     struct pico_sixlowpan_addr slp;
@@ -2448,9 +2512,9 @@ struct pico_device *pico_sixlowpan_create(radio_t *radio)
     /* Generate pico_sixlowpan_addr for the pico_device */
     radio->get_addr_ext(radio, slp._ext.addr);
     slp._short.addr = radio->get_addr_short(radio);
-    slp._mode = IEEE802154_ADDRESS_MODE_EXTENDED;
-    if (IEEE802154_BCST_ADDR != slp._short.addr)
-        slp._mode = IEEE802154_ADDRESS_MODE_BOTH;
+    slp._mode = IEEE_AM_EXTENDED;
+    if (IEEE_BCST_ADDR != slp._short.addr)
+        slp._mode = IEEE_AM_BOTH;
     
 	/* Try to init & register the device to picoTCP */
     snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);

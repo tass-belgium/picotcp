@@ -8,15 +8,15 @@
 #include "check.h"
 
 #define STARTING() printf("*********************** STARTING %s ***\n", __func__)
-#define TRYING() printf("Trying %s, normally...\n", __func__)
+#define TRYING(s, ...) printf("Trying %s: " s, __func__, ##__VA_ARGS__)
 #define CHECKING() printf("Checking the results for %s\n", __func__)
-#define BREAKING() printf("Breaking %s...\n",__func__)
+#define BREAKING(s, ...) printf("Breaking %s: " s, __func__, ##__VA_ARGS__)
 #define ENDING() printf("*********************** ENDING %s ***\n",__func__)
 
 #define DBG(s, ...) printf(s, ##__VA_ARGS__)
 
 #define SIZE_DUMMY_FRAME 60
-struct sixlowpan_frame *create_dummy_frame(void)
+static struct sixlowpan_frame *create_dummy_frame(void)
 {
     struct sixlowpan_frame *new = NULL;
     
@@ -30,26 +30,46 @@ struct sixlowpan_frame *create_dummy_frame(void)
     return new;
 }
 
-START_TEST(tc_buf_delete)
+START_TEST(tc_buf_delete) /* MARK: CHECKED */
 {
     /* Works with not allocated buffers as well, since it doesn't free anything */
-    uint8_t str[] = "Sing Hello, World!";
-    uint16_t len = strlen(str) + 1;
-    uint16_t nlen = 0;
+    char str[] = "Sing Hello, World!";
+    uint16_t len = 19;
+    uint16_t nlen = 0, plen = 0;
     
     /* Test removing the Hello-word including the preceding space */
     struct range r = {.offset = 4, .length = 6};
     
     STARTING();
     
-    TRYING();
+    TRYING("\n");
     nlen = buf_delete(str, len, r);
     
     CHECKING();
-    fail_if(0 == strcmp(str, "Sing, World"), "%s didnt't correctly delete chunk!\n", __func__);
+    fail_unless(0 == strcmp(str, "Sing, World!"), "%s didnt't correctly delete chunk (%s)\n", __func__, str);
     fail_unless(nlen == (len - r.length), "%s didn't return the right nlen expected %d and is %d\n", __func__,  (len - r.length), nlen);
     
-    BREAKING();
+    TRYING("\n");
+    r.offset = 13;
+    r.length = 1;
+    plen = nlen;
+    nlen = buf_delete(str, nlen, r);
+    
+    CHECKING();
+    fail_unless(0 == strcmp(str, "Sing, World!"), "%s deleted while it didn't suppose to (%s)\n", __func__, str);
+    fail_unless(nlen == plen, "%s returned wrong length, expected (%d) and is (%d)\n", __func__, plen, nlen);
+    
+    TRYING("\n");
+    r.offset = 0;
+    r.length = 13;
+    plen = nlen;
+    nlen = buf_delete(str, nlen, r);
+    
+    CHECKING();
+    fail_unless(0 == strcmp(str, ""), "%s should have deleted everything (%s)\n", __func__, str);
+    fail_unless(nlen == 0, "%s returned wrong length, expected (0) and is (%d)\n", __func__, plen, nlen);
+    
+    BREAKING("\n");
     fail_if(buf_delete(NULL, 4, r), "%s didn't check params!\n", __func__);
     
     /* Try with out of boundary offset */
@@ -58,69 +78,64 @@ START_TEST(tc_buf_delete)
     fail_unless(buf_delete(str, len, r), "%s didn't check offset!\n", __func__);
     
     /* Try with out of boundary range */
-    r.offset = len - 1;
+    r.offset = (uint16_t)(len - 1);
     r.length = 2;
     fail_unless(len == buf_delete(str, len, r), "%s didn't check range!\n", __func__);
     
     ENDING();
 }
 END_TEST
-START_TEST(tc_buf_insert)
+START_TEST(tc_buf_insert) /* MARK: CHECKED */
 {
     struct range r = {.offset = 0, .length = 0};
     uint8_t *buf = NULL;
+    uint8_t *pbuf = NULL;
     uint8_t cmp[] = {5,5,0,0,0,5,5,5};
-    uint16_t len = 0;
-    uint16_t nlen = 0;
     
     STARTING();
-    BREAKING();
-    /* Invalid arguments */
-    fail_unless(NULL == buf_insert(buf, 4, r), "%s failed checking args!\n", __func__);
+    TRYING("\n");
+    /* Try to insert in a NULL-buff */
+    r.offset = 0;
+    r.length = 5;
     
-    if (!(buf = PICO_ZALLOC(5))) {
-        pico_err = PICO_ERR_ENOMEM;
-        DBG("Failed allocating mem for test!\n");
-        return;
-    }
+    pbuf = buf;
+    buf = buf_insert(buf, 0, r);
+    fail_unless(buf !=  pbuf, "%s failed checking range!\n", __func__);
     
+    BREAKING("\n");
     /* OOB range */
     r.offset = 1;
     r.length = 1;
-    fail_unless(buf == buf_insert(buf, 0, r), "%s failed checking offset!\n", __func__);
+    pbuf = buf;
+    buf = buf_insert(buf, 0, r);
+    fail_unless(buf == pbuf, "%s failed checking offset!\n", __func__);
     
-    r.offset = 0;
-    r.length = 5;
-    fail_unless(buf == buf_insert(buf, 3, r), "%s failed checking range!\n", __func__);
-    
-    TRYING();
-    
+    TRYING("\n");
     memset(buf, 5, 5);
-    
     r.offset = 2;
     r.length = 3;
+    pbuf = buf;
     buf = buf_insert(buf, 5, r);
     
-    fail_unless(buf, "%s returned NULL!\n", __func__);
-    fail_unless(0 == memcmp(buf, cmp, 5 + r.length), "%s isn't formatted correctly!\n");
-    
     CHECKING();
+    fail_unless(pbuf != buf, "%s didn't return a new ptr!\n", __func__);
+    fail_unless(0 == memcmp(buf, cmp, (size_t)(5 + r.length)), "%s isn't formatted correctly!\n");
     
     ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_REARRANGE_PTRS)
+START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
 {
     struct sixlowpan_frame *new = NULL;
     STARTING();
-    BREAKING();
+    BREAKING("\n");
     new = create_dummy_frame();
     
     /* Invalid args */
     FRAME_REARRANGE_PTRS(new);
     fail_unless(new->link_hdr == (IEEE802154_hdr_t *)(new->phy_hdr + IEEE802154_LEN_LEN), "%s failed rearranging PTRS!\n", __func__);
     
-    TRYING();
+    TRYING("\n");
     new->link_hdr_len = 9;
     new->net_len = 40;
     new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
@@ -134,39 +149,156 @@ START_TEST(tc_FRAME_REARRANGE_PTRS)
     ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_INSERT)
+START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static uint8_t *FRAME_BUF_INSERT(struct sixlowpan_frame *f, uint8_t *buf, range_t r) */
+    struct sixlowpan_frame *new = NULL;
+    struct range r = {2, 5};
+    uint16_t psize = 0;
+    uint8_t *buf = NULL;
+    STARTING();
+
+    new = create_dummy_frame();
+    new->link_hdr_len = 9;
+    new->net_len = 40;
+    new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
+    FRAME_REARRANGE_PTRS(new);
+    
+    TRYING("Network HDR\n"); /* NETWORK HDR */
+    psize = new->size;
+    buf = FRAME_BUF_INSERT(new, PICO_LAYER_NETWORK, r);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
+    
+    TRYING("Datalink HDR\n");
+    psize = new->size; /* LINK HDR */
+    buf = FRAME_BUF_INSERT(new, PICO_LAYER_DATALINK, r);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
+    
+    
+    TRYING("Transport HDR\n");
+    psize = new->size; /* TRANSPORT HDR */
+    buf = FRAME_BUF_INSERT(new, PICO_LAYER_TRANSPORT, r);
+    
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_PREPEND)
+START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static uint8_t *FRAME_BUF_PREPEND(struct sixlowpan_frame *f, uint8_t *buf, uint16_t len) */
+    struct sixlowpan_frame *new = NULL;
+    uint16_t length = 5;
+    uint16_t psize = 0;
+    uint8_t *buf = NULL;
+    STARTING();
+    
+    new = create_dummy_frame();
+    new->link_hdr_len = 9;
+    new->net_len = 40;
+    new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
+    FRAME_REARRANGE_PTRS(new);
+    
+    
+    TRYING("Network HDR\n"); /* NETWORK HDR */
+    psize = new->size;
+    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_NETWORK, length);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
+    
+    TRYING("Datalink HDR\n");
+    psize = new->size; /* LINK HDR */
+    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_DATALINK, length);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
+    
+    TRYING("Transport HDR\n");
+    psize = new->size; /* TRANSPORT HDR */
+    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_TRANSPORT, length);
+    
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
+    
+    ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_DELETE)
+START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static int FRAME_BUF_DELETE(struct sixlowpan_frame *f, uint8_t *buf, range_t r, uint16_t offset) */
+    struct sixlowpan_frame *new = NULL;
+    struct range r = {2, 5};
+    uint16_t length = 5;
+    uint16_t psize = 0;
+    uint8_t *buf = NULL;
+    STARTING();
+    
+    new = create_dummy_frame();
+    new->link_hdr_len = 9;
+    new->net_len = 40;
+    new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
+    FRAME_REARRANGE_PTRS(new);
+    
+    TRYING("Network HDR\n"); /* NETWORK HDR */
+    psize = new->size;
+    buf = FRAME_BUF_DELETE(new, PICO_LAYER_NETWORK, r, 0);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
+    
+    TRYING("Datalink HDR\n");
+    psize = new->size; /* LINK HDR */
+    buf = FRAME_BUF_DELETE(new, PICO_LAYER_DATALINK, r, 0);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
+    
+    TRYING("Transport HDR\n");
+    psize = new->size; /* TRANSPORT HDR */
+    buf = FRAME_BUF_DELETE(new, PICO_LAYER_TRANSPORT, r, 0);
+    CHECKING();
+    fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
+                "%s returned pointer that doesn't point to inserted chunk\n", __func__);
+    fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
+    
+    ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE802154_EUI64_LE)
+START_TEST(tc_IEEE802154_EUI64_LE) /* MARK: CHECKED */
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: inline static void IEEE802154_EUI64_LE(uint8_t EUI64[8]) */
+    uint8_t old[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    uint8_t new[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    STARTING();
+    TRYING("\n");
+    IEEE802154_EUI64_LE(old);
+    CHECKING();
+    fail_unless(0 == memcmp(old, new, 8), "%s failed converting to little endian", __func__);
+    ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE802154_ADDR_LEN)
+START_TEST(tc_IEEE802154_ADDR_LEN) /* TODO: */
 {
-    printf("*********************** starting %s * \n", __func__);
-    printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: inline static uint8_t IEEE802154_ADDR_LEN(IEEE802154_address_mode_t am) */
+    struct pico_sixlowpan_addr addr;
 }
 END_TEST
 START_TEST(tc_IEEE802154_hdr_len)
@@ -230,6 +362,13 @@ START_TEST(tc_sixlowpan_iid_is_derived_64)
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
    /* TODO: test this: inline static int sixlowpan_iid_is_derived_16(uint8_t in[8]) */
+}
+END_TEST
+START_TEST(tc_sixlowpan_iid_is_derived_16)
+{
+    printf("*********************** starting %s * \n", __func__);
+    printf("*********************** ending %s * \n", __func__);
+    /* TODO: test this: inline static int sixlowpan_iid_is_derived_16(uint8_t in[8]) */
 }
 END_TEST
 START_TEST(tc_sixlowpan_iid_from_extended)
@@ -764,6 +903,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_sixlowpan_addr_copy_flat);
     tcase_add_test(TCase_sixlowpan_iid_is_derived_64, tc_sixlowpan_iid_is_derived_64);
     suite_add_tcase(s, TCase_sixlowpan_iid_is_derived_64);
+    tcase_add_test(TCase_sixlowpan_iid_is_derived_16, tc_sixlowpan_iid_is_derived_16);
+    suite_add_tcase(s, TCase_sixlowpan_iid_is_derived_16);
     tcase_add_test(TCase_sixlowpan_iid_from_extended, tc_sixlowpan_iid_from_extended);
     suite_add_tcase(s, TCase_sixlowpan_iid_from_extended);
     tcase_add_test(TCase_sixlowpan_iid_from_short, tc_sixlowpan_iid_from_short);
@@ -838,6 +979,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_sixlowpan_iphc_compress);
     tcase_add_test(TCase_sixlowpan_uncompressed, tc_sixlowpan_uncompressed);
     suite_add_tcase(s, TCase_sixlowpan_uncompressed);
+    tcase_add_test(TCase_sixlowpan_compress, tc_sixlowpan_compress);
+    suite_add_tcase(s, TCase_sixlowpan_compress);
     tcase_add_test(TCase_sixlowpan_decompress_nhc, tc_sixlowpan_decompress_nhc);
     suite_add_tcase(s, TCase_sixlowpan_decompress_nhc);
     tcase_add_test(TCase_sixlowpan_decompress_iphc, tc_sixlowpan_decompress_iphc);

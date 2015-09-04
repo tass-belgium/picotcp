@@ -396,7 +396,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
 #ifdef PICO_SUPPORT_SIXLOWPAN
-        if (LL_MODE_SIXLOWPAN == dev->mode && IEEE802154_ADDRESS_MODE_EXTENDED == ((struct pico_sixlowpan_addr *)dev->eth)->_mode) {
+        if (LL_MODE_SIXLOWPAN == dev->mode && IEEE_AM_EXTENDED == ((struct pico_sixlowpan_addr *)dev->eth)->_mode) {
             len = (uint16_t)(len + 8);
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
@@ -426,8 +426,8 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 #ifdef PICO_SUPPORT_SIXLOWPAN
         else if (LL_MODE_SIXLOWPAN == dev->mode) {
             slp = (struct pico_sixlowpan_addr *)dev->eth;
-            if (IEEE802154_ADDRESS_MODE_BOTH == slp->_mode ||
-                IEEE802154_ADDRESS_MODE_SHORT == slp->_mode) {
+            if (IEEE_AM_BOTH == slp->_mode ||
+                IEEE_AM_SHORT == slp->_mode) {
                 lladdr->len = 1;
                 memcpy(&(lladdr->addr._short.addr), &(slp->_short.addr), PICO_SIZE_SIXLOWPAN_SHORT);
                 memset(&(lladdr->addr._short.addr) + PICO_SIZE_SIXLOWPAN_SHORT, 0x00, 4);

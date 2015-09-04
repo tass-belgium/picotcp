@@ -11,81 +11,54 @@
 #include "pico_device.h"
 #include "pico_config.h"
 
-#define IEEE802154_PHY_MTU (128u)
-#define IEEE802154_MAC_MTU (125u)
-#define IEEE802154_PHY_OVERHEAD (3u)
-#define IEEE802154_MAC_OVERHEAD (2u)
+// SIZE DEFINITIONS (IEEE802.15.4)
+#define IEEE_PHY_MTU        (128u)
+#define IEEE_MAC_MTU        (125u)
+#define IEEE_PHY_OVERHEAD   (3u)
+#define IEEE_MAC_OVERHEAD   (2u)
 
-/**
- *  FRAME TYPE DEFINITIONS (IEEE802.15.4)
- */
-typedef enum
-{
-    IEEE802154_FRAME_TYPE_BEACON,
-    IEEE802154_FRAME_TYPE_DATA,
-    IEEE802154_FRAME_TYPE_ACKNOWLEDGEMENT,
-    IEEE802154_FRAME_TYPE_COMMAND
-} PACKED IEEE802154_frame_type_t;
+// FLAG DEFINITIONS (IEEE802.15.4)
+#define IEEE_FALSE  (0u)
+#define IEEE_TRUE   (1u)
 
-/**
- *  FCF FLAG VALUE DEFINITIONS (IEEE802.15.4)
- */
-typedef enum
-{
-    IEEE802154_FALSE,
-    IEEE802154_TRUE
-} PACKED IEEE802154_flag_t;
+// FRAME TYPE DEFINITIONS (IEEE802.15.4)
+#define IEEE_FRAME_TYPE_BEACON  (0u)
+#define IEEE_FRAME_TYPE_DATA    (1u)
+#define IEEE_FRAME_TYPE_ACK     (2u)
+#define IEEE_FRAME_TYPE_COMMAND (3u)
 
-/**
- *  FRAME VERSION DEFINITIONS (IEEE802.15.4)
- */
-typedef enum
-{
-    IEEE802154_FRAME_VERSION_2003,
-    IEEE802154_FRAME_VERSION_2006
-} PACKED IEEE802154_frame_version_t;
+// FRAME VERSION DEFINITIONS (IEEE802.15.4)
+#define IEEE_FRAME_VERSION_2003 (0u)
+#define IEEE_FRAME_VERSION_2006 (1u)
 
-/**
- *  SECURITY LEVEL DEFINITIONS (IEEE802.15.4)
- */
-typedef enum
-{
-    IEEE802154_SECURITY_LVL_NONE,
-    IEEE802154_SECURITY_LVL_MIC_32,
-    IEEE802154_SECURITY_LVL_MIC_64,
-    IEEE802154_SECURITY_LVL_MIC_128,
-    IEEE802154_SECURITY_LVL_ENC,
-    IEEE802154_SECURITY_LVL_ENC_MIC_32,
-    IEEE802154_SECURITY_LVL_ENC_MIC_64,
-    IEEE802154_SECURITY_LVL_ENC_MIC_128
-} PACKED IEEE802154_security_level_t;
+// SECURITY LEVEL DEFINITIONS (IEEE802.15.4)
+#define IEEE_SEC_LVL_NONE           (0u)
+#define IEEE_SEC_LVL_MIC_32         (1u)
+#define IEEE_SEC_LVL_MIC_64         (2u)
+#define IEEE_SEC_LVL_MIC_128        (3u)
+#define IEEE_SEC_LVL_ENC            (4u)
+#define IEEE_SEC_LVL_ENC_MIC_32     (5u)
+#define IEEE_SEC_LVL_ENC_MIC_64     (6u)
+#define IEEE_SEC_LVL_ENC_MIC_128    (7u)
 
-/**
- *  SECURITY CONTROL FIELD (IEEE802154)
- */
-typedef PACKED_STRUCT_DEF
+// SECURITY CONTROL FIELD (IEEE802.15.4)
+PACKED_STRUCT_DEF ieee_sec_cf
 {
     uint8_t reserved: 3;
     uint8_t key_identifier_mode: 2;
     uint8_t security_level: 3;
-}
-IEEE802154_scf_t;
+};
 
-/**
- *  AUXILIARY SECURITY HEADER (IEEE802.15.4)
- */
-typedef struct
+// AUXILIARY SECURITY HEADER (IEEE802.15.4)
+PACKED_STRUCT_DEF ieee_sec_hdr
 {
-    IEEE802154_scf_t scf;
-    uint8_t frame_counter[4];
-    uint8_t key_identifier[9];
-}
-IEEE802154_security_header_t;
+    struct ieee_sec_cf scf;
+    uint32_t frame_count;
+    uint8_t key_id[0];
+};
 
-/**
- *  FRAME CONTROL FIELD (IEEE802.15.4)
- */
-PACKED_STRUCT_DEF IEEE802154_fcf
+// FRAME CONTROL FIELD (IEEE802.15.4)
+PACKED_STRUCT_DEF ieee_fcf
 {
     uint8_t frame_type: 3;          /* Type of frame, see PICO_FRAME_TYPE_x */
     uint8_t security_enabled: 1;    /* '1' When frame is secured */
@@ -99,27 +72,17 @@ PACKED_STRUCT_DEF IEEE802154_fcf
     uint8_t sam: 2;                 /* Source AM, see PICO_ADDR_MODE_x */
 };
 
-typedef union
+// FRAME HEADER (IEEE802.15.4)
+PACKED_STRUCT_DEF ieee_hdr
 {
-    struct IEEE802154_fcf fcf;
-    uint8_t components[2];
-} IEEE802154_fcf_t;
-
-/**
- *  FRAME HEADER (IEEE802.15.4)
- */
-typedef PACKED_STRUCT_DEF
-{
-    struct IEEE802154_fcf fcf;
+    struct ieee_fcf fcf;
     uint8_t seq;
     uint16_t pan;
     uint8_t addresses[0];
-} IEEE802154_hdr_t;
+};
 
-/**
- *  RADIO DRIVER RETURN CODES (DRIVER)
- */
-typedef enum
+// RETURN CODES (DEVICE-DRIVER)
+enum radio_rcode
 {
     /* PLATFORM ERRORS */
 	RADIO_ERR_NOERR = 0,
@@ -129,50 +92,59 @@ typedef enum
 	RADIO_ERR_ENOCONN,
     RADIO_ERR_ERX,
     RADIO_ERR_ETX
-}
-radio_rcode_t;
+};
 
 /**
  *  Generic radio-structure to provide an interface between the 
  *	IEEE802.15.4-radio specific device driver and the 6LoWPAN-
  *	adaption layer.
  */
-typedef struct RADIO
+struct ieee_radio
 {
 	/**
 	 *
 	 */
-	radio_rcode_t (*transmit)(struct RADIO *radio, void *buf, int len);
+	enum radio_rcode (*transmit)(struct ieee_radio *radio, void *buf, int len);
 	
 	/**
 	 *
 	 */
-	radio_rcode_t (*receive)(struct RADIO *radio, uint8_t buf[IEEE802154_PHY_MTU]);
+	enum radio_rcode (*receive)(struct ieee_radio *radio, uint8_t buf[IEEE_PHY_MTU]);
 	
 	/**
 	 *
 	 */
-	radio_rcode_t (*get_addr_ext)(struct RADIO *radio, uint8_t buf[8]);
+	enum radio_rcode (*get_addr_ext)(struct ieee_radio *radio, uint8_t buf[8]);
 	
 	/**
 	 *
 	 */
-	uint16_t (*get_pan_id)(struct RADIO *radio);
+	uint16_t (*get_pan_id)(struct ieee_radio *radio);
 	
 	/**
 	 *
 	 */
-	uint16_t (*get_addr_short)(struct RADIO *radio);
+	uint16_t (*get_addr_short)(struct ieee_radio *radio);
 	
 	/**
 	 *
 	 */
-	radio_rcode_t (*set_addr_short)(struct RADIO *radio, uint16_t short_16);
-}
-radio_t;
+	enum radio_rcode (*set_addr_short)(struct ieee_radio *radio, uint16_t short_16);
+};
 
+/**
+ *  Indicate to the 6LoWPAN layer that a frame is succesfully transmitted
+ *  TODO: Examine if this can go
+ */
 void pico_sixlowpan_transmitted(void);
 
+/**
+ *  Hardcode the prefix of the pico_device.
+ *
+ *  @param dev    struct pico_device *, device for which you want to set
+ *                the network prefix.
+ *  @param prefix struct pico_ip6, new prefix to set to, will assume /64 netmask
+ */
 void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
 
 /**
@@ -196,6 +168,6 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev);
  *
  *  @return pico_device-instance, initialised and everything.
  */
-struct pico_device *pico_sixlowpan_create(radio_t *radio);
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio);
 
 #endif /* INCLUDE_PICO_SIXLOWPAN */

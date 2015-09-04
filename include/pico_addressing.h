@@ -30,7 +30,8 @@ PACKED_STRUCT_DEF pico_eth
     uint8_t padding[2];
 };
 
-enum pico_ll_mode {
+enum pico_ll_mode
+{
     LL_MODE_ETHERNET = 0,
     LL_MODE_SIXLOWPAN
 };
@@ -46,23 +47,21 @@ PACKED_STRUCT_DEF pico_sixlowpan_addr_ext
     uint8_t addr[8];
 };
 
-/**
- *  ADDRESS MODE DEFINITIONS (IEEE802.15.4)
- */
-typedef enum
+// ADDRESS MODE DEFINITIONS (IEEE802.15.4)
+enum ieee_am
 {
-    IEEE802154_ADDRESS_MODE_NONE = 0,
-    IEEE802154_ADDRESS_MODE_RES,
-    IEEE802154_ADDRESS_MODE_SHORT,
-    IEEE802154_ADDRESS_MODE_EXTENDED,
-    IEEE802154_ADDRESS_MODE_BOTH
-} __attribute__((packed)) IEEE802154_address_mode_t;
+    IEEE_AM_NONE = 0,
+    IEEE_AM_RES,
+    IEEE_AM_SHORT,
+    IEEE_AM_EXTENDED,
+    IEEE_AM_BOTH
+};
 
 struct pico_sixlowpan_addr
 {
     struct pico_sixlowpan_addr_short _short;
     struct pico_sixlowpan_addr_ext _ext;
-    IEEE802154_address_mode_t _mode;
+    enum ieee_am _mode;
 };
 #endif
 
