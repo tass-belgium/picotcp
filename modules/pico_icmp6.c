@@ -389,14 +389,14 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     uint16_t len = 0;
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }};
 #ifdef PICO_SUPPORT_SIXLOWPAN
-    struct pico_sixlowpan_addr *slp = NULL;
+    struct pico_ieee_addr *slp = NULL;
 #endif
     
     len = PICO_ICMP6HDR_ROUTER_SOL_SIZE;
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
 #ifdef PICO_SUPPORT_SIXLOWPAN
-        if (LL_MODE_SIXLOWPAN == dev->mode && IEEE_AM_EXTENDED == ((struct pico_sixlowpan_addr *)dev->eth)->_mode) {
+        if (LL_MODE_SIXLOWPAN == dev->mode && IEEE_AM_EXTENDED == ((struct pico_ieee_addr *)dev->eth)->_mode) {
             len = (uint16_t)(len + 8);
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
@@ -425,16 +425,16 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         }
 #ifdef PICO_SUPPORT_SIXLOWPAN
         else if (LL_MODE_SIXLOWPAN == dev->mode) {
-            slp = (struct pico_sixlowpan_addr *)dev->eth;
+            slp = (struct pico_ieee_addr *)dev->eth;
             if (IEEE_AM_BOTH == slp->_mode ||
                 IEEE_AM_SHORT == slp->_mode) {
                 lladdr->len = 1;
-                memcpy(&(lladdr->addr._short.addr), &(slp->_short.addr), PICO_SIZE_SIXLOWPAN_SHORT);
-                memset(&(lladdr->addr._short.addr) + PICO_SIZE_SIXLOWPAN_SHORT, 0x00, 4);
+                memcpy(&(lladdr->addr._short.addr), &(slp->_short.addr), PICO_SIZE_IEEE_SHORT);
+                memset(&(lladdr->addr._short.addr) + PICO_SIZE_IEEE_SHORT, 0x00, 4);
             } else {
                 lladdr->len = 2;
-                memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
-                memset(lladdr->addr._ext.addr + PICO_SIZE_SIXLOWPAN_EXT, 0x00, 6);
+                memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
+                memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
             }
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */

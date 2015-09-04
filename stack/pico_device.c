@@ -143,26 +143,26 @@ static int device_init_nomac(struct pico_device *dev)
     return 0;
 }
 
-static int device_init_sixlowpan(struct pico_device *dev, struct pico_sixlowpan_addr *addr)
+static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr *addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     struct pico_ip6 netmask = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-    struct pico_sixlowpan_addr *slp = NULL;
+    struct pico_ieee_addr *slp = NULL;
     
     /* Set the device's interface identifier */
-    if (!(dev->eth = PICO_ZALLOC(sizeof(struct pico_sixlowpan_addr))))
+    if (!(dev->eth = PICO_ZALLOC(sizeof(struct pico_ieee_addr))))
         return -1;
-    slp = (struct pico_sixlowpan_addr *)dev->eth;
+    slp = (struct pico_ieee_addr *)dev->eth;
     
     /* Set the L2-adresses */
-    memcpy(slp->_ext.addr, addr->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+    memcpy(slp->_ext.addr, addr->_ext.addr, PICO_SIZE_IEEE_EXT);
     slp->_short.addr = addr->_short.addr;
     slp->_mode = addr->_mode;
     
     /* Copy in the Interface Identifier */
-    memcpy(linklocal.addr + 8, addr->_ext.addr, PICO_SIZE_SIXLOWPAN_EXT);
+    memcpy(linklocal.addr + 8, addr->_ext.addr, PICO_SIZE_IEEE_EXT);
     linklocal.addr[8] = linklocal.addr[8] ^ 0x02; /* Toggle U/L bit */
     
     /* Add an IPv6 link to the device */
@@ -213,7 +213,7 @@ int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
 
     if (LL_MODE_SIXLOWPAN == dev->mode) {
-        ret = device_init_sixlowpan(dev, (struct pico_sixlowpan_addr *)mac);
+        ret = device_init_sixlowpan(dev, (struct pico_ieee_addr *)mac);
     } else {
         if (mac) {
             ret = device_init_mac(dev, mac);

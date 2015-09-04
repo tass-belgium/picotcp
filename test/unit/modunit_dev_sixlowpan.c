@@ -133,7 +133,7 @@ START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
     
     /* Invalid args */
     FRAME_REARRANGE_PTRS(new);
-    fail_unless(new->link_hdr == (IEEE802154_hdr_t *)(new->phy_hdr + IEEE802154_LEN_LEN), "%s failed rearranging PTRS!\n", __func__);
+    fail_unless(new->link_hdr == (struct ieee_hdr *)(new->phy_hdr + IEEE_LEN_LEN), "%s failed rearranging PTRS!\n", __func__);
     
     TRYING("\n");
     new->link_hdr_len = 9;
@@ -142,9 +142,9 @@ START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
     FRAME_REARRANGE_PTRS(new);
     
     CHECKING();
-    fail_unless(new->link_hdr == (IEEE802154_hdr_t *)(new->phy_hdr + IEEE802154_LEN_LEN), "%s failed rearranging link header!\n", __func__);
-    fail_unless(new->net_hdr == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + 9), "%s failed rearranging network header!\n", __func__);
-    fail_unless(new->transport_hdr == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + 49), "%s failed rearranging transport header!\n", __func__);
+    fail_unless(new->link_hdr == (struct ieee_hdr  *)(new->phy_hdr + IEEE_LEN_LEN), "%s failed rearranging link header!\n", __func__);
+    fail_unless(new->net_hdr == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + 9), "%s failed rearranging network header!\n", __func__);
+    fail_unless(new->transport_hdr == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + 49), "%s failed rearranging transport header!\n", __func__);
     
     ENDING();
 }
@@ -168,7 +168,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     buf = FRAME_BUF_INSERT(new, PICO_LAYER_NETWORK, r);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
     
@@ -177,7 +177,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     buf = FRAME_BUF_INSERT(new, PICO_LAYER_DATALINK, r);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
     
@@ -188,7 +188,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
 }
@@ -213,7 +213,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     buf = FRAME_BUF_PREPEND(new, PICO_LAYER_NETWORK, length);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
     
@@ -222,7 +222,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     buf = FRAME_BUF_PREPEND(new, PICO_LAYER_DATALINK, length);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
     
@@ -232,7 +232,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + new->net_len),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size - length), "%s didn't update new size correctly\n", __func__);
     
@@ -259,7 +259,7 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     buf = FRAME_BUF_DELETE(new, PICO_LAYER_NETWORK, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
     
@@ -268,7 +268,7 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     buf = FRAME_BUF_DELETE(new, PICO_LAYER_DATALINK, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
     
@@ -277,70 +277,252 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     buf = FRAME_BUF_DELETE(new, PICO_LAYER_TRANSPORT, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
-    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE802154_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
+    fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
                 "%s returned pointer that doesn't point to inserted chunk\n", __func__);
     fail_unless(psize == (uint16_t)(new->size + r.length), "%s didn't update new size correctly\n", __func__);
     
     ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE802154_EUI64_LE) /* MARK: CHECKED */
+static void dbg_ext(uint8_t ext[8] )
 {
-    uint8_t old[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
-    uint8_t new[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    uint8_t i = 0;
+    for (i = 0; i < 8; i ++ ){
+        printf("0x%02X ", ext[i]);
+    }
+    printf("\n");
+}
+START_TEST(tc_pico_ieee_addr_to_flat) /* MARK: CHECKED */
+{
+    uint8_t buf[8] = { 0, 0, 0, 0, 0, 0 ,0 ,0 };
+    uint8_t cmp1[8] = { 0x34, 0x12, 0, 0, 0, 0, 0, 0 };
+    uint8_t cmp2[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    uint8_t cmp3[8] = { 0x12, 0x34, 0, 0, 0, 0, 0, 0 };
+    uint8_t cmp4[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    struct pico_ieee_addr addr = {{0x1234}, {{ 1, 2, 3, 4, 5, 6, 7, 8 }}, IEEE_AM_BOTH};
+    
     STARTING();
-    TRYING("\n");
-    IEEE802154_EUI64_LE(old);
+    
+    printf("Short: 0x%04X\n", addr._short.addr);
+    printf("Ext: ");
+    dbg_ext(addr._ext.addr);
+    
+    TRYING("Flat IEEE-buffer, with AM_BOTH\n");
+    pico_ieee_addr_to_flat(buf, addr, IEEE_TRUE);
     CHECKING();
-    fail_unless(0 == memcmp(old, new, 8), "%s failed converting to little endian", __func__);
+    fail_unless(0 == memcmp(buf, cmp1, PICO_SIZE_IEEE_SHORT), "%s didn't handle AM_BOTH correctly or IEEE_TRUE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
+    TRYING("Flat IEEE-buffer, with AM_EXT\n");
+    addr._mode = IEEE_AM_EXTENDED;
+    pico_ieee_addr_to_flat(buf, addr, IEEE_TRUE);
+    CHECKING();
+    fail_unless(0 == memcmp(buf, cmp2, PICO_SIZE_IEEE_EXT), "%s didn't handle AM_EXT correctly or IEEE_TRUE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
+    TRYING("Flat IEEE-buffer, with AM_SHORT\n");
+    addr._mode = IEEE_AM_SHORT;
+    pico_ieee_addr_to_flat(buf, addr, IEEE_TRUE);
+    CHECKING();
+    fail_unless(0 == memcmp(buf, cmp1, PICO_SIZE_IEEE_SHORT), "%s didn't handle AM_BOTH correctly or IEEE_TRUE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
+    TRYING("Flat Non-IEEE-buffer, with AM_BOTH\n");
+    pico_ieee_addr_to_flat(buf, addr, IEEE_FALSE);
+    CHECKING();
+    fail_unless(0 == memcmp(buf, cmp3, PICO_SIZE_IEEE_SHORT), "%s didn't handle AM_BOTH correctly or IEEE_FALSE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
+    TRYING("Flat Non-IEEE-buffer, with AM_EXT\n");
+    addr._mode = IEEE_AM_EXTENDED;
+    pico_ieee_addr_to_flat(buf, addr, IEEE_FALSE);
+    CHECKING();
+    fail_unless(0 == memcmp(buf, cmp4, PICO_SIZE_IEEE_EXT), "%s didn't handle AM_EXT correctly or IEEE_FALSE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
+    TRYING("Flat NonIEEE-buffer, with AM_SHORT\n");
+    addr._mode = IEEE_AM_SHORT;
+    pico_ieee_addr_to_flat(buf, addr, IEEE_FALSE);
+    CHECKING();
+    fail_unless(0 == memcmp(buf, cmp3, PICO_SIZE_IEEE_SHORT), "%s didn't handle AM_SHORT correctly or IEEE_FALSE", __func__);
+    memset(buf, 0, PICO_SIZE_IEEE_EXT);
+    
     ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE802154_ADDR_LEN) /* TODO: */
+START_TEST(tc_pico_ieee_addr_from_flat) /* MARK: CHECKED */
 {
-    struct pico_sixlowpan_addr addr;
+    uint8_t cmp1[8] = { 0x34, 0x12, 0, 0, 0, 0, 0, 0 };
+    uint8_t cmp2[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+    uint8_t cmp4[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    struct pico_ieee_addr addr;
+
+    STARTING();
+    
+    TRYING("Flat IEEE-buffer, with AM_SHORT\n");
+    addr = pico_ieee_addr_from_flat(cmp1, IEEE_AM_SHORT, IEEE_TRUE);
+    CHECKING();
+    fail_unless(0x1234 == addr._short.addr, "%s didn't handle AM_SHORT correctly or IEEE_TRUE", __func__);
+    
+    TRYING("Flat IEEE-buffer, with AM_EXT\n");
+    addr = pico_ieee_addr_from_flat(cmp2, IEEE_AM_EXTENDED, IEEE_TRUE);
+    CHECKING();
+    fail_unless(0 == memcmp(cmp4, addr._ext.addr, PICO_SIZE_IEEE_EXT), "%s didn't handle AM_EXT correctly or IEEE_TRUE", __func__);
+    
+    TRYING("Flat Non-IEEE-buffer, with AM_SHORT\n");
+    addr = pico_ieee_addr_from_flat(cmp1, IEEE_AM_SHORT, IEEE_FALSE);
+    CHECKING();
+    fail_unless(0x3412 == addr._short.addr, "%s didn't handle AM_SHORT correctly or IEEE_FALSE", __func__);
+    
+    TRYING("Flat Non-IEEE-buffer, with AM_EXT\n");
+    addr = pico_ieee_addr_from_flat(cmp2, IEEE_AM_EXTENDED, IEEE_FALSE);
+    CHECKING();
+    fail_unless(0 == memcmp(cmp2, addr._ext.addr, PICO_SIZE_IEEE_EXT), "%s didn't handle AM_EXT correctly or IEEE_FALSE", __func__);
+    
+    ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE802154_hdr_len)
+#define SIZE1 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_SHORT + 2)
+#define SIZE2 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_SHORT + 2)
+#define SIZE3 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_EXT + 2)
+#define SIZE4 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_EXT + 2)
+START_TEST(tc_pico_ieee_addr_to_hdr)
+{
+    uint8_t cmp1[SIZE1] = { 0x00, 0x22, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0x00, 0x00, 0xBB, 0xAA };
+    uint8_t cmp2[SIZE2] = { 0x00, 0x32, 0x00, 0x00, 0x00, 8, 7, 7, 5, 4, 3, 2, 1, 0x00, 0x00, 0xBB, 0xAA };
+    uint8_t cmp3[SIZE3] = { 0x00, 0x33, 0x00, 0x00, 0x00, 8, 7, 7, 5, 4, 3, 2, 1, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9 };
+    uint8_t cmp4[SIZE4] = { 0x00, 0x23, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9 };
+    
+    struct pico_ieee_addr src = {{0xaabb}, {{ 1, 2, 3, 4, 5, 6, 7, 8 }, IEEE_AM_BOTH}};
+    struct pico_ieee_addr dst = {{0xccdd}, {{ 9, 10, 11, 12, 13, 14, 15, 16 }}, IEEE_AM_BOTH};
+    struct ieee_hdr * hdr = NULL;
+    uint8_t max_size = SIZE3;
+    uint8_t hdr_size = 0;
+    int ret = 0;
+    
+    STARTING();
+    /* First */
+    if (!(hdr = PICO_ZALLOC((size_t)max_size))) {
+        printf("PICO_ZALLOC failed before test!\n");
+        return;
+    }
+    
+    TRYING("Filling addresses with 2 x AM_BOTH\n");
+    hdr_size = pico_ieee_hdr_estimate_size(src, dst);
+    CHECKING();
+    fail_unless(hdr_size = SIZE1, "Failed estimating size of the MAC header\n");
+    ret = pico_ieee_addr_to_hdr(hdr, src, dst);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    fail_if(ret, "%s failed filling addresses with 2 x AM_BOTH\n", __func__);
+    fail_unless(0 == memcmp(hdr, cmp1, SIZE1), "%s failed comparing address with 2 x AM_BOTH\n", __func__);
+    memset(hdr, 0, max_size);
+    
+    TRYING("Filling addresses with DST: EXT and SRC: SHORT\n");
+    dst._mode = IEEE_AM_EXTENDED;
+    hdr_size = pico_ieee_hdr_estimate_size(src, dst);
+    CHECKING();
+    fail_unless(hdr_size = SIZE2, "Failed estimating size of the MAC header\n");
+    ret = pico_ieee_addr_to_hdr(hdr, src, dst);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    fail_if(ret, "%s failed filling addresses with DST: EXT and SRC: SHORT\n", __func__);
+    fail_unless(0 == memcmp(hdr, cmp2, SIZE2), "%s failed comparing address with DST: EXT and SRC: SHORT\n", __func__);
+    memset(hdr, 0, max_size);
+    
+    TRYING("Filling addresses with 2 x AM_EXT \n");
+    src._mode = IEEE_AM_EXTENDED;
+    hdr_size = pico_ieee_hdr_estimate_size(src, dst);
+    CHECKING();
+    fail_unless(hdr_size = SIZE3, "Failed estimating size of the MAC header\n");
+    ret = pico_ieee_addr_to_hdr(hdr, src, dst);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    fail_if(ret, "%s failed filling addresses with 2 x AM_EXT\n", __func__);
+    fail_unless(0 == memcmp(hdr, cmp3, SIZE3), "%s failed comparing address with 2 x AM_EXT\n", __func__);
+    memset(hdr, 0, max_size);
+    
+    TRYING("Filling addresses with DST: SHORT and SRC: EXT\n");
+    dst._mode = IEEE_AM_SHORT;
+    hdr_size = pico_ieee_hdr_estimate_size(src, dst);
+    CHECKING();
+    fail_unless(hdr_size = SIZE4, "Failed estimating size of the MAC header\n");
+    ret = pico_ieee_addr_to_hdr(hdr, src, dst);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    fail_if(ret, "%s failed filling addresses with DST: EXT and SRC: SHORT\n", __func__);
+    fail_unless(0 == memcmp(hdr, cmp4, SIZE4), "%s failed comparing address with DST: EXT and SRC: SHORT\n", __func__);
+    memset(hdr, 0, max_size);
+    
+    BREAKING("Setting both address modes to NONE\n");
+    dst._mode = IEEE_AM_NONE;
+    src._mode = IEEE_AM_NONE;
+    CHECKING();
+    fail_unless(pico_ieee_addr_to_hdr(hdr, src, dst), "%s failed checking for IEEE_AM_NONE\n", __func__);
+    
+    BREAKING("Passing NULL-ptrs\n");
+    fail_unless(pico_ieee_addr_to_hdr(NULL, src, dst), "%s failed checking for NULL-ptrs\n", __func__);
+    
+    ENDING();
+}
+END_TEST
+START_TEST(tc_pico_ieee_addr_from_hdr)
+{
+    
+    STARTING();
+
+    
+    ENDING();
+}
+END_TEST
+START_TEST(tc_IEEE_EUI64_LE) /* MARK: CHECKED */
+{
+//    uint8_t old[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+//    uint8_t new[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };
+//    STARTING();
+//    TRYING("\n");
+//    IEEE_EUI64_LE(old);
+//    CHECKING();
+//    fail_unless(0 == memcmp(old, new, 8), "%s failed converting to little endian", __func__);
+//    ENDING();
+}
+END_TEST
+START_TEST(tc_IEEE_hdr_len)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: inline static uint8_t IEEE802154_hdr_len(struct sixlowpan_frame *f) */
+   /* TODO: test this: inline static uint8_t IEEE_hdr_len(struct sixlowpan_frame *f) */
 }
 END_TEST
-START_TEST(tc_IEEE802154_len)
+START_TEST(tc_IEEE_len)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: inline static uint8_t IEEE802154_len(struct sixlowpan_frame *f) */
+   /* TODO: test this: inline static uint8_t IEEE_len(struct sixlowpan_frame *f) */
 }
 END_TEST
-START_TEST(tc_IEEE802154_hdr_buf_len)
+START_TEST(tc_IEEE_hdr_buf_len)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: inline static uint8_t IEEE802154_hdr_buf_len(IEEE802154_hdr_t *hdr) */
+   /* TODO: test this: inline static uint8_t IEEE_hdr_buf_len(IEEE_hdr_t *hdr) */
 }
 END_TEST
-START_TEST(tc_IEEE802154_process_address)
+START_TEST(tc_IEEE_process_address)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static void IEEE802154_process_address(uint8_t *buf, struct pico_sixlowpan_addr *addr, IEEE802154_address_mode_t am) */
+   /* TODO: test this: static void IEEE_process_address(uint8_t *buf, struct pico_sixlowpan_addr *addr, IEEE_address_mode_t am) */
 }
 END_TEST
-START_TEST(tc_IEEE802154_process_addresses)
+START_TEST(tc_IEEE_process_addresses)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static void IEEE802154_process_addresses(IEEE802154_hdr_t *hdr, struct pico_sixlowpan_addr *dst, struct pico_sixlowpan_addr *src) */
+   /* TODO: test this: static void IEEE_process_addresses(IEEE_hdr_t *hdr, struct pico_sixlowpan_addr *dst, struct pico_sixlowpan_addr *src) */
 }
 END_TEST
-START_TEST(tc_IEEE802154_unbuf)
+START_TEST(tc_IEEE_unbuf)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static struct sixlowpan_frame *IEEE802154_unbuf(struct pico_device *dev, uint8_t *buf, uint8_t len) */
+   /* TODO: test this: static struct sixlowpan_frame *IEEE_unbuf(struct pico_device *dev, uint8_t *buf, uint8_t len) */
 }
 END_TEST
 START_TEST(tc_sixlowpan_frame_destroy)
@@ -522,7 +704,7 @@ START_TEST(tc_sixlowpan_iphc_rearrange_mcast)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static range_t sixlowpan_iphc_dam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802154_address_mode_t dam) */
+   /* TODO: test this: static range_t sixlowpan_iphc_dam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE_address_mode_t dam) */
 }
 END_TEST
 START_TEST(tc_sixlowpan_iphc_dam)
@@ -536,7 +718,7 @@ START_TEST(tc_sixlowpan_iphc_sam_undo)
 {
     printf("*********************** starting %s * \n", __func__);
     printf("*********************** ending %s * \n", __func__);
-   /* TODO: test this: static range_t sixlowpan_iphc_sam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE802154_address_mode_t sam) */
+   /* TODO: test this: static range_t sixlowpan_iphc_sam(sixlowpan_iphc_t *iphc, uint8_t *addr, IEEE_address_mode_t sam) */
 }
 END_TEST
 START_TEST(tc_sixlowpan_iphc_sam)
@@ -766,14 +948,14 @@ Suite *pico_suite(void)
     
     /* -------------------------------------------------------------------------------- */
     // MARK: IEEE802.15.4
-    TCase *TCase_IEEE802154_EUI64_LE = tcase_create("Unit test for IEEE802154_EUI64_LE");
-    TCase *TCase_IEEE802154_ADDR_LEN = tcase_create("Unit test for IEEE802154_ADDR_LEN");
-    TCase *TCase_IEEE802154_hdr_len = tcase_create("Unit test for IEEE802154_hdr_len");
-    TCase *TCase_IEEE802154_len = tcase_create("Unit test for IEEE802154_len");
-    TCase *TCase_IEEE802154_hdr_buf_len = tcase_create("Unit test for IEEE802154_hdr_buf_len");
-    TCase *TCase_IEEE802154_process_address = tcase_create("Unit test for IEEE802154_process_address");
-    TCase *TCase_IEEE802154_process_addresses = tcase_create("Unit test for IEEE802154_process_addresses");
-    TCase *TCase_IEEE802154_unbuf = tcase_create("Unit test for IEEE802154_unbuf");
+    TCase *TCase_IEEE_EUI64_LE = tcase_create("Unit test for IEEE_EUI64_LE");
+    TCase *TCase_ieee_addr_len = tcase_create("Unit test for ieee_addr_len");
+    TCase *TCase_IEEE_hdr_len = tcase_create("Unit test for IEEE_hdr_len");
+    TCase *TCase_IEEE_len = tcase_create("Unit test for IEEE_len");
+    TCase *TCase_IEEE_hdr_buf_len = tcase_create("Unit test for IEEE_hdr_buf_len");
+    TCase *TCase_IEEE_process_address = tcase_create("Unit test for IEEE_process_address");
+    TCase *TCase_IEEE_process_addresses = tcase_create("Unit test for IEEE_process_addresses");
+    TCase *TCase_IEEE_unbuf = tcase_create("Unit test for IEEE_unbuf");
     
     /* -------------------------------------------------------------------------------- */
     // MARK: SIXLOWPAN
@@ -781,6 +963,11 @@ Suite *pico_suite(void)
     
     /* -------------------------------------------------------------------------------- */
     // MARK: FLAT (ADDRESSES)
+    TCase *TCase_pico_ieee_addr_to_flat = tcase_create("Unit test for pico_ieee_addr_to_flat");
+    TCase *TCase_pico_ieee_addr_from_flat = tcase_create("Unit test for pico_ieee_addr_from_flat");
+    TCase *TCase_pico_ieee_addr_to_hdr = tcase_create("Unit test for pico_ieee_addr_to_hdr");
+    TCase *TCase_pico_ieee_addr_from_hdr = tcase_create("Unit test for pico_ieee_addr_from_hdr");
+    
     TCase *TCase_sixlowpan_addr_copy_flat = tcase_create("Unit test for sixlowpan_addr_copy_flat");
     
     /* -------------------------------------------------------------------------------- */
@@ -881,22 +1068,30 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_FRAME_BUF_PREPEND);
     tcase_add_test(TCase_FRAME_BUF_DELETE, tc_FRAME_BUF_DELETE);
     suite_add_tcase(s, TCase_FRAME_BUF_DELETE);
-    tcase_add_test(TCase_IEEE802154_EUI64_LE, tc_IEEE802154_EUI64_LE);
-    suite_add_tcase(s, TCase_IEEE802154_EUI64_LE);
-    tcase_add_test(TCase_IEEE802154_ADDR_LEN, tc_IEEE802154_ADDR_LEN);
-    suite_add_tcase(s, TCase_IEEE802154_ADDR_LEN);
-    tcase_add_test(TCase_IEEE802154_hdr_len, tc_IEEE802154_hdr_len);
-    suite_add_tcase(s, TCase_IEEE802154_hdr_len);
-    tcase_add_test(TCase_IEEE802154_len, tc_IEEE802154_len);
-    suite_add_tcase(s, TCase_IEEE802154_len);
-    tcase_add_test(TCase_IEEE802154_hdr_buf_len, tc_IEEE802154_hdr_buf_len);
-    suite_add_tcase(s, TCase_IEEE802154_hdr_buf_len);
-    tcase_add_test(TCase_IEEE802154_process_address, tc_IEEE802154_process_address);
-    suite_add_tcase(s, TCase_IEEE802154_process_address);
-    tcase_add_test(TCase_IEEE802154_process_addresses, tc_IEEE802154_process_addresses);
-    suite_add_tcase(s, TCase_IEEE802154_process_addresses);
-    tcase_add_test(TCase_IEEE802154_unbuf, tc_IEEE802154_unbuf);
-    suite_add_tcase(s, TCase_IEEE802154_unbuf);
+    tcase_add_test(TCase_IEEE_EUI64_LE, tc_IEEE_EUI64_LE);
+    suite_add_tcase(s, TCase_IEEE_EUI64_LE);
+    /* */
+    tcase_add_test(TCase_pico_ieee_addr_to_flat, tc_pico_ieee_addr_to_flat);
+    suite_add_tcase(s, TCase_pico_ieee_addr_to_flat);
+    tcase_add_test(TCase_pico_ieee_addr_from_flat, tc_pico_ieee_addr_from_flat);
+    suite_add_tcase(s, TCase_pico_ieee_addr_from_flat);
+    tcase_add_test(TCase_pico_ieee_addr_to_hdr, tc_pico_ieee_addr_to_hdr);
+    suite_add_tcase(s, TCase_pico_ieee_addr_to_hdr);
+    tcase_add_test(TCase_pico_ieee_addr_from_hdr, tc_pico_ieee_addr_from_hdr);
+    suite_add_tcase(s, TCase_pico_ieee_addr_from_hdr);
+    /* */
+    tcase_add_test(TCase_IEEE_hdr_len, tc_IEEE_hdr_len);
+    suite_add_tcase(s, TCase_IEEE_hdr_len);
+    tcase_add_test(TCase_IEEE_len, tc_IEEE_len);
+    suite_add_tcase(s, TCase_IEEE_len);
+    tcase_add_test(TCase_IEEE_hdr_buf_len, tc_IEEE_hdr_buf_len);
+    suite_add_tcase(s, TCase_IEEE_hdr_buf_len);
+    tcase_add_test(TCase_IEEE_process_address, tc_IEEE_process_address);
+    suite_add_tcase(s, TCase_IEEE_process_address);
+    tcase_add_test(TCase_IEEE_process_addresses, tc_IEEE_process_addresses);
+    suite_add_tcase(s, TCase_IEEE_process_addresses);
+    tcase_add_test(TCase_IEEE_unbuf, tc_IEEE_unbuf);
+    suite_add_tcase(s, TCase_IEEE_unbuf);
     tcase_add_test(TCase_sixlowpan_frame_destroy, tc_sixlowpan_frame_destroy);
     suite_add_tcase(s, TCase_sixlowpan_frame_destroy);
     tcase_add_test(TCase_sixlowpan_addr_copy_flat, tc_sixlowpan_addr_copy_flat);
