@@ -382,18 +382,18 @@ START_TEST(tc_pico_ieee_addr_from_flat) /* MARK: CHECKED */
     ENDING();
 }
 END_TEST
-#define SIZE1 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_SHORT + 2)
-#define SIZE2 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_SHORT + 2)
-#define SIZE3 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_EXT + 2)
-#define SIZE4 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_EXT + 2)
+#define SIZE1 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_SHORT)
+#define SIZE2 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_SHORT)
+#define SIZE3 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_EXT + PICO_SIZE_IEEE_EXT)
+#define SIZE4 (IEEE_MIN_HDR_LEN + PICO_SIZE_IEEE_SHORT + PICO_SIZE_IEEE_EXT)
 START_TEST(tc_pico_ieee_addr_to_hdr)
 {
-    uint8_t cmp1[SIZE1] = { 0x00, 0x22, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0x00, 0x00, 0xBB, 0xAA };
-    uint8_t cmp2[SIZE2] = { 0x00, 0x32, 0x00, 0x00, 0x00, 8, 7, 7, 5, 4, 3, 2, 1, 0x00, 0x00, 0xBB, 0xAA };
-    uint8_t cmp3[SIZE3] = { 0x00, 0x33, 0x00, 0x00, 0x00, 8, 7, 7, 5, 4, 3, 2, 1, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9 };
-    uint8_t cmp4[SIZE4] = { 0x00, 0x23, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9 };
+    uint8_t cmp1[SIZE1] = { 0x00, 0x88, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0xBB, 0xAA };
+    uint8_t cmp2[SIZE2] = { 0x00, 0x8C, 0x00, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9, 0xBB, 0xAA };
+    uint8_t cmp3[SIZE3] = { 0x00, 0xCC, 0x00, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    uint8_t cmp4[SIZE4] = { 0x00, 0xC8, 0x00, 0x00, 0x00, 0xDD, 0xCC, 8, 7, 6, 5, 4, 3, 2, 1 };
     
-    struct pico_ieee_addr src = {{0xaabb}, {{ 1, 2, 3, 4, 5, 6, 7, 8 }, IEEE_AM_BOTH}};
+    struct pico_ieee_addr src = {{0xaabb}, {{ 1, 2, 3, 4, 5, 6, 7, 8 }}, IEEE_AM_BOTH};
     struct pico_ieee_addr dst = {{0xccdd}, {{ 9, 10, 11, 12, 13, 14, 15, 16 }}, IEEE_AM_BOTH};
     struct ieee_hdr * hdr = NULL;
     uint8_t max_size = SIZE3;
@@ -423,7 +423,7 @@ START_TEST(tc_pico_ieee_addr_to_hdr)
     CHECKING();
     fail_unless(hdr_size = SIZE2, "Failed estimating size of the MAC header\n");
     ret = pico_ieee_addr_to_hdr(hdr, src, dst);
-    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE2);
     fail_if(ret, "%s failed filling addresses with DST: EXT and SRC: SHORT\n", __func__);
     fail_unless(0 == memcmp(hdr, cmp2, SIZE2), "%s failed comparing address with DST: EXT and SRC: SHORT\n", __func__);
     memset(hdr, 0, max_size);
@@ -434,7 +434,7 @@ START_TEST(tc_pico_ieee_addr_to_hdr)
     CHECKING();
     fail_unless(hdr_size = SIZE3, "Failed estimating size of the MAC header\n");
     ret = pico_ieee_addr_to_hdr(hdr, src, dst);
-    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE3);
     fail_if(ret, "%s failed filling addresses with 2 x AM_EXT\n", __func__);
     fail_unless(0 == memcmp(hdr, cmp3, SIZE3), "%s failed comparing address with 2 x AM_EXT\n", __func__);
     memset(hdr, 0, max_size);
@@ -445,7 +445,7 @@ START_TEST(tc_pico_ieee_addr_to_hdr)
     CHECKING();
     fail_unless(hdr_size = SIZE4, "Failed estimating size of the MAC header\n");
     ret = pico_ieee_addr_to_hdr(hdr, src, dst);
-    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE1);
+    dbg_mem("HDR: ", (uint8_t *)hdr, SIZE4);
     fail_if(ret, "%s failed filling addresses with DST: EXT and SRC: SHORT\n", __func__);
     fail_unless(0 == memcmp(hdr, cmp4, SIZE4), "%s failed comparing address with DST: EXT and SRC: SHORT\n", __func__);
     memset(hdr, 0, max_size);
@@ -464,9 +464,47 @@ START_TEST(tc_pico_ieee_addr_to_hdr)
 END_TEST
 START_TEST(tc_pico_ieee_addr_from_hdr)
 {
+    uint8_t ext1[PICO_SIZE_IEEE_EXT] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+    uint8_t ext2[PICO_SIZE_IEEE_EXT] = { 9, 10, 11, 12, 13, 14, 15, 16};
+    uint8_t ext3[PICO_SIZE_IEEE_EXT] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+    uint8_t cmp1[SIZE1] = { 0x00, 0x88, 0x00, 0x00, 0x00, 0xDD, 0xCC, 0xBB, 0xAA };
+    uint8_t cmp2[SIZE2] = { 0x00, 0x8C, 0x00, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9, 0xBB, 0xAA };
+    uint8_t cmp3[SIZE3] = { 0x00, 0xCC, 0x00, 0x00, 0x00, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1 };
+    struct pico_ieee_addr addr;
     
     STARTING();
+    
+    TRYING("Trying with 2 x AM_SHORT\n");
+    addr = pico_ieee_addr_from_hdr((struct ieee_hdr *)cmp1, 0);
 
+    CHECKING();
+    fail_unless(IEEE_AM_SHORT == addr._mode, "%s failed setting addressing mode to short (%d)\n", __func__, addr._mode);
+    fail_unless(0 == memcmp(addr._ext.addr, ext1, PICO_SIZE_IEEE_EXT), "%s failed clearing out extended address\n", __func__);
+    fail_unless(0xCCDD == addr._short.addr, "%s failed setting short address correctly 0x%04X\n", __func__, addr._short.addr);
+    
+    TRYING("Trying with EXT dst and SHORT src\n");
+    addr = pico_ieee_addr_from_hdr((struct ieee_hdr *)cmp2, 0);
+    
+    CHECKING();
+    fail_unless(IEEE_AM_EXTENDED == addr._mode, "%s failed setting addressing mode to extended (%d)\n", __func__, addr._mode);
+    fail_unless(0 == memcmp(addr._ext.addr, ext2, PICO_SIZE_IEEE_EXT), "%s failed copying extended address\n", __func__);
+    fail_unless(0x0000 == addr._short.addr, "%s failed clearing out the short address 0x%04X\n", __func__, addr._short.addr);
+    
+    TRYING("Trying with EXT dst and SHORT src, but for the SRC\n");
+    addr = pico_ieee_addr_from_hdr((struct ieee_hdr *)cmp2, 1);
+    
+    CHECKING();
+    fail_unless(IEEE_AM_SHORT == addr._mode, "%s failed setting addressing mode to short (%d)\n", __func__, addr._mode);
+    fail_unless(0 == memcmp(addr._ext.addr, ext1, PICO_SIZE_IEEE_EXT), "%s failed clearing out extended address\n", __func__);
+    fail_unless(0xAABB == addr._short.addr, "%s failed copying the short address 0x%04X\n", __func__, addr._short.addr);
+    
+    TRYING("Trying with EXT dst and EXT src, but for the src\n");
+    addr = pico_ieee_addr_from_hdr((struct ieee_hdr *)cmp3, 1);
+    
+    CHECKING();
+    fail_unless(IEEE_AM_EXTENDED == addr._mode, "%s failed setting addressing mode to extended (%d)", __func__, addr._mode);
+    fail_unless(0 == memcmp(addr._ext.addr, ext3, PICO_SIZE_IEEE_EXT), "%s failed copying extended address\n", __func__);
+    fail_unless(0x0000 == addr._short.addr, "%s failed clearing out the short address 0x%04X\n", __func__, addr._short.addr);
     
     ENDING();
 }

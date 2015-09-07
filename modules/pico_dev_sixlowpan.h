@@ -94,6 +94,9 @@ enum radio_rcode
     RADIO_ERR_ETX
 };
 
+int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr, struct pico_ieee_addr src, struct pico_ieee_addr dst);
+struct pico_ieee_addr pico_ieee_addr_from_hdr(struct ieee_hdr *hdr, uint8_t src);
+
 /**
  *  Generic radio-structure to provide an interface between the 
  *	IEEE802.15.4-radio specific device driver and the 6LoWPAN-
