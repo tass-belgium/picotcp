@@ -989,7 +989,10 @@ static void pico_tcp_keepalive(pico_time now, void *arg)
             }
             if (t->ka_retries_count > t->ka_probes) {
                 if (t->sock.wakeup)
+                {
+                    pico_err = PICO_ERR_ECONNRESET;
                     t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+                }
             }
             if (((t->ka_retries_count * t->ka_intvl) + t->ka_time) < (now - t->ack_timestamp)) {
                 /* Next probe */
