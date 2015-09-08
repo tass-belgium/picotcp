@@ -1132,7 +1132,10 @@ static void initconn_retry(pico_time when, void *arg)
         if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
             tcp_dbg("TCP> Connection timeout. \n");
             if (t->sock.wakeup)
+            {
+                pico_err = PICO_ERR_ECONNREFUSED;
                 t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+            }
 
             return;
         }
