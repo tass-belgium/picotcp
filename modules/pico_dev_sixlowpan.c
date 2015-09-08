@@ -548,28 +548,7 @@ static uint8_t *FRAME_BUF_DELETE(struct sixlowpan_frame *f,  enum pico_layer l, 
 /* -------------------------------------------------------------------------------- */
 // MARK: IEEE802.15.4
 
-static inline void ieee_short_to_le(uint8_t s[PICO_SIZE_IEEE_SHORT])
-{
-    uint8_t temp = 0;
-    CHECK_PARAM_VOID(s);
-    temp = s[0];
-    s[0] = s[1];
-    s[1] = temp;
-}
-
-static inline void ieee_ext_to_le(uint8_t ext[PICO_SIZE_IEEE_EXT])
-{
-    uint8_t i = 0, temp = 0;
-    CHECK_PARAM_VOID(ext);
-    
-    for (i = 0; i < 4; i++) {
-        temp = ext[i];
-        ext[i] = ext[8 - (i + 1)];
-        ext[8 - (i + 1)] = temp;
-    }
-}
-
-static int pico_ieee_addr_cmp(void *va, void *vb)
+static int ieee_addr_cmp(void *va, void *vb)
 {
     struct pico_ieee_addr *a = (struct pico_ieee_addr *)va;
     struct pico_ieee_addr *b = (struct pico_ieee_addr *)vb;
@@ -592,6 +571,27 @@ static int pico_ieee_addr_cmp(void *va, void *vb)
     return 0;
 }
 
+static inline void ieee_short_to_le(uint8_t s[PICO_SIZE_IEEE_SHORT])
+{
+    uint8_t temp = 0;
+    CHECK_PARAM_VOID(s);
+    temp = s[0];
+    s[0] = s[1];
+    s[1] = temp;
+}
+
+static inline void ieee_ext_to_le(uint8_t ext[PICO_SIZE_IEEE_EXT])
+{
+    uint8_t i = 0, temp = 0;
+    CHECK_PARAM_VOID(ext);
+    
+    for (i = 0; i < 4; i++) {
+        temp = ext[i];
+        ext[i] = ext[8 - (i + 1)];
+        ext[8 - (i + 1)] = temp;
+    }
+}
+
 static int pico_ieee_addr_to_flat(uint8_t *buf, struct pico_ieee_addr addr, uint8_t ieee)
 {
     if (IEEE_AM_EXTENDED == addr._mode) {
@@ -601,9 +601,11 @@ static int pico_ieee_addr_to_flat(uint8_t *buf, struct pico_ieee_addr addr, uint
     } else if (IEEE_AM_BOTH == addr._mode || IEEE_AM_SHORT == addr._mode) {
         memcpy(buf, &addr._short.addr, PICO_SIZE_IEEE_SHORT);
 #ifdef PICO_BIG_ENDIAN
+        /* If Big Endian, only rearrange if it is a IEEE-buffer */
         if (ieee)
             ieee_short_to_le(buf);
 #else
+        /* If Little Endian, only rearrange if it's not a IEEE-buffer */
         if (!ieee)
             ieee_short_to_le(buf);
 #endif
@@ -809,32 +811,8 @@ static struct sixlowpan_frame *ieee_unbuf(struct pico_device *dev, uint8_t *buf,
 
 /* -------------------------------------------------------------------------------- */
 // MARK: SIXLOWPAN
-
 /* -------------------------------------------------------------------------------- */
 // MARK: FRAGMENTATION
-static int ieee_addr_cmp(struct pico_ieee_addr *a, struct pico_ieee_addr *b)
-{
-    int ret = 0;
-    
-    if (!a || !b) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-    
-    if (a->_mode != b->_mode)
-        return (int)((int)a->_mode - (int)b->_mode);
-    
-    if (a->_mode == IEEE_AM_EXTENDED) {
-        ret = memcmp(a->_ext.addr, b->_ext.addr, PICO_SIZE_IEEE_EXT);
-        if (ret)
-            return ret;
-    } else {
-        if (a->_short.addr != b->_short.addr)
-            return (int)((int)a->_short.addr - (int)b->_short.addr);
-    }
-    
-    return 0;
-}
 
 static int sixlowpan_frag_cmp(void *a, void *b)
 {
@@ -855,13 +833,13 @@ static int sixlowpan_frag_cmp(void *a, void *b)
     /* 1.) Compare IEEE802.15.4 addresses of the sender */
     aa = (struct pico_ieee_addr *)&fa->peer;
     ab = (struct pico_ieee_addr *)&fb->peer;
-    if ((ret = ieee_addr_cmp(aa, ab)))
+    if ((ret = ieee_addr_cmp((void *)aa, (void *)ab)))
         return ret;
     
     /* 2.) Compare IEEE802.15.4 addresses of the destination */
     aa = (struct pico_ieee_addr *)&fa->local;
     ab = (struct pico_ieee_addr *)&fb->local;
-    if ((ret = ieee_addr_cmp(aa, ab)))
+    if ((ret = ieee_addr_cmp((void *)aa, (void *)ab)))
         return ret;
     
     /* 3.) Compare datagram_size */
@@ -912,7 +890,7 @@ static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, ui
 
 static inline int sixlowpan_iid_from_short(struct pico_ieee_addr_short addr, uint8_t out[8])
 {
-    uint16_t s = short_be(addr.addr);
+    uint16_t s = addr.addr;
     uint8_t buf[8] = {0x00, 0x00, 0x00, 0xFF, 0xFE, 0x00, 0x00, 0x00};
     CHECK_PARAM(out);
     buf[6] = (uint8_t)((s >> 8) & 0xFF);
@@ -2315,7 +2293,7 @@ static uint8_t last_bcast_seq = 0;
 
 static uint8_t seq = 0;
 
-static void sixlowpan_check_broadcast_out(struct sixlowpan_frame *f)
+static void sixlowpan_broadcast_out(struct sixlowpan_frame *f)
 {
     struct pico_ieee_addr src;
     struct sixlowpan_bc0 *bc = NULL;
@@ -2329,8 +2307,8 @@ static void sixlowpan_check_broadcast_out(struct sixlowpan_frame *f)
             f->state = FRAME_ERROR;
             return;
         }
-        bc = (struct sixlowpan_bc0 *)f->net_hdr;
         
+        bc = (struct sixlowpan_bc0 *)f->net_hdr;
         bc->dispatch = DISPATCH_BC0(INFO_VAL);
         bc->seq = ++seq;
         
@@ -2366,12 +2344,15 @@ static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
     if (IEEE_AM_SHORT == dst._mode && 0xFFFF == dst._short.addr) {
         /* Check if the same frame isn't broadcasted before */
         bc = (struct sixlowpan_bc0 *)(f->net_hdr + offset);
-        if ((bc->seq >= seq) && (f->size == last_bcast_len) && (0 == ieee_addr_cmp(&src, &last_bcast_src))) {
+        if ((bc->seq <= seq) && (0 == ieee_addr_cmp((void *)&src, (void *)&last_bcast_src))) {
             /* Discard frame at once */
             PAN_DBG("Discarded broadcast duplicate\n");
             return 1;
+        } else {
+            /* Only set the new sequence number to the received one, if the RCVD
+             * broadcast frame isn't discarded */
+            seq = bc->seq;
         }
-        seq = bc->seq;
         /* Frame isn't broadcasted before, rebroadcast it */
         sixlowpan_rebroadcast(f);
         return 1;
@@ -2442,7 +2423,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     }
     
     /* Whether or not the packet need to broadcasted */
-    sixlowpan_check_broadcast_out(frame);
+    sixlowpan_broadcast_out(frame);
     if (FRAME_ERROR == frame->state) {
         PAN_ERR("Failed prepending broadcast header.\n");
         sixlowpan_frame_destroy(frame);
