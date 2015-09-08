@@ -2239,6 +2239,7 @@ static int sixlowpan_mesh_in(struct sixlowpan_frame *f)
             
             r.length = (uint16_t)(r.length + DISPATCH_BC0(INFO_HDR_LEN));
         } else {
+            PAN_DBG("Forwarding frame\n");
             /* Frame is not destined for me, forward onto the network */
             /* Update SRC address */
             sixlowpan_update_src(f);
@@ -2331,11 +2332,9 @@ static int sixlowpan_determine_final_dst(struct pico_frame *f, struct pico_ieee_
 static int sixlowpan_determine_next_hop(struct sixlowpan_frame *f, struct pico_ieee_addr *l)
 {
     if (IEEE_AM_SHORT == f->peer._mode && 0xFFFF == f->peer._short.addr) {
-        PAN_DBG("Next Hop is BCAST\n");
         l->_mode = IEEE_AM_SHORT;
         l->_short.addr = 0xFFFF;
     } else {
-        PAN_DBG("Next Hop is NOT BCAST\n");
         l->_mode = IEEE_AM_SHORT;
         l->_short.addr = 0xFFFF;
 //        /* TODO: Check L2 routing table if found, set next hop */
