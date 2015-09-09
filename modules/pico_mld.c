@@ -21,14 +21,14 @@
 #include "pico_dns_client.h"
 #include "pico_mld.h"
 #include "pico_constants.h"
+
 #define mld_dbg printf
-#define PICO_MLD_LISTENER_QUERY          130
-#define PICO_MLD_LISTENER_REPORT         131
-#define PICO_MLD_LISTENER_REDUCTION      132
 
 /* MLD groups */
 #define MLD_ALL_HOST_GROUP               "FF01:0:0:0:0:0:0:1" 
-#define MLD_ALL_ROUTER_GROUP             "FF01:0:0:0:0:0:0:2" 
+#define MLD_ALL_ROUTER_GROUP             "FF01:0:0:0:0:0:0:2"
+#define MLDV2_ALL_ROUTER_GROUP           "FF02:0:0:0:0:0:0:16"
+ 
 #define MLD_TIMER_STOPPED                (1)
 uint8_t pico_mld_flag = 0;
 
@@ -40,15 +40,20 @@ PACKED_STRUCT_DEF mld_message {
 	uint16_t reserved;
 	struct pico_ip6 mcast_group;
 };
-
-PACKED_STRUCT_DEF mldv2_report {
-	uint8_t type;
-	uint8_t code;
-	uint16_t crc;
-    uint16_t max_resp_delay;
+PACKED_STRUCT_DEF mldv2_group_record {
+    uint8_t type;
+    uint8_t aux;
     uint16_t nbr_src;
     struct pico_ip6 mcast_group;
     struct pico_ip6 src[0];
+};
+PACKED_STRUCT_DEF mldv2_report {
+	uint8_t type;
+	uint8_t res;
+	uint16_t crc;
+    uint16_t res1;
+    uint16_t nbr_gr;
+    struct mldv2_group_record record[0];
 };
 typedef int (*mld_callback) (struct mld_parameters *);
 static int pico_mld_process_event(struct mld_parameters *p); 
@@ -283,6 +288,15 @@ static struct mld_timer *pico_mld_find_timer(uint8_t type, struct pico_ip6 *mcas
 }
 
 
+static int mld_sources_cmp(void *ka, void *kb)
+{
+    struct pico_ip6 *a = ka, *b = kb;
+    return pico_ipv6_compare(a, b);
+}
+PICO_TREE_DECLARE(MLDAllow, mld_sources_cmp);
+PICO_TREE_DECLARE(MLDBlock, mld_sources_cmp);
+
+
 static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group)
 {
     struct mld_parameters test = {
@@ -348,9 +362,8 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
 {
     struct mld_parameters *p = NULL;
     struct pico_ip6 ipv6;
-    char tmp[50]= "FF01:0:0:0:0:0:0:1";
     
-    pico_string_to_ipv6(tmp, &ipv6.addr[0]);
+    pico_string_to_ipv6(MLD_ALL_HOST_GROUP, &ipv6.addr[0]);
 
     if (!memcmp(&mcast_group->addr, &ipv6, sizeof(struct pico_ip6)))
         return 0;
@@ -372,7 +385,6 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         p->mcast_link = *mcast_link;
         p->mcast_group = *mcast_group;
         pico_tree_insert(&MLDParameters, p);
-        pico_ipv6_to_string(tmp, mcast_link->addr);
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -533,11 +545,11 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
             memcpy(&dst.addr, &mcast_group.addr, sizeof(struct pico_ip6));
 
         break;
-/*
+
     case PICO_MLDV2:
-        dst.addr = MLDV3_ALL_ROUTER_GROUP;
+        pico_string_to_ipv6(MLDV2_ALL_ROUTER_GROUP, &dst.addr[0]);
         break;
-*/
+
     default:
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
@@ -552,14 +564,19 @@ static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
 static int8_t pico_mld_generate_report(struct mld_parameters *p)
 {
     struct pico_ipv6_link *link = NULL;
+    uint8_t i = 0;
+    printf("greport\n");
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link) {
+        printf("no link \n");
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
     if( !pico_ipv6_is_multicast(p->mcast_group.addr) ) {
+        printf("no multicast\n");
         return -1;
     }
+    printf("greport 1\n");
     switch (link->mcast_compatibility) {
 
     case PICO_MLDV1:
@@ -585,108 +602,108 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         hbh->ext.routing.routtype = 0;
         break;    
     }
-#if 0
     case PICO_MLDV2:
     {
-        struct mld_report *report = NULL;
-        struct pico_mcast_group *g = NULL, test = {
+        struct mldv2_report *report = NULL;
+        struct mldv2_group_record *record = NULL;
+        struct pico_ipv6_mcast_group *g = NULL, test = {
             0
         };
         struct pico_tree_node *index = NULL, *_tmp = NULL;
-        struct pico_tree *IGMPFilter = NULL;
-        struct pico_ip4 *source = NULL;
+        struct pico_tree *MLDFilter = NULL;
+        struct pico_ip6 *source = NULL;
         uint8_t record_type = 0;
         uint8_t sources = 0;
         uint16_t len = 0;
 
-        test.mcast_addr = p->mcast_group;
+        memcpy(&test.mcast_addr, &p->mcast_group, sizeof(struct pico_ip6));
         g = pico_tree_findKey(link->MCASTGroups, &test);
         if (!g) {
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
 
-        if (p->event == IGMP_EVENT_DELETE_GROUP) { /* "non-existent" state of filter mode INCLUDE and empty source list */
+        if (p->event == MLD_EVENT_DELETE_GROUP) { /* "non-existent" state of filter mode INCLUDE and empty source list */
             p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
             p->MCASTFilter = NULL;
         }
 
-        if (p->event == IGMP_EVENT_QUERY_RECV) {
-            goto igmp3_report;
+        if (p->event == MLD_EVENT_QUERY_RECV) {
+            goto mld2_report;
         }
 
 
         /* cleanup filters */
-        pico_tree_foreach_safe(index, &IGMPAllow, _tmp)
+        pico_tree_foreach_safe(index, &MLDAllow, _tmp)
         {
-            pico_tree_delete(&IGMPAllow, index->keyValue);
+            pico_tree_delete(&MLDAllow, index->keyValue);
         }
-        pico_tree_foreach_safe(index, &IGMPBlock, _tmp)
+        pico_tree_foreach_safe(index, &MLDBlock, _tmp)
         {
-            pico_tree_delete(&IGMPBlock, index->keyValue);
+            pico_tree_delete(&MLDBlock, index->keyValue);
         }
-
+        printf("g->filter_mode %d\n", g->filter_mode);
         switch (g->filter_mode) {
 
         case PICO_IP_MULTICAST_INCLUDE:
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
-                if (p->event == IGMP_EVENT_DELETE_GROUP) { /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
+                if (p->event == MLD_EVENT_DELETE_GROUP) { /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
                     /* TO_IN (B) */
-                    record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
-                    IGMPFilter = &IGMPAllow;
+                    record_type = MLD_CHANGE_TO_INCLUDE_MODE;
+                    MLDFilter = &MLDAllow;
                     if (p->MCASTFilter) {
                         pico_tree_foreach(index, p->MCASTFilter) /* B */
                         {
-                            pico_tree_insert(&IGMPAllow, index->keyValue);
+                            pico_tree_insert(&MLDAllow, index->keyValue);
                             sources++;
                         }
-                    } /* else { IGMPAllow stays empty } */
+                    } /* else { MLDAllow stays empty } */
 
                     break;
                 }
 
                 /* ALLOW (B-A) */
                 /* if event is CREATE A will be empty, thus only ALLOW (B-A) has sense */
-                if (p->event == IGMP_EVENT_CREATE_GROUP) /* first ADD_SOURCE_MEMBERSHIP */
-                    record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
+                if (p->event == MLD_EVENT_CREATE_GROUP) /* first ADD_SOURCE_MEMBERSHIP */
+                    record_type = MLD_CHANGE_TO_INCLUDE_MODE;
                 else
-                    record_type = IGMP_ALLOW_NEW_SOURCES;
+                    record_type = MLD_ALLOW_NEW_SOURCES;
 
-                IGMPFilter = &IGMPAllow;
+                MLDFilter = &MLDAllow;
                 pico_tree_foreach(index, p->MCASTFilter) /* B */
                 {
-                    pico_tree_insert(&IGMPAllow, index->keyValue);
+                    pico_tree_insert(&MLDAllow, index->keyValue);
                     sources++;
                 }
                 pico_tree_foreach(index, &g->MCASTSources) /* A */
                 {
-                    source = pico_tree_findKey(&IGMPAllow, index->keyValue);
+                    source = pico_tree_findKey(&MLDAllow, index->keyValue);
                     if (source) {
-                        pico_tree_delete(&IGMPAllow, source);
+                        pico_tree_delete(&MLDAllow, source);
                         sources--;
                     }
                 }
-                if (!pico_tree_empty(&IGMPAllow)) /* record type is ALLOW */
+                if (!pico_tree_empty(&MLDAllow)) /* record type is ALLOW */
                     break;
 
                 /* BLOCK (A-B) */
-                record_type = IGMP_BLOCK_OLD_SOURCES;
-                IGMPFilter = &IGMPBlock;
+                record_type = MLD_BLOCK_OLD_SOURCES;
+                MLDFilter = &MLDBlock;
                 pico_tree_foreach(index, &g->MCASTSources) /* A */
                 {
-                    pico_tree_insert(&IGMPBlock, index->keyValue);
+                    pico_tree_insert(&MLDBlock, index->keyValue);
                     sources++;
                 }
                 pico_tree_foreach(index, p->MCASTFilter) /* B */
                 {
-                    source = pico_tree_findKey(&IGMPBlock, index->keyValue);
+                    source = pico_tree_findKey(&MLDBlock, index->keyValue);
                     if (source) {
-                        pico_tree_delete(&IGMPBlock, source);
+                        pico_tree_delete(&MLDBlock, source);
                         sources--;
                     }
                 }
-                if (!pico_tree_empty(&IGMPBlock)) /* record type is BLOCK */
+                if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
                     break;
 
                 /* ALLOW (B-A) and BLOCK (A-B) are empty: do not send report (RFC 3376 $5.1) */
@@ -695,11 +712,11 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
 
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* TO_EX (B) */
-                record_type = IGMP_CHANGE_TO_EXCLUDE_MODE;
-                IGMPFilter = &IGMPBlock;
+                record_type = MLD_CHANGE_TO_EXCLUDE_MODE;
+                MLDFilter = &MLDBlock;
                 pico_tree_foreach(index, p->MCASTFilter) /* B */
                 {
-                    pico_tree_insert(&IGMPBlock, index->keyValue);
+                    pico_tree_insert(&MLDBlock, index->keyValue);
                     sources++;
                 }
                 break;
@@ -714,55 +731,55 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
                 /* TO_IN (B) */
-                record_type = IGMP_CHANGE_TO_INCLUDE_MODE;
-                IGMPFilter = &IGMPAllow;
+                record_type = MLD_CHANGE_TO_INCLUDE_MODE;
+                MLDFilter = &MLDAllow;
                 if (p->MCASTFilter) {
                     pico_tree_foreach(index, p->MCASTFilter) /* B */
                     {
-                        pico_tree_insert(&IGMPAllow, index->keyValue);
+                        pico_tree_insert(&MLDAllow, index->keyValue);
                         sources++;
                     }
-                } /* else { IGMPAllow stays empty } */
+                } /* else { MLDAllow stays empty } */
 
                 break;
 
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* BLOCK (B-A) */
-                record_type = IGMP_BLOCK_OLD_SOURCES;
-                IGMPFilter = &IGMPBlock;
+                record_type = MLD_BLOCK_OLD_SOURCES;
+                MLDFilter = &MLDBlock;
                 pico_tree_foreach(index, p->MCASTFilter)
                 {
-                    pico_tree_insert(&IGMPBlock, index->keyValue);
+                    pico_tree_insert(&MLDBlock, index->keyValue);
                     sources++;
                 }
                 pico_tree_foreach(index, &g->MCASTSources) /* A */
                 {
-                    source = pico_tree_findKey(&IGMPBlock, index->keyValue); /* B */
+                    source = pico_tree_findKey(&MLDBlock, index->keyValue); /* B */
                     if (source) {
-                        pico_tree_delete(&IGMPBlock, source);
+                        pico_tree_delete(&MLDBlock, source);
                         sources--;
                     }
                 }
-                if (!pico_tree_empty(&IGMPBlock)) /* record type is BLOCK */
+                if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
                     break;
 
                 /* ALLOW (A-B) */
-                record_type = IGMP_ALLOW_NEW_SOURCES;
-                IGMPFilter = &IGMPAllow;
+                record_type = MLD_ALLOW_NEW_SOURCES;
+                MLDFilter = &MLDAllow;
                 pico_tree_foreach(index, &g->MCASTSources)
                 {
-                    pico_tree_insert(&IGMPAllow, index->keyValue);
+                    pico_tree_insert(&MLDAllow, index->keyValue);
                     sources++;
                 }
                 pico_tree_foreach(index, p->MCASTFilter) /* B */
                 {
-                    source = pico_tree_findKey(&IGMPAllow, index->keyValue); /* A */
+                    source = pico_tree_findKey(&MLDAllow, index->keyValue); /* A */
                     if (source) {
-                        pico_tree_delete(&IGMPAllow, source);
+                        pico_tree_delete(&MLDAllow, source);
                         sources--;
                     }
                 }
-                if (!pico_tree_empty(&IGMPAllow)) /* record type is ALLOW */
+                if (!pico_tree_empty(&MLDAllow)) /* record type is ALLOW */
                     break;
 
                 /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report (RFC 3376 $5.1) */
@@ -772,8 +789,39 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                 pico_err = PICO_ERR_EINVAL;
                 return -1;
             }
-            break;
-#endif
+        default:
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+mld2_report:
+        len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record)  + (sources * sizeof(struct pico_ip6)));
+        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+        p->f->dev = pico_ipv6_link_find(&p->mcast_link);
+        /* p->f->len is correctly set by alloc */
+
+        report = (struct mldv2_report *)p->f->transport_hdr;
+        report->type = PICO_MLD_REPORTV2;
+        report->res = 0;
+        report->crc = 0;
+        report->nbr_gr = short_be(1);
+
+        record = &report->record[0];
+        record->type = record_type;
+        record->aux = 0;
+        record->nbr_src = short_be(sources);
+        memcpy(&record->mcast_group, &p->mcast_group, sizeof(struct pico_ip6));
+        if (MLDFilter && !pico_tree_empty(MLDFilter)) {
+            i = 0;
+            pico_tree_foreach(index, MLDFilter)
+            {
+                memcpy(&record->src[i], ((struct pico_ip6 *)index->keyValue)->addr, sizeof(struct pico_ip6));
+                i++;
+            }
+        }
+
+        report->crc = short_be(pico_checksum(report, len));
+        break;
+    }   
     default:
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -946,7 +994,8 @@ static int mld_rtimrtct(struct mld_parameters *p)
 static int mld_discard(struct mld_parameters *p)
 {
     mld_dbg("MLD: ignore and mld_discard frame\n");
-    pico_frame_discard(p->f);
+    // the frame will be discared bij the ipv6 module!!!
+    IGNORE_PARAMETER(p);
     return 0;
 }
 
