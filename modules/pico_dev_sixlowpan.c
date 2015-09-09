@@ -1045,15 +1045,14 @@ static void sixlowpan_nhc_udp_ports_undo(enum nhc_udp_ports ports, struct sixlow
     }
     
     hdr = (struct pico_udp_hdr *)f->transport_hdr;
-    hdr->trans.sport = sport;
-    hdr->trans.dport = dport;
+    hdr->trans.sport = short_be(sport);
+    hdr->trans.dport = short_be(dport);
 }
 
 static uint8_t sixlowpan_nhc_udp_undo(struct sixlowpan_nhc_udp *udp, struct sixlowpan_frame *f)
 {
     struct range r = {.offset = 0, .length = DISPATCH_NHC_UDP(INFO_HDR_LEN)};
     enum nhc_udp_ports ports = PORTS_COMPRESSED_NONE;
-    struct pico_udp_hdr *hdr = NULL;
     
     _CHECK_PARAM(udp, 0xFF);
     _CHECK_PARAM(f, 0xFF);
@@ -1065,9 +1064,6 @@ static uint8_t sixlowpan_nhc_udp_undo(struct sixlowpan_nhc_udp *udp, struct sixl
     if (ports) {
         sixlowpan_nhc_udp_ports_undo(ports, f);
     }
-    
-    hdr = (struct pico_udp_hdr *)f->transport_hdr;
-    PAN_DBG("RCVD SRC: (%d) DST: (%d)\n", hdr->trans.sport, hdr->trans.dport);
     
     return PICO_PROTO_UDP;
 }
@@ -1122,7 +1118,8 @@ static void sixlowpan_nhc_decompress(struct sixlowpan_frame *f)
     uint8_t d = 0, nxthdr = 0;
     
     /* Set size temporarily of the net_hdr */
-    f->net_len = PICO_SIZE_IP6HDR;
+    f->transport_len = (uint16_t)(f->net_len - PICO_SIZE_IP6HDR);
+    f->net_len = (uint16_t)PICO_SIZE_IP6HDR;
     FRAME_REARRANGE_PTRS(f);
     
     nhc = (union nhc_hdr *)(f->net_hdr + PICO_SIZE_IP6HDR);
@@ -1141,6 +1138,7 @@ static void sixlowpan_nhc_decompress(struct sixlowpan_frame *f)
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     hdr->nxthdr = nxthdr;
     
+    f->net_len = f->transport_len + PICO_SIZE_IP6HDR;
     f->state = FRAME_DECOMPRESSED;
 }
 
@@ -1277,7 +1275,7 @@ static inline int sixlowpan_iphc_pl_redo(struct sixlowpan_frame *f)
     struct pico_ipv6_hdr *hdr = NULL;
     CHECK_PARAM(f);
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    hdr->len = short_be(f->net_len);
+    hdr->len = short_be((uint16_t)(f->net_len - PICO_SIZE_IP6HDR));
     return 0;
 }
 
@@ -1714,7 +1712,6 @@ static void sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
 {
     struct range r = {.offset = 0, .length = DISPATCH_IPHC(INFO_HDR_LEN)};
     struct sixlowpan_iphc *iphc = NULL;
-    struct pico_udp_hdr *hdr = NULL;
     CHECK_PARAM_VOID(f);
     
     /* Provide space for a copy of the LOWPAN_IPHC-header */
@@ -1737,9 +1734,6 @@ static void sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
     sixlowpan_iphc_sam_undo(iphc, f);
     sixlowpan_iphc_dam_undo(iphc, f);
     
-    /* Recalculate the Payload Length again because it changed since ..._pl_undo() */
-    sixlowpan_iphc_pl_redo(f);
-    
     /* If there isn't any Next Header compression we can assume the IPv6 Header is default
      * and therefore 40 bytes in size */
     if (FRAME_COMPRESSED_NHC == f->state) {
@@ -1749,6 +1743,9 @@ static void sixlowpan_decompress_iphc(struct sixlowpan_frame *f)
     /* The differentation isn't usefull anymore, make it a single buffer */
     f->net_len = (uint16_t)(f->net_len + f->transport_len);
     f->transport_len = (uint16_t)(0);
+    
+    /* Recalculate the Payload Length again because it changed since ..._pl_undo() */
+    sixlowpan_iphc_pl_redo(f);
     
     /* Indicate decompression */
     f->state = FRAME_DECOMPRESSED;
@@ -2116,7 +2113,6 @@ static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
     //PAN_DBG("SEQ: (%d) ORI: (0x%04X) LAST SEQ: (%d) LAST ORI: (0x%04X)\n", bc->seq, f->peer._short.addr, bcast_seq, last_bcast_src._short.addr);
     if ((bc->seq <= bcast_seq) && (0 == ieee_addr_cmp((void *)&f->peer, (void *)&last_bcast_src))) {
         /* Discard frame at once */
-        PAN_DBG("Discarded broadcast duplicate\n");
         return 1;
     } else {
         /* Update the last origin address */
@@ -2629,6 +2625,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                 }
             }
             
+            /* Here's where the magic happens */
             pico_stack_recv(dev, f->net_hdr, (uint32_t)(f->net_len));
             
             /* Discard frame */
