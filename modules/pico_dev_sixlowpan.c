@@ -1065,6 +1065,10 @@ static uint8_t sixlowpan_nhc_udp_undo(struct sixlowpan_nhc_udp *udp, struct sixl
         sixlowpan_nhc_udp_ports_undo(ports, f);
     }
     
+    r.offset = 4;
+    r.length = 2;
+    FRAME_BUF_INSERT(f, PICO_LAYER_TRANSPORT, r);
+    
     return PICO_PROTO_UDP;
 }
 
@@ -1139,6 +1143,8 @@ static void sixlowpan_nhc_decompress(struct sixlowpan_frame *f)
     hdr->nxthdr = nxthdr;
     
     f->net_len = (uint16_t)(f->transport_len + PICO_SIZE_IP6HDR);
+    f->transport_len = (uint16_t)(0);
+    FRAME_REARRANGE_PTRS(f);
     f->state = FRAME_DECOMPRESSED;
 }
 
@@ -1273,9 +1279,14 @@ static void sixlowpan_nhc_compress(struct sixlowpan_frame *f, uint8_t nht)
 static inline int sixlowpan_iphc_pl_redo(struct sixlowpan_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
+    struct pico_udp_hdr *udp = NULL;
     CHECK_PARAM(f);
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    hdr->len = (uint16_t)(f->net_len - PICO_SIZE_IP6HDR);
+    hdr->len = short_be((uint16_t)(f->net_len - PICO_SIZE_IP6HDR));
+    if (PICO_PROTO_UDP == hdr->nxthdr) {
+        udp = (struct pico_udp_hdr *)(f->net_hdr + PICO_SIZE_IP6HDR);
+        udp->len = hdr->len;
+    }
     return 0;
 }
 
@@ -2031,8 +2042,7 @@ static struct sixlowpan_frame *sixlowpan_defrag_puzzle(struct sixlowpan_frame *f
             if (!pico_tree_delete(&Frags, reassembly))
                 PAN_ERR("Reassembly frame not in the tree, could not delete.\n");
             ret->state = FRAME_DEFRAGMENTED;
-            hdr = (struct pico_ipv6_hdr *)reassembly->net_hdr;
-            hdr->len = short_be((uint16_t)(reassembly->dgram_size - PICO_SIZE_IP6HDR));
+            sixlowpan_iphc_pl_redo(reassembly);
         }
     }
     
@@ -2582,8 +2592,8 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 {
 	/* Parse the pico_device structure to the internal sixlowpan-structure */
     struct pico_device_sixlowpan *sixlowpan = (struct pico_device_sixlowpan *) dev;
-    struct sixlowpan_frame *f = NULL;
     struct ieee_radio *radio = sixlowpan->radio;
+    struct sixlowpan_frame *f = NULL;
     uint8_t buf[IEEE_PHY_MTU];
     uint8_t len = 0;
     
