@@ -1138,7 +1138,7 @@ static void sixlowpan_nhc_decompress(struct sixlowpan_frame *f)
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     hdr->nxthdr = nxthdr;
     
-    f->net_len = f->transport_len + PICO_SIZE_IP6HDR;
+    f->net_len = (uint16_t)(f->transport_len + PICO_SIZE_IP6HDR);
     f->state = FRAME_DECOMPRESSED;
 }
 
@@ -1275,7 +1275,7 @@ static inline int sixlowpan_iphc_pl_redo(struct sixlowpan_frame *f)
     struct pico_ipv6_hdr *hdr = NULL;
     CHECK_PARAM(f);
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    hdr->len = short_be((uint16_t)(f->net_len - PICO_SIZE_IP6HDR));
+    hdr->len = (uint16_t)(f->net_len - PICO_SIZE_IP6HDR);
     return 0;
 }
 
@@ -1778,13 +1778,12 @@ static void sixlowpan_decompress(struct sixlowpan_frame *f)
     /* Dispatch is unknown, no decompression is needed */
 }
 
-#define SIXLOWPAN_OVERHEAD_MIN ()
 /* -------------------------------------------------------------------------------- */
 // MARK: FRAGMENTATION
 static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
 {
-    uint8_t max_psize = 0, diff = 0;
-    
+    uint8_t max_psize = 0, comp = 0;
+    uint16_t decompressed = 0, diff = 0;
     CHECK_PARAM_VOID(f);
     
     /* Determine how many bytes need to be transmitted to send the entire IPv6-payload */
@@ -1796,11 +1795,12 @@ static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
     max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn));
     max_psize = (uint8_t)(max_psize - sixlowpan_overhead(f));
     
-    diff = (uint8_t)(f->dgram_size - f->transport_len);
-    max_psize = (uint8_t)(max_psize + diff);
+    comp = (uint8_t)(f->dgram_size - f->net_len);
+    decompressed = (uint16_t)(max_psize + comp);
+    diff = (uint16_t)((decompressed / 8) * 8);
+    f->max_bytes = (uint8_t)(diff - comp);
     
     /* Determine how many multiples of eight bytes fit inside that same amount of bytes determined a line above */
-    f->max_bytes = (uint8_t)((uint8_t)((max_psize / 8) * 8) - diff); /* <- integer division */
     f->state = FRAME_FRAGMENTED;
 }
 
@@ -1812,6 +1812,7 @@ static int sixlowpan_fill_fragn(struct sixlowpan_fragn *hdr, struct sixlowpan_fr
     hdr->dispatch_size = short_be(((uint16_t)DISPATCH_FRAGN(INFO_VAL)) << DISPATCH_FRAGN(INFO_SHIFT));
     hdr->dispatch_size = short_be((uint16_t)(hdr->dispatch_size | f->dgram_size));
     hdr->datagram_tag = short_be(dtag);
+    
     diff = (uint8_t)(f->dgram_size - f->transport_len);
     offset_bytes = (uint16_t)((uint16_t)(f->transport_len - f->net_len) + (uint16_t)diff);
     offset_mul = (uint8_t)(offset_bytes / 8);
@@ -1849,7 +1850,7 @@ static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
         frag_len = (uint8_t)(f->net_len + dsize);
     } else {
         dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-        frag_len = (uint8_t)(f->max_bytes + dsize);
+        frag_len = (uint8_t)(((f->max_bytes / 8) * 8) + dsize);
     }
     
     *len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
@@ -1926,7 +1927,7 @@ static uint16_t sixlowpan_defrag_prep(struct sixlowpan_frame *f)
     }
     
     /* Determine the size of the IP-packet before LL compression/fragmentation */
-    f->dgram_size = short_be((((struct sixlowpan_frag1 *)f->net_hdr)->dispatch_size) & 0x7FF);
+    f->dgram_size = short_be(((struct sixlowpan_frag1 *)f->net_hdr)->dispatch_size) & 0x7FF;
     f->dgram_tag = short_be((uint16_t)(((struct sixlowpan_frag1 *)f->net_hdr)->datagram_tag));
     
     /* Delete the fragmentation header from the buffer */
@@ -1937,7 +1938,8 @@ static uint16_t sixlowpan_defrag_prep(struct sixlowpan_frame *f)
     }
     
     /* Try to decompress the received frame */
-    sixlowpan_decompress(f);
+    if (first)
+        sixlowpan_decompress(f);
     
     return offset;
 }
@@ -2030,7 +2032,7 @@ static struct sixlowpan_frame *sixlowpan_defrag_puzzle(struct sixlowpan_frame *f
                 PAN_ERR("Reassembly frame not in the tree, could not delete.\n");
             ret->state = FRAME_DEFRAGMENTED;
             hdr = (struct pico_ipv6_hdr *)reassembly->net_hdr;
-            hdr->len = (uint16_t)(reassembly->dgram_size - PICO_SIZE_IP6HDR);
+            hdr->len = short_be((uint16_t)(reassembly->dgram_size - PICO_SIZE_IP6HDR));
         }
     }
     
@@ -2565,8 +2567,6 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
     
-    /* 2. - Whether or not the packet needs to be mesh routed */
-    
     /* Schedule for sending */
     if (frame) {
         cur_frame = frame;
@@ -2607,7 +2607,6 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
             if (!f) {
                 continue;
             } else {
-                
                 if (FRAME_ERROR == f->state) {
                     PAN_ERR("During defragmentation.\n");
                     sixlowpan_frame_destroy(f);
