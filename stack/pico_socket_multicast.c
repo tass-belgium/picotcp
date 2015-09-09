@@ -448,7 +448,7 @@ if( IS_SOCK_IPV4(s) ) {
     return pico_ipv4_link_get(&s->local_addr.ip4);
 }
 else if( IS_SOCK_IPV6(s)) {
-    if (pico_ipv6_is_null_address(s->local_addr.ip6.addr))
+    if (pico_ipv6_is_null_address(&s->local_addr.ip6))
         return pico_ipv6_get_default_mcastlink();
 
     return pico_ipv6_link_get(&s->local_addr.ip6);
@@ -487,10 +487,8 @@ if (!a->ip4.addr)
 return pico_ipv4_link_get(&a->ip4);
 }
 static struct pico_ipv6_link *get_mcast_link_ipv6(union pico_address *a) {
-char t[70];
-pico_ipv6_to_string(&t, &a->ip6);
 
-if (pico_ipv6_is_null_address(&a->ip6.addr)) {
+if (pico_ipv6_is_null_address(&a->ip6)) {
     return pico_ipv6_get_default_mcastlink();
 }
 return pico_ipv6_link_get(&a->ip6);
@@ -511,7 +509,7 @@ static int pico_socket_setoption_pre_validation_ipv6(struct pico_ipv6_mreq *mreq
 if (!mreq)
     return -1;
 
-if (pico_ipv6_is_null_address(mreq->mcast_group_addr.addr))
+if (pico_ipv6_is_null_address(&mreq->mcast_group_addr))
     return -1;
 
 return 0;
@@ -574,14 +572,15 @@ return get_mcast_link((union pico_address *)&mreq->mcast_link_addr);
 }
 static struct pico_ipv6_link *pico_socket_setoption_validate_s_mreq_ipv6(struct pico_ipv6_mreq_source *mreq)
 {
-if (pico_socket_setoption_pre_validation_s_ipv6(mreq) < 0)
+if (pico_socket_setoption_pre_validation_s_ipv6(mreq) < 0) {
     return NULL;
-
-if (pico_ipv6_is_unicast(&mreq->mcast_group_addr))
+}
+if (pico_ipv6_is_unicast(&mreq->mcast_group_addr)){
     return NULL;
-
-if (!pico_ipv6_is_unicast(&mreq->mcast_source_addr))
+}
+if (!pico_ipv6_is_unicast(&mreq->mcast_source_addr)){
     return NULL;
+}
 
 return get_mcast_link_ipv6((union pico_address *)&mreq->mcast_link_addr);
 }
@@ -627,19 +626,21 @@ struct pico_ipv6_mreq_source *mreq_src = NULL;
 if (!bysource) {
     mreq = &(((union pico_mreq *)value)->ipv6);
     mcast_link = pico_socket_setoption_validate_mreq_ipv6(mreq);
-    if (!mcast_link)
-        return NULL;
-    if (pico_ipv6_is_null_address(mreq->mcast_link_addr.addr))
+    if (!mcast_link) {
+       return NULL;
+    }
+    if (pico_ipv6_is_null_address(&mreq->mcast_link_addr))
         memcpy(&mreq->mcast_link_addr.addr , &mcast_link->address.addr, sizeof(struct pico_ip6));
 } else {
     mreq_src = &(((union pico_mreq_source *)value)->ipv6);
-    if (!mreq_src)
+    if (!mreq_src) {
         return NULL;
+    }
 
     mcast_link = pico_socket_setoption_validate_s_mreq_ipv6(mreq_src);
-    if (!mcast_link)
+    if (!mcast_link) {
         return NULL;
-
+    }
     if (!mreq_src->mcast_link_addr.addr)
         memcpy(&mreq_src->mcast_link_addr.addr, &mcast_link->address.addr, sizeof(struct pico_ip6));
 }
@@ -717,8 +718,9 @@ if( IS_SOCK_IPV4(s)) {
         return NULL;
     }
     if (!s->MCASTListen_ipv6) { /* No RBTree allocated yet */
-        if (setop_verify_listen_tree(s, alloc) < 0)
-            return NULL;
+        if (setop_verify_listen_tree(s, alloc) < 0) {
+           return NULL;
+        }
     }
     return mcast_link;
 }
@@ -890,7 +892,7 @@ so_mcast_dbg("PICO_IP_ADD_MEMBERSHIP - success, added %p\n", s);
 if(IS_SOCK_IPV4(s)) 
     return pico_ipv4_mcast_join((struct pico_ip4*)mcast_link_addr,(struct pico_ip4*) mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter);
 else if(IS_SOCK_IPV6(s)) { 
-    return pico_ipv6_mcast_join(mcast_link_addr,mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+    return pico_ipv6_mcast_join((struct pico_ip6*)mcast_link_addr,(struct pico_ip6*)mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter_ipv6);
 }
 return -1;
 }
@@ -958,7 +960,7 @@ if (filter_mode < 0)
 if(IS_SOCK_IPV4(s)) 
     return pico_ipv4_mcast_leave((struct pico_ip4*) mcast_link_addr,(struct pico_ip4 *) mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter);
 else if(IS_SOCK_IPV6(s)) { }
-    return pico_ipv6_mcast_leave(mcast_link_addr,mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+    return pico_ipv6_mcast_leave((struct pico_ip6*)mcast_link_addr,(struct pico_ip6*)mcast_group_addr, 1, (uint8_t)filter_mode, &MCASTFilter_ipv6);
 return -1;
 }
 
@@ -1023,7 +1025,7 @@ if (filter_mode < 0)
 if(IS_SOCK_IPV4(s)) 
     return pico_ipv4_mcast_leave((struct pico_ip4 *)mcast_link_addr,(struct pico_ip4*) mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter);
 else if(IS_SOCK_IPV6(s)) { }
-    return pico_ipv6_mcast_leave(mcast_link_addr,mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+    return pico_ipv6_mcast_leave((struct pico_ip6*)mcast_link_addr,(struct pico_ip6*)mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter_ipv6);
     return -1;
 }
 
@@ -1092,7 +1094,7 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
     if(IS_SOCK_IPV4(s)) 
         return pico_ipv4_mcast_join((struct pico_ip4 *) mcast_link_addr, (struct pico_ip4*)mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter);
     else if(IS_SOCK_IPV6(s)) { }
-        return pico_ipv6_mcast_join(mcast_link_addr,mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+        return pico_ipv6_mcast_join((struct pico_ip6 *)mcast_link_addr,(struct pico_ip6*)mcast_group_addr, 0, (uint8_t)filter_mode, &MCASTFilter_ipv6);
     return -1;
 }
 
@@ -1104,8 +1106,10 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
     union pico_address *source = NULL, stest;
     union pico_link *mcast_link = setopt_multicast_check(s, value, 1, 1);
     union pico_address *mcast_link_addr, *mcast_group_addr, *address, *mcast_source_addr;
-    if (!mcast_link)
-        return -1;
+    if (!mcast_link) {
+     
+       return -1;
+    }
     memset(&stest, 0, sizeof(union pico_address));
 
     if( IS_SOCK_IPV4(s)) {
@@ -1135,8 +1139,6 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
             source = pico_tree_findKey(&listen->MCASTSources_ipv6, &stest);
         if (source) {
             so_mcast_dbg("pico_socket_setoption: ERROR source address to allow already in source list\n");
-            char tt[70];
-            pico_ipv6_to_string(tt,  &stest);
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         } else {
@@ -1187,8 +1189,6 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
         }
         reference_count = 1;
     }
-    char ts[70];
-    pico_ipv6_to_string(ts,  &stest);
 
     pico_tree_insert(&MCASTSockets, s);
     filter_mode = pico_socket_aggregate_mcastfilters(address, mcast_group_addr);
@@ -1197,7 +1197,7 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
     if(IS_SOCK_IPV4(s)) 
         return pico_ipv4_mcast_join((struct pico_ip4 *)mcast_link_addr, (struct pico_ip4*)mcast_group_addr,  (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter);
     else if(IS_SOCK_IPV6(s)) { }
-        return pico_ipv6_mcast_join(mcast_link_addr,mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+        return pico_ipv6_mcast_join((struct pico_ip6 *) mcast_link_addr,(struct pico_ip6*)mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter_ipv6);
     return -1;
 }
 
@@ -1282,7 +1282,7 @@ static int mcast_so_dropsrcm(struct pico_socket *s, void *value)
     if(IS_SOCK_IPV4(s)) 
         return pico_ipv4_mcast_leave((struct pico_ip4 *) mcast_link_addr, (struct pico_ip4*)mcast_group_addr,  (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter);
     else if(IS_SOCK_IPV6(s)) { }
-        return pico_ipv6_mcast_leave(mcast_link_addr,mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter_ipv6);
+        return pico_ipv6_mcast_leave((struct pico_ip6 *)mcast_link_addr,(struct pico_ip6*)mcast_group_addr, (uint8_t)reference_count, (uint8_t)filter_mode, &MCASTFilter_ipv6);
     return -1;
 }
 
