@@ -19,15 +19,15 @@
 
 #define DEBUG
 #ifdef DEBUG
-#define PAN_DBG(s, ...)         dbg("[SIXLOWPAN]$ " s, ##__VA_ARGS__)
-#define PAN_ERR(s, ...)         dbg("[SIXLOWPAN]$ ERROR: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define PAN_WARNING(s, ...)     dbg("[SIXLOWPAN]$ WARNING: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-#define PAN_DBG_C               dbg
+    #define PAN_DBG(s, ...)         dbg("[SIXLOWPAN]$ " s, ##__VA_ARGS__)
+    #define PAN_ERR(s, ...)         dbg("[SIXLOWPAN]$ ERROR: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    #define PAN_WARNING(s, ...)     dbg("[SIXLOWPAN]$ WARNING: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    #define PAN_DBG_C               dbg
 #else
-#define PAN_DBG(...)            do {} while(0)
-#define PAN_DBG_C(...)          do {} while(0)
-#define PAN_WARNING(...)        do {} while(0)
-#define PAN_ERR(...)            do {} while(0)
+    #define PAN_DBG(...)            do {} while(0)
+    #define PAN_DBG_C(...)          do {} while(0)
+    #define PAN_WARNING(...)        do {} while(0)
+    #define PAN_ERR(...)            do {} while(0)
 #endif
 
 #define UNUSED __attribute__((unused))
@@ -124,10 +124,10 @@
 #define R_ZERO                      (0)
 #define R_PLAIN                     (-1)
 #define _CHECK_PARAM(a, b)          if(!(a)){ \
-pico_err = PICO_ERR_EINVAL; \
-PAN_ERR("Invalid argument!\n"); \
-return b; \
-} do {} while(0)
+                                        pico_err = PICO_ERR_EINVAL; \
+                                        PAN_ERR("Invalid argument!\n"); \
+                                        return b; \
+                                    } do {} while(0)
 #define CHECK_PARAM(a)              _CHECK_PARAM((a), R_PLAIN)
 #define CHECK_PARAM_NULL(a)         _CHECK_PARAM((a), R_NULL)
 #define CHECK_PARAM_ZERO(a)         _CHECK_PARAM((a), R_ZERO)
@@ -268,7 +268,7 @@ enum iphc_tf
     TF_COMPRESSED_TC,
     TF_COMPRESSED_FL,
     TF_COMPRESSED_FULL
-}; /* Traffic class / Flow label*/
+}; /* Traffic class / Flow label */
 
 enum iphc_nh
 {
@@ -944,7 +944,7 @@ static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t in[8])
 static int sixlowpan_ipv6_derive_local(struct pico_ieee_addr *addr, uint8_t ip[PICO_SIZE_IP6])
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+                                   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     int ret = 0;
     
     CHECK_PARAM(addr);
@@ -965,7 +965,7 @@ static int sixlowpan_ipv6_derive_local(struct pico_ieee_addr *addr, uint8_t ip[P
 static int sixlowpan_ipv6_derive_mcast(enum iphc_mcast_dam am, uint8_t *addr)
 {
     struct pico_ip6 mcast = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     
     switch (am) {
         case MCAST_COMPRESSED_8:
