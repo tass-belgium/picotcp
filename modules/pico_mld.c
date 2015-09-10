@@ -565,18 +565,14 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
 {
     struct pico_ipv6_link *link = NULL;
     uint8_t i = 0;
-    printf("greport\n");
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link) {
-        printf("no link \n");
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
     if( !pico_ipv6_is_multicast(p->mcast_group.addr) ) {
-        printf("no multicast\n");
         return -1;
     }
-    printf("greport 1\n");
     switch (link->mcast_compatibility) {
 
     case PICO_MLDV1:
@@ -642,7 +638,6 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         {
             pico_tree_delete(&MLDBlock, index->keyValue);
         }
-        printf("g->filter_mode %d\n", g->filter_mode);
         switch (g->filter_mode) {
 
         case PICO_IP_MULTICAST_INCLUDE:
@@ -991,6 +986,90 @@ static int mld_rtimrtct(struct mld_parameters *p)
     */
     return 0;
 }
+/* merge report, send report, reset timer (MLDv2 only) */
+static int mld_mrsrrt(struct mld_parameters *p)
+{
+    struct mld_timer *t = NULL;
+    struct pico_frame *copy_frame = NULL;
+    struct pico_ipv6_link *link = NULL;
+
+    mld_dbg("MLD: event = update group | action = merge report, send report, reset timer (MLDv2 only)\n");
+
+    link = pico_ipv6_link_get(&p->mcast_link);
+    if (!link)
+        return -1;
+
+    if (link->mcast_compatibility != PICO_MLDV2) {
+        mld_dbg("MLD: no MLDv3 compatible router on network\n");
+        return -1;
+    }
+
+    /* XXX: merge with pending report rfc 3376 $5.1 */
+
+    copy_frame = pico_frame_copy(p->f);
+    if (!copy_frame)
+        return -1;
+
+    if (pico_mld_send_report(p, copy_frame) < 0)
+        return -1;
+
+    t = pico_mld_find_timer(MLD_TIMER_GROUP_REPORT, &p->mcast_link, &p->mcast_group);
+    if (!t)
+        return -1;
+
+    t->delay = (pico_rand() % (MLD_UNSOLICITED_REPORT_INTERVAL * 10000));
+    pico_mld_timer_reset(t);
+
+    p->state = MLD_STATE_DELAYING_LISTENER;
+    mld_dbg("MLD: new state = delaying member\n");
+    return 0;
+}
+
+/* send report, start timer (IGMPv3 only) */
+static int mld_srst(struct mld_parameters *p)
+{
+    struct mld_timer t = {
+        0
+    };
+    struct pico_frame *copy_frame = NULL;
+    struct pico_ipv6_link *link = NULL;
+
+    mld_dbg("MLD: event = update group | action = send report, start timer (MLDv2 only)\n");
+
+    link = pico_ipv6_link_get(&p->mcast_link);
+    if (!link)
+        return -1;
+
+    if (link->mcast_compatibility != PICO_MLDV2) {
+        mld_dbg("MLD: no MLDv2 compatible router on network\n");
+        return -1;
+    }
+
+    if (pico_mld_generate_report(p) < 0)
+        return -1;
+
+    if (!p->f)
+        return 0;
+
+    copy_frame = pico_frame_copy(p->f);
+    if (!copy_frame)
+        return -1;
+
+    if (pico_mld_send_report(p, copy_frame) < 0)
+        return -1;
+
+    t.type = MLD_TIMER_GROUP_REPORT;
+    t.mcast_link = p->mcast_link;
+    t.mcast_group = p->mcast_group;
+    t.delay = (pico_rand() % (MLD_UNSOLICITED_REPORT_INTERVAL * 10000));
+    t.f = p->f;
+    t.mld_callback = pico_mld_report_expired;
+    pico_mld_timer_start(&t);
+
+    p->state = MLD_STATE_DELAYING_LISTENER;
+    mld_dbg("MLD: new state = delaying member\n");
+    return 0;
+}
 static int mld_discard(struct mld_parameters *p)
 {
     mld_dbg("MLD: ignore and mld_discard frame\n");
@@ -1005,8 +1084,8 @@ static int mld_discard(struct mld_parameters *p)
 static const mld_callback mld_state_diagram[3][7] =
 { /* event                    | Stop Listening | Start Listening | Update Group |Query reveive |Report receive |Timer expired */
 /* none listener*/           { mld_discard ,    mld_srsfst,         mld_discard,  mld_discard,    mld_discard,    mld_discard},
-/* idle listener */          { mld_st ,         mld_discard,        mld_discard,  mld_rtimrtct,   mld_stcl,       mld_srsf },
-/* delaying listener     */  { mld_rtimrtct,    mld_discard,        mld_discard,  mld_srsf,       mld_stsdifs,    mld_discard }
+/* idle listener */          { mld_stsdifs ,    mld_mrsrrt,         mld_mrsrrt,  mld_rtimrtct,   mld_stcl,       mld_srsf },
+/* delaying listener     */  { mld_rtimrtct,    mld_srst,           mld_srst,  mld_srsf,       mld_stsdifs,    mld_discard }
 };
 
 static int pico_mld_process_event(struct mld_parameters *p) {
