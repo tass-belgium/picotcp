@@ -385,7 +385,6 @@ static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
     struct pico_ipv6_route *r = NULL;
     struct pico_tree_node *index = NULL;
     int i = 0;
-
     if (!pico_ipv6_is_localhost(addr->addr) && (pico_ipv6_is_linklocal(addr->addr)  || pico_ipv6_is_sitelocal(addr->addr)))    {
         return NULL;
     }
@@ -1209,7 +1208,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
 
         if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL)
             memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
-        if(icmp6_hdr->type >= PICO_MLD_QUERY && icmp6_hdr->type <= PICO_MLD_DONE)
+        if(icmp6_hdr->type >= PICO_MLD_QUERY && icmp6_hdr->type <= PICO_MLD_DONE || icmp6_hdr->type == PICO_MLD_REPORTV2)
             hdr->hop = 1; 
         icmp6_hdr->crc = 0;
         icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
@@ -1368,11 +1367,9 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
 {
     struct pico_ip6 zerogateway = {{0}};
     struct pico_ipv6_route test, *new = NULL;
-    char ipstr[40];
     test.dest = address;
     test.netmask = netmask;
     test.metric = (uint32_t)metric;
-    pico_ipv6_to_string(ipstr, address.addr);
     if (pico_tree_findKey(&IPV6Routes, &test)) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -1385,7 +1382,6 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
     }
 
     ipv6_dbg("Adding IPV6 static route\n");
-
     new->dest = address;
     new->netmask = netmask;
     new->gateway = gateway;
@@ -1523,7 +1519,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     }, *new = NULL;
     struct pico_ip6 network = {{0}}, gateway = {{0}};
     struct pico_ip6 mcast_addr = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-        struct pico_ip6 mcast_nm = {{ 0xf0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00 }};
+        struct pico_ip6 mcast_nm = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
         struct pico_ip6 mcast_gw = {{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00 }};
         struct pico_ip6 all_hosts = {{ 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
     char ipstr[40] = {
@@ -1570,7 +1566,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 
     new->MCASTGroups->root = &LEAF;
     new->MCASTGroups->compare = ipv6_mcast_groups_cmp;
-    new->mcast_compatibility = PICO_MLDV1; 
+    new->mcast_compatibility = PICO_MLDV2; 
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
 #endif
 #ifndef UNIT_TEST
