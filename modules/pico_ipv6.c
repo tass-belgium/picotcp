@@ -789,10 +789,14 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
 static int pico_ipv6_process_mcast_in(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+    struct pico_ipv6_exthdr *hbh;
     if (pico_ipv6_is_multicast(hdr->dst.addr)) {
 #ifdef PICO_SUPPORT_MCAST
         /* Receiving UDP multicast datagram TODO set f->flags? */
-        if (hdr->nxthdr == PICO_PROTO_ICMP6) {
+        if(hdr->nxthdr == 0) {
+            hbh = (struct pico_ipv6_exthdr *) (f->transport_hdr);
+        } 
+        if (hdr->nxthdr == PICO_PROTO_ICMP6 || hbh->nxthdr == PICO_PROTO_ICMP6) {
             ipv6_mcast_dbg("MCAST: received MLD message\n");
             pico_transport_receive(f, PICO_PROTO_ICMP6);
             return 1;
@@ -1172,6 +1176,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_hdr *hdr = NULL;
+    struct pico_ipv6_exthdr *hbh = NULL;
     const uint8_t vtf = (uint8_t)long_be(0x60000000); /* version 6, traffic class 0, flow label 0 */
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -1200,18 +1205,38 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     /* make adjustments to defaults according to proto */
     switch (proto)
     {
+    case 0: 
+    {
+        hbh = (struct pico_ipv6_exthdr *) f->transport_hdr;
+        switch(hbh->nxthdr) {
+            case PICO_PROTO_ICMP6:
+            {
+                icmp6_hdr = (struct pico_icmp6_hdr *)(f->transport_hdr+sizeof(struct pico_ipv6_exthdr));
+                 if((icmp6_hdr->type >= PICO_MLD_QUERY && icmp6_hdr->type <= PICO_MLD_DONE) || icmp6_hdr->type == PICO_MLD_REPORTV2) {
+                    hdr->hop = 1; 
+                }    
+                icmp6_hdr->crc = 0;
+                icmp6_hdr->crc = short_be(pico_mld_checksum(f));
+                break;
+            }
+         }
+        break;
+    }
     case PICO_PROTO_ICMP6:
     {
         icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-        if (icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL || icmp6_hdr->type == PICO_ICMP6_NEIGH_ADV)
+        if (icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL || icmp6_hdr->type == PICO_ICMP6_NEIGH_ADV){
             hdr->hop = 255;
 
-        if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL)
+        }
+
+        if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL){
             memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
-        if(icmp6_hdr->type >= PICO_MLD_QUERY && icmp6_hdr->type <= PICO_MLD_DONE || icmp6_hdr->type == PICO_MLD_REPORTV2)
-            hdr->hop = 1; 
+           
+        }
+       
         icmp6_hdr->crc = 0;
-        icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
+            icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
         break;
     }
 #ifdef PICO_SUPPORT_UDP
