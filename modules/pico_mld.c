@@ -332,7 +332,6 @@ uint16_t pico_mld_checksum(struct pico_frame *f) {
     pseudo.zero[0] = 0;
     pseudo.zero[1] = 0;
     pseudo.zero[2] = 0;
-    printf("CALCULATING CHECKSUM FOR %d bytes\n", len);
     return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv6_pseudo_hdr), icmp6_hdr, len);
 }
 /* RFC 3810 $8 */
@@ -530,9 +529,45 @@ out:
 
 
 static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f) {
-    IGNORE_PARAMETER(p);
-    IGNORE_PARAMETER(f);
-    mld_dbg("send done\n");
+    struct mld_message *report = NULL;
+    struct pico_ipv6_hdr * hdr; 
+    uint8_t report_type = PICO_MLD_DONE;
+    struct pico_ipv6_exthdr *hbh;
+    struct pico_ip6 dst = {{
+        0
+    }};
+    struct pico_ip6 mcast_group = {{
+        0
+    }};
+
+    char ipstr[40] = {
+        0
+    },  grpstr[40] ={
+        0
+    };
+
+    pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
+    memcpy(&mcast_group.addr,&p->mcast_group.addr, sizeof(struct pico_ip6));
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+sizeof(struct pico_ipv6_exthdr));
+    p->f->dev = pico_ipv6_link_find(&p->mcast_link);
+    /* p->f->len is correctly set by alloc */
+
+    report = (struct mld_message *)(p->f->transport_hdr+sizeof(struct pico_ipv6_exthdr));
+    report->type = report_type;
+    report->max_resp_delay = 0; 
+    report->mcast_group = p->mcast_group;
+
+    report->crc = 0;
+    //Checksum done in ipv6 module, no need to do it twice
+    //report->crc = short_be(pico_icmp6_checksum(p->f));
+    hbh = (struct pico_ipv6_exthdr *) p->f->transport_hdr;
+    hbh->ext.routing.routtype = 1;
+    hbh->nxthdr = PICO_PROTO_ICMP6; 
+    hbh->ext.routing.len = 0;
+    pico_ipv6_to_string(ipstr, dst.addr);
+    pico_ipv6_to_string(grpstr, mcast_group.addr);
+    mld_dbg("MLD: send membership done on group %s to %s\n", grpstr, ipstr);
+    pico_ipv6_frame_push(f, NULL, &dst, 0,0);
     return 0;
 }
 #define IPV6_MAX_STRLEN \
@@ -600,11 +635,11 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         struct pico_ipv6_hdr * hdr; 
         uint8_t report_type = PICO_MLD_REPORT;
         struct pico_ipv6_exthdr *hbh;
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+sizeof(struct pico_ipv6_exthdr);
+        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+sizeof(struct pico_ipv6_exthdr));
         p->f->dev = pico_ipv6_link_find(&p->mcast_link);
         /* p->f->len is correctly set by alloc */
 
-        report = (struct mld_message *)(p->f->transport_hdr+sizeof(pico_ipv6_exthdr));
+        report = (struct mld_message *)(p->f->transport_hdr+sizeof(struct pico_ipv6_exthdr));
         report->type = report_type;
         report->max_resp_delay = MLD_DEFAULT_MAX_RESPONSE_TIME;
         report->mcast_group = p->mcast_group;
