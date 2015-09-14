@@ -30,6 +30,14 @@ static struct sixlowpan_frame *create_dummy_frame(void)
     return new;
 }
 
+static inline uint8_t pico_ieee_hdr_estimate_size(struct pico_ieee_addr src, struct pico_ieee_addr dst)
+{
+    uint8_t len = IEEE_MIN_HDR_LEN;
+    len = (uint8_t)(len + pico_ieee_addr_len(src._mode));
+    len = (uint8_t)(len + pico_ieee_addr_len(dst._mode));
+    return len;
+}
+
 START_TEST(tc_buf_delete) /* MARK: CHECKED */
 {
     /* Works with not allocated buffers as well, since it doesn't free anything */

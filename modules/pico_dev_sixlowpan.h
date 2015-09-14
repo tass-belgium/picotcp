@@ -107,7 +107,7 @@ struct ieee_radio
 	/**
 	 *
 	 */
-	enum radio_rcode (*transmit)(struct ieee_radio *radio, void *buf, int len);
+	int (*transmit)(struct ieee_radio *radio, void *buf, int len);
 	
 	/**
 	 *
