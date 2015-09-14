@@ -816,12 +816,19 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
 {
     int proto = 0;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-
+    struct pico_ipv6_exthdr *hbh;
     IGNORE_PARAMETER(self);
-    /* TODO: Check hop-by-hop hdr before forwarding */
+    /* forward if not local, except if router alert is set */ 
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
-        /* not local, try to forward. */
-        return pico_ipv6_forward(f);
+        if(hdr->nxthdr == 0) {
+            hbh = f->transport_hdr;
+            if(hbh->ext.routing.routtype == 0) 
+                return pico_ipv6_forward(f);
+            else
+                printf("ROUTER ALERT SET\n");
+        } else
+            /* not local, try to forward. */
+            return pico_ipv6_forward(f);
     }
 
     proto = pico_ipv6_extension_headers(f);
