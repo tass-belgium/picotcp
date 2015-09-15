@@ -3232,4 +3232,11 @@ int pico_tcp_set_keepalive_time(struct pico_socket *s, uint32_t value)
     return 0;
 }
 
+int pico_tcp_set_linger(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->linger_timeout = value;
+    return 0;
+}
+
 #endif /* PICO_SUPPORT_TCP */
