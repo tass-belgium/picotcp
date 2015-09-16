@@ -30,6 +30,8 @@ void dns_sd_init_callback( pico_mdns_rtree *tree,
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(tree);
+    
+    pico_dns_sd_kv_vector_add(&key_value_pair_vector, "key", "value");
 
     printf("DONE - Initialising DNS Service Discovery module.\n");
 
