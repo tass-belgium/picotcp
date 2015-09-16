@@ -17,7 +17,7 @@
 
 /* --- Debugging --- */
 #define mdns_dbg(...) do {} while(0)
-/* #define mdns_dbg dbg */
+//#define mdns_dbg dbg
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000)    /* One second */
@@ -62,17 +62,17 @@
 #define PICO_MDNS_RECORD_CLAIMED (0x80u)
 
 #define IS_SHARED_RECORD(x) \
-    (((x)->flags & PICO_MDNS_RECORD_SHARED) ? (1) : (0))
+    ((x)->flags & PICO_MDNS_RECORD_SHARED)
 #define IS_UNIQUE_RECORD(x) \
-    (((x)->flags & PICO_MDNS_RECORD_SHARED) ? (0) : (1))
+    (!((x)->flags & PICO_MDNS_RECORD_SHARED))
 #define IS_RECORD_PROBING(x) \
-    (((x)->flags & PICO_MDNS_RECORD_CURRENTLY_PROBING) ? (1) : (0))
+    ((x)->flags & PICO_MDNS_RECORD_CURRENTLY_PROBING)
 #define IS_UNICAST_REQUESTED(x) \
-    (((x)->flags & PICO_MDNS_RECORD_SEND_UNICAST) ? (1) : (0))
+    ((x)->flags & PICO_MDNS_RECORD_SEND_UNICAST)
 #define IS_RECORD_VERIFIED(x) \
-    (((x)->flags & PICO_MDNS_RECORD_PROBED) ? (1) : (0))
+    ((x)->flags & PICO_MDNS_RECORD_PROBED)
 #define IS_RECORD_CLAIMED(x) \
-    (((x)->flags & PICO_MDNS_RECORD_CLAIMED) ? (1) : (0))
+    ((x)->flags & PICO_MDNS_RECORD_CLAIMED)
 
 /* Set and clear flags */
 #define PICO_MDNS_SET_FLAG(x, b) (x = ((x) | (uint8_t)(b)))
