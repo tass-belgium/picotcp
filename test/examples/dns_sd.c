@@ -14,6 +14,8 @@ void dns_sd_claimed_callback( pico_mdns_rtree *tree,
                               char *str,
                               void *arg )
 {
+    printf("DONE - Registering DNS-SD Service\n");
+    
     IGNORE_PARAMETER(tree);
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
@@ -23,9 +25,7 @@ void dns_sd_init_callback( pico_mdns_rtree *tree,
                            char *str,
                            void *arg )
 {
-    kv_vector key_value_pair_vector = {
-        0
-    };
+    PICO_DNS_SD_KV_VECTOR_DECLARE(key_value_pair_vector);
 
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);

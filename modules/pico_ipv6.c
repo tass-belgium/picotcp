@@ -475,19 +475,24 @@ static int pico_ipv6_forward(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     struct pico_ipv6_route *rt;
     if (!hdr) {
+        pico_frame_discard(f);
         return -1;
     }
 
     rt = pico_ipv6_route_find(&hdr->dst);
     if (!rt) {
         pico_notify_dest_unreachable(f);
+        pico_frame_discard(f);
         return -1;
     }
 
     f->dev = rt->link->dev;
 
     if (pico_ipv6_pre_forward_checks(f) < 0)
+    {
+        pico_frame_discard(f);
         return -1;
+    }
 
     f->start = f->net_hdr;
 
@@ -757,7 +762,9 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
             f->transport_hdr = f->net_hdr + f->net_len;
             f->transport_len = (uint16_t)(short_be(hdr->len) - (f->net_len - sizeof(struct pico_ipv6_hdr)));
             if (frag_hdr) {
+#ifdef PICO_SUPPORT_IPV6FRAG
                 pico_ipv6_process_frag(frag_hdr, f, nxthdr);
+#endif
                 return -1;
             } else {
                 return nxthdr;

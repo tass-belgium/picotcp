@@ -87,10 +87,6 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
 static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s);
 static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf);
 
-static const struct pico_ip4 bcast = {
-    .addr = 0xFFFFFFFF
-};
-
 static const struct pico_ip4 bcast_netmask = {
     .addr = 0xFFFFFFFF
 };
@@ -177,13 +173,13 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
 
 static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
 static void pico_dhcp_client_reinit(pico_time now, void *arg);
-static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
+static void pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
     struct dhcp_client_timer *t;
 
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
     if (!t)
-        return NULL;
+        return;
 
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;
@@ -194,7 +190,6 @@ static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time
     }
 
     ck->timer[type] = t;
-    return t;
 }
 
 static int dhcp_get_timer_event(struct pico_dhcp_client_cookie *dhcpc, unsigned int type)
@@ -574,6 +569,10 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     uint16_t port = PICO_DHCP_CLIENT_PORT;
     (void) buf;
     dhcpc->state = DHCP_CLIENT_STATE_RENEWING;
+
+    if (dhcpc->s)
+        pico_socket_close(dhcpc->s);
+
     dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
     if (!dhcpc->s) {
         dhcpc_dbg("DHCP client ERROR: failure opening socket on renew, aborting DHCP! (%s)\n", strerror(pico_err));

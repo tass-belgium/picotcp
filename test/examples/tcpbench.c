@@ -78,19 +78,23 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             pico_socket_shutdown(s, PICO_SHUT_WR);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         }
-
-        exit(0);
+        pico_timer_add(5000, deferred_exit, NULL);
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
         printf("tcpbench> ---- Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-        exit(1);
+        if (pico_err == PICO_ERR_ECONNRESET)
+            pico_timer_add(5000, deferred_exit, NULL);
+        else {
+            printf("tcpbench> ---- Socket Error: '%s'. Was unexpected! Something went wrong.\n", strerror(pico_err));
+            exit(2);
+        }
     }
 
     if (ev & PICO_SOCK_EV_CLOSE) {
         printf("tcpbench> event close\n");
         if (tcpbench_mode == TCP_BENCH_RX) {
-            pico_socket_shutdown(s, PICO_SHUT_WR);
+            pico_socket_close(s);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         } else if (tcpbench_mode == TCP_BENCH_TX || tcpbench_mode == TCP_BENCH_TX_FOREVER) {
             pico_socket_close(s);
@@ -131,14 +135,14 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
 void app_tcpbench(char *arg)
 {
     struct pico_socket *s;
-    char *dport;
-    char *dest;
-    char *mode;
-    char *nagle;
+    char *dport = NULL;
+    char *dest = NULL;
+    char *mode = NULL;
+    char *nagle = NULL;
     int port = 0, i;
     uint16_t port_be = 0;
     char *nxt;
-    char *sport;
+    char *sport = NULL;
     int nagle_off = 1;
     union {
         struct pico_ip4 ip4;
@@ -249,6 +253,7 @@ void app_tcpbench(char *arg)
             port = atoi(sport);
             port_be = short_be((uint16_t)port);
             printf("tcpbench> Got port %d\n", port);
+            free(sport);
         }
 
         if (port == 0) {
@@ -287,6 +292,15 @@ void app_tcpbench(char *arg)
 
     tcpbench_sock = s;
 
+    /* free strdups */
+    if (dport)
+      free(dport);
+    if (dest)
+      free (dest);
+    if (mode)
+      free (mode);
+    if (nagle)
+      free (nagle);
 
     return;
 }

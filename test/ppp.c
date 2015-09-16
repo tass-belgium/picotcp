@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <termios.h>
 #include <pico_icmp4.h>
+#include <pico_ipv4.h>
+#include <pico_md5.h>
 #include <pico_socket.h>
 #ifdef PICO_SUPPORT_POLARSSL
 #include <polarssl/md5.h>
@@ -12,11 +14,12 @@
 #ifdef PICO_SUPPORT_CYASSL
 #include <cyassl/ctaocrypt/md5.h>
 #endif
-#define MODEM "/dev/ttyUSB1"
+#define MODEM "/dev/ttyUSB0"
 #define SPEED 236800
 /* #define APN "gprs.base.be" */
 #define APN "web.be"
 #define PASSWD "web"
+#define USERNAME "altran"
 /* #define DEBUG_FLOW */
 static int fd = -1;
 static int idx;
@@ -138,6 +141,7 @@ int main(int argc, const char *argv[])
     const char *path = MODEM;
     const char *apn = APN;
     const char *passwd = PASSWD;
+    const char *username = USERNAME;
 
     if (argc > 1)
         path = argv[1];
@@ -160,7 +164,9 @@ int main(int argc, const char *argv[])
 
     pico_stack_init();
 
+#if defined PICO_SUPPORT_POLARSSL || defined PICO_SUPPORT_CYASSL
     pico_register_md5sum(md5sum);
+#endif
 
     ppp = pico_ppp_create();
     if (!ppp)
@@ -172,6 +178,7 @@ int main(int argc, const char *argv[])
 
     pico_ppp_set_apn(ppp, apn);
     pico_ppp_set_password(ppp, passwd);
+    pico_ppp_set_username(ppp, username);
 
     pico_ppp_connect(ppp);
 

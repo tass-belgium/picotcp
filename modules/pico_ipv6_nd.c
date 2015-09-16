@@ -71,6 +71,8 @@ static void pico_ipv6_nd_queued_trigger(void)
         f = frames_queued_v6[i];
         if (f) {
             (void)pico_ethernet_send(f);
+            if(frames_queued_v6[i])
+              pico_frame_discard(frames_queued_v6[i]);
             frames_queued_v6[i] = NULL;
         }
     }
@@ -99,7 +101,6 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
     pico_tree_insert(&NCache, n);
-    pico_ipv6_nd_queued_trigger();
     return n;
 }
 
@@ -846,6 +847,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
         if (n->failure_count > PICO_ND_MAX_SOLICIT) {
             pico_ipv6_nd_unreachable(&n->address);
             pico_tree_delete(&NCache, n);
+            PICO_FREE(n);
             return;
         }
 

@@ -37,8 +37,11 @@ static void pico_arp_queued_trigger(void)
     {
         f = frames_queued[i];
         if (f) {
-            pico_ethernet_send(f);
-            frames_queued[i] = NULL;
+            if (!pico_ethernet_send(f))
+            {
+                pico_frame_discard(f);
+                frames_queued[i] = NULL;
+            }
         }
     }
 }

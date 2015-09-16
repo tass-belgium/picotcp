@@ -32,7 +32,7 @@
 /* Default network interface for multicast transmission */
 static struct pico_ipv4_link *mcast_default_link = NULL;
 #endif
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
 /* # define reassembly_dbg dbg */
 # define reassembly_dbg(...) do {} while(0)
 #endif
@@ -431,13 +431,13 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if ((flag & PICO_IPV4_MOREFRAG) || (flag & PICO_IPV4_FRAG_MASK))
+    if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
         pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
         /* Frame can be discarded, frag will handle its own copy */
 #endif
-        /* We do not support fragmentation, discard frame quietly */
+        /* We do not support fragmentation, discard quietly */
         pico_frame_discard(f);
         return 0;
     }
@@ -983,9 +983,10 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
     if ((f->transport_hdr != f->payload)  &&
-#ifdef PICO_SUPPORT_IPFRAG
-        (0 == (f->frag & PICO_IPV4_MOREFRAG)) &&
-        (0 == (f->frag & PICO_IPV4_FRAG_MASK)) &&
+#ifdef PICO_SUPPORT_IPV4FRAG
+        ( (0 == (f->frag & PICO_IPV4_MOREFRAG)) ||
+          (0 == (f->frag & PICO_IPV4_FRAG_MASK)) )
+        &&
 #endif
         1 )
         ipv4_progressive_id++;
@@ -1002,7 +1003,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     hdr->proto = proto;
     hdr->frag = short_be(PICO_IPV4_DONTFRAG);
 
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
 #  ifdef PICO_SUPPORT_UDP
     if (proto == PICO_PROTO_UDP) {
         /* first fragment, can not use transport_len to calculate IP length */
@@ -1019,7 +1020,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     }
 
 #   endif
-#endif /* PICO_SUPPORT_IPFRAG */
+#endif /* PICO_SUPPORT_IPV4FRAG */
     pico_ipv4_checksum(f);
 
     if (f->sock && f->sock->dev) {
@@ -1295,6 +1296,7 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
             pico_tree_delete(found->MCASTGroups, g);
             PICO_FREE(g);
         }
+        PICO_FREE(found->MCASTGroups);
     } while(0);
 #endif
 
@@ -1379,7 +1381,7 @@ struct pico_device *MOCKABLE pico_ipv4_link_find(struct pico_ip4 *address)
 
 static int pico_ipv4_rebound_large(struct pico_frame *f)
 {
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
     uint16_t total_payload_written = 0;
     uint32_t len = f->transport_len;
     struct pico_frame *fr;

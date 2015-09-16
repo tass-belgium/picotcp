@@ -294,12 +294,24 @@ struct pico_socket_tcp {
     uint8_t scale_ok;
     struct tcp_sack_block *sacks;
     uint8_t jumbo;
+    uint32_t linger_timeout;
 
     /* Transmission */
     uint8_t x_mode;
     uint8_t dupacks;
     uint8_t backoff;
     uint8_t localZeroWindow;
+
+    /* Keepalive */
+    struct pico_timer *keepalive_tmr;
+    pico_time ack_timestamp;
+    uint32_t ka_time;
+    uint32_t ka_intvl;
+    uint32_t ka_probes;
+    uint32_t ka_retries_count;
+
+    /* FIN timer */
+    struct pico_timer *fin_tmr;
 };
 
 /* Queues */
@@ -967,6 +979,37 @@ static void sock_stats(uint32_t when, void *arg)
 }
 #endif
 
+static void tcp_send_probe(struct pico_socket_tcp *t);
+
+static void pico_tcp_keepalive(pico_time now, void *arg)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
+    if (((t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED)  && (t->ka_time > 0)) {
+        if (t->ka_time < (now - t->ack_timestamp)) {
+            if (t->ka_retries_count == 0) {
+                /* First probe */
+                tcp_send_probe(t);
+                t->ka_retries_count++;
+            }
+            if (t->ka_retries_count > t->ka_probes) {
+                if (t->sock.wakeup)
+                {
+                    pico_err = PICO_ERR_ECONNRESET;
+                    t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+                }
+            }
+            if (((t->ka_retries_count * t->ka_intvl) + t->ka_time) < (now - t->ack_timestamp)) {
+                /* Next probe */
+                tcp_send_probe(t);
+                t->ka_retries_count++;
+            }
+        } else {
+            t->ka_retries_count = 0;
+        }
+    }
+    t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
+}
+
 struct pico_socket *pico_tcp_open(uint16_t family)
 {
     struct pico_socket_tcp *t = PICO_ZALLOC(sizeof(struct pico_socket_tcp));
@@ -982,14 +1025,22 @@ struct pico_socket *pico_tcp_open(uint16_t family)
     t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_hold.max_size = 2u * t->mss;
-    /* disable Nagle by default */
+
+    /* Uncomment next line and disable Nagle by default */
     t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
-    /* Nagle is enabled by default */
+
+    /* Uncomment next line and Nagle is enabled by default */
     /* t->sock.opt_flags &= (uint16_t) ~(1 << PICO_SOCKET_OPT_TCPNODELAY); */
+
+    /* Set default linger for the socket */
+    t->linger_timeout = PICO_SOCKET_LINGER_TIMEOUT;
+
 
 #ifdef PICO_TCP_SUPPORT_SOCKET_STATS
     pico_timer_add(2000, sock_stats, t);
 #endif
+
+    t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
     tcp_set_space(t);
 
     return &t->sock;
@@ -1023,7 +1074,7 @@ static inline uint32_t tcp_read_in_frame_len(struct tcp_input_segment *f, int32_
     if (in_frame_off > 0)
     {
         if ((uint32_t)in_frame_off > f->payload_len) {
-            dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
+            tcp_dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
         }
 
         in_frame_len = f->payload_len - (uint32_t)in_frame_off;
@@ -1091,7 +1142,10 @@ static void initconn_retry(pico_time when, void *arg)
         if (t->backoff > PICO_TCP_MAX_CONNECT_RETRIES) {
             tcp_dbg("TCP> Connection timeout. \n");
             if (t->sock.wakeup)
+            {
+                pico_err = PICO_ERR_ECONNREFUSED;
                 t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
+            }
 
             return;
         }
@@ -1223,25 +1277,19 @@ static void tcp_send_probe(struct pico_socket_tcp *t)
     tcp_send_empty(t, PICO_TCP_PSHACK, 1);
 }
 
-static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
+static int tcp_do_send_rst(struct pico_socket *s, uint32_t seq)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
-    struct pico_frame *f;
-    struct pico_tcp_hdr *hdr, *hdr_rcv;
     uint16_t opt_len = tcp_options_size(t, PICO_TCP_RST);
-    int close;
-
-    tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> START\n");
-
+    struct pico_frame *f;
+    struct pico_tcp_hdr *hdr;
     f = t->sock.net->alloc(t->sock.net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
-
     if (!f) {
         return -1;
     }
-
-    hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
-
     f->sock = &t->sock;
+    tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> START\n");
+
     hdr = (struct pico_tcp_hdr *) f->transport_hdr;
     hdr->len = (uint8_t)((PICO_SIZE_TCPHDR + opt_len) << 2 | t->jumbo);
     hdr->flags = PICO_TCP_RST;
@@ -1250,21 +1298,7 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
     tcp_add_options(t, f, PICO_TCP_RST, opt_len);
     hdr->trans.sport = t->sock.local_port;
     hdr->trans.dport = t->sock.remote_port;
-    hdr->seq = long_be(t->snd_nxt);
-
-    /* check if state is synchronized */
-    if (((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
-        /* in synchronized state: send RST with seq = ack from previous segment */
-        hdr->seq = hdr_rcv->ack;
-        close = 0;
-    } else {
-        /* non-synchronized state */
-        /* go to CLOSED here to prevent timer callback to go on after timeout */
-        (t->sock).state &= 0x00FFU;
-        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-        close = 1;
-    }
-
+    hdr->seq = seq;
     hdr->ack = long_be(t->rcv_nxt);
     t->rcv_ackd = t->rcv_nxt;
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
@@ -1274,9 +1308,28 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
 
     /* TCP: ENQUEUE to PROTO */
     pico_enqueue(&tcp_out, f);
+    tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> DONE\n");
+    return 0;
+}
 
-    /* goto CLOSED */
-    if (close) {
+static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *) s;
+    struct pico_tcp_hdr *hdr_rcv;
+    int ret;
+
+    if (fr && ((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
+        /* in synchronized state: send RST with seq = ack from previous segment */
+        hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
+        ret = tcp_do_send_rst(s, hdr_rcv->ack);       
+    } else {
+        /* non-synchronized state */
+        /* go to CLOSED here to prevent timer callback to go on after timeout */
+        (t->sock).state &= 0x00FFU;
+        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+        ret = tcp_do_send_rst(s, long_be(t->snd_nxt));       
+
+        /* Set generic socket state to CLOSED, too */
         (t->sock).state &= 0xFF00U;
         (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
 
@@ -1286,11 +1339,8 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
 
         /* delete socket */
         pico_socket_del(&t->sock);
-
-        tcp_dbg("TCP SEND_RST >>>>>>>>>>>>>>> DONE, deleted socket\n");
     }
-
-    return 0;
+    return ret;
 }
 
 static inline void tcp_fill_rst_payload(struct pico_frame *fr, struct pico_frame *f)
@@ -1437,6 +1487,16 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
     return 0;
 }
 
+static void tcp_deltcb(pico_time when, void *arg);
+
+static void tcp_linger(struct pico_socket_tcp *t)
+{
+    if (t->fin_tmr) {
+        pico_timer_cancel(t->fin_tmr);
+    }
+    t->fin_tmr = pico_timer_add(t->linger_timeout, tcp_deltcb, t);
+}
+
 static void tcp_send_fin(struct pico_socket_tcp *t)
 {
     struct pico_frame *f;
@@ -1458,16 +1518,20 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
     tcp_add_options(t, f, PICO_TCP_FIN, opt_len);
     hdr->trans.sport = t->sock.local_port;
     hdr->trans.dport = t->sock.remote_port;
-    hdr->seq = long_be(t->snd_nxt); /* XXX TODO check correct ?? --> snd_last? otherwise maybe data after FIN */
+    hdr->seq = long_be(t->snd_nxt);
 
     f->start = f->transport_hdr + PICO_SIZE_TCPHDR;
     hdr->rwnd = short_be(t->wnd);
     hdr->crc = 0;
     hdr->crc = short_be(pico_tcp_checksum(f));
     /* tcp_dbg("SENDING FIN...\n"); */
-    /* TCP: ENQUEUE to PROTO ( Pure ACK ) */
-    pico_enqueue(&tcp_out, f);
-    t->snd_nxt++;
+    if (t->linger_timeout > 0) {
+        pico_enqueue(&tcp_out, f);
+        t->snd_nxt++;
+    } else {
+        pico_frame_discard(f);
+    }
+    tcp_linger(t);
 }
 
 static void tcp_sack_prepare(struct pico_socket_tcp *t)
@@ -1973,6 +2037,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
     acked = (uint16_t)tcp_ack_advance_una(t, f, &acked_timestamp);
     una = first_segment(&t->tcpq_out);
+    t->ack_timestamp = TCP_TIME;
 
     if ((t->x_mode == PICO_TCP_BLACKOUT) ||
         ((t->x_mode == PICO_TCP_WINDOW_FULL) && ((t->recv_wnd << t->recv_wnd_scale) > t->mss))) {
@@ -2131,15 +2196,20 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 {
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     tcp_dbg("RECEIVED ACK IN FIN_WAIT1\n");
-    tcp_dbg("TCP> IN STATE FIN_WAIT2\n");
 
     /* acking part */
     tcp_ack(s, f);
-    /* update TCP state */
-    s->state &= 0x00FFU;
-    s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT2;
 
+    
+    tcp_dbg("FIN_WAIT1: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
+    if (ACKN(f) == (t->snd_nxt - 1)) {
+        /* update TCP state */
+        s->state &= 0x00FFU;
+        s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT2;
+        tcp_dbg("TCP> IN STATE FIN_WAIT2\n");
+    }
     return 0;
 }
 
@@ -2148,23 +2218,26 @@ static void tcp_deltcb(pico_time when, void *arg)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)arg;
     IGNORE_PARAMETER(when);
 
-    if (TCPSTATE(&t->sock) == PICO_SOCKET_STATE_TCP_TIME_WAIT) {
-        tcp_dbg("TCP> state: time_wait, final timer expired, going to closed state\n");
-        /* update state */
-        (t->sock).state &= 0x00FFU;
-        (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-        (t->sock).state &= 0xFF00U;
-        (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
-        /* call EV_FIN wakeup before deleting */
-        if (t->sock.wakeup) {
-            (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
-        }
-
-        /* delete socket */
-        pico_socket_del(&t->sock);
+    /* send RST if not yet in TIME_WAIT */
+    if (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT) {
+        tcp_dbg("Called deltcb in state = %04x (sending reset!)\n", (t->sock).state);
+        tcp_do_send_rst(&t->sock, long_be(t->snd_nxt));
     } else {
-        tcp_dbg("TCP> trying to go to closed, wrong state\n");
+        tcp_dbg("Called deltcb in state = %04x\n", (t->sock).state);
     }
+
+    /* update state */
+    (t->sock).state &= 0x00FFU;
+    (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
+    (t->sock).state &= 0xFF00U;
+    (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+    /* call EV_FIN wakeup before deleting */
+    if (t->sock.wakeup) {
+        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+    }
+
+    /* delete socket */
+    pico_socket_del(&t->sock);
 }
 
 static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
@@ -2186,39 +2259,45 @@ static int tcp_finwaitfin(struct pico_socket *s, struct pico_frame *f)
 
     /* send ACK */
     tcp_send_ack(t);
-    /* set timer */
-    pico_timer_add(200, tcp_deltcb, t);
+    /* linger */
+    tcp_linger(t);
     return 0;
 }
 
-static int tcp_closewaitack(struct pico_socket *s, struct pico_frame *f)
+static int tcp_closing_ack(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     tcp_dbg("TCP> received ack in CLOSING\n");
     /* acking part */
     tcp_ack(s, f);
-    /* update TCP state */
-    s->state &= 0x00FFU;
-    s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
-    /* set timer */
-    pico_timer_add(200, tcp_deltcb, t);
+
+    /* update TCP state DLA TODO: Only if FIN is acked! */
+    tcp_dbg("CLOSING: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
+    if (ACKN(f) == t->snd_nxt) {
+        s->state &= 0x00FFU;
+        s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
+        /* set timer */
+        tcp_linger(t);
+    }
     return 0;
 }
 
 static int tcp_lastackwait(struct pico_socket *s, struct pico_frame *f)
 {
-    IGNORE_PARAMETER(f);
-    tcp_dbg("TCP> state: last_ack, received ack, to closed\n");
-    s->state &= 0x00FFU;
-    s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
-    s->state &= 0xFF00U;
-    s->state |= PICO_SOCKET_STATE_CLOSED;
-    /* call socket wakeup with EV_FIN */
-    if (s->wakeup)
-        s->wakeup(PICO_SOCK_EV_FIN, s);
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    tcp_dbg("LAST_ACK: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
+    if (ACKN(f) == t->snd_nxt) {
+        s->state &= 0x00FFU;
+        s->state |= PICO_SOCKET_STATE_TCP_CLOSED;
+        s->state &= 0xFF00U;
+        s->state |= PICO_SOCKET_STATE_CLOSED;
+        /* call socket wakeup with EV_FIN */
+        if (s->wakeup)
+            s->wakeup(PICO_SOCK_EV_FIN, s);
 
-    /* delete socket */
-    pico_socket_del(s);
+        /* delete socket */
+        pico_socket_del(s);
+    }
     return 0;
 }
 
@@ -2268,6 +2347,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     new->ssthresh = (uint16_t)((uint16_t)(PICO_DEFAULT_SOCKETQ / new->mss) -  (((uint16_t)(PICO_DEFAULT_SOCKETQ / new->mss)) >> 3u));
     new->recv_wnd = short_be(hdr->rwnd);
     new->jumbo = hdr->len & 0x07;
+    new->linger_timeout = PICO_SOCKET_LINGER_TIMEOUT;
     s->number_of_pending_conn++;
     new->sock.parent = s;
     new->sock.wakeup = s->wakeup;
@@ -2478,7 +2558,8 @@ static int tcp_finack(struct pico_socket *s, struct pico_frame *f)
     s->state |= PICO_SOCKET_STATE_TCP_TIME_WAIT;
     /* set SHUT_REMOTE */
     s->state |= PICO_SOCKET_STATE_SHUT_REMOTE;
-    pico_timer_add(2000, tcp_deltcb, t);
+
+    tcp_linger(t);
 
     return 0;
 }
@@ -2593,8 +2674,8 @@ static const struct tcp_action_entry tcp_fsm[] = {
     { PICO_SOCKET_STATE_TCP_LAST_ACK,     NULL,            &tcp_ack,          &tcp_lastackwait,  &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
     { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
     { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_finwaitfin, &tcp_finack,     &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            &tcp_ack,          &tcp_closewaitack, &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            &tcp_ack,          &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
+    { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            &tcp_ack,          &tcp_closing_ack, &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
+    { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,          NULL,     &tcp_send_rst,   NULL, NULL, NULL}
 };
 
 #define MAX_VALID_FLAGS  10  /* Maximum number of valid flag combinations */
@@ -2781,7 +2862,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score)
         tcp_add_options_frame(t, f);
         seq_diff = pico_seq_compare(SEQN(f), SEQN(una));
         if (seq_diff < 0) {
-            dbg(">>> FATAL: seq diff is negative!\n");
+            tcp_dbg(">>> FATAL: seq diff is negative!\n");
             break;
         }
 
@@ -2919,7 +3000,7 @@ static int pico_tcp_push_nagle_hold(struct pico_socket_tcp *t, struct pico_frame
     struct pico_frame *f_new;
     uint32_t total_len = 0;
     total_len = f->payload_len + t->tcpq_hold.size;
-    if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {              /* TODO check mss socket */
+    if ((total_len >= t->mss) && ((t->tcpq_out.max_size - t->tcpq_out.size) >= t->mss)) {
         /* IF enough data in hold (>mss) AND space in out queue (>mss) */
         /* add current frame in hold and make new segment */
         if (pico_enqueue_segment(&t->tcpq_hold, f) > 0 ) {
@@ -3031,7 +3112,14 @@ void pico_tcp_cleanup_queues(struct pico_socket *sck)
         pico_timer_cancel(tcp->retrans_tmr);
         tcp->retrans_tmr = NULL;
     }
-
+    if(tcp->keepalive_tmr) {
+        pico_timer_cancel(tcp->keepalive_tmr);
+        tcp->keepalive_tmr = NULL;
+    }
+    if(tcp->fin_tmr) {
+        pico_timer_cancel(tcp->fin_tmr);
+        tcp->fin_tmr = NULL;
+    }
     tcp_discard_all_segments(&tcp->tcpq_in);
     tcp_discard_all_segments(&tcp->tcpq_out);
     tcp_discard_all_segments(&tcp->tcpq_hold);
@@ -3074,13 +3162,6 @@ void pico_tcp_notify_closing(struct pico_socket *sck)
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)sck;
     if(t->tcpq_out.frames == 0)
     {
-        /* canceling retrans timer when closing */
-        if(t->retrans_tmr)
-        {
-            pico_timer_cancel(t->retrans_tmr);
-            t->retrans_tmr = NULL;
-        }
-
         if(!checkLocalClosing(sck))
             checkRemoteClosing(sck);
     }
@@ -3127,6 +3208,34 @@ int pico_tcp_get_bufsize_out(struct pico_socket *s, uint32_t *value)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     *value = t->tcpq_out.max_size;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_probes(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_probes = value;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_intvl(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_intvl = value;
+    return 0;
+}
+
+int pico_tcp_set_keepalive_time(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->ka_time = value;
+    return 0;
+}
+
+int pico_tcp_set_linger(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->linger_timeout = value;
     return 0;
 }
 
