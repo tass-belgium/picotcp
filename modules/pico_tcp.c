@@ -2220,6 +2220,7 @@ static void tcp_deltcb(pico_time when, void *arg)
 
     /* send RST if not yet in TIME_WAIT */
     if (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT) {
+        tcp_dbg("Called deltcb in state = %04x (sending reset!)\n", (t->sock).state);
         tcp_do_send_rst(&t->sock, long_be(t->snd_nxt));
     } else {
         tcp_dbg("Called deltcb in state = %04x\n", (t->sock).state);
@@ -2674,7 +2675,7 @@ static const struct tcp_action_entry tcp_fsm[] = {
     { PICO_SOCKET_STATE_TCP_FIN_WAIT1,    NULL,            &tcp_ack,          &tcp_finwaitack,   &tcp_data_in,    &tcp_rcvfin,     &tcp_finack,     &tcp_rst },
     { PICO_SOCKET_STATE_TCP_FIN_WAIT2,    NULL,            &tcp_ack,          &tcp_ack,          &tcp_data_in,    &tcp_finwaitfin, &tcp_finack,     &tcp_rst },
     { PICO_SOCKET_STATE_TCP_CLOSING,      NULL,            &tcp_ack,          &tcp_closing_ack, &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst },
-    { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            &tcp_ack,          &tcp_send_rst,     &tcp_send_rst,   &tcp_send_rst,   &tcp_send_rst,   &tcp_rst }
+    { PICO_SOCKET_STATE_TCP_TIME_WAIT,    NULL,            NULL,          NULL,     &tcp_send_rst,   NULL, NULL, NULL}
 };
 
 #define MAX_VALID_FLAGS  10  /* Maximum number of valid flag combinations */
@@ -3158,8 +3159,12 @@ static int checkRemoteClosing(struct pico_socket *s)
 
 void pico_tcp_notify_closing(struct pico_socket *sck)
 {
-    if(!checkLocalClosing(sck))
-        checkRemoteClosing(sck);
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)sck;
+    if(t->tcpq_out.frames == 0)
+    {
+        if(!checkLocalClosing(sck))
+            checkRemoteClosing(sck);
+    }
 }
 
 
@@ -3224,6 +3229,13 @@ int pico_tcp_set_keepalive_time(struct pico_socket *s, uint32_t value)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
     t->ka_time = value;
+    return 0;
+}
+
+int pico_tcp_set_linger(struct pico_socket *s, uint32_t value)
+{
+    struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    t->linger_timeout = value;
     return 0;
 }
 

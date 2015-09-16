@@ -1953,13 +1953,6 @@ static int check_socket_sanity(struct pico_socket *s)
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
-
-    if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
-        /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
-            return -1;
-    }
-
     return 0;
 }
 #endif
