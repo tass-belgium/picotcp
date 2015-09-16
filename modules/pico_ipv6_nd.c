@@ -24,7 +24,7 @@
 #define nd_dbg dbg
 
 static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { };
-
+static uint8_t lbr = 0;
 
 enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_INCOMPLETE = 0,
@@ -37,7 +37,7 @@ enum pico_ipv6_neighbor_state {
 struct pico_ipv6_neighbor {
     enum pico_ipv6_neighbor_state state;
     struct pico_ip6 address;
-    struct pico_eth mac;
+    union pico_hw_addr hwaddr;
     struct pico_device *dev;
     uint16_t is_router;
     uint16_t failure_count;
@@ -185,7 +185,7 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     if (n->state != PICO_ND_STATE_REACHABLE)
         pico_nd_discover(n);
 
-    return &n->mac;
+    return &n->hwaddr.mac;
 
 }
 
@@ -249,12 +249,12 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
 
 static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
 {
-    memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
+    memcpy(n->hwaddr.mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
 }
 
 static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
 {
-    return memcmp(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
+    return memcmp(n->hwaddr.mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
 }
 
 static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter)
@@ -406,7 +406,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
     if (!n)
         return NULL;
 
-    memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
+    memcpy(n->hwaddr.mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
     n->state = PICO_ND_STATE_STALE;
     pico_ipv6_nd_queued_trigger();
     return n;
@@ -425,7 +425,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
         n = pico_nd_find_neighbor(&ip->src);
         if (!n) {
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
-        } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
+        } else if (memcmp(opt.addr.mac.addr, n->hwaddr.mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger();
@@ -887,6 +887,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
+    /* TODO: Find the NCE with the smallest lifetime and schedule next check well before that  */
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
 }
 
@@ -910,14 +911,19 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
         if (pico_ipv6_compare(&nm64, &rt->netmask) == 0) {
             pico_tree_foreach(devindex, &Device_tree) {
                 dev = devindex->keyValue;
-                if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link) && (dev != rt->link->dev)) {
+                /* Do not send periodic router advertisements when router is a 6LoWPAN-device OR there aren't 2 interfaces from and to the device can route */
+                if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link) && (dev != rt->link->dev) && (dev->mode != LL_MODE_SIXLOWPAN)) {
                     pico_icmp6_router_advertisement(dev, &rt->dest);
                 }
             }
         }
     }
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
-    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
+    if (lbr) {
+        /* Only when I'm an edge router I may have other interface wich are not 6LoWPAN-interfaces, 
+         * so only then check if periodic router advertisements are required */
+        pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
+    }
 }
 
 /* Public API */

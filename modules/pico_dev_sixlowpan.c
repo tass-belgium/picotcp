@@ -3199,13 +3199,13 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
     }
 }
 
-struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
-    struct pico_ieee_addr slp;
     char dev_name[MAX_DEVICE_NAME];
-    
+    struct pico_ieee_addr slp;
     CHECK_PARAM_NULL(radio);
+    IGNORE_PARAMETER(lbr); /* For now */
     
     if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
         return NULL;
@@ -3220,13 +3220,14 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     /* Try to init & register the device to picoTCP */
     snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);
     
+    /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet by default */
     sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
     if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
         dbg("Device init failed.\n");
         return NULL;
     }
     
-    /* Set the device-parameters*/
+    /* Set the device-parameters */
     sixlowpan->dev.overhead = 0;
     sixlowpan->dev.send = sixlowpan_send;
     sixlowpan->dev.poll = sixlowpan_poll;

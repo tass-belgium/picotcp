@@ -171,24 +171,19 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
     } msg;
 };
 
+PACKED_UNION_DEF pico_hw_addr {
+    struct pico_eth mac;
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    struct pico_ieee_addr_short _short;
+    struct pico_ieee_addr_ext _ext;
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+};
+
 PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
 {
     uint8_t type;
     uint8_t len;
-    PACKED_UNION_DEF icmp6_opt_hw_addr_u {
-        struct pico_eth mac;
-#ifdef PICO_SUPPORT_SIXLOWPAN
-        struct pico_ieee_addr_short _short;
-        struct pico_ieee_addr_ext _ext;
-#endif /* PICO_SUPPORT_SIXLOWPAN */
-    } addr;
-};
-
-PACKED_STRUCT_DEF pico_icmp6_opt_6lowpan_addr
-{
-    uint8_t type;
-    uint8_t len;
-    
+    union pico_hw_addr addr;
 };
 
 PACKED_STRUCT_DEF pico_icmp6_opt_prefix
@@ -236,6 +231,28 @@ PACKED_STRUCT_DEF pico_icmp6_opt_na
     uint8_t type;
     uint8_t len;
     uint8_t options[0];
+};
+
+PACKED_STRUCT_DEF pico_icmp6_opt_aro
+{
+    uint8_t type;
+    uint8_t len;
+    uint8_t status;
+    uint8_t res0;
+    uint16_t res1;
+    uint16_t lifetime;
+    struct pico_ieee_addr_ext eui64;
+};
+
+PACKED_STRUCT_DEF pico_icmp6_6co
+{
+    uint8_t type;
+    uint8_t len;
+    uint8_t clen;
+    uint8_t comp_id;
+    uint16_t res0;
+    uint16_t lifetime;
+    uint8_t prefix[0];
 };
 
 struct pico_icmp6_stats

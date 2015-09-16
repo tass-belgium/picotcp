@@ -12,24 +12,24 @@
 #include "pico_config.h"
 
 // SIZE DEFINITIONS (IEEE802.15.4)
-#define IEEE_PHY_MTU        (128u)
-#define IEEE_MAC_MTU        (125u)
-#define IEEE_PHY_OVERHEAD   (3u)
-#define IEEE_MAC_OVERHEAD   (2u)
+#define IEEE_PHY_MTU                (128u)
+#define IEEE_MAC_MTU                (125u)
+#define IEEE_PHY_OVERHEAD           (3u)
+#define IEEE_MAC_OVERHEAD           (2u)
 
 // FLAG DEFINITIONS (IEEE802.15.4)
-#define IEEE_FALSE  (0u)
-#define IEEE_TRUE   (1u)
+#define IEEE_FALSE                  (0u)
+#define IEEE_TRUE                   (1u)
 
 // FRAME TYPE DEFINITIONS (IEEE802.15.4)
-#define IEEE_FRAME_TYPE_BEACON  (0u)
-#define IEEE_FRAME_TYPE_DATA    (1u)
-#define IEEE_FRAME_TYPE_ACK     (2u)
-#define IEEE_FRAME_TYPE_COMMAND (3u)
+#define IEEE_FRAME_TYPE_BEACON      (0u)
+#define IEEE_FRAME_TYPE_DATA        (1u)
+#define IEEE_FRAME_TYPE_ACK         (2u)
+#define IEEE_FRAME_TYPE_COMMAND     (3u)
 
 // FRAME VERSION DEFINITIONS (IEEE802.15.4)
-#define IEEE_FRAME_VERSION_2003 (0u)
-#define IEEE_FRAME_VERSION_2006 (1u)
+#define IEEE_FRAME_VERSION_2003     (0u)
+#define IEEE_FRAME_VERSION_2006     (1u)
 
 // SECURITY LEVEL DEFINITIONS (IEEE802.15.4)
 #define IEEE_SEC_LVL_NONE           (0u)
@@ -40,6 +40,10 @@
 #define IEEE_SEC_LVL_ENC_MIC_32     (5u)
 #define IEEE_SEC_LVL_ENC_MIC_64     (6u)
 #define IEEE_SEC_LVL_ENC_MIC_128    (7u)
+
+// 6LOWPAN DEVICE MODE DEFINITIONS (6LOWPAN)
+#define SIXLOWPAN_6LBR              (1u)
+#define SIXLOWPAN_6LN               (0u)
 
 // SECURITY CONTROL FIELD (IEEE802.15.4)
 PACKED_STRUCT_DEF ieee_sec_cf
@@ -171,6 +175,6 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev);
  *
  *  @return pico_device-instance, initialised and everything.
  */
-struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio);
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr);
 
 #endif /* INCLUDE_PICO_SIXLOWPAN */
