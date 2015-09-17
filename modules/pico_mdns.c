@@ -1411,9 +1411,11 @@ pico_mdns_cache_add( struct pico_mdns_record *record )
         }
     }
 
-    /* Add copy to cache */
+    /* Check if the TTL is not 0*/
     if (!rttl)
         return -1;
+    /* Set current TTL to the original TTL before inserting */
+    record->current_ttl = rttl;
 
     if (pico_tree_insert(&Cache, record) != NULL)
         return -1;
