@@ -1048,7 +1048,7 @@ START_TEST(tc_mdns_record_tree_find_name) /* MARK: mdns_record_find_name */
 
     add_records();
 
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local", 0);
     fail_unless(2 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 2 records here!\n");
     pico_tree_foreach(node, &hits) {
@@ -1060,7 +1060,7 @@ START_TEST(tc_mdns_record_tree_find_name) /* MARK: mdns_record_find_name */
     fail_unless(1 == found,
                 "mdns_record_tree_find_name returned records with other name!\n");
 
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3bar\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3bar\5local", 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1083,7 +1083,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
     add_records();
 
     /* Try to find the first A record */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_A);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1091,7 +1091,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
                 "mdns_record_tree_find_name returned record with other name!\n");
 
     /* Try to find the 2 PTR records */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_PTR);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_PTR, 0);
     pico_tree_foreach(node, &hits) {
         if ((record = node->keyValue)) {
             if (strcmp(record->record->rname, "\3foo\5local"))
@@ -1102,7 +1102,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
                 "mdns_record_tree_find_name returned records with other name!\n");
 
     /* Try to find the last A record */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3bar\5local", PICO_DNS_TYPE_A);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3bar\5local", PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1159,11 +1159,11 @@ START_TEST(tc_mdns_record_tree_del_name) /* MARK: mdns_record_tree_del_name */
     ret = pico_mdns_rtree_del_name(&MyRecords, "\3foo\5local");
     fail_unless(0 == ret,
                 "mdns_record_tree_del_name failed!\n");
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local", 0);
     fail_unless(0 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 3 records here!\n");
 
-    hits = pico_mdns_rtree_find_name( &MyRecords, "\3bar\5local");
+    hits = pico_mdns_rtree_find_name( &MyRecords, "\3bar\5local", 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_first(&hits);
@@ -1190,14 +1190,14 @@ START_TEST(tc_mdns_record_tree_del_name_type) /* MARK: mdns_record_tree_del_name
 
     /* Try to find the 2 PTR records */
     hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local",
-                                          PICO_DNS_TYPE_PTR);
+                                          PICO_DNS_TYPE_PTR, 0);
     fail_unless(0 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name_type returned PTR records!\n");
 
 
     /* Try to find the first A record */
     hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local",
-                                          PICO_DNS_TYPE_A);
+                                          PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_del_name_type failed!\n");
 

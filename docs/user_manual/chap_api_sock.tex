@@ -705,8 +705,9 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$TCP$\_$NODELAY} - Disables/enables the Nagle algorithm (TCP Only). 
 \item \texttt{PICO$\_$SOCKET$\_$OPT$\_$KEEPCNT} - Set number of probes for TCP keepalive
-\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$KEEPIDLE} - Set timeout value for TCP keepalive probes
-\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$KEEPINTVL} - Set interval between TCP keepalive retries in case of no reply
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$KEEPIDLE} - Set timeout value for TCP keepalive probes (in ms)
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$KEEPINTVL} - Set interval between TCP keepalive retries in case of no reply (in ms)
+\item \texttt{PICO$\_$SOCKET$\_$OPT$\_$LINGER} - Set linger time for TCP TIME$\_$WAIT state (in ms)
 \item \texttt{PICO$\_$SOCKET$\_$OPT$\_$RCVBUF} - Set receive buffer size for the socket
 \item \texttt{PICO$\_$SOCKET$\_$OPT$\_$RCVBUF} - Set receive buffer size for the socket
 \item \texttt{PICO$\_$SOCKET$\_$OPT$\_$RCVBUF} - Set receive buffer size for the socket

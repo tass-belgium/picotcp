@@ -253,6 +253,15 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 sleep 10
 killall -w picoapp.elf
 
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ DNS_SD TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#register a service
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+sleep 30
+killall -w picoapp.elf
+
 sleep 1
 sync
 
