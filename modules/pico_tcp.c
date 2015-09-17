@@ -1159,7 +1159,7 @@ static void initconn_retry(pico_time when, void *arg)
                 pico_err = PICO_ERR_ECONNREFUSED;
                 t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
             }
-
+            pico_socket_del(&t->sock);
             return;
         }
 
