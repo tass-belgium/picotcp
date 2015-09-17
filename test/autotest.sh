@@ -27,7 +27,17 @@ function on_exit(){
 
 trap on_exit exit term
 
-./test/vde_sock_start_user.sh start
+if ! [ -x "$(command -v vde_switch)" ]; then
+	  echo 'VDE Switch is not installed.' >&2
+fi
+
+if [ ! -e test/vde_sock_start_user.sh ]; then
+   echo "VDE SOCK START FILE NOT FOUND. NO VDE SETUP. EXITING"
+   exit 1
+else
+   echo "VDE SOCK START SCRIPT STARTED."
+   ./test/vde_sock_start_user.sh start
+fi
 
 rm -f /tmp/pico-mem-report-*
 sleep 2
@@ -257,8 +267,9 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ DNS_SD TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 #register a service
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer &
-sleep 20
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+sleep 30
 killall -w picoapp.elf
 
 sleep 1
