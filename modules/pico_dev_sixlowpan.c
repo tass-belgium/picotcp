@@ -30,13 +30,53 @@
     #define PAN_ERR(...)            do {} while(0)
 #endif
 
-#define UNUSED __attribute__((unused))
+#define DISPATCH_NALP(i)            ((i) == INFO_VAL ? (0x00u) : ((i) == INFO_SHIFT ? (0x06u) : (0x00u)))
+#define DISPATCH_IPV6(i)            ((i) == INFO_VAL ? (0x41u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define DISPATCH_HC1(i)             ((i) == INFO_VAL ? (0x42u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
+#define DISPATCH_BC0(i)             ((i) == INFO_VAL ? (0x50u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
+#define DISPATCH_ESC(i)             ((i) == INFO_VAL ? (0x7Fu) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
+#define DISPATCH_MESH(i)            ((i) == INFO_VAL ? (0x02u) : ((i) == INFO_SHIFT ? (0x06u) : (0x01u)))
+#define DISPATCH_FRAG1(i)           ((i) == INFO_VAL ? (0x18u) : ((i) == INFO_SHIFT ? (0x03u) : (0x04u)))
+#define DISPATCH_FRAGN(i)           ((i) == INFO_VAL ? (0x1Cu) : ((i) == INFO_SHIFT ? (0x03u) : (0x05u)))
+#define DISPATCH_NESC(i)            ((i) == INFO_VAL ? (0x80u) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
+#define DISPATCH_IPHC(i)            ((i) == INFO_VAL ? (0x03u) : ((i) == INFO_SHIFT ? (0x05u) : (0x02u)))
+#define DISPATCH_NHC_EXT(i)         ((i) == INFO_VAL ? (0x0Eu) : ((i) == INFO_SHIFT ? (0x04u) : (0x01u)))
+#define DISPATCH_NHC_UDP(i)         ((i) == INFO_VAL ? (0x1Eu) : ((i) == INFO_SHIFT ? (0x03u) : (0x01u)))
+#define DISPATCH_PING_REQUEST(i)    ((i) == INFO_VAL ? (0x44u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define DISPATCH_PING_REPLY(i)      ((i) == INFO_VAL ? (0x45u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
+#define SIXLOWPAN_NALP              DISPATCH_NALP
+#define SIXLOWPAN_IPV6              DISPATCH_IPV6
+#define SIXLOWPAN_HC1               DISPATCH_HC1
+#define SIXLOWPAN_BC0               DISPATCH_BC0
+#define SIXLOWPAN_ESC               DISPATCH_ESC
+#define SIXLOWPAN_MESH              DISPATCH_MESH
+#define SIXLOWPAN_FRAG1             DISPATCH_FRAG1
+#define SIXLOWPAN_FRAGN             DISPATCH_FRAGN
+#define SIXLOWPAN_NESC              DISPATCH_NESC
+#define SIXLOWPAN_IPHC              DISPATCH_IPHC
+#define SIXLOWPAN_NHC_EXT           DISPATCH_NHC_EXT
+#define SIXLOWPAN_NHC_UDP           DISPATCH_NHC_UDP
+#define SIXLOWPAN_PING_REQUEST      DISPATCH_PING_REQUEST
+#define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
+#define SIXLOWPAN_PING_TIMEOUT      (3000u)
+#define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
+#define SIXLOWPAN_PING_TTL          (64u)
+#define SIXLOWPAN_FORWARDING        (0x01u)
+#define SIXLOWPAN_TRANSMIT          (0x00u)
+#define SIXLOWPAN_SRC               (1u)
+#define SIXLOWPAN_DST               (0u)
+#define INFO_VAL                    (0u)
+#define INFO_SHIFT                  (1u)
+#define INFO_HDR_LEN                (2u)
 
 #define IEEE_MIN_HDR_LEN            (5u)
 #define IEEE_LEN_LEN                (1u)
-#define IEEE_ADDR_BCAST              (0xFFFFu)
-#define IEEE_ADDR_ZERO              {{0x0000},{{0,0,0,0,0,0,0,0}},IEEE_AM_NONE}
-#define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST == (ieee)._short.addr))
+#define IEEE_ADDR_BCAST_SHORT       (0xFFFFu)
+#define IEEE_ADDR_BCAST             {{0xFFFF}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_SHORT}
+#define IEEE_ADDR_ZERO              {{0x0000}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_NONE}
+#define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST_SHORT == (ieee)._short.addr))
+#define IEEE_AM_BOTH_TO_SHORT(am)   ((IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am)) ? IEEE_AM_SHORT : IEEE_AM_EXTENDED)
 
 #define IPV6_FIELDS_NUM             (6u)
 #define IPV6_SOURCE                 (0u)
@@ -83,53 +123,12 @@
 #define UINT32_4LSB(lsb)            (((uint32_t)lsb) & 0x000F)
 #define UINT32_8LSB(lsb)            (((uint32_t)lsb) & 0x00FF)
 
-#define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
-#define SIXLOWPAN_PING_TTL          (64u)
-#define SIXLOWPAN_PING_TX_REQUIRED  (0x01u)
-#define SIXLOWPAN_PING_RX_REQUIRED  (0x02u)
-#define SIXLOWPAN_SRC               (1u)
-#define SIXLOWPAN_DST               (0u)
-#define SIXLOWPAN_FORWARDING        (0x01u)
-#define SIXLOWPAN_TRANSMIT          (0x00u)
-#define INFO_VAL                    (0u)
-#define INFO_SHIFT                  (1u)
-#define INFO_HDR_LEN                (2u)
-#define DISPATCH_NALP(i)            ((i) == INFO_VAL ? (0x00u) : ((i) == INFO_SHIFT ? (0x06u) : (0x00u)))
-#define DISPATCH_IPV6(i)            ((i) == INFO_VAL ? (0x41u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
-#define DISPATCH_HC1(i)             ((i) == INFO_VAL ? (0x42u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
-#define DISPATCH_BC0(i)             ((i) == INFO_VAL ? (0x50u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
-#define DISPATCH_ESC(i)             ((i) == INFO_VAL ? (0x7Fu) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
-#define DISPATCH_MESH(i)            ((i) == INFO_VAL ? (0x02u) : ((i) == INFO_SHIFT ? (0x06u) : (0x01u)))
-#define DISPATCH_FRAG1(i)           ((i) == INFO_VAL ? (0x18u) : ((i) == INFO_SHIFT ? (0x03u) : (0x04u)))
-#define DISPATCH_FRAGN(i)           ((i) == INFO_VAL ? (0x1Cu) : ((i) == INFO_SHIFT ? (0x03u) : (0x05u)))
-#define DISPATCH_NESC(i)            ((i) == INFO_VAL ? (0x80u) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
-#define DISPATCH_IPHC(i)            ((i) == INFO_VAL ? (0x03u) : ((i) == INFO_SHIFT ? (0x05u) : (0x02u)))
-#define DISPATCH_NHC_EXT(i)         ((i) == INFO_VAL ? (0x0Eu) : ((i) == INFO_SHIFT ? (0x04u) : (0x01u)))
-#define DISPATCH_NHC_UDP(i)         ((i) == INFO_VAL ? (0x1Eu) : ((i) == INFO_SHIFT ? (0x03u) : (0x01u)))
-#define DISPATCH_PING_REQUEST(i)    ((i) == INFO_VAL ? (0x44u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
-#define DISPATCH_PING_REPLY(i)      ((i) == INFO_VAL ? (0x45u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
-#define SIXLOWPAN_NALP              DISPATCH_NALP
-#define SIXLOWPAN_IPV6              DISPATCH_IPV6
-#define SIXLOWPAN_HC1               DISPATCH_HC1
-#define SIXLOWPAN_BC0               DISPATCH_BC0
-#define SIXLOWPAN_ESC               DISPATCH_ESC
-#define SIXLOWPAN_MESH              DISPATCH_MESH
-#define SIXLOWPAN_FRAG1             DISPATCH_FRAG1
-#define SIXLOWPAN_FRAGN             DISPATCH_FRAGN
-#define SIXLOWPAN_NESC              DISPATCH_NESC
-#define SIXLOWPAN_IPHC              DISPATCH_IPHC
-#define SIXLOWPAN_NHC_EXT           DISPATCH_NHC_EXT
-#define SIXLOWPAN_NHC_UDP           DISPATCH_NHC_UDP
-#define SIXLOWPAN_PING_REQUEST      DISPATCH_PING_REQUEST
-#define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
-#define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
-
 #define FRAG_DGRAM_SIZE_MASK        (0x7FF)
 
 #define MESH_HL_ESC                 (0x0F)
 #define MESH_DAH_HOP_LIMIT(dah)     ((uint8_t)((dah) & 0x0F))
 
-#define RTABLE_ENTRY_TTL            (10u) /* 10 minutes */
+#define RTABLE_ENTRY_TTL            (10u) /* (600u) // 10 minutes */
 
 /* SAFEGUARD MACROS */
 #define R_VOID
@@ -395,16 +394,6 @@ PACKED_STRUCT_DEF sixlowpan_fragn
     uint8_t offset;
 }; /* 6LoWPAN following fragmentation header */
 
-/**
- *  Express a range
- *  MARK: Generic types
- */
-struct range
-{
-    uint16_t offset;
-    uint16_t length;
-};
-
 /** *******************************
  *  MARK: LOWPAN_BC0 types
  */
@@ -421,36 +410,46 @@ PACKED_STRUCT_DEF sixlowpan_mesh
 {
     uint8_t dah;
     uint8_t addresses[0];
-};
+}; /* Plain 6LowPAN mesh header */
 
 PACKED_STRUCT_DEF sixlowpan_mesh_esc
 {
     uint8_t dah;
     uint8_t hl;
     uint8_t addresses[0];
-};
+}; /* Escaped hop limit 6LowPAN mesh header */
 
 /** *******************************
- *  MARK: Routing table types
+ *  MARK: Routing table & Ping types
  */
-struct sixlowpan_rtable_entry
-{
-    struct pico_ieee_addr dst;
-    struct pico_ieee_addr via;
-    uint8_t hops;
-    uint32_t timestamp;
-};
-
 PACKED_STRUCT_DEF sixlowpan_ping
 {
     uint8_t dispatch;
     uint16_t id;
-};
+}; /* 6LoWPAN custom ping header */
+
+struct sixlowpan_rtable_entry
+{
+    struct pico_ieee_addr dst;
+    struct pico_ieee_addr via;
+    uint32_t timestamp;
+    uint8_t hops;
+}; /* Entry of routing table */
 
 struct ping_cookie
 {
     struct pico_ieee_addr dst;
     uint16_t id;
+}; /* Cookie for ping-session to store */
+
+/** *******************************
+ *  Express a range
+ *  MARK: Generic types
+ */
+struct range
+{
+    uint16_t offset;
+    uint16_t length;
 };
 
 /* -------------------------------------------------------------------------------- */
@@ -468,42 +467,9 @@ static struct pico_ieee_addr last_bcast_src = {{0xFFFF}, {{0, 0, 0, 0, 0, 0, 0, 
 static uint8_t bcast_seq = 0;
 
 /* -------------------------------------------------------------------------------- */
-// MARK: DEBUG
-#ifdef DEBUG
-static void UNUSED dbg_mem(const char *pre, void *buf, uint16_t len)
-{
-    uint16_t i = 0, j = 0;
-    
-    /* Print in factors of 8 */
-    PAN_DBG("%s\n", pre);
-    for (i = 0; i < (len / 8); i++) {
-        PAN_DBG("%03d. ", i * 8);
-        for (j = 0; j < 8; j++) {
-            PAN_DBG_C("%02X ", ((uint8_t *)buf)[j + (i * 8)] );
-            if (j == 3)
-                PAN_DBG_C(" ");
-        }
-        PAN_DBG_C("\n");
-    }
-    
-    if (!(len % 8))
-        return;
-    
-    /* Print the rest */
-    PAN_DBG("%03d. ", i * 8);
-    for (j = 0; j < (len % 8); j++) {
-        PAN_DBG_C("%02X ", ((uint8_t *)buf)[j + (i * 8)] );
-        if (j == 3)
-            PAN_DBG_C(" ");
-    }
-    PAN_DBG_C("\n");
-}
-#endif
-
-/* -------------------------------------------------------------------------------- */
 // MARK: FUNCTION PROTOTYPES
 static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame *f);
-static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id);
+static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, enum ieee_am reply_mode);
 static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f);
 static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len);
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
@@ -625,6 +591,7 @@ static int ieee_addr_cmp(void *va, void *vb)
 {
     struct pico_ieee_addr *a = (struct pico_ieee_addr *)va;
     struct pico_ieee_addr *b = (struct pico_ieee_addr *)vb;
+    enum ieee_am aam = IEEE_AM_NONE, bam = IEEE_AM_NONE;
     int ret = 0;
     
     if (!a || !b) {
@@ -633,11 +600,22 @@ static int ieee_addr_cmp(void *va, void *vb)
     }
     
     /* Don't want to compare with AM_BOTH, convert to short if address has AM_BOTH */
-    a->_mode = a->_mode == IEEE_AM_BOTH ? IEEE_AM_SHORT : a->_mode;
-    b->_mode = b->_mode == IEEE_AM_BOTH ? IEEE_AM_SHORT : b->_mode;
+    aam = a->_mode;
+    bam = b->_mode;
+    if (IEEE_AM_BOTH == aam && IEEE_AM_BOTH == bam) {
+        /* Only need to compare short address */
+        aam = IEEE_AM_SHORT;
+        bam = IEEE_AM_SHORT;
+    } else if (IEEE_AM_BOTH == aam && IEEE_AM_BOTH != bam) {
+        /* A has both, compare only the address of A that B has as well */
+        aam = bam;
+    } else if (IEEE_AM_BOTH == bam && IEEE_AM_BOTH != aam) {
+        /* B has both, compare only the address of B that A has as well */
+        bam = aam;
+    }
     
     /* Only check for either short address of extended address */
-    if (a->_mode != b->_mode)
+    if (aam != bam)
         return (int)((int)a->_mode - (int)b->_mode);
     
     /* Check for short if both modes are short */
@@ -672,15 +650,13 @@ static inline void ieee_ext_to_le(uint8_t ext[PICO_SIZE_IEEE_EXT])
     }
 }
 
-#define AM_BOTH_TO_SHORT(am) ((IEEE_AM_BOTH == (am)) ? IEEE_AM_SHORT : (am))
-
 static int pico_ieee_addr_modes_to_hdr(struct ieee_hdr *hdr, enum ieee_am sam, enum ieee_am dam)
 {
     uint8_t *modes = NULL;
     CHECK_PARAM(hdr);
     
-    sam = AM_BOTH_TO_SHORT(sam);
-    dam = AM_BOTH_TO_SHORT(dam);
+    sam = IEEE_AM_BOTH_TO_SHORT(sam);
+    dam = IEEE_AM_BOTH_TO_SHORT(dam);
     
     /* |S|S|V|V|D|D|R|R| */
     modes = (uint8_t *)(((uint8_t *)&hdr->fcf) + 1u);
@@ -843,7 +819,7 @@ static uint8_t sixlowpan_overhead(struct sixlowpan_frame *f)
     uint8_t overhead = DISPATCH_MESH(INFO_HDR_LEN);
     CHECK_PARAM_ZERO(f);
     
-    if (IEEE_AM_SHORT == f->peer._mode && IEEE_ADDR_BCAST == f->peer._short.addr) {
+    if (IEEE_AM_SHORT == f->peer._mode && IEEE_ADDR_BCAST_SHORT == f->peer._short.addr) {
         overhead = (uint8_t)(overhead + DISPATCH_BC0(INFO_HDR_LEN));
     }
     
@@ -922,7 +898,13 @@ static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 // MARK: IIDs (ADDRESSES)
 static inline int sixlowpan_iid_is_derived_16(uint8_t in[8])
 {
-    return ((in[3] == 0xFF && in[4] == 0xFE) ? 1 : 0);
+    /*  IID formed from 16-bit [RFC4944]: 
+     *
+     *  +------+------+------+------+------+------+------+------+
+     *  |  PAN |  PAN | 0x00 | 0xFF | 0xFE | 0x00 | xxxx | xxxx | 
+     *  +------+------+------+------+------+------+------+------+
+     */
+    return ((0x00 == in[2] && in[3] == 0xFF && in[4] == 0xFE && in[5] == 0x00) ? 1 : 0);
 }
 
 static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, uint8_t out[8])
@@ -951,11 +933,11 @@ static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t in[8])
     if (sixlowpan_iid_is_derived_16(in)) {
         addr->_mode = IEEE_AM_SHORT;
         memcpy(&addr->_short.addr, in + 6, PICO_SIZE_IEEE_SHORT);
-        addr->_short.addr = short_be(addr->_short.addr); /* Memcpy is endian-dependent */
+        addr->_short.addr = short_be(addr->_short.addr);
     } else {
         addr->_mode = IEEE_AM_EXTENDED;
         memcpy(addr->_ext.addr, in, PICO_SIZE_IEEE_EXT);
-        in[0] = (uint8_t)(in[0] ^ 0x02); /* Set the U/L to unique */
+        addr->_ext.addr[0] = (uint8_t)(addr->_ext.addr[0] ^ 0x02); /* Set the U/L to unique */
     }
     return 0;
 }
@@ -1058,7 +1040,7 @@ static inline int sixlowpan_derive_mcast(struct pico_ieee_addr *l, struct pico_i
     /*  RFC: IPv6 level multicast packets MUST be carried as link-layer broadcast
      *  frame in IEEE802.15.4 networks. */
     l->_mode = IEEE_AM_SHORT;
-    l->_short.addr = IEEE_ADDR_BCAST;
+    l->_short.addr = IEEE_ADDR_BCAST_SHORT;
     
     return 0;
 }
@@ -1109,7 +1091,6 @@ static struct sixlowpan_rtable_entry *sixlowpan_rtable_find_entry(struct pico_ie
     return entry;
 }
 
-/* Determine from routing table where to send the frame based on the destination address */
 static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst, struct pico_device *dev)
 {
     struct pico_ieee_addr via = IEEE_ADDR_ZERO, via_zero = IEEE_ADDR_ZERO;
@@ -1119,19 +1100,26 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
     
     /* Try to find the entry for the destination address in the routing table */
     if ((entry = sixlowpan_rtable_find_entry(dst))) {
+        /* If hops is 0, it means hops isn't known and ping is going on, trigger postponing */
+        if (!entry->hops) {
+            PAN_DBG("Ping is going on for this destination, postponing...\n");
+            return via_zero;
+        }
+        
         /* Destiniation is multiple hops away, via is gateway */
         via = entry->via;
+        
         /* Is the entry stale and outdated? */
         if ((uint32_t)(now - entry->timestamp) > RTABLE_ENTRY_TTL) {
             if (!(cookie = sixlowpan_ping_find_cookie(dst))) {
                 /* Only send ping when there's no ping for this dest already going on */
-                sixlowpan_ping(entry->dst, via, dev, 0);
+                sixlowpan_ping(entry->dst, via, dev, 0, IEEE_AM_NONE);
             }
             return via_zero;
         }
     } else {
         PAN_DBG("No routing table entry found, sending via BCAST\n");
-        via._short.addr = IEEE_ADDR_BCAST;
+        via._short.addr = IEEE_ADDR_BCAST_SHORT;
         via._mode = IEEE_AM_SHORT;
     }
     
@@ -1163,12 +1151,13 @@ static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t i
     struct ping_cookie test = {.dst = IEEE_ADDR_ZERO, .id = short_be(id)};
     struct sixlowpan_rtable_entry *entry = NULL;
     struct ping_cookie *cookie = NULL;
+    CHECK_PARAM_VOID(f);
     
     if ((cookie = pico_tree_findKey(&SixlowpanPings, &test))) {
         /* Ping reply is sollicited, find the entry for the origin */
         if ((entry = sixlowpan_rtable_find_entry(f->peer))) {
             /* Check if for the ping reply, the hops of the entry isn't known yet, or came from a more optimal route */
-            if (!hops_left || (hops_left < entry->hops)) {
+            if (!entry->hops || (hops_left < entry->hops)) {
                 entry->hops = (uint8_t)((uint8_t)SIXLOWPAN_PING_TTL - hops_left);
                 entry->timestamp = PICO_TIME();
                 entry->via = f->hop;
@@ -1238,7 +1227,7 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
     struct sixlowpan_rtable_entry *entry = NULL;
     
     if (0 == ieee_addr_cmp(&origin, dev->eth)) {
-        /* I'm the origin, I'm not going to add a route to myself, am I? */
+//        PAN_DBG("I'm the origin, I'm not going to add a route to myself, am I?\n");
         return;
     }
     
@@ -1251,15 +1240,15 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
         /* Only send ping to update route when origin isn't a neigbor */
         if (1 != entry->hops) {
             /* Send LL-ping to compare the hops of the new route to the hops already in the routing table */
-            sixlowpan_ping(origin, last_hop, dev, 0);
+            sixlowpan_ping(origin, last_hop, dev, 0, IEEE_AM_NONE);
         }
     } else {
         /* An entry was not found, add a new entry for this route */
-        if (sixlowpan_rtable_insert(origin, last_hop, 0xF0))
+        if (sixlowpan_rtable_insert(origin, last_hop, 0))
             PAN_ERR("Unable to insert last hop into routing table\n");
         
         /* Send ping to determine the hops in between, we can't rely on hops left, since we don't know the original hl */
-        sixlowpan_ping(origin, last_hop, dev, 0);
+        sixlowpan_ping(origin, last_hop, dev, 0, IEEE_AM_NONE);
     }
 }
 
@@ -1276,7 +1265,7 @@ static void sixlowpan_ping_timeout(pico_time now, void *arg)
     IGNORE_PARAMETER(now);
     
     bcast._mode = IEEE_AM_SHORT;
-    bcast._short.addr = IEEE_ADDR_BCAST;
+    bcast._short.addr = IEEE_ADDR_BCAST_SHORT;
     
     if ((cookie = (struct ping_cookie *)pico_tree_delete(&SixlowpanPings, arg))) {
         PAN_ERR("6LoWPAN Ping timeout, routed is being removed from routing table...\n");
@@ -1284,12 +1273,10 @@ static void sixlowpan_ping_timeout(pico_time now, void *arg)
         sixlowpan_resume_tx(cookie->dst, bcast);
         sixlowpan_resume_rtx(cookie->dst, bcast);
         PICO_FREE(cookie);
-    } else {
-        PAN_DBG("Timeout, but ping is already removed\n");
     }
 }
 
-static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id)
+static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, enum ieee_am reply_mode)
 {
     struct pico_device_sixlowpan *slp = (struct pico_device_sixlowpan *)dev;
     struct sixlowpan_ping *ping = NULL;
@@ -1314,7 +1301,9 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     /* Parse in the network section of the frame as ping header */
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (id) {
-        ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REQUEST(INFO_SHIFT);
+        /* Reply with correct address, if the request asked for an extended reply with one and so with short addresses as well */
+        f->local._mode = reply_mode;
+        ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REPLY(INFO_SHIFT);
         ping->id = short_be(id);
     } else {
         /* Set the ping fields to that of a ping request */
@@ -1323,6 +1312,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
         
         /* Create a ping-cookie for a Ping request */
         if (!(cookie = PICO_ZALLOC(sizeof(struct ping_cookie)))) {
+            sixlowpan_frame_destroy(f);
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
@@ -1339,11 +1329,17 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
         }
         
         /* Start a timeout-timer */
-        pico_timer_add(3000, sixlowpan_ping_timeout, cookie);
+        pico_timer_add(SIXLOWPAN_PING_TIMEOUT, sixlowpan_ping_timeout, cookie);
+    }
+    
+    /* Conver the ping-frame to a buffer */
+    if (!(buf = sixlowpan_frame_to_buf(f, &len))) {
+        PAN_ERR("Could convert ping-frame to buffer\n");
+        sixlowpan_frame_destroy(f);
+        return -1;
     }
     
     /* Provide the mesh header for the Ping request */
-    buf = sixlowpan_frame_to_buf(f, &len);
     if (!(buf = sixlowpan_mesh_out(buf, &len, f))) {
         PAN_ERR("During mesh addressing\n");
         sixlowpan_frame_destroy(f);
@@ -1367,10 +1363,10 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REQUEST)) {
         PAN_DBG("PING Request: (0x%04X) \n", short_be(ping->id));
-        sixlowpan_ping(f->peer, f->hop, f->dev, short_be(ping->id));
+        sixlowpan_ping(f->peer, f->hop, f->dev, short_be(ping->id), f->local._mode);
         return 1;
     } else if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REPLY)) {
-        PAN_DBG("PING Reply: (0x%04X) with Hops Left: (%d)\n", short_be(ping->id), f->hop_limit);
+        PAN_DBG("PING Reply: (0x%04X) peer is %d hops away\n", short_be(ping->id), SIXLOWPAN_PING_TTL - f->hop_limit);
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
         return 1;
     } else {
@@ -1396,7 +1392,7 @@ static int sixlowpan_determine_final_dst(struct pico_frame *f, struct pico_ieee_
         return sixlowpan_derive_local(l, dst);
     } else {
         /* Resolve unicast link layer address using 6LoWPAN-ND */
-        return sixlowpan_derive_nd(f, l);
+        return sixlowpan_derive_local(l, dst);
     }
     
     return 0;
@@ -1410,7 +1406,7 @@ static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame
     if (IEEE_ADDR_IS_BCAST(f->peer)) {
         /* If final destination is BCAST, next hop is also BCAST */
         hop._mode = IEEE_AM_SHORT;
-        hop._short.addr = IEEE_ADDR_BCAST;
+        hop._short.addr = IEEE_ADDR_BCAST_SHORT;
     } else {
         /* If the final destination isn't broadcast, determine next hop by the routing table */
         hop = sixlowpan_rtable_find_via(f->peer, f->dev);
@@ -2585,8 +2581,8 @@ static inline uint8_t sixlowpan_mesh_am(struct pico_ieee_addr *addr, uint8_t ori
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src)
 {
     struct range r = {.offset = IEEE_MIN_HDR_LEN, .length = 0};
-    struct pico_ieee_addr *addr = NULL;
     uint8_t len = 0, cur_len = 0, offset = 0, del = 0;
+    struct pico_ieee_addr *addr = NULL;
     
     addr = (src) ? (struct pico_ieee_addr *)f->dev->eth : &f->hop;
     
@@ -2607,6 +2603,11 @@ static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src)
     
     if (r.length)
         frame_buf_edit(f, PICO_LAYER_DATALINK, r, offset, del);
+    
+    if (src)
+        f->link_hdr->fcf.sam = IEEE_AM_BOTH_TO_SHORT(addr->_mode);
+    else
+        f->link_hdr->fcf.dam = IEEE_AM_BOTH_TO_SHORT(addr->_mode);
     
     /* Copy in the SRC-address */
     if (pico_ieee_addr_to_flat(f->link_hdr->addresses + offset, *addr, IEEE_TRUE)) {
@@ -2762,7 +2763,15 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         /* Add information to L2 routing table with current peer address, since at this moment,
          * it still contains the address of the last hop */
         f->hop = pico_ieee_addr_from_hdr(f->link_hdr, SIXLOWPAN_SRC);
+        
         sixlowpan_build_routing_table(origin, f->peer, f->dev);
+        
+//        PAN_DBG("MESH ADDRESSES \n");
+//        debug_ieee_addr("LAST HOP", &f->peer);
+//        debug_ieee_addr("DEST", &f->local);
+//        debug_ieee_addr("ORIGIN", &origin);
+//        debug_ieee_addr("FINAL", &final);
+//        PAN_DBG("--------------\n\n");
         
         /* After routing table determination, update the peer-address to the mesh origin and the last hop to LL-src */
         f->peer = origin;
@@ -2828,6 +2837,22 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
     return buf;
 }
 
+static int sixlowpan_derive_origin(struct pico_frame *f, struct pico_ieee_addr *origin)
+{
+    struct pico_ipv6_hdr *hdr = NULL;
+    CHECK_PARAM(f);
+    CHECK_PARAM(origin);
+    
+    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    
+    if (pico_ipv6_is_unspecified(hdr->src.addr)) {
+        *origin = *(struct pico_ieee_addr *)f->dev->eth;
+        return 0;
+    } else {
+        return ieee_addr_from_iid(origin, (uint8_t *)(hdr->src.addr + 8));
+    }
+}
+
 /* -------------------------------------------------------------------------------- */
 // MARK: TRANSLATING
 /* Translates a pico_frame to 6LoWPAN frame */
@@ -2839,8 +2864,12 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     
     CHECK_PARAM_NULL(f);
     
-    /* Determine link layer origin and final addresses */
-    origin = *(struct pico_ieee_addr *)f->dev->eth;
+     /* Determine link layer origin and final addresses */
+    if (sixlowpan_derive_origin(f, &origin)) {
+        PAN_ERR("Failed deriving origin from IPv6 source address\n");
+        return NULL;
+    }
+    
     if (sixlowpan_determine_final_dst(f, &final) < 0) {
         pico_err = PICO_ERR_EHOSTUNREACH;
         pico_ipv6_nd_postpone(f);
@@ -2994,7 +3023,7 @@ static int sixlowpan_prep_tx(void)
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_frame *f = (struct pico_frame *)buf;
-
+    
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
@@ -3114,10 +3143,10 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
 {
     struct pico_ip6 netmask = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-    struct pico_ip6 routable;
     struct pico_device_sixlowpan *slp = NULL;
     struct pico_ieee_addr *slp_addr = NULL;
     struct pico_ipv6_link *link = NULL;
+    struct pico_ip6 routable;
     CHECK_PARAM_VOID(dev);
     
     /* Parse the pico_device structure to the internal sixlowpan-structure */
@@ -3136,7 +3165,7 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
     if (!(link = pico_ipv6_link_add(dev, routable, netmask)))
         return;
     
-    if (IEEE_ADDR_BCAST != slp_addr->_short.addr) {
+    if (IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) {
         memset(routable.addr + 8, 0x00, PICO_SIZE_IEEE_EXT);
         memcpy(routable.addr + 14, &(slp_addr->_short.addr), PICO_SIZE_IEEE_SHORT);
         ieee_short_to_le((uint8_t *)(routable.addr + 14));
@@ -3170,7 +3199,7 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
         slp_addr->_short.addr = slp->radio->get_addr_short(slp->radio);
         
         /* Set the address mode accordingly */
-        if (IEEE_ADDR_BCAST != slp_addr->_short.addr) {
+        if (IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) {
             if (IEEE_AM_EXTENDED == slp_addr->_mode)
                 slp_addr->_mode = IEEE_AM_BOTH;
             else
@@ -3179,13 +3208,33 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
     }
 }
 
-struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr)
+int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
+{
+    struct pico_device_sixlowpan *slp = NULL;
+    enum radio_rcode ret = RADIO_ERR_NOERR;
+    CHECK_PARAM(dev);
+
+    /* Enable IPv6 routing on the device's interface */
+    if (pico_ipv6_dev_routing_enable(dev))
+        return -1;
+    
+    /* Make sure the 6LBR router has short address 0x0000 */
+    slp = (struct pico_device_sixlowpan *)dev;
+    if (RADIO_ERR_NOERR != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
+        return ret;
+    
+    /* Configure prefix for the device */
+    pico_sixlowpan_set_prefix(dev, prefix);
+    
+    return 0;
+}
+
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
     char dev_name[MAX_DEVICE_NAME];
     struct pico_ieee_addr slp;
     CHECK_PARAM_NULL(radio);
-    IGNORE_PARAMETER(lbr); /* For now */
     
     if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
         return NULL;
@@ -3194,7 +3243,7 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr)
     radio->get_addr_ext(radio, slp._ext.addr);
     slp._short.addr = radio->get_addr_short(radio);
     slp._mode = IEEE_AM_EXTENDED;
-    if (IEEE_ADDR_BCAST != slp._short.addr)
+    if (IEEE_ADDR_BCAST_SHORT != slp._short.addr)
         slp._mode = IEEE_AM_BOTH;
     
     /* Try to init & register the device to picoTCP */
@@ -3216,6 +3265,7 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr)
     sixlowpan->radio = radio;
     
     /* Cast internal 6LoWPAN-structure to picoTCP-device structure */
+    PAN_DBG("Device %s created\n", dev_name);
     return (struct pico_device *)sixlowpan;
 }
 #endif /* PICO_SUPPORT_SIXLOWPAN */

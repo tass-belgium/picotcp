@@ -146,7 +146,10 @@ struct ieee_radio
 void pico_sixlowpan_transmitted(void);
 
 /**
- *  Hardcode the prefix of the pico_device.
+ *  Hardcode the prefix of the 6LoWPAN-device. Links with addresses derived from
+ *  the IEEE802.15.4-address will be added to the device correspondingly. With 
+ *  this function you don't have to manually derive IPv6-addresses from Link Layer-
+ *  addresses. This function will do this for you.
  *
  *  @param dev    struct pico_device *, device for which you want to set
  *                the network prefix.
@@ -166,6 +169,9 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
  */
 void pico_sixlowpan_short_addr_configured(struct pico_device *dev);
 
+
+int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix);
+
 /**
  *  Creates a picoTCP-compatible pico_device. Creates the
  *  interface between picoTCP and the device driver (radio_t).
@@ -175,6 +181,6 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev);
  *
  *  @return pico_device-instance, initialised and everything.
  */
-struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio, uint8_t lbr);
+struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio);
 
 #endif /* INCLUDE_PICO_SIXLOWPAN */

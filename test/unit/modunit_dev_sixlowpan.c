@@ -38,6 +38,66 @@ static inline uint8_t pico_ieee_hdr_estimate_size(struct pico_ieee_addr src, str
     return len;
 }
 
+static void dbg_mem(const char *pre, void *buf, uint16_t len)
+{
+    uint16_t i = 0, j = 0;
+    
+    /* Print in factors of 8 */
+    printf("%s\n", pre);
+    for (i = 0; i < (len / 8); i++) {
+        printf("%03d. ", i * 8);
+        for (j = 0; j < 8; j++) {
+            printf("%02X ", ((uint8_t *)buf)[j + (i * 8)] );
+            if (j == 3)
+                printf(" ");
+        }
+        printf("\n");
+    }
+    
+    if (!(len % 8))
+        return;
+    
+    /* Print the rest */
+    printf("%03d. ", i * 8);
+    for (j = 0; j < (len % 8); j++) {
+        printf("%02X ", ((uint8_t *)buf)[j + (i * 8)] );
+        if (j == 3)
+            printf(" ");
+    }
+    printf("\n");
+}
+
+static void debug_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
+{
+    printf("%s: ", msg);
+    printf("{0x%04X}, {%02X%02X:%02X%02X:%02X%02X:%02X%02X} ",
+              ieee->_short.addr,
+              ieee->_ext.addr[0],
+              ieee->_ext.addr[1],
+              ieee->_ext.addr[2],
+              ieee->_ext.addr[3],
+              ieee->_ext.addr[4],
+              ieee->_ext.addr[5],
+              ieee->_ext.addr[6],
+              ieee->_ext.addr[7]);
+}
+
+static void rtable_print(void)
+{
+    struct pico_tree_node *node = NULL;
+    struct sixlowpan_rtable_entry *entry = NULL;
+    
+    printf("\nROUTING TABLE:\n");
+    
+    pico_tree_foreach(node, &RTable) {
+        entry = (struct sixlowpan_rtable_entry *)node->keyValue;
+        debug_ieee_addr("PEER", &entry->dst);
+        debug_ieee_addr("VIA", &entry->via);
+        printf("METRIC: %d\n", entry->hops);
+    }
+    printf("~~~ END OF ROUTING TABLE\n\n");
+}
+
 START_TEST(tc_buf_delete) /* MARK: CHECKED */
 {
     /* Works with not allocated buffers as well, since it doesn't free anything */
