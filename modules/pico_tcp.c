@@ -2206,7 +2206,7 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 
     
     tcp_dbg("FIN_WAIT1: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
-    if (ACKN(f) == (t->snd_nxt - 1)) {
+    if (ACKN(f) == (t->snd_nxt - 1u)) {
         /* update TCP state */
         s->state &= 0x00FFU;
         s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT2;
