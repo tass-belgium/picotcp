@@ -24,7 +24,9 @@
 #define PICO_IPV6_EXTHDR_DESTOPT 60
 
 
+#define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT 5
 
+#define HBH_LEN(hbh) ((((hbh->ext.hopbyhop.len + 1) << 3) - 2)) /* len in bytes, minus nxthdr and len byte */
 
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
 extern struct pico_protocol pico_proto_ipv6;
