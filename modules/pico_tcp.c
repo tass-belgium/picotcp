@@ -2221,7 +2221,8 @@ static void tcp_deltcb(pico_time when, void *arg)
     IGNORE_PARAMETER(when);
 
     /* send RST if not yet in TIME_WAIT */
-    if (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT) {
+    if ( (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT)
+      && (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSING) ) {
         tcp_dbg("Called deltcb in state = %04x (sending reset!)\n", (t->sock).state);
         tcp_do_send_rst(&t->sock, long_be(t->snd_nxt));
     } else {
