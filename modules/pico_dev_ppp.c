@@ -317,7 +317,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
 
     for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */
     {
-        if (((in_buf[i] + 1) >> 1) == 0x3Fu)
+        if (((in_buf[i] + 1u) >> 1) == 0x3Fu)
             esc_char_count++;
     }
     if (!esc_char_count) {
@@ -332,7 +332,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
     /* Start byte. */
     out_buf[0] = in_buf[0];
     for(i = 1, j = 1; i < (len - 1); i++) {
-        if (((in_buf[i] + 1) >> 1) == 0x3Fu) {
+        if (((in_buf[i] + 1u) >> 1) == 0x3Fu) {
             out_buf[j++] = PPPF_CTRL_ESC;
             out_buf[j++] = in_buf[i] ^ 0x20;
         } else {
@@ -973,7 +973,7 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
             dst_opts[dstopts_len++] = p[1];
 
             ppp_dbg("data: ");
-            for(i = 0; i < p[1]-2; i++) {                   /* length includes type, length and data fields */
+            for(i = 0; i < p[1]-2u; i++) {                   /* length includes type, length and data fields */
                 dst_opts[dstopts_len++] = p[2 + i];
                 ppp_dbg("%02X ", p[2+i]);
             }
