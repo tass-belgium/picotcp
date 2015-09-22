@@ -26,11 +26,12 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
         struct pico_ip4 ip4;
         struct pico_ip6 ip6;
     } peer;
-
+    printf("jaja\n");
     if (udpecho_exit)
         return;
-
+    printf("nene \n");
     if (ev == PICO_SOCK_EV_RD) {
+        printf("ohnee\n");
         recvbuf = calloc(1, udpecho_pas->datasize);
         if (!recvbuf) {
             printf("%s: no memory available\n", __FUNCTION__);
@@ -38,6 +39,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
         }
 
         do {
+            printf("Waiting for packag...\n");
             r = pico_socket_recvfrom(s, recvbuf, udpecho_pas->datasize, IPV6_MODE ? (void *)peer.ip6.addr : (void *)&peer.ip4.addr, &port);
             /* printf("UDP recvfrom returned %d\n", r); */
             if (r > 0) {
@@ -139,12 +141,10 @@ void app_udpecho(char *arg)
     }
 
     /* end of argument parsing */
-
     if (!IPV6_MODE)
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
-    else
+    else 
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &cb_udpecho);
-
     if (!udpecho_pas->s) {
         printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
         free(udpecho_pas);
