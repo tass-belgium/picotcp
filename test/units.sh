@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -f /tmp/pico-mem-report-*
 
-./build/test/units || exit 1
+gdb ./build/test/units || exit 1
 
 echo "SUCCESS!" && exit 0
 ./build/test/modunit_fragments.elf || exit 1

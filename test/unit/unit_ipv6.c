@@ -571,24 +571,22 @@ START_TEST (test_mld_sockopts)
     fail_if(ret == 0, "PICO_IP_DROP_SOURCE_MEMBERSHIP succeeded\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]);
     fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
-#if 0
     /* stress tests */
     printf("MLD SETOPTION STRESS TEST\n");
     for (k = 0; k < 2; k++) {
         /* ADD for even combinations of group and link, ADD_SOURCE for uneven */
         for (i = 0; i < 16; i++) {
             if (i % 2) {
-                //ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[i]);
-                //fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
+                ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[i]);
+                fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed\n");
                 for (j = 0; j < 8; j++) {
-                    //ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[(i * 8) + j]);
-                    //fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
+                    ret = pico_socket_setoption(s, PICO_IP_BLOCK_SOURCE, &mreq_source[(i * 8) + j]);
+                    fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
                 }
             } else {
                 char tt[70];
                 for (j = 0; j < 8; j++) {
                     pico_ipv6_to_string(tt, &mreq_source[(i*8)+j]);
-                    printf("k %d i %d %s\n i*8 +j %d",k,i,tt, i*8+j);
                     ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[(i * 8) + j]);
                     fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
                 }
@@ -612,7 +610,7 @@ START_TEST (test_mld_sockopts)
         }
         /* everything should be cleanup up, next iteration will fail if not */
     }
-#endif
+
     /* filter validation tests */
     printf("MLD SETOPTION FILTER VALIDATION TEST\n");
     /* INCLUDE + INCLUDE expected filter: source of 0 and 1*/
