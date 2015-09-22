@@ -18,8 +18,8 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
-//#define ppp_dbg(...) do {} while(0)
-#define ppp_dbg dbg
+#define ppp_dbg(...) do {} while(0)
+/* #define ppp_dbg dbg */
 
 /* We should define this in a global header. */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
