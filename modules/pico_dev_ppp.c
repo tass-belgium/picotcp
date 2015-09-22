@@ -242,6 +242,13 @@ enum pico_ppp_state {
     PPP_MODEM_MAXSTATE
 };
 
+
+#define IPCP_ALLOW_IP 0x01u
+#define IPCP_ALLOW_DNS1 0x02u
+#define IPCP_ALLOW_DNS2 0x04u
+#define IPCP_ALLOW_NBNS1 0x08u
+#define IPCP_ALLOW_NBNS2 0x10u
+
 struct pico_device_ppp {
     struct pico_device dev;
     int autoreconnect;
@@ -262,6 +269,7 @@ struct pico_device_ppp {
     int (*serial_recv)(struct pico_device *dev, void *buf, int len);
     int (*serial_send)(struct pico_device *dev, const void *buf, int len);
     int (*serial_set_speed)(struct pico_device *dev, uint32_t speed);
+    uint32_t ipcp_allowed_fields;
     uint32_t ipcp_ip;
     uint32_t ipcp_dns1;
     uint32_t ipcp_nbns1;
@@ -661,7 +669,7 @@ static void ppp_modem_connected(struct pico_device_ppp *ppp)
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_UP);
 }
 
-#define PPP_ATH "+++ATH"
+#define PPP_ATH "+++ATH\r\n"
 static void ppp_modem_disconnected(struct pico_device_ppp *ppp)
 {
     ppp_dbg("PPP: Modem disconnected.\n");
@@ -1148,13 +1156,15 @@ static int ipcp_request_add_address(uint8_t *dst, uint8_t tag, uint32_t arg)
 
 static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 {
-    opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
-    opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
-    opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
-    if (ppp->ipcp_nbns1)
+    if (ppp->ipcp_allowed_fields & IPCP_ALLOW_IP)
+        opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
+    if (ppp->ipcp_allowed_fields & IPCP_ALLOW_DNS1)
+        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
+    if (ppp->ipcp_allowed_fields & IPCP_ALLOW_DNS2)
+        opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
+    if ((ppp->ipcp_allowed_fields & IPCP_ALLOW_NBNS1) &&  (ppp->ipcp_nbns1))
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS1, ppp->ipcp_nbns1);
-
-    if (ppp->ipcp_nbns2)
+    if ((ppp->ipcp_allowed_fields & IPCP_ALLOW_NBNS2) &&  (ppp->ipcp_nbns2))
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS2, ppp->ipcp_nbns2);
 }
 
@@ -1237,35 +1247,48 @@ static void ipcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
         }
 
         if (p[0] == IPCP_OPT_IP) {
-            ppp->ipcp_ip = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            if (ih->code != PICO_CONF_REJ)
+                ppp->ipcp_ip = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
+            else {
+                ppp->ipcp_allowed_fields &= (~IPCP_ALLOW_IP);
+                ppp->ipcp_ip = 0;
+            }
         }
 
         if (p[0] == IPCP_OPT_DNS1) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_dns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
-            else
+            else {
+                ppp->ipcp_allowed_fields &= (~IPCP_ALLOW_DNS1);
                 ppp->ipcp_dns1 = 0;
+            }
         }
 
         if (p[0] == IPCP_OPT_NBNS1) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_nbns1 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
-            else
+            else {
+                ppp->ipcp_allowed_fields &= (~IPCP_ALLOW_NBNS1);
                 ppp->ipcp_nbns1 = 0;
+            }
         }
 
         if (p[0] == IPCP_OPT_DNS2) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_dns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
-            else
+            else {
+                ppp->ipcp_allowed_fields &= (~IPCP_ALLOW_DNS2);
                 ppp->ipcp_dns2 = 0;
+            }
         }
 
         if (p[0] == IPCP_OPT_NBNS2) {
             if (ih->code != PICO_CONF_REJ)
                 ppp->ipcp_nbns2 = long_be((uint32_t)((p[2] << 24) + (p[3] << 16) + (p[4] << 8) + p[5]));
-            else
+            else {
+                ppp->ipcp_allowed_fields &= (~IPCP_ALLOW_NBNS2);
                 ppp->ipcp_nbns2 = 0;
+            }
         }
 
         p += p[1];
@@ -1684,6 +1707,7 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
 static void auth(struct pico_device_ppp *ppp)
 {
     ppp_dbg("PPP: Authenticated.\n");
+    ppp->ipcp_allowed_fields = 0xFFFF;
     evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_UP);
 }
 
