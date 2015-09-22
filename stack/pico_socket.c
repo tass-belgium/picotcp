@@ -1036,7 +1036,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
     int ret = 0;
     (void)src;
-
+    
     f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1061,7 +1061,14 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         f->send_tos = (uint8_t)msginfo->tos;
         f->dev = msginfo->dev;
     }
-
+#ifdef PICO_SUPPORT_IPV6
+    if(IS_SOCK_IPV6(s) && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+        f->dev = pico_ipv6_link_find(src);
+        if(!f->dev) {
+            return -1;
+        }
+    }
+#endif
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
     ret = pico_socket_final_xmit(s, f);
