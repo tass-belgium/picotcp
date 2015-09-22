@@ -1066,6 +1066,10 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
     (void)len;
     if (!p)
         return;
+
+    if (ppp->auth != 0xc023)
+        return;
+
     switch(p->code) {
     case PAP_AUTH_ACK:
         ppp_dbg("PAP: Received Authentication OK!\n");
@@ -1085,6 +1089,12 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
 static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     struct pico_chap_hdr *ch = (struct pico_chap_hdr *)pkt;
+
+    if (!pkt)
+        return;
+
+    if (ppp->auth != 0xc223)
+        return;
 
     switch(ch->code) {
     case CHAP_CHALLENGE:
