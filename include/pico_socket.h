@@ -101,30 +101,18 @@ struct pico_ip_mreq_source {
     struct pico_ip4 mcast_source_addr;
     struct pico_ip4 mcast_link_addr;
 };
-
-#ifdef PICO_SUPPORT_IPV6
-
 /* same as above, but ipv6 */
-struct pico_ipv6_mreq {
-    struct pico_ip6 mcast_group_addr;
-    struct pico_ip6 mcast_link_addr;
+
+struct pico_mreq {
+    union pico_address mcast_group_addr;
+    union pico_address mcast_link_addr;
+};
+struct pico_mreq_source {
+    union pico_address mcast_group_addr;
+    union pico_address mcast_source_addr;
+    union pico_address mcast_link_addr;
 };
 
-struct pico_ipv6_mreq_source {
-    struct pico_ip6 mcast_group_addr;
-    struct pico_ip6 mcast_source_addr;
-    struct pico_ip6 mcast_link_addr;
-};
-
-union pico_mreq {
-    struct pico_ipv6_mreq ipv6;
-    struct pico_ip_mreq ipv4;
-};
-union pico_mreq_source {
-    struct pico_ipv6_mreq_source ipv6;
-    struct pico_ip_mreq_source ipv4;
-};
-#endif
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000u
 #define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001u
