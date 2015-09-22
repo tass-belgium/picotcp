@@ -23,13 +23,13 @@
 #include "pico_constants.h"
 
 
-#define mld_dbg printf
+#define mld_dbg(...) do {} while(0)
 /* MLD groups */
 #define MLD_ALL_HOST_GROUP               "FF01:0:0:0:0:0:0:1" 
 #define MLD_ALL_ROUTER_GROUP             "FF01:0:0:0:0:0:0:2"
 #define MLDV2_ALL_ROUTER_GROUP           "FF02:0:0:0:0:0:0:16"
-#define MLD_ROUTER_ALERT_LEN             (8) 
-#define MLD_TIMER_STOPPED                (1)
+#define MLD_ROUTER_ALERT_LEN             (8)
+ 
 uint8_t pico_mld_flag = 0;
 
 PACKED_STRUCT_DEF mld_message {
@@ -55,13 +55,41 @@ PACKED_STRUCT_DEF mldv2_report {
     uint16_t nbr_gr;
     struct mldv2_group_record record[0];
 };
+
 typedef int (*mld_callback) (struct mld_parameters *);
 static int pico_mld_process_event(struct mld_parameters *p); 
 static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group);
 
-
-static void pico_mld_report_expired(struct mld_timer *t)
-{
+static uint8_t *pico_mld_fill_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
+    if(hbh == NULL)
+        return NULL;
+    hbh->type = PICO_PROTO_ICMP6; 
+    hbh->len=0;
+    // ROUTER ALERT, RFC2711
+    hbh->options[0] = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT;
+    hbh->options[1] = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN; 
+    hbh->options[2] = 0; 
+    hbh->options[3] = 0;
+    //PadN allignment with N=2
+    hbh->options[4] = 1;
+    hbh->options[5] = 0; /* N-2 */
+    return (uint8_t*) &hbh->options[6];        
+}
+static int pico_mld_check_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
+    uint8_t options[8] = { PICO_PROTO_ICMP6, 0, PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT,\
+                           PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN,0,0,1,0 };
+    int i;
+    if(hbh == NULL)
+        return -1;
+    if(hbh->type != options[0] || hbh->len != options[1])
+        return -1;
+    for(i=0; i<6; i++) {
+        if(hbh->options[i] != options[i+2])
+            return -1;
+    } 
+    return 0;    
+}
+static void pico_mld_report_expired(struct mld_timer *t) {
     struct mld_parameters *p = NULL;
 
     p = pico_mld_find_parameter(&t->mcast_link, &t->mcast_group);
@@ -71,19 +99,13 @@ static void pico_mld_report_expired(struct mld_timer *t)
     p->event = MLD_EVENT_TIMER_EXPIRED;
     pico_mld_process_event(p);
 }
-static inline int mldparm_group_compare(struct mld_parameters *a,  struct mld_parameters *b)
-{
+static inline int mldparm_group_compare(struct mld_parameters *a,  struct mld_parameters *b) {
     return pico_ipv6_compare(&a->mcast_group, &b->mcast_group);
 }
-
-static inline int mldparm_link_compare(struct mld_parameters *a,  struct mld_parameters *b)
-{
+static inline int mldparm_link_compare(struct mld_parameters *a,  struct mld_parameters *b) {
     return pico_ipv6_compare(&a->mcast_link, &b->mcast_link);
 }
-
-
-static int mld_parameters_cmp(void *ka, void *kb)
-{
+static int mld_parameters_cmp(void *ka, void *kb) {
     struct mld_parameters *a = ka, *b = kb;
     int cmp = mldparm_group_compare(a, b);
     if (cmp)
@@ -91,8 +113,7 @@ static int mld_parameters_cmp(void *ka, void *kb)
 
     return mldparm_link_compare(a, b);
 }
-static inline int mldt_type_compare(struct mld_timer *a,  struct mld_timer *b)
-{
+static inline int mldt_type_compare(struct mld_timer *a,  struct mld_timer *b) {
     if (a->type < b->type)
         return -1;
 
@@ -101,20 +122,15 @@ static inline int mldt_type_compare(struct mld_timer *a,  struct mld_timer *b)
 
     return 0;
 }
-
-
-static inline int mldt_group_compare(struct mld_timer *a,  struct mld_timer *b)
-{
+static inline int mldt_group_compare(struct mld_timer *a,  struct mld_timer *b) {
     return pico_ipv6_compare(&a->mcast_group, &b->mcast_group);
 }
 
-static inline int mldt_link_compare(struct mld_timer *a,  struct mld_timer *b)
-{
+static inline int mldt_link_compare(struct mld_timer *a,  struct mld_timer *b) {
     return pico_ipv6_compare(&a->mcast_link, &b->mcast_link);
 }
 PICO_TREE_DECLARE(MLDParameters, mld_parameters_cmp);
-static int mld_timer_cmp(void *ka, void *kb)
-{
+static int mld_timer_cmp(void *ka, void *kb) {
     struct mld_timer *a = ka, *b = kb;
     int cmp = mldt_type_compare(a, b);
     if (cmp)
@@ -125,47 +141,45 @@ static int mld_timer_cmp(void *ka, void *kb)
         return cmp;
 
     return mldt_link_compare(a, b);
-
 }
-static int pico_mld_delete_parameter(struct mld_parameters *p)
-{
+static int pico_mld_delete_parameter(struct mld_parameters *p) {
     if (pico_tree_delete(&MLDParameters, p))
         PICO_FREE(p);
     else
         return -1;
-
     return 0;
 }
 PICO_TREE_DECLARE(MLDTimers, mld_timer_cmp);
-static void pico_mld_timer_expired(pico_time now, void *arg)
-{
+static void pico_mld_timer_expired(pico_time now, void *arg){
     struct mld_timer *t = NULL, *timer = NULL, test = {
         0
     };
-    char ipstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char ipstr[PICO_IPV6_STRING] = {
         0
-    },   grpstr[40] = {
+    },   grpstr[PICO_IPV6_STRING] = {
         0
     };
+#endif 
     
     IGNORE_PARAMETER(now);
     t = (struct mld_timer *)arg;
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
+#ifdef PICO_DEBUG_MLD
     pico_ipv6_to_string(ipstr, t->mcast_link.addr);
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
     mld_dbg("MLD: timer expired for %s link %s type %u, delay %llu\n", grpstr, ipstr, t->type, (uint64_t) t->delay);
+#endif
     timer = pico_tree_findKey(&MLDTimers, &test);
     if (!timer) {
         return;
     }
-
     if (timer->stopped == MLD_TIMER_STOPPED) {
         PICO_FREE(t);
         return;
     }
-
     if (timer->start + timer->delay < PICO_TIME_MS()) {
         pico_tree_delete(&MLDTimers, timer);
         if (timer->mld_callback)
@@ -173,24 +187,25 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
 
         PICO_FREE(timer);
     } else {
+#ifdef PICO_DEBUG_MLD
         mld_dbg("MLD: restart timer for %s, delay %llu, new delay %llu\n", grpstr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
+#endif
         pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer);
     }
-
     return;
 }
 
-static int pico_mld_timer_reset(struct mld_timer *t)
-{
+static int pico_mld_timer_reset(struct mld_timer *t) {
     struct mld_timer *timer = NULL, test = {
         0
     };
-    char grpstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char grpstr[PICO_IPV6_STRING] = {
         0
     };
-
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
     mld_dbg("MLD: reset timer for %s, delay %llu\n", grpstr, t->delay);
+#endif
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
@@ -203,20 +218,20 @@ static int pico_mld_timer_reset(struct mld_timer *t)
     return 0;
 }
 
-static int pico_mld_timer_start(struct mld_timer *t)
-{
+static int pico_mld_timer_start(struct mld_timer *t) {
     struct mld_timer *timer = NULL, test = {
         0
     };
-    char ipstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char ipstr[PICO_IPV6_STRING] = {
         0
-    },   grpstr[40] = {
+    },   grpstr[PICO_IPV6_STRING] = {
         0
     };
- 
     pico_ipv6_to_string(ipstr, t->mcast_link.addr);
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
     mld_dbg("MLD: start timer for %s link %s type %u, delay %llu\n", grpstr, ipstr, t->type, t->delay);
+#endif     
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
@@ -229,38 +244,37 @@ static int pico_mld_timer_start(struct mld_timer *t)
         pico_err = PICO_ERR_ENOMEM;
         return -1;
     }
-
     *timer = *t;
     timer->start = PICO_TIME_MS();
-
     pico_tree_insert(&MLDTimers, timer);
     pico_timer_add(timer->delay, &pico_mld_timer_expired, timer);
     return 0;
 }
 
-static int pico_mld_timer_stop(struct mld_timer *t)
-{
+static int pico_mld_timer_stop(struct mld_timer *t) {
     struct mld_timer *timer = NULL, test = {
         0
     };
-    char grpstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char grpstr[PICO_IPV6_STRING] = {
         0
     };
+#endif
     test.type = t->type;
     test.mcast_link = t->mcast_link;
     test.mcast_group = t->mcast_group;
     timer = pico_tree_findKey(&MLDTimers, &test);
     if (!timer)
         return 0;
-
+#ifdef PICO_DEBUG_MLD
     pico_ipv6_to_string(grpstr, timer->mcast_group.addr);
     mld_dbg("MLD: stop timer for %s, delay %llu\n", grpstr, timer->delay);
+#endif    
     timer->stopped = MLD_TIMER_STOPPED;
     return 0;
 }
 
-static int pico_mld_timer_is_running(struct mld_timer *t)
-{
+static int pico_mld_timer_is_running(struct mld_timer *t) {
     struct mld_timer *timer = NULL, test = {
         0
     };
@@ -275,40 +289,33 @@ static int pico_mld_timer_is_running(struct mld_timer *t)
     return 0;
 }
 
-static struct mld_timer *pico_mld_find_timer(uint8_t type, struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group)
-{
+static struct mld_timer *pico_mld_find_timer(uint8_t type, struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group) {
     struct mld_timer test = {
         0
     };
 
     test.type = type;
-    memcpy(&test.mcast_link, mcast_link, sizeof(struct pico_ip6));
-    memcpy(&test.mcast_group, mcast_group, sizeof(struct pico_ip6));
+    test.mcast_link = *mcast_link;
+    test.mcast_group = *mcast_group;
     return pico_tree_findKey(&MLDTimers, &test);
 }
 
-
-static int mld_sources_cmp(void *ka, void *kb)
-{
+static int mld_sources_cmp(void *ka, void *kb) {
     struct pico_ip6 *a = ka, *b = kb;
     return pico_ipv6_compare(a, b);
 }
+
 PICO_TREE_DECLARE(MLDAllow, mld_sources_cmp);
 PICO_TREE_DECLARE(MLDBlock, mld_sources_cmp);
 
-
-static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group)
-{
+static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group) {
     struct mld_parameters test = {
         0
     };
-    uint8_t i;
     if (!mcast_link || !mcast_group)
         return NULL;
-    for(i = 0; i< sizeof(struct pico_ip6); i++) {
-        test.mcast_link.addr[i] = mcast_link->addr[i];
-        test.mcast_group.addr[i] = mcast_group->addr[i];
-    }
+    test.mcast_link = *mcast_link;
+    test.mcast_group = *mcast_group;
     return pico_tree_findKey(&MLDParameters, &test);
 }	
 static int pico_mld_is_checksum_valid(struct pico_frame *f) {
@@ -318,16 +325,15 @@ static int pico_mld_is_checksum_valid(struct pico_frame *f) {
     return 0;
 }
 uint16_t pico_mld_checksum(struct pico_frame *f) {
+    struct pico_ipv6_pseudo_hdr pseudo;
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    struct pico_ipv6_exthdr * hbh = (struct pico_ipv6_exthdr *)(f->transport_hdr); 
     struct mldv2_report *icmp6_hdr = (struct mldv2_report *)(f->transport_hdr + MLD_ROUTER_ALERT_LEN);
     uint16_t len = (uint16_t) (f->transport_len - MLD_ROUTER_ALERT_LEN);
-    struct pico_ipv6_pseudo_hdr pseudo;
 
     pseudo.src = ipv6_hdr->src;
     pseudo.dst = ipv6_hdr->dst;
     pseudo.len = long_be(len);
-    pseudo.nxthdr =PICO_PROTO_ICMP6;
+    pseudo.nxthdr = PICO_PROTO_ICMP6;
 
     pseudo.zero[0] = 0;
     pseudo.zero[1] = 0;
@@ -335,21 +341,20 @@ uint16_t pico_mld_checksum(struct pico_frame *f) {
     return pico_dualbuffer_checksum(&pseudo, sizeof(struct pico_ipv6_pseudo_hdr), icmp6_hdr, len);
 }
 /* RFC 3810 $8 */
-static int pico_mld_compatibility_mode(struct pico_frame *f)
-{
+static int pico_mld_compatibility_mode(struct pico_frame *f) {
     struct pico_ipv6_link *link = NULL;
     struct mld_timer t = {
         0
     };
     uint16_t  datalen; 
-   link = pico_ipv6_link_by_dev(f->dev);
+    link = pico_ipv6_link_by_dev(f->dev);
     if (!link)
         return -1;
     
-    datalen = (uint16_t)(f->buffer_len - PICO_SIZE_IP6HDR);
+    datalen = (uint16_t)(f->buffer_len - PICO_SIZE_IP6HDR - MLD_ROUTER_ALERT_LEN);
     if (f->dev->eth) {
         datalen = (uint16_t)(datalen - PICO_SIZE_ETHHDR);
-    } 
+    }
     if( datalen >= 28) {
         /* MLDv2 */
         t.type = MLD_TIMER_V2_QUERIER;
@@ -372,8 +377,7 @@ static int pico_mld_compatibility_mode(struct pico_frame *f)
     return 0;
 }
 
-int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state)
-{
+int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state) {
     struct mld_parameters *p = NULL;
     struct pico_ip6 ipv6;
     
@@ -423,42 +427,31 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
     p->MCASTFilter = _MCASTFilter;
     return pico_mld_process_event(p);
 }
-
-
 /* finite state machine caller */
 static int pico_mld_process_event(struct mld_parameters *p);
 
-static struct mld_parameters *pico_mld_analyse_packet(struct pico_frame *f)
-{
-    struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *) f->transport_hdr;
+static struct mld_parameters *pico_mld_analyse_packet(struct pico_frame *f) {
+    struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *) (f->transport_hdr+MLD_ROUTER_ALERT_LEN);
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *) f->net_hdr;
     struct pico_ipv6_link *link = NULL;
     struct mld_parameters *p = NULL;
-    uint8_t general_query = 1;
     struct pico_ip6 mcast_group = {{
         0
     }};
     struct mld_message *mld_report = (struct mld_message *) hdr;
-    uint32_t i;
     struct pico_ipv6_exthdr *hbh;
     
     link = pico_ipv6_link_by_dev(f->dev);
     if(!link) 
         return NULL;
-
-    for(i = 0; i < sizeof(struct pico_ip6); i++) {
-        mcast_group.addr[i] = mld_report->mcast_group.addr[i];
-        if(mcast_group.addr[i] != 0)
-            general_query = 0;
-    }
-
+    mcast_group = mld_report->mcast_group;
     /* Package check */
     if(ipv6_hdr->hop != MLD_HOP_LIMIT) {
         mld_dbg("MLD: Hop limit > 1, ignoring frame\n");
         return NULL;
     }
-    hbh = (struct pico_ipv6_exthdr *) (ipv6_hdr+ipv6_hdr->nxthdr);
-    if(hbh->ext.routing.routtype != 0) {
+    hbh = (struct pico_ipv6_exthdr *) (f->transport_hdr);
+    if(pico_mld_check_hopbyhop((struct pico_ipv6_hbhoption *)hbh) < 0) {
         mld_dbg("MLD: Router Alert option is not set\n");
         return NULL;
     }
@@ -466,25 +459,21 @@ static struct mld_parameters *pico_mld_analyse_packet(struct pico_frame *f)
         mld_dbg("MLD Source is invalid link-local address\n");
         return NULL;
     }
-    mld_dbg("PACKAGE CHECK [OK]");
     /* end package check */
-
     p = pico_mld_find_parameter(&link->address, &mcast_group); 
-   
     if(!p) {
         mld_dbg("Alloc-ing MLD parameters\n");
         p = PICO_ZALLOC(sizeof(struct mld_parameters));
         if(!p)
             return NULL;
         p->state = MLD_STATE_NON_LISTENER;
-        for(i = 0; i< sizeof(struct pico_ip6); i++) 
-            p->mcast_link.addr[i] = link->address.addr[i];
+        p->mcast_link = link->address;
         pico_tree_insert(&MLDParameters,p);
     } 
     mld_dbg("Analyse package, type = %d\n", hdr->type);
     switch(hdr->type) {
     case PICO_MLD_QUERY:
-        //p->max_resp_time = hdr->msg.info.mld.max_response_time;
+        p->max_resp_time = mld_report->max_resp_delay;
         p->event = MLD_EVENT_QUERY_RECV;
         break;
     case PICO_MLD_REPORT:
@@ -498,11 +487,9 @@ static struct mld_parameters *pico_mld_analyse_packet(struct pico_frame *f)
         break;
     }
     p->f = f; 
-    p->general_query = general_query;
     return p;
 }
-int pico_mld_process_in(struct pico_frame *f)
-{
+int pico_mld_process_in(struct pico_frame *f) {
     struct mld_parameters *p = NULL;
      
     if (!pico_mld_is_checksum_valid(f)) 
@@ -511,12 +498,10 @@ int pico_mld_process_in(struct pico_frame *f)
     if (pico_mld_compatibility_mode(f) < 0) 
         goto out;
     
-    p = pico_mld_analyse_packet(f);
-    if (!p) 
+    if((p = pico_mld_analyse_packet(f)) == NULL)
         goto out;
     
     return pico_mld_process_event(p);
-
 out:
     mld_dbg("FRAME DISCARD\n");
     pico_frame_discard(f);
@@ -535,20 +520,20 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
     struct pico_ip6 mcast_group = {{
         0
     }};
-
-    char ipstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char ipstr[PICO_IPV6_STRING] = {
         0
-    },  grpstr[40] ={
+    },  grpstr[PICO_IPV6_STRING] ={
         0
     };
-
+#endif
     pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
     memcpy(&mcast_group.addr,&p->mcast_group.addr, sizeof(struct pico_ip6));
-    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+sizeof(struct pico_ipv6_exthdr));
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN);
     p->f->dev = pico_ipv6_link_find(&p->mcast_link);
     /* p->f->len is correctly set by alloc */
-
-    report = (struct mld_message *)(p->f->transport_hdr+sizeof(struct pico_ipv6_exthdr));
+    hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
+    report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption*)hbh));
     report->type = report_type;
     report->max_resp_delay = 0; 
     report->mcast_group = p->mcast_group;
@@ -556,63 +541,58 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
     report->crc = 0;
     //Checksum done in ipv6 module, no need to do it twice
     //report->crc = short_be(pico_icmp6_checksum(p->f));
-    hbh = (struct pico_ipv6_exthdr *) p->f->transport_hdr;
-    hbh->ext.routing.routtype = 1;
-    hbh->nxthdr = PICO_PROTO_ICMP6; 
-    hbh->ext.routing.len = 0;
+#ifdef PICO_DEBUG_MLD
     pico_ipv6_to_string(ipstr, dst.addr);
     pico_ipv6_to_string(grpstr, mcast_group.addr);
     mld_dbg("MLD: send membership done on group %s to %s\n", grpstr, ipstr);
+#endif 
     pico_ipv6_frame_push(f, NULL, &dst, 0,0);
     return 0;
 }
-#define IPV6_MAX_STRLEN \
-        sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
-static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f)
-{
+static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f) {
     struct pico_ip6 dst = {{
         0
     }};
     struct pico_ip6 mcast_group = {{
         0
     }};
-    char ipstr[40] = {
+#ifdef PICO_DEBUG_MLD
+    char ipstr[PICO_IPV6_STRING] = {
         0
-    },  grpstr[40] ={
+    },  grpstr[PICO_IPV6_STRING] ={
         0
     };
+#endif
     struct pico_ipv6_link *link = NULL;
     link = pico_ipv6_link_get(&p->mcast_link);
     if (!link)
         return -1;
 
-    memcpy(&mcast_group.addr,&p->mcast_group.addr, sizeof(struct pico_ip6));
+    mcast_group = p->mcast_group;
     switch (link->mcast_compatibility) {
     case PICO_MLDV1:
         if (p->event == MLD_EVENT_STOP_LISTENING)
             pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
         else 
-            memcpy(&dst.addr, &mcast_group.addr, sizeof(struct pico_ip6));
-
+            dst = mcast_group;
         break;
-
     case PICO_MLDV2:
         pico_string_to_ipv6(MLDV2_ALL_ROUTER_GROUP, &dst.addr[0]);
         break;
-
     default:
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
     }
+#ifdef PICO_DEBUG_MLD
     pico_ipv6_to_string(ipstr, dst.addr);
     pico_ipv6_to_string(grpstr, mcast_group.addr);
     mld_dbg("MLD: send membership report on group %s to %s\n", grpstr, ipstr);
+#endif
     pico_ipv6_frame_push(f, NULL, &dst, 0,0);
     return 0;
 }
 
-static int8_t pico_mld_generate_report(struct mld_parameters *p)
-{
+static int8_t pico_mld_generate_report(struct mld_parameters *p) {
     struct pico_ipv6_link *link = NULL;
     uint8_t i = 0;
     link = pico_ipv6_link_get(&p->mcast_link);
@@ -621,20 +601,21 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         return -1;
     }
     if( !pico_ipv6_is_multicast(p->mcast_group.addr) ) {
+        pico_err = PICO_ERR_EINVAL;
         return -1;
     }
     switch (link->mcast_compatibility) {
 
-    case PICO_MLDV1:
-    {
+    case PICO_MLDV1: {
         struct mld_message *report = NULL;
         uint8_t report_type = PICO_MLD_REPORT;
         struct pico_ipv6_exthdr *hbh;
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+sizeof(struct pico_ipv6_exthdr));
+        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN );
         p->f->dev = pico_ipv6_link_find(&p->mcast_link);
         /* p->f->len is correctly set by alloc */
 
-        report = (struct mld_message *)(p->f->transport_hdr+sizeof(struct pico_ipv6_exthdr));
+        hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
+        report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption *)hbh));
         report->type = report_type;
         report->max_resp_delay = MLD_DEFAULT_MAX_RESPONSE_TIME;
         report->mcast_group = p->mcast_group;
@@ -642,14 +623,9 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         report->crc = 0;
         //Checksum done in ipv6 module, no need to do it twice
         //report->crc = short_be(pico_icmp6_checksum(p->f));
-        hbh = (struct pico_ipv6_exthdr *) p->f->transport_hdr;
-        hbh->ext.routing.routtype = 1;
-        hbh->nxthdr = PICO_PROTO_ICMP6; 
-        hbh->ext.routing.len = 0;
         break;    
     }
-    case PICO_MLDV2:
-    {
+    case PICO_MLDV2: {
         struct mldv2_report *report = NULL;
         struct mldv2_group_record *record = NULL;
         struct pico_ipv6_mcast_group *g = NULL, test = {
@@ -662,22 +638,19 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         uint8_t record_type = 0;
         uint8_t sources = 0;
         uint16_t len = 0;
-        memcpy(&test.mcast_addr, &p->mcast_group, sizeof(struct pico_ip6));
+        test.mcast_addr = p->mcast_group;
         g = pico_tree_findKey(link->MCASTGroups, &test);
         if (!g) {
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
-
-        if (p->event == MLD_EVENT_DELETE_GROUP) { /* "non-existent" state of filter mode INCLUDE and empty source list */
+        /* "non-existent" state of filter mode INCLUDE and empty source list */
+        if (p->event == MLD_EVENT_DELETE_GROUP) { 
             p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
             p->MCASTFilter = NULL;
         }
-
-        if (p->event == MLD_EVENT_QUERY_RECV) {
+        if (p->event == MLD_EVENT_QUERY_RECV) 
             goto mld2_report;
-        }
-
 
         /* cleanup filters */
         pico_tree_foreach_safe(index, &MLDAllow, _tmp)
@@ -693,7 +666,8 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
         case PICO_IP_MULTICAST_INCLUDE:
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
-                if (p->event == MLD_EVENT_DELETE_GROUP) { /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
+                /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
+                if (p->event == MLD_EVENT_DELETE_GROUP) {
                     /* TO_IN (B) */
                     record_type = MLD_CHANGE_TO_INCLUDE_MODE;
                     MLDFilter = &MLDAllow;
@@ -751,10 +725,9 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                 if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
                     break;
 
-                /* ALLOW (B-A) and BLOCK (A-B) are empty: do not send report (RFC 3376 $5.1) */
+                /* ALLOW (B-A) and BLOCK (A-B) are empty: do not send report  */
                 p->f = NULL;
                 return 0;
-
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* TO_EX (B) */
                 record_type = MLD_CHANGE_TO_EXCLUDE_MODE;
@@ -765,13 +738,11 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                     sources++;
                 }
                 break;
-
             default:
                 pico_err = PICO_ERR_EINVAL;
                 return -1;
             }
             break;
-
         case PICO_IP_MULTICAST_EXCLUDE:
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
@@ -787,7 +758,6 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                 } /* else { MLDAllow stays empty } */
 
                 break;
-
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* BLOCK (B-A) */
                 record_type = MLD_BLOCK_OLD_SOURCES;
@@ -803,14 +773,13 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                     if (source) {
                     pico_tree_delete(&MLDBlock, source);
                     sources--;
+                    }
                 }
-            }
-            if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
-                break;
-
-            /* ALLOW (A-B) */
-            record_type = MLD_ALLOW_NEW_SOURCES;
-            MLDFilter = &MLDAllow;
+                if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
+                    break;
+                /* ALLOW (A-B) */
+                record_type = MLD_ALLOW_NEW_SOURCES;
+                MLDFilter = &MLDAllow;
                 pico_tree_foreach(index, &g->MCASTSources)
                 {
                     pico_tree_insert(&MLDAllow, index->keyValue);
@@ -826,8 +795,7 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
                 }
                 if (!pico_tree_empty(&MLDAllow)) /* record type is ALLOW */
                     break;
-
-                /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report (RFC 3376 $5.1) */
+                /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report  */
                 p->f = NULL;
                 return 0;  
            default:
@@ -839,26 +807,20 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p)
             return -1;
         }
 mld2_report:
-        len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record)  + (sources * sizeof(struct pico_ip6))+sizeof(struct pico_ipv6_hbhoption)+6*sizeof(uint8_t));
+        /* RFC3810 $5.1.10 */
+        if(sources > MLD_MAX_SOURCES) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+        len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
+                         + (sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
         
         p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
         p->f->dev = pico_ipv6_link_find(&p->mcast_link);
         /* p->f->len is correctly set by alloc */
-        hbh = (struct pico_ipv6_hbhoption *) p->f->transport_hdr;
-
-        // Hop by hop extension header
-        hbh->type = PICO_PROTO_ICMP6; 
-        hbh->len=0;
-        // ROUTER ALERT
-        hbh->options[0] = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT;
-        hbh->options[1] = 2; 
-        hbh->options[2] = 0; 
-        hbh->options[3] = 0;
-        //PadN allignment 
-        hbh->options[4] = 1;
-        hbh->options[5] = 0;
         
-        report = (struct mldv2_report *)(&hbh->options[6]);
+        hbh = (struct pico_ipv6_hbhoption *) p->f->transport_hdr;
+        report = (struct mldv2_report *)(pico_mld_fill_hopbyhop(hbh));
         report->type = PICO_MLD_REPORTV2;
         report->res = 0;
         report->crc = 0;
@@ -869,12 +831,12 @@ mld2_report:
         record->type = record_type;
         record->aux = 0;
         record->nbr_src = short_be(sources);
-        memcpy(&record->mcast_group, &p->mcast_group, sizeof(struct pico_ip6));
+        record->mcast_group = p->mcast_group;
         if (MLDFilter && !pico_tree_empty(MLDFilter)) {
             i = 0;
             pico_tree_foreach(index, MLDFilter)
             {
-                memcpy(&record->src[i], ((struct pico_ip6 *)index->keyValue)->addr, sizeof(struct pico_ip6));
+                record->src[i] = (*(struct pico_ip6 *)index->keyValue);
                 i++;
             }
         }
@@ -891,12 +853,10 @@ mld2_report:
     return 0;
 }
 /* stop timer, send done if flag set */
-static int mld_stsdifs(struct mld_parameters *p)
-{
+static int mld_stsdifs(struct mld_parameters *p) {
     struct mld_timer t = {
         0
     };
-
     mld_dbg("MLD: event = stop listening | action = stop timer, send done if flag set\n");
 
     t.type = MLD_TIMER_GROUP_REPORT;
@@ -914,13 +874,11 @@ static int mld_stsdifs(struct mld_parameters *p)
     return 0;
 }
 /* send report, set flag, start timer */
-static int mld_srsfst(struct mld_parameters *p)
-{
+static int mld_srsfst(struct mld_parameters *p) {
     struct mld_timer t = {
         0
     };
     struct pico_frame *copy_frame = NULL;
-    uint8_t i;
     mld_dbg("MLD: event = start listening | action = send report, set flag, start timer\n");
 
     p->last_host = MLD_HOST_LAST;
@@ -938,10 +896,9 @@ static int mld_srsfst(struct mld_parameters *p)
         return -1;
 
     t.type = MLD_TIMER_V1_QUERIER;
-    for(i=0; i<sizeof(struct pico_ip6); i++) {
-        t.mcast_link.addr[i] = p->mcast_link.addr[i];
-        t.mcast_group.addr[i] = p->mcast_group.addr[i];
-    }
+    t.mcast_link = p->mcast_link;
+    t.mcast_group = p->mcast_group;
+ 
     t.delay = (pico_rand() % (MLD_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.mld_callback = pico_mld_report_expired;
@@ -953,8 +910,7 @@ static int mld_srsfst(struct mld_parameters *p)
 }
 
 /* stop timer, clear flag */
-static int mld_stcl(struct mld_parameters *p)
-{
+static int mld_stcl(struct mld_parameters *p) {
     struct mld_timer t = {
         0
     };
@@ -973,8 +929,7 @@ static int mld_stcl(struct mld_parameters *p)
     return 0;
 }
 /* send report, set flag */
-static int mld_srsf(struct mld_parameters *p)
-{
+static int mld_srsf(struct mld_parameters *p) {
     mld_dbg("MLD: event = timer expired | action = send report, set flag\n");
 
     if (pico_mld_send_report(p, p->f) < 0)
@@ -985,8 +940,7 @@ static int mld_srsf(struct mld_parameters *p)
     return 0;
 }
 /* reset timer if max response time < current timer */
-static int mld_rtimrtct(struct mld_parameters *p)
-{
+static int mld_rtimrtct(struct mld_parameters *p) {
     struct mld_timer *t = NULL;
     uint32_t current_timer = 0;
 
@@ -1009,8 +963,7 @@ static int mld_rtimrtct(struct mld_parameters *p)
     return 0;
 }
 /* merge report, send report, reset timer (MLDv2 only) */
-static int mld_mrsrrt(struct mld_parameters *p)
-{
+static int mld_mrsrrt(struct mld_parameters *p) {
     struct mld_timer *t = NULL;
     struct pico_frame *copy_frame = NULL;
     struct pico_ipv6_link *link = NULL;
@@ -1048,8 +1001,7 @@ static int mld_mrsrrt(struct mld_parameters *p)
 }
 
 /* send report, start timer (MLDv2 only) */
-static int mld_srst(struct mld_parameters *p)
-{
+static int mld_srst(struct mld_parameters *p){
     struct mld_timer t = {
         0
     };
@@ -1092,15 +1044,12 @@ static int mld_srst(struct mld_parameters *p)
     mld_dbg("MLD: new state = delaying member\n");
     return 0;
 }
-static int mld_discard(struct mld_parameters *p)
-{
+static int mld_discard(struct mld_parameters *p) {
     mld_dbg("MLD: ignore and mld_discard frame\n");
     // the frame will be discared bij the ipv6 module!!!
     IGNORE_PARAMETER(p);
     return 0;
 }
-
-
     
 /* finite state machine table */
 static const mld_callback mld_state_diagram[3][6] =
@@ -1113,16 +1062,19 @@ static const mld_callback mld_state_diagram[3][6] =
 static int pico_mld_process_event(struct mld_parameters *p) {
     struct pico_tree_node *index= NULL;
     struct mld_parameters *_p;
+#ifdef PICO_DEBUG_MLD
     char ipv6[PICO_IPV6_STRING];
-    
     pico_ipv6_to_string(ipv6, p->mcast_group.addr);
     mld_dbg("MLD: process event on group address %s\n", ipv6);
+#endif
     if (p->event == MLD_EVENT_QUERY_RECV && p->general_query) { /* general query */
         pico_tree_foreach(index, &MLDParameters) {
             _p = index->keyValue;
             _p->max_resp_time = p->max_resp_time;
             _p->event = MLD_EVENT_QUERY_RECV;
+#ifdef PICO_DEBUG_MLD
             mld_dbg("MLD: for each mcast_group = %s | state = %u\n", ipv6, _p->state);
+#endif
             return mld_state_diagram[_p->state][_p->event](_p);
         }
     } else {

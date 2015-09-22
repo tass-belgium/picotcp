@@ -34,13 +34,17 @@
 #define MLD_MODE_IS_EXCLUDE                  (2)
 #define MLD_CHANGE_TO_INCLUDE_MODE           (3)
 #define MLD_CHANGE_TO_EXCLUDE_MODE           (4)
+#define MLD_ALLOW_NEW_SOURCES            (5)
+#define MLD_BLOCK_OLD_SOURCES            (6)
 /* events */
-#define MLD_EVENT_QUERY_RECV                (0x0)
+
+#define MLD_EVENT_START_LISTENING           (0x1)
+#define MLD_EVENT_STOP_LISTENING            (0x0)
+#define MLD_EVENT_QUERY_RECV                (0x3)
+#define MLD_EVENT_REPORT_RECV               (0x4)
+#define MLD_EVENT_TIMER_EXPIRED             (0x5)
+/*Not needed?*/
 #define MLD_EVENT_DONE_RECV                 (0x1)
-#define MLD_EVENT_REPORT_RECV               (0x2)
-#define MLD_EVENT_TIMER_EXPIRED             (0x3)
-#define MLD_EVENT_STOP_LISTENING            (0x4)
-#define MLD_EVENT_START_LISTENING           (0x5)
 
 #define MLD_EVENT_DELETE_GROUP           (0x0)
 #define MLD_EVENT_CREATE_GROUP           (0x1)
@@ -64,16 +68,17 @@
 
 /* custom timers types */
 #define MLD_TIMER_GROUP_REPORT           (1)
-#define MLD_TIMER_V1_REPORT             (2)
-#define MLD_TIMER_V2_REPORT             (3)
+#define MLD_TIMER_V1_QUERIER             (2)
+#define MLD_TIMER_V2_QUERIER             (2)
 
 
 /* Who has send the last report message */
 #define MLD_HOST_LAST                    (0x1)
 #define MLD_HOST_NOT_LAST                (0x0)
 
-#define IP_OPTION_ROUTER_ALERT_LEN        (8)
 
+#define MLD_TIMER_STOPPED                (1)
+#define MLD_MAX_SOURCES                  (89)
 extern struct pico_protocol pico_proto_mld;
 
 struct mld_multicast_address_record {
@@ -90,7 +95,7 @@ struct mld_parameters {
     uint8_t general_query;
     uint8_t filter_mode;
     uint8_t last_host;
-    uint8_t max_resp_time;
+    uint16_t max_resp_time;
     struct pico_ip6 mcast_link;
     struct pico_ip6 mcast_group;
     struct pico_tree *MCASTFilter;
@@ -108,6 +113,7 @@ struct mld_timer {
     void (*mld_callback)(struct mld_timer *t);
 };
 
+uint16_t pico_mld_checksum(struct pico_frame *f);
 int pico_mld_process_in(struct pico_frame *f);
 int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state);
 #endif /* _INCLUDE_PICO_MLD */
