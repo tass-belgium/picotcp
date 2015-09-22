@@ -13,7 +13,7 @@
 #define PICO_SIZE_IP6HDR ((uint32_t)(sizeof(struct pico_ipv6_hdr)))
 #define PICO_IPV6_DEFAULT_HOP 64
 #define PICO_IPV6_MIN_MTU 1280
-#define PICO_IPV6_STRING 45
+#define PICO_IPV6_STRING 46
 
 #define PICO_IPV6_EXTHDR_HOPBYHOP 0
 #define PICO_IPV6_EXTHDR_ROUTING 43
@@ -25,6 +25,7 @@
 
 
 #define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT 5
+#define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN 2
 
 #define HBH_LEN(hbh) ((((hbh->ext.hopbyhop.len + 1) << 3) - 2)) /* len in bytes, minus nxthdr and len byte */
 
