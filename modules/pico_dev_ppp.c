@@ -18,7 +18,8 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
-#define ppp_dbg(...) do {} while(0)
+//#define ppp_dbg(...) do {} while(0)
+#define ppp_dbg dbg
 
 /* We should define this in a global header. */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -1727,6 +1728,14 @@ static void deauth(struct pico_device_ppp *ppp)
     evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_DOWN);
 }
 
+static void auth_abort(struct pico_device_ppp *ppp)
+{
+    ppp_dbg("PPP: Authentication failed!\n");
+    ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
+    evaluate_lcp_state(ppp, PPP_LCP_EVENT_CLOSE);
+
+}
+
 static void auth_req(struct pico_device_ppp *ppp)
 {
     uint16_t ppp_usr_len = 0; 
@@ -1841,7 +1850,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_INITIAL, {} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_INITIAL, {} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {auth_abort} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {} }
     },
     [PPP_AUTH_STATE_STARTING] = {
@@ -1851,7 +1860,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_abort} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_RSP_SENT] = {
@@ -1861,7 +1870,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_abort} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_STARTING, {auth_start_timer} }
     },
     [PPP_AUTH_STATE_REQ_SENT] = {
@@ -1871,7 +1880,7 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_REQ_SENT, {} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} },
+        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_abort} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_AUTHENTICATED] = {

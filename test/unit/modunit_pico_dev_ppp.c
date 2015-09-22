@@ -885,7 +885,7 @@ START_TEST(tc_lcp_this_layer_down)
 {
     ppp_auth_ev = 0;
     lcp_this_layer_down(&ppp);
-    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_DOWN);
+    fail_if(ppp_auth_ev != PPP_AUTH_EVENT_DOWN);
 }
 END_TEST
 START_TEST(tc_lcp_this_layer_started)
