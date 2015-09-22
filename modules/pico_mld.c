@@ -528,7 +528,7 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
     };
 #endif
     pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
-    mcast_group.addr = p->mcast_group.addr;
+    mcast_group = p->mcast_group;
     p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN);
     p->f->dev = pico_ipv6_link_find(&p->mcast_link);
     /* p->f->len is correctly set by alloc */
