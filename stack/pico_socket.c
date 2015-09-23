@@ -1062,7 +1062,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         f->dev = msginfo->dev;
     }
 #ifdef PICO_SUPPORT_IPV6
-    if(IS_SOCK_IPV6(s) && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+    if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         f->dev = pico_ipv6_link_find(src);
         if(!f->dev) {
             return -1;
