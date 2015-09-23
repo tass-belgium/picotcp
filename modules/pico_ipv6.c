@@ -784,13 +784,10 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
 {
     int proto = 0;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    char ipstr[40] = {0};
     
     IGNORE_PARAMETER(self);
     /* TODO: Check hop-by-hop hdr before forwarding */
     
-    pico_ipv6_to_string(ipstr, hdr->dst.addr);
-    dbg("DST: %s\n", ipstr);
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
         printf("Can't find link for this address\n");
         return pico_ipv6_forward(f);
@@ -1400,12 +1397,10 @@ struct pico_ipv6_link *pico_ipv6_link_get(struct pico_ip6 *address)
 
     found = pico_tree_findKey(&IPV6Links, &test);
     if (!found) {
-        printf("Link is not found\n");
         return NULL;
     }
 
     if (found->istentative) {
-        printf("Link is tentative\n");
         return NULL;
     }
 
