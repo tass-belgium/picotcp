@@ -2576,6 +2576,12 @@ static void tcp_force_closed(struct pico_socket *s)
     (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
     (t->sock).state &= 0xFF00U;
     (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+    /* call EV_FIN wakeup before deleting */
+    if ((t->sock).wakeup)
+        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+    /* delete socket */
+    pico_socket_del(&t->sock);
 }
 
 static void tcp_wakeup_pending(struct pico_socket *s, uint16_t ev)
