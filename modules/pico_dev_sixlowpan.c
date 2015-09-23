@@ -19,9 +19,9 @@
 
 #define DEBUG
 #ifdef DEBUG
-    #define PAN_DBG(s, ...)         dbg("[SIXLOWPAN]$ " s, ##__VA_ARGS__)
-    #define PAN_ERR(s, ...)         dbg("[SIXLOWPAN]$ ERROR: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
-    #define PAN_WARNING(s, ...)     dbg("[SIXLOWPAN]$ WARNING: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    #define PAN_DBG(s, ...)         dbg("[6LoWPAN]$ " s, ##__VA_ARGS__)
+    #define PAN_ERR(s, ...)         dbg("[6LoWPAN]$ ERROR: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+    #define PAN_WARNING(s, ...)     dbg("[6LoWPAN]$ WARNING: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
     #define PAN_DBG_C               dbg
 #else
     #define PAN_DBG(...)            do {} while(0)
@@ -72,9 +72,6 @@
 
 #define IEEE_MIN_HDR_LEN            (5u)
 #define IEEE_LEN_LEN                (1u)
-#define IEEE_ADDR_BCAST_SHORT       (0xFFFFu)
-#define IEEE_ADDR_BCAST             {{0xFFFF}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_SHORT}
-#define IEEE_ADDR_ZERO              {{0x0000}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_NONE}
 #define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST_SHORT == (ieee)._short.addr))
 #define IEEE_AM_BOTH_TO_SHORT(am)   ((IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am)) ? IEEE_AM_SHORT : IEEE_AM_EXTENDED)
 
@@ -126,7 +123,7 @@
 #define FRAG_DGRAM_SIZE_MASK        (0x7FF)
 
 #define MESH_HL_ESC                 (0x0F)
-#define MESH_DAH_HOP_LIMIT(dah)     ((uint8_t)((dah) & 0x0F))
+#define MESH_DAH_HOP_LIMIT(dah)     (uint8_t)((dah) & 0x0F)
 
 #define RTABLE_ENTRY_TTL            (10u) /* (600u) // 10 minutes */
 
@@ -147,8 +144,6 @@
 
 /* MEMORY MACROS */
 #define SIZE_UPDATE(size, edit, del) (uint16_t)((del) ? (uint16_t)(size - edit) : (uint16_t)(size + edit))
-#define MEM_INSERT(buf, len, range) (buf) = buf_insert((buf),(uint16_t)(len),(range))
-#define MEM_DELETE(buf, len, range) (len) = (uint16_t)buf_delete((buf),(uint16_t)(len),(range))
 
 /* -------------------------------------------------------------------------------- */
 // MARK: 6LoWPAN types
@@ -471,7 +466,6 @@ static uint8_t bcast_seq = 0;
 static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame *f);
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, enum ieee_am reply_mode);
 static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f);
-static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len);
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
 static void sixlowpan_retransmit(struct sixlowpan_frame *f);
 static int sixlowpan_prep_tx(void);
@@ -556,13 +550,13 @@ static uint8_t *frame_buf_edit(struct sixlowpan_frame *f, enum pico_layer l, str
     r.offset = (uint16_t)((uint16_t)(chunk - f->phy_hdr) + r.offset + offset);
     
     if (del) {
-        MEM_DELETE(f->phy_hdr, f->size, r);
+        f->size = buf_delete(f->phy_hdr, f->size, r);
     } else {
-        if (!(MEM_INSERT(f->phy_hdr, f->size, r)))
+        if (!(f->phy_hdr = buf_insert(f->phy_hdr, f->size, r)))
             return NULL;
         
         /* Set the new buffer size */
-        f->size = (uint16_t)(f->size + r.length);
+        f->size = SIZE_UPDATE(f->size, r.length, 0);
     }
     /* Rearrange chunk-ptrs */
     frame_rearrange_ptrs(f);
@@ -768,7 +762,6 @@ static inline uint8_t ieee_hdr_buf_len(struct ieee_hdr *hdr)
     return (uint8_t)(IEEE_MIN_HDR_LEN + (uint8_t)(pico_ieee_addr_len(hdr->fcf.sam) + pico_ieee_addr_len(hdr->fcf.dam)));
 }
 
-/* Provide a IEEE802.15.4-header in the 6LoWPAN-frame */
 static int ieee_provide_hdr(struct sixlowpan_frame *f)
 {
     struct ieee_radio *radio = NULL;
@@ -813,9 +806,11 @@ static int ieee_provide_hdr(struct sixlowpan_frame *f)
 }
 
 /* -------------------------------------------------------------------------------- */
-// MARK: SIXLOWPAN
+// MARK: SIXLOWPAN FRAMES
+
 static uint8_t sixlowpan_overhead(struct sixlowpan_frame *f)
 {
+    /* Returns overhead needed in byte for 6LoWPAN Mesh addressing and */
     uint8_t overhead = DISPATCH_MESH(INFO_HDR_LEN);
     CHECK_PARAM_ZERO(f);
     
@@ -876,6 +871,45 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
     
     /* Fill in IEEE802.15.4 MAC header */
     ieee_provide_hdr(f);
+    return f;
+}
+
+static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
+{
+    uint8_t *buf = NULL;
+    CHECK_PARAM_NULL(f);
+    if (!(buf = PICO_ZALLOC(f->size))) {
+        f->state = FRAME_ERROR;
+        return NULL;
+    }
+    memcpy(buf, f->phy_hdr, f->size);
+    *len = (uint8_t)f->size;
+    return buf;
+}
+
+static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len, struct pico_device *dev)
+{
+    struct pico_ieee_addr peer = IEEE_ADDR_ZERO, local = IEEE_ADDR_ZERO;
+    struct sixlowpan_frame *f = NULL;
+    struct ieee_hdr *link_hdr = NULL;
+    uint8_t link_hdr_len = 0;
+    uint16_t net_len = 0;
+    CHECK_PARAM_NULL(buf);
+    
+    link_hdr = (struct ieee_hdr *)(buf + IEEE_LEN_LEN);
+    link_hdr_len = ieee_hdr_buf_len(link_hdr);
+    local = pico_ieee_addr_from_hdr(link_hdr, 0);
+    peer = pico_ieee_addr_from_hdr(link_hdr, 1);
+    
+    /* Provide space for the sixlowpan_frame */
+    net_len = (uint16_t)((uint16_t)(len - IEEE_PHY_OVERHEAD) + 1 - link_hdr_len);
+    if (!(f = sixlowpan_frame_create(local, peer, net_len, 0, 0, dev)))
+        return NULL;
+    
+    /* Copy in payload */
+    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len - IEEE_PHY_OVERHEAD + 1);
+    
+    f->state = FRAME_COMPRESSED;
     return f;
 }
 
@@ -2527,7 +2561,7 @@ static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len, struct sixlo
     
     r.offset = (uint16_t)(IEEE_LEN_LEN + f->link_hdr_len);
     if (IEEE_ADDR_IS_BCAST(f->hop)) {
-        MEM_INSERT(buf, *len, r);
+        buf = buf_insert(buf, *len, r);
         if (!buf) {
             PICO_FREE(old);
             return NULL;
@@ -2821,7 +2855,7 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
     r.length = (uint16_t)(r.length + pico_ieee_addr_len(f->local._mode) + pico_ieee_addr_len(f->peer._mode));
     
     /* Always mesh route */
-    MEM_INSERT(buf, (uint16_t)*len, r);
+    buf = buf_insert(buf, (uint16_t)*len, r);
     if (!buf) {
         PICO_FREE(old);
         return NULL;
@@ -2895,45 +2929,6 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: PICO_DEV
-static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
-{
-    uint8_t *buf = NULL;
-    CHECK_PARAM_NULL(f);
-    if (!(buf = PICO_ZALLOC(f->size))) {
-        f->state = FRAME_ERROR;
-        return NULL;
-    }
-    memcpy(buf, f->phy_hdr, f->size);
-    *len = (uint8_t)f->size;
-    return buf;
-}
-
-static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len, struct pico_device *dev)
-{
-    struct pico_ieee_addr peer = IEEE_ADDR_ZERO, local = IEEE_ADDR_ZERO;
-    struct sixlowpan_frame *f = NULL;
-    struct ieee_hdr *link_hdr = NULL;
-    uint8_t link_hdr_len = 0;
-    uint16_t net_len = 0;
-    CHECK_PARAM_NULL(buf);
-    
-    link_hdr = (struct ieee_hdr *)(buf + IEEE_LEN_LEN);
-    link_hdr_len = ieee_hdr_buf_len(link_hdr);
-    local = pico_ieee_addr_from_hdr(link_hdr, 0);
-    peer = pico_ieee_addr_from_hdr(link_hdr, 1);
-    
-    /* Provide space for the sixlowpan_frame */
-    net_len = (uint16_t)((uint16_t)(len - IEEE_PHY_OVERHEAD) + 1 - link_hdr_len);
-    if (!(f = sixlowpan_frame_create(local, peer, net_len, 0, 0, dev)))
-        return NULL;
-    
-    /* Copy in payload */
-    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len - IEEE_PHY_OVERHEAD + 1);
-
-    f->state = FRAME_COMPRESSED;
-    return f;
-}
-
 static int sixlowpan_send_exit(int ret)
 {
     sixlowpan_state = SIXLOWPAN_READY;
@@ -3239,10 +3234,12 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
         return NULL;
     
-    /* Generate pico_ieee_addr for the pico_device */
+    /* Generate pico_ieee_addr for the pico_device, extended address by default */
     radio->get_addr_ext(radio, slp._ext.addr);
-    slp._short.addr = radio->get_addr_short(radio);
     slp._mode = IEEE_AM_EXTENDED;
+    
+    /* Get the short address if the device already has one */
+    slp._short.addr = radio->get_addr_short(radio);
     if (IEEE_ADDR_BCAST_SHORT != slp._short.addr)
         slp._mode = IEEE_AM_BOTH;
     

@@ -916,7 +916,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     case PICO_PROTO_ICMP6:
     {
         icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-        if (icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL || icmp6_hdr->type == PICO_ICMP6_NEIGH_ADV)
+        if (icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL || icmp6_hdr->type == PICO_ICMP6_NEIGH_ADV || icmp6_hdr->type == PICO_ICMP6_ROUTER_SOL || icmp6_hdr->type == PICO_ICMP6_ROUTER_ADV)
             hdr->hop = 255;
 
         if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL)

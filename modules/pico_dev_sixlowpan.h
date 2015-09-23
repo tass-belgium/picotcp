@@ -4,12 +4,18 @@
  
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
-#ifndef INCLUDE_PICO_SIXLOWPAN
-#define INCLUDE_PICO_SIXLOWPAN
 
 /* picoTCP includes */
 #include "pico_device.h"
 #include "pico_config.h"
+
+#ifndef INCLUDE_PICO_SIXLOWPAN
+#define INCLUDE_PICO_SIXLOWPAN
+
+// ADDRESS DEFINITIONS (IEEE802.15.4)
+#define IEEE_ADDR_BCAST_SHORT       (0xFFFFu)
+#define IEEE_ADDR_BCAST             {{0xFFFF}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_SHORT}
+#define IEEE_ADDR_ZERO              {{0x0000}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_NONE}
 
 // SIZE DEFINITIONS (IEEE802.15.4)
 #define IEEE_PHY_MTU                (128u)

@@ -396,7 +396,8 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
 #ifdef PICO_SUPPORT_SIXLOWPAN
-        if (LL_MODE_SIXLOWPAN == dev->mode && IEEE_AM_EXTENDED == ((struct pico_ieee_addr *)dev->eth)->_mode) {
+        /* Always send router sollicitations for 6LoWPAN with Extended link-layer address (EUI-64) */
+        if (LL_MODE_SIXLOWPAN == dev->mode) {
             len = (uint16_t)(len + 8);
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
@@ -426,16 +427,9 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 #ifdef PICO_SUPPORT_SIXLOWPAN
         else if (LL_MODE_SIXLOWPAN == dev->mode) {
             slp = (struct pico_ieee_addr *)dev->eth;
-            if (IEEE_AM_BOTH == slp->_mode ||
-                IEEE_AM_SHORT == slp->_mode) {
-                lladdr->len = 1;
-                memcpy(&(lladdr->addr._short.addr), &(slp->_short.addr), PICO_SIZE_IEEE_SHORT);
-                memset(&(lladdr->addr._short.addr) + PICO_SIZE_IEEE_SHORT, 0x00, 4);
-            } else {
-                lladdr->len = 2;
-                memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
-                memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
-            }
+            lladdr->len = 2;
+            memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
+            memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
         else {
@@ -453,19 +447,44 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 #define PICO_RADV_VAL_LIFETIME (long_be(86400))
 #define PICO_RADV_PREF_LIFETIME (long_be(14400))
 
+static struct pico_ip6 pico_icmp6_address_to_prefix(struct pico_ip6 addr, struct pico_ip6 nm)
+{
+    struct pico_ip6 prefix;
+    uint8_t i = 0;
+    
+    for (i = 0; i < PICO_SIZE_IP6; i++) {
+        prefix.addr[i] = (uint8_t)(addr.addr[i] & nm.addr[i]);
+    }
+    
+    return prefix;
+}
+
 /* RFC 4861: sending router advertisements */
 int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *dst)
 {
     struct pico_frame *adv = NULL;
+    struct pico_ip6 prefix_addr = {{ 0x00 }};
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_icmp6_opt_lladdr *lladdr;
     struct pico_icmp6_opt_prefix *prefix;
+    struct pico_ipv6_link *global = NULL;
     uint16_t len = 0;
     struct pico_ip6 dst_mcast = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
     uint8_t *nxt_opt;
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    struct pico_ieee_addr *slp = NULL;
+    
+#endif
 
     len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    /* Always send router sollicitations for 6LoWPAN with Extended link-layer address (EUI-64) */
+    if (LL_MODE_SIXLOWPAN == dev->mode) {
+        len = (uint16_t)(len + 8);
+    }
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+    
     adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
     if (!adv) {
         pico_err = PICO_ERR_ENOMEM;
@@ -491,17 +510,44 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     prefix->onlink = 1;
     prefix->val_lifetime = PICO_RADV_VAL_LIFETIME;
     prefix->pref_lifetime = PICO_RADV_PREF_LIFETIME;
-    memcpy(&prefix->prefix, dst, sizeof(struct pico_ip6));
+    if (dev->mode != LL_MODE_SIXLOWPAN) {
+        memcpy(&prefix->prefix, dst, sizeof(struct pico_ip6));
+    } else {
+        /* Find the globally routable prefix of the router-interface */
+        if ((global = pico_ipv6_global_get(dev))) {
+            prefix_addr = pico_icmp6_address_to_prefix(global->address, global->netmask);
+            memcpy(&prefix->prefix, &prefix_addr, sizeof(struct pico_ip6));
+        }
+    }
 
     nxt_opt += (sizeof (struct pico_icmp6_opt_prefix));
     lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
     lladdr->type = PICO_ND_OPT_LLADDR_SRC;
-    lladdr->len = 1;
-    memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+    
+    if (!dev->mode && dev->eth) {
+        lladdr->len = 1;
+        memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+    }
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    else if (LL_MODE_SIXLOWPAN == dev->mode) {
+        slp = (struct pico_ieee_addr *)dev->eth;
+        lladdr->len = 2;
+        memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
+        memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
+    }
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+    else {
+        
+        return -1;
+    }
+    
     icmp6_hdr->crc = 0;
     icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(adv, NULL, &dst_mcast, PICO_PROTO_ICMP6, 0);
+    if (dev->mode != LL_MODE_SIXLOWPAN)
+        pico_ipv6_frame_push(adv, NULL, &dst_mcast, PICO_PROTO_ICMP6, 0);
+    else
+        pico_ipv6_frame_push(adv, NULL, dst, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 

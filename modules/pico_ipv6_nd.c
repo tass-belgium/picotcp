@@ -16,12 +16,14 @@
 #include "pico_eth.h"
 #include "pico_addressing.h"
 #include "pico_ipv6_nd.h"
+#include "pico_dev_sixlowpan.h"
 
 #ifdef PICO_SUPPORT_IPV6
 
+#define nd_dbg(...) do {} while(0)
+//#define nd_dbg dbg
 
-//#define nd_dbg(...) do {} while(0)
-#define nd_dbg dbg
+#define TENTATIVE_NCE_LIFETIME
 
 static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { };
 static uint8_t lbr = 0;
@@ -203,6 +205,36 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
     return pico_nd_get_neighbor(&addr, pico_nd_find_neighbor(&addr), dev);
 }
 
+static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt, int optlen, int len)
+{
+    uint8_t type = 0;
+    int found = 0;
+    
+    while (optlen > 0) {
+        type = ((struct pico_icmp6_opt_lladdr *)options)->type;
+        len = ((struct pico_icmp6_opt_lladdr *)options)->len;
+        optlen -= len << 3; /* len in units of 8 octets */
+        if (len <= 0)
+            return -1; /* malformed option. */
+        
+        if (type == expected_opt) {
+            if (found > 0)
+                return -1; /* malformed option: option is there twice. */
+            
+            memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, (size_t)(len << 3));
+            found++;
+        }
+        
+        if (optlen > 0) {
+            options += len << 3;
+        } else { /* parsing options: terminated. */
+            return found;
+        }
+    }
+    return found;
+    
+}
+
 static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
 {
     /* RFC 4861 $7.1.2 + $7.2.5.
@@ -211,40 +243,40 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
      *  * processed as normal. The only defined option that may appear is the
      *  * Target Link-Layer Address option.
      *  */
-    int optlen = 0;
-    uint8_t *option = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    int len;
-    uint8_t type;
-    int found = 0;
+    uint8_t *option = NULL;
+    int optlen = 0;
+    int len = 0;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
     if (optlen)
         option = icmp6_hdr->msg.info.neigh_adv.options;
 
-    while (optlen > 0) {
-        type = ((struct pico_icmp6_opt_lladdr *)option)->type;
-        len = ((struct pico_icmp6_opt_lladdr *)option)->len;
-        optlen -= len << 3; /* len in units of 8 octets */
-        if (len <= 0)
-            return -1; /* malformed option. */
+    return nd_options(option, opt, expected_opt, optlen, len);
+}
 
-        if (type == expected_opt) {
-            if (found > 0)
-                return -1; /* malformed option: option is there twice. */
-
-            memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, (size_t)(len << 3));
-            found++;
-        }
-
-        if (optlen > 0) {
-            option += len << 3;
-        } else { /* parsing options: terminated. */
-            return found;
-        }
-    }
-    return found;
+static int router_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
+{
+    /* RFC 4861 $6.1
+     *
+     *  The contents of any defined options that are not specified to be used
+     *  with Router Solicitation messages MUST be ignored and the packet
+     *  processed as normal.  The only defined option that may appear is the
+     *  Source Link-Layer Address option.
+     *
+     */
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    uint8_t *options = NULL;
+    int optlen = 0;
+    int len = 0;
+    
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
+    if (optlen)
+        options = icmp6_hdr->msg.info.router_sol.options;
+    
+    return nd_options(options, opt, expected_opt, optlen, len);
 }
 
 static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
@@ -664,9 +696,75 @@ static int neigh_adv_checks(struct pico_frame *f)
     return neigh_adv_validity_checks(f);
 }
 
+static int router_sol_validity_checks(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+    struct pico_icmp6_opt_lladdr opt = { 0 };
+    int sllao_present = 0;
+    
+    /* Step 2 validation */
+    if (f->transport_len < PICO_ICMP6HDR_ROUTER_SOL_SIZE_6LP)
+        return -1;
+    
+    /* RFC4861, 6.1.1:
+     *
+     * - If the IP source address is the unspecified address, there is no
+     *   source link-layer address option in the message.
+     *
+     */
+    /* Check for SLLAO if the IP source address is UNSPECIFIED */
+    sllao_present = router_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
+    if (pico_ipv6_is_unspecified(hdr->src.addr)) {
+        /* Frame is not valid when SLLAO is present if IP6-SRC is UNSPEC. */
+        if (sllao_present) {
+            return -1;
+        }
+    } else {
+        /* Frame is not valid when no SLLAO if present if there's a IP6-SRC */
+        if (sllao_present <= 0) {
+            return -1;
+        }
+    }
+    
+    return 0;
+}
+
+static int router_sol_checks(struct pico_frame *f)
+{
+    /* Step 1 validation */
+    if (icmp6_initial_checks(f) < 0)
+        return -1;
+    
+    return router_sol_validity_checks(f);
+}
+
+static int sixlowpan_router_sol_process(struct pico_frame *f)
+{
+    struct pico_ipv6_hdr *hdr = NULL;
+    
+    /* Determine if i'm a 6LBR, if i'm not, can't do anything with a router solicitation */
+    if (!f->dev->hostvars.routing)
+        return -1;
+    
+    dbg("6LBR: Processing router sollicitation...\n");
+    
+    /* Router solicitation message validation */
+    if (router_sol_checks(f) < 0)
+        return -1;
+    
+    /* Maybe create a tentative NCE? Nah.. will add an NCE later */
+    
+    /* Send a router advertisement via unicast to requesting host */
+    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    return pico_icmp6_router_advertisement(f->dev, &hdr->src);
+}
 
 static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
+    /* 6LoWPAN: reply on explicit router solicitations via unicast */
+    if (LL_MODE_SIXLOWPAN == f->dev->mode)
+        return sixlowpan_router_sol_process(f);
+    
     pico_ipv6_neighbor_from_unsolicited(f);
     /* Host only: router solicitation is discarded. */
     return 0;
@@ -911,9 +1009,12 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
         if (pico_ipv6_compare(&nm64, &rt->netmask) == 0) {
             pico_tree_foreach(devindex, &Device_tree) {
                 dev = devindex->keyValue;
-                /* Do not send periodic router advertisements when router is a 6LoWPAN-device OR there aren't 2 interfaces from and to the device can route */
-                if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link) && (dev != rt->link->dev) && (dev->mode != LL_MODE_SIXLOWPAN)) {
-                    pico_icmp6_router_advertisement(dev, &rt->dest);
+                /* Never send periodic RA's for a 6LoWPAN device */
+                if (dev->mode != LL_MODE_SIXLOWPAN) {
+                    /* Do not send periodic router advertisements when router is a 6LoWPAN-device OR there aren't 2 interfaces from and to the device can route */
+                    if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link) && (dev != rt->link->dev) && (dev->mode != LL_MODE_SIXLOWPAN)) {
+                        pico_icmp6_router_advertisement(dev, &rt->dest);
+                    }
                 }
             }
         }
