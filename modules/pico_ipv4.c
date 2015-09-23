@@ -364,7 +364,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
 static void pico_ipv4_process_finally_try_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    if ((pico_ipv4_is_broadcast(hdr->dst.addr))) {
+    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST)!= 0)) {
         /* don't forward broadcast frame, discard! */
         pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
@@ -1296,7 +1296,6 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
             pico_tree_delete(found->MCASTGroups, g);
             PICO_FREE(g);
         }
-        PICO_FREE(found->MCASTGroups);
     } while(0);
 #endif
 

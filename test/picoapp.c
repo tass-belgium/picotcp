@@ -450,8 +450,6 @@ int main(int argc, char **argv)
             macaddr[4] ^= (uint8_t)(getpid() >> 8);
             macaddr[5] ^= (uint8_t)(getpid() & 0xFF);
             dev = pico_vde_create(sock, name, macaddr);
-            free(sock);
-            free(name);
             NXT_MAC(macaddr);
             if (!dev) {
                 perror("Creating vde");
@@ -639,9 +637,6 @@ int main(int argc, char **argv)
                 fprintf(stderr, "Unknown application %s\n", name);
                 usage(argv[0]);
             }
-            /* free strdups */
-            if (name)
-                free(name);
         }
         break;
         }

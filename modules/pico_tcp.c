@@ -357,7 +357,7 @@ static int release_until(struct pico_tcp_queue *q, uint32_t seq)
         if (seq_result <= 0)
         {
             head = next_segment(q, cur);
-            tcp_dbg("Releasing %08x, len: %d\n", SEQN((struct pico_frame *)head), ((struct pico_frame *)head)->payload_len);
+            //tcp_dbg("Releasing %08x, len: %d\n", SEQN((struct pico_frame *)head), ((struct pico_frame *)head)->payload_len);
             pico_discard_segment(q, cur);
             ret++;
         } else {
@@ -1010,6 +1010,18 @@ static void pico_tcp_keepalive(pico_time now, void *arg)
     t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
 }
 
+static inline void rto_set(struct pico_socket_tcp *t, uint32_t rto)
+{
+    if (rto < PICO_TCP_RTO_MIN)
+        rto = PICO_TCP_RTO_MIN;
+
+    if (rto > PICO_TCP_RTO_MAX)
+        rto = PICO_TCP_RTO_MAX;
+
+    t->rto = rto;
+}
+
+
 struct pico_socket *pico_tcp_open(uint16_t family)
 {
     struct pico_socket_tcp *t = PICO_ZALLOC(sizeof(struct pico_socket_tcp));
@@ -1025,6 +1037,7 @@ struct pico_socket *pico_tcp_open(uint16_t family)
     t->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
     t->tcpq_hold.max_size = 2u * t->mss;
+    rto_set(t, PICO_TCP_RTO_MIN);
 
     /* Uncomment next line and disable Nagle by default */
     t->sock.opt_flags |= (1 << PICO_SOCKET_OPT_TCPNODELAY);
@@ -1146,7 +1159,7 @@ static void initconn_retry(pico_time when, void *arg)
                 pico_err = PICO_ERR_ECONNREFUSED;
                 t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
             }
-
+            pico_socket_del(&t->sock);
             return;
         }
 
@@ -1710,17 +1723,6 @@ static uint16_t time_diff(pico_time a, pico_time b)
         return (uint16_t)(b - a);
 }
 
-static inline void rto_set(struct pico_socket_tcp *t, uint32_t rto)
-{
-    if (rto < PICO_TCP_RTO_MIN)
-        rto = PICO_TCP_RTO_MIN;
-
-    if (rto > PICO_TCP_RTO_MAX)
-        rto = PICO_TCP_RTO_MAX;
-
-    t->rto = rto;
-}
-
 static void tcp_rtt(struct pico_socket_tcp *t, uint32_t rtt)
 {
 
@@ -2204,7 +2206,7 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 
     
     tcp_dbg("FIN_WAIT1: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
-    if (ACKN(f) == (t->snd_nxt - 1)) {
+    if (ACKN(f) == (t->snd_nxt - 1u)) {
         /* update TCP state */
         s->state &= 0x00FFU;
         s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT2;
@@ -2219,7 +2221,8 @@ static void tcp_deltcb(pico_time when, void *arg)
     IGNORE_PARAMETER(when);
 
     /* send RST if not yet in TIME_WAIT */
-    if (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT) {
+    if ( (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT)
+      && (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSING) ) {
         tcp_dbg("Called deltcb in state = %04x (sending reset!)\n", (t->sock).state);
         tcp_do_send_rst(&t->sock, long_be(t->snd_nxt));
     } else {
@@ -2351,6 +2354,7 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
     s->number_of_pending_conn++;
     new->sock.parent = s;
     new->sock.wakeup = s->wakeup;
+    rto_set(new, PICO_TCP_RTO_MIN);
     /* Initialize timestamp values */
     new->sock.state = PICO_SOCKET_STATE_BOUND | PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_RECV;
     pico_socket_add(&new->sock);
@@ -2754,7 +2758,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
     tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
     tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
-    tcp_dbg("[%lu] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: %08x ack: %08x flags: %02x t_len: %u, hdr: %u payload: %d\n", TCP_TIME, s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
+    tcp_dbg("[sam] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: %08x ack: %08x flags: %02x t_len: %u, hdr: %u payload: %d\n", s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
 
     /* This copy of the frame has the current socket as owner */
     f->sock = s;

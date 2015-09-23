@@ -27,7 +27,17 @@ function on_exit(){
 
 trap on_exit exit term
 
-./test/vde_sock_start_user.sh start
+if ! [ -x "$(command -v vde_switch)" ]; then
+	  echo 'VDE Switch is not installed.' >&2
+fi
+
+if [ ! -e test/vde_sock_start_user.sh ]; then
+   echo "VDE SOCK START FILE NOT FOUND. NO VDE SETUP. EXITING"
+   exit 1
+else
+   echo "VDE SOCK START SCRIPT STARTED."
+   ./test/vde_sock_start_user.sh start
+fi
 
 rm -f /tmp/pico-mem-report-*
 sleep 2
