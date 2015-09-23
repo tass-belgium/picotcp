@@ -2206,7 +2206,7 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
 
     
     tcp_dbg("FIN_WAIT1: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
-    if (ACKN(f) == (t->snd_nxt - 1)) {
+    if (ACKN(f) == (t->snd_nxt - 1u)) {
         /* update TCP state */
         s->state &= 0x00FFU;
         s->state |= PICO_SOCKET_STATE_TCP_FIN_WAIT2;
@@ -2221,7 +2221,8 @@ static void tcp_deltcb(pico_time when, void *arg)
     IGNORE_PARAMETER(when);
 
     /* send RST if not yet in TIME_WAIT */
-    if (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT) {
+    if ( (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_TIME_WAIT)
+      && (((t->sock).state & PICO_SOCKET_STATE_TCP) != PICO_SOCKET_STATE_TCP_CLOSING) ) {
         tcp_dbg("Called deltcb in state = %04x (sending reset!)\n", (t->sock).state);
         tcp_do_send_rst(&t->sock, long_be(t->snd_nxt));
     } else {
@@ -2575,6 +2576,12 @@ static void tcp_force_closed(struct pico_socket *s)
     (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
     (t->sock).state &= 0xFF00U;
     (t->sock).state |= PICO_SOCKET_STATE_CLOSED;
+    /* call EV_FIN wakeup before deleting */
+    if ((t->sock).wakeup)
+        (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
+
+    /* delete socket */
+    pico_socket_del(&t->sock);
 }
 
 static void tcp_wakeup_pending(struct pico_socket *s, uint16_t ev)
@@ -2609,7 +2616,6 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
                 tcp_force_closed(s);
                 pico_err = PICO_ERR_ECONNRESET;
                 tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
-                pico_socket_del(&t->sock);              /* delete socket */
                 tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
                 /*   pico_socket_del(s); */
             } else {
@@ -2617,7 +2623,6 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
                 tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
                 pico_err = PICO_ERR_ECONNRESET;
                 tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
-                pico_socket_del(&t->sock);              /* delete socket */
             }
         } else {                  /* not valid, ignore */
             tcp_dbg("TCP RST> IGNORE\n");

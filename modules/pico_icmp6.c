@@ -473,7 +473,6 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     uint8_t *nxt_opt;
 #ifdef PICO_SUPPORT_SIXLOWPAN
     struct pico_ieee_addr *slp = NULL;
-    
 #endif
 
     len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);

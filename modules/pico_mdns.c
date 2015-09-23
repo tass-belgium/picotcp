@@ -2959,12 +2959,11 @@ pico_mdns_gen_probe_auths( pico_mdns_rtree *records )
     struct pico_mdns_record *record = NULL;
 
     pico_tree_foreach(node, records) {
-        if ((record = node->keyValue)) {
+        if ((record = node->keyValue) && record->record) {
             /* Clear the cache flush bit for authority records in probes */
             PICO_MDNS_CLR_MSB_BE(record->record->rsuffix->rclass);
             /* Only the actual DNS records is required */
-            if (record->record)
-                pico_tree_insert(&nstree, record->record);
+            pico_tree_insert(&nstree, record->record);
         }
     }
 

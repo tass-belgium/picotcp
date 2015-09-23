@@ -585,6 +585,7 @@ START_TEST(tc_pap_process_in)
     memset(&ppp, 0, sizeof(ppp));
 
     /* Receive SUCCESS (RAA) */
+    ppp.auth = 0xc023;
     ppp_auth_ev = 0;
     hdr.code = PAP_AUTH_ACK;
     pap_process_in(&ppp, &hdr, sizeof(hdr));
@@ -604,6 +605,7 @@ START_TEST(tc_chap_process_in)
 
     /* Receive challenge (RAC) */
     ppp_auth_ev = 0;
+    ppp.auth = 0xc223;
     hdr.code = CHAP_CHALLENGE;
     chap_process_in(&ppp, &hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAC);
@@ -673,6 +675,7 @@ START_TEST(tc_ipcp_request_fill)
     uint8_t opts[5 * IPCP_ADDR_LEN];
     memset(&ppp, 0, sizeof(ppp));
 
+    ppp.ipcp_allowed_fields = 0xffff;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);

@@ -17,7 +17,7 @@
 #include "pico_device.h"
 #include "pico_tree.h"
 #include "pico_fragments.h"
-
+#include "pico_dev_sixlowpan.h"
 #ifdef PICO_SUPPORT_IPV6
 
 
@@ -784,12 +784,15 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
 {
     int proto = 0;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-
+    char ipstr[40] = {0};
+    
     IGNORE_PARAMETER(self);
     /* TODO: Check hop-by-hop hdr before forwarding */
-
+    
+    pico_ipv6_to_string(ipstr, hdr->dst.addr);
+    dbg("DST: %s\n", ipstr);
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
-        /* not local, try to forward. */
+        printf("Can't find link for this address\n");
         return pico_ipv6_forward(f);
     }
 
@@ -1226,8 +1229,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
 }
 #endif
 
-
-struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
+static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
 {
     struct pico_ipv6_link test = {
         0
@@ -1281,6 +1283,29 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
      *     the solicited-node multicast address corresponding to each of the IP
      *     addresses assigned to the interface. (RFC 4861 $7.2.1)
      */
+
+    pico_ipv6_to_string(ipstr, new->address.addr);
+    dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
+    return new;
+}
+
+struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
+{
+    struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
+    if (new) {
+        new->istentative = 0;
+    }
+    return new;
+}
+
+struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
+{
+    /* Try to add the basic link */
+    struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
+    if (!new)
+        return NULL;
+    
+    /* Apply DAD */
     new->dup_detect_retrans = PICO_IPV6_DEFAULT_DAD_RETRANS;
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
@@ -1288,9 +1313,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 #else
     new->istentative = 0;
 #endif
-
-    pico_ipv6_to_string(ipstr, new->address.addr);
-    dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
+    
     return new;
 }
 
@@ -1376,11 +1399,15 @@ struct pico_ipv6_link *pico_ipv6_link_get(struct pico_ip6 *address)
     test.address = *address;
 
     found = pico_tree_findKey(&IPV6Links, &test);
-    if (!found)
+    if (!found) {
+        printf("Link is not found\n");
         return NULL;
+    }
 
-    if (found->istentative)
+    if (found->istentative) {
+        printf("Link is tentative\n");
         return NULL;
+    }
 
     return found;
 }

@@ -930,7 +930,7 @@ static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
-static inline int sixlowpan_iid_is_derived_16(uint8_t in[8])
+inline int sixlowpan_iid_is_derived_16(uint8_t iid[8])
 {
     /*  IID formed from 16-bit [RFC4944]: 
      *
@@ -938,14 +938,14 @@ static inline int sixlowpan_iid_is_derived_16(uint8_t in[8])
      *  |  PAN |  PAN | 0x00 | 0xFF | 0xFE | 0x00 | xxxx | xxxx | 
      *  +------+------+------+------+------+------+------+------+
      */
-    return ((0x00 == in[2] && in[3] == 0xFF && in[4] == 0xFE && in[5] == 0x00) ? 1 : 0);
+    return ((0x00 == iid[2] && 0xFF == iid[3] && 0xFE == iid[4] && 0x00 == iid[5]) ? 1 : 0);
 }
 
 static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, uint8_t out[8])
 {
     CHECK_PARAM(out);
     memcpy(out, addr.addr, PICO_SIZE_IEEE_EXT);
-    out[0] = (uint8_t)(out[0] & (uint8_t)(~0x02)); /* Set the U/L to local */
+    out[0] = (uint8_t)(out[0] ^ (uint8_t)(0x02)); /* Toggle the U/L */
     return 0;
 }
 
@@ -3019,6 +3019,8 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_frame *f = (struct pico_frame *)buf;
     
+    PAN_DBG("Sending IPv6 frame over 6LoWPAN\n");
+    
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
@@ -3157,7 +3159,7 @@ void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
     memcpy(slp->prefix.addr, routable.addr, PICO_SIZE_IP6);
     
     /* Add a link with IPv6-address generated from EUI-64 address */
-    if (!(link = pico_ipv6_link_add(dev, routable, netmask)))
+    if (!(link = pico_ipv6_link_add_no_dad(dev, routable, netmask)))
         return;
     
     if (IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) {
@@ -3248,6 +3250,9 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     
     /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet by default */
     sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
+    
+    /* Disable  */
+    sixlowpan->dev.hostvars.disable_dad = 1;
     if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
         dbg("Device init failed.\n");
         return NULL;

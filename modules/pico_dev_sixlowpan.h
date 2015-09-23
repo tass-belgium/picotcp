@@ -4,13 +4,12 @@
  
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
+#ifndef INCLUDE_PICO_SIXLOWPAN
+#define INCLUDE_PICO_SIXLOWPAN
 
 /* picoTCP includes */
 #include "pico_device.h"
 #include "pico_config.h"
-
-#ifndef INCLUDE_PICO_SIXLOWPAN
-#define INCLUDE_PICO_SIXLOWPAN
 
 // ADDRESS DEFINITIONS (IEEE802.15.4)
 #define IEEE_ADDR_BCAST_SHORT       (0xFFFFu)
@@ -150,6 +149,8 @@ struct ieee_radio
  *  TODO: Examine if this can go
  */
 void pico_sixlowpan_transmitted(void);
+
+inline int sixlowpan_iid_is_derived_16(uint8_t iid[8]);
 
 /**
  *  Hardcode the prefix of the 6LoWPAN-device. Links with addresses derived from

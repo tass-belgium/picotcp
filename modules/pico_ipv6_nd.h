@@ -17,6 +17,7 @@ struct pico_nd_hostvars {
     pico_time basetime;
     pico_time reachabletime;
     pico_time retranstime;
+    uint8_t disable_dad;
 };
 
 void pico_ipv6_nd_init(void);
