@@ -14,7 +14,7 @@
 #include "pico_tree.h"
 
 #define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+//#define dns_dbg dbg
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \
@@ -943,7 +943,7 @@ pico_dns_record_create( const char *url,
                                       datalen);
 
     /* Check if everything succeeded */
-    if (!(record->rname) || ret || !(record->rdata)) {
+    if (!(record->rname) || ret) {
         pico_dns_record_delete((void **)&record);
         return NULL;
     }
@@ -974,6 +974,13 @@ pico_dns_record_decompress( struct pico_dns_record *record,
     return rname_original;
 }
 
+static int pico_tolower(int c)
+{
+    if ((c >= 'A')  && (c <= 'Z'))
+        c += 'a' - 'A';
+    return c;
+}
+
 /* MARK: ^ RESOURCE RECORD FUNCTIONS */
 /* MARK: v COMPARING */
 
@@ -996,6 +1003,8 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
 
     /* Check params */
     if (!a || !b) {
+        if (!a && !b)
+            return 0;
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -1007,7 +1016,7 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
 
     /* Iterate 'the smallest length' times */
     for (i = 0; i < slen; i++) {
-        if ((dif = (int)((int)(a[i]) - (int)(b[i]))))
+        if ((dif = (int)((int)pico_tolower(a[i]) - (int)pico_tolower(b[i]))))
             return dif;
     }
     /* Return difference of buffer lengths */
@@ -1033,7 +1042,7 @@ pico_dns_question_cmp( void *qa,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the qtypes */
@@ -1068,7 +1077,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* First, compare the rrtypes */
@@ -1101,7 +1110,7 @@ pico_dns_record_cmp( void *ra,
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1;
     }
 
     /* Compare type and name */
@@ -1228,7 +1237,7 @@ pico_dns_qtree_del_name( struct pico_tree *qtree,
     /* Iterate over tree and delete every node with given name */
     pico_tree_foreach_safe(node, qtree, next) {
         question = (struct pico_dns_question *)node->keyValue;
-        if ((question) && (strcmp(question->qname, name) == 0)) {
+        if ((question) && (strcasecmp(question->qname, name) == 0)) {
             question = pico_tree_delete(qtree, (void *)question);
             pico_dns_question_delete((void **)&question);
         }
@@ -1260,7 +1269,7 @@ pico_dns_qtree_find_name( struct pico_tree *qtree,
     /* Iterate over tree and compare names */
     pico_tree_foreach(node, qtree) {
         question = (struct pico_dns_question *)node->keyValue;
-        if ((question) && (strcmp(question->qname, name) == 0))
+        if ((question) && (strcasecmp(question->qname, name) == 0))
             return 1;
     }
 

@@ -10,24 +10,34 @@ function tftp_setup() {
 }
 
 function tftp_cleanup() {
-    echo CLEANUP
-    pwd;ls
-    killall -wq picoapp.elf
-    rm -rf $TFTP_WORK_DIR
-    if [ $1 ]; then
-        exit $1
-    fi
+	echo CLEANUP
+	pwd;ls
+	killall -wq picoapp.elf
+	rm -rf $TFTP_WORK_DIR
+	if [ $1 ]; then
+		exit $1
+	fi
 }
 
 function on_exit(){
-    killall -wq picoapp.elf 
-    killall -wq picoapp6.elf 
-    ./test/vde_sock_start_user.sh stop
+	killall -wq picoapp.elf 
+	killall -wq picoapp6.elf 
+	./test/vde_sock_start_user.sh stop
 }
 
 trap on_exit exit term
 
-./test/vde_sock_start_user.sh start
+if ! [ -x "$(command -v vde_switch)" ]; then
+      echo 'VDE Switch is not installed.' >&2
+fi
+
+if [ ! -e test/vde_sock_start_user.sh ]; then
+   echo "VDE SOCK START FILE NOT FOUND. NO VDE SETUP. EXITING"
+   exit 1
+else
+   echo "VDE SOCK START SCRIPT STARTED."
+   ./test/vde_sock_start_user.sh start
+fi
 
 rm -f /tmp/pico-mem-report-*
 sleep 2
@@ -36,9 +46,7 @@ killall -wq picoapp.elf
 killall -wq picoapp6.elf
 
 
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~ IPV6 tests! ~~~"
-echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+ 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -262,6 +270,15 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app mdns:hostbar.local:hostfoo.local:) &
 (./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app mdns:hostfoobar.local:nonexisting.local:) &
 sleep 10
+killall -w picoapp.elf
+
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ DNS_SD TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#register a service
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+sleep 30
 killall -w picoapp.elf
 
 sleep 1

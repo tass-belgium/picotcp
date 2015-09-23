@@ -6,8 +6,12 @@
 #include <pico_device.h>
 /*** START DHCP Client ***/
 #ifdef PICO_SUPPORT_DHCPC
+    
+/* This must stay global, its lifetime is the same as the dhcp negotiation */
+uint32_t dhcpclient_xid;
+
+
 static uint8_t dhcpclient_devices = 0;
-static uint32_t dhcpclient_xid = 0;
 
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
 {
@@ -29,25 +33,18 @@ void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
     }
 }
 
-void callback_dhcpclient(void __attribute__((unused)) *cli, int code)
+void callback_dhcpclient(void *arg, int code)
 {
     struct pico_ip4 address = ZERO_IP4, gateway = ZERO_IP4;
     char s_address[16] = { }, s_gateway[16] = { };
-    void *identifier = NULL;
 
     printf("DHCP client: callback happened with code %d!\n", code);
     if (code == PICO_DHCP_SUCCESS) {
-        identifier = pico_dhcp_get_identifier(dhcpclient_xid);
-        if (!identifier) {
-            printf("DHCP client: incorrect transaction ID %u\n", dhcpclient_xid);
-            return;
-        }
-
-        address = pico_dhcp_get_address(identifier);
-        gateway = pico_dhcp_get_gateway(identifier);
+        address = pico_dhcp_get_address(arg);
+        gateway = pico_dhcp_get_gateway(arg);
         pico_ipv4_to_string(s_address, address.addr);
         pico_ipv4_to_string(s_gateway, gateway.addr);
-        printf("DHCP client: got IP %s assigned with xid %u\n", s_address, dhcpclient_xid);
+        printf("DHCP client: got IP %s assigned with cli %p\n", s_address, arg);
 #ifdef PICO_SUPPORT_PING
         pico_icmp4_ping(s_gateway, 3, 1000, 5000, 32, ping_callback_dhcpclient);
         /* optional test to check routing when links get added and deleted */

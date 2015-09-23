@@ -7,9 +7,11 @@
 
 #include "pico_dns_sd.h"
 
+#ifdef PICO_SUPPORT_DNS_SD
+
 /* --- Debugging --- */
 #define dns_sd_dbg(...) do {} while(0)
-/* #define dns_sd_dbg dbg */
+//#define dns_sd_dbg dbg
 
 /* --- PROTOTYPES --- */
 key_value_pair_t *
@@ -144,6 +146,10 @@ pico_dns_sd_txt_record_create( const char *url,
     /* Determine the length of the string to fit in all pairs */
     uint16_t len = (uint16_t)(pico_dns_sd_kv_vector_strlen(&key_value_pairs) + 1u);
 
+    /* If kv-vector is empty don't bother to create a TXT record */
+    if (len <= 1)
+        return NULL;
+    
     /* Provide space for the txt buf */
     if (!(txt = (char *)PICO_ZALLOC(len))) {
         pico_err = PICO_ERR_ENOMEM;
@@ -179,8 +185,7 @@ pico_dns_sd_txt_record_create( const char *url,
             txt_i = (uint16_t) (txt_i + 1u + key_len);
         }
     }
-    record = pico_mdns_record_create(url, txt, (uint16_t)(len - 1u), PICO_DNS_TYPE_TXT,
-                                     ttl, flags);
+    record = pico_mdns_record_create(url, txt, (uint16_t)(len - 1u), PICO_DNS_TYPE_TXT, ttl, flags);
     PICO_FREE(txt);
 
     return record;
@@ -393,11 +398,9 @@ pico_dns_sd_register_service( const char *name,
     char *url = NULL;
 
     /* Try to create a service URL to create records with */
-    if (!(url = pico_dns_sd_create_service_url(name, type)) ||
-        !txt_data ||
-        !hostname) {
-        if (url) PICO_FREE(url);
-
+    if (!(url = pico_dns_sd_create_service_url(name, type)) || !txt_data || !hostname) {
+        if (url)
+            PICO_FREE(url);
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -405,27 +408,23 @@ pico_dns_sd_register_service( const char *name,
     dns_sd_dbg("\n>>>>>>>>>> Target: %s <<<<<<<<<<\n\n", hostname);
 
     /* Create the SRV record */
-    srv_record = pico_dns_sd_srv_record_create(url, 0, 0, port, hostname,
-                                               ttl, PICO_MDNS_RECORD_UNIQUE);
+    srv_record = pico_dns_sd_srv_record_create(url, 0, 0, port, hostname, ttl, PICO_MDNS_RECORD_UNIQUE);
     if (!srv_record) {
         PICO_FREE(url);
         return -1;
     }
 
     /* Create the TXT record */
-    txt_record = pico_dns_sd_txt_record_create(url, *txt_data, ttl,
-                                               PICO_MDNS_RECORD_UNIQUE);
+    txt_record = pico_dns_sd_txt_record_create(url, *txt_data, ttl, PICO_MDNS_RECORD_UNIQUE);
     PICO_FREE(url);
-    if (!txt_record) {
-        pico_mdns_record_delete((void **)&srv_record);
-        return -1;
-    }
 
     /* Erase the key-value pair vector, it's no longer needed */
     pico_dns_sd_kv_vector_erase(txt_data);
 
-    pico_tree_insert(&rtree, txt_record);
-    pico_tree_insert(&rtree, srv_record);
+    if (txt_record)
+        pico_tree_insert(&rtree, txt_record);
+    if (srv_record)
+        pico_tree_insert(&rtree, srv_record);
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
@@ -539,8 +538,11 @@ pico_dns_sd_kv_vector_erase( kv_vector *vector )
             return -1;
         }
     }
+    PICO_FREE(vector->pairs);
     vector->pairs = NULL;
     vector->count = 0;
 
     return 0;
 }
+
+#endif

@@ -483,7 +483,7 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
-    pico_timer_add(PICO_SOCKET_LINGER_TIMEOUT, socket_garbage_collect, s);
+    pico_timer_add((pico_time)10, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
@@ -1012,7 +1012,7 @@ static struct pico_remote_endpoint *pico_socket_set_info(struct pico_remote_endp
 
 static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 {
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
     f->frag = PICO_IPV4_DONTFRAG;
 #else
     (void)f;
@@ -1077,7 +1077,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s);
 
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
 static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int space, int hdr_offset)
 {
     frag_dbg("FRAG: first fragmented frame %p | len = %u offset = 0\n", f, f->payload_len);
@@ -1085,16 +1085,14 @@ static void pico_socket_xmit_first_fragment_setup(struct pico_frame *f, int spac
     f->transport_len = (uint16_t)(space);
     f->frag = PICO_IPV4_MOREFRAG;
     f->payload += hdr_offset;
-    f->payload_len = (uint16_t) space;
 }
 
 static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_offset, int total_payload_written, int len)
 {
     /* no transport header in fragmented IP */
     f->payload = f->transport_hdr;
-    f->payload_len = (uint16_t)(f->payload_len - hdr_offset);
     /* set offset in octets */
-    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u);
+    f->frag = (uint16_t)((total_payload_written + (uint16_t)hdr_offset) >> 3u); /* first fragment had a header offset */
     if (total_payload_written + f->payload_len < len) {
         frag_dbg("FRAG: intermediate fragmented frame %p | len = %u offset = %u\n", f, f->payload_len, short_be(f->frag));
         f->frag |= PICO_IPV4_MOREFRAG;
@@ -1105,33 +1103,39 @@ static void pico_socket_xmit_next_fragment_setup(struct pico_frame *f, int hdr_o
 }
 #endif
 
+/* Implies ep discarding! */
 static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, const int len,
                                       void *src, struct pico_remote_endpoint *ep, struct pico_msginfo *msginfo)
 {
     int space = pico_socket_xmit_avail_space(s);
     int hdr_offset = pico_socket_sendto_transport_offset(s);
     int total_payload_written = 0;
+    int retval = 0;
     struct pico_frame *f = NULL;
 
     if (space > len) {
-        return pico_socket_xmit_one(s, buf, len, src, ep, msginfo);
+        retval = pico_socket_xmit_one(s, buf, len, src, ep, msginfo);
+        pico_endpoint_free(ep);
+        return retval;
     }
 
 #ifdef PICO_SUPPORT_IPV6
     /* Can't fragment IPv6 */
     if (is_sock_ipv6(s)) {
-        return pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+        retval =  pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+        pico_endpoint_free(ep);
+        return retval;
     }
 
 #endif
 
-#ifdef PICO_SUPPORT_IPFRAG
+#ifdef PICO_SUPPORT_IPV4FRAG
     while(total_payload_written < len) {
         /* Always allocate the max space available: space + offset */
         if (len < space)
             space = len;
 
-        if (space > len - total_payload_written)
+        if (space > len - total_payload_written) /* update space for last fragment */
             space = len - total_payload_written;
 
         f = pico_socket_frame_alloc(s, (uint16_t)(space + hdr_offset));
@@ -1151,12 +1155,15 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
             }
         }
 
+        f->payload_len = (uint16_t) space;
         if (total_payload_written == 0) {
             /* First fragment: no payload written yet! */
             pico_socket_xmit_first_fragment_setup(f, space, hdr_offset);
+            space += hdr_offset; /* only first fragments contains transport header */
+            hdr_offset = 0;
         } else {
             /* Next fragment */
-            pico_socket_xmit_next_fragment_setup(f, hdr_offset, total_payload_written, len);
+            pico_socket_xmit_next_fragment_setup(f, pico_socket_sendto_transport_offset(s), total_payload_written, len);
         }
 
         memcpy(f->payload, (const uint8_t *)buf + total_payload_written, f->payload_len);
@@ -1179,7 +1186,9 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
     (void) f;
     (void) hdr_offset;
     (void) total_payload_written;
-    return pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+    retval = pico_socket_xmit_one(s, buf, space, src, ep, msginfo);
+    pico_endpoint_free(ep);
+    return retval;
 
 #endif
 }
@@ -1798,6 +1807,13 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
         return -1;
     }
 
+    /* unbound sockets can be deleted immediately */
+    if (!(s->state & PICO_SOCKET_STATE_BOUND))
+    {
+        socket_garbage_collect((pico_time)10, s);
+        return 0;
+    }
+
 #ifdef PICO_SUPPORT_UDP
     if (PROTO(s) == PICO_PROTO_UDP) {
         if ((mode & PICO_SHUT_RDWR) == PICO_SHUT_RDWR)
@@ -1814,9 +1830,10 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL | PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
             pico_tcp_notify_closing(s);
         }
-        else if (mode & PICO_SHUT_WR)
+        else if (mode & PICO_SHUT_WR) {
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
-        else if (mode & PICO_SHUT_RD)
+            pico_tcp_notify_closing(s);
+        } else if (mode & PICO_SHUT_RD)
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
 
     }
@@ -1942,13 +1959,6 @@ static int check_socket_sanity(struct pico_socket *s)
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
-
-    if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
-        /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
-            return -1;
-    }
-
     return 0;
 }
 #endif
@@ -1982,7 +1992,8 @@ static int pico_sockets_loop_udp(int loop_score)
             while (f && (loop_score > 0)) {
                 pico_proto_udp.push(&pico_proto_udp, f);
                 loop_score -= 1;
-                f = pico_dequeue(&s->q_out);
+                if (loop_score > 0) /* only dequeue if there is still loop_score, otherwise f might get lost */
+                    f = pico_dequeue(&s->q_out);
             }
         }
 

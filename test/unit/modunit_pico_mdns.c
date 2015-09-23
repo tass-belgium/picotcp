@@ -310,9 +310,9 @@ START_TEST(tc_mdns_cookie_cmp) /* MARK: mdns_cookie_cmp */
 END_TEST
 START_TEST(tc_mdns_suffix_to_uint16) /* MARK: mdns_suffix_to_uint16 */
 {
-    char url[10] = "(2)";
-    char url2[10] = "(10)";
-    char url3[10] = "(500000)";
+    char url[10] = "-2";
+    char url2[10] = "-10";
+    char url3[10] = "-500000";
     char *o = NULL, *c = NULL;
 
     printf("*********************** starting %s * \n", __func__);
@@ -531,20 +531,17 @@ START_TEST(tc_mdns_is_suffix_present) /* MARK: mdns_is_suffix_present */
     char name1[13] = {
         5, 'v', 'l', 'e', 'e', 's', 5, 'l', 'o', 'c', 'a', 'l', 0
     };
-    char name2[17] = {
-        9, 'v', 'l', 'e', 'e', 's', ' ', '(', '2', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+    char name2[16] = {
+        8, 'v', 'l', 'e', 'e', 's', ' ', '-', '2', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
-    char name6[17] = {
-        12, 'v', 'l', 'e', 'e', 's', ' ', '(', 'a', ')', '(', '2', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+    char name6[15] = {
+        10, 'v', 'l', 'e', 'e', 's', ' ', '-', 'a', '-', '2', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
-    char name7[18] = {
-        10, 'v', 'l', 'e', 'e', 's', ' ', '(', '9', 'a', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+    char name7[17] = {
+        9, 'v', 'l', 'e', 'e', 's', ' ', '-', '9', 'a', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
-    char name8[16] = {
-        8, 'v', 'l', 'e', 'e', 's', ' ', ' ', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
-    };
-    char name9[17] = {
-        8, 'v', 'l', 'e', 'e', 's', ' ', '(', '0', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+    char name9[16] = {
+        7, 'v', 'l', 'e', 'e', 's', ' ', '-', '0', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char *o_index = NULL;
     char *c_index = NULL;
@@ -576,13 +573,9 @@ START_TEST(tc_mdns_is_suffix_present) /* MARK: mdns_is_suffix_present */
     present = pico_mdns_is_suffix_present(name6, &o_index, &c_index);
     fail_unless(present,
                 "is_suffix_present failed with suffix!\n");
-    fail_unless((name6 + 10) == o_index && (name6 + 12) == c_index,
+    fail_unless((name6 + 9) == o_index && (name6 + 11) == c_index,
                 "is_suffix_present failed!\n");
     fail_unless(present == 2, "Suffix should be 2!\n");
-
-    present = pico_mdns_is_suffix_present(name8, &o_index, &c_index);
-    fail_unless(!present,
-                "is_suffix_present failed with wrong suffix!\n");
 
     present = pico_mdns_is_suffix_present(name9, &o_index, &c_index);
     fail_unless(!present,
@@ -622,60 +615,60 @@ START_TEST(tc_mdns_resolve_name_conflict) /* MARK: mdns_resolve_name_conflict */
         5, 'v', 'l', 'e', 'e', 's', 5, 'l', 'o', 'c', 'a', 'l', 0
     };
     char name2[17] = {
-        9, 'v', 'l', 'e', 'e', 's', ' ', '(', '2', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        7, 'v', 'l', 'e', 'e', 's', '-', '2',  5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char name3[18] = {
-        10, 'v', 'l', 'e', 'e', 's', ' ', '(', '1', '0', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        8, 'v', 'l', 'e', 'e', 's', '-', '1', '0', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char name4[17] = {
-        9, 'v', 'l', 'e', 'e', 's', ' ', '(', '9', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        7, 'v', 'l', 'e', 'e', 's', '-', '9', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char name5[16] = {
-        8, 'v', 'l', 'e', 'e', 's', ' ', '(', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        6, 'v', 'l', 'e', 'e', 's', '-', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char name6[17] = {
-        9, 'v', 'l', 'e', 'e', 's', ' ', '(', 'a', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        7, 'v', 'l', 'e', 'e', 's', '-', 'a', 5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char name7[18] = {
-        10, 'v', 'l', 'e', 'e', 's', ' ', '(', '9', 'a', ')', 5, 'l', 'o', 'c', 'a', 'l', '\0'
+        8, 'v', 'l', 'e', 'e', 's', '-', '9', 'a',  5, 'l', 'o', 'c', 'a', 'l', '\0'
     };
     char *ret = NULL;
 
     printf("*********************** starting %s * \n", __func__);
 
     ret = pico_mdns_resolve_name_conflict(name1);
-    fail_unless(0 == strcmp(ret, "\x9vlees (2)\5local"),
+    fail_unless(0 == strcmp(ret, "\x7vlees-2\5local"),
                 "mdns_conflict_resolve_name failed 'vlees.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name2);
-    fail_unless(0 == strcmp(ret, "\x9vlees (3)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees (2).local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\x7vlees-3\5local"),
+                "mdns_conflict_resolve_name failed 'vlees-2.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name3);
-    fail_unless(0 == strcmp(ret, "\xavlees (11)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees (10).local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\x8vlees-11\5local"),
+                "mdns_conflict_resolve_name failed 'vlees-10.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name4);
-    fail_unless(0 == strcmp(ret, "\xavlees (10)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees (9).local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\x8vlees-10\5local"),
+                "mdns_conflict_resolve_name failed 'vlees-9.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name5);
-    fail_unless(0 == strcmp(ret, "\xcvlees () (2)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees ().local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\x8vlees--2\5local"),
+                "mdns_conflict_resolve_name failed 'vlees--2.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name6);
-    fail_unless(0 == strcmp(ret, "\xdvlees (a) (2)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees (a) (2).local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\x9vlees-a-2\5local"),
+                "mdns_conflict_resolve_name failed 'vlees-a-2.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
     ret = pico_mdns_resolve_name_conflict(name7);
-    fail_unless(0 == strcmp(ret, "\xevlees (9a) (2)\5local"),
-                "mdns_conflict_resolve_name failed 'vlees (9a).local' to %s!\n",
+    fail_unless(0 == strcmp(ret, "\xavlees-9a-2\5local"),
+                "mdns_conflict_resolve_name failed 'vlees-9a-2.local' to %s!\n",
                 ret);
     PICO_FREE(ret);
 
@@ -1055,7 +1048,7 @@ START_TEST(tc_mdns_record_tree_find_name) /* MARK: mdns_record_find_name */
 
     add_records();
 
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local", 0);
     fail_unless(2 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 2 records here!\n");
     pico_tree_foreach(node, &hits) {
@@ -1067,7 +1060,7 @@ START_TEST(tc_mdns_record_tree_find_name) /* MARK: mdns_record_find_name */
     fail_unless(1 == found,
                 "mdns_record_tree_find_name returned records with other name!\n");
 
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3bar\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3bar\5local", 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1090,7 +1083,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
     add_records();
 
     /* Try to find the first A record */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_A);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1098,7 +1091,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
                 "mdns_record_tree_find_name returned record with other name!\n");
 
     /* Try to find the 2 PTR records */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_PTR);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local", PICO_DNS_TYPE_PTR, 0);
     pico_tree_foreach(node, &hits) {
         if ((record = node->keyValue)) {
             if (strcmp(record->record->rname, "\3foo\5local"))
@@ -1109,7 +1102,7 @@ START_TEST(tc_mdns_record_tree_find_name_type) /* MARK: mdns_record_find_name_ty
                 "mdns_record_tree_find_name returned records with other name!\n");
 
     /* Try to find the last A record */
-    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3bar\5local", PICO_DNS_TYPE_A);
+    hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3bar\5local", PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_firstNode(hits.root)->keyValue;
@@ -1166,11 +1159,11 @@ START_TEST(tc_mdns_record_tree_del_name) /* MARK: mdns_record_tree_del_name */
     ret = pico_mdns_rtree_del_name(&MyRecords, "\3foo\5local");
     fail_unless(0 == ret,
                 "mdns_record_tree_del_name failed!\n");
-    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local");
+    hits = pico_mdns_rtree_find_name(&MyRecords, "\3foo\5local", 0);
     fail_unless(0 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 3 records here!\n");
 
-    hits = pico_mdns_rtree_find_name( &MyRecords, "\3bar\5local");
+    hits = pico_mdns_rtree_find_name( &MyRecords, "\3bar\5local", 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name should find 1 record here!\n");
     record = pico_tree_first(&hits);
@@ -1197,14 +1190,14 @@ START_TEST(tc_mdns_record_tree_del_name_type) /* MARK: mdns_record_tree_del_name
 
     /* Try to find the 2 PTR records */
     hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local",
-                                          PICO_DNS_TYPE_PTR);
+                                          PICO_DNS_TYPE_PTR, 0);
     fail_unless(0 == pico_tree_count(&hits),
                 "mdns_record_tree_find_name_type returned PTR records!\n");
 
 
     /* Try to find the first A record */
     hits = pico_mdns_rtree_find_name_type(&MyRecords, "\3foo\5local",
-                                          PICO_DNS_TYPE_A);
+                                          PICO_DNS_TYPE_A, 0);
     fail_unless(1 == pico_tree_count(&hits),
                 "mdns_record_tree_del_name_type failed!\n");
 

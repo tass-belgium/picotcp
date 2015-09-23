@@ -61,6 +61,7 @@ void app_slaacv4(char *arg)
         }
     }
     dev = pico_get_device(sdev);
+    free(sdev);
     if(dev == NULL) {
         printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
         exit(255);

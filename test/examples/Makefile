@@ -1,5 +1,5 @@
 PREFIX?=../../build
-CFLAGS+=-I../../include/ -I../../modules -I../../build/include -I . -ggdb -m32
+CFLAGS+=-I../../include/ -I../../modules -I../../build/include -I . -ggdb
 
 
 $(PREFIX)/examples/%.o: %.c 

@@ -104,11 +104,6 @@ static struct server_t server;
 
 static struct pico_tftp_session *tftp_sessions = NULL;
 
-static inline int session_status_get(struct pico_tftp_session *session, int status)
-{
-    return session->status & status;
-}
-
 static inline void session_status_set(struct pico_tftp_session *session, int status)
 {
     session->status |= status;
@@ -432,7 +427,7 @@ static void tftp_send_req(struct pico_tftp_session *session, union pico_address 
 
     len = strlen(filename);
 
-    options_size = prepare_options_string(session, str_options, (opcode == PICO_TFTP_WRQ) ? session->file_size : 0);
+    options_size = prepare_options_string(session, str_options, (opcode == PICO_TFTP_WRQ) ? (session->file_size) : (0));
 
     options_pos = sizeof(struct pico_tftp_hdr) + OCTET_STRSIZ + len;
     buf = PICO_ZALLOC(options_pos + options_size);
@@ -507,7 +502,7 @@ static void tftp_send_error(struct pico_tftp_session *session, union pico_addres
         port = session->remote_port;
     }
 
-    eh = (struct pico_tftp_err_hdr *) (session ? session->tftp_block : server.tftp_block);
+    eh = (struct pico_tftp_err_hdr *) (session ? (session->tftp_block) : (server.tftp_block));
     eh->opcode = short_be(PICO_TFTP_ERROR);
     eh->error_code = short_be(errcode);
     if (len + 1 > maxlen)
@@ -867,7 +862,7 @@ static void tftp_message_received(struct pico_tftp_session *session, uint8_t *bl
         break;
     default:
         tftp_send_error(session, NULL, 0, TFTP_ERR_EILL, "Illegal opcode");
-    };
+    }
 }
 
 static void tftp_cb(uint16_t ev, struct pico_socket *s)
@@ -913,7 +908,7 @@ static int application_rx_cb(struct pico_tftp_session *session, uint16_t event, 
     switch (event) {
     case PICO_TFTP_EV_ERR_PEER:
     case PICO_TFTP_EV_ERR_LOCAL:
-        *flag = -event;
+        *flag = 0 - event;
         break;
     case PICO_TFTP_EV_OK:
         session->len = len;
@@ -931,7 +926,7 @@ static int application_tx_cb(struct pico_tftp_session *session, uint16_t event, 
     (void)block;
     (void)len;
 
-    *(int*)arg = ((event == PICO_TFTP_EV_OK) || (event == PICO_TFTP_EV_OPT)) ? 1 : -event;
+    *(int*)arg = ((event == PICO_TFTP_EV_OK) || (event == PICO_TFTP_EV_OPT)) ? (1) : (0 - event);
     return 0;
 }
 

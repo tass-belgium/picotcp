@@ -58,14 +58,20 @@ void del_note(struct note_t *note)
     struct note_t *prev;
 
     if (note == clipboard)
+    {
         clipboard = clipboard->next;
-    else {
+        if (note->filename)
+            free (note->filename);
+        PICO_FREE(note);
+    } else {
         for (prev = clipboard; prev->next; prev = prev->next)
             if (prev->next == note) {
                 prev->next = note->next;
+                if (note->filename)
+                    free (note->filename);
+                PICO_FREE(note);
                 break;
             }
-
     }
 }
 
@@ -338,49 +344,54 @@ struct command_t *parse_arguments_recursive(struct command_t *commands, char *ar
     char *address;
     static union pico_address remote_address;
     int ret;
+    struct command_t * new_cmd = NULL;
 
     if (!arg)
         return commands;
 
     next = cpy_arg(&operation, arg);
     switch (*operation) {
-    case 'S':
-    case 's':
-        filename = address = NULL;
-        break;
-    case 'T':
-    case 'R':
-    case 't':
-    case 'r':
-        if (!next) {
-            fprintf(stderr, "Incomplete client command %s (filename componet is missing)\n", arg);
+        case 'S':
+        case 's':
+            filename = address = NULL;
+            break;
+        case 'T':
+        case 'R':
+        case 't':
+        case 'r':
+            if (!next) {
+                fprintf(stderr, "Incomplete client command %s (filename componet is missing)\n", arg);
+                return NULL;
+            }
+
+            next = cpy_arg(&filename, next);
+            if (!next) {
+                fprintf(stderr, "Incomplete client command %s (address component is missing)\n", arg);
+                return NULL;
+            }
+
+            next = cpy_arg(&address, next);
+            if (!IPV6_MODE)
+                ret = pico_string_to_ipv4(address, &remote_address.ip4.addr);
+            else
+                ret = pico_string_to_ipv6(address, remote_address.ip6.addr);
+
+            if (ret < 0) {
+                fprintf(stderr, "Invalid IP address %s\n", address);
+                print_usage(2);
+            }
+            if (address)
+                free(address);
+
+            break;
+        default:
+            fprintf(stderr, "Invalid command %s\n", operation);
             return NULL;
-        }
-
-        next = cpy_arg(&filename, next);
-        if (!next) {
-            fprintf(stderr, "Incomplete client command %s (address component is missing)\n", arg);
-            return NULL;
-        }
-
-        next = cpy_arg(&address, next);
-        if (!IPV6_MODE)
-            ret = pico_string_to_ipv4(address, &remote_address.ip4.addr);
-        else
-            ret = pico_string_to_ipv6(address, remote_address.ip6.addr);
-
-        if (ret < 0) {
-            fprintf(stderr, "Invalid IP address %s\n", address);
-            print_usage(2);
-        }
-
-        break;
-    default:
-        fprintf(stderr, "Invalid command %s\n", operation);
-        return NULL;
     };
 
-    return parse_arguments_recursive(add_command(commands, *operation, filename, &remote_address), next);
+    new_cmd = add_command(commands, *operation, filename, &remote_address);
+    free(operation);
+    return parse_arguments_recursive(new_cmd, next);
 }
 
 struct command_t *parse_arguments(char *arg)
@@ -405,7 +416,7 @@ struct command_t *parse_arguments(char *arg)
 
 void app_tftp(char *arg)
 {
-    struct command_t *commands;
+    struct command_t *commands, *old_cmd;
     struct note_t *note;
     struct pico_tftp_session *session;
     int is_server_enabled = 0;
@@ -448,7 +459,12 @@ void app_tftp(char *arg)
         case 'r':
             start_rx(session, commands->filename, short_be(PICO_TFTP_PORT), cb_tftp_rx, note);
         }
+        old_cmd = commands;
         commands = commands->next;
+        if (old_cmd->filename)
+            free(old_cmd->filename);
+        /* commands are allocated using PICO_ZALLOC, so use PICO_FREE */
+        PICO_FREE(old_cmd);
     }
 }
 

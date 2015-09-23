@@ -239,6 +239,21 @@ void app_udpclient(char *arg)
            __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(udpclient_pas->sport));
 
     pico_timer_add(100, udpclient_send, NULL);
+
+    /* free strdups */
+    if (daddr)
+      free (daddr);
+    if (lport)
+      free (lport);
+    if (sport)
+      free (sport);
+    if (s_datasize)
+      free (s_datasize);
+    if (s_loops)
+      free (s_loops);
+    if (s_subloops)
+      free (s_subloops);
+
     return;
 
 out:

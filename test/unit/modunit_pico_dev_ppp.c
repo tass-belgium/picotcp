@@ -393,7 +393,7 @@ START_TEST(tc_ppp_modem_send_dial)
     ppp.serial_send = unit_serial_send;
     ppp_modem_send_dial(&ppp);
     fail_if(called_serial_send != 1);
-    fail_if(serial_out_len != 9);
+    fail_if(serial_out_len != 13);
 }
 END_TEST
 
@@ -473,7 +473,7 @@ START_TEST(tc_lcp_optflags)
     p[2] = 0x56;
     p[3] = 0x99;
     memset(&ppp, 0, sizeof(ppp));
-    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr)) != 0x08);
+    fail_if(lcp_optflags(&ppp, pkt, 4 + sizeof(struct pico_lcp_hdr), 1u) != 0x08);
     fail_if(ppp.auth != 0x5699);
 }
 END_TEST
@@ -581,8 +581,21 @@ START_TEST(tc_lcp_process_in)
 END_TEST
 START_TEST(tc_pap_process_in)
 {
-    /* TODO: test this: static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len) */
-    pap_process_in(NULL, NULL, 0);
+    struct pico_pap_hdr hdr;
+    memset(&ppp, 0, sizeof(ppp));
+
+    /* Receive SUCCESS (RAA) */
+    ppp.auth = 0xc023;
+    ppp_auth_ev = 0;
+    hdr.code = PAP_AUTH_ACK;
+    pap_process_in(&ppp, &hdr, sizeof(hdr));
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAA);
+
+    /* Receive FAILURE (RAN) */
+    ppp_auth_ev = 0;
+    hdr.code = PAP_AUTH_NAK;
+    pap_process_in(&ppp, &hdr, sizeof(hdr));
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN);
 }
 END_TEST
 START_TEST(tc_chap_process_in)
@@ -592,6 +605,7 @@ START_TEST(tc_chap_process_in)
 
     /* Receive challenge (RAC) */
     ppp_auth_ev = 0;
+    ppp.auth = 0xc223;
     hdr.code = CHAP_CHALLENGE;
     chap_process_in(&ppp, &hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAC);
@@ -661,6 +675,7 @@ START_TEST(tc_ipcp_request_fill)
     uint8_t opts[5 * IPCP_ADDR_LEN];
     memset(&ppp, 0, sizeof(ppp));
 
+    ppp.ipcp_allowed_fields = 0xffff;
     ipcp_request_fill(&ppp, opts);
     fail_if(opts[0] != IPCP_OPT_IP);
     fail_if(opts[6] != IPCP_OPT_DNS1);

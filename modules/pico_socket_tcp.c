@@ -76,6 +76,26 @@ int pico_setsockopt_tcp(struct pico_socket *s, int option, void *value)
         pico_tcp_set_bufsize_out(s, *val);
         return 0;
     }
+    else if (option == PICO_SOCKET_OPT_KEEPCNT) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_keepalive_probes(s, *val);
+        return 0;
+    }
+    else if (option == PICO_SOCKET_OPT_KEEPIDLE) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_keepalive_time(s, *val);
+        return 0;
+    }
+    else if (option == PICO_SOCKET_OPT_KEEPINTVL) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_keepalive_intvl(s, *val);
+        return 0;
+    }
+    else if (option == PICO_SOCKET_OPT_LINGER) {
+        uint32_t *val = (uint32_t*)value;
+        pico_tcp_set_linger(s, *val);
+        return 0;
+    }
 
 #endif
     pico_err = PICO_ERR_EINVAL;
