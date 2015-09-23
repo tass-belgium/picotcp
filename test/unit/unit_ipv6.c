@@ -333,8 +333,8 @@ START_TEST (test_mld_sockopts)
     union pico_address inaddr_link[2] = {{0}};
     union pico_address inaddr_mcast[8] = {{0}};
     union pico_address inaddr_source[8] = {{0}};
-    union pico_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
-    union pico_mreq_source mreq_source[128] = {{{0}}};
+    struct pico_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
+    struct pico_mreq_source mreq_source[128] = {{{0}}};
     struct pico_tree_node *index = NULL;
 
     int ttl = 64;
@@ -377,16 +377,16 @@ START_TEST (test_mld_sockopts)
 
     /* 00 01 02 03 04 05 06 07 | 10 11 12 13 14 15 16 17 */
     for (i = 0; i < 16; i++) {
-        memcpy(&mreq[i].ipv6.mcast_link_addr, &inaddr_link[i / 8], sizeof(struct pico_ip6));
-        memcpy(&mreq[i].ipv6.mcast_group_addr, &inaddr_mcast[i % 8], sizeof(struct pico_ip6));
+        mreq[i].mcast_link_addr= inaddr_link[i / 8];
+        mreq[i].mcast_group_addr= inaddr_mcast[i % 8];
     }
     /* 000 001 002 003 004 005 006 007 | 010 011 012 013 014 015 016 017  */
     for (i = 0; i < 16; i++) {
         for (j = 0; j < 8; j++) {
             /* printf(">>>>> mreq_source[%d]: link[%d] mcast[%d] source[%d]\n", (i*8)+j, i/8, i%8, j); */
-            memcpy(&mreq_source[(i * 8) + j].ipv6.mcast_link_addr, &inaddr_link[i / 8], sizeof(struct pico_ip6));
-            memcpy(&mreq_source[(i * 8) + j].ipv6.mcast_group_addr, &inaddr_mcast[i % 8], sizeof(struct pico_ip6));
-            memcpy(&mreq_source[(i * 8) + j].ipv6.mcast_source_addr, &inaddr_source[j], sizeof(struct pico_ip6));
+            mreq_source[(i * 8) + j].mcast_link_addr = inaddr_link[i / 8];
+            mreq_source[(i * 8) + j].mcast_group_addr= inaddr_mcast[i % 8];
+            mreq_source[(i * 8) + j].mcast_source_addr= inaddr_source[j];
         }
     }
 
@@ -402,6 +402,8 @@ START_TEST (test_mld_sockopts)
     fail_if(s == NULL, "UDP socket open failed");
     s1 = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, NULL);
     fail_if(s1 == NULL, "UDP socket open failed");
+
+
     /* argument validation tests */
     printf("MLD SETOPTION ARGUMENT VALIDATION TEST\n");
     ret = pico_socket_setoption(s, PICO_IP_MULTICAST_IF, &mcast_default_link);
@@ -423,47 +425,46 @@ START_TEST (test_mld_sockopts)
     ret = pico_socket_getoption(s, PICO_IP_MULTICAST_LOOP, &getloop);
     fail_if(ret < 0, "supported PICO_IP_MULTICAST_LOOP failed getting value\n");
     fail_if(getloop != loop, "setoption loop != getoption loop\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "supported PICO_IP_ADD_MEMBERSHIP failed\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "supported PICO_IP_DROP_MEMBERSHIP failed\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr ,&inaddr_dst.ip6 , sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr  ,&inaddr_null.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr ,&inaddr_dst.ip6 , sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr  ,&inaddr_null.ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed with valid NULL (use default) link address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_null.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_null.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_ADD_MEMBERSHIP succeeded with invalid link address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_incorrect.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_incorrect.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (not added) group address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) group address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_null.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_null.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_link[0].ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (NULL) group address\n");
-    memcpy(&_mreq.ipv6.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
-    memcpy(&_mreq.ipv6.mcast_link_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_uni.ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret == 0, "PICO_IP_DROP_MEMBERSHIP succeeded with invalid (unicast) link address\n");
-
     /* flow validation tests */
     printf("MLD SETOPTION FLOW VALIDATION TEST\n");
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &mreq[0]);
@@ -572,6 +573,7 @@ START_TEST (test_mld_sockopts)
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &mreq[0]);
     fail_if(ret < 0, "PICO_IP_DROP_MEMBERSHIP failed\n");
     /* stress tests */
+
     printf("MLD SETOPTION STRESS TEST\n");
     for (k = 0; k < 2; k++) {
         /* ADD for even combinations of group and link, ADD_SOURCE for uneven */
@@ -584,9 +586,7 @@ START_TEST (test_mld_sockopts)
                     fail_if(ret < 0, "PICO_IP_BLOCK_SOURCE failed\n");
                 }
             } else {
-                char tt[70];
                 for (j = 0; j < 8; j++) {
-                    pico_ipv6_to_string(tt, &mreq_source[(i*8)+j]);
                     ret = pico_socket_setoption(s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source[(i * 8) + j]);
                     fail_if(ret < 0, "PICO_IP_ADD_SOURCE_MEMBERSHIP failed\n");
                 }
@@ -628,9 +628,9 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (INCLUDE + INCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6,&mreq_source[0].ipv6.mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
+        if (memcmp(&source->ip6,&mreq_source[0].mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
         }
-        else if (memcmp(&source->ip6, &mreq_source[1].ipv6.mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
+        else if (memcmp(&source->ip6, &mreq_source[1].mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + INCLUDE) incorrect\n");
@@ -661,7 +661,7 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (INCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6, &mreq_source[2].ipv6.mcast_source_addr,sizeof(struct pico_ip6)) == 0) { /* OK */
+        if (memcmp(&source->ip6, &mreq_source[2].mcast_source_addr,sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + EXCLUDE) incorrect\n");
@@ -695,9 +695,9 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (EXCLUDE + INCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6, &mreq_source[0].ipv6.mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
+        if (memcmp(&source->ip6, &mreq_source[0].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
-        else if (memcmp(&source->ip6, &mreq_source[1].ipv6.mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
+        else if (memcmp(&source->ip6, &mreq_source[1].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (EXCLUDE + INCLUDE) incorrect\n");
@@ -736,9 +736,9 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (EXCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6,&mreq_source[3].ipv6.mcast_source_addr, sizeof(struct pico_ip6)==0)) { /* OK */
+        if (memcmp(&source->ip6,&mreq_source[3].mcast_source_addr, sizeof(struct pico_ip6)==0)) { /* OK */
         }
-        else if (memcmp(&source->ip6,&mreq_source[4].ipv6.mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
+        else if (memcmp(&source->ip6,&mreq_source[4].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (EXCLUDE + EXCLUDE) incorrect\n");

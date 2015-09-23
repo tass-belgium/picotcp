@@ -648,7 +648,6 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p) {
         }
         if (p->event == MLD_EVENT_QUERY_RECV) 
             goto mld2_report;
-
         /* cleanup filters */
         pico_tree_foreach_safe(index, &MLDAllow, _tmp)
         {
@@ -799,6 +798,7 @@ static int8_t pico_mld_generate_report(struct mld_parameters *p) {
                 pico_err = PICO_ERR_EINVAL;
                 return -1;
             }
+            break;
         default:
             pico_err = PICO_ERR_EINVAL;
             return -1;
@@ -847,6 +847,7 @@ mld2_report:
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     return 0;
 }
 /* stop timer, send done if flag set */
@@ -854,6 +855,12 @@ static int mld_stsdifs(struct mld_parameters *p) {
     struct mld_timer t = {
         0
     };
+    struct pico_ipv6_link *link = NULL;
+    struct pico_frame *copy_frame = NULL;
+    link = pico_ipv6_link_get(&p->mcast_link);
+    if (!link)
+        return -1;
+
     mld_dbg("MLD: event = stop listening | action = stop timer, send done if flag set\n");
 
     t.type = MLD_TIMER_GROUP_REPORT;
@@ -861,10 +868,26 @@ static int mld_stsdifs(struct mld_parameters *p) {
     t.mcast_group = p->mcast_group;
     if (pico_mld_timer_stop(&t) < 0)
         return -1;
-
-    /* Send done if flag is set */
-    if (pico_mld_flag && pico_mld_send_done(p, p->f) < 0)
-        return -1;
+    switch(link->mcast_compatibility){
+        case PICO_MLDV2:
+            if (pico_mld_generate_report(p) < 0) {
+                return -1;
+            }
+            copy_frame = pico_frame_copy(p->f);
+            if (!copy_frame) {
+                pico_err = PICO_ERR_ENOMEM;
+                return -1;
+            }
+            if (pico_mld_send_report(p, copy_frame) < 0) {
+                return -1;
+            }
+            break;
+        case PICO_MLDV1:            
+            /* Send done if flag is set */
+            if (pico_mld_flag && pico_mld_send_done(p, p->f) < 0)
+                return -1;
+            break;
+    }
 
     pico_mld_delete_parameter(p);
     mld_dbg("MLD: new state = Non-Listener\n");
@@ -892,7 +915,7 @@ static int mld_srsfst(struct mld_parameters *p) {
     if (pico_mld_send_report(p, copy_frame) < 0)
         return -1;
 
-    t.type = MLD_TIMER_V1_QUERIER;
+    t.type = MLD_TIMER_GROUP_REPORT;
     t.mcast_link = p->mcast_link;
     t.mcast_group = p->mcast_group;
  
@@ -964,7 +987,6 @@ static int mld_mrsrrt(struct mld_parameters *p) {
     struct mld_timer *t = NULL;
     struct pico_frame *copy_frame = NULL;
     struct pico_ipv6_link *link = NULL;
-
     mld_dbg("MLD: event = update group | action = merge report, send report, reset timer (MLDv2 only)\n");
 
     link = pico_ipv6_link_get(&p->mcast_link);

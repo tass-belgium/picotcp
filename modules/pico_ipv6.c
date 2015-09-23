@@ -982,7 +982,7 @@ static int mcast_group_update_ipv6(struct pico_ipv6_mcast_group *g, struct pico_
                     return -1;
                 }
 
-                source = ((struct pico_ip6 *)index->keyValue);
+                *source = *((struct pico_ip6 *)index->keyValue);
                 pico_tree_insert(&g->MCASTSources, source);
             }
         }
@@ -1031,7 +1031,6 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         dbg("Error in mcast_group update\n");
         return -1;
     }
-
     pico_ipv6_mcast_print_groups(link);
     return res;
 }

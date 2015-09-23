@@ -8,7 +8,7 @@
 #include "pico_udp.h"
 
 #ifdef PICO_SUPPORT_MCAST
-# define so_mcast_dbg(...) do { } while(0); /* ip_mcast_dbg in pico_ipv4.c */
+# define so_mcast_dbg(...) do{ }while(0); /* ip_mcast_dbg in pico_ipv4.c */
 /* #define so_mcast_dbg dbg */
 
 /*                       socket
@@ -148,7 +148,6 @@ static struct pico_mcast_listen *listen_find(struct pico_socket *s, union pico_a
     struct pico_mcast_listen ltest = {
         0
     };
-    struct pico_mcast_listen *p = NULL;
     ltest.mcast_link = *lnk;
     ltest.mcast_group = *grp;
 
@@ -156,14 +155,9 @@ static struct pico_mcast_listen *listen_find(struct pico_socket *s, union pico_a
         return pico_tree_findKey(s->MCASTListen, &ltest);
     else if(IS_SOCK_IPV6(s) ) {
         ltest.proto = PICO_PROTO_IPV6;
-        p = pico_tree_findKey(s->MCASTListen_ipv6, &ltest);
-        /*UGLY*/
-        if(!p) {
-            ltest.proto = 0;
-            p = pico_tree_findKey(s->MCASTListen_ipv6, &ltest);
-        }
+        return pico_tree_findKey(s->MCASTListen_ipv6, &ltest);
     }
-    return p;
+    return NULL;
 }
 
 static uint8_t pico_mcast_filter_excl_excl(struct pico_mcast_listen *listen)
@@ -215,7 +209,6 @@ static uint8_t pico_mcast_filter_excl_incl(struct pico_mcast_listen *listen)
                 pico_tree_delete(&MCASTFilter_ipv6, source);
         }
     }
-
     return PICO_IP_MULTICAST_EXCLUDE;
 }
 
@@ -269,6 +262,7 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
     /* mode stays INCLUDE, add all sources to filter */
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     union pico_address *source = NULL;
+    
     if( !pico_tree_empty(&listen->MCASTSources)) {
         pico_tree_foreach_safe(index, &listen->MCASTSources, _tmp)
         {
@@ -340,7 +334,6 @@ static int pico_socket_aggregate_mcastfilters(union pico_address *mcast_link, un
             pico_tree_delete(&MCASTFilter_ipv6, index->keyValue);
         }
     }
-
     /* construct new filter */
     pico_tree_foreach_safe(index, &MCASTSockets, _tmp)
     {
@@ -874,6 +867,7 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
         } else if( IS_SOCK_IPV6(s)) {
             listen->MCASTSources_ipv6.root = &LEAF;
             listen->MCASTSources_ipv6.compare = mcast_sources_cmp_ipv6;
+            listen->proto = PICO_PROTO_IPV6;
             pico_tree_insert(s->MCASTListen_ipv6, listen);
         }
     }
@@ -1107,12 +1101,11 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
-
         stest = *mcast_source_addr;
         if( IS_SOCK_IPV4(s))
             source = pico_tree_findKey(&listen->MCASTSources, &stest);
-        else if( IS_SOCK_IPV6(s))
-            source = pico_tree_findKey(&listen->MCASTSources_ipv6, &stest);
+        else if( IS_SOCK_IPV6(s)) 
+              source = pico_tree_findKey(&listen->MCASTSources_ipv6, &stest);
         if (source) {
             so_mcast_dbg("pico_socket_setoption: ERROR source address to allow already in source list\n");
             pico_err = PICO_ERR_ENOMEM;
@@ -1136,7 +1129,6 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
-
         listen->filter_mode = PICO_IP_MULTICAST_INCLUDE;
         listen->mcast_link = *mcast_link_addr;
         listen->mcast_group = *mcast_group_addr;
@@ -1161,11 +1153,11 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
         }
         else if( IS_SOCK_IPV6(s)) {
             pico_tree_insert(&listen->MCASTSources_ipv6, source);
+            listen->proto = PICO_PROTO_IPV6;
             pico_tree_insert(s->MCASTListen_ipv6, listen);
         }
         reference_count = 1;
     }
-
     pico_tree_insert(&MCASTSockets, s);
     filter_mode = pico_socket_aggregate_mcastfilters(address, mcast_group_addr);
     if (filter_mode < 0)
