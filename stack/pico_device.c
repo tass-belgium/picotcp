@@ -52,15 +52,68 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 
+static struct pico_ip6 pico_ipv6_address_to_network(const struct pico_ip6 address, const struct pico_ip6 netmask)
+{
+    struct pico_ip6 network = {{ 0 }};
+    uint8_t i = 0;
+    
+    for (i = 0; i < PICO_SIZE_IP6; i++) {
+        /* And address with netmask to get network */
+        network.addr[i] = address.addr[i] & netmask.addr[i];
+    }
+    
+    return network;
+}
+
+struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, const struct pico_ip6 prefix)
+{
+    struct pico_ip6 nm64 = {{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+    struct pico_ieee_addr *ieee = NULL;
+    struct pico_ipv6_link *new = NULL;
+    struct pico_ip6 addr = {{ 0 }};
+    
+    /* First copy the prefix into the new address */
+    addr = pico_ipv6_address_to_network(prefix, nm64);
+    
+    /* Parse in the IEEE802.15.4-addresses from the pico-devices */
+    ieee = (struct pico_ieee_addr *)dev->eth;
+    
+    /* First of all, generate a address derived from the EUI-64 */
+    memcpy(addr.addr + 8, ieee->_ext.addr, PICO_SIZE_IEEE_EXT);
+    addr.addr[8] = addr.addr[8] ^ 0x02; /* Toggle U/L bit */
+    
+    /* But, no DAD should be performed when local IPv6 address is derived from EUI-64, it's unique */
+    new = pico_ipv6_link_add_no_dad(dev, addr, nm64);
+    
+    /* If the device possibly has a 16-bit short address, add link with address from 16-bit short */
+    if (IEEE_AM_BOTH == ieee->_mode && IEEE_ADDR_BCAST_SHORT != ieee->_short.addr) {
+        /* Form the address from the 16-bit short address */
+        memset(addr.addr + 8, 0, PICO_SIZE_IEEE_EXT); /* Clear out IID */
+        addr.addr[11] = 0xFF;
+        addr.addr[12] = 0xFE;
+        addr.addr[14] = (uint8_t)short_be(ieee->_short.addr);
+        addr.addr[15] = (uint8_t)(short_be(ieee->_short.addr) >> 8);
+        
+        /* Add the link with DAD */
+        if (!pico_ipv6_link_add(dev, addr, nm64))
+            return NULL;
+    }
+    
+    return new;
+}
+
 struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
 {
     struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-    struct pico_ieee_addr *addr = NULL;
     struct pico_ipv6_link *link;
     struct pico_ip6 newaddr;
     
-    memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-    if (LL_MODE_ETHERNET == dev->mode) {
+    if (LL_MODE_SIXLOWPAN == dev->mode) {
+        /* Add Link Local-interfaces for a 6LoWPAN device */
+        link = pico_ipv6_link_add_sixlowpan(dev, *prefix);
+    } else {
+        memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
         /* modified EUI-64 + invert universal/local bit */
         newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
         newaddr.addr[9] = dev->eth->mac.addr[1];
@@ -70,30 +123,9 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
         newaddr.addr[13] = dev->eth->mac.addr[3];
         newaddr.addr[14] = dev->eth->mac.addr[4];
         newaddr.addr[15] = dev->eth->mac.addr[5];
-        link = pico_ipv6_link_add(dev, newaddr, netmask64);
-        if (link) {
+        if ((link = pico_ipv6_link_add(dev, newaddr, netmask64))) {
             device_init_ipv6_final(dev, &newaddr);
         }
-    } else if (LL_MODE_SIXLOWPAN == dev->mode) {
-        /* Be sure to to configure a routable address from the EUI-64 */
-        addr = (struct pico_ieee_addr *)dev->eth;
-        memcpy(newaddr.addr + 8, addr->_ext.addr, PICO_SIZE_IEEE_EXT);
-        newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
-        
-        /* No DAD should be performed when local IPv6 address is derived from EUI-64 */
-        link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64);
-        
-        /* If the device has a short-16 as well, configure a routable with it */
-        if (addr->_short.addr != 0xFFFF) {
-            memset(newaddr.addr + 8, 0x00, 8);
-            newaddr.addr[11] = 0xFF;
-            newaddr.addr[12] = 0xFE;
-            newaddr.addr[14] = (uint8_t)((addr->_short.addr >> 8) & 0xFF);
-            newaddr.addr[15] = (uint8_t)(addr->_short.addr & 0xFF);
-            if (pico_ipv6_link_add(dev, newaddr, netmask64) == NULL)
-                return NULL;
-        }
-
     }
 
     return link;
@@ -168,14 +200,18 @@ static int device_init_nomac(struct pico_device *dev)
     return 0;
 }
 
+#define DEBUG_IPV6(ip)  { \
+                            char ipstr[40] = { 0 }; \
+                            pico_ipv6_to_string(ipstr, (ip).addr); \
+                            dbg("IPv6 (%s)\n", ipstr); \
+                        }
+
 static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr *addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-    struct pico_ip6 netmask = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+    struct pico_ipv6_link *link = NULL;
     struct pico_ieee_addr *slp = NULL;
-    char ipstr[40] = {0};
     
     /* Set the device's interface identifier */
     if (!(dev->eth = PICO_ZALLOC(sizeof(struct pico_ieee_addr))))
@@ -187,32 +223,15 @@ static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr 
     slp->_short.addr = addr->_short.addr;
     slp->_mode = addr->_mode;
     
-    /* Copy in the Interface Identifier */
-    memcpy(linklocal.addr + 8, addr->_ext.addr, PICO_SIZE_IEEE_EXT);
-    linklocal.addr[8] = linklocal.addr[8] ^ 0x02; /* Toggle U/L bit */
-    
-    /* Add an IPv6 link to the device */
-    
-    pico_ipv6_to_string(ipstr, linklocal.addr);
-    dbg("DST: %s\n", ipstr);
-    if (pico_ipv6_link_add_no_dad(dev, linklocal, netmask)) {
-        device_init_ipv6_final(dev, &linklocal);
-    } else {
+    /* Add an IPv6 link with EUI-64 to the device */
+    link = pico_ipv6_link_add_sixlowpan(dev, linklocal);
+    if (!link) {
         PICO_FREE(dev->eth);
         return -1;
     }
     
-    if (addr->_short.addr != 0xFFFF) {
-        memset(linklocal.addr + 8, 0x00, 8);
-        linklocal.addr[11] = 0xFF;
-        linklocal.addr[12] = 0xFE;
-        linklocal.addr[14] = (uint8_t)((addr->_short.addr >> 8) & 0xFF);
-        linklocal.addr[15] = (uint8_t)(addr->_short.addr & 0xFF);
-        if (!pico_ipv6_link_add(dev, linklocal, netmask)) {
-            PICO_FREE(dev->eth);
-            return -1;
-        }
-    }
+    /* ICMPv6 Router Solicitation */
+    device_init_ipv6_final(dev, &link->address);
     
     return 0;
 }

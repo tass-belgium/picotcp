@@ -746,7 +746,7 @@ static int sixlowpan_router_sol_process(struct pico_frame *f)
     if (!f->dev->hostvars.routing)
         return -1;
     
-    dbg("6LBR: Processing router sollicitation...\n");
+    dbg("6LBR: Processing router solicitation...\n");
     
     /* Router solicitation message validation */
     if (router_sol_checks(f) < 0)

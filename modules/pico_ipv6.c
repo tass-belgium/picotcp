@@ -789,7 +789,6 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
     /* TODO: Check hop-by-hop hdr before forwarding */
     
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
-        printf("Can't find link for this address\n");
         return pico_ipv6_forward(f);
     }
 

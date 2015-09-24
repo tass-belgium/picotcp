@@ -383,11 +383,11 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
 /* RFC 4861 $6.3.7: sending router solicitations */
 int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src)
 {
-    struct pico_frame *sol = NULL;
-    struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    struct pico_icmp6_opt_lladdr *lladdr = NULL;
-    uint16_t len = 0;
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }};
+    struct pico_icmp6_opt_lladdr *lladdr = NULL;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_frame *sol = NULL;
+    uint16_t len = 0;
 #ifdef PICO_SUPPORT_SIXLOWPAN
     struct pico_ieee_addr *slp = NULL;
 #endif
@@ -420,19 +420,20 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         lladdr = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.router_sol.options;
         lladdr->type = PICO_ND_OPT_LLADDR_SRC;
         
-        if (!dev->mode && dev->eth) {
-            lladdr->len = 1;
+        if (LL_MODE_ETHERNET == dev->mode && dev->eth) {
             memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
+            lladdr->len = 1;
         }
 #ifdef PICO_SUPPORT_SIXLOWPAN
-        else if (LL_MODE_SIXLOWPAN == dev->mode) {
+        else if (LL_MODE_SIXLOWPAN == dev->mode && dev->eth) {
             slp = (struct pico_ieee_addr *)dev->eth;
-            lladdr->len = 2;
             memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
             memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
+            lladdr->len = 2;
         }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
         else {
+            PICO_FREE(sol);
             return -1;
         }
     }
@@ -440,7 +441,13 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
+    if (LL_MODE_ETHERNET == dev->mode)
+        pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    else if (LL_MODE_SIXLOWPAN == dev->mode)
+        pico_ipv6_frame_push(sol, src, &daddr, PICO_PROTO_ICMP6, 0);
+#endif /* PICO_SUPPORT_SIXLOWPAN */
+    
     return 0;
 }
 
