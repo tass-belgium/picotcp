@@ -17,19 +17,19 @@ void app_mcastsend(char *arg)
 {
     char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
     uint16_t sendto_port = 0;
-    struct pico_ip4 inaddr_link = {
+    union pico_address inaddr_link = {
         0
     }, inaddr_mcast = {
         0
     };
     char *new_arg = NULL, *p = NULL, *nxt = arg;
-    struct pico_ip_mreq mreq = ZERO_MREQ;
+    struct pico_mreq mreq = ZERO_MREQ;
 
     /* start of parameter parsing */
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv4(laddr, &inaddr_link.addr);
+            pico_string_to_ipv4(laddr, &inaddr_link.ip4.addr);
         } else {
             goto out;
         }
@@ -41,7 +41,7 @@ void app_mcastsend(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv4(maddr, &inaddr_mcast.addr);
+            pico_string_to_ipv4(maddr, &inaddr_mcast.ip4.addr);
         } else {
             goto out;
         }

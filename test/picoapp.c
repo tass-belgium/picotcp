@@ -75,10 +75,10 @@ void app_noop(void);
 struct pico_ip4 ZERO_IP4 = {
     0
 };
-struct pico_ip_mreq ZERO_MREQ = {
+struct pico_mreq ZERO_MREQ = {
     .mcast_group_addr = {0}, .mcast_link_addr = {0}
 };
-struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+struct pico_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
 struct pico_ip6 ZERO_IP6 = {
  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }   
 };
