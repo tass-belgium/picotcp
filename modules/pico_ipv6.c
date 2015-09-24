@@ -1570,8 +1570,8 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     }, *new = NULL;
     struct pico_ip6 network = {{0}}, gateway = {{0}};
     struct pico_ip6 mcast_addr = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-        struct pico_ip6 mcast_nm = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-        struct pico_ip6 mcast_gw = {{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0x00, 0x00, 0x00 }};
+    struct pico_ip6 mcast_nm = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
+    struct pico_ip6 mcast_gw = {{0}};
         struct pico_ip6 all_hosts = {{ 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
 #ifdef PICO_DEBUG_IPV6   
     char ipstr[40] = {
@@ -1605,7 +1605,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->address = address;
     new->netmask = netmask;
     new->dev = dev;
-    new->istentative = 0;
+    new->istentative = 1;
     new->isduplicate = 0;
 #ifdef PICO_SUPPORT_MCAST
     new->MCASTGroups = PICO_ZALLOC(sizeof(struct pico_tree));
@@ -1620,12 +1620,6 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->MCASTGroups->compare = ipv6_mcast_groups_cmp;
     new->mcast_compatibility = PICO_MLDV2; 
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
-#endif
-#ifndef UNIT_TEST
-    /* Duplicate Address Detection */
-    new->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &new->address);
-#else
-    new->istentative = 0;
 #endif
     pico_tree_insert(&IPV6Links, new);
     for (i = 0; i < PICO_SIZE_IP6; ++i) {
@@ -1643,6 +1637,12 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     pico_ipv6_route_add(network, netmask, gateway, 1, new);
     pico_ipv6_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
     new->dup_detect_retrans = PICO_IPV6_DEFAULT_DAD_RETRANS;
+#ifndef UNIT_TEST
+    /* Duplicate Address Detection */
+    new->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &new->address);
+#else
+    new->istentative = 0;
+#endif
 
 #ifdef PICO_DEBUG_IPV6
     pico_ipv6_to_string(ipstr, new->address.addr);
