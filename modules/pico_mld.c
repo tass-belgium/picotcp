@@ -62,30 +62,34 @@ static int pico_mld_process_event(struct mld_parameters *p);
 static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group);
 
 static uint8_t *pico_mld_fill_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
+    uint8_t *p;
     if(hbh == NULL)
         return NULL;
     hbh->type = PICO_PROTO_ICMP6; 
     hbh->len=0;
     // ROUTER ALERT, RFC2711
-    hbh->options[0] = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT;
-    hbh->options[1] = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN; 
-    hbh->options[2] = 0; 
-    hbh->options[3] = 0;
+    p = hbh->options;
+    *(p++) = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT;
+    *(p++) = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN; 
+    *(p++) = 0; 
+    *(p++) = 0;
     //PadN allignment with N=2
-    hbh->options[4] = 1;
-    hbh->options[5] = 0; /* N-2 */
-    return (uint8_t*) &hbh->options[6];        
+    *(p++) = 1;
+    *(p++) = 0; /* N-2 */
+    return p;        
 }
 static int pico_mld_check_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
     uint8_t options[8] = { PICO_PROTO_ICMP6, 0, PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT,\
                            PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN,0,0,1,0 };
     int i;
+    uint8_t *p;
     if(hbh == NULL)
         return -1;
     if(hbh->type != options[0] || hbh->len != options[1])
         return -1;
-    for(i=0; i<6; i++) {
-        if(hbh->options[i] != options[i+2])
+    p = hbh->options;
+    for(i=0; i<MLD_ROUTER_ALERT_LEN-2; i++) {
+        if( *(p+i) != options[i+2])
             return -1;
     } 
     return 0;    
