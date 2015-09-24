@@ -88,6 +88,11 @@ void app_mcastsend_ipv6(char *arg)
     p = strcat(p + 1, lport);
     p = strcat(p + strlen(lport), ",64,10,5,");
 
+    /* DAD needs to verify the link address before we can continue */
+    while(!pico_ipv6_link_get(&inaddr_link) ) {
+        pico_stack_tick();
+        usleep(2000);
+    }
     app_udpclient(new_arg);
     
     memcpy(&mreq.mcast_group_addr,&inaddr_mcast, sizeof(struct pico_ip6));

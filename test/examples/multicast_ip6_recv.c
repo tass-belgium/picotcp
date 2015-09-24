@@ -18,15 +18,15 @@ void app_mcastreceive_ipv6(char *arg)
     char *new_arg = NULL, *p = NULL, *nxt = arg;
     char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
     uint16_t listen_port = 0;
-    struct pico_ip6 inaddr_link = {
+    union pico_address inaddr_link = {
         0
     }, inaddr_mcast = {
         0
     },   src[5] = {
-         { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0 }, 
-         { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x10 },  
-         { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x01 },   
-         { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 0x01 },   
+        {.ip6= { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0 }}, 
+        {.ip6= { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x10}},  
+        {.ip6 ={ 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x01 }}, 
+        {.ip6= { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 0x01 }},   
     };
     struct pico_mreq mreq = ZERO_MREQ_IP6;
     struct pico_mreq_source mreq_source = ZERO_MREQ_SRC_IP6;
@@ -34,7 +34,7 @@ void app_mcastreceive_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv6(laddr, &inaddr_link.addr);
+            pico_string_to_ipv6(laddr, &inaddr_link.ip6.addr);
         } else {
             goto out;
         }
@@ -46,7 +46,7 @@ void app_mcastreceive_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv6(maddr, &inaddr_mcast.addr);
+            pico_string_to_ipv6(maddr, &inaddr_mcast.ip6.addr);
         } else {
             goto out;
         }
@@ -95,8 +95,14 @@ void app_mcastreceive_ipv6(char *arg)
     p = strcat(p + 1, sport);
     p = strcat(p + strlen(sport), ",64,");
 
-    app_udpecho(new_arg);
+    /* DAD needs to verify the link address before we can continue */
+    while(!pico_ipv6_link_get(&inaddr_link.ip6.addr) ) {
+        pico_stack_tick();
+        usleep(2000);
+    }
 
+    app_udpecho(new_arg);
+    
     memcpy(&mreq.mcast_group_addr, &inaddr_mcast,sizeof(struct pico_ip6));
     memcpy( &mreq_source.mcast_group_addr, &inaddr_mcast,sizeof(struct pico_ip6));
     memcpy(&mreq.mcast_link_addr ,&inaddr_link, sizeof(struct pico_ip6));
