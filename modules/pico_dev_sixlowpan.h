@@ -162,7 +162,7 @@ inline int sixlowpan_iid_is_derived_16(uint8_t iid[8]);
  *                the network prefix.
  *  @param prefix struct pico_ip6, new prefix to set to, will assume /64 netmask
  */
-void pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
+int pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix);
 
 /**
  *  The radio may or may not already have had a short 16-bit address
