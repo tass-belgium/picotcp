@@ -1438,10 +1438,8 @@ static int sixlowpan_determine_final_dst(struct pico_frame *f, struct pico_ieee_
     if (pico_ipv6_is_multicast(dst->addr)) {
         /* Derive link layer address from IPv6 Multicast address */
         return sixlowpan_derive_mcast(l, dst);
-    } else if (pico_ipv6_is_linklocal(dst->addr)) {
-        /* Derive link layer address from IPv6 Link Local address */
-        return sixlowpan_derive_local(l, dst);
     } else {
+        /* For either linklocal as unicast, derive L2-address from IP */
         return sixlowpan_derive_local(l, dst);
     }
     
