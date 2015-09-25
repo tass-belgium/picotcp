@@ -795,14 +795,14 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
 static int pico_ipv6_process_mcast_in(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *) f->net_hdr;
-    struct pico_ipv6_exthdr *hbh;
+    struct pico_ipv6_exthdr *hbh = NULL;
     if (pico_ipv6_is_multicast(hdr->dst.addr)) {
 #ifdef PICO_SUPPORT_MCAST
         /* Receiving UDP multicast datagram TODO set f->flags? */
         if(hdr->nxthdr == 0) {
             hbh = (struct pico_ipv6_exthdr *) (f->transport_hdr);
         } 
-        if (hdr->nxthdr == PICO_PROTO_ICMP6 || hbh->nxthdr == PICO_PROTO_ICMP6) {
+        if (hdr->nxthdr == PICO_PROTO_ICMP6 || (hbh != NULL && hbh->nxthdr == PICO_PROTO_ICMP6)) {
             pico_transport_receive(f, PICO_PROTO_ICMP6);
             return 1;
         } else if ((pico_ipv6_mcast_filter(f) == 0) && (hdr->nxthdr == PICO_PROTO_UDP)) {
