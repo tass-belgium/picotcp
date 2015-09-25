@@ -23,7 +23,7 @@ void app_mcastsend(char *arg)
         0
     };
     char *new_arg = NULL, *p = NULL, *nxt = arg;
-    struct pico_mreq mreq = ZERO_MREQ;
+    struct pico_ip_mreq mreq = ZERO_MREQ;
 
     /* start of parameter parsing */
     if (nxt) {

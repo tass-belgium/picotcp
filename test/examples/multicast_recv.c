@@ -23,8 +23,8 @@ void app_mcastreceive(char *arg)
     }, inaddr_mcast = {
         0
     };
-    struct pico_mreq mreq = ZERO_MREQ;
-    struct pico_mreq_source mreq_source = ZERO_MREQ_SRC;
+    struct pico_ip_mreq mreq = ZERO_MREQ;
+    struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC;
 
     /* start of parameter parsing */
     if (nxt) {
