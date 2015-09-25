@@ -2612,17 +2612,18 @@ static int tcp_rst(struct pico_socket *s, struct pico_frame *f)
            a reset is valid if its sequence number is in the window */
         uint32_t this_seq = long_be(hdr->seq);
         if ((this_seq >= t->rcv_ackd) && (this_seq <= ((uint32_t)(short_be(hdr->rwnd) << (t->wnd_scale)) + t->rcv_ackd))) {
-            if ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) {
-                tcp_force_closed(s);
+            if (((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_RECV) ||  
+                ((s->state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_SYN_SENT) ) {
                 pico_err = PICO_ERR_ECONNRESET;
                 tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
-                tcp_dbg("TCP RST> SOCKET BACK TO LISTEN\n");
+                tcp_dbg("TCP RST> reset by peer in three-way handshake\n");
+                tcp_force_closed(s);
                 /*   pico_socket_del(s); */
             } else {
-                tcp_force_closed(s);
                 tcp_wakeup_pending(s, PICO_SOCK_EV_FIN);
                 pico_err = PICO_ERR_ECONNRESET;
                 tcp_wakeup_pending(s, PICO_SOCK_EV_ERR);
+                tcp_force_closed(s);
             }
         } else {                  /* not valid, ignore */
             tcp_dbg("TCP RST> IGNORE\n");
