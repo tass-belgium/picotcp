@@ -1288,18 +1288,25 @@ int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
 #else
 int pico_udp_set_mc_ttl(struct pico_socket *s, void  *_ttl)
 {
+    IGNORE_PARAMETER(s);
+    IGNORE_PARAMETER(_ttl);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_udp_get_mc_ttl(struct pico_socket *s, uint8_t *ttl)
 {
+    IGNORE_PARAMETER(s);
+    IGNORE_PARAMETER(ttl);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_socket_mcast_filter(struct pico_socket *s, union pico_address *mcast_group, union pico_address *src)
 {
+    IGNORE_PARAMETER(s);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(src);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
