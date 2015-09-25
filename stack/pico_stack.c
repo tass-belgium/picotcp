@@ -210,7 +210,7 @@ MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 #endif
 
 
-#ifdef PICO_SUPPORT_IGMP
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
     case PICO_PROTO_IGMP:
         ret = pico_enqueue(pico_proto_igmp.q_in, f);
         break;
