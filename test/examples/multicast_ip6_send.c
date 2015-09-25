@@ -23,7 +23,7 @@ void app_mcastsend_ipv6(char *arg)
         0
     };
     char *new_arg = NULL, *p = NULL, *nxt = arg;
-    struct pico_mreq mreq = ZERO_MREQ_IP6;
+    struct pico_ip_mreq mreq = ZERO_MREQ_IP6;
 
     /* start of parameter parsing */
     if (nxt) {

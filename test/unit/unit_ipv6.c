@@ -333,8 +333,8 @@ START_TEST (test_mld_sockopts)
     union pico_address inaddr_link[2] = {{0}};
     union pico_address inaddr_mcast[8] = {{0}};
     union pico_address inaddr_source[8] = {{0}};
-    struct pico_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
-    struct pico_mreq_source mreq_source[128] = {{{0}}};
+    struct pico_ip_mreq _mreq = {{0}}, mreq[16] = {{{0}}};
+    struct pico_ip_mreq_source mreq_source[128] = {{{0}}};
     struct pico_tree_node *index = NULL;
 
     int ttl = 64;

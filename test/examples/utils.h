@@ -3,11 +3,11 @@
 #include <pico_stack.h>
 #define TCPSIZ (1024 * 1024 * 5)
 extern struct pico_ip4 ZERO_IP4;
-extern struct pico_mreq ZERO_MREQ;
-extern struct pico_mreq_source ZERO_MREQ_SRC;
+extern struct pico_ip_mreq ZERO_MREQ;
+extern struct pico_ip_mreq_source ZERO_MREQ_SRC;
 extern struct pico_ip6 ZERO_IP6;
-extern struct pico_mreq ZERO_MREQ_IP6;
-extern struct pico_mreq_source ZERO_MREQ_SRC_IP6;
+extern struct pico_ip_mreq ZERO_MREQ_IP6;
+extern struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6;
 #define picoapp_dbg(...) do {} while(0)
 /* #define picoapp_dbg printf */
 extern int IPV6_MODE;

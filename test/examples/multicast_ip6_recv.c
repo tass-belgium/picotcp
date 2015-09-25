@@ -28,8 +28,8 @@ void app_mcastreceive_ipv6(char *arg)
         {.ip6 ={ 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x01 }}, 
         {.ip6= { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 0x01 }},   
     };
-    struct pico_mreq mreq = ZERO_MREQ_IP6;
-    struct pico_mreq_source mreq_source = ZERO_MREQ_SRC_IP6;
+    struct pico_ip_mreq mreq = ZERO_MREQ_IP6;
+    struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC_IP6;
     /* start of parameter parsing */
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);

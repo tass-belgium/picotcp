@@ -3326,7 +3326,7 @@ pico_mdns_init( const char *hostname,
                                  void *),
                 void *arg )
 {
-    struct pico_mreq mreq4;
+    struct pico_ip_mreq mreq4;
     uint16_t proto4 = PICO_PROTO_IPV4, port = 0, loop = 0, ttl = 255;
 
     /* Initialise port */
