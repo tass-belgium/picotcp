@@ -445,17 +445,6 @@ pico_mdns_question_create( const char *url,
 /* MARK: ^ MDNS QUESTIONS */
 /* MARK: v MDNS RECORDS */
 
-#define PICO_MDNS_RECORD_DECLARE(name) \
-    struct pico_mdns_record (name) = { \
-        &(struct pico_dns_record) { \
-            NULL, \
-            &(struct pico_dns_record_suffix) { 0, 1, 0, 0 }, \
-            NULL, \
-            0 \
-        }, \
-        0, 0, 0 \
-    }
-
 /* ****************************************************************************
  *  Just makes a hardcopy from a single mDNS resource record.
  *
@@ -545,9 +534,14 @@ pico_mdns_rtree_find_name_type( pico_mdns_rtree *tree,
                                 uint8_t copy )
 {
     PICO_MDNS_RTREE_DECLARE(hits);
-    PICO_MDNS_RECORD_DECLARE(test);
+
+    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
+    struct pico_dns_record test_dns_record = { 0 };
+    struct pico_mdns_record test = { 0 };
     struct pico_tree_node *node = NULL;
     struct pico_mdns_record *record = NULL;
+    test_dns_record.rsuffix = &test_dns_suffix;
+    test.record = &test_dns_record;
 
     /* Check params */
     if (!name || !tree) {
@@ -619,9 +613,14 @@ pico_mdns_rtree_del_name_type( pico_mdns_rtree *tree,
                                char *name,
                                uint16_t type )
 {
-    PICO_MDNS_RECORD_DECLARE(test);
     struct pico_tree_node *node = NULL, *next = NULL;
     struct pico_mdns_record *record = NULL;
+    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
+    struct pico_dns_record test_dns_record = { 0 };
+    struct pico_mdns_record test = { 0 };
+
+    test_dns_record.rsuffix = &test_dns_suffix;
+    test.record = &test_dns_record;
 
     /* Check params */
     if (!name || !tree) {

@@ -88,9 +88,9 @@ static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
 static void pico_slaacv4_send_announce_timer(pico_time now, void *arg)
 {
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
-    struct pico_ip4 netmask = {
-        .addr = long_be(0xFFFF0000)
-    };
+    struct pico_ip4 netmask = { 0 };
+    netmask.addr = long_be(0xFFFF0000);
+
     (void)now;
 
     if (tmp->announce_nb < ANNOUNCE_NB)

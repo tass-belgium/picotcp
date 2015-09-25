@@ -96,7 +96,6 @@ PACKED_STRUCT_DEF igmpv3_query {
     uint8_t rsq;
     uint8_t qqic;
     uint16_t sources;
-    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_group_record {
@@ -104,7 +103,6 @@ PACKED_STRUCT_DEF igmpv3_group_record {
     uint8_t aux;
     uint16_t sources;
     uint32_t mcast_group;
-    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_report {
@@ -113,7 +111,6 @@ PACKED_STRUCT_DEF igmpv3_report {
     uint16_t crc;
     uint16_t res1;
     uint16_t groups;
-    struct igmpv3_group_record record[0];
 };
 
 struct igmp_parameters {
@@ -918,16 +915,17 @@ igmp3_report:
         report->res1 = 0;
         report->groups = short_be(1);
 
-        record = &report->record[0];
+        record = (struct igmpv3_group_record *)(((uint8_t *)report) + sizeof(struct igmpv3_report));
         record->type = record_type;
         record->aux = 0;
         record->sources = short_be(sources);
         record->mcast_group = p->mcast_group.addr;
         if (IGMPFilter && !pico_tree_empty(IGMPFilter)) {
+            uint32_t *source_addr = (uint32_t *)((uint8_t *)record + sizeof(struct igmpv3_group_record));
             i = 0;
             pico_tree_foreach(index, IGMPFilter)
             {
-                record->source_addr[i] = ((struct pico_ip4 *)index->keyValue)->addr;
+                source_addr[i] = ((struct pico_ip4 *)index->keyValue)->addr;
                 i++;
             }
         }

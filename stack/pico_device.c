@@ -234,7 +234,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (dev->q_in->frames <= 0)
+        if (dev->q_in->frames == 0)
             break;
 
         /* Receive */
@@ -270,7 +270,7 @@ static int devloop_out(struct pico_device *dev, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (dev->q_out->frames <= 0)
+        if (dev->q_out->frames == 0)
             break;
 
         /* Device dequeue + send */

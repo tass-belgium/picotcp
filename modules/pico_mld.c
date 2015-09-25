@@ -79,7 +79,7 @@ static uint8_t *pico_mld_fill_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
     hbh->type = PICO_PROTO_ICMP6; 
     hbh->len=0;
     // ROUTER ALERT, RFC2711
-    p = hbh->options;
+    p = (uint8_t *)hbh + sizeof(struct pico_ipv6_hbhoption);
     *(p++) = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT;
     *(p++) = PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN; 
     *(p++) = 0; 
@@ -98,7 +98,8 @@ static int pico_mld_check_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
         return -1;
     if(hbh->type != options[0] || hbh->len != options[1])
         return -1;
-    p = hbh->options;
+
+    p = (uint8_t *)hbh + sizeof(struct pico_ipv6_hbhoption);
     for(i=0; i<MLD_ROUTER_ALERT_LEN-2; i++) {
         if( *(p+i) != options[i+2])
             return -1;

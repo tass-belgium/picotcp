@@ -40,7 +40,6 @@ PACKED_STRUCT_DEF pico_ipv6_hdr {
     uint8_t hop;
     struct pico_ip6 src;
     struct pico_ip6 dst;
-    uint8_t extensions[0];
 };
 
 PACKED_STRUCT_DEF pico_ipv6_pseudo_hdr
@@ -77,7 +76,6 @@ union pico_link {
 struct pico_ipv6_hbhoption {
     uint8_t type;
     uint8_t len;
-    uint8_t options[0];
 };
 #ifdef PICO_SUPPORT_MCAST
 struct pico_ipv6_mcast_group {
@@ -90,7 +88,6 @@ struct pico_ipv6_mcast_group {
 struct pico_ipv6_destoption {
     uint8_t type;
     uint8_t len;
-    uint8_t options[0];
 };
 
 struct pico_ipv6_route
@@ -108,12 +105,10 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
     PACKED_UNION_DEF ipv6_ext_u {
         PEDANTIC_STRUCT_DEF hopbyhop_s {
             uint8_t len;
-            uint8_t options[0];
         } hopbyhop;
 
         PEDANTIC_STRUCT_DEF destopt_s {
             uint8_t len;
-            uint8_t options[0];
         } destopt;
 
         PEDANTIC_STRUCT_DEF routing_s {

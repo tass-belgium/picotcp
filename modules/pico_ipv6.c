@@ -516,7 +516,7 @@ static int pico_ipv6_process_hopbyhop(struct pico_ipv6_exthdr *hbh, struct pico_
     uint8_t must_align = 1;
     IGNORE_PARAMETER(f);
 
-    option = hbh->ext.hopbyhop.options;
+    option = ((uint8_t *)&hbh->ext.hopbyhop) + sizeof(struct hopbyhop_s);
     len = (uint8_t)HBH_LEN(hbh);
     ipv6_dbg("IPv6: hop by hop extension header length %u\n", len + 2);
     while (len) {
@@ -597,7 +597,7 @@ static int pico_ipv6_process_destopt(struct pico_ipv6_exthdr *destopt, struct pi
     uint8_t len = 0, optlen = 0;
     opt_ptr += (uint32_t)(2u); /* Skip Dest_opts header */
     IGNORE_PARAMETER(f);
-    option = destopt->ext.destopt.options;
+    option = ((uint8_t *)&destopt->ext.destopt) + sizeof(struct destopt_s);
     len = (uint8_t)(((destopt->ext.destopt.len + 1) << 3) - 2); /* len in bytes, minus nxthdr and len byte */
     ipv6_dbg("IPv6: destination option extension header length %u\n", len + 2);
     while (len) {

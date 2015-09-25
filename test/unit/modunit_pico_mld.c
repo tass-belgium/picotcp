@@ -41,7 +41,7 @@ START_TEST(tc_pico_mld_check_hopbyhop)
     hbh->type = PICO_PROTO_ICMP6;
     hbh->len = 0;
     for(test = 0; test<7; test++) {
-        p = hbh->options;
+        p = (uint8_t *)hbh + sizeof(struct pico_ipv6_hbhoption);
         for(i = 0; i<6; i++ ) {
             if(i != test)
                 *(p++) = options[i+2];

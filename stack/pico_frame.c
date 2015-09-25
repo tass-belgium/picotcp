@@ -24,7 +24,7 @@ void pico_frame_discard(struct pico_frame *f)
         return;
 
     (*f->usage_count)--;
-    if (*f->usage_count <= 0) {
+    if (*f->usage_count == 0) {
         if (f->flags & PICO_FRAME_FLAG_EXT_USAGE_COUNTER)
             PICO_FREE(f->usage_count);
 

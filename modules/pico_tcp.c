@@ -132,9 +132,8 @@ static void *peek_segment(struct pico_tcp_queue *tq, uint32_t seq)
     }
     else
     {
-        struct tcp_input_segment dummy = {
-            .seq = seq
-        };
+        struct tcp_input_segment dummy = { 0 };
+        dummy.seq = seq;
 
         return pico_tree_findKey(&tq->pool, &dummy);
     }
