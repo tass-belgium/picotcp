@@ -1154,7 +1154,7 @@ static int pico_mld_process_event(struct mld_parameters *p) {
 #else
 uint16_t pico_mld_checksum(struct pico_frame *f) {
     IGNORE_PARAMETER(f);
-    return -1;
+    return 0;
 }
 int pico_mld_process_in(struct pico_frame *f) {
     IGNORE_PARAMETER(f);
@@ -1167,6 +1167,6 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
     IGNORE_PARAMETER(filter_mode);
     IGNORE_PARAMETER(_MCASTFilter);
     IGNORE_PARAMETER(state);
-    return 0;
+    return -1;
 }
 #endif
