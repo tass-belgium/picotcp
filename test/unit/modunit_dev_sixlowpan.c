@@ -577,7 +577,7 @@ START_TEST(tc_pico_ieee_addr_from_hdr)
     ENDING();
 }
 END_TEST
-START_TEST(tc_IEEE_EUI64_LE) /* MARK: CHECKED */
+START_TEST(tc_IEEE_EUI64_LE)
 {
 //    uint8_t old[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
 //    uint8_t new[8] = { 8, 7, 6, 5, 4, 3, 2, 1 };

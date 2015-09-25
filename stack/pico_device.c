@@ -87,7 +87,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, con
     new = pico_ipv6_link_add_no_dad(dev, addr, nm64);
     
     /* If the device possibly has a 16-bit short address, add link with address from 16-bit short */
-    if (IEEE_AM_BOTH == ieee->_mode && IEEE_ADDR_BCAST_SHORT != ieee->_short.addr) {
+    if (!pico_ipv6_is_linklocal(prefix.addr) && IEEE_AM_BOTH == ieee->_mode && IEEE_ADDR_BCAST_SHORT != ieee->_short.addr) {
         /* Form the address from the 16-bit short address */
         memset(addr.addr + 8, 0, PICO_SIZE_IEEE_EXT); /* Clear out IID */
         addr.addr[11] = 0xFF;
@@ -231,7 +231,7 @@ static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr 
     }
     
     /* ICMPv6 Router Solicitation */
-    device_init_ipv6_final(dev, &link->address);
+    pico_6lp_nd_start_solicitating(link);
     
     return 0;
 }
