@@ -57,6 +57,8 @@ void app_natbox(char *args);
 void app_udpdnsclient(char *args);
 void app_udpnatclient(char *args);
 void app_mcastsend(char *args);
+void app_mcastreceive_ipv6(char *args);
+void app_mcastsend_ipv6(char *args);
 void app_mcastreceive(char *args);
 void app_ping(char *args);
 void app_dhcp_server(char *args);
@@ -70,14 +72,24 @@ void app_udpecho(char *args);
 void app_sendto_test(char *args);
 void app_noop(void);
 
-
 struct pico_ip4 ZERO_IP4 = {
     0
 };
-struct pico_ip_mreq ZERO_MREQ = {
+struct pico_mreq ZERO_MREQ = {
     .mcast_group_addr = {0}, .mcast_link_addr = {0}
 };
-struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+struct pico_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+struct pico_ip6 ZERO_IP6 = {
+ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }   
+};
+struct pico_mreq ZERO_MREQ_IP6 = {
+    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_link_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
+};
+struct pico_mreq_source ZERO_MREQ_SRC_IP6 = {  
+    .mcast_group_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_link_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_source_addr.ip6 ={{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} };
 
 /* #define INFINITE_TCPTEST */
 #define picoapp_dbg(...) do {} while(0)
@@ -562,7 +574,17 @@ int main(int argc, char **argv)
 #endif
                 app_mcastreceive(args);
             }
-
+            else IF_APPNAME("mcastsend_ipv6") {
+#ifndef PICO_SUPPORT_MCAST
+                return 0;
+#endif
+                app_mcastsend_ipv6(args);
+            } else IF_APPNAME("mcastreceive_ipv6") {
+#ifndef PICO_SUPPORT_MCAST
+                return 0;
+#endif
+                app_mcastreceive_ipv6(args);
+            }
 #ifdef PICO_SUPPORT_PING
             else IF_APPNAME("ping") {
                 app_ping(args);

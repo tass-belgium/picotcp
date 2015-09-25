@@ -22,5 +22,5 @@
 
 extern struct pico_protocol pico_proto_igmp;
 
-int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state);
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state);
 #endif /* _INCLUDE_PICO_IGMP */

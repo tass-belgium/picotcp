@@ -3326,7 +3326,7 @@ pico_mdns_init( const char *hostname,
                                  void *),
                 void *arg )
 {
-    struct pico_ip_mreq mreq4;
+    struct pico_mreq mreq4;
     uint16_t proto4 = PICO_PROTO_IPV4, port = 0, loop = 0, ttl = 255;
 
     /* Initialise port */
@@ -3347,13 +3347,13 @@ pico_mdns_init( const char *hostname,
     }
 
     /* Convert the mDNS IPv4 destination address to struct */
-    if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq4.mcast_group_addr.addr)) {
+    if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq4.mcast_group_addr.ip4.addr)) {
         mdns_dbg("String to IPv4 error\n");
         return -1;
     }
 
     /* Receive data on any network interface */
-    mreq4.mcast_link_addr = inaddr_any;
+    mreq4.mcast_link_addr.ip4 = inaddr_any;
 
     /* Don't want the multicast data to be looped back to the host */
     if(pico_socket_setoption(mdns_sock_ipv4, PICO_IP_MULTICAST_LOOP, &loop)) {

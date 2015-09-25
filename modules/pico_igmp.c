@@ -577,7 +577,7 @@ struct pico_protocol pico_proto_igmp = {
     .q_out = &igmp_out,
 };
 
-int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state)
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state)
 {
     struct igmp_parameters *p = NULL;
 
@@ -623,7 +623,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
         return -1;
     }
     p->filter_mode = filter_mode;
-    p->MCASTFilter = MCASTFilter;
+    p->MCASTFilter = _MCASTFilter;
 
     return pico_igmp_process_event(p);
 }

@@ -26,10 +26,8 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
         struct pico_ip4 ip4;
         struct pico_ip6 ip6;
     } peer;
-
     if (udpecho_exit)
         return;
-
     if (ev == PICO_SOCK_EV_RD) {
         recvbuf = calloc(1, udpecho_pas->datasize);
         if (!recvbuf) {
@@ -139,12 +137,10 @@ void app_udpecho(char *arg)
     }
 
     /* end of argument parsing */
-
     if (!IPV6_MODE)
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
-    else
+    else 
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &cb_udpecho);
-
     if (!udpecho_pas->s) {
         printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
         free(udpecho_pas);
@@ -163,7 +159,7 @@ void app_udpecho(char *arg)
         if (!IPV6_MODE)
             printf("%s: error binding socket to %08X:%u: %s\n", __FUNCTION__, long_be(inaddr_bind.addr), short_be(listen_port), strerror(pico_err));
         else
-            printf("%s: error binding socket to [%s]:%u: %s\n", __FUNCTION__, "TODO_IPV6_ADDR", short_be(listen_port), strerror(pico_err));
+            printf("%s: error binding socket to [%s]:%u: %s\n", __FUNCTION__, baddr, short_be(listen_port), strerror(pico_err));
 
         exit(1);
     }

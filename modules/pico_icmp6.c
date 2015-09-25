@@ -15,9 +15,8 @@
 #include "pico_stack.h"
 #include "pico_tree.h"
 #include "pico_socket.h"
-
-#define icmp6_dbg(...) do {} while(0)
-/* #define icmp6_dbg dbg */
+#include "pico_mld.h"
+#define icmp6_dbg(...) do { }while(0); 
 
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;
@@ -25,9 +24,10 @@ static struct pico_queue icmp6_out;
 uint16_t pico_icmp6_checksum(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    
     struct pico_icmp6_hdr *icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     struct pico_ipv6_pseudo_hdr pseudo;
-
+   
     pseudo.src = ipv6_hdr->src;
     pseudo.dst = ipv6_hdr->dst;
     pseudo.len = long_be(f->transport_len);
@@ -105,7 +105,14 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
 #endif
         pico_frame_discard(f);
         break;
-
+#ifdef PICO_SUPPORT_MCAST
+    case PICO_MLD_QUERY:
+    case PICO_MLD_REPORT:
+    case PICO_MLD_DONE:
+    case PICO_MLD_REPORTV2:
+        pico_mld_process_in(f);
+        break;        
+#endif
     default:
         return pico_ipv6_nd_recv(f); /* CAUTION -- Implies: pico_frame_discard in any case, keep in the default! */
     }
