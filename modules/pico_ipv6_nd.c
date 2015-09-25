@@ -1028,6 +1028,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
 #define PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL        (10000)
 #define PICO_SIXLOWPAN_MAX_RTR_SOLICITATION_INTERVAL    (60000)
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
 static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
 {
     struct pico_ipv6_link *l = arg;
@@ -1038,6 +1039,7 @@ static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
         pico_icmp6_router_solicitation(l->dev, &l->address);
         
         /* Schedule next check */
+        /* TODO: Apply exponential retransmission timer, see RFC6775 5.3 */
         pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
         
         nd_dbg("[6LP-ND]$ No default routers configured, solicitating\n");
@@ -1060,7 +1062,7 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
         pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
     return 0;
 }
-
+#endif /* PICO_SUPPORT_SIXLOWPAN */
 
 
 #define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)

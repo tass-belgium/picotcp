@@ -77,6 +77,7 @@
 #define PICO_ND_OPT_REDIRECT           4
 #define PICO_ND_OPT_MTU                5
 #define PICO_ND_OPT_RDNSS             25 /* RFC 5006 */
+#define PICO_ND_OPT_ARO               33 /* RFC 6775 */
 
 /* ND advertisement flags */
 #define PICO_ND_ROUTER             0x80000000
@@ -94,6 +95,13 @@
 #define PICO_ICMP6_ND_ANYCAST          1
 #define PICO_ICMP6_ND_SOLICITED        2
 #define PICO_ICMP6_ND_DAD              3
+
+/* 6LoWPAN option sizes */
+#define PICO_6LP_ND_LLAO_LEN_SHORT      (8u)
+#define PICO_6LP_ND_LLAO_LEN_EXTENDED   (16u)
+
+/* 6LoWPAN address registration lifetime */
+#define PICO_6LP_ND_DEFAULT_LIFETIME    (120) /* TWO HOURS */
 
 #define PICO_ICMP6_MAX_RTR_SOL_DELAY   1000
 

@@ -928,7 +928,7 @@ static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
-inline int sixlowpan_iid_is_derived_16(uint8_t iid[8])
+inline int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8])
 {
     /*  IID formed from 16-bit [RFC4944]: 
      *
@@ -962,7 +962,7 @@ static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t in[8])
 {
     CHECK_PARAM(addr);
     CHECK_PARAM(in);
-    if (sixlowpan_iid_is_derived_16(in)) {
+    if (pico_sixlowpan_iid_is_derived_16(in)) {
         addr->_mode = IEEE_AM_SHORT;
         memcpy(&addr->_short.addr, in + 6, PICO_SIZE_IEEE_SHORT);
         addr->_short.addr = short_be(addr->_short.addr);
@@ -1442,9 +1442,7 @@ static int sixlowpan_determine_final_dst(struct pico_frame *f, struct pico_ieee_
         /* Derive link layer address from IPv6 Link Local address */
         return sixlowpan_derive_local(l, dst);
     } else {
-        /* Resolve unicast link layer address using 6LoWPAN-ND */
         return sixlowpan_derive_local(l, dst);
-//        return sixlowpan_derive_nd(f, l);
     }
     
     return 0;
