@@ -6,6 +6,7 @@
 #ifndef _INCLUDE_PICO_ND
 #define _INCLUDE_PICO_ND
 #include "pico_frame.h"
+#include "pico_ipv6.h"
 
 /* RFC constants */
 #define PICO_ND_REACHABLE_TIME         30000 /* msec */
@@ -25,7 +26,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f);
 int pico_ipv6_nd_recv(struct pico_frame *f);
 
 #ifdef PICO_SUPPORT_SIXLOWPAN
-struct pico_sixlowpan_addr *pico_ipv6_get_sixlowpan_neighbor(struct pico_frame *f);
+int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l);
 #endif /* PICO_SUPPORT_SIXLOWPAN */
 
 #endif

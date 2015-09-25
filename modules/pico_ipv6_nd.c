@@ -20,8 +20,8 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
-#define nd_dbg(...) do {} while(0)
-//#define nd_dbg dbg
+//#define nd_dbg(...) do {} while(0)
+#define nd_dbg dbg
 
 #define TENTATIVE_NCE_LIFETIME
 
@@ -988,6 +988,45 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     /* TODO: Find the NCE with the smallest lifetime and schedule next check well before that  */
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
 }
+
+#define PICO_SIXLOWPAN_MAX_RTR_SOLICITATIONS            (3)
+#define PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL        (10000)
+#define PICO_SIXLOWPAN_MAX_RTR_SOLICITATION_INTERVAL    (60000)
+
+static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
+{
+    struct pico_ipv6_link *l = arg;
+    IGNORE_PARAMETER(now);
+    
+    if (!pico_ipv6_default_gateway_configured(l->dev)) {
+        /* If router list is empty, send router solicitation */
+        pico_icmp6_router_solicitation(l->dev, &l->address);
+        
+        /* Schedule next check */
+        pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
+        
+        nd_dbg("[6LP-ND]$ No default routers configured, solicitating\n");
+        return;
+    }
+}
+
+int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
+{
+    /* If router list is empty, send router solicitation */
+    pico_icmp6_router_solicitation(l->dev, &l->address);
+    
+    /* RFC6775, 5.3:
+     *
+     *  ... HOSTS need to intelligently retransmit RSs whenever the default router
+     *  list is empty, ...
+     *
+     */
+    if (!l->dev->hostvars.routing)
+        pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
+    return 0;
+}
+
+
 
 #define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
 #define PICO_IPV6_ND_MAX_RADV_INTERVAL (15000)

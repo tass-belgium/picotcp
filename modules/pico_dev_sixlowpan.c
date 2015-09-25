@@ -1150,7 +1150,7 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
             return via_zero;
         }
     } else {
-        PAN_DBG("No routing table entry found, sending via BCAST\n");
+//        PAN_DBG("No routing table entry found, sending via BCAST\n");
         via._short.addr = IEEE_ADDR_BCAST_SHORT;
         via._mode = IEEE_AM_SHORT;
     }
@@ -1178,11 +1178,31 @@ static void sixlowpan_resume_rtx(struct pico_ieee_addr final, struct pico_ieee_a
     }
 }
 
+static void pico_ieee_addr_to_str(char llstring[PICO_SIZE_IEEE_ADDR_STR], struct pico_ieee_addr *addr)
+{
+    if (IEEE_AM_SHORT == addr->_mode || IEEE_AM_BOTH == addr->_mode) {
+        snprintf(llstring, PICO_SIZE_IEEE_ADDR_STR, "0x%04X", short_be(addr->_short.addr));
+    } else if (IEEE_AM_EXTENDED == addr->_mode) {
+        snprintf(llstring, PICO_SIZE_IEEE_ADDR_STR, "%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X",
+                 addr->_ext.addr[0],
+                 addr->_ext.addr[1],
+                 addr->_ext.addr[2],
+                 addr->_ext.addr[3],
+                 addr->_ext.addr[4],
+                 addr->_ext.addr[5],
+                 addr->_ext.addr[6],
+                 addr->_ext.addr[7]);
+    } else {
+        snprintf(llstring, PICO_SIZE_IEEE_ADDR_STR, "(invalid)");
+    }
+}
+
 static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t id, uint8_t hops_left)
 {
     struct ping_cookie test = {.dst = IEEE_ADDR_ZERO, .id = short_be(id)};
     struct sixlowpan_rtable_entry *entry = NULL;
     struct ping_cookie *cookie = NULL;
+    char llstring[PICO_SIZE_IEEE_ADDR_STR] = {0};
     CHECK_PARAM_VOID(f);
     
     if ((cookie = pico_tree_findKey(&SixlowpanPings, &test))) {
@@ -1193,7 +1213,8 @@ static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t i
                 entry->hops = (uint8_t)((uint8_t)SIXLOWPAN_PING_TTL - hops_left);
                 entry->timestamp = PICO_TIME();
                 entry->via = f->hop;
-                PAN_DBG("Routing table entry updated to hops: (%d)\n", entry->hops);
+                pico_ieee_addr_to_str(llstring, &entry->dst);
+                PAN_DBG("Routing table entry (%s) updated to hops: (%d)\n", llstring, entry->hops);
             }
             
             /* If the ping was required to send current frame, determine next hop and resume */
@@ -1394,11 +1415,9 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
     
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REQUEST)) {
-        PAN_DBG("PING Request: (0x%04X) \n", short_be(ping->id));
         sixlowpan_ping(f->peer, f->hop, f->dev, short_be(ping->id), f->local._mode);
         return 1;
     } else if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REPLY)) {
-        PAN_DBG("PING Reply: (0x%04X) peer is %d hops away\n", short_be(ping->id), SIXLOWPAN_PING_TTL - f->hop_limit);
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
         return 1;
     } else {
@@ -1425,6 +1444,7 @@ static int sixlowpan_determine_final_dst(struct pico_frame *f, struct pico_ieee_
     } else {
         /* Resolve unicast link layer address using 6LoWPAN-ND */
         return sixlowpan_derive_local(l, dst);
+//        return sixlowpan_derive_nd(f, l);
     }
     
     return 0;

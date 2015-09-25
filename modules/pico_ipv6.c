@@ -1074,6 +1074,31 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
     return r;
 }
 
+struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device *dev)
+{
+    struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
+    struct pico_ipv6_route *route = NULL;
+    struct pico_tree_node *node = NULL;
+    
+    /* Iterate over the IPv6-routes */
+    pico_tree_foreach(node, &IPV6Routes) {
+        route = (struct pico_ipv6_route *)node->keyValue;
+        
+        /* If the route is a default router, specified by the gw being set */
+        if (!pico_ipv6_is_unspecified(route->gateway.addr)) {
+            /* Iterate over device's links */
+            while (link) {
+                /* If link is equal to route's link, routing list is not empty */
+                if (0 == ipv6_link_compare(link, route->link))
+                    return route;
+                link = pico_ipv6_link_by_dev_next(dev, link);
+            }
+        }
+    }
+    
+    return NULL;
+}
+
 int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 gateway, int metric, struct pico_ipv6_link *link)
 {
     struct pico_ip6 zerogateway = {{0}};
@@ -1538,6 +1563,16 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");
             pico_ipv6_link_del(link->dev, link->address);
+            
+            /* RFC6775, 5.3:
+             *
+             *  ... HOSTS need to intelligently retransmit RSs when ... or the lifetime 
+             *  of the prefixes and contexts in the precies RA is about to expire. ...
+             */
+            if (LL_MODE_SIXLOWPAN == link->dev->mode && !link->dev->hostvars.routing) {
+                link = pico_ipv6_linklocal_get(link->dev);
+                pico_6lp_nd_start_solicitating(link);
+            }
         }
     }
     pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);

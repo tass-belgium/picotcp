@@ -147,6 +147,7 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_sitelocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_prefix_configured(struct pico_ip6 *prefix);
+struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device *dev);
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
 void pico_ipv6_check_lifetime_expired(pico_time now, void *arg);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);

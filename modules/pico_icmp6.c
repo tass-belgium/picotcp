@@ -327,6 +327,8 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     return 0;
 }
 
+
+
 /* RFC 4861 $7.2.4: sending solicited neighbor advertisements */
 int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *target)
 {
@@ -444,6 +446,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     if (LL_MODE_ETHERNET == dev->mode)
         pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
 #ifdef PICO_SUPPORT_SIXLOWPAN
+    /* Force this frame to be send with the EUI-64-address */
     else if (LL_MODE_SIXLOWPAN == dev->mode)
         pico_ipv6_frame_push(sol, src, &daddr, PICO_PROTO_ICMP6, 0);
 #endif /* PICO_SUPPORT_SIXLOWPAN */

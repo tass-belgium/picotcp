@@ -15,6 +15,7 @@
 #define IEEE_ADDR_BCAST_SHORT       (0xFFFFu)
 #define IEEE_ADDR_BCAST             {{0xFFFF}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_SHORT}
 #define IEEE_ADDR_ZERO              {{0x0000}, {{0,0,0,0,0,0,0,0}}, IEEE_AM_NONE}
+#define PICO_SIZE_IEEE_ADDR_STR     (24)
 
 // SIZE DEFINITIONS (IEEE802.15.4)
 #define IEEE_PHY_MTU                (128u)
