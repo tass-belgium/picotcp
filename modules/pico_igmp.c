@@ -18,6 +18,8 @@
 #include "pico_device.h"
 #include "pico_socket.h"
 
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST) 
+
 #define igmp_dbg(...) do {} while(0)
 /* #define igmp_dbg dbg */
 
@@ -1231,3 +1233,45 @@ static int pico_igmp_process_event(struct igmp_parameters *p)
     return 0;
 }
 
+#else
+static struct pico_queue igmp_in = {
+    0
+};
+static struct pico_queue igmp_out = {
+    0
+};
+
+static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f) {
+    IGNORE_PARAMETER(self);
+    IGNORE_PARAMETER(f);
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
+static int pico_igmp_process_out(struct pico_protocol *self, struct pico_frame *f) {
+    IGNORE_PARAMETER(self);
+    IGNORE_PARAMETER(f);
+    return -1;
+}
+
+/* Interface: protocol definition */
+struct pico_protocol pico_proto_igmp = {
+    .name = "igmp",
+    .proto_number = PICO_PROTO_IGMP,
+    .layer = PICO_LAYER_TRANSPORT,
+    .process_in = pico_igmp_process_in,
+    .process_out = pico_igmp_process_out,
+    .q_in = &igmp_in,
+    .q_out = &igmp_out,
+};
+
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state) {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(_MCASTFilter);
+    IGNORE_PARAMETER(state);
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+#endif
