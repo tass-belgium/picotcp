@@ -77,8 +77,19 @@ START_TEST(tc_mldt_type_compare)
 }
 END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
-    struct pico_frame *f = pico_frame_alloc(100);
+    struct pico_frame *f = pico_frame_alloc(200);
+    struct pico_device dev= { 0 };
+    struct pico_ip6 addr = { 0 };
+    struct pico_ipv6_hdr ip6 = { 0, 0 , 0 , 10, {0}, {0} };
+    pico_ipv6_link_add(&dev, addr, addr);
     fail_if(pico_mld_analyse_packet(f) != NULL); 
+    f->dev = &dev;
+    f->net_hdr = &ip6;
+    f->transport_hdr = &ip6;
+    fail_if(pico_mld_analyse_packet(f) != NULL);
+    ip6.hop = 1;
+    fail_if(pico_mld_analyse_packet(f) != NULL);
+ 
 }
 END_TEST
 Suite *pico_suite(void)
