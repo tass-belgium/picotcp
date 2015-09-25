@@ -56,7 +56,18 @@ PACKED_STRUCT_DEF mldv2_report {
     uint16_t nbr_gr;
     struct mldv2_group_record record[0];
 };
-
+PACKED_STRUCT_DEF mldv2_query {
+    uint8_t type;
+    uint8_t code;
+    uint16_t crc;
+    uint16_t max_resp_delay;
+    uint16_t res;
+    struct pico_ip6 mcast_group;
+    uint8_t rsq;
+    uint8_t qqic;
+    uint16_t nbr_src;
+    struct pico_ip6 source_addr[0];
+};
 typedef int (*mld_callback) (struct mld_parameters *);
 static int pico_mld_process_event(struct mld_parameters *p); 
 static struct mld_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group);
@@ -94,30 +105,6 @@ static int pico_mld_check_hopbyhop(struct pico_ipv6_hbhoption *hbh) {
     } 
     return 0;    
 }
-static void pico_mld_report_expired(struct mld_timer *t) {
-    struct mld_parameters *p = NULL;
-
-    p = pico_mld_find_parameter(&t->mcast_link, &t->mcast_group);
-    if (!p)
-        return;
-
-    p->event = MLD_EVENT_TIMER_EXPIRED;
-    pico_mld_process_event(p);
-}
-static inline int mldparm_group_compare(struct mld_parameters *a,  struct mld_parameters *b) {
-    return pico_ipv6_compare(&a->mcast_group, &b->mcast_group);
-}
-static inline int mldparm_link_compare(struct mld_parameters *a,  struct mld_parameters *b) {
-    return pico_ipv6_compare(&a->mcast_link, &b->mcast_link);
-}
-static int mld_parameters_cmp(void *ka, void *kb) {
-    struct mld_parameters *a = ka, *b = kb;
-    int cmp = mldparm_group_compare(a, b);
-    if (cmp)
-        return cmp;
-
-    return mldparm_link_compare(a, b);
-}
 static inline int mldt_type_compare(struct mld_timer *a,  struct mld_timer *b) {
     if (a->type < b->type)
         return -1;
@@ -134,7 +121,6 @@ static inline int mldt_group_compare(struct mld_timer *a,  struct mld_timer *b) 
 static inline int mldt_link_compare(struct mld_timer *a,  struct mld_timer *b) {
     return pico_ipv6_compare(&a->mcast_link, &b->mcast_link);
 }
-PICO_TREE_DECLARE(MLDParameters, mld_parameters_cmp);
 static int mld_timer_cmp(void *ka, void *kb) {
     struct mld_timer *a = ka, *b = kb;
     int cmp = mldt_type_compare(a, b);
@@ -147,6 +133,57 @@ static int mld_timer_cmp(void *ka, void *kb) {
 
     return mldt_link_compare(a, b);
 }
+static void pico_mld_report_expired(struct mld_timer *t) {
+    struct mld_parameters *p = NULL;
+
+    p = pico_mld_find_parameter(&t->mcast_link, &t->mcast_group);
+    if (!p)
+        return;
+
+    p->event = MLD_EVENT_TIMER_EXPIRED;
+    pico_mld_process_event(p);
+}
+PICO_TREE_DECLARE(MLDTimers, mld_timer_cmp);
+static void pico_mld_v1querier_expired(struct mld_timer *t)
+{
+    struct pico_ipv6_link *link = NULL;
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+
+    link = pico_ipv6_link_by_dev(t->f->dev);
+    if (!link)
+        return;
+
+    /* When changing compatibility mode, cancel all pending response
+     * and retransmission timers.
+     */
+    pico_tree_foreach_safe(index, &MLDTimers, _tmp)
+    {
+        ((struct mld_timer *)index->keyValue)->stopped = MLD_TIMER_STOPPED;
+        pico_tree_delete(&MLDTimers, index->keyValue);
+    }
+    mld_dbg("MLD: switch to compatibility mode MLDv2\n");
+    link->mcast_compatibility = PICO_MLDV2;
+    return;
+}
+
+
+static inline int mldparm_group_compare(struct mld_parameters *a,  struct mld_parameters *b) {
+    return pico_ipv6_compare(&a->mcast_group, &b->mcast_group);
+}
+static inline int mldparm_link_compare(struct mld_parameters *a,  struct mld_parameters *b) {
+    return pico_ipv6_compare(&a->mcast_link, &b->mcast_link);
+}
+static int mld_parameters_cmp(void *ka, void *kb) {
+    struct mld_parameters *a = ka, *b = kb;
+    int cmp = mldparm_group_compare(a, b);
+    if (cmp)
+        return cmp;
+
+    return mldparm_link_compare(a, b);
+}
+
+PICO_TREE_DECLARE(MLDParameters, mld_parameters_cmp);
+
 static int pico_mld_delete_parameter(struct mld_parameters *p) {
     if (pico_tree_delete(&MLDParameters, p))
         PICO_FREE(p);
@@ -154,7 +191,6 @@ static int pico_mld_delete_parameter(struct mld_parameters *p) {
         return -1;
     return 0;
 }
-PICO_TREE_DECLARE(MLDTimers, mld_timer_cmp);
 static void pico_mld_timer_expired(pico_time now, void *arg){
     struct mld_timer *t = NULL, *timer = NULL, test = {
         0
@@ -351,7 +387,8 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
     struct mld_timer t = {
         0
     };
-    uint16_t  datalen; 
+    uint16_t  datalen;
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
     link = pico_ipv6_link_by_dev(f->dev);
     if (!link)
         return -1;
@@ -372,9 +409,18 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
             return 0;
         }
     } else if( datalen == 24) {
-        /* MLDv1 */
+        pico_tree_foreach_safe(index, &MLDTimers, _tmp)
+        {
+            ((struct mld_timer *)index->keyValue)->stopped = MLD_TIMER_STOPPED;
+            pico_tree_delete(&MLDTimers, index->keyValue);
+        }
+        mld_dbg("MLD: switch to compatibility mode MLDv1\n");
         link->mcast_compatibility = PICO_MLDV1;
-        mld_dbg("MLD Compatibility: v1\n");
+        t.type = MLD_TIMER_V1_QUERIER;
+        t.delay =(pico_time) ((MLD_ROBUSTNESS * link->mcast_last_query_interval) + MLD_QUERY_RESPONSE_INTERVAL) * 1000;
+        t.f = f;
+        t.mld_callback = pico_mld_v1querier_expired;
+        pico_mld_timer_start(&t);
     } else {
         /* invalid query, silently ignored */
         return -1;
@@ -490,6 +536,8 @@ static struct mld_parameters *pico_mld_analyse_packet(struct pico_frame *f) {
     case PICO_MLD_REPORTV2:
         p->event = MLD_EVENT_REPORT_RECV;
         break;
+    default:
+        return NULL;
     }
     p->f = f; 
     return p;
@@ -979,11 +1027,8 @@ static int mld_rtimrtct(struct mld_parameters *p) {
         t->delay = pico_rand() % ((1u + p->max_resp_time) * 100u);
         pico_mld_timer_reset(t);
     }
-    /* State is already Delaying Listener*/
-    /*
     p->state = MLD_STATE_DELAYING_LISTENER;
     mld_dbg("MLD: new state = Delaying Listener\n");
-    */
     return 0;
 }
 /* merge report, send report, reset timer (MLDv2 only) */
