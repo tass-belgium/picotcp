@@ -1109,7 +1109,7 @@ int pico_stack_init(void)
     pico_protocol_init(&pico_proto_icmp6);
 #endif
 
-#ifdef PICO_SUPPORT_IGMP
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
     pico_protocol_init(&pico_proto_igmp);
 #endif
 
