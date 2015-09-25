@@ -107,6 +107,36 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     return n;
 }
 
+static void pico_slp_nd_unreachable_gateway(struct pico_ip6 *a)
+{
+    struct pico_ipv6_route *route = NULL;
+    struct pico_ipv6_link *local = NULL;
+    struct pico_tree_node *node = NULL;
+    struct pico_device *dev = NULL;
+    
+    /* RFC6775, 5.3:
+     *
+     *  ... HOSTS need to intelligently retransmit RSs when one of its 
+     *  default routers becomes unreachable ...
+     */
+    pico_tree_foreach(node, &Device_tree) {
+        dev = (struct pico_device *)node->keyValue;
+        if (dev && (dev->mode == LL_MODE_SIXLOWPAN) && (!dev->hostvars.routing)) {
+            /* Check if there's a gateway configured
+             *
+             * NOTE! For the moment only one gateway is taken into account,
+             * in the future support for multiple LBRs on the PAN has to 
+             * be implemented */
+            route = pico_ipv6_default_gateway_configured(dev);
+            if (route && (0 == pico_ipv6_compare(&route->gateway, a))) {
+                local = pico_ipv6_linklocal_get(dev);
+                pico_6lp_nd_start_solicitating(local);
+            }
+            return;
+        }
+    }
+}
+
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 {
     int i;
@@ -121,7 +151,12 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
             dst = pico_ipv6_route_get_gateway(&hdr->dst);
             if (pico_ipv6_is_unspecified(dst.addr))
                 dst = hdr->dst;
-
+            
+            /* 6LP: Find any 6LoWPAN-hosts for which this address might have been
+             * a default gateway. If such a host found, send a router solicitation
+             * again */
+            pico_slp_nd_unreachable_gateway(a);
+            
             if (memcmp(dst.addr, a->addr, PICO_SIZE_IP6) == 0) {
                 if (!pico_source_is_local(f)) {
                     pico_notify_dest_unreachable(f);
