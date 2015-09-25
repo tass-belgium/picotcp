@@ -1151,4 +1151,22 @@ static int pico_mld_process_event(struct mld_parameters *p) {
     }
     return 0;
 }
+#else
+uint16_t pico_mld_checksum(struct pico_frame *f) {
+    IGNORE_PARAMETER(f);
+    return -1;
+}
+int pico_mld_process_in(struct pico_frame *f) {
+    IGNORE_PARAMETER(f);
+    return -1;
+}
+
+int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state) {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(_MCASTFilter);
+    IGNORE_PARAMETER(state);
+    return -1;
+}
 #endif
