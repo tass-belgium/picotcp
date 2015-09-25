@@ -65,6 +65,7 @@ static int mcast_listen_grp_cmp(struct pico_mcast_listen *a, struct pico_mcast_l
 
     return mcast_listen_link_cmp(a, b);
 }
+#ifdef PICO_SUPPORT_IPV6
 static int mcast_listen_grp_cmp_ipv6(struct pico_mcast_listen *a, struct pico_mcast_listen *b)
 {
     int tmp = memcmp(&a->mcast_group.ip6, &b->mcast_group.ip6, sizeof(struct pico_ip6));
@@ -72,7 +73,7 @@ static int mcast_listen_grp_cmp_ipv6(struct pico_mcast_listen *a, struct pico_mc
         return mcast_listen_link_cmp(a, b);
     return tmp;
 }
-
+#endif
 
 static int mcast_listen_cmp(void *ka, void *kb)
 {
@@ -85,6 +86,7 @@ static int mcast_listen_cmp(void *ka, void *kb)
 
     return mcast_listen_grp_cmp(a, b);
 }
+#ifdef PICO_SUPPORT_IPV6
 static int mcast_listen_cmp_ipv6(void *ka, void *kb)
 {
     struct pico_mcast_listen *a = ka, *b = kb;
@@ -96,6 +98,7 @@ static int mcast_listen_cmp_ipv6(void *ka, void *kb)
 
     return mcast_listen_grp_cmp_ipv6(a, b);
 }
+#endif
 static int mcast_sources_cmp(void *ka, void *kb)
 {
     union pico_address *a = ka, *b = kb;
@@ -107,12 +110,13 @@ static int mcast_sources_cmp(void *ka, void *kb)
 
     return 0;
 }
+#ifdef PICO_SUPPORT_IPV6
 static int mcast_sources_cmp_ipv6(void *ka, void *kb)
 {
     union pico_address *a = ka, *b = kb;
     return memcmp(&a->ip6, &b->ip6, sizeof(struct pico_ip6));
 }
-
+#endif
 static int mcast_socket_cmp(void *ka, void *kb)
 {
     struct pico_socket *a = ka, *b = kb;
@@ -518,22 +522,16 @@ static void *pico_socket_mcast_filter_link_get(struct pico_socket *s)
 
 int pico_socket_mcast_filter(struct pico_socket *s, union pico_address *mcast_group, union pico_address *src)
 {
-    struct pico_ipv4_link *mcast_link = NULL;
-    struct pico_ipv6_link *mcast_link_ipv6 = NULL;
+    void *mcast_link = NULL;
     struct pico_mcast_listen *listen = NULL;
-    if( IS_SOCK_IPV4(s) ) {
-        mcast_link = pico_socket_mcast_filter_link_get(s);
-        if (!mcast_link)
-            return -1;
-        listen = listen_find(s, (union pico_address *)&mcast_link->address, mcast_group);
-    }
+    mcast_link = pico_socket_mcast_filter_link_get(s);
+    if (!mcast_link)
+        return -1;
+    if(IS_SOCK_IPV4(s))
+        listen = listen_find(s,(union pico_address *) &((struct pico_ipv4_link*)(mcast_link))->address, mcast_group);
 #ifdef PICO_SUPPORT_IPV6
-    else if( IS_SOCK_IPV6(s) ) {
-        mcast_link_ipv6 = pico_socket_mcast_filter_link_get(s);
-         if (!mcast_link_ipv6)
-            return -1;
-        listen = listen_find(s, (union pico_address *)&mcast_link_ipv6->address, mcast_group);
-    }
+    else if(IS_SOCK_IPV6(s))    
+        listen = listen_find(s, (union pico_address *)&((struct pico_ipv6_link*)(mcast_link))->address, mcast_group);
 #endif
     if (!listen)
         return -1;
@@ -547,6 +545,7 @@ static struct pico_ipv4_link *get_mcast_link(union pico_address *a) {
         return pico_ipv4_get_default_mcastlink();
     return pico_ipv4_link_get(&a->ip4);
 }
+#ifdef PICO_SUPPORT_IPV6
 static struct pico_ipv6_link *get_mcast_link_ipv6(union pico_address *a) {
 
     if (pico_ipv6_is_null_address(&a->ip6)) {
@@ -554,6 +553,7 @@ static struct pico_ipv6_link *get_mcast_link_ipv6(union pico_address *a) {
     }
     return pico_ipv6_link_get(&a->ip6);
 }
+#endif
 
 static int pico_socket_setoption_pre_validation(struct pico_mreq *mreq)
     {
@@ -565,9 +565,9 @@ static int pico_socket_setoption_pre_validation(struct pico_mreq *mreq)
 
     return 0;
 }
+#ifdef PICO_SUPPORT_IPV6
 static int pico_socket_setoption_pre_validation_ipv6(struct pico_mreq *mreq)
 {
-#ifdef PICO_SUPPORT_IPV6
     if (!mreq)
         return -1;
 
@@ -575,10 +575,8 @@ static int pico_socket_setoption_pre_validation_ipv6(struct pico_mreq *mreq)
         return -1;
 
     return 0;
-#else
-    return -1;
-#endif
 }
+#endif
 
 static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_mreq *mreq)
 {
@@ -591,19 +589,17 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_mreq(struct pico_mr
     return get_mcast_link((union pico_address *)&mreq->mcast_link_addr);
 }
 
+#ifdef PICO_SUPPORT_IPV6
 static struct pico_ipv6_link *pico_socket_setoption_validate_mreq_ipv6(struct pico_mreq *mreq)
 {
-#ifdef PICO_SUPPORT_IPV6
     if (pico_socket_setoption_pre_validation_ipv6(mreq) < 0)
         return NULL;
 
     if (pico_ipv6_is_unicast((struct pico_ip6 *)&mreq->mcast_group_addr))
         return NULL;
     return get_mcast_link_ipv6((union pico_address *)&mreq->mcast_link_addr);
-#else
-    return NULL;
-#endif
 }
+#endif
 
 static int pico_socket_setoption_pre_validation_s(struct pico_mreq_source *mreq)
 {
@@ -615,9 +611,9 @@ static int pico_socket_setoption_pre_validation_s(struct pico_mreq_source *mreq)
 
     return 0;
 }
+#ifdef PICO_SUPPORT_IPV6
 static int pico_socket_setoption_pre_validation_s_ipv6(struct pico_mreq_source *mreq)
 {
-#ifdef PICO_SUPPORT_IPV6
     if (!mreq)
         return -1;
 
@@ -625,10 +621,8 @@ static int pico_socket_setoption_pre_validation_s_ipv6(struct pico_mreq_source *
         return -1;
 
     return 0;
-#else
-    return -1;
-#endif
 }
+#endif
 
 static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_mreq_source *mreq)
 {
@@ -643,9 +637,9 @@ static struct pico_ipv4_link *pico_socket_setoption_validate_s_mreq(struct pico_
 
     return get_mcast_link((union pico_address *)&mreq->mcast_link_addr);
 }
+#ifdef PICO_SUPPORT_IPV6
 static struct pico_ipv6_link *pico_socket_setoption_validate_s_mreq_ipv6(struct pico_mreq_source *mreq)
 {
-#ifdef PICO_SUPPORT_IPV6
     if (pico_socket_setoption_pre_validation_s_ipv6(mreq) < 0) {
         return NULL;
     }
@@ -657,10 +651,8 @@ static struct pico_ipv6_link *pico_socket_setoption_validate_s_mreq_ipv6(struct 
     }
 
     return get_mcast_link_ipv6(&mreq->mcast_link_addr);
-#else
-    return NULL;
-#endif
 }
+#endif
 
 static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysource)
 {
@@ -692,9 +684,9 @@ static struct pico_ipv4_link *setop_multicast_link_search(void *value, int bysou
 
     return mcast_link;
 }
+#ifdef PICO_SUPPORT_IPV6
 static struct pico_ipv6_link *setop_multicast_link_search_ipv6(void *value, int bysource)
 {
-#ifdef PICO_SUPPORT_IPV6
     struct pico_mreq *mreq = NULL;
     struct pico_ipv6_link *mcast_link = NULL;
     struct pico_mreq_source *mreq_src = NULL;
@@ -720,10 +712,8 @@ static struct pico_ipv6_link *setop_multicast_link_search_ipv6(void *value, int 
             mreq_src->mcast_link_addr.ip6 = mcast_link->address;
     }
     return mcast_link;
-#else
-    return NULL;
-#endif
 }
+#endif
 static int setop_verify_listen_tree(struct pico_socket *s, int alloc)
 {
     if(!alloc)
