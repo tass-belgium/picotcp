@@ -1167,6 +1167,6 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
     IGNORE_PARAMETER(filter_mode);
     IGNORE_PARAMETER(_MCASTFilter);
     IGNORE_PARAMETER(state);
-    return -1;
+    return 0;
 }
 #endif
