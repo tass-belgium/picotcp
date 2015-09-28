@@ -59,6 +59,22 @@ START_TEST(tc_pico_mld_check_hopbyhop)
     }
 }
 END_TEST
+START_TEST(tc_pico_mld_v1querier_expired)
+{
+    struct mld_timer t;
+    struct pico_ip6 addr = {{0}};
+    struct pico_device *dev = pico_null_create("dummy1");
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
+    f->dev = dev;
+    t.f = f;
+    pico_string_to_ipv6("AAAA::1", addr.addr);
+    //void function, just check for side effects
+    //No link
+    pico_mld_v1querier_expired(&t); 
+    pico_ipv6_link_add(dev, addr, addr);
+    pico_mld_v1querier_expired(&t); 
+}
+END_TEST
 START_TEST(tc_pico_mld_report_expired)
 {
     struct mld_timer t;
@@ -67,6 +83,12 @@ START_TEST(tc_pico_mld_report_expired)
     t.mcast_group = zero;
     //void function, just check for side effects
     pico_mld_report_expired(&t);
+}
+END_TEST
+START_TEST(tc_pico_mld_delete_parameter)
+{
+    struct mld_parameters p;
+    fail_if(pico_mld_delete_parameter(&p) != -1);
 }
 END_TEST
 START_TEST(tc_mldt_type_compare) 
@@ -78,6 +100,32 @@ START_TEST(tc_mldt_type_compare)
     fail_if(mldt_type_compare(&a,&b) != -1);
     fail_if(mldt_type_compare(&b,&a) != 1);
     fail_if(mld_timer_cmp(&b,&a) != 1);
+}
+END_TEST
+
+START_TEST(tc_pico_mld_timer_expired)
+{
+    struct mld_timer *t,s;
+    t = PICO_ZALLOC(sizeof(struct mld_timer));
+    t->stopped = MLD_TIMER_STOPPED;
+    t->type = 0;
+    pico_string_to_ipv6("AAAA::1", t->mcast_link.addr);
+    pico_string_to_ipv6("AAAA::1", t->mcast_group.addr);
+    //void function, just check for side effects
+    pico_mld_timer_expired(NULL, (void *)t);
+    pico_tree_insert(&MLDTimers, t);
+    s = *t; // t will be freed next test
+    pico_mld_timer_expired(NULL, (void *)t);
+    s.stopped++;
+    s.start = PICO_TIME_MS()*2;
+    s.type++;
+    pico_tree_insert(&MLDTimers, &s);
+    pico_mld_timer_expired(NULL, (void *)&s);
+}
+END_TEST
+START_TEST(tc_pico_mld_send_done) {
+    struct mld_parameters p;
+    fail_if(pico_mld_send_done(&p, NULL) != 0);
 }
 END_TEST
 START_TEST(tc_pico_mld_compatibility_mode) {
@@ -100,6 +148,14 @@ START_TEST(tc_pico_mld_compatibility_mode) {
     //Invalid Query 
     f->buffer_len = 25 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN;
     fail_if(pico_mld_compatibility_mode(f) == 0);
+}
+END_TEST
+START_TEST(tc_pico_mld_timer_reset) {
+    struct mld_timer t;
+    pico_string_to_ipv6("AAAA::1", t.mcast_link.addr);
+    pico_string_to_ipv6("AAAA::1", t.mcast_group.addr);
+    t.type = 0;
+    fail_if(pico_mld_timer_reset(&t)!=-1);
 }
 END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
@@ -165,6 +221,11 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mld_analyse_packet = tcase_create("Unit test for pico_mld_analyse_packet");
     TCase *TCase_pico_mld_discard = tcase_create("Unit test for pico_mld_discard");
     TCase *TCase_pico_mld_compatibility_mode = tcase_create("Unit test for pico_mld_compatibility");
+    TCase *TCase_pico_mld_v1querier_expired = tcase_create("Unit test for pico_mld_v1querier_expired");
+    TCase *TCase_pico_mld_delete_parameter = tcase_create("Unit test for pico_mld_delete_parameter");
+    TCase *TCase_pico_mld_timer_expired = tcase_create("Unit test for pico_mld_timer_expired");
+    TCase *TCase_pico_mld_timer_reset = tcase_create("Unit test for pico_mld_timer_reset");
+    TCase *TCase_pico_mld_send_done = tcase_create("Unit test for pico_mld_send_done");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -180,9 +241,18 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mld_discard);
     tcase_add_test(TCase_pico_mld_compatibility_mode, tc_pico_mld_compatibility_mode);
     suite_add_tcase(s, TCase_pico_mld_compatibility_mode);
+    tcase_add_test(TCase_pico_mld_v1querier_expired, tc_pico_mld_v1querier_expired);
+    suite_add_tcase(s, TCase_pico_mld_v1querier_expired);
+    tcase_add_test(TCase_pico_mld_delete_parameter, tc_pico_mld_delete_parameter);
+    suite_add_tcase(s, TCase_pico_mld_delete_parameter);
+    tcase_add_test(TCase_pico_mld_timer_expired, tc_pico_mld_timer_expired);
+    suite_add_tcase(s, TCase_pico_mld_timer_expired);
+    tcase_add_test(TCase_pico_mld_timer_reset, tc_pico_mld_timer_reset);
+    suite_add_tcase(s, TCase_pico_mld_timer_reset);
+    tcase_add_test(TCase_pico_mld_send_done, tc_pico_mld_send_done);
+    suite_add_tcase(s, TCase_pico_mld_send_done);
     return s;
 }
-
 int main(void)
 {
     int fails;
