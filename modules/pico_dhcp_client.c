@@ -28,6 +28,11 @@
 
 /* maximum size of a DHCP message */
 #define DHCP_CLIENT_MAXMSGZISE         (PICO_IP_MRU - PICO_SIZE_IP4HDR)
+#define PICO_DHCP_HOSTNAME_MAXLEN  64U
+
+static char dhcpc_host_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
+static char dhcpc_domain_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
+
 
 enum dhcp_client_state {
     DHCP_CLIENT_STATE_INIT_REBOOT = 0,
@@ -471,6 +476,24 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
         case PICO_DHCP_OPT_OPTOVERLOAD:
             dhcpc_dbg("DHCP client: WARNING option overload present (not processed)");
             break;
+
+        case PICO_DHCP_OPT_HOSTNAME:
+           {
+            uint32_t maxlen = PICO_DHCP_HOSTNAME_MAXLEN;
+            if (opt->len < maxlen)
+                maxlen = opt->len;
+            strncpy(dhcpc_host_name, opt->ext.string.txt, maxlen);
+           }
+           break;
+
+        case PICO_DHCP_OPT_DOMAINNAME:
+           {
+            uint32_t maxlen = PICO_DHCP_HOSTNAME_MAXLEN;
+            if (opt->len < maxlen)
+                maxlen = opt->len;
+            strncpy(dhcpc_domain_name, opt->ext.string.txt, maxlen);
+           }
+           break;
 
         default:
             dhcpc_dbg("DHCP client: WARNING unsupported option %u\n", opt->code);
@@ -952,4 +975,16 @@ int pico_dhcp_client_abort(uint32_t xid)
 {
     return pico_dhcp_client_del_cookie(xid);
 }
+
+
+char *pico_dhcp_get_hostname(void)
+{
+    return dhcpc_host_name;
+}
+
+char *pico_dhcp_get_domain(void)
+{
+    return dhcpc_domain_name;
+}
+
 #endif

@@ -167,6 +167,9 @@ PACKED_STRUCT_DEF pico_dhcp_opt
         PEDANTIC_STRUCT_DEF client_id_s {
             uint8_t id[1];
         } client_id;
+        PEDANTIC_STRUCT_DEF text_s {
+            char txt[1];
+        } string;
     } ext;
 };
 
