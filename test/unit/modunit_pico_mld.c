@@ -8,8 +8,12 @@
 #include "modules/pico_mld.c"
 #include "check.h"
 
+Suite *pico_suite(void);
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg) 
 {
+    IGNORE_PARAMETER(expire);
+    IGNORE_PARAMETER(timer);
+    IGNORE_PARAMETER(arg);
     return NULL;
 }
 
@@ -58,7 +62,7 @@ END_TEST
 START_TEST(tc_pico_mld_report_expired)
 {
     struct mld_timer t;
-    struct pico_ip6 zero = { 0 };
+    struct pico_ip6 zero = {{0}};
     t.mcast_link = zero;
     t.mcast_group = zero;
     //void function, just check for side effects
@@ -78,21 +82,21 @@ START_TEST(tc_mldt_type_compare)
 END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
     struct pico_frame *f = pico_frame_alloc(200);
-    struct pico_device dev= { 0 };
-    struct pico_ip6 addr = { 0 };
-    struct pico_ipv6_hdr ip6 = { 0, 0 , 0 , 10, {0}, {0} };
+    struct pico_device dev= {{0}};
+    struct pico_ip6 addr = {{0}};
+    struct pico_ipv6_hdr ip6 ={ 0, 0 , 0 , 10, {{0}}, {{0}} };
     struct pico_ipv6_hbhoption *hbh = PICO_ZALLOC(sizeof(struct pico_ipv6_hbhoption)+10);
 
     pico_ipv6_link_add(&dev, addr, addr);
     fail_if(pico_mld_analyse_packet(f) != NULL); 
     f->dev = &dev;
-    f->net_hdr = &ip6;
-    f->transport_hdr = &ip6;
+    f->net_hdr = (uint8_t *)&ip6;
+    f->transport_hdr = (uint8_t *)&ip6;
     fail_if(pico_mld_analyse_packet(f) != NULL);
     ip6.hop = 1;
     pico_mld_fill_hopbyhop(hbh);
     hbh->type = 99;
-    f->transport_hdr = hbh;
+    f->transport_hdr = (uint8_t *)hbh;
     fail_if(pico_mld_analyse_packet(f) != NULL);
 }
 END_TEST
