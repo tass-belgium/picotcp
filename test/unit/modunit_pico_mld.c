@@ -7,7 +7,7 @@
 #include "pico_tree.h"
 #include "modules/pico_mld.c"
 #include "check.h"
-
+#include "pico_dev_null.c"
 Suite *pico_suite(void);
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg) 
 {
@@ -81,27 +81,60 @@ START_TEST(tc_mldt_type_compare)
 }
 END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
-/*    struct pico_frame *f = pico_frame_alloc(200);
-    struct pico_device dev= {{0}};
-    struct pico_ip6 addr = {{0}};
-    struct pico_ipv6_hdr ip6 ={ 0, 0 , 0 , 10, {{0}}, {{0}} };
-    struct pico_ipv6_hbhoption *hbh = PICO_ZALLOC(sizeof(struct pico_ipv6_hbhoption)+10);
+    struct pico_frame *f;;
 
-    pico_ipv6_link_add(&dev, addr, addr);
+    struct pico_device *dev = pico_null_create("dummy0");
+    struct pico_ip6 addr;
+    struct pico_ip6 local;
+    struct pico_ipv6_hdr *ip6;
+    struct pico_ipv6_hbhoption *hbh;
+    struct pico_icmp6_hdr *mld;
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN);
+    pico_string_to_ipv6("AAAA::1", addr.addr);
+    pico_string_to_ipv6("FE80::1", local.addr);
+    //No link
     fail_if(pico_mld_analyse_packet(f) != NULL); 
-    f->dev = &dev;
-    f->net_hdr = (uint8_t *)&ip6;
-    f->transport_hdr = (uint8_t *)&ip6;
+    pico_ipv6_link_add(dev, addr, addr);
+    f->dev = dev;
+    ip6 = f->net_hdr;
+    ip6->hop == 99;
+    // Incorrect hop
     fail_if(pico_mld_analyse_packet(f) != NULL);
-    ip6.hop = 1;
+    ip6->hop = 1;
+    hbh = f->transport_hdr;
     pico_mld_fill_hopbyhop(hbh);
     hbh->type = 99;
-    f->transport_hdr = (uint8_t *)hbh;
-    fail_if(pico_mld_analyse_packet(f) != NULL);*/
+    //incorrect hop by hop
+    fail_if(pico_mld_analyse_packet(f) != NULL);
+    pico_mld_fill_hopbyhop(hbh);
+    ip6->src = addr;
+    //Not link local
+    fail_if(pico_mld_analyse_packet(f) != NULL);
+    ip6->src = local;
+    mld = (struct pico_icmp6_hdr *) (f->transport_hdr+MLD_ROUTER_ALERT_LEN);
+    mld->type = 0;
+    //wrong type
+    fail_if(pico_mld_analyse_packet(f) != NULL);
+
+    // all correct
+    mld->type = PICO_MLD_QUERY;
+    fail_if(pico_mld_analyse_packet(f) == NULL);
+    mld->type = PICO_MLD_REPORT;
+    fail_if(pico_mld_analyse_packet(f) == NULL);
+    mld->type = PICO_MLD_DONE;
+    fail_if(pico_mld_analyse_packet(f) == NULL);
+    mld->type = PICO_MLD_REPORTV2;
+    fail_if(pico_mld_analyse_packet(f) == NULL);
+
+}
+END_TEST
+START_TEST(tc_pico_mld_discard) {
+    mld_discard(NULL);
 }
 END_TEST
 Suite *pico_suite(void)
 {
+
     Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_pico_mld_fill_hopbyhop = tcase_create("Unit test for pico_mld_fill_hopbyhop");
@@ -109,6 +142,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mld_report_expired = tcase_create("Unit test for pico_mld_report_expired");
     TCase *TCase_mldt_type_compare = tcase_create("Unit test for mldt_type_compare");
     TCase *TCase_pico_mld_analyse_packet = tcase_create("Unit test for pico_mld_analyse_packet");
+    TCase *TCase_pico_mld_discard = tcase_create("Unit test for pico_mld_discard");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -120,6 +154,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_mldt_type_compare);
     tcase_add_test(TCase_pico_mld_analyse_packet, tc_pico_mld_analyse_packet);
     suite_add_tcase(s, TCase_pico_mld_analyse_packet);
+    tcase_add_test(TCase_pico_mld_discard, tc_pico_mld_discard);
+    suite_add_tcase(s, TCase_pico_mld_discard);
     return s;
 }
 
