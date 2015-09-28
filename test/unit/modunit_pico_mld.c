@@ -81,6 +81,8 @@ START_TEST(tc_pico_mld_analyse_packet) {
     struct pico_device dev= { 0 };
     struct pico_ip6 addr = { 0 };
     struct pico_ipv6_hdr ip6 = { 0, 0 , 0 , 10, {0}, {0} };
+    struct pico_ipv6_hbhoption *hbh = PICO_ZALLOC(sizeof(struct pico_ipv6_hbhoption)+10);
+
     pico_ipv6_link_add(&dev, addr, addr);
     fail_if(pico_mld_analyse_packet(f) != NULL); 
     f->dev = &dev;
@@ -88,8 +90,10 @@ START_TEST(tc_pico_mld_analyse_packet) {
     f->transport_hdr = &ip6;
     fail_if(pico_mld_analyse_packet(f) != NULL);
     ip6.hop = 1;
+    pico_mld_fill_hopbyhop(hbh);
+    hbh->type = 99;
+    f->transport_hdr = hbh;
     fail_if(pico_mld_analyse_packet(f) != NULL);
- 
 }
 END_TEST
 Suite *pico_suite(void)
