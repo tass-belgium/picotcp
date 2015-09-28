@@ -219,6 +219,7 @@ static void pico_mld_timer_expired(pico_time now, void *arg){
         return;
     }
     if (timer->stopped == MLD_TIMER_STOPPED) {
+        pico_tree_delete(&MLDTimers, timer);
         PICO_FREE(t);
         return;
     }
@@ -578,6 +579,7 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
         0
     };
 #endif
+    IGNORE_PARAMETER(f);
     pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
     p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN);
     p->f->dev = pico_ipv6_link_find(&p->mcast_link);
@@ -596,7 +598,7 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
     pico_ipv6_to_string(grpstr, mcast_group.addr);
     mld_dbg("MLD: send membership done on group %s to %s\n", grpstr, ipstr);
 #endif 
-    pico_ipv6_frame_push(f, NULL, &dst, 0,0);
+    pico_ipv6_frame_push(p->f, NULL, &dst, 0,0);
     return 0;
 }
 static int pico_mld_send_report(struct mld_parameters *p, struct pico_frame *f) {
