@@ -80,8 +80,30 @@ START_TEST(tc_mldt_type_compare)
     fail_if(mld_timer_cmp(&b,&a) != 1);
 }
 END_TEST
+START_TEST(tc_pico_mld_compatibility_mode) {
+    struct pico_frame *f;
+    struct pico_device *dev = pico_null_create("ummy1");
+    struct pico_ip6 addr;
+
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report)+MLD_ROUTER_ALERT_LEN+sizeof(struct mldv2_group_record) +(0 *sizeof(struct pico_ip6)));
+    pico_string_to_ipv6("AAAA::1", addr.addr);
+    //No link
+    fail_if(pico_mld_compatibility_mode(f) != -1); 
+    pico_ipv6_link_add(dev, addr, addr);
+    f->dev = dev;
+    //MLDv2 query
+    f->buffer_len = 28 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN;
+    fail_if(pico_mld_compatibility_mode(f) != 0); 
+    //MLDv1 query
+    f->buffer_len = 24 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN;
+    fail_if(pico_mld_compatibility_mode(f) != 0);
+    //Invalid Query 
+    f->buffer_len = 25 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN;
+    fail_if(pico_mld_compatibility_mode(f) == 0);
+}
+END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
-    struct pico_frame *f;;
+    struct pico_frame *f;
 
     struct pico_device *dev = pico_null_create("dummy0");
     struct pico_ip6 addr;
@@ -125,7 +147,6 @@ START_TEST(tc_pico_mld_analyse_packet) {
     fail_if(pico_mld_analyse_packet(f) == NULL);
     mld->type = PICO_MLD_REPORTV2;
     fail_if(pico_mld_analyse_packet(f) == NULL);
-
 }
 END_TEST
 START_TEST(tc_pico_mld_discard) {
@@ -143,6 +164,7 @@ Suite *pico_suite(void)
     TCase *TCase_mldt_type_compare = tcase_create("Unit test for mldt_type_compare");
     TCase *TCase_pico_mld_analyse_packet = tcase_create("Unit test for pico_mld_analyse_packet");
     TCase *TCase_pico_mld_discard = tcase_create("Unit test for pico_mld_discard");
+    TCase *TCase_pico_mld_compatibility_mode = tcase_create("Unit test for pico_mld_compatibility");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -156,6 +178,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mld_analyse_packet);
     tcase_add_test(TCase_pico_mld_discard, tc_pico_mld_discard);
     suite_add_tcase(s, TCase_pico_mld_discard);
+    tcase_add_test(TCase_pico_mld_compatibility_mode, tc_pico_mld_compatibility_mode);
+    suite_add_tcase(s, TCase_pico_mld_compatibility_mode);
     return s;
 }
 
