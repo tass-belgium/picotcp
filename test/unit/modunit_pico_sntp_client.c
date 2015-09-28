@@ -6,6 +6,8 @@
 volatile pico_time pico_tick = 0ull;
 volatile pico_err_t pico_err = 0;
 
+Suite *pico_suite(void);
+void cb_synced(pico_err_t status);
 /* Used in dnsCallback */
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s))
 {
@@ -97,7 +99,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
 
 void pico_timer_cancel(struct pico_timer *t)
 {
-
+    IGNORE_PARAMETER(t);
 }
 
 START_TEST(tc_timestamp_convert)

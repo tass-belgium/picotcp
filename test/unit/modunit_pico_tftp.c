@@ -6,6 +6,8 @@
 #include "check.h"
 
 
+Suite *pico_suite(void);
+int tftp_user_cb(struct pico_tftp_session *session, uint16_t err, uint8_t *block, int32_t len, void *arg);
 /* MOCKS */
 static int called_pico_socket_close = 0;
 static uint16_t expected_opcode = 0;

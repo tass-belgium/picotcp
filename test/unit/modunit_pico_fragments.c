@@ -15,6 +15,7 @@
 #include "./modules/pico_fragments.c"
 #include "check.h"
 
+Suite *pico_suite(void);
 /* Mock! */
 static int transport_recv_called = 0;
 #define TESTPROTO 0x99
@@ -29,6 +30,8 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 static int timer_add_called = 0;
 struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    IGNORE_PARAMETER(expire);
+    IGNORE_PARAMETER(arg);
     fail_if(timer != pico_frag_expire);
     timer_add_called++;
     return NULL;

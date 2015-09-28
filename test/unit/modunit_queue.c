@@ -5,6 +5,8 @@
 #include "check.h"
 
 
+Suite *pico_suite(void);
+
 struct pico_queue q1 = {
     0
 }, q2 = {

@@ -17,6 +17,7 @@
 #define PICO_TIME_MS (0)
 #define PICO_TIME (0)
 
+Suite *pico_suite(void);
 START_TEST(tc_pico_nd_new_expire_time)
 {
     struct pico_ipv6_neighbor n = {

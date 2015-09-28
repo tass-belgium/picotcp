@@ -12,6 +12,7 @@
 #include "modules/pico_ipfilter.c"
 #include "check.h"
 
+Suite *pico_suite(void);
 int pico_icmp4_packet_filtered(struct pico_frame *f)
 {
     (void)f;
