@@ -244,15 +244,15 @@ START_TEST(tc_mdns_cookie_cmp) /* MARK: mdns_cookie_cmp */
     question3 = pico_dns_question_create(url3, &len, PICO_PROTO_IPV4,
                                          PICO_DNS_TYPE_A,
                                          PICO_DNS_CLASS_IN, 0);
-    fail_if(!question2, "Could not create question 3!\n");
+    fail_if(!question3, "Could not create question 3!\n");
     question4 = pico_dns_question_create(url4, &len, PICO_PROTO_IPV4,
                                          PICO_DNS_TYPE_AAAA,
                                          PICO_DNS_CLASS_IN, 0);
-    fail_if(!question2, "Could not create question 4!\n");
+    fail_if(!question4, "Could not create question 4!\n");
     question5 = pico_dns_question_create(url2, &len, PICO_PROTO_IPV4,
                                          PICO_DNS_TYPE_A,
                                          PICO_DNS_TYPE_AAAA, 0);
-    fail_if(!question2, "Could not create question 5!\n");
+    fail_if(!question5, "Could not create question 5!\n");
 
     /* Create test records */
     record1.record = pico_dns_record_create(url1, &rdata, 4, &len,
@@ -1712,14 +1712,35 @@ END_TEST
 START_TEST(tc_mdns_send_query_packet) /* MARK: send_query_packet */
 {
     struct pico_mdns_cookie cookie;
-
+    PICO_DNS_QTREE_DECLARE(qtree);
+    PICO_MDNS_COOKIE_DECLARE(a);
+    struct pico_dns_question *question1 = NULL;
+    struct pico_dns_question *question2 = NULL;
+    char url1[] = "foo.local";
+    int len;
     printf("*********************** starting %s * \n", __func__);
 
+    /* Create some questions */
+    question1 = pico_dns_question_create(url1, &len, PICO_PROTO_IPV4,
+                                         PICO_DNS_TYPE_A,
+                                         PICO_DNS_CLASS_IN, 0);
+    fail_if(!question1, "Could not create question 1!\n");
+    question2 = pico_dns_question_create(url1, &len, PICO_PROTO_IPV4,
+                                         PICO_DNS_TYPE_PTR,
+                                         PICO_DNS_CLASS_IN, 0);
+    pico_tree_insert(&(a.qtree), question1);
+    pico_tree_insert(&(a.qtree), question2);
     cookie.count = 2;
 
     pico_stack_init();
     mdns_init();
 
+    pico_mdns_send_query_packet(0, &cookie);
+    cookie.type = PICO_MDNS_PACKET_TYPE_QUERY;
+    cookie.qtree = qtree;
+    pico_mdns_send_query_packet(0, &cookie);
+    cookie.type++;
+    cookie.status = PICO_MDNS_COOKIE_STATUS_CANCELLED;
     pico_mdns_send_query_packet(0, &cookie);
 
     printf("*********************** ending %s * \n", __func__);
