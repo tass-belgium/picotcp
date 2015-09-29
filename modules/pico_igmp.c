@@ -259,6 +259,7 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
     }
 
     if (timer->stopped == IGMP_TIMER_STOPPED) {
+        pico_tree_delete(&IGMPTimers, timer);
         PICO_FREE(t);
         return;
     }
