@@ -101,8 +101,8 @@ START_TEST(tc_pico_mld_report_expired)
     p.mcast_group = zero;
     //void function, just check for side effects
     pico_mld_report_expired(&t);
-    pico_tree_insert(&MLDParameters, &p);
-    pico_mld_report_expired(&t);
+    //pico_tree_insert(&MLDParameters, &p);
+    //pico_mld_report_expired(&t);
 }
 END_TEST
 START_TEST(tc_pico_mld_delete_parameter)
