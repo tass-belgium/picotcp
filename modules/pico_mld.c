@@ -586,6 +586,10 @@ static int8_t pico_mld_send_done(struct mld_parameters *p, struct pico_frame *f)
     /* p->f->len is correctly set by alloc */
     hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
     report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption*)hbh));
+    if(!report) {
+        pico_err = PICO_ERR_ENOMEM; 
+        return -1;
+    }
     report->type = report_type;
     report->max_resp_delay = 0; 
     report->mcast_group = p->mcast_group;
