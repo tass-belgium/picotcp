@@ -16,6 +16,10 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     IGNORE_PARAMETER(arg);
     return NULL;
 }
+int mock_callback(struct igmp_timer *t) {
+    IGNORE_PARAMETER(t);
+    return 0;
+}
 static int mcast_filter_cmp(void *ka, void *kb)
 {
     union pico_address *a = ka, *b = kb;
@@ -69,6 +73,28 @@ START_TEST(tc_pico_igmp_state_change) {
     p.mcast_group = mcast_group;
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_IGMP_STATE_CREATE) != 0);
+}
+END_TEST
+START_TEST(tc_pico_igmp_timer_expired)
+{
+    struct igmp_timer *t,s;
+    t = PICO_ZALLOC(sizeof(struct igmp_timer));
+    t->stopped = IGMP_TIMER_STOPPED;
+    t->type = 0;
+    pico_string_to_ipv4("192.168.1.1", &t->mcast_link.addr);
+    pico_string_to_ipv4("244.7.7.7", &t->mcast_group.addr);
+    //void function, just check for side effects
+    pico_igmp_timer_expired(NULL, (void *)t);
+    pico_tree_insert(&IGMPTimers, t);
+    s = *t; // t will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)t);
+    s.stopped++;
+    s.start = PICO_TIME_MS()*2;
+    s.type++;
+    pico_tree_insert(&IGMPTimers, &s);
+    pico_igmp_timer_expired(NULL, (void *)&s);
+    s.callback = mock_callback;
+    pico_igmp_timer_expired(NULL, (void *)&s);
 }
 END_TEST
 START_TEST(tc_pico_igmp_process_in) {
@@ -192,6 +218,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_igmp_compatibility_mode = tcase_create("Unit test for pico_igmp_compatibility");
     TCase *TCase_pico_igmp_state_change = tcase_create("Unit test for pico_igmp_state_change");
     TCase *TCase_pico_igmp_process_in = tcase_create("Unit test for pico_igmp_process_in");
+    TCase *TCase_pico_igmp_timer_expired = tcase_create("Unit test for pico_igmp_timer_expired");
     
     tcase_add_test(TCase_pico_igmp_report_expired, tc_pico_igmp_report_expired);
     suite_add_tcase(s, TCase_pico_igmp_report_expired);
@@ -207,6 +234,8 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_pico_igmp_state_change, tc_pico_igmp_state_change);
     suite_add_tcase(s, TCase_pico_igmp_process_in);
     tcase_add_test(TCase_pico_igmp_process_in, tc_pico_igmp_process_in);
+    suite_add_tcase(s, TCase_pico_igmp_timer_expired);
+    tcase_add_test(TCase_pico_igmp_timer_expired, tc_pico_igmp_timer_expired);
     return s;
 }
 
