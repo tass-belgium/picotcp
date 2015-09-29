@@ -172,7 +172,7 @@ START_TEST(tc_pico_mld_process_in) {
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
-    int i,j, _i,_j;
+    int i,j, _i,_j,result;
     struct pico_ipv6_mcast_group g; 
     //Building example frame
     p = PICO_ZALLOC(sizeof(struct mld_parameters));
@@ -190,23 +190,26 @@ START_TEST(tc_pico_mld_process_in) {
     fail_if(pico_mld_process_in(p->f) != 0);
     
     link->mcast_compatibility = PICO_MLDV2;
-    for(_j =0; _j<2; _j++) {   //FILTER
-        for(_i=0; _i<2; _i++) {  //FILTER
+    for(_j =0; _j<3; _j++) {   //FILTER
+        (_j == 2) ? (result = -1) : (result = 0);
+        for(_i=0; _i<3; _i++) {  //FILTER
+            if(_i == 2) result = -1;
             for(i = 0; i<3; i++) {  //STATES
                 for(j = 0; j<6; j++) { //EVENTS
                     p->MCASTFilter = &_MCASTFilter;
                     p->filter_mode = _i;
                     g.filter_mode = _j;
-                    fail_if(pico_mld_generate_report(p) != 0);
+                    if(p->event == MLD_EVENT_DELETE_GROUP || p->event == MLD_EVENT_QUERY_RECV)
+                        p->event++;
+                    fail_if(pico_mld_generate_report(p) != result);
                     p->state = i;
                     p->event = j;
-                    if(p->f)//in some combinations, no frame is created
+                    if(result != -1 && p->f)//in some combinations, no frame is created
                         fail_if(pico_mld_process_in(p->f) != 0);
                 }
             }
         }
     }
-
 }
 END_TEST
 START_TEST(tc_mld_srst) {
