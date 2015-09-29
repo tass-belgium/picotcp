@@ -39,6 +39,17 @@ START_TEST(tc_igmpt_type_compare)
     fail_if(igmp_timer_cmp(&b,&a) != 1);
 }
 END_TEST
+START_TEST(tc_pico_igmp_state_change) {
+    struct pico_ip4 mcast_link, mcast_group;
+    struct igmp_parameters p;
+    pico_string_to_ipv4("192.168.1.1", &mcast_link.addr);
+    pico_string_to_ipv4("224.7.7.7", &mcast_group.addr);
+    p.mcast_link = mcast_link;
+    p.mcast_group = mcast_group;
+    fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
+    fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_IGMP_STATE_CREATE) != 0);
+}
+END_TEST
 START_TEST(tc_pico_igmp_compatibility_mode) {
     struct pico_frame *f;
     struct pico_device *dev = pico_null_create("dummy1");
@@ -113,6 +124,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_igmp_analyse_packet = tcase_create("Unit test for pico_igmp_analyse_packet");
     TCase *TCase_pico_igmp_discard = tcase_create("Unit test for pico_igmp_discard");
     TCase *TCase_pico_igmp_compatibility_mode = tcase_create("Unit test for pico_igmp_compatibility");
+    TCase *TCase_pico_igmp_state_change = tcase_create("Unit test for pico_igmp_state_change");
     
     tcase_add_test(TCase_pico_igmp_report_expired, tc_pico_igmp_report_expired);
     suite_add_tcase(s, TCase_pico_igmp_report_expired);
@@ -124,6 +136,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_igmp_discard);
     tcase_add_test(TCase_pico_igmp_compatibility_mode, tc_pico_igmp_compatibility_mode);
     suite_add_tcase(s, TCase_pico_igmp_compatibility_mode);
+    suite_add_tcase(s, TCase_pico_igmp_state_change);
+    tcase_add_test(TCase_pico_igmp_state_change, tc_pico_igmp_state_change);
     return s;
 }
 

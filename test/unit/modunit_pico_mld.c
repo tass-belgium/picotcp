@@ -20,6 +20,17 @@ int mock_callback(struct mld_timer *t) {
     IGNORE_PARAMETER(t);
     return 0;
 }
+static int mcast_filter_cmp_ipv6(void *ka, void *kb)
+{
+    union pico_address *a = ka, *b = kb;
+    return memcmp(&a->ip6, &b->ip6, sizeof(struct pico_ip6));
+}
+static int mcast_sources_cmp_ipv6(void *ka, void *kb)
+{
+    union pico_address *a = ka, *b = kb;
+    return memcmp(&a->ip6, &b->ip6, sizeof(struct pico_ip6));
+}
+PICO_TREE_DECLARE(_MCASTFilter, mcast_filter_cmp_ipv6);
 
 START_TEST(tc_pico_mld_fill_hopbyhop)
 {
@@ -157,16 +168,44 @@ START_TEST(tc_pico_mld_send_done) {
 }
 END_TEST
 START_TEST(tc_pico_mld_process_in) {
-    struct mld_parameters p;
+    struct mld_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
+    struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
+    int i,j, _i,_j;
+    struct pico_ipv6_mcast_group g; 
     //Building example frame
-    pico_string_to_ipv6("AAAA::1", p.mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p.mcast_group.addr);
-    link = pico_ipv6_link_add(dev, p.mcast_link, p.mcast_link);
+    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    pico_string_to_ipv6("AAAA::1", p->mcast_link.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
     link->mcast_compatibility = PICO_MLDV1;
-    fail_if(pico_mld_generate_report(&p) != 0);
-    fail_if(pico_mld_process_in(p.f) != 0);
+    g.mcast_addr = p->mcast_group;
+    g.MCASTSources.root = &LEAF;
+    g.MCASTSources.compare = mcast_sources_cmp_ipv6;
+    pico_tree_insert(link->MCASTGroups, &g);
+    pico_tree_insert(&MLDParameters, p);
+    
+    fail_if(pico_mld_generate_report(p) != 0);
+    fail_if(pico_mld_process_in(p->f) != 0);
+    
+    link->mcast_compatibility = PICO_MLDV2;
+    for(_j =0; _j<2; _j++) {   //FILTER
+        for(_i=0; _i<2; _i++) {  //FILTER
+            for(i = 0; i<3; i++) {  //STATES
+                for(j = 0; j<6; j++) { //EVENTS
+                    p->MCASTFilter = &_MCASTFilter;
+                    p->filter_mode = _i;
+                    g.filter_mode = _j;
+                    fail_if(pico_mld_generate_report(p) != 0);
+                    p->state = i;
+                    p->event = j;
+                    if(p->f)//in some combinations, no frame is created
+                        fail_if(pico_mld_process_in(p->f) != 0);
+                }
+            }
+        }
+    }
 
 }
 END_TEST
