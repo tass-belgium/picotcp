@@ -336,7 +336,7 @@ static int pico_igmp_timer_stop(struct igmp_timer *t)
     test.mcast_group = t->mcast_group;
     timer = pico_tree_findKey(&IGMPTimers, &test);
     if (!timer)
-        return 0;
+        return -1;
 
     igmp_dbg("IGMP: stop timer for %08X, delay %lu\n", timer->mcast_group.addr, timer->delay);
     timer->stopped = IGMP_TIMER_STOPPED;
