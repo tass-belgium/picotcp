@@ -1325,7 +1325,7 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
 #ifdef PICO_SUPPORT_IPV6
         if((s->net->proto_number == PICO_PROTO_IPV6)
            && msginfo && msginfo->dev
-           && pico_ipv6_is_linklocal(((struct pico_ip6 *)dst)->addr))
+           && pico_ipv6_is_multicast(((struct pico_ip6 *)dst)->addr))
         {
             src = &(pico_ipv6_linklocal_get(msginfo->dev)->address);
             if(!src)
