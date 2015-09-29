@@ -35,6 +35,7 @@ MCAST?=1
 DEVLOOP?=1
 PING?=1
 DHCP_CLIENT?=1
+DHCP6_CLIENT?=1
 DHCP_SERVER?=1
 DNS_CLIENT?=1
 MDNS?=1
@@ -220,6 +221,9 @@ ifneq ($(DEVLOOP),0)
 endif
 ifneq ($(DHCP_CLIENT),0)
   include rules/dhcp_client.mk
+endif
+ifneq ($(DHCP6_CLIENT),0)
+  include rules/dhcp6_client.mk
 endif
 ifneq ($(DHCP_SERVER),0)
   include rules/dhcp_server.mk
