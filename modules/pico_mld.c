@@ -308,7 +308,7 @@ static int pico_mld_timer_stop(struct mld_timer *t) {
     test.mcast_group = t->mcast_group;
     timer = pico_tree_findKey(&MLDTimers, &test);
     if (!timer)
-        return 0;
+        return -1;
 #ifdef PICO_DEBUG_MLD
     pico_ipv6_to_string(grpstr, timer->mcast_group.addr);
     mld_dbg("MLD: stop timer for %s, delay %llu\n", grpstr, timer->delay);
