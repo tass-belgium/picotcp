@@ -16,6 +16,10 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     IGNORE_PARAMETER(arg);
     return NULL;
 }
+int mock_callback(struct mld_timer *t) {
+    IGNORE_PARAMETER(t);
+    return 0;
+}
 
 START_TEST(tc_pico_mld_fill_hopbyhop)
 {
@@ -63,14 +67,14 @@ START_TEST(tc_pico_mld_v1querier_expired)
 {
     struct mld_timer t;
     struct pico_ip6 addr = {{0}};
-    struct pico_device *dev = pico_null_create("dummy1");
+    struct pico_device *dev = pico_null_create("dummy2");
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
-    f->dev = dev;
     t.f = f;
     pico_string_to_ipv6("AAAA::1", addr.addr);
     //void function, just check for side effects
     //No link
     pico_mld_v1querier_expired(&t); 
+    f->dev = dev;
     pico_ipv6_link_add(dev, addr, addr);
     pico_mld_v1querier_expired(&t); 
 }
@@ -102,7 +106,29 @@ START_TEST(tc_mldt_type_compare)
     fail_if(mld_timer_cmp(&b,&a) != 1);
 }
 END_TEST
+START_TEST(tc_pico_mld_is_checksum_valid) {
+    struct pico_frame *f;
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report)+MLD_ROUTER_ALERT_LEN+sizeof(struct mldv2_group_record) +(0 *sizeof(struct pico_ip6)));
+    fail_if(pico_mld_is_checksum_valid(f) == 1);
+}
+END_TEST
+START_TEST(tc_pico_mld_find_parameter) {
+    struct pico_ip6 mcast_link, mcast_group;
+    struct mld_parameters test = {
+        0
+    };
+    fail_if(pico_mld_find_parameter(NULL,NULL) != NULL);
+    pico_string_to_ipv6("AAAA::1", mcast_link.addr);
+    fail_if(pico_mld_find_parameter(&mcast_link,NULL) != NULL);
+    pico_string_to_ipv6("AAAA::2", mcast_group.addr);
+    fail_if(pico_mld_find_parameter(&mcast_link,&mcast_group) != NULL);
+    test.mcast_link = mcast_link;
+    test.mcast_group = mcast_group;
+    pico_tree_insert(&MLDParameters, &test);
 
+    fail_if(pico_mld_find_parameter(&mcast_link,&mcast_group) == NULL);
+}
+END_TEST
 START_TEST(tc_pico_mld_timer_expired)
 {
     struct mld_timer *t,s;
@@ -120,6 +146,8 @@ START_TEST(tc_pico_mld_timer_expired)
     s.start = PICO_TIME_MS()*2;
     s.type++;
     pico_tree_insert(&MLDTimers, &s);
+    pico_mld_timer_expired(NULL, (void *)&s);
+    s.mld_callback = mock_callback;
     pico_mld_timer_expired(NULL, (void *)&s);
 }
 END_TEST
@@ -148,6 +176,10 @@ START_TEST(tc_pico_mld_compatibility_mode) {
     //Invalid Query 
     f->buffer_len = 25 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN;
     fail_if(pico_mld_compatibility_mode(f) == 0);
+    //MLDv2 query + timer amready running
+    f->dev->eth = dev;
+    f->buffer_len = 28 + PICO_SIZE_IP6HDR + MLD_ROUTER_ALERT_LEN+PICO_SIZE_ETHHDR;
+    fail_if(pico_mld_compatibility_mode(f) != -1); 
 }
 END_TEST
 START_TEST(tc_pico_mld_timer_reset) {
@@ -156,6 +188,19 @@ START_TEST(tc_pico_mld_timer_reset) {
     pico_string_to_ipv6("AAAA::1", t.mcast_group.addr);
     t.type = 0;
     fail_if(pico_mld_timer_reset(&t)!=-1);
+}
+END_TEST
+START_TEST(tc_pico_mld_state_change) {
+    struct pico_ip6 mcast_link, mcast_group;
+    struct mld_parameters p;
+    pico_string_to_ipv6("AAAA::1", mcast_link.addr);
+    pico_string_to_ipv6("AAAA::1", mcast_group.addr);
+    p.mcast_link = mcast_link;
+    p.mcast_group = mcast_group;
+    
+    fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
+    pico_tree_insert(&MLDParameters, &p);
+    fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
 }
 END_TEST
 START_TEST(tc_pico_mld_analyse_packet) {
@@ -226,6 +271,9 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mld_timer_expired = tcase_create("Unit test for pico_mld_timer_expired");
     TCase *TCase_pico_mld_timer_reset = tcase_create("Unit test for pico_mld_timer_reset");
     TCase *TCase_pico_mld_send_done = tcase_create("Unit test for pico_mld_send_done");
+    TCase *TCase_pico_mld_is_checksum_valid = tcase_create("Unit test for pico_mld_is_checksum");
+    TCase *TCase_pico_mld_find_parameter = tcase_create("Unit test for pico_mld_find_parameter");
+    TCase *TCase_pico_mld_state_change = tcase_create("Unit test for pico_mld_state_change");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -251,6 +299,12 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mld_timer_reset);
     tcase_add_test(TCase_pico_mld_send_done, tc_pico_mld_send_done);
     suite_add_tcase(s, TCase_pico_mld_send_done);
+    tcase_add_test(TCase_pico_mld_is_checksum_valid, tc_pico_mld_is_checksum_valid);
+    suite_add_tcase(s, TCase_pico_mld_is_checksum_valid);
+    tcase_add_test(TCase_pico_mld_find_parameter, tc_pico_mld_find_parameter);
+    suite_add_tcase(s, TCase_pico_mld_find_parameter);
+    tcase_add_test(TCase_pico_mld_state_change, tc_pico_mld_state_change);
+    suite_add_tcase(s, TCase_pico_mld_state_change);
     return s;
 }
 int main(void)
