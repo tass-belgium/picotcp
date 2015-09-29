@@ -1432,6 +1432,16 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
+START_TEST(tc_pico_tree_merge) 
+{
+    PICO_MDNS_RTREE_DECLARE(src);    
+    PICO_MDNS_RTREE_DECLARE(dst);    
+    fail_unless(pico_tree_merge(NULL,NULL) == -1);
+    fail_unless(pico_tree_merge(&dst,NULL) == -1);
+    fail_unless(pico_tree_merge(NULL,&src) == -1);
+    fail_unless(pico_tree_merge(&dst,&src) == 0);
+}
+END_TEST
 START_TEST(tc_mdns_populate_answer_vector) /* MARK: mdns_popolate_antree */
 {
     PICO_MDNS_RTREE_DECLARE(rtree);
@@ -2026,6 +2036,8 @@ Suite *pico_suite(void)
     TCase *TCase_mdns_set_hostname = tcase_create("Unit test for mdns_set_hostname");
     TCase *TCase_mdns_get_hostname = tcase_create("Unit test for mdns_get_hostname");
 
+    TCase *TCase_pico_tree_merge = tcase_create("Unit test for pico_tree_merge");
+
     tcase_add_test(TCase_mdns_init, tc_mdns_init);
     suite_add_tcase(s, TCase_mdns_init);
 
@@ -2152,6 +2164,8 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_mdns_get_hostname, tc_mdns_get_hostname);
     suite_add_tcase(s, TCase_mdns_get_hostname);
 
+    tcase_add_test(TCase_pico_tree_merge, tc_pico_tree_merge);
+    suite_add_tcase(s, TCase_pico_tree_merge);
     return s;
 }
 

@@ -94,9 +94,14 @@ START_TEST(tc_pico_mld_report_expired)
 {
     struct mld_timer t;
     struct pico_ip6 zero = {{0}};
+    struct mld_parameters p;
     t.mcast_link = zero;
     t.mcast_group = zero;
+    p.mcast_link = zero;
+    p.mcast_group = zero;
     //void function, just check for side effects
+    pico_mld_report_expired(&t);
+    pico_tree_insert(&MLDParameters, &p);
     pico_mld_report_expired(&t);
 }
 END_TEST
@@ -174,6 +179,7 @@ START_TEST(tc_pico_mld_process_in) {
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
     int i,j, _i,_j,result;
     struct pico_ipv6_mcast_group g; 
+    struct mldv2_report *report;
     //Building example frame
     p = PICO_ZALLOC(sizeof(struct mld_parameters));
     pico_string_to_ipv6("AAAA::1", p->mcast_link.addr);
@@ -204,8 +210,11 @@ START_TEST(tc_pico_mld_process_in) {
                     fail_if(pico_mld_generate_report(p) != result);
                     p->state = i;
                     p->event = j;
-                    if(result != -1 && p->f)//in some combinations, no frame is created
+                    if(result != -1 && p->f) {//in some combinations, no frame is created
+                        report = p->f->transport_hdr + MLD_ROUTER_ALERT_LEN;
+                        report->crc = short_be(pico_icmp6_checksum(p->f));
                         fail_if(pico_mld_process_in(p->f) != 0);
+                    }
                 }
             }
         }
@@ -284,7 +293,8 @@ START_TEST(tc_pico_mld_state_change) {
     p.mcast_link = mcast_link;
     p.mcast_group = mcast_group;
     
-    fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
+    fail_if(pico_mld_state_change(NULL, &mcast_group, 0,NULL, PICO_MLD_STATE_CREATE) != -1);
+    fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_MLD_STATE_CREATE) != -1);
     pico_tree_insert(&MLDParameters, &p);
     fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
 }
@@ -319,9 +329,12 @@ START_TEST(tc_pico_mld_analyse_packet) {
     ip6->src = addr;
     //Not link local
     fail_if(pico_mld_analyse_packet(f) != NULL);
+    memcpy(&ip6->src, PICO_IP6_ANY, sizeof(struct pico_ip6));
+    fail_if(pico_mld_analyse_packet(f) != NULL);
     ip6->src = local;
     mld = (struct pico_icmp6_hdr *) (f->transport_hdr+MLD_ROUTER_ALERT_LEN);
     mld->type = 0;
+    
     //wrong type
     fail_if(pico_mld_analyse_packet(f) != NULL);
 
