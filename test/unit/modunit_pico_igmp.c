@@ -249,8 +249,8 @@ START_TEST(tc_stcl) {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
     struct pico_device *dev = pico_null_create("dummy0");
     struct igmp_parameters p;
-    pico_string_to_ipv4("192.168.1.10", t->mcast_link.addr);
-    pico_string_to_ipv4("244.7.7.7", t->mcast_group.addr);
+    pico_string_to_ipv4("192.168.1.10", &t->mcast_link.addr);
+    pico_string_to_ipv4("244.7.7.7", &t->mcast_group.addr);
     p.mcast_link = t->mcast_link;
     p.mcast_group = t->mcast_group;
     t->type = IGMP_TIMER_GROUP_REPORT;
