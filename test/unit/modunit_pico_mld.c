@@ -220,6 +220,23 @@ START_TEST(tc_mld_stsdifs)
     fail_if(mld_stsdifs(p) != 0);
 }
 END_TEST
+START_TEST(tc_mld_srsf) 
+{
+    struct mld_parameters *p;
+    struct pico_device *dev = pico_null_create("dummy3");
+    struct pico_ipv6_link *link;
+    struct pico_ipv6_mcast_group g; 
+    struct mldv2_report *report;
+    struct mld_timer t;
+    //Building example frame
+    
+    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    pico_string_to_ipv6("AAAA::1", p->mcast_link.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    fail_if(mld_srsf(p) != -1);
+}
+END_TEST
+
 START_TEST(tc_mld_srst) 
 {
     struct mld_parameters *p;
@@ -308,6 +325,22 @@ START_TEST(tc_pico_mld_process_in) {
     }
 }
 END_TEST
+START_TEST(tc_mld_rtimrtct) {
+    struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
+    struct pico_device *dev = pico_null_create("dummy0");
+    struct mld_parameters p;
+    pico_string_to_ipv6("AAAA::1", t->mcast_link.addr);
+    pico_string_to_ipv6("AAAA::1", t->mcast_group.addr);
+    p.mcast_link = t->mcast_link;
+    p.mcast_group = t->mcast_group;
+    t->type = MLD_TIMER_GROUP_REPORT;
+    //not in tree
+    fail_if(mld_rtimrtct(&p) != -1);
+    pico_mld_timer_start(t);
+    fail_if(mld_rtimrtct(&p) != 0);
+}
+END_TEST
+
 START_TEST(tc_mld_stcl) {
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     struct pico_device *dev = pico_null_create("dummy0");
@@ -450,6 +483,8 @@ Suite *pico_suite(void)
     TCase *TCase_pico_mld_process_in = tcase_create("Unit test for pico_mld_process_in");
     TCase *TCase_pico_mld_send_report = tcase_create("Unit test for pico_mld_send_report");
     TCase *TCase_mld_stsdifs = tcase_create("Unit test for mld_stsdifs");
+    TCase *TCase_mld_srsf = tcase_create("Unit test for mld_srsf");
+    TCase *TCase_mld_rtimrtct = tcase_create("Unit test for mld_rtimrtct");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -491,6 +526,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_mld_send_report);
     tcase_add_test(TCase_mld_stsdifs, tc_mld_stsdifs);
     suite_add_tcase(s, TCase_mld_stsdifs);
+    tcase_add_test(TCase_mld_srsf, tc_mld_srsf);
+    suite_add_tcase(s, TCase_mld_srsf);
+    tcase_add_test(TCase_mld_rtimrtct, tc_mld_rtimrtct);
+    suite_add_tcase(s, TCase_mld_rtimrtct);
     return s;
 }
 int main(void)
