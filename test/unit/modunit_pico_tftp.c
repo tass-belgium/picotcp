@@ -47,7 +47,7 @@ int tftp_user_cb(struct pico_tftp_session *session, uint16_t err, uint8_t *block
     return 0;
 }
 
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     (void)expire;
     (void)timer;
@@ -55,7 +55,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     return NULL;
 }
 
-void pico_timer_cancel(struct pico_timer *t)
+void pico_timer_cancel(uint32_t t)
 {
     (void)t;
     called_pico_timer_cancel++;

@@ -20,7 +20,7 @@ static int called_picotimer =  0;
 
 Suite *pico_suite(void);
 
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(timer);

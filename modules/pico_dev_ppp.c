@@ -276,7 +276,7 @@ struct pico_device_ppp {
     uint32_t ipcp_nbns1;
     uint32_t ipcp_dns2;
     uint32_t ipcp_nbns2;
-    struct pico_timer *timer;
+    uint32_t timer;
     uint8_t timer_val;
     uint8_t timer_count;
     uint8_t frame_id;

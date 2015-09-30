@@ -103,7 +103,7 @@ struct pico_arp {
     int arp_status;
     pico_time timestamp;
     struct pico_device *dev;
-    struct pico_timer *timer;
+    uint32_t timer;
 };
 
 

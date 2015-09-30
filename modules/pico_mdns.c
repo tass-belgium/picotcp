@@ -97,7 +97,7 @@ struct pico_mdns_cookie
     uint8_t type;                       /* QUERY/ANNOUNCE/PROBE/ANSWER */
     uint8_t status;                     /* Active status */
     uint8_t timeout;                    /* Timeout counter */
-    struct pico_timer *send_timer;      /* For sending events */
+    uint32_t send_timer;      /* For sending events */
     void (*callback)(pico_mdns_rtree *,
                      char *,
                      void *);           /* Callback */
@@ -999,7 +999,6 @@ pico_mdns_cookie_create( pico_dns_qtree qtree,
     cookie->type = type;
     cookie->status = PICO_MDNS_COOKIE_STATUS_INACTIVE;
     cookie->timeout = PICO_MDNS_COOKIE_TIMEOUT;
-    cookie->send_timer = NULL;
     cookie->callback = callback;
     cookie->arg = arg;
     return cookie;

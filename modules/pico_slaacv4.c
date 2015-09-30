@@ -44,7 +44,7 @@ struct slaacv4_cookie {
     uint8_t announce_nb;
     struct pico_ip4 ip;
     struct pico_device *device;
-    struct pico_timer *timer;
+    uint32_t timer;
     void (*cb)(struct pico_ip4 *ip, uint8_t code);
 };
 
@@ -75,14 +75,13 @@ static void pico_slaacv4_init_cookie(struct pico_ip4 *ip, struct pico_device *de
     ck->cb = cb;
     ck->device = dev;
     ck->ip.addr = ip->addr;
-    ck->timer = NULL;
+    ck->timer = 0;
 }
 
 static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
 {
     pico_timer_cancel(tmp->timer);
-
-    tmp->timer = NULL;
+    tmp->timer = 0;
 }
 
 static void pico_slaacv4_send_announce_timer(pico_time now, void *arg)

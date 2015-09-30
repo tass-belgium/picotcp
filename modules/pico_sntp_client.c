@@ -65,7 +65,7 @@ struct sntp_server_ns_cookie
     struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user
                                                 wheter/when the time is synchronised */
-    struct pico_timer *timer;   /* Timer that will signal timeout */
+    uint32_t timer;   /* Timer that will signal timeout */
 };
 
 /* global variables */

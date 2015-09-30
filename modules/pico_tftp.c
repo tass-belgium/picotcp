@@ -75,7 +75,7 @@ struct pico_tftp_session {
     pico_time wallclock_timeout;
     pico_time bigger_wallclock;
     struct pico_tftp_session *next;
-    struct pico_timer *timer;
+    uint32_t timer;
     unsigned int active_timers;
     void *argument;
     int (*callback)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg);

@@ -268,7 +268,7 @@ struct pico_socket_tcp {
     uint32_t rttvar;
     uint32_t rto;
     uint32_t in_flight;
-    struct pico_timer *retrans_tmr;
+    uint32_t retrans_tmr;
     pico_time retrans_tmr_due;
     uint16_t cwnd_counter;
     uint16_t cwnd;
@@ -302,7 +302,7 @@ struct pico_socket_tcp {
     uint8_t localZeroWindow;
 
     /* Keepalive */
-    struct pico_timer *keepalive_tmr;
+    uint32_t keepalive_tmr;
     pico_time ack_timestamp;
     uint32_t ka_time;
     uint32_t ka_intvl;
@@ -310,7 +310,7 @@ struct pico_socket_tcp {
     uint32_t ka_retries_count;
 
     /* FIN timer */
-    struct pico_timer *fin_tmr;
+    uint32_t fin_tmr;
 };
 
 /* Queues */
@@ -1503,9 +1503,7 @@ static void tcp_deltcb(pico_time when, void *arg);
 
 static void tcp_linger(struct pico_socket_tcp *t)
 {
-    if (t->fin_tmr) {
-        pico_timer_cancel(t->fin_tmr);
-    }
+    pico_timer_cancel(t->fin_tmr);
     t->fin_tmr = pico_timer_add(t->linger_timeout, tcp_deltcb, t);
 }
 
@@ -1870,7 +1868,7 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *) sock;
 
-    t->retrans_tmr = NULL;
+    t->retrans_tmr = 0;
 
     if (t->retrans_tmr_due == 0ull) {
         return;
@@ -2404,10 +2402,8 @@ static int tcp_synack(struct pico_socket *s, struct pico_frame *f)
 
     if (ACKN(f) ==  (1u + t->snd_nxt)) {
         /* Get rid of initconn retry */
-        if(t->retrans_tmr) {
-            pico_timer_cancel(t->retrans_tmr);
-            t->retrans_tmr = NULL;
-        }
+        pico_timer_cancel(t->retrans_tmr);
+        t->retrans_tmr = 0;
 
         t->rcv_nxt = long_be(hdr->seq);
         t->rcv_processed = t->rcv_nxt + 1;
@@ -3108,18 +3104,14 @@ inline static void tcp_discard_all_segments(struct pico_tcp_queue *tq)
 void pico_tcp_cleanup_queues(struct pico_socket *sck)
 {
     struct pico_socket_tcp *tcp = (struct pico_socket_tcp *)sck;
-    if(tcp->retrans_tmr) {
-        pico_timer_cancel(tcp->retrans_tmr);
-        tcp->retrans_tmr = NULL;
-    }
-    if(tcp->keepalive_tmr) {
-        pico_timer_cancel(tcp->keepalive_tmr);
-        tcp->keepalive_tmr = NULL;
-    }
-    if(tcp->fin_tmr) {
-        pico_timer_cancel(tcp->fin_tmr);
-        tcp->fin_tmr = NULL;
-    }
+    pico_timer_cancel(tcp->retrans_tmr);
+    pico_timer_cancel(tcp->keepalive_tmr);
+    pico_timer_cancel(tcp->fin_tmr);
+
+    tcp->retrans_tmr = 0;
+    tcp->keepalive_tmr = 0;
+    tcp->fin_tmr = 0;
+
     tcp_discard_all_segments(&tcp->tcpq_in);
     tcp_discard_all_segments(&tcp->tcpq_out);
     tcp_discard_all_segments(&tcp->tcpq_hold);
