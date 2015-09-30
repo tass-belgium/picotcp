@@ -270,6 +270,31 @@ START_TEST(tc_mld_srst)
     fail_if(mld_srst(p) != 0);
 }
 END_TEST
+START_TEST(tc_mld_mrsrrt) 
+{
+    struct mld_parameters *p;
+    struct pico_device *dev = pico_null_create("dummy3");
+    struct pico_ipv6_link *link;
+    struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
+    int i,j, _i,_j,result;
+    struct pico_ipv6_mcast_group g; 
+    struct mldv2_report *report;
+    //Building example frame
+    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    pico_string_to_ipv6("AAAA::1", p->mcast_link.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    //no link
+    fail_if(mld_mrsrrt(p) != -1);
+    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
+    link->mcast_compatibility = PICO_MLDV1;
+    // wrong proto
+    fail_if(mld_mrsrrt(p) != -1);
+    link->mcast_compatibility = PICO_MLDV2;
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report)+MLD_ROUTER_ALERT_LEN+sizeof(struct mldv2_group_record) +(0 *sizeof(struct pico_ip6)));
+    fail_if(mld_mrsrrt(p) != -1);
+    
+}
+END_TEST
 START_TEST(tc_pico_mld_process_in) {
     struct mld_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
@@ -285,6 +310,9 @@ START_TEST(tc_pico_mld_process_in) {
     //no link
     fail_if(pico_mld_generate_report(p) != -1);
     link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
+    pico_string_to_ipv6("AAAA::1", p->mcast_group.addr);
+    fail_if(pico_mld_generate_report(p) != -1);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
     link->mcast_compatibility = PICO_MLDV1;
     g.mcast_addr = p->mcast_group;
     g.MCASTSources.root = &LEAF;
@@ -400,6 +428,7 @@ START_TEST(tc_pico_mld_state_change) {
     
     fail_if(pico_mld_state_change(NULL, &mcast_group, 0,NULL, PICO_MLD_STATE_CREATE) != -1);
     fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_MLD_STATE_CREATE) != -1);
+    fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
     pico_tree_insert(&MLDParameters, &p);
     fail_if(pico_mld_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
 }
@@ -485,6 +514,7 @@ Suite *pico_suite(void)
     TCase *TCase_mld_stsdifs = tcase_create("Unit test for mld_stsdifs");
     TCase *TCase_mld_srsf = tcase_create("Unit test for mld_srsf");
     TCase *TCase_mld_rtimrtct = tcase_create("Unit test for mld_rtimrtct");
+    TCase *TCase_mld_mrsrrt = tcase_create("Unit test for mld_mrsrrt");
     
     tcase_add_test(TCase_pico_mld_fill_hopbyhop, tc_pico_mld_fill_hopbyhop);
     suite_add_tcase(s, TCase_pico_mld_fill_hopbyhop);
@@ -530,6 +560,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_mld_srsf);
     tcase_add_test(TCase_mld_rtimrtct, tc_mld_rtimrtct);
     suite_add_tcase(s, TCase_mld_rtimrtct);
+    tcase_add_test(TCase_mld_mrsrrt, tc_mld_mrsrrt);
+    suite_add_tcase(s, TCase_mld_mrsrrt);
     return s;
 }
 int main(void)

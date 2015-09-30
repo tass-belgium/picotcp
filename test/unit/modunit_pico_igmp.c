@@ -97,6 +97,22 @@ START_TEST(tc_pico_igmp_timer_expired)
     pico_igmp_timer_expired(NULL, (void *)&s);
 }
 END_TEST
+START_TEST(tc_pico_igmp_v2querier_expired)
+{
+    struct igmp_timer t;
+    struct pico_ip4 addr = {{0}};
+    struct pico_device *dev = pico_null_create("dummy2");
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
+    t.f = f;
+    pico_string_to_ipv4("192.168.1.1", addr.addr);
+    //void function, just check for side effects
+    //No link
+    pico_igmp_v2querier_expired(&t); 
+    f->dev = dev;
+    pico_ipv4_link_add(dev, addr, addr);
+    pico_igmp_v2querier_expired(&t); 
+}
+END_TEST
 START_TEST(tc_pico_igmp_delete_parameter)
 {
     struct igmp_parameters p;
@@ -285,6 +301,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_igmp_find_parameter = tcase_create("Unit test for pico_igmp_find_parameter");
     TCase *TCase_stcl = tcase_create("Unit test for stcl");
     TCase *TCase_srst = tcase_create("Unit test for srst");
+    TCase *TCase_pico_igmp_v2querier_expired = tcase_create("Unit test for pico_igmp_v2_querier_expired");
     
     tcase_add_test(TCase_pico_igmp_report_expired, tc_pico_igmp_report_expired);
     suite_add_tcase(s, TCase_pico_igmp_report_expired);
@@ -310,6 +327,8 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_stcl, tc_stcl);
     suite_add_tcase(s, TCase_srst);
     tcase_add_test(TCase_srst, tc_srst);
+    suite_add_tcase(s, TCase_pico_igmp_v2querier_expired);
+    tcase_add_test(TCase_pico_igmp_v2querier_expired, tc_pico_igmp_v2querier_expired);
     return s;
 }
 
