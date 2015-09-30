@@ -113,18 +113,25 @@ START_TEST(tc_pico_igmp_process_in) {
     p = PICO_ZALLOC(sizeof(struct igmp_parameters));
     pico_string_to_ipv4("192.168.1.1", &p->mcast_link.addr);
     pico_string_to_ipv4("244.7.7.7", &p->mcast_group.addr);
+    //no link 
+    fail_if(pico_igmp_generate_report(p) != -1);
+
     pico_ipv4_link_add(dev, p->mcast_link, p->mcast_link);
     link = pico_ipv4_link_get(&p->mcast_link);
     link->mcast_compatibility = PICO_IGMPV2;
     g.mcast_addr = p->mcast_group;
     g.MCASTSources.root = &LEAF;
     g.MCASTSources.compare = mcast_sources_cmp;
+    //No mcastsources tree
+    link->mcast_compatibility = PICO_IGMPV3;
+    fail_if(pico_igmp_generate_report(p) != -1);
     pico_tree_insert(link->MCASTGroups, &g);
     pico_tree_insert(&IGMPParameters, p);
     
+    link->mcast_compatibility = 99;
+    fail_if(pico_igmp_generate_report(p) != -1);
+    link->mcast_compatibility = PICO_IGMPV2;
     fail_if(pico_igmp_generate_report(p) != 0);
-    fail_if(pico_igmp_process_in(NULL,p->f) != 0);
-    
     link->mcast_compatibility = PICO_IGMPV3;
     for(_j =0; _j<3; _j++) {   //FILTER
         (_j == 2) ? (result = -1) : (result = 0);
