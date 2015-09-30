@@ -1082,7 +1082,7 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
 
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;
-        return NULL;
+        return 0;
     }
 
     tref.expire = PICO_TIME_MS() + expire;
