@@ -16,9 +16,8 @@
 #include "pico_tree.h"
 #include "pico_socket.h"
 #include "pico_dev_sixlowpan.h"
-
-#define icmp6_dbg(...) do {} while(0)
-/* #define icmp6_dbg dbg */
+#include "pico_mld.h"
+#define icmp6_dbg(...) do { }while(0); 
 
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;
@@ -386,8 +385,8 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     icmp->msg.info.neigh_sol.unused = 0;
     icmp->msg.info.neigh_sol.target = *dst;
     
-    llao = (struct pico_icmp6_opt_lladdr *)icmp->msg.info.neigh_sol.options;
-    aro = (struct pico_icmp6_opt_aro *)(icmp->msg.info.neigh_sol.options + llao_len);
+    llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
+    aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + llao_len);
     if (LL_MODE_ETHERNET == dev->mode && type != PICO_ICMP6_ND_DAD) {
         pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, NULL);
     }
@@ -528,7 +527,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     icmp6_hdr->code = 0;
 
     if (!pico_ipv6_is_unspecified(src->addr)) {
-        lladdr = (struct pico_icmp6_opt_lladdr *)icmp6_hdr->msg.info.router_sol.options;
+        lladdr = (struct pico_icmp6_opt_lladdr *)((uint8_t *)&icmp6_hdr->msg.info.router_sol + sizeof(struct router_sol_s));
         if (pico_icmp6_provide_llao(lladdr, PICO_ND_OPT_LLADDR_SRC, dev, NULL)) {
             pico_frame_discard(sol);
             return -1;

@@ -17,6 +17,7 @@
 #include "pico_device.h"
 #include "pico_tree.h"
 #include "pico_fragments.h"
+#include "pico_mld.h"
 #include "pico_dev_sixlowpan.h"
 #ifdef PICO_SUPPORT_IPV6
 
@@ -818,12 +819,17 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
 {
     int proto = 0;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    
+    struct pico_ipv6_exthdr *hbh;
     IGNORE_PARAMETER(self);
-    /* TODO: Check hop-by-hop hdr before forwarding */
-    
+    /* forward if not local, except if router alert is set */ 
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
-        return pico_ipv6_forward(f);
+        if(hdr->nxthdr == 0) {
+            hbh = (struct pico_ipv6_exthdr *) f->transport_hdr;
+            if(hbh->ext.routing.routtype == 0) 
+                return pico_ipv6_forward(f);
+        } else
+            /* not local, try to forward. */
+            return pico_ipv6_forward(f);
     }
 
     proto = pico_ipv6_extension_headers(f);
@@ -1252,13 +1258,12 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
         /* RFC6775 $5.5.1:
          *  ... An unspecified source address MUST NOT be used in NS messages.
          */
-        if (f->dev->mode == LL_MODE_ETHERNET && (is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL)
-            memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
-           
+        if (f->dev->mode == LL_MODE_ETHERNET && (is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL) {
+           memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
         }
        
         icmp6_hdr->crc = 0;
-            icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
+        icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));
         break;
     }
 #ifdef PICO_SUPPORT_UDP
@@ -1660,8 +1665,10 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
      *     addresses assigned to the interface. (RFC 4861 $7.2.1)
      */
 
+#ifdef PICO_DEBUG_IPV6
     pico_ipv6_to_string(ipstr, new->address.addr);
     dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
+#endif
     return new;
 }
 
@@ -1777,11 +1784,9 @@ struct pico_ipv6_link *pico_ipv6_link_get(struct pico_ip6 *address)
     if (!found) {
         return NULL;
     }
-
     if (found->istentative) {
         return NULL;
     }
-
     return found;
 }
 
@@ -1916,7 +1921,6 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
         link = index->keyValue;
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");
-            pico_ipv6_link_del(link->dev, link->address);
             
             /* RFC6775, 5.3:
              *
@@ -1927,6 +1931,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
                 link = pico_ipv6_linklocal_get(link->dev);
                 pico_6lp_nd_start_solicitating(link);
             }
+            pico_ipv6_link_del(link->dev, link->address);
         }
     }
     pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);

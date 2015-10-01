@@ -27,8 +27,7 @@
 #define ND_ARO_STATUS_DUPLICATE     (1u)
 #define ND_ARO_STATUS_CACHE_FULL    (2u)
 
-static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { };
-static uint8_t lbr = 0;
+static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
 
 enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_INCOMPLETE = 0,
@@ -253,15 +252,15 @@ static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8
         optlen -= len << 3; /* len in units of 8 octets */
         if (len <= 0)
             return -1; /* malformed option. */
-        
+
         if (type == expected_opt) {
             if (found > 0)
                 return -1; /* malformed option: option is there twice. */
-            
+
             memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, (size_t)(len << 3));
             found++;
         }
-        
+
         if (optlen > 0) {
             options += len << 3;
         } else { /* parsing options: terminated. */
@@ -269,7 +268,6 @@ static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8
         }
     }
     return found;
-    
 }
 
 static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
@@ -288,7 +286,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
     if (optlen)
-        option = icmp6_hdr->msg.info.neigh_adv.options;
+        option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
 
     return nd_options(option, opt, expected_opt, optlen, len);
 }
@@ -311,7 +309,7 @@ static int router_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *op
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
     if (optlen)
-        options = icmp6_hdr->msg.info.router_sol.options;
+        options = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
     
     return nd_options(options, opt, expected_opt, optlen, len);
 }
@@ -514,7 +512,6 @@ static struct pico_ipv6_neighbor *pico_nd_add_6lp(struct pico_ip6 naddr, struct 
     
     if ((new = pico_nd_add(&naddr, dev))) {
         new->expire = PICO_TIME_MS() + (pico_time)(ONE_MINUTE * aro->lifetime);
-        
     }
     
     return new;
@@ -523,7 +520,7 @@ static struct pico_ipv6_neighbor *pico_nd_add_6lp(struct pico_ip6 naddr, struct 
 static inline int validate_aro(struct pico_icmp6_opt_aro *aro)
 {
     if (aro->len != 2 || aro->status != 0)
-        return 1;
+        return -1;
     return 0;
 }
 
@@ -542,7 +539,7 @@ static int neigh_sol_dad_reply(struct pico_frame *sol, struct pico_icmp6_opt_lla
     aro->status = status;
     
     /* Remove the SLLAO from the frame */
-    memmove(icmp->msg.info.neigh_sol.options, icmp->msg.info.neigh_sol.options + sllao_len, (size_t)(aro->len * 8));
+    memmove(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s), ((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + sllao_len, (size_t)(aro->len * 8));
     adv->transport_len = (uint16_t)(adv->transport_len - sllao_len);
     adv->len = (uint16_t)(adv->len - sllao_len);
     
@@ -568,8 +565,8 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
     
     ip = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
-    sllao = (struct pico_icmp6_opt_lladdr *)icmp->msg.info.neigh_adv.options;
-    aro = (struct pico_icmp6_opt_aro *)(icmp->msg.info.neigh_adv.options + (sllao->len * 8));
+    sllao = (struct pico_icmp6_opt_lladdr *)((uint8_t *)&icmp->msg.info.neigh_adv + sizeof(struct neigh_adv_s));
+    aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_adv) + sizeof(struct neigh_adv_s) + (sllao->len * 8));
     
     /* Validate Address Registration Option */
     if (validate_aro(aro))
@@ -596,7 +593,7 @@ static int neigh_sol_detect_dad(struct pico_frame *f)
     struct pico_ipv6_link *link = NULL;
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    
+
     if (LL_MODE_ETHERNET == f->dev->mode) {
         link = pico_ipv6_link_istentative(&icmp6_hdr->msg.info.neigh_adv.target);
         if (link) {
@@ -902,7 +899,7 @@ static int sixlowpan_router_sol_process(struct pico_frame *f)
     if (router_sol_checks(f) < 0)
         return -1;
     
-    /* Maybe create a tentative NCE? Nah.. will add an NCE later */
+    /* Maybe create a tentative NCE? No, will do it later */
     
     /* Send a router advertisement via unicast to requesting host */
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -1159,9 +1156,7 @@ static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
         /* Schedule next check */
         /* TODO: Apply exponential retransmission timer, see RFC6775 5.3 */
         pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
-        
         nd_dbg("[6LP-ND]$ No default routers configured, solicitating\n");
-        return;
     }
 }
 
@@ -1182,7 +1177,6 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
 }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
 
-
 #define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
 #define PICO_IPV6_ND_MAX_RADV_INTERVAL (15000)
 
@@ -1194,7 +1188,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
     struct pico_ipv6_route *rt;
     struct pico_ip6 nm64 = { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0 } };
     pico_time next_timer_expire = 0u;
-    
+
     (void)arg;
     (void)now;
     pico_tree_foreach(rindex, &IPV6Routes)
@@ -1214,11 +1208,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
         }
     }
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
-    if (lbr) {
-        /* Only when I'm an edge router I may have other interface wich are not 6LoWPAN-interfaces, 
-         * so only then check if periodic router advertisements are required */
-        pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
-    }
+    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
 }
 
 /* Public API */

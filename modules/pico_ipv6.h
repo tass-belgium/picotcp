@@ -10,6 +10,7 @@
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_ipv4.h"
+
 #define PICO_SIZE_IP6HDR ((uint32_t)(sizeof(struct pico_ipv6_hdr)))
 #define PICO_IPV6_DEFAULT_HOP 64
 #define PICO_IPV6_MIN_MTU 1280
@@ -23,9 +24,11 @@
 #define PICO_IPV6_EXTHDR_NONE 59
 #define PICO_IPV6_EXTHDR_DESTOPT 60
 
-#define IPV6_OPTLEN(x) ((uint16_t)(((x + 1) << 3)))
+#define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT 5
+#define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN 2
 
 #define HBH_LEN(hbh) ((((hbh->ext.hopbyhop.len + 1) << 3) - 2)) /* len in bytes, minus nxthdr and len byte */
+#define IPV6_OPTLEN(x) ((uint16_t)(((x + 1) << 3)))
 
 extern const uint8_t PICO_IP6_ANY[PICO_SIZE_IP6];
 extern struct pico_protocol pico_proto_ipv6;
@@ -64,8 +67,8 @@ struct pico_ipv6_link
     uint8_t mcast_compatibility;
     uint8_t mcast_last_query_interval;
 #endif
-
 };
+
 union pico_link {
     struct pico_ipv4_link ipv4;
     struct pico_ipv6_link ipv6;
@@ -96,7 +99,6 @@ struct pico_ipv6_route
     struct pico_ipv6_link *link;
     uint32_t metric;
 };
-
 
 PACKED_STRUCT_DEF pico_ipv6_exthdr {
     uint8_t nxthdr;
