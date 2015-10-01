@@ -338,6 +338,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     struct pico_icmp6_opt_aro *aro = NULL;
     struct pico_icmp6_hdr *icmp = NULL;
     struct pico_ipv6_route *gw = NULL;
+    struct pico_ipv6_link *ll = NULL;
     struct pico_frame *sol = NULL;
     uint8_t i = 0, llao_len = 0;
     uint16_t len = 0;
@@ -420,7 +421,8 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode) {
         /* Force frame to be sent with source address to be registered */
-        pico_ipv6_frame_push(sol, dst, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
+        ll = pico_ipv6_linklocal_get(dev);
+        pico_ipv6_frame_push(sol, &ll->address, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
     }
 #endif
     else {
