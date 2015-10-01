@@ -10,6 +10,14 @@
 #include "modules/pico_dns_sd.c"
 #include "check.h"
 
+Suite *pico_suite(void);
+void callback( pico_mdns_rtree *tree,char *str, void *arg);
+int dns_sd_init(void);
+char text[] = "textvers";
+char text2[] = "pass";
+char text3[]= "color";
+char value[] = "1";
+char value3[] = "";
 void callback( pico_mdns_rtree *tree,
                char *str,
                void *arg )
@@ -56,9 +64,9 @@ START_TEST(tc_dns_sd_kv_vector_strlen)
         0
     };
 
-    pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
-    pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
-    pico_dns_sd_kv_vector_add(&pairs, "color", "");
+    pico_dns_sd_kv_vector_add(&pairs, text, value);
+    pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
 
     fail_unless(pico_dns_sd_kv_vector_strlen(&pairs) == 23,
                 "dns_sd_kv_vector_strlen returned wrong length!\n");
@@ -93,7 +101,7 @@ START_TEST(tc_dns_sd_srv_record_create)
                 "TTL of SRV record not correctly set!\n");
     fail_unless(memcmp(record->record->rdata, buf, 19) == 0,
                 "Rdata of TXT record not correctly set!\n");
-    pico_mdns_record_delete(&record);
+    pico_mdns_record_delete((void **)&record);
 }
 END_TEST
 START_TEST(tc_dns_sd_txt_record_create)
@@ -109,9 +117,9 @@ START_TEST(tc_dns_sd_txt_record_create)
         6, 'c', 'o', 'l', 'o', 'r', '='
     };
 
-    pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
-    pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
-    pico_dns_sd_kv_vector_add(&pairs, "color", "");
+    pico_dns_sd_kv_vector_add(&pairs, text, value);
+    pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
 
     record = pico_dns_sd_txt_record_create("test.local", pairs, 10,
                                            PICO_MDNS_RECORD_UNIQUE);
@@ -128,7 +136,7 @@ START_TEST(tc_dns_sd_txt_record_create)
                 "TTL of TXT record not correctly set!\n");
     fail_unless(memcmp(record->record->rdata, buf, 23) == 0,
                 "Rdata of TXT record not correctly set!\n");
-    pico_mdns_record_delete(&record);
+    pico_mdns_record_delete((void **)&record);
 }
 END_TEST
 START_TEST(tc_dns_sd_kv_create)
@@ -256,6 +264,7 @@ START_TEST(tc_dns_sd_browse_service)
     /* Not implemented in code */
 }
 END_TEST
+
 START_TEST(tc_dns_sd_kv_vector_add)
 {
     kv_vector pairs = {
@@ -263,9 +272,9 @@ START_TEST(tc_dns_sd_kv_vector_add)
     };
     char *key = NULL;
 
-    pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
-    pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
-    pico_dns_sd_kv_vector_add(&pairs, "color", "");
+    pico_dns_sd_kv_vector_add(&pairs, text, value);
+    pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
 
     key = pico_dns_sd_kv_vector_get(&pairs, 2)->key;
     fail_unless(strcmp("color", key) == 0,
@@ -279,9 +288,9 @@ START_TEST(tc_dns_sd_kv_vector_get)
     };
     char *key = NULL;
 
-    pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
-    pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
-    pico_dns_sd_kv_vector_add(&pairs, "color", "");
+    pico_dns_sd_kv_vector_add(&pairs, text, value);
+    pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
 
     key = pico_dns_sd_kv_vector_get(&pairs, 2)->key;
     fail_unless(strcmp("color", key) == 0,
@@ -297,9 +306,9 @@ START_TEST(tc_dns_sd_kv_vector_erase)
         0
     };
 
-    pico_dns_sd_kv_vector_add(&pairs, "textvers", "1");
-    pico_dns_sd_kv_vector_add(&pairs, "pass", NULL);
-    pico_dns_sd_kv_vector_add(&pairs, "color", "");
+    pico_dns_sd_kv_vector_add(&pairs, text, value);
+    pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);
 
     pico_dns_sd_kv_vector_erase(&pairs);
 

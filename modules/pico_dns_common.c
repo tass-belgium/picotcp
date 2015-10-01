@@ -444,9 +444,8 @@ void
 pico_dns_ipv6_set_ptr( const char *ip, char *dst )
 {
     int i = 0, j = 0;
-    struct pico_ip6 ip6 = {
-        .addr = {}
-    };
+    struct pico_ip6 ip6;
+    memset(&ip6, 0, sizeof(struct pico_ip6));
     pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {
         if ((j + 3) > 64) return; /* Don't want j to go out of bounds */

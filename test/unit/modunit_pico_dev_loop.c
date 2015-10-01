@@ -3,6 +3,7 @@
 static int called = 0;
 static int fail = 0;
 
+Suite *pico_suite(void);
 
 int pico_device_init(struct pico_device __attribute__((unused)) *dev, const char __attribute__((unused)) *name, uint8_t __attribute__((unused)) *mac)
 {

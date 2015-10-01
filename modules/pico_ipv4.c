@@ -315,7 +315,7 @@ static int pico_ipv4_process_mcast_in(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     if (pico_ipv4_is_multicast(hdr->dst.addr)) {
-#ifdef PICO_SUPPORT_MCAST
+#ifdef PICO_SUPPORT_IGMP
         /* Receiving UDP multicast datagram TODO set f->flags? */
         if (hdr->proto == PICO_PROTO_IGMP) {
             ip_mcast_dbg("MCAST: received IGMP message\n");
@@ -955,6 +955,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
                     ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
 
                 break;
+#ifdef PICO_SUPPORT_IGMP
             case PICO_PROTO_IGMP:
                 vhl = 0x46; /* header length 24 */
                 ttl = 1;
@@ -972,6 +973,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
                 }
 
                 break;
+#endif
             default:
                 ttl = PICO_IPV4_DEFAULT_TTL;
             }
@@ -1209,8 +1211,10 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
     new->MCASTGroups->root = &LEAF;
     new->MCASTGroups->compare = ipv4_mcast_groups_cmp;
+#ifdef PICO_SUPPORT_IGMP
     new->mcast_compatibility = PICO_IGMPV3; /* default RFC 3376 $7.2.1 */
     new->mcast_last_query_interval = PICO_IGMP_QUERY_INTERVAL;
+#endif
 #endif
 
     pico_tree_insert(&Tree_dev_link, new);

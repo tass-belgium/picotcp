@@ -8,6 +8,8 @@
 #include "check.h"
 
 
+Suite *pico_suite(void);
+
 START_TEST(tc_aodv_node_compare)
 {
     struct pico_aodv_node a, b;
@@ -55,6 +57,7 @@ END_TEST
 static int set_bcast_link_called = 0;
 void pico_ipv4_route_set_bcast_link(struct pico_ipv4_link *link)
 {
+    IGNORE_PARAMETER(link);
     set_bcast_link_called++;
 }
 
@@ -73,7 +76,7 @@ START_TEST(tc_aodv_peer_refresh)
     memset(&node, 0, sizeof(node));
     node.dseq = 0xFFFF;
     fail_if(aodv_peer_refresh(&node, 10) != 0); /* should succeed, because SYNC flag is not yet set... */
-    fail_if(node.flags & PICO_AODV_NODE_SYNC == 0); /* Flag should be set after last call... */
+    fail_if((node.flags & PICO_AODV_NODE_SYNC) == 0); /* Flag should be set after last call... */
     fail_if(aodv_peer_refresh(&node, 5) == 0); /* should FAIL, because seq number is lower...  */
     fail_if(aodv_peer_refresh(&node, 10) == 0); /* should FAIL, because seq number is still the same...  */
     fail_if(aodv_peer_refresh(&node, 15) != 0); /* should succeed, because seq number is now bigger...  */
@@ -86,6 +89,9 @@ static uint32_t route_add_gw = 0u;
 static int route_add_metric = 0;
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask, struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link)
 {
+    IGNORE_PARAMETER(link);
+    IGNORE_PARAMETER(netmask);
+    IGNORE_PARAMETER(address);
     called_route_add++;
     route_add_gw = gateway.addr;
     route_add_metric = metric;
@@ -189,7 +195,7 @@ static int pico_socket_sendto_extended_called = 0;
 uint32_t expected_dseq = 0;
 int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
-    uint8_t *pkt = (uint8_t *)buf;
+    uint8_t *pkt = (uint8_t *)(uintptr_t)buf;
     printf("Sendto called!\n");
     pico_socket_sendto_called++;
     fail_if(remote_port != short_be(PICO_AODV_PORT));
@@ -199,11 +205,11 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     sent_pkt_type = pkt[0];
     dest_addr = ((union pico_address *)dst)->ip4.addr;
     if (sent_pkt_type == AODV_TYPE_RREQ) {
-        struct pico_aodv_rreq *req = (struct pico_aodv_rreq *)buf;
+        //struct pico_aodv_rreq *req = (struct pico_aodv_rreq *)(uintptr_t)buf;
         fail_if(len != sizeof(struct pico_aodv_rreq));
     }
     else if (sent_pkt_type == AODV_TYPE_RREP) {
-        struct pico_aodv_rrep *rep = (struct pico_aodv_rrep *)buf;
+        struct pico_aodv_rrep *rep = (struct pico_aodv_rrep *)(uintptr_t)buf;
         fail_if(len != sizeof(struct pico_aodv_rrep));
         fail_if(rep->dest != 0x11111111);
         fail_if(rep->orig != 0x22222222);
@@ -217,6 +223,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
                                 void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
 {
+    IGNORE_PARAMETER(msginfo);
     pico_socket_sendto_extended_called++;
     return pico_socket_sendto(s, buf, len, dst, remote_port);
 }
@@ -261,6 +268,7 @@ END_TEST
 static struct pico_ipv4_link global_link;
 struct pico_ipv4_link *pico_ipv4_link_by_dev(struct pico_device *dev)
 {
+    IGNORE_PARAMETER(dev);
     if (!global_link.address.addr)
         return NULL;
 
@@ -272,6 +280,7 @@ static struct pico_device global_dev;
 static int link_find_success = 0;
 struct pico_device *pico_ipv4_link_find(struct pico_ip4 *ip4)
 {
+    IGNORE_PARAMETER(ip4);
     if (link_find_success)
         return &global_dev;
 
@@ -279,11 +288,14 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *ip4)
 }
 
 static int timer_set = 0;
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    IGNORE_PARAMETER(arg);
+    IGNORE_PARAMETER(timer);
+    IGNORE_PARAMETER(expire);
     printf("Timer set!\n");
     timer_set++;
-    return (struct pico_timer *) 0x99999999;
+    return (uint32_t ) 0x99999999;
 
 }
 
@@ -312,7 +324,7 @@ START_TEST(tc_aodv_send_req)
 
 
     /* No valid link, timer is set, call does not send packets */
-    aodv_socket = 1;
+    aodv_socket = (struct pico_socket*) 1;
     global_link.address.addr = 0;
     fail_if(aodv_send_req(&node) != 0);
     fail_if(pico_socket_sendto_called != 0);

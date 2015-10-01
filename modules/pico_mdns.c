@@ -97,7 +97,7 @@ struct pico_mdns_cookie
     uint8_t type;                       /* QUERY/ANNOUNCE/PROBE/ANSWER */
     uint8_t status;                     /* Active status */
     uint8_t timeout;                    /* Timeout counter */
-    struct pico_timer *send_timer;      /* For sending events */
+    uint32_t send_timer;      /* For sending events */
     void (*callback)(pico_mdns_rtree *,
                      char *,
                      void *);           /* Callback */
@@ -445,17 +445,6 @@ pico_mdns_question_create( const char *url,
 /* MARK: ^ MDNS QUESTIONS */
 /* MARK: v MDNS RECORDS */
 
-#define PICO_MDNS_RECORD_DECLARE(name) \
-    struct pico_mdns_record (name) = { \
-        &(struct pico_dns_record) { \
-            NULL, \
-            &(struct pico_dns_record_suffix) { 0, 1, 0, 0 }, \
-            NULL, \
-            0 \
-        }, \
-        0, 0, 0 \
-    }
-
 /* ****************************************************************************
  *  Just makes a hardcopy from a single mDNS resource record.
  *
@@ -545,9 +534,14 @@ pico_mdns_rtree_find_name_type( pico_mdns_rtree *tree,
                                 uint8_t copy )
 {
     PICO_MDNS_RTREE_DECLARE(hits);
-    PICO_MDNS_RECORD_DECLARE(test);
+
+    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
+    struct pico_dns_record test_dns_record = { 0 };
+    struct pico_mdns_record test = { 0 };
     struct pico_tree_node *node = NULL;
     struct pico_mdns_record *record = NULL;
+    test_dns_record.rsuffix = &test_dns_suffix;
+    test.record = &test_dns_record;
 
     /* Check params */
     if (!name || !tree) {
@@ -619,9 +613,14 @@ pico_mdns_rtree_del_name_type( pico_mdns_rtree *tree,
                                char *name,
                                uint16_t type )
 {
-    PICO_MDNS_RECORD_DECLARE(test);
     struct pico_tree_node *node = NULL, *next = NULL;
     struct pico_mdns_record *record = NULL;
+    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
+    struct pico_dns_record test_dns_record = { 0 };
+    struct pico_mdns_record test = { 0 };
+
+    test_dns_record.rsuffix = &test_dns_suffix;
+    test.record = &test_dns_record;
 
     /* Check params */
     if (!name || !tree) {
@@ -1000,7 +999,6 @@ pico_mdns_cookie_create( pico_dns_qtree qtree,
     cookie->type = type;
     cookie->status = PICO_MDNS_COOKIE_STATUS_INACTIVE;
     cookie->timeout = PICO_MDNS_COOKIE_TIMEOUT;
-    cookie->send_timer = NULL;
     cookie->callback = callback;
     cookie->arg = arg;
     return cookie;
@@ -3347,13 +3345,13 @@ pico_mdns_init( const char *hostname,
     }
 
     /* Convert the mDNS IPv4 destination address to struct */
-    if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq4.mcast_group_addr.addr)) {
+    if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq4.mcast_group_addr.ip4.addr)) {
         mdns_dbg("String to IPv4 error\n");
         return -1;
     }
 
     /* Receive data on any network interface */
-    mreq4.mcast_link_addr = inaddr_any;
+    mreq4.mcast_link_addr.ip4 = inaddr_any;
 
     /* Don't want the multicast data to be looped back to the host */
     if(pico_socket_setoption(mdns_sock_ipv4, PICO_IP_MULTICAST_LOOP, &loop)) {

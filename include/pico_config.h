@@ -20,6 +20,11 @@
 #   define PACKED_UNION_DEF  __packed union
 #   define PACKED __packed
 #   define WEAK
+#elif defined __WATCOMC__
+#   define PACKED_STRUCT_DEF   _Packed struct
+#   define PEDANTIC_STRUCT_DEF struct
+#   define PACKED_UNION_DEF    _Packed union
+#   define WEAK
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #   define PEDANTIC_STRUCT_DEF struct

@@ -27,7 +27,7 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #endif
 
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
-static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { };
+static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { 0 };
 
 static void pico_arp_queued_trigger(void)
 {
@@ -103,7 +103,7 @@ struct pico_arp {
     int arp_status;
     pico_time timestamp;
     struct pico_device *dev;
-    struct pico_timer *timer;
+    uint32_t timer;
 };
 
 
