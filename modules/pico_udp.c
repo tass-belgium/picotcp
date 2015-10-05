@@ -158,9 +158,10 @@ struct pico_socket *pico_udp_open(void)
 
 static void pico_udp_get_msginfo(struct pico_frame *f, struct pico_msginfo *msginfo)
 {
-    msginfo->dev = f->dev;
     if (!msginfo || !f->net_hdr)
         return;
+
+    msginfo->dev = f->dev;
 
     if (IS_IPV4(f)) { /* IPV4 */
 #ifdef PICO_SUPPORT_IPV4

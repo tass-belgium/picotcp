@@ -1328,8 +1328,6 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
            && pico_ipv6_is_multicast(((struct pico_ip6 *)dst)->addr))
         {
             src = &(pico_ipv6_linklocal_get(msginfo->dev)->address);
-            if(!src)
-                return -1;
         }
         else
 #endif

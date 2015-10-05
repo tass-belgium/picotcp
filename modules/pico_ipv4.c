@@ -384,6 +384,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint16_t flag = short_be(hdr->frag);
 
     (void)self;
+
+    if (!hdr)
+        return -1;
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
         option_len =  (uint8_t)(4 * (((hdr->vhl) & 0x0F) - 5));
@@ -780,6 +783,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
 
     if (!link)
         link = mcast_default_link;
+
+    if (!link)
+        return NULL;
 
     test.mcast_addr = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
