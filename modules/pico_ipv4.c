@@ -785,7 +785,7 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
         link = mcast_default_link;
 
     if (!link)
-        return NULL;
+        return -1;
 
     test.mcast_addr = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
