@@ -144,7 +144,7 @@ static void pico_slaacv4_receive_ipconflict(void)
         tmp->state = SLAACV4_CLAIMING;
         tmp->probe_try_nb = 0;
         tmp->announce_nb = 0;
-        tmp->ip.addr = long_be(pico_slaacv4_getip(tmp->device, (uint8_t)1));
+        tmp->ip.addr = pico_slaacv4_getip(tmp->device, (uint8_t)1);
         pico_arp_register_ipconflict(&tmp->ip, &tmp->device->eth->mac, pico_slaacv4_receive_ipconflict);
         pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
         tmp->probe_try_nb++;
