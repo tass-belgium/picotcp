@@ -127,7 +127,7 @@ static void pico_slaacv4_send_probe_timer(pico_time now, void *arg)
 
 
 
-static void pico_slaacv4_receive_ipconflict(void)
+static void pico_slaacv4_receive_ipconflict(int reason)
 {
     struct slaacv4_cookie *tmp = &slaacv4_local;
 
@@ -136,7 +136,10 @@ static void pico_slaacv4_receive_ipconflict(void)
 
     if(tmp->state == SLAACV4_CLAIMED)
     {
-        pico_ipv4_link_del(tmp->device, tmp->ip);
+        if(reason == PICO_ARP_CONFLICT_REASON_CONFLICT)
+        {
+          pico_ipv4_link_del(tmp->device, tmp->ip);
+        }
     }
 
     if (tmp->conflict_nb < MAX_CONFLICTS)
