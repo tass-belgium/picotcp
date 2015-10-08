@@ -26,6 +26,7 @@
 #define ANNOUNCE_NB          2 /* number of announcement packets */
 #define ANNOUNCE_INTERVAL    2 /* time between announcement packets */
 #define MAX_CONFLICTS       10 /* max conflicts before rate limiting */
+#define MAX_CONFLICTS_FAIL  20 /* max conflicts before declaring failure */
 #define RATE_LIMIT_INTERVAL 60 /* time between successive attempts */
 #define DEFEND_INTERVAL     10 /* minimum interval between defensive ARP */
 
@@ -152,6 +153,15 @@ static void pico_slaacv4_receive_ipconflict(int reason)
         pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
         tmp->probe_try_nb++;
         tmp->timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, tmp);
+    }
+    else if (tmp->conflict_nb < MAX_CONFLICTS_FAIL)
+    {
+        tmp->state = SLAACV4_CLAIMING;
+        tmp->probe_try_nb = 0;
+        tmp->announce_nb = 0;
+        tmp->ip.addr = pico_slaacv4_getip(tmp->device, (uint8_t)1);
+        pico_arp_register_ipconflict(&tmp->ip, &tmp->device->eth->mac, pico_slaacv4_receive_ipconflict);
+        tmp->timer = pico_timer_add(RATE_LIMIT_INTERVAL * 1000, pico_slaacv4_send_probe_timer, tmp);
     }
     else
     {
