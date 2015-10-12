@@ -140,19 +140,15 @@ START_TEST(tc_mdns_record_cmp_name_type) /* MARK: mdns_record_cmp_name_type*/
 END_TEST
 START_TEST(tc_mdns_record_cmp) /* MARK: mdns_record_cmp */
 {
-    struct pico_mdns_record a = {
-        0
-    };
-    struct pico_mdns_record b = {
-        0
-    };
+    struct pico_mdns_record a = {0};
+    struct pico_mdns_record b = {0};
     char url1[] = "foo.local";
     char url3[] = "a.local";
-    struct pico_ip4 rdata = {
-        0
-    };
+    struct pico_ip4 rdata = {0};
     uint16_t len = 0;
     int ret = 0;
+    struct pico_ip4 firstIP = {.addr = 0x7778797A};
+    struct pico_ip4 secondIP = {.addr = 0x5758595A};
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -195,6 +191,20 @@ START_TEST(tc_mdns_record_cmp) /* MARK: mdns_record_cmp */
     /* Try to compare records with different rname but equal type */
     ret = pico_mdns_record_cmp((void *) &a, (void *) &b);
     fail_unless(ret < 0, "mdns_record_cmp failed with different name, same types!\n");
+    pico_dns_record_delete((void**)(void **)&(a.record));
+    pico_dns_record_delete((void**)(void **)&(b.record));
+
+
+    /* Create different test records */
+    a.record = pico_dns_record_create(url1, &firstIP, 4, &len, PICO_DNS_TYPE_A,
+                                      PICO_DNS_CLASS_IN, 0);
+    fail_if(!a.record, "Record A could not be created!\n");
+    b.record = pico_dns_record_create(url1, &secondIP, 4, &len, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN, 0);
+    fail_if(!b.record, "Record B could not be created!\n");
+
+    /* Try to compare records with equal rname but equal type different IP address (testing the effect of pico_tolower) */
+    ret = pico_mdns_record_cmp((void *) &a, (void *) &b);
+    fail_unless(ret > 0, "mdns_record_cmp failed with same name, same types, tolower separated different rdata!\n");
     pico_dns_record_delete((void**)(void **)&(a.record));
     pico_dns_record_delete((void**)(void **)&(b.record));
 
