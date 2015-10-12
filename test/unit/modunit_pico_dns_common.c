@@ -29,6 +29,15 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
     uint8_t rdata6[12] = {
         1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
     };
+
+    uint8_t rdata7[5] = {
+        72, 69, 76, 76, 79
+    };
+
+    uint8_t rdata8[5] = {
+        104, 101, 108, 108, 111
+    };
+
     int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
@@ -54,8 +63,12 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
     fail_unless(ret < 0, "dns_rdata_cmp failed with equal data and larger size!\n");
 
     /* Check larger data and larger size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata6, 10, 11);
+    ret = pico_dns_rdata_cmp(rdata1, rdata6, 10, 12);
     fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and larger size!\n");
+
+    /* Check for tolower effect */
+    ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with check for tolower effect!\n");
 
     printf("*********************** ending %s * \n", __func__);
 }

@@ -1013,11 +1013,13 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
     if (rdlength_b < slen)
         slen = rdlength_b;
 
-    /* Iterate 'the smallest length' times */
+    /* loop over slen */
     for (i = 0; i < slen; i++) {
-        if ((dif = (int)((int)pico_tolower(a[i]) - (int)pico_tolower(b[i]))))
+        if ((dif = (int)a[i] - (int)b[i])){
             return dif;
+        }
     }
+
     /* Return difference of buffer lengths */
     return (int)((int)rdlength_a - (int)rdlength_b);
 }

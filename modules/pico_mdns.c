@@ -794,7 +794,7 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
                                   struct pico_mdns_record *peer_record)
 {
     struct pico_dns_record *my = NULL, *peer = NULL;
-    uint16_t mtype = 0, ptype = 0;
+    uint16_t mclass = 0, pclass = 0, mtype = 0, ptype = 0;
     int dif = 0;
 
     /* Check params */
@@ -804,11 +804,37 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
         return -1;
     }
 
-    /* First, compare the rrtypes */
+    /* 
+     * First compare the record class (excluding cache-flush bit described in 
+     * section 10.2)
+     * The numerically greater class wins
+     */
+    mclass = PICO_MDNS_CLR_MSB_BE(my->rsuffix->rclass);
+    pclass = PICO_MDNS_CLR_MSB_BE(peer->rsuffix->rclass);
+    if ((dif = (int)((int)mclass - (int)pclass))){
+        return dif;
+    }
+
+    /* Second, compare the rrtypes */
     mtype = (my->rsuffix->rtype);
     ptype = (peer->rsuffix->rtype);
-    if ((dif = (int)((int)mtype - (int)ptype)))
+    if ((dif = (int)((int)mtype - (int)ptype))){
         return dif;
+    }
+
+    /* Third compare binary content of rdata (no regard for meaning or structure) */
+
+    /* When using name compression, names MUST be uncompressed before comparison. See secion 8.2 in RFC 6762
+    This is already the case, but we won't check for it here.
+    The current execution stack to get here is:
+     > pico_mdns_handle_data_as_answers_generic
+     >  > pico_dns_record_decompress
+     >  > pico_mdns_handle_single_authority
+     >  >  > pico_mdns_cookie_apply_spt
+     >  >  >  > pico_mdns_record_am_i_lexi_later
+
+    Make sure pico_dns_record_decompress is executed before pico_mdns_record_am_i_lexi_later gets called, if problems ever arise with this function.
+    */
 
     /* Then compare rdata */
     return pico_dns_rdata_cmp(my->rdata, peer->rdata,
