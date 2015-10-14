@@ -43,32 +43,62 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
     printf("*********************** starting %s * \n", __func__);
 
     /* Check equal data and size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata1, 10, 10);
-    fail_unless(!ret, "dns_rdata_cmp failed with equal data and size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata1, 10, 10, 0);
+    fail_unless(!ret, "dns_rdata_cmp failed with equal data and size, case-sensitive!\n");
 
     /* Check smaller data and equal size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata2, 10, 10);
-    fail_unless(ret > 0, "dns_rdata_cmp failed with smaller data and equal size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata2, 10, 10, 0);
+    fail_unless(ret > 0, "dns_rdata_cmp failed with smaller data and equal size, case-sensitive!\n");
 
     /* Check larger data and smaller size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata3, 10, 1);
-    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and smaller size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata3, 10, 1, 0);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and smaller size, case-sensitive!\n");
 
     /* Check equal data and smaller size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata4, 10, 1);
-    fail_unless(ret > 0, "dns_rdata_cmp failed with equal data and smaller size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata4, 10, 1, 0);
+    fail_unless(ret > 0, "dns_rdata_cmp failed with equal data and smaller size, case-sensitive!\n");
 
     /* Check smaller data and larger size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata5, 10, 11);
-    fail_unless(ret < 0, "dns_rdata_cmp failed with equal data and larger size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata5, 10, 11, 0);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with equal data and larger size, case-sensitive!\n");
 
     /* Check larger data and larger size */
-    ret = pico_dns_rdata_cmp(rdata1, rdata6, 10, 12);
-    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and larger size!\n");
+    ret = pico_dns_rdata_cmp(rdata1, rdata6, 10, 12, 0);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and larger size, case-sensitive!\n");
 
     /* Check for tolower effect */
-    ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5);
-    fail_unless(ret < 0, "dns_rdata_cmp failed with check for tolower effect!\n");
+    ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5, 0);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with check for tolower effect, case-sensitive!\n");
+
+    //now check with case-insensitive
+
+    /* Check equal data and size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata1, 10, 10, 1);
+    fail_unless(!ret, "dns_rdata_cmp failed with equal data and size, case-insensitive!\n");
+
+    /* Check smaller data and equal size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata2, 10, 10, 1);
+    fail_unless(ret > 0, "dns_rdata_cmp failed with smaller data and equal size, case-insensitive!\n");
+
+    /* Check larger data and smaller size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata3, 10, 1, 1);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and smaller size, case-insensitive!\n");
+
+    /* Check equal data and smaller size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata4, 10, 1, 1);
+    fail_unless(ret > 0, "dns_rdata_cmp failed with equal data and smaller size, case-insensitive!\n");
+
+    /* Check smaller data and larger size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata5, 10, 11, 1);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with equal data and larger size, case-insensitive!\n");
+
+    /* Check larger data and larger size */
+    ret = pico_dns_rdata_cmp(rdata1, rdata6, 10, 12, 1);
+    fail_unless(ret < 0, "dns_rdata_cmp failed with larger data and larger size, case-insensitive!\n");
+
+    /* Check for tolower effect */
+    ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5, 1);
+    fail_unless(ret == 0, "dns_rdata_cmp failed with check for tolower effect, case-insensitive!\n");
 
     printf("*********************** ending %s * \n", __func__);
 }

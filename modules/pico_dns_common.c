@@ -990,11 +990,13 @@ static int pico_tolower(int c)
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
+ *  @param caseinsensitive Whether or not the bytes are compared 
+ *                         case-insensitive
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int
 pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
-                    uint16_t rdlength_a, uint16_t rdlength_b )
+                    uint16_t rdlength_a, uint16_t rdlength_b, uint8_t caseinsensitive )
 {
     uint16_t i = 0;
     uint16_t slen = 0;
@@ -1014,9 +1016,17 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
         slen = rdlength_b;
 
     /* loop over slen */
-    for (i = 0; i < slen; i++) {
-        if ((dif = (int)a[i] - (int)b[i])){
-            return dif;
+    if(caseinsensitive){
+        for (i = 0; i < slen; i++) {
+            if ((dif = pico_tolower((int)a[i]) - pico_tolower((int)b[i]))) {
+                return dif;
+            }
+        }
+    }else{
+        for (i = 0; i < slen; i++) {
+            if ((dif = (int)a[i] - (int)b[i])){
+                return dif;
+            }
         }
     }
 
@@ -1055,7 +1065,7 @@ pico_dns_question_cmp( void *qa,
     /* Then compare qnames */
     return pico_dns_rdata_cmp((uint8_t *)a->qname, (uint8_t *)b->qname,
                               pico_dns_strlen(a->qname),
-                              pico_dns_strlen(b->qname));
+                              pico_dns_strlen(b->qname), 1);
 }
 
 /* ****************************************************************************
@@ -1090,7 +1100,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Then compare names */
     return pico_dns_rdata_cmp((uint8_t *)(a->rname), (uint8_t *)(b->rname),
                               (uint16_t)strlen(a->rname),
-                              (uint16_t)strlen(b->rname));
+                              (uint16_t)strlen(b->rname), 1);
 }
 
 /* ****************************************************************************
@@ -1121,7 +1131,7 @@ pico_dns_record_cmp( void *ra,
     /* Then compare rdata */
     return pico_dns_rdata_cmp(a->rdata, b->rdata,
                               short_be(a->rsuffix->rdlength),
-                              short_be(b->rsuffix->rdlength));
+                              short_be(b->rsuffix->rdlength), 0);
 }
 
 /* MARK: ^ COMPARING */

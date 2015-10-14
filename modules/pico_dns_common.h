@@ -362,11 +362,13 @@ pico_dns_record_decompress( struct pico_dns_record *record,
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
+ *  @param caseinsensitive Whether or not the bytes are compared 
+ *                         case-insensitive
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int
 pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
-                    uint16_t rdlength_a, uint16_t rdlength_b );
+                    uint16_t rdlength_a, uint16_t rdlength_b, uint8_t caseinsensitive );
 
 /* ****************************************************************************
  *  Compares 2 DNS questions

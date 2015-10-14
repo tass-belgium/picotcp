@@ -839,7 +839,7 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
     /* Then compare rdata */
     return pico_dns_rdata_cmp(my->rdata, peer->rdata,
                               short_be(my->rsuffix->rdlength),
-                              short_be(peer->rsuffix->rdlength));
+                              short_be(peer->rsuffix->rdlength), 0);
 }
 
 /* ****************************************************************************
