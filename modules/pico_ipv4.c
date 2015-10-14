@@ -1307,6 +1307,7 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
             PICO_FREE(g);
         }
     } while(0);
+    pico_free(found->MCASTGroups);
 #endif
 
     pico_ipv4_cleanup_routes(found);
