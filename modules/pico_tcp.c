@@ -2498,15 +2498,16 @@ static void tcp_attempt_closewait(struct pico_socket *s, struct pico_frame *f)
 
 static int tcp_closewait(struct pico_socket *s, struct pico_frame *f)
 {
-
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
+    struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) (f->transport_hdr);
+
     if (f->payload_len > 0)
         tcp_data_in(s, f);
 
-    if (f->flags & PICO_TCP_ACK)
+    if (hdr->flags & PICO_TCP_ACK)
         tcp_ack(s, f);
 
-    tcp_dbg("called close_wait, in state %08x\n", s->state);
+    tcp_dbg("called close_wait (%p), in state %08x, f->flags: 0x%02x, hdr->flags: 0x%02x\n", tcp_closewait, s->state, f->flags, hdr->flags);
     tcp_attempt_closewait(s, f);
 
     /* Ensure that the notification given to the socket
@@ -2711,6 +2712,7 @@ static void tcp_action_call(int (*call)(struct pico_socket *s, struct pico_frame
 static int tcp_action_by_flags(const struct tcp_action_entry *action, struct pico_socket *s, struct pico_frame *f, uint8_t flags)
 {
     int ret = 0;
+
     if ((flags == PICO_TCP_ACK) || (flags == (PICO_TCP_ACK | PICO_TCP_PSH))) {
         tcp_action_call(action->ack, s, f);
     }
@@ -2748,9 +2750,9 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f)
     f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
 
     tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
-    tcp_dbg("[sam] TCP> flags = %02x\n", hdr->flags);
+    tcp_dbg("[sam] TCP> flags = 0x%02x\n", hdr->flags);
     tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
-    tcp_dbg("[sam] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: %08x ack: %08x flags: %02x t_len: %u, hdr: %u payload: %d\n", s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
+    tcp_dbg("[sam] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote port: %u seq: 0x%08x ack: 0x%08x flags: 0x%02x t_len: %u, hdr: %u payload: %d\n", s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport), SEQN(f), ACKN(f), hdr->flags, f->transport_len, (hdr->len & 0xf0) >> 2, f->payload_len );
 
     /* This copy of the frame has the current socket as owner */
     f->sock = s;
