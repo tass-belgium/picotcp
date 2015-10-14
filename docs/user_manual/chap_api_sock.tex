@@ -685,7 +685,7 @@ errMsg = pico_socket_close(sk_tcp);
 
 
 \subsection{pico$\_$socket$\_$setoption}
-
+\label{socket:setoption}
 \subsubsection*{Description}
 Function used to set socket options.
 
@@ -715,8 +715,10 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$IF} - (Not supported) Set link multicast datagrams are sent from, default is first added link
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$TTL} - Set TTL (0-255) of multicast datagrams, default is 1
 \item \texttt{PICO$\_$IP$\_$MULTICAST$\_$LOOP} - Specifies if a copy of an outgoing multicast datagram is looped back as long as it is a member of the multicast group, default is enabled
-\item \texttt{PICO$\_$IP$\_$ADD$\_$MEMBERSHIP} - Join the multicast group specified
-\item \texttt{PICO$\_$IP$\_$DROP$\_$MEMBERSHIP} - Leave the multicast group specified
+\item \texttt{PICO$\_$IP$\_$ADD$\_$MEMBERSHIP} - Join the multicast group specified in the \textit{pico\_ip\_mreq} structure passed in the value argument
+\item \texttt{PICO$\_$IP$\_$DROP$\_$MEMBERSHIP} - Leave the multicast group specified in the \textit{pico\_ip\_mreq} structure passed in the value argument
+\item \texttt{PICO$\_$IP$\_$ADD$\_$SOURCE$\_$MEMBERSHIP} - Join the source-specific multicast group specified in the \textit{pico\_ip\_mreq\_source} structure passed in the value argument
+\item \texttt{PICO$\_$IP$\_$DROP$\_$SOURCE$\_$MEMBERSHIP} - Leave the source-specific multicast group specified in the \textit{pico\_ip\_mreq\_source} structure passed in the value argument
 \end{itemize}
 
 \subsubsection*{Return value}

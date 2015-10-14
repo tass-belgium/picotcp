@@ -22,7 +22,7 @@
 
 #define nd_dbg(...) do {} while(0)
 
-static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { };
+static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
 
 
 enum pico_ipv6_neighbor_state {
@@ -220,7 +220,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
     if (optlen)
-        option = icmp6_hdr->msg.info.neigh_adv.options;
+        option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
 
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)option)->type;
@@ -526,7 +526,7 @@ static int neigh_adv_option_len_validity_check(struct pico_frame *f)
      *       - All included options have a length that is greater than zero.
      */
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    opt = icmp6_hdr->msg.info.neigh_adv.options;
+    opt = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
 
     while(optlen > 0) {
         int opt_size = (opt[1] << 3);
@@ -685,7 +685,7 @@ static int radv_process(struct pico_frame *f)
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
-    opt_start = (uint8_t *)icmp6_hdr->msg.info.router_adv.options;
+    opt_start = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
     nxtopt = opt_start;
 
     while (optlen > 0) {
@@ -715,7 +715,7 @@ static int radv_process(struct pico_frame *f)
             if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
                 goto ignore_opt_prefix;
 
-            if (prefix->val_lifetime <= 0)
+            if (prefix->val_lifetime == 0)
                 goto ignore_opt_prefix;
 
 

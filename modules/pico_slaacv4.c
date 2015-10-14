@@ -44,7 +44,7 @@ struct slaacv4_cookie {
     uint8_t announce_nb;
     struct pico_ip4 ip;
     struct pico_device *device;
-    struct pico_timer *timer;
+    uint32_t timer;
     void (*cb)(struct pico_ip4 *ip, uint8_t code);
 };
 
@@ -75,22 +75,21 @@ static void pico_slaacv4_init_cookie(struct pico_ip4 *ip, struct pico_device *de
     ck->cb = cb;
     ck->device = dev;
     ck->ip.addr = ip->addr;
-    ck->timer = NULL;
+    ck->timer = 0;
 }
 
 static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
 {
     pico_timer_cancel(tmp->timer);
-
-    tmp->timer = NULL;
+    tmp->timer = 0;
 }
 
 static void pico_slaacv4_send_announce_timer(pico_time now, void *arg)
 {
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
-    struct pico_ip4 netmask = {
-        .addr = long_be(0xFFFF0000)
-    };
+    struct pico_ip4 netmask = { 0 };
+    netmask.addr = long_be(0xFFFF0000);
+
     (void)now;
 
     if (tmp->announce_nb < ANNOUNCE_NB)
@@ -128,7 +127,7 @@ static void pico_slaacv4_send_probe_timer(pico_time now, void *arg)
 
 
 
-static void pico_slaacv4_receive_ipconflict(void)
+static void pico_slaacv4_receive_ipconflict(int reason)
 {
     struct slaacv4_cookie *tmp = &slaacv4_local;
 
@@ -137,7 +136,10 @@ static void pico_slaacv4_receive_ipconflict(void)
 
     if(tmp->state == SLAACV4_CLAIMED)
     {
-        pico_ipv4_link_del(tmp->device, tmp->ip);
+        if(reason == PICO_ARP_CONFLICT_REASON_CONFLICT)
+        {
+          pico_ipv4_link_del(tmp->device, tmp->ip);
+        }
     }
 
     if (tmp->conflict_nb < MAX_CONFLICTS)
@@ -145,7 +147,7 @@ static void pico_slaacv4_receive_ipconflict(void)
         tmp->state = SLAACV4_CLAIMING;
         tmp->probe_try_nb = 0;
         tmp->announce_nb = 0;
-        tmp->ip.addr = long_be(pico_slaacv4_getip(tmp->device, (uint8_t)1));
+        tmp->ip.addr = pico_slaacv4_getip(tmp->device, (uint8_t)1);
         pico_arp_register_ipconflict(&tmp->ip, &tmp->device->eth->mac, pico_slaacv4_receive_ipconflict);
         pico_arp_request(tmp->device, &tmp->ip, PICO_ARP_PROBE);
         tmp->probe_try_nb++;

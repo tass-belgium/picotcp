@@ -315,7 +315,7 @@ static int pico_ipv4_process_mcast_in(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     if (pico_ipv4_is_multicast(hdr->dst.addr)) {
-#ifdef PICO_SUPPORT_MCAST
+#ifdef PICO_SUPPORT_IGMP
         /* Receiving UDP multicast datagram TODO set f->flags? */
         if (hdr->proto == PICO_PROTO_IGMP) {
             ip_mcast_dbg("MCAST: received IGMP message\n");
@@ -364,7 +364,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
 static void pico_ipv4_process_finally_try_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    if ((pico_ipv4_is_broadcast(hdr->dst.addr))) {
+    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST)!= 0)) {
         /* don't forward broadcast frame, discard! */
         pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
@@ -384,6 +384,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     uint16_t flag = short_be(hdr->frag);
 
     (void)self;
+
+    if (!hdr)
+        return -1;
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
         option_len =  (uint8_t)(4 * (((hdr->vhl) & 0x0F) - 5));
@@ -781,6 +784,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
     if (!link)
         link = mcast_default_link;
 
+    if (!link)
+        return -1;
+
     test.mcast_addr = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (!g) {
@@ -955,6 +961,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
                     ttl = PICO_IP_DEFAULT_MULTICAST_TTL;
 
                 break;
+#ifdef PICO_SUPPORT_IGMP
             case PICO_PROTO_IGMP:
                 vhl = 0x46; /* header length 24 */
                 ttl = 1;
@@ -972,6 +979,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
                 }
 
                 break;
+#endif
             default:
                 ttl = PICO_IPV4_DEFAULT_TTL;
             }
@@ -1209,8 +1217,10 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 
     new->MCASTGroups->root = &LEAF;
     new->MCASTGroups->compare = ipv4_mcast_groups_cmp;
+#ifdef PICO_SUPPORT_IGMP
     new->mcast_compatibility = PICO_IGMPV3; /* default RFC 3376 $7.2.1 */
     new->mcast_last_query_interval = PICO_IGMP_QUERY_INTERVAL;
+#endif
 #endif
 
     pico_tree_insert(&Tree_dev_link, new);
@@ -1296,7 +1306,6 @@ int pico_ipv4_link_del(struct pico_device *dev, struct pico_ip4 address)
             pico_tree_delete(found->MCASTGroups, g);
             PICO_FREE(g);
         }
-        PICO_FREE(found->MCASTGroups);
     } while(0);
 #endif
 

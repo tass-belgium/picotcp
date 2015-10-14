@@ -3,20 +3,20 @@
 
 START_TEST (test_timers)
 {
-    struct pico_timer *T[128];
+    uint32_t T[128];
     int i;
     pico_stack_init();
     for (i = 0; i < 128; i++) {
         T[i] = pico_timer_add(999999 + i, 0xff00 + i, 0xaa00 + i);
-        printf("New timer @ %p (%x-%x)\n", T[i], T[i]->timer, T[i]->arg);
+        printf("New timer %lu\n", T[i]);
     }
     for (i = 0; i < 128; i++) {
         fail_if(i + 1 > Timers->n);
-        fail_unless(Timers->top[i + EXISTING_TIMERS].tmr == T[i]);
-        fail_unless(T[i]->timer == (0xff00 + i));
-        fail_unless(T[i]->arg == (0xaa00 + i));
+        fail_unless(Timers->top[i + EXISTING_TIMERS].id == T[i]);
+        fail_unless(Timers->top[i + EXISTING_TIMERS].tmr->timer == (0xff00 + i));
+        fail_unless(Timers->top[i + EXISTING_TIMERS].tmr->arg == (0xaa00 + i));
     }
-    for (i = 0; i < 128; i++) {
+    for (i = 127; i >= 0; i--) {
         printf("Deleting timer %d \n", i );
         pico_timer_cancel(T[i]);
         printf("Deleted timer %d \n", i );

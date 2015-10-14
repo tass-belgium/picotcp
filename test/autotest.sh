@@ -6,7 +6,7 @@ TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
 TFTP_WORK_FILE="test.img"
 
 function tftp_setup() {
-	dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
+    dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
 }
 
 function tftp_cleanup() {
@@ -27,22 +27,41 @@ function on_exit(){
 
 trap on_exit exit term
 
-./test/vde_sock_start_user.sh start
+if ! [ -x "$(command -v vde_switch)" ]; then
+      echo 'VDE Switch is not installed.' >&2
+fi
+
+if [ ! -e test/vde_sock_start_user.sh ]; then
+   echo "VDE SOCK START FILE NOT FOUND. NO VDE SETUP. EXITING"
+   exit 1
+else
+   echo "VDE SOCK START SCRIPT STARTED."
+   ./test/vde_sock_start_user.sh start
+fi
 
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
 killall -wq picoapp.elf 
 killall -wq picoapp6.elf
+
+
  
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~ IPV6 tests! ~~~"
+echo "~~~ MULTICAST6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp6.elf --vde pic1,/tmp/pic0.ctl,aaaa::2,ffff::, -a mcastreceive_ipv6,aaaa::2,ff00::e007:707,6667,6667,) &
+(./build/test/picoapp6.elf --vde pic2,/tmp/pic0.ctl,aaaa::3,ffff::, -a mcastreceive_ipv6,aaaa::3,ff00::e007:707,6667,6667,) &
+(./build/test/picoapp6.elf --vde pic3,/tmp/pic0.ctl,aaaa::4,ffff::, -a mcastreceive_ipv6,aaaa::4,ff00::e007:707,6667,6667,) &
+sleep 2
+ ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a  mcastsend_ipv6,aaaa::1,ff00::e007:707,6667,6667,|| exit 1
+(wait && wait && wait) || exit 1
+
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 LOCALHOST TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 ./build/test/picoapp6.elf --loop -a ping,::1,, || exit 1
-wait
+killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 TEST ~~~"
@@ -257,8 +276,9 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ DNS_SD TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 #register a service
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer &
-sleep 20
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+(./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.3:255.255.255.0:10.50.0.1: --app dns_sd:host.local:WebServer) &
+sleep 30
 killall -w picoapp.elf
 
 sleep 1

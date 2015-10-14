@@ -13,7 +13,7 @@
 extern struct udpclient_pas *udpclient_pas;
 extern struct udpecho_pas *udpecho_pas;
 #ifdef PICO_SUPPORT_MCAST
-void app_mcastreceive(char *arg)
+void app_mcastreceive_ipv6(char *arg)
 {
     char *new_arg = NULL, *p = NULL, *nxt = arg;
     char *laddr = NULL, *maddr = NULL, *lport = NULL, *sport = NULL;
@@ -22,15 +22,19 @@ void app_mcastreceive(char *arg)
         0
     }, inaddr_mcast = {
         0
+    },   src[5] = {
+        {.ip6= { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0 }}, 
+        {.ip6= { 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x10}},  
+        {.ip6 ={ 0xfe, 0x80, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xac, 0x10, 0x01, 0x01 }}, 
+        {.ip6= { 0xff, 0x00, 0x00, 0x00, 0x00, 0, 0, 0, 0, 0, 0, 0, 0xe0, 0x01, 0x01, 0x01 }},   
     };
-    struct pico_ip_mreq mreq = ZERO_MREQ;
-    struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC;
-
+    struct pico_ip_mreq mreq = ZERO_MREQ_IP6;
+    struct pico_ip_mreq_source mreq_source = ZERO_MREQ_SRC_IP6;
     /* start of parameter parsing */
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv4(laddr, &inaddr_link.ip4.addr);
+            pico_string_to_ipv6(laddr, &inaddr_link.ip6.addr);
         } else {
             goto out;
         }
@@ -42,7 +46,7 @@ void app_mcastreceive(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv4(maddr, &inaddr_mcast.ip4.addr);
+            pico_string_to_ipv6(maddr, &inaddr_mcast.ip6.addr);
         } else {
             goto out;
         }
@@ -80,22 +84,30 @@ void app_mcastreceive(char *arg)
 
     /* end of parameter parsing */
 
-    printf("\n%s: multicast receive started. Receiving packets on %s:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
+    printf("\n%s: multicast receive started. Receiving packets on [%s]:%d\n\n", __FUNCTION__, maddr, short_be(listen_port));
 
     /* udpecho:bind_addr:listen_port[:sendto_port:datasize] */
-    new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(":64:") + 1);
+    new_arg = calloc(1, strlen(laddr) + 1 + strlen(lport) + 1 + strlen(sport) + strlen(",64:") + 1);
     p = strcat(new_arg, laddr);
-    p = strcat(p + strlen(laddr), ":");
+    p = strcat(p + strlen(laddr), ",");
     p = strcat(p + 1, lport);
-    p = strcat(p + strlen(lport), ":");
+    p = strcat(p + strlen(lport), ",");
     p = strcat(p + 1, sport);
-    p = strcat(p + strlen(sport), ":64:");
+    p = strcat(p + strlen(sport), ",64,");
+
+    /* DAD needs to verify the link address before we can continue */
+    while(!pico_ipv6_link_get(&inaddr_link.ip6.addr) ) {
+        pico_stack_tick();
+        usleep(2000);
+    }
 
     app_udpecho(new_arg);
-
-    mreq.mcast_group_addr = mreq_source.mcast_group_addr = inaddr_mcast;
-    mreq.mcast_link_addr = mreq_source.mcast_link_addr = inaddr_link;
-    mreq_source.mcast_source_addr.ip4.addr = long_be(0XAC100101);
+    
+    memcpy(&mreq.mcast_group_addr, &inaddr_mcast,sizeof(struct pico_ip6));
+    memcpy( &mreq_source.mcast_group_addr, &inaddr_mcast,sizeof(struct pico_ip6));
+    memcpy(&mreq.mcast_link_addr ,&inaddr_link, sizeof(struct pico_ip6));
+    memcpy(&mreq_source.mcast_link_addr ,&inaddr_link, sizeof(struct pico_ip6));
+    memcpy(&mreq_source.mcast_source_addr, &src[0], sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
     }
@@ -131,8 +143,7 @@ void app_mcastreceive(char *arg)
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
     }
-
-    mreq_source.mcast_source_addr.ip4.addr = long_be(0XAC10010A);
+    memcpy(&mreq_source.mcast_source_addr, &src[1],sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
     }
@@ -141,16 +152,15 @@ void app_mcastreceive(char *arg)
         printf("%s: socket_setoption PICO_IP_DROP_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
     }
 
-    mreq_source.mcast_source_addr.ip4.addr = long_be(0XAC100101);
+    memcpy(&mreq_source.mcast_source_addr, &src[2],sizeof(struct pico_ip6));
+    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
+        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
+      }
+
+    memcpy(&mreq_source.mcast_group_addr, &src[3],sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
         printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
     }
-
-    mreq_source.mcast_group_addr.ip4.addr = long_be(0XE0010101);
-    if(pico_socket_setoption(udpecho_pas->s, PICO_IP_ADD_SOURCE_MEMBERSHIP, &mreq_source) < 0) {
-        printf("%s: socket_setoption PICO_IP_ADD_SOURCE_MEMBERSHIP: %s\n", __FUNCTION__, strerror(pico_err));
-    }
-
     return;
 
 out:
@@ -158,7 +168,7 @@ out:
     exit(255);
 }
 #else
-void app_mcastreceive(char *arg)
+void app_mcastreceive_ipv6(char *arg)
 {
     printf("ERROR: PICO_SUPPORT_MCAST disabled\n");
     return;

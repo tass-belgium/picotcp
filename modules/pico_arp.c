@@ -27,7 +27,7 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #endif
 
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
-static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { };
+static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { 0 };
 
 static void pico_arp_queued_trigger(void)
 {
@@ -85,7 +85,7 @@ PACKED_STRUCT_DEF pico_arp_hdr
 struct arp_service_ipconflict {
     struct pico_eth mac;
     struct pico_ip4 ip;
-    void (*conflict)(void);
+    void (*conflict)(int);
 };
 
 static struct arp_service_ipconflict conflict_ipv4;
@@ -103,7 +103,7 @@ struct pico_arp {
     int arp_status;
     pico_time timestamp;
     struct pico_device *dev;
-    struct pico_timer *timer;
+    uint32_t timer;
 };
 
 
@@ -290,11 +290,14 @@ int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_dev
 
 static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
 {
-
-    if ((conflict_ipv4.conflict) &&
-        ((conflict_ipv4.ip.addr == hdr->src.addr) &&
-         (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0)))
-        conflict_ipv4.conflict();
+    if (conflict_ipv4.conflict)
+    {
+        if((conflict_ipv4.ip.addr == hdr->src.addr) &&
+            (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0))
+          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_CONFLICT );
+        if((hdr->src.addr == 0) && (hdr->dst.addr == conflict_ipv4.ip.addr) )
+          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_PROBE );
+    }
 }
 
 static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
@@ -524,7 +527,7 @@ int pico_arp_get_neighbors(struct pico_device *dev, struct pico_ip4 *neighbors, 
     return i;
 }
 
-void pico_arp_register_ipconflict(struct pico_ip4 *ip, struct pico_eth *mac, void (*cb)(void))
+void pico_arp_register_ipconflict(struct pico_ip4 *ip, struct pico_eth *mac, void (*cb)(int reason))
 {
     conflict_ipv4.conflict = cb;
     conflict_ipv4.ip.addr = ip->addr;

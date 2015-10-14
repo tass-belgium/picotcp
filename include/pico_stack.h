@@ -71,13 +71,11 @@ int pico_notify_frag_expired(struct pico_frame *f);
 int pico_notify_pkt_too_big(struct pico_frame *f);
 
 /* Various. */
-struct pico_timer;
 int pico_source_is_local(struct pico_frame *f);
 int pico_frame_dst_is_unicast(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg);
-void pico_timer_cancel(struct pico_timer *t);
-pico_time pico_timer_get_expire(struct pico_timer *t);
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg);
+void pico_timer_cancel(uint32_t id);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);
 void pico_to_lowercase(char *str);

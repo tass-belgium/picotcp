@@ -189,8 +189,6 @@ static void pico_queue_destroy(struct pico_queue *q)
 
 void pico_device_destroy(struct pico_device *dev)
 {
-    if (dev->destroy)
-        dev->destroy(dev);
 
     pico_queue_destroy(dev->q_in);
     pico_queue_destroy(dev->q_out);
@@ -205,6 +203,9 @@ void pico_device_destroy(struct pico_device *dev)
     pico_ipv6_cleanup_links(dev);
 #endif
     pico_tree_delete(&Device_tree, dev);
+    
+    if (dev->destroy)
+        dev->destroy(dev);
 
     Devices_rr_info.node_in  = NULL;
     Devices_rr_info.node_out = NULL;
@@ -234,7 +235,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (dev->q_in->frames <= 0)
+        if (dev->q_in->frames == 0)
             break;
 
         /* Receive */
@@ -270,7 +271,7 @@ static int devloop_out(struct pico_device *dev, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (dev->q_out->frames <= 0)
+        if (dev->q_out->frames == 0)
             break;
 
         /* Device dequeue + send */

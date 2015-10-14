@@ -28,6 +28,11 @@
 
 /* maximum size of a DHCP message */
 #define DHCP_CLIENT_MAXMSGZISE         (PICO_IP_MRU - PICO_SIZE_IP4HDR)
+#define PICO_DHCP_HOSTNAME_MAXLEN  64U
+
+static char dhcpc_host_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
+static char dhcpc_domain_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
+
 
 enum dhcp_client_state {
     DHCP_CLIENT_STATE_INIT_REBOOT = 0,
@@ -173,13 +178,13 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_find_cookie(uint32_t xid
 
 static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
 static void pico_dhcp_client_reinit(pico_time now, void *arg);
-static void pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
+static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
     struct dhcp_client_timer *t;
 
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
     if (!t)
-        return;
+        return NULL;
 
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;
@@ -190,6 +195,7 @@ static void pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_cl
     }
 
     ck->timer[type] = t;
+    return t;
 }
 
 static int dhcp_get_timer_event(struct pico_dhcp_client_cookie *dhcpc, unsigned int type)
@@ -471,6 +477,24 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
             dhcpc_dbg("DHCP client: WARNING option overload present (not processed)");
             break;
 
+        case PICO_DHCP_OPT_HOSTNAME:
+           {
+            uint32_t maxlen = PICO_DHCP_HOSTNAME_MAXLEN;
+            if (opt->len < maxlen)
+                maxlen = opt->len;
+            strncpy(dhcpc_host_name, opt->ext.string.txt, maxlen);
+           }
+           break;
+
+        case PICO_DHCP_OPT_DOMAINNAME:
+           {
+            uint32_t maxlen = PICO_DHCP_HOSTNAME_MAXLEN;
+            if (opt->len < maxlen)
+                maxlen = opt->len;
+            strncpy(dhcpc_domain_name, opt->ext.string.txt, maxlen);
+           }
+           break;
+
         default:
             dhcpc_dbg("DHCP client: WARNING unsupported option %u\n", opt->code);
             break;
@@ -490,7 +514,7 @@ static void pico_dhcp_client_recv_params(struct pico_dhcp_client_cookie *dhcpc, 
 static int recv_offer(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
-    struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
+    struct pico_dhcp_opt *opt = DHCP_OPT(hdr,0);
 
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_OFFER) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
@@ -509,7 +533,7 @@ static int recv_offer(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
-    struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)hdr->options;
+    struct pico_dhcp_opt *opt = DHCP_OPT(hdr,0);
     struct pico_ip4 address = {
         0
     };
@@ -569,10 +593,6 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     uint16_t port = PICO_DHCP_CLIENT_PORT;
     (void) buf;
     dhcpc->state = DHCP_CLIENT_STATE_RENEWING;
-
-    if (dhcpc->s)
-        pico_socket_close(dhcpc->s);
-
     dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
     if (!dhcpc->s) {
         dhcpc_dbg("DHCP client ERROR: failure opening socket on renew, aborting DHCP! (%s)\n", strerror(pico_err));
@@ -770,15 +790,14 @@ static int16_t pico_dhcp_client_opt_parse(void *ptr, uint16_t len)
 {
     uint32_t optlen = len - (uint32_t)sizeof(struct pico_dhcp_hdr);
     struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)ptr;
-    struct pico_dhcp_opt *opt = NULL;
+    struct pico_dhcp_opt *opt = DHCP_OPT(hdr,0);
 
     if (hdr->dhcp_magic != PICO_DHCPD_MAGIC_COOKIE)
         return -1;
 
-    if (!pico_dhcp_are_options_valid(hdr->options, (int32_t)optlen))
+    if (!pico_dhcp_are_options_valid(opt, (int32_t)optlen))
         return -1;
 
-    opt = (struct pico_dhcp_opt *)hdr->options;
     do {
         if (opt->code == PICO_DHCP_OPT_MSGTYPE)
             return opt->ext.msg_type.type;
@@ -814,7 +833,7 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
         }
 
         /* specific options */
-        offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
+        offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(DHCP_OPT(hdr,offset), DHCP_CLIENT_MAXMSGZISE));
         break;
 
     case PICO_DHCP_MSG_REQUEST:
@@ -827,10 +846,10 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
         }
 
         /* specific options */
-        offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(&hdr->options[offset], DHCP_CLIENT_MAXMSGZISE));
+        offset = (uint16_t)(offset + pico_dhcp_opt_maxmsgsize(DHCP_OPT(hdr,offset), DHCP_CLIENT_MAXMSGZISE));
         if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING) {
-            offset = (uint16_t)(offset + pico_dhcp_opt_reqip(&hdr->options[offset], &dhcpc->address));
-            offset = (uint16_t)(offset + pico_dhcp_opt_serverid(&hdr->options[offset], &dhcpc->server_id));
+            offset = (uint16_t)(offset + pico_dhcp_opt_reqip(DHCP_OPT(hdr,offset), &dhcpc->address));
+            offset = (uint16_t)(offset + pico_dhcp_opt_serverid(DHCP_OPT(hdr,offset), &dhcpc->server_id));
         }
 
         break;
@@ -840,9 +859,9 @@ static int8_t pico_dhcp_client_msg(struct pico_dhcp_client_cookie *dhcpc, uint8_
     }
 
     /* common options */
-    offset = (uint16_t)(offset + pico_dhcp_opt_msgtype(&hdr->options[offset], msg_type));
-    offset = (uint16_t)(offset + pico_dhcp_opt_paramlist(&hdr->options[offset]));
-    offset = (uint16_t)(offset + pico_dhcp_opt_end(&hdr->options[offset]));
+    offset = (uint16_t)(offset + pico_dhcp_opt_msgtype(DHCP_OPT(hdr,offset), msg_type));
+    offset = (uint16_t)(offset + pico_dhcp_opt_paramlist(DHCP_OPT(hdr,offset)));
+    offset = (uint16_t)(offset + pico_dhcp_opt_end(DHCP_OPT(hdr,offset)));
 
     switch (dhcpc->state)
     {
@@ -956,4 +975,16 @@ int pico_dhcp_client_abort(uint32_t xid)
 {
     return pico_dhcp_client_del_cookie(xid);
 }
+
+
+char *pico_dhcp_get_hostname(void)
+{
+    return dhcpc_host_name;
+}
+
+char *pico_dhcp_get_domain(void)
+{
+    return dhcpc_domain_name;
+}
+
 #endif

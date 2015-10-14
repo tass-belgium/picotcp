@@ -15,6 +15,7 @@
 #include "./modules/pico_fragments.c"
 #include "check.h"
 
+Suite *pico_suite(void);
 /* Mock! */
 static int transport_recv_called = 0;
 #define TESTPROTO 0x99
@@ -27,11 +28,19 @@ int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 }
 
 static int timer_add_called = 0;
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    IGNORE_PARAMETER(expire);
+    IGNORE_PARAMETER(arg);
     fail_if(timer != pico_frag_expire);
     timer_add_called++;
     return NULL;
+}
+
+static int timer_cancel_called = 0;
+void pico_timer_cancel(uint32_t id)
+{
+    timer_cancel_called++;
 }
 
 static int icmp4_frag_expired_called = 0;
@@ -91,6 +100,7 @@ START_TEST(tc_pico_ipv6_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
+    timer_cancel_called = 0;
     a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
@@ -116,9 +126,11 @@ START_TEST(tc_pico_ipv6_fragments_complete)
     pico_set_mm_failure(1);
     pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV6);
     fail_if(transport_recv_called != 0);
+    fail_if(timer_cancel_called != 0);
 
     pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV6);
     fail_if(transport_recv_called != 1);
+    fail_if(timer_cancel_called != 1);
 }
 END_TEST
 
@@ -126,6 +138,7 @@ START_TEST(tc_pico_ipv4_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
+    timer_cancel_called = 0;
     a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
@@ -151,9 +164,11 @@ START_TEST(tc_pico_ipv4_fragments_complete)
     pico_set_mm_failure(1);
     pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV4);
     fail_if(transport_recv_called != 0);
+    fail_if(timer_cancel_called != 0);
 
     pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV4);
     fail_if(transport_recv_called != 1);
+    fail_if(timer_cancel_called != 1);
 }
 END_TEST
 
@@ -170,6 +185,7 @@ START_TEST(tc_pico_fragments_check_complete)
     fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV6) != 0);
 
     transport_recv_called = 0;
+    timer_cancel_called = 0;
     a = pico_frame_alloc(32 + 20);
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
@@ -194,6 +210,7 @@ START_TEST(tc_pico_fragments_check_complete)
 
     fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV4) == 0);
     fail_if(transport_recv_called != 1);
+    fail_if(timer_cancel_called != 1);
 
 }
 END_TEST

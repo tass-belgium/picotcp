@@ -210,7 +210,7 @@ MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 #endif
 
 
-#ifdef PICO_SUPPORT_IGMP
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
     case PICO_PROTO_IGMP:
         ret = pico_enqueue(pico_proto_igmp.q_in, f);
         break;
@@ -726,7 +726,7 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
     struct pico_frame *f;
     int32_t ret;
-    if (len <= 0)
+    if (len == 0)
         return -1;
 
     f = pico_frame_alloc(len);
@@ -762,7 +762,7 @@ static int32_t _pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffe
 {
     struct pico_frame *f;
     int ret;
-    if (len <= 0)
+    if (len == 0)
         return -1;
 
     f = pico_frame_alloc_skeleton(len, ext_buffer);
@@ -831,9 +831,12 @@ struct pico_timer
     void (*timer)(pico_time timestamp, void *arg);
 };
 
+
+static uint32_t tmr_id = 0u;
 struct pico_timer_ref
 {
     pico_time expire;
+    uint32_t id;
     struct pico_timer *tmr;
 };
 
@@ -889,17 +892,16 @@ static void pico_check_timers(void)
     }
 }
 
-void MOCKABLE pico_timer_cancel(struct pico_timer *t)
+void MOCKABLE pico_timer_cancel(uint32_t id)
 {
     uint32_t i;
     struct pico_timer_ref *tref = Timers->top;
-    if (!t)
+    if (id == 0u)
         return;
-
     for (i = 1; i <= Timers->n; i++) {
-        if (tref[i].tmr == t) {
+        if (tref[i].id == id) {
+            PICO_FREE(Timers->top[i].tmr);
             Timers->top[i].tmr = NULL;
-            PICO_FREE(t);
             break;
         }
     }
@@ -1069,25 +1071,31 @@ void pico_stack_loop(void)
     }
 }
 
-MOCKABLE struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
     struct pico_timer_ref tref;
+
+    /* zero is guard for timers */
+    if (tmr_id == 0u)
+        tmr_id++;
+
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;
-        return NULL;
+        return 0;
     }
 
     tref.expire = PICO_TIME_MS() + expire;
     t->arg = arg;
     t->timer = timer;
     tref.tmr = t;
+    tref.id = tmr_id++;
     heap_insert(Timers, &tref);
     if (Timers->n > PICO_MAX_TIMERS) {
         dbg("Warning: I have %d timers\n", (int)Timers->n);
     }
 
-    return t;
+    return tref.id;
 }
 
 int pico_stack_init(void)
@@ -1109,7 +1117,7 @@ int pico_stack_init(void)
     pico_protocol_init(&pico_proto_icmp6);
 #endif
 
-#ifdef PICO_SUPPORT_IGMP
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
     pico_protocol_init(&pico_proto_igmp);
 #endif
 

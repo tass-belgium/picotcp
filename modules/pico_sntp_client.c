@@ -65,7 +65,7 @@ struct sntp_server_ns_cookie
     struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user
                                                 wheter/when the time is synchronised */
-    struct pico_timer *timer;   /* Timer that will signal timeout */
+    uint32_t timer;   /* Timer that will signal timeout */
 };
 
 /* global variables */
@@ -241,8 +241,11 @@ static void dnsCallback(char *ip, void *arg)
         return;
     }
 
+    if (0) {
+
+    }
 #ifdef PICO_SUPPORT_IPV6
-    if(ck->proto == PICO_PROTO_IPV6) {
+    else if(ck->proto == PICO_PROTO_IPV6) {
         if (ip) {
             /* add the ip address to the client, and start a tcp connection socket */
             sntp_dbg("using IPv6 address: %s\n", ip);
@@ -255,7 +258,8 @@ static void dnsCallback(char *ip, void *arg)
     }
 
 #endif
-    if(ck->proto == PICO_PROTO_IPV4) {
+#ifdef PICO_SUPPORT_IPV4
+    else if(ck->proto == PICO_PROTO_IPV4) {
         if(ip) {
             sntp_dbg("using IPv4 address: %s\n", ip);
             retval = pico_string_to_ipv4(ip, (uint32_t *)&address.ip4.addr);
@@ -265,6 +269,7 @@ static void dnsCallback(char *ip, void *arg)
             pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }
     }
+#endif
 
     if (retval >= 0) {
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);

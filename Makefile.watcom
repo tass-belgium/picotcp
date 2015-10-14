@@ -1,14 +1,15 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
-CC:=$(CROSS_COMPILE)gcc
-LD:=$(CROSS_COMPILE)ld
-AR:=$(CROSS_COMPILE)ar
-RANLIB:=$(CROSS_COMPILE)ranlib
+WATCOM_PATH:=/opt/watcom
+CC:=$(WATCOM_PATH)/binl/$(CROSS_COMPILE)wcc386
+LD:=$(WATCOM_PATH)/binl/$(CROSS_COMPILE)wcl386
+AR:=$(WATCOM_PATH)/binl/$(CROSS_COMPILE)wlib
+RANLIB:=$(WATCOM_PATH)/binl/$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
-LIBNAME:="libpicotcp.a"
+LIBNAME:=libpicotcp.a
 
 PREFIX?=$(PWD)/build
 DEBUG?=1
@@ -51,7 +52,7 @@ MEMORY_MANAGER_PROFILING?=0
 TUN?=0
 TAP?=0
 PCAP?=0
-PPP?=1
+PPP?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -59,73 +60,63 @@ POLARSSL?=0
 #IPv6 related
 IPV6?=1
 
-EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
+EXTRA_CFLAGS+=-dPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
-# extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
-CFLAGS+= -Wconversion
-# request from Toon
-CFLAGS+= -Wcast-align
-CFLAGS+= -Wmissing-prototypes
-CFLAGS+= -Wno-missing-field-initializers
+CFLAGS=-i=$(WATCOM_PATH)/h -i=$(PREFIX)/include -i=include -i=modules $(EXTRA_CFLAGS) -q
 
 
 ifeq ($(DEBUG),1)
-  CFLAGS+=-ggdb
+  CFLAGS+=-od -of -d9
 else
   ifeq ($(PERF), 1)
-    CFLAGS+=-O3
+    CFLAGS+=
   else
-    CFLAGS+=-Os
+    CFLAGS+=
   endif
-endif
-
-ifeq ($(PROFILE),1)
-  CFLAGS+=-pg
 endif
 
 ifeq ($(TFTP),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_strings.o $(LIBBASE)modules/pico_tftp.o
-  OPTIONS+=-DPICO_SUPPORT_TFTP
+  OPTIONS+=-dPICO_SUPPORT_TFTP
 endif
 
 ifeq ($(AODV),1)
   MOD_OBJ+=$(LIBBASE)modules/pico_aodv.o
-  OPTIONS+=-DPICO_SUPPORT_AODV
+  OPTIONS+=-dPICO_SUPPORT_AODV
 endif
 
 ifeq ($(GENERIC),1)
-  CFLAGS+=-DGENERIC
+  CFLAGS+=-dGENERIC
 endif
 
 ifeq ($(PTHREAD),1)
-  CFLAGS+=-DPICO_SUPPORT_PTHREAD
+  CFLAGS+=-dPICO_SUPPORT_PTHREAD
 endif
 
 
 ifneq ($(ENDIAN),little)
-  CFLAGS+=-DPICO_BIGENDIAN
+  CFLAGS+=-dPICO_BIGENDIAN
 endif
 
 ifneq ($(RTOS),0)
-  OPTIONS+=-DPICO_SUPPORT_RTOS
+  OPTIONS+=-dPICO_SUPPORT_RTOS
 endif
 
 ifeq ($(ARCH),cortexm4-hardfloat)
-  CFLAGS+=-DCORTEX_M4_HARDFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
+  CFLAGS+=-dCORTEX_M4_HARDFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
 endif
 
 ifeq ($(ARCH),cortexm4-softfloat)
-  CFLAGS+=-DCORTEX_M4_SOFTFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfloat-abi=soft -mthumb-interwork
+  CFLAGS+=-dCORTEX_M4_SOFTFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfloat-abi=soft -mthumb-interwork
 endif
 
 ifeq ($(ARCH),cortexm3)
-  CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
+  CFLAGS+=-dCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
 endif
 
 ifeq ($(ARCH),arm9)
-  CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
+  CFLAGS+=-dARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
@@ -133,39 +124,36 @@ ifeq ($(ADDRESS_SANITIZER),1)
 endif
 
 ifeq ($(ARCH),faulty)
-  CFLAGS+=-DFAULTY -DUNIT_TEST
-  ifeq ($(ADDRESS_SANITIZER),1)
-    CFLAGS+=-fsanitize=address
-  endif
-  CFLAGS+=-fno-omit-frame-pointer
+  CFLAGS+=-dFAULTY -dUNIT_TEST
+  CFLAGS+=-fsanitize=address -fno-omit-frame-pointer
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
 ifeq ($(ARCH),msp430)
-  CFLAGS+=-DMSP430
+  CFLAGS+=-dMSP430
 endif
 
 ifeq ($(ARCH),esp8266)
-  CFLAGS+=-DESP8266 -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals
+  CFLAGS+=-dESP8266 -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals
 endif
 
 ifeq ($(ARCH),mt7681)
-  CFLAGS+=-DMT7681 -fno-builtin -ffunction-sections -fno-strict-aliasing -m16bit -mabi=2 -mbaseline=V2 -mcpu=n9 -mno-div -mel -mmw-count=8 -mno-ext-mac -mno-dx-regs
+  CFLAGS+=-dMT7681 -fno-builtin -ffunction-sections -fno-strict-aliasing -m16bit -mabi=2 -mbaseline=V2 -mcpu=n9 -mno-div -mel -mmw-count=8 -mno-ext-mac -mno-dx-regs
 endif
 
 ifeq ($(ARCH),pic24)
-  CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
+  CFLAGS+=-dPIC24 -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
 endif
 
 ifeq ($(ARCH),atmega128)
-  CFLAGS+=-Wall -mmcu=atmega128 -DAVR
+  CFLAGS+=-Wall -mmcu=atmega128 -dAVR
 endif
 
 ifeq ($(ARCH),none)
-  CFLAGS+=-DARCHNONE
+  CFLAGS+=-dARCHNONE
 endif
 
 ifeq ($(ARCH),shared)
@@ -173,7 +161,7 @@ ifeq ($(ARCH),shared)
 endif
 
 %.o:%.c deps
-	$(CC) -c $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -fo=$@ $<
 
 CORE_OBJ= stack/pico_stack.o \
           stack/pico_frame.o \
@@ -210,7 +198,6 @@ endif
 ifneq ($(MCAST),0)
   include rules/mcast.mk
   include rules/igmp.mk
-  include rules/mld.mk
 endif
 ifneq ($(NAT),0)
   include rules/nat.mk
@@ -252,7 +239,7 @@ ifneq ($(MEMORY_MANAGER),0)
   include rules/memory_manager.mk
 endif
 ifneq ($(MEMORY_MANAGER_PROFILING),0)
-  OPTIONS+=-DPICO_SUPPORT_MM_PROFILING
+  OPTIONS+=-dPICO_SUPPORT_MM_PROFILING
 endif
 ifneq ($(SNTP_CLIENT),0)
   include rules/sntp_client.mk
@@ -324,15 +311,11 @@ lib: mod core
 	@cp -fa include/arch $(PREFIX)/include
 	@cp -f modules/*.h $(PREFIX)/include
 	@echo -e "\t[AR] $(PREFIX)/lib/$(LIBNAME)"
-	@$(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o \
-	  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o
+	$(AR) -q -b -n -fag -o=$(PREFIX)/lib/$(LIBNAME) $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o
+	@echo  || $(AR) cru $(PREFIX)/lib/$(LIBNAME) $(PREFIX)/lib/*.o
 	@echo -e "\t[RANLIB] $(PREFIX)/lib/$(LIBNAME)"
 	@$(RANLIB) $(PREFIX)/lib/$(LIBNAME)
-	@test $(STRIP) -eq 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
-     && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
-     || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)"
 	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
-	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
@@ -343,7 +326,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -g -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
+	@$(CC) -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -dUNIT_TEST
 	@echo -e "\t[LD] $(PREFIX)/test/units"
 	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o -lcheck -lm -pthread -lrt \
 		$(UNITS_OBJ) $(PREFIX)/modules/pico_aodv.o \
@@ -366,8 +349,6 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_fragments.elf $(CFLAGS) -I. test/unit/modunit_pico_fragments.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_queue.elf $(CFLAGS) -I. test/unit/modunit_queue.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_dev_ppp.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_ppp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
-	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(CFLAGS) -I. test/unit/modunit_pico_mld.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
-	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

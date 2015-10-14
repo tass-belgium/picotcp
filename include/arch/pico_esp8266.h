@@ -23,7 +23,6 @@ extern void *pvPortMalloc( size_t xWantedSize );
 extern void vPortFree( void *pv );
 
 #define pico_free	vPortFree
-//#define pico_free	free
 
 static inline void *pico_zalloc(size_t size)
 {

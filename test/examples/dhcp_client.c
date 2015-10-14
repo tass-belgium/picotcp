@@ -78,8 +78,6 @@ void app_dhcp_client(char *arg)
         }
 
         dev = pico_get_device(sdev);
-        free(sdev);
-
         if(dev == NULL) {
             printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
             exit(255);
@@ -94,7 +92,6 @@ void app_dhcp_client(char *arg)
 
         dhcpclient_devices++;
     }
-
     return;
 
 out:

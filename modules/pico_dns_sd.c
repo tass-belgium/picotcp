@@ -11,7 +11,7 @@
 
 /* --- Debugging --- */
 #define dns_sd_dbg(...) do {} while(0)
-/* #define dns_sd_dbg dbg */
+//#define dns_sd_dbg dbg
 
 /* --- PROTOTYPES --- */
 key_value_pair_t *
@@ -423,7 +423,9 @@ pico_dns_sd_register_service( const char *name,
 
     if (txt_record)
         pico_tree_insert(&rtree, txt_record);
+
     pico_tree_insert(&rtree, srv_record);
+
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
@@ -537,6 +539,7 @@ pico_dns_sd_kv_vector_erase( kv_vector *vector )
             return -1;
         }
     }
+    PICO_FREE(vector->pairs);
     vector->pairs = NULL;
     vector->count = 0;
 
