@@ -177,7 +177,7 @@ static void pico_slaacv4_receive_ipconflict(int reason)
 
 }
 
-static void pico_slaacv4_hotplug_cb(struct pico_device *dev, int event)
+static void pico_slaacv4_hotplug_cb(__attribute__((unused)) struct pico_device *dev, int event)
 {
     struct slaacv4_cookie *tmp = &slaacv4_local;
 
