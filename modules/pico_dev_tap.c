@@ -41,7 +41,7 @@ static void sig_handler(int signo)
     link_state = 1;
 }
 
-static int tap_link_state(struct pico_device *self)
+static int tap_link_state(__attribute__((unused)) struct pico_device *self)
 {
   return link_state;
 }
