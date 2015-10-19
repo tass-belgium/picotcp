@@ -849,7 +849,7 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
  *         tree-destroy.
  *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
-int
+in
 pico_mdns_record_delete( void **record )
 {
     struct pico_mdns_record **rr = (struct pico_mdns_record **)record;
