@@ -839,7 +839,7 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
     /* Then compare rdata */
     return pico_dns_rdata_cmp(my->rdata, peer->rdata,
                               short_be(my->rsuffix->rdlength),
-                              short_be(peer->rsuffix->rdlength), 0);
+                              short_be(peer->rsuffix->rdlength), PICO_DNS_CASE_SENSITIVE);
 }
 
 /* ****************************************************************************
@@ -861,35 +861,13 @@ pico_mdns_record_delete( void **record )
     }
 
     /* Delete DNS record contained */
-    if (((*rr)->record))
+    if (((*rr)->record)){
         pico_dns_record_delete((void **)&((*rr)->record));
+    }
 
     /* Delete the record itself */
     PICO_FREE(*rr);
     *record = NULL;
-
-    return 0;
-}
-
-/* ****************************************************************************
- *  Set the MSB of the QCLASS field of a DNS record depending on flags.
- *
- *  @param record DNS record you want the set or clear the class MSB for.
- *  @param flags  Depending on this the MSB will be set or not. Can be either
- *				  PICO_MDNS_RECORD_UNIQUE or PICO_MDNS_RECORD_SHARED
- *  @return 0 on success, something else on failure.
- * ****************************************************************************/
-static inline int
-pico_mdns_record_set_class( struct pico_dns_record *record,
-                            uint8_t flags )
-{
-    uint16_t c = PICO_DNS_CLASS_IN;
-    PICO_MDNS_SET_MSB(c);
-    c = short_be(c);
-
-    /* Set the MSB of the rclass field according to the mDNS format */
-    if (!((flags) & PICO_MDNS_RECORD_SHARED))
-        record->rsuffix->rclass = c;
 
     return 0;
 }
@@ -948,7 +926,12 @@ pico_mdns_record_create( const char *url,
 
     /* Initialise fields */
     record->current_ttl = rttl;
-    pico_mdns_record_set_class(record->record, flags);
+
+    //Set the MSB of the DNS class if it's a unique record
+    if (!((flags) & PICO_MDNS_RECORD_SHARED)){
+        record->record->rsuffix->rclass = PICO_MDNS_SET_MSB(record->record->rsuffix->rclass);
+    }
+
     record->flags = flags;
     record->claim_id = 0;
 
@@ -1035,7 +1018,7 @@ pico_mdns_cookie_create( pico_dns_qtree qtree,
  *
  *  @param cookie Cookie which contains the record which is simult. probed.
  *  @param answer Authority record received from peer which is simult. probed.
- *  @return 0 when SPT is applied correctly, 0 otherwise.
+ *  @return 0 when SPT is applied correctly, -1 otherwise.
  * ****************************************************************************/
 static int
 pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
@@ -1069,7 +1052,7 @@ pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
         cookie->count = PICO_MDNS_PROBE_COUNT;
         cookie->send_timer = pico_timer_add(1000, pico_mdns_send_probe_packet,
                                             cookie);
-        mdns_dbg("Probing postponed with 1s because of S.P.T.\n");
+        mdns_dbg("Probing postponed by one second because of S.P.T.\n");
     }
 
     return 0;
