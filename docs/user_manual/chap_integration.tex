@@ -498,6 +498,18 @@ structure itself and frees all the structures that were possibly allocated by th
 during device creation.
 \end{itemize}
 
+There is also an optional field in the \texttt{pico$\_$device} structure, but it is
+highly recommended that you implement this.
+
+\begin{itemize}
+\item The callback \textbf{link$\_$state} - a pointer to a function that returns info on
+the link state of the device. When the link is down, a 0 is returned, if it is
+up, a 1 is returned. Certain protocols depend on this function for hotplug
+detection, to restart a probing sequence, most notably link-local address
+allocation. It is expected that mDNS and DNS-SD will also start to rely on
+this.  
+\end{itemize}
+
 A device driver will have a simple two-functions library API exported in a header file using
 the same name, in the modules directory. The two functions to export will be:
 
