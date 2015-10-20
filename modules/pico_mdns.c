@@ -902,6 +902,7 @@ pico_mdns_record_create( const char *url,
 {
     struct pico_mdns_record *record = NULL;
     uint16_t len = 0;
+    uint16_t cl = 0;
     
     /* Check params */
     if (!url || !_rdata) {
@@ -929,7 +930,8 @@ pico_mdns_record_create( const char *url,
 
     //Set the MSB of the DNS class if it's a unique record
     if (!((flags) & PICO_MDNS_RECORD_SHARED)){
-        record->record->rsuffix->rclass = PICO_MDNS_SET_MSB_BE(record->record->rsuffix->rclass);
+        cl = record->record->rsuffix->rclass;
+        record->record->rsuffix->rclass = PICO_MDNS_SET_MSB_BE(cl);
     }
 
     record->flags = flags;
