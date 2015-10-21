@@ -167,7 +167,7 @@ START_TEST(tc_pico_mld_find_parameter) {
 END_TEST
 START_TEST(tc_pico_mld_timer_expired)
 {
-    struct mld_timer *t,s;
+    struct mld_timer *t,*s;
     t = PICO_ZALLOC(sizeof(struct mld_timer));
     t->stopped = MLD_TIMER_STOPPED;
     t->type = 0;
@@ -176,15 +176,18 @@ START_TEST(tc_pico_mld_timer_expired)
     //void function, just check for side effects
     pico_mld_timer_expired(NULL, (void *)t);
     pico_tree_insert(&MLDTimers, t);
-    s = *t; // t will be freed next test
-    pico_mld_timer_expired(NULL, (void *)t);
-    s.stopped++;
-    s.start = PICO_TIME_MS()*2;
-    s.type++;
-    pico_tree_insert(&MLDTimers, &s);
-    pico_mld_timer_expired(NULL, (void *)&s);
-    s.mld_callback = mock_callback;
-    pico_mld_timer_expired(NULL, (void *)&s);
+    s = PICO_ZALLOC(sizeof(struct mld_timer));
+    memcpy(s,t,sizeof(struct mld_timer)); // t will be freed next test
+    pico_mld_timer_expired(NULL, (void *)t); /* will be freed */
+    s->stopped++;
+    s->start = PICO_TIME_MS()*2;
+    s->type++;
+    pico_tree_insert(&MLDTimers, s);
+    t = PICO_ZALLOC(sizeof(struct mld_timer));
+    memcpy(t,s,sizeof(struct mld_timer)); // s will be freed next test
+    pico_mld_timer_expired(NULL, (void *)s); /* s will be freed */
+    t->mld_callback = mock_callback;
+    pico_mld_timer_expired(NULL, (void *)t); /* t will be freed */
 }
 END_TEST
 START_TEST(tc_pico_mld_send_done) {
