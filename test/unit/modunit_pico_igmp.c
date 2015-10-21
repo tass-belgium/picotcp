@@ -77,7 +77,7 @@ START_TEST(tc_pico_igmp_state_change) {
 END_TEST
 START_TEST(tc_pico_igmp_timer_expired)
 {
-    struct igmp_timer *t,s;
+    struct igmp_timer *t,*s;
     t = PICO_ZALLOC(sizeof(struct igmp_timer));
     t->stopped = IGMP_TIMER_STOPPED;
     t->type = 0;
@@ -86,15 +86,18 @@ START_TEST(tc_pico_igmp_timer_expired)
     //void function, just check for side effects
     pico_igmp_timer_expired(NULL, (void *)t);
     pico_tree_insert(&IGMPTimers, t);
-    s = *t; // t will be freed next test
+    s = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(s,t,sizeof(struct igmp_timer)); // t will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)t); /* t is freed here */
+    s->stopped++;
+    s->start = PICO_TIME_MS()*2;
+    s->type++;
+    pico_tree_insert(&IGMPTimers, s);
+    t = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(t,s,sizeof(struct igmp_timer)); // s will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)s); /* s is freed here */
+    t->callback = mock_callback;
     pico_igmp_timer_expired(NULL, (void *)t);
-    s.stopped++;
-    s.start = PICO_TIME_MS()*2;
-    s.type++;
-    pico_tree_insert(&IGMPTimers, &s);
-    pico_igmp_timer_expired(NULL, (void *)&s);
-    s.callback = mock_callback;
-    pico_igmp_timer_expired(NULL, (void *)&s);
 }
 END_TEST
 START_TEST(tc_pico_igmp_v2querier_expired)
