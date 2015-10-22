@@ -13,6 +13,7 @@ struct pico_hotplug_device{
   struct pico_device *dev;
   int prev_state;
   struct pico_tree callbacks;
+  struct pico_tree init_callbacks; /* functions we still need to call for initialization */
 };
 
 uint32_t timer_id = 0;
@@ -52,13 +53,21 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
     {
         hpdev = node->keyValue;
         new_state = hpdev->dev->link_state(hpdev->dev);
+
+        if (new_state == 1){
+            event = PICO_HOTPLUG_EVENT_UP;
+        } else {
+            event = PICO_HOTPLUG_EVENT_DOWN;
+        }
+
+        pico_tree_foreach_safe(cb_node, &(hpdev->init_callbacks), cb_safe)
+        {
+            cb = cb_node->keyValue;
+            cb(hpdev->dev, event);
+            pico_tree_delete(&hpdev->init_callbacks, cb);
+        }
         if (new_state != hpdev->prev_state)
         {
-            if (new_state == 1){
-                event = PICO_HOTPLUG_EVENT_UP;
-            } else {
-                event = PICO_HOTPLUG_EVENT_DOWN;
-            }
             //we don't know if one of the callbacks might deregister, so be safe
             pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
             {
@@ -96,9 +105,12 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
       hotplug_dev->prev_state = dev->link_state(hotplug_dev->dev);
       hotplug_dev->callbacks.root = &LEAF;
       hotplug_dev->callbacks.compare = &callback_compare;
+      hotplug_dev->init_callbacks.root = &LEAF;
+      hotplug_dev->init_callbacks.compare = &callback_compare;
       pico_tree_insert(&Hotplug_device_tree, hotplug_dev);
     }
     pico_tree_insert(&(hotplug_dev->callbacks), cb);
+    pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
 
     if (timer_id == 0)
     {
@@ -118,6 +130,7 @@ int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_devi
         //wasn't registered
         return 0;
     pico_tree_delete(&hotplug_dev->callbacks, cb);
+    pico_tree_delete(&hotplug_dev->init_callbacks, cb);
     if (pico_tree_empty(&hotplug_dev->callbacks))
     {
         pico_tree_delete(&Hotplug_device_tree, hotplug_dev);
