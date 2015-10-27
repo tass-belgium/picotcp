@@ -1601,11 +1601,12 @@ pico_mdns_tick( pico_time now, void *_arg )
  *  @param packet Packet buffer in memory
  *  @param len    Size of the packet in bytes
  *  @return 0 When the packet is passed successfully on to the lower layers of
- *			picoTCP. Doesn't mean the packet is successfully send on the wire.
+ *			picoTCP. Doesn't mean the packet is successfully sent on the wire.
  * ****************************************************************************/
 static int
 pico_mdns_send_packet( pico_dns_packet *packet, uint16_t len )
 {
+    //TODO: why only ipv4 support?
     struct pico_ip4 dst4;
 
     /* Set the destination address to the mDNS multicast-address */
@@ -2025,6 +2026,10 @@ pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
+    //TODO: When receiving multiple authoritative answers, 
+    //they should be sorted in lexicographical order
+    //(just like in pico_mdns_record_am_i_lexi_later)
 
     for (i = 0; i < count; i++) {
         /* Set rname of the record to the correct location */
@@ -2636,42 +2641,47 @@ pico_mdns_recv( void *buf, int buflen, struct pico_ip4 peer )
     uint16_t ancount = short_be(packet->ancount);
     uint16_t authcount = short_be(packet->nscount);
     uint16_t addcount = short_be(packet->arcount);
+    uint8_t opcode = packet->opcode;
 
-    mdns_dbg(">>>>>>> QDcount: %u, ANcount: %u, NScount: %u, ARcount: %u\n",
-             qdcount, ancount, authcount, addcount);
+    // RFC 6762: 18.3: Messages received with an opcode other than zero 
+    // MUST be silently ignored.
+    if(opcode == 0){
+        mdns_dbg(">>>>>>> QDcount: %u, ANcount: %u, NScount: %u, ARcount: %u\n",
+                 qdcount, ancount, authcount, addcount);
 
-    IGNORE_PARAMETER(buflen);
-    IGNORE_PARAMETER(addcount);
+        IGNORE_PARAMETER(buflen);
+        IGNORE_PARAMETER(addcount);
 
-    /* DNS PACKET TYPE DETERMINATION */
-    if ((qdcount > 0)) {
-        if (authcount > 0) {
-            mdns_dbg(">>>>>>> RCVD a mDNS probe query:\n");
-            /* Packet is probe query */
-            if (pico_mdns_handle_probe_packet(packet, peer) < 0) {
-                mdns_dbg("Could not handle mDNS probe query!\n");
-                return -1;
+        /* DNS PACKET TYPE DETERMINATION */
+        if ((qdcount > 0)) {
+            if (authcount > 0) {
+                mdns_dbg(">>>>>>> RCVD a mDNS probe query:\n");
+                /* Packet is probe query */
+                if (pico_mdns_handle_probe_packet(packet, peer) < 0) {
+                    mdns_dbg("Could not handle mDNS probe query!\n");
+                    return -1;
+                }
+            } else {
+                mdns_dbg(">>>>>>> RCVD a plain mDNS query:\n");
+                /* Packet is a plain query */
+                if (pico_mdns_handle_query_packet(packet, peer) < 0) {
+                    mdns_dbg("Could not handle plain DNS query!\n");
+                    return -1;
+                }
             }
         } else {
-            mdns_dbg(">>>>>>> RCVD a plain mDNS query:\n");
-            /* Packet is a plain query */
-            if (pico_mdns_handle_query_packet(packet, peer) < 0) {
-                mdns_dbg("Could not handle plain DNS query!\n");
+            if (ancount > 0) {
+                mdns_dbg(">>>>>>> RCVD a mDNS response:\n");
+                /* Packet is a response */
+                if (pico_mdns_handle_response_packet(packet) < 0) {
+                    mdns_dbg("Could not handle DNS response!\n");
+                    return -1;
+                }
+            } else {
+                /* Something went wrong here... */
+                mdns_dbg("RCVD Packet contains no questions or answers...\n");
                 return -1;
             }
-        }
-    } else {
-        if (ancount > 0) {
-            mdns_dbg(">>>>>>> RCVD a mDNS response:\n");
-            /* Packet is a response */
-            if (pico_mdns_handle_response_packet(packet) < 0) {
-                mdns_dbg("Could not handle DNS response!\n");
-                return -1;
-            }
-        } else {
-            /* Something went wrong here... */
-            mdns_dbg("RCVD Packet contains no questions or answers...\n");
-            return -1;
         }
     }
 

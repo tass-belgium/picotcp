@@ -31,19 +31,19 @@ struct pico_device_tap {
 // can't spread these out over an arbitrary amount of devices. When you unplug
 // one tap, you unplug all of them.
 
-static int link_state = 0;
+static int tapdev_link_state = 0;
 
 static void sig_handler(int signo)
 {
   if (signo == SIGUSR1)
-    link_state = 0;
+    tapdev_link_state = 0;
   if (signo == SIGUSR2)
-    link_state = 1;
+    tapdev_link_state = 1;
 }
 
 static int tap_link_state(__attribute__((unused)) struct pico_device *self)
 {
-  return link_state;
+  return tapdev_link_state;
 }
 
 

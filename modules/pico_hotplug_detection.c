@@ -87,6 +87,8 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
     struct pico_hotplug_device *hotplug_dev;
     struct pico_hotplug_device search = {.dev = dev};
 
+    //If it does not have a link_state, 
+    //the device does not support hotplug detection
     if (dev->link_state == NULL){
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
