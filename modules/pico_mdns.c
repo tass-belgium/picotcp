@@ -1669,6 +1669,14 @@ pico_mdns_unicast_reply( pico_dns_rtree *unicast_tree,
         if (!local_addr) {
             mdns_dbg("Peer not on same link!\n");
             /* Forced response via multicast */
+
+            /* RFC 6762: 18.6: In both multicast query and response messages, 
+            the RD bit SHOULD be zero on transmission. In 
+            pico_dns_fill_packet_header, the RD bit is set to 
+            PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+            packet->rd = PICO_DNS_RD_NO_DESIRE;
+
+
             if (pico_mdns_send_packet(packet, len) != (int)len) {
                 mdns_dbg("Could not send multicast response!\n");
                 return -1;
@@ -1711,6 +1719,12 @@ pico_mdns_multicast_reply( pico_dns_rtree *multicast_tree,
         }
 
         packet->id = 0;
+
+        /* RFC 6762: 18.6: In both multicast query and response messages, 
+        the RD bit SHOULD be zero on transmission. 
+        In pico_dns_fill_packet_header, the RD bit is set to 
+        PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+        packet->rd = PICO_DNS_RD_NO_DESIRE;
 
         /* Send the packet via multicast */
         if (pico_mdns_send_packet(packet, len) != (int)len) {
@@ -2745,7 +2759,6 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
     IGNORE_PARAMETER(now);
 
     /* Parse in the cookie */
-    cookie = (struct pico_mdns_cookie *)arg;
     if (!cookie || cookie->type != PICO_MDNS_PACKET_TYPE_QUERY)
         return;
 
@@ -2757,6 +2770,11 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
     }
 
     packet->id = 0;
+
+    /* RFC 6762: 18.6: In both multicast query and response messages, 
+    the RD bit SHOULD be zero on transmission. In pico_dns_fill_packet_header,
+    the RD bit is set to PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+    packet->rd = PICO_DNS_RD_NO_DESIRE;
 
     if (cookie->status != PICO_MDNS_COOKIE_STATUS_CANCELLED) {
         cookie->status = PICO_MDNS_COOKIE_STATUS_ACTIVE;
@@ -3024,6 +3042,15 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
             return;
         }
         pico_tree_destroy(&nstree, NULL);
+
+        //RFC 6762: 18.1
+        packet->id = 0;
+
+        /* RFC 6762: 18.6: In both multicast query and response messages, 
+        the RD bit SHOULD be zero on transmission. 
+        In pico_dns_fill_packet_header, the RD bit is set to 
+        PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+        packet->rd = PICO_DNS_RD_NO_DESIRE;
 
         /* Send the mDNS answer unsolicited via multicast */
         if(pico_mdns_send_packet(packet, len) != (int)len) {
