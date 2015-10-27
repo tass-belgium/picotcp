@@ -377,7 +377,7 @@ pico_dns_sd_init( const char *_hostname,
 }
 
 /* ****************************************************************************
- *  Just calls pico_mdns_init in it's turn to initialise the mDNS-module.
+ *  Just calls pico_mdns_init in its turn to initialise the mDNS-module.
  *  See pico_mdns.h for description.
  * ****************************************************************************/
 int

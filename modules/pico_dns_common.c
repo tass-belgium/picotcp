@@ -1535,8 +1535,9 @@ pico_dns_packet_compress_name( uint8_t *name,
             /* Move up left over data */
             difference = (uint16_t)(ptr_after_str - offset);
             last_byte = packet + *len;
-            for (i = ptr_after_str; i < last_byte; i++)
+            for (i = ptr_after_str; i < last_byte; i++){
                 *((uint8_t *)(i - difference)) = *i;
+            }
             /* Update length */
             *len = (uint16_t)(*len - difference);
             break;
@@ -1614,8 +1615,9 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 
     /* Start with the questions */
     for (i = 0; i < qdcount; i++) {
-        if (i) /* First question can't be compressed */
+        if(i){ /* First question can't be compressed */
             pico_dns_packet_compress_name(iterator, packet_buf, len);
+        }
 
         /* Move to next question */
         iterator = (uint8_t *)(iterator +
@@ -1629,7 +1631,7 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 }
 
 /* ****************************************************************************
- *  Calculates how big a packet needs be in order to store all the question &
+ *  Calculates how big a packet needs be in order to store all the questions &
  *  records in the tree. Also determines the amount of questions and records.
  *
  *  @param qtree   Tree with Questions.

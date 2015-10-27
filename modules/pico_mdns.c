@@ -2655,11 +2655,13 @@ pico_mdns_recv( void *buf, int buflen, struct pico_ip4 peer )
     uint16_t ancount = short_be(packet->ancount);
     uint16_t authcount = short_be(packet->nscount);
     uint16_t addcount = short_be(packet->arcount);
-    uint8_t opcode = packet->opcode;
 
-    // RFC 6762: 18.3: Messages received with an opcode other than zero 
-    // MUST be silently ignored.
-    if(opcode == 0){
+    // RFC 6762: 
+    // 18.3: Messages received with an opcode other than zero MUST be silently
+    // ignored.
+    // 18.11: messages received with non-zero Response Codes MUST be silently
+    // ignored
+    if(packet->opcode == 0 && packet->rcode == 0){
         mdns_dbg(">>>>>>> QDcount: %u, ANcount: %u, NScount: %u, ARcount: %u\n",
                  qdcount, ancount, authcount, addcount);
 
