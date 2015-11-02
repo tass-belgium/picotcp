@@ -168,6 +168,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, nat);
 
     tcase_add_test(ipfilter, test_ipfilter);
+    tcase_set_timeout(ipfilter, 10);
     suite_add_tcase(s, ipfilter);
 
 #ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
