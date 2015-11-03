@@ -55,6 +55,7 @@ START_TEST (arp_lookup_test)
     entry.arp_status = PICO_ARP_STATUS_STALE;
     eth = pico_arp_lookup(&ip);
     fail_unless(eth == NULL);
+    pico_tree_delete(&arp_tree, &entry);
 }
 END_TEST
 
@@ -116,10 +117,10 @@ START_TEST (arp_receive_test)
         .addr = long_be(0xffffff00)
     };
     struct pico_ip4 ip1 = {
-        .addr = long_be(0x0A28000A)
+        .addr = long_be(0x0A2800AA)
     };
     struct pico_ip4 ip2 = {
-        .addr = long_be(0x0A28000B)
+        .addr = long_be(0x0A2800AB)
     };
 
     pico_stack_init();
@@ -175,6 +176,7 @@ START_TEST (arp_receive_test)
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->s_mac[0] = 0x01;
     fail_unless(pico_arp_receive(f) == -1);
+    pico_ipv4_link_del(mock->dev,ip1);
 }
 END_TEST
 
@@ -185,13 +187,13 @@ START_TEST (arp_get_test)
     struct pico_ipv4_hdr *hdr = NULL;
     struct pico_eth *eth = NULL;
     uint8_t macaddr[6] = {
-        0, 0, 0, 0xa, 0xb, 0xf
+        0, 0, 0xa, 0xa, 0xb, 0xf
     };
     struct pico_ip4 netmask = {
         .addr = long_be(0xffffff00)
     };
     struct pico_ip4 ip = {
-        .addr = long_be(0x0A28000A)
+        .addr = long_be(0x0A28000B)
     };
 
     mock = pico_mock_create(macaddr);
@@ -207,5 +209,6 @@ START_TEST (arp_get_test)
     hdr->dst.addr = ip.addr;
     eth = pico_arp_get(f);
     fail_unless(eth == &mock->dev->eth->mac);
+    pico_ipv4_link_del(mock->dev,ip);
 }
 END_TEST
