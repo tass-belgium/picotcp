@@ -6,6 +6,11 @@
 #include <pico_device.h>
 /*** START DHCP Client ***/
 #ifdef PICO_SUPPORT_DHCPC
+    
+/* This must stay global, its lifetime is the same as the dhcp negotiation */
+uint32_t dhcpclient_xid;
+
+
 static uint8_t dhcpclient_devices = 0;
 
 void ping_callback_dhcpclient(struct pico_icmp4_stats *s)
@@ -60,7 +65,6 @@ void app_dhcp_client(char *arg)
     char *sdev = NULL;
     char *nxt = arg;
     struct pico_device *dev = NULL;
-    uint32_t dhcpclient_xid;
 
     if (!nxt)
         goto out;
@@ -74,8 +78,6 @@ void app_dhcp_client(char *arg)
         }
 
         dev = pico_get_device(sdev);
-        free(sdev);
-
         if(dev == NULL) {
             printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
             exit(255);
@@ -90,7 +92,6 @@ void app_dhcp_client(char *arg)
 
         dhcpclient_devices++;
     }
-
     return;
 
 out:

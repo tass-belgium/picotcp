@@ -34,6 +34,7 @@
 #include "pico_ipfilter.c"
 #include "pico_tree.c"
 #include "pico_slaacv4.c"
+#include "pico_hotplug_detection.c"
 #ifdef PICO_SUPPORT_MCAST
 #include "pico_igmp.c"
 #endif
@@ -41,6 +42,9 @@
 #include "pico_ipv6.c"
 #include "pico_ipv6_nd.c"
 #include "pico_icmp6.c"
+#ifdef PICO_SUPPORT_MCAST
+#include "pico_mld.c"
+#endif
 #endif
 
 
@@ -107,12 +111,17 @@ Suite *pico_suite(void)
 #ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
     TCase *crc = tcase_create("CRC");
 #endif
+
 #ifdef PICO_SUPPORT_MCAST
     TCase *igmp = tcase_create("IGMP");
 #endif
 #ifdef PICO_SUPPORT_IPV6
     TCase *ipv6 = tcase_create("IPv6");
+#ifdef PICO_SUPPORT_MCAST
+    TCase *mld = tcase_create("MLD");
 #endif
+#endif
+
     TCase *frame = tcase_create("FRAME");
     TCase *timers = tcase_create("TIMERS");
     TCase *slaacv4 = tcase_create("SLAACV4");
@@ -186,6 +195,10 @@ Suite *pico_suite(void)
 #ifdef PICO_SUPPORT_IPV6
     tcase_add_test(ipv6, test_ipv6);
     suite_add_tcase(s, ipv6);
+#ifdef PICO_SUPPORT_MCAST
+    tcase_add_test(mld, test_mld_sockopts);
+    suite_add_tcase(s, mld);
+#endif
 #endif
 
     tcase_add_test(arp, arp_update_max_arp_reqs_test);
@@ -196,7 +209,6 @@ Suite *pico_suite(void)
     tcase_add_test(arp, arp_get_test);
     tcase_add_test(arp, tc_pico_arp_queue);
     suite_add_tcase(s, arp);
-
     return s;
 }
 

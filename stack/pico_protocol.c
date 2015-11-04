@@ -53,7 +53,7 @@ static int proto_loop_in(struct pico_protocol *proto, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (proto->q_in->frames <= 0)
+        if (proto->q_in->frames == 0)
             break;
 
         f = pico_dequeue(proto->q_in);
@@ -68,7 +68,7 @@ static int proto_loop_out(struct pico_protocol *proto, int loop_score)
 {
     struct pico_frame *f;
     while(loop_score > 0) {
-        if (proto->q_out->frames <= 0)
+        if (proto->q_out->frames == 0)
             break;
 
         f = pico_dequeue(proto->q_out);

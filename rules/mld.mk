@@ -1,0 +1,3 @@
+OPTIONS+=-DPICO_SUPPORT_MLD
+MOD_OBJ+=$(LIBBASE)modules/pico_mld.o
+

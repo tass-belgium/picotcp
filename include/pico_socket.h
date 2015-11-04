@@ -68,6 +68,9 @@ struct pico_socket {
 #endif
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTListen;
+#ifdef PICO_SUPPORT_IPV6
+    struct pico_tree *MCASTListen_ipv6;
+#endif 
 #endif
     uint16_t ev_pending;
 
@@ -87,33 +90,16 @@ struct pico_remote_endpoint {
 };
 
 
-/* request struct for multicast socket opt */
 struct pico_ip_mreq {
-    struct pico_ip4 mcast_group_addr;
-    struct pico_ip4 mcast_link_addr;
+    union pico_address mcast_group_addr;
+    union pico_address mcast_link_addr;
 };
-
 struct pico_ip_mreq_source {
-    struct pico_ip4 mcast_group_addr;
-    struct pico_ip4 mcast_source_addr;
-    struct pico_ip4 mcast_link_addr;
+    union pico_address mcast_group_addr;
+    union pico_address mcast_source_addr;
+    union pico_address mcast_link_addr;
 };
 
-#ifdef PICO_SUPPORT_IPV6
-
-/* same as above, but ipv6 */
-struct pico_ipv6_mreq {
-    struct pico_ip6 mcast_group_addr;
-    struct pico_ip6 mcast_link_addr;
-};
-
-struct pico_ipv6_mreq_source {
-    struct pico_ip6 mcast_group_addr;
-    struct pico_ip6 mcast_source_addr;
-    struct pico_ip6 mcast_link_addr;
-};
-
-#endif
 
 #define PICO_SOCKET_STATE_UNDEFINED       0x0000u
 #define PICO_SOCKET_STATE_SHUT_LOCAL      0x0001u
@@ -159,6 +145,8 @@ struct pico_ipv6_mreq_source {
 # define PICO_SOCKET_OPT_KEEPIDLE              4
 # define PICO_SOCKET_OPT_KEEPINTVL             5
 # define PICO_SOCKET_OPT_KEEPCNT               6
+
+#define PICO_SOCKET_OPT_LINGER                13
 
 # define PICO_SOCKET_OPT_RCVBUF               52
 # define PICO_SOCKET_OPT_SNDBUF               53

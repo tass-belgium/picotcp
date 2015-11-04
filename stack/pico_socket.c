@@ -483,7 +483,7 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_multicast_delete(s);
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
-    pico_timer_add(PICO_SOCKET_LINGER_TIMEOUT, socket_garbage_collect, s);
+    pico_timer_add((pico_time)10, socket_garbage_collect, s);
     PICOTCP_MUTEX_UNLOCK(Mutex);
     return 0;
 }
@@ -1036,7 +1036,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
     int ret = 0;
     (void)src;
-
+    
     f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1061,7 +1061,14 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         f->send_tos = (uint8_t)msginfo->tos;
         f->dev = msginfo->dev;
     }
-
+#ifdef PICO_SUPPORT_IPV6
+    if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+        f->dev = pico_ipv6_link_find(src);
+        if(!f->dev) {
+            return -1;
+        }
+    }
+#endif
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
     ret = pico_socket_final_xmit(s, f);
@@ -1318,11 +1325,9 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
 #ifdef PICO_SUPPORT_IPV6
         if((s->net->proto_number == PICO_PROTO_IPV6)
            && msginfo && msginfo->dev
-           && pico_ipv6_is_linklocal(((struct pico_ip6 *)dst)->addr))
+           && pico_ipv6_is_multicast(((struct pico_ip6 *)dst)->addr))
         {
             src = &(pico_ipv6_linklocal_get(msginfo->dev)->address);
-            if(!src)
-                return -1;
         }
         else
 #endif
@@ -1524,7 +1529,6 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-
 
     /* When given port = 0, get a random high port to bind to. */
     if (*port == 0) {
@@ -1804,7 +1808,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
     /* unbound sockets can be deleted immediately */
     if (!(s->state & PICO_SOCKET_STATE_BOUND))
     {
-        socket_garbage_collect((pico_time)0, s);
+        socket_garbage_collect((pico_time)10, s);
         return 0;
     }
 
@@ -1824,9 +1828,10 @@ int pico_socket_shutdown(struct pico_socket *s, int mode)
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL | PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
             pico_tcp_notify_closing(s);
         }
-        else if (mode & PICO_SHUT_WR)
+        else if (mode & PICO_SHUT_WR) {
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_LOCAL, 0, 0);
-        else if (mode & PICO_SHUT_RD)
+            pico_tcp_notify_closing(s);
+        } else if (mode & PICO_SHUT_RD)
             pico_socket_alter_state(s, PICO_SOCKET_STATE_SHUT_REMOTE, 0, 0);
 
     }
@@ -1952,13 +1957,6 @@ int pico_socket_sanity_check(struct pico_socket *s)
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
-
-    if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_TIMEOUT) {
-        /* checking for hanging sockets */
-        if((TCP_STATE(s) != PICO_SOCKET_STATE_TCP_LISTEN) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_ESTABLISHED) && (TCP_STATE(s) != PICO_SOCKET_STATE_TCP_SYN_SENT))
-            return -1;
-    }
-
     return 0;
 }
 #endif

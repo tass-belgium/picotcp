@@ -12,10 +12,9 @@
 #include "pico_ipv6.h"
 #include "pico_dns_common.h"
 #include "pico_tree.h"
-#include <ctype.h> /* for tolower */
 
 #define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+//#define dns_dbg dbg
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \
@@ -445,9 +444,8 @@ void
 pico_dns_ipv6_set_ptr( const char *ip, char *dst )
 {
     int i = 0, j = 0;
-    struct pico_ip6 ip6 = {
-        .addr = {}
-    };
+    struct pico_ip6 ip6;
+    memset(&ip6, 0, sizeof(struct pico_ip6));
     pico_string_to_ipv6(ip, ip6.addr);
     for (i = 15; i >= 0; i--) {
         if ((j + 3) > 64) return; /* Don't want j to go out of bounds */
@@ -944,7 +942,7 @@ pico_dns_record_create( const char *url,
                                       datalen);
 
     /* Check if everything succeeded */
-    if (!(record->rname) || ret || !(record->rdata)) {
+    if (!(record->rname) || ret) {
         pico_dns_record_delete((void **)&record);
         return NULL;
     }
@@ -975,6 +973,13 @@ pico_dns_record_decompress( struct pico_dns_record *record,
     return rname_original;
 }
 
+static int pico_tolower(int c)
+{
+    if ((c >= 'A')  && (c <= 'Z'))
+        c += 'a' - 'A';
+    return c;
+}
+
 /* MARK: ^ RESOURCE RECORD FUNCTIONS */
 /* MARK: v COMPARING */
 
@@ -985,11 +990,13 @@ pico_dns_record_decompress( struct pico_dns_record *record,
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
+ *  @param caseinsensitive Whether or not the bytes are compared 
+ *                         case-insensitive
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int
 pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
-                    uint16_t rdlength_a, uint16_t rdlength_b )
+                    uint16_t rdlength_a, uint16_t rdlength_b, uint8_t caseinsensitive )
 {
     uint16_t i = 0;
     uint16_t slen = 0;
@@ -997,6 +1004,8 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
 
     /* Check params */
     if (!a || !b) {
+        if (!a && !b)
+            return 0;
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -1006,11 +1015,21 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
     if (rdlength_b < slen)
         slen = rdlength_b;
 
-    /* Iterate 'the smallest length' times */
-    for (i = 0; i < slen; i++) {
-        if ((dif = (int)((int)tolower(a[i]) - (int)tolower(b[i]))))
-            return dif;
+    /* loop over slen */
+    if(caseinsensitive){
+        for (i = 0; i < slen; i++) {
+            if ((dif = pico_tolower((int)a[i]) - pico_tolower((int)b[i]))) {
+                return dif;
+            }
+        }
+    }else{
+        for (i = 0; i < slen; i++) {
+            if ((dif = (int)a[i] - (int)b[i])){
+                return dif;
+            }
+        }
     }
+
     /* Return difference of buffer lengths */
     return (int)((int)rdlength_a - (int)rdlength_b);
 }
@@ -1046,7 +1065,7 @@ pico_dns_question_cmp( void *qa,
     /* Then compare qnames */
     return pico_dns_rdata_cmp((uint8_t *)a->qname, (uint8_t *)b->qname,
                               pico_dns_strlen(a->qname),
-                              pico_dns_strlen(b->qname));
+                              pico_dns_strlen(b->qname), 1);
 }
 
 /* ****************************************************************************
@@ -1081,7 +1100,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Then compare names */
     return pico_dns_rdata_cmp((uint8_t *)(a->rname), (uint8_t *)(b->rname),
                               (uint16_t)strlen(a->rname),
-                              (uint16_t)strlen(b->rname));
+                              (uint16_t)strlen(b->rname), 1);
 }
 
 /* ****************************************************************************
@@ -1112,7 +1131,7 @@ pico_dns_record_cmp( void *ra,
     /* Then compare rdata */
     return pico_dns_rdata_cmp(a->rdata, b->rdata,
                               short_be(a->rsuffix->rdlength),
-                              short_be(b->rsuffix->rdlength));
+                              short_be(b->rsuffix->rdlength), 0);
 }
 
 /* MARK: ^ COMPARING */

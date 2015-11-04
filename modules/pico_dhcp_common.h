@@ -15,6 +15,9 @@
 #define PICO_DHCPD_MAGIC_COOKIE (long_be(0x63825363))
 #define PICO_DHCP_HTYPE_ETH 1
 
+/* Macro to get DHCP option field */
+#define DHCP_OPT(hdr,off)              ((struct pico_dhcp_opt *)(((uint8_t *)hdr)+sizeof(struct pico_dhcp_hdr) + off))
+
 /* flags */
 #define PICO_DHCP_FLAG_BROADCAST        0x8000
 
@@ -102,7 +105,6 @@ PACKED_STRUCT_DEF pico_dhcp_hdr
     char hostname[64];
     char bootp_filename[128];
     uint32_t dhcp_magic;
-    uint8_t options[0];
 };
 
 PACKED_STRUCT_DEF pico_dhcp_opt
@@ -165,6 +167,9 @@ PACKED_STRUCT_DEF pico_dhcp_opt
         PEDANTIC_STRUCT_DEF client_id_s {
             uint8_t id[1];
         } client_id;
+        PEDANTIC_STRUCT_DEF text_s {
+            char txt[1];
+        } string;
     } ext;
 };
 

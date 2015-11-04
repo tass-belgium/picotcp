@@ -20,6 +20,8 @@ struct pico_ip4 pico_dhcp_get_gateway(void *cli);
 struct pico_ip4 pico_dhcp_get_netmask(void *cli);
 struct pico_ip4 pico_dhcp_get_nameserver(void*cli, int index);
 int pico_dhcp_client_abort(uint32_t xid);
+char *pico_dhcp_get_hostname(void);
+char *pico_dhcp_get_domain(void);
 
 /* possible codes for the callback */
 #define PICO_DHCP_SUCCESS 0

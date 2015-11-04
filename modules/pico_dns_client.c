@@ -91,6 +91,14 @@ static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr)
 static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
 {
     struct pico_dns_ns *dns = NULL, *found = NULL, test = {{0}};
+    struct pico_ip4 zero = {0}; /* 0.0.0.0 */
+
+    /* Do not add 0.0.0.0 addresses, which some DHCP servers might reply */
+    if (!pico_ipv4_compare(ns_addr, &zero))
+    {
+        pico_err = PICO_ERR_EINVAL;
+        return  NULL;
+    }
 
     dns = PICO_ZALLOC(sizeof(struct pico_dns_ns));
     if (!dns) {
@@ -424,6 +432,7 @@ static int pico_dns_client_user_callback(struct pico_dns_record_suffix *asuffix,
     }
 #endif
     case PICO_DNS_TYPE_PTR:
+        /* TODO: check for decompression / rdlength vs. decompressed length */
         pico_dns_notation_to_name(rdata, short_be(asuffix->rdlength));
         str = PICO_ZALLOC((size_t)(short_be(asuffix->rdlength) -
                                    PICO_DNS_LABEL_INITIAL));
@@ -462,7 +471,9 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
     uint16_t proto = PICO_PROTO_IPV4;
     struct pico_dns_record_suffix *asuffix = NULL;
     char *p_asuffix = NULL;
+    char *cname_orig = NULL;
     char *cname = NULL;
+    uint16_t cname_len;
 
     /* Try to use CNAME only if A or AAAA query is ongoing */
     if (type != PICO_DNS_TYPE_A && type != PICO_DNS_TYPE_AAAA)
@@ -480,13 +491,21 @@ static void pico_dns_try_fallback_cname(struct pico_dns_query *q, struct pico_dn
 
     /* Found CNAME response. Re-initiating query. */
     asuffix = (struct pico_dns_record_suffix *)p_asuffix;
-    cname = (char *) asuffix + sizeof(struct pico_dns_record_suffix);
-    pico_dns_notation_to_name(cname, short_be(asuffix->rdlength));
+    cname = pico_dns_decompress_name((char *)asuffix + sizeof(struct pico_dns_record_suffix), (pico_dns_packet *)h); /* allocates memory! */
+    cname_orig = cname; /* to free later */
+
+    if (cname == NULL)
+        return;
+
+    cname_len = (uint16_t)(pico_dns_strlen(cname) + 1);
+
+    pico_dns_notation_to_name(cname, cname_len);
     if (cname[0] == '.')
         cname++;
 
     dns_dbg("Restarting query for name '%s'\n", cname);
     pico_dns_client_getaddr_init(cname, proto, q->callback, q->arg);
+    PICO_FREE(cname_orig);
     pico_dns_client_del_query(q->id);
 }
 

@@ -18,6 +18,8 @@
 #include "pico_device.h"
 #include "pico_socket.h"
 
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST) 
+
 #define igmp_dbg(...) do {} while(0)
 /* #define igmp_dbg dbg */
 
@@ -94,7 +96,6 @@ PACKED_STRUCT_DEF igmpv3_query {
     uint8_t rsq;
     uint8_t qqic;
     uint16_t sources;
-    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_group_record {
@@ -102,7 +103,6 @@ PACKED_STRUCT_DEF igmpv3_group_record {
     uint8_t aux;
     uint16_t sources;
     uint32_t mcast_group;
-    uint32_t source_addr[0];
 };
 
 PACKED_STRUCT_DEF igmpv3_report {
@@ -111,7 +111,6 @@ PACKED_STRUCT_DEF igmpv3_report {
     uint16_t crc;
     uint16_t res1;
     uint16_t groups;
-    struct igmpv3_group_record record[0];
 };
 
 struct igmp_parameters {
@@ -260,6 +259,7 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
     }
 
     if (timer->stopped == IGMP_TIMER_STOPPED) {
+        pico_tree_delete(&IGMPTimers, timer);
         PICO_FREE(t);
         return;
     }
@@ -336,7 +336,7 @@ static int pico_igmp_timer_stop(struct igmp_timer *t)
     test.mcast_group = t->mcast_group;
     timer = pico_tree_findKey(&IGMPTimers, &test);
     if (!timer)
-        return 0;
+        return -1;
 
     igmp_dbg("IGMP: stop timer for %08X, delay %lu\n", timer->mcast_group.addr, timer->delay);
     timer->stopped = IGMP_TIMER_STOPPED;
@@ -577,7 +577,7 @@ struct pico_protocol pico_proto_igmp = {
     .q_out = &igmp_out,
 };
 
-int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *MCASTFilter, uint8_t state)
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state)
 {
     struct igmp_parameters *p = NULL;
 
@@ -623,7 +623,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
         return -1;
     }
     p->filter_mode = filter_mode;
-    p->MCASTFilter = MCASTFilter;
+    p->MCASTFilter = _MCASTFilter;
 
     return pico_igmp_process_event(p);
 }
@@ -916,16 +916,17 @@ igmp3_report:
         report->res1 = 0;
         report->groups = short_be(1);
 
-        record = &report->record[0];
+        record = (struct igmpv3_group_record *)(((uint8_t *)report) + sizeof(struct igmpv3_report));
         record->type = record_type;
         record->aux = 0;
         record->sources = short_be(sources);
         record->mcast_group = p->mcast_group.addr;
         if (IGMPFilter && !pico_tree_empty(IGMPFilter)) {
+            uint32_t *source_addr = (uint32_t *)((uint8_t *)record + sizeof(struct igmpv3_group_record));
             i = 0;
             pico_tree_foreach(index, IGMPFilter)
             {
-                record->source_addr[i] = ((struct pico_ip4 *)index->keyValue)->addr;
+                source_addr[i] = ((struct pico_ip4 *)index->keyValue)->addr;
                 i++;
             }
         }
@@ -1231,3 +1232,45 @@ static int pico_igmp_process_event(struct igmp_parameters *p)
     return 0;
 }
 
+#else
+static struct pico_queue igmp_in = {
+    0
+};
+static struct pico_queue igmp_out = {
+    0
+};
+
+static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f) {
+    IGNORE_PARAMETER(self);
+    IGNORE_PARAMETER(f);
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+
+static int pico_igmp_process_out(struct pico_protocol *self, struct pico_frame *f) {
+    IGNORE_PARAMETER(self);
+    IGNORE_PARAMETER(f);
+    return -1;
+}
+
+/* Interface: protocol definition */
+struct pico_protocol pico_proto_igmp = {
+    .name = "igmp",
+    .proto_number = PICO_PROTO_IGMP,
+    .layer = PICO_LAYER_TRANSPORT,
+    .process_in = pico_igmp_process_in,
+    .process_out = pico_igmp_process_out,
+    .q_in = &igmp_in,
+    .q_out = &igmp_out,
+};
+
+int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t filter_mode, struct pico_tree *_MCASTFilter, uint8_t state) {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(_MCASTFilter);
+    IGNORE_PARAMETER(state);
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    return -1;
+}
+#endif
