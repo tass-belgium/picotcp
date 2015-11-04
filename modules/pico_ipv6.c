@@ -1234,6 +1234,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
     /* make adjustments to defaults according to proto */
     switch (proto)
     {
+#ifdef PICO_SUPPORT_MLD
     case 0: 
     {
         hbh = (struct pico_ipv6_exthdr *) f->transport_hdr;
@@ -1251,6 +1252,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
          }
         break;
     }
+#endif
     case PICO_PROTO_ICMP6:
     {
         icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
