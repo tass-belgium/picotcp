@@ -2963,8 +2963,8 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
             So we bithsift to get our powers of two and we multiply by 1000 to
             get our miliseconds.
             */
-            pico_timer_add((1<<(PICO_MDNS_ANNOUNCEMENT_COUNT-cookie->count-1))
-                *1000, pico_mdns_send_announcement_packet, cookie);
+            pico_timer_add((pico_time)((1<<(PICO_MDNS_ANNOUNCEMENT_COUNT-cookie->count-1))
+                *1000), pico_mdns_send_announcement_packet, cookie);
         }
     }
 }
