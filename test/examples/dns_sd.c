@@ -48,8 +48,9 @@ void app_dns_sd(char *arg, struct pico_ip4 address)
     char *hostname;
     char *nxt = arg;
 
-    if (!nxt)
+    if (!nxt){
         exit(255);
+    }
 
     nxt = cpy_arg(&hostname, nxt);
     if(!hostname) {

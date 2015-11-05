@@ -13,9 +13,10 @@
 #include "check.h"
 
 Suite *pico_suite(void);
-void add_records( void ); /* MARK: helper to add records to MyRecords s*/
+void add_records(void); /* MARK: helper to add records to MyRecords s*/
 int mdns_init(void); /* MARK: Initialise mDNS module */
 
+static int amount_callback_executed = 0;
 void callback( pico_mdns_rtree *tree,char *str, void *arg);
 void callback( pico_mdns_rtree *tree,
                char *str,
@@ -25,6 +26,7 @@ void callback( pico_mdns_rtree *tree,
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
     /* Do nothing, because fail_unless and fail_if don't work here */
+    amount_callback_executed++;
 }
 
 int mdns_init() /* MARK: Initialise mDNS module */
@@ -39,8 +41,9 @@ int mdns_init() /* MARK: Initialise mDNS module */
     };
 
     mock = pico_mock_create(NULL);
-    if (!mock)
+    if (!mock){
         return -1;
+    }
 
     pico_ipv4_link_add(mock->dev, local, netmask);
 
@@ -1414,6 +1417,7 @@ START_TEST(tc_mdns_my_records_claimed) /* MARK: mdns_my_records_claimed */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
+#if PICO_MDNS_ALLOW_CACHING == 1
 START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
 {
     struct pico_mdns_record *record = NULL, *found = NULL;
@@ -1442,6 +1446,7 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
+#endif
 START_TEST(tc_pico_tree_merge) 
 {
     PICO_MDNS_RTREE_DECLARE(src);    
@@ -1768,14 +1773,29 @@ START_TEST(tc_mdns_send_query_packet) /* MARK: send_query_packet */
 END_TEST
 START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
 {
+#if PICO_MDNS_ALLOW_CACHING == 1
     struct pico_mdns_record *record = NULL, *found = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
     char url[] = "foo.local";
+#endif
     int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
+
+    /* 
+    If caching is enabled:
+        If the record is cached:
+            getrecord should get the record from the cache, execute the callback and return 0 when the callback is finished.
+        Else:
+            getrecord should send a query and return 0 when the query is sent.
+    Else:
+        getrecord should send a query and return 0 when the query is sent.
+    */
+   
+#if PICO_MDNS_ALLOW_CACHING == 1
+
     /* Create an A record with URL */
     record = pico_mdns_record_create(url, &rdata, 4, PICO_DNS_TYPE_A, 80,
                                      PICO_MDNS_RECORD_UNIQUE);
@@ -1786,13 +1806,18 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
                 "mdns_cache_add_record returned error!\n");
     found = pico_tree_findKey(&Cache, record);
     fail_unless((int)found, "mdns_cache_add_record failed!\n");
+#endif
 
     /* Init */
     pico_stack_init();
     mdns_init();
 
+#if PICO_MDNS_ALLOW_CACHING == 1
+    amount_callback_executed=0;
     ret = pico_mdns_getrecord("foo.local", PICO_DNS_TYPE_A, callback, NULL);
+    fail_unless(1 == amount_callback_executed, "mdns_getrecord failed with cache record, callback not executed!\n");
     fail_unless(0 == ret, "mdns_getrecord failed with cache record!\n");
+#endif
 
     ret = pico_mdns_getrecord("bar.local", PICO_DNS_TYPE_A, callback, NULL);
     fail_unless(0 == ret, "mdns_getrecord failed!\n");
@@ -1937,7 +1962,7 @@ START_TEST(tc_mdns_claim) /* MARK: mdns_claim */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-START_TEST(tc_mdns_set_hostname) /* MARK: set_hostname */
+START_TEST(tc_mdns_tryclaim_hostname) /* MARK: tryclaim_hostname */
 {
     int ret = 0;
 
@@ -1945,8 +1970,8 @@ START_TEST(tc_mdns_set_hostname) /* MARK: set_hostname */
     pico_stack_init();
     mdns_init();
 
-    ret = pico_mdns_set_hostname("test.local", NULL);
-    fail_unless(0 == ret, "mdns_set_hostname failed!\n");
+    ret = pico_mdns_tryclaim_hostname("test.local", NULL);
+    fail_unless(0 == ret, "mdns_tryclaim_hostname failed!\n");
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -2043,7 +2068,7 @@ Suite *pico_suite(void)
     TCase *TCase_mdns_claim = tcase_create("Unit test for mnds_claim");
 
     /* API functions */
-    TCase *TCase_mdns_set_hostname = tcase_create("Unit test for mdns_set_hostname");
+    TCase *TCase_mdns_tryclaim_hostname = tcase_create("Unit test for mdns_tryclaim_hostname");
     TCase *TCase_mdns_get_hostname = tcase_create("Unit test for mdns_get_hostname");
 
     TCase *TCase_pico_tree_merge = tcase_create("Unit test for pico_tree_merge");
@@ -2169,8 +2194,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_mdns_claim);
 
     /* API functions */
-    tcase_add_test(TCase_mdns_set_hostname, tc_mdns_set_hostname);
-    suite_add_tcase(s, TCase_mdns_set_hostname);
+    tcase_add_test(TCase_mdns_tryclaim_hostname, tc_mdns_tryclaim_hostname);
+    suite_add_tcase(s, TCase_mdns_tryclaim_hostname);
     tcase_add_test(TCase_mdns_get_hostname, tc_mdns_get_hostname);
     suite_add_tcase(s, TCase_mdns_get_hostname);
 
