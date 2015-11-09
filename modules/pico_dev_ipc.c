@@ -57,7 +57,7 @@ void pico_ipc_destroy(struct pico_device *dev)
     }
 }
 
-static int ipc_connect(char *name)
+static int ipc_connect(char *sock_path)
 {
     struct sockaddr_un addr;
     int ipc_fd;
@@ -68,7 +68,7 @@ static int ipc_connect(char *name)
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, name, sizeof(addr.sun_path)-1);
+    strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path)-1);
 
     if(connect(ipc_fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un)) < 0) {
         return(-1);
@@ -77,7 +77,7 @@ static int ipc_connect(char *name)
     return ipc_fd;
 }
 
-struct pico_device *pico_ipc_create(char *name, uint8_t *mac)
+struct pico_device *pico_ipc_create(char *sock_path, char *name, uint8_t *mac)
 {
     struct pico_device_ipc *ipc = PICO_ZALLOC(sizeof(struct pico_device_ipc));
 
@@ -91,7 +91,7 @@ struct pico_device *pico_ipc_create(char *name, uint8_t *mac)
     }
 
     ipc->dev.overhead = 0;
-    ipc->fd = ipc_connect(name);
+    ipc->fd = ipc_connect(sock_path);
     if (ipc->fd < 0) {
         dbg("Ipc creation failed.\n");
         pico_ipc_destroy((struct pico_device *)ipc);
