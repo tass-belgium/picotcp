@@ -1,8 +1,8 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
-   See LICENSE and COPYING for usage.
+  PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
+  See LICENSE and COPYING for usage.
 
-   Author: Andrei Carp <andrei.carp@tass.be>
+Author: Andrei Carp <andrei.carp@tass.be>
  *********************************************************************/
 
 #include "pico_tree.h"
@@ -10,7 +10,7 @@
 #include "pico_protocol.h"
 #include "pico_mm.h"
 
-#define RED     0
+#define RED 0
 #define BLACK 1
 
 /* By default the null leafs are black */
@@ -43,13 +43,15 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
 void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t allocator);
 
 #ifdef PICO_SUPPORT_MM
-/* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
- * These nodes should be placed in the manager page which is in a different memory region then the nodes
- * which are used for the pico stack in general.
- * Therefore the following 2 functions are created so that pico_tree can use them to to put these nodes
- * into the correct memory regions.
- * If pico_tree_insert is called from the memory manager module, then create_node should use
- * pico_mem_page0_zalloc to create a node. The same for pico_tree_delete.
+/* The memory manager also uses the pico_tree to keep track of
+ * all the different slab sizes it has.
+ * These nodes should be placed in the manager page which is in a different
+ * memory region then the nodes which are used for the pico stack in general.
+ * Therefore the following 2 functions are created so that pico_tree can use
+ * them to to put these nodes into the correct memory regions.
+ * If pico_tree_insert is called from the memory manager module, then
+ * create_node should use pico_mem_page0_zalloc to create a node.
+ * The same for pico_tree_delete.
  */
 extern void*pico_mem_page0_zalloc(size_t len);
 extern void pico_mem_page0_free(void*ptr);
@@ -275,15 +277,15 @@ static uint8_t pico_tree_delete_check_switch(struct pico_tree *tree, struct pico
         switchNodes(tree, ltemp, ltemp->rightChild);
     }
     else
-    if(IS_LEAF(delete->rightChild))
-    {
-        struct pico_tree_node *_ltemp = delete;
-        *temp = _ltemp->leftChild;
-        switchNodes(tree, _ltemp, _ltemp->leftChild);
-    }
-    else{
-        nodeColor = pico_tree_delete_node(tree, delete, temp);
-    }
+        if(IS_LEAF(delete->rightChild))
+        {
+            struct pico_tree_node *_ltemp = delete;
+            *temp = _ltemp->leftChild;
+            switchNodes(tree, _ltemp, _ltemp->leftChild);
+        }
+        else{
+            nodeColor = pico_tree_delete_node(tree, delete, temp);
+        }
 
     return nodeColor;
 
@@ -363,10 +365,10 @@ static void rotateToLeft(struct pico_tree*tree, struct pico_tree_node*node)
     if(IS_LEAF(node->parent))
         tree->root = temp;
     else
-    if(node == node->parent->leftChild)
-        node->parent->leftChild = temp;
-    else
-        node->parent->rightChild = temp;
+        if(node == node->parent->leftChild)
+            node->parent->leftChild = temp;
+        else
+            node->parent->rightChild = temp;
 
     temp->leftChild = node;
     node->parent = temp;
@@ -390,10 +392,10 @@ static void rotateToRight(struct pico_tree *tree, struct pico_tree_node *node)
     if(IS_LEAF(node->parent))
         tree->root = temp;
     else
-    if(node == node->parent->rightChild)
-        node->parent->rightChild = temp;
-    else
-        node->parent->leftChild = temp;
+        if(node == node->parent->rightChild)
+            node->parent->rightChild = temp;
+        else
+            node->parent->leftChild = temp;
 
     temp->rightChild = node;
     node->parent = temp;
@@ -485,13 +487,13 @@ static void switchNodes(struct pico_tree*tree, struct pico_tree_node*nodeA, stru
     if(IS_LEAF(nodeA->parent))
         tree->root = nodeB;
     else
-    if(IS_NOT_LEAF(nodeA))
-    {
-        if(AM_I_LEFT_CHILD(nodeA))
-            nodeA->parent->leftChild = nodeB;
-        else
-            nodeA->parent->rightChild = nodeB;
-    }
+        if(IS_NOT_LEAF(nodeA))
+        {
+            if(AM_I_LEFT_CHILD(nodeA))
+                nodeA->parent->leftChild = nodeB;
+            else
+                nodeA->parent->rightChild = nodeB;
+        }
 
     if(IS_NOT_LEAF(nodeB)) nodeB->parent = nodeA->parent;
 

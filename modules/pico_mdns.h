@@ -19,22 +19,22 @@
 #define PICO_MDNS_SERVICE_TTL 120       /* Default TTL of SRV/TXT/PTR/NSEC    */
 #define PICO_MDNS_PROBE_COUNT 3
 /* Amount of probes to send:
-   RFC6762: 8.1. Probing:
-   250 ms after the first query, the host should send a second; then,
-   250 ms after that, a third.  If, by 250 ms after the third probe, no
-   conflicting Multicast DNS responses have been received, the host may
-   move to the next step, announcing.
- */
+ * RFC6762: 8.1. Probing:
+ * 250 ms after the first query, the host should send a second; then,
+ * 250 ms after that, a third.  If, by 250 ms after the third probe, no
+ * conflicting Multicast DNS responses have been received, the host may
+ * move to the next step, announcing.
+*/
 
 #define PICO_MDNS_ANNOUNCEMENT_COUNT 3
 /* Amount of announcements to send: (we've opted for 1 extra for robustness)
-   RFC6762: 8.3. Announcing:
-   The Multicast DNS responder MUST send at least two unsolicited
-   responses, one second apart.  To provide increased robustness against
-   packet loss, a responder MAY send up to eight unsolicited responses,
-   provided that the interval between unsolicited responses increases by
-   at least a factor of two with every response sent.
- */
+ * RFC6762: 8.3. Announcing:
+ * The Multicast DNS responder MUST send at least two unsolicited
+ * responses, one second apart.  To provide increased robustness against
+ * packet loss, a responder MAY send up to eight unsolicited responses,
+ * provided that the interval between unsolicited responses increases by
+ * at least a factor of two with every response sent.
+*/
 /* ****************************************************************************/
 
 #define PICO_MDNS_DEST_ADDR4 "224.0.0.251"
@@ -64,12 +64,25 @@ struct pico_mdns_record
 /* ****************************************************************************
  *  Compares 2 mDNS records by type, name AND rdata for a truly unique result
  *
- *  @param ra mDNS record A
- *  @param rb mDNS record B
+ *  @param a mDNS record A
+ *  @param b mDNS record B
  *  @return 0 when records are equal, returns difference when they're not.
  * ****************************************************************************/
 int
 pico_mdns_record_cmp( void *a, void *b );
+
+
+/* ****************************************************************************
+ *  Compares 2 mDNS records by record class, type and case-sensitive rdata.
+ *  Lexicographically compared as described by RFC6762
+ *
+ *  @param a mDNS record A
+ *  @param b mDNS record B
+ *  @return 0 when records are equal, returns difference when they're not.
+ * ****************************************************************************/
+int
+pico_mdns_record_lexi_cmp( void *a, void *b );
+
 
 /* ****************************************************************************
  *  Deletes a single mDNS resource record.
@@ -102,11 +115,11 @@ pico_mdns_record_delete( void **record );
  * ****************************************************************************/
 struct pico_mdns_record *
 pico_mdns_record_create( const char *url,
-                         void *_rdata,
-                         uint16_t datalen,
-                         uint16_t rtype,
-                         uint32_t rttl,
-                         uint8_t flags );
+        void *_rdata,
+        uint16_t datalen,
+        uint16_t rtype,
+        uint32_t rttl,
+        uint8_t flags );
 
 
 
@@ -120,6 +133,8 @@ typedef struct pico_tree pico_mdns_rtree;
     pico_tree_destroy((rtree), pico_mdns_record_delete)
 #define PICO_MDNS_RTREE_ADD(tree, record) \
     pico_tree_insert((tree), (record))
+#define PICO_MDNS_RTREE_LEXI_DECLARE(name) \
+    pico_mdns_rtree (name) = {&LEAF, pico_mdns_record_lexi_cmp}
 
 /* ****************************************************************************
  *  API-call to query a record with a certain URL and type. First checks the
@@ -133,10 +148,10 @@ typedef struct pico_tree pico_mdns_rtree;
  * ****************************************************************************/
 int
 pico_mdns_getrecord( const char *url, uint16_t type,
-                     void (*callback)(pico_mdns_rtree *,
-                                      char *,
-                                      void *),
-                     void *arg );
+        void (*callback)(pico_mdns_rtree *,
+            char *,
+            void *),
+        void *arg );
 
 /* ****************************************************************************
  *  Claim all different mDNS records in a tree in a single API-call. All records
@@ -148,10 +163,10 @@ pico_mdns_getrecord( const char *url, uint16_t type,
  * ****************************************************************************/
 int
 pico_mdns_claim( pico_mdns_rtree record_tree,
-                 void (*callback)(pico_mdns_rtree *,
-                                  char *,
-                                  void *),
-                 void *arg );
+        void (*callback)(pico_mdns_rtree *,
+            char *,
+            void *),
+        void *arg );
 
 /* ****************************************************************************
  *  Tries to claim a hostname for this machine. Claims automatically a
@@ -197,10 +212,10 @@ pico_mdns_get_hostname( void );
  * ****************************************************************************/
 int
 pico_mdns_init( const char *hostname,
-                struct pico_ip4 address,
-                void (*callback)(pico_mdns_rtree *,
-                                 char *,
-                                 void *),
-                void *arg );
+        struct pico_ip4 address,
+        void (*callback)(pico_mdns_rtree *,
+            char *,
+            void *),
+        void *arg );
 
 #endif /* _INCLUDE_PICO_MDNS */
