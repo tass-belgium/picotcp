@@ -57,7 +57,7 @@ void pico_ipc_destroy(struct pico_device *dev)
     }
 }
 
-static int ipc_connect(char *sock_path)
+static int ipc_connect(const char *sock_path)
 {
     struct sockaddr_un addr;
     int ipc_fd;
@@ -78,7 +78,7 @@ static int ipc_connect(char *sock_path)
     return ipc_fd;
 }
 
-struct pico_device *pico_ipc_create(char *sock_path, char *name, uint8_t *mac)
+struct pico_device *pico_ipc_create(const char *sock_path, const char *name, const uint8_t *mac)
 {
     struct pico_device_ipc *ipc = PICO_ZALLOC(sizeof(struct pico_device_ipc));
 
@@ -87,7 +87,7 @@ struct pico_device *pico_ipc_create(char *sock_path, char *name, uint8_t *mac)
 
     ipc->dev.mtu = IPC_MTU;
 
-    if( 0 != pico_device_init((struct pico_device *)ipc, name, mac)) {
+    if( 0 != pico_device_init((struct pico_device *)ipc, name, (uint8_t *)mac)) {
         dbg("Ipc init failed.\n");
         pico_ipc_destroy((struct pico_device *)ipc);
         return NULL;
