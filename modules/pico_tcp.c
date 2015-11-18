@@ -2579,7 +2579,7 @@ static void tcp_force_closed(struct pico_socket *s)
     } else {
         pico_err = PICO_ERR_ECONNRESET;
         if ((t->sock).wakeup)
-            (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+            (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
 
         /* delete socket */
         pico_socket_del(&t->sock);
