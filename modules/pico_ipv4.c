@@ -875,12 +875,22 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
 
 int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
