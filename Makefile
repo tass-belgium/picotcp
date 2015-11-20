@@ -52,6 +52,7 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+IPC?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -186,6 +187,7 @@ CORE_OBJ= stack/pico_stack.o \
 
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
+            modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o
 
@@ -268,6 +270,9 @@ ifneq ($(PCAP),0)
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
+endif
+ifneq ($(IPC),0)
+  include rules/ipc.mk
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
@@ -368,6 +373,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_dev_ppp.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_ppp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(CFLAGS) -I. test/unit/modunit_pico_mld.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"
