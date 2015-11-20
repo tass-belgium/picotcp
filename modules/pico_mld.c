@@ -688,7 +688,7 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         struct _pico_mcast_group *g = NULL, test = {
             0
         };
-        struct pico_tree_node *index = NULL, *_tmp = NULL;
+        struct pico_tree_node *index = NULL;
         struct pico_tree *MLDFilter = NULL;
         struct pico_ipv6_hbhoption *hbh;
         uint16_t len = 0;
@@ -712,28 +712,20 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         }
         if (p->event == MLD_EVENT_QUERY_RECV) 
             goto mld2_report;
-        /* cleanup filters */
-        pico_tree_foreach_safe(index, &MLDAllow, _tmp)
-        {
-            pico_tree_delete(&MLDAllow, index->keyValue);
-        }
-        pico_tree_foreach_safe(index, &MLDBlock, _tmp)
-        {
-            pico_tree_delete(&MLDBlock, index->keyValue);
-        }
+
+        pico_mcast_src_filtering_cleanup(&filter);
         filter.g = (struct _pico_mcast_group *)g;
         switch (g->filter_mode) {
 
         case PICO_IP_MULTICAST_INCLUDE:
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
-                if(pico_mcast_src_filtering_inc_inc(&filter))
+                if(pico_mcast_src_filtering_inc_inc(&filter) == MCAST_NO_REPORT)
                     return 0;
                 break;
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* TO_EX (B) */
-                if(pico_mcast_src_filtering_inc_excl(&filter) < 0)
-                    return -1;
+                pico_mcast_src_filtering_inc_excl(&filter);
                 break;
             default:
                 pico_err = PICO_ERR_EINVAL;
@@ -744,14 +736,13 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
                 /* TO_IN (B) */
-                if(pico_mcast_src_filtering_excl_inc(&filter) < 0)
-                    return -1;
+                pico_mcast_src_filtering_excl_inc(&filter);
                 break;
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* BLOCK (B-A) */
-                if(pico_mcast_src_filtering_excl_excl(&filter) < 0)
-                  return -1; 
-                return 0;
+                if(pico_mcast_src_filtering_excl_excl(&filter) == MCAST_NO_REPORT)
+                  return 0; 
+                break;
            default:
                 pico_err = PICO_ERR_EINVAL;
                 return -1;

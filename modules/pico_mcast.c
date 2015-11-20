@@ -47,6 +47,18 @@
 #define MCAST_BLOCK_OLD_SOURCES            (6)
 
 
+void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast ) {
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    /* cleanup filters */
+    pico_tree_foreach_safe(index, mcast->allow, _tmp)
+    {
+        pico_tree_delete(mcast->allow, index->keyValue);
+    }
+    pico_tree_foreach_safe(index, mcast->block, _tmp)
+    {
+        pico_tree_delete(mcast->block, index->keyValue);
+    }
+}
 int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     union pico_address *source;
@@ -108,7 +120,7 @@ int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast ) {
 
     /* ALLOW (B-A) and BLOCK (A-B) are empty: do not send report  */
     (mcast->p)->f = NULL;
-    return -1;
+    return MCAST_NO_REPORT;
 }
 
 int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast ) {
@@ -175,6 +187,6 @@ int pico_mcast_src_filtering_excl_excl(struct filter_parameters* mcast ) {
         return 0;
     /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report  */
     mcast->p->f = NULL;
-    return 0; 
+    return MCAST_NO_REPORT; 
 }
 #endif

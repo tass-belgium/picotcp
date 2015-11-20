@@ -14,7 +14,7 @@
 #define MCAST_EVENT_REPORT_RECV            (0x4)
 #define MCAST_EVENT_TIMER_EXPIRED          (0x5)
 
-
+#define MCAST_NO_REPORT 1
 PACKED_STRUCT_DEF mcast_parameters {
     uint8_t event; 
     uint8_t state;
@@ -40,12 +40,13 @@ PACKED_STRUCT_DEF filter_parameters {
     struct pico_tree *allow;
     struct pico_tree *block;
     struct pico_tree *filter;
-    int sources;
-    int proto;
+    uint16_t sources;
+    uint8_t proto;
     uint8_t record_type;
     struct _pico_mcast_group *g; 
 };
 
+extern void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast );
 
 extern int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast );
 extern int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast );
