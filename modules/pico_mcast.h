@@ -42,7 +42,7 @@ PACKED_STRUCT_DEF filter_parameters {
     struct pico_tree *filter;
     int sources;
     int proto;
-    int record_type;
+    uint8_t record_type;
     struct _pico_mcast_group *g; 
 };
 

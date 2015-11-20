@@ -205,7 +205,7 @@ START_TEST(tc_mld_stsdifs)
     struct mldv2_report *report;
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
     pico_string_to_ipv6("AAAA::113", p->mcast_link.ip6.addr);
     pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link
@@ -233,7 +233,7 @@ START_TEST(tc_mld_srsf)
     struct mldv2_report *report;
     //Building example frame
     
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
     pico_string_to_ipv6("AAAA::114", p->mcast_link.ip6.addr);
     pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     fail_if(mld_srsf(p) != -1);
@@ -250,7 +250,7 @@ START_TEST(tc_mld_srst)
     struct mld_timer t;
     //Building example frame
     
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
     pico_string_to_ipv6("AAAA::99", p->mcast_link.ip6.addr);
     pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     p->MCASTFilter = &_MCASTFilter;
@@ -284,7 +284,7 @@ START_TEST(tc_mld_mrsrrt)
     struct _pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
     pico_string_to_ipv6("AAAA::115", p->mcast_link.ip6.addr);
     pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link
@@ -308,7 +308,7 @@ START_TEST(tc_pico_mld_process_in) {
     struct _pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
     pico_string_to_ipv6("AAAA::101", p->mcast_link.ip6.addr);
     pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link

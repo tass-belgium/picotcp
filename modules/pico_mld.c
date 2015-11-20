@@ -691,8 +691,6 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         struct pico_tree_node *index = NULL, *_tmp = NULL;
         struct pico_tree *MLDFilter = NULL;
         struct pico_ipv6_hbhoption *hbh;
-        uint8_t record_type = 0;
-        uint8_t sources = 0;
         uint16_t len = 0;
         struct filter_parameters filter;
         filter.p = (struct mcast_parameters *)p;
@@ -701,7 +699,6 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         filter.filter = MLDFilter;
         filter.sources = 0;
         filter.proto = PICO_MLDV2;
-        
         test.mcast_addr = p->mcast_group;
         g = pico_tree_findKey(link->MCASTGroups, &test);
         if (!g) {
@@ -730,8 +727,8 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         case PICO_IP_MULTICAST_INCLUDE:
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
-                if(pico_mcast_src_filtering_inc_inc(&filter) < 0)
-                    return -1;
+                if(pico_mcast_src_filtering_inc_inc(&filter))
+                    return 0;
                 break;
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* TO_EX (B) */
@@ -766,12 +763,12 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
         }
 mld2_report:
         /* RFC3810 $5.1.10 */
-        if(sources > MLD_MAX_SOURCES) {
+        if(filter.sources > MLD_MAX_SOURCES) {
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
         len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
-                         + (sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
+                         + (filter.sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
         
         p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
         p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
@@ -786,20 +783,21 @@ mld2_report:
         report->nbr_gr = short_be(1);
 
         record = &report->record[0];
-        record->type = record_type;
+        record->type = filter.record_type;
         record->aux = 0;
-        record->nbr_src = short_be(sources);
+        record->nbr_src = short_be(filter.sources);
         record->mcast_group = p->mcast_group.ip6;
-        if (MLDFilter && !pico_tree_empty(MLDFilter)) {
+        if (filter.filter && !pico_tree_empty(filter.filter)) {
             i = 0;
-            pico_tree_foreach(index, MLDFilter)
+            pico_tree_foreach(index, filter.filter)
             {
                 record->src[i] = (*(struct pico_ip6 *)index->keyValue);
                 i++;
             }
         }
-        if(i != sources)
+        if(i != filter.sources) {
             return -1;
+            }
         //Checksum done in ipv6 module, no need to do it twice
         //report->crc= short_be(pico_mld_checksum(p->f));
         break;
