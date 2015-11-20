@@ -37,8 +37,9 @@
 
 #define ipv6_dbg(...) do { }while(0); 
 #define ipv6_mcast_dbg do{ }while(0);
+#ifdef PICO_SUPPORT_MCAST
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;
-
+#endif
 /* queues */
 static struct pico_queue ipv6_in;
 static struct pico_queue ipv6_out;
@@ -809,7 +810,8 @@ static int pico_ipv6_process_mcast_in(struct pico_frame *f)
             pico_enqueue(pico_proto_udp.q_in, f);
             return 1;
         }
-
+#else
+        IGNORE_PARAMETER(hbh);
 #endif
         pico_frame_discard(f);
         return 1;
@@ -1163,12 +1165,22 @@ static int pico_ipv6_mcast_filter(struct pico_frame *f)
 
 int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(_MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(_MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
@@ -1252,6 +1264,8 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
          }
         break;
     }
+#else 
+    IGNORE_PARAMETER(hbh);
 #endif
     case PICO_PROTO_ICMP6:
     {
@@ -1635,6 +1649,8 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
         }
         pico_ipv6_mcast_join(&address, &all_hosts, 1, PICO_IP_MULTICAST_EXCLUDE, NULL);
     } while(0);
+#else 
+    IGNORE_PARAMETER(all_hosts);
 #endif
     pico_ipv6_route_add(network, netmask, gateway, 1, new);
     pico_ipv6_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
