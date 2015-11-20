@@ -732,17 +732,12 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
                 if(pico_mcast_src_filtering_inc_inc(&filter) < 0)
-                    return 0;
+                    return -1;
                 break;
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* TO_EX (B) */
-                record_type = MLD_CHANGE_TO_EXCLUDE_MODE;
-                MLDFilter = &MLDBlock;
-                pico_tree_foreach(index, p->MCASTFilter) /* B */
-                {
-                    pico_tree_insert(&MLDBlock, index->keyValue);
-                    sources++;
-                }
+                if(pico_mcast_src_filtering_inc_excl(&filter) < 0)
+                    return -1;
                 break;
             default:
                 pico_err = PICO_ERR_EINVAL;
@@ -753,57 +748,14 @@ static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
             switch (p->filter_mode) {
             case PICO_IP_MULTICAST_INCLUDE:
                 /* TO_IN (B) */
-                record_type = MLD_CHANGE_TO_INCLUDE_MODE;
-                MLDFilter = &MLDAllow;
-                if (p->MCASTFilter) {
-                    pico_tree_foreach(index, p->MCASTFilter) /* B */
-                    {
-                        pico_tree_insert(&MLDAllow, index->keyValue);
-                        sources++;
-                    }
-                } /* else { MLDAllow stays empty } */
-
+                if(pico_mcast_src_filtering_excl_inc(&filter) < 0)
+                    return -1;
                 break;
             case PICO_IP_MULTICAST_EXCLUDE:
                 /* BLOCK (B-A) */
-                record_type = MLD_BLOCK_OLD_SOURCES;
-                MLDFilter = &MLDBlock;
-                pico_tree_foreach(index, p->MCASTFilter)
-                {
-                    pico_tree_insert(&MLDBlock, index->keyValue);
-                    sources++;
-                }
-                pico_tree_foreach(index, &g->MCASTSources) /* A */
-                {
-                    source = pico_tree_findKey(&MLDBlock, index->keyValue); /* B */
-                    if (source) {
-                    pico_tree_delete(&MLDBlock, source);
-                    sources--;
-                    }
-                }
-                if (!pico_tree_empty(&MLDBlock)) /* record type is BLOCK */
-                    break;
-                /* ALLOW (A-B) */
-                record_type = MLD_ALLOW_NEW_SOURCES;
-                MLDFilter = &MLDAllow;
-                pico_tree_foreach(index, &g->MCASTSources)
-                {
-                    pico_tree_insert(&MLDAllow, index->keyValue);
-                    sources++;
-                }
-                pico_tree_foreach(index, p->MCASTFilter) /* B */
-                {
-                    source = pico_tree_findKey(&MLDAllow, index->keyValue); /* A */
-                    if (source) {
-                        pico_tree_delete(&MLDAllow, source);
-                        sources--;
-                    }
-                }
-                if (!pico_tree_empty(&MLDAllow)) /* record type is ALLOW */
-                    break;
-                /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report  */
-                p->f = NULL;
-                return 0;  
+                if(pico_mcast_src_filtering_excl_excl(&filter) < 0)
+                  return -1; 
+                return 0;
            default:
                 pico_err = PICO_ERR_EINVAL;
                 return -1;

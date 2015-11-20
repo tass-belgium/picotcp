@@ -46,5 +46,10 @@ PACKED_STRUCT_DEF filter_parameters {
     struct _pico_mcast_group *g; 
 };
 
+
+extern int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast );
+extern int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast );
+extern int pico_mcast_src_filtering_excl_inc(struct filter_parameters* mcast );
+extern int pico_mcast_src_filtering_excl_excl(struct filter_parameters* mcast );
 #endif
         
