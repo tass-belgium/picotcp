@@ -1014,7 +1014,9 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
     if (g) {
         if (reference_count)
             g->reference_count++;
+#ifdef PICO_SUPPORT_MLD
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_UPDATE);
+#endif
     } else {
         g = PICO_ZALLOC(sizeof(struct pico_ipv6_mcast_group));
         if (!g) {
@@ -1028,7 +1030,9 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv6_mcast_sources_cmp;
         pico_tree_insert(link->MCASTGroups, g);
+#ifdef PICO_SUPPORT_MLD
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_CREATE);
+#endif 
     }
 
     if (mcast_group_update_ipv6(g, _MCASTFilter, filter_mode) < 0) {
@@ -1061,7 +1065,9 @@ int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         return -1;
     } else {
         if (reference_count && (--(g->reference_count) < 1)) {
+#ifdef PICO_SUPPORT_MLD
             res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_DELETE);
+#endif
             /* cleanup filter */
             pico_tree_foreach_safe(index, &g->MCASTSources, _tmp) {
                 source = index->keyValue;
@@ -1071,7 +1077,9 @@ int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
             pico_tree_delete(link->MCASTGroups, g);
             PICO_FREE(g);
         } else {
+#ifdef PICO_SUPPORT_MLD
             res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_UPDATE);
+#endif
             if (mcast_group_update_ipv6(g, _MCASTFilter, filter_mode) < 0)
                 return -1;
         }
@@ -1634,8 +1642,10 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 
     new->MCASTGroups->root = &LEAF;
     new->MCASTGroups->compare = ipv6_mcast_groups_cmp;
+#ifdef PICO_SUPPORT_MLD
     new->mcast_compatibility = PICO_MLDV2; 
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
+#endif
 #endif
     pico_tree_insert(&IPV6Links, new);
     for (i = 0; i < PICO_SIZE_IP6; ++i) {

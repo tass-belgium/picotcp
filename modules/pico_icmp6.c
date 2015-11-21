@@ -105,7 +105,7 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
 #endif
         pico_frame_discard(f);
         break;
-#ifdef PICO_SUPPORT_MCAST
+#if defined(PICO_SUPPORT_MCAST) && defined(PICO_SUPPORT_MLD)
     case PICO_MLD_QUERY:
     case PICO_MLD_REPORT:
     case PICO_MLD_DONE:
