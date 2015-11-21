@@ -696,7 +696,7 @@ static int8_t pico_mldv2_generate_report(struct filter_parameters *filter, struc
     return 0;
 }
 static int8_t pico_mldv2_generate_filter(struct filter_parameters *filter, struct mcast_parameters *p) {
-    struct _pico_mcast_group *g = NULL, test = {
+    struct pico_mcast_group *g = NULL, test = {
         0
     };
     struct pico_tree *MLDFilter = NULL;
@@ -722,7 +722,7 @@ static int8_t pico_mldv2_generate_filter(struct filter_parameters *filter, struc
         return 0;
 
     pico_mcast_src_filtering_cleanup(filter);
-    filter->g = (struct _pico_mcast_group *)g;
+    filter->g = (struct pico_mcast_group *)g;
     switch (g->filter_mode) {
 
     case PICO_IP_MULTICAST_INCLUDE:

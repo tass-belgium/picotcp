@@ -66,11 +66,11 @@ START_TEST(tc_igmpt_type_compare)
 END_TEST
 START_TEST(tc_pico_igmp_state_change) {
     struct pico_ip4 mcast_link, mcast_group;
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv4("192.168.1.1", &mcast_link.addr);
     pico_string_to_ipv4("224.7.7.7", &mcast_group.addr);
-    p.mcast_link = mcast_link;
-    p.mcast_group = mcast_group;
+    p.mcast_link.ip4 = mcast_link;
+    p.mcast_group.ip4 = mcast_group;
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_IGMP_STATE_CREATE) != 0);
 }
@@ -118,27 +118,27 @@ START_TEST(tc_pico_igmp_v2querier_expired)
 END_TEST
 START_TEST(tc_pico_igmp_delete_parameter)
 {
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     fail_if(pico_igmp_delete_parameter(&p) != -1);
 }
 END_TEST
 START_TEST(tc_pico_igmp_process_in) {
-    struct igmp_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv4_link *link;
     int i,j, _i,_j,result;
     struct pico_mcast_group g; 
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct igmp_parameters));
-    pico_string_to_ipv4("192.168.1.1", &p->mcast_link.addr);
-    pico_string_to_ipv4("244.7.7.7", &p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv4("192.168.1.1", &p->mcast_link.ip4.addr);
+    pico_string_to_ipv4("244.7.7.7", &p->mcast_group.ip4.addr);
     //no link 
     fail_if(pico_igmp_generate_report(p) != -1);
 
-    pico_ipv4_link_add(dev, p->mcast_link, p->mcast_link);
-    link = pico_ipv4_link_get(&p->mcast_link);
+    pico_ipv4_link_add(dev, p->mcast_link.ip4, p->mcast_link.ip4);
+    link = pico_ipv4_link_get(&p->mcast_link.ip4);
     link->mcast_compatibility = PICO_IGMPV2;
-    g.mcast_addr = p->mcast_group;
+    g.mcast_addr.ip4 = p->mcast_group.ip4;
     g.MCASTSources.root = &LEAF;
     g.MCASTSources.compare = mcast_sources_cmp;
     //No mcastsources tree
@@ -176,7 +176,7 @@ START_TEST(tc_pico_igmp_process_in) {
 END_TEST
 START_TEST(tc_pico_igmp_find_parameter) {
     struct pico_ip4 mcast_link, mcast_group;
-    struct igmp_parameters test = {
+    struct mcast_parameters test = {
         0
     };
     fail_if(pico_igmp_find_parameter(NULL,NULL) != NULL);
@@ -184,8 +184,8 @@ START_TEST(tc_pico_igmp_find_parameter) {
     fail_if(pico_igmp_find_parameter(&mcast_link,NULL) != NULL);
     pico_string_to_ipv4("192.168.1.2", &mcast_group.addr);
     fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) != NULL);
-    test.mcast_link = mcast_link;
-    test.mcast_group = mcast_group;
+    test.mcast_link.ip4 = mcast_link;
+    test.mcast_group.ip4 = mcast_group;
     pico_tree_insert(&IGMPParameters, &test);
 
     fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) == NULL);
@@ -256,14 +256,14 @@ START_TEST(tc_pico_igmp_discard) {
 }
 END_TEST
 START_TEST(tc_srst) {
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     struct pico_device *dev = pico_null_create("dummy0");
     struct pico_ipv4_link *link;
-    pico_string_to_ipv4("192.168.1.1", &p.mcast_link.addr);
+    pico_string_to_ipv4("192.168.1.1", &p.mcast_link.ip4.addr);
     //no link
     fail_if(srst(&p) != -1);
-    pico_ipv4_link_add(dev, p.mcast_link, p.mcast_link);
-    link = pico_ipv4_link_get(&p.mcast_link);
+    pico_ipv4_link_add(dev, p.mcast_link.ip4, p.mcast_link.ip4);
+    link = pico_ipv4_link_get(&p.mcast_link.ip4);
     //Not supported protocol for this call
     link->mcast_compatibility = PICO_IGMPV2;
     fail_if(srst(&p) != -1);
@@ -274,11 +274,11 @@ END_TEST
 START_TEST(tc_stcl) {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
     struct pico_device *dev = pico_null_create("dummy0");
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv4("192.168.1.10", &t->mcast_link.addr);
     pico_string_to_ipv4("244.7.7.7", &t->mcast_group.addr);
-    p.mcast_link = t->mcast_link;
-    p.mcast_group = t->mcast_group;
+    p.mcast_link.ip4 = t->mcast_link;
+    p.mcast_group.ip4 = t->mcast_group;
     t->type = IGMP_TIMER_GROUP_REPORT;
     //not in tree
     fail_if(stcl(&p) != -1);

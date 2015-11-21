@@ -201,7 +201,7 @@ START_TEST(tc_mld_stsdifs)
     struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct _pico_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     //Building example frame
@@ -229,7 +229,7 @@ START_TEST(tc_mld_srsf)
     struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct _pico_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
     
@@ -245,7 +245,7 @@ START_TEST(tc_mld_srst)
     struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct _pico_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     struct mld_timer t;
     //Building example frame
@@ -281,7 +281,7 @@ START_TEST(tc_mld_mrsrrt)
     struct pico_ipv6_link *link;
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
     int i,j, _i,_j,result;
-    struct _pico_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
     p = PICO_ZALLOC(sizeof(struct mcast_parameters));
@@ -305,7 +305,7 @@ START_TEST(tc_pico_mld_process_in) {
     struct pico_ipv6_link *link;
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
     int i,j, _i,_j,result;
-    struct _pico_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
     p = PICO_ZALLOC(sizeof(struct mcast_parameters));

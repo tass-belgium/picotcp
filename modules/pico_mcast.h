@@ -28,7 +28,7 @@ PACKED_STRUCT_DEF mcast_parameters {
     struct pico_frame *f;
 };
 
-PACKED_STRUCT_DEF _pico_mcast_group {
+PACKED_STRUCT_DEF pico_mcast_group {
     uint8_t filter_mode;
     uint16_t reference_count;
     union pico_address mcast_addr;
@@ -43,7 +43,7 @@ PACKED_STRUCT_DEF filter_parameters {
     uint16_t sources;
     uint8_t proto;
     uint8_t record_type;
-    struct _pico_mcast_group *g;
+    struct pico_mcast_group *g;
     union pico_link *link;
 };
 
