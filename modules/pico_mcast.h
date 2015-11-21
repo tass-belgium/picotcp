@@ -43,7 +43,8 @@ PACKED_STRUCT_DEF filter_parameters {
     uint16_t sources;
     uint8_t proto;
     uint8_t record_type;
-    struct _pico_mcast_group *g; 
+    struct _pico_mcast_group *g;
+    union pico_link *link;
 };
 
 extern void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast );

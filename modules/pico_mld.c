@@ -648,151 +648,160 @@ static int pico_mld_send_report(struct mcast_parameters *p, struct pico_frame *f
     pico_ipv6_frame_push(f, NULL, &dst, 0,0);
     return 0;
 }
-
-static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
-    struct pico_ipv6_link *link = NULL;
-    uint8_t i = 0;
-    link = pico_ipv6_link_get(&p->mcast_link.ip6);
-    if (!link) {
+static int8_t pico_mldv2_generate_report(struct filter_parameters *filter, struct mcast_parameters *p) {
+    struct mldv2_report *report = NULL;
+    struct mldv2_group_record *record = NULL;
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_hbhoption *hbh;
+    uint16_t len = 0;
+    uint16_t i = 0;
+    /* RFC3810 $5.1.10 */
+    if(filter->sources > MLD_MAX_SOURCES) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    if( !pico_ipv6_is_multicast(p->mcast_group.ip6.addr) ) {
+    len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
+                     + (filter->sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
+    
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+    p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    /* p->f->len is correctly set by alloc */
+    
+    hbh = (struct pico_ipv6_hbhoption *) p->f->transport_hdr;
+    report = (struct mldv2_report *)(pico_mld_fill_hopbyhop(hbh));
+    report->type = PICO_MLD_REPORTV2;
+    report->res = 0;
+    report->crc = 0;
+    report->res1 = 0;
+    report->nbr_gr = short_be(1);
+
+    record = &report->record[0];
+    record->type = filter->record_type;
+    record->aux = 0;
+    record->nbr_src = short_be(filter->sources);
+    record->mcast_group = p->mcast_group.ip6;
+    if (filter->filter && !pico_tree_empty(filter->filter)) {
+        i = 0;
+        pico_tree_foreach(index, filter->filter)
+        {
+            record->src[i] = (*(struct pico_ip6 *)index->keyValue);
+            i++;
+        }
+    }
+    if(i != filter->sources) {
+        return -1;
+    }
+    //Checksum done in ipv6 module, no need to do it twice
+    //report->crc= short_be(pico_mld_checksum(p->f));
+    return 0;
+}
+static int8_t pico_mldv2_generate_filter(struct filter_parameters *filter, struct mcast_parameters *p) {
+    struct _pico_mcast_group *g = NULL, test = {
+        0
+    };
+    struct pico_tree *MLDFilter = NULL;
+    struct pico_ipv6_link *link =(struct pico_ipv6_link*) filter->link;
+    filter->p = (struct mcast_parameters *)p;
+    filter->allow = &MLDAllow;
+    filter->block = &MLDBlock;
+    filter->filter = MLDFilter;
+    filter->sources = 0;
+    filter->proto = PICO_MLDV2;
+    test.mcast_addr = p->mcast_group;
+    g = pico_tree_findKey(link->MCASTGroups, &test);
+    if (!g) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    switch (link->mcast_compatibility) {
-
-    case PICO_MLDV1: {
-        struct mld_message *report = NULL;
-        uint8_t report_type = PICO_MLD_REPORT;
-        struct pico_ipv6_exthdr *hbh;
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN );
-        p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
-        /* p->f->len is correctly set by alloc */
-
-        hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
-        report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption *)hbh));
-        report->type = report_type;
-        report->max_resp_delay = MLD_DEFAULT_MAX_RESPONSE_TIME;
-        report->mcast_group = p->mcast_group.ip6;
-
-        report->crc = 0;
-        //Checksum done in ipv6 module, no need to do it twice
-        //report->crc = short_be(pico_icmp6_checksum(p->f));
-        break;    
+    /* "non-existent" state of filter mode INCLUDE and empty source list */
+    if (p->event == MLD_EVENT_DELETE_GROUP) { 
+        p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
+        p->MCASTFilter = NULL;
     }
-    case PICO_MLDV2: {
-        struct mldv2_report *report = NULL;
-        struct mldv2_group_record *record = NULL;
-        struct _pico_mcast_group *g = NULL, test = {
-            0
-        };
-        struct pico_tree_node *index = NULL;
-        struct pico_tree *MLDFilter = NULL;
-        struct pico_ipv6_hbhoption *hbh;
-        uint16_t len = 0;
-        struct filter_parameters filter;
-        filter.p = (struct mcast_parameters *)p;
-        filter.allow = &MLDAllow;
-        filter.block = &MLDBlock;
-        filter.filter = MLDFilter;
-        filter.sources = 0;
-        filter.proto = PICO_MLDV2;
-        test.mcast_addr = p->mcast_group;
-        g = pico_tree_findKey(link->MCASTGroups, &test);
-        if (!g) {
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        /* "non-existent" state of filter mode INCLUDE and empty source list */
-        if (p->event == MLD_EVENT_DELETE_GROUP) { 
-            p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
-            p->MCASTFilter = NULL;
-        }
-        if (p->event == MLD_EVENT_QUERY_RECV) 
-            goto mld2_report;
+    if (p->event == MLD_EVENT_QUERY_RECV) 
+        return 0;
 
-        pico_mcast_src_filtering_cleanup(&filter);
-        filter.g = (struct _pico_mcast_group *)g;
-        switch (g->filter_mode) {
+    pico_mcast_src_filtering_cleanup(filter);
+    filter->g = (struct _pico_mcast_group *)g;
+    switch (g->filter_mode) {
 
+    case PICO_IP_MULTICAST_INCLUDE:
+        switch (p->filter_mode) {
         case PICO_IP_MULTICAST_INCLUDE:
-            switch (p->filter_mode) {
-            case PICO_IP_MULTICAST_INCLUDE:
-                if(pico_mcast_src_filtering_inc_inc(&filter) == MCAST_NO_REPORT)
-                    return 0;
-                break;
-            case PICO_IP_MULTICAST_EXCLUDE:
-                /* TO_EX (B) */
-                pico_mcast_src_filtering_inc_excl(&filter);
-                break;
-            default:
-                pico_err = PICO_ERR_EINVAL;
-                return -1;
-            }
+            if(pico_mcast_src_filtering_inc_inc(filter) == MCAST_NO_REPORT)
+                return MCAST_NO_REPORT;
             break;
         case PICO_IP_MULTICAST_EXCLUDE:
-            switch (p->filter_mode) {
-            case PICO_IP_MULTICAST_INCLUDE:
-                /* TO_IN (B) */
-                pico_mcast_src_filtering_excl_inc(&filter);
-                break;
-            case PICO_IP_MULTICAST_EXCLUDE:
-                /* BLOCK (B-A) */
-                if(pico_mcast_src_filtering_excl_excl(&filter) == MCAST_NO_REPORT)
-                  return 0; 
-                break;
-           default:
-                pico_err = PICO_ERR_EINVAL;
-                return -1;
-            }
+            /* TO_EX (B) */
+            pico_mcast_src_filtering_inc_excl(filter);
             break;
         default:
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
-mld2_report:
-        /* RFC3810 $5.1.10 */
-        if(filter.sources > MLD_MAX_SOURCES) {
+        break;
+    case PICO_IP_MULTICAST_EXCLUDE:
+        switch (p->filter_mode) {
+        case PICO_IP_MULTICAST_INCLUDE:
+            /* TO_IN (B) */
+            pico_mcast_src_filtering_excl_inc(filter);
+            break;
+        case PICO_IP_MULTICAST_EXCLUDE:
+            /* BLOCK (B-A) */
+            if(pico_mcast_src_filtering_excl_excl(filter) == MCAST_NO_REPORT)
+              return MCAST_NO_REPORT; 
+            break;
+       default:
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
-        len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
-                         + (filter.sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
-        
-        p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
-        p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
-        /* p->f->len is correctly set by alloc */
-        
-        hbh = (struct pico_ipv6_hbhoption *) p->f->transport_hdr;
-        report = (struct mldv2_report *)(pico_mld_fill_hopbyhop(hbh));
-        report->type = PICO_MLD_REPORTV2;
-        report->res = 0;
-        report->crc = 0;
-        report->res1 = 0;
-        report->nbr_gr = short_be(1);
-
-        record = &report->record[0];
-        record->type = filter.record_type;
-        record->aux = 0;
-        record->nbr_src = short_be(filter.sources);
-        record->mcast_group = p->mcast_group.ip6;
-        if (filter.filter && !pico_tree_empty(filter.filter)) {
-            i = 0;
-            pico_tree_foreach(index, filter.filter)
-            {
-                record->src[i] = (*(struct pico_ip6 *)index->keyValue);
-                i++;
-            }
-        }
-        if(i != filter.sources) {
-            return -1;
-            }
-        //Checksum done in ipv6 module, no need to do it twice
-        //report->crc= short_be(pico_mld_checksum(p->f));
         break;
-    }   
+    default:
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+  return 0;
+}
+static int8_t pico_mldv1_generate_report(struct mcast_parameters *p) {
+    struct mld_message *report = NULL;
+    uint8_t report_type = PICO_MLD_REPORT;
+    struct pico_ipv6_exthdr *hbh;
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message)+MLD_ROUTER_ALERT_LEN );
+    p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    /* p->f->len is correctly set by alloc */
+
+    hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
+    report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption *)hbh));
+    report->type = report_type;
+    report->max_resp_delay = MLD_DEFAULT_MAX_RESPONSE_TIME;
+    report->mcast_group = p->mcast_group.ip6;
+
+    report->crc = 0;
+    //Checksum done in ipv6 module, no need to do it twice
+    //report->crc = short_be(pico_icmp6_checksum(p->f));
+    return 0;
+}
+static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
+    struct filter_parameters filter;
+    int8_t result;
+    filter.link = (union pico_link *)pico_ipv6_link_get(&p->mcast_link.ip6);
+    if( !filter.link || !pico_ipv6_is_multicast(p->mcast_group.ip6.addr) ) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+    switch (filter.link->ipv6.mcast_compatibility) {
+
+    case PICO_MLDV1: {
+        return pico_mldv1_generate_report(p);
+    }
+    case PICO_MLDV2: {
+        result = pico_mldv2_generate_filter(&filter,p); 
+        if(result < 0)
+            return -1;
+        if(result != MCAST_NO_REPORT)
+            return pico_mldv2_generate_report(&filter,p); 
+    }
+    break;
     default:
         pico_err = PICO_ERR_EINVAL;
         return -1;
