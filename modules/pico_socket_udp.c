@@ -28,6 +28,7 @@ struct pico_socket *pico_socket_udp_open(void)
 
 
 #ifdef PICO_SUPPORT_IPV4
+#ifdef PICO_SUPPORT_MCAST
 static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip4 p_dst;
@@ -46,7 +47,6 @@ static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_
 
     return 0;
 }
-
 
 static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico_frame *f)
 {
@@ -75,7 +75,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
 
     return 0;
 }
-
+#endif
 static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_frame *cpy;
@@ -104,7 +104,9 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
     s_local.addr = s->local_addr.ip4.addr;
     p_dst.addr = ip4hdr->dst.addr;
     if ((pico_ipv4_is_broadcast(p_dst.addr)) || pico_ipv4_is_multicast(p_dst.addr)) {
+#ifdef PICO_SUPPORT_MCAST
         ret = pico_socket_udp_deliver_ipv4_mcast(s, f);
+#endif
     } else if ((s_local.addr == PICO_IPV4_INADDR_ANY) || (s_local.addr == p_dst.addr)) {
         ret = pico_socket_udp_deliver_ipv4_unicast(s, f);
     }
@@ -115,6 +117,7 @@ static int pico_socket_udp_deliver_ipv4(struct pico_socket *s, struct pico_frame
 #endif
 
 #ifdef PICO_SUPPORT_IPV6
+#ifdef PICO_SUPPORT_MCAST
 static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ip6hdr;
@@ -147,7 +150,7 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
 
     return 0;
 }
-
+#endif
 static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip6 s_local, p_dst;
@@ -157,9 +160,11 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
     s_local = s->local_addr.ip6;
     p_dst = ip6hdr->dst;
     if ((pico_ipv6_is_multicast(p_dst.addr))) {
+#ifdef PICO_SUPPORT_MCAST
         int retval = pico_socket_udp_deliver_ipv6_mcast(s, f);
         pico_frame_discard(f);
         return retval;
+#endif 
     } 
     else if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || (pico_ipv6_compare(&s_local, &p_dst) == 0))
     { /* Either local socket is ANY, or matches dst */

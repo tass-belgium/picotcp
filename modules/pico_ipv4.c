@@ -741,8 +741,9 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     if (g) {
         if (reference_count)
             g->reference_count++;
-
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif
     } else {
         g = PICO_ZALLOC(sizeof(struct pico_mcast_group));
         if (!g) {
@@ -757,7 +758,9 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
         pico_tree_insert(link->MCASTGroups, g);
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
+#endif
     }
 
     if (mcast_group_update(g, MCASTFilter, filter_mode) < 0) {
@@ -795,7 +798,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
         return -1;
     } else {
         if (reference_count && (--(g->reference_count) < 1)) {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_DELETE);
+#endif
             /* cleanup filter */
             pico_tree_foreach_safe(index, &g->MCASTSources, _tmp) {
                 source = index->keyValue;
@@ -805,7 +810,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
             pico_tree_delete(link->MCASTGroups, g);
             PICO_FREE(g);
         } else {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif          
             if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
                 return -1;
         }
