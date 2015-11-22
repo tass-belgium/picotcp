@@ -654,7 +654,7 @@ static int pico_igmp_send_report(struct mcast_parameters *p, struct pico_frame *
     pico_ipv4_frame_push(f, &dst, PICO_PROTO_IGMP);
     return 0;
 }
-static int8_t pico_igmpv3_generate_filter(struct filter_parameters *filter,struct mcast_parameters *p) {
+static int8_t pico_igmpv3_generate_filter(struct mcast_filter_parameters *filter,struct mcast_parameters *p) {
    struct pico_mcast_group *g = NULL, test = {
         0
     };
@@ -721,7 +721,7 @@ static int8_t pico_igmpv3_generate_filter(struct filter_parameters *filter,struc
     }
   return 0;
 }
-static int8_t pico_igmpv3_generate_report(struct filter_parameters *filter, struct mcast_parameters *p) {
+static int8_t pico_igmpv3_generate_report(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
     struct igmpv3_report *report = NULL;
     struct igmpv3_group_record *record = NULL;
     struct pico_tree_node *index = NULL;
@@ -787,7 +787,7 @@ static int8_t pico_igmpv2_generate_report(struct mcast_parameters *p) {
 }
 static int8_t pico_igmp_generate_report(struct mcast_parameters *p)
 {
-    struct filter_parameters filter;
+    struct mcast_filter_parameters filter;
     int8_t result;
 
     filter.link = (union pico_link *)pico_ipv4_link_get((struct pico_ip4 *) &p->mcast_link);

@@ -23,7 +23,7 @@
 #include "pico_constants.h"
 #include "pico_mcast.h"
 
-#if ((defined(PICO_SUPPORT_MLD) && defined(PICO_SUPPORT_IPV6)) || (defined(PICO_SUPPORT_IGMP)) && defined(PICO_SUPPORT_MULTICAST)) 
+#if (((defined(PICO_SUPPORT_MLD) && defined(PICO_SUPPORT_IPV6)) || defined(PICO_SUPPORT_IGMP)) && defined(PICO_SUPPORT_MCAST)) 
 
 #define multicast_dbg(...) do {} while(0)
  
@@ -34,20 +34,20 @@
 #define MCAST_EVENT_REPORT_RECV            (0x4)
 #define MCAST_EVENT_TIMER_EXPIRED          (0x5)
 
-#define MCAST_MODE_IS_INCLUDE                  (1)
-#define MCAST_MODE_IS_EXCLUDE                  (2)
-#define MCAST_CHANGE_TO_INCLUDE_MODE           (3)
-#define MCAST_CHANGE_TO_EXCLUDE_MODE           (4)
+#define MCAST_MODE_IS_INCLUDE              (1)
+#define MCAST_MODE_IS_EXCLUDE              (2)
+#define MCAST_CHANGE_TO_INCLUDE_MODE       (3)
+#define MCAST_CHANGE_TO_EXCLUDE_MODE       (4)
 
-#define MCAST_MODE_IS_INCLUDE                  (1)
-#define MCAST_MODE_IS_EXCLUDE                  (2)
-#define MCAST_CHANGE_TO_INCLUDE_MODE           (3)
-#define MCAST_CHANGE_TO_EXCLUDE_MODE           (4)
+#define MCAST_MODE_IS_INCLUDE              (1)
+#define MCAST_MODE_IS_EXCLUDE              (2)
+#define MCAST_CHANGE_TO_INCLUDE_MODE       (3)
+#define MCAST_CHANGE_TO_EXCLUDE_MODE       (4)
 #define MCAST_ALLOW_NEW_SOURCES            (5)
 #define MCAST_BLOCK_OLD_SOURCES            (6)
 
 
-void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast ) {
+void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     /* cleanup filters */
     pico_tree_foreach_safe(index, mcast->allow, _tmp)
@@ -59,7 +59,7 @@ void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast ) {
         pico_tree_delete(mcast->block, index->keyValue);
     }
 }
-int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast ) {
+int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     union pico_address *source;
     /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
@@ -123,7 +123,7 @@ int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast ) {
     return MCAST_NO_REPORT;
 }
 
-int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast ) {
+int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     mcast->record_type = MCAST_CHANGE_TO_EXCLUDE_MODE;
     mcast->filter = mcast->block;
@@ -134,7 +134,7 @@ int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast ) {
     }
     return 0;
 }
-int pico_mcast_src_filtering_excl_inc(struct filter_parameters* mcast ) {
+int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     mcast->record_type = MCAST_CHANGE_TO_INCLUDE_MODE;
     mcast->filter = mcast->allow;
@@ -147,7 +147,7 @@ int pico_mcast_src_filtering_excl_inc(struct filter_parameters* mcast ) {
     } /* else { allow stays empty } */
     return 0;
 }
-int pico_mcast_src_filtering_excl_excl(struct filter_parameters* mcast ) {
+int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     struct pico_ip6 *source = NULL;
     mcast->record_type = MCAST_BLOCK_OLD_SOURCES;

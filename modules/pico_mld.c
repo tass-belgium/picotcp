@@ -648,7 +648,7 @@ static int pico_mld_send_report(struct mcast_parameters *p, struct pico_frame *f
     pico_ipv6_frame_push(f, NULL, &dst, 0,0);
     return 0;
 }
-static int8_t pico_mldv2_generate_report(struct filter_parameters *filter, struct mcast_parameters *p) {
+static int8_t pico_mldv2_generate_report(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
     struct mldv2_report *report = NULL;
     struct mldv2_group_record *record = NULL;
     struct pico_tree_node *index = NULL;
@@ -695,7 +695,7 @@ static int8_t pico_mldv2_generate_report(struct filter_parameters *filter, struc
     //report->crc= short_be(pico_mld_checksum(p->f));
     return 0;
 }
-static int8_t pico_mldv2_generate_filter(struct filter_parameters *filter, struct mcast_parameters *p) {
+static int8_t pico_mldv2_generate_filter(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
     struct pico_mcast_group *g = NULL, test = {
         0
     };
@@ -782,7 +782,7 @@ static int8_t pico_mldv1_generate_report(struct mcast_parameters *p) {
     return 0;
 }
 static int8_t pico_mld_generate_report(struct mcast_parameters *p) {
-    struct filter_parameters filter;
+    struct mcast_filter_parameters filter;
     int8_t result;
     filter.link = (union pico_link *)pico_ipv6_link_get(&p->mcast_link.ip6);
     if( !filter.link || !pico_ipv6_is_multicast(p->mcast_group.ip6.addr) ) {

@@ -1,20 +1,20 @@
-#ifndef PICO_MCAST
-#define PICO_MCAST
+#ifndef INCLUDE_PICO_MCAST
+#define INCLUDE_PICO_MCAST
 
-#define MCAST_MODE_IS_INCLUDE                  (1)
-#define MCAST_MODE_IS_EXCLUDE                  (2)
-#define MCAST_CHANGE_TO_INCLUDE_MODE           (3)
-#define MCAST_CHANGE_TO_EXCLUDE_MODE           (4)
-#define MCAST_ALLOW_NEW_SOURCES            (5)
-#define MCAST_BLOCK_OLD_SOURCES            (6)
-#define MCAST_EVENT_DELETE_GROUP           (0x0)
-#define MCAST_EVENT_CREATE_GROUP           (0x1)
-#define MCAST_EVENT_UPDATE_GROUP           (0x2)
-#define MCAST_EVENT_QUERY_RECV             (0x3)
-#define MCAST_EVENT_REPORT_RECV            (0x4)
-#define MCAST_EVENT_TIMER_EXPIRED          (0x5)
+#define MCAST_MODE_IS_INCLUDE                 (1)
+#define MCAST_MODE_IS_EXCLUDE                 (2)
+#define MCAST_CHANGE_TO_INCLUDE_MODE          (3)
+#define MCAST_CHANGE_TO_EXCLUDE_MODE          (4)
+#define MCAST_ALLOW_NEW_SOURCES               (5)
+#define MCAST_BLOCK_OLD_SOURCES               (6)
+#define MCAST_EVENT_DELETE_GROUP              (0x0)
+#define MCAST_EVENT_CREATE_GROUP              (0x1)
+#define MCAST_EVENT_UPDATE_GROUP              (0x2)
+#define MCAST_EVENT_QUERY_RECV                (0x3)
+#define MCAST_EVENT_REPORT_RECV               (0x4)
+#define MCAST_EVENT_TIMER_EXPIRED             (0x5)
+#define MCAST_NO_REPORT                       (1)
 
-#define MCAST_NO_REPORT 1
 PACKED_STRUCT_DEF mcast_parameters {
     uint8_t event; 
     uint8_t state;
@@ -35,7 +35,7 @@ PACKED_STRUCT_DEF pico_mcast_group {
     struct pico_tree MCASTSources;
 };
 
-PACKED_STRUCT_DEF filter_parameters {
+PACKED_STRUCT_DEF mcast_filter_parameters {
     struct mcast_parameters *p;
     struct pico_tree *allow;
     struct pico_tree *block;
@@ -47,11 +47,11 @@ PACKED_STRUCT_DEF filter_parameters {
     union pico_link *link;
 };
 
-extern void pico_mcast_src_filtering_cleanup(struct filter_parameters* mcast );
+extern void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast );
 
-extern int pico_mcast_src_filtering_inc_inc(struct filter_parameters* mcast );
-extern int pico_mcast_src_filtering_inc_excl(struct filter_parameters* mcast );
-extern int pico_mcast_src_filtering_excl_inc(struct filter_parameters* mcast );
-extern int pico_mcast_src_filtering_excl_excl(struct filter_parameters* mcast );
+extern int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast );
+extern int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast );
+extern int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast );
+extern int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast );
+
 #endif
-        
