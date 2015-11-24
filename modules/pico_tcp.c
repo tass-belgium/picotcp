@@ -85,8 +85,13 @@ static int input_segment_compare(void *ka, void *kb)
 
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
-    struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
-    if ((!seg) || (!f->payload_len))
+    struct tcp_input_segment *seg;
+
+    if (!f->payload_len)
+        return NULL;
+
+    seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
+    if (!seg)
         return NULL;
 
     seg->payload = PICO_ZALLOC(f->payload_len);
