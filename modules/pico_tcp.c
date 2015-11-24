@@ -85,8 +85,13 @@ static int input_segment_compare(void *ka, void *kb)
 
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
-    struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
-    if ((!seg) || (!f->payload_len))
+    struct tcp_input_segment *seg;
+
+    if (!f->payload_len)
+        return NULL;
+
+    seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
+    if (!seg)
         return NULL;
 
     seg->payload = PICO_ZALLOC(f->payload_len);
@@ -1613,6 +1618,7 @@ static inline int tcp_data_in_expected(struct pico_socket_tcp *t, struct pico_fr
         /* Create new segment and enqueue it */
         struct tcp_input_segment *input = segment_from_frame(f);
         if (!input) {
+            printf("segment_from_frame failed!! \n");
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
