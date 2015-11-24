@@ -1618,7 +1618,6 @@ static inline int tcp_data_in_expected(struct pico_socket_tcp *t, struct pico_fr
         /* Create new segment and enqueue it */
         struct tcp_input_segment *input = segment_from_frame(f);
         if (!input) {
-            printf("segment_from_frame failed!! \n");
             pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
