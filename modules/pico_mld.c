@@ -47,7 +47,7 @@ PACKED_STRUCT_DEF mldv2_group_record {
     uint8_t aux;
     uint16_t nbr_src;
     struct pico_ip6 mcast_group;
-    struct pico_ip6 src[0];
+    struct pico_ip6 src[1];
 };
 PACKED_STRUCT_DEF mldv2_report {
 	uint8_t type;
@@ -55,7 +55,7 @@ PACKED_STRUCT_DEF mldv2_report {
 	uint16_t crc;
     uint16_t res1;
     uint16_t nbr_gr;
-    struct mldv2_group_record record[0];
+    struct mldv2_group_record record[1];
 };
 PACKED_STRUCT_DEF mldv2_query {
     uint8_t type;
@@ -67,7 +67,7 @@ PACKED_STRUCT_DEF mldv2_query {
     uint8_t rsq;
     uint8_t qqic;
     uint16_t nbr_src;
-    struct pico_ip6 source_addr[0];
+    struct pico_ip6 source_addr[1];
 };
 typedef int (*mld_callback) (struct mcast_parameters *);
 static int pico_mld_process_event(struct mcast_parameters *p); 
@@ -662,7 +662,7 @@ static int8_t pico_mldv2_generate_report(struct mcast_filter_parameters *filter,
     }
     len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
                      + (filter->sources * sizeof(struct pico_ip6))+MLD_ROUTER_ALERT_LEN);
-    
+    len = (uint16_t)(len - sizeof(struct pico_ip6));
     p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
     p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
     /* p->f->len is correctly set by alloc */
