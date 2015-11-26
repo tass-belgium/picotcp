@@ -145,6 +145,8 @@ struct ieee_radio
 	enum radio_rcode (*set_addr_short)(struct ieee_radio *radio, uint16_t short_16);
 };
 
+int pico_ieee_addr_cmp(void *va, void *vb);
+
 /**
  *  Indicate to the 6LoWPAN layer that a frame is succesfully transmitted
  *  TODO: Examine if this can go

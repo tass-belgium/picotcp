@@ -582,7 +582,7 @@ static uint8_t *frame_buf_delete(struct sixlowpan_frame *f,  enum pico_layer l, 
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IEEE802.15.4
-static int ieee_addr_cmp(void *va, void *vb)
+int pico_ieee_addr_cmp(void *va, void *vb)
 {
     struct pico_ieee_addr *a = (struct pico_ieee_addr *)va;
     struct pico_ieee_addr *b = (struct pico_ieee_addr *)vb;
@@ -1044,7 +1044,7 @@ static struct ping_cookie *sixlowpan_ping_find_cookie(struct pico_ieee_addr dst)
     
     pico_tree_foreach(node, &SixlowpanPings) {
         if ((cookie = (struct ping_cookie *)node->keyValue)) {
-            if (0 == ieee_addr_cmp(&cookie->dst, &dst)) {
+            if (0 == pico_ieee_addr_cmp(&cookie->dst, &dst)) {
                 return cookie;
             }
         }
@@ -1100,7 +1100,7 @@ static int sixlowan_rtable_entry_cmp(void *a, void *b)
     CHECK_PARAM(rb);
     
     /* Only compare on the destination-address */
-    return ieee_addr_cmp((void *)&ra->dst, (void *)&rb->dst);
+    return pico_ieee_addr_cmp((void *)&ra->dst, (void *)&rb->dst);
 }
 PICO_TREE_DECLARE(RTable, &sixlowan_rtable_entry_cmp);
 
@@ -1160,7 +1160,7 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
 
 static void sixlowpan_resume_tx(struct pico_ieee_addr final, struct pico_ieee_addr next_hop)
 {
-    if (tx && !ieee_addr_cmp(&final, &tx->peer)) {
+    if (tx && !pico_ieee_addr_cmp(&final, &tx->peer)) {
         tx->hop = next_hop;
         sixlowpan_prep_tx();
     }
@@ -1168,7 +1168,7 @@ static void sixlowpan_resume_tx(struct pico_ieee_addr final, struct pico_ieee_ad
 
 static void sixlowpan_resume_rtx(struct pico_ieee_addr final, struct pico_ieee_addr next_hop)
 {
-    if (rtx && !ieee_addr_cmp(&final, &rtx->peer)) {
+    if (rtx && !pico_ieee_addr_cmp(&final, &rtx->peer)) {
         rtx->hop = next_hop;
         sixlowpan_update_addr(rtx, SIXLOWPAN_DST);
         sixlowpan_update_addr(rtx, SIXLOWPAN_SRC);
@@ -1279,7 +1279,7 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
 {
     struct sixlowpan_rtable_entry *entry = NULL;
     
-    if (0 == ieee_addr_cmp(&origin, dev->eth)) {
+    if (0 == pico_ieee_addr_cmp(&origin, dev->eth)) {
 //        PAN_DBG("I'm the origin, I'm not going to add a route to myself, am I?\n");
         return;
     }
@@ -1287,7 +1287,7 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
     /* Find entry in the routing table */
     if ((entry = sixlowpan_rtable_find_entry(origin))) {
         /* Origin is already in routing table with this gateway, not going to send ping when I don't really need it */
-        if (0 == ieee_addr_cmp(&entry->via, &last_hop))
+        if (0 == pico_ieee_addr_cmp(&entry->via, &last_hop))
             return;
         
         /* Only send ping to update route when origin isn't a neigbor */
@@ -2405,13 +2405,13 @@ static int sixlowpan_frag_cmp(void *a, void *b)
     /* 1.) Compare IEEE802.15.4 addresses of the sender */
     aa = (struct pico_ieee_addr *)&fa->peer;
     ab = (struct pico_ieee_addr *)&fb->peer;
-    if ((ret = ieee_addr_cmp((void *)aa, (void *)ab)))
+    if ((ret = pico_ieee_addr_cmp((void *)aa, (void *)ab)))
         return ret;
     
     /* 2.) Compare IEEE802.15.4 addresses of the destination */
     aa = (struct pico_ieee_addr *)&fa->local;
     ab = (struct pico_ieee_addr *)&fb->local;
-    if ((ret = ieee_addr_cmp((void *)aa, (void *)ab)))
+    if ((ret = pico_ieee_addr_cmp((void *)aa, (void *)ab)))
         return ret;
     
     /* 3.) Compare datagram_size */
@@ -2836,7 +2836,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         f->local = final;
         dst = pico_ieee_addr_from_hdr(f->link_hdr, SIXLOWPAN_DST);
         
-        if (!ieee_addr_cmp((void *)&final, (void *)f->dev->eth)) {
+        if (!pico_ieee_addr_cmp((void *)&final, (void *)f->dev->eth)) {
             /* Frame is destined for me and only for me, consume... */
         } else if (IEEE_ADDR_IS_BCAST(final)) {
             /* Check if the hop limit isn't 0 and then if the broadcasting occured again */
