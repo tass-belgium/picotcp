@@ -198,6 +198,8 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_cortex_m.h"
 #elif defined CORTEX_M3
 # include "arch/pico_cortex_m.h"
+#elif defined DOS_WATCOM
+# include "arch/pico_dos.h"
 #elif defined PIC24
 # include "arch/pico_pic24.h"
 #elif defined MSP430

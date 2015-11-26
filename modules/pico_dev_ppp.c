@@ -1012,6 +1012,8 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
 static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint16_t optflags;
+    if (!ppp)
+        return;
     if (pkt[0] == PICO_CONF_REQ) {
         uint16_t rejected = 0;
         ppp_dbg("Received LCP CONF REQ\n");
@@ -1689,6 +1691,9 @@ static void evaluate_lcp_state(struct pico_device_ppp *ppp, enum ppp_lcp_event e
 {
     const struct pico_ppp_fsm *fsm, *next_fsm_to;
     int i;
+    if (!ppp)
+        return;
+
     if (mock_lcp_state) {
         mock_lcp_state(ppp, event);
         return;
@@ -1744,10 +1749,8 @@ static void auth_req(struct pico_device_ppp *ppp)
     struct pico_pap_hdr *hdr;
     uint16_t pap_len = 0;
     uint8_t field_len = 0;
-    if (ppp->username)
-        ppp_usr_len = (uint16_t)strlen(ppp->username);
-    if (ppp->password)
-        ppp_pwd_len = (uint16_t)strlen(ppp->password);
+    ppp_usr_len = (uint16_t)strlen(ppp->username);
+    ppp_pwd_len = (uint16_t)strlen(ppp->password);
 
     pap_len = (uint16_t)(sizeof(struct pico_pap_hdr) + 1u + 1u + ppp_usr_len + ppp_pwd_len);
 
