@@ -52,6 +52,7 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+IPC?=0
 SIXLOWPAN?=1
 CYASSL?=0
 WOLFSSL?=0
@@ -271,6 +272,8 @@ endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
 endif
+ifneq ($(IPC),0)
+  include rules/ipc.mk
 ifneq ($(SIXLOWPAN), 0)
   include rules/sixlowpan.mk
 endif
@@ -373,6 +376,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_dev_ppp.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_ppp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(CFLAGS) -I. test/unit/modunit_pico_mld.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_sixlowpan.elf $(CFLAGS) -I. test/unit/modunit_dev_sixlowpan.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
