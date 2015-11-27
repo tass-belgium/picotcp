@@ -215,8 +215,8 @@ static struct mcast_parameters *pico_igmp_find_parameter(struct pico_ip4 *mcast_
     if (!mcast_link || !mcast_group)
         return NULL;
 
-    test.mcast_link = (union pico_address) *mcast_link;
-    test.mcast_group = (union pico_address) *mcast_group;
+    test.mcast_link.ip4 = *mcast_link;
+    test.mcast_group.ip4 = *mcast_group;
     return pico_tree_findKey(&IGMPParameters, &test);
 }
 
@@ -496,8 +496,8 @@ static struct mcast_parameters *pico_igmp_analyse_packet(struct pico_frame *f)
             return NULL;
 
         p->state = IGMP_STATE_NON_MEMBER;
-        p->mcast_link = (union pico_address) link->address;
-        p->mcast_group = (union pico_address) mcast_group;
+        p->mcast_link.ip4 = link->address;
+        p->mcast_group.ip4 = mcast_group;
         pico_tree_insert(&IGMPParameters, p);
     } else if (!p) {
         return NULL;
@@ -587,8 +587,8 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
         }
 
         p->state = IGMP_STATE_NON_MEMBER;
-        p->mcast_link = (union pico_address) *mcast_link;
-        p->mcast_group = (union pico_address) *mcast_group;
+        p->mcast_link.ip4 = *mcast_link;
+        p->mcast_group.ip4 = *mcast_group;
         pico_tree_insert(&IGMPParameters, p);
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;

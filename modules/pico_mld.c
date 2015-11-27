@@ -358,8 +358,8 @@ static struct mcast_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_l
     };
     if (!mcast_link || !mcast_group)
         return NULL;
-    test.mcast_link = (union pico_address)*mcast_link;
-    test.mcast_group =(union pico_address) *mcast_group;
+    test.mcast_link.ip6 = *mcast_link;
+    test.mcast_group.ip6 = *mcast_group;
     return pico_tree_findKey(&MLDParameters, &test);
 }
 static int pico_mld_is_checksum_valid(struct pico_frame *f) {
@@ -454,8 +454,8 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         }
 
         p->state = MLD_STATE_NON_LISTENER;
-        p->mcast_link = (union pico_address)*mcast_link;
-        p->mcast_group = (union pico_address)*mcast_group;
+        p->mcast_link.ip6 = *mcast_link;
+        p->mcast_group.ip6 = *mcast_group;
         pico_tree_insert(&MLDParameters, p);
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
@@ -521,7 +521,7 @@ static struct mcast_parameters *pico_mld_analyse_packet(struct pico_frame *f) {
         if(!p)
             return NULL;
         p->state = MLD_STATE_NON_LISTENER;
-        p->mcast_link = (union pico_address) link->address;
+        p->mcast_link.ip6 = link->address;
         pico_tree_insert(&MLDParameters,p);
     }
     mld_dbg("Analyse package, type = %d\n", hdr->type);
