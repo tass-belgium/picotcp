@@ -96,10 +96,10 @@ START_TEST(tc_pico_mld_send_report)
     struct pico_device *dev = pico_null_create("dummy1");
     struct pico_ip6 addr;
     struct pico_ipv6_link *link;
-    struct mld_parameters p;
+    struct mcast_parameters p;
     f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report)+MLD_ROUTER_ALERT_LEN+sizeof(struct mldv2_group_record) +(0 *sizeof(struct pico_ip6)));
     pico_string_to_ipv6("AAAA::110", addr.addr);
-    p.mcast_link = addr;
+    p.mcast_link.ip6 = addr;
     //No link
     fail_if(pico_mld_send_report(&p, f) != -1); 
     link = pico_ipv6_link_add(dev, addr, addr);
@@ -114,11 +114,11 @@ START_TEST(tc_pico_mld_report_expired)
 {
     struct mld_timer *t=PICO_ZALLOC(sizeof(struct mld_timer));
     struct pico_ip6 zero = {{0}};
-    struct mld_parameters p;
+    struct mcast_parameters p;
     t->mcast_link = zero;
     t->mcast_group = zero;
-    p.mcast_link = zero;
-    p.mcast_group = zero;
+    p.mcast_link.ip6 = zero;
+    p.mcast_group.ip6 = zero;
     //void function, just check for side effects
     pico_mld_report_expired(t);
     //pico_tree_insert(&MLDParameters, &p);
@@ -127,7 +127,7 @@ START_TEST(tc_pico_mld_report_expired)
 END_TEST
 START_TEST(tc_pico_mld_delete_parameter)
 {
-    struct mld_parameters p;
+    struct mcast_parameters p;
     fail_if(pico_mld_delete_parameter(&p) != -1);
 }
 END_TEST
@@ -150,7 +150,7 @@ START_TEST(tc_pico_mld_is_checksum_valid) {
 END_TEST
 START_TEST(tc_pico_mld_find_parameter) {
     struct pico_ip6 mcast_link, mcast_group;
-    struct mld_parameters test = {
+    struct mcast_parameters test = {
         0
     };
     fail_if(pico_mld_find_parameter(NULL,NULL) != NULL);
@@ -158,8 +158,8 @@ START_TEST(tc_pico_mld_find_parameter) {
     fail_if(pico_mld_find_parameter(&mcast_link,NULL) != NULL);
     pico_string_to_ipv6("AAAA::211", mcast_group.addr);
     fail_if(pico_mld_find_parameter(&mcast_link,&mcast_group) != NULL);
-    test.mcast_link = mcast_link;
-    test.mcast_group = mcast_group;
+    test.mcast_link.ip6 = mcast_link;
+    test.mcast_group.ip6 = mcast_group;
     pico_tree_insert(&MLDParameters, &test);
 
     fail_if(pico_mld_find_parameter(&mcast_link,&mcast_group) == NULL);
@@ -192,31 +192,31 @@ START_TEST(tc_pico_mld_timer_expired)
 }
 END_TEST
 START_TEST(tc_pico_mld_send_done) {
-    struct mld_parameters p;
+    struct mcast_parameters p;
     fail_if(pico_mld_send_done(&p, NULL) != 0);
 }
 END_TEST
 START_TEST(tc_mld_stsdifs) 
 {
-    struct mld_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct pico_ipv6_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
-    pico_string_to_ipv6("AAAA::113", p->mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv6("AAAA::113", p->mcast_link.ip6.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link
     fail_if(mld_stsdifs(p) != -1);
-    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
+    link = pico_ipv6_link_add(dev, p->mcast_link.ip6, p->mcast_link.ip6);
     link->mcast_compatibility = PICO_MLDV1;
     // no timer
     fail_if(mld_stsdifs(p) != -1);
     t->type = MLD_TIMER_GROUP_REPORT;
-    t->mcast_link = p->mcast_link;
-    t->mcast_group = p->mcast_group;
+    t->mcast_link = p->mcast_link.ip6;
+    t->mcast_group = p->mcast_group.ip6;
     pico_tree_insert(&MLDTimers, t);
     fail_if(mld_stsdifs(p) != 0);
     //set flag
@@ -226,33 +226,33 @@ START_TEST(tc_mld_stsdifs)
 END_TEST
 START_TEST(tc_mld_srsf) 
 {
-    struct mld_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct pico_ipv6_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
     
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
-    pico_string_to_ipv6("AAAA::114", p->mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv6("AAAA::114", p->mcast_link.ip6.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     fail_if(mld_srsf(p) != -1);
 }
 END_TEST
 
 START_TEST(tc_mld_srst) 
 {
-    struct mld_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
-    struct pico_ipv6_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     struct mld_timer t;
     //Building example frame
     
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
-    pico_string_to_ipv6("AAAA::99", p->mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv6("AAAA::99", p->mcast_link.ip6.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     p->MCASTFilter = &_MCASTFilter;
     p->filter_mode = 0;
     g.filter_mode = 0;   
@@ -263,7 +263,7 @@ START_TEST(tc_mld_srst)
     pico_tree_insert(&MLDParameters, p);
     //no link
     fail_if(mld_srst(p) != -1);
-    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
+    link = pico_ipv6_link_add(dev, p->mcast_link.ip6, p->mcast_link.ip6);
     link->mcast_compatibility = PICO_MLDV1;
     // invalid proto
     fail_if(mld_srst(p) != -1);
@@ -276,20 +276,20 @@ START_TEST(tc_mld_srst)
 END_TEST
 START_TEST(tc_mld_mrsrrt) 
 {
-    struct mld_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
     int i,j, _i,_j,result;
-    struct pico_ipv6_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
-    pico_string_to_ipv6("AAAA::115", p->mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv6("AAAA::115", p->mcast_link.ip6.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link
     fail_if(mld_mrsrrt(p) != -1);
-    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
+    link = pico_ipv6_link_add(dev, p->mcast_link.ip6, p->mcast_link.ip6);
     link->mcast_compatibility = PICO_MLDV1;
     // wrong proto
     fail_if(mld_mrsrrt(p) != -1);
@@ -300,23 +300,23 @@ START_TEST(tc_mld_mrsrrt)
 }
 END_TEST
 START_TEST(tc_pico_mld_process_in) {
-    struct mld_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv6_link *link;
     struct pico_tree *filter = PICO_ZALLOC(sizeof(struct pico_tree));
     int i,j, _i,_j,result;
-    struct pico_ipv6_mcast_group g; 
+    struct pico_mcast_group g; 
     struct mldv2_report *report;
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct mld_parameters));
-    pico_string_to_ipv6("AAAA::101", p->mcast_link.addr);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv6("AAAA::101", p->mcast_link.ip6.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     //no link
     fail_if(pico_mld_generate_report(p) != -1);
-    link = pico_ipv6_link_add(dev, p->mcast_link, p->mcast_link);
-    pico_string_to_ipv6("AAAA::100", p->mcast_group.addr);
+    link = pico_ipv6_link_add(dev, p->mcast_link.ip6, p->mcast_link.ip6);
+    pico_string_to_ipv6("AAAA::100", p->mcast_group.ip6.addr);
     fail_if(pico_mld_generate_report(p) != -1);
-    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.addr);
+    pico_string_to_ipv6("FF00::e007:707", p->mcast_group.ip6.addr);
     link->mcast_compatibility = PICO_MLDV1;
     g.mcast_addr = p->mcast_group;
     g.MCASTSources.root = &LEAF;
@@ -362,11 +362,11 @@ END_TEST
 START_TEST(tc_mld_rtimrtct) {
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     struct pico_device *dev = pico_null_create("dummy0");
-    struct mld_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv6("AAAA::102", t->mcast_link.addr);
     pico_string_to_ipv6("AAAA::102", t->mcast_group.addr);
-    p.mcast_link = t->mcast_link;
-    p.mcast_group = t->mcast_group;
+    p.mcast_link.ip6 = t->mcast_link;
+    p.mcast_group.ip6 = t->mcast_group;
     t->type = MLD_TIMER_GROUP_REPORT;
     //not in tree
     fail_if(mld_rtimrtct(&p) != -1);
@@ -378,11 +378,11 @@ END_TEST
 START_TEST(tc_mld_stcl) {
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
     struct pico_device *dev = pico_null_create("dummy0");
-    struct mld_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv6("AAAA::103", t->mcast_link.addr);
     pico_string_to_ipv6("AAAA::103", t->mcast_group.addr);
-    p.mcast_link = t->mcast_link;
-    p.mcast_group = t->mcast_group;
+    p.mcast_link.ip6 = t->mcast_link;
+    p.mcast_group.ip6 = t->mcast_group;
     t->type = MLD_TIMER_GROUP_REPORT;
     //not in tree
     fail_if(mld_stcl(&p) != -1);
@@ -426,11 +426,11 @@ START_TEST(tc_pico_mld_timer_reset) {
 END_TEST
 START_TEST(tc_pico_mld_state_change) {
     struct pico_ip6 mcast_link, mcast_group;
-    struct mld_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv6("AAAA::106", mcast_link.addr);
     pico_string_to_ipv6("AAAA::106", mcast_group.addr);
-    p.mcast_link = mcast_link;
-    p.mcast_group = mcast_group;
+    p.mcast_link.ip6 = mcast_link;
+    p.mcast_group.ip6 = mcast_group;
     
     fail_if(pico_mld_state_change(NULL, &mcast_group, 0,NULL, PICO_MLD_STATE_CREATE) != -1);
     // All host group 

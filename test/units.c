@@ -36,6 +36,7 @@
 #include "pico_slaacv4.c"
 #include "pico_hotplug_detection.c"
 #ifdef PICO_SUPPORT_MCAST
+#include "pico_mcast.c"
 #include "pico_igmp.c"
 #endif
 #ifdef PICO_SUPPORT_IPV6

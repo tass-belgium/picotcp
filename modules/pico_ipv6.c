@@ -18,7 +18,7 @@
 #include "pico_tree.h"
 #include "pico_fragments.h"
 #include "pico_mld.h"
-
+#include "pico_mcast.h"
 #ifdef PICO_SUPPORT_IPV6
 
 
@@ -923,8 +923,8 @@ int pico_ipv6_is_null_address(struct pico_ip6 * ip6) {
  */
 static int ipv6_mcast_groups_cmp(void *ka, void *kb)
 {
-    struct pico_ipv6_mcast_group *a = ka, *b = kb;
-    return pico_ipv6_compare(&a->mcast_addr, &b->mcast_addr);
+    struct pico_mcast_group *a = ka, *b = kb;
+    return pico_ipv6_compare(&a->mcast_addr.ip6, &b->mcast_addr.ip6);
 }
 static int ipv6_mcast_sources_cmp(void *ka, void *kb)
 {
@@ -936,7 +936,7 @@ static void pico_ipv6_mcast_print_groups(struct pico_ipv6_link *mcast_link)
 {
 #ifdef PICO_DEBUG_MULTICAST
     uint16_t i = 0;
-    struct pico_ipv6_mcast_group *g = NULL;
+    struct pico_mcast_group *g = NULL;
     struct pico_ip6 *source = NULL;
     struct pico_tree_node *index = NULL, *index2 = NULL;
     char *ipv6_addr;
@@ -966,7 +966,7 @@ static void pico_ipv6_mcast_print_groups(struct pico_ipv6_link *mcast_link)
  
 }
 
-static int mcast_group_update_ipv6(struct pico_ipv6_mcast_group *g, struct pico_tree *_MCASTFilter, uint8_t filter_mode)
+static int mcast_group_update_ipv6(struct pico_mcast_group *g, struct pico_tree *_MCASTFilter, uint8_t filter_mode)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ip6 *source = NULL;
@@ -998,7 +998,7 @@ static int mcast_group_update_ipv6(struct pico_ipv6_mcast_group *g, struct pico_
 
 int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter)
 {
-    struct pico_ipv6_mcast_group *g = NULL, test = {
+    struct pico_mcast_group *g = NULL, test = {
         0
     };
     struct pico_ipv6_link *link = NULL;
@@ -1009,7 +1009,7 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
     if (!link) {
         link = mcast_default_link_ipv6;
     }
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip6 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (g) {
         if (reference_count)
@@ -1018,7 +1018,7 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_UPDATE);
 #endif
     } else {
-        g = PICO_ZALLOC(sizeof(struct pico_ipv6_mcast_group));
+        g = PICO_ZALLOC(sizeof(struct pico_mcast_group));
         if (!g) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -1026,7 +1026,7 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         /* "non-existent" state of filter mode INCLUDE and empty source list */
         g->filter_mode = PICO_IP_MULTICAST_INCLUDE;
         g->reference_count = 1;
-        g->mcast_addr = *mcast_group;
+        g->mcast_addr.ip6 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv6_mcast_sources_cmp;
         pico_tree_insert(link->MCASTGroups, g);
@@ -1045,7 +1045,7 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
 
 int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter)
 {
-    struct pico_ipv6_mcast_group *g = NULL, test = {
+    struct pico_mcast_group *g = NULL, test = {
         0
     };
     struct pico_ipv6_link *link = NULL;
@@ -1058,7 +1058,7 @@ int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
     if (!link)
         link = mcast_default_link_ipv6;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip6 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (!g) {
         pico_err = PICO_ERR_EINVAL;
@@ -1098,14 +1098,14 @@ static int pico_ipv6_mcast_filter(struct pico_frame *f)
 {
     struct pico_ipv6_link *link = NULL;
     struct pico_tree_node *index = NULL, *index2 = NULL;
-    struct pico_ipv6_mcast_group *g = NULL, test = {
+    struct pico_mcast_group *g = NULL, test = {
         0
     };
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *) f->net_hdr;
 #ifdef PICO_DEBUG_MULTICAST
     char ipv6_addr[PICO_IPV6_STRING];
 #endif
-    test.mcast_addr = hdr->dst;
+    test.mcast_addr.ip6 = hdr->dst;
 
     pico_tree_foreach(index, &Tree_dev_ip6_link) {
         link = index->keyValue;
