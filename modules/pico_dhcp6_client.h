@@ -168,6 +168,7 @@ PACKED_STRUCT_DEF pico_dhcp6_duid_generic {
 /* DUID Based on Link-layer Address Plus Time [DUID-LLT] */
 PACKED_STRUCT_DEF pico_dhcp6_duid_llt {
     uint16_t type; /* PICO_DHCP6_DUID_LLT */
+    uint16_t hw_type;
     uint32_t time;
     uint8_t link_layer_address[0];
 };
@@ -201,14 +202,16 @@ PACKED_STRUCT_DEF pico_dhcp6_opt {
 PACKED_STRUCT_DEF pico_dhcp6_opt_cid {
     /* PICO_DHCP6_OPT_CLIENTID */
     struct pico_dhcp6_opt base_opts;
-    uint8_t duid[0]; /* variable length */
+//    uint8_t duid[0]; /* variable length */
+    struct pico_dhcp6_duid_generic duid;
 };
 
 /* Server Identifier Option */
 PACKED_STRUCT_DEF pico_dhcp6_opt_sid {
     /* PICO_DHCP6_OPT_SERVERID */
     struct pico_dhcp6_opt base_opts;
-    uint8_t duid[0]; /* variable length */
+//    uint8_t duid[0]; /* variable length */
+    struct pico_dhcp6_duid_generic duid;
 };
 
 /* Identity Association for Non-Temporary Address Option */
@@ -343,7 +346,7 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_vendor_opts {
 PACKED_STRUCT_DEF pico_dhcp6_opt_interface_id {
 	/* OPTION_INTERFACE_ID */
     struct pico_dhcp6_opt base_opts;
-	uint16_t interface_id[0];
+	uint8_t interface_id[0];
 };
 
 /* Reconfigure Message Option */
@@ -398,9 +401,9 @@ struct pico_dhcp6_client_cookie /* TODO: don't store entire message */
 };
 
 /* possible codes for the callback */
-#define PICO_DHCP_SUCCESS 0
-#define PICO_DHCP_ERROR   1
-#define PICO_DHCP_RESET   2
+#define PICO_DHCP_SUCCESS (0)
+#define PICO_DHCP_ERROR   (1)
+#define PICO_DHCP_RESET   (2)
 
 int pico_dhcp6_initiate_negotiation(struct pico_device *device, void (*callback)(void*cli, int code), uint32_t *xid);
 void generate_transaction_id(void);
@@ -408,8 +411,11 @@ void process_status_code(struct pico_dhcp6_opt_status_code** status_code_field, 
 
 
 /* For debugging */
-static void print_hex_array(void* array, size_t size){
+void print_hex_array(void* array, size_t size){
 	/* For debugging */
+	if(size > 100){
+		printf("length corrected: %d\n", size);
+	}
 //	printf("size %d\n", size);
 	uint8_t* arr = array;
 	size = (size < 100) ? size : 100;

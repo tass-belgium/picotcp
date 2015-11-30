@@ -50,15 +50,68 @@ void generate_transaction_id(void)
 }
 
 static inline void allocate_and_copy(void **dst, void **ptr, size_t size){
+	/* TODO: cast to uint16_t or uint32_t ----> endianness swap needed!! */
     *dst = PICO_ZALLOC(size);
     memcpy(*dst, *ptr, size);
 //    dhcp6_dbg("allocating size %d to addr %u", size, *dst);
 }
 
+static inline void swap_uint16(uint16_t* value){
+	*value = short_be(*value);
+}
+
+static inline void swap_uint32(uint32_t* value){
+	*value = long_be(*value);
+}
+
+static inline void swap_uint64(uint64_t* value){
+	*value = long_long_be(*value);
+}
+
+static inline void allocate_and_copy_and_swap(void **dst, void **ptr, size_t size){
+	allocate_and_copy(dst, ptr, size);
+	struct pico_dhcp6_opt* options = (struct pico_dhcp6_opt*) *dst;
+	swap_uint16(&options->option_code);
+	swap_uint16(&options->option_len);
+}
+
+static inline void convert_duid(struct pico_dhcp6_duid_generic* duid){
+    swap_uint16(&duid->type);
+
+    switch(duid->type)
+    {
+		case PICO_DHCP6_DUID_LLT:
+		{
+			struct pico_dhcp6_duid_llt* duid_llt = (struct pico_dhcp6_duid_llt*) duid;
+			swap_uint16(&duid_llt->hw_type);
+			swap_uint32(&duid_llt->time);
+			break;
+		}
+		case PICO_DHCP6_DUID_EN:
+		{
+			struct pico_dhcp6_duid_en* duid_en = (struct pico_dhcp6_duid_en*) duid;
+			swap_uint32(&duid_en->enterprise_number);
+			break;
+		}
+		case PICO_DHCP6_DUID_LL:
+		{
+			struct pico_dhcp6_duid_ll* duid_ll = (struct pico_dhcp6_duid_ll*) duid;
+			swap_uint16(&duid_ll->hw_type);
+			break;
+		}
+		default:
+		{
+			dhcp6_dbg("Unrecognized duid type: %u", duid->type);
+			break;
+		}
+    }
+}
+
 void process_status_code(struct pico_dhcp6_opt_status_code** status_code_field, size_t size)
 {
 	/* TODO */
-    allocate_and_copy(&cookie.status_code_field, status_code_field, size);
+	allocate_and_copy_and_swap(&cookie.status_code_field, status_code_field, size);
+    cookie.status_code_field->status_code = short_be(cookie.status_code_field->status_code); //TODO: check
 	switch((*status_code_field)->status_code)
 	{
 	case PICO_DHCP6_SUCCESS:
@@ -164,18 +217,23 @@ static void pico_dhcp6_parse_options(struct pico_dhcp6_opt *options, size_t len)
         {
             case PICO_DHCP6_OPT_CLIENTID:
                 dhcp6_dbg("DHCP6 client: parse_options: Received CID option\n"); /* TODO: remove option_code from options before storing ptr */
-                allocate_and_copy(&cookie.cid_rec, &options, delta);
+                allocate_and_copy_and_swap(&cookie.cid_rec, &options, delta);
+                convert_duid(&cookie.cid_rec->duid);
 //                print_hex_array(cookie.cid_rec, delta);
                 /* TODO: check if it matches the one that was sent out */
                 break;
             case PICO_DHCP6_OPT_SERVERID:
                 dhcp6_dbg("DHCP6 client: parse_options: Received SID option\n");
-                allocate_and_copy(&cookie.sid, &options, delta);
+                allocate_and_copy_and_swap(&cookie.sid, &options, delta);
+                convert_duid(&cookie.sid->duid);
 //                print_hex_array(cookie.sid, delta);
                 break;
             case PICO_DHCP6_OPT_IA_NA:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_IA_NA option\n");
-                allocate_and_copy(&cookie.iana, &options, delta);
+                allocate_and_copy_and_swap(&cookie.iana, &options, delta);
+                swap_uint32(&cookie.iana->iaid);
+                swap_uint32(&cookie.iana->t1);
+                swap_uint32(&cookie.iana->t2);
             	/* TODO: In a message sent by a server to a client, the client MUST use the
         		   values in the T1 and T2 fields for the T1 and T2 parameters, unless
         		   those values in those fields are 0.  The values in the T1 and T2
@@ -184,27 +242,31 @@ static void pico_dhcp6_parse_options(struct pico_dhcp6_opt *options, size_t len)
                 break;
             case PICO_DHCP6_OPT_IA_TA:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_IA_TA option\n");
-                allocate_and_copy(&cookie.ia_ta, &options, delta);
+                allocate_and_copy_and_swap(&cookie.ia_ta, &options, delta);
+                swap_uint32(&cookie.ia_ta->iaid);
             	break;
             case PICO_DHCP6_OPT_IADDR:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_IADDR option\n");
-                allocate_and_copy(&cookie.iaddr, &options, delta);
+                allocate_and_copy_and_swap(&cookie.iaddr, &options, delta);
             	break;
             case PICO_DHCP6_OPT_ORO:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_ORO option\n");
-                allocate_and_copy(&cookie.oro, &options, delta);
+                allocate_and_copy_and_swap(&cookie.oro, &options, delta);
+                swap_uint16(&cookie.oro->req_option_code_1);
+                swap_uint16(&cookie.oro->req_option_code_2);
             	break;
             case PICO_DHCP6_OPT_PREFERENCE:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_PREFERENCE option\n");
-                allocate_and_copy(&cookie.pref, &options, delta);
+                allocate_and_copy_and_swap(&cookie.pref, &options, delta);
             	break;
             case PICO_DHCP6_OPT_ELAPSED_TIME:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_PREFERENCE option\n");
-                allocate_and_copy(&cookie.elapsed_time, &options, delta);
+                allocate_and_copy_and_swap(&cookie.elapsed_time, &options, delta);
+                swap_uint16(&cookie.elapsed_time->elapsed_time);
             	break;
             case PICO_DHCP6_OPT_RELAY_MSG:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_RELAY_MSG option\n");
-                allocate_and_copy(&cookie.relay_msg, &options, delta);
+                allocate_and_copy_and_swap(&cookie.relay_msg, &options, delta);
             	break;
             case PICO_DHCP6_OPT_AUTH:
             	if(cookie.auth) /* Any DHCP message that includes more than one authentication option MUST be discarded */
@@ -213,7 +275,9 @@ static void pico_dhcp6_parse_options(struct pico_dhcp6_opt *options, size_t len)
             		/* TODO: discard message */
             	}
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_AUTH option\n");
-                allocate_and_copy(&cookie.auth, &options, delta);
+                allocate_and_copy_and_swap(&cookie.auth, &options, delta);
+                swap_uint64(&cookie.auth->replay_detection);
+
             	break;
             case PICO_DHCP6_OPT_UNICAST: /* TODO: check if server_address valid */
                 dhcp6_dbg("DHCP6 client: parse_options: Received UNICAST option\n");
@@ -229,23 +293,31 @@ static void pico_dhcp6_parse_options(struct pico_dhcp6_opt *options, size_t len)
             	break;
             case PICO_DHCP6_OPT_USER_CLASS:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_USER_CLASS option\n");
-                allocate_and_copy(&cookie.user_class, &options, delta);
+                allocate_and_copy_and_swap(&cookie.user_class, &options, delta);
+                swap_uint16(&cookie.user_class->user_class_data->user_class_len);
             	break;
             case PICO_DHCP6_OPT_VENDOR_CLASS:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_VENDOR_CLASS option\n");
-                allocate_and_copy(&cookie.vendor_class, &options, delta);
+                allocate_and_copy_and_swap(&cookie.vendor_class, &options, delta);
+                swap_uint32(&cookie.vendor_class->enterprise_number);
+                swap_uint16(&cookie.vendor_class->vendor_class_data->vendor_class_len);
             	break;
             case PICO_DHCP6_OPT_VENDOR_OPTS:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_VENDOR_OPTS option\n");
-                allocate_and_copy(&cookie.vendor_opts, &options, delta);
+                allocate_and_copy_and_swap(&cookie.vendor_opts, &options, delta);
+                swap_uint32(&cookie.vendor_opts->enterprise_number);
+                swap_uint16(&cookie.vendor_opts->option_data->option_code);
+                swap_uint16(&cookie.vendor_opts->option_data->option_data);
+                swap_uint16(&cookie.vendor_opts->option_data->option_len);
             	break;
             case PICO_DHCP6_OPT_INTERFACE_ID:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_INTERFACE_ID option\n");
-                allocate_and_copy(&cookie.interface_id, &options, delta);
+                allocate_and_copy_and_swap(&cookie.interface_id, &options, delta);
             	break;
             case PICO_DHCP6_OPT_RECONF_MSG:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_RECONF_MSG option\n");
-                allocate_and_copy(&cookie.reconf_msg_type, &options, delta);
+                cookie.reconf_msg_type = *(((uint8_t *)options) + 4);
+                //TODO: assert delta == 1
             	break;
             case PICO_DHCP6_OPT_RECONF_ACCEPT:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_RECONF_ACCEPT option\n");
@@ -307,8 +379,8 @@ static void pico_dhcp6_fill_msg_with_options(struct pico_dhcp6_hdr *msg)
 {
     size_t cid_len, sid_len, iana_len;
     cid_len = sizeof(struct pico_dhcp6_opt) + sizeof(struct pico_dhcp6_duid_ll); /* TODO: change for other DUID types as well */
-    sid_len = sizeof(struct pico_dhcp6_opt) + short_be(cookie.sid->base_opts.option_len);
-    iana_len = (cookie.iana != NULL) ? (sizeof(struct pico_dhcp6_opt) + short_be(cookie.iana->base_opts.option_len)) : 0;
+    sid_len = sizeof(struct pico_dhcp6_opt) + cookie.sid->base_opts.option_len;
+    iana_len = (cookie.iana != NULL) ? (sizeof(struct pico_dhcp6_opt) + cookie.iana->base_opts.option_len) : 0;
 
     dhcp6_dbg("cid_len: %d, sid_len: %d, iana_len: %d", cid_len, sid_len, iana_len);
 
@@ -328,10 +400,16 @@ static void pico_dhcp6_send_req()
     dhcp6_dbg("Begin pico_dhcp6_send_req");
     size_t len, cid_len, sid_len, iana_len;
     struct pico_dhcp6_hdr *msg;
-    cid_len = sizeof(struct pico_dhcp6_opt) + short_be(cookie.cid_client->base_opts.option_len);
-    sid_len = sizeof(struct pico_dhcp6_opt) + short_be(cookie.sid->base_opts.option_len);
-	iana_len = (cookie.iana != NULL) ? (sizeof(struct pico_dhcp6_opt) + short_be(cookie.iana->base_opts.option_len)) : 0;
+    cid_len = sizeof(struct pico_dhcp6_opt) + cookie.cid_client->base_opts.option_len;
+    sid_len = sizeof(struct pico_dhcp6_opt) + cookie.sid->base_opts.option_len;
+	iana_len = (cookie.iana != NULL) ? (sizeof(struct pico_dhcp6_opt) + cookie.iana->base_opts.option_len) : 0;
     len = sizeof(struct pico_dhcp6_hdr) + cid_len + sid_len + iana_len;
+
+
+    printf("cid_len %d\n", cid_len);
+    printf("sid_len %d\n", sid_len);
+    printf("iana_len %d\n", iana_len);
+    printf("len %d\n", len);
 
     msg = (struct pico_dhcp6_hdr *)PICO_ZALLOC(len);
     msg->type = PICO_DHCP6_REQUEST;
@@ -564,7 +642,7 @@ static int passes_validation_test(struct pico_dhcp6_hdr *msg, size_t len){
 
 inline int check_duid_rec(void)
 {
-	return (memcmp(cookie.cid_rec->duid, (struct pico_dhcp6_duid_ll *)cookie.cid_rec->duid, sizeof(cookie.cid_client->duid)) != 0); /* TODO: other DUID typed */
+	return (memcmp(&cookie.cid_rec->duid, (struct pico_dhcp6_duid_ll *) &cookie.cid_rec->duid, sizeof(cookie.cid_client->duid)) != 0); /* TODO: other DUID typed */
 }
 
 #define PICO_DHCP6_RECONF_OK (1)
@@ -716,7 +794,7 @@ static void pico_dhcp6_send_sol(void)
         cookie.cid_client = PICO_ZALLOC(cid_len);
         cookie.cid_client->base_opts.option_code = short_be(PICO_DHCP6_OPT_CLIENTID);
         cookie.cid_client->base_opts.option_len = short_be(sizeof(struct pico_dhcp6_duid_ll));
-        generate_duid_ll(cookie.dev, (struct pico_dhcp6_duid_ll*)cookie.cid_client->duid); /* Generate DUID, store in cookie */
+        generate_duid_ll(cookie.dev, (struct pico_dhcp6_duid_ll*) &cookie.cid_client->duid); /* Generate DUID, store in cookie */
     }
     dhcp6_cid = (struct pic_dhcp6_opt_cid *)(dhcp6_hdr->options);
     memcpy(dhcp6_hdr->transaction_id, cookie.transaction_id, PICO_DHCP6_TRANSACTION_ID_SIZE);
