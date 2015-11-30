@@ -22,6 +22,7 @@ rm -f /tmp/pico-mem-report-*
 ./build/test/modunit_dev_ppp.elf || exit 1
 ./build/test/modunit_mld.elf || exit 1
 ./build/test/modunit_igmp.elf || exit 1
+./build/test/modunit_dhcp6.elf || exit 1
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo
