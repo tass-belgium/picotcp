@@ -928,7 +928,7 @@ static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
-inline int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8])
+int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8])
 {
     /*  IID formed from 16-bit [RFC4944]: 
      *

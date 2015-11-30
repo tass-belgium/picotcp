@@ -151,7 +151,7 @@ struct ieee_radio
  */
 void pico_sixlowpan_transmitted(void);
 
-inline int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8]);
+int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8]);
 
 /**
  *  Hardcode the prefix of the 6LoWPAN-device. Links with addresses derived from
