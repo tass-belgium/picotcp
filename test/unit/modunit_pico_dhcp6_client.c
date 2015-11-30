@@ -34,6 +34,9 @@ START_TEST(tc_pico_dhcp6_parse_options)
 			0xd4, 0x10, 0xbb
 	};
 	uint8_t trans_id[3] = {0x57, 0x19, 0x58};
+	uint8_t cid_link_layer_addr[6] = {0x08, 0x00, 0x27, 0xfe, 0x8f, 0x95};
+	uint8_t sid_link_layer_addr[6] = {0x08, 0x00, 0x27, 0xd4, 0x10, 0xbb};
+
 	uint8_t buf2[] = { /* Reply message, no.8 dhcpv6.pcap */
 			0x00, 0x01, 0x00, 0x0e, 0x00, 0x01, 0x00, 0x01, 0x1c, 0x38, 0x26, 0x2d, 0x08, 0x00,
 			0x27, 0xfe, 0x8f, 0x95, 0x00, 0x02, 0x00, 0x0e, 0x00, 0x01, 0x00, 0x01, 0x1c, 0x38, 0x25, 0xe8,
@@ -45,8 +48,24 @@ START_TEST(tc_pico_dhcp6_parse_options)
 	memcpy(cookie.transaction_id, trans_id, sizeof(trans_id));
 
 	pico_dhcp6_parse_options((struct pico_dhcp6_hdr *)buf, sizeof(buf));
-	ck_assert(cookie.cid_rec != NULL); // TODO: check message type
+
+	ck_assert(cookie.cid_rec != NULL);
+	ck_assert_msg(cookie.cid_rec->base_opts.option_code == 1, "found 0x%04x, expected: 00 01", cookie.cid_rec->base_opts.option_code);
+	ck_assert_msg(cookie.cid_rec->base_opts.option_len == 14, "found 0x%04x, expected: 00 0e", cookie.cid_rec->base_opts.option_len);
+	ck_assert_msg(cookie.cid_rec->duid.type == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", cookie.cid_rec->duid.type);
+	struct pico_dhcp6_duid_llt* duid_cid = &cookie.cid_rec->duid;
+	ck_assert_msg(duid_cid->hw_type == 1, "found 0x%04x, expected: 00 01");
+	ck_assert_msg(duid_cid->time == 0x1c38262d, "found 0x%04x, expected: 0x1c38262d", duid_cid->time);
+	ck_assert(memcmp(&duid_cid->link_layer_address, cid_link_layer_addr, sizeof(cid_link_layer_addr)) == 0);
+
 	ck_assert(cookie.sid != NULL);
+	ck_assert_msg(cookie.sid->base_opts.option_code == 2, "found 0x%04x, expected: 00 02", cookie.sid->base_opts.option_code);
+	ck_assert_msg(cookie.sid->base_opts.option_len == 14, "found 0x%04x, expected: 00 0e", cookie.sid->base_opts.option_len);
+	ck_assert_msg(cookie.sid->duid.type == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", cookie.sid->duid.type);
+	struct pico_dhcp6_duid_llt* duid_sid = &cookie.sid->duid;
+	ck_assert_msg(duid_sid->hw_type == 1, "found 0x%04x, expected: 00 01");
+	ck_assert_msg(duid_sid->time == 0x1c3825e8, "found 0x%04x, expected: 0x1c3825e8", duid_sid->time);
+	ck_assert(memcmp(&duid_sid->link_layer_address, sid_link_layer_addr, sizeof(sid_link_layer_addr)) == 0);
 
 	memcpy(cookie.transaction_id, trans_id2, sizeof(trans_id2));
 	pico_dhcp6_parse_options((struct pico_dhcp6_hdr *)buf2, sizeof(buf2));
@@ -177,7 +196,7 @@ START_TEST(tc_sm_process_msg_adv)
 	cid = PICO_ZALLOC( sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll) + sizeof(client_duid));
 	cid->base_opts.option_code = PICO_DHCP6_DUID_LL;
 	cid->base_opts.option_len = sizeof(client_duid);
-	memcpy(cid->duid, client_duid, sizeof(client_duid));
+	memcpy(&cid->duid, client_duid, sizeof(client_duid));
 	cid->base_opts.option_len = short_be(cid->base_opts.option_len);
 	cookie.cid_client = cid;
 
