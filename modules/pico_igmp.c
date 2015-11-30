@@ -672,54 +672,8 @@ static int8_t pico_igmpv3_generate_filter(struct mcast_filter_parameters *filter
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    /* "non-existent" state of filter mode INCLUDE and empty source list */
-    if (p->event == IGMP_EVENT_DELETE_GROUP) { 
-        p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
-        p->MCASTFilter = NULL;
-    }
-    if (p->event == IGMP_EVENT_QUERY_RECV) 
-        return 0;
-
-    pico_mcast_src_filtering_cleanup(filter);
     filter->g = (struct pico_mcast_group *)g;
-    switch (g->filter_mode) {
-
-    case PICO_IP_MULTICAST_INCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            if(pico_mcast_src_filtering_inc_inc(filter) == MCAST_NO_REPORT)
-                return MCAST_NO_REPORT;
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* TO_EX (B) */
-            pico_mcast_src_filtering_inc_excl(filter);
-            break;
-        default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    case PICO_IP_MULTICAST_EXCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            /* TO_IN (B) */
-            pico_mcast_src_filtering_excl_inc(filter);
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* BLOCK (B-A) */
-            if(pico_mcast_src_filtering_excl_excl(filter) == MCAST_NO_REPORT)
-              return MCAST_NO_REPORT; 
-            break;
-       default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    default:
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-  return 0;
+    return pico_mcast_generate_filter(filter, p);
 }
 static int8_t pico_igmpv3_generate_report(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
     struct igmpv3_report *report = NULL;
