@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <signal.h>
 #include "pico_device.h"
 #include "pico_dev_tap.h"
 #include "pico_stack.h"
@@ -25,6 +26,26 @@ struct pico_device_tap {
 };
 
 #define TUN_MTU 2048
+
+// We only support one global link state - we only have two USR signals, we
+// can't spread these out over an arbitrary amount of devices. When you unplug
+// one tap, you unplug all of them.
+
+static int link_state = 0;
+
+static void sig_handler(int signo)
+{
+  if (signo == SIGUSR1)
+    link_state = 0;
+  if (signo == SIGUSR2)
+    link_state = 1;
+}
+
+static int tap_link_state(__attribute__((unused)) struct pico_device *self)
+{
+  return link_state;
+}
+
 
 static int pico_tap_send(struct pico_device *dev, void *buf, int len)
 {
@@ -155,9 +176,18 @@ struct pico_device *pico_tap_create(char *name)
 {
     struct pico_device_tap *tap = PICO_ZALLOC(sizeof(struct pico_device_tap));
     uint8_t mac[6] = {};
+    struct sigaction sa;
 
     if (!tap)
         return NULL;
+
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = sig_handler;
+
+    if ((sigaction(SIGUSR1, &sa, NULL) == 0) &&
+       (sigaction(SIGUSR2, &sa, NULL) == 0))
+      tap->dev.link_state = &tap_link_state;
 
     tap->dev.overhead = 0;
     tap->fd = tap_open(name);

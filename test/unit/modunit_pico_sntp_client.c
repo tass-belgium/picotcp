@@ -89,7 +89,7 @@ void cb_synced(pico_err_t status)
     (void) status;
 
 }
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     (void) expire;
     (void) timer;
@@ -97,7 +97,7 @@ struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, voi
     return NULL;
 }
 
-void pico_timer_cancel(struct pico_timer *t)
+void pico_timer_cancel(uint32_t t)
 {
     IGNORE_PARAMETER(t);
 }

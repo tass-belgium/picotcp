@@ -288,14 +288,14 @@ struct pico_device *pico_ipv4_link_find(struct pico_ip4 *ip4)
 }
 
 static int timer_set = 0;
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(timer);
     IGNORE_PARAMETER(expire);
     printf("Timer set!\n");
     timer_set++;
-    return (struct pico_timer *) 0x99999999;
+    return (uint32_t ) 0x99999999;
 
 }
 

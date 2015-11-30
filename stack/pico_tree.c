@@ -75,6 +75,8 @@ struct pico_tree_node *pico_tree_lastNode(struct pico_tree_node *node)
 
 struct pico_tree_node *pico_tree_next(struct pico_tree_node *node)
 {
+    if (!node)
+        return NULL;
     if(IS_NOT_LEAF(node->rightChild))
     {
         node = node->rightChild;

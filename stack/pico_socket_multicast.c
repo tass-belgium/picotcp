@@ -791,11 +791,13 @@ void pico_multicast_delete(struct pico_socket *s)
             listen = index->keyValue;
             mcast.listen = listen;
             tree = mcast_get_src_tree(s, &mcast);
-            pico_tree_foreach_safe(index2, tree, _tmp2)
-            {
-                source = index->keyValue;
-                pico_tree_delete(tree, source);
-                PICO_FREE(source);
+            if (tree) {
+                pico_tree_foreach_safe(index2, tree, _tmp2)
+                {
+                    source = index->keyValue;
+                    pico_tree_delete(tree, source);
+                    PICO_FREE(source);
+                }
             }
             filter_mode = pico_socket_aggregate_mcastfilters((union pico_address *)&listen->mcast_link, (union pico_address *)&listen->mcast_group);
             if (filter_mode >= 0) {

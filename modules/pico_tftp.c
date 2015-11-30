@@ -75,7 +75,7 @@ struct pico_tftp_session {
     pico_time wallclock_timeout;
     pico_time bigger_wallclock;
     struct pico_tftp_session *next;
-    struct pico_timer *timer;
+    uint32_t timer;
     unsigned int active_timers;
     void *argument;
     int (*callback)(struct pico_tftp_session *session, uint16_t event, uint8_t *block, int32_t len, void *arg);
@@ -267,7 +267,7 @@ static int del_session(struct pico_tftp_session *idx)
         if (pos == idx) {
             if (pos == tftp_sessions)
                 tftp_sessions = tftp_sessions->next;
-            else if (prev)
+            else
                 prev->next = pos->next;
 
             PICO_FREE(idx);
@@ -389,7 +389,7 @@ static void tftp_send_oack(struct pico_tftp_session *session)
     size_t options_size;
     size_t options_pos = sizeof(struct pico_tftp_hdr);
     uint8_t *buf;
-    char str_options[MAX_OPTIONS_SIZE];
+    char str_options[MAX_OPTIONS_SIZE] = { 0 };
 
     options_size = prepare_options_string(session, str_options, session->file_size);
 
@@ -419,7 +419,7 @@ static void tftp_send_req(struct pico_tftp_session *session, union pico_address 
     size_t options_size;
     size_t options_pos;
     uint8_t *buf;
-    char str_options[MAX_OPTIONS_SIZE];
+    char str_options[MAX_OPTIONS_SIZE] = { 0 };
 
     if (!filename) {
         return;
@@ -870,7 +870,7 @@ static void tftp_cb(uint16_t ev, struct pico_socket *s)
     int r;
     struct pico_tftp_session *session;
     union pico_address ep;
-    uint16_t port;
+    uint16_t port = 0;
 
     session = find_session_by_socket(s);
     if (session) {
@@ -1257,15 +1257,14 @@ int pico_tftp_app_start_tx(struct pico_tftp_session *session, const char *filena
 
 int32_t pico_tftp_get(struct pico_tftp_session *session, uint8_t *data, int32_t len)
 {
-    int synchro = *(int*)session->argument;
-
-    *(int*)session->argument = 0;
+    int synchro;
 
     if (!session || len < session->len ) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-
+    synchro = *(int*)session->argument;
+    *(int*)session->argument = 0;
     if ((session->state != TFTP_STATE_RX) && (session->state != TFTP_STATE_READ_REQUESTED))
         return -1;
 
@@ -1282,15 +1281,14 @@ int32_t pico_tftp_get(struct pico_tftp_session *session, uint8_t *data, int32_t 
 
 int32_t pico_tftp_put(struct pico_tftp_session *session, uint8_t *data, int32_t len)
 {
-    int synchro = *(int*)session->argument;
-
-    *(int*)session->argument = 0;
+    int synchro;
 
     if ((!session) || (!data) || (len < 0)) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-
+    synchro = *(int*)session->argument;
+    *(int*)session->argument = 0;
     if (synchro < 0)
         return synchro;
 

@@ -94,6 +94,7 @@ START_TEST(tc_pico_arp_queue)
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {
         fail_if(frames_queued[i] != NULL);
     }
+    PICO_FREE(f);
 }
 END_TEST
 

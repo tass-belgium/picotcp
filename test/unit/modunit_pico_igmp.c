@@ -9,7 +9,7 @@
 #include "check.h"
 #include "pico_dev_null.c"
 Suite *pico_suite(void);
-struct pico_timer *pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg) 
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg) 
 {
     IGNORE_PARAMETER(expire);
     IGNORE_PARAMETER(timer);
@@ -77,7 +77,7 @@ START_TEST(tc_pico_igmp_state_change) {
 END_TEST
 START_TEST(tc_pico_igmp_timer_expired)
 {
-    struct igmp_timer *t,s;
+    struct igmp_timer *t,*s;
     t = PICO_ZALLOC(sizeof(struct igmp_timer));
     t->stopped = IGMP_TIMER_STOPPED;
     t->type = 0;
@@ -86,15 +86,40 @@ START_TEST(tc_pico_igmp_timer_expired)
     //void function, just check for side effects
     pico_igmp_timer_expired(NULL, (void *)t);
     pico_tree_insert(&IGMPTimers, t);
-    s = *t; // t will be freed next test
+    s = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(s,t,sizeof(struct igmp_timer)); // t will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)t); /* t is freed here */
+    s->stopped++;
+    s->start = PICO_TIME_MS()*2;
+    s->type++;
+    pico_tree_insert(&IGMPTimers, s);
+    t = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(t,s,sizeof(struct igmp_timer)); // s will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)s); /* s is freed here */
+    t->callback = mock_callback;
     pico_igmp_timer_expired(NULL, (void *)t);
-    s.stopped++;
-    s.start = PICO_TIME_MS()*2;
-    s.type++;
-    pico_tree_insert(&IGMPTimers, &s);
-    pico_igmp_timer_expired(NULL, (void *)&s);
-    s.callback = mock_callback;
-    pico_igmp_timer_expired(NULL, (void *)&s);
+}
+END_TEST
+START_TEST(tc_pico_igmp_v2querier_expired)
+{
+    struct igmp_timer t;
+    struct pico_ip4 addr = {{0}};
+    struct pico_device *dev = pico_null_create("dummy2");
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
+    t.f = f;
+    pico_string_to_ipv4("192.168.1.1", addr.addr);
+    //void function, just check for side effects
+    //No link
+    pico_igmp_v2querier_expired(&t); 
+    f->dev = dev;
+    pico_ipv4_link_add(dev, addr, addr);
+    pico_igmp_v2querier_expired(&t); 
+}
+END_TEST
+START_TEST(tc_pico_igmp_delete_parameter)
+{
+    struct igmp_parameters p;
+    fail_if(pico_igmp_delete_parameter(&p) != -1);
 }
 END_TEST
 START_TEST(tc_pico_igmp_process_in) {
@@ -107,18 +132,25 @@ START_TEST(tc_pico_igmp_process_in) {
     p = PICO_ZALLOC(sizeof(struct igmp_parameters));
     pico_string_to_ipv4("192.168.1.1", &p->mcast_link.addr);
     pico_string_to_ipv4("244.7.7.7", &p->mcast_group.addr);
+    //no link 
+    fail_if(pico_igmp_generate_report(p) != -1);
+
     pico_ipv4_link_add(dev, p->mcast_link, p->mcast_link);
     link = pico_ipv4_link_get(&p->mcast_link);
     link->mcast_compatibility = PICO_IGMPV2;
     g.mcast_addr = p->mcast_group;
     g.MCASTSources.root = &LEAF;
     g.MCASTSources.compare = mcast_sources_cmp;
+    //No mcastsources tree
+    link->mcast_compatibility = PICO_IGMPV3;
+    fail_if(pico_igmp_generate_report(p) != -1);
     pico_tree_insert(link->MCASTGroups, &g);
     pico_tree_insert(&IGMPParameters, p);
     
+    link->mcast_compatibility = 99;
+    fail_if(pico_igmp_generate_report(p) != -1);
+    link->mcast_compatibility = PICO_IGMPV2;
     fail_if(pico_igmp_generate_report(p) != 0);
-    fail_if(pico_igmp_process_in(NULL,p->f) != 0);
-    
     link->mcast_compatibility = PICO_IGMPV3;
     for(_j =0; _j<3; _j++) {   //FILTER
         (_j == 2) ? (result = -1) : (result = 0);
@@ -140,6 +172,23 @@ START_TEST(tc_pico_igmp_process_in) {
             }
         }
     }
+}
+END_TEST
+START_TEST(tc_pico_igmp_find_parameter) {
+    struct pico_ip4 mcast_link, mcast_group;
+    struct igmp_parameters test = {
+        0
+    };
+    fail_if(pico_igmp_find_parameter(NULL,NULL) != NULL);
+    pico_string_to_ipv4("192.168.1.1", &mcast_link.addr);
+    fail_if(pico_igmp_find_parameter(&mcast_link,NULL) != NULL);
+    pico_string_to_ipv4("192.168.1.2", &mcast_group.addr);
+    fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) != NULL);
+    test.mcast_link = mcast_link;
+    test.mcast_group = mcast_group;
+    pico_tree_insert(&IGMPParameters, &test);
+
+    fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) == NULL);
 }
 END_TEST
 START_TEST(tc_pico_igmp_compatibility_mode) {
@@ -206,6 +255,38 @@ START_TEST(tc_pico_igmp_discard) {
     /* TODO */
 }
 END_TEST
+START_TEST(tc_srst) {
+    struct igmp_parameters p;
+    struct pico_device *dev = pico_null_create("dummy0");
+    struct pico_ipv4_link *link;
+    pico_string_to_ipv4("192.168.1.1", &p.mcast_link.addr);
+    //no link
+    fail_if(srst(&p) != -1);
+    pico_ipv4_link_add(dev, p.mcast_link, p.mcast_link);
+    link = pico_ipv4_link_get(&p.mcast_link);
+    //Not supported protocol for this call
+    link->mcast_compatibility = PICO_IGMPV2;
+    fail_if(srst(&p) != -1);
+    link->mcast_compatibility = PICO_IGMPV3;
+    fail_if(srst(&p) != -1);
+}
+END_TEST
+START_TEST(tc_stcl) {
+    struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
+    struct pico_device *dev = pico_null_create("dummy0");
+    struct igmp_parameters p;
+    pico_string_to_ipv4("192.168.1.10", &t->mcast_link.addr);
+    pico_string_to_ipv4("244.7.7.7", &t->mcast_group.addr);
+    p.mcast_link = t->mcast_link;
+    p.mcast_group = t->mcast_group;
+    t->type = IGMP_TIMER_GROUP_REPORT;
+    //not in tree
+    fail_if(stcl(&p) != -1);
+    pico_igmp_timer_start(t);
+    fail_if(stcl(&p) != 0);
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
 
@@ -219,6 +300,11 @@ Suite *pico_suite(void)
     TCase *TCase_pico_igmp_state_change = tcase_create("Unit test for pico_igmp_state_change");
     TCase *TCase_pico_igmp_process_in = tcase_create("Unit test for pico_igmp_process_in");
     TCase *TCase_pico_igmp_timer_expired = tcase_create("Unit test for pico_igmp_timer_expired");
+    TCase *TCase_pico_igmp_delete_parameter = tcase_create("Unit test for pico_igmp_delete_parameter");
+    TCase *TCase_pico_igmp_find_parameter = tcase_create("Unit test for pico_igmp_find_parameter");
+    TCase *TCase_stcl = tcase_create("Unit test for stcl");
+    TCase *TCase_srst = tcase_create("Unit test for srst");
+    TCase *TCase_pico_igmp_v2querier_expired = tcase_create("Unit test for pico_igmp_v2_querier_expired");
     
     tcase_add_test(TCase_pico_igmp_report_expired, tc_pico_igmp_report_expired);
     suite_add_tcase(s, TCase_pico_igmp_report_expired);
@@ -236,6 +322,16 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_pico_igmp_process_in, tc_pico_igmp_process_in);
     suite_add_tcase(s, TCase_pico_igmp_timer_expired);
     tcase_add_test(TCase_pico_igmp_timer_expired, tc_pico_igmp_timer_expired);
+    suite_add_tcase(s, TCase_pico_igmp_delete_parameter);
+    tcase_add_test(TCase_pico_igmp_delete_parameter, tc_pico_igmp_delete_parameter);
+    suite_add_tcase(s, TCase_pico_igmp_find_parameter);
+    tcase_add_test(TCase_pico_igmp_find_parameter, tc_pico_igmp_find_parameter);
+    suite_add_tcase(s, TCase_stcl);
+    tcase_add_test(TCase_stcl, tc_stcl);
+    suite_add_tcase(s, TCase_srst);
+    tcase_add_test(TCase_srst, tc_srst);
+    suite_add_tcase(s, TCase_pico_igmp_v2querier_expired);
+    tcase_add_test(TCase_pico_igmp_v2querier_expired, tc_pico_igmp_v2querier_expired);
     return s;
 }
 

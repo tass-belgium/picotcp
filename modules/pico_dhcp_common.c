@@ -152,17 +152,18 @@ uint8_t pico_dhcp_opt_serverid(void *ptr, struct pico_ip4 *ip)
 uint8_t pico_dhcp_opt_paramlist(void *ptr)
 {
     struct pico_dhcp_opt *opt = (struct pico_dhcp_opt *)ptr;
-
+    uint8_t *param_code = &(opt->ext.param_list.code[0]);
+    
     /* option: parameter list */
     opt->code = PICO_DHCP_OPT_PARAMLIST;
     opt->len = PICO_DHCP_OPTLEN_PARAMLIST - PICO_DHCP_OPTLEN_HDR;
-    opt->ext.param_list.code[0] = PICO_DHCP_OPT_NETMASK;
-    opt->ext.param_list.code[1] = PICO_DHCP_OPT_TIME;
-    opt->ext.param_list.code[2] = PICO_DHCP_OPT_ROUTER;
-    opt->ext.param_list.code[3] = PICO_DHCP_OPT_HOSTNAME;
-    opt->ext.param_list.code[4] = PICO_DHCP_OPT_RENEWALTIME;
-    opt->ext.param_list.code[5] = PICO_DHCP_OPT_REBINDINGTIME;
-    opt->ext.param_list.code[6] = PICO_DHCP_OPT_DNS;
+    param_code[0] = PICO_DHCP_OPT_NETMASK;
+    param_code[1] = PICO_DHCP_OPT_TIME;
+    param_code[2] = PICO_DHCP_OPT_ROUTER;
+    param_code[3] = PICO_DHCP_OPT_HOSTNAME;
+    param_code[4] = PICO_DHCP_OPT_RENEWALTIME;
+    param_code[5] = PICO_DHCP_OPT_REBINDINGTIME;
+    param_code[6] = PICO_DHCP_OPT_DNS;
     return PICO_DHCP_OPTLEN_PARAMLIST;
 }
 
