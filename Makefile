@@ -53,6 +53,7 @@ TAP?=0
 PCAP?=0
 PPP?=1
 SIXLOWPAN?=1
+IPC?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -125,6 +126,10 @@ ifeq ($(ARCH),cortexm3)
   CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
 endif
 
+ifeq ($(ARCH),cortexm0plus)
+  CFLAGS+=-DCORTEX_M0PLUS -mcpu=cortex-m0plus -mthumb -mlittle-endian -mthumb-interwork
+endif
+
 ifeq ($(ARCH),arm9)
   CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
@@ -187,6 +192,7 @@ CORE_OBJ= stack/pico_stack.o \
 
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
+            modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o
 
@@ -272,6 +278,9 @@ ifneq ($(PPP),0)
 endif
 ifneq ($(SIXLOWPAN), 0)
   include rules/sixlowpan.mk
+endif
+ifneq ($(IPC),0)
+  include rules/ipc.mk
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
@@ -373,6 +382,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(CFLAGS) -I. test/unit/modunit_pico_mld.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_sixlowpan.elf $(CFLAGS) -I. test/unit/modunit_dev_sixlowpan.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"

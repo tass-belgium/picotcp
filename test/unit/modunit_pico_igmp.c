@@ -45,12 +45,12 @@ static int mcast_sources_cmp(void *ka, void *kb)
 PICO_TREE_DECLARE(_MCASTFilter, mcast_filter_cmp);
 START_TEST(tc_pico_igmp_report_expired)
 {
-    struct igmp_timer t;
+    struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
     struct pico_ip4 zero = {{0}};
-    t.mcast_link = zero;
-    t.mcast_group = zero;
+    t->mcast_link = zero;
+    t->mcast_group = zero;
     //void function, just check for side effects
-    pico_igmp_report_expired(&t);
+    pico_igmp_report_expired(t);
 }
 END_TEST
 START_TEST(tc_igmpt_type_compare) 
@@ -66,18 +66,18 @@ START_TEST(tc_igmpt_type_compare)
 END_TEST
 START_TEST(tc_pico_igmp_state_change) {
     struct pico_ip4 mcast_link, mcast_group;
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv4("192.168.1.1", &mcast_link.addr);
     pico_string_to_ipv4("224.7.7.7", &mcast_group.addr);
-    p.mcast_link = mcast_link;
-    p.mcast_group = mcast_group;
+    p.mcast_link.ip4 = mcast_link;
+    p.mcast_group.ip4 = mcast_group;
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, 99) != -1);
     fail_if(pico_igmp_state_change(&mcast_link, &mcast_group, 0,NULL, PICO_IGMP_STATE_CREATE) != 0);
 }
 END_TEST
 START_TEST(tc_pico_igmp_timer_expired)
 {
-    struct igmp_timer *t,s;
+    struct igmp_timer *t,*s;
     t = PICO_ZALLOC(sizeof(struct igmp_timer));
     t->stopped = IGMP_TIMER_STOPPED;
     t->type = 0;
@@ -86,56 +86,59 @@ START_TEST(tc_pico_igmp_timer_expired)
     //void function, just check for side effects
     pico_igmp_timer_expired(NULL, (void *)t);
     pico_tree_insert(&IGMPTimers, t);
-    s = *t; // t will be freed next test
+    s = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(s,t,sizeof(struct igmp_timer)); // t will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)t); /* t is freed here */
+    s->stopped++;
+    s->start = PICO_TIME_MS()*2;
+    s->type++;
+    pico_tree_insert(&IGMPTimers, s);
+    t = PICO_ZALLOC(sizeof(struct igmp_timer));
+    memcpy(t,s,sizeof(struct igmp_timer)); // s will be freed next test
+    pico_igmp_timer_expired(NULL, (void *)s); /* s is freed here */
+    t->callback = mock_callback;
     pico_igmp_timer_expired(NULL, (void *)t);
-    s.stopped++;
-    s.start = PICO_TIME_MS()*2;
-    s.type++;
-    pico_tree_insert(&IGMPTimers, &s);
-    pico_igmp_timer_expired(NULL, (void *)&s);
-    s.callback = mock_callback;
-    pico_igmp_timer_expired(NULL, (void *)&s);
 }
 END_TEST
 START_TEST(tc_pico_igmp_v2querier_expired)
 {
-    struct igmp_timer t;
+    struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
     struct pico_ip4 addr = {{0}};
     struct pico_device *dev = pico_null_create("dummy2");
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
-    t.f = f;
+    t->f = f;
     pico_string_to_ipv4("192.168.1.1", addr.addr);
     //void function, just check for side effects
     //No link
-    pico_igmp_v2querier_expired(&t); 
+    pico_igmp_v2querier_expired(t); 
     f->dev = dev;
     pico_ipv4_link_add(dev, addr, addr);
-    pico_igmp_v2querier_expired(&t); 
+    pico_igmp_v2querier_expired(t); 
 }
 END_TEST
 START_TEST(tc_pico_igmp_delete_parameter)
 {
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     fail_if(pico_igmp_delete_parameter(&p) != -1);
 }
 END_TEST
 START_TEST(tc_pico_igmp_process_in) {
-    struct igmp_parameters *p;
+    struct mcast_parameters *p;
     struct pico_device *dev = pico_null_create("dummy3");
     struct pico_ipv4_link *link;
     int i,j, _i,_j,result;
     struct pico_mcast_group g; 
     //Building example frame
-    p = PICO_ZALLOC(sizeof(struct igmp_parameters));
-    pico_string_to_ipv4("192.168.1.1", &p->mcast_link.addr);
-    pico_string_to_ipv4("244.7.7.7", &p->mcast_group.addr);
+    p = PICO_ZALLOC(sizeof(struct mcast_parameters));
+    pico_string_to_ipv4("192.168.1.1", &p->mcast_link.ip4.addr);
+    pico_string_to_ipv4("244.7.7.7", &p->mcast_group.ip4.addr);
     //no link 
     fail_if(pico_igmp_generate_report(p) != -1);
 
-    pico_ipv4_link_add(dev, p->mcast_link, p->mcast_link);
-    link = pico_ipv4_link_get(&p->mcast_link);
+    pico_ipv4_link_add(dev, p->mcast_link.ip4, p->mcast_link.ip4);
+    link = pico_ipv4_link_get(&p->mcast_link.ip4);
     link->mcast_compatibility = PICO_IGMPV2;
-    g.mcast_addr = p->mcast_group;
+    g.mcast_addr.ip4 = p->mcast_group.ip4;
     g.MCASTSources.root = &LEAF;
     g.MCASTSources.compare = mcast_sources_cmp;
     //No mcastsources tree
@@ -173,7 +176,7 @@ START_TEST(tc_pico_igmp_process_in) {
 END_TEST
 START_TEST(tc_pico_igmp_find_parameter) {
     struct pico_ip4 mcast_link, mcast_group;
-    struct igmp_parameters test = {
+    struct mcast_parameters test = {
         0
     };
     fail_if(pico_igmp_find_parameter(NULL,NULL) != NULL);
@@ -181,8 +184,8 @@ START_TEST(tc_pico_igmp_find_parameter) {
     fail_if(pico_igmp_find_parameter(&mcast_link,NULL) != NULL);
     pico_string_to_ipv4("192.168.1.2", &mcast_group.addr);
     fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) != NULL);
-    test.mcast_link = mcast_link;
-    test.mcast_group = mcast_group;
+    test.mcast_link.ip4 = mcast_link;
+    test.mcast_group.ip4 = mcast_group;
     pico_tree_insert(&IGMPParameters, &test);
 
     fail_if(pico_igmp_find_parameter(&mcast_link,&mcast_group) == NULL);
@@ -196,7 +199,7 @@ START_TEST(tc_pico_igmp_compatibility_mode) {
     struct igmp_message *query;
     uint8_t ihl =24;
     f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct igmpv3_report)+sizeof(struct igmpv3_group_record) +(0 *sizeof(struct pico_ip4)));
-    pico_string_to_ipv4("192.168.1.1", &addr.addr);
+    pico_string_to_ipv4("192.168.1.2", &addr.addr);
     hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     ihl = (uint8_t)((hdr->vhl & 0x0F) * 4); /* IHL is in 32bit words */
     query = (struct igmp_message *) f->transport_hdr;
@@ -253,14 +256,14 @@ START_TEST(tc_pico_igmp_discard) {
 }
 END_TEST
 START_TEST(tc_srst) {
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     struct pico_device *dev = pico_null_create("dummy0");
     struct pico_ipv4_link *link;
-    pico_string_to_ipv4("192.168.1.1", &p.mcast_link.addr);
+    pico_string_to_ipv4("192.168.1.1", &p.mcast_link.ip4.addr);
     //no link
     fail_if(srst(&p) != -1);
-    pico_ipv4_link_add(dev, p.mcast_link, p.mcast_link);
-    link = pico_ipv4_link_get(&p.mcast_link);
+    pico_ipv4_link_add(dev, p.mcast_link.ip4, p.mcast_link.ip4);
+    link = pico_ipv4_link_get(&p.mcast_link.ip4);
     //Not supported protocol for this call
     link->mcast_compatibility = PICO_IGMPV2;
     fail_if(srst(&p) != -1);
@@ -271,11 +274,11 @@ END_TEST
 START_TEST(tc_stcl) {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
     struct pico_device *dev = pico_null_create("dummy0");
-    struct igmp_parameters p;
+    struct mcast_parameters p;
     pico_string_to_ipv4("192.168.1.10", &t->mcast_link.addr);
     pico_string_to_ipv4("244.7.7.7", &t->mcast_group.addr);
-    p.mcast_link = t->mcast_link;
-    p.mcast_group = t->mcast_group;
+    p.mcast_link.ip4 = t->mcast_link;
+    p.mcast_group.ip4 = t->mcast_group;
     t->type = IGMP_TIMER_GROUP_REPORT;
     //not in tree
     fail_if(stcl(&p) != -1);

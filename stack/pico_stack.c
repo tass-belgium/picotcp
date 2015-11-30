@@ -1076,8 +1076,9 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
     struct pico_timer_ref tref;
 
     /* zero is guard for timers */
-    if (tmr_id == 0u)
+    if (tmr_id == 0u){
         tmr_id++;
+    }
 
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;

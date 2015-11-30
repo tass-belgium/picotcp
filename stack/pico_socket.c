@@ -480,7 +480,9 @@ int8_t pico_socket_del(struct pico_socket *s)
     PICOTCP_MUTEX_LOCK(Mutex);
     pico_tree_delete(&sp->socks, s);
     pico_socket_check_empty_sockport(s, sp);
+#ifdef PICO_SUPPORT_MCAST
     pico_multicast_delete(s);
+#endif
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
     pico_timer_add((pico_time)10, socket_garbage_collect, s);
@@ -1328,8 +1330,6 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
            && pico_ipv6_is_multicast(((struct pico_ip6 *)dst)->addr))
         {
             src = &(pico_ipv6_linklocal_get(msginfo->dev)->address);
-            if(!src)
-                return -1;
         }
         else
 #endif
