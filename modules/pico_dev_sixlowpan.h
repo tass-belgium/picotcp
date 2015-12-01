@@ -91,19 +91,6 @@ PACKED_STRUCT_DEF ieee_hdr
     uint8_t addresses[0];
 };
 
-// RETURN CODES (DEVICE-DRIVER)
-enum radio_rcode
-{
-    /* PLATFORM ERRORS */
-	RADIO_ERR_NOERR = 0,
-	RADIO_ERR_EINVAL,
-    RADIO_ERR_ENOMEM,
-    /* RADIO ERRORS */
-	RADIO_ERR_ENOCONN,
-    RADIO_ERR_ERX,
-    RADIO_ERR_ETX
-};
-
 int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr, struct pico_ieee_addr src, struct pico_ieee_addr dst);
 struct pico_ieee_addr pico_ieee_addr_from_hdr(struct ieee_hdr *hdr, uint8_t src);
 
@@ -122,12 +109,12 @@ struct ieee_radio
 	/**
 	 *
 	 */
-	enum radio_rcode (*receive)(struct ieee_radio *radio, uint8_t buf[IEEE_PHY_MTU]);
+	int (*receive)(struct ieee_radio *radio, uint8_t *buf, int len);
 	
 	/**
 	 *
 	 */
-	enum radio_rcode (*get_addr_ext)(struct ieee_radio *radio, uint8_t buf[8]);
+	int (*get_addr_ext)(struct ieee_radio *radio, uint8_t *buf);
 	
 	/**
 	 *
@@ -142,7 +129,7 @@ struct ieee_radio
 	/**
 	 *
 	 */
-	enum radio_rcode (*set_addr_short)(struct ieee_radio *radio, uint16_t short_16);
+	int (*set_addr_short)(struct ieee_radio *radio, uint16_t short_16);
 };
 
 /**

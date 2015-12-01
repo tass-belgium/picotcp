@@ -3091,7 +3091,8 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
     uint8_t len = 0;
     
     do {
-        if (RADIO_ERR_NOERR == radio->receive(radio, buf) && (len = buf[0]) > 0) {
+        len = radio->receive(radio, buf, IEEE_PHY_MTU);
+        if (len > 0) {
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
             if (!(f = sixlowpan_buf_to_frame(buf, len, dev)))
                 return loop_score;
@@ -3199,7 +3200,7 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
 int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
 {
     struct pico_device_sixlowpan *slp = NULL;
-    enum radio_rcode ret = RADIO_ERR_NOERR;
+    int ret = 0;
     CHECK_PARAM(dev);
 
     /* Enable IPv6 routing on the device's interface */
@@ -3208,7 +3209,7 @@ int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
     
     /* Make sure the 6LBR router has short address 0x0000 */
     slp = (struct pico_device_sixlowpan *)dev;
-    if (RADIO_ERR_NOERR != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
+    if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
         return ret;
     
     /* Configure prefix for the device */
