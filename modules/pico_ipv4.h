@@ -67,14 +67,6 @@ struct pico_ipv4_link
 #endif
 };
 
-#ifdef PICO_SUPPORT_MCAST
-struct pico_mcast_group {
-    uint8_t filter_mode;
-    uint16_t reference_count;
-    struct pico_ip4 mcast_addr;
-    struct pico_tree MCASTSources;
-};
-#endif
 
 struct pico_ipv4_route
 {

@@ -132,7 +132,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
 }
 #endif
 
-static int device_init_mac(struct pico_device *dev, uint8_t *mac)
+static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
 {
     #ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
@@ -236,7 +236,7 @@ static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr 
     return 0;
 }
 
-int pico_device_init(struct pico_device *dev, const char *name, uint8_t *mac)
+int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *mac)
 {
     uint32_t len = (uint32_t)strlen(name);
     int ret = 0;

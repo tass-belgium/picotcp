@@ -22,6 +22,7 @@
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 #include "pico_fragments.h"
+#include "pico_mcast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -657,7 +658,7 @@ struct pico_device *pico_ipv4_source_dev_find(const struct pico_ip4 *dst)
 static int ipv4_mcast_groups_cmp(void *ka, void *kb)
 {
     struct pico_mcast_group *a = ka, *b = kb;
-    return pico_ipv4_compare(&a->mcast_addr, &b->mcast_addr);
+    return pico_ipv4_compare(&a->mcast_addr.ip4, &b->mcast_addr.ip4);
 }
 
 static int ipv4_mcast_sources_cmp(void *ka, void *kb)
@@ -735,7 +736,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     if (!link)
         link = mcast_default_link;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (g) {
         if (reference_count)
@@ -753,7 +754,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         /* "non-existent" state of filter mode INCLUDE and empty source list */
         g->filter_mode = PICO_IP_MULTICAST_INCLUDE;
         g->reference_count = 1;
-        g->mcast_addr = *mcast_group;
+        g->mcast_addr.ip4 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
         pico_tree_insert(link->MCASTGroups, g);
@@ -790,7 +791,7 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
     if (!link)
         return -1;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (!g) {
         pico_err = PICO_ERR_EINVAL;
@@ -835,7 +836,7 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
     };
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
-    test.mcast_addr = hdr->dst;
+    test.mcast_addr.ip4 = hdr->dst;
 
     pico_tree_foreach(index, &Tree_dev_link) {
         link = index->keyValue;

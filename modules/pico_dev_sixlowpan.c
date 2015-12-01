@@ -624,7 +624,7 @@ int pico_ieee_addr_cmp(void *va, void *vb)
     return 0;
 }
 
-static inline void ieee_short_to_le(uint8_t s[PICO_SIZE_IEEE_SHORT])
+static inline void ieee_short_to_le(uint8_t *s)
 {
     uint8_t temp = 0;
     CHECK_PARAM_VOID(s);
@@ -633,7 +633,7 @@ static inline void ieee_short_to_le(uint8_t s[PICO_SIZE_IEEE_SHORT])
     s[1] = temp;
 }
 
-static inline void ieee_ext_to_le(uint8_t ext[PICO_SIZE_IEEE_EXT])
+static inline void ieee_ext_to_le(uint8_t *ext)
 {
     uint8_t i = 0, temp = 0;
     CHECK_PARAM_VOID(ext);
@@ -928,7 +928,7 @@ static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
-inline int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8])
+int pico_sixlowpan_iid_is_derived_16(uint8_t *iid)
 {
     /*  IID formed from 16-bit [RFC4944]: 
      *
@@ -939,7 +939,7 @@ inline int pico_sixlowpan_iid_is_derived_16(uint8_t iid[8])
     return ((0x00 == iid[2] && 0xFF == iid[3] && 0xFE == iid[4] && 0x00 == iid[5]) ? 1 : 0);
 }
 
-static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, uint8_t out[8])
+static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, uint8_t *out)
 {
     CHECK_PARAM(out);
     memcpy(out, addr.addr, PICO_SIZE_IEEE_EXT);
@@ -947,7 +947,7 @@ static inline int sixlowpan_iid_from_extended(struct pico_ieee_addr_ext addr, ui
     return 0;
 }
 
-static inline int sixlowpan_iid_from_short(struct pico_ieee_addr_short addr, uint8_t out[8])
+static inline int sixlowpan_iid_from_short(struct pico_ieee_addr_short addr, uint8_t *out)
 {
     uint8_t buf[8] = {0x00, 0x00, 0x00, 0xFF, 0xFE, 0x00, 0x00, 0x00};
     uint16_t s = addr.addr;
@@ -958,7 +958,7 @@ static inline int sixlowpan_iid_from_short(struct pico_ieee_addr_short addr, uin
     return 0;
 }
 
-static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t in[8])
+static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t *in)
 {
     CHECK_PARAM(addr);
     CHECK_PARAM(in);
@@ -976,7 +976,7 @@ static int ieee_addr_from_iid(struct pico_ieee_addr *addr, uint8_t in[8])
 
 /* -------------------------------------------------------------------------------- */
 // MARK: 6LoWPAN to IPv6 (ADDRESSES)
-static int sixlowpan_ipv6_derive_local(struct pico_ieee_addr *addr, uint8_t ip[PICO_SIZE_IP6])
+static int sixlowpan_ipv6_derive_local(struct pico_ieee_addr *addr, uint8_t *ip)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
@@ -1178,7 +1178,7 @@ static void sixlowpan_resume_rtx(struct pico_ieee_addr final, struct pico_ieee_a
     }
 }
 
-static void pico_ieee_addr_to_str(char llstring[PICO_SIZE_IEEE_ADDR_STR], struct pico_ieee_addr *addr)
+static void pico_ieee_addr_to_str(char *llstring, struct pico_ieee_addr *addr)
 {
     if (IEEE_AM_SHORT == addr->_mode || IEEE_AM_BOTH == addr->_mode) {
         snprintf(llstring, PICO_SIZE_IEEE_ADDR_STR, "0x%04X", short_be(addr->_short.addr));
@@ -3088,10 +3088,11 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
     struct ieee_radio *radio = sixlowpan->radio;
     struct sixlowpan_frame *f = NULL;
     uint8_t buf[IEEE_PHY_MTU];
-    uint8_t len = 0;
+    int     len = 0;
     
     do {
-        if (RADIO_ERR_NOERR == radio->receive(radio, buf) && (len = buf[0]) > 0) {
+        len = radio->receive(radio, buf, IEEE_PHY_MTU);
+        if (len > 0) {
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
             if (!(f = sixlowpan_buf_to_frame(buf, len, dev)))
                 return loop_score;
@@ -3199,7 +3200,7 @@ void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
 int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
 {
     struct pico_device_sixlowpan *slp = NULL;
-    enum radio_rcode ret = RADIO_ERR_NOERR;
+    int ret = 0;
     CHECK_PARAM(dev);
 
     /* Enable IPv6 routing on the device's interface */
@@ -3208,7 +3209,7 @@ int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
     
     /* Make sure the 6LBR router has short address 0x0000 */
     slp = (struct pico_device_sixlowpan *)dev;
-    if (RADIO_ERR_NOERR != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
+    if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
         return ret;
     
     /* Configure prefix for the device */

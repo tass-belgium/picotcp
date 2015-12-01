@@ -87,7 +87,7 @@ struct pico_device *pico_ipc_create(const char *sock_path, const char *name, con
 
     ipc->dev.mtu = IPC_MTU;
 
-    if( 0 != pico_device_init((struct pico_device *)ipc, name, (uint8_t *)mac)) {
+    if( 0 != pico_device_init((struct pico_device *)ipc, name, mac)) {
         dbg("Ipc init failed.\n");
         pico_ipc_destroy((struct pico_device *)ipc);
         return NULL;
