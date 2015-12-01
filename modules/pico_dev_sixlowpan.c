@@ -3088,7 +3088,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
     struct ieee_radio *radio = sixlowpan->radio;
     struct sixlowpan_frame *f = NULL;
     uint8_t buf[IEEE_PHY_MTU];
-    uint8_t len = 0;
+    int     len = 0;
     
     do {
         len = radio->receive(radio, buf, IEEE_PHY_MTU);
