@@ -206,7 +206,7 @@ static int device_init_nomac(struct pico_device *dev)
                             dbg("IPv6 (%s)\n", ipstr); \
                         }
 
-static int device_init_sixlowpan(struct pico_device *dev, struct pico_ieee_addr *addr)
+static int device_init_sixlowpan(struct pico_device *dev, const struct pico_ieee_addr *addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
@@ -264,7 +264,7 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
 
     if (LL_MODE_SIXLOWPAN == dev->mode) {
-        ret = device_init_sixlowpan(dev, (struct pico_ieee_addr *)mac);
+        ret = device_init_sixlowpan(dev, (const struct pico_ieee_addr *)mac);
     } else {
         if (mac) {
             ret = device_init_mac(dev, mac);

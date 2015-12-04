@@ -447,7 +447,7 @@ struct pico_device *pico_ipv6_source_dev_find(const struct pico_ip6 *dst)
 
 static int pico_ipv6_forward_check_dev(struct pico_frame *f)
 {
-    if(f->dev->eth != NULL)
+    if(f->dev->mode == LL_MODE_ETHERNET && f->dev->eth != NULL)
         f->len -= PICO_SIZE_ETHHDR;
 
     if(f->len > f->dev->mtu) {

@@ -142,23 +142,32 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
     }
 }
 
-static inline int pico_6lp_nd_validate_aro(struct pico_icmp6_opt_aro *aro)
+static int pico_6lp_nd_validate_sol_aro(struct pico_icmp6_opt_aro *aro)
 {
     if (aro->len != 2 || aro->status != 0)
         return -1;
     return 0;
 }
 
-static inline int pico_6lp_nd_validate_aro_adv(struct pico_device *dev, struct pico_icmp6_opt_aro *aro)
+static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icmp6_opt_aro *aro, uint8_t *status)
 {
-    struct pico_ieee_addr *eui = (struct pico_ieee_addr *)dev->eth;
- 
+    struct pico_ieee_addr *rcv_eui = (struct pico_ieee_addr *)dev->eth;
+    struct pico_ieee_addr local_eui = {._ext.addr = {0}, ._short.addr = 0, ._mode = IEEE_AM_NONE};
     
+    /* RFC6775 - 5.5.2 :
+     *      - If the length field is not two, the option is silently ignored.
+     *      - If the EUI-64 field does not match the EUI-64 of the interface, 
+     *        the option is silently ignored.
+     */
     if (aro->len != 2)
         return -1;
     
-    /* TODO: Compare IEEE-address with EUI-64 address contained in ARO */
+    local_eui._ext = aro->eui64;
+    local_eui._mode = IEEE_AM_EXTENDED;
+    if (pico_ieee_addr_cmp((void *)rcv_eui, (void *)&local_eui))
+        return -1;
     
+    *status = aro->status;
     
     return 0;
 }
@@ -195,30 +204,38 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
     return 0;
 }
 
-static int pico_6lp_nd_neigh_adv_validate(struct pico_frame *f)
+static int pico_6lp_nd_neigh_adv_validate(struct pico_frame *f, uint8_t *status)
 {
-    struct pico_icmp6_opt_aro *aro = (struct pico_icmp6_opt_aro *)((uint8_t *)&icmp->msg.info.neigh_adv + sizeof(struct neigh_sol_s));
     struct pico_icmp6_hdr *icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
+    struct pico_icmp6_opt_aro *aro = (struct pico_icmp6_opt_aro *)((uint8_t *)&icmp->msg.info.neigh_adv + sizeof(struct neigh_sol_s));
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
     
     /* 6LP: Target address cannot be MCAST and the Source IP-address cannot be UNSPECIFIED or MCAST */
     if (pico_ipv6_is_multicast(icmp->msg.info.neigh_adv.target.addr) || pico_ipv6_is_unspecified(ip->src.addr) ||
         pico_ipv6_is_multicast(ip->src.addr))
         return -1;
-    
-    if (aro->le)
-    
-    return 0;
+
+    return pico_6lp_nd_validate_adv_aro(f->dev, aro, status);
 }
 
 static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f)
 {
-    if (pico_6lp_nd_neigh_adv_validate(f))
+    struct pico_icmp6_hdr *icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
+    uint8_t status = 0;
+    
+    if (pico_6lp_nd_neigh_adv_validate(f, &status))
         return -1;
     
-    /* 6LP: We received a valid 6LoWPAN Neighbour Advertisement */
-    printf("We received a valid 6LoWPAN Neigbour Advertisement\n");
+    /* Globally routable address has been registered @ 6LoWPAN Border Router */
+    if (status) {
+        nd_dbg("[6LP-ND]: Registering routable address failed, removing link...\n");
+        pico_ipv6_link_del(f->dev, icmp->msg.info.neigh_adv.target);
+        return -1;
+    } else {
+        nd_dbg("[6LP-ND]: Registering routable address succeeded!\n");
+    }
     
+    /* TODO: Sent a re-registration way before lifetime expires */
     
     return 0;
 }
@@ -532,7 +549,7 @@ static int neigh_adv_process(struct pico_frame *f)
     
 #ifdef PICO_SUPPORT_SIXLOWPAN
     if (LL_MODE_SIXLOWPAN == f->dev->mode) {
-        /* TODO: 6LoWPAN, parse ARC (nothing on success, remove link on failure) */
+        /* 6LoWPAN: parse Address Registration Comfirmation(nothing on success, remove link on failure) */
         if (pico_6lp_nd_neigh_adv_process(f))
             return -1;
         return 0;
@@ -659,13 +676,13 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
     aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + (sllao->len * 8));
     
     /* Validate Address Registration Option */
-    if (pico_6lp_nd_validate_aro(aro))
+    if (pico_6lp_nd_validate_sol_aro(aro))
         return -1;
     
     /* Find an NCE for the source */
     if (!(n = pico_nd_find_neighbor(&ip->src))) {
         /* No dup, add neighbor to cache */
-        if (pico_nd_add_6lp(ip->src, aro, f->dev))
+        if (pico_nd_add_6lp(icmp->msg.info.neigh_sol.target, aro, f->dev))
             neigh_sol_dad_reply(f, sllao, aro, ND_ARO_STATUS_SUCCES);
         return 0;
     } else {
@@ -729,7 +746,7 @@ static int neigh_sol_process(struct pico_frame *f)
         return 0;
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == f->dev->mode) {
-        printf("[6LP-ND] Received Address Registration Option\n");
+        nd_dbg("[6LP-ND] Received Address Registration Option\n");
         neigh_sol_detect_dad_6lp(f);
         return 0;
     }
@@ -983,7 +1000,7 @@ static int sixlowpan_router_sol_process(struct pico_frame *f)
     if (!f->dev->hostvars.routing)
         return -1;
     
-    dbg("6LBR: Processing router solicitation...\n");
+    nd_dbg("[6LBR]: Processing router solicitation...\n");
     
     /* Router solicitation message validation */
     if (router_sol_checks(f) < 0)
