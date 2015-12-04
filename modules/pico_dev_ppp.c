@@ -1009,6 +1009,24 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
                       );
 }
 
+static void lcp_send_protocol_reject(struct pico_device_ppp *ppp)
+{
+    uint8_t proto_rej[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    struct pico_lcp_hdr *proto_rej_hdr = (struct pico_lcp_hdr *) (proto_rej + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
+    memcpy(proto_rej + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    proto_rej_hdr->code = PICO_CONF_PROTO_REJ;
+    proto_rej_hdr->id = lcpreq->id;
+    proto_rej_hdr->len = lcpreq->len;
+    ppp_dbg("Sending LCP PROTOCOL REJECT\n");
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, proto_rej,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +
+                      short_be(lcpreq->len) +
+                      PPP_FCS_SIZE +
+                      1
+                      );
+}
+
 static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint16_t optflags;
@@ -1375,6 +1393,16 @@ static void ppp_process_packet_payload(struct pico_device_ppp *ppp, uint8_t *pkt
         if (pkt[1] == 0x57) {
             /* IPCP6 */
             ipcp6_process_in(ppp, pkt + 2, len - 2);
+        }
+
+        if (pkt[1] != 0x21 && pkt[1] != 0x57) {
+            /* Any other NCP */
+            ppp_dbg("Received unsupported NCP packet\n");
+            if (ppp->lcp_state == PPP_LCP_STATE_OPENED) {
+                lcp_send_protocol_reject(ppp);
+            }
+
+            return;
         }
 
         return;
