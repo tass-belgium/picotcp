@@ -1150,7 +1150,7 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
             return via_zero;
         }
     } else {
-//        PAN_DBG("No routing table entry found, sending via BCAST\n");
+        //PAN_DBG("No routing table entry found, sending via BCAST\n");
         via._short.addr = IEEE_ADDR_BCAST_SHORT;
         via._mode = IEEE_AM_SHORT;
     }
@@ -1354,7 +1354,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     /* Parse in the network section of the frame as ping header */
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (id) {
-        /* Reply with correct address, if the request asked for an extended reply with one and so with short addresses as well */
+        /* Reply with correct address, if the request asked for an extended, reply with one and so with short addresses as well */
         f->local._mode = reply_mode;
         ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REPLY(INFO_SHIFT);
         ping->id = short_be(id);
@@ -2838,6 +2838,8 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         
         if (!pico_ieee_addr_cmp((void *)&final, (void *)f->dev->eth)) {
             /* Frame is destined for me and only for me, consume... */
+            if (IEEE_ADDR_IS_BCAST(dst))
+                r.length = (uint16_t)(r.length + DISPATCH_BC0(INFO_HDR_LEN));
         } else if (IEEE_ADDR_IS_BCAST(final)) {
             /* Check if the hop limit isn't 0 and then if the broadcasting occured again */
             if (dead_ttl || sixlowpan_broadcast_in(f, (uint8_t)r.length))
@@ -2921,6 +2923,13 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     struct pico_ieee_addr final = IEEE_ADDR_ZERO;
     
     CHECK_PARAM_NULL(f);
+    
+    if (!f->net_len) {
+        /* Fixed forwarding of frames (frames are unformatted then) */
+        f->net_len = 40;
+        f->transport_len = (uint16_t)(f->len - 40);
+        f->transport_hdr = f->net_hdr + f->net_len;
+    }
     
      /* Determine link layer origin and final addresses */
     if (sixlowpan_derive_origin(f, &origin)) {
@@ -3094,7 +3103,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
         len = radio->receive(radio, buf, IEEE_PHY_MTU);
         if (len > 0) {
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
-            if (!(f = sixlowpan_buf_to_frame(buf, len, dev)))
+            if (!(f = sixlowpan_buf_to_frame(buf, (uint8_t)len, dev)))
                 return loop_score;
             
             /* Check for MESH Dispatch header */
