@@ -392,6 +392,13 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
     };
     uint16_t  datalen;
     struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *) (f->transport_hdr+MLD_ROUTER_ALERT_LEN);
+    struct mcast_parameters *p = NULL;
+    struct pico_ip6 mcast_group = {{
+        0
+    }};
+    struct mld_message *mld_report = (struct mld_message *) hdr;
+
     link = pico_ipv6_link_by_dev(f->dev);
     if (!link)
         return -1;
@@ -419,6 +426,15 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
         }
         mld_dbg("MLD: switch to compatibility mode MLDv1\n");
         link->mcast_compatibility = PICO_MLDV1;
+
+        //Reset states to prevent deadlock
+        mcast_group = mld_report->mcast_group;
+        p = pico_mld_find_parameter(&link->address, &mcast_group);
+        if(p) {
+          p->state = MLD_STATE_NON_LISTENER;
+          p->event = MLD_EVENT_START_LISTENING;
+        }
+
         t.type = MLD_TIMER_V1_QUERIER;
         t.delay =(pico_time) ((MLD_ROBUSTNESS * link->mcast_last_query_interval) + MLD_QUERY_RESPONSE_INTERVAL) * 1000;
         t.f = f;
