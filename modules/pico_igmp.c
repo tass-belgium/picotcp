@@ -420,6 +420,11 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
         0
     };
     uint8_t ihl = 24, datalen = 0;
+    struct igmp_message *message = NULL;
+    struct mcast_parameters *p = NULL;
+    struct pico_ip4 mcast_group = {
+        0
+    };
 
     link = pico_ipv4_link_by_dev(f->dev);
     if (!link)
@@ -443,6 +448,7 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
         }
     } else if (datalen == 8) {
         struct igmp_message *query = (struct igmp_message *)f->transport_hdr;
+        // Check if max_resp_time is set RFC 3376 $7.1
         if (query->max_resp_time != 0) {
             /* IGMPv2 query */
             /* When changing compatibility mode, cancel all pending response
@@ -455,6 +461,15 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
             }
             igmp_dbg("IGMP: switch to compatibility mode IGMPv2\n");
             link->mcast_compatibility = PICO_IGMPV2;
+            // Reset the event and state to prevent deadlock
+            message = (struct igmp_message *)f->transport_hdr;
+            mcast_group.addr = message->mcast_group;
+            p = pico_igmp_find_parameter(&link->address, &mcast_group);
+            if(p) {
+              p->state = IGMP_STATE_NON_MEMBER;
+              p->event = IGMP_EVENT_CREATE_GROUP;
+            }
+
             t.type = IGMP_TIMER_V2_QUERIER;
             t.delay = ((IGMP_ROBUSTNESS * link->mcast_last_query_interval) + IGMP_QUERY_RESPONSE_INTERVAL) * 1000;
             t.f = f;
