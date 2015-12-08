@@ -60,6 +60,7 @@
 #define SIXLOWPAN_PING_REQUEST      DISPATCH_PING_REQUEST
 #define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
 #define SIXLOWPAN_PING_TIMEOUT      (3000u)
+#define SIXLOWPAN_PING_POLL         (1000u)
 #define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 #define SIXLOWPAN_PING_TTL          (64u)
 #define SIXLOWPAN_FORWARDING        (0x01u)
@@ -427,15 +428,10 @@ struct sixlowpan_rtable_entry
 {
     struct pico_ieee_addr dst;
     struct pico_ieee_addr via;
-    uint32_t timestamp;
+    pico_time timestamp;
     uint8_t hops;
+    uint16_t ping_id;
 }; /* Entry of routing table */
-
-struct ping_cookie
-{
-    struct pico_ieee_addr dst;
-    uint16_t id;
-}; /* Cookie for ping-session to store */
 
 /** *******************************
  *  Express a range
@@ -1025,33 +1021,6 @@ static int sixlowpan_ipv6_derive_mcast(enum iphc_mcast_dam am, uint8_t *addr)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IPv6 to 6LoWPAN (ADDRESSES)
-static int sixlowpan_ping_cmp(void *a, void *b)
-{
-    struct ping_cookie *pa = a, *pb = b;
-    
-    if (!a || !b)
-        return -1;
-    
-    /* Then compare the ID's */
-    return (int)((int)pa->id - (int)pb->id);
-}
-PICO_TREE_DECLARE(SixlowpanPings, &sixlowpan_ping_cmp);
-
-static struct ping_cookie *sixlowpan_ping_find_cookie(struct pico_ieee_addr dst)
-{
-    struct pico_tree_node *node = NULL;
-    struct ping_cookie *cookie = NULL;
-    
-    pico_tree_foreach(node, &SixlowpanPings) {
-        if ((cookie = (struct ping_cookie *)node->keyValue)) {
-            if (0 == pico_ieee_addr_cmp(&cookie->dst, &dst)) {
-                return cookie;
-            }
-        }
-    }
-    
-    return NULL;
-}
 
 static int sixlowpan_derive_local(struct pico_ieee_addr *l, struct pico_ip6 *ip)
 {
@@ -1127,7 +1096,6 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
 {
     struct pico_ieee_addr via = IEEE_ADDR_ZERO, via_zero = IEEE_ADDR_ZERO;
     struct sixlowpan_rtable_entry *entry = NULL;
-    struct ping_cookie *cookie = NULL;
     uint32_t now = PICO_TIME();
     
     /* Try to find the entry for the destination address in the routing table */
@@ -1140,15 +1108,6 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
         
         /* Destiniation is multiple hops away, via is gateway */
         via = entry->via;
-        
-        /* Is the entry stale and outdated? */
-        if ((uint32_t)(now - entry->timestamp) > RTABLE_ENTRY_TTL) {
-            if (!(cookie = sixlowpan_ping_find_cookie(dst))) {
-                /* Only send ping when there's no ping for this dest already going on */
-                sixlowpan_ping(entry->dst, via, dev, 0, IEEE_AM_NONE);
-            }
-            return via_zero;
-        }
     } else {
         //PAN_DBG("No routing table entry found, sending via BCAST\n");
         via._short.addr = IEEE_ADDR_BCAST_SHORT;
@@ -1199,31 +1158,24 @@ static void pico_ieee_addr_to_str(char *llstring, struct pico_ieee_addr *addr)
 
 static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t id, uint8_t hops_left)
 {
-    struct ping_cookie test = {.dst = IEEE_ADDR_ZERO, .id = short_be(id)};
     struct sixlowpan_rtable_entry *entry = NULL;
-    struct ping_cookie *cookie = NULL;
     char llstring[PICO_SIZE_IEEE_ADDR_STR] = {0};
     CHECK_PARAM_VOID(f);
     
-    if ((cookie = pico_tree_findKey(&SixlowpanPings, &test))) {
-        /* Ping reply is sollicited, find the entry for the origin */
-        if ((entry = sixlowpan_rtable_find_entry(f->peer))) {
-            /* Check if for the ping reply, the hops of the entry isn't known yet, or came from a more optimal route */
-            if (!entry->hops || (hops_left < entry->hops)) {
-                entry->hops = (uint8_t)((uint8_t)SIXLOWPAN_PING_TTL - hops_left);
-                entry->timestamp = PICO_TIME();
-                entry->via = f->hop;
-                pico_ieee_addr_to_str(llstring, &entry->dst);
-                PAN_DBG("Routing table entry (%s) updated to hops: (%d)\n", llstring, entry->hops);
-            }
-            
-            /* If the ping was required to send current frame, determine next hop and resume */
-            sixlowpan_resume_tx(entry->dst, entry->via);
-            sixlowpan_resume_rtx(entry->dst, entry->via);
+    /* Ping reply is sollicited, find the entry for the origin */
+    if ((entry = sixlowpan_rtable_find_entry(f->peer))) {
+        /* Check if for the ping reply, the hops of the entry isn't known yet, or came from a more optimal route */
+        if (!entry->hops || (hops_left < entry->hops)) {
+            entry->hops = (uint8_t)((uint8_t)SIXLOWPAN_PING_TTL - hops_left);
+            entry->timestamp = PICO_TIME_MS();
+            entry->via = f->hop;
+            pico_ieee_addr_to_str(llstring, &entry->dst);
+            PAN_DBG("Routing table entry (%s) updated to hops: (%d)\n", llstring, entry->hops);
         }
-        
-        pico_tree_delete(&SixlowpanPings, cookie);
-        PICO_FREE(cookie);
+
+        /* If the ping was required to send current frame, determine next hop and resume */
+        sixlowpan_resume_tx(entry->dst, entry->via);
+        sixlowpan_resume_rtx(entry->dst, entry->via);
     }
 }
 
@@ -1238,7 +1190,7 @@ static void sixlowpan_rtable_remove(struct pico_ieee_addr dst)
     }
 }
 
-static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops)
+static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops, struct pico_device * dev)
 {
     struct sixlowpan_rtable_entry *entry = NULL;
     if (!(entry = PICO_ZALLOC(sizeof(struct sixlowpan_rtable_entry)))) {
@@ -1249,28 +1201,31 @@ static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_a
     entry->dst = dst;
     entry->via = via;
     entry->hops = hops;
-    entry->timestamp = PICO_TIME();
+    entry->timestamp = PICO_TIME_MS();
     
     if (pico_tree_insert(&RTable, (void *)entry)) {
         PAN_ERR("Could not insert entry into routing table\n");
         PICO_FREE(entry);
         return -1;
     }
+
+    /* ping the newly inserted dst */
+    sixlowpan_ping(dst, via, dev, 0, IEEE_AM_NONE);
     
     return 0;
 }
 
-static void sixlowpan_rtable_hop_by_source(struct pico_ieee_addr last_hop)
+static void sixlowpan_rtable_hop_by_source(struct pico_ieee_addr last_hop, struct pico_device *dev)
 {
     struct sixlowpan_rtable_entry *entry = NULL;
     
     if ((entry = sixlowpan_rtable_find_entry(last_hop))) {
         /* If entry for this dst is already in routing table, update to neighbor */
         entry->via = last_hop;
-        entry->timestamp = PICO_TIME();
+        entry->timestamp = PICO_TIME_MS();
         entry->hops = 1;
     } else {
-        if (sixlowpan_rtable_insert(last_hop, last_hop, 1))
+        if (sixlowpan_rtable_insert(last_hop, last_hop, 1, dev))
             PAN_ERR("Unable to insert last hop into routing table\n");
     }
 }
@@ -1297,7 +1252,7 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
         }
     } else {
         /* An entry was not found, add a new entry for this route */
-        if (sixlowpan_rtable_insert(origin, last_hop, 0))
+        if (sixlowpan_rtable_insert(origin, last_hop, 0, dev))
             PAN_ERR("Unable to insert last hop into routing table\n");
         
         /* Send ping to determine the hops in between, we can't rely on hops left, since we don't know the original hl */
@@ -1307,25 +1262,35 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
 
 static void sixlowpan_build_routing_table(struct pico_ieee_addr origin, struct pico_ieee_addr last_hop, struct pico_device *dev)
 {
-    sixlowpan_rtable_hop_by_source(last_hop);
+    sixlowpan_rtable_hop_by_source(last_hop, dev);
     sixlowpan_rtable_origin_via_source(origin, last_hop, dev);
 }
 
-static void sixlowpan_ping_timeout(pico_time now, void *arg)
+static void sixlowpan_ping_check(pico_time now, void *arg)
 {
+    struct pico_device * dev = (struct pico_device *)arg;
     struct pico_ieee_addr bcast = IEEE_ADDR_ZERO;
-    struct ping_cookie *cookie = NULL;
-    IGNORE_PARAMETER(now);
+    struct sixlowpan_rtable_entry * entry = NULL;
+    struct pico_tree_node * tmp = NULL;
+    struct pico_tree_node * node = NULL;
     
     bcast._mode = IEEE_AM_SHORT;
-    bcast._short.addr = IEEE_ADDR_BCAST_SHORT;
-    
-    if ((cookie = (struct ping_cookie *)pico_tree_delete(&SixlowpanPings, arg))) {
-        PAN_ERR("6LoWPAN Ping timeout, routed is being removed from routing table...\n");
-        sixlowpan_rtable_remove(cookie->dst);
-        sixlowpan_resume_tx(cookie->dst, bcast);
-        sixlowpan_resume_rtx(cookie->dst, bcast);
-        PICO_FREE(cookie);
+    bcast._short.addr = IEEE_ADDR_BCAST_SHORT; 
+
+    pico_tree_foreach_safe(node, &RTable, tmp) {
+        if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
+            /* expired? */
+            if (now - entry->timestamp > (2 * SIXLOWPAN_PING_TIMEOUT))
+            {
+                PAN_ERR("6LoWPAN Ping timeout, routed is being removed from routing table...\n");
+                sixlowpan_rtable_remove(entry->dst);
+                sixlowpan_resume_tx(entry->dst, bcast);
+                sixlowpan_resume_rtx(entry->dst, bcast);
+            } else if (now - entry->timestamp > SIXLOWPAN_PING_TIMEOUT) {
+                /* otherwise, retransmit ping */
+                sixlowpan_ping(entry->dst, entry->via, dev, short_be(entry->ping_id++), IEEE_AM_NONE);
+            }
+        }
     }
 }
 
@@ -1334,7 +1299,6 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     struct pico_device_sixlowpan *slp = (struct pico_device_sixlowpan *)dev;
     struct sixlowpan_ping *ping = NULL;
     struct pico_ieee_addr *src = NULL;
-    struct ping_cookie *cookie = NULL;
     struct sixlowpan_frame *f = NULL;
     static uint16_t next_id = 0x91c0;
     uint8_t *buf = NULL, len = 0;
@@ -1362,27 +1326,6 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
         /* Set the ping fields to that of a ping request */
         ping->dispatch = DISPATCH_PING_REQUEST(INFO_VAL) << DISPATCH_PING_REQUEST(INFO_SHIFT);
         ping->id = short_be(next_id++);
-        
-        /* Create a ping-cookie for a Ping request */
-        if (!(cookie = PICO_ZALLOC(sizeof(struct ping_cookie)))) {
-            sixlowpan_frame_destroy(f);
-            pico_err = PICO_ERR_ENOMEM;
-            return -1;
-        }
-        
-        /* Set some params of the ping-cookie */
-        cookie->dst = dst;
-        cookie->id = ping->id;
-        
-        /* Insert a cookie of the request in the Cookie-tree */
-        if (pico_tree_insert(&SixlowpanPings, cookie)) {
-            sixlowpan_frame_destroy(f);
-            PICO_FREE(cookie);
-            return -1;
-        }
-        
-        /* Start a timeout-timer */
-        pico_timer_add(SIXLOWPAN_PING_TIMEOUT, sixlowpan_ping_timeout, cookie);
     }
     
     /* Conver the ping-frame to a buffer */
@@ -1396,7 +1339,6 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     if (!(buf = sixlowpan_mesh_out(buf, &len, f))) {
         PAN_ERR("During mesh addressing\n");
         sixlowpan_frame_destroy(f);
-        /* Don't bother removing cookie from tree when the timer times out it will be removed and destroyed */
         return -1;
     }
     
@@ -3261,6 +3203,9 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     
     /* Assign the radio-instance to the pico_device-instance */
     sixlowpan->radio = radio;
+
+    /* Create a timer for pings */
+    pico_timer_add(SIXLOWPAN_PING_POLL, sixlowpan_ping_check, &sixlowpan->dev);
     
     /* Cast internal 6LoWPAN-structure to picoTCP-device structure */
     PAN_DBG("Device %s created\n", dev_name);
