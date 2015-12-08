@@ -905,7 +905,7 @@ static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len,
         return NULL;
     
     /* Copy in payload */
-    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len - IEEE_PHY_OVERHEAD + 1);
+    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len - (IEEE_PHY_OVERHEAD + IEEE_LEN_LEN));
     
     f->state = FRAME_COMPRESSED;
     return f;
@@ -2197,23 +2197,22 @@ static int sixlowpan_iphc_tf_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_
     
     /* Reconstruct the original VTF-field */
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    vtf = &(hdr->vtf);
     switch (iphc->tf) {
         case TF_COMPRESSED_NONE:
             /* [ EEDDDDDD | xxxxFFFF | FFFFFFFF | FFFFFFFF ] */
-            *vtf = long_be(IPV6_VERSION | IPV6_DSCP(*vtf) | IPV6_ECN(*vtf) | IPV6_FL(*vtf));
+            hdr->vtf = long_be(IPV6_VERSION | IPV6_DSCP(hdr->vtf) | IPV6_ECN(hdr->vtf) | IPV6_FL(hdr->vtf));
             break;
         case TF_COMPRESSED_TC:
             /* [ EExxFFFF | FFFFFFFF | FFFFFFFF ] vvvvvvvv | */
-            *vtf = long_be(IPV6_VERSION | ~IPHC_MASK_DSCP | IPV6_ECN(*vtf) | IPV6_FLS(*vtf));
+            hdr->vtf = long_be(IPV6_VERSION | ~IPHC_MASK_DSCP | IPV6_ECN(hdr->vtf) | IPV6_FLS(hdr->vtf));
             break;
         case TF_COMPRESSED_FL:
             /* [ EEDDDDDD ] vvvvvvvv | vvvvvvvv | vvvvvvvv | */
-            *vtf = long_be(IPV6_VERSION | IPV6_DSCP(*vtf) | IPV6_ECN(*vtf));
+            hdr->vtf = long_be(IPV6_VERSION | IPV6_DSCP(hdr->vtf) | IPV6_ECN(hdr->vtf));
             break;
         case TF_COMPRESSED_FULL:
             /* | vvvvvvvv | vvvvvvvv | vvvvvvvv | vvvvvvvv | */
-            *vtf = long_be(IPV6_VERSION);
+            hdr->vtf = long_be(IPV6_VERSION);
             break;
         default:
             /* Not possible, bitfield of width: 2 */
