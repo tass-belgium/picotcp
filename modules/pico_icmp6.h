@@ -64,7 +64,8 @@
 #define PICO_ND_MAX_FRAMES_QUEUED      4 /* max frames queued while awaiting address resolution */
 
 /* ND RFC constants */
-#define PICO_ND_MAX_SOLICIT            3
+#define PICO_ND_MAX_UNICAST_SOLICIT    3
+#define PICO_ND_MAX_MULTICAST_SOLICIT  3
 #define PICO_ND_MAX_NEIGHBOR_ADVERT    3
 #define PICO_ND_DELAY_INCOMPLETE       1000 /* msec */
 #define PICO_ND_DELAY_FIRST_PROBE_TIME 5000 /* msec */

@@ -1283,8 +1283,12 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
 
         if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL){
             memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
-           
         }
+
+        if ((is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_ROUTER_SOL){
+            memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
+        }
+       
        
         icmp6_hdr->crc = 0;
             icmp6_hdr->crc = short_be(pico_icmp6_checksum(f));

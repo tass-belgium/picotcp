@@ -39,7 +39,8 @@ struct pico_ipv6_neighbor {
     struct pico_eth mac;
     struct pico_device *dev;
     uint16_t is_router;
-    uint16_t failure_count;
+    uint16_t failure_multi_count;
+    uint16_t failure_uni_count;
     pico_time expire;
 };
 
@@ -135,8 +136,12 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 {
     if (n->state == PICO_ND_STATE_REACHABLE)
         n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
-    else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE))
+    else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE)){
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
+    }
+    //else if (n->state == PICO_ND_STATE_PROBE){
+//	n->expire = PICO_TIME_MS() + 1000;//PICO_ND_RETRANS_TIMER;
+ //   }
     else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
     }
@@ -150,12 +155,18 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
     /* dbg("Sending NS for %s\n", IPADDR); */
-    if (++n->failure_count > PICO_ND_MAX_SOLICIT)
-        return;
+    //if (++n->failure_count > PICO_ND_MAX_SOLICIT)
+    //    return;
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
+	if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
+	    return;
+	}
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
     } else {
+	if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
+	    return;
+	}
         pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
     }
 
@@ -273,7 +284,8 @@ static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico
 {
     if (IS_SOLICITED(hdr)) {
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_count = 0;
+        n->failure_uni_count = 0;
+	n->failure_multi_count = 0;
         pico_ipv6_nd_queued_trigger();
         pico_nd_new_expire_time(n);
         return 0;
@@ -288,7 +300,8 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
 
     if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) == 0)) {
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_count = 0;
+        n->failure_uni_count = 0;
+	n->failure_multi_count = 0;
         pico_ipv6_nd_queued_trigger();
         pico_nd_new_expire_time(n);
         return 0;
@@ -302,7 +315,9 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (IS_SOLICITED(hdr) && IS_OVERRIDE(hdr)) {
         pico_ipv6_neighbor_update(n, opt);
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_count = 0;
+	// TEST n->failure_count = 0;
+        n->failure_uni_count = 0;
+	n->failure_multi_count = 0;
         pico_ipv6_nd_queued_trigger();
         pico_nd_new_expire_time(n);
         return 0;
@@ -348,7 +363,8 @@ static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pi
 
     if (IS_SOLICITED(icmp6_hdr)) {
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_count = 0;
+        n->failure_multi_count = 0;
+	n->failure_uni_count = 0;
         pico_nd_new_expire_time(n);
     } else {
         n->state = PICO_ND_STATE_STALE;
@@ -844,7 +860,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_INCOMPLETE:
     /* intentional fall through */
     case PICO_ND_STATE_PROBE:
-        if (n->failure_count > PICO_ND_MAX_SOLICIT) {
+        if (n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT || n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT) {
             pico_ipv6_nd_unreachable(&n->address);
             pico_tree_delete(&NCache, n);
             PICO_FREE(n);
