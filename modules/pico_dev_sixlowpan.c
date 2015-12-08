@@ -901,7 +901,7 @@ static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len,
         return NULL;
     
     /* Copy in payload */
-    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len - (IEEE_PHY_OVERHEAD + IEEE_LEN_LEN));
+    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len);
     
     f->state = FRAME_COMPRESSED;
     return f;
