@@ -614,9 +614,9 @@ static inline void ieee_short_to_le(uint8_t *s)
     uint8_t temp = 0;
     if (!s)
         return;
-    temp = s[0];
-    s[0] = s[1];
-    s[1] = temp;
+    temp = *s;
+    *s = *(s + 1);
+    *(s + 1) = temp;
 }
 
 static inline void ieee_ext_to_le(uint8_t *ext)
@@ -1224,6 +1224,8 @@ static void sixlowpan_rtable_hop_by_source(struct pico_ieee_addr last_hop, struc
 static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, struct pico_ieee_addr last_hop, struct pico_device *dev)
 {
     struct sixlowpan_rtable_entry *entry = NULL;
+    if (!dev)
+        return;
     
     if (0 == pico_ieee_addr_cmp(&origin, dev->eth)) {
 //        PAN_DBG("I'm the origin, I'm not going to add a route to myself, am I?\n");
@@ -1524,7 +1526,7 @@ static uint8_t sixlowpan_nhc_ext_undo(struct sixlowpan_nhc_ext *ext, struct sixl
     uint8_t *nh = NULL;
     uint8_t d = 0;
     
-    if (!ext)
+    if (!ext || !f)
         return (uint8_t)-1;
     
     /* Parse in the dispatch */
@@ -1566,6 +1568,8 @@ static void sixlowpan_nhc_decompress(struct sixlowpan_frame *f)
     struct pico_ipv6_hdr *hdr = NULL;
     union nhc_hdr *nhc = NULL;
     uint8_t d = 0, nxthdr = 0;
+    if(!f)
+        return;
     
     /* Set size temporarily of the net_hdr */
     f->transport_len = (uint16_t)(f->net_len - PICO_SIZE_IP6HDR);
@@ -2403,7 +2407,7 @@ static uint16_t sixlowpan_defrag_prep(struct sixlowpan_frame *f)
 static int sixlowpan_defrag_init(struct sixlowpan_frame *f, uint16_t offset)
 {
     struct sixlowpan_frame *reassembly = NULL;
-    if (!f)
+    if (!f || !f->phy_hdr)
         return -1;
     
     /* Provide a reassembly-frame */
@@ -2981,6 +2985,8 @@ static int sixlowpan_prep_tx_exit(int ret)
 static int sixlowpan_prep_tx(void)
 {
     /* Try to compress the 6LoWPAN-frame */
+    if (!tx)
+        return -1;
     sixlowpan_compress(tx);
     if (FRAME_COMPRESSED == tx->state) {
         /* Try to fragment the entire compressed frame */
@@ -3168,8 +3174,7 @@ int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
         return -1;
 
     /* Enable IPv6 routing on the device's interface */
-    if (pico_ipv6_dev_routing_enable(dev))
-        return -1;
+    (void)pico_ipv6_dev_routing_enable(dev);
     
     /* Make sure the 6LBR router has short address 0x0000 */
     slp = (struct pico_device_sixlowpan *)dev;
