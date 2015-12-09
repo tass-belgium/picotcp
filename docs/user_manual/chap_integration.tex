@@ -66,7 +66,7 @@ A few compile-time options can be specified using the command line
 arguments of make to modify the result of the build. Global options that
 affect the build are the following:
 
-\begin{longtable}{ | l | l | l | p{5cm} | }
+\begin{longtable}{ | l | p{2cm} | p{2cm} | p{5cm} | }
 \hline
 {\bf Argument} &
 {\bf Possible values} &
@@ -77,17 +77,54 @@ affect the build are the following:
 DEBUG&
 0,1&
 1&
-When enabled (=1), the resulting library will contain debug symbols. The
-size of the library will be much larger than the production build, but it
-will be possible to run the stack into a debugger to inspect its behaviour.
-When the option is disabled (=0), the library will be optimized for size in
-flash, resulting in a smaller binary to be used in production. \\ \hline
+When enabled (=1), the resulting library will contain debug symbols. The size of the library will be much larger than the production build, but it will be possible to run the stack into a debugger to inspect its behaviour. When the option is disabled (=0), the library will be optimized for size in flash, resulting in a smaller binary to be used in production. \\ \hline
 
 PREFIX&
 any valid path&
 ./build&
-The target directory where the library and all the objects will be placed
-after the compilation. \\ \hline
+The target directory where the library and all the objects will be placed after the compilation. \\ \hline
+
+PROFILE&
+0,1&
+0&
+...
+\\ \hline
+
+PERF&
+0,1&
+0&
+...
+\\ \hline
+ 
+STRIP&
+0,1&
+0&
+...
+\\ \hline
+
+RTOS&
+0,1&
+0&
+...
+\\ \hline
+
+GENERIC&
+0,1&
+0&
+...
+\\ \hline
+
+PTHREAD&
+0,1&
+0&
+...
+\\ \hline
+ 
+ADDRESS$\_$SANITIZER&
+0,1&
+1&
+...
+\\ \hline
 
 ENDIAN&
 little, big &
@@ -103,23 +140,31 @@ Use a cross compile prefix when calling the binaries needed to build.
 TCP&
 0,1&
 1&
-Enables the support for Transmission Control Protocol by allowing the usage 
-of stream sockets.
+Enables the support for Transmission Control Protocol by allowing the usage of stream sockets.
 \\ \hline
 
 UDP&
 0,1&
 1&
-Enables the support for User Datagram Protocol by allowing the usage 
-of datagram sockets.
+Enables the support for User Datagram Protocol by allowing the usage of datagram sockets.
+\\ \hline
+
+ETH&
+0,1&
+1&
+...
 \\ \hline
 
 IPV4&
 0,1&
 1&
-Enables the support for basic IP networking functionalities. At least one network protocol
-is required for most of the features to work, as all types of sockets depend
-on the networking layer.
+Enables the support for basic IP networking functionalities. At least one network protocol is required for most of the features to work, as all types of sockets depend on the networking layer.
+\\ \hline
+
+IPV4FRAG&
+0,1&
+1&
+Enables the support for fragmentation and reassembly of IPV4 packets.
 \\ \hline
 
 NAT&
@@ -134,6 +179,42 @@ ICMP4&
 Enables the support for control messages over IPv4, (not including the ping functionalities).
 \\ \hline
 
+PING&
+0,1&
+1&
+When activated, the ping API will be available to test whether the hosts on the network are reachable. Requires ICMP4 support.
+\\ \hline
+
+SLAACV4&
+0,1&
+1&
+...
+\\ \hline
+
+IPV6&
+0,1&
+1&
+Enables the support for IPV6 networking functionalities. At least one network protocol is required for most of the features to work, as all types of sockets depend on the networking layer.
+\\ \hline
+
+IPV6FRAG&
+0,1&
+0&
+Enables the support for fragmentation and reassembly of IPV6 packets.
+\\ \hline
+
+CRC&
+0,1&
+1&
+If enabled, CRC values are validated at IP and transport layer.
+\\ \hline
+
+IPFILTER&
+0,1&
+1&
+If enabled, provides basic filtering.
+\\ \hline
+
 MCAST&
 0,1&
 1&
@@ -144,37 +225,6 @@ DEVLOOP&
 0,1&
 1&
 If enabled, a loopback device will be added to the stack, and can be configured to run local traffic.
-\\ \hline
-
-PING&
-0,1&
-1&
-When activated, the ping API will be available to test whether the hosts on the network are reachable.
-Requires ICMP4 support.
-\\ \hline
-
-CRC&
-0,1&
-0&
-If enabled, CRC values are validated at IP and transport layer.
-\\ \hline
-
-IPV4FRAG&
-0,1&
-1&
-Enables the support for fragmentation and reassembly of IPV4 packets.
-\\ \hline
-
-IPV6FRAG&
-0,1&
-1&
-Enables the support for fragmentation and reassembly of IPV6 packets.
-\\ \hline
-
-IPFILTER&
-0,1&
-1&
-If enabled, provides basic filtering.
 \\ \hline
 
 DNS$\_$CLIENT&
@@ -204,15 +254,13 @@ Enables snychronising the local time to a given ntp server.
 DHCP$\_$CLIENT&
 0,1&
 1&
-When activated, it will be possible to get the IP address for network devices automatically, when a DHCP
-server is present on the network.
+When activated, it will be possible to get the IP address for network devices automatically, when a DHCP server is present on the network.
 \\ \hline
 
 DHCP$\_$SERVER&
 0,1&
 1&
-If activated, it will be possible to run a small DHCP server to provide addresses for automatic configuration
-to the other hosts in the network.
+If activated, it will be possible to run a small DHCP server to provide addresses for automatic configuration to the other hosts in the network.
 \\ \hline
 
 HTTP$\_$CLIENT&
@@ -225,6 +273,84 @@ HTTP$\_$SERVER&
 0,1&
 1&
 Activates a basic HTTP server.
+\\ \hline
+
+OSLR&
+0,1&
+0&
+...
+\\ \hline
+
+TFTP&
+0,1&
+1&
+...
+\\ \hline
+
+AODV&
+0,1&
+1&
+...
+\\ \hline
+
+MEMORY$\_$MANAGER&
+0,1&
+0&
+...
+\\ \hline
+
+MEMORY$\_$MANAGER$\_$PROFILING&
+0,1&
+0&
+...
+\\ \hline
+
+TUN&
+0,1&
+0&
+...
+\\ \hline
+
+TAP&
+0,1&
+0&
+...
+\\ \hline
+
+PCAP&
+0,1&
+0&
+...
+\\ \hline
+
+PPP&
+0,1&
+1&
+...
+\\ \hline
+
+IPC&
+0,1&
+0&
+...
+\\ \hline
+
+CYASSL&
+0,1&
+0&
+...
+\\ \hline
+
+WOLFSSL&
+0,1&
+0&
+...
+\\ \hline
+
+POLARSSL&
+0,1&
+0&
+...
 \\ \hline
 
 \end{longtable}

@@ -47,11 +47,7 @@ PACKED_STRUCT_DEF mcast_filter_parameters {
     union pico_link *link;
 };
 
-extern void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast );
 
-extern int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast );
-extern int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast );
-extern int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast );
-extern int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast );
+extern int8_t pico_mcast_generate_filter(struct mcast_filter_parameters *filter, struct mcast_parameters *p);
 
 #endif

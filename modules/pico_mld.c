@@ -392,6 +392,13 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
     };
     uint16_t  datalen;
     struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *) (f->transport_hdr+MLD_ROUTER_ALERT_LEN);
+    struct mcast_parameters *p = NULL;
+    struct pico_ip6 mcast_group = {{
+        0
+    }};
+    struct mld_message *mld_report = (struct mld_message *) hdr;
+
     link = pico_ipv6_link_by_dev(f->dev);
     if (!link)
         return -1;
@@ -419,6 +426,15 @@ static int pico_mld_compatibility_mode(struct pico_frame *f) {
         }
         mld_dbg("MLD: switch to compatibility mode MLDv1\n");
         link->mcast_compatibility = PICO_MLDV1;
+
+        //Reset states to prevent deadlock
+        mcast_group = mld_report->mcast_group;
+        p = pico_mld_find_parameter(&link->address, &mcast_group);
+        if(p) {
+          p->state = MLD_STATE_NON_LISTENER;
+          p->event = MLD_EVENT_START_LISTENING;
+        }
+
         t.type = MLD_TIMER_V1_QUERIER;
         t.delay =(pico_time) ((MLD_ROBUSTNESS * link->mcast_last_query_interval) + MLD_QUERY_RESPONSE_INTERVAL) * 1000;
         t.f = f;
@@ -713,54 +729,10 @@ static int8_t pico_mldv2_generate_filter(struct mcast_filter_parameters *filter,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    /* "non-existent" state of filter mode INCLUDE and empty source list */
-    if (p->event == MLD_EVENT_DELETE_GROUP) {
-        p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
-        p->MCASTFilter = NULL;
-    }
-    if (p->event == MLD_EVENT_QUERY_RECV)
-        return 0;
 
-    pico_mcast_src_filtering_cleanup(filter);
     filter->g = (struct pico_mcast_group *)g;
-    switch (g->filter_mode) {
+    return pico_mcast_generate_filter(filter, p);
 
-    case PICO_IP_MULTICAST_INCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            if(pico_mcast_src_filtering_inc_inc(filter) == MCAST_NO_REPORT)
-                return MCAST_NO_REPORT;
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* TO_EX (B) */
-            pico_mcast_src_filtering_inc_excl(filter);
-            break;
-        default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    case PICO_IP_MULTICAST_EXCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            /* TO_IN (B) */
-            pico_mcast_src_filtering_excl_inc(filter);
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* BLOCK (B-A) */
-            if(pico_mcast_src_filtering_excl_excl(filter) == MCAST_NO_REPORT)
-              return MCAST_NO_REPORT;
-            break;
-       default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    default:
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-  return 0;
 }
 static int8_t pico_mldv1_generate_report(struct mcast_parameters *p) {
     struct mld_message *report = NULL;

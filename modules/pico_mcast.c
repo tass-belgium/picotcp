@@ -47,7 +47,7 @@
 #define MCAST_BLOCK_OLD_SOURCES            (6)
 
 
-void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast ) {
+static void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     /* cleanup filters */
     pico_tree_foreach_safe(index, mcast->allow, _tmp)
@@ -59,7 +59,7 @@ void pico_mcast_src_filtering_cleanup(struct mcast_filter_parameters* mcast ) {
         pico_tree_delete(mcast->block, index->keyValue);
     }
 }
-int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast ) {
+static int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     union pico_address *source;
     /* all ADD_SOURCE_MEMBERSHIP had an equivalent DROP_SOURCE_MEMBERSHIP */
@@ -123,7 +123,7 @@ int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters* mcast ) {
     return MCAST_NO_REPORT;
 }
 
-int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast ) {
+static int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     mcast->record_type = MCAST_CHANGE_TO_EXCLUDE_MODE;
     mcast->filter = mcast->block;
@@ -134,7 +134,7 @@ int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters* mcast ) {
     }
     return 0;
 }
-int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast ) {
+static int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     mcast->record_type = MCAST_CHANGE_TO_INCLUDE_MODE;
     mcast->filter = mcast->allow;
@@ -147,7 +147,7 @@ int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters* mcast ) {
     } /* else { allow stays empty } */
     return 0;
 }
-int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast ) {
+static int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast ) {
     struct pico_tree_node *index = NULL;
     struct pico_ip6 *source = NULL;
     mcast->record_type = MCAST_BLOCK_OLD_SOURCES;
@@ -188,5 +188,57 @@ int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mcast ) {
     /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report  */
     mcast->p->f = NULL;
     return MCAST_NO_REPORT; 
+}
+
+int8_t pico_mcast_generate_filter(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
+
+    /* "non-existent" state of filter mode INCLUDE and empty source list */
+    if (p->event == MCAST_EVENT_DELETE_GROUP) {
+        p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
+        p->MCASTFilter = NULL;
+    }
+    if (p->event == MCAST_EVENT_QUERY_RECV)
+        return 0;
+
+    pico_mcast_src_filtering_cleanup(filter);
+
+    switch (filter->g->filter_mode) {
+
+    case PICO_IP_MULTICAST_INCLUDE:
+        switch (p->filter_mode) {
+        case PICO_IP_MULTICAST_INCLUDE:
+            if(pico_mcast_src_filtering_inc_inc(filter) == MCAST_NO_REPORT)
+                return MCAST_NO_REPORT;
+            break;
+        case PICO_IP_MULTICAST_EXCLUDE:
+            /* TO_EX (B) */
+            pico_mcast_src_filtering_inc_excl(filter);
+            break;
+        default:
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+        break;
+    case PICO_IP_MULTICAST_EXCLUDE:
+        switch (p->filter_mode) {
+        case PICO_IP_MULTICAST_INCLUDE:
+            /* TO_IN (B) */
+            pico_mcast_src_filtering_excl_inc(filter);
+            break;
+        case PICO_IP_MULTICAST_EXCLUDE:
+            /* BLOCK (B-A) */
+            if(pico_mcast_src_filtering_excl_excl(filter) == MCAST_NO_REPORT)
+              return MCAST_NO_REPORT;
+            break;
+       default:
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+        break;
+    default:
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+  return 0;
 }
 #endif
