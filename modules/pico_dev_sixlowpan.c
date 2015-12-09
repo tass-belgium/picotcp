@@ -870,8 +870,6 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
 static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
 {
     uint8_t *buf = NULL;
-    if (!buf)
-        return NULL;
     if (!(buf = PICO_ZALLOC(f->size))) {
         f->state = FRAME_ERROR;
         return NULL;
@@ -1605,6 +1603,9 @@ static uint8_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
     struct range r = {.offset = 0, .length = 0};
     struct sixlowpan_nhc_udp *nhc = NULL;
     struct pico_udp_hdr *udp = NULL;
+
+    if (!f)
+        return 0;
     
     if (!frame_buf_prepend(f, PICO_LAYER_TRANSPORT, DISPATCH_NHC_UDP(INFO_HDR_LEN))) {
         f->state = FRAME_ERROR;
