@@ -192,7 +192,7 @@ START_TEST(tc_buf_insert) /* MARK: CHECKED */
     ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
+START_TEST(tc_frame_rearrange_ptrs) /* MARK: CHECKED */
 {
     struct sixlowpan_frame *new = NULL;
     STARTING();
@@ -200,14 +200,14 @@ START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
     new = create_dummy_frame();
     
     /* Invalid args */
-    FRAME_REARRANGE_PTRS(new);
+    frame_rearrange_ptrs(new);
     fail_unless(new->link_hdr == (struct ieee_hdr *)(new->phy_hdr + IEEE_LEN_LEN), "%s failed rearranging PTRS!\n", __func__);
     
     TRYING("\n");
     new->link_hdr_len = 9;
     new->net_len = 40;
     new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
-    FRAME_REARRANGE_PTRS(new);
+    frame_rearrange_ptrs(new);
     
     CHECKING();
     fail_unless(new->link_hdr == (struct ieee_hdr  *)(new->phy_hdr + IEEE_LEN_LEN), "%s failed rearranging link header!\n", __func__);
@@ -217,7 +217,7 @@ START_TEST(tc_FRAME_REARRANGE_PTRS) /* MARK: CHECKED */
     ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
+START_TEST(tc_frame_buf_insert) /* MARK: CHECKED */
 {
     struct sixlowpan_frame *new = NULL;
     struct range r = {2, 5};
@@ -229,11 +229,11 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     new->link_hdr_len = 9;
     new->net_len = 40;
     new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
-    FRAME_REARRANGE_PTRS(new);
+    frame_rearrange_ptrs(new);
     
     TRYING("Network HDR\n"); /* NETWORK HDR */
     psize = new->size;
-    buf = FRAME_BUF_INSERT(new, PICO_LAYER_NETWORK, r);
+    buf = frame_buf_insert(new, PICO_LAYER_NETWORK, r);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + r.offset),
@@ -242,7 +242,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     
     TRYING("Datalink HDR\n");
     psize = new->size; /* LINK HDR */
-    buf = FRAME_BUF_INSERT(new, PICO_LAYER_DATALINK, r);
+    buf = frame_buf_insert(new, PICO_LAYER_DATALINK, r);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + r.offset),
@@ -252,7 +252,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     
     TRYING("Transport HDR\n");
     psize = new->size; /* TRANSPORT HDR */
-    buf = FRAME_BUF_INSERT(new, PICO_LAYER_TRANSPORT, r);
+    buf = frame_buf_insert(new, PICO_LAYER_TRANSPORT, r);
     
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
@@ -261,7 +261,7 @@ START_TEST(tc_FRAME_BUF_INSERT) /* MARK: CHECKED */
     fail_unless(psize == (uint16_t)(new->size - r.length), "%s didn't update new size correctly\n", __func__);
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
+START_TEST(tc_frame_buf_prepend) /* MARK: CHECKED */
 {
     struct sixlowpan_frame *new = NULL;
     uint16_t length = 5;
@@ -273,12 +273,12 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     new->link_hdr_len = 9;
     new->net_len = 40;
     new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
-    FRAME_REARRANGE_PTRS(new);
+    frame_rearrange_ptrs(new);
     
     
     TRYING("Network HDR\n"); /* NETWORK HDR */
     psize = new->size;
-    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_NETWORK, length);
+    buf = frame_buf_prepend(new, PICO_LAYER_NETWORK, length);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len),
@@ -287,7 +287,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     
     TRYING("Datalink HDR\n");
     psize = new->size; /* LINK HDR */
-    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_DATALINK, length);
+    buf = frame_buf_prepend(new, PICO_LAYER_DATALINK, length);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN),
@@ -296,7 +296,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     
     TRYING("Transport HDR\n");
     psize = new->size; /* TRANSPORT HDR */
-    buf = FRAME_BUF_PREPEND(new, PICO_LAYER_TRANSPORT, length);
+    buf = frame_buf_prepend(new, PICO_LAYER_TRANSPORT, length);
     
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
@@ -307,7 +307,7 @@ START_TEST(tc_FRAME_BUF_PREPEND) /* MARK: CHECKED */
     ENDING();
 }
 END_TEST
-START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
+START_TEST(tc_frame_buf_delete) /* MARK: CHECKED */
 {
     struct sixlowpan_frame *new = NULL;
     struct range r = {2, 5};
@@ -320,11 +320,11 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     new->link_hdr_len = 9;
     new->net_len = 40;
     new->transport_len = (uint16_t)(new->size - (uint16_t)(new->net_len - new->link_hdr_len));
-    FRAME_REARRANGE_PTRS(new);
+    frame_rearrange_ptrs(new);
     
     TRYING("Network HDR\n"); /* NETWORK HDR */
     psize = new->size;
-    buf = FRAME_BUF_DELETE(new, PICO_LAYER_NETWORK, r, 0);
+    buf = frame_buf_delete(new, PICO_LAYER_NETWORK, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + r.offset),
@@ -333,7 +333,7 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     
     TRYING("Datalink HDR\n");
     psize = new->size; /* LINK HDR */
-    buf = FRAME_BUF_DELETE(new, PICO_LAYER_DATALINK, r, 0);
+    buf = frame_buf_delete(new, PICO_LAYER_DATALINK, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + r.offset),
@@ -342,7 +342,7 @@ START_TEST(tc_FRAME_BUF_DELETE) /* MARK: CHECKED */
     
     TRYING("Transport HDR\n");
     psize = new->size; /* TRANSPORT HDR */
-    buf = FRAME_BUF_DELETE(new, PICO_LAYER_TRANSPORT, r, 0);
+    buf = frame_buf_delete(new, PICO_LAYER_TRANSPORT, r, 0);
     CHECKING();
     fail_unless((int)(long)buf, "%s returned NULL-ptr", __func__);
     fail_unless(buf == (uint8_t *)(new->phy_hdr + IEEE_LEN_LEN + new->link_hdr_len + new->net_len + r.offset),
@@ -1047,10 +1047,10 @@ Suite *pico_suite(void)
     // MARK: MEMORY TCASES
     TCase *TCase_buf_delete = tcase_create("Unit test for buf_delete");
     TCase *TCase_buf_insert = tcase_create("Unit test for buf_insert");
-    TCase *TCase_FRAME_REARRANGE_PTRS = tcase_create("Unit test for FRAME_REARRANGE_PTRS");
-    TCase *TCase_FRAME_BUF_INSERT = tcase_create("Unit test for FRAME_BUF_INSERT");
-    TCase *TCase_FRAME_BUF_PREPEND = tcase_create("Unit test for FRAME_BUF_PREPEND");
-    TCase *TCase_FRAME_BUF_DELETE = tcase_create("Unit test for FRAME_BUF_DELETE");
+    TCase *TCase_frame_rearrange_ptrs = tcase_create("Unit test for frame_rearrange_ptrs");
+    TCase *TCase_frame_buf_insert = tcase_create("Unit test for frame_buf_insert");
+    TCase *TCase_frame_buf_prepend = tcase_create("Unit test for frame_buf_prepend");
+    TCase *TCase_frame_buf_delete = tcase_create("Unit test for frame_buf_delete");
     
     /* -------------------------------------------------------------------------------- */
     // MARK: IEEE802.15.4
@@ -1166,14 +1166,14 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_buf_delete);
     tcase_add_test(TCase_buf_insert, tc_buf_insert);
     suite_add_tcase(s, TCase_buf_insert);
-    tcase_add_test(TCase_FRAME_REARRANGE_PTRS, tc_FRAME_REARRANGE_PTRS);
-    suite_add_tcase(s, TCase_FRAME_REARRANGE_PTRS);
-    tcase_add_test(TCase_FRAME_BUF_INSERT, tc_FRAME_BUF_INSERT);
-    suite_add_tcase(s, TCase_FRAME_BUF_INSERT);
-    tcase_add_test(TCase_FRAME_BUF_PREPEND, tc_FRAME_BUF_PREPEND);
-    suite_add_tcase(s, TCase_FRAME_BUF_PREPEND);
-    tcase_add_test(TCase_FRAME_BUF_DELETE, tc_FRAME_BUF_DELETE);
-    suite_add_tcase(s, TCase_FRAME_BUF_DELETE);
+    tcase_add_test(TCase_frame_rearrange_ptrs, tc_frame_rearrange_ptrs);
+    suite_add_tcase(s, TCase_frame_rearrange_ptrs);
+    tcase_add_test(TCase_frame_buf_insert, tc_frame_buf_insert);
+    suite_add_tcase(s, TCase_frame_buf_insert);
+    tcase_add_test(TCase_frame_buf_prepend, tc_frame_buf_prepend);
+    suite_add_tcase(s, TCase_frame_buf_prepend);
+    tcase_add_test(TCase_frame_buf_delete, tc_frame_buf_delete);
+    suite_add_tcase(s, TCase_frame_buf_delete);
     tcase_add_test(TCase_IEEE_EUI64_LE, tc_IEEE_EUI64_LE);
     suite_add_tcase(s, TCase_IEEE_EUI64_LE);
     /* */
