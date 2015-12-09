@@ -547,6 +547,21 @@ START_TEST(tc_lcp_send_configure_nack)
     fail_if(called_serial_send != 1);
 }
 END_TEST
+START_TEST(tc_lcp_send_protocol_reject)
+{
+    uint8_t pkt[20] = "";
+    struct pico_lcp_hdr *lcpreq;
+    called_serial_send = 0;
+    memset(&_ppp, 0, sizeof(_ppp));
+    _ppp.serial_send = unit_serial_send;
+    _ppp.pkt = pkt;
+    _ppp.len = 4;
+    lcpreq = (struct pico_lcp_hdr *)_ppp.pkt;
+    lcpreq->len = short_be(4);
+    lcp_send_configure_nack(&_ppp);
+    fail_if(called_serial_send != 1);
+}
+END_TEST
 START_TEST(tc_lcp_process_in)
 {
     uint8_t pkt[64];
@@ -588,6 +603,32 @@ START_TEST(tc_lcp_process_in)
     _ppp.lcpopt_local = (1 << 4);
     lcp_process_in(&_ppp, pkt, sizeof(struct pico_lcp_hdr) + 2);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RCR_POS);
+
+    /* Receive TERM_REQ (RTR) */
+    ppp_lcp_ev = 0;
+    pkt[0] = PICO_CONF_TERM;
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RTR);
+
+    /* Receive TERM_ACK (RTA) */
+    ppp_lcp_ev = 0;
+    pkt[0] = PICO_CONF_TERM_ACK;
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RTA);
+
+    /* Receive PROTO_REJ, for a NCP while LCP is in the opened state (RXJ-) */
+    ppp_lcp_ev = 0;
+    _ppp.lcp_state = PPP_LCP_STATE_OPENED;
+    pkt[0] = PICO_CONF_PROTO_REJ;
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RXJ_NEG);
+
+    /* Receive PROTO_REJ, for a NCP while LCP is in the opened state (RXJ-) */
+    ppp_lcp_ev = 0;
+    _ppp.lcp_state = !(PPP_LCP_STATE_OPENED);
+    pkt[0] = PICO_CONF_PROTO_REJ;
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RXJ_POS);
 }
 END_TEST
 START_TEST(tc_pap_process_in)
@@ -602,11 +643,11 @@ START_TEST(tc_pap_process_in)
     pap_process_in(&_ppp,  (uint8_t *)&hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAA);
 
-    /* Receive FAILURE (RAN) */
+    /* Receive FAILURE (RAN_PAP) */
     ppp_auth_ev = 0;
     hdr.code = PAP_AUTH_NAK;
     pap_process_in(&_ppp,  (uint8_t *)&hdr, sizeof(hdr));
-    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN);
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN_PAP);
 }
 END_TEST
 START_TEST(tc_chap_process_in)
@@ -627,11 +668,11 @@ START_TEST(tc_chap_process_in)
     chap_process_in(&_ppp,  (uint8_t *)&hdr, sizeof(hdr));
     fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAA);
 
-    /* Receive FAILURE (RAN) */
+    /* Receive FAILURE (RAN_CHAP) */
     ppp_auth_ev = 0;
     hdr.code = CHAP_FAILURE;
     chap_process_in(&_ppp, (uint8_t *)&hdr, sizeof(hdr));
-    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN);
+    fail_if (ppp_auth_ev != PPP_AUTH_EVENT_RAN_CHAP);
 
 }
 END_TEST
@@ -1187,6 +1228,7 @@ Suite *pico_suite(void)
     TCase *TCase_lcp_send_terminate_request = tcase_create("Unit test for lcp_send_terminate_request");
     TCase *TCase_lcp_send_terminate_ack = tcase_create("Unit test for lcp_send_terminate_ack");
     TCase *TCase_lcp_send_configure_nack = tcase_create("Unit test for lcp_send_configure_nack");
+    TCase *TCase_lcp_send_protocol_reject = tcase_create("Unit test for lcp_send_protocol_reject");
     TCase *TCase_lcp_process_in = tcase_create("Unit test for lcp_process_in");
     TCase *TCase_pap_process_in = tcase_create("Unit test for pap_process_in");
     TCase *TCase_chap_process_in = tcase_create("Unit test for chap_process_in");
@@ -1286,6 +1328,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_lcp_send_terminate_ack);
     tcase_add_test(TCase_lcp_send_configure_nack, tc_lcp_send_configure_nack);
     suite_add_tcase(s, TCase_lcp_send_configure_nack);
+    tcase_add_test(TCase_lcp_send_protocol_reject, tc_lcp_send_protocol_reject);
+    suite_add_tcase(s, TCase_lcp_send_protocol_reject);
     tcase_add_test(TCase_lcp_process_in, tc_lcp_process_in);
     suite_add_tcase(s, TCase_lcp_process_in);
     tcase_add_test(TCase_pap_process_in, tc_pap_process_in);
