@@ -201,7 +201,8 @@ enum ppp_auth_event {
     PPP_AUTH_EVENT_DOWN,
     PPP_AUTH_EVENT_RAC,
     PPP_AUTH_EVENT_RAA,
-    PPP_AUTH_EVENT_RAN,
+    PPP_AUTH_EVENT_RAN_PAP,
+    PPP_AUTH_EVENT_RAN_CHAP,
     PPP_AUTH_EVENT_TO,
     PPP_AUTH_EVENT_MAX
 };
@@ -1016,7 +1017,7 @@ static void lcp_send_protocol_reject(struct pico_device_ppp *ppp)
     struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
     memcpy(proto_rej + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
     proto_rej_hdr->code = PICO_CONF_PROTO_REJ;
-    proto_rej_hdr->id = lcpreq->id;
+    proto_rej_hdr->id = ppp->frame_id++;
     proto_rej_hdr->len = lcpreq->len;
     ppp_dbg("Sending LCP PROTOCOL REJECT\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, proto_rej,
@@ -1074,6 +1075,32 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
         return;
     }
 
+    if (pkt[0] == PICO_CONF_TERM) {
+        ppp_dbg("Received LCP TERM REQ\n");
+        evaluate_lcp_state(ppp, PPP_LCP_EVENT_RTR);
+        return;
+    }
+
+    if (pkt[0] == PICO_CONF_TERM_ACK) {
+        ppp_dbg("Received LCP TERM ACK\n");
+        evaluate_lcp_state(ppp, PPP_LCP_EVENT_RTA);
+        return;
+    }
+
+    if (pkt[0] == PICO_CONF_PROTO_REJ) {
+        /* Pico can use only one NCP.
+         * So if a PROTO_REJ is received,
+         * Pico can not send any other NCP */
+        ppp_dbg("Received LCP PROTO REJ\n");
+        if (ppp->lcp_state == PPP_LCP_STATE_OPENED) {
+            evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXJ_NEG);
+        }
+        else {
+            evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXJ_POS);
+        }
+        return;
+    }
+
     if (pkt[0] == PICO_CONF_ECHO_REQ) {
         ppp_dbg("Received LCP ECHO REQ\n");
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXR);
@@ -1098,7 +1125,7 @@ static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
         break;
     case PAP_AUTH_NAK:
         ppp_dbg("PAP: Received Authentication Reject!\n");
-        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN);
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN_PAP);
         break;
 
     default:
@@ -1130,7 +1157,7 @@ static void chap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t 
         break;
     case CHAP_FAILURE:
         ppp_dbg("Received CHAP FAILURE\n");
-        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN);
+        evaluate_auth_state(ppp, PPP_AUTH_EVENT_RAN_CHAP);
         break;
     }
 }
@@ -1761,12 +1788,23 @@ static void deauth(struct pico_device_ppp *ppp)
     evaluate_ipcp_state(ppp, PPP_IPCP_EVENT_DOWN);
 }
 
-static void auth_abort(struct pico_device_ppp *ppp)
+static void auth_abort_pap(struct pico_device_ppp *ppp)
 {
-    ppp_dbg("PPP: Authentication failed!\n");
+    ppp_dbg("PPP: PAP authentication failed!\n");
     ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_CLOSE);
 
+}
+
+static void auth_abort_chap(struct pico_device_ppp *ppp)
+{
+    ppp_dbg("PPP: CHAP authentication failed!\n");
+    ppp->timer_on = (uint8_t) (ppp->timer_on & (~PPP_TIMER_ON_AUTH));
+    if (ppp->lcp_state == PPP_LCP_STATE_OPENED) {
+        ppp->lcp_state = PPP_LCP_STATE_CLOSING;
+        lcp_this_layer_down(ppp);
+    }
+    return;
 }
 
 static void auth_req(struct pico_device_ppp *ppp)
@@ -1881,7 +1919,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_INITIAL, {} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_INITIAL, {} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_INITIAL, {auth_abort} },
+        [PPP_AUTH_EVENT_RAN_PAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_pap} },
+        [PPP_AUTH_EVENT_RAN_CHAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_chap} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {} }
     },
     [PPP_AUTH_STATE_STARTING] = {
@@ -1891,7 +1930,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_STARTING, {auth_start_timer} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_abort} },
+        [PPP_AUTH_EVENT_RAN_PAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_pap} },
+        [PPP_AUTH_EVENT_RAN_CHAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_chap} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_INITIAL, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_RSP_SENT] = {
@@ -1901,7 +1941,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp, auth_start_timer} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_STARTING, {auth_abort} },
+        [PPP_AUTH_EVENT_RAN_PAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_pap} },
+        [PPP_AUTH_EVENT_RAN_CHAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_chap} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_STARTING, {auth_start_timer} }
     },
     [PPP_AUTH_STATE_REQ_SENT] = {
@@ -1911,7 +1952,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_REQ_SENT, {} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {auth} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_REQ_SENT, {auth_abort} },
+        [PPP_AUTH_EVENT_RAN_PAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_pap} },
+        [PPP_AUTH_EVENT_RAN_CHAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_chap} },
         [PPP_AUTH_EVENT_TO]     =  { PPP_AUTH_STATE_REQ_SENT, {auth_req, auth_start_timer} }
     },
     [PPP_AUTH_STATE_AUTHENTICATED] = {
@@ -1921,7 +1963,8 @@ static const struct pico_ppp_fsm ppp_auth_fsm[PPP_AUTH_STATE_MAX][PPP_AUTH_EVENT
         [PPP_AUTH_EVENT_DOWN]    = { PPP_AUTH_STATE_INITIAL, {deauth} },
         [PPP_AUTH_EVENT_RAC]     = { PPP_AUTH_STATE_RSP_SENT, {auth_rsp} },
         [PPP_AUTH_EVENT_RAA]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
-        [PPP_AUTH_EVENT_RAN]     = { PPP_AUTH_STATE_AUTHENTICATED, {} },
+        [PPP_AUTH_EVENT_RAN_PAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_pap} },
+        [PPP_AUTH_EVENT_RAN_CHAP] = { PPP_AUTH_STATE_INITIAL, {auth_abort_chap} },
         [PPP_AUTH_EVENT_TO]      = { PPP_AUTH_STATE_AUTHENTICATED, {} },
     }
 };
