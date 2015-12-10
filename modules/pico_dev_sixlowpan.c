@@ -30,20 +30,20 @@
     #define PAN_ERR(...)            do {} while(0)
 #endif
 
-#define DISPATCH_NALP(i)            ((i) == INFO_VAL ? (0x00u) : ((i) == INFO_SHIFT ? (0x06u) : (0x00u)))
-#define DISPATCH_IPV6(i)            ((i) == INFO_VAL ? (0x41u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
-#define DISPATCH_HC1(i)             ((i) == INFO_VAL ? (0x42u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
-#define DISPATCH_BC0(i)             ((i) == INFO_VAL ? (0x50u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
-#define DISPATCH_ESC(i)             ((i) == INFO_VAL ? (0x7Fu) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
-#define DISPATCH_MESH(i)            ((i) == INFO_VAL ? (0x02u) : ((i) == INFO_SHIFT ? (0x06u) : (0x01u)))
-#define DISPATCH_FRAG1(i)           ((i) == INFO_VAL ? (0x18u) : ((i) == INFO_SHIFT ? (0x03u) : (0x04u)))
-#define DISPATCH_FRAGN(i)           ((i) == INFO_VAL ? (0x1Cu) : ((i) == INFO_SHIFT ? (0x03u) : (0x05u)))
-#define DISPATCH_NESC(i)            ((i) == INFO_VAL ? (0x80u) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
-#define DISPATCH_IPHC(i)            ((i) == INFO_VAL ? (0x03u) : ((i) == INFO_SHIFT ? (0x05u) : (0x02u)))
-#define DISPATCH_NHC_EXT(i)         ((i) == INFO_VAL ? (0x0Eu) : ((i) == INFO_SHIFT ? (0x04u) : (0x01u)))
-#define DISPATCH_NHC_UDP(i)         ((i) == INFO_VAL ? (0x1Eu) : ((i) == INFO_SHIFT ? (0x03u) : (0x01u)))
-#define DISPATCH_PING_REQUEST(i)    ((i) == INFO_VAL ? (0x44u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
-#define DISPATCH_PING_REPLY(i)      ((i) == INFO_VAL ? (0x45u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define DISPATCH_NALP(i)            (((i) == INFO_VAL) ? (0x00u) : ((i) == INFO_SHIFT ? (0x06u) : (0x00u)))
+#define DISPATCH_IPV6(i)            (((i) == INFO_VAL) ? (0x41u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define DISPATCH_HC1(i)             (((i) == INFO_VAL) ? (0x42u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
+#define DISPATCH_BC0(i)             (((i) == INFO_VAL) ? (0x50u) : ((i) == INFO_SHIFT ? (0x00u) : (0x02u)))
+#define DISPATCH_ESC(i)             (((i) == INFO_VAL) ? (0x7Fu) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
+#define DISPATCH_MESH(i)            (((i) == INFO_VAL) ? (0x02u) : ((i) == INFO_SHIFT ? (0x06u) : (0x01u)))
+#define DISPATCH_FRAG1(i)           (((i) == INFO_VAL) ? (0x18u) : ((i) == INFO_SHIFT ? (0x03u) : (0x04u)))
+#define DISPATCH_FRAGN(i)           (((i) == INFO_VAL) ? (0x1Cu) : ((i) == INFO_SHIFT ? (0x03u) : (0x05u)))
+#define DISPATCH_NESC(i)            (((i) == INFO_VAL) ? (0x80u) : ((i) == INFO_SHIFT ? (0x00u) : (0xFFu)))
+#define DISPATCH_IPHC(i)            (((i) == INFO_VAL) ? (0x03u) : ((i) == INFO_SHIFT ? (0x05u) : (0x02u)))
+#define DISPATCH_NHC_EXT(i)         (((i) == INFO_VAL) ? (0x0Eu) : ((i) == INFO_SHIFT ? (0x04u) : (0x01u)))
+#define DISPATCH_NHC_UDP(i)         (((i) == INFO_VAL) ? (0x1Eu) : ((i) == INFO_SHIFT ? (0x03u) : (0x01u)))
+#define DISPATCH_PING_REQUEST(i)    (((i) == INFO_VAL) ? (0x44u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
+#define DISPATCH_PING_REPLY(i)      (((i) == INFO_VAL) ? (0x45u) : ((i) == INFO_SHIFT ? (0x00u) : (0x01u)))
 #define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
 #define SIXLOWPAN_NALP              DISPATCH_NALP
 #define SIXLOWPAN_IPV6              DISPATCH_IPV6
@@ -115,11 +115,11 @@
 #define IPHC_FLS(vtf)               ((long_be((vtf)) & IPHC_MASK_FL) << IPHC_SHIFT_FL);
 #define IPHC_FL(vtf)                (long_be((vtf)) & IPHC_MASK_FL);
 
-#define UDP_IS_PORT_8(p)            ((0xF0) == ((p) >> 8))
-#define UDP_IS_PORT_4(p)            ((0xF0B) == ((p) >> 4))
+#define UDP_IS_PORT_8(p)            ((0xF0u) == ((p) >> 8u))
+#define UDP_IS_PORT_4(p)            ((0xF0Bu) == ((p) >> 4u))
 #define UDP_ARE_PORTS_4(src, dst)   (UDP_IS_PORT_4((src)) && UDP_IS_PORT_4((dst)))
-#define UINT32_4LSB(lsb)            (((uint32_t)lsb) & 0x000F)
-#define UINT32_8LSB(lsb)            (((uint32_t)lsb) & 0x00FF)
+#define UINT32_4LSB(lsb)            ((uint32_t)(((uint32_t)lsb) & 0x000Fu))
+#define UINT32_8LSB(lsb)            ((uint32_t)(((uint32_t)lsb) & 0x00FFu))
 
 #define FRAG_DGRAM_SIZE_MASK        (0x7FF)
 
@@ -1271,7 +1271,7 @@ static void sixlowpan_ping_check(pico_time now, void *arg)
     pico_tree_foreach_safe(node, &RTable, tmp) {
         if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
             /* expired? */
-            if (now - entry->timestamp > (2 * SIXLOWPAN_PING_TIMEOUT))
+            if (now - entry->timestamp > (2u * SIXLOWPAN_PING_TIMEOUT))
             {
                 PAN_ERR("6LoWPAN Ping timeout, routed is being removed from routing table...\n");
                 sixlowpan_rtable_remove(entry->dst);
@@ -1471,8 +1471,8 @@ static void sixlowpan_nhc_udp_ports_undo(enum nhc_udp_ports ports, struct sixlow
     
     switch (ports) {
         case PORTS_COMPRESSED_FULL:
-            sport = (uint16_t)(sport | 0x00B0 | (uint16_t)(buf[0] >> 4));
-            dport = (uint16_t)(dport | 0x00B0 | (uint16_t)(buf[0] & 0x0F));
+            sport = (uint16_t)(sport | 0x00B0u | (uint16_t)(buf[0] >> 4u));
+            dport = (uint16_t)(dport | 0x00B0u | (uint16_t)(buf[0] & 0x0Fu));
             frame_buf_prepend(f, PICO_LAYER_TRANSPORT, 3);
             break;
         case PORTS_COMPRESSED_DST:
@@ -1871,10 +1871,13 @@ static struct range sixlowpan_iphc_hl(struct sixlowpan_iphc *iphc, uint8_t hl)
         return r;
     
     switch (hl) {
-        case 1: iphc->hop_limit = HL_COMPRESSED_1; break;
-        case 64: iphc->hop_limit = HL_COMPRESSED_64; break;
-        case 255: iphc->hop_limit = HL_COMPRESSED_255; break;
-        default:  iphc->hop_limit = HL_COMPRESSED_NONE; break;
+        case 1: iphc->hop_limit = HL_COMPRESSED_1; 
+                break;
+        case 64: iphc->hop_limit = HL_COMPRESSED_64; 
+                break;
+        case 255: iphc->hop_limit = HL_COMPRESSED_255; 
+                break;
+        default:  iphc->hop_limit = HL_COMPRESSED_NONE;
     }
     
     if (iphc->hop_limit) {
@@ -2049,7 +2052,7 @@ static int sixlowpan_iphc_dam_undo(struct sixlowpan_iphc *iphc, struct sixlowpan
         return -1;
     
     /* Check for multicast destination */
-    if (MCAST_MULTICAST == iphc->mcast) {
+    if (MCAST_MULTICAST == (int)iphc->mcast) {
         if (!(frame_buf_insert(f, PICO_LAYER_NETWORK, sixlowpan_iphc_mcast_range(iphc->dam))))
             return -1;
         /* Rearrange the mcast-address again to form a proper IPv6-address */
@@ -2088,9 +2091,9 @@ static int sixlowpan_iphc_hl_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_
         
         /* Fill in the Hop Limit-field */
         hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-        if (HL_COMPRESSED_1 == iphc->hop_limit) {
+        if (HL_COMPRESSED_1 == (int)iphc->hop_limit) {
             hdr->hop = (uint8_t)1;
-        } else if (HL_COMPRESSED_64 == iphc->hop_limit) {
+        } else if (HL_COMPRESSED_64 == (int)iphc->hop_limit) {
             hdr->hop = (uint8_t)64;
         } else {
             hdr->hop = (uint8_t)255;
@@ -2545,7 +2548,7 @@ static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len, struct sixlo
         
         /* Save broadcast information for duplicate broadcast suppression in the future */
         hdr = (struct ieee_hdr *)(buf + IEEE_LEN_LEN);
-        if (IEEE_AM_SHORT == hdr->fcf.sam) {
+        if (IEEE_AM_SHORT == (int)hdr->fcf.sam) {
             last_bcast_short = pico_ieee_addr_short_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), IEEE_TRUE);
         } else {
             last_bcast_ext = pico_ieee_addr_ext_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), IEEE_TRUE);
@@ -2587,14 +2590,14 @@ static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src)
     uint8_t len = 0, cur_len = 0, offset = 0, del = 0;
     struct pico_ieee_addr *addr = NULL;
     
-    addr = (src) ? (struct pico_ieee_addr *)f->dev->eth : &f->hop;
+    addr = (src) ? ((struct pico_ieee_addr *)f->dev->eth) : (&f->hop);
     
     /* Determine the length of both src addresses */
     len = pico_ieee_addr_len(addr->_mode);
-    cur_len = (src) ? pico_ieee_addr_len(f->link_hdr->fcf.sam) : pico_ieee_addr_len(f->link_hdr->fcf.dam);
+    cur_len = (src) ? (pico_ieee_addr_len(f->link_hdr->fcf.sam)) : (pico_ieee_addr_len(f->link_hdr->fcf.dam));
     
     /* Determine the offset where to insert or copy memory */
-    offset = (src) ? pico_ieee_addr_len(f->link_hdr->fcf.dam) : (0u);
+    offset = (src) ? (pico_ieee_addr_len(f->link_hdr->fcf.dam)) : (0u);
     
     if (cur_len > len) {
         r.length = (uint16_t)(cur_len - len);
