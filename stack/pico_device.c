@@ -47,7 +47,7 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
     dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
     dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
-    pico_icmp6_router_solicitation(dev, linklocal);
+    //pico_icmp6_router_solicitation(dev, linklocal);
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 

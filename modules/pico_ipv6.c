@@ -1635,6 +1635,8 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->dev = dev;
     new->istentative = 1;
     new->isduplicate = 0;
+    new->rs_retries = 0;
+    new->rs_expire_time = PICO_TIME_MS() + pico_rand() % 1000; 
 #ifdef PICO_SUPPORT_MCAST
     new->MCASTGroups = PICO_ZALLOC(sizeof(struct pico_tree));
     if (!new->MCASTGroups) {

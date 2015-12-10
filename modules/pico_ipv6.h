@@ -58,9 +58,11 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+    uint8_t rs_retries;
     uint32_t dad_timer;
     uint16_t dup_detect_retrans;
     pico_time expire_time;
+    pico_time rs_expire_time;
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTGroups;
     uint8_t mcast_compatibility;

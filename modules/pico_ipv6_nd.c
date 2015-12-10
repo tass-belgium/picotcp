@@ -24,6 +24,8 @@
 
 static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
 
+extern struct pico_tree IPV6Links;
+
 
 enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_INCOMPLETE = 0,
@@ -808,12 +810,28 @@ ignore_opt_prefix:
 
 static int pico_nd_router_adv_recv(struct pico_frame *f)
 {
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_link *link = NULL;
+    struct pico_ipv6_hdr *hdr;
     if (icmp6_initial_checks(f) < 0)
         return -1;
 
     if (router_adv_validity_checks(f) < 0)
         return -1;
 
+    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    pico_tree_foreach(index,&IPV6Links){
+	link = index->keyValue;
+	if(link->rs_retries >= 1 && pico_ipv6_is_linklocal(hdr->src.addr)){
+	    link->rs_retries = 3;
+	    link->rs_expire_time = 0;
+	}
+	else if(link->rs_retries == 0 && pico_ipv6_is_linklocal(hdr->src.addr)){
+	    pico_icmp6_router_solicitation(link->dev, &link->address);
+	    link->rs_retries = 3;
+	    link->rs_expire_time = 0;
+        }
+    }
     pico_ipv6_neighbor_from_unsolicited(f);
     return radv_process(f);
 }
@@ -935,6 +953,21 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
     pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
 }
 
+static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_link *link = NULL;
+    (void)arg;
+    pico_tree_foreach(index,&IPV6Links){
+	link = index->keyValue;
+	if(pico_ipv6_is_linklocal(link->address.addr) && (link->rs_retries < 3) && (link->rs_expire_time < now)){
+	    link->rs_retries++;
+	    pico_icmp6_router_solicitation(link->dev,&link->address);
+	    link->rs_expire_time = PICO_TIME_MS() + 4000;
+	}
+    }
+    pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL);
+}
+
 /* Public API */
 
 struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
@@ -1020,6 +1053,7 @@ void pico_ipv6_nd_init(void)
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
     pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
     pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
+    pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL);
 }
 
 #endif
