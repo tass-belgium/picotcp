@@ -562,6 +562,18 @@ START_TEST(tc_lcp_send_protocol_reject)
     fail_if(called_serial_send != 1);
 }
 END_TEST
+START_TEST(tc_lcp_send_code_reject)
+{
+    uint8_t pkt[20] = "";
+    memset(&_ppp, 0, sizeof(_ppp));
+    _ppp.serial_send = unit_serial_send;
+    _ppp.pkt = pkt;
+    _ppp.len = 4;
+    called_serial_send = 0;
+    lcp_send_terminate_request(&_ppp);
+    fail_if(called_serial_send != 1);
+}
+END_TEST
 START_TEST(tc_lcp_process_in)
 {
     uint8_t pkt[64];
@@ -616,6 +628,12 @@ START_TEST(tc_lcp_process_in)
     lcp_process_in(&_ppp, pkt, 64);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RTA);
 
+    /* Receive CODE_REJ (RXJ-) */
+    ppp_lcp_ev = 0;
+    pkt[0] = PICO_CONF_CODE_REJ;
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RXJ_NEG);
+
     /* Receive PROTO_REJ, for a NCP while LCP is in the opened state (RXJ-) */
     ppp_lcp_ev = 0;
     _ppp.lcp_state = PPP_LCP_STATE_OPENED;
@@ -629,6 +647,23 @@ START_TEST(tc_lcp_process_in)
     pkt[0] = PICO_CONF_PROTO_REJ;
     lcp_process_in(&_ppp, pkt, 64);
     fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RXJ_POS);
+
+    /* Receive ECHO_REPLY */
+    ppp_lcp_ev = 0;
+    pkt[0] = PICO_CONF_ECHO_REP;
+    lcp_process_in(&_ppp, pkt, 64);
+
+    /* Receive DISCARD_REQ */
+    ppp_lcp_ev = 0;
+    pkt[0] = PICO_CONF_DISCARD_REQ;
+    lcp_process_in(&_ppp, pkt, 64);
+
+    /* Receive unknown code (RUC) */
+    ppp_lcp_ev = 0;
+    pkt[0] = 15;  // Non existing code in PPP
+    lcp_process_in(&_ppp, pkt, 64);
+    fail_if(ppp_lcp_ev != PPP_LCP_EVENT_RUC);
+
 }
 END_TEST
 START_TEST(tc_pap_process_in)
@@ -964,12 +999,6 @@ START_TEST(tc_lcp_initialize_restart_count)
     fail_if(_ppp.timer_val != PICO_PPP_DEFAULT_TIMER);
 }
 END_TEST
-START_TEST(tc_lcp_send_code_reject)
-{
-    /* TODO: test this: static void lcp_send_code_reject(struct pico_device_ppp *ppp) */
-    lcp_send_code_reject(&_ppp);
-}
-END_TEST
 START_TEST(tc_lcp_send_echo_reply)
 {
     uint8_t pkt[20] = "";
@@ -1229,6 +1258,7 @@ Suite *pico_suite(void)
     TCase *TCase_lcp_send_terminate_ack = tcase_create("Unit test for lcp_send_terminate_ack");
     TCase *TCase_lcp_send_configure_nack = tcase_create("Unit test for lcp_send_configure_nack");
     TCase *TCase_lcp_send_protocol_reject = tcase_create("Unit test for lcp_send_protocol_reject");
+    TCase *TCase_lcp_send_code_reject = tcase_create("Unit test for lcp_send_code_reject");
     TCase *TCase_lcp_process_in = tcase_create("Unit test for lcp_process_in");
     TCase *TCase_pap_process_in = tcase_create("Unit test for pap_process_in");
     TCase *TCase_chap_process_in = tcase_create("Unit test for chap_process_in");
@@ -1249,7 +1279,6 @@ Suite *pico_suite(void)
     TCase *TCase_lcp_this_layer_started = tcase_create("Unit test for lcp_this_layer_started");
     TCase *TCase_lcp_this_layer_finished = tcase_create("Unit test for lcp_this_layer_finished");
     TCase *TCase_lcp_initialize_restart_count = tcase_create("Unit test for lcp_initialize_restart_count");
-    TCase *TCase_lcp_send_code_reject = tcase_create("Unit test for lcp_send_code_reject");
     TCase *TCase_lcp_send_echo_reply = tcase_create("Unit test for lcp_send_echo_reply");
     TCase *TCase_auth = tcase_create("Unit test for auth");
     TCase *TCase_deauth = tcase_create("Unit test for deauth");
@@ -1330,6 +1359,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_lcp_send_configure_nack);
     tcase_add_test(TCase_lcp_send_protocol_reject, tc_lcp_send_protocol_reject);
     suite_add_tcase(s, TCase_lcp_send_protocol_reject);
+    tcase_add_test(TCase_lcp_send_code_reject, tc_lcp_send_code_reject);
+    suite_add_tcase(s, TCase_lcp_send_code_reject);
     tcase_add_test(TCase_lcp_process_in, tc_lcp_process_in);
     suite_add_tcase(s, TCase_lcp_process_in);
     tcase_add_test(TCase_pap_process_in, tc_pap_process_in);
@@ -1370,8 +1401,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_lcp_this_layer_finished);
     tcase_add_test(TCase_lcp_initialize_restart_count, tc_lcp_initialize_restart_count);
     suite_add_tcase(s, TCase_lcp_initialize_restart_count);
-    tcase_add_test(TCase_lcp_send_code_reject, tc_lcp_send_code_reject);
-    suite_add_tcase(s, TCase_lcp_send_code_reject);
     tcase_add_test(TCase_lcp_send_echo_reply, tc_lcp_send_echo_reply);
     suite_add_tcase(s, TCase_lcp_send_echo_reply);
     tcase_add_test(TCase_auth, tc_auth);

@@ -1028,6 +1028,23 @@ static void lcp_send_protocol_reject(struct pico_device_ppp *ppp)
                       );
 }
 
+static void lcp_send_code_reject(struct pico_device_ppp *ppp)
+{
+    uint8_t reject[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
+    struct pico_lcp_hdr *reject_hdr = (struct pico_lcp_hdr *) (reject + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    memcpy(reject + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    reject_hdr->code = PICO_CONF_CODE_REJ;
+    reject_hdr->id = ppp->frame_id++;
+    reject_hdr->len = short_be((uint16_t)sizeof(struct pico_lcp_hdr));
+    ppp_dbg("Sending LCP CODE REJ\n");
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reject,
+                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
+                      sizeof(struct pico_lcp_hdr) +         /* Actual options size + hdr (whole lcp packet) */
+                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
+                      1                                     /* STOP Byte */
+                      );
+}
+
 static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
 {
     uint16_t optflags;
@@ -1087,6 +1104,14 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
         return;
     }
 
+    if (pkt[0] == PICO_CONF_CODE_REJ) {
+        /* Fatal if the a code is fundamental to this version of the protocol
+         * Since only one is implemented, it is always fatal */
+        ppp_dbg("Received LCP CODE REJ\n");
+        evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXJ_NEG);
+        return;
+    }
+
     if (pkt[0] == PICO_CONF_PROTO_REJ) {
         /* Pico can use only one NCP.
          * So if a PROTO_REJ is received,
@@ -1106,6 +1131,22 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_RXR);
         return;
     }
+
+    if (pkt[0] == PICO_CONF_ECHO_REP) {
+        ppp_dbg("Received LCP ECHO REPLY\n");
+        /* There is no reply to an Echo-Reply */
+        return;
+    }
+
+    if (pkt[0] == PICO_CONF_DISCARD_REQ) {
+        ppp_dbg("Received LCP DISCARD REQ\n");
+        /* There is no reply to an Discard-Request */
+        return;
+    }
+
+    ppp_dbg("Received unknown LCP code\n");
+    evaluate_lcp_state(ppp, PPP_LCP_EVENT_RUC);
+    return;
 }
 
 static void pap_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t len)
@@ -1528,11 +1569,6 @@ static void lcp_this_layer_finished(struct pico_device_ppp *ppp)
 static void lcp_initialize_restart_count(struct pico_device_ppp *ppp)
 {
     lcp_timer_start(ppp, PPP_TIMER_ON_LCPREQ);
-}
-
-static void lcp_send_code_reject(struct pico_device_ppp *ppp)
-{
-    IGNORE_PARAMETER(ppp);
 }
 
 static void lcp_send_echo_reply(struct pico_device_ppp *ppp)
