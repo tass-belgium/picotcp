@@ -64,8 +64,8 @@ struct pico_ieee_addr
     enum ieee_am _mode;
 };
 
-#define pico_ieee_addr_len(am) (IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am) ? (2u) : \
-                                (IEEE_AM_EXTENDED == (am) ? (8u) : (0u)))
+#define pico_ieee_addr_len(am) (IEEE_AM_BOTH == (int)(am) || IEEE_AM_SHORT == (int)(am) ? (2u) : \
+                                (IEEE_AM_EXTENDED == (int)(am) ? (8u) : (0u)))
 #endif
 
 extern const uint8_t PICO_ETHADDR_ALL[];

@@ -130,7 +130,7 @@
 
 
 /* MEMORY MACROS */
-#define SIZE_UPDATE(size, edit, del) (uint16_t)((del) ? (uint16_t)(size - edit) : (uint16_t)(size + edit))
+#define SIZE_UPDATE(size, edit, del) (uint16_t)((del) ? ((uint16_t)((size) - (edit))) : ((uint16_t)((size) + (edit))))
 
 /* -------------------------------------------------------------------------------- */
 // MARK: 6LoWPAN types
