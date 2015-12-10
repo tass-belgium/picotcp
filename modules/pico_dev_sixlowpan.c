@@ -918,7 +918,7 @@ static inline int sixlowpan_frame_postpone(struct sixlowpan_frame *f, uint8_t re
 static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
 {
     /* Check if next hop is found, otherwise a ping is going on */
-    return (IEEE_AM_NONE == f->hop._mode ? (0) : (1));
+    return ((IEEE_AM_NONE == f->hop._mode) ? (0) : (1));
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -1540,7 +1540,7 @@ static uint8_t sixlowpan_nhc_ext_undo(struct sixlowpan_nhc_ext *ext, struct sixl
             exthdr = (struct pico_ipv6_exthdr *)ext;
             
             /* Get the following Next Header location */
-            if (EID_FRAGMENT == ext->eid) {
+            if (EID_FRAGMENT == (int)ext->eid) {
                 nh = ((uint8_t *)ext) + 8;
                 f->net_len = (uint16_t)(f->net_len + 8);
             } else {
@@ -1621,10 +1621,10 @@ static uint8_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
     /* For now, don't compress the checksum because we have to have the authority from the upper layers */
     nhc->checksum = CHECKSUM_COMPRESSED_NONE;
     
-    if (PORTS_COMPRESSED_FULL == nhc->ports) {
+    if (PORTS_COMPRESSED_FULL == (int)nhc->ports) {
         r.offset = 1u; /* 4-bit src + 4-bit dst */
         r.length = 5; /* Compressed port bytes + length field size */
-    } else if (PORTS_COMPRESSED_DST == nhc->ports || PORTS_COMPRESSED_SRC == nhc->ports) {
+    } else if ((PORTS_COMPRESSED_DST == (int)nhc->ports) || (PORTS_COMPRESSED_SRC == (int)nhc->ports)) {
         r.offset = 3u; /* 8-bit x + 16-bit y */
         r.length = 3; /* Compressed port bytes + length field size */
     } else {
@@ -2650,7 +2650,7 @@ static uint8_t sixlowpan_mesh_read_hdr_info(uint8_t *buf, struct pico_ieee_addr 
     }
     
     *origin = pico_ieee_addr_from_flat(addresses, sam, IEEE_FALSE);
-    *final = pico_ieee_addr_from_flat(addresses + pico_ieee_addr_len(sam), dam, IEEE_FALSE);
+    *final = pico_ieee_addr_from_flat((uint8_t *)(addresses + pico_ieee_addr_len(sam)), dam, IEEE_FALSE);
     
     return hops_left;
 }
@@ -2689,7 +2689,7 @@ static void sixlowpan_mesh_fill_hdr_info(uint8_t *buf, struct sixlowpan_frame *f
     
     /* Set the MESH origin and final address */
     pico_ieee_addr_to_flat(addresses, f->local, IEEE_FALSE);
-    pico_ieee_addr_to_flat(addresses + pico_ieee_addr_len(f->local._mode), f->peer, IEEE_FALSE);
+    pico_ieee_addr_to_flat((uint8_t *)(addresses + pico_ieee_addr_len(f->local._mode)), f->peer, IEEE_FALSE);
 }
 
 static int sixlowpan_is_duplicate(struct pico_ieee_addr src)
@@ -2780,7 +2780,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         dead_ttl = (!f->hop_limit);
         
         /* Calculate the range in order to delete the MESH header in a moment */
-        r.length = f->hop_limit >= MESH_HL_ESC ? (uint16_t)(DISPATCH_MESH(INFO_HDR_LEN) + 1) : DISPATCH_MESH(INFO_HDR_LEN);
+        r.length = (f->hop_limit >= MESH_HL_ESC) ? ((uint16_t)(DISPATCH_MESH(INFO_HDR_LEN) + 1)) : (DISPATCH_MESH(INFO_HDR_LEN));
         r.length = (uint16_t)(r.length + (uint8_t)(pico_ieee_addr_len(origin._mode) + pico_ieee_addr_len(final._mode)));
         
         /* Add information to L2 routing table with current peer address, since at this moment,
@@ -2835,7 +2835,7 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
     
     /* Calculate the range to insert into the buffer */
     r.offset = (uint16_t)(IEEE_LEN_LEN + f->link_hdr_len);
-    r.length = (f->hop_limit >= MESH_HL_ESC) ? ((uint16_t)DISPATCH_MESH(INFO_HDR_LEN) + 1) : (uint16_t)(DISPATCH_MESH(INFO_HDR_LEN));
+    r.length = (f->hop_limit >= MESH_HL_ESC) ? ((uint16_t)DISPATCH_MESH(INFO_HDR_LEN) + 1) : ((uint16_t)(DISPATCH_MESH(INFO_HDR_LEN)));
     r.length = (uint16_t)(r.length + pico_ieee_addr_len(f->local._mode) + pico_ieee_addr_len(f->peer._mode));
     
     /* Always mesh route */
@@ -2929,7 +2929,7 @@ static int sixlowpan_send_exit(int ret)
     return ret;
 }
 
-static int sixlowpan_send_tx()
+static int sixlowpan_send_tx(void)
 {
     struct pico_device_sixlowpan *slp = NULL;
     uint8_t *buf = NULL;
