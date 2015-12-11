@@ -96,10 +96,6 @@
 #define IPV6_IS_MCAST_32(addr)      ((addr)[12] == 0x00)
 #define IPV6_IS_MCAST_48(addr)      ((addr)[10] == 0x00)
 #define IPV6_VERSION                ((uint32_t)(0x60000000))
-#define IPV6_DSCP(vtf)              (((vtf) >> IPHC_SHIFT_DSCP) & IPHC_MASK_DSCP)
-#define IPV6_ECN(vtf)               (((vtf) >> IPHC_SHIFT_ECN) & IPHC_MASK_ECN)
-#define IPV6_FLS(vtf)               (((vtf) >> IPHC_SHIFT_FL) & IPHC_MASK_FL)
-#define IPV6_FL(vtf)                ((vtf) & IPHC_MASK_FL)
 
 #define IPHC_SHIFT_ECN              (10u)
 #define IPHC_SHIFT_DSCP             (2u)
@@ -2154,6 +2150,7 @@ static int sixlowpan_iphc_pl_undo(struct sixlowpan_frame *f)
 static int sixlowpan_iphc_tf_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
+    uint32_t dscp = 0, ecn = 0, fl = 0, fl_shifted = 0, version = IPV6_VERSION;
     if (!f || !iphc)
         return -1;
     
@@ -2163,24 +2160,41 @@ static int sixlowpan_iphc_tf_undo(struct sixlowpan_iphc *iphc, struct sixlowpan_
         return -1;
     }
     
-    /* Reconstruct the original VTF-field */
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    
+    /* For now we don't care about the VTF-field being compressed or not,
+     * if it is, it will be correct nonetheless. 
+     * ECN-field will always be in front and has to be put on the other
+     * side of the traffic-class field. */
+    ecn = (uint32_t)((hdr->vtf >> IPHC_SHIFT_ECN) & IPHC_MASK_ECN);
+    /* DSCP-field has to be shifted 2 bits to the right again. */
+    dscp = (uint32_t)((hdr->vtf >> IPHC_SHIFT_DSCP) & IPHC_MASK_DSCP);
+    
+    /* The flow label can either be already on the right or it can be
+     * shifted a couple of bits to the left take this into consideration */
+    fl = (uint32_t)(hdr->vtf & IPHC_MASK_FL);
+    fl_shifted = (uint32_t)((hdr->vtf >> IPHC_SHIFT_FL) & IPHC_MASK_FL);
+
     switch (iphc->tf) {
         case TF_COMPRESSED_NONE:
             /* [ EEDDDDDD | xxxxFFFF | FFFFFFFF | FFFFFFFF ] */
-            hdr->vtf = long_be(IPV6_VERSION | IPV6_DSCP(hdr->vtf) | IPV6_ECN(hdr->vtf) | IPV6_FL(hdr->vtf));
+            hdr->vtf = long_be(version | dscp | ecn | fl);
             break;
         case TF_COMPRESSED_TC:
             /* [ EExxFFFF | FFFFFFFF | FFFFFFFF ] vvvvvvvv | */
-            hdr->vtf = long_be(IPV6_VERSION | ~IPHC_MASK_DSCP | IPV6_ECN(hdr->vtf) | IPV6_FLS(hdr->vtf));
+            /* A bitmask is applied with the inversed bitmask for the 
+             * compressed DSCP field to make sure it's zeroed out. */
+            hdr->vtf = long_be((version | ecn | fl_shifted) & ~(IPHC_MASK_DSCP));
             break;
         case TF_COMPRESSED_FL:
             /* [ EEDDDDDD ] vvvvvvvv | vvvvvvvv | vvvvvvvv | */
-            hdr->vtf = long_be(IPV6_VERSION | IPV6_DSCP(hdr->vtf) | IPV6_ECN(hdr->vtf));
+            /* A bitmask is applied with the inversed bitmask for the
+             * compressed flow label field to make sure it's zeroed out.*/
+            hdr->vtf = long_be((version | dscp | ecn) & ~ (IPHC_MASK_FL));
             break;
         case TF_COMPRESSED_FULL:
             /* | vvvvvvvv | vvvvvvvv | vvvvvvvv | vvvvvvvv | */
-            hdr->vtf = long_be(IPV6_VERSION);
+            hdr->vtf = long_be(version);
             break;
         default:
             /* Not possible, bitfield of width: 2 */
