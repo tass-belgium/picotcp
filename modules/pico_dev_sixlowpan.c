@@ -3259,6 +3259,7 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     
     if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
         dbg("Device init failed.\n");
+        PICO_FREE(sixlowpan);
         return NULL;
     }
     
