@@ -791,7 +791,7 @@ static int ieee_provide_hdr(struct sixlowpan_frame *f)
 /* -------------------------------------------------------------------------------- */
 // MARK: SIXLOWPAN FRAMES
 
-static uint8_t sixlowpan_overhead(struct sixlowpan_frame *f)
+static uint8_t sixlowpan_mesh_overhead(struct sixlowpan_frame *f)
 {
     /* Returns overhead needed in byte for 6LoWPAN Mesh addressing and */
     uint8_t overhead = DISPATCH_MESH(INFO_HDR_LEN);
@@ -845,6 +845,9 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
     f->net_len = net_len;
     f->transport_len = transport_len;
     f->dgram_size = (uint16_t)(f->net_len + f->transport_len);
+    
+    /* Determine the size of the frame if IEEE802.15.4 overhead is added,
+     * will be addded to the internal size of the frame as well. */
     ieee_len(f);
     
     if (!(f->phy_hdr = PICO_ZALLOC(f->size))) {
@@ -1963,6 +1966,7 @@ static void sixlowpan_iphc_compress(struct sixlowpan_frame *f)
     struct range deletions[IPV6_FIELDS_NUM];
     struct sixlowpan_iphc *iphc = NULL;
     struct pico_ipv6_hdr *hdr = NULL;
+    uint16_t ieee_frame_len = 0;
     uint8_t i = 0, nh = 0;
     if (!f)
         return;
@@ -1998,8 +2002,11 @@ static void sixlowpan_iphc_compress(struct sixlowpan_frame *f)
         }
     }
     
+    /* Determine the size of the frame if IEEE802.15.4 overhead is added,
+     * will be addded to the internal size of the frame as well. */
+    ieee_frame_len = ieee_len(f);
     /* Check whether packet now fits inside the frame */
-    if ((ieee_len(f) + sixlowpan_overhead(f) <= IEEE_MAC_MTU)) {
+    if ((ieee_frame_len + sixlowpan_mesh_overhead(f) <= IEEE_MAC_MTU)) {
         f->state = FRAME_FITS_COMPRESSED;
     } else {
         f->state = FRAME_COMPRESSED;
@@ -2023,12 +2030,17 @@ static void sixlowpan_uncompressed(struct sixlowpan_frame *f)
 
 static void sixlowpan_compress(struct sixlowpan_frame *f)
 {
+    uint16_t ieee_frame_len = 0;
+    
     if (!f)
         return;
     
+    /* Determine the size of the frame if IEEE802.15.4 overhead is added,
+     * will be addded to the internal size of the frame as well. */
+    ieee_frame_len = ieee_len(f);
     
     /* Check whether or not the frame actually needs compression */
-    if ((ieee_len(f) + DISPATCH_IPV6(INFO_HDR_LEN) + sixlowpan_overhead(f)) <= IEEE_MAC_MTU) {
+    if ((ieee_frame_len + DISPATCH_IPV6(INFO_HDR_LEN) + sixlowpan_mesh_overhead(f)) <= IEEE_MAC_MTU) {
         sixlowpan_uncompressed(f);
     } else {
         sixlowpan_iphc_compress(f);
@@ -2285,7 +2297,7 @@ static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
     /* Determine how many bytes fits inside a single IEEE802.15.4-frame including 802.15.4-header and frag-header */
     max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len);
     max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn));
-    max_psize = (uint8_t)(max_psize - sixlowpan_overhead(f));
+    max_psize = (uint8_t)(max_psize - sixlowpan_mesh_overhead(f));
     
     comp = (uint8_t)(f->dgram_size - f->net_len);
     decompressed = (uint16_t)(max_psize + comp);
