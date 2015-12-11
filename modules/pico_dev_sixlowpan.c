@@ -601,26 +601,26 @@ int pico_ieee_addr_cmp(void *va, void *vb)
     return 0;
 }
 
-static inline void ieee_short_to_le(uint8_t *s)
+static inline void ieee_short_to_le(struct pico_ieee_addr_short *s)
 {
-    uint8_t temp = 0;
+    uint16_t temp = 0;
     if (!s)
         return;
-    temp = *s;
-    *s = *(s + 1);
-    *(s + 1) = temp;
+    temp = (uint16_t)((s->addr & 0xFF00u) >> 8u);
+    temp = (uint16_t)(temp + ((uint16_t)(s->addr & 0x00FFu) << 8u));
+    s->addr = temp;
 }
 
-static inline void ieee_ext_to_le(uint8_t *ext)
+static inline void ieee_ext_to_le(struct pico_ieee_addr_ext *ext)
 {
     uint8_t i = 0, temp = 0;
     if (!ext)
         return;
     
     for (i = 0; i < 4; i++) {
-        temp = ext[i];
-        ext[i] = ext[8 - (i + 1)];
-        ext[8 - (i + 1)] = temp;
+        temp = ext->addr[i];
+        ext->addr[i] = ext->addr[8 - (i + 1)];
+        ext->addr[8 - (i + 1)] = temp;
     }
 }
 
@@ -647,17 +647,17 @@ static int pico_ieee_addr_to_flat(uint8_t *buf, struct pico_ieee_addr addr, uint
     if (IEEE_AM_EXTENDED == addr._mode) {
         memcpy(buf, addr._ext.addr, PICO_SIZE_IEEE_EXT);
         if (ieee)
-            ieee_ext_to_le(buf);
+            ieee_ext_to_le((struct pico_ieee_addr_ext *)buf);
     } else if (IEEE_AM_BOTH == addr._mode || IEEE_AM_SHORT == addr._mode) {
         memcpy(buf, &addr._short.addr, PICO_SIZE_IEEE_SHORT);
 #ifdef PICO_BIG_ENDIAN
         /* If Big Endian, only rearrange if it is a IEEE-buffer */
         if (ieee)
-            ieee_short_to_le(buf);
+            ieee_short_to_le((struct pico_ieee_addr_short *)buf);
 #else
         /* If Little Endian, only rearrange if it's not a IEEE-buffer */
         if (!ieee)
-            ieee_short_to_le(buf);
+            ieee_short_to_le((struct pico_ieee_addr_short *)buf);
 #endif
     } else {
         PAN_ERR("Address Mode (%d) is not supported\n", addr._mode);
@@ -671,27 +671,25 @@ static struct pico_ieee_addr_ext pico_ieee_addr_ext_from_flat(uint8_t *buf, uint
     struct pico_ieee_addr_ext ext;
     memcpy(ext.addr, buf, PICO_SIZE_IEEE_EXT);
     if (ieee)
-        ieee_ext_to_le(ext.addr);
+        ieee_ext_to_le(&ext);
     return ext;
 }
 
 static struct pico_ieee_addr_short pico_ieee_addr_short_from_flat(uint8_t *buf, uint8_t ieee)
 {
-    uint8_t temp[PICO_SIZE_IEEE_SHORT];
-    struct pico_ieee_addr_short _short;
+    struct pico_ieee_addr_short temp;
     
     /* Copy in the address from the buffer */
-    memcpy(temp, buf, PICO_SIZE_IEEE_SHORT);
+    memcpy(&temp.addr, buf, PICO_SIZE_IEEE_SHORT);
 #ifdef PICO_BIG_ENDIAN
     if (ieee)
-        ieee_short_to_le(temp);
+        ieee_short_to_le(&temp);
 #else
     if (!ieee)
-        ieee_short_to_le(temp);
+        ieee_short_to_le(&temp);
 #endif
-    memcpy(&_short.addr, temp, PICO_SIZE_IEEE_SHORT);
     
-    return _short;
+    return temp;
 }
 
 static struct pico_ieee_addr pico_ieee_addr_from_flat(uint8_t *buf, enum ieee_am am, uint8_t ieee)
