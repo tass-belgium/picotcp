@@ -420,6 +420,11 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
         0
     };
     uint8_t ihl = 24, datalen = 0;
+    struct igmp_message *message = NULL;
+    struct mcast_parameters *p = NULL;
+    struct pico_ip4 mcast_group = {
+        0
+    };
 
     link = pico_ipv4_link_by_dev(f->dev);
     if (!link)
@@ -443,6 +448,7 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
         }
     } else if (datalen == 8) {
         struct igmp_message *query = (struct igmp_message *)f->transport_hdr;
+        // Check if max_resp_time is set RFC 3376 $7.1
         if (query->max_resp_time != 0) {
             /* IGMPv2 query */
             /* When changing compatibility mode, cancel all pending response
@@ -455,6 +461,15 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
             }
             igmp_dbg("IGMP: switch to compatibility mode IGMPv2\n");
             link->mcast_compatibility = PICO_IGMPV2;
+            // Reset the event and state to prevent deadlock
+            message = (struct igmp_message *)f->transport_hdr;
+            mcast_group.addr = message->mcast_group;
+            p = pico_igmp_find_parameter(&link->address, &mcast_group);
+            if(p) {
+              p->state = IGMP_STATE_NON_MEMBER;
+              p->event = IGMP_EVENT_CREATE_GROUP;
+            }
+
             t.type = IGMP_TIMER_V2_QUERIER;
             t.delay = ((IGMP_ROBUSTNESS * link->mcast_last_query_interval) + IGMP_QUERY_RESPONSE_INTERVAL) * 1000;
             t.f = f;
@@ -672,54 +687,8 @@ static int8_t pico_igmpv3_generate_filter(struct mcast_filter_parameters *filter
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
-    /* "non-existent" state of filter mode INCLUDE and empty source list */
-    if (p->event == IGMP_EVENT_DELETE_GROUP) { 
-        p->filter_mode = PICO_IP_MULTICAST_INCLUDE;
-        p->MCASTFilter = NULL;
-    }
-    if (p->event == IGMP_EVENT_QUERY_RECV) 
-        return 0;
-
-    pico_mcast_src_filtering_cleanup(filter);
     filter->g = (struct pico_mcast_group *)g;
-    switch (g->filter_mode) {
-
-    case PICO_IP_MULTICAST_INCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            if(pico_mcast_src_filtering_inc_inc(filter) == MCAST_NO_REPORT)
-                return MCAST_NO_REPORT;
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* TO_EX (B) */
-            pico_mcast_src_filtering_inc_excl(filter);
-            break;
-        default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    case PICO_IP_MULTICAST_EXCLUDE:
-        switch (p->filter_mode) {
-        case PICO_IP_MULTICAST_INCLUDE:
-            /* TO_IN (B) */
-            pico_mcast_src_filtering_excl_inc(filter);
-            break;
-        case PICO_IP_MULTICAST_EXCLUDE:
-            /* BLOCK (B-A) */
-            if(pico_mcast_src_filtering_excl_excl(filter) == MCAST_NO_REPORT)
-              return MCAST_NO_REPORT; 
-            break;
-       default:
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-        break;
-    default:
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-  return 0;
+    return pico_mcast_generate_filter(filter, p);
 }
 static int8_t pico_igmpv3_generate_report(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {
     struct igmpv3_report *report = NULL;
