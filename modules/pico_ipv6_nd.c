@@ -22,8 +22,6 @@
 
 #define nd_dbg(...) do {} while(0)
 
-static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
-
 extern struct pico_tree IPV6Links;
 
 
@@ -43,6 +41,7 @@ struct pico_ipv6_neighbor {
     uint16_t is_router;
     uint16_t failure_multi_count;
     uint16_t failure_uni_count;
+    uint16_t frames_queued;
     pico_time expire;
 };
 
@@ -52,6 +51,33 @@ static int pico_ipv6_neighbor_compare(void *ka, void *kb)
     return pico_ipv6_compare(&a->address, &b->address);
 }
 
+static int pico_ipv6_nd_qcompare(void *ka, void *kb){
+    struct pico_frame *a = ka, *b = kb;
+    struct pico_ipv6_hdr *a_hdr = NULL, *b_hdr = NULL;
+    struct pico_ip6 *a_dest_addr, *b_dest_addr;
+    int ret;
+
+    a_hdr = (struct pico_ipv6_hdr *)a;
+    b_hdr = (struct pico_ipv6_hdr *)b;
+
+    a_dest_addr = &a_hdr->dst;
+    b_dest_addr = &b_hdr->dst;
+
+    ret = pico_ipv6_compare(a_dest_addr, b_dest_addr);
+
+    if(ret){
+        return ret;
+    }
+
+    if(a->timestamp < b->timestamp){
+        return -1;
+    }
+    if(a->timestamp > b->timestamp){
+        return 1;
+    }
+    return 0;
+}
+PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
 PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 
@@ -65,18 +91,23 @@ static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
     return pico_tree_findKey(&NCache, &test);
 }
 
-static void pico_ipv6_nd_queued_trigger(void)
-{
-    int i;
-    struct pico_frame *f;
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
-    {
-        f = frames_queued_v6[i];
-        if (f) {
-            (void)pico_ethernet_send(f);
-            if(frames_queued_v6[i])
-              pico_frame_discard(frames_queued_v6[i]);
-            frames_queued_v6[i] = NULL;
+
+static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
+    struct pico_tree_node *index = NULL;
+    struct pico_frame *frame = NULL;
+    struct pico_ipv6_hdr *frame_hdr = NULL;
+    struct pico_ipv6_neighbor *n = NULL;
+
+    n = pico_nd_find_neighbor(dst);
+
+    pico_tree_foreach(index,&IPV6NQueue){
+        frame = index->keyValue;
+        frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+        if(!pico_ipv6_compare(dst, &frame_hdr->dst)){
+	    n->frames_queued--;
+            (void)pico_ethernet_send(frame);
+            pico_tree_delete(&IPV6NQueue,frame);
+            pico_frame_discard(frame);
         }
     }
 }
@@ -103,6 +134,7 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     nd_dbg("Adding address %s to cache...\n", address);
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
+    n->frames_queued = 0;
     pico_tree_insert(&NCache, n);
     return n;
 }
@@ -112,25 +144,18 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     int i;
     struct pico_frame *f;
     struct pico_ipv6_hdr *hdr;
-    struct pico_ip6 dst;
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
-    {
-        f = frames_queued_v6[i];
-        if (f) {
-            hdr = (struct pico_ipv6_hdr *) f->net_hdr;
-            dst = pico_ipv6_route_get_gateway(&hdr->dst);
-            if (pico_ipv6_is_unspecified(dst.addr))
-                dst = hdr->dst;
+    struct pico_tree_node *index = NULL;
 
-            if (memcmp(dst.addr, a->addr, PICO_SIZE_IP6) == 0) {
-                if (!pico_source_is_local(f)) {
-                    pico_notify_dest_unreachable(f);
-                }
-
-                pico_frame_discard(f);
-                frames_queued_v6[i] = NULL;
-            }
-        }
+    pico_tree_foreach(index,&IPV6NQueue){
+	f = index->keyValue;
+	hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+	if(!pico_ipv6_compare(a,&hdr->dst)){
+	    if(!pico_source_is_local(f)){
+	        pico_notify_dest_unreachable(f);
+    	    }
+	    pico_tree_delete(&IPV6NQueue,f);
+	    pico_frame_discard(f);
+	}
     }
 }
 
@@ -141,9 +166,6 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
     else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE)){
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     }
-    //else if (n->state == PICO_ND_STATE_PROBE){
-//	n->expire = PICO_TIME_MS() + 1000;//PICO_ND_RETRANS_TIMER;
- //   }
     else {
         n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
     }
@@ -157,8 +179,6 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
     /* dbg("Sending NS for %s\n", IPADDR); */
-    //if (++n->failure_count > PICO_ND_MAX_SOLICIT)
-    //    return;
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
 	if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
@@ -288,7 +308,7 @@ static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_uni_count = 0;
 	n->failure_multi_count = 0;
-        pico_ipv6_nd_queued_trigger();
+        pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
     }
@@ -304,7 +324,7 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_uni_count = 0;
 	n->failure_multi_count = 0;
-        pico_ipv6_nd_queued_trigger();
+        pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
     }
@@ -317,10 +337,9 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (IS_SOLICITED(hdr) && IS_OVERRIDE(hdr)) {
         pico_ipv6_neighbor_update(n, opt);
         n->state = PICO_ND_STATE_REACHABLE;
-	// TEST n->failure_count = 0;
         n->failure_uni_count = 0;
 	n->failure_multi_count = 0;
-        pico_ipv6_nd_queued_trigger();
+        pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
     }
@@ -328,7 +347,7 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (!IS_SOLICITED(hdr) && IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt) != 0)) {
         pico_ipv6_neighbor_update(n, opt);
         n->state = PICO_ND_STATE_STALE;
-        pico_ipv6_nd_queued_trigger();
+        pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
     }
@@ -375,7 +394,7 @@ static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pi
     if (opt)
         pico_ipv6_neighbor_update(n, opt);
 
-    pico_ipv6_nd_queued_trigger();
+    pico_ipv6_nd_queued_trigger(&n->address);
 }
 
 
@@ -425,7 +444,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
 
     memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
     n->state = PICO_ND_STATE_STALE;
-    pico_ipv6_nd_queued_trigger();
+    pico_ipv6_nd_queued_trigger(ip);
     return n;
 }
 
@@ -445,7 +464,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
         } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
-            pico_ipv6_nd_queued_trigger();
+            pico_ipv6_nd_queued_trigger(&n->address);
             pico_nd_new_expire_time(n);
         }
 
@@ -991,27 +1010,37 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 }
 
 void pico_ipv6_nd_postpone(struct pico_frame *f)
-{
-    int i;
-    static int last_enq = -1;
+{   
+    struct pico_ipv6_neighbor *n = NULL;
+    struct pico_ipv6_hdr *hdr = NULL;
+    struct pico_ip6 *dst;
     struct pico_frame *cp = pico_frame_copy(f);
-    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
-    {
-        if (!frames_queued_v6[i]) {
-            frames_queued_v6[i] = cp;
-            last_enq = i;
-            return;
-        }
+    
+    hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    dst = &hdr->dst;
+    
+    n = pico_nd_find_neighbor(dst);
+    
+    if(n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
+        pico_tree_insert(&IPV6NQueue, cp);
+	n->frames_queued++;
     }
-    /* Overwrite the oldest frame in the buffer */
-    if (++last_enq >= PICO_ND_MAX_FRAMES_QUEUED) {
-        last_enq = 0;
+    else{
+        struct pico_tree_node *index = NULL;
+        struct pico_frame *frame = NULL;
+        struct pico_ipv6_hdr *frame_hdr = NULL;
+
+	pico_tree_foreach(index,&IPV6NQueue){
+	    frame = index->keyValue;
+	    frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+	    if(!pico_ipv6_compare(dst,&frame_hdr->dst)){
+		pico_tree_delete(&IPV6NQueue,frame);
+		pico_frame_discard(frame);
+		break;
+	    }
+	}
+	pico_tree_insert(&IPV6NQueue,cp);
     }
-
-    if (frames_queued_v6[last_enq])
-        pico_frame_discard(frames_queued_v6[last_enq]);
-
-    frames_queued_v6[last_enq] = cp;
 }
 
 

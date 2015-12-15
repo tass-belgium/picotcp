@@ -11,6 +11,8 @@
 #define PICO_ND_REACHABLE_TIME         30000 /* msec */
 #define PICO_ND_RETRANS_TIMER          1000 /* msec */
 
+extern struct pico_tree IPV6NQueue;
+
 struct pico_nd_hostvars {
     uint8_t routing;
     uint8_t hoplimit;
