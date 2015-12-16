@@ -814,14 +814,18 @@ ignore_opt_prefix:
         }
         break;
         default:
-            pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_IPV6OPT,
-                                         (uint32_t)sizeof(struct pico_ipv6_hdr) + (uint32_t)PICO_ICMP6HDR_ROUTER_ADV_SIZE + (uint32_t)(nxtopt - opt_start));
+	    /* RFC 4861 6.1.2.
+	       A node MUST silently discard any received Router Advertisement
+	       that do not satisfy all of the validity checks. */ 
             return -1;
         }
     }
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
         f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
     }
+
+    if(icmp6_hdr->msg.info.router_adv.hop)
+	f->dev->hostvars.hoplimit = icmp6_hdr->msg.info.router_adv.hop;
 
     return 0;
 }
@@ -837,6 +841,7 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
 
     if (router_adv_validity_checks(f) < 0)
         return -1;
+
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     pico_tree_foreach(index,&IPV6Links){
