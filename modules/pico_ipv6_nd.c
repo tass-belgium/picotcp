@@ -97,14 +97,26 @@ static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
     struct pico_frame *frame = NULL;
     struct pico_ipv6_hdr *frame_hdr = NULL;
     struct pico_ipv6_neighbor *n = NULL;
+    struct pico_ip6 frame_dst;
 
     n = pico_nd_find_neighbor(dst);
 
     pico_tree_foreach(index,&IPV6NQueue){
         frame = index->keyValue;
         frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
-        if(!pico_ipv6_compare(dst, &frame_hdr->dst)){
-	    n->frames_queued--;
+	frame_dst = frame_hdr->dst;
+
+	if(!pico_ipv6_is_linklocal(frame_dst.addr))
+	    frame_dst = pico_ipv6_route_get_gateway(&frame_dst);
+
+	if(pico_ipv6_is_unspecified(frame_dst.addr)){
+	    frame_dst = frame_hdr->dst;
+	}
+	
+        if(!pico_ipv6_compare(dst, &frame_dst)){
+	    if(n){
+	        n->frames_queued--;
+	    }
             (void)pico_ethernet_send(frame);
             pico_tree_delete(&IPV6NQueue,frame);
             pico_frame_discard(frame);
@@ -145,11 +157,17 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     struct pico_frame *f;
     struct pico_ipv6_hdr *hdr;
     struct pico_tree_node *index = NULL;
+    struct pico_ip6 dst;
 
     pico_tree_foreach(index,&IPV6NQueue){
 	f = index->keyValue;
 	hdr = (struct pico_ipv6_hdr *) f->net_hdr;
-	if(!pico_ipv6_compare(a,&hdr->dst)){
+	dst = pico_ipv6_route_get_gateway(&hdr->dst);
+	if(pico_ipv6_is_unspecified(dst.addr)){
+	    dst = hdr->dst;
+	}
+
+	if (memcmp(dst.addr,a->addr,PICO_SIZE_IP6) == 0){
 	    if(!pico_source_is_local(f)){
 	        pico_notify_dest_unreachable(f);
     	    }
@@ -1026,7 +1044,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     
     n = pico_nd_find_neighbor(dst);
     
-    if(n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
+    if(n && n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
         pico_tree_insert(&IPV6NQueue, cp);
 	n->frames_queued++;
     }
