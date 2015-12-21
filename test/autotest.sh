@@ -45,6 +45,12 @@ ulimit -c unlimited
 killall -wq picoapp.elf 
 killall -wq picoapp6.elf
 
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ 6LoWPAN TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp6.elf -6 1,1, -a noop) &
+./build/test/picoapp6.elf -6 3,1 -a ping,aaaa:6109:0000:0000:0200:00aa:ab00:0001,0,3, || exit 1
+killall -w picoapp6.elf
 
  
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

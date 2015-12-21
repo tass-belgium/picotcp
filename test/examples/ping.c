@@ -55,11 +55,13 @@ void app_ping(char *arg)
     char *dest = NULL;
     char *next = NULL;
     char *abort = NULL;
+    char *delay = NULL;
+    int initial_delay = 0;
     static int id;
     int timeout = 0;
     next = cpy_arg(&dest, arg);
     if (!dest) {
-        fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]\n");
+        fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]:[wait N sec before start]\n");
         exit(255);
     }
 
@@ -68,14 +70,29 @@ void app_ping(char *arg)
         if (strlen(abort) > 0) {
             printf("Got arg: '%s'\n", abort);
             timeout = atoi(abort);
-            if (timeout <= 0) {
-                fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]\n");
+            if (timeout < 0) {
+                fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]:[wait N sec before start]\n");
                 exit(255);
             }
-
             printf("Aborting ping after %d seconds\n", timeout);
         }
     }
+
+    if (next) {
+        next = cpy_arg(&delay, next);
+        if (strlen(delay) > 0) {
+            initial_delay = atoi(delay);
+            if (initial_delay > 0) {
+                printf("Initial delay: %d seconds\n", initial_delay);
+                initial_delay = PICO_TIME_MS() + initial_delay * 1000;
+                while (PICO_TIME_MS() < initial_delay) {
+                    pico_stack_tick();
+                    usleep(10000);
+                }
+            }
+        }
+    }
+    printf("Starting ping.\n");
 
     if (!IPV6_MODE)
         id = pico_icmp4_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping);
@@ -87,6 +104,9 @@ void app_ping(char *arg)
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
         pico_timer_add(timeout * 1000, ping_abort_timer, &id);
+    } else {
+        printf("abort timer is %d seconds for id %d, ignoring\n", timeout, id);
+
     }
 
     /* free copied args */

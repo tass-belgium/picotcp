@@ -361,8 +361,10 @@ static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8
             if (found > 0)
                 return -1; /* malformed option: option is there twice. */
 
-            memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, (size_t)(len << 3));
-            found++;
+            if (len > 1) {
+                memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, (size_t)((len - 1) << 3));
+                found++;
+            }
         }
 
         if (optlen > 0) {
@@ -577,8 +579,6 @@ static int neigh_adv_process(struct pico_frame *f)
         return neigh_adv_reconfirm_no_tlla(n, icmp6_hdr);
 
 }
-
-
 
 static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
 {

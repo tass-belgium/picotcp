@@ -3092,13 +3092,13 @@ static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
     return 0;
 }
 
+static uint8_t buf[IEEE_PHY_MTU];
 static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 {
     /* Parse the pico_device structure to the internal sixlowpan-structure */
     struct pico_device_sixlowpan *sixlowpan = (struct pico_device_sixlowpan *) dev;
     struct ieee_radio *radio = sixlowpan->radio;
     struct sixlowpan_frame *f = NULL;
-    uint8_t buf[IEEE_PHY_MTU];
     int     len = 0;
     
     do {

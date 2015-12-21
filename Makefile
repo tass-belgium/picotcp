@@ -194,6 +194,7 @@ POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
+			modules/pico_dev_radiotest.o \
             modules/pico_dev_mock.o
 
 ifneq ($(ETH),0)

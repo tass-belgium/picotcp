@@ -33,6 +33,7 @@
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
+#include "pico_dev_sixlowpan.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -221,7 +222,7 @@ int main(int argc, char **argv)
     pico_stack_init();
     /* Parse args */
     while(1) {
-        c = getopt_long(argc, argv, "v:b:t:T:a:r:hl", long_options, &option_idx);
+        c = getopt_long(argc, argv, "6:v:b:t:T:a:r:hl", long_options, &option_idx);
         if (c < 0)
             break;
 
@@ -444,6 +445,55 @@ int main(int argc, char **argv)
 
         }
         break;
+
+        case '6':
+        {
+            char *nxt, *name = NULL, *area = NULL;
+            uint16_t n_id, n_area;
+            struct ieee_radio *radio;
+            struct pico_ip6 myaddr, pan, netmask;
+            const char pan_addr[] = "aaaa:6109::0";
+            const char pan_netmask[] = "ffff:ffff:ffff:ffff::0"; /* /64 */
+            struct pico_socket *s;
+            do {
+                nxt = cpy_arg(&name, optarg);
+                if (!nxt) break;
+                nxt = cpy_arg(&area, nxt);
+                if (!nxt) break;
+            } while (0);
+            if (!name || !area) {
+                fprintf(stderr, "Usage: -6,id,area\n");
+                exit(1);
+            }
+            n_id = atoi(name);
+            n_area = atoi(area);
+
+            pico_string_to_ipv6(pan_addr, myaddr.addr);
+            pico_string_to_ipv6(pan_addr, pan.addr);
+            pico_string_to_ipv6(pan_netmask, netmask.addr);
+            myaddr.addr[8]  = 0x02;
+            myaddr.addr[11] = 0xaa;
+            myaddr.addr[12] = 0xab;
+            myaddr.addr[15] = n_id;
+
+            printf("%d:%d\n", n_id, n_area);
+            radio = pico_radiotest_create(n_id, n_area);
+            dev = pico_sixlowpan_create(radio);
+            if (!radio) {
+                perror("Creating radio");
+                exit(1);
+            }
+            pico_ipv6_link_add(dev, myaddr, netmask);
+
+            if (n_id == 1)
+                pico_sixlowpan_enable_6lbr(dev, pan);
+
+
+            printf("+++ OPTARG %s\n", optarg);
+
+
+            break;
+        }
         case 'b':
         {
             char *nxt, *name = NULL, *sock = NULL;
