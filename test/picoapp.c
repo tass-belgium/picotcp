@@ -449,7 +449,7 @@ int main(int argc, char **argv)
         case '6':
         {
             char *nxt, *name = NULL, *area = NULL;
-            uint16_t n_id, n_area;
+            uint16_t n_id, n_area0, n_area1;
             struct ieee_radio *radio;
             struct pico_ip6 myaddr, pan, netmask;
             const char pan_addr[] = "aaaa:6109::0";
@@ -466,7 +466,14 @@ int main(int argc, char **argv)
                 exit(1);
             }
             n_id = atoi(name);
-            n_area = atoi(area);
+            n_area0 = atoi(area);
+
+            if (nxt) {
+                nxt = cpy_arg(&area, nxt);
+            }
+            if (area) {
+                n_area1 = atoi(area);
+            }
 
             pico_string_to_ipv6(pan_addr, myaddr.addr);
             pico_string_to_ipv6(pan_addr, pan.addr);
@@ -476,8 +483,8 @@ int main(int argc, char **argv)
             myaddr.addr[12] = 0xab;
             myaddr.addr[15] = n_id;
 
-            printf("%d:%d\n", n_id, n_area);
-            radio = pico_radiotest_create(n_id, n_area);
+            printf("%d:%d:%d\n", n_id, n_area0, n_area1);
+            radio = pico_radiotest_create(n_id, n_area0, n_area1);
             dev = pico_sixlowpan_create(radio);
             if (!radio) {
                 perror("Creating radio");
@@ -487,10 +494,6 @@ int main(int argc, char **argv)
 
             if (n_id == 1)
                 pico_sixlowpan_enable_6lbr(dev, pan);
-
-
-            printf("+++ OPTARG %s\n", optarg);
-
 
             break;
         }

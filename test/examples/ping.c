@@ -56,13 +56,23 @@ void app_ping(char *arg)
     char *next = NULL;
     char *abort = NULL;
     char *delay = NULL;
+    char *asize = NULL;
     int initial_delay = 0;
     static int id;
     int timeout = 0;
+    int size = 64;
+
     next = cpy_arg(&dest, arg);
     if (!dest) {
-        fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]:[wait N sec before start]\n");
+        fprintf(stderr, "ping needs the following format: ping:dst_addr:[size:[abort after N sec:[wait N sec before start]]]\n");
         exit(255);
+    }
+    if (next) {
+        next = cpy_arg(&asize, next);
+        size = atoi(asize);
+        if (size <= 0) {
+            size = 64; /* Default */
+        }
     }
 
     if (next) {
@@ -71,7 +81,7 @@ void app_ping(char *arg)
             printf("Got arg: '%s'\n", abort);
             timeout = atoi(abort);
             if (timeout < 0) {
-                fprintf(stderr, "ping needs the following format: ping:dst_addr:[abort after N sec]:[wait N sec before start]\n");
+                fprintf(stderr, "ping needs the following format: ping:dst_addr:[size:[abort after N sec:[wait N sec before start]]]\n");
                 exit(255);
             }
             printf("Aborting ping after %d seconds\n", timeout);
@@ -95,11 +105,11 @@ void app_ping(char *arg)
     printf("Starting ping.\n");
 
     if (!IPV6_MODE)
-        id = pico_icmp4_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping);
+        id = pico_icmp4_ping(dest, NUM_PING, 1000, 10000, size, cb_ping);
 
 #ifdef PICO_SUPPORT_IPV6
     else
-        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, 64, cb_ping6, NULL);
+        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, size, cb_ping6, NULL);
 #endif
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);

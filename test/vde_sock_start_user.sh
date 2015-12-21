@@ -7,7 +7,7 @@ function help(){
 }
 
 function check_if(){
-   t1=$(ifconfig | grep -o vde0)
+   t1=$(/sbin/ifconfig | grep -o vde0)
    t2="vde0"
    if [ "$t1" != "$t2" ]; then
        return 1
@@ -19,6 +19,7 @@ function check_if(){
 function start_vde(){
 		sudo vde_switch -s /tmp/pic0.ctl -m 777 -M /tmp/pico.mgmt -d -hub -t vde0
 		sudo vde_switch -s /tmp/pic1.ctl -m 777 -M /tmp/pici.mgmt -d -hub
+        sleep 1
 		sudo /sbin/ifconfig vde0 10.50.0.1 netmask 255.255.0.0 
 }
 

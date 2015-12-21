@@ -361,10 +361,9 @@ static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8
             if (found > 0)
                 return -1; /* malformed option: option is there twice. */
 
-            if (len > 1) {
-                memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, (size_t)((len - 1) << 3));
-                found++;
-            }
+
+            memcpy(opt, (struct pico_icmp6_opt_lladdr *)options, sizeof(struct pico_icmp6_opt_lladdr));
+            found++;
         }
 
         if (optlen > 0) {
