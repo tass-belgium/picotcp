@@ -269,9 +269,17 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     int found = 0;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
-    if (optlen)
-        option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
+    if (icmp6_hdr->type == PICO_ICMP6_ROUTER_ADV){
+	optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
+    	if (optlen)
+       	    option = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
+    }
+    
+    if (icmp6_hdr->type == PICO_ICMP6_NEIGH_ADV){
+        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
+    	if (optlen)
+       	    option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
+    }
 
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)option)->type;
@@ -751,6 +759,8 @@ static int radv_process(struct pico_frame *f)
             pico_time now = PICO_TIME_MS();
             struct pico_icmp6_opt_prefix *prefix =
                 (struct pico_icmp6_opt_prefix *) nxtopt;
+	    struct pico_tree_node *index = NULL;
+	    struct pico_device *dv = NULL;
             /* RFC4862 5.5.3 */
             /* a) If the Autonomous flag is not set, silently ignore the Prefix
              *       Information option.
@@ -777,7 +787,7 @@ static int radv_process(struct pico_frame *f)
             if (prefix->prefix_len != 64) {
                 return -1;
             }
-
+	
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if (link) {
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
@@ -856,6 +866,7 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr;
     if (icmp6_initial_checks(f) < 0)
         return -1;
+
 
     if (router_adv_validity_checks(f) < 0)
         return -1;
