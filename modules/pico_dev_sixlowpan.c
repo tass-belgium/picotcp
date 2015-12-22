@@ -2557,11 +2557,29 @@ static struct sixlowpan_frame *sixlowpan_defrag(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: BROADCASTING
+
+static int sixlowpan_is_duplicate(struct pico_ieee_addr src);
+
 static void sixlowpan_retransmit(struct sixlowpan_frame *f)
 {
     struct pico_device_sixlowpan *slp = NULL;
+    struct ieee_hdr *hdr;
+    if (!f)
+        return;
     slp = (struct pico_device_sixlowpan *)f->dev;
+    /* Check if duplicate */
+    if (sixlowpan_is_duplicate(f->peer))
+        return;
+
+    /* Save broadcast information for duplicate broadcast suppression in the future */
+    hdr = (struct ieee_hdr *)(f->phy_hdr + IEEE_LEN_LEN);
+    if (IEEE_AM_SHORT == (int)hdr->fcf.sam) {
+        last_bcast_short = pico_ieee_addr_short_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), IEEE_TRUE);
+    } else {
+        last_bcast_ext = pico_ieee_addr_ext_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), IEEE_TRUE);
+    }
     slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
+    dbg("FWD!\n");
 }
 
 static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f)
