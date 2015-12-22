@@ -1008,11 +1008,11 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
-    if ((f->transport_hdr != f->payload)  &&
+    hdr->id = short_be(ipv4_progressive_id);
+
+    if (
 #ifdef PICO_SUPPORT_IPV4FRAG
-        ( (0 == (f->frag & PICO_IPV4_MOREFRAG)) ||
-          (0 == (f->frag & PICO_IPV4_FRAG_MASK)) )
-        &&
+	(0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
 #endif
         1 )
         ipv4_progressive_id++;
@@ -1021,7 +1021,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         ttl = f->send_ttl;
     }
 
-    hdr->id = short_be(ipv4_progressive_id);
     hdr->dst.addr = dst->addr;
     hdr->src.addr = link->address.addr;
     hdr->ttl = ttl;

@@ -21,13 +21,13 @@ Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picot
 Continuous integration
 
 Jenkins Functional tests: 
-[![Jenkins autotest](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_autotest)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_autotest)
+[![Jenkins autotest](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_autotest)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/PicoTCP_rel_autotest)
 
 Jenkins Unit tests      : 
-[![Jenkins unit tests](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_unit_tests)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_unit_tests)
+[![Jenkins unit tests](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_unit_tests)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/PicoTCP_rel_unit_tests)
 
 Jenkins RFC compliance  :
-[![Jenkins RFC Compliance](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_RF_mbed)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_RF_mbed)
+[![Jenkins RFC Compliance](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_RF_mbed)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/PicoTCP_rel_RF_mbed)
 
 Jenkins TICS quality    :
-[![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/PicoTCP_rel_TICS/)
+[![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/PicoTCP_rel_TICS/)
