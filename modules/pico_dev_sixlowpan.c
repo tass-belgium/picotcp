@@ -2864,6 +2864,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
             r.length = (uint16_t)(r.length + DISPATCH_BC0(INFO_HDR_LEN));
         } else {
             /* If the TTL is zero or I'm the originator don't bother forwarding, discard at once */
+            /* TODO: Do actually check if I'm the originator (^) */
             if (dead_ttl)
                 return sixlowpan_mesh_discard(f);
             
