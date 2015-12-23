@@ -504,6 +504,25 @@ static int forwards_find(struct pico_ieee_addr origin, struct pico_ieee_addr fin
 
 /* -------------------------------------------------------------------------------- */
 // MARK: MEMORY
+static void buf_move(void *dst, const void *src, size_t n)
+{
+    uint8_t *pd = (uint8_t *)dst;
+    const uint8_t *ps = (const uint8_t *)src;
+
+    if (!dst || !src || (dst == src))
+        return;
+
+    if (dst < src) {
+        while(n--)
+            *pd++ = *ps++;
+    } else {
+        pd = pd + (n - 1);
+        ps = ps + (n - 1);
+        while(n--)
+            *pd-- = *ps--;
+    }
+}
+
 static uint16_t buf_delete(void *buf, uint16_t len, struct range r)
 {
     uint16_t rend = (uint16_t)(r.offset + r.length);
@@ -517,7 +536,7 @@ static uint16_t buf_delete(void *buf, uint16_t len, struct range r)
         return len;
     
     /* Replace the deleted chunk at the offset by the data after the end of the deleted chunk */
-    memmove(buf + r.offset, buf + rend, (size_t)rest);
+    buf_move(buf + r.offset, buf + rend, (size_t)rest);
     memset(buf + clr_offset, 0, r.length);
     
     /* Return the new length */
@@ -538,8 +557,8 @@ static void *buf_insert(void *buf, uint16_t len, struct range r)
     
     /* Assemble buffer again */
     if (buf && new) {
-        memmove(new, buf, (size_t)r.offset);
-        memmove(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
+        buf_move(new, buf, (size_t)r.offset);
+        buf_move(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
         memset(new + r.offset, 0x00, r.length);
         PICO_FREE(buf); /* Give back previous buffer to the system */
     }
@@ -1056,11 +1075,11 @@ static int sixlowpan_ipv6_derive_mcast(enum iphc_mcast_dam am, uint8_t *addr)
             break;
         case MCAST_COMPRESSED_32:
             mcast.addr[1] = addr[0];
-            memmove(mcast.addr + 13, addr + 1, 3);
+            buf_move(mcast.addr + 13, addr + 1, 3);
             break;
         case MCAST_COMPRESSED_48:
             mcast.addr[1] = addr[0];
-            memmove(mcast.addr + 11, addr + 1, 5);
+            buf_move(mcast.addr + 11, addr + 1, 5);
             break;
         default:
             /* IPv6 is fully carried inline */
@@ -1852,12 +1871,12 @@ static struct range sixlowpan_iphc_rearrange_mcast(struct sixlowpan_iphc *iphc, 
         /* Set DAM */
         iphc->dam = MCAST_COMPRESSED_32;
         addr[0] = addr[1];
-        memmove(addr + 1, addr + 13, 3);
+        buf_move(addr + 1, addr + 13, 3);
     } else if (IPV6_IS_MCAST_48(addr)) {
         /* Set DAM */
         iphc->dam = MCAST_COMPRESSED_48;
         addr[0] = addr[1];
-        memmove(addr + 1, addr + 11, 5);
+        buf_move(addr + 1, addr + 11, 5);
     } else {
         /* Full address is carried in-line */
         iphc->dam = MCAST_COMPRESSED_NONE;
@@ -2535,9 +2554,9 @@ static int sixlowpan_defrag_init(struct sixlowpan_frame *f, uint16_t offset)
     frame_rearrange_ptrs(reassembly);
     
     /* Copy in the buffer fields from the received frame */
-    memmove(reassembly->phy_hdr, f->phy_hdr, IEEE_LEN_LEN);
-    memmove(reassembly->link_hdr, f->link_hdr, f->link_hdr_len);
-    memmove(reassembly->net_hdr + offset, f->net_hdr, f->net_len);
+    buf_move(reassembly->phy_hdr, f->phy_hdr, IEEE_LEN_LEN);
+    buf_move(reassembly->link_hdr, f->link_hdr, f->link_hdr_len);
+    buf_move(reassembly->net_hdr + offset, f->net_hdr, f->net_len);
     
     /* How many bytes there still need to be puzzled */
     reassembly->transport_len = (uint16_t)(reassembly->dgram_size - f->net_len);
@@ -2579,7 +2598,7 @@ static struct sixlowpan_frame *sixlowpan_defrag_puzzle(struct sixlowpan_frame *f
         }
     } else {
         /* Copy received frame in place */
-        memmove((void *)(reassembly->net_hdr + offset), f->net_hdr, f->net_len);
+        buf_move((void *)(reassembly->net_hdr + offset), f->net_hdr, f->net_len);
         reassembly->transport_len = (uint16_t)(reassembly->transport_len - f->net_len);
         
         /* Check if the IPv6 frame is completely defragged */
@@ -2617,7 +2636,7 @@ static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee
 static int sixlowpan_retransmit(struct sixlowpan_frame *f)
 {
     struct pico_device_sixlowpan *slp = NULL;
-    
+        
     if (!f) 
         return -1;
     
@@ -2627,8 +2646,8 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
     if (!IEEE_ADDR_IS_BCAST(f->local) && sixlowpan_is_duplicate(f->peer, f->local, f->link_hdr->seq)) 
         return -1;
     
-    slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
     PAN_DBG("FWD!\n");
+    slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
     return 0;
 }
 
