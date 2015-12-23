@@ -33,6 +33,7 @@
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
+#include "pico_dev_radiotest.h"
 #include "pico_dev_sixlowpan.h"
 
 #include <poll.h>
@@ -450,7 +451,7 @@ int main(int argc, char **argv)
         {
             char *nxt, *name = NULL, *area = NULL;
             uint16_t n_id, n_area0, n_area1;
-            struct ieee_radio *radio;
+            struct ieee_radio *radio = NULL;
             struct pico_ip6 myaddr, pan, netmask;
             const char pan_addr[] = "aaaa:6109::0";
             const char pan_netmask[] = "ffff:ffff:ffff:ffff::0"; /* /64 */

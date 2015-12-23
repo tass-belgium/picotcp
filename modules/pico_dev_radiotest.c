@@ -6,6 +6,7 @@
  *********************************************************************/
 
 
+#include "pico_dev_radiotest.h"
 #include "pico_device.h"
 #include "pico_dev_tap.h"
 #include "pico_stack.h"
@@ -199,6 +200,6 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
     }
 
 
-    return &dev->radio;
+    return (struct ieee_radio *)dev;
 }
 
