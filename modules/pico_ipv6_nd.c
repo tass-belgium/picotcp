@@ -675,7 +675,6 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp = NULL;
     struct pico_icmp6_opt_aro *aro = NULL;
     
-    ip = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
     sllao = (struct pico_icmp6_opt_lladdr *)((uint8_t *)&icmp->msg.info.neigh_sol + sizeof(struct neigh_sol_s));
     aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + (sllao->len * 8));
