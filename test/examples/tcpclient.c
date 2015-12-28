@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 /*** START TCP CLIENT ***/
 static char *buffer1;
