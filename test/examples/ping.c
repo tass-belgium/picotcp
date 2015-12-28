@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_icmp4.h>
 #include <pico_icmp6.h>
 /*** START PING ***/
