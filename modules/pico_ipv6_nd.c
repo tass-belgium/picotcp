@@ -18,8 +18,7 @@
 #include "pico_ipv6_nd.h"
 
 #ifdef PICO_SUPPORT_IPV6
-
-
+#define MAX_INITIAL_RTR_ADVERTISEMENTS 3
 #define nd_dbg(...) do {} while(0)
 
 extern struct pico_tree IPV6Links;
@@ -872,12 +871,12 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
       if(link->rs_retries >= 1 && pico_ipv6_is_linklocal(hdr->src.addr)){
-        link->rs_retries = 3;
+        link->rs_retries = MAX_INITIAL_RTR_ADVERTISEMENTS;
         link->rs_expire_time = 0;
       }
       else if(link->rs_retries == 0 && pico_ipv6_is_linklocal(hdr->src.addr)){
         pico_icmp6_router_solicitation(link->dev, &link->address);
-        link->rs_retries = 3;
+        link->rs_retries = MAX_INITIAL_RTR_ADVERTISEMENTS;
         link->rs_expire_time = 0;
       }
     }
@@ -1086,6 +1085,7 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
         break;
 
     case PICO_ICMP6_ROUTER_ADV:
+        nd_dbg("ICMP6: received ROUTER_ADV\n");
         ret = pico_nd_router_adv_recv(f);
         break;
 
