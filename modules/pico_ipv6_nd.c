@@ -160,20 +160,20 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     struct pico_ip6 dst;
 
     pico_tree_foreach(index,&IPV6NQueue){
-  f = index->keyValue;
-  hdr = (struct pico_ipv6_hdr *) f->net_hdr;
-  dst = pico_ipv6_route_get_gateway(&hdr->dst);
-  if(pico_ipv6_is_unspecified(dst.addr)){
-      dst = hdr->dst;
-  }
+      f = index->keyValue;
+      hdr = (struct pico_ipv6_hdr *) f->net_hdr;
+      dst = pico_ipv6_route_get_gateway(&hdr->dst);
+      if(pico_ipv6_is_unspecified(dst.addr)){
+          dst = hdr->dst;
+      }
 
-  if (memcmp(dst.addr,a->addr,PICO_SIZE_IP6) == 0){
-      if(!pico_source_is_local(f)){
-          pico_notify_dest_unreachable(f);
+      if (memcmp(dst.addr,a->addr,PICO_SIZE_IP6) == 0){
+          if(!pico_source_is_local(f)){
+              pico_notify_dest_unreachable(f);
           }
-      pico_tree_delete(&IPV6NQueue,f);
-      pico_frame_discard(f);
-  }
+          pico_tree_delete(&IPV6NQueue,f);
+          pico_frame_discard(f);
+      }
     }
 }
 
