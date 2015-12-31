@@ -1,6 +1,9 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
+extern void app_udpclient(char *arg);
 /*** START Multicast SEND ***/
 /*
  * multicast send expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port
@@ -29,7 +32,7 @@ void app_mcastsend_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv6(laddr, &inaddr_link.addr);
+            pico_string_to_ipv6(laddr, &inaddr_link.addr[0]);
         } else {
             goto out;
         }
@@ -41,7 +44,7 @@ void app_mcastsend_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv6(maddr, &inaddr_mcast.addr);
+            pico_string_to_ipv6(maddr, &inaddr_mcast.addr[0]);
         } else {
             goto out;
         }

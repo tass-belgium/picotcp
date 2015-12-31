@@ -48,6 +48,13 @@ const uint8_t PICO_ETHADDR_MCAST6[6] = {
 };
 #endif
 
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
+#endif
+
 
 volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
@@ -1098,7 +1105,7 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
     return tref.id;
 }
 
-int pico_stack_init(void)
+int MOCKABLE pico_stack_init(void)
 {
 
 #ifdef PICO_SUPPORT_IPV4

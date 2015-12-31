@@ -78,20 +78,26 @@ struct pico_ip4 ZERO_IP4 = {
     0
 };
 struct pico_ip_mreq ZERO_MREQ = {
-    .mcast_group_addr = {0}, .mcast_link_addr = {0}
+    .mcast_group_addr = {{0}},
+    .mcast_link_addr  = {{0}}
 };
-struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+struct pico_ip_mreq_source ZERO_MREQ_SRC = {
+    .mcast_group_addr.ip4  = {0},
+    .mcast_link_addr.ip4   = {0},
+    .mcast_source_addr.ip4 = {0}
+};
 struct pico_ip6 ZERO_IP6 = {
- { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }   
+ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 struct pico_ip_mreq ZERO_MREQ_IP6 = {
-    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_link_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
-};
-struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6 = {  
     .mcast_group_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_link_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_source_addr.ip6 ={{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} };
+    .mcast_link_addr.ip6  = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
+};
+struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6 = {
+    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_link_addr.ip6 =   {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_source_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
+};
 
 /* #define INFINITE_TCPTEST */
 #define picoapp_dbg(...) do {} while(0)

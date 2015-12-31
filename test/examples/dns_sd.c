@@ -1,7 +1,9 @@
 #include "utils.h"
-#include "pico_dns_sd.h"
-#include "pico_ipv4.h"
-#include "pico_addressing.h"
+#include <pico_dns_sd.h>
+#include <pico_ipv4.h>
+#include <pico_addressing.h>
+#include <pico_device.h>
+#include <pico_ipv4.h>
 
 /*** START DNS_SD ***/
 #ifdef PICO_SUPPORT_DNS_SD

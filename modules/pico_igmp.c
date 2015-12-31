@@ -548,11 +548,11 @@ static int pico_igmp_process_in(struct pico_protocol *self, struct pico_frame *f
     if (!pico_igmp_is_checksum_valid(f))
         goto out;
 
-    if (pico_igmp_compatibility_mode(f) < 0)
-        goto out;
-
     p = pico_igmp_analyse_packet(f);
     if (!p)
+        goto out;
+
+    if (pico_igmp_compatibility_mode(f) < 0)
         goto out;
 
     return pico_igmp_process_event(p);

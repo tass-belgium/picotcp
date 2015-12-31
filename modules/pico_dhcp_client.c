@@ -30,6 +30,13 @@
 #define DHCP_CLIENT_MAXMSGZISE         (PICO_IP_MRU - PICO_SIZE_IP4HDR)
 #define PICO_DHCP_HOSTNAME_MAXLEN  64U
 
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
+#endif
+
 static char dhcpc_host_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
 static char dhcpc_domain_name[PICO_DHCP_HOSTNAME_MAXLEN] = "";
 
@@ -382,7 +389,7 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
     return 0;
 }
 
-int pico_dhcp_initiate_negotiation(struct pico_device *dev, void (*cb)(void *dhcpc, int code), uint32_t *uid)
+int MOCKABLE pico_dhcp_initiate_negotiation(struct pico_device *dev, void (*cb)(void *dhcpc, int code), uint32_t *uid)
 {
     uint8_t retry = 32;
     uint32_t xid = 0;
@@ -940,17 +947,17 @@ out_discard_buf:
     PICO_FREE(buf);
 }
 
-void *pico_dhcp_get_identifier(uint32_t xid)
+void * MOCKABLE pico_dhcp_get_identifier(uint32_t xid)
 {
     return (void *)pico_dhcp_client_find_cookie(xid);
 }
 
-struct pico_ip4 pico_dhcp_get_address(void*dhcpc)
+struct pico_ip4 MOCKABLE pico_dhcp_get_address(void*dhcpc)
 {
     return ((struct pico_dhcp_client_cookie*)dhcpc)->address;
 }
 
-struct pico_ip4 pico_dhcp_get_gateway(void*dhcpc)
+struct pico_ip4 MOCKABLE pico_dhcp_get_gateway(void*dhcpc)
 {
     return ((struct pico_dhcp_client_cookie*)dhcpc)->gateway;
 }

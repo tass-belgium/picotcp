@@ -1,5 +1,9 @@
 #include "utils.h"
+#include <pico_ipv6.h>
 #include <pico_socket.h>
+
+extern void app_udpecho(char *arg);
+
 /*** START Multicast RECEIVE + ECHO ***/
 /*
  * multicast receive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port:sendto_port
@@ -34,7 +38,7 @@ void app_mcastreceive_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv6(laddr, &inaddr_link.ip6.addr);
+            pico_string_to_ipv6(laddr, &inaddr_link.ip6.addr[0]);
         } else {
             goto out;
         }
@@ -46,7 +50,7 @@ void app_mcastreceive_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv6(maddr, &inaddr_mcast.ip6.addr);
+            pico_string_to_ipv6(maddr, &inaddr_mcast.ip6.addr[0]);
         } else {
             goto out;
         }
@@ -96,7 +100,7 @@ void app_mcastreceive_ipv6(char *arg)
     p = strcat(p + strlen(sport), ",64,");
 
     /* DAD needs to verify the link address before we can continue */
-    while(!pico_ipv6_link_get(&inaddr_link.ip6.addr) ) {
+    while(!pico_ipv6_link_get(&inaddr_link.ip6) ) {
         pico_stack_tick();
         usleep(2000);
     }

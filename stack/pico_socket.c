@@ -35,6 +35,12 @@
 static void *Mutex = NULL;
 #endif
 
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
+#endif
 
 #define PROTO(s) ((s)->proto->proto_number)
 
@@ -597,7 +603,7 @@ static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t f
 
 }
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
+struct pico_socket * MOCKABLE pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
 {
 
     struct pico_socket *s = NULL;
@@ -1422,7 +1428,7 @@ int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len, voi
     return 0;
 }
 
-int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig,
+int MOCKABLE pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig,
                          uint16_t *remote_port)
 {
     return pico_socket_recvfrom_extended(s, buf, len, orig, remote_port, NULL);
@@ -1498,7 +1504,7 @@ int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *
 
 }
 
-int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
+int MOCKABLE pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
     if (!s || !local_addr || !port) {
         pico_err = PICO_ERR_EINVAL;
@@ -1755,7 +1761,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #endif
 
 
-int pico_socket_setoption(struct pico_socket *s, int option, void *value)
+int MOCKABLE pico_socket_setoption(struct pico_socket *s, int option, void *value)
 {
 
     if (s == NULL) {
