@@ -874,7 +874,6 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
     struct pico_ipv6_link *link = NULL;
     struct pico_ipv6_hdr *hdr;
     struct pico_ipv6_neighbor *nd;
-    struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     if (icmp6_initial_checks(f) < 0)
         return -1;
 
@@ -904,7 +903,6 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
         nd->is_router = 1;
       }
     }
-    pico_ipv6_link_add(f->dev, hdr->src, netmask64);
     return radv_process(f);
 }
 
