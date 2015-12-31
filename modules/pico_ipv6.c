@@ -1917,6 +1917,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             pico_tree_foreach_safe(index, &RouterList, temp) {
               gateway = index->keyValue;
               if(pico_ipv6_compare(gateway, &link->address) == 0) {
+                  pico_ipv6_router_down(gateway);
                   pico_tree_delete(&RouterList,gateway);
                   PICO_FREE(gateway);
               }
