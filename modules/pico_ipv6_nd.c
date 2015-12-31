@@ -80,6 +80,8 @@ PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
 PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 
+
+
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
     struct pico_ipv6_neighbor test = {
@@ -733,15 +735,18 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 
 static int radv_process(struct pico_frame *f)
 {
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_ip6 *route;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
+    struct pico_tree *RouterList = pico_ipv6_get_routerlist();
     struct pico_ip6 zero = {
         .addr = {0}
     };
     int optlen;
-
+    uint8_t in_list = 0;
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
@@ -782,19 +787,23 @@ static int radv_process(struct pico_frame *f)
             if (prefix->prefix_len != 64) {
                 return -1;
             }
-  
-            link = pico_ipv6_prefix_configured(&prefix->prefix);
-            if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
-                goto ignore_opt_prefix;
+            pico_tree_foreach_safe(index, RouterList, _tmp)
+            {
+               route = index->keyValue;
+               if(pico_ipv6_compare(route, &hdr->src) == 0) {
+                  in_list =1;
+               }
             }
-
-            link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
-            if (link) {
+            if(in_list == 0) {
+                link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
                 pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
+                pico_tree_insert(RouterList, &hdr->src);
             }
-
+            else {
+                link = pico_ipv6_prefix_configured(&prefix->prefix);
+                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+            }
 ignore_opt_prefix:
             optlen -= (prefix->len << 3);
             nxtopt += (prefix->len << 3);

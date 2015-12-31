@@ -64,7 +64,10 @@ int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
     }
     return 0;
 }
-
+static int ipv6_compare(void *ka, void *kb) {
+    struct pico_ip6 *a = ka, *b = kb;
+    return pico_ipv6_compare(a,b);
+}
 static int ipv6_link_compare(void *ka, void *kb)
 {
     struct pico_ipv6_link *a = ka, *b = kb;
@@ -122,7 +125,11 @@ static int ipv6_route_compare(void *ka, void *kb)
 PICO_TREE_DECLARE(Tree_dev_ip6_link, ipv6_link_compare);
 PICO_TREE_DECLARE(IPV6Routes, ipv6_route_compare);
 PICO_TREE_DECLARE(IPV6Links, ipv6_link_compare);
+PICO_TREE_DECLARE(RouterList, ipv6_compare);
 
+struct pico_tree *pico_ipv6_get_routerlist() {
+  return &RouterList;
+}
 static char pico_ipv6_dec_to_char(uint8_t u)
 {
     if (u < 10)
@@ -1901,14 +1908,24 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
+    struct pico_ip6 *gateway = NULL;
     (void)arg;
     pico_tree_foreach_safe(index, &IPV6Links, temp) {
         link = index->keyValue;
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");
+            pico_tree_foreach_safe(index, &RouterList, temp) {
+              gateway = index->keyValue;
+              if(pico_ipv6_compare(gateway, &link->address) == 0) {
+                  pico_tree_delete(&RouterList,gateway);
+                  PICO_FREE(gateway);
+              }
+            }
             pico_ipv6_link_del(link->dev, link->address);
         }
     }
+
+
     pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
 }
 
