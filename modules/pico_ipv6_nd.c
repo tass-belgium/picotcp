@@ -752,7 +752,10 @@ static int radv_process(struct pico_frame *f)
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
     opt_start = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
     nxtopt = opt_start;
-
+    /* Discard advertisements with optlen == 0 */
+    if(optlen == 0) {
+      return -1;
+    }
     while (optlen > 0) {
         uint8_t *type = (uint8_t *)nxtopt;
         switch (*type) {
