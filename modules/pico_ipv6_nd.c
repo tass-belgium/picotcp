@@ -790,6 +790,12 @@ static int radv_process(struct pico_frame *f)
             if (prefix->prefix_len != 64) {
                 return -1;
             }
+            // Add prefix link if needed
+            link = pico_ipv6_prefix_configured(&prefix->prefix);
+            if(!link) {
+                link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+            }
+
             //Update Router list if needed
             pico_tree_foreach_safe(index, RouterList, _tmp)
             {
@@ -799,15 +805,14 @@ static int radv_process(struct pico_frame *f)
                }
             }
             if(in_list == 0) {
-                link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
-                pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
                 pico_tree_insert(RouterList, &hdr->src);
             }
             else {
-                link = pico_ipv6_prefix_configured(&prefix->prefix);
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
             }
+            /*TODO don't overwrite the current gateway, use the router list */
+            pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
 
 ignore_opt_prefix:
             optlen -= (prefix->len << 3);
