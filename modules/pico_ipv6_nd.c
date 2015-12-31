@@ -742,7 +742,6 @@ static int radv_process(struct pico_frame *f)
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
     struct pico_tree *RouterList = pico_ipv6_get_routerlist();
-    struct pico_ipv6_neighbor *nd;
     struct pico_ip6 zero = {
         .addr = {0}
     };
@@ -809,13 +808,7 @@ static int radv_process(struct pico_frame *f)
                 link = pico_ipv6_prefix_configured(&prefix->prefix);
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
             }
-            // Update nd cache
-            pico_tree_foreach_safe(index, &NCache, _tmp) {
-              nd = index->keyValue;
-              if(pico_ipv6_compare(&nd->address, &hdr->src)) {
-                nd->is_router = 1;
-              }
-            }
+
 ignore_opt_prefix:
             optlen -= (prefix->len << 3);
             nxtopt += (prefix->len << 3);
@@ -877,9 +870,10 @@ ignore_opt_prefix:
 
 static int pico_nd_router_adv_recv(struct pico_frame *f)
 {
-    struct pico_tree_node *index = NULL;
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ipv6_link *link = NULL;
     struct pico_ipv6_hdr *hdr;
+    struct pico_ipv6_neighbor *nd;
     if (icmp6_initial_checks(f) < 0)
         return -1;
 
@@ -902,6 +896,13 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
       }
     }
     pico_ipv6_neighbor_from_unsolicited(f);
+    // Update nd cache
+    pico_tree_foreach_safe(index, &NCache, _tmp) {
+      nd = index->keyValue;
+      if(pico_ipv6_compare(&nd->address, &hdr->src)) {
+        nd->is_router = 1;
+      }
+    }
     return radv_process(f);
 }
 
