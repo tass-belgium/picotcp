@@ -173,7 +173,7 @@ static int radiotest_rx(struct ieee_radio *radio, uint8_t *buf, int len)
 
     if (ret_len < 2) /* not valid */
         return 0;
-    radiotest_pcap_write(dev, buf + 1, len - 1);
+    radiotest_pcap_write(dev, buf + 1, ret_len - 1);
     buf[0] = (uint8_t)(ret_len);
     return ret_len - 1;
 }
