@@ -6,6 +6,10 @@
  *********************************************************************/
 
 
+/* Uncomment next line to enable libPCAP dump */
+#define RADIO_PCAP
+
+
 #include "pico_dev_radiotest.h"
 #include "pico_device.h"
 #include "pico_dev_tap.h"
@@ -15,6 +19,10 @@
 #include "sys/socket.h"
 #include "netinet/in.h"
 #include "sys/poll.h"
+#ifdef RADIO_PCAP
+#   include <pcap/pcap.h>
+static char pcap_dump_name[] = "/tmp/radio_%04x.pcap";
+#endif
 
 struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1);
 
@@ -33,7 +41,57 @@ struct radiotest_radio {
     uint16_t addr;
     int sock0;
     int sock1;
+#ifdef RADIO_PCAP
+    pcap_t *pcap;
+    pcap_dumper_t *pcapd;
+#endif
 };
+
+
+#ifdef RADIO_PCAP
+void radiotest_pcap_open(struct radiotest_radio *dev) 
+{
+    char dumpfile[100];
+    dev->pcap = pcap_open_dead(DLT_IEEE802_15_4, 65535);
+    if (!dev->pcap) {
+        perror("LibPCAP");
+        exit (1);
+    }
+    snprintf(dumpfile, 100, pcap_dump_name, dev->addr);
+    dev->pcapd = pcap_dump_open(dev->pcap, dumpfile);
+    if (!dev->pcapd){
+        perror("opening pcap dump file");
+        exit(1);
+    }
+}
+
+void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
+{
+    struct pcap_pkthdr ph;
+    if (!dev || !dev->pcapd)
+        return;
+    ph.caplen = len;
+    ph.len = len;
+    gettimeofday(&ph.ts, NULL);
+    pcap_dump((u_char *)dev->pcapd, &ph, buf);
+    pcap_dump_flush(dev->pcapd);
+}
+
+#else 
+
+void radiotest_pcap_open(struct radiotest_radio *dev)
+{
+    (void)dev;
+}
+
+void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
+{
+    (void)dev;
+    (void)buf;
+    (void)len;
+}
+
+#endif
 
 static uint16_t radiotest_get_sh(struct ieee_radio *radio)
 {
@@ -118,7 +176,7 @@ static int radiotest_rx(struct ieee_radio *radio, uint8_t *buf, int len)
 
     if (ret_len < 2) /* not valid */
         return 0;
-
+    radiotest_pcap_write(dev, buf + 1, len - 1);
     buf[0] = (uint8_t)(ret_len);
     return ret_len - 1;
 }
@@ -133,9 +191,10 @@ static int radiotest_tx(struct ieee_radio *radio, void *_buf, int len)
     ret = sendto(radiotest->sock0, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR0), sizeof(struct sockaddr_in));
     if (areas > 1)
         ret = sendto(radiotest->sock1, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR1), sizeof(struct sockaddr_in));
+
+    radiotest_pcap_write(radio, buf + 1, len - 1);
     return ret;
 }
-
 
 struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1)
 {
@@ -199,6 +258,7 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
         areas++;
     }
 
+    radiotest_pcap_open(dev);
 
     return (struct ieee_radio *)dev;
 }
