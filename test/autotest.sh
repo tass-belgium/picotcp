@@ -48,11 +48,11 @@ killall -wq picoapp6.elf
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 1HOP TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-route add -net 224.0.0.0/4 dev lo
+sudo route add -net 224.0.0.0/4 dev lo
 (./build/test/picoapp6.elf -6 1,1,0,/media/psf/Home/radio1.pcap -a noop) &
 ./build/test/picoapp6.elf -6 3,1,0,/media/psf/Home/radio3.pcap -a ping,aaaa:6109:0000:0000:0200:00aa:ab00:0001,64,0,3, || exit 1
 killall -w picoapp6.elf
-route del -net 224.0.0.0/4 dev lo
+sudo route del -net 224.0.0.0/4 dev lo
 
 #echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 #echo "~~~ 6LoWPAN PING 2HOP TEST ~~~"
