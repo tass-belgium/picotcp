@@ -497,7 +497,6 @@ int main(int argc, char **argv)
                 perror("Creating radio");
                 exit(1);
             }
-            pico_ipv6_link_add(dev, myaddr, netmask);
 
             if (n_id == 1)
                 pico_sixlowpan_enable_6lbr(dev, pan);
