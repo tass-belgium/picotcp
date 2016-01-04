@@ -20,8 +20,8 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
-//#define nd_dbg(...) do {} while(0)
-#define nd_dbg dbg
+#define nd_dbg(...) do {} while(0)
+//#define nd_dbg dbg
 
 #define ND_ARO_STATUS_SUCCES        (0u)
 #define ND_ARO_STATUS_DUPLICATE     (1u)

@@ -459,7 +459,7 @@ int main(int argc, char **argv)
             uint16_t n_id, n_area0, n_area1;
             struct ieee_radio *radio = NULL;
             struct pico_ip6 myaddr, pan, netmask;
-            const char pan_addr[] = "aaaa:6109::0";
+            const char pan_addr[] = "2aaa:6109::0";
             const char pan_netmask[] = "ffff:ffff:ffff:ffff::0"; /* /64 */
             struct pico_socket *s;
             do {

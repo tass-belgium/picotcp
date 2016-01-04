@@ -36,7 +36,8 @@
 #define PICO_IPV6_MAX_RTR_SOLICITATION_DELAY 1000
 #define PICO_IPV6_DEFAULT_DAD_RETRANS  1
 
-#define ipv6_dbg(...) do { }while(0); 
+#define ipv6_dbg(...) do { }while(0);
+//#define ipv6_dbg dbg
 #define ipv6_mcast_dbg do{ }while(0);
 #ifdef PICO_SUPPORT_MCAST
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;
@@ -1934,6 +1935,7 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 {
     struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
     while (link && !pico_ipv6_is_global(link->address.addr)) {
+        printf("[0x%02X] - is global: %d - %d\n", link->address.addr[0], pico_ipv6_is_global(link->address.addr), link->address.addr[0] >> 0x05);
         link = pico_ipv6_link_by_dev_next(dev, link);
     }
     return link;
