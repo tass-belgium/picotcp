@@ -455,7 +455,7 @@ int main(int argc, char **argv)
 
         case '6':
         {
-            char *nxt, *name = NULL, *area = NULL;
+            char *nxt, *name = NULL, *area = NULL, *dump = NULL;
             uint16_t n_id, n_area0, n_area1;
             struct ieee_radio *radio = NULL;
             struct pico_ip6 myaddr, pan, netmask;
@@ -482,6 +482,10 @@ int main(int argc, char **argv)
                 n_area1 = atoi(area);
             }
 
+            if (nxt) {
+                nxt = cpy_arg(&dump, nxt);
+            }
+
             pico_string_to_ipv6(pan_addr, myaddr.addr);
             pico_string_to_ipv6(pan_addr, pan.addr);
             pico_string_to_ipv6(pan_netmask, netmask.addr);
@@ -491,7 +495,7 @@ int main(int argc, char **argv)
             myaddr.addr[15] = n_id;
 
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-            radio = pico_radiotest_create(n_id, n_area0, n_area1);
+            radio = pico_radiotest_create(n_id, n_area0, n_area1, dump);
             dev = pico_sixlowpan_create(radio);
             if (!radio) {
                 perror("Creating radio");

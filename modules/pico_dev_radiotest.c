@@ -24,9 +24,6 @@
 static char pcap_dump_name[] = "/tmp/radio_%04x.pcap";
 #endif
 
-struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1);
-
-
 #define RFDEV_PANID               0xABCD
 #define MC_ADDR_BE       0x010101EBU
 #define LO_ADDR          0x0100007FU
@@ -49,7 +46,7 @@ struct radiotest_radio {
 
 
 #ifdef RADIO_PCAP
-void radiotest_pcap_open(struct radiotest_radio *dev) 
+void radiotest_pcap_open(struct radiotest_radio *dev, char *dump) 
 {
     char dumpfile[100];
     dev->pcap = pcap_open_dead(DLT_IEEE802_15_4, 65535);
@@ -57,7 +54,7 @@ void radiotest_pcap_open(struct radiotest_radio *dev)
         perror("LibPCAP");
         exit (1);
     }
-    snprintf(dumpfile, 100, pcap_dump_name, dev->addr);
+    snprintf(dumpfile, 100, dump, dev->addr);
     dev->pcapd = pcap_dump_open(dev->pcap, dumpfile);
     if (!dev->pcapd){
         perror("opening pcap dump file");
@@ -181,13 +178,44 @@ static int radiotest_rx(struct ieee_radio *radio, uint8_t *buf, int len)
     return ret_len - 1;
 }
 
+/**
+ *  Simulated CRC16-CITT Kermit generation
+ *
+ *  @param buf uint8_t *, buffer to generate FCS for.
+ *  @param len uint8_t, len of the buffer
+ *
+ *  @return CITT Kermit CRC16 of the buffer
+ */
+static uint16_t calculate_crc16(uint8_t *buf, uint8_t len)
+{
+    uint16_t crc = 0x0000;
+    uint16_t q = 0, i = 0;
+    uint8_t c = 0;
+    
+    for (i = 0; i < len; i++) {
+        c = buf[i];
+        q = (crc ^ c) & 0x0F;
+        crc = (crc >> 4) ^ (q * 0x1081);
+        q = (crc ^ (c >> 4)) & 0xF;
+        crc = (crc >> 4) ^ (q * 0x1081);
+    }
+    
+    return crc;
+}
+
 static int radiotest_tx(struct ieee_radio *radio, void *_buf, int len)
 {
     struct radiotest_radio *radiotest = (struct radiotest_radio *)radio;
     uint8_t *buf = (uint8_t *)_buf;
+    uint16_t crc = 0;
     int ret = 0;
 
     buf[0] = (uint8_t) radio->get_addr_short(radiotest);
+    
+    /* Genereate FCS, to make pcap happy... */
+    crc = calculate_crc16(buf + 1, len - 3);
+    memcpy(buf + len - 2, (void *)&crc, 2);
+
     ret = sendto(radiotest->sock0, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR0), sizeof(struct sockaddr_in));
     if (areas > 1)
         ret = sendto(radiotest->sock1, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR1), sizeof(struct sockaddr_in));
@@ -196,7 +224,7 @@ static int radiotest_tx(struct ieee_radio *radio, void *_buf, int len)
     return ret;
 }
 
-struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1)
+struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, char *dump)
 {
     struct radiotest_radio *dev = PICO_ZALLOC(sizeof(struct radiotest_radio));
     uint8_t ext_add[8] = {};
@@ -257,8 +285,10 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
         setsockopt(dev->sock1, IPPROTO_IP, IP_MULTICAST_LOOP, &no, sizeof(int));
         areas++;
     }
-
-    radiotest_pcap_open(dev);
+    
+    if (dump) {
+       radiotest_pcap_open(dev, dump);
+    }
 
     return (struct ieee_radio *)dev;
 }
