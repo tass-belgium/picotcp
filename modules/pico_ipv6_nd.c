@@ -19,7 +19,7 @@
 
 #ifdef PICO_SUPPORT_IPV6
 #define MAX_INITIAL_RTR_ADVERTISEMENTS 3
-#define nd_dbg(...) do {} while(0)
+#define nd_dbg(...) do{ fprintf( stderr, __VA_ARGS__ ); } while(0);
 
 extern struct pico_tree IPV6Links;
 
