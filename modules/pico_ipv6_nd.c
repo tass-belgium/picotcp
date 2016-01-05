@@ -1057,10 +1057,10 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     char temp[100];
     if (!f)
         return NULL;
-    nd_dbg("pico_ipv6_get_neighbor/n");
+    nd_dbg("pico_ipv6_get_neighbor\n");
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    pico_ipv6_get_routerlist(temp, &hdr->dst);
-    nd_dbg("Looking for nd %s/n", temp);
+    pico_ipv6_to_string(temp, &hdr->dst);
+    nd_dbg("Looking for nd %s\n", temp);
     /* If we are still probing for Duplicate Address, abort now. */
     if (pico_ipv6_link_istentative(&hdr->src))
         return NULL;

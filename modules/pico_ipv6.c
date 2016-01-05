@@ -1909,11 +1909,14 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
     struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
     struct pico_ip6 *gateway = NULL;
+    char tmp[100];
     (void)arg;
     pico_tree_foreach_safe(index, &IPV6Links, temp) {
         link = index->keyValue;
         if ((link->expire_time > 0) && (link->expire_time < now)) {
-            dbg("Warning: IPv6 address has expired.\n");
+            dbg("Warning: IPv6 address has expired. ");
+            pico_ipv6_to_string(tmp, &link->address);
+            dbg("%s\n", tmp);
             pico_tree_foreach_safe(index, &RouterList, temp) {
               gateway = index->keyValue;
               if(pico_ipv6_compare(gateway, &link->address) == 0) {
