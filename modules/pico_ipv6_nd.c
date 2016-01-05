@@ -747,6 +747,7 @@ static int radv_process(struct pico_frame *f)
     };
     int optlen;
     uint8_t in_list = 0;
+    char temp[100]; 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
@@ -791,9 +792,13 @@ static int radv_process(struct pico_frame *f)
                 return -1;
             }
             // Add prefix link if needed
+            pico_ipv6_to_string(temp, &prefix->prefix);
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if(!link) {
+                nd_dbg("Adding link for prefix %s\n",temp);
                 link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+            } else {
+                nd_dbg("prefix already in list %s\n",temp);
             }
 
             //Update Router list if needed
@@ -966,7 +971,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     case PICO_ND_STATE_REACHABLE:
         n->state = PICO_ND_STATE_STALE;
-        /* dbg("IPv6_ND: neighbor expired!\n"); */
+        dbg("IPv6_ND: neighbor expired!\n");
         return;
 
     case PICO_ND_STATE_STALE:
@@ -1049,10 +1054,13 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     struct pico_ipv6_link *l = NULL;
+    char temp[100];
     if (!f)
         return NULL;
-
+    nd_dbg("pico_ipv6_get_neighbor/n");
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    pico_ipv6_get_routerlist(temp, &hdr->dst);
+    nd_dbg("Looking for nd %s/n", temp);
     /* If we are still probing for Duplicate Address, abort now. */
     if (pico_ipv6_link_istentative(&hdr->src))
         return NULL;
@@ -1061,7 +1069,6 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     l = pico_ipv6_link_get(&hdr->dst);
     if (l)
         return &l->dev->eth->mac;
-
     return pico_nd_get(&hdr->dst, f->dev);
 }
 
