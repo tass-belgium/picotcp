@@ -246,10 +246,14 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
 
     /* should we use gateway, or is dst local (gateway == 0)? */
     gateway = pico_ipv6_route_get_gateway(address);
-    if (memcmp(gateway.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0)
+    if (memcmp(gateway.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0 ){
         addr = *address;
-    else
+        nd_dbg("nd is local!\n");
+    }
+    else {
         addr = gateway;
+        nd_dbg("nd is not local!\n");
+    }
 
     return pico_nd_get_neighbor(&addr, pico_nd_find_neighbor(&addr), dev);
 }
