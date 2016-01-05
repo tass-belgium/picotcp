@@ -7,7 +7,7 @@
 
 
 /* Uncomment next line to enable libPCAP dump */
-#define RADIO_PCAP
+/* #define RADIO_PCAP */
 
 
 #include "pico_dev_radiotest.h"
@@ -76,9 +76,10 @@ void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
 
 #else 
 
-void radiotest_pcap_open(struct radiotest_radio *dev)
+void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
 {
     (void)dev;
+    (void)dump;
 }
 
 void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
