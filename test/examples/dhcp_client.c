@@ -94,10 +94,11 @@ void app_dhcp_client(char *arg)
             exit(255);
         }
 
+        if (sdev)
+            free(sdev);
+
         dhcpclient_devices++;
     }
-    if (sdev)
-        free(sdev);
     return;
 
 out:
