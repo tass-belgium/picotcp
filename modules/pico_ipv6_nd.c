@@ -145,6 +145,10 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
+
+    if (!n)
+        return;
+
     if (n->expire != (pico_time)0)
         return;
 
