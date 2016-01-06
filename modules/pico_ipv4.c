@@ -382,12 +382,14 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
-    uint16_t flag = short_be(hdr->frag);
-
-    (void)self;
-
+    uint16_t flag;
+    
     if (!hdr)
         return -1;
+
+    (void)self;
+    flag = short_be(hdr->frag);
+
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
         option_len =  (uint8_t)(4 * (((hdr->vhl) & 0x0F) - 5));
