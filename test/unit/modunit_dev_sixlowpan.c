@@ -7,6 +7,10 @@
 #include "modules/pico_dev_sixlowpan.c"
 #include "check.h"
 
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 #define STARTING() printf("*********************** STARTING %s ***\n", __func__)
 #define TRYING(s, ...) printf("Trying %s: " s, __func__, ##__VA_ARGS__)
 #define CHECKING() printf("Checking the results for %s\n", __func__)
@@ -14,6 +18,10 @@
 #define ENDING() printf("*********************** ENDING %s ***\n",__func__)
 
 #define DBG(s, ...) printf(s, ##__VA_ARGS__)
+
+const char const *mdns6_frame_1 = "6008cd6f006c11fffe800000000000005ab035fffe7341e3ff0200000000000000000000000000fb14e914e9006c10ae000084000000000200000001124a656c6c65732d4d6163426f6f6b2d50726f056c6f63616c00001c8001000000780010fe800000000000005ab035fffe7341e3c00c00018001000000780004c0a80103c00c002f8001000000780008c00c000440000008";
+const char const *icmp6_frame_1  = "6000000000203aff2aaa610900000000020000aaab000002ff0200000000000000000001ff0000018700f2c3000000002aaa610900000000020000beef000001010158b0357341e3";
+const char const *mldv2_frame_1 = "6000000000380001fe800000000000005ab035fffe7341e3ff0200000000000000000000000000163a000100050200008f000ab50000000204000000ff0200000000000000000002fff9923704000000ff0200000000000000000001ff000002";
 
 #define SIZE_DUMMY_FRAME 60
 static struct sixlowpan_frame *create_dummy_frame(void)
@@ -27,6 +35,55 @@ static struct sixlowpan_frame *create_dummy_frame(void)
         return NULL;
     }
     new->size = SIZE_DUMMY_FRAME;
+    return new;
+}
+
+static uint8_t char_to_hex(const char a)
+{
+    if (a >= 'a' && a <= 'z')
+        return (uint8_t)(a - 'a' + 10);
+    else if (a >= 'A' && a <= 'Z')
+        return (uint8_t)(a - 'A' + 10);
+    else if (a >= '0' && a <= '9')
+        return (uint8_t)(a - '0');
+    else
+        return 0;
+}
+
+static uint8_t *hex_to_byte_array(const char *stream, size_t *nlen)
+{
+    int i = 0;
+    uint8_t *array = NULL;
+    
+    *nlen = strlen(stream) >> 1;
+    array = (uint8_t *)PICO_ZALLOC(*nlen); /* Don't want trailing zero in */
+                                                                
+    for (i = 0; i < strlen(stream); i += 2) {
+        array[i >> 1] = (char_to_hex(stream[i]) * 16) + char_to_hex(stream[i + 1]);
+    }
+                                                                                    
+    return array;
+}
+
+static struct sixlowpan_frame *create_frame_from_dump(const uint8_t const *dump)
+{
+	struct sixlowpan_frame *new = NULL;
+
+    if (!dump)
+        return NULL;
+	
+    if (!(new = PICO_ZALLOC(sizeof(struct sixlowpan_frame))))
+        return NULL;
+    
+    if (!(new->net_hdr = hex_to_byte_array(dump, &new->size))) {
+        PICO_FREE(new);
+        return NULL;
+    }
+
+    new->net_len = PICO_SIZE_IP6HDR;
+    new->transport_hdr = new->net_hdr + new->net_len;
+    new->transport_len = new->size - new->net_len;
+
     return new;
 }
 
@@ -580,7 +637,23 @@ START_TEST(tc_pico_ieee_addr_from_hdr)
     ENDING();
 }
 END_TEST
+START_TEST(tc_sixlowpan_compress)
+{
+    struct sixlowpan_frame *translated = create_frame_from_dump(mdns6_frame_1);
 
+    STARTING();
+
+    TRYING();
+    sixlowpan_compress(translated);
+
+    CHECKING();
+    fail_if(translated->state == FRAME_ERROR, "Error while compressing frame probably to not set of other fields in the frame\n");
+
+    // TODO: Properly test.
+
+    ENDING();
+}
+END_TEST
 Suite *pico_suite(void)                       
 {
     Suite *s = suite_create("PicoTCP");             
@@ -628,6 +701,13 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ieee_addr_from_hdr = tcase_create("Unit test for pico_ieee_addr_from_hdr"); /* CHECKED */
     tcase_add_test(TCase_pico_ieee_addr_from_hdr, tc_pico_ieee_addr_from_hdr);
     suite_add_tcase(s, TCase_pico_ieee_addr_from_hdr);
+
+    /* -------------------------------------------------------------------------------- */
+    // MARK: COMPRESSION
+    TCase *TCase_sixlowpan_compress = tcase_create("Unit test for sixlowpan_compress");
+    tcase_add_test(TCase_sixlowpan_compress, tc_sixlowpan_compress);
+    suite_add_tcase(s, TCase_sixlowpan_compress);
+    
 
     return s;
 }
