@@ -902,6 +902,7 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
     
     if (!dev)
         return NULL;
+    
     if (!(f = PICO_ZALLOC(sizeof(struct sixlowpan_frame)))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
@@ -3327,7 +3328,17 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     struct pico_device_sixlowpan *sixlowpan = NULL;
     char dev_name[MAX_DEVICE_NAME];
     struct pico_ieee_addr slp;
+    
     if (!radio)
+        return NULL;
+    
+    /* Check radio-format */
+    if (!radio->transmit ||
+        !radio->receive ||
+        !radio->get_pan_id ||
+        !radio->get_addr_short ||
+        !radio->get_addr_ext ||
+        !radio->set_addr_short)
         return NULL;
     
     if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
