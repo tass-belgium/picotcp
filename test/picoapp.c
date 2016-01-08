@@ -527,10 +527,17 @@ int main(int argc, char **argv)
             dev = pico_vde_create(sock, name, macaddr);
             NXT_MAC(macaddr);
             if (!dev) {
+                if (sock)
+                    free(sock);
+                if (name)
+                    free(name);
                 perror("Creating vde");
                 exit(1);
             }
-
+            if (sock)
+                free(sock);
+            if (name)
+                free(name);
             printf("Vde created.\n");
         }
         break;

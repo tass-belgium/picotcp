@@ -252,6 +252,7 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
             }
         }
     }
+    PICO_FREE(t);
 }
 
 static void pico_dhcp_client_timer_stop(struct pico_dhcp_client_cookie *dhcpc, int type)

@@ -248,6 +248,9 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
     }
 #endif
 
+    if (!tree)
+        return 0;
+
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
         if (FRAG_OFF(net, cur->frag) != bookmark)
