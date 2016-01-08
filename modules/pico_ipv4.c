@@ -22,6 +22,7 @@
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 #include "pico_fragments.h"
+#include "pico_mcast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -381,12 +382,14 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
-    uint16_t flag = short_be(hdr->frag);
-
-    (void)self;
-
+    uint16_t flag;
+    
     if (!hdr)
         return -1;
+
+    (void)self;
+    flag = short_be(hdr->frag);
+
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
         option_len =  (uint8_t)(4 * (((hdr->vhl) & 0x0F) - 5));
@@ -657,7 +660,7 @@ struct pico_device *pico_ipv4_source_dev_find(const struct pico_ip4 *dst)
 static int ipv4_mcast_groups_cmp(void *ka, void *kb)
 {
     struct pico_mcast_group *a = ka, *b = kb;
-    return pico_ipv4_compare(&a->mcast_addr, &b->mcast_addr);
+    return pico_ipv4_compare(&a->mcast_addr.ip4, &b->mcast_addr.ip4);
 }
 
 static int ipv4_mcast_sources_cmp(void *ka, void *kb)
@@ -735,13 +738,14 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     if (!link)
         link = mcast_default_link;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (g) {
         if (reference_count)
             g->reference_count++;
-
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif
     } else {
         g = PICO_ZALLOC(sizeof(struct pico_mcast_group));
         if (!g) {
@@ -752,11 +756,13 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         /* "non-existent" state of filter mode INCLUDE and empty source list */
         g->filter_mode = PICO_IP_MULTICAST_INCLUDE;
         g->reference_count = 1;
-        g->mcast_addr = *mcast_group;
+        g->mcast_addr.ip4 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
         pico_tree_insert(link->MCASTGroups, g);
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
+#endif
     }
 
     if (mcast_group_update(g, MCASTFilter, filter_mode) < 0) {
@@ -787,14 +793,16 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
     if (!link)
         return -1;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (!g) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     } else {
         if (reference_count && (--(g->reference_count) < 1)) {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_DELETE);
+#endif
             /* cleanup filter */
             pico_tree_foreach_safe(index, &g->MCASTSources, _tmp) {
                 source = index->keyValue;
@@ -804,7 +812,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
             pico_tree_delete(link->MCASTGroups, g);
             PICO_FREE(g);
         } else {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif          
             if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
                 return -1;
         }
@@ -828,7 +838,7 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
     };
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
-    test.mcast_addr = hdr->dst;
+    test.mcast_addr.ip4 = hdr->dst;
 
     pico_tree_foreach(index, &Tree_dev_link) {
         link = index->keyValue;
@@ -875,12 +885,22 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
 
 int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
@@ -990,11 +1010,11 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     hdr->vhl = vhl;
     hdr->len = short_be((uint16_t)(f->transport_len + f->net_len));
-    if ((f->transport_hdr != f->payload)  &&
+    hdr->id = short_be(ipv4_progressive_id);
+
+    if (
 #ifdef PICO_SUPPORT_IPV4FRAG
-        ( (0 == (f->frag & PICO_IPV4_MOREFRAG)) ||
-          (0 == (f->frag & PICO_IPV4_FRAG_MASK)) )
-        &&
+	(0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
 #endif
         1 )
         ipv4_progressive_id++;
@@ -1003,7 +1023,6 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         ttl = f->send_ttl;
     }
 
-    hdr->id = short_be(ipv4_progressive_id);
     hdr->dst.addr = dst->addr;
     hdr->src.addr = link->address.addr;
     hdr->ttl = ttl;

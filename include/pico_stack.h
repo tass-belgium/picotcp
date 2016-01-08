@@ -7,6 +7,7 @@
 #define INCLUDE_PICO_STACK
 #include "pico_config.h"
 #include "pico_frame.h"
+#include "pico_constants.h"
 
 #define PICO_MAX_TIMERS 20
 

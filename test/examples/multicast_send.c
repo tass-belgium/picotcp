@@ -1,6 +1,8 @@
 #include "utils.h"
+#include <pico_ipv4.h>
 #include <pico_socket.h>
 
+extern void app_udpclient(char *arg);
 /*** START Multicast SEND ***/
 /*
  * multicast send expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port

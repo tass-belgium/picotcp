@@ -85,8 +85,13 @@ static int input_segment_compare(void *ka, void *kb)
 
 static struct tcp_input_segment *segment_from_frame(struct pico_frame *f)
 {
-    struct tcp_input_segment *seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
-    if ((!seg) || (!f->payload_len))
+    struct tcp_input_segment *seg;
+
+    if (!f->payload_len)
+        return NULL;
+
+    seg = PICO_ZALLOC(sizeof(struct tcp_input_segment));
+    if (!seg)
         return NULL;
 
     seg->payload = PICO_ZALLOC(f->payload_len);
@@ -2588,7 +2593,7 @@ static void tcp_force_closed(struct pico_socket *s)
     } else {
         pico_err = PICO_ERR_ECONNRESET;
         if ((t->sock).wakeup)
-            (t->sock).wakeup(PICO_SOCK_EV_ERR, &(t->sock));
+            (t->sock).wakeup(PICO_SOCK_EV_FIN, &(t->sock));
 
         /* delete socket */
         pico_socket_del(&t->sock);

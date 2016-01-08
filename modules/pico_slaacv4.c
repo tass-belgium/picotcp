@@ -221,14 +221,6 @@ int pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip
         {
             return -1;
         }
-        if (dev->link_state(dev) == 1)
-        {
-            pico_arp_register_ipconflict(&ip, &dev->eth->mac, pico_slaacv4_receive_ipconflict);
-            pico_arp_request(dev, &ip, PICO_ARP_PROBE);
-            slaacv4_local.state = SLAACV4_CLAIMING;
-            slaacv4_local.probe_try_nb++;
-            slaacv4_local.timer = pico_timer_add(PROBE_WAIT * 1000, pico_slaacv4_send_probe_timer, &slaacv4_local);
-        }
     }
     else
     {

@@ -585,8 +585,8 @@ pico_dns_question_fill_name( char **qname,
  *				   either PICO_PROTO_IPV4 or PICO_PROTO_IPV6.
  *  @param qtype   DNS type of the question to be.
  *  @param qclass  DNS class of the question to be.
- *  @param reverse When this is true, a reverse resolution name will be gene-
- *				   from the URL
+ *  @param reverse When this is true, a reverse resolution name will be
+ *				   generated from the URL
  *  @return Returns pointer to the created DNS Question on success, NULL on
  *			failure.
  * ****************************************************************************/
@@ -991,7 +991,8 @@ static int pico_tolower(int c)
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
  *  @param caseinsensitive Whether or not the bytes are compared 
- *                         case-insensitive
+ *                         case-insensitive. Should be either 
+ *                         PICO_DNS_CASE_SENSITIVE or PICO_DNS_CASE_INSENSITIVE
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int
@@ -1065,7 +1066,7 @@ pico_dns_question_cmp( void *qa,
     /* Then compare qnames */
     return pico_dns_rdata_cmp((uint8_t *)a->qname, (uint8_t *)b->qname,
                               pico_dns_strlen(a->qname),
-                              pico_dns_strlen(b->qname), 1);
+                              pico_dns_strlen(b->qname), PICO_DNS_CASE_INSENSITIVE);
 }
 
 /* ****************************************************************************
@@ -1100,7 +1101,7 @@ pico_dns_record_cmp_name_type( void *ra,
     /* Then compare names */
     return pico_dns_rdata_cmp((uint8_t *)(a->rname), (uint8_t *)(b->rname),
                               (uint16_t)strlen(a->rname),
-                              (uint16_t)strlen(b->rname), 1);
+                              (uint16_t)strlen(b->rname), PICO_DNS_CASE_INSENSITIVE);
 }
 
 /* ****************************************************************************
@@ -1131,7 +1132,7 @@ pico_dns_record_cmp( void *ra,
     /* Then compare rdata */
     return pico_dns_rdata_cmp(a->rdata, b->rdata,
                               short_be(a->rsuffix->rdlength),
-                              short_be(b->rsuffix->rdlength), 0);
+                              short_be(b->rsuffix->rdlength), PICO_DNS_CASE_SENSITIVE);
 }
 
 /* MARK: ^ COMPARING */
@@ -1534,8 +1535,9 @@ pico_dns_packet_compress_name( uint8_t *name,
             /* Move up left over data */
             difference = (uint16_t)(ptr_after_str - offset);
             last_byte = packet + *len;
-            for (i = ptr_after_str; i < last_byte; i++)
+            for (i = ptr_after_str; i < last_byte; i++){
                 *((uint8_t *)(i - difference)) = *i;
+            }
             /* Update length */
             *len = (uint16_t)(*len - difference);
             break;
@@ -1613,8 +1615,9 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 
     /* Start with the questions */
     for (i = 0; i < qdcount; i++) {
-        if (i) /* First question can't be compressed */
+        if(i){ /* First question can't be compressed */
             pico_dns_packet_compress_name(iterator, packet_buf, len);
+        }
 
         /* Move to next question */
         iterator = (uint8_t *)(iterator +
@@ -1628,7 +1631,7 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 }
 
 /* ****************************************************************************
- *  Calculates how big a packet needs be in order to store all the question &
+ *  Calculates how big a packet needs be in order to store all the questions &
  *  records in the tree. Also determines the amount of questions and records.
  *
  *  @param qtree   Tree with Questions.

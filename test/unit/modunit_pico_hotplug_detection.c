@@ -115,25 +115,25 @@ START_TEST(tc_pico_hotplug_callbacks)
   timer_active = 0;
   timer_cb_function(0, NULL);
   fail_unless(timer_active == 1);
-  fail_unless(cb_one_cntr == 0);
-  fail_unless(cb_two_cntr == 0);
+  fail_unless(cb_one_cntr == 1);
+  fail_unless(cb_two_cntr == 2);
 
   state_a = 1;
   timer_active = 0;
   timer_cb_function(0, NULL);
   fail_unless(timer_active == 1);
-  fail_unless(cb_one_cntr == 1);
+  fail_unless(cb_one_cntr == 2);
   fail_unless(cb_one_last_event == PICO_HOTPLUG_EVENT_UP );
-  fail_unless(cb_two_cntr == 1);
+  fail_unless(cb_two_cntr == 3);
   fail_unless(cb_two_last_event == PICO_HOTPLUG_EVENT_UP );
 
   state_b = 1;
   timer_active = 0;
   timer_cb_function(0, NULL);
   fail_unless(timer_active == 1);
-  fail_unless(cb_one_cntr == 1);
+  fail_unless(cb_one_cntr == 2);
   fail_unless(cb_one_last_event == PICO_HOTPLUG_EVENT_UP );
-  fail_unless(cb_two_cntr == 2);
+  fail_unless(cb_two_cntr == 4);
   fail_unless(cb_two_last_event == PICO_HOTPLUG_EVENT_UP );
 
   state_a = 0;
@@ -141,9 +141,9 @@ START_TEST(tc_pico_hotplug_callbacks)
   timer_active = 0;
   timer_cb_function(0, NULL);
   fail_unless(timer_active == 1);
-  fail_unless(cb_one_cntr == 2);
+  fail_unless(cb_one_cntr == 3);
   fail_unless(cb_one_last_event == PICO_HOTPLUG_EVENT_DOWN );
-  fail_unless(cb_two_cntr == 4);
+  fail_unless(cb_two_cntr == 6);
   fail_unless(cb_two_last_event == PICO_HOTPLUG_EVENT_DOWN );
 }
 END_TEST

@@ -30,8 +30,9 @@
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 #define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))
 #define IP6_FRAG_MORE(x)        ((x & 0x0001))
-#define IP6_FRAG_ID(x)          ((uint32_t)((x->ext.frag.id[0] << 24) + (x->ext.frag.id[1] << 16) + \
-                                            (x->ext.frag.id[2] << 8) + x->ext.frag.id[3]))
+#define IP6_FRAG_ID(x)          ((uint32_t)(((uint32_t)x->ext.frag.id[0] << 24) + ((uint32_t)x->ext.frag.id[1] << 16) + \
+                                            ((uint32_t)x->ext.frag.id[2] << 8) + (uint32_t)x->ext.frag.id[3]))
+
 #else
 #define IP6_FRAG_OFF(x)         (0)
 #define IP6_FRAG_MORE(x)        (0)
@@ -246,6 +247,9 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
         tree = &ipv6_fragments;
     }
 #endif
+
+    if (!tree)
+        return 0;
 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;

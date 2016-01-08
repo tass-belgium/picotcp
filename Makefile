@@ -52,6 +52,7 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+IPC?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -64,7 +65,7 @@ EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
 CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
-# extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
+# extra flags recommended by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
@@ -123,6 +124,10 @@ endif
 
 ifeq ($(ARCH),cortexm3)
   CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
+endif
+
+ifeq ($(ARCH),cortexm0plus)
+  CFLAGS+=-DCORTEX_M0PLUS -mcpu=cortex-m0plus -mthumb -mlittle-endian -mthumb-interwork
 endif
 
 ifeq ($(ARCH),arm9)
@@ -188,6 +193,7 @@ CORE_OBJ= stack/pico_stack.o \
 
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
+            modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o
 
@@ -270,6 +276,9 @@ ifneq ($(PCAP),0)
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
+endif
+ifneq ($(IPC),0)
+  include rules/ipc.mk
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk

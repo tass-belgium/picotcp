@@ -31,19 +31,21 @@ struct pico_device_tap {
 // can't spread these out over an arbitrary amount of devices. When you unplug
 // one tap, you unplug all of them.
 
-static int link_state = 0;
+static int tapdev_link_state = 0;
 
 static void sig_handler(int signo)
 {
-  if (signo == SIGUSR1)
-    link_state = 0;
-  if (signo == SIGUSR2)
-    link_state = 1;
+    if (signo == SIGUSR1){
+        tapdev_link_state = 0;
+    }
+    if (signo == SIGUSR2){
+        tapdev_link_state = 1;
+    }
 }
 
 static int tap_link_state(__attribute__((unused)) struct pico_device *self)
 {
-  return link_state;
+  return tapdev_link_state;
 }
 
 
@@ -62,8 +64,9 @@ static int pico_tap_poll(struct pico_device *dev, int loop_score)
     pfd.fd = tap->fd;
     pfd.events = POLLIN;
     do  {
-        if (poll(&pfd, 1, 0) <= 0)
+        if (poll(&pfd, 1, 0) <= 0){
             return loop_score;
+        }
 
         len = (int)read(tap->fd, buf, TUN_MTU);
         if (len > 0) {
@@ -107,8 +110,9 @@ int pico_tap_WFI(struct pico_device *dev, int timeout_ms)
 void pico_tap_destroy(struct pico_device *dev)
 {
     struct pico_device_tap *tap = (struct pico_device_tap *) dev;
-    if(tap->fd > 0)
+    if(tap->fd > 0){
         close(tap->fd);
+    }
 }
 
 #ifndef __FreeBSD__
@@ -184,8 +188,9 @@ static int tap_get_mac(char *name, uint8_t *mac)
 
     root = ifap;
     while(ifap) {
-        if (strcmp(name, ifap->ifa_name) == 0)
+        if (strcmp(name, ifap->ifa_name) == 0){
             sdl = (struct sockaddr_dl *) ifap->ifa_addr;
+        }
 
         if (sdl->sdl_type == IFT_ETHER) {
             memcpy(mac, LLADDR(sdl), 6);
@@ -206,16 +211,18 @@ struct pico_device *pico_tap_create(char *name)
     uint8_t mac[6] = {};
     struct sigaction sa;
 
-    if (!tap)
+    if (!tap){
         return NULL;
+    }
 
     sa.sa_flags = 0;
     sigemptyset(&sa.sa_mask);
     sa.sa_handler = sig_handler;
 
     if ((sigaction(SIGUSR1, &sa, NULL) == 0) &&
-       (sigaction(SIGUSR2, &sa, NULL) == 0))
-      tap->dev.link_state = &tap_link_state;
+       (sigaction(SIGUSR2, &sa, NULL) == 0)){
+        tap->dev.link_state = &tap_link_state;
+    }
 
     tap->dev.overhead = 0;
     tap->fd = tap_open(name);

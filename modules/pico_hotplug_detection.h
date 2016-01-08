@@ -13,6 +13,9 @@
 
 #define PICO_HOTPLUG_INTERVAL 100
 
+/* register your callback to be notified of hotplug events on a certain device. 
+ * Note that each callback will be called at least once, shortly after adding, for initialization.
+ */
 int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event));
 int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event));
 

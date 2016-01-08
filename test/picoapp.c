@@ -80,20 +80,26 @@ struct pico_ip4 ZERO_IP4 = {
     0
 };
 struct pico_ip_mreq ZERO_MREQ = {
-    .mcast_group_addr = {0}, .mcast_link_addr = {0}
+    .mcast_group_addr = {{0}},
+    .mcast_link_addr  = {{0}}
 };
-struct pico_ip_mreq_source ZERO_MREQ_SRC = { {0}, {0}, {0} };
+struct pico_ip_mreq_source ZERO_MREQ_SRC = {
+    .mcast_group_addr.ip4  = {0},
+    .mcast_link_addr.ip4   = {0},
+    .mcast_source_addr.ip4 = {0}
+};
 struct pico_ip6 ZERO_IP6 = {
- { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }   
+ { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 struct pico_ip_mreq ZERO_MREQ_IP6 = {
-    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_link_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
-};
-struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6 = {  
     .mcast_group_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_link_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_source_addr.ip6 ={{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} };
+    .mcast_link_addr.ip6  = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
+};
+struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6 = {
+    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_link_addr.ip6 =   {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_source_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
+};
 
 /* #define INFINITE_TCPTEST */
 #define picoapp_dbg(...) do {} while(0)
@@ -511,10 +517,17 @@ int main(int argc, char **argv)
             dev = pico_vde_create(sock, name, macaddr);
             NXT_MAC(macaddr);
             if (!dev) {
+                if (sock)
+                    free(sock);
+                if (name)
+                    free(name);
                 perror("Creating vde");
                 exit(1);
             }
-
+            if (sock)
+                free(sock);
+            if (name)
+                free(name);
             printf("Vde created.\n");
         }
         break;

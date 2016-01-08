@@ -1,7 +1,9 @@
 #include "utils.h"
-#include "pico_dns_sd.h"
-#include "pico_ipv4.h"
-#include "pico_addressing.h"
+#include <pico_dns_sd.h>
+#include <pico_ipv4.h>
+#include <pico_addressing.h>
+#include <pico_device.h>
+#include <pico_ipv4.h>
 
 /*** START DNS_SD ***/
 #ifdef PICO_SUPPORT_DNS_SD
@@ -48,8 +50,9 @@ void app_dns_sd(char *arg, struct pico_ip4 address)
     char *hostname;
     char *nxt = arg;
 
-    if (!nxt)
+    if (!nxt){
         exit(255);
+    }
 
     nxt = cpy_arg(&hostname, nxt);
     if(!hostname) {

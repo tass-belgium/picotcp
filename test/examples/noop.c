@@ -1,4 +1,5 @@
 /* NOOP */
+#include <pico_stack.h>
 void app_noop(void)
 {
     printf("-~-~-~-~-~-~-~-~-~ %s: launching PicoTCP NOOP loop -~-~-~-~-~-~-~-~-~\n", __FUNCTION__);
