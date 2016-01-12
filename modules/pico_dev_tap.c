@@ -204,12 +204,20 @@ struct pico_device *pico_tap_create(char *name)
         return NULL;
     }
 
+    /* Host's mac address is generated * by the host kernel and is 
+     * retrieved via tap_get_mac().
+     */
     if (tap_get_mac(name, mac) < 0) {
         dbg("Tap mac query failed.\n");
         pico_tap_destroy((struct pico_device *)tap);
         return NULL;
     }
 
+    /* To act as a second endpoint in the same subnet, the picoTCP 
+     * app using the tap device must have a different mac address. 
+     * For simplicity, we just add 1 to the last byte of the linux 
+     * endpoint so the two addresses are consecutive. 
+     */
     mac[5]++;
 
     if( 0 != pico_device_init((struct pico_device *)tap, name, mac)) {
