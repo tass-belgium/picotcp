@@ -2296,9 +2296,11 @@ pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
     struct pico_mdns_record *record = NULL, *copy = NULL;
 
     pico_tree_foreach(node, &MyRecords) {
-        if ((record = node->keyValue) &&
+        record = node->keyValue;
+        if ((record != NULL) &&
             IS_HOSTNAME_RECORD(record) &&
-            IS_RECORD_VERIFIED(record)) {
+            IS_RECORD_VERIFIED(record))
+        {
             copy = pico_mdns_record_copy(record);
             if (copy && pico_tree_insert(artree, copy))
                 pico_mdns_record_delete((void **)&copy);
