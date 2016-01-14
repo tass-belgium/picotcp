@@ -35,8 +35,8 @@
 #define PICO_IPV6_MAX_RTR_SOLICITATION_DELAY 1000
 #define PICO_IPV6_DEFAULT_DAD_RETRANS  1
 
-#define ipv6_dbg(...) do { }while(0); 
-#define ipv6_mcast_dbg do{ }while(0);
+#define ipv6_dbg(...) do { }while(0)
+#define ipv6_mcast_dbg do{ }while(0)
 #ifdef PICO_SUPPORT_MCAST
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;
 #endif
