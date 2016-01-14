@@ -9,6 +9,8 @@
 /* Uncomment next line to enable libPCAP dump */
 /* #define RADIO_PCAP */
 
+/* Uncomment next line to enable Random packet loss (specify percentage) */
+/* #define P_LOSS 3 */
 
 #include "pico_dev_radiotest.h"
 #include "pico_device.h"
@@ -134,6 +136,7 @@ static int radiotest_set_sh(struct ieee_radio *radio, uint16_t short_id)
 }
 
 /* also poll */
+
 static int radiotest_rx(struct ieee_radio *radio, uint8_t *buf, int len)
 {
     struct radiotest_radio *dev = (struct radiotest_radio *)radio;
@@ -175,6 +178,16 @@ static int radiotest_rx(struct ieee_radio *radio, uint8_t *buf, int len)
     if (ret_len < 2) /* not valid */
         return 0;
     radiotest_pcap_write(dev, buf + 1, ret_len - 1);
+#ifdef P_LOSS
+    long n = lrand48();
+    n = n % 100;
+    if (n < P_LOSS) {
+        printf("Packet got lost!\n");
+        return 0;
+    }
+
+#endif
+
     buf[0] = (uint8_t)(ret_len);
     return ret_len - 1;
 }
