@@ -45,12 +45,17 @@ static void send_renew_msg(struct pico_ip6 dst);
 static void pico_dhcp6_send_sol(void);
 
 /* Generate DUID Based on Link-Layer Address [DUID-LL] */
-static void generate_duid_ll(struct pico_device *dev, struct pico_dhcp6_duid_ll * client_duid_ll)
+static void generate_cid(struct pico_device *dev, struct pico_dhcp6_opt_cid ** cid)
 {
-    client_duid_ll->type = short_be(PICO_DHCP6_DUID_LL);
-    client_duid_ll->hw_type = short_be(PICO_DHCP6_HW_TYPE_ETHERNET);
+    struct pico_dhcp6_duid_ll * duid;
+    (*cid) = PICO_ZALLOC(sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll) + PICO_SIZE_ETH);
+    (*cid)->base_opts.option_len = short_be(sizeof(struct pico_dhcp6_duid_ll) + PICO_SIZE_ETH);
+    (*cid)->base_opts.option_code = short_be(PICO_DHCP6_OPT_CLIENTID);
+    duid = &(*cid)->duid;
+    duid->type = short_be(PICO_DHCP6_DUID_LL);
+    duid->hw_type = short_be(PICO_DHCP6_HW_TYPE_ETHERNET);
     /* TODO Convert MAC to network repr */
-    memcpy(&client_duid_ll->link_layer_address, &dev->eth->mac.addr, PICO_SIZE_ETH); /* Copy MAC from device */
+    memcpy(&duid->link_layer_address, &dev->eth->mac.addr, PICO_SIZE_ETH); /* Copy MAC from device */
 }
 
 /* Generate random transaction ID. The transaction ID is stored in the cookie so it can later be used to
@@ -789,7 +794,14 @@ static void pico_dhcp6_send_sol(void)
     struct pico_dhcp6_opt_ia_na *iana_opt;
     size_t len, cid_len, oro_len, elt_len, iana_len; 
 
-    cid_len = sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll);
+    /* Don't create a new transaction ID & CID if this is a retransmission */
+    if(cookie.rtc == 0)
+    {
+        generate_transaction_id();
+        generate_cid(cookie.dev, &cookie.cid_client);
+    }
+
+    cid_len = sizeof(struct pico_dhcp6_opt) + short_be(cookie.cid_client->base_opts.option_len);
     oro_len = sizeof(struct pico_dhcp6_opt_oro);
     elt_len = sizeof(struct pico_dhcp6_opt_elapsed_time);
     iana_len = sizeof(struct pico_dhcp6_opt_ia_na);
@@ -801,18 +813,9 @@ static void pico_dhcp6_send_sol(void)
     dhcp6_hdr = (struct pico_dhcp6_hdr*)PICO_ZALLOC(len);
     dhcp6_hdr->type = PICO_DHCP6_SOLICIT;
 
-    /* Don't create a new transaction ID & CID if this is a retransmission */
-    if(cookie.rtc == 0)
-    {
-        generate_transaction_id();
-        cookie.cid_client = PICO_ZALLOC(cid_len);
-        cookie.cid_client->base_opts.option_code = short_be(PICO_DHCP6_OPT_CLIENTID);
-        cookie.cid_client->base_opts.option_len = short_be(sizeof(struct pico_dhcp6_duid_ll));
-        generate_duid_ll(cookie.dev, (struct pico_dhcp6_duid_ll*) &cookie.cid_client->duid); /* Generate DUID, store in cookie */
-    }
     dhcp6_cid = (struct pic_dhcp6_opt_cid *)(dhcp6_hdr->options);
     memcpy(dhcp6_hdr->transaction_id, cookie.transaction_id, PICO_DHCP6_TRANSACTION_ID_SIZE);
-    memcpy(dhcp6_cid, cookie.cid_client, sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll)); /* copy DUID into current packet */
+    memcpy(dhcp6_cid, cookie.cid_client, cid_len); /* copy DUID into current packet */
 
     oro_opt = (struct pico_dhcp6_opt_oro*)((uint8_t *)dhcp6_cid + cid_len);
     oro_opt->base_opts.option_code = short_be(PICO_DHCP6_OPT_ORO);

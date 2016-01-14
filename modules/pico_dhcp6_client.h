@@ -203,7 +203,7 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_cid {
     /* PICO_DHCP6_OPT_CLIENTID */
     struct pico_dhcp6_opt base_opts;
 //    uint8_t duid[0]; /* variable length */
-    struct pico_dhcp6_duid_generic duid;
+    struct pico_dhcp6_duid_generic duid[0];
 };
 
 /* Server Identifier Option */
