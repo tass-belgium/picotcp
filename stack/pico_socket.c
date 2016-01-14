@@ -1044,7 +1044,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
     int ret = 0;
     (void)src;
-    
+
     f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;

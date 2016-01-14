@@ -23,10 +23,10 @@
 #include "pico_constants.h"
 #include "pico_mcast.h"
 
-#if (((defined(PICO_SUPPORT_MLD) && defined(PICO_SUPPORT_IPV6)) || defined(PICO_SUPPORT_IGMP)) && defined(PICO_SUPPORT_MCAST)) 
+#if (((defined(PICO_SUPPORT_MLD) && defined(PICO_SUPPORT_IPV6)) || defined(PICO_SUPPORT_IGMP)) && defined(PICO_SUPPORT_MCAST))
 
 #define multicast_dbg(...) do {} while(0)
- 
+
 #define MCAST_EVENT_DELETE_GROUP           (0x0)
 #define MCAST_EVENT_CREATE_GROUP           (0x1)
 #define MCAST_EVENT_UPDATE_GROUP           (0x2)
@@ -187,7 +187,7 @@ static int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters* mc
         return 0;
     /* BLOCK (B-A) and ALLOW (A-B) are empty: do not send report  */
     mcast->p->f = NULL;
-    return MCAST_NO_REPORT; 
+    return MCAST_NO_REPORT;
 }
 
 int8_t pico_mcast_generate_filter(struct mcast_filter_parameters *filter, struct mcast_parameters *p) {

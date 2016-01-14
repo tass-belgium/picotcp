@@ -383,7 +383,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
     uint16_t flag;
-    
+
     if (!hdr)
         return -1;
 
@@ -814,7 +814,7 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
         } else {
 #ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
-#endif          
+#endif
             if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
                 return -1;
         }

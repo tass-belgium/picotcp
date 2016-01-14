@@ -1743,7 +1743,7 @@ static void auth_abort(struct pico_device_ppp *ppp)
 
 static void auth_req(struct pico_device_ppp *ppp)
 {
-    uint16_t ppp_usr_len = 0; 
+    uint16_t ppp_usr_len = 0;
     uint16_t ppp_pwd_len = 0;
     uint8_t *req = NULL, *p;
     struct pico_pap_hdr *hdr;

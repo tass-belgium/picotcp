@@ -151,7 +151,7 @@ pico_dns_sd_txt_record_create( const char *url,
     if (len <= 1){
         return NULL;
     }
-    
+
     /* Provide space for the txt buf */
     if (!(txt = (char *)PICO_ZALLOC(len))) {
         pico_err = PICO_ERR_ENOMEM;

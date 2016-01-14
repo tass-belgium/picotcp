@@ -19,7 +19,7 @@
 #include "pico_socket.h"
 #include "pico_mcast.h"
 
-#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST) 
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
 
 #define igmp_dbg(...) do {} while(0)
 /* #define igmp_dbg dbg */
@@ -776,7 +776,7 @@ static int8_t pico_igmp_generate_report(struct mcast_parameters *p)
     }
     case PICO_IGMPV3:
     {
-        result = pico_igmpv3_generate_filter(&filter,p); 
+        result = pico_igmpv3_generate_filter(&filter,p);
         if(result < 0)
             return -1;
         if(result != MCAST_NO_REPORT)
