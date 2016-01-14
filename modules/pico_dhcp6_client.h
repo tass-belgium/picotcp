@@ -409,22 +409,5 @@ int pico_dhcp6_initiate_negotiation(struct pico_device *device, void (*callback)
 void generate_transaction_id(void);
 void process_status_code(struct pico_dhcp6_opt_status_code** status_code_field, size_t size);
 
-
-/* For debugging */
-void print_hex_array(void* array, size_t size){
-    int i;
-	/* For debugging */
-	if(size > 100){
-		printf("length corrected: %d\n", size);
-	}
-//	printf("size %d\n", size);
-	uint8_t* arr = array;
-	size = (size < 100) ? size : 100;
-	for(i=0; i<size; i++){
-		printf("0x%02x, ", arr[i]);
-	}
-	printf("\n");
-}
-
 #endif
 #endif
