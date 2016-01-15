@@ -256,14 +256,14 @@ static void dhcpd_make_reply(struct pico_dhcp_server_negotiation *dhcpn, uint8_t
     memcpy(hdr->hwaddr, dhcpn->hwaddr.addr, PICO_SIZE_ETH);
 
     /* options */
-    offset += pico_dhcp_opt_msgtype(DHCP_OPT(hdr,offset), msg_type);
-    offset += pico_dhcp_opt_serverid(DHCP_OPT(hdr,offset), &dhcpn->dhcps->server_ip);
-    offset += pico_dhcp_opt_leasetime(DHCP_OPT(hdr,offset), dhcpn->dhcps->lease_time);
-    offset += pico_dhcp_opt_netmask(DHCP_OPT(hdr,offset), &dhcpn->dhcps->netmask);
-    offset += pico_dhcp_opt_router(DHCP_OPT(hdr,offset), &dhcpn->dhcps->server_ip);
-    offset += pico_dhcp_opt_broadcast(DHCP_OPT(hdr,offset), &broadcast);
-    offset += pico_dhcp_opt_dns(DHCP_OPT(hdr,offset), &dns);
-    offset += pico_dhcp_opt_end(DHCP_OPT(hdr,offset));
+    offset += pico_dhcp_opt_msgtype(DHCP_OPT(hdr, offset), msg_type);
+    offset += pico_dhcp_opt_serverid(DHCP_OPT(hdr, offset), &dhcpn->dhcps->server_ip);
+    offset += pico_dhcp_opt_leasetime(DHCP_OPT(hdr, offset), dhcpn->dhcps->lease_time);
+    offset += pico_dhcp_opt_netmask(DHCP_OPT(hdr, offset), &dhcpn->dhcps->netmask);
+    offset += pico_dhcp_opt_router(DHCP_OPT(hdr, offset), &dhcpn->dhcps->server_ip);
+    offset += pico_dhcp_opt_broadcast(DHCP_OPT(hdr, offset), &broadcast);
+    offset += pico_dhcp_opt_dns(DHCP_OPT(hdr, offset), &dns);
+    offset += pico_dhcp_opt_end(DHCP_OPT(hdr, offset));
 
     if (dhcpn->bcast == 0)
         destination.addr = hdr->yiaddr;
@@ -324,7 +324,7 @@ static inline void dhcps_make_reply_to_discover_or_request(struct pico_dhcp_serv
 
 static inline void dhcps_parse_options_loop(struct pico_dhcp_server_negotiation *dhcpn, struct pico_dhcp_hdr *hdr)
 {
-    struct pico_dhcp_opt *opt = DHCP_OPT(hdr,0);
+    struct pico_dhcp_opt *opt = DHCP_OPT(hdr, 0);
     uint8_t msgtype = 0;
     struct pico_ip4 reqip = {
         0
@@ -347,7 +347,7 @@ static void pico_dhcp_server_recv(struct pico_socket *s, uint8_t *buf, uint32_t 
     struct pico_dhcp_server_negotiation *dhcpn = NULL;
     struct pico_device *dev = NULL;
 
-    if (!pico_dhcp_are_options_valid(DHCP_OPT(hdr,0), optlen))
+    if (!pico_dhcp_are_options_valid(DHCP_OPT(hdr, 0), optlen))
         return;
 
     dev = pico_ipv4_link_find(&s->local_addr.ip4);
@@ -395,7 +395,9 @@ int pico_dhcp_server_initiate(struct pico_dhcp_server_setting *setting)
 
 int pico_dhcp_server_destroy(struct pico_device *dev)
 {
-    struct pico_dhcp_server_setting *found, test = { 0 };
+    struct pico_dhcp_server_setting *found, test = {
+        0
+    };
     test.dev = dev;
     found = pico_tree_findKey(&DHCPSettings, &test);
     if (!found) {

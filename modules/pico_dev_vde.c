@@ -87,7 +87,7 @@ void pico_vde_set_packetloss(struct pico_device *dev, uint32_t in_pct, uint32_t 
 
 
 
-struct pico_device * MOCKABLE pico_vde_create(char *sock, char *name, uint8_t *mac)
+struct pico_device *MOCKABLE pico_vde_create(char *sock, char *name, uint8_t *mac)
 {
     struct pico_device_vde *vde = PICO_ZALLOC(sizeof(struct pico_device_vde));
     struct vde_open_args open_args = {

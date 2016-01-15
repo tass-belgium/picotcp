@@ -965,7 +965,9 @@ START_TEST(tc_auth_req)
 END_TEST
 START_TEST(tc_auth_rsp)
 {
-    uint8_t req[sizeof(struct pico_chap_hdr) + 1 + CHAP_MD5_SIZE] = { 0 }; // 21 bytes
+    uint8_t req[sizeof(struct pico_chap_hdr) + 1 + CHAP_MD5_SIZE] = {
+        0
+    };                                                                     /* 21 bytes */
     struct pico_chap_hdr *hdr = (struct pico_chap_hdr *)req;
     memset(&_ppp, 0, sizeof(_ppp));
     called_serial_send = 0;
@@ -974,7 +976,7 @@ START_TEST(tc_auth_rsp)
     _ppp.auth = 0xc223; /* hardcode CHAP */
     hdr->code = CHAP_CHALLENGE;
     hdr->len = short_be((uint16_t)(sizeof (struct pico_chap_hdr) + CHAP_MD5_SIZE));
-    req[sizeof(struct pico_chap_hdr)] = CHAP_MD5_SIZE; // CHAP value size field
+    req[sizeof(struct pico_chap_hdr)] = CHAP_MD5_SIZE; /* CHAP value size field */
     _ppp.pkt = req;
     _ppp.len = sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE;
     auth_rsp(&_ppp);

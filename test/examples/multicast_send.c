@@ -102,13 +102,16 @@ void app_mcastsend(char *arg)
 
     /* free strdups */
     if (maddr)
-      free(maddr);
+        free(maddr);
+
     if (laddr)
-      free(laddr);
+        free(laddr);
+
     if (lport)
-      free(lport);
+        free(lport);
+
     if (sport)
-      free(sport);
+        free(sport);
 
     return;
 

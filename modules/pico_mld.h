@@ -90,7 +90,7 @@ struct mld_multicast_address_record {
 };
 
 struct mld_parameters {
-    uint8_t event; 
+    uint8_t event;
     uint8_t state;
     uint8_t general_query;
     uint8_t filter_mode;

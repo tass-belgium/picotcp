@@ -77,6 +77,7 @@ struct pico_tree_node *pico_tree_next(struct pico_tree_node *node)
 {
     if (!node)
         return NULL;
+
     if(IS_NOT_LEAF(node->rightChild))
     {
         node = node->rightChild;
@@ -136,7 +137,7 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
     int result = 0;
 
     LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
-    
+
     /* if node already in, bail out */
     if(LocalKey) {
         return LocalKey;
@@ -302,7 +303,7 @@ void *pico_tree_delete(struct pico_tree *tree, void *key)
 static inline void if_nodecolor_black_fix_collisions(struct pico_tree *tree, struct pico_tree_node *temp, uint8_t nodeColor)
 {
     /* deleted node is black, this will mess up the black path property */
-    if(nodeColor == BLACK) 
+    if(nodeColor == BLACK)
         fix_delete_collisions(tree, temp);
 }
 
@@ -314,12 +315,13 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
     struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
     if (!key)
         return NULL;
+
     delete = pico_tree_findNode(tree, key);
 
     /* this key isn't in the tree, bail out */
-    if(!delete) 
+    if(!delete)
         return NULL;
-    
+
     lkey = delete->keyValue;
     nodeColor = pico_tree_delete_check_switch(tree, delete, &temp);
 

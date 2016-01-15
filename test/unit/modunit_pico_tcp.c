@@ -9,7 +9,7 @@
 #include "modules/pico_tcp.c"
 #include "check.h"
 
-uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg) 
+uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     return NULL;
 }

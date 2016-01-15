@@ -16,7 +16,7 @@
 #define MCAST_NO_REPORT                       (1)
 
 PACKED_STRUCT_DEF mcast_parameters {
-    uint8_t event; 
+    uint8_t event;
     uint8_t state;
     uint8_t general_query;
     uint8_t filter_mode;

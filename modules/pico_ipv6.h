@@ -174,5 +174,5 @@ int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
 
 struct pico_ipv6_link *pico_ipv6_get_default_mcastlink(void);
 
-int pico_ipv6_is_null_address(struct pico_ip6 * ip6);
+int pico_ipv6_is_null_address(struct pico_ip6 *ip6);
 #endif
