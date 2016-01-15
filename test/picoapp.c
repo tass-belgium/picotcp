@@ -85,16 +85,16 @@ struct pico_ip_mreq_source ZERO_MREQ_SRC = {
     .mcast_source_addr.ip4 = {0}
 };
 struct pico_ip6 ZERO_IP6 = {
- { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 struct pico_ip_mreq ZERO_MREQ_IP6 = {
-    .mcast_group_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
+    .mcast_group_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
     .mcast_link_addr.ip6  = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
 };
 struct pico_ip_mreq_source ZERO_MREQ_SRC_IP6 = {
-    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_link_addr.ip6 =   {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} ,
-    .mcast_source_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }} 
+    .mcast_group_addr.ip6 =  {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    .mcast_link_addr.ip6 =   {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    .mcast_source_addr.ip6 = {{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
 };
 
 /* #define INFINITE_TCPTEST */
@@ -472,15 +472,20 @@ int main(int argc, char **argv)
             if (!dev) {
                 if (sock)
                     free(sock);
+
                 if (name)
                     free(name);
+
                 perror("Creating vde");
                 exit(1);
             }
+
             if (sock)
                 free(sock);
+
             if (name)
                 free(name);
+
             printf("Vde created.\n");
         }
         break;
@@ -598,6 +603,7 @@ int main(int argc, char **argv)
 #endif
                 app_mcastreceive_ipv6(args);
             }
+
 #ifdef PICO_SUPPORT_PING
             else IF_APPNAME("ping") {
                 app_ping(args);

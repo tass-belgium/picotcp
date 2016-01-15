@@ -1,6 +1,6 @@
 /*********************************************************************
- PicoTCP. Copyright (c) 2014-2015 Altran Intelligent Systems. Some rights reserved.
- See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2014-2015 Altran Intelligent Systems. Some rights reserved.
+   See LICENSE and COPYING for usage.
 
  *********************************************************************/
 #ifndef _INCLUDE_PICO_ESP8266
@@ -22,7 +22,7 @@
 extern void *pvPortMalloc( size_t xWantedSize );
 extern void vPortFree( void *pv );
 
-#define pico_free	vPortFree
+#define pico_free   vPortFree
 
 static inline void *pico_zalloc(size_t size)
 {
@@ -38,18 +38,21 @@ static inline void *pico_zalloc(size_t size)
 
 extern volatile uint32_t esp_tick;
 
-static inline pico_time PICO_TIME_MS(void) {
-	return (pico_time) esp_tick;
+static inline pico_time PICO_TIME_MS(void)
+{
+    return (pico_time) esp_tick;
 }
 
-static inline pico_time PICO_TIME(void) {
-	return PICO_TIME_MS() / 1000;
+static inline pico_time PICO_TIME(void)
+{
+    return PICO_TIME_MS() / 1000;
 }
 
-static inline void PICO_IDLE(void) {
-	uint32_t now = esp_tick;
-	while (now == esp_tick)
-		;
+static inline void PICO_IDLE(void)
+{
+    uint32_t now = esp_tick;
+    while (now == esp_tick)
+        ;
 }
 
 #endif

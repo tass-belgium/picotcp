@@ -389,7 +389,9 @@ static void tftp_send_oack(struct pico_tftp_session *session)
     size_t options_size;
     size_t options_pos = sizeof(struct pico_tftp_hdr);
     uint8_t *buf;
-    char str_options[MAX_OPTIONS_SIZE] = { 0 };
+    char str_options[MAX_OPTIONS_SIZE] = {
+        0
+    };
 
     options_size = prepare_options_string(session, str_options, session->file_size);
 
@@ -419,7 +421,9 @@ static void tftp_send_req(struct pico_tftp_session *session, union pico_address 
     size_t options_size;
     size_t options_pos;
     uint8_t *buf;
-    char str_options[MAX_OPTIONS_SIZE] = { 0 };
+    char str_options[MAX_OPTIONS_SIZE] = {
+        0
+    };
 
     if (!filename) {
         return;
@@ -1263,6 +1267,7 @@ int32_t pico_tftp_get(struct pico_tftp_session *session, uint8_t *data, int32_t 
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     synchro = *(int*)session->argument;
     *(int*)session->argument = 0;
     if ((session->state != TFTP_STATE_RX) && (session->state != TFTP_STATE_READ_REQUESTED))
@@ -1287,6 +1292,7 @@ int32_t pico_tftp_put(struct pico_tftp_session *session, uint8_t *data, int32_t 
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
     synchro = *(int*)session->argument;
     *(int*)session->argument = 0;
     if (synchro < 0)

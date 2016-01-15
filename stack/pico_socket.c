@@ -603,7 +603,7 @@ static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t f
 
 }
 
-struct pico_socket * MOCKABLE pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
+struct pico_socket *MOCKABLE pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
 {
 
     struct pico_socket *s = NULL;
@@ -1069,6 +1069,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         f->send_tos = (uint8_t)msginfo->tos;
         f->dev = msginfo->dev;
     }
+
 #ifdef PICO_SUPPORT_IPV6
     if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         f->dev = pico_ipv6_link_find(src);
@@ -1076,6 +1077,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
             return -1;
         }
     }
+
 #endif
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
@@ -1429,7 +1431,7 @@ int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len, voi
 }
 
 int MOCKABLE pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig,
-                         uint16_t *remote_port)
+                                  uint16_t *remote_port)
 {
     return pico_socket_recvfrom_extended(s, buf, len, orig, remote_port, NULL);
 
@@ -1965,6 +1967,7 @@ static int check_socket_sanity(struct pico_socket *s)
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
+
     return 0;
 }
 #endif

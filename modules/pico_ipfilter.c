@@ -401,7 +401,9 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
 int pico_ipv4_filter_del(uint32_t filter_id)
 {
     struct filter_node *node = NULL;
-    struct filter_node dummy = { 0 };
+    struct filter_node dummy = {
+        0
+    };
 
     dummy.filter_id = filter_id;
     if((node = pico_tree_delete(&filter_tree, &dummy)) == NULL)

@@ -91,13 +91,15 @@ static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr)
 static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
 {
     struct pico_dns_ns *dns = NULL, *found = NULL, test = {{0}};
-    struct pico_ip4 zero = {0}; /* 0.0.0.0 */
+    struct pico_ip4 zero = {
+        0
+    };                          /* 0.0.0.0 */
 
     /* Do not add 0.0.0.0 addresses, which some DHCP servers might reply */
     if (!pico_ipv4_compare(ns_addr, &zero))
     {
         pico_err = PICO_ERR_EINVAL;
-        return  NULL;
+        return NULL;
     }
 
     dns = PICO_ZALLOC(sizeof(struct pico_dns_ns));

@@ -246,6 +246,7 @@ static void dnsCallback(char *ip, void *arg)
     if (0) {
 
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if(ck->proto == PICO_PROTO_IPV6) {
         if (ip) {

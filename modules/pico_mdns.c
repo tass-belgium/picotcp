@@ -17,7 +17,7 @@
 
 /* --- Debugging --- */
 #define mdns_dbg(...) do {} while(0)
-//#define mdns_dbg dbg
+/* #define mdns_dbg dbg */
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000)    /* One second */
@@ -158,6 +158,7 @@ pico_mdns_record_cmp( void *a, void *b )
     if (!a || !b) {
         if (!a && !b)
             return 0;
+
         pico_err = PICO_ERR_EINVAL;
         return -1; /* Don't want a wrong result when NULL-pointers are passed */
     }
@@ -512,6 +513,7 @@ pico_mdns_rtree_find_name( pico_mdns_rtree *tree,
         if (record && strcasecmp(record->record->rname, name) == 0) {
             if (copy)
                 record = pico_mdns_record_copy(record);
+
             if (record)
                 pico_tree_insert(&hits, record);
         }
@@ -537,9 +539,15 @@ pico_mdns_rtree_find_name_type( pico_mdns_rtree *tree,
 {
     PICO_MDNS_RTREE_DECLARE(hits);
 
-    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
-    struct pico_dns_record test_dns_record = { 0 };
-    struct pico_mdns_record test = { 0 };
+    struct pico_dns_record_suffix test_dns_suffix = {
+        0, 1, 0, 0
+    };
+    struct pico_dns_record test_dns_record = {
+        0
+    };
+    struct pico_mdns_record test = {
+        0
+    };
     struct pico_tree_node *node = NULL;
     struct pico_mdns_record *record = NULL;
     test_dns_record.rsuffix = &test_dns_suffix;
@@ -560,6 +568,7 @@ pico_mdns_rtree_find_name_type( pico_mdns_rtree *tree,
         if ((record) && (0 == pico_mdns_record_cmp_name_type(record, &test))) {
             if (copy)
                 record = pico_mdns_record_copy(record);
+
             if (record)
                 pico_tree_insert(&hits, record);
         }
@@ -617,9 +626,15 @@ pico_mdns_rtree_del_name_type( pico_mdns_rtree *tree,
 {
     struct pico_tree_node *node = NULL, *next = NULL;
     struct pico_mdns_record *record = NULL;
-    struct pico_dns_record_suffix test_dns_suffix = { 0, 1, 0, 0 };
-    struct pico_dns_record test_dns_record = { 0 };
-    struct pico_mdns_record test = { 0 };
+    struct pico_dns_record_suffix test_dns_suffix = {
+        0, 1, 0, 0
+    };
+    struct pico_dns_record test_dns_record = {
+        0
+    };
+    struct pico_mdns_record test = {
+        0
+    };
 
     test_dns_record.rsuffix = &test_dns_suffix;
     test.record = &test_dns_record;
@@ -813,30 +828,30 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
      */
     mclass = PICO_MDNS_CLR_MSB_BE(my->rsuffix->rclass);
     pclass = PICO_MDNS_CLR_MSB_BE(peer->rsuffix->rclass);
-    if ((dif = (int)((int)mclass - (int)pclass))){
+    if ((dif = (int)((int)mclass - (int)pclass))) {
         return dif;
     }
 
     /* Second, compare the rrtypes */
     mtype = (my->rsuffix->rtype);
     ptype = (peer->rsuffix->rtype);
-    if ((dif = (int)((int)mtype - (int)ptype))){
+    if ((dif = (int)((int)mtype - (int)ptype))) {
         return dif;
     }
 
     /* Third compare binary content of rdata (no regard for meaning or structure) */
 
     /* When using name compression, names MUST be uncompressed before comparison. See secion 8.2 in RFC6762
-    This is already the case, but we won't check for it here.
-    The current execution stack to get here is:
-     > pico_mdns_handle_data_as_answers_generic
-     >  > pico_dns_record_decompress
-     >  > pico_mdns_handle_single_authority
-     >  >  > pico_mdns_cookie_apply_spt
-     >  >  >  > pico_mdns_record_am_i_lexi_later
+       This is already the case, but we won't check for it here.
+       The current execution stack to get here is:
+       > pico_mdns_handle_data_as_answers_generic
+       >  > pico_dns_record_decompress
+       >  > pico_mdns_handle_single_authority
+       >  >  > pico_mdns_cookie_apply_spt
+       >  >  >  > pico_mdns_record_am_i_lexi_later
 
-    Make sure pico_dns_record_decompress is executed before pico_mdns_record_am_i_lexi_later gets called, if problems ever arise with this function.
-    */
+       Make sure pico_dns_record_decompress is executed before pico_mdns_record_am_i_lexi_later gets called, if problems ever arise with this function.
+     */
 
     /* Then compare rdata */
     return pico_dns_rdata_cmp(my->rdata, peer->rdata,
@@ -863,7 +878,7 @@ pico_mdns_record_delete( void **record )
     }
 
     /* Delete DNS record contained */
-    if (((*rr)->record)){
+    if (((*rr)->record)) {
         pico_dns_record_delete((void **)&((*rr)->record));
     }
 
@@ -930,8 +945,8 @@ pico_mdns_record_create( const char *url,
     /* Initialise fields */
     record->current_ttl = rttl;
 
-    //Set the MSB of the DNS class if it's a unique record
-    if (!((flags) & PICO_MDNS_RECORD_SHARED)){
+    /* Set the MSB of the DNS class if it's a unique record */
+    if (!((flags) & PICO_MDNS_RECORD_SHARED)) {
         cl = record->record->rsuffix->rclass;
         record->record->rsuffix->rclass = PICO_MDNS_SET_MSB_BE(cl);
     }
@@ -1121,7 +1136,7 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     }
 
     /* Step 2: Check if the new name succeeded, if not: error. */
-    if (!(new_name)){
+    if (!(new_name)) {
         return -1;
     }
 
@@ -1185,7 +1200,7 @@ pico_mdns_my_records_add( pico_mdns_rtree *records, uint8_t reclaim )
     struct pico_mdns_record *record = NULL;
     static uint8_t claim_id_count = 0;
 
-    if (!reclaim){
+    if (!reclaim) {
         ++claim_id_count;
     }
 
@@ -1194,14 +1209,15 @@ pico_mdns_my_records_add( pico_mdns_rtree *records, uint8_t reclaim )
         record = node->keyValue;
         if (record) {
             /* Set probed flag if record is a shared record */
-            if (IS_SHARED_RECORD(record)){
+            if (IS_SHARED_RECORD(record)) {
                 PICO_MDNS_SET_FLAG(record->flags, PICO_MDNS_RECORD_PROBED);
             }
 
             /* If record is not claimed again, set new claim-ID */
-            if (!reclaim){
+            if (!reclaim) {
                 record->claim_id = claim_id_count;
             }
+
             pico_tree_insert(&MyRecords, record);
         }
     }
@@ -1226,10 +1242,10 @@ pico_mdns_my_records_find_probed( void )
     pico_tree_foreach(node, &MyRecords) {
         record = node->keyValue;
 
-        //IS_RECORD_VERIFIED() checks the PICO_MDNS_RECORD_PROBED flag
+        /* IS_RECORD_VERIFIED() checks the PICO_MDNS_RECORD_PROBED flag */
         if (record && IS_RECORD_VERIFIED(record) && !IS_RECORD_CLAIMED(record)) {
             copy = pico_mdns_record_copy(record);
-            if (copy && pico_tree_insert(&probed, copy)){
+            if (copy && pico_tree_insert(&probed, copy)) {
                 pico_mdns_record_delete((void **)&copy);
             }
         }
@@ -1322,20 +1338,21 @@ pico_mdns_my_records_claimed( pico_mdns_rtree rtree,
     /* Iterate over records and set the PROBED flag */
     pico_tree_foreach(node, &rtree) {
         if ((record = node->keyValue)) {
-            if (!claim_id){
+            if (!claim_id) {
                 claim_id = record->claim_id;
             }
         }
 
-        if ((myrecord = pico_tree_findKey(&MyRecords, record))){
+        if ((myrecord = pico_tree_findKey(&MyRecords, record))) {
             PICO_MDNS_SET_FLAG(myrecord->flags, PICO_MDNS_RECORD_CLAIMED);
         }
     }
 
     /* If all_claimed is still true */
-    if (pico_mdns_my_records_claimed_id(claim_id, &claimed_records)){
+    if (pico_mdns_my_records_claimed_id(claim_id, &claimed_records)) {
         callback(&claimed_records, _hostname, arg);
     }
+
     pico_tree_destroy(&claimed_records, NULL);
 
     mdns_dbg(">>>>>> DONE - CLAIM SESSION: %d\n", claim_id);
@@ -1362,7 +1379,7 @@ pico_mdns_my_records_probed( pico_mdns_rtree *records )
             PICO_MDNS_SET_MSB_BE(record->record->rsuffix->rclass);
             if ((found = pico_tree_findKey(&MyRecords, record))) {
                 if (IS_HOSTNAME_RECORD(found)) {
-                    if (_hostname){
+                    if (_hostname) {
                         PICO_FREE(_hostname);
                     }
 
@@ -1441,6 +1458,7 @@ pico_mdns_cache_add( struct pico_mdns_record *record )
     /* Check if the TTL is not 0*/
     if (!rttl)
         return -1;
+
     /* Set current TTL to the original TTL before inserting */
     record->current_ttl = rttl;
 
@@ -1624,7 +1642,7 @@ pico_mdns_tick( pico_time now, void *_arg )
 static int
 pico_mdns_send_packet( pico_dns_packet *packet, uint16_t len )
 {
-    //TODO: why only ipv4 support?
+    /* TODO: why only ipv4 support? */
     struct pico_ip4 dst4;
 
     /* Set the destination address to the mDNS multicast-address */
@@ -1689,9 +1707,9 @@ pico_mdns_unicast_reply( pico_dns_rtree *unicast_tree,
             /* Forced response via multicast */
 
             /* RFC6762: 18.6: In both multicast query and response messages,
-            the RD bit SHOULD be zero on transmission. In
-            pico_dns_fill_packet_header, the RD bit is set to
-            PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+               the RD bit SHOULD be zero on transmission. In
+               pico_dns_fill_packet_header, the RD bit is set to
+               PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
             packet->rd = PICO_DNS_RD_NO_DESIRE;
 
 
@@ -1708,6 +1726,7 @@ pico_mdns_unicast_reply( pico_dns_rtree *unicast_tree,
 
             mdns_dbg("Unicast response sent successfully!\n");
         }
+
         PICO_FREE(packet);
     }
 
@@ -1739,9 +1758,9 @@ pico_mdns_multicast_reply( pico_dns_rtree *multicast_tree,
         packet->id = 0;
 
         /* RFC6762: 18.6: In both multicast query and response messages,
-        the RD bit SHOULD be zero on transmission.
-        In pico_dns_fill_packet_header, the RD bit is set to
-        PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+           the RD bit SHOULD be zero on transmission.
+           In pico_dns_fill_packet_header, the RD bit is set to
+           PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
         packet->rd = PICO_DNS_RD_NO_DESIRE;
 
         /* Send the packet via multicast */
@@ -2059,9 +2078,9 @@ pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
         return -1;
     }
 
-    //TODO: When receiving multiple authoritative answers,
-    //they should be sorted in lexicographical order
-    //(just like in pico_mdns_record_am_i_lexi_later)
+    /* TODO: When receiving multiple authoritative answers, */
+    /* they should be sorted in lexicographical order */
+    /* (just like in pico_mdns_record_am_i_lexi_later) */
 
     for (i = 0; i < count; i++) {
         /* Set rname of the record to the correct location */
@@ -2279,6 +2298,7 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
     /* If there is none present generate one for given name */
     if ((nsec = pico_mdns_gen_nsec_record(name)))
         pico_tree_insert(artree, nsec);
+
     return 0;
 }
 
@@ -2390,6 +2410,7 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
     if (meta_record && pico_tree_insert(&MyRecords, meta_record)) {
         pico_mdns_record_delete((void **)&meta_record);
     }
+
     if (ptr_record && pico_tree_insert(&MyRecords, ptr_record)) {
         pico_mdns_record_delete((void **)&ptr_record);
     }
@@ -2625,7 +2646,7 @@ pico_mdns_handle_probe_packet( pico_dns_packet *packet, struct pico_ip4 peer )
     pico_mdns_handle_data_as_answers_generic(&data, nscount, packet, 1);
 
     /* Try to reply with the answers */
-    if (pico_tree_count(&antree) != 0){
+    if (pico_tree_count(&antree) != 0) {
         int retval = pico_mdns_reply(&antree, peer);
         PICO_MDNS_RTREE_DESTROY(&antree);
         return retval;
@@ -2677,12 +2698,12 @@ pico_mdns_recv( void *buf, int buflen, struct pico_ip4 peer )
     uint16_t authcount = short_be(packet->nscount);
     uint16_t addcount = short_be(packet->arcount);
 
-    // RFC6762:
-    // 18.3: Messages received with an opcode other than zero MUST be silently
-    // ignored.
-    // 18.11: messages received with non-zero Response Codes MUST be silently
-    // ignored
-    if(packet->opcode == 0 && packet->rcode == 0){
+    /* RFC6762: */
+    /* 18.3: Messages received with an opcode other than zero MUST be silently */
+    /* ignored. */
+    /* 18.11: messages received with non-zero Response Codes MUST be silently */
+    /* ignored */
+    if(packet->opcode == 0 && packet->rcode == 0) {
         mdns_dbg(">>>>>>> QDcount: %u, ANcount: %u, NScount: %u, ARcount: %u\n",
                  qdcount, ancount, authcount, addcount);
 
@@ -2795,8 +2816,8 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
     packet->id = 0;
 
     /* RFC6762: 18.6: In both multicast query and response messages,
-    the RD bit SHOULD be zero on transmission. In pico_dns_fill_packet_header,
-    the RD bit is set to PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+       the RD bit SHOULD be zero on transmission. In pico_dns_fill_packet_header,
+       the RD bit is set to PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
     packet->rd = PICO_DNS_RD_NO_DESIRE;
 
     if (cookie->status != PICO_MDNS_COOKIE_STATUS_CANCELLED) {
@@ -2814,6 +2835,7 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
         cookie = pico_tree_delete(&Cookies, cookie);
         pico_mdns_cookie_delete(&cookie);
     }
+
     PICO_FREE(packet);
 }
 
@@ -2845,6 +2867,7 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
         mdns_dbg("question_create returned NULL!\n");
         return -1;
     }
+
     pico_tree_insert(&qtree, q);
 
     /* Create a mDNS cookie to send */
@@ -2906,7 +2929,7 @@ pico_mdns_getrecord( const char *url, uint16_t type,
     return pico_mdns_getrecord_generic(url, type, callback, arg);
 #if PICO_MDNS_ALLOW_CACHING == 1
 }
-    return 0;
+return 0;
 #endif
 }
 
@@ -2926,7 +2949,7 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
 
     /* Check params */
     IGNORE_PARAMETER(now);
-    if (!cookie){
+    if (!cookie) {
         return;
     }
 
@@ -2942,7 +2965,7 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
            responses, provided that the interval between unsolicited
            responses increases by at least a factor of two with
            every response sent.
-        */
+         */
         --(cookie->count);
         if (cookie->count == 0) {
             cookie->status = PICO_MDNS_COOKIE_STATUS_INACTIVE;
@@ -2958,15 +2981,15 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
         }
         else{
             /*
-            A responder MAY send up to eight unsolicited responses,
-            provided that the interval between unsolicited responses increases
-            by at least a factor of two with every response sent.
-            Starting at 1 second.
-            So we bithsift to get our powers of two and we multiply by 1000 to
-            get our miliseconds.
-            */
-            pico_timer_add((pico_time)((1<<(PICO_MDNS_ANNOUNCEMENT_COUNT-cookie->count-1))
-                *1000), pico_mdns_send_announcement_packet, cookie);
+               A responder MAY send up to eight unsolicited responses,
+               provided that the interval between unsolicited responses increases
+               by at least a factor of two with every response sent.
+               Starting at 1 second.
+               So we bithsift to get our powers of two and we multiply by 1000 to
+               get our miliseconds.
+             */
+            pico_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
+                                       * 1000), pico_mdns_send_announcement_packet, cookie);
         }
     }
 }
@@ -2999,7 +3022,7 @@ pico_mdns_announce( void (*callback)(pico_mdns_rtree *,
 
     /* Find out which resource records can be announced */
     antree = pico_mdns_my_records_find_probed();
-    if (pico_tree_count(&antree) == 0){
+    if (pico_tree_count(&antree) == 0) {
         return 0;
     }
 
@@ -3064,7 +3087,7 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
 
     /* Check params */
     IGNORE_PARAMETER(now);
-    //if (!cookie || (cookie->type == PICO_MDNS_COOKIE_STATUS_INACTIVE)) {
+    /* if (!cookie || (cookie->type == PICO_MDNS_COOKIE_STATUS_INACTIVE)) { */
     if (!cookie || (cookie->type != PICO_MDNS_PACKET_TYPE_PROBE)) {
         pico_err = PICO_ERR_EINVAL;
         return;
@@ -3085,15 +3108,16 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
             mdns_dbg("Could not create probe packet!\n");
             return;
         }
+
         pico_tree_destroy(&nstree, NULL);
 
-        //RFC6762: 18.1
+        /* RFC6762: 18.1 */
         packet->id = 0;
 
         /* RFC6762: 18.6: In both multicast query and response messages,
-        the RD bit SHOULD be zero on transmission.
-        In pico_dns_fill_packet_header, the RD bit is set to
-        PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+           the RD bit SHOULD be zero on transmission.
+           In pico_dns_fill_packet_header, the RD bit is set to
+           PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
         packet->rd = PICO_DNS_RD_NO_DESIRE;
 
         /* Send the mDNS answer unsolicited via multicast */
@@ -3101,12 +3125,13 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
             mdns_dbg("Send error occurred!\n");
             return;
         }
+
         PICO_FREE(packet);
 
         mdns_dbg("DONE - Sent probe!\n");
 
         /* Probes should be sent with a delay in between of 250 ms */
-        if (PICO_MDNS_COOKIE_STATUS_ACTIVE == cookie->status ){
+        if (PICO_MDNS_COOKIE_STATUS_ACTIVE == cookie->status ) {
             cookie->send_timer = pico_timer_add(250,
                                                 pico_mdns_send_probe_packet,
                                                 (void *)cookie);
@@ -3223,10 +3248,10 @@ static int pico_mdns_probe( void (*callback)(pico_mdns_rtree *,
         return -1;
     }
 
-    // RFC6762: 8.1. Probing
-    // When ready to send its Multicast DNS probe packet(s) the host should
-    // first wait for a short random delay time, uniformly distributed in
-    // the range 0-250 ms.
+    /* RFC6762: 8.1. Probing */
+    /* When ready to send its Multicast DNS probe packet(s) the host should */
+    /* first wait for a short random delay time, uniformly distributed in */
+    /* the range 0-250 ms. */
     cookie->send_timer = pico_timer_add(pico_rand() % 250,
                                         pico_mdns_send_probe_packet,
                                         (void *)cookie);
@@ -3374,6 +3399,7 @@ pico_mdns_tryclaim_hostname( const char *url, void *arg )
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
     }
+
     pico_tree_destroy(&rtree, NULL);
 
     return 0;

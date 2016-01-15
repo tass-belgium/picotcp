@@ -365,7 +365,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
 static void pico_ipv4_process_finally_try_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST)!= 0)) {
+    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST) != 0)) {
         /* don't forward broadcast frame, discard! */
         pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
@@ -743,6 +743,7 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     if (g) {
         if (reference_count)
             g->reference_count++;
+
 #ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
 #endif
@@ -1014,7 +1015,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (
 #ifdef PICO_SUPPORT_IPV4FRAG
-	(0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
+        (0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
 #endif
         1 )
         ipv4_progressive_id++;
