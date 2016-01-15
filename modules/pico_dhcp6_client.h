@@ -249,8 +249,6 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_ia_addr {
 PACKED_STRUCT_DEF pico_dhcp6_opt_oro {
     /* OPTION_ORO */
     struct pico_dhcp6_opt base_opts;
-    uint16_t req_option_code_1;
-    uint16_t req_option_code_2;
     uint8_t option_data[0];
 };
 

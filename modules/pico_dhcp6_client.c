@@ -271,8 +271,6 @@ static void pico_dhcp6_parse_options(struct pico_dhcp6_opt *options, size_t len)
             case PICO_DHCP6_OPT_ORO:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_ORO option\n");
                 allocate_and_copy_and_swap(&cookie.oro, &options, delta);
-                swap_uint16(&cookie.oro->req_option_code_1);
-                swap_uint16(&cookie.oro->req_option_code_2);
             	break;
             case PICO_DHCP6_OPT_PREFERENCE:
                 dhcp6_dbg("DHCP6 client: parse_options: Received PICO_DHCP6_OPT_PREFERENCE option\n");
