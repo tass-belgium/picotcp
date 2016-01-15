@@ -17,24 +17,24 @@
 #define PICO_MDNS_ALLOW_CACHING 1       /* Enable caching on this host		  */
 #define PICO_MDNS_DEFAULT_TTL 120       /* Default TTL of mDNS records        */
 #define PICO_MDNS_SERVICE_TTL 120       /* Default TTL of SRV/TXT/PTR/NSEC    */
-#define PICO_MDNS_PROBE_COUNT 3         
+#define PICO_MDNS_PROBE_COUNT 3
 /* Amount of probes to send:
-RFC6762: 8.1. Probing:
-250 ms after the first query, the host should send a second; then,
-250 ms after that, a third.  If, by 250 ms after the third probe, no
-conflicting Multicast DNS responses have been received, the host may
-move to the next step, announcing. 
-*/
+   RFC6762: 8.1. Probing:
+   250 ms after the first query, the host should send a second; then,
+   250 ms after that, a third.  If, by 250 ms after the third probe, no
+   conflicting Multicast DNS responses have been received, the host may
+   move to the next step, announcing.
+ */
 
-#define PICO_MDNS_ANNOUNCEMENT_COUNT 3  
+#define PICO_MDNS_ANNOUNCEMENT_COUNT 3
 /* Amount of announcements to send: (we've opted for 1 extra for robustness)
-RFC6762: 8.3. Announcing:
-The Multicast DNS responder MUST send at least two unsolicited
-responses, one second apart.  To provide increased robustness against
-packet loss, a responder MAY send up to eight unsolicited responses,
-provided that the interval between unsolicited responses increases by
-at least a factor of two with every response sent.
-*/
+   RFC6762: 8.3. Announcing:
+   The Multicast DNS responder MUST send at least two unsolicited
+   responses, one second apart.  To provide increased robustness against
+   packet loss, a responder MAY send up to eight unsolicited responses,
+   provided that the interval between unsolicited responses increases by
+   at least a factor of two with every response sent.
+ */
 /* ****************************************************************************/
 
 #define PICO_MDNS_DEST_ADDR4 "224.0.0.251"
@@ -45,7 +45,7 @@ at least a factor of two with every response sent.
 
 /* To indicate if we reclaim or not */
 #define PICO_MDNS_RECLAIM 1
-#define PICO_MDNS_NO_RECLAIM 0 
+#define PICO_MDNS_NO_RECLAIM 0
 
 /* Flag to check for when records are returned, to determine the hostname */
 #define PICO_MDNS_RECORD_HOSTNAME 0x02u
@@ -154,10 +154,10 @@ pico_mdns_claim( pico_mdns_rtree record_tree,
                  void *arg );
 
 /* ****************************************************************************
- *  Tries to claim a hostname for this machine. Claims automatically a 
- *  unique A record with the IPv4-address of this host. 
- *  The hostname won't be set directly when this functions returns, 
- *  but only if the claiming of the unique record succeeded. 
+ *  Tries to claim a hostname for this machine. Claims automatically a
+ *  unique A record with the IPv4-address of this host.
+ *  The hostname won't be set directly when this functions returns,
+ *  but only if the claiming of the unique record succeeded.
  *  Init-callback will be called when the hostname-record is successfully
  *  registered.
  *

@@ -27,25 +27,26 @@ struct pico_device_tap {
 
 #define TUN_MTU 2048
 
-// We only support one global link state - we only have two USR signals, we
-// can't spread these out over an arbitrary amount of devices. When you unplug
-// one tap, you unplug all of them.
+/* We only support one global link state - we only have two USR signals, we */
+/* can't spread these out over an arbitrary amount of devices. When you unplug */
+/* one tap, you unplug all of them. */
 
 static int tapdev_link_state = 0;
 
 static void sig_handler(int signo)
 {
-    if (signo == SIGUSR1){
+    if (signo == SIGUSR1) {
         tapdev_link_state = 0;
     }
-    if (signo == SIGUSR2){
+
+    if (signo == SIGUSR2) {
         tapdev_link_state = 1;
     }
 }
 
 static int tap_link_state(__attribute__((unused)) struct pico_device *self)
 {
-  return tapdev_link_state;
+    return tapdev_link_state;
 }
 
 
@@ -64,7 +65,7 @@ static int pico_tap_poll(struct pico_device *dev, int loop_score)
     pfd.fd = tap->fd;
     pfd.events = POLLIN;
     do  {
-        if (poll(&pfd, 1, 0) <= 0){
+        if (poll(&pfd, 1, 0) <= 0) {
             return loop_score;
         }
 
@@ -110,7 +111,7 @@ int pico_tap_WFI(struct pico_device *dev, int timeout_ms)
 void pico_tap_destroy(struct pico_device *dev)
 {
     struct pico_device_tap *tap = (struct pico_device_tap *) dev;
-    if(tap->fd > 0){
+    if(tap->fd > 0) {
         close(tap->fd);
     }
 }
@@ -188,7 +189,7 @@ static int tap_get_mac(char *name, uint8_t *mac)
 
     root = ifap;
     while(ifap) {
-        if (strcmp(name, ifap->ifa_name) == 0){
+        if (strcmp(name, ifap->ifa_name) == 0) {
             sdl = (struct sockaddr_dl *) ifap->ifa_addr;
         }
 
@@ -211,7 +212,7 @@ struct pico_device *pico_tap_create(char *name)
     uint8_t mac[6] = {};
     struct sigaction sa;
 
-    if (!tap){
+    if (!tap) {
         return NULL;
     }
 
@@ -220,7 +221,7 @@ struct pico_device *pico_tap_create(char *name)
     sa.sa_handler = sig_handler;
 
     if ((sigaction(SIGUSR1, &sa, NULL) == 0) &&
-       (sigaction(SIGUSR2, &sa, NULL) == 0)){
+        (sigaction(SIGUSR2, &sa, NULL) == 0)) {
         tap->dev.link_state = &tap_link_state;
     }
 
@@ -232,12 +233,20 @@ struct pico_device *pico_tap_create(char *name)
         return NULL;
     }
 
+    /* Host's mac address is generated * by the host kernel and is
+     * retrieved via tap_get_mac().
+     */
     if (tap_get_mac(name, mac) < 0) {
         dbg("Tap mac query failed.\n");
         pico_tap_destroy((struct pico_device *)tap);
         return NULL;
     }
 
+    /* To act as a second endpoint in the same subnet, the picoTCP
+     * app using the tap device must have a different mac address.
+     * For simplicity, we just add 1 to the last byte of the linux
+     * endpoint so the two addresses are consecutive.
+     */
     mac[5]++;
 
     if( 0 != pico_device_init((struct pico_device *)tap, name, mac)) {

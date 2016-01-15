@@ -173,7 +173,7 @@ START_TEST (arp_receive_test)
     ah = (struct pico_arp_hdr *) f->net_hdr;
     ah->s_mac[0] = 0x01;
     fail_unless(pico_arp_receive(f) == -1);
-    pico_ipv4_link_del(mock->dev,ip1);
+    pico_ipv4_link_del(mock->dev, ip1);
 }
 END_TEST
 
@@ -206,6 +206,6 @@ START_TEST (arp_get_test)
     hdr->dst.addr = ip.addr;
     eth = pico_arp_get(f);
     fail_unless(eth == &mock->dev->eth->mac);
-    pico_ipv4_link_del(mock->dev,ip);
+    pico_ipv4_link_del(mock->dev, ip);
 }
 END_TEST

@@ -14,7 +14,7 @@
 #include "pico_tree.h"
 
 #define dns_dbg(...) do {} while(0)
-//#define dns_dbg dbg
+/* #define dns_dbg dbg */
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \
@@ -875,6 +875,7 @@ pico_dns_record_fill_rdata( uint8_t **rdata,
         if (datalen == 0) {
             return datalen;
         }
+
         _datalen = datalen;
         if (!(*rdata = (uint8_t *)PICO_ZALLOC((size_t)datalen))) {
             pico_err = PICO_ERR_ENOMEM;
@@ -977,6 +978,7 @@ static int pico_tolower(int c)
 {
     if ((c >= 'A')  && (c <= 'Z'))
         c += 'a' - 'A';
+
     return c;
 }
 
@@ -990,8 +992,8 @@ static int pico_tolower(int c)
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
- *  @param caseinsensitive Whether or not the bytes are compared 
- *                         case-insensitive. Should be either 
+ *  @param caseinsensitive Whether or not the bytes are compared
+ *                         case-insensitive. Should be either
  *                         PICO_DNS_CASE_SENSITIVE or PICO_DNS_CASE_INSENSITIVE
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
@@ -1007,6 +1009,7 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
     if (!a || !b) {
         if (!a && !b)
             return 0;
+
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -1017,7 +1020,7 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
         slen = rdlength_b;
 
     /* loop over slen */
-    if(caseinsensitive){
+    if(caseinsensitive) {
         for (i = 0; i < slen; i++) {
             if ((dif = pico_tolower((int)a[i]) - pico_tolower((int)b[i]))) {
                 return dif;
@@ -1025,7 +1028,7 @@ pico_dns_rdata_cmp( uint8_t *a, uint8_t *b,
         }
     }else{
         for (i = 0; i < slen; i++) {
-            if ((dif = (int)a[i] - (int)b[i])){
+            if ((dif = (int)a[i] - (int)b[i])) {
                 return dif;
             }
         }
@@ -1535,7 +1538,7 @@ pico_dns_packet_compress_name( uint8_t *name,
             /* Move up left over data */
             difference = (uint16_t)(ptr_after_str - offset);
             last_byte = packet + *len;
-            for (i = ptr_after_str; i < last_byte; i++){
+            for (i = ptr_after_str; i < last_byte; i++) {
                 *((uint8_t *)(i - difference)) = *i;
             }
             /* Update length */
@@ -1615,7 +1618,7 @@ pico_dns_packet_compress( pico_dns_packet *packet, uint16_t *len )
 
     /* Start with the questions */
     for (i = 0; i < qdcount; i++) {
-        if(i){ /* First question can't be compressed */
+        if(i) { /* First question can't be compressed */
             pico_dns_packet_compress_name(iterator, packet_buf, len);
         }
 

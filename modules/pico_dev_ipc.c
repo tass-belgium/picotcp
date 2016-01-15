@@ -68,8 +68,8 @@ static int ipc_connect(const char *sock_path)
 
     memset(&addr, 0, sizeof(addr));
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path)-1);
-    addr.sun_path[sizeof(addr.sun_path)-1] = '\0';
+    strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
+    addr.sun_path[sizeof(addr.sun_path) - 1] = '\0';
 
     if(connect(ipc_fd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un)) < 0) {
         return(-1);
