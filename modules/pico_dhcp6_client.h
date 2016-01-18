@@ -369,7 +369,7 @@ struct pico_dhcp6_client_cookie /* TODO: don't store entire message */
     struct pico_device *dev;
     struct pico_ip6 msg_dst;		   /* Destination of messages: unicast or multicast addr */
     void (*cb)(void* cli, int code);   /* Callback to the user */
-    struct pico_timer *rto_timer;
+    uint32_t rto_timer;
     enum dhcp6_client_state state;     /* State of State Machine */
     uint8_t transaction_id[3];
     uint8_t rtc;                       /* current retransmission count */
