@@ -15,11 +15,15 @@
 
 #if (defined PICO_SUPPORT_DHCP6C && defined PICO_SUPPORT_UDP)
 
-//#define dhcp6_dbg(...) do {} while(0)
-#define dhcp6_dbg(x, args ...) dbg("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
-
 /* For debugging */
-#define DEBUG_PICO_DHCP6
+//#define DEBUG_PICO_DHCP6
+
+#ifdef DEBUG_PICO_DHCP6
+#define dhcp6_dbg(x, args ...) dbg("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#else
+#define dhcp6_dbg(...) do {} while(0)
+#endif
+
 
 struct pico_dhcp6_client_cookie cookie; /* TODO: use a pico tree to store cookies */
 
