@@ -19,7 +19,7 @@
 
 #ifdef PICO_SUPPORT_IPV6
 #define MAX_INITIAL_RTR_ADVERTISEMENTS 3
-#define nd_dbg  printf
+#define nd_dbg(...) do {} while(0)
 
 extern struct pico_tree IPV6Links;
 
@@ -79,8 +79,6 @@ static int pico_ipv6_nd_qcompare(void *ka, void *kb){
 PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
 PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
-
-
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
@@ -246,14 +244,10 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
 
     /* should we use gateway, or is dst local (gateway == 0)? */
     gateway = pico_ipv6_route_get_gateway(address);
-    if (memcmp(gateway.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0 ){
+    if (memcmp(gateway.addr, PICO_IP6_ANY, PICO_SIZE_IP6) == 0)
         addr = *address;
-        nd_dbg("nd is local!\n");
-    }
-    else {
+    else
         addr = gateway;
-        nd_dbg("nd is not local!\n");
-    }
 
     return pico_nd_get_neighbor(&addr, pico_nd_find_neighbor(&addr), dev);
 }
@@ -739,28 +733,21 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 
 static int radv_process(struct pico_frame *f)
 {
-    struct pico_tree_node *index = NULL, *_tmp = NULL;
-    struct pico_ip6 *route;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
-    struct pico_tree *RouterList = pico_ipv6_get_routerlist();
     struct pico_ip6 zero = {
         .addr = {0}
     };
     int optlen;
-    uint8_t in_list = 0;
-    char temp[100]; 
+
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
     opt_start = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
     nxtopt = opt_start;
-    /* Discard advertisements with optlen == 0 */
-    if(optlen == 0) {
-      return -1;
-    }
+
     while (optlen > 0) {
         uint8_t *type = (uint8_t *)nxtopt;
         switch (*type) {
@@ -795,33 +782,18 @@ static int radv_process(struct pico_frame *f)
             if (prefix->prefix_len != 64) {
                 return -1;
             }
-            // Add prefix link if needed
-            pico_ipv6_to_string(temp, &prefix->prefix);
+  
             link = pico_ipv6_prefix_configured(&prefix->prefix);
-            if(!link) {
-                nd_dbg("Adding link for prefix %s\n",temp);
-                link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
-            } else {
-                nd_dbg("prefix already in list %s\n",temp);
+            if (link) {
+                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                goto ignore_opt_prefix;
             }
 
-            //Update Router list if needed
-            pico_tree_foreach_safe(index, RouterList, _tmp)
-            {
-               route = index->keyValue;
-               if(pico_ipv6_compare(route, &hdr->src) == 0) {
-                  in_list =1;
-               }
-            }
-            if(in_list == 0) {
+            link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
+            if (link) {
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
-                pico_tree_insert(RouterList, &hdr->src);
+                pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
             }
-            else {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
-            }
-            /*TODO don't overwrite the current gateway, use the router list */
-            pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
 
 ignore_opt_prefix:
             optlen -= (prefix->len << 3);
@@ -884,10 +856,9 @@ ignore_opt_prefix:
 
 static int pico_nd_router_adv_recv(struct pico_frame *f)
 {
-    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
     struct pico_ipv6_hdr *hdr;
-    struct pico_ipv6_neighbor *nd;
     if (icmp6_initial_checks(f) < 0)
         return -1;
 
@@ -910,13 +881,6 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
       }
     }
     pico_ipv6_neighbor_from_unsolicited(f);
-    // Update nd cache
-    pico_tree_foreach_safe(index, &NCache, _tmp) {
-      nd = index->keyValue;
-      if(pico_ipv6_compare(&nd->address, &hdr->src)) {
-        nd->is_router = 1;
-      }
-    }
     return radv_process(f);
 }
 
@@ -975,7 +939,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     case PICO_ND_STATE_REACHABLE:
         n->state = PICO_ND_STATE_STALE;
-        dbg("IPv6_ND: neighbor expired!\n");
+        /* dbg("IPv6_ND: neighbor expired!\n"); */
         return;
 
     case PICO_ND_STATE_STALE:
@@ -1058,13 +1022,10 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
     struct pico_ipv6_link *l = NULL;
-    char temp[100];
     if (!f)
         return NULL;
-    nd_dbg("pico_ipv6_get_neighbor\n");
+
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    pico_ipv6_to_string(temp, &hdr->dst);
-    nd_dbg("Looking for nd %s\n", temp);
     /* If we are still probing for Duplicate Address, abort now. */
     if (pico_ipv6_link_istentative(&hdr->src))
         return NULL;
@@ -1073,6 +1034,7 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     l = pico_ipv6_link_get(&hdr->dst);
     if (l)
         return &l->dev->eth->mac;
+
     return pico_nd_get(&hdr->dst, f->dev);
 }
 

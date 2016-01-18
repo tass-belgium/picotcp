@@ -127,8 +127,6 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
     } ext;
 };
 
-
-struct pico_tree *pico_ipv6_get_routerlist();
 int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b);
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip);
 int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6]);
