@@ -13,8 +13,8 @@
 #include "pico_protocol.h"
 
 /* DHCP6 Multicast Address */
-#define ALL_DHCP_RELAY_AGENTS_AND_SERVERS   "ff02::1:2"
-#define ALL_DHCP_SERVERS 					"ff05::1:3"
+#define ALL_DHCP_RELAY_AGENTS_AND_SERVERS    "ff02::1:2"
+#define ALL_DHCP_SERVERS                     "ff05::1:3"
 #define PICO_DHCP6_CLIENT_PORT         546
 #define PICO_DHCP6_SERVER_PORT         547
 
@@ -131,14 +131,14 @@
 enum dhcp6_client_state {
     DHCP6_CLIENT_STATE_SOLICITING = 0,
     DHCP6_CLIENT_STATE_REQUESTING,
-	DHCP6_CLIENT_STATE_CONFIRMING,
+    DHCP6_CLIENT_STATE_CONFIRMING,
     DHCP6_CLIENT_STATE_BOUND,
     DHCP6_CLIENT_STATE_RENEWING,
-	DHCP6_CLIENT_STATE_REBINDING,
-	DHCP6_CLIENT_STATE_RELEASING,
-	DHCP6_CLIENT_STATE_DECLINING,
-	DHCP6_CLIENT_STATE_INFO_REQUESTING,
-	DHCP6_CLIENT_STATE_RECONFIGURING,
+    DHCP6_CLIENT_STATE_REBINDING,
+    DHCP6_CLIENT_STATE_RELEASING,
+    DHCP6_CLIENT_STATE_DECLINING,
+    DHCP6_CLIENT_STATE_INFO_REQUESTING,
+    DHCP6_CLIENT_STATE_RECONFIGURING,
 };
 
 /* Client/Server Message Formats */
@@ -153,7 +153,7 @@ PACKED_STRUCT_DEF pico_dhcp6_hdr {
 #define DHCP6_OPT(hdr,off)              ((struct pico_dhcp6_opt *)(((uint8_t *)hdr)+sizeof(struct pico_dhcp6_hdr) + off)) /* TODO: check this */
 
 /* Macro to get transaction_id out of pico_dhcp6_hdr */
-#define DHCP6_TRANSACTION_ID(hdr)		(uint8_t *) (((uint8_t *)hdr)+1) /* 1 for pico_dhcp6_hdr.type */
+#define DHCP6_TRANSACTION_ID(hdr)        (uint8_t *) (((uint8_t *)hdr)+1) /* 1 for pico_dhcp6_hdr.type */
 
 
 /* Relay Agent/Server Message Formats */
@@ -229,10 +229,10 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_ia_na {
 /* Identity Association for Temporary Addresses Option */
 /* TODO? section 22.5 (IA_TA) */
 PACKED_STRUCT_DEF pico_dhcp6_opt_ia_ta {
-	/* PICO_DHCP6_OPT_IA_TA */
+    /* PICO_DHCP6_OPT_IA_TA */
     struct pico_dhcp6_opt base_opts;
-	uint32_t iaid;
-	uint8_t options[0];
+    uint32_t iaid;
+    uint8_t options[0];
 };
 
 /* IA Address Option */
@@ -312,19 +312,19 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_user_class {
     /* OPTION_USER_CLASS */
     struct pico_dhcp6_opt base_opts;
     PACKED_STRUCT_DEF pico_dhcp6_user_class_data {
-    	uint16_t user_class_len;
-    	uint8_t opaque_data[0];
+        uint16_t user_class_len;
+        uint8_t opaque_data[0];
     } user_class_data[0]; /* The user class information carried in this option MUST be configurable on the client. */
 };
 
 /* Vendor Class Option */
 PACKED_STRUCT_DEF pico_dhcp6_opt_vendor_class {
-	/* OPTION_VENDOR_CLASS  */
+    /* OPTION_VENDOR_CLASS  */
     struct pico_dhcp6_opt base_opts;
-	uint32_t enterprise_number; /* registered Enterprise Number as registered with IANA */
+    uint32_t enterprise_number; /* registered Enterprise Number as registered with IANA */
     PACKED_STRUCT_DEF pico_dhcp6_vendor_class_data {
-    	uint16_t vendor_class_len;
-    	uint8_t opaque_data[0];
+        uint16_t vendor_class_len;
+        uint8_t opaque_data[0];
     } vendor_class_data[0];
 };
 
@@ -332,33 +332,33 @@ PACKED_STRUCT_DEF pico_dhcp6_opt_vendor_class {
 PACKED_STRUCT_DEF pico_dhcp6_opt_vendor_opts {
     /* OPTION_VENDOR_OPTS */
     struct pico_dhcp6_opt base_opts;
-	uint32_t enterprise_number; /* registered Enterprise Number as registered with IANA */
+    uint32_t enterprise_number; /* registered Enterprise Number as registered with IANA */
     PACKED_STRUCT_DEF pico_dhcp6_option_data_format {
-    	uint16_t option_code;
-    	uint16_t option_len;
-    	uint16_t option_data[0];
+        uint16_t option_code;
+        uint16_t option_len;
+        uint16_t option_data[0];
     } option_data[0];
 };
 
 /* Interface-Id Option */
 PACKED_STRUCT_DEF pico_dhcp6_opt_interface_id {
-	/* OPTION_INTERFACE_ID */
+    /* OPTION_INTERFACE_ID */
     struct pico_dhcp6_opt base_opts;
-	uint8_t interface_id[0];
+    uint8_t interface_id[0];
 };
 
 /* Reconfigure Message Option */
 /* TODO: The Reconfigure Message option can only appear in a Reconfigure
    message. */
 PACKED_STRUCT_DEF pico_dhcp6_opt_reconf_msg {
-	/* OPTION_RECONF_MSG */
+    /* OPTION_RECONF_MSG */
     struct pico_dhcp6_opt base_opts;
-	uint8_t msg_type; /* 5 for Renew message, 11 for Information-request message. */
+    uint8_t msg_type; /* 5 for Renew message, 11 for Information-request message. */
 };
 
 /* Reconfigure Accept Option */
 PACKED_STRUCT_DEF pico_dhcp6_opt_reconf_accept {
-	/* OPTION_RECONF_ACCEPT */
+    /* OPTION_RECONF_ACCEPT */
     struct pico_dhcp6_opt base_opts;
 };
 
@@ -367,7 +367,7 @@ struct pico_dhcp6_client_cookie /* TODO: don't store entire message */
 {
     struct pico_socket *sock;
     struct pico_device *dev;
-    struct pico_ip6 msg_dst;		   /* Destination of messages: unicast or multicast addr */
+    struct pico_ip6 msg_dst;           /* Destination of messages: unicast or multicast addr */
     void (*cb)(void* cli, int code);   /* Callback to the user */
     uint32_t rto_timer;
     enum dhcp6_client_state state;     /* State of State Machine */
