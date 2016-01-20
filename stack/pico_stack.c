@@ -893,7 +893,6 @@ static void pico_check_timers(void)
             PICO_FREE(t);
         }
 
-        t = NULL;
         heap_peek(Timers, &tref_unused);
         tref = heap_first(Timers);
     }
@@ -908,8 +907,12 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
 
     for (i = 1; i <= Timers->n; i++) {
         if (tref[i].id == id) {
-            PICO_FREE(Timers->top[i].tmr);
-            Timers->top[i].tmr = NULL;
+            if (Timers->top[i].tmr)
+            {
+                PICO_FREE(Timers->top[i].tmr);
+                Timers->top[i].tmr = NULL;
+                tref[i].id = 0;
+            }
             break;
         }
     }
