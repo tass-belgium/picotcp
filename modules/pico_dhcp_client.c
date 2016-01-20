@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Kristof Roelants, Frederik Van Slycken
+   Authors: Kristof Roelants, Frederik Van Slycken, Maxime Vincent
  *********************************************************************/
 
 
@@ -25,7 +25,6 @@
 
 #define DHCP_CLIENT_TIMER_STOPPED      0
 #define DHCP_CLIENT_TIMER_STARTED      1
-#define DHCP_CLIENT_TIMER_TO_BE_FREED  2
 
 /* maximum size of a DHCP message */
 #define DHCP_CLIENT_MAXMSGZISE         (PICO_IP_MRU - PICO_SIZE_IP4HDR)
@@ -189,14 +188,11 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
 static void pico_dhcp_client_reinit(pico_time now, void *arg);
 static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
-    struct dhcp_client_timer *t;
-
-    /* Re-use old timer ? */
-    t = ck->timer[type];
+    struct dhcp_client_timer *t = ck->timer[type];
 
     if (t) {
         /* Stale timer, mark to be freed in the callback */
-        t->state = DHCP_CLIENT_TIMER_TO_BE_FREED;
+        t->state = DHCP_CLIENT_TIMER_STOPPED;
     }
     
     /* allocate a new timer, the old one is still in the timer tree, and will be freed as soon as it expires */
@@ -264,8 +260,9 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
             }
         }
     }
+
     /* stale timer, it's associated struct should be freed */
-    if (t->state == DHCP_CLIENT_TIMER_TO_BE_FREED)
+    if (t->state == DHCP_CLIENT_TIMER_STOPPED)
         PICO_FREE(t);
 }
 
@@ -300,12 +297,8 @@ static void pico_dhcp_client_stop_timers(struct pico_dhcp_client_cookie *dhcpc)
     for (i = 0; i < PICO_DHCPC_TIMER_ARRAY_SIZE; i++)
     {
         if (dhcpc->timer[i]) {
+            /* Do not cancel timer, but rather set it's state to be freed when it expires */
             dhcpc->timer[i]->state = DHCP_CLIENT_TIMER_STOPPED;
-            if (dhcpc->timer[i]->timer_id) {
-                pico_timer_cancel(dhcpc->timer[i]->timer_id);
-                dhcpc->timer[i]->timer_id = 0;
-            }
-            PICO_FREE(dhcpc->timer[i]);
             dhcpc->timer[i] = NULL;
         }
     }
