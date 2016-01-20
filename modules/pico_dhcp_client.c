@@ -194,7 +194,7 @@ static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time
         /* Stale timer, mark to be freed in the callback */
         t->state = DHCP_CLIENT_TIMER_STOPPED;
     }
-    
+
     /* allocate a new timer, the old one is still in the timer tree, and will be freed as soon as it expires */
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
 
