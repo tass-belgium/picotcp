@@ -406,6 +406,7 @@ struct pico_dhcp6_client_cookie /* TODO: don't store entire message */
 int pico_dhcp6_initiate_negotiation(struct pico_device *device, void (*callback)(void*cli, int code), uint32_t *xid);
 void generate_transaction_id(void);
 void process_status_code(struct pico_dhcp6_opt_status_code** status_code_field, size_t size);
+void print_hex_array(void* array, size_t size);
 
 #endif
 #endif

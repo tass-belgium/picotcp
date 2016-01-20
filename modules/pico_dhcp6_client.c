@@ -24,6 +24,20 @@
 #define dhcp6_dbg(...) do {} while(0)
 #endif
 
+void print_hex_array(void* array, size_t size){
+    int i;
+    /* For debugging */
+    if(size > 100){
+        printf("length corrected: %d\n", size);
+    }
+    uint8_t* arr = array;
+    size = (size < 100) ? size : 100;
+    for(i=0; i<size; i++){
+        printf("0x%02x, ", arr[i]);
+    }
+    printf("\n");
+}
+
 
 struct pico_dhcp6_client_cookie cookie; /* TODO: use a pico tree to store cookies */
 
