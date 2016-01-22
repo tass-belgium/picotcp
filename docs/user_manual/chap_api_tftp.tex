@@ -224,7 +224,7 @@ struct pico_tftp_session * make_session_or_die(union pico_address *addr,
 
 \subsection*{Description}
 This function is used to require the use of Extended Options for TFTP transfer associate to a session according to RFC 2347 and RFC 2349. It should be used before the invocation of pico$\_$tftp$\_$start$\_$rx or pico$\_$tftp$\_$start$\_$tx unless the setting is related to the timeout.
-In order to require Transfer size Option PICO$\_$TFTP$\_$OPTION$\_$FILE must be used and his value set to the file size in case of a Write Request or to 0 in case of a Read Request.
+In order to require Transfer size Option PICO$\_$TFTP$\_$OPTION$\_$FILE must be used and its value set to the file size in case of a Write Request or to 0 in case of a Read Request.
 To require to adopt a specific fixed value for the timeout PICO$\_$TFTP$\_$OPTION$\_$TIME must be used with a value ranging between 1 and 255. If this option is set to a value of 0 (or not used at all) an adaptive timeout algorithm will take care of the retransmissions.
 
 \subsection*{Function prototype}

@@ -202,6 +202,8 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_dos.h"
 #elif defined PIC24
 # include "arch/pico_pic24.h"
+#elif defined PIC32
+# include "arch/pico_pic32.h"
 #elif defined MSP430
 # include "arch/pico_msp430.h"
 #elif defined MBED_TEST

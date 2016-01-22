@@ -192,7 +192,7 @@ void *orig, uint16_t *remote_port);
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \item \texttt{buf} - Void pointer to the start of the buffer
 \item \texttt{len} - Maximum allowed length for the data to be stored in the buffer \texttt{buf}
-\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame header, can be NULL
+\item \texttt{orig} - Pointer to the origin of the IPv4/IPv6 frame, (peer IP address), can be NULL
 \item \texttt{remote$\_$port} - Pointer to the port number of the sender socket, can be NULL
 \end{itemize}
 
@@ -249,7 +249,7 @@ void *dst, uint16_t remote_port, struct pico_msginfo *info);
 \item \texttt{s} - Pointer to socket of type \texttt{struct pico$\_$socket}
 \item \texttt{buf} - Void pointer to the start of the buffer
 \item \texttt{len} - Length of the data that is stored in the buffer (in bytes)
-\item \texttt{dst} - Pointer to the origin of the IPv4/IPv6 frame header
+\item \texttt{dst} - IPv4 or IPv6 address of the destination peer where th frame is sent
 \item \texttt{remote$\_$port} - Port number of the receiving socket at the remote endpoint
 \item \texttt{info} - Extended information about the packet containing this datagram. Only the fields "ttl" and "tos" are taken into consideeration, while "dev" is ignored.
 
@@ -587,7 +587,7 @@ errMsg = pico_socket_listen(sk_tcp, 3);
 
 \subsubsection*{Description}
 When a server is listening on a socket and the client is trying to connect.
-The server on his side will wakeup and acknowledge the connection by calling the this function.
+The server on its side will wakeup and acknowledge the connection by calling the this function.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}

@@ -18,9 +18,9 @@
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \
-    for ((label) = (name), (next) = (char *)((name) + *(name) + 1); \
+    for ((label) = (name), (next) = (char *)((name) + *(unsigned char*)(name) + 1); \
          (*(label) != '\0') && ((uint16_t)((label) - (name)) < (maxlen)); \
-         (label) = (next), (next) = (char *)((next) + *(next) + 1))
+         (label) = (next), (next) = (char *)((next) + *(unsigned char*)(next) + 1))
 
 /* ****************************************************************************
  *  Checks if the DNS name doesn't exceed 256 bytes including zero-byte.

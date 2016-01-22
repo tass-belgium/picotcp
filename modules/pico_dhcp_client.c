@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Kristof Roelants, Frederik Van Slycken
+   Authors: Kristof Roelants, Frederik Van Slycken, Maxime Vincent
  *********************************************************************/
 
 
@@ -67,6 +67,7 @@ struct dhcp_client_timer
     uint8_t state;
     unsigned int type;
     uint32_t xid;
+    uint32_t timer_id;
 };
 
 struct pico_dhcp_client_cookie
@@ -187,20 +188,25 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg);
 static void pico_dhcp_client_reinit(pico_time now, void *arg);
 static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time, struct pico_dhcp_client_cookie *ck)
 {
-    struct dhcp_client_timer *t;
+    struct dhcp_client_timer *t = ck->timer[type];
 
+    if (t) {
+        /* Stale timer, mark to be freed in the callback */
+        t->state = DHCP_CLIENT_TIMER_STOPPED;
+    }
+
+    /* allocate a new timer, the old one is still in the timer tree, and will be freed as soon as it expires */
     t = PICO_ZALLOC(sizeof(struct dhcp_client_timer));
+
     if (!t)
         return NULL;
 
     t->state = DHCP_CLIENT_TIMER_STARTED;
     t->xid = ck->xid;
     t->type = type;
-    pico_timer_add(time, pico_dhcp_client_timer_handler, t);
-    if (ck->timer[type]) {
-        ck->timer[type]->state = DHCP_CLIENT_TIMER_STOPPED;
-    }
+    t->timer_id = pico_timer_add(time, pico_dhcp_client_timer_handler, t);
 
+    /* store timer struct reference in cookie */
     ck->timer[type] = t;
     return t;
 }
@@ -244,8 +250,10 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
         if (dhcpc && dhcpc->timer) {
             t->state = DHCP_CLIENT_TIMER_STOPPED;
             if ((t->type == PICO_DHCPC_TIMER_INIT) && (dhcpc->state < DHCP_CLIENT_STATE_SELECTING)) {
+                /* this was an INIT timer */
                 pico_dhcp_client_reinit(now, dhcpc);
             } else if (t->type != PICO_DHCPC_TIMER_INIT) {
+                /* this was NOT an INIT timer */
                 dhcpc->event = (uint8_t)dhcp_get_timer_event(dhcpc, t->type);
                 if (dhcpc->event != PICO_DHCP_EVENT_NONE)
                     pico_dhcp_state_machine(dhcpc->event, dhcpc, NULL);
@@ -253,17 +261,10 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
         }
     }
 
-    PICO_FREE(t);
+    /* stale timer, it's associated struct should be freed */
+    if (t->state == DHCP_CLIENT_TIMER_STOPPED)
+        PICO_FREE(t);
 }
-
-static void pico_dhcp_client_timer_stop(struct pico_dhcp_client_cookie *dhcpc, int type)
-{
-    if (dhcpc->timer[type]) {
-        dhcpc->timer[type]->state = DHCP_CLIENT_TIMER_STOPPED;
-    }
-
-}
-
 
 static void pico_dhcp_client_reinit(pico_time now, void *arg)
 {
@@ -294,7 +295,13 @@ static void pico_dhcp_client_stop_timers(struct pico_dhcp_client_cookie *dhcpc)
     int i;
     dhcpc->retry = 0;
     for (i = 0; i < PICO_DHCPC_TIMER_ARRAY_SIZE; i++)
-        pico_dhcp_client_timer_stop(dhcpc, i);
+    {
+        if (dhcpc->timer[i]) {
+            /* Do not cancel timer, but rather set it's state to be freed when it expires */
+            dhcpc->timer[i]->state = DHCP_CLIENT_TIMER_STOPPED;
+            dhcpc->timer[i] = NULL;
+        }
+    }
 }
 
 static void pico_dhcp_client_start_init_timer(struct pico_dhcp_client_cookie *dhcpc)
