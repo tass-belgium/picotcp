@@ -907,7 +907,7 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
-    
+ 
     /* Set some of the fixed-sized fields */
     f->hop_limit = hop_limit;
     f->local = local;
