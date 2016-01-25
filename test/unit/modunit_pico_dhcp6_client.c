@@ -28,10 +28,18 @@ static inline uint64_t swap64(uint64_t value){
  * This buffer could be used to compare data in the compare function */
 uint8_t expected_data[100];
 
+/* Compare function pointer that holds the compare function that will be called
+ * when pico_socket_sendto_mock_extended received data */
+void (*compare_function)(const void *buf, const int len);
+
+/* Compare function declarations. Add one per test */
+static uint8_t compare_sol(const void *buf, const int len);
+
 /* Mock function */
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
                                  void *dst, uint16_t remote_port, struct pico_msginfo *msginfo) {
     compare_function(buf, len);
+    return len;
 }
 
 /* Mock function */
