@@ -12,16 +12,21 @@
 #define PRINT_BEGIN_FUNCTION do{ printf("\n**************************************\n** starting %s\n**************************************\n", __func__);} while(0)
 #define PRINT_END_FUNCTION do{ printf("\n**************************************\n** END %s\n**************************************\n", __func__);} while(0)
 
+static inline uint16_t swap16(uint16_t value){
+	return short_be(value);
+}
+
+static inline uint32_t swap32(uint32_t value){
+	return long_be(value);
+}
+
+static inline uint64_t swap64(uint64_t value){
+	return long_long_be(value);
+}
+
 /* Buffer that can be used per test to expect data that is going out to the server.
  * This buffer could be used to compare data in the compare function */
 uint8_t expected_data[100];
-
-/* Compare function pointer that holds the compare function that will be called
- * when pico_socket_sendto_mock_extended received data */
-void (*compare_function)(const void *buf, const int len);
-
-/* Compare function declarations. Add one per test */
-static uint8_t compare_sol(const void *buf, const int len);
 
 /* Mock function */
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
@@ -72,21 +77,21 @@ START_TEST(tc_pico_dhcp6_parse_options)
 	pico_dhcp6_parse_options((struct pico_dhcp6_hdr *)buf, sizeof(buf));
 
 	ck_assert(cookie.cid_rec != NULL);
-	ck_assert_msg(cookie.cid_rec->base_opts.option_code == 1, "found 0x%04x, expected: 00 01", cookie.cid_rec->base_opts.option_code);
-	ck_assert_msg(cookie.cid_rec->base_opts.option_len == 14, "found 0x%04x, expected: 00 0e", cookie.cid_rec->base_opts.option_len);
-	//ck_assert_msg(cookie.cid_rec->duid.type == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", cookie.cid_rec->duid.type);
+	ck_assert_msg(swap16(cookie.cid_rec->base_opts.option_code) == 1, "found 0x%04x, expected: 00 01", swap16(cookie.cid_rec->base_opts.option_code));
+	ck_assert_msg(swap16(cookie.cid_rec->base_opts.option_len) == 14, "found 0x%04x, expected: 00 0e", swap16(cookie.cid_rec->base_opts.option_len));
+	ck_assert_msg(swap16(cookie.cid_rec->duid->type) == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", swap16(cookie.cid_rec->duid->type));
 	struct pico_dhcp6_duid_llt* duid_cid = &cookie.cid_rec->duid;
-	ck_assert_msg(duid_cid->hw_type == 1, "found 0x%04x, expected: 00 01");
-	ck_assert_msg(duid_cid->time == 0x1c38262d, "found 0x%04x, expected: 0x1c38262d", duid_cid->time);
+	ck_assert_msg(swap16(duid_cid->hw_type) == 1, "found 0x%04x, expected: 00 01");
+	ck_assert_msg(swap32(duid_cid->time) == 0x1c38262d, "found 0x%04x, expected: 0x1c38262d", swap32(duid_cid->time));
 	ck_assert(memcmp(&duid_cid->link_layer_address, cid_link_layer_addr, sizeof(cid_link_layer_addr)) == 0);
 
 	ck_assert(cookie.sid != NULL);
-	ck_assert_msg(cookie.sid->base_opts.option_code == 2, "found 0x%04x, expected: 00 02", cookie.sid->base_opts.option_code);
-	ck_assert_msg(cookie.sid->base_opts.option_len == 14, "found 0x%04x, expected: 00 0e", cookie.sid->base_opts.option_len);
-	ck_assert_msg(cookie.sid->duid.type == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", cookie.sid->duid.type);
+	ck_assert_msg(swap16(cookie.sid->base_opts.option_code) == 2, "found 0x%04x, expected: 00 02", swap16(cookie.sid->base_opts.option_code));
+	ck_assert_msg(swap16(cookie.sid->base_opts.option_len) == 14, "found 0x%04x, expected: 00 0e", swap16(cookie.sid->base_opts.option_len));
+	ck_assert_msg(swap16(cookie.sid->duid.type) == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", swap16(cookie.sid->duid.type));
 	struct pico_dhcp6_duid_llt* duid_sid = &cookie.sid->duid;
-	ck_assert_msg(duid_sid->hw_type == 1, "found 0x%04x, expected: 00 01");
-	ck_assert_msg(duid_sid->time == 0x1c3825e8, "found 0x%04x, expected: 0x1c3825e8", duid_sid->time);
+	ck_assert_msg(swap16(duid_sid->hw_type) == 1, "found 0x%04x, expected: 00 01");
+	ck_assert_msg(swap32(duid_sid->time) == 0x1c3825e8, "found 0x%04x, expected: 0x1c3825e8", swap32(duid_sid->time));
 	ck_assert(memcmp(&duid_sid->link_layer_address, sid_link_layer_addr, sizeof(sid_link_layer_addr)) == 0);
 
 	memcpy(cookie.transaction_id, trans_id2, sizeof(trans_id2));
