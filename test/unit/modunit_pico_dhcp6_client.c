@@ -126,9 +126,79 @@ START_TEST(tc_pico_dhcp6_fill_msg_with_options)
    /* TODO: test this: static void pico_dhcp6_fill_msg_with_options(struct pico_dhcp6_hdr *msg) */
 }
 END_TEST
+
+static uint8_t compare_req(const void *buf, const int len) {
+    ck_assert_msg(memcmp(buf, expected_data, len) == 0, "DHCPv6 req message wrong");
+}
 START_TEST(tc_pico_dhcp6_send_req)
 {
-   /* TODO: test this: static void pico_dhcp6_send_req() */
+    unsigned char client_mac[6] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
+    unsigned char server_mac[6] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+    uint8_t req_msg[] = {
+        0x03, /* Request message type */
+        0xdd, 0xcc, 0xbb, /* Random Transaction ID. Should not be compared */
+
+        0x00, 0x01, /* CID option */
+        0x00, 0x0a, /* CID len */
+            0x00, 0x03, /* DUID type is LL */
+            0x00, 0x01, /* HW type is ethernet */
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, /* Client MAC address */
+
+        0x00, 0x02, /* SID option */
+        0x00, 0x0e, /* SID len */
+            0x00, 0x01, /* DUID type is LLT */
+            0x00, 0x01, /* HW type is ethernet */
+            0x00, 0x01, 0x02, 0x03, /* DUID time */
+            0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, /* Server MAC address */
+
+        0x00, 0x03, /* IANA option */
+        0x00, 0x28, /* IANA len */
+            0x55, 0x55, 0x55, 0x55, /* IAID */
+            0x00, 0x00, 0x00, 0x00, /* T1 */
+            0x00, 0x00, 0x00, 0x00, /* T2 */
+            0x00, 0x05, /* Address option */
+            0x00, 0x18, /* Address len */
+                0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01, /*  IPv6   */
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x00, /* address */
+                0x00, 0x00, 0x00, 0x12, /* Preferred lifetime */
+                0x00, 0x00, 0x00, 0x1e, /* Valid lifetime */
+    };
+
+    /* Set test compare function and compare data */
+    memcpy(expected_data, req_msg, sizeof(req_msg));
+    compare_function = &compare_req;
+
+    /* Use a DUID-LL for the CID */
+    cookie.cid_client = PICO_ZALLOC(sizeof(struct pico_dhcp6_opt) + 10);
+    cookie.cid_client->base_opts.option_code = short_be(PICO_DHCP6_OPT_CLIENTID);
+    cookie.cid_client->base_opts.option_len = short_be(10);
+    ((struct pico_dhcp6_duid_ll *)cookie.cid_client->duid)->type = short_be(PICO_DHCP6_DUID_LL);
+    ((struct pico_dhcp6_duid_ll *)cookie.cid_client->duid)->hw_type = short_be(PICO_DHCP6_HW_TYPE_ETHERNET);
+    memcpy(&((struct pico_dhcp6_duid_ll *)cookie.cid_client->duid)->link_layer_address, client_mac, sizeof(client_mac));
+
+    /* Use a DUID-LLT for the SID */
+    cookie.sid = PICO_ZALLOC(sizeof(struct pico_dhcp6_opt) + 14);
+    cookie.sid->base_opts.option_code = short_be(PICO_DHCP6_OPT_SERVERID);
+    cookie.sid->base_opts.option_len = short_be(14);
+    ((struct pico_dhcp6_duid_llt *)&cookie.sid->duid)->type = short_be(PICO_DHCP6_DUID_LLT);
+    ((struct pico_dhcp6_duid_llt *)&cookie.sid->duid)->hw_type = short_be(PICO_DHCP6_HW_TYPE_ETHERNET);
+    ((struct pico_dhcp6_duid_llt *)&cookie.sid->duid)->time = long_be(0x00010203);
+    memcpy(&((struct pico_dhcp6_duid_llt *)&cookie.sid->duid)->link_layer_address, server_mac, sizeof(server_mac));
+
+    /* Fill in IANA with IADDR option */
+    cookie.iana = PICO_ZALLOC(sizeof(struct pico_dhcp6_opt) + 40);
+    cookie.iana->base_opts.option_code = short_be(PICO_DHCP6_OPT_IA_NA);
+    cookie.iana->base_opts.option_len = short_be(40);
+    cookie.iana->iaid = 0x55555555;
+    cookie.iana->t1 = 0;
+    cookie.iana->t2 = 0;
+    ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->base_opts.option_code = short_be(PICO_DHCP6_OPT_IADDR);
+    ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->base_opts.option_len = short_be(24);
+    pico_string_to_ipv6("2001:0db8:0000:0001:0000:0000:0000:2000", &((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->addr); 
+    ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->preferred_lt = long_be(18);
+    ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->valid_lt = long_be(30);
+
+    pico_dhcp6_send_req();
 }
 END_TEST
 START_TEST(tc_pico_dhcp6_renew_timeout)
