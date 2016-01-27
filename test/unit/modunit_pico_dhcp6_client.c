@@ -409,7 +409,6 @@ START_TEST(tc_sm_process_msg_reply)
 
 	/* Cleanup */
 	pico_dhcp6_client_clear_options_in_cookie();
-	PICO_FREE(cookie.rto_timer);
 
 	PRINT_END_FUNCTION;
 }
