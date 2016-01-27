@@ -30,7 +30,7 @@ uint8_t expected_data[100];
 
 /* Compare function pointer that holds the compare function that will be called
  * when pico_socket_sendto_mock_extended received data */
-void (*compare_function)(const void *buf, const int len);
+void (*compare_function)(const void *buf, const int len) = NULL;
 
 /* Compare function declarations. Add one per test */
 static uint8_t compare_sol(const void *buf, const int len);
@@ -38,7 +38,9 @@ static uint8_t compare_sol(const void *buf, const int len);
 /* Mock function */
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
                                  void *dst, uint16_t remote_port, struct pico_msginfo *msginfo) {
-    compare_function(buf, len);
+    if(compare_function)
+        compare_function(buf, len);
+
     return len;
 }
 
@@ -199,6 +201,8 @@ START_TEST(tc_pico_dhcp6_send_req)
     ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->valid_lt = long_be(30);
 
     pico_dhcp6_send_req();
+
+    compare_function = NULL;
 }
 END_TEST
 START_TEST(tc_pico_dhcp6_renew_timeout)
@@ -312,6 +316,8 @@ START_TEST(tc_pico_dhcp6_send_sol)
     cookie.dev = mock->dev;
 
     pico_dhcp6_send_sol(); /* Check implemented in compare_sol function */
+
+    compare_function = NULL;
 }
 END_TEST
 
