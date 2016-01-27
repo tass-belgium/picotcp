@@ -49,7 +49,7 @@ struct filter_node {
     int (*function_ptr)(struct filter_node *filter, struct pico_frame *f);
 };
 
-PICO_TREE_DECLARE(filter_tree, &filter_compare);
+static PICO_TREE_DECLARE(filter_tree, &filter_compare);
 
 static inline int ipfilter_uint32_cmp(uint32_t a, uint32_t b)
 {

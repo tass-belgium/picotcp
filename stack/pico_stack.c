@@ -37,13 +37,13 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 };
 
 # define PICO_SIZE_MCAST 3
-const uint8_t PICO_ETHADDR_MCAST[6] = {
+static const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
 
 #ifdef PICO_SUPPORT_IPV6
 # define PICO_SIZE_MCAST6 2
-const uint8_t PICO_ETHADDR_MCAST6[6] = {
+static const uint8_t PICO_ETHADDR_MCAST6[6] = {
     0x33, 0x33, 0x00, 0x00, 0x00, 0x00
 };
 #endif

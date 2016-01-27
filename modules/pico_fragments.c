@@ -61,7 +61,7 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net);
 
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 static uint32_t ipv6_cur_frag_id = 0u;
-uint32_t ipv6_fragments_timer = 0u;
+static uint32_t ipv6_fragments_timer = 0u;
 
 static int pico_ipv6_frag_compare(void *ka, void *kb)
 {
@@ -74,7 +74,7 @@ static int pico_ipv6_frag_compare(void *ka, void *kb)
 
     return 0;
 }
-PICO_TREE_DECLARE(ipv6_fragments, pico_ipv6_frag_compare);
+static PICO_TREE_DECLARE(ipv6_fragments, pico_ipv6_frag_compare);
 
 static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
 {
@@ -137,7 +137,7 @@ static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
 static uint32_t ipv4_cur_frag_id = 0u;
-uint32_t ipv4_fragments_timer = 0u;
+static uint32_t ipv4_fragments_timer = 0u;
 
 static int pico_ipv4_frag_compare(void *ka, void *kb)
 {
@@ -150,7 +150,7 @@ static int pico_ipv4_frag_compare(void *ka, void *kb)
 
     return 0;
 }
-PICO_TREE_DECLARE(ipv4_fragments, pico_ipv4_frag_compare);
+static PICO_TREE_DECLARE(ipv4_fragments, pico_ipv4_frag_compare);
 
 static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
 {

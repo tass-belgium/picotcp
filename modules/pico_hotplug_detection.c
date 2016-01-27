@@ -16,7 +16,7 @@ struct pico_hotplug_device {
     struct pico_tree init_callbacks; /* functions we still need to call for initialization */
 };
 
-uint32_t timer_id = 0;
+static uint32_t timer_id = 0;
 
 static int pico_hotplug_dev_cmp(void *ka, void *kb)
 {
@@ -41,7 +41,7 @@ static int callback_compare(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(Hotplug_device_tree, pico_hotplug_dev_cmp);
+static PICO_TREE_DECLARE(Hotplug_device_tree, pico_hotplug_dev_cmp);
 
 static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void*v)
 {

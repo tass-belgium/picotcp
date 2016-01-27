@@ -43,7 +43,7 @@ static int dns_ns_cmp(void *ka, void *kb)
     struct pico_dns_ns *a = ka, *b = kb;
     return pico_ipv4_compare(&a->ns, &b->ns);
 }
-PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
+static PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
 
 struct pico_dns_query
 {
@@ -67,7 +67,7 @@ static int dns_query_cmp(void *ka, void *kb)
 
     return (a->id < b->id) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DNSTable, dns_query_cmp);
+static PICO_TREE_DECLARE(DNSTable, dns_query_cmp);
 
 static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr)
 {

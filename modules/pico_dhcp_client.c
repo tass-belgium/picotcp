@@ -117,7 +117,7 @@ static int dhcp_cookies_cmp(void *ka, void *kb)
 
     return (a->xid < b->xid) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
+static PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
 
 static struct pico_dhcp_client_cookie *pico_dhcp_client_add_cookie(uint32_t xid, struct pico_device *dev, void (*cb)(void *dhcpc, int code), uint32_t *uid)
 {

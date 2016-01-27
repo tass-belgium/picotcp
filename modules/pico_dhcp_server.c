@@ -68,7 +68,7 @@ static int dhcp_settings_cmp(void *ka, void *kb)
 
     return (a->dev < b->dev) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DHCPSettings, dhcp_settings_cmp);
+static PICO_TREE_DECLARE(DHCPSettings, dhcp_settings_cmp);
 
 static int dhcp_negotiations_cmp(void *ka, void *kb)
 {
@@ -78,7 +78,7 @@ static int dhcp_negotiations_cmp(void *ka, void *kb)
 
     return (a->xid < b->xid) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DHCPNegotiations, dhcp_negotiations_cmp);
+static PICO_TREE_DECLARE(DHCPNegotiations, dhcp_negotiations_cmp);
 
 
 static inline void dhcps_set_default_pool_start_if_not_provided(struct pico_dhcp_server_setting *dhcps)

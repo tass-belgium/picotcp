@@ -32,7 +32,7 @@
 #define MLDV2_ALL_ROUTER_GROUP           "FF02:0:0:0:0:0:0:16"
 #define MLD_ROUTER_ALERT_LEN             (8)
 
-uint8_t pico_mld_flag = 0;
+static uint8_t pico_mld_flag = 0;
 
 PACKED_STRUCT_DEF mld_message {
     uint8_t type;
@@ -156,7 +156,7 @@ static void pico_mld_report_expired(struct mld_timer *t)
     p->event = MLD_EVENT_TIMER_EXPIRED;
     pico_mld_process_event(p);
 }
-PICO_TREE_DECLARE(MLDTimers, mld_timer_cmp);
+static PICO_TREE_DECLARE(MLDTimers, mld_timer_cmp);
 static void pico_mld_v1querier_expired(struct mld_timer *t)
 {
     struct pico_ipv6_link *link = NULL;
@@ -198,7 +198,7 @@ static int mcast_parameters_cmp(void *ka, void *kb)
     return mldparm_link_compare(a, b);
 }
 
-PICO_TREE_DECLARE(MLDParameters, mcast_parameters_cmp);
+static PICO_TREE_DECLARE(MLDParameters, mcast_parameters_cmp);
 
 static int pico_mld_delete_parameter(struct mcast_parameters *p)
 {
@@ -377,8 +377,8 @@ static int mld_sources_cmp(void *ka, void *kb)
     return pico_ipv6_compare(a, b);
 }
 
-PICO_TREE_DECLARE(MLDAllow, mld_sources_cmp);
-PICO_TREE_DECLARE(MLDBlock, mld_sources_cmp);
+static PICO_TREE_DECLARE(MLDAllow, mld_sources_cmp);
+static PICO_TREE_DECLARE(MLDBlock, mld_sources_cmp);
 
 static struct mcast_parameters *pico_mld_find_parameter(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group)
 {

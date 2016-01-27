@@ -285,7 +285,7 @@ static int ipv4_link_compare(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
+static PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
 
 static int pico_ipv4_process_bcast_in(struct pico_frame *f)
 {
