@@ -70,6 +70,10 @@ CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes
 # options for supressing warnings
 CFLAGS+= -Wno-missing-field-initializers
 
+ifeq ($(CC),clang)
+CFLAGS+= -Wunreachable-code-break -Wpointer-bool-conversion -Wmissing-variable-declarations
+endif
+
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb

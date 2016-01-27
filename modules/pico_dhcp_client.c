@@ -247,7 +247,7 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
     (void) now;
     if (t->state != DHCP_CLIENT_TIMER_STOPPED) {
         dhcpc = pico_dhcp_client_find_cookie(t->xid);
-        if (dhcpc && dhcpc->timer) {
+        if (dhcpc) {
             t->state = DHCP_CLIENT_TIMER_STOPPED;
             if ((t->type == PICO_DHCPC_TIMER_INIT) && (dhcpc->state < DHCP_CLIENT_STATE_SELECTING)) {
                 /* this was an INIT timer */

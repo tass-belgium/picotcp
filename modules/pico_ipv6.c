@@ -787,7 +787,6 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
                 return nxthdr;
             }
 
-            break;
         default:
             /* Invalid next header */
             pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_NXTHDR, cur_nexthdr);
