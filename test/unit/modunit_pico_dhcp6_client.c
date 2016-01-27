@@ -359,7 +359,6 @@ START_TEST(tc_sm_process_msg_adv)
 	ck_assert(cookie.cid_rec != NULL); // TODO: check message type
 	ck_assert(cookie.sid != NULL); // TODO: check output, should be omitted later on
 	PICO_FREE(cid);
-	pico_timer_cancel(cookie.rto_timer);
 	pico_dhcp6_client_clear_options_in_cookie();
 	PRINT_END_FUNCTION;
 }
