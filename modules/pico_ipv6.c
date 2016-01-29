@@ -120,9 +120,9 @@ static int ipv6_route_compare(void *ka, void *kb)
 
 }
 
-PICO_TREE_DECLARE(Tree_dev_ip6_link, ipv6_link_compare);
+static PICO_TREE_DECLARE(Tree_dev_ip6_link, ipv6_link_compare);
 PICO_TREE_DECLARE(IPV6Routes, ipv6_route_compare);
-PICO_TREE_DECLARE(IPV6Links, ipv6_link_compare);
+static PICO_TREE_DECLARE(IPV6Links, ipv6_link_compare);
 
 static char pico_ipv6_dec_to_char(uint8_t u)
 {
@@ -786,7 +786,6 @@ static int pico_ipv6_extension_headers(struct pico_frame *f)
                 return nxthdr;
             }
 
-            break;
         default:
             /* Invalid next header */
             pico_icmp6_parameter_problem(f, PICO_ICMP6_PARAMPROB_NXTHDR, cur_nexthdr);

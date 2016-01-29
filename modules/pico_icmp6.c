@@ -693,7 +693,7 @@ static int icmp6_cookie_compare(void *ka, void *kb)
 
     return (a->seq - b->seq);
 }
-PICO_TREE_DECLARE(IPV6Pings, icmp6_cookie_compare);
+static PICO_TREE_DECLARE(IPV6Pings, icmp6_cookie_compare);
 
 static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
 {

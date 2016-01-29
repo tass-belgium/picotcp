@@ -215,14 +215,14 @@ pico_mdns_cookie_cmp( void *ka, void *kb )
 
 #if PICO_MDNS_ALLOW_CACHING == 1
 /* Cache records from mDNS peers on the network */
-PICO_TREE_DECLARE(Cache, &pico_mdns_record_cmp);
+static PICO_TREE_DECLARE(Cache, &pico_mdns_record_cmp);
 #endif
 
 /* My records for which I want to have the authority */
-PICO_TREE_DECLARE(MyRecords, &pico_mdns_record_cmp_name_type);
+static PICO_TREE_DECLARE(MyRecords, &pico_mdns_record_cmp_name_type);
 
 /* Cookie-tree */
-PICO_TREE_DECLARE(Cookies, &pico_mdns_cookie_cmp);
+static PICO_TREE_DECLARE(Cookies, &pico_mdns_cookie_cmp);
 
 /* ****************************************************************************
  *  MARK: PROTOTYPES                                                          */

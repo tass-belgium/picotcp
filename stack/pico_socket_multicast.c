@@ -131,7 +131,7 @@ static int mcast_socket_cmp(void *ka, void *kb)
 }
 
 /* gather all multicast sockets to hasten filter aggregation */
-PICO_TREE_DECLARE(MCASTSockets, mcast_socket_cmp);
+static PICO_TREE_DECLARE(MCASTSockets, mcast_socket_cmp);
 
 static int mcast_filter_cmp(void *ka, void *kb)
 {
@@ -145,7 +145,7 @@ static int mcast_filter_cmp(void *ka, void *kb)
     return 0;
 }
 /* gather sources to be filtered */
-PICO_TREE_DECLARE(MCASTFilter, mcast_filter_cmp);
+static PICO_TREE_DECLARE(MCASTFilter, mcast_filter_cmp);
 
 static int mcast_filter_cmp_ipv6(void *ka, void *kb)
 {
@@ -153,7 +153,7 @@ static int mcast_filter_cmp_ipv6(void *ka, void *kb)
     return memcmp(&a->ip6, &b->ip6, sizeof(struct pico_ip6));
 }
 /* gather sources to be filtered */
-PICO_TREE_DECLARE(MCASTFilter_ipv6, mcast_filter_cmp_ipv6);
+static PICO_TREE_DECLARE(MCASTFilter_ipv6, mcast_filter_cmp_ipv6);
 
 inline static struct pico_tree *mcast_get_src_tree(struct pico_socket *s, struct pico_mcast *mcast)
 {

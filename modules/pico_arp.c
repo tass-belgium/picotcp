@@ -121,7 +121,7 @@ static int arp_compare(void *ka, void *kb)
     return pico_ipv4_compare(&a->ipv4, &b->ipv4);
 }
 
-PICO_TREE_DECLARE(arp_tree, arp_compare);
+static PICO_TREE_DECLARE(arp_tree, arp_compare);
 
 /*********************/
 /**  END ARP TREE **/

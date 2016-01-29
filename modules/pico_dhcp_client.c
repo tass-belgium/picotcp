@@ -117,7 +117,7 @@ static int dhcp_cookies_cmp(void *ka, void *kb)
 
     return (a->xid < b->xid) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
+static PICO_TREE_DECLARE(DHCPCookies, dhcp_cookies_cmp);
 
 static struct pico_dhcp_client_cookie *pico_dhcp_client_add_cookie(uint32_t xid, struct pico_device *dev, void (*cb)(void *dhcpc, int code), uint32_t *uid)
 {
@@ -247,7 +247,7 @@ static void pico_dhcp_client_timer_handler(pico_time now, void *arg)
     (void) now;
     if (t->state != DHCP_CLIENT_TIMER_STOPPED) {
         dhcpc = pico_dhcp_client_find_cookie(t->xid);
-        if (dhcpc && dhcpc->timer) {
+        if (dhcpc) {
             t->state = DHCP_CLIENT_TIMER_STOPPED;
             if ((t->type == PICO_DHCPC_TIMER_INIT) && (dhcpc->state < DHCP_CLIENT_STATE_SELECTING)) {
                 /* this was an INIT timer */

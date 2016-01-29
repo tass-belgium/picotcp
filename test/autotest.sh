@@ -19,14 +19,6 @@ function tftp_cleanup() {
 	fi
 }
 
-function on_exit(){
-	killall -wq picoapp.elf 
-	killall -wq picoapp6.elf 
-	./test/vde_sock_start_user.sh stop
-}
-
-trap on_exit exit term
-
 if ! [ -x "$(command -v vde_switch)" ]; then
       echo 'VDE Switch is not installed.' >&2
 fi
@@ -36,7 +28,7 @@ if [ ! -e test/vde_sock_start_user.sh ]; then
    exit 1
 else
    echo "VDE SOCK START SCRIPT STARTED."
-   ./test/vde_sock_start_user.sh start
+   ./test/vde_sock_start_user.sh
 fi
 
 rm -f /tmp/pico-mem-report-*
