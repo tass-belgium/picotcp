@@ -8,6 +8,12 @@
 
 #include "pico_config.h"
 
+#define IEEE_AM_NONE 0
+#define IEEE_AM_RES 1
+#define IEEE_AM_SHORT 2
+#define IEEE_AM_EXTENDED 3
+#define IEEE_AM_BOTH 4
+
 PACKED_STRUCT_DEF pico_ip4
 {
     uint32_t addr;
@@ -47,20 +53,12 @@ PACKED_STRUCT_DEF pico_ieee_addr_ext
 };
 
 // ADDRESS MODE DEFINITIONS (IEEE802.15.4)
-enum ieee_am
-{
-    IEEE_AM_NONE = 0,
-    IEEE_AM_RES,
-    IEEE_AM_SHORT,
-    IEEE_AM_EXTENDED,
-    IEEE_AM_BOTH
-};
-
 struct pico_ieee_addr
 {
     struct pico_ieee_addr_short _short;
     struct pico_ieee_addr_ext _ext;
-    enum ieee_am _mode;
+    uint8_t _mode;
+    uint8_t padding;
 };
 
 #define pico_ieee_addr_len(am) ((IEEE_AM_BOTH == (int)(am) || IEEE_AM_SHORT == (int)(am)) ? (2u) : \

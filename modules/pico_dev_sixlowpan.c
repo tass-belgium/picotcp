@@ -112,8 +112,8 @@
 #define UDP_IS_PORT_8(p)            ((0xF0u) == ((p) >> 8u))
 #define UDP_IS_PORT_4(p)            ((0xF0Bu) == ((p) >> 4u))
 #define UDP_ARE_PORTS_4(src, dst)   (UDP_IS_PORT_4((src)) && UDP_IS_PORT_4((dst)))
-#define UINT32_4LSB(lsb)            ((uint32_t)(((uint32_t)lsb) & 0x000Fu))
-#define UINT32_8LSB(lsb)            ((uint32_t)(((uint32_t)lsb) & 0x00FFu))
+#define NIBBLE_L(byte) ((uint8_t)byte & 0x0F)
+#define SHORT_LSB(word) ((uint8_t)word)
 
 #define FRAG_DGRAM_SIZE_MASK        (0x7FF)
 
@@ -448,7 +448,7 @@ static uint8_t slp_seq = 0; /* STATIC SEQUENCE NUMBER */
 /* -------------------------------------------------------------------------------- */
 // MARK: FUNCTION PROTOTYPES
 static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame *f);
-static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, enum ieee_am reply_mode);
+static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_mode);
 static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops);
 static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f);
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
@@ -639,7 +639,7 @@ int pico_ieee_addr_cmp(void *va, void *vb)
 {
     struct pico_ieee_addr *a = (struct pico_ieee_addr *)va;
     struct pico_ieee_addr *b = (struct pico_ieee_addr *)vb;
-    enum ieee_am aam = IEEE_AM_NONE, bam = IEEE_AM_NONE;
+    uint8_t aam = IEEE_AM_NONE, bam = IEEE_AM_NONE;
     int ret = 0;
 
     if (!a || !b) {
@@ -700,7 +700,7 @@ static inline void ieee_ext_to_le(struct pico_ieee_addr_ext *ext)
     }
 }
 
-static int pico_ieee_addr_modes_to_hdr(struct ieee_hdr *hdr, enum ieee_am sam, enum ieee_am dam)
+static int pico_ieee_addr_modes_to_hdr(struct ieee_hdr *hdr, uint8_t sam, uint8_t dam)
 {
     uint8_t *modes = NULL;
     if (!hdr)
@@ -768,7 +768,7 @@ static struct pico_ieee_addr_short pico_ieee_addr_short_from_flat(uint8_t *buf, 
     return temp;
 }
 
-static struct pico_ieee_addr pico_ieee_addr_from_flat(uint8_t *buf, enum ieee_am am, uint8_t ieee)
+static struct pico_ieee_addr pico_ieee_addr_from_flat(uint8_t *buf, uint8_t am, uint8_t ieee)
 {
     struct pico_ieee_addr addr;
     memset(&addr, 0, sizeof(struct pico_ieee_addr));
@@ -1353,7 +1353,7 @@ static void sixlowpan_ping_check(pico_time now, void *arg)
     }
 }
 
-static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, enum ieee_am reply_mode)
+static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_mode)
 {
     struct pico_device_sixlowpan *slp = (struct pico_device_sixlowpan *)dev;
     struct sixlowpan_ping *ping = NULL;
@@ -1518,7 +1518,7 @@ static inline uint8_t sixlowpan_nh_from_eid(enum nhc_ext_eid eid)
     }
 }
 
-static enum nhc_udp_ports sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, uint32_t *comp)
+static enum nhc_udp_ports sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, uint8_t *comp)
 {
     if (!comp)
         return 0;
@@ -1527,13 +1527,18 @@ static enum nhc_udp_ports sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, ui
     dst = short_be(dst);
 
     if (UDP_ARE_PORTS_4(src, dst)) {
-        *comp = long_be(((uint32_t)((uint32_t)(UINT32_4LSB(src) << 4) | UINT32_4LSB(dst))) << 24);
+        comp[0] = (uint8_t)(NIBBLE_L(src) << 4); /* low nibble of src port first*/
+        comp[0] = (uint8_t)(comp[0] | NIBBLE_L(dst)); /* followed by dst port nibble */
         return PORTS_COMPRESSED_FULL;
     } else if (UDP_IS_PORT_8(dst)) {
-        *comp = long_be(((uint32_t)(((uint32_t)src << 8) | UINT32_8LSB(dst))) << 8);
+        comp[0] = (uint8_t)(src >> 8);
+        comp[1] = (uint8_t)(src);
+        comp[2] = SHORT_LSB(dst);
         return PORTS_COMPRESSED_DST;
     } else if (UDP_IS_PORT_8(src)) {
-        *comp = long_be(((uint32_t)((UINT32_8LSB(src) << 16) | (uint32_t)dst)) << 8);
+        comp[0] = SHORT_LSB(src);
+        comp[1] = (uint8_t)(dst >> 8);
+        comp[2] = (uint8_t)(dst);
         return PORTS_COMPRESSED_SRC;
     } else {
         *comp = (uint32_t)0x0;
@@ -1545,7 +1550,7 @@ static enum nhc_udp_ports sixlowpan_nhc_udp_ports(uint16_t src, uint16_t dst, ui
 // MARK: DECOMPRESSION
 static void sixlowpan_nhc_udp_ports_undo(enum nhc_udp_ports ports, struct sixlowpan_frame *f)
 {
-    uint16_t sport = 0xF000, dport = 0xF000;
+    uint16_t sport = 0xF000, dport = 0xF000; /* Only ports in this 0xF0XX are compressed */
     struct pico_udp_hdr *hdr = NULL;
     uint8_t *buf = NULL;
 
@@ -1561,13 +1566,19 @@ static void sixlowpan_nhc_udp_ports_undo(enum nhc_udp_ports ports, struct sixlow
             frame_buf_prepend(f, PICO_LAYER_TRANSPORT, 3);
             break;
         case PORTS_COMPRESSED_DST:
-            sport = short_be(*(uint16_t *)(buf));
+            /* First two bytes carry source port inline */
+            sport = (uint16_t)((uint16_t)buf[0] << 8);
+            sport = (uint16_t)(sport | (uint16_t)buf[1]);
+            /* Third byte carries destination port compressed*/
             dport = (uint16_t)(dport | (uint16_t)buf[2]);
             frame_buf_prepend(f, PICO_LAYER_TRANSPORT, 1);
             break;
         case PORTS_COMPRESSED_SRC:
+            /* First byte carries source port compressed */
             sport = (uint16_t)(sport | (uint16_t)buf[0]);
-            dport = short_be(*(uint16_t *)(buf + 1));
+            /* Second and Third byte carry carry the destination port inline */
+            dport = (uint16_t)((uint16_t)buf[1] << 8);
+            dport = (uint16_t)(dport | (uint16_t)buf[2]);
             frame_buf_prepend(f, PICO_LAYER_TRANSPORT, 1);
             break;
         default:
@@ -1698,11 +1709,11 @@ static uint8_t sixlowpan_nhc_udp(struct sixlowpan_frame *f)
     }
 
     /* Parse in the UDP header */
-    udp = (struct pico_udp_hdr *)(f->transport_hdr + 1);
+    udp = (struct pico_udp_hdr *)(f->transport_hdr + 1); /* +1 for the dispatch header*/
     nhc = (struct sixlowpan_nhc_udp *)f->transport_hdr;
 
     nhc->dispatch = DISPATCH_NHC_UDP(INFO_VAL);
-    nhc->ports = sixlowpan_nhc_udp_ports(udp->trans.sport, udp->trans.dport, (uint32_t *)udp);
+    nhc->ports = sixlowpan_nhc_udp_ports(udp->trans.sport, udp->trans.dport, (uint8_t *)udp);
     /* For now, don't compress the checksum because we have to have the authority from the upper layers */
     nhc->checksum = CHECKSUM_COMPRESSED_NONE;
 
@@ -2453,7 +2464,7 @@ static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
 
     /* Determine length of buffer */
     *len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
-    if (!(buf = PICO_ZALLOC(*(size_t *)len))) {
+    if (!(buf = PICO_ZALLOC((size_t)*len))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
@@ -2702,7 +2713,7 @@ static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len, struct sixlo
 
 /* -------------------------------------------------------------------------------- */
 // MARK: MESH ADDRESSING
-static inline enum ieee_am sixlowpan_mesh_am_get(uint8_t dah, uint8_t origin)
+static inline uint8_t sixlowpan_mesh_am_get(uint8_t dah, uint8_t origin)
 {
     uint8_t am = 0;
 
@@ -2765,7 +2776,7 @@ static uint8_t sixlowpan_mesh_read_hdr_info(uint8_t *buf, struct pico_ieee_addr 
 {
     struct sixlowpan_mesh_esc *esc = NULL;
     struct sixlowpan_mesh *hdr = NULL;
-    enum ieee_am dam = 0, sam = 0;
+    uint8_t dam = 0, sam = 0;
     uint8_t *addresses = NULL;
     uint8_t hops_left = 0;
     int escaped = 0;
