@@ -77,6 +77,7 @@
 #define IEEE_LEN_LEN                (1u)
 #define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST_SHORT == (ieee)._short.addr))
 #define IEEE_AM_BOTH_TO_SHORT(am)   ((IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am)) ? IEEE_AM_SHORT : IEEE_AM_EXTENDED)
+#define IEEE_AM_LITERAL(am) (am == IEEE_AM_SHORT ? IEEE_AM_SHORT : am == IEEE_AM_EXTENDED ? IEEE_AM_EXTENDED : IEEE_AM_NONE)
 
 #define IPV6_FIELDS_NUM             (6u)
 #define IPV6_SOURCE                 (0u)
@@ -845,11 +846,11 @@ static int ieee_provide_hdr(struct sixlowpan_frame *f)
     if (IEEE_AM_BOTH == f->peer._mode)
         fcf->dam = IEEE_AM_SHORT;
     else
-        fcf->dam = f->peer._mode;
+        fcf->dam = IEEE_AM_LITERAL(f->peer._mode);
     if (IEEE_AM_BOTH == f->local._mode)
         fcf->sam = IEEE_AM_SHORT;
     else
-        fcf->sam = f->local._mode;
+        fcf->sam = IEEE_AM_LITERAL(f->local._mode);
 
     /* Set sequence number and PAN ID */
     hdr->seq = slp_seq;
