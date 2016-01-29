@@ -24,3 +24,4 @@ cscope.out
 *.gcno
 *.expand
 .ycm_extra_conf.py
+.clang_complete
