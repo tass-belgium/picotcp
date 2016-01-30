@@ -13,7 +13,7 @@
 #include "pico_socket.h"
 #include "pico_eth.h"
 
-#if (defined PICO_SUPPORT_DHCP6C && defined PICO_SUPPORT_UDP)
+#if defined(PICO_SUPPORT_DHCP6C) && defined(PICO_SUPPORT_UDP)
 
 /* For debugging */
 //#define DEBUG_PICO_DHCP6
@@ -24,11 +24,12 @@
 #define dhcp6_dbg(...) do {} while(0)
 #endif
 
+#ifdef DEBUG_PICO_DHCP6
 void print_hex_array(void* array, size_t size){
     int i;
     /* For debugging */
     if(size > 100){
-        printf("length corrected: %d\n", size);
+        printf("length corrected: %zu\n", size);
     }
     uint8_t* arr = array;
     size = (size < 100) ? size : 100;
@@ -37,7 +38,12 @@ void print_hex_array(void* array, size_t size){
     }
     printf("\n");
 }
-
+#else
+void print_hex_array(void* array, size_t size){
+	IGNORE_PARAMETER(array);
+	IGNORE_PARAMETER(size);
+}
+#endif
 
 struct pico_dhcp6_client_cookie cookie; /* TODO: use a pico tree to store cookies */
 
@@ -313,7 +319,7 @@ static void pico_dhcp6_send_msg(struct pico_dhcp6_hdr *msg, size_t len)
     info.dev = cookie.dev;
 //    pico_string_to_ipv6(ALL_DHCP_RELAY_AGENTS_AND_SERVERS, dst.addr);
     memcpy(&dst.addr, &cookie.msg_dst, sizeof(cookie.msg_dst)); /* unicast when option received*/
-    if(pico_socket_sendto_extended(cookie.sock, msg, (int)len, &dst, short_be(PICO_DHCP6_SERVER_PORT), &info) < 0)
+    if(pico_socket_sendto_extended(cookie.sock, (void *)msg, (int)len, (void *)&dst, short_be(PICO_DHCP6_SERVER_PORT), &info) < 0)
         dhcp6_dbg("pico_socket_sendto_extended failed!!");
 }
 
@@ -652,7 +658,7 @@ static int respond_to_reconfigure_message()
 
 static int recv_reconfigure(struct pico_dhcp6_hdr *msg, size_t len)
 {
-    pico_dhcp6_check_if_unicast_received(msg);
+    pico_dhcp6_check_if_unicast_received();
     pico_dhcp6_parse_options(DHCP6_OPT(msg, 0), len);
     if(check_reconfigure_message(msg, len) == PICO_DHCP6_RECONF_NOK){
         /* discard message */

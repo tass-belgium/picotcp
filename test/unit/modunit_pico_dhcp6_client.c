@@ -12,15 +12,18 @@
 #define PRINT_BEGIN_FUNCTION do{ printf("\n**************************************\n** starting %s\n**************************************\n", __func__);} while(0)
 #define PRINT_END_FUNCTION do{ printf("\n**************************************\n** END %s\n**************************************\n", __func__);} while(0)
 
-static inline uint16_t swap16(uint16_t value){
+static inline uint16_t swap16(uint16_t value)
+{
 	return short_be(value);
 }
 
-static inline uint32_t swap32(uint32_t value){
+static inline uint32_t swap32(uint32_t value)
+{
 	return long_be(value);
 }
 
-static inline uint64_t swap64(uint64_t value){
+static inline uint64_t swap64(uint64_t value)
+{
 	return long_long_be(value);
 }
 
@@ -30,14 +33,19 @@ uint8_t expected_data[100];
 
 /* Compare function pointer that holds the compare function that will be called
  * when pico_socket_sendto_mock_extended received data */
-void (*compare_function)(const void *buf, const int len) = NULL;
+uint8_t (*compare_function)(const void *buf, const int len) = NULL;
 
 /* Compare function declarations. Add one per test */
 static uint8_t compare_sol(const void *buf, const int len);
 
 /* Mock function */
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
-                                 void *dst, uint16_t remote_port, struct pico_msginfo *msginfo) {
+                                 void *dst, uint16_t remote_port, struct pico_msginfo *msginfo)
+{
+	IGNORE_PARAMETER(s); /* TODO: extend */
+	IGNORE_PARAMETER(dst);
+	IGNORE_PARAMETER(remote_port);
+	IGNORE_PARAMETER(msginfo);
     if(compare_function)
         compare_function(buf, len);
 
@@ -45,8 +53,15 @@ int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const in
 }
 
 /* Mock function */
-uint32_t pico_rand(void) {
+uint32_t pico_rand(void)
+{
     return 0xAABBCCDD;
+}
+
+/* Dummy function */
+static void dummy_function()
+{
+	printf("Entered dummy function\n");
 }
 
 START_TEST(tc_generate_duid_ll)
@@ -84,13 +99,13 @@ START_TEST(tc_pico_dhcp6_parse_options)
 	init_cookie();
 	memcpy(cookie.transaction_id, trans_id, sizeof(trans_id));
 
-	pico_dhcp6_parse_options((struct pico_dhcp6_hdr *)buf, sizeof(buf));
+	pico_dhcp6_parse_options((struct pico_dhcp6_opt *)buf, sizeof(buf));
 
 	ck_assert(cookie.cid_rec != NULL);
 	ck_assert_msg(swap16(cookie.cid_rec->base_opts.option_code) == 1, "found 0x%04x, expected: 00 01", swap16(cookie.cid_rec->base_opts.option_code));
 	ck_assert_msg(swap16(cookie.cid_rec->base_opts.option_len) == 14, "found 0x%04x, expected: 00 0e", swap16(cookie.cid_rec->base_opts.option_len));
 	ck_assert_msg(swap16(cookie.cid_rec->duid->type) == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", swap16(cookie.cid_rec->duid->type));
-	struct pico_dhcp6_duid_llt* duid_cid = &cookie.cid_rec->duid;
+	struct pico_dhcp6_duid_llt* duid_cid = (struct pico_dhcp6_duid_llt *)&cookie.cid_rec->duid;
 	ck_assert_msg(swap16(duid_cid->hw_type) == 1, "found 0x%04x, expected: 00 01");
 	ck_assert_msg(swap32(duid_cid->time) == 0x1c38262d, "found 0x%04x, expected: 0x1c38262d", swap32(duid_cid->time));
 	ck_assert(memcmp(&duid_cid->link_layer_address, cid_link_layer_addr, sizeof(cid_link_layer_addr)) == 0);
@@ -99,13 +114,13 @@ START_TEST(tc_pico_dhcp6_parse_options)
 	ck_assert_msg(swap16(cookie.sid->base_opts.option_code) == 2, "found 0x%04x, expected: 00 02", swap16(cookie.sid->base_opts.option_code));
 	ck_assert_msg(swap16(cookie.sid->base_opts.option_len) == 14, "found 0x%04x, expected: 00 0e", swap16(cookie.sid->base_opts.option_len));
 	ck_assert_msg(swap16(cookie.sid->duid.type) == PICO_DHCP6_DUID_LLT, "found 0x%04x, expected: 00 01", swap16(cookie.sid->duid.type));
-	struct pico_dhcp6_duid_llt* duid_sid = &cookie.sid->duid;
+	struct pico_dhcp6_duid_llt* duid_sid = (struct pico_dhcp6_duid_llt *)&cookie.sid->duid;
 	ck_assert_msg(swap16(duid_sid->hw_type) == 1, "found 0x%04x, expected: 00 01");
 	ck_assert_msg(swap32(duid_sid->time) == 0x1c3825e8, "found 0x%04x, expected: 0x1c3825e8", swap32(duid_sid->time));
 	ck_assert(memcmp(&duid_sid->link_layer_address, sid_link_layer_addr, sizeof(sid_link_layer_addr)) == 0);
 
 	memcpy(cookie.transaction_id, trans_id2, sizeof(trans_id2));
-	pico_dhcp6_parse_options((struct pico_dhcp6_hdr *)buf2, sizeof(buf2));
+	pico_dhcp6_parse_options((struct pico_dhcp6_opt *)buf2, sizeof(buf2));
 	ck_assert(cookie.cid_rec != NULL); // TODO: check message type
 	ck_assert(cookie.sid != NULL); // TODO: check message type
 	ck_assert(cookie.status_code_field != NULL);
@@ -129,8 +144,10 @@ START_TEST(tc_pico_dhcp6_fill_msg_with_options)
 }
 END_TEST
 
-static uint8_t compare_req(const void *buf, const int len) {
-    ck_assert_msg(memcmp(buf, expected_data, len) == 0, "DHCPv6 req message wrong");
+static uint8_t compare_req(const void *buf, const int len)
+{
+    ck_assert_msg(memcmp(buf, expected_data, (size_t) len) == 0, "DHCPv6 req message wrong");
+    return 0; /* TODO: or whatever return value required */
 }
 START_TEST(tc_pico_dhcp6_send_req)
 {
@@ -196,7 +213,8 @@ START_TEST(tc_pico_dhcp6_send_req)
     cookie.iana->t2 = 0;
     ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->base_opts.option_code = short_be(PICO_DHCP6_OPT_IADDR);
     ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->base_opts.option_len = short_be(24);
-    pico_string_to_ipv6("2001:0db8:0000:0001:0000:0000:0000:2000", &((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->addr); 
+    if(pico_string_to_ipv6("2001:0db8:0000:0001:0000:0000:0000:2000", (uint8_t *) &((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->addr) != 0)
+        ck_assert_msg(0 == 1, "ipv6 converion failed!");
     ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->preferred_lt = long_be(18);
     ((struct pico_dhcp6_opt_ia_addr *)&cookie.iana->options)->valid_lt = long_be(30);
 
@@ -271,8 +289,10 @@ START_TEST(tc_pico_dhcp6_sol_timeout)
 }
 END_TEST
 
-static uint8_t compare_sol(const void *buf, const int len) {
-    ck_assert_msg(memcmp(buf, expected_data, len) == 0, "DHCPv6 sol message wrong");
+static uint8_t compare_sol(const void *buf, const int len)
+{
+    ck_assert_msg(memcmp(buf, expected_data, (size_t) len) == 0, "DHCPv6 sol message wrong");
+    return 0; /* TODO: or whatever return value required */
 }
 START_TEST(tc_pico_dhcp6_send_sol)
 {
@@ -309,9 +329,13 @@ START_TEST(tc_pico_dhcp6_send_sol)
     pico_stack_init();
 
     /* Create mock device and add mac address to ethernet device*/
-    mock = pico_mock_create("dummy device");
-    mock->dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
-    memcpy(&mock->dev->eth->mac, mac, 6);
+//    mock = pico_mock_create("dummy device"); /* Argument should be mac address, not string! */
+//    mock->dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
+//    memcpy(&mock->dev->eth->mac, mac, 6);
+    /* Is this not equivalent to the following? */
+    mock = pico_mock_create(mac);
+    memcpy(mock->dev->name, "dummy device", sizeof("dummy device"));
+    fail_if(!mock, "MOCK DEVICE creation failed");
 
     cookie.dev = mock->dev;
 
@@ -320,10 +344,6 @@ START_TEST(tc_pico_dhcp6_send_sol)
     compare_function = NULL;
 }
 END_TEST
-
-void dummy_function(){
-	printf("Entered dummy function\n");
-}
 
 START_TEST(tc_sm_process_msg_adv)
 {
@@ -341,11 +361,11 @@ START_TEST(tc_sm_process_msg_adv)
 	uint8_t client_duid[6] = {0x08, 0x00, 0x27, 0xfe, 0x8f, 0x95}; /* /08:00:27:fe:8f:95 */
 	struct pico_dhcp6_opt_cid* cid;
 
-	printf("allocating %d bytes\n", sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll) + sizeof(client_duid));
-	printf("pico_dhcp6_opt_cid: %d bytes\n", sizeof(struct pico_dhcp6_opt_cid) );
-	printf("pico_dhcp6_duid_ll: %d bytes\n", sizeof(struct pico_dhcp6_duid_ll) );
-	printf("pico_dhcp6_opt: %d bytes\n", sizeof(struct pico_dhcp6_opt) );
-	printf("client_duid: %d bytes\n", sizeof(client_duid) );
+	printf("allocating %lu bytes\n", sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll) + sizeof(client_duid));
+	printf("pico_dhcp6_opt_cid: %lu bytes\n", sizeof(struct pico_dhcp6_opt_cid) );
+	printf("pico_dhcp6_duid_ll: %lu bytes\n", sizeof(struct pico_dhcp6_duid_ll) );
+	printf("pico_dhcp6_opt: %lu bytes\n", sizeof(struct pico_dhcp6_opt) );
+	printf("client_duid: %lu bytes\n", sizeof(client_duid) );
 
 	cid = PICO_ZALLOC( sizeof(struct pico_dhcp6_opt_cid) + sizeof(struct pico_dhcp6_duid_ll) + sizeof(client_duid));
 	cid->base_opts.option_code = PICO_DHCP6_DUID_LL;
@@ -433,7 +453,7 @@ START_TEST(tc_pico_dhcp6_client_msg)
 END_TEST
 
 
-Suite *pico_suite(void)                       
+Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");             
 
