@@ -96,3 +96,5 @@ Works with ...
 * XC-16
 * MSP-GCC
 * AVR-GCC
+
+Your favorite not in the list? Check out the wiki for information and examples on how to port picoTCP to a new platform!
