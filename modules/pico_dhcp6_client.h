@@ -141,6 +141,8 @@ enum dhcp6_client_state {
     DHCP6_CLIENT_STATE_RECONFIGURING,
 };
 
+/*TODO: don't allow arrays of length 0 anymore! */
+
 /* Client/Server Message Formats */
 PACKED_STRUCT_DEF pico_dhcp6_hdr {
     uint8_t type;

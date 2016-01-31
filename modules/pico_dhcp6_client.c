@@ -26,12 +26,13 @@
 
 #ifdef DEBUG_PICO_DHCP6
 void print_hex_array(void* array, size_t size){
-    int i;
+    unsigned int i;
+    uint8_t* arr;
     /* For debugging */
     if(size > 100){
         printf("length corrected: %zu\n", size);
     }
-    uint8_t* arr = array;
+    arr = array;
     size = (size < 100) ? size : 100;
     for(i=0; i<size; i++){
         printf("0x%02x, ", arr[i]);
