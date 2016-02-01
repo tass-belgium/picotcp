@@ -329,10 +329,6 @@ START_TEST(tc_pico_dhcp6_send_sol)
     pico_stack_init();
 
     /* Create mock device and add mac address to ethernet device*/
-//    mock = pico_mock_create("dummy device"); /* Argument should be mac address, not string! */
-//    mock->dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
-//    memcpy(&mock->dev->eth->mac, mac, 6);
-    /* Is this not equivalent to the following? */
     mock = pico_mock_create(mac);
     memcpy(mock->dev->name, "dummy device", sizeof("dummy device"));
     fail_if(!mock, "MOCK DEVICE creation failed");
