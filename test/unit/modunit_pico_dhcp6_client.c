@@ -33,10 +33,10 @@ uint8_t expected_data[100];
 
 /* Compare function pointer that holds the compare function that will be called
  * when pico_socket_sendto_mock_extended received data */
-uint8_t (*compare_function)(const void *buf, const int len) = NULL;
+void (*compare_function)(const void *buf, const size_t len) = NULL;
 
 /* Compare function declarations. Add one per test */
-static uint8_t compare_sol(const void *buf, const int len);
+static void compare_sol(const void *buf, const size_t len);
 
 /* Mock function */
 int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const int len,
@@ -47,7 +47,7 @@ int pico_socket_sendto_extended(struct pico_socket *s, const void *buf, const in
 	IGNORE_PARAMETER(remote_port);
 	IGNORE_PARAMETER(msginfo);
     if(compare_function)
-        compare_function(buf, len);
+        compare_function(buf, (size_t) len);
 
     return len;
 }
@@ -144,10 +144,9 @@ START_TEST(tc_pico_dhcp6_fill_msg_with_options)
 }
 END_TEST
 
-static uint8_t compare_req(const void *buf, const int len)
+static void compare_req(const void *buf, const size_t len)
 {
     ck_assert_msg(memcmp(buf, expected_data, (size_t) len) == 0, "DHCPv6 req message wrong");
-    return 0; /* TODO: or whatever return value required */
 }
 START_TEST(tc_pico_dhcp6_send_req)
 {
@@ -289,10 +288,9 @@ START_TEST(tc_pico_dhcp6_sol_timeout)
 }
 END_TEST
 
-static uint8_t compare_sol(const void *buf, const int len)
+static void compare_sol(const void *buf, const size_t len)
 {
     ck_assert_msg(memcmp(buf, expected_data, (size_t) len) == 0, "DHCPv6 sol message wrong");
-    return 0; /* TODO: or whatever return value required */
 }
 START_TEST(tc_pico_dhcp6_send_sol)
 {
