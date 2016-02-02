@@ -35,6 +35,12 @@
 static void *Mutex = NULL;
 #endif
 
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
+#endif
 
 #define PROTO(s) ((s)->proto->proto_number)
 
@@ -597,7 +603,7 @@ static struct pico_socket *pico_socket_transport_open(uint16_t proto, uint16_t f
 
 }
 
-struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
+struct pico_socket *MOCKABLE pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *))
 {
 
     struct pico_socket *s = NULL;
@@ -1038,7 +1044,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     uint16_t hdr_offset = (uint16_t)pico_socket_sendto_transport_offset(s);
     int ret = 0;
     (void)src;
-    
+
     f = pico_socket_frame_alloc(s, (uint16_t)(len + hdr_offset));
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1063,6 +1069,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         f->send_tos = (uint8_t)msginfo->tos;
         f->dev = msginfo->dev;
     }
+
 #ifdef PICO_SUPPORT_IPV6
     if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         f->dev = pico_ipv6_link_find(src);
@@ -1070,6 +1077,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
             return -1;
         }
     }
+
 #endif
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
     /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
@@ -1422,8 +1430,8 @@ int pico_socket_recvfrom_extended(struct pico_socket *s, void *buf, int len, voi
     return 0;
 }
 
-int pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig,
-                         uint16_t *remote_port)
+int MOCKABLE pico_socket_recvfrom(struct pico_socket *s, void *buf, int len, void *orig,
+                                  uint16_t *remote_port)
 {
     return pico_socket_recvfrom_extended(s, buf, len, orig, remote_port, NULL);
 
@@ -1498,7 +1506,7 @@ int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *
 
 }
 
-int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
+int MOCKABLE pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
     if (!s || !local_addr || !port) {
         pico_err = PICO_ERR_EINVAL;
@@ -1755,7 +1763,7 @@ struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16
 #endif
 
 
-int pico_socket_setoption(struct pico_socket *s, int option, void *value)
+int MOCKABLE pico_socket_setoption(struct pico_socket *s, int option, void *value)
 {
 
     if (s == NULL) {
@@ -1959,6 +1967,7 @@ static int check_socket_sanity(struct pico_socket *s)
         if((PICO_TIME_MS() - s->timestamp) >= PICO_SOCKET_BOUND_TIMEOUT)
             return -1;
     }
+
     return 0;
 }
 #endif

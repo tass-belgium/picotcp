@@ -205,7 +205,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, vo
     sent_pkt_type = pkt[0];
     dest_addr = ((union pico_address *)dst)->ip4.addr;
     if (sent_pkt_type == AODV_TYPE_RREQ) {
-        //struct pico_aodv_rreq *req = (struct pico_aodv_rreq *)(uintptr_t)buf;
+        /* struct pico_aodv_rreq *req = (struct pico_aodv_rreq *)(uintptr_t)buf; */
         fail_if(len != sizeof(struct pico_aodv_rreq));
     }
     else if (sent_pkt_type == AODV_TYPE_RREP) {

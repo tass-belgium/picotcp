@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
 /*** START UDP CLIENT ***/
@@ -242,17 +244,22 @@ void app_udpclient(char *arg)
 
     /* free strdups */
     if (daddr)
-      free (daddr);
+        free (daddr);
+
     if (lport)
-      free (lport);
+        free (lport);
+
     if (sport)
-      free (sport);
+        free (sport);
+
     if (s_datasize)
-      free (s_datasize);
+        free (s_datasize);
+
     if (s_loops)
-      free (s_loops);
+        free (s_loops);
+
     if (s_subloops)
-      free (s_subloops);
+        free (s_subloops);
 
     return;
 

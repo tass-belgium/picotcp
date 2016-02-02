@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 /*** START TCP BENCH ***/
 #define TCP_BENCH_TX  1
@@ -78,6 +80,7 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             pico_socket_shutdown(s, PICO_SHUT_WR);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         }
+
         pico_timer_add(5000, deferred_exit, NULL);
     }
 
@@ -294,13 +297,16 @@ void app_tcpbench(char *arg)
 
     /* free strdups */
     if (dport)
-      free(dport);
+        free(dport);
+
     if (dest)
-      free (dest);
+        free (dest);
+
     if (mode)
-      free (mode);
+        free (mode);
+
     if (nagle)
-      free (nagle);
+        free (nagle);
 
     return;
 }

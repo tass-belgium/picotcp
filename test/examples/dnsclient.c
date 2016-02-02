@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <pico_stack.h>
+#include <pico_ipv4.h>
 #include <pico_dns_client.h>
 #include "utils.h"
 extern int IPV6_MODE;

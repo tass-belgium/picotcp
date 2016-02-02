@@ -1,7 +1,9 @@
 #include "utils.h"
-#include "pico_dns_sd.h"
-#include "pico_ipv4.h"
-#include "pico_addressing.h"
+#include <pico_dns_sd.h>
+#include <pico_ipv4.h>
+#include <pico_addressing.h>
+#include <pico_device.h>
+#include <pico_ipv4.h>
 
 /*** START DNS_SD ***/
 #ifdef PICO_SUPPORT_DNS_SD
@@ -15,7 +17,7 @@ void dns_sd_claimed_callback( pico_mdns_rtree *tree,
                               void *arg )
 {
     printf("DONE - Registering DNS-SD Service\n");
-    
+
     IGNORE_PARAMETER(tree);
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
@@ -30,7 +32,7 @@ void dns_sd_init_callback( pico_mdns_rtree *tree,
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(tree);
-    
+
     pico_dns_sd_kv_vector_add(&key_value_pair_vector, "key", "value");
 
     printf("DONE - Initialising DNS Service Discovery module.\n");
@@ -48,7 +50,7 @@ void app_dns_sd(char *arg, struct pico_ip4 address)
     char *hostname;
     char *nxt = arg;
 
-    if (!nxt){
+    if (!nxt) {
         exit(255);
     }
 

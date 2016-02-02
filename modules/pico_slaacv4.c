@@ -91,7 +91,9 @@ static void pico_slaacv4_cancel_timers(struct slaacv4_cookie *tmp)
 static void pico_slaacv4_send_announce_timer(pico_time now, void *arg)
 {
     struct slaacv4_cookie *tmp = (struct slaacv4_cookie *)arg;
-    struct pico_ip4 netmask = { 0 };
+    struct pico_ip4 netmask = {
+        0
+    };
     netmask.addr = long_be(0xFFFF0000);
 
     (void)now;
@@ -140,7 +142,7 @@ static void pico_slaacv4_receive_ipconflict(int reason)
     {
         if(reason == PICO_ARP_CONFLICT_REASON_CONFLICT)
         {
-          pico_ipv4_link_del(tmp->device, tmp->ip);
+            pico_ipv4_link_del(tmp->device, tmp->ip);
         }
     }
 
@@ -197,6 +199,7 @@ static void pico_slaacv4_hotplug_cb(__attribute__((unused)) struct pico_device *
     {
         if (tmp->state == SLAACV4_CLAIMED )
             pico_ipv4_link_del(tmp->device, tmp->ip);
+
         pico_slaacv4_cancel_timers(tmp);
     }
 }
@@ -212,7 +215,7 @@ int pico_slaacv4_claimip(struct pico_device *dev, void (*cb)(struct pico_ip4 *ip
 
     if( dev->link_state != NULL )
     {
-        //hotplug detect will work
+        /* hotplug detect will work */
 
         ip.addr = pico_slaacv4_getip(dev, 0);
         pico_slaacv4_init_cookie(&ip, dev, &slaacv4_local, cb);

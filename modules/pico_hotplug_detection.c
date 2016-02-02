@@ -9,11 +9,11 @@
 #include "pico_tree.h"
 #include "pico_device.h"
 
-struct pico_hotplug_device{
-  struct pico_device *dev;
-  int prev_state;
-  struct pico_tree callbacks;
-  struct pico_tree init_callbacks; /* functions we still need to call for initialization */
+struct pico_hotplug_device {
+    struct pico_device *dev;
+    int prev_state;
+    struct pico_tree callbacks;
+    struct pico_tree init_callbacks; /* functions we still need to call for initialization */
 };
 
 uint32_t timer_id = 0;
@@ -34,27 +34,29 @@ static int callback_compare(void *ka, void *kb)
 {
     if (ka < kb)
         return -1;
+
     if (ka > kb)
         return 1;
+
     return 0;
 }
 
 PICO_TREE_DECLARE(Hotplug_device_tree, pico_hotplug_dev_cmp);
 
-static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void* v)
+static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void*v)
 {
     struct pico_tree_node *node = NULL, *safe = NULL, *cb_node = NULL, *cb_safe = NULL;
     int new_state, event;
     struct pico_hotplug_device *hpdev = NULL;
     void (*cb)(struct pico_device *dev, int event);
 
-    //we don't know if one of the callbacks might deregister, so be safe
+    /* we don't know if one of the callbacks might deregister, so be safe */
     pico_tree_foreach_safe(node, &Hotplug_device_tree, safe)
     {
         hpdev = node->keyValue;
         new_state = hpdev->dev->link_state(hpdev->dev);
 
-        if (new_state == 1){
+        if (new_state == 1) {
             event = PICO_HOTPLUG_EVENT_UP;
         } else {
             event = PICO_HOTPLUG_EVENT_DOWN;
@@ -68,7 +70,7 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
         }
         if (new_state != hpdev->prev_state)
         {
-            //we don't know if one of the callbacks might deregister, so be safe
+            /* we don't know if one of the callbacks might deregister, so be safe */
             pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
             {
                 cb = cb_node->keyValue;
@@ -85,32 +87,36 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
 int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event))
 {
     struct pico_hotplug_device *hotplug_dev;
-    struct pico_hotplug_device search = {.dev = dev};
+    struct pico_hotplug_device search = {
+        .dev = dev
+    };
 
-    //If it does not have a link_state, 
-    //the device does not support hotplug detection
-    if (dev->link_state == NULL){
+    /* If it does not have a link_state, */
+    /* the device does not support hotplug detection */
+    if (dev->link_state == NULL) {
         pico_err = PICO_ERR_EPROTONOSUPPORT;
         return -1;
     }
 
     hotplug_dev = (struct pico_hotplug_device*)pico_tree_findKey(&Hotplug_device_tree, &search);
-    if (! hotplug_dev )
+    if (!hotplug_dev )
     {
-      hotplug_dev = PICO_ZALLOC(sizeof(struct pico_hotplug_device));
-      if (!hotplug_dev)
-      {
-          pico_err = PICO_ERR_ENOMEM;
-          return -1;
-      }
-      hotplug_dev->dev = dev;
-      hotplug_dev->prev_state = dev->link_state(hotplug_dev->dev);
-      hotplug_dev->callbacks.root = &LEAF;
-      hotplug_dev->callbacks.compare = &callback_compare;
-      hotplug_dev->init_callbacks.root = &LEAF;
-      hotplug_dev->init_callbacks.compare = &callback_compare;
-      pico_tree_insert(&Hotplug_device_tree, hotplug_dev);
+        hotplug_dev = PICO_ZALLOC(sizeof(struct pico_hotplug_device));
+        if (!hotplug_dev)
+        {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        hotplug_dev->dev = dev;
+        hotplug_dev->prev_state = dev->link_state(hotplug_dev->dev);
+        hotplug_dev->callbacks.root = &LEAF;
+        hotplug_dev->callbacks.compare = &callback_compare;
+        hotplug_dev->init_callbacks.root = &LEAF;
+        hotplug_dev->init_callbacks.compare = &callback_compare;
+        pico_tree_insert(&Hotplug_device_tree, hotplug_dev);
     }
+
     pico_tree_insert(&(hotplug_dev->callbacks), cb);
     pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
 
@@ -124,13 +130,16 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
 
 int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event))
 {
-    struct pico_hotplug_device* hotplug_dev;
-    struct pico_hotplug_device search = {.dev = dev};
+    struct pico_hotplug_device*hotplug_dev;
+    struct pico_hotplug_device search = {
+        .dev = dev
+    };
 
     hotplug_dev = (struct pico_hotplug_device*)pico_tree_findKey(&Hotplug_device_tree, &search);
     if (!hotplug_dev)
-        //wasn't registered
+        /* wasn't registered */
         return 0;
+
     pico_tree_delete(&hotplug_dev->callbacks, cb);
     pico_tree_delete(&hotplug_dev->init_callbacks, cb);
     if (pico_tree_empty(&hotplug_dev->callbacks))
@@ -144,6 +153,7 @@ int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_devi
         pico_timer_cancel(timer_id);
         timer_id = 0;
     }
+
     return 0;
 }
 

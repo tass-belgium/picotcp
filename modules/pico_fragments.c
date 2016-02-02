@@ -103,6 +103,7 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
         {
             pico_frame_discard(full);
         }
+
         pico_timer_cancel(ipv6_fragments_timer);
         ipv6_fragments_timer = 0;
     }
@@ -179,6 +180,7 @@ static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
         {
             pico_frame_discard(full);
         }
+
         pico_timer_cancel(ipv4_fragments_timer);
         ipv4_fragments_timer = 0;
     }
@@ -240,13 +242,18 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
     {
         tree = &ipv4_fragments;
     }
+
 #endif
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
     if (net == PICO_PROTO_IPV6)
     {
         tree = &ipv6_fragments;
     }
+
 #endif
+
+    if (!tree)
+        return 0;
 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
@@ -290,6 +297,7 @@ static void pico_frag_expire(pico_time now, void *arg)
         net = PICO_PROTO_IPV4;
         frag_dbg("Packet expired! ID:%hu\n", ipv4_cur_frag_id);
     }
+
 #endif
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
     if (IS_IPV6(first))
@@ -297,6 +305,7 @@ static void pico_frag_expire(pico_time now, void *arg)
         net = PICO_PROTO_IPV6;
         frag_dbg("Packet expired! ID:%hu\n", ipv6_cur_frag_id);
     }
+
 #endif
 
     /* Empty the tree */
@@ -360,7 +369,7 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         /* Empty the tree */
         struct pico_tree_node *index, *tmp;
         pico_tree_foreach_safe(index, &ipv4_fragments, tmp) {
-            struct pico_frame * old = index->keyValue;
+            struct pico_frame *old = index->keyValue;
             pico_tree_delete(&ipv4_fragments, old);
             pico_frame_discard(old);
         }

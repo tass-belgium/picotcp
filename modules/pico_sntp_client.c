@@ -106,6 +106,8 @@ static void pico_sntp_cleanup(struct sntp_server_ns_cookie *ck, pico_err_t statu
     if(!ck)
         return;
 
+    pico_timer_cancel(ck->timer);
+
     ck->cb_synced(status);
     if(ck->sock)
         ck->sock->priv = NULL;
@@ -171,7 +173,7 @@ static void pico_sntp_client_wakeup(uint16_t ev, struct pico_socket *s)
             read = pico_socket_recvfrom(s, recvbuf, PICO_SNTP_MAXBUF, &peer, &port);
         } while(read > 0);
         pico_sntp_parse(recvbuf, s->priv);
-        pico_timer_cancel(ck->timer);
+        s->priv = NULL; /* make sure UDP callback does not try to read from freed mem again */
         PICO_FREE(recvbuf);
     }
     /* socket is closed */
@@ -244,6 +246,7 @@ static void dnsCallback(char *ip, void *arg)
     if (0) {
 
     }
+
 #ifdef PICO_SUPPORT_IPV6
     else if(ck->proto == PICO_PROTO_IPV6) {
         if (ip) {

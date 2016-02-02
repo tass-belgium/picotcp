@@ -377,19 +377,18 @@ START_TEST (test_mld_sockopts)
 
     /* 00 01 02 03 04 05 06 07 | 10 11 12 13 14 15 16 17 */
     for (i = 0; i < 16; i++) {
-        mreq[i].mcast_link_addr= inaddr_link[i / 8];
-        mreq[i].mcast_group_addr= inaddr_mcast[i % 8];
+        mreq[i].mcast_link_addr = inaddr_link[i / 8];
+        mreq[i].mcast_group_addr = inaddr_mcast[i % 8];
     }
     /* 000 001 002 003 004 005 006 007 | 010 011 012 013 014 015 016 017  */
     for (i = 0; i < 16; i++) {
         for (j = 0; j < 8; j++) {
             /* printf(">>>>> mreq_source[%d]: link[%d] mcast[%d] source[%d]\n", (i*8)+j, i/8, i%8, j); */
             mreq_source[(i * 8) + j].mcast_link_addr = inaddr_link[i / 8];
-            mreq_source[(i * 8) + j].mcast_group_addr= inaddr_mcast[i % 8];
-            mreq_source[(i * 8) + j].mcast_source_addr= inaddr_source[j];
+            mreq_source[(i * 8) + j].mcast_group_addr = inaddr_mcast[i % 8];
+            mreq_source[(i * 8) + j].mcast_source_addr = inaddr_source[j];
         }
     }
-
     dev = pico_null_create("dummy0");
     ret = pico_ipv6_link_add(dev, inaddr_link[0].ip6, netmask);
     fail_if(ret == NULL, "link add failed");
@@ -431,8 +430,8 @@ START_TEST (test_mld_sockopts)
     fail_if(ret < 0, "supported PICO_IP_ADD_MEMBERSHIP failed\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "supported PICO_IP_DROP_MEMBERSHIP failed\n");
-    memcpy(&_mreq.mcast_group_addr ,&inaddr_dst.ip6 , sizeof(struct pico_ip6));
-    memcpy(&_mreq.mcast_link_addr  ,&inaddr_null.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_group_addr, &inaddr_dst.ip6, sizeof(struct pico_ip6));
+    memcpy(&_mreq.mcast_link_addr, &inaddr_null.ip6, sizeof(struct pico_ip6));
     ret = pico_socket_setoption(s, PICO_IP_ADD_MEMBERSHIP, &_mreq);
     fail_if(ret < 0, "PICO_IP_ADD_MEMBERSHIP failed with valid NULL (use default) link address\n");
     ret = pico_socket_setoption(s, PICO_IP_DROP_MEMBERSHIP, &_mreq);
@@ -610,7 +609,6 @@ START_TEST (test_mld_sockopts)
         }
         /* everything should be cleanup up, next iteration will fail if not */
     }
-
     /* filter validation tests */
     printf("MLD SETOPTION FILTER VALIDATION TEST\n");
     /* INCLUDE + INCLUDE expected filter: source of 0 and 1*/
@@ -628,9 +626,9 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (INCLUDE + INCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6,&mreq_source[0].mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
+        if (memcmp(&source->ip6, &mreq_source[0].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
-        else if (memcmp(&source->ip6, &mreq_source[1].mcast_source_addr, sizeof(struct pico_ip6))==0) { /* OK */
+        else if (memcmp(&source->ip6, &mreq_source[1].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + INCLUDE) incorrect\n");
@@ -661,7 +659,7 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (INCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6, &mreq_source[2].mcast_source_addr,sizeof(struct pico_ip6)) == 0) { /* OK */
+        if (memcmp(&source->ip6, &mreq_source[2].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (INCLUDE + EXCLUDE) incorrect\n");
@@ -736,9 +734,9 @@ START_TEST (test_mld_sockopts)
             fail("MCASTFilter (EXCLUDE + EXCLUDE) too many elements\n");
 
         source = index->keyValue;
-        if (memcmp(&source->ip6,&mreq_source[3].mcast_source_addr, sizeof(struct pico_ip6)==0)) { /* OK */
+        if (memcmp(&source->ip6, &mreq_source[3].mcast_source_addr, sizeof(struct pico_ip6) == 0)) { /* OK */
         }
-        else if (memcmp(&source->ip6,&mreq_source[4].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
+        else if (memcmp(&source->ip6, &mreq_source[4].mcast_source_addr, sizeof(struct pico_ip6)) == 0) { /* OK */
         }
         else {
             fail("MCASTFilter (EXCLUDE + EXCLUDE) incorrect\n");

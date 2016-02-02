@@ -64,7 +64,7 @@ EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
 CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
-# extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
+# extra flags recommended by TIOBE TICS framework to score an A on compiler warnings
 CFLAGS+= -Wconversion
 # request from Toon
 CFLAGS+= -Wcast-align
