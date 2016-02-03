@@ -1,7 +1,7 @@
 /*********************************************************************
  PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
  See LICENSE and COPYING for usage.
- 
+
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
 #ifndef INCLUDE_PICO_SIXLOWPAN
@@ -95,7 +95,7 @@ int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr, struct pico_ieee_addr src, struc
 struct pico_ieee_addr pico_ieee_addr_from_hdr(struct ieee_hdr *hdr, uint8_t src);
 
 /**
- *  Generic radio-structure to provide an interface between the 
+ *  Generic radio-structure to provide an interface between the
  *	IEEE802.15.4-radio specific device driver and the 6LoWPAN-
  *	adaption layer.
  */
@@ -105,27 +105,27 @@ struct ieee_radio
 	 *
 	 */
 	int (*transmit)(struct ieee_radio *radio, void *buf, int len);
-	
+
 	/**
 	 *
 	 */
 	int (*receive)(struct ieee_radio *radio, uint8_t *buf, int len);
-	
+
 	/**
 	 *
 	 */
 	int (*get_addr_ext)(struct ieee_radio *radio, uint8_t *buf);
-	
+
 	/**
 	 *
 	 */
 	uint16_t (*get_pan_id)(struct ieee_radio *radio);
-	
+
 	/**
 	 *
 	 */
 	uint16_t (*get_addr_short)(struct ieee_radio *radio);
-	
+
 	/**
 	 *
 	 */
@@ -140,11 +140,13 @@ int pico_ieee_addr_cmp(void *va, void *vb);
  */
 void pico_sixlowpan_transmitted(void);
 
+void rtable_print(void);
+
 int pico_sixlowpan_iid_is_derived_16(uint8_t *iid);
 
 /**
  *  Hardcode the prefix of the 6LoWPAN-device. Links with addresses derived from
- *  the IEEE802.15.4-address will be added to the device correspondingly. With 
+ *  the IEEE802.15.4-address will be added to the device correspondingly. With
  *  this function you don't have to manually derive IPv6-addresses from Link Layer-
  *  addresses. This function will do this for you.
  *
