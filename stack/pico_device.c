@@ -203,7 +203,7 @@ void pico_device_destroy(struct pico_device *dev)
     pico_ipv6_cleanup_links(dev);
 #endif
     pico_tree_delete(&Device_tree, dev);
-    
+
     if (dev->destroy)
         dev->destroy(dev);
 

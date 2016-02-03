@@ -129,13 +129,13 @@ pico_dns_check_namelen( uint16_t namelen );
 /* ****************************************************************************
  *  Returns the length of a name in a DNS-packet as if DNS name compression
  *  would be applied to the packet. If there's no compression present this
- *	returns the strlen. If there's compression present this returns the length
- *	until the compression-pointer + 1.
+ *  returns the strlen. If there's compression present this returns the length
+ *  until the compression-pointer + 1.
  *
  *  @param name Compressed name you want the calculate the strlen from
  *  @return Returns strlen of a compressed name, takes the first byte of compr-
- *			ession pointer into account but not the second byte, which acts
- *			like a trailing zero-byte.
+ *          ession pointer into account but not the second byte, which acts
+ *          like a trailing zero-byte.
  * ****************************************************************************/
 uint16_t
 pico_dns_namelen_comp( char *name );
@@ -215,7 +215,7 @@ pico_dns_first_label_length( const char *url );
 
 /* ****************************************************************************
  *  Mirrors a dotted IPv4-address string.
- *	f.e. 192.168.0.1 => 1.0.168.192
+ *  f.e. 192.168.0.1 => 1.0.168.192
  *
  *  @param ptr
  *  @return 0 on success, something else on failure.
@@ -225,7 +225,7 @@ pico_dns_mirror_addr( char *ptr );
 
 /* ****************************************************************************
  *  Convert an IPv6-address in string-format to a IPv6-address in nibble-format.
- *	Doesn't add a IPv6 ARPA-suffix though.
+ *  Doesn't add a IPv6 ARPA-suffix though.
  *
  *  @param ip  IPv6-address stored as a string
  *  @param dst Destination to store IPv6-address in nibble-format
@@ -239,7 +239,7 @@ pico_dns_ipv6_set_ptr( const char *ip, char *dst );
  *  Deletes a single DNS Question.
  *
  *  @param question Void-pointer to DNS Question. Can be used with pico_tree_-
- *					destroy.
+ *                  destroy.
  *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 int
@@ -250,7 +250,7 @@ pico_dns_question_delete( void **question);
  *
  *  todo: Update pico_dns_client to make the same mechanism possible as with
  *        filling DNS Resource Record-suffixes. This function shouldn't be an
- *		  API-function.
+ *        API-function.
  *
  *  @param suf    Pointer to the suffix member of the DNS question.
  *  @param qtype  DNS type of the DNS question to be.
@@ -266,16 +266,16 @@ pico_dns_question_fill_suffix( struct pico_dns_question_suffix *suf,
  *  Creates a standalone DNS Question with a given name and type.
  *
  *  @param url     DNS question name in URL format. Will be converted to DNS
- *				   name notation format.
+ *                 name notation format.
  *  @param len     Will be filled with the total length of the DNS question.
  *  @param proto   Protocol for which you want to create a question. Can be
- *				   either PICO_PROTO_IPV4 or PICO_PROTO_IPV6.
+ *                 either PICO_PROTO_IPV4 or PICO_PROTO_IPV6.
  *  @param qtype   DNS type of the question to be.
  *  @param qclass  DNS class of the question to be.
  *  @param reverse When this is true, a reverse resolution name will be gene-
- *				   from the URL
+ *                 from the URL
  *  @return Returns pointer to the created DNS Question on success, NULL on
- *			failure.
+ *          failure.
  * ****************************************************************************/
 struct pico_dns_question *
 pico_dns_question_create( const char *url,
@@ -322,11 +322,11 @@ pico_dns_record_copy( struct pico_dns_record *record );
  *  @param url     DNS rrecord name in URL format. Will be converted to DNS
  *                 name notation format.
  *  @param _rdata  Memory buffer with data to insert in the resource record. If
- *				   data of record should contain a DNS name, the name in the
- *				   databuffer needs to be in URL-format.
+ *                 data of record should contain a DNS name, the name in the
+ *                 databuffer needs to be in URL-format.
  *  @param datalen The exact length in bytes of the _rdata-buffer. If data of
- *				   record should contain a DNS name, datalen needs to be
- *				   pico_dns_strlen(_rdata).
+ *                 record should contain a DNS name, datalen needs to be
+ *                 pico_dns_strlen(_rdata).
  *  @param len     Will be filled with the total length of the DNS rrecord.
  *  @param rtype   DNS type of the resource record to be.
  *  @param rclass  DNS class of the resource record to be.
@@ -362,7 +362,7 @@ pico_dns_record_decompress( struct pico_dns_record *record,
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
- *  @param caseinsensitive Whether or not the bytes are compared 
+ *  @param caseinsensitive Whether or not the bytes are compared
  *                         case-insensitive
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
@@ -387,7 +387,7 @@ pico_dns_question_cmp( void *qa,
  *  @param ra DNS record A as a void-pointer (for pico_tree)
  *  @param rb DNS record B as a void-pointer (for pico_tree)
  *  @return 0 when name and type of records are equal, returns difference when
- *			they're not.
+ *          they're not.
  * ****************************************************************************/
 int
 pico_dns_record_cmp_name_type( void *ra,

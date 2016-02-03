@@ -1333,13 +1333,13 @@ static int tcp_send_rst(struct pico_socket *s, struct pico_frame *fr)
     if (fr && ((s->state & PICO_SOCKET_STATE_TCP) > PICO_SOCKET_STATE_TCP_SYN_RECV)) {
         /* in synchronized state: send RST with seq = ack from previous segment */
         hdr_rcv = (struct pico_tcp_hdr *) fr->transport_hdr;
-        ret = tcp_do_send_rst(s, hdr_rcv->ack);       
+        ret = tcp_do_send_rst(s, hdr_rcv->ack);
     } else {
         /* non-synchronized state */
         /* go to CLOSED here to prevent timer callback to go on after timeout */
         (t->sock).state &= 0x00FFU;
         (t->sock).state |= PICO_SOCKET_STATE_TCP_CLOSED;
-        ret = tcp_do_send_rst(s, long_be(t->snd_nxt));       
+        ret = tcp_do_send_rst(s, long_be(t->snd_nxt));
 
         /* Set generic socket state to CLOSED, too */
         (t->sock).state &= 0xFF00U;
@@ -2201,7 +2201,7 @@ static int tcp_finwaitack(struct pico_socket *s, struct pico_frame *f)
     /* acking part */
     tcp_ack(s, f);
 
-    
+
     tcp_dbg("FIN_WAIT1: ack is %08x - snd_nxt is %08x\n", ACKN(f), t->snd_nxt);
     if (ACKN(f) == (t->snd_nxt - 1u)) {
         /* update TCP state */

@@ -81,7 +81,7 @@ pico_dns_sd_browse_service( const char *type,
  *  @param key    Key of the pair, cannot be NULL.
  *  @param value  Value of the pair, can be NULL, empty ("") or filled ("qkejq")
  *  @return Returns 0 when the pair is added successfully, something else on
- *			failure.
+ *          failure.
  * ****************************************************************************/
 int
 pico_dns_sd_kv_vector_add( kv_vector *vector, char *key, char *value );

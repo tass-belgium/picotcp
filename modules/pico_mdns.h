@@ -14,7 +14,7 @@
 /* ********************************* CONFIG ***********************************/
 #define PICO_MDNS_PROBE_UNICAST 1       /* Probe queries as QU-questions      */
 #define PICO_MDNS_CONTINUOUS_REFRESH 0  /* Continuously update cache          */
-#define PICO_MDNS_ALLOW_CACHING 1       /* Enable caching on this host		  */
+#define PICO_MDNS_ALLOW_CACHING 1       /* Enable caching on this host        */
 #define PICO_MDNS_DEFAULT_TTL 120       /* Default TTL of mDNS records        */
 #define PICO_MDNS_SERVICE_TTL 120       /* Default TTL of SRV/TXT/PTR/NSEC    */
 #define PICO_MDNS_PROBE_COUNT 4         /* Amount of probes to send           */
@@ -68,11 +68,11 @@ pico_mdns_record_delete( void **record );
  *  @param url     DNS rrecord name in URL format. Will be converted to DNS
  *                 name notation format.
  *  @param _rdata  Memory buffer with data to insert in the resource record. If
- *				   data of record should contain a DNS name, the name in the
- *				   databuffer needs to be in URL-format.
+ *                 data of record should contain a DNS name, the name in the
+ *                 databuffer needs to be in URL-format.
  *  @param datalen The exact length in bytes of the _rdata-buffer. If data of
- *				   record should contain a DNS name, datalen needs to be
- *				   pico_dns_strlen(_rdata).
+ *                 record should contain a DNS name, datalen needs to be
+ *                 pico_dns_strlen(_rdata).
  *  @param rtype   DNS type of the resource record to be.
  *  @param rclass  DNS class of the resource record to be.
  *  @param rttl    DNS ttl of the resource record to be.
@@ -143,7 +143,7 @@ pico_mdns_claim( pico_mdns_rtree record_tree,
  *  @param url URL to set the hostname to.
  *  @param arg Argument to pass to the init-callback.
  *  @return 0 when the host started registering the hostname-record successfully,
- *			Returns something else when it didn't succeeded.
+ *          Returns something else when it didn't succeeded.
  * ****************************************************************************/
 int
 pico_mdns_set_hostname( const char *url, void *arg );
@@ -152,7 +152,7 @@ pico_mdns_set_hostname( const char *url, void *arg );
  *  Get the current hostname for this machine.
  *
  *  @return Returns the hostname for this machine when the module is initialised
- *			Returns NULL when the module is not initialised.
+ *          Returns NULL when the module is not initialised.
  * ****************************************************************************/
 const char *
 pico_mdns_get_hostname( void );
@@ -160,19 +160,19 @@ pico_mdns_get_hostname( void );
 /* ****************************************************************************
  *  Initialises the entire mDNS-module and sets the hostname for this machine.
  *  Sets up the global mDNS socket properly and calls callback when succeeded.
- *	Only when the module is properly initialised records can be registered on
+ *  Only when the module is properly initialised records can be registered on
  *  the module.
  *
  *  @param hostname URL to set the hostname to.
  *  @param address  IPv4-address of this host to bind to.
  *  @param callback Callback to call when the hostname is registered and
- *					also the global mDNS module callback. Gets called when
- *					Passive conflicts occur, so changes in records can be
- *					tracked in this callback.
- *	@param arg		Argument to pass to the init-callback.
+ *                  also the global mDNS module callback. Gets called when
+ *                  Passive conflicts occur, so changes in records can be
+ *                  tracked in this callback.
+ *  @param arg      Argument to pass to the init-callback.
  *  @return 0 when the module is properly initialised and the host started regis-
- *			tering the hostname. Returns something else went the host failed
- *			initialising the module or registering the hostname.
+ *          tering the hostname. Returns something else went the host failed
+ *          initialising the module or registering the hostname.
  * ****************************************************************************/
 int
 pico_mdns_init( const char *hostname,

@@ -66,7 +66,7 @@ START_TEST(tc_dns_sd_kv_vector_strlen)
 
     pico_dns_sd_kv_vector_add(&pairs, text, value);
     pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
-    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);
 
     fail_unless(pico_dns_sd_kv_vector_strlen(&pairs) == 23,
                 "dns_sd_kv_vector_strlen returned wrong length!\n");
@@ -119,7 +119,7 @@ START_TEST(tc_dns_sd_txt_record_create)
 
     pico_dns_sd_kv_vector_add(&pairs, text, value);
     pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
-    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);
 
     record = pico_dns_sd_txt_record_create("test.local", pairs, 10,
                                            PICO_MDNS_RECORD_UNIQUE);
@@ -274,7 +274,7 @@ START_TEST(tc_dns_sd_kv_vector_add)
 
     pico_dns_sd_kv_vector_add(&pairs, text, value);
     pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
-    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);
 
     key = pico_dns_sd_kv_vector_get(&pairs, 2)->key;
     fail_unless(strcmp("color", key) == 0,
@@ -290,7 +290,7 @@ START_TEST(tc_dns_sd_kv_vector_get)
 
     pico_dns_sd_kv_vector_add(&pairs, text, value);
     pico_dns_sd_kv_vector_add(&pairs, text2, NULL);
-    pico_dns_sd_kv_vector_add(&pairs, text3, value3);    
+    pico_dns_sd_kv_vector_add(&pairs, text3, value3);
 
     key = pico_dns_sd_kv_vector_get(&pairs, 2)->key;
     fail_unless(strcmp("color", key) == 0,

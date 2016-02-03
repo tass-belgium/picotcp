@@ -125,7 +125,7 @@ static void (*init_callback)(pico_mdns_rtree *, char *, void *) = 0;
  *  @param a mDNS record A
  *  @param b mDNS record B
  *  @return 0 when name and type of records are equal, returns difference when
- *			they're not.
+ *          they're not.
  * ****************************************************************************/
 static int
 pico_mdns_record_cmp_name_type( void *a, void *b )
@@ -408,17 +408,17 @@ pico_mdns_resolve_name_conflict( char rname[] )
  *  Creates a standalone mDNS Question with a given name and type.
  *
  *  @param url     DNS question name in URL format. Will be converted to DNS
- *				   name notation format.
+ *                 name notation format.
  *  @param len     Will be filled with the total length of the DNS question.
  *  @param proto   Protocol for which you want to create a question. Can be
- *				   either PICO_PROTO_IPV4 or PICO_PROTO_IPV6.
+ *                 either PICO_PROTO_IPV4 or PICO_PROTO_IPV6.
  *  @param qtype   DNS type of the question to be.
  *  @param flags   With the flags you can specify if the question should be
- *				   a QU-question rather than a QM-question
+ *                 a QU-question rather than a QM-question
  *  @param reverse When this is true, a reverse resolution name will be gene-
- *				   from the URL
+ *                 from the URL
  *  @return Returns pointer to the created mDNS Question on success, NULL on
- *			failure.
+ *          failure.
  * ****************************************************************************/
 static struct pico_dns_question *
 pico_mdns_question_create( const char *url,
@@ -455,30 +455,30 @@ static struct pico_mdns_record *
 pico_mdns_record_copy( struct pico_mdns_record *record )
 {
     struct pico_mdns_record *copy = NULL;
-    
+
     /* Check params */
     if (!record) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
-    
+
     /* Provide space for the copy */
     if (!(copy = PICO_ZALLOC(sizeof(struct pico_mdns_record)))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
     }
-    
+
     /* Copy the DNS record */
     if (!(copy->record = pico_dns_record_copy(record->record))) {
         PICO_FREE(copy);
         return NULL;
     }
-    
+
     /* Copy the fields */
     copy->current_ttl = record->current_ttl;
     copy->flags = record->flags;
     copy->claim_id = record->claim_id;
-    
+
     return copy;
 }
 
@@ -804,8 +804,8 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
         return -1;
     }
 
-    /* 
-     * First compare the record class (excluding cache-flush bit described in 
+    /*
+     * First compare the record class (excluding cache-flush bit described in
      * section 10.2)
      * The numerically greater class wins
      */
@@ -876,7 +876,7 @@ pico_mdns_record_delete( void **record )
  *
  *  @param record DNS record you want the set or clear the class MSB for.
  *  @param flags  Depending on this the MSB will be set or not. Can be either
- *				  PICO_MDNS_RECORD_UNIQUE or PICO_MDNS_RECORD_SHARED
+ *                PICO_MDNS_RECORD_UNIQUE or PICO_MDNS_RECORD_SHARED
  *  @return 0 on success, something else on failure.
  * ****************************************************************************/
 static inline int
@@ -901,11 +901,11 @@ pico_mdns_record_set_class( struct pico_dns_record *record,
  *  @param url     DNS rrecord name in URL format. Will be converted to DNS
  *                 name notation format.
  *  @param _rdata  Memory buffer with data to insert in the resource record. If
- *				   data of record should contain a DNS name, the name in the
- *				   data buffer needs to be in URL-format.
+ *                 data of record should contain a DNS name, the name in the
+ *                 data buffer needs to be in URL-format.
  *  @param datalen The exact length in bytes of the _rdata-buffer. If data of
- *				   record should contain a DNS name, datalen needs to be
- *				   pico_dns_strlen(_rdata).
+ *                 record should contain a DNS name, datalen needs to be
+ *                 pico_dns_strlen(_rdata).
  *  @param len     Will be filled with the total length of the DNS rrecord.
  *  @param rtype   DNS type of the resource record to be.
  *  @param rclass  DNS class of the resource record to be.
@@ -1405,7 +1405,7 @@ pico_mdns_cache_update_ttl( struct pico_mdns_record *record,
  *
  *  @param record mDNS record to add to the Cache.
  *  @return 0 when entry successfully added, something else when it all went ho-
- *			rribly wrong...
+ *          rribly wrong...
  * ****************************************************************************/
 static int
 pico_mdns_cache_add( struct pico_mdns_record *record )
@@ -1515,7 +1515,7 @@ pico_mdns_ttl_at_refresh_time( uint32_t original,
 /* ****************************************************************************
  *  Utility function to update the TTL of cache entries and check for expired
  *  ones. When continuous refreshing is enabled the records will be reconfirmed
- *	@ 80%, 85%, 90% and 95% of their original TTL.
+ *  @ 80%, 85%, 90% and 95% of their original TTL.
  * ****************************************************************************/
 static void
 pico_mdns_cache_check_expiries( void )
@@ -1616,7 +1616,7 @@ pico_mdns_tick( pico_time now, void *_arg )
  *  @param packet Packet buffer in memory
  *  @param len    Size of the packet in bytes
  *  @return 0 When the packet is passed successfully on to the lower layers of
- *			picoTCP. Doesn't mean the packet is successfully send on the wire.
+ *          picoTCP. Doesn't mean the packet is successfully send on the wire.
  * ****************************************************************************/
 static int
 pico_mdns_send_packet( pico_dns_packet *packet, uint16_t len )
@@ -1639,7 +1639,7 @@ pico_mdns_send_packet( pico_dns_packet *packet, uint16_t len )
  *  @param len    Size of the packet in bytes
  *  @param peer   Peer in the network you want to send the packet to.
  *  @return 0 When the packet is passed successfully on to the lower layers of
- *			picoTCP. Doesn't mean the packet is successfully send on the wire.
+ *          picoTCP. Doesn't mean the packet is successfully send on the wire.
  * ****************************************************************************/
 static int
 pico_mdns_send_packet_unicast( pico_dns_packet *packet,
@@ -1819,7 +1819,7 @@ pico_mdns_populate_antree( char *name, uint16_t qtype, uint16_t qclass )
  *  @param question DNS question to parse and handle.
  *  @param packet   Received packet in which the DNS question was present.
  *  @return mDNS record tree with possible answer to the question. Can possibly
- *			be empty.
+ *          be empty.
  * ****************************************************************************/
 static pico_mdns_rtree
 pico_mdns_handle_single_question( struct pico_dns_question *question,
@@ -2227,7 +2227,7 @@ pico_mdns_gen_nsec_record( char *name )
  *  @param artree mDNS record-tree containing additional records.
  *  @param name   Name to check for.
  *  @return 0 when NSEC is present in additional, whether it was already present
- *			or a new one is generated doesn't matter.
+ *          or a new one is generated doesn't matter.
  * ****************************************************************************/
 static int
 pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
@@ -2265,7 +2265,7 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
  *
  *  @param artree mDNS record-tree containing additional records.
  *  @return 0 when hostname records are added successfully to additionals. Rets
- *			something else on failure.
+ *          something else on failure.
  * ****************************************************************************/
 static int
 pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
@@ -2360,7 +2360,7 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
     /* Add copies to the answer tree */
     pico_rtree_add_copy(antree, meta_record);
     pico_rtree_add_copy(antree, ptr_record);
-    
+
     /* Insert the created service record in MyRecords, if it's already in, destroy them */
     if (meta_record && pico_tree_insert(&MyRecords, meta_record)) {
         pico_mdns_record_delete((void **)&meta_record);
@@ -2368,7 +2368,7 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
     if (ptr_record && pico_tree_insert(&MyRecords, ptr_record)) {
         pico_mdns_record_delete((void **)&ptr_record);
     }
-    
+
     return 0;
 }
 
@@ -2973,7 +2973,7 @@ pico_mdns_announce( void (*callback)(pico_mdns_rtree *,
  *
  *  @param records mDNS records to probe.
  *  @return DNS record tree to with actual DNS records to insert in Authority
- *			Section of probe packet.
+ *          Section of probe packet.
  * ****************************************************************************/
 static pico_dns_rtree
 pico_mdns_gen_probe_auths( pico_mdns_rtree *records )
@@ -3253,7 +3253,7 @@ pico_mdns_reclaim( pico_mdns_rtree rtree,
  *  @param url URL to set the hostname to.
  *  @param arg Argument to pass to the init-callback.
  *  @return 0 when the host started registering the hostname-record successfully,
- *			Returns something else when it didn't succeeded.
+ *          Returns something else when it didn't succeeded.
  * ****************************************************************************/
 int
 pico_mdns_set_hostname( const char *url, void *arg )
@@ -3310,7 +3310,7 @@ pico_mdns_set_hostname( const char *url, void *arg )
  *  Get the hostname for this machine.
  *
  *  @return Returns the hostname for this machine when the module is initialised
- *			Returns NULL when the module is not initialised.
+ *          Returns NULL when the module is not initialised.
  * ****************************************************************************/
 const char *
 pico_mdns_get_hostname( void )
@@ -3328,19 +3328,19 @@ pico_mdns_get_hostname( void )
 /* ****************************************************************************
  *  Initialises the entire mDNS-module and sets the hostname for this machine.
  *  Sets up the global mDNS socket properly and calls callback when succeeded.
- *	Only when the module is properly initialised records can be registered on
+ *  Only when the module is properly initialised records can be registered on
  *  the module.
  *
  *  @param hostname_url URL to set the hostname to.
  *  @param address      IPv4-address of this host to bind to.
  *  @param callback     Callback to call when the hostname is registered and
- *						also the global mDNS module callback. Gets called when
- *						Passive conflicts occur, so changes in records can be
- *						tracked in this callback.
- *	@param arg			Argument to pass to the init-callback.
+ *                      also the global mDNS module callback. Gets called when
+ *                      Passive conflicts occur, so changes in records can be
+ *                      tracked in this callback.
+ *  @param arg          Argument to pass to the init-callback.
  *  @return 0 when the module is properly initialised and the host started regis-
- *			tering the hostname. Returns something else went the host failed
- *			initialising the module or registering the hostname.
+ *          tering the hostname. Returns something else went the host failed
+ *          initialising the module or registering the hostname.
  * ****************************************************************************/
 int
 pico_mdns_init( const char *hostname,

@@ -139,7 +139,7 @@ void app_udpecho(char *arg)
     /* end of argument parsing */
     if (!IPV6_MODE)
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
-    else 
+    else
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &cb_udpecho);
     if (!udpecho_pas->s) {
         printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));

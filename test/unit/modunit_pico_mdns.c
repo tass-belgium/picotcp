@@ -1442,10 +1442,10 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-START_TEST(tc_pico_tree_merge) 
+START_TEST(tc_pico_tree_merge)
 {
-    PICO_MDNS_RTREE_DECLARE(src);    
-    PICO_MDNS_RTREE_DECLARE(dst);    
+    PICO_MDNS_RTREE_DECLARE(src);
+    PICO_MDNS_RTREE_DECLARE(dst);
     fail_unless(pico_tree_merge(NULL,NULL) == -1);
     fail_unless(pico_tree_merge(&dst,NULL) == -1);
     fail_unless(pico_tree_merge(NULL,&src) == -1);
@@ -1953,7 +1953,7 @@ START_TEST(tc_mdns_set_hostname) /* MARK: set_hostname */
 END_TEST
 START_TEST(tc_mdns_get_hostname) /* MARK: get_hostname */
 {
-    const char * c_hostname; 
+    const char * c_hostname;
     printf("*********************** starting %s * \n", __func__);
     pico_stack_init();
     mdns_init();
