@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
  *********************************************************************/
-#define dbg(...) do {} while(0)
+//#define dbg(...) do {} while(0)
 
 /******************/
 
@@ -10,6 +10,36 @@
 /* Temporary (POSIX) stuff. */
 #include <string.h>
 #include <unistd.h>
+
+/* Temporary debugging stuff. */
+#include <stdarg.h>
+#include "halUart.h"
+#include <stdio.h>
+
+static uint8_t lp_dbg_enable = 0;
+
+static void print_uart(char *str)
+{
+    int i, len;
+    len = (int)strlen(str);
+    for (i = 0; i < len; i++) {
+        HAL_UartWriteByte(str[i]);
+        if (HAL_UartTxFull())
+            HAL_UartFlush();
+    }
+}
+
+static void sam_dbg(const char *format, ...)
+{
+    char msg[256] = { 0 };
+    va_list args;
+        va_start(args, format);
+        vsnprintf(msg, 256, format, args);
+        va_end(args);
+        print_uart(msg);
+}
+
+#define dbg sam_dbg
 
 extern volatile uint32_t sam_tick;
 
