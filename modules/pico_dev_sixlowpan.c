@@ -31,6 +31,8 @@
 #endif
 
 #define MAX_DUPLICATES              (4)
+#define SIXLOWPAN_ENTRY_TTL         (5000u)
+#define SIXLOWPAN_ENTRY_POLL        (SIXLOWPAN_ENTRY_TTL >> 2u) /* resolution for polling 4 times in a lifetime */
 
 #define DISPATCH_NALP(i)            (((i) == INFO_VAL) ? (0x00u) : (((i) == INFO_SHIFT) ? (0x06u) : (0x00u)))
 #define DISPATCH_IPV6(i)            (((i) == INFO_VAL) ? (0x41u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
@@ -61,8 +63,6 @@
 #define SIXLOWPAN_NHC_UDP           DISPATCH_NHC_UDP
 #define SIXLOWPAN_PING_REQUEST      DISPATCH_PING_REQUEST
 #define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
-#define SIXLOWPAN_PING_TIMEOUT      (3000u)
-#define SIXLOWPAN_PING_POLL         (5000u)
 #define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 #define SIXLOWPAN_PING_TTL          (64u)
 #define SIXLOWPAN_FORWARDING        (0x01u)
@@ -1264,6 +1264,9 @@ static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t i
             entry->via = f->hop;
             pico_ieee_addr_to_str(llstring, &entry->dst);
             PAN_DBG("Routing table entry (%s) updated to hops: (%d)\r\n", llstring, entry->hops);
+        } else if (entry->hops == 1) {
+            /* Update timestamp on confirmation as well */
+            entry->timestamp = PICO_TIME_MS();
         }
 
         /* If the ping was required to send current frame, determine next hop and resume */
@@ -1298,6 +1301,8 @@ static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_a
     entry->via = via;
     entry->hops = hops;
     entry->timestamp = PICO_TIME_MS();
+
+    dbg_ieee_addr("Entry added", &entry->dst);
 
     if (pico_tree_insert(&RTable, (void *)entry)) {
         PAN_ERR("Could not insert entry into routing table\r\n");
@@ -1360,7 +1365,7 @@ static void sixlowpan_build_routing_table(struct pico_ieee_addr origin, struct p
     sixlowpan_rtable_origin_via_source(origin, last_hop, dev);
 }
 
-static void sixlowpan_ping_check(pico_time now, void *arg)
+static void sixlowpan_rtable_check(pico_time now, void *arg)
 {
     struct pico_device * dev = (struct pico_device *)arg;
     struct pico_ieee_addr bcast = IEEE_ADDR_ZERO;
@@ -1374,23 +1379,27 @@ static void sixlowpan_ping_check(pico_time now, void *arg)
     pico_tree_foreach_safe(node, &RTable, tmp) {
         if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
             /* expired? */
-            if (now - entry->timestamp > (SIXLOWPAN_PING_TIMEOUT << 1))
+            if ((now - entry->timestamp) >= SIXLOWPAN_ENTRY_TTL)
             {
-                PAN_ERR("6LoWPAN Ping timeout, routed is being removed from routing table...\r\n");
+                PAN_DBG("(%d): ", PICO_TIME_MS());
+                dbg_ieee_addr("RTable entry removed", &entry->dst);
                 sixlowpan_rtable_remove(entry->dst);
 
-                /* If a frame 'on hold' relied on this entry, transit it via broadcast
+                /* If a frame 'on hold' relied on this entry, transmit it via broadcast
                  * to make sure it gets somewhere */
                 sixlowpan_resume_tx(entry->dst, bcast);
                 sixlowpan_resume_rtx(entry->dst, bcast);
-            } else if (now - entry->timestamp > SIXLOWPAN_PING_TIMEOUT) {
-                /* otherwise, retransmit ping */
-                sixlowpan_ping(entry->dst, entry->via, dev, short_be(entry->ping_id++), IEEE_AM_NONE);
+            } if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_POLL << 1)) {
+                /* ping at 50 % of the TTL */
+                sixlowpan_ping(entry->dst, entry->via, dev, 0, IEEE_AM_NONE);
+            } else if ((now - entry->timestamp) >= ((SIXLOWPAN_ENTRY_POLL << 1) + SIXLOWPAN_ENTRY_POLL)) {
+                /* if there wasn't a reply that updated the entry ping again at 75% */
+                sixlowpan_ping(entry->dst, entry->via, dev, 0, IEEE_AM_NONE);
             }
         }
     }
 
-    pico_timer_add(SIXLOWPAN_PING_POLL, sixlowpan_ping_check, arg);
+    pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, arg);
 }
 
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode)
@@ -1418,15 +1427,11 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     /* Parse in the network section of the frame as ping header */
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (id) {
-        dbg_ieee_addr("Ping reply to", &f->peer);
-        dbg_ieee_addr("via", &f->hop);
         /* Reply with correct address, if the request asked for an extended, reply with one and so with short addresses as well */
         f->local._mode = reply_am_mode;
         ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REPLY(INFO_SHIFT);
         ping->id = short_be(id);
     } else {
-        dbg_ieee_addr("Ping request to", &f->peer);
-        dbg_ieee_addr("via", &f->hop);
         /* Set the ping fields to that of a ping request */
         ping->dispatch = DISPATCH_PING_REQUEST(INFO_VAL) << DISPATCH_PING_REQUEST(INFO_SHIFT);
         ping->id = short_be(next_id++);
@@ -1447,6 +1452,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     }
 
     /* Transmit the frame on the wire */
+    dbg_ieee_addr("ping fram to", &f->peer);
     slp->radio->transmit(slp->radio, buf, len);
 
     /* Destroy the Ping-frame and the buffer with the raw packet */
@@ -1466,9 +1472,6 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
 
     ping = (struct sixlowpan_ping *)f->net_hdr;
     if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REQUEST)) {
-        dbg_ieee_addr("Ping request from", &f->peer);
-        dbg_ieee_addr("Via", &f->hop);
-
         sixlowpan_ping(f->peer, f->hop, f->dev, short_be(ping->id), f->local._mode);
 
         /* If the host receives a ping request, the host can derive the amount of
@@ -1478,8 +1481,6 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
         return 1;
     } else if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REPLY)) {
-        dbg_ieee_addr("Ping reply from", &f->peer);
-        dbg_ieee_addr("Via", &f->hop);
         /* If the host receives a ping reply, that means that it was sent
          * due to a hop-determination caused by case below vvv */
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
@@ -3150,6 +3151,10 @@ static int sixlowpan_send_tx(void)
         }
 
         slp = (struct pico_device_sixlowpan *)tx->dev;
+        dbg_ieee_addr("tx", &tx->peer);
+        dbg_ieee_addr("hop", &tx->hop);
+        if (tx->hop._short.addr == 0xFFFF && tx->hop._mode == IEEE_AM_SHORT)
+            PAN_DBG("Broadcasting\n");
         ret = slp->radio->transmit(slp->radio, buf, len);
         PICO_FREE(buf);
         if (FRAME_FRAGMENTED == tx->state)
@@ -3207,6 +3212,8 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
+
+    PAN_DBG("Got frame from stack\n");
 
     if (!dev || !buf)
         return -1;
@@ -3434,7 +3441,7 @@ struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
     sixlowpan->radio = radio;
 
     /* Create a timer for pings */
-    pico_timer_add(SIXLOWPAN_PING_POLL, sixlowpan_ping_check, &sixlowpan->dev);
+    pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, &sixlowpan->dev);
 
     /* Cast internal 6LoWPAN-structure to picoTCP-device structure */
     PAN_DBG("Device %s created\r\n", dev_name);
