@@ -3043,6 +3043,14 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
     if (pico_ieee_addr_to_flat(((struct ieee_hdr *)(buf + IEEE_LEN_LEN))->addresses, f->hop, IEEE_TRUE))
         PAN_ERR("Addr to flat failed in MESH OUT: (%d)\r\n", *len);
 
+    // If Mac layer destination is updated to short address delete garbage behind the short address
+    if (f->hop._short.addr == 0xFFFF && f->hop._mode == IEEE_AM_SHORT && f->peer._mode == IEEE_AM_EXTENDED) {
+        r.offset = (uint16_t)(IEEE_LEN_LEN + IEEE_MIN_HDR_LEN + 2u);
+        r.length = (uint16_t)(6);
+        *len = (uint8_t)buf_delete(buf,(uint16_t)*len, r);
+        ((struct ieee_hdr *)(buf + IEEE_LEN_LEN))->fcf.dam = IEEE_AM_SHORT;
+    }
+
     return buf;
 }
 
