@@ -17,7 +17,7 @@
 
 #ifdef PICO_SUPPORT_SIXLOWPAN
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
     #define PAN_DBG(s, ...)         dbg("[6LoWPAN]$ " s, ##__VA_ARGS__)
     #define PAN_ERR(s, ...)         dbg("[6LoWPAN]$ ERROR: %s: %d: " s, __FUNCTION__, __LINE__, ##__VA_ARGS__)
