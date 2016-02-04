@@ -1502,7 +1502,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
 
     /* Transmit the frame on the wire */
     ret = (uint8_t)slp->radio->transmit(slp->radio, buf, len);
-    if (ret != len)
+    if (!ret)
         tx_enqueue(buf, len);
 
     /* Destroy the Ping-frame and the buffer with the raw packet */
@@ -2781,7 +2781,7 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
 
     //PAN_DBG("(%d) FWD!\r\n", ((struct pico_ieee_addr*)f->dev->eth)->_short.addr);
     ret = (uint8_t)slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
-    if (ret != f->size)
+    if (!ret)
         tx_enqueue(f->phy_hdr, (uint8_t)f->size);
     return 0;
 }
@@ -3209,8 +3209,9 @@ static int sixlowpan_send_tx(void)
 
         slp = (struct pico_device_sixlowpan *)tx->dev;
         ret = slp->radio->transmit(slp->radio, buf, len);
-        if (ret != len)
+        if (!ret)
             tx_enqueue(buf, len);
+
         PICO_FREE(buf);
         if (FRAME_FRAGMENTED == tx->state)
             return ret;
