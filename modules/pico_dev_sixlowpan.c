@@ -583,8 +583,6 @@ static void tx_enqueue(uint8_t *buf, uint8_t size)
     } else {
         tx_entries++;
     }
-
-    PAN_DBG("Buffer enqueued\r\n");
 }
 
 static uint8_t *tx_dequeue(uint8_t *len)
@@ -607,8 +605,6 @@ static uint8_t *tx_dequeue(uint8_t *len)
     tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
 
     tx_entries--;
-
-    PAN_DBG("TX Retry\r\n");
     return buf;
 }
 
