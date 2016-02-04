@@ -31,8 +31,10 @@
 #endif
 
 #define MAX_DUPLICATES              (4)
+#define MAX_QUEUED                  (5u)
 #define SIXLOWPAN_ENTRY_TTL         (5000u)
 #define SIXLOWPAN_ENTRY_POLL        (SIXLOWPAN_ENTRY_TTL >> 2u) /* resolution for polling 4 times in a lifetime */
+#define sixlowpan_dup_TTL           (30000u)
 
 #define DISPATCH_NALP(i)            (((i) == INFO_VAL) ? (0x00u) : (((i) == INFO_SHIFT) ? (0x06u) : (0x00u)))
 #define DISPATCH_IPV6(i)            (((i) == INFO_VAL) ? (0x41u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
@@ -65,7 +67,7 @@
 #define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
 #define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 #define SIXLOWPAN_PING_TTL          (64u)
-#define SIXLOWPAN_FORWARDING        (0x01u)
+#define sixlowpan_dupING        (0x01u)
 #define SIXLOWPAN_TRANSMIT          (0x00u)
 #define SIXLOWPAN_SRC               (1u)
 #define SIXLOWPAN_DST               (0u)
@@ -424,13 +426,27 @@ struct range
     uint16_t length;
 };
 
-struct sixlowpan_forward {
+struct sixlowpan_dup {
     struct pico_ieee_addr origin;
     struct pico_ieee_addr final;
     uint8_t seq;
+    pico_time timestamp;
 };
 
-struct sixlowpan_forward forwards[MAX_DUPLICATES];
+static struct sixlowpan_dup dups[MAX_DUPLICATES];
+static uint8_t dup_head = 0;
+static uint8_t dup_tail = 0;
+static uint8_t dup_entries = 0;
+
+struct sixlowpan_tx {
+    uint8_t *buf;
+    uint8_t size;
+};
+
+static struct sixlowpan_tx tx_queue[MAX_QUEUED];
+static uint8_t tx_tail = 0;
+static uint8_t tx_head = 0;
+static uint8_t tx_entries = 0;
 
 /* -------------------------------------------------------------------------------- */
 // MARK: GLOBALS
@@ -472,20 +488,39 @@ static void dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
               ieee->_mode);
 }
 
-static void forwards_enqueue(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)
+/* -------------------------------------------------------------------------------- */
+// MARK: DUPLICATE SUPPRESSION
+static void dups_enqueue(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)
 {
-    struct sixlowpan_forward new = {.origin = origin, .final = final, .seq = seq};
-    uint8_t i = 0;
+    struct sixlowpan_dup new = {.origin = origin, .final = final, .seq = seq, .timestamp = PICO_TIME_MS()};
 
-    /* Shift current entries to the front of the queue */
-    for (i = (MAX_DUPLICATES - 1); i > 0; i--)
-        forwards[i] = forwards[i - 1];
+    /* Enqueue at head */
+    dups[dup_head] = new;
 
-    /* Enqueue new forward */
-    forwards[0] = new;
+    /* Rotate head around queue */
+    dup_head = (uint8_t)((dup_head + 1) % MAX_DUPLICATES);
+
+    if (entries >= MAX_DUPLICATES) {
+        /* Rotate start if we've overwritten something */
+        dup_tail = (uint8_t)((dup_tail + 1) % MAX_DUPLICATES);
+    } else {
+        dup_entries++;
+    }
 }
 
-static int forward_cmp(struct sixlowpan_forward a, struct sixlowpan_forward b)
+static void dups_del_oldest(pico_time now)
+{
+    struct sixlowpan_dup empty = {.origin = IEEE_ADDR_ZERO, .final = IEEE_ADDR_ZERO, .seq = 0, .timestamp = 0};
+
+    if ((now - dups[dup_tail].timestamp) > sixlowpan_dup_TTL) {
+        dups[dup_tail] = empty;
+        dup_tail = (uint8_t)((dup_tail + 1) % MAX_DUPLICATES);
+        dup_entries--;
+        PAN_DBG("Oldest forward deleted\r\n");
+    }
+}
+
+static int dup_cmp(struct sixlowpan_dup a, struct sixlowpan_dup b)
 {
     int ret = 0;
 
@@ -501,22 +536,35 @@ static int forward_cmp(struct sixlowpan_forward a, struct sixlowpan_forward b)
     return 0;
 }
 
-static int forwards_find(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)
+static int dups_find(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)
 {
-    struct sixlowpan_forward test = {.origin = origin, .final = final, .seq = seq};
+    struct sixlowpan_dup test = {.origin = origin, .final = final, .seq = seq};
     uint8_t found = 0, i = 0;
 
-    /* Find the entry in the forwards queue, and if found return 1 but don't delete it from queue */
+    /* Find the entry in the dups queue, and if found return 1 but don't delete it from queue */
     for(i = 0; i < MAX_DUPLICATES; i++) {
-        if (!forward_cmp(forwards[i], test))
+        if (!dup_cmp(dups[i], test))
             return 1;
     }
 
     /* If no entry in the queue is found for this forward, enqueue it for future suppression */
     if (!found)
-        forwards_enqueue(origin, final, seq);
+        dups_enqueue(origin, final, seq);
 
     return found;
+}
+
+/* -------------------------------------------------------------------------------- */
+// MARK: BACKUP
+static int tx_enqueue(uint8_t *buf, uint8_t size)
+{
+    struct sixlowpan_tx new = {.buf = buf, .size = size};
+
+    /* Enqueue at head */
+    tx_queue[tx_head] = new;
+
+    /* Rotate head around queue */
+
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -1245,16 +1293,7 @@ static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t i
     }
 }
 
-static void sixlowpan_rtable_remove(struct pico_ieee_addr dst)
-{
-    struct sixlowpan_rtable_entry *entry = NULL;
-    entry = sixlowpan_rtable_find_entry(dst);
 
-    if (entry) {
-        pico_tree_delete(&RTable, entry);
-        PICO_FREE(entry);
-    }
-}
 
 static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops)
 {
@@ -1335,21 +1374,21 @@ static void sixlowpan_build_routing_table(struct pico_ieee_addr origin, struct p
 static void sixlowpan_rtable_check(pico_time now, void *arg)
 {
     struct pico_device * dev = (struct pico_device *)arg;
+    struct pico_tree_node *safe = NULL, *node = NULL;
     struct pico_ieee_addr bcast = IEEE_ADDR_ZERO;
     struct sixlowpan_rtable_entry * entry = NULL;
-    struct pico_tree_node * tmp = NULL;
-    struct pico_tree_node * node = NULL;
 
     bcast._mode = IEEE_AM_SHORT;
     bcast._short.addr = IEEE_ADDR_BCAST_SHORT;
 
-    pico_tree_foreach_safe(node, &RTable, tmp) {
+    pico_tree_foreach_safe(node, &RTable, safe) {
         if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
             /* expired? */
             if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_TTL + SIXLOWPAN_ENTRY_POLL))
             {
                 dbg_ieee_addr("RTable entry removed", &entry->dst);
-                sixlowpan_rtable_remove(entry->dst);
+                entry = pico_tree_delete(&RTable, entry);
+                PICO_FREE(entry);
             } if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_POLL << 1)) {
                 /* ping at 50 % of the TTL */
                 sixlowpan_ping(entry->dst, entry->via, dev, 0, IEEE_AM_NONE);
@@ -1361,6 +1400,7 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
     }
 
     pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, arg);
+    dups_del_oldest(now);
 }
 
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode)
@@ -2857,7 +2897,7 @@ static void sixlowpan_mesh_fill_hdr_info(uint8_t *buf, struct sixlowpan_frame *f
 
 static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)
 {
-    if (forwards_find(origin, final, seq)) {
+    if (dups_find(origin, final, seq)) {
         PAN_DBG("Suppressing duplicate frame!\r\n");
         return 1;
     }
