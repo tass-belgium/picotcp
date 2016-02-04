@@ -596,15 +596,6 @@ static uint8_t *tx_dequeue(uint8_t *len)
     buf = tx_queue[tx_tail].buf;
     *len = tx_queue[tx_tail].size;
 
-    /* Make sure we don't double free anything in the future,
-     * segmentation fault is easier to debug */
-    tx_queue[tx_tail].buf = NULL;
-    tx_queue[tx_tail].size = 0;
-
-    /* Rotate tail around queue */
-    tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
-
-    tx_entries--;
     return buf;
 }
 
@@ -619,10 +610,13 @@ static void tx_retry(struct ieee_radio *radio)
     /* Try to transmit */
     ret = (uint8_t)radio->transmit(radio, buf, len);
 
-    if (ret != len)
-        tx_enqueue(buf, len);
-
-    PICO_FREE(buf);
+    if (ret == len) {
+        PAN_DBG("Retry succeeded\n");
+        tx_entries--;
+        /* Rotate tail around queue */
+        tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
+        PICO_FREE(buf);
+    }
 }
 
 /* -------------------------------------------------------------------------------- */
