@@ -3,8 +3,9 @@
  reserved.  See LICENSE and COPYING for usage.
 
  Authors: Jelle De Vleeschouwer
- *********************************************************************/ #ifndef
-INCLUDE_PICO_SIXLOWPAN #define INCLUDE_PICO_SIXLOWPAN
+ *********************************************************************/
+#ifndef INCLUDE_PICO_SIXLOWPAN
+#define INCLUDE_PICO_SIXLOWPAN
 
 /* picoTCP includes */
 #include "pico_device.h"
