@@ -902,8 +902,10 @@ static void sixlowpan_frame_destroy(struct sixlowpan_frame *f)
     if (!f)
         return;
 
-    if (f->phy_hdr)
+    if (f->phy_hdr) {
         PICO_FREE(f->phy_hdr);
+        f->phy_hdr = NULL;
+    }
 
     PICO_FREE(f);
 }
@@ -990,21 +992,6 @@ static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len,
 
     f->state = FRAME_COMPRESSED;
     return f;
-}
-
-static inline int sixlowpan_frame_postpone(struct sixlowpan_frame *f, uint8_t retrans)
-{
-    f->state = FRAME_POSTPONED;
-    if (retrans) {
-        rtx = f;
-    }
-    return f->size;
-}
-
-static inline int sixlowpan_frame_ready(struct sixlowpan_frame *f)
-{
-    /* Check if next hop is found, otherwise a ping is going on */
-    return ((IEEE_AM_NONE == f->hop._mode) ? (0) : (1));
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -1183,6 +1170,14 @@ static struct sixlowpan_rtable_entry *sixlowpan_rtable_find_entry(struct pico_ie
     return entry;
 }
 
+static struct pico_ieee_addr sixlowpan_bcast_fallback(void)
+{
+    struct pico_ieee_addr via = IEEE_ADDR_ZERO;
+    via._short.addr = IEEE_ADDR_BCAST_SHORT;
+    via._mode = IEEE_AM_SHORT;
+    return via;
+}
+
 static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst, struct pico_device *dev)
 {
     struct pico_ieee_addr via = IEEE_ADDR_ZERO, via_zero = IEEE_ADDR_ZERO;
@@ -1191,41 +1186,17 @@ static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst
 
     /* Try to find the entry for the destination address in the routing table */
     if ((entry = sixlowpan_rtable_find_entry(dst))) {
-        /* If hops is 0, it means hops isn't known and ping is going on, trigger postponing */
-        if (!entry->hops) {
-            PAN_DBG("Ping is going on for this destination, postponing...\r\n");
-            return via_zero;
-        }
-
+        /* If hops is 0, it means hops isn't known and ping is going on, send it by broadcast in the meanwhile */
+        if (!entry->hops)
+            return sixlowpan_bcast_fallback();
         /* Destiniation is multiple hops away, via is gateway */
         via = entry->via;
     } else {
         //PAN_DBG("No routing table entry found, sending via BCAST\r\n");
-        via._short.addr = IEEE_ADDR_BCAST_SHORT;
-        via._mode = IEEE_AM_SHORT;
+        return sixlowpan_bcast_fallback();
     }
 
     return via;
-}
-
-static void sixlowpan_resume_tx(struct pico_ieee_addr final, struct pico_ieee_addr next_hop)
-{
-    if (tx && !pico_ieee_addr_cmp(&final, &tx->peer)) {
-        tx->hop = next_hop;
-        sixlowpan_prep_tx();
-    }
-}
-
-static void sixlowpan_resume_rtx(struct pico_ieee_addr final, struct pico_ieee_addr next_hop)
-{
-    if (rtx && !pico_ieee_addr_cmp(&final, &rtx->peer)) {
-        rtx->hop = next_hop;
-        sixlowpan_update_addr(rtx, SIXLOWPAN_DST);
-        sixlowpan_update_addr(rtx, SIXLOWPAN_SRC);
-        sixlowpan_retransmit(rtx);
-        sixlowpan_frame_destroy(rtx);
-        rtx = NULL;
-    }
 }
 
 static void pico_ieee_addr_to_str(char *llstring, struct pico_ieee_addr *addr)
@@ -1264,14 +1235,10 @@ static void sixlowpan_update_routing_table(struct sixlowpan_frame *f, uint16_t i
             entry->via = f->hop;
             pico_ieee_addr_to_str(llstring, &entry->dst);
             PAN_DBG("Routing table entry (%s) updated to hops: (%d)\r\n", llstring, entry->hops);
-        } else if (entry->hops == 1) {
-            /* Update timestamp on confirmation as well */
+        } else if (entry->hops == ((uint8_t)(SIXLOWPAN_PING_TTL - hops_left))) {
+            /* Update timestamp when route is unchanged but reconfirmed */
             entry->timestamp = PICO_TIME_MS();
         }
-
-        /* If the ping was required to send current frame, determine next hop and resume */
-        sixlowpan_resume_tx(entry->dst, entry->via);
-        sixlowpan_resume_rtx(entry->dst, entry->via);
     } else {
         /* If not found, add rtable-entry, but without eliciting ping-request */
         sixlowpan_rtable_insert(f->peer, f->hop, (uint8_t)((uint8_t)SIXLOWPAN_PING_TTL - hops_left));
@@ -1383,11 +1350,6 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
             {
                 dbg_ieee_addr("RTable entry removed", &entry->dst);
                 sixlowpan_rtable_remove(entry->dst);
-
-                /* If a frame 'on hold' relied on this entry, transmit it via broadcast
-                 * to make sure it gets somewhere */
-                sixlowpan_resume_tx(entry->dst, bcast);
-                sixlowpan_resume_rtx(entry->dst, bcast);
             } if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_POLL << 1)) {
                 /* ping at 50 % of the TTL */
                 sixlowpan_ping(entry->dst, entry->via, dev, 0, IEEE_AM_NONE);
@@ -1431,6 +1393,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
         ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REPLY(INFO_SHIFT);
         ping->id = short_be(id);
     } else {
+        dbg_ieee_addr("Ping request for", &f->peer);
         /* Set the ping fields to that of a ping request */
         ping->dispatch = DISPATCH_PING_REQUEST(INFO_VAL) << DISPATCH_PING_REQUEST(INFO_SHIFT);
         ping->id = short_be(next_id++);
@@ -1481,6 +1444,7 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
     } else if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REPLY)) {
         /* If the host receives a ping reply, that means that it was sent
          * due to a hop-determination caused by case below vvv */
+        dbg_ieee_addr("Ping reply for", &f->peer);
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
         return 1;
     } else {
@@ -2934,12 +2898,6 @@ static struct sixlowpan_frame *sixlowpan_mesh_retransmit(struct sixlowpan_frame 
         f->peer = f->local;
         f->hop = sixlowpan_determine_next_hop(f);
 
-        /* If frame is not ready for transmission, postpone */
-        if (!sixlowpan_frame_ready(f)) {
-            sixlowpan_frame_postpone(f, SIXLOWPAN_FORWARDING);
-            return NULL;
-        }
-
         /* Set the hop of the frame to the next hop */
         sixlowpan_update_addr(f, SIXLOWPAN_DST);
         sixlowpan_update_addr(f, SIXLOWPAN_SRC);
@@ -3038,8 +2996,11 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
     sixlowpan_mesh_fill_hdr_info(buf + r.offset, f);
 
     /* Set the link destination address */
-    if (pico_ieee_addr_to_flat(((struct ieee_hdr *)(buf + IEEE_LEN_LEN))->addresses, f->hop, IEEE_TRUE))
+    if (pico_ieee_addr_to_flat(((struct ieee_hdr *)(buf + IEEE_LEN_LEN))->addresses, f->hop, IEEE_TRUE)) {
         PAN_ERR("Addr to flat failed in MESH OUT: (%d)\r\n", *len);
+        PICO_FREE(old);
+        return NULL;
+    }
 
     // If Mac layer destination is updated to short address delete garbage behind the short address
     if (f->hop._short.addr == 0xFFFF && f->hop._mode == IEEE_AM_SHORT && f->peer._mode == IEEE_AM_EXTENDED) {
@@ -3228,11 +3189,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
 
-    if (sixlowpan_frame_ready(tx)) {
-        return sixlowpan_prep_tx();
-    } else {
-        return sixlowpan_frame_postpone(tx, SIXLOWPAN_TRANSMIT);
-    }
+    return sixlowpan_prep_tx();
 }
 
 static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
