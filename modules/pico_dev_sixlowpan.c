@@ -1379,9 +1379,8 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
     pico_tree_foreach_safe(node, &RTable, tmp) {
         if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
             /* expired? */
-            if ((now - entry->timestamp) >= SIXLOWPAN_ENTRY_TTL)
+            if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_TTL + SIXLOWPAN_ENTRY_POLL))
             {
-                PAN_DBG("(%d): ", PICO_TIME_MS());
                 dbg_ieee_addr("RTable entry removed", &entry->dst);
                 sixlowpan_rtable_remove(entry->dst);
 
@@ -1452,7 +1451,6 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     }
 
     /* Transmit the frame on the wire */
-    dbg_ieee_addr("ping fram to", &f->peer);
     slp->radio->transmit(slp->radio, buf, len);
 
     /* Destroy the Ping-frame and the buffer with the raw packet */
@@ -3159,10 +3157,6 @@ static int sixlowpan_send_tx(void)
         }
 
         slp = (struct pico_device_sixlowpan *)tx->dev;
-        dbg_ieee_addr("tx", &tx->peer);
-        dbg_ieee_addr("hop", &tx->hop);
-        if (tx->hop._short.addr == 0xFFFF && tx->hop._mode == IEEE_AM_SHORT)
-            PAN_DBG("Broadcasting\n");
         ret = slp->radio->transmit(slp->radio, buf, len);
         PICO_FREE(buf);
         if (FRAME_FRAGMENTED == tx->state)
@@ -3220,8 +3214,6 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
-
-    PAN_DBG("Got frame from stack\n");
 
     if (!dev || !buf)
         return -1;
