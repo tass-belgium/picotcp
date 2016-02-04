@@ -452,7 +452,6 @@ static uint8_t tx_entries = 0;
 // MARK: GLOBALS
 static volatile enum sixlowpan_state sixlowpan_state = SIXLOWPAN_READY;
 static struct sixlowpan_frame *tx = NULL;
-static struct sixlowpan_frame *rtx = NULL;
 static uint16_t sixlowpan_devnum = 0;
 
 /* Fragmentation globals */
@@ -500,7 +499,7 @@ static void dups_enqueue(struct pico_ieee_addr origin, struct pico_ieee_addr fin
     /* Rotate head around queue */
     dup_head = (uint8_t)((dup_head + 1) % MAX_DUPLICATES);
 
-    if (entries >= MAX_DUPLICATES) {
+    if (dup_entries >= MAX_DUPLICATES) {
         /* Rotate start if we've overwritten something */
         dup_tail = (uint8_t)((dup_tail + 1) % MAX_DUPLICATES);
     } else {
@@ -512,11 +511,10 @@ static void dups_del_oldest(pico_time now)
 {
     struct sixlowpan_dup empty = {.origin = IEEE_ADDR_ZERO, .final = IEEE_ADDR_ZERO, .seq = 0, .timestamp = 0};
 
-    if ((now - dups[dup_tail].timestamp) > sixlowpan_dup_TTL) {
+    if (dups[dup_tail].timestamp && ((now - dups[dup_tail].timestamp) > sixlowpan_dup_TTL)) {
         dups[dup_tail] = empty;
         dup_tail = (uint8_t)((dup_tail + 1) % MAX_DUPLICATES);
         dup_entries--;
-        PAN_DBG("Oldest forward deleted\r\n");
     }
 }
 
@@ -556,15 +554,79 @@ static int dups_find(struct pico_ieee_addr origin, struct pico_ieee_addr final, 
 
 /* -------------------------------------------------------------------------------- */
 // MARK: BACKUP
-static int tx_enqueue(uint8_t *buf, uint8_t size)
+/* void: We don't care about enqueue failing, if there's no space, packet is lost...
+ * too bad */
+static void tx_enqueue(uint8_t *buf, uint8_t size)
 {
-    struct sixlowpan_tx new = {.buf = buf, .size = size};
+    struct sixlowpan_tx new = {.buf = NULL, .size = size};
+    uint8_t *copy = NULL;
+
+    /* Provide space for the copy */
+    if (!(copy = PICO_ZALLOC(size)))
+        return;
+
+    /* Hard copy */
+    memcpy(copy, buf, size);
+
+    new.buf = copy;
+    new.size = size;
 
     /* Enqueue at head */
     tx_queue[tx_head] = new;
 
     /* Rotate head around queue */
+    tx_head = (uint8_t)((uint8_t)(tx_head + 1) % MAX_QUEUED);
 
+    if (tx_entries >= MAX_QUEUED) {
+        /* Rotate tail around queue if we've overwritten something */
+        tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
+    } else {
+        tx_entries++;
+    }
+
+    PAN_DBG("Buffer enqueued\r\n");
+}
+
+static uint8_t *tx_dequeue(uint8_t *len)
+{
+    uint8_t *buf = NULL;
+
+    if (!tx_entries)
+        return NULL;
+
+    /* Get buffer at the end of the queue */
+    buf = tx_queue[tx_tail].buf;
+    *len = tx_queue[tx_tail].size;
+
+    /* Make sure we don't double free anything in the future,
+     * segmentation fault is easier to debug */
+    tx_queue[tx_tail].buf = NULL;
+    tx_queue[tx_tail].size = 0;
+
+    /* Rotate tail around queue */
+    tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
+
+    tx_entries--;
+
+    PAN_DBG("TX Retry\r\n");
+    return buf;
+}
+
+static void tx_retry(struct ieee_radio *radio)
+{
+    uint8_t ret = 0, len = 0;
+    uint8_t *buf = tx_dequeue(&len);
+
+    if (!buf)
+        return;
+
+    /* Try to transmit */
+    ret = (uint8_t)radio->transmit(radio, buf, len);
+
+    if (ret != len)
+        tx_enqueue(buf, len);
+
+    PICO_FREE(buf);
 }
 
 /* -------------------------------------------------------------------------------- */
@@ -1228,7 +1290,7 @@ static struct pico_ieee_addr sixlowpan_bcast_fallback(void)
 
 static struct pico_ieee_addr sixlowpan_rtable_find_via(struct pico_ieee_addr dst, struct pico_device *dev)
 {
-    struct pico_ieee_addr via = IEEE_ADDR_ZERO, via_zero = IEEE_ADDR_ZERO;
+    struct pico_ieee_addr via = IEEE_ADDR_ZERO;
     struct sixlowpan_rtable_entry *entry = NULL;
     IGNORE_PARAMETER(dev);
 
@@ -1375,19 +1437,15 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
 {
     struct pico_device * dev = (struct pico_device *)arg;
     struct pico_tree_node *safe = NULL, *node = NULL;
-    struct pico_ieee_addr bcast = IEEE_ADDR_ZERO;
     struct sixlowpan_rtable_entry * entry = NULL;
 
-    bcast._mode = IEEE_AM_SHORT;
-    bcast._short.addr = IEEE_ADDR_BCAST_SHORT;
-
     pico_tree_foreach_safe(node, &RTable, safe) {
-        if ((entry = (struct sixlowpan_rtable_entry *)node->keyValue)) {
+        entry = (struct sixlowpan_rtable_entry *)node->keyValue;
+        if (entry) {
             /* expired? */
-            if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_TTL + SIXLOWPAN_ENTRY_POLL))
-            {
+            if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_TTL)) {
                 dbg_ieee_addr("RTable entry removed", &entry->dst);
-                entry = pico_tree_delete(&RTable, entry);
+                pico_tree_delete(&RTable, entry);
                 PICO_FREE(entry);
             } if ((now - entry->timestamp) >= (SIXLOWPAN_ENTRY_POLL << 1)) {
                 /* ping at 50 % of the TTL */
@@ -1410,7 +1468,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     struct pico_ieee_addr *src = NULL;
     struct sixlowpan_frame *f = NULL;
     static uint16_t next_id = 0x91c0;
-    uint8_t *buf = NULL, len = 0;
+    uint8_t *buf = NULL, len = 0, ret = 0;
 
     if (!dev)
         return -1;
@@ -1433,7 +1491,6 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
         ping->dispatch = DISPATCH_PING_REPLY(INFO_VAL) << DISPATCH_PING_REPLY(INFO_SHIFT);
         ping->id = short_be(id);
     } else {
-        dbg_ieee_addr("Ping request for", &f->peer);
         /* Set the ping fields to that of a ping request */
         ping->dispatch = DISPATCH_PING_REQUEST(INFO_VAL) << DISPATCH_PING_REQUEST(INFO_SHIFT);
         ping->id = short_be(next_id++);
@@ -1454,7 +1511,9 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
     }
 
     /* Transmit the frame on the wire */
-    slp->radio->transmit(slp->radio, buf, len);
+    ret = (uint8_t)slp->radio->transmit(slp->radio, buf, len);
+    if (ret != len)
+        tx_enqueue(buf, len);
 
     /* Destroy the Ping-frame and the buffer with the raw packet */
     sixlowpan_frame_destroy(f);
@@ -1484,7 +1543,6 @@ static int sixlowpan_ping_recv(struct sixlowpan_frame *f)
     } else if (CHECK_DISPATCH(ping->dispatch, SIXLOWPAN_PING_REPLY)) {
         /* If the host receives a ping reply, that means that it was sent
          * due to a hop-determination caused by case below vvv */
-        dbg_ieee_addr("Ping reply for", &f->peer);
         sixlowpan_update_routing_table(f, short_be(ping->id), f->hop_limit);
         return 1;
     } else {
@@ -2721,7 +2779,7 @@ static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee
 static int sixlowpan_retransmit(struct sixlowpan_frame *f)
 {
     struct pico_device_sixlowpan *slp = NULL;
-
+    uint8_t ret = 0;
     if (!f)
         return -1;
 
@@ -2732,7 +2790,9 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
         return -1;
 
     //PAN_DBG("(%d) FWD!\r\n", ((struct pico_ieee_addr*)f->dev->eth)->_short.addr);
-    slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
+    ret = (uint8_t)slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
+    if (ret != f->size)
+        tx_enqueue(f->phy_hdr, (uint8_t)f->size);
     return 0;
 }
 
@@ -3159,6 +3219,8 @@ static int sixlowpan_send_tx(void)
 
         slp = (struct pico_device_sixlowpan *)tx->dev;
         ret = slp->radio->transmit(slp->radio, buf, len);
+        if (ret != len)
+            tx_enqueue(buf, len);
         PICO_FREE(buf);
         if (FRAME_FRAGMENTED == tx->state)
             return ret;
@@ -3264,7 +3326,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 
             /* Check for MESH Dispatch header */
             if (!(f = sixlowpan_mesh_in(f))) {
-                /* Frame is forwared and destroyed or rtx has it and is postponed */
+                /* Frame is forwareded and destroyed or queue has it and is postponed */
                 continue;
             }
 
@@ -3285,6 +3347,9 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 
     /* Can I do something else? */
     sixlowpan_send_tx(); /* Yes you can, send current frame */
+
+    /* Check if there are any frames to retry */
+    tx_retry(radio);
     return loop_score;
 }
 
