@@ -288,7 +288,7 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
     uint16_t shortbe = 0;
 #endif
     llao->type = type;
-    
+
     if (LL_MODE_ETHERNET == dev->mode && dev->eth) {
         memcpy(llao->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
         llao->len = 1;
@@ -310,7 +310,7 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
     else {
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -349,7 +349,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     struct pico_frame *sol = NULL;
     uint8_t i = 0, llao_len = 0;
     uint16_t len = 0;
-    
+
     if (LL_MODE_SIXLOWPAN == dev->mode && (dev->hostvars.routing))
         return -1;
 
@@ -384,7 +384,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     icmp->code = 0;
     icmp->msg.info.neigh_sol.unused = 0;
     icmp->msg.info.neigh_sol.target = *dst;
-    
+
     llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
     aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + llao_len);
     if (LL_MODE_ETHERNET == dev->mode && type != PICO_ICMP6_ND_DAD) {
@@ -396,7 +396,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
         pico_icmp6_provide_aro(aro, dev);
     }
 #endif
-    
+
     if (LL_MODE_ETHERNET == dev->mode && (type == PICO_ICMP6_ND_SOLICITED || type == PICO_ICMP6_ND_DAD)) {
         for (i = 1; i <= 3; ++i) {
             daddr.addr[PICO_SIZE_IP6 - i] = dst->addr[PICO_SIZE_IP6 - i];
@@ -418,9 +418,9 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     else {
         daddr = *dst;
     }
-    
+
     sol->dev = dev;
-    
+
     if (LL_MODE_ETHERNET == dev->mode) {
         /* f->src is set in frame_push, checksum calculated there */
         pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
@@ -436,7 +436,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
         pico_frame_discard(sol);
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -501,7 +501,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_frame *sol = NULL;
     uint16_t len = 0;
-    
+
     len = PICO_ICMP6HDR_ROUTER_SOL_SIZE;
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
@@ -550,7 +550,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
         pico_frame_discard(sol);
         return -1;
     }
-    
+
     return 0;
 }
 
@@ -561,11 +561,11 @@ static struct pico_ip6 pico_icmp6_address_to_prefix(struct pico_ip6 addr, struct
 {
     struct pico_ip6 prefix;
     uint8_t i = 0;
-    
+
     for (i = 0; i < PICO_SIZE_IP6; i++) {
         prefix.addr[i] = (uint8_t)(addr.addr[i] & nm.addr[i]);
     }
-    
+
     return prefix;
 }
 
@@ -593,7 +593,7 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
         len = (uint16_t)(len + 8);
     }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
-    
+
     adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
     if (!adv) {
         pico_err = PICO_ERR_ENOMEM;
@@ -631,10 +631,9 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
 
     nxt_opt += (sizeof (struct pico_icmp6_opt_prefix));
     lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
-    
-    
+
     lladdr->type = PICO_ND_OPT_LLADDR_SRC;
-    
+
     if (!dev->mode && dev->eth) {
         lladdr->len = 1;
         memcpy(lladdr->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
@@ -648,10 +647,10 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
     else {
-        
+
         return -1;
     }
-    
+
     icmp6_hdr->crc = 0;
     icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
     /* f->src is set in frame_push, checksum calculated there */

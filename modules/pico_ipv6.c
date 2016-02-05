@@ -1459,11 +1459,11 @@ struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device 
     struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
     struct pico_ipv6_route *route = NULL;
     struct pico_tree_node *node = NULL;
-    
+
     /* Iterate over the IPv6-routes */
     pico_tree_foreach(node, &IPV6Routes) {
         route = (struct pico_ipv6_route *)node->keyValue;
-        
+
         /* If the route is a default router, specified by the gw being set */
         if (!pico_ipv6_is_unspecified(route->gateway.addr)) {
             /* Iterate over device's links */
@@ -1475,7 +1475,7 @@ struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device 
             }
         }
     }
-    
+
     return NULL;
 }
 
@@ -1732,7 +1732,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
     if (!new)
         return NULL;
-    
+
     /* Apply DAD */
     new->dup_detect_retrans = PICO_IPV6_DEFAULT_DAD_RETRANS;
 #ifndef UNIT_TEST
@@ -1741,7 +1741,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 #else
     new->istentative = 0;
 #endif
-    
+
     return new;
 }
 
@@ -1970,10 +1970,10 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
         link = index->keyValue;
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");
-            
+
             /* RFC6775, 5.3:
              *
-             *  ... HOSTS need to intelligently retransmit RSs when ... or the lifetime 
+             *  ... HOSTS need to intelligently retransmit RSs when ... or the lifetime
              *  of the prefixes and contexts in the precies RA is about to expire. ...
              */
             if (LL_MODE_SIXLOWPAN == link->dev->mode && !link->dev->hostvars.routing) {

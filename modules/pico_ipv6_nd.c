@@ -99,7 +99,7 @@ static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
 
 static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico_device *dev)
 {
-    struct pico_ipv6_neighbor *n, test; 
+    struct pico_ipv6_neighbor *n, test;
     char address[120];
 
     memcpy(test.address.addr, addr->addr, PICO_SIZE_IP6);
@@ -126,10 +126,10 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
     struct pico_ipv6_link *local = NULL;
     struct pico_tree_node *node = NULL;
     struct pico_device *dev = NULL;
-    
+
     /* RFC6775, 5.3:
      *
-     *  ... HOSTS need to intelligently retransmit RSs when one of its 
+     *  ... HOSTS need to intelligently retransmit RSs when one of its
      *  default routers becomes unreachable ...
      */
     pico_tree_foreach(node, &Device_tree) {
@@ -138,7 +138,7 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
             /* Check if there's a gateway configured
              *
              * NOTE! For the moment only one gateway is taken into account,
-             * in the future support for multiple LBRs on the PAN has to 
+             * in the future support for multiple LBRs on the PAN has to
              * be implemented */
             route = pico_ipv6_default_gateway_configured(dev);
             if (route && (0 == pico_ipv6_compare(&route->gateway, a))) {
@@ -161,22 +161,22 @@ static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icm
 {
     struct pico_ieee_addr *rcv_eui = (struct pico_ieee_addr *)dev->eth;
     struct pico_ieee_addr local_eui = {._ext.addr = {0}, ._short.addr = 0, ._mode = IEEE_AM_NONE};
-    
+
     /* RFC6775 - 5.5.2 :
      *      - If the length field is not two, the option is silently ignored.
-     *      - If the EUI-64 field does not match the EUI-64 of the interface, 
+     *      - If the EUI-64 field does not match the EUI-64 of the interface,
      *        the option is silently ignored.
      */
     if (aro->len != 2)
         return -1;
-    
+
     local_eui._ext = aro->eui64;
     local_eui._mode = IEEE_AM_EXTENDED;
     if (pico_ieee_addr_cmp((void *)rcv_eui, (void *)&local_eui))
         return -1;
-    
+
     *status = aro->status;
-    
+
     return 0;
 }
 
@@ -184,11 +184,11 @@ static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
 {
     struct pico_ipv6_link *l = arg;
     IGNORE_PARAMETER(now);
-    
+
     if (!pico_ipv6_default_gateway_configured(l->dev) && !l->dev->hostvars.routing) {
         /* If router list is empty, send router solicitation */
         pico_icmp6_router_solicitation(l->dev, &l->address);
-        
+
         /* Schedule next check */
         /* TODO: Apply exponential retransmission timer, see RFC6775 5.3 */
         pico_timer_add(PICO_SIXLOWPAN_RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
@@ -200,7 +200,7 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
 {
     /* If router list is empty, send router solicitation */
     pico_icmp6_router_solicitation(l->dev, &l->address);
-    
+
     /* RFC6775, 5.3:
      *
      *  ... HOSTS need to intelligently retransmit RSs whenever the default router
@@ -217,7 +217,7 @@ static int pico_6lp_nd_neigh_adv_validate(struct pico_frame *f, uint8_t *status)
     struct pico_icmp6_hdr *icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
     struct pico_icmp6_opt_aro *aro = (struct pico_icmp6_opt_aro *)((uint8_t *)&icmp->msg.info.neigh_adv + sizeof(struct neigh_sol_s));
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
-    
+
     /* 6LP: Target address cannot be MCAST and the Source IP-address cannot be UNSPECIFIED or MCAST */
     if (pico_ipv6_is_multicast(icmp->msg.info.neigh_adv.target.addr) || pico_ipv6_is_unspecified(ip->src.addr) ||
         pico_ipv6_is_multicast(ip->src.addr))
@@ -230,10 +230,10 @@ static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
     uint8_t status = 0;
-    
+
     if (pico_6lp_nd_neigh_adv_validate(f, &status))
         return -1;
-    
+
     /* Globally routable address has been registered @ 6LoWPAN Border Router */
     if (status) {
         nd_dbg("[6LP-ND]: Registering routable address failed, removing link...\n");
@@ -242,9 +242,9 @@ static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f)
     } else {
         nd_dbg("[6LP-ND]: Registering routable address succeeded!\n");
     }
-    
+
     /* TODO: Sent a re-registration way before lifetime expires */
-    
+
     return 0;
 }
 /* MARK: END OF 6LoWPAN */
@@ -264,12 +264,12 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
             dst = pico_ipv6_route_get_gateway(&hdr->dst);
             if (pico_ipv6_is_unspecified(dst.addr))
                 dst = hdr->dst;
-            
+
             /* 6LP: Find any 6LoWPAN-hosts for which this address might have been
              * a default gateway. If such a host found, send a router solicitation
              * again */
             pico_6lp_nd_unreachable_gateway(a);
-            
+
             if (memcmp(dst.addr, a->addr, PICO_SIZE_IP6) == 0) {
                 if (!pico_source_is_local(f)) {
                     pico_notify_dest_unreachable(f);
@@ -361,7 +361,7 @@ static int nd_options(uint8_t *options, struct pico_icmp6_opt_lladdr *opt, uint8
 {
     uint8_t type = 0;
     int found = 0;
-    
+
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_lladdr *)options)->type;
         len = ((struct pico_icmp6_opt_lladdr *)options)->len;
@@ -422,12 +422,12 @@ static int router_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *op
     uint8_t *options = NULL;
     int optlen = 0;
     int len = 0;
-    
+
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
     if (optlen)
         options = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
-    
+
     return nd_options(options, opt, expected_opt, optlen, len);
 }
 
@@ -559,7 +559,7 @@ static int neigh_adv_process(struct pico_frame *f)
     if (optres < 0) { /* Malformed packet: option field cannot be processed. */
         return -1;
     }
-    
+
 #ifdef PICO_SUPPORT_SIXLOWPAN
     if (LL_MODE_SIXLOWPAN == f->dev->mode) {
         /* 6LoWPAN: parse Address Registration Comfirmation(nothing on success, remove link on failure) */
@@ -568,7 +568,7 @@ static int neigh_adv_process(struct pico_frame *f)
         return 0;
     }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
-    
+
     /* Check if there's a NCE in the cache */
     n = pico_nd_find_neighbor(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!n) {
@@ -597,7 +597,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
     n = pico_nd_add(ip, dev);
     if (!n)
         return NULL;
-    
+
     memcpy(n->hwaddr.mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
     n->state = PICO_ND_STATE_STALE;
     pico_ipv6_nd_queued_trigger();
@@ -634,12 +634,12 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 static struct pico_ipv6_neighbor *pico_nd_add_6lp(struct pico_ip6 naddr, struct pico_icmp6_opt_aro *aro, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *new = NULL;
-    
+
     if ((new = pico_nd_add(&naddr, dev))) {
         new->expire = PICO_TIME_MS() + (pico_time)(ONE_MINUTE * aro->lifetime);
         dbg("ARO Lifetime: %d minutes\n", aro->lifetime);
     }
-    
+
     return new;
 }
 
@@ -649,28 +649,28 @@ static int neigh_sol_dad_reply(struct pico_frame *sol, struct pico_icmp6_opt_lla
     struct pico_icmp6_hdr *icmp = NULL;
     struct pico_ipv6_hdr *ip = NULL;
     struct pico_frame *adv = pico_frame_copy(sol);
-    
-    
+
+
     ip = (struct pico_ipv6_hdr *)adv->net_hdr;
     icmp = (struct pico_icmp6_hdr *)adv->transport_hdr;
 
     /* Set the status of the Address Registration */
     aro->status = status;
-    
+
     /* Remove the SLLAO from the frame */
     memmove(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s), ((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + sllao_len, (size_t)(aro->len * 8));
     adv->transport_len = (uint16_t)(adv->transport_len - sllao_len);
     adv->len = (uint16_t)(adv->len - sllao_len);
-    
+
     /* I'm a router, and it's always solicited */
     icmp->msg.info.neigh_adv.rsor = 0xE0;
-    
+
     /* Set the ICMPv6 message type to Neighbor Advertisements */
     icmp->type = PICO_ICMP6_NEIGH_ADV;
     icmp->code = 0;
     icmp->crc = pico_icmp6_checksum(adv);
-    
-    pico_ipv6_frame_push(adv, &ip->dst, &ip->src, PICO_PROTO_ICMP6, 0);
+
+    pico_ipv6_frame_push(adv, NULL, &ip->src, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 
@@ -680,15 +680,15 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
     struct pico_icmp6_opt_lladdr *sllao = NULL;
     struct pico_icmp6_hdr *icmp = NULL;
     struct pico_icmp6_opt_aro *aro = NULL;
-    
+
     icmp = (struct pico_icmp6_hdr *)f->transport_hdr;
     sllao = (struct pico_icmp6_opt_lladdr *)((uint8_t *)&icmp->msg.info.neigh_sol + sizeof(struct neigh_sol_s));
     aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + (sllao->len * 8));
-    
+
     /* Validate Address Registration Option */
     if (pico_6lp_nd_validate_sol_aro(aro))
         return -1;
-    
+
     /* Find an NCE for the source */
     if (!(n = pico_nd_find_neighbor(&icmp->msg.info.neigh_sol.target))) {
         /* No dup, add neighbor to cache */
@@ -697,7 +697,7 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
         return 0;
     } else {
         /* Check if hwaddr differs */
-        
+
         return 1;
     }
 }
@@ -721,7 +721,7 @@ static int neigh_sol_detect_dad(struct pico_frame *f)
                  */
                 dbg("DAD:Sender performing AR\n");
             }
-            
+
             else if (pico_ipv6_is_unspecified(ipv6_hdr->src.addr) &&
                      !pico_ipv6_is_allhosts_multicast(ipv6_hdr->dst.addr))
             {
@@ -729,7 +729,7 @@ static int neigh_sol_detect_dad(struct pico_frame *f)
                 dbg("DAD:Sender performing DaD\n");
                 ipv6_duplicate_detected(link);
             }
-            
+
             return 0;
         }
     }
@@ -746,12 +746,12 @@ static int neigh_sol_process(struct pico_frame *f)
         0
     };
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    
+
     valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
     if (LL_MODE_ETHERNET == f->dev->mode)
         pico_ipv6_neighbor_from_unsolicited(f);
-    
+
     if (LL_MODE_ETHERNET == f->dev->mode && !valid_lladdr && 0 == neigh_sol_detect_dad(f))
         return 0;
 #ifdef PICO_SUPPORT_SIXLOWPAN
@@ -761,7 +761,7 @@ static int neigh_sol_process(struct pico_frame *f)
         return 0;
     }
 #endif
-    
+
     if (valid_lladdr < 0)
         return -1; /* Malformed packet. */
 
@@ -862,7 +862,7 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
 {
     struct pico_ipv6_link *link;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    
+
 #ifdef PICO_SUPPORT_SIXLOWPAN
     /* Don't validate target address, the sol is always targeted at 6LBR so
      * no possible interface on the 6LBR can have the same address as specified in
@@ -874,8 +874,8 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
     link = pico_ipv6_link_by_dev(f->dev);
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     while(link) {
-        /* RFC4861, 7.2.3: 
-         * 
+        /* RFC4861, 7.2.3:
+         *
          *  - The Target Address is a "valid" unicast or anycast address
          *    assigned to the receiving interface [ADDRCONF],
          *  - The Target Address is a unicast or anycast address for which the
@@ -964,11 +964,11 @@ static int router_sol_validity_checks(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
     struct pico_icmp6_opt_lladdr opt = { 0 };
     int sllao_present = 0;
-    
+
     /* Step 2 validation */
     if (f->transport_len < PICO_ICMP6HDR_ROUTER_SOL_SIZE_6LP)
         return -1;
-    
+
     /* RFC4861, 6.1.1:
      *
      * - If the IP source address is the unspecified address, there is no
@@ -988,7 +988,7 @@ static int router_sol_validity_checks(struct pico_frame *f)
             return -1;
         }
     }
-    
+
     return 0;
 }
 
@@ -997,7 +997,7 @@ static int router_sol_checks(struct pico_frame *f)
     /* Step 1 validation */
     if (icmp6_initial_checks(f) < 0)
         return -1;
-    
+
     return router_sol_validity_checks(f);
 }
 
@@ -1005,19 +1005,19 @@ static int router_sol_checks(struct pico_frame *f)
 static int sixlowpan_router_sol_process(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
-    
+
     /* Determine if i'm a 6LBR, if i'm not, can't do anything with a router solicitation */
     if (!f->dev->hostvars.routing)
         return -1;
-    
+
     nd_dbg("[6LBR]: Processing router solicitation...\n");
-    
+
     /* Router solicitation message validation */
     if (router_sol_checks(f) < 0)
         return -1;
-    
+
     /* Maybe create a tentative NCE? No, will do it later */
-    
+
     /* Send a router advertisement via unicast to requesting host */
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     return pico_icmp6_router_advertisement(f->dev, &hdr->src);
@@ -1031,7 +1031,7 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
     if (LL_MODE_SIXLOWPAN == f->dev->mode)
         return sixlowpan_router_sol_process(f);
 #endif /* PICO_SUPPORT_SIXLOWPAN */
-    
+
     pico_ipv6_neighbor_from_unsolicited(f);
     /* Host only: router solicitation is discarded. */
     return 0;

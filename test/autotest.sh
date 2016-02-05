@@ -34,7 +34,7 @@ fi
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
-killall -wq picoapp.elf 
+killall -wq picoapp.elf
 killall -wq picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -66,7 +66,7 @@ sudo route add -net 224.0.0.0/4 dev lo
 ./build/test/picoapp6.elf -6 4,3,0 -a ping,2aaa:6109:0000:0000:0200:00aa:ab00:0001,64,0,3, || exit 1
 killall -w picoapp6.elf
 sudo route del -net 224.0.0.0/4 dev lo
- 
+
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 1500B TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -75,7 +75,7 @@ sudo route add -net 224.0.0.0/4 dev lo
 ./build/test/picoapp6.elf -6 3,1,0 -a ping,2aaa:6109:0000:0000:0200:00aa:ab00:0001,1500,0,3, || exit 1
 killall -w picoapp6.elf
 sudo route del -net 224.0.0.0/4 dev lo
- 
+
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -362,4 +362,4 @@ echo "MAX memory used: $MAXMEM"
 rm -f /tmp/pico-mem-report-*
 
 ./test/vde_sock_start_user.sh stop
-echo "SUCCESS!" 
+echo "SUCCESS!"

@@ -7,7 +7,9 @@
 
 
 /* Uncomment next line to enable libPCAP dump */
-/* #define RADIO_PCAP */
+/* If you enable PCAP make sure the binary is linked with
+ * the lpcap library as well in the Makefile -lpcap */
+#define RADIO_PCAP
 
 /* Uncomment next line to enable Random packet loss (specify percentage) */
 /* #define P_LOSS 3 */
@@ -22,8 +24,7 @@
 #include "netinet/in.h"
 #include "sys/poll.h"
 #ifdef RADIO_PCAP
-#   include <pcap/pcap.h>
-static char pcap_dump_name[] = "/tmp/radio_%04x.pcap";
+#include <pcap/pcap.h>
 #endif
 
 #define RFDEV_PANID               0xABCD
@@ -48,7 +49,7 @@ struct radiotest_radio {
 
 
 #ifdef RADIO_PCAP
-void radiotest_pcap_open(struct radiotest_radio *dev, char *dump) 
+void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
 {
     char dumpfile[100];
     dev->pcap = pcap_open_dead(DLT_IEEE802_15_4, 65535);
@@ -58,10 +59,16 @@ void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
     }
     snprintf(dumpfile, 100, dump, dev->addr);
     dev->pcapd = pcap_dump_open(dev->pcap, dumpfile);
+    if (dev->pcapd)
+        dbg("PCAP Enabled\n");
+    else
+        dbg("PCAP Disabled\n");
+    /* Allow nodes to not have pcap enabled
     if (!dev->pcapd){
         perror("opening pcap dump file");
         exit(1);
     }
+    */
 }
 
 void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
@@ -76,7 +83,7 @@ void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
     pcap_dump_flush(dev->pcapd);
 }
 
-#else 
+#else
 
 void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
 {
@@ -107,7 +114,7 @@ static uint16_t radiotest_get_pan_id(struct ieee_radio *radio)
     if (!dev)
         return (uint16_t)-1;
     return dev->pan_id;
-}    
+}
 
 static int radiotest_get_ex(struct ieee_radio *radio, uint8_t *buf)
 {
@@ -205,7 +212,7 @@ static uint16_t calculate_crc16(uint8_t *buf, uint8_t len)
     uint16_t crc = 0x0000;
     uint16_t q = 0, i = 0;
     uint8_t c = 0;
-    
+
     for (i = 0; i < len; i++) {
         c = buf[i];
         q = (crc ^ c) & 0x0F;
@@ -213,7 +220,7 @@ static uint16_t calculate_crc16(uint8_t *buf, uint8_t len)
         q = (crc ^ (c >> 4)) & 0xF;
         crc = (crc >> 4) ^ (q * 0x1081);
     }
-    
+
     return crc;
 }
 
@@ -225,7 +232,7 @@ static int radiotest_tx(struct ieee_radio *radio, void *_buf, int len)
     int ret = 0;
 
     buf[0] = (uint8_t) radio->get_addr_short(radiotest);
-    
+
     /* Genereate FCS, to make pcap happy... */
     crc = calculate_crc16(buf + 1, len - 3);
     memcpy(buf + len - 2, (void *)&crc, 2);
@@ -234,6 +241,7 @@ static int radiotest_tx(struct ieee_radio *radio, void *_buf, int len)
     if (areas > 1)
         ret = sendto(radiotest->sock1, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR1), sizeof(struct sockaddr_in));
 
+    /* Don't write on TX */
     radiotest_pcap_write(radio, buf + 1, len - 1);
     return ret;
 }
@@ -245,7 +253,7 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
     struct ip_mreqn mreq0, mreq1;
     int yes = 1;
     int no = 0;
-    
+
     mreq0.imr_multiaddr.s_addr =  MC_ADDR_BE + (area0 << 24);
     mreq0.imr_address.s_addr =  INADDR_ANY;
     mreq0.imr_ifindex = 0;
@@ -287,7 +295,7 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
     bind(dev->sock0, (struct sockaddr *)&MCADDR0, sizeof(struct sockaddr_in));
     setsockopt(dev->sock0, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq0, sizeof(struct ip_mreqn));
     setsockopt(dev->sock0, IPPROTO_IP, IP_MULTICAST_LOOP, &no, sizeof(int));
-    
+
     if (area1 > 0) {
         memset(&MCADDR1, 0, sizeof(struct sockaddr_in));
         MCADDR1.sin_family = AF_INET;
@@ -299,7 +307,7 @@ struct ieee_radio *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t ar
         setsockopt(dev->sock1, IPPROTO_IP, IP_MULTICAST_LOOP, &no, sizeof(int));
         areas++;
     }
-    
+
     if (dump) {
        radiotest_pcap_open(dev, dump);
     }
