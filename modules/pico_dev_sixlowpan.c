@@ -611,7 +611,7 @@ static void tx_retry(struct ieee_radio *radio)
     ret = (uint8_t)radio->transmit(radio, buf, len);
 
     if (ret == len) {
-        PAN_DBG("Retry succeeded\n");
+        PAN_DBG("Retry succeeded\r\n");
         tx_entries--;
         /* Rotate tail around queue */
         tx_tail = (uint8_t)((uint8_t)(tx_tail + 1) % MAX_QUEUED);
@@ -1502,7 +1502,7 @@ static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_
 
     /* Transmit the frame on the wire */
     ret = (uint8_t)slp->radio->transmit(slp->radio, buf, len);
-    if (!ret)
+    if (ret != len)
         tx_enqueue(buf, len);
 
     /* Destroy the Ping-frame and the buffer with the raw packet */
@@ -2773,13 +2773,8 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
     if (!f)
         return -1;
 
-    slp = (struct pico_device_sixlowpan *)f->dev;
-
-    /* Check if duplicate */
-    if (!IEEE_ADDR_IS_BCAST(f->local) && sixlowpan_is_duplicate(f->peer, f->local, f->link_hdr->seq))
-        return -1;
-
     //PAN_DBG("(%d) FWD!\r\n", ((struct pico_ieee_addr*)f->dev->eth)->_short.addr);
+    slp = (struct pico_device_sixlowpan *)f->dev;
     ret = (uint8_t)slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
     if (!ret)
         tx_enqueue(f->phy_hdr, (uint8_t)f->size);
@@ -2957,21 +2952,28 @@ static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee
 
 static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
 {
-    struct sixlowpan_bc0 *bc = NULL;
+    struct sixlowpan_bc0 *bc = (struct sixlowpan_bc0 *)(f->net_hdr + offset);
 
-    /* Check if the same frame isn't broadcasted before */
-    bc = (struct sixlowpan_bc0 *)(f->net_hdr + offset);
 //    PAN_DBG("SEQ: (%d) ORI: (0x%04X) LAST SEQ: (%d) LAST ORI: (0x%04X)\r\n", bc->seq, f->peer._short.addr, bcast_seq, last_bcast_src._short.addr);
 
-    if (sixlowpan_is_duplicate(f->peer, f->local, bc->seq)) {
+    /* If the frame is already received, we don't care about what kind of frame we have,
+     * real broadcast or fallback broadcast, just throw it away */
+    if (sixlowpan_is_duplicate(f->peer, f->local, bc->seq));
         return 1;
-    } else {
-        /* Update source address and hop limit for forwarding */
-        sixlowpan_update_addr(f, SIXLOWPAN_SRC);
-        sixlowpan_update_hl(f->net_hdr, f);
-    }
 
-    /* Frame isn't broadcasted before, rebroadcast it */
+    /* If the frame is fallback broadcast frame, which is means that it's inteded for me,
+     * but it is sent via broadcast because the transmitter didn't have a valid route to
+     * me but wanted to make sure the frame arrived */
+    if (pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth))
+        return 0;
+
+    /* Frame is neither fallback broadcast nor a duplicate, so we can
+     * transmit it further on to the network */
+
+    /* Update source address and hop limit for forwarding */
+    sixlowpan_update_addr(f, SIXLOWPAN_SRC);
+    sixlowpan_update_hl(f->net_hdr, f);
+
     return sixlowpan_retransmit(f);
 }
 
@@ -2983,20 +2985,18 @@ static struct sixlowpan_frame *sixlowpan_mesh_discard(struct sixlowpan_frame *f)
 
 static struct sixlowpan_frame *sixlowpan_mesh_retransmit(struct sixlowpan_frame *f, uint8_t bcast_offset)
 {
-    if (!IEEE_ADDR_IS_BCAST(f->hop)) {
-        /* f->local contains the final destination address, needed for nh-determination */
-        f->peer = f->local;
-        f->hop = sixlowpan_determine_next_hop(f);
+    /* f->local contains the final address, this is definitely not my address since otherwise we wouldn't
+     * come in the function. This is needed for nh-determination so put it in f->peer where it is expected
+     * to be.
+     * (local for the final address seems odd indeed, I know) */
+    f->peer = f->local;
+    f->hop = sixlowpan_determine_next_hop(f);
 
-        /* Set the hop of the frame to the next hop */
-        sixlowpan_update_addr(f, SIXLOWPAN_DST);
-        sixlowpan_update_addr(f, SIXLOWPAN_SRC);
-        sixlowpan_update_hl(f->net_hdr, f);
-        sixlowpan_retransmit(f);
-    } else {
-        /* Frame is send to LL-BCAST but not destined for me, apply duplicate BCAST-suppress. */
-        sixlowpan_broadcast_in(f, bcast_offset);
-    }
+    /* Set the hop of the frame to the next hop */
+    sixlowpan_update_addr(f, SIXLOWPAN_DST);
+    sixlowpan_update_addr(f, SIXLOWPAN_SRC);
+    sixlowpan_update_hl(f->net_hdr, f);
+    sixlowpan_retransmit(f);
 
     sixlowpan_frame_destroy(f);
     return NULL;
@@ -3004,18 +3004,21 @@ static struct sixlowpan_frame *sixlowpan_mesh_retransmit(struct sixlowpan_frame 
 
 static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
 {
-    struct pico_ieee_addr dst;
+    struct pico_ieee_addr dst = f->local;
     struct range r = {.offset = 0, .length = 0};
     int dead_ttl = 0;
     if (!f)
         return NULL;
 
     if (CHECK_DISPATCH(f->net_hdr[0], SIXLOWPAN_MESH)) {
+        /* If there's a Mesh dispatch header it means the link layer source address contained
+         * in 'peer' is the "last hop" through which the frame arrived here */
         f->hop = f->peer;
 
-        /* Read the information contained in the MESH header and decrement Hops Left at once */
+        /* The real 'origin' address and 'final' address is contained in the mesh header, put those
+         * addresses in the frame in 'peer' and 'local' respectively */
         f->hop_limit = (uint8_t)(sixlowpan_mesh_read_hdr_info(f->net_hdr, &f->peer, &f->local) - 1);
-        dead_ttl = (!f->hop_limit);
+        dead_ttl = (!f->hop_limit); /* binary check */
 
         /* Calculate the range in order to delete the MESH header in a moment */
         r.length = (f->hop_limit >= MESH_HL_ESC) ? ((uint16_t)(DISPATCH_MESH(INFO_HDR_LEN) + 1)) : (DISPATCH_MESH(INFO_HDR_LEN));
@@ -3027,28 +3030,43 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
             return sixlowpan_mesh_discard(f);
         }
 
-        dst = pico_ieee_addr_from_hdr(f->link_hdr, SIXLOWPAN_DST);
-        if (!pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
-            /* Frame is destined for me and only for me, consume... */
-            if (IEEE_ADDR_IS_BCAST(dst))
-                r.length = (uint16_t)(r.length + DISPATCH_BC0(INFO_HDR_LEN));
-        } else if (IEEE_ADDR_IS_BCAST(f->local)) {
+        {
+            int i = 0;
+            sam_dbg("RCVD (%d ms) ", PICO_TIME_MS());
+            dbg_ieee_addr("from", &f->peer);
+            dbg_ieee_addr("via", &f->hop);
+            sam_dbg(":\r\n");
+                for (i = 0; i < f->net_len; ++i) {
+                    sam_dbg("%02X", f->net_hdr[i]);
+                }
+                sam_dbg("\r\n");
+        }
+
+        /* For any received frame, we can derive our neighbours through the last hop,
+         * and determine routes to peers via the last hop */
+        sixlowpan_rtable_hop_by_source(f->hop);
+        sixlowpan_build_routing_table(f->peer, f->hop, f->dev);
+
+        /* Check whether or not we have a real broadcast frame, thus the frame is intended for
+         * the entire PAN */
+        if (IEEE_ADDR_IS_BCAST(dst)) {
             /* Check if the hop limit isn't 0 and then if the broadcasting occured again */
             if (dead_ttl || sixlowpan_broadcast_in(f, (uint8_t)r.length))
                 return sixlowpan_mesh_discard(f); /* Let the frame be discarded */
 
             r.length = (uint16_t)(r.length + DISPATCH_BC0(INFO_HDR_LEN));
         } else {
-            /* If the TTL is zero or I'm the originator don't bother forwarding, discard at once */
+            /* If the TTL is zero don't bother forwarding, discard at once */
             if (dead_ttl)
                 return sixlowpan_mesh_discard(f);
 
-            sixlowpan_rtable_hop_by_source(f->hop);
-            sixlowpan_build_routing_table(f->peer, f->hop, f->dev);
+            /* Check if duplicate and discard if so */
+            if (sixlowpan_is_duplicate(f->peer, f->local, f->link_hdr->seq))
+                return sixlowpan_mesh_discard(f);
 
-            /* Frame is not destined for me, forward onto the network */
-            f->hop = dst;
-            return sixlowpan_mesh_retransmit(f, (uint8_t)r.length);
+            /* If frame is not destined for me, forward onto the network */
+            if (pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth))
+                return sixlowpan_mesh_retransmit(f, (uint8_t)r.length);
         }
     }
 
@@ -3209,9 +3227,8 @@ static int sixlowpan_send_tx(void)
 
         slp = (struct pico_device_sixlowpan *)tx->dev;
         ret = slp->radio->transmit(slp->radio, buf, len);
-        if (!ret)
+        if (ret != len)
             tx_enqueue(buf, len);
-
         PICO_FREE(buf);
         if (FRAME_FRAGMENTED == tx->state)
             return ret;
@@ -3314,6 +3331,9 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
             if (!(f = sixlowpan_buf_to_frame(buf, (uint8_t)len, dev)))
                 return loop_score;
+
+            /* At this moment the 'peer' contains the link-layer source address of the frame
+             * and 'local' contains the link-layer destination address */
 
             /* Check for MESH Dispatch header */
             if (!(f = sixlowpan_mesh_in(f))) {
