@@ -1087,6 +1087,10 @@ static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len,
     if (!(f = sixlowpan_frame_create(local, peer, net_len, 0, 0, dev)))
         return NULL;
 
+    /* Global sequence number is incremented by frame_create, but we don't want that
+     * to happen on reception of frames */
+    slp_seq--;
+
     /* Copy in payload */
     memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len);
 
