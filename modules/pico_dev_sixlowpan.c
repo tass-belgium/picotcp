@@ -3032,14 +3032,14 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
 
         {
             int i = 0;
-            sam_dbg("RCVD (%d ms) ", PICO_TIME_MS());
+            PAN_DBG("RCVD (%d ms) ", PICO_TIME_MS());
             dbg_ieee_addr("from", &f->peer);
             dbg_ieee_addr("via", &f->hop);
-            sam_dbg(":\r\n");
-                for (i = 0; i < f->net_len; ++i) {
-                    sam_dbg("%02X", f->net_hdr[i]);
-                }
-                sam_dbg("\r\n");
+            PAN_DBG(":\r\n");
+            for (i = 0; i < f->net_len; ++i) {
+                dbg("%02X", f->net_hdr[i]);
+            }
+            PAN_DBG("\r\n");
         }
 
         /* For any received frame, we can derive our neighbours through the last hop,
