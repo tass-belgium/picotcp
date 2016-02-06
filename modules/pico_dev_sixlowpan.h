@@ -140,7 +140,12 @@ int pico_ieee_addr_cmp(void *va, void *vb);
  */
 void pico_sixlowpan_transmitted(void);
 
+/* **************************** */
+/* *** TEMPORARY DEMO STUFF *** */
 void rtable_print(void);
+uint8_t *sixlowpan_get_neighbors(struct pico_device *dev, uint8_t *len);
+/* **************************** */
+/* **************************** */
 
 int pico_sixlowpan_iid_is_derived_16(uint8_t *iid);
 
