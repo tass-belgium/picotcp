@@ -51,7 +51,17 @@
 #define DISPATCH_NHC_UDP(i)         (((i) == INFO_VAL) ? (0x1Eu) : (((i) == INFO_SHIFT) ? (0x03u) : (0x01u)))
 #define DISPATCH_PING_REQUEST(i)    (((i) == INFO_VAL) ? (0x44u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
 #define DISPATCH_PING_REPLY(i)      (((i) == INFO_VAL) ? (0x45u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
-#define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
+#define INFO_VAL                    (0u)
+#define INFO_SHIFT                  (1u)
+#define INFO_HDR_LEN                (2u)
+/* With these redirections you can easily get information about a specific dispatch header, like
+ * the value or the header length (minimum length, can vary based on dynamic headers). INFO_SHIFT
+ * is only for CHECK_DISPATCH-macro. Thus, following defines act like preprocessor macro's.
+ *
+ * With the same defines, types of dispatch headers can also be checked for in received frames. This is
+ * done by passing following defines in the CHECK_DISPATCH-macro below. Thus, following defines act like
+ * plain preprocessor constants (not really).
+ */
 #define SIXLOWPAN_NALP              DISPATCH_NALP
 #define SIXLOWPAN_IPV6              DISPATCH_IPV6
 #define SIXLOWPAN_HC1               DISPATCH_HC1
@@ -66,21 +76,21 @@
 #define SIXLOWPAN_NHC_UDP           DISPATCH_NHC_UDP
 #define SIXLOWPAN_PING_REQUEST      DISPATCH_PING_REQUEST
 #define SIXLOWPAN_PING_REPLY        DISPATCH_PING_REPLY
+/* Really cool macro that checks dispatch type of byte */
+#define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
+
 #define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 #define SIXLOWPAN_PING_TTL          (64u)
 #define SIXLOWPAN_DUPING            (0x01u)
 #define SIXLOWPAN_TRANSMIT          (0x00u)
 #define SIXLOWPAN_SRC               (1u)
 #define SIXLOWPAN_DST               (0u)
-#define INFO_VAL                    (0u)
-#define INFO_SHIFT                  (1u)
-#define INFO_HDR_LEN                (2u)
 
 #define IEEE_MIN_HDR_LEN            (5u)
 #define IEEE_LEN_LEN                (1u)
 #define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST_SHORT == (ieee)._short.addr))
 #define IEEE_AM_BOTH_TO_SHORT(am)   ((IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am)) ? IEEE_AM_SHORT : IEEE_AM_EXTENDED)
-#define IEEE_AM_LITERAL(am) (am == IEEE_AM_SHORT ? IEEE_AM_SHORT : am == IEEE_AM_EXTENDED ? IEEE_AM_EXTENDED : IEEE_AM_NONE)
+#define IEEE_AM_LITERAL(am)         (am == IEEE_AM_SHORT ? IEEE_AM_SHORT : am == IEEE_AM_EXTENDED ? IEEE_AM_EXTENDED : IEEE_AM_NONE)
 
 #define IPV6_FIELDS_NUM             (6u)
 #define IPV6_SOURCE                 (0u)
@@ -932,6 +942,29 @@ static inline uint16_t ieee_len(struct sixlowpan_frame *f)
 static inline uint8_t ieee_hdr_len(struct ieee_hdr *hdr)
 {
     return (uint8_t)(IEEE_MIN_HDR_LEN + (uint8_t)(pico_ieee_addr_len(hdr->fcf.sam) + pico_ieee_addr_len(hdr->fcf.dam)));
+}
+
+static inline uint8_t mesh_hdr_len(struct sixlowpan_mesh *hdr)
+{
+    uint8_t len = SIXLOWPAN_MESH(INFO_HDR_LEN);
+
+    /* If the Hop Limit is escaped add a byte */
+    if (hdr->dah & MESH_HL_ESC)
+        len++;
+
+    /* Add the length of the originator address */
+    if (hdr->dah & 0x20)
+        len = (uint8_t)(len + PICO_SIZE_IEEE_SHORT);
+    else
+        len = (uint8_t)(len + PICO_SIZE_IEEE_EXT);
+
+    /* Add the length of the final address */
+    if (hdr->dah & 0x10)
+        len = (uint8_t)(len + PICO_SIZE_IEEE_SHORT);
+    else
+        len = (uint8_t)(len + PICO_SIZE_IEEE_EXT);
+
+    return len;
 }
 
 static int ieee_provide_hdr(struct sixlowpan_frame *f)
@@ -2791,29 +2824,31 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
     return 0;
 }
 
-static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f)
+static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len)
 {
     struct range r = {.offset = 0, .length = DISPATCH_BC0(INFO_HDR_LEN)};
     struct sixlowpan_bc0 *bc = NULL;
     uint8_t *old = buf;
 
-    r.offset = (uint16_t)(IEEE_LEN_LEN + f->link_hdr_len);
-    if (IEEE_ADDR_IS_BCAST(f->hop)) {
-        buf = buf_insert(buf, *len, r);
-        if (!buf) {
-            PICO_FREE(old);
-            return NULL;
-        }
-        /* Make sure the length is updated after a memory-insert */
-        *len = (uint8_t)(*len + DISPATCH_BC0(INFO_HDR_LEN));
+    struct pico_ieee_addr dst = pico_ieee_addr_from_hdr((struct ieee_hdr *)(buf + IEEE_LEN_LEN), 0);
+    if (!IEEE_ADDR_IS_BCAST(dst))
+        return buf;
 
-        /* Set some params of the bcast header */
-        bc = (struct sixlowpan_bc0 *)(buf + r.offset);
-        bc->dispatch = DISPATCH_BC0(INFO_VAL);
-        bc->seq = ++bcast_seq;
-    } else {
-        /* Next hop isn't broadcast, no LOWPAN_BC0 header needed */
+    r.offset = (uint16_t)(IEEE_LEN_LEN + ieee_hdr_len((struct ieee_hdr *)(buf + IEEE_LEN_LEN)));
+    r.offset = (uint16_t)(r.offset + mesh_hdr_len((struct sixlowpan_mesh *)(buf + r.offset)));
+
+    buf = buf_insert(buf, *len, r);
+    if (!buf) {
+        PICO_FREE(old);
+        return NULL;
     }
+    /* Make sure the length is updated after a memory-insert */
+    *len = (uint8_t)(*len + DISPATCH_BC0(INFO_HDR_LEN));
+
+    /* Set some params of the bcast header */
+    bc = (struct sixlowpan_bc0 *)(buf + r.offset);
+    bc->dispatch = DISPATCH_BC0(INFO_VAL);
+    bc->seq = ++bcast_seq;
 
     return buf;
 }
@@ -2977,7 +3012,6 @@ static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
      * me, don't retransmit and just parse it further */
     if (!pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
         return 0;
-
     }
 
     /* Frame is neither fallback broadcast nor a duplicate, so we can
@@ -2993,8 +3027,6 @@ static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
      * don't bother parsing further and immediatelly discard */
     if (!IEEE_ADDR_IS_BCAST(f->local))
         ret = -1;
-
-    PAN_DBG("It's a BCAST frame\n");
 
     return ret;
 }
@@ -3014,16 +3046,19 @@ static struct sixlowpan_frame *sixlowpan_mesh_retransmit(struct sixlowpan_frame 
     f->peer = f->local;
     f->hop = sixlowpan_determine_next_hop(f);
 
-    if (IEEE_ADDR_IS_BCAST(f->hop)) {
-
-    }
-
     /* Set the hop of the frame to the next hop */
     sixlowpan_update_addr(f, SIXLOWPAN_DST);
     sixlowpan_update_addr(f, SIXLOWPAN_SRC);
     sixlowpan_update_hl(f->net_hdr, f);
-    sixlowpan_retransmit(f);
 
+    /* Insert a broadcast header if needed (next hop is broadcast) */
+    if ((f->phy_hdr = sixlowpan_broadcast_out(f->phy_hdr, (uint8_t *)&f->size))) {
+        /* broadcast_out can either return the old buffer or a new buffer with a
+         * BCAST-header if needed. In either case the frame is valid for retransmission */
+        sixlowpan_retransmit(f);
+    }
+
+    /* Always destroy the frame, on retransmission as well as on failure of bcast_out */
     sixlowpan_frame_destroy(f);
     return NULL;
 }
@@ -3047,8 +3082,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         dead_ttl = (!f->hop_limit); /* binary check */
 
         /* Calculate the range in order to delete the MESH header in a moment */
-        r.length = (f->hop_limit >= MESH_HL_ESC) ? ((uint16_t)(DISPATCH_MESH(INFO_HDR_LEN) + 1)) : (DISPATCH_MESH(INFO_HDR_LEN));
-        r.length = (uint16_t)(r.length + (uint8_t)(pico_ieee_addr_len(f->peer._mode) + pico_ieee_addr_len(f->local._mode)));
+        r.length = mesh_hdr_len((struct sixlowpan_mesh *)f->net_hdr);
 
         /* Check if I'm the originator, discard these frames... */
         if (!pico_ieee_addr_cmp((void *)&f->peer, (void *)f->dev->eth)) {
@@ -3235,13 +3269,13 @@ static int sixlowpan_send_tx(void)
         buf = sixlowpan_frame_to_buf(tx, &len); /* Current frame as a whole */
 
     if (buf) {
-        if (!(buf = sixlowpan_broadcast_out(buf, &len, tx))) {
-            PAN_ERR("During broadcast out\r\n");
+        if (!(buf = sixlowpan_mesh_out(buf, &len, tx))) {
+            PAN_ERR("During mesh addressing\r\n");
             return sixlowpan_send_exit(-1);
         }
 
-        if (!(buf = sixlowpan_mesh_out(buf, &len, tx))) {
-            PAN_ERR("During mesh addressing\r\n");
+        if (!(buf = sixlowpan_broadcast_out(buf, &len))) {
+            PAN_ERR("During broadcast out\r\n");
             return sixlowpan_send_exit(-1);
         }
 
@@ -3366,7 +3400,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                 /* Frame is forwareded and destroyed or queue has it and is postponed */
                 continue;
             }
-
+/*
             {
             int i = 0;
 
@@ -3380,7 +3414,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
             }
             dbg("\r\n ============================================\r\n");
             }
-
+*/
             /* Defrag, if NULL, everthing OK, but I'm still waiting for some other packets */
             if (!(f = sixlowpan_defrag(f)))
                 continue;
