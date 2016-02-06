@@ -2843,7 +2843,7 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
     if (!f)
         return -1;
 
-//    dbg_ieee_addr("FWD to", &f->hop);
+    dbg_ieee_addr("FWD to", &f->hop);
     slp = (struct pico_device_sixlowpan *)f->dev;
     ret = (uint8_t)slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
     if (!ret)
@@ -3372,6 +3372,8 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
 
+    PAN_DBG("Frame from picoTCP\r\n");
+
     if (!dev || !buf)
         return -1;
     IGNORE_PARAMETER(len);
@@ -3385,7 +3387,11 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
 
-    return sixlowpan_prep_tx();
+    sixlowpan_prep_tx();
+
+    /* Always return len, the 6LoWPAN has always taken over the frame
+     * for retry */
+    return len;
 }
 
 static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
