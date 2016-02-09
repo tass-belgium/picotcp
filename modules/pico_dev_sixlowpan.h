@@ -143,7 +143,7 @@ void pico_sixlowpan_transmitted(void);
 /* **************************** */
 /* *** TEMPORARY DEMO STUFF *** */
 void rtable_print(void);
-uint8_t *sixlowpan_get_neighbors(struct pico_device *dev, uint8_t *len);
+uint8_t sixlowpan_get_neighbours(struct pico_device *dev, uint8_t *buf);
 /* **************************** */
 /* **************************** */
 

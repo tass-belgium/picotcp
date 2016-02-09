@@ -1493,31 +1493,30 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
 }
 #endif
 
-uint8_t *sixlowpan_get_neighbors(struct pico_device *dev, uint8_t *len)
+uint8_t sixlowpan_get_neighbours(struct pico_device *dev, uint8_t *buf)
 {
     struct pico_ieee_addr *addr = dev->eth;
     struct pico_tree_node *node = NULL;
     struct sixlowpan_rtable_entry *entry = NULL;
-    uint8_t *buf = PICO_ZALLOC(128);
+    uint8_t len = 0;
 
-    if (!buf) {
-        pico_err = PICO_ERR_ENOMEM;
-        return NULL;
-    }
+    if (!buf)
+        return 0;
 
-    *len = 0;
+    /* Get device ID of current node */
+    buf[len++] = addr->_ext.addr[7];
+
     pico_tree_foreach(node, &RTable) {
         entry = (struct sixlowpan_rtable_entry *)node->keyValue;
         if (entry) {
             /* Only retrieve neigbors and extended addresses */
             if (entry->hops == 1 && entry->dst._mode == IEEE_AM_EXTENDED) {
-                memcpy((uint8_t *)(buf + *len), entry->dst._ext.addr, PICO_SIZE_IEEE_EXT);
-                *len = (uint8_t)(*len + PICO_SIZE_IEEE_EXT);
+                buf[len++] = entry->dst._ext.addr[7];
             }
         }
     }
 
-    return buf;
+    return len;
 }
 
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode)
