@@ -286,6 +286,8 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
 #ifdef PICO_SUPPORT_SIXLOWPAN
     struct pico_ieee_addr *ieee = (struct pico_ieee_addr *)dev->eth;
     uint16_t shortbe = 0;
+#else
+    IGNORE_PARAMETER(src);
 #endif
     llao->type = type;
 
@@ -342,13 +344,16 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                0x00, 0x00, 0x00, 0x01, 0xff, 0x00, 0x00, 0x00 }};
     struct pico_icmp6_opt_lladdr *llao = NULL;
-    struct pico_icmp6_opt_aro *aro = NULL;
     struct pico_icmp6_hdr *icmp = NULL;
+    struct pico_frame *sol = NULL;
+    uint8_t i = 0;
+    uint16_t len = 0;
+#ifdef PICO_SUPPORT_SIXLOWPAN
+    struct pico_icmp6_opt_aro *aro = NULL;
     struct pico_ipv6_route *gw = NULL;
     struct pico_ipv6_link *ll = NULL;
-    struct pico_frame *sol = NULL;
-    uint8_t i = 0, llao_len = 0;
-    uint16_t len = 0;
+    uint16_t llao_len = 0;
+#endif /* PICO_SUPPORT_SIXLOWPAN */
 
     if (LL_MODE_SIXLOWPAN == dev->mode && (dev->hostvars.routing))
         return -1;
@@ -367,7 +372,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
         len = (uint16_t)(len + sizeof(struct pico_icmp6_opt_aro));
         len = (uint16_t)(len + llao_len);
     }
-#endif
+#endif /* PICO_SUPPORT_SIXLOWPAN */
 
     /* Create pico_frame to contain the Neighbor Solicitation */
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
@@ -386,12 +391,12 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     icmp->msg.info.neigh_sol.target = *dst;
 
     llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
-    aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + llao_len);
     if (LL_MODE_ETHERNET == dev->mode && type != PICO_ICMP6_ND_DAD) {
         pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, NULL);
     }
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode && type == PICO_ICMP6_ND_DAD) {
+        aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + llao_len);
         pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, dst);
         pico_icmp6_provide_aro(aro, dev);
     }

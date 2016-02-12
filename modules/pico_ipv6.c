@@ -1971,6 +1971,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
         if ((link->expire_time > 0) && (link->expire_time < now)) {
             dbg("Warning: IPv6 address has expired.\n");
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
             /* RFC6775, 5.3:
              *
              *  ... HOSTS need to intelligently retransmit RSs when ... or the lifetime
@@ -1980,6 +1981,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
                 link = pico_ipv6_linklocal_get(link->dev);
                 pico_6lp_nd_start_solicitating(link);
             }
+#endif /* PICO_SUPPORT_SIXLOWPAN */
             pico_ipv6_link_del(link->dev, link->address);
         }
     }

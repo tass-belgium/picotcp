@@ -265,10 +265,12 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
             if (pico_ipv6_is_unspecified(dst.addr))
                 dst = hdr->dst;
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
             /* 6LP: Find any 6LoWPAN-hosts for which this address might have been
              * a default gateway. If such a host found, send a router solicitation
              * again */
             pico_6lp_nd_unreachable_gateway(a);
+#endif /* PICO_SUPPORT_SIXLOWPAN */
 
             if (memcmp(dst.addr, a->addr, PICO_SIZE_IP6) == 0) {
                 if (!pico_source_is_local(f)) {
@@ -408,28 +410,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     return nd_options(option, opt, expected_opt, optlen, len);
 }
 
-static int router_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
-{
-    /* RFC 4861 $6.1
-     *
-     *  The contents of any defined options that are not specified to be used
-     *  with Router Solicitation messages MUST be ignored and the packet
-     *  processed as normal.  The only defined option that may appear is the
-     *  Source Link-Layer Address option.
-     *
-     */
-    struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    uint8_t *options = NULL;
-    int optlen = 0;
-    int len = 0;
 
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
-    if (optlen)
-        options = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
-
-    return nd_options(options, opt, expected_opt, optlen, len);
-}
 
 static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt)
 {
@@ -959,6 +940,30 @@ static int neigh_adv_checks(struct pico_frame *f)
     return neigh_adv_validity_checks(f);
 }
 
+#ifdef PICO_SUPPORT_SIXLOWPAN
+static int router_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
+{
+    /* RFC 4861 $6.1
+     *
+     *  The contents of any defined options that are not specified to be used
+     *  with Router Solicitation messages MUST be ignored and the packet
+     *  processed as normal.  The only defined option that may appear is the
+     *  Source Link-Layer Address option.
+     *
+     */
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    uint8_t *options = NULL;
+    int optlen = 0;
+    int len = 0;
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
+    if (optlen)
+        options = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
+
+    return nd_options(options, opt, expected_opt, optlen, len);
+}
+
 static int router_sol_validity_checks(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
@@ -1001,7 +1006,6 @@ static int router_sol_checks(struct pico_frame *f)
     return router_sol_validity_checks(f);
 }
 
-#ifdef PICO_SUPPORT_SIXLOWPAN
 static int sixlowpan_router_sol_process(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *hdr = NULL;
