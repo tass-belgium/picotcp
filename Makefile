@@ -20,6 +20,7 @@ RTOS?=0
 GENERIC?=0
 PTHREAD?=0
 ADDRESS_SANITIZER?=1
+GCOV?=0
 
 # Default compiled-in protocols
 #
@@ -139,6 +140,11 @@ endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
   TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+endif
+
+ifeq ($(GCOV),1)
+  TEST_LDFLAGS+=-lgcov --coverage
+  CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(ARCH),faulty)
