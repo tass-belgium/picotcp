@@ -36,7 +36,13 @@
 /* Comment if you don't want rtable entries to be reconfirmed */
 #define SIXLOWPAN_ENTRY_POLL        (SIXLOWPAN_ENTRY_TTL >> 2u) /* polling 4 times in a lifetime */
 #define SIXLOWPAN_DUP_TTL           (30000u)
+#define SIXLOWPAN_PING_TTL          (64u)
+#define SIXLOWPAN_SRC               (1u)
+#define SIXLOWPAN_DST               (0u)
+#define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 
+/*  General 6LoWPAN dispatch header information
+ */
 #define DISPATCH_NALP(i)            (((i) == INFO_VAL) ? (0x00u) : (((i) == INFO_SHIFT) ? (0x06u) : (0x00u)))
 #define DISPATCH_IPV6(i)            (((i) == INFO_VAL) ? (0x41u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
 #define DISPATCH_HC1(i)             (((i) == INFO_VAL) ? (0x42u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x02u)))
@@ -79,19 +85,16 @@
 /* Really cool macro that checks dispatch type of byte */
 #define CHECK_DISPATCH(d, type)     (((d) >> type(INFO_SHIFT)) == type(INFO_VAL))
 
-#define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
-#define SIXLOWPAN_PING_TTL          (64u)
-#define SIXLOWPAN_DUPING            (0x01u)
-#define SIXLOWPAN_TRANSMIT          (0x00u)
-#define SIXLOWPAN_SRC               (1u)
-#define SIXLOWPAN_DST               (0u)
-
+/*  IEEE802.15.4 specific information
+ */
 #define IEEE_MIN_HDR_LEN            (5u)
 #define IEEE_LEN_LEN                (1u)
 #define IEEE_ADDR_IS_BCAST(ieee)    ((IEEE_AM_SHORT == (ieee)._mode) && (IEEE_ADDR_BCAST_SHORT == (ieee)._short.addr))
 #define IEEE_AM_BOTH_TO_SHORT(am)   ((IEEE_AM_BOTH == (am) || IEEE_AM_SHORT == (am)) ? IEEE_AM_SHORT : IEEE_AM_EXTENDED)
 #define IEEE_AM_LITERAL(am)         (am == IEEE_AM_SHORT ? IEEE_AM_SHORT : am == IEEE_AM_EXTENDED ? IEEE_AM_EXTENDED : IEEE_AM_NONE)
 
+/*  IPv6 specific information
+ */
 #define IPV6_FIELDS_NUM             (6u)
 #define IPV6_SOURCE                 (0u)
 #define IPV6_DESTINATION            (1u)
@@ -113,6 +116,8 @@
 #define IPV6_IS_MCAST_48(addr)      ((addr)[10] == 0x00)
 #define IPV6_VERSION                ((uint32_t)(0x60000000))
 
+/*  IPHC macro's
+ */
 #define IPHC_SHIFT_ECN              (10u)
 #define IPHC_SHIFT_DSCP             (2u)
 #define IPHC_SHIFT_FL               (8u)
@@ -123,19 +128,21 @@
 #define IPHC_SIZE_MCAST_32          (4u)
 #define IPHC_SIZE_MCAST_48          (6u)
 
+/*  NHC_UDP macro's
+ */
 #define UDP_IS_PORT_8(p)            ((0xF0u) == ((p) >> 8u))
 #define UDP_IS_PORT_4(p)            ((0xF0Bu) == ((p) >> 4u))
 #define UDP_ARE_PORTS_4(src, dst)   (UDP_IS_PORT_4((src)) && UDP_IS_PORT_4((dst)))
-#define NIBBLE_L(byte) ((uint8_t)byte & 0x0F)
-#define SHORT_LSB(word) ((uint8_t)word)
+#define NIBBLE_L(byte)              ((uint8_t)byte & 0x0F)
+#define SHORT_LSB(word)             ((uint8_t)word)
 
+/*  Fragmentation dispatch types
+ */
 #define FRAG_DGRAM_SIZE_MASK        (0x7FF)
 
+/*  Mesh dispatch types
+ */
 #define MESH_HL_ESC                 (0x0F)
-#define MESH_DAH_HOP_LIMIT(dah)     (uint8_t)((dah) & 0x0F)
-
-#define RTABLE_ENTRY_TTL            (10u) /* (600u) // 10 minutes */
-
 
 /* MEMORY MACROS */
 #define SIZE_UPDATE(size, edit, del) (uint16_t)((del) ? ((uint16_t)((size) - (edit))) : ((uint16_t)((size) + (edit))))
@@ -1459,7 +1466,7 @@ static void sixlowpan_build_routing_table(struct pico_ieee_addr origin, struct p
 #ifdef SIXLOWPAN_ENTRY_POLL
 static void sixlowpan_rtable_check(pico_time now, void *arg)
 {
-    struct pico_device * dev = (struct pico_device *)arg;
+    struct pico_device *dev = (struct pico_device *)arg;
     struct pico_tree_node *safe = NULL, *node = NULL;
     struct sixlowpan_rtable_entry * entry = NULL;
 
@@ -1485,6 +1492,32 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
     dups_del_oldest(now);
 }
 #endif
+
+uint8_t sixlowpan_get_neighbours(struct pico_device *dev, uint8_t *buf)
+{
+    struct pico_ieee_addr *addr = dev->eth;
+    struct pico_tree_node *node = NULL;
+    struct sixlowpan_rtable_entry *entry = NULL;
+    uint8_t len = 0;
+
+    if (!buf)
+        return 0;
+
+    /* Get device ID of current node */
+    buf[len++] = addr->_ext.addr[7];
+
+    pico_tree_foreach(node, &RTable) {
+        entry = (struct sixlowpan_rtable_entry *)node->keyValue;
+        if (entry) {
+            /* Only retrieve neigbors and extended addresses */
+            if (entry->hops == 1 && entry->dst._mode == IEEE_AM_EXTENDED) {
+                buf[len++] = entry->dst._ext.addr[7];
+            }
+        }
+    }
+
+    return len;
+}
 
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode)
 {
@@ -2816,7 +2849,7 @@ static int sixlowpan_retransmit(struct sixlowpan_frame *f)
     if (!f)
         return -1;
 
-    dbg_ieee_addr("FWD to", &f->hop);
+//    dbg_ieee_addr("FWD to", &f->hop);
     slp = (struct pico_device_sixlowpan *)f->dev;
     ret = (uint8_t)slp->radio->transmit(slp->radio, f->phy_hdr, f->size);
     if (!ret)
@@ -2925,7 +2958,7 @@ static uint8_t sixlowpan_mesh_read_hdr_info(uint8_t *buf, struct pico_ieee_addr 
 
     /* Parse in normal MESH header */
     hdr = (struct sixlowpan_mesh *)buf;
-    escaped = (MESH_DAH_HOP_LIMIT(hdr->dah) == MESH_HL_ESC);
+    escaped = ((hdr->dah & 0x0F) == MESH_HL_ESC);
 
     sam = sixlowpan_mesh_am_get(hdr->dah, 1);
     dam = sixlowpan_mesh_am_get(hdr->dah, 0);
@@ -2939,7 +2972,7 @@ static uint8_t sixlowpan_mesh_read_hdr_info(uint8_t *buf, struct pico_ieee_addr 
     } else {
         /* Set the addresses-pointer normally */
         addresses = (uint8_t *)(hdr->addresses);
-        hops_left = MESH_DAH_HOP_LIMIT(hdr->dah);
+        hops_left = (uint8_t)(hdr->dah & 0x0F);
     }
 
     *origin = pico_ieee_addr_from_flat(addresses, sam, IEEE_FALSE);
@@ -3345,8 +3378,6 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
         return 0;
 
-    PAN_DBG("Frame from picoTCP\r\n");
-
     if (!dev || !buf)
         return -1;
     IGNORE_PARAMETER(len);
@@ -3360,11 +3391,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
 
-    sixlowpan_prep_tx();
-
-    /* Always return len, the 6LoWPAN has always taken over the frame
-     * for retry */
-    return len;
+    return sixlowpan_prep_tx();
 }
 
 static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
