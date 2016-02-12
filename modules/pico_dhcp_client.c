@@ -548,17 +548,36 @@ static int recv_offer(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     return 0;
 }
 
+static void pico_dhcp_client_update_link(struct pico_dhcp_client_cookie *dhcpc)
+{
+    struct pico_ip4 any_address = {
+        0
+    };
+    struct pico_ip4 address = {
+        0
+    };
+    struct pico_ipv4_link *l;
+
+    dbg("DHCP client: update link\n");
+
+    pico_ipv4_link_del(dhcpc->dev, address);
+    l = pico_ipv4_link_by_dev(dhcpc->dev);
+    while(l) {
+        pico_ipv4_link_del(dhcpc->dev, l->address);
+        l = pico_ipv4_link_by_dev_next(dhcpc->dev, l);
+    }
+    pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
+
+    /* If router option is received, use it as default gateway */
+    if (dhcpc->gateway.addr != 0U) {
+        pico_ipv4_route_add(any_address, any_address, dhcpc->gateway, 1, NULL);
+    }
+}
+
 static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 {
     struct pico_dhcp_hdr *hdr = (struct pico_dhcp_hdr *)buf;
     struct pico_dhcp_opt *opt = DHCP_OPT(hdr, 0);
-    struct pico_ip4 address = {
-        0
-    };
-    struct pico_ip4 any_address = {
-        0
-    };
-
     struct pico_ipv4_link *l;
 
     pico_dhcp_client_recv_params(dhcpc, opt);
@@ -575,23 +594,16 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     pico_socket_close(dhcpc->s);
     dhcpc->s = NULL;
 
-    /* Delete all the links before adding the address */
-    pico_ipv4_link_del(dhcpc->dev, address);
+    /* Delete all the links before adding the new ip address
+     * in case the new address doesn't match the old one */
     l = pico_ipv4_link_by_dev(dhcpc->dev);
-    while(l) {
-        pico_ipv4_link_del(dhcpc->dev, l->address);
-        l = pico_ipv4_link_by_dev_next(dhcpc->dev, l);
+    if (dhcpc->address.addr != (l->address).addr) {
+        pico_dhcp_client_update_link(dhcpc);
     }
-    pico_ipv4_link_add(dhcpc->dev, dhcpc->address, dhcpc->netmask);
 
     dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
     dbg("DHCP client: rebinding time (T2) %u\n", (unsigned int)dhcpc->t2_time);
     dbg("DHCP client: lease time %u\n", (unsigned int)dhcpc->lease_time);
-
-    /* If router option is received, use it as default gateway */
-    if (dhcpc->gateway.addr != 0U) {
-        pico_ipv4_route_add(any_address, any_address, dhcpc->gateway, 1, NULL);
-    }
 
     dhcpc->retry = 0;
     dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
@@ -726,8 +738,7 @@ struct dhcp_action_entry {
 
 static struct dhcp_action_entry dhcp_fsm[] =
 { /* event                |offer      |ack      |nak    |T1    |T2     |lease  |retransmit */
-/* state init-reboot */
-    { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
+/* state init-reboot */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state rebooting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
 /* state init        */ { recv_offer, NULL,     NULL,   NULL,  NULL,   NULL,  retransmit },
 /* state selecting   */ { NULL,       NULL,     NULL,   NULL,  NULL,   NULL,  NULL       },
