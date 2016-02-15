@@ -1495,7 +1495,7 @@ static void sixlowpan_rtable_check(pico_time now, void *arg)
 
 uint8_t sixlowpan_get_neighbours(struct pico_device *dev, uint8_t *buf)
 {
-    struct pico_ieee_addr *addr = dev->eth;
+    struct pico_ieee_addr *addr = (struct pico_ieee_addr *)dev->eth;
     struct pico_tree_node *node = NULL;
     struct sixlowpan_rtable_entry *entry = NULL;
     uint8_t len = 0;
