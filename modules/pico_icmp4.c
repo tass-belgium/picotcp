@@ -225,7 +225,7 @@ static int cookie_compare(void *ka, void *kb)
     return (a->seq - b->seq);
 }
 
-PICO_TREE_DECLARE(Pings, cookie_compare);
+static PICO_TREE_DECLARE(Pings, cookie_compare);
 
 static int8_t pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 {

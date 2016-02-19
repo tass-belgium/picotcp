@@ -30,7 +30,7 @@ static int mock_dev_cmp(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(mock_device_tree, mock_dev_cmp);
+static PICO_TREE_DECLARE(mock_device_tree, mock_dev_cmp);
 
 static int pico_mock_send(struct pico_device *dev, void *buf, int len)
 {

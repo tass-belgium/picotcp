@@ -166,8 +166,8 @@ static int sockport_cmp(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(UDPTable, sockport_cmp);
-PICO_TREE_DECLARE(TCPTable, sockport_cmp);
+static PICO_TREE_DECLARE(UDPTable, sockport_cmp);
+static PICO_TREE_DECLARE(TCPTable, sockport_cmp);
 
 struct pico_sockport *pico_get_sockport(uint16_t proto, uint16_t port)
 {

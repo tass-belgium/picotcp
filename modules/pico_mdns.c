@@ -215,14 +215,14 @@ pico_mdns_cookie_cmp( void *ka, void *kb )
 
 #if PICO_MDNS_ALLOW_CACHING == 1
 /* Cache records from mDNS peers on the network */
-PICO_TREE_DECLARE(Cache, &pico_mdns_record_cmp);
+static PICO_TREE_DECLARE(Cache, &pico_mdns_record_cmp);
 #endif
 
 /* My records for which I want to have the authority */
-PICO_TREE_DECLARE(MyRecords, &pico_mdns_record_cmp_name_type);
+static PICO_TREE_DECLARE(MyRecords, &pico_mdns_record_cmp_name_type);
 
 /* Cookie-tree */
-PICO_TREE_DECLARE(Cookies, &pico_mdns_cookie_cmp);
+static PICO_TREE_DECLARE(Cookies, &pico_mdns_cookie_cmp);
 
 /* ****************************************************************************
  *  MARK: PROTOTYPES                                                          */
@@ -925,22 +925,24 @@ pico_mdns_record_create( const char *url,
     if (!url || !_rdata) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
-    }
+    } /* Block 1, 2 paths */
 
     /* Provide space for the new mDNS resource record */
     if (!(record = PICO_ZALLOC(sizeof(struct pico_mdns_record)))) {
         pico_err = PICO_ERR_ENOMEM;
         return NULL;
-    }
-
-    /* Try to create the actual DNS record */
-    if (!(record->record = pico_dns_record_create(url, _rdata, datalen,
-                                                  &len, rtype,
-                                                  PICO_DNS_CLASS_IN, rttl))) {
-        mdns_dbg("Could not create DNS record for mDNS!\n");
-        PICO_FREE(record);
-        return NULL;
-    }
+    } /* Block 2, 1 path */
+    else {
+        /* Try to create the actual DNS record */
+        if (!(record->record = pico_dns_record_create(url, _rdata, datalen,
+                                                    &len, rtype,
+                                                    PICO_DNS_CLASS_IN, rttl))) {
+            mdns_dbg("Could not create DNS record for mDNS!\n");
+            PICO_FREE(record);
+            return NULL;
+        } /* Block 3, 2 paths */
+    } /* Block 4, Block 3 = 2 paths */
+    /* Block 5, (Block 4 + Block 2) * Block 1 = 6 paths */
 
     /* Initialise fields */
     record->current_ttl = rttl;
@@ -949,7 +951,8 @@ pico_mdns_record_create( const char *url,
     if (!((flags) & PICO_MDNS_RECORD_SHARED)) {
         cl = record->record->rsuffix->rclass;
         record->record->rsuffix->rclass = PICO_MDNS_SET_MSB_BE(cl);
-    }
+    } /* Block 6, 2 paths */
+    /* Block 7, Block 6 * Block 5 * Block 1 = 12 paths */
 
     record->flags = flags;
     record->claim_id = 0;
@@ -1078,6 +1081,26 @@ pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
     return 0;
 }
 
+static int
+pico_mdns_cookie_del_questions( struct pico_mdns_cookie *cookie,
+                                char *rname )
+{
+    uint16_t qc = 0;
+
+    /* Step 1: Remove question with that name from cookie */
+    pico_dns_qtree_del_name(&(cookie->qtree), rname);
+    cookie->antree.root = &LEAF;
+
+    /* Check if there are no questions left, cancel events if so and delete */
+    if (!(qc = pico_tree_count(&(cookie->qtree)))) {
+        pico_timer_cancel(cookie->send_timer);
+        cookie = pico_tree_delete(&Cookies, cookie);
+        pico_mdns_cookie_delete(&cookie);
+    }
+
+    return 0;
+}
+
 /* ****************************************************************************
  *  Applies conflict resolution mechanism to a cookie, when a conflict occurs
  *  for a name which is present in the cookie.
@@ -1099,7 +1122,6 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     char *new_name = NULL;
     void (*callback)(pico_mdns_rtree *, char *, void *);
     void *arg = NULL;
-    uint16_t qc = 0;
     int retval;
 
     /* Check params */
@@ -1111,34 +1133,30 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     /* Convert rname to url */
     mdns_dbg("CONFLICT for probe query with name '%s' occurred!\n", rname);
 
+    /* Store some information about a cookie for later on */
+    antree = cookie->antree;
+    callback = cookie->callback;
+    arg = cookie->arg;
+
     /* DNS conflict is case-insensitive. However, we want to keep the original
      * capitalisation for the new probe. */
     pico_tree_foreach(node, &(cookie->qtree)) {
         question = (struct pico_dns_question *)node->keyValue;
-        if ((question) && (strcasecmp(question->qname, rname) == 0))
+        if ((question) && (strcasecmp(question->qname, rname) == 0)) {
             /* Create a new name depending on current name */
             new_name = pico_mdns_resolve_name_conflict(question->qname);
+
+            /* Step 1: Check if the new name succeeded, if not: error. */
+            if (!new_name) {
+                /* Delete questions from cookie even if generating a new name failed */
+                pico_mdns_cookie_del_questions(cookie, rname);
+                return -1;
+            }
+        }
     }
 
-    /* Step 1: Remove question with that name from cookie and store some
-     * useful information */
-    pico_dns_qtree_del_name(&(cookie->qtree), rname);
-    antree = cookie->antree;
-    callback = cookie->callback;
-    arg = cookie->arg;
-    cookie->antree.root = &LEAF;
-
-    /* Check if there are no questions left, cancel events if so and delete */
-    if (!(qc = pico_tree_count(&(cookie->qtree)))) {
-        pico_timer_cancel(cookie->send_timer);
-        cookie = pico_tree_delete(&Cookies, cookie);
-        pico_mdns_cookie_delete(&cookie);
-    }
-
-    /* Step 2: Check if the new name succeeded, if not: error. */
-    if (!(new_name)) {
-        return -1;
-    }
+    /* Step 2: Remove questions with this name from the cookie */
+    pico_mdns_cookie_del_questions(cookie, rname);
 
     /* Step 3: Create records with new name for the records with that name */
     new_records = pico_mdns_generate_new_records(&antree, rname, new_name);
@@ -1420,6 +1438,21 @@ pico_mdns_cache_update_ttl( struct pico_mdns_record *record,
     }
 }
 
+static int
+pico_mdns_cache_flush_name( char *name, struct pico_dns_record_suffix *suffix )
+{
+    /* Check if cache flush bit is set */
+    if (PICO_MDNS_IS_MSB_SET(short_be(suffix->rclass))) {
+        mdns_dbg("FLUSH - Cache flush bit was set, triggered flush.\n");
+        if (pico_mdns_rtree_del_name_type(&Cache, name, short_be(suffix->rtype))) {
+            mdns_dbg("Could not flush records from cache!\n");
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 /* ****************************************************************************
  *  Adds a mDNS record to the cache.
  *
@@ -1432,7 +1465,6 @@ pico_mdns_cache_add( struct pico_mdns_record *record )
 {
     struct pico_dns_record_suffix *suffix = NULL;
     char *name = NULL;
-    uint16_t type = 0;
     uint32_t rttl = 0;
 
     /* Check params */
@@ -1440,34 +1472,32 @@ pico_mdns_cache_add( struct pico_mdns_record *record )
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+    /* 2 paths */
 
     suffix = record->record->rsuffix;
     name = record->record->rname;
-    type = short_be(suffix->rtype);
     rttl = long_be(suffix->rttl);
 
-    /* Check if cache flush bit is set */
-    if (PICO_MDNS_IS_MSB_SET(short_be(suffix->rclass))) {
-        mdns_dbg("FLUSH - Cache flush bit was set, triggered flush.\n");
-        if (pico_mdns_rtree_del_name_type(&Cache, name, type)) {
-            mdns_dbg("Could not flush records from cache!\n");
-            return -1;
-        }
+    if (pico_mdns_cache_flush_name(name, suffix)) {
+        return -1;
     }
+    /* 4 paths */
 
     /* Check if the TTL is not 0*/
-    if (!rttl)
+    if (!rttl) {
         return -1;
+    } else {
+        /* Set current TTL to the original TTL before inserting */
+        record->current_ttl = rttl;
 
-    /* Set current TTL to the original TTL before inserting */
-    record->current_ttl = rttl;
+        if (pico_tree_insert(&Cache, record) != NULL)
+            return -1;
 
-    if (pico_tree_insert(&Cache, record) != NULL)
-        return -1;
+        mdns_dbg("RR cached. TICK TACK TICK TACK...\n");
 
-    mdns_dbg("RR cached. TICK TACK TICK TACK...\n");
-
-    return 0;
+        return 0;
+    }
+    /* 12 paths */
 }
 
 /* ****************************************************************************
@@ -2288,9 +2318,8 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
     pico_tree_foreach(node, artree) {
         if (node != &LEAF && (record = node->keyValue)) {
             type = short_be(record->record->rsuffix->rtype);
-            if (PICO_DNS_TYPE_NSEC == type) {
-                if (strcasecmp(record->record->rname, name) == 0)
-                    return 0;
+            if ((PICO_DNS_TYPE_NSEC == type) && 0 == strcasecmp(record->record->rname, name)) {
+                return 0;
             }
         }
     }

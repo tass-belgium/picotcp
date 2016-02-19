@@ -176,7 +176,7 @@ static int igmp_timer_cmp(void *ka, void *kb)
     return igmpt_link_compare(a, b);
 
 }
-PICO_TREE_DECLARE(IGMPTimers, igmp_timer_cmp);
+static PICO_TREE_DECLARE(IGMPTimers, igmp_timer_cmp);
 
 static inline int igmpparm_group_compare(struct mcast_parameters *a,  struct mcast_parameters *b)
 {
@@ -197,15 +197,15 @@ static int igmp_parameters_cmp(void *ka, void *kb)
 
     return igmpparm_link_compare(a, b);
 }
-PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
+static PICO_TREE_DECLARE(IGMPParameters, igmp_parameters_cmp);
 
 static int igmp_sources_cmp(void *ka, void *kb)
 {
     struct pico_ip4 *a = ka, *b = kb;
     return pico_ipv4_compare(a, b);
 }
-PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
-PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);
+static PICO_TREE_DECLARE(IGMPAllow, igmp_sources_cmp);
+static PICO_TREE_DECLARE(IGMPBlock, igmp_sources_cmp);
 
 static struct mcast_parameters *pico_igmp_find_parameter(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group)
 {
@@ -1057,7 +1057,7 @@ static int discard(struct mcast_parameters *p)
 }
 
 /* finite state machine table */
-const callback host_membership_diagram_table[3][6] =
+static const callback host_membership_diagram_table[3][6] =
 { /* event                    |Delete Group  |Create Group |Update Group |Query Received  |Report Received  |Timer Expired */
 /* state Non-Member      */
     { discard,       srsfst,       srsfst,       discard,         discard,          discard },

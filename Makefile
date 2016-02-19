@@ -20,6 +20,7 @@ RTOS?=0
 GENERIC?=0
 PTHREAD?=0
 ADDRESS_SANITIZER?=1
+GCOV?=0
 
 # Default compiled-in protocols
 #
@@ -63,13 +64,16 @@ IPV6?=1
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
-# extra flags recommended by TIOBE TICS framework to score an A on compiler warnings
-CFLAGS+= -Wconversion
-# request from Toon
-CFLAGS+= -Wcast-align
-CFLAGS+= -Wmissing-prototypes
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules  $(EXTRA_CFLAGS)
+# options for adding warnings
+CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
+CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes
+# options for supressing warnings
 CFLAGS+= -Wno-missing-field-initializers
+
+ifeq ($(CC),clang)
+CFLAGS+= -Wunreachable-code-break -Wpointer-bool-conversion -Wmissing-variable-declarations
+endif
 
 
 ifeq ($(DEBUG),1)
@@ -135,6 +139,11 @@ endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
   TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+endif
+
+ifeq ($(GCOV),1)
+  TEST_LDFLAGS+=-lgcov --coverage
+  CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(ARCH),faulty)

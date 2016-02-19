@@ -37,13 +37,13 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 };
 
 # define PICO_SIZE_MCAST 3
-const uint8_t PICO_ETHADDR_MCAST[6] = {
+static const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
 
 #ifdef PICO_SUPPORT_IPV6
 # define PICO_SIZE_MCAST6 2
-const uint8_t PICO_ETHADDR_MCAST6[6] = {
+static const uint8_t PICO_ETHADDR_MCAST6[6] = {
     0x33, 0x33, 0x00, 0x00, 0x00, 0x00
 };
 #endif
@@ -893,7 +893,6 @@ static void pico_check_timers(void)
             PICO_FREE(t);
         }
 
-        t = NULL;
         heap_peek(Timers, &tref_unused);
         tref = heap_first(Timers);
     }
@@ -908,8 +907,12 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
 
     for (i = 1; i <= Timers->n; i++) {
         if (tref[i].id == id) {
-            PICO_FREE(Timers->top[i].tmr);
-            Timers->top[i].tmr = NULL;
+            if (Timers->top[i].tmr)
+            {
+                PICO_FREE(Timers->top[i].tmr);
+                Timers->top[i].tmr = NULL;
+                tref[i].id = 0;
+            }
             break;
         }
     }

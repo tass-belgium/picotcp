@@ -43,7 +43,7 @@ static int mcast_sources_cmp(void *ka, void *kb)
 
     return 0;
 }
-PICO_TREE_DECLARE(_MCASTFilter, mcast_filter_cmp);
+static PICO_TREE_DECLARE(_MCASTFilter, mcast_filter_cmp);
 START_TEST(tc_pico_igmp_report_expired)
 {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
@@ -89,14 +89,14 @@ START_TEST(tc_pico_igmp_timer_expired)
     pico_igmp_timer_expired(NULL, (void *)t);
     pico_tree_insert(&IGMPTimers, t);
     s = PICO_ZALLOC(sizeof(struct igmp_timer));
-    memcpy(s, t, sizeof(struct igmp_timer)); /* t will be freed next test */
+    memcpy(s,t,sizeof(struct igmp_timer)); // t will be freed next test
     pico_igmp_timer_expired(NULL, (void *)t); /* t is freed here */
     s->stopped++;
-    s->start = PICO_TIME_MS() * 2;
+    s->start = PICO_TIME_MS()*2;
     s->type++;
     pico_tree_insert(&IGMPTimers, s);
     t = PICO_ZALLOC(sizeof(struct igmp_timer));
-    memcpy(t, s, sizeof(struct igmp_timer)); /* s will be freed next test */
+    memcpy(t,s,sizeof(struct igmp_timer)); // s will be freed next test
     pico_igmp_timer_expired(NULL, (void *)s); /* s is freed here */
     t->callback = mock_callback;
     pico_igmp_timer_expired(NULL, (void *)t);
