@@ -235,6 +235,11 @@ struct sixlowpan_frame
     struct pico_device *dev;
 
     /**
+     *  Original pico_frame the frame is translated from
+     */
+    struct pico_frame *original;
+
+    /**
      *  Link layer address of the nearest hop, either the
      *  next hop address when sending or the last hop
      *  address when receiving.
@@ -485,7 +490,9 @@ static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode);
 static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops);
 static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f);
+static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len);
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
+static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len);
 static int sixlowpan_retransmit(struct sixlowpan_frame *f);
 static int sixlowpan_prep_tx(void);
 
@@ -683,21 +690,22 @@ static void *buf_insert(void *buf, uint16_t len, struct range r)
     void *new = NULL;
 
     /* OOB Check */
-    if (r.offset > len)
+    if (!buf || (r.offset > len)) {
         return buf;
-
-    /* OOM Check */
-    if (!(new = PICO_ZALLOC((size_t)(len + r.length))))
-        return buf;
-
-    /* Assemble buffer again */
-    if (buf && new) {
-        buf_move(new, buf, (size_t)r.offset);
-        buf_move(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
-        memset(new + r.offset, 0x00, r.length);
-        PICO_FREE(buf); /* Give back previous buffer to the system */
+    } else {
+        /* OOM Check */
+        if (!(new = PICO_ZALLOC((size_t)(len + r.length)))) {
+            return buf;
+        } else {
+            /* Assemble buffer again */
+            buf_move(new, buf, (size_t)r.offset);
+            buf_move(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
+            memset(new + r.offset, 0x00, r.length);
+            PICO_FREE(buf); /* Give back previous buffer to the system */
+        }
     }
 
+    /* Static path count: 3 */
     return new;
 }
 
@@ -1093,18 +1101,6 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
     return f;
 }
 
-static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
-{
-    uint8_t *buf = NULL;
-    if (!(buf = PICO_ZALLOC(f->size))) {
-        f->state = FRAME_ERROR;
-        return NULL;
-    }
-    memcpy(buf, f->phy_hdr, f->size);
-    *len = (uint8_t)f->size;
-    return buf;
-}
-
 static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len, struct pico_device *dev)
 {
     struct pico_ieee_addr peer = IEEE_ADDR_ZERO, local = IEEE_ADDR_ZERO;
@@ -1290,7 +1286,6 @@ void rtable_print(void)
 
     dbg("~~~ END OF ROUTING TABLE\r\n");
 }
-
 
 static struct sixlowpan_rtable_entry *sixlowpan_rtable_find_entry(struct pico_ieee_addr dst)
 {
@@ -2559,29 +2554,86 @@ static void sixlowpan_decompress(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: FRAGMENTATION
+struct frag_status {
+    struct pico_frame const *f; /* Only to keep track of frame */
+    uint16_t dgram_size; /* Full size of IPv6-datagram */
+    uint16_t dgram_tag; /* Datagram tag */
+    uint8_t max_len; /* Maximum frag size */
+    uint16_t offset; /* Current offset in the IPv6-datagram */
+};
+
+static int frag_status_cmp(void *a, void *b) {
+    struct frag_status *frag_a = (struct frag_status *)a;
+    struct frag_status *frag_b = (struct frag_status *)b;
+
+    return (int)(frag_a->f - frag_b->f);
+}
+PICO_TREE_DECLARE(FragStatusCookies, frag_status_cmp);
+
+static int frag_status_insert(struct pico_frame *f, uint16_t dgram_size, uint16_t dgram_tag, uint8_t max_len)
+{
+    struct frag_status *new = NULL;
+
+    if (!f) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    } else {
+        if (!(new = PICO_ZALLOC(sizeof(struct frag_status)))) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+
+        /* Set the params */
+        new->f = f;
+        new->offset = 0;
+        new->dgram_size = dgram_size;
+        new->dgram_tag = dgram_tag;
+        new->max_len = max_len;
+
+        if (pico_tree_insert(&FragStatusCookies, new)) {
+            PICO_FREE(new);
+        }
+    }
+    return 0;
+}
+
+static struct frag_status *frag_status_find(struct sixlowpan_frame *f)
+{
+    struct frag_status dummy = {.f = f->original, .dgram_size = 0, .dgram_tag = 0, .offset = 0 };
+    return pico_tree_findKey(&FragStatusCookies, &dummy);
+}
+
 static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
 {
-    uint8_t max_psize = 0, comp = 0;
-    uint16_t decompressed = 0, diff = 0;
+    uint8_t max_psize = 0, compressed = 0;
+    uint16_t decompressed = 0, offsets = 0;
     if (!f)
         return;
 
     /* Determine how many bytes need to be transmitted to send the entire IPv6-payload */
-    f->net_len = (uint16_t)(f->net_len + f->transport_len);
-    f->transport_len = f->net_len;
+    f->net_len = (uint16_t)(f->net_len + f->transport_len); /* Keep track of the sent bytes */
+    f->transport_len = f->net_len; /* Keep the original size of the frame in 'transport_len' */
 
     /* Determine how many bytes fits inside a single IEEE802.15.4-frame including 802.15.4-header and frag-header */
-    max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len);
-    max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn));
-    max_psize = (uint8_t)(max_psize - sixlowpan_mesh_overhead(f));
+    max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len); // Subtract amount of bytes needed for the PHY header
+    max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn)); // Subtract amount needed for for FRAG-header
+    max_psize = (uint8_t)(max_psize - sixlowpan_mesh_overhead(f)); // Subtract amount needed for MESH-header
 
-    comp = (uint8_t)(f->dgram_size - f->net_len);
-    decompressed = (uint16_t)(max_psize + comp);
-    diff = (uint16_t)((decompressed / 8) * 8);
-    f->max_bytes = (uint8_t)(diff - comp);
+    compressed = (uint8_t)(f->dgram_size - f->net_len); // Original IPv6-size - compressed frame-size = compressed bytes
+    decompressed = (uint16_t)(max_psize + compressed); // How big a single frame would be after decompression
 
-    /* Determine how many multiples of eight bytes fit inside that same amount of bytes determined a line above */
+    /*  We need to work with offsets of the original IPv6-frame, not with offsets
+     *  in the compressed frame. So the multiples of eight need to be calculated with the
+     *  the decompressed size in mind. */
+    offsets = (uint16_t)((decompressed / 8) * 8);
+
+    /* But the actual frame itself does need to fit inside a 6LoWPAN frame, so subtract
+     * compressed again from the offset size so it fits */
+    f->max_bytes = (uint8_t)(offsets - compressed); // Determine the maximum amount of bytes in a single 6LoWPAN-frame
     f->state = FRAME_FRAGMENTED;
+
+    /* Keep a fragmentation status cookie */
+    frag_status_insert(f->original, f->dgram_size, dtag++, (uint8_t)(offsets - compressed));
 }
 
 static int sixlowpan_fill_fragn(struct sixlowpan_fragn *hdr, struct sixlowpan_frame *f)
@@ -2611,59 +2663,180 @@ static int sixlowpan_fill_frag1(struct sixlowpan_frag1 *hdr, struct sixlowpan_fr
     return 0;
 }
 
-static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
+static uint8_t sixlowpan_frag_size(struct sixlowpan_frame *f)
 {
-    struct range r = {.offset = 0, .length = 0};
-    uint8_t frag_len = 0, dsize = 0, slp_offset;
+    uint8_t dsize = 0, frag_len = 0;
+    struct frag_status *found = NULL;
+
+    if ((found = frag_status_find(f))) {
+        if (!found->offset) {
+            /* First fragment isn't sent yet  */
+            dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
+            frag_len = (uint8_t)(found->max_len + dsize);
+        } else if (f->net_len - found->offset < found->max_len) {
+            /* Last fragment, the rest */
+            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
+            frag_len = (uint8_t)((uint8_t)(f->net_len - found->offset) + dsize);
+        } else {
+            /* Subsequent fragment */
+            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
+            frag_len = (uint8_t)(((found->max_len / 8) * 8) + dsize);
+        }
+    }
+
+    frag_len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
+
+    /* Static path count: 4 */
+    return frag_len;
+}
+
+static int sixlowpan_frag_fill_buf(uint8_t *buf, struct sixlowpan_frame *f, uint8_t len, struct frag_status *stat)
+{
+    uint8_t frag_len = 0, dsize = 0, slp_offset = 0, compressed = 0;
+    uint16_t copy_offset = 0;
+
+    if (!buf || !f || !len || 0 == f->net_len) {
+        return -1;
+    } else {
+        /* Determine length of buffer */
+        slp_offset = (uint8_t)(f->link_hdr_len + IEEE_LEN_LEN);
+
+        /* Fill in the fragmentation header */
+        if (!stat->offset) {
+            sixlowpan_fill_frag1((struct sixlowpan_frag1 *)(buf + slp_offset), f);
+            dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
+        } else {
+            sixlowpan_fill_fragn((struct sixlowpan_fragn *)(buf + slp_offset), f);
+            copy_offset = (uint16_t)(((struct sixlowpan_fragn *)(buf + slp_offset))->offset - compressed);
+            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
+            f->link_hdr->seq = slp_seq++;
+        }
+
+        memcpy((uint8_t *)(buf + IEEE_LEN_LEN), f->link_hdr, (size_t)(f->link_hdr_len));
+        memcpy((uint8_t *)(buf + slp_offset + dsize), (uint8_t *)(f->net_hdr + copy_offset), (size_t)(frag_len - dsize));
+
+        /* Update the offset, delete status-cookie if last frame */
+        stat->offset = (uint16_t)(stat->offset + stat->max_len);
+        if (stat->offset >= stat->dgram_size) {
+            f->state = FRAME_SENT;
+            stat = pico_tree_delete(&FragStatusCookies, stat);
+            if (stat)
+                PICO_FREE(stat);
+        }
+    }
+
+    /* Static path count: 7 */
+    return 0;
+}
+
+static uint8_t *sixlowpan_buf_alloc(struct sixlowpan_frame *f, uint8_t *size)
+{
+    if (FRAME_COMPRESSED == f->state) {
+        /* Provide space for a fragment frame */
+        *size = sixlowpan_frag_size(f);
+    } else if (FRAME_FITS == f->state || FRAME_FITS_COMPRESSED == f->state) {
+        /* provide space for a plain frame */
+        *size = (uint8_t)f->size;
+    } else {
+        PAN_ERR("Unkown frame state (%d).\r\n", f->state);
+        return NULL;
+    }
+
+    /* Static path count: 3 */
+    return PICO_ZALLOC(*size); /* Check for NULL in callee */
+}
+
+static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
+{
     uint8_t *buf = NULL;
 
-    if (!f || !len)
+    if (!(buf = sixlowpan_buf_alloc(f, len))) {
+        f->state = FRAME_ERROR;
         return NULL;
-
-    if (0 == f->net_len)
-        return NULL;
-
-    if (f->transport_len == f->net_len) {
-        /* First fragments isn't sent yet  */
-        dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
-        frag_len = (uint8_t)(f->max_bytes + dsize);
-    } else if (f->net_len < f->max_bytes) {
-        /* Last fragment, the rest */
-        dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-        frag_len = (uint8_t)(f->net_len + dsize);
     } else {
-        /* Subsequent fragment */
-        dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-        frag_len = (uint8_t)(((f->max_bytes / 8) * 8) + dsize);
+        memcpy(buf, f->phy_hdr, f->size);
     }
 
-    /* Determine length of buffer */
-    *len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
-    if (!(buf = PICO_ZALLOC((size_t)*len))) {
-        pico_err = PICO_ERR_ENOMEM;
-        return NULL;
-    }
-    slp_offset = (uint8_t)(f->link_hdr_len + IEEE_LEN_LEN);
-
-    /* Fill in the fragmentation header */
-    if (f->transport_len == f->net_len) {
-        sixlowpan_fill_frag1((struct sixlowpan_frag1 *)(buf + slp_offset), f);
-    } else {
-        sixlowpan_fill_fragn((struct sixlowpan_fragn *)(buf + slp_offset), f);
-    }
-
-    memcpy((uint8_t *)(buf + IEEE_LEN_LEN), f->link_hdr, (size_t)(f->link_hdr_len));
-    memcpy((uint8_t *)(buf + slp_offset + dsize), f->net_hdr, (size_t)(frag_len - dsize));
-
-    /* Remove the fragment from the frame */
-    r.length = (uint16_t)(frag_len - dsize);
-    frame_buf_delete(f, PICO_LAYER_NETWORK, r, 0);
-
-    if (f->transport_len != f->net_len)
-        buf[3] = slp_seq++;
-
+    /* Static path count: 2 */
     return buf;
 }
+
+static uint8_t *sixlowpan_frag_to_buf(struct sixlowpan_frame *f, uint8_t *len)
+{
+    struct frag_status *found = NULL;
+    uint8_t *buf = NULL;
+
+    if (!(buf = sixlowpan_buf_alloc(f, len))) {
+        f->state = FRAME_ERROR;
+        return NULL;
+    } else {
+        if ((found = frag_status_find(f))) {
+            if (sixlowpan_frag_fill_buf(buf, f, *len, found)) {
+                PICO_FREE(buf);
+                return NULL;
+            }
+        }
+    }
+
+    /* Static path count: 4 */
+    return buf;
+}
+
+static uint8_t *sixlowpan_buf_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f)
+{
+    if (!(buf = sixlowpan_mesh_out(buf, len, f))) {
+        PAN_ERR("During mesh addressing\r\n");
+        return NULL;
+    }
+
+    if (!(buf = sixlowpan_broadcast_out(buf, len))) {
+        PAN_ERR("During broadcast out\r\n");
+        return NULL;
+    }
+
+    /* Static path count: 4 */
+    return buf;
+}
+
+static int sixlowpan_frame_transmit(struct sixlowpan_frame *f)
+{
+    struct pico_device_sixlowpan *slp = NULL;
+    uint8_t *buf = NULL;
+    uint8_t len = 0;
+    int ret = 0;
+
+    if (f) {
+        if (FRAME_COMPRESSED == f->state) {
+            buf = sixlowpan_frag_to_buf(f, &len);
+        } else if (FRAME_FITS == f->state || FRAME_FITS_COMPRESSED == f->state) {
+            /* Nothing to do, frame is ready for transmitting */
+            buf = sixlowpan_frame_to_buf(f, &len);
+        }
+
+        if (!(buf = sixlowpan_buf_out(buf, &len, f))) {
+            return -1;
+        } else {
+            slp = (struct pico_device_sixlowpan *)f->dev;
+            ret = slp->radio->transmit(slp->radio, buf, len);
+
+            /* Buffer is always freed */
+            PICO_FREE(buf);
+
+            /* If the frame is fragmented don't let pico discard the frame just yet. */
+            if (FRAME_FRAGMENTED == f->state)
+                return 0;
+            else if (FRAME_SENT == f->state)
+                return f->dgram_size;
+        }
+    } else {
+        return -1;
+    }
+
+    /* Static path count: 13 TODO: Refactor */
+    return ret;
+}
+
+
 
 // MARK: DEFRAGMENTATION
 static int sixlowpan_frag_cmp(void *a, void *b)
@@ -2839,7 +3012,6 @@ static struct sixlowpan_frame *sixlowpan_defrag(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: BROADCASTING
-
 static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq);
 
 static int sixlowpan_retransmit(struct sixlowpan_frame *f)
@@ -3205,6 +3377,7 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
         ((struct ieee_hdr *)(new + IEEE_LEN_LEN))->fcf.dam = IEEE_AM_SHORT;
     }
 
+    /* Static path count: 8 */
     return new;
 }
 
@@ -3233,33 +3406,36 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     struct pico_ieee_addr origin = IEEE_ADDR_ZERO;
     struct pico_ieee_addr final = IEEE_ADDR_ZERO;
 
-    if (!f)
+    if (!f || !f->net_len)
         return NULL;
 
-    if (!f->net_len) {
-        /* Fixed forwarding of frames (frames are unformatted then) */
-        f->net_len = 40;
-        f->transport_len = (uint16_t)(f->len - 40);
-        f->transport_hdr = f->net_hdr + f->net_len;
-    }
+    /* Fixed forwarding of frames (frames are unformatted then) */
+    f->net_len = 40;
+    f->transport_len = (uint16_t)(f->len - 40);
+    f->transport_hdr = f->net_hdr + f->net_len;
 
-     /* Determine link layer origin and final addresses */
+    /* Determine link layer origin and final addresses */
     if (sixlowpan_derive_origin(f, &origin)) {
         PAN_ERR("Failed deriving origin from IPv6 source address\r\n");
         return NULL;
-    }
-
-    if (sixlowpan_determine_final_dst(f, &final) < 0) {
-        pico_err = PICO_ERR_EHOSTUNREACH;
-        pico_ipv6_nd_postpone(f);
-        return NULL;
-    }
-
-    /* Try to provide a 6LoWPAN-frame instance */
-    frame = sixlowpan_frame_create(origin, final, f->net_len, (uint16_t)(f->len - f->net_len), SIXLOWPAN_DEFAULT_TTL, f->dev);
-    if (!frame) {
-        PAN_ERR("Failed creating 6LoWPAN-frame\r\n");
-        return NULL;
+    } else {
+        if (sixlowpan_determine_final_dst(f, &final) < 0) {
+            pico_err = PICO_ERR_EHOSTUNREACH;
+            pico_ipv6_nd_postpone(f);
+            return NULL;
+        } else {
+            /* Try to provide a 6LoWPAN-frame instance */
+            frame = sixlowpan_frame_create(origin,
+                                           final,
+                                           f->net_len,
+                                           (uint16_t)(f->len - f->net_len),
+                                           SIXLOWPAN_DEFAULT_TTL,
+                                           f->dev);
+            if (!frame) {
+                PAN_ERR("Failed creating 6LoWPAN-frame\r\n");
+                return NULL;
+            }
+        }
     }
 
     /* Next Hop determination */
@@ -3269,75 +3445,14 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     memcpy(frame->net_hdr, f->net_hdr, f->net_len);
     memcpy(frame->transport_hdr, f->transport_hdr, f->transport_len);
 
+    /* Keep track of the original frame the 6LoWPAN-frame is translated from */
+    frame->original = f;
+
     return frame;
 }
 
 /* -------------------------------------------------------------------------------- */
 // MARK: PICO_DEV
-static int sixlowpan_send_exit(int ret)
-{
-    sixlowpan_state = SIXLOWPAN_READY;
-    sixlowpan_frame_destroy(tx);
-    tx = NULL;
-    return ret;
-}
-
-static int sixlowpan_send_tx(void)
-{
-    struct pico_device_sixlowpan *slp = NULL;
-    uint8_t *buf = NULL;
-    uint8_t len = 0;
-    int ret = 0;
-
-    if (SIXLOWPAN_TRANSMITTING != sixlowpan_state)
-        return 0;
-
-    if (!tx)
-        return -1;
-
-    /* Check whether the fragment is fragmented */
-    if (FRAME_FRAGMENTED == tx->state)
-        buf = sixlowpan_frame_tx_next(tx, &len); /* Next fragment of current frame */
-    else
-        buf = sixlowpan_frame_to_buf(tx, &len); /* Current frame as a whole */
-
-    if (buf) {
-        if (!(buf = sixlowpan_mesh_out(buf, &len, tx))) {
-            PAN_ERR("During mesh addressing\r\n");
-            return sixlowpan_send_exit(-1);
-        }
-
-        if (!(buf = sixlowpan_broadcast_out(buf, &len))) {
-            PAN_ERR("During broadcast out\r\n");
-            return sixlowpan_send_exit(-1);
-        }
-
-        slp = (struct pico_device_sixlowpan *)tx->dev;
-        ret = slp->radio->transmit(slp->radio, buf, len);
-        if (!ret)
-            tx_enqueue(buf, len);
-
-		/* Buffer is always freed, either transmission worked, or
-		 * buf is queued for retry */
-        PICO_FREE(buf);
-
-		/* If the frame is fragmented don't clear the TX-buffer just yet. */
-        if (FRAME_FRAGMENTED == tx->state)
-            return ret;
-    } else {
-        /* Entire frame is either sent or something went wrong, we don't care, in
-         * either case, tx can be discarded */
-    }
-
-    return sixlowpan_send_exit(ret);
-}
-
-static int sixlowpan_schedule(void)
-{
-    sixlowpan_state = SIXLOWPAN_TRANSMITTING;
-    return sixlowpan_send_tx();
-}
-
 static int sixlowpan_prep_tx_exit(int ret)
 {
     sixlowpan_state = SIXLOWPAN_READY;
@@ -3351,6 +3466,7 @@ static int sixlowpan_prep_tx(void)
     /* Try to compress the 6LoWPAN-frame */
     if (!tx)
         return -1;
+
     sixlowpan_compress(tx);
     if (FRAME_COMPRESSED == tx->state) {
         /* Try to fragment the entire compressed frame */
@@ -3367,7 +3483,8 @@ static int sixlowpan_prep_tx(void)
         return sixlowpan_prep_tx_exit(-1);
     }
 
-    return sixlowpan_schedule();
+    sixlowpan_state = SIXLOWPAN_TRANSMITTING;
+    return sixlowpan_frame_transmit(tx);
 }
 
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
@@ -3382,7 +3499,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     IGNORE_PARAMETER(len);
 
-    /* Translate the pico_frame */
+    /* Translate the pico_frame (to 6LoWPAN-addresses) :*/
     sixlowpan_state = SIXLOWPAN_PREPARING;
     if (!(tx = sixlowpan_frame_translate(f))) {
         PAN_ERR("Failed translating pico_frame\r\n");
@@ -3391,7 +3508,16 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
 
+    /* Check if sending succeeded */
+//  if (!sixlowpan_prep_tx())  {
+        /* If not, destroy sixlowpan-frame */
+//      sixlowpan_frame_destroy(tx);
+//      tx = NULL;
+//      return -1;
+//  }
+
     return sixlowpan_prep_tx();
+//    return len;
 }
 
 static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
@@ -3462,9 +3588,6 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
         } else
             break;
     } while (loop_score > 0);
-
-    /* Can I do something else? */
-    sixlowpan_send_tx(); /* Yes you can, send current frame */
 
     /* Check if there are any frames to retry */
     tx_retry(radio);
