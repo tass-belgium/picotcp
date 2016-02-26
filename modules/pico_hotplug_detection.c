@@ -55,6 +55,22 @@ static void initial_callbacks(struct pico_hotplug_device *hpdev, int event)
     }
 }
 
+static void execute_callbacks(struct pico_hotplug_device *hpdev, int new_state, int event)
+{
+    struct pico_tree_node *cb_node = NULL, *cb_safe = NULL;
+    void (*cb)(struct pico_device *dev, int event);
+    if (new_state != hpdev->prev_state)
+    {
+        /* we don't know if one of the callbacks might deregister, so be safe */
+        pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
+        {
+            cb = cb_node->keyValue;
+            cb(hpdev->dev, event);
+        }
+        hpdev->prev_state = new_state;
+    }
+}
+
 static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void*v)
 {
     struct pico_tree_node *node = NULL, *safe = NULL, *cb_node = NULL, *cb_safe = NULL;
@@ -75,16 +91,7 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
         }
 
         initial_callbacks(hpdev, event);
-        if (new_state != hpdev->prev_state)
-        {
-            /* we don't know if one of the callbacks might deregister, so be safe */
-            pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
-            {
-                cb = cb_node->keyValue;
-                cb(hpdev->dev, event);
-            }
-            hpdev->prev_state = new_state;
-        }
+        execute_callbacks(hpdev, new_state, event);
     }
 
     timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
