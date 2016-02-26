@@ -73,10 +73,9 @@ static void execute_callbacks(struct pico_hotplug_device *hpdev, int new_state, 
 
 static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void*v)
 {
-    struct pico_tree_node *node = NULL, *safe = NULL, *cb_node = NULL, *cb_safe = NULL;
+    struct pico_tree_node *node = NULL, *safe = NULL;
     int new_state, event;
     struct pico_hotplug_device *hpdev = NULL;
-    void (*cb)(struct pico_device *dev, int event);
 
     /* we don't know if one of the callbacks might deregister, so be safe */
     pico_tree_foreach_safe(node, &Hotplug_device_tree, safe)
