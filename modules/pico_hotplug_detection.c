@@ -83,6 +83,22 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
     timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
 }
 
+static void ensure_hotplug_timer(void)
+{
+    if (timer_id == 0)
+    {
+        timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
+    }
+}
+
+static void disable_hotplug_timer(void)
+{
+    if (timer_id != 0)
+    {
+        pico_timer_cancel(timer_id);
+        timer_id = 0;
+    }
+}
 
 int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event))
 {
@@ -120,10 +136,7 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
     pico_tree_insert(&(hotplug_dev->callbacks), cb);
     pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
 
-    if (timer_id == 0)
-    {
-        timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
-    }
+    ensure_hotplug_timer();
 
     return 0;
 }
@@ -148,10 +161,9 @@ int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_devi
         PICO_FREE(hotplug_dev);
     }
 
-    if (pico_tree_empty(&Hotplug_device_tree) && timer_id != 0)
+    if (pico_tree_empty(&Hotplug_device_tree))
     {
-        pico_timer_cancel(timer_id);
-        timer_id = 0;
+        disable_hotplug_timer();
     }
 
     return 0;
