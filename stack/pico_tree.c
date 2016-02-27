@@ -142,19 +142,14 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
     if(LocalKey) {
         return LocalKey;
     }
-    else
-    {
-        if(allocator == USE_PICO_PAGE0_ZALLOC)
-            insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
-        else
-            insert = create_node(tree, key, USE_PICO_ZALLOC);
 
-        if(!insert)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            /* to let the user know that it couldn't insert */
-            return (void *)&LEAF;
-        }
+    insert = create_node(tree, key, allocator);
+
+    if(!insert)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        /* to let the user know that it couldn't insert */
+        return (void *)&LEAF;
     }
 
     /* search for the place to insert the new node */
@@ -444,7 +439,7 @@ static void fix_insert_collisions(struct pico_tree*tree, struct pico_tree_node*n
                 node = GRANPA(node);
             }
             else if(temp->color == BLACK) {
-                if(node == node->parent->leftChild) {
+                if(AM_I_LEFT_CHILD(node)) {
                     node = node->parent;
                     rotateToRight(tree, node);
                 }
