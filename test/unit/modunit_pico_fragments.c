@@ -96,7 +96,7 @@ START_TEST(tc_pico_ipv4_frag_compare)
 }
 END_TEST
 
-START_TEST(tc_pico_ipv6_fragments_reassemble)
+START_TEST(tc_pico_ipv6_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
@@ -124,17 +124,17 @@ START_TEST(tc_pico_ipv6_fragments_reassemble)
     pico_tree_insert(&ipv6_fragments, b);
 
     pico_set_mm_failure(1);
-    pico_fragments_reassemble(64, TESTPROTO, PICO_PROTO_IPV6);
+    pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV6);
     fail_if(transport_recv_called != 0);
     fail_if(timer_cancel_called != 0);
 
-    pico_fragments_reassemble(64, TESTPROTO, PICO_PROTO_IPV6);
+    pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV6);
     fail_if(transport_recv_called != 1);
     fail_if(timer_cancel_called != 1);
 }
 END_TEST
 
-START_TEST(tc_pico_ipv4_fragments_reassemble)
+START_TEST(tc_pico_ipv4_fragments_complete)
 {
     struct pico_frame *a, *b;
     transport_recv_called = 0;
@@ -162,17 +162,17 @@ START_TEST(tc_pico_ipv4_fragments_reassemble)
     pico_tree_insert(&ipv4_fragments, b);
 
     pico_set_mm_failure(1);
-    pico_fragments_reassemble(64, TESTPROTO, PICO_PROTO_IPV4);
+    pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV4);
     fail_if(transport_recv_called != 0);
     fail_if(timer_cancel_called != 0);
 
-    pico_fragments_reassemble(64, TESTPROTO, PICO_PROTO_IPV4);
+    pico_fragments_complete(64, TESTPROTO, PICO_PROTO_IPV4);
     fail_if(transport_recv_called != 1);
     fail_if(timer_cancel_called != 1);
 }
 END_TEST
 
-START_TEST(tc_pico_fragments_reassemble)
+START_TEST(tc_pico_fragments_complete)
 {
     /* Done in the two tests above */
 }
@@ -523,9 +523,9 @@ Suite *pico_suite(void)
 
     TCase *TCase_pico_ipv6_frag_compare = tcase_create("Unit test for pico_ipv6_frag_compare");
     TCase *TCase_pico_ipv4_frag_compare = tcase_create("Unit test for pico_ipv4_frag_compare");
-    TCase *TCase_pico_ipv6_fragments_reassemble = tcase_create("Unit test for pico_ipv6_fragments_reassemble");
-    TCase *TCase_pico_ipv4_fragments_reassemble = tcase_create("Unit test for pico_ipv4_fragments_reassemble");
-    TCase *TCase_pico_fragments_reassemble = tcase_create("Unit test for pico_fragments_reassemble");
+    TCase *TCase_pico_ipv6_fragments_complete = tcase_create("Unit test for pico_ipv6_fragments_complete");
+    TCase *TCase_pico_ipv4_fragments_complete = tcase_create("Unit test for pico_ipv4_fragments_complete");
+    TCase *TCase_pico_fragments_complete = tcase_create("Unit test for pico_fragments_complete");
     TCase *TCase_pico_fragments_check_complete = tcase_create("Unit test for pico_fragments_check_complete");
     TCase *TCase_pico_frag_expire = tcase_create("Unit test for pico_frag_expire");
     TCase *TCase_pico_ipv6_frag_timer_on = tcase_create("Unit test for pico_ipv6_frag_timer_on");
@@ -538,12 +538,12 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_frag_compare);
     tcase_add_test(TCase_pico_ipv4_frag_compare, tc_pico_ipv4_frag_compare);
     suite_add_tcase(s, TCase_pico_ipv4_frag_compare);
-    tcase_add_test(TCase_pico_ipv6_fragments_reassemble, tc_pico_ipv6_fragments_reassemble);
-    suite_add_tcase(s, TCase_pico_ipv6_fragments_reassemble);
-    tcase_add_test(TCase_pico_ipv4_fragments_reassemble, tc_pico_ipv4_fragments_reassemble);
-    suite_add_tcase(s, TCase_pico_ipv4_fragments_reassemble);
-    tcase_add_test(TCase_pico_fragments_reassemble, tc_pico_fragments_reassemble);
-    suite_add_tcase(s, TCase_pico_fragments_reassemble);
+    tcase_add_test(TCase_pico_ipv6_fragments_complete, tc_pico_ipv6_fragments_complete);
+    suite_add_tcase(s, TCase_pico_ipv6_fragments_complete);
+    tcase_add_test(TCase_pico_ipv4_fragments_complete, tc_pico_ipv4_fragments_complete);
+    suite_add_tcase(s, TCase_pico_ipv4_fragments_complete);
+    tcase_add_test(TCase_pico_fragments_complete, tc_pico_fragments_complete);
+    suite_add_tcase(s, TCase_pico_fragments_complete);
     tcase_add_test(TCase_pico_fragments_check_complete, tc_pico_fragments_check_complete);
     suite_add_tcase(s, TCase_pico_fragments_check_complete);
     tcase_add_test(TCase_pico_frag_expire, tc_pico_frag_expire);
