@@ -82,7 +82,7 @@ static void pico_ipv6_frag_timer_on(void)
 
 static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 {
-    struct pico_ipv6_hdr *ha, *hb;
+    struct pico_ipv6_hdr *ha = NULL, *hb = NULL;
     if (!a || !b)
         return 0;
 
@@ -185,7 +185,7 @@ static void pico_frag_expire(pico_time now, void *arg)
     struct pico_tree *tree = (struct pico_tree *) arg;
     struct pico_frame *first = NULL;
     uint8_t net = 0;
-    (void)now;
+    IGNORE_PARAMETER(now);
 
     if (!tree)
     {
@@ -196,7 +196,7 @@ static void pico_frag_expire(pico_time now, void *arg)
     first = pico_tree_first(tree);
 
     if (!first) {
-        frag_dbg("not first - not sending notify\n");
+        frag_dbg("Empty tree - not sending notify\n");
         return;
     }
 
@@ -215,25 +215,18 @@ static void pico_frag_expire(pico_time now, void *arg)
     }
 #endif
 
-    /* Empty the tree */
-    pico_tree_foreach_safe(index, tree, tmp) {
-        f = index->keyValue;
-        pico_tree_delete(tree, f);
-        if (f != first)
-            pico_frame_discard(f); /* Later, after ICMP notification...*/
-
-    }
-
     if (((FRAG_OFF(net, first->frag) == 0) && (pico_frame_dst_is_unicast(first))))
     {
         frag_dbg("sending notify\n");
         pico_notify_frag_expired(first);
     }
 
-    if (f)
+    /* Empty the tree */
+    pico_tree_foreach_safe(index, tree, tmp) {
+        f = index->keyValue;
         pico_tree_delete(tree, f);
-
-    pico_frame_discard(first);
+	pico_frame_discard(f);
+    }
 }
 
 static void pico_fragments_reassemble(unsigned int len, uint8_t proto, uint8_t net)
@@ -345,14 +338,16 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
     }
 
     f->frag = short_be(hdr->frag);
+
     if (!first) {
         if (ipv4_cur_frag_id && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id)) {
-            /* Discard late arrivals, without firing the timer */
-            return;
+	    /* Discard late arrivals, without firing the timer */
+	    return;
         }
 
         pico_ipv4_frag_timer_on();
         ipv4_cur_frag_id = IP4_FRAG_ID(hdr);
+        frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
     }
 
     if (!first || (pico_ipv4_frag_match(f, first) && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
