@@ -196,9 +196,7 @@ struct pico_tree_node *pico_tree_findNode(struct pico_tree *tree, void *key)
         int result;
         result = tree->compare(found->keyValue, key);
         if(result == 0)
-        {
             return found;
-        }
         else if(result < 0)
             found = found->rightChild;
         else
@@ -211,12 +209,11 @@ void *pico_tree_findKey(struct pico_tree *tree, void *key)
 {
     struct pico_tree_node *found;
 
-
     found = tree->root;
+
     while(IS_NOT_LEAF(found))
     {
         int result;
-
         result = tree->compare(found->keyValue, key);
         if(result == 0)
             return found->keyValue;
@@ -224,7 +221,6 @@ void *pico_tree_findKey(struct pico_tree *tree, void *key)
             found = found->rightChild;
         else
             found = found->leftChild;
-
     }
     return NULL;
 }
