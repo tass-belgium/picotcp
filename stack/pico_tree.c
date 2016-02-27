@@ -209,20 +209,10 @@ void *pico_tree_findKey(struct pico_tree *tree, void *key)
 {
     struct pico_tree_node *found;
 
-    found = tree->root;
-
-    while(IS_NOT_LEAF(found))
-    {
-        int result;
-        result = tree->compare(found->keyValue, key);
-        if(result == 0)
-            return found->keyValue;
-        else if(result < 0)
-            found = found->rightChild;
-        else
-            found = found->leftChild;
-    }
-    return NULL;
+    found = pico_tree_findNode(tree, key);
+    if (found == NULL)
+        return NULL;
+    return found->keyValue;
 }
 
 void *pico_tree_first(struct pico_tree *tree)
