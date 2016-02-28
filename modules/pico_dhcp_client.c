@@ -744,6 +744,12 @@ static struct dhcp_action_entry dhcp_fsm[] =
 /* state rebinding   */ { NULL,       recv_ack, reset,  NULL,  NULL,   reset, retransmit },
 };
 
+static void dhcp_action_call( int (*call)(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf), struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
+{
+    if (call)
+        call(dhcpc, buf);
+}
+
 /* TIMERS REMARK:
  * In state bound we have T1, T2 and the lease timer running. If T1 goes off, we attempt to renew.
  * If the renew succeeds a new T1, T2 and lease timer is started. The former T2 and lease timer is
@@ -757,51 +763,37 @@ static void pico_dhcp_state_machine(uint8_t event, struct pico_dhcp_client_cooki
     {
     case PICO_DHCP_MSG_OFFER:
         dhcpc_dbg("DHCP client: received OFFER\n");
-        if (dhcp_fsm[dhcpc->state].offer)
-            dhcp_fsm[dhcpc->state].offer(dhcpc, buf);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].offer, dhcpc, buf);
         break;
 
     case PICO_DHCP_MSG_ACK:
         dhcpc_dbg("DHCP client: received ACK\n");
-        if (dhcp_fsm[dhcpc->state].ack)
-            dhcp_fsm[dhcpc->state].ack(dhcpc, buf);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].ack, dhcpc, buf);
         break;
 
     case PICO_DHCP_MSG_NAK:
         dhcpc_dbg("DHCP client: received NAK\n");
-        if (dhcp_fsm[dhcpc->state].nak)
-            dhcp_fsm[dhcpc->state].nak(dhcpc, buf);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].nak, dhcpc, buf);
         break;
 
     case PICO_DHCP_EVENT_T1:
         dhcpc_dbg("DHCP client: received T1 timeout\n");
-        if (dhcp_fsm[dhcpc->state].timer1)
-            dhcp_fsm[dhcpc->state].timer1(dhcpc, NULL);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].timer1, dhcpc, buf);
         break;
 
     case PICO_DHCP_EVENT_T2:
         dhcpc_dbg("DHCP client: received T2 timeout\n");
-        if (dhcp_fsm[dhcpc->state].timer2)
-            dhcp_fsm[dhcpc->state].timer2(dhcpc, NULL);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].timer2, dhcpc, buf);
         break;
 
     case PICO_DHCP_EVENT_LEASE:
         dhcpc_dbg("DHCP client: received LEASE timeout\n");
-        if (dhcp_fsm[dhcpc->state].timer_lease)
-            dhcp_fsm[dhcpc->state].timer_lease(dhcpc, NULL);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].timer_lease, dhcpc, buf);
         break;
 
     case PICO_DHCP_EVENT_RETRANSMIT:
         dhcpc_dbg("DHCP client: received RETRANSMIT timeout\n");
-        if (dhcp_fsm[dhcpc->state].timer_retransmit)
-            dhcp_fsm[dhcpc->state].timer_retransmit(dhcpc, NULL);
-
+        dhcp_action_call(dhcp_fsm[dhcpc->state].timer_retransmit, dhcpc, buf);
         break;
 
     default:
