@@ -48,9 +48,6 @@
 #define IP4_FRAG_ID(hdr)        (0)
 #endif
 
-#define FRAG_OFF(net, frag)     ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_OFF(frag)) : (IP6_FRAG_OFF(frag)))
-#define FRAG_MORE(net, frag)    ((net == PICO_PROTO_IPV4) ? (IP4_FRAG_MORE(frag)) : (IP6_FRAG_MORE(frag)))
-
 #define PICO_IPV6_FRAG_TIMEOUT   60000
 #define PICO_IPV4_FRAG_TIMEOUT   15000
 
@@ -58,6 +55,8 @@ static void pico_frag_expire(pico_time now, void *arg);
 static void pico_fragments_complete(unsigned int bookmark, uint8_t proto, uint8_t net);
 static int pico_fragments_check_complete(uint8_t proto, uint8_t net);
 static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, uint8_t proto, uint8_t net);
+static int pico_fragments_get_more_flag(struct pico_frame *frame, uint8_t net);
+static uint32_t pico_fragments_get_offset(struct pico_frame *frame, uint8_t net);
 
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 static uint32_t ipv6_cur_frag_id = 0u;
@@ -203,11 +202,11 @@ static int pico_fragments_check_complete(uint8_t proto, uint8_t net)
 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
-        if (FRAG_OFF(net, cur->frag) != bookmark)
+        if (pico_fragments_get_offset(cur, net) != bookmark)
             return 0;
 
         bookmark += cur->transport_len;
-        if (!FRAG_MORE(net, cur->frag)) {
+        if (!pico_fragments_get_more_flag(cur, net)) {
             pico_fragments_complete(bookmark, proto, net);
             return 1;
         }
@@ -252,7 +251,7 @@ static void pico_frag_expire(pico_time now, void *arg)
     }
 #endif
 
-    if (((FRAG_OFF(net, first->frag) == 0) && (pico_frame_dst_is_unicast(first))))
+    if (((pico_fragments_get_offset(first, net) == 0) && (pico_frame_dst_is_unicast(first))))
     {
         frag_dbg("sending notify\n");
         pico_notify_frag_expired(first);
@@ -320,6 +319,58 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
 
 	return 1;
     }
+
+    return 0;
+}
+
+static int pico_fragments_get_more_flag(struct pico_frame *frame, uint8_t net)
+{
+    if (!frame)
+    {
+      frag_dbg("no frame given to determine more flag\n");
+      return 0;
+    }
+  
+    if (0) {}
+
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
+    else if (net == PICO_PROTO_IPV4)
+    {
+      return IP4_FRAG_MORE(frame->frag);
+    }
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    else if (net == PICO_PROTO_IPV6)
+    {
+      return IP6_FRAG_MORE(frame->frag);
+    }
+#endif
+
+    return 0;
+}
+
+static uint32_t pico_fragments_get_offset(struct pico_frame *frame, uint8_t net)
+{
+    if (!frame)
+    {
+      frag_dbg("no frame given to determine offset\n");
+      return 0;
+    }
+
+    if (0) {}
+
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
+    else if (net == PICO_PROTO_IPV4)
+    {
+      return IP4_FRAG_OFF(frame->frag);
+    }
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    else if (net == PICO_PROTO_IPV6)
+    {
+      return IP6_FRAG_OFF(frame->frag);
+    }
+#endif
 
     return 0;
 }
