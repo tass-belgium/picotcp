@@ -241,7 +241,7 @@ static void pico_frag_expire(pico_time now, void *arg)
 
 static void pico_fragments_send_notify(struct pico_frame *first, uint8_t net)
 {
-    if (0)
+    if (0) {}
 
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     else if (IS_IPV4(first))
