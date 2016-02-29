@@ -214,8 +214,6 @@ static int pico_fragments_check_complete(struct pico_tree *tree, uint8_t proto, 
 
 static void pico_frag_expire(pico_time now, void *arg)
 {
-    struct pico_tree_node *index, *tmp;
-    struct pico_frame *f = NULL;
     struct pico_tree *tree = (struct pico_tree *) arg;
     struct pico_frame *first = NULL;
     uint8_t net = 0;

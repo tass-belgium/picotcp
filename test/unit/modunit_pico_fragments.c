@@ -181,8 +181,8 @@ END_TEST
 START_TEST(tc_pico_fragments_check_complete)
 {
     struct pico_frame *a, *b;
-    fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV4) != 0);
-    fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(pico_fragments_check_complete(&ipv4_fragments, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(pico_fragments_check_complete(&ipv6_fragments, TESTPROTO, PICO_PROTO_IPV6) != 0);
 
     transport_recv_called = 0;
     timer_cancel_called = 0;
@@ -208,7 +208,7 @@ START_TEST(tc_pico_fragments_check_complete)
     pico_tree_insert(&ipv4_fragments, a);
     pico_tree_insert(&ipv4_fragments, b);
 
-    fail_if(pico_fragments_check_complete(TESTPROTO, PICO_PROTO_IPV4) == 0);
+    fail_if(pico_fragments_check_complete(&ipv4_fragments, TESTPROTO, PICO_PROTO_IPV4) == 0);
     fail_if(transport_recv_called != 1);
     fail_if(timer_cancel_called != 1);
 
