@@ -57,6 +57,8 @@ static int pico_fragments_check_complete(struct pico_tree *tree, uint8_t proto, 
 static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, uint8_t proto, uint8_t net);
 static int pico_fragments_get_more_flag(struct pico_frame *frame, uint8_t net);
 static uint32_t pico_fragments_get_offset(struct pico_frame *frame, uint8_t net);
+static void pico_fragments_send_notify(struct pico_frame *first, uint8_t net);
+static uint16_t pico_fragments_get_header_length(uint8_t net);
 
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 static uint32_t ipv6_cur_frag_id = 0u;
@@ -232,15 +234,24 @@ static void pico_frag_expire(pico_time now, void *arg)
         return;
     }
 
+    pico_fragments_send_notify(first, net);
+
+    pico_fragments_empty_tree(tree);
+}
+
+static void pico_fragments_send_notify(struct pico_frame *first, uint8_t net)
+{
+    if (0)
+
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
-    if (IS_IPV4(first))
+    else if (IS_IPV4(first))
     {
         net = PICO_PROTO_IPV4;
         frag_dbg("Packet expired! ID:%hu\n", ipv4_cur_frag_id);
     }
 #endif
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
-    if (IS_IPV6(first))
+    else if (IS_IPV6(first))
     {
         net = PICO_PROTO_IPV6;
         frag_dbg("Packet expired! ID:%hu\n", ipv6_cur_frag_id);
@@ -252,8 +263,10 @@ static void pico_frag_expire(pico_time now, void *arg)
         frag_dbg("sending notify\n");
         pico_notify_frag_expired(first);
     }
-
-    pico_fragments_empty_tree(tree);
+    else
+    {
+        frag_dbg("Not first packet or not unicast address, not sending notify");
+    }
 }
 
 static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, uint8_t proto, uint8_t net)
@@ -268,25 +281,17 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
     if (!tree)
     {
         frag_dbg("Cannot reassemble packet, no tree supplied!\n");
-	return 0;
+        return 0;
     }
 
     first = pico_tree_first(tree);
 
-    if (0) {}
+    header_length = pico_fragments_get_header_length(net);
 
-#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
-    else if (net == PICO_PROTO_IPV4)
+    if (!header_length)
     {
-      header_length = PICO_SIZE_IP4HDR;
+        return 0;
     }
-#endif
-#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
-    else if (net == PICO_PROTO_IPV6)
-    {
-      header_length = PICO_SIZE_IP6HDR;
-    }
-#endif
 
     full = pico_frame_alloc((uint16_t)(header_length + len));
     if (full) {
@@ -308,8 +313,28 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
             pico_frame_discard(full);
         }
 
-	return 1;
+        return 1;
     }
+
+    return 0;
+}
+
+static uint16_t pico_fragments_get_header_length(uint8_t net)
+{
+    if (0) {}
+
+#if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
+    else if (net == PICO_PROTO_IPV4)
+    {
+        return PICO_SIZE_IP4HDR;
+    }
+#endif
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
+    else if (net == PICO_PROTO_IPV6)
+    {
+        return PICO_SIZE_IP6HDR;
+    }
+#endif
 
     return 0;
 }
@@ -321,7 +346,7 @@ static int pico_fragments_get_more_flag(struct pico_frame *frame, uint8_t net)
       frag_dbg("no frame given to determine more flag\n");
       return 0;
     }
-  
+
     if (0) {}
 
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
