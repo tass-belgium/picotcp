@@ -400,31 +400,36 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     struct pico_frame *first = pico_tree_first(&ipv4_fragments);
 
-    /* fragments from old packets still in tree, and new first fragment ? */
-    if (first && (IP4_FRAG_ID(hdr) != ipv4_cur_frag_id) && (IP4_FRAG_OFF(f->frag) == 0))
+    if (first)
     {
-        pico_fragments_empty_tree(&ipv4_fragments);
+        /* fragments from old packets still in tree, and new first fragment ? */
+        if ((IP4_FRAG_ID(hdr) != ipv4_cur_frag_id) && (IP4_FRAG_OFF(f->frag) == 0))
+        {
+            pico_fragments_empty_tree(&ipv4_fragments);
 
-        first = NULL;
-        ipv4_cur_frag_id = 0;
+            first = NULL;
+            ipv4_cur_frag_id = 0;
+        }
+
+        if ((pico_ipv4_frag_match(f, first) && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
+            pico_tree_insert(&ipv4_fragments, pico_frame_copy(f));
+        }
     }
-
-    f->frag = short_be(hdr->frag);
-
-    if (!first) {
+    else
+    {
         if (ipv4_cur_frag_id && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id)) {
-          /* Discard late arrivals, without firing the timer */
-          return;
+            /* Discard late arrivals, without firing the timer */
+            return;
         }
 
         pico_ipv4_frag_timer_on();
         ipv4_cur_frag_id = IP4_FRAG_ID(hdr);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
-    }
 
-    if (!first || (pico_ipv4_frag_match(f, first) && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
         pico_tree_insert(&ipv4_fragments, pico_frame_copy(f));
     }
+
+    f->frag = short_be(hdr->frag);
 
     pico_fragments_check_complete(&ipv4_fragments, proto, PICO_PROTO_IPV4);
 #else
