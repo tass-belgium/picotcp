@@ -47,7 +47,19 @@ static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_
     return 0;
 }
 
-
+static int pico_enqueue_and_wakeup_if_needed(struct pico_queue *q_in,cpy)
+{
+        if (pico_enqueue(q_in, cpy) > 0) {
+            if (s->wakeup){
+                s->wakeup(PICO_SOCK_EV_RD, s);
+            }
+        }
+        else {
+            pico_frame_discard(cpy);
+            return -1;
+        }
+        return 0;
+}
 static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip4 s_local;
@@ -65,12 +77,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
         if (!cpy)
             return -1;
 
-        if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
-                s->wakeup(PICO_SOCK_EV_RD, s);
-        }
-        else
-            pico_frame_discard(cpy);
+        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
     }
 
     return 0;
@@ -84,12 +91,7 @@ static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pi
     if (!cpy)
         return -1;
 
-    if (pico_enqueue(&s->q_in, cpy) > 0) {
-        if (s->wakeup)
-            s->wakeup(PICO_SOCK_EV_RD, s);
-    } else {
-        pico_frame_discard(cpy);
-    }
+    pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
 
     return 0;
 }
@@ -137,17 +139,13 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
             return -1;
         }
 
-        if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
-                s->wakeup(PICO_SOCK_EV_RD, s);
-        }
-        else
-            pico_frame_discard(cpy);
+        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
     }
 
     return 0;
 }
 
+//TODO check out why here pico_frame_discard is not done on cpy if enqueue fails
 static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip6 s_local, p_dst;
