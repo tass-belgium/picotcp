@@ -3488,20 +3488,20 @@ pico_mdns_init( const char *hostname,
     if(!callback || !hostname) {
         mdns_dbg("No callback function supplied!\n");
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        goto fail;
     }
 
     /* Open global IPv4 mDNS socket */
     mdns_sock_ipv4 = pico_socket_open(proto4, PICO_PROTO_UDP, &pico_mdns_event4);
     if(!mdns_sock_ipv4) {
         mdns_dbg("pico_socket_open returned NULL-ptr...\n");
-        return -1;
+        goto fail;
     }
 
     /* Convert the mDNS IPv4 destination address to struct */
     if(pico_string_to_ipv4(PICO_MDNS_DEST_ADDR4, &mreq4.mcast_group_addr.ip4.addr)) {
         mdns_dbg("String to IPv4 error\n");
-        return -1;
+        goto fail;
     }
 
     /* Receive data on any network interface */
@@ -3510,13 +3510,13 @@ pico_mdns_init( const char *hostname,
     /* Don't want the multicast data to be looped back to the host */
     if(pico_socket_setoption(mdns_sock_ipv4, PICO_IP_MULTICAST_LOOP, &loop)) {
         mdns_dbg("socket_setoption PICO_IP_MULTICAST_LOOP failed\n");
-        return -1;
+        goto fail;
     }
 
     /* Tell the stack we're interested in this particular multicast group */
     if(pico_socket_setoption(mdns_sock_ipv4, PICO_IP_ADD_MEMBERSHIP, &mreq4)) {
         mdns_dbg("socket_setoption PICO_IP_ADD_MEMBERSHIP failed\n");
-        return -1;
+        goto fail;
     }
 
     /* RFC6762:
@@ -3526,13 +3526,13 @@ pico_mdns_init( const char *hostname,
      */
     if(pico_socket_setoption(mdns_sock_ipv4, PICO_IP_MULTICAST_TTL, &ttl)) {
         mdns_dbg("socket_setoption PICO_IP_MULTICAST_TTL failed\n");
-        return -1;
+        goto fail;
     }
 
     /* Bind to mDNS port */
     if (pico_socket_bind(mdns_sock_ipv4, (void *)&address, &port)) {
         mdns_dbg("Bind error!\n");
-        return -1;
+        goto fail;
     }
 
     /* Set the global init callback variable */
@@ -3541,6 +3541,9 @@ pico_mdns_init( const char *hostname,
 
     /* Set the hostname eventually */
     return pico_mdns_tryclaim_hostname(hostname, arg);
+
+fail:
+    return -1;
 }
 
 #endif /* PICO_SUPPORT_MDNS */
