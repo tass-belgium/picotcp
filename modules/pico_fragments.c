@@ -57,7 +57,7 @@ static int pico_fragments_check_complete(struct pico_tree *tree, uint8_t proto, 
 static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, uint8_t proto, uint8_t net);
 static int pico_fragments_get_more_flag(struct pico_frame *frame, uint8_t net);
 static uint32_t pico_fragments_get_offset(struct pico_frame *frame, uint8_t net);
-static void pico_fragments_send_notify(struct pico_frame *first, uint8_t net);
+static void pico_fragments_send_notify(struct pico_frame *first);
 static uint16_t pico_fragments_get_header_length(uint8_t net);
 
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
@@ -218,7 +218,6 @@ static void pico_frag_expire(pico_time now, void *arg)
 {
     struct pico_tree *tree = (struct pico_tree *) arg;
     struct pico_frame *first = NULL;
-    uint8_t net = 0;
     IGNORE_PARAMETER(now);
 
     if (!tree)
@@ -234,13 +233,15 @@ static void pico_frag_expire(pico_time now, void *arg)
         return;
     }
 
-    pico_fragments_send_notify(first, net);
+    pico_fragments_send_notify(first);
 
     pico_fragments_empty_tree(tree);
 }
 
-static void pico_fragments_send_notify(struct pico_frame *first, uint8_t net)
+static void pico_fragments_send_notify(struct pico_frame *first)
 {
+    uint8_t net = 0;
+
     if (0) {}
 
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
@@ -396,7 +397,14 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
     struct pico_frame *first = pico_tree_first(&ipv6_fragments);
 
-    if (!first) {
+    if (first)
+    {
+      if ((pico_ipv6_frag_match(f, first) && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
+        pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
+      }
+    }
+    else
+    {
         if (ipv6_cur_frag_id && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id)) {
             /* Discard late arrivals, without firing the timer. */
             frag_dbg("discarded late arrival, exp:%hu found:%hu\n", ipv6_cur_frag_id, IP6_FRAG_ID(frag));
@@ -406,9 +414,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
         pico_ipv6_frag_timer_on();
         ipv6_cur_frag_id = IP6_FRAG_ID(frag);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
-    }
 
-    if (!first || (pico_ipv6_frag_match(f, first) && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
         pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
     }
 
