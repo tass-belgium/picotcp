@@ -191,17 +191,31 @@ int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f)
     pico_err = PICO_ERR_NOERR;
     pico_tree_foreach_safe(index, &sp->socks, _tmp){
         s = index->keyValue;
-        if (IS_IPV4(f)) { /* IPV4 */
 #ifdef PICO_SUPPORT_IPV4
-            return pico_socket_udp_deliver_ipv4(s, f);
-#endif
-        } else if (IS_IPV6(f)) {
 #ifdef PICO_SUPPORT_IPV6
+        if (IS_IPV4(f)) { /* IPV4 */
+            return pico_socket_udp_deliver_ipv4(s, f);
+        } else if (IS_IPV6(f)) {
             return pico_socket_udp_deliver_ipv6(s, f);
-#endif
         } else {
             /* something wrong in the packet header*/
         }
+#else
+        if (IS_IPV4(f)) { /* IPV4 */
+            return pico_socket_udp_deliver_ipv4(s, f);
+        } else {
+            /* something wrong in the packet header*/
+        }
+#endif //IPV6
+#else
+#ifdef PICO_SUPPORT_IPV6
+        if (IS_IPV6(f)) { /* IPV6 */
+            return pico_socket_udp_deliver_ipv4(s, f);
+        } else {
+            /* something wrong in the packet header*/
+        }
+#endif //IPV6
+#endif //IPV4
     } /* FOREACH */
     pico_frame_discard(f);
     if (s)
