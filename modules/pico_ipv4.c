@@ -601,16 +601,19 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     struct pico_ipv4_route *rt;
 #ifdef PICO_SUPPORT_AODV
     union pico_address node_address;
-    node_address.ip4.addr = dst->addr;
-    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
-        pico_aodv_lookup(&node_address);
-
 #endif
 
     if (!dst) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
+
+#ifdef PICO_SUPPORT_AODV
+    node_address.ip4.addr = dst->addr;
+    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
+        pico_aodv_lookup(&node_address);
+
+#endif
 
     rt = route_find(dst);
     if (rt && rt->link) {
