@@ -438,5 +438,10 @@ ppptest: test/ppp.c lib
 	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
 	rm -f ppp.o
 
+.PHONY: coverity
+coverity:
+	@make clean
+	@cov-build --dir $(PREFIX)/cov-int make
+	@tar czvf $(PREFIX)/coverity.tgz -C $(PREFIX) cov-int
 
 FORCE:
