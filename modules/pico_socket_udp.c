@@ -89,7 +89,7 @@ static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pi
     /* Either local socket is ANY, or matches dst */
     cpy = pico_frame_copy(f);
     if (!cpy)
-        return -1;
+       return -1;
 
     pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
 
@@ -145,7 +145,6 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
     return 0;
 }
 
-//TODO check out why here pico_frame_discard is not done on cpy if enqueue fails
 static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_ip6 s_local, p_dst;
@@ -168,10 +167,7 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
             return -1;
         }
 
-        if (pico_enqueue(&s->q_in, cpy) > 0) {
-            if (s->wakeup)
-                s->wakeup(PICO_SOCK_EV_RD, s);
-        }
+        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
     }
 
     pico_frame_discard(f);
