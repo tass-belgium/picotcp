@@ -243,12 +243,8 @@ static void dnsCallback(char *ip, void *arg)
         return;
     }
 
-    if (0) {
-
-    }
-
+    if(ck->proto == PICO_PROTO_IPV6) {
 #ifdef PICO_SUPPORT_IPV6
-    else if(ck->proto == PICO_PROTO_IPV6) {
         if (ip) {
             /* add the ip address to the client, and start a tcp connection socket */
             sntp_dbg("using IPv6 address: %s\n", ip);
@@ -258,11 +254,9 @@ static void dnsCallback(char *ip, void *arg)
             retval = -1;
             pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }
-    }
-
 #endif
+    } else if(ck->proto == PICO_PROTO_IPV4) {
 #ifdef PICO_SUPPORT_IPV4
-    else if(ck->proto == PICO_PROTO_IPV4) {
         if(ip) {
             sntp_dbg("using IPv4 address: %s\n", ip);
             retval = pico_string_to_ipv4(ip, (uint32_t *)&address.ip4.addr);
@@ -271,8 +265,8 @@ static void dnsCallback(char *ip, void *arg)
             retval = -1;
             pico_sntp_cleanup(ck, PICO_ERR_ENETDOWN);
         }
-    }
 #endif
+    }
 
     if (retval >= 0) {
         sock = pico_socket_open(ck->proto, PICO_PROTO_UDP, &pico_sntp_client_wakeup);
@@ -300,6 +294,11 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
         return -1;
     }
 
+    if(cb_synced == NULL) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
     /* IPv4 query */
     ck = PICO_ZALLOC(sizeof(struct sntp_server_ns_cookie));
     if (!ck) {
@@ -319,13 +318,6 @@ int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status)
     }
 
     strcpy(ck->hostname, sntp_server);
-
-    if(cb_synced == NULL) {
-        PICO_FREE(ck->hostname);
-        PICO_FREE(ck);
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
 
     ck->cb_synced = cb_synced;
 
