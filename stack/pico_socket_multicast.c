@@ -842,7 +842,7 @@ void pico_multicast_delete(struct pico_socket *s)
             if (tree) {
                 pico_tree_foreach_safe(index2, tree, _tmp2)
                 {
-                    source = index->keyValue;
+                    source = index2->keyValue;
                     pico_tree_delete(tree, source);
                     PICO_FREE(source);
                 }
