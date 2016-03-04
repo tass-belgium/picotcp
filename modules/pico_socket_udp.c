@@ -83,13 +83,13 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
     return 0;
 }
 
-static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, scleantruct pico_frame *f)
+static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_frame *cpy;
     /* Either local socket is ANY, or matches dst */
     cpy = pico_frame_copy(f);
     if (!cpy)
-       clean return -1;
+       return -1;
 
     pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
 
