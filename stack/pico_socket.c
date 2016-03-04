@@ -408,7 +408,6 @@ int8_t pico_socket_add(struct pico_socket *s)
 #ifdef DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
-        /* RB_FOREACH(s, socket_tree, &sp->socks) { */
         pico_tree_foreach(index, &sp->socks){
             s = index->keyValue;
             dbg(">>>> List Socket lc=%hu rm=%hu\n", short_be(s->local_port), short_be(s->remote_port));
