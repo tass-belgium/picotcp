@@ -423,8 +423,8 @@ mbed:
 
 
 style:
-	@find . -iname "*.[c|h]" | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
-	@find . -iname "*unc-backup*" |xargs -x rm || true
+	@find . -iname "*.[c|h]" | xargs uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*unc-backup*" |xargs rm || true
 
 dummy: mod core lib $(DUMMY_EXTRA)
 	@echo testing configuration...
