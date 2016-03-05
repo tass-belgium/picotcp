@@ -69,9 +69,41 @@ START_TEST(tc_generate_duid_ll)
    /* TODO: test this: static void generate_duid_ll(struct pico_device *dev, struct pico_dhcp6_duid_ll * client_duid_ll) */
 }
 END_TEST
-START_TEST(tc_void)
+START_TEST(tc_pico_dhcp6_client_clear_options_in_cookie)
 {
-   /* TODO: test this: static inline void clear_options_in_cookie(void){ */
+    cookie.cid_rec             = PICO_ZALLOC(1);
+    cookie.sid                 = PICO_ZALLOC(1);
+    cookie.iana                = PICO_ZALLOC(1);
+    cookie.ia_ta               = PICO_ZALLOC(1);
+    cookie.iaddr               = PICO_ZALLOC(1);
+    cookie.oro                 = PICO_ZALLOC(1);
+    cookie.pref                = PICO_ZALLOC(1);
+    cookie.elapsed_time        = PICO_ZALLOC(1);
+    cookie.status_code_field   = PICO_ZALLOC(1);
+    cookie.relay_msg           = PICO_ZALLOC(1);
+    cookie.auth                = PICO_ZALLOC(1);
+    cookie.user_class          = PICO_ZALLOC(1);
+    cookie.vendor_class        = PICO_ZALLOC(1);
+    cookie.vendor_opts         = PICO_ZALLOC(1);
+    cookie.interface_id        = PICO_ZALLOC(1);
+
+    pico_dhcp6_client_clear_options_in_cookie();
+
+    ck_assert(cookie.cid_rec           == NULL);
+    ck_assert(cookie.sid               == NULL);
+    ck_assert(cookie.iana              == NULL);
+    ck_assert(cookie.ia_ta             == NULL);
+    ck_assert(cookie.iaddr             == NULL);
+    ck_assert(cookie.oro               == NULL);
+    ck_assert(cookie.pref              == NULL);
+    ck_assert(cookie.elapsed_time      == NULL);
+    ck_assert(cookie.status_code_field == NULL);
+    ck_assert(cookie.relay_msg         == NULL);
+    ck_assert(cookie.auth              == NULL);
+    ck_assert(cookie.user_class        == NULL);
+    ck_assert(cookie.vendor_class      == NULL);
+    ck_assert(cookie.vendor_opts       == NULL);
+    ck_assert(cookie.interface_id      == NULL);
 }
 END_TEST
 START_TEST(tc_pico_dhcp6_parse_options)
@@ -553,7 +585,7 @@ Suite *pico_suite(void)
 
     tcase_add_test(TCase_generate_duid_ll, tc_generate_duid_ll);
     suite_add_tcase(s, TCase_generate_duid_ll);
-    tcase_add_test(TCase_void, tc_void);
+    tcase_add_test(TCase_void, tc_pico_dhcp6_client_clear_options_in_cookie);
     suite_add_tcase(s, TCase_void);
     tcase_add_test(TCase_pico_dhcp6_parse_options, tc_pico_dhcp6_parse_options);
     suite_add_tcase(s, TCase_pico_dhcp6_parse_options);
