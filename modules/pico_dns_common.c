@@ -1717,6 +1717,7 @@ pico_dns_packet_create( struct pico_tree *qtree,
     if (qtree && pico_tree_count(&_qtree) != 0) {
         if (pico_dns_fill_packet_question_section(packet, &_qtree)) {
             dns_dbg("Could not fill Question Section correctly!\n");
+            PICO_FREE(packet);
             return NULL;
         }
     }
@@ -1725,6 +1726,7 @@ pico_dns_packet_create( struct pico_tree *qtree,
     if (pico_dns_fill_packet_rr_sections(packet, &_qtree, &_antree,
                                          &_nstree, &_artree)) {
         dns_dbg("Could not fill Resource Record Sections correctly!\n");
+        PICO_FREE(packet);
         return NULL;
     }
 

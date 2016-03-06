@@ -597,6 +597,7 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
         }
 
         if (!mcast_link || !mcast_group) {
+            PICO_FREE(p);
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }

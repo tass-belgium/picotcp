@@ -515,7 +515,10 @@ pico_mdns_rtree_find_name( pico_mdns_rtree *tree,
                 record = pico_mdns_record_copy(record);
 
             if (record)
-                pico_tree_insert(&hits, record);
+                if( pico_tree_insert(&hits, record) != NULL )
+                    // either key was already in there, or couldn't be inserted.
+                    pico_mdns_record_delete((void **)&record);
+
         }
     }
 

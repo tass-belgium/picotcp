@@ -128,34 +128,11 @@ void *pico_tree_insert(struct pico_tree *tree, void *key)
     return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
-void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
+static void pico_tree_insert_node(struct pico_tree *tree, struct pico_tree_node *insert)
 {
-    struct pico_tree_node *last_node = INIT_LEAF;
     struct pico_tree_node *temp = tree->root;
-    struct pico_tree_node *insert;
-    void *LocalKey;
+    struct pico_tree_node *last_node = INIT_LEAF;
     int result = 0;
-
-    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
-
-    /* if node already in, bail out */
-    if(LocalKey) {
-        return LocalKey;
-    }
-    else
-    {
-        if(allocator == USE_PICO_PAGE0_ZALLOC)
-            insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
-        else
-            insert = create_node(tree, key, USE_PICO_ZALLOC);
-
-        if(!insert)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            /* to let the user know that it couldn't insert */
-            return (void *)&LEAF;
-        }
-    }
 
     /* search for the place to insert the new node */
     while(IS_NOT_LEAF(temp))
@@ -177,6 +154,30 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
         else
             last_node->rightChild = insert;
     }
+}
+
+void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
+{
+    struct pico_tree_node *insert;
+    void *LocalKey;
+
+    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
+
+    /* if node already in, bail out */
+    if(LocalKey) {
+        return LocalKey;
+    }
+
+    insert = create_node(tree, key, allocator);
+
+    if(!insert)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        /* to let the user know that it couldn't insert */
+        return (void *)&LEAF;
+    }
+
+    pico_tree_insert_node(tree, insert);
 
     /* fix colour issues */
     fix_insert_collisions(tree, insert);
@@ -195,9 +196,7 @@ struct pico_tree_node *pico_tree_findNode(struct pico_tree *tree, void *key)
         int result;
         result = tree->compare(found->keyValue, key);
         if(result == 0)
-        {
             return found;
-        }
         else if(result < 0)
             found = found->rightChild;
         else
@@ -210,22 +209,10 @@ void *pico_tree_findKey(struct pico_tree *tree, void *key)
 {
     struct pico_tree_node *found;
 
-
-    found = tree->root;
-    while(IS_NOT_LEAF(found))
-    {
-        int result;
-
-        result = tree->compare(found->keyValue, key);
-        if(result == 0)
-            return found->keyValue;
-        else if(result < 0)
-            found = found->rightChild;
-        else
-            found = found->leftChild;
-
-    }
-    return NULL;
+    found = pico_tree_findNode(tree, key);
+    if (found == NULL)
+        return NULL;
+    return found->keyValue;
 }
 
 void *pico_tree_first(struct pico_tree *tree)
@@ -444,7 +431,7 @@ static void fix_insert_collisions(struct pico_tree*tree, struct pico_tree_node*n
                 node = GRANPA(node);
             }
             else if(temp->color == BLACK) {
-                if(node == node->parent->leftChild) {
+                if(AM_I_LEFT_CHILD(node)) {
                     node = node->parent;
                     rotateToRight(tree, node);
                 }
