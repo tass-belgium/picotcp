@@ -44,10 +44,21 @@ struct pico_ipv6_neighbor {
     pico_time expire;
 };
 
+struct pico_ipv6_router {
+    struct pico_ipv6_neighbor *router;
+    pico_time invalidation;
+};
+
 static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
     return pico_ipv6_compare(&a->address, &b->address);
+}
+
+static int pico_ipv6_router_compare(void *ka, void *kb)
+{
+    struct pico_ipv6_router *a = ka, *b = kb;
+    return pico_ipv6_neighbor_compare(a->router, b->router);
 }
 
 static int pico_ipv6_nd_qcompare(void *ka, void *kb){
@@ -79,6 +90,8 @@ static int pico_ipv6_nd_qcompare(void *ka, void *kb){
 PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
 static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
+
+static PICO_TREE_DECLARE(RCache, pico_ipv6_router_compare);
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
@@ -786,7 +799,7 @@ static int radv_process(struct pico_frame *f)
             if (prefix->prefix_len != 64) {
                 return -1;
             }
-  
+
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if (link) {
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
@@ -843,7 +856,7 @@ ignore_opt_prefix:
         default:
       /* RFC 4861 6.1.2.
          A node MUST silently discard any received Router Advertisement
-         that do not satisfy all of the validity checks. */ 
+         that do not satisfy all of the validity checks. */
             return -1;
         }
     }
@@ -1043,17 +1056,17 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
 }
 
 void pico_ipv6_nd_postpone(struct pico_frame *f)
-{   
+{
     struct pico_ipv6_neighbor *n = NULL;
     struct pico_ipv6_hdr *hdr = NULL;
     struct pico_ip6 *dst;
     struct pico_frame *cp = pico_frame_copy(f);
-    
+
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     dst = &hdr->dst;
-    
+
     n = pico_nd_find_neighbor(dst);
-    
+
     if(n && n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
         pico_tree_insert(&IPV6NQueue, cp);
        n->frames_queued++;
