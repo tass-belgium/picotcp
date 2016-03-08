@@ -397,12 +397,12 @@ static void compare_sol(const void *buf, const size_t len)
 {
     ck_assert_msg(memcmp(buf, expected_data, (size_t) len) == 0, "DHCPv6 sol message wrong");
 }
-START_TEST(tc_pico_dhcp6_send_sol)
+START_TEST(tc_pico_dhcp6_initiate_negotiation)
 {
     struct mock_device *mock;
     unsigned char mac[6] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05 };
     uint8_t sol_msg[] = {
-        0x01, /* Solicit message type */ 
+        0x01, /* Solicit message type */
         0xdd, 0xcc, 0xbb, /* Random Transaction ID. Should not be compared */
 
         0x00, 0x01, /* CID option */
@@ -436,9 +436,7 @@ START_TEST(tc_pico_dhcp6_send_sol)
     memcpy(mock->dev->name, "dummy device", sizeof("dummy device"));
     fail_if(!mock, "MOCK DEVICE creation failed");
 
-    cookie.dev = mock->dev;
-
-    pico_dhcp6_send_sol(); /* Check implemented in compare_sol function */
+    pico_dhcp6_initiate_negotiation(mock->dev, NULL, 0);
 
     compare_function = NULL;
 }
@@ -554,7 +552,7 @@ END_TEST
 
 Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");             
+    Suite *s = suite_create("PicoTCP");
 
     TCase *TCase_generate_duid_ll = tcase_create("Unit test for generate_duid_ll");
     TCase *TCase_void = tcase_create("Unit test for void");
@@ -576,7 +574,7 @@ Suite *pico_suite(void)
     TCase *TCase_recv_reconfigure = tcase_create("Unit test for recv_reconfigure");
     TCase *TCase_dhcp6c_cb = tcase_create("Unit test for dhcp6c_cb");
     TCase *TCase_pico_dhcp6_sol_timeout = tcase_create("Unit test for pico_dhcp6_sol_timeout");
-    TCase *TCase_pico_dhcp6_send_sol = tcase_create("Unit test for pico_dhcp6_send_sol");
+    TCase *TCase_pico_dhcp6_initiate_negotiation = tcase_create("Unit test for pico_dhcp6_initiate_negotiation");
     TCase *TCase_sm_process_msg_adv = tcase_create("Unit test for sm_process_msg Advertise");
     TCase *TCase_sm_process_msg_reply = tcase_create("Unit test for sm_process_msg Reply");
     TCase *TCase_sm_process_msg_reconfigure = tcase_create("Unit test for sm_process_msg Reconfigure");
@@ -623,8 +621,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_dhcp6c_cb);
     tcase_add_test(TCase_pico_dhcp6_sol_timeout, tc_pico_dhcp6_sol_timeout);
     suite_add_tcase(s, TCase_pico_dhcp6_sol_timeout);
-    tcase_add_test(TCase_pico_dhcp6_send_sol, tc_pico_dhcp6_send_sol);
-    suite_add_tcase(s, TCase_pico_dhcp6_send_sol);
+    tcase_add_test(TCase_pico_dhcp6_initiate_negotiation, tc_pico_dhcp6_initiate_negotiation);
+    suite_add_tcase(s, TCase_pico_dhcp6_initiate_negotiation);
     tcase_add_test(TCase_sm_process_msg_adv, tc_sm_process_msg_adv);
     suite_add_tcase(s, TCase_sm_process_msg_adv);
     tcase_add_test(TCase_sm_process_msg_reply, tc_sm_process_msg_reply);
