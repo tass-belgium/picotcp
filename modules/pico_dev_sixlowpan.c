@@ -3542,6 +3542,17 @@ static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
     return 0;
 }
 
+static int sixlowpan_parse(uint8_t *buf, uint8_t len, struct pico_device *dev)
+{
+    struct sixlowpan_frame *f = NULL;
+
+    /* Decapsulate IEEE802.15.4 frame into 6LoWPAN frame */
+
+    /* TODO: (10/3) Move parsing of received frame from polling in here */
+
+    return 0;
+}
+
 static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 {
     /* Parse the pico_device structure to the internal sixlowpan-structure */
@@ -3552,12 +3563,13 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
     int len = 0;
 
     do {
-        len = radio->receive(radio, buf, IEEE_PHY_MTU);
-        if (len > 0) {
+        if ((len = radio->receive(radio, buf, IEEE_PHY_MTU)) > 0) {
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
             if (!(f = sixlowpan_buf_to_frame(buf, (uint8_t)len, dev)))
                 return loop_score;
+            else {
 
+            }
             /* At this moment the 'peer' contains the link-layer source address of the frame
              * and 'local' contains the link-layer destination address */
 
