@@ -236,7 +236,7 @@ static void dbg_mem(const char *pre, void *buf, uint16_t len)
  *  Dumps an IEEE802.15.4 address in a structured manner. Preceding message
  *  can be passed with {msg}.
  */
-static void dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
+static void test_dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
 {
     printf("%s: ", msg);
     printf("{.short = 0x%04X}, {.ext = %02X%02X:%02X%02X:%02X%02X:%02X%02X} ",
@@ -266,7 +266,7 @@ static void dbg_ext(uint8_t ext[8])
 /*
  *  Dumps the routing-table entries in a structured manner
  */
-static void rtable_print(void)
+static void test_rtable_print(void)
 {
     struct pico_tree_node *node = NULL;
     struct sixlowpan_rtable_entry *entry = NULL;
@@ -275,8 +275,8 @@ static void rtable_print(void)
 
     pico_tree_foreach(node, &RTable) {
         entry = (struct sixlowpan_rtable_entry *)node->keyValue;
-        dbg_ieee_addr("PEER", &entry->dst);
-        dbg_ieee_addr("VIA", &entry->via);
+        test_dbg_ieee_addr("PEER", &entry->dst);
+        test_dbg_ieee_addr("VIA", &entry->via);
         printf("HOPS: %d\n", entry->hops);
     }
 
@@ -865,7 +865,7 @@ struct pico_device *unit_device_create(void)
 START_TEST(tc_sixlowpan_frame_create)
 {
     struct sixlowpan_frame *new = NULL;
-    struct pico_ieee_addr src = { ._short = { .addr = 0xBEEF }, ._ext = { 0x40 } , ._mod = IEEE_AM_SHORT };
+    struct pico_ieee_addr src = { ._short = { .addr = 0xBEEF }, ._ext = { 0x40 } , ._mode = IEEE_AM_SHORT };
     struct pico_ieee_addr dst = {{ 0 }};
     struct pico_device *dev = NULL;
 

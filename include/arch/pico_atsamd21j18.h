@@ -34,7 +34,8 @@ static inline void sam_dbg(const char *format, ...)
     print_uart(msg);
 }
 
-#define dbg sam_dbg
+//#define dbg sam_dbg
+#define dbg(...) do { } while(0)
 
 extern volatile uint32_t sam_tick;
 

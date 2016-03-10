@@ -586,6 +586,10 @@ static void tx_enqueue(uint8_t *buf, uint8_t size)
     struct sixlowpan_tx new = {.buf = NULL, .size = size};
     uint8_t *copy = NULL;
 
+    // Queue is full. Sorry :)
+    if(tx_entries == MAX_QUEUED)
+        return;
+
     /* Provide space for the copy */
     if (!(copy = PICO_ZALLOC(size)))
         return;
@@ -3490,6 +3494,9 @@ static int sixlowpan_prep_tx(void)
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
 {
     struct pico_frame *f = (struct pico_frame *)buf;
+
+    if(tx_entries == MAX_QUEUED)
+        return 0;
 
     /* While transmitting no frames can be passed to the 6LoWPAN-device */
     if (SIXLOWPAN_TRANSMITTING == sixlowpan_state || SIXLOWPAN_PREPARING == sixlowpan_state)
