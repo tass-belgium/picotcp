@@ -74,6 +74,9 @@ struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, con
     struct pico_ipv6_link *new = NULL;
     struct pico_ip6 addr = {{ 0 }};
 
+    if (!dev)
+        return NULL;
+
     /* First copy the prefix into the new address */
     addr = pico_ipv6_address_to_network(prefix, nm64);
 
@@ -344,7 +347,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
             break;
 
         /* Receive */
-        f = pico_dequeue(dev->q_in);
+         = pico_dequeue(dev->q_in);
         if (f) {
             if (!dev->mode && dev->eth) {
                 f->datalink_hdr = f->buffer;

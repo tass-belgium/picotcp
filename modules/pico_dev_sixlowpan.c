@@ -2556,10 +2556,10 @@ static void sixlowpan_decompress(struct sixlowpan_frame *f)
 // MARK: FRAGMENTATION
 struct frag_status {
     struct pico_frame const *f; /* Only to keep track of frame */
-    uint16_t dgram_size; /* Full size of IPv6-datagram */
-    uint16_t dgram_tag; /* Datagram tag */
-    uint8_t max_len; /* Maximum frag size */
-    uint16_t offset; /* Current offset in the IPv6-datagram */
+    uint16_t dgram_size;        /* Full size of IPv6-datagram */
+    uint16_t dgram_tag;         /* Datagram tag */
+    uint8_t max_len;            /* Maximum frag size */
+    uint16_t offset;            /* Current offset in the IPv6-datagram */
 };
 
 static int frag_status_cmp(void *a, void *b) {
@@ -3559,21 +3559,7 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
                 /* Frame is forwareded and destroyed or queue has it and is postponed */
                 continue;
             }
-/*
-            {
-            int i = 0;
 
-            dbg("\r\n === RCVD (%08d ms) ==================\r\n", PICO_TIME_MS());
-            dbg_ieee_addr("\tfrom", &f->peer);
-            dbg_ieee_addr("\tvia", &f->hop);
-            dbg_ieee_addr("\tdestined for", &f->local);
-            dbg("\tData:");
-            for (i = 0; i < f->net_len; ++i) {
-                dbg("%02X", f->net_hdr[i]);
-            }
-            dbg("\r\n ============================================\r\n");
-            }
-*/
             /* Defrag, if NULL, everthing OK, but I'm still waiting for some other packets */
             if (!(f = sixlowpan_defrag(f)))
                 continue;
@@ -3591,165 +3577,175 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 
     /* Check if there are any frames to retry */
     tx_retry(radio);
+
     return loop_score;
 }
 
-/* -------------------------------------------------------------------------------- */
-// MARK: API
+//===----------------------------------------------------------------------===//
+//  API functions
+//===----------------------------------------------------------------------===//
+
+///
+/// Fills an 802.15.4 address into a IEEE-header (that is li)
+///
+/// XXX: CHECKED (test to be confirmed)
 int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr, struct pico_ieee_addr src, struct pico_ieee_addr dst)
 {
     if (!hdr)
         return -1;
+    else {
+        /* Set the addressing modes */
+        pico_ieee_addr_modes_to_hdr(hdr, src._mode, dst._mode)
 
-    /* Set the addressing modes */
-    if (pico_ieee_addr_modes_to_hdr(hdr, src._mode, dst._mode)) {
-        PAN_ERR("Failed filling in the addressing modes in the IEEE802.14.4 Frame Control Field\r\n");
-        return -1;
-    }
+        /* Fill in the destination address */
+        pico_ieee_addr_to_flat((uint8_t *)hdr->addresses, dst, IEEE_TRUE)
 
-    /* Fill in the destination address */
-    if (pico_ieee_addr_to_flat((uint8_t *)hdr->addresses, dst, IEEE_TRUE)) {
-        PAN_ERR("Failed filling in destination address in IEEE802.15.4 MAC header\r\n");
-        return -1;
-    }
-
-    /* fIll in the source address */
-    if (pico_ieee_addr_to_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(dst._mode)), src, IEEE_TRUE)) {
-        PAN_ERR("Failed filling in source address in IEEE802.15.4 MAC header\r\n");
-        return -1;
+        /* fIll in the source address */
+        pico_ieee_addr_to_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(dst._mode)), src, IEEE_TRUE)
     }
 
     return 0;
-}
+} /* Static path count: 2 */
 
+///
+/// Wrapper to retrieve 802.15.4 from IEEE-header
+///
+/// XXX: CHECKED (test to be confirmed)
 struct pico_ieee_addr pico_ieee_addr_from_hdr(struct ieee_hdr *hdr, uint8_t src)
 {
-    if (src) {
+    if (src)
         return pico_ieee_addr_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), hdr->fcf.sam, IEEE_TRUE);
-    } else {
+    else
         return pico_ieee_addr_from_flat((uint8_t *)hdr->addresses, hdr->fcf.dam, IEEE_TRUE);
-    }
-}
+} /* Static path count: 2 */
 
+///
+/// Set's the network-prefix of the pan is called (only relevant to 6LBR)
+///
+/// TODO: UNIT TEST
 int pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
 {
-    if (!dev)
-        return -1;
-    if (!pico_ipv6_link_add_sixlowpan(dev, prefix))
+    if ((!dev) || !pico_ipv6_link_add_sixlowpan(dev, prefix));
         return -1;
     PAN_DBG("Enabled 6LBR mode on device (%d)\r\n", ((struct pico_ieee_addr *)dev->eth)->_short.addr);
     return 0;
-}
+} /* Static path count: 2 */
 
+///
+/// Asynchronous setting of the short address. Radio-driver may have
+/// retrieved a short address through 802.15.4 association events
+///
+/// TODO:  Reconsider support for this feature after proper mesh implementation
 void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
 {
     struct pico_ieee_addr *slp_addr = NULL;
     struct pico_device_sixlowpan *slp = NULL;
-    if (!dev)
+
+    if ((!dev) || LL_MODE_SIXLOWPAN != dev->mode)
         return;
+    else {
+        slp = (struct pico_device_sixlowpan *)dev;
+        slp_addr = (struct pico_ieee_addr *)dev->eth;
 
-    /* Parse the pico_device structure to the internal sixlowpan-structure */
-    slp = (struct pico_device_sixlowpan *) dev;
-    slp_addr = (struct pico_ieee_addr *)dev->eth;
-
-    if (LL_MODE_SIXLOWPAN == dev->mode) {
-        /**
-         *  Set the short-address of the device. A check whether or not
-         *  the device already had a short-address is not needed. I assume
-         *  the device-driver has priority of configuring addresses and assume
-         *  it takes this into account.
-         */
+        /*
+        * Set the short-address of the device. A check whether or not
+        * the device already had a short-address is not needed. I assume
+        * the device-driver has priority of configuring addresses and
+        * assume it takes this into account.
+        */
         slp_addr->_short.addr = slp->radio->get_addr_short(slp->radio);
 
-        /* Set the address mode accordingly */
         if (IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) {
             if (IEEE_AM_EXTENDED == slp_addr->_mode)
                 slp_addr->_mode = IEEE_AM_BOTH;
-            else
-                slp_addr->_mode = IEEE_AM_SHORT;
         }
     }
-}
+} /* Static path count: 4 */
 
+///
+/// Enables border router mode on a 6LoWPAN interface
+///
+/// TODO: UNIT TEST
 int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
 {
     struct pico_device_sixlowpan *slp = NULL;
     int ret = 0;
-    if (!dev)
+
+    if (!dev || !pico_ipv6_is_global(prefix.addr)) {
+        pico_err = PICO_ERR_EINVAL;
         return -1;
+    } else {
+        /* Enable IPv6 routing on the device's interface */
+        (void)pico_ipv6_dev_routing_enable(dev);
 
-    if (!pico_ipv6_is_global(prefix.addr))
-        PAN_ERR("Specified a non-globally routable prefix for the PAN (%02X)\r\n", prefix.addr[0]);
+        /* Make sure the 6LBR router has short address 0x0000 */
+        slp = (struct pico_device_sixlowpan *)dev;
+        if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
+            return ret;
 
-    /* Enable IPv6 routing on the device's interface */
-    (void)pico_ipv6_dev_routing_enable(dev);
+        /* Configure prefix for the device */
+        return pico_sixlowpan_set_prefix(dev, prefix);
+    }
+} /* Static path count: 3 */
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-    /* Make sure the 6LBR router has short address 0x0000 */
-    slp = (struct pico_device_sixlowpan *)dev;
-    if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
-        return ret;
-
-    /* Configure prefix for the device */
-    return pico_sixlowpan_set_prefix(dev, prefix);
-}
-
+///
+/// Creates a new pico sixlowpan-device
+///
+/// XXX: CHECKED (test to be confirmed)
 struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
     char dev_name[MAX_DEVICE_NAME];
     struct pico_ieee_addr slp;
 
-    if (!radio)
-        return NULL;
-
     /* Check radio-format */
-    if (!radio->transmit ||
-        !radio->receive ||
-        !radio->get_pan_id ||
-        !radio->get_addr_short ||
-        !radio->get_addr_ext ||
-        !radio->set_addr_short)
+    if ((!radio) || !radio->transmit || !radio->receive || !radio->get_pan_id ||
+        !radio->get_addr_short || !radio->get_addr_ext || !radio->set_addr_short)
         return NULL;
+    else {
+        if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
+            return NULL;
+        else {
+            /* Retrieve the addresses from the radio-driver */
+            radio->get_addr_ext(radio, slp._ext.addr);
+            slp._short.addr = radio->get_addr_short(radio);
 
-    if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
-        return NULL;
+            /* If the short address was not valid -> extended address mode */
+            slp._mode = 0xFFFF == slp._short.addr ? IEEE_AM_EXTENDED : IEEE_AM_BOTH;
 
-    /* Generate pico_ieee_addr for the pico_device, extended address by default */
-    radio->get_addr_ext(radio, slp._ext.addr);
-    slp._mode = IEEE_AM_EXTENDED;
+            /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet */
+            sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
 
-    /* Get the short address if the device already has one */
-    slp._short.addr = radio->get_addr_short(radio);
-    if (IEEE_ADDR_BCAST_SHORT != slp._short.addr)
-        slp._mode = IEEE_AM_BOTH;
+            /* Register into pico */
+            snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);
+            if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
+                dbg("Device init failed.\r\n");
+                PICO_FREE(sixlowpan);
+                return NULL;
+            }
 
-    /* Try to init & register the device to picoTCP */
-    snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);
+            /* Set the device-parameters */
+            sixlowpan->dev.overhead = 0;
+            sixlowpan->dev.send = sixlowpan_send;
+            sixlowpan->dev.poll = sixlowpan_poll;
 
-    /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet by default */
-    sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
+            /* Assign the radio-instance to the pico_device-instance */
+            sixlowpan->radio = radio;
 
-    if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
-        dbg("Device init failed.\r\n");
-        PICO_FREE(sixlowpan);
-        return NULL;
+#ifdef SIXLOWPAN_ENTRY_POLL /* Start timer to poll routes */
+            /* TODO: Initiate mesh protocol */
+            pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, &sixlowpan->dev);
+#endif
+            PAN_DBG("Device %s created\r\n", dev_name);
+        }
     }
 
-    /* Set the device-parameters */
-    sixlowpan->dev.overhead = 0;
-    sixlowpan->dev.send = sixlowpan_send;
-    sixlowpan->dev.poll = sixlowpan_poll;
-
-    /* Assign the radio-instance to the pico_device-instance */
-    sixlowpan->radio = radio;
-
-#ifdef SIXLOWPAN_ENTRY_POLL
-    /* Create a timer for pings */
-    pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, &sixlowpan->dev);
-#endif
-
-    /* Cast internal 6LoWPAN-structure to picoTCP-device structure */
-    PAN_DBG("Device %s created\r\n", dev_name);
     return (struct pico_device *)sixlowpan;
-}
+} /* Static path count : 4 */
+
+//===----------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
+
 #endif /* PICO_SUPPORT_SIXLOWPAN */
