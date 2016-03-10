@@ -1141,7 +1141,10 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
     callback = cookie->callback;
     arg = cookie->arg;
 
-    /* DNS conflict is case-insensitive. However, we want to keep the original
+    /* Find the first question in the cookie with the name for which
+     * the conflict occured. When found, generate a new name.
+     *
+     * DNS conflict is case-insensitive. However, we want to keep the original
      * capitalisation for the new probe. */
     pico_tree_foreach(node, &(cookie->qtree)) {
         question = (struct pico_dns_question *)node->keyValue;
@@ -1155,6 +1158,8 @@ pico_mdns_cookie_resolve_conflict( struct pico_mdns_cookie *cookie,
                 pico_mdns_cookie_del_questions(cookie, rname);
                 return -1;
             }
+
+            break;
         }
     }
 
