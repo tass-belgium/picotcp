@@ -680,7 +680,7 @@ pico_mdns_record_copy_with_new_name( struct pico_mdns_record *record,
     uint16_t slen = (uint16_t)(pico_dns_strlen(new_rname) + 1u);
 
     /* Check params */
-    if (pico_dns_check_namelen(slen)) {
+    if (!new_rname || pico_dns_check_namelen(slen)) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
@@ -2354,18 +2354,17 @@ pico_mdns_additionals_add_host( pico_mdns_rtree *artree )
 
     pico_tree_foreach(node, &MyRecords) {
         record = node->keyValue;
-        if ((record != NULL) &&
-            IS_HOSTNAME_RECORD(record) &&
-            IS_RECORD_VERIFIED(record))
-        {
-            copy = pico_mdns_record_copy(record);
-            if (copy && pico_tree_insert(artree, copy))
-                pico_mdns_record_delete((void **)&copy);
+        if (record) {
+            if (IS_HOSTNAME_RECORD(record) && IS_RECORD_VERIFIED(record)) {
+                copy = pico_mdns_record_copy(record);
+                if (copy && pico_tree_insert(artree, copy))
+                    pico_mdns_record_delete((void **)&copy);
+            }
         }
     }
 
     return 0;
-}
+} /* Satic path count: 4 */
 
 static void
 pico_rtree_add_copy( pico_mdns_rtree *tree, struct pico_mdns_record *record )
@@ -2402,58 +2401,59 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
     char *sin = NULL, *service = NULL;
     uint32_t ttl = 0;
 
-    if (!antree || !artree || !srv_record) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    /* Add hostname records */
-    pico_mdns_additionals_add_host(artree);
-
     /* Generate proper service instance name and service */
-    if (!(sin = pico_dns_qname_to_url(srv_record->record->rname)))
+    sin = pico_dns_qname_to_url(srv_record->record->rname); // May be leaking
+
+    if (!antree || !artree || !sin) {
+        pico_err = PICO_ERR_EINVAL;
+        PICO_FREE(sin);
         return -1;
+    } else {
+        /* Add hostname records */
+        pico_mdns_additionals_add_host(artree);
 
-    service = sin + pico_dns_first_label_length(sin) + 1u;
-    ttl = long_be(srv_record->record->rsuffix->rttl);
+        service = sin + pico_dns_first_label_length(sin) + 1u;
+        ttl = long_be(srv_record->record->rsuffix->rttl);
 
-    /* Generate PTR records */
-    ptr_record = pico_mdns_record_create(service, (void *)sin,
-                                         (uint16_t)strlen(sin),
-                                         PICO_DNS_TYPE_PTR,
-                                         ttl, PICO_MDNS_RECORD_SHARED);
-    /* Meta DNS-SD record */
-    meta_record = pico_mdns_record_create("_services._dns-sd._udp.local",
-                                          (void *)service,
-                                          (uint16_t)strlen(service),
-                                          PICO_DNS_TYPE_PTR,
-                                          ttl, PICO_MDNS_RECORD_SHARED);
-    PICO_FREE(sin);
-    if (!meta_record || !ptr_record) {
-        mdns_dbg("Could not generate META or PTR records!\n");
-        pico_mdns_record_delete((void **)&ptr_record);
-        pico_mdns_record_delete((void **)&meta_record);
-        return -1;
+        /* Generate PTR records */
+        ptr_record = pico_mdns_record_create(service, (void *)sin,
+                                            (uint16_t)strlen(sin),
+                                            PICO_DNS_TYPE_PTR,
+                                            ttl, PICO_MDNS_RECORD_SHARED);
+        /* Meta DNS-SD record */
+        meta_record = pico_mdns_record_create("_services._dns-sd._udp.local",
+                                            (void *)service,
+                                            (uint16_t)strlen(service),
+                                            PICO_DNS_TYPE_PTR,
+                                            ttl, PICO_MDNS_RECORD_SHARED);
+        PICO_FREE(sin); // Free allocated memory
+        if (!meta_record || !ptr_record) {
+            mdns_dbg("Could not generate META or PTR records!\n");
+            pico_mdns_record_delete((void **)&ptr_record);
+            pico_mdns_record_delete((void **)&meta_record);
+            return -1;
+        }
+
+        ptr_record->flags |= (PICO_MDNS_RECORD_PROBED |
+                              PICO_MDNS_RECORD_CLAIMED);
+        meta_record->flags |= (PICO_MDNS_RECORD_PROBED |
+                               PICO_MDNS_RECORD_CLAIMED);
+
+        /* Add copies to the answer tree */
+        pico_rtree_add_copy(antree, meta_record);
+        pico_rtree_add_copy(antree, ptr_record);
+
+        /* Insert the created service record in MyRecords, alread in, destroy */
+        if (pico_tree_insert(&MyRecords, meta_record)) {
+            pico_mdns_record_delete((void **)&meta_record);
+        }
+
+        if (pico_tree_insert(&MyRecords, ptr_record)) {
+            pico_mdns_record_delete((void **)&ptr_record);
+        }
     }
-
-    ptr_record->flags |= (PICO_MDNS_RECORD_PROBED | PICO_MDNS_RECORD_CLAIMED);
-    meta_record->flags |= (PICO_MDNS_RECORD_PROBED | PICO_MDNS_RECORD_CLAIMED);
-
-    /* Add copies to the answer tree */
-    pico_rtree_add_copy(antree, meta_record);
-    pico_rtree_add_copy(antree, ptr_record);
-
-    /* Insert the created service record in MyRecords, if it's already in, destroy them */
-    if (meta_record && pico_tree_insert(&MyRecords, meta_record)) {
-        pico_mdns_record_delete((void **)&meta_record);
-    }
-
-    if (ptr_record && pico_tree_insert(&MyRecords, ptr_record)) {
-        pico_mdns_record_delete((void **)&ptr_record);
-    }
-
     return 0;
-}
+} /* Static path count: 9 */
 
 /* ****************************************************************************
  *  Gathers additional records for a to send response. Checks for services and
@@ -2475,34 +2475,34 @@ pico_mdns_gather_additionals( pico_mdns_rtree *antree,
     if (!antree || !artree) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
-    }
+    } else {
+        /* Look for SRV records in the tree */
+        pico_tree_foreach(node, antree) {
+            if ((record = node->keyValue) &&
+                short_be(record->record->rsuffix->rtype) == PICO_DNS_TYPE_SRV &&
+                (ret = pico_mdns_gather_service_meta(antree, artree, record)))
+                return ret;
+        }
 
-    /* Look for SRV records in the answer tree */
-    pico_tree_foreach(node, antree) {
-        if ((record = node->keyValue) &&
-            short_be(record->record->rsuffix->rtype) == PICO_DNS_TYPE_SRV &&
-            (ret = pico_mdns_gather_service_meta(antree, artree, record)))
-            return ret;
-    }
+        /* Look for unique records in the tree to generate NSEC records */
+        pico_tree_foreach(node, antree) {
+            if ((record = node->keyValue) && IS_UNIQUE_RECORD(record) &&
+                (ret = pico_mdns_additionals_add_nsec(artree,
+                                                    record->record->rname)))
+                return ret;
+        }
 
-    /* Look for unique records in the answer tree to generate NSEC records */
-    pico_tree_foreach(node, antree) {
-        if ((record = node->keyValue) && IS_UNIQUE_RECORD(record) &&
-            (ret = pico_mdns_additionals_add_nsec(artree,
-                                                  record->record->rname)))
-            return ret;
-    }
-
-    /* Look for unique records in the additional tree to generate NSEC records*/
-    pico_tree_foreach(node, artree) {
-        if ((record = node->keyValue) && IS_UNIQUE_RECORD(record) &&
-            (ret = pico_mdns_additionals_add_nsec(artree,
-                                                  record->record->rname)))
-            return ret;
+        /* Look for unique records in the additionals to generate NSEC records*/
+        pico_tree_foreach(node, artree) {
+            if ((record = node->keyValue) && IS_UNIQUE_RECORD(record) &&
+                (ret = pico_mdns_additionals_add_nsec(artree,
+                                                    record->record->rname)))
+                return ret;
+        }
     }
 
     return 0;
-}
+} /* Static path count: 9 */
 
 /* ****************************************************************************
  * Sends mDNS records to either multicast peer via unicast to a single peer.
@@ -2912,6 +2912,7 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
                                            PICO_MDNS_PACKET_TYPE_QUERY,
                                            callback, arg))) {
         PICO_DNS_QTREE_DESTROY(&qtree);
+        pico_dns_question_delete((void **)&q);
         mdns_dbg("cookie_create returned NULL!\n");
         return -1;
     }
@@ -3128,65 +3129,62 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
     if (!cookie || (cookie->type != PICO_MDNS_PACKET_TYPE_PROBE)) {
         pico_err = PICO_ERR_EINVAL;
         return;
-    }
-
-    /* Set the cookie to the active state */
-    cookie->status = PICO_MDNS_COOKIE_STATUS_ACTIVE;
-    if (cookie->count > 0) {
-        --(cookie->count);
-
-        /* Generate authority records */
-        nstree = pico_mdns_gen_probe_auths(&(cookie->antree));
-
-        /* Create an mDNS answer */
-        if (!(packet = pico_dns_query_create(&(cookie->qtree), NULL,
-                                             &nstree, NULL, &len))) {
-            PICO_DNS_RTREE_DESTROY(&nstree);
-            mdns_dbg("Could not create probe packet!\n");
-            return;
-        }
-
-        pico_tree_destroy(&nstree, NULL);
-
-        /* RFC6762: 18.1 */
-        packet->id = 0;
-
-        /* RFC6762: 18.6: In both multicast query and response messages,
-           the RD bit SHOULD be zero on transmission.
-           In pico_dns_fill_packet_header, the RD bit is set to
-           PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
-        packet->rd = PICO_DNS_RD_NO_DESIRE;
-
-        /* Send the mDNS answer unsolicited via multicast */
-        if(pico_mdns_send_packet(packet, len) != (int)len) {
-            mdns_dbg("Send error occurred!\n");
-            return;
-        }
-
-        PICO_FREE(packet);
-
-        mdns_dbg("DONE - Sent probe!\n");
-
-        /* Probes should be sent with a delay in between of 250 ms */
-        if (PICO_MDNS_COOKIE_STATUS_ACTIVE == cookie->status ) {
-            cookie->send_timer = pico_timer_add(250,
-                                                pico_mdns_send_probe_packet,
-                                                (void *)cookie);
-        }
     } else {
-        mdns_dbg("DONE - Probing.\n");
+        /* Set the cookie to the active state */
+        cookie->status = PICO_MDNS_COOKIE_STATUS_ACTIVE;
+        if (cookie->count > 0) {
+            --(cookie->count);
 
-        pico_mdns_my_records_probed(&(cookie->antree));
+            /* Generate authority records */
+            nstree = pico_mdns_gen_probe_auths(&(cookie->antree));
 
-        /* Start announcing */
-        cookie->count = PICO_MDNS_ANNOUNCEMENT_COUNT;
-        cookie->type = PICO_MDNS_PACKET_TYPE_ANNOUNCEMENT;
-        pico_mdns_send_announcement_packet(0, (void*) cookie);
+            /* Create an mDNS answer */
+            if (!(packet = pico_dns_query_create(&(cookie->qtree), NULL,
+                                                &nstree, NULL, &len))) {
+                PICO_DNS_RTREE_DESTROY(&nstree);
+                mdns_dbg("Could not create probe packet!\n");
+                return;
+            }
+
+            pico_tree_destroy(&nstree, NULL);
+
+            /* RFC6762: 18.1 */
+            packet->id = 0;
+
+            /* RFC6762: 18.6: In both multicast query and response messages,
+            the RD bit SHOULD be zero on transmission.
+            In pico_dns_fill_packet_header, the RD bit is set to
+            PICO_DNS_RD_IS_DESIRED, which is defined to be 1 */
+            packet->rd = PICO_DNS_RD_NO_DESIRE;
+
+            /* Send the mDNS answer unsolicited via multicast */
+            if(pico_mdns_send_packet(packet, len) != (int)len) {
+                mdns_dbg("Send error occurred!\n");
+                return;
+            }
+
+            PICO_FREE(packet);
+
+            mdns_dbg("DONE - Sent probe!\n");
+
+            /* Probes should be sent with a delay in between of 250 ms */
+            if (PICO_MDNS_COOKIE_STATUS_ACTIVE == cookie->status ) {
+                cookie->send_timer = pico_timer_add(250,
+                                                    pico_mdns_send_probe_packet,
+                                                    (void *)cookie);
+            }
+        } else {
+            mdns_dbg("DONE - Probing.\n");
+
+            pico_mdns_my_records_probed(&(cookie->antree));
+
+            /* Start announcing */
+            cookie->count = PICO_MDNS_ANNOUNCEMENT_COUNT;
+            cookie->type = PICO_MDNS_PACKET_TYPE_ANNOUNCEMENT;
+            pico_mdns_send_announcement_packet(0, (void*) cookie);
+        }
     }
-
-
-    return;
-}
+} /* Static path count: 10 */
 
 /* ****************************************************************************
  *  Adds a new probe question to the probe cookie questions, if a probe question
@@ -3252,50 +3250,49 @@ static int pico_mdns_probe( void (*callback)(pico_mdns_rtree *,
     if (!callback) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
-    }
+    } else {
+        /* Find my records that need to pass the probing step first
+        * All records that don't have their PROBED flag set and
+        * are not being probed at hte moment are added to the tree
+        */
+        antree = pico_mdns_my_records_find_to_probe();
 
-    /* Find my records that need to pass the probing step first
-     * All records that don't have their PROBED flag set and
-     * are not being probed at hte moment are added to the tree
-     */
-    antree = pico_mdns_my_records_find_to_probe();
-
-    /* Create probe questions for the records to be probed  */
-    pico_tree_foreach(node, &antree) {
-        if ((record = node->keyValue)) {
-            pico_mdns_add_probe_question(&qtree, record->record->rname);
+        /* Create probe questions for the records to be probed  */
+        pico_tree_foreach(node, &antree) {
+            if ((record = node->keyValue)) {
+                pico_mdns_add_probe_question(&qtree, record->record->rname);
+            }
         }
+
+        /* Create a mDNS packet to send */
+        cookie = pico_mdns_cookie_create(qtree, antree, artree,
+                                        PICO_MDNS_PROBE_COUNT,
+                                        PICO_MDNS_PACKET_TYPE_PROBE,
+                                        callback, arg);
+        if (!cookie) {
+            mdns_dbg("Cookie_create returned NULL @ probe()!\n");
+            PICO_DNS_QTREE_DESTROY(&qtree);
+            PICO_MDNS_RTREE_DESTROY(&antree);
+            return -1;
+        }
+
+        /* Add the probe cookie to the cookie tree */
+        if (pico_tree_insert(&Cookies, cookie)) {
+            pico_mdns_cookie_delete(&cookie);
+            return -1;
+        }
+
+        /* RFC6762: 8.1. Probing */
+        /* When ready to send its Multicast DNS probe packet(s) the host should */
+        /* first wait for a short random delay time, uniformly distributed in */
+        /* the range 0-250 ms. */
+        cookie->send_timer = pico_timer_add(pico_rand() % 250,
+                                            pico_mdns_send_probe_packet,
+                                            (void *)cookie);
+        mdns_dbg("DONE - Started probing.\n");
     }
-
-    /* Create a mDNS packet to send */
-    cookie = pico_mdns_cookie_create(qtree, antree, artree,
-                                     PICO_MDNS_PROBE_COUNT,
-                                     PICO_MDNS_PACKET_TYPE_PROBE,
-                                     callback, arg);
-    if (!cookie) {
-        mdns_dbg("Cookie_create returned NULL @ probe()!\n");
-        PICO_DNS_QTREE_DESTROY(&qtree);
-        PICO_MDNS_RTREE_DESTROY(&antree);
-        return -1;
-    }
-
-    /* Add the probe cookie to the cookie tree */
-    if (pico_tree_insert(&Cookies, cookie)) {
-        pico_mdns_cookie_delete(&cookie);
-        return -1;
-    }
-
-    /* RFC6762: 8.1. Probing */
-    /* When ready to send its Multicast DNS probe packet(s) the host should */
-    /* first wait for a short random delay time, uniformly distributed in */
-    /* the range 0-250 ms. */
-    cookie->send_timer = pico_timer_add(pico_rand() % 250,
-                                        pico_mdns_send_probe_packet,
-                                        (void *)cookie);
-    mdns_dbg("DONE - Started probing.\n");
-
     return 0;
-}
+} /* Static path count: 9 */
 
 /* MARK: API functions */
 
@@ -3396,51 +3393,44 @@ pico_mdns_tryclaim_hostname( const char *url, void *arg )
     PICO_MDNS_RTREE_DECLARE(rtree);
     struct pico_mdns_record *record = NULL;
 
-    /* Check params */
-    if (!url) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
     /* Check if module is initialised */
     if (!mdns_sock_ipv4) {
         mdns_dbg("mDNS socket not initialised, did you call 'pico_mdns_init()'?\n");
         pico_err = PICO_ERR_EINVAL;
         return -1;
+    } else {
+        /* Create an A record for hostname */
+        record = pico_mdns_record_create(url,
+                                        &(mdns_sock_ipv4->local_addr.ip4.addr),
+                                        PICO_SIZE_IP4, PICO_DNS_TYPE_A,
+                                        PICO_MDNS_DEFAULT_TTL,
+                                        (PICO_MDNS_RECORD_UNIQUE |
+                                        PICO_MDNS_RECORD_HOSTNAME));
+        if (!record) {
+            mdns_dbg("Could not create A record for hostname %s!\n",
+                    strerror(pico_err));
+            return -1;
+        }
+
+        /* TODO: Create IPv6 record */
+        /* TODO: Create a reverse resolution record */
+
+        /* Try to claim the record */
+        if (pico_tree_insert(&rtree, record)) {
+            pico_mdns_record_delete((void **)&record);
+            return -1;
+        }
+
+        if (pico_mdns_claim(rtree, init_callback, arg)) {
+            mdns_dbg("Could not claim record for hostname %s!\n", url);
+            PICO_MDNS_RTREE_DESTROY(&rtree);
+            return -1;
+        }
+
+        pico_tree_destroy(&rtree, NULL);
     }
-
-    /* Create an A record for hostname */
-    record = pico_mdns_record_create(url,
-                                     &(mdns_sock_ipv4->local_addr.ip4.addr),
-                                     PICO_SIZE_IP4, PICO_DNS_TYPE_A,
-                                     PICO_MDNS_DEFAULT_TTL,
-                                     (PICO_MDNS_RECORD_UNIQUE |
-                                      PICO_MDNS_RECORD_HOSTNAME));
-    if (!record) {
-        mdns_dbg("Could not create A record for hostname %s!\n",
-                 strerror(pico_err));
-        return -1;
-    }
-
-    /* TODO: Create IPv6 record */
-    /* TODO: Create a reverse resolution record */
-
-    /* Try to claim the record */
-    if (pico_tree_insert(&rtree, record)) {
-        pico_mdns_record_delete((void **)&record);
-        return -1;
-    }
-
-    if (pico_mdns_claim(rtree, init_callback, arg)) {
-        mdns_dbg("Could not claim record for hostname %s!\n", url);
-        PICO_MDNS_RTREE_DESTROY(&rtree);
-        return -1;
-    }
-
-    pico_tree_destroy(&rtree, NULL);
-
     return 0;
-}
+} /* Static path count: 9 */
 
 /* ****************************************************************************
  *  Get the hostname for this machine.
