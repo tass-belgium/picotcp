@@ -186,6 +186,11 @@ static void pico_fragments_empty_tree(struct pico_tree *tree)
 {
     struct pico_tree_node *index, *tmp;
 
+    if (!tree)
+    {
+        return;
+    }
+
     pico_tree_foreach_safe(index, tree, tmp) {
         struct pico_frame * old = index->keyValue;
         pico_tree_delete(tree, old);
@@ -241,6 +246,11 @@ static void pico_frag_expire(pico_time now, void *arg)
 static void pico_fragments_send_notify(struct pico_frame *first)
 {
     uint8_t net = 0;
+
+    if (!first)
+    {
+        return;
+    }
 
     if (0) {}
 

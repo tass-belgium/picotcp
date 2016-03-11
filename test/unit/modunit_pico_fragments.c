@@ -178,6 +178,44 @@ START_TEST(tc_pico_fragments_complete)
 }
 END_TEST
 
+START_TEST(tc_pico_fragments_empty_tree)
+{
+    PICO_TREE_DECLARE(tree, pico_ipv4_frag_compare);
+    struct pico_frame *a = NULL, *b = NULL;
+
+    pico_fragments_empty_tree(NULL);
+
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    /* Make sure we have different frames a and b */
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20 >> 3u; /* off = 32 */
+
+    /* Insert them in the tree */
+    pico_tree_insert(&tree, a);
+    pico_tree_insert(&tree, b);
+
+    pico_fragments_empty_tree(&tree);
+
+    /* Is tree empty? */
+    fail_if(!pico_tree_empty(&tree));
+}
+END_TEST
+
 START_TEST(tc_pico_fragments_check_complete)
 {
     struct pico_frame *a, *b;
@@ -214,6 +252,72 @@ START_TEST(tc_pico_fragments_check_complete)
 
 }
 END_TEST
+
+START_TEST(tc_pico_fragments_send_notify)
+{
+    struct pico_frame *a = NULL;
+    char ipv4_multicast_address[] = {
+        "224.0.0.1"
+    };
+
+    icmp4_frag_expired_called = 0;
+
+    /* Case 1: NULL fragment */
+
+    pico_fragments_send_notify(NULL);
+
+    /* Notify should not be send when supplied a NULL argument */
+    fail_if(icmp4_frag_expired_called);
+
+    /* Case 2: fragment with offset > 0 */
+    a = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+
+    a->net_hdr = a->buffer;
+    a->net_len = sizeof(struct pico_ipv4_hdr);
+    a->buffer[0] = 0x40;        /* IPV4 */
+    a->frag = 0x20 >> 3u;       /* off = 32 */
+
+    pico_fragments_send_notify(a);
+
+    /* fragment has offset > 0, no notify should be sent */
+    fail_if(icmp4_frag_expired_called);
+
+    /* Case 3: fragment with offset > 0 & multicast address */
+    pico_string_to_ipv4(ipv4_multicast_address, &((struct pico_ipv4_hdr*)(a->net_hdr))->dst.addr);
+    pico_fragments_send_notify(a);
+
+    /* fragment has offset > 0 AND multicast address, no notify should be sent */
+    fail_if(icmp4_frag_expired_called);
+
+    /* Case 4: fragment with offset == 0 */
+    a->net_hdr = a->buffer;
+    a->net_len = sizeof(struct pico_ipv4_hdr);
+    a->buffer[0] = 0x40;        /* IPV4 */
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+    pico_string_to_ipv4("127.0.0.1", &((struct pico_ipv4_hdr*)(a->net_hdr))->dst.addr); /* Set a non-nulticast address */
+
+    pico_fragments_send_notify(a);
+
+    /* fragment has offset == 0, notify should be sent */
+    fail_if(!icmp4_frag_expired_called);
+
+    /* Case 5: fragment with offset == 0 & multicast address */
+    icmp4_frag_expired_called = 0; /* reset flag */
+    pico_string_to_ipv4(ipv4_multicast_address, &((struct pico_ipv4_hdr*)(a->net_hdr))->dst.addr);
+
+    pico_fragments_send_notify(a);
+
+    /* fragment has offset == 0 but multicast address, notify should NOT sent */
+    fail_if(icmp4_frag_expired_called);
+
+    /* Cleanup */
+    pico_frame_discard(a);
+}
+END_TEST
+
+
 START_TEST(tc_pico_frag_expire)
 {
     struct pico_frame *a, *b;
@@ -516,11 +620,126 @@ START_TEST(tc_pico_ipv4_frag_match)
 }
 END_TEST
 
+START_TEST(tc_pico_fragments_get_header_length)
+{
+    fail_unless(pico_fragments_get_header_length(PICO_PROTO_IPV4) == PICO_SIZE_IP4HDR);
+
+    fail_unless(pico_fragments_get_header_length(PICO_PROTO_IPV6) == PICO_SIZE_IP6HDR);
+
+    fail_unless(pico_fragments_get_header_length(1) == 0);
+}
+END_TEST
+
+START_TEST(tc_pico_fragments_get_more_flag)
+{
+    struct pico_frame *a = NULL, *b = NULL;
+
+    a = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+
+    a->net_hdr = a->buffer;
+    a->net_len = sizeof(struct pico_ipv4_hdr);
+    a->buffer[0] = 0x40;        /* IPV4 */
+    a->frag = PICO_IPV4_MOREFRAG; /* Set more flag */
+
+    b = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    b->net_hdr = a->buffer;
+    b->net_len = sizeof(struct pico_ipv6_hdr);
+    b->buffer[0] = 0x60;        /* IPV6 */
+    b->frag = 0x1;              /* set more flag */
+
+    fail_unless(pico_fragments_get_more_flag(NULL, PICO_PROTO_IPV4) == 0);
+    fail_unless(pico_fragments_get_more_flag(NULL, PICO_PROTO_IPV6) == 0);
+
+    /* More flag set in IPV4 */
+    fail_unless(pico_fragments_get_more_flag(a, PICO_PROTO_IPV4) == 1);
+
+    /* More flag set in IPV6 */
+    fail_unless(pico_fragments_get_more_flag(b, PICO_PROTO_IPV6) == 1);
+
+    /* More flag NOT set in IPV4 */
+    a->frag = 0;
+    fail_unless(pico_fragments_get_more_flag(a, PICO_PROTO_IPV4) == 0);
+
+    /* More flag NOT set in IPV6 */
+    b->frag = 0;
+    fail_unless(pico_fragments_get_more_flag(b, PICO_PROTO_IPV6) == 0);
+
+    /* Invalid net argument */
+    fail_unless(pico_fragments_get_more_flag(a, 1) == 0);
+    fail_unless(pico_fragments_get_more_flag(b, 1) == 0);
+
+    /* Cleanup */
+    pico_frame_discard(a);
+    pico_frame_discard(b);
+}
+END_TEST
+
+START_TEST(tc_pico_fragments_get_offset)
+{
+    struct pico_frame *a=NULL, *b = NULL;
+
+    b = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    /* IPV4 with fragment offset > 0 */
+    b->frag = 0x20 >> 3u; /* off = 32 */
+    fail_unless(pico_fragments_get_offset(b, PICO_PROTO_IPV4) == 32);
+
+    /* IPV4 with fragment offset == 0 */
+    b->frag = 0; /* off = 0 */
+    fail_unless(pico_fragments_get_offset(b, PICO_PROTO_IPV4) == 0);
+
+    /* Invalid net argument */
+    fail_unless(pico_fragments_get_offset(b, 1) == 0);
+
+    a = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+
+    /* IPV6 with fragment offset > 0 */
+    a->frag = 0x20; /* off = 32 */
+    fail_unless(pico_fragments_get_offset(a, PICO_PROTO_IPV6) == 32);
+
+    /* IPV6 with fragment offset == 0 */
+    a->frag = 1; /* off = 0 */
+    fail_unless(pico_fragments_get_offset(a, PICO_PROTO_IPV6) == 0);
+
+    /* Invalid net argument */
+    fail_unless(pico_fragments_get_offset(a, 1) == 0);
+
+    /* Invalid frame argument */
+    fail_unless(pico_fragments_get_offset(NULL, PICO_PROTO_IPV4) == 0);
+    fail_unless(pico_fragments_get_offset(NULL, PICO_PROTO_IPV6) == 0);
+    fail_unless(pico_fragments_get_offset(NULL, 1) == 0);
+
+    pico_frame_discard(a);
+    pico_frame_discard(b);
+}
+END_TEST
+
+START_TEST(tc_pico_fragments_reassemble)
+{
+    /* TODO:  */
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
+    TCase *TCase_pico_fragments_reassemble = tcase_create("Unit test for pico_fragments_reassemble");
+    TCase *TCase_pico_fragments_get_offset = tcase_create("Unit test for pico_fragments_get_offset");
+    TCase *TCase_pico_fragments_get_more_flag = tcase_create("Unit test for pico_fragments_get_more_flag");
+    TCase *TCase_pico_fragments_get_header_length = tcase_create("Unit test for pico_fragments_get_header_length");
+
+    TCase *TCase_pico_fragments_empty_tree = tcase_create("Unit test for pico_fragments_empty_tree");
+    TCase *TCase_pico_fragments_send_notify = tcase_create("Unit test for pico_fragments_send_notify");
     TCase *TCase_pico_ipv6_frag_compare = tcase_create("Unit test for pico_ipv6_frag_compare");
     TCase *TCase_pico_ipv4_frag_compare = tcase_create("Unit test for pico_ipv4_frag_compare");
     TCase *TCase_pico_ipv6_fragments_complete = tcase_create("Unit test for pico_ipv6_fragments_complete");
@@ -533,7 +752,18 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_frag_match = tcase_create("Unit test for pico_ipv6_frag_match");
     TCase *TCase_pico_ipv4_frag_match = tcase_create("Unit test for pico_ipv4_frag_match");
 
-
+    tcase_add_test(TCase_pico_fragments_reassemble, tc_pico_fragments_reassemble);
+    suite_add_tcase(s, TCase_pico_fragments_reassemble);
+    tcase_add_test(TCase_pico_fragments_get_offset, tc_pico_fragments_get_offset);
+    suite_add_tcase(s, TCase_pico_fragments_get_offset);
+    tcase_add_test(TCase_pico_fragments_get_more_flag, tc_pico_fragments_get_more_flag);
+    suite_add_tcase(s, TCase_pico_fragments_get_more_flag);
+    tcase_add_test(TCase_pico_fragments_get_header_length, tc_pico_fragments_get_header_length);
+    suite_add_tcase(s, TCase_pico_fragments_get_header_length);
+    tcase_add_test(TCase_pico_fragments_send_notify, tc_pico_fragments_send_notify);
+    suite_add_tcase(s, TCase_pico_fragments_send_notify);
+    tcase_add_test(TCase_pico_fragments_empty_tree, tc_pico_fragments_empty_tree);
+    suite_add_tcase(s, TCase_pico_fragments_empty_tree);
     tcase_add_test(TCase_pico_ipv6_frag_compare, tc_pico_ipv6_frag_compare);
     suite_add_tcase(s, TCase_pico_ipv6_frag_compare);
     tcase_add_test(TCase_pico_ipv4_frag_compare, tc_pico_ipv4_frag_compare);
