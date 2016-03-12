@@ -34,12 +34,13 @@ uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void
     IGNORE_PARAMETER(arg);
     fail_if(timer != pico_frag_expire);
     timer_add_called++;
-    return NULL;
+    return 0;
 }
 
 static int timer_cancel_called = 0;
 void pico_timer_cancel(uint32_t id)
 {
+    IGNORE_PARAMETER(id);
     timer_cancel_called++;
 }
 
