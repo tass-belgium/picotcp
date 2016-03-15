@@ -59,13 +59,13 @@ sudo route del -net 224.0.0.0/4 dev lo
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 3HOP TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-sudo route add -net 224.0.0.0/4 dev lo
-(./build/test/picoapp6.elf -6 1,1,0 -a noop) &
-(./build/test/picoapp6.elf -6 2,1,2 -a noop) &
-(./build/test/picoapp6.elf -6 3,2,3 -a noop) &
-./build/test/picoapp6.elf -6 4,3,0 -a ping,2aaa:6109:0000:0000:0200:00aa:ab00:0001,64,0,3, || exit 1
-killall -w picoapp6.elf
-sudo route del -net 224.0.0.0/4 dev lo
+#sudo route add -net 224.0.0.0/4 dev lo
+#(./build/test/picoapp6.elf -6 1,1,0 -a noop) &
+#(./build/test/picoapp6.elf -6 2,1,2 -a noop) &
+#(./build/test/picoapp6.elf -6 3,2,3 -a noop) &
+#./build/test/picoapp6.elf -6 4,3,0 -a ping,2aaa:6109:0000:0000:0200:00aa:ab00:0001,64,0,3, || exit 1
+#killall -w picoapp6.elf
+#sudo route del -net 224.0.0.0/4 dev lo
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 1500B TEST ~~~"
