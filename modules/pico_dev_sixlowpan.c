@@ -235,11 +235,6 @@ struct sixlowpan_frame
     struct pico_device *dev;
 
     /**
-     *  Original pico_frame the frame is translated from
-     */
-    struct pico_frame *original;
-
-    /**
      *  Link layer address of the nearest hop, either the
      *  next hop address when sending or the last hop
      *  address when receiving.
@@ -490,9 +485,7 @@ static struct pico_ieee_addr sixlowpan_determine_next_hop(struct sixlowpan_frame
 static int sixlowpan_ping(struct pico_ieee_addr dst, struct pico_ieee_addr last_hop, struct pico_device *dev, uint16_t id, uint8_t reply_am_mode);
 static int sixlowpan_rtable_insert(struct pico_ieee_addr dst, struct pico_ieee_addr via, uint8_t hops);
 static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f);
-static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len);
 static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
-static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len);
 static int sixlowpan_retransmit(struct sixlowpan_frame *f);
 static int sixlowpan_prep_tx(void);
 
@@ -694,22 +687,21 @@ static void *buf_insert(void *buf, uint16_t len, struct range r)
     void *new = NULL;
 
     /* OOB Check */
-    if (!buf || (r.offset > len)) {
+    if (r.offset > len)
         return buf;
-    } else {
-        /* OOM Check */
-        if (!(new = PICO_ZALLOC((size_t)(len + r.length)))) {
-            return buf;
-        } else {
-            /* Assemble buffer again */
-            buf_move(new, buf, (size_t)r.offset);
-            buf_move(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
-            memset(new + r.offset, 0x00, r.length);
-            PICO_FREE(buf); /* Give back previous buffer to the system */
-        }
+
+    /* OOM Check */
+    if (!(new = PICO_ZALLOC((size_t)(len + r.length))))
+        return buf;
+
+    /* Assemble buffer again */
+    if (buf && new) {
+        buf_move(new, buf, (size_t)r.offset);
+        buf_move(new + r.offset + r.length, buf + r.offset, (size_t)(len - r.offset));
+        memset(new + r.offset, 0x00, r.length);
+        PICO_FREE(buf); /* Give back previous buffer to the system */
     }
 
-    /* Static path count: 3 */
     return new;
 }
 
@@ -1104,6 +1096,50 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
     ieee_provide_hdr(f);
     return f;
 }
+
+static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
+{
+    uint8_t *buf = NULL;
+    if (!(buf = PICO_ZALLOC(f->size))) {
+        f->state = FRAME_ERROR;
+        return NULL;
+    }
+    memcpy(buf, f->phy_hdr, f->size);
+    *len = (uint8_t)f->size;
+    return buf;
+}
+
+static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf, uint8_t len, struct pico_device *dev)
+{
+    struct pico_ieee_addr peer = IEEE_ADDR_ZERO, local = IEEE_ADDR_ZERO;
+    struct sixlowpan_frame *f = NULL;
+    struct ieee_hdr *link_hdr = NULL;
+    uint8_t link_hdr_len = 0;
+    uint16_t net_len = 0;
+    if (!buf)
+        return NULL;
+
+    link_hdr = (struct ieee_hdr *)(buf + IEEE_LEN_LEN);
+    link_hdr_len = ieee_hdr_len(link_hdr);
+    local = pico_ieee_addr_from_hdr(link_hdr, 0);
+    peer = pico_ieee_addr_from_hdr(link_hdr, 1);
+
+    /* Provide space for the sixlowpan_frame */
+    net_len = (uint16_t)((uint16_t)(len - IEEE_PHY_OVERHEAD) + 1 - link_hdr_len);
+    if (!(f = sixlowpan_frame_create(local, peer, net_len, 0, 0, dev)))
+        return NULL;
+
+    /* Global sequence number is incremented by frame_create, but we don't want that
+     * to happen on reception of frames */
+    slp_seq--;
+
+    /* Copy in payload */
+    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len);
+
+    f->state = FRAME_COMPRESSED;
+    return f;
+}
+
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
 int pico_sixlowpan_iid_is_derived_16(uint8_t *iid)
@@ -1258,6 +1294,7 @@ void rtable_print(void)
 
     dbg("~~~ END OF ROUTING TABLE\r\n");
 }
+
 
 static struct sixlowpan_rtable_entry *sixlowpan_rtable_find_entry(struct pico_ieee_addr dst)
 {
@@ -2526,86 +2563,29 @@ static void sixlowpan_decompress(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: FRAGMENTATION
-struct frag_status {
-    struct pico_frame const *f; /* Only to keep track of frame */
-    uint16_t dgram_size;        /* Full size of IPv6-datagram */
-    uint16_t dgram_tag;         /* Datagram tag */
-    uint8_t max_len;            /* Maximum frag size */
-    uint16_t offset;            /* Current offset in the IPv6-datagram */
-};
-
-static int frag_status_cmp(void *a, void *b) {
-    struct frag_status *frag_a = (struct frag_status *)a;
-    struct frag_status *frag_b = (struct frag_status *)b;
-
-    return (int)(frag_a->f - frag_b->f);
-}
-PICO_TREE_DECLARE(FragStatusCookies, frag_status_cmp);
-
-static int frag_status_insert(struct pico_frame *f, uint16_t dgram_size, uint16_t dgram_tag, uint8_t max_len)
-{
-    struct frag_status *new = NULL;
-
-    if (!f) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    } else {
-        if (!(new = PICO_ZALLOC(sizeof(struct frag_status)))) {
-            pico_err = PICO_ERR_ENOMEM;
-            return -1;
-        }
-
-        /* Set the params */
-        new->f = f;
-        new->offset = 0;
-        new->dgram_size = dgram_size;
-        new->dgram_tag = dgram_tag;
-        new->max_len = max_len;
-
-        if (pico_tree_insert(&FragStatusCookies, new)) {
-            PICO_FREE(new);
-        }
-    }
-    return 0;
-}
-
-static struct frag_status *frag_status_find(struct sixlowpan_frame *f)
-{
-    struct frag_status dummy = {.f = f->original, .dgram_size = 0, .dgram_tag = 0, .offset = 0 };
-    return pico_tree_findKey(&FragStatusCookies, &dummy);
-}
-
 static void sixlowpan_frame_frag(struct sixlowpan_frame *f)
 {
-    uint8_t max_psize = 0, compressed = 0;
-    uint16_t decompressed = 0, offsets = 0;
+    uint8_t max_psize = 0, comp = 0;
+    uint16_t decompressed = 0, diff = 0;
     if (!f)
         return;
 
     /* Determine how many bytes need to be transmitted to send the entire IPv6-payload */
-    f->net_len = (uint16_t)(f->net_len + f->transport_len); /* Keep track of the sent bytes */
-    f->transport_len = f->net_len; /* Keep the original size of the frame in 'transport_len' */
+    f->net_len = (uint16_t)(f->net_len + f->transport_len);
+    f->transport_len = f->net_len;
 
     /* Determine how many bytes fits inside a single IEEE802.15.4-frame including 802.15.4-header and frag-header */
-    max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len); // Subtract amount of bytes needed for the PHY header
-    max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn)); // Subtract amount needed for for FRAG-header
-    max_psize = (uint8_t)(max_psize - sixlowpan_mesh_overhead(f)); // Subtract amount needed for MESH-header
+    max_psize = (uint8_t)(IEEE_MAC_MTU - f->link_hdr_len);
+    max_psize = (uint8_t)(max_psize - sizeof(struct sixlowpan_fragn));
+    max_psize = (uint8_t)(max_psize - sixlowpan_mesh_overhead(f));
 
-    compressed = (uint8_t)(f->dgram_size - f->net_len); // Original IPv6-size - compressed frame-size = compressed bytes
-    decompressed = (uint16_t)(max_psize + compressed); // How big a single frame would be after decompression
+    comp = (uint8_t)(f->dgram_size - f->net_len);
+    decompressed = (uint16_t)(max_psize + comp);
+    diff = (uint16_t)((decompressed / 8) * 8);
+    f->max_bytes = (uint8_t)(diff - comp);
 
-    /*  We need to work with offsets of the original IPv6-frame, not with offsets
-     *  in the compressed frame. So the multiples of eight need to be calculated with the
-     *  the decompressed size in mind. */
-    offsets = (uint16_t)((decompressed / 8) * 8);
-
-    /* But the actual frame itself does need to fit inside a 6LoWPAN frame, so subtract
-     * compressed again from the offset size so it fits */
-    f->max_bytes = (uint8_t)(offsets - compressed); // Determine the maximum amount of bytes in a single 6LoWPAN-frame
+    /* Determine how many multiples of eight bytes fit inside that same amount of bytes determined a line above */
     f->state = FRAME_FRAGMENTED;
-
-    /* Keep a fragmentation status cookie */
-    frag_status_insert(f->original, f->dgram_size, dtag++, (uint8_t)(offsets - compressed));
 }
 
 static int sixlowpan_fill_fragn(struct sixlowpan_fragn *hdr, struct sixlowpan_frame *f)
@@ -2635,180 +2615,59 @@ static int sixlowpan_fill_frag1(struct sixlowpan_frag1 *hdr, struct sixlowpan_fr
     return 0;
 }
 
-static uint8_t sixlowpan_frag_size(struct sixlowpan_frame *f)
+static uint8_t *sixlowpan_frame_tx_next(struct sixlowpan_frame *f, uint8_t *len)
 {
-    uint8_t dsize = 0, frag_len = 0;
-    struct frag_status *found = NULL;
-
-    if ((found = frag_status_find(f))) {
-        if (!found->offset) {
-            /* First fragment isn't sent yet  */
-            dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
-            frag_len = (uint8_t)(found->max_len + dsize);
-        } else if (f->net_len - found->offset < found->max_len) {
-            /* Last fragment, the rest */
-            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-            frag_len = (uint8_t)((uint8_t)(f->net_len - found->offset) + dsize);
-        } else {
-            /* Subsequent fragment */
-            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-            frag_len = (uint8_t)(((found->max_len / 8) * 8) + dsize);
-        }
-    }
-
-    frag_len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
-
-    /* Static path count: 4 */
-    return frag_len;
-}
-
-static int sixlowpan_frag_fill_buf(uint8_t *buf, struct sixlowpan_frame *f, uint8_t len, struct frag_status *stat)
-{
-    uint8_t frag_len = 0, dsize = 0, slp_offset = 0, compressed = 0;
-    uint16_t copy_offset = 0;
-
-    if (!buf || !f || !len || 0 == f->net_len) {
-        return -1;
-    } else {
-        /* Determine length of buffer */
-        slp_offset = (uint8_t)(f->link_hdr_len + IEEE_LEN_LEN);
-
-        /* Fill in the fragmentation header */
-        if (!stat->offset) {
-            sixlowpan_fill_frag1((struct sixlowpan_frag1 *)(buf + slp_offset), f);
-            dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
-        } else {
-            sixlowpan_fill_fragn((struct sixlowpan_fragn *)(buf + slp_offset), f);
-            copy_offset = (uint16_t)(((struct sixlowpan_fragn *)(buf + slp_offset))->offset - compressed);
-            dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
-            f->link_hdr->seq = slp_seq++;
-        }
-
-        memcpy((uint8_t *)(buf + IEEE_LEN_LEN), f->link_hdr, (size_t)(f->link_hdr_len));
-        memcpy((uint8_t *)(buf + slp_offset + dsize), (uint8_t *)(f->net_hdr + copy_offset), (size_t)(frag_len - dsize));
-
-        /* Update the offset, delete status-cookie if last frame */
-        stat->offset = (uint16_t)(stat->offset + stat->max_len);
-        if (stat->offset >= stat->dgram_size) {
-            f->state = FRAME_SENT;
-            stat = pico_tree_delete(&FragStatusCookies, stat);
-            if (stat)
-                PICO_FREE(stat);
-        }
-    }
-
-    /* Static path count: 7 */
-    return 0;
-}
-
-static uint8_t *sixlowpan_buf_alloc(struct sixlowpan_frame *f, uint8_t *size)
-{
-    if (FRAME_COMPRESSED == f->state) {
-        /* Provide space for a fragment frame */
-        *size = sixlowpan_frag_size(f);
-    } else if (FRAME_FITS == f->state || FRAME_FITS_COMPRESSED == f->state) {
-        /* provide space for a plain frame */
-        *size = (uint8_t)f->size;
-    } else {
-        PAN_ERR("Unkown frame state (%d).\r\n", f->state);
-        return NULL;
-    }
-
-    /* Static path count: 3 */
-    return PICO_ZALLOC(*size); /* Check for NULL in callee */
-}
-
-static uint8_t *sixlowpan_frame_to_buf(struct sixlowpan_frame *f, uint8_t *len)
-{
+    struct range r = {.offset = 0, .length = 0};
+    uint8_t frag_len = 0, dsize = 0, slp_offset;
     uint8_t *buf = NULL;
 
-    if (!(buf = sixlowpan_buf_alloc(f, len))) {
-        f->state = FRAME_ERROR;
+    if (!f || !len)
         return NULL;
+
+    if (0 == f->net_len)
+        return NULL;
+
+    if (f->transport_len == f->net_len) {
+        /* First fragments isn't sent yet  */
+        dsize = (uint8_t)sizeof(struct sixlowpan_frag1);
+        frag_len = (uint8_t)(f->max_bytes + dsize);
+    } else if (f->net_len < f->max_bytes) {
+        /* Last fragment, the rest */
+        dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
+        frag_len = (uint8_t)(f->net_len + dsize);
     } else {
-        memcpy(buf, f->phy_hdr, f->size);
+        /* Subsequent fragment */
+        dsize = (uint8_t)sizeof(struct sixlowpan_fragn);
+        frag_len = (uint8_t)(((f->max_bytes / 8) * 8) + dsize);
     }
 
-    /* Static path count: 2 */
+    /* Determine length of buffer */
+    *len = (uint8_t)(f->link_hdr_len + (uint8_t)(frag_len + IEEE_PHY_OVERHEAD));
+    if (!(buf = PICO_ZALLOC((size_t)*len))) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
+    slp_offset = (uint8_t)(f->link_hdr_len + IEEE_LEN_LEN);
+
+    /* Fill in the fragmentation header */
+    if (f->transport_len == f->net_len) {
+        sixlowpan_fill_frag1((struct sixlowpan_frag1 *)(buf + slp_offset), f);
+    } else {
+        sixlowpan_fill_fragn((struct sixlowpan_fragn *)(buf + slp_offset), f);
+    }
+
+    memcpy((uint8_t *)(buf + IEEE_LEN_LEN), f->link_hdr, (size_t)(f->link_hdr_len));
+    memcpy((uint8_t *)(buf + slp_offset + dsize), f->net_hdr, (size_t)(frag_len - dsize));
+
+    /* Remove the fragment from the frame */
+    r.length = (uint16_t)(frag_len - dsize);
+    frame_buf_delete(f, PICO_LAYER_NETWORK, r, 0);
+
+    if (f->transport_len != f->net_len)
+        buf[3] = slp_seq++;
+
     return buf;
 }
-
-static uint8_t *sixlowpan_frag_to_buf(struct sixlowpan_frame *f, uint8_t *len)
-{
-    struct frag_status *found = NULL;
-    uint8_t *buf = NULL;
-
-    if (!(buf = sixlowpan_buf_alloc(f, len))) {
-        f->state = FRAME_ERROR;
-        return NULL;
-    } else {
-        if ((found = frag_status_find(f))) {
-            if (sixlowpan_frag_fill_buf(buf, f, *len, found)) {
-                PICO_FREE(buf);
-                return NULL;
-            }
-        }
-    }
-
-    /* Static path count: 4 */
-    return buf;
-}
-
-static uint8_t *sixlowpan_buf_out(uint8_t *buf, uint8_t *len, struct sixlowpan_frame *f)
-{
-    if (!(buf = sixlowpan_mesh_out(buf, len, f))) {
-        PAN_ERR("During mesh addressing\r\n");
-        return NULL;
-    }
-
-    if (!(buf = sixlowpan_broadcast_out(buf, len))) {
-        PAN_ERR("During broadcast out\r\n");
-        return NULL;
-    }
-
-    /* Static path count: 4 */
-    return buf;
-}
-
-static int sixlowpan_frame_transmit(struct sixlowpan_frame *f)
-{
-    struct pico_device_sixlowpan *slp = NULL;
-    uint8_t *buf = NULL;
-    uint8_t len = 0;
-    int ret = 0;
-
-    if (f) {
-        if (FRAME_COMPRESSED == f->state) {
-            buf = sixlowpan_frag_to_buf(f, &len);
-        } else if (FRAME_FITS == f->state || FRAME_FITS_COMPRESSED == f->state) {
-            /* Nothing to do, frame is ready for transmitting */
-            buf = sixlowpan_frame_to_buf(f, &len);
-        }
-
-        if (!(buf = sixlowpan_buf_out(buf, &len, f))) {
-            return -1;
-        } else {
-            slp = (struct pico_device_sixlowpan *)f->dev;
-            ret = slp->radio->transmit(slp->radio, buf, len);
-
-            /* Buffer is always freed */
-            PICO_FREE(buf);
-
-            /* If the frame is fragmented don't let pico discard the frame just yet. */
-            if (FRAME_FRAGMENTED == f->state)
-                return 0;
-            else if (FRAME_SENT == f->state)
-                return f->dgram_size;
-        }
-    } else {
-        return -1;
-    }
-
-    /* Static path count: 13 TODO: Refactor */
-    return ret;
-}
-
-
 
 // MARK: DEFRAGMENTATION
 static int sixlowpan_frag_cmp(void *a, void *b)
@@ -2984,6 +2843,7 @@ static struct sixlowpan_frame *sixlowpan_defrag(struct sixlowpan_frame *f)
 
 /* -------------------------------------------------------------------------------- */
 // MARK: BROADCASTING
+
 static int sixlowpan_is_duplicate(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq);
 
 static int sixlowpan_retransmit(struct sixlowpan_frame *f)
@@ -3349,7 +3209,6 @@ static uint8_t *sixlowpan_mesh_out(uint8_t *buf, uint8_t *len, struct sixlowpan_
         ((struct ieee_hdr *)(new + IEEE_LEN_LEN))->fcf.dam = IEEE_AM_SHORT;
     }
 
-    /* Static path count: 8 */
     return new;
 }
 
@@ -3378,36 +3237,33 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     struct pico_ieee_addr origin = IEEE_ADDR_ZERO;
     struct pico_ieee_addr final = IEEE_ADDR_ZERO;
 
-    if (!f || !f->net_len)
+    if (!f)
         return NULL;
 
-    /* Fixed forwarding of frames (frames are unformatted then) */
-    f->net_len = 40;
-    f->transport_len = (uint16_t)(f->len - 40);
-    f->transport_hdr = f->net_hdr + f->net_len;
+    if (!f->net_len) {
+        /* Fixed forwarding of frames (frames are unformatted then) */
+        f->net_len = 40;
+        f->transport_len = (uint16_t)(f->len - 40);
+        f->transport_hdr = f->net_hdr + f->net_len;
+    }
 
-    /* Determine link layer origin and final addresses */
+     /* Determine link layer origin and final addresses */
     if (sixlowpan_derive_origin(f, &origin)) {
         PAN_ERR("Failed deriving origin from IPv6 source address\r\n");
         return NULL;
-    } else {
-        if (sixlowpan_determine_final_dst(f, &final) < 0) {
-            pico_err = PICO_ERR_EHOSTUNREACH;
-            pico_ipv6_nd_postpone(f);
-            return NULL;
-        } else {
-            /* Try to provide a 6LoWPAN-frame instance */
-            frame = sixlowpan_frame_create(origin,
-                                           final,
-                                           f->net_len,
-                                           (uint16_t)(f->len - f->net_len),
-                                           SIXLOWPAN_DEFAULT_TTL,
-                                           f->dev);
-            if (!frame) {
-                PAN_ERR("Failed creating 6LoWPAN-frame\r\n");
-                return NULL;
-            }
-        }
+    }
+
+    if (sixlowpan_determine_final_dst(f, &final) < 0) {
+        pico_err = PICO_ERR_EHOSTUNREACH;
+        pico_ipv6_nd_postpone(f);
+        return NULL;
+    }
+
+    /* Try to provide a 6LoWPAN-frame instance */
+    frame = sixlowpan_frame_create(origin, final, f->net_len, (uint16_t)(f->len - f->net_len), SIXLOWPAN_DEFAULT_TTL, f->dev);
+    if (!frame) {
+        PAN_ERR("Failed creating 6LoWPAN-frame\r\n");
+        return NULL;
     }
 
     /* Next Hop determination */
@@ -3417,14 +3273,75 @@ static struct sixlowpan_frame *sixlowpan_frame_translate(struct pico_frame *f)
     memcpy(frame->net_hdr, f->net_hdr, f->net_len);
     memcpy(frame->transport_hdr, f->transport_hdr, f->transport_len);
 
-    /* Keep track of the original frame the 6LoWPAN-frame is translated from */
-    frame->original = f;
-
     return frame;
 }
 
 /* -------------------------------------------------------------------------------- */
 // MARK: PICO_DEV
+static int sixlowpan_send_exit(int ret)
+{
+    sixlowpan_state = SIXLOWPAN_READY;
+    sixlowpan_frame_destroy(tx);
+    tx = NULL;
+    return ret;
+}
+
+static int sixlowpan_send_tx(void)
+{
+    struct pico_device_sixlowpan *slp = NULL;
+    uint8_t *buf = NULL;
+    uint8_t len = 0;
+    int ret = 0;
+
+    if (SIXLOWPAN_TRANSMITTING != sixlowpan_state)
+        return 0;
+
+    if (!tx)
+        return -1;
+
+    /* Check whether the fragment is fragmented */
+    if (FRAME_FRAGMENTED == tx->state)
+        buf = sixlowpan_frame_tx_next(tx, &len); /* Next fragment of current frame */
+    else
+        buf = sixlowpan_frame_to_buf(tx, &len); /* Current frame as a whole */
+
+    if (buf) {
+        if (!(buf = sixlowpan_mesh_out(buf, &len, tx))) {
+            PAN_ERR("During mesh addressing\r\n");
+            return sixlowpan_send_exit(-1);
+        }
+
+        if (!(buf = sixlowpan_broadcast_out(buf, &len))) {
+            PAN_ERR("During broadcast out\r\n");
+            return sixlowpan_send_exit(-1);
+        }
+
+        slp = (struct pico_device_sixlowpan *)tx->dev;
+        ret = slp->radio->transmit(slp->radio, buf, len);
+        if (!ret)
+            tx_enqueue(buf, len);
+
+		/* Buffer is always freed, either transmission worked, or
+		 * buf is queued for retry */
+        PICO_FREE(buf);
+
+		/* If the frame is fragmented don't clear the TX-buffer just yet. */
+        if (FRAME_FRAGMENTED == tx->state)
+            return ret;
+    } else {
+        /* Entire frame is either sent or something went wrong, we don't care, in
+         * either case, tx can be discarded */
+    }
+
+    return sixlowpan_send_exit(ret);
+}
+
+static int sixlowpan_schedule(void)
+{
+    sixlowpan_state = SIXLOWPAN_TRANSMITTING;
+    return sixlowpan_send_tx();
+}
+
 static int sixlowpan_prep_tx_exit(int ret)
 {
     sixlowpan_state = SIXLOWPAN_READY;
@@ -3438,7 +3355,6 @@ static int sixlowpan_prep_tx(void)
     /* Try to compress the 6LoWPAN-frame */
     if (!tx)
         return -1;
-
     sixlowpan_compress(tx);
     if (FRAME_COMPRESSED == tx->state) {
         /* Try to fragment the entire compressed frame */
@@ -3455,8 +3371,7 @@ static int sixlowpan_prep_tx(void)
         return sixlowpan_prep_tx_exit(-1);
     }
 
-    sixlowpan_state = SIXLOWPAN_TRANSMITTING;
-    return sixlowpan_frame_transmit(tx);
+    return sixlowpan_schedule();
 }
 
 static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
@@ -3474,7 +3389,7 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     IGNORE_PARAMETER(len);
 
-    /* Translate the pico_frame (to 6LoWPAN-addresses) :*/
+    /* Translate the pico_frame */
     sixlowpan_state = SIXLOWPAN_PREPARING;
     if (!(tx = sixlowpan_frame_translate(f))) {
         PAN_ERR("Failed translating pico_frame\r\n");
@@ -3483,16 +3398,12 @@ static int sixlowpan_send(struct pico_device *dev, void *buf, int len)
         return -1;
     }
 
-    /* Check if sending succeeded */
-//  if (!sixlowpan_prep_tx())  {
-        /* If not, destroy sixlowpan-frame */
-//      sixlowpan_frame_destroy(tx);
-//      tx = NULL;
-//      return -1;
-//  }
+    sixlowpan_prep_tx();
 
-    return sixlowpan_prep_tx();
-//    return len;
+    /* Return len because current implementation of sixlowpan_prep_tx will
+     * always put the frame in a queue. If this queue would be full, we would
+     * have already returned 0 in the beginning of this function. */
+    return len;
 }
 
 static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
@@ -3510,79 +3421,6 @@ static int sixlowpan_defragged_handle(struct sixlowpan_frame *f)
     return 0;
 }
 
-///
-/// Provides a structure around a received data-buffer
-///
-/// XXX: TO BE TESTED
-static struct sixlowpan_frame *sixlowpan_buf_to_frame(uint8_t *buf,
-                                                      uint8_t len,
-                                                      struct pico_device *dev)
-{
-    struct pico_ieee_addr peer = IEEE_ADDR_ZERO, local = IEEE_ADDR_ZERO;
-    struct sixlowpan_frame *f = NULL;
-    struct ieee_hdr *link_hdr = NULL;
-    uint8_t link_hdr_len = 0;
-    uint16_t net_len = 0;
-
-    if (!buf || !dev)
-        return NULL;
-
-    /* Parse in IEEE802.15.4 header */
-    link_hdr = (struct ieee_hdr *)(buf + IEEE_LEN_LEN);
-    link_hdr_len = ieee_hdr_len(link_hdr);
-
-    /* 802.15.4: Destination (dst) -> local, Last Hop (src) -> peer */
-    local = pico_ieee_addr_from_hdr(link_hdr, 0);
-    peer = pico_ieee_addr_from_hdr(link_hdr, 1);
-
-    /* 'len' contains MPDU-length + FCS-length (MAC_OVERHEAD), remove it */
-    net_len = (uint16_t)((uint16_t)(len - IEEE_MAC_OVERHEAD) - link_hdr_len);
-    if (!(f = sixlowpan_frame_create(local, peer, net_len, 0, 0, dev)))
-        return NULL;
-    /* Received frame is by default compress */
-    f->state = FRAME_COMPRESSED;
-
-    /* Global sequence number is incremented by frame_create,
-     * but we don't want that to happen on reception of frames */
-    slp_seq--;
-
-    /* Copy in payload */
-    memcpy(f->phy_hdr + IEEE_LEN_LEN, link_hdr, len);
-
-    return f;
-} /* Static path count: 4 */
-
-
-static int sixlowpan_parse(uint8_t *buf, uint8_t len, struct pico_device *dev)
-{
-    struct sixlowpan_frame *f = NULL;
-
-    /*  1. DECAPSULATE   : Provide structure to work with
-     *  2. MESH IN       : Link layer meshing > retransmission if needed
-     *  3. DEFRAGMENT    : Reassemble fragmented frame if needed
-     *  4. DECOMPRESS    : Decompress frame if needed
-     *  5. STACK         : Pass frame to picoTCP
-     */
-
-    f = sixlowpan_buf_to_frame(buf, (uint8_t)len, dev);
-
-    if (!f) {
-        return -1;
-    } else {
-        /* At this moment the 'peer' contains the link-layer source address
-         * of the frame and 'local' contains the link-layer destination
-         * address */
-
-    }
-
-    /* TODO: (14/3) Move parsing of received frame from polling in here */
-
-    return 0;
-}
-
-///
-///
-///
 static int sixlowpan_poll(struct pico_device *dev, int loop_score)
 {
     /* Parse the pico_device structure to the internal sixlowpan-structure */
@@ -3593,20 +3431,35 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
     int len = 0;
 
     do {
-        if ((len = radio->receive(radio, buf, IEEE_PHY_MTU)) > 0) {
+        len = radio->receive(radio, buf, IEEE_PHY_MTU);
+        if (len > 0) {
             /* Decapsulate IEEE802.15.4 MAC frame to 6LoWPAN-frame */
             if (!(f = sixlowpan_buf_to_frame(buf, (uint8_t)len, dev)))
                 return loop_score;
-            else {
 
-            }
+            /* At this moment the 'peer' contains the link-layer source address of the frame
+             * and 'local' contains the link-layer destination address */
 
             /* Check for MESH Dispatch header */
             if (!(f = sixlowpan_mesh_in(f))) {
                 /* Frame is forwareded and destroyed or queue has it and is postponed */
                 continue;
             }
+/*
+            {
+            int i = 0;
 
+            dbg("\r\n === RCVD (%08d ms) ==================\r\n", PICO_TIME_MS());
+            dbg_ieee_addr("\tfrom", &f->peer);
+            dbg_ieee_addr("\tvia", &f->hop);
+            dbg_ieee_addr("\tdestined for", &f->local);
+            dbg("\tData:");
+            for (i = 0; i < f->net_len; ++i) {
+                dbg("%02X", f->net_hdr[i]);
+            }
+            dbg("\r\n ============================================\r\n");
+            }
+*/
             /* Defrag, if NULL, everthing OK, but I'm still waiting for some other packets */
             if (!(f = sixlowpan_defrag(f)))
                 continue;
@@ -3622,191 +3475,170 @@ static int sixlowpan_poll(struct pico_device *dev, int loop_score)
             break;
     } while (loop_score > 0);
 
+    /* Can I do something else? */
+    sixlowpan_send_tx(); /* Yes you can, send current frame */
+
     /* Check if there are any frames to retry */
     tx_retry(radio);
-
     return loop_score;
 }
 
-//===----------------------------------------------------------------------===//
-//  API functions
-//===----------------------------------------------------------------------===//
-
-///
-/// Fills an 802.15.4 address into a IEEE-header (that is li)
-///
-/// XXX: CHECKED (test to be confirmed)
-int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr,
-                          struct pico_ieee_addr src,
-                          struct pico_ieee_addr dst)
+/* -------------------------------------------------------------------------------- */
+// MARK: API
+int pico_ieee_addr_to_hdr(struct ieee_hdr *hdr, struct pico_ieee_addr src, struct pico_ieee_addr dst)
 {
     if (!hdr)
         return -1;
-    else {
-        /* Set the addressing modes */
-        pico_ieee_addr_modes_to_hdr(hdr, src._mode, dst._mode)
 
-        /* Fill in the destination address */
-        pico_ieee_addr_to_flat((uint8_t *)hdr->addresses, dst, IEEE_TRUE)
+    /* Set the addressing modes */
+    if (pico_ieee_addr_modes_to_hdr(hdr, src._mode, dst._mode)) {
+        PAN_ERR("Failed filling in the addressing modes in the IEEE802.14.4 Frame Control Field\r\n");
+        return -1;
+    }
 
-        /* FIll in the source address */
-        pico_ieee_addr_to_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(dst._mode)), src, IEEE_TRUE)
+    /* Fill in the destination address */
+    if (pico_ieee_addr_to_flat((uint8_t *)hdr->addresses, dst, IEEE_TRUE)) {
+        PAN_ERR("Failed filling in destination address in IEEE802.15.4 MAC header\r\n");
+        return -1;
+    }
+
+    /* fIll in the source address */
+    if (pico_ieee_addr_to_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(dst._mode)), src, IEEE_TRUE)) {
+        PAN_ERR("Failed filling in source address in IEEE802.15.4 MAC header\r\n");
+        return -1;
     }
 
     return 0;
-} /* Static path count: 2 */
+}
 
-///
-/// Wrapper to retrieve 802.15.4 from IEEE-header
-///
-/// XXX: CHECKED (test to be confirmed)
 struct pico_ieee_addr pico_ieee_addr_from_hdr(struct ieee_hdr *hdr, uint8_t src)
 {
-    if (src)
+    if (src) {
         return pico_ieee_addr_from_flat((uint8_t *)(hdr->addresses + pico_ieee_addr_len(hdr->fcf.dam)), hdr->fcf.sam, IEEE_TRUE);
-    else
+    } else {
         return pico_ieee_addr_from_flat((uint8_t *)hdr->addresses, hdr->fcf.dam, IEEE_TRUE);
-} /* Static path count: 2 */
+    }
+}
 
-///
-/// Set's the network-prefix of the pan is called (only relevant to 6LBR)
-///
-/// TODO: UNIT TEST
 int pico_sixlowpan_set_prefix(struct pico_device *dev, struct pico_ip6 prefix)
 {
-    if ((!dev) || !pico_ipv6_link_add_sixlowpan(dev, prefix));
+    if (!dev)
         return -1;
-    PAN_DBG("Enabled 6LBR mode on device (%d)\r\n",
-            ((struct pico_ieee_addr *)dev->eth)->_short.addr);
+    if (!pico_ipv6_link_add_sixlowpan(dev, prefix))
+        return -1;
+    PAN_DBG("Enabled 6LBR mode on device (%d)\r\n", ((struct pico_ieee_addr *)dev->eth)->_short.addr);
     return 0;
-} /* Static path count: 2 */
+}
 
-///
-/// Asynchronous setting of the short address. Radio-driver may have
-/// retrieved a short address through 802.15.4 association events
-///
-/// TODO:  Reconsider support for this feature after proper mesh implementation
 void pico_sixlowpan_short_addr_configured(struct pico_device *dev)
 {
     struct pico_ieee_addr *slp_addr = NULL;
     struct pico_device_sixlowpan *slp = NULL;
-
-    if ((!dev) || LL_MODE_SIXLOWPAN != dev->mode)
+    if (!dev)
         return;
-    else {
-        slp = (struct pico_device_sixlowpan *)dev;
-        slp_addr = (struct pico_ieee_addr *)dev->eth;
 
-        /*
-        * Set the short-address of the device. A check whether or not
-        * the device already had a short-address is not needed. I assume
-        * the device-driver has priority of configuring addresses and
-        * assume it takes this into account.
-        */
+    /* Parse the pico_device structure to the internal sixlowpan-structure */
+    slp = (struct pico_device_sixlowpan *) dev;
+    slp_addr = (struct pico_ieee_addr *)dev->eth;
+
+    if (LL_MODE_SIXLOWPAN == dev->mode) {
+        /**
+         *  Set the short-address of the device. A check whether or not
+         *  the device already had a short-address is not needed. I assume
+         *  the device-driver has priority of configuring addresses and assume
+         *  it takes this into account.
+         */
         slp_addr->_short.addr = slp->radio->get_addr_short(slp->radio);
 
-        if ((IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) &&
-            IEEE_AM_EXTENDED == slp_addr->_mode) {
+        /* Set the address mode accordingly */
+        if (IEEE_ADDR_BCAST_SHORT != slp_addr->_short.addr) {
+            if (IEEE_AM_EXTENDED == slp_addr->_mode)
                 slp_addr->_mode = IEEE_AM_BOTH;
+            else
+                slp_addr->_mode = IEEE_AM_SHORT;
         }
     }
-} /* Static path count: 3 */
+}
 
-///
-/// Enables border router mode on a 6LoWPAN interface
-///
-/// TODO: UNIT TEST
 int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix)
 {
     struct pico_device_sixlowpan *slp = NULL;
     int ret = 0;
-
-    if (!dev || !pico_ipv6_is_global(prefix.addr)) {
-        pico_err = PICO_ERR_EINVAL;
+    if (!dev)
         return -1;
-    } else {
-        /* Enable IPv6 routing on the device's interface */
-        pico_ipv6_dev_routing_enable(dev);
 
-        /* Make sure the 6LBR router has short address 0x0000 */
-        slp = (struct pico_device_sixlowpan *)dev;
-        if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
-            return ret;
+    if (!pico_ipv6_is_global(prefix.addr))
+        PAN_ERR("Specified a non-globally routable prefix for the PAN (%02X)\r\n", prefix.addr[0]);
 
-        /* Configure prefix for the device */
-        return pico_sixlowpan_set_prefix(dev, prefix);
-    }
-} /* Static path count: 3 */
+    /* Enable IPv6 routing on the device's interface */
+    (void)pico_ipv6_dev_routing_enable(dev);
 
-///
-/// Validates if a radio-structure conforms to every function
-///
-/// XXX: NO TESTING NEEDED
-static int sixlowpan_radio_validate(struct ieee_radio *radio)
-{
-    if (!radio)
-        return NULL;
-    return (radio->transmit || radio->receive || radio->get_pan_id ||
-            radio->get_addr_short || radio->get_addr_ext ||
-            radio->set_addr_short);
-} /* Static path count: 2 */
+    /* Make sure the 6LBR router has short address 0x0000 */
+    slp = (struct pico_device_sixlowpan *)dev;
+    if (0 != (ret = slp->radio->set_addr_short(slp->radio, 0x0000)))
+        return ret;
 
-///
-/// Creates a new pico sixlowpan-device
-///
-/// XXX: CHECKED (test to be confirmed)
+    /* Configure prefix for the device */
+    return pico_sixlowpan_set_prefix(dev, prefix);
+}
+
 struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio)
 {
     struct pico_device_sixlowpan *sixlowpan = NULL;
     char dev_name[MAX_DEVICE_NAME];
     struct pico_ieee_addr slp;
 
-    /* Check radio-format */
-    if (!sixlowpan_radio_validate(radio)) {
-        pico_err = PICO_ERR_EINVAL;
+    if (!radio)
         return NULL;
-    } else {
-        if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
-            return NULL;
-        else {
-            /* Retrieve the addresses from the radio-driver */
-            radio->get_addr_ext(radio, slp._ext.addr);
-            slp._short.addr = radio->get_addr_short(radio);
 
-            /* If the short address was not valid -> extended address mode */
-            slp._mode = 0xFFFF == slp._short.addr ? IEEE_AM_EXTENDED : IEEE_AM_BOTH;
+    /* Check radio-format */
+    if (!radio->transmit ||
+        !radio->receive ||
+        !radio->get_pan_id ||
+        !radio->get_addr_short ||
+        !radio->get_addr_ext ||
+        !radio->set_addr_short)
+        return NULL;
 
-            /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet */
-            sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
+    if (!(sixlowpan = PICO_ZALLOC(sizeof(struct pico_device_sixlowpan))))
+        return NULL;
 
-            /* Set the device-parameters */
-            sixlowpan->dev.overhead = 0;
-            sixlowpan->dev.send = sixlowpan_send;
-            sixlowpan->dev.poll = sixlowpan_poll;
+    /* Generate pico_ieee_addr for the pico_device, extended address by default */
+    radio->get_addr_ext(radio, slp._ext.addr);
+    slp._mode = IEEE_AM_EXTENDED;
 
-            /* Assign the radio-instance to the pico_device-instance */
-            sixlowpan->radio = radio;
-            /* Register into pico */
-            snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d",
-                     sixlowpan_devnum++);
-            if (pico_device_init((struct pico_device *)sixlowpan, dev_name,
-                                 (uint8_t *)&slp)) {
-                dbg("Device init failed.\r\n");
-                PICO_FREE(sixlowpan);
-                return NULL;
-            }
-            PAN_DBG("Device %s created\r\n", dev_name);
+    /* Get the short address if the device already has one */
+    slp._short.addr = radio->get_addr_short(radio);
+    if (IEEE_ADDR_BCAST_SHORT != slp._short.addr)
+        slp._mode = IEEE_AM_BOTH;
 
-#ifdef SIXLOWPAN_ENTRY_POLL /* Start timer to poll routes */
-            /* TODO: Initiate mesh protocol */
-            pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, &sixlowpan->dev);
-#endif
-        }
+    /* Try to init & register the device to picoTCP */
+    snprintf(dev_name, MAX_DEVICE_NAME, "sixlowpan%04d", sixlowpan_devnum++);
+
+    /* Set the mode of the pico_device to 6LoWPAN instead of Ethernet by default */
+    sixlowpan->dev.mode = LL_MODE_SIXLOWPAN;
+
+    if (0 != pico_device_init((struct pico_device *)sixlowpan, dev_name, (uint8_t *)&slp)) {
+        dbg("Device init failed.\r\n");
+        PICO_FREE(sixlowpan);
+        return NULL;
     }
 
+    /* Set the device-parameters */
+    sixlowpan->dev.overhead = 0;
+    sixlowpan->dev.send = sixlowpan_send;
+    sixlowpan->dev.poll = sixlowpan_poll;
+
+    /* Assign the radio-instance to the pico_device-instance */
+    sixlowpan->radio = radio;
+
+#ifdef SIXLOWPAN_ENTRY_POLL
+    /* Create a timer for pings */
+    pico_timer_add(SIXLOWPAN_ENTRY_POLL, sixlowpan_rtable_check, &sixlowpan->dev);
+#endif
+
+    /* Cast internal 6LoWPAN-structure to picoTCP-device structure */
+    PAN_DBG("Device %s created\r\n", dev_name);
     return (struct pico_device *)sixlowpan;
-} /* Static path count : 4 */
-
-//============================================================================//
-
+}
 #endif /* PICO_SUPPORT_SIXLOWPAN */

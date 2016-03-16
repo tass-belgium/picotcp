@@ -313,10 +313,7 @@ static void pico_frag_expire(pico_time now, void *arg)
         f = index->keyValue;
         pico_tree_delete(tree, f);
         if (f != first)
-        {
             pico_frame_discard(f); /* Later, after ICMP notification...*/
-            f = NULL;
-        }
 
     }
 

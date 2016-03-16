@@ -179,7 +179,7 @@ static int fill_frame_with_dump(struct sixlowpan_frame *f, const uint8_t const *
     /* The transport-layer chunk gets the rest */
     f->transport_hdr = f->net_hdr + f->net_len;
     f->transport_len = (uint16_t)(f->size - f->net_len);
-
+    
     return 0;
 }
 
@@ -236,7 +236,7 @@ static void dbg_mem(const char *pre, void *buf, uint16_t len)
  *  Dumps an IEEE802.15.4 address in a structured manner. Preceding message
  *  can be passed with {msg}.
  */
-static void test_dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
+static void dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
 {
     printf("%s: ", msg);
     printf("{.short = 0x%04X}, {.ext = %02X%02X:%02X%02X:%02X%02X:%02X%02X} ",
@@ -266,7 +266,7 @@ static void dbg_ext(uint8_t ext[8])
 /*
  *  Dumps the routing-table entries in a structured manner
  */
-static void test_rtable_print(void)
+static void rtable_print(void)
 {
     struct pico_tree_node *node = NULL;
     struct sixlowpan_rtable_entry *entry = NULL;
@@ -275,8 +275,8 @@ static void test_rtable_print(void)
 
     pico_tree_foreach(node, &RTable) {
         entry = (struct sixlowpan_rtable_entry *)node->keyValue;
-        test_dbg_ieee_addr("PEER", &entry->dst);
-        test_dbg_ieee_addr("VIA", &entry->via);
+        dbg_ieee_addr("PEER", &entry->dst);
+        dbg_ieee_addr("VIA", &entry->via);
         printf("HOPS: %d\n", entry->hops);
     }
 
@@ -793,10 +793,8 @@ START_TEST(tc_pico_ieee_addr_from_hdr)
     CHECKING();
     fail_unless(IEEE_AM_EXTENDED == addr._mode, "%s failed setting addressing mode to extended (%d)", __func__, addr._mode);
     fail_unless(0 == memcmp(addr._ext.addr, ext3, PICO_SIZE_IEEE_EXT), "%s failed copying extended address\n", __func__);
-
     /* TODO: Check this verification */
     //fail_unless(0x0000 == addr._short.addr, "%s failed clearing out the short address 0x%04X\n", __func__, addr._short.addr);
-
     SUCCESS();
 
     ENDING();
@@ -843,12 +841,12 @@ struct pico_device *unit_device_create(void)
 {
     struct pico_device *new = NULL;
     struct unit_radio *radio = (struct unit_radio *)PICO_ZALLOC(sizeof(struct unit_radio));
-
+    
     pico_stack_init();
-
+    
     /* Create the new sixlowpan-device */
     new = pico_sixlowpan_create((struct ieee_radio *)radio);
-
+    
     /* Set a callback functions */
     radio->radio.transmit = radio_transmit;
     radio->radio.receive = radio_receive;
@@ -856,16 +854,16 @@ struct pico_device *unit_device_create(void)
     radio->radio.get_addr_short = radio_addr_short;
     radio->radio.get_addr_ext = radio_addr_ext;
     radio->radio.set_addr_short = radio_addr_short_set;
-
+    
     new = pico_sixlowpan_create(radio);
-
+    
     return new;
 }
 
 START_TEST(tc_sixlowpan_frame_create)
 {
     struct sixlowpan_frame *new = NULL;
-    struct pico_ieee_addr src = { ._short = { .addr = 0xBEEF }, ._ext = { 0x40 } , ._mode = IEEE_AM_SHORT };
+    struct pico_ieee_addr src = { ._short = { .addr = 0xBEEF }, ._ext = { 0x40 } , ._mod = IEEE_AM_SHORT };
     struct pico_ieee_addr dst = {{ 0 }};
     struct pico_device *dev = NULL;
 
@@ -877,25 +875,25 @@ START_TEST(tc_sixlowpan_frame_create)
     CHECKING();
     fail_unless(NULL == new, "Failed checking params\n");
     SUCCESS();
-
+    
     TRYING("With valid params\n");
 
     /* Create a valid 6LoWPAN device to work with */
     dev = unit_device_create();
-
+    
     TRYING("with valid arguments\n");
     new = sixlowpan_frame_create(src, dst, 40, 20, 30, dev);
-
+    
     CHECKING();
     fail_unless(new, "frame_create returned NULL-pointer\n");
     SUCCESS();
-
+    
     CHECKING();
     fail_unless(new->local._short.addr == 0xBEEF, "Failed setting short address properly\n");
     SUCCESS();
-
+    
     CHECKING();
-
+    
 }
 END_TEST
 START_TEST(tc_sixlowpan_compress)

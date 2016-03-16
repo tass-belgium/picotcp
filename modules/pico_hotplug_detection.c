@@ -43,39 +43,12 @@ static int callback_compare(void *ka, void *kb)
 
 static PICO_TREE_DECLARE(Hotplug_device_tree, pico_hotplug_dev_cmp);
 
-static void initial_callbacks(struct pico_hotplug_device *hpdev, int event)
-{
-    struct pico_tree_node *cb_node = NULL, *cb_safe = NULL;
-    void (*cb)(struct pico_device *dev, int event);
-    pico_tree_foreach_safe(cb_node, &(hpdev->init_callbacks), cb_safe)
-    {
-        cb = cb_node->keyValue;
-        cb(hpdev->dev, event);
-        pico_tree_delete(&hpdev->init_callbacks, cb);
-    }
-}
-
-static void execute_callbacks(struct pico_hotplug_device *hpdev, int new_state, int event)
-{
-    struct pico_tree_node *cb_node = NULL, *cb_safe = NULL;
-    void (*cb)(struct pico_device *dev, int event);
-    if (new_state != hpdev->prev_state)
-    {
-        /* we don't know if one of the callbacks might deregister, so be safe */
-        pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
-        {
-            cb = cb_node->keyValue;
-            cb(hpdev->dev, event);
-        }
-        hpdev->prev_state = new_state;
-    }
-}
-
 static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)) void*v)
 {
-    struct pico_tree_node *node = NULL, *safe = NULL;
+    struct pico_tree_node *node = NULL, *safe = NULL, *cb_node = NULL, *cb_safe = NULL;
     int new_state, event;
     struct pico_hotplug_device *hpdev = NULL;
+    void (*cb)(struct pico_device *dev, int event);
 
     /* we don't know if one of the callbacks might deregister, so be safe */
     pico_tree_foreach_safe(node, &Hotplug_device_tree, safe)
@@ -89,29 +62,27 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
             event = PICO_HOTPLUG_EVENT_DOWN;
         }
 
-        initial_callbacks(hpdev, event);
-        execute_callbacks(hpdev, new_state, event);
+        pico_tree_foreach_safe(cb_node, &(hpdev->init_callbacks), cb_safe)
+        {
+            cb = cb_node->keyValue;
+            cb(hpdev->dev, event);
+            pico_tree_delete(&hpdev->init_callbacks, cb);
+        }
+        if (new_state != hpdev->prev_state)
+        {
+            /* we don't know if one of the callbacks might deregister, so be safe */
+            pico_tree_foreach_safe(cb_node, &(hpdev->callbacks), cb_safe)
+            {
+                cb = cb_node->keyValue;
+                cb(hpdev->dev, event);
+            }
+            hpdev->prev_state = new_state;
+        }
     }
 
     timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
 }
 
-static void ensure_hotplug_timer(void)
-{
-    if (timer_id == 0)
-    {
-        timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
-    }
-}
-
-static void disable_hotplug_timer(void)
-{
-    if (timer_id != 0)
-    {
-        pico_timer_cancel(timer_id);
-        timer_id = 0;
-    }
-}
 
 int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device *dev, int event))
 {
@@ -149,7 +120,10 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
     pico_tree_insert(&(hotplug_dev->callbacks), cb);
     pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
 
-    ensure_hotplug_timer();
+    if (timer_id == 0)
+    {
+        timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
+    }
 
     return 0;
 }
@@ -174,9 +148,10 @@ int pico_hotplug_deregister(struct pico_device *dev, void (*cb)(struct pico_devi
         PICO_FREE(hotplug_dev);
     }
 
-    if (pico_tree_empty(&Hotplug_device_tree))
+    if (pico_tree_empty(&Hotplug_device_tree) && timer_id != 0)
     {
-        disable_hotplug_timer();
+        pico_timer_cancel(timer_id);
+        timer_id = 0;
     }
 
     return 0;

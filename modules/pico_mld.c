@@ -503,7 +503,6 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
 
         if (!mcast_link || !mcast_group) {
             pico_err = PICO_ERR_EINVAL;
-            PICO_FREE(p);
             return -1;
         }
 

@@ -375,14 +375,7 @@ struct pico_socket *pico_sockets_find(uint16_t local, uint16_t remote)
 
 int8_t pico_socket_add(struct pico_socket *s)
 {
-    struct pico_sockport *sp;
-    if (PROTO(s) != PICO_PROTO_UDP && PROTO(s) != PICO_PROTO_TCP)
-    {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
-    }
-
-    sp = pico_get_sockport(PROTO(s), s->local_port);
+    struct pico_sockport *sp = pico_get_sockport(PROTO(s), s->local_port);
     PICOTCP_MUTEX_LOCK(Mutex);
     if (!sp) {
         /* dbg("Creating sockport..%04x\n", s->local_port); / * In comment due to spam during test * / */
@@ -415,6 +408,7 @@ int8_t pico_socket_add(struct pico_socket *s)
 #ifdef DEBUG_SOCKET_TREE
     {
         struct pico_tree_node *index;
+        /* RB_FOREACH(s, socket_tree, &sp->socks) { */
         pico_tree_foreach(index, &sp->socks){
             s = index->keyValue;
             dbg(">>>> List Socket lc=%hu rm=%hu\n", short_be(s->local_port), short_be(s->remote_port));

@@ -24,7 +24,7 @@
 #include "netinet/in.h"
 #include "sys/poll.h"
 #ifdef RADIO_PCAP
-#include <pcap.h>
+#include <pcap/pcap.h>
 #endif
 
 #define RFDEV_PANID               0xABCD
