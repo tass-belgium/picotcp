@@ -21,7 +21,7 @@ int pico_sntp_sync(char *sntp_server, void (*cb_synced)(pico_err_t status));
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 if the synchronisation operation has succeeded.
+On success, this call returns 0 if the synchronisation operation has successfully started. When both IPv4 and IPv6 are enabled, success on one is sufficient.
 On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}

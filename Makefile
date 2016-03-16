@@ -394,6 +394,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_sixlowpan.elf $(CFLAGS) -I. test/unit/modunit_dev_sixlowpan.c -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_strings.elf $(CFLAGS) -I. test/unit/modunit_pico_strings.c  -lcheck -lm -pthread -lrt $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"
@@ -429,8 +430,8 @@ mbed:
 
 
 style:
-	@find . -iname "*.[c|h]" | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
-	@find . -iname "*unc-backup*" |xargs -x rm || true
+	@find . -iname "*.[c|h]" | xargs uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*unc-backup*" |xargs rm || true
 
 dummy: mod core lib $(DUMMY_EXTRA)
 	@echo testing configuration...
@@ -444,5 +445,10 @@ ppptest: test/ppp.c lib
 	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
 	rm -f ppp.o
 
+.PHONY: coverity
+coverity:
+	@make clean
+	@cov-build --dir $(PREFIX)/cov-int make
+	@tar czvf $(PREFIX)/coverity.tgz -C $(PREFIX) cov-int
 
 FORCE:

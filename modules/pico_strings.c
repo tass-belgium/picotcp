@@ -36,7 +36,7 @@ int pico_strncasecmp(const char *const str1, const char *const str2, size_t n)
         if ((!ch1) && (!ch2))
             return 0;
     }
-    return 1;
+    return 0;
 }
 
 size_t pico_strnlen(const char *str, size_t n)
