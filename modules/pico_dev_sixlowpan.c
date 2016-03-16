@@ -30,7 +30,7 @@
     #define PAN_ERR(...)            do {} while(0)
 #endif
 
-#define MAX_DUPLICATES              (4)
+#define MAX_DUPLICATES              (8)
 #define MAX_QUEUED                  (5u)
 #define SIXLOWPAN_ENTRY_TTL         (5000u)
 /* Comment if you don't want rtable entries to be reconfirmed */
