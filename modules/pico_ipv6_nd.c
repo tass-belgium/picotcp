@@ -32,6 +32,9 @@ enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_PROBE
 };
 
+/**
+ * Caches prototypes
+ */
 struct pico_ipv6_neighbor {
     enum pico_ipv6_neighbor_state state;
     struct pico_ip6 address;
@@ -49,6 +52,16 @@ struct pico_ipv6_router {
     pico_time invalidation;
 };
 
+struct pico_ipv6_destination {
+    struct pico_ip6 address;
+    struct pico_ipv6_neighbor *next_hop;
+};
+
+struct pico_ipv6_prefix {
+    struct pico_ip6 prefix;
+    pico_time invalidation;
+};
+
 static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
@@ -59,6 +72,18 @@ static int pico_ipv6_router_compare(void *ka, void *kb)
 {
     struct pico_ipv6_router *a = ka, *b = kb;
     return pico_ipv6_neighbor_compare(a->router, b->router);
+}
+
+static int pico_ipv6_prefix_compare(void *ka, void *kb)
+{
+    struct pico_ipv6_prefix *a = ka, *b = kb;
+    return pico_ipv6_compare(&a->prefix, &b->prefix);
+}
+
+static int pico_ipv6_destination_compare(void *ka, void *kb)
+{
+    struct pico_ipv6_destination *a = ka, *b = kb;
+    return pico_ipv6_compare(&a->address, &b->address);
 }
 
 static int pico_ipv6_nd_qcompare(void *ka, void *kb){
@@ -90,8 +115,9 @@ static int pico_ipv6_nd_qcompare(void *ka, void *kb){
 PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
 static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
-
 static PICO_TREE_DECLARE(RCache, pico_ipv6_router_compare);
+static PICO_TREE_DECLARE(PCache, pico_ipv6_prefix_compare);
+static PICO_TREE_DECLARE(DCache, pico_ipv6_destination_compare);
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
