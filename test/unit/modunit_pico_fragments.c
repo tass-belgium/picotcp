@@ -18,7 +18,7 @@
 Suite *pico_suite(void);
 /* Mock! */
 static int transport_recv_called = 0;
-static int buffer_len_transport_receive = 0;
+static uint32_t buffer_len_transport_receive = 0;
 #define TESTPROTO 0x99
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
