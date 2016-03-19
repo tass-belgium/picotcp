@@ -411,7 +411,15 @@ static uint32_t pico_fragments_get_offset(struct pico_frame *frame, uint8_t net)
 void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f, uint8_t proto)
 {
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
-    struct pico_frame *first = pico_tree_first(&ipv6_fragments);
+    struct pico_frame *first = NULL;
+
+    if (!f || !frag)
+    {
+        frag_dbg("Bad arguments provided to pico_ipv6_process_frag\n");
+        return;
+    }
+
+    first = pico_tree_first(&ipv6_fragments);
 
     if (first)
     {
