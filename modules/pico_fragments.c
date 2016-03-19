@@ -208,15 +208,15 @@ static int pico_fragments_check_complete(struct pico_tree *tree, uint8_t proto, 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
         if (pico_fragments_get_offset(cur, net) != bookmark)
-            return 0;
+            return -1;
 
         bookmark += cur->transport_len;
         if (!pico_fragments_get_more_flag(cur, net)) {
             pico_fragments_complete(bookmark, proto, net);
-            return 1;
+            return 0;
         }
     }
-    return 0;
+    return 1;
 }
 
 static void pico_frag_expire(pico_time now, void *arg)
