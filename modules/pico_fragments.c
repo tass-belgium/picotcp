@@ -79,7 +79,7 @@ PICO_TREE_DECLARE(ipv6_fragments, pico_ipv6_frag_compare);
 
 static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
 {
-    if (pico_fragments_reassemble(&ipv6_fragments, len, proto, PICO_PROTO_IPV6))
+    if (pico_fragments_reassemble(&ipv6_fragments, len, proto, PICO_PROTO_IPV6) == 0)
     {
         pico_timer_cancel(ipv6_fragments_timer);
         ipv6_fragments_timer = 0;
@@ -131,7 +131,7 @@ PICO_TREE_DECLARE(ipv4_fragments, pico_ipv4_frag_compare);
 
 static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
 {
-    if (pico_fragments_reassemble(&ipv4_fragments, len, proto, PICO_PROTO_IPV4))
+    if (pico_fragments_reassemble(&ipv4_fragments, len, proto, PICO_PROTO_IPV4) == 0)
     {
         pico_timer_cancel(ipv4_fragments_timer);
         ipv4_fragments_timer = 0;
@@ -292,7 +292,7 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
     if (!tree)
     {
         frag_dbg("Cannot reassemble packet, no tree supplied!\n");
-        return 0;
+        return -1;
     }
 
     first = pico_tree_first(tree);
@@ -300,14 +300,14 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
     if (!first)
     {
         frag_dbg("Cannot reassemble packet, empty tree supplied!\n");
-        return 0;
+        return -2;
     }
 
     header_length = pico_fragments_get_header_length(net);
 
     if (!header_length)
     {
-        return 0;
+        return -3;
     }
 
     full = pico_frame_alloc((uint16_t)(header_length + len));
@@ -330,10 +330,10 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
             pico_frame_discard(full);
         }
 
-        return 1;
+        return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 static uint16_t pico_fragments_get_header_length(uint8_t net)

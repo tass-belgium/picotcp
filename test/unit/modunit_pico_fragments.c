@@ -825,16 +825,22 @@ START_TEST(tc_pico_fragments_reassemble)
 {
     struct pico_frame *a, *b;
 
-    /* Empty tree */
+    /* NULL tree */
     transport_recv_called = 0;
     buffer_len_transport_receive = 0;
-    fail_if(pico_fragments_reassemble(&ipv4_fragments, 0, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(pico_fragments_reassemble(NULL, 0, TESTPROTO, PICO_PROTO_IPV4) != -1);
     fail_if(transport_recv_called);
 
     /* Empty tree */
     transport_recv_called = 0;
     buffer_len_transport_receive = 0;
-    fail_if(pico_fragments_reassemble(&ipv6_fragments, 0, TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 0, TESTPROTO, PICO_PROTO_IPV4) != -2);
+    fail_if(transport_recv_called);
+
+    /* Empty tree */
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 0, TESTPROTO, PICO_PROTO_IPV6) != -2);
     fail_if(transport_recv_called);
 
     /* Case 1: IPV4 , everything good */
@@ -862,7 +868,7 @@ START_TEST(tc_pico_fragments_reassemble)
     pico_tree_insert(&ipv4_fragments, a);
     pico_tree_insert(&ipv4_fragments, b);
 
-    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) == 0);
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) != 0);
     fail_if(transport_recv_called != 1);
     fail_if(buffer_len_transport_receive != 64 + PICO_SIZE_IP4HDR);
     fail_if(!pico_tree_empty(&ipv4_fragments));
@@ -892,7 +898,7 @@ START_TEST(tc_pico_fragments_reassemble)
     pico_tree_insert(&ipv6_fragments, a);
     pico_tree_insert(&ipv6_fragments, b);
 
-    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) == 0);
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) != 0);
     fail_if(transport_recv_called != 1);
     fail_if(buffer_len_transport_receive != 64 + PICO_SIZE_IP6HDR);
     fail_if(!pico_tree_empty(&ipv4_fragments));
@@ -923,7 +929,7 @@ START_TEST(tc_pico_fragments_reassemble)
     pico_tree_insert(&ipv4_fragments, b);
 
     pico_set_mm_failure(1);
-    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) != 1);
     fail_if(transport_recv_called == 1);
     fail_if(buffer_len_transport_receive != 0);
     fail_if(pico_tree_empty(&ipv4_fragments));
@@ -953,7 +959,7 @@ START_TEST(tc_pico_fragments_reassemble)
     pico_tree_insert(&ipv6_fragments, b);
 
     pico_set_mm_failure(1);
-    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) != 1);
     fail_if(transport_recv_called == 1);
     fail_if(buffer_len_transport_receive != 0);
     fail_if(pico_tree_empty(&ipv6_fragments));
