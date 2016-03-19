@@ -20,6 +20,7 @@ Suite *pico_suite(void);
 static int transport_recv_called = 0;
 static uint32_t buffer_len_transport_receive = 0;
 #define TESTPROTO 0x99
+#define TESTID    0x11
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
     fail_if(proto != TESTPROTO);
@@ -195,7 +196,7 @@ START_TEST(tc_pico_fragments_empty_tree)
     fail_if(!b);
     printf("Allocated frame, %p\n", b);
 
-    /* Make sure we have different frames a and b */
+    /* Make sure we have different frames a and b (because of compare functions in PICO_TREE_DECLARE) */
     a->net_hdr = a->buffer;
     a->net_len = 20;
     a->transport_len = 32;
@@ -304,7 +305,7 @@ START_TEST(tc_pico_fragments_check_complete)
     b->net_len = 20;
     b->transport_len = 32;
     b->transport_hdr = b->buffer + 20;
-    b->frag = 0x20 >> 3u || PICO_IPV4_MOREFRAG; /* off = 32 + more frags */
+    b->frag = 0x20 >> 3u | PICO_IPV4_MOREFRAG; /* off = 32 + more frags */
     /* b->frag = PICO_IPV4_MOREFRAG; /\* more frags *\/ */
 
     pico_tree_insert(&ipv4_fragments, a);
@@ -975,6 +976,96 @@ END_TEST
 START_TEST(tc_pico_ipv4_process_frag)
 {
     /* TODO:  */
+
+    /* check if tree empty */
+    /* check if frame added */
+    /* check if frag id updated */
+    /* check if frame frag id updated updated */
+    /* check timer add */
+
+    struct pico_ipv4_hdr *hdr = NULL;
+    struct pico_frame *a = NULL, *b = NULL, *c = NULL;
+
+    /* NULL args provided */
+    ipv4_cur_frag_id = 0;
+    pico_ipv4_process_frag(hdr, a, TESTPROTO);
+    fail_if(ipv4_cur_frag_id != 0);
+
+    /* init hdr */
+    hdr = PICO_ZALLOC(sizeof(struct pico_ipv4_hdr));
+    hdr->id = TESTID;
+
+    /* NULL frame provided */
+    ipv4_cur_frag_id = 0;
+    pico_ipv4_process_frag(hdr, a, TESTPROTO);
+    fail_if(ipv4_cur_frag_id != 0);
+
+    /* init frame */
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+    c = pico_frame_alloc(64 + 20);
+    fail_if(!c);
+    printf("Allocated frame, %p\n", c);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20 >> 3u | PICO_IPV4_MOREFRAG; /* off = 32 + more frags*/
+
+    c->net_hdr = c->buffer;
+    c->net_len = 20;
+    c->transport_len = 32;
+    c->transport_hdr = c->buffer + 20;
+    c->frag = 0x40 >> 3u; /* off = 64 */
+
+    /* Case 1: Empty fragments tree */
+    ipv4_cur_frag_id = 0;
+    timer_add_called = 0;
+    /* make sure tree is empty */
+    fail_if(!pico_tree_empty(&ipv4_fragments));
+
+    pico_ipv4_process_frag(hdr, a, TESTPROTO);
+    fail_if(ipv4_cur_frag_id != TESTID);
+    fail_if(timer_add_called != 1);
+    fail_if(pico_tree_empty(&ipv4_fragments));
+    /* make sure we added the fragment to the tree */
+    fail_if(((struct pico_frame *)pico_tree_first(&ipv4_fragments))->buffer != a->buffer);
+
+    /* Case 2: Adding second fragment */
+    timer_add_called = 0;
+    pico_ipv4_process_frag(hdr, b, TESTPROTO);
+    fail_if(ipv4_cur_frag_id != TESTID);
+    fail_if(timer_add_called != 0);
+    fail_if(pico_tree_empty(&ipv4_fragments));
+    /* make sure we added the fragment to the tree */
+    fail_if(((struct pico_frame *)pico_tree_last(&ipv4_fragments))->buffer != b->buffer);
+
+    /* Case 3: Adding final fragment */
+    timer_cancel_called = 0;
+    transport_recv_called = 0;
+    pico_ipv4_process_frag(hdr, c, TESTPROTO);
+    fail_if(ipv4_cur_frag_id != TESTID);
+    fail_if(timer_cancel_called != 1);
+    fail_if(transport_recv_called != 1);
+    /* Everything was received, tree should be empty */
+    fail_if(!pico_tree_empty(&ipv4_fragments));
+
+    /* Cleanup */
+    pico_fragments_empty_tree(&ipv4_fragments);
+    pico_frame_discard(a);
+    pico_frame_discard(b);
+    pico_frame_discard(c);
 }
 END_TEST
 

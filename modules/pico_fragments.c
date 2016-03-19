@@ -445,7 +445,15 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uint8_t proto)
 {
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
-    struct pico_frame *first = pico_tree_first(&ipv4_fragments);
+    struct pico_frame *first = NULL;
+
+    if (!f || !hdr)
+    {
+        frag_dbg("Bad arguments provided to pico_ipv4_process_frag\n");
+        return;
+    }
+
+    first = pico_tree_first(&ipv4_fragments);
 
     if (first)
     {
