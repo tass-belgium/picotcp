@@ -95,20 +95,20 @@ static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
 {
     struct pico_ipv6_hdr *ha = NULL, *hb = NULL;
     if (!a || !b)
-        return 0;
+        return -1;
 
     ha = (struct pico_ipv6_hdr *)a->net_hdr;
     hb = (struct pico_ipv6_hdr *)b->net_hdr;
     if (!ha || !hb)
-        return 0;
+        return -2;
 
     if (memcmp(ha->src.addr, hb->src.addr, PICO_SIZE_IP6) != 0)
-        return 0;
+        return 1;
 
     if (memcmp(ha->dst.addr, hb->dst.addr, PICO_SIZE_IP6) != 0)
-        return 0;
+        return 2;
 
-    return 1;
+    return 0;
 }
 #endif
 
@@ -147,20 +147,20 @@ static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b)
 {
     struct pico_ipv4_hdr *ha, *hb;
     if (!a || !b)
-        return 0;
+        return -1;
 
     ha = (struct pico_ipv4_hdr *)a->net_hdr;
     hb = (struct pico_ipv4_hdr *)b->net_hdr;
     if (!ha || !hb)
-        return 0;
+        return -2;
 
     if (memcmp(&(ha->src.addr), &(hb->src.addr), PICO_SIZE_IP4) != 0)
-        return 0;
+        return 1;
 
     if (memcmp(&(ha->dst.addr), &(hb->dst.addr), PICO_SIZE_IP4) != 0)
-        return 0;
+        return 2;
 
-    return 1;
+    return 0;
 }
 #endif
 
@@ -415,7 +415,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 
     if (first)
     {
-      if ((pico_ipv6_frag_match(f, first) && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
+      if ((pico_ipv6_frag_match(f, first) == 0 && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
         pico_tree_insert(&ipv6_fragments, pico_frame_copy(f));
       }
     }
@@ -458,7 +458,7 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
             ipv4_cur_frag_id = 0;
         }
 
-        if ((pico_ipv4_frag_match(f, first) && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
+        if ((pico_ipv4_frag_match(f, first) == 0 && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
             pico_tree_insert(&ipv4_fragments, pico_frame_copy(f));
         }
     }

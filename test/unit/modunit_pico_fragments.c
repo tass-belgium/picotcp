@@ -588,13 +588,13 @@ START_TEST(tc_pico_ipv6_frag_match)
     a->net_hdr = NULL;
     b->net_hdr = NULL;
 
-    fail_if(pico_ipv6_frag_match(a, b) != 0);
+    fail_if(pico_ipv6_frag_match(a, b) != -2);
 
     /* Init a frame */
     a->net_hdr = a->buffer;
     a->net_len = sizeof(struct pico_ipv6_hdr);
 
-    fail_if(pico_ipv6_frag_match(a, b) != 0);
+    fail_if(pico_ipv6_frag_match(a, b) != -2);
 
     /* Init b frame */
     b->net_hdr = b->buffer;
@@ -611,7 +611,7 @@ START_TEST(tc_pico_ipv6_frag_match)
     memcpy(hb->src.addr, addr_2.addr, PICO_SIZE_IP6);
     memcpy(hb->dst.addr, addr_2.addr, PICO_SIZE_IP6);
 
-    fail_if(pico_ipv6_frag_match(a, b) != 0);
+    fail_if(pico_ipv6_frag_match(a, b) != 1);
 
     /* Case 3: dst addr are different*/
     /* Init a and b net hdr adresses */
@@ -620,7 +620,7 @@ START_TEST(tc_pico_ipv6_frag_match)
     memcpy(hb->src.addr, addr_1.addr, PICO_SIZE_IP6);
     memcpy(hb->dst.addr, addr_1.addr, PICO_SIZE_IP6);
 
-    fail_if(pico_ipv6_frag_match(a, b) != 0);
+    fail_if(pico_ipv6_frag_match(a, b) != 2);
 
     /* Case 4: fragments are the same (src and dst are the same)*/
     /* Init a and b net hdr adresses */
@@ -629,7 +629,7 @@ START_TEST(tc_pico_ipv6_frag_match)
     memcpy(hb->src.addr, addr_1.addr, PICO_SIZE_IP6);
     memcpy(hb->dst.addr, addr_2.addr, PICO_SIZE_IP6);
 
-    fail_if(pico_ipv6_frag_match(a, b) != 1);
+    fail_if(pico_ipv6_frag_match(a, b) != 0);
 
     /* Cleanup */
     pico_frame_discard(a);
@@ -650,7 +650,13 @@ START_TEST(tc_pico_ipv4_frag_match)
         .addr = long_be(0x0a280312)
     };
 
-    /* Inital setup */
+    /* Case 1: frames are NULL */
+    a = NULL;
+    b = NULL;
+
+    fail_if(pico_ipv4_frag_match(a, b) != -1);
+
+    /* setup */
     a = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
     fail_if(!a);
     printf("Allocated frame, %p\n", a);
@@ -659,17 +665,17 @@ START_TEST(tc_pico_ipv4_frag_match)
     printf("Allocated frame, %p\n", b);
 
 
-    /* Case 1: net hdr(s) are NULL */
+    /* Case 2: net hdr(s) are NULL */
     a->net_hdr = NULL;
     b->net_hdr = NULL;
 
-    fail_if(pico_ipv4_frag_match(a, b) != 0);
+    fail_if(pico_ipv4_frag_match(a, b) != -2);
 
     /* Init a frame */
     a->net_hdr = a->buffer;
     a->net_len = sizeof(struct pico_ipv4_hdr);
 
-    fail_if(pico_ipv4_frag_match(a, b) != 0);
+    fail_if(pico_ipv4_frag_match(a, b) != -2);
 
     /* Init b frame */
     b->net_hdr = b->buffer;
@@ -679,32 +685,32 @@ START_TEST(tc_pico_ipv4_frag_match)
     ha = (struct pico_ipv4_hdr *)a->net_hdr;
     hb = (struct pico_ipv4_hdr *)b->net_hdr;
 
-    /* Case 2: src addr are different*/
+    /* Case 3: src addr are different*/
     /* Init a and b net hdr adresses */
     ha->src = addr_1;
     ha->dst = addr_2;
     hb->src = addr_2;
     hb->dst = addr_2;
 
-    fail_if(pico_ipv4_frag_match(a, b) != 0);
+    fail_if(pico_ipv4_frag_match(a, b) != 1);
 
-    /* Case 3: dst addr are different*/
+    /* Case 4: dst addr are different*/
     /* Init a and b net hdr adresses */
     ha->src = addr_1;
     ha->dst = addr_2;
     hb->src = addr_1;
     hb->dst = addr_1;
 
-    fail_if(pico_ipv4_frag_match(a, b) != 0);
+    fail_if(pico_ipv4_frag_match(a, b) != 2);
 
-    /* Case 4: fragments are the same (src and dst are the same)*/
+    /* Case 5: fragments are the same (src and dst are the same)*/
     /* Init a and b net hdr adresses */
     ha->src = addr_1;
     ha->dst = addr_2;
     hb->src = addr_1;
     hb->dst = addr_2;
 
-    fail_if(pico_ipv4_frag_match(a, b) != 1);
+    fail_if(pico_ipv4_frag_match(a, b) != 0);
 
     /* Cleanup */
     pico_frame_discard(a);
@@ -954,9 +960,24 @@ START_TEST(tc_pico_fragments_reassemble)
 }
 END_TEST
 
+START_TEST(tc_pico_ipv6_process_frag)
+{
+     /* TODO:  */
+}
+END_TEST
+
+START_TEST(tc_pico_ipv4_process_frag)
+{
+    /* TODO:  */
+}
+END_TEST
+
 Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
+
+    TCase *TCase_pico_ipv6_process_frag = tcase_create("Unit test for pico_ipv6_process_frag");
+    TCase *TCase_pico_ipv4_process_frag = tcase_create("Unit test for pico_ipv4_process_frag");
 
     TCase *TCase_pico_fragments_reassemble = tcase_create("Unit test for pico_fragments_reassemble");
     TCase *TCase_pico_fragments_get_offset = tcase_create("Unit test for pico_fragments_get_offset");
@@ -977,6 +998,10 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_frag_match = tcase_create("Unit test for pico_ipv6_frag_match");
     TCase *TCase_pico_ipv4_frag_match = tcase_create("Unit test for pico_ipv4_frag_match");
 
+    tcase_add_test(TCase_pico_ipv4_process_frag, tc_pico_ipv4_process_frag);
+    suite_add_tcase(s, TCase_pico_ipv4_process_frag);
+    tcase_add_test(TCase_pico_ipv6_process_frag, tc_pico_ipv6_process_frag);
+    suite_add_tcase(s, TCase_pico_ipv6_process_frag);
     tcase_add_test(TCase_pico_fragments_reassemble, tc_pico_fragments_reassemble);
     suite_add_tcase(s, TCase_pico_fragments_reassemble);
     tcase_add_test(TCase_pico_fragments_get_offset, tc_pico_fragments_get_offset);
