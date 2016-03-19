@@ -18,11 +18,13 @@
 Suite *pico_suite(void);
 /* Mock! */
 static int transport_recv_called = 0;
+static int buffer_len_transport_receive = 0;
 #define TESTPROTO 0x99
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
 {
     fail_if(proto != TESTPROTO);
     transport_recv_called++;
+    buffer_len_transport_receive = f->buffer_len;
     pico_frame_discard(f);
     return 0;
 }
@@ -223,6 +225,7 @@ START_TEST(tc_pico_fragments_check_complete)
     fail_if(pico_fragments_check_complete(&ipv4_fragments, TESTPROTO, PICO_PROTO_IPV4) != 0);
     fail_if(pico_fragments_check_complete(&ipv6_fragments, TESTPROTO, PICO_PROTO_IPV6) != 0);
 
+    /* Case 1: IPV4 all packets received */
     transport_recv_called = 0;
     timer_cancel_called = 0;
     a = pico_frame_alloc(32 + 20);
@@ -251,6 +254,94 @@ START_TEST(tc_pico_fragments_check_complete)
     fail_if(transport_recv_called != 1);
     fail_if(timer_cancel_called != 1);
 
+    /* Case 2: IPV6 all packets received */
+    transport_recv_called = 0;
+    timer_cancel_called = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = 1; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20; /* off = 32 */
+
+    pico_tree_insert(&ipv6_fragments, a);
+    pico_tree_insert(&ipv6_fragments, b);
+
+    fail_if(pico_fragments_check_complete(&ipv6_fragments, TESTPROTO, PICO_PROTO_IPV6) == 0);
+    fail_if(transport_recv_called != 1);
+    fail_if(timer_cancel_called != 1);
+
+
+    /* Case 3: IPV4 NOT all packets received */
+    transport_recv_called = 0;
+    timer_cancel_called = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20 >> 3u || PICO_IPV4_MOREFRAG; /* off = 32 + more frags */
+    /* b->frag = PICO_IPV4_MOREFRAG; /\* more frags *\/ */
+
+    pico_tree_insert(&ipv4_fragments, a);
+    pico_tree_insert(&ipv4_fragments, b);
+
+    fail_if(pico_fragments_check_complete(&ipv4_fragments, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(transport_recv_called != 0);
+    fail_if(timer_cancel_called != 0);
+
+    /* Case 4: IPV6 NOT all packets received */
+    transport_recv_called = 0;
+    timer_cancel_called = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = 1; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 1; /* more frags */
+
+    pico_tree_insert(&ipv6_fragments, a);
+    pico_tree_insert(&ipv6_fragments, b);
+
+    fail_if(pico_fragments_check_complete(&ipv6_fragments, TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(transport_recv_called != 0);
+    fail_if(timer_cancel_called != 0);
 }
 END_TEST
 
@@ -726,7 +817,140 @@ END_TEST
 
 START_TEST(tc_pico_fragments_reassemble)
 {
-    /* TODO:  */
+    struct pico_frame *a, *b;
+
+    /* Empty tree */
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 0, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(transport_recv_called);
+
+    /* Empty tree */
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 0, TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(transport_recv_called);
+
+    /* Case 1: IPV4 , everything good */
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20 >> 3u; /* off = 32 */
+
+    pico_tree_insert(&ipv4_fragments, a);
+    pico_tree_insert(&ipv4_fragments, b);
+
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) == 0);
+    fail_if(transport_recv_called != 1);
+    fail_if(buffer_len_transport_receive != 64 + PICO_SIZE_IP4HDR);
+    fail_if(!pico_tree_empty(&ipv4_fragments));
+
+    /* Case 2: IPV6 , everything good */
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = 1; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20; /* off = 32 */
+
+    pico_tree_insert(&ipv6_fragments, a);
+    pico_tree_insert(&ipv6_fragments, b);
+
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) == 0);
+    fail_if(transport_recv_called != 1);
+    fail_if(buffer_len_transport_receive != 64 + PICO_SIZE_IP6HDR);
+    fail_if(!pico_tree_empty(&ipv4_fragments));
+
+    /* Case 3: IPV4 with mm failure*/
+    transport_recv_called = 0;
+    buffer_len_transport_receive = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = PICO_IPV4_MOREFRAG; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20 >> 3u; /* off = 32 */
+
+    pico_tree_insert(&ipv4_fragments, a);
+    pico_tree_insert(&ipv4_fragments, b);
+
+    pico_set_mm_failure(1);
+    fail_if(pico_fragments_reassemble(&ipv4_fragments, 64, TESTPROTO, PICO_PROTO_IPV4) != 0);
+    fail_if(transport_recv_called == 1);
+    fail_if(buffer_len_transport_receive != 0);
+    fail_if(pico_tree_empty(&ipv4_fragments));
+
+    /* Case 4: IPV6 with mm failure */
+    transport_recv_called = 0;
+    a = pico_frame_alloc(32 + 20);
+    fail_if(!a);
+    printf("Allocated frame, %p\n", a);
+    b = pico_frame_alloc(32 + 20);
+    fail_if(!b);
+    printf("Allocated frame, %p\n", b);
+
+    a->net_hdr = a->buffer;
+    a->net_len = 20;
+    a->transport_len = 32;
+    a->transport_hdr = a->buffer + 20;
+    a->frag = 1; /* more frags */
+
+    b->net_hdr = b->buffer;
+    b->net_len = 20;
+    b->transport_len = 32;
+    b->transport_hdr = b->buffer + 20;
+    b->frag = 0x20; /* off = 32 */
+
+    pico_tree_insert(&ipv6_fragments, a);
+    pico_tree_insert(&ipv6_fragments, b);
+
+    pico_set_mm_failure(1);
+    fail_if(pico_fragments_reassemble(&ipv6_fragments, 64, TESTPROTO, PICO_PROTO_IPV6) != 0);
+    fail_if(transport_recv_called == 1);
+    fail_if(buffer_len_transport_receive != 0);
+    fail_if(pico_tree_empty(&ipv6_fragments));
 }
 END_TEST
 

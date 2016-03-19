@@ -297,6 +297,12 @@ static int pico_fragments_reassemble(struct pico_tree *tree, unsigned int len, u
 
     first = pico_tree_first(tree);
 
+    if (!first)
+    {
+        frag_dbg("Cannot reassemble packet, empty tree supplied!\n");
+        return 0;
+    }
+
     header_length = pico_fragments_get_header_length(net);
 
     if (!header_length)
