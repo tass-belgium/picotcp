@@ -4,7 +4,7 @@ picoTCP
 
 Welcome to the one and only <font color=ff00f0>picoTCP repository</font>. 
 
-picoTCP is a smalli-footprint, modular TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*. Textual information about picoTCP, you can find on the [about page of our website](http://picotcp.com/about).
+picoTCP is a small-footprint, modular TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*. Textual information about picoTCP, you can find on the [about page of our website](http://picotcp.com/about).
 
 This code is released under the terms of GNU GPL v2 only. Some rights reserved.
 Other licenses may apply at the sole discretion of the copyright holders.
