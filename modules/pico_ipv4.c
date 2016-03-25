@@ -601,16 +601,19 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     struct pico_ipv4_route *rt;
 #ifdef PICO_SUPPORT_AODV
     union pico_address node_address;
-    node_address.ip4.addr = dst->addr;
-    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
-        pico_aodv_lookup(&node_address);
-
 #endif
 
     if (!dst) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
+
+#ifdef PICO_SUPPORT_AODV
+    node_address.ip4.addr = dst->addr;
+    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
+        pico_aodv_lookup(&node_address);
+
+#endif
 
     rt = route_find(dst);
     if (rt && rt->link) {
@@ -941,6 +944,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     struct pico_ipv4_hdr *hdr;
     uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
     uint8_t vhl = 0x45; /* version 4, header length 20 */
+    int32_t retval = 0;
     static uint16_t ipv4_progressive_id = 0x91c0;
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree_node *index;
@@ -1085,10 +1089,14 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (pico_ipv4_link_get(&hdr->dst)) {
         /* it's our own IP */
-        return pico_enqueue(&in, f);
+        retval = pico_enqueue(&in, f);
+        if (retval > 0)
+            return retval;
     } else{
         /* TODO: Check if there are members subscribed here */
-        return pico_enqueue(&out, f);
+        retval = pico_enqueue(&out, f);
+        if (retval > 0)
+            return retval;
     }
 
 drop:

@@ -4,7 +4,7 @@
 
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
-#ifndef INCLUDE_PIC_DEV_SIXLOWPAN
+#ifndef INCLUDE_PICO_DEV_SIXLOWPAN
 #define INCLUDE_PICO_DEV_SIXLOWPAN
 
 /* picoTCP includes */

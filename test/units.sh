@@ -23,7 +23,11 @@ ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_dev_ppp.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_mld.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_igmp.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_hotplug_detection.elf || exit 1
+<<<<<<< HEAD
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_dev_sixlowpan.elf || exit 1
+=======
+ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_strings.elf || exit 1
+>>>>>>> origin/development
 
 MAXMEM=`cat /tmp/pico-mem-report-* | sort -r -n |head -1`
 echo
