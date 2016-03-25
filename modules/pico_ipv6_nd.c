@@ -16,7 +16,7 @@
 #include "pico_eth.h"
 #include "pico_addressing.h"
 #include "pico_ipv6_nd.h"
-#include "pico_dev_sixlowpan.h"
+#include "pico_ieee802154.h"
 
 #ifdef PICO_SUPPORT_IPV6
 
@@ -172,7 +172,7 @@ static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icm
 
     local_eui._ext = aro->eui64;
     local_eui._mode = IEEE_AM_EXTENDED;
-    if (pico_ieee_addr_cmp((void *)rcv_eui, (void *)&local_eui))
+    if (pico_ieee802154_addr_cmp((void *)rcv_eui, (void *)&local_eui))
         return -1;
 
     *status = aro->status;

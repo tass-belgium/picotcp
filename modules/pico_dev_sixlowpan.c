@@ -42,7 +42,7 @@
 #define SIXLOWPAN_DEFAULT_TTL       (0xFFu)
 
 /*  General 6LoWPAN dispatch header information
- */
+ *
 #define DISPATCH_NALP(i)            (((i) == INFO_VAL) ? (0x00u) : (((i) == INFO_SHIFT) ? (0x06u) : (0x00u)))
 #define DISPATCH_IPV6(i)            (((i) == INFO_VAL) ? (0x41u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x01u)))
 #define DISPATCH_HC1(i)             (((i) == INFO_VAL) ? (0x42u) : (((i) == INFO_SHIFT) ? (0x00u) : (0x02u)))
@@ -554,10 +554,10 @@ static int dup_cmp(struct sixlowpan_dup a, struct sixlowpan_dup b)
 {
     int ret = 0;
 
-    if ((ret = pico_ieee_addr_cmp(&a.origin, &b.origin)))
+    if ((ret = pico_ieee802154_addr_cmp(&a.origin, &b.origin)))
         return ret;
 
-    if ((ret = pico_ieee_addr_cmp(&a.final, &b.final)))
+    if ((ret = pico_ieee802154_addr_cmp(&a.final, &b.final)))
         return ret;
 
     if (a.seq != b.seq)
@@ -789,7 +789,7 @@ static uint8_t *frame_buf_delete(struct sixlowpan_frame *f,  enum pico_layer l, 
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IEEE802.15.4
-int pico_ieee_addr_cmp(void *va, void *vb)
+int pico_ieee802154_addr_cmp(void *va, void *vb)
 {
     struct pico_ieee_addr *a = (struct pico_ieee_addr *)va;
     struct pico_ieee_addr *b = (struct pico_ieee_addr *)vb;
@@ -1114,14 +1114,17 @@ static struct sixlowpan_frame *sixlowpan_frame_create(struct pico_ieee_addr loca
 
 /* -------------------------------------------------------------------------------- */
 // MARK: IIDs (ADDRESSES)
-int pico_sixlowpan_iid_is_derived_16(uint8_t *iid)
+int pico_sixlowpan_iid_is_derived_16(struct pico_ip6 addr)
 {
-    /*  IID formed from 16-bit [RFC4944]:
+    uint8_t *iid = addr.addr + 8;
+
+    /*  IID formed from 16-bit short address [RFC4944]:
      *
      *  +------+------+------+------+------+------+------+------+
      *  |  PAN |  PAN | 0x00 | 0xFF | 0xFE | 0x00 | xxxx | xxxx |
      *  +------+------+------+------+------+------+------+------+
      */
+
     return ((0x00 == iid[2] && 0xFF == iid[3] && 0xFE == iid[4] && 0x00 == iid[5]) ? 1 : 0);
 }
 
@@ -1246,7 +1249,7 @@ static int sixlowan_rtable_entry_cmp(void *a, void *b)
         return -1;
 
     /* Only compare on the destination-address */
-    return pico_ieee_addr_cmp((void *)&ra->dst, (void *)&rb->dst);
+    return pico_ieee802154_addr_cmp((void *)&ra->dst, (void *)&rb->dst);
 }
 PICO_TREE_DECLARE(RTable, &sixlowan_rtable_entry_cmp);
 
@@ -1409,13 +1412,13 @@ static void sixlowpan_rtable_origin_via_source(struct pico_ieee_addr origin, str
         return;
 
     /* Don't sent ping requests for neighbours*/
-    if (!pico_ieee_addr_cmp(&origin, &last_hop))
+    if (!pico_ieee802154_addr_cmp(&origin, &last_hop))
         return;
 
     /* Find entry in the routing table */
     if ((entry = sixlowpan_rtable_find_entry(origin))) {
         /* Origin is already in routing table with this gateway, not going to send ping when I don't really need it */
-        if (0 == pico_ieee_addr_cmp(&entry->via, &last_hop))
+        if (0 == pico_ieee802154_addr_cmp(&entry->via, &last_hop))
             return;
 
         /* Only send ping to update route when origin isn't a neigbor */
@@ -2834,13 +2837,13 @@ static int sixlowpan_frag_cmp(void *a, void *b)
     /* 1.) Compare IEEE802.15.4 addresses of the sender */
     aa = (struct pico_ieee_addr *)&fa->peer;
     ab = (struct pico_ieee_addr *)&fb->peer;
-    if ((ret = pico_ieee_addr_cmp((void *)aa, (void *)ab)))
+    if ((ret = pico_ieee802154_addr_cmp((void *)aa, (void *)ab)))
         return ret;
 
     /* 2.) Compare IEEE802.15.4 addresses of the destination */
     aa = (struct pico_ieee_addr *)&fa->local;
     ab = (struct pico_ieee_addr *)&fb->local;
-    if ((ret = pico_ieee_addr_cmp((void *)aa, (void *)ab)))
+    if ((ret = pico_ieee802154_addr_cmp((void *)aa, (void *)ab)))
         return ret;
 
     /* 3.) Compare datagram_size */
@@ -3195,7 +3198,7 @@ static int sixlowpan_broadcast_in(struct sixlowpan_frame *f, uint8_t offset)
     /* If the frame is a fallback broadcast frame that it's intended for me,
      * but it is sent via broadcast because the transmitter didn't have a valid route to
      * me, don't retransmit and just parse it further */
-    if (!pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
+    if (!pico_ieee802154_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
         return 0;
     }
 
@@ -3270,7 +3273,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
         r.length = mesh_hdr_len((struct sixlowpan_mesh *)f->net_hdr);
 
         /* Check if I'm the originator, discard these frames... */
-        if (!pico_ieee_addr_cmp((void *)&f->peer, (void *)f->dev->eth)) {
+        if (!pico_ieee802154_addr_cmp((void *)&f->peer, (void *)f->dev->eth)) {
             return sixlowpan_mesh_discard(f);
         }
 
@@ -3300,7 +3303,7 @@ static struct sixlowpan_frame *sixlowpan_mesh_in(struct sixlowpan_frame *f)
             }
 
             /* If frame is not destined for me, forward onto the network */
-            if (pico_ieee_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
+            if (pico_ieee802154_addr_cmp((void *)&f->local, (void *)f->dev->eth)) {
                 return sixlowpan_mesh_retransmit(f);
             }
         }

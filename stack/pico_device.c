@@ -17,6 +17,7 @@
 #include "pico_icmp6.h"
 #include "pico_eth.h"
 #include "pico_dev_sixlowpan.h"
+#include "pico_sixlowpan.h"
 #define PICO_DEVICE_DEFAULT_MTU (1500)
 
 struct pico_devices_rr_info {
@@ -372,8 +373,8 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
     }
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode) {
-        /* Send the entire pico_frame to the sixlowpan_device */
-        return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
+        /* Send the entire pico_frame to the sixlowpan layer */
+        return pico_sixlowpan_send(f);
     }
 #endif
     else {

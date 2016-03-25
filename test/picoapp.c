@@ -455,12 +455,14 @@ int main(int argc, char **argv)
 
         case '6':
         {
+            // TODO: Adapt test to work with refactored 6LoWPAN
+            /*
             char *nxt, *name = NULL, *area = NULL, *dump = NULL;
             uint16_t n_id, n_area0, n_area1;
             struct ieee_radio *radio = NULL;
             struct pico_ip6 myaddr, pan, netmask;
             const char pan_addr[] = "2aaa:6109::0";
-            const char pan_netmask[] = "ffff:ffff:ffff:ffff::0"; /* /64 */
+            const char pan_netmask[] = "ffff:ffff:ffff:ffff::0";
             struct pico_socket *s;
             do {
                 nxt = cpy_arg(&name, optarg);
@@ -504,7 +506,7 @@ int main(int argc, char **argv)
 
             if (n_id == 1)
                 pico_sixlowpan_enable_6lbr(dev, pan);
-
+            */
             break;
         }
         case 'b':

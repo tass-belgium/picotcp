@@ -15,7 +15,7 @@
 #include "pico_stack.h"
 #include "pico_tree.h"
 #include "pico_socket.h"
-#include "pico_dev_sixlowpan.h"
+#include "pico_sixlowpan.h"
 #include "pico_mld.h"
 #define icmp6_dbg(...) do { } while(0)
 
@@ -297,7 +297,7 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
     }
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode && dev->eth) {
-        if (src && pico_sixlowpan_iid_is_derived_16(src->addr + 8)) {
+        if ((src) && pico_ipv6_is_derived_16(*src)) {
             shortbe = short_be(ieee->_short.addr);
             memcpy(&llao->addr._short.addr, &shortbe, PICO_SIZE_IEEE_EXT);
             memset(llao->addr._ext.addr + PICO_SIZE_IEEE_SHORT, 0x00, 4);
@@ -332,7 +332,7 @@ static inline uint8_t pico_icmp6_6lp_calc_llao_len(struct pico_ip6 *dst)
 {
     /* Destination address is address you want to sent a neighbor solicitation for,
      * for 6LoWPAN, the LLAO-length depends if its derived from EUI-64 or 16-bit short */
-    if (pico_sixlowpan_iid_is_derived_16(dst->addr + 8))
+    if ((dst) && pico_ipv6_is_derived_16(*dst))
         return PICO_6LP_ND_LLAO_LEN_SHORT;
     else
         return PICO_6LP_ND_LLAO_LEN_EXTENDED;

@@ -4,6 +4,7 @@
 
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
+
 #ifndef INCLUDE_PICO_SIXLOWPAN
 #define INCLUDE_PICO_SIXLOWPAN
 
@@ -47,6 +48,9 @@ int pico_sixlowpan_send(struct pico_frame *f);
 ///
 void pico_sixlowpan_receive(struct pico_frame *f);
 
-
+///
+/// Checks whether or not an IPv6-address is derived from a 16-bit short address
+///
+int pico_ipv6_is_derived_16(struct pico_ip6 addr);
 
 #endif /* INCLUDE_PICO_SIXLOWPAN */

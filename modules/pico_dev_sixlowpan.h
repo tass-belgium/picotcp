@@ -4,8 +4,8 @@
 
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
-#ifndef INCLUDE_PICO_SIXLOWPAN
-#define INCLUDE_PICO_SIXLOWPAN
+#ifndef INCLUDE_PIC_DEV_SIXLOWPAN
+#define INCLUDE_PICO_DEV_SIXLOWPAN
 
 /* picoTCP includes */
 #include "pico_device.h"
@@ -187,4 +187,4 @@ int pico_sixlowpan_enable_6lbr(struct pico_device *dev, struct pico_ip6 prefix);
  */
 struct pico_device *pico_sixlowpan_create(struct ieee_radio *radio);
 
-#endif /* INCLUDE_PICO_SIXLOWPAN */
+#endif /* INCLUDE_PICO_DEV_SIXLOWPAN */
