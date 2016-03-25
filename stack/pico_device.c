@@ -347,7 +347,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
             break;
 
         /* Receive */
-         = pico_dequeue(dev->q_in);
+        f = pico_dequeue(dev->q_in);
         if (f) {
             if (!dev->mode && dev->eth) {
                 f->datalink_hdr = f->buffer;
@@ -373,7 +373,7 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode) {
         /* Send the entire pico_frame to the sixlowpan_device */
-        return (dev->send(dev, (void *)f, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
+        return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
     }
 #endif
     else {
