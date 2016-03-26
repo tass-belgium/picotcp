@@ -7,6 +7,7 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
+#include "pico_ethernet.h"
 #include "pico_config.h"
 #include "pico_tree.h"
 #include "pico_icmp6.h"

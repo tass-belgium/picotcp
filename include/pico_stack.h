@@ -16,14 +16,42 @@
 
 /* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
-/* TRANSPORT LEVEL */
-/* interface towards network */
+//===----------------------------------------------------------------------===//
+//  TRANSPORT LAYER
+//===----------------------------------------------------------------------===//
+
+/* From dev up to socket */
 int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto);
 
-/* NETWORK LEVEL */
-/* interface towards ethernet */
+//===----------------------------------------------------------------------===//
+//  NETWORK LAYER
+//===----------------------------------------------------------------------===//
+
+/* From socket down to dev */
+int32_t pico_network_send(struct pico_frame *f);
+
+/* From dev up to socket */
 int32_t pico_network_receive(struct pico_frame *f);
 
+//===----------------------------------------------------------------------===//
+//  DATALINK LAYER
+//===----------------------------------------------------------------------===//
+
+/* From socket down to dev */
+int pico_datalink_send(struct pico_frame *f);
+
+/* From dev up to socket */
+int pico_datalink_receive(struct pico_frame *f);
+
+/* Enqueues the frame in the device-queue. However, before the frame is
+ * actually send to the device itself, it may be possible that the frame passes
+ * through the datalink-layer first.
+ */
+int32_t pico_sendto_dev(struct pico_frame *f);
+
+//===----------------------------------------------------------------------===//
+//  PHYSICAL LAYER
+//===----------------------------------------------------------------------===//
 
 /* LOWEST LEVEL: interface towards devices. */
 /* Device driver will call this function which returns immediately.
@@ -35,26 +63,6 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy_ext_buffer_notify(struct pico_device *dev, uint8_t *buffer, uint32_t len, void (*notify_free)(uint8_t *buffer));
-
-/* ===== SENDING FUNCTIONS (from socket down to dev) ===== */
-
-int32_t pico_network_send(struct pico_frame *f);
-int32_t pico_sendto_dev(struct pico_frame *f);
-
-#ifdef PICO_SUPPORT_ETH
-int32_t pico_ethernet_send(struct pico_frame *f);
-
-/* The pico_ethernet_receive() function is used by
- * those devices supporting ETH in order to push packets up
- * into the stack.
- */
-/* DATALINK LEVEL */
-int32_t pico_ethernet_receive(struct pico_frame *f);
-#else
-/* When ETH is not supported by the stack... */
-#   define pico_ethernet_send(f)    (-1)
-#   define pico_ethernet_receive(f) (-1)
-#endif
 
 /* ----- Initialization ----- */
 int pico_stack_init(void);
