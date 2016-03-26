@@ -7,13 +7,13 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_arp.h"
 #include "pico_tree.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
 #include "pico_stack.h"
+#include "pico_ethernet.h"
 
 extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu

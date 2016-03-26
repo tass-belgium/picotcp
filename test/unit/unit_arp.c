@@ -1,3 +1,5 @@
+#include "pico_ethernet.c"
+
 static struct pico_frame *init_frame(struct pico_device *dev)
 {
     struct pico_frame *f = pico_frame_alloc(PICO_SIZE_ETHHDR + PICO_SIZE_ARPHDR);

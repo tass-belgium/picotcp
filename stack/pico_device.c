@@ -16,6 +16,7 @@
 #include "pico_ipv4.h"
 #include "pico_icmp6.h"
 #include "pico_eth.h"
+
 #define PICO_DEVICE_DEFAULT_MTU (1500)
 
 struct pico_devices_rr_info {
@@ -243,7 +244,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
         if (f) {
             if (dev->eth) {
                 f->datalink_hdr = f->buffer;
-                (void)pico_ethernet_receive(f);
+                (void)pico_datalink_receive(f);
             } else {
                 f->net_hdr = f->buffer;
                 pico_network_receive(f);
@@ -259,8 +260,8 @@ static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 {
 
     if (dev->eth) {
-        /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
-        return pico_ethernet_send(f);
+        /* Datalink: pass management of the frame to the pico_datalink_send() rdv function */
+        return pico_datalink_send(f);
     } else {
         /* non-ethernet: no post-processing needed */
         return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
