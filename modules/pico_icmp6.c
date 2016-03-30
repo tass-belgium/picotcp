@@ -284,7 +284,7 @@ MOCKABLE int pico_icmp6_frag_expired(struct pico_frame *f)
 static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t type, struct pico_device *dev, struct pico_ip6 *src)
 {
 #ifdef PICO_SUPPORT_SIXLOWPAN
-    struct pico_ieee_addr *ieee = (struct pico_ieee_addr *)dev->eth;
+    struct pico_ieee802154_addr *ieee = (struct pico_ieee802154_addr *)dev->eth;
     uint16_t shortbe = 0;
 #else
     IGNORE_PARAMETER(src);
@@ -298,13 +298,15 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode && dev->eth) {
         if ((src) && pico_ipv6_is_derived_16(*src)) {
-            shortbe = short_be(ieee->_short.addr);
-            memcpy(&llao->addr._short.addr, &shortbe, PICO_SIZE_IEEE_EXT);
-            memset(llao->addr._ext.addr + PICO_SIZE_IEEE_SHORT, 0x00, 4);
+            shortbe = short_be(ieee->addr._short.addr);
+            memcpy(&llao->addr._short.addr, &shortbe, PICO_SIZE_IEEE802154_EXT);
+            memset(llao->addr._ext.addr + PICO_SIZE_IEEE802154_SHORT, 0x00, 4);
             llao->len = 1;
         } else {
-            memcpy(llao->addr._ext.addr, ieee->_ext.addr, PICO_SIZE_IEEE_EXT);
-            memset(llao->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
+            memcpy(llao->addr._ext.addr,
+                   ieee->addr._ext.addr,
+                   PICO_SIZE_IEEE802154_EXT);
+            memset(llao->addr._ext.addr + PICO_SIZE_IEEE802154_EXT, 0x00, 6);
             llao->len = 2;
         }
     }
@@ -319,12 +321,12 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
 #ifdef PICO_SUPPORT_SIXLOWPAN
 static void pico_icmp6_provide_aro(struct pico_icmp6_opt_aro *aro, struct pico_device *dev)
 {
-    struct pico_ieee_addr *ieee = (struct pico_ieee_addr *)dev->eth;
+    struct pico_ieee802154_addr *ieee = (struct pico_ieee802154_addr *)dev->eth;
     aro->type = PICO_ND_OPT_ARO;
     aro->len = 2;
     aro->status = 0;
     aro->lifetime = short_be(PICO_6LP_ND_DEFAULT_LIFETIME);
-    memcpy(aro->eui64.addr, ieee->_ext.addr, PICO_SIZE_IEEE_EXT);
+    memcpy(aro->eui64.addr, ieee->addr._ext.addr, PICO_SIZE_IEEE802154_EXT);
 }
 #endif
 
@@ -587,7 +589,7 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     struct pico_ip6 dst_mcast = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
     uint8_t *nxt_opt;
 #ifdef PICO_SUPPORT_SIXLOWPAN
-    struct pico_ieee_addr *slp = NULL;
+    struct pico_ieee802154_addr *slp = NULL;
 #endif
 
     len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
@@ -645,10 +647,12 @@ int pico_icmp6_router_advertisement(struct pico_device *dev, struct pico_ip6 *ds
     }
 #ifdef PICO_SUPPORT_SIXLOWPAN
     else if (LL_MODE_SIXLOWPAN == dev->mode) {
-        slp = (struct pico_ieee_addr *)dev->eth;
+        slp = (struct pico_ieee802154_addr *)dev->eth;
         lladdr->len = 2;
-        memcpy(lladdr->addr._ext.addr, slp->_ext.addr, PICO_SIZE_IEEE_EXT);
-        memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE_EXT, 0x00, 6);
+        memcpy(lladdr->addr._ext.addr,
+               slp->addr._ext.addr,
+               PICO_SIZE_IEEE802154_EXT);
+        memset(lladdr->addr._ext.addr + PICO_SIZE_IEEE802154_EXT, 0x00, 6);
     }
 #endif /* PICO_SUPPORT_SIXLOWPAN */
     else {

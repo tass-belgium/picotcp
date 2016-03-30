@@ -7,12 +7,12 @@
 #define INCLUDE_PICO_ADDRESSING
 
 #include "pico_config.h"
+#include "pico_constants.h"
 
-#define IEEE_AM_NONE 0
-#define IEEE_AM_RES 1
-#define IEEE_AM_SHORT 2
-#define IEEE_AM_EXTENDED 3
-#define IEEE_AM_BOTH 4
+#define IEEE802154_AM_NONE      (0u)
+#define IEEE802154_AM_RES       (1u)
+#define IEEE802154_AM_SHORT     (2u)
+#define IEEE802154_AM_EXTENDED  (3u)
 
 PACKED_STRUCT_DEF pico_ip4
 {
@@ -42,27 +42,34 @@ enum pico_ll_mode
     LL_MODE_SIXLOWPAN
 };
 
-PACKED_STRUCT_DEF pico_ieee_addr_short
+PACKED_STRUCT_DEF pico_ieee802154_addr_short
 {
     uint16_t addr;
 };
 
-PACKED_STRUCT_DEF pico_ieee_addr_ext
+PACKED_STRUCT_DEF pico_ieee802154_addr_ext
 {
     uint8_t addr[8];
 };
 
 // ADDRESS MODE DEFINITIONS (IEEE802.15.4)
-struct pico_ieee_addr
+struct pico_ieee802154_addr
 {
-    struct pico_ieee_addr_short _short;
-    struct pico_ieee_addr_ext _ext;
-    uint8_t _mode;
+    union {
+        struct pico_ieee802154_addr_short _short;
+        struct pico_ieee802154_addr_ext   _ext;
+    } addr;
+    uint8_t mode;
     uint8_t padding;
 };
 
-#define pico_ieee_addr_len(am) ((IEEE_AM_BOTH == (int)(am) || IEEE_AM_SHORT == (int)(am)) ? (2u) : \
-                                (((IEEE_AM_EXTENDED == (int)(am)) ? (8u) : (0u))))
+#define PICO_IEEE802154_SIZE(addr) (IEEE802154_AM_EXTENDED == addr->_mode ?    \
+                                    (PICO_SIZE_IEEE802154_EXT) :               \
+                                    (IEEE802154_AM_SHORT == addr->_mode ?      \
+                                     (PICO_SIZE_IEEE802154_SHORT) :            \
+                                     (0u)                                      \
+                                    )                                          \
+                                   );
 
 extern const uint8_t PICO_ETHADDR_ALL[];
 

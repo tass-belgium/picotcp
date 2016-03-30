@@ -26,6 +26,7 @@
 ///                 - Subsequent fragments of the IPv6-datagram need to be
 ///                   transmitted.
 ///                 - The transmission failed and has to be retried.
+///                 - The frame is not auto-ACK'ed.
 ///             0 when the frame can be removed from the dev-queue and thus the
 ///             frame is succesfully transmitted
 ///

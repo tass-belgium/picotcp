@@ -34,7 +34,7 @@
 #include "pico_mdns.h"
 #include "pico_tftp.h"
 #include "pico_dev_radiotest.h"
-#include "pico_dev_sixlowpan.h"
+#include "pico_sixlowpan.h"
 
 #include <poll.h>
 #include <errno.h>

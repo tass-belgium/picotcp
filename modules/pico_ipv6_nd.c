@@ -159,8 +159,8 @@ static int pico_6lp_nd_validate_sol_aro(struct pico_icmp6_opt_aro *aro)
 
 static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icmp6_opt_aro *aro, uint8_t *status)
 {
-    struct pico_ieee_addr *rcv_eui = (struct pico_ieee_addr *)dev->eth;
-    struct pico_ieee_addr local_eui = {._ext.addr = {0}, ._short.addr = 0, ._mode = IEEE_AM_NONE};
+    struct pico_ieee802154_addr *rcv_eui = (struct pico_ieee802154_addr *)dev->eth;
+    struct pico_ieee802154_addr local_eui = {.addr._ext.addr = {0}, .mode = IEEE802154_AM_NONE};
 
     /* RFC6775 - 5.5.2 :
      *      - If the length field is not two, the option is silently ignored.
@@ -170,8 +170,8 @@ static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icm
     if (aro->len != 2)
         return -1;
 
-    local_eui._ext = aro->eui64;
-    local_eui._mode = IEEE_AM_EXTENDED;
+    local_eui.addr._ext = aro->eui64;
+    local_eui.mode = IEEE802154_AM_EXTENDED;
     if (pico_ieee802154_addr_cmp((void *)rcv_eui, (void *)&local_eui))
         return -1;
 

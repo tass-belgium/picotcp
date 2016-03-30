@@ -18,7 +18,6 @@
 #include "pico_tree.h"
 #include "pico_fragments.h"
 #include "pico_mld.h"
-#include "pico_dev_sixlowpan.h"
 #include "pico_mcast.h"
 #ifdef PICO_SUPPORT_IPV6
 

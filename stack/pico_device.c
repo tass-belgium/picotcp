@@ -16,8 +16,8 @@
 #include "pico_ipv4.h"
 #include "pico_icmp6.h"
 #include "pico_eth.h"
-#include "pico_dev_sixlowpan.h"
 #include "pico_sixlowpan.h"
+#include "pico_addressing.h"
 #define PICO_DEVICE_DEFAULT_MTU (1500)
 
 struct pico_devices_rr_info {
@@ -71,7 +71,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, con
 {
     struct pico_ip6 nm64 = {{ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
-    struct pico_ieee_addr *ieee = NULL;
+    struct pico_ieee802154_addr *ieee = NULL;
     struct pico_ipv6_link *new = NULL;
     struct pico_ip6 addr = {{ 0 }};
 
@@ -82,23 +82,23 @@ struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, con
     addr = pico_ipv6_address_to_network(prefix, nm64);
 
     /* Parse in the IEEE802.15.4-addresses from the pico-devices */
-    ieee = (struct pico_ieee_addr *)dev->eth;
+    ieee = (struct pico_ieee802154_addr *)dev->eth;
 
     /* First of all, generate a address derived from the EUI-64 */
-    memcpy(addr.addr + 8, ieee->_ext.addr, PICO_SIZE_IEEE_EXT);
+    memcpy(addr.addr + 8, ieee->addr._ext.addr, PICO_SIZE_IEEE802154_EXT);
     addr.addr[8] = addr.addr[8] ^ 0x02; /* Toggle U/L bit */
 
     /* But, no DAD should be performed when local IPv6 address is derived from EUI-64, it's unique */
     new = pico_ipv6_link_add_no_dad(dev, addr, nm64);
 
     /* If the device possibly has a 16-bit short address, add link with address from 16-bit short */
-    if (!pico_ipv6_is_linklocal(prefix.addr) && IEEE_AM_BOTH == ieee->_mode && IEEE_ADDR_BCAST_SHORT != ieee->_short.addr) {
+    if (!pico_ipv6_is_linklocal(prefix.addr) && IEEE802154_AM_SHORT == ieee->mode && PICO_IEEE802154_BCAST != ieee->addr._short.addr) {
         /* Form the address from the 16-bit short address */
-        memset(addr.addr + 8, 0, PICO_SIZE_IEEE_EXT); /* Clear out IID */
+        memset(addr.addr + 8, 0, PICO_SIZE_IEEE802154_EXT); /* Clear out IID */
         addr.addr[11] = 0xFF;
         addr.addr[12] = 0xFE;
-        addr.addr[14] = (uint8_t)short_be(ieee->_short.addr);
-        addr.addr[15] = (uint8_t)(short_be(ieee->_short.addr) >> 8);
+        addr.addr[14] = (uint8_t)short_be(ieee->addr._short.addr);
+        addr.addr[15] = (uint8_t)(short_be(ieee->addr._short.addr) >> 8);
 
         /* Add the link with DAD */
         if (!pico_ipv6_link_add(dev, addr, nm64))
@@ -108,22 +108,22 @@ struct pico_ipv6_link *pico_ipv6_link_add_sixlowpan(struct pico_device *dev, con
     return new;
 }
 
-static int device_init_sixlowpan(struct pico_device *dev, const struct pico_ieee_addr *addr)
+static int device_init_sixlowpan(struct pico_device *dev, const struct pico_ieee802154_addr *addr)
 {
     struct pico_ip6 linklocal = {{ 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     struct pico_ipv6_link *link = NULL;
-    struct pico_ieee_addr *slp = NULL;
+    struct pico_ieee802154_addr *slp = NULL;
 
     /* Set the device's interface identifier */
-    if (!(dev->eth = PICO_ZALLOC(sizeof(struct pico_ieee_addr))))
+    if (!(dev->eth = PICO_ZALLOC(sizeof(struct pico_ieee802154_addr))))
         return -1;
-    slp = (struct pico_ieee_addr *)dev->eth;
+    slp = (struct pico_ieee802154_addr *)dev->eth;
 
     /* Set the L2-adresses */
-    memcpy(slp->_ext.addr, addr->_ext.addr, PICO_SIZE_IEEE_EXT);
-    slp->_short.addr = addr->_short.addr;
-    slp->_mode = addr->_mode;
+    memcpy(slp->addr._ext.addr, addr->addr._ext.addr, PICO_SIZE_IEEE802154_EXT);
+    slp->addr._short.addr = addr->addr._short.addr;
+    slp->mode = addr->mode;
 
     /* Add an IPv6 link with EUI-64 to the device */
     link = pico_ipv6_link_add_sixlowpan(dev, linklocal);
@@ -273,7 +273,7 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
 
     if (LL_MODE_SIXLOWPAN == dev->mode) {
 #ifdef PICO_SUPPORT_SIXLOWPAN
-        ret = device_init_sixlowpan(dev, (const struct pico_ieee_addr *)mac);
+        ret = device_init_sixlowpan(dev, (const struct pico_ieee802154_addr *)mac);
 #else
         /* When 6LoWPAN is not supported return error */
         ret = -1;
