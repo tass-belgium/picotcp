@@ -502,23 +502,6 @@ static void sixlowpan_update_addr(struct sixlowpan_frame *f, uint8_t src);
 static uint8_t *sixlowpan_broadcast_out(uint8_t *buf, uint8_t *len);
 static int sixlowpan_retransmit(struct sixlowpan_frame *f);
 static int sixlowpan_prep_tx(void);
-
-static void dbg_ieee_addr(const char *msg, struct pico_ieee_addr *ieee)
-{
-    dbg("%s: ", msg);
-    dbg("{.short = 0x%04X}, {.ext = %02X%02X:%02X%02X:%02X%02X:%02X%02X}, .mode = %d\r\n",
-              ieee->_short.addr,
-              ieee->_ext.addr[0],
-              ieee->_ext.addr[1],
-              ieee->_ext.addr[2],
-              ieee->_ext.addr[3],
-              ieee->_ext.addr[4],
-              ieee->_ext.addr[5],
-              ieee->_ext.addr[6],
-              ieee->_ext.addr[7],
-              ieee->_mode);
-}
-
 /* -------------------------------------------------------------------------------- */
 // MARK: DUPLICATE SUPPRESSION
 static void dups_enqueue(struct pico_ieee_addr origin, struct pico_ieee_addr final, uint8_t seq)

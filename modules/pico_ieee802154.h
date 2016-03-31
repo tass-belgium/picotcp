@@ -21,7 +21,7 @@
 //  Structure definitions
 //===----------------------------------------------------------------------===//
 
-PACKED_STRUCT_DEF ieee802154_fcf
+PACKED_STRUCT_DEF pico_ieee802154_fcf
 {
     uint8_t frame_type: 3;          /* Type of frame, see PICO_FRAME_TYPE_x */
     uint8_t security_enabled: 1;    /* '1' When frame is secured */
@@ -35,18 +35,18 @@ PACKED_STRUCT_DEF ieee802154_fcf
     uint8_t sam: 2;                 /* Source AM, see PICO_ADDR_MODE_x */
 };
 
-PACKED_STRUCT_DEF ieee802154_hdr
+PACKED_STRUCT_DEF pico_ieee802154_hdr
 {
-    struct ieee802154_fcf fcf;
+    struct pico_ieee802154_fcf fcf;
     uint8_t seq;
     uint16_t pan;
     uint8_t addresses[0];
 };
 
-struct ieee802154_frame
+struct pico_ieee802154_frame
 {
     uint8_t *len;
-    struct ieee802154_hdr *hdr;
+    struct pico_ieee802154_hdr *hdr;
     uint8_t *payload;
     uint8_t *fcs;
 };
@@ -59,6 +59,21 @@ struct ieee802154_frame
 /// Compares 2 IEEE802.15.4 addresses. Takes extended and short address into
 /// account.
 ///
-int pico_ieee802154_addr_cmp(void *va, void *vb);
+int
+pico_ieee802154_addr_cmp(void *va, void *vb);
+
+///
+/// Converts an IEEE802.15.4 address from host order to IEEE-endianness, that is
+/// little-endian. Takes extended and short addresses into account.
+///
+void
+pico_ieee802154_addr_to_le(struct pico_ieee802154_addr *addr);
+
+///
+/// Converts an IEEE802.15.4 address from IEEE-endianness, that is little-endian
+/// to host endianness. Takes extended and short addresses into account.
+///
+void
+pico_ieee802154_addr_to_host(struct pico_ieee802154_addr *addr);
 
 #endif /* INCLUDE_PICO_IEEE802154 */

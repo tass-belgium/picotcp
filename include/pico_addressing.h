@@ -52,24 +52,28 @@ PACKED_STRUCT_DEF pico_ieee802154_addr_ext
     uint8_t addr[8];
 };
 
+union pico_ieee802154_addr_u {
+    struct pico_ieee802154_addr_short _short;
+    struct pico_ieee802154_addr_ext   _ext;
+};
+
 // ADDRESS MODE DEFINITIONS (IEEE802.15.4)
 struct pico_ieee802154_addr
 {
-    union {
-        struct pico_ieee802154_addr_short _short;
-        struct pico_ieee802154_addr_ext   _ext;
-    } addr;
+    union pico_ieee802154_addr_u addr;
     uint8_t mode;
     uint8_t padding;
 };
+#define PICO_IEEE802154_AM_SIZE(mode) (IEEE802154_AM_EXTENDED == (mode) ?      \
+                                       (PICO_SIZE_IEEE802154_EXT) :            \
+                                       (IEEE802154_AM_SHORT == (mode) ?        \
+                                        (PICO_SIZE_IEEE802154_SHORT) :         \
+                                        (0u)                                   \
+                                       )                                       \
+                                      )
 
-#define PICO_IEEE802154_SIZE(addr) (IEEE802154_AM_EXTENDED == addr->_mode ?    \
-                                    (PICO_SIZE_IEEE802154_EXT) :               \
-                                    (IEEE802154_AM_SHORT == addr->_mode ?      \
-                                     (PICO_SIZE_IEEE802154_SHORT) :            \
-                                     (0u)                                      \
-                                    )                                          \
-                                   );
+#define PICO_IEEE802154_SIZE(addr) (PICO_IEEE802154_AM_SIZE((addr)->mode))
+
 
 extern const uint8_t PICO_ETHADDR_ALL[];
 
