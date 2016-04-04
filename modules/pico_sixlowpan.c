@@ -41,52 +41,42 @@
 //  Constants
 //===----------------------------------------------------------------------===//
 
-
-
 //===----------------------------------------------------------------------===//
 //  Type definitions
 //===----------------------------------------------------------------------===//
 
-///
-/// 6LoWPAN is big endian, IEEE is little endian
-///
-enum endian
-{
-    ENDIAN_IEEE = 0,
-    ENDIAN_SIXLOWPAN
-};
-
 //===----------------------------------------------------------------------===//
 //  Global variables
 //===----------------------------------------------------------------------===//
-static uint8_t buf[IEEE_PHY_MTU];
 
 //===----------------------------------------------------------------------===//
 //  Forward declarations
 //===----------------------------------------------------------------------===//
 
-
-
 //===----------------------------------------------------------------------===//
 //  API Functions
 //===----------------------------------------------------------------------===//
 
-int pico_sixlowpan_send(struct pico_frame *f)
+int
+pico_sixlowpan_send(struct pico_frame *f)
 {
     IGNORE_PARAMETER(f);
 
     return 0;
 }
 
-void pico_sixlowpan_receive(struct pico_frame *f)
+void
+pico_sixlowpan_receive(struct pico_frame *f)
 {
     IGNORE_PARAMETER(f);
+
 }
 
 ///
 ///
 ///
-int pico_ipv6_is_derived_16(struct pico_ip6 addr)
+int
+pico_ipv6_is_derived_16(struct pico_ip6 addr)
 {
     uint8_t *iid = addr.addr + 8;
 

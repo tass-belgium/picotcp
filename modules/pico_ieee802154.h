@@ -14,8 +14,11 @@
 //  Size definitions
 //===----------------------------------------------------------------------===//
 
-#define IEEE_PHY_MTU                (128u)
-#define IEEE_MAC_MTU                (125u)
+#define IEEE802154_PHY_MTU                  (128u)
+#define IEEE802154_MAC_MTU                  (125u)
+#define IEEE802154_SIZE_MHR_MIN             (5u)
+#define IEEE802154_SIZE_FCS                 (2u)
+#define IEEE802154_SIZE_LEN                 (1u)
 
 //===----------------------------------------------------------------------===//
 //  Structure definitions
@@ -48,7 +51,7 @@ struct pico_ieee802154_frame
     uint8_t *len;
     struct pico_ieee802154_hdr *hdr;
     uint8_t *payload;
-    uint8_t *fcs;
+    /* We do not care about the FCS-field */
 };
 
 //===----------------------------------------------------------------------===//
@@ -56,24 +59,94 @@ struct pico_ieee802154_frame
 //===----------------------------------------------------------------------===//
 
 ///
-/// Compares 2 IEEE802.15.4 addresses. Takes extended and short address into
+/// Compares 2 IEEE802.15.4 addresses. Takes extended and short addresses into
 /// account.
 ///
 int
-pico_ieee802154_addr_cmp(void *va, void *vb);
+pico_ieee802154_addr_cmp(void *, void *);
 
 ///
-/// Converts an IEEE802.15.4 address from host order to IEEE-endianness, that is
-/// little-endian. Takes extended and short addresses into account.
+///     RECEIVING FRAMES
 ///
-void
-pico_ieee802154_addr_to_le(struct pico_ieee802154_addr *addr);
+/// +--------------------------------------------------+    +------------------+
+/// |          dev->poll(dev, loop_score);         <<<<---------- SCHEDULER    |
+/// |                       |                          |    |                  |
+/// +-----------------------V--------------------------+    +------------------+
+/// |            radio_tx(radio, buf, len);            |
+/// |                       |                          |           [PHY]
+/// +-----------------------V--------------------------+
+/// |         pico_stack_recv(dev, buf, len)           |
+/// |                       |                          |         ~~STACK~~
+/// +-----------------------V--------------------------+
+/// |           pico_enqueue(dev.q_in, f);             |
+/// |                                                  |         ~~STACK~~
+/// +----------------------END-------------------------+
+///
+///                                                            (another time)
+/// +--------------------------------------------------+    +------------------+
+/// |           pico_dequeue(dev.q_in, f);         <<<<---------- SCHEDULER    |
+/// |                       |                          |    |                  |
+/// +-----------------------V--------------------------+    +------------------+
+/// |         pico_ieee802154_receive(f);              |
+/// |                       |                          |        [DATALINK]
+/// +-----------------------V--------------------------+
+/// | pico_sixlowpan_receive(f, srciid, dstiid);       |
+/// |                       |                          |     [ADAPTION LAYER]
+/// +-----------------------V--------------------------+
+/// |           pico_enqueue(proto_ipv6.q_in, f);      |
+/// |                                                  |      [NETWORK LAYER]
+/// +----------------------END-------------------------+
+///
 
 ///
-/// Converts an IEEE802.15.4 address from IEEE-endianness, that is little-endian
-/// to host endianness. Takes extended and short addresses into account.
+/// Receives a frame from the device and prepares it for higher layers.
 ///
 void
-pico_ieee802154_addr_to_host(struct pico_ieee802154_addr *addr);
+pico_ieee802154_receive(struct pico_frame *f);
+
+///
+///  SENDING FRAMES
+/// ================
+///
+/// +--------------------------------------------------+
+/// |               pico_sendto_dev(f);                |
+/// |                       |                          |     [NETWORK LAYER]
+/// +-----------------------V--------------------------+
+/// |           pico_enqueue(f->dev.q_out, f);         |
+/// |                                                  |         ~~STACK~~
+/// +----------------------END-------------------------+
+///
+///                                                            (another time)
+/// +--------------------------------------------------+    +------------------+
+/// |           f = pico_dequeue(dev.q_in);        <<<<---------- SCHEDULER    |
+/// |                       |                          |    |                  |
+/// +-----------------------V--------------------------+    +------------------+
+/// |             pico_sixlowpan_send(f);              |
+/// |                       |                          |
+/// +-----------------------V--------------------------+
+/// |       pico_ieee802154_send(dev, buf, ...);       |
+/// |                       |                          |
+/// +-----------------------V--------------------------+
+/// |            dev->send(dev, buf, len);             |
+/// |                       |                          |
+/// +-----------------------V--------------------------+
+/// |            radio_tx(radio, buf, len);            |
+/// |                                                  |
+/// +----------------------END-------------------------+
+///
+
+///
+/// Sends a buffer through IEEE802.15.4 encapsulation to the device.
+/// Return -1 when an error occured, 0 when the frame was transmitted
+/// successfully or 'ret > 0' to indicate that the provided buffer was to large
+/// to fit inside the IEEE802.15.4 frame after providing the MAC header with
+/// addresses and possibly a security header. Calls dev->send() finally.
+///
+int
+pico_ieee802154_send(struct pico_device *dev,
+                     struct pico_ip6 src,
+                     struct pico_ip6 dst,
+                     uint8_t *buf,
+                     uint8_t len);
 
 #endif /* INCLUDE_PICO_IEEE802154 */

@@ -30,7 +30,8 @@
 ///             0 when the frame can be removed from the dev-queue and thus the
 ///             frame is succesfully transmitted
 ///
-int pico_sixlowpan_send(struct pico_frame *f);
+int
+pico_sixlowpan_send(struct pico_frame *f);
 
 ///
 /// Gets called by pico when it has time to parse a 6LoWPAN-frame received by
@@ -47,11 +48,13 @@ int pico_sixlowpan_send(struct pico_frame *f);
 /// @returns    void, either the frame is enqueued in the IPv6-protocol queue or
 ///             the translation failed and the received frame is discarded.
 ///
-void pico_sixlowpan_receive(struct pico_frame *f);
+void
+pico_sixlowpan_receive(struct pico_frame *f);
 
 ///
 /// Checks whether or not an IPv6-address is derived from a 16-bit short address
 ///
-int pico_ipv6_is_derived_16(struct pico_ip6 addr);
+int
+pico_ipv6_is_derived_16(struct pico_ip6 addr);
 
 #endif /* INCLUDE_PICO_SIXLOWPAN */

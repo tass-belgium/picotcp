@@ -755,7 +755,7 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
         memcpy(&rand, f->buffer + mid_frame, sizeof(uint32_t));
         pico_rand_feed(rand);
     }
-    
+
     memcpy(f->buffer, buffer, len);
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
