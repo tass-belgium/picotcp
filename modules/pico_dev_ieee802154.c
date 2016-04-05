@@ -5,4 +5,11 @@
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
 
+#ifdef PICO_SUPPORT_IEEE802154
 
+struct pico_device *pico_dev_ieee802154_create(struct ieee_radio *radio)
+{
+
+}
+
+#endif

@@ -64,16 +64,13 @@ struct pico_ieee802154_addr
     uint8_t mode;
     uint8_t padding;
 };
-#define PICO_IEEE802154_AM_SIZE(mode) (IEEE802154_AM_EXTENDED == (mode) ?      \
-                                       (PICO_SIZE_IEEE802154_EXT) :            \
-                                       (IEEE802154_AM_SHORT == (mode) ?        \
-                                        (PICO_SIZE_IEEE802154_SHORT) :         \
-                                        (0u)                                   \
-                                       )                                       \
-                                      )
 
-#define PICO_IEEE802154_SIZE(addr) (PICO_IEEE802154_AM_SIZE((addr)->mode))
-
+#define IEEE802154_AM_SIZE(mode) (IEEE802154_AM_EXTENDED == (mode) ?           \
+                                  (PICO_SIZE_IEEE802154_EXT) :                 \
+                                  (IEEE802154_AM_SHORT == (mode) ?             \
+                                   (PICO_SIZE_IEEE802154_SHORT) :              \
+                                   (0u)))
+#define IEEE802154_SIZE(addr)    (PICO_IEEE802154_AM_SIZE((addr)->mode))
 
 extern const uint8_t PICO_ETHADDR_ALL[];
 
