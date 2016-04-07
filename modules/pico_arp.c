@@ -39,7 +39,7 @@ static void pico_arp_queued_trigger(void)
         f = frames_queued[i];
         if (f) {
             if (pico_datalink_send(f) <= 0)
-                pico_datalink_send(f);
+                pico_frame_discard(f);
             frames_queued[i] = NULL;
         }
     }
