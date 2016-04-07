@@ -230,6 +230,10 @@ MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
     return ret;
 }
 
+//===----------------------------------------------------------------------===//
+//  NETWORK LAYER
+//===----------------------------------------------------------------------===//
+
 int32_t pico_network_receive(struct pico_frame *f)
 {
     if (0) {}
@@ -251,10 +255,6 @@ int32_t pico_network_receive(struct pico_frame *f)
     }
     return (int32_t)f->buffer_len;
 }
-
-//===----------------------------------------------------------------------===//
-//  NETWORK LAYER
-//===----------------------------------------------------------------------===//
 
 /// Interface towards socket for frame sending
 int32_t pico_network_send(struct pico_frame *f)
@@ -376,27 +376,33 @@ int pico_frame_dst_is_unicast(struct pico_frame *f)
 int pico_datalink_receive(struct pico_frame *f)
 {
     if (f->dev->eth) {
-        return pico_ethernet_receive(f);
+        /* If device has stack with datalink-layer pass frame through it */
+        f->datalink_hdr = f->buffer;
+        pico_enqueue(pico_proto_ethernet.q_in, f);
+    } else {
+        /* If device handles raw IP-frames send it straight to network-layer */
+        f->net_hdr = f->buffer;
+        pico_network_receive(f);
     }
 
+    return 0;
     /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
      * send frames through (upwards). */
 
-    pico_frame_discard(f);
-    return -1;
 }
 
 int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
-        return pico_ethernet_send(f);
+        /* If device has stack with datalink-layer pass frame through it */
+        return pico_enqueue(pico_proto_ethernet.q_out, f);
+    } else {
+        /* non-ethernet: no post-processing needed */
+        return pico_sendto_dev(f);
     }
 
     /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
      * send frames through (downwards). */
-
-    pico_frame_discard(f);
-    return -1;
 }
 
 //===----------------------------------------------------------------------===//
@@ -790,6 +796,9 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
 
 int MOCKABLE pico_stack_init(void)
 {
+#ifdef PICO_SUPPORT_ETH
+    pico_protocol_init(&pico_proto_ethernet);
+#endif
 
 #ifdef PICO_SUPPORT_IPV4
     pico_protocol_init(&pico_proto_ipv4);

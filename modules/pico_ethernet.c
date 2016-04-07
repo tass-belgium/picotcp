@@ -18,6 +18,8 @@
 
 #define IS_LIMITED_BCAST(f) (((struct pico_ipv4_hdr *) f->net_hdr)->dst.addr == PICO_IP4_BCAST)
 
+#ifdef PICO_SUPPORT_ETH
+
 const uint8_t PICO_ETHADDR_ALL[6] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 };
@@ -34,7 +36,6 @@ static const uint8_t PICO_ETHADDR_MCAST6[6] = {
 };
 #endif
 
-#ifdef PICO_SUPPORT_ETH
 /* DATALINK LEVEL: interface from network to the device
  * and vice versa.
  */
@@ -43,6 +44,36 @@ static const uint8_t PICO_ETHADDR_MCAST6[6] = {
  * those devices supporting ETH in order to push packets up
  * into the stack.
  */
+
+/* Queues */
+static struct pico_queue ethernet_in = {
+    0
+};
+static struct pico_queue ethernet_out = {
+    0
+};
+
+static int pico_ethernet_process_out(struct pico_protocol *self, struct pico_frame *f)
+{
+    IGNORE_PARAMETER(self);
+    return pico_ethernet_send(f);
+}
+
+static int pico_ethernet_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
+    IGNORE_PARAMETER(self);
+    return (pico_ethernet_receive(f) <= 0); /* 0 on success, which is ret > 0 */
+}
+
+/* Interface: protocol definition */
+struct pico_protocol pico_proto_ethernet = {
+    .name = "ethernet",
+    .layer = PICO_LAYER_DATALINK,
+    .process_in = pico_ethernet_process_in,
+    .process_out = pico_ethernet_process_out,
+    .q_in = &ethernet_in,
+    .q_out = &ethernet_out,
+};
 
 static int destination_is_bcast(struct pico_frame *f)
 {
@@ -271,16 +302,8 @@ static int32_t pico_ethsend_bcast(struct pico_frame *f)
  */
 static int32_t pico_ethsend_dispatch(struct pico_frame *f)
 {
-    int ret = f->dev->send(f->dev, f->start, (int) f->len);
-    if (ret <= 0)
-        return 0; /* Failure to deliver! */
-    else {
-        return 1; /* Frame is in flight by now. */
-    }
+    return pico_sendto_dev(f);
 }
-
-
-
 
 /* This function looks for the destination mac address
  * in order to send the frame being processed.
@@ -300,6 +323,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         if (pico_ethernet_ipv6_dst(f, &dstmac) < 0)
         {
             pico_ipv6_nd_postpone(f);
+            pico_frame_discard(f);
             return 0; /* I don't care if frame was actually postponed. If there is no room in the ND table, discard safely. */
         }
 
@@ -338,6 +362,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
              * It is safe to return without discarding.
              */
             pico_arp_postpone(f);
+            pico_frame_discard(f);
             return 0;
             /* Same case as for IPv6 ... */
         }

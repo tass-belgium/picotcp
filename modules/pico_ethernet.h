@@ -14,6 +14,9 @@
 #include "pico_frame.h"
 
 #ifdef PICO_SUPPORT_ETH
+
+extern struct pico_protocol pico_proto_ethernet;
+
 int32_t pico_ethernet_send(struct pico_frame *f);
 
 /* The pico_ethernet_receive() function is used by

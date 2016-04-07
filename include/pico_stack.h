@@ -1,3 +1,4 @@
+
 /*********************************************************************
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
@@ -13,8 +14,6 @@
 
 #define PICO_ETH_MRU (1514u)
 #define PICO_IP_MRU (1500u)
-
-/* ===== RECEIVING FUNCTIONS (from dev up to socket) ===== */
 
 //===----------------------------------------------------------------------===//
 //  TRANSPORT LAYER

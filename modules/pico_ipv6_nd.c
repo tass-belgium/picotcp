@@ -7,7 +7,6 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-#include "pico_ethernet.h"
 #include "pico_config.h"
 #include "pico_tree.h"
 #include "pico_icmp6.h"
@@ -17,6 +16,7 @@
 #include "pico_eth.h"
 #include "pico_addressing.h"
 #include "pico_ipv6_nd.h"
+#include "pico_ethernet.h"
 
 #ifdef PICO_SUPPORT_IPV6
 
@@ -73,10 +73,8 @@ static void pico_ipv6_nd_queued_trigger(void)
     {
         f = frames_queued_v6[i];
         if (f) {
-            (void)pico_ethernet_send(f);
-            if(frames_queued_v6[i])
-                pico_frame_discard(frames_queued_v6[i]);
-
+            if (pico_datalink_send(f) <= 0)
+                pico_frame_discard(f);
             frames_queued_v6[i] = NULL;
         }
     }
