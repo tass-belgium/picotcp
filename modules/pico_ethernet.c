@@ -302,7 +302,7 @@ static int32_t pico_ethsend_bcast(struct pico_frame *f)
  */
 static int32_t pico_ethsend_dispatch(struct pico_frame *f)
 {
-    return pico_sendto_dev(f);
+    return (pico_sendto_dev(f) > 0); // Return 1 on success, ret > 0
 }
 
 /* This function looks for the destination mac address
@@ -324,7 +324,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         {
             pico_ipv6_nd_postpone(f);
             pico_frame_discard(f);
-            return 0; /* I don't care if frame was actually postponed. If there is no room in the ND table, discard safely. */
+            return 0;
         }
 
         dstmac_valid = 1;
@@ -364,7 +364,6 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             pico_arp_postpone(f);
             pico_frame_discard(f);
             return 0;
-            /* Same case as for IPv6 ... */
         }
 
     }
