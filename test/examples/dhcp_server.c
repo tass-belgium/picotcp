@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <pico_ipv4.h>
 #include <pico_dhcp_server.h>
 
 /*** START DHCP Server ***/

@@ -116,8 +116,8 @@ static int nat_cmp_outbound(void *ka, void *kb)
     return nat_cmp_proto(a, b);
 }
 
-PICO_TREE_DECLARE(NATOutbound, nat_cmp_outbound);
-PICO_TREE_DECLARE(NATInbound, nat_cmp_inbound);
+static PICO_TREE_DECLARE(NATOutbound, nat_cmp_outbound);
+static PICO_TREE_DECLARE(NATInbound, nat_cmp_inbound);
 
 void pico_ipv4_nat_print_table(void)
 {

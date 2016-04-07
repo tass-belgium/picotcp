@@ -19,7 +19,6 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
 #define PICO_ARP_RETRY 300lu
 #define PICO_ARP_MAX_PENDING 5
-
 #ifdef DEBUG_ARP
     #define arp_dbg dbg
 #else
@@ -27,7 +26,9 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #endif
 
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
-static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { 0 };
+static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = {
+    0
+};
 
 static void pico_arp_queued_trigger(void)
 {
@@ -120,7 +121,7 @@ static int arp_compare(void *ka, void *kb)
     return pico_ipv4_compare(&a->ipv4, &b->ipv4);
 }
 
-PICO_TREE_DECLARE(arp_tree, arp_compare);
+static PICO_TREE_DECLARE(arp_tree, arp_compare);
 
 /*********************/
 /**  END ARP TREE **/
@@ -169,8 +170,6 @@ static void pico_arp_unreachable(struct pico_ip4 *a)
                     pico_notify_dest_unreachable(f);
                 }
 
-                pico_frame_discard(f);
-                frames_queued[i] = NULL;
             }
         }
     }
@@ -225,7 +224,9 @@ void pico_arp_postpone(struct pico_frame *f)
     for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
     {
         if (!frames_queued[i]) {
-            frames_queued[i] = pico_frame_copy(f);
+            if (f->failure_count < 4)
+                frames_queued[i] = pico_frame_copy(f);
+
             return;
         }
     }
@@ -293,10 +294,11 @@ static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
     if (conflict_ipv4.conflict)
     {
         if((conflict_ipv4.ip.addr == hdr->src.addr) &&
-            (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0))
-          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_CONFLICT );
-        if((hdr->src.addr == 0) && (hdr->dst.addr == conflict_ipv4.ip.addr) )
-          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_PROBE );
+           (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0))
+            conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_CONFLICT );
+
+        if((hdr->src.addr == 0) && (hdr->dst.addr == conflict_ipv4.ip.addr))
+            conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_PROBE );
     }
 }
 

@@ -55,8 +55,8 @@ static int aodv_dev_cmp(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(aodv_nodes, aodv_node_compare);
-PICO_TREE_DECLARE(aodv_devices, aodv_dev_cmp);
+static PICO_TREE_DECLARE(aodv_nodes, aodv_node_compare);
+static PICO_TREE_DECLARE(aodv_devices, aodv_dev_cmp);
 
 static struct pico_socket *aodv_socket = NULL;
 
@@ -378,7 +378,7 @@ struct aodv_parser_s {
     void (*call)(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo);
 };
 
-struct aodv_parser_s aodv_parser[5] = {
+static struct aodv_parser_s aodv_parser[5] = {
     {.call = NULL},
     {.call = aodv_parse_rreq },
     {.call = aodv_parse_rrep },

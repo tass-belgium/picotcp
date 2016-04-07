@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <pico_socket.h>
+#include <pico_ipv4.h>
 /*** START TCP ECHO ***/
 #define BSIZE (1024 * 10)
 static char recvbuf[BSIZE];

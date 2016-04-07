@@ -70,7 +70,7 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
     ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5, 0);
     fail_unless(ret < 0, "dns_rdata_cmp failed with check for tolower effect, case-sensitive!\n");
 
-    //now check with case-insensitive
+    /* now check with case-insensitive */
 
     /* Check equal data and size */
     ret = pico_dns_rdata_cmp(rdata1, rdata1, 10, 10, 1);

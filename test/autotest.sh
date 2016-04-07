@@ -19,14 +19,6 @@ function tftp_cleanup() {
 	fi
 }
 
-function on_exit(){
-	killall -wq picoapp.elf 
-	killall -wq picoapp6.elf 
-	./test/vde_sock_start_user.sh stop
-}
-
-trap on_exit exit term
-
 if ! [ -x "$(command -v vde_switch)" ]; then
       echo 'VDE Switch is not installed.' >&2
 fi
@@ -36,7 +28,7 @@ if [ ! -e test/vde_sock_start_user.sh ]; then
    exit 1
 else
    echo "VDE SOCK START SCRIPT STARTED."
-   ./test/vde_sock_start_user.sh start
+   ./test/vde_sock_start_user.sh
 fi
 
 rm -f /tmp/pico-mem-report-*
@@ -257,7 +249,7 @@ killall -w picoapp.elf
 
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:www.google.be:173.194.67.94:: &
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0:10.40.0.1::: -a udpdnsclient:ipv6.google.be:doesntmatter:ipv6: &
-./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.0.0:10.50.0.1::: -a sntp:ntp.nasa.gov: &
+./build/test/picoapp.elf  --vde pic0:/tmp/pic0.ctl:10.50.0.2:255.255.0.0:10.50.0.1::: -a sntp:0.europe.pool.ntp.org &
 sleep 20
 killall -w picoapp.elf
 
