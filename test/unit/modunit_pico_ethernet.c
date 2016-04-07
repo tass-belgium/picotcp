@@ -271,10 +271,16 @@ START_TEST(tc_pico_eth_receive)
     TRYING("With wrong frame type\n");
     ret = pico_eth_receive(f);
     CHECKING(count);
-    fail_unless(ret > 0, "Was correct frame should've returned size of frame\n");
+    fail_unless(ret == -1, "should've returned -1 wrong ethernet protocol\n");
     SUCCESS();
 
-    eth->proto = PICO_IDETH_IPV6;
+    f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr) + sizeof(struct pico_eth_hdr));
+    f->datalink_hdr = f->buffer;
+    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
+    h4 = (struct pico_ipv4_hdr *)f->net_hdr;
+    eth = (struct pico_eth_hdr *)f->datalink_hdr;
+    ((uint8_t *)(f->net_hdr))[0] = 0x40; /* Ipv4 */
+    eth->proto = PICO_IDETH_IPV4;
 
     TRYING("With IPv4 frame\n");
     ret = pico_eth_receive(f);
