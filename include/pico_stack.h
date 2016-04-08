@@ -40,18 +40,14 @@ int pico_datalink_send(struct pico_frame *f);
 
 /* From dev up to socket */
 int pico_datalink_receive(struct pico_frame *f);
-
-/* Enqueues the frame in the device-queue. However, before the frame is
- * actually send to the device itself, it may be possible that the frame passes
- * through the datalink-layer first.
- */
-int32_t pico_sendto_dev(struct pico_frame *f);
-
 //===----------------------------------------------------------------------===//
 //  PHYSICAL LAYER
 //===----------------------------------------------------------------------===//
 
-/* LOWEST LEVEL: interface towards devices. */
+/* Enqueues the frame in the device-queue. From socket down to dev */
+int32_t pico_sendto_dev(struct pico_frame *f);
+
+/* LOWEST LEVEL: interface towards stack from devices */
 /* Device driver will call this function which returns immediately.
  * Incoming packet will be processed later on in the dev loop.
  * The zerocopy version will associate the current buffer to the newly created frame.
