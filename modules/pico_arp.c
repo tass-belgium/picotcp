@@ -223,7 +223,7 @@ void pico_arp_postpone(struct pico_frame *f)
     {
         if (!frames_queued[i]) {
             if (f->failure_count < 4)
-                frames_queued[i] = pico_frame_copy(f);
+                frames_queued[i] = f;
 
             return;
         }
