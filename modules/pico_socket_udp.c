@@ -48,7 +48,7 @@ static inline int pico_socket_udp_deliver_ipv4_mcast_initial_checks(struct pico_
     return 0;
 }
 
-static int pico_enqueue_and_wakeup_if_needed(struct pico_queue *q_in,cpy)
+static int pico_enqueue_and_wakeup_if_needed(struct pico_queue *q_in, struct pico_socket* s, struct pico_frame* cpy)
 {
         if (pico_enqueue(q_in, cpy) > 0) {
             if (s->wakeup){
@@ -79,7 +79,7 @@ static int pico_socket_udp_deliver_ipv4_mcast(struct pico_socket *s, struct pico
         if (!cpy)
             return -1;
 
-        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
+        pico_enqueue_and_wakeup_if_needed(&s->q_in, s, cpy);
     }
 
     return 0;
@@ -93,7 +93,7 @@ static int pico_socket_udp_deliver_ipv4_unicast(struct pico_socket *s, struct pi
     if (!cpy)
         return -1;
 
-    pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
+    pico_enqueue_and_wakeup_if_needed(&s->q_in, s, cpy);
 
     return 0;
 }
@@ -144,7 +144,7 @@ static inline int pico_socket_udp_deliver_ipv6_mcast(struct pico_socket *s, stru
             return -1;
         }
 
-        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
+        pico_enqueue_and_wakeup_if_needed(&s->q_in, s, cpy);
     }
 
     return 0;
@@ -174,7 +174,7 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
             return -1;
         }
 
-        pico_enqueue_and_wakeup_if_needed(&s->q_in,cpy);
+        pico_enqueue_and_wakeup_if_needed(&s->q_in, s, cpy);
     }
 
     pico_frame_discard(f);
