@@ -322,6 +322,8 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     if (IS_IPV6(f)) {
         if (pico_ethernet_ipv6_dst(f, &dstmac) < 0)
         {
+            /* Enqueue copy of frame in IPv6 ND-module to retry later. Discard
+             * frame otherwise we have a duplicate */
             pico_ipv6_nd_postpone(f);
             pico_frame_discard(f);
             return 0;
@@ -358,9 +360,8 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             memcpy(&dstmac, arp_get, PICO_SIZE_ETH);
             dstmac_valid = 1;
         } else {
-            /* At this point, ARP will discard the frame in any case.
-             * It is safe to return without discarding.
-             */
+            /* Enqueue copy of frame in ARP-module to retry later. Discard
+             * frame otherwise we have a duplicate */
             pico_arp_postpone(f);
             pico_frame_discard(f);
             return 0;
