@@ -37,15 +37,22 @@ const uint8_t PICO_ETHADDR_ALL[6] = {
 };
 
 # define PICO_SIZE_MCAST 3
-const uint8_t PICO_ETHADDR_MCAST[6] = {
+static const uint8_t PICO_ETHADDR_MCAST[6] = {
     0x01, 0x00, 0x5e, 0x00, 0x00, 0x00
 };
 
 #ifdef PICO_SUPPORT_IPV6
 # define PICO_SIZE_MCAST6 2
-const uint8_t PICO_ETHADDR_MCAST6[6] = {
+static const uint8_t PICO_ETHADDR_MCAST6[6] = {
     0x33, 0x33, 0x00, 0x00, 0x00, 0x00
 };
+#endif
+
+/* Mockables */
+#if defined UNIT_TEST
+#   define MOCKABLE __attribute__((weak))
+#else
+#   define MOCKABLE
 #endif
 
 
@@ -886,7 +893,6 @@ static void pico_check_timers(void)
             PICO_FREE(t);
         }
 
-        t = NULL;
         heap_peek(Timers, &tref_unused);
         tref = heap_first(Timers);
     }
@@ -898,10 +904,15 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
     struct pico_timer_ref *tref = Timers->top;
     if (id == 0u)
         return;
+
     for (i = 1; i <= Timers->n; i++) {
         if (tref[i].id == id) {
-            PICO_FREE(Timers->top[i].tmr);
-            Timers->top[i].tmr = NULL;
+            if (Timers->top[i].tmr)
+            {
+                PICO_FREE(Timers->top[i].tmr);
+                Timers->top[i].tmr = NULL;
+                tref[i].id = 0;
+            }
             break;
         }
     }
@@ -1077,8 +1088,9 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
     struct pico_timer_ref tref;
 
     /* zero is guard for timers */
-    if (tmr_id == 0u)
+    if (tmr_id == 0u) {
         tmr_id++;
+    }
 
     if (!t) {
         pico_err = PICO_ERR_ENOMEM;
@@ -1098,7 +1110,7 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
     return tref.id;
 }
 
-int pico_stack_init(void)
+int MOCKABLE pico_stack_init(void)
 {
 
 #ifdef PICO_SUPPORT_IPV4

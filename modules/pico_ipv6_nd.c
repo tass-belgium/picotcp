@@ -22,7 +22,9 @@
 
 #define nd_dbg(...) do {} while(0)
 
-static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
+static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = {
+    0
+};
 
 
 enum pico_ipv6_neighbor_state {
@@ -50,7 +52,7 @@ static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 }
 
 
-PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
+static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
@@ -72,7 +74,8 @@ static void pico_ipv6_nd_queued_trigger(void)
         if (f) {
             (void)pico_ethernet_send(f);
             if(frames_queued_v6[i])
-              pico_frame_discard(frames_queued_v6[i]);
+                pico_frame_discard(frames_queued_v6[i]);
+
             frames_queued_v6[i] = NULL;
         }
     }
@@ -145,6 +148,10 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
+
+    if (!n)
+        return;
+
     if (n->expire != (pico_time)0)
         return;
 

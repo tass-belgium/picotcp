@@ -408,9 +408,9 @@ struct pico_ppp_fsm {
 
 #define LCPOPT_SET_LOCAL(ppp, opt)          ppp->lcpopt_local |= (uint16_t)(1u << opt)
 #define LCPOPT_SET_PEER(ppp, opt)           ppp->lcpopt_peer  |= (uint16_t)(1u << opt)
-#define LCPOPT_UNSET_LOCAL(ppp, opt)        ppp->lcpopt_local &= (uint16_t)~(1u << opt)
-#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt)   ppp->lcpopt_local &= (uint16_t)~(opt)
-#define LCPOPT_UNSET_PEER(ppp, opt)         ppp->lcpopt_peer  &= (uint16_t)~(1u << opt)
+#define LCPOPT_UNSET_LOCAL(ppp, opt)        ppp->lcpopt_local &= (uint16_t) ~(1u << opt)
+#define LCPOPT_UNSET_LOCAL_MASK(ppp, opt)   ppp->lcpopt_local &= (uint16_t) ~(opt)
+#define LCPOPT_UNSET_PEER(ppp, opt)         ppp->lcpopt_peer  &= (uint16_t) ~(1u << opt)
 #define LCPOPT_ISSET_LOCAL(ppp, opt)      ((ppp->lcpopt_local & (uint16_t)(1u << opt)) != 0)
 #define LCPOPT_ISSET_PEER(ppp, opt)       ((ppp->lcpopt_peer  & (uint16_t)(1u << opt)) != 0)
 
@@ -855,9 +855,9 @@ static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint3
         int i;
 
         ppp_dbg("-- LCP opt: %d - len: %d - data:", p[0], p[1]);
-        for (i=0; i<p[1]-2; i++)
+        for (i = 0; i < p[1] - 2; i++)
         {
-            ppp_dbg(" %02X", p[2+i]);
+            ppp_dbg(" %02X", p[2 + i]);
         }
         ppp_dbg("\n");
 
@@ -883,17 +883,17 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
         {
             switch (p[0])
             {
-                case LCPOPT_MRU:
-                    //XXX: Can we accept any MRU ?
-                    ppp_dbg("Adjusting MRU to %02x%02x\n", p[2], p[3]);
-                    ppp->mru = (uint16_t)((p[2] << 8) + p[3]);
-                    break;
-                case LCPOPT_AUTH:
-                    ppp_dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
-                    ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
-                    break;
-                default:
-                    break;
+            case LCPOPT_MRU:
+                /* XXX: Can we accept any MRU ? */
+                ppp_dbg("Adjusting MRU to %02x%02x\n", p[2], p[3]);
+                ppp->mru = (uint16_t)((p[2] << 8) + p[3]);
+                break;
+            case LCPOPT_AUTH:
+                ppp_dbg("Setting AUTH to %02x%02x\n", p[2], p[3]);
+                ppp->auth = (uint16_t)((p[2] << 8) + p[3]);
+                break;
+            default:
+                break;
             }
         }
 
@@ -904,7 +904,7 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
         p += off;
     }
 #ifdef PPP_DEBUG
-    lcp_optflags_print(ppp, pkt +  sizeof(struct pico_lcp_hdr), (uint32_t)(len - sizeof(struct pico_lcp_hdr)) );
+    lcp_optflags_print(ppp, pkt +  sizeof(struct pico_lcp_hdr), (uint32_t)(len - sizeof(struct pico_lcp_hdr)));
 #endif
     return flags;
 }
@@ -982,9 +982,9 @@ static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
             dst_opts[dstopts_len++] = p[1];
 
             ppp_dbg("data: ");
-            for(i = 0; i < p[1]-2u; i++) {                   /* length includes type, length and data fields */
+            for(i = 0; i < p[1] - 2u; i++) {                   /* length includes type, length and data fields */
                 dst_opts[dstopts_len++] = p[2 + i];
-                ppp_dbg("%02X ", p[2+i]);
+                ppp_dbg("%02X ", p[2 + i]);
             }
             ppp_dbg("\n");
         }
@@ -1014,6 +1014,7 @@ static void lcp_process_in(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t l
     uint16_t optflags;
     if (!ppp)
         return;
+
     if (pkt[0] == PICO_CONF_REQ) {
         uint16_t rejected = 0;
         ppp_dbg("Received LCP CONF REQ\n");
@@ -1171,12 +1172,16 @@ static void ipcp_request_fill(struct pico_device_ppp *ppp, uint8_t *opts)
 {
     if (ppp->ipcp_allowed_fields & IPCP_ALLOW_IP)
         opts += ipcp_request_add_address(opts, IPCP_OPT_IP, ppp->ipcp_ip);
+
     if (ppp->ipcp_allowed_fields & IPCP_ALLOW_DNS1)
         opts += ipcp_request_add_address(opts, IPCP_OPT_DNS1, ppp->ipcp_dns1);
+
     if (ppp->ipcp_allowed_fields & IPCP_ALLOW_DNS2)
         opts += ipcp_request_add_address(opts, IPCP_OPT_DNS2, ppp->ipcp_dns2);
+
     if ((ppp->ipcp_allowed_fields & IPCP_ALLOW_NBNS1) &&  (ppp->ipcp_nbns1))
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS1, ppp->ipcp_nbns1);
+
     if ((ppp->ipcp_allowed_fields & IPCP_ALLOW_NBNS2) &&  (ppp->ipcp_nbns2))
         opts += ipcp_request_add_address(opts, IPCP_OPT_NBNS2, ppp->ipcp_nbns2);
 }
@@ -1427,6 +1432,7 @@ static void ppp_recv_data(struct pico_device_ppp *ppp, void *data, uint32_t len)
         }
         ppp_dbg("\n");
     }
+
 #endif
 
     ppp_process_packet(ppp, pkt, len);
@@ -1743,7 +1749,7 @@ static void auth_abort(struct pico_device_ppp *ppp)
 
 static void auth_req(struct pico_device_ppp *ppp)
 {
-    uint16_t ppp_usr_len = 0; 
+    uint16_t ppp_usr_len = 0;
     uint16_t ppp_pwd_len = 0;
     uint8_t *req = NULL, *p;
     struct pico_pap_hdr *hdr;
@@ -1783,15 +1789,16 @@ static void auth_req(struct pico_device_ppp *ppp)
         memcpy(p, ppp->password, ppp_pwd_len);
         p += ppp_pwd_len;
     }
+
     ppp_dbg("PAP: Sending authentication request.\n");
     pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_PAP,
-            req,           /* Start of PPP packet */
-            (uint32_t)(
-                PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
-                pap_len + /* Authentication packet len */
-                PPP_FCS_SIZE + /* FCS */
-                1)             /* STOP Byte */
-            );
+                      req, /* Start of PPP packet */
+                      (uint32_t)(
+                          PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + /* PPP Header, etc. */
+                          pap_len + /* Authentication packet len */
+                          PPP_FCS_SIZE + /* FCS */
+                          1)   /* STOP Byte */
+                      );
     PICO_FREE(req);
 }
 

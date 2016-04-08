@@ -16,7 +16,7 @@
 #define PICO_DHCP_HTYPE_ETH 1
 
 /* Macro to get DHCP option field */
-#define DHCP_OPT(hdr,off)              ((struct pico_dhcp_opt *)(((uint8_t *)hdr)+sizeof(struct pico_dhcp_hdr) + off))
+#define DHCP_OPT(hdr, off)              ((struct pico_dhcp_opt *)(((uint8_t *)hdr) + sizeof(struct pico_dhcp_hdr) + off))
 
 /* flags */
 #define PICO_DHCP_FLAG_BROADCAST        0x8000

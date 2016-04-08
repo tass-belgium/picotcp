@@ -1,6 +1,9 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
+extern void app_udpclient(char *arg);
 /*** START Multicast SEND ***/
 /*
  * multicast send expects the following format: mcastsend:link_addr:mcast_addr:sendto_port:listen_port
@@ -15,6 +18,7 @@ extern struct udpclient_pas *udpclient_pas;
 #ifdef PICO_SUPPORT_MCAST
 void app_mcastsend_ipv6(char *arg)
 {
+    int retval = 0;
     char *maddr = NULL, *laddr = NULL, *lport = NULL, *sport = NULL;
     uint16_t sendto_port = 0;
     struct pico_ip6 inaddr_link = {
@@ -29,7 +33,7 @@ void app_mcastsend_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&laddr, nxt);
         if (laddr) {
-            pico_string_to_ipv6(laddr, &inaddr_link.addr);
+            pico_string_to_ipv6(laddr, &inaddr_link.addr[0]);
         } else {
             goto out;
         }
@@ -41,7 +45,7 @@ void app_mcastsend_ipv6(char *arg)
     if (nxt) {
         nxt = cpy_arg(&maddr, nxt);
         if (maddr) {
-            pico_string_to_ipv6(maddr, &inaddr_mcast.addr);
+            pico_string_to_ipv6(maddr, &inaddr_mcast.addr[0]);
         } else {
             goto out;
         }
@@ -89,18 +93,36 @@ void app_mcastsend_ipv6(char *arg)
     p = strcat(p + strlen(lport), ",64,10,5,");
 
     /* DAD needs to verify the link address before we can continue */
-    while(!pico_ipv6_link_get(&inaddr_link) ) {
+    while(!pico_ipv6_link_get(&inaddr_link)) {
         pico_stack_tick();
         usleep(2000);
     }
     app_udpclient(new_arg);
-    
-    memcpy(&mreq.mcast_group_addr,&inaddr_mcast, sizeof(struct pico_ip6));
-    memcpy(&mreq.mcast_link_addr ,&inaddr_link, sizeof(struct pico_ip6));
+
+    memcpy(&mreq.mcast_group_addr, &inaddr_mcast, sizeof(struct pico_ip6));
+    memcpy(&mreq.mcast_link_addr, &inaddr_link, sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpclient_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {
         picoapp_dbg("%s: socket_setoption PICO_IP_ADD_MEMBERSHIP failed: %s\n", __FUNCTION__, strerror(pico_err));
-        exit(1);
+        retval = 1;
     }
+
+    if (new_arg)
+        free(new_arg);
+
+    if (lport)
+        free(lport);
+
+    if (maddr)
+        free(maddr);
+
+    if (sport)
+        free(sport);
+
+    if (laddr)
+        free(laddr);
+
+    if (retval)
+        exit(retval);
 
     return;
 

@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
 /**** START UDP ECHO ****/

@@ -30,10 +30,10 @@ static int pico_proto_cmp(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(Datalink_proto_tree, pico_proto_cmp);
-PICO_TREE_DECLARE(Network_proto_tree, pico_proto_cmp);
-PICO_TREE_DECLARE(Transport_proto_tree, pico_proto_cmp);
-PICO_TREE_DECLARE(Socket_proto_tree, pico_proto_cmp);
+static PICO_TREE_DECLARE(Datalink_proto_tree, pico_proto_cmp);
+static PICO_TREE_DECLARE(Network_proto_tree, pico_proto_cmp);
+static PICO_TREE_DECLARE(Transport_proto_tree, pico_proto_cmp);
+static PICO_TREE_DECLARE(Socket_proto_tree, pico_proto_cmp);
 
 /* Static variables to keep track of the round robin loop */
 static struct pico_proto_rr proto_rr_datalink   = {

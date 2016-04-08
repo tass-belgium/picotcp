@@ -6,7 +6,7 @@
 #include <pico_device.h>
 /*** START DHCP Client ***/
 #ifdef PICO_SUPPORT_DHCPC
-    
+
 /* This must stay global, its lifetime is the same as the dhcp negotiation */
 uint32_t dhcpclient_xid;
 
@@ -79,6 +79,9 @@ void app_dhcp_client(char *arg)
 
         dev = pico_get_device(sdev);
         if(dev == NULL) {
+            if (sdev)
+                free(sdev);
+
             printf("%s: error getting device %s: %s\n", __FUNCTION__, dev->name, strerror(pico_err));
             exit(255);
         }
@@ -87,8 +90,14 @@ void app_dhcp_client(char *arg)
 
         if (pico_dhcp_initiate_negotiation(dev, &callback_dhcpclient, &dhcpclient_xid) < 0) {
             printf("%s: error initiating negotiation: %s\n", __FUNCTION__, strerror(pico_err));
+            if (sdev)
+                free(sdev);
+
             exit(255);
         }
+
+        if (sdev)
+            free(sdev);
 
         dhcpclient_devices++;
     }
@@ -96,6 +105,9 @@ void app_dhcp_client(char *arg)
 
 out:
     fprintf(stderr, "dhcpclient expects the following format: dhcpclient:dev_name:[dev_name]\n");
+    if (sdev)
+        free(sdev);
+
     exit(255);
 }
 #endif
