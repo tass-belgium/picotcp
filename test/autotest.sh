@@ -34,11 +34,11 @@ fi
 rm -f /tmp/pico-mem-report-*
 sleep 2
 ulimit -c unlimited
-killall -wq picoapp.elf 
+killall -wq picoapp.elf
 killall -wq picoapp6.elf
 
 
- 
+
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -325,4 +325,4 @@ echo "MAX memory used: $MAXMEM"
 rm -f /tmp/pico-mem-report-*
 
 ./test/vde_sock_start_user.sh stop
-echo "SUCCESS!" 
+echo "SUCCESS!"

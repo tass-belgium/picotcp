@@ -844,6 +844,7 @@ struct pico_timer_ref
 {
     pico_time expire;
     uint32_t id;
+    uint32_t hash;
     struct pico_timer *tmr;
 };
 
@@ -914,6 +915,25 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
                 tref[i].id = 0;
             }
             break;
+        }
+    }
+}
+
+void pico_timer_cancel_hashed(uint32_t hash)
+{
+    uint32_t i;
+    struct pico_timer_ref *tref = Timers->top;
+    if (hash == 0u)
+        return;
+
+    for (i = 1; i <= Timers->n; i++) {
+        if (tref[i].hash == hash) {
+            if (Timers->top[i].tmr)
+            {
+                PICO_FREE(Timers->top[i].tmr);
+                Timers->top[i].tmr = NULL;
+                tref[i].id = 0;
+            }
         }
     }
 }
@@ -1082,26 +1102,16 @@ void pico_stack_loop(void)
     }
 }
 
-MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+static uint32_t
+pico_timer_ref_add(pico_time expire, struct pico_timer *t, uint32_t id, uint32_t hash)
 {
-    struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
     struct pico_timer_ref tref;
 
-    /* zero is guard for timers */
-    if (tmr_id == 0u) {
-        tmr_id++;
-    }
-
-    if (!t) {
-        pico_err = PICO_ERR_ENOMEM;
-        return 0;
-    }
-
     tref.expire = PICO_TIME_MS() + expire;
-    t->arg = arg;
-    t->timer = timer;
     tref.tmr = t;
-    tref.id = tmr_id++;
+    tref.id = id;
+    tref.hash = hash;
+
     heap_insert(Timers, &tref);
     if (Timers->n > PICO_MAX_TIMERS) {
         dbg("Warning: I have %d timers\n", (int)Timers->n);
@@ -1109,6 +1119,52 @@ MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void
 
     return tref.id;
 }
+
+static struct pico_timer *
+pico_timer_create(void (*timer)(pico_time, void *), void *arg)
+{
+    struct pico_timer *t = PICO_ZALLOC(sizeof(struct pico_timer));
+
+    if (!t) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
+
+    t->arg = arg;
+    t->timer = timer;
+
+    return t;
+}
+
+MOCKABLE uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
+{
+    struct pico_timer *t = pico_timer_create(timer, arg);
+
+    /* zero is guard for timers */
+    if (tmr_id == 0u) {
+        tmr_id++;
+    }
+
+    if (!t)
+        return 0;
+
+    return pico_timer_ref_add(expire, t, tmr_id++, 0);
+}
+
+uint32_t pico_timer_add_hashed(pico_time expire, void (*timer)(pico_time, void *), void *arg, uint32_t hash)
+{
+    struct pico_timer *t = pico_timer_create(timer, arg);
+
+    /* zero is guard for timers */
+    if (tmr_id == 0u) {
+        tmr_id++;
+    }
+
+    if (!t)
+        return 0;
+
+    return pico_timer_ref_add(expire, t, tmr_id++, hash);
+} /* Static path count: 4 */
 
 int MOCKABLE pico_stack_init(void)
 {

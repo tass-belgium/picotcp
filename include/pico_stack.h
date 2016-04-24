@@ -76,6 +76,8 @@ int pico_source_is_local(struct pico_frame *f);
 int pico_frame_dst_is_unicast(struct pico_frame *f);
 void pico_store_network_origin(void *src, struct pico_frame *f);
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg);
+uint32_t pico_timer_add_hashed(pico_time expire, void (*timer)(pico_time, void *), void *arg, uint32_t hash);
+void pico_timer_cancel_hashed(uint32_t hash);
 void pico_timer_cancel(uint32_t id);
 uint32_t pico_rand(void);
 void pico_rand_feed(uint32_t feed);

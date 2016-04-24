@@ -44,6 +44,12 @@ void app_mdns(char *arg, struct pico_ip4 address)
         exit(255);
     }
 
+    printf("\nTry reinitialising mDNS\n");
+    if (pico_mdns_init(hostname, address, &mdns_init_callback, NULL)) {
+        printf("Initialisation returned with Error!\n");
+        exit(255);
+    }
+
     printf("DONE - Initialising mDNS module.\n");
 
     while(1) {
