@@ -33,17 +33,6 @@
 #define DBG(s, ...)                                                            \
             printf(s, ##__VA_ARGS__);                                          \
             fflush(stdout)
-
-START_TEST(tc_pico_ethernet_process_out)
-{
-    /* Nothing to test calls pico_ethernet_send() in it's turn */
-}
-END_TEST
-START_TEST(tc_pico_ethernet_process_in)
-{
-    /* Nothing to test, calls pico_ethernet_receive() in it's turn */
-}
-END_TEST
 START_TEST(tc_destination_is_bcast)
 {
     /* test this: static int destination_is_bcast(struct pico_frame *f) */
@@ -294,55 +283,17 @@ START_TEST(tc_pico_eth_receive)
     ENDING(count);
 }
 END_TEST
-START_TEST(tc_pico_eth_check_bcast)
-{
-    /* TODO: Test this */
-}
-END_TEST
-START_TEST(tc_pico_ethernet_ipv6_dst)
-{
-    /* TODO: Test this */
-}
-END_TEST
-START_TEST(tc_pico_ethsend_local)
-{
-    /* Nothign much to test */
-}
-END_TEST
-START_TEST(tc_pico_ethsend_bcast)
-{
-    /* Nothing much to test */
-}
-END_TEST
-START_TEST(tc_pico_ethsend_dispatch)
-{
-    /* Nothing much to test */
-}
-END_TEST
-
 
 Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
-    TCase *TCase_pico_ethernet_process_out = tcase_create("Unit test for pico_ethernet_process_out");
-    TCase *TCase_pico_ethernet_process_in = tcase_create("Unit test for pico_ethernet_process_in");
     TCase *TCase_destination_is_bcast = tcase_create("Unit test for destination_is_bcast");
     TCase *TCase_destination_is_mcast = tcase_create("Unit test for destination_is_mcast");
     TCase *TCase_pico_ipv4_ethernet_receive = tcase_create("Unit test for pico_ipv4_ethernet_receive");
     TCase *TCase_pico_ipv6_ethernet_receive = tcase_create("Unit test for pico_ipv6_ethernet_receive");
     TCase *TCase_pico_eth_receive = tcase_create("Unit test for pico_eth_receive");
-    TCase *TCase_pico_eth_check_bcast = tcase_create("Unit test for pico_eth_check_bcast");
-    TCase *TCase_pico_ethernet_ipv6_dst = tcase_create("Unit test for pico_ethernet_ipv6_dst");
-    TCase *TCase_pico_ethsend_local = tcase_create("Unit test for pico_ethsend_local");
-    TCase *TCase_pico_ethsend_bcast = tcase_create("Unit test for pico_ethsend_bcast");
-    TCase *TCase_pico_ethsend_dispatch = tcase_create("Unit test for pico_ethsend_dispatch");
 
-
-    tcase_add_test(TCase_pico_ethernet_process_out, tc_pico_ethernet_process_out);
-    suite_add_tcase(s, TCase_pico_ethernet_process_out);
-    tcase_add_test(TCase_pico_ethernet_process_in, tc_pico_ethernet_process_in);
-    suite_add_tcase(s, TCase_pico_ethernet_process_in);
     tcase_add_test(TCase_destination_is_bcast, tc_destination_is_bcast);
     suite_add_tcase(s, TCase_destination_is_bcast);
     tcase_add_test(TCase_destination_is_mcast, tc_destination_is_mcast);
@@ -353,17 +304,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_ethernet_receive);
     tcase_add_test(TCase_pico_eth_receive, tc_pico_eth_receive);
     suite_add_tcase(s, TCase_pico_eth_receive);
-    tcase_add_test(TCase_pico_eth_check_bcast, tc_pico_eth_check_bcast);
-    suite_add_tcase(s, TCase_pico_eth_check_bcast);
-    tcase_add_test(TCase_pico_ethernet_ipv6_dst, tc_pico_ethernet_ipv6_dst);
-    suite_add_tcase(s, TCase_pico_ethernet_ipv6_dst);
-    tcase_add_test(TCase_pico_ethsend_local, tc_pico_ethsend_local);
-    suite_add_tcase(s, TCase_pico_ethsend_local);
-    tcase_add_test(TCase_pico_ethsend_bcast, tc_pico_ethsend_bcast);
-    suite_add_tcase(s, TCase_pico_ethsend_bcast);
-    tcase_add_test(TCase_pico_ethsend_dispatch, tc_pico_ethsend_dispatch);
-    suite_add_tcase(s, TCase_pico_ethsend_dispatch);
-return s;
+    return s;
 }
 
 int main(void)

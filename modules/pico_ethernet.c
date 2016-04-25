@@ -323,9 +323,9 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         if (pico_ethernet_ipv6_dst(f, &dstmac) < 0)
         {
             /* Enqueue copy of frame in IPv6 ND-module to retry later. Discard
-             * frame otherwise we have a duplicate */
+             * frame, otherwise we have a duplicate in IPv6-ND */
             pico_ipv6_nd_postpone(f);
-            return 0;
+            return (int32_t)f->len;
         }
 
         dstmac_valid = 1;
@@ -362,9 +362,8 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             /* Enqueue copy of frame in ARP-module to retry later. Discard
              * frame otherwise we have a duplicate */
             pico_arp_postpone(f);
-            return 0;
+            return (int32_t)f->len;
         }
-
     }
 #endif
 
@@ -384,15 +383,17 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
         }
 
         if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
-            /* one of the above functions has delivered the frame accordingly. (returned != 0)
-             * It is safe to directly return success.
-             * */
-            return 0;
+            /* one of the above functions has delivered the frame accordingly.
+             * (returned != 0). It is safe to directly return successfully.
+             * Lower level queue has frame, so don't discard */
+            return (int32_t)f->len;
         }
     }
 
-    /* Failure: do not dequeue the frame, keep it for later. */
-    return -1;
+    /* Failure, frame could not be be enqueued in lower-level layer, safe
+     * to discard since something clearly went wrong */
+    pico_frame_discard(f);
+    return (int32_t)f->len;
 }
 
 #endif /* PICO_SUPPORT_ETH */
