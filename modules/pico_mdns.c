@@ -3474,7 +3474,7 @@ pico_mdns_get_hostname( void )
 }
 
 static void
-pico_mdns_clear( void )
+pico_mdns_cleanup( void )
 {
     /* Delete socket if it was previously opened */
     if (mdns_sock_ipv4) {
@@ -3482,7 +3482,9 @@ pico_mdns_clear( void )
     }
 
     /* Clear out every memory structure used by mDNS */
+#if PICO_MDNS_ALLOW_CACHING == 1
     PICO_MDNS_RTREE_DESTROY(&Cache);
+#endif /* PICO_MDNS_ALLOW_CACHING */
     PICO_MDNS_RTREE_DESTROY(&MyRecords);
     PICO_MDNS_CTREE_DESTROY(&Cookies);
 
@@ -3530,7 +3532,7 @@ pico_mdns_init( const char *hostname,
 
     /* Clear out all the memory structure's and delete socket if it was
      * already opened before */
-    pico_mdns_clear();
+    pico_mdns_cleanup();
 
     /* Create a hash to identify mDNS timers with */
     mdns_hash = pico_hash(hostname, (uint32_t)strlen(hostname));

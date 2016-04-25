@@ -1804,8 +1804,11 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
         getrecord should send a query and return 0 when the query is sent.
      */
 
-#if PICO_MDNS_ALLOW_CACHING == 1
+    /* Init */
+    pico_stack_init();
+    mdns_init();
 
+#if PICO_MDNS_ALLOW_CACHING == 1
     /* Create an A record with URL */
     record = pico_mdns_record_create(url, &rdata, 4, PICO_DNS_TYPE_A, 80,
                                      PICO_MDNS_RECORD_UNIQUE);
@@ -1818,14 +1821,10 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
     fail_unless((int)found, "mdns_cache_add_record failed!\n");
 #endif
 
-    /* Init */
-    pico_stack_init();
-    mdns_init();
-
 #if PICO_MDNS_ALLOW_CACHING == 1
     amount_callback_executed = 0;
     ret = pico_mdns_getrecord("foo.local", PICO_DNS_TYPE_A, callback, NULL);
-    fail_unless(1 == amount_callback_executed, "mdns_getrecord failed with cache record, callback not executed!\n");
+    fail_unless(1 == amount_callback_executed, "mdns_getrecord failed with cache record, callback not executed (%d) !\n", amount_callback_executed);
     fail_unless(0 == ret, "mdns_getrecord failed with cache record!\n");
 #endif
 
