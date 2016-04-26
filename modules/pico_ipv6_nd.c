@@ -530,6 +530,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
              */
             r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
             r->router = n;
+            pico_tree_insert(&RCache, r);
         } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
