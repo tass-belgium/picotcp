@@ -23,7 +23,6 @@
 
 extern struct pico_tree IPV6Links;
 
-
 enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_INCOMPLETE = 0,
     PICO_ND_STATE_REACHABLE,
@@ -52,11 +51,6 @@ struct pico_ipv6_router {
     pico_time invalidation;
 };
 
-struct pico_ipv6_destination {
-    struct pico_ip6 address;
-    struct pico_ipv6_neighbor *next_hop;
-};
-
 struct pico_ipv6_prefix {
     struct pico_ip6 prefix;
     pico_time invalidation;
@@ -78,12 +72,6 @@ static int pico_ipv6_prefix_compare(void *ka, void *kb)
 {
     struct pico_ipv6_prefix *a = ka, *b = kb;
     return pico_ipv6_compare(&a->prefix, &b->prefix);
-}
-
-static int pico_ipv6_destination_compare(void *ka, void *kb)
-{
-    struct pico_ipv6_destination *a = ka, *b = kb;
-    return pico_ipv6_compare(&a->address, &b->address);
 }
 
 static int pico_ipv6_nd_qcompare(void *ka, void *kb){
@@ -117,7 +105,6 @@ PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 static PICO_TREE_DECLARE(RCache, pico_ipv6_router_compare);
 static PICO_TREE_DECLARE(PCache, pico_ipv6_prefix_compare);
-static PICO_TREE_DECLARE(DCache, pico_ipv6_destination_compare);
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
@@ -129,6 +116,15 @@ static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
     return pico_tree_findKey(&NCache, &test);
 }
 
+static struct pico_ipv6_router *pico_nd_find_router(struct pico_ip6 *dst)
+{
+    struct pico_ipv6_router test = {
+        0
+    };
+
+    test.router->address = *dst;
+    return pico_tree_findKey(&RCache, &test);
+}
 
 static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
     struct pico_tree_node *index = NULL;
@@ -517,6 +513,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
 static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
+    struct pico_ipv6_router *r = NULL;
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
@@ -527,6 +524,12 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
         n = pico_nd_find_neighbor(&ip->src);
         if (!n) {
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
+            /* If no neighbourd entry is present,
+             * we can be sure that there is no router
+             * entry
+             */
+            r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+            r->router = n;
         } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
@@ -777,9 +780,11 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct router_adv_s *r_adv_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
+    struct pico_ipv6_router *r;
     struct pico_ip6 zero = {
         .addr = {0}
     };
@@ -790,6 +795,10 @@ static int radv_process(struct pico_frame *f)
     optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
     opt_start = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
     nxtopt = opt_start;
+
+    r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
+    r = pico_nd_find_router(&hdr->src);
+    r->invalidation = r_adv_hdr->life_time;
 
     while (optlen > 0) {
         uint8_t *type = (uint8_t *)nxtopt;
