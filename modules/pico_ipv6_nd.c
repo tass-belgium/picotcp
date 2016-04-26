@@ -1034,6 +1034,23 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     pico_nd_new_expire_time(n);
 }
 
+static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
+{
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_ipv6_router *r;
+
+    (void)arg;
+    pico_tree_foreach_safe(index, &RCache, _tmp)
+    {
+        r = index->keyValue;
+        if (now > S_TO_MS(r->invalidation)) {
+            pico_tree_delete(&RCache, r);
+        }
+    }
+
+    pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
+}
+
 static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
@@ -1188,6 +1205,7 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 
 void pico_ipv6_nd_init(void)
 {
+    pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
     pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
     pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
     pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
