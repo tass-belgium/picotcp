@@ -813,6 +813,8 @@ static int stslifs(struct mcast_parameters *p)
     if (pico_igmp_timer_stop(&t) < 0)
         return -1;
 
+    if(pico_igmp_generate_report(p) < 0)
+        return -1;
     /* always send leave, even if not last host */
     if (pico_igmp_send_report(p, p->f) < 0)
         return -1;
@@ -953,6 +955,8 @@ static int slifs(struct mcast_parameters *p)
     igmp_dbg("IGMP: event = leave group | action = send leave if flag set\n");
 
     /* always send leave, even if not last host */
+    if(pico_igmp_generate_report(p) < 0)
+        return -1;
     if (pico_igmp_send_report(p, p->f) < 0)
         return -1;
 
