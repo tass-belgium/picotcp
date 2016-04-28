@@ -506,7 +506,7 @@ static int pico_ipv6_forward(struct pico_frame *f)
 
     f->start = f->net_hdr;
 
-    return pico_sendto_dev(f);
+    return pico_datalink_send(f);
 }
 
 
@@ -869,7 +869,8 @@ static int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *
     IGNORE_PARAMETER(self);
 
     f->start = (uint8_t*)f->net_hdr;
-    return pico_sendto_dev(f);
+
+    return pico_datalink_send(f);
 }
 
 /* allocates an IPv6 packet without extension headers. If extension headers are needed,
