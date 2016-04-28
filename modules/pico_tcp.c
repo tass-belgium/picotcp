@@ -2351,9 +2351,9 @@ static int tcp_syn(struct pico_socket *s, struct pico_frame *f)
 
 #endif
     f->sock = &new->sock;
-    tcp_parse_options(f);
     mtu = (uint16_t)pico_socket_get_mss(&new->sock);
     new->mss = (uint16_t)(mtu - PICO_SIZE_TCPHDR);
+    tcp_parse_options(f);
     new->tcpq_in.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_out.max_size = PICO_DEFAULT_SOCKETQ;
     new->tcpq_hold.max_size = 2u * mtu;

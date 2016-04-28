@@ -7,13 +7,13 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_arp.h"
 #include "pico_tree.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
 #include "pico_stack.h"
+#include "pico_ethernet.h"
 
 extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
@@ -38,11 +38,9 @@ static void pico_arp_queued_trigger(void)
     {
         f = frames_queued[i];
         if (f) {
-            if (!pico_ethernet_send(f))
-            {
+            if (pico_datalink_send(f) <= 0)
                 pico_frame_discard(f);
-                frames_queued[i] = NULL;
-            }
+            frames_queued[i] = NULL;
         }
     }
 }
@@ -225,7 +223,7 @@ void pico_arp_postpone(struct pico_frame *f)
     {
         if (!frames_queued[i]) {
             if (f->failure_count < 4)
-                frames_queued[i] = pico_frame_copy(f);
+                frames_queued[i] = f;
 
             return;
         }

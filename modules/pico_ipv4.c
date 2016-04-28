@@ -476,7 +476,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
     }
 
 #endif
-    return pico_sendto_dev(f);
+    return pico_datalink_send(f);
 }
 
 
@@ -1568,7 +1568,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
     if (pico_ipv4_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
+    pico_datalink_send(f);
     return 0;
 
 }

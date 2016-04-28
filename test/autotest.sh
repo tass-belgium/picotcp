@@ -46,6 +46,7 @@ sudo route add -net 224.0.0.0/4 dev lo
 killall -w picoapp6.elf
 sudo route del -net 224.0.0.0/4 dev lo
 
+
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 2HOP TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

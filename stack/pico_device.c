@@ -34,6 +34,7 @@ static int pico_dev_cmp(void *ka, void *kb)
     if (a->hash < b->hash)
         return -1;
 
+
     if (a->hash > b->hash)
         return 1;
 
@@ -350,14 +351,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
         /* Receive */
         f = pico_dequeue(dev->q_in);
         if (f) {
-            if (!dev->mode && dev->eth) {
-                f->datalink_hdr = f->buffer;
-                (void)pico_ethernet_receive(f);
-            } else {
-                f->net_hdr = f->buffer;
-                pico_network_receive(f);
-            }
-
+            pico_datalink_receive(f);
             loop_score--;
         }
     }
@@ -366,21 +360,7 @@ static int devloop_in(struct pico_device *dev, int loop_score)
 
 static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 {
-
-    if (!dev->mode && dev->eth) {
-        /* Ethernet: pass management of the frame to the pico_ethernet_send() rdv function */
-        return pico_ethernet_send(f);
-    }
-#ifdef PICO_SUPPORT_SIXLOWPAN
-    else if (LL_MODE_SIXLOWPAN == dev->mode) {
-        /* Send the entire pico_frame to the sixlowpan layer */
-        return pico_sixlowpan_send(f);
-    }
-#endif
-    else {
-        /* non-ethernet: no post-processing needed */
-        return (dev->send(dev, f->start, (int)f->len) <= 0); /* Return 0 upon success, which is dev->send() > 0 */
-    }
+    return (dev->send(dev, f->start, (int)f->len) <= 0);
 }
 
 static int devloop_out(struct pico_device *dev, int loop_score)
