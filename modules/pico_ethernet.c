@@ -1,4 +1,4 @@
-/*********************************************************************
+ /*********************************************************************
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
@@ -275,7 +275,8 @@ static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr
     if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
         struct pico_frame *clone = pico_frame_copy(f);
         dbg("sending out packet destined for our own mac\n");
-        (void)pico_ethernet_receive(clone);
+        if (pico_ethernet_receive(clone) <= 0)
+            pico_frame_discard(clone);
         return 1;
     }
 
@@ -393,7 +394,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     /* Failure, frame could not be be enqueued in lower-level layer, safe
      * to discard since something clearly went wrong */
     pico_frame_discard(f);
-    return (int32_t)f->len;
+    return 0;
 }
 
 #endif /* PICO_SUPPORT_ETH */
