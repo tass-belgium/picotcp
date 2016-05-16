@@ -1187,7 +1187,7 @@ int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmas
         return -1;
     }
 
-    if(pico_tree_insert(l&Routes, new) ){
+    if(pico_tree_insert(&Routes, new) ){
 		if(pico_err != PICO_ERR_ENOMEM){
 			pico_err = PICO_ERR_EINVAL;
 		}

@@ -987,7 +987,7 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
 		if(pico_err != PICO_ERR_ENOMEM){
 			pico_err = PICO_ERR_EINVAL;
 		}
-		PICO_FREE(mcast.listen)
+		PICO_FREE(mcast.listen);
 		return -1;
 	}
 

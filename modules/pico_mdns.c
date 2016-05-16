@@ -819,7 +819,7 @@ pico_mdns_record_resolve_conflict( struct pico_mdns_record *record,
     copy = pico_mdns_record_copy_with_new_name(record, new_name);
     PICO_FREE(new_name);
     if (copy){
-    	if(pico_tree_insert(&new_records, new_record) ){
+    	if(pico_tree_insert(&new_records, copy) ){
 			if(pico_err != PICO_ERR_ENOMEM){
 				pico_err = PICO_ERR_EINVAL;
 			}
