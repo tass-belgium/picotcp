@@ -313,7 +313,13 @@ static int pico_mld_timer_start(struct mld_timer *t)
 
     *timer = *t;
     timer->start = PICO_TIME_MS();
-    pico_tree_insert(&MLDTimers, timer);
+    if(pico_tree_insert(&MLDTimers, timer) ){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		PICO_FREE(timer);
+		return -1;
+	}
     pico_timer_add(timer->delay, &pico_mld_timer_expired, timer);
     return 0;
 }
@@ -510,7 +516,13 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         p->state = MLD_STATE_NON_LISTENER;
         p->mcast_link.ip6 = *mcast_link;
         p->mcast_group.ip6 = *mcast_group;
-        pico_tree_insert(&MLDParameters, p);
+        if(pico_tree_insert(&MLDParameters, p) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(p);
+			return -1;
+		}
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -583,6 +595,13 @@ static struct mcast_parameters *pico_mld_analyse_packet(struct pico_frame *f)
         p->state = MLD_STATE_NON_LISTENER;
         p->mcast_link.ip6 = link->address;
         pico_tree_insert(&MLDParameters, p);
+        if(pico_tree_insert(&MLDParameters, p) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(p);
+			return NULL;
+		}
     }
 
     mld_dbg("Analyse package, type = %d\n", hdr->type);

@@ -146,7 +146,14 @@ static struct pico_dhcp_client_cookie *pico_dhcp_client_add_cookie(uint32_t xid,
     dhcpc->cb = cb;
     dhcpc->dev = dev;
 
-    pico_tree_insert(&DHCPCookies, dhcpc);
+    if(pico_tree_insert(&DHCPCookies, dhcpc) ){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		PICO_FREE(dhcpc);
+		return NULL;
+    }
+
     return dhcpc;
 }
 

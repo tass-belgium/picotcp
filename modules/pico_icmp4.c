@@ -300,7 +300,13 @@ static void next_ping(pico_time now, void *arg)
             memcpy(newcookie, cookie, sizeof(struct pico_icmp4_ping_cookie));
             newcookie->seq++;
 
-            pico_tree_insert(&Pings, newcookie);
+            if(pico_tree_insert(&Pings, newcookie) ){
+            	if(pico_err != PICO_ERR_ENOMEM){
+            		pico_err = PICO_ERR_EINVAL;
+				}
+				PICO_FREE(newcookie);
+				return;
+			}
             send_ping(newcookie);
         }
     }
@@ -365,7 +371,13 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
     cookie->cb = cb;
     cookie->count = count;
 
-    pico_tree_insert(&Pings, cookie);
+    if(pico_tree_insert(&Pings, cookie) ){
+    	if(pico_err != PICO_ERR_ENOMEM){
+    		pico_err = PICO_ERR_EINVAL;
+		}
+		PICO_FREE(cookie);
+		return -1;
+	}
     send_ping(cookie);
 
     return cookie->id;

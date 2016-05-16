@@ -108,7 +108,15 @@ static struct pico_aodv_node *aodv_peer_new(const union pico_address *addr)
         return NULL;
 
     memcpy(&node->dest, addr, sizeof(union pico_address));
-    pico_tree_insert(&aodv_nodes, node);
+
+    if(pico_tree_insert(&aodv_nodes, node) ){
+    	if(pico_err != PICO_ERR_ENOMEM){
+    		pico_err = PICO_ERR_EINVAL;
+    	}
+    	PICO_FREE(node);
+    	return NULL;
+    }
+
     return node;
 }
 

@@ -426,10 +426,22 @@ pico_dns_sd_register_service( const char *name,
     pico_dns_sd_kv_vector_erase(txt_data);
 
     if (txt_record) {
-        pico_tree_insert(&rtree, txt_record);
+        if(pico_tree_insert(&rtree, txt_record)){
+        	if(pico_err != PICO_ERR_ENOMEM){
+        		pico_err = PICO_ERR_EINVAL;
+            }
+        	pico_tree_destroy(&rtree, NULL);
+            return -1;
+        }
     }
 
-    pico_tree_insert(&rtree, srv_record);
+    if(pico_tree_insert(&rtree, srv_record)){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		pico_tree_destroy(&rtree, NULL);
+		return -1;
+	}
 
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);

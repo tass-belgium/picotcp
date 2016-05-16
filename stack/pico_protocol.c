@@ -192,19 +192,39 @@ void pico_protocol_init(struct pico_protocol *p)
     p->hash = pico_hash(p->name, (uint32_t)strlen(p->name));
     switch (p->layer) {
     case PICO_LAYER_DATALINK:
-        pico_tree_insert(&Datalink_proto_tree, p);
+        if(pico_tree_insert(&Datalink_proto_tree, p)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			return;
+		}
         proto_layer_rr_reset(&proto_rr_datalink);
         break;
     case PICO_LAYER_NETWORK:
-        pico_tree_insert(&Network_proto_tree, p);
+        if(pico_tree_insert(&Network_proto_tree, p)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			return;
+		}
         proto_layer_rr_reset(&proto_rr_network);
         break;
     case PICO_LAYER_TRANSPORT:
-        pico_tree_insert(&Transport_proto_tree, p);
+        if(pico_tree_insert(&Transport_proto_tree, p)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			return;
+		}
         proto_layer_rr_reset(&proto_rr_transport);
         break;
     case PICO_LAYER_SOCKET:
-        pico_tree_insert(&Socket_proto_tree, p);
+        if(pico_tree_insert(&Socket_proto_tree, p)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			return;
+		}
         proto_layer_rr_reset(&proto_rr_socket);
         break;
     }
