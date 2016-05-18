@@ -27,6 +27,7 @@ void app_mdns(char *arg, struct pico_ip4 address)
     char *nxt = arg;
     uint64_t starttime = 0;
     int once = 0;
+
     if (!nxt)
         exit(255);
 
