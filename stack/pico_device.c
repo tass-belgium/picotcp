@@ -170,8 +170,8 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
 		if(pico_err != PICO_ERR_ENOMEM){
 			pico_err = PICO_ERR_EINVAL;
 		}
-		//PICO_FREE(dev->q_in);
-		//PICO_FREE(dev->q_out);
+		PICO_FREE(dev->q_in);
+		PICO_FREE(dev->q_out);
 		return -1;
 	}
     if (!dev->mtu)
