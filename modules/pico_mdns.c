@@ -17,7 +17,7 @@
 
 /* --- Debugging --- */
 #define mdns_dbg(...) do {} while(0)
-/* #define mdns_dbg dbg */
+//#define mdns_dbg dbg
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000)    /* One second */
@@ -40,6 +40,9 @@
 #define PICO_MDNS_SECTION_ANSWERS (0)
 #define PICO_MDNS_SECTION_AUTHORITIES (1)
 #define PICO_MDNS_SETCTIO_ADDITIONALS (2)
+
+#define PICO_MDNS_CTREE_DESTROY(rtree) \
+    pico_tree_destroy((rtree), pico_mdns_cookie_delete);
 
 /* --- Question flags --- */
 #define PICO_MDNS_QUESTION_FLAG_PROBE (0x01u)
@@ -211,6 +214,23 @@ pico_mdns_cookie_cmp( void *ka, void *kb )
 
     /* Cookies contain same questions, shouldn't happen */
     return 0;
+}
+
+/*
+ *  Hash to identify mDNS timers with
+ */
+static uint32_t mdns_hash = 0;
+
+/*
+ *  mDNS specific timer creation, to identify if timers are
+ *  created by mDNS module
+ */
+static uint32_t
+pico_mdns_timer_add(pico_time expire,
+                    void (*timer)(pico_time, void *),
+                    void *arg)
+{
+    return pico_timer_add_hashed(expire, timer, arg, mdns_hash);
 }
 
 #if PICO_MDNS_ALLOW_CACHING == 1
@@ -974,8 +994,10 @@ pico_mdns_record_create( const char *url,
  *  @return Returns 0 on success, something else on failure.
  * ****************************************************************************/
 static int
-pico_mdns_cookie_delete( struct pico_mdns_cookie **c )
+pico_mdns_cookie_delete( void **ptr )
 {
+    struct pico_mdns_cookie **c = (struct pico_mdns_cookie **)ptr;
+
     /* Check params */
     if (!c || !(*c)) {
         pico_err = PICO_ERR_EINVAL;
@@ -1076,7 +1098,7 @@ pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
         pico_timer_cancel(cookie->send_timer);
         cookie->timeout = PICO_MDNS_COOKIE_TIMEOUT;
         cookie->count = PICO_MDNS_PROBE_COUNT;
-        cookie->send_timer = pico_timer_add(1000, pico_mdns_send_probe_packet,
+        cookie->send_timer = pico_mdns_timer_add(1000, pico_mdns_send_probe_packet,
                                             cookie);
         mdns_dbg("Probing postponed by one second because of S.P.T.\n");
     }
@@ -1098,7 +1120,7 @@ pico_mdns_cookie_del_questions( struct pico_mdns_cookie *cookie,
     if (!(qc = pico_tree_count(&(cookie->qtree)))) {
         pico_timer_cancel(cookie->send_timer);
         cookie = pico_tree_delete(&Cookies, cookie);
-        pico_mdns_cookie_delete(&cookie);
+        pico_mdns_cookie_delete((void **)&cookie);
     }
 
     return 0;
@@ -1634,7 +1656,7 @@ pico_mdns_cookies_check_timeouts( void )
 
             /* Delete cookie */
             cookie = pico_tree_delete(&Cookies, cookie);
-            pico_mdns_cookie_delete(&cookie);
+            pico_mdns_cookie_delete((void **)&cookie);
 
             /* If the request was for a reconfirmation of a record,
                 flush the corresponding record after the timeout */
@@ -1664,7 +1686,7 @@ pico_mdns_tick( pico_time now, void *_arg )
     pico_mdns_cookies_check_timeouts();
 
     /* Schedule new tick */
-    pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
+    pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
 }
 
 /* MARK: v MDNS PACKET UTILITIES */
@@ -2870,7 +2892,7 @@ pico_mdns_send_query_packet( pico_time now, void *arg )
         pico_timer_cancel(cookie->send_timer);
         /* Remove cookie from Cookies */
         cookie = pico_tree_delete(&Cookies, cookie);
-        pico_mdns_cookie_delete(&cookie);
+        pico_mdns_cookie_delete((void **)&cookie);
     }
 
     PICO_FREE(packet);
@@ -2920,7 +2942,7 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
     /* Add cookie to Cookies to be able to find it afterwards */
     pico_tree_insert(&Cookies, cookie);
     /* Create new pico_timer-event to send packet */
-    pico_timer_add((pico_rand() % 120) + 20, pico_mdns_send_query_packet,
+    pico_mdns_timer_add((pico_rand() % 120) + 20, pico_mdns_send_query_packet,
                    (void *)cookie);
     return 0;
 }
@@ -3015,7 +3037,7 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
 
             /* Try to delete the cookie */
             pico_tree_delete(&Cookies, cookie);
-            pico_mdns_cookie_delete(&cookie);
+            pico_mdns_cookie_delete((void **)&cookie);
         }
         else{
             /*
@@ -3026,7 +3048,7 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
                So we bithsift to get our powers of two and we multiply by 1000 to
                get our miliseconds.
              */
-            pico_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
+            pico_mdns_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
                                        * 1000), pico_mdns_send_announcement_packet, cookie);
         }
     }
@@ -3169,7 +3191,7 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
 
             /* Probes should be sent with a delay in between of 250 ms */
             if (PICO_MDNS_COOKIE_STATUS_ACTIVE == cookie->status ) {
-                cookie->send_timer = pico_timer_add(250,
+                cookie->send_timer = pico_mdns_timer_add(250,
                                                     pico_mdns_send_probe_packet,
                                                     (void *)cookie);
             }
@@ -3278,7 +3300,7 @@ static int pico_mdns_probe( void (*callback)(pico_mdns_rtree *,
 
         /* Add the probe cookie to the cookie tree */
         if (pico_tree_insert(&Cookies, cookie)) {
-            pico_mdns_cookie_delete(&cookie);
+            pico_mdns_cookie_delete((void **)&cookie);
             return -1;
         }
 
@@ -3286,7 +3308,7 @@ static int pico_mdns_probe( void (*callback)(pico_mdns_rtree *,
         /* When ready to send its Multicast DNS probe packet(s) the host should */
         /* first wait for a short random delay time, uniformly distributed in */
         /* the range 0-250 ms. */
-        cookie->send_timer = pico_timer_add(pico_rand() % 250,
+        cookie->send_timer = pico_mdns_timer_add(pico_rand() % 250,
                                             pico_mdns_send_probe_packet,
                                             (void *)cookie);
         mdns_dbg("DONE - Started probing.\n");
@@ -3451,6 +3473,25 @@ pico_mdns_get_hostname( void )
     return (const char *)_hostname;
 }
 
+static void
+pico_mdns_cleanup( void )
+{
+    /* Delete socket if it was previously opened */
+    if (mdns_sock_ipv4) {
+        pico_socket_del(mdns_sock_ipv4);
+    }
+
+    /* Clear out every memory structure used by mDNS */
+#if PICO_MDNS_ALLOW_CACHING == 1
+    PICO_MDNS_RTREE_DESTROY(&Cache);
+#endif /* PICO_MDNS_ALLOW_CACHING */
+    PICO_MDNS_RTREE_DESTROY(&MyRecords);
+    PICO_MDNS_CTREE_DESTROY(&Cookies);
+
+    /* Cancel every timer */
+    pico_timer_cancel_hashed(mdns_hash);
+}
+
 /* ****************************************************************************
  *  Initialises the entire mDNS-module and sets the hostname for this machine.
  *  Sets up the global mDNS socket properly and calls callback when succeeded.
@@ -3488,6 +3529,13 @@ pico_mdns_init( const char *hostname,
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
+
+    /* Clear out all the memory structure's and delete socket if it was
+     * already opened before */
+    pico_mdns_cleanup();
+
+    /* Create a hash to identify mDNS timers with */
+    mdns_hash = pico_hash(hostname, (uint32_t)strlen(hostname));
 
     /* Open global IPv4 mDNS socket */
     mdns_sock_ipv4 = pico_socket_open(proto4, PICO_PROTO_UDP, &pico_mdns_event4);
@@ -3535,7 +3583,7 @@ pico_mdns_init( const char *hostname,
 
     /* Set the global init callback variable */
     init_callback = callback;
-    pico_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
+    pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
 
     /* Set the hostname eventually */
     return pico_mdns_tryclaim_hostname(hostname, arg);

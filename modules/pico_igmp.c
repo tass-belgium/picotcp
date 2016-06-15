@@ -813,6 +813,8 @@ static int stslifs(struct mcast_parameters *p)
     if (pico_igmp_timer_stop(&t) < 0)
         return -1;
 
+    if(pico_igmp_generate_report(p) < 0)
+        return -1;
     /* always send leave, even if not last host */
     if (pico_igmp_send_report(p, p->f) < 0)
         return -1;
@@ -953,6 +955,8 @@ static int slifs(struct mcast_parameters *p)
     igmp_dbg("IGMP: event = leave group | action = send leave if flag set\n");
 
     /* always send leave, even if not last host */
+    if(pico_igmp_generate_report(p) < 0)
+        return -1;
     if (pico_igmp_send_report(p, p->f) < 0)
         return -1;
 
@@ -1071,13 +1075,13 @@ static int pico_igmp_process_event(struct mcast_parameters *p)
     struct pico_tree_node *index = NULL;
     struct mcast_parameters *_p = NULL;
 
-    igmp_dbg("IGMP: process event on group address %08X\n", p->mcast_group.addr);
+    igmp_dbg("IGMP: process event on group address %08X\n", p->mcast_group.ip4.addr);
     if (p->event == IGMP_EVENT_QUERY_RECV && p->mcast_group.ip4.addr == 0) { /* general query */
         pico_tree_foreach(index, &IGMPParameters) {
             _p = index->keyValue;
             _p->max_resp_time = p->max_resp_time;
             _p->event = IGMP_EVENT_QUERY_RECV;
-            igmp_dbg("IGMP: for each mcast_group = %08X | state = %u\n", _p->mcast_group.addr, _p->state);
+            igmp_dbg("IGMP: for each mcast_group = %08X | state = %u\n", _p->mcast_group.ip4.addr, _p->state);
             host_membership_diagram_table[_p->state][_p->event](_p);
         }
     } else {

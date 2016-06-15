@@ -476,7 +476,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
     }
 
 #endif
-    return pico_sendto_dev(f);
+    return pico_datalink_send(f);
 }
 
 
@@ -561,6 +561,10 @@ static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
 {
     struct pico_ipv4_route *r;
     struct pico_tree_node *index;
+
+    if (addr->addr == PICO_IP4_ANY) {
+        return NULL;
+    }
 
     if (addr->addr != PICO_IP4_BCAST) {
         pico_tree_foreach_reverse(index, &Routes) {
@@ -1568,7 +1572,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
     if (pico_ipv4_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
+    pico_datalink_send(f);
     return 0;
 
 }
