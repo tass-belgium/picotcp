@@ -121,7 +121,7 @@ static int ipv6_route_compare(void *ka, void *kb)
 
 static PICO_TREE_DECLARE(Tree_dev_ip6_link, ipv6_link_compare);
 PICO_TREE_DECLARE(IPV6Routes, ipv6_route_compare);
-static PICO_TREE_DECLARE(IPV6Links, ipv6_link_compare);
+PICO_TREE_DECLARE(IPV6Links, ipv6_link_compare);
 
 static char pico_ipv6_dec_to_char(uint8_t u)
 {
@@ -1652,7 +1652,7 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->istentative = 1;
     new->isduplicate = 0;
     new->rs_retries = 0;
-    new->rs_expire_time = PICO_TIME_MS() + pico_rand() % 1000; 
+    new->rs_expire_time = PICO_TIME_MS() + pico_rand() % 1000;
 #ifdef PICO_SUPPORT_MCAST
     new->MCASTGroups = PICO_ZALLOC(sizeof(struct pico_tree));
     if (!new->MCASTGroups) {
