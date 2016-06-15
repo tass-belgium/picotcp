@@ -49,6 +49,8 @@ struct pico_ipv6_neighbor {
 
 struct pico_ipv6_router {
     struct pico_ipv6_neighbor *router;
+    struct pico_ipv6_link *link;
+    int is_default;
     pico_time invalidation;
 };
 
@@ -127,6 +129,46 @@ static struct pico_ipv6_router *pico_nd_find_router(struct pico_ip6 *dst)
     return pico_tree_findKey(&RCache, &test);
 }
 
+static void pico_ipv6_assign_default_router(int is_default)
+{
+    struct pico_tree_node *index, *_tmp;
+    struct pico_ipv6_router *r;
+    int assigned = 0;
+    struct pico_ip6 zero = {
+        .addr = {0}
+    };
+    if(is_default)
+    {
+      pico_tree_foreach_safe(index, &RCache, _tmp)
+      {
+          r = index->keyValue;
+          if(r->is_default)
+          {
+            r->is_default = 0;
+          }
+          else if(!assigned)
+          {
+            r->is_default = 1;
+            pico_ipv6_route_add(zero, zero, r->router->address, 10, r->link);
+            assigned = 1;
+          }
+      }
+    }
+}
+static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_link *link)
+{
+    struct pico_tree_node *index, *_tmp;
+    struct pico_ipv6_router *r;
+    pico_tree_foreach_safe(index, &RCache, _tmp)
+    {
+        r = index->keyValue;
+        if( pico_ipv6_compare(&r->router->address, addr) == 0)
+        {
+          r->link = link;
+          break;
+        }
+    }
+}
 static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
     struct pico_tree_node *index = NULL;
     struct pico_frame *frame = NULL;
@@ -188,7 +230,6 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
 
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 {
-    int i;
     struct pico_frame *f;
     struct pico_ipv6_hdr *hdr;
     struct pico_tree_node *index = NULL;
@@ -355,8 +396,20 @@ static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struc
 
 static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter)
 {
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
+    struct pico_ipv6_router *r;
     if (!isRouter && n->is_router) {
         pico_ipv6_router_down(&n->address);
+        pico_tree_foreach_safe(index, &RCache, _tmp)
+        {
+          r = index->keyValue;
+          if(r->router == n)
+          {
+            pico_ipv6_assign_default_router(r->is_default);
+            pico_tree_delete(&RCache, r);
+            break;
+          }
+        }
     }
 
     if (isRouter)
@@ -514,7 +567,6 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
 static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
-    struct pico_ipv6_router *r = NULL;
     struct pico_icmp6_opt_lladdr opt = {
         0
     };
@@ -555,7 +607,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         {
           n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
         }
-        if((r = pico_nd_find_router(&ip->src)))
+        if(!(r = pico_nd_find_router(&ip->src)))
         {
           r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
           r->router = n;
@@ -568,6 +620,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         }
         else
         {
+          pico_ipv6_assign_default_router(r->is_default);
           pico_tree_delete(&RCache, r);
         }
     }
@@ -814,10 +867,12 @@ static int radv_process(struct pico_frame *f)
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
     struct pico_ipv6_router *r;
+    struct pico_tree_node *index, *_tmp;
     struct pico_ip6 zero = {
         .addr = {0}
     };
     int optlen;
+    int is_default = 0;
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
@@ -871,7 +926,18 @@ static int radv_process(struct pico_frame *f)
             link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
             if (link) {
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
-                pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
+                pico_tree_foreach_safe(index, &RCache, _tmp)
+                {
+                    r = index->keyValue;
+                    if(r->is_default)
+                    {
+                      is_default = 1;
+                      break;
+                    }
+                }
+                if(!is_default)
+                  pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
+                pico_ipv6_router_add_link(&hdr->src, link);
             }
 
 ignore_opt_prefix:
@@ -1001,6 +1067,7 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
 
 static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n)
 {
+    struct pico_ipv6_router *r;
     (void)now;
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
@@ -1008,6 +1075,11 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_PROBE:
         if (n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT || n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT) {
             pico_ipv6_nd_unreachable(&n->address);
+            if((r = pico_nd_find_router(&n->address)))
+            {
+              pico_ipv6_assign_default_router(r->is_default);
+              pico_tree_delete(&RCache, r);
+            }
             pico_tree_delete(&NCache, n);
             PICO_FREE(n);
             return;
@@ -1044,11 +1116,15 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
     pico_tree_foreach_safe(index, &RCache, _tmp)
     {
         r = index->keyValue;
-        if (now > S_TO_MS(r->invalidation)) {
+        if (now > (r->invalidation)*1000) {
+            if(r->is_default)
+            {
+              pico_ipv6_router_down(&r->router->address);
+            }
+            pico_ipv6_assign_default_router(r->is_default);
             pico_tree_delete(&RCache, r);
         }
     }
-
     pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
 }
 
