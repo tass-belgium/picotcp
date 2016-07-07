@@ -909,7 +909,7 @@ long long int pico_stack_go(void)
     tref = heap_first(Timers);
     if (!tref)
         return -1;
-    return(long long int)(tref->expire - pico_tick); 
+    return(long long int)(tref->expire - pico_tick + 1);
 }
 #endif
 
