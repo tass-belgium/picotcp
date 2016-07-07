@@ -129,7 +129,7 @@ static int socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
     if (ret == 0)
         ret = socket_cmp_remotehost(a, b);
 
-    return 0;
+    return ret;
 }
 
 static int socket_cmp(void *ka, void *kb)
