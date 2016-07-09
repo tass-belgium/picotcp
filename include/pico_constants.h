@@ -14,8 +14,8 @@
 #define PICO_SIZE_TRANS  8
 
 /** Endian-dependant constants **/
-typedef uint64_t pico_time;
-extern volatile uint64_t pico_tick;
+typedef uint32_t pico_time;
+extern volatile uint32_t pico_tick;
 
 
 /*** *** *** *** *** *** ***
