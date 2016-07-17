@@ -155,6 +155,7 @@ static void pico_ipv6_assign_default_router(int is_default)
       }
     }
 }
+
 static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_link *link)
 {
     struct pico_tree_node *index, *_tmp;
@@ -169,6 +170,7 @@ static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_li
         }
     }
 }
+
 static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
     struct pico_tree_node *index = NULL;
     struct pico_frame *frame = NULL;
@@ -860,6 +862,12 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
     return 0;
 }
 
+static int redirect_process(struct pico_frame *f)
+{
+    /* TODO:  */
+    return 0;
+}
+
 static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
@@ -1058,11 +1066,53 @@ static int pico_nd_neigh_adv_recv(struct pico_frame *f)
     return neigh_adv_process(f);
 }
 
+static int pico_nd_redirect_is_valid(struct pico_frame *f)
+{
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+
+    if (f->transport_len < PICO_ICMP6HDR_REDIRECT_SIZE)
+    {
+        return -1;
+    }
+
+    if (!pico_ipv6_is_linklocal(hdr->src.addr))
+    {
+        return -1;
+    }
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+
+    if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.redirect.dest.addr))
+    {
+        return -1;
+    }
+
+    if (!(pico_ipv6_is_linklocal(icmp6_hdr->msg.info.redirect.target.addr) || pico_ipv6_compare(&icmp6_hdr->msg.info.redirect.target, &icmp6_hdr->msg.info.redirect.dest)))
+    {
+        return -1;
+    }
+
+    /* TODO: ip source address == current first-hop router for the specified ICMP destination address */
+
+    /* ALL included options have length > 0, checked when processing redirect frame */
+
+    return 0;
+}
+
 static int pico_nd_redirect_recv(struct pico_frame *f)
 {
-    pico_ipv6_neighbor_from_unsolicited(f);
-    /* TODO */
-    return 0;
+    if (icmp6_initial_checks(f) < 0)
+    {
+        return -1;
+    }
+
+    if (pico_nd_redirect_is_valid(f) < 0)
+    {
+        return -1;
+    }
+
+    return redirect_process(f);
 }
 
 static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n)
@@ -1273,6 +1323,7 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
         break;
 
     case PICO_ICMP6_REDIRECT:
+        nd_dbg("ICMP6: received REDIRECT\n");
         ret = pico_nd_redirect_recv(f);
         break;
     }
