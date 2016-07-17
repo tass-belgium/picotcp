@@ -335,7 +335,7 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
     return pico_nd_get_neighbor(&addr, pico_nd_find_neighbor(&addr), dev);
 }
 
-static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt, uint8_t expected_opt)
+static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
 {
     /* RFC 4861 $7.1.2 + $7.2.5.
      *  * The contents of any defined options that are not specified to be used
@@ -351,20 +351,31 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
     int found = 0;
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    if (icmp6_hdr->type == PICO_ICMP6_ROUTER_ADV){
-      optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
-      if (optlen)
+
+    switch (icmp6_hdr->type) {
+    case PICO_ICMP6_ROUTER_ADV:
+        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
+        if (optlen)
             option = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
-    }
-    else{
-      optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
-      if (optlen)
+        break;
+    case PICO_ICMP6_NEIGH_ADV:
+        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
+        if (optlen)
             option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
+        break;
+    case PICO_ICMP6_REDIRECT:
+        optlen = f->transport_len - PICO_ICMP6HDR_REDIRECT_SIZE;
+        if (optlen)
+            option = ((uint8_t *)&icmp6_hdr->msg.info.redirect) + sizeof(struct redirect_s);
+        break;
+    default:
+        nd_dbg("No valid option received for options processing");
+        return -1;
     }
 
     while (optlen > 0) {
-        type = ((struct pico_icmp6_opt_lladdr *)option)->type;
-        len = ((struct pico_icmp6_opt_lladdr *)option)->len;
+        type = ((struct pico_icmp6_opt_na *)option)->type;
+        len = ((struct pico_icmp6_opt_na *)option)->len;
         optlen -= len << 3; /* len in units of 8 octets */
         if (len <= 0)
             return -1; /* malformed option. */
@@ -373,7 +384,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
             if (found > 0)
                 return -1; /* malformed option: option is there twice. */
 
-            memcpy(opt, (struct pico_icmp6_opt_lladdr *)option, (size_t)(len << 3));
+            memcpy(opt, option, (size_t)(len << 3));
             found++;
         }
 
@@ -383,6 +394,7 @@ static int neigh_options(struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt
             return found;
         }
     }
+
     return found;
 }
 
@@ -864,7 +876,40 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 
 static int redirect_process(struct pico_frame *f)
 {
-    /* TODO:  */
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+    struct pico_icmp6_opt_lladdr opt_ll = {
+        0
+    };
+    struct pico_icmp6_opt_redirect opt_redirect = {
+        0
+    };
+    int optres = 0;
+
+    /* TODO: basic processing */
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+
+    /* Process the options */
+    optres = neigh_options(f, &opt_ll, PICO_ND_OPT_LLADDR_TGT);
+
+    if (optres < 0) {
+        /* Malformed packet */
+        return -1;
+    } else {
+        /* TODO: check if we are NBMA link
+         * if so, the LLADDR_TGT MUST be included
+         * if not, the LLADDR_TGT should be included
+         */
+    }
+
+    optres = neigh_options(f, &opt_redirect, PICO_ND_OPT_REDIRECT);
+
+    if (optres < 0) {
+        /* Malformed packet */
+        return -1;
+    } else {
+        /* TODO:  */
+    }
+
     return 0;
 }
 
