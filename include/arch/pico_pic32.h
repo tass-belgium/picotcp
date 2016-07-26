@@ -16,7 +16,7 @@
  * typically incremented every millisecond in a systick interrupt */
 extern volatile unsigned int pico_ms_tick;
 
-#define dbg(...)
+#define dbg printf
 
 /* Use plain C-lib malloc and free */
 #define pico_free(x) free(x)

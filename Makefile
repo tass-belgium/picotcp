@@ -174,6 +174,10 @@ ifeq ($(ARCH),pic24)
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
 endif
 
+ifeq ($(ARCH),pic32)
+  CFLAGS+=-DPIC32
+endif
+
 ifeq ($(ARCH),atmega128)
   CFLAGS+=-Wall -mmcu=atmega128 -DAVR
 endif
