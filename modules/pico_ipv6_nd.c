@@ -129,6 +129,28 @@ static struct pico_ipv6_router *pico_nd_find_router(struct pico_ip6 *dst)
     return pico_tree_findKey(&RCache, &test);
 }
 
+static struct pico_ipv6_router *pico_nd_get_default_router()
+{
+  struct pico_tree_node *index, *_tmp;
+  struct pico_ipv6_router *router;
+
+  pico_tree_foreach_safe(index, &RCache, _tmp)
+  {
+      router = index->keyValue;
+      if(router->is_default)
+      {
+          break;
+      }
+  }
+  return router;
+}
+
+static struct pico_ip6 *pico_nd_get_default_router_addr()
+{
+  struct pico_ipv6_neighbor *nd = pico_nd_get_default_router()->router;
+  return &nd->address;
+}
+
 static void pico_ipv6_assign_default_router(int is_default)
 {
     struct pico_tree_node *index, *_tmp;
@@ -1133,12 +1155,20 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    if (!(pico_ipv6_is_linklocal(icmp6_hdr->msg.info.redirect.target.addr) || pico_ipv6_compare(&icmp6_hdr->msg.info.redirect.target, &icmp6_hdr->msg.info.redirect.dest)))
+    if (!(pico_ipv6_is_linklocal(icmp6_hdr->msg.info.redirect.target.addr)))
     {
         return -1;
     }
 
-    /* TODO: ip source address == current first-hop router for the specified ICMP destination address */
+    if(pico_ipv6_compare(&icmp6_hdr->msg.info.redirect.target, &icmp6_hdr->msg.info.redirect.dest))
+    {
+        return -1;
+    }
+
+    if(!pico_ipv6_compare(&hdr->src, pico_nd_get_default_router_addr()))
+    {
+        return -1;
+    }
 
     /* ALL included options have length > 0, checked when processing redirect frame */
 
