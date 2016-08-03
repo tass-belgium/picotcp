@@ -117,6 +117,15 @@ ifneq ($(RTOS),0)
   OPTIONS+=-DPICO_SUPPORT_RTOS
 endif
 
+ifeq ($(ADDRESS_SANITIZER),1)
+  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+endif
+
+ifeq ($(GCOV),1)
+  TEST_LDFLAGS+=-lgcov --coverage
+  CFLAGS+=-fprofile-arcs -ftest-coverage
+endif
+
 ifeq ($(ARCH),cortexm4-hardfloat)
   CFLAGS+=-DCORTEX_M4_HARDFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
 endif
@@ -135,26 +144,6 @@ endif
 
 ifeq ($(ARCH),arm9)
   CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
-endif
-
-ifeq ($(ADDRESS_SANITIZER),1)
-  TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
-endif
-
-ifeq ($(GCOV),1)
-  TEST_LDFLAGS+=-lgcov --coverage
-  CFLAGS+=-fprofile-arcs -ftest-coverage
-endif
-
-ifeq ($(ARCH),faulty)
-  CFLAGS+=-DFAULTY -DUNIT_TEST
-  ifeq ($(ADDRESS_SANITIZER),1)
-    CFLAGS+=-fsanitize=address
-  endif
-  CFLAGS+=-fno-omit-frame-pointer
-  UNITS_OBJ+=test/pico_faulty.o
-  TEST_OBJ+=test/pico_faulty.o
-  DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
 ifeq ($(ARCH),msp430)
@@ -188,6 +177,17 @@ endif
 
 ifeq ($(ARCH),shared)
   CFLAGS+=-fPIC
+endif
+
+ifeq ($(ARCH),faulty)
+  CFLAGS+=-DFAULTY -DUNIT_TEST
+  ifeq ($(ADDRESS_SANITIZER),1)
+    CFLAGS+=-fsanitize=address
+  endif
+  CFLAGS+=-fno-omit-frame-pointer
+  UNITS_OBJ+=test/pico_faulty.o
+  TEST_OBJ+=test/pico_faulty.o
+  DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
 %.o:%.c deps
