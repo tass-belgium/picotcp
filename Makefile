@@ -57,9 +57,9 @@ IPC?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
-
-#IPv6 related
 IPV6?=1
+
+ARCH?=none
 
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
@@ -128,58 +128,45 @@ endif
 
 ifeq ($(ARCH),cortexm4-hardfloat)
   CFLAGS+=-DCORTEX_M4_HARDFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb-interwork -fsingle-precision-constant
-endif
 
-ifeq ($(ARCH),cortexm4-softfloat)
+else ifeq ($(ARCH),cortexm4-softfloat)
   CFLAGS+=-DCORTEX_M4_SOFTFLOAT -mcpu=cortex-m4 -mthumb -mlittle-endian -mfloat-abi=soft -mthumb-interwork
-endif
 
-ifeq ($(ARCH),cortexm3)
+else ifeq ($(ARCH),cortexm3)
   CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
-endif
 
-ifeq ($(ARCH),cortexm0plus)
+else ifeq ($(ARCH),cortexm0plus)
   CFLAGS+=-DCORTEX_M0PLUS -mcpu=cortex-m0plus -mthumb -mlittle-endian -mthumb-interwork
-endif
 
-ifeq ($(ARCH),arm9)
+else ifeq ($(ARCH),arm9)
   CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
-endif
 
-ifeq ($(ARCH),msp430)
+else ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
-endif
 
-ifeq ($(ARCH),esp8266)
+else ifeq ($(ARCH),esp8266)
   CFLAGS+=-DESP8266 -Wl,-EL -fno-inline-functions -nostdlib -mlongcalls -mtext-section-literals
-endif
 
-ifeq ($(ARCH),mt7681)
+else ifeq ($(ARCH),mt7681)
   CFLAGS+=-DMT7681 -fno-builtin -ffunction-sections -fno-strict-aliasing -m16bit -mabi=2 -mbaseline=V2 -mcpu=n9 -mno-div -mel -mmw-count=8 -mno-ext-mac -mno-dx-regs
-endif
 
-ifeq ($(ARCH),pic24)
+else ifeq ($(ARCH),pic24)
   CFLAGS+=-DPIC24 -c -mcpu=24FJ256GA106  -MMD -MF -g -omf=elf \
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
-endif
 
-ifeq ($(ARCH),pic32)
+else ifeq ($(ARCH),pic32)
   CFLAGS+=-DPIC32
-endif
 
-ifeq ($(ARCH),atmega128)
+else ifeq ($(ARCH),atmega128)
   CFLAGS+=-Wall -mmcu=atmega128 -DAVR
-endif
 
-ifeq ($(ARCH),none)
+else ifeq ($(ARCH),none)
   CFLAGS+=-DARCHNONE
-endif
 
-ifeq ($(ARCH),shared)
+else ifeq ($(ARCH),shared)
   CFLAGS+=-fPIC
-endif
 
-ifeq ($(ARCH),faulty)
+else ifeq ($(ARCH),faulty)
   CFLAGS+=-DFAULTY -DUNIT_TEST
   ifeq ($(ADDRESS_SANITIZER),1)
     CFLAGS+=-fsanitize=address
@@ -188,7 +175,10 @@ ifeq ($(ARCH),faulty)
   UNITS_OBJ+=test/pico_faulty.o
   TEST_OBJ+=test/pico_faulty.o
   DUMMY_EXTRA+=test/pico_faulty.o
+else
+  $(error Invalid ARCH specified)
 endif
+
 
 %.o:%.c deps
 	$(CC) -c $(CFLAGS) -o $@ $<
