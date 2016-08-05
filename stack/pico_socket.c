@@ -401,15 +401,36 @@ int8_t pico_socket_add(struct pico_socket *s)
 
         if (PROTO(s) == PICO_PROTO_UDP)
         {
-            pico_tree_insert(&UDPTable, sp);
+            if(pico_tree_insert(&UDPTable, sp)){
+				if(pico_err != PICO_ERR_ENOMEM){
+					pico_err = PICO_ERR_EINVAL;
+				}
+				PICO_FREE(sp);
+				PICOTCP_MUTEX_UNLOCK(Mutex);
+				return -1;
+			}
+
         }
         else if (PROTO(s) == PICO_PROTO_TCP)
         {
-            pico_tree_insert(&TCPTable, sp);
+            if(pico_tree_insert(&TCPTable, sp)){
+				if(pico_err != PICO_ERR_ENOMEM){
+					pico_err = PICO_ERR_EINVAL;
+				}
+				PICO_FREE(sp);
+				PICOTCP_MUTEX_UNLOCK(Mutex);
+				return -1;
+			}
         }
     }
 
-    pico_tree_insert(&sp->socks, s);
+    if(pico_tree_insert(&sp->socks, s)){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		PICOTCP_MUTEX_UNLOCK(Mutex);
+		return -1;
+	}
     s->state |= PICO_SOCKET_STATE_BOUND;
     PICOTCP_MUTEX_UNLOCK(Mutex);
 #ifdef DEBUG_SOCKET_TREE

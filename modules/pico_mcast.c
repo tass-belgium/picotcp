@@ -73,7 +73,11 @@ static int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters*mcast
         if (mcast->p->MCASTFilter) {
             pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */
             {
-                pico_tree_insert(mcast->allow, index->keyValue);
+                if(pico_tree_insert(mcast->allow, index->keyValue) ){
+               		if(pico_err != PICO_ERR_ENOMEM){
+               			pico_err = PICO_ERR_EINVAL;
+               		}
+               	}
                 mcast->sources++;
             }
         } /* else { allow stays empty } */
@@ -91,7 +95,11 @@ static int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters*mcast
     mcast->filter = mcast->allow;
     pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */
     {
-        pico_tree_insert(mcast->allow, index->keyValue);
+        if(pico_tree_insert(mcast->allow, index->keyValue) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+		}
         mcast->sources++;
     }
     pico_tree_foreach(index, &mcast->g->MCASTSources) /* A */
@@ -110,7 +118,11 @@ static int pico_mcast_src_filtering_inc_inc(struct mcast_filter_parameters*mcast
     mcast->filter = mcast->block;
     pico_tree_foreach(index, &mcast->g->MCASTSources) /* A */
     {
-        pico_tree_insert(mcast->block, index->keyValue);
+        if(pico_tree_insert(mcast->block, index->keyValue) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+		}
         mcast->sources++;
     }
     pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */
@@ -136,7 +148,11 @@ static int pico_mcast_src_filtering_inc_excl(struct mcast_filter_parameters*mcas
     mcast->filter = mcast->block;
     pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */
     {
-        pico_tree_insert(mcast->block, index->keyValue);
+        if(pico_tree_insert(mcast->block, index->keyValue) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+		}
         mcast->sources++;
     }
     return 0;
@@ -149,7 +165,11 @@ static int pico_mcast_src_filtering_excl_inc(struct mcast_filter_parameters*mcas
     if (mcast->p->MCASTFilter) {
         pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */
         {
-            pico_tree_insert(mcast->allow, index->keyValue);
+            if(pico_tree_insert(mcast->allow, index->keyValue) ){
+				if(pico_err != PICO_ERR_ENOMEM){
+					pico_err = PICO_ERR_EINVAL;
+				}
+			}
             mcast->sources++;
         }
     } /* else { allow stays empty } */
@@ -164,7 +184,12 @@ static int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters*mca
     mcast->filter = mcast->block;
     pico_tree_foreach(index, mcast->p->MCASTFilter)
     {
-        pico_tree_insert(mcast->block, index->keyValue);
+        if(pico_tree_insert(mcast->block, index->keyValue) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+		}
+
         mcast->sources++;
     }
     pico_tree_foreach(index, &mcast->g->MCASTSources) /* A */
@@ -183,7 +208,11 @@ static int pico_mcast_src_filtering_excl_excl(struct mcast_filter_parameters*mca
     mcast->filter = mcast->allow;
     pico_tree_foreach(index, &mcast->g->MCASTSources)
     {
-        pico_tree_insert(mcast->allow, index->keyValue);
+        if(pico_tree_insert(mcast->allow, index->keyValue) ){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+		}
         mcast->sources++;
     }
     pico_tree_foreach(index, mcast->p->MCASTFilter) /* B */

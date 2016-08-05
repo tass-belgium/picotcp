@@ -264,7 +264,13 @@ static void pico_arp_add_entry(struct pico_arp *entry)
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
 
-    pico_tree_insert(&arp_tree, entry);
+    if(pico_tree_insert(&arp_tree, entry) ){
+    	if(pico_err != PICO_ERR_ENOMEM){
+    		pico_err = PICO_ERR_EINVAL;
+    	}
+    	PICO_FREE(entry);
+    }
+
     arp_dbg("ARP ## reachable.\n");
     pico_arp_queued_trigger();
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);

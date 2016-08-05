@@ -230,7 +230,14 @@ struct mock_device *pico_mock_create(uint8_t*mac)
     mock->dev->destroy = pico_mock_destroy;
     dbg("Device %s created.\n", mock->dev->name);
 
-    pico_tree_insert(&mock_device_tree, mock);
+    if(pico_tree_insert(&mock_device_tree, mock)){
+    	if(pico_err != PICO_ERR_ENOMEM){
+        	pico_err = PICO_ERR_EINVAL;
+        }
+        PICO_FREE(mock);
+        return NULL;
+    }
+
     return mock;
 }
 

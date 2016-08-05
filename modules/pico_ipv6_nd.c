@@ -102,7 +102,16 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     nd_dbg("Adding address %s to cache...\n", address);
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
-    pico_tree_insert(&NCache, n);
+
+    if(pico_tree_insert(&NCache, n) ){
+    	nd_dbg("Error while adding address to cache\n");
+		if(pico_err != PICO_ERR_ENOMEM){
+			nd_dbg("Address already in cache");
+			pico_err = PICO_ERR_EINVAL;
+		}
+		PICO_FREE(n);
+		return NULL;
+	}
     return n;
 }
 

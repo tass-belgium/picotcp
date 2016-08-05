@@ -345,7 +345,11 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources, _tmp)
         {
             source = index->keyValue;
-            pico_tree_insert(&MCASTFilter, source);
+            if(pico_tree_insert(&MCASTFilter, source)){
+				if(pico_err != PICO_ERR_ENOMEM){
+					pico_err = PICO_ERR_EINVAL;
+				}
+			}
         }
     }
 
@@ -354,7 +358,11 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources_ipv6, _tmp)
         {
             source = index->keyValue;
-            pico_tree_insert(&MCASTFilter_ipv6, source);
+            if(pico_tree_insert(&MCASTFilter_ipv6, source)){
+				if(pico_err != PICO_ERR_ENOMEM){
+					pico_err = PICO_ERR_EINVAL;
+				}
+			}
         }
     }
 
@@ -975,9 +983,21 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
 
 #endif
     tree->root = &LEAF;
-    pico_tree_insert(listen_tree, mcast.listen);
+    if(pico_tree_insert(listen_tree, mcast.listen)){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		PICO_FREE(mcast.listen)
+		return -1;
+	}
 
-    pico_tree_insert(&MCASTSockets, s);
+
+    if(pico_tree_insert(&MCASTSockets, s)){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		return -1;
+	}
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq->mcast_group_addr);
     if (filter_mode < 0)
         return -1;
@@ -1140,11 +1160,23 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
 
     *source = mcast.mreq_s->mcast_source_addr;
     if( IS_SOCK_IPV4(s))
-        pico_tree_insert(&mcast.listen->MCASTSources, source);
+    	if(pico_tree_insert(&mcast.listen->MCASTSources, source)){
+    		if(pico_err != PICO_ERR_ENOMEM){
+    			pico_err = PICO_ERR_EINVAL;
+    		}
+    		PICO_FREE(source);
+    		return -1;
+    	}
 
 #ifdef PICO_SUPPORT_IPV6
     else if( IS_SOCK_IPV6(s))
-        pico_tree_insert(&mcast.listen->MCASTSources_ipv6, source);
+    	if(pico_tree_insert(&mcast.listen->MCASTSources_ipv6, source)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(source);
+			return -1;
+		}
 #endif
 
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq_s->mcast_group_addr);
@@ -1196,6 +1228,13 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
 
         *source = mcast.mreq_s->mcast_source_addr;
         pico_tree_insert(tree, source);
+        if(pico_tree_insert(tree, source)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(source);
+			return -1;
+		}
 
     } else {
         mcast.listen = PICO_ZALLOC(sizeof(struct pico_mcast_listen));
@@ -1222,12 +1261,32 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
 
 #endif
         *source = mcast.mreq_s->mcast_source_addr;
-        pico_tree_insert(tree, source);
-        pico_tree_insert(listen_tree, mcast.listen);
+        if(pico_tree_insert(tree, source)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(mcast.listen);
+			PICO_FREE(source);
+			return -1;
+		}
+        if(pico_tree_insert(listen_tree, mcast.listen)){
+			if(pico_err != PICO_ERR_ENOMEM){
+				pico_err = PICO_ERR_EINVAL;
+			}
+			PICO_FREE(mcast.listen);
+			return -1;
+		}
         reference_count = 1;
     }
 
     pico_tree_insert(&MCASTSockets, s);
+    if(pico_tree_insert(&MCASTSockets, s)){
+		if(pico_err != PICO_ERR_ENOMEM){
+			pico_err = PICO_ERR_EINVAL;
+		}
+		return -1;
+	}
+
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq_s->mcast_group_addr);
     if (filter_mode < 0)
         return -1;
