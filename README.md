@@ -32,6 +32,9 @@ Jenkins RFC compliance  :
 Jenkins TICS quality    :
 [![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_TICS/)
 
+Coverity Scan Build status:
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/7944/badge.svg)](https://scan.coverity.com/projects/7944)
+
 ---------------
 
 Works with ...
