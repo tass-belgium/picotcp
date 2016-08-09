@@ -902,6 +902,7 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
         if (tref[i].id == id) {
             PICO_FREE(Timers->top[i].tmr);
             Timers->top[i].tmr = NULL;
+            heap_peek(Timers, &tref_unused);
             break;
         }
     }
