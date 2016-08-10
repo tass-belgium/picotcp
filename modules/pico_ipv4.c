@@ -956,7 +956,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (!f || !dst) {
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        goto drop;
     }
 
 
@@ -1075,7 +1075,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         if ((proto != PICO_PROTO_IGMP) && (pico_ipv4_mcast_filter(f) == 0)) {
             ip_mcast_dbg("MCAST: sender is member of group, loopback copy\n");
             cpy = pico_frame_copy(f);
-            pico_enqueue(&in, cpy);
+            retval = pico_enqueue(&in, cpy);
+            if (retval <= 0)
+                pico_frame_discard(cpy);
         }
     }
 
@@ -1458,7 +1460,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
             total_payload_written = (uint16_t)((uint16_t)fr->transport_len + total_payload_written);
         } else {
-            pico_frame_discard(fr);
+            /* No need to discard frame here, pico_ipv4_frame_push() already did that */
             break;
         }
     } /* while() */
