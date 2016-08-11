@@ -440,7 +440,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPV4FRAG
-        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
+        pico_ipv4_process_frag(hdr, f, hdr->proto);
         /* Frame can be discarded, frag will handle its own copy */
 #endif
         /* We do not support fragmentation, discard quietly */
