@@ -2032,12 +2032,19 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 {
     struct pico_frame *f_new;              /* use with Nagle to push to out queue */
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)s;
-    struct pico_tcp_hdr *hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+    struct pico_tcp_hdr *hdr;
     uint32_t rtt = 0;
     uint16_t acked = 0;
     pico_time acked_timestamp = 0;
-
     struct pico_frame *una = NULL;
+
+    if (!f || !s) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    hdr = (struct pico_tcp_hdr *) f->transport_hdr;
+
     if ((hdr->flags & PICO_TCP_ACK) == 0)
         return -1;
 
@@ -2080,7 +2087,7 @@ static int tcp_ack(struct pico_socket *s, struct pico_frame *f)
 
         /* Do rtt/rttvar/rto calculations */
         /* First, try with timestamps, using the value from options */
-        if(f && (f->timestamp != 0)) {
+        if(f->timestamp != 0) {
             rtt = time_diff(TCP_TIME, f->timestamp);
             if (rtt)
                 tcp_rtt(t, rtt);
