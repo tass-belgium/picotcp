@@ -2860,7 +2860,10 @@ static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pi
     pico_discard_segment(&t->tcpq_out, f);
 
     /* Enqueue f2 for later send... */
-    pico_enqueue_segment(&t->tcpq_out, f2);
+    if (pico_enqueue_segment(&t->tcpq_out, f2) < 0) {
+        tcp_dbg("Discarding invalid segment\n");
+        pico_frame_discard(f2);
+    }
 
     /* Return the partial frame */
     return f1;
