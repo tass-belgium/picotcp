@@ -1006,7 +1006,7 @@ static void pico_tcp_keepalive(pico_time now, void *arg)
                 }
             }
 
-            if (((t->ka_retries_count * t->ka_intvl) + t->ka_time) < (now - t->ack_timestamp)) {
+            if (((t->ka_retries_count * (pico_time)t->ka_intvl) + t->ka_time) < (now - t->ack_timestamp)) {
                 /* Next probe */
                 tcp_send_probe(t);
                 t->ka_retries_count++;
