@@ -120,7 +120,10 @@ static int destination_is_mcast(struct pico_frame *f)
 static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
 {
     if (IS_IPV4(f)) {
-        pico_enqueue(pico_proto_ipv4.q_in, f);
+        if (pico_enqueue(pico_proto_ipv4.q_in, f) < 0) {
+            pico_frame_discard(f);
+            return -1;
+        }
     } else {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f);
@@ -135,7 +138,10 @@ static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
 static int32_t pico_ipv6_ethernet_receive(struct pico_frame *f)
 {
     if (IS_IPV6(f)) {
-        pico_enqueue(pico_proto_ipv6.q_in, f);
+        if (pico_enqueue(pico_proto_ipv6.q_in, f) < 0) {
+            pico_frame_discard(f);
+            return -1;
+        }
     } else {
         /* Wrong version for link layer type */
         pico_frame_discard(f);
@@ -275,8 +281,9 @@ static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr
     if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
         struct pico_frame *clone = pico_frame_copy(f);
         dbg("sending out packet destined for our own mac\n");
-        if (pico_ethernet_receive(clone) <= 0)
-            pico_frame_discard(clone);
+        if (pico_ethernet_receive(clone) < 0) {
+            dbg("pico_ethernet_receive() failed\n");
+        }
         return 1;
     }
 
