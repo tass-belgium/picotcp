@@ -366,6 +366,7 @@ static void pico_ipv4_nat_table_cleanup(pico_time now, void *_unused)
                 pico_ipv4_nat_del(t->nat_port, t->proto);
             else
                 t->conn_active++;
+            break;
 
         default:
             /* unknown protocol in NAT table, delete when it has existed NAT_TIMEWAIT */

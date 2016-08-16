@@ -436,8 +436,10 @@ int pico_arp_receive(struct pico_frame *f)
     struct pico_arp *found = NULL;
 
     hdr = (struct pico_arp_hdr *) f->net_hdr;
-    if (!hdr)
+    if (!hdr) {
+        pico_frame_discard(f);
         return -1;
+    }
 
     pico_arp_check_conflict(hdr);
     found = pico_arp_lookup_entry(f);

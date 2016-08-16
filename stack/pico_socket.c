@@ -1129,6 +1129,12 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
     int retval = 0;
     struct pico_frame *f = NULL;
 
+    if (space < 0) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
+        pico_endpoint_free(ep);
+        return -1;
+    }
+
     if (space > len) {
         retval = pico_socket_xmit_one(s, buf, len, src, ep, msginfo);
         pico_endpoint_free(ep);

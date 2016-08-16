@@ -94,14 +94,14 @@ static int tap_open(char *name)
     struct ifreq ifr;
     int tap_fd;
     if((tap_fd = open("/dev/net/tun", O_RDWR)) < 0) {
-        return(-1);
+        return -1;
     }
 
     memset(&ifr, 0, sizeof(ifr));
     ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
     strncpy(ifr.ifr_name, name, IFNAMSIZ);
     if(ioctl(tap_fd, TUNSETIFF, &ifr) < 0) {
-        return(-1);
+        return -1;
     }
 
     return tap_fd;
@@ -124,9 +124,6 @@ static int tap_get_mac(char *name, uint8_t *mac)
     struct ifreq eth;
     int retval = -1;
 
-
-
-
     sck = socket(AF_INET, SOCK_DGRAM, 0);
     if(sck < 0) {
         return retval;
@@ -138,12 +135,9 @@ static int tap_get_mac(char *name, uint8_t *mac)
     if (ioctl(sck, SIOCGIFHWADDR, &eth) < 0) {
         perror("ioctl(SIOCGIFHWADDR)");
         return -1;
-        ;
     }
 
     memcpy (mac, &eth.ifr_hwaddr.sa_data, 6);
-
-
     close(sck);
     return 0;
 

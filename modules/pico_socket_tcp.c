@@ -197,10 +197,10 @@ static int socket_tcp_do_deliver(struct pico_socket *s, struct pico_frame *f)
 int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
 {
     struct pico_socket *found = NULL;
+    struct pico_socket *target = NULL;
     struct pico_tree_node *index = NULL;
     struct pico_tree_node *_tmp;
     struct pico_socket *s = NULL;
-
 
     pico_tree_foreach_safe(index, &sp->socks, _tmp){
         s = index->keyValue;
@@ -214,10 +214,15 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
         }
 
         if (found)
-            break;
+        {
+            target = found;
+            if ( found->remote_port != 0)
+                /* only break if it's connected */
+                break;
+        }
     } /* FOREACH */
 
-    return socket_tcp_do_deliver(found, f);
+    return socket_tcp_do_deliver(target, f);
 }
 
 struct pico_socket *pico_socket_tcp_open(uint16_t family)
