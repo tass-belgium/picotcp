@@ -913,20 +913,28 @@ static uint16_t lcp_optflags(struct pico_device_ppp *ppp, uint8_t *pkt, uint32_t
 
 static void lcp_send_configure_ack(struct pico_device_ppp *ppp)
 {
-    uint8_t ack[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
-    struct pico_lcp_hdr *ack_hdr = (struct pico_lcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    uint8_t *lcpbuf;
+    uint32_t prefix;
+    struct pico_lcp_hdr *ack_hdr;
     struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
-    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    uint32_t size = lcpreq->len;
+
+    prefix = ppp_ctl_packet_size(ppp, PPP_PROTO_LCP, &size);
+
+    lcpbuf = PICO_ZALLOC(size);
+    if (!lcpbuf)
+        return;
+
+    ack_hdr = (struct pico_lcp_hdr *)(lcpbuf + prefix);
+    memcpy(lcpbuf + prefix, ppp->pkt, ppp->len);
+
     ack_hdr->code = PICO_CONF_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
+
     ppp_dbg("Sending LCP CONF ACK\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack,
-                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
-                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
-                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
-                      1                                     /* STOP Byte */
-                      );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, lcpbuf, size);
+    PICO_FREE(lcpbuf);
 }
 
 static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
@@ -948,20 +956,28 @@ static void lcp_send_terminate_request(struct pico_device_ppp *ppp)
 
 static void lcp_send_terminate_ack(struct pico_device_ppp *ppp)
 {
-    uint8_t ack[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
-    struct pico_lcp_hdr *ack_hdr = (struct pico_lcp_hdr *) (ack + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    uint8_t *lcpbuf;
+    uint32_t prefix;
+    struct pico_lcp_hdr *ack_hdr;
     struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
-    memcpy(ack + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    uint32_t size = lcpreq->len;
+
+    prefix = ppp_ctl_packet_size(ppp, PPP_PROTO_LCP, &size);
+
+    lcpbuf = PICO_ZALLOC(size);
+    if (!lcpbuf)
+        return;
+
+    ack_hdr = (struct pico_lcp_hdr *)(lcpbuf + prefix);
+    memcpy(lcpbuf + prefix, ppp->pkt, ppp->len);
+
     ack_hdr->code = PICO_CONF_TERM_ACK;
     ack_hdr->id = lcpreq->id;
     ack_hdr->len = lcpreq->len;
+
     ppp_dbg("Sending LCP TERM ACK\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, ack,
-                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
-                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
-                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
-                      1                                     /* STOP Byte */
-                      );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, lcpbuf, size);
+    PICO_FREE(lcpbuf);
 }
 
 static void lcp_send_configure_nack(struct pico_device_ppp *ppp)
@@ -1489,20 +1505,28 @@ static void lcp_send_code_reject(struct pico_device_ppp *ppp)
 
 static void lcp_send_echo_reply(struct pico_device_ppp *ppp)
 {
-    uint8_t reply[ppp->len + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE + sizeof(struct pico_lcp_hdr) + PPP_FCS_SIZE + 1];
-    struct pico_lcp_hdr *reply_hdr = (struct pico_lcp_hdr *) (reply + PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE);
+    uint8_t *lcpbuf;
+    uint32_t prefix;
+    struct pico_lcp_hdr *reply_hdr;
     struct pico_lcp_hdr *lcpreq = (struct pico_lcp_hdr *)ppp->pkt;
-    memcpy(reply + PPP_HDR_SIZE +  PPP_PROTO_SLOT_SIZE, ppp->pkt, ppp->len);
+    uint32_t size = lcpreq->len;
+
+    prefix = ppp_ctl_packet_size(ppp, PPP_PROTO_LCP, &size);
+
+    lcpbuf = PICO_ZALLOC(size);
+    if (!lcpbuf)
+        return;
+
+    reply_hdr = (struct pico_lcp_hdr *)(lcpbuf + prefix);
+    memcpy(lcpbuf + prefix, ppp->pkt, ppp->len);
+
     reply_hdr->code = PICO_CONF_ECHO_REP;
     reply_hdr->id = lcpreq->id;
     reply_hdr->len = lcpreq->len;
+
     ppp_dbg("Sending LCP ECHO REPLY\n");
-    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, reply,
-                      PPP_HDR_SIZE + PPP_PROTO_SLOT_SIZE +  /* PPP Header, etc. */
-                      short_be(lcpreq->len) +               /* Actual options size + hdr (whole lcp packet) */
-                      PPP_FCS_SIZE +                        /* FCS at the end of the frame */
-                      1                                     /* STOP Byte */
-                      );
+    pico_ppp_ctl_send(&ppp->dev, PPP_PROTO_LCP, lcpbuf, size);
+    PICO_FREE(lcpbuf);
 }
 
 static const struct pico_ppp_fsm ppp_lcp_fsm[PPP_LCP_STATE_MAX][PPP_LCP_EVENT_MAX] = {
