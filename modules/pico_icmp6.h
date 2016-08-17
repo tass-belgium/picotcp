@@ -156,7 +156,7 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 struct pico_ip6 target;
                 struct pico_ip6 dest;
             } redirect;
-            PEDANTIC_STRUCT_DEF mld_s { 
+            PEDANTIC_STRUCT_DEF mld_s {
                 uint16_t max_resp_time;
                 uint16_t reserved;
                 struct pico_ip6 mmcast_group;
@@ -165,7 +165,7 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint8_t QQIC;
                 uint16_t nbr_src;
                 struct pico_ip6 src[0];
-            } mld;          
+            } mld;
         } info;
     } msg;
 };

@@ -94,7 +94,7 @@ void app_mcastsend_ipv6(char *arg)
         usleep(2000);
     }
     app_udpclient(new_arg);
-    
+
     memcpy(&mreq.mcast_group_addr,&inaddr_mcast, sizeof(struct pico_ip6));
     memcpy(&mreq.mcast_link_addr ,&inaddr_link, sizeof(struct pico_ip6));
     if(pico_socket_setoption(udpclient_pas->s, PICO_IP_ADD_MEMBERSHIP, &mreq) < 0) {

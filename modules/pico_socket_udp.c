@@ -160,7 +160,7 @@ static int pico_socket_udp_deliver_ipv6(struct pico_socket *s, struct pico_frame
         int retval = pico_socket_udp_deliver_ipv6_mcast(s, f);
         pico_frame_discard(f);
         return retval;
-    } 
+    }
     else if (pico_ipv6_is_unspecified(s->local_addr.ip6.addr) || (pico_ipv6_compare(&s_local, &p_dst) == 0))
     { /* Either local socket is ANY, or matches dst */
         cpy = pico_frame_copy(f);

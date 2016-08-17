@@ -2,7 +2,7 @@ picoTCP
 
 ---------------
 
-Welcome to the one and only <font color=ff00f0>picoTCP repository</font>. 
+Welcome to the one and only <font color=ff00f0>picoTCP repository</font>.
 
 picoTCP is a small-footprint, modular TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*. Textual information about picoTCP, you can find on the [about page of our website](http://picotcp.com/about).
 
@@ -20,10 +20,10 @@ Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picot
 
 Continuous integration
 
-Jenkins Functional tests: 
+Jenkins Functional tests:
 [![Jenkins autotest](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_autotest)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_autotest)
 
-Jenkins Unit tests      : 
+Jenkins Unit tests      :
 [![Jenkins unit tests](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_unit_tests)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_unit_tests)
 
 Jenkins RFC compliance  :

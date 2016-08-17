@@ -994,7 +994,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (
 #ifdef PICO_SUPPORT_IPV4FRAG
-	(0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
+    (0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
 #endif
         1 )
         ipv4_progressive_id++;

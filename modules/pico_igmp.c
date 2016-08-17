@@ -18,7 +18,7 @@
 #include "pico_device.h"
 #include "pico_socket.h"
 
-#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST) 
+#if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
 
 #define igmp_dbg(...) do {} while(0)
 /* #define igmp_dbg dbg */

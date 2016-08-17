@@ -33,7 +33,7 @@ typedef PACKED_STRUCT_DEF pico_dns_srv_record_prefix
  *
  *  @param vector Key-Value pair vector to determine the length of.
  *  @return The length of the key-value pair vector in bytes as if it would be
- *			converted to a string.
+ *          converted to a string.
  * ****************************************************************************/
 static uint16_t
 pico_dns_sd_kv_vector_strlen( kv_vector *vector )
@@ -149,7 +149,7 @@ pico_dns_sd_txt_record_create( const char *url,
     /* If kv-vector is empty don't bother to create a TXT record */
     if (len <= 1)
         return NULL;
-    
+
     /* Provide space for the txt buf */
     if (!(txt = (char *)PICO_ZALLOC(len))) {
         pico_err = PICO_ERR_ENOMEM;
@@ -268,7 +268,7 @@ pico_dns_sd_kv_create( const char *key, const char *value )
  *
  *  @param type Servicetype to check the format of.
  *  @return Returns 0 when the type is correctly formatted, something else when
- *			it's not.
+ *          it's not.
  * ****************************************************************************/
 static int
 pico_dns_sd_check_type_format( const char *type )
@@ -305,7 +305,7 @@ pico_dns_sd_check_type_format( const char *type )
  *
  *  @param name Instance name to check the format of.
  *  @return Returns 0 when the name is correctly formatted, something else when
- *			it's not.
+ *          it's not.
  * ****************************************************************************/
 static int
 pico_dns_sd_check_instance_name_format( const char *name )
@@ -461,7 +461,7 @@ pico_dns_sd_browse_service( const char *type,
  *  @param key    Key of the pair, cannot be NULL.
  *  @param value  Value of the pair, can be NULL, empty ("") or filled ("qkejq")
  *  @return Returns 0 when the pair is added successfully, something else on
- *			failure.
+ *          failure.
  * ****************************************************************************/
 int
 pico_dns_sd_kv_vector_add( kv_vector *vector, char *key, char *value )

@@ -6,7 +6,7 @@
 #include <pico_device.h>
 /*** START DHCP Client ***/
 #ifdef PICO_SUPPORT_DHCPC
-    
+
 /* This must stay global, its lifetime is the same as the dhcp negotiation */
 uint32_t dhcpclient_xid;
 

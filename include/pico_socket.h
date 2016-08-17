@@ -70,7 +70,7 @@ struct pico_socket {
     struct pico_tree *MCASTListen;
 #ifdef PICO_SUPPORT_IPV6
     struct pico_tree *MCASTListen_ipv6;
-#endif 
+#endif
 #endif
     uint16_t ev_pending;
 

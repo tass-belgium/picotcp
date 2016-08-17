@@ -357,7 +357,7 @@ void pico_mem_init(uint32_t memsize)
     }
 
     /* First pico_mem_page is already included in pico_mem_manager. Others are added. */
-    /* manager = pico_azalloc(sizeof(pico_mem_manager) + sizeof(pico_mem_page*)*(pages - 1));	//Points to usermanager if one present */
+    /* manager = pico_azalloc(sizeof(pico_mem_manager) + sizeof(pico_mem_page*)*(pages - 1));   //Points to usermanager if one present */
     manager = pico_zalloc(PICO_MEM_PAGE_SIZE);
     if( NULL != manager )
     {
@@ -735,7 +735,7 @@ static uint32_t _pico_mem_determine_max_free_space(struct pico_mem_page*page)
 
     DBG_MM_YELLOW("Determining new maximum free space in page %p (old free space: %u)", page, page->heap_max_free_space);
 
-    /* pico_mem_block* mem_block = (pico_mem_block*) (page+1);	//reset mem_block to first block in the heap */
+    /* pico_mem_block* mem_block = (pico_mem_block*) (page+1);  //reset mem_block to first block in the heap */
     byteptr = (uint8_t*) page + sizeof(struct pico_mem_page);
     mem_block = (struct pico_mem_block*) byteptr;   /* reset mem_block to first block in the heap */
 

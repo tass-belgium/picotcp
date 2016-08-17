@@ -1,0 +1,13 @@
+[Default]
+
+[markdown]
+files = **/*.md
+bears = SpaceConsistencyBear
+default_actions = SpaceConsistencyBear: ApplyPatchAction
+use_spaces = true
+
+[c]
+files = **/*.(c|h)
+bears = SpaceConsistencyBear
+default_actions = SpaceConsistencyBear: ApplyPatchAction
+use_spaces = true
