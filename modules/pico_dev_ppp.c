@@ -2223,6 +2223,14 @@ int pico_ppp_disconnect(struct pico_device *dev)
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
     ppp->autoreconnect = 0;
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_CLOSE);
+
+#ifdef PICO_SUPPORT_IPV4
+    pico_ipv4_cleanup_links(dev);
+#endif
+#ifdef PICO_SUPPORT_IPV6
+    pico_ipv6_cleanup_links(dev);
+#endif
+
     return 0;
 }
 
