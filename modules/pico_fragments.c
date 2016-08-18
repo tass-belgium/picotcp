@@ -498,8 +498,6 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         pico_tree_insert(&ipv4_fragments, pico_frame_copy(f));
     }
 
-    f->frag = short_be(hdr->frag);
-
     pico_fragments_check_complete(&ipv4_fragments, proto, PICO_PROTO_IPV4);
 #else
     IGNORE_PARAMETER(hdr);
