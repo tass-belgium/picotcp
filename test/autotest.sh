@@ -112,21 +112,21 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a tcpbench,r,6667,,) &
-time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1)
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1
 killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP6 TEST (with 2% packet loss on both directions) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,2,2, -a tcpbench,r,6667,,) &
-time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1)
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,, || exit 1
 killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP6 TEST (nagle) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,, -a tcpbench,r,6667,n,) &
-time (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,n, || exit 1)
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a tcpbench,t,aaaa::1,6667,n, || exit 1
 killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -195,21 +195,28 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::: -a tcpbench:r:6667::) &
-time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1)
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1
+killall -w picoapp.elf
+
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ TCP TEST (with global route) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::: --vde pic1:/tmp/pic1.ctl:10.50.0.10:255.255.0.0:10.50.0.1: -a tcpbench:r:6667::) &
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1
 killall -w picoapp.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP TEST (with 2% packet loss on both directions) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::2:2: -a tcpbench:r:6667::) &
-time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1)
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:: || exit 1
 killall -w picoapp.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ TCP TEST (nagle) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0::: -a tcpbench:r:6667:n:) &
-time (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:n: || exit 1)
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a tcpbench:t:10.40.0.8:6667:n: || exit 1
 killall -w picoapp.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"

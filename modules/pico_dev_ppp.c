@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "pico_device.h"
 #include "pico_dev_ppp.h"
@@ -2222,6 +2223,9 @@ int pico_ppp_disconnect(struct pico_device *dev)
     struct pico_device_ppp *ppp = (struct pico_device_ppp *)dev;
     ppp->autoreconnect = 0;
     evaluate_lcp_state(ppp, PPP_LCP_EVENT_CLOSE);
+
+    pico_ipv4_cleanup_links(dev);
+
     return 0;
 }
 

@@ -1,4 +1,4 @@
-/*********************************************************************
+ /*********************************************************************
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
@@ -120,7 +120,10 @@ static int destination_is_mcast(struct pico_frame *f)
 static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
 {
     if (IS_IPV4(f)) {
-        pico_enqueue(pico_proto_ipv4.q_in, f);
+        if (pico_enqueue(pico_proto_ipv4.q_in, f) < 0) {
+            pico_frame_discard(f);
+            return -1;
+        }
     } else {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f);
@@ -135,7 +138,10 @@ static int32_t pico_ipv4_ethernet_receive(struct pico_frame *f)
 static int32_t pico_ipv6_ethernet_receive(struct pico_frame *f)
 {
     if (IS_IPV6(f)) {
-        pico_enqueue(pico_proto_ipv6.q_in, f);
+        if (pico_enqueue(pico_proto_ipv6.q_in, f) < 0) {
+            pico_frame_discard(f);
+            return -1;
+        }
     } else {
         /* Wrong version for link layer type */
         pico_frame_discard(f);
@@ -275,7 +281,9 @@ static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr
     if(!memcmp(hdr->daddr, hdr->saddr, PICO_SIZE_ETH)) {
         struct pico_frame *clone = pico_frame_copy(f);
         dbg("sending out packet destined for our own mac\n");
-        (void)pico_ethernet_receive(clone);
+        if (pico_ethernet_receive(clone) < 0) {
+            dbg("pico_ethernet_receive() failed\n");
+        }
         return 1;
     }
 
@@ -393,7 +401,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     /* Failure, frame could not be be enqueued in lower-level layer, safe
      * to discard since something clearly went wrong */
     pico_frame_discard(f);
-    return (int32_t)f->len;
+    return 0;
 }
 
 #endif /* PICO_SUPPORT_ETH */

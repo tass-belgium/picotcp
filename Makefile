@@ -175,6 +175,10 @@ ifeq ($(ARCH),pic24)
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
 endif
 
+ifeq ($(ARCH),pic32)
+  CFLAGS+=-DPIC32
+endif
+
 ifeq ($(ARCH),atmega128)
   CFLAGS+=-Wall -mmcu=atmega128 -DAVR
 endif
@@ -444,8 +448,8 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@rm -f test/dummy.o dummy
 
 ppptest: test/ppp.c lib
-	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/ $(CFLAGS)
-	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
+	gcc -ggdb -c -o ppp.o test/ppp.c -I $(PREFIX)/include/ -I $(PREFIX)/modules/ $(CFLAGS)
+	gcc -o ppp ppp.o $(PREFIX)/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
 	rm -f ppp.o
 
 .PHONY: coverity

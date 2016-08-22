@@ -129,7 +129,7 @@ static int socket_cmp_addresses(struct pico_socket *a, struct pico_socket *b)
     if (ret == 0)
         ret = socket_cmp_remotehost(a, b);
 
-    return 0;
+    return ret;
 }
 
 static int socket_cmp(void *ka, void *kb)
@@ -1128,6 +1128,12 @@ static int pico_socket_xmit_fragments(struct pico_socket *s, const void *buf, co
     int total_payload_written = 0;
     int retval = 0;
     struct pico_frame *f = NULL;
+
+    if (space < 0) {
+        pico_err = PICO_ERR_EPROTONOSUPPORT;
+        pico_endpoint_free(ep);
+        return -1;
+    }
 
     if (space > len) {
         retval = pico_socket_xmit_one(s, buf, len, src, ep, msginfo);

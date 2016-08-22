@@ -1094,13 +1094,13 @@ static int radv_process(struct pico_frame *f)
 
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
                 goto ignore_opt_prefix;
             }
 
             link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
                 pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
             }
 

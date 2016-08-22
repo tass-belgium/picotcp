@@ -410,11 +410,37 @@ static void pico_dns_client_retransmission(pico_time now, void *arg)
     }
 }
 
+static int pico_dns_client_check_rdlength(uint16_t qtype, uint16_t rdlength)
+{
+    switch (qtype)
+    {
+        case PICO_DNS_TYPE_A:
+            if (rdlength != PICO_DNS_RR_A_RDLENGTH)
+                return -1;
+            break;
+#ifdef PICO_SUPPORT_IPV6
+        case PICO_DNS_TYPE_AAAA:
+            if (rdlength != PICO_DNS_RR_AAAA_RDLENGTH)
+                return -1;
+            break;
+#endif
+        default:
+            break;
+    }
+
+    return 0;
+}
+
 static int pico_dns_client_user_callback(struct pico_dns_record_suffix *asuffix, struct pico_dns_query *q)
 {
     uint32_t ip = 0;
     char *str = NULL;
     char *rdata = (char *) asuffix + sizeof(struct pico_dns_record_suffix);
+
+    if (pico_dns_client_check_rdlength(q->qtype, short_be(asuffix->rdlength)) < 0) {
+        dns_dbg("DNS ERROR: Invalid RR rdlength: %u\n", short_be(asuffix->rdlength));
+        return -1;
+    }
 
     switch (q->qtype)
     {
