@@ -2169,7 +2169,9 @@ static void pico_ppp_tick(pico_time t, void *arg)
         evaluate_lcp_state(ppp, PPP_LCP_EVENT_OPEN);
     }
 
-    pico_timer_add(1000, pico_ppp_tick, arg);
+    if (!pico_timer_add(1000, pico_ppp_tick, arg)) {
+        ppp_dbg("PPP: Failed to start tick timer\n");
+    }
 }
 
 struct pico_device *pico_ppp_create(void)
@@ -2199,6 +2201,11 @@ struct pico_device *pico_ppp_create(void)
     ppp->ipcp_state = PPP_IPCP_STATE_INITIAL;
 
     ppp->timer = pico_timer_add(1000, pico_ppp_tick, ppp);
+    if (!ppp->timer) {
+        ppp_dbg("PPP: Failed to start tick timer\n");
+        pico_device_destroy((struct pico_device*) ppp);
+        return NULL;
+    }
     ppp->mru = PICO_PPP_MRU;
 
     LCPOPT_SET_LOCAL(ppp, LCPOPT_MRU);

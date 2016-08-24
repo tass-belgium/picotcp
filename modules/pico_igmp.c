@@ -261,7 +261,11 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
         PICO_FREE(timer);
     } else {
         igmp_dbg("IGMP: restart timer for %08X, delay %lu, new delay %lu\n", t->mcast_group.addr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
-        pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_igmp_timer_expired, timer);
+        if (!pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_igmp_timer_expired, timer)) {
+            igmp_dbg("IGMP: Failed to start expiration timer\n");
+            pico_tree_delete(&IGMPTimers, timer);
+            PICO_FREE(timer);
+        }
     }
 
     return;
@@ -310,7 +314,12 @@ static int pico_igmp_timer_start(struct igmp_timer *t)
     timer->start = PICO_TIME_MS();
 
     pico_tree_insert(&IGMPTimers, timer);
-    pico_timer_add(timer->delay, &pico_igmp_timer_expired, timer);
+    if (!pico_timer_add(timer->delay, &pico_igmp_timer_expired, timer)) {
+        igmp_dbg("IGMP: Failed to start expiration timer\n");
+        pico_tree_delete(&IGMPTimers, timer);
+        PICO_FREE(timer);
+        return -1;
+    }
     return 0;
 }
 

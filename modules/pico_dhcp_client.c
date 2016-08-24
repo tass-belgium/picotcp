@@ -206,6 +206,11 @@ static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time
     t->xid = ck->xid;
     t->type = type;
     t->timer_id = pico_timer_add(time, pico_dhcp_client_timer_handler, t);
+    if (!t->timer_id) {
+        dhcpc_dbg("DHCP: Failed to start timer\n");
+        PICO_FREE(t);
+        return NULL;
+    }
 
     /* store timer struct reference in cookie */
     ck->timer[type] = t;
@@ -373,7 +378,9 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
         dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
 
     if (!dhcpc->s) {
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 
@@ -381,14 +388,18 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
     if (pico_socket_bind(dhcpc->s, &inaddr_any, &port) < 0) {
         pico_socket_close(dhcpc->s);
         dhcpc->s = NULL;
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 
     if (pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_DISCOVER) < 0) {
         pico_socket_close(dhcpc->s);
         dhcpc->s = NULL;
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 

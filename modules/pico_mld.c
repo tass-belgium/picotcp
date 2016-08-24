@@ -253,7 +253,9 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
 #ifdef PICO_DEBUG_MLD
         mld_dbg("MLD: restart timer for %s, delay %llu, new delay %llu\n", grpstr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
 #endif
-        pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer);
+        if (!pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer)) {
+            mld_dbg("MLD: Failed to start expiration timer\n");
+        }
     }
 
     return;
@@ -314,7 +316,12 @@ static int pico_mld_timer_start(struct mld_timer *t)
     *timer = *t;
     timer->start = PICO_TIME_MS();
     pico_tree_insert(&MLDTimers, timer);
-    pico_timer_add(timer->delay, &pico_mld_timer_expired, timer);
+    if (!pico_timer_add(timer->delay, &pico_mld_timer_expired, timer)) {
+        mld_dbg("MLD: Failed to start expiration timer\n");
+        pico_tree_delete(&MLDTimers, timer);
+        PICO_FREE(timer);
+        return -1;
+    }
     return 0;
 }
 

@@ -90,6 +90,9 @@ static void pico_ipv6_fragments_complete(unsigned int len, uint8_t proto)
 static void pico_ipv6_frag_timer_on(void)
 {
     ipv6_fragments_timer = pico_timer_add(PICO_IPV6_FRAG_TIMEOUT, pico_frag_expire, &ipv6_fragments);
+    if (!ipv6_fragments_timer) {
+        frag_dbg("FRAG: Failed to start IPv6 expiration timer\n");
+    }
 }
 
 static int pico_ipv6_frag_match(struct pico_frame *a, struct pico_frame *b)
@@ -142,6 +145,9 @@ static void pico_ipv4_fragments_complete(unsigned int len, uint8_t proto)
 static void pico_ipv4_frag_timer_on(void)
 {
     ipv4_fragments_timer = pico_timer_add( PICO_IPV4_FRAG_TIMEOUT, pico_frag_expire, &ipv4_fragments);
+    if (!ipv4_fragments_timer) {
+        frag_dbg("FRAG: Failed to start IPv4 expiration timer\n");
+    }
 }
 
 static int pico_ipv4_frag_match(struct pico_frame *a, struct pico_frame *b)

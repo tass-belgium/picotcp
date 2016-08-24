@@ -94,6 +94,9 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
     }
 
     timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
+    if (timer_id == 0) {
+        dbg("HOTPLUG: Failed to start timer\n");
+    }
 }
 
 static void ensure_hotplug_timer(void)
@@ -101,6 +104,9 @@ static void ensure_hotplug_timer(void)
     if (timer_id == 0)
     {
         timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
+        if (timer_id == 0) {
+            dbg("HOTPLUG: Failed to start timer\n");
+        }
     }
 }
 

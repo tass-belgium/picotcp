@@ -52,12 +52,16 @@ static void update_max_arp_reqs(pico_time now, void *unused)
     if (max_arp_reqs < PICO_ARP_MAX_RATE)
         max_arp_reqs++;
 
-    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+    if (!pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL)) {
+        arp_dbg("ARP: Failed to start update_max_arps timer\n");
+    }
 }
 
 void pico_arp_init(void)
 {
-    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+    if (!pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL)) {
+        arp_dbg("ARP: Failed to start update_max_arps timer\n");
+    }
 }
 
 PACKED_STRUCT_DEF pico_arp_hdr
@@ -255,7 +259,9 @@ static void arp_expire(pico_time now, void *_stale)
     } else {
         /* Timer must be rescheduled, ARP entry has been renewed lately.
          * No action required to refresh the entry, will check on the next timeout */
-        pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale);
+        if (!pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale)) {
+            arp_dbg("ARP: Failed to start expiration timer\n");
+        }
     }
 }
 
@@ -267,7 +273,9 @@ static void pico_arp_add_entry(struct pico_arp *entry)
     pico_tree_insert(&arp_tree, entry);
     arp_dbg("ARP ## reachable.\n");
     pico_arp_queued_trigger();
-    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
+    if (!pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry)) {
+        arp_dbg("ARP: Failed to start expiration timer\n");
+    }
 }
 
 int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
