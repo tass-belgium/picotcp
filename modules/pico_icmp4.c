@@ -125,7 +125,7 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
         f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u);
     }
 
-    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
+    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, NULL, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
     info = (struct pico_ipv4_hdr*)(f->net_hdr);
     hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
     hdr->type = type;
@@ -229,7 +229,7 @@ static PICO_TREE_DECLARE(Pings, cookie_compare);
 
 static int8_t pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 {
-    struct pico_frame *echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size));
+    struct pico_frame *echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, NULL, (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size));
     struct pico_icmp4_hdr *hdr;
     if (!echo) {
         return -1;

@@ -1188,7 +1188,7 @@ int pico_tcp_initconn(struct pico_socket *s)
     struct pico_tcp_hdr *hdr;
     uint16_t mtu, opt_len = tcp_options_size(ts, PICO_TCP_SYN);
 
-    syn = s->net->alloc(s->net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    syn = s->net->alloc(s->net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
     if (!syn)
         return -1;
 
@@ -1229,7 +1229,7 @@ static int tcp_send_synack(struct pico_socket *s)
     struct pico_tcp_hdr *hdr;
     uint16_t opt_len = tcp_options_size(ts, PICO_TCP_SYN | PICO_TCP_ACK);
 
-    synack = s->net->alloc(s->net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    synack = s->net->alloc(s->net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
     if (!synack)
         return -1;
 
@@ -1256,7 +1256,7 @@ static void tcp_send_empty(struct pico_socket_tcp *t, uint16_t flags, int is_kee
     struct pico_frame *f;
     struct pico_tcp_hdr *hdr;
     uint16_t opt_len = tcp_options_size(t, flags);
-    f = t->sock.net->alloc(t->sock.net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    f = t->sock.net->alloc(t->sock.net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
     if (!f) {
         return;
     }
@@ -1306,7 +1306,7 @@ static int tcp_do_send_rst(struct pico_socket *s, uint32_t seq)
     uint16_t opt_len = tcp_options_size(t, PICO_TCP_RST);
     struct pico_frame *f;
     struct pico_tcp_hdr *hdr;
-    f = t->sock.net->alloc(t->sock.net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    f = t->sock.net->alloc(t->sock.net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
     if (!f) {
         return -1;
     }
@@ -1422,7 +1422,7 @@ int pico_tcp_reply_rst(struct pico_frame *fr)
 
     tcp_dbg("TCP> sending RST ... \n");
 
-    f = fr->sock->net->alloc(fr->sock->net, size);
+    f = fr->sock->net->alloc(fr->sock->net, NULL, size);
     if (!f) {
         pico_err = PICO_ERR_ENOMEM;
         return -1;
@@ -1470,7 +1470,7 @@ static int tcp_nosync_rst(struct pico_socket *s, struct pico_frame *fr)
 
     /***************************************************************************/
     /* sending RST */
-    f = t->sock.net->alloc(t->sock.net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    f = t->sock.net->alloc(t->sock.net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
 
     if (!f) {
         return -1;
@@ -1525,7 +1525,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t)
     struct pico_frame *f;
     struct pico_tcp_hdr *hdr;
     uint16_t opt_len = tcp_options_size(t, PICO_TCP_FIN);
-    f = t->sock.net->alloc(t->sock.net, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
+    f = t->sock.net->alloc(t->sock.net, NULL, (uint16_t)(PICO_SIZE_TCPHDR + opt_len));
     if (!f) {
         return;
     }
@@ -2822,8 +2822,8 @@ static struct pico_frame *tcp_split_segment(struct pico_socket_tcp *t, struct pi
     size1 = size;
     size2 = (uint16_t)(size_f - size);
 
-    f1 = pico_socket_frame_alloc(&t->sock, (uint16_t) (size1 + overhead));
-    f2 = pico_socket_frame_alloc(&t->sock, (uint16_t) (size2 + overhead));
+    f1 = pico_socket_frame_alloc(&t->sock, get_sock_dev(&t->sock), (uint16_t) (size1 + overhead));
+    f2 = pico_socket_frame_alloc(&t->sock, get_sock_dev(&t->sock), (uint16_t) (size2 + overhead));
 
     if (!f1 || !f2) {
         pico_err = PICO_ERR_ENOMEM;
@@ -2971,7 +2971,7 @@ static struct pico_frame *pico_hold_segment_make(struct pico_socket_tcp *t)
             break;
     }
     /* alloc new frame with payload size = off + total_len */
-    f_new = pico_socket_frame_alloc(s, (uint16_t)(off + total_len));
+    f_new = pico_socket_frame_alloc(s, get_sock_dev(s), (uint16_t)(off + total_len));
     if (!f_new) {
         pico_err = PICO_ERR_ENOMEM;
         return f_new;

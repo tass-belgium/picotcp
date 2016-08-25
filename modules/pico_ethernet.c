@@ -65,10 +65,32 @@ static int pico_ethernet_process_in(struct pico_protocol *self, struct pico_fram
     return (pico_ethernet_receive(f) <= 0); /* 0 on success, which is ret > 0 */
 }
 
+static struct pico_frame *pico_ethernet_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
+{
+    struct pico_frame *f = NULL;
+    uint32_t overhead = 0;
+    IGNORE_PARAMETER(self);
+
+    if (dev)
+        overhead = dev->overhead;
+
+    f = pico_frame_alloc((uint32_t)(overhead + size + PICO_SIZE_ETHHDR));
+    if (!f)
+        return NULL;
+
+    f->dev = dev;
+    f->datalink_hdr = f->buffer + overhead;
+    f->net_hdr = f->datalink_hdr + PICO_SIZE_ETHHDR;
+    /* Stay of the rest, higher levels will take care */
+
+    return f;
+}
+
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_ethernet = {
     .name = "ethernet",
     .layer = PICO_LAYER_DATALINK,
+    .alloc = pico_ethernet_alloc,
     .process_in = pico_ethernet_process_in,
     .process_out = pico_ethernet_process_out,
     .q_in = &ethernet_in,
