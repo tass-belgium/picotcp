@@ -444,13 +444,13 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
     }
     else
     {
+        struct pico_frame *temp = NULL;
+
         if (ipv6_cur_frag_id && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id)) {
             /* Discard late arrivals, without firing the timer. */
             frag_dbg("discarded late arrival, exp:%hu found:%hu\n", ipv6_cur_frag_id, IP6_FRAG_ID(frag));
             return;
         }
-
-        struct pico_frame *temp = NULL;
 
         temp = pico_frame_copy(f);
 
