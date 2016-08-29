@@ -309,13 +309,12 @@ static int pico_igmp_timer_start(struct igmp_timer *t)
     *timer = *t;
     timer->start = PICO_TIME_MS();
 
-    if(pico_tree_insert(&IGMPTimers, timer) ){
-		if(pico_err != PICO_ERR_ENOMEM){
-			pico_err = PICO_ERR_EINVAL;
-		}
-		PICO_FREE(timer);
+    if (pico_tree_insert(&IGMPTimers, timer)) {
+        igmp_dbg("IGMP: Failed to insert timer in tree\n");
+        PICO_FREE(timer);
 		return -1;
 	}
+
     pico_timer_add(timer->delay, &pico_igmp_timer_expired, timer);
     return 0;
 }
@@ -519,11 +518,9 @@ static struct mcast_parameters *pico_igmp_analyse_packet(struct pico_frame *f)
         p->state = IGMP_STATE_NON_MEMBER;
         p->mcast_link.ip4 = link->address;
         p->mcast_group.ip4 = mcast_group;
-        if(pico_tree_insert(&IGMPParameters, p) ){
-    		if(pico_err != PICO_ERR_ENOMEM){
-    			pico_err = PICO_ERR_EINVAL;
-    		}
-    		PICO_FREE(p);
+        if (pico_tree_insert(&IGMPParameters, p)) {
+            igmp_dbg("IGMP: Failed to insert parameters in tree\n");
+            PICO_FREE(p);
     		return NULL;
     	}
     } else if (!p) {
@@ -617,11 +614,9 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
         p->state = IGMP_STATE_NON_MEMBER;
         p->mcast_link.ip4 = *mcast_link;
         p->mcast_group.ip4 = *mcast_group;
-        if(pico_tree_insert(&IGMPParameters, p) ){
-			if(pico_err != PICO_ERR_ENOMEM){
-				pico_err = PICO_ERR_EINVAL;
-			}
-			PICO_FREE(p);
+        if (pico_tree_insert(&IGMPParameters, p)) {
+            igmp_dbg("IGMP: Failed to insert parameters in tree\n");
+            PICO_FREE(p);
 			return -1;
 		}
 

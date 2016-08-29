@@ -535,10 +535,11 @@ pico_mdns_rtree_find_name( pico_mdns_rtree *tree,
                 record = pico_mdns_record_copy(record);
 
             if (record)
-                if( pico_tree_insert(&hits, record) != NULL )
-                    // either key was already in there, or couldn't be inserted.
-                    pico_mdns_record_delete((void **)&record);
-
+                if (pico_tree_insert(&hits, record) != NULL)
+                    /* either key was already in there, or couldn't be inserted. */
+                    /* Only delete record if it was copied */
+                    if (copy)
+                        pico_mdns_record_delete((void **)&record);
         }
     }
 
@@ -593,10 +594,11 @@ pico_mdns_rtree_find_name_type( pico_mdns_rtree *tree,
                 record = pico_mdns_record_copy(record);
 
             if (record){
-            	if(pico_tree_insert(&hits, record) ){
-            		if(pico_err != PICO_ERR_ENOMEM){
-            			pico_err = PICO_ERR_EINVAL;
-            		}
+                if (pico_tree_insert(&hits, record) != NULL) {
+                    /* either key was already in there, or couldn't be inserted. */
+                    /* Only delete record if it was copied */
+                    if (copy)
+                        pico_mdns_record_delete((void **)&record);
             	}
             }
         }
@@ -767,11 +769,9 @@ pico_mdns_generate_new_records( pico_mdns_rtree *conflict_records,
                                              PICO_MDNS_RECORD_CURRENTLY_PROBING));
 
             /* Add the record to the new tree */
-            if(pico_tree_insert(&new_records, new_record) ){
+            if (pico_tree_insert(&new_records, new_record)) {
             	mdns_dbg("Could not add new non-conflicting record to the tree!\n");
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
+                pico_mdns_record_delete((void **)&new_record);
 				return new_records;
 			}
 
@@ -819,11 +819,10 @@ pico_mdns_record_resolve_conflict( struct pico_mdns_record *record,
     copy = pico_mdns_record_copy_with_new_name(record, new_name);
     PICO_FREE(new_name);
     if (copy){
-    	if(pico_tree_insert(&new_records, copy) ){
-			if(pico_err != PICO_ERR_ENOMEM){
-				pico_err = PICO_ERR_EINVAL;
-			}
-			return -1;
+    	if (pico_tree_insert(&new_records, copy)) {
+            mdns_dbg("MDNS: Failed to insert copy in tree\n");
+            pico_mdns_record_delete((void **)&copy);
+            return -1;
 		}
     }
 
@@ -1283,11 +1282,9 @@ pico_mdns_my_records_add( pico_mdns_rtree *records, uint8_t reclaim )
                 record->claim_id = claim_id_count;
             }
 
-            if(pico_tree_insert(&MyRecords, record) ){
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
-				return -1;
+            if (pico_tree_insert(&MyRecords, record) == &LEAF) {
+                mdns_dbg("MDNS: Failed to insert record in tree\n");
+                return -1;
 			}
         }
     }
@@ -1373,10 +1370,9 @@ pico_mdns_my_records_claimed_id( uint8_t claim_id,
         record = node->keyValue;
         if (record && record->claim_id == claim_id) {
             if (IS_RECORD_VERIFIED(record)) {
-                if(pico_tree_insert(reg_records, record) ){
-					if(pico_err != PICO_ERR_ENOMEM){
-						pico_err = PICO_ERR_EINVAL;
-					}
+                if (pico_tree_insert(reg_records, record) == &LEAF) {
+                    mdns_dbg("MDNS: Failed to insert record in tree\n");
+                    return 0;
 				}
             } else {
                 return 0;
@@ -1887,11 +1883,9 @@ pico_tree_merge( struct pico_tree *dest, struct pico_tree *src )
     /* Insert source nodes */
     pico_tree_foreach(node, src) {
         if (node->keyValue) {
-            if(pico_tree_insert(dest, node->keyValue) ){
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
-				return -1;
+            if (pico_tree_insert(dest, node->keyValue) == &LEAF) {
+                mdns_dbg("MDNS: Failed to insert record in tree\n");
+                return -1;
 			}
         }
     }
@@ -2015,11 +2009,9 @@ pico_mdns_handle_cookie_with_answer( struct pico_mdns_cookie *cookie,
             if (cookie->callback) {
                 /* RCVD Answer on query, callback with answer. Callback is
                  * responsible for aggregating all the received answers. */
-                if(pico_tree_insert(&antree, answer) ){
-					if(pico_err != PICO_ERR_ENOMEM){
-						pico_err = PICO_ERR_EINVAL;
-					}
-					return -1;
+                if (pico_tree_insert(&antree, answer) == &LEAF) {
+                    mdns_dbg("MDNS: Failed to insert answer in tree\n");
+                    return -1;
 				}
                 cookie->callback(&antree, NULL, cookie->arg);
             }
@@ -2250,20 +2242,16 @@ pico_mdns_sort_unicast_multicast( pico_mdns_rtree *answers,
         if ((record = node->keyValue)) {
             if (IS_UNICAST_REQUESTED(record)) {
                 if (record->record){
-                	if(pico_tree_insert(unicast_tree, record->record) ){
-						if(pico_err != PICO_ERR_ENOMEM){
-							pico_err = PICO_ERR_EINVAL;
-						}
-						return -1;
+                	if (pico_tree_insert(unicast_tree, record->record) == &LEAF) {
+                        mdns_dbg("MDNS: Failed to instert unicast record in tree\n");
+                        return -1;
 					}
                 }
             } else {
                 if (record->record){
-                	if(pico_tree_insert(multicast_tree, record->record) ){
-						if(pico_err != PICO_ERR_ENOMEM){
-							pico_err = PICO_ERR_EINVAL;
-						}
-						return -1;
+                	if (pico_tree_insert(multicast_tree, record->record) == &LEAF) {
+                        mdns_dbg("MDNS: Failed to instert multicast record in tree\n");
+                        return -1;
 					}
                 }
             }
@@ -2403,13 +2391,12 @@ pico_mdns_additionals_add_nsec( pico_mdns_rtree *artree,
     }
 
     /* If there is none present generate one for given name */
-    if ((nsec = pico_mdns_gen_nsec_record(name)))
-    	if(pico_tree_insert(artree, nsec) ){
-			if(pico_err != PICO_ERR_ENOMEM){
-				pico_err = PICO_ERR_EINVAL;
-			}
-			return -1;
-		}
+    if ((nsec = pico_mdns_gen_nsec_record(name))) {
+        if (pico_tree_insert(artree, nsec)) {
+            pico_mdns_record_delete((void **)nsec);
+            return -1;
+        }
+    }
 
     return 0;
 }
@@ -2520,11 +2507,17 @@ pico_mdns_gather_service_meta( pico_mdns_rtree *antree,
 
         /* Insert the created service record in MyRecords, alread in, destroy */
         if (pico_tree_insert(&MyRecords, meta_record)) {
+            mdns_dbg("MDNS: Failed to insert meta record in tree\n");
             pico_mdns_record_delete((void **)&meta_record);
+            pico_mdns_record_delete((void **)&ptr_record);
+            return -1;
         }
 
         if (pico_tree_insert(&MyRecords, ptr_record)) {
+            mdns_dbg("MDNS: Failed to insert ptr record in tree\n");
             pico_mdns_record_delete((void **)&ptr_record);
+            pico_tree_delete(&MyRecords, meta_record);
+            pico_mdns_record_delete((void **)&meta_record);
         }
     }
     return 0;
@@ -2980,11 +2973,9 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
         return -1;
     }
 
-    if(pico_tree_insert(&qtree, q) ){
+    if (pico_tree_insert(&qtree, q)) {
     	mdns_dbg("inserting query into tree failed!\n");
-		if(pico_err != PICO_ERR_ENOMEM){
-			pico_err = PICO_ERR_EINVAL;
-		}
+        pico_dns_question_delete((void **)&q);
 		return -1;
 	}
 
@@ -2994,7 +2985,6 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
                                            PICO_MDNS_PACKET_TYPE_QUERY,
                                            callback, arg))) {
         PICO_DNS_QTREE_DESTROY(&qtree);
-        pico_dns_question_delete((void **)&q);
         mdns_dbg("cookie_create returned NULL!\n");
         return -1;
     }
@@ -3002,11 +2992,11 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
     /* Add cookie to Cookies to be able to find it afterwards */
     if(pico_tree_insert(&Cookies, cookie) ){
 		mdns_dbg("inserting cookie into tree failed!\n");
-		if(pico_err != PICO_ERR_ENOMEM){
-			pico_err = PICO_ERR_EINVAL;
-		}
-		return -1;
+        PICO_DNS_QTREE_DESTROY(&qtree);
+        pico_mdns_cookie_delete((void **)&cookie);
+        return -1;
 	}
+
     /* Create new pico_timer-event to send packet */
     pico_mdns_timer_add((pico_rand() % 120) + 20, pico_mdns_send_query_packet,
                    (void *)cookie);
@@ -3190,11 +3180,9 @@ pico_mdns_gen_probe_auths( pico_mdns_rtree *records )
             /* Clear the cache flush bit for authority records in probes */
             PICO_MDNS_CLR_MSB_BE(record->record->rsuffix->rclass);
             /* Only the actual DNS records is required */
-            pico_tree_insert(&nstree, record->record);
-            if(pico_tree_insert(&nstree, record->record) ){
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
+            if (pico_tree_insert(&nstree, record->record) == &LEAF) {
+                mdns_dbg("MDNS: Failed to insert record in tree\n");
+                break;
 			}
         }
     }

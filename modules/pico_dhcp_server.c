@@ -114,12 +114,8 @@ static inline struct pico_dhcp_server_setting *dhcps_try_open_socket(struct pico
         return NULL;
     }
 
-    if(pico_tree_insert(&DHCPSettings, dhcps) ){
+    if (pico_tree_insert(&DHCPSettings, dhcps)) {
     	dhcps_dbg("DHCP server ERROR: could not insert settings in tree\n");
-    	if(pico_err != PICO_ERR_ENOMEM){
-    		dhcps_dbg("Key is already in tree\n");
-    		pico_err = PICO_ERR_EINVAL;
-    	}
 		PICO_FREE(dhcps);
 		return NULL;
     }
@@ -229,16 +225,11 @@ static struct pico_dhcp_server_negotiation *pico_dhcp_server_add_negotiation(str
     }
 
     dhcp_negotiation_set_ciaddr(dhcpn);
-    if(pico_tree_insert(&DHCPNegotiations, dhcpn) ){
+    if (pico_tree_insert(&DHCPNegotiations, dhcpn)) {
 		dhcps_dbg("DHCP server ERROR: could not insert negotiations in tree\n");
-		if(pico_err != PICO_ERR_ENOMEM){
-			dhcps_dbg("Key is already in tree\n");
-			pico_err = PICO_ERR_EINVAL;
-		}
 		PICO_FREE(dhcpn);
 		return NULL;
 	}
-
 
     return dhcpn;
 }

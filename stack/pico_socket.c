@@ -401,10 +401,7 @@ int8_t pico_socket_add(struct pico_socket *s)
 
         if (PROTO(s) == PICO_PROTO_UDP)
         {
-            if(pico_tree_insert(&UDPTable, sp)){
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
+            if (pico_tree_insert(&UDPTable, sp)) {
 				PICO_FREE(sp);
 				PICOTCP_MUTEX_UNLOCK(Mutex);
 				return -1;
@@ -413,10 +410,7 @@ int8_t pico_socket_add(struct pico_socket *s)
         }
         else if (PROTO(s) == PICO_PROTO_TCP)
         {
-            if(pico_tree_insert(&TCPTable, sp)){
-				if(pico_err != PICO_ERR_ENOMEM){
-					pico_err = PICO_ERR_EINVAL;
-				}
+            if (pico_tree_insert(&TCPTable, sp)) {
 				PICO_FREE(sp);
 				PICOTCP_MUTEX_UNLOCK(Mutex);
 				return -1;
@@ -424,10 +418,7 @@ int8_t pico_socket_add(struct pico_socket *s)
         }
     }
 
-    if(pico_tree_insert(&sp->socks, s)){
-		if(pico_err != PICO_ERR_ENOMEM){
-			pico_err = PICO_ERR_EINVAL;
-		}
+    if (pico_tree_insert(&sp->socks, s)) {
 		PICOTCP_MUTEX_UNLOCK(Mutex);
 		return -1;
 	}

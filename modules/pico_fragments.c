@@ -418,6 +418,7 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 {
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
     struct pico_frame *first = NULL;
+    struct pico_frame *copy = NULL;
 
     if (!f || !frag)
     {
@@ -429,16 +430,19 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
 
     if (first)
     {
-      if ((pico_ipv6_frag_match(f, first) == 0 && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
-        if(pico_tree_insert(&ipv6_fragments, pico_frame_copy(f)) ){
-			frag_dbg("Could not insert picoframe in tree\n");
-			if(pico_err != PICO_ERR_ENOMEM){
-				frag_dbg("Key is already in tree\n");
-				pico_err = PICO_ERR_EINVAL;
-			}
-			return;
-		}
-      }
+        if ((pico_ipv6_frag_match(f, first) == 0 && (IP6_FRAG_ID(frag) == ipv6_cur_frag_id))) {
+            copy = pico_frame_copy(f);
+            if (copy == NULL) {
+                frag_dbg("FRAG: Failed to copy frame\n");
+                return;
+            }
+
+            if (pico_tree_insert(&ipv6_fragments, copy)) {
+                frag_dbg("FRAG: Could not insert picoframe in tree\n");
+                pico_frame_discard(copy);
+                return;
+            }
+        }
     }
     else
     {
@@ -452,14 +456,17 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
         ipv6_cur_frag_id = IP6_FRAG_ID(frag);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
 
-        if(pico_tree_insert(&ipv6_fragments, pico_frame_copy(f)) ){
-        	frag_dbg("Could not insert picoframe in tree\n");
-        	if(pico_err != PICO_ERR_ENOMEM){
-        		frag_dbg("Key is already in tree\n");
-				pico_err = PICO_ERR_EINVAL;
-			}
-			return;
-		}
+        copy = pico_frame_copy(f);
+        if (copy == NULL) {
+            frag_dbg("FRAG: Failed to copy frame\n");
+            return;
+        }
+
+        if (pico_tree_insert(&ipv6_fragments, copy)) {
+            frag_dbg("FRAG: Could not insert picoframe in tree\n");
+            pico_frame_discard(copy);
+            return;
+        }
     }
 
     pico_fragments_check_complete(&ipv6_fragments, proto, PICO_PROTO_IPV6);
@@ -474,6 +481,7 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
 {
 #if defined(PICO_SUPPORT_IPV4) && defined(PICO_SUPPORT_IPV4FRAG)
     struct pico_frame *first = NULL;
+    struct pico_frame *copy = NULL;
 
     if (!f || !hdr)
     {
@@ -495,15 +503,17 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         }
 
         if ((pico_ipv4_frag_match(f, first) == 0 && (IP4_FRAG_ID(hdr) == ipv4_cur_frag_id))) {
-            if(pico_tree_insert(&ipv4_fragments, pico_frame_copy(f)) ){
-            	frag_dbg("Could not insert picoframe in tree\n");
-				if(pico_err != PICO_ERR_ENOMEM){
-					frag_dbg("Key is already in tree\n");
-					pico_err = PICO_ERR_EINVAL;
-				}
-				return;
-			}
+            copy = pico_frame_copy(f);
+            if (copy == NULL) {
+                frag_dbg("FRAG: Failed to copy frame\n");
+                return;
+            }
 
+            if (pico_tree_insert(&ipv4_fragments, copy)) {
+            	frag_dbg("FRAG: Could not insert picoframe in tree\n");
+                pico_frame_discard(copy);
+                return;
+			}
         }
     }
     else
@@ -517,14 +527,17 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         ipv4_cur_frag_id = IP4_FRAG_ID(hdr);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
 
-        if(pico_tree_insert(&ipv4_fragments, pico_frame_copy(f)) ){
-			frag_dbg("Could not insert picoframe in tree\n");
-			if(pico_err != PICO_ERR_ENOMEM){
-				frag_dbg("Key is already in tree\n");
-				pico_err = PICO_ERR_EINVAL;
-			}
-			return;
-		}
+        copy = pico_frame_copy(f);
+        if (copy == NULL) {
+            frag_dbg("FRAG: Failed to copy frame\n");
+            return;
+        }
+
+        if (pico_tree_insert(&ipv4_fragments, copy)) {
+            frag_dbg("FRAG: Could not insert picoframe in tree\n");
+            pico_frame_discard(copy);
+            return;
+        }
     }
 
     f->frag = short_be(hdr->frag);

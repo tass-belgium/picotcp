@@ -261,21 +261,21 @@ static void arp_expire(pico_time now, void *_stale)
     }
 }
 
-static void pico_arp_add_entry(struct pico_arp *entry)
+static int pico_arp_add_entry(struct pico_arp *entry)
 {
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
 
-    if(pico_tree_insert(&arp_tree, entry) ){
-    	if(pico_err != PICO_ERR_ENOMEM){
-    		pico_err = PICO_ERR_EINVAL;
-    	}
-    	PICO_FREE(entry);
+    if (pico_tree_insert(&arp_tree, entry)) {
+        arp_dbg("ARP: Failed to insert new entry in tree\n");
+        return -1;
     }
 
     arp_dbg("ARP ## reachable.\n");
     pico_arp_queued_trigger();
     pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
+
+    return 0;
 }
 
 int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
@@ -290,7 +290,10 @@ int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_dev
     arp->ipv4.addr = ipv4.addr;
     arp->dev = dev;
 
-    pico_arp_add_entry(arp);
+    if (pico_arp_add_entry(arp) < 0) {
+        PICO_FREE(arp);
+        return -1;
+    }
 
     return 0;
 }
@@ -322,7 +325,11 @@ static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
         if (found->arp_status == PICO_ARP_STATUS_STALE) {
             /* Replace if stale */
             pico_tree_delete(&arp_tree, found);
-            pico_arp_add_entry(found);
+            if (pico_arp_add_entry(found) < 0) {
+                arp_dbg("ARP: Failed to re-instert stale arp entry\n");
+                PICO_FREE(found);
+                found = NULL;
+            }
         } else {
             /* Update mac address */
             memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);

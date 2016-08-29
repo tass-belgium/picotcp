@@ -51,7 +51,7 @@ START_TEST (arp_lookup_test)
     entry.ipv4 = ip;
 
     pico_stack_init();
-    pico_arp_add_entry(&entry);
+    fail_unless(pico_arp_add_entry(&entry) == 0);
     entry.arp_status = PICO_ARP_STATUS_STALE;
     eth = pico_arp_lookup(&ip);
     fail_unless(eth == NULL);
