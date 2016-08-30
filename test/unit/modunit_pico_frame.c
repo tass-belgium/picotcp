@@ -49,6 +49,27 @@ START_TEST(tc_pico_frame_alloc_discard)
 }
 END_TEST
 
+START_TEST(tc_pico_frame_grow_head)
+{
+    struct pico_frame *f = pico_frame_alloc(3);
+    int ret = 0;
+    uint8_t buf[6] = { 0, 0, 0, 'a', 'b', 'c'};
+
+    /* I don't care about usage_count, it's tested 'pico_frame_grow' */
+
+    f->net_hdr = f->buffer;
+    f->net_len = 3;
+    f->net_hdr[0] = 'a';
+    f->net_hdr[1] = 'b';
+    f->net_hdr[2] = 'c';
+
+    /* Try to grow head */
+    ret = pico_frame_grow_head(f, 6);
+    fail_unless(0 == memcmp(f->buffer, buf, f->buffer_len));
+    fail_unless(3 == f->net_hdr - f->buffer);
+}
+END_TEST
+
 START_TEST(tc_pico_frame_grow)
 {
     struct pico_frame *f = pico_frame_alloc(3);
@@ -205,18 +226,21 @@ Suite *pico_suite(void)
     TCase *TCase_pico_frame_alloc_discard = tcase_create("Unit test for pico_frame_alloc_discard");
     TCase *TCase_pico_frame_copy = tcase_create("Unit test for pico_frame_copy");
     TCase *TCase_pico_frame_grow = tcase_create("Unit test for pico_frame_grow");
+    TCase *TCase_pico_frame_grow_head = tcase_create("Unit test for pico_frame_grow_head");
     TCase *TCase_pico_frame_deepcopy = tcase_create("Unit test for pico_frame_deepcopy");
     TCase *TCase_pico_is_digit = tcase_create("Unit test for pico_is_digit");
     TCase *TCase_pico_is_hex = tcase_create("Unit test for pico_is_hex");
     tcase_add_test(TCase_pico_frame_alloc_discard, tc_pico_frame_alloc_discard);
     tcase_add_test(TCase_pico_frame_copy, tc_pico_frame_copy);
     tcase_add_test(TCase_pico_frame_grow, tc_pico_frame_grow);
+    tcase_add_test(TCase_pico_frame_grow_head, tc_pico_frame_grow_head);
     tcase_add_test(TCase_pico_frame_deepcopy, tc_pico_frame_deepcopy);
     tcase_add_test(TCase_pico_is_digit, tc_pico_is_digit);
     tcase_add_test(TCase_pico_is_hex, tc_pico_is_hex);
     suite_add_tcase(s, TCase_pico_frame_alloc_discard);
     suite_add_tcase(s, TCase_pico_frame_copy);
     suite_add_tcase(s, TCase_pico_frame_grow);
+    suite_add_tcase(s, TCase_pico_frame_grow_head);
     suite_add_tcase(s, TCase_pico_frame_deepcopy);
     return s;
 }
