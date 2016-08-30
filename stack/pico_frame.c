@@ -109,6 +109,11 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
     p->start = p->buffer;
     p->len = p->buffer_len;
     *p->usage_count = 1;
+    p->net_hdr = p->buffer;
+    p->datalink_hdr = p->buffer;
+    p->transport_hdr = p->buffer;
+    p->app_hdr = p->buffer;
+    p->payload = p->buffer;
 
     if (ext_buffer)
         p->flags |= PICO_FRAME_FLAG_EXT_BUFFER;
@@ -164,7 +169,7 @@ pico_frame_new_buffer(struct pico_frame *f, uint32_t size, uint32_t *oldsize)
 }
 
 static int
-pico_frame_update_pointers(struct pico_frame *f, int addr_diff, uint8_t *oldbuf)
+pico_frame_update_pointers(struct pico_frame *f, intptr_t addr_diff, uint8_t *oldbuf)
 {
     f->net_hdr += addr_diff;
     f->datalink_hdr += addr_diff;
@@ -184,7 +189,7 @@ pico_frame_update_pointers(struct pico_frame *f, int addr_diff, uint8_t *oldbuf)
 
 int pico_frame_grow_head(struct pico_frame *f, uint32_t size)
 {
-    int addr_diff = 0;
+    intptr_t addr_diff = 0;
     uint32_t oldsize = 0;
     uint8_t *oldbuf = pico_frame_new_buffer(f, size, &oldsize);
     if (!oldbuf)
@@ -192,14 +197,14 @@ int pico_frame_grow_head(struct pico_frame *f, uint32_t size)
 
     /* Put old buffer at the end of new buffer */
     memcpy(f->buffer + f->buffer_len - oldsize, oldbuf, oldsize);
-    addr_diff = (int)((f->buffer + f->buffer_len - oldsize) - oldbuf);
+    addr_diff = (intptr_t)(f->buffer + f->buffer_len - oldsize - oldbuf);
 
     return pico_frame_update_pointers(f, addr_diff, oldbuf);
 }
 
 int pico_frame_grow(struct pico_frame *f, uint32_t size)
 {
-    int addr_diff = 0;
+    intptr_t addr_diff = 0;
     uint32_t oldsize = 0;
     uint8_t *oldbuf = pico_frame_new_buffer(f, size, &oldsize);
     if (!oldbuf)
@@ -207,7 +212,7 @@ int pico_frame_grow(struct pico_frame *f, uint32_t size)
 
     /* Just put old buffer at the beginning of new buffer */
     memcpy(f->buffer, oldbuf, oldsize);
-    addr_diff = (int)(f->buffer - oldbuf);
+    addr_diff = (intptr_t)(f->buffer - oldbuf);
 
     return pico_frame_update_pointers(f, addr_diff, oldbuf);
 }
