@@ -52,10 +52,16 @@ END_TEST
 START_TEST(tc_pico_frame_grow_head)
 {
     struct pico_frame *f = pico_frame_alloc(3);
+    struct pico_frame *f2 = pico_frame_alloc(0);
     int ret = 0;
     uint8_t buf[6] = { 0, 0, 0, 'a', 'b', 'c'};
 
     /* I don't care about usage_count, it's tested 'pico_frame_grow' */
+    fail_if(pico_frame_grow_head(f, 2) == 0);
+
+    /* Check for dereferencing OOB */
+    fail_if(pico_frame_grow_head(f2, 2) == -1);
+    f2->net_hdr[0] = 1;
 
     f->net_hdr = f->buffer;
     f->net_len = 3;
@@ -67,12 +73,16 @@ START_TEST(tc_pico_frame_grow_head)
     ret = pico_frame_grow_head(f, 6);
     fail_unless(0 == memcmp(f->buffer, buf, f->buffer_len));
     fail_unless(3 == f->net_hdr - f->buffer);
+
+    f->datalink_hdr = f->net_hdr - 3;
+    f->datalink_hdr[0] = 1;
 }
 END_TEST
 
 START_TEST(tc_pico_frame_grow)
 {
     struct pico_frame *f = pico_frame_alloc(3);
+    struct pico_frame *f2 = pico_frame_alloc(0);
     fail_if(f->buffer_len != 3);
     /* Ensure that the usage_count starts at byte 4, for good alignment */
     fail_if(((void*)f->usage_count - (void *)f->buffer) != 4);
@@ -87,6 +97,11 @@ START_TEST(tc_pico_frame_grow)
     fail_if(pico_frame_grow(NULL, 30) == 0);
     fail_if(pico_frame_grow(f, 2) == 0);
     f->flags = 0;
+
+    /* Check for dereferencing OOB */
+    fail_if(pico_frame_grow(f2, 3) != 0);
+    f2->net_hdr[0] = 1;
+    f2->net_hdr[1] = 2;
 
     pico_set_mm_failure(1);
     fail_if(pico_frame_grow(f, 21) == 0);
