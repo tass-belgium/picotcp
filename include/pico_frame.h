@@ -12,6 +12,7 @@
 #define PICO_FRAME_FLAG_EXT_BUFFER          (0x02)
 #define PICO_FRAME_FLAG_EXT_USAGE_COUNTER   (0x04)
 #define PICO_FRAME_FLAG_SACKED              (0x80)
+#define PICO_FRAME_FLAG_LL_SEC              (0x40)
 #define IS_BCAST(f) ((f->flags & PICO_FRAME_FLAG_BCAST) == PICO_FRAME_FLAG_BCAST)
 
 

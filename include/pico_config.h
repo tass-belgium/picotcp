@@ -165,7 +165,6 @@ static inline uint64_t long_long_be(uint64_t le)
 #   endif /* BYTESWAP_GCC */
 #endif
 
-
 /* Mockables */
 #if defined UNIT_TEST
 #   define MOCKABLE __attribute__((weak))

@@ -34,7 +34,6 @@
 #include "pico_mdns.h"
 #include "pico_tftp.h"
 #include "pico_dev_radiotest.h"
-#include "pico_sixlowpan.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -498,14 +497,14 @@ int main(int argc, char **argv)
 
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
             radio = pico_radiotest_create(n_id, n_area0, n_area1, dump);
-            dev = pico_sixlowpan_create(radio);
+            dev = pico_lowpan_create(radio);
             if (!radio) {
                 perror("Creating radio");
                 exit(1);
             }
 
             if (n_id == 1)
-                pico_sixlowpan_enable_6lbr(dev, pan);
+                pico_lowpan_enable_6lbr(dev, pan);
             */
             break;
         }

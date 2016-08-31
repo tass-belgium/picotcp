@@ -17,6 +17,8 @@
 #include "pico_dns_client.h"
 
 #include "pico_ethernet.h"
+#include "pico_6lowpan.h"
+#include "pico_802154.h"
 #include "pico_olsr.h"
 #include "pico_aodv.h"
 #include "pico_eth.h"
@@ -377,8 +379,13 @@ int pico_datalink_receive(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
-        f->datalink_hdr = f->buffer;
-        pico_enqueue(pico_proto_ethernet.q_in, f);
+        if (LL_MODE_6LOWPAN == f->dev->mode) {
+            f->datalink_hdr = f->buffer + SIZE_802154_LEN;
+            return pico_enqueue(pico_proto_802154.q_in, f);
+        } else {
+            f->datalink_hdr = f->buffer;
+            return pico_enqueue(pico_proto_ethernet.q_in, f);
+        }
     } else {
         /* If device handles raw IP-frames send it straight to network-layer */
         f->net_hdr = f->buffer;
@@ -386,23 +393,21 @@ int pico_datalink_receive(struct pico_frame *f)
     }
 
     return 0;
-    /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
-     * send frames through (upwards). */
-
 }
 
 int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
-        return pico_enqueue(pico_proto_ethernet.q_out, f);
+        if (LL_MODE_6LOWPAN == f->dev->mode) {
+            return pico_enqueue(pico_proto_802154.q_out, f);
+        } else {
+            return pico_enqueue(pico_proto_ethernet.q_out, f);
+        }
     } else {
         /* non-ethernet: no post-processing needed */
         return pico_sendto_dev(f);
     }
-
-    /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
-     * send frames through (downwards). */
 }
 
 /*******************************************************************************
@@ -853,6 +858,14 @@ int MOCKABLE pico_stack_init(void)
 {
 #ifdef PICO_SUPPORT_ETH
     pico_protocol_init(&pico_proto_ethernet);
+#endif
+
+#ifdef PICO_SUPPORT_802154
+    pico_protocol_init(&pico_proto_802154);
+#endif
+
+#ifdef PICO_SUPPORT_6LOWPAN
+    pico_protocol_init(&pico_proto_6lowpan);
 #endif
 
 #ifdef PICO_SUPPORT_IPV4

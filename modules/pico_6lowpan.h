@@ -5,11 +5,14 @@
  Authors: Jelle De Vleeschouwer
  *********************************************************************/
 
-#ifdef PICO_SUPPORT_IEEE802154
+#ifndef INCLUDE_PICO_6LOWPAN
+#define INCLUDE_PICO_6LOWPAN
 
-struct pico_device *pico_dev_ieee802154_create(struct ieee_radio *radio)
-{
+#include "pico_protocol.h"
+#include "pico_device.h"
+#include "pico_config.h"
+#include "pico_frame.h"
 
-}
+extern struct pico_protocol pico_proto_6lowpan;
 
-#endif
+#endif /* INCLUDE_PICO_6LOWPAN */

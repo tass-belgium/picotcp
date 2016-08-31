@@ -180,10 +180,10 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
 
 PACKED_UNION_DEF pico_hw_addr {
     struct pico_eth mac;
-#ifdef PICO_SUPPORT_SIXLOWPAN
-    struct pico_ieee802154_addr_short _short;
-    struct pico_ieee802154_addr_ext _ext;
-#endif /* PICO_SUPPORT_SIXLOWPAN */
+#ifdef PICO_SUPPORT_6LOWPAN
+    struct pico_802154_short _short;
+    struct pico_802154_ext _ext;
+#endif /* PICO_SUPPORT_6LOWPAN */
 };
 
 PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
@@ -246,7 +246,7 @@ PACKED_STRUCT_DEF pico_icmp6_opt_aro
     uint8_t res0;
     uint16_t res1;
     uint16_t lifetime;
-    struct pico_ieee802154_addr_ext eui64;
+    struct pico_802154_ext eui64;
 };
 
 PACKED_STRUCT_DEF pico_icmp6_6co

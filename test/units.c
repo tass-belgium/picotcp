@@ -14,6 +14,8 @@
 #include "pico_frame.c"
 #include "pico_stack.c"
 #include "pico_protocol.c"
+#include "pico_802154.c"
+#include "pico_6lowpan.c"
 #include "pico_ipv4.c"
 #include "pico_socket.c"
 #include "pico_socket_multicast.c"

@@ -78,7 +78,7 @@ START_TEST(tc_stack_generic)
 {
 #ifdef PICO_FAULTY
     printf("Testing with faulty memory in pico_stack_init (11)\n");
-    pico_set_mm_failure(11);
+    pico_set_mm_failure(13);
     fail_if(pico_stack_init() != -1);
 #endif
     pico_stack_init();

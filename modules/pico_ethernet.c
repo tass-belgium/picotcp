@@ -53,6 +53,9 @@ static struct pico_queue ethernet_out = {
     0
 };
 
+int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f);
+static int32_t pico_ethernet_receive(struct pico_frame *f);
+
 static int pico_ethernet_process_out(struct pico_protocol *self, struct pico_frame *f)
 {
     IGNORE_PARAMETER(self);
@@ -184,7 +187,7 @@ static void pico_eth_check_bcast(struct pico_frame *f)
         f->flags |= PICO_FRAME_FLAG_BCAST;
 }
 
-int32_t pico_ethernet_receive(struct pico_frame *f)
+static int32_t pico_ethernet_receive(struct pico_frame *f)
 {
     struct pico_eth_hdr *hdr;
     if (!f || !f->dev || !f->datalink_hdr)
