@@ -37,7 +37,7 @@ PACKED_STRUCT_DEF pico_802154_hdr
     uint16_t fcf;
     uint8_t seq;
     uint16_t pan_id;
-    uint8_t addresses[0];
+    uint8_t addresses;
 };
 
 /******************************************************************************

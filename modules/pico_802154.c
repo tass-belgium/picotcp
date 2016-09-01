@@ -268,7 +268,7 @@ frame_802154_src(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 src = { .addr.data = { 0 }, .mode = src_am(hdr) };
     uint16_t len = SIZE_802154(src.mode);
-    memcpy(src.addr.data, (uint8_t *)hdr->addresses + SIZE_802154(dst_am(hdr)), len);
+    memcpy(src.addr.data, (uint8_t *)&hdr->addresses + SIZE_802154(dst_am(hdr)), len);
     addr_802154_to_ietf(&src);
     return src;
 }
@@ -280,7 +280,7 @@ frame_802154_dst(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 dst = { .addr.data = { 0 }, .mode = dst_am(hdr) };
     uint16_t len = SIZE_802154(dst.mode);
-    memcpy(dst.addr.data, (uint8_t *)hdr->addresses, len);
+    memcpy(dst.addr.data, (uint8_t *)&hdr->addresses, len);
     addr_802154_to_ietf(&dst);
     return dst;
 }
@@ -318,8 +318,8 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
 
     /* Fill in the addresses */
     memcpy(&hdr->pan_id, &pan.addr, SIZE_802154_SHORT);
-    memcpy(hdr->addresses, dst.addr.data, SIZE_802154(dst.mode));
-    memcpy(hdr->addresses + SIZE_802154(dst.mode), src.addr.data,SIZE_802154(src.mode));
+    memcpy((uint8_t *)&hdr->addresses, dst.addr.data, SIZE_802154(dst.mode));
+    memcpy((uint8_t *)&hdr->addresses + SIZE_802154(dst.mode), src.addr.data,SIZE_802154(src.mode));
 }
 
 /* Stores the addresses derived from the network addresses inside the frame
