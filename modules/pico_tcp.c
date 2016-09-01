@@ -1021,7 +1021,8 @@ static void pico_tcp_keepalive(pico_time now, void *arg)
     t->keepalive_tmr = pico_timer_add(1000, pico_tcp_keepalive, t);
     if (!t->keepalive_tmr) {
         tcp_dbg("TCP: Failed to start keepalive timer\n");
-        //TODO close socket?
+        if (t->sock.wakeup)
+            t->sock.wakeup(PICO_SOCK_EV_ERR, &t->sock);
     }
 }
 
@@ -1539,8 +1540,8 @@ static void tcp_linger(struct pico_socket_tcp *t)
     pico_timer_cancel(t->fin_tmr);
     t->fin_tmr = pico_timer_add(t->linger_timeout, tcp_deltcb, t);
     if (!t->fin_tmr) {
-        tcp_dbg("TCP: failed to start delete callback timer\n");
-        //TODO free something?
+        tcp_dbg("TCP: failed to start delete callback timer, deleting socket now\n");
+        tcp_deltcb((pico_time)0, t);
     }
 }
 

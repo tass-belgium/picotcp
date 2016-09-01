@@ -894,6 +894,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     }
     if (!pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL)) {
         dbg("IPV6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
     }
 }
 
@@ -926,6 +927,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
     if (!pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL)) {
         dbg("IPv6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
     }
 }
 

@@ -255,6 +255,8 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
 #endif
         if (!pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer)) {
             mld_dbg("MLD: Failed to start expiration timer\n");
+            pico_tree_delete(&MLDTimers, timer);
+            PICO_FREE(timer);
         }
     }
 
@@ -481,7 +483,8 @@ static int pico_mld_compatibility_mode(struct pico_frame *f)
         t.delay = (pico_time) ((MLD_ROBUSTNESS * link->mcast_last_query_interval) + MLD_QUERY_RESPONSE_INTERVAL) * 1000;
         t.f = f;
         t.mld_callback = pico_mld_v1querier_expired;
-        pico_mld_timer_start(&t);
+        if (pico_mld_timer_start(&t) < 0)
+            return -1;
     } else {
         /* invalid query, silently ignored */
         return -1;
@@ -928,7 +931,10 @@ static int mld_srsfst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (MLD_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.mld_callback = pico_mld_report_expired;
-    pico_mld_timer_start(&t);
+
+    if (pico_mld_timer_start(&t) < 0)
+        return -1;
+
     pico_mld_flag = 1;
     p->state = MLD_STATE_DELAYING_LISTENER;
     mld_dbg("MLD: new state = Delaying Listener\n");
@@ -1068,7 +1074,9 @@ static int mld_srst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (MLD_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.mld_callback = pico_mld_report_expired;
-    pico_mld_timer_start(&t);
+
+    if (pico_mld_timer_start(&t) < 0)
+        return -1;
 
     p->state = MLD_STATE_DELAYING_LISTENER;
     mld_dbg("MLD: new state = delaying member\n");

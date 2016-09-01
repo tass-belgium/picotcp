@@ -1046,6 +1046,7 @@ static void olsr_hello_tick(pico_time when, void *unused)
     }
     if (!pico_timer_add(OLSR_HELLO_INTERVAL, &olsr_hello_tick, NULL)) {
         olsr_dbg("OLSR: Failed to start hello_tick timer\n");
+        /* TODO no more ticks now */
     }
 }
 
@@ -1061,6 +1062,7 @@ static void olsr_tc_tick(pico_time when, void *unused)
     }
     if (!pico_timer_add(OLSR_TC_INTERVAL, &olsr_tc_tick, NULL)) {
         olsr_dbg("OLSR: Failed to start tc_tick timer\n");
+        /* TODO no more ticks now */
     }
 }
 

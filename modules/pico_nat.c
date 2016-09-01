@@ -381,6 +381,7 @@ static void pico_ipv4_nat_table_cleanup(pico_time now, void *_unused)
     pico_ipv4_nat_print_table();
     if (!pico_timer_add(PICO_NAT_TIMEWAIT, pico_ipv4_nat_table_cleanup, NULL)) {
         nat_dbg("NAT: Failed to start cleanup timer\n");
+        /* TODO no more NAT table cleanup now */
     }
 }
 

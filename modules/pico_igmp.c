@@ -484,7 +484,8 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
             t.f = f;
             t.callback = pico_igmp_v2querier_expired;
             /* only one of this type of timer may exist! */
-            pico_igmp_timer_start(&t);
+            if (pico_igmp_timer_start(&t) < 0)
+                return -1;
         } else {
             /* IGMPv1 query, not supported */
             return -1;
@@ -865,7 +866,8 @@ static int srsfst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");
@@ -950,7 +952,8 @@ static int srst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");
@@ -998,7 +1001,8 @@ static int st(struct mcast_parameters *p)
     t.delay = (pico_rand() % ((1u + p->max_resp_time) * 100u));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");

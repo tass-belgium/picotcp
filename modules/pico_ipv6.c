@@ -1571,6 +1571,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
         l->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &l->address);
         if (!l->dad_timer) {
             dbg("IPv6: Failed to start nd_dad timer\n");
+            /* TODO does this have disastrous consequences? */
         }
         return;
     }
@@ -1602,6 +1603,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
             l->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &l->address);
             if (!l->dad_timer) {
                 dbg("IPv6: Failed to start nd_dad timer\n");
+                /* TODO does this have disastrous consequences? */
             }
         }
     }
@@ -1936,6 +1938,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
     }
     if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
         dbg("IPv6: Failed to start check_lifetime timer\n");
+        /* TODO No more link lifetime checking now */
     }
 }
 

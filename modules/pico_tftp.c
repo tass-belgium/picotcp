@@ -303,7 +303,8 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
         if (session->bigger_wallclock > new_timeout) {
             session->timer = pico_timer_add(interval + 1, timer_callback, session);
             if (!session->timer) {
-                tftp_dbg("TFTP: Failed to start callback timer\n");
+                tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
+                del_session(session);
                 return;
             }
             session->active_timers++;
@@ -311,7 +312,8 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
     } else {
         session->timer = pico_timer_add(interval + 1, timer_callback, session);
         if (!session->timer) {
-            tftp_dbg("TFTP: Failed to start callback timer\n");
+            tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
+            del_session(session);
             return;
         }
         session->active_timers++;

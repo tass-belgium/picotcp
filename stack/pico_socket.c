@@ -498,8 +498,9 @@ int8_t pico_socket_del(struct pico_socket *s)
     pico_socket_tcp_delete(s);
     s->state = PICO_SOCKET_STATE_CLOSED;
     if (!pico_timer_add((pico_time)10, socket_garbage_collect, s)) {
-        dbg("SOCKET: Failed to start garbage collect timer\n");
+        dbg("SOCKET: Failed to start garbage collect timer, doing garbage collection now\n");
         PICOTCP_MUTEX_UNLOCK(Mutex);
+        socket_garbage_collect((pico_time)0, s);
         return -1;
     }
     PICOTCP_MUTEX_UNLOCK(Mutex);

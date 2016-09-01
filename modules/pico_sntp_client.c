@@ -224,7 +224,9 @@ static void pico_sntp_send(struct pico_socket *sock, union pico_address *dst)
     ck->timer = pico_timer_add(5000, sntp_receive_timeout, ck);
     if (!ck->timer) {
         sntp_dbg("SNTP: Failed to start timeout timer\n");
-        ck->cb_synced(pico_err);
+        pico_sntp_cleanup(ck, pico_err);
+        pico_socket_close(sock);
+        pico_socket_del(sock);
         return;
     }
     header.vn = SNTP_VERSION;

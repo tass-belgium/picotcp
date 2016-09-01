@@ -2171,6 +2171,7 @@ static void pico_ppp_tick(pico_time t, void *arg)
 
     if (!pico_timer_add(1000, pico_ppp_tick, arg)) {
         ppp_dbg("PPP: Failed to start tick timer\n");
+        /* TODO No more PPP ticks now */
     }
 }
 

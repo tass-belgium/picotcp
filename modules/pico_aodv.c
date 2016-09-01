@@ -589,6 +589,7 @@ static void pico_aodv_collector(pico_time now, void *arg)
     }
     if (!pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL)) {
         pico_aodv_dbg("AODV: Failed to start collector timer\n");
+        /* TODO what to do now? garbage collection will not be restarted, leading to memory leaks */
     }
 }
 

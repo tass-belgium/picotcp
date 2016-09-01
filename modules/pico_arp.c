@@ -54,6 +54,7 @@ static void update_max_arp_reqs(pico_time now, void *unused)
 
     if (!pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL)) {
         arp_dbg("ARP: Failed to start update_max_arps timer\n");
+        /* TODO if this fails all incoming arps will be discarded once max_arp_reqs recahes 0 */
     }
 }
 
@@ -260,12 +261,14 @@ static void arp_expire(pico_time now, void *_stale)
         /* Timer must be rescheduled, ARP entry has been renewed lately.
          * No action required to refresh the entry, will check on the next timeout */
         if (!pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale)) {
-            arp_dbg("ARP: Failed to start expiration timer\n");
+            arp_dbg("ARP: Failed to start expiration timer, destroying arp entry\n");
+            pico_tree_delete(&arp_tree, stale);
+            PICO_FREE(stale);
         }
     }
 }
 
-static void pico_arp_add_entry(struct pico_arp *entry)
+static int pico_arp_add_entry(struct pico_arp *entry)
 {
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
@@ -275,7 +278,11 @@ static void pico_arp_add_entry(struct pico_arp *entry)
     pico_arp_queued_trigger();
     if (!pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry)) {
         arp_dbg("ARP: Failed to start expiration timer\n");
+        pico_tree_delete(&arp_tree, entry);
+        return -1;
     }
+
+    return 0;
 }
 
 int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
@@ -290,7 +297,10 @@ int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_dev
     arp->ipv4.addr = ipv4.addr;
     arp->dev = dev;
 
-    pico_arp_add_entry(arp);
+    if (pico_arp_add_entry(arp) < 0) {
+        PICO_FREE(arp);
+        return -1;
+    }
 
     return 0;
 }
@@ -322,7 +332,10 @@ static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
         if (found->arp_status == PICO_ARP_STATUS_STALE) {
             /* Replace if stale */
             pico_tree_delete(&arp_tree, found);
-            pico_arp_add_entry(found);
+            if (pico_arp_add_entry(found) < 0) {
+                PICO_FREE(found);
+                return NULL;
+            }
         } else {
             /* Update mac address */
             memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);

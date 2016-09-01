@@ -1692,6 +1692,7 @@ pico_mdns_tick( pico_time now, void *_arg )
     /* Schedule new tick */
     if (!pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL)) {
         mdns_dbg("MDNS: Failed to start tick timer\n");
+        /* TODO Not ticking anymore, what to do? */
     }
 }
 
@@ -3064,6 +3065,7 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
             if (!pico_mdns_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
                                        * 1000), pico_mdns_send_announcement_packet, cookie)) {
                 mdns_dbg("MDNS: Failed to start send_announcement_packet timer\n");
+                /* TODO no idea what the consequences of this are */
 
             }
         }
@@ -3212,6 +3214,7 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
                                                     (void *)cookie);
                 if (!cookie->send_timer) {
                     mdns_dbg("MDNS: Failed to start send_probe_packet timer\n");
+                    /* TODO no idea what the consequences of this are */
                     return;
                 }
             }

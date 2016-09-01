@@ -99,15 +99,18 @@ static void timer_cb(__attribute__((unused)) pico_time t, __attribute__((unused)
     }
 }
 
-static void ensure_hotplug_timer(void)
+static int ensure_hotplug_timer(void)
 {
     if (timer_id == 0)
     {
         timer_id = pico_timer_add(PICO_HOTPLUG_INTERVAL, &timer_cb, NULL);
         if (timer_id == 0) {
             dbg("HOTPLUG: Failed to start timer\n");
+            return -1;
         }
     }
+
+    return 0;
 }
 
 static void disable_hotplug_timer(void)
@@ -155,7 +158,10 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
     pico_tree_insert(&(hotplug_dev->callbacks), cb);
     pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
 
-    ensure_hotplug_timer();
+    if (ensure_hotplug_timer() < 0) {
+        pico_hotplug_deregister((struct pico_device *)hotplug_dev, cb);
+        return -1;
+    }
 
     return 0;
 }
