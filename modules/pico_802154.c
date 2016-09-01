@@ -16,7 +16,9 @@
 /*******************************************************************************
  * Macros
  ******************************************************************************/
+
 #define PICO_802154_VALID(am)  ((am) == 2 || (am) == 3 ? 1 : 0)
+
 /*******************************************************************************
  * Constants
  ******************************************************************************/
@@ -92,7 +94,7 @@ addr_802154_to_ietf(struct pico_802154 *addr)
 {
     int i = 0;
     int end = SIZE_802154(addr->mode) - 1;
-    for (i = 0; i < ((uint8_t)SIZE_802154(addr->mode) >> 1); i++) {
+    for (i = 0; i < (SIZE_802154(addr->mode) >> 1); i++) {
         pico_swap(&addr->addr.data[i], &addr->addr.data[end - i]);
     }
 }
@@ -213,7 +215,7 @@ addr_802154_ll_src(struct pico_ip6 *src, struct pico_device *dev)
 static struct pico_802154
 addr_802154_ll_dst(struct pico_ip6 *dst, struct pico_device *dev)
 {
-    struct pico_802154 addr;
+    struct pico_802154 addr = { .addr.data = { 0 }, .mode = 0 };
     addr.mode = AM_802154_NONE;
     IGNORE_PARAMETER(dev);
 
@@ -320,9 +322,9 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
     sam = short_be((uint16_t)(src.mode << 14));
 
     /* Fill in frame control field */
-    hdr->fcf = (uint16_t)(hdr->fcf | FCF_TYPE_DATA | sec | FCF_NO_PENDING);
-    hdr->fcf = (uint16_t)(hdr->fcf | ack | intra_pan | dam | FCF_VER_2003);
-    hdr->fcf = (uint16_t)(hdr->fcf | sam);
+    hdr->fcf |= (uint16_t)(FCF_TYPE_DATA | sec | FCF_NO_PENDING);
+    hdr->fcf |= (uint16_t)(ack | intra_pan | dam | FCF_VER_2003);
+    hdr->fcf |= (uint16_t)(sam);
     hdr->fcf = short_be(hdr->fcf); // Convert to IEEE endianness
 
     hdr->seq = seq; // Sequence number
@@ -510,10 +512,10 @@ int
 pico_802154_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct
                        pico_ip6 *dst)
 {
-    int i = 0, pl_available = MTU_802154_MAC;
+    int i = 0;
     struct pico_802154 llsrc;
     struct pico_802154 lldst;
-    uint16_t frame_size;
+    uint16_t frame_size, pl_available = MTU_802154_MAC;
 
     if (!f || !f->dev || !src || !dst)
         return -1;
@@ -635,7 +637,7 @@ pico_802154_frame_alloc(struct pico_protocol *self, uint16_t size)
 }
 
 struct pico_protocol pico_proto_802154 = {
-    .name = "IEEE802.15.4",
+    .name = "ieee802154",
     .layer = PICO_LAYER_DATALINK,
     .alloc = pico_802154_frame_alloc,
     .process_in = pico_802154_process_in,

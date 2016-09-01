@@ -87,7 +87,7 @@ struct pico_802154_info
 #define SIZE_802154_SHORT   (2u)
 #define SIZE_802154_EXT     (8u)
 
-#define SIZE_802154(m) ((m) == 2 ? 2 : ((m) == 3 ? 8 : 0))
+#define SIZE_802154(m) (((m) == 2) ? (2) : (((m) == 3) ? (8) : (0)))
 
 PACKED_STRUCT_DEF pico_trans
 {

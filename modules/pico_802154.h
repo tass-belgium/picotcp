@@ -37,21 +37,17 @@ PACKED_STRUCT_DEF pico_802154_hdr
     uint16_t fcf;
     uint8_t seq;
     uint16_t pan_id;
-    uint8_t addresses[0];
-};
-
-PACKED_STRUCT_DEF pico_802154_frame
-{
-    struct pico_802154_hdr *hdr;
-    uint8_t *payload;
-    uint8_t payload_len;
+    uint8_t *addresses;
 };
 
 /******************************************************************************
  * Public
  ******************************************************************************/
+
+/* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
+ * frame for later processing, or returns the amount of bytes available after
+ * prepending the MAC header and additional headers */
 int
-pico_802154_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct
-                       pico_ip6 *dst);
+pico_802154_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico_ip6 *dst);
 
 #endif /* INCLUDE_PICO_802154 */
