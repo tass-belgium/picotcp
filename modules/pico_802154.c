@@ -267,8 +267,9 @@ static struct pico_802154
 frame_802154_src(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 src = { .addr.data = { 0 }, .mode = src_am(hdr) };
+    uint8_t *addresses = (uint8_t *)hdr + sizeof(struct pico_802154_hdr);
     uint16_t len = SIZE_802154(src.mode);
-    memcpy(src.addr.data, (uint8_t *)&hdr->addresses + SIZE_802154(dst_am(hdr)), len);
+    memcpy(src.addr.data, addresses + SIZE_802154(dst_am(hdr)), len);
     addr_802154_to_ietf(&src);
     return src;
 }
@@ -279,8 +280,9 @@ static struct pico_802154
 frame_802154_dst(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 dst = { .addr.data = { 0 }, .mode = dst_am(hdr) };
+    uint8_t *addresses = (uint8_t *)hdr + sizeof(struct pico_802154_hdr);
     uint16_t len = SIZE_802154(dst.mode);
-    memcpy(dst.addr.data, (uint8_t *)&hdr->addresses, len);
+    memcpy(dst.addr.data, addresses, len);
     addr_802154_to_ietf(&dst);
     return dst;
 }
@@ -292,6 +294,7 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
                     uint16_t sec, struct pico_802154_short pan, struct pico_802154 src,
                     struct pico_802154 dst)
 {
+    uint8_t *addresses = (uint8_t *)(buf + sizeof(struct pico_802154_hdr));
     struct pico_802154_hdr *hdr = (struct pico_802154_hdr *)buf;
     uint16_t sam = 0, dam = 0;
 
@@ -318,8 +321,8 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
 
     /* Fill in the addresses */
     memcpy(&hdr->pan_id, &pan.addr, SIZE_802154_SHORT);
-    memcpy((uint8_t *)&hdr->addresses, dst.addr.data, SIZE_802154(dst.mode));
-    memcpy((uint8_t *)&hdr->addresses + SIZE_802154(dst.mode), src.addr.data,SIZE_802154(src.mode));
+    memcpy(addresses, dst.addr.data, SIZE_802154(dst.mode));
+    memcpy(addresses + SIZE_802154(dst.mode), src.addr.data,SIZE_802154(src.mode));
 }
 
 /* Stores the addresses derived from the network addresses inside the frame
