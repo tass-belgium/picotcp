@@ -94,7 +94,7 @@ addr_802154_to_ietf(struct pico_802154 *addr)
 {
     int i = 0;
     int end = SIZE_802154(addr->mode) - 1;
-    for (i = 0; i < (SIZE_802154(addr->mode) >> 1); i++) {
+    for (i = 0; i < (int)((uint8_t)SIZE_802154(addr->mode) >> 1); i++) {
         pico_swap(&addr->addr.data[i], &addr->addr.data[end - i]);
     }
 }
@@ -166,25 +166,6 @@ addr_ipv6_mac_derived(struct pico_ip6 *ip, struct pico_device *dev)
     /* Compare the IID of the IPv6 addr with the IID that would be formed with
      * the link layer addresses of the device */
     return (memcmp(&ip->addr[8], buf, 8) == 0);
-}
-
-/* Derive an IPv6 IID from an IEEE802.15.4 address */
-static int
-addr_802154_to_iid(uint8_t *iid, struct pico_802154 addr)
-{
-    uint8_t buf[8] = {0x00,0x00,0x00,0xff,0xfe,0x00,0x00,0x00};
-
-    if (AM_802154_SHORT == addr.mode) {
-        *(uint16_t *)&buf[6] = addr.addr._short.addr;
-    } else if (AM_802154_EXT == addr.mode) {
-        memcpy(buf, addr.addr.data, SIZE_802154_EXT);
-        buf[0] = buf[0] ^ 0x02; // Toggle U/L bit
-    } else {
-        return -1;
-    }
-
-    memcpy(iid, buf, 8);
-    return 0;
 }
 
 /* Based on the source IPv6-address, this function derives the link layer source
@@ -287,7 +268,7 @@ frame_802154_src(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 src = { .addr.data = { 0 }, .mode = src_am(hdr) };
     uint16_t len = SIZE_802154(src.mode);
-    memcpy(src.addr.data, hdr->addresses + SIZE_802154(dst_am(hdr)), len);
+    memcpy(src.addr.data, (uint8_t *)hdr->addresses + SIZE_802154(dst_am(hdr)), len);
     addr_802154_to_ietf(&src);
     return src;
 }
@@ -299,7 +280,7 @@ frame_802154_dst(struct pico_802154_hdr *hdr)
 {
     struct pico_802154 dst = { .addr.data = { 0 }, .mode = dst_am(hdr) };
     uint16_t len = SIZE_802154(dst.mode);
-    memcpy(dst.addr.data, hdr->addresses, len);
+    memcpy(dst.addr.data, (uint8_t *)hdr->addresses, len);
     addr_802154_to_ietf(&dst);
     return dst;
 }
@@ -322,8 +303,9 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
     sam = short_be((uint16_t)(src.mode << 14));
 
     /* Fill in frame control field */
-    hdr->fcf |= (uint16_t)(FCF_TYPE_DATA | sec | FCF_NO_PENDING);
-    hdr->fcf |= (uint16_t)(ack | intra_pan | dam | FCF_VER_2003);
+    hdr->fcf |= (uint16_t)(FCF_TYPE_DATA | sec );
+    hdr->fcf |= (uint16_t)(FCF_NO_PENDING | ack);
+    hdr->fcf |= (uint16_t)(intra_pan | dam | FCF_VER_2003);
     hdr->fcf |= (uint16_t)(sam);
     hdr->fcf = short_be(hdr->fcf); // Convert to IEEE endianness
 
@@ -411,7 +393,7 @@ ll_mac_header_process_out(struct pico_frame *f, struct pico_802154 *src,
                           struct pico_802154 *dst)
 {
     int len = (int)(SIZE_802154_MHR_MIN + SIZE_802154(dst->mode) + SIZE_802154(src->mode));
-    uint8_t sec = (uint8_t)(f->flags & PICO_FRAME_FLAG_LL_SEC ? FCF_SEC : FCF_NO_SEC);
+    uint8_t sec = (uint8_t)((f->flags & PICO_FRAME_FLAG_LL_SEC) ? (FCF_SEC) : (FCF_NO_SEC));
     struct pico_802154_info *info = (struct pico_802154_info *)f->dev->eth;
     static uint8_t seq = 0;
 

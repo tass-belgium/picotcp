@@ -251,53 +251,6 @@ START_TEST(tc_ipv6_mac_derived)
 }
 END_TEST
 
-START_TEST(tc_802154_to_iid)
-{
-    int test = 1;
-    struct pico_802154 a = {
-        .addr.data = { 1,2,3,4,5,6,7,8 },
-        .mode = AM_802154_EXT
-    };
-    uint8_t iid[8];
-    uint8_t buf[] = {3,2,3,4,5,6,7,8};
-    uint8_t buf2[] = {0,0,0,0xff,0xfe,0,1,2};
-    int ret = 0;
-
-    STARTING();
-
-    // TEST 1
-    TRYING("Deriving an IID from an extended address\n");
-    ret = addr_802154_to_iid(iid, a);
-    dbg_addr_ext("After", iid);
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(buf, iid, SIZE_802154_EXT),
-                "Failed deriving the IID from an extended address\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == ret, "Should've returned 0\n");
-
-    // TEST 2
-    TRYING("Deriving an IID from a short address\n");
-    a.mode = AM_802154_SHORT;
-    ret = addr_802154_to_iid(iid, a);
-    dbg_addr_ext("After", iid);
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(buf2, iid, SIZE_802154_EXT),
-                "Failed deriving the IID from a short address\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == ret, "Should've return 0\n");
-
-    // TEST 3
-    TRYING("With wrong adressing mode\n");
-    a.mode = AM_802154_NONE;
-    ret = addr_802154_to_iid(iid, a);
-    dbg_addr_ext("After", iid);
-    CHECKING(test);
-    FAIL_UNLESS(ret, "Should've returned an error\n");
-
-    ENDING(test);
-}
-END_TEST
-
 START_TEST(tc_802154_ll_src)
 {
     int test = 1;
@@ -787,7 +740,6 @@ Suite *pico_suite(void)
     TCase *TCase_802154_dev = tcase_create("Unit test for 802154_to_ietf");
     TCase *TCase_iid_16_bit_derived = tcase_create("Unit test for iid_16_bit_derived");
     TCase *TCase_ipv6_mac_derived = tcase_create("Unit test for ipv6_mac_derived");
-    TCase *TCase_802154_to_iid = tcase_create("Unit test for 802154_to_iid");
     TCase *TCase_802154_ll_src = tcase_create("Unit test for 802154_ll_src");
     TCase *TCase_802154_ll_dst = tcase_create("Unit test for 802154_ll_dst");
     TCase *TCase_802154_hdr_len = tcase_create("Unit test for 802154_hdr_len");
@@ -814,8 +766,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_iid_16_bit_derived);
     tcase_add_test(TCase_ipv6_mac_derived, tc_ipv6_mac_derived);
     suite_add_tcase(s, TCase_ipv6_mac_derived);
-    tcase_add_test(TCase_802154_to_iid, tc_802154_to_iid);
-    suite_add_tcase(s, TCase_802154_to_iid);
     tcase_add_test(TCase_802154_ll_src, tc_802154_ll_src);
     suite_add_tcase(s, TCase_802154_ll_src);
     tcase_add_test(TCase_802154_ll_dst, tc_802154_ll_dst);
