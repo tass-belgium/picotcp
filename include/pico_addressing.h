@@ -25,6 +25,10 @@ union pico_address
     struct pico_ip6 ip6;
 };
 
+/******************************************************************************
+ *  Ethernet Address Definitions
+ ******************************************************************************/
+
 PACKED_STRUCT_DEF pico_eth
 {
     uint8_t addr[6];
@@ -32,12 +36,6 @@ PACKED_STRUCT_DEF pico_eth
 };
 
 extern const uint8_t PICO_ETHADDR_ALL[];
-
-enum pico_ll_mode
-{
-    LL_MODE_ETHERNET = 0,
-    LL_MODE_6LOWPAN,
-};
 
 /******************************************************************************
  *  IEE802.15.4 Address Definitions
@@ -88,6 +86,24 @@ struct pico_802154_info
 #define SIZE_802154_EXT     (8u)
 
 #define SIZE_802154(m) (((m) == 2) ? (2) : (((m) == 3) ? (8) : (0)))
+
+/******************************************************************************
+ *  Link Layer addresses
+ ******************************************************************************/
+
+#define IID_16(iid) (0 == (iid)[2] && 0xff == (iid)[3] && 0xfe == (iid)[4] && 0 == (iid)[5])
+
+enum pico_ll_mode
+{
+    LL_MODE_ETHERNET = 0,
+    LL_MODE_IEEE802154,
+};
+
+union pico_ll_addr
+{
+    struct pico_eth eth;
+    struct pico_802154 pan;
+};
 
 PACKED_STRUCT_DEF pico_trans
 {

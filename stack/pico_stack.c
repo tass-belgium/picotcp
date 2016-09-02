@@ -379,7 +379,7 @@ int pico_datalink_receive(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
-        if (LL_MODE_6LOWPAN == f->dev->mode) {
+        if (LL_MODE_IEEE802154 == f->dev->mode) {
             f->datalink_hdr = f->buffer + SIZE_802154_LEN;
             return pico_enqueue(pico_proto_802154.q_in, f);
         } else {
@@ -399,7 +399,7 @@ int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
-        if (LL_MODE_6LOWPAN == f->dev->mode) {
+        if (LL_MODE_IEEE802154 == f->dev->mode) {
             return pico_enqueue(pico_proto_802154.q_out, f);
         } else {
             return pico_enqueue(pico_proto_ethernet.q_out, f);

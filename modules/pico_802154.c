@@ -23,7 +23,7 @@
  * Constants
  ******************************************************************************/
 
-#define NUM_LL_EXTENSIONS 3
+#define NUM_LL_EXTENSIONS 2
 
 /* Frame type definitions */
 #define FCF_TYPE_BEACON       (short_be(0x0000u))
@@ -128,108 +128,64 @@ addr_802154_short_dev(struct pico_802154_info *info)
     return addr;
 }
 
-/* Get one of the two addresses made available by the device, chooses the short
- * address if that's available, if not the extended address is returned. */
-static struct pico_802154
-addr_802154_dev(struct pico_802154_info *info)
-{
-    uint16_t short16 = info->addr_short.addr;
-    if (ADDR_802154_BCAST != short16 && ADDR_802154_UNSPEC != short16) {
-        return addr_802154_short_dev(info);
-    } else {
-        return addr_802154_ext_dev(info);
-    }
-}
-
-/* Check whether or not an IID is derived from a 16-bit short address */
-static int
-addr_iid_16_bit_derived(uint8_t iid[8])
-{
-    return (0 == iid[2] && 0xFF == iid[3] && 0xFE == iid[4] && 0 == iid[5]);
-}
-
-/* Checks whether an IPv6 address is derived from the device's link layer
- * addresses. */
-static int
-addr_ipv6_mac_derived(struct pico_ip6 *ip, struct pico_device *dev)
-{
-    struct pico_802154_info *info = (struct pico_802154_info *)dev->eth;
-    uint8_t buf[8] = {0x00,0x00,0x00,0xff,0xfe,0x00,0x00,0x00};
-
-    if (addr_iid_16_bit_derived(&(ip->addr[8]))) {
-        *(uint16_t *)&buf[6] = info->addr_short.addr;
-    } else {
-        memcpy(buf, info->addr_ext.addr, SIZE_802154_EXT);
-        buf[0] = buf[0] ^ 0x02; // Toggle U/L bit
-    }
-
-    /* Compare the IID of the IPv6 addr with the IID that would be formed with
-     * the link layer addresses of the device */
-    return (memcmp(&ip->addr[8], buf, 8) == 0);
-}
-
 /* Based on the source IPv6-address, this function derives the link layer source
  * address */
 static struct pico_802154
 addr_802154_ll_src(struct pico_ip6 *src, struct pico_device *dev)
 {
-    if (addr_ipv6_mac_derived(src, dev)) {
-        if (addr_iid_16_bit_derived(&src->addr[8])) {
-            /* IPv6 source is derived from the device's short address, use that
-             * short address so decompressor can derive the IPv6 source from
-             * the encapsulating header */
-            return addr_802154_short_dev((struct pico_802154_info *)dev->eth);
-        } else {
-            /* IPv6 source is derived from the device's extended address, use
-             * the device's extended address so */
-            return addr_802154_ext_dev((struct pico_802154_info *)dev->eth);
-        }
+    if (IID_16(&src->addr[8])) {
+        /* IPv6 source is derived from the device's short address, use that
+         * short address so decompressor can derive the IPv6 source from
+         * the encapsulating header */
+        return addr_802154_short_dev((struct pico_802154_info *)dev->eth);
     } else {
-        /* Just choose one of the two link layer addresses, preferably the
-         * 16-bit short address if that's available */
-        return addr_802154_dev((struct pico_802154_info *)dev->eth);
+        /* IPv6 source is derived from the device's extended address, use
+         * the device's extended address so */
+        return addr_802154_ext_dev((struct pico_802154_info *)dev->eth);
     }
 }
 
 /* Based on the destination IPv6-address, this function derives the link layer
  * destination address */
 static struct pico_802154
-addr_802154_ll_dst(struct pico_ip6 *dst, struct pico_device *dev)
+addr_802154_ll_dst(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev)
 {
     struct pico_802154 addr = { .addr.data = { 0 }, .mode = 0 };
     addr.mode = AM_802154_NONE;
-    IGNORE_PARAMETER(dev);
 
-    if (pico_ipv6_is_multicast(dst->addr)) {
-        addr.addr._short.addr = short_be(ADDR_802154_BCAST);
-        addr.mode = AM_802154_SHORT;
-    }
-    /* If the address is link local derive the link layer address from the IID
-     * TODO: THIS IS FOR TESTING PURPOSES, HAS TO BE REMOVED WHEN LOWPAN_ND IS
-     * IMPLEMENTED */
-    else if (pico_ipv6_is_linklocal(dst->addr)) {
-        if (addr_iid_16_bit_derived(&dst->addr[8])) {
-            addr.addr.data[0] = dst->addr[14];
-            addr.addr.data[1] = dst->addr[15];
+    if (dst) {
+        if (pico_ipv6_is_multicast(dst->addr)) {
+            addr.addr._short.addr = short_be(ADDR_802154_BCAST);
             addr.mode = AM_802154_SHORT;
-        } else {
-            memcpy(addr.addr.data, &dst->addr[8], SIZE_802154_EXT);
-            addr.addr.data[0] = (uint8_t)(addr.addr.data[0] ^ 0x02);
-            addr.mode = AM_802154_EXT;
         }
-    }
-
+        /* If the address is link local derive the link layer address from the IID
+        * TODO: THIS IS FOR TESTING PURPOSES, HAS TO BE REMOVED WHEN LOWPAN_ND IS
+        * IMPLEMENTED */
+        else if (pico_ipv6_is_linklocal(dst->addr)) {
+            if (IID_16(&dst->addr[8])) {
+                addr.addr.data[0] = dst->addr[14];
+                addr.addr.data[1] = dst->addr[15];
+                addr.mode = AM_802154_SHORT;
+            } else {
+                memcpy(addr.addr.data, &dst->addr[8], SIZE_802154_EXT);
+                addr.addr.data[0] = (uint8_t)(addr.addr.data[0] ^ 0x02);
+                addr.mode = AM_802154_EXT;
+            }
+        }
 #ifdef LOWPAN_ND
-    else {
-        struct pico_802154 *n;
-        n = pico_ipv6_get_neighbor(dst, dev);
-        if (n) {
-            memcpy(addr.addr.data, n->addr.data, SIZE_802154(n->mode));
-            addr.mode = n->mode;
+        else {
+            struct pico_802154 *n;
+            n = pico_ipv6_get_neighbor(src, dst, dev);
+            if (n) {
+                memcpy(addr.addr.data, n->addr.data, SIZE_802154(n->mode));
+                addr.mode = n->mode;
+            }
         }
-    }
+#else
+        IGNORE_PARAMETER(dev);
+        IGNORE_PARAMETER(src);
 #endif
-
+    }
     return addr;
 }
 
@@ -377,19 +333,6 @@ ll_mesh_header_estimator(struct pico_frame *f, struct pico_802154 src, struct
     return (uint8_t)0;
 }
 
-/* XXX: Extensible function that estimates the size of the link layer securiry
- * header to be prepended based on the frame, the source and destination link
- * layer address */
-static uint8_t
-ll_sec_header_estimator(struct pico_frame *f, struct pico_802154 src, struct
-                        pico_802154 dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return (uint8_t)0;
-}
-
 /* Prepends the IEEE802.15.4 MAC header before the frame */
 static int
 ll_mac_header_process_out(struct pico_frame *f, struct pico_802154 *src,
@@ -416,18 +359,6 @@ ll_mac_header_process_out(struct pico_frame *f, struct pico_802154 *src,
 static int
 ll_mesh_header_process_out(struct pico_frame *f, struct pico_802154 *src,
                            struct pico_802154 *dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return 0;
-}
-
-/* XXX: Extensible processing function for outgoing frames. Here, the link layer
- * security header can be prepended before the frame. */
-static int
-ll_sec_header_process_out(struct pico_frame *f, struct pico_802154 *src,
-                          struct pico_802154 *dst)
 {
     IGNORE_PARAMETER(f);
     IGNORE_PARAMETER(src);
@@ -472,53 +403,77 @@ ll_mesh_header_process_in(struct pico_frame *f, struct pico_802154 *src,
     return 0;
 }
 
-/* XXX: Extensible processing function for outgoing frames. Here, the link layer
- * security header can be prepended before the frame. */
-static int
-ll_sec_header_process_in(struct pico_frame *f, struct pico_802154 *src,
-                          struct pico_802154 *dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return 0;
-}
-
 const extension_t exts[] = {
     {ll_mac_header_estimator, ll_mac_header_process_out, ll_mac_header_process_in},
     {ll_mesh_header_estimator, ll_mesh_header_process_out, ll_mesh_header_process_in},
-    {ll_sec_header_estimator, ll_sec_header_process_out, ll_sec_header_process_in}
 };
+
+/* Derive an IPv6 IID from an IEEE802.15.4 address */
+int
+addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr)
+{
+    uint8_t buf[8] = {0,0,0,0xff,0xfe,0,0,0};
+    struct pico_802154 pan = addr->pan;
+
+    if (AM_802154_SHORT == pan.mode) {
+        *(uint16_t *)&buf[6] = pan.addr._short.addr;
+    } else if (AM_802154_EXT == pan.mode) {
+        memcpy(buf, pan.addr.data, SIZE_802154_EXT);
+        buf[0] ^= (uint8_t)0x02;
+    } else {
+        return -1;
+    }
+
+    memcpy(iid, buf, 8);
+    return 0;
+}
+
+/* Determines the length of an IEEE802.15.4 address */
+int
+addr_802154_len(union pico_ll_addr *addr)
+{
+    return SIZE_802154(addr->pan.mode);
+}
+
+/* If 'dest' is not set, this function will get the link layer address for a
+ * certain source IPv6 address, if 'dest' is set it will get it for the a
+ * destination address */
+union pico_ll_addr
+addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev, int dest)
+{
+    union pico_ll_addr addr;
+    if (dest) {
+        addr.pan = addr_802154_ll_dst(src, dst, dev);
+    } else {
+        addr.pan = addr_802154_ll_src(src, dev);
+    }
+    return addr;
+}
 
 /* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
  * frame for later processing, or returns the amount of bytes available after
  * prepending the MAC header and additional headers */
 int
-pico_802154_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct
-                       pico_ip6 *dst)
+frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
-    int i = 0;
-    struct pico_802154 llsrc;
-    struct pico_802154 lldst;
     uint16_t frame_size, pl_available = MTU_802154_MAC;
+    int i = 0;
 
-    if (!f || !f->dev || !src || !dst)
+    if (!f || !f->dev)
         return -1;
     frame_size = (uint16_t)(f->net_len + f->transport_len + f->app_len + f->payload_len);
-    llsrc = addr_802154_ll_src(src, f->dev);
-    lldst = addr_802154_ll_dst(dst, f->dev);
 
     /* Call each of the estimator functions of the additional headers to
      * determine if the frame fits inside a single 802.15.4 frame, if it doesn't
      * at some point, return the available bytes */
     for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
-        pl_available = (uint16_t)(pl_available - exts[i].estimate(f, llsrc, lldst));
+        pl_available = (uint16_t)(pl_available - exts[i].estimate(f, src.pan, dst.pan));
         if (frame_size > pl_available)
             return pl_available;
     }
 
     /* Make sure these addresses are retrievable from the frame on processing */
-    frame_802154_store_addr(f, llsrc, lldst);
+    frame_802154_store_addr(f, src.pan, dst.pan);
 
     if (pico_enqueue(pico_proto_802154.q_out,f) > 0)
         return 0; // Frame enqueued for later processing

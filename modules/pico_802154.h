@@ -40,13 +40,12 @@ PACKED_STRUCT_DEF pico_802154_hdr
 };
 
 /******************************************************************************
- * Public
+ * Public functions
  ******************************************************************************/
 
-/* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
- * frame for later processing, or returns the amount of bytes available after
- * prepending the MAC header and additional headers */
-int
-pico_802154_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico_ip6 *dst);
+union pico_ll_addr addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev, int dest);
+int frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
+int addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr);
+int addr_802154_len(union pico_ll_addr *addr);
 
 #endif /* INCLUDE_PICO_802154 */

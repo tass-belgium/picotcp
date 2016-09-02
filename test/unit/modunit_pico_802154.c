@@ -123,134 +123,6 @@ START_TEST(tc_802154_to_ietf)
 }
 END_TEST
 
-START_TEST(tc_802154_dev)
-{
-    int test = 1;
-    struct pico_802154_info info = {
-       .addr_short.addr = short_be(0xfffe),
-        .addr_ext.addr = {1,2,3,4,5,6,7,8}
-    };
-    struct pico_802154 addr;
-    uint8_t buf[] = {1,2,3,4,5,6,7,8};
-
-    STARTING();
-
-    // TEST 1
-    TRYING("With unspecified address\n");
-    addr = addr_802154_dev(&info);
-    dbg_addr_ext("After", addr.addr.data);
-    CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
-                "Should've returned an extended address\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(addr.addr.data, buf, SIZE_802154_EXT),
-                "Should've copied the extended address\n");
-
-    // TEST 1
-    TRYING("With broadcast address \n");
-    info.addr_short.addr = short_be(0xFFFF);
-    addr = addr_802154_dev(&info);
-    dbg_addr_ext("After", addr.addr.data);
-    CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
-                "Should've returned an extended address\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(addr.addr.data, buf, SIZE_802154_EXT),
-                "Should've copied the extended address\n");
-
-    // TEST 3
-    TRYING("With valid short address\n");
-    info.addr_short.addr = short_be(0x1234);
-    addr = addr_802154_dev(&info);
-    dbg_addr_ext("After", addr.addr.data);
-    CHECKING(test);
-    FAIL_UNLESS(AM_802154_SHORT == addr.mode,
-                "Should've returned a short address\n");
-    CHECKING(test);
-    FAIL_UNLESS(short_be(0x1234) == addr.addr._short.addr,
-                "Should've copied the short address\n");
-
-    ENDING(test);
-}
-END_TEST
-
-START_TEST(tc_iid_is_16_bit_derived)
-{
-    int test = 1, ret = 0;
-    uint8_t buf[] = {0, 0, 0, 0xff, 0xfe, 0, 0, 0};
-
-    STARTING();
-
-    // TEST 1
-    TRYING("With correct format\n");
-    ret = addr_iid_16_bit_derived(buf);
-    CHECKING(test);
-    FAIL_UNLESS(ret, "Should've returned 'true'\n");
-
-    // TEST 2
-    TRYING("With wrong format\n");
-    buf[2] = 1;
-    ret = addr_iid_16_bit_derived(buf);
-    CHECKING(test);
-    FAIL_UNLESS(!ret, "Should've returned 'false'\n");
-
-    // TEST 3
-    TRYING("With another wrong format\n");
-    buf[2] = 0;
-    buf[3] = 0xfe;
-    ret = addr_iid_16_bit_derived(buf);
-    CHECKING(test);
-    FAIL_UNLESS(!ret, "Should've returned 'false'\n");
-
-    ENDING(test);
-}
-END_TEST
-
-START_TEST(tc_ipv6_mac_derived)
-{
-    int test = 1;
-    struct pico_ip6 ip = {
-        .addr = {0,0,0,0,0,0,0,0, 1,2,3,4,5,6,7,8}
-    };
-    struct pico_ip6 ip2 = {
-        .addr = {0,0,0,0,0,0,0,0, 0,0,0,0xff,0xfe,0,0x12,0x34}
-    };
-    struct pico_802154_info info = {
-        .addr_short.addr = short_be(0x1234),
-        .addr_ext.addr = {3,2,3,4,5,6,7,8}
-    };
-    struct pico_device dev;
-    int ret = 0;
-    dev.eth = &info;
-
-    STARTING();
-
-    // TEST 1
-    TRYING("With IPv6 address derived from extended address\n");
-    ret = addr_ipv6_mac_derived(&ip, &dev);
-    DBG("ret = %d\n", ret);
-    CHECKING(test);
-    FAIL_UNLESS(ret, "Should've returned 'true'\n");
-
-    // TEST 2
-    ip.addr[8] = 3;
-    TRYING("With U/L bit not set\n");
-    ret = addr_ipv6_mac_derived(&ip, &dev);
-    DBG("ret = %d\n", ret);
-    CHECKING(test);
-    FAIL_UNLESS(!ret, "Should've returned 'false'\n");
-
-    // TEST 3
-    TRYING("With IPv6 address derived from short 16-bit address\n");
-    ret = addr_ipv6_mac_derived(&ip2, &dev);
-    DBG("ret = %d\n", ret);
-    CHECKING(test);
-    FAIL_UNLESS(ret, "Should've returned 'true'\n");
-
-    ENDING(test);
-}
-END_TEST
-
 START_TEST(tc_802154_ll_src)
 {
     int test = 1;
@@ -271,27 +143,6 @@ START_TEST(tc_802154_ll_src)
     STARTING();
 
     dev.eth = &info;
-
-    // TEST 1
-    TRYING("with an IPv6 address that is not derived from the MAC addresses valid short address\n");
-    addr = addr_802154_ll_src(&ip, &dev);
-    CHECKING(test);
-    FAIL_UNLESS(AM_802154_SHORT == addr.mode,
-                "Should've returned device's short address \n");
-    CHECKING(test);
-    FAIL_UNLESS(short_be(0x1234) == addr.addr._short.addr,
-                "Should've copied device's short address\n");
-
-    // TEST 2
-    TRYING("With an IPv6 address not derived from MAC and UNSPECIFIED short address\n");
-    info.addr_short.addr = ADDR_802154_UNSPEC;
-    addr = addr_802154_ll_src(&ip, &dev);
-    CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
-                "Should've returned device's extended address\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(info.addr_ext.addr, addr.addr._ext.addr, SIZE_802154_EXT),
-                "Should've copied device's extended address\n");
 
     // TEST 3
     TRYING("With an IPv6 address that is derived from MAC short address\n");
@@ -333,7 +184,7 @@ START_TEST(tc_802154_ll_dst)
 
     // TEST 1
     TRYING("With a MCAST IPv6 address, should return 0xFFFF\n");
-    addr = addr_802154_ll_dst(&ip, NULL);
+    addr = addr_802154_ll_dst(NULL, &ip, NULL);
     CHECKING(test);
     FAIL_UNLESS(AM_802154_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
@@ -343,7 +194,7 @@ START_TEST(tc_802154_ll_dst)
 
     // TEST 2
     TRYING("With a link local IPv6 address derived from an extended L2 address\n");
-    addr = addr_802154_ll_dst(&local, NULL);
+    addr = addr_802154_ll_dst(NULL, &local, NULL);
     dbg_addr_ext("After:", addr.addr._ext.addr);
     CHECKING(test);
     FAIL_UNLESS(AM_802154_EXT == addr.mode,
@@ -354,7 +205,7 @@ START_TEST(tc_802154_ll_dst)
 
     // TEST 3
     TRYING("With a link local IPv6 address derived from a short L2 address\n");
-    addr = addr_802154_ll_dst(&local2, NULL);
+    addr = addr_802154_ll_dst(NULL, &local2, NULL);
     CHECKING(test);
     FAIL_UNLESS(AM_802154_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
@@ -583,19 +434,26 @@ START_TEST(tc_802154_store_addr)
 }
 END_TEST
 
-START_TEST(tc_802154_frame_push)
+START_TEST(tc_frame_802154_push)
 {
     int test = 1;
-    struct pico_ip6 src;
-    struct pico_ip6 dst;
-    pico_string_to_ipv6("fe80:0:0:0:0102:0304:0506:0708", src.addr);
-    pico_string_to_ipv6("fe80:0:0:0:0:0ff:fe00:1234", dst.addr);
+
+    struct pico_802154 llsrc = {
+        .addr.data = {3,2,3,4,5,6,7,8},
+        .mode = AM_802154_EXT
+    };
+    struct pico_802154 lldst = {
+        .addr.data = {0x12,0x34,0,0,0,0,0,0},
+        .mode = AM_802154_SHORT
+    };
     struct pico_802154_info info = {
         .addr_short.addr = short_be(0x1234),
         .addr_ext.addr = {3,2,3,4,5,6,7,8}
     };
     struct pico_device dev;
     struct pico_frame *f = pico_frame_alloc(40);
+    union pico_ll_addr src = { .pan = llsrc };
+    union pico_ll_addr dst = { .pan = lldst };
     int ret = 0;
     dev.eth = &info;
 
@@ -609,7 +467,7 @@ START_TEST(tc_802154_frame_push)
 
     // TEST 1
     TRYING("Trying to push a too big frame\n");
-    ret = pico_802154_frame_push(f, &src, &dst);
+    ret = frame_802154_push(f, src, dst);
     CHECKING(test);
     FAIL_UNLESS(ret != -1,
                 "Should not return an error unless memory is full\n");
@@ -622,7 +480,7 @@ START_TEST(tc_802154_frame_push)
     f->net_len = 40;
     f->transport_len = 30;
     f->app_len = 40;
-    ret = pico_802154_frame_push(f, &src, &dst);
+    ret = frame_802154_push(f, src, dst);
     CHECKING(test);
     FAIL_UNLESS(0 == ret,
                 "Should not return an error\n");
@@ -630,15 +488,7 @@ START_TEST(tc_802154_frame_push)
     // TEST 3
     TRYING("Trying with wrong parameters\n");
     f->dev = NULL;
-    ret = pico_802154_frame_push(f, &src, &dst);
-    CHECKING(test);
-    FAIL_UNLESS(-1 == ret,
-                "Should've returned an error\n");
-
-    // TEST 4
-    TRYING("Trying with other wrong parameters\n");
-    f->dev = &dev;
-    ret = pico_802154_frame_push(f, NULL, NULL);
+    ret = frame_802154_push(f, src, dst);
     CHECKING(test);
     FAIL_UNLESS(-1 == ret,
                 "Should've returned an error\n");
@@ -737,9 +587,6 @@ Suite *pico_suite(void)
 
     TCase *TCase_swap = tcase_create("Unit test for pico_swap");
     TCase *TCase_802154_to_ietf = tcase_create("Unit test for 802154_to_ietf");
-    TCase *TCase_802154_dev = tcase_create("Unit test for 802154_to_ietf");
-    TCase *TCase_iid_16_bit_derived = tcase_create("Unit test for iid_16_bit_derived");
-    TCase *TCase_ipv6_mac_derived = tcase_create("Unit test for ipv6_mac_derived");
     TCase *TCase_802154_ll_src = tcase_create("Unit test for 802154_ll_src");
     TCase *TCase_802154_ll_dst = tcase_create("Unit test for 802154_ll_dst");
     TCase *TCase_802154_hdr_len = tcase_create("Unit test for 802154_hdr_len");
@@ -748,7 +595,7 @@ Suite *pico_suite(void)
     TCase *TCase_802154_src = tcase_create("Unit test for 802154_src");
     TCase *TCase_802154_dst = tcase_create("Unit test for 802154_dst");
     TCase *TCase_802154_format = tcase_create("Unit test for 802154_format");
-    TCase *TCase_802154_frame_push = tcase_create("Unit test for 802154_frame_push");
+    TCase *TCase_frame_802154_push = tcase_create("Unit test for frame_802154_push");
     TCase *TCase_802154_store_addr = tcase_create("Unit test for 802154_store_addr");
     TCase *TCase_802154_process_out = tcase_create("Unit test for 802154_process_out");
     TCase *TCase_802154_process_in = tcase_create("Unit test for 802154_process_in");
@@ -760,12 +607,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_swap);
     tcase_add_test(TCase_802154_to_ietf, tc_802154_to_ietf);
     suite_add_tcase(s, TCase_802154_to_ietf);
-    tcase_add_test(TCase_802154_dev, tc_802154_dev);
-    suite_add_tcase(s, TCase_802154_dev);
-    tcase_add_test(TCase_iid_16_bit_derived, tc_iid_is_16_bit_derived);
-    suite_add_tcase(s, TCase_iid_16_bit_derived);
-    tcase_add_test(TCase_ipv6_mac_derived, tc_ipv6_mac_derived);
-    suite_add_tcase(s, TCase_ipv6_mac_derived);
     tcase_add_test(TCase_802154_ll_src, tc_802154_ll_src);
     suite_add_tcase(s, TCase_802154_ll_src);
     tcase_add_test(TCase_802154_ll_dst, tc_802154_ll_dst);
@@ -786,8 +627,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_802154_dst);
     tcase_add_test(TCase_802154_format, tc_802154_format);
     suite_add_tcase(s, TCase_802154_format);
-    tcase_add_test(TCase_802154_frame_push, tc_802154_frame_push);
-    suite_add_tcase(s, TCase_802154_frame_push);
+    tcase_add_test(TCase_frame_802154_push, tc_frame_802154_push);
+    suite_add_tcase(s, TCase_frame_802154_push);
     tcase_add_test(TCase_802154_store_addr, tc_802154_store_addr);
     suite_add_tcase(s, TCase_802154_store_addr);
     tcase_add_test(TCase_802154_process_out, tc_802154_process_out);

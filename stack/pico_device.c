@@ -64,7 +64,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     struct pico_802154_info *ieee = NULL;
 #endif
 
-    if (LL_MODE_6LOWPAN == dev->mode) {
+    if (LL_MODE_IEEE802154 == dev->mode) {
 #ifdef PICO_SUPPORT_6LOWPAN
         memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
         memcpy(newaddr.addr + 8, ieee->addr_ext.addr, SIZE_802154(AM_802154_EXT));
@@ -203,7 +203,7 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
-        if (LL_MODE_6LOWPAN != dev->mode) {
+        if (LL_MODE_IEEE802154 != dev->mode) {
             ret = device_init_nomac(dev);
         } else {
             /* RFC6775: Link Local to be formed based on EUI-64 as per RFC6775 */
