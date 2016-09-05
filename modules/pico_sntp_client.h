@@ -17,6 +17,7 @@ struct pico_timeval
 };
 
 int pico_sntp_sync(const char *sntp_server, void (*cb_synced)(pico_err_t status));
+int pico_sntp_sync_ip(union pico_address *sntp_addr, void (*cb_synced)(pico_err_t status));
 int pico_sntp_gettimeofday(struct pico_timeval *tv);
 
 #endif /* _INCLUDE_PICO_SNTP_CLIENT */
