@@ -165,6 +165,7 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
 
     /* if node already in, bail out */
     if(LocalKey) {
+        pico_err = PICO_ERR_EEXIST;
         return LocalKey;
     }
 
