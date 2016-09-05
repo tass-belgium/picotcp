@@ -382,13 +382,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
-    uint16_t flag;
 
     if (!hdr)
         return -1;
 
     (void)self;
-    flag = short_be(hdr->frag);
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
@@ -398,6 +396,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
     f->transport_len = (uint16_t)(short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len);
     f->net_len = (uint16_t)(PICO_SIZE_IP4HDR + option_len);
+    f->frag = short_be(hdr->frag);
 
     if (f->transport_len > max_allowed) {
         pico_frame_discard(f);
@@ -424,7 +423,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (hdr->frag & short_be(PICO_IPV4_EVIL)) {
+    if (f->frag & PICO_IPV4_EVIL) {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
@@ -437,10 +436,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
+    if (f->frag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPV4FRAG
-        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
+        pico_ipv4_process_frag(hdr, f, hdr->proto);
         /* Frame can be discarded, frag will handle its own copy */
 #endif
         /* We do not support fragmentation, discard quietly */
@@ -476,7 +475,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
     }
 
 #endif
-    return pico_sendto_dev(f);
+    return pico_datalink_send(f);
 }
 
 
@@ -561,6 +560,10 @@ static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
 {
     struct pico_ipv4_route *r;
     struct pico_tree_node *index;
+
+    if (addr->addr == PICO_IP4_ANY) {
+        return NULL;
+    }
 
     if (addr->addr != PICO_IP4_BCAST) {
         pico_tree_foreach_reverse(index, &Routes) {
@@ -961,7 +964,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (!f || !dst) {
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        goto drop;
     }
 
 
@@ -1080,7 +1083,9 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         if ((proto != PICO_PROTO_IGMP) && (pico_ipv4_mcast_filter(f) == 0)) {
             ip_mcast_dbg("MCAST: sender is member of group, loopback copy\n");
             cpy = pico_frame_copy(f);
-            pico_enqueue(&in, cpy);
+            retval = pico_enqueue(&in, cpy);
+            if (retval <= 0)
+                pico_frame_discard(cpy);
         }
     }
 
@@ -1476,7 +1481,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
             total_payload_written = (uint16_t)((uint16_t)fr->transport_len + total_payload_written);
         } else {
-            pico_frame_discard(fr);
+            /* No need to discard frame here, pico_ipv4_frame_push() already did that */
             break;
         }
     } /* while() */
@@ -1590,7 +1595,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
     if (pico_ipv4_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
+    pico_datalink_send(f);
     return 0;
 
 }

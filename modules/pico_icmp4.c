@@ -110,6 +110,11 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
     struct pico_ipv4_hdr *info;
     uint16_t f_tot_len;
 
+    if (f == NULL) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
     f_tot_len = short_be(((struct pico_ipv4_hdr *)f->net_hdr)->len);
 
     if (f_tot_len < (sizeof(struct pico_ipv4_hdr)))
@@ -118,11 +123,6 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
     /* Truncate tot len to be at most 8 bytes + iphdr */
     if (f_tot_len > (sizeof(struct pico_ipv4_hdr) + 8u)) {
         f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u);
-    }
-
-    if (f == NULL) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
     }
 
     reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));

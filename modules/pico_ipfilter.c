@@ -448,7 +448,7 @@ int ipfilter(struct pico_frame *f)
     }
     else if(ipv4_hdr->proto == PICO_PROTO_ICMP4) {
         icmp_hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
-        if(icmp_hdr->type == PICO_ICMP_UNREACH && icmp_hdr->type == PICO_ICMP_UNREACH_FILTER_PROHIB)
+        if(icmp_hdr->type == PICO_ICMP_UNREACH && icmp_hdr->code == PICO_ICMP_UNREACH_FILTER_PROHIB)
             return 0;
     }
 
