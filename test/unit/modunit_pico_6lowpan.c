@@ -26,26 +26,30 @@
             } while (0)
 #define RESULTS()                                                              \
             do {                                                               \
-                printf("\n> RESULTS:\n");                                       \
+                printf("\n> RESULTS:\n");                                      \
             } while (0)
 #define FAIL_UNLESS(cond, i, s, ...)                                           \
             do { \
-            printf("TEST %2d: "s"... ", (i)++, ##__VA_ARGS__);                 \
+            char str[80] = { 0 };                                             \
+            snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
+            printf(str);                                                       \
             if (cond) {                                                        \
-                printf(" SUCCESS\n");                                          \
+                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
             } else {                                                           \
-                printf(" FAILED\n");                                           \
+                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
             }                                                                  \
             fflush(stdout);                                                    \
             fail_unless((cond), s, ##__VA_ARGS__);                             \
             }while(0)
 #define FAIL_IF(cond, i, s, ...)                                               \
             do { \
-            printf("TEST %2d: "s"... ", (i)++, ##__VA_ARGS__);                 \
-            if (!cond) {                                                       \
-                printf(" SUCCESS\n");                                          \
+            char str[80] = { 0 };                                             \
+            snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
+            printf(str);                                                       \
+            if (!cond) {                                                        \
+                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
             } else {                                                           \
-                printf(" FAILED\n");                                           \
+                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
             }                                                                  \
             fflush(stdout);                                                    \
             fail_if((cond), s, ##__VA_ARGS__);                                 \
@@ -64,9 +68,9 @@ dbg_buffer(uint8_t *buf, size_t len)
     printf("Buffer:");
     for (i = 0; i < len; i++) {
         if (i % 8 != 0)
-            printf("%02x ", buf[i]);
+            printf("0x%02x, ", buf[i]);
         else {
-            printf("\n%02x ", buf[i]);
+            printf("\n0x%02x, ", buf[i]);
         }
     }
     printf("\n");
@@ -209,44 +213,44 @@ START_TEST(tc_compressor_vtf)
     STARTING();
 
     TRYING("With ECN set. No matter DSCP, should elide flow label and reformat tc\n");
-    ret = compressor_vtf(ori_fl, comp, iphc);
+    ret = compressor_vtf(ori_fl, comp, iphc, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(comp, 4);
     RESULTS();
-    FAIL_UNLESS(iphc[0] == TF_ELIDED_FL, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
+    FAIL_UNLESS((iphc[0] & TF_ELIDED) == TF_ELIDED_FL, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
     FAIL_UNLESS(1 == ret, test, "Should've returned size of 1, ret = %d", ret);
     FAIL_UNLESS(0 == memcmp(comp_fl, comp, (size_t)ret), test, "inline formatting not correct");
     memset(comp, 0, 4);
     memset(iphc, 0, 3);
 
     TRYING("With DSCP set. No matter ECN, should elide flow label and reformat tc\n");
-    ret = compressor_vtf(ori_dscp, comp, iphc);
+    ret = compressor_vtf(ori_dscp, comp, iphc, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(comp, 4);
     RESULTS();
-    FAIL_UNLESS(iphc[0] == TF_ELIDED_FL, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
+    FAIL_UNLESS((iphc[0] & TF_ELIDED) == TF_ELIDED_FL, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
     FAIL_UNLESS(1 == ret, test, "Should've returned size of 1, ret = %d", ret);
     FAIL_UNLESS(0 == memcmp(comp_dscp, comp, (size_t)ret), test, "inline formatting not correct");
     memset(comp, 0, 4);
     memset(iphc, 0, 3);
 
     TRYING("With FL set. If DSCP is not set, can be compressed to 3 bytes\n");
-    ret = compressor_vtf(ori_notc, comp, iphc);
+    ret = compressor_vtf(ori_notc, comp, iphc, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(comp, 4);
     RESULTS();
-    FAIL_UNLESS(iphc[0] == TF_ELIDED_DSCP, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
+    FAIL_UNLESS((iphc[0] & TF_ELIDED) == TF_ELIDED_DSCP, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
     FAIL_UNLESS(3 == ret, test, "Should've returned size of 3, ret = %d", ret);
     FAIL_UNLESS(0 == memcmp(comp_notc, comp, (size_t)ret), test, "inline formatting not correct");
     memset(comp, 0, 4);
     memset(iphc, 0, 3);
 
     TRYING("With evt. set. Should elide nothing and reformat traffic class\n");
-    ret = compressor_vtf(ori_inline, comp, iphc);
+    ret = compressor_vtf(ori_inline, comp, iphc, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(comp, 4);
     RESULTS();
-    FAIL_UNLESS(iphc[0] == TF_INLINE, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
+    FAIL_UNLESS((iphc[0] & TF_ELIDED) == TF_INLINE, test, "Should've set the IPHC-bits correctly, %02X", iphc[0]);
     FAIL_UNLESS(4 == ret, test, "Should've returned size of 4, ret = %d", ret);
     FAIL_UNLESS(0 == memcmp(comp_inline, comp, (size_t)ret), test, "inline formatting not correct");
     memset(comp, 0, 4);
@@ -276,7 +280,7 @@ START_TEST(tc_decompressor_vtf)
     STARTING();
 
     TRYING("With flow label compressed\n");
-    ret = decompressor_vtf(ori, comp_fl, iphc_fl);
+    ret = decompressor_vtf(ori, comp_fl, iphc_fl, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(ori, 4);
     RESULTS();
@@ -285,7 +289,7 @@ START_TEST(tc_decompressor_vtf)
     memset(ori, 0, 4);
 
     TRYING("With flow label compression but with IPHC inline\n");
-    ret = decompressor_vtf(ori, comp_dscp, iphc_dscp);
+    ret = decompressor_vtf(ori, comp_dscp, iphc_dscp, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(ori, 4);
     RESULTS();
@@ -294,7 +298,7 @@ START_TEST(tc_decompressor_vtf)
     memset(ori, 0, 4);
 
     TRYING("With flow label inline and DSCP compressed\n");
-    ret = decompressor_vtf(ori, comp_notc, iphc_notc);
+    ret = decompressor_vtf(ori, comp_notc, iphc_notc, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(ori, 4);
     RESULTS();
@@ -303,7 +307,7 @@ START_TEST(tc_decompressor_vtf)
     memset(ori, 0, 4);
 
     TRYING("With evt. inline\n");
-    ret = decompressor_vtf(ori, comp_inline, iphc_inline);
+    ret = decompressor_vtf(ori, comp_inline, iphc_inline, NULL, NULL, NULL);
     OUTPUT();
     dbg_buffer(ori, 4);
     RESULTS();
@@ -326,7 +330,7 @@ START_TEST(tc_compressor_nh)
     STARTING();
 
     TRYING("With next header = UDP\n");
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -336,7 +340,7 @@ START_TEST(tc_compressor_nh)
 
     TRYING("With next header = EXT_HOPBYHOP\n");
     nxthdr = PICO_IPV6_EXTHDR_HOPBYHOP;
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -346,7 +350,7 @@ START_TEST(tc_compressor_nh)
 
     TRYING("With next header = EXT_ROUTING\n");
     nxthdr = PICO_IPV6_EXTHDR_ROUTING;
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -356,7 +360,7 @@ START_TEST(tc_compressor_nh)
 
     TRYING("With next header = EXT_FRAG\n");
     nxthdr = PICO_IPV6_EXTHDR_FRAG;
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -366,7 +370,7 @@ START_TEST(tc_compressor_nh)
 
     TRYING("With next header = EXT_DSTOPT\n");
     nxthdr = PICO_IPV6_EXTHDR_DESTOPT;
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -376,7 +380,7 @@ START_TEST(tc_compressor_nh)
 
     TRYING("With next header = TCP\n");
     nxthdr = PICO_PROTO_TCP;
-    ret = compressor_nh(&nxthdr, &comp, &iphc);
+    ret = compressor_nh(&nxthdr, &comp, &iphc, NULL, NULL, NULL);
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
@@ -397,17 +401,15 @@ START_TEST(tc_decompressor_nh)
 
     STARTING();
 
-    compressor_dummy(NULL, NULL, NULL);
-
     TRYING("With NH bit set\n");
-    ret = decompressor_nh(&ori, NULL, &iphc);
+    ret = decompressor_nh(&ori, NULL, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(NH_COMPRESSED == ori, test, "Should've filled ori with NH_COMPRESSED");
 
     TRYING("With NH bit cleared\n");
     iphc = 0;
-    ret = decompressor_nh(&ori, NULL, &iphc);
+    ret = decompressor_nh(&ori, NULL, &iphc, NULL, NULL, NULL);
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(0 == ori, test, "Should've filled ori with 0");
 
@@ -426,28 +428,28 @@ START_TEST(tc_compressor_hl)
     STARTING();
 
     TRYING("With HL set to 1\n");
-    ret = compressor_hl(&ori, &comp, &iphc);
+    ret = compressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(HL_COMPRESSED_1 == iphc, test, "Should've set IPHC bits correctly");
 
     TRYING("With HL set to 64\n");
     ori = 64;
-    ret = compressor_hl(&ori, &comp, &iphc);
+    ret = compressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(HL_COMPRESSED_64 == iphc, test, "Should've set IPHC bits correctly");
 
     TRYING("With HL set to 255\n");
     ori = 255;
-    ret = compressor_hl(&ori, &comp, &iphc);
+    ret = compressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(HL_COMPRESSED_255 == iphc, test, "Should've set IPHC bits correctly");
 
     TRYING("With random HL\n");
     ori = 153;
-    ret = compressor_hl(&ori, &comp, &iphc);
+    ret = compressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(1 == ret, test, "Should've returned 1, ret = %d",ret);
     FAIL_UNLESS(0 == iphc, test, "Should've set IPHC bits correctly");
@@ -467,21 +469,21 @@ START_TEST(tc_decompressor_hl)
     STARTING();
 
     TRYING("HL 1 compressed\n");
-    ret = decompressor_hl(&ori, &comp, &iphc);
+    ret = decompressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d",ret );
     FAIL_UNLESS(1 == ori, test, "Should filled in correct hop limit");
 
     TRYING("HL 64 compressed\n");
     iphc = HL_COMPRESSED_64;
-    ret = decompressor_hl(&ori, &comp, &iphc);
+    ret = decompressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d",ret );
     FAIL_UNLESS(64 == ori, test, "Should filled in correct hop limit");
 
     TRYING("HL 255 compressed\n");
     iphc = HL_COMPRESSED_255;
-    ret = decompressor_hl(&ori, &comp, &iphc);
+    ret = decompressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d",ret );
     FAIL_UNLESS(255 == ori, test, "Should filled in correct hop limit");
@@ -489,7 +491,7 @@ START_TEST(tc_decompressor_hl)
     TRYING("HL not compressed\n");
     iphc = 0;
     comp = 125;
-    ret = decompressor_hl(&ori, &comp, &iphc);
+    ret = decompressor_hl(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(1 == ret, test, "Should've returned 0, ret = %d",ret );
     FAIL_UNLESS(125 == ori, test, "Should filled in correct hop limit");
@@ -516,7 +518,7 @@ START_TEST(tc_addr_comp_mode)
     STARTING();
 
     TRYING("With MAC derived address\n");
-    ret = addr_comp_mode(iphc, local2, addr, &dev, SRC_SHIFT);
+    ret = addr_comp_mode(iphc, &local2, addr, &dev, SRC_SHIFT);
     OUTPUT();
     dbg_buffer(iphc, 3);
     RESULTS();
@@ -526,20 +528,20 @@ START_TEST(tc_addr_comp_mode)
 
     TRYING("With wrong device link layer mode\n");
     dev.mode = LL_MODE_ETHERNET;
-    ret = addr_comp_mode(iphc, local2, addr, &dev, SRC_SHIFT);
+    ret = addr_comp_mode(iphc, &local2, addr, &dev, SRC_SHIFT);
     RESULTS();
     FAIL_UNLESS(-1 == ret, test, "Shoudl've returned error (-1), ret = %d", ret);
     memset(iphc, 0, 3);
 
     TRYING("With non MAC derived extended address\n");
     dev.mode = LL_MODE_IEEE802154;
-    ret = addr_comp_mode(iphc, local, addr, &dev, SRC_SHIFT);
+    ret = addr_comp_mode(iphc, &local, addr, &dev, SRC_SHIFT);
     FAIL_UNLESS(8 == ret, test, "Should've return 8, ret = %d", ret);
     FAIL_UNLESS(SRC_COMPRESSED_64 == iphc[1], test, "Should've set the IPHC bits correctly, iphc = %02X", iphc[1]);
     memset(iphc, 0, 3);
 
     TRYING("With non MAC derived short address\n");
-    ret = addr_comp_mode(iphc, local3, addr, &dev, SRC_SHIFT);
+    ret = addr_comp_mode(iphc, &local3, addr, &dev, SRC_SHIFT);
     FAIL_UNLESS(2 == ret, test, "should've returned 2, ret = %d", ret);
     FAIL_UNLESS(SRC_COMPRESSED_16 == iphc[1], test, "Should've set the IPHC bits correctly, iphc = %02X", iphc[1]);
 
@@ -547,7 +549,7 @@ START_TEST(tc_addr_comp_mode)
 }
 END_TEST
 
-START_TEST(tc_addr_comp_state)
+START_TEST(tc_addr_comp_prefix)
 {
     int test = 1, ret = 0;
     uint8_t iphc[3] = { 0 };
@@ -563,21 +565,21 @@ START_TEST(tc_addr_comp_state)
     pico_stack_init();
 
     TRYING("With MCAST address\n");
-    ret = addr_comp_state(iphc, ip, 1);
+    ret = addr_comp_prefix(iphc, &ip, 1);
     RESULTS();
     FAIL_UNLESS(COMP_MULTICAST == ret, test, "Should've returned COMP_MULTICAST, ret = %d", ret);
     FAIL_UNLESS(!iphc[1], test, "Shouldn't have set any IPHC bytes, iphc = %02X", iphc[1]);
     memset(iphc, 0, 3);
 
     TRYING("With link local destination address\n");
-    ret = addr_comp_state(iphc, local, 0);
+    ret = addr_comp_prefix(iphc, &local, 0);
     RESULTS();
     FAIL_UNLESS(COMP_LINKLOCAL == ret, test, "Should've returned COMP_LINKLOCAL, ret = %d", ret);
     FAIL_UNLESS(!iphc[1], test, "Shouldn't have set any IPHC bytes, iphc = %02X", iphc[1]);
     memset(iphc, 0, 3);
 
     TRYING("With a unicast address where there's no context available for\n");
-    ret = addr_comp_state(iphc, local3, 0);
+    ret = addr_comp_prefix(iphc, &local3, 0);
     RESULTS();
     FAIL_UNLESS(COMP_STATELESS == ret, test, "Should've return COMP_STATELESS, ret = %d", ret);
     FAIL_UNLESS(!iphc[1], test, "Shouldn't have set any IPHC bytes, iphc = %02X", iphc[1]);
@@ -585,7 +587,7 @@ START_TEST(tc_addr_comp_state)
 
     TRYING("With a unicast address where there's context available for\n");
     ctx_insert(local3, 13, 64);
-    ret = addr_comp_state(iphc, local3, 0);
+    ret = addr_comp_prefix(iphc, &local3, 0);
     FAIL_UNLESS(13 == ret, test, "Should've returned CTX ID of 13, ret = %d", ret);
     FAIL_UNLESS(iphc[1] & DST_STATEFUL, test, "Should've set DAC correctly, iphc = %02X", iphc[1]);
     FAIL_UNLESS(iphc[1] & CTX_EXTENSION, test, "Should've set CTX extension bit correctly, iphc = %02X", iphc[1]);
@@ -597,11 +599,98 @@ END_TEST
 START_TEST(tc_compressor_src)
 {
     int test = 1;
+    struct pico_ip6 unspec = {{ 0 }};
+    struct pico_ip6 mcast = {{0xff}};
+    struct pico_ip6 ll_mac = {{0xfe,0x80,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+    struct pico_ip6 ll_nmac_16 = {{0xfe,0x80,0,0,0,0,0,0  ,0,0,0,0xff,0xfe,0,0x12,0x34}};
+    struct pico_ip6 ll_nmac_64 = {{0xfe,0x80,0,0,0,0,0,0 ,8,7,6,5,4,3,2,1}};
+    struct pico_ip6 ip_ctx = {{0x2a,0xaa,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+    struct pico_ip6 ip_stateless = {{0x2a,0xbb,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    struct pico_device dev;
+    int ret = 0;
 
+    uint8_t iphc[3] = { 0, 0, 0 };
+    uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
     STARTING();
 
+    TRYING("With unspecified source address, should: set SAC, clear SAM\n");
+    ret = compressor_src(unspec.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(16 == ret, test, "Shouldn't elide unspecified address, ret = %d", ret);
+    FAIL_UNLESS(iphc[1] & SRC_STATEFUL, test, "Should've set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == 0, test, "Should've cleared SAM");
 
+    TRYING("With multicast source address, should indicate failure\n");
+    ret = compressor_src(mcast.addr, buf, iphc, &mac, NULL, &dev);
+    RESULTS();
+    FAIL_UNLESS(-1 == ret, test, "Should've indicated error");
+
+    TRYING("With invalid device, should indicate error\n");
+    ret = compressor_src(ll_mac.addr, buf, iphc, &mac, NULL, &dev);
+    RESULTS();
+    FAIL_UNLESS(-1 == ret, test, "Should've indicated error, invalid device, ret = %d",ret);
+
+    TRYING("With mac derived address, should elide fully\n");
+    dev.mode = LL_MODE_IEEE802154;
+    ret = compressor_src(ll_mac.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc,3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(0 == ret, test, "Should've returned compressed size of 0, ret = %d", ret);
+    FAIL_UNLESS(!(iphc[1] & SRC_STATEFUL), test, "Shoudln't have set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == SRC_COMPRESSED, test, "Should set SAM to '11', iphc = %02X", iphc[1]);
+
+    TRYING("With non mac derived 16-bit derivable address\n");
+    ret = compressor_src(ll_nmac_16.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc,3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(2 == ret, test, "Should've returned compressed size of 2, ret = %d", ret);
+    FAIL_UNLESS(!(iphc[1] & SRC_STATEFUL), test, "Shouldn't have set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == SRC_COMPRESSED_16, test, "Should've set SAM to '10', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(0 == memcmp(buf, ll_nmac_16.addr + 14, 2), test, "Should've copied 16 bit of source address inline");
+
+    TRYING("With non mac derived 64-bit derivable address\n");
+    ret = compressor_src(ll_nmac_64.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc,3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(8 == ret, test, "Should've returned compressed size of 8, ret = %d", ret);
+    FAIL_UNLESS(!(iphc[1] & SRC_STATEFUL), test, "Shoudln't have set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == SRC_COMPRESSED_64, test, "Should've set SAM to '01', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(0 == memcmp(buf, ll_nmac_64.addr + 8, 8), test, "Should've copied IID of source address inline");
+
+    TRYING("With context derived address\n");
+    pico_stack_init();
+    ctx_insert(ip_ctx, 13, 64);
+    ret = compressor_src(ip_ctx.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(0 == ret, test, "Should've returned compressed size of 0, ret = %d", ret);
+    FAIL_UNLESS((iphc[1] & SRC_STATEFUL), test, "Shoudl've set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == SRC_COMPRESSED, test, "Shoudl've set SAM to '11', iphc = %02X", iphc[1]);
+    FAIL_UNLESS((iphc[2] >> SRC_SHIFT) == 13, test, "Should've filled in the context extension correctly, ctx = %02X", iphc[2]);
+
+    TRYING("With stateless compression\n");
+    ret = compressor_src(ip_stateless.addr, buf, iphc, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(PICO_SIZE_IP6 == ret, test, "Should've returned compressed size of 16, ret = %d",ret);
+    FAIL_UNLESS((iphc[1] & SRC_STATEFUL) == 0, test, "Shoudln't have set SAC");
+    FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == 0, test, "Should've set SAM to '00', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(0 == memcmp(buf, ip_stateless.addr, PICO_SIZE_IP6), test, "Should've copied the source address inline");
 
     ENDING(test);
 }
@@ -610,11 +699,101 @@ END_TEST
 START_TEST(tc_decompressor_src)
 {
     int test = 1;
+    int ret = 0;
 
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    struct pico_device dev;
+    dev.mode = LL_MODE_IEEE802154;
+
+    /* Stateless compression */
+    uint8_t iphc1[] = {0x00, 0x00, 0x00};
+    uint8_t buf1[] = {0x2a, 0xbb, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+    struct pico_ip6 ip1 = {{0x2a,0xbb,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+
+    /* With context */
+    uint8_t iphc2[] = {0x00, 0xf0, 0xd0};
+    uint8_t buf2[] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    struct pico_ip6 ip2 = {{0x2a,0xaa,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+
+    /* Link-local non-mac 64-bit derivable address */
+    uint8_t iphc4[] = {0x00, 0x10, 0x00};
+    uint8_t buf4[] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    struct pico_ip6 ip4 = {{0xfe,0x80,0,0,0,0,0,0 ,8,7,6,5,4,3,2,1}};
+
+    /* Link-local non-mac 16-bit derivable address */
+    uint8_t iphc3[] = {0x00, 0x20, 0x00};
+    uint8_t buf3[] = {0x12, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    struct pico_ip6 ip3 = {{0xfe,0x80,0,0,0,0,0,0  ,0,0,0,0xff,0xfe,0,0x12,0x34}};
+
+    /* Link-local mac derivable address */
+    uint8_t iphc5[] = {0x00, 0x30, 0x00};
+    uint8_t buf5[] = {0};
+    struct pico_ip6 ip5 = {{0xfe,0x80,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
+
+    /* Context non-mac 16-bit derivable address */
+    uint8_t iphc6[] = {0x00, 0xE0, 0xd0};
+    uint8_t buf6[] = {0x12, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    struct pico_ip6 ip6 = {{0x2a,0xaa,0,0,0,0,0,0  ,0,0,0,0xff,0xfe,0,0x12,0x34}};
+
+    uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
     STARTING();
 
+    TRYING("With statelessly compressed address\n");
+    ret = decompressor_src(buf, buf1, iphc1, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(16 == ret, test, "Should've returned compressed size of 16, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip1.addr, PICO_SIZE_IP6), test, "Should've correctly decompressed address");
+    memset(buf, 0, PICO_SIZE_IP6);
 
+    TRYING("With context\n");
+    pico_stack_init();
+    ctx_insert(ip2, 13, 64);
+    ret = decompressor_src(buf, buf2, iphc2, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(0 == ret, test, "Should've returned compressed size of 0, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip2.addr, PICO_SIZE_IP6), test, "Shoudld've correctly decompressed addresss");
+    memset(buf, 0, PICO_SIZE_IP6);
+
+    TRYING("With link-local non-mac 16-bit derivable address\n");
+    ret = decompressor_src(buf, buf3, iphc3, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(2 == ret, test, "Shoudl've returned compressed size of 2, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip3.addr, PICO_SIZE_IP6), test, "Shoudld've correctly decompressed addresss");
+    memset(buf, 0, PICO_SIZE_IP6);
+
+    TRYING("With link-local non-mac 64-bit derivable address\n");
+    ret = decompressor_src(buf, buf4, iphc4, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(8 == ret, test, "Should've returned compressed size of 8, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip4.addr, PICO_SIZE_IP6), test, "Should've correctly decompressed address");
+    memset(buf, 0, PICO_SIZE_IP6);
+
+    TRYING("With link-local mac based address\n");
+    ret = decompressor_src(buf, buf5, iphc5, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(0 == ret, test, "Should've returned compressed size of 0, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip5.addr, PICO_SIZE_IP6), test, "Should've correctly decompressed address");
+    memset(buf, 0, PICO_SIZE_IP6);
+
+    TRYING("Context based non-mac 16-bit derivable address\n");
+    ret = decompressor_src(buf, buf6, iphc6, &mac, NULL, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(2 == ret, test, "Should've returned compressed size of 2, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(buf, ip6.addr, PICO_SIZE_IP6), test, "Should've correctly decompressed addresss");
+    memset(buf, 0, PICO_SIZE_IP6);
 
     ENDING(test);
 }
@@ -623,11 +802,64 @@ END_TEST
 START_TEST(tc_compressor_dst)
 {
     int test = 1;
+    int ret = 0;
 
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    struct pico_device dev;
+    dev.mode = LL_MODE_IEEE802154;
+
+    /* Multicast 48-bit */
+    struct pico_ip6 mcast1 = {{0xff,0x12,0,0,0,0,0,0 ,0,0,0,5,4,3,2,1}};
+    uint8_t buf1[] = {0x12,5,4,3,2,1};
+
+    /* Multicast 32-bit */
+    struct pico_ip6 mcast2 = {{0xFF,0x34,0,0,0,0,0,0 ,0,0,0,0,0,1,2,3}};
+    uint8_t buf2[] = {0x34,1,2,3};
+
+    /* Multicast 8-bit */
+    struct pico_ip6 mcast3 = {{0xFF,0x02,0,0,0,0,0,0 ,0,0,0,0,0,0,0,5}};
+    uint8_t buf3 = 5;
+
+    uint8_t iphc[3] = { 0 };
+    uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
     STARTING();
 
+    TRYING("48-bit derivable mcast address\n");
+    ret = compressor_dst(mcast1.addr, buf, iphc, NULL, &mac, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(6 == ret, test, "Should've returned compressed length of 6, ret = %d", ret);
+    FAIL_UNLESS(iphc[1] & DST_MULTICAST, test, "Should've set IPHC mcast-flag");
+    FAIL_UNLESS(!(iphc[1] & DST_STATEFUL), test, "Shouldn't have set stateful flag, iphc = %02X", iphc[1]);
+    FAIL_UNLESS((iphc[1] & DST_COMPRESSED) == DST_MCAST_48, test, "Should've set DAM to '01', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(0 == memcmp(buf1, buf, 6), test, "Shoudl've correctly compressed MCAST 48 address");
 
+    TRYING("32-bit derivable mcast address\n");
+    ret = compressor_dst(mcast2.addr, buf, iphc, NULL, &mac, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(4 == ret, test, "Should've returned compressed length of 4, ret = %d", ret);
+    FAIL_UNLESS(iphc[1] & DST_MULTICAST, test, "Should've set IPHC mcast-flag");
+    FAIL_UNLESS(!(iphc[1] & DST_STATEFUL), test, "Shouldn't have set stateful flag, iphc = %02X", iphc[1]);
+    FAIL_UNLESS((iphc[1] & DST_COMPRESSED) == DST_MCAST_32, test, "Should've set DAM to '10', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(0 == memcmp(buf2, buf, 4), test, "Shoudl've correctly compressed MCAST 32 address");
+
+    TRYING("8-bit derivable mcast address\n");
+    ret = compressor_dst(mcast3.addr, buf, iphc, NULL, &mac, &dev);
+    OUTPUT();
+    dbg_buffer(iphc, 3);
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(1 == ret, test, "Should've returned compressed length of 1, ret = %d", ret);
+    FAIL_UNLESS(iphc[1] & DST_MULTICAST, test, "Should've set IPHC mcast-flag");
+    FAIL_UNLESS(!(iphc[1] & DST_STATEFUL), test, "Shouldn't have set stateful flag, iphc = %02X", iphc[1]);
+    FAIL_UNLESS((iphc[1] & DST_COMPRESSED) == DST_MCAST_8, test, "Should've set DAM to '11', iphc = %02X", iphc[1]);
+    FAIL_UNLESS(buf[0] == buf3, test, "Shoudl've correctly compressed MCAST 32 address");
 
     ENDING(test);
 }
@@ -636,11 +868,136 @@ END_TEST
 START_TEST(tc_decompressor_dst)
 {
     int test = 1;
+    int ret = 0;
 
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    struct pico_device dev;
+    dev.mode = LL_MODE_IEEE802154;
+
+    /* Multicast 48-bit */
+    uint8_t iphc1[3] = {0x00, 0x09, 0x00};
+    struct pico_ip6 mcast1 = {{0xff,0x12,0,0,0,0,0,0 ,0,0,0,5,4,3,2,1}};
+    uint8_t buf1[] = {0x12,5,4,3,2,1};
+
+    /* Multicast 32-bit */
+    uint8_t iphc2[3] = {0x00, 0x0a, 0x00};
+    struct pico_ip6 mcast2 = {{0xFF,0x34,0,0,0,0,0,0 ,0,0,0,0,0,1,2,3}};
+    uint8_t buf2[] = {0x34,1,2,3};
+
+    /* Multicast 8-bit */
+    uint8_t iphc3[3] = {0x00, 0x0b, 0x00};
+    struct pico_ip6 mcast3 = {{0xFF,0x02,0,0,0,0,0,0 ,0,0,0,0,0,0,0,5}};
+    uint8_t buf3[] = {5};
+
+    uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
     STARTING();
 
+    TRYING("48-bit compressed address\n");
+    ret = decompressor_dst(buf,buf1,iphc1,NULL, &mac,&dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(6 == ret, test, "Should've returned compressed length of 6, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(mcast1.addr, buf, PICO_SIZE_IP6), test, "Should've correctly decompressed the mcast address");
 
+    TRYING("32-bit compressed address\n");
+    ret = decompressor_dst(buf,buf2,iphc2,NULL, &mac,&dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(4 == ret, test, "Should've returned compressed length of 4, ret = %d",ret);
+    FAIL_UNLESS(0 == memcmp(mcast2.addr, buf, PICO_SIZE_IP6), test, "Should've correctly decompressed 32-bit mcast address");
+
+    TRYING("8-bit compressed address\n");
+    ret = decompressor_dst(buf,buf3, iphc3, NULL, &mac, &dev);
+    OUTPUT();
+    dbg_buffer(buf, PICO_SIZE_IP6);
+    RESULTS();
+    FAIL_UNLESS(1 == ret, test, "Should've returned compressed length of 1, ret = %d", ret);
+    FAIL_UNLESS(0 == memcmp(mcast3.addr, buf, PICO_SIZE_IP6), test, "Should've correctly decompressed 8-bit mcast address");
+
+    ENDING(test);
+}
+END_TEST
+static const unsigned char ipv6_frame[61] = {
+0x60, 0x00, 0x00, 0x00, 0x00, 0x15, 0x3c, 0xff, /* `.....<. */
+0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
+0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x65, 0x63, /* ......ec */
+0x11, 0x00, 0x1e, 0x00, 0x01, 0x02, 0x00, 0x00, /* ........ */
+0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50, /* MLML..{P */
+0xff, 0x00, 0x01, 0x01, 0x08                    /* ..... */
+};
+static const unsigned char lowpan_frame[18] = {
+0x7f, 0x33, 0xe7, 0x02, 0x1e, 0x00, 0xf0,
+0x4d, 0x4c, 0x4d, 0x4c, 0x7b, 0x50, 0xff, 0x00,
+0x01, 0x01, 0x08
+};
+
+START_TEST(tc_compressor_iphc)
+{
+    int test = 1;
+    struct pico_frame *f = pico_frame_alloc(61);
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    int compressed_len = 0;
+    struct pico_device dev;
+    uint8_t *buf = NULL;
+
+    dev.mode = LL_MODE_IEEE802154;
+    memcpy(f->buffer, ipv6_frame, 61);
+    f->net_hdr = f->buffer;
+    f->dev = &dev;
+
+    STARTING();
+
+    TRYING("To compress a IPv6 frame from a sample capture\n");
+    buf = compressor_iphc(f, src, dst, &compressed_len);
+    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
+    OUTPUT();
+    dbg_buffer(buf, 42);
+    RESULTS();
+    FAIL_UNLESS(2 == compressed_len, test, "Should have returned compressed_len of 2, compressed_len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, lowpan_frame, compressed_len), test, "Should've compressed frame correctly");
+    pico_frame_discard(f);
+
+    ENDING(test);
+}
+END_TEST
+
+START_TEST(tc_decompressor_iphc)
+{
+    int test = 1;
+    struct pico_frame *f = pico_frame_alloc(2);
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    struct pico_device dev;
+    int compressed_len = 0;
+    uint8_t *buf = NULL;
+    uint8_t hdr[40] = {
+    0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xff, /* `.....<. */
+0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
+0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x65, 0x63 };
+    dev.mode = LL_MODE_IEEE802154;
+    memcpy(f->buffer, lowpan_frame, 2);
+    f->net_hdr = f->buffer;
+    f->dev = &dev;
+
+    STARTING();
+
+    TRYING("To decompress a 6LoWPAN frame from a sampel capture\n");
+    buf = decompressor_iphc(f, src, dst, &compressed_len);
+    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
+    OUTPUT();
+    dbg_buffer(buf, 40);
+    RESULTS();
+    FAIL_UNLESS(2 == compressed_len, test, "Should've returned compressed_len of 2, compressed_len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, hdr, 40), test, "Should've correctly decompressed the 6LoWPAN frame");
+    pico_frame_discard(f);
 
     ENDING(test);
 }
@@ -660,12 +1017,14 @@ Suite *pico_suite(void)
     TCase *TCase_decompressor_nh = tcase_create("Unit test for decompressor_nh");
     TCase *TCase_compressor_hl = tcase_create("Unit test for compressor_hl");
     TCase *TCase_decompressor_hl = tcase_create("Unit test for decompressor_hl");
-    TCase *TCase_addr_comp_state = tcase_create("Unit test for addr_comp_state");
+    TCase *TCase_addr_comp_prefix = tcase_create("Unit test for addr_comp_prefix");
     TCase *TCase_addr_comp_mode = tcase_create("Unit test for addr_comp_mode");
     TCase *TCase_compressor_src = tcase_create("Unit test for compressor_src");
     TCase *TCase_decompressor_src = tcase_create("Unit test for decompressor_src");
     TCase *TCase_compressor_dst = tcase_create("Unit test for compressor_dst");
     TCase *TCase_decompressor_dst = tcase_create("Unit test for decompressor_dst");
+    TCase *TCase_compressor_iphc = tcase_create("Unit test for compressor_iphc");
+    TCase *TCase_decompressor_iphc = tcase_create("Unit test for decompressor_iphc");
 
 /*******************************************************************************
  *  IPHC
@@ -691,8 +1050,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_compressor_hl);
     tcase_add_test(TCase_decompressor_hl, tc_decompressor_hl);
     suite_add_tcase(s, TCase_decompressor_hl);
-    tcase_add_test(TCase_addr_comp_state, tc_addr_comp_state);
-    suite_add_tcase(s, TCase_addr_comp_state);
+    tcase_add_test(TCase_addr_comp_prefix, tc_addr_comp_prefix);
+    suite_add_tcase(s, TCase_addr_comp_prefix);
     tcase_add_test(TCase_addr_comp_mode, tc_addr_comp_mode);
     suite_add_tcase(s, TCase_addr_comp_mode);
     tcase_add_test(TCase_compressor_src, tc_compressor_src);
@@ -703,6 +1062,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_compressor_dst);
     tcase_add_test(TCase_decompressor_dst, tc_decompressor_dst);
     suite_add_tcase(s, TCase_decompressor_dst);
+    tcase_add_test(TCase_compressor_iphc, tc_compressor_iphc);
+    suite_add_tcase(s, TCase_compressor_iphc);
+    tcase_add_test(TCase_decompressor_iphc, tc_decompressor_iphc);
+    suite_add_tcase(s, TCase_decompressor_iphc);
 
     return s;
 }
