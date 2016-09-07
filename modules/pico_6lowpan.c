@@ -41,6 +41,7 @@
 
 #define NUM_IPV6_FIELDS     (6)
 #define NUM_UDP_FIELDS      (4)
+#define IPV6_DISPATCH       (0x41)
 #define IPHC_DISPATCH       (0x60)
 #define UDP_DISPATCH        (0xF0)
 #define EXT_DISPATCH        (0xE0)
@@ -79,7 +80,11 @@
 #define COMP_STATELESS      (-1)
 #define COMP_MULTICAST      (-2)
 #define COMP_UNSPECIFIED    (-3)
-
+#define FRAG1_SIZE          (4)
+#define FRAGN_SIZE          (5)
+#define FRAG1_DISPATCH      (0xC0)
+#define FRAGN_DISPATCH      (0xE0)
+#define FRAG_TIMEOUT        (10)
 /*******************************************************************************
  * Type definitions
  ******************************************************************************/
@@ -102,6 +107,19 @@ struct iphc_ctx
     int size;
 };
 
+struct frag_ctx {
+    struct pico_frame *f;
+    uint16_t dgram_size;
+    uint16_t dgram_tag;
+    uint16_t dgram_off;
+    uint16_t copied;
+    uint16_t avail;
+    union pico_ll_addr src;
+    union pico_ll_addr dst;
+    uint32_t hash;
+    uint32_t timer;
+};
+
 /*******************************************************************************
  *  Global Variables
  ******************************************************************************/
@@ -113,15 +131,117 @@ static struct pico_queue pico_6lowpan_out = {
     0
 };
 
+static uint16_t dgram_tag = 0;
+
 /*******************************************************************************
  *  Function prototypes
  ******************************************************************************/
 
 static int pico_6lowpan_ll_iid(uint8_t iid[8], union pico_ll_addr *addr, struct pico_device *dev);
-static int pico_6lowpan_ll_mac_derived(struct pico_ip6 *addr, union pico_ll_addr *lladdr, struct pico_device *dev);
 static int pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
 static int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int dst);
-static struct pico_frame *pico_6lowpan_ll_frame(uint16_t size, struct pico_device *dev);
+static int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev);
+static struct pico_frame *pico_6lowpan_frame_alloc(uint16_t size, struct pico_device *dev);
+
+/*******************************************************************************
+ *  CTX
+ ******************************************************************************/
+
+/* Compares two fragmentation cookies based on the hash */
+static int
+frag_ctx_cmp(void *a, void *b)
+{
+    struct frag_ctx *fa = (struct frag_ctx *)a;
+    struct frag_ctx *fb = (struct frag_ctx *)b;
+    return (int)(fa->hash - fb->hash);
+}
+
+/* Compares two fragmentation cookies according to RFC4944 5.3 */
+static int
+frag_cmp(void *a, void *b)
+{
+    struct frag_ctx *fa = (struct frag_ctx *)a;
+    struct frag_ctx *fb = (struct frag_ctx *)b;
+    int ret = 0;
+    if (fa->dgram_size != fb->dgram_size) {
+        return (int)(fa->dgram_size - fb->dgram_size);
+    } else if (fa->dgram_tag != fb->dgram_tag) {
+        return (int)(fa->dgram_tag - fb->dgram_tag);
+    } else {
+        ret = pico_6lowpan_ll_cmp(&fa->src, &fb->src, fa->f->dev);
+        if (ret)
+            return ret;
+        else {
+            return pico_6lowpan_ll_cmp(&fa->dst, &fb->dst, fa->f->dev);
+        }
+    }
+}
+
+PICO_TREE_DECLARE(FragTree, &frag_ctx_cmp);
+PICO_TREE_DECLARE(ReassemblyTree, &frag_cmp);
+
+/* Find a fragmentation cookie for transmission of subsequent fragments */
+static struct frag_ctx *
+frag_ctx_find(uint32_t hash)
+{
+    struct frag_ctx f = { .hash = hash };
+    return pico_tree_findKey(&FragTree, &f);
+}
+
+/* Reassembly timeout function, deletes */
+static void
+frag_timeout(pico_time now, void *arg)
+{
+    struct frag_ctx *ctx = (struct frag_ctx *)arg;
+    IGNORE_PARAMETER(now);
+    pico_tree_delete(&ReassemblyTree, arg);
+    pico_frame_discard(ctx->f);
+    PICO_FREE(arg);
+}
+
+/* Finds a reassembly cookie in the reassembly-tree */
+static struct frag_ctx *
+frag_find(uint16_t dgram_size, uint16_t tag, union pico_ll_addr src, union pico_ll_addr dst)
+{
+    struct frag_ctx f= {.dgram_size=dgram_size, .dgram_tag=tag, .src=src, .dst=dst};
+    return pico_tree_findKey(&ReassemblyTree, &f);
+}
+
+/* Stores a fragmentation cookie in either the fragmentetion cookie tree or
+ * in the reassembly tree */
+static int
+frag_store(struct pico_frame *f, int avail, uint16_t dgram_size, uint16_t dgram_tag,
+           uint16_t dgram_off, uint16_t copied, union pico_ll_addr src,
+           union pico_ll_addr dst, struct pico_tree *tree)
+{
+    struct frag_ctx *fr = PICO_ZALLOC(sizeof(struct frag_ctx));
+    if (fr) {
+        fr->f = f;
+        fr->dgram_size = dgram_size;
+        fr->dgram_tag = dgram_tag;
+        fr->dgram_off = dgram_off;
+        fr->copied = copied;
+        fr->src = src;
+        fr->dst = dst;
+        if (tree = &ReassemblyTree) {
+            /* Set a reassembly timeout of 10 seconds */
+            fr->timer = pico_timer_add(1000*FRAG_TIMEOUT, frag_timeout, fr);
+        } else {
+            /* Make the cookie retrievable */
+            fr->hash = 0;
+            fr->timer = 0;
+            fr->avail = (uint16_t)avail;
+            fr->hash = pico_hash((void *)fr, sizeof(struct frag_ctx));
+        }
+        if (pico_tree_insert(tree, fr)) {
+            PICO_FREE(fr);
+            return -1;
+        }
+        return 1; // Succes for 'proto_loop_out'
+    } else {
+        return -1;
+    }
+}
 
 /*******************************************************************************
  *  CTX
@@ -410,13 +530,23 @@ addr_comp_prefix(uint8_t *iphc, struct pico_ip6 *addr, int src)
     }
 }
 
+/* Checks whether or not an IPv6 address is derived from a link layer address */
+static int
+addr_ll_derived(struct pico_ip6 *addr, union pico_ll_addr *lladdr, struct pico_device *dev)
+{
+    uint8_t iid[8] = {0};
+    if (pico_6lowpan_ll_iid(iid, lladdr, dev))
+        return -1;
+    return (int)(0 == memcmp(iid, &addr->addr[8], 8));
+}
+
 /* Sets the compression mode of either the source address or the destination
  * address, based on the shift parameter. Use SRC_SHIFT for source, 0 for dst */
 static int
 addr_comp_mode(uint8_t *iphc, struct pico_ip6 *addr, union pico_ll_addr lladdr,
                struct pico_device *dev, int shift)
 {
-    int mac = pico_6lowpan_ll_mac_derived(addr, &lladdr, dev);
+    int mac = addr_ll_derived(addr, &lladdr, dev);
     iphc[1] &= (uint8_t)(~DST_COMPRESSED << shift); // Clear out mode for src/dst
 
     if (mac > 0) { // Address is mac derived
@@ -991,22 +1121,23 @@ decompressor_nhc_ext(struct pico_frame *f, union pico_ll_addr src, union pico_ll
 }
 
 /* Free's memory of a all assembled chunks for 'n' amount */
-static int
+static struct pico_frame *
 pico_iphc_bail_out(uint8_t *chunks[], int n)
 {
     int i = 0;
     for (i = 0; i < n; i++) {
         PICO_FREE(chunks[i]);
     }
-    return -1;
+    return NULL;
 }
 
 /* Performs reassembly after either compression of decompression */
-static int
+static struct pico_frame *
 pico_iphc_reassemble(struct pico_frame *f, uint8_t *chunks[], int chunks_len[],
                      int n, int processed_len, int handled_len)
 {
     uint32_t grow = f->buffer_len;
+    struct pico_frame *new = NULL;
     int payload_len = 0;
     uint8_t *dst = NULL;
     int ret = 0, i = 0;
@@ -1019,33 +1150,35 @@ pico_iphc_reassemble(struct pico_frame *f, uint8_t *chunks[], int chunks_len[],
     if (f->len < (uint16_t)processed_len) {
         grow = (uint32_t)(grow + (uint32_t)processed_len - f->len);
         ret = pico_frame_grow(f, grow);
-        if (ret) {
-            pico_iphc_bail_out(chunks, n);
-            return -1;
-        }
+        if (ret)
+            return pico_iphc_bail_out(chunks, n);
     }
 
     chunks[n] = f->net_hdr + handled_len; // Start of payload_available
     chunks_len[n] = payload_len; // Size of payload
     n++; // Payload is another chunk to copy
 
+    /* Provide a new frame */
+    if (!(new = pico_frame_deepcopy(f)))
+        return pico_iphc_bail_out(chunks, n);
+
     /* Copy each chunk back in the frame starting at the end of the new
      * frame-buffer so we don't overwrite preceding buffers */
-    dst = f->net_hdr + processed_len;
+    dst = new->net_hdr + processed_len;
     for (i = n - 1; i >= 0; i--) {
         dst -= chunks_len[i];
         memcpy(dst, chunks[i], (size_t)chunks_len[i]);
     }
-    f->net_hdr = dst; // Last destination is net_hdr
-    f->start = f->net_hdr; // Start of useful data is at net_hdr
-    f->len = (uint32_t)processed_len;
-    f->transport_hdr = f->net_hdr + f->net_len;
+    new->net_hdr = dst; // Last destination is net_hdr
+    new->start = new->net_hdr; // Start of useful data is at net_hdr
+    new->len = (uint32_t)processed_len;
+    new->transport_hdr = new->net_hdr + new->net_len;
     pico_iphc_bail_out(chunks, n - 1); // Success, discard compressed chunk
-    return 0;
+    return new;
 }
 
 /* Compresses a frame according to the IPHC, NHC_EXT and NHC_UDP compression scheme */
-static int
+static struct pico_frame *
 pico_iphc_compress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
     int i = 0, compressed_len = 0, loop = 1, uncompressed = f->net_len;
@@ -1075,6 +1208,7 @@ pico_iphc_compress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_a
             case PICO_PROTO_UDP:
                 chunks[i] = compressor_nhc_udp(f, &chunks_len[i]);
                 uncompressed += PICO_UDPHDR_SIZE;
+                f->transport_len = (uint16_t)chunks_len[i];
             default: /* Intentional fall-through */
                 loop = 0;
         }
@@ -1090,23 +1224,30 @@ pico_iphc_compress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_a
 }
 
 /* Restore some IPv6 header fields like next header and payload length */
-static void
-pico_ipv6_finalize(struct pico_frame *f, uint8_t nh, uint16_t length)
+static struct pico_frame *
+pico_ipv6_finalize(struct pico_frame *f, uint8_t nh)
 {
-    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    if (!hdr->nxthdr)
-        hdr->nxthdr = nh;
-    hdr->len = short_be(length);
+    struct pico_ipv6_hdr *hdr = NULL;
+    if (!f) {
+        return NULL;
+    } else {
+        hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+        if (!hdr->nxthdr)
+            hdr->nxthdr = nh;
+        hdr->len = short_be((uint16_t)(f->len - PICO_SIZE_IP6HDR));
+        return f;
+    }
 }
 
 /* Decompresses a frame according to the IPHC, NHC_EXT and NHC_UDP compression scheme */
-static int
+static struct pico_frame *
 pico_iphc_decompress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
     int i = 0, compressed = 0, loop = 1, uncompressed = 0, ret = 0;
     uint8_t *old_nethdr = f->net_hdr; // Save net_hdr temporary ...
     uint8_t dispatch = PICO_PROTO_IPV6;
     uint8_t *chunks[8] = { NULL };
+    struct pico_frame *n = NULL;
     int chunks_len[8] = { 0 };
     uint8_t nh = 0;
 
@@ -1117,7 +1258,7 @@ pico_iphc_decompress(struct pico_frame *f, union pico_ll_addr src, union pico_ll
                 chunks[i] = decompressor_iphc(f, src, dst, &ret);
                 chunks_len[i] = PICO_SIZE_IP6HDR;
                 f->net_len = PICO_SIZE_IP6HDR;
-                nh = ext_nh_retrieve(f->net_hdr, PICO_SIZE_IP6HDR);
+                nh = ext_nh_retrieve(f->net_hdr, ret);
                 break;
             /* IPV6 EXTENSION HEADERS */
             case PICO_IPV6_EXTHDR_HOPBYHOP:
@@ -1150,11 +1291,167 @@ pico_iphc_decompress(struct pico_frame *f, union pico_ll_addr src, union pico_ll
     f->net_hdr = old_nethdr; // ... Restore old net_hdr
 
     /* Reassemble gathererd decompressed buffers */
-    ret = pico_iphc_reassemble(f, chunks, chunks_len, i, uncompressed, compressed);
-    if (ret)
-        return ret;
-    pico_ipv6_finalize(f, nh, (uint16_t)(f->len - PICO_SIZE_IP6HDR));
-    return 0;
+    n = pico_iphc_reassemble(f, chunks, chunks_len, i, uncompressed, compressed);
+    return pico_ipv6_finalize(n, nh);
+}
+
+/* Prepends an uncompressed IPv6 dispatch header */
+static void
+pico_iphc_no_comp(struct pico_frame *f)
+{
+    f->net_hdr--; // Only need one bytes
+    f->start--;
+    f->len++;
+    f->net_len++;
+    f->net_hdr[0] = IPV6_DISPATCH;
+}
+
+static int
+frag_nth(struct pico_frame *f)
+{
+    struct frag_ctx *frag = frag_ctx_find(f->hash);
+    uint16_t units = (uint16_t)(frag->avail - FRAGN_SIZE) >> 3;
+    uint16_t copy = (uint16_t)(units << 3);
+    struct pico_frame *n = pico_6lowpan_frame_alloc(copy + FRAGN_SIZE, f->dev);
+    uint8_t *fragn = NULL;
+    int ret = 0;
+    if (frag && n) {
+        n->net_hdr = n->buffer + (int)(n->buffer_len) - (int)(copy + FRAGN_SIZE);
+        fragn = n->net_hdr;
+
+        /* Fill in n-th fragment */
+        fragn[0] = FRAGN_DISPATCH;
+        *(uint16_t *)&frag[0] |= (uint16_t)(short_be(frag->dgram_size) & short_be(0x7FF));
+        *(uint16_t *)&frag[2] = (uint16_t)short_be(frag->dgram_tag);
+        memcpy(frag + 5, f->net_hdr, copy);
+
+        /* Try to push fragment to link layer */
+        ret = pico_6lowpan_ll_push(n, frag->src, frag->dst);
+        pico_frame_discard(n);
+        if (ret)
+            return -1;
+
+        /* Enqueue the frame again for subsequent fragments */
+        if (pico_datalink_send(f) <= 0)
+            return -1;
+
+        frag->dgram_off = (uint16_t)(frag->dgram_off + units);
+        frag->copied = (uint16_t)(frag->copied + copy);
+        if (frag->copied == f->len) {
+            pico_tree_delete(&FragTree, frag);
+            pico_frame_discard(f);
+        }
+    } else {
+        pico_frame_discard(f);
+        return -1;
+    }
+}
+
+static int
+frag_1st(struct pico_frame *f, int avail, uint16_t dgram_size, uint16_t dgram_off, uint16_t
+         copy, union pico_ll_addr src, union pico_ll_addr dst)
+{
+    struct pico_frame *n = pico_6lowpan_frame_alloc(copy + FRAG1_SIZE, f->dev);
+    uint8_t *frag = NULL;
+    int ret = 0;
+    if (!n) {
+        n->net_hdr = n->buffer + (int)(n->buffer_len) - (int)(copy + FRAG1_SIZE);
+        frag = n->net_hdr;
+
+        /* Fill 1st fragment */
+        frag[0] = FRAG1_DISPATCH;
+        *(uint16_t *)&frag[0] |= (uint16_t)(short_be(dgram_size) & short_be(0x7FF));
+        *(uint16_t *)&frag[2] = (uint16_t)short_be(dgram_tag++);
+        memcpy(frag + 4, f->net_hdr, copy);
+
+        /* Try to push fragment to link layer */
+        ret = pico_6lowpan_ll_push(n, src, dst);
+        pico_frame_discard(n);
+        if (ret) {
+            dgram_tag--;
+            return -1;
+        }
+
+        /* Enqueue the frame again for subsequent fragments */
+        if (pico_datalink_send(f) <= 0)
+            return -1;
+
+        /* Everything was a success store a cookie for subsequent fragments */
+        return frag_store(f, avail, dgram_size, dgram_tag, dgram_off, copy, src, dst,
+                          &FragTree);
+    } else {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+}
+
+static int
+frag_1st_no_comp(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr
+                 dst, uint16_t dgram_size, int available)
+{
+    /* Available bytes after inserting FRAG1 dispatch and IPv6 dispatch */
+    uint16_t rest_size = (uint16_t)(available - FRAG1_SIZE - 1);
+    uint16_t dgram_off = (uint16_t)(rest_size >> 3);
+    uint16_t copy_size = (uint16_t)(rest_size + 1);
+    return frag_1st(f, available, dgram_size, dgram_off, copy_size, src, dst);
+}
+
+static int
+frag_1st_comp(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst,
+              uint16_t dgram_size, int available, int udp)
+{
+    /* Calculate amount of bytes that are elided */
+    uint16_t comp_diff = (uint16_t)(dgram_size - f->len);
+    uint16_t comp_hlen = (uint16_t)(f->net_len + (udp ? f->transport_len : 0));
+    /* Decompressed header length */
+    uint16_t deco_hlen = (uint16_t)(comp_hlen + comp_diff);
+    /* Available octects after inserting FRAG1 dispatch and compressed header */
+    uint16_t rest_size = (uint16_t)(available - FRAG1_SIZE - comp_hlen);
+    /* Offset for subsequent fragments in 8-octect units and in octets */
+    uint16_t dgram_off = (uint16_t)((uint16_t)(rest_size + deco_hlen) >> 3);
+    uint16_t copy_size = 0;
+    /* 8-octet aligned available octets after decompression */
+    rest_size = (uint16_t)((uint16_t)(dgram_off << 3) - deco_hlen);
+    copy_size = (uint16_t)(rest_size + comp_hlen);
+    return frag_1st(f, available, dgram_size, dgram_off, copy_size, src, dst);
+}
+
+/* General compression function that first tries to compress the frame and sends
+ * it through to the link layer, if that doesn't work the frame is fragmented */
+static int
+pico_6lowpan_compress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
+{
+    struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
+    uint16_t dgram_size = (uint16_t)(ip->len + PICO_SIZE_IP6HDR);
+    struct pico_frame *try = pico_iphc_compress(f, src, dst);
+    int udp = PICO_PROTO_UDP == ip->nxthdr;
+    int avail = 0;
+
+    if (try) {
+        /* Try to push the compressed frame again */
+        avail = pico_6lowpan_ll_push(try, src, dst);
+        if (avail > 0) {
+            /* RFC6282: any header that cannot fit within the first fragment
+             * MUST NOT be compressed. */
+            if ((udp && (try->net_len + try->transport_len) > (uint16_t)avail) ||
+                (!udp && (try->net_len > (uint16_t)avail))) {
+                pico_frame_discard(try);
+                pico_iphc_no_comp(f);
+                return frag_1st_no_comp(f, src, dst, dgram_size, avail);
+            } else {
+                pico_frame_discard(f);
+                return frag_1st_comp(f, src, dst, dgram_size, avail, udp);
+            }
+        } else if (avail < 0) {
+            /* Failure, discard frame, bail out */
+            pico_frame_discard(f);
+            return -1;
+        } else {
+            /* Frame was compressed enough to fit in 'payload_available' */
+            pico_frame_discard(f);
+            return 1;
+        }
+    }
 }
 
 static int
@@ -1165,30 +1462,18 @@ pico_6lowpan_process_out(struct pico_protocol *self, struct pico_frame *f)
     int payload_available = 0;
     IGNORE_PARAMETER(self);
 
+    /* Check if it's meant for fragmentation */
     if (f->flags & PICO_FRAME_FLAG_SLP_FRAG) {
-        /* TODO: Send frame straight to subsequent fragmentation function */
+        return frag_nth(f);
     }
 
+    /* Retrieve link layer addresses */
     if (pico_6lowpan_ll_addr(f, &llsrc, 0) || pico_6lowpan_ll_addr(f, &lldst, 1)) {
-        /* Failure, discard frame, bail out */
         pico_frame_discard(f);
         return -1;
     }
 
-    /* Try to push the frame to the device like everything is gonna be okay :) */
-    payload_available = pico_6lowpan_ll_push(f, llsrc, lldst);
-
-    if (payload_available > 0) {
-        /* Okay okay, I'll send it through compression */
-        /* TODO: Send frame to compression, pass payload_available */
-    } else if (payload_available < 0) {
-        /* Failure, discard frame, bail out */
-        pico_frame_discard(f);
-        return -1;
-    }
-
-    /* Wow! That did actually work, I have nothing to do here anymore */
-    return 0;
+    return pico_6lowpan_compress(f, llsrc, lldst);
 }
 
 static int
@@ -1198,17 +1483,6 @@ pico_6lowpan_process_in(struct pico_protocol *self, struct pico_frame *f)
     IGNORE_PARAMETER(f);
 
     return 0;
-}
-
-static struct pico_frame *
-pico_6lowpan_frame_alloc(struct pico_protocol *self, uint16_t size)
-{
-    IGNORE_PARAMETER(self);
-    IGNORE_PARAMETER(size);
-
-    /* TODO: Update to extended alloc-function with device as in PR #406 */
-
-    return NULL;
 }
 
 struct pico_protocol pico_proto_6lowpan = {
@@ -1225,14 +1499,36 @@ struct pico_protocol pico_proto_6lowpan = {
  *  GENERIC 6LOWPAN LINK LAYER
  ******************************************************************************/
 
-static struct pico_frame *pico_6lowpan_ll_frame(uint16_t size, struct pico_device *dev)
+static int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev)
+{
+    if (0) {}
+#if defined (PICO_SUPPORT_802154)
+    else if (LL_MODE_IEEE802154 == dev->mode) {
+        /* TODO: Update to pico_protocol's alloc function */
+        return addr_802154_cmp(a, b);
+    }
+#elif defined (PICO_SUPPORT_FOO)
+    /* XXX: Here's where we can support other link layer protocols to allow
+     * general 6LoWPAN-over-foo transmission link support */
+#endif
+    else {
+        lp_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
+        return 0;
+    }
+}
+
+static struct pico_frame *pico_6lowpan_frame_alloc(uint16_t size, struct pico_device *dev)
 {
     struct pico_frame *f;
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == dev->mode) {
         /* TODO: Update to pico_protocol's alloc function */
-        f = pico_frame_alloc(size);
+        f = pico_frame_alloc(SIZE_802154_MHR_MAX + size);
+        if (f) {
+            f->dev = dev;
+        }
+        return f;
     }
 #elif defined (PICO_SUPPORT_FOO)
     /* XXX: Here's where we can support other link layer protocols to allow
@@ -1242,13 +1538,11 @@ static struct pico_frame *pico_6lowpan_ll_frame(uint16_t size, struct pico_devic
         lp_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
         return NULL;
     }
-    return f;
 }
 
 static int pico_6lowpan_ll_iid(uint8_t iid[8], union pico_ll_addr *addr, struct pico_device *dev)
 {
     if (0) {}
-
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == dev->mode) {
         addr_802154_iid(iid, addr);
@@ -1267,7 +1561,6 @@ static int pico_6lowpan_ll_iid(uint8_t iid[8], union pico_ll_addr *addr, struct 
 static int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev)
 {
     if (0) {}
-
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == dev->mode) {
         return addr_802154_len(addr);
@@ -1276,23 +1569,13 @@ static int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev
     /* XXX: Here's where we can support other link layer protocols to allow
      * general 6LoWPAN-over-foo transmission link support */
 #endif
-
     lp_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
     return -1;
-}
-
-static int pico_6lowpan_ll_mac_derived(struct pico_ip6 *addr, union pico_ll_addr *lladdr, struct pico_device *dev)
-{
-    uint8_t iid[8] = {0};
-    if (pico_6lowpan_ll_iid(iid, lladdr, dev))
-        return -1;
-    return (int)(0 == memcmp(iid, &addr->addr[8], 8));
 }
 
 static int pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
     if (0) {}
-
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == f->dev->mode) {
         return frame_802154_push(f, src, dst);
@@ -1310,9 +1593,7 @@ static int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, 
 {
     struct pico_ip6 src = ((struct pico_ipv6_hdr *)f->net_hdr)->src;
     struct pico_ip6 dst = ((struct pico_ipv6_hdr *)f->net_hdr)->dst;
-
     if (0) {}
-
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == f->dev->mode) {
         *addr = addr_802154(&src, &dst, f->dev, dest);

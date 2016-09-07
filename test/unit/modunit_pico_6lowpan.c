@@ -411,7 +411,7 @@ START_TEST(tc_decompressor_nh)
     TRYING("With NH bit cleared\n");
     iphc = 0;
     ret = decompressor_nh(&ori, &comp, &iphc, NULL, NULL, NULL);
-    FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
+    FAIL_UNLESS(1 == ret, test, "Should've returned 1, ret = %d", ret);
     FAIL_UNLESS(PICO_PROTO_TCP == ori, test, "Should've filled ori with PICO_PROTO_TCP");
 
     ENDING(test);
@@ -1225,6 +1225,7 @@ START_TEST(tc_pico_iphc_compress)
     union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
     union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
     struct pico_device dev;
+    struct pico_frame *new = NULL;
     int ret = 0;
 
     dev.mode = LL_MODE_IEEE802154;
@@ -1239,13 +1240,13 @@ START_TEST(tc_pico_iphc_compress)
     STARTING();
 
     TRYING("Trying to compress an IPv6 frame from an example capture\n");
-    ret = pico_iphc_compress(f, src, dst);
+    new = pico_iphc_compress(f, src, dst);
+    FAIL_UNLESS(new, test, "Should've at least returned a frame");
     OUTPUT();
-    dbg_buffer(f->net_hdr, f->len);
+    dbg_buffer(new->net_hdr, new->len);
     RESULTS();
-    FAIL_UNLESS(ret, "Shouldn't have returned an error\n");
-    FAIL_UNLESS(22 == f->len, test, "Should have returned length of 22, len = %d", f->len);
-    FAIL_UNLESS(0 == memcmp(f->net_hdr, comp_frame, 22), test, "Should've compressed the frame correctly");
+    FAIL_UNLESS(22 == new->len, test, "Should have returned length of 22, len = %d", new->len);
+    FAIL_UNLESS(0 == memcmp(new->net_hdr, comp_frame, 22), test, "Should've compressed the frame correctly");
 
     ENDING(test);
 }
@@ -1258,7 +1259,7 @@ START_TEST(tc_pico_iphc_decompress)
     union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
     union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
     struct pico_device dev;
-    struct pico_frame *n = NULL;
+    struct pico_frame *new = NULL;
     int ret = 0;
 
     dev.mode = LL_MODE_IEEE802154;
@@ -1271,13 +1272,14 @@ START_TEST(tc_pico_iphc_decompress)
     STARTING();
 
     TRYING("Trying to decompress a 6LoWPAN frame from an example capture\n");
-    ret = pico_iphc_decompress(f, src, dst);
+    new = pico_iphc_decompress(f, src, dst);
+    FAIL_UNLESS(new, test, "Should've at least returned a frame");
     OUTPUT();
-    dbg_buffer(f->net_hdr, f->len);
+    dbg_buffer(new->net_hdr, new->len);
     RESULTS();
-    FAIL_UNLESS(ret, "Shouldn't have returned an error\n");
-    FAIL_UNLESS(61 == f->len, test, "Should've returned a length of 61, len = %d", f->len);
-    FAIL_UNLESS(0 == memcmp(f->net_hdr, ipv6_frame, f->len), test, "Should've decompressed the frame correctly");
+    FAIL_UNLESS(61 == new->len, test, "Should've returned a length of 61, len = %d", new->len);
+    FAIL_UNLESS(0 == memcmp(new->net_hdr, ipv6_frame, new->len), test, "Should've decompressed the frame correctly");
+
 
     ENDING(test);
 }

@@ -71,6 +71,11 @@ struct pico_frame {
     uint16_t frag;
 #endif
 
+#if defined(PICO_SUPPORT_6LOWPAN)
+    uint32_t hash;
+#endif
+
+
     /* Pointer to socket */
     struct pico_socket *sock;
 

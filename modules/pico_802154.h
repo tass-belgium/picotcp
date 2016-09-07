@@ -47,5 +47,6 @@ union pico_ll_addr addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struc
 int frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
 int addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr);
 int addr_802154_len(union pico_ll_addr *addr);
+int addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b);
 
 #endif /* INCLUDE_PICO_802154 */

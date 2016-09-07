@@ -450,6 +450,17 @@ addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev,
     return addr;
 }
 
+/* Compares 2 IEE802.15.4 addresses */
+int
+addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b)
+{
+    if (a->pan.mode != b->pan.mode) {
+        return (int)((int)a->pan.mode - (int)b->pan.mode);
+    } else {
+        return memcmp(a->pan.addr.data, b->pan.addr.data, SIZE_802154(b->pan.mode));
+    }
+}
+
 /* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
  * frame for later processing, or returns the amount of bytes available after
  * prepending the MAC header and additional headers */
