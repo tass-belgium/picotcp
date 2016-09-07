@@ -312,9 +312,13 @@ compressor_nh(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
     IGNORE_PARAMETER(llsrc);
     IGNORE_PARAMETER(lldst);
     IGNORE_PARAMETER(dev);
-    if (compressible_nh(*ori))
+    if (compressible_nh(*ori)) {
         *iphc |= NH_COMPRESSED;
-    return 0;
+        return 0;
+    } else {
+        *comp = *ori;
+        return 1;
+    }
 }
 
 /* Check whether or no the next header is NHC-compressed, indicates this for the
@@ -329,11 +333,12 @@ decompressor_nh(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr
     IGNORE_PARAMETER(dev);
     IGNORE_PARAMETER(comp);
     if (*iphc & NH_COMPRESSED) {
-        *ori = NH_COMPRESSED; // Indicate that next header needs to be decompressed
+        *ori = 0; // Indicate that next header needs to be decompressed
+        return 0;
     } else {
-        *ori = 0;
+        *ori = *comp;
+        return 1;
     }
-    return 0;
 }
 
 /* Compressed the HL-field if common hop limit values are used, like 1, 64 and
@@ -670,7 +675,7 @@ compressor_iphc(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr
     if (iphc[1] & CTX_EXTENSION) {
         *compressed_len += 3;
     } else {
-        memcpy(inline_buf + 2, inline_buf + 3, *compressed_len);
+        memcpy(inline_buf + 2, inline_buf + 3, (size_t)*compressed_len);
         *compressed_len += 2;
     }
     return inline_buf;
@@ -714,7 +719,7 @@ decompressor_iphc(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
 static uint8_t *
 compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
 {
-    uint8_t *inline_buf = PICO_ZALLOC(PICO_UDPHDR_SIZE + 1);
+    uint8_t *inline_buf = PICO_ZALLOC(PICO_UDPHDR_SIZE);
     struct pico_udp_hdr *hdr = (struct pico_udp_hdr *)f->transport_hdr;
     uint16_t sport = hdr->trans.sport;
     uint16_t dport = hdr->trans.dport;
@@ -746,26 +751,25 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
             memcpy(inline_buf + 1, (uint8_t *)hdr, 4);
             *compressed_len = 5;
         }
-        /* Length and checksum carried inline.
+        /* Length MUST be compressed checksum carried inline.
          * RFC6282: .., a compressor in the source transport endpoint MAY elide
          * the UDP checksum if it is autorized by the upper layer. The compressor
          * MUST NOT set the C bit unless it has received such authorization */
-        memcpy(inline_buf + *compressed_len, (uint8_t *)hdr + 4, 4);
-        *compressed_len += 4;
+        memcpy(inline_buf + *compressed_len, (uint8_t *)hdr + 6, 2);
+        *compressed_len += 2;
         return inline_buf;
     }
 }
 
 /* Decompresses a NHC_UDP header according to the NHC_UDP compression scheme */
 static uint8_t *
-decompressor_nhc_udp(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr
-                     dst, int *compressed_len)
+decompressor_nhc_udp(struct pico_frame *f, int processed_len, int *compressed_len)
 {
     struct pico_udp_hdr *hdr = PICO_ZALLOC(PICO_UDPHDR_SIZE);
     uint8_t *buf = f->transport_hdr;
     uint8_t compression = buf[0] & UDP_COMPRESSED_BOTH;
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
+    int payload_len = 0;
+    *compressed_len = 0;
 
     if (hdr && ((buf[0] & 0xF8) == UDP_DISPATCH)) {
         /* Decompress ports */
@@ -785,13 +789,14 @@ decompressor_nhc_udp(struct pico_frame *f, union pico_ll_addr src, union pico_ll
             memcpy((uint8_t *)&hdr->trans, &buf[1], 4);
             *compressed_len = 5;
         }
-        /* Restore inline length and checksum */
-        if (buf[0] & UDP_COMPRESSED_CHCK) { // Leave empty room for checksum
-                memcpy((uint8_t *)&hdr->len, (uint8_t *)(buf + *compressed_len),2);
-        } else {
-                memcpy((uint8_t *)&hdr->len, (uint8_t *)(buf + *compressed_len),4);
+        /* Restore checksum if carried inline */
+        if (!(buf[0] & UDP_COMPRESSED_CHCK)) { // Leave empty room for checksum
+            memcpy((uint8_t *)&hdr->crc, &buf[*compressed_len],2);
+            *compressed_len += 2;
         }
-        *compressed_len += 4;
+        /* Restore inherently compressed length */
+        payload_len = (int)f->len - (processed_len + *compressed_len);
+        hdr->len = short_be((uint16_t)(payload_len + PICO_UDPHDR_SIZE));
         return (uint8_t *)hdr;
     } else {
         return NULL;
@@ -948,7 +953,7 @@ ext_compressed_length(uint8_t *buf, uint8_t eid, int *compressed_len, int *head)
  * NHC_EXT compression scheme */
 static uint8_t *
 decompressor_nhc_ext(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr
-                     dst, int *compressed_len)
+                     dst, int *compressed_len, int *decompressed_len)
 {
     struct pico_ipv6_exthdr *ext = NULL;
     int len = 0, head = 0, alloc = 0;
@@ -978,12 +983,14 @@ decompressor_nhc_ext(struct pico_frame *f, union pico_ll_addr src, union pico_ll
                 ext_align((uint8_t *)ext, alloc, len);
             }
         }
+        *decompressed_len = alloc;
         return (uint8_t *)ext;
     } else {
         return NULL;
     }
 }
 
+/* Free's memory of a all assembled chunks for 'n' amount */
 static int
 pico_iphc_bail_out(uint8_t *chunks[], int n)
 {
@@ -994,91 +1001,160 @@ pico_iphc_bail_out(uint8_t *chunks[], int n)
     return -1;
 }
 
-
-static struct pico_frame *
+/* Performs reassembly after either compression of decompression */
+static int
 pico_iphc_reassemble(struct pico_frame *f, uint8_t *chunks[], int chunks_len[],
-                     int n, int compressed, int uncompressed)
+                     int n, int processed_len, int handled_len)
 {
     uint32_t grow = f->buffer_len;
-    struct pico_frame *new = NULL;
     int payload_len = 0;
     uint8_t *dst = NULL;
     int ret = 0, i = 0;
 
-    /* Is the frame large enough */
-    if (f->len < (uint16_t)compressed) {
-        grow = (uint32_t)(grow + (uint32_t)(compressed - f->len));
+    /* Calculate buffer size including IPv6 payload */
+    payload_len = (int)f->len - handled_len;
+    processed_len += payload_len; // Length of frame after processing
+
+    /* Reallocate frame size if there isn't enough room available */
+    if (f->len < (uint16_t)processed_len) {
+        grow = (uint32_t)(grow + (uint32_t)processed_len - f->len);
         ret = pico_frame_grow(f, grow);
+        if (ret) {
+            pico_iphc_bail_out(chunks, n);
+            return -1;
+        }
     }
 
-    /* Calculate buffer size including IPv6 payload */
-    payload_len = (int)(f->len - uncompressed);
-    compressed += payload_len;
-
-    chunks[n] = f->net_hdr + uncompressed; // Start of payload_available
+    chunks[n] = f->net_hdr + handled_len; // Start of payload_available
     chunks_len[n] = payload_len; // Size of payload
     n++; // Payload is another chunk to copy
 
-    /* Provide a new frame */
-    new = pico_frame_deepcopy(f);
-    if (!ret && new) {
-        dst = new->net_hdr;
-        lp_dbg("Reassembling %d chunks into 1 compressed frame\n", n);
-        for (i = 0; i < n; i++) { // Copy each compressed chunk, including payload
-            lp_dbg("Copying chunk of %d bytes...\n", chunks_len[i]);
-            memcpy(dst, chunks[i], (size_t)chunks_len[i]);
-            dst += chunks_len[i];
-        }
-        new->start = new->net_hdr;
-        new->len = (uint32_t)compressed;
-        pico_iphc_bail_out(chunks, n-1); // Success, discard compressed chunks
-        pico_frame_discard(f); // Success, safe to discard original frame
-        return new;
-    } else {
-        pico_iphc_bail_out(chunks, n-1); // -1, payload chunk is not alloc'ed
-        return NULL;
+    /* Copy each chunk back in the frame starting at the end of the new
+     * frame-buffer so we don't overwrite preceding buffers */
+    dst = f->net_hdr + processed_len;
+    for (i = n - 1; i >= 0; i--) {
+        dst -= chunks_len[i];
+        memcpy(dst, chunks[i], (size_t)chunks_len[i]);
     }
+    f->net_hdr = dst; // Last destination is net_hdr
+    f->start = f->net_hdr; // Start of useful data is at net_hdr
+    f->len = (uint32_t)processed_len;
+    f->transport_hdr = f->net_hdr + f->net_len;
+    pico_iphc_bail_out(chunks, n - 1); // Success, discard compressed chunk
+    return 0;
 }
 
-static struct pico_frame *
+/* Compresses a frame according to the IPHC, NHC_EXT and NHC_UDP compression scheme */
+static int
 pico_iphc_compress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
     int i = 0, compressed_len = 0, loop = 1, uncompressed = f->net_len;
-    int payload_len = 0;
-    uint8_t *old_nethdr = f->net_hdr; // Save net_hdr temporary ... :
+    uint8_t *old_nethdr = f->net_hdr; // Save net_hdr temporary ...
     uint8_t nh = PICO_PROTO_IPV6;
     uint8_t *chunks[8] = { NULL };
     int chunks_len[8] = { 0 };
 
     do {
         switch (nh) {
+            /* IPV6 HEADER */
             case PICO_PROTO_IPV6:
                 chunks[i] = compressor_iphc(f, src, dst, &chunks_len[i], &nh);
                 f->net_hdr += 40; // Move after IPv6 header
+                f->net_len = (uint16_t)chunks_len[i];
                 break;
-            case PICO_PROTO_UDP:
-                chunks[i] = compressor_nhc_udp(f, &chunks_len[i]);
-                uncompressed += PICO_UDPHDR_SIZE;
-                loop = 0;
-                break;
+            /* IPV6 EXTENSION HEADERS */
             case PICO_IPV6_EXTHDR_HOPBYHOP:
             case PICO_IPV6_EXTHDR_ROUTING:
             case PICO_IPV6_EXTHDR_FRAG:
             case PICO_IPV6_EXTHDR_DESTOPT:
                 chunks[i] = compressor_nhc_ext(f, src, dst, &chunks_len[i], &nh);
+                f->net_len = (uint16_t)(f->net_len + chunks_len[i]);
+                /* f->net_hdr is updated in compresor_nhc_ext with original size */
                 break;
-            default:
+            /* UDP HEADER */
+            case PICO_PROTO_UDP:
+                chunks[i] = compressor_nhc_udp(f, &chunks_len[i]);
+                uncompressed += PICO_UDPHDR_SIZE;
+            default: /* Intentional fall-through */
                 loop = 0;
         }
         /* Check if an error occured */
         if (!chunks[i])
-            pico_iphc_bail_out(chunks, i);
+            return pico_iphc_bail_out(chunks, i);
         /* Increment total compressed_len and increase iterator */
         compressed_len += chunks_len[i++];
     } while (compressible_nh(nh) && loop && i < 8);
 
     f->net_hdr = old_nethdr; // ... Restore old net_hdr
     return pico_iphc_reassemble(f, chunks, chunks_len, i, compressed_len, uncompressed);
+}
+
+/* Restore some IPv6 header fields like next header and payload length */
+static void
+pico_ipv6_finalize(struct pico_frame *f, uint8_t nh, uint16_t length)
+{
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->net_hdr;
+    if (!hdr->nxthdr)
+        hdr->nxthdr = nh;
+    hdr->len = short_be(length);
+}
+
+/* Decompresses a frame according to the IPHC, NHC_EXT and NHC_UDP compression scheme */
+static int
+pico_iphc_decompress(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
+{
+    int i = 0, compressed = 0, loop = 1, uncompressed = 0, ret = 0;
+    uint8_t *old_nethdr = f->net_hdr; // Save net_hdr temporary ...
+    uint8_t dispatch = PICO_PROTO_IPV6;
+    uint8_t *chunks[8] = { NULL };
+    int chunks_len[8] = { 0 };
+    uint8_t nh = 0;
+
+    do {
+        switch (dispatch) {
+            /* IPV6 HEADER */
+            case PICO_PROTO_IPV6:
+                chunks[i] = decompressor_iphc(f, src, dst, &ret);
+                chunks_len[i] = PICO_SIZE_IP6HDR;
+                f->net_len = PICO_SIZE_IP6HDR;
+                nh = ext_nh_retrieve(f->net_hdr, PICO_SIZE_IP6HDR);
+                break;
+            /* IPV6 EXTENSION HEADERS */
+            case PICO_IPV6_EXTHDR_HOPBYHOP:
+            case PICO_IPV6_EXTHDR_ROUTING:
+            case PICO_IPV6_EXTHDR_FRAG:
+            case PICO_IPV6_EXTHDR_DESTOPT:
+                chunks[i] = decompressor_nhc_ext(f, src, dst, &ret, &chunks_len[i]);
+                f->net_len = (uint16_t)(f->net_len + chunks_len[i]);
+                break;
+            /* UDP HEADER */
+            case PICO_PROTO_UDP:
+                f->transport_hdr = f->net_hdr; // Switch to transport header
+                chunks[i] = decompressor_nhc_udp(f, compressed, &ret);
+                chunks_len[i] = PICO_UDPHDR_SIZE;
+            default: /* Intentional fall-through */
+                loop = 0;
+        }
+        /* Check if an error occured */
+        if (!chunks[i])
+            return pico_iphc_bail_out(chunks, i);
+
+        /* Increase compressed and uncompressed length */
+        compressed += ret;
+        uncompressed += chunks_len[i++];
+
+        /* Get next dispatch header */
+        f->net_hdr += ret;
+        dispatch = ext_nh_retrieve(f->net_hdr, 0);
+    } while (dispatch && loop && i < 8);
+    f->net_hdr = old_nethdr; // ... Restore old net_hdr
+
+    /* Reassemble gathererd decompressed buffers */
+    ret = pico_iphc_reassemble(f, chunks, chunks_len, i, uncompressed, compressed);
+    if (ret)
+        return ret;
+    pico_ipv6_finalize(f, nh, (uint16_t)(f->len - PICO_SIZE_IP6HDR));
+    return 0;
 }
 
 static int

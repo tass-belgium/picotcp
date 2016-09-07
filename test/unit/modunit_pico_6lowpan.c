@@ -384,9 +384,9 @@ START_TEST(tc_compressor_nh)
     OUTPUT();
     printf("IPHC: %02X", iphc);
     RESULTS();
-    FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
+    FAIL_UNLESS(1 == ret, test, "Should've returned 0, ret = %d", ret);
     FAIL_UNLESS(iphc == 0, test, "Should've set the IPHC bits correctly");
-    FAIL_UNLESS(0 == comp, test, "Shouldn't have changed compressed");
+    FAIL_UNLESS(PICO_PROTO_TCP == comp, test, "Shouldn't have changed compressed");
 
     ENDING(test);
 }
@@ -398,20 +398,21 @@ START_TEST(tc_decompressor_nh)
     uint8_t iphc = NH_COMPRESSED;
     uint8_t ori = 0;
     uint8_t ret = 0;
+    uint8_t comp = PICO_PROTO_TCP;
 
     STARTING();
 
     TRYING("With NH bit set\n");
-    ret = decompressor_nh(&ori, NULL, &iphc, NULL, NULL, NULL);
+    ret = decompressor_nh(&ori, &comp, &iphc, NULL, NULL, NULL);
     RESULTS();
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
-    FAIL_UNLESS(NH_COMPRESSED == ori, test, "Should've filled ori with NH_COMPRESSED");
+    FAIL_UNLESS(0 == ori, test, "Should've filled ori with NH_COMPRESSED");
 
     TRYING("With NH bit cleared\n");
     iphc = 0;
-    ret = decompressor_nh(&ori, NULL, &iphc, NULL, NULL, NULL);
+    ret = decompressor_nh(&ori, &comp, &iphc, NULL, NULL, NULL);
     FAIL_UNLESS(0 == ret, test, "Should've returned 0, ret = %d", ret);
-    FAIL_UNLESS(0 == ori, test, "Should've filled ori with 0");
+    FAIL_UNLESS(PICO_PROTO_TCP == ori, test, "Should've filled ori with PICO_PROTO_TCP");
 
     ENDING(test);
 }
@@ -930,16 +931,17 @@ static const unsigned char ipv6_frame[61] = {
 0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50, /* MLML..{P */
 0xff, 0x00, 0x01, 0x01, 0x08                    /* ..... */
 };
+
 static const unsigned char lowpan_frame[18] = {
 0x7f, 0x33, 0xe7, 0x02, 0x1e, 0x00, 0xf0,
 0x4d, 0x4c, 0x4d, 0x4c, 0x7b, 0x50, 0xff, 0x00,
 0x01, 0x01, 0x08
 };
 
-static const unsigned char comp_frame[24] = {
+static const unsigned char comp_frame[22] = {
 0x7f, 0x33, 0xe7, 0x06, 0x1e, 0x00, 0x01, 0x02,
-0x00, 0x00, 0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x00,
-0x0d, 0x7b, 0x50, 0xff, 0x00, 0x01, 0x01, 0x08
+0x00, 0x00, 0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x7b,
+0x50, 0xff, 0x00, 0x01, 0x01, 0x08
 };
 
 START_TEST(tc_compressor_iphc)
@@ -985,7 +987,7 @@ START_TEST(tc_decompressor_iphc)
     int compressed_len = 0;
     uint8_t *buf = NULL;
     uint8_t hdr[40] = {
-    0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0xff, /* `.....<. */
+    0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, /* `.....<. */
 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
 0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
@@ -1021,16 +1023,16 @@ START_TEST(tc_compressor_nhc_udp)
     uint8_t *buf = NULL;
 
     uint8_t udp1[8] = {0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp1[] = {0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp1[] = {0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x7b, 0x50};
 
     uint8_t udp2[8] = {0xF0, 0xb1, 0xF0, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp2[] = {0xf3, 0x12, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp2[] = {0xf3, 0x12, 0x7b, 0x50};
 
     uint8_t udp3[8] = {0xF0, 0xb1, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp3[] = {0xf2, 0xb1, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp3[] = {0xf2, 0xb1, 0x4d, 0x4c, 0x7b, 0x50};
 
     uint8_t udp4[8] = {0x4d, 0x4c, 0xF0, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp4[] = {0xf1, 0x4d, 0x4c, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp4[] = {0xf1, 0x4d, 0x4c, 0xb2, 0x7b, 0x50};
 
     f->transport_hdr = f->buffer;
 
@@ -1041,40 +1043,40 @@ START_TEST(tc_compressor_nhc_udp)
     buf = compressor_nhc_udp(f, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
-    dbg_buffer(buf, 9);
+    dbg_buffer(buf, 7);
     RESULTS();
-    FAIL_UNLESS(9 == compressed_len, test, "Should've returned compressed_len of 9, len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, comp1, 9), test, "Should've correctly compressed UDP header");
+    FAIL_UNLESS(7 == compressed_len, test, "Should've returned compressed_len of 7, len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, comp1, 7), test, "Should've correctly compressed UDP header");
 
     TRYING("To compress a UDP header from a sample capture with both compressible addresses\n");
     memcpy(f->buffer, udp2, 8);
     buf = compressor_nhc_udp(f, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
-    dbg_buffer(buf, 6);
+    dbg_buffer(buf, 4);
     RESULTS();
-    FAIL_UNLESS(6 == compressed_len, test, "Should've returned compressed_len of 6, len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, comp2, 6), test, "should've correctly compressed UDP header");
+    FAIL_UNLESS(4 == compressed_len, test, "Should've returned compressed_len of 4, len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, comp2, 4), test, "should've correctly compressed UDP header");
 
     TRYING("To compress a UDP header from a sample capture with compressible source\n");
     memcpy(f->buffer, udp3, 8);
     buf = compressor_nhc_udp(f, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
-    dbg_buffer(buf, 8);
+    dbg_buffer(buf, 6);
     RESULTS();
-    FAIL_UNLESS(8 == compressed_len, test, "Should've returned compressed_len of 8, len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, comp3, 8), test, "should've correctly compressed UDP header");
+    FAIL_UNLESS(6 == compressed_len, test, "Should've returned compressed_len of 6, len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, comp3, 6), test, "should've correctly compressed UDP header");
 
     TRYING("To compress a UDP header from a sample capture with compressible destination\n");
     memcpy(f->buffer, udp4, 8);
     buf = compressor_nhc_udp(f, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
-    dbg_buffer(buf, 8);
+    dbg_buffer(buf, 6);
     RESULTS();
-    FAIL_UNLESS(8 == compressed_len, test, "Should've returned compressed_len of 8, len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, comp4, 8), test, "should've correctly compressed UDP header");
+    FAIL_UNLESS(6 == compressed_len, test, "Should've returned compressed_len of 6, len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, comp4, 6), test, "should've correctly compressed UDP header");
 
 
     ENDING(test);
@@ -1087,63 +1089,67 @@ START_TEST(tc_decompressor_nhc_udp)
     struct pico_frame *f = pico_frame_alloc(9);
     uint8_t nh = PICO_PROTO_UDP;
     int compressed_len = 0;
-    union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
 
     uint8_t udp1[8] = {0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp1[] = {0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp1[] = {0xf0, 0x4d, 0x4c, 0x4d, 0x4c, 0x7b, 0x50};
 
     uint8_t udp2[8] = {0xF0, 0xb1, 0xF0, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp2[] = {0xf3, 0x12, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp2[] = {0xf3, 0x12, 0x7b, 0x50};
 
     uint8_t udp3[8] = {0xF0, 0xb1, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp3[] = {0xf2, 0xb1, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp3[] = {0xf2, 0xb1, 0x4d, 0x4c, 0x7b, 0x50};
 
     uint8_t udp4[8] = {0x4d, 0x4c, 0xF0, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
-    uint8_t comp4[] = {0xf1, 0x4d, 0x4c, 0xb2, 0x00, 0x0d, 0x7b, 0x50};
+    uint8_t comp4[] = {0xf1, 0x4d, 0x4c, 0xb2, 0x7b, 0x50};
 
     f->transport_hdr = f->buffer;
+    f->net_len = PICO_SIZE_IP6HDR;
 
     STARTING();
 
     TRYING("To decompress NH_UDP header with inline addresses\n");
-    memcpy(f->buffer, comp1, 9);
-    buf = decompressor_nhc_udp(f, src, dst, &compressed_len);
+    memcpy(f->buffer, comp1, 7);
+    f->len = 12;
+    buf = decompressor_nhc_udp(f, 0, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
     RESULTS();
-    FAIL_UNLESS(9 == compressed_len, test, "Should've returned compressed_len of 9, len = %d", compressed_len);
+    FAIL_UNLESS(7 == compressed_len, test, "Should've returned compressed_len of 7, len = %d", compressed_len);
     FAIL_UNLESS(0 == memcmp(buf, udp1, 8), test, "Should've correctly compressed UDP header");
 
     TRYING("To decompress NHC_UDP header with both addresses compressed\n");
-    memcpy(f->buffer, comp2, 6);
-    buf = decompressor_nhc_udp(f, src, dst, &compressed_len);
+    memcpy(f->buffer, comp2, 4);
+    f->len = 9;
+    buf = decompressor_nhc_udp(f, 0, &compressed_len);
+    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
+    OUTPUT();
+    dbg_buffer(buf, 8);
+    RESULTS();
+    FAIL_UNLESS(4 == compressed_len, test, "Should've returned compressed_len of 4, len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, udp2, 8), test, "Should've correctly decompressed UDP header");
+
+    TRYING("To decompress NHC_UDP header with both addresses compressed\n");
+    memcpy(f->buffer, comp3, 6);
+    f->len = 11;
+    buf = decompressor_nhc_udp(f, 0, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
     RESULTS();
     FAIL_UNLESS(6 == compressed_len, test, "Should've returned compressed_len of 6, len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, udp2, 8), test, "Should've correctly decompressed UDP header");
-
-    TRYING("To decompress NHC_UDP header with both addresses compressed\n");
-    memcpy(f->buffer, comp3, 8);
-    buf = decompressor_nhc_udp(f, src, dst, &compressed_len);
-    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
-    OUTPUT();
-    dbg_buffer(buf, 8);
-    RESULTS();
-    FAIL_UNLESS(8 == compressed_len, test, "Should've returned compressed_len of 8, len = %d", compressed_len);
     FAIL_UNLESS(0 == memcmp(buf, udp3, 8), test, "Should've correctly decompressed UDP header");
 
     TRYING("To decompress NHC_UDP header with both addresses compressed\n");
-    memcpy(f->buffer, comp4, 8);
-    buf = decompressor_nhc_udp(f, src, dst, &compressed_len);
+    memcpy(f->buffer, comp4, 6);
+    f->len = 11;
+    buf = decompressor_nhc_udp(f, 0, &compressed_len);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
     RESULTS();
-    FAIL_UNLESS(8 == compressed_len, test, "Should've returned compressed_len of 8, len = %d", compressed_len);
+    FAIL_UNLESS(6 == compressed_len, test, "Should've returned compressed_len of 6, len = %d", compressed_len);
     FAIL_UNLESS(0 == memcmp(buf, udp4, 8), test, "Should've correctly decompressed UDP header");
 
     ENDING(test);
@@ -1186,7 +1192,7 @@ START_TEST(tc_decompressor_nhc_ext)
 {
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(9);
-    int compressed_len = 0;
+    int compressed_len = 0, decomp;
     union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
 
@@ -1199,7 +1205,7 @@ START_TEST(tc_decompressor_nhc_ext)
 
     TRYING("NHC_EXT compressed header with DSTOPT extension header\n");
     memcpy(f->buffer, nhc1, 5);
-    buf = decompressor_nhc_ext(f, src, dst, &compressed_len);
+    buf = decompressor_nhc_ext(f, src, dst, &compressed_len, &decomp);
     FAIL_UNLESS(buf, test, "Should've at least returend a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
@@ -1219,7 +1225,7 @@ START_TEST(tc_pico_iphc_compress)
     union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
     union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
     struct pico_device dev;
-    struct pico_frame *n = NULL;
+    int ret = 0;
 
     dev.mode = LL_MODE_IEEE802154;
     memcpy(f->buffer, ipv6_frame, 61);
@@ -1233,13 +1239,45 @@ START_TEST(tc_pico_iphc_compress)
     STARTING();
 
     TRYING("Trying to compress an IPv6 frame from an example capture\n");
-    n = pico_iphc_compress(f, src, dst);
-    FAIL_UNLESS(n, test, "Should've at least returned a frame ");
+    ret = pico_iphc_compress(f, src, dst);
     OUTPUT();
-    dbg_buffer(n->net_hdr, n->len);
+    dbg_buffer(f->net_hdr, f->len);
     RESULTS();
-    FAIL_UNLESS(24 == n->len, test, "Should have returned length of 24, len = %d", n->len);
-    FAIL_UNLESS(0 == memcmp(n->net_hdr, comp_frame, 24), test, "Should've compressed the frame correctly");
+    FAIL_UNLESS(ret, "Shouldn't have returned an error\n");
+    FAIL_UNLESS(22 == f->len, test, "Should have returned length of 22, len = %d", f->len);
+    FAIL_UNLESS(0 == memcmp(f->net_hdr, comp_frame, 22), test, "Should've compressed the frame correctly");
+
+    ENDING(test);
+}
+END_TEST
+
+START_TEST(tc_pico_iphc_decompress)
+{
+    int test = 0;
+    struct pico_frame *f = pico_frame_alloc(61);
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    struct pico_device dev;
+    struct pico_frame *n = NULL;
+    int ret = 0;
+
+    dev.mode = LL_MODE_IEEE802154;
+    memcpy(f->buffer, comp_frame, 22);
+    f->net_hdr = f->buffer;
+    f->net_len = 22;
+    f->len = 22;
+    f->dev = &dev;
+
+    STARTING();
+
+    TRYING("Trying to decompress a 6LoWPAN frame from an example capture\n");
+    ret = pico_iphc_decompress(f, src, dst);
+    OUTPUT();
+    dbg_buffer(f->net_hdr, f->len);
+    RESULTS();
+    FAIL_UNLESS(ret, "Shouldn't have returned an error\n");
+    FAIL_UNLESS(61 == f->len, test, "Should've returned a length of 61, len = %d", f->len);
+    FAIL_UNLESS(0 == memcmp(f->net_hdr, ipv6_frame, f->len), test, "Should've decompressed the frame correctly");
 
     ENDING(test);
 }
@@ -1272,6 +1310,7 @@ Suite *pico_suite(void)
     TCase *TCase_compressor_nhc_ext = tcase_create("Unit test for compressor_nhc_ext");
     TCase *TCase_decompressor_nhc_ext = tcase_create("Unit test for decompressor_nhc_ext");
     TCase *TCase_pico_iphc_compress = tcase_create("Unit test for pico_iphc_compress");
+    TCase *TCase_pico_iphc_decompress = tcase_create("Unit test for pico_iphc_decompress");
 
 /*******************************************************************************
  *  IPHC
@@ -1323,6 +1362,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_decompressor_nhc_ext);
     tcase_add_test(TCase_pico_iphc_compress, tc_pico_iphc_compress);
     suite_add_tcase(s, TCase_pico_iphc_compress);
+    tcase_add_test(TCase_pico_iphc_decompress, tc_pico_iphc_decompress);
+    suite_add_tcase(s, TCase_pico_iphc_decompress);
 
     return s;
 }
