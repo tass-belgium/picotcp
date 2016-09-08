@@ -484,12 +484,11 @@ frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
     }
 
     /* Make sure these addresses are retrievable from the frame on processing */
-    frame_802154_store_addr(f, src.pan, dst.pan);
-
-    if (pico_enqueue(pico_proto_802154.q_out,f) > 0)
-        return 0; // Frame enqueued for later processing
-    else
-        return -1; // Return ERROR
+    if (!frame_802154_store_addr(f, src.pan, dst.pan)) {
+        if (pico_enqueue(pico_proto_802154.q_out,f) > 0)
+            return 0; // Frame enqueued for later processing
+    }
+    return -1; // Return ERROR
 }
 
 /* General pico_protocol outgoing processing function */
@@ -522,9 +521,8 @@ pico_802154_process_out(struct pico_protocol *self, struct pico_frame *f)
     for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
         ret = exts[i].out(f, &llsrc, &lldst);
         if (ret < 0) {
-            /* Addresses could be changed along the way store them again to
-             * recover */
-            frame_802154_store_addr(f, llsrc, lldst);
+            /* Processing failed, no way to recover, discard frame */
+            pico_frame_discard(f);
             return -1;
         }
         datalink_len = (uint32_t)(datalink_len + (uint32_t)ret);

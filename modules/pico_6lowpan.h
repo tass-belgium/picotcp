@@ -13,6 +13,16 @@
 #include "pico_config.h"
 #include "pico_frame.h"
 
+/******************************************************************************
+ * Public variables
+ ******************************************************************************/
+
 extern struct pico_protocol pico_proto_6lowpan;
+
+/******************************************************************************
+ * Public functions
+ ******************************************************************************/
+
+int pico_6lowpan_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
 
 #endif /* INCLUDE_PICO_6LOWPAN */
