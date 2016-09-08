@@ -22,6 +22,8 @@
  * Macros
  ******************************************************************************/
 
+#define UNUSED __attribute__((unused))
+
 #ifdef DEBUG_6LOWPAN
 #define lp_dbg dbg
 #else
@@ -32,8 +34,7 @@
 #define IPV6_MCAST_32(addr) (!(*(uint32_t *)&addr[8]) && !addr[12] && (addr[13] || addr[14]))
 #define IPV6_MCAST_8(addr)  (addr[1] == 0x02 && !addr[14] && addr[15])
 
-#define PORT_COMP_0xFO(p)   (((p) & short_be(0xFF00)) == short_be(0xF000))
-#define PORT_COMP_0xF0B(p)  (((p) & short_be(0xFFF0)) == short_be(0xF0B0))
+#define PORT_COMP(a, mask, b)   (((a) & (mask)) == (b))
 
 /*******************************************************************************
  * Constants
@@ -294,7 +295,7 @@ ctx_lookup_id(uint8_t id)
 
 /* Deletes a context with a certain prefix from the context tree. The ctx is
  * either found and deleted, or not found, don't care. */
-static void
+UNUSED static void
 ctx_remove(struct pico_ip6 addr)
 {
     struct iphc_ctx test = { addr, 0, 0}, *key = NULL;
@@ -303,7 +304,7 @@ ctx_remove(struct pico_ip6 addr)
 }
 
 /* Tries to insert a new IPHC-context into the Context-tree */
-static int
+UNUSED static int
 ctx_insert(struct pico_ip6 addr, uint8_t id, int size)
 {
     struct iphc_ctx *new = PICO_ZALLOC(sizeof(struct iphc_ctx));
@@ -341,7 +342,7 @@ compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
     /* Don't worry... */
     ecn = (uint8_t)(*ori << 4) & 0xC0;      // hdr: [v|v|v|v|e|e|_|_] << 4
     dscp = (uint8_t)(*ori++ << 4) & 0x30;   //      [_|_|_|_|_|_|d|d] << 4
-    dscp |= (*ori & 0xF0) >> 4;             //  ...][d|d|d|d|_|_|_|_] >> 4
+    dscp |= (uint8_t)(*ori & 0xF0) >> 4;    //  ...][d|d|d|d|_|_|_|_] >> 4
     fl1 = *ori++ & 0x0F;                    //  ...][_|_|_|_|f|f|f|f]
     fl2 = *ori++;                           // 2B..][f|f|f|f|f|f|f|f]
     fl3 = *ori;                             // 3B..][f|f|f|f|f|f|f|f]
@@ -383,7 +384,7 @@ decompressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr
     IGNORE_PARAMETER(dev);
     if (TF_INLINE == tf) {
         *ori++ = (0x60 | (*comp >> 4));
-        *ori |= (uint8_t)((*comp++ << 4) & 0xF0);
+        *ori |= (uint8_t)((uint8_t)(*comp++ << 4) & 0xF0);
         *ori++ |= *comp++;
         *ori++ = *comp++;
         *ori++ = *comp++;
@@ -686,7 +687,7 @@ decompressor_src(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr
                  *llsrc, union pico_ll_addr *lldst, struct pico_device *dev)
 {
     struct pico_ip6 *src = (struct pico_ip6 *)ori;
-    uint8_t sam = (uint8_t)((iphc[1] & SRC_COMPRESSED) >> 4);
+    uint8_t sam = (uint8_t)((uint8_t)(iphc[1] & SRC_COMPRESSED) >> 4);
     IGNORE_PARAMETER(lldst);
 
     /* Get the appropriate IPv6 prefix */
@@ -842,6 +843,10 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
     struct pico_udp_hdr *hdr = (struct pico_udp_hdr *)f->transport_hdr;
     uint16_t sport = hdr->trans.sport;
     uint16_t dport = hdr->trans.dport;
+    uint16_t xF0B0 = short_be(0xF0B0);
+    uint16_t xF000 = short_be(0xF000);
+    uint16_t xFF00 = short_be(0xFF00);
+    uint16_t xFFF0 = short_be(0xFFF0);
     *compressed_len = 0;
 
     if (!inline_buf) {
@@ -850,17 +855,17 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
         /* Dispatch header */
         inline_buf[0] = (uint8_t)UDP_DISPATCH;
         /* Port compression */
-        if (PORT_COMP_0xF0B(sport) && PORT_COMP_0xF0B(dport)) {
+        if (PORT_COMP(sport, xFFF0, xF0B0) && PORT_COMP(dport, xFFF0, xF0B0)) {
             inline_buf[0] |= UDP_COMPRESSED_BOTH;
             inline_buf[1] = (uint8_t)(short_be(sport) << 4);
-            inline_buf[1] |= (uint8_t)(((uint8_t)short_be(dport)) & 0x0F);
+            inline_buf[1] |= (uint8_t)((uint8_t)short_be(dport) & 0x0F);
             *compressed_len = 2;
-        } else if (PORT_COMP_0xFO(sport)) {
+        } else if (PORT_COMP(sport, xFF00, xF000)) {
             inline_buf[0] |= UDP_COMPRESSED_SRC;
             inline_buf[1] = (uint8_t)short_be(sport);
             memcpy(inline_buf + 2, (uint8_t *)hdr + 2, 2);
             *compressed_len = 4;
-        } else if (PORT_COMP_0xFO(dport)) {
+        } else if (PORT_COMP(dport, xFF00, xF000)) {
             inline_buf[0] |= UDP_COMPRESSED_DST;
             inline_buf[3] = (uint8_t)short_be(dport);
             memcpy(inline_buf + 1, (uint8_t *)hdr, 2);
@@ -887,39 +892,42 @@ decompressor_nhc_udp(struct pico_frame *f, int processed_len, int *compressed_le
     struct pico_udp_hdr *hdr = PICO_ZALLOC(PICO_UDPHDR_SIZE);
     uint8_t *buf = f->transport_hdr;
     uint8_t compression = buf[0] & UDP_COMPRESSED_BOTH;
+    uint16_t xF0B0 = short_be(0xF0B0);
+    uint16_t xF000 = short_be(0xF000);
     int payload_len = 0;
     *compressed_len = 0;
 
-    if (hdr && ((buf[0] & 0xF8) == UDP_DISPATCH)) {
+    if (hdr) {
         /* Decompress ports */
-        if (UDP_COMPRESSED_BOTH == compression) {
-            hdr->trans.sport = short_be(0xF0B0) | short_be((uint16_t)(buf[1] >> 4));
-            hdr->trans.dport = short_be(0xF0B0) | short_be((uint16_t)(buf[1] & 0xff));
-            *compressed_len = 2;
-        } else if (UDP_COMPRESSED_SRC == compression) {
-            hdr->trans.dport = *(uint16_t *)&buf[2];
-            hdr->trans.sport = short_be(0xF000) | short_be((uint16_t)buf[1]);
-            *compressed_len = 4;
-        } else if (UDP_COMPRESSED_DST == compression) {
-            hdr->trans.sport = *(uint16_t *)&buf[1];
-            hdr->trans.dport = short_be(0xF000) | short_be((uint16_t)buf[3]);
-            *compressed_len = 4;
-        } else {
-            memcpy((uint8_t *)&hdr->trans, &buf[1], 4);
-            *compressed_len = 5;
+        if ((buf[0] & 0xF8) == UDP_DISPATCH) {
+            if (UDP_COMPRESSED_BOTH == compression) {
+                hdr->trans.sport = xF0B0 | short_be((uint16_t)(buf[1] >> 4));
+                hdr->trans.dport = xF0B0 | short_be((uint16_t)(buf[1] & 0xff));
+                *compressed_len = 2;
+            } else if (UDP_COMPRESSED_SRC == compression) {
+                hdr->trans.dport = *(uint16_t *)&buf[2];
+                hdr->trans.sport = xF000 | short_be((uint16_t)buf[1]);
+                *compressed_len = 4;
+            } else if (UDP_COMPRESSED_DST == compression) {
+                hdr->trans.sport = *(uint16_t *)&buf[1];
+                hdr->trans.dport = xF000 | short_be((uint16_t)buf[3]);
+                *compressed_len = 4;
+            } else {
+                memcpy((uint8_t *)&hdr->trans, &buf[1], 4);
+                *compressed_len = 5;
+            }
+            /* Restore checksum if carried inline */
+            if (!(buf[0] & UDP_COMPRESSED_CHCK)) { // Leave empty room for checksum
+                memcpy((uint8_t *)&hdr->crc, &buf[*compressed_len],2);
+                *compressed_len += 2;
+            }
+            /* Restore inherently compressed length */
+            payload_len = (int)f->len - (processed_len + *compressed_len);
+            hdr->len = short_be((uint16_t)(payload_len + PICO_UDPHDR_SIZE));
+            return (uint8_t *)hdr;
         }
-        /* Restore checksum if carried inline */
-        if (!(buf[0] & UDP_COMPRESSED_CHCK)) { // Leave empty room for checksum
-            memcpy((uint8_t *)&hdr->crc, &buf[*compressed_len],2);
-            *compressed_len += 2;
-        }
-        /* Restore inherently compressed length */
-        payload_len = (int)f->len - (processed_len + *compressed_len);
-        hdr->len = short_be((uint16_t)(payload_len + PICO_UDPHDR_SIZE));
-        return (uint8_t *)hdr;
-    } else {
-        return NULL;
     }
+    return NULL;
 }
 
 /* Get's the length of an IPv6 extension header  */
@@ -1329,10 +1337,10 @@ static int
 frag_nth(struct pico_frame *f)
 {
     struct frag_ctx *frag = frag_ctx_find(f->hash);
+    uint16_t copy = 0, x7FF = short_be(0x7FF);
     struct pico_frame *n = NULL;
     int avail = 0, ret = 0;
     uint8_t *fragn = NULL;
-    uint16_t copy = 0;
     uint8_t units = 0;
 
     if (frag) {
@@ -1349,7 +1357,7 @@ frag_nth(struct pico_frame *f)
 
                 /* Fill in n-th fragment */
                 fragn[0] = FRAGN_DISPATCH;
-                *(uint16_t *)&frag[0] |= (uint16_t)(short_be(frag->dgram_size) & short_be(0x7FF));
+                *(uint16_t *)&frag[0] |= (uint16_t)(short_be(frag->dgram_size) & x7FF);
                 *(uint16_t *)&frag[2] = (uint16_t)short_be(frag->dgram_tag);
                 fragn[4] = (uint8_t)(frag->dgram_off + units);
                 memcpy(frag + 5, f->net_hdr, copy);
@@ -1378,15 +1386,16 @@ frag_1st(struct pico_frame *f, uint16_t dgram_size, uint8_t dgram_off, uint16_t
          copy, union pico_ll_addr src, union pico_ll_addr dst)
 {
     struct pico_frame *n = pico_6lowpan_frame_alloc((uint16_t)(copy + FRAG1_SIZE), f->dev);
+    uint16_t x7FF = short_be(0x7FF);
     uint8_t *frag = NULL;
     int ret = 0;
-    if (!n) {
+    if (n) {
         n->net_hdr = n->buffer + (int)(n->buffer_len) - (int)(copy + FRAG1_SIZE);
         frag = n->net_hdr;
 
         /* Fill 1st fragment */
         frag[0] = FRAG1_DISPATCH;
-        *(uint16_t *)&frag[0] |= (uint16_t)(short_be(dgram_size) & short_be(0x7FF));
+        *(uint16_t *)&frag[0] |= (uint16_t)(short_be(dgram_size) & x7FF);
         *(uint16_t *)&frag[2] = (uint16_t)short_be(dgram_tag++);
         memcpy(frag + 4, f->net_hdr, copy);
 
@@ -1426,7 +1435,7 @@ frag_1st_no_comp(struct pico_frame *f, union pico_ll_addr src, union pico_ll_add
 static uint16_t
 frame_comp_hlen(struct pico_frame *f, int udp)
 {
-    return (uint16_t)(f->net_len + (udp ? f->transport_len : 0));
+    return (uint16_t)(f->net_len + ((udp) ? (f->transport_len) : (0)));
 }
 
 /* Send the first fragment of a compressed datagram */
@@ -1665,11 +1674,15 @@ pico_6lowpan_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
     if (headroom < needed) {
         grow = (uint32_t)(needed - headroom);
         ret = pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
+        if (ret) {
+            pico_frame_discard(f);
+            return -1;
+        }
     }
 
     /* Allocate room for both addresses on the heap */
     addr = (union pico_ll_addr *)PICO_ZALLOC(sizeof(union pico_ll_addr) << 1);
-    if (!ret && addr) {
+    if (addr) {
         addr[0] = src; // Store source on the heap
         addr[1] = dst; // Store destin on the heap
 
@@ -1759,7 +1772,7 @@ static int pico_6lowpan_ll_iid(uint8_t iid[8], union pico_ll_addr *addr, struct 
     return 0;
 }
 
-static int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev)
+UNUSED static int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev)
 {
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
