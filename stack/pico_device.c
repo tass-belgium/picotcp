@@ -61,7 +61,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
     struct pico_ip6 newaddr;
 #ifdef PICO_SUPPORT_6LOWPAN
-    struct pico_802154_info *ieee = NULL;
+    struct pico_802154_info *ieee = (struct pico_802154_info *)dev->eth;
 #endif
 
     if (LL_MODE_IEEE802154 == dev->mode) {
@@ -110,6 +110,16 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
             return -1;
         }
     }
+    #ifdef PICO_SUPPORT_6LOWPAN
+    else if (LL_MODE_IEEE802154 == dev->mode) {
+        if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_802154_info)))) {
+            memcpy(dev->eth, mac, sizeof(struct pico_802154_info));
+        } else {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+    }
+    #endif
 
     #ifdef PICO_SUPPORT_IPV6
     if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
@@ -203,12 +213,14 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
+        #ifdef PICO_SUPPORT_6LOWPAN
         if (LL_MODE_IEEE802154 != dev->mode) {
             ret = device_init_nomac(dev);
         } else {
             /* RFC6775: Link Local to be formed based on EUI-64 as per RFC6775 */
             return -1;
         }
+        #endif
     }
     return ret;
 }

@@ -454,34 +454,31 @@ int main(int argc, char **argv)
 
         case '6':
         {
-            // TODO: Adapt test to work with refactored 6LoWPAN
-            /*
-            char *nxt, *name = NULL, *area = NULL, *dump = NULL;
-            uint16_t n_id, n_area0, n_area1;
-            struct ieee_radio *radio = NULL;
+            char *nxt, *name = NULL, *area0 = NULL, *area1 = NULL, *dump = NULL;
+            uint8_t n_id, n_area0, n_area1;
             struct pico_ip6 myaddr, pan, netmask;
-            const char pan_addr[] = "2aaa:6109::0";
+            const char pan_addr[] = "2aaa:abcd::0";
             const char pan_netmask[] = "ffff:ffff:ffff:ffff::0";
-            struct pico_socket *s;
+
+            /* Copy required command line arguments */
             do {
                 nxt = cpy_arg(&name, optarg);
                 if (!nxt) break;
-                nxt = cpy_arg(&area, nxt);
+                nxt = cpy_arg(&area0, nxt);
+                if (!nxt) break;
+                nxt = cpy_arg(&area1, nxt);
                 if (!nxt) break;
             } while (0);
-            if (!name || !area) {
+
+            /* Check required arguments */
+            if (!name || !area0 || !area1) {
                 fprintf(stderr, "Usage: -6,id,area\n");
                 exit(1);
             }
-            n_id = atoi(name);
-            n_area0 = atoi(area);
 
-            if (nxt) {
-                nxt = cpy_arg(&area, nxt);
-            }
-            if (area) {
-                n_area1 = atoi(area);
-            }
+            n_id = (uint8_t) atoi(name);
+            n_area0 = (uint8_t) atoi(area0);
+            n_area1 = (uint8_t) atoi(area1);
 
             if (nxt) {
                 nxt = cpy_arg(&dump, nxt);
@@ -496,16 +493,16 @@ int main(int argc, char **argv)
             myaddr.addr[15] = n_id;
 
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-            radio = pico_radiotest_create(n_id, n_area0, n_area1, dump);
-            dev = pico_lowpan_create(radio);
-            if (!radio) {
-                perror("Creating radio");
+            dev = pico_radiotest_create(n_id, n_area0, n_area1, dump);
+            if (!dev) {
                 exit(1);
             }
 
-            if (n_id == 1)
-                pico_lowpan_enable_6lbr(dev, pan);
-            */
+            printf("Radiotest created.\n");
+
+            /* Add a routable link */
+            pico_ipv6_link_add(dev, myaddr, netmask);
+
             break;
         }
         case 'b':

@@ -23,5 +23,6 @@ cscope.out
 *.gcda
 *.gcno
 *.expand
+*.pcap
 .ycm_extra_conf.py
 .clang_complete

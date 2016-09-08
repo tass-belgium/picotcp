@@ -400,7 +400,7 @@ int pico_datalink_send(struct pico_frame *f)
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
         if (LL_MODE_IEEE802154 == f->dev->mode) {
-            return pico_enqueue(pico_proto_802154.q_out, f);
+            return pico_enqueue(pico_proto_6lowpan.q_out, f);
         } else {
             return pico_enqueue(pico_proto_ethernet.q_out, f);
         }

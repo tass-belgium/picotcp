@@ -8,6 +8,7 @@
 #include "pico_stack.h"
 #include "pico_frame.h"
 #include "pico_802154.h"
+#include "pico_6lowpan.h"
 #include "pico_protocol.h"
 #include "pico_addressing.h"
 
@@ -474,6 +475,9 @@ frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
         return -1;
     frame_size = (uint16_t)(f->net_len + f->transport_len + f->app_len + f->payload_len);
 
+    dbg("ieee802154 - some frame stats: \n");
+    dbg("ieee802154 - len: %d net_len: %d transport_len: %d payload_len: %d\n", f->len, f->net_len, f->transport_len, f->payload_len);
+
     /* Call each of the estimator functions of the additional headers to
      * determine if the frame fits inside a single 802.15.4 frame, if it doesn't
      * at some point, return the available bytes */
@@ -540,8 +544,8 @@ pico_802154_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
     int i = 0, ret = 0;
     uint32_t len = 0;
-    struct pico_802154 src;
-    struct pico_802154 dst;
+    union pico_ll_addr src;
+    union pico_ll_addr dst;
     IGNORE_PARAMETER(self);
 
     /* net_hdr is the pointer that is dynamically updated by the incoming
@@ -551,7 +555,7 @@ pico_802154_process_in(struct pico_protocol *self, struct pico_frame *f)
     f->net_hdr = f->buffer;
 
     for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
-        ret = exts[i].in(f, &src, &dst);
+        ret = exts[i].in(f, &src.pan, &dst.pan);
         switch (ret) {
             case FRAME_802154_RELEASE:
                 /* Success, frame is somewhere else now.. :( */
@@ -569,8 +573,7 @@ pico_802154_process_in(struct pico_protocol *self, struct pico_frame *f)
     /* Determine size at network layer */
     f->net_len = (uint16_t)(f->len - len);
 
-    /* TODO: Replace network_receive by 6LoWPAN's pull function */
-    return (int)(pico_network_receive(f) <= 0);
+    return pico_6lowpan_pull(f,src,dst);
 }
 
 /* Alloc-function for picoTCP's alloc-chain */
