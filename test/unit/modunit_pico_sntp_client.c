@@ -36,6 +36,13 @@ int pico_socket_close(struct pico_socket *s)
     return 0;
 }
 
+/* Used in pico_sntp_send */
+int8_t pico_socket_del(struct pico_socket *s)
+{
+    (void) s;
+    return 0;
+}
+
 /* Used in dnsCallback */
 int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
 {
@@ -116,12 +123,13 @@ void cb_synced(pico_err_t status)
 }
 
 /* Used in pico_sntp_send */
+static uint32_t timers_added = 0;
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     (void) expire;
     (void) timer;
     (void) arg;
-    return 0;
+    return ++timers_added;
 }
 
 /* Used in pico_sntp_cleanup */
