@@ -56,7 +56,10 @@ void cb_tcpclient(uint16_t ev, struct pico_socket *s)
 
     if (ev & PICO_SOCK_EV_FIN) {
         printf("Socket closed. Exit normally. \n");
-        pico_timer_add(2000, compare_results, NULL);
+        if (!pico_timer_add(2000, compare_results, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
