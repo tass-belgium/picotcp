@@ -33,7 +33,6 @@
 #define IPV6_MCAST_48(addr) (!(*(uint16_t *)&addr[8]) && !addr[10] && (addr[11] || addr[12]))
 #define IPV6_MCAST_32(addr) (!(*(uint32_t *)&addr[8]) && !addr[12] && (addr[13] || addr[14]))
 #define IPV6_MCAST_8(addr)  (addr[1] == 0x02 && !addr[14] && addr[15])
-
 #define PORT_COMP(a, mask, b)   (((a) & (mask)) == (b))
 
 /*******************************************************************************
@@ -90,9 +89,7 @@
  * Type definitions
  ******************************************************************************/
 
-typedef int (*compressor_t)(uint8_t *, uint8_t *, uint8_t *, union pico_ll_addr
-                            *, union pico_ll_addr *, struct pico_device *);
-
+typedef int (*compressor_t)(uint8_t *, uint8_t *, uint8_t *, union pico_ll_addr *, union pico_ll_addr *, struct pico_device *);
 typedef struct hdr_field
 {
     int ori_size;
@@ -350,7 +347,8 @@ static int
 compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
                llsrc, union pico_ll_addr *lldst, struct pico_device *dev)
 {
-    uint8_t ecn = 0, dscp = 0, fl1 = 0, fl2 = 0, fl3 = 0;
+    uint8_t ecn = 0, dscp = 0;
+    uint32_t fl = 0;
     *ori &= 0x0F; // Clear version field
     *iphc &= (uint8_t)0x07; // Clear IPHC field
     *iphc |= (uint8_t)IPHC_DISPATCH;
@@ -362,30 +360,29 @@ compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
     ecn = (uint8_t)(*ori << 4) & 0xC0;      // hdr: [v|v|v|v|e|e|_|_] << 4
     dscp = (uint8_t)(*ori++ << 4) & 0x30;   //      [_|_|_|_|_|_|d|d] << 4
     dscp |= (uint8_t)(*ori & 0xF0) >> 4;    //  ...][d|d|d|d|_|_|_|_] >> 4
-    fl1 = *ori++ & 0x0F;                    //  ...][_|_|_|_|f|f|f|f]
-    fl2 = *ori++;                           // 2B..][f|f|f|f|f|f|f|f]
-    fl3 = *ori;                             // 3B..][f|f|f|f|f|f|f|f]
+    fl = (uint32_t)(*ori++ & 0x0f) << 16;   //  ...][_|_|_|_|f|f|f|f]
+    fl |= (uint32_t)(*ori++) << 8;          // 2B..][f|f|f|f|f|f|f|f]
+    fl |= (uint32_t)*ori;                   // 3B..][f|f|f|f|f|f|f|f]
 
-    if (!dscp && !fl1 && !fl2 && !fl3 && !ecn) {
-        *iphc |= TF_ELIDED;
-        return 0;
-    } else if (!dscp && (fl3 || fl2 || fl1)) {
-        *iphc |= TF_ELIDED_DSCP;
-        *comp++ = ecn | fl1;
-        *comp++ = fl2;
-        *comp = fl3;
-        return 3;
-    } else if ((ecn || dscp) && !fl3 && !fl2 && !fl1) {
+    if (fl) {
+        if (!dscp) { // Flow label carried in-line
+            *iphc |= TF_ELIDED_DSCP;
+            *comp = ecn;
+            *(uint32_t *)comp |= (uint32_t)(fl << 8);
+            return 3;
+        } else { // Traffic class and flow label carried in-line
+            *iphc |= TF_INLINE;
+            *comp = ecn | dscp;
+            *(uint32_t *)comp |= (uint32_t)fl;
+            return 4;
+        }
+    } else if (ecn || dscp) { // Traffic class carried in-line
         *iphc |= TF_ELIDED_FL;
         *comp = ecn | dscp;
         return 1;
-    } else {
-        *iphc |= TF_INLINE;
-        *comp++ = ecn | dscp;
-        *comp++ = fl1 & 0x0F;
-        *comp++ = fl2;
-        *comp = fl3;
-        return 4;
+    } else { // Traffic class and flow label elided
+        *iphc |= TF_ELIDED;
+        return 0;
     }
 }
 
@@ -493,8 +490,7 @@ compressor_hl(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
             return 0;
         case 255: *iphc |= (uint8_t)HL_COMPRESSED_255;
             return 0;
-        default:
-            *comp = *ori;
+        default: *comp = *ori;
             return 1;
     }
 }
