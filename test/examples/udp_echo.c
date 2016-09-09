@@ -44,7 +44,10 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
             if (r > 0) {
                 if (strncmp(recvbuf, "end", 3) == 0) {
                     printf("Client requested to exit... test successful.\n");
-                    pico_timer_add(1000, deferred_exit, udpecho_pas);
+                    if (!pico_timer_add(1000, deferred_exit, udpecho_pas)) {
+                        printf("Failed to start exit timer, exiting now\n");
+                        exit(1);
+                    }
                     udpecho_exit++;
                 }
 

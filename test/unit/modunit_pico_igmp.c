@@ -9,12 +9,14 @@
 #include "check.h"
 #include "pico_dev_null.c"
 Suite *pico_suite(void);
+
+static uint32_t timers_added = 0;
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     IGNORE_PARAMETER(expire);
     IGNORE_PARAMETER(timer);
     IGNORE_PARAMETER(arg);
-    return NULL;
+    return ++timers_added;
 }
 int mock_callback(struct igmp_timer *t)
 {

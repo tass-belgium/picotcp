@@ -64,7 +64,10 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
     if ((!end) && (ev & PICO_SOCK_EV_WR)) {
         if (PICO_TIME_MS() > deadline) {
             pico_socket_close(s);
-            pico_timer_add(2000, deferred_exit, NULL);
+            if (!pico_timer_add(2000, deferred_exit, NULL)) {
+                printf("Failed to start exit timer, exiting now\n");
+                exit(1);
+            }
             end++;
         }
 
@@ -72,7 +75,10 @@ static void iperf_cb(uint16_t ev, struct pico_socket *s)
     }
 
     if (!(end) && (ev & (PICO_SOCK_EV_FIN | PICO_SOCK_EV_CLOSE))) {
-        pico_timer_add(2000, deferred_exit, NULL);
+        if (!pico_timer_add(2000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
         end++;
     }
 }
