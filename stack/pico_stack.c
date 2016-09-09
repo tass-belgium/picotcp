@@ -800,7 +800,12 @@ pico_timer_ref_add(pico_time expire, struct pico_timer *t, uint32_t id, uint32_t
     tref.id = id;
     tref.hash = hash;
 
-    heap_insert(Timers, &tref);
+    if (heap_insert(Timers, &tref) < 0) {
+        dbg("Error: failed to insert timer(ID %u) into heap\n", id);
+        PICO_FREE(t);
+        pico_err = PICO_ERR_ENOMEM;
+        return 0;
+    }
     if (Timers->n > PICO_MAX_TIMERS) {
         dbg("Warning: I have %d timers\n", (int)Timers->n);
     }

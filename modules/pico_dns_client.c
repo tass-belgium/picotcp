@@ -371,7 +371,10 @@ static int pico_dns_client_send(struct pico_dns_query *q)
 
     pico_socket_send(q->s, q->query, q->len);
     *paramID = q->id;
-    pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID);
+    if (!pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID)) {
+        dns_dbg("DNS: Failed to start retransmission timer\n");
+        goto failure;
+    }
 
     return 0;
 
