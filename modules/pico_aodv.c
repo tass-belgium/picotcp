@@ -15,8 +15,11 @@
 #include <pico_ipv4.h>
 #ifdef PICO_SUPPORT_IPV4
 
-#define pico_aodv_dbg(...) do {} while(0)
-/* #define pico_aodv_dbg dbg */
+#ifdef DEBUG_AODV
+    #define pico_aodv_dbg dbg
+#else
+    #define pico_aodv_dbg(...) do {} while(0)
+#endif
 
 #define AODV_MAX_PKT (64)
 static const struct pico_ip4 HOST_NETMASK = {

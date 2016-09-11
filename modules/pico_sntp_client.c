@@ -17,8 +17,11 @@
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
-#define sntp_dbg(...) do {} while(0)
-/* #define sntp_dbg dbg */
+#ifdef DEBUG_SNTP
+#define sntp_dbg dbg
+#else
+#define sntp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#endif
 
 #define SNTP_VERSION 4
 #define PICO_SNTP_MAXBUF (1400)

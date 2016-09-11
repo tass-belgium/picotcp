@@ -8,8 +8,12 @@
 #include "pico_udp.h"
 
 #ifdef PICO_SUPPORT_MCAST
-# define so_mcast_dbg(...) do { } while(0) /* ip_mcast_dbg in pico_ipv4.c */
-/* #define so_mcast_dbg dbg */
+
+#ifdef DEBUG_IGMP
+#define so_mcast_dbg dbg
+#else
+#define so_mcast_dbg(...) do { } while(0) /* ip_mcast_dbg in pico_ipv4.c */
+#endif
 
 /*                       socket
  *                         |

@@ -13,8 +13,11 @@
 #include "pico_dns_common.h"
 #include "pico_tree.h"
 
-#define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+#ifdef DEBUG_DNS
+    #define dns_dbg dbg
+#else
+    #define dns_dbg(...) do {} while(0)
+#endif
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \

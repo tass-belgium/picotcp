@@ -20,8 +20,11 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
-
+#ifdef DEBUG_IPV6_ND
+#define nd_dbg dbg
+#else
 #define nd_dbg(...) do {} while(0)
+#endif
 
 static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = {
     0

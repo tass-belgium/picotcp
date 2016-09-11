@@ -16,8 +16,11 @@
 
 #if (defined PICO_SUPPORT_DHCPD && defined PICO_SUPPORT_UDP)
 
-#define dhcps_dbg(...) do {} while(0)
-/* #define dhcps_dbg dbg */
+#ifdef DEBUG_DHCP_SERVER
+    #define dhcps_dbg dbg
+#else
+    #define dhcps_dbg(...) do {} while(0)
+#endif
 
 /* default configurations */
 #define DHCP_SERVER_OPENDNS    long_be(0xd043dede) /* OpenDNS DNS server 208.67.222.222 */

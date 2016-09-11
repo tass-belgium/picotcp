@@ -12,8 +12,11 @@
 
 #ifdef PICO_SUPPORT_SLAACV4
 
-#define slaacv4_dbg(...) do {} while (0)
-//#define slaacv4_dbg dbg
+#ifdef DEBUG_SLAACV4
+#define slaacv4_dbg dbg
+#else
+#define slaacv4_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#endif
 
 #define SLAACV4_NETWORK  ((long_be(0xa9fe0000)))
 #define SLAACV4_NETMASK  ((long_be(0xFFFF0000)))

@@ -19,6 +19,7 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
 #define PICO_ARP_RETRY 300lu
 #define PICO_ARP_MAX_PENDING 5
+
 #ifdef DEBUG_ARP
     #define arp_dbg dbg
 #else

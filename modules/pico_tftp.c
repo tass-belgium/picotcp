@@ -13,8 +13,11 @@
 #include <pico_tftp.h>
 #include <pico_strings.h>
 
-#define tftp_dbg(...) do {} while (0)
-//#define tftp_dbg dbg
+#ifdef DEBUG_TFTP
+#define tftp_dbg dbg
+#else
+#define tftp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#endif
 
 /* a zero value means adaptative timeout! (2, 4, 8) */
 #define PICO_TFTP_TIMEOUT 2000U

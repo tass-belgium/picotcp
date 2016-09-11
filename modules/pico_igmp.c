@@ -21,8 +21,11 @@
 
 #if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
 
-#define igmp_dbg(...) do {} while(0)
-/* #define igmp_dbg dbg */
+#ifdef DEBUG_IGMP
+    #define igmp_dbg dbg
+#else
+    #define igmp_dbg(...) do {} while(0)
+#endif
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER             (0x0)

@@ -14,8 +14,13 @@
 #include "pico_socket.h"
 #include "pico_stack.h"
 
+#ifdef DEBUG_UDP
+#define udp_dbg dbg
+#else
+#define udp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#endif
+
 #define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))
-#define udp_dbg(...) do {} while(0)
 
 /* Queues */
 static struct pico_queue udp_in = {

@@ -18,8 +18,11 @@
 
 #ifdef PICO_SUPPORT_IPV4
 
-#define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+#ifdef DEBUG_DNS
+    #define dns_dbg dbg
+#else
+    #define dns_dbg(...) do {} while(0)
+#endif
 
 /* DNS response length */
 #define PICO_DNS_MAX_QUERY_LEN 255

@@ -25,7 +25,11 @@
 
 #if (((defined(PICO_SUPPORT_MLD) && defined(PICO_SUPPORT_IPV6)) || defined(PICO_SUPPORT_IGMP)) && defined(PICO_SUPPORT_MCAST))
 
+#ifdef DEBUG_MCAST
+#define multicast_dbg dbg
+#else
 #define multicast_dbg(...) do {} while(0)
+#endif
 
 #define MCAST_EVENT_DELETE_GROUP           (0x0)
 #define MCAST_EVENT_CREATE_GROUP           (0x1)

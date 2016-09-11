@@ -46,8 +46,15 @@ static void *Mutex = NULL;
 
 #define PICO_SOCKET_MTU 1480 /* Ethernet MTU(1500) - IP header size(20) */
 
-# define frag_dbg(...) do {} while(0)
+#ifdef PICO_SUPPORT_IPV4FRAG
 
+#ifdef DEBUG_FRAG
+#define frag_dbg      dbg
+#else
+#define frag_dbg(...) do {} while(0)
+#endif
+
+#endif
 
 static struct pico_sockport *sp_udp = NULL, *sp_tcp = NULL;
 

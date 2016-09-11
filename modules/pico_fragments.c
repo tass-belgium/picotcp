@@ -25,7 +25,11 @@
 #include "pico_constants.h"
 #include "pico_fragments.h"
 
-#define frag_dbg(...) do {} while(0)
+#ifdef DEBUG_FRAG
+    #define frag_dbg dbg
+#else
+    #define frag_dbg(...) do {} while(0)
+#endif
 
 #if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6FRAG)
 #define IP6_FRAG_OFF(x)         ((x & 0xFFF8u))

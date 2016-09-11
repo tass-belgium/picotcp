@@ -28,10 +28,17 @@
 /*
  * Debugging info
  */
-#define dbg_tap_info(...)   /* tap info messages */
-#define dbg_tap(...)        /* first level debug */
-#define dbg_win32(...)      /* second level detailed win32 debug */
-#define dbg_reg(...)        /* third level: registry debug */
+#ifdef DEBUG_TAP
+    #define dbg_tap_info dbg    /* tap info messages */
+    #define dbg_tap      dbg    /* first level debug */
+    #define dbg_win32    dbg    /* second level detailed win32 debug */
+    #define dbg_reg      dbg    /* third level: registry debug */
+#else
+    #define dbg_tap_info(...)
+    #define dbg_tap(...)
+    #define dbg_win32(...)
+    #define dbg_reg(...)
+#endif
 
 /*
  * Tunnel types
