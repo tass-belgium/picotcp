@@ -188,9 +188,8 @@ static int radiotest_send(struct pico_device *dev, void *_buf, int len)
     ret = (int)sendto(radio->sock0, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR0), sizeof(struct sockaddr_in));
     if (areas > 1)
         ret = (int)sendto(radio->sock1, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR1), sizeof(struct sockaddr_in));
+    PICO_FREE(buf);
 
-    /* Try to write the frame to the pcap */
-    radiotest_pcap_write(radio, buf, len - 1);
     return ret;
 }
 

@@ -3,64 +3,92 @@
 #include "pico_stack.h"
 #include "pico_frame.h"
 #include "pico_ipv6.h"
+#include "pico_dev_radiotest.c"
+#include "modules/pico_6lowpan_ll.c"
 #include "modules/pico_6lowpan.c"
+#include "pico_6lowpan_ll.h"
 #include "check.h"
+
+#include "pico_config.h"
+#include "pico_frame.h"
+#include "pico_device.h"
+#include "pico_protocol.h"
+#include "pico_stack.h"
+#include "pico_addressing.h"
+#include "pico_dns_client.h"
+
+#include "pico_ethernet.h"
+#include "pico_6lowpan.h"
+#include "pico_802154.h"
+#include "pico_olsr.h"
+#include "pico_aodv.h"
+#include "pico_eth.h"
+#include "pico_arp.h"
+#include "pico_ipv4.h"
+#include "pico_ipv6.h"
+#include "pico_icmp4.h"
+#include "pico_icmp6.h"
+#include "pico_igmp.h"
+#include "pico_udp.h"
+#include "pico_tcp.h"
+#include "pico_socket.h"
+#include "heap.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
 /*******************************************************************************
- *  MACROS
- ******************************************************************************/
+*  MACROS
+******************************************************************************/
 
 #define STARTING()                                                             \
-            printf("*********************** STARTING %s ***\n", __func__);     \
-            fflush(stdout)
+        printf("*********************** STARTING %s ***\n", __func__);     \
+        fflush(stdout)
 #define TRYING(s, ...)                                                         \
-            printf("\n=== TRYING %s: " s, __func__, ##__VA_ARGS__);             \
-            fflush(stdout)
+        printf("\n=== TRYING %s: " s, __func__, ##__VA_ARGS__);             \
+        fflush(stdout)
 #define OUTPUT()                                                               \
-            do {                                                               \
-                printf("\n> OUTPUT:\n");                                       \
-            } while (0)
+        do {                                                               \
+            printf("\n> OUTPUT:\n");                                       \
+        } while (0)
 #define RESULTS()                                                              \
-            do {                                                               \
-                printf("\n> RESULTS:\n");                                      \
-            } while (0)
+        do {                                                               \
+            printf("\n> RESULTS:\n");                                      \
+        } while (0)
 #define FAIL_UNLESS(cond, i, s, ...)                                           \
-            do { \
-            char str[80] = { 0 };                                             \
-            snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
-            printf(str);                                                       \
-            if (cond) {                                                        \
-                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
-            } else {                                                           \
-                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
-            }                                                                  \
-            fflush(stdout);                                                    \
-            fail_unless((cond), s, ##__VA_ARGS__);                             \
-            }while(0)
+        do { \
+        char str[80] = { 0 };                                             \
+        snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
+        printf(str);                                                       \
+        if (cond) {                                                        \
+            printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
+        } else {                                                           \
+            printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
+        }                                                                  \
+        fflush(stdout);                                                    \
+        fail_unless((int)(cond), s, ##__VA_ARGS__);                             \
+        }while(0)
 #define FAIL_IF(cond, i, s, ...)                                               \
-            do { \
-            char str[80] = { 0 };                                             \
-            snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
-            printf(str);                                                       \
-            if (!cond) {                                                        \
-                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
-            } else {                                                           \
-                printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
-            }                                                                  \
-            fflush(stdout);                                                    \
-            fail_if((cond), s, ##__VA_ARGS__);                                 \
-            }while(0)
+        do { \
+        char str[80] = { 0 };                                             \
+        snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
+        printf(str);                                                       \
+        if (!cond) {                                                        \
+            printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
+        } else {                                                           \
+            printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
+        }                                                                  \
+        fflush(stdout);                                                    \
+        fail_if((int)(cond), s, ##__VA_ARGS__);                                 \
+        }while(0)
 #define ENDING(i)                                                              \
-            printf("*********************** ENDING %s *** NUMBER OF TESTS: %d\n",\
-                   __func__, ((i)-1));                                         \
-            fflush(stdout)
+        printf("*********************** ENDING %s *** NUMBER OF TESTS: %d\n",\
+                __func__, ((i)-1));                                         \
+        fflush(stdout)
 #define DBG(s, ...)                                                            \
-            printf(s, ##__VA_ARGS__);                                          \
-            fflush(stdout)
+        printf(s, ##__VA_ARGS__);                                          \
+        fflush(stdout)
 static void
 dbg_buffer(uint8_t *buf, size_t len)
 {
@@ -77,8 +105,8 @@ dbg_buffer(uint8_t *buf, size_t len)
 }
 
 /*******************************************************************************
- *  CTX
- ******************************************************************************/
+*  CTX
+******************************************************************************/
 
 START_TEST(tc_compare_prefix)
 {
@@ -193,8 +221,10 @@ END_TEST
 
 
 /*******************************************************************************
- *  IPHC
- ******************************************************************************/
+*  IPHC
+******************************************************************************/
+
+#ifdef PICO_6LOWPAN_IPHC_ENABLED
 
 START_TEST(tc_compressor_vtf)
 {
@@ -979,37 +1009,37 @@ END_TEST
 
 START_TEST(tc_decompressor_iphc)
 {
-    int test = 1;
-    struct pico_frame *f = pico_frame_alloc(2);
-    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
-    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
-    struct pico_device dev;
-    int compressed_len = 0;
-    uint8_t *buf = NULL;
-    uint8_t hdr[40] = {
-    0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, /* `.....<. */
+int test = 1;
+struct pico_frame *f = pico_frame_alloc(2);
+union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
+union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+struct pico_device dev;
+int compressed_len = 0;
+uint8_t *buf = NULL;
+uint8_t hdr[40] = {
+0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, /* `.....<. */
 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
 0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
 0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
 0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x65, 0x63 };
-    dev.mode = LL_MODE_IEEE802154;
-    memcpy(f->buffer, lowpan_frame, 2);
-    f->net_hdr = f->buffer;
-    f->dev = &dev;
+dev.mode = LL_MODE_IEEE802154;
+memcpy(f->buffer, lowpan_frame, 2);
+f->net_hdr = f->buffer;
+f->dev = &dev;
 
-    STARTING();
+STARTING();
 
-    TRYING("To decompress a 6LoWPAN frame from a sampel capture\n");
-    buf = decompressor_iphc(f, src, dst, &compressed_len);
-    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
-    OUTPUT();
-    dbg_buffer(buf, 40);
-    RESULTS();
-    FAIL_UNLESS(2 == compressed_len, test, "Should've returned compressed_len of 2, compressed_len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, hdr, 40), test, "Should've correctly decompressed the 6LoWPAN frame");
-    pico_frame_discard(f);
+TRYING("To decompress a 6LoWPAN frame from a sampel capture\n");
+buf = decompressor_iphc(f, src, dst, &compressed_len);
+FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
+OUTPUT();
+dbg_buffer(buf, 40);
+RESULTS();
+FAIL_UNLESS(2 == compressed_len, test, "Should've returned compressed_len of 2, compressed_len = %d", compressed_len);
+FAIL_UNLESS(0 == memcmp(buf, hdr, 40), test, "Should've correctly decompressed the 6LoWPAN frame");
+pico_frame_discard(f);
 
-    ENDING(test);
+ENDING(test);
 }
 END_TEST
 
@@ -1197,21 +1227,21 @@ START_TEST(tc_decompressor_nhc_ext)
     uint8_t *buf = NULL;
 
     uint8_t ext1[8] = {0x11, 0x00, 0x1e, 0x00, 0x01, 0x02, 0x00, 0x00};
-    uint8_t nhc1[8] = {0xe7, 0x02, 0x1e, 0x00, 0xF0 /* UDP dispatch */};
+    uint8_t nhc1[8] = {0xe7, 0x02, 0x1e, 0x00, 0xf0 /* udp dispatch */};
 
     f->net_hdr = f->buffer;
 
     STARTING();
 
-    TRYING("NHC_EXT compressed header with DSTOPT extension header\n");
+    TRYING("nhc_ext compressed header with dstopt extension header\n");
     memcpy(f->buffer, nhc1, 5);
     buf = decompressor_nhc_ext(f, src, dst, &compressed_len, &decomp);
-    FAIL_UNLESS(buf, test, "Should've at least returend a buffer");
+    FAIL_UNLESS(buf, test, "should've at least returend a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
     RESULTS();
-    FAIL_UNLESS(4 == compressed_len, test, "Should've returned length of 4, ret = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, ext1, 8), test, "Should've correctly decompressed next header");
+    FAIL_UNLESS(4 == compressed_len, test, "should've returned length of 4, ret = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, ext1, 8), test, "should've correctly decompressed next header");
 
     pico_frame_discard(f);
     ENDING(test);
@@ -1284,6 +1314,228 @@ START_TEST(tc_pico_iphc_decompress)
     ENDING(test);
 }
 END_TEST
+#endif
+
+static struct pico_frame *rx = NULL;
+static struct pico_frame *tx = NULL;
+static int rx_called = 0;
+static int tx_called = 0;
+
+int pico_datalink_send(struct pico_frame *f) {
+    if (!tx) {
+        tx = pico_frame_copy(f);
+        OUTPUT();
+        dbg_buffer(tx->start, tx->len);
+    }
+
+    if (f->dev->eth) {
+        /* If device has stack with datalink-layer pass frame through it */
+        if (LL_MODE_IEEE802154 == f->dev->mode) {
+            return pico_enqueue(pico_proto_6lowpan.q_out, f);
+        } else {
+            return pico_enqueue(pico_proto_ethernet.q_out, f);
+        }
+    } else {
+        /* non-ethernet: no post-processing needed */
+        return pico_sendto_dev(f);
+    }
+}
+
+int32_t pico_network_receive(struct pico_frame *f)
+{
+    if (!rx)
+        rx = pico_frame_copy(f);
+
+    printf("RCVD frame at network layer \n");
+    return (int32_t)f->buffer_len;
+}
+
+#define NUM_PING 1
+
+#ifdef PICO_SUPPORT_IPV6
+void cb_ping6(struct pico_icmp6_stats *s)
+{
+    char host[50];
+    pico_ipv6_to_string(host, s->dst.addr);
+    if (s->err == 0) {
+        dbg("%lu bytes from %s: icmp_req=%lu ttl=%lu time=%lu ms\n", s->size, host, s->seq,
+            s->ttl, (long unsigned int)s->time);
+        if (s->seq >= NUM_PING)
+            exit(0);
+    } else {
+        dbg("PING %lu to %s: Error %d\n", s->seq, host, s->err);
+        exit(1);
+    }
+}
+#endif
+
+void ping_abort_timer(pico_time now, void *_id)
+{
+    int *id = (int *) _id;
+    printf("Ping: aborting...\n");
+    pico_icmp6_ping_abort(*id);
+}
+
+/* Copy a string until the separator,
+   terminate it and return the next index,
+   or NULL if it encounters a EOS */
+char *cpy_arg(char **dst, char *str)
+{
+    char *p, *nxt = NULL;
+    char *start = str;
+    char *end = start + strlen(start);
+    char sep = ',';
+
+    p = str;
+    while (p) {
+        if ((*p == sep) || (*p == '\0')) {
+            *p = (char)0;
+            nxt = p + 1;
+            if ((*nxt == 0) || (nxt >= end))
+                nxt = 0;
+
+            printf("dup'ing %s\n", start);
+            *dst = strdup(start);
+            break;
+        }
+
+        p++;
+    }
+    return nxt;
+}
+
+void app_ping(char *arg)
+{
+    char *dest = NULL;
+    char *next = NULL;
+    char *abort = NULL;
+    char *delay = NULL;
+    char *asize = NULL;
+    int initial_delay = 0;
+    static int id;
+    int timeout = 0;
+    int size = 64;
+
+    next = cpy_arg(&dest, arg);
+    if (!dest) {
+        fprintf(stderr, "ping needs the following format: ping:dst_addr:[size:[abort after N sec:[wait N sec before start]]]\n");
+        exit(255);
+    }
+    if (next) {
+        next = cpy_arg(&asize, next);
+        size = atoi(asize);
+        if (size <= 0) {
+            size = 64; /* Default */
+        }
+    }
+
+    if (next) {
+        next = cpy_arg(&abort, next);
+        if (strlen(abort) > 0) {
+            printf("Got arg: '%s'\n", abort);
+            timeout = atoi(abort);
+            if (timeout < 0) {
+                fprintf(stderr, "ping needs the following format: ping:dst_addr:[size:[abort after N sec:[wait N sec before start]]]\n");
+                exit(255);
+            }
+            printf("Aborting ping after %d seconds\n", timeout);
+        }
+    }
+
+    if (next) {
+        next = cpy_arg(&delay, next);
+        if (strlen(delay) > 0) {
+            initial_delay = atoi(delay);
+            if (initial_delay > 0) {
+                printf("Initial delay: %d seconds\n", initial_delay);
+                initial_delay = PICO_TIME_MS() + initial_delay * 1000;
+                while (PICO_TIME_MS() < initial_delay) {
+                    pico_stack_tick();
+                    usleep(10000);
+                }
+            }
+        }
+    }
+    printf("Starting ping.\n");
+
+    id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, size, cb_ping6, NULL);
+    if (timeout > 0) {
+        printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
+        if (!pico_timer_add(timeout * 1000, ping_abort_timer, &id)) {
+            printf("Failed to set ping abort timeout, aborting ping\n");
+            ping_abort_timer((pico_time)0, &id);
+            exit(1);
+        }
+    }
+
+    /* free copied args */
+    if (dest)
+        free(dest);
+
+    if (abort)
+        free(abort);
+}
+
+START_TEST(tc_tx_rx)
+{
+    int test = 0;
+    struct pico_device *dev = NULL;
+    uint8_t n_id, n_area0, n_area1;
+    struct pico_ip6 myaddr, pan, netmask;
+    const char pan_addr[] = "2aaa:abcd::0";
+    const char pan_netmask[] = "ffff:ffff:ffff:ffff::0";
+
+    char *id = "3";
+    char *area0 = "1";
+    char *area1 = "0";
+    char *dump = "build/test/unit_6lowpan.pcap";
+    char *arg = strdup("2aaa:abcd:0000:0000:0200:00aa:ab00:0001,128,0,3,");
+
+    STARTING();
+
+    n_id = (uint8_t) atoi(id);
+    n_area0 = (uint8_t) atoi(area0);
+    n_area1 = (uint8_t) atoi(area1);
+
+    /* Initialize picoTCP */
+    pico_stack_init();
+
+    pico_string_to_ipv6(pan_addr, myaddr.addr);
+    pico_string_to_ipv6(pan_addr, pan.addr);
+    pico_string_to_ipv6(pan_netmask, netmask.addr);
+    myaddr.addr[8]  = 0x02;
+    myaddr.addr[11] = 0xaa;
+    myaddr.addr[12] = 0xab;
+    myaddr.addr[15] = n_id;
+
+    printf("%d:%d:%d\n", n_id, n_area0, n_area1);
+    dev = pico_radiotest_create(n_id, n_area0, n_area1, dump);
+    if (!dev) {
+        exit(1);
+    }
+
+    printf("Radiotest created.\n");
+
+    /* Add a routable link */
+    pico_ipv6_link_add(dev, myaddr, netmask);
+
+    /* Start ping-application */
+    app_ping(arg);
+
+    printf("%s: launching PicoTCP loop\n", __FUNCTION__);
+    while(!tx || !rx) {
+        pico_stack_tick();
+        usleep(2000);
+    }
+    OUTPUT();
+    dbg_buffer(rx->start, rx->len);
+    RESULTS();
+    tx->start[0] |= 0x60;
+    FAIL_UNLESS(0 == memcmp(rx->start, tx->start, rx->len), test, "Should've received exactly the same frame as was transmitted");
+
+    ENDING(test);
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
@@ -1293,6 +1545,11 @@ Suite *pico_suite(void)
     TCase *TCase_compare_ctx = tcase_create("Unit test for compare_ctx");
     TCase *TCase_ctx_lookup = tcase_create("Unit test for ctx_lookup");
     TCase *TCase_ctx_remove = tcase_create("Unit test for ctx_remove");
+
+/*******************************************************************************
+ *  IPHC
+ ******************************************************************************/
+#ifdef PICO_6LOWPAN_IPHC_ENABLED
     TCase *TCase_compressor_vtf = tcase_create("Unit test for compressor_vtf");
     TCase *TCase_decompressor_vtf = tcase_create("Unit test for decompressor_vtf");
     TCase *TCase_compressor_nh = tcase_create("Unit test for compressor_nh");
@@ -1313,10 +1570,9 @@ Suite *pico_suite(void)
     TCase *TCase_decompressor_nhc_ext = tcase_create("Unit test for decompressor_nhc_ext");
     TCase *TCase_pico_iphc_compress = tcase_create("Unit test for pico_iphc_compress");
     TCase *TCase_pico_iphc_decompress = tcase_create("Unit test for pico_iphc_decompress");
+#endif
 
-/*******************************************************************************
- *  IPHC
- ******************************************************************************/
+    TCase *TCase_tx_rx = tcase_create("Unit test for tx_rx");
 
     tcase_add_test(TCase_compare_prefix, tc_compare_prefix);
     suite_add_tcase(s, TCase_compare_prefix);
@@ -1326,6 +1582,11 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_ctx_lookup);
     tcase_add_test(TCase_ctx_remove ,tc_ctx_remove);
     suite_add_tcase(s, TCase_ctx_remove);
+
+/*******************************************************************************
+ *  IPHC
+ ******************************************************************************/
+#ifdef PICO_6LOWPAN_IPHC_ENABLED
     tcase_add_test(TCase_compressor_vtf, tc_compressor_vtf);
     suite_add_tcase(s, TCase_compressor_vtf);
     tcase_add_test(TCase_decompressor_vtf, tc_decompressor_vtf);
@@ -1366,6 +1627,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_iphc_compress);
     tcase_add_test(TCase_pico_iphc_decompress, tc_pico_iphc_decompress);
     suite_add_tcase(s, TCase_pico_iphc_decompress);
+#endif
+
+    tcase_add_test(TCase_tx_rx ,tc_tx_rx);
+    suite_add_tcase(s, TCase_tx_rx);
 
     return s;
 }

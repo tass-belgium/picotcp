@@ -374,6 +374,7 @@ ll_mac_header_process_in(struct pico_frame *f, struct pico_802154 *src,
 {
     struct pico_802154_hdr *hdr = (struct pico_802154_hdr *)f->net_hdr;
     uint16_t fcf = short_be(hdr->fcf);
+    uint8_t hlen = 0;
     *src = frame_802154_src(hdr);
     *dst = frame_802154_dst(hdr);
 
@@ -384,11 +385,12 @@ ll_mac_header_process_in(struct pico_frame *f, struct pico_802154 *src,
         f->flags |= PICO_FRAME_FLAG_LL_SEC;
     }
 
+    hlen = frame_802154_hdr_len(hdr);
     /* XXX: Generic procedure to move forward in incoming processing function
      * is updating the net_hdr-pointer */
-    f->net_hdr = f->datalink_hdr + frame_802154_hdr_len(hdr);
+    f->net_hdr = f->datalink_hdr + (int)hlen;
 
-    return (int)frame_802154_hdr_len(hdr);
+    return (int)hlen;
 }
 
 /* XXX: Extensible processing function for outgoing frames. Here, the mesh header
@@ -403,11 +405,6 @@ ll_mesh_header_process_in(struct pico_frame *f, struct pico_802154 *src,
     IGNORE_PARAMETER(dst);
     return 0;
 }
-
-const extension_t exts[] = {
-    {ll_mac_header_estimator, ll_mac_header_process_out, ll_mac_header_process_in},
-    {ll_mesh_header_estimator, ll_mesh_header_process_out, ll_mesh_header_process_in},
-};
 
 /* Derive an IPv6 IID from an IEEE802.15.4 address */
 int
@@ -462,6 +459,11 @@ addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b)
     }
 }
 
+const extension_t exts[] = {
+    {ll_mac_header_estimator, ll_mac_header_process_out, ll_mac_header_process_in},
+    {ll_mesh_header_estimator, ll_mesh_header_process_out, ll_mesh_header_process_in},
+};
+
 /* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
  * frame for later processing, or returns the amount of bytes available after
  * prepending the MAC header and additional headers */
@@ -473,10 +475,7 @@ frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
 
     if (!f || !f->dev)
         return -1;
-    frame_size = (uint16_t)(f->net_len + f->transport_len + f->app_len + f->payload_len);
-
-    dbg("ieee802154 - some frame stats: \n");
-    dbg("ieee802154 - len: %d net_len: %d transport_len: %d payload_len: %d\n", f->len, f->net_len, f->transport_len, f->payload_len);
+    frame_size = (uint16_t)(f->len);
 
     /* Call each of the estimator functions of the additional headers to
      * determine if the frame fits inside a single 802.15.4 frame, if it doesn't
@@ -572,6 +571,7 @@ pico_802154_process_in(struct pico_protocol *self, struct pico_frame *f)
 
     /* Determine size at network layer */
     f->net_len = (uint16_t)(f->len - len);
+    f->len = (uint32_t)(f->len - len);
 
     return pico_6lowpan_pull(f,src,dst);
 }

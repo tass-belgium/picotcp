@@ -236,7 +236,7 @@ MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
  *  NETWORK LAYER
  ******************************************************************************/
 
-int32_t pico_network_receive(struct pico_frame *f)
+MOCKABLE int32_t pico_network_receive(struct pico_frame *f)
 {
     if (0) {}
 
@@ -380,7 +380,7 @@ int pico_datalink_receive(struct pico_frame *f)
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
         if (LL_MODE_IEEE802154 == f->dev->mode) {
-            f->datalink_hdr = f->buffer + SIZE_802154_LEN;
+            f->datalink_hdr = f->buffer;
             return pico_enqueue(pico_proto_802154.q_in, f);
         } else {
             f->datalink_hdr = f->buffer;
@@ -395,7 +395,7 @@ int pico_datalink_receive(struct pico_frame *f)
     return 0;
 }
 
-int pico_datalink_send(struct pico_frame *f)
+MOCKABLE int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
