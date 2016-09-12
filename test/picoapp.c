@@ -493,7 +493,7 @@ int main(int argc, char **argv)
             myaddr.addr[15] = n_id;
 
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-            dev = pico_radiotest_create(n_id, n_area0, n_area1, dump);
+            dev = pico_radiotest_create(n_id, n_area0, n_area1, 0, dump);
             if (!dev) {
                 exit(1);
             }

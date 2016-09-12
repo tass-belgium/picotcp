@@ -88,7 +88,7 @@
 #define FRAGN_SIZE          (5)
 #define FRAG1_DISPATCH      (0xC0)
 #define FRAGN_DISPATCH      (0xE0)
-#define FRAG_TIMEOUT        (2)
+#define FRAG_TIMEOUT        (5)
 /*******************************************************************************
  * Type definitions
  ******************************************************************************/
@@ -137,16 +137,18 @@ buf_move(void *dst, const void *src, size_t len)
 {
     uint8_t *d = (uint8_t *)dst;
     const uint8_t *s = (const uint8_t *)src;
-    if (!dst || !src)
+    if (!dst || !src) {
         return;
-    if (d < s) {
-        while (len--)
-            *d++ = *s++;
     } else {
-        s = s + len - 1;
-        d = d + len - 1;
-        while (len--)
-            *d-- = *s--;
+        if (d < s) {
+            while (len--)
+                *d++ = *s++;
+        } else {
+            s = s + len - 1;
+            d = d + len - 1;
+            while (len--)
+                *d-- = *s--;
+        }
     }
 }
 
@@ -222,37 +224,36 @@ frag_store(struct pico_frame *f, uint16_t dgram_size, uint16_t tag,
            union pico_ll_addr dst, struct pico_tree *tree)
 {
     struct frag_ctx *fr = PICO_ZALLOC(sizeof(struct frag_ctx));
+    pico_time timeout = FRAG_TIMEOUT * 1000;
     if (fr) {
         fr->f = f;
         fr->dgram_size = dgram_size;
-        fr->dgram_tag = tag;
         fr->dgram_off = dgram_off;
+        fr->dgram_tag = tag;
         fr->copied = copied;
         fr->src = src;
         fr->dst = dst;
-        fr->hash = 0;
-        fr->timer = 0;
-        fr->hash = pico_hash((void *)fr, sizeof(struct frag_ctx));
-        f->hash = fr->hash;
-        /* Set a reassembly timeout of 10 seconds */
         if (&ReassemblyTree == tree) {
             lp_dbg("6LP: START: "GRN"reassembly"RST" with tag '%d' of %u bytes.\n", tag, dgram_size);
-            if (!(fr->timer = pico_timer_add(1000*FRAG_TIMEOUT, frag_timeout, fr))) {
+            if (!(fr->timer = pico_timer_add(timeout, frag_timeout, fr))) {
                 PICO_FREE(fr);
                 return -1;
             }
         } else {
+            fr->hash = pico_hash((void *)fr, sizeof(struct frag_ctx));
+            f->hash = fr->hash; // Also set hash in frame so we can identify it
             lp_dbg("6LP: START: "ORG"fragmentation"RST" with hash '%X' of %u bytes.\n", fr->hash, f->len);
         }
-
+        /* Insert the cookie in the appropriate tree (FragTree/ReassemblyTree) */
         if (pico_tree_insert(tree, fr)) {
+            pico_timer_cancel(fr->timer);
             PICO_FREE(fr);
             return -1;
         }
-        return (1); // Succes for 'proto_loop_out'
     } else {
         return (-1);
     }
+    return (1); // Succes for 'proto_loop_out'
 }
 
 /*******************************************************************************
@@ -278,7 +279,7 @@ compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
     /* Don't worry... */
     ecn = (uint8_t)(*ori << 4) & 0xC0;
     dscp = (uint8_t)(*ori++ << 4) & 0x30;
-    dscp |= (uint8_t)((*ori-- & 0xF0) >> 4);
+    dscp |= (uint8_t)((uint8_t)(*ori-- & 0xF0) >> 4);
     fl = long_be(*(uint32_t *)ori & mask);
 
     if (fl) {
@@ -534,11 +535,7 @@ addr_comp_iid(uint8_t *iphc, uint8_t *comp, int state, struct pico_ip6 *addr,
             len = addr_comp_mode(iphc, addr, ll, dev, shift);
             break;
         case COMP_MULTICAST: // Multicast, compress statelessly
-            if (!shift) {
-                return addr_comp_mcast(iphc, comp, addr);
-            } else { // SOURCE can't be multicast, trigger error
-                return -1;
-            }
+            return addr_comp_mcast(iphc, comp, addr);
         default: // Context available, extend header, and check for IID
             iphc[2] = (uint8_t)((uint8_t)state << shift);
             len = addr_comp_mode(iphc, addr, ll, dev, shift);
@@ -595,17 +592,13 @@ addr_decomp_iid(struct pico_ip6 *addr, uint8_t *comp, uint8_t am, union
 {
     if (addr) {
         switch (am) {
-            case DST_COMPRESSED_64:
-                buf_move(&addr->addr[8], comp, 8);
+            case DST_COMPRESSED_64: buf_move(&addr->addr[8], comp, 8);
                 return 8;
-            case DST_COMPRESSED_16:
-                buf_move(&addr->addr[14], comp, 2);
+            case DST_COMPRESSED_16: buf_move(&addr->addr[14], comp, 2);
                 return 2;
-            case DST_COMPRESSED:
-                pico_6lowpan_ll_iid(&addr->addr[8], &lladdr, dev);
+            case DST_COMPRESSED: pico_6lowpan_ll_iid(&addr->addr[8], &lladdr, dev);
                 return 0;
-            default:
-                buf_move(addr->addr, comp, PICO_SIZE_IP6);
+            default: buf_move(addr->addr, comp, PICO_SIZE_IP6);
                 return 16;
         }
     } else {
@@ -710,29 +703,30 @@ compressor_iphc(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr
     *compressed_len = 0;
     *nh = ((struct pico_ipv6_hdr *)f->net_hdr)->nxthdr;
 
-    if (!inline_buf)
+    if (!inline_buf) {
         return NULL;
-
-    /* Compress fixed IPv6 fields */
-    for (i = 0; i < NUM_IPV6_FIELDS; i++) {
-        if (ip6_fields[i].compress) {
-            ret = ip6_fields[i].compress(ori, comp, iphc, &src, &dst, f->dev);
-            if (ret < 0) { // Something went wrong ...
-                PICO_FREE(inline_buf);
-                return NULL;
-            }
-            *compressed_len += ret; // Increase compressed length
-            comp += ret; // Move forward compressed length
-        }
-        ori += ip6_fields[i].ori_size; // Move to next field
-    }
-
-    /* Rearrange IPHC-header if CTX-extension is included */
-    if (iphc[1] & CTX_EXTENSION) {
-        *compressed_len += 3;
     } else {
-        buf_move(inline_buf + 2, inline_buf + 3, (size_t)*compressed_len);
-        *compressed_len += 2;
+        /* Compress fixed IPv6 fields */
+        for (i = 0; i < NUM_IPV6_FIELDS; i++) {
+            if (ip6_fields[i].compress) {
+                ret = ip6_fields[i].compress(ori, comp, iphc, &src, &dst, f->dev);
+                if (ret < 0) { // Something went wrong ...
+                    PICO_FREE(inline_buf);
+                    return NULL;
+                }
+                *compressed_len += ret; // Increase compressed length
+                comp += ret; // Move forward compressed length
+            }
+            ori += ip6_fields[i].ori_size; // Move to next field
+        }
+
+        /* Rearrange IPHC-header if CTX-extension is included */
+        if (iphc[1] & CTX_EXTENSION) {
+            *compressed_len += 3;
+        } else {
+            buf_move(inline_buf + 2, inline_buf + 3, (size_t)*compressed_len);
+            *compressed_len += 2;
+        }
     }
     return inline_buf;
 }
@@ -743,31 +737,27 @@ decompressor_iphc(struct pico_frame *f, union pico_ll_addr src, union pico_ll_ad
                   dst, int *compressed_len)
 {
     uint8_t *ipv6_hdr = PICO_ZALLOC(PICO_SIZE_IP6HDR);
-    uint8_t *iphc = f->net_hdr;
-    uint8_t *ori = ipv6_hdr;
-    uint8_t *comp = NULL;
+    uint8_t *iphc = f->net_hdr, *ori = ipv6_hdr, *comp = NULL;
     int i = 0, ret = 0, ctx = f->net_hdr[1] & CTX_EXTENSION;
-
     *compressed_len = ctx ? 3 : 2;
-    comp = f->net_hdr + ((ctx) ? 3 : 2);
+    comp = f->net_hdr + (ctx ? 3 : 2);
 
-    if (!ipv6_hdr)
+    if (!ipv6_hdr) {
         return NULL;
-
-    lp_dbg("6LP: Decompressing IPHC encoded frame\n");
-    for (i = 0; i < NUM_IPV6_FIELDS; i++) {
-        if (ip6_fields[i].decompress) {
-            ret = ip6_fields[i].decompress(ori, comp, iphc, &src, &dst, f->dev);
-            if (ret < 0) { // Something went wrong ...
-                PICO_FREE(ipv6_hdr);
-                return NULL;
+    } else {
+        for (i = 0; i < NUM_IPV6_FIELDS; i++) {
+            if (ip6_fields[i].decompress) {
+                ret = ip6_fields[i].decompress(ori, comp, iphc, &src, &dst, f->dev);
+                if (ret < 0) { // Something went wrong ...
+                    PICO_FREE(ipv6_hdr);
+                    return NULL;
+                }
+                *compressed_len += ret; // Increase compressed size
+                comp += ret; // Move to next compressed chunk
             }
-            *compressed_len += ret; // Increase compressed size
-            comp += ret; // Move to next compressed chunk
+            ori += ip6_fields[i].ori_size; // Move to next IPv6 field
         }
-        ori += ip6_fields[i].ori_size; // Move to next IPv6 field
     }
-
     return ipv6_hdr;
 }
 
@@ -777,12 +767,9 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
 {
     uint8_t *inline_buf = PICO_ZALLOC(PICO_UDPHDR_SIZE);
     struct pico_udp_hdr *hdr = (struct pico_udp_hdr *)f->transport_hdr;
-    uint16_t sport = hdr->trans.sport;
-    uint16_t dport = hdr->trans.dport;
-    uint16_t xF0B0 = short_be(0xF0B0);
-    uint16_t xF000 = short_be(0xF000);
-    uint16_t xFF00 = short_be(0xFF00);
-    uint16_t xFFF0 = short_be(0xFFF0);
+    uint16_t sport = hdr->trans.sport, dport = hdr->trans.dport;
+    uint16_t xF0B0 = short_be(0xF0B0), xF000 = short_be(0xF000);
+    uint16_t xFF00 = short_be(0xFF00), xFFF0 = short_be(0xFFF0);
     *compressed_len = 0;
 
     if (!inline_buf) {
@@ -794,7 +781,8 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
         if (PORT_COMP(sport, xFFF0, xF0B0) && PORT_COMP(dport, xFFF0, xF0B0)) {
             inline_buf[0] |= UDP_COMPRESSED_BOTH;
             inline_buf[1] = (uint8_t)(short_be(sport) << 4);
-            inline_buf[1] |= (uint8_t)((uint8_t)short_be(dport) & (uint8_t)0x0F);
+            dport = (uint8_t)(short_be(dport) & (uint16_t)0x000F);
+            inline_buf[1] = (uint8_t)(inline_buf[1] | (uint8_t)dport);
             *compressed_len = 2;
         } else if (PORT_COMP(sport, xFF00, xF000)) {
             inline_buf[0] |= UDP_COMPRESSED_SRC;
@@ -825,7 +813,7 @@ compressor_nhc_udp(struct pico_frame *f, int *compressed_len)
 static uint8_t *
 decompressor_nhc_udp(struct pico_frame *f, int processed_len, int *compressed_len)
 {
-    struct pico_udp_hdr *hdr = PICO_ZALLOC(PICO_UDPHDR_SIZE);
+    struct pico_udp_hdr *hdr = NULL;
     uint8_t *buf = f->transport_hdr;
     uint8_t compression = buf[0] & UDP_COMPRESSED_BOTH;
     uint16_t xF0B0 = short_be(0xF0B0);
@@ -833,36 +821,33 @@ decompressor_nhc_udp(struct pico_frame *f, int processed_len, int *compressed_le
     int payload_len = 0;
     *compressed_len = 0;
 
+    /* Decompress ports */
+    hdr = PICO_ZALLOC(PICO_UDPHDR_SIZE);
     if (hdr) {
-        /* Decompress ports */
-        if ((buf[0] & 0xF8) == UDP_DISPATCH) {
-            if (UDP_COMPRESSED_BOTH == compression) {
-                hdr->trans.sport = xF0B0 | short_be((uint16_t)(buf[1] >> 4));
-                hdr->trans.dport = xF0B0 | short_be((uint16_t)(buf[1] & 0xff));
-                *compressed_len = 2;
-            } else if (UDP_COMPRESSED_SRC == compression) {
-                hdr->trans.dport = *(uint16_t *)&buf[2];
-                hdr->trans.sport = xF000 | short_be((uint16_t)buf[1]);
-                *compressed_len = 4;
-            } else if (UDP_COMPRESSED_DST == compression) {
-                hdr->trans.sport = *(uint16_t *)&buf[1];
-                hdr->trans.dport = xF000 | short_be((uint16_t)buf[3]);
-                *compressed_len = 4;
-            } else {
-                buf_move((uint8_t *)&hdr->trans, &buf[1], 4);
-                *compressed_len = 5;
-            }
-            /* Restore checksum if carried inline */
-            if (!(buf[0] & UDP_COMPRESSED_CHCK)) { // Leave empty room for checksum
-                buf_move((uint8_t *)&hdr->crc, &buf[*compressed_len],2);
-                *compressed_len += 2;
-            }
-            /* Restore inherently compressed length */
-            payload_len = (int)f->len - (processed_len + *compressed_len);
-            hdr->len = short_be((uint16_t)(payload_len + PICO_UDPHDR_SIZE));
-            return (uint8_t *)hdr;
+        if (UDP_COMPRESSED_BOTH == compression) {
+            hdr->trans.sport = xF0B0 | short_be((uint16_t)(buf[1] >> 4));
+            hdr->trans.dport = xF0B0 | short_be((uint16_t)(buf[1] & 0xff));
+            *compressed_len = 2;
+        } else if (UDP_COMPRESSED_SRC == compression) {
+            hdr->trans.dport = *(uint16_t *)&buf[2];
+            hdr->trans.sport = xF000 | short_be((uint16_t)buf[1]);
+            *compressed_len = 4;
+        } else if (UDP_COMPRESSED_DST == compression) {
+            hdr->trans.sport = *(uint16_t *)&buf[1];
+            hdr->trans.dport = xF000 | short_be((uint16_t)buf[3]);
+            *compressed_len = 4;
+        } else {
+            buf_move((uint8_t *)&hdr->trans, &buf[1], 4);
+            *compressed_len = 5;
         }
-        PICO_FREE(hdr);
+        if (!(buf[0] & UDP_COMPRESSED_CHCK)) { // Leave empty room for checksum
+            buf_move((uint8_t *)&hdr->crc, &buf[*compressed_len],2);
+            *compressed_len += 2;
+        }
+        /* Restore inherently compressed length */
+        payload_len = (int)f->len - (processed_len + *compressed_len);
+        hdr->len = short_be((uint16_t)(payload_len + PICO_UDPHDR_SIZE));
+        return (uint8_t *)hdr;
     }
     return NULL;
 }
@@ -1031,28 +1016,26 @@ decompressor_nhc_ext(struct pico_frame *f, union pico_ll_addr src, union pico_ll
     if ((buf[0] & 0xF0) == EXT_DISPATCH) {
         /* Determine compressed header length */
         len = ext_compressed_length(buf, eid, compressed_len, &head);
-        if (len < 0)
-            return NULL;
+        if (len >= 0) {
+            /* Retrieve next header from following header */
+            nh = ext_nh_retrieve(buf, *compressed_len);
 
-        /* Retrieve next header from followin header */
-        nh = ext_nh_retrieve(buf, *compressed_len);
-
-        /* Make sure options are 8 octet aligned */
-        alloc = (len % 8) ? (((len / 8) + 1) * 8) : (len);
-        ext = (struct pico_ipv6_exthdr *)PICO_ZALLOC((size_t)alloc);
-        if (ext) {
-            buf_move((uint8_t *)ext + head, buf + 1, (size_t)(len - head));
-            ext->nxthdr = nh;
-            if (EXT_HOPBYHOP == eid || EXT_DSTOPT == eid || EXT_ROUTING) {
-                ext->ext.destopt.len = (uint8_t)((alloc / 8) - 1);
-                ext_align((uint8_t *)ext, alloc, len);
+            /* Make sure options are 8 octet aligned */
+            alloc = (len % 8) ? (((len / 8) + 1) * 8) : (len);
+            ext = (struct pico_ipv6_exthdr *)PICO_ZALLOC((size_t)alloc);
+            if (ext) {
+                buf_move((uint8_t *)ext + head, buf + 1, (size_t)(len - head));
+                ext->nxthdr = nh;
+                if (EXT_HOPBYHOP == eid || EXT_DSTOPT == eid || EXT_ROUTING) {
+                    ext->ext.destopt.len = (uint8_t)((alloc / 8) - 1);
+                    ext_align((uint8_t *)ext, alloc, len);
+                }
             }
+            *decompressed_len = alloc;
+            return (uint8_t *)ext;
         }
-        *decompressed_len = alloc;
-        return (uint8_t *)ext;
-    } else {
-        return NULL;
     }
+    return NULL;
 }
 
 /* Free's memory of a all assembled chunks for 'n' amount */
@@ -1310,7 +1293,7 @@ frag_nth(struct pico_frame *f)
         if (avail > 0) {
             /* Calculate dgram_off and bytes to copy */
             left = (uint16_t)(f->len - frag->copied);
-            if (left <= (avail - FRAGN_SIZE)) {
+            if (left <= (uint16_t)(avail - FRAGN_SIZE)) {
                 copy = left;
             } else {
                 units = (uint8_t)((uint16_t)(avail - FRAGN_SIZE) >> 3);
@@ -1625,9 +1608,11 @@ pico_6lowpan_process_in(struct pico_protocol *self, struct pico_frame *f)
         return defrag(f, src, dst);
     } else {
         f = pico_6lowpan_decompress(f, src, dst);
-        lp_dbg("6LP: Decompression finished, stats:  len: %d net: %d trans: %d\n",
-               f->len, f->net_len, f->transport_len);
-        return pico_network_receive(f);
+        if (f) {
+            lp_dbg("6LP: Decompression finished, stats:  len: %d net: %d trans: %d\n", f->len, f->net_len, f->transport_len);
+            return pico_network_receive(f);
+        }
+        return -1;
     }
 }
 

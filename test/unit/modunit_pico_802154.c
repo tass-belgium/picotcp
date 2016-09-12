@@ -459,9 +459,7 @@ START_TEST(tc_frame_802154_push)
 
     f->dev = &dev;
     f->net_hdr = f->buffer + 12;
-    f->net_len = 40;
-    f->transport_len = 50;
-    f->app_len = 50;
+    f->len = 40 + 50 + 50;
 
     STARTING();
 
@@ -477,13 +475,10 @@ START_TEST(tc_frame_802154_push)
 
     // TEST 2
     TRYING("Trying to push an extactly small enough frame\n");
-    f->net_len = 40;
-    f->transport_len = 30;
-    f->app_len = 40;
+    f->len = 40 + 30 + 40;
     ret = frame_802154_push(f, src, dst);
     CHECKING(test);
-    FAIL_UNLESS(0 == ret,
-                "Should not return an error\n");
+    FAIL_UNLESS(0 == ret, "Should not return an error\n");
 
     // TEST 3
     TRYING("Trying with wrong parameters\n");
@@ -577,7 +572,7 @@ START_TEST(tc_802154_process_in)
     TRYING("Apply processing function on predefined buffer\n");
     ret = pico_802154_process_in(NULL, f);
     CHECKING(test);
-    FAIL_UNLESS(0 == ret, "Should not return failure\n");
+    FAIL_UNLESS(0 < ret, "Should not return failure\n");
 }
 END_TEST
 

@@ -43,6 +43,8 @@
 #define MC_ADDR_BE       0x010101EBU
 #define LO_ADDR          0x0100007FU
 
+#define LOOP_MTU 127
+
 /*******************************************************************************
  * Type definitions
  ******************************************************************************/
@@ -58,6 +60,13 @@ struct radiotest_radio {
 #endif
 };
 
+struct radiotest_frame
+{
+    uint8_t *buf;
+    int len;
+    uint32_t id;
+};
+
 /*******************************************************************************
  * Global variables
  ******************************************************************************/
@@ -65,6 +74,9 @@ struct radiotest_radio {
 static struct sockaddr_in MCADDR0;
 static struct sockaddr_in MCADDR1;
 static int areas = 1;
+
+static uint32_t tx_id = 0;
+static uint32_t rx_id = 0;
 
 /*******************************************************************************
  * pcap
@@ -122,6 +134,83 @@ static void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int 
 }
 
 #endif
+
+int radiotest_cmp(void *a, void *b)
+{
+    struct radiotest_frame *fa = (struct radiotest_frame *)a;
+    struct radiotest_frame *fb = (struct radiotest_frame *)b;
+    return (int)(fa->id - fb->id);
+}
+
+PICO_TREE_DECLARE(LoopFrames, radiotest_cmp);
+
+uint8_t *radiotest_nxt_rx(int *len)
+{
+    struct radiotest_frame test, *found = NULL;
+    uint8_t *ret = NULL;
+    test.id = rx_id++;
+
+    found = pico_tree_findKey(&LoopFrames, &test);
+    if (found) {
+        ret = found->buf;
+        *len = found->len;
+        pico_tree_delete(&LoopFrames, found);
+        PICO_FREE(found);
+    } else {
+        rx_id--;
+    }
+    return ret;
+}
+
+static void radiotest_nxt_tx(uint8_t *buf, int len)
+{
+    struct radiotest_frame *new = PICO_ZALLOC(sizeof(struct radiotest_frame));
+    if (new) {
+        new->buf = PICO_ZALLOC((uint16_t)len);
+        if (new->buf) {
+            memcpy(new->buf, buf, len);
+            new->len = len;
+            new->id = tx_id++;
+            if (pico_tree_insert(&LoopFrames, new)) {
+                PICO_FREE(new);
+                tx_id--;
+            }
+        } else {
+            PICO_FREE(new);
+        }
+    }
+}
+
+static int pico_loop_send(struct pico_device *dev, void *buf, int len)
+{
+    IGNORE_PARAMETER(dev);
+    if (len > LOOP_MTU)
+        return 0;
+
+    printf("Looping back frame of %d bytes.\n", len);
+    radiotest_nxt_tx(buf, len);
+    return len;
+}
+
+static int pico_loop_poll(struct pico_device *dev, int loop_score)
+{
+    uint8_t *buf = NULL;
+    int len = 0;
+
+    if (loop_score <= 0)
+        return 0;
+
+    buf = radiotest_nxt_rx(&len);
+    if (buf) {
+        printf("Receiving frame of %d bytes.\n", len);
+        pico_stack_recv(dev, buf, (uint32_t)len);
+        PICO_FREE(buf);
+        loop_score--;
+    }
+
+    return loop_score;
+}
+
 
 /* Generates a simple extended address */
 static void radiotest_gen_ex(struct pico_802154_short addr_short, uint8_t *buf)
@@ -261,7 +350,7 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
 }
 
 /* Creates a radiotest-device */
-struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, char *dump)
+struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, int loop, char *dump)
 {
     struct radiotest_radio *dev = PICO_ZALLOC(sizeof(struct radiotest_radio));
     struct ip_mreqn mreq0, mreq1;
@@ -280,8 +369,13 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
         return NULL;
 
     dev->dev.mode = LL_MODE_IEEE802154;
-    dev->dev.send = radiotest_send;
-    dev->dev.poll = radiotest_poll;
+    if (loop) {
+        dev->dev.send = pico_loop_send;
+        dev->dev.poll = pico_loop_poll;
+    } else {
+        dev->dev.send = radiotest_send;
+        dev->dev.poll = radiotest_poll;
+    }
     dev->addr.pan_id.addr = RFDEV_PANID;
     dev->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(dev->addr.addr_short, dev->addr.addr_ext.addr);

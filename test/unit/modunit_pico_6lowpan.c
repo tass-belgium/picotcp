@@ -656,11 +656,6 @@ START_TEST(tc_compressor_src)
     FAIL_UNLESS(iphc[1] & SRC_STATEFUL, test, "Should've set SAC");
     FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == 0, test, "Should've cleared SAM");
 
-    TRYING("With multicast source address, should indicate failure\n");
-    ret = compressor_src(mcast.addr, buf, iphc, &mac, NULL, &dev);
-    RESULTS();
-    FAIL_UNLESS(-1 == ret, test, "Should've indicated error");
-
     TRYING("With invalid device, should indicate error\n");
     ret = compressor_src(ll_mac.addr, buf, iphc, &mac, NULL, &dev);
     RESULTS();
@@ -1489,7 +1484,7 @@ START_TEST(tc_tx_rx)
     char *area0 = "1";
     char *area1 = "0";
     char *dump = "build/test/unit_6lowpan.pcap";
-    char *arg = strdup("2aaa:abcd:0000:0000:0200:00aa:ab00:0001,128,0,3,");
+    char *arg = strdup("2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1450,0,1,");
 
     STARTING();
 
@@ -1509,7 +1504,7 @@ START_TEST(tc_tx_rx)
     myaddr.addr[15] = n_id;
 
     printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-    dev = pico_radiotest_create(n_id, n_area0, n_area1, dump);
+    dev = pico_radiotest_create(n_id, n_area0, n_area1, 1, dump);
     if (!dev) {
         exit(1);
     }
