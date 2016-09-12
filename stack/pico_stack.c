@@ -16,9 +16,9 @@
 #include "pico_addressing.h"
 #include "pico_dns_client.h"
 
+#include "pico_6lowpan_ll.h"
 #include "pico_ethernet.h"
 #include "pico_6lowpan.h"
-#include "pico_802154.h"
 #include "pico_olsr.h"
 #include "pico_aodv.h"
 #include "pico_eth.h"
@@ -381,7 +381,7 @@ int pico_datalink_receive(struct pico_frame *f)
         /* If device has stack with datalink-layer pass frame through it */
         if (LL_MODE_IEEE802154 == f->dev->mode) {
             f->datalink_hdr = f->buffer;
-            return pico_enqueue(pico_proto_802154.q_in, f);
+            return pico_enqueue(pico_proto_6lowpan_ll.q_in, f);
         } else {
             f->datalink_hdr = f->buffer;
             return pico_enqueue(pico_proto_ethernet.q_in, f);
@@ -865,12 +865,9 @@ int MOCKABLE pico_stack_init(void)
     pico_protocol_init(&pico_proto_ethernet);
 #endif
 
-#ifdef PICO_SUPPORT_802154
-    pico_protocol_init(&pico_proto_802154);
-#endif
-
 #ifdef PICO_SUPPORT_6LOWPAN
     pico_protocol_init(&pico_proto_6lowpan);
+    pico_protocol_init(&pico_proto_6lowpan_ll);
 #endif
 
 #ifdef PICO_SUPPORT_IPV4

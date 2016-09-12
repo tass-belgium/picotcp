@@ -388,7 +388,7 @@ START_TEST(tc_802154_format)
     ENDING(test);
 }
 END_TEST
-
+/*
 START_TEST(tc_802154_store_addr)
 {
     int test = 1;
@@ -575,7 +575,7 @@ START_TEST(tc_802154_process_in)
     FAIL_UNLESS(0 < ret, "Should not return failure\n");
 }
 END_TEST
-
+*/
 Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
@@ -590,10 +590,12 @@ Suite *pico_suite(void)
     TCase *TCase_802154_src = tcase_create("Unit test for 802154_src");
     TCase *TCase_802154_dst = tcase_create("Unit test for 802154_dst");
     TCase *TCase_802154_format = tcase_create("Unit test for 802154_format");
+    /*
     TCase *TCase_frame_802154_push = tcase_create("Unit test for frame_802154_push");
     TCase *TCase_802154_store_addr = tcase_create("Unit test for 802154_store_addr");
     TCase *TCase_802154_process_out = tcase_create("Unit test for 802154_process_out");
     TCase *TCase_802154_process_in = tcase_create("Unit test for 802154_process_in");
+    */
 
 /*******************************************************************************
  *  ADDRESSES
@@ -622,6 +624,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_802154_dst);
     tcase_add_test(TCase_802154_format, tc_802154_format);
     suite_add_tcase(s, TCase_802154_format);
+    /*
     tcase_add_test(TCase_frame_802154_push, tc_frame_802154_push);
     suite_add_tcase(s, TCase_frame_802154_push);
     tcase_add_test(TCase_802154_store_addr, tc_802154_store_addr);
@@ -630,6 +633,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_802154_process_out);
     tcase_add_test(TCase_802154_process_in, tc_802154_process_in);
     suite_add_tcase(s, TCase_802154_process_in);
+    */
 
     return s;
 }

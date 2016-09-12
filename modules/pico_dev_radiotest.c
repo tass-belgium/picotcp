@@ -12,6 +12,7 @@
 #include "pico_dev_radiotest.h"
 #include "pico_addressing.h"
 #include "pico_dev_tap.h"
+#include "pico_802154.h"
 #include "pico_device.h"
 #include "pico_config.h"
 #include "pico_stack.h"
@@ -135,7 +136,7 @@ static void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int 
 
 #endif
 
-int radiotest_cmp(void *a, void *b)
+static int radiotest_cmp(void *a, void *b)
 {
     struct radiotest_frame *fa = (struct radiotest_frame *)a;
     struct radiotest_frame *fb = (struct radiotest_frame *)b;
@@ -144,7 +145,7 @@ int radiotest_cmp(void *a, void *b)
 
 PICO_TREE_DECLARE(LoopFrames, radiotest_cmp);
 
-uint8_t *radiotest_nxt_rx(int *len)
+static uint8_t *radiotest_nxt_rx(int *len)
 {
     struct radiotest_frame test, *found = NULL;
     uint8_t *ret = NULL;
@@ -168,7 +169,7 @@ static void radiotest_nxt_tx(uint8_t *buf, int len)
     if (new) {
         new->buf = PICO_ZALLOC((uint16_t)len);
         if (new->buf) {
-            memcpy(new->buf, buf, len);
+            memcpy(new->buf, buf, (size_t)len);
             new->len = len;
             new->id = tx_id++;
             if (pico_tree_insert(&LoopFrames, new)) {
@@ -369,6 +370,7 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
         return NULL;
 
     dev->dev.mode = LL_MODE_IEEE802154;
+    dev->dev.mtu = (uint32_t)MTU_802154_MAC;
     if (loop) {
         dev->dev.send = pico_loop_send;
         dev->dev.poll = pico_loop_poll;

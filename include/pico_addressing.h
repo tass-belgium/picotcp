@@ -97,6 +97,7 @@ enum pico_ll_mode
 {
     LL_MODE_ETHERNET = 0,
     LL_MODE_IEEE802154,
+    LL_MODE_IEEE802154_NO_MAC
 };
 
 union pico_ll_addr

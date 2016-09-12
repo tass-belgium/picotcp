@@ -1619,33 +1619,8 @@ pico_6lowpan_process_in(struct pico_protocol *self, struct pico_frame *f)
 int
 pico_6lowpan_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
-    union pico_ll_addr **addr_p = NULL, *addr = NULL;
-    uint16_t needed = (uint16_t)sizeof(union pico_ll_addr *);
-    uint16_t headroom = (uint16_t)(f->net_hdr - f->buffer);
-    uint32_t grow = 0;
-    int ret = 0;
-
-    /* Check if there's enough headroom available to store a pointer to the
-     * heap allocated addresses */
-    if (headroom < needed) {
-        grow = (uint32_t)(needed - headroom);
-        ret = pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
-        if (ret) {
-            pico_frame_discard(f);
-            return -1;
-        }
-    }
-
-    /* Allocate room for both addresses on the heap */
-    addr = (union pico_ll_addr *)PICO_ZALLOC(sizeof(union pico_ll_addr) << 1);
+    union pico_ll_addr *addr = frame_6lowpan_ll_store_addr(f, src, dst);
     if (addr) {
-        addr[0] = src; // Store source on the heap
-        addr[1] = dst; // Store destin on the heap
-
-        f->datalink_hdr = f->net_hdr - needed;
-        addr_p = (union pico_ll_addr **)f->datalink_hdr;
-        *addr_p = addr; // Store pointer to address on the heap in the datalink_hdr
-
         if (pico_enqueue(pico_proto_6lowpan.q_in, f) > 0) {
             return (int)f->len; // Success
         } else {

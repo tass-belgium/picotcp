@@ -27,11 +27,42 @@
 #endif
 
 /*******************************************************************************
+ * Constants
+ ******************************************************************************/
+
+/* Number of extensions */
+#define NUM_LL_EXTENSIONS       (2)
+
+/* Possible actions to perform on a received frame */
+#define FRAME_6LOWPAN_LL_RELEASE    (-1)
+#define FRAME_6LOWPAN_LL_DISCARD    (-2)
+
+/*******************************************************************************
+ * Type definitions
+ ******************************************************************************/
+
+typedef struct extension {
+    int (*estimate)(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst);
+    int (*out)(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst);
+    int (*in)(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst);
+} extension_t;
+
+/*******************************************************************************
+ * Global Variables
+ ******************************************************************************/
+
+static struct pico_queue pico_6lowpan_ll_in = {
+    0
+};
+static struct pico_queue pico_6lowpan_ll_out = {
+    0
+};
+
+/*******************************************************************************
  *  CTX
  ******************************************************************************/
 
 #ifdef PICO_6LOWPAN_IPHC_ENABLED
-
 /* Compares if the IPv6 prefix of two IPv6 addresses match */
 static int compare_prefix(uint8_t *a, uint8_t *b, int len)
 {
@@ -101,13 +132,98 @@ int ctx_insert(struct pico_ip6 addr, uint8_t id, int size)
     }
     return 0;
 }
-
 #endif
+
+/*******************************************************************************
+ *  MESH-UNDER ROUTING LAYER
+ ******************************************************************************/
+
+/* XXX: Extensible processing function for outgoing frames. Here, the mesh header
+ * for a Mesh-Under topology can be prepended and the link layer source and
+ * destination addresses can be updated */
+static int
+ll_mesh_header_process_in(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    IGNORE_PARAMETER(f);
+    IGNORE_PARAMETER(src);
+    IGNORE_PARAMETER(dst);
+    return 0;
+}
+
+/* XXX: Extensible processing function for outgoing frames. Here, the mesh header
+ * for a Mesh-Under topology can be prepended and the link layer source and
+ * destination addresses can be updated */
+static int
+ll_mesh_header_process_out(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    IGNORE_PARAMETER(f);
+    IGNORE_PARAMETER(src);
+    IGNORE_PARAMETER(dst);
+    return 0;
+}
+
+/* XXX: Extensible function that estimates the size of the mesh header to be
+ * prepended based on the frame, the source and destination link layer address */
+static int
+ll_mesh_header_estimator(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    IGNORE_PARAMETER(f);
+    IGNORE_PARAMETER(src);
+    IGNORE_PARAMETER(dst);
+    return (uint8_t)0;
+}
 
 /*******************************************************************************
  *  GENERIC 6LOWPAN LINK LAYER
  ******************************************************************************/
 
+static int
+ll_mac_header_process_in(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    if (0) {}
+#if defined (PICO_SUPPORT_802154)
+    else if (LL_MODE_IEEE802154 == f->dev->mode) {
+        return pico_802154_process_in(f, &src->pan, &dst->pan);
+    }
+#elif defined (PICO_SUPPORT_FOO)
+    /* XXX: Here's where we can support other link layer protocols to allow
+     * general 6LoWPAN-over-foo transmission link support */
+#endif
+    ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
+    return -1;
+}
+
+static int
+ll_mac_header_process_out(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    if (0) {}
+#if defined (PICO_SUPPORT_802154)
+    else if (LL_MODE_IEEE802154 == f->dev->mode) {
+        return pico_802154_process_out(f, &src->pan, &dst->pan);
+    }
+#elif defined (PICO_SUPPORT_FOO)
+    /* XXX: Here's where we can support other link layer protocols to allow
+     * general 6LoWPAN-over-foo transmission link support */
+#endif
+    ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
+    return -1;
+}
+
+static int
+ll_mac_header_estimator(struct pico_frame *f, union pico_ll_addr *src, union pico_ll_addr *dst)
+{
+    if (0) {}
+#if defined (PICO_SUPPORT_802154)
+    else if (LL_MODE_IEEE802154 == f->dev->mode) {
+        return pico_802154_estimator(f, &src->pan, &dst->pan);
+    }
+#elif defined (PICO_SUPPORT_FOO)
+    /* XXX: Here's where we can support other link layer protocols to allow
+     * general 6LoWPAN-over-foo transmission link support */
+#endif
+    ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
+    return -1;
+}
 int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev)
 {
     if (0) {}
@@ -126,31 +242,40 @@ int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pic
     }
 }
 
-struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
+/* Stores the addresses derived from the network addresses inside the frame
+ * so they're available and the same when they are processed further for TX */
+union pico_ll_addr *frame_6lowpan_ll_store_addr(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
 {
-    struct pico_frame *f;
-    IGNORE_PARAMETER(self);
-    if (0) {}
-#if defined (PICO_SUPPORT_802154)
-    else if (LL_MODE_IEEE802154 == dev->mode) {
-        /* TODO: Update to pico_protocol's alloc function */
-        f = pico_frame_alloc(SIZE_802154_MHR_MAX + size);
-        if (f) {
-            f->net_hdr = f->buffer + (int)(f->buffer_len - (uint32_t)size);
-            f->dev = dev;
-        }
-        return f;
-    }
-#elif defined (PICO_SUPPORT_FOO)
-    /* XXX: Here's where we can support other link layer protocols to allow
-     * general 6LoWPAN-over-foo transmission link support */
-#endif
-    else {
-        ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
-        return NULL;
-    }
-}
+    union pico_ll_addr **addr_p = NULL, *addr = NULL;
+    uint16_t needed = (uint16_t)sizeof(union pico_ll_addr *);
+    uint16_t headroom = (uint16_t)(f->net_hdr - f->buffer);
+    uint32_t grow = 0;
+    int ret = 0;
 
+    /* Check if there's enough headroom available to store a pointer to the
+     * heap allocated addresses */
+    if (headroom < needed) {
+        grow = (uint32_t)(needed - headroom);
+        ret = pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
+        if (ret) {
+            pico_frame_discard(f);
+            return NULL;
+        }
+    }
+
+    /* Allocate room for both addresses on the heap */
+    addr = (union pico_ll_addr *)PICO_ZALLOC(sizeof(union pico_ll_addr) << 1);
+    if (addr) {
+        addr[0] = src; // Store source on the heap
+        addr[1] = dst; // Store destin on the heap
+
+        f->datalink_hdr = f->net_hdr - needed;
+        addr_p = (union pico_ll_addr **)f->datalink_hdr;
+        *addr_p = addr; // Store pointer to address on the heap in the datalink_hdr
+        return addr; // Return pointer to addresses on the heap
+    }
+    return NULL;
+}
 int pico_6lowpan_ll_iid(uint8_t *iid, union pico_ll_addr *addr, struct pico_device *dev)
 {
     if (0) {}
@@ -184,22 +309,6 @@ int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev)
     return -1;
 }
 
-int pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
-{
-    if (0) {}
-#if defined (PICO_SUPPORT_802154)
-    else if (LL_MODE_IEEE802154 == f->dev->mode) {
-        return frame_802154_push(f, src, dst);
-    }
-#elif defined (PICO_SUPPORT_FOO)
-    /* XXX: Here's where we can support other link layer protocols to allow
-     * general 6LoWPAN-over-foo transmission link support */
-#endif
-    /* No 6LoWPAN link layer protocols are supported */
-    ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
-    return -1;
-}
-
 int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int dest)
 {
     struct pico_ip6 src = ((struct pico_ipv6_hdr *)f->net_hdr)->src;
@@ -220,5 +329,147 @@ int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int des
     }
     return 0;
 }
+
+/*******************************************************************************
+ *  6LOWPAN LINK LAYER PROTOCOL
+ ******************************************************************************/
+
+const extension_t exts[] = {
+    {ll_mesh_header_estimator, ll_mesh_header_process_out, ll_mesh_header_process_in},
+    {ll_mac_header_estimator, ll_mac_header_process_out, ll_mac_header_process_in},
+};
+
+static int
+pico_6lowpan_ll_process_out(struct pico_protocol *self, struct pico_frame *f)
+{
+    union pico_ll_addr *addr = *(union pico_ll_addr **)f->datalink_hdr;
+    union pico_ll_addr src = addr[0], dst = addr[1];
+    uint32_t datalink_len = 0;
+    int ret = 0, i = 0;
+    IGNORE_PARAMETER(self);
+    PICO_FREE(addr); // Free addresses stored on the heap
+
+    /* Storage of addresses isn't needed anymore, restore link_hdr to former
+     * location, so processing functions can easily seek back */
+    f->datalink_hdr = f->net_hdr;
+
+    /* Call each of the outgoing processing functions */
+    for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
+        ret = exts[i].out(f, &src, &dst);
+        if (ret < 0) {
+            /* Processing failed, no way to recover, discard frame */
+            pico_frame_discard(f);
+            return -1;
+        }
+        datalink_len = (uint32_t)(datalink_len + (uint32_t)ret);
+    }
+
+    /* Frame is ready for sending to the device driver */
+    f->start = f->datalink_hdr;
+    f->len = (uint32_t)(f->len + datalink_len);
+    return (int)(pico_sendto_dev(f) <= 0);
+}
+
+static int
+pico_6lowpan_ll_process_in(struct pico_protocol *self, struct pico_frame *f)
+{
+    union pico_ll_addr src, dst;
+    int i = 0, ret = 0;
+    uint32_t len = 0;
+    IGNORE_PARAMETER(self);
+
+    /* net_hdr is the pointer that is dynamically updated by the incoming
+     * processing functions to always point to right after a particular
+     * header, whether it's MAC, MESH, LL_SEC, ... eventually net_hdr will
+     * point to 6LoWPAN header which is exactly what we want */
+    f->net_hdr = f->buffer;
+
+    for (i = NUM_LL_EXTENSIONS - 1; i >= 0; i--) {
+        ret = exts[i].in(f, &src, &dst);
+        switch (ret) {
+            case FRAME_6LOWPAN_LL_RELEASE:
+                /* Success, frame is somewhere else now.. :( */
+                break;
+            case FRAME_6LOWPAN_LL_DISCARD:
+                /* Something went wrong, discard the frame */
+                pico_frame_discard(f);
+                break;
+            default:
+                /* Success, update link layer header length */
+                len = (uint32_t)(len + (uint32_t)ret);
+        }
+    }
+
+    /* Determine size at network layer */
+    f->net_len = (uint16_t)(f->len - len);
+    f->len = (uint32_t)(f->len - len);
+    return pico_6lowpan_pull(f, src, dst);
+}
+
+int
+pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
+{
+    uint16_t frame_size, pl_available = 0;
+    union pico_ll_addr *addr = NULL;
+    int i = 0;
+
+    if (!f || !f->dev)
+        return -1;
+    frame_size = (uint16_t)(f->len);
+    pl_available = (uint16_t)f->dev->mtu;
+
+    /* Call each of the estimator functions of the additional headers to
+     * determine if the frame fits inside a single 802.15.4 frame, if it doesn't
+     * at some point, return the available bytes */
+    for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
+        pl_available = (uint16_t)(pl_available - exts[i].estimate(f, &src, &dst));
+    }
+    if (frame_size > pl_available)
+        return pl_available;
+
+    /* Make sure these addresses are retrievable from the frame on processing */
+    if ((addr = frame_6lowpan_ll_store_addr(f, src, dst))) {
+        if (pico_enqueue(pico_proto_6lowpan_ll.q_out,f) > 0) {
+            return 0; // Frame enqueued for later processing
+        } else {
+            PICO_FREE(addr);
+        }
+    }
+    return -1; // Return ERROR
+}
+
+struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
+{
+    struct pico_frame *f;
+    IGNORE_PARAMETER(self);
+    if (0) {}
+#if defined (PICO_SUPPORT_802154)
+    else if (LL_MODE_IEEE802154 == dev->mode) {
+        /* TODO: Update to pico_protocol's alloc function */
+        f = pico_frame_alloc(SIZE_802154_MHR_MAX + size);
+        if (f) {
+            f->net_hdr = f->buffer + (int)(f->buffer_len - (uint32_t)size);
+            f->dev = dev;
+        }
+        return f;
+    }
+#elif defined (PICO_SUPPORT_FOO)
+    /* XXX: Here's where we can support other link layer protocols to allow
+     * general 6LoWPAN-over-foo transmission link support */
+#endif
+    else {
+        ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
+        return NULL;
+    }
+}
+
+struct pico_protocol pico_proto_6lowpan_ll = {
+    .name = "6lowpan_ll",
+    .layer = PICO_LAYER_DATALINK,
+    .process_in = pico_6lowpan_ll_process_in,
+    .process_out = pico_6lowpan_ll_process_out,
+    .q_in = &pico_6lowpan_ll_in,
+    .q_out = &pico_6lowpan_ll_out
+};
 
 #endif /* PICO_SUPPORT_6LOWPAN */

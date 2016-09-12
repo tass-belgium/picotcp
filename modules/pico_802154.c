@@ -24,8 +24,6 @@
  * Constants
  ******************************************************************************/
 
-#define NUM_LL_EXTENSIONS 2
-
 /* Frame type definitions */
 #define FCF_TYPE_BEACON       (short_be(0x0000u))
 #define FCF_TYPE_DATA         (short_be(0x0001u))
@@ -47,34 +45,6 @@
 /* Commonly used addresses */
 #define ADDR_802154_BCAST     (short_be(0xFFFFu))
 #define ADDR_802154_UNSPEC    (short_be(0xFFFEu))
-
-/* Possible actions to perform on a received frame */
-#define FRAME_802154_RELEASE  (-1)
-#define FRAME_802154_DISCARD  (-2)
-
-/*******************************************************************************
- * Type definitions
- ******************************************************************************/
-
-typedef uint8_t (*ll_estimator)(struct pico_frame *f, struct pico_802154 src,
-                                struct pico_802154 dst);
-typedef int (*ll_processor)(struct pico_frame *f, struct pico_802154 *src,
-                          struct pico_802154 *dst);
-typedef struct extension {
-    ll_estimator estimate;
-    ll_processor out;
-    ll_processor in;
-} extension_t;
-
-/*******************************************************************************
- * Global variables
- ******************************************************************************/
-static struct pico_queue pico_802154_in = {
-    0
-};
-static struct pico_queue pico_802154_out = {
-    0
-};
 
 /*******************************************************************************
  *  ADDRESSES
@@ -282,62 +252,16 @@ frame_802154_format(uint8_t *buf, uint8_t seq, uint16_t intra_pan, uint16_t ack,
     memcpy(addresses + SIZE_802154(dst.mode), src.addr.data,SIZE_802154(src.mode));
 }
 
-/* Stores the addresses derived from the network addresses inside the frame
- * so they're available and the same when they are processed further for TX */
-static int
-frame_802154_store_addr(struct pico_frame *f, struct pico_802154 src,
-                        struct pico_802154 dst)
-{
-    int ssize = SIZE_802154(src.mode), dsize = SIZE_802154(dst.mode);
-    uint32_t len = (uint32_t)(SIZE_802154(src.mode) + SIZE_802154(dst.mode) + 2);
-    uint32_t datalink_len = (uint32_t)(f->net_hdr - f->buffer);
-    uint32_t grow = 0;
-    int ret = 0;
-
-    if (len > datalink_len) {
-        grow = (uint32_t)(SIZE_802154_MHR_MAX - datalink_len);
-        ret = pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
-        if (ret)
-            return -1;
-    }
-    /* Move the datalink header before the net_hdr */
-    f->datalink_hdr = (uint8_t *)(f->net_hdr - len);
-
-    /* Store the addressing modes and the addresses themself */
-    f->datalink_hdr[0] = src.mode;
-    f->datalink_hdr[ssize + 1] = dst.mode;
-    memcpy(f->datalink_hdr + 1, src.addr.data, (size_t)ssize);
-    memcpy(f->datalink_hdr + ssize + 2, dst.addr.data, (size_t)dsize);
-    return 0;
-}
-
 /* Estimates the size the MAC header would be based on the source and destination
  * link layer address */
-static uint8_t
-ll_mac_header_estimator(struct pico_frame *f, struct pico_802154 src, struct
-                        pico_802154 dst)
+uint8_t pico_802154_estimator(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst)
 {
     IGNORE_PARAMETER(f);
-    return (uint8_t)(SIZE_802154_MHR_MIN + SIZE_802154(src.mode) +
-        SIZE_802154(dst.mode));
-}
-
-/* XXX: Extensible function that estimates the size of the mesh header to be
- * prepended based on the frame, the source and destination link layer address */
-static uint8_t
-ll_mesh_header_estimator(struct pico_frame *f, struct pico_802154 src, struct
-                         pico_802154 dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return (uint8_t)0;
+    return (uint8_t)(SIZE_802154_MHR_MIN + SIZE_802154(src->mode) + SIZE_802154(dst->mode));
 }
 
 /* Prepends the IEEE802.15.4 MAC header before the frame */
-static int
-ll_mac_header_process_out(struct pico_frame *f, struct pico_802154 *src,
-                          struct pico_802154 *dst)
+int pico_802154_process_out(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst)
 {
     int len = (int)(SIZE_802154_MHR_MIN + SIZE_802154(dst->mode) + SIZE_802154(src->mode));
     uint8_t sec = (uint8_t)((f->flags & PICO_FRAME_FLAG_LL_SEC) ? (FCF_SEC) : (FCF_NO_SEC));
@@ -354,23 +278,8 @@ ll_mac_header_process_out(struct pico_frame *f, struct pico_802154 *src,
     return len;
 }
 
-/* XXX: Extensible processing function for outgoing frames. Here, the mesh header
- * for a Mesh-Under topology can be prepended and the link layer source and
- * destination addresses can be updated */
-static int
-ll_mesh_header_process_out(struct pico_frame *f, struct pico_802154 *src,
-                           struct pico_802154 *dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return 0;
-}
-
 /* Prepends the IEEE802.15.4 MAC header before the frame */
-static int
-ll_mac_header_process_in(struct pico_frame *f, struct pico_802154 *src,
-                         struct pico_802154 *dst)
+int pico_802154_process_in(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst)
 {
     struct pico_802154_hdr *hdr = (struct pico_802154_hdr *)f->net_hdr;
     uint16_t fcf = short_be(hdr->fcf);
@@ -391,19 +300,6 @@ ll_mac_header_process_in(struct pico_frame *f, struct pico_802154 *src,
     f->net_hdr = f->datalink_hdr + (int)hlen;
 
     return (int)hlen;
-}
-
-/* XXX: Extensible processing function for outgoing frames. Here, the mesh header
- * for a Mesh-Under topology can be prepended and the link layer source and
- * destination addresses can be updated */
-static int
-ll_mesh_header_process_in(struct pico_frame *f, struct pico_802154 *src,
-                           struct pico_802154 *dst)
-{
-    IGNORE_PARAMETER(f);
-    IGNORE_PARAMETER(src);
-    IGNORE_PARAMETER(dst);
-    return 0;
 }
 
 /* Derive an IPv6 IID from an IEEE802.15.4 address */
@@ -458,144 +354,5 @@ addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b)
         return memcmp(a->pan.addr.data, b->pan.addr.data, SIZE_802154(b->pan.mode));
     }
 }
-
-const extension_t exts[] = {
-    {ll_mac_header_estimator, ll_mac_header_process_out, ll_mac_header_process_in},
-    {ll_mesh_header_estimator, ll_mesh_header_process_out, ll_mesh_header_process_in},
-};
-
-/* Interface from the 6LoWPAN layer towards the link layer, either enqueues the
- * frame for later processing, or returns the amount of bytes available after
- * prepending the MAC header and additional headers */
-int
-frame_802154_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst)
-{
-    uint16_t frame_size, pl_available = MTU_802154_MAC;
-    int i = 0;
-
-    if (!f || !f->dev)
-        return -1;
-    frame_size = (uint16_t)(f->len);
-
-    /* Call each of the estimator functions of the additional headers to
-     * determine if the frame fits inside a single 802.15.4 frame, if it doesn't
-     * at some point, return the available bytes */
-    for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
-        pl_available = (uint16_t)(pl_available - exts[i].estimate(f, src.pan, dst.pan));
-        if (frame_size > pl_available)
-            return pl_available;
-    }
-
-    /* Make sure these addresses are retrievable from the frame on processing */
-    if (!frame_802154_store_addr(f, src.pan, dst.pan)) {
-        if (pico_enqueue(pico_proto_802154.q_out,f) > 0)
-            return 0; // Frame enqueued for later processing
-    }
-    return -1; // Return ERROR
-}
-
-/* General pico_protocol outgoing processing function */
-static int
-pico_802154_process_out(struct pico_protocol *self, struct pico_frame *f)
-{
-    uint32_t datalink_len = 0;
-    size_t ssize = 0, dsize = 0;
-    struct pico_802154 llsrc;
-    struct pico_802154 lldst;
-    int i = 0, ret = 0;
-    IGNORE_PARAMETER(self);
-
-    if (!f || !f->dev)
-        return -1;
-
-    /* Retrieve the link layer addresses from the frame */
-    ssize = SIZE_802154(f->datalink_hdr[0]);
-    dsize = SIZE_802154(f->datalink_hdr[ssize + 1]);
-    llsrc.mode = f->datalink_hdr[0];
-    lldst.mode = f->datalink_hdr[ssize + 1];
-    memcpy(llsrc.addr.data, f->datalink_hdr + 1, ssize);
-    memcpy(lldst.addr.data, f->datalink_hdr + ssize + 2, dsize);
-
-    /* Storage of addresses isn't needed anymore, restore link_hdr to former
-     * location, so processing functions can easily seek back */
-    f->datalink_hdr = f->net_hdr;
-
-    /* Call each of the outgoing processing functions */
-    for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
-        ret = exts[i].out(f, &llsrc, &lldst);
-        if (ret < 0) {
-            /* Processing failed, no way to recover, discard frame */
-            pico_frame_discard(f);
-            return -1;
-        }
-        datalink_len = (uint32_t)(datalink_len + (uint32_t)ret);
-    }
-
-    /* Frame is ready for sending to the device driver */
-    f->start = f->datalink_hdr;
-    f->len = (uint32_t)(f->len + datalink_len);
-    return (int)(pico_sendto_dev(f) <= 0);
-}
-
-/* General pico_protocol incoming processing function */
-static int
-pico_802154_process_in(struct pico_protocol *self, struct pico_frame *f)
-{
-    int i = 0, ret = 0;
-    uint32_t len = 0;
-    union pico_ll_addr src;
-    union pico_ll_addr dst;
-    IGNORE_PARAMETER(self);
-
-    /* net_hdr is the pointer that is dynamically updated by the incoming
-     * processing functions to always point to right after a particular
-     * header, whether it's MAC, MESH, LL_SEC, ... eventually net_hdr will
-     * point to 6LoWPAN header which is exactly what we want */
-    f->net_hdr = f->buffer;
-
-    for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
-        ret = exts[i].in(f, &src.pan, &dst.pan);
-        switch (ret) {
-            case FRAME_802154_RELEASE:
-                /* Success, frame is somewhere else now.. :( */
-                break;
-            case FRAME_802154_DISCARD:
-                /* Something went wrong, discard the frame */
-                pico_frame_discard(f);
-                break;
-            default:
-                /* Success, update link layer header length */
-                len = (uint32_t)(len + (uint32_t)ret);
-        }
-    }
-
-    /* Determine size at network layer */
-    f->net_len = (uint16_t)(f->len - len);
-    f->len = (uint32_t)(f->len - len);
-
-    return pico_6lowpan_pull(f,src,dst);
-}
-
-/* Alloc-function for picoTCP's alloc-chain */
-static struct pico_frame *
-pico_802154_frame_alloc(struct pico_protocol *self, uint16_t size)
-{
-    IGNORE_PARAMETER(self);
-    IGNORE_PARAMETER(size);
-
-    /* TODO: Update to extended alloc-function with device as in PR #406 */
-
-    return NULL;
-}
-
-struct pico_protocol pico_proto_802154 = {
-    .name = "ieee802154",
-    .layer = PICO_LAYER_DATALINK,
-    .alloc = pico_802154_frame_alloc,
-    .process_in = pico_802154_process_in,
-    .process_out = pico_802154_process_out,
-    .q_in = &pico_802154_in,
-    .q_out = &pico_802154_out,
-};
 
 #endif /* PICO_SUPPORT_IEEE802154 */
