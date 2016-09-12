@@ -70,8 +70,12 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
         memcpy(newaddr.addr + 8, ieee->addr_ext.addr, SIZE_802154(AM_802154_EXT));
         newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
 
+        /* RFC6775: No Duplicate Address Detection (DAD) is performed if
+         * EUI-64-based IPv6 addresses are used (as these addresses are assumed
+         * to be globally unique). */
         if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
-            /* 6LoWPAN-ND unicast sollicitating starts here */
+            dev->hostvars.lowpan = 1;
+            device_init_ipv6_final(dev, &newaddr);
         }
 #else
         return NULL;

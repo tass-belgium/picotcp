@@ -18,11 +18,13 @@ struct pico_nd_hostvars {
     pico_time basetime;
     pico_time reachabletime;
     pico_time retranstime;
+    uint8_t lowpan;
 };
 
 void pico_ipv6_nd_init(void);
 struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f);
 void pico_ipv6_nd_postpone(struct pico_frame *f);
 int pico_ipv6_nd_recv(struct pico_frame *f);
+int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l);
 
 #endif

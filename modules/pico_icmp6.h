@@ -174,6 +174,14 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint16_t nbr_src;
                 struct pico_ip6 src[1];
             } mld;
+            /* 6LoWPAN Duplicate Address Message */
+            PEDANTIC_STRUCT_DEF da_s {
+                uint8_t status;
+                uint8_t reserved;
+                uint16_t lifetime;
+                struct pico_802154_ext eui64;
+                struct pico_ip6 addr;
+            } da;
         } info;
     } msg;
 };
@@ -181,10 +189,13 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
 PACKED_UNION_DEF pico_hw_addr {
     struct pico_eth mac;
 #ifdef PICO_SUPPORT_6LOWPAN
-    struct pico_802154_short _short;
-    struct pico_802154_ext _ext;
+    union pico_802154_u pan;
 #endif /* PICO_SUPPORT_6LOWPAN */
 };
+
+/******************************************************************************
+ *  ICMP6 Neighbor Discovery Options
+ ******************************************************************************/
 
 PACKED_STRUCT_DEF pico_icmp6_opt_lladdr
 {
@@ -238,6 +249,7 @@ PACKED_STRUCT_DEF pico_icmp6_opt_na
     uint8_t len;
 };
 
+/* 6LoWPAN Address Registration Option (ARO) */
 PACKED_STRUCT_DEF pico_icmp6_opt_aro
 {
     uint8_t type;
@@ -249,6 +261,11 @@ PACKED_STRUCT_DEF pico_icmp6_opt_aro
     struct pico_802154_ext eui64;
 };
 
+#define ICMP6_ARO_SUCCES    (0u)
+#define ICMP6_ARO_DUP       (1u)
+#define ICMP6_ARO_FULL      (2u)
+
+/* 6LoWPAN Context Option (6CO) */
 PACKED_STRUCT_DEF pico_icmp6_6co
 {
     uint8_t type;

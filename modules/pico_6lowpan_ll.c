@@ -224,6 +224,7 @@ ll_mac_header_estimator(struct pico_frame *f, union pico_ll_addr *src, union pic
     ll_dbg("%s: FAILURE: link layer mode of device not supported.\n", __func__);
     return -1;
 }
+
 int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev)
 {
     if (0) {}
