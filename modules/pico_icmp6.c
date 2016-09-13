@@ -282,6 +282,9 @@ MOCKABLE int pico_icmp6_frag_expired(struct pico_frame *f)
 
 static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t type, struct pico_device *dev, struct pico_ip6 *src)
 {
+#ifdef PICO_SUPPORT_6LOWPAN
+	struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)dev->eth;
+#endif
     IGNORE_PARAMETER(src);
     llao->type = type;
 
@@ -289,6 +292,19 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
         memcpy(llao->addr.mac.addr, dev->eth->mac.addr, PICO_SIZE_ETH);
         llao->len = 1;
     }
+#ifdef PICO_SUPPORT_6LOWPAN
+    if (dev->hostvars.lowpan && dev->eth) {
+		if (src && IID_16(&src->addr[8])) {
+			memcpy(llao->addr.pan.data, (uint8_t *)&info->addr_short.addr, SIZE_6LOWPAN_SHORT);
+            memset(llao->addr.pan.data + SIZE_6LOWPAN_SHORT, 0, 4);
+            llao->len = 1;
+		} else {
+            memcpy(llao->addr.pan.data, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
+            memset(llao->addr.pan.data + SIZE_6LOWPAN_EXT, 0, 6);
+            llao->len = 2;
+		}
+    }
+#endif
     else {
         return -1;
     }
@@ -424,6 +440,12 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     len = PICO_ICMP6HDR_ROUTER_SOL_SIZE;
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
+#ifdef PICO_SUPPORT_6LOWPAN
+        if (dev->hostvars.lowpan)
+            len = (uint16_t)(len + 8);
+#endif
+    } else { /* RFC6775 (6LoWPAN): An unspecified source address MUST NOT be used in RS messages.*/
+        return -1;
     }
 
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
@@ -449,8 +471,13 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 
     sol->dev = dev;
 
-    /* f->src is set in frame_push, checksum calculated there */
-    pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
+    if (dev->hostvars.lowpan) {
+        /* Force this frame to be send with the EUI-64-address */
+        pico_ipv6_frame_push(sol, src, &daddr, PICO_PROTO_ICMP6, 0);
+    } else {
+        /* f->src is set in frame_push, checksum calculated there */
+        pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
+    }
     return 0;
 }
 

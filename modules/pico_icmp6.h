@@ -179,7 +179,7 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 uint8_t status;
                 uint8_t reserved;
                 uint16_t lifetime;
-                struct pico_802154_ext eui64;
+                struct pico_6lowpan_ext eui64;
                 struct pico_ip6 addr;
             } da;
         } info;
@@ -189,7 +189,7 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
 PACKED_UNION_DEF pico_hw_addr {
     struct pico_eth mac;
 #ifdef PICO_SUPPORT_6LOWPAN
-    union pico_802154_u pan;
+    union pico_6lowpan_u pan;
 #endif /* PICO_SUPPORT_6LOWPAN */
 };
 
@@ -258,7 +258,7 @@ PACKED_STRUCT_DEF pico_icmp6_opt_aro
     uint8_t res0;
     uint16_t res1;
     uint16_t lifetime;
-    struct pico_802154_ext eui64;
+    struct pico_6lowpan_ext eui64;
 };
 
 #define ICMP6_ARO_SUCCES    (0u)
@@ -286,7 +286,7 @@ PACKED_STRUCT_DEF pico_icmp6_abro
     uint16_t version_high;
     uint16_t lifetime;
     struct pico_ip6 addr;
-}
+};
 
 struct pico_icmp6_stats
 {

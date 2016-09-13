@@ -125,7 +125,6 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
     struct pico_device *dev = NULL;
 
     /* RFC6775, 5.3:
-     *
      *  ... HOSTS need to intelligently retransmit RSs when one of its
      *  default routers becomes unreachable ...
      */
@@ -167,9 +166,9 @@ static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icm
         return -1;
 
     eui.pan.addr._ext = aro->eui64;
-    eui.pan.mode = AM_802154_EXT;
-    addr.pan.addr._ext = ((struct pico_802154_info *)dev->eth)->addr_ext;
-    addr.pan.mode = AM_802154_EXT;
+    eui.pan.mode = AM_6LOWPAN_EXT;
+    addr.pan.addr._ext = ((struct pico_6lowpan_info *)dev->eth)->addr_ext;
+    addr.pan.mode = AM_6LOWPAN_EXT;
 
     if (pico_6lowpan_ll_cmp(&addr, &eui, dev))
         return -1;
@@ -183,12 +182,17 @@ static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
     IGNORE_PARAMETER(now);
 
     if (!pico_ipv6_default_gateway_configured(l->dev) && !l->dev->hostvars.routing && l->dev->hostvars.lowpan) {
+        if (++l->dev->hostvars.retrans == MAX_RTR_SOLICITATIONS) {
+            l->dev->hostvars.backoff <<= 1;
+            if (l->dev->hostvars.backoff >= MAX_RTR_SOLICITATION_INTERVAL)
+                l->dev->hostvars.backoff = (pico_time)MAX_RTR_SOLICITATION_INTERVAL;
+        }
+
         /* If router list is empty, send router solicitation */
         pico_icmp6_router_solicitation(l->dev, &l->address);
 
-        /* Schedule next check */
-        /* TODO: Apply exponential retransmission timer, see RFC6775 5.3 */
-        pico_timer_add(RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
+        /* Apply exponential retransmission timer, see RFC6775 5.3 */
+        pico_timer_add(l->dev->hostvars.backoff, pico_6lp_nd_do_solicit, l);
         nd_dbg("[6LP-ND]$ No default routers configured, solicitating\n");
     }
 }
@@ -198,12 +202,11 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l)
     /* If router list is empty, send router solicitation */
     pico_icmp6_router_solicitation(l->dev, &l->address);
 
-    /* RFC6775, 5.3:
-     *  ... HOSTS need to intelligently retransmit RSs whenever the default router
-     *  list is empty, ...
-     */
-    if (!l->dev->hostvars.routing && l->dev->hostvars.lowpan)
-        pico_timer_add(RTR_SOLICITATION_INTERVAL, pico_6lp_nd_do_solicit, l);
+    if (!l->dev->hostvars.routing && l->dev->hostvars.lowpan) {
+        l->dev->hostvars.retrans = 1;
+        l->dev->hostvars.backoff = RTR_SOLICITATION_INTERVAL;
+        pico_timer_add(l->dev->hostvars.backoff, pico_6lp_nd_do_solicit, l);
+    }
     return 0;
 }
 
@@ -252,10 +255,9 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     struct pico_ipv6_hdr *hdr;
     struct pico_ip6 dst;
 #ifdef PICO_SUPPORT_6LOWPAN
-            /* 6LP: Find any 6LoWPAN-hosts for which this address might have been
-             * a default gateway. If such a host found, send a router solicitation
-             * again */
-            pico_6lp_nd_unreachable_gateway(a);
+    /* 6LP: Find any 6LoWPAN-hosts for which this address might have been a default gateway.
+     * If such a host found, send a router solicitation again */
+    pico_6lp_nd_unreachable_gateway(a);
 #endif /* PICO_SUPPORT_6LOWPAN */
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {

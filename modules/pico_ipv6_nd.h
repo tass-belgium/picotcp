@@ -18,6 +18,8 @@ struct pico_nd_hostvars {
     pico_time basetime;
     pico_time reachabletime;
     pico_time retranstime;
+    pico_time backoff;
+    uint8_t retrans;
     uint8_t lowpan;
 };
 
