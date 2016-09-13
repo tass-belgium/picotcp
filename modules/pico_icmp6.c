@@ -450,14 +450,7 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     sol->dev = dev;
 
     /* f->src is set in frame_push, checksum calculated there */
-    if (LL_MODE_ETHERNET == dev->mode) {
-        pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
-    }
-    else {
-        pico_frame_discard(sol);
-        return -1;
-    }
-
+    pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, 0);
     return 0;
 }
 

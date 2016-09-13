@@ -1711,7 +1711,11 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
 #else
     IGNORE_PARAMETER(all_hosts);
 #endif
-    pico_ipv6_route_add(network, netmask, gateway, 1, new);
+    /* RFC6775 (6LoWPAN) : There is no need to join the solicited-node multicast address, since
+     * nobody multicasts NSs in this type of network.  A host MUST join the all-nodes multicast
+     * address.*/
+    if (!dev->hostvars.lowpan)
+        pico_ipv6_route_add(network, netmask, gateway, 1, new);
     pico_ipv6_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
     /* XXX MUST join the all-nodes multicast address on that interface, as well as
      *     the solicited-node multicast address corresponding to each of the IP

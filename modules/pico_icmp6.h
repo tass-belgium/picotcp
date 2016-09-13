@@ -274,8 +274,19 @@ PACKED_STRUCT_DEF pico_icmp6_6co
     uint8_t comp_id;
     uint16_t res0;
     uint16_t lifetime;
-    uint8_t prefix[0];
+    uint8_t prefix;
 };
+
+/* 6LoWPAN Authoritative Border Router Option (ABRO) */
+PACKED_STRUCT_DEF pico_icmp6_abro
+{
+    uint8_t type;
+    uint8_t len;
+    uint16_t version_low;
+    uint16_t version_high;
+    uint16_t lifetime;
+    struct pico_ip6 addr;
+}
 
 struct pico_icmp6_stats
 {
