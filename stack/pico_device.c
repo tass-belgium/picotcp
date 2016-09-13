@@ -75,7 +75,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
          * to be globally unique). */
         if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
             dev->hostvars.lowpan = 1;
-            device_init_ipv6_final(dev, &newaddr);
+            pico_6lp_nd_start_solicitating(link);
         }
 #else
         return NULL;

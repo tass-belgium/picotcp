@@ -263,12 +263,11 @@ static int radiotest_send(struct pico_device *dev, void *_buf, int len)
     if (!buf)
         return -1;
 
-    printf("Transmitting frame of %d bytes.\n", len);
-
     /* Store the address in buffer for management */
     memcpy(buf, _buf, (size_t)len);
     len += 3;
-    buf[len - 1] = (uint8_t)radio->addr.addr_short.addr;
+    buf[len - 1] = (uint8_t)short_be(radio->addr.addr_short.addr);
+    printf("'%u' is transmitting a frame of %d bytes.\n", buf[len-1], len);
 
     /* Generate FCS, keep pcap happy ... */
     crc = calculate_crc16(_buf, (uint8_t)(len - 3));
@@ -299,7 +298,7 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
         return loop_score;
 
     /* Get the radiotest-address */
-    my_id = (uint8_t)radio->addr.addr_short.addr;
+    my_id = (uint8_t)short_be(radio->addr.addr_short.addr);
 
     p[0].fd = radio->sock0;
     p[0].events = POLLIN;
@@ -320,16 +319,18 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
 
     if (p[0].revents & POLLIN) {
         ret_len = (int)recv(radio->sock0, buf, (size_t)(128), 0);
-        if (buf[0] == my_id)
+        if (buf[ret_len - 1] == my_id)
             ret_len = 0;
     } else {
         ret_len = (int)recv(radio->sock1, buf, (size_t)(128), 0);
-        if (buf[0] == my_id)
+        if (buf[ret_len - 1] == my_id)
             ret_len = 0;
     }
 
-    if (ret_len < 2) /* Not valid */
+    if (ret_len < 2) { /* Not valid */
+        printf("Originator: %u my_id: %u \n", buf[ret_len - 1], my_id);
         return loop_score;
+    }
 
 #ifdef P_LOSS
     long n = lrand48();
@@ -378,9 +379,10 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
         dev->dev.send = radiotest_send;
         dev->dev.poll = radiotest_poll;
     }
-    dev->addr.pan_id.addr = RFDEV_PANID;
+    dev->addr.pan_id.addr = short_be(RFDEV_PANID);
     dev->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(dev->addr.addr_short, dev->addr.addr_ext.addr);
+    printf("Radiotest short address: 0x%04X\n", short_be(dev->addr.addr_short.addr));
 
     dev->sock0 = socket(AF_INET, SOCK_DGRAM, 0);
     if (dev->sock0 < 0)

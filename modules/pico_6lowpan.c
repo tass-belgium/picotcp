@@ -1064,8 +1064,6 @@ pico_iphc_reassemble(struct pico_frame *f, uint8_t **chunks, int *chunks_len,
     payload_len = (int)f->len - handled_len;
     processed_len += payload_len; // Length of frame after processing
 
-    lp_dbg("6LP: IPHC reassembly: handled: %d payload: %d processed: %d\n",
-           handled_len, payload_len, processed_len);
     /* Reallocate frame size if there isn't enough room available */
     if (f->len < (uint16_t)processed_len) {
         grow = (uint32_t)(grow + (uint32_t)processed_len - f->len);
