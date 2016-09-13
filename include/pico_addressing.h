@@ -38,54 +38,56 @@ PACKED_STRUCT_DEF pico_eth
 extern const uint8_t PICO_ETHADDR_ALL[];
 
 /******************************************************************************
- *  IEE802.15.4 Address Definitions
+ *  Generic 6LoWPAN Address Definitions
  ******************************************************************************/
 
-/* IEE802.15.4 supports 16-bit short addresses */
-PACKED_STRUCT_DEF pico_802154_short
+/* 6lowpan supports 16-bit short addresses */
+PACKED_STRUCT_DEF pico_6lowpan_short
 {
     uint16_t addr;
 };
 
 /* And also EUI-64 addresses */
-PACKED_STRUCT_DEF pico_802154_ext
+PACKED_STRUCT_DEF pico_6lowpan_ext
 {
     uint8_t addr[8];
 };
 
 /* Address memory as either a short 16-bit address or a 64-bit address */
-union pico_802154_u
+union pico_6lowpan_u
 {
     uint8_t data[8];
-    struct pico_802154_short _short;
-    struct pico_802154_ext _ext;
+    struct pico_6lowpan_short _short;
+    struct pico_6lowpan_ext _ext;
 };
+
+/* Info data structure to pass to pico_device_init by the device driver */
+struct pico_6lowpan_info
+{
+    struct pico_6lowpan_short addr_short;
+    struct pico_6lowpan_ext addr_ext;
+    struct pico_6lowpan_short pan_id;
+};
+
+/* Different addressing modes for IEEE802.15.4 addresses */
+#define AM_6LOWPAN_NONE      (0u)
+#define AM_6LOWPAN_RES       (1u)
+#define AM_6LOWPAN_SHORT     (2u)
+#define AM_6LOWPAN_EXT       (3u)
+#define SIZE_6LOWPAN_SHORT   (2u)
+#define SIZE_6LOWPAN_EXT     (8u)
+#define SIZE_6LOWPAN(m) (((m) == 2) ? (2) : (((m) == 3) ? (8) : (0)))
+
+/******************************************************************************
+ *  Generic 6LoWPAN Address Definitions
+ ******************************************************************************/
 
 /* Storage data structure for IEEE802.15.4 addresses */
 struct pico_802154
 {
-    union pico_802154_u addr;
+    union pico_6lowpan_u addr;
     uint8_t mode;
 };
-
-/* Info data structure to pass to pico_device_init by the device driver */
-struct pico_802154_info
-{
-    struct pico_802154_short addr_short;
-    struct pico_802154_ext addr_ext;
-    struct pico_802154_short pan_id;
-};
-
-/* Different addressing modes for IEEE802.15.4 addresses */
-#define AM_802154_NONE      (0u)
-#define AM_802154_RES       (1u)
-#define AM_802154_SHORT     (2u)
-#define AM_802154_EXT       (3u)
-
-#define SIZE_802154_SHORT   (2u)
-#define SIZE_802154_EXT     (8u)
-
-#define SIZE_802154(m) (((m) == 2) ? (2) : (((m) == 3) ? (8) : (0)))
 
 /******************************************************************************
  *  Link Layer addresses

@@ -9,7 +9,6 @@
 #include "pico_ipv6.h"
 #include "pico_stack.h"
 #include "pico_frame.h"
-#include "pico_802154.h"
 #include "pico_6lowpan.h"
 #include "pico_protocol.h"
 #include "pico_addressing.h"

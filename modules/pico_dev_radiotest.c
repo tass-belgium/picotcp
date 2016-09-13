@@ -52,7 +52,7 @@
 
 struct radiotest_radio {
     struct pico_device dev;
-    struct pico_802154_info addr;
+    struct pico_6lowpan_info addr;
     int sock0;
     int sock1;
 #ifdef RADIO_PCAP
@@ -214,7 +214,7 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 
 
 /* Generates a simple extended address */
-static void radiotest_gen_ex(struct pico_802154_short addr_short, uint8_t *buf)
+static void radiotest_gen_ex(struct pico_6lowpan_short addr_short, uint8_t *buf)
 {
     uint16_t sh = addr_short.addr;
     buf[0] = 0x00;
@@ -223,8 +223,8 @@ static void radiotest_gen_ex(struct pico_802154_short addr_short, uint8_t *buf)
     buf[3] = 0xaa;
     buf[4] = 0xab;
     buf[5] = 0x00;
-    buf[6] = (uint8_t)(sh & 0xFF00) >> 8u;
-    buf[7] = (uint8_t)(sh & 0xFFu);
+    buf[6] = (uint8_t)(short_be(sh) & 0xFF00) >> 8u;
+    buf[7] = (uint8_t)(short_be(sh) & 0xFFu);
 }
 
 /**
@@ -328,7 +328,6 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
     }
 
     if (ret_len < 2) { /* Not valid */
-        printf("Originator: %u my_id: %u \n", buf[ret_len - 1], my_id);
         return loop_score;
     }
 
@@ -383,6 +382,11 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     dev->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(dev->addr.addr_short, dev->addr.addr_ext.addr);
     printf("Radiotest short address: 0x%04X\n", short_be(dev->addr.addr_short.addr));
+    printf("Radiotest ext address: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
+           dev->addr.addr_ext.addr[0],dev->addr.addr_ext.addr[1],
+           dev->addr.addr_ext.addr[2],dev->addr.addr_ext.addr[3],
+           dev->addr.addr_ext.addr[4],dev->addr.addr_ext.addr[5],
+           dev->addr.addr_ext.addr[6],dev->addr.addr_ext.addr[7]);
 
     dev->sock0 = socket(AF_INET, SOCK_DGRAM, 0);
     if (dev->sock0 < 0)

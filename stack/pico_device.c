@@ -61,13 +61,13 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
     struct pico_ip6 newaddr;
 #ifdef PICO_SUPPORT_6LOWPAN
-    struct pico_802154_info *ieee = (struct pico_802154_info *)dev->eth;
+    struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)dev->eth;
 #endif
 
     if (LL_MODE_IEEE802154 == dev->mode) {
 #ifdef PICO_SUPPORT_6LOWPAN
         memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-        memcpy(newaddr.addr + 8, ieee->addr_ext.addr, SIZE_802154(AM_802154_EXT));
+        memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN(AM_6LOWPAN_EXT));
         newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
 
         /* RFC6775: No Duplicate Address Detection (DAD) is performed if
@@ -116,8 +116,8 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
     }
     #ifdef PICO_SUPPORT_6LOWPAN
     else if (LL_MODE_IEEE802154 == dev->mode) {
-        if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_802154_info)))) {
-            memcpy(dev->eth, mac, sizeof(struct pico_802154_info));
+        if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_6lowpan_info)))) {
+            memcpy(dev->eth, mac, sizeof(struct pico_6lowpan_info));
         } else {
             pico_err = PICO_ERR_ENOMEM;
             return -1;

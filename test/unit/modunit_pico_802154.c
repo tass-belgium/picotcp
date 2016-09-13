@@ -50,7 +50,7 @@
  *  HELPER FUNCTIONS
  ******************************************************************************/
 
-static void dbg_addr_ext(const char *msg, uint8_t a[SIZE_802154_EXT])
+static void dbg_addr_ext(const char *msg, uint8_t a[SIZE_6LOWPAN_EXT])
 {
     DBG("%s: (64-bit extended address): ", msg);
     DBG("%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
@@ -84,7 +84,7 @@ START_TEST(tc_802154_to_ietf)
     int test = 1;
     struct pico_802154 a = {
         .addr.data = { 1,2,3,4,5,6,7,8 },
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     uint8_t buf[] = {8,7,6,5,4,3,2,1};
 
@@ -95,12 +95,12 @@ START_TEST(tc_802154_to_ietf)
     addr_802154_to_ietf(&a);
     dbg_addr_ext("After", a.addr.data);
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(a.addr.data, buf, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(a.addr.data, buf, SIZE_6LOWPAN_EXT),
                 "Failed converting to IETF endianness\n");
 
     // TEST 2
     TRYING("Short address mode\n");
-    a.mode = AM_802154_SHORT;
+    a.mode = AM_6LOWPAN_SHORT;
     addr_802154_to_ietf(&a);
     dbg_addr_ext("After", a.addr.data);
     CHECKING(test);
@@ -109,13 +109,13 @@ START_TEST(tc_802154_to_ietf)
 
     // TEST 3
     TRYING("Wrong address mode\n");
-    a.mode = AM_802154_NONE;
+    a.mode = AM_6LOWPAN_NONE;
     addr_802154_to_ietf(&a);
     dbg_addr_ext("After", a.addr.data);
     buf[0] = 7;
     buf[1] = 8;
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(a.addr.data, buf, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(a.addr.data, buf, SIZE_6LOWPAN_EXT),
                 "Should've done nothing\n");
 
     ENDING(test);
@@ -132,7 +132,7 @@ START_TEST(tc_802154_ll_src)
     struct pico_ip6 ip2 = {
         .addr = {0,0,0,0,0,0,0,0, 0,0,0,0xff,0xfe,0,0x12,0x34}
     };
-    struct pico_802154_info info = {
+    struct pico_6LOWPAN_info info = {
         .addr_short.addr = short_be(0x1234),
         .addr_ext.addr = {3,2,3,4,5,6,7,8}
     };
@@ -149,7 +149,7 @@ START_TEST(tc_802154_ll_src)
     info.addr_short.addr = short_be(0x1234);
     addr = addr_802154_ll_src(&ip2, &dev);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_SHORT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've returned device's short address \n");
     CHECKING(test);
     FAIL_UNLESS(short_be(0x1234) == addr.addr._short.addr,
@@ -160,10 +160,10 @@ START_TEST(tc_802154_ll_src)
     ip.addr[8] = 1;
     addr = addr_802154_ll_src(&ip, &dev);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
                 "Should've returned device's extended address\n");
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(info.addr_ext.addr, addr.addr._ext.addr, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(info.addr_ext.addr, addr.addr._ext.addr, SIZE_6LOWPAN_EXT),
                 "Should've copied device's extended address\n");
 
     ENDING(test);
@@ -186,7 +186,7 @@ START_TEST(tc_802154_ll_dst)
     TRYING("With a MCAST IPv6 address, should return 0xFFFF\n");
     addr = addr_802154_ll_dst(NULL, &ip, NULL);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_SHORT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
     CHECKING(test);
     FAIL_UNLESS(short_be(ADDR_802154_BCAST) == addr.addr._short.addr,
@@ -197,17 +197,17 @@ START_TEST(tc_802154_ll_dst)
     addr = addr_802154_ll_dst(NULL, &local, NULL);
     dbg_addr_ext("After:", addr.addr._ext.addr);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
                 "Should've set address mode to EXTENDED\n");
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(buf, addr.addr._ext.addr, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(buf, addr.addr._ext.addr, SIZE_6LOWPAN_EXT),
                 "Should've copied the extended address from the IP address\n");
 
     // TEST 3
     TRYING("With a link local IPv6 address derived from a short L2 address\n");
     addr = addr_802154_ll_dst(NULL, &local2, NULL);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_SHORT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
     CHECKING(test);
     FAIL_UNLESS(short_be(0x1234) == addr.addr._short.addr,
@@ -253,7 +253,7 @@ START_TEST(tc_dst_am)
     ret = dst_am((struct pico_802154_hdr *)pkt);
     DBG("ret = %d\n", ret);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == ret,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == ret,
                 "Should've returned the AM of an extended address\n");
 
     ENDING(test);
@@ -272,7 +272,7 @@ START_TEST(tc_src_am)
     ret = src_am((struct pico_802154_hdr *)pkt);
     DBG("ret = %d\n", ret);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == ret,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == ret,
                 "Should've returned the AM of an extended address\n");
 
     ENDING(test);
@@ -313,10 +313,10 @@ START_TEST(tc_802154_src)
     TRYING("To receive the source address from a mapped buffer\n");
     addr = frame_802154_src(hdr);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
                 "Should've returned an extended address\n");
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(src, addr.addr._ext.addr, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(src, addr.addr._ext.addr, SIZE_6LOWPAN_EXT),
                 "Should've copied the extended source address\n");
 
     ENDING(test);
@@ -338,10 +338,10 @@ START_TEST(tc_802154_dst)
     TRYING("To receive the source address from a mapped buffer\n");
     addr = frame_802154_dst(hdr);
     CHECKING(test);
-    FAIL_UNLESS(AM_802154_EXT == addr.mode,
+    FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
                 "Should've returned an extended address\n");
     CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(dst, addr.addr._ext.addr, SIZE_802154_EXT),
+    FAIL_UNLESS(0 == memcmp(dst, addr.addr._ext.addr, SIZE_6LOWPAN_EXT),
                 "Should've copied the extended source address\n");
 
     ENDING(test);
@@ -353,13 +353,13 @@ START_TEST(tc_802154_format)
     int test = 1;
     struct pico_802154 src = {
         .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x88},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     struct pico_802154 dst = {
         .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
-    struct pico_802154_short pan = { .addr = short_be(0xffff) };
+    struct pico_6LOWPAN_short pan = { .addr = short_be(0xffff) };
     uint8_t buf[127] = {0};
     int i = 0;
 
