@@ -1624,7 +1624,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
             l->istentative = 0;
         } else {
             /* Duplicate Address Detection */
-            pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD);
+            pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD, NULL);
             l->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &l->address);
             if (!l->dad_timer) {
                 dbg("IPv6: Failed to start nd_dad timer\n");
@@ -1728,12 +1728,20 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     return new;
 }
 
-struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
+struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 *dst)
 {
     struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
     if (new) {
         new->istentative = 0;
     }
+
+    if (dev->hostvars.lowpan && !pico_ipv6_is_linklocal(address.addr)) {
+        /* RFC6775: When a host has configured a non-link-local IPv6 address, it registers that
+         *      address with one or more of its default routers using the Address Registration
+         *      Option (ARO) in an NS message. */
+        pico_icmp6_neighbor_solicitation(new->dev, &new->address, PICO_ICMP6_ND_DAD, dst);
+    }
+
     return new;
 }
 
@@ -1975,12 +1983,14 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
     return link;
 }
 
-#define TWO_HOURS ((pico_time)(1000 * 60 * 60 * 2))
+#define TWO_HOURS   ((pico_time)(1000 * 60 * 60 * 2))
+#define ONE_MINUTE  ((pico_time)(1000 * 60))
 
 void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
+    struct pico_ipv6_route *gw = NULL;
     (void)arg;
     pico_tree_foreach_safe(index, &IPV6Links, temp) {
         link = index->keyValue;
@@ -1988,8 +1998,18 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             dbg("Warning: IPv6 address has expired.\n");
             pico_ipv6_link_del(link->dev, link->address);
         }
+#ifdef PICO_SUPPORT_6LOWPAN
+        else if (link->dev->hostvars.lowpan && !pico_ipv6_is_linklocal(link->address.addr) &&
+                 (link->expire_time > 0) && (int)(link->expire_time - now) < (int)(TWO_HOURS >> 4)) {
+            gw = pico_ipv6_default_gateway_configured(link->dev);
+            if (gw)
+                pico_6lp_nd_start_solicitating(link, &gw->gateway);
+            else
+                pico_6lp_nd_start_solicitating(link, NULL);
+        }
+#endif
     }
-    if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
+    if (!pico_timer_add(ONE_MINUTE, pico_ipv6_check_lifetime_expired, NULL)) {
         dbg("IPv6: Failed to start check_lifetime timer\n");
         /* TODO No more link lifetime checking now */
     }

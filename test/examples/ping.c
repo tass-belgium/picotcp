@@ -72,6 +72,7 @@ void app_ping(char *arg)
     if (next) {
         next = cpy_arg(&asize, next);
         size = atoi(asize);
+        free(asize);
         if (size <= 0) {
             size = 64; /* Default */
         }
@@ -103,6 +104,7 @@ void app_ping(char *arg)
                 }
             }
         }
+        free(delay);
     }
     printf("Starting ping.\n");
 

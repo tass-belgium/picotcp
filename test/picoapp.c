@@ -455,10 +455,9 @@ int main(int argc, char **argv)
         case '6':
         {
             char *nxt, *name = NULL, *area0 = NULL, *area1 = NULL, *dump = NULL;
-            uint8_t n_id, n_area0, n_area1;
-            struct pico_ip6 myaddr, pan, netmask;
             const char pan_addr[] = "2aaa:abcd::0";
-            const char pan_netmask[] = "ffff:ffff:ffff:ffff::0";
+            uint8_t n_id, n_area0, n_area1;
+            struct pico_ip6 pan;
 
             /* Copy required command line arguments */
             do {
@@ -484,14 +483,6 @@ int main(int argc, char **argv)
                 nxt = cpy_arg(&dump, nxt);
             }
 
-            pico_string_to_ipv6(pan_addr, myaddr.addr);
-            pico_string_to_ipv6(pan_addr, pan.addr);
-            pico_string_to_ipv6(pan_netmask, netmask.addr);
-            myaddr.addr[8]  = 0x02;
-            myaddr.addr[11] = 0xaa;
-            myaddr.addr[12] = 0xab;
-            myaddr.addr[15] = n_id;
-
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
             dev = pico_radiotest_create(n_id, n_area0, n_area1, 0, dump);
             if (!dev) {
@@ -501,7 +492,8 @@ int main(int argc, char **argv)
             printf("Radiotest created.\n");
 
             /* Add a routable link */
-            pico_ipv6_link_add(dev, myaddr, netmask);
+            pico_string_to_ipv6(pan_addr, pan.addr);
+            pico_ipv6_link_add_local(dev, &pan);
 
             break;
         }

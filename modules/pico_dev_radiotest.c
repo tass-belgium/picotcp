@@ -223,7 +223,7 @@ static void radiotest_gen_ex(struct pico_6lowpan_short addr_short, uint8_t *buf)
     buf[3] = 0xaa;
     buf[4] = 0xab;
     buf[5] = 0x00;
-    buf[6] = (uint8_t)(short_be(sh) & 0xFF00) >> 8u;
+    buf[6] = (uint8_t)((uint8_t)(short_be(sh) & 0xFF00) >> 8u);
     buf[7] = (uint8_t)(short_be(sh) & 0xFFu);
 }
 
@@ -371,6 +371,7 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
 
     dev->dev.mode = LL_MODE_IEEE802154;
     dev->dev.mtu = (uint32_t)MTU_802154_MAC;
+    dev->dev.hostvars.lowpan = 1;
     if (loop) {
         dev->dev.send = pico_loop_send;
         dev->dev.poll = pico_loop_poll;

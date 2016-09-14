@@ -449,12 +449,13 @@ addr_comp_prefix(uint8_t *iphc, struct pico_ip6 *addr, int src)
     } else if (pico_ipv6_is_linklocal(addr->addr)) {
         return COMP_LINKLOCAL; // AC = 0
     } else if ((ctx = ctx_lookup(*addr))) {
-        iphc[1] |= state; // AC = 1
-        iphc[1] |= CTX_EXTENSION; // SRC or DST is stateful, CID = 1
-        return ctx->id;
-    } else {
-        return COMP_STATELESS; // AC = 0
+        if (ctx->flags & PICO_IPHC_CTX_COMPRESS) {
+            iphc[1] |= state; // AC = 1
+            iphc[1] |= CTX_EXTENSION; // SRC or DST is stateful, CID = 1
+            return ctx->id;
+        }
     }
+    return COMP_STATELESS; // AC = 0
 }
 
 /* Checks whether or not an IPv6 address is derived from a link layer address */

@@ -147,7 +147,7 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code);
 
 struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
-struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
+struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 *dst);
 int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address);
 int pico_ipv6_cleanup_links(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_istentative(struct pico_ip6 *address);

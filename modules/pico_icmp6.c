@@ -21,6 +21,11 @@
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;
 
+/******************************************************************************
+ *  Function prototypes
+ ******************************************************************************/
+static int pico_6lp_nd_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst);
+
 uint16_t pico_icmp6_checksum(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -312,8 +317,30 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
     return 0;
 }
 
+static struct pico_frame *pico_icmp6_neigh_sol_prep(struct pico_device *dev, struct pico_ip6 *dst, uint16_t len)
+{
+    struct pico_icmp6_hdr *icmp = NULL;
+    struct pico_frame *sol = NULL;
+    IGNORE_PARAMETER(dev);
+
+    /* Create pico_frame to contain the Neighbor Solicitation */
+    sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
+    if (!sol) {
+        pico_err = PICO_ERR_ENOMEM;
+        return NULL;
+    }
+    sol->payload = sol->transport_hdr + len;
+    sol->payload_len = 0;
+    icmp = (struct pico_icmp6_hdr *)sol->transport_hdr;
+    icmp->type = PICO_ICMP6_NEIGH_SOL;
+    icmp->code = 0;
+    icmp->msg.info.neigh_sol.unused = 0;
+    icmp->msg.info.neigh_sol.target = *dst;
+    return sol;
+}
+
 /* RFC 4861 $7.2.2: sending neighbor solicitations */
-int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type)
+int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst)
 {
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x01, 0xff, 0x00, 0x00, 0x00 }};
@@ -323,57 +350,101 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *d
     uint8_t i = 0;
     uint16_t len = 0;
 
-    if (pico_ipv6_is_multicast(dst->addr))
+    if (pico_ipv6_is_multicast(tgt->addr)) {
         return -1;
+    } else if (dev->hostvars.lowpan) {
+        return pico_6lp_nd_neighbor_solicitation(dev, tgt, type, dst);
+    } else {
+        /* Determine the size frame needs to be for the Neighbor Solicitation */
+        len = PICO_ICMP6HDR_NEIGH_SOL_SIZE;
+        if (PICO_ICMP6_ND_DAD != type)
+            len = (uint16_t)(len + 8);
+
+        /* Prepare a neighbor solicitation message */
+        sol = pico_icmp6_neigh_sol_prep(dev, tgt, len);
+        if (sol) {
+            icmp = (struct pico_icmp6_hdr *)sol->transport_hdr;
+
+            /* Provide SLLAO if it's neighbor solicitation for DAD */
+            llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
+            if (PICO_ICMP6_ND_DAD != type && pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, NULL)) {
+                pico_frame_discard(sol);
+                return -1;
+            } else {
+                /* Determine destination address */
+                if (dst) {
+                    daddr = *dst;
+                } else if (type == PICO_ICMP6_ND_SOLICITED || type == PICO_ICMP6_ND_DAD) {
+                    for (i = 1; i <= 3; ++i)
+                        daddr.addr[PICO_SIZE_IP6 - i] = tgt->addr[PICO_SIZE_IP6 - i];
+                } else {
+                    daddr = *tgt;
+                }
+
+                sol->dev = dev;
+                /* f->src is set in frame_push, checksum calculated there */
+                pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
+                return 0;
+            }
+        }
+    }
+    return -1;
+}
+
+#ifdef PICO_SUPPORT_6LOWPAN
+
+static void pico_6lp_nd_provide_aro(struct pico_icmp6_opt_aro *aro, struct pico_device *dev)
+{
+    struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)dev->eth;
+    aro->type = PICO_ND_OPT_ARO;
+    aro->len = 2;
+    aro->status = 0;
+    aro->lifetime = short_be(PICO_6LP_ND_DEFAULT_LIFETIME);
+    memcpy(aro->eui64.addr, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
+}
+
+static int pico_6lp_nd_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst)
+{
+    uint32_t llao_len = IID_16(&tgt->addr[8]) ? 8 : 16;
+    struct pico_icmp6_opt_lladdr *llao = NULL;
+	struct pico_icmp6_opt_aro *aro = NULL;
+    struct pico_icmp6_hdr *icmp = NULL;
+    struct pico_frame *sol = NULL;
+    uint16_t len = 0;
 
     /* Determine the size frame needs to be for the Neighbor Solicitation */
     len = PICO_ICMP6HDR_NEIGH_SOL_SIZE;
-    if (LL_MODE_ETHERNET == dev->mode && PICO_ICMP6_ND_DAD != type)
-        len = (uint16_t)(len + 8);
+    if (PICO_ICMP6_ND_DAD == type)
+        len = (uint16_t)(len + sizeof(struct pico_icmp6_opt_aro) + llao_len);
 
-    /* Create pico_frame to contain the Neighbor Solicitation */
-    sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
-    if (!sol) {
-        pico_err = PICO_ERR_ENOMEM;
-        return -1;
-    }
+    /* Prepare a neighbor solicitation message */
+    sol = pico_icmp6_neigh_sol_prep(dev, tgt, len);
+    if (sol) {
+        icmp = (struct pico_icmp6_hdr *)sol->transport_hdr;
 
-    sol->payload = sol->transport_hdr + len;
-    sol->payload_len = 0;
+        /* Provide SLLAO if it's a neighbor solicitation for address registration */
+        llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
+        if (PICO_ICMP6_ND_DAD == type && pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, NULL)) {
+            pico_frame_discard(sol);
+            return -1;
+        } else {
+            /* Provide ARO when it's a neighbor solicitation for address registration */
+            aro = (struct pico_icmp6_opt_aro *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + llao_len);
+            if (PICO_ICMP6_ND_DAD == type) {
+                pico_6lp_nd_provide_aro(aro, dev);
+            }
 
-    icmp = (struct pico_icmp6_hdr *)sol->transport_hdr;
-    icmp->type = PICO_ICMP6_NEIGH_SOL;
-    icmp->code = 0;
-    icmp->msg.info.neigh_sol.unused = 0;
-    icmp->msg.info.neigh_sol.target = *dst;
-
-    llao = (struct pico_icmp6_opt_lladdr *)(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
-    if (LL_MODE_ETHERNET == dev->mode && type != PICO_ICMP6_ND_DAD) {
-        pico_icmp6_provide_llao(llao, PICO_ND_OPT_LLADDR_SRC, dev, NULL);
-    }
-
-    if (LL_MODE_ETHERNET == dev->mode && (type == PICO_ICMP6_ND_SOLICITED || type == PICO_ICMP6_ND_DAD)) {
-        for (i = 1; i <= 3; ++i) {
-            daddr.addr[PICO_SIZE_IP6 - i] = dst->addr[PICO_SIZE_IP6 - i];
+            /* RFC6775: The address that is to be registered MUST be the IPv6 source address of the
+             * NS message. */
+            sol->dev = dev;
+            pico_ipv6_frame_push(sol, tgt, dst, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
+            return 0;
         }
     }
-    else {
-        daddr = *dst;
-    }
-
-    sol->dev = dev;
-
-    if (LL_MODE_ETHERNET == dev->mode) {
-        /* f->src is set in frame_push, checksum calculated there */
-        pico_ipv6_frame_push(sol, NULL, &daddr, PICO_PROTO_ICMP6, (type == PICO_ICMP6_ND_DAD));
-    }
-    else {
-        pico_frame_discard(sol);
-        return -1;
-    }
-
-    return 0;
+    return -1;
 }
+
+#endif
 
 /* RFC 4861 $7.2.4: sending solicited neighbor advertisements */
 int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *target)
@@ -429,7 +500,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
 }
 
 /* RFC 4861 $6.3.7: sending router solicitations */
-int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src)
+int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src, struct pico_ip6 *dst)
 {
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }};
     struct pico_icmp6_opt_lladdr *lladdr = NULL;
@@ -443,9 +514,9 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
 #ifdef PICO_SUPPORT_6LOWPAN
         if (dev->hostvars.lowpan)
             len = (uint16_t)(len + 8);
-#endif
     } else { /* RFC6775 (6LoWPAN): An unspecified source address MUST NOT be used in RS messages.*/
         return -1;
+#endif
     }
 
     sol = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
@@ -472,6 +543,8 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     sol->dev = dev;
 
     if (dev->hostvars.lowpan) {
+        if (dst)
+            daddr = *dst;
         /* Force this frame to be send with the EUI-64-address */
         pico_ipv6_frame_push(sol, src, &daddr, PICO_PROTO_ICMP6, 0);
     } else {

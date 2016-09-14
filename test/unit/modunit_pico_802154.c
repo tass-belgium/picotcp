@@ -132,7 +132,7 @@ START_TEST(tc_802154_ll_src)
     struct pico_ip6 ip2 = {
         .addr = {0,0,0,0,0,0,0,0, 0,0,0,0xff,0xfe,0,0x12,0x34}
     };
-    struct pico_6LOWPAN_info info = {
+    struct pico_6lowpan_info info = {
         .addr_short.addr = short_be(0x1234),
         .addr_ext.addr = {3,2,3,4,5,6,7,8}
     };
@@ -359,7 +359,7 @@ START_TEST(tc_802154_format)
         .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a},
         .mode = AM_6LOWPAN_EXT
     };
-    struct pico_6LOWPAN_short pan = { .addr = short_be(0xffff) };
+    struct pico_6lowpan_short pan = { .addr = short_be(0xffff) };
     uint8_t buf[127] = {0};
     int i = 0;
 

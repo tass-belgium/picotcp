@@ -19,20 +19,27 @@
  ******************************************************************************/
 
 #ifdef PICO_6LOWPAN_IPHC_ENABLED
+
 /*******************************************************************************
  *  CTX
  ******************************************************************************/
+
+#define PICO_IPHC_CTX_COMPRESS (0x01u)
+
 struct iphc_ctx
 {
     struct pico_ip6 prefix;
     uint8_t id;
-    int size;
+    uint8_t size;
+    pico_time lifetime;
+    uint8_t flags;
+    struct pico_device *dev;
 };
 
 struct iphc_ctx * ctx_lookup(struct pico_ip6 addr);
 struct iphc_ctx * ctx_lookup_id(uint8_t id);
-void ctx_remove(struct pico_ip6 addr);
-int ctx_insert(struct pico_ip6 addr, uint8_t id, int size);
+void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev);
+
 #endif
 
 /******************************************************************************
@@ -44,6 +51,8 @@ extern struct pico_protocol pico_proto_6lowpan_ll;
 /******************************************************************************
  * Public functions
  ******************************************************************************/
+
+void pico_6lowpan_init(void);
 
 int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev);
 int pico_6lowpan_ll_iid(uint8_t *iid, union pico_ll_addr *addr, struct pico_device *dev);

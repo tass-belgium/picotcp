@@ -30,6 +30,9 @@
  * Constants
  ******************************************************************************/
 
+/* Lifetime check interval */
+#define ONE_MINUTE  ((pico_time)(1000 * 60))
+
 /* Number of extensions */
 #define NUM_LL_EXTENSIONS       (2)
 
@@ -106,23 +109,17 @@ struct iphc_ctx * ctx_lookup_id(uint8_t id)
     return NULL;
 }
 
-/* Deletes a context with a certain prefix from the context tree. The ctx is
- * either found and deleted, or not found, don't care. */
-void ctx_remove(struct pico_ip6 addr)
-{
-    struct iphc_ctx test = { addr, 0, 0}, *key = NULL;
-    if ((key = pico_tree_delete(&CTXtree, &test)))
-        PICO_FREE(key);
-}
-
 /* Tries to insert a new IPHC-context into the Context-tree */
-int ctx_insert(struct pico_ip6 addr, uint8_t id, int size)
+static int ctx_insert(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev)
 {
     struct iphc_ctx *new = PICO_ZALLOC(sizeof(struct iphc_ctx));
     if (new) {
+        new->lifetime = lifetime;
         new->prefix = addr;
-        new->id = id;
+        new->flags = flags;
         new->size = size;
+        new->dev = dev;
+        new->id = id;
         if (pico_tree_insert(&CTXtree, new)) {
             PICO_FREE(new);
             return -1;
@@ -132,6 +129,56 @@ int ctx_insert(struct pico_ip6 addr, uint8_t id, int size)
     }
     return 0;
 }
+
+/* Function to update context table from 6LoWPAN Neighbor Discovery */
+void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev)
+{
+    struct iphc_ctx *entry = ctx_lookup_id(id);
+    if (entry && dev == entry->dev) {
+        if (!lifetime) {
+            pico_tree_delete(&CTXtree, entry);
+            PICO_FREE(entry);
+        }
+        entry->prefix = addr;
+        entry->size = size;
+        entry->lifetime = lifetime;
+        entry->flags = flags;
+    } else {
+        /* We don't care if it failed */
+        (void)ctx_insert(addr, id, size, lifetime, flags, dev);
+    }
+}
+
+/* Check whether or not particular contexts are expired and remove them if so. Contexts
+ * are reconfirmed before they're lifetime expires */
+static void ctx_lifetime_check(pico_time now, void *arg)
+{
+    struct pico_tree_node *i = NULL, *next = NULL;
+    struct pico_ipv6_route *gw = NULL;
+    struct iphc_ctx *key = NULL;
+    IGNORE_PARAMETER(now);
+    IGNORE_PARAMETER(arg);
+
+    pico_tree_foreach_safe(i, &CTXtree, next) {
+        if (i && i->keyValue) {
+            key = i->keyValue;
+            key->lifetime--;
+            if (!key->lifetime) {
+                pico_tree_delete(&CTXtree, key);
+                PICO_FREE(key);
+            } else if (key->lifetime == 5) {
+                gw = pico_ipv6_default_gateway_configured(key->dev);
+                if (gw)
+                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), &gw->gateway);
+                else
+                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), NULL);
+            }
+        }
+    }
+
+    (void)pico_timer_add(ONE_MINUTE, ctx_lifetime_check, NULL);
+}
+
 #endif
 
 /*******************************************************************************
@@ -472,5 +519,11 @@ struct pico_protocol pico_proto_6lowpan_ll = {
     .q_in = &pico_6lowpan_ll_in,
     .q_out = &pico_6lowpan_ll_out
 };
+
+void pico_6lowpan_init(void)
+{
+    /* Don't care about failure */
+    (void)pico_timer_add(60000, ctx_lifetime_check, NULL);
+}
 
 #endif /* PICO_SUPPORT_6LOWPAN */

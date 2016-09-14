@@ -185,7 +185,7 @@ START_TEST(tc_ctx_lookup)
     pico_stack_init();
 
     TRYING("To find a prefix in the context tree\n");
-    ret = ctx_insert(a, 13, 54);
+    ret = ctx_insert(a, 13, 54, 0, PICO_IPHC_CTX_COMPRESS, NULL);
     found = ctx_lookup(b);
     RESULTS();
     FAIL_UNLESS(!ret, test, "Inserting should've succeeded, return 0. ret = %d", ret);
@@ -195,30 +195,6 @@ START_TEST(tc_ctx_lookup)
     ENDING(test);
 }
 END_TEST
-
-START_TEST(tc_ctx_remove)
-{
-    int test = 1, ret = 0;
-    struct pico_ip6 a, b, c;
-    pico_string_to_ipv6("2aaa:1234:5678:9123:0:0ff:fe00:0105", a.addr);
-    pico_string_to_ipv6("2aaa:1234:5678:9145:0102:0304:0506:0708", b.addr);
-    struct iphc_ctx *found = NULL;
-
-    STARTING();
-    pico_stack_init();
-
-    TRYING("To find a prefix in the context tree\n");
-    ret = ctx_insert(a, 13, 54);
-    ctx_remove(b);
-    found = ctx_lookup(b);
-    RESULTS();
-    FAIL_UNLESS(!ret, test, "Inserting should've succeeded, return 0. ret = %d", ret);
-    FAIL_UNLESS(NULL == found, test, "Shouldn't have found the ctx again");
-
-    ENDING(test);
-}
-END_TEST
-
 
 /*******************************************************************************
 *  IPHC
@@ -539,7 +515,7 @@ START_TEST(tc_addr_comp_mode)
     struct pico_ip6 local;
     struct pico_ip6 local2;
     struct pico_ip6 local3;
-    union pico_ll_addr addr = { .pan = { .addr.data = {1,2,3,4,5,6,7,8}, .mode = AM_802154_SHORT }};
+    union pico_ll_addr addr = { .pan = { .addr.data = {1,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_SHORT }};
     struct pico_device dev = { .mode = LL_MODE_IEEE802154 };
     pico_string_to_ipv6("ff00:0:0:0:0:0:e801:100", ip.addr);
     pico_string_to_ipv6("fe80:0:0:0:0102:0304:0506:0708", local.addr);
@@ -617,7 +593,7 @@ START_TEST(tc_addr_comp_prefix)
     memset(iphc, 0,3);
 
     TRYING("With a unicast address where there's context available for\n");
-    ctx_insert(local3, 13, 64);
+    ctx_insert(local3, 13, 64, 0, PICO_IPHC_CTX_COMPRESS, NULL);
     ret = addr_comp_prefix(iphc, &local3, 0);
     FAIL_UNLESS(13 == ret, test, "Should've returned CTX ID of 13, ret = %d", ret);
     FAIL_UNLESS(iphc[1] & DST_STATEFUL, test, "Should've set DAC correctly, iphc = %02X", iphc[1]);
@@ -637,7 +613,7 @@ START_TEST(tc_compressor_src)
     struct pico_ip6 ll_nmac_64 = {{0xfe,0x80,0,0,0,0,0,0 ,8,7,6,5,4,3,2,1}};
     struct pico_ip6 ip_ctx = {{0x2a,0xaa,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
     struct pico_ip6 ip_stateless = {{0x2a,0xbb,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
-    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
     int ret = 0;
 
@@ -696,7 +672,7 @@ START_TEST(tc_compressor_src)
 
     TRYING("With context derived address\n");
     pico_stack_init();
-    ctx_insert(ip_ctx, 13, 64);
+    ctx_insert(ip_ctx, 13, 64, 0, PICO_IPHC_CTX_COMPRESS, NULL);
     ret = compressor_src(ip_ctx.addr, buf, iphc, &mac, NULL, &dev);
     OUTPUT();
     dbg_buffer(iphc, 3);
@@ -727,7 +703,7 @@ START_TEST(tc_decompressor_src)
     int test = 1;
     int ret = 0;
 
-    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
     dev.mode = LL_MODE_IEEE802154;
 
@@ -776,7 +752,7 @@ START_TEST(tc_decompressor_src)
 
     TRYING("With context\n");
     pico_stack_init();
-    ctx_insert(ip2, 13, 64);
+    ctx_insert(ip2, 13, 64, 0, PICO_IPHC_CTX_COMPRESS, NULL);
     ret = decompressor_src(buf, buf2, iphc2, &mac, NULL, &dev);
     OUTPUT();
     dbg_buffer(buf, PICO_SIZE_IP6);
@@ -830,7 +806,7 @@ START_TEST(tc_compressor_dst)
     int test = 1;
     int ret = 0;
 
-    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
     dev.mode = LL_MODE_IEEE802154;
 
@@ -896,7 +872,7 @@ START_TEST(tc_decompressor_dst)
     int test = 1;
     int ret = 0;
 
-    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_802154_EXT } };
+    union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
     dev.mode = LL_MODE_IEEE802154;
 
@@ -973,8 +949,8 @@ START_TEST(tc_compressor_iphc)
 {
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(61);
-    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
-    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
     int compressed_len = 0;
     struct pico_device dev;
     uint8_t *buf = NULL;
@@ -1006,8 +982,8 @@ START_TEST(tc_decompressor_iphc)
 {
 int test = 1;
 struct pico_frame *f = pico_frame_alloc(2);
-union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
-union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
+union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
 struct pico_device dev;
 int compressed_len = 0;
 uint8_t *buf = NULL;
@@ -1247,8 +1223,8 @@ START_TEST(tc_pico_iphc_compress)
 {
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(61);
-    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
-    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
     struct pico_device dev;
     struct pico_frame *new = NULL;
     int ret = 0;
@@ -1281,8 +1257,8 @@ START_TEST(tc_pico_iphc_decompress)
 {
     int test = 0;
     struct pico_frame *f = pico_frame_alloc(61);
-    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_EXT } };
-    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_802154_SHORT } };
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
     struct pico_device dev;
     struct pico_frame *new = NULL;
     int ret = 0;
@@ -1312,15 +1288,16 @@ END_TEST
 #endif
 
 static struct pico_frame *rx = NULL;
-static struct pico_frame *tx = NULL;
+static uint8_t tx[1500];
 static int rx_called = 0;
 static int tx_called = 0;
+static uint8_t tx_len = 0;
 
 int pico_datalink_send(struct pico_frame *f) {
-    if (!tx) {
-        tx = pico_frame_copy(f);
+    if (++tx_called == 2) {
+        memcpy(tx, f->start, f->len);
         OUTPUT();
-        dbg_buffer(tx->start, tx->len);
+        dbg_buffer(tx, tx_len);
     }
 
     if (f->dev->eth) {
@@ -1338,7 +1315,7 @@ int pico_datalink_send(struct pico_frame *f) {
 
 int32_t pico_network_receive(struct pico_frame *f)
 {
-    if (!rx)
+    if (++rx_called == 2)
         rx = pico_frame_copy(f);
 
     printf("RCVD frame at network layer \n");
@@ -1525,8 +1502,8 @@ START_TEST(tc_tx_rx)
     OUTPUT();
     dbg_buffer(rx->start, rx->len);
     RESULTS();
-    tx->start[0] |= 0x60;
-    FAIL_UNLESS(0 == memcmp(rx->start, tx->start, rx->len), test, "Should've received exactly the same frame as was transmitted");
+    tx[0] |= 0x60;
+    FAIL_UNLESS(0 == memcmp(rx->start, tx, rx->len), test, "Should've received exactly the same frame as was transmitted");
 
     ENDING(test);
 }
@@ -1539,7 +1516,6 @@ Suite *pico_suite(void)
     TCase *TCase_compare_prefix = tcase_create("Unit test for compare_prefix");
     TCase *TCase_compare_ctx = tcase_create("Unit test for compare_ctx");
     TCase *TCase_ctx_lookup = tcase_create("Unit test for ctx_lookup");
-    TCase *TCase_ctx_remove = tcase_create("Unit test for ctx_remove");
 
 /*******************************************************************************
  *  IPHC
@@ -1575,8 +1551,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_compare_ctx);
     tcase_add_test(TCase_ctx_lookup ,tc_ctx_lookup);
     suite_add_tcase(s, TCase_ctx_lookup);
-    tcase_add_test(TCase_ctx_remove ,tc_ctx_remove);
-    suite_add_tcase(s, TCase_ctx_remove);
 
 /*******************************************************************************
  *  IPHC

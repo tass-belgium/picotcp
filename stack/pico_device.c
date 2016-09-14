@@ -51,11 +51,11 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
     dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
     dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
-    pico_icmp6_router_solicitation(dev, linklocal);
+    pico_icmp6_router_solicitation(dev, linklocal, NULL);
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 
-struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
+struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix, struct pico_ip6 *dst)
 {
     struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
@@ -67,15 +67,15 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     if (LL_MODE_IEEE802154 == dev->mode) {
 #ifdef PICO_SUPPORT_6LOWPAN
         memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-        memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN(AM_6LOWPAN_EXT));
+        memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
         newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
 
         /* RFC6775: No Duplicate Address Detection (DAD) is performed if
          * EUI-64-based IPv6 addresses are used (as these addresses are assumed
          * to be globally unique). */
-        if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
-            dev->hostvars.lowpan = 1;
-            pico_6lp_nd_start_solicitating(link);
+        if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64, dst))) {
+            if (pico_ipv6_is_linklocal(newaddr.addr))
+                pico_6lp_nd_start_solicitating(link, NULL);
         }
 #else
         return NULL;
@@ -126,7 +126,7 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
     #endif
 
     #ifdef PICO_SUPPORT_IPV6
-    if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
+    if (pico_ipv6_link_add_local(dev, &linklocal, NULL) == NULL) {
         PICO_FREE(dev->q_in);
         PICO_FREE(dev->q_out);
         if (!dev->mode) // Mode is Ethernet

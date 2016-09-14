@@ -78,6 +78,8 @@
 #define PICO_ND_OPT_MTU                5
 #define PICO_ND_OPT_RDNSS             25 /* RFC 5006 */
 #define PICO_ND_OPT_ARO               33 /* RFC 6775 */
+#define PICO_ND_OPT_6CO               34 /* RFC 6775 */
+#define PICO_ND_OPT_ABRO              35 /* RFC 6775 */
 
 /* ND advertisement flags */
 #define PICO_ND_ROUTER             0x80000000
@@ -96,16 +98,16 @@
 #define PICO_ICMP6_ND_SOLICITED        2
 #define PICO_ICMP6_ND_DAD              3
 
-/* 6LoWPAN option sizes */
-#define PICO_6LP_ND_LLAO_LEN_SHORT      (8u)
-#define PICO_6LP_ND_LLAO_LEN_EXTENDED   (16u)
-
-/* 6LoWPAN address registration lifetime */
-#define PICO_6LP_ND_DEFAULT_LIFETIME    (120) /* TWO HOURS */
-
 #define PICO_ICMP6_MAX_RTR_SOL_DELAY   1000
 
 #define PICO_ICMP6_OPT_LLADDR_SIZE (8)
+
+/******************************************************************************
+ *  6LoWPAN Constants
+ ******************************************************************************/
+
+/* Address registration lifetime */
+#define PICO_6LP_ND_DEFAULT_LIFETIME    (120) /* TWO HOURS */
 
 extern struct pico_protocol pico_proto_icmp6;
 
@@ -191,6 +193,7 @@ PACKED_UNION_DEF pico_hw_addr {
 #ifdef PICO_SUPPORT_6LOWPAN
     union pico_6lowpan_u pan;
 #endif /* PICO_SUPPORT_6LOWPAN */
+    uint8_t data[8];
 };
 
 /******************************************************************************
@@ -266,19 +269,20 @@ PACKED_STRUCT_DEF pico_icmp6_opt_aro
 #define ICMP6_ARO_FULL      (2u)
 
 /* 6LoWPAN Context Option (6CO) */
-PACKED_STRUCT_DEF pico_icmp6_6co
+PACKED_STRUCT_DEF pico_icmp6_opt_6co
 {
     uint8_t type;
     uint8_t len;
     uint8_t clen;
-    uint8_t comp_id;
-    uint16_t res0;
+    uint8_t id: 4;
+    uint8_t res: 3;
+    uint8_t c: 1;
     uint16_t lifetime;
     uint8_t prefix;
 };
 
 /* 6LoWPAN Authoritative Border Router Option (ABRO) */
-PACKED_STRUCT_DEF pico_icmp6_abro
+PACKED_STRUCT_DEF pico_icmp6_opt_abro
 {
     uint8_t type;
     uint8_t len;
@@ -301,9 +305,10 @@ struct pico_icmp6_stats
 int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, void (*cb)(struct pico_icmp6_stats *), struct pico_device *dev);
 int pico_icmp6_ping_abort(int id);
 
-int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *dst, uint8_t type);
+
+int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst);
 int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *target);
-int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src);
+int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src, struct pico_ip6 *dst);
 
 int pico_icmp6_port_unreachable(struct pico_frame *f);
 int pico_icmp6_proto_unreachable(struct pico_frame *f);
