@@ -167,11 +167,11 @@ static void ctx_lifetime_check(pico_time now, void *arg)
                 pico_tree_delete(&CTXtree, key);
                 PICO_FREE(key);
             } else if (key->lifetime == 5) {
-                gw = pico_ipv6_default_gateway_configured(key->dev);
-                if (gw)
-                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), &gw->gateway);
-                else
-                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), NULL);
+                /* RFC6775: The host SHOULD unicast one or more RSs to the router well before the
+                 * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */
+                while ((gw = pico_ipv6_gateway_by_dev_next(gw->link->dev, gw))) {
+                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), gw);
+                }
             }
         }
     }
@@ -217,7 +217,7 @@ ll_mesh_header_estimator(struct pico_frame *f, union pico_ll_addr *src, union pi
     IGNORE_PARAMETER(f);
     IGNORE_PARAMETER(src);
     IGNORE_PARAMETER(dst);
-    return (uint8_t)0;
+    return 0;
 }
 
 /*******************************************************************************

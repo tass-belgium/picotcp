@@ -97,6 +97,7 @@
 #define PICO_ICMP6_ND_ANYCAST          1
 #define PICO_ICMP6_ND_SOLICITED        2
 #define PICO_ICMP6_ND_DAD              3
+#define PICO_ICMP6_ND_DEREGISTER       4
 
 #define PICO_ICMP6_MAX_RTR_SOL_DELAY   1000
 

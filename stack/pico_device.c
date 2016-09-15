@@ -55,7 +55,7 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 
-struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix, struct pico_ip6 *dst)
+struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
 {
     struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
@@ -64,23 +64,7 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)dev->eth;
 #endif
 
-    if (LL_MODE_IEEE802154 == dev->mode) {
-#ifdef PICO_SUPPORT_6LOWPAN
-        memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-        memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
-        newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
-
-        /* RFC6775: No Duplicate Address Detection (DAD) is performed if
-         * EUI-64-based IPv6 addresses are used (as these addresses are assumed
-         * to be globally unique). */
-        if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64, dst))) {
-            if (pico_ipv6_is_linklocal(newaddr.addr))
-                pico_6lp_nd_start_solicitating(link, NULL);
-        }
-#else
-        return NULL;
-#endif
-    } else {
+    if (!dev->mode) {
         memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
         /* modified EUI-64 + invert universal/local bit */
         newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
@@ -94,6 +78,24 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
         if ((link = pico_ipv6_link_add(dev, newaddr, netmask64))) {
             device_init_ipv6_final(dev, &newaddr);
         }
+    } else {
+#ifdef PICO_SUPPORT_6LOWPAN
+        memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
+        memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
+        newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
+
+        /* RFC6775: No Duplicate Address Detection (DAD) is performed if
+         * EUI-64-based IPv6 addresses are used (as these addresses are assumed
+         * to be globally unique). */
+        if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
+            if (pico_ipv6_is_linklocal(newaddr.addr))
+                pico_6lp_nd_start_solicitating(link, NULL);
+            else
+                pico_6lp_nd_register(link);
+        }
+#else
+        return NULL;
+#endif
     }
 
     return link;
@@ -126,7 +128,7 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
     #endif
 
     #ifdef PICO_SUPPORT_IPV6
-    if (pico_ipv6_link_add_local(dev, &linklocal, NULL) == NULL) {
+    if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
         PICO_FREE(dev->q_in);
         PICO_FREE(dev->q_out);
         if (!dev->mode) // Mode is Ethernet
@@ -217,11 +219,13 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
-        #ifdef PICO_SUPPORT_6LOWPAN
-        if (LL_MODE_IEEE802154 != dev->mode) {
+        if (!dev->mode) {
             ret = device_init_nomac(dev);
-        } else {
+        }
+        #ifdef PICO_SUPPORT_6LOWPAN
+        else {
             /* RFC6775: Link Local to be formed based on EUI-64 as per RFC6775 */
+            dbg("Link local address to be formed based on EUI-64\n");
             return -1;
         }
         #endif

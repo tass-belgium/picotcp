@@ -61,6 +61,7 @@ struct pico_ipv6_link
     uint8_t isduplicate : 1;
     uint32_t dad_timer;
     uint16_t dup_detect_retrans;
+    uint8_t retrans;
     pico_time expire_time;
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTGroups;
@@ -96,6 +97,8 @@ struct pico_ipv6_route
     struct pico_ip6 dest;
     struct pico_ip6 netmask;
     struct pico_ip6 gateway;
+    pico_time backoff;
+    uint8_t retrans;
     struct pico_ipv6_link *link;
     uint32_t metric;
 };
@@ -147,7 +150,7 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
 void pico_ipv6_unreachable(struct pico_frame *f, uint8_t code);
 
 struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
-struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 *dst);
+struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask);
 int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address);
 int pico_ipv6_cleanup_links(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_link_istentative(struct pico_ip6 *address);
@@ -162,7 +165,8 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_linklocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_sitelocal_get(struct pico_device *dev);
 struct pico_ipv6_link *pico_ipv6_prefix_configured(struct pico_ip6 *prefix);
-struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device *dev);
+struct pico_ipv6_route *pico_ipv6_gateway_by_dev(struct pico_device *dev);
+struct pico_ipv6_route *pico_ipv6_gateway_by_dev_next(struct pico_device *dev, struct pico_ipv6_route *last);
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
 void pico_ipv6_check_lifetime_expired(pico_time now, void *arg);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);

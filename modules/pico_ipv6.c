@@ -1454,7 +1454,7 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
     return r;
 }
 
-struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device *dev)
+struct pico_ipv6_route *pico_ipv6_gateway_by_dev(struct pico_device *dev)
 {
     struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
     struct pico_ipv6_route *route = NULL;
@@ -1463,9 +1463,8 @@ struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device 
     /* Iterate over the IPv6-routes */
     pico_tree_foreach(node, &IPV6Routes) {
         route = (struct pico_ipv6_route *)node->keyValue;
-
         /* If the route is a default router, specified by the gw being set */
-        if (!pico_ipv6_is_unspecified(route->gateway.addr)) {
+        if (!pico_ipv6_is_unspecified(route->gateway.addr) && pico_ipv6_is_unspecified(route->netmask.addr)) {
             /* Iterate over device's links */
             while (link) {
                 /* If link is equal to route's link, routing list is not empty */
@@ -1476,6 +1475,38 @@ struct pico_ipv6_route *pico_ipv6_default_gateway_configured(struct pico_device 
         }
     }
 
+    return NULL;
+}
+
+struct pico_ipv6_route *pico_ipv6_gateway_by_dev_next(struct pico_device *dev, struct pico_ipv6_route *last)
+{
+    struct pico_ipv6_link *link = NULL;
+    struct pico_ipv6_route *gw = NULL;
+    struct pico_tree_node *i = NULL;
+    int valid = 0;
+
+    if (last == NULL)
+        valid = 1;
+
+    pico_tree_foreach(i, &IPV6Routes) {
+        gw = (struct pico_ipv6_route *)i->keyValue;
+        /* If the route is a default router, specified by the gw being set */
+        if (!pico_ipv6_is_unspecified(gw->gateway.addr) && pico_ipv6_is_unspecified(gw->netmask.addr)) {
+            /* Iterate over device's links */
+            link = pico_ipv6_link_by_dev(dev);
+            while (link) {
+                /* If link is equal to route's link, routing list is not empty */
+                if (0 == ipv6_link_compare(link, gw->link)) {
+                    if (last == gw) {
+                        valid = 1;
+                    } else if (valid) {
+                        return gw;
+                    }
+                    link = pico_ipv6_link_by_dev_next(dev, link);
+                }
+            }
+        }
+    }
     return NULL;
 }
 
@@ -1621,6 +1652,7 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
     else {
         if (l->dup_detect_retrans-- == 0) {
             dbg("IPv6: DAD verified valid address.\n");
+
             l->istentative = 0;
         } else {
             /* Duplicate Address Detection */
@@ -1712,7 +1744,9 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     IGNORE_PARAMETER(all_hosts);
 #endif
     pico_ipv6_route_add(network, netmask, gateway, 1, new);
+#ifdef PICO_SUPPORT_6LOWPAN
     if (!dev->hostvars.lowpan)
+#endif
         pico_ipv6_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
     /* XXX MUST join the all-nodes multicast address on that interface, as well as
      *     the solicited-node multicast address corresponding to each of the IP
@@ -1720,7 +1754,6 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
      * XXX RFC6775 (6LoWPAN): There is no need to join the solicited-node multicast address, since
      *     nobody multicasts NSs in this type of network. A host MUST join the all-nodes multicast
      *     address. */
-
 #ifdef PICO_DEBUG_IPV6
     pico_ipv6_to_string(ipstr, new->address.addr);
     dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
@@ -1728,20 +1761,12 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     return new;
 }
 
-struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask, struct pico_ip6 *dst)
+struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
 {
     struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
     if (new) {
         new->istentative = 0;
     }
-
-    if (dev->hostvars.lowpan && !pico_ipv6_is_linklocal(address.addr)) {
-        /* RFC6775: When a host has configured a non-link-local IPv6 address, it registers that
-         *      address with one or more of its default routers using the Address Registration
-         *      Option (ARO) in an NS message. */
-        pico_icmp6_neighbor_solicitation(new->dev, &new->address, PICO_ICMP6_ND_DAD, dst);
-    }
-
     return new;
 }
 
@@ -1984,13 +2009,14 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 }
 
 #define TWO_HOURS   ((pico_time)(1000 * 60 * 60 * 2))
-#define ONE_MINUTE  ((pico_time)(1000 * 60))
 
 void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
+#ifdef PICO_SUPPORT_6LOWPAN
     struct pico_ipv6_route *gw = NULL;
+#endif
     (void)arg;
     pico_tree_foreach_safe(index, &IPV6Links, temp) {
         link = index->keyValue;
@@ -2001,15 +2027,15 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
 #ifdef PICO_SUPPORT_6LOWPAN
         else if (link->dev->hostvars.lowpan && !pico_ipv6_is_linklocal(link->address.addr) &&
                  (link->expire_time > 0) && (int)(link->expire_time - now) < (int)(TWO_HOURS >> 4)) {
-            gw = pico_ipv6_default_gateway_configured(link->dev);
-            if (gw)
-                pico_6lp_nd_start_solicitating(link, &gw->gateway);
-            else
-                pico_6lp_nd_start_solicitating(link, NULL);
+            /* RFC6775: The host SHOULD unicast one or more RSs to the router well before the
+             * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */
+            while ((gw = pico_ipv6_gateway_by_dev_next(link->dev, gw))) {
+                pico_6lp_nd_start_solicitating(link, gw);
+            }
         }
 #endif
     }
-    if (!pico_timer_add(ONE_MINUTE, pico_ipv6_check_lifetime_expired, NULL)) {
+    if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
         dbg("IPv6: Failed to start check_lifetime timer\n");
         /* TODO No more link lifetime checking now */
     }

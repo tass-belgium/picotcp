@@ -379,10 +379,14 @@ int pico_datalink_receive(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
+        if (0) {}
+#ifdef PICO_SUPPORT_6LOWPAN
         if (LL_MODE_IEEE802154 == f->dev->mode) {
             f->datalink_hdr = f->buffer;
             return pico_enqueue(pico_proto_6lowpan_ll.q_in, f);
-        } else {
+        }
+#endif
+        else {
             f->datalink_hdr = f->buffer;
             return pico_enqueue(pico_proto_ethernet.q_in, f);
         }
@@ -399,9 +403,13 @@ MOCKABLE int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
+        if (0) {}
+#ifdef PICO_SUPPORT_6LOWPAN
         if (LL_MODE_IEEE802154 == f->dev->mode) {
             return pico_enqueue(pico_proto_6lowpan.q_out, f);
-        } else {
+        }
+#endif
+        else {
             return pico_enqueue(pico_proto_ethernet.q_out, f);
         }
     } else {
