@@ -267,7 +267,7 @@ static int radiotest_send(struct pico_device *dev, void *_buf, int len)
     memcpy(buf, _buf, (size_t)len);
     len += 3;
     buf[len - 1] = (uint8_t)short_be(radio->addr.addr_short.addr);
-    printf("'%u' is transmitting a frame of %d bytes.\n", buf[len-1], len);
+    printf("Radio '%u' is transmitting a frame of %d bytes.\n", buf[len-1], len);
 
     /* Generate FCS, keep pcap happy ... */
     crc = calculate_crc16(_buf, (uint8_t)(len - 3));

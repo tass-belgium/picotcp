@@ -837,13 +837,12 @@ static void pico_6lp_nd_register_try(pico_time now, void *arg)
     struct pico_ipv6_link *l = arg;
     struct pico_ipv6_route *gw = pico_ipv6_gateway_by_dev(l->dev);
     IGNORE_PARAMETER(now);
-    if (l->istentative) {
-        while (gw) {
-            pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD, &gw->gateway);
-            gw = pico_ipv6_gateway_by_dev_next(l->dev, gw);
-        }
-        pico_timer_add(l->dev->hostvars.retranstime, pico_6lp_nd_register_try, l);
+    while (gw) {
+        l->istentative = 1;
+        pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD, &gw->gateway);
+        gw = pico_ipv6_gateway_by_dev_next(l->dev, gw);
     }
+    pico_timer_add(l->dev->hostvars.retranstime, pico_6lp_nd_register_try, l);
 }
 
 /* Tries to register a link with one or more of its default routers */
@@ -852,7 +851,6 @@ void pico_6lp_nd_register(struct pico_ipv6_link *link)
     /* RFC6775: When a host has configured a non-link-local IPv6 address, it registers that
      *      address with one or more of its default routers using the Address Registration
      *      Option (ARO) in an NS message. */
-    link->istentative = 1;
     pico_6lp_nd_register_try(PICO_TIME_MS(), link);
 }
 

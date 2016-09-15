@@ -17,6 +17,7 @@
 #include "pico_socket.h"
 #include "pico_mld.h"
 #define icmp6_dbg(...) do { } while(0)
+//#define icmp6_dbg dbg
 
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;

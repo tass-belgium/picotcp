@@ -16,7 +16,7 @@
 
 #ifdef PICO_SUPPORT_6LOWPAN
 
-#define DEBUG_6LOWPAN
+//#define DEBUG_6LOWPAN
 
 /*******************************************************************************
  * Macros
