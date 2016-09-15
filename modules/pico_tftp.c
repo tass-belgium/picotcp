@@ -294,6 +294,7 @@ static inline int do_callback(struct pico_tftp_session *session, uint16_t err, u
 }
 
 static void timer_callback(pico_time now, void *arg);
+static void tftp_finish(struct pico_tftp_session *session);
 
 static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time interval)
 {
@@ -304,7 +305,7 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
             session->timer = pico_timer_add(interval + 1, timer_callback, session);
             if (!session->timer) {
                 tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
-                del_session(session);
+                tftp_finish(session);
                 return;
             }
             session->active_timers++;
@@ -313,7 +314,7 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
         session->timer = pico_timer_add(interval + 1, timer_callback, session);
         if (!session->timer) {
             tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
-            del_session(session);
+            tftp_finish(session);
             return;
         }
         session->active_timers++;
