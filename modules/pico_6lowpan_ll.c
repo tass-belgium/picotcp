@@ -91,7 +91,7 @@ PICO_TREE_DECLARE(CTXtree, compare_ctx);
  * prefix of the IPv6 address */
 struct iphc_ctx * ctx_lookup(struct pico_ip6 addr)
 {
-    struct iphc_ctx test = { addr, 0, 0 };
+    struct iphc_ctx test = { addr, 0, 0, 0, 0, NULL };
     return pico_tree_findKey(&CTXtree, &test);
 }
 
@@ -138,6 +138,7 @@ void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifeti
         if (!lifetime) {
             pico_tree_delete(&CTXtree, entry);
             PICO_FREE(entry);
+            return;
         }
         entry->prefix = addr;
         entry->size = size;
@@ -169,8 +170,10 @@ static void ctx_lifetime_check(pico_time now, void *arg)
             } else if (key->lifetime == 5) {
                 /* RFC6775: The host SHOULD unicast one or more RSs to the router well before the
                  * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */
-                while ((gw = pico_ipv6_gateway_by_dev_next(gw->link->dev, gw))) {
+                gw = pico_ipv6_gateway_by_dev(key->dev);
+                while (gw) {
                     pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), gw);
+                    gw = pico_ipv6_gateway_by_dev_next(key->dev, gw);
                 }
             }
         }
