@@ -38,9 +38,9 @@ killall -wq picoapp.elf
 killall -wq picoapp6.elf
 
 
-#echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-#echo "~~~ 6LoWPAN PING 1HOP TEST ~~~"
-#echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ 6LoWPAN PING 1HOP TEST ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 #sudo route add -net 224.0.0.0/4 dev lo
 #(./build/test/picoapp6.elf -6 1,1,0 -a noop) &
 #./build/test/picoapp6.elf -6 3,1,0,/media/psf/Home/radio3.pcap -a ping,2aaa:6109:0000:0000:0200:00aa:ab00:0001,64,0,3, || exit 1
