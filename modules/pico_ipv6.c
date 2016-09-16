@@ -991,14 +991,16 @@ static int mcast_group_update_ipv6(struct pico_mcast_group *g, struct pico_tree 
                 if (!source) {
                     pico_err = PICO_ERR_ENOMEM;
                     return -1;
+                } else {
+                    *source = *((struct pico_ip6 *)index->keyValue);
+                    if (pico_tree_insert(&g->MCASTSources, source)) {
+                        PICO_FREE(source);
+                        return -1;
+                    }
                 }
-
-                *source = *((struct pico_ip6 *)index->keyValue);
-                pico_tree_insert(&g->MCASTSources, source);
             }
         }
     }
-
     g->filter_mode = filter_mode;
     return 0;
 }
@@ -1040,7 +1042,11 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         g->mcast_addr.ip6 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv6_mcast_sources_cmp;
-        pico_tree_insert(link->MCASTGroups, g);
+        if (pico_tree_insert(link->MCASTGroups, g)) {
+            dbg("Error in mcast_group update: Could not insert group in tree\n");
+            PICO_FREE(g);
+            return -1;
+        }
 #ifdef PICO_SUPPORT_MLD
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_CREATE);
 #endif
@@ -1339,7 +1345,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico
     struct pico_ipv6_route *route = NULL;
     struct pico_ipv6_link *link = NULL;
 
-    if (pico_ipv6_is_linklocal(dst->addr) ||  pico_ipv6_is_multicast(dst->addr) || pico_ipv6_is_sitelocal(dst->addr)) {
+    if (dst && (pico_ipv6_is_linklocal(dst->addr) ||  pico_ipv6_is_multicast(dst->addr) || pico_ipv6_is_sitelocal(dst->addr))) {
         if (!f->dev) {
             pico_frame_discard(f);
             return -1;

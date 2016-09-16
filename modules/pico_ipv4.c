@@ -719,10 +719,13 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                 if (!source) {
                     pico_err = PICO_ERR_ENOMEM;
                     return -1;
+                } else {
+                    source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
+                    if (pico_tree_insert(&g->MCASTSources, source)) {
+                        PICO_FREE(source);
+                        return -1;
+                    }
                 }
-
-                source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
-                pico_tree_insert(&g->MCASTSources, source);
             }
         }
     }
@@ -766,7 +769,11 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         g->mcast_addr.ip4 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
-        pico_tree_insert(link->MCASTGroups, g);
+        if (pico_tree_insert(link->MCASTGroups, g)) {
+            dbg("Error in mcast_group update: Failed to insert group in tree\n");
+            PICO_FREE(g);
+            return -1;
+        }
 #ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
 #endif
@@ -1183,9 +1190,13 @@ int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmas
         pico_err = PICO_ERR_EINVAL;
         PICO_FREE(new);
         return -1;
+    } else {
+        if (pico_tree_insert(&Routes, new)) {
+            PICO_FREE(new);
+            return -1;
+        }
     }
 
-    pico_tree_insert(&Routes, new);
     dbg_route();
     return 0;
 }
@@ -1262,7 +1273,12 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 #endif
 #endif
 
-    pico_tree_insert(&Tree_dev_link, new);
+    if (pico_tree_insert(&Tree_dev_link, new)) {
+        if (new->MCASTGroups)
+            PICO_FREE(new->MCASTGroups);
+        PICO_FREE(new);
+        return -1;
+    }
 #ifdef PICO_SUPPORT_MCAST
     do {
         struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;

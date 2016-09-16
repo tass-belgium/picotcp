@@ -116,27 +116,22 @@ static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
 
 static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico_device *dev)
 {
-    struct pico_ipv6_neighbor *n, test;
+    struct pico_ipv6_neighbor *n;
     char address[120];
-
-    /* Check if neighbor is already in tree */
-    test.address = *addr;
-    n = pico_tree_findKey(&NCache, &test);
-    if (n)
-        return n;
-
     /* Create a new NCE */
     n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
     if (!n)
         return NULL;
     pico_ipv6_to_string(address, addr->addr);
-    nd_dbg("Adding address %s to cache...\n", address);
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
-    pico_tree_insert(&NCache, n);
+    if (pico_tree_insert(&NCache, n)) {
+        PICO_FREE(n);
+        return NULL;
+    }
+    nd_dbg("Adding address %s to cache...\n", address);
     return n;
 }
-
 
 static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 {
@@ -185,24 +180,26 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
 
-    if (!n)
+    if (!n) {
         return;
-
-    if (n->expire != (pico_time)0)
-        return;
-
-    pico_ipv6_to_string(IPADDR, n->address.addr);
-    /* dbg("Sending NS for %s\n", IPADDR); */
-    if (++n->failure_count > PICO_ND_MAX_SOLICIT)
-        return;
-
-    if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED, &n->address);
     } else {
-        pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST, &n->address);
-    }
+        if (n->expire != (pico_time)0) {
+            return;
+        } else {
+            pico_ipv6_to_string(IPADDR, n->address.addr);
+            /* dbg("Sending NS for %s\n", IPADDR); */
+            if (++n->failure_count > PICO_ND_MAX_SOLICIT)
+                return;
 
-    pico_nd_new_expire_time(n);
+            if (n->state == PICO_ND_STATE_INCOMPLETE) {
+                pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED, &n->address);
+            } else {
+                pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST, &n->address);
+            }
+
+            pico_nd_new_expire_time(n);
+        }
+    }
 }
 
 static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_ipv6_neighbor *n, struct pico_device *dev)
@@ -213,20 +210,16 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
         n = pico_nd_add(addr, dev);
         pico_nd_discover(n);
         return NULL;
+    } else {
+        if (n->state == PICO_ND_STATE_INCOMPLETE) {
+            return NULL;
+        } else if (n->state == PICO_ND_STATE_STALE) {
+            n->state = PICO_ND_STATE_DELAY;
+            pico_nd_new_expire_time(n);
+        } else if (n->state != PICO_ND_STATE_REACHABLE) {
+            pico_nd_discover(n);
+        }
     }
-
-    if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        return NULL;
-    }
-
-    if (n->state == PICO_ND_STATE_STALE) {
-        n->state = PICO_ND_STATE_DELAY;
-        pico_nd_new_expire_time(n);
-    }
-
-    if (n->state != PICO_ND_STATE_REACHABLE)
-        pico_nd_discover(n);
-
     return &n->hwaddr.mac;
 }
 
@@ -403,26 +396,26 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
 static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pico_frame *f, struct pico_icmp6_opt_lladdr *opt)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    if (!n || !f)
+    if (!n || !f) {
         return;
-
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-
-    if (!icmp6_hdr)
-        return;
-
-    if (IS_SOLICITED(icmp6_hdr)) {
-        n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_count = 0;
-        pico_nd_new_expire_time(n);
     } else {
-        n->state = PICO_ND_STATE_STALE;
+        if (!(icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr))
+            return;
+        else {
+            if (IS_SOLICITED(icmp6_hdr)) {
+                n->state = PICO_ND_STATE_REACHABLE;
+                n->failure_count = 0;
+                pico_nd_new_expire_time(n);
+            } else {
+                n->state = PICO_ND_STATE_STALE;
+            }
+
+            if (opt)
+                pico_ipv6_neighbor_update(n, opt, f->dev);
+
+            pico_ipv6_nd_queued_trigger();
+        }
     }
-
-    if (opt)
-        pico_ipv6_neighbor_update(n, opt, f->dev);
-
-    pico_ipv6_nd_queued_trigger();
 }
 
 
@@ -903,8 +896,12 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l, struct pico_ipv6_ro
         if (!l->dev->hostvars.routing) {
             dummy->retrans = 0;
             dummy->backoff = RTR_SOLICITATION_INTERVAL;
-            pico_timer_add(dummy->backoff, pico_6lp_nd_do_solicit, dummy);
+            if (!pico_timer_add(dummy->backoff, pico_6lp_nd_do_solicit, dummy)) {
+                PICO_FREE(dummy);
+                return -1;
+            }
         }
+        return 0;
     }
     return -1;
 }
@@ -984,31 +981,35 @@ static int neigh_sol_dad_reply(struct pico_frame *sol, struct pico_icmp6_opt_lla
     size_t len = pico_hw_addr_len(sol->dev, sllao);
     union pico_ll_addr lladdr;
 
-    icmp = (struct pico_icmp6_hdr *)adv->transport_hdr;
+    if (!adv) {
+        return -1;
+    } else {
+        icmp = (struct pico_icmp6_hdr *)adv->transport_hdr;
 
-    /* Set the status of the Address Registration */
-    aro->status = status;
-    if (sol->dev->hostvars.lowpan) {
-        memcpy(lladdr.pan.addr.data, aro->eui64.addr, len);
-        lladdr.pan.mode = (len == SIZE_6LOWPAN_EXT) ? AM_6LOWPAN_EXT : AM_6LOWPAN_SHORT;
-        pico_6lowpan_ll_iid(ll.addr + 8, &lladdr, sol->dev);
+        /* Set the status of the Address Registration */
+        aro->status = status;
+        if (sol->dev->hostvars.lowpan) {
+            memcpy(lladdr.pan.addr.data, aro->eui64.addr, len);
+            lladdr.pan.mode = (len == SIZE_6LOWPAN_EXT) ? AM_6LOWPAN_EXT : AM_6LOWPAN_SHORT;
+            pico_6lowpan_ll_iid(ll.addr + 8, &lladdr, sol->dev);
+        }
+
+        /* Remove the SLLAO from the frame */
+        memmove(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s), ((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + sllao_len, (size_t)(aro->len * 8));
+        adv->transport_len = (uint16_t)(adv->transport_len - sllao_len);
+        adv->len = (uint16_t)(adv->len - sllao_len);
+
+        /* I'm a router, and it's always solicited */
+        icmp->msg.info.neigh_adv.rsor = 0xE0;
+
+        /* Set the ICMPv6 message type to Neighbor Advertisements */
+        icmp->type = PICO_ICMP6_NEIGH_ADV;
+        icmp->code = 0;
+        icmp->crc = pico_icmp6_checksum(adv);
+
+        pico_ipv6_frame_push(adv, NULL, &ll, PICO_PROTO_ICMP6, 0);
+        return 0;
     }
-
-    /* Remove the SLLAO from the frame */
-    memmove(((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s), ((uint8_t *)&icmp->msg.info.neigh_sol) + sizeof(struct neigh_sol_s) + sllao_len, (size_t)(aro->len * 8));
-    adv->transport_len = (uint16_t)(adv->transport_len - sllao_len);
-    adv->len = (uint16_t)(adv->len - sllao_len);
-
-    /* I'm a router, and it's always solicited */
-    icmp->msg.info.neigh_adv.rsor = 0xE0;
-
-    /* Set the ICMPv6 message type to Neighbor Advertisements */
-    icmp->type = PICO_ICMP6_NEIGH_ADV;
-    icmp->code = 0;
-    icmp->crc = pico_icmp6_checksum(adv);
-
-    pico_ipv6_frame_push(adv, NULL, &ll, PICO_PROTO_ICMP6, 0);
-    return 0;
 }
 
 /* RFC6775 §6.5.1.  Checking for Duplicates */
@@ -1154,13 +1155,14 @@ static int radv_process(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
+    uint32_t pref_lifetime = 0;
     struct pico_ipv6_hdr *hdr;
     struct pico_ip6 zero = {
         .addr = {0}
     };
     int optlen;
 #ifdef PICO_SUPPORT_6LOWPAN
-    int sllao;
+    int sllao = 0;
 #endif
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -1193,7 +1195,8 @@ static int radv_process(struct pico_frame *f)
             /* c) If the preferred lifetime is greater than the valid lifetime,
              *       silently ignore the Prefix Information option
              */
-            if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
+            pref_lifetime = long_be(prefix->pref_lifetime);
+            if (pref_lifetime > long_be(prefix->val_lifetime))
                 goto ignore_opt_prefix;
 
 #ifdef PICO_SUPPORT_6LOWPAN

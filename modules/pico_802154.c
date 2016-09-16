@@ -271,7 +271,7 @@ int pico_802154_process_out(struct pico_frame *f, struct pico_802154 *src, struc
     uint32_t grow = 0;
     int ret = 0;
 
-    if (headroom < len) { /* Check if there's enough headroom to prepend 802.15.4 header */
+    if (headroom < (uint16_t)len) { /* Check if there's enough headroom to prepend 802.15.4 header */
         grow = (uint32_t)(len - headroom);
         ret = pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
         if (ret) {

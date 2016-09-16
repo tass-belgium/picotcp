@@ -220,13 +220,15 @@ static int pico_fragments_check_complete(struct pico_tree *tree, uint8_t proto, 
 
     pico_tree_foreach_safe(index, tree, temp) {
         cur = index->keyValue;
-        if (pico_fragments_get_offset(cur, net) != bookmark)
-            return -1;
+        if (cur) {
+            if (pico_fragments_get_offset(cur, net) != bookmark)
+                return -1;
 
-        bookmark += cur->transport_len;
-        if (!pico_fragments_get_more_flag(cur, net)) {
-            pico_fragments_complete(bookmark, proto, net);
-            return 0;
+            bookmark += cur->transport_len;
+            if (!pico_fragments_get_more_flag(cur, net)) {
+                pico_fragments_complete(bookmark, proto, net);
+                return 0;
+            }
         }
     }
     return 1;
@@ -448,7 +450,11 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
             return;
         }
 
-        pico_tree_insert(&ipv6_fragments, temp);
+        if (pico_tree_insert(&ipv6_fragments, temp)) {
+            frag_dbg("Could not insert temp in tree\n");
+            PICO_FREE(temp);
+            return;
+        }
       }
     }
     else
@@ -472,7 +478,10 @@ void pico_ipv6_process_frag(struct pico_ipv6_exthdr *frag, struct pico_frame *f,
         ipv6_cur_frag_id = IP6_FRAG_ID(frag);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv6_cur_frag_id);
 
-        pico_tree_insert(&ipv6_fragments, temp);
+        if (pico_tree_insert(&ipv6_fragments, temp)) {
+            frag_dbg("Could not insert temp into tree\n");
+            PICO_FREE(temp);
+        }
     }
 
     pico_fragments_check_complete(&ipv6_fragments, proto, PICO_PROTO_IPV6);
@@ -516,7 +525,10 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
                 return;
             }
 
-            pico_tree_insert(&ipv4_fragments, temp);
+            if (pico_tree_insert(&ipv4_fragments, temp)) {
+                frag_dbg("Could not insert temp into tree\n");
+                PICO_FREE(temp);
+            }
         }
     }
     else
@@ -539,7 +551,10 @@ void pico_ipv4_process_frag(struct pico_ipv4_hdr *hdr, struct pico_frame *f, uin
         ipv4_cur_frag_id = IP4_FRAG_ID(hdr);
         frag_dbg("Started new reassembly, ID:%hu\n", ipv4_cur_frag_id);
 
-        pico_tree_insert(&ipv4_fragments, temp);
+        if (pico_tree_insert(&ipv4_fragments, temp)) {
+            frag_dbg("Could not insert temp into tree\n");
+            PICO_FREE(temp);
+        }
     }
 
     pico_fragments_check_complete(&ipv4_fragments, proto, PICO_PROTO_IPV4);
