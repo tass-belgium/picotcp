@@ -34,6 +34,7 @@
 #include "pico_mdns.h"
 #include "pico_tftp.h"
 #include "pico_dev_radiotest.h"
+#include "pico_dev_radio_mgr.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -484,17 +485,22 @@ int main(int argc, char **argv)
             }
 
             printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-            dev = pico_radiotest_create(n_id, n_area0, n_area1, 0, dump);
-            if (!dev) {
-                exit(1);
+
+            if (!n_id) {
+                printf("Starting radio-network...\n");
+                pico_radio_mgr_start();
+            } else {
+                dev = pico_radiotest_create(n_id, n_area0, n_area1, 0, dump);
+                if (!dev) {
+                    exit(1);
+                }
+
+                printf("Radiotest created.\n");
+
+                /* Add a routable link */
+                pico_string_to_ipv6(pan_addr, pan.addr);
+                pico_ipv6_link_add_local(dev, &pan);
             }
-
-            printf("Radiotest created.\n");
-
-            /* Add a routable link */
-            pico_string_to_ipv6(pan_addr, pan.addr);
-            pico_ipv6_link_add_local(dev, &pan);
-
             break;
         }
         case 'b':
