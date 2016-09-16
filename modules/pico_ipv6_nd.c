@@ -900,6 +900,8 @@ int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l, struct pico_ipv6_ro
                 PICO_FREE(dummy);
                 return -1;
             }
+        } else {
+            PICO_FREE(dummy);
         }
         return 0;
     }

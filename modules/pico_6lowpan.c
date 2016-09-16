@@ -205,7 +205,7 @@ frag_timeout(pico_time now, void *arg)
     IGNORE_PARAMETER(arg);
     pico_tree_foreach_safe(i, &ReassemblyTree, next) {
         if ((key = i->keyValue)) {
-            if (FRAG_TIMEOUT * 1000 <= (now - key->timestamp)) {
+            if ((pico_time)(FRAG_TIMEOUT * 1000) <= (now - key->timestamp)) {
                 pico_tree_delete(&ReassemblyTree, key);
                 pico_frame_discard(key->f);
                 PICO_FREE(key);
