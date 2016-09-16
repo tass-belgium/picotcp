@@ -110,7 +110,7 @@ struct frag_ctx {
     union pico_ll_addr src;
     union pico_ll_addr dst;
     uint32_t hash;
-    uint32_t timer;
+    pico_time timestamp;
 };
 
 /*******************************************************************************
@@ -200,11 +200,19 @@ frag_ctx_find(uint32_t hash)
 static void
 frag_timeout(pico_time now, void *arg)
 {
-    struct frag_ctx *ctx = (struct frag_ctx *)arg;
-    IGNORE_PARAMETER(now);
-    pico_tree_delete(&ReassemblyTree, arg);
-    pico_frame_discard(ctx->f);
-    PICO_FREE(arg);
+    struct pico_tree_node *i = NULL, *next = NULL;
+    struct frag_ctx *key = NULL;
+    IGNORE_PARAMETER(arg);
+    pico_tree_foreach_safe(i, &ReassemblyTree, next) {
+        if ((key = i->keyValue)) {
+            if (FRAG_TIMEOUT * 1000 <= (now - key->timestamp)) {
+                pico_tree_delete(&ReassemblyTree, key);
+                pico_frame_discard(key->f);
+                PICO_FREE(key);
+            }
+        }
+    }
+    pico_timer_add(1000, frag_timeout, NULL);
 }
 
 /* Finds a reassembly cookie in the reassembly-tree */
@@ -223,7 +231,6 @@ frag_store(struct pico_frame *f, uint16_t dgram_size, uint16_t tag,
            union pico_ll_addr dst, struct pico_tree *tree)
 {
     struct frag_ctx *fr = PICO_ZALLOC(sizeof(struct frag_ctx));
-    pico_time timeout = FRAG_TIMEOUT * 1000;
     if (fr) {
         fr->f = f;
         fr->dgram_size = dgram_size;
@@ -232,20 +239,16 @@ frag_store(struct pico_frame *f, uint16_t dgram_size, uint16_t tag,
         fr->copied = copied;
         fr->src = src;
         fr->dst = dst;
-        if (&ReassemblyTree == tree) {
-            lp_dbg("6LP: START: "GRN"reassembly"RST" with tag '%d' of %u bytes.\n", tag, dgram_size);
-            if (!(fr->timer = pico_timer_add(timeout, frag_timeout, fr))) {
-                PICO_FREE(fr);
-                return -1;
-            }
-        } else {
+        fr->timestamp = PICO_TIME_MS();
+        if (&FragTree == tree) {
             fr->hash = pico_hash((void *)fr, sizeof(struct frag_ctx));
             f->hash = fr->hash; // Also set hash in frame so we can identify it
             lp_dbg("6LP: START: "ORG"fragmentation"RST" with hash '%X' of %u bytes.\n", fr->hash, f->len);
+        } else {
+            lp_dbg("6LP: START: "GRN"reassembly"RST" with tag '%d' of %u bytes.\n", tag, dgram_size);
         }
         /* Insert the cookie in the appropriate tree (FragTree/ReassemblyTree) */
         if (pico_tree_insert(tree, fr)) {
-            pico_timer_cancel(fr->timer);
             PICO_FREE(fr);
             return -1;
         }
@@ -1539,7 +1542,6 @@ defrag_update(struct frag_ctx *frag, uint16_t off, struct pico_frame *f)
     pico_frame_discard(f);
     if (frag->copied >= frag->dgram_size) { // Datagram completely reassembled
         lp_dbg("6LP: FIN: "GRN"reassembly"RST" with tag '%u', stats:  len: %d net: %d trans: %d\n", frag->dgram_tag, r->len, r->net_len, r->transport_len);
-        pico_timer_cancel(frag->timer);
         pico_tree_delete(&ReassemblyTree, frag);
         PICO_FREE(frag);
         pico_ipv6_finalize(r, 0);
@@ -1637,5 +1639,14 @@ struct pico_protocol pico_proto_6lowpan = {
     .q_in = &pico_6lowpan_in,
     .q_out = &pico_6lowpan_out
 };
+
+int pico_6lowpan_init(void)
+{
+    pico_6lowpan_ll_init();
+    if (0 == pico_timer_add(1000, frag_timeout, NULL)) {
+        return -1; /* We care if timer fails, results in memory leak if frames don't get reassembled */
+    }
+    return 0;
+}
 
 #endif /* PICO_SUPPORT_6LOWPAN */

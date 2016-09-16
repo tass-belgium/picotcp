@@ -21,7 +21,7 @@
 #include <stdio.h>
 
 /* Comment if you want to disable network manager debugging */
-#define DEBUG_RADIO_MGR
+//#define DEBUG_RADIO_MGR
 
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
@@ -221,7 +221,9 @@ pico_radio_mgr_distribute(uint8_t *buf, int len, uint8_t id)
         area0 = node->area0;
         area1 = node->area1;
     } else {
+#ifdef DEBUG_RADIO_MGR
         printf("Received frame from node not connected to network, weird..\n");
+#endif
         return;
     }
 

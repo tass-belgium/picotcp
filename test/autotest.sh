@@ -42,7 +42,9 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 1HOP   (1500B) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (build/test/picoapp6.elf -6 0,0,0) &
+sleep 1
 (build/test/picoapp6.elf -6 1,2,1 -a noop) &
+sleep 1
 build/test/picoapp6.elf -6 2,1,0 -a ping,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1500,0,1 || exit 1
 killall -w picoapp6.elf
 

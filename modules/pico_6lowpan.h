@@ -26,5 +26,6 @@ extern struct pico_protocol pico_proto_6lowpan;
  ******************************************************************************/
 
 int pico_6lowpan_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
+int pico_6lowpan_init(void);
 
 #endif /* INCLUDE_PICO_6LOWPAN */

@@ -523,7 +523,7 @@ struct pico_protocol pico_proto_6lowpan_ll = {
     .q_out = &pico_6lowpan_ll_out
 };
 
-void pico_6lowpan_init(void)
+void pico_6lowpan_ll_init(void)
 {
     /* Don't care about failure */
     (void)pico_timer_add(60000, ctx_lifetime_check, NULL);

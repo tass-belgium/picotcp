@@ -933,7 +933,10 @@ int MOCKABLE pico_stack_init(void)
 #ifdef PICO_SUPPORT_AODV
     pico_aodv_init();
 #endif
-
+#ifdef PICO_SUPPORT_6LOWPAN
+    if (pico_6lowpan_init())
+       return -1;
+#endif
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();

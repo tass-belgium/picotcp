@@ -52,7 +52,7 @@ extern struct pico_protocol pico_proto_6lowpan_ll;
  * Public functions
  ******************************************************************************/
 
-void pico_6lowpan_init(void);
+void pico_6lowpan_ll_init(void);
 
 int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev);
 int pico_6lowpan_ll_iid(uint8_t *iid, union pico_ll_addr *addr, struct pico_device *dev);

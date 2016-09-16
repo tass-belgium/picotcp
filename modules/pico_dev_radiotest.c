@@ -2,7 +2,7 @@
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   Authors: Daniele Lacamera
+   Authors: Daniele Lacamera, Jelle De Vleeschouwer
  *********************************************************************/
 
 /*******************************************************************************
@@ -35,6 +35,8 @@
 #ifdef RADIO_PCAP
 #include <pcap.h>
 #endif
+
+//#define DEBUG_RADIOTEST
 
 /*******************************************************************************
  * Constants
@@ -188,8 +190,9 @@ static int pico_loop_send(struct pico_device *dev, void *buf, int len)
     IGNORE_PARAMETER(dev);
     if (len > LOOP_MTU)
         return 0;
-
+#ifdef DEBUG_RADIOTEST
     printf("Looping back frame of %d bytes.\n", len);
+#endif
     radiotest_nxt_tx(buf, len);
     return len;
 }
@@ -204,7 +207,9 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
 
     buf = radiotest_nxt_rx(&len);
     if (buf) {
+#ifdef DEBUG_RADIOTEST
         printf("Receiving frame of %d bytes.\n", len);
+#endif
         pico_stack_recv(dev, buf, (uint32_t)len);
         PICO_FREE(buf);
         loop_score--;
@@ -342,7 +347,9 @@ static int radiotest_send(struct pico_device *dev, void *_buf, int len)
     ret = (int)sendto(connection, &phy, 1, 0, NULL, 0);
     if (ret != 1) return -1;
     ret = (int)sendto(connection, buf, (size_t)(len), 0, NULL, 0);
+#ifdef DEBUG_RADIOTEST
     printf("Radio '%u' transmitted a frame of %d bytes.\n", buf[len - 1], ret);
+#endif
     PICO_FREE(buf);
     return ret;
 }
