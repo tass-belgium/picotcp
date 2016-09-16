@@ -17,17 +17,20 @@
 #include "pico_config.h"
 #include "pico_stack.h"
 
-/* Uncomment next line to enable pcap-dump, also make sure the binary is linked
- * against the lpcaplib: '-lpcap' */
-#define RADIO_PCAP
-
 /*******************************************************************************
  * System sockets
  ******************************************************************************/
 
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <sys/poll.h>
+
+/* Uncomment next line to enable pcap-dump, also make sure the binary is linked
+ * against the lpcaplib: '-lpcap' */
+#define RADIO_PCAP
+#define LISTENING_PORT  7777
+#define MESSAGE_MTU     150
 
 #ifdef RADIO_PCAP
 #include <pcap.h>
@@ -72,9 +75,7 @@ struct radiotest_frame
  * Global variables
  ******************************************************************************/
 
-static struct sockaddr_in MCADDR0;
-static struct sockaddr_in MCADDR1;
-static int areas = 1;
+static int connection = 0;
 
 static uint32_t tx_id = 0;
 static uint32_t rx_id = 0;
@@ -252,44 +253,14 @@ static uint16_t calculate_crc16(uint8_t *buf, uint8_t len)
     return crc;
 }
 
-/* Send-function for the pico_device-structure */
-static int radiotest_send(struct pico_device *dev, void *_buf, int len)
-{
-    struct radiotest_radio *radio = (struct radiotest_radio *)dev;
-    uint8_t *buf = PICO_ZALLOC((size_t)(len + 3));
-    uint16_t crc = 0;
-    int ret = 0;
-
-    if (!buf)
-        return -1;
-
-    /* Store the address in buffer for management */
-    memcpy(buf, _buf, (size_t)len);
-    len += 3;
-    buf[len - 1] = (uint8_t)short_be(radio->addr.addr_short.addr);
-    printf("Radio '%u' is transmitting a frame of %d bytes.\n", buf[len-1], len);
-
-    /* Generate FCS, keep pcap happy ... */
-    crc = calculate_crc16(_buf, (uint8_t)(len - 3));
-    memcpy(buf + len - 3, (void *)&crc, 2);
-
-    /* Send frame out on multicast socket */
-    ret = (int)sendto(radio->sock0, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR0), sizeof(struct sockaddr_in));
-    if (areas > 1)
-        ret = (int)sendto(radio->sock1, buf, (size_t)(len), 0, (struct sockaddr *)&(MCADDR1), sizeof(struct sockaddr_in));
-    PICO_FREE(buf);
-
-    return ret;
-}
-
 /* Poll-function for the pico_device-structure */
 static int radiotest_poll(struct pico_device *dev, int loop_score)
 {
     struct radiotest_radio *radio = (struct radiotest_radio *)dev;
     int pollret, ret_len;
-    struct pollfd p[2];
-    uint8_t my_id = 0;
+    struct pollfd p;
     uint8_t buf[128];
+    uint8_t phy = 0;
 
     if (loop_score <= 0)
         return 0;
@@ -297,18 +268,11 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
     if (!dev)
         return loop_score;
 
-    /* Get the radiotest-address */
-    my_id = (uint8_t)short_be(radio->addr.addr_short.addr);
+    p.fd = connection;
+    p.events = POLLIN | POLLHUP;
 
-    p[0].fd = radio->sock0;
-    p[0].events = POLLIN;
-    if (areas > 1) {
-        p[1].fd = radio->sock1;
-        p[1].events = POLLIN;
-    }
-
-    /* Poll for data on any of the area-sockets */
-    pollret = poll(p, (nfds_t)areas, 1);
+    /* Poll for data from radio management */
+    pollret = poll(&p, (nfds_t)1, 1);
     if (pollret == 0)
         return loop_score;
 
@@ -317,14 +281,16 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
         exit(5);
     }
 
-    if (p[0].revents & POLLIN) {
-        ret_len = (int)recv(radio->sock0, buf, (size_t)(128), 0);
-        if (buf[ret_len - 1] == my_id)
-            ret_len = 0;
-    } else {
-        ret_len = (int)recv(radio->sock1, buf, (size_t)(128), 0);
-        if (buf[ret_len - 1] == my_id)
-            ret_len = 0;
+    if (p.revents & POLLIN) {
+        ret_len = (int)recv(connection, &phy, (size_t)1, 0);
+        if (ret_len != 1) return loop_score;
+        ret_len = (int)recv(connection, buf, (size_t)phy, 0);
+        if (ret_len != (int)phy)
+            return loop_score;
+        else if (!ret_len) {
+            printf("Radio manager detached from network\n");
+            exit(1);
+        }
     }
 
     if (ret_len < 2) { /* Not valid */
@@ -341,44 +307,90 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
 #endif
 
     /* Write the received frame to the pcap-dump */
-    radiotest_pcap_write(radio, buf, ret_len - 1);
+    radiotest_pcap_write(radio, buf, ret_len);
 
     /* Hand the frame over to pico  */
-    pico_stack_recv(dev, buf, (uint32_t)(ret_len - 3));
+    pico_stack_recv(dev, buf, (uint32_t)(ret_len - 2));
     loop_score--;
 
     return loop_score;
+}
+
+/* Send-function for the pico_device-structure */
+static int radiotest_send(struct pico_device *dev, void *_buf, int len)
+{
+    struct radiotest_radio *radio = (struct radiotest_radio *)dev;
+    uint8_t *buf = PICO_ZALLOC((size_t)(len + 3));
+    uint16_t crc = 0;
+    int ret = 0;
+    uint8_t phy = 0;
+
+    if (!buf)
+        return -1;
+
+    /* Store the address in buffer for management */
+    memcpy(buf, _buf, (size_t)len);
+    len += 3; // CRC + ID
+    buf[len - 1] = (uint8_t)short_be(radio->addr.addr_short.addr);
+
+    /* Generate FCS, keep pcap happy ... */
+    crc = calculate_crc16(_buf, (uint8_t)(len - 3));
+    memcpy(buf + len - 3, (void *)&crc, 2);
+
+    /* Send frame to radio management */
+    phy = (uint8_t)(len);
+    ret = (int)sendto(connection, &phy, 1, 0, NULL, 0);
+    if (ret != 1) return -1;
+    ret = (int)sendto(connection, buf, (size_t)(len), 0, NULL, 0);
+    printf("Radio '%u' transmitted a frame of %d bytes.\n", buf[len - 1], ret);
+    PICO_FREE(buf);
+    return ret;
+}
+
+static int radiotest_hello(int s, uint8_t id, uint8_t area0, uint8_t area1)
+{
+    uint8_t buf[3] = { id, area0, area1 };
+    if (sendto(s, buf, (size_t)3, 0, NULL, 0) != 3) {
+        dbg("Radio '%u' failed to send hello message\n", id);
+        return -1;
+    }
+
+    dbg("Radio '%u' attached to network\n", id);
+    return s;
+}
+
+static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
+{
+    struct sockaddr_in addr;
+    int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int ret = 0;
+
+    memset(&addr, 0, sizeof(struct sockaddr_in));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(LISTENING_PORT);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+    ret = connect(s, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
+    if (ret) {
+        dbg("Radio '%u' could not attach to network\n", id);
+        return ret;
+    }
+
+    return radiotest_hello(s, id, area0, area1);
 }
 
 /* Creates a radiotest-device */
 struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, int loop, char *dump)
 {
     struct radiotest_radio *dev = PICO_ZALLOC(sizeof(struct radiotest_radio));
-    struct ip_mreqn mreq0, mreq1;
-    int yes = 1;
-    int no = 0;
-
-    mreq0.imr_multiaddr.s_addr =  MC_ADDR_BE + (unsigned int)(area0 << 24);
-    mreq0.imr_address.s_addr =  INADDR_ANY;
-    mreq0.imr_ifindex = 0;
-
-    mreq1.imr_multiaddr.s_addr =  MC_ADDR_BE + (unsigned int)(area1 << 24);
-    mreq1.imr_address.s_addr =  INADDR_ANY;
-    mreq1.imr_ifindex = 0;
-
     if (!dev)
         return NULL;
-
+    if (!addr || (addr && !area0)) {
+        printf("Usage (node): -6 [1-255],[1-255],[0-255] ...\n");
+    }
     dev->dev.mode = LL_MODE_IEEE802154;
     dev->dev.mtu = (uint32_t)MTU_802154_MAC;
     dev->dev.hostvars.lowpan = 1;
-    if (loop) {
-        dev->dev.send = pico_loop_send;
-        dev->dev.poll = pico_loop_poll;
-    } else {
-        dev->dev.send = radiotest_send;
-        dev->dev.poll = radiotest_poll;
-    }
     dev->addr.pan_id.addr = short_be(RFDEV_PANID);
     dev->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(dev->addr.addr_short, dev->addr.addr_ext.addr);
@@ -389,41 +401,19 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
            dev->addr.addr_ext.addr[4],dev->addr.addr_ext.addr[5],
            dev->addr.addr_ext.addr[6],dev->addr.addr_ext.addr[7]);
 
-    dev->sock0 = socket(AF_INET, SOCK_DGRAM, 0);
-    if (dev->sock0 < 0)
-        return NULL;
-    setsockopt(dev->sock0, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-
-    if (area1 > 0) {
-        dev->sock1 = socket(AF_INET, SOCK_DGRAM, 0);
-
-        if (dev->sock1 < 0)
+    if (!loop) {
+        if ((connection = radiotest_connect(addr, area0, area1)) <= 0) {
             return NULL;
-        setsockopt(dev->sock1, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-    }
-
-    memset(&MCADDR0, 0, sizeof(struct sockaddr_in));
-    MCADDR0.sin_family = AF_INET;
-    MCADDR0.sin_port = htons(7777);
-    MCADDR0.sin_addr.s_addr = MC_ADDR_BE + (unsigned int)(area0 << 24);
-    bind(dev->sock0, (struct sockaddr *)&MCADDR0, sizeof(struct sockaddr_in));
-    setsockopt(dev->sock0, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq0, sizeof(struct ip_mreqn));
-    setsockopt(dev->sock0, IPPROTO_IP, IP_MULTICAST_LOOP, &no, sizeof(int));
-
-    if (area1 > 0) {
-        memset(&MCADDR1, 0, sizeof(struct sockaddr_in));
-        MCADDR1.sin_family = AF_INET;
-        MCADDR1.sin_port = htons(7777);
-        MCADDR1.sin_addr.s_addr = MC_ADDR_BE + (unsigned int)(area1 << 24);
-
-        bind(dev->sock1, (struct sockaddr *)&MCADDR1, sizeof(struct sockaddr_in));
-        setsockopt(dev->sock1, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq1, sizeof(struct ip_mreqn));
-        setsockopt(dev->sock1, IPPROTO_IP, IP_MULTICAST_LOOP, &no, sizeof(int));
-        areas++;
+        }
+        dev->dev.send = radiotest_send;
+        dev->dev.poll = radiotest_poll;
+    } else {
+        dev->dev.send = pico_loop_send;
+        dev->dev.poll = pico_loop_poll;
     }
 
     if (dump) {
-       radiotest_pcap_open(dev, dump);
+        radiotest_pcap_open(dev, dump);
     }
 
     if (pico_device_init((struct pico_device *)dev, "radio", (uint8_t *)&dev->addr)) {
