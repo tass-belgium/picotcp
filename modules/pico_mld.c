@@ -679,12 +679,13 @@ static int8_t pico_mld_send_done(struct mcast_parameters *p, struct pico_frame *
     /* report->crc = short_be(pico_icmp6_checksum(p->f)); */
 #ifdef DEBUG_MLD
     pico_ipv6_to_string(ipstr, dst.addr);
-    pico_ipv6_to_string(grpstr, mcast_group.addr);
+    pico_ipv6_to_string(grpstr, report->mcast_group.addr);
     mld_dbg("MLD: send membership done on group %s to %s\n", grpstr, ipstr);
 #endif
     pico_ipv6_frame_push(p->f, NULL, &dst, 0, 0);
     return 0;
 }
+
 static int pico_mld_send_report(struct mcast_parameters *p, struct pico_frame *f)
 {
     struct pico_ip6 dst = {{
@@ -1110,7 +1111,7 @@ static int pico_mld_process_event(struct mcast_parameters *p)
     struct mcast_parameters *_p;
 #ifdef DEBUG_MLD
     char ipv6[PICO_IPV6_STRING];
-    pico_ipv6_to_string(ipv6, p->mcast_group.addr);
+    pico_ipv6_to_string(ipv6, p->mcast_group.ip6.addr);
     mld_dbg("MLD: process event on group address %s\n", ipv6);
 #endif
     if (p->event == MLD_EVENT_QUERY_RECV && p->general_query) { /* general query */
