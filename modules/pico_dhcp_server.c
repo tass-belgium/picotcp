@@ -288,7 +288,7 @@ static inline void parse_opt_msgtype(struct pico_dhcp_opt *opt, uint8_t *msgtype
 {
     if (opt->code == PICO_DHCP_OPT_MSGTYPE) {
         *msgtype = opt->ext.msg_type.type;
-        dhcps_dbg("DHCP server: message type %u\n", msgtype);
+        dhcps_dbg("DHCP server: message type %u\n", *msgtype);
     }
 }
 

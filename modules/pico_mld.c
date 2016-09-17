@@ -235,7 +235,7 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
 #ifdef DEBUG_MLD
     pico_ipv6_to_string(ipstr, t->mcast_link.addr);
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
-    mld_dbg("MLD: timer expired for %s link %s type %u, delay %llu\n", grpstr, ipstr, t->type, (uint64_t) t->delay);
+    mld_dbg("MLD: timer expired for %s link %s type %u, delay %lu\n", grpstr, ipstr, t->type, (uint64_t) t->delay);
 #endif
     timer = pico_tree_findKey(&MLDTimers, &test);
     if (!timer) {
@@ -256,7 +256,7 @@ static void pico_mld_timer_expired(pico_time now, void *arg)
         PICO_FREE(timer);
     } else {
 #ifdef DEBUG_MLD
-        mld_dbg("MLD: restart timer for %s, delay %llu, new delay %llu\n", grpstr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
+        mld_dbg("MLD: restart timer for %s, delay %lu, new delay %lu\n", grpstr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
 #endif
         if (!pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_mld_timer_expired, timer)) {
             mld_dbg("MLD: Failed to start expiration timer\n");
@@ -278,7 +278,7 @@ static int pico_mld_timer_reset(struct mld_timer *t)
         0
     };
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
-    mld_dbg("MLD: reset timer for %s, delay %llu\n", grpstr, t->delay);
+    mld_dbg("MLD: reset timer for %s, delay %lu\n", grpstr, t->delay);
 #endif
     test.type = t->type;
     test.mcast_link = t->mcast_link;
@@ -305,7 +305,7 @@ static int pico_mld_timer_start(struct mld_timer *t)
     };
     pico_ipv6_to_string(ipstr, t->mcast_link.addr);
     pico_ipv6_to_string(grpstr, t->mcast_group.addr);
-    mld_dbg("MLD: start timer for %s link %s type %u, delay %llu\n", grpstr, ipstr, t->type, t->delay);
+    mld_dbg("MLD: start timer for %s link %s type %u, delay %lu\n", grpstr, ipstr, t->type, t->delay);
 #endif
     test.type = t->type;
     test.mcast_link = t->mcast_link;
@@ -351,7 +351,7 @@ static int pico_mld_timer_stop(struct mld_timer *t)
 
 #ifdef DEBUG_MLD
     pico_ipv6_to_string(grpstr, timer->mcast_group.addr);
-    mld_dbg("MLD: stop timer for %s, delay %llu\n", grpstr, timer->delay);
+    mld_dbg("MLD: stop timer for %s, delay %lu\n", grpstr, timer->delay);
 #endif
     timer->stopped = MLD_TIMER_STOPPED;
     return 0;

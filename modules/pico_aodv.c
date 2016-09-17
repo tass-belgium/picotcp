@@ -166,8 +166,7 @@ static void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
 
     now = PICO_TIME_MS();
 
-    pico_aodv_dbg("Forwarding %s: last fwd_time: %llu now: %llu ttl: %d ==== \n", reply ? "REPLY" : "REQUEST",
-                  orig->fwd_time, now, info->ttl);
+    pico_aodv_dbg("Forwarding %s: last fwd_time: %lu now: %lu ttl: %d ==== \n", reply ? "REPLY" : "REQUEST", orig->fwd_time, now, info->ttl);
     if (((orig->fwd_time == 0) || ((now - orig->fwd_time) > AODV_NODE_TRAVERSAL_TIME)) && (--info->ttl > 0)) {
         orig->fwd_time = now;
         info->dev = NULL;

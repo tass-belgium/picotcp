@@ -303,7 +303,7 @@ static int pico_dns_client_check_asuffix(struct pico_dns_record_suffix *suf, str
     }
 
     if (long_be(suf->rttl) > PICO_DNS_MAX_TTL) {
-        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", short_be(suf->rttl), PICO_DNS_MAX_TTL);
+        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", long_be(suf->rttl), PICO_DNS_MAX_TTL);
         return -1;
     }
 

@@ -239,7 +239,7 @@ void pico_arp_postpone(struct pico_frame *f)
 
 
 #ifdef DEBUG_ARP
-void dbg_arp(void)
+static void dbg_arp(void)
 {
     struct pico_arp *a;
     struct pico_tree_node *index;
