@@ -1,6 +1,8 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
+OS:=$(shell uname)
+
 CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
@@ -9,6 +11,20 @@ SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
 LIBNAME:="libpicotcp.a"
+
+ifeq ($(OS),Darwin)
+  DU:=stat
+  DU_FLAGS:=-f%z
+else
+  DU:=du
+  DU_FLAGS:=-b
+endif
+
+ifeq ($(OS),Darwin)
+  SIZE_FLAGS:=
+else
+  SIZE_FLAGS:=-t
+endif
 
 PREFIX?=$(PWD)/build
 DEBUG?=1
@@ -353,8 +369,8 @@ lib: mod core
 	@test $(STRIP) -eq 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)"
-	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
-	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "\t[LIBSIZE] `$(DU) $(DU_FLAGS) $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "`$(SIZE) $(SIZE_FLAGS) $(PREFIX)/lib/$(LIBNAME)`"
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
