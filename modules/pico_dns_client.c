@@ -111,9 +111,12 @@ static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
     dns->ns = *ns_addr;
 
     found = pico_tree_insert(&NSTable, dns);
-    if (found) { /* nameserver already present */
+    if (found) { /* nameserver already present or out of memory */
         PICO_FREE(dns);
-        return found;
+        if ((void *)found == (void *)&LEAF)
+            return NULL;
+        else
+            return found;
     }
 
     /* default NS found, remove it */
@@ -169,7 +172,8 @@ static struct pico_dns_query *pico_dns_client_add_query(struct pico_dns_header *
 
     found = pico_tree_insert(&DNSTable, q);
     if (found) {
-        pico_err = PICO_ERR_EAGAIN;
+        if ((void *)found != (void *)&LEAF) /* If found == &LEAF we're out of memory and pico_err is set */
+            pico_err = PICO_ERR_EAGAIN;
         pico_socket_close(q->s);
         PICO_FREE(q);
         return NULL;

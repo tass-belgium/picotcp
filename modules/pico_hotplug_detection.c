@@ -152,11 +152,22 @@ int pico_hotplug_register(struct pico_device *dev, void (*cb)(struct pico_device
         hotplug_dev->callbacks.compare = &callback_compare;
         hotplug_dev->init_callbacks.root = &LEAF;
         hotplug_dev->init_callbacks.compare = &callback_compare;
-        pico_tree_insert(&Hotplug_device_tree, hotplug_dev);
+        if (pico_tree_insert(&Hotplug_device_tree, hotplug_dev)) {
+            PICO_FREE(hotplug_dev);
+        	return -1;
+		}
     }
 
-    pico_tree_insert(&(hotplug_dev->callbacks), cb);
-    pico_tree_insert(&(hotplug_dev->init_callbacks), cb);
+    if (pico_tree_insert(&(hotplug_dev->callbacks), cb) == &LEAF) {
+        PICO_FREE(hotplug_dev);
+        return -1;
+	}
+
+    if (pico_tree_insert(&(hotplug_dev->init_callbacks), cb) == &LEAF) {
+        pico_tree_delete(&(hotplug_dev->callbacks), cb);
+        PICO_FREE(hotplug_dev);
+		return -1;
+	}
 
     if (ensure_hotplug_timer() < 0) {
         pico_hotplug_deregister((struct pico_device *)hotplug_dev, cb);

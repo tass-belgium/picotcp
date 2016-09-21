@@ -207,7 +207,7 @@ struct mock_device *pico_mock_create(uint8_t*mac)
     if(mac != NULL) {
         mock->mac = PICO_ZALLOC(6 * sizeof(uint8_t));
         if(!mock->mac) {
-            PICO_FREE(mock->mac);
+            PICO_FREE(mock->dev);
             PICO_FREE(mock);
             return NULL;
         }
@@ -217,7 +217,7 @@ struct mock_device *pico_mock_create(uint8_t*mac)
 
     if( 0 != pico_device_init((struct pico_device *)mock->dev, "mock", mac)) {
         dbg ("Loop init failed.\n");
-        pico_mock_destroy((struct pico_device *)mock->dev);
+        pico_device_destroy(mock->dev);
         if(mock->mac != NULL)
             PICO_FREE(mock->mac);
 
@@ -230,7 +230,16 @@ struct mock_device *pico_mock_create(uint8_t*mac)
     mock->dev->destroy = pico_mock_destroy;
     dbg("Device %s created.\n", mock->dev->name);
 
-    pico_tree_insert(&mock_device_tree, mock);
+    if (pico_tree_insert(&mock_device_tree, mock)) {
+        if (mock->mac != NULL)
+            PICO_FREE(mock->mac);
+
+        pico_device_destroy(mock->dev);
+
+        PICO_FREE(mock);
+        return NULL;
+    }
+
     return mock;
 }
 
