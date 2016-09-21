@@ -210,6 +210,11 @@ static struct dhcp_client_timer *pico_dhcp_timer_add(uint8_t type, uint32_t time
     t->xid = ck->xid;
     t->type = type;
     t->timer_id = pico_timer_add(time, pico_dhcp_client_timer_handler, t);
+    if (!t->timer_id) {
+        dhcpc_dbg("DHCP: Failed to start timer\n");
+        PICO_FREE(t);
+        return NULL;
+    }
 
     /* store timer struct reference in cookie */
     ck->timer[type] = t;
@@ -308,24 +313,30 @@ static void pico_dhcp_client_stop_timers(struct pico_dhcp_client_cookie *dhcpc)
     }
 }
 
-static void pico_dhcp_client_start_init_timer(struct pico_dhcp_client_cookie *dhcpc)
+static int pico_dhcp_client_start_init_timer(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint32_t time = 0;
     /* timer value is doubled with every retry (exponential backoff) */
     time = (uint32_t) (DHCP_CLIENT_RETRANS << dhcpc->retry);
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, time * 1000, dhcpc);
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, time * 1000, dhcpc))
+        return -1;
+
+    return 0;
 }
 
-static void pico_dhcp_client_start_requesting_timer(struct pico_dhcp_client_cookie *dhcpc)
+static int pico_dhcp_client_start_requesting_timer(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint32_t time = 0;
 
     /* timer value is doubled with every retry (exponential backoff) */
     time = (uint32_t)(DHCP_CLIENT_RETRANS << dhcpc->retry);
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_REQUEST, time * 1000, dhcpc);
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_REQUEST, time * 1000, dhcpc))
+        return -1;
+
+    return 0;
 }
 
-static void pico_dhcp_client_start_renewing_timer(struct pico_dhcp_client_cookie *dhcpc)
+static int pico_dhcp_client_start_renewing_timer(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint32_t halftime = 0;
 
@@ -336,12 +347,13 @@ static void pico_dhcp_client_start_renewing_timer(struct pico_dhcp_client_cookie
     if (halftime < 60)
         halftime = 60;
 
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_RENEW, halftime * 1000, dhcpc);
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_RENEW, halftime * 1000, dhcpc))
+        return -1;
 
-    return;
+    return 0;
 }
 
-static void pico_dhcp_client_start_rebinding_timer(struct pico_dhcp_client_cookie *dhcpc)
+static int pico_dhcp_client_start_rebinding_timer(struct pico_dhcp_client_cookie *dhcpc)
 {
     uint32_t halftime = 0;
 
@@ -350,18 +362,30 @@ static void pico_dhcp_client_start_rebinding_timer(struct pico_dhcp_client_cooki
     if (halftime < 60)
         halftime = 60;
 
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_REBIND, halftime * 1000, dhcpc);
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_REBIND, halftime * 1000, dhcpc))
+        return -1;
 
-    return;
+    return 0;
 }
 
-static void pico_dhcp_client_start_reacquisition_timers(struct pico_dhcp_client_cookie *dhcpc)
+static int pico_dhcp_client_start_reacquisition_timers(struct pico_dhcp_client_cookie *dhcpc)
 {
 
     pico_dhcp_client_stop_timers(dhcpc);
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_T1, dhcpc->t1_time * 1000, dhcpc);
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_T2, dhcpc->t2_time * 1000, dhcpc);
-    pico_dhcp_timer_add(PICO_DHCPC_TIMER_LEASE, dhcpc->lease_time * 1000, dhcpc);
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_T1, dhcpc->t1_time * 1000, dhcpc))
+        goto fail;
+
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_T2, dhcpc->t2_time * 1000, dhcpc))
+        goto fail;
+
+    if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_LEASE, dhcpc->lease_time * 1000, dhcpc))
+        goto fail;
+
+    return 0;
+
+fail:
+    pico_dhcp_client_stop_timers(dhcpc);
+    return -1;
 }
 
 static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
@@ -377,7 +401,9 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
         dhcpc->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &pico_dhcp_client_wakeup);
 
     if (!dhcpc->s) {
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 
@@ -385,20 +411,29 @@ static int pico_dhcp_client_init(struct pico_dhcp_client_cookie *dhcpc)
     if (pico_socket_bind(dhcpc->s, &inaddr_any, &port) < 0) {
         pico_socket_close(dhcpc->s);
         dhcpc->s = NULL;
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 
     if (pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_DISCOVER) < 0) {
         pico_socket_close(dhcpc->s);
         dhcpc->s = NULL;
-        pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc);
+        if (!pico_dhcp_timer_add(PICO_DHCPC_TIMER_INIT, DHCP_CLIENT_REINIT, dhcpc))
+            return -1;
+
         return 0;
     }
 
     dhcpc->retry = 0;
     dhcpc->init_timestamp = PICO_TIME_MS();
-    pico_dhcp_client_start_init_timer(dhcpc);
+    if (pico_dhcp_client_start_init_timer(dhcpc) < 0) {
+        pico_socket_close(dhcpc->s);
+        dhcpc->s = NULL;
+        return -1;
+    }
+
     return 0;
 }
 
@@ -548,7 +583,9 @@ static int recv_offer(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     dhcpc->state = DHCP_CLIENT_STATE_REQUESTING;
     dhcpc->retry = 0;
     pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_REQUEST);
-    pico_dhcp_client_start_requesting_timer(dhcpc);
+    if (pico_dhcp_client_start_requesting_timer(dhcpc) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -612,7 +649,11 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     dhcpc->retry = 0;
     dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
     dhcpc->rebind_time = dhcpc->lease_time - dhcpc->t2_time;
-    pico_dhcp_client_start_reacquisition_timers(dhcpc);
+    if (pico_dhcp_client_start_reacquisition_timers(dhcpc) < 0) {
+        pico_dhcp_client_callback(dhcpc, PICO_DHCP_ERROR);
+        return -1;
+    }
+
 
     *(dhcpc->uid) = dhcpc->xid;
     pico_dhcp_client_callback(dhcpc, PICO_DHCP_SUCCESS);
@@ -645,7 +686,13 @@ static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
 
     dhcpc->retry = 0;
     pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_REQUEST);
-    pico_dhcp_client_start_renewing_timer(dhcpc);
+    if (pico_dhcp_client_start_renewing_timer(dhcpc) < 0) {
+        pico_socket_close(dhcpc->s);
+        dhcpc->s = NULL;
+        pico_dhcp_client_callback(dhcpc, PICO_DHCP_ERROR);
+
+        return -1;
+    }
 
     return 0;
 }
@@ -657,7 +704,8 @@ static int rebind(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     dhcpc->state = DHCP_CLIENT_STATE_REBINDING;
     dhcpc->retry = 0;
     pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_REQUEST);
-    pico_dhcp_client_start_rebinding_timer(dhcpc);
+    if (pico_dhcp_client_start_rebinding_timer(dhcpc) < 0)
+        return -1;
 
     return 0;
 }
@@ -701,28 +749,33 @@ static int retransmit(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     {
     case DHCP_CLIENT_STATE_INIT:
         pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_DISCOVER);
-        pico_dhcp_client_start_init_timer(dhcpc);
+        if (pico_dhcp_client_start_init_timer(dhcpc) < 0)
+            return -1;
         break;
 
     case DHCP_CLIENT_STATE_REQUESTING:
         pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_REQUEST);
-        pico_dhcp_client_start_requesting_timer(dhcpc);
+        if (pico_dhcp_client_start_requesting_timer(dhcpc) < 0)
+            return -1;
         break;
 
     case DHCP_CLIENT_STATE_RENEWING:
         pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_REQUEST);
-        pico_dhcp_client_start_renewing_timer(dhcpc);
+        if (pico_dhcp_client_start_renewing_timer(dhcpc) < 0)
+            return -1;
         break;
 
     case DHCP_CLIENT_STATE_REBINDING:
         pico_dhcp_client_msg(dhcpc, PICO_DHCP_MSG_DISCOVER);
-        pico_dhcp_client_start_rebinding_timer(dhcpc);
+        if (pico_dhcp_client_start_rebinding_timer(dhcpc) < 0)
+            return -1;
         break;
 
     default:
         dhcpc_dbg("DHCP client WARNING: retransmit in incorrect state (%u)!\n", dhcpc->state);
         return -1;
     }
+
     return 0;
 }
 

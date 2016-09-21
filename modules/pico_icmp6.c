@@ -573,10 +573,27 @@ static void pico_icmp6_ping_timeout(pico_time now, void *arg)
 static void pico_icmp6_next_ping(pico_time now, void *arg);
 static inline void pico_icmp6_send_ping(struct pico_icmp6_ping_cookie *cookie)
 {
+    uint32_t interval_timer = 0;
+    struct pico_icmp6_stats stats;
     pico_icmp6_send_echo(cookie);
     cookie->timestamp = pico_tick;
-    pico_timer_add((pico_time)(cookie->interval), pico_icmp6_next_ping, cookie);
-    pico_timer_add((pico_time)(cookie->timeout), pico_icmp6_ping_timeout, cookie);
+    interval_timer = pico_timer_add((pico_time)(cookie->interval), pico_icmp6_next_ping, cookie);
+    if (!interval_timer) {
+        goto fail;
+    }
+    if (!pico_timer_add((pico_time)(cookie->timeout), pico_icmp6_ping_timeout, cookie)) {
+        pico_timer_cancel(interval_timer);
+        goto fail;
+    }
+    return;
+
+fail:
+    dbg("ICMP6: Failed to start timer\n");
+    cookie->err = PICO_PING6_ERR_ABORTED;
+    stats.err = cookie->err;
+    cookie->cb(&stats);
+    pico_tree_delete(&IPV6Pings, cookie);
+    PICO_FREE(cookie);
 }
 
 static void pico_icmp6_next_ping(pico_time now, void *arg)

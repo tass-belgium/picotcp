@@ -1116,6 +1116,10 @@ pico_mdns_cookie_apply_spt( struct pico_mdns_cookie *cookie,
         cookie->count = PICO_MDNS_PROBE_COUNT;
         cookie->send_timer = pico_mdns_timer_add(1000, pico_mdns_send_probe_packet,
                                             cookie);
+        if (!cookie->send_timer) {
+            mdns_dbg("cookie_apply_spt: failed to start timer\n");
+            return -1;
+        }
         mdns_dbg("Probing postponed by one second because of S.P.T.\n");
     }
 
@@ -1708,7 +1712,10 @@ pico_mdns_tick( pico_time now, void *_arg )
     pico_mdns_cookies_check_timeouts();
 
     /* Schedule new tick */
-    pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
+    if (!pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL)) {
+        mdns_dbg("MDNS: Failed to start tick timer\n");
+        /* TODO Not ticking anymore, what to do? */
+    }
 }
 
 /* MARK: v MDNS PACKET UTILITIES */
@@ -2998,8 +3005,15 @@ pico_mdns_getrecord_generic( const char *url, uint16_t type,
 	}
 
     /* Create new pico_timer-event to send packet */
-    pico_mdns_timer_add((pico_rand() % 120) + 20, pico_mdns_send_query_packet,
-                   (void *)cookie);
+    if (!pico_mdns_timer_add((pico_rand() % 120) + 20, pico_mdns_send_query_packet,
+                   (void *)cookie)) {
+        mdns_dbg("MDNS: Failed to start send_query_packet timer\n");
+        pico_tree_delete(&Cookies, cookie);
+        pico_mdns_cookie_delete((void**)&cookie);
+        pico_dns_question_delete((void**)&q);
+        return -1;
+    }
+
     return 0;
 }
 
@@ -3104,8 +3118,12 @@ pico_mdns_send_announcement_packet( pico_time now, void *arg )
                So we bithsift to get our powers of two and we multiply by 1000 to
                get our miliseconds.
              */
-            pico_mdns_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
-                                       * 1000), pico_mdns_send_announcement_packet, cookie);
+            if (!pico_mdns_timer_add((pico_time)((1 << (PICO_MDNS_ANNOUNCEMENT_COUNT - cookie->count - 1))
+                                       * 1000), pico_mdns_send_announcement_packet, cookie)) {
+                mdns_dbg("MDNS: Failed to start send_announcement_packet timer\n");
+                /* TODO no idea what the consequences of this are */
+
+            }
         }
     }
 }
@@ -3253,6 +3271,11 @@ pico_mdns_send_probe_packet( pico_time now, void *arg )
                 cookie->send_timer = pico_mdns_timer_add(250,
                                                     pico_mdns_send_probe_packet,
                                                     (void *)cookie);
+                if (!cookie->send_timer) {
+                    mdns_dbg("MDNS: Failed to start send_probe_packet timer\n");
+                    /* TODO no idea what the consequences of this are */
+                    return;
+                }
             }
         } else {
             mdns_dbg("DONE - Probing.\n");
@@ -3370,6 +3393,13 @@ static int pico_mdns_probe( void (*callback)(pico_mdns_rtree *,
         cookie->send_timer = pico_mdns_timer_add(pico_rand() % 250,
                                             pico_mdns_send_probe_packet,
                                             (void *)cookie);
+        if (!cookie->send_timer) {
+            mdns_dbg("MDNS: Failed to start send_probe_packet timer\n");
+            pico_tree_delete(&Cookies, cookie);
+            pico_mdns_cookie_delete((void**)&cookie);
+            return -1;
+        }
+
         mdns_dbg("DONE - Started probing.\n");
     }
     return 0;
@@ -3642,7 +3672,10 @@ pico_mdns_init( const char *hostname,
 
     /* Set the global init callback variable */
     init_callback = callback;
-    pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL);
+    if (!pico_mdns_timer_add(PICO_MDNS_RR_TTL_TICK, pico_mdns_tick, NULL)) {
+        mdns_dbg("MDNS: Failed to start tick timer\n");
+        return -1;
+    }
 
     /* Set the hostname eventually */
     return pico_mdns_tryclaim_hostname(hostname, arg);

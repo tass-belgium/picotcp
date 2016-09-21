@@ -9,9 +9,10 @@
 #include "modules/pico_tcp.c"
 #include "check.h"
 
+static uint32_t timers_added = 0;
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
-    return NULL;
+    return ++timers_added;
 }
 
 START_TEST(tc_input_segment_compare)

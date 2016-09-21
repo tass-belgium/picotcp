@@ -1083,6 +1083,12 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         if ((proto != PICO_PROTO_IGMP) && (pico_ipv4_mcast_filter(f) == 0)) {
             ip_mcast_dbg("MCAST: sender is member of group, loopback copy\n");
             cpy = pico_frame_copy(f);
+            if (!cpy) {
+                pico_err = PICO_ERR_ENOMEM;
+                ip_mcast_dbg("MCAST: Failed to copy frame\n");
+                goto drop;
+            }
+
             retval = pico_enqueue(&in, cpy);
             if (retval <= 0)
                 pico_frame_discard(cpy);
