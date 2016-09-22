@@ -1,6 +1,8 @@
 -include ../../config.mk
 -include ../../tools/kconfig/.config
 
+OS:=$(shell uname)
+
 CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
@@ -75,6 +77,17 @@ ifeq ($(CC),clang)
 CFLAGS+= -Wunreachable-code-break -Wpointer-bool-conversion -Wmissing-variable-declarations
 endif
 
+ifeq ($(OS),Darwin)
+  LIBSIZE=stat -f%z
+  ifeq ($(SIZE),size)
+    SUMSIZE=$(SIZE)
+  else
+    SUMSIZE=$(SIZE) -t
+  endif
+else
+  LIBSIZE=du -b
+  SUMSIZE=$(SIZE) -t
+endif
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
@@ -353,8 +366,8 @@ lib: mod core
 	@test $(STRIP) -eq 1 && (echo -e "\t[STRIP] $(PREFIX)/lib/$(LIBNAME)" \
      && $(STRIP_BIN) $(PREFIX)/lib/$(LIBNAME)) \
      || echo -e "\t[KEEP SYMBOLS] $(PREFIX)/lib/$(LIBNAME)"
-	@echo -e "\t[LIBSIZE] `du -b $(PREFIX)/lib/$(LIBNAME)`"
-	@echo -e "`size -t $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "\t[LIBSIZE] `$(LIBSIZE) $(PREFIX)/lib/$(LIBNAME)`"
+	@echo -e "`$(SUMSIZE) $(PREFIX)/lib/$(LIBNAME)`"
 
 loop: mod core
 	mkdir -p $(PREFIX)/test
