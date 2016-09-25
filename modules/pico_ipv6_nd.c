@@ -21,6 +21,8 @@
 #ifdef PICO_SUPPORT_IPV6
 #define MAX_INITIAL_RTR_ADVERTISEMENTS (3)
 #define DEFAULT_METRIC                 (10)
+
+/* #define nd_dbg dbg */
 #define nd_dbg(...) do {} while(0)
 
 extern struct pico_tree IPV6Links;
@@ -226,9 +228,12 @@ static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst){
           if(n){
             n->frames_queued--;
           }
-          (void)pico_ethernet_send(frame);
+
+          if (pico_datalink_send(frame) <= 0) {
+              pico_frame_discard(frame);
+          }
+
           pico_tree_delete(&IPV6NQueue,frame);
-          pico_frame_discard(frame);
         }
     }
 }
@@ -238,7 +243,7 @@ static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
     struct pico_device *dev;
     int is_ll = pico_ipv6_is_linklocal(l->address.addr);
     dev = l->dev;
-    dbg("IPV6: Duplicate address detected. Removing link.\n");
+    nd_dbg("IPV6: Duplicate address detected. Removing link.\n");
     pico_ipv6_link_del(l->dev, l->address);
     if (is_ll)
         pico_device_ipv6_random_ll(dev);
@@ -308,7 +313,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
         return;
 
     pico_ipv6_to_string(IPADDR, n->address.addr);
-    /* dbg("Sending NS for %s\n", IPADDR); */
+    nd_dbg("Sending NS for %s\n", IPADDR);
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
@@ -327,7 +332,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
 static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_ipv6_neighbor *n, struct pico_device *dev)
 {
-    /* dbg("Finding neighbor %02x:...:%02x, state = %d\n", addr->addr[0], addr->addr[15], n?n->state:-1); */
+    nd_dbg("Finding neighbor %02x:...:%02x, state = %d\n", addr->addr[0], addr->addr[15], n?n->state:-1);
 
     if (!n) {
         n = pico_nd_add(addr, dev);
@@ -383,10 +388,20 @@ static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
     switch (icmp6_hdr->type) {
+    case PICO_ICMP6_ROUTER_SOL:
+        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
+        if (optlen)
+            option = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
+        break;
     case PICO_ICMP6_ROUTER_ADV:
         optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
         if (optlen)
             option = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
+        break;
+    case PICO_ICMP6_NEIGH_SOL:
+        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_SOL_SIZE;
+        if (optlen)
+            option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_sol) + sizeof(struct neigh_sol_s);
         break;
     case PICO_ICMP6_NEIGH_ADV:
         optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
@@ -863,10 +878,14 @@ static int neigh_sol_validity_checks(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
     if (f->transport_len < PICO_ICMP6HDR_NEIGH_ADV_SIZE)
+    {
+        nd_dbg("Neigh sol validity fail: transport len fail. %d\n", f->transport_len);
         return -1;
+    }
 
     if ((pico_ipv6_is_unspecified(hdr->src.addr)) && (neigh_sol_validate_unspec(f) < 0))
     {
+        nd_dbg("Neigh sol validity fail: unspecified %d && validate unspec %d\n", pico_ipv6_is_unspecified(hdr->src.addr), neigh_sol_validate_unspec(f));
         return -1;
     }
 
@@ -1167,10 +1186,16 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
 static int pico_nd_neigh_sol_recv(struct pico_frame *f)
 {
     if (icmp6_initial_checks(f) < 0)
+    {
+        nd_dbg("ND: neigh sol initial check failed\n");
         return -1;
+    }
 
     if (neigh_sol_validity_checks(f) < 0)
+    {
+        nd_dbg("ND: neigh sol validity check failed\n");
         return -1;
+    }
 
     return neigh_sol_process(f);
 }
@@ -1432,7 +1457,6 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 
 int pico_ipv6_nd_recv(struct pico_frame *f)
 {
-
     struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     int ret = -1;
     switch(hdr->type) {
