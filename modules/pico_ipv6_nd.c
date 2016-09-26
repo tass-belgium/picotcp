@@ -1277,7 +1277,7 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
 static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_router *r;
-    (void)now;
+    IGNORE_PARAMETER(now);
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
     /* intentional fall through */
@@ -1321,7 +1321,7 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ipv6_router *r;
 
-    (void)arg;
+    IGNORE_PARAMETER(arg);
     pico_tree_foreach_safe(index, &RCache, _tmp)
     {
         r = index->keyValue;
@@ -1342,11 +1342,12 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ipv6_neighbor *n;
 
-    (void)arg;
+    IGNORE_PARAMETER(arg);
+
     pico_tree_foreach_safe(index, &NCache, _tmp)
     {
         n = index->keyValue;
-        if ( now > n->expire) {
+        if (now > n->expire) {
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
@@ -1365,8 +1366,8 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
     struct pico_ip6 nm64 = { {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0 } };
     pico_time next_timer_expire = 0u;
 
-    (void)arg;
-    (void)now;
+    IGNORE_PARAMETER(arg);
+    IGNORE_PARAMETER(now);
     pico_tree_foreach(rindex, &IPV6Routes)
     {
         rt = rindex->keyValue;
@@ -1386,7 +1387,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
 static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
-    (void)arg;
+    IGNORE_PARAMETER(arg);
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
       if(pico_ipv6_is_linklocal(link->address.addr) && (link->rs_retries < 3) && (link->rs_expire_time < now)){
