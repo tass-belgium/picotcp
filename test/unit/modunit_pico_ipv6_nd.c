@@ -115,6 +115,38 @@ START_TEST(tc_pico_ipv6_nd_qcompare)
   fail_if(pico_ipv6_nd_qcompare(&a, &b) != -1, "Frame B has different timestamp, not detected?");
 }
 END_TEST
+START_TEST(tc_pico_get_neighbor_from_ncache)
+{
+  struct pico_ipv6_neighbor a = { 0 };
+  struct pico_ipv6_neighbor b = { 0 };
+  struct pico_ip6 a_addr = { 0 };
+  struct pico_ip6 b_addr = { 0 };
+  struct pico_ip6 c_addr = { 0 };
+
+  /* Init */
+  a.address = a_addr;
+
+  /* neighbor not in neighbour cache */
+  fail_if(pico_get_neighbor_from_ncache(&a_addr) != NULL, "Neighbor not registered yet but still found?");
+
+  /* Neighbor in neighbour cache*/
+  pico_tree_insert(&NCache, &a);
+  fail_if(pico_get_neighbor_from_ncache(&a_addr) != &a, "Neighbor registered in ncache but NOT found?");
+
+  /* Look for different neighbour */
+  b_addr.addr[0] = 1;
+  b.address = b_addr;
+  fail_if(pico_get_neighbor_from_ncache(&b_addr) != NULL, "Neighbor not registered in ncache but found?");
+
+  /* Insert other neigbhour */
+  pico_tree_insert(&NCache, &b);
+  fail_if(pico_get_neighbor_from_ncache(&b_addr) != &b, "Neighbor registered in ncache but NOT found?");
+
+  /* Look for different neighbour when multiple neighbours in neigbhour cache*/
+  c_addr.addr[0] = 2;
+  fail_if(pico_get_neighbor_from_ncache(&c_addr) != NULL, "Neighbor not registered in ncache but found?");
+}
+END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router)
 {
    /* TODO: test this: static void pico_ipv6_assign_default_router(int is_default) */
@@ -357,6 +389,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_neighbor_compare = tcase_create("Unit test for pico_ipv6_neighbor_compare");
     TCase *TCase_pico_ipv6_router_compare = tcase_create("Unit test for pico_ipv6_router_compare");
     TCase *TCase_pico_ipv6_nd_qcompare = tcase_create("Unit test for pico_ipv6_nd_qcompare");
+    TCase *TCase_pico_get_neighbor_from_ncache = tcase_create("Unit test for pico_get_neighbor_from_ncache");
     TCase *TCase_pico_ipv6_assign_default_router = tcase_create("Unit test for pico_ipv6_assign_default_router");
     TCase *TCase_pico_ipv6_router_add_link = tcase_create("Unit test for pico_ipv6_router_add_link");
     TCase *TCase_pico_ipv6_nd_queued_trigger = tcase_create("Unit test for pico_ipv6_nd_queued_trigger");
@@ -405,6 +438,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_neighbor_compare);
     tcase_add_test(TCase_pico_ipv6_router_compare, tc_pico_ipv6_router_compare);
     suite_add_tcase(s, TCase_pico_ipv6_router_compare);
+    tcase_add_test(TCase_pico_get_neighbor_from_ncache, tc_pico_get_neighbor_from_ncache);
+    suite_add_tcase(s, TCase_pico_get_neighbor_from_ncache);
     tcase_add_test(TCase_pico_ipv6_nd_qcompare, tc_pico_ipv6_nd_qcompare);
     suite_add_tcase(s, TCase_pico_ipv6_nd_qcompare);
     tcase_add_test(TCase_pico_ipv6_assign_default_router, tc_pico_ipv6_assign_default_router);
