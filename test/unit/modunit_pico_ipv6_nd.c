@@ -15,17 +15,104 @@
 
 START_TEST(tc_pico_ipv6_neighbor_compare)
 {
-   /* TODO: test this: static int pico_ipv6_neighbor_compare(void *ka, void *kb) */
+  struct pico_ipv6_neighbor a = { 0 }, b = { 0 };
+  struct pico_ip6 address_a = { 0 }, address_b = { 0 };
+
+  /* Same addresses */
+  a.address = address_a;
+  b.address = address_b;
+  fail_if(pico_ipv6_neighbor_compare(&a, &b) != 0, "Neighbours A and B have same ipv6 addr, not true?");
+
+  /* a has different addres */
+  a.address.addr[0] = 1;
+  fail_if(pico_ipv6_neighbor_compare(&a, &b) != 1, "Neighbour A has different ipv6 addr, not detected?");
+
+  /* Reset */
+  a.address = address_a;
+  b.address = address_b;
+
+  /* b has different addres */
+  b.address.addr[0] = 1;
+  fail_if(pico_ipv6_neighbor_compare(&a, &b) != -1, "Neighbour B has different ipv6 addr, not detected?");
 }
 END_TEST
 START_TEST(tc_pico_ipv6_router_compare)
 {
-   /* TODO: test this: static int pico_ipv6_router_compare(void *ka, void *kb) */
+  struct pico_ipv6_router a = { 0 }, b = { 0 };
+  struct pico_ipv6_neighbor neighbor_a = { 0 }, neighbor_b = { 0 };
+  struct pico_ip6 address_a = { 0 }, address_b = { 0 };
+
+  /* Same addresses */
+  neighbor_a.address = address_a;
+  neighbor_b.address = address_b;
+  a.router = &neighbor_a;
+  b.router = &neighbor_b;
+  fail_if(pico_ipv6_router_compare(&a, &b) != 0, "Routers A and B have same ipv6 addr, not true?");
+
+  /* a has different addres */
+  neighbor_a.address.addr[0] = 1;
+  fail_if(pico_ipv6_router_compare(&a, &b) != 1, "Router A has different ipv6 addr, not detected?");
+
+  /* Reset */
+  neighbor_a.address = address_a;
+  neighbor_b.address = address_b;
+
+  /* b has different addres */
+  neighbor_b.address.addr[0] = 1;
+  fail_if(pico_ipv6_router_compare(&a, &b) != -1, "Router B has different ipv6 addr, not detected?");
 }
 END_TEST
 START_TEST(tc_pico_ipv6_nd_qcompare)
 {
-   /* TODO: test this: static int pico_ipv6_nd_qcompare(void *ka, void *kb){ */
+  /* TODO: test this: static int pico_ipv6_nd_qcompare(void *ka, void *kb){ */
+  struct pico_frame a = { 0 }, b = { 0 };
+  struct pico_ipv6_hdr a_hdr = { 0 }, b_hdr =  { 0 };
+  struct pico_ip6 a_dest_addr = { 0 }, b_dest_addr = { 0 };
+
+  /* Same packets */
+  a_hdr.dst = a_dest_addr;
+  b_hdr.dst = b_dest_addr;
+
+  a.net_hdr = (uint8_t *)&a_hdr;
+  b.net_hdr = (uint8_t *)&b_hdr;
+
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != 0, "Frames A and B have same ipv6 addr, not true?");
+
+  /* a has different addres */
+  a_hdr.dst.addr[0] = 1;
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != 1, "Frame A has different ipv6 addr, not detected?");
+
+  /* Reset */
+  a_hdr.dst = a_dest_addr;
+  b_hdr.dst = b_dest_addr;
+
+  /* b has different addres */
+  b_hdr.dst.addr[0] = 1;
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != -1, "Frame B has different ipv6 addr, not detected?");
+
+  /* Reset */
+  a_hdr.dst = a_dest_addr;
+  b_hdr.dst = b_dest_addr;
+
+  /* ------------------------------------------ */
+  /* Timestamps */
+  /* Same timestamp */
+  a.timestamp = 0;
+  b.timestamp = 0;
+
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != 0, "Frames A and B have same timestamp, not true?");
+
+  /* a has different timestamp */
+  a.timestamp = 1;
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != 1, "Frame A has different timestamp, not detected?");
+
+  /* Reset */
+  a.timestamp = 0;
+  b.timestamp = 0;
+
+  /* b has different timestamp */
+  b.timestamp = 1;
+  fail_if(pico_ipv6_nd_qcompare(&a, &b) != -1, "Frame B has different timestamp, not detected?");
 }
 END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router)
