@@ -100,8 +100,8 @@ static int pico_ipv6_nd_qcompare(void *ka, void *kb){
     }
     return 0;
 }
-PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 
+static PICO_TREE_DECLARE(IPV6NQueue, pico_ipv6_nd_qcompare);
 static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 static PICO_TREE_DECLARE(RCache, pico_ipv6_router_compare);
 
