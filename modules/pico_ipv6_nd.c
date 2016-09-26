@@ -80,8 +80,8 @@ static int pico_ipv6_nd_qcompare(void *ka, void *kb){
     struct pico_ip6 *a_dest_addr, *b_dest_addr;
     int ret;
 
-    a_hdr = (struct pico_ipv6_hdr *)a;
-    b_hdr = (struct pico_ipv6_hdr *)b;
+    a_hdr = (struct pico_ipv6_hdr *)a->net_hdr;
+    b_hdr = (struct pico_ipv6_hdr *)b->net_hdr;
 
     a_dest_addr = &a_hdr->dst;
     b_dest_addr = &b_hdr->dst;
@@ -1435,7 +1435,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 
     if(n && n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
         pico_tree_insert(&IPV6NQueue, cp);
-       n->frames_queued++;
+        n->frames_queued++;
     }
     else{
         struct pico_tree_node *index = NULL;
