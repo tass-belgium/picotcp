@@ -57,11 +57,6 @@ struct pico_ipv6_router {
     pico_time invalidation;
 };
 
-struct pico_ipv6_prefix {
-    struct pico_ip6 prefix;
-    pico_time invalidation;
-};
-
 static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
