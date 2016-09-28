@@ -34,10 +34,10 @@
     #define dbg_win32    dbg    /* second level detailed win32 debug */
     #define dbg_reg      dbg    /* third level: registry debug */
 #else
-    #define dbg_tap_info(...)
-    #define dbg_tap(...)
-    #define dbg_win32(...)
-    #define dbg_reg(...)
+    #define dbg_tap_info(...)  do{} while(0)
+    #define dbg_tap(...)       do{} while(0)
+    #define dbg_win32(...)     do{} while(0)
+    #define dbg_reg(...)       do{} while(0)
 #endif
 
 /*
