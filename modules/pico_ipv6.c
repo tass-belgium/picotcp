@@ -43,7 +43,7 @@
 
 #ifdef PICO_SUPPORT_MCAST
 
-#ifdef DEBUG_IGMP
+#ifdef DEBUG_MCAST
 #define ipv6_mcast_dbg dbg
 #else
 #define ipv6_mcast_dbg do { } while(0)
