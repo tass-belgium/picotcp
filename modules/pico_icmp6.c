@@ -622,7 +622,12 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
             memcpy(new, cookie, sizeof(struct pico_icmp6_ping_cookie));
             new->seq++;
 
-            pico_tree_insert(&IPV6Pings, new);
+            if (pico_tree_insert(&IPV6Pings, new)) {
+                dbg("ICMP6: Failed to insert new cookie in tree\n");
+				PICO_FREE(new);
+				return;
+			}
+
             pico_icmp6_send_ping(new);
         }
     }
@@ -692,7 +697,12 @@ int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, v
     cookie->count = count;
     cookie->dev = dev;
 
-    pico_tree_insert(&IPV6Pings, cookie);
+    if (pico_tree_insert(&IPV6Pings, cookie)) {
+        dbg("ICMP6: Failed to insert cookie in tree\n");
+        PICO_FREE(cookie);
+		return -1;
+	}
+
     pico_icmp6_send_ping(cookie);
     return (int)cookie->id;
 }

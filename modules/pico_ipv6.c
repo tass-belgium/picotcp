@@ -1007,7 +1007,11 @@ static int mcast_group_update_ipv6(struct pico_mcast_group *g, struct pico_tree 
                 }
 
                 *source = *((struct pico_ip6 *)index->keyValue);
-                pico_tree_insert(&g->MCASTSources, source);
+                if (pico_tree_insert(&g->MCASTSources, source)) {
+                    ipv6_mcast_dbg("IPv6 MCAST: Failed to insert source in tree\n");
+                    PICO_FREE(source);
+					return -1;
+				}
             }
         }
     }
@@ -1053,7 +1057,12 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         g->mcast_addr.ip6 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv6_mcast_sources_cmp;
-        pico_tree_insert(link->MCASTGroups, g);
+        if (pico_tree_insert(link->MCASTGroups, g)) {
+            ipv6_mcast_dbg("IPv6 MCAST: Failed to insert group in tree\n");
+            PICO_FREE(g);
+			return -1;
+		}
+
 #ifdef PICO_SUPPORT_MLD
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_CREATE);
 #endif
@@ -1515,8 +1524,12 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         return -1;
     }
 
+    if (pico_tree_insert(&IPV6Routes, new)) {
+        ipv6_dbg("IPv6: Failed to insert route in tree\n");
+        PICO_FREE(new);
+		return -1;
+	}
 
-    pico_tree_insert(&IPV6Routes, new);
     pico_ipv6_dbg_route();
     return 0;
 }
@@ -1682,7 +1695,14 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
 #endif
 #endif
-    pico_tree_insert(&IPV6Links, new);
+    if (pico_tree_insert(&IPV6Links, new)) {
+        ipv6_dbg("IPv6: Failed to insert link in tree\n");
+#ifdef PICO_SUPPORT_MCAST
+        PICO_FREE(new->MCASTGroups);
+#endif
+        PICO_FREE(new);
+		return NULL;
+	}
     for (i = 0; i < PICO_SIZE_IP6; ++i) {
         network.addr[i] = address.addr[i] & netmask.addr[i];
     }
