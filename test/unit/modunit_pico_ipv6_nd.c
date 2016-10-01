@@ -192,7 +192,48 @@ START_TEST(tc_pico_get_router_from_rcache)
 END_TEST
 START_TEST(tc_pico_nd_get_length_of_options)
 {
-  /* TODO: test this: static int pico_nd_get_length_of_options(struct pico_frame *f, uint8_t **first_option) */
+  struct pico_frame a = { 0 };
+  struct pico_icmp6_hdr a_hdr = { 0 };
+  uint8_t *option = NULL;
+  const int dummy_transport_len = 100;
+
+  /* Init */
+  a.transport_hdr = &a_hdr;
+  a.transport_len = dummy_transport_len;
+
+  a_hdr.type = PICO_ICMP6_ROUTER_SOL;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == dummy_transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE);
+  fail_unless(option == (uint8_t *)&(a_hdr.msg.info.router_sol) + sizeof(struct router_sol_s));
+
+  a_hdr.type = PICO_ICMP6_ROUTER_ADV;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == dummy_transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE);
+  fail_unless(option == (uint8_t *)&(a_hdr.msg.info.router_adv) + sizeof(struct router_adv_s));
+
+  a_hdr.type = PICO_ICMP6_NEIGH_SOL;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == dummy_transport_len - PICO_ICMP6HDR_NEIGH_SOL_SIZE);
+  fail_unless(option == (uint8_t *)&(a_hdr.msg.info.neigh_sol) + sizeof(struct neigh_sol_s));
+
+  a_hdr.type = PICO_ICMP6_NEIGH_ADV;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == dummy_transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE);
+  fail_unless(option == (uint8_t *)&(a_hdr.msg.info.neigh_adv) + sizeof(struct neigh_adv_s));
+
+  a_hdr.type = PICO_ICMP6_REDIRECT;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == dummy_transport_len - PICO_ICMP6HDR_REDIRECT_SIZE);
+  fail_unless(option == (uint8_t *)&(a_hdr.msg.info.redirect) + sizeof(struct redirect_s));
+
+  a_hdr.type = 0;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, &option) == 0);
+  fail_unless(!option);
+
+  /* test if we can just get the length of the options */
+  a_hdr.type = PICO_ICMP6_ROUTER_SOL;
+  a.transport_len = dummy_transport_len;
+  fail_unless(pico_nd_get_length_of_options(&a, NULL) == dummy_transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE);
 }
 END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router)
