@@ -426,16 +426,25 @@ pico_dns_sd_register_service( const char *name,
     pico_dns_sd_kv_vector_erase(txt_data);
 
     if (txt_record) {
-        pico_tree_insert(&rtree, txt_record);
+        if (pico_tree_insert(&rtree, txt_record) == &LEAF) {
+            PICO_MDNS_RTREE_DESTROY(&rtree);
+            pico_mdns_record_delete((void **)&txt_record);
+            return -1;
+        }
     }
 
-    pico_tree_insert(&rtree, srv_record);
+    if (pico_tree_insert(&rtree, srv_record) == &LEAF) {
+        PICO_MDNS_RTREE_DESTROY(&rtree);
+        pico_mdns_record_delete((void **)&srv_record);
+		return -1;
+	}
 
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
     }
 
+    /* Only destroy the tree, not its elements since they still exist in another tree */
     pico_tree_destroy(&rtree, NULL);
     return 0;
 }

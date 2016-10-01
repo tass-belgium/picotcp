@@ -273,7 +273,11 @@ static int pico_arp_add_entry(struct pico_arp *entry)
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
 
-    pico_tree_insert(&arp_tree, entry);
+    if (pico_tree_insert(&arp_tree, entry)) {
+        arp_dbg("ARP: Failed to insert new entry in tree\n");
+        return -1;
+    }
+
     arp_dbg("ARP ## reachable.\n");
     pico_arp_queued_trigger();
     if (!pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry)) {
@@ -333,8 +337,9 @@ static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
             /* Replace if stale */
             pico_tree_delete(&arp_tree, found);
             if (pico_arp_add_entry(found) < 0) {
+                arp_dbg("ARP: Failed to re-instert stale arp entry\n");
                 PICO_FREE(found);
-                return NULL;
+                found = NULL;
             }
         } else {
             /* Update mac address */

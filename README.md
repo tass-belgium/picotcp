@@ -13,7 +13,7 @@ Learn how to use picoTCP in your project by going through the **Getting Started 
 
 For more information visit the [picoTCP website](http://www.picotcp.com), send us an email or contact us on [Twitter](https://twitter.com/picotcp), [Facebook](https://www.facebook.com/picoTCP) or [Reddit](http://www.reddit.com/r/picotcp/).
 
-Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picotcp.com:42506/TIOBEPortal/TICS/treeviewer?)
+Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picotcp.com:42506/tiobeweb/TICS/TqiDashboard.html#axes=Project%28%29&metric=tqi&sel=Project%28PicoTCP_rel%29)
 
 
 ---------------
