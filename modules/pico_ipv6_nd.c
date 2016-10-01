@@ -678,7 +678,11 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         {
           r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
           r->router = n;
-          pico_tree_insert(&RCache, r);
+          if (pico_tree_insert(&RCache, r)) {
+              nd_dbg("Could not insert router in rcache\n");
+              PICO_FREE(r);
+              return;
+          }
         }
         r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
         if(r_adv_hdr->life_time != 0)
@@ -1457,7 +1461,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     n = pico_get_neighbor_from_ncache(dst);
 
     if(n && n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
-        pico_tree_insert(&IPV6NQueue, cp);
+        if (pico_tree_insert(&IPV6NQueue, cp)) {
+            nd_dbg("Could not insert frame in Queued frames tree\n");
+            PICO_FREE(cp);
+            return;
+        }
         n->frames_queued++;
     }
     else{
@@ -1474,7 +1482,12 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             break;
           }
         }
-        pico_tree_insert(&IPV6NQueue,cp);
+
+        if (pico_tree_insert(&IPV6NQueue,cp)) {
+            nd_dbg("Could not insert frame in Queued frames tree after emptying tree\n");
+            PICO_FREE(cp);
+            return;
+        }
     }
 }
 
