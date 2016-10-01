@@ -132,10 +132,10 @@ static struct pico_ipv6_router *pico_get_router_from_rcache(struct pico_ip6 *dst
     return router;
 }
 
-static struct pico_ipv6_router *pico_nd_get_default_router()
+static struct pico_ipv6_router *pico_nd_get_default_router(void)
 {
   struct pico_tree_node *index, *_tmp;
-  struct pico_ipv6_router *router;
+  struct pico_ipv6_router *router = NULL;
 
   pico_tree_foreach_safe(index, &RCache, _tmp)
   {
@@ -145,10 +145,11 @@ static struct pico_ipv6_router *pico_nd_get_default_router()
           break;
       }
   }
+
   return router;
 }
 
-static struct pico_ip6 *pico_nd_get_default_router_addr()
+static struct pico_ip6 *pico_nd_get_default_router_addr(void)
 {
   struct pico_ipv6_neighbor *nd = pico_nd_get_default_router()->router;
   return &nd->address;
@@ -930,6 +931,7 @@ static int redirect_process(struct pico_frame *f)
     struct pico_icmp6_opt_redirect opt_redirect = {0};
     int optres = 0;
 
+    ipv6_hdr  = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     redirect_hdr = &(icmp6_hdr->msg.info.redirect);
 
