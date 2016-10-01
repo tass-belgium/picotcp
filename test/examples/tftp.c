@@ -143,8 +143,12 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         del_note(note);
     }
 
-    if (!clipboard)
-        pico_timer_add(3000, deferred_exit, NULL);
+    if (!clipboard) {
+        if (!pico_timer_add(3000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
+    }
 
     return len;
 }
@@ -194,8 +198,12 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         }
     }
 
-    if (!clipboard)
-        pico_timer_add(3000, deferred_exit, NULL);
+    if (!clipboard) {
+        if (!pico_timer_add(3000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
+    }
 
     return len;
 }

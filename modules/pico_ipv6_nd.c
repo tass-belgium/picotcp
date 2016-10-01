@@ -1073,7 +1073,7 @@ static int radv_process(struct pico_frame *f)
 
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
                 goto ignore_opt_prefix;
             }
 
@@ -1095,6 +1095,7 @@ static int radv_process(struct pico_frame *f)
                     }
                 }
                 pico_ipv6_router_add_link(&hdr->src, link);
+                /* pico_ipv6_route_add(zero, zero, hdr->src, 10, link); */
             }
 
 ignore_opt_prefix:
@@ -1338,7 +1339,10 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
             pico_tree_delete(&RCache, r);
         }
     }
-    pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
+    if (!pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL)) {
+        dbg("IPV6 ND: Failed to start check router lifetime callback timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
@@ -1355,7 +1359,10 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
-    pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
+    if (!pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL)) {
+        dbg("IPV6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 #define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
@@ -1385,13 +1392,17 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
         }
     }
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
-    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
+    if (!pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL)) {
+        dbg("IPv6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
     IGNORE_PARAMETER(arg);
+
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
       if(pico_ipv6_is_linklocal(link->address.addr) && (link->rs_retries < 3) && (link->rs_expire_time < now)){
@@ -1400,7 +1411,11 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
         link->rs_expire_time = PICO_TIME_MS() + 4000;
       }
     }
-    pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL);
+
+    if (!pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL)) {
+        dbg("IPV6 ND: Failed to start check rs timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 /* Public API */
@@ -1496,11 +1511,50 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 
 void pico_ipv6_nd_init(void)
 {
-    pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
-    pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
-    pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
-    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
-    pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL);
+    uint32_t nd_timer_id = 0, ra_timer_id = 0, router_lifetime_id = 0, check_lifetime_id = 0;
+
+    nd_timer_id = pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
+    if (!nd_timer_id) {
+        nd_dbg("IPv6 ND: Failed to start callback timer\n");
+        goto fail_init;
+    }
+
+    ra_timer_id = pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
+    if (!ra_timer_id) {
+        nd_dbg("IPv6 ND: Failed to start RA callback timer\n");
+        goto fail_ra_timer;
+    }
+
+    router_lifetime_id = pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
+    if (!router_lifetime_id)
+    {
+        nd_dbg("IPv6 ND: Failed to start check_router_lifetime timer\n");
+        goto fail_router_lifetime_timer;
+    }
+
+    check_lifetime_id = pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
+    if (!check_lifetime_id) {
+        nd_dbg("IPv6 ND: Failed to start check_lifetime timer\n");
+        goto fail_check_lifetime;
+    }
+
+    if (!pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL)) {
+        nd_dbg("IPv6 ND: Failed to start check_rs_timer_expired timer\n");
+        goto fail_check_rs_timer;
+    }
+
+    return;
+
+fail_check_rs_timer:
+    pico_timer_cancel(check_lifetime_id);
+fail_check_lifetime:
+    pico_timer_cancel(router_lifetime_id);
+fail_router_lifetime_timer:
+    pico_timer_cancel(ra_timer_id);
+fail_ra_timer:
+    pico_timer_cancel(nd_timer_id);
+fail_init:
+    return;
 }
 
 #endif

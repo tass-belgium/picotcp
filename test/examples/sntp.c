@@ -31,7 +31,10 @@ void cb_synced(pico_err_t status)
         printf("SNTP: Socket error\n");
         exit(1);
     } else if (status == PICO_ERR_NOERR) {
-        pico_timer_add(2000, sntp_timeout, NULL);
+        if (!pico_timer_add(2000, sntp_timeout, NULL)) {
+            printf("SNTP: Failed to start timeout timer, exiting program \n");
+            exit(1);
+        }
     } else {
         printf("SNTP: Invalid status received in cb_synced\n");
         exit(1);

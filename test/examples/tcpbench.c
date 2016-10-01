@@ -81,13 +81,20 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         }
 
-        pico_timer_add(5000, deferred_exit, NULL);
+        if (!pico_timer_add(5000, deferred_exit, NULL)) {
+            printf("tcpbench> Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
         printf("tcpbench> ---- Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-        if (pico_err == PICO_ERR_ECONNRESET)
-            pico_timer_add(5000, deferred_exit, NULL);
+        if (!pico_err == PICO_ERR_ECONNRESET) {
+            if (pico_timer_add(5000, deferred_exit, NULL)) {
+                printf("tcpbench> Failed to start exit timer, exiting now\n");
+                exit(1);
+            }
+        }
         else {
             printf("tcpbench> ---- Socket Error: '%s'. Was unexpected! Something went wrong.\n", strerror(pico_err));
             exit(2);

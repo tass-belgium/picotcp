@@ -1,4 +1,10 @@
 #!/bin/bash
+
+if [ "$#" -eq 0 ]; then
+    echo "Supply PREFIX for building pico_defines.h"
+    exit 1
+fi
+
 PREFIX=$1
 shift
 echo "/* PicoTCP - Definition file - DO NOT EDIT */" >$PREFIX/include/pico_defines.h
@@ -7,10 +13,10 @@ echo "#ifndef PICO_DEFINES_H" >>$PREFIX/include/pico_defines.h
 echo "#define PICO_DEFINES_H" >>$PREFIX/include/pico_defines.h
 echo  >>$PREFIX/include/pico_defines.h
 
-for i in $@; do 
+for i in $@; do
     if (echo $i | grep "^-D" |grep PICO_SUPPORT >/dev/null); then
         my_def=`echo $i |sed -e "s/-D//g"`
-        echo "#define $my_def" >> $PREFIX/include/pico_defines.h 
+        echo "#define $my_def" >> $PREFIX/include/pico_defines.h
     fi
 done
 echo "#endif" >>$PREFIX/include/pico_defines.h

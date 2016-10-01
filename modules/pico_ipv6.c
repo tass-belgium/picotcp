@@ -1573,6 +1573,10 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
 
     if (pico_device_link_state(l->dev) == 0) {
         l->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &l->address);
+        if (!l->dad_timer) {
+            dbg("IPv6: Failed to start nd_dad timer\n");
+            /* TODO does this have disastrous consequences? */
+        }
         return;
     }
 
@@ -1601,6 +1605,10 @@ static void pico_ipv6_nd_dad(pico_time now, void *arg)
             /* Duplicate Address Detection */
             pico_icmp6_neighbor_solicitation(l->dev, &l->address, PICO_ICMP6_ND_DAD);
             l->dad_timer = pico_timer_add(PICO_ICMP6_MAX_RTR_SOL_DELAY, pico_ipv6_nd_dad, &l->address);
+            if (!l->dad_timer) {
+                dbg("IPv6: Failed to start nd_dad timer\n");
+                /* TODO does this have disastrous consequences? */
+            }
         }
     }
 }
@@ -1691,6 +1699,11 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
 #ifndef UNIT_TEST
     /* Duplicate Address Detection */
     new->dad_timer = pico_timer_add(100, pico_ipv6_nd_dad, &new->address);
+    if (!new->dad_timer) {
+        dbg("IPv6: Failed to start nd_dad timer\n");
+        pico_ipv6_link_del(dev, address);
+        return NULL;
+    }
 #else
     new->istentative = 0;
 #endif
@@ -1929,7 +1942,10 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             pico_ipv6_link_del(link->dev, link->address);
         }
     }
-    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
+    if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
+        dbg("IPv6: Failed to start check_lifetime timer\n");
+        /* TODO No more link lifetime checking now */
+    }
 }
 
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire)

@@ -110,6 +110,11 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
     struct pico_ipv4_hdr *info;
     uint16_t f_tot_len;
 
+    if (f == NULL) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
     f_tot_len = short_be(((struct pico_ipv4_hdr *)f->net_hdr)->len);
 
     if (f_tot_len < (sizeof(struct pico_ipv4_hdr)))
@@ -118,11 +123,6 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
     /* Truncate tot len to be at most 8 bytes + iphdr */
     if (f_tot_len > (sizeof(struct pico_ipv4_hdr) + 8u)) {
         f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u);
-    }
-
-    if (f == NULL) {
-        pico_err = PICO_ERR_EINVAL;
-        return -1;
     }
 
     reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
@@ -276,11 +276,29 @@ static void ping_timeout(pico_time now, void *arg)
 static void next_ping(pico_time now, void *arg);
 static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
+    uint32_t timeout_timer = 0;
+    struct pico_icmp4_stats stats;
     pico_icmp4_send_echo(cookie);
     cookie->timestamp = pico_tick;
-    pico_timer_add((uint32_t)cookie->timeout, ping_timeout, cookie);
-    if (cookie->seq < (uint16_t)cookie->count)
-        pico_timer_add((uint32_t)cookie->interval, next_ping, cookie);
+    timeout_timer = pico_timer_add((uint32_t)cookie->timeout, ping_timeout, cookie);
+    if (!timeout_timer) {
+        goto fail;
+    }
+    if (cookie->seq < (uint16_t)cookie->count) {
+        if (!pico_timer_add((uint32_t)cookie->interval, next_ping, cookie)) {
+            pico_timer_cancel(timeout_timer);
+            goto fail;
+        }
+    }
+    return;
+
+fail:
+    dbg("ICMP4: Failed to start timer\n");
+    cookie->err = PICO_PING_ERR_ABORTED;
+    stats.err = cookie->err;
+    cookie->cb(&stats);
+    pico_tree_delete(&Pings, cookie);
+    PICO_FREE(cookie);
 }
 
 static void next_ping(pico_time now, void *arg)
