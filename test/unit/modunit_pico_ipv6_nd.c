@@ -190,7 +190,11 @@ START_TEST(tc_pico_get_router_from_rcache)
   fail_if(pico_get_router_from_rcache(&c_addr) != NULL, "Router not registered in rcache and malloc failed, but we don't return NULL?");
 }
 END_TEST
-
+START_TEST(tc_pico_nd_get_length_of_options)
+{
+  /* TODO: test this: static int pico_nd_get_length_of_options(struct pico_frame *f, uint8_t **first_option) */
+}
+END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router)
 {
    /* TODO: test this: static void pico_ipv6_assign_default_router(int is_default) */
@@ -436,6 +440,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_get_neighbor_from_ncache = tcase_create("Unit test for pico_get_neighbor_from_ncache");
     TCase *TCase_pico_get_router_from_rcache = tcase_create("Unit test for pico_get_router_from_rcache");
     TCase *TCase_pico_ipv6_assign_default_router = tcase_create("Unit test for pico_ipv6_assign_default_router");
+    TCase *TCase_pico_nd_get_length_of_options = tcase_create("Unit test for pico_nd_get_length_of_options");
     TCase *TCase_pico_ipv6_router_add_link = tcase_create("Unit test for pico_ipv6_router_add_link");
     TCase *TCase_pico_ipv6_nd_queued_trigger = tcase_create("Unit test for pico_ipv6_nd_queued_trigger");
     TCase *TCase_ipv6_duplicate_detected = tcase_create("Unit test for ipv6_duplicate_detected");
@@ -489,6 +494,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_get_router_from_rcache);
     tcase_add_test(TCase_pico_ipv6_nd_qcompare, tc_pico_ipv6_nd_qcompare);
     suite_add_tcase(s, TCase_pico_ipv6_nd_qcompare);
+    tcase_add_test(TCase_pico_nd_get_length_of_options, tc_pico_nd_get_length_of_options);
+    suite_add_tcase(s, TCase_pico_nd_get_length_of_options);
     tcase_add_test(TCase_pico_ipv6_assign_default_router, tc_pico_ipv6_assign_default_router);
     suite_add_tcase(s, TCase_pico_ipv6_assign_default_router);
     tcase_add_test(TCase_pico_ipv6_router_add_link, tc_pico_ipv6_router_add_link);

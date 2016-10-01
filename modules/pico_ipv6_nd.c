@@ -366,6 +366,50 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
     return pico_nd_get_neighbor(&addr, pico_get_neighbor_from_ncache(&addr), dev);
 }
 
+static int pico_nd_get_length_of_options(struct pico_frame *f, uint8_t **first_option)
+{
+    int optlen = 0;
+    struct pico_icmp6_hdr *icmp6_hdr = NULL;
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+
+    switch (icmp6_hdr->type) {
+    case PICO_ICMP6_ROUTER_SOL:
+        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
+        if (optlen && first_option)
+            *first_option = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
+        break;
+    case PICO_ICMP6_ROUTER_ADV:
+        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
+        if (optlen && first_option)
+            *first_option = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
+        break;
+    case PICO_ICMP6_NEIGH_SOL:
+        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_SOL_SIZE;
+        if (optlen && first_option)
+            *first_option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_sol) + sizeof(struct neigh_sol_s);
+        break;
+    case PICO_ICMP6_NEIGH_ADV:
+        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
+        if (optlen && first_option)
+            *first_option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
+        break;
+    case PICO_ICMP6_REDIRECT:
+        optlen = f->transport_len - PICO_ICMP6HDR_REDIRECT_SIZE;
+        if (optlen && first_option)
+            *first_option = ((uint8_t *)&icmp6_hdr->msg.info.redirect) + sizeof(struct redirect_s);
+        break;
+    default:
+        optlen = 0;
+        nd_dbg("No valid option received for options processing\n");
+    }
+
+    if (!optlen && first_option)
+        *first_option = NULL;
+
+    return optlen;
+}
+
 static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
 {
     /* RFC 4861 $7.1.2 + $7.2.5.
@@ -376,43 +420,11 @@ static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
      *  */
     int optlen = 0;
     uint8_t *option = NULL;
-    struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    int len;
-    uint8_t type;
+    int len = 0;
+    uint8_t type = 0;
     int found = 0;
 
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-
-    switch (icmp6_hdr->type) {
-    case PICO_ICMP6_ROUTER_SOL:
-        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_SOL_SIZE;
-        if (optlen)
-            option = ((uint8_t *)&icmp6_hdr->msg.info.router_sol) + sizeof(struct router_sol_s);
-        break;
-    case PICO_ICMP6_ROUTER_ADV:
-        optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
-        if (optlen)
-            option = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
-        break;
-    case PICO_ICMP6_NEIGH_SOL:
-        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_SOL_SIZE;
-        if (optlen)
-            option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_sol) + sizeof(struct neigh_sol_s);
-        break;
-    case PICO_ICMP6_NEIGH_ADV:
-        optlen = f->transport_len - PICO_ICMP6HDR_NEIGH_ADV_SIZE;
-        if (optlen)
-            option = ((uint8_t *)&icmp6_hdr->msg.info.neigh_adv) + sizeof(struct neigh_adv_s);
-        break;
-    case PICO_ICMP6_REDIRECT:
-        optlen = f->transport_len - PICO_ICMP6HDR_REDIRECT_SIZE;
-        if (optlen)
-            option = ((uint8_t *)&icmp6_hdr->msg.info.redirect) + sizeof(struct redirect_s);
-        break;
-    default:
-        nd_dbg("No valid option received for options processing\n");
-        return -1;
-    }
+    optlen = pico_nd_get_length_of_options(f, &option);
 
     while (optlen > 0) {
         type = ((struct pico_icmp6_opt_na *)option)->type;
@@ -910,7 +922,6 @@ static int neigh_adv_checks(struct pico_frame *f)
 
     return neigh_adv_validity_checks(f);
 }
-
 
 static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
