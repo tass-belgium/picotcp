@@ -15,6 +15,8 @@ Suite *pico_suite(void);
 START_TEST(tc_pico_dns_client_callback)
 {
     struct pico_socket *s = pico_udp_open();
+    s->proto = &pico_proto_udp;
+
     fail_if(!s);
 
     /* Test with ERR */
