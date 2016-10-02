@@ -3,6 +3,8 @@
 #include "stack/pico_protocol.c"
 #include "check.h"
 
+Suite *pico_suite(void);
+
 volatile pico_err_t pico_err = 0;
 
 static int protocol_passby = 0;
@@ -157,10 +159,14 @@ START_TEST(tc_pico_protocol_generic_loop)
     struct pico_proto_rr rr = {
         0
     };
-    int ret;
+    int ret = 0;
+
     rr.node_in = &NODE_IN;
     rr.node_out = &NODE_OUT;
     ret = pico_protocol_generic_loop(&rr, 0, PICO_LOOP_DIR_IN);
+
+    fail_if(ret != 0);
+
     pico_protocols_loop(0);
 }
 END_TEST

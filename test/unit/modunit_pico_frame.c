@@ -6,8 +6,9 @@
 
 volatile pico_err_t pico_err;
 
-
 #define FRAME_SIZE 1000
+
+Suite *pico_suite(void);
 
 START_TEST(tc_pico_frame_alloc_discard)
 {
