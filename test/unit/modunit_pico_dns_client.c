@@ -6,9 +6,11 @@
 #include "pico_ipv6.h"
 #include "pico_dns_client.h"
 #include "pico_tree.h"
+#include "pico_udp.h"
 #include "modules/pico_dns_client.c"
 #include "check.h"
 
+Suite *pico_suite(void);
 
 START_TEST(tc_pico_dns_client_callback)
 {
@@ -16,10 +18,10 @@ START_TEST(tc_pico_dns_client_callback)
     fail_if(!s);
 
     /* Test with ERR */
-    pico_dns_client_callback(s, PICO_SOCK_EV_ERR);
+    pico_dns_client_callback(PICO_SOCK_EV_ERR, s);
 
     /* Test with failing RD */
-    pico_dns_client_callback(s, PICO_SOCK_EV_RD);
+    pico_dns_client_callback(PICO_SOCK_EV_RD, s);
 
 }
 END_TEST
