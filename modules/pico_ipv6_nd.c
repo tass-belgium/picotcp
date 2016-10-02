@@ -615,8 +615,6 @@ static int neigh_adv_process(struct pico_frame *f)
 
 }
 
-
-
 static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *n = NULL;
@@ -959,24 +957,51 @@ static int redirect_process(struct pico_frame *f)
         return -1;
     }
 
+    /* If NBMA link, this has to be included but currently NBMA is (will?) not be supported by picoTCP */
     if (optres_lladdr) {
-        /* If NBMA link, this has to be included but currently NBMA is (will?) not be supported by picoTCP */
+        /* RFC 4861 $8.3
+         *  * If a neighbor cache entry is created for the target,
+         *  * its reachability state MUST be set to STALE
+         *  * If a cache entry already existed and it is updated with a different ll addr,
+         *  * its reachability state MUST also be set to STALE.
+         *  * If the ll addr is the same as that already in cache,
+         *  * the cache entry's state remains unchanged
+         *  */
         struct pico_ipv6_neighbor *target_neighbor = NULL;
 
         target_neighbor = pico_get_neighbor_from_ncache(&redirect_hdr->target);
-        if (pico_nd_get_neighbor(&redirect_hdr->target, target_neighbor, f->dev)) {
-            pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
+        if (target_neighbor) {
+            /* Neighbor is already known */
+            if (memcmp(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH) != 0) {
+                /* ll addr is NOT same as that already in cache */
+                memcpy(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH);
+                target_neighbor->state = PICO_ND_STATE_STALE;
+            } else {
+                /* ll addr is the same as that already in cache */
+                //DO NOTHING
+            }
         } else {
-            /* Neighbor not known yet */
-            /* Should be added to NCache by now, if nothing went wrong (no memory, ...) */
-            target_neighbor = pico_get_neighbor_from_ncache(&redirect_hdr->target);
+            /* Neighbor is NOT known */
+            target_neighbor = pico_nd_add(&redirect_hdr->target, f->dev);
 
             if (target_neighbor) {
-                pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
+                memcpy(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH);
+                target_neighbor->state = PICO_ND_STATE_STALE;
+                /* TODO:
+                 * pico_nd_discover here?
+                 * or let pico_ipv6_get_neighbor -> pico_nd_get -> pico_nd_get_neighbor
+                 * -> pico_nd_discover take care of it when we actually need the neighbor?*/
             } else {
-                nd_dbg("Redirect neighbor is not in ncache, should have been in. Memory problem?\n");
+                nd_dbg("Redirect: could not add neighbor, aborting route update\n");
+                return -1;
             }
         }
+    } else {
+        /* No ll addr option, we have to find out ourselves */
+        /* TODO:
+         * pico_nd_discover here?
+         * or let pico_ipv6_get_neighbor -> pico_nd_get -> pico_nd_get_neighbor
+         * -> pico_nd_discover take care of it when we actually need the neighbor?*/
     }
 
     /* TODO process opt_redirect
