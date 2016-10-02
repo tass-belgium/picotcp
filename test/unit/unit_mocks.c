@@ -1,5 +1,9 @@
 #define BUFLEN (576 + 14 + 20 + 8)
 
+int mock_print_protocol(uint8_t *buf);
+int printbuf(uint8_t *buf, uint32_t len, const char *str, uint8_t printbufactive);
+int tick_it(uint32_t nticks);
+
 int mock_print_protocol(uint8_t *buf)
 {
     uint8_t pnr = buf[0x17]; /* protocol number */
@@ -14,7 +18,7 @@ int mock_print_protocol(uint8_t *buf)
     return 0;
 }
 
-int printbuf(uint8_t *buf, uint32_t len, char *str, uint8_t printbufactive)
+int printbuf(uint8_t *buf, uint32_t len, const char *str, uint8_t printbufactive)
 {
     uint8_t printMethod = 0;
     uint32_t cntr = 0;
