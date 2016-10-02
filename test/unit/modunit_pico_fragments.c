@@ -986,7 +986,7 @@ START_TEST(tc_pico_ipv6_process_frag)
     /* NULL frame provided */
     ipv6_cur_frag_id = 0;
     timer_add_called = 0;
-    pico_ipv4_process_frag(hdr, a, TESTPROTO);
+    pico_ipv6_process_frag(hdr, a, TESTPROTO);
     fail_if(ipv6_cur_frag_id != 0);
     fail_if(timer_add_called != 0);
 
