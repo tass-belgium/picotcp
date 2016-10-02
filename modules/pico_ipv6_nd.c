@@ -349,7 +349,6 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
         pico_nd_discover(n);
 
     return &n->mac;
-
 }
 
 static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device *dev)
@@ -738,13 +737,14 @@ static int neigh_sol_process(struct pico_frame *f)
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
     valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
+
+    if (valid_lladdr < 0)
+        return -1; /* Malformed packet. */
+
     pico_ipv6_neighbor_from_unsolicited(f);
 
     if ((valid_lladdr == 0) && (neigh_sol_detect_dad(f) == 0))
         return 0;
-
-    if (valid_lladdr < 0)
-        return -1; /* Malformed packet. */
 
     link = pico_ipv6_link_get(&icmp6_hdr->msg.info.neigh_adv.target);
     if (!link) { /* Not for us. */
@@ -944,11 +944,44 @@ static int redirect_process(struct pico_frame *f)
     struct pico_ip6 zero = {{0}};
     struct pico_icmp6_opt_lladdr opt_ll = {0};
     struct pico_icmp6_opt_redirect opt_redirect = {0};
-    int optres = 0;
+    int optres_lladdr = 0, optres_redirect = 0;
 
     ipv6_hdr  = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     redirect_hdr = &(icmp6_hdr->msg.info.redirect);
+
+    /* Check the options */
+    optres_lladdr   = neigh_options(f, &opt_ll, PICO_ND_OPT_LLADDR_TGT);
+    optres_redirect = neigh_options(f, &opt_redirect, PICO_ND_OPT_REDIRECT);
+
+    if (optres_lladdr < 0 || optres_redirect < 0) {
+        /* Malformed packet */
+        return -1;
+    }
+
+    if (optres_lladdr) {
+        /* If NBMA link, this has to be included but currently NBMA is (will?) not be supported by picoTCP */
+        struct pico_ipv6_neighbor *target_neighbor = NULL;
+
+        target_neighbor = pico_get_neighbor_from_ncache(&redirect_hdr->target);
+        if (pico_nd_get_neighbor(&redirect_hdr->target, target_neighbor, f->dev)) {
+            pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
+        } else {
+            /* Neighbor not known yet */
+            /* Should be added to NCache by now, if nothing went wrong (no memory, ...) */
+            target_neighbor = pico_get_neighbor_from_ncache(&redirect_hdr->target);
+
+            if (target_neighbor) {
+                pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
+            } else {
+                nd_dbg("Redirect neighbor is not in ncache, should have been in. Memory problem?\n");
+            }
+        }
+    }
+
+    /* TODO process opt_redirect
+     * Currently no use was seen in processing opt_redirect
+     */
 
     /* Get our link using our ipv6 addr from the ipv6 hdr */
     link = pico_ipv6_link_get(&ipv6_hdr->dst);
@@ -956,10 +989,9 @@ static int redirect_process(struct pico_frame *f)
     /* Get our current gateway to the dst addr */
     gateway = pico_ipv6_route_get_gateway(&redirect_hdr->dest);
 
-    /* Is the gateway zero-address? */
-    if (memcmp(&gateway, &zero, PICO_SIZE_IP6) == 0)
-    {
 #ifdef DEBUG_IPV6_ND
+    /* Is the gateway zero-address? */
+    if (memcmp(&gateway, &zero, PICO_SIZE_IP6) == 0) {
         char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
         if (!ipv6_addr) {
             dbg("Could not allocate ipv6 string for gateway debug\n");
@@ -968,8 +1000,8 @@ static int redirect_process(struct pico_frame *f)
             dbg("Zero gateway from route with ip addr: %s", ipv6_addr);
             PICO_FREE(ipv6_addr);
         }
-#endif
     }
+#endif
 
     /* remove old route to dest */
     if (pico_ipv6_route_del(redirect_hdr->dest, zero, gateway, DEFAULT_METRIC, link) != 0) {
@@ -997,28 +1029,6 @@ static int redirect_process(struct pico_frame *f)
             PICO_FREE(ipv6_addr);
         }
 #endif
-    }
-
-    /* Process the options */
-    optres = neigh_options(f, &opt_ll, PICO_ND_OPT_LLADDR_TGT);
-
-    if (optres < 0) {
-        /* Malformed packet */
-        return -1;
-    } else {
-        /* TODO: check if we are NBMA link
-         * if so, the LLADDR_TGT MUST be included
-         * if not, the LLADDR_TGT should be included
-         */
-    }
-
-    optres = neigh_options(f, &opt_redirect, PICO_ND_OPT_REDIRECT);
-
-    if (optres < 0) {
-        /* Malformed packet */
-        return -1;
-    } else {
-        /* TODO:  */
     }
 
     return 0;
