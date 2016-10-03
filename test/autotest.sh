@@ -5,7 +5,7 @@ TFTP_WORK_DIR="${TFTP_EXEC_DIR}/tmp"
 TFTP_WORK_SUBDIR="${TFTP_WORK_DIR}/subdir"
 TFTP_WORK_FILE="test.img"
 
-#set -e
+
 
 function tftp_setup() {
     dd if=/dev/urandom bs=1000 count=10 of=${1}/$TFTP_WORK_FILE
