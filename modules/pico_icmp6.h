@@ -96,7 +96,6 @@
 
 #define PICO_ICMP6_MAX_RTR_SOL_DELAY   1000
 
-#define PICO_SIZE_ICMP6HDR ((sizeof(struct pico_icmp6_hdr)))
 #define PICO_ICMP6_OPT_LLADDR_SIZE (8)
 
 extern struct pico_protocol pico_proto_icmp6;
@@ -156,16 +155,16 @@ PACKED_STRUCT_DEF pico_icmp6_hdr {
                 struct pico_ip6 target;
                 struct pico_ip6 dest;
             } redirect;
-            PEDANTIC_STRUCT_DEF mld_s { 
+            PEDANTIC_STRUCT_DEF mld_s {
                 uint16_t max_resp_time;
                 uint16_t reserved;
                 struct pico_ip6 mmcast_group;
                 /*MLDv2*/
-                uint8_t reserverd; // With S and QRV
+                uint8_t reserverd; /* With S and QRV */
                 uint8_t QQIC;
                 uint16_t nbr_src;
-                struct pico_ip6 src[0];
-            } mld;          
+                struct pico_ip6 src[1];
+            } mld;
         } info;
     } msg;
 };

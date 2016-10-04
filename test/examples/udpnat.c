@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
 /*** START UDP NAT CLIENT ***/
@@ -26,7 +27,10 @@ void udpnatclient_send(pico_time __attribute__((unused)) now, void *arg)
 
             printf("End!\n");
         }
-        pico_timer_add(1000, deferred_exit, NULL);
+        if (!pico_timer_add(1000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
         return;
     }
 }
@@ -76,8 +80,15 @@ void udpnatclient_open_socket(pico_time __attribute__((unused)) now, void __attr
 
     picoapp_dbg("New socket with port %u\n", s->local_port);
 
-    pico_timer_add(25, udpnatclient_send, s);
-    pico_timer_add(25, udpnatclient_open_socket, 0);
+    if (!pico_timer_add(25, udpnatclient_send, s)) {
+        printf("Failed to start send timer, exiting now\n");
+        exit(1);
+    }
+
+    if (!pico_timer_add(25, udpnatclient_open_socket, 0)) {
+        printf("Failed to start open_socket timer, exiting now\n");
+        exit(1);
+    }
 }
 
 void app_udpnatclient(char *arg)
@@ -127,7 +138,14 @@ void app_udpnatclient(char *arg)
     udpnatclient_inaddr_dst = inaddr_dst;
     udpnatclient_port_be = port_be;
 
-    pico_timer_add(100, udpnatclient_send, s);
-    pico_timer_add(1000, udpnatclient_open_socket, 0);
+    if (!pico_timer_add(100, udpnatclient_send, s)) {
+        printf("Failed to start send timer, exiting now\n");
+        exit(1);
+    }
+
+    if (!pico_timer_add(1000, udpnatclient_open_socket, 0)) {
+        printf("Failed to start open_socket timer, exiting now\n");
+        exit(1);
+    }
 }
 /*** END UDP NAT CLIENT ***/

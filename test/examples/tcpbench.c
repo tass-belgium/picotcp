@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 /*** START TCP BENCH ***/
 #define TCP_BENCH_TX  1
@@ -78,13 +80,21 @@ void cb_tcpbench(uint16_t ev, struct pico_socket *s)
             pico_socket_shutdown(s, PICO_SHUT_WR);
             printf("tcpbench> Called shutdown write, ev = %d\n", ev);
         }
-        pico_timer_add(5000, deferred_exit, NULL);
+
+        if (!pico_timer_add(5000, deferred_exit, NULL)) {
+            printf("tcpbench> Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
         printf("tcpbench> ---- Socket Error received: %s. Bailing out.\n", strerror(pico_err));
-        if (pico_err == PICO_ERR_ECONNRESET)
-            pico_timer_add(5000, deferred_exit, NULL);
+        if (!pico_err == PICO_ERR_ECONNRESET) {
+            if (pico_timer_add(5000, deferred_exit, NULL)) {
+                printf("tcpbench> Failed to start exit timer, exiting now\n");
+                exit(1);
+            }
+        }
         else {
             printf("tcpbench> ---- Socket Error: '%s'. Was unexpected! Something went wrong.\n", strerror(pico_err));
             exit(2);
@@ -294,13 +304,16 @@ void app_tcpbench(char *arg)
 
     /* free strdups */
     if (dport)
-      free(dport);
+        free(dport);
+
     if (dest)
-      free (dest);
+        free (dest);
+
     if (mode)
-      free (mode);
+        free (mode);
+
     if (nagle)
-      free (nagle);
+        free (nagle);
 
     return;
 }

@@ -16,7 +16,7 @@
 #include "pico_tree.h"
 #include "pico_socket.h"
 #include "pico_mld.h"
-#define icmp6_dbg(...) do { }while(0); 
+#define icmp6_dbg(...) do { } while(0)
 
 static struct pico_queue icmp6_in;
 static struct pico_queue icmp6_out;
@@ -24,10 +24,10 @@ static struct pico_queue icmp6_out;
 uint16_t pico_icmp6_checksum(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
-    
+
     struct pico_icmp6_hdr *icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     struct pico_ipv6_pseudo_hdr pseudo;
-   
+
     pseudo.src = ipv6_hdr->src;
     pseudo.dst = ipv6_hdr->dst;
     pseudo.len = long_be(f->transport_len);
@@ -105,13 +105,13 @@ static int pico_icmp6_process_in(struct pico_protocol *self, struct pico_frame *
 #endif
         pico_frame_discard(f);
         break;
-#ifdef PICO_SUPPORT_MCAST
+#if defined(PICO_SUPPORT_MCAST) && defined(PICO_SUPPORT_MLD)
     case PICO_MLD_QUERY:
     case PICO_MLD_REPORT:
     case PICO_MLD_DONE:
     case PICO_MLD_REPORTV2:
         pico_mld_process_in(f);
-        break;        
+        break;
 #endif
     default:
         return pico_ipv6_nd_recv(f); /* CAUTION -- Implies: pico_frame_discard in any case, keep in the default! */
@@ -513,7 +513,7 @@ static int icmp6_cookie_compare(void *ka, void *kb)
 
     return (a->seq - b->seq);
 }
-PICO_TREE_DECLARE(IPV6Pings, icmp6_cookie_compare);
+static PICO_TREE_DECLARE(IPV6Pings, icmp6_cookie_compare);
 
 static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
 {
@@ -573,10 +573,27 @@ static void pico_icmp6_ping_timeout(pico_time now, void *arg)
 static void pico_icmp6_next_ping(pico_time now, void *arg);
 static inline void pico_icmp6_send_ping(struct pico_icmp6_ping_cookie *cookie)
 {
+    uint32_t interval_timer = 0;
+    struct pico_icmp6_stats stats;
     pico_icmp6_send_echo(cookie);
     cookie->timestamp = pico_tick;
-    pico_timer_add((pico_time)(cookie->interval), pico_icmp6_next_ping, cookie);
-    pico_timer_add((pico_time)(cookie->timeout), pico_icmp6_ping_timeout, cookie);
+    interval_timer = pico_timer_add((pico_time)(cookie->interval), pico_icmp6_next_ping, cookie);
+    if (!interval_timer) {
+        goto fail;
+    }
+    if (!pico_timer_add((pico_time)(cookie->timeout), pico_icmp6_ping_timeout, cookie)) {
+        pico_timer_cancel(interval_timer);
+        goto fail;
+    }
+    return;
+
+fail:
+    dbg("ICMP6: Failed to start timer\n");
+    cookie->err = PICO_PING6_ERR_ABORTED;
+    stats.err = cookie->err;
+    cookie->cb(&stats);
+    pico_tree_delete(&IPV6Pings, cookie);
+    PICO_FREE(cookie);
 }
 
 static void pico_icmp6_next_ping(pico_time now, void *arg)
@@ -600,7 +617,12 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
             memcpy(new, cookie, sizeof(struct pico_icmp6_ping_cookie));
             new->seq++;
 
-            pico_tree_insert(&IPV6Pings, new);
+            if (pico_tree_insert(&IPV6Pings, new)) {
+                dbg("ICMP6: Failed to insert new cookie in tree\n");
+				PICO_FREE(new);
+				return;
+			}
+
             pico_icmp6_send_ping(new);
         }
     }
@@ -670,7 +692,12 @@ int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, v
     cookie->count = count;
     cookie->dev = dev;
 
-    pico_tree_insert(&IPV6Pings, cookie);
+    if (pico_tree_insert(&IPV6Pings, cookie)) {
+        dbg("ICMP6: Failed to insert cookie in tree\n");
+        PICO_FREE(cookie);
+		return -1;
+	}
+
     pico_icmp6_send_ping(cookie);
     return (int)cookie->id;
 }

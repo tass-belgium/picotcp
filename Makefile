@@ -21,6 +21,7 @@ RTOS?=0
 GENERIC?=0
 PTHREAD?=0
 ADDRESS_SANITIZER?=1
+GCOV?=0
 
 # Default compiled-in protocols
 #
@@ -53,6 +54,7 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+IPC?=0
 CYASSL?=0
 WOLFSSL?=0
 POLARSSL?=0
@@ -63,13 +65,16 @@ IPV6?=1
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -Wall -Wdeclaration-after-statement -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wunused-variable -Wundef -Wunused-function $(EXTRA_CFLAGS)
-# extra flags recommanded by TIOBE TICS framework to score an A on compiler warnings
-CFLAGS+= -Wconversion
-# request from Toon
-CFLAGS+= -Wcast-align
-CFLAGS+= -Wmissing-prototypes
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules  $(EXTRA_CFLAGS)
+# options for adding warnings
+CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
+CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes
+# options for supressing warnings
 CFLAGS+= -Wno-missing-field-initializers
+
+ifeq ($(CC),clang)
+CFLAGS+= -Wunreachable-code-break -Wpointer-bool-conversion -Wmissing-variable-declarations
+endif
 
 ifeq ($(DEBUG),1)
   CFLAGS+=-ggdb
@@ -124,12 +129,21 @@ ifeq ($(ARCH),cortexm3)
   CFLAGS+=-DCORTEX_M3 -mcpu=cortex-m3 -mthumb -mlittle-endian -mthumb-interwork
 endif
 
+ifeq ($(ARCH),cortexm0plus)
+  CFLAGS+=-DCORTEX_M0PLUS -mcpu=cortex-m0plus -mthumb -mlittle-endian -mthumb-interwork
+endif
+
 ifeq ($(ARCH),arm9)
   CFLAGS+=-DARM9 -mcpu=arm9e -march=armv5te -gdwarf-2 -Wall -marm -mthumb-interwork -fpack-struct
 endif
 
 ifeq ($(ADDRESS_SANITIZER),1)
   TEST_LDFLAGS+=-fsanitize=address -fno-omit-frame-pointer
+endif
+
+ifeq ($(GCOV),1)
+  TEST_LDFLAGS+=-lgcov --coverage
+  CFLAGS+=-fprofile-arcs -ftest-coverage
 endif
 
 ifeq ($(ARCH),faulty)
@@ -160,6 +174,10 @@ ifeq ($(ARCH),pic24)
   -mlarge-code -mlarge-data -msmart-io=1 -msfr-warn=off
 endif
 
+ifeq ($(ARCH),pic32)
+  CFLAGS+=-DPIC32
+endif
+
 ifeq ($(ARCH),atmega128)
   CFLAGS+=-Wall -mmcu=atmega128 -DAVR
 endif
@@ -186,6 +204,7 @@ CORE_OBJ= stack/pico_stack.o \
 
 POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
+            modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o
 
@@ -268,6 +287,9 @@ ifneq ($(PCAP),0)
 endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
+endif
+ifneq ($(IPC),0)
+  include rules/ipc.mk
 endif
 ifneq ($(CYASSL),0)
   include rules/cyassl.mk
@@ -358,6 +380,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_dns_sd.elf $(CFLAGS) -I. test/unit/modunit_pico_dns_sd.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_dev_loop.elf $(CFLAGS) -I. test/unit/modunit_pico_dev_loop.c $(UNIT_LDFLAGS) $(UNITS_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_ipv6_nd.elf $(CFLAGS) -I. test/unit/modunit_pico_ipv6_nd.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_ethernet.elf $(CFLAGS) -I. test/unit/modunit_pico_ethernet.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_pico_stack.elf $(CFLAGS) -I. test/unit/modunit_pico_stack.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_tftp.elf $(CFLAGS) -I. test/unit/modunit_pico_tftp.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_sntp_client.elf $(CFLAGS) -I. test/unit/modunit_pico_sntp_client.c $(UNIT_LDFLAGS) $(UNITS_OBJ)
@@ -369,6 +392,7 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(CFLAGS) -I. test/unit/modunit_pico_mld.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(CFLAGS) -I. test/unit/modunit_pico_igmp.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_strings.elf $(CFLAGS) -I. test/unit/modunit_pico_strings.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
 	@echo -e "\n\t[UNIT TESTS SUITE: device drivers]"
@@ -404,8 +428,8 @@ mbed:
 
 
 style:
-	@find . -iname "*.[c|h]" | xargs -x uncrustify --replace -l C -c uncrustify.cfg || true
-	@find . -iname "*unc-backup*" |xargs -x rm || true
+	@find . -iname "*.[c|h]" | xargs uncrustify --replace -l C -c uncrustify.cfg || true
+	@find . -iname "*unc-backup*" |xargs rm || true
 
 dummy: mod core lib $(DUMMY_EXTRA)
 	@echo testing configuration...
@@ -415,9 +439,14 @@ dummy: mod core lib $(DUMMY_EXTRA)
 	@rm -f test/dummy.o dummy
 
 ppptest: test/ppp.c lib
-	gcc -ggdb -c -o ppp.o test/ppp.c -I build/include/ -I build/modules/ $(CFLAGS)
-	gcc -o ppp ppp.o build/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
+	gcc -ggdb -c -o ppp.o test/ppp.c -I $(PREFIX)/include/ -I $(PREFIX)/modules/ $(CFLAGS)
+	gcc -o ppp ppp.o $(PREFIX)/lib/libpicotcp.a $(LDFLAGS) $(CFLAGS)
 	rm -f ppp.o
 
+.PHONY: coverity
+coverity:
+	@make clean
+	@cov-build --dir $(PREFIX)/cov-int make
+	@tar czvf $(PREFIX)/coverity.tgz -C $(PREFIX) cov-int
 
 FORCE:

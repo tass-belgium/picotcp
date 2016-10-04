@@ -77,6 +77,7 @@ struct pico_tree_node *pico_tree_next(struct pico_tree_node *node)
 {
     if (!node)
         return NULL;
+
     if(IS_NOT_LEAF(node->rightChild))
     {
         node = node->rightChild;
@@ -127,34 +128,11 @@ void *pico_tree_insert(struct pico_tree *tree, void *key)
     return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
-void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
+static void pico_tree_insert_node(struct pico_tree *tree, struct pico_tree_node *insert)
 {
-    struct pico_tree_node *last_node = INIT_LEAF;
     struct pico_tree_node *temp = tree->root;
-    struct pico_tree_node *insert;
-    void *LocalKey;
+    struct pico_tree_node *last_node = INIT_LEAF;
     int result = 0;
-
-    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
-    
-    /* if node already in, bail out */
-    if(LocalKey) {
-        return LocalKey;
-    }
-    else
-    {
-        if(allocator == USE_PICO_PAGE0_ZALLOC)
-            insert = create_node(tree, key, USE_PICO_PAGE0_ZALLOC);
-        else
-            insert = create_node(tree, key, USE_PICO_ZALLOC);
-
-        if(!insert)
-        {
-            pico_err = PICO_ERR_ENOMEM;
-            /* to let the user know that it couldn't insert */
-            return (void *)&LEAF;
-        }
-    }
 
     /* search for the place to insert the new node */
     while(IS_NOT_LEAF(temp))
@@ -176,6 +154,31 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
         else
             last_node->rightChild = insert;
     }
+}
+
+void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t allocator)
+{
+    struct pico_tree_node *insert;
+    void *LocalKey;
+
+    LocalKey = (IS_NOT_LEAF(tree->root) ? pico_tree_findKey(tree, key) : NULL);
+
+    /* if node already in, bail out */
+    if(LocalKey) {
+        pico_err = PICO_ERR_EEXIST;
+        return LocalKey;
+    }
+
+    insert = create_node(tree, key, allocator);
+
+    if(!insert)
+    {
+        pico_err = PICO_ERR_ENOMEM;
+        /* to let the user know that it couldn't insert */
+        return (void *)&LEAF;
+    }
+
+    pico_tree_insert_node(tree, insert);
 
     /* fix colour issues */
     fix_insert_collisions(tree, insert);
@@ -194,9 +197,7 @@ struct pico_tree_node *pico_tree_findNode(struct pico_tree *tree, void *key)
         int result;
         result = tree->compare(found->keyValue, key);
         if(result == 0)
-        {
             return found;
-        }
         else if(result < 0)
             found = found->rightChild;
         else
@@ -209,22 +210,10 @@ void *pico_tree_findKey(struct pico_tree *tree, void *key)
 {
     struct pico_tree_node *found;
 
-
-    found = tree->root;
-    while(IS_NOT_LEAF(found))
-    {
-        int result;
-
-        result = tree->compare(found->keyValue, key);
-        if(result == 0)
-            return found->keyValue;
-        else if(result < 0)
-            found = found->rightChild;
-        else
-            found = found->leftChild;
-
-    }
-    return NULL;
+    found = pico_tree_findNode(tree, key);
+    if (found == NULL)
+        return NULL;
+    return found->keyValue;
 }
 
 void *pico_tree_first(struct pico_tree *tree)
@@ -302,7 +291,7 @@ void *pico_tree_delete(struct pico_tree *tree, void *key)
 static inline void if_nodecolor_black_fix_collisions(struct pico_tree *tree, struct pico_tree_node *temp, uint8_t nodeColor)
 {
     /* deleted node is black, this will mess up the black path property */
-    if(nodeColor == BLACK) 
+    if(nodeColor == BLACK)
         fix_delete_collisions(tree, temp);
 }
 
@@ -314,12 +303,13 @@ void *pico_tree_delete_implementation(struct pico_tree *tree, void *key, uint8_t
     struct pico_tree_node *delete;  /* keeps a copy of the node to be extracted */
     if (!key)
         return NULL;
+
     delete = pico_tree_findNode(tree, key);
 
     /* this key isn't in the tree, bail out */
-    if(!delete) 
+    if(!delete)
         return NULL;
-    
+
     lkey = delete->keyValue;
     nodeColor = pico_tree_delete_check_switch(tree, delete, &temp);
 
@@ -442,7 +432,7 @@ static void fix_insert_collisions(struct pico_tree*tree, struct pico_tree_node*n
                 node = GRANPA(node);
             }
             else if(temp->color == BLACK) {
-                if(node == node->parent->leftChild) {
+                if(AM_I_LEFT_CHILD(node)) {
                     node = node->parent;
                     rotateToRight(tree, node);
                 }

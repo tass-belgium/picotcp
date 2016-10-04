@@ -49,7 +49,7 @@ struct filter_node {
     int (*function_ptr)(struct filter_node *filter, struct pico_frame *f);
 };
 
-PICO_TREE_DECLARE(filter_tree, &filter_compare);
+static PICO_TREE_DECLARE(filter_tree, &filter_compare);
 
 static inline int ipfilter_uint32_cmp(uint32_t a, uint32_t b)
 {
@@ -401,7 +401,9 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
 int pico_ipv4_filter_del(uint32_t filter_id)
 {
     struct filter_node *node = NULL;
-    struct filter_node dummy = { 0 };
+    struct filter_node dummy = {
+        0
+    };
 
     dummy.filter_id = filter_id;
     if((node = pico_tree_delete(&filter_tree, &dummy)) == NULL)
@@ -446,7 +448,7 @@ int ipfilter(struct pico_frame *f)
     }
     else if(ipv4_hdr->proto == PICO_PROTO_ICMP4) {
         icmp_hdr = (struct pico_icmp4_hdr *) f->transport_hdr;
-        if(icmp_hdr->type == PICO_ICMP_UNREACH && icmp_hdr->type == PICO_ICMP_UNREACH_FILTER_PROHIB)
+        if(icmp_hdr->type == PICO_ICMP_UNREACH && icmp_hdr->code == PICO_ICMP_UNREACH_FILTER_PROHIB)
             return 0;
     }
 

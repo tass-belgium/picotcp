@@ -826,7 +826,7 @@ START_TEST (test_slaacv4)
     struct mock_device *mock;
     char ip_addr[20];
     uint8_t macaddr1[6] = {
-        0xc1, 0, 0, 0xa, 0xb, 0xf
+        0xc3, 0, 0, 0xa, 0xc, 0xf
     };
 
 
@@ -846,7 +846,6 @@ START_TEST (test_slaacv4)
     dev = pico_null_create("dummy");
     tmp = pico_slaacv4_getip(dev, 0);
     fail_if(long_be(tmp) != (long_be(SLAACV4_NETWORK) | SLAACV4_MINRANGE));
-
     /* verify nominal case; two runs of slaacv4_get_ip need to return same value */
     mock = pico_mock_create(macaddr1);
     tmp = pico_slaacv4_getip(mock->dev, 0);
