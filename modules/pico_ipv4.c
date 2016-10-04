@@ -22,6 +22,7 @@
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 #include "pico_fragments.h"
+#include "pico_mcast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
@@ -284,7 +285,7 @@ static int ipv4_link_compare(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
+static PICO_TREE_DECLARE(Tree_dev_link, ipv4_link_compare);
 
 static int pico_ipv4_process_bcast_in(struct pico_frame *f)
 {
@@ -364,7 +365,7 @@ static int pico_ipv4_process_local_unicast_in(struct pico_frame *f)
 static void pico_ipv4_process_finally_try_forward(struct pico_frame *f)
 {
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
-    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST)!= 0)) {
+    if ((pico_ipv4_is_broadcast(hdr->dst.addr)) || ((f->flags & PICO_FRAME_FLAG_BCAST) != 0)) {
         /* don't forward broadcast frame, discard! */
         pico_frame_discard(f);
     } else if (pico_ipv4_forward(f) != 0) {
@@ -381,12 +382,12 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
-    uint16_t flag = short_be(hdr->frag);
-
-    (void)self;
 
     if (!hdr)
         return -1;
+
+    (void)self;
+
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
         option_len =  (uint8_t)(4 * (((hdr->vhl) & 0x0F) - 5));
@@ -395,6 +396,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
     f->transport_len = (uint16_t)(short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len);
     f->net_len = (uint16_t)(PICO_SIZE_IP4HDR + option_len);
+    f->frag = short_be(hdr->frag);
 
     if (f->transport_len > max_allowed) {
         pico_frame_discard(f);
@@ -421,7 +423,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (hdr->frag & short_be(PICO_IPV4_EVIL)) {
+    if (f->frag & PICO_IPV4_EVIL) {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
@@ -434,10 +436,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
+    if (f->frag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPV4FRAG
-        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
+        pico_ipv4_process_frag(hdr, f, hdr->proto);
         /* Frame can be discarded, frag will handle its own copy */
 #endif
         /* We do not support fragmentation, discard quietly */
@@ -473,7 +475,7 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
     }
 
 #endif
-    return pico_sendto_dev(f);
+    return pico_datalink_send(f);
 }
 
 
@@ -559,6 +561,10 @@ static struct pico_ipv4_route *route_find(const struct pico_ip4 *addr)
     struct pico_ipv4_route *r;
     struct pico_tree_node *index;
 
+    if (addr->addr == PICO_IP4_ANY) {
+        return NULL;
+    }
+
     if (addr->addr != PICO_IP4_BCAST) {
         pico_tree_foreach_reverse(index, &Routes) {
             r = index->keyValue;
@@ -598,16 +604,19 @@ struct pico_ip4 *pico_ipv4_source_find(const struct pico_ip4 *dst)
     struct pico_ipv4_route *rt;
 #ifdef PICO_SUPPORT_AODV
     union pico_address node_address;
-    node_address.ip4.addr = dst->addr;
-    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
-        pico_aodv_lookup(&node_address);
-
 #endif
 
     if (!dst) {
         pico_err = PICO_ERR_EINVAL;
         return NULL;
     }
+
+#ifdef PICO_SUPPORT_AODV
+    node_address.ip4.addr = dst->addr;
+    if (dst->addr && pico_ipv4_is_unicast(dst->addr))
+        pico_aodv_lookup(&node_address);
+
+#endif
 
     rt = route_find(dst);
     if (rt && rt->link) {
@@ -657,7 +666,7 @@ struct pico_device *pico_ipv4_source_dev_find(const struct pico_ip4 *dst)
 static int ipv4_mcast_groups_cmp(void *ka, void *kb)
 {
     struct pico_mcast_group *a = ka, *b = kb;
-    return pico_ipv4_compare(&a->mcast_addr, &b->mcast_addr);
+    return pico_ipv4_compare(&a->mcast_addr.ip4, &b->mcast_addr.ip4);
 }
 
 static int ipv4_mcast_sources_cmp(void *ka, void *kb)
@@ -713,7 +722,11 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                 }
 
                 source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
-                pico_tree_insert(&g->MCASTSources, source);
+                if (pico_tree_insert(&g->MCASTSources, source)) {
+                    dbg("IPv4: Failed to insert source in tree\n");
+					PICO_FREE(source);
+					return -1;
+				}
             }
         }
     }
@@ -735,13 +748,15 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
     if (!link)
         link = mcast_default_link;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (g) {
         if (reference_count)
             g->reference_count++;
 
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif
     } else {
         g = PICO_ZALLOC(sizeof(struct pico_mcast_group));
         if (!g) {
@@ -752,11 +767,18 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         /* "non-existent" state of filter mode INCLUDE and empty source list */
         g->filter_mode = PICO_IP_MULTICAST_INCLUDE;
         g->reference_count = 1;
-        g->mcast_addr = *mcast_group;
+        g->mcast_addr.ip4 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
-        pico_tree_insert(link->MCASTGroups, g);
+        if (pico_tree_insert(link->MCASTGroups, g)) {
+            dbg("IPv4: Failed to insert group in tree\n");
+            PICO_FREE(g);
+			return -1;
+		}
+
+#ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
+#endif
     }
 
     if (mcast_group_update(g, MCASTFilter, filter_mode) < 0) {
@@ -787,14 +809,16 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
     if (!link)
         return -1;
 
-    test.mcast_addr = *mcast_group;
+    test.mcast_addr.ip4 = *mcast_group;
     g = pico_tree_findKey(link->MCASTGroups, &test);
     if (!g) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     } else {
         if (reference_count && (--(g->reference_count) < 1)) {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_DELETE);
+#endif
             /* cleanup filter */
             pico_tree_foreach_safe(index, &g->MCASTSources, _tmp) {
                 source = index->keyValue;
@@ -804,7 +828,9 @@ int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gr
             pico_tree_delete(link->MCASTGroups, g);
             PICO_FREE(g);
         } else {
+#ifdef PICO_SUPPORT_IGMP
             pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_UPDATE);
+#endif
             if (mcast_group_update(g, MCASTFilter, filter_mode) < 0)
                 return -1;
         }
@@ -828,7 +854,7 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
     };
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
 
-    test.mcast_addr = hdr->dst;
+    test.mcast_addr.ip4 = hdr->dst;
 
     pico_tree_foreach(index, &Tree_dev_link) {
         link = index->keyValue;
@@ -875,12 +901,22 @@ static int pico_ipv4_mcast_filter(struct pico_frame *f)
 
 int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
 
 int pico_ipv4_mcast_leave(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *MCASTFilter)
 {
+    IGNORE_PARAMETER(mcast_link);
+    IGNORE_PARAMETER(mcast_group);
+    IGNORE_PARAMETER(reference_count);
+    IGNORE_PARAMETER(filter_mode);
+    IGNORE_PARAMETER(MCASTFilter);
     pico_err = PICO_ERR_EPROTONOSUPPORT;
     return -1;
 }
@@ -920,6 +956,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
     struct pico_ipv4_hdr *hdr;
     uint8_t ttl = PICO_IPV4_DEFAULT_TTL;
     uint8_t vhl = 0x45; /* version 4, header length 20 */
+    int32_t retval = 0;
     static uint16_t ipv4_progressive_id = 0x91c0;
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree_node *index;
@@ -927,7 +964,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (!f || !dst) {
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        goto drop;
     }
 
 
@@ -994,7 +1031,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (
 #ifdef PICO_SUPPORT_IPV4FRAG
-	(0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
+        (0 == (f->frag & PICO_IPV4_MOREFRAG))  &&
 #endif
         1 )
         ipv4_progressive_id++;
@@ -1046,7 +1083,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         if ((proto != PICO_PROTO_IGMP) && (pico_ipv4_mcast_filter(f) == 0)) {
             ip_mcast_dbg("MCAST: sender is member of group, loopback copy\n");
             cpy = pico_frame_copy(f);
-            pico_enqueue(&in, cpy);
+            if (!cpy) {
+                pico_err = PICO_ERR_ENOMEM;
+                ip_mcast_dbg("MCAST: Failed to copy frame\n");
+                goto drop;
+            }
+
+            retval = pico_enqueue(&in, cpy);
+            if (retval <= 0)
+                pico_frame_discard(cpy);
         }
     }
 
@@ -1064,10 +1109,14 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (pico_ipv4_link_get(&hdr->dst)) {
         /* it's our own IP */
-        return pico_enqueue(&in, f);
+        retval = pico_enqueue(&in, f);
+        if (retval > 0)
+            return retval;
     } else{
         /* TODO: Check if there are members subscribed here */
-        return pico_enqueue(&out, f);
+        retval = pico_enqueue(&out, f);
+        if (retval > 0)
+            return retval;
     }
 
 drop:
@@ -1145,7 +1194,12 @@ int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmas
         return -1;
     }
 
-    pico_tree_insert(&Routes, new);
+    if (pico_tree_insert(&Routes, new)) {
+        dbg("IPv4: Failed to insert route in tree\n");
+        PICO_FREE(new);
+		return -1;
+	}
+
     dbg_route();
     return 0;
 }
@@ -1222,7 +1276,15 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 #endif
 #endif
 
-    pico_tree_insert(&Tree_dev_link, new);
+    if (pico_tree_insert(&Tree_dev_link, new)) {
+        dbg("IPv4: Failed to insert link in tree\n");
+#ifdef PICO_SUPPORT_MCAST
+        PICO_FREE(new->MCASTGroups);
+#endif
+        PICO_FREE(new);
+		return -1;
+	}
+
 #ifdef PICO_SUPPORT_MCAST
     do {
         struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
@@ -1425,7 +1487,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
             total_payload_written = (uint16_t)((uint16_t)fr->transport_len + total_payload_written);
         } else {
-            pico_frame_discard(fr);
+            /* No need to discard frame here, pico_ipv4_frame_push() already did that */
             break;
         }
     } /* while() */
@@ -1539,7 +1601,7 @@ static int pico_ipv4_forward(struct pico_frame *f)
     if (pico_ipv4_forward_check_dev(f) < 0)
         return -1;
 
-    pico_sendto_dev(f);
+    pico_datalink_send(f);
     return 0;
 
 }

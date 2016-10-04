@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
 /*** START UDP CLIENT ***/
@@ -26,9 +28,16 @@ static void request_exit_echo(pico_time now, void *arg)
     char end[4] = "end";
     pico_socket_send(s, end, 4);
     if (exit_retry++ > 3) {
-        pico_timer_add(1000, deferred_exit, udpclient_pas);
+        if (!pico_timer_add(1000, deferred_exit, udpclient_pas)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
     } else {
-        pico_timer_add(1000, request_exit_echo, s);
+        if (!pico_timer_add(1000, request_exit_echo, s)) {
+            printf("Failed to start request_exit_echo timer, sending request now\n");
+            request_exit_echo((pico_time)0, NULL);
+            exit(1);
+        }
         printf("%s: requested exit of echo\n", __FUNCTION__);
     }
 }
@@ -41,7 +50,11 @@ void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((u
     static uint16_t loop = 0;
 
     if (++loop > udpclient_pas->loops) {
-        pico_timer_add(1000, request_exit_echo, s);
+        if (!pico_timer_add(1000, request_exit_echo, s)) {
+            printf("Failed to start request_exit_echo timer, sending request now\n");
+            request_exit_echo((pico_time)0, NULL);
+            exit(1);
+        }
         return;
     } else {
         buf = calloc(1, udpclient_pas->datasize);
@@ -61,7 +74,11 @@ void udpclient_send(pico_time __attribute__((unused)) now, void __attribute__((u
         free(buf);
     }
 
-    pico_timer_add(100, udpclient_send, NULL);
+    if (!pico_timer_add(100, udpclient_send, NULL)) {
+        printf("Failed to start send timer, sending exit request to echo and exiting\n");
+        request_exit_echo((pico_time)0, NULL);
+        exit(1);
+    }
 }
 
 void cb_udpclient(uint16_t ev, struct pico_socket *s)
@@ -238,21 +255,30 @@ void app_udpclient(char *arg)
     printf("\n%s: UDP client launched. Sending packets of %u bytes in %u loops and %u subloops to %s:%u\n\n",
            __FUNCTION__, udpclient_pas->datasize, udpclient_pas->loops, udpclient_pas->subloops, daddr, short_be(udpclient_pas->sport));
 
-    pico_timer_add(100, udpclient_send, NULL);
+    if (!pico_timer_add(100, udpclient_send, NULL)) {
+        printf("Failed to start send timer, sending exit request to echo and exiting\n");
+        request_exit_echo((pico_time)0, NULL);
+        exit(1);
+    }
 
     /* free strdups */
     if (daddr)
-      free (daddr);
+        free (daddr);
+
     if (lport)
-      free (lport);
+        free (lport);
+
     if (sport)
-      free (sport);
+        free (sport);
+
     if (s_datasize)
-      free (s_datasize);
+        free (s_datasize);
+
     if (s_loops)
-      free (s_loops);
+        free (s_loops);
+
     if (s_subloops)
-      free (s_subloops);
+        free (s_subloops);
 
     return;
 

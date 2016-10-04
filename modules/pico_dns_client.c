@@ -43,7 +43,7 @@ static int dns_ns_cmp(void *ka, void *kb)
     struct pico_dns_ns *a = ka, *b = kb;
     return pico_ipv4_compare(&a->ns, &b->ns);
 }
-PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
+static PICO_TREE_DECLARE(NSTable, dns_ns_cmp);
 
 struct pico_dns_query
 {
@@ -67,7 +67,7 @@ static int dns_query_cmp(void *ka, void *kb)
 
     return (a->id < b->id) ? (-1) : (1);
 }
-PICO_TREE_DECLARE(DNSTable, dns_query_cmp);
+static PICO_TREE_DECLARE(DNSTable, dns_query_cmp);
 
 static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr)
 {
@@ -91,13 +91,15 @@ static int pico_dns_client_del_ns(struct pico_ip4 *ns_addr)
 static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
 {
     struct pico_dns_ns *dns = NULL, *found = NULL, test = {{0}};
-    struct pico_ip4 zero = {0}; /* 0.0.0.0 */
+    struct pico_ip4 zero = {
+        0
+    };                          /* 0.0.0.0 */
 
     /* Do not add 0.0.0.0 addresses, which some DHCP servers might reply */
     if (!pico_ipv4_compare(ns_addr, &zero))
     {
         pico_err = PICO_ERR_EINVAL;
-        return  NULL;
+        return NULL;
     }
 
     dns = PICO_ZALLOC(sizeof(struct pico_dns_ns));
@@ -109,9 +111,12 @@ static struct pico_dns_ns *pico_dns_client_add_ns(struct pico_ip4 *ns_addr)
     dns->ns = *ns_addr;
 
     found = pico_tree_insert(&NSTable, dns);
-    if (found) { /* nameserver already present */
+    if (found) { /* nameserver already present or out of memory */
         PICO_FREE(dns);
-        return found;
+        if ((void *)found == (void *)&LEAF)
+            return NULL;
+        else
+            return found;
     }
 
     /* default NS found, remove it */
@@ -167,7 +172,8 @@ static struct pico_dns_query *pico_dns_client_add_query(struct pico_dns_header *
 
     found = pico_tree_insert(&DNSTable, q);
     if (found) {
-        pico_err = PICO_ERR_EAGAIN;
+        if ((void *)found != (void *)&LEAF) /* If found == &LEAF we're out of memory and pico_err is set */
+            pico_err = PICO_ERR_EAGAIN;
         pico_socket_close(q->s);
         PICO_FREE(q);
         return NULL;
@@ -369,7 +375,10 @@ static int pico_dns_client_send(struct pico_dns_query *q)
 
     pico_socket_send(q->s, q->query, q->len);
     *paramID = q->id;
-    pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID);
+    if (!pico_timer_add(PICO_DNS_CLIENT_RETRANS, pico_dns_client_retransmission, paramID)) {
+        dns_dbg("DNS: Failed to start retransmission timer\n");
+        goto failure;
+    }
 
     return 0;
 
@@ -408,11 +417,37 @@ static void pico_dns_client_retransmission(pico_time now, void *arg)
     }
 }
 
+static int pico_dns_client_check_rdlength(uint16_t qtype, uint16_t rdlength)
+{
+    switch (qtype)
+    {
+        case PICO_DNS_TYPE_A:
+            if (rdlength != PICO_DNS_RR_A_RDLENGTH)
+                return -1;
+            break;
+#ifdef PICO_SUPPORT_IPV6
+        case PICO_DNS_TYPE_AAAA:
+            if (rdlength != PICO_DNS_RR_AAAA_RDLENGTH)
+                return -1;
+            break;
+#endif
+        default:
+            break;
+    }
+
+    return 0;
+}
+
 static int pico_dns_client_user_callback(struct pico_dns_record_suffix *asuffix, struct pico_dns_query *q)
 {
     uint32_t ip = 0;
     char *str = NULL;
     char *rdata = (char *) asuffix + sizeof(struct pico_dns_record_suffix);
+
+    if (pico_dns_client_check_rdlength(q->qtype, short_be(asuffix->rdlength)) < 0) {
+        dns_dbg("DNS ERROR: Invalid RR rdlength: %u\n", short_be(asuffix->rdlength));
+        return -1;
+    }
 
     switch (q->qtype)
     {

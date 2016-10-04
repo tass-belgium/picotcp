@@ -53,6 +53,10 @@
 #define PICO_ARPA_IPV6_SUFFIX ".IP6.ARPA"
 #endif
 
+/* Used in pico_dns_rdata_cmp  */
+#define PICO_DNS_CASE_SENSITIVE 0x00u
+#define PICO_DNS_CASE_INSENSITIVE 0x01u
+
 #define PICO_DNS_NAMEBUF_SIZE (256)
 
 enum pico_dns_arpa
@@ -362,8 +366,9 @@ pico_dns_record_decompress( struct pico_dns_record *record,
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
- *  @param caseinsensitive Whether or not the bytes are compared 
- *                         case-insensitive
+ *  @param caseinsensitive Whether or not the bytes are compared
+ *                         case-insensitive. Should be either
+ *                         PICO_DNS_CASE_SENSITIVE or PICO_DNS_CASE_INSENSITIVE
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int

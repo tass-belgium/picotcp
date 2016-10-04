@@ -21,7 +21,7 @@ int pico_mdns_init( const char *hostname,
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{hostname} - Hostname to register for this machine. Should end with '.local'.
+\item \texttt{hostname} - Hostname to register for this machine. Should end with \'.local\'.
 \item \texttt{address} - IPv4-address of this machines interface to generate a hostname record from.
 \item \texttt{cb$\_$initialised} - Callback-function that is called when the initialisation process is done. This will also get called when asynchronous conflicts occur for successfully registered records during run-time. The mDNS-record tree contains the registered records, the char-buffer contains the registered hostname and the void-pointer contains the passed argument.
 \item \texttt{arg} - Argument for callback supplied by user. This can be used if you want to pass some variable into your callback function.
@@ -69,16 +69,16 @@ char *url = pico_mdns_get_hostname();
 \subsection{pico$\_$mdns$\_$set$\_$hostname}
 
 \subsubsection*{Description}
-Sets the hostname for this machine. Claims automatically a unique A record with the IPv4-address of this host. The hostname won't be set directly when this functions returns, but only if the claiming of the unique record succeeded. Init-callback specified when initialising the module will be called when the hostname-record is successfully registered.
+Tries to claim a hostname for this machine. Claims automatically a unique A record with the IPv4-address of this host. The hostname won't be set directly when this functions returns, but only if the claiming of the unique record succeeded. Init-callback specified when initialising the module will be called when the hostname-record is successfully registered.
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_mdns_set_hostname( const char *url, void *arg );
+int pico_mdns_tryclaim_hostname( const char *url, void *arg );
 \end{verbatim}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
-\item \texttt{url} - URL to set the hostname to. Should end with '.local'.
+\item \texttt{url} - URL to set the hostname to. Should end with \'.local\'.
 \item \texttt{arg} - Argument for init-callback supplied by user. This can be used if you want to pass some variable into your callback function.
 \end{itemize}
 
@@ -93,7 +93,7 @@ Returns 0 when the host started registering the hostname-record successfully, re
 
 \subsubsection*{Example}
 \begin{verbatim}
-int ret = pico_mdns_set_hostname("device.local", NULL);
+int ret = pico_mdns_tryclaim_hostname("device.local", NULL);
 \end{verbatim}
 
 

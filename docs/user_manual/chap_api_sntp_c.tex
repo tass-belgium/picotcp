@@ -8,7 +8,7 @@ You can then retreive the time with the pico$\_$sntp$\_$gettimeofday function.
 \subsection{pico$\_$sntp$\_$sync}
 
 \subsubsection*{Description}
-Function to sync the local time to a given sntp server.
+Function to sync the local time to a given sntp server in string notation. DNS resolution will be done automatically.
 \subsubsection*{Function prototype}
 \begin{verbatim}
 int pico_sntp_sync(char *sntp_server, void (*cb_synced)(pico_err_t status));
@@ -17,11 +17,43 @@ int pico_sntp_sync(char *sntp_server, void (*cb_synced)(pico_err_t status));
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{sntp$\_$server} - String with the sntp server to get the time from
-\item \texttt{cb$\_$synced} - Callback function that is called when the synchronisation process is done. The status variable indicates wheter the synchronisation was succesfull or not.
+\item \texttt{cb$\_$synced} - Callback function that is called when the synchronisation process is done. The status variable indicates wheter the synchronisation was successful or not.
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 if the synchronisation operation has succeeded.
+On success, this call returns 0 if the synchronisation operation has successfully started. When both IPv4 and IPv6 are enabled, success on one is sufficient.
+On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
+
+\subsubsection*{Errors}
+\begin{itemize}[noitemsep]
+\item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
+\item \texttt{PICO$\_$ERR$\_$EPROTONOSUPPORT} - compiled without DNS support
+\end{itemize}
+
+\subsubsection*{Example}
+\begin{verbatim}
+int ret = pico_sntp_sync("ntp.nasa.gov", &callback);
+\end{verbatim}
+
+
+\subsection{pico$\_$sntp$\_$sync$\_$ip}
+
+\subsubsection*{Description}
+Function to sync the local time to a given sntp server in IP address notation.
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_sntp_sync_ip(union pico_address *sntp_addr, void (*cb_synced)(pico_err_t status));
+\end{verbatim}
+
+\subsubsection*{Parameters}
+\begin{itemize}[noitemsep]
+\item \texttt{sntp$\_$addr} - IP address of the sntp server to get the time from
+\item \texttt{cb$\_$synced} - Callback function that is called when the synchronisation process is done. The status variable indicates wheter the synchronisation was successful or not.
+\end{itemize}
+
+\subsubsection*{Return value}
+On success, this call returns 0 if the synchronisation operation has successfully started. When both IPv4 and IPv6 are enabled, success on one is sufficient.
 On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -32,9 +64,8 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-int ret = pico_sntp_sync("ntp.nasa.gov", &callback);
+int ret = pico_sntp_sync_ip(&sntp_addr, &callback);
 \end{verbatim}
-
 
 
 \subsection{pico$\_$sntp$\_$gettimeofday}

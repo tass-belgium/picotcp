@@ -9,8 +9,8 @@ int compare(void *a, void *b)
     return ((elem *)a)->value - ((elem *)b)->value;
 }
 
-PICO_TREE_DECLARE(test_tree, compare);
-PICO_TREE_DECLARE(test_tree2, compare);
+static PICO_TREE_DECLARE(test_tree, compare);
+static PICO_TREE_DECLARE(test_tree2, compare);
 #define RBTEST_SIZE 20000
 
 START_TEST (test_rbtree2)

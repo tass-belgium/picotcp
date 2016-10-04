@@ -61,17 +61,24 @@ extern int32_t prescale_time;
 
 #if defined(PICO_SUPPORT_RTOS) || defined (PICO_SUPPORT_PTHREAD)
 /* pico_ms_tick must be defined */
-extern volatile unsigned long int pico_ms_tick;
-
+extern volatile uint32_t pico_ms_tick;
 
 static inline uint32_t PICO_TIME(void)
 {
-    return pico_ms_tick / 1000;
+    #ifdef TIME_PRESCALE
+        return (pico_ms_tick / 1000) << prescale_time;
+    #else
+        return (pico_ms_tick / 1000);
+    #endif
 }
 
 static inline uint32_t PICO_TIME_MS(void)
 {
-    return pico_ms_tick;
+    #ifdef TIME_PRESCALE
+        return pico_ms_tick << prescale_time;
+    #else
+        return pico_ms_tick;
+    #endif
 }
 
 #else

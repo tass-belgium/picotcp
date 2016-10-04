@@ -1,5 +1,9 @@
 #include "utils.h"
+#include <pico_ipv4.h>
 #include <pico_socket.h>
+
+extern void app_udpecho(char *arg);
+
 /*** START Multicast RECEIVE + ECHO ***/
 /*
  * multicast receive expects the following format: mcastreceive:link_addr:mcast_addr:listen_port:sendto_port

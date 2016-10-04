@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <pico_socket.h>
+#include <pico_ipv4.h>
 /*** START TCP ECHO ***/
 #define BSIZE (1024 * 10)
 static char recvbuf[BSIZE];
@@ -81,7 +82,10 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 
     if (ev & PICO_SOCK_EV_FIN) {
         printf("Socket closed. Exit normally. \n");
-        pico_timer_add(2000, deferred_exit, NULL);
+        if (!pico_timer_add(2000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
