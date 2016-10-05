@@ -246,6 +246,34 @@ START_TEST(tc_pico_tftp_abort)
 }
 END_TEST
 
+START_TEST(tc_extract_value)
+{
+	int ret;
+	char example[40];
+	uint32_t *value = malloc(sizeof(uint32_t));
+
+	/*first case: correct format; number in string, smaller than max*/
+	strcpy(example, "12839");
+	ret = extract_value(example, value, 20000);
+	fail_if(ret != 0);
+	fail_if(*value != 12839);
+	/*second case: number too large*/
+	strcpy(example, "20001");
+	ret = extract_value(example, value, 20000);
+	fail_if(ret != -1);
+	/*third case: no number in string*/
+	strcpy(example, "Altran Belux");
+	ret = extract_value(example, value, 20000);
+	fail_if(ret != -1);
+	/*fourth case: non-numeric characters in string*/
+	strcpy(example, "12839 Altran Belux");
+	ret = extract_value(example, value, 20000);
+	fail_if(ret != -1);
+
+	free(value);
+}	
+END_TEST
+
 /* Receiving functions */
 
 START_TEST(tc_tftp_data)
@@ -319,6 +347,7 @@ Suite *pico_suite(void)
     TCase *TCase_tftp_receive = tcase_create("Unit test for tftp_receive");
     TCase *TCase_tftp_cb = tcase_create("Unit test for tftp_cb");
     TCase *TCase_tftp_socket_open = tcase_create("Unit test for tftp_socket_open");
+    TCase *TCase_extract_value = tcase_create("Unit test for extract_value");
 
 
 /*    tcase_add_test(TCase_check_opcode, tc_check_opcode); */
@@ -359,6 +388,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_tftp_cb);
     tcase_add_test(TCase_tftp_socket_open, tc_tftp_socket_open);
     suite_add_tcase(s, TCase_tftp_socket_open);
+    tcase_add_test(TCase_extract_value, tc_extract_value);
+    suite_add_tcase(s, TCase_extract_value);
     return s;
 }
 
