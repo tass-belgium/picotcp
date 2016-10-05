@@ -65,10 +65,32 @@ static int pico_ethernet_process_in(struct pico_protocol *self, struct pico_fram
     return (pico_ethernet_receive(f) <= 0); /* 0 on success, which is ret > 0 */
 }
 
+static struct pico_frame *pico_ethernet_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
+{
+    struct pico_frame *f = NULL;
+    uint32_t overhead = 0;
+    IGNORE_PARAMETER(self);
+
+    if (dev)
+        overhead = dev->overhead;
+
+    f = pico_frame_alloc((uint32_t)(overhead + size + PICO_SIZE_ETHHDR));
+    if (!f)
+        return NULL;
+
+    f->dev = dev;
+    f->datalink_hdr = f->buffer + overhead;
+    f->net_hdr = f->datalink_hdr + PICO_SIZE_ETHHDR;
+    /* Stay of the rest, higher levels will take care */
+
+    return f;
+}
+
 /* Interface: protocol definition */
 struct pico_protocol pico_proto_ethernet = {
     .name = "ethernet",
     .layer = PICO_LAYER_DATALINK,
+    .alloc = pico_ethernet_alloc,
     .process_in = pico_ethernet_process_in,
     .process_out = pico_ethernet_process_out,
     .q_in = &ethernet_in,
@@ -313,10 +335,21 @@ static int32_t pico_ethsend_dispatch(struct pico_frame *f)
     return (pico_sendto_dev(f) > 0); // Return 1 on success, ret > 0
 }
 
+/* Checks whether or not there's enough headroom allocated in the frame to
+ * prepend the Ethernet header. Reallocates if this is not the case. */
+static int eth_check_headroom(struct pico_frame *f)
+{
+    uint32_t headroom = (uint32_t)(f->net_hdr - f->buffer);
+    uint32_t grow = (uint32_t)(PICO_SIZE_ETHHDR - headroom);
+    if (headroom < (uint32_t)PICO_SIZE_ETHHDR) {
+        return pico_frame_grow_head(f, (uint32_t)(f->buffer_len + grow));
+    }
+    return 0;
+}
+
 /* This function looks for the destination mac address
  * in order to send the frame being processed.
  */
-
 int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
 {
     struct pico_eth dstmac;
@@ -378,23 +411,25 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     /* This sets destination and source address, then pushes the packet to the device. */
     if (dstmac_valid) {
         struct pico_eth_hdr *hdr;
-        hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-        if ((f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR))
-        {
-            f->start -= PICO_SIZE_ETHHDR;
-            f->len += PICO_SIZE_ETHHDR;
-            f->datalink_hdr = f->start;
+        if (!eth_check_headroom(f)) {
             hdr = (struct pico_eth_hdr *) f->datalink_hdr;
-            memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
-            memcpy(hdr->daddr, &dstmac, PICO_SIZE_ETH);
-            hdr->proto = proto;
-        }
+            if ((f->start > f->buffer) && ((f->start - f->buffer) >= PICO_SIZE_ETHHDR))
+            {
+                f->start -= PICO_SIZE_ETHHDR;
+                f->len += PICO_SIZE_ETHHDR;
+                f->datalink_hdr = f->start;
+                hdr = (struct pico_eth_hdr *) f->datalink_hdr;
+                memcpy(hdr->saddr, f->dev->eth->mac.addr, PICO_SIZE_ETH);
+                memcpy(hdr->daddr, &dstmac, PICO_SIZE_ETH);
+                hdr->proto = proto;
+            }
 
-        if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
-            /* one of the above functions has delivered the frame accordingly.
-             * (returned != 0). It is safe to directly return successfully.
-             * Lower level queue has frame, so don't discard */
-            return (int32_t)f->len;
+            if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
+                /* one of the above functions has delivered the frame accordingly.
+                 * (returned != 0). It is safe to directly return successfully.
+                 * Lower level queue has frame, so don't discard */
+                return (int32_t)f->len;
+            }
         }
     }
 

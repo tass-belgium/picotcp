@@ -77,7 +77,7 @@ START_TEST (test_nat_enable_disable)
     struct pico_ipv4_link link = {
         .address = {.addr = long_be(0x0a320001)}
     };                                                                       /* 10.50.0.1 */
-    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, PICO_UDPHDR_SIZE);
+    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, NULL, PICO_UDPHDR_SIZE);
     struct pico_ipv4_hdr *net = (struct pico_ipv4_hdr *)f->net_hdr;
     struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
     char *raw_data = "ello";
@@ -122,7 +122,7 @@ START_TEST (test_nat_translation)
     struct pico_ipv4_link link = {
         .address = {.addr = long_be(0x0a320001)}
     };                                                                       /* 10.50.0.1 */
-    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, PICO_UDPHDR_SIZE);
+    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, NULL, PICO_UDPHDR_SIZE);
     struct pico_ipv4_hdr *net = (struct pico_ipv4_hdr *)f->net_hdr;
     struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
     struct pico_ip4 src_ori = {
@@ -203,7 +203,7 @@ START_TEST (test_nat_port_forwarding)
     struct pico_ipv4_link link = {
         .address = {.addr = long_be(0x0a320001)}
     };                                                                       /* 10.50.0.1 */
-    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, PICO_UDPHDR_SIZE);
+    struct pico_frame *f = pico_ipv4_alloc(&pico_proto_ipv4, NULL, PICO_UDPHDR_SIZE);
     struct pico_ipv4_hdr *net = (struct pico_ipv4_hdr *)f->net_hdr;
     struct pico_udp_hdr *udp = (struct pico_udp_hdr *)f->transport_hdr;
     struct pico_ip4 src_addr = {
