@@ -77,7 +77,7 @@ struct pico_protocol {
     uint16_t proto_number;
     struct pico_queue *q_in;
     struct pico_queue *q_out;
-    struct pico_frame *(*alloc)(struct pico_protocol *self, uint16_t size); /* Frame allocation. */
+    struct pico_frame *(*alloc)(struct pico_protocol *self, struct pico_device *dev, uint16_t size); /* Frame allocation. */
     int (*push)(struct pico_protocol *self, struct pico_frame *p);    /* Push function, for active outgoing pkts from above */
     int (*process_out)(struct pico_protocol *self, struct pico_frame *p);  /* Send loop. */
     int (*process_in)(struct pico_protocol *self, struct pico_frame *p);  /* Recv loop. */

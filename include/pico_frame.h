@@ -92,6 +92,7 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f);
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f);
 struct pico_frame *pico_frame_alloc(uint32_t size);
 int pico_frame_grow(struct pico_frame *f, uint32_t size);
+int pico_frame_grow_head(struct pico_frame *f, uint32_t size);
 struct pico_frame *pico_frame_alloc_skeleton(uint32_t size, int ext_buffer);
 int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf);
 uint16_t pico_checksum(void *inbuf, uint32_t len);

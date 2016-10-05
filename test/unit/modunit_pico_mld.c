@@ -102,7 +102,7 @@ START_TEST(tc_pico_mld_send_report)
     struct pico_ip6 addr;
     struct pico_ipv6_link *link;
     struct mcast_parameters p;
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
     pico_string_to_ipv6("AAAA::110", addr.addr);
     p.mcast_link.ip6 = addr;
     /* No link */
@@ -150,7 +150,7 @@ END_TEST
 START_TEST(tc_pico_mld_is_checksum_valid)
 {
     struct pico_frame *f;
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, NULL, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
     fail_if(pico_mld_is_checksum_valid(f) == 1);
 }
 END_TEST
@@ -302,7 +302,7 @@ START_TEST(tc_mld_mrsrrt)
     /* wrong proto */
     fail_if(mld_mrsrrt(p) != -1);
     link->mcast_compatibility = PICO_MLDV2;
-    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
     fail_if(mld_mrsrrt(p) != -1);
 
 }
@@ -409,7 +409,7 @@ START_TEST(tc_pico_mld_compatibility_mode)
     struct pico_device *dev = pico_null_create("ummy1");
     struct pico_ip6 addr;
 
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, NULL, sizeof(struct mldv2_report) + MLD_ROUTER_ALERT_LEN + sizeof(struct mldv2_group_record) + (0 * sizeof(struct pico_ip6)));
     pico_string_to_ipv6("AAAA::104", addr.addr);
     /* No link */
     fail_if(pico_mld_compatibility_mode(f) != -1);
@@ -462,20 +462,18 @@ END_TEST
 START_TEST(tc_pico_mld_analyse_packet)
 {
     struct pico_frame *f;
-
     struct pico_device *dev = pico_null_create("dummy0");
     struct pico_ip6 addr;
     struct pico_ip6 local;
     struct pico_ipv6_hdr *ip6;
     struct pico_ipv6_hbhoption *hbh;
     struct pico_icmp6_hdr *mld;
-    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN);
+    f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN);
     pico_string_to_ipv6("AAAA::108", addr.addr);
     pico_string_to_ipv6("FE80::1", local.addr);
     /* No link */
     fail_if(pico_mld_analyse_packet(f) != NULL);
     pico_ipv6_link_add(dev, addr, addr);
-    f->dev = dev;
     ip6 = f->net_hdr;
     ip6->hop == 99;
     /* Incorrect hop */

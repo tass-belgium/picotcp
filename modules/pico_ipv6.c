@@ -17,6 +17,7 @@
 #include "pico_device.h"
 #include "pico_tree.h"
 #include "pico_fragments.h"
+#include "pico_ethernet.h"
 #include "pico_mld.h"
 #include "pico_mcast.h"
 #ifdef PICO_SUPPORT_IPV6
@@ -889,22 +890,30 @@ static int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *
  * increment net_len and transport_hdr with the len of the extension headers, decrement
  * transport_len with this value.
  */
-static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t size)
+static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc((uint32_t)(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR));
+    struct pico_frame *f = NULL;
 
     IGNORE_PARAMETER(self);
+
+    f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+#ifdef PICO_SUPPORT_6LOWPAN
+    /* TODO: For in 6LoWPAN branch */
+    else if (LL_MODE_6LOWPAN == dev->mode) {
+        f = pico_proto_ieee802154.alloc(pico_proto_ieee802154, dev, size + PICO_SIZE_IP6HDR);
+    }
+#endif
 
     if (!f)
         return NULL;
 
-    f->datalink_hdr = f->buffer;
-    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
     f->net_len = PICO_SIZE_IP6HDR;
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP6HDR;
     f->transport_len = (uint16_t)size;
-    /* PICO_SIZE_ETHHDR is accounted for in pico_ethernet_send */
+
+    /* Datalink size is accounted for in pico_datalink_send (link layer) */
     f->len =  (uint32_t)(size + PICO_SIZE_IP6HDR);
+
     return f;
 }
 

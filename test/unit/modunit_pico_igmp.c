@@ -207,7 +207,7 @@ START_TEST(tc_pico_igmp_compatibility_mode)
     struct pico_ipv4_hdr *hdr;
     struct igmp_message *query;
     uint8_t ihl = 24;
-    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (0 * sizeof(struct pico_ip4)));
+    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, dev, sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (0 * sizeof(struct pico_ip4)));
     pico_string_to_ipv4("192.168.1.2", &addr.addr);
     hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     ihl = (uint8_t)((hdr->vhl & 0x0F) * 4); /* IHL is in 32bit words */
@@ -237,7 +237,7 @@ START_TEST(tc_pico_igmp_analyse_packet)
     struct pico_ip4 addr;
     struct pico_ipv4_hdr *ip4;
     struct igmp_message *igmp;
-    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, sizeof(struct igmp_message));
+    f = pico_proto_ipv4.alloc(&pico_proto_ipv4, dev, sizeof(struct igmp_message));
     pico_string_to_ipv4("192.168.1.1", &addr.addr);
     /* No link */
     fail_if(pico_igmp_analyse_packet(f) != NULL);
