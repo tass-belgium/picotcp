@@ -22,6 +22,7 @@
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 #include "pico_fragments.h"
+#include "pico_ethernet.h"
 #include "pico_mcast.h"
 
 #ifdef PICO_SUPPORT_IPV4
@@ -48,7 +49,7 @@ static struct pico_queue out = {
 
 /* Functions */
 static int ipv4_route_compare(void *ka, void *kb);
-static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size);
+static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size);
 
 
 int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b)
@@ -479,20 +480,24 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
 }
 
 
-static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size)
+static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
+    struct pico_frame *f = NULL;
     IGNORE_PARAMETER(self);
+
+    f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP4HDR));
+    /* TODO: In 6LoWPAN topic branch update to make use of dev->ll_mode */
 
     if (!f)
         return NULL;
 
-    f->datalink_hdr = f->buffer;
-    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
     f->net_len = PICO_SIZE_IP4HDR;
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
-    f->transport_len = size;
-    f->len =  size + PICO_SIZE_IP4HDR;
+    f->transport_len = (uint16_t)size;
+
+    /* Datalink size is accounted for in pico_datalink_send (link layer) */
+    f->len =  (uint32_t)(size + PICO_SIZE_IP4HDR);
+
     return f;
 }
 
@@ -1466,7 +1471,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (space > PICO_IPV4_MAXPAYLOAD)
             space = PICO_IPV4_MAXPAYLOAD;
 
-        fr = pico_ipv4_alloc(&pico_proto_ipv4, (uint16_t)space);
+        fr = pico_ipv4_alloc(&pico_proto_ipv4, NULL, (uint16_t)space);
         if (!fr) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
