@@ -237,9 +237,6 @@ START_TEST (test_icmp4_unreachable_send)
     };
 
     struct pico_frame*f = PICO_ZALLOC(sizeof(struct pico_frame));
-#ifdef NOPE
-    uint8_t nullbuf[8] = {};
-#endif
     printf("*********************** starting %s * \n", __func__);
 
     f->net_hdr = buffer;
@@ -323,11 +320,6 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 2); /* proto unreachable */
     fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
-
-#ifdef NOPE
-    /* I don't know what was the intention, but the buffer is shorter than 48 bytes... */
-    fail_if(memcmp(buffer + 48, nullbuf, 8) == 0); /* there was no data */
-#endif
 }
 END_TEST
 
