@@ -225,7 +225,8 @@ int main(int argc, char**argv)
     pico_dev = (struct pico_device *) pico_vde_create("/tmp/vde_switch", "tap0", macaddr);
 
     if(!pico_dev) {
-        fprintf(stderr, "Error creating pico device, got enough privileges? Exiting...\n");
+        fprintf(stderr, "Error creating pico device, got enough privileges?\n");
+        fprintf(stderr, "Vde switch problems?:  $ vde_switch -s /tmp/vde_switch\n Exiting...");
         exit(1);
     }
 
