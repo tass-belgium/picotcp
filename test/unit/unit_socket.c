@@ -39,8 +39,15 @@ START_TEST (test_socket)
     s = pico_socket_open(PICO_PROTO_IPV4, 99, NULL);
     fail_if(s != NULL, "Error got socket wrong parameters");
 
+    s = pico_socket_open(PICO_PROTO_IPV4, (uint16_t)-109, NULL);
+    fail_if(s != NULL, "Error got socket");
+
     s = pico_socket_open(99, PICO_PROTO_UDP, NULL);
     fail_if(s != NULL, "Error got socket");
+
+    s = pico_socket_open((uint16_t)-99, PICO_PROTO_UDP, NULL);
+    fail_if(s != NULL, "Error got socket");
+
 
     sk_tcp = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_TCP, NULL);
     fail_if(sk_tcp == NULL, "socket> tcp socket open failed");
@@ -192,6 +199,8 @@ START_TEST (test_socket)
     fail_if(ret > 0, "Error socket sendto succeeded, wrong argument\n");
     ret = pico_socket_sendto(sk_tcp, (void *)buf, sizeof(buf), NULL, port_be);
     fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+    ret = pico_socket_sendto(sk_tcp, (void *)buf, sizeof(buf), &inaddr_dst, (uint16_t)-120);
+    fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
     /* socket_write passing correct parameters */
     ret = pico_socket_sendto(sk_tcp, (void *)buf, sizeof(buf), &inaddr_dst, short_be(5555));
     fail_if(ret <= 0, "socket> udp socket sendto failed, ret = %d: %s\n", ret, strerror(pico_err));
@@ -270,6 +279,8 @@ START_TEST (test_socket)
     ret = pico_socket_sendto(sk_udp, (void *)buf, 0, &inaddr_dst, port_be);
     fail_if(ret > 0, "Error socket sendto succeeded, wrong argument\n");
     ret = pico_socket_sendto(sk_udp, (void *)buf, sizeof(buf), NULL, port_be);
+    fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
+    ret = pico_socket_sendto(sk_udp, (void *)buf, sizeof(buf), &inaddr_dst, (uint16_t)-120);
     fail_if(ret >= 0, "Error socket sendto succeeded, wrong argument\n");
     /* socket_write passing correct parameters */
     ret = pico_socket_sendto(sk_udp, (void *)buf, sizeof(buf), &inaddr_dst, short_be(5555));
