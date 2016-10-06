@@ -51,7 +51,8 @@ static PICO_TREE_DECLARE(_MCASTFilter, mcast_filter_cmp);
 START_TEST(tc_pico_igmp_report_expired)
 {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
-    struct pico_ip4 zero = {0};
+    struct pico_ip4 zero = {};
+
     t->mcast_link = zero;
     t->mcast_group = zero;
     /* void function, just check for side effects */
@@ -106,7 +107,7 @@ END_TEST
 START_TEST(tc_pico_igmp_v2querier_expired)
 {
     struct igmp_timer *t = PICO_ZALLOC(sizeof(struct igmp_timer));
-    struct pico_ip4 addr = {0};
+    struct pico_ip4 addr = {};
     struct pico_device *dev = pico_null_create("dummy2");
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_frame));
     t->f = f;
