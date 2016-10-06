@@ -39,7 +39,7 @@ START_TEST (test_dns)
     ret = pico_dns_client_nameserver(NULL, 99);
     fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
 
-    ret = pico_dns_client_nameserver(NULL, (uint8_t)-99);
+    ret = pico_dns_client_nameserver(NULL, 0xFF);
     fail_if(ret == 0, "dns> dns_client_nameserver wrong code");
 
     ret = pico_dns_client_nameserver(&ns, PICO_DNS_NS_DEL); /* delete non added ns */

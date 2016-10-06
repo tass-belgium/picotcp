@@ -292,8 +292,8 @@ END_TEST
 START_TEST(tc_tftp_socket_open)
 {
     /* TODO: test this: static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t port) */
-    fail_if(tftp_socket_open((uint16_t)-1, 21) != NULL);
-    fail_if(tftp_socket_open((uint16_t)-1, (uint16_t)-21) != NULL);
+    fail_if(tftp_socket_open(0xFFFF, 21) != NULL);
+    fail_if(tftp_socket_open(0xFFFF, 0xFFFF) != NULL);
 }
 END_TEST
 
