@@ -119,7 +119,7 @@ END_TEST
 START_TEST(tc_pico_mld_report_expired)
 {
     struct mld_timer *t = PICO_ZALLOC(sizeof(struct mld_timer));
-    struct pico_ip6 zero = {};
+    struct pico_ip6 zero = {0};
 
     t->mcast_link = zero;
     t->mcast_group = zero;

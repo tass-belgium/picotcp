@@ -381,24 +381,31 @@ START_TEST (test_igmp_sockopts)
     struct pico_socket *s, *s1 = NULL;
     struct pico_device *dev = NULL;
     union pico_address *source = NULL;
-    union pico_address
-	inaddr_dst = {},
-	inaddr_incorrect = {},
-	inaddr_uni = {},
-	inaddr_null = {},
-	netmask = {};
-    union pico_address inaddr_link[2] = {};
-    union pico_address inaddr_mcast[8] = {};
-    union pico_address inaddr_source[8] = {};
-    struct pico_ip_mreq _mreq = {}, mreq[16] = {};
-    struct pico_ip_mreq_source mreq_source[128] = {};
+    union pico_address inaddr_dst = {
+        0
+    }, inaddr_incorrect = {
+        0
+    }, inaddr_uni = {
+        0
+    }, inaddr_null = {
+        0
+    }, netmask = {
+        0
+    };
+    union pico_address inaddr_link[2] = {0};
+    union pico_address inaddr_mcast[8] = {0};
+    union pico_address inaddr_source[8] = {0};
+    struct pico_ip_mreq _mreq = {0}, mreq[16] = {0};
+    struct pico_ip_mreq_source mreq_source[128] = {0};
     struct pico_tree_node *index = NULL;
 
     int ttl = 64;
     int getttl = 0;
     int loop = 9;
     int getloop = 0;
-    union pico_address mcast_def_link = {};
+    union pico_address mcast_def_link = {
+        0
+    };
 
     pico_stack_init();
 
