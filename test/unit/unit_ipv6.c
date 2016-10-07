@@ -320,13 +320,13 @@ START_TEST (test_mld_sockopts)
     struct pico_device *dev = NULL;
     union pico_address *source = NULL;
     union pico_address inaddr_dst = {
-        {0}
+        0
     }, inaddr_incorrect = {
-        {0}
+        0
     }, inaddr_uni = {
-        {0}
+        0
     }, inaddr_null = {
-        {0}
+        0
     };
     struct pico_ip6 netmask = {{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
 
