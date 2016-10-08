@@ -194,7 +194,7 @@ int pico_frame_grow_head(struct pico_frame *f, uint32_t size)
         return -1;
 
     /* Put old buffer at the end of new buffer */
-    memcpy(f->buffer + f->buffer_len - oldsize, oldbuf, oldsize);
+    memcpy(f->buffer + f->buffer_len - oldsize, oldbuf, (size_t)oldsize);
     addr_diff = (ptrdiff_t)(f->buffer + f->buffer_len - oldsize - oldbuf);
 
     return pico_frame_update_pointers(f, addr_diff, oldbuf);
