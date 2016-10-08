@@ -13,7 +13,7 @@ Learn how to use picoTCP in your project by going through the **Getting Started 
 
 For more information visit the [picoTCP website](http://www.picotcp.com), send us an email or contact us on [Twitter](https://twitter.com/picotcp), [Facebook](https://www.facebook.com/picoTCP) or [Reddit](http://www.reddit.com/r/picotcp/).
 
-Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picotcp.com:42506/TIOBEPortal/TICS/treeviewer?)
+Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picotcp.com:42506/tiobeweb/TICS/TqiDashboard.html#axes=Project%28%29&metric=tqi&sel=Project%28PicoTCP_rel%29)
 
 
 ---------------
@@ -186,6 +186,9 @@ This is just a very quick overview, more info can be found in our [wiki](https:/
 Contributors are very welcome. Report a bug, suggest a way to improve our documentation, or write some new code.
 
 Note however that, before accepting your code, we would ask you to sign our [Contributors License Agreement](https://docs.google.com/forms/d/1-z6lsT75l6ZIrgHGEWrWdHylJ6xxpjc7FwGfL2ilDFU/viewform). Your code remains under your copyright, and will always be available under GPLv2. However, this CLA enables us to use picoTCP (including code from external contributors like you) under other licenses, including our commercial license. By doing commercial projects, we can keep investing in the quality and features of picoTCP.
+
+Coverity Scan Build status:
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/7944/badge.svg)](https://scan.coverity.com/projects/7944)
 
 ---------------
 

@@ -17,6 +17,8 @@
 #include "pico_device.h"
 #include "pico_tree.h"
 #include "pico_fragments.h"
+#include "pico_ethernet.h"
+#include "pico_6lowpan_ll.h"
 #include "pico_mld.h"
 #include "pico_mcast.h"
 #ifdef PICO_SUPPORT_IPV6
@@ -36,7 +38,7 @@
 #define PICO_IPV6_DEFAULT_DAD_RETRANS  1
 
 #define ipv6_dbg(...) do { } while(0)
-#define ipv6_mcast_dbg do { } while(0)
+#define ipv6_mcast_dbg(...) do { } while(0)
 #ifdef PICO_SUPPORT_MCAST
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;
 #endif
@@ -876,22 +878,32 @@ static int pico_ipv6_process_out(struct pico_protocol *self, struct pico_frame *
  * increment net_len and transport_hdr with the len of the extension headers, decrement
  * transport_len with this value.
  */
-static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, uint16_t size)
+static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc((uint32_t)(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR));
+    struct pico_frame *f = NULL;
 
     IGNORE_PARAMETER(self);
+
+    if (dev && !dev->mode) {
+        f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+    }
+#ifdef PICO_SUPPORT_6LOWPAN
+    /* TODO: For in 6LoWPAN branch */
+    else if (dev && LL_MODE_IEEE802154 == dev->mode) {
+        f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+    }
+#endif
 
     if (!f)
         return NULL;
 
-    f->datalink_hdr = f->buffer;
-    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
     f->net_len = PICO_SIZE_IP6HDR;
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP6HDR;
     f->transport_len = (uint16_t)size;
-    /* PICO_SIZE_ETHHDR is accounted for in pico_ethernet_send */
+
+    /* Datalink size is accounted for in pico_datalink_send (link layer) */
     f->len =  (uint32_t)(size + PICO_SIZE_IP6HDR);
+
     return f;
 }
 
@@ -998,6 +1010,13 @@ static int mcast_group_update_ipv6(struct pico_mcast_group *g, struct pico_tree 
                         return -1;
                     }
                 }
+
+                *source = *((struct pico_ip6 *)index->keyValue);
+                if (pico_tree_insert(&g->MCASTSources, source)) {
+                    ipv6_mcast_dbg("IPv6 MCAST: Failed to insert source in tree\n");
+                    PICO_FREE(source);
+					return -1;
+				}
             }
         }
     }
@@ -1043,10 +1062,11 @@ int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gro
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv6_mcast_sources_cmp;
         if (pico_tree_insert(link->MCASTGroups, g)) {
-            dbg("Error in mcast_group update: Could not insert group in tree\n");
+            ipv6_mcast_dbg("IPv6 MCAST: Failed to insert group in tree\n");
             PICO_FREE(g);
-            return -1;
-        }
+			return -1;
+		}
+
 #ifdef PICO_SUPPORT_MLD
         res = pico_mld_state_change(mcast_link, mcast_group, filter_mode, _MCASTFilter, PICO_MLD_STATE_CREATE);
 #endif
@@ -1566,8 +1586,12 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
         return -1;
     }
 
+    if (pico_tree_insert(&IPV6Routes, new)) {
+        ipv6_dbg("IPv6: Failed to insert route in tree\n");
+        PICO_FREE(new);
+		return -1;
+	}
 
-    pico_tree_insert(&IPV6Routes, new);
     pico_ipv6_dbg_route();
     return 0;
 }
@@ -1733,7 +1757,14 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
 #endif
 #endif
-    pico_tree_insert(&IPV6Links, new);
+    if (pico_tree_insert(&IPV6Links, new)) {
+        ipv6_dbg("IPv6: Failed to insert link in tree\n");
+#ifdef PICO_SUPPORT_MCAST
+        PICO_FREE(new->MCASTGroups);
+#endif
+        PICO_FREE(new);
+		return NULL;
+	}
     for (i = 0; i < PICO_SIZE_IP6; ++i) {
         network.addr[i] = address.addr[i] & netmask.addr[i];
     }

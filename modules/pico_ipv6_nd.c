@@ -125,11 +125,13 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     pico_ipv6_to_string(address, addr->addr);
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
+
     if (pico_tree_insert(&NCache, n)) {
-        PICO_FREE(n);
-        return NULL;
-    }
-    nd_dbg("Adding address %s to cache...\n", address);
+        nd_dbg("IPv6 ND: Failed to insert neigbor in tree\n");
+		PICO_FREE(n);
+		return NULL;
+	}
+
     return n;
 }
 

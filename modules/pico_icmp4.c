@@ -125,7 +125,7 @@ static int pico_icmp4_notify(struct pico_frame *f, uint8_t type, uint8_t code)
         f_tot_len = (sizeof(struct pico_ipv4_hdr) + 8u);
     }
 
-    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
+    reply = pico_proto_ipv4.alloc(&pico_proto_ipv4, f->dev, (uint16_t) (f_tot_len + PICO_ICMPHDR_UN_SIZE));
     info = (struct pico_ipv4_hdr*)(f->net_hdr);
     hdr = (struct pico_icmp4_hdr *) reply->transport_hdr;
     hdr->type = type;
@@ -229,11 +229,15 @@ static PICO_TREE_DECLARE(Pings, cookie_compare);
 
 static int8_t pico_icmp4_send_echo(struct pico_icmp4_ping_cookie *cookie)
 {
-    struct pico_frame *echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size));
+    struct pico_frame *echo = NULL;
     struct pico_icmp4_hdr *hdr;
-    if (!echo) {
+    struct pico_device *dev = pico_ipv4_source_dev_find(&cookie->dst);
+    if (!dev)
         return -1;
-    }
+
+    echo = pico_proto_ipv4.alloc(&pico_proto_ipv4, dev, (uint16_t)(PICO_ICMPHDR_UN_SIZE + cookie->size));
+    if (!echo)
+        return -1;
 
     hdr = (struct pico_icmp4_hdr *) echo->transport_hdr;
 
@@ -318,7 +322,12 @@ static void next_ping(pico_time now, void *arg)
             memcpy(newcookie, cookie, sizeof(struct pico_icmp4_ping_cookie));
             newcookie->seq++;
 
-            pico_tree_insert(&Pings, newcookie);
+            if (pico_tree_insert(&Pings, newcookie)) {
+                dbg("ICMP4: Failed to insert new cookie in tree \n");
+                PICO_FREE(newcookie);
+				return;
+			}
+
             send_ping(newcookie);
         }
     }
@@ -383,7 +392,12 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
     cookie->cb = cb;
     cookie->count = count;
 
-    pico_tree_insert(&Pings, cookie);
+    if (pico_tree_insert(&Pings, cookie)) {
+        dbg("ICMP4: Failed to insert cookie in tree \n");
+        PICO_FREE(cookie);
+		return -1;
+	}
+
     send_ping(cookie);
 
     return cookie->id;

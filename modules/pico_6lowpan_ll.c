@@ -496,8 +496,7 @@ struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct p
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == dev->mode) {
-        /* TODO: Update to pico_protocol's alloc function */
-        f = pico_frame_alloc(SIZE_802154_MHR_MAX + size);
+        f = pico_frame_alloc(dev->overhead + SIZE_802154_MHR_MAX + size);
         if (f) {
             f->net_hdr = f->buffer + (int)(f->buffer_len - (uint32_t)size);
             f->dev = dev;
@@ -517,6 +516,7 @@ struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct p
 struct pico_protocol pico_proto_6lowpan_ll = {
     .name = "6lowpan_ll",
     .layer = PICO_LAYER_DATALINK,
+    .alloc = pico_6lowpan_frame_alloc,
     .process_in = pico_6lowpan_ll_process_in,
     .process_out = pico_6lowpan_ll_process_out,
     .q_in = &pico_6lowpan_ll_in,

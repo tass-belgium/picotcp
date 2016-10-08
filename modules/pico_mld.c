@@ -317,7 +317,11 @@ static int pico_mld_timer_start(struct mld_timer *t)
 
     *timer = *t;
     timer->start = PICO_TIME_MS();
-    pico_tree_insert(&MLDTimers, timer);
+    if (pico_tree_insert(&MLDTimers, timer)) {
+        mld_dbg("MLD: Failed to insert timer into tree\n");
+        return -1;
+	}
+
     if (!pico_timer_add(timer->delay, &pico_mld_timer_expired, timer)) {
         mld_dbg("MLD: Failed to start expiration timer\n");
         pico_tree_delete(&MLDTimers, timer);
@@ -520,7 +524,10 @@ int pico_mld_state_change(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_gr
         p->state = MLD_STATE_NON_LISTENER;
         p->mcast_link.ip6 = *mcast_link;
         p->mcast_group.ip6 = *mcast_group;
-        pico_tree_insert(&MLDParameters, p);
+        if(pico_tree_insert(&MLDParameters, p)){
+			PICO_FREE(p);
+			return -1;
+		}
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -592,7 +599,10 @@ static struct mcast_parameters *pico_mld_analyse_packet(struct pico_frame *f)
 
         p->state = MLD_STATE_NON_LISTENER;
         p->mcast_link.ip6 = link->address;
-        pico_tree_insert(&MLDParameters, p);
+        if (pico_tree_insert(&MLDParameters, p)) {
+			PICO_FREE(p);
+			return NULL;
+		}
     }
 
     mld_dbg("Analyse package, type = %d\n", hdr->type);
@@ -642,10 +652,9 @@ static int8_t pico_mld_send_done(struct mcast_parameters *p, struct pico_frame *
 {
     struct mld_message *report = NULL;
     uint8_t report_type = PICO_MLD_DONE;
+    struct pico_device *dev = NULL;
     struct pico_ipv6_exthdr *hbh;
-    struct pico_ip6 dst = {{
-                               0
-                           }};
+    struct pico_ip6 dst = {{ 0 }};
 #ifdef PICO_DEBUG_MLD
     char ipstr[PICO_IPV6_STRING] = {
         0
@@ -655,8 +664,8 @@ static int8_t pico_mld_send_done(struct mcast_parameters *p, struct pico_frame *
 #endif
     IGNORE_PARAMETER(f);
     pico_string_to_ipv6(MLD_ALL_ROUTER_GROUP, &dst.addr[0]);
-    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN);
-    p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN);
     /* p->f->len is correctly set by alloc */
     hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
     report = (struct mld_message *)(pico_mld_fill_hopbyhop((struct pico_ipv6_hbhoption*)hbh));
@@ -730,6 +739,7 @@ static int8_t pico_mldv2_generate_report(struct mcast_filter_parameters *filter,
     struct mldv2_group_record *record = NULL;
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_hbhoption *hbh;
+    struct pico_device *dev = NULL;
     uint16_t len = 0;
     uint16_t i = 0;
     /* RFC3810 $5.1.10 */
@@ -741,8 +751,8 @@ static int8_t pico_mldv2_generate_report(struct mcast_filter_parameters *filter,
     len = (uint16_t)(sizeof(struct mldv2_report) + sizeof(struct mldv2_group_record) \
                      + (filter->sources * sizeof(struct pico_ip6)) + MLD_ROUTER_ALERT_LEN);
     len = (uint16_t)(len - sizeof(struct pico_ip6));
-    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, len);
-    p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, len);
     /* p->f->len is correctly set by alloc */
 
     hbh = (struct pico_ipv6_hbhoption *) p->f->transport_hdr;
@@ -804,8 +814,8 @@ static int8_t pico_mldv1_generate_report(struct mcast_parameters *p)
     struct mld_message *report = NULL;
     uint8_t report_type = PICO_MLD_REPORT;
     struct pico_ipv6_exthdr *hbh;
-    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN );
-    p->f->dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    struct pico_device *dev = pico_ipv6_link_find(&p->mcast_link.ip6);
+    p->f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, sizeof(struct mld_message) + MLD_ROUTER_ALERT_LEN );
     /* p->f->len is correctly set by alloc */
 
     hbh = (struct pico_ipv6_exthdr *)(p->f->transport_hdr);
