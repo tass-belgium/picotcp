@@ -7,7 +7,6 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_frame.h"
 #include "pico_protocol.h"
@@ -85,7 +84,7 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
             frame_buffer_size += (uint32_t)sizeof(uint32_t) - align;
         }
 
-        p->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
+        p->buffer = PICO_ZALLOC((size_t)frame_buffer_size + sizeof(uint32_t));
         if (!p->buffer) {
             PICO_FREE(p);
             return NULL;
@@ -101,7 +100,6 @@ static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int e
             return NULL;
         }
     }
-
 
     p->buffer_len = size;
 
@@ -152,7 +150,7 @@ pico_frame_new_buffer(struct pico_frame *f, uint32_t size, uint32_t *oldsize)
     *oldsize = f->buffer_len;
     usage_count = *(f->usage_count);
     p_old_usage = f->usage_count;
-    f->buffer = PICO_ZALLOC(frame_buffer_size + sizeof(uint32_t));
+    f->buffer = PICO_ZALLOC((size_t)frame_buffer_size + sizeof(uint32_t));
     if (!f->buffer) {
         f->buffer = oldbuf;
         return NULL;
@@ -169,7 +167,7 @@ pico_frame_new_buffer(struct pico_frame *f, uint32_t size, uint32_t *oldsize)
 }
 
 static int
-pico_frame_update_pointers(struct pico_frame *f, intptr_t addr_diff, uint8_t *oldbuf)
+pico_frame_update_pointers(struct pico_frame *f, ptrdiff_t addr_diff, uint8_t *oldbuf)
 {
     f->net_hdr += addr_diff;
     f->datalink_hdr += addr_diff;
@@ -189,7 +187,7 @@ pico_frame_update_pointers(struct pico_frame *f, intptr_t addr_diff, uint8_t *ol
 
 int pico_frame_grow_head(struct pico_frame *f, uint32_t size)
 {
-    intptr_t addr_diff = 0;
+    ptrdiff_t addr_diff = 0;
     uint32_t oldsize = 0;
     uint8_t *oldbuf = pico_frame_new_buffer(f, size, &oldsize);
     if (!oldbuf)
@@ -197,22 +195,22 @@ int pico_frame_grow_head(struct pico_frame *f, uint32_t size)
 
     /* Put old buffer at the end of new buffer */
     memcpy(f->buffer + f->buffer_len - oldsize, oldbuf, oldsize);
-    addr_diff = (intptr_t)(f->buffer + f->buffer_len - oldsize - oldbuf);
+    addr_diff = (ptrdiff_t)(f->buffer + f->buffer_len - oldsize - oldbuf);
 
     return pico_frame_update_pointers(f, addr_diff, oldbuf);
 }
 
 int pico_frame_grow(struct pico_frame *f, uint32_t size)
 {
-    intptr_t addr_diff = 0;
+    ptrdiff_t addr_diff = 0;
     uint32_t oldsize = 0;
     uint8_t *oldbuf = pico_frame_new_buffer(f, size, &oldsize);
     if (!oldbuf)
         return -1;
 
     /* Just put old buffer at the beginning of new buffer */
-    memcpy(f->buffer, oldbuf, oldsize);
-    addr_diff = (intptr_t)(f->buffer - oldbuf);
+    memcpy(f->buffer, oldbuf, (size_t)oldsize);
+    addr_diff = (ptrdiff_t)(f->buffer - oldbuf);
 
     return pico_frame_update_pointers(f, addr_diff, oldbuf);
 }
@@ -235,7 +233,7 @@ int pico_frame_skeleton_set_buffer(struct pico_frame *f, void *buf)
 struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
 {
     struct pico_frame *new = pico_frame_alloc(f->buffer_len);
-    int addr_diff;
+    ptrdiff_t addr_diff;
     unsigned char *buf;
     uint32_t *uc;
     if (!new)
@@ -253,7 +251,7 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     new->usage_count = uc;
 
     /* Update in-buffer pointers with offset */
-    addr_diff = (int)(new->buffer - f->buffer);
+    addr_diff = (ptrdiff_t)(new->buffer - f->buffer);
     new->datalink_hdr += addr_diff;
     new->net_hdr += addr_diff;
     new->transport_hdr += addr_diff;
