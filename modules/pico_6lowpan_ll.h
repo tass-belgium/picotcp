@@ -60,7 +60,6 @@ int pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pic
 int pico_6lowpan_ll_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
 int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int dst);
 int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev);
-struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size);
 union pico_ll_addr *frame_6lowpan_ll_store_addr(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
 
 #endif /* INCLUDE_PICO_6LOWPAN_LL */

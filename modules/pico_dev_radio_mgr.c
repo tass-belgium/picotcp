@@ -293,6 +293,7 @@ pico_radio_mgr_start(void)
         } else if (!ret)
             continue;
         pico_radio_mgr_process(fds, (int)n);
-        free(fds);
+        if (fds)
+            PICO_FREE(fds);
     }
 }

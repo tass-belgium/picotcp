@@ -235,6 +235,9 @@ ll_mac_header_process_in(struct pico_frame *f, union pico_ll_addr *src, union pi
     else if (LL_MODE_IEEE802154 == f->dev->mode) {
         return pico_802154_process_in(f, &src->pan, &dst->pan);
     }
+    else if (LL_MODE_IEEE802154_NO_MAC == f->dev->mode) {
+        return 0;
+    }
 #elif defined (PICO_SUPPORT_FOO)
     /* XXX: Here's where we can support other link layer protocols to allow
      * general 6LoWPAN-over-foo transmission link support */
@@ -251,6 +254,9 @@ ll_mac_header_process_out(struct pico_frame *f, union pico_ll_addr *src, union p
     else if (LL_MODE_IEEE802154 == f->dev->mode) {
         return pico_802154_process_out(f, &src->pan, &dst->pan);
     }
+    else if (LL_MODE_IEEE802154_NO_MAC == f->dev->mode) {
+        return 0;
+    }
 #elif defined (PICO_SUPPORT_FOO)
     /* XXX: Here's where we can support other link layer protocols to allow
      * general 6LoWPAN-over-foo transmission link support */
@@ -265,6 +271,9 @@ ll_mac_header_estimator(struct pico_frame *f, union pico_ll_addr *src, union pic
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
     else if (LL_MODE_IEEE802154 == f->dev->mode) {
+        return pico_802154_estimator(f, &src->pan, &dst->pan);
+    }
+    else if (LL_MODE_IEEE802154_NO_MAC == f->dev->mode) {
         return pico_802154_estimator(f, &src->pan, &dst->pan);
     }
 #elif defined (PICO_SUPPORT_FOO)
@@ -489,13 +498,15 @@ pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll
     return -1; // Return ERROR
 }
 
-struct pico_frame *pico_6lowpan_frame_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
+/* Alloc's a frame with device's overhead and maximum IEEE802.15.4 header size */
+static struct pico_frame *
+pico_6lowpan_frame_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
 {
     struct pico_frame *f;
     IGNORE_PARAMETER(self);
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
-    else if (LL_MODE_IEEE802154 == dev->mode) {
+    else if (dev && LL_MODE_IEEE802154 == dev->mode) {
         f = pico_frame_alloc(dev->overhead + SIZE_802154_MHR_MAX + size);
         if (f) {
             f->net_hdr = f->buffer + (int)(f->buffer_len - (uint32_t)size);

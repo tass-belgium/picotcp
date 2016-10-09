@@ -60,6 +60,7 @@ void app_ping(char *arg)
     char *delay = NULL;
     char *asize = NULL;
     int initial_delay = 0;
+    struct pico_ip6 dst;
     static int id;
     int timeout = 0;
     int size = 64;
@@ -69,6 +70,7 @@ void app_ping(char *arg)
         fprintf(stderr, "ping needs the following format: ping:dst_addr:[size:[abort after N sec:[wait N sec before start]]]\n");
         exit(255);
     }
+    pico_string_to_ipv6(dest, dst.addr);
     if (next) {
         next = cpy_arg(&asize, next);
         size = atoi(asize);
@@ -113,7 +115,7 @@ void app_ping(char *arg)
 
 #ifdef PICO_SUPPORT_IPV6
     else
-        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, size, cb_ping6, NULL);
+        id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, size, cb_ping6, pico_ipv6_source_dev_find(&dst));
 #endif
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);

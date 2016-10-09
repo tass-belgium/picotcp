@@ -1302,7 +1302,7 @@ frag_nth(struct pico_frame *f)
             }
             alloc = (uint16_t)(alloc + copy);
 
-            n = pico_6lowpan_frame_alloc(&pico_proto_6lowpan, f->dev, alloc);
+            n = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, f->dev, alloc);
             if (n) {
                 frag_fill(n->net_hdr, FRAGN_DISPATCH, frag->dgram_size,
                           frag->dgram_tag, frag->dgram_off, 5, copy,
@@ -1334,7 +1334,7 @@ frag_1st(struct pico_frame *f, uint16_t dgram_size, uint8_t dgram_off, uint16_t
     struct pico_frame *n = NULL;
     int ret = 0;
 
-    n = pico_6lowpan_frame_alloc(&pico_proto_6lowpan, f->dev, alloc);
+    n = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, f->dev, alloc);
     if (n) {
         frag_fill(n->net_hdr, FRAG1_DISPATCH, dgram_size, dgram_tag, 0, 4, copy,
                   0,f->net_hdr);
@@ -1515,7 +1515,7 @@ static int
 defrag_new(struct pico_frame *f, uint16_t dgram_size, uint16_t tag, uint16_t off,
            union pico_ll_addr src, union pico_ll_addr dst)
 {
-    struct pico_frame *r = pico_6lowpan_frame_alloc(&pico_proto_6lowpan, f->dev, dgram_size);
+    struct pico_frame *r = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, f->dev, dgram_size);
     if (r) {
         r->start = r->buffer + (int)(r->buffer_len - (uint32_t)dgram_size);
         r->len = dgram_size;
