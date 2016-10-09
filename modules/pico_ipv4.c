@@ -724,14 +724,7 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                 if (!source) {
                     pico_err = PICO_ERR_ENOMEM;
                     return -1;
-                } else {
-                    source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
-                    if (pico_tree_insert(&g->MCASTSources, source)) {
-                        PICO_FREE(source);
-                        return -1;
-                    }
                 }
-
                 source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
                 if (pico_tree_insert(&g->MCASTSources, source)) {
                     dbg("IPv4: Failed to insert source in tree\n");
@@ -1203,11 +1196,6 @@ int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmas
         pico_err = PICO_ERR_EINVAL;
         PICO_FREE(new);
         return -1;
-    } else {
-        if (pico_tree_insert(&Routes, new)) {
-            PICO_FREE(new);
-            return -1;
-        }
     }
 
     if (pico_tree_insert(&Routes, new)) {

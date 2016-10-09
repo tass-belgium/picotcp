@@ -884,15 +884,16 @@ static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, struct pic
 
     IGNORE_PARAMETER(self);
 
-    if (dev && !dev->mode) {
-        f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
-    }
+    if (0) {}
 #ifdef PICO_SUPPORT_6LOWPAN
     /* TODO: For in 6LoWPAN branch */
-    else if (dev && LL_MODE_IEEE802154 == dev->mode) {
+    if (dev && (LL_MODE_IEEE802154 == dev->mode || LL_MODE_IEEE802154_NO_MAC == dev->mode)) {
         f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
     }
 #endif
+    else {
+        f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+    }
 
     if (!f)
         return NULL;
@@ -1003,20 +1004,13 @@ static int mcast_group_update_ipv6(struct pico_mcast_group *g, struct pico_tree 
                 if (!source) {
                     pico_err = PICO_ERR_ENOMEM;
                     return -1;
-                } else {
-                    *source = *((struct pico_ip6 *)index->keyValue);
-                    if (pico_tree_insert(&g->MCASTSources, source)) {
-                        PICO_FREE(source);
-                        return -1;
-                    }
                 }
-
                 *source = *((struct pico_ip6 *)index->keyValue);
                 if (pico_tree_insert(&g->MCASTSources, source)) {
                     ipv6_mcast_dbg("IPv6 MCAST: Failed to insert source in tree\n");
                     PICO_FREE(source);
-					return -1;
-				}
+                    return -1;
+                }
             }
         }
     }
