@@ -500,6 +500,11 @@ int main(int argc, char **argv)
                 /* Add a routable link */
                 pico_string_to_ipv6(pan_addr, pan.addr);
                 pico_ipv6_link_add_local(dev, &pan);
+
+                /* Enable routing on first device */
+                if (n_id == 1) {
+                    pico_ipv6_dev_routing_enable(dev);
+                }
             }
             break;
         }

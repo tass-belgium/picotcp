@@ -350,6 +350,10 @@ static int radiotest_send(struct pico_device *dev, void *_buf, int len)
 #ifdef DEBUG_RADIOTEST
     printf("Radio '%u' transmitted a frame of %d bytes.\n", buf[len - 1], ret);
 #endif
+
+    /* Write the sent frame to the pcap-dump */
+    radiotest_pcap_write(radio, buf, len - 1);
+
     PICO_FREE(buf);
     return ret;
 }

@@ -38,7 +38,7 @@ PACKED_STRUCT_DEF pico_802154_hdr
  * Public functions
  ******************************************************************************/
 
-union pico_ll_addr addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev, int dest);
+union pico_ll_addr addr_802154(struct pico_frame *f, int dest);
 uint8_t pico_802154_estimator(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);
 int pico_802154_process_out(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);
 int pico_802154_process_in(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);

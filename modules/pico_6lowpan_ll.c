@@ -371,12 +371,12 @@ int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev)
 
 int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int dest)
 {
-    struct pico_ip6 src = ((struct pico_ipv6_hdr *)f->net_hdr)->src;
-    struct pico_ip6 dst = ((struct pico_ipv6_hdr *)f->net_hdr)->dst;
     if (0) {}
 #if defined (PICO_SUPPORT_802154)
-    else if (LL_MODE_IEEE802154 == f->dev->mode) {
-        *addr = addr_802154(&src, &dst, f->dev, dest);
+    else if (LL_MODE_IEEE802154 == f->dev->mode || LL_MODE_IEEE802154_NO_MAC == f->dev->mode) {
+        *addr = addr_802154(f, dest);
+        if (AM_6LOWPAN_SHORT != addr->pan.mode && AM_6LOWPAN_EXT != addr->pan.mode)
+            return -1;
     }
 #elif defined (PICO_SUPPORT_FOO)
     /* XXX: Here's where we can support other link layer protocols to allow

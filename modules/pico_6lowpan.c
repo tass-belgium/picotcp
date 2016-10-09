@@ -1476,8 +1476,8 @@ pico_6lowpan_process_out(struct pico_protocol *self, struct pico_frame *f)
 
     /* Retrieve link layer addresses */
     if (pico_6lowpan_ll_addr(f, &llsrc, 0) || pico_6lowpan_ll_addr(f, &lldst, 1)) {
-        pico_frame_discard(f);
-        return -1;
+        /* Address mode is unspecified, probably destination ll-address is being resolved */
+        return (int)f->len;
     }
 
     return pico_6lowpan_send(f, llsrc, lldst);

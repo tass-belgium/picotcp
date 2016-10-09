@@ -102,60 +102,54 @@ addr_802154_short_dev(struct pico_6lowpan_info *info)
 /* Based on the source IPv6-address, this function derives the link layer source
  * address */
 static struct pico_802154
-addr_802154_ll_src(struct pico_ip6 *src, struct pico_device *dev)
+addr_802154_ll_src(struct pico_frame *f)
 {
-    if (IID_16(&src->addr[8])) {
+    struct pico_ip6 src = ((struct pico_ipv6_hdr *)f->net_hdr)->src;
+    if (IID_16(&src.addr[8])) {
         /* IPv6 source is derived from the device's short address, use that
          * short address so decompressor can derive the IPv6 source from
          * the encapsulating header */
-        return addr_802154_short_dev((struct pico_6lowpan_info *)dev->eth);
+        return addr_802154_short_dev((struct pico_6lowpan_info *)f->dev->eth);
     } else {
         /* IPv6 source is derived from the device's extended address, use
          * the device's extended address so */
-        return addr_802154_ext_dev((struct pico_6lowpan_info *)dev->eth);
+        return addr_802154_ext_dev((struct pico_6lowpan_info *)f->dev->eth);
     }
 }
 
 /* Based on the destination IPv6-address, this function derives the link layer
  * destination address */
 static struct pico_802154
-addr_802154_ll_dst(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev)
+addr_802154_ll_dst(struct pico_frame *f)
 {
+    struct pico_ip6 dst = ((struct pico_ipv6_hdr *)f->net_hdr)->dst;
     struct pico_802154 addr = { .addr.data = { 0 }, .mode = 0 };
     addr.mode = AM_6LOWPAN_NONE;
 
-    if (dst) {
-        if (pico_ipv6_is_multicast(dst->addr)) {
-            addr.addr._short.addr = short_be(ADDR_802154_BCAST);
+    if (pico_ipv6_is_multicast(dst.addr)) {
+        addr.addr._short.addr = short_be(ADDR_802154_BCAST);
+        addr.mode = AM_6LOWPAN_SHORT;
+    }
+    /* If the address is link local derive the link layer address from the IID */
+    else if (pico_ipv6_is_linklocal(dst.addr)) {
+        if (IID_16(&dst.addr[8])) {
+            addr.addr.data[0] = dst.addr[14];
+            addr.addr.data[1] = dst.addr[15];
             addr.mode = AM_6LOWPAN_SHORT;
+        } else {
+            memcpy(addr.addr.data, &dst.addr[8], SIZE_6LOWPAN_EXT);
+            addr.addr.data[0] = (uint8_t)(addr.addr.data[0] ^ 0x02);
+            addr.mode = AM_6LOWPAN_EXT;
         }
-        /* If the address is link local derive the link layer address from the IID
-        * TODO: THIS IS FOR TESTING PURPOSES, HAS TO BE REMOVED WHEN LOWPAN_ND IS
-        * IMPLEMENTED */
-        else if (pico_ipv6_is_linklocal(dst->addr)) {
-            if (IID_16(&dst->addr[8])) {
-                addr.addr.data[0] = dst->addr[14];
-                addr.addr.data[1] = dst->addr[15];
-                addr.mode = AM_6LOWPAN_SHORT;
-            } else {
-                memcpy(addr.addr.data, &dst->addr[8], SIZE_6LOWPAN_EXT);
-                addr.addr.data[0] = (uint8_t)(addr.addr.data[0] ^ 0x02);
-                addr.mode = AM_6LOWPAN_EXT;
-            }
+    }
+    else {
+        struct pico_802154 *n = (struct pico_802154 *)pico_ipv6_get_neighbor(f);
+        if (n) {
+            memcpy(addr.addr.data, n->addr.data, SIZE_6LOWPAN(n->mode));
+            addr.mode = n->mode;
+        } else {
+            pico_ipv6_nd_postpone(f);
         }
-#ifdef LOWPAN_ND
-        else {
-            struct pico_802154 *n;
-            n = pico_ipv6_get_neighbor(src, dst, dev);
-            if (n) {
-                memcpy(addr.addr.data, n->addr.data, SIZE_6LOWPAN(n->mode));
-                addr.mode = n->mode;
-            }
-        }
-#else
-        IGNORE_PARAMETER(dev);
-        IGNORE_PARAMETER(src);
-#endif
     }
     return addr;
 }
@@ -344,13 +338,13 @@ addr_802154_len(union pico_ll_addr *addr)
  * certain source IPv6 address, if 'dest' is set it will get it for the a
  * destination address */
 union pico_ll_addr
-addr_802154(struct pico_ip6 *src, struct pico_ip6 *dst, struct pico_device *dev, int dest)
+addr_802154(struct pico_frame *f, int dest)
 {
     union pico_ll_addr addr;
     if (dest) {
-        addr.pan = addr_802154_ll_dst(src, dst, dev);
+        addr.pan = addr_802154_ll_dst(f);
     } else {
-        addr.pan = addr_802154_ll_src(src, dev);
+        addr.pan = addr_802154_ll_src(f);
     }
     return addr;
 }

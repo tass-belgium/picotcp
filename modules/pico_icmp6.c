@@ -426,9 +426,9 @@ static int pico_6lp_nd_neighbor_solicitation(struct pico_device *dev, struct pic
     uint16_t len = 0;
 
     /* Determine the size frame needs to be for the Neighbor Solicitation */
-    len = PICO_ICMP6HDR_NEIGH_SOL_SIZE;
+    len = (uint16_t)(PICO_ICMP6HDR_NEIGH_SOL_SIZE + llao_len);
     if (PICO_ICMP6_ND_DAD == type)
-        len = (uint16_t)(len + sizeof(struct pico_icmp6_opt_aro) + llao_len);
+        len = (uint16_t)(len + sizeof(struct pico_icmp6_opt_aro));
 
     /* Prepare a neighbor solicitation message */
     sol = pico_icmp6_neigh_sol_prep(dev, tgt, len);
