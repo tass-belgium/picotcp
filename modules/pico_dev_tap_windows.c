@@ -28,16 +28,28 @@
 /*
  * Debugging info
  */
-#ifdef DEBUG_TAP
-    #define dbg_tap_info dbg    /* tap info messages */
-    #define dbg_tap      dbg    /* first level debug */
-    #define dbg_win32    dbg    /* second level detailed win32 debug */
-    #define dbg_reg      dbg    /* third level: registry debug */
+#ifdef DEBUG_TAP_GENERAL
+#define dbg_tap                dbg    /* first level debug */
 #else
-    #define dbg_tap_info(...)  do{} while(0)
-    #define dbg_tap(...)       do{} while(0)
-    #define dbg_win32(...)     do{} while(0)
-    #define dbg_reg(...)       do{} while(0)
+#define dbg_tap(...)           do{} while(0)
+#endif
+
+#ifdef DEBUG_TAP_INFO
+#define dbg_tap_info           dbg    /* tap info messages */
+#else
+#define dbg_tap_info(...)      do{} while(0)
+#endif
+
+#ifdef DEBUG_TAP_WIN
+#define dbg_tap_win32          dbg    /* second level detailed win32 debug */
+#else
+#define dbg_tap_win32(...)     do{} while(0)
+#endif
+
+#ifdef DEBUG_TAP_REG
+#define dbg_tap_reg            dbg    /* third level: registry debug */
+#else
+#define dbg_tap_reg(...)       do{} while(0)
 #endif
 
 /*
@@ -130,7 +142,7 @@ const struct tap_reg *get_tap_reg (void)
 
     if (status != ERROR_SUCCESS)
     {
-        dbg_reg("Error opening registry key: %s\n", ADAPTER_KEY);
+        dbg_tap_reg("Error opening registry key: %s\n", ADAPTER_KEY);
         return NULL;
     }
 
@@ -158,7 +170,7 @@ const struct tap_reg *get_tap_reg (void)
         if (status == ERROR_NO_MORE_ITEMS)
             break;
         else if (status != ERROR_SUCCESS)
-            dbg_reg("Error enumerating registry subkeys of key: %s.\n", ADAPTER_KEY);
+            dbg_tap_reg("Error enumerating registry subkeys of key: %s.\n", ADAPTER_KEY);
 
         snprintf (unit_string, sizeof(unit_string), "%s\\%s",
                   ADAPTER_KEY, enum_name);
@@ -172,7 +184,7 @@ const struct tap_reg *get_tap_reg (void)
 
         if (status != ERROR_SUCCESS)
         {
-            dbg_reg("Error opening registry key: %s\n", unit_string);
+            dbg_tap_reg("Error opening registry key: %s\n", unit_string);
         }
         else
         {
@@ -187,7 +199,7 @@ const struct tap_reg *get_tap_reg (void)
 
             if (status != ERROR_SUCCESS || data_type != REG_SZ)
             {
-                dbg_reg("Error opening registry key: %s\\%s\n", unit_string, component_id_string);
+                dbg_tap_reg("Error opening registry key: %s\\%s\n", unit_string, component_id_string);
             }
             else
             {
@@ -259,7 +271,7 @@ const struct panel_reg *get_panel_reg (void)
 
     if (status != ERROR_SUCCESS)
     {
-        dbg_reg("Error opening registry key: %s\n", NETWORK_CONNECTIONS_KEY);
+        dbg_tap_reg("Error opening registry key: %s\n", NETWORK_CONNECTIONS_KEY);
         return NULL;
     }
 
@@ -285,7 +297,7 @@ const struct panel_reg *get_panel_reg (void)
         if (status == ERROR_NO_MORE_ITEMS)
             break;
         else if (status != ERROR_SUCCESS)
-            dbg_reg("Error enumerating registry subkeys of key: %s.\n", NETWORK_CONNECTIONS_KEY);
+            dbg_tap_reg("Error enumerating registry subkeys of key: %s.\n", NETWORK_CONNECTIONS_KEY);
 
         snprintf (connection_string, sizeof(connection_string), "%s\\%s\\Connection", NETWORK_CONNECTIONS_KEY, enum_name);
 
@@ -296,7 +308,7 @@ const struct panel_reg *get_panel_reg (void)
             KEY_READ,
             &connection_key);
         if (status != ERROR_SUCCESS)
-            dbg_reg("Error opening registry key: %s\n", connection_string);
+            dbg_tap_reg("Error opening registry key: %s\n", connection_string);
         else
         {
             len = sizeof (name_data);
@@ -309,7 +321,7 @@ const struct panel_reg *get_panel_reg (void)
                 &len);
 
             if (status != ERROR_SUCCESS || name_type != REG_SZ)
-                dbg_reg("Error opening registry key: %s\\%s\\%S\n", NETWORK_CONNECTIONS_KEY, connection_string, name_string);
+                dbg_tap_reg("Error opening registry key: %s\\%s\\%S\n", NETWORK_CONNECTIONS_KEY, connection_string, name_string);
             else
             {
                 int n;
@@ -696,7 +708,7 @@ int tun_read_queue (struct tuntap *tt, uint8_t *buffer, int maxsize)
             tt->reads.iostate = IOSTATE_IMMEDIATE_RETURN;
             tt->reads.status = 0;
 
-            dbg_win32 ("WIN32 I/O: TAP Read immediate return [%d,%d]\n",
+            dbg_tap_win32 ("WIN32 I/O: TAP Read immediate return [%d,%d]\n",
                        (int) len,
                        (int) tt->reads.size);
         }
@@ -707,7 +719,7 @@ int tun_read_queue (struct tuntap *tt, uint8_t *buffer, int maxsize)
             {
                 tt->reads.iostate = IOSTATE_QUEUED;
                 tt->reads.status = err;
-                dbg_win32 ("WIN32 I/O: TAP Read queued [%d]\n", (int) len);
+                dbg_tap_win32 ("WIN32 I/O: TAP Read queued [%d]\n", (int) len);
             }
             else /* error occurred */
             {
@@ -754,7 +766,7 @@ int tun_finalize(HANDLE h, struct overlapped_io *io, uint8_t **buf, uint32_t *bu
             if (!ResetEvent (io->overlapped.hEvent))
                 dbg_tap("ResetEvent in finalize failed!\n");
 
-            dbg_win32 ("WIN32 I/O: TAP Completion success: QUEUED! [%d]\n", ret);
+            dbg_tap_win32 ("WIN32 I/O: TAP Completion success: QUEUED! [%d]\n", ret);
         }
         else
         {
@@ -795,7 +807,7 @@ int tun_finalize(HANDLE h, struct overlapped_io *io, uint8_t **buf, uint32_t *bu
                 *buf = io->buf;
 
             ret = io->size;
-            dbg_win32 ("WIN32 I/O: TAP Completion non-queued success [%d]\n", ret);
+            dbg_tap_win32 ("WIN32 I/O: TAP Completion non-queued success [%d]\n", ret);
         }
 
         break;
@@ -853,7 +865,7 @@ int tun_write_queue (struct tuntap *tt, uint8_t *buf, uint32_t buf_len)
 
             tt->writes.status = 0;
 
-            dbg_win32 ("WIN32 I/O: TAP Write immediate return [%d,%d]\n",
+            dbg_tap_win32 ("WIN32 I/O: TAP Write immediate return [%d,%d]\n",
                        (int)(tt->writes.buf_len),
                        (int)tt->writes.size);
         }
@@ -864,7 +876,7 @@ int tun_write_queue (struct tuntap *tt, uint8_t *buf, uint32_t buf_len)
             {
                 tt->writes.iostate = IOSTATE_QUEUED;
                 tt->writes.status = err;
-                dbg_win32("WIN32 I/O: TAP Write queued [%d]\n",
+                dbg_tap_win32("WIN32 I/O: TAP Write queued [%d]\n",
                           (tt->writes.buf_len));
             }
             else /* error occurred */
@@ -1087,4 +1099,3 @@ struct pico_device *pico_tap_create(char *name, uint8_t *mac)
 
     return (struct pico_device *)tap;
 }
-
