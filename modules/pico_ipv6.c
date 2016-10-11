@@ -47,7 +47,7 @@
 #ifdef DEBUG_MCAST
 #define ipv6_mcast_dbg dbg
 #else
-#define ipv6_mcast_dbg do { } while(0)
+#define ipv6_mcast_dbg(...) do { } while(0)
 #endif
 
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;

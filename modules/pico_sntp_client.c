@@ -20,7 +20,7 @@
 #ifdef DEBUG_SNTP
 #define sntp_dbg dbg
 #else
-#define sntp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#define sntp_dbg(...) do {} while(0)
 #endif
 
 #define SNTP_VERSION 4

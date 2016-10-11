@@ -15,7 +15,7 @@
 #ifdef DEBUG_SLAACV4
 #define slaacv4_dbg dbg
 #else
-#define slaacv4_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#define slaacv4_dbg(...) do {} while(0)
 #endif
 
 #define SLAACV4_NETWORK  ((long_be(0xa9fe0000)))

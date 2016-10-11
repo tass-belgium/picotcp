@@ -32,7 +32,7 @@
 #ifdef DEBUG_MCAST
 #define ip_mcast_dbg dbg
 #else
-#define ip_mcast_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#define ip_mcast_dbg(...) do {} while(0)
 #endif
 
 # define PICO_MCAST_ALL_HOSTS long_be(0xE0000001) /* 224.0.0.1 */

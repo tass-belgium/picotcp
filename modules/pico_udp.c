@@ -17,7 +17,7 @@
 #ifdef DEBUG_UDP
 #define udp_dbg dbg
 #else
-#define udp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#define udp_dbg(...) do {} while(0)
 #endif
 
 #define UDP_FRAME_OVERHEAD (sizeof(struct pico_frame))

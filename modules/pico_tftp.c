@@ -16,7 +16,7 @@
 #ifdef DEBUG_TFTP
 #define tftp_dbg dbg
 #else
-#define tftp_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
+#define tftp_dbg(...) do {} while(0)
 #endif
 
 /* a zero value means adaptative timeout! (2, 4, 8) */
