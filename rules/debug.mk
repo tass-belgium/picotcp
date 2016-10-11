@@ -146,7 +146,7 @@ ifneq ($(DEBUG_TCP),0)
 	CFLAGS+=-DDEBUG_TCP
 endif
 
-ifneq ($(DEBUG_TCP),0)
+ifneq ($(DEBUG_TFTP),0)
 	CFLAGS+=-DDEBUG_TFTP
 endif
 
