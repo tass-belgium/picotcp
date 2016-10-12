@@ -38,7 +38,6 @@
 #   define MOCKABLE
 #endif
 
-
 volatile pico_time pico_tick;
 volatile pico_err_t pico_err;
 
@@ -857,6 +856,11 @@ uint32_t pico_timer_add_hashed(pico_time expire, void (*timer)(pico_time, void *
 
 int MOCKABLE pico_stack_init(void)
 {
+#if ((defined CHECK_MEM) && (defined MEM_TEST_SEED))
+	srand(MEM_TEST_SEED);
+	fopen("mem_test.log", "w");
+#endif
+
 #ifdef PICO_SUPPORT_ETH
     pico_protocol_init(&pico_proto_ethernet);
 #endif
@@ -917,9 +921,11 @@ int MOCKABLE pico_stack_init(void)
     pico_aodv_init();
 #endif
 
+
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();
+
     return 0;
 }
 

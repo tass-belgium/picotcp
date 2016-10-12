@@ -157,6 +157,14 @@ ifeq ($(ARCH),faulty)
   DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
+ifdef CHECK_MEM
+  CFLAGS+=-DCHECK_MEM
+endif
+
+ifdef MEM_TEST_SEED
+  CFLAGS+=-DMEM_TEST_SEED=$(MEM_TEST_SEED)
+endif
+
 ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif

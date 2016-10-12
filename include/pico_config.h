@@ -9,6 +9,7 @@
 #ifndef __KERNEL__
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #else
 #include <linux/types.h>
@@ -50,6 +51,8 @@
 #define short_be(x) (x)
 #define long_be(x) (x)
 #define long_long_be(x) (x)
+
+
 
 static inline uint16_t short_from(void *_p)
 {
@@ -163,7 +166,6 @@ static inline uint64_t long_long_be(uint64_t le)
 #   endif /* BYTESWAP_GCC */
 #endif
 
-
 /* Mockables */
 #if defined UNIT_TEST
 #   define MOCKABLE __attribute__((weak))
@@ -229,9 +231,23 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_posix.h"
 #endif
 
+static inline void log(const char* filename, const char* message)
+{
+	FILE * file;
+	file = fopen(filename, "a");
+	fprintf(file, message);
+	fclose(file);
+}
+
 #ifdef PICO_SUPPORT_MM
 #define PICO_ZALLOC(x) pico_mem_zalloc(x)
 #define PICO_FREE(x) pico_mem_free(x)
+#elif defined CHECK_MEM
+#define PICO_ZALLOC(x) \
+((((double)(rand())/(double)RAND_MAX) < 0.02) \
+? (log("mem_test.log", "Malloc FAILED\n\n"), NULL) \
+: (log("mem_test.log", "Malloc Succeeded\n\n"), pico_zalloc(x))) 
+#define PICO_FREE(x) pico_free(x)
 #else
 #define PICO_ZALLOC(x) pico_zalloc(x)
 #define PICO_FREE(x) pico_free(x)
