@@ -158,7 +158,7 @@ ifeq ($(ARCH),faulty)
 endif
 
 ifdef CHECK_MEM
-  CFLAGS+=-DCHECK_MEM
+  CFLAGS+=-DCHECK_MEM -rdynamic
 endif
 
 ifdef MEM_TEST_SEED

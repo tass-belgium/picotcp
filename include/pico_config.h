@@ -239,14 +239,33 @@ static inline void log(const char* filename, const char* message)
 	fclose(file);
 }
 
+static inline void append_backtrace(const char* filename)
+{
+	void *array[10];
+	size_t size;
+	int fd;
+	FILE * file;
+	file = fopen(filename, "a");
+	fd = fileno(file);
+
+	fprintf(file, "Backtrace:\n");
+	fseek(file, 0, SEEK_END);
+
+	size = backtrace(array, 10);
+	backtrace_symbols_fd(array, size, fd);
+	fprintf(file, "\n");
+
+	fclose(file);
+}
+
 #ifdef PICO_SUPPORT_MM
 #define PICO_ZALLOC(x) pico_mem_zalloc(x)
 #define PICO_FREE(x) pico_mem_free(x)
 #elif defined CHECK_MEM
 #define PICO_ZALLOC(x) \
-((((double)(rand())/(double)RAND_MAX) < 0.02) \
-? (log("mem_test.log", "Malloc FAILED\n\n"), NULL) \
-: (log("mem_test.log", "Malloc Succeeded\n\n"), pico_zalloc(x))) 
+((((double)(rand())/(double)RAND_MAX) < 0.4) \
+? (log("mem_test.log", "Malloc FAILED\n"), append_backtrace("mem_test.log"),  NULL) \
+: (log("mem_test.log", "Malloc Succeeded\n"), append_backtrace("mem_test.log"), pico_zalloc(x))) 
 #define PICO_FREE(x) pico_free(x)
 #else
 #define PICO_ZALLOC(x) pico_zalloc(x)
