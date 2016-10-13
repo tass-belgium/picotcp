@@ -16,8 +16,11 @@
 #ifdef PICO_SUPPORT_MDNS
 
 /* --- Debugging --- */
+#ifdef DEBUG_MDNS
+#define mdns_dbg dbg
+#else
 #define mdns_dbg(...) do {} while(0)
-//#define mdns_dbg dbg
+#endif
 
 #define PICO_MDNS_QUERY_TIMEOUT (10000) /* Ten seconds */
 #define PICO_MDNS_RR_TTL_TICK (1000)    /* One second */

@@ -208,6 +208,8 @@ POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tap.o \
             modules/pico_dev_mock.o
 
+include rules/debug.mk
+
 ifneq ($(ETH),0)
   include rules/eth.mk
 endif

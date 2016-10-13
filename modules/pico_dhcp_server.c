@@ -16,8 +16,11 @@
 
 #if (defined PICO_SUPPORT_DHCPD && defined PICO_SUPPORT_UDP)
 
-#define dhcps_dbg(...) do {} while(0)
-/* #define dhcps_dbg dbg */
+#ifdef DEBUG_DHCP_SERVER
+    #define dhcps_dbg dbg
+#else
+    #define dhcps_dbg(...) do {} while(0)
+#endif
 
 /* default configurations */
 #define DHCP_SERVER_OPENDNS    long_be(0xd043dede) /* OpenDNS DNS server 208.67.222.222 */
@@ -295,7 +298,7 @@ static inline void parse_opt_msgtype(struct pico_dhcp_opt *opt, uint8_t *msgtype
 {
     if (opt->code == PICO_DHCP_OPT_MSGTYPE) {
         *msgtype = opt->ext.msg_type.type;
-        dhcps_dbg("DHCP server: message type %u\n", msgtype);
+        dhcps_dbg("DHCP server: message type %u\n", *msgtype);
     }
 }
 

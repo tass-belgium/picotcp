@@ -17,8 +17,11 @@
 
 #ifdef PICO_SUPPORT_SNTP_CLIENT
 
+#ifdef DEBUG_SNTP
+#define sntp_dbg dbg
+#else
 #define sntp_dbg(...) do {} while(0)
-/* #define sntp_dbg dbg */
+#endif
 
 #define SNTP_VERSION 4
 #define PICO_SNTP_MAXBUF (1400)
@@ -91,11 +94,11 @@ static int timestamp_convert(const struct pico_sntp_ts *ts, struct pico_timeval 
         return -1;
     }
 
-    sntp_dbg("Delay: %llu\n", delay);
+    sntp_dbg("Delay: %lu\n", delay);
     tv->tv_msec = (pico_time) (((uint32_t)(long_be(ts->frac))) / SNTP_FRAC_TO_PICOSEC + delay);
     tv->tv_sec = (pico_time) (long_be(ts->sec) - SNTP_UNIX_OFFSET + (uint32_t)tv->tv_msec / SNTP_THOUSAND);
     tv->tv_msec = (uint32_t) (tv->tv_msec & SNTP_BITMASK) % SNTP_THOUSAND;
-    sntp_dbg("Converted time stamp: %llusec, %llumsec\n", tv->tv_sec, tv->tv_msec);
+    sntp_dbg("Converted time stamp: %lusec, %lumsec\n", tv->tv_sec, tv->tv_msec);
     return 0;
 }
 
@@ -140,7 +143,7 @@ static int pico_sntp_parse(char *buf, struct sntp_server_ns_cookie *ck)
         return ret;
     }
 
-    sntp_dbg("Server time: %llu seconds and %llu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
+    sntp_dbg("Server time: %lu seconds and %lu milisecs since 1970\n", server_time.tv_sec,  server_time.tv_msec);
 
     /* Call back the user saying the time is synced */
     pico_sntp_cleanup(ck, PICO_ERR_NOERR);
@@ -542,7 +545,7 @@ int pico_sntp_gettimeofday(struct pico_timeval *tv)
     temp = server_time.tv_msec + (uint32_t)(diff & SNTP_BITMASK) % SNTP_THOUSAND;
     tv->tv_sec = server_time.tv_sec + ((uint64_t)diffH << 32) + diffL + (uint32_t)temp / SNTP_THOUSAND;
     tv->tv_msec = (uint32_t)(temp & SNTP_BITMASK) % SNTP_THOUSAND;
-    sntp_dbg("Time of day: %llu seconds and %llu milisecs since 1970\n", tv->tv_sec,  tv->tv_msec);
+    sntp_dbg("Time of day: %lu seconds and %lu milisecs since 1970\n", tv->tv_sec,  tv->tv_msec);
     return ret;
 }
 

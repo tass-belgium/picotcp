@@ -54,12 +54,24 @@
 
 
 #ifdef PICO_SUPPORT_TCP
-#define tcp_dbg_nagle(...) do {} while(0)
+
+#ifdef DEBUG_TCP_GENERAL
+#define tcp_dbg              dbg
+#else
+#define tcp_dbg(...)         do {} while(0)
+#endif
+
+#ifdef DEBUG_TCP_NAGLE
+#define tcp_dbg_nagle        dbg
+#else
+#define tcp_dbg_nagle(...)   do {} while(0)
+#endif
+
+#ifdef DEBUG_TCP_OPTIONS
+#define tcp_dbg_options      dbg
+#else
 #define tcp_dbg_options(...) do {} while(0)
-
-
-#define tcp_dbg(...) do {} while(0)
-/* #define tcp_dbg dbg */
+#endif
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;
