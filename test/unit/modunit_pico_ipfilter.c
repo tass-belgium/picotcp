@@ -36,7 +36,7 @@ START_TEST(tc_ipfilter)
     }, b = {
         0
     };
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
 
     /* a is rule, matching packet b */
@@ -48,11 +48,15 @@ START_TEST(tc_ipfilter)
     /* a has a out port that does not match packet */
     b.out_port = 8;
     a.out_port = 7;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches all ports */
     a.out_port = 0;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
+
+    /* a matches port exactly */
+    a.out_port = 8;
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /*** NEXT TEST ***/
 
@@ -60,95 +64,95 @@ START_TEST(tc_ipfilter)
     /* a has a in port that does not match packet */
     b.in_port = 8;
     a.in_port = 7;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches all ports */
     a.in_port = 0;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a matches port exactly */
-    a.in_port = 0;
-    fail_if(filter_compare(&a, &b) != 0);
+    a.in_port = 8;
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all out addresses */
     b.out_addr = 0x010000a0;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a does not match b via 8-bit netmask */
     a.out_addr = 0x000000c0;
     a.out_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a does not match b at all*/
     a.out_addr = 0x020000b0;
     a.out_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches b via 8-bit netmask */
     a.out_addr = 0x000000a0;
     a.out_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a matches b exactly */
     a.out_addr = 0x010000a0;
     a.out_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all in addresses */
     b.in_addr = 0x010000a0;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a does not match b via 8-bit netmask */
     a.in_addr = 0x000000c0;
     a.in_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a does not match b at all*/
     a.in_addr = 0x020000b0;
     a.in_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches b via 8-bit netmask */
     a.in_addr = 0x000000a0;
     a.in_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a matches b exactly */
     a.in_addr = 0x010000a0;
     a.in_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all protocols */
     b.proto = 4u;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a does not match protocol */
     a.proto = 5u;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches b's protocol */
     a.proto = b.proto;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all devices */
     b.fdev = (struct pico_device *) &b;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
     /* a does not match device */
     a.fdev = (struct pico_device *)&a;
-    fail_if(filter_compare(&a, &b) == 0);
+    fail_if(filter_match_packet(&a, &b) == 0);
 
     /* a matches b's device */
     a.fdev = b.fdev;
-    fail_if(filter_compare(&a, &b) != 0);
+    fail_if(filter_match_packet(&a, &b) != 0);
 
 
     /*** SAME TEST DUPLICATED WITH INVERTED ORDER OF PARAMETERS ***/
@@ -165,11 +169,15 @@ START_TEST(tc_ipfilter)
     /* a has a out port that does not match packet */
     b.out_port = 8;
     a.out_port = 7;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches all ports */
     a.out_port = 0;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
+    
+    /* a matches port exactly */
+    a.out_port = 0;
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /*** NEXT TEST ***/
 
@@ -177,96 +185,95 @@ START_TEST(tc_ipfilter)
     /* a has a in port that does not match packet */
     b.in_port = 8;
     a.in_port = 7;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches all ports */
     a.in_port = 0;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a matches port exactly */
     a.in_port = 0;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all out addresses */
     b.out_addr = 0x010000a0;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a does not match b via 8-bit netmask */
     a.out_addr = 0x000000c0;
     a.out_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a does not match b at all*/
     a.out_addr = 0x020000b0;
     a.out_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches b via 8-bit netmask */
     a.out_addr = 0x000000a0;
     a.out_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a matches b exactly */
     a.out_addr = 0x010000a0;
     a.out_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all in addresses */
     b.in_addr = 0x010000a0;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a does not match b via 8-bit netmask */
     a.in_addr = 0x000000c0;
     a.in_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a does not match b at all*/
     a.in_addr = 0x020000b0;
     a.in_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches b via 8-bit netmask */
     a.in_addr = 0x000000a0;
     a.in_addr_netmask = 0x000000ff;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a matches b exactly */
     a.in_addr = 0x010000a0;
     a.in_addr_netmask = 0xffffffff;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all protocols */
     b.proto = 4u;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a does not match protocol */
     a.proto = 5u;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches b's protocol */
     a.proto = b.proto;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /*** NEXT TEST ***/
 
     /* a matches all devices */
     b.fdev = (struct pico_device *)&b;
-    fail_if(filter_compare(&b, &a) != 0);
+    fail_if(filter_match_packet(&b, &a) != 0);
 
     /* a does not match device */
     a.fdev = (struct pico_device *)&a;
-    fail_if(filter_compare(&b, &a) == 0);
+    fail_if(filter_match_packet(&b, &a) == 0);
 
     /* a matches b's device */
     a.fdev = b.fdev;
-    fail_if(filter_compare(&b, &a) != 0);
-
+    fail_if(filter_match_packet(&b, &a) != 0);
 
 
     /*********** TEST ADD FILTER **************/
@@ -288,6 +295,45 @@ START_TEST(tc_ipfilter)
 
     r = pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_COUNT);
     fail_if(r > 0);
+
+    /*********** TEST DEL FILTER **************/
+
+    /*
+        int pico_ipv4_filter_del(uint32_t filter_id)
+        o Delete the first filter in the list
+        o Delete a filter in the middle
+        o Delete the last filter
+    */
+
+    int id = pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r != 0);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r == 0);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    id = pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r != 0);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r == 0);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    id = pico_ipv4_filter_add(NULL, 0, NULL, NULL, NULL, NULL, 0, 0, 0, 0, FILTER_DROP);
+    r = pico_ipv4_filter_del(100);
+    fail_if(r != PICO_ERR_EINVAL);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r != 0);
+    r = pico_ipv4_filter_del(id);
+    fail_if(r == 0);
+    /* Clean up */
+    for(int i = id; i >= 0; i--)
+    {
+        pico_ipv4_filter_del(i);
+    }
 
 #ifdef FAULTY
     pico_set_mm_failure(1);
