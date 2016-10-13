@@ -212,7 +212,7 @@ START_TEST (test_dhcp)
 
     /* check if state is changed and reply is received  */
     len =(uint32_t) pico_mock_network_read(mock, buf, BUFLEN);
-    fail_unless(len, "received msg on network of %d bytes", len);
+    fail_unless(len > 0, "received msg on network of %u bytes", len);
     printbuf(&(buf[0]), len, "DHCP-OFFER msg", printbufactive);
     fail_unless(buf[0x011c] == 0x02, "No DHCP offer received after discovery");
     fail_unless(dn->state == PICO_DHCP_STATE_OFFER, "DCHP SERVER -> negotiation state not changed to OFFER");
@@ -232,7 +232,7 @@ START_TEST (test_dhcp)
         len = (uint32_t)pico_mock_network_read(mock, buf, BUFLEN);
     } while (buf[0] == 0x33);
     printf("Received message: %d bytes\n", len);
-    fail_unless(len, "received msg on network of %d bytes", len);
+    fail_unless(len > 0, "received msg on network of %d bytes", len);
     printbuf(&(buf[0]), len, "DHCP-ACK msg", printbufactive);
     fail_unless(buf[0x11c] == 0x05, "No DHCP ACK received after discovery");
 }
