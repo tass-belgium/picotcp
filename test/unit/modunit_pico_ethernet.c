@@ -9,7 +9,6 @@
 #include "modules/pico_ethernet.c"
 #include "check.h"
 
-
 #define STARTING()                                                             \
             printf("*********************** STARTING %s ***\n", __func__);     \
             fflush(stdout)
@@ -33,6 +32,9 @@
 #define DBG(s, ...)                                                            \
             printf(s, ##__VA_ARGS__);                                          \
             fflush(stdout)
+
+Suite *pico_suite(void);
+
 START_TEST(tc_destination_is_bcast)
 {
     /* test this: static int destination_is_bcast(struct pico_frame *f) */
@@ -195,7 +197,7 @@ START_TEST(tc_pico_ipv6_ethernet_receive)
     TRYING("With correct network type\n");
     ret = pico_ipv6_ethernet_receive(f);
     CHECKING(count);
-    fail_unless(ret == f->buffer_len, "Was correct frame, should've returned success\n");
+    fail_unless(ret == (int32_t)f->buffer_len, "Was correct frame, should've returned success\n");
     SUCCESS();
     CHECKING(count);
     fail_unless(pico_proto_ipv6.q_in->size == f->buffer_len, "Frame not enqueued\n");
@@ -207,8 +209,6 @@ END_TEST
 START_TEST(tc_pico_eth_receive)
 {
     struct pico_frame *f = NULL;
-    struct pico_ipv6_hdr *h = NULL;
-    struct pico_ipv4_hdr *h4 = NULL;
     struct pico_eth_hdr *eth = NULL;
     int ret = 0, count = 0;
 
@@ -217,7 +217,6 @@ START_TEST(tc_pico_eth_receive)
     f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr) + sizeof(struct pico_eth_hdr));
     f->datalink_hdr = f->buffer;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    h = (struct pico_ipv6_hdr *)f->net_hdr;
     eth = (struct pico_eth_hdr *)f->datalink_hdr;
     ((uint8_t *)(f->net_hdr))[0] = 0x40; /* Ipv4 */
 
@@ -233,7 +232,6 @@ START_TEST(tc_pico_eth_receive)
     f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr) + sizeof(struct pico_eth_hdr));
     f->datalink_hdr = f->buffer;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    h = (struct pico_ipv6_hdr *)f->net_hdr;
     eth = (struct pico_eth_hdr *)f->datalink_hdr;
     ((uint8_t *)(f->net_hdr))[0] = 0x60; /* Ipv6 */
 
@@ -242,7 +240,7 @@ START_TEST(tc_pico_eth_receive)
     TRYING("With correct network type\n");
     ret = pico_eth_receive(f);
     CHECKING(count);
-    fail_unless(ret == f->buffer_len, "Was correct frame, should've returned success\n");
+    fail_unless(ret == (int32_t)f->buffer_len, "Was correct frame, should've returned success\n");
     SUCCESS();
     CHECKING(count);
     fail_unless(pico_proto_ipv6.q_in->size == f->buffer_len, "Frame not enqueued\n");
@@ -253,7 +251,6 @@ START_TEST(tc_pico_eth_receive)
     f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr) + sizeof(struct pico_eth_hdr));
     f->datalink_hdr = f->buffer;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    h4 = (struct pico_ipv4_hdr *)f->net_hdr;
     eth = (struct pico_eth_hdr *)f->datalink_hdr;
     ((uint8_t *)(f->net_hdr))[0] = 0x40; /* Ipv4 */
 
@@ -266,7 +263,6 @@ START_TEST(tc_pico_eth_receive)
     f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr) + sizeof(struct pico_eth_hdr));
     f->datalink_hdr = f->buffer;
     f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
-    h4 = (struct pico_ipv4_hdr *)f->net_hdr;
     eth = (struct pico_eth_hdr *)f->datalink_hdr;
     ((uint8_t *)(f->net_hdr))[0] = 0x40; /* Ipv4 */
     eth->proto = PICO_IDETH_IPV4;

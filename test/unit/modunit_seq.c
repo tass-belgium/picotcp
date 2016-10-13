@@ -1,5 +1,8 @@
 #include "pico_tcp.c"
 #include <check.h>
+
+Suite *pico_suite(void);
+
 START_TEST(tc_seq_compare)
 {
     uint32_t big_a = 0xFFFFFF0alu;

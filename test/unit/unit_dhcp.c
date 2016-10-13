@@ -1,6 +1,9 @@
 
 static struct pico_dhcp_client_cookie*dhcp_client_ptr;
 
+void callback_dhcpclient(void*cli, int code);
+int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type);
+
 void callback_dhcpclient(void*cli, int code)
 {
     struct pico_ip4 gateway;
@@ -42,7 +45,7 @@ int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type)
     }else if(type == DHCP_MSG_TYPE_OFFER) {
         return 1;
     }else if(type == DHCP_MSG_TYPE_REQUEST) {
-        int i = 0;
+        uint32_t i = 0;
         uint8_t buffer1[] = {
             /* 0x63,0x82,0x53,0x63,// MAGIC COOCKIE */
             /* 0x35,0x01,0x03,     // DHCP REQUEST */
@@ -208,7 +211,7 @@ START_TEST (test_dhcp)
     fail_unless(stored_ipv4->addr == dn->ciaddr.addr, "DCHP SERVER -> new ip not stored in negotiation data");
 
     /* check if state is changed and reply is received  */
-    len = pico_mock_network_read(mock, buf, BUFLEN);
+    len =(uint32_t) pico_mock_network_read(mock, buf, BUFLEN);
     fail_unless(len, "received msg on network of %d bytes", len);
     printbuf(&(buf[0]), len, "DHCP-OFFER msg", printbufactive);
     fail_unless(buf[0x011c] == 0x02, "No DHCP offer received after discovery");
@@ -226,9 +229,9 @@ START_TEST (test_dhcp)
 
     /* check if state is changed and reply is received  */
     do {
-        len = pico_mock_network_read(mock, buf, BUFLEN);
+        len = (uint32_t)pico_mock_network_read(mock, buf, BUFLEN);
     } while (buf[0] == 0x33);
-    printf("Received message: %d bytes\n");
+    printf("Received message: %d bytes\n", len);
     fail_unless(len, "received msg on network of %d bytes", len);
     printbuf(&(buf[0]), len, "DHCP-ACK msg", printbufactive);
     fail_unless(buf[0x11c] == 0x05, "No DHCP ACK received after discovery");
