@@ -6,8 +6,9 @@
 
 volatile pico_err_t pico_err;
 
-
 #define FRAME_SIZE 1000
+
+Suite *pico_suite(void);
 
 START_TEST(tc_pico_frame_alloc_discard)
 {
@@ -71,6 +72,7 @@ START_TEST(tc_pico_frame_grow_head)
 
     /* Try to grow head */
     ret = pico_frame_grow_head(f, 6);
+    fail_if(ret != 0);
     fail_unless(0 == memcmp(f->buffer, buf, f->buffer_len));
     fail_unless(3 == f->net_hdr - f->buffer);
 

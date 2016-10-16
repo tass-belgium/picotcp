@@ -28,15 +28,16 @@
 #ifdef PICO_SUPPORT_IPV4
 
 #ifdef PICO_SUPPORT_MCAST
-# define ip_mcast_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
-/* #define ip_mcast_dbg dbg */
+
+#ifdef DEBUG_MCAST
+#define ip_mcast_dbg dbg
+#else
+#define ip_mcast_dbg(...) do {} while(0)
+#endif
+
 # define PICO_MCAST_ALL_HOSTS long_be(0xE0000001) /* 224.0.0.1 */
 /* Default network interface for multicast transmission */
 static struct pico_ipv4_link *mcast_default_link = NULL;
-#endif
-#ifdef PICO_SUPPORT_IPV4FRAG
-/* # define reassembly_dbg dbg */
-# define reassembly_dbg(...) do {} while(0)
 #endif
 
 /* Queues */
@@ -696,7 +697,7 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
 
     pico_tree_foreach(index, mcast_link->MCASTGroups) {
         g = index->keyValue;
-        ip_mcast_dbg("+ %04d | %16s |  %08X  |      %05u      |      %u      | %8s +\n", i, mcast_link->dev->name, g->mcast_addr.addr, g->reference_count, g->filter_mode, "");
+        ip_mcast_dbg("+ %04d | %16s |  %08X  |      %05u      |      %u      | %8s +\n", i, mcast_link->dev->name, g->mcast_addr.ip4.addr, g->reference_count, g->filter_mode, "");
         pico_tree_foreach(index2, &g->MCASTSources) {
             source = index2->keyValue;
             ip_mcast_dbg("+ %4s | %16s |  %8s  |      %5s      |      %s      | %08X +\n", "", "", "", "", "", source->addr);

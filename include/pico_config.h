@@ -7,6 +7,7 @@
 #ifndef INCLUDE_PICO_CONFIG
 #define INCLUDE_PICO_CONFIG
 #ifndef __KERNEL__
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>

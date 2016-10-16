@@ -4,6 +4,8 @@ typedef struct
     int value;
 }elem;
 
+int compare(void *a, void *b);
+
 int compare(void *a, void *b)
 {
     return ((elem *)a)->value - ((elem *)b)->value;
@@ -25,7 +27,7 @@ START_TEST (test_rbtree2)
     for (i = 0; i < (RBTEST_SIZE >> 1); i++)
     {
         e = malloc(sizeof(elem));
-        e->value = lrand48() % RBTEST_SIZE;
+        e->value = (int)lrand48() % RBTEST_SIZE;
         if (pico_tree_findKey(&test_tree2, e)) {
             free(e);
         } else {

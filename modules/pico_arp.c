@@ -19,6 +19,7 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
 #define PICO_ARP_RETRY 300lu
 #define PICO_ARP_MAX_PENDING 5
+
 #ifdef DEBUG_ARP
     #define arp_dbg dbg
 #else
@@ -238,7 +239,7 @@ void pico_arp_postpone(struct pico_frame *f)
 
 
 #ifdef DEBUG_ARP
-void dbg_arp(void)
+static void dbg_arp(void)
 {
     struct pico_arp *a;
     struct pico_tree_node *index;

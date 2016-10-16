@@ -19,8 +19,12 @@
 #ifdef PICO_SUPPORT_IPV4
 #ifdef PICO_SUPPORT_NAT
 
+#ifdef DEBUG_NAT
+#define nat_dbg dbg
+#else
 #define nat_dbg(...) do {} while(0)
-/* #define nat_dbg dbg */
+#endif
+
 #define PICO_NAT_TIMEWAIT  240000 /* msec (4 mins) */
 
 #define PICO_NAT_INBOUND   0

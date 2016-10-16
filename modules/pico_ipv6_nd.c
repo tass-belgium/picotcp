@@ -18,8 +18,11 @@
 #define MAX_INITIAL_RTR_ADVERTISEMENTS (3)
 #define DEFAULT_METRIC                 (10)
 
-/* #define nd_dbg dbg */
+#ifdef DEBUG_IPV6_ND
+#define nd_dbg dbg
+#else
 #define nd_dbg(...) do {} while(0)
+#endif
 
 extern struct pico_tree IPV6Links;
 

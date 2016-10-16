@@ -5,11 +5,20 @@
 #include "check.h"
 #include "pico_dev_null.c"
 
+Suite *pico_suite(void);
+void cb_one(struct pico_device *dev, int event);
+void cb_two(struct pico_device *dev, int event);
+int link_state_a(struct pico_device *self);
+int link_state_b(struct pico_device *self);
+
 /* stubs for timer */
 static int8_t timer_active = 0;
 void (*timer_cb_function)(pico_time, void *);
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    IGNORE_PARAMETER(expire);
+    IGNORE_PARAMETER(arg);
+
     timer_active++;
     timer_cb_function = timer;
 
@@ -27,6 +36,8 @@ uint32_t cb_one_cntr = 0;
 int cb_one_last_event = 0;
 void cb_one(struct pico_device *dev, int event)
 {
+    IGNORE_PARAMETER(dev);
+
     cb_one_cntr++;
     cb_one_last_event = event;
 }
@@ -34,6 +45,8 @@ uint32_t cb_two_cntr = 0;
 int cb_two_last_event = 0;
 void cb_two(struct pico_device *dev, int event)
 {
+    IGNORE_PARAMETER(dev);
+
     cb_two_cntr++;
     cb_two_last_event = event;
 }
@@ -42,12 +55,14 @@ void cb_two(struct pico_device *dev, int event)
 int state_a = 0;
 int link_state_a(struct pico_device *self)
 {
+    IGNORE_PARAMETER(self);
     return state_a;
 }
 
 int state_b = 0;
 int link_state_b(struct pico_device *self)
 {
+    IGNORE_PARAMETER(self);
     return state_b;
 }
 
@@ -101,6 +116,7 @@ START_TEST(tc_pico_hotplug_callbacks)
 {
     /* create some devices */
     struct pico_device *dev_a, *dev_b;
+
     dev_a = pico_null_create("dummy1");
     dev_b = pico_null_create("dummy2");
 

@@ -9,9 +9,14 @@
 #include "modules/pico_tcp.c"
 #include "check.h"
 
+Suite *pico_suite(void);
+
 static uint32_t timers_added = 0;
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
+    IGNORE_PARAMETER(expire);
+    IGNORE_PARAMETER(timer);
+    IGNORE_PARAMETER(arg);
     return ++timers_added;
 }
 
@@ -46,7 +51,7 @@ START_TEST(tc_tcp_input_segment)
     f->payload = f->start;
     f->payload_len = 60;
     f->transport_hdr = f->payload;
-    f->transport_len = f->payload_len - 40;
+    f->transport_len = (uint16_t)(f->payload_len - 40);
     memset(f->payload, 'c', f->payload_len);
     ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xdeadbeef);
 
@@ -103,7 +108,7 @@ START_TEST(tc_tcp_discard_all_segments)
     fail_if(pico_enqueue_segment(&t->tcpq_out, f) >= 0);
     f->buffer_len = 80;
     f->transport_hdr = f->start;
-    f->transport_len = f->buffer_len - 40;
+    f->transport_len = (uint16_t)(f->buffer_len - 40);
     f->payload = f->start + 40;
     f->payload_len = 40;
     memset(f->payload, 'c', f->payload_len);
@@ -168,7 +173,8 @@ START_TEST(tc_release_until)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV6);
     struct pico_frame *f;
-    int i = 0, ret;
+    uint32_t i = 0;
+    int ret = 0;
     struct tcp_input_segment *is;
     fail_if(!t);
     ret = release_until(&t->tcpq_out, 0);
@@ -179,7 +185,7 @@ START_TEST(tc_release_until)
         f = pico_frame_alloc(84);
         fail_if(!f);
         f->transport_hdr = f->start;
-        f->transport_len = f->buffer_len;
+        f->transport_len = (uint16_t)f->buffer_len;
         f->payload_len = f->transport_len;
         ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
         printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
@@ -197,7 +203,7 @@ START_TEST(tc_release_until)
         f = pico_frame_alloc(84);
         fail_if(!f);
         f->transport_hdr = f->start;
-        f->transport_len = f->buffer_len;
+        f->transport_len = (uint16_t)f->buffer_len;
         f->payload_len = f->transport_len;
         f->payload = f->start;
         ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
@@ -220,7 +226,8 @@ START_TEST(tc_release_all_until)
 {
     struct pico_socket_tcp *t = (struct pico_socket_tcp *)pico_tcp_open(PICO_PROTO_IPV4);
     struct pico_frame *f;
-    int i = 0, ret;
+    uint32_t i = 0;
+    int ret = 0;
     struct tcp_input_segment *is;
     pico_time tm;
     fail_if(!t);
@@ -232,7 +239,7 @@ START_TEST(tc_release_all_until)
         f = pico_frame_alloc(84);
         fail_if(!f);
         f->transport_hdr = f->start;
-        f->transport_len = f->buffer_len;
+        f->transport_len = (uint16_t)f->buffer_len;
         f->payload_len = f->transport_len;
         ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
         printf("inserting frame seq = %08x len = %d\n", 0xaa00 + f->buffer_len * i, f->buffer_len);
@@ -250,7 +257,7 @@ START_TEST(tc_release_all_until)
         f = pico_frame_alloc(84);
         fail_if(!f);
         f->transport_hdr = f->start;
-        f->transport_len = f->buffer_len;
+        f->transport_len = (uint16_t)f->buffer_len;
         f->payload_len = f->transport_len;
         f->payload = f->start;
         ((struct pico_tcp_hdr *)((f)->transport_hdr))->seq = long_be(0xaa00 + f->buffer_len * i);
@@ -308,7 +315,7 @@ START_TEST(tc_tcp_add_options)
              cl = 0xc0,
              cr = 0xcf;
     f->transport_hdr = f->start;
-    f->transport_len = f->buffer_len;
+    f->transport_len = (uint16_t)f->buffer_len;
     f->payload_len = f->transport_len;
     frame_opt_buff =  f->transport_hdr + PICO_SIZE_TCPHDR;
 
@@ -648,7 +655,6 @@ START_TEST(tc_checkRemoteClosing)
     /* TODO: test this: static int checkRemoteClosing(struct pico_socket *s) */
 }
 END_TEST
-
 
 Suite *pico_suite(void)
 {

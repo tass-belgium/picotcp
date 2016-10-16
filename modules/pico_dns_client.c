@@ -18,8 +18,11 @@
 
 #ifdef PICO_SUPPORT_IPV4
 
-#define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+#ifdef DEBUG_DNS
+    #define dns_dbg dbg
+#else
+    #define dns_dbg(...) do {} while(0)
+#endif
 
 /* DNS response length */
 #define PICO_DNS_MAX_QUERY_LEN 255
@@ -304,7 +307,7 @@ static int pico_dns_client_check_asuffix(struct pico_dns_record_suffix *suf, str
     }
 
     if (long_be(suf->rttl) > PICO_DNS_MAX_TTL) {
-        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", short_be(suf->rttl), PICO_DNS_MAX_TTL);
+        dns_dbg("DNS WARNING: received TTL (%u) > MAX (%u)\n", long_be(suf->rttl), PICO_DNS_MAX_TTL);
         return -1;
     }
 
