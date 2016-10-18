@@ -432,6 +432,7 @@ pico_dns_sd_register_service( const char *name,
         if (pico_tree_insert(&rtree, txt_record) == &LEAF) {
             PICO_MDNS_RTREE_DESTROY(&rtree);
             pico_mdns_record_delete((void **)&txt_record);
+            pico_mdns_record_delete((void **)&srv_record);
             return -1;
         }
     }
