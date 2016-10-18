@@ -57,7 +57,7 @@ int mdns_init() /* MARK: Initialise mDNS module */
         {&LEAF, pico_dns_question_cmp}, \
         {&LEAF, pico_mdns_record_cmp}, \
         {&LEAF, pico_mdns_record_cmp}, \
-        0, 0, 0, 0, NULL, NULL, NULL \
+        0, 0, 0, 0, 0, NULL, NULL \
     }
 
 START_TEST(tc_mdns_init) /* MARK: mdns_init */
@@ -375,10 +375,10 @@ START_TEST(tc_mdns_cookie_delete) /* MARK: mdns_cookie_delete */
 
     printf("*********************** starting %s * \n", __func__);
 
-    fail_unless(pico_mdns_cookie_delete(&a),
+    fail_unless(pico_mdns_cookie_delete((void **)&a),
                 "mdns_cookie_delete failed checking params!\n");
     a = pico_mdns_cookie_create(qtree, antree, artree, 0, 0, NULL, NULL);
-    fail_unless(!pico_mdns_cookie_delete(&a),
+    fail_unless(!pico_mdns_cookie_delete((void **)&a),
                 "mdns_cookie_delete failed!\n");
 
     fail_unless(pico_mdns_cookie_delete(NULL),
@@ -399,7 +399,7 @@ START_TEST(tc_mdns_cookie_create) /* MARK: mdns_cookie_create */
     a = pico_mdns_cookie_create(qtree, antree, artree, 0, 0, NULL, NULL);
     fail_if(!a, "mdns_cookie_create failed!\n");
 
-    pico_mdns_cookie_delete(&a);
+    pico_mdns_cookie_delete((void **)&a);
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -475,8 +475,8 @@ START_TEST(tc_mdns_cookie_tree_find_query_cookie) /* MARK: mdns_ctree_find_cooki
 
     pico_tree_delete(&Cookies, a);
     pico_tree_delete(&Cookies, b);
-    pico_mdns_cookie_delete(&a);
-    pico_mdns_cookie_delete(&b);
+    pico_mdns_cookie_delete((void **)&a);
+    pico_mdns_cookie_delete((void **)&b);
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -1448,7 +1448,7 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
     found = pico_tree_findKey(&Cache, record);
-    fail_unless((int)found, "mdns_cache_add_record failed!\n");
+    fail_if(found == NULL, "mdns_cache_add_record failed!\n");
     ret = pico_mdns_cache_add_record(record);
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
@@ -1749,10 +1749,11 @@ START_TEST(tc_mdns_send_query_packet) /* MARK: send_query_packet */
     struct pico_mdns_cookie cookie;
     PICO_DNS_QTREE_DECLARE(qtree);
     PICO_MDNS_COOKIE_DECLARE(a);
+
     struct pico_dns_question *question1 = NULL;
     struct pico_dns_question *question2 = NULL;
     char url1[] = "foo.local";
-    int len;
+    uint16_t len;
     printf("*********************** starting %s * \n", __func__);
 
     /* Create some questions */
@@ -1818,7 +1819,7 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
     found = pico_tree_findKey(&Cache, record);
-    fail_unless((int)found, "mdns_cache_add_record failed!\n");
+    fail_if(found == NULL, "mdns_cache_add_record failed!\n");
 #endif
 
 #if PICO_MDNS_ALLOW_CACHING == 1

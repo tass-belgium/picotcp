@@ -19,8 +19,11 @@
 #include "pico_md5.h"
 #include "pico_dns_client.h"
 
-#define ppp_dbg(...) do {} while(0)
-/* #define ppp_dbg dbg */
+#ifdef DEBUG_PPP
+    #define ppp_dbg dbg
+#else
+    #define ppp_dbg(...) do {} while(0)
+#endif
 
 /* We should define this in a global header. */
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -125,10 +128,6 @@ PACKED_STRUCT_DEF pico_ipcp_hdr {
     uint8_t id;
     uint16_t len;
 };
-
-#ifdef DEBUG_PPP
-static int fifo_fd = -1;
-#endif
 
 enum ppp_modem_state {
     PPP_MODEM_STATE_INITIAL = 0,

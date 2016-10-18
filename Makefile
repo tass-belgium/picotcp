@@ -7,8 +7,10 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -lpcap
-UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit -lpcap
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
+UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
+UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
+
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
@@ -211,6 +213,8 @@ POSIX_OBJ+= modules/pico_dev_vde.o \
 			modules/pico_dev_radiotest.o \
 			modules/pico_dev_radio_mgr.o
 
+include rules/debug.mk
+
 ifneq ($(ETH),0)
   include rules/eth.mk
 endif
@@ -371,9 +375,9 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
-	@$(CC) -g -c -o $(PREFIX)/test/units.o test/units.c $(CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
+	@$(CC) -g -c -o $(PREFIX)/test/units.o test/units.c $(UNIT_CFLAGS) -I stack -I modules -I includes -I test/unit -DUNIT_TEST
 	@echo -e "\t[LD] $(PREFIX)/test/units"
-	@$(CC) -o $(PREFIX)/test/units $(CFLAGS) $(PREFIX)/test/units.o $(UNIT_LDFLAGS) \
+	@$(CC) -o $(PREFIX)/test/units $(UNIT_CFLAGS) $(PREFIX)/test/units.o $(UNIT_LDFLAGS) \
 	   $(UNITS_OBJ) $(PREFIX)/modules/pico_aodv.o \
 	   $(PREFIX)/modules/pico_fragments.o
 	@$(CC) -o $(PREFIX)/test/modunit_pico_protocol.elf $(CFLAGS) -I. test/unit/modunit_pico_protocol.c stack/pico_tree.c $(UNIT_LDFLAGS) $(UNITS_OBJ)

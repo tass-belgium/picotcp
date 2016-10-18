@@ -22,7 +22,11 @@
 #define MAX_PRIORITY    (10)
 #define MIN_PRIORITY    (-10)
 
-#define ipf_dbg(...) do {} while(0)
+#ifdef DEBUG_IPF
+    #define ipf_dbg dbg
+#else
+    #define ipf_dbg(...) do {} while(0)
+#endif
 
 /**************** LOCAL DECLARATIONS ****************/
 struct filter_node;

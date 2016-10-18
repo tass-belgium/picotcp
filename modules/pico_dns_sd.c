@@ -10,8 +10,11 @@
 #ifdef PICO_SUPPORT_DNS_SD
 
 /* --- Debugging --- */
-#define dns_sd_dbg(...) do {} while(0)
-/* #define dns_sd_dbg dbg */
+#ifdef DEBUG_DNS_SD
+    #define dns_sd_dbg dbg
+#else
+    #define dns_sd_dbg(...) do {} while(0)
+#endif
 
 /* --- PROTOTYPES --- */
 key_value_pair_t *

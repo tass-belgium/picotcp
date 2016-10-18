@@ -13,8 +13,11 @@
 #include "pico_dns_common.h"
 #include "pico_tree.h"
 
-#define dns_dbg(...) do {} while(0)
-/* #define dns_dbg dbg */
+#ifdef DEBUG_DNS
+    #define dns_dbg dbg
+#else
+    #define dns_dbg(...) do {} while(0)
+#endif
 
 /* MARK: v NAME & IP FUNCTIONS */
 #define dns_name_foreach_label_safe(label, name, next, maxlen) \
@@ -208,7 +211,7 @@ pico_dns_url_to_reverse_qname( const char *url, uint8_t proto )
         return NULL;
     }
 
-    pico_dns_name_to_dns_notation(reverse_qname, (unsigned int)(slen + arpalen));
+    pico_dns_name_to_dns_notation(reverse_qname, (uint16_t)(slen + arpalen));
     return reverse_qname;
 }
 
@@ -305,13 +308,13 @@ pico_dns_strlen( const char *url )
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
  *  @return 0 on success, something else on failure.
  * ****************************************************************************/
-int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen )
+int pico_dns_name_to_dns_notation( char *url, uint16_t maxlen )
 {
     char c = '\0';
     char *lbl = url, *i = url;
 
     /* Check params */
-    if (!url || pico_dns_check_namelen((uint16_t)maxlen)) {
+    if (!url || pico_dns_check_namelen(maxlen)) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -339,12 +342,12 @@ int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen )
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
  *  @return 0 on success, something else on failure.
  * ****************************************************************************/
-int pico_dns_notation_to_name( char *ptr, unsigned int maxlen )
+int pico_dns_notation_to_name( char *ptr, uint16_t maxlen )
 {
     char *label = NULL, *next = NULL;
 
     /* Iterate safely over the labels and update each label */
-    dns_name_foreach_label_safe(label, ptr, next, (uint16_t)maxlen) {
+    dns_name_foreach_label_safe(label, ptr, next, maxlen) {
         *label = '.';
     }
 

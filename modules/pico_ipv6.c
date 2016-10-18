@@ -37,9 +37,20 @@
 #define PICO_IPV6_MAX_RTR_SOLICITATION_DELAY 1000
 #define PICO_IPV6_DEFAULT_DAD_RETRANS  1
 
+#ifdef DEBUG_IPV6
+#define ipv6_dbg      dbg
+#else
 #define ipv6_dbg(...) do { } while(0)
-#define ipv6_mcast_dbg(...) do { } while(0)
+#endif
+
 #ifdef PICO_SUPPORT_MCAST
+
+#ifdef DEBUG_MCAST
+#define ipv6_mcast_dbg dbg
+#else
+#define ipv6_mcast_dbg(...) do { } while(0)
+#endif
+
 static struct pico_ipv6_link *mcast_default_link_ipv6 = NULL;
 #endif
 /* queues */
@@ -1442,14 +1453,21 @@ struct pico_protocol pico_proto_ipv6 = {
     .q_out = &ipv6_out,
 };
 
-#ifdef DEBUG_ROUTE
+#ifdef DEBUG_IPV6_ROUTE
 static void pico_ipv6_dbg_route(void)
 {
     struct pico_ipv6_route *r;
     struct pico_tree_node *index;
+    char ipv6_addr[PICO_IPV6_STRING];
+    char netmask_addr[PICO_IPV6_STRING];
+    char gateway_addr[PICO_IPV6_STRING];
+
     pico_tree_foreach(index, &Routes){
         r = index->keyValue;
-        dbg("Route to %08x/%08x, gw %08x, dev: %s, metric: %d\n", r->dest.addr, r->netmask.addr, r->gateway.addr, r->link->dev->name, r->metric);
+        pico_ipv6_to_string(ipv6_addr, r->dest.addr);
+        pico_ipv6_to_string(netmask_addr, r->netmask.addr);
+        pico_ipv6_to_string(gateway_addr, r->gateway.addr);
+        dbg("Route to %s/%s, gw %s, dev: %s, metric: %d\n", ipv6_addr, netmask_addr, gateway_addr, r->link->dev->name, r->metric);
     }
 }
 #else
@@ -1701,7 +1719,7 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     struct pico_ip6 mcast_nm = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     struct pico_ip6 mcast_gw = {{0}};
     struct pico_ip6 all_hosts = {{ 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
-#ifdef PICO_DEBUG_IPV6
+#ifdef DEBUG_IPV6
     char ipstr[40] = {
         0
     };
@@ -1822,6 +1840,10 @@ struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_i
     new->istentative = 0;
 #endif
 
+#ifdef DEBUG_IPV6
+    pico_ipv6_to_string(ipstr, new->address.addr);
+    dbg("Assigned ipv6 %s to device %s\n", ipstr, new->dev->name);
+#endif
     return new;
 }
 

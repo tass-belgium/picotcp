@@ -22,8 +22,10 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
+#ifdef DEBUG_IPV6_ND
+#define nd_dbg dbg
+#else
 #define nd_dbg(...) do {} while(0)
-//#define nd_dbg dbg
 
 #define ONE_MINUTE                          ((pico_time)(1000 * 60))
 

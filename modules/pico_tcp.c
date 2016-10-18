@@ -13,6 +13,7 @@
 #include "pico_socket.h"
 #include "pico_stack.h"
 #include "pico_socket.h"
+#include "pico_socket_tcp.h"
 #include "pico_queue.h"
 #include "pico_tree.h"
 
@@ -42,8 +43,6 @@
 
 #define ONE_GIGABYTE ((uint32_t)(1024UL * 1024UL * 1024UL))
 
-/* check if the Nagle algorithm is enabled on the socket */
-#define IS_NAGLE_ENABLED(s)     (!(!(!(s->opt_flags & (1u << PICO_SOCKET_OPT_TCPNODELAY)))))
 /* check if tcp connection is "idle" according to Nagle (RFC 896) */
 #define IS_TCP_IDLE(t)          ((t->in_flight == 0) && (t->tcpq_out.size == 0))
 /* check if the hold queue contains data (again Nagle) */
@@ -54,12 +53,24 @@
 
 
 #ifdef PICO_SUPPORT_TCP
-#define tcp_dbg_nagle(...) do {} while(0)
+
+#ifdef DEBUG_TCP_GENERAL
+#define tcp_dbg              dbg
+#else
+#define tcp_dbg(...)         do {} while(0)
+#endif
+
+#ifdef DEBUG_TCP_NAGLE
+#define tcp_dbg_nagle        dbg
+#else
+#define tcp_dbg_nagle(...)   do {} while(0)
+#endif
+
+#ifdef DEBUG_TCP_OPTIONS
+#define tcp_dbg_options      dbg
+#else
 #define tcp_dbg_options(...) do {} while(0)
-
-
-#define tcp_dbg(...) do {} while(0)
-/* #define tcp_dbg dbg */
+#endif
 
 #ifdef PICO_SUPPORT_MUTEX
 static void *Mutex = NULL;

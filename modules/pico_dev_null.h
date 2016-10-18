@@ -9,7 +9,7 @@
 #include "pico_device.h"
 
 void pico_null_destroy(struct pico_device *null);
-struct pico_device *pico_null_create(char *name);
+struct pico_device *pico_null_create(const char *name);
 
 #endif
 

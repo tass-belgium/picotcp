@@ -15,8 +15,12 @@
 #include "pico_eth.h"
 
 #if (defined PICO_SUPPORT_DHCPC && defined PICO_SUPPORT_UDP)
-#define dhcpc_dbg(...) do {} while(0)
-/* #define dhcpc_dbg dbg */
+
+#ifdef DEBUG_DHCP_CLIENT
+    #define dhcpc_dbg dbg
+#else
+    #define dhcpc_dbg(...) do {} while(0)
+#endif
 
 /* timer values */
 #define DHCP_CLIENT_REINIT             6000 /* msec */

@@ -1,6 +1,9 @@
 
 static struct pico_dhcp_client_cookie*dhcp_client_ptr;
 
+void callback_dhcpclient(void*cli, int code);
+int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type);
+
 void callback_dhcpclient(void*cli, int code)
 {
     struct pico_ip4 gateway;
@@ -42,7 +45,7 @@ int generate_dhcp_msg(uint8_t *buf, uint32_t *len, uint8_t type)
     }else if(type == DHCP_MSG_TYPE_OFFER) {
         return 1;
     }else if(type == DHCP_MSG_TYPE_REQUEST) {
-        int i = 0;
+        uint32_t i = 0;
         uint8_t buffer1[] = {
             /* 0x63,0x82,0x53,0x63,// MAGIC COOCKIE */
             /* 0x35,0x01,0x03,     // DHCP REQUEST */
@@ -163,6 +166,7 @@ START_TEST (test_dhcp)
     struct pico_dhcp_server_negotiation *dn = NULL;
     struct pico_ip4 *stored_ipv4 = NULL;
     uint32_t len = 0;
+    int network_read = 0;
     uint8_t *buf;
     uint8_t printbufactive = 0;
 
@@ -208,9 +212,9 @@ START_TEST (test_dhcp)
     fail_unless(stored_ipv4->addr == dn->ciaddr.addr, "DCHP SERVER -> new ip not stored in negotiation data");
 
     /* check if state is changed and reply is received  */
-    len = pico_mock_network_read(mock, buf, BUFLEN);
-    fail_unless(len, "received msg on network of %d bytes", len);
-    printbuf(&(buf[0]), len, "DHCP-OFFER msg", printbufactive);
+    network_read = pico_mock_network_read(mock, buf, BUFLEN);
+    fail_unless(network_read > 0, "received msg on network of %u bytes", network_read);
+    printbuf(&(buf[0]), (uint32_t)network_read, "DHCP-OFFER msg", printbufactive);
     fail_unless(buf[0x011c] == 0x02, "No DHCP offer received after discovery");
     fail_unless(dn->state == PICO_DHCP_STATE_OFFER, "DCHP SERVER -> negotiation state not changed to OFFER");
 
@@ -226,11 +230,11 @@ START_TEST (test_dhcp)
 
     /* check if state is changed and reply is received  */
     do {
-        len = pico_mock_network_read(mock, buf, BUFLEN);
+        network_read = pico_mock_network_read(mock, buf, BUFLEN);
     } while (buf[0] == 0x33);
-    printf("Received message: %d bytes\n");
-    fail_unless(len, "received msg on network of %d bytes", len);
-    printbuf(&(buf[0]), len, "DHCP-ACK msg", printbufactive);
+    printf("Received message: %d bytes\n", network_read);
+    fail_unless(network_read > 0, "received msg on network of %d bytes", network_read);
+    printbuf(&(buf[0]), (uint32_t)network_read, "DHCP-ACK msg", printbufactive);
     fail_unless(buf[0x11c] == 0x05, "No DHCP ACK received after discovery");
 }
 END_TEST

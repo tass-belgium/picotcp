@@ -21,6 +21,7 @@
 
 Suite *pico_suite(void);
 void fake_timer(pico_time __attribute__((unused)) now, void __attribute__((unused)) *n);
+
 START_TEST(tc_pico_ll_receive)
 {
     /* TODO: test this: static int32_t pico_ll_receive(struct pico_frame *f) */
@@ -85,7 +86,7 @@ START_TEST(tc_stack_generic)
 #ifdef PICO_FAULTY
     printf("Testing with faulty memory in pico_timer_add (1)\n");
     pico_set_mm_failure(1);
-    fail_if(pico_timer_add(0, fake_timer, NULL) != NULL);
+    fail_if(pico_timer_add(0, fake_timer, NULL) != 0);
 #endif
 
 
