@@ -278,7 +278,7 @@ static void ping_timeout(pico_time now, void *arg)
 }
 
 static void next_ping(pico_time now, void *arg);
-static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
+static int send_ping(struct pico_icmp4_ping_cookie *cookie)
 {
     uint32_t timeout_timer = 0;
     struct pico_icmp4_stats stats;
@@ -294,7 +294,7 @@ static inline void send_ping(struct pico_icmp4_ping_cookie *cookie)
             goto fail;
         }
     }
-    return;
+    return 0;
 
 fail:
     dbg("ICMP4: Failed to start timer\n");
@@ -302,7 +302,8 @@ fail:
     stats.err = cookie->err;
     cookie->cb(&stats);
     pico_tree_delete(&Pings, cookie);
-    PICO_FREE(cookie);
+
+    return -1;
 }
 
 static void next_ping(pico_time now, void *arg)
@@ -328,7 +329,10 @@ static void next_ping(pico_time now, void *arg)
 				return;
 			}
 
-            send_ping(newcookie);
+            if (send_ping(newcookie)) {
+                dbg("ICMP4: Failed to send ping\n");
+                PICO_FREE(newcookie);
+            }
         }
     }
 }
@@ -398,7 +402,10 @@ int pico_icmp4_ping(char *dst, int count, int interval, int timeout, int size, v
 		return -1;
 	}
 
-    send_ping(cookie);
+    if (send_ping(cookie)) {
+        PICO_FREE(cookie);
+        return -1;
+    }
 
     return cookie->id;
 
