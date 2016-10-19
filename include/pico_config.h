@@ -14,6 +14,10 @@
 #else
 #include <linux/types.h>
 #endif
+#ifdef __linux__
+#include <execinfo.h>
+#endif
+
 
 #if defined __IAR_SYSTEMS_ICC__ || defined ATOP
 #   define PACKED_STRUCT_DEF __packed struct
@@ -231,7 +235,10 @@ static inline uint64_t long_long_be(uint64_t le)
 # include "arch/pico_posix.h"
 #endif
 
-static inline void log(const char* filename, const char* message)
+
+
+#ifdef CHECK_MEM
+static inline void log_malloc(const char* filename, const char* message)
 {
 	FILE * file;
 	file = fopen(filename, "a");
@@ -258,15 +265,14 @@ static inline void append_backtrace(const char* filename)
 	fclose(file);
 }
 
-#ifdef PICO_SUPPORT_MM
-#define PICO_ZALLOC(x) pico_mem_zalloc(x)
-#define PICO_FREE(x) pico_mem_free(x)
-#elif defined CHECK_MEM
 #define PICO_ZALLOC(x) \
 ((((double)(rand())/(double)RAND_MAX) < 0.4) \
-? (log("mem_test.log", "Malloc FAILED\n"), append_backtrace("mem_test.log"),  NULL) \
-: (log("mem_test.log", "Malloc Succeeded\n"), append_backtrace("mem_test.log"), pico_zalloc(x))) 
+? (log_malloc("mem_test.log", "Malloc FAILED\n"), append_backtrace("mem_test.log"),  NULL) \
+: (log_malloc("mem_test.log", "Malloc Succeeded\n"), append_backtrace("mem_test.log"), pico_zalloc(x))) 
 #define PICO_FREE(x) pico_free(x)
+#elif defined PICO_SUPPORT_MM
+#define PICO_ZALLOC(x) pico_mem_zalloc(x)
+#define PICO_FREE(x) pico_mem_free(x)
 #else
 #define PICO_ZALLOC(x) pico_zalloc(x)
 #define PICO_FREE(x) pico_free(x)

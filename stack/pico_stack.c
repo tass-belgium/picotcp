@@ -856,9 +856,18 @@ uint32_t pico_timer_add_hashed(pico_time expire, void (*timer)(pico_time, void *
 
 int MOCKABLE pico_stack_init(void)
 {
-#if ((defined CHECK_MEM) && (defined MEM_TEST_SEED))
-	srand(MEM_TEST_SEED);
+
+#ifdef CHECK_MEM
+	//New log for malloc information 
 	fopen("mem_test.log", "w");
+
+	//Set rand seed
+	char *buf = getenv("MEM_TEST_SEED");
+	if(buf!=NULL){
+		srand(atoi(buf));
+	}
+	else
+		srand(1);
 #endif
 
 #ifdef PICO_SUPPORT_ETH
