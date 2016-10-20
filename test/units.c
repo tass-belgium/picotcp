@@ -42,6 +42,7 @@
 #ifdef PICO_SUPPORT_IPV6
 #include "pico_ipv6.c"
 #include "pico_ipv6_nd.c"
+#include "pico_ipv6_pmtu.c"
 #include "pico_icmp6.c"
 #ifdef PICO_SUPPORT_MCAST
 #include "pico_mld.c"

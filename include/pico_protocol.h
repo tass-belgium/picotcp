@@ -60,6 +60,7 @@ enum pico_err_e {
     PICO_ERR_ECONNREFUSED = 111,
     PICO_ERR_EHOSTDOWN = 112,
     PICO_ERR_EHOSTUNREACH = 113,
+    PICO_ERR_EMSGTOOBIG = 114,
 };
 
 typedef enum pico_err_e pico_err_t;
