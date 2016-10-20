@@ -577,7 +577,7 @@ static void pico_icmp6_ping_timeout(pico_time now, void *arg)
 }
 
 static void pico_icmp6_next_ping(pico_time now, void *arg);
-static inline void pico_icmp6_send_ping(struct pico_icmp6_ping_cookie *cookie)
+static int pico_icmp6_send_ping(struct pico_icmp6_ping_cookie *cookie)
 {
     uint32_t interval_timer = 0;
     struct pico_icmp6_stats stats;
@@ -591,7 +591,7 @@ static inline void pico_icmp6_send_ping(struct pico_icmp6_ping_cookie *cookie)
         pico_timer_cancel(interval_timer);
         goto fail;
     }
-    return;
+    return 0;
 
 fail:
     dbg("ICMP6: Failed to start timer\n");
@@ -599,7 +599,8 @@ fail:
     stats.err = cookie->err;
     cookie->cb(&stats);
     pico_tree_delete(&IPV6Pings, cookie);
-    PICO_FREE(cookie);
+
+    return -1;
 }
 
 static void pico_icmp6_next_ping(pico_time now, void *arg)
@@ -629,7 +630,10 @@ static void pico_icmp6_next_ping(pico_time now, void *arg)
 				return;
 			}
 
-            pico_icmp6_send_ping(new);
+            if (pico_icmp6_send_ping(new)) {
+                dbg("ICMP6: Failed to send ping\n");
+                PICO_FREE(new);
+            }
         }
     }
 }
@@ -704,7 +708,10 @@ int pico_icmp6_ping(char *dst, int count, int interval, int timeout, int size, v
 		return -1;
 	}
 
-    pico_icmp6_send_ping(cookie);
+    if (pico_icmp6_send_ping(cookie)) {
+        PICO_FREE(cookie);
+        return -1;
+    }
     return (int)cookie->id;
 }
 
