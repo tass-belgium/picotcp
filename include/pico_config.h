@@ -236,8 +236,9 @@ static inline uint64_t long_long_be(uint64_t le)
 #endif
 
 
-
 #ifdef CHECK_MEM
+extern int start_failing_mallocs;
+
 static inline void log_malloc(const char* filename, const char* message)
 {
 	FILE * file;
@@ -266,7 +267,7 @@ static inline void append_backtrace(const char* filename)
 }
 
 #define PICO_ZALLOC(x) \
-((((double)(rand())/(double)RAND_MAX) < 0.4) \
+((start_failing_mallocs && (((double)(rand())/(double)RAND_MAX) < 0.4)) \
 ? (log_malloc("mem_test.log", "Malloc FAILED\n"), append_backtrace("mem_test.log"),  NULL) \
 : (log_malloc("mem_test.log", "Malloc Succeeded\n"), append_backtrace("mem_test.log"), pico_zalloc(x))) 
 #define PICO_FREE(x) pico_free(x)
