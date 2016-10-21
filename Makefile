@@ -161,10 +161,6 @@ ifdef CHECK_MEM
   CFLAGS+=-DCHECK_MEM -rdynamic
 endif
 
-ifdef MEM_TEST_SEED
-  CFLAGS+=-DMEM_TEST_SEED=$(MEM_TEST_SEED)
-endif
-
 ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif
