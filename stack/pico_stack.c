@@ -23,6 +23,7 @@
 #include "pico_arp.h"
 #include "pico_ipv4.h"
 #include "pico_ipv6.h"
+#include "pico_ipv6_pmtu.h"
 #include "pico_icmp4.h"
 #include "pico_icmp6.h"
 #include "pico_igmp.h"
@@ -908,6 +909,10 @@ int MOCKABLE pico_stack_init(void)
 #ifdef PICO_SUPPORT_IPV6
     /* Initialize Neighbor discovery module */
     pico_ipv6_nd_init();
+#endif
+
+#ifdef PICO_SUPPORT_IPV6PMTU
+    pico_ipv6_path_init(PICO_PMTU_CACHE_CLEANUP_INTERVAL);
 #endif
 
 #ifdef PICO_SUPPORT_OLSR

@@ -739,14 +739,19 @@ int pico_icmp6_ping_abort(int id)
 #ifdef PICO_SUPPORT_IPV6PMTU
 static void pico_icmp6_update_pmtu(struct pico_frame *f)
 {
-	const struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-	const struct pico_ipv6_hdr *payload = (struct pico_ipv6_hdr *)(f->transport_hdr + PICO_ICMP6HDR_PKT_TOO_BIG_SIZE);
+	const struct pico_icmp6_hdr *icmp_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+	const struct pico_ipv6_hdr *icmp_payload = NULL;
 	struct pico_ipv6_path_id path_id;
-	path_id.dst = payload->dst;
 
-    if (pico_ipv6_path_update(&path_id, be_to_host_long(hdr->msg.err.pkt_too_big.mtu)) == PICO_PMTU_OK){
+	f->net_hdr = f->transport_hdr + PICO_ICMP6HDR_PKT_TOO_BIG_SIZE;
+	icmp_payload = (struct pico_ipv6_hdr *)f->net_hdr;
+	path_id.dst = icmp_payload->dst;
+
+    if (pico_ipv6_path_update(&path_id, be_to_host_long(icmp_hdr->msg.err.pkt_too_big.mtu)) == PICO_PMTU_OK){
 #if defined PICO_SUPPORT_TCP || defined PICO_SUPPORT_UDP
-	    pico_transport_error(f, payload->nxthdr, PICO_ERR_EMSGTOOBIG);
+    	f->transport_hdr = f->net_hdr + PICO_SIZE_IP6HDR;
+    	f->transport_len = (uint16_t) (f->transport_len - ((uint16_t)PICO_SIZE_IP6HDR + PICO_ICMP6HDR_PKT_TOO_BIG_SIZE));
+	    pico_transport_error(f, icmp_payload->nxthdr, PICO_ERR_EMSGTOOBIG);
 #endif
 	} else {
 		pico_frame_discard(f);

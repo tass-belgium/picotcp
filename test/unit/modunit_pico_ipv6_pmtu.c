@@ -1,6 +1,7 @@
 #include "pico_config.h"
 #include "pico_tree.h"
 #include "pico_ipv6.h"
+#include "pico_eth.h"
 #include "pico_ipv6_pmtu.h"
 #include "modules/pico_ipv6_pmtu.c"
 #include "modules/pico_icmp6.c"
@@ -50,7 +51,7 @@ START_TEST(pico_ipv6_path)
     struct pico_ipv6_path_id path_id = {{{
                                              0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
                                          }}};
-    /* Updating non-existing should not be OK */
+    /* Updating non-existing paths should not be OK */
     for (i = 0; i < 0xff; i++) {
         path_id.dst.addr[10] = i;
         fail_if(pico_ipv6_path_update(&path_id, default_mtu) != PICO_PMTU_ERROR);
@@ -118,18 +119,72 @@ START_TEST(pico_ipv6_path)
 }
 END_TEST
 
+START_TEST(pico_ipv6_path_cache)
+{
+    uint8_t i;
+	struct pico_ipv6_path_id path_id = {{{
+                                             0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x50, 0x56, 0xff, 0xfe, 0x87, 0x06, 0xb6
+                                         }}};
+    pico_stack_init();
+    /* Timer should be allocated */
+    fail_if(gc_timer.id == 0);
+    /* Adding new paths should be OK */
+    for (i = 0; i < 0xff; i++) {
+        path_id.dst.addr[10] = i;
+        fail_if(pico_ipv6_path_add(&path_id, default_mtu + i) != PICO_PMTU_OK);
+    }
+    /* Retrieved PMTU should be the same */
+    for (i = 0; i < 0xff; i++) {
+        path_id.dst.addr[10] = i;
+        fail_if(pico_ipv6_pmtu_get(&path_id) != default_mtu + i);
+    }
+    pico_stack_tick(); /* No changes: cleanup only in (default) 10 minutes */
+    pico_ipv6_path_init(5 * 1000);
+    pico_stack_tick(); /* Cleanup in 5s: all paths valid */
+    for (i = 0; i < 0xff; i++) {
+        path_id.dst.addr[10] = i;
+        fail_if(pico_ipv6_pmtu_get(&path_id) != default_mtu + i);
+    }
+    sleep(6);
+    pico_stack_tick(); /* Paths marked as old */
+    fail_if(gc_timer.id == 0);
+    path_id.dst.addr[10] = 0xfe;
+    fail_if(pico_ipv6_path_update(&path_id, default_mtu) != PICO_PMTU_OK);
+    sleep(6);
+    pico_stack_tick(); /* Updated path available other paths are deleted */
+    fail_if(pico_ipv6_pmtu_get(&path_id) != default_mtu);
+    for (i = 0; i < 0xfe; i++) {
+        path_id.dst.addr[10] = i;
+        fail_if(pico_ipv6_pmtu_get(&path_id) != 0);
+    }
+    sleep(6);
+    pico_stack_tick(); /* Path cache expired */
+    fail_if(gc_timer.id == 0);
+    for (i = 0; i < 0xff; i++) {
+        path_id.dst.addr[10] = i;
+        fail_if(pico_ipv6_pmtu_get(&path_id) != 0);
+    }
+    sleep(8);
+    pico_stack_tick(); /* Cleanup empty cache */
+    fail_if(gc_timer.id == 0);
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");
-    TCase *TCase_pico_ipv6_pkt_too_big = tcase_create("Unit test for receiving pkt_too_big");
-    TCase *TCase_pico_ipv6_path = tcase_create("Unit test for pico_ipv6_path manipulation");
+    Suite *s = suite_create("PicoTCP - Path MTU");
+    TCase *TCase_pico_ipv6_pkt_too_big = tcase_create("Unit test for receiving pkt_too_big message");
+    TCase *TCase_pico_ipv6_path = tcase_create("Unit test for IPv6 path manipulation");
+    TCase *TCase_pico_ipv6_path_cache = tcase_create("Unit test for the cache cleanup");
 
     tcase_add_test(TCase_pico_ipv6_pkt_too_big, pico_ipv6_pkt_too_big);
     tcase_add_test(TCase_pico_ipv6_path, pico_ipv6_path);
+    tcase_add_test(TCase_pico_ipv6_path_cache, pico_ipv6_path_cache);
+    tcase_set_timeout(TCase_pico_ipv6_path_cache, 30);
 
     suite_add_tcase(s, TCase_pico_ipv6_pkt_too_big);
     suite_add_tcase(s, TCase_pico_ipv6_path);
+    suite_add_tcase(s, TCase_pico_ipv6_path_cache);
 
     return s;
 }
