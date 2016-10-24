@@ -22,6 +22,7 @@
 #include "pico_socket_multicast.h"
 #include "pico_socket_tcp.h"
 #include "pico_socket_udp.h"
+#include "pico_ipv6_pmtu.h"
 
 #if defined (PICO_SUPPORT_IPV4) || defined (PICO_SUPPORT_IPV6)
 #if defined (PICO_SUPPORT_TCP) || defined (PICO_SUPPORT_UDP)
@@ -1269,25 +1270,42 @@ static uint32_t pico_socket_adapt_mss_to_proto(struct pico_socket *s, uint32_t m
     mss -= PICO_SIZE_IP4HDR;
     return mss;
 }
+static uint32_t pico_socket_pmtu_check(struct pico_socket *s, uint32_t mss)
+{
+
+#if defined(PICO_SUPPORT_IPV6) && defined(PICO_SUPPORT_IPV6PMTU)
+    if (is_sock_ipv6(s)) {
+    	uint32_t pmtu = 0;
+    	const struct pico_ipv6_path_id destination = {s->remote_addr.ip6};
+    	pmtu = pico_ipv6_pmtu_get(&destination);
+    	if (pmtu == 0) {
+    		pico_ipv6_path_add(&destination, mss);
+    	} else {
+    		if (pmtu < mss) {
+    			mss = pmtu;
+    		}
+    	}
+	}
+#else
+    IGNORE_PARAMETER(s);
+#endif
+    return mss;
+}
 
 uint32_t pico_socket_get_mss(struct pico_socket *s)
 {
     uint32_t mss = PICO_MIN_MSS;
-    if (!s)
+    if (!s) {
         return mss;
-
-    if (!s->dev)
-        get_sock_dev(s);
-
-    if (!s->dev) {
-        mss = PICO_MIN_MSS;
-    } else {
-        mss = s->dev->mtu;
     }
-
+    if (!s->dev) {
+        get_sock_dev(s);
+    }
+    if (s->dev) {
+    	mss = pico_socket_pmtu_check(s, s->dev->mtu);
+    }
     return pico_socket_adapt_mss_to_proto(s, mss);
 }
-
 
 static int pico_socket_xmit_avail_space(struct pico_socket *s)
 {

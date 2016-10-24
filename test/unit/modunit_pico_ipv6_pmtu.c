@@ -1,6 +1,7 @@
 #include "pico_config.h"
 #include "pico_tree.h"
 #include "pico_ipv6.h"
+#include "pico_eth.h"
 #include "pico_ipv6_pmtu.h"
 #include "modules/pico_ipv6_pmtu.c"
 #include "modules/pico_icmp6.c"
@@ -121,7 +122,7 @@ END_TEST
 
 Suite *pico_suite(void)
 {
-    Suite *s = suite_create("PicoTCP");
+    Suite *s = suite_create("PicoTCP - Path MTU");
     TCase *TCase_pico_ipv6_pkt_too_big = tcase_create("Unit test for receiving pkt_too_big");
     TCase *TCase_pico_ipv6_path = tcase_create("Unit test for pico_ipv6_path manipulation");
 
