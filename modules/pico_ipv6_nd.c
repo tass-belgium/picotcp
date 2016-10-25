@@ -919,6 +919,7 @@ static int redirect_process(struct pico_frame *f)
     } else {
         /* TODO: check if we are NBMA link
          * if so, the LLADDR_TGT MUST be included
+         * + set the link layer address
          * if not, the LLADDR_TGT should be included
          */
     }
@@ -1302,13 +1303,31 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
 static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
+    struct pico_ipv6_router *r = NULL;
+    struct pico_ipv6_neighbor *n = NULL;
+
     (void)arg;
+
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
-      if(pico_ipv6_is_linklocal(link->address.addr) && (link->rs_retries < 3) && (link->rs_expire_time < now)){
-        link->rs_retries++;
-        pico_icmp6_router_solicitation(link->dev,&link->address);
-        link->rs_expire_time = PICO_TIME_MS() + 4000;
+      if(pico_ipv6_is_linklocal(link->address.addr)  && (link->rs_expire_time < now)){
+        if(link->rs_retries < 3) {
+          link->rs_retries++;
+          pico_icmp6_router_solicitation(link->dev,&link->address);
+          link->rs_expire_time = PICO_TIME_MS() + 4000;
+        }
+        else {
+          if((n = pico_nd_find_neighbor(&link->address))) {
+            pico_ipv6_nd_unreachable(&link->address);
+            if((r = pico_nd_find_router(&link->address)))
+            {
+              pico_ipv6_assign_default_router(r->is_default);
+              pico_tree_delete(&RCache, r);
+            }
+            pico_tree_delete(&NCache, n);
+            PICO_FREE(n);
+          }
+        }
       }
     }
     pico_timer_add(1000, pico_ipv6_nd_check_rs_timer_expired, NULL);
