@@ -1462,9 +1462,9 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
           link->rs_expire_time = PICO_TIME_MS() + 4000;
         }
         else {
-          if((n = pico_nd_find_neighbor(&link->address))) {
+          if((n = pico_get_neighbor_from_ncache(&link->address))) {
             pico_ipv6_nd_unreachable(&link->address);
-            if((r = pico_nd_find_router(&link->address)))
+            if((r = pico_get_router_from_rcache(&link->address)))
             {
               pico_ipv6_assign_default_router(r->is_default);
               pico_tree_delete(&RCache, r);
