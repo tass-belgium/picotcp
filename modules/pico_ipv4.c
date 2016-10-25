@@ -22,20 +22,22 @@
 #include "pico_aodv.h"
 #include "pico_socket_multicast.h"
 #include "pico_fragments.h"
+#include "pico_ethernet.h"
 #include "pico_mcast.h"
 
 #ifdef PICO_SUPPORT_IPV4
 
 #ifdef PICO_SUPPORT_MCAST
-# define ip_mcast_dbg(...) do {} while(0) /* so_mcast_dbg in pico_socket.c */
-/* #define ip_mcast_dbg dbg */
+
+#ifdef DEBUG_MCAST
+#define ip_mcast_dbg dbg
+#else
+#define ip_mcast_dbg(...) do {} while(0)
+#endif
+
 # define PICO_MCAST_ALL_HOSTS long_be(0xE0000001) /* 224.0.0.1 */
 /* Default network interface for multicast transmission */
 static struct pico_ipv4_link *mcast_default_link = NULL;
-#endif
-#ifdef PICO_SUPPORT_IPV4FRAG
-/* # define reassembly_dbg dbg */
-# define reassembly_dbg(...) do {} while(0)
 #endif
 
 /* Queues */
@@ -48,7 +50,7 @@ static struct pico_queue out = {
 
 /* Functions */
 static int ipv4_route_compare(void *ka, void *kb);
-static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size);
+static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size);
 
 
 int pico_ipv4_compare(struct pico_ip4 *a, struct pico_ip4 *b)
@@ -382,13 +384,11 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     int ret = 0;
     struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     uint16_t max_allowed = (uint16_t) ((int)f->buffer_len - (f->net_hdr - f->buffer) - (int)PICO_SIZE_IP4HDR);
-    uint16_t flag;
 
     if (!hdr)
         return -1;
 
     (void)self;
-    flag = short_be(hdr->frag);
 
     /* NAT needs transport header information */
     if (((hdr->vhl) & 0x0F) > 5) {
@@ -398,6 +398,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
     f->transport_len = (uint16_t)(short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len);
     f->net_len = (uint16_t)(PICO_SIZE_IP4HDR + option_len);
+    f->frag = short_be(hdr->frag);
 
     if (f->transport_len > max_allowed) {
         pico_frame_discard(f);
@@ -424,7 +425,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (hdr->frag & short_be(PICO_IPV4_EVIL)) {
+    if (f->frag & PICO_IPV4_EVIL) {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
@@ -437,10 +438,10 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
-    if (flag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
+    if (f->frag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPV4FRAG
-        pico_ipv4_process_frag(hdr, f, hdr ? hdr->proto : 0 );
+        pico_ipv4_process_frag(hdr, f, hdr->proto);
         /* Frame can be discarded, frag will handle its own copy */
 #endif
         /* We do not support fragmentation, discard quietly */
@@ -480,20 +481,24 @@ static int pico_ipv4_process_out(struct pico_protocol *self, struct pico_frame *
 }
 
 
-static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, uint16_t size)
+static struct pico_frame *pico_ipv4_alloc(struct pico_protocol *self, struct pico_device *dev, uint16_t size)
 {
-    struct pico_frame *f =  pico_frame_alloc(size + PICO_SIZE_IP4HDR + PICO_SIZE_ETHHDR);
+    struct pico_frame *f = NULL;
     IGNORE_PARAMETER(self);
+
+    f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP4HDR));
+    /* TODO: In 6LoWPAN topic branch update to make use of dev->ll_mode */
 
     if (!f)
         return NULL;
 
-    f->datalink_hdr = f->buffer;
-    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
     f->net_len = PICO_SIZE_IP4HDR;
     f->transport_hdr = f->net_hdr + PICO_SIZE_IP4HDR;
-    f->transport_len = size;
-    f->len =  size + PICO_SIZE_IP4HDR;
+    f->transport_len = (uint16_t)size;
+
+    /* Datalink size is accounted for in pico_datalink_send (link layer) */
+    f->len =  (uint32_t)(size + PICO_SIZE_IP4HDR);
+
     return f;
 }
 
@@ -692,7 +697,7 @@ static void pico_ipv4_mcast_print_groups(struct pico_ipv4_link *mcast_link)
 
     pico_tree_foreach(index, mcast_link->MCASTGroups) {
         g = index->keyValue;
-        ip_mcast_dbg("+ %04d | %16s |  %08X  |      %05u      |      %u      | %8s +\n", i, mcast_link->dev->name, g->mcast_addr.addr, g->reference_count, g->filter_mode, "");
+        ip_mcast_dbg("+ %04d | %16s |  %08X  |      %05u      |      %u      | %8s +\n", i, mcast_link->dev->name, g->mcast_addr.ip4.addr, g->reference_count, g->filter_mode, "");
         pico_tree_foreach(index2, &g->MCASTSources) {
             source = index2->keyValue;
             ip_mcast_dbg("+ %4s | %16s |  %8s  |      %5s      |      %s      | %08X +\n", "", "", "", "", "", source->addr);
@@ -723,7 +728,11 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                 }
 
                 source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
-                pico_tree_insert(&g->MCASTSources, source);
+                if (pico_tree_insert(&g->MCASTSources, source)) {
+                    dbg("IPv4: Failed to insert source in tree\n");
+					PICO_FREE(source);
+					return -1;
+				}
             }
         }
     }
@@ -767,7 +776,12 @@ int pico_ipv4_mcast_join(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_gro
         g->mcast_addr.ip4 = *mcast_group;
         g->MCASTSources.root = &LEAF;
         g->MCASTSources.compare = ipv4_mcast_sources_cmp;
-        pico_tree_insert(link->MCASTGroups, g);
+        if (pico_tree_insert(link->MCASTGroups, g)) {
+            dbg("IPv4: Failed to insert group in tree\n");
+            PICO_FREE(g);
+			return -1;
+		}
+
 #ifdef PICO_SUPPORT_IGMP
         pico_igmp_state_change(mcast_link, mcast_group, filter_mode, MCASTFilter, PICO_IGMP_STATE_CREATE);
 #endif
@@ -956,7 +970,7 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
 
     if (!f || !dst) {
         pico_err = PICO_ERR_EINVAL;
-        return -1;
+        goto drop;
     }
 
 
@@ -1075,7 +1089,15 @@ int pico_ipv4_frame_push(struct pico_frame *f, struct pico_ip4 *dst, uint8_t pro
         if ((proto != PICO_PROTO_IGMP) && (pico_ipv4_mcast_filter(f) == 0)) {
             ip_mcast_dbg("MCAST: sender is member of group, loopback copy\n");
             cpy = pico_frame_copy(f);
-            pico_enqueue(&in, cpy);
+            if (!cpy) {
+                pico_err = PICO_ERR_ENOMEM;
+                ip_mcast_dbg("MCAST: Failed to copy frame\n");
+                goto drop;
+            }
+
+            retval = pico_enqueue(&in, cpy);
+            if (retval <= 0)
+                pico_frame_discard(cpy);
         }
     }
 
@@ -1178,7 +1200,12 @@ int MOCKABLE pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmas
         return -1;
     }
 
-    pico_tree_insert(&Routes, new);
+    if (pico_tree_insert(&Routes, new)) {
+        dbg("IPv4: Failed to insert route in tree\n");
+        PICO_FREE(new);
+		return -1;
+	}
+
     dbg_route();
     return 0;
 }
@@ -1255,7 +1282,15 @@ int pico_ipv4_link_add(struct pico_device *dev, struct pico_ip4 address, struct 
 #endif
 #endif
 
-    pico_tree_insert(&Tree_dev_link, new);
+    if (pico_tree_insert(&Tree_dev_link, new)) {
+        dbg("IPv4: Failed to insert link in tree\n");
+#ifdef PICO_SUPPORT_MCAST
+        PICO_FREE(new->MCASTGroups);
+#endif
+        PICO_FREE(new);
+		return -1;
+	}
+
 #ifdef PICO_SUPPORT_MCAST
     do {
         struct pico_ip4 mcast_all_hosts, mcast_addr, mcast_nm, mcast_gw;
@@ -1437,7 +1472,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (space > PICO_IPV4_MAXPAYLOAD)
             space = PICO_IPV4_MAXPAYLOAD;
 
-        fr = pico_ipv4_alloc(&pico_proto_ipv4, (uint16_t)space);
+        fr = pico_ipv4_alloc(&pico_proto_ipv4, NULL, (uint16_t)space);
         if (!fr) {
             pico_err = PICO_ERR_ENOMEM;
             return -1;
@@ -1458,7 +1493,7 @@ static int pico_ipv4_rebound_large(struct pico_frame *f)
         if (pico_ipv4_frame_push(fr, &dst, hdr->proto) > 0) {
             total_payload_written = (uint16_t)((uint16_t)fr->transport_len + total_payload_written);
         } else {
-            pico_frame_discard(fr);
+            /* No need to discard frame here, pico_ipv4_frame_push() already did that */
             break;
         }
     } /* while() */

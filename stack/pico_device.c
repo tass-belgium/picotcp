@@ -45,6 +45,8 @@ PICO_TREE_DECLARE(Device_tree, pico_dev_cmp);
 #ifdef PICO_SUPPORT_IPV6
 static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *linklocal)
 {
+    IGNORE_PARAMETER(linklocal);
+
     dev->hostvars.basetime = PICO_ND_REACHABLE_TIME;
     /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
     dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
@@ -167,7 +169,11 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
         return -1;
     }
 
-    pico_tree_insert(&Device_tree, dev);
+    if (pico_tree_insert(&Device_tree, dev)) {
+		PICO_FREE(dev->q_in);
+		PICO_FREE(dev->q_out);
+		return -1;
+	}
     if (!dev->mtu)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
 

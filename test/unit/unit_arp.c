@@ -53,7 +53,7 @@ START_TEST (arp_lookup_test)
     entry.ipv4 = ip;
 
     pico_stack_init();
-    pico_arp_add_entry(&entry);
+    fail_unless(pico_arp_add_entry(&entry) == 0);
     entry.arp_status = PICO_ARP_STATUS_STALE;
     eth = pico_arp_lookup(&ip);
     fail_unless(eth == NULL);
@@ -81,7 +81,7 @@ START_TEST(tc_pico_arp_queue)
     struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr));
     struct pico_ipv4_hdr *h = (struct pico_ipv4_hdr *) f->buffer;
     fail_if(!f);
-    f->net_hdr = h;
+    f->net_hdr = (uint8_t *)h;
     h->dst.addr = addr.addr;
 
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++) {

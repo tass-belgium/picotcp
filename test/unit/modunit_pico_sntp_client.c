@@ -8,7 +8,8 @@ volatile pico_err_t pico_err = 0;
 
 Suite *pico_suite(void);
 void cb_synced(pico_err_t status);
-/* Used in dnsCallback */
+
+/* Used in pico_sntp_sync_start */
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s))
 {
     struct pico_socket *sock = PICO_ZALLOC(sizeof(struct pico_socket));
@@ -19,12 +20,26 @@ struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup
     return sock;
 }
 
-/* Used in dnsCallback */
+/* Used in pico_sntp_sync_start */
 int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port)
 {
     (void) s;
     (void) local_addr;
     (void) port;
+    return 0;
+}
+
+/* Used in pico_sntp_sync_start */
+int pico_socket_close(struct pico_socket *s)
+{
+    (void) s;
+    return 0;
+}
+
+/* Used in pico_sntp_send */
+int8_t pico_socket_del(struct pico_socket *s)
+{
+    (void) s;
     return 0;
 }
 
@@ -40,6 +55,22 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip)
 {
     (void) ipstr;
+    (void) ip;
+    return 0;
+}
+
+/* Used in pico_sntp_sync_start_ipv4 */
+int pico_ipv4_to_string(char* ipbuf, const uint32_t ip)
+{
+    (void) ipbuf;
+    (void) ip;
+    return 0;
+}
+
+/* Used in pico_sntp_sync_start_ipv6 */
+int pico_ipv6_to_string(char* ipbuf, const uint8_t ip[PICO_SIZE_IP6])
+{
+    (void) ipbuf;
     (void) ip;
     return 0;
 }
@@ -66,7 +97,7 @@ int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *ds
     return 0;
 }
 
-/* Used in pico_sntp_sync, not tested */
+/* Used in pico_sntp_sync_start_dns_ipv4, not tested */
 int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *arg), void *arg)
 {
     (void) url;
@@ -75,7 +106,7 @@ int pico_dns_client_getaddr(const char *url, void (*callback)(char *ip, void *ar
     return 0;
 }
 
-/* Used in pico_sntp_sync, not tested */
+/* Used in pico_sntp_sync_start_dns_ipv6, not tested */
 int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), void *arg)
 {
     (void) url;
@@ -83,20 +114,25 @@ int pico_dns_client_getaddr6(const char *url, void (*callback)(char *, void *), 
     (void) arg;
     return 0;
 }
+
 /* Used in pico_sntp_parse */
 void cb_synced(pico_err_t status)
 {
     (void) status;
 
 }
+
+/* Used in pico_sntp_send */
+static uint32_t timers_added = 0;
 uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void *arg)
 {
     (void) expire;
     (void) timer;
     (void) arg;
-    return NULL;
+    return ++timers_added;
 }
 
+/* Used in pico_sntp_cleanup */
 void pico_timer_cancel(uint32_t t)
 {
     IGNORE_PARAMETER(t);
@@ -196,7 +232,8 @@ START_TEST(tc_pico_sntp_parse)
     header.trs_ts.sec = long_be(SNTP_UNIX_OFFSET + 1390000000ul);
     header.trs_ts.frac = long_be(3865470566ul);    /* value: 899msec */
 
-    pico_sntp_parse((char *) &header, ck);
+    fail_if(pico_sntp_parse((char *) &header, NULL) == 0);
+    fail_if(pico_sntp_parse((char *) &header, ck) != 0);
 }
 END_TEST
 START_TEST(tc_pico_sntp_client_wakeup)
@@ -265,7 +302,68 @@ START_TEST(tc_dnsCallback)
     dnsCallback(ip, ck);
 }
 END_TEST
+START_TEST(tc_pico_sntp_sync)
+{
+    const char *sntp_server= "ntp.nasa.gov";
 
+    fail_if(pico_sntp_sync(NULL, cb_synced) == 0);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+
+    fail_if(pico_sntp_sync(sntp_server, NULL) == 0);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+
+    fail_if(pico_sntp_sync(sntp_server, cb_synced) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_ip)
+{
+    union pico_address sntp_addr = { .ip4.addr = 0ul };
+
+    fail_if(pico_sntp_sync_ip(NULL, cb_synced) == 0);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+
+    fail_if(pico_sntp_sync_ip(&sntp_addr, NULL) == 0);
+    fail_if(pico_err != PICO_ERR_EINVAL);
+
+    fail_if(pico_sntp_sync_ip(&sntp_addr, cb_synced) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_start)
+{
+    struct sntp_server_ns_cookie ck = { 0 };
+    union pico_address sntp_addr = { .ip4.addr= 0ul };
+
+    fail_if(pico_sntp_sync_start(&ck, &sntp_addr) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_start_dns_ipv4)
+{
+    const char *sntp_server = "ntp.nasa.gov";
+
+    fail_if(pico_sntp_sync_start_dns_ipv4(sntp_server, cb_synced) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_start_dns_ipv6)
+{
+    const char *sntp_server = "ntp.nasa.gov";
+
+    fail_if(pico_sntp_sync_start_dns_ipv6(sntp_server, cb_synced) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_start_ipv4)
+{
+    union pico_address sntp_addr = { .ip4.addr = 0};
+
+    fail_if(pico_sntp_sync_start_ipv4(&sntp_addr, cb_synced) != 0);
+}
+END_TEST
+START_TEST(tc_pico_sntp_sync_start_ipv6)
+{
+    union pico_address sntp_addr = { .ip6.addr = { 0 } };
+
+    fail_if(pico_sntp_sync_start_ipv6(&sntp_addr, cb_synced) != 0);
+}
+END_TEST
 
 Suite *pico_suite(void)
 {
@@ -278,6 +376,13 @@ Suite *pico_suite(void)
     TCase *TCase_pico_sntp_client_wakeup = tcase_create("Unit test for pico_sntp_client_wakeup");
     TCase *TCase_sntp_receive_timeout = tcase_create("Unit test for sntp_receive_timeout");
     TCase *TCase_dnsCallback = tcase_create("Unit test for dnsCallback");
+    TCase *TCase_pico_sntp_sync = tcase_create("Unit test for pico_sntp_sync");
+    TCase *TCase_pico_sntp_sync_ip = tcase_create("Unit test for pico_sntp_sync_ip");
+    TCase *TCase_pico_sntp_sync_start = tcase_create("Unit test for pico_sntp_sync_start");
+    TCase *TCase_pico_sntp_sync_start_dns_ipv4 = tcase_create("Unit test for pico_sntp_sync_start_dns_ipv4");
+    TCase *TCase_pico_sntp_sync_start_dns_ipv6 = tcase_create("Unit test for pico_sntp_sync_start_dns_ipv6");
+    TCase *TCase_pico_sntp_sync_start_ipv4 = tcase_create("Unit test for pico_sntp_sync_start_ipv4");
+    TCase *TCase_pico_sntp_sync_start_ipv6 = tcase_create("Unit test for pico_sntp_sync_start_ipv6");
 
 
     tcase_add_test(TCase_timestamp_convert, tc_timestamp_convert);
@@ -294,6 +399,20 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_sntp_send);
     tcase_add_test(TCase_dnsCallback, tc_dnsCallback);
     suite_add_tcase(s, TCase_dnsCallback);
+    tcase_add_test(TCase_pico_sntp_sync, tc_pico_sntp_sync);
+    suite_add_tcase(s, TCase_pico_sntp_sync);
+    tcase_add_test(TCase_pico_sntp_sync_ip, tc_pico_sntp_sync_ip);
+    suite_add_tcase(s, TCase_pico_sntp_sync_ip);
+    tcase_add_test(TCase_pico_sntp_sync_start, tc_pico_sntp_sync_start);
+    suite_add_tcase(s, TCase_pico_sntp_sync_start);
+    tcase_add_test(TCase_pico_sntp_sync_start_dns_ipv4, tc_pico_sntp_sync_start_dns_ipv4);
+    suite_add_tcase(s, TCase_pico_sntp_sync_start_dns_ipv4);
+    tcase_add_test(TCase_pico_sntp_sync_start_dns_ipv6, tc_pico_sntp_sync_start_dns_ipv6);
+    suite_add_tcase(s, TCase_pico_sntp_sync_start_dns_ipv6);
+    tcase_add_test(TCase_pico_sntp_sync_start_ipv4, tc_pico_sntp_sync_start_ipv4);
+    suite_add_tcase(s, TCase_pico_sntp_sync_start_ipv4);
+    tcase_add_test(TCase_pico_sntp_sync_start_ipv6, tc_pico_sntp_sync_start_ipv6);
+    suite_add_tcase(s, TCase_pico_sntp_sync_start_ipv6);
     return s;
 }
 

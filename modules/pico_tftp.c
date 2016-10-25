@@ -13,6 +13,12 @@
 #include <pico_tftp.h>
 #include <pico_strings.h>
 
+#ifdef DEBUG_TFTP
+#define tftp_dbg dbg
+#else
+#define tftp_dbg(...) do {} while(0)
+#endif
+
 /* a zero value means adaptative timeout! (2, 4, 8) */
 #define PICO_TFTP_TIMEOUT 2000U
 
@@ -291,6 +297,7 @@ static inline int do_callback(struct pico_tftp_session *session, uint16_t err, u
 }
 
 static void timer_callback(pico_time now, void *arg);
+static void tftp_finish(struct pico_tftp_session *session);
 
 static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time interval)
 {
@@ -299,10 +306,20 @@ static void tftp_schedule_timeout(struct pico_tftp_session *session, pico_time i
     if (session->active_timers) {
         if (session->bigger_wallclock > new_timeout) {
             session->timer = pico_timer_add(interval + 1, timer_callback, session);
+            if (!session->timer) {
+                tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
+                tftp_finish(session);
+                return;
+            }
             session->active_timers++;
         }
     } else {
         session->timer = pico_timer_add(interval + 1, timer_callback, session);
+        if (!session->timer) {
+            tftp_dbg("TFTP: Failed to start callback timer, deleting session\n");
+            tftp_finish(session);
+            return;
+        }
         session->active_timers++;
         session->bigger_wallclock = new_timeout;
     }

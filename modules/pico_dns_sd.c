@@ -10,8 +10,11 @@
 #ifdef PICO_SUPPORT_DNS_SD
 
 /* --- Debugging --- */
-#define dns_sd_dbg(...) do {} while(0)
-/* #define dns_sd_dbg dbg */
+#ifdef DEBUG_DNS_SD
+    #define dns_sd_dbg dbg
+#else
+    #define dns_sd_dbg(...) do {} while(0)
+#endif
 
 /* --- PROTOTYPES --- */
 key_value_pair_t *
@@ -426,16 +429,25 @@ pico_dns_sd_register_service( const char *name,
     pico_dns_sd_kv_vector_erase(txt_data);
 
     if (txt_record) {
-        pico_tree_insert(&rtree, txt_record);
+        if (pico_tree_insert(&rtree, txt_record) == &LEAF) {
+            PICO_MDNS_RTREE_DESTROY(&rtree);
+            pico_mdns_record_delete((void **)&txt_record);
+            return -1;
+        }
     }
 
-    pico_tree_insert(&rtree, srv_record);
+    if (pico_tree_insert(&rtree, srv_record) == &LEAF) {
+        PICO_MDNS_RTREE_DESTROY(&rtree);
+        pico_mdns_record_delete((void **)&srv_record);
+		return -1;
+	}
 
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
     }
 
+    /* Only destroy the tree, not its elements since they still exist in another tree */
     pico_tree_destroy(&rtree, NULL);
     return 0;
 }

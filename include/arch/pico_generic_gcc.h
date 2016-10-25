@@ -11,6 +11,8 @@
 #include <string.h>
 #include "pico_constants.h"
 
+/* #define TIME_PRESCALE */
+
 /* monotonically increasing tick,
  * typically incremented every millisecond in a systick interrupt */
 extern volatile unsigned int pico_ms_tick;
@@ -43,14 +45,27 @@ static inline void *pico_zalloc(size_t size)
     return ptr;
 }
 
+/* time prescaler */
+#ifdef TIME_PRESCALE
+extern int32_t prescale_time;
+#endif
+
 static inline pico_time PICO_TIME_MS()
 {
-    return pico_ms_tick;
+    #ifdef TIME_PRESCALE
+        return pico_ms_tick << prescale_time;
+    #else
+        return pico_ms_tick;
+    #endif
 }
 
 static inline pico_time PICO_TIME()
 {
-    return pico_ms_tick / 1000;
+    #ifdef TIME_PRESCALE
+        return (pico_ms_tick / 1000) << prescale_time;
+    #else
+        return (pico_ms_tick / 1000);
+    #endif
 }
 
 static inline void PICO_IDLE(void)

@@ -15,7 +15,12 @@
 #ifdef PICO_SUPPORT_OLSR
 #define DGRAM_MAX_SIZE (100 - 28)
 #define MAX_OLSR_MEM (4 * DGRAM_MAX_SIZE)
+
+#ifdef DEBUG_OLSR
+#define olsr_dbg dbg
+#else
 #define olsr_dbg(...) do {} while(0)
+#endif
 
 int OOM(void);
 
@@ -416,7 +421,12 @@ static void olsr_scheduled_output(uint32_t when, void *buffer, uint16_t size, st
     p->len = size;
     p->pdev = pdev;
     buffer_mem_used += DGRAM_MAX_SIZE;
-    pico_timer_add(1 + when - ((pico_rand() % OLSR_MAXJITTER)), &olsr_process_out, p);
+    if (!pico_timer_add(1 + when - ((pico_rand() % OLSR_MAXJITTER)), &olsr_process_out, p)) {
+        olsr_dbg("OLSR: Failed to start process timer\n");
+        OOM();
+        PICO_FREE(p);
+        PICO_FREE(buffer);
+    }
 }
 
 
@@ -1039,7 +1049,10 @@ static void olsr_hello_tick(pico_time when, void *unused)
         olsr_make_dgram(d->dev, 0);
         d = d->next;
     }
-    pico_timer_add(OLSR_HELLO_INTERVAL, &olsr_hello_tick, NULL);
+    if (!pico_timer_add(OLSR_HELLO_INTERVAL, &olsr_hello_tick, NULL)) {
+        olsr_dbg("OLSR: Failed to start hello_tick timer\n");
+        /* TODO no more ticks now */
+    }
 }
 
 static void olsr_tc_tick(pico_time when, void *unused)
@@ -1052,7 +1065,10 @@ static void olsr_tc_tick(pico_time when, void *unused)
         olsr_make_dgram(d->dev, 1);
         d = d->next;
     }
-    pico_timer_add(OLSR_TC_INTERVAL, &olsr_tc_tick, NULL);
+    if (!pico_timer_add(OLSR_TC_INTERVAL, &olsr_tc_tick, NULL)) {
+        olsr_dbg("OLSR: Failed to start tc_tick timer\n");
+        /* TODO no more ticks now */
+    }
 }
 
 
@@ -1060,6 +1076,7 @@ static void olsr_tc_tick(pico_time when, void *unused)
 
 void pico_olsr_init(void)
 {
+    uint32_t hello_timer = 0;
     struct pico_ip4 ANY = {
         0
     };
@@ -1071,8 +1088,15 @@ void pico_olsr_init(void)
             pico_socket_bind(udpsock, &ANY, &port);
     }
 
-    pico_timer_add(pico_rand() % 100, &olsr_hello_tick, NULL);
-    pico_timer_add(pico_rand() % 900, &olsr_tc_tick, NULL);
+    hello_timer = pico_timer_add(pico_rand() % 100, &olsr_hello_tick, NULL);
+    if (!hello_timer) {
+        olsr_dbg("OLSR: Failed to start hello_tick timer\n");
+        return;
+    }
+    if (!pico_timer_add(pico_rand() % 900, &olsr_tc_tick, NULL)) {
+        olsr_dbg("OLSR: Failed to start tc_tick timer\n");
+        pico_timer_cancel(hello_timer);
+    }
 }
 
 

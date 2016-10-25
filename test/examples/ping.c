@@ -88,7 +88,11 @@ void app_ping(char *arg)
 #endif
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
-        pico_timer_add(timeout * 1000, ping_abort_timer, &id);
+        if (!pico_timer_add(timeout * 1000, ping_abort_timer, &id)) {
+            printf("Failed to set ping abort timeout, aborting ping\n");
+            ping_abort_timer((pico_time)0, &id);
+            exit(1);
+        }
     }
 
     /* free copied args */

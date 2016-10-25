@@ -8,8 +8,12 @@
 #include "pico_udp.h"
 
 #ifdef PICO_SUPPORT_MCAST
-# define so_mcast_dbg(...) do { } while(0) /* ip_mcast_dbg in pico_ipv4.c */
-/* #define so_mcast_dbg dbg */
+
+#ifdef DEBUG_MCAST
+#define so_mcast_dbg dbg
+#else
+#define so_mcast_dbg(...) do { } while(0)
+#endif
 
 /*                       socket
  *                         |
@@ -26,7 +30,7 @@
  */
 struct pico_mcast_listen
 {
-    uint8_t filter_mode;
+    int8_t filter_mode;
     union pico_address mcast_link;
     union pico_address mcast_group;
     struct pico_tree MCASTSources;
@@ -222,7 +226,7 @@ static union pico_address *pico_mcast_get_link_address(struct pico_socket *s, un
 #endif
     return NULL;
 }
-static uint8_t pico_mcast_filter_excl_excl(struct pico_mcast_listen *listen)
+static int8_t pico_mcast_filter_excl_excl(struct pico_mcast_listen *listen)
 {
     /* filter = intersection of EXCLUDEs */
     /* any record with filter mode EXCLUDE, causes the interface mode to be EXCLUDE */
@@ -252,7 +256,7 @@ static uint8_t pico_mcast_filter_excl_excl(struct pico_mcast_listen *listen)
     return PICO_IP_MULTICAST_EXCLUDE;
 }
 
-static uint8_t pico_mcast_filter_excl_incl(struct pico_mcast_listen *listen)
+static int8_t pico_mcast_filter_excl_incl(struct pico_mcast_listen *listen)
 {
     /* filter = EXCLUDE - INCLUDE */
     /* any record with filter mode EXCLUDE, causes the interface mode to be EXCLUDE */
@@ -282,7 +286,7 @@ static uint8_t pico_mcast_filter_excl_incl(struct pico_mcast_listen *listen)
     return PICO_IP_MULTICAST_EXCLUDE;
 }
 
-static uint8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
+static int8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
 {
     /* filter = EXCLUDE - INCLUDE */
     /* delete from the interface INCLUDE filter any source NOT in the socket EXCLUDE filter */
@@ -315,8 +319,12 @@ static uint8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources, _tmp)
         {
             source = pico_tree_insert(&MCASTFilter, index->keyValue);
-            if (source)
-                pico_tree_delete(&MCASTFilter, source);
+            if (source) {
+                if ((void *)source == (void *)&LEAF)
+                    return -1;
+                else
+                    pico_tree_delete(&MCASTFilter, source);
+            }
         }
     }
 
@@ -325,8 +333,12 @@ static uint8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources_ipv6, _tmp)
         {
             source = pico_tree_insert(&MCASTFilter_ipv6, index->keyValue);
-            if (source)
-                pico_tree_delete(&MCASTFilter_ipv6, source);
+            if (source) {
+                if ((void *)source == (void *)&LEAF)
+                    return -1;
+                else
+                    pico_tree_delete(&MCASTFilter_ipv6, source);
+            }
         }
     }
 
@@ -334,7 +346,7 @@ static uint8_t pico_mcast_filter_incl_excl(struct pico_mcast_listen *listen)
     return PICO_IP_MULTICAST_EXCLUDE;
 }
 
-static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
+static int8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
 {
     /* filter = summation of INCLUDEs */
     /* mode stays INCLUDE, add all sources to filter */
@@ -345,7 +357,8 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources, _tmp)
         {
             source = index->keyValue;
-            pico_tree_insert(&MCASTFilter, source);
+            if (pico_tree_insert(&MCASTFilter, source) == &LEAF)
+                return -1;
         }
     }
 
@@ -354,7 +367,8 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
         pico_tree_foreach_safe(index, &listen->MCASTSources_ipv6, _tmp)
         {
             source = index->keyValue;
-            pico_tree_insert(&MCASTFilter_ipv6, source);
+            if (pico_tree_insert(&MCASTFilter_ipv6, source) == &LEAF)
+                return -1;
         }
     }
 
@@ -364,7 +378,7 @@ static uint8_t pico_mcast_filter_incl_incl(struct pico_mcast_listen *listen)
 
 struct pico_mcast_filter_aggregation
 {
-    uint8_t (*call)(struct pico_mcast_listen *);
+    int8_t (*call)(struct pico_mcast_listen *);
 };
 
 static const struct pico_mcast_filter_aggregation mcast_filter_aggr_call[2][2] =
@@ -380,12 +394,12 @@ static const struct pico_mcast_filter_aggregation mcast_filter_aggr_call[2][2] =
     }
 };
 
-static int mcast_aggr_validate(uint8_t fm, struct pico_mcast_listen *l)
+static int mcast_aggr_validate(int8_t fm, struct pico_mcast_listen *l)
 {
     if (!l)
         return -1;
 
-    if (fm > 1)
+    if (fm > 1 || fm < 0)
         return -1;
 
     if (l->filter_mode > 1)
@@ -398,7 +412,7 @@ static int mcast_aggr_validate(uint8_t fm, struct pico_mcast_listen *l)
 /* MCASTFilter will be empty if no socket is listening on mcast_group on mcast_link anymore */
 static int pico_socket_aggregate_mcastfilters(union pico_address *mcast_link, union pico_address *mcast_group)
 {
-    uint8_t filter_mode = PICO_IP_MULTICAST_INCLUDE;
+    int8_t filter_mode = PICO_IP_MULTICAST_INCLUDE;
     struct pico_mcast_listen *listen = NULL;
     struct pico_socket *mcast_sock = NULL;
     struct pico_tree_node *index = NULL, *_tmp = NULL;
@@ -433,7 +447,7 @@ static int pico_socket_aggregate_mcastfilters(union pico_address *mcast_link, un
 
             if (mcast_filter_aggr_call[filter_mode][listen->filter_mode].call) {
                 filter_mode = mcast_filter_aggr_call[filter_mode][listen->filter_mode].call(listen);
-                if (filter_mode > 1)
+                if (filter_mode > 1 || filter_mode < 0)
                     return -1;
             }
         }
@@ -975,9 +989,17 @@ static int mcast_so_addm(struct pico_socket *s, void *value)
 
 #endif
     tree->root = &LEAF;
-    pico_tree_insert(listen_tree, mcast.listen);
+    if (pico_tree_insert(listen_tree, mcast.listen)) {
+		PICO_FREE(mcast.listen);
+		return -1;
+	}
 
-    pico_tree_insert(&MCASTSockets, s);
+    if (pico_tree_insert(&MCASTSockets, s) == &LEAF) {
+        pico_tree_delete(listen_tree, mcast.listen);
+        PICO_FREE(mcast.listen);
+		return -1;
+	}
+
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq->mcast_group_addr);
     if (filter_mode < 0)
         return -1;
@@ -1139,12 +1161,19 @@ static int mcast_so_block_src(struct pico_socket *s, void *value)
     }
 
     *source = mcast.mreq_s->mcast_source_addr;
-    if( IS_SOCK_IPV4(s))
-        pico_tree_insert(&mcast.listen->MCASTSources, source);
+    if( IS_SOCK_IPV4(s)) {
+    	if (pico_tree_insert(&mcast.listen->MCASTSources, source)) {
+    		PICO_FREE(source);
+    		return -1;
+    	}
+    }
 
 #ifdef PICO_SUPPORT_IPV6
     else if( IS_SOCK_IPV6(s))
-        pico_tree_insert(&mcast.listen->MCASTSources_ipv6, source);
+    	if (pico_tree_insert(&mcast.listen->MCASTSources_ipv6, source)) {
+			PICO_FREE(source);
+			return -1;
+		}
 #endif
 
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq_s->mcast_group_addr);
@@ -1184,18 +1213,21 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
         source = pico_tree_findKey(tree, &stest);
         if (source) {
             so_mcast_dbg("pico_socket_setoption: ERROR source address to allow already in source list\n");
-            pico_err = PICO_ERR_ENOMEM;
+            pico_err = PICO_ERR_EADDRNOTAVAIL;
             return -1;
         }
 
         source = PICO_ZALLOC(sizeof(union pico_address));
         if (!source) {
-            pico_err = PICO_ERR_EADDRNOTAVAIL;
+            pico_err = PICO_ERR_ENOMEM;
             return -1;
         }
 
         *source = mcast.mreq_s->mcast_source_addr;
-        pico_tree_insert(tree, source);
+        if (pico_tree_insert(tree, source)) {
+			PICO_FREE(source);
+			return -1;
+		}
 
     } else {
         mcast.listen = PICO_ZALLOC(sizeof(struct pico_mcast_listen));
@@ -1222,12 +1254,25 @@ static int mcast_so_addsrcm(struct pico_socket *s, void *value)
 
 #endif
         *source = mcast.mreq_s->mcast_source_addr;
-        pico_tree_insert(tree, source);
-        pico_tree_insert(listen_tree, mcast.listen);
+        if (pico_tree_insert(tree, source)) {
+			PICO_FREE(mcast.listen);
+			PICO_FREE(source);
+			return -1;
+		}
+
+        if (pico_tree_insert(listen_tree, mcast.listen)) {
+            pico_tree_delete(tree, source);
+            PICO_FREE(source);
+            PICO_FREE(mcast.listen);
+			return -1;
+		}
         reference_count = 1;
     }
 
-    pico_tree_insert(&MCASTSockets, s);
+    if (pico_tree_insert(&MCASTSockets, s) == &LEAF) {
+		return -1;
+	}
+
     filter_mode = pico_socket_aggregate_mcastfilters(mcast.address, &mcast.mreq_s->mcast_group_addr);
     if (filter_mode < 0)
         return -1;

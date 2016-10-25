@@ -21,8 +21,11 @@
 
 #if defined(PICO_SUPPORT_IGMP) && defined(PICO_SUPPORT_MCAST)
 
-#define igmp_dbg(...) do {} while(0)
-/* #define igmp_dbg dbg */
+#ifdef DEBUG_IGMP
+    #define igmp_dbg dbg
+#else
+    #define igmp_dbg(...) do {} while(0)
+#endif
 
 /* membership states */
 #define IGMP_STATE_NON_MEMBER             (0x0)
@@ -261,7 +264,11 @@ static void pico_igmp_timer_expired(pico_time now, void *arg)
         PICO_FREE(timer);
     } else {
         igmp_dbg("IGMP: restart timer for %08X, delay %lu, new delay %lu\n", t->mcast_group.addr, t->delay,  (timer->start + timer->delay) - PICO_TIME_MS());
-        pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_igmp_timer_expired, timer);
+        if (!pico_timer_add((timer->start + timer->delay) - PICO_TIME_MS(), &pico_igmp_timer_expired, timer)) {
+            igmp_dbg("IGMP: Failed to start expiration timer\n");
+            pico_tree_delete(&IGMPTimers, timer);
+            PICO_FREE(timer);
+        }
     }
 
     return;
@@ -309,8 +316,18 @@ static int pico_igmp_timer_start(struct igmp_timer *t)
     *timer = *t;
     timer->start = PICO_TIME_MS();
 
-    pico_tree_insert(&IGMPTimers, timer);
-    pico_timer_add(timer->delay, &pico_igmp_timer_expired, timer);
+    if (pico_tree_insert(&IGMPTimers, timer)) {
+        igmp_dbg("IGMP: Failed to insert timer in tree\n");
+        PICO_FREE(timer);
+		return -1;
+	}
+
+    if (!pico_timer_add(timer->delay, &pico_igmp_timer_expired, timer)) {
+        igmp_dbg("IGMP: Failed to start expiration timer\n");
+        pico_tree_delete(&IGMPTimers, timer);
+        PICO_FREE(timer);
+        return -1;
+    }
     return 0;
 }
 
@@ -475,7 +492,8 @@ static int pico_igmp_compatibility_mode(struct pico_frame *f)
             t.f = f;
             t.callback = pico_igmp_v2querier_expired;
             /* only one of this type of timer may exist! */
-            pico_igmp_timer_start(&t);
+            if (pico_igmp_timer_start(&t) < 0)
+                return -1;
         } else {
             /* IGMPv1 query, not supported */
             return -1;
@@ -513,7 +531,11 @@ static struct mcast_parameters *pico_igmp_analyse_packet(struct pico_frame *f)
         p->state = IGMP_STATE_NON_MEMBER;
         p->mcast_link.ip4 = link->address;
         p->mcast_group.ip4 = mcast_group;
-        pico_tree_insert(&IGMPParameters, p);
+        if (pico_tree_insert(&IGMPParameters, p)) {
+            igmp_dbg("IGMP: Failed to insert parameters in tree\n");
+            PICO_FREE(p);
+    		return NULL;
+    	}
     } else if (!p) {
         return NULL;
     }
@@ -585,6 +607,11 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
 {
     struct mcast_parameters *p = NULL;
 
+    if (!mcast_link || !mcast_group) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
     if (mcast_group->addr == IGMP_ALL_HOST_GROUP)
         return 0;
 
@@ -596,16 +623,15 @@ int pico_igmp_state_change(struct pico_ip4 *mcast_link, struct pico_ip4 *mcast_g
             return -1;
         }
 
-        if (!mcast_link || !mcast_group) {
-            PICO_FREE(p);
-            pico_err = PICO_ERR_EINVAL;
-            return -1;
-        }
-
         p->state = IGMP_STATE_NON_MEMBER;
         p->mcast_link.ip4 = *mcast_link;
         p->mcast_group.ip4 = *mcast_group;
-        pico_tree_insert(&IGMPParameters, p);
+        if (pico_tree_insert(&IGMPParameters, p)) {
+            igmp_dbg("IGMP: Failed to insert parameters in tree\n");
+            PICO_FREE(p);
+			return -1;
+		}
+
     } else if (!p) {
         pico_err = PICO_ERR_EINVAL;
         return -1;
@@ -698,14 +724,15 @@ static int8_t pico_igmpv3_generate_report(struct mcast_filter_parameters *filter
     struct igmpv3_report *report = NULL;
     struct igmpv3_group_record *record = NULL;
     struct pico_tree_node *index = NULL;
+    struct pico_device *dev = NULL;
     uint16_t len = 0;
     uint16_t i = 0;
     len = (uint16_t)(sizeof(struct igmpv3_report) + sizeof(struct igmpv3_group_record) + (filter->sources * sizeof(struct pico_ip4)));
-    p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, (uint16_t)(IP_OPTION_ROUTER_ALERT_LEN + len));
+    dev = pico_ipv4_link_find((struct pico_ip4 *)&p->mcast_link);
+    p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, dev, (uint16_t)(IP_OPTION_ROUTER_ALERT_LEN + len));
     p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
     p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
     p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
-    p->f->dev = pico_ipv4_link_find((struct pico_ip4 *)&p->mcast_link);
     /* p->f->len is correctly set by alloc */
 
     report = (struct igmpv3_report *)p->f->transport_hdr;
@@ -741,14 +768,15 @@ static int8_t pico_igmpv2_generate_report(struct mcast_parameters *p)
 {
     struct igmp_message *report = NULL;
     uint8_t report_type = IGMP_TYPE_MEM_REPORT_V2;
+    struct pico_device *dev = NULL;
     if (p->event == IGMP_EVENT_DELETE_GROUP)
         report_type = IGMP_TYPE_LEAVE_GROUP;
 
-    p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct igmp_message));
+    dev = pico_ipv4_link_find((struct pico_ip4 *)&p->mcast_link);
+    p->f = pico_proto_ipv4.alloc(&pico_proto_ipv4, dev, IP_OPTION_ROUTER_ALERT_LEN + sizeof(struct igmp_message));
     p->f->net_len = (uint16_t)(p->f->net_len + IP_OPTION_ROUTER_ALERT_LEN);
     p->f->transport_hdr += IP_OPTION_ROUTER_ALERT_LEN;
     p->f->transport_len = (uint16_t)(p->f->transport_len - IP_OPTION_ROUTER_ALERT_LEN);
-    p->f->dev = pico_ipv4_link_find((struct pico_ip4 *)&p->mcast_link);
     /* p->f->len is correctly set by alloc */
 
     report = (struct igmp_message *)p->f->transport_hdr;
@@ -857,7 +885,8 @@ static int srsfst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");
@@ -942,7 +971,8 @@ static int srst(struct mcast_parameters *p)
     t.delay = (pico_rand() % (IGMP_UNSOLICITED_REPORT_INTERVAL * 10000));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");
@@ -990,7 +1020,8 @@ static int st(struct mcast_parameters *p)
     t.delay = (pico_rand() % ((1u + p->max_resp_time) * 100u));
     t.f = p->f;
     t.callback = pico_igmp_report_expired;
-    pico_igmp_timer_start(&t);
+    if (pico_igmp_timer_start(&t) < 0)
+        return -1;
 
     p->state = IGMP_STATE_DELAYING_MEMBER;
     igmp_dbg("IGMP: new state = delaying member\n");
