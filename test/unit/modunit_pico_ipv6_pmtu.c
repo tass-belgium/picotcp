@@ -7,6 +7,8 @@
 #include "modules/pico_icmp6.c"
 #include "check.h"
 
+#ifdef PICO_SUPPORT_IPV6PMTU
+
 Suite *pico_suite(void);
 const uint32_t min_mtu = PICO_IPV6_MIN_MTU;
 const uint32_t default_mtu = 1500;
@@ -199,3 +201,10 @@ int main(void)
     srunner_free(sr);
     return fails;
 }
+#else
+int main(void)
+{
+    return 0;
+}
+
+#endif

@@ -45,6 +45,9 @@
 #define PICO_ICMP6_UNREACH_SRCFILTER   5
 #define PICO_ICMP6_UNREACH_REJROUTE    6
 
+/* packet too big received */
+#define PICO_ICMP6_ERR_PKT_TOO_BIG     6002
+
 /* time exceeded codes */
 #define PICO_ICMP6_TIMXCEED_INTRANS    0
 #define PICO_ICMP6_TIMXCEED_REASS      1

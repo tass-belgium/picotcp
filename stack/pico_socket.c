@@ -16,6 +16,7 @@
 #include "pico_tcp.h"
 #include "pico_stack.h"
 #include "pico_icmp4.h"
+#include "pico_icmp6.h"
 #include "pico_nat.h"
 #include "pico_tree.h"
 #include "pico_device.h"
@@ -2240,6 +2241,10 @@ static void pico_transport_error_set_picoerr(int code)
     case PICO_ICMP_UNREACH_NET_PROHIB:
     case PICO_ICMP_UNREACH_HOST_PROHIB:
         pico_err = PICO_ERR_EHOSTUNREACH;
+        break;
+
+    case PICO_ICMP6_ERR_PKT_TOO_BIG:
+        pico_err = PICO_ERR_EMSGSIZE;
         break;
 
     default:
