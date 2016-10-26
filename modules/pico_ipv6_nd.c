@@ -170,6 +170,9 @@ static void pico_ipv6_assign_default_router(int is_default)
           if(r->is_default)
           {
             r->is_default = 0;
+            if(pico_ipv6_route_del(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
+              nd_dbg("Route could not been deleted\n");
+            }
           }
           else if(!assigned)
           {
@@ -1448,31 +1451,15 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
 static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
-    struct pico_ipv6_router *r = NULL;
-    struct pico_ipv6_neighbor *n = NULL;
 
     IGNORE_PARAMETER(arg);
 
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
-      if(pico_ipv6_is_linklocal(link->address.addr)  && (link->rs_expire_time < now)){
-        if(link->rs_retries < 3) {
+      if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < 3 && (link->rs_expire_time < now)){
           link->rs_retries++;
           pico_icmp6_router_solicitation(link->dev,&link->address);
           link->rs_expire_time = PICO_TIME_MS() + 4000;
-        }
-        else {
-          if((n = pico_get_neighbor_from_ncache(&link->address))) {
-            pico_ipv6_nd_unreachable(&link->address);
-            if((r = pico_get_router_from_rcache(&link->address)))
-            {
-              pico_ipv6_assign_default_router(r->is_default);
-              pico_tree_delete(&RCache, r);
-            }
-            pico_tree_delete(&NCache, n);
-            PICO_FREE(n);
-          }
-        }
       }
     }
 
