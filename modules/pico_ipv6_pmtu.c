@@ -88,13 +88,16 @@ int pico_ipv6_path_add(const struct pico_ipv6_path_id *path, uint32_t mtu)
 int pico_ipv6_path_update(const struct pico_ipv6_path_id *path, uint32_t mtu)
 {
     int status = PICO_PMTU_ERROR;
-    if (path != NULL && mtu >= PICO_IPV6_MIN_MTU) {
+    if (path != NULL) {
         struct pico_ipv6_path_mtu test;
         struct pico_ipv6_path_mtu *found = NULL;
         test.path = *path;
         found = pico_tree_findKey(&PathCache, &test);
         if (found) {
             if (found->mtu > mtu) {
+                if (mtu < PICO_IPV6_MIN_MTU) {
+                    mtu = PICO_IPV6_MIN_MTU;
+                }
                 found->mtu = mtu;
                 found->cache_status = PICO_PMTU_CACHE_UPDATED;
                 status = PICO_PMTU_OK;

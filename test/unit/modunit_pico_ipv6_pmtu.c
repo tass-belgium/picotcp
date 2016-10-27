@@ -113,9 +113,10 @@ START_TEST(pico_ipv6_path)
     fail_if(pico_ipv6_path_add(&path_id, min_mtu - 1) != PICO_PMTU_ERROR);
     fail_if(pico_ipv6_path_add(&path_id, 0) != PICO_PMTU_ERROR);
     fail_if(pico_ipv6_path_add(NULL, min_mtu) != PICO_PMTU_ERROR);
-    fail_if(pico_ipv6_path_update(&path_id, min_mtu - 1) != PICO_PMTU_ERROR);
-    fail_if(pico_ipv6_path_update(&path_id, 0) != PICO_PMTU_ERROR);
+    fail_if(pico_ipv6_path_add(&path_id, min_mtu + 1) != PICO_PMTU_OK);
     fail_if(pico_ipv6_path_update(NULL, min_mtu) != PICO_PMTU_ERROR);
+    fail_if(pico_ipv6_path_update(&path_id, 0) != PICO_PMTU_OK);
+    fail_if(pico_ipv6_pmtu_get(&path_id) != min_mtu);
     fail_if(pico_ipv6_path_del(NULL) != PICO_PMTU_ERROR);
     fail_if(pico_ipv6_pmtu_get(NULL) != 0);
 }
