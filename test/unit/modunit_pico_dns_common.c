@@ -9,6 +9,8 @@
 #include "modules/pico_dns_common.c"
 #include "check.h"
 
+Suite *pico_suite(void);
+
 START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
 {
     uint8_t rdata1[10] = {
@@ -70,7 +72,7 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
     ret = pico_dns_rdata_cmp(rdata7, rdata8, 5, 5, 0);
     fail_unless(ret < 0, "dns_rdata_cmp failed with check for tolower effect, case-sensitive!\n");
 
-    //now check with case-insensitive
+    /* now check with case-insensitive */
 
     /* Check equal data and size */
     ret = pico_dns_rdata_cmp(rdata1, rdata1, 10, 10, 1);
@@ -105,13 +107,14 @@ START_TEST(tc_dns_rdata_cmp) /* MARK: dns_rdata_cmp */
 END_TEST
 START_TEST(tc_dns_question_cmp) /* MARK: dns_question_cmp */
 {
-    printf("*********************** starting %s * \n", __func__);
     struct pico_dns_question *a = NULL, *b = NULL;
     const char *url1 = "host (2).local";
     const char *url3 = "host.local";
     const char *url2 = "192.168.2.1";
     uint16_t len = 0;
     int ret = 0;
+
+    printf("*********************** starting %s * \n", __func__);
 
     a = pico_dns_question_create(url1, &len, PICO_PROTO_IPV4, PICO_DNS_TYPE_A,
                                  PICO_DNS_CLASS_IN, 0);
@@ -140,14 +143,15 @@ START_TEST(tc_dns_question_cmp) /* MARK: dns_question_cmp */
 END_TEST
 START_TEST(tc_dns_qtree_insert) /* MARK: dns_qtree_insert*/
 {
-    printf("*********************** starting %s * \n", __func__);
-    char *url = "host.local";
-    char *url2 = "host (2).local";
-    char *url3 = "host (3).local";
+    const char *url = "host.local";
+    const char *url2 = "host (2).local";
+    const char *url3 = "host (3).local";
     struct pico_dns_question *a = NULL, *b = NULL, *c = NULL;
     uint16_t qlen = 0;
     PICO_DNS_QTREE_DECLARE(qtree);
     PICO_DNS_QTREE_DECLARE(qtree2);
+
+    printf("*********************** starting %s * \n", __func__);
 
     a = pico_dns_question_create(url, &qlen, PICO_PROTO_IPV4, PICO_DNS_TYPE_A,
                                  PICO_DNS_CLASS_IN, 0);
@@ -244,12 +248,10 @@ START_TEST(tc_dns_rtree_insert) /* MARK: dns_rtree_insert*/
     struct pico_dns_record *a = NULL;
     struct pico_dns_record *b = NULL, *c = NULL;
     const char *url1 = "foo.local";
-    const char *url3 = "a.local";
     struct pico_ip4 rdata = {
         0
     };
     uint16_t len = 0;
-    int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -305,8 +307,8 @@ START_TEST(tc_dns_record_cmp_name_type) /* MARK: dns_record_cmp_name_type */
     /* Try to compare records with equal rname but different type */
     ret = pico_dns_record_cmp_name_type((void *) a, (void *) b);
     fail_unless(ret > 0, "dns_record_cmp failed with same name, different types!\n");
-    pico_dns_record_delete(&a);
-    pico_dns_record_delete(&b);
+    pico_dns_record_delete((void **)&a);
+    pico_dns_record_delete((void **)&b);
 
     /* Create exactly the same test records */
     a  = pico_dns_record_create(url3, &rdata, 4, &len, PICO_DNS_TYPE_A,
@@ -319,8 +321,8 @@ START_TEST(tc_dns_record_cmp_name_type) /* MARK: dns_record_cmp_name_type */
     /* Try to compare records with different rname but equal type */
     ret = pico_dns_record_cmp_name_type((void *) a, (void *) b);
     fail_unless(!ret, "dns_record_cmp_name_type failed with same names, same types!\n");
-    pico_dns_record_delete(&a);
-    pico_dns_record_delete(&b);
+    pico_dns_record_delete((void **)&a);
+    pico_dns_record_delete((void **)&b);
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -344,6 +346,7 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
         0x00, 0x01,
         0x00, 0x01
     };
+    int i = 0;
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -355,7 +358,6 @@ START_TEST(tc_pico_dns_fill_packet_header) /* MARK: dns_fill_packet_header */
     /* Create a query header */
     pico_dns_fill_packet_header(header, 1, 1, 1, 1);
 
-    int i;
     for (i = 0; i < 12; i++)
         printf("### %02x :: %02x\n", ((uint8_t*)header)[i], query_buf[i]);
     fail_unless(0 == memcmp((void *)header, (void *)query_buf, 12),
@@ -468,7 +470,7 @@ START_TEST(tc_pico_dns_fill_packet_question_section) /* MARK: dns_fill_packet_qu
         0x00u, 0x01u,
         0x00u, 0x01u
     };                                     /* 4 */
-    uint16_t len = 0, i = 0;
+    uint16_t len = 0;
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -502,7 +504,7 @@ START_TEST(tc_pico_dns_fill_packet_question_section) /* MARK: dns_fill_packet_qu
 END_TEST
 START_TEST(tc_pico_dns_packet_compress_find_ptr) /* MARK: dns_packet_compress_find_ptr */
 {
-    uint8_t *data = (uint8_t *)"abcdef\5local\0abcdef\4test\5local";
+    uint8_t data[] = "abcdef\5local\0abcdef\4test\5local";
     uint8_t *name = (uint8_t *)(data + 24);
     uint16_t len = 31;
     uint8_t *ptr = NULL;
@@ -683,15 +685,16 @@ START_TEST(tc_pico_dns_question_create) /* MARK: dns_quesiton_create */
         0x00u
     };
     uint16_t len = 0;
+    struct pico_dns_question *a = NULL;
 
     printf("*********************** starting %s * \n", __func__);
 
     /* First, plain A record */
-    struct pico_dns_question *a = pico_dns_question_create(qurl, &len,
-                                                           PICO_PROTO_IPV4,
-                                                           PICO_DNS_TYPE_A,
-                                                           PICO_DNS_CLASS_IN,
-                                                           0);
+    a = pico_dns_question_create(qurl, &len,
+                                 PICO_PROTO_IPV4,
+                                 PICO_DNS_TYPE_A,
+                                 PICO_DNS_CLASS_IN,
+                                 0);
     fail_if(a == NULL, "dns_question_created returned NULL!\n");
     fail_unless(strcmp(a->qname, buf) == 0, "url not converted correctly!\n");
     fail_unless(short_be(a->qsuffix->qtype) == PICO_DNS_TYPE_A,
@@ -773,10 +776,10 @@ START_TEST(tc_pico_dns_query_create) /* MARK: dns_query_create */
 END_TEST
 START_TEST(tc_pico_dns_record_fill_suffix) /* MARK: dns_record_fill_suffix */
 {
+    struct pico_dns_record_suffix *suffix = NULL;
 
     printf("*********************** starting %s * \n", __func__);
 
-    struct pico_dns_record_suffix *suffix = NULL;
     pico_dns_record_fill_suffix(&suffix, PICO_DNS_TYPE_A, PICO_DNS_CLASS_IN,
                                 120, 4);
 
@@ -819,7 +822,7 @@ START_TEST(tc_pico_dns_record_copy_flat) /* MARK: dns_record_copy_flat */
                                     PICO_DNS_CLASS_IN, 120);
     fail_if(!record, "dns_record_create failed!\n");
 
-    *ptr = buf + 20;
+    ptr = buf + 20;
 
     /* Try to copy the record to a flat buffer */
     ret = pico_dns_record_copy_flat(record, &ptr);
@@ -829,7 +832,7 @@ START_TEST(tc_pico_dns_record_copy_flat) /* MARK: dns_record_copy_flat */
                 "dns_record_copy_flat failed!\n");
 
     /* FREE memory */
-    pico_dns_record_delete(&record);
+    pico_dns_record_delete((void **)&record);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
@@ -866,8 +869,8 @@ START_TEST(tc_pico_dns_record_copy) /* MARK: dns_record_copy */
                 "dns_record_copy failed copying rdata!\n");
 
     /* FREE memory */
-    pico_dns_record_delete(&a);
-    pico_dns_record_delete(&b);
+    pico_dns_record_delete((void **)&a);
+    pico_dns_record_delete((void **)&b);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
@@ -889,7 +892,7 @@ START_TEST(tc_pico_dns_record_delete) /* MARK: dns_record_delete */
     fail_if(!a, "dns_record_create failed!\n");
 
     /* Try to delete the created record */
-    ret = pico_dns_record_delete(&a);
+    ret = pico_dns_record_delete((void **)&a);
     fail_unless(ret == 0, "pico_dns_record_delete returned NULL!\n");
     fail_unless(a == NULL, "pico_dns_record_delete failed!\n");
     printf("*********************** ending %s * \n", __func__);
@@ -925,7 +928,7 @@ START_TEST(tc_pico_dns_record_create) /* MARK: dns_record_create */
 
     /* TODO: Test PTR records */
 
-    pico_dns_record_delete(&a);
+    pico_dns_record_delete((void **)&a);
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
@@ -940,7 +943,6 @@ START_TEST(tc_pico_dns_answer_create) /* MARK: dns_answer_create */
         10, 10, 0, 1
     };
     uint16_t len = 0;
-    int ret = 0, i = 0;
     uint8_t buf[62] = {
         0x00u, 0x00u,
         0x85u, 0x00u,
@@ -1065,7 +1067,7 @@ START_TEST(tc_pico_dns_url_to_reverse_qname) /* MARK: dns_url_to_reverse_qname *
 {
     const char *url_ipv4 = "10.10.0.1";
     const char *url_ipv6 = "2001:0db8:0000:0000:0000:0000:0000:0000";
-    const char *qname = NULL;
+    char *qname = NULL;
     char cmp_buf1[24] = {
         0x01, '1',
         0x01, '0',
@@ -1124,7 +1126,7 @@ START_TEST(tc_pico_dns_qname_to_url) /* MARK: dns_qname_to_url */
         0x00
     };
     char qname3[14] = {
-        0x08, 'p', 'i', 'c', 'o', '\.', 't', 'c', 'p',
+        0x08, 'p', 'i', 'c', 'o', '.', 't', 'c', 'p',
         0x03, 'c', 'o', 'm',
         0x00
     };
@@ -1208,10 +1210,10 @@ START_TEST(tc_pico_dns_name_to_dns_notation) /* MARK: dns_name_to_dns_notation *
 
     printf("*********************** starting %s * \n", __func__);
 
-    ret = pico_dns_name_to_dns_notation(url1, strlen(url1));
+    ret = pico_dns_name_to_dns_notation(url1, (uint16_t)strlen(url1));
     fail_unless(ret == -1, "dns_name_to_dns_notation didn't check correct!\n");
 
-    ret = pico_dns_name_to_dns_notation(url2, strlen(url2));
+    ret = pico_dns_name_to_dns_notation(url2, (uint16_t)strlen(url2));
     fail_unless(ret == 0, "dns_name_to_dns_notation returned error!\n");
     fail_unless(strcmp(url2, qname1) == 0,
                 "dns_name_to_dns_notation failed! %s\n", url2);
@@ -1232,7 +1234,7 @@ START_TEST(tc_pico_dns_notation_to_name) /* MARK: dns_notation_to_name */
 
     printf("*********************** starting %s * \n", __func__);
 
-    ret = pico_dns_notation_to_name(qname1, strlen(qname1));
+    ret = pico_dns_notation_to_name(qname1, (uint16_t)strlen(qname1));
     fail_unless(ret == 0, "dns_notation_to_name returned error!\n");
     fail_unless(strcmp(url1, qname1) == 0,
                 "dns_notation_to_name failed! %s\n", qname1);
@@ -1242,7 +1244,7 @@ END_TEST
 START_TEST(tc_pico_dns_mirror_addr) /* MARK: dns_mirror_addr */
 {
     char url[12] = "192.168.0.1";
-    int8_t ret = 0;
+    int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -1317,6 +1319,7 @@ Suite *pico_suite(void)
     /* DNS packet section filling */
     TCase *TCase_pico_dns_fill_packet_header = tcase_create("Unit test for 'pico_dns_fill_packet_header'");
     TCase *TCase_pico_dns_fill_packet_rr_sections = tcase_create("Unit test for 'pico_dns_fill_packet_rr_sections'");
+    TCase *TCase_pico_dns_fill_packet_rr_section = tcase_create("Unit test for 'pico_dns_fill_packet_rr_section'");
     TCase *TCase_pico_dns_fill_packet_question_section = tcase_create("Unit test for 'pico_dns_fill_packet_question_sections'");
 
     /* DNS packet compression */
@@ -1363,6 +1366,7 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_dns_rtree_insert, tc_dns_rtree_insert);
     tcase_add_test(TCase_dns_record_cmp_name_type, tc_dns_record_cmp_name_type);
     tcase_add_test(TCase_pico_dns_fill_packet_header, tc_pico_dns_fill_packet_header);
+    tcase_add_test(TCase_pico_dns_fill_packet_rr_section, tc_pico_dns_fill_packet_rr_section);
     tcase_add_test(TCase_pico_dns_fill_packet_rr_sections, tc_pico_dns_fill_packet_rr_sections);
     tcase_add_test(TCase_pico_dns_fill_packet_question_section, tc_pico_dns_fill_packet_question_section);
     tcase_add_test(TCase_pico_dns_packet_compress_find_ptr, tc_pico_dns_packet_compress_find_ptr);
@@ -1398,6 +1402,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_dns_rtree_insert);
     suite_add_tcase(s, TCase_dns_record_cmp_name_type);
     suite_add_tcase(s, TCase_pico_dns_fill_packet_header);
+    suite_add_tcase(s, TCase_pico_dns_fill_packet_rr_section);
     suite_add_tcase(s, TCase_pico_dns_fill_packet_rr_sections);
     suite_add_tcase(s, TCase_pico_dns_fill_packet_question_section);
     suite_add_tcase(s, TCase_pico_dns_packet_compress_find_ptr);

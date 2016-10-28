@@ -1,4 +1,6 @@
 #include "utils.h"
+#include <pico_ipv4.h>
+#include <pico_ipv6.h>
 #include <pico_socket.h>
 
 /**** START UDP ECHO ****/
@@ -28,6 +30,7 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
     } peer;
     if (udpecho_exit)
         return;
+
     if (ev == PICO_SOCK_EV_RD) {
         recvbuf = calloc(1, udpecho_pas->datasize);
         if (!recvbuf) {
@@ -41,7 +44,10 @@ void cb_udpecho(uint16_t ev, struct pico_socket *s)
             if (r > 0) {
                 if (strncmp(recvbuf, "end", 3) == 0) {
                     printf("Client requested to exit... test successful.\n");
-                    pico_timer_add(1000, deferred_exit, udpecho_pas);
+                    if (!pico_timer_add(1000, deferred_exit, udpecho_pas)) {
+                        printf("Failed to start exit timer, exiting now\n");
+                        exit(1);
+                    }
                     udpecho_exit++;
                 }
 
@@ -139,8 +145,9 @@ void app_udpecho(char *arg)
     /* end of argument parsing */
     if (!IPV6_MODE)
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV4, PICO_PROTO_UDP, &cb_udpecho);
-    else 
+    else
         udpecho_pas->s = pico_socket_open(PICO_PROTO_IPV6, PICO_PROTO_UDP, &cb_udpecho);
+
     if (!udpecho_pas->s) {
         printf("%s: error opening socket: %s\n", __FUNCTION__, strerror(pico_err));
         free(udpecho_pas);
@@ -188,13 +195,16 @@ void app_udpecho(char *arg)
 
     /* free strdups */
     if (baddr)
-      free (baddr);
+        free (baddr);
+
     if (lport)
-      free (lport);
+        free (lport);
+
     if (sport)
-      free (sport);
+        free (sport);
+
     if (s_datasize)
-      free (s_datasize);
+        free (s_datasize);
 
     return;
 

@@ -53,6 +53,10 @@
 #define PICO_ARPA_IPV6_SUFFIX ".IP6.ARPA"
 #endif
 
+/* Used in pico_dns_rdata_cmp  */
+#define PICO_DNS_CASE_SENSITIVE 0x00u
+#define PICO_DNS_CASE_INSENSITIVE 0x01u
+
 #define PICO_DNS_NAMEBUF_SIZE (256)
 
 enum pico_dns_arpa
@@ -191,7 +195,7 @@ pico_dns_strlen( const char *url );
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
  *  @return 0 on success, something else on failure.
  * ****************************************************************************/
-int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen );
+int pico_dns_name_to_dns_notation( char *url, uint16_t maxlen );
 
 /* ****************************************************************************
  *  Replaces the label lengths in a DNS-name by .'s. So it actually converts a
@@ -202,7 +206,7 @@ int pico_dns_name_to_dns_notation( char *url, unsigned int maxlen );
  *  @param maxlen Maximum length of buffer so it doesn't cause a buffer overflow
  *  @return 0 on success, something else on failure.
  * ****************************************************************************/
-int pico_dns_notation_to_name( char *ptr, unsigned int maxlen );
+int pico_dns_notation_to_name( char *ptr, uint16_t maxlen );
 
 /* ****************************************************************************
  *  Determines the length of the first label of a DNS name in URL-format
@@ -362,8 +366,9 @@ pico_dns_record_decompress( struct pico_dns_record *record,
  *  @param b          2nd Memory buffer to compare
  *  @param rdlength_a Length of 1st memory buffer
  *  @param rdlength_b Length of 2nd memory buffer
- *  @param caseinsensitive Whether or not the bytes are compared 
- *                         case-insensitive
+ *  @param caseinsensitive Whether or not the bytes are compared
+ *                         case-insensitive. Should be either
+ *                         PICO_DNS_CASE_SENSITIVE or PICO_DNS_CASE_INSENSITIVE
  *  @return 0 when the buffers are equal, returns difference when they're not.
  * ****************************************************************************/
 int

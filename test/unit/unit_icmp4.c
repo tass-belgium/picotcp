@@ -3,6 +3,9 @@
 #define NUM_PING 1
 int ping_test_var = 0;
 
+void cb_ping(struct pico_icmp4_stats *s);
+void icmp4_unreach_socket_cb(uint16_t ev, struct pico_socket *s);
+
 void cb_ping(struct pico_icmp4_stats *s)
 {
     char host[30];
@@ -74,14 +77,14 @@ START_TEST (test_icmp4_ping)
     pico_stack_tick();
 
     /* get the packet from the mock_device */
-    memset(buffer, 0, bufferlen);
+    memset(buffer, 0, (size_t)bufferlen);
     len = pico_mock_network_read(mock, buffer, bufferlen);
     fail_if(len < 20);
     /* inspect it */
     fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer, len) == 8);
     fail_unless(mock_icmp_code(mock, buffer, len) == 0);
-    fail_unless(pico_checksum(buffer + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer + 20, (uint32_t)(len - 20)) == 0);
 
     /* cobble up a reply */
     buffer[20] = 0; /* type 0 : reply */
@@ -105,20 +108,20 @@ START_TEST (test_icmp4_ping)
     pico_stack_tick();
 
     /* get the packet from the mock_device */
-    memset(buffer, 0, bufferlen);
+    memset(buffer, 0, (size_t)bufferlen);
     len = pico_mock_network_read(mock, buffer, bufferlen);
     /* inspect it */
     fail_unless(mock_ip_protocol(mock, buffer, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer, len) == 8);
     fail_unless(mock_icmp_code(mock, buffer, len) == 0);
-    fail_unless(pico_checksum(buffer + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer + 20, (uint32_t)(len - 20)) == 0);
 
     /* cobble up a reply */
     buffer[20] = 0; /* type 0 : reply */
     memcpy(temp_buf, buffer + 12, 4);
     memcpy(buffer + 12, buffer + 16, 4);
     memcpy(buffer + 16, temp_buf, 4);
-    buffer[26] = ~buffer[26]; /* flip some bits in the sequence number, to see if the packet gets ignored properly */
+    buffer[26] = (uint8_t)~buffer[26]; /* flip some bits in the sequence number, to see if the packet gets ignored properly */
 
     /* using the mock-device because otherwise I have to put everything in a pico_frame correctly myself. */
     pico_mock_network_write(mock, buffer, len);
@@ -201,7 +204,7 @@ START_TEST (test_icmp4_incoming_ping)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 0);
     fail_unless(mock_icmp_code(mock, buffer2, len) == 0);
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 
 }
 END_TEST
@@ -234,7 +237,6 @@ START_TEST (test_icmp4_unreachable_send)
     };
 
     struct pico_frame*f = PICO_ZALLOC(sizeof(struct pico_frame));
-    uint8_t nullbuf[8] = {};
     printf("*********************** starting %s * \n", __func__);
 
     f->net_hdr = buffer;
@@ -259,7 +261,7 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 1); /* host unreachable */
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 
 
     fail_if(pico_icmp4_port_unreachable(f));
@@ -273,7 +275,7 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 3); /* port unreachable */
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 
 
     fail_if(pico_icmp4_proto_unreachable(f));
@@ -287,7 +289,7 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 2); /* proto unreachable */
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 
 
     fail_if(pico_icmp4_ttl_expired(f));
@@ -301,7 +303,7 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 11); /* ttl expired */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 0);
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 
     f->net_hdr = buffer3;
     f->buffer = buffer3;
@@ -317,12 +319,7 @@ START_TEST (test_icmp4_unreachable_send)
     fail_unless(mock_ip_protocol(mock, buffer2, len) == 1);
     fail_unless(mock_icmp_type(mock, buffer2, len) == 3); /* destination unreachable */
     fail_unless(mock_icmp_code(mock, buffer2, len) == 2); /* proto unreachable */
-    fail_unless(pico_checksum(buffer2 + 20, len - 20) == 0);
-
-#ifdef NOPE
-    /* I don't know what was the intention, but the buffer is shorter than 48 bytes... */
-    fail_if(memcmp(buffer + 48, nullbuf, 8) == 0); /* there was no data */
-#endif
+    fail_unless(pico_checksum(buffer2 + 20, (uint32_t)(len - 20)) == 0);
 }
 END_TEST
 

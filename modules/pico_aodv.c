@@ -15,8 +15,11 @@
 #include <pico_ipv4.h>
 #ifdef PICO_SUPPORT_IPV4
 
-#define pico_aodv_dbg(...) do {} while(0)
-/* #define pico_aodv_dbg dbg */
+#ifdef DEBUG_AODV
+    #define pico_aodv_dbg dbg
+#else
+    #define pico_aodv_dbg(...) do {} while(0)
+#endif
 
 #define AODV_MAX_PKT (64)
 static const struct pico_ip4 HOST_NETMASK = {
@@ -55,8 +58,8 @@ static int aodv_dev_cmp(void *ka, void *kb)
     return 0;
 }
 
-PICO_TREE_DECLARE(aodv_nodes, aodv_node_compare);
-PICO_TREE_DECLARE(aodv_devices, aodv_dev_cmp);
+static PICO_TREE_DECLARE(aodv_nodes, aodv_node_compare);
+static PICO_TREE_DECLARE(aodv_devices, aodv_dev_cmp);
 
 static struct pico_socket *aodv_socket = NULL;
 
@@ -108,7 +111,12 @@ static struct pico_aodv_node *aodv_peer_new(const union pico_address *addr)
         return NULL;
 
     memcpy(&node->dest, addr, sizeof(union pico_address));
-    pico_tree_insert(&aodv_nodes, node);
+
+    if (pico_tree_insert(&aodv_nodes, node)) {
+    	PICO_FREE(node);
+    	return NULL;
+    }
+
     return node;
 }
 
@@ -163,8 +171,7 @@ static void aodv_forward(void *pkt, struct pico_msginfo *info, int reply)
 
     now = PICO_TIME_MS();
 
-    pico_aodv_dbg("Forwarding %s: last fwd_time: %llu now: %llu ttl: %d ==== \n", reply ? "REPLY" : "REQUEST",
-                  orig->fwd_time, now, info->ttl);
+    pico_aodv_dbg("Forwarding %s: last fwd_time: %lu now: %lu ttl: %d ==== \n", reply ? "REPLY" : "REQUEST", orig->fwd_time, now, info->ttl);
     if (((orig->fwd_time == 0) || ((now - orig->fwd_time) > AODV_NODE_TRAVERSAL_TIME)) && (--info->ttl > 0)) {
         orig->fwd_time = now;
         info->dev = NULL;
@@ -260,7 +267,9 @@ static void aodv_recv_valid_rreq(struct pico_aodv_node *node, struct pico_aodv_r
             origin = get_node_by_addr(&origin_addr);
             if (origin) {
                 origin->flags |= PICO_AODV_NODE_ROUTE_DOWN;
-                pico_timer_add(AODV_PATH_DISCOVERY_TIME, aodv_reverse_path_discover, origin);
+                if (!pico_timer_add(AODV_PATH_DISCOVERY_TIME, aodv_reverse_path_discover, origin)) {
+                    pico_aodv_dbg("AODV: Failed to start path discovery timer\n");
+                }
             }
         }
 
@@ -378,7 +387,7 @@ struct aodv_parser_s {
     void (*call)(union pico_address *from, uint8_t *buf, int len, struct pico_msginfo *msginfo);
 };
 
-struct aodv_parser_s aodv_parser[5] = {
+static struct aodv_parser_s aodv_parser[5] = {
     {.call = NULL},
     {.call = aodv_parse_rreq },
     {.call = aodv_parse_rrep },
@@ -508,7 +517,9 @@ static void aodv_retrans_rreq(pico_time now, void *arg)
     if (node->ring_ttl < AODV_NET_DIAMETER)
         node->ring_ttl = (uint8_t)(node->ring_ttl + AODV_TTL_INCREMENT);
 
-    pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(node->ring_ttl), aodv_retrans_rreq, node);
+    if (!pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(node->ring_ttl), aodv_retrans_rreq, node)) {
+        pico_aodv_dbg("AODV: Failed to start retransmission timer\n");
+    }
 }
 
 static int aodv_send_req(struct pico_aodv_node *node)
@@ -551,7 +562,10 @@ static int aodv_send_req(struct pico_aodv_node *node)
             n++;
         }
     }
-    pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(1), aodv_retrans_rreq, node);
+    if (!pico_timer_add((pico_time)AODV_RING_TRAVERSAL_TIME(1), aodv_retrans_rreq, node)) {
+        pico_aodv_dbg("AODV: Failed to start retransmission timer\n");
+        return -1;
+    }
     return n;
 }
 
@@ -580,7 +594,10 @@ static void pico_aodv_collector(pico_time now, void *arg)
                 pico_aodv_expired(node);
         }
     }
-    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
+    if (!pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL)) {
+        pico_aodv_dbg("AODV: Failed to start collector timer\n");
+        /* TODO what to do now? garbage collection will not be restarted, leading to memory leaks */
+    }
 }
 
 MOCKABLE int pico_aodv_init(void)
@@ -607,7 +624,12 @@ MOCKABLE int pico_aodv_init(void)
     }
 
     pico_aodv_local_id = pico_rand();
-    pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL);
+    if (!pico_timer_add(AODV_HELLO_INTERVAL, pico_aodv_collector, NULL)) {
+        pico_aodv_dbg("AODV: Failed to start collector timer\n");
+        pico_socket_close(aodv_socket);
+        aodv_socket = NULL;
+        return -1;
+    }
     return 0;
 }
 

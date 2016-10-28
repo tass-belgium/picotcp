@@ -1,4 +1,5 @@
 /* NOOP */
+#include <pico_stack.h>
 void app_noop(void)
 {
     while(1) {

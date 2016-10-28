@@ -16,13 +16,19 @@
 #include "pico_eth.h"
 #include "pico_addressing.h"
 #include "pico_ipv6_nd.h"
+#include "pico_ethernet.h"
 
 #ifdef PICO_SUPPORT_IPV6
 
-
+#ifdef DEBUG_IPV6_ND
+#define nd_dbg dbg
+#else
 #define nd_dbg(...) do {} while(0)
+#endif
 
-static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = { 0 };
+static struct pico_frame *frames_queued_v6[PICO_ND_MAX_FRAMES_QUEUED] = {
+    0
+};
 
 
 enum pico_ipv6_neighbor_state {
@@ -50,7 +56,7 @@ static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 }
 
 
-PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
+static PICO_TREE_DECLARE(NCache, pico_ipv6_neighbor_compare);
 
 static struct pico_ipv6_neighbor *pico_nd_find_neighbor(struct pico_ip6 *dst)
 {
@@ -70,9 +76,8 @@ static void pico_ipv6_nd_queued_trigger(void)
     {
         f = frames_queued_v6[i];
         if (f) {
-            (void)pico_ethernet_send(f);
-            if(frames_queued_v6[i])
-              pico_frame_discard(frames_queued_v6[i]);
+            if (pico_datalink_send(f) <= 0)
+                pico_frame_discard(f);
             frames_queued_v6[i] = NULL;
         }
     }
@@ -100,7 +105,13 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     nd_dbg("Adding address %s to cache...\n", address);
     memcpy(&n->address, addr, sizeof(struct pico_ip6));
     n->dev = dev;
-    pico_tree_insert(&NCache, n);
+
+    if (pico_tree_insert(&NCache, n)) {
+        nd_dbg("IPv6 ND: Failed to insert neigbor in tree\n");
+		PICO_FREE(n);
+		return NULL;
+	}
+
     return n;
 }
 
@@ -145,6 +156,10 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     char IPADDR[64];
+
+    if (!n)
+        return;
+
     if (n->expire != (pico_time)0)
         return;
 
@@ -725,13 +740,13 @@ static int radv_process(struct pico_frame *f)
 
             link = pico_ipv6_prefix_configured(&prefix->prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
                 goto ignore_opt_prefix;
             }
 
             link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
                 pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
             }
 
@@ -886,7 +901,10 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
-    pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
+    if (!pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL)) {
+        dbg("IPV6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 #define PICO_IPV6_ND_MIN_RADV_INTERVAL  (5000)
@@ -916,7 +934,10 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
         }
     }
     next_timer_expire = PICO_IPV6_ND_MIN_RADV_INTERVAL + (pico_rand() % (PICO_IPV6_ND_MAX_RADV_INTERVAL - PICO_IPV6_ND_MIN_RADV_INTERVAL));
-    pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL);
+    if (!pico_timer_add(next_timer_expire, pico_ipv6_nd_ra_timer_callback, NULL)) {
+        dbg("IPv6 ND: Failed to start callback timer\n");
+        /* TODO no idea what consequences this has */
+    }
 }
 
 /* Public API */
@@ -945,11 +966,10 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     int i;
     static int last_enq = -1;
-    struct pico_frame *cp = pico_frame_copy(f);
     for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; i++)
     {
         if (!frames_queued_v6[i]) {
-            frames_queued_v6[i] = cp;
+            frames_queued_v6[i] = f;
             last_enq = i;
             return;
         }
@@ -962,7 +982,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
     if (frames_queued_v6[last_enq])
         pico_frame_discard(frames_queued_v6[last_enq]);
 
-    frames_queued_v6[last_enq] = cp;
+    frames_queued_v6[last_enq] = f;
 }
 
 
@@ -1001,9 +1021,27 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 
 void pico_ipv6_nd_init(void)
 {
-    pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
-    pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
-    pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL);
+    uint32_t timer_cb = 0, ra_timer_cb = 0;
+
+    timer_cb = pico_timer_add(200, pico_ipv6_nd_timer_callback, NULL);
+    if (!timer_cb) {
+        nd_dbg("IPv6 ND: Failed to start callback timer\n");
+        return;
+    }
+
+    ra_timer_cb = pico_timer_add(200, pico_ipv6_nd_ra_timer_callback, NULL);
+    if (!ra_timer_cb) {
+        nd_dbg("IPv6 ND: Failed to start RA callback timer\n");
+        pico_timer_cancel(timer_cb);
+        return;
+    }
+
+    if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
+        nd_dbg("IPv6 ND: Failed to start check_lifetime timer\n");
+        pico_timer_cancel(timer_cb);
+        pico_timer_cancel(ra_timer_cb);
+        return;
+    }
 }
 
 #endif

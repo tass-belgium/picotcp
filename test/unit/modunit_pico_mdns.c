@@ -13,10 +13,11 @@
 #include "check.h"
 
 Suite *pico_suite(void);
-void add_records( void ); /* MARK: helper to add records to MyRecords s*/
+void add_records(void); /* MARK: helper to add records to MyRecords s*/
 int mdns_init(void); /* MARK: Initialise mDNS module */
 
-void callback( pico_mdns_rtree *tree,char *str, void *arg);
+static int amount_callback_executed = 0;
+void callback( pico_mdns_rtree *tree, char *str, void *arg);
 void callback( pico_mdns_rtree *tree,
                char *str,
                void *arg ) /* MARK: Generic callback */
@@ -25,6 +26,7 @@ void callback( pico_mdns_rtree *tree,
     IGNORE_PARAMETER(str);
     IGNORE_PARAMETER(arg);
     /* Do nothing, because fail_unless and fail_if don't work here */
+    amount_callback_executed++;
 }
 
 int mdns_init() /* MARK: Initialise mDNS module */
@@ -39,8 +41,9 @@ int mdns_init() /* MARK: Initialise mDNS module */
     };
 
     mock = pico_mock_create(NULL);
-    if (!mock)
+    if (!mock) {
         return -1;
+    }
 
     pico_ipv4_link_add(mock->dev, local, netmask);
 
@@ -54,7 +57,7 @@ int mdns_init() /* MARK: Initialise mDNS module */
         {&LEAF, pico_dns_question_cmp}, \
         {&LEAF, pico_mdns_record_cmp}, \
         {&LEAF, pico_mdns_record_cmp}, \
-        0, 0, 0, 0, NULL, NULL, NULL \
+        0, 0, 0, 0, 0, NULL, NULL \
     }
 
 START_TEST(tc_mdns_init) /* MARK: mdns_init */
@@ -140,15 +143,25 @@ START_TEST(tc_mdns_record_cmp_name_type) /* MARK: mdns_record_cmp_name_type*/
 END_TEST
 START_TEST(tc_mdns_record_cmp) /* MARK: mdns_record_cmp */
 {
-    struct pico_mdns_record a = {0};
-    struct pico_mdns_record b = {0};
+    struct pico_mdns_record a = {
+        0
+    };
+    struct pico_mdns_record b = {
+        0
+    };
     char url1[] = "foo.local";
     char url3[] = "a.local";
-    struct pico_ip4 rdata = {0};
+    struct pico_ip4 rdata = {
+        0
+    };
     uint16_t len = 0;
     int ret = 0;
-    struct pico_ip4 firstIP = {.addr = 0x7778797A};
-    struct pico_ip4 secondIP = {.addr = 0x5758595A};
+    struct pico_ip4 firstIP = {
+        .addr = 0x7778797A
+    };
+    struct pico_ip4 secondIP = {
+        .addr = 0x5758595A
+    };
 
     printf("*********************** starting %s * \n", __func__);
 
@@ -362,10 +375,10 @@ START_TEST(tc_mdns_cookie_delete) /* MARK: mdns_cookie_delete */
 
     printf("*********************** starting %s * \n", __func__);
 
-    fail_unless(pico_mdns_cookie_delete(&a),
+    fail_unless(pico_mdns_cookie_delete((void **)&a),
                 "mdns_cookie_delete failed checking params!\n");
     a = pico_mdns_cookie_create(qtree, antree, artree, 0, 0, NULL, NULL);
-    fail_unless(!pico_mdns_cookie_delete(&a),
+    fail_unless(!pico_mdns_cookie_delete((void **)&a),
                 "mdns_cookie_delete failed!\n");
 
     fail_unless(pico_mdns_cookie_delete(NULL),
@@ -386,7 +399,7 @@ START_TEST(tc_mdns_cookie_create) /* MARK: mdns_cookie_create */
     a = pico_mdns_cookie_create(qtree, antree, artree, 0, 0, NULL, NULL);
     fail_if(!a, "mdns_cookie_create failed!\n");
 
-    pico_mdns_cookie_delete(&a);
+    pico_mdns_cookie_delete((void **)&a);
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -462,8 +475,8 @@ START_TEST(tc_mdns_cookie_tree_find_query_cookie) /* MARK: mdns_ctree_find_cooki
 
     pico_tree_delete(&Cookies, a);
     pico_tree_delete(&Cookies, b);
-    pico_mdns_cookie_delete(&a);
-    pico_mdns_cookie_delete(&b);
+    pico_mdns_cookie_delete((void **)&a);
+    pico_mdns_cookie_delete((void **)&b);
 
     printf("*********************** ending %s * \n", __func__);
 }
@@ -596,7 +609,7 @@ START_TEST(tc_mdns_is_suffix_present) /* MARK: mdns_is_suffix_present */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-#pragma GCC diagnostic push  // require GCC 4.6
+#pragma GCC diagnostic push  /* require GCC 4.6 */
 #pragma GCC diagnostic ignored "-Woverflow"
 START_TEST(tc_pico_itoa) /* MARK: itoa */
 {
@@ -622,7 +635,7 @@ START_TEST(tc_pico_itoa) /* MARK: itoa */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-#pragma GCC diagnostic pop   // require GCC 4.6
+#pragma GCC diagnostic pop   /* require GCC 4.6 */
 START_TEST(tc_mdns_resolve_name_conflict) /* MARK: mdns_resolve_name_conflict */
 {
     char name1[13] = {
@@ -698,7 +711,7 @@ START_TEST(tc_mdns_generate_new_records) /* MARK: mdns_generate_new_records */
     PICO_MDNS_RTREE_DECLARE(ntree);
     struct pico_mdns_record *record = NULL;
     char url[] = "foo.local";
-    char url2[] ="\3foo\5local";
+    char url2[] = "\3foo\5local";
     char url3[] = "\7foo (2)\5local";
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
@@ -731,7 +744,7 @@ START_TEST(tc_mdns_cookie_resolve_conflict) /* MARK: mdns_cookie_resolve_conflic
     struct pico_dns_question *question = NULL;
     struct pico_mdns_record *record = NULL;
     char url[] = "foo.local";
-    char url2[]="\3foo\5local";
+    char url2[] = "\3foo\5local";
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -831,7 +844,7 @@ START_TEST(tc_mdns_record_resolve_conflict) /* MARK: mdns_record_resolve_conflic
 {
     struct pico_mdns_record *record = NULL;
     char url[] = "foo.local";
-    char url2[]= "\3foo\5local";
+    char url2[] = "\3foo\5local";
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
@@ -1414,6 +1427,7 @@ START_TEST(tc_mdns_my_records_claimed) /* MARK: mdns_my_records_claimed */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
+#if PICO_MDNS_ALLOW_CACHING == 1
 START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
 {
     struct pico_mdns_record *record = NULL, *found = NULL;
@@ -1434,7 +1448,7 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
     found = pico_tree_findKey(&Cache, record);
-    fail_unless((int)found, "mdns_cache_add_record failed!\n");
+    fail_if(found == NULL, "mdns_cache_add_record failed!\n");
     ret = pico_mdns_cache_add_record(record);
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
@@ -1442,14 +1456,15 @@ START_TEST(tc_mdns_cache_add_record) /* MARK: mdns_cache_add_record */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-START_TEST(tc_pico_tree_merge) 
+#endif
+START_TEST(tc_pico_tree_merge)
 {
-    PICO_MDNS_RTREE_DECLARE(src);    
-    PICO_MDNS_RTREE_DECLARE(dst);    
-    fail_unless(pico_tree_merge(NULL,NULL) == -1);
-    fail_unless(pico_tree_merge(&dst,NULL) == -1);
-    fail_unless(pico_tree_merge(NULL,&src) == -1);
-    fail_unless(pico_tree_merge(&dst,&src) == 0);
+    PICO_MDNS_RTREE_DECLARE(src);
+    PICO_MDNS_RTREE_DECLARE(dst);
+    fail_unless(pico_tree_merge(NULL, NULL) == -1);
+    fail_unless(pico_tree_merge(&dst, NULL) == -1);
+    fail_unless(pico_tree_merge(NULL, &src) == -1);
+    fail_unless(pico_tree_merge(&dst, &src) == 0);
 }
 END_TEST
 START_TEST(tc_mdns_populate_answer_vector) /* MARK: mdns_popolate_antree */
@@ -1734,10 +1749,11 @@ START_TEST(tc_mdns_send_query_packet) /* MARK: send_query_packet */
     struct pico_mdns_cookie cookie;
     PICO_DNS_QTREE_DECLARE(qtree);
     PICO_MDNS_COOKIE_DECLARE(a);
+
     struct pico_dns_question *question1 = NULL;
     struct pico_dns_question *question2 = NULL;
     char url1[] = "foo.local";
-    int len;
+    uint16_t len;
     printf("*********************** starting %s * \n", __func__);
 
     /* Create some questions */
@@ -1768,14 +1784,32 @@ START_TEST(tc_mdns_send_query_packet) /* MARK: send_query_packet */
 END_TEST
 START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
 {
+#if PICO_MDNS_ALLOW_CACHING == 1
     struct pico_mdns_record *record = NULL, *found = NULL;
     struct pico_ip4 rdata = {
         long_be(0x00FFFFFF)
     };
     char url[] = "foo.local";
+#endif
     int ret = 0;
 
     printf("*********************** starting %s * \n", __func__);
+
+    /*
+       If caching is enabled:
+        If the record is cached:
+            getrecord should get the record from the cache, execute the callback and return 0 when the callback is finished.
+        Else:
+            getrecord should send a query and return 0 when the query is sent.
+       Else:
+        getrecord should send a query and return 0 when the query is sent.
+     */
+
+    /* Init */
+    pico_stack_init();
+    mdns_init();
+
+#if PICO_MDNS_ALLOW_CACHING == 1
     /* Create an A record with URL */
     record = pico_mdns_record_create(url, &rdata, 4, PICO_DNS_TYPE_A, 80,
                                      PICO_MDNS_RECORD_UNIQUE);
@@ -1785,14 +1819,15 @@ START_TEST(tc_mdns_getrecord) /* MARK: getrecord */
     fail_unless(0 == ret,
                 "mdns_cache_add_record returned error!\n");
     found = pico_tree_findKey(&Cache, record);
-    fail_unless((int)found, "mdns_cache_add_record failed!\n");
+    fail_if(found == NULL, "mdns_cache_add_record failed!\n");
+#endif
 
-    /* Init */
-    pico_stack_init();
-    mdns_init();
-
+#if PICO_MDNS_ALLOW_CACHING == 1
+    amount_callback_executed = 0;
     ret = pico_mdns_getrecord("foo.local", PICO_DNS_TYPE_A, callback, NULL);
+    fail_unless(1 == amount_callback_executed, "mdns_getrecord failed with cache record, callback not executed (%d) !\n", amount_callback_executed);
     fail_unless(0 == ret, "mdns_getrecord failed with cache record!\n");
+#endif
 
     ret = pico_mdns_getrecord("bar.local", PICO_DNS_TYPE_A, callback, NULL);
     fail_unless(0 == ret, "mdns_getrecord failed!\n");
@@ -1937,7 +1972,7 @@ START_TEST(tc_mdns_claim) /* MARK: mdns_claim */
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
-START_TEST(tc_mdns_set_hostname) /* MARK: set_hostname */
+START_TEST(tc_mdns_tryclaim_hostname) /* MARK: tryclaim_hostname */
 {
     int ret = 0;
 
@@ -1945,15 +1980,15 @@ START_TEST(tc_mdns_set_hostname) /* MARK: set_hostname */
     pico_stack_init();
     mdns_init();
 
-    ret = pico_mdns_set_hostname("test.local", NULL);
-    fail_unless(0 == ret, "mdns_set_hostname failed!\n");
+    ret = pico_mdns_tryclaim_hostname("test.local", NULL);
+    fail_unless(0 == ret, "mdns_tryclaim_hostname failed!\n");
 
     printf("*********************** ending %s * \n", __func__);
 }
 END_TEST
 START_TEST(tc_mdns_get_hostname) /* MARK: get_hostname */
 {
-    const char * c_hostname; 
+    const char *c_hostname;
     printf("*********************** starting %s * \n", __func__);
     pico_stack_init();
     mdns_init();
@@ -2043,7 +2078,7 @@ Suite *pico_suite(void)
     TCase *TCase_mdns_claim = tcase_create("Unit test for mnds_claim");
 
     /* API functions */
-    TCase *TCase_mdns_set_hostname = tcase_create("Unit test for mdns_set_hostname");
+    TCase *TCase_mdns_tryclaim_hostname = tcase_create("Unit test for mdns_tryclaim_hostname");
     TCase *TCase_mdns_get_hostname = tcase_create("Unit test for mdns_get_hostname");
 
     TCase *TCase_pico_tree_merge = tcase_create("Unit test for pico_tree_merge");
@@ -2169,8 +2204,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_mdns_claim);
 
     /* API functions */
-    tcase_add_test(TCase_mdns_set_hostname, tc_mdns_set_hostname);
-    suite_add_tcase(s, TCase_mdns_set_hostname);
+    tcase_add_test(TCase_mdns_tryclaim_hostname, tc_mdns_tryclaim_hostname);
+    suite_add_tcase(s, TCase_mdns_tryclaim_hostname);
     tcase_add_test(TCase_mdns_get_hostname, tc_mdns_get_hostname);
     suite_add_tcase(s, TCase_mdns_get_hostname);
 

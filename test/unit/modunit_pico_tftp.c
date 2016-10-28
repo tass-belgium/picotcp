@@ -13,6 +13,7 @@ static int called_pico_socket_close = 0;
 static uint16_t expected_opcode = 0;
 static int called_user_cb = 0;
 static int called_sendto = 0;
+static uint32_t called_pico_timer_add = 0;
 static int called_pico_timer_cancel = 0;
 static struct pico_socket example_socket;
 static struct pico_tftp_session example_session;
@@ -52,7 +53,8 @@ uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void
     (void)expire;
     (void)timer;
     (void)arg;
-    return NULL;
+
+    return ++called_pico_timer_add;
 }
 
 void pico_timer_cancel(uint32_t t)
@@ -229,19 +231,19 @@ END_TEST
 
 START_TEST(tc_pico_tftp_abort)
 {
-    int ret; 
-    server.listen_socket = NULL; 
+    int ret;
+    server.listen_socket = NULL;
 
     /*first case: no session and no listening socket*/
-    ret = pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test"); 
-    fail_if(ret != -1); 
+    ret = pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test");
+    fail_if(ret != -1);
     /*second case: no session but listening socket*/
-    server.listen_socket = example_session.socket = &example_socket; 
-    pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test"); 
-    fail_if(ret != -1); 
+    server.listen_socket = example_session.socket = &example_socket;
+    pico_tftp_abort(NULL, TFTP_ERR_EUSR, "test");
+    fail_if(ret != -1);
     /*tirdh case: session non into list*/
-    ret = pico_tftp_abort(&example_session, TFTP_ERR_EUSR, "test"); 
-    fail_if(ret != -1); 
+    ret = pico_tftp_abort(&example_session, TFTP_ERR_EUSR, "test");
+    fail_if(ret != -1);
 }
 END_TEST
 
@@ -290,8 +292,8 @@ END_TEST
 START_TEST(tc_tftp_socket_open)
 {
     /* TODO: test this: static int tftp_socket_open(uint16_t family, union pico_address *a, uint16_t port) */
-    fail_if(tftp_socket_open(-1, 21) != NULL);
-    fail_if(tftp_socket_open(-1, -21) != NULL);
+    fail_if(tftp_socket_open(0xFFFF, 21) != NULL);
+    fail_if(tftp_socket_open(0xFFFF, 0xFFFF) != NULL);
 }
 END_TEST
 

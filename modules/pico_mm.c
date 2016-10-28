@@ -11,11 +11,19 @@
 #include "pico_config.h"
 #include "pico_protocol.h" /* For pico_err */
 
-#define DBG_MM(x, args ...) /* dbg("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args ) */
-#define DBG_MM_RED(x, args ...) /* dbg("\033[31m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args ) */
-#define DBG_MM_GREEN(x, args ...) /* dbg("\033[32m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args ) */
-#define DBG_MM_YELLOW(x, args ...) /* dbg("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args ) */
-#define DBG_MM_BLUE(x, args ...) /* dbg("\033[34m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args ) */
+#ifdef DEBUG_MM
+#define DBG_MM(x, args ...)        dbg("[%s:%s:%i] "x" \n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_RED(x, args ...)    dbg("\033[31m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_GREEN(x, args ...)  dbg("\033[32m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_YELLOW(x, args ...) dbg("\033[33m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#define DBG_MM_BLUE(x, args ...)   dbg("\033[34m[%s:%s:%i] "x" \033[0m\n",__FILE__,__func__,__LINE__ ,##args )
+#else
+#define DBG_MM(x, args ...)        do {} while(0)
+#define DBG_MM_RED(x, args ...)    do {} while(0)
+#define DBG_MM_GREEN(x, args ...)  do {} while(0)
+#define DBG_MM_YELLOW(x, args ...) do {} while(0)
+#define DBG_MM_BLUE(x, args ...)   do {} while(0)
+#endif
 
 /* The memory manager also uses the pico_tree to keep track of all the different slab sizes it has.
  * These nodes should be placed in the manager page which is in a different memory region then the nodes

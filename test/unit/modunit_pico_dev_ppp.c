@@ -16,7 +16,7 @@ static enum ppp_lcp_event ppp_lcp_ev;
 static enum ppp_auth_event ppp_auth_ev;
 static enum ppp_ipcp_event ppp_ipcp_ev;
 
-static int called_picotimer =  0;
+static uint32_t called_picotimer =  0;
 
 Suite *pico_suite(void);
 
@@ -25,8 +25,10 @@ uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *), void
     IGNORE_PARAMETER(arg);
     IGNORE_PARAMETER(timer);
     IGNORE_PARAMETER(expire);
+
     called_picotimer++;
-    return NULL;
+
+    return called_picotimer;
 }
 
 
@@ -431,19 +433,19 @@ START_TEST(tc_ppp_modem_recv)
     char error[] = "ERROR";
     char blabla[] = "Blabla";
     ppp_modem_ev = 0;
-    ppp_modem_recv(&_ppp, ok, strlen(ok));
+    ppp_modem_recv(&_ppp, ok, (uint32_t)strlen(ok));
     fail_if(ppp_modem_ev != PPP_MODEM_EVENT_OK);
 
     ppp_modem_ev = 0;
-    ppp_modem_recv(&_ppp, connect, strlen(connect));
+    ppp_modem_recv(&_ppp, connect, (uint32_t)strlen(connect));
     fail_if(ppp_modem_ev != PPP_MODEM_EVENT_CONNECT);
 
     ppp_modem_ev = 0;
-    ppp_modem_recv(&_ppp, error, strlen(error));
+    ppp_modem_recv(&_ppp, error, (uint32_t)strlen(error));
     fail_if(ppp_modem_ev != PPP_MODEM_EVENT_STOP);
 
     ppp_modem_ev = PPP_MODEM_EVENT_MAX; /* Which is basically illegal, just to check */
-    ppp_modem_recv(&_ppp, blabla, 8);
+    ppp_modem_recv(&_ppp, blabla, (uint32_t)8);
     fail_if(ppp_modem_ev != PPP_MODEM_EVENT_MAX);
 
 }
@@ -965,7 +967,9 @@ START_TEST(tc_auth_req)
 END_TEST
 START_TEST(tc_auth_rsp)
 {
-    uint8_t req[sizeof(struct pico_chap_hdr) + 1 + CHAP_MD5_SIZE] = { 0 }; // 21 bytes
+    uint8_t req[sizeof(struct pico_chap_hdr) + 1 + CHAP_MD5_SIZE] = {
+        0
+    };                                                                     /* 21 bytes */
     struct pico_chap_hdr *hdr = (struct pico_chap_hdr *)req;
     memset(&_ppp, 0, sizeof(_ppp));
     called_serial_send = 0;
@@ -974,7 +978,7 @@ START_TEST(tc_auth_rsp)
     _ppp.auth = 0xc223; /* hardcode CHAP */
     hdr->code = CHAP_CHALLENGE;
     hdr->len = short_be((uint16_t)(sizeof (struct pico_chap_hdr) + CHAP_MD5_SIZE));
-    req[sizeof(struct pico_chap_hdr)] = CHAP_MD5_SIZE; // CHAP value size field
+    req[sizeof(struct pico_chap_hdr)] = CHAP_MD5_SIZE; /* CHAP value size field */
     _ppp.pkt = req;
     _ppp.len = sizeof(struct pico_chap_hdr) + CHAP_MD5_SIZE;
     auth_rsp(&_ppp);

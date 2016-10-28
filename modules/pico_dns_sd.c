@@ -10,8 +10,11 @@
 #ifdef PICO_SUPPORT_DNS_SD
 
 /* --- Debugging --- */
-#define dns_sd_dbg(...) do {} while(0)
-//#define dns_sd_dbg dbg
+#ifdef DEBUG_DNS_SD
+    #define dns_sd_dbg dbg
+#else
+    #define dns_sd_dbg(...) do {} while(0)
+#endif
 
 /* --- PROTOTYPES --- */
 key_value_pair_t *
@@ -52,9 +55,10 @@ pico_dns_sd_kv_vector_strlen( kv_vector *vector )
         iterator = pico_dns_sd_kv_vector_get(vector, i);
         len = (uint16_t) (len + 1u + /* Length byte */
                           strlen(iterator->key) /* Length of the key */);
-        if (iterator->value)
+        if (iterator->value) {
             len = (uint16_t) (len + 1u /* '=' char */ +
                               strlen(iterator->value) /* Length of value */);
+        }
     }
     return len;
 }
@@ -147,9 +151,10 @@ pico_dns_sd_txt_record_create( const char *url,
     uint16_t len = (uint16_t)(pico_dns_sd_kv_vector_strlen(&key_value_pairs) + 1u);
 
     /* If kv-vector is empty don't bother to create a TXT record */
-    if (len <= 1)
+    if (len <= 1) {
         return NULL;
-    
+    }
+
     /* Provide space for the txt buf */
     if (!(txt = (char *)PICO_ZALLOC(len))) {
         pico_err = PICO_ERR_ENOMEM;
@@ -377,7 +382,7 @@ pico_dns_sd_init( const char *_hostname,
 }
 
 /* ****************************************************************************
- *  Just calls pico_mdns_init in it's turn to initialise the mDNS-module.
+ *  Just calls pico_mdns_init in its turn to initialise the mDNS-module.
  *  See pico_mdns.h for description.
  * ****************************************************************************/
 int
@@ -399,8 +404,10 @@ pico_dns_sd_register_service( const char *name,
 
     /* Try to create a service URL to create records with */
     if (!(url = pico_dns_sd_create_service_url(name, type)) || !txt_data || !hostname) {
-        if (url)
+        if (url) {
             PICO_FREE(url);
+        }
+
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }
@@ -421,15 +428,27 @@ pico_dns_sd_register_service( const char *name,
     /* Erase the key-value pair vector, it's no longer needed */
     pico_dns_sd_kv_vector_erase(txt_data);
 
-    if (txt_record)
-        pico_tree_insert(&rtree, txt_record);
+    if (txt_record) {
+        if (pico_tree_insert(&rtree, txt_record) == &LEAF) {
+            PICO_MDNS_RTREE_DESTROY(&rtree);
+            pico_mdns_record_delete((void **)&txt_record);
+            pico_mdns_record_delete((void **)&srv_record);
+            return -1;
+        }
+    }
 
-    pico_tree_insert(&rtree, srv_record);
+    if (pico_tree_insert(&rtree, srv_record) == &LEAF) {
+        PICO_MDNS_RTREE_DESTROY(&rtree);
+        pico_mdns_record_delete((void **)&srv_record);
+		return -1;
+	}
 
     if (pico_mdns_claim(rtree, callback, arg)) {
         PICO_MDNS_RTREE_DESTROY(&rtree);
         return -1;
     }
+
+    /* Only destroy the tree, not its elements since they still exist in another tree */
     pico_tree_destroy(&rtree, NULL);
     return 0;
 }

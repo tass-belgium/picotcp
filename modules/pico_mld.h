@@ -86,11 +86,11 @@ struct mld_multicast_address_record {
     uint8_t aux_len;
     uint16_t nbr_src;
     struct pico_ip6 multicast;
-    struct pico_ip6 src[0];
+    struct pico_ip6 src[1];
 };
 
 struct mld_parameters {
-    uint8_t event; 
+    uint8_t event;
     uint8_t state;
     uint8_t general_query;
     uint8_t filter_mode;

@@ -7,13 +7,13 @@
    Authors: Daniele Lacamera
  *********************************************************************/
 
-
 #include "pico_config.h"
 #include "pico_arp.h"
 #include "pico_tree.h"
 #include "pico_ipv4.h"
 #include "pico_device.h"
 #include "pico_stack.h"
+#include "pico_ethernet.h"
 
 extern const uint8_t PICO_ETHADDR_ALL[6];
 #define PICO_ARP_TIMEOUT 600000llu
@@ -27,7 +27,9 @@ extern const uint8_t PICO_ETHADDR_ALL[6];
 #endif
 
 static int max_arp_reqs = PICO_ARP_MAX_RATE;
-static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = { 0 };
+static struct pico_frame *frames_queued[PICO_ARP_MAX_PENDING] = {
+    0
+};
 
 static void pico_arp_queued_trigger(void)
 {
@@ -37,11 +39,9 @@ static void pico_arp_queued_trigger(void)
     {
         f = frames_queued[i];
         if (f) {
-            if (!pico_ethernet_send(f))
-            {
+            if (pico_datalink_send(f) <= 0)
                 pico_frame_discard(f);
-                frames_queued[i] = NULL;
-            }
+            frames_queued[i] = NULL;
         }
     }
 }
@@ -53,12 +53,17 @@ static void update_max_arp_reqs(pico_time now, void *unused)
     if (max_arp_reqs < PICO_ARP_MAX_RATE)
         max_arp_reqs++;
 
-    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+    if (!pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL)) {
+        arp_dbg("ARP: Failed to start update_max_arps timer\n");
+        /* TODO if this fails all incoming arps will be discarded once max_arp_reqs recahes 0 */
+    }
 }
 
 void pico_arp_init(void)
 {
-    pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL);
+    if (!pico_timer_add(PICO_ARP_INTERVAL / PICO_ARP_MAX_RATE, &update_max_arp_reqs, NULL)) {
+        arp_dbg("ARP: Failed to start update_max_arps timer\n");
+    }
 }
 
 PACKED_STRUCT_DEF pico_arp_hdr
@@ -120,7 +125,7 @@ static int arp_compare(void *ka, void *kb)
     return pico_ipv4_compare(&a->ipv4, &b->ipv4);
 }
 
-PICO_TREE_DECLARE(arp_tree, arp_compare);
+static PICO_TREE_DECLARE(arp_tree, arp_compare);
 
 /*********************/
 /**  END ARP TREE **/
@@ -169,8 +174,6 @@ static void pico_arp_unreachable(struct pico_ip4 *a)
                     pico_notify_dest_unreachable(f);
                 }
 
-                pico_frame_discard(f);
-                frames_queued[i] = NULL;
             }
         }
     }
@@ -225,7 +228,9 @@ void pico_arp_postpone(struct pico_frame *f)
     for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
     {
         if (!frames_queued[i]) {
-            frames_queued[i] = pico_frame_copy(f);
+            if (f->failure_count < 4)
+                frames_queued[i] = f;
+
             return;
         }
     }
@@ -234,7 +239,7 @@ void pico_arp_postpone(struct pico_frame *f)
 
 
 #ifdef DEBUG_ARP
-void dbg_arp(void)
+static void dbg_arp(void)
 {
     struct pico_arp *a;
     struct pico_tree_node *index;
@@ -256,19 +261,33 @@ static void arp_expire(pico_time now, void *_stale)
     } else {
         /* Timer must be rescheduled, ARP entry has been renewed lately.
          * No action required to refresh the entry, will check on the next timeout */
-        pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale);
+        if (!pico_timer_add(PICO_ARP_TIMEOUT + stale->timestamp - now, arp_expire, stale)) {
+            arp_dbg("ARP: Failed to start expiration timer, destroying arp entry\n");
+            pico_tree_delete(&arp_tree, stale);
+            PICO_FREE(stale);
+        }
     }
 }
 
-static void pico_arp_add_entry(struct pico_arp *entry)
+static int pico_arp_add_entry(struct pico_arp *entry)
 {
     entry->arp_status = PICO_ARP_STATUS_REACHABLE;
     entry->timestamp  = PICO_TIME();
 
-    pico_tree_insert(&arp_tree, entry);
+    if (pico_tree_insert(&arp_tree, entry)) {
+        arp_dbg("ARP: Failed to insert new entry in tree\n");
+        return -1;
+    }
+
     arp_dbg("ARP ## reachable.\n");
     pico_arp_queued_trigger();
-    pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry);
+    if (!pico_timer_add(PICO_ARP_TIMEOUT, arp_expire, entry)) {
+        arp_dbg("ARP: Failed to start expiration timer\n");
+        pico_tree_delete(&arp_tree, entry);
+        return -1;
+    }
+
+    return 0;
 }
 
 int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_device *dev)
@@ -283,7 +302,10 @@ int pico_arp_create_entry(uint8_t *hwaddr, struct pico_ip4 ipv4, struct pico_dev
     arp->ipv4.addr = ipv4.addr;
     arp->dev = dev;
 
-    pico_arp_add_entry(arp);
+    if (pico_arp_add_entry(arp) < 0) {
+        PICO_FREE(arp);
+        return -1;
+    }
 
     return 0;
 }
@@ -293,10 +315,11 @@ static void pico_arp_check_conflict(struct pico_arp_hdr *hdr)
     if (conflict_ipv4.conflict)
     {
         if((conflict_ipv4.ip.addr == hdr->src.addr) &&
-            (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0))
-          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_CONFLICT );
-        if((hdr->src.addr == 0) && (hdr->dst.addr == conflict_ipv4.ip.addr) )
-          conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_PROBE );
+           (memcmp(hdr->s_mac, conflict_ipv4.mac.addr, PICO_SIZE_ETH) != 0))
+            conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_CONFLICT );
+
+        if((hdr->src.addr == 0) && (hdr->dst.addr == conflict_ipv4.ip.addr))
+            conflict_ipv4.conflict(PICO_ARP_CONFLICT_REASON_PROBE );
     }
 }
 
@@ -314,7 +337,11 @@ static struct pico_arp *pico_arp_lookup_entry(struct pico_frame *f)
         if (found->arp_status == PICO_ARP_STATUS_STALE) {
             /* Replace if stale */
             pico_tree_delete(&arp_tree, found);
-            pico_arp_add_entry(found);
+            if (pico_arp_add_entry(found) < 0) {
+                arp_dbg("ARP: Failed to re-instert stale arp entry\n");
+                PICO_FREE(found);
+                found = NULL;
+            }
         } else {
             /* Update mac address */
             memcpy(found->eth.addr, hdr->s_mac, PICO_SIZE_ETH);
@@ -436,8 +463,10 @@ int pico_arp_receive(struct pico_frame *f)
     struct pico_arp *found = NULL;
 
     hdr = (struct pico_arp_hdr *) f->net_hdr;
-    if (!hdr)
+    if (!hdr) {
+        pico_frame_discard(f);
         return -1;
+    }
 
     pico_arp_check_conflict(hdr);
     found = pico_arp_lookup_entry(f);

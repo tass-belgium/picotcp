@@ -62,6 +62,7 @@ void del_note(struct note_t *note)
         clipboard = clipboard->next;
         if (note->filename)
             free (note->filename);
+
         PICO_FREE(note);
     } else {
         for (prev = clipboard; prev->next; prev = prev->next)
@@ -69,9 +70,11 @@ void del_note(struct note_t *note)
                 prev->next = note->next;
                 if (note->filename)
                     free (note->filename);
+
                 PICO_FREE(note);
                 break;
             }
+
     }
 }
 
@@ -140,8 +143,12 @@ int cb_tftp_tx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         del_note(note);
     }
 
-    if (!clipboard)
-        pico_timer_add(3000, deferred_exit, NULL);
+    if (!clipboard) {
+        if (!pico_timer_add(3000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
+    }
 
     return len;
 }
@@ -191,8 +198,12 @@ int cb_tftp_rx(struct pico_tftp_session *session, uint16_t event, uint8_t *block
         }
     }
 
-    if (!clipboard)
-        pico_timer_add(3000, deferred_exit, NULL);
+    if (!clipboard) {
+        if (!pico_timer_add(3000, deferred_exit, NULL)) {
+            printf("Failed to start exit timer, exiting now\n");
+            exit(1);
+        }
+    }
 
     return len;
 }
@@ -344,49 +355,50 @@ struct command_t *parse_arguments_recursive(struct command_t *commands, char *ar
     char *address;
     static union pico_address remote_address;
     int ret;
-    struct command_t * new_cmd = NULL;
+    struct command_t *new_cmd = NULL;
 
     if (!arg)
         return commands;
 
     next = cpy_arg(&operation, arg);
     switch (*operation) {
-        case 'S':
-        case 's':
-            filename = address = NULL;
-            break;
-        case 'T':
-        case 'R':
-        case 't':
-        case 'r':
-            if (!next) {
-                fprintf(stderr, "Incomplete client command %s (filename componet is missing)\n", arg);
-                return NULL;
-            }
-
-            next = cpy_arg(&filename, next);
-            if (!next) {
-                fprintf(stderr, "Incomplete client command %s (address component is missing)\n", arg);
-                return NULL;
-            }
-
-            next = cpy_arg(&address, next);
-            if (!IPV6_MODE)
-                ret = pico_string_to_ipv4(address, &remote_address.ip4.addr);
-            else
-                ret = pico_string_to_ipv6(address, remote_address.ip6.addr);
-
-            if (ret < 0) {
-                fprintf(stderr, "Invalid IP address %s\n", address);
-                print_usage(2);
-            }
-            if (address)
-                free(address);
-
-            break;
-        default:
-            fprintf(stderr, "Invalid command %s\n", operation);
+    case 'S':
+    case 's':
+        filename = address = NULL;
+        break;
+    case 'T':
+    case 'R':
+    case 't':
+    case 'r':
+        if (!next) {
+            fprintf(stderr, "Incomplete client command %s (filename componet is missing)\n", arg);
             return NULL;
+        }
+
+        next = cpy_arg(&filename, next);
+        if (!next) {
+            fprintf(stderr, "Incomplete client command %s (address component is missing)\n", arg);
+            return NULL;
+        }
+
+        next = cpy_arg(&address, next);
+        if (!IPV6_MODE)
+            ret = pico_string_to_ipv4(address, &remote_address.ip4.addr);
+        else
+            ret = pico_string_to_ipv6(address, remote_address.ip6.addr);
+
+        if (ret < 0) {
+            fprintf(stderr, "Invalid IP address %s\n", address);
+            print_usage(2);
+        }
+
+        if (address)
+            free(address);
+
+        break;
+    default:
+        fprintf(stderr, "Invalid command %s\n", operation);
+        return NULL;
     };
 
     new_cmd = add_command(commands, *operation, filename, &remote_address);
@@ -463,6 +475,7 @@ void app_tftp(char *arg)
         commands = commands->next;
         if (old_cmd->filename)
             free(old_cmd->filename);
+
         /* commands are allocated using PICO_ZALLOC, so use PICO_FREE */
         PICO_FREE(old_cmd);
     }

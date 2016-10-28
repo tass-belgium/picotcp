@@ -36,6 +36,7 @@
 #include "pico_slaacv4.c"
 #include "pico_hotplug_detection.c"
 #ifdef PICO_SUPPORT_MCAST
+#include "pico_mcast.c"
 #include "pico_igmp.c"
 #endif
 #ifdef PICO_SUPPORT_IPV6
@@ -66,6 +67,8 @@
 #include "unit_timer.c"
 #include "unit_arp.c"
 #include "unit_ipv6.c"
+
+Suite *pico_suite(void);
 
 START_TEST (test_frame)
 {
@@ -168,6 +171,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, nat);
 
     tcase_add_test(ipfilter, test_ipfilter);
+    tcase_set_timeout(ipfilter, 10);
     suite_add_tcase(s, ipfilter);
 
 #ifdef PICO_SUPPORT_CRC_FAULTY_UNIT_TEST
