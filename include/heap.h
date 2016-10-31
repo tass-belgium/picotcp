@@ -11,73 +11,87 @@
         type *top;        \
     }; \
     typedef struct heap_ ## type heap_ ## type; \
+    static inline type* getElement(struct heap_ ## type *heap, uint32_t idx) \
+    { \
+        return &heap->top[idx];\
+    } \
+    static inline int8_t increase_size(struct heap_ ## type *heap) \
+    {\
+        type *newTop; \
+        newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
+        if(!newTop) { \
+            heap->n--; \
+            return -1; \
+        } \
+        if (heap->top)  { \
+            memcpy(newTop, heap->top, heap->n * sizeof(type)); \
+            PICO_FREE(heap->top); \
+        } \
+        heap->top = newTop;             \
+        heap->size++;                                                               \
+        return 0;                                                               \
+    }\
     static inline int heap_insert(struct heap_ ## type *heap, type * el) \
     { \
+        type* half;                                                                 \
         uint32_t i; \
-        type *newTop; \
         if (++heap->n >= heap->size) {                                                \
-            newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
-            if(!newTop) { \
-                heap->n--; \
-                return -1; \
-            } \
-            if (heap->top)  { \
-                memcpy(newTop, heap->top, heap->n * sizeof(type)); \
-                PICO_FREE(heap->top); \
-            } \
-            heap->top = newTop;             \
-            heap->size++;                                                               \
+            if (increase_size(heap))                                                    \
+                return -1;                                                           \
         }                                                                             \
         if (heap->n == 1) {                                                       \
-            memcpy(&heap->top[1], el, sizeof(type));                                    \
+            memcpy(getElement(heap, 1), el, sizeof(type));                                    \
             return 0;                                                                   \
         }                                                                             \
-        for (i = heap->n; ((i > 1) && (heap->top[i / 2].orderby > el->orderby)); i /= 2) {        \
-            memcpy(&heap->top[i], &heap->top[i / 2], sizeof(type));                     \
+        i = heap->n;                                                                    \
+        half = getElement(heap, i/2);                                                   \
+        while ( (i > 1) && (half->orderby > el->orderby) ) {        \
+            memcpy(getElement(heap, i), getElement(heap, i / 2), sizeof(type));                     \
+            i /= 2;                                                                     \
+            half = getElement(heap, i/2);                                                   \
         }             \
-        memcpy(&heap->top[i], el, sizeof(type));                                      \
+        memcpy(getElement(heap, i), el, sizeof(type));                                      \
         return 0;                                                                     \
     } \
     static inline int heap_peek(struct heap_ ## type *heap, type * first) \
     { \
         type *last;           \
+        type *left_child;           \
+        type *right_child;           \
         uint32_t i, child;        \
         if(heap->n == 0) {    \
             return -1;          \
         }                     \
-        memcpy(first, &heap->top[1], sizeof(type));   \
-        last = &heap->top[heap->n--];                 \
+        memcpy(first, getElement(heap, 1), sizeof(type));   \
+        last = getElement(heap, heap->n--);                 \
         for(i = 1; (i * 2u) <= heap->n; i = child) {   \
             child = 2u * i;                              \
+            right_child = getElement(heap, child+1);     \
+            left_child = getElement(heap, child);      \
             if ((child != heap->n) &&                   \
-                (heap->top[child + 1]).orderby          \
-                < (heap->top[child]).orderby)           \
+                (right_child->orderby          \
+                < left_child->orderby))           \
                 child++;                                \
+            left_child = getElement(heap, child);      \
             if (last->orderby >                         \
-                heap->top[child].orderby)               \
-                memcpy(&heap->top[i], &heap->top[child], \
+                left_child->orderby)               \
+                memcpy(getElement(heap,i), getElement(heap,child), \
                        sizeof(type));                  \
             else                                        \
                 break;                                  \
         }                                             \
-        memcpy(&heap->top[i], last, sizeof(type));    \
+        memcpy(getElement(heap, i), last, sizeof(type));    \
         return 0;                                     \
     } \
     static inline type *heap_first(heap_ ## type * heap)  \
     { \
         if (heap->n == 0)     \
             return NULL;        \
-        return &heap->top[1];  \
+        return getElement(heap, 1);  \
     } \
     static inline heap_ ## type *heap_init(void) \
     { \
         heap_ ## type * p = (heap_ ## type *)PICO_ZALLOC(sizeof(heap_ ## type));  \
         return p;     \
     } \
-    /*static inline void heap_destroy(heap_ ## type * h) \
-       { \
-        PICO_FREE(h->top); \
-        PICO_FREE(h); \
-       } \*/
-
 
