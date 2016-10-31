@@ -3,31 +3,39 @@
    See LICENSE and COPYING for usage.
 
  *********************************************************************/
+#define MAX_BLOCK_SIZE 1600
+#define MAX_BLOCK_COUNT 16
 
 #define DECLARE_HEAP(type, orderby) \
     struct heap_ ## type {   \
         uint32_t size;    \
         uint32_t n;       \
-        type *top;        \
+        type *top[MAX_BLOCK_COUNT];        \
     }; \
     typedef struct heap_ ## type heap_ ## type; \
     static inline type* getElement(struct heap_ ## type *heap, uint32_t idx) \
     { \
-        return &heap->top[idx];\
+        uint32_t elements_per_block = MAX_BLOCK_SIZE/sizeof(type); \
+        return &heap->top[idx/elements_per_block][idx%elements_per_block];\
     } \
     static inline int8_t increase_size(struct heap_ ## type *heap) \
     {\
         type *newTop; \
-        newTop = PICO_ZALLOC((heap->n + 1) * sizeof(type)); \
+        uint32_t elements_per_block = MAX_BLOCK_SIZE/sizeof(type); \
+        uint32_t elements = (heap->n + 1)%elements_per_block;\
+        elements = elements?elements:elements_per_block;\
+        if (heap->n+1 > elements_per_block * MAX_BLOCK_COUNT){\
+            return -1;\
+        }\
+        newTop = PICO_ZALLOC(elements*sizeof(type)); \
         if(!newTop) { \
-            heap->n--; \
             return -1; \
         } \
-        if (heap->top)  { \
-            memcpy(newTop, heap->top, heap->n * sizeof(type)); \
-            PICO_FREE(heap->top); \
+        if (heap->top[heap->n/elements_per_block])  { \
+            memcpy(newTop, heap->top[heap->n/elements_per_block], (elements - 1) * sizeof(type)); \
+            PICO_FREE(heap->top[heap->n/elements_per_block]); \
         } \
-        heap->top = newTop;             \
+        heap->top[heap->n/elements_per_block] = newTop;             \
         heap->size++;                                                               \
         return 0;                                                               \
     }\
@@ -36,8 +44,10 @@
         type* half;                                                                 \
         uint32_t i; \
         if (++heap->n >= heap->size) {                                                \
-            if (increase_size(heap))                                                    \
+            if (increase_size(heap)){                                                    \
+                heap->n--;                                                           \
                 return -1;                                                           \
+            }                                                                       \
         }                                                                             \
         if (heap->n == 1) {                                                       \
             memcpy(getElement(heap, 1), el, sizeof(type));                                    \
