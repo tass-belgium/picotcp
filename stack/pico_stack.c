@@ -586,17 +586,18 @@ static void pico_check_timers(void)
 void MOCKABLE pico_timer_cancel(uint32_t id)
 {
     uint32_t i;
-    struct pico_timer_ref *tref = Timers->top;
+    struct pico_timer_ref *tref;
     if (id == 0u)
         return;
 
     for (i = 1; i <= Timers->n; i++) {
-        if (tref[i].id == id) {
-            if (Timers->top[i].tmr)
+        tref = getElement(Timers, i);
+        if (tref->id == id) {
+            if (tref->tmr)
             {
-                PICO_FREE(Timers->top[i].tmr);
-                Timers->top[i].tmr = NULL;
-                tref[i].id = 0;
+                PICO_FREE(tref->tmr);
+                tref->tmr = NULL;
+                tref->id = 0;
             }
             break;
         }
@@ -606,16 +607,17 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
 void pico_timer_cancel_hashed(uint32_t hash)
 {
     uint32_t i;
-    struct pico_timer_ref *tref = Timers->top;
+    struct pico_timer_ref *tref;
     if (hash == 0u)
         return;
 
     for (i = 1; i <= Timers->n; i++) {
-        if (tref[i].hash == hash) {
-            if (Timers->top[i].tmr)
+        tref = getElement(Timers, i);
+        if (tref->hash == hash) {
+            if (tref->tmr)
             {
-                PICO_FREE(Timers->top[i].tmr);
-                Timers->top[i].tmr = NULL;
+                PICO_FREE(tref->tmr);
+                tref->tmr = NULL;
                 tref[i].id = 0;
             }
         }
