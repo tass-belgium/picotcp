@@ -13,12 +13,12 @@
         type *top[MAX_BLOCK_COUNT];        \
     }; \
     typedef struct heap_ ## type heap_ ## type; \
-    static inline type* getElement(struct heap_ ## type *heap, uint32_t idx) \
+    static inline type* heap_get_element(struct heap_ ## type *heap, uint32_t idx) \
     { \
         uint32_t elements_per_block = MAX_BLOCK_SIZE/sizeof(type); \
         return &heap->top[idx/elements_per_block][idx%elements_per_block];\
     } \
-    static inline int8_t increase_size(struct heap_ ## type *heap) \
+    static inline int8_t heap_increase_size(struct heap_ ## type *heap) \
     {\
         type *newTop; \
         uint32_t elements_per_block = MAX_BLOCK_SIZE/sizeof(type); \
@@ -41,26 +41,26 @@
     }\
     static inline int heap_insert(struct heap_ ## type *heap, type * el) \
     { \
-        type* half;                                                                 \
+        type *half;                                                                 \
         uint32_t i; \
         if (++heap->n >= heap->size) {                                                \
-            if (increase_size(heap)){                                                    \
+            if (heap_increase_size(heap)){                                                    \
                 heap->n--;                                                           \
                 return -1;                                                           \
             }                                                                       \
         }                                                                             \
         if (heap->n == 1) {                                                       \
-            memcpy(getElement(heap, 1), el, sizeof(type));                                    \
+            memcpy(heap_get_element(heap, 1), el, sizeof(type));                                    \
             return 0;                                                                   \
         }                                                                             \
         i = heap->n;                                                                    \
-        half = getElement(heap, i/2);                                                   \
+        half = heap_get_element(heap, i/2);                                                   \
         while ( (i > 1) && (half->orderby > el->orderby) ) {        \
-            memcpy(getElement(heap, i), getElement(heap, i / 2), sizeof(type));                     \
+            memcpy(heap_get_element(heap, i), heap_get_element(heap, i / 2), sizeof(type));                     \
             i /= 2;                                                                     \
-            half = getElement(heap, i/2);                                                   \
+            half = heap_get_element(heap, i/2);                                                   \
         }             \
-        memcpy(getElement(heap, i), el, sizeof(type));                                      \
+        memcpy(heap_get_element(heap, i), el, sizeof(type));                                      \
         return 0;                                                                     \
     } \
     static inline int heap_peek(struct heap_ ## type *heap, type * first) \
@@ -72,32 +72,32 @@
         if(heap->n == 0) {    \
             return -1;          \
         }                     \
-        memcpy(first, getElement(heap, 1), sizeof(type));   \
-        last = getElement(heap, heap->n--);                 \
+        memcpy(first, heap_get_element(heap, 1), sizeof(type));   \
+        last = heap_get_element(heap, heap->n--);                 \
         for(i = 1; (i * 2u) <= heap->n; i = child) {   \
             child = 2u * i;                              \
-            right_child = getElement(heap, child+1);     \
-            left_child = getElement(heap, child);      \
+            right_child = heap_get_element(heap, child+1);     \
+            left_child = heap_get_element(heap, child);      \
             if ((child != heap->n) &&                   \
                 (right_child->orderby          \
                 < left_child->orderby))           \
                 child++;                                \
-            left_child = getElement(heap, child);      \
+            left_child = heap_get_element(heap, child);      \
             if (last->orderby >                         \
                 left_child->orderby)               \
-                memcpy(getElement(heap,i), getElement(heap,child), \
+                memcpy(heap_get_element(heap,i), heap_get_element(heap,child), \
                        sizeof(type));                  \
             else                                        \
                 break;                                  \
         }                                             \
-        memcpy(getElement(heap, i), last, sizeof(type));    \
+        memcpy(heap_get_element(heap, i), last, sizeof(type));    \
         return 0;                                     \
     } \
     static inline type *heap_first(heap_ ## type * heap)  \
     { \
         if (heap->n == 0)     \
             return NULL;        \
-        return getElement(heap, 1);  \
+        return heap_get_element(heap, 1);  \
     } \
     static inline heap_ ## type *heap_init(void) \
     { \

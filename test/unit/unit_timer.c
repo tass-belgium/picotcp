@@ -20,7 +20,7 @@ START_TEST (test_timers)
         void *arg = ((void*)0xaa00 + i);
 
         fail_if((uint32_t)(i + 1) > Timers->n);
-        tref = getElement(Timers, (uint32_t)i + EXISTING_TIMERS);
+        tref = heap_get_element(Timers, (uint32_t)i + EXISTING_TIMERS);
         fail_unless(tref->id == T[i]);
         fail_unless(tref->tmr->timer == timer);
         fail_unless(tref->tmr->arg == arg);
@@ -29,7 +29,7 @@ START_TEST (test_timers)
         printf("Deleting timer %d \n", i );
         pico_timer_cancel(T[i]);
         printf("Deleted timer %d \n", i );
-        tref = getElement(Timers, (uint32_t)i + EXISTING_TIMERS);
+        tref = heap_get_element(Timers, (uint32_t)i + EXISTING_TIMERS);
         fail_unless(tref->tmr == NULL);
     }
     pico_stack_tick();

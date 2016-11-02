@@ -591,7 +591,7 @@ void MOCKABLE pico_timer_cancel(uint32_t id)
         return;
 
     for (i = 1; i <= Timers->n; i++) {
-        tref = getElement(Timers, i);
+        tref = heap_get_element(Timers, i);
         if (tref->id == id) {
             if (tref->tmr)
             {
@@ -612,7 +612,7 @@ void pico_timer_cancel_hashed(uint32_t hash)
         return;
 
     for (i = 1; i <= Timers->n; i++) {
-        tref = getElement(Timers, i);
+        tref = heap_get_element(Timers, i);
         if (tref->hash == hash) {
             if (tref->tmr)
             {
