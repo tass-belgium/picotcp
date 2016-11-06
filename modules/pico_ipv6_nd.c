@@ -442,7 +442,11 @@ static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
             if (found > 0)
                 return -1; /* malformed option: option is there twice. */
 
-            memcpy(opt, option, (size_t)(len << 3));
+            if (expected_opt == PICO_ND_OPT_REDIRECT) {
+                memcpy(opt, option, sizeof(struct pico_icmp6_opt_redirect));   
+	    } else {
+                memcpy(opt, option, (size_t)(len << 3));
+	    }
             found++;
         }
 
