@@ -159,6 +159,10 @@ ifeq ($(ARCH),faulty)
   DUMMY_EXTRA+=test/pico_faulty.o
 endif
 
+ifdef CHECK_MEM
+  CFLAGS+=-DCHECK_MEM -rdynamic
+endif
+
 ifeq ($(ARCH),msp430)
   CFLAGS+=-DMSP430
 endif
