@@ -1031,7 +1031,6 @@ static int redirect_process(struct pico_frame *f)
             dbg("Zero gateway from route with ip addr: %s", ipv6_addr);
             PICO_FREE(ipv6_addr);
         }
->>>>>>> 7b64d04949f39e35166e5595ed5e9179c03f605e
     }
 #endif
 
@@ -1282,7 +1281,7 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    if (!pico_ipv6_is_linklocal(hdr->src.addr))
+    if (pico_ipv6_is_linklocal(hdr->src.addr) != 1)
     {
         return -1;
     }
@@ -1294,20 +1293,16 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    if (!(pico_ipv6_is_linklocal(icmp6_hdr->msg.info.redirect.target.addr)))
+    if (! (pico_ipv6_is_linklocal(icmp6_hdr->msg.info.redirect.target.addr) == 1 || pico_ipv6_compare(&icmp6_hdr->msg.info.redirect.target, &icmp6_hdr->msg.info.redirect.dest) == 0) )
     {
         return -1;
     }
 
-    if(pico_ipv6_compare(&icmp6_hdr->msg.info.redirect.target, &icmp6_hdr->msg.info.redirect.dest))
-    {
-        return -1;
-    }
-
-    if(!pico_ipv6_compare(&hdr->src, pico_nd_get_default_router_addr()))
-    {
-        return -1;
-    }
+    //TODO: re-enable
+    //if(!pico_ipv6_compare(&hdr->src, pico_nd_get_default_router_addr()))
+    //{
+    //    return -1;
+    //}
 
     /* ALL included options have length > 0, checked when processing redirect frame */
 
@@ -1318,11 +1313,13 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
 {
     if (icmp6_initial_checks(f) < 0)
     {
+        nd_dbg("redirect: initial checks failed\n");
         return -1;
     }
 
     if (pico_nd_redirect_is_valid(f) < 0)
     {
+        nd_dbg("redirect: redirect check failed\n");
         return -1;
     }
 
