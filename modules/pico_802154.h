@@ -9,6 +9,7 @@
 
 #include "pico_device.h"
 #include "pico_config.h"
+#include "pico_6lowpan_ll.h"
 
 /*******************************************************************************
  * Size definitions
@@ -34,16 +35,6 @@ PACKED_STRUCT_DEF pico_802154_hdr
     uint16_t pan_id;
 };
 
-/*******************************************************************************
- * Public functions
- ******************************************************************************/
-
-union pico_ll_addr addr_802154(struct pico_frame *f, int dest);
-uint8_t pico_802154_estimator(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);
-int pico_802154_process_out(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);
-int pico_802154_process_in(struct pico_frame *f, struct pico_802154 *src, struct pico_802154 *dst);
-int addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr);
-int addr_802154_len(union pico_ll_addr *addr);
-int addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b);
+extern const struct pico_6lowpan_ll_protocol pico_6lowpan_ll_802154;
 
 #endif /* INCLUDE_PICO_802154 */

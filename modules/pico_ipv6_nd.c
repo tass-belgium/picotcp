@@ -26,6 +26,7 @@
 #define nd_dbg dbg
 #else
 #define nd_dbg(...) do {} while(0)
+#endif
 
 #define ONE_MINUTE                          ((pico_time)(1000 * 60))
 
@@ -108,7 +109,7 @@ static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
     dbg("IPV6: Duplicate address detected. Removing link.\n");
     pico_ipv6_link_del(l->dev, l->address);
 #ifdef PICO_SUPPORT_6LOWPAN
-    if (l->dev->hostvars.lowpan) {
+    if (PICO_DEV_IS_6LOWPAN(l->dev)) {
         pico_6lp_nd_deregister(l);
     }
 #endif
@@ -297,7 +298,7 @@ static size_t pico_hw_addr_len(struct pico_device *dev, struct pico_icmp6_opt_ll
     IGNORE_PARAMETER(dev);
     IGNORE_PARAMETER(opt);
 #else
-    if (dev->hostvars.lowpan) {
+    if (PICO_DEV_IS_6LOWPAN(dev)) {
         if (1 == opt->len) {
             len = (size_t)SIZE_6LOWPAN_SHORT;
         } else {
@@ -438,7 +439,7 @@ static int neigh_adv_process(struct pico_frame *f)
     }
 
 #ifdef PICO_SUPPORT_6LOWPAN
-    if (f->dev->hostvars.lowpan) {
+    if (PICO_DEV_IS_6LOWPAN(f->dev)) {
         /* 6LoWPAN: parse Address Registration Comfirmation(nothing on success, remove link on failure) */
         pico_6lp_nd_neigh_adv_process(f);
     }
@@ -556,7 +557,7 @@ static int neigh_sol_process(struct pico_frame *f)
     if (!f->dev->mode && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
         return 0;
 #ifdef PICO_SUPPORT_6LOWPAN
-    else if (f->dev->hostvars.lowpan) {
+    else if (PICO_DEV_IS_6LOWPAN(f->dev)) {
         nd_dbg("[6LP-ND] Received Address Registration Option\n");
         neigh_sol_detect_dad_6lp(f);
     }
@@ -667,7 +668,7 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
     /* Don't validate target address, the sol is always targeted at 6LBR so
      * no possible interface on the 6LBR can have the same address as specified in
      * the target */
-    if (f->dev->hostvars.lowpan)
+    if (PICO_DEV_IS_6LOWPAN(f->dev))
         return 0;
 #endif
 
@@ -773,7 +774,7 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
      *  default routers becomes unreachable ...
      */
     pico_tree_foreach(node, &Device_tree) {
-        if (dev && dev->hostvars.lowpan && (!dev->hostvars.routing)) {
+        if (PICO_DEV_IS_6LOWPAN(dev) && (!dev->hostvars.routing)) {
             /* Check if there's a gateway configured */
             route = pico_ipv6_gateway_by_dev(dev);
             while (route) {
@@ -807,13 +808,19 @@ static int pico_6lp_nd_validate_adv_aro(struct pico_device *dev, struct pico_icm
     if (aro->len != 2)
         return -1;
 
+    /* TODO: Update to abstract address, e.g. remove dependency of '.pan' */
     eui.pan.addr._ext = aro->eui64;
     eui.pan.mode = AM_6LOWPAN_EXT;
     addr.pan.addr._ext = ((struct pico_6lowpan_info *)dev->eth)->addr_ext;
     addr.pan.mode = AM_6LOWPAN_EXT;
 
-    if (pico_6lowpan_ll_cmp(&addr, &eui, dev))
+    if (dev && pico_6lowpan_lls[dev->mode].addr_cmp) {
+        if (pico_6lowpan_lls[dev->mode].addr_cmp(&addr, &eui))
+            return -1;
+    } else {
         return -1;
+    }
+
     *status = aro->status;
     return 0;
 }
@@ -994,10 +1001,11 @@ static int neigh_sol_dad_reply(struct pico_frame *sol, struct pico_icmp6_opt_lla
 
         /* Set the status of the Address Registration */
         aro->status = status;
-        if (sol->dev->hostvars.lowpan) {
+        if (PICO_DEV_IS_6LOWPAN(sol->dev)) {
             memcpy(lladdr.pan.addr.data, aro->eui64.addr, len);
             lladdr.pan.mode = (len == SIZE_6LOWPAN_EXT) ? AM_6LOWPAN_EXT : AM_6LOWPAN_SHORT;
-            pico_6lowpan_ll_iid(ll.addr + 8, &lladdr, sol->dev);
+            if (pico_6lowpan_lls[sol->dev->mode].addr_iid)
+                pico_6lowpan_lls[sol->dev->mode].addr_iid(ll.addr + 8, &lladdr);
         }
 
         /* Remove the SLLAO from the frame */
@@ -1148,7 +1156,7 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
 #ifdef PICO_SUPPORT_6LOWPAN
     /* 6LoWPAN: reply on explicit router solicitations via unicast */
-    if (f->dev->hostvars.lowpan)
+    if (PICO_DEV_IS_6LOWPAN(f->dev))
         return router_sol_process(f);
 #endif
 
@@ -1209,7 +1217,7 @@ static int radv_process(struct pico_frame *f)
             /* RFC6775 (6LoWPAN): Should the host erroneously receive a PIO with the L (on-link)
              *      flag set, then that PIO MUST be ignored.
              */
-            if (f->dev->hostvars.lowpan && prefix->onlink)
+            if (PICO_DEV_IS_6LOWPAN(f->dev) && prefix->onlink)
                 goto ignore_opt_prefix;
 #endif
 
@@ -1234,7 +1242,7 @@ static int radv_process(struct pico_frame *f)
                 /* Add a default gateway to the default routers list with source of RADV */
                 pico_ipv6_route_add(zero, zero, hdr->src, 10, link);
 #ifdef PICO_SUPPORT_6LOWPAN
-                if (f->dev->hostvars.lowpan) {
+                if (PICO_DEV_IS_6LOWPAN(f->dev)) {
                     pico_6lp_nd_register(link);
                 }
 #endif
@@ -1289,7 +1297,7 @@ ignore_opt_prefix:
         {
             struct pico_icmp6_opt_6co *co = (struct pico_icmp6_opt_6co *)nxtopt;
 #ifdef PICO_6LOWPAN_IPHC_ENABLED
-            if (f->dev->hostvars.lowpan) {
+            if (PICO_DEV_IS_6LOWPAN(f->dev)) {
                 struct pico_ip6 prefix;
                 memcpy(prefix.addr, (uint8_t *)&co->prefix, (size_t)(co->len - 1) << 3);
                 ctx_update(prefix, co->id, co->clen, co->lifetime, co->c, f->dev);
@@ -1315,7 +1323,7 @@ ignore_opt_prefix:
         }
     }
 #ifdef PICO_SUPPORT_6LOWPAN
-    if (f->dev->hostvars.lowpan && !sllao) {
+    if (PICO_DEV_IS_6LOWPAN(f->dev) && !sllao) {
         return -1;
     }
 #endif
@@ -1452,7 +1460,7 @@ static void pico_ipv6_nd_ra_timer_callback(pico_time now, void *arg)
                 dev = devindex->keyValue;
                 /* Do not send periodic router advertisements when there aren't 2 interfaces from and to the device can route */
                 if ((!pico_ipv6_is_linklocal(rt->dest.addr)) && dev->hostvars.routing && (rt->link)
-                    && (dev != rt->link->dev) && !dev->hostvars.lowpan) {
+                    && (dev != rt->link->dev) && !PICO_DEV_IS_6LOWPAN(dev)) {
                     pico_icmp6_router_advertisement(dev, &rt->dest);
                 }
             }
@@ -1484,7 +1492,7 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     l = pico_ipv6_link_get(&hdr->dst);
     if (l && !l->dev->mode)
         return &l->dev->eth->mac;
-    else if (l && l->dev->hostvars.lowpan)
+    else if (l && PICO_DEV_IS_6LOWPAN(l->dev))
         return (struct pico_eth *)l->dev->eth;
 
     return pico_nd_get(&hdr->dst, f->dev);

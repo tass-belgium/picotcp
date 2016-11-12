@@ -10,19 +10,21 @@
 
 #include "pico_addressing.h"
 #include "pico_protocol.h"
+#include "pico_6lowpan.h"
 #include "pico_device.h"
 #include "pico_config.h"
 #include "pico_frame.h"
+#include "pico_ipv6.h"
 
-/*******************************************************************************
- * Type definitions
- ******************************************************************************/
-
-#ifdef PICO_6LOWPAN_IPHC_ENABLED
+/* Possible actions to perform on a received frame */
+#define FRAME_6LOWPAN_LL_RELEASE    (-1)
+#define FRAME_6LOWPAN_LL_DISCARD    (-2)
 
 /*******************************************************************************
  *  CTX
  ******************************************************************************/
+
+#ifdef PICO_6LOWPAN_IPHC_ENABLED
 
 #define PICO_IPHC_CTX_COMPRESS (0x01u)
 
@@ -43,9 +45,33 @@ void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifeti
 #endif
 
 /******************************************************************************
+ * Interface with link layer
+ ******************************************************************************/
+
+struct pico_dev_6lowpan
+{
+    struct pico_device dev;
+    int (* send)(struct pico_device *dev, void *_buf, int len, union pico_ll_addr src, union pico_ll_addr dst);
+};
+
+struct pico_6lowpan_ll_protocol
+{
+    int (* process_in)(struct pico_frame *f);
+    int (* process_out)(struct pico_frame *f);
+    int (* estimate)(struct pico_frame *f);
+    int (* addr_from_buf)(union pico_ll_addr *addr, uint8_t *buf);
+    int (* addr_from_net)(union pico_ll_addr *addr, struct pico_frame *f, int dest);
+    int (* addr_len)(union pico_ll_addr *addr);
+    int (* addr_cmp)(union pico_ll_addr *a, union pico_ll_addr *b);
+    int (* addr_iid)(uint8_t *iid, union pico_ll_addr *addr);
+    struct pico_frame * (*alloc)(struct pico_device *dev, uint16_t size);
+};
+
+/******************************************************************************
  * Public variables
  ******************************************************************************/
 
+extern struct pico_6lowpan_ll_protocol pico_6lowpan_lls[];
 extern struct pico_protocol pico_proto_6lowpan_ll;
 
 /******************************************************************************
@@ -53,13 +79,10 @@ extern struct pico_protocol pico_proto_6lowpan_ll;
  ******************************************************************************/
 
 void pico_6lowpan_ll_init(void);
-
-int pico_6lowpan_ll_len(union pico_ll_addr *addr, struct pico_device *dev);
-int pico_6lowpan_ll_iid(uint8_t *iid, union pico_ll_addr *addr, struct pico_device *dev);
-int pico_6lowpan_ll_push(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
-int pico_6lowpan_ll_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
-int pico_6lowpan_ll_addr(struct pico_frame *f, union pico_ll_addr *addr, int dst);
-int pico_6lowpan_ll_cmp(union pico_ll_addr *a, union pico_ll_addr *b, struct pico_device *dev);
-union pico_ll_addr *frame_6lowpan_ll_store_addr(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
+int32_t pico_6lowpan_ll_push(struct pico_frame *f);
+int32_t pico_6lowpan_ll_pull(struct pico_frame *f);
+int32_t frame_6lowpan_ll_store_addr(struct pico_frame *f);
+int32_t pico_6lowpan_ll_sendto_dev(struct pico_device *dev, struct pico_frame *f);
+int32_t pico_6lowpan_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len, union pico_ll_addr *src, union pico_ll_addr *dst);
 
 #endif /* INCLUDE_PICO_6LOWPAN_LL */

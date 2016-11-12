@@ -18,7 +18,9 @@ struct pico_nd_hostvars {
     pico_time basetime;
     pico_time reachabletime;
     pico_time retranstime;
-    uint8_t lowpan;
+#ifdef PICO_SUPPORT_6LOWPAN
+    uint8_t lowpan_flags;
+#endif
 };
 
 void pico_ipv6_nd_init(void);

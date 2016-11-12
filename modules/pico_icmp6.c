@@ -10,6 +10,7 @@
 #include "pico_config.h"
 #include "pico_icmp6.h"
 #include "pico_ipv6_nd.h"
+#include "pico_6lowpan.h"
 #include "pico_eth.h"
 #include "pico_device.h"
 #include "pico_stack.h"
@@ -305,7 +306,7 @@ static int pico_icmp6_provide_llao(struct pico_icmp6_opt_lladdr *llao, uint8_t t
         llao->len = 1;
     }
 #ifdef PICO_SUPPORT_6LOWPAN
-    else if (dev->hostvars.lowpan && dev->eth) {
+    else if (PICO_DEV_IS_6LOWPAN(dev) && dev->eth) {
 		if (src && IID_16(&src->addr[8])) {
 			memcpy(llao->addr.pan.data, (uint8_t *)&info->addr_short.addr, SIZE_6LOWPAN_SHORT);
             memset(llao->addr.pan.data + SIZE_6LOWPAN_SHORT, 0, 4);
@@ -365,7 +366,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *t
         return -1;
     }
 #ifdef PICO_SUPPORT_6LOWPAN
-    else if (dev->hostvars.lowpan) {
+    else if (PICO_DEV_IS_6LOWPAN(dev)) {
         return pico_6lp_nd_neighbor_solicitation(dev, tgt, type, dst);
     }
 #endif
@@ -525,9 +526,9 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
     if (!pico_ipv6_is_unspecified(src->addr)) {
         len = (uint16_t)(len + 8);
 #ifdef PICO_SUPPORT_6LOWPAN
-        if (dev->hostvars.lowpan)
+        if (PICO_DEV_IS_6LOWPAN(dev))
             len = (uint16_t)(len + 8);
-    } else if (dev->hostvars.lowpan && pico_ipv6_is_unspecified(src->addr)) {
+    } else if (PICO_DEV_IS_6LOWPAN(dev) && pico_ipv6_is_unspecified(src->addr)) {
         return -1; /* RFC6775 (6LoWPAN): An unspecified source address MUST NOT be used in RS messages. */
 #endif
     }

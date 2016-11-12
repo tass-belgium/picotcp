@@ -10,6 +10,7 @@
  ******************************************************************************/
 
 #include "pico_dev_radiotest.h"
+#include "pico_6lowpan_ll.h"
 #include "pico_addressing.h"
 #include "pico_dev_tap.h"
 #include "pico_802154.h"
@@ -26,9 +27,6 @@
 #include <arpa/inet.h>
 #include <sys/poll.h>
 
-/* Uncomment next line to enable pcap-dump, also make sure the binary is linked
- * against the lpcaplib: '-lpcap' */
-#define RADIO_PCAP
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
 
@@ -36,7 +34,11 @@
 #include <pcap.h>
 #endif
 
-//#define DEBUG_RADIOTEST
+#ifdef DEBUG_RADIOTEST
+#define RADIO_DBG       dbg
+#else
+#define RADIO_DBG(...)  do { } while (0)
+#endif
 
 /*******************************************************************************
  * Constants
@@ -56,7 +58,7 @@
  ******************************************************************************/
 
 struct radiotest_radio {
-    struct pico_device dev;
+    struct pico_dev_6lowpan dev;
     struct pico_6lowpan_info addr;
     int sock0;
     int sock1;
@@ -71,6 +73,8 @@ struct radiotest_frame
     uint8_t *buf;
     int len;
     uint32_t id;
+    union pico_ll_addr src;
+    union pico_ll_addr dst;
 };
 
 /*******************************************************************************
@@ -93,7 +97,11 @@ static void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
     char path[100];
 
     /* Open offline packet capture */
+#ifdef PICO_SUPPORT_802154
     dev->pcap = pcap_open_dead(DLT_IEEE802_15_4, 65535);
+#elif defined (PICO_SUPPORT_802154_NO_MAC)
+    dev->pcap = pcap_open_dead(DLT_RAW, 65535);
+#endif
     if (!dev->pcap) {
         perror("LibPCAP");
         exit (1);
@@ -105,9 +113,9 @@ static void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
     /* Open dump */
     dev->pcapd = pcap_dump_open(dev->pcap, path);
     if (dev->pcapd)
-        dbg("PCAP Enabled\n");
+        RADIO_DBG("PCAP Enabled\n");
     else
-        dbg("PCAP Disabled\n");
+        RADIO_DBG("PCAP Disabled\n");
 }
 
 static void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
@@ -148,7 +156,7 @@ static int radiotest_cmp(void *a, void *b)
 
 PICO_TREE_DECLARE(LoopFrames, radiotest_cmp);
 
-static uint8_t *radiotest_nxt_rx(int *len)
+static uint8_t *radiotest_nxt_rx(int *len, union pico_ll_addr *src, union pico_ll_addr *dst)
 {
     struct radiotest_frame test, *found = NULL;
     uint8_t *ret = NULL;
@@ -158,6 +166,8 @@ static uint8_t *radiotest_nxt_rx(int *len)
     if (found) {
         ret = found->buf;
         *len = found->len;
+        *src = found->src;
+        *dst = found->dst;
         pico_tree_delete(&LoopFrames, found);
         PICO_FREE(found);
     } else {
@@ -166,7 +176,7 @@ static uint8_t *radiotest_nxt_rx(int *len)
     return ret;
 }
 
-static void radiotest_nxt_tx(uint8_t *buf, int len)
+static void radiotest_nxt_tx(uint8_t *buf, int len, union pico_ll_addr src, union pico_ll_addr dst)
 {
     struct radiotest_frame *new = PICO_ZALLOC(sizeof(struct radiotest_frame));
     if (new) {
@@ -175,6 +185,8 @@ static void radiotest_nxt_tx(uint8_t *buf, int len)
             memcpy(new->buf, buf, (size_t)len);
             new->len = len;
             new->id = tx_id++;
+            new->src = src;
+            new->dst = dst;
             if (pico_tree_insert(&LoopFrames, new)) {
                 PICO_FREE(new);
                 tx_id--;
@@ -185,31 +197,29 @@ static void radiotest_nxt_tx(uint8_t *buf, int len)
     }
 }
 
-static int pico_loop_send(struct pico_device *dev, void *buf, int len)
+static int pico_loop_send(struct pico_device *dev, void *buf, int len, union pico_ll_addr src, union pico_ll_addr dst)
 {
     IGNORE_PARAMETER(dev);
     if (len > LOOP_MTU)
         return 0;
-#ifdef DEBUG_RADIOTEST
-    printf("Looping back frame of %d bytes.\n", len);
-#endif
-    radiotest_nxt_tx(buf, len);
+    RADIO_DBG("Looping back frame of %d bytes.\n", len);
+    radiotest_nxt_tx(buf, len, src, dst);
     return len;
 }
 
 static int pico_loop_poll(struct pico_device *dev, int loop_score)
 {
+    union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
     int len = 0;
 
     if (loop_score <= 0)
         return 0;
 
-    buf = radiotest_nxt_rx(&len);
+    buf = radiotest_nxt_rx(&len, &src, &dst);
     if (buf) {
-#ifdef DEBUG_RADIOTEST
-        printf("Receiving frame of %d bytes.\n", len);
-#endif
+        RADIO_DBG("Receiving frame of %d bytes.\n", len);
+        pico_6lowpan_stack_recv(dev, buf, (uint32_t)len, &src, &dst);
         pico_stack_recv(dev, buf, (uint32_t)len);
         PICO_FREE(buf);
         loop_score--;
@@ -262,6 +272,7 @@ static uint16_t calculate_crc16(uint8_t *buf, uint8_t len)
 static int radiotest_poll(struct pico_device *dev, int loop_score)
 {
     struct radiotest_radio *radio = (struct radiotest_radio *)dev;
+    union pico_ll_addr src = {0}, dst = {0};
     int pollret, ret_len;
     struct pollfd p;
     uint8_t buf[128];
@@ -293,7 +304,7 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
         if (ret_len != (int)phy)
             return loop_score;
         else if (!ret_len) {
-            printf("Radio manager detached from network\n");
+            RADIO_DBG("Radio manager detached from network\n");
             exit(1);
         }
     }
@@ -306,53 +317,78 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
     long n = lrand48();
     n = n % 100;
     if (n < P_LOSS) {
-        printf("Packet got lost!\n");
+        RADIO_DBG("Packet got lost!\n");
         return loop_score;
     }
 #endif
 
+    /* ADDRESS FILTER */
+    if (buf[ret_len - 1] != 0xFF && buf[ret_len - 1] != (uint8_t)short_be(radio->addr.addr_short.addr)) {
+        RADIO_DBG("Packet is not for me!\n");
+        return loop_score;
+    }
+
+    /* Get src and destination address */
+    dst.pan.addr._ext = radio->addr.addr_ext;
+    src.pan.addr.data[3] = 0xAA;
+    src.pan.addr.data[4] = 0xAB;
+    src.pan.addr.data[7] = buf[ret_len - 1];
+    src.pan.mode = AM_6LOWPAN_EXT;
+    ret_len -= 2;
+
     /* Write the received frame to the pcap-dump */
     radiotest_pcap_write(radio, buf, ret_len);
 
-    /* Hand the frame over to pico  */
-    pico_stack_recv(dev, buf, (uint32_t)(ret_len - 2));
+    /* Hand the frame over to pico */
+    pico_6lowpan_stack_recv(dev, buf, (uint32_t)(ret_len - 2), &src, &dst);
     loop_score--;
 
     return loop_score;
 }
 
+#define RADIO_OVERHEAD 4
+
 /* Send-function for the pico_device-structure */
-static int radiotest_send(struct pico_device *dev, void *_buf, int len)
+static int radiotest_send(struct pico_device *dev, void *_buf, int len, union pico_ll_addr src, union pico_ll_addr dst)
 {
     struct radiotest_radio *radio = (struct radiotest_radio *)dev;
-    uint8_t *buf = PICO_ZALLOC((size_t)(len + 3));
+    uint8_t *buf = PICO_ZALLOC((size_t)(len + RADIO_OVERHEAD));
+    uint8_t phy = 0, did = 0;
     uint16_t crc = 0;
-    int ret = 0;
-    uint8_t phy = 0;
+    int ret = 0, dlen = 0;
+    IGNORE_PARAMETER(src);
 
     if (!buf)
         return -1;
 
-    /* Store the address in buffer for management */
+    /* Try to get node-ID from address */
+    if (dev && pico_6lowpan_lls[dev->mode].addr_len) {
+        dlen = pico_6lowpan_lls[dev->mode].addr_len(&dst);
+        if (dlen < 0)
+            return -1;
+        did = dst.pan.addr.data[dlen - 1];
+    }
+
+    /* Store the addresses in buffer for management */
     memcpy(buf, _buf, (size_t)len);
-    len += 3; // CRC + ID
-    buf[len - 1] = (uint8_t)short_be(radio->addr.addr_short.addr);
+    len = (uint16_t)(len + (uint16_t)RADIO_OVERHEAD); // CRC + ID
+    buf[len - 2] = (uint8_t)short_be(radio->addr.addr_short.addr);
+    buf[len - 1] = did;
 
     /* Generate FCS, keep pcap happy ... */
-    crc = calculate_crc16(_buf, (uint8_t)(len - 3));
-    memcpy(buf + len - 3, (void *)&crc, 2);
+    crc = calculate_crc16(_buf, (uint8_t)(len - RADIO_OVERHEAD));
+    memcpy(buf + len - RADIO_OVERHEAD, (void *)&crc, 2);
 
     /* Send frame to radio management */
     phy = (uint8_t)(len);
     ret = (int)sendto(connection, &phy, 1, 0, NULL, 0);
-    if (ret != 1) return -1;
+    if (ret != 1)
+        return -1;
     ret = (int)sendto(connection, buf, (size_t)(len), 0, NULL, 0);
-#ifdef DEBUG_RADIOTEST
-    printf("Radio '%u' transmitted a frame of %d bytes.\n", buf[len - 1], ret);
-#endif
+    RADIO_DBG("Radio '%u' transmitted a frame of %d bytes.\n", buf[len - 2], ret);
 
     /* Write the sent frame to the pcap-dump */
-    radiotest_pcap_write(radio, buf, len - 1);
+    radiotest_pcap_write(radio, buf, len - 2);
 
     PICO_FREE(buf);
     return ret;
@@ -362,11 +398,11 @@ static int radiotest_hello(int s, uint8_t id, uint8_t area0, uint8_t area1)
 {
     uint8_t buf[3] = { id, area0, area1 };
     if (sendto(s, buf, (size_t)3, 0, NULL, 0) != 3) {
-        dbg("Radio '%u' failed to send hello message\n", id);
+        RADIO_DBG("Radio '%u' failed to send hello message\n", id);
         return -1;
     }
 
-    dbg("Radio '%u' attached to network\n", id);
+    RADIO_DBG("Radio '%u' attached to network\n", id);
     return s;
 }
 
@@ -383,7 +419,7 @@ static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
 
     ret = connect(s, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (ret) {
-        dbg("Radio '%u' could not attach to network\n", id);
+        RADIO_DBG("Radio '%u' could not attach to network\n", id);
         return ret;
     }
 
@@ -393,46 +429,53 @@ static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
 /* Creates a radiotest-device */
 struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, int loop, char *dump)
 {
-    struct radiotest_radio *dev = PICO_ZALLOC(sizeof(struct radiotest_radio));
+    struct radiotest_radio *radio = PICO_ZALLOC(sizeof(struct radiotest_radio));
+    struct pico_dev_6lowpan *lp = (struct pico_dev_6lowpan *)radio;
+    struct pico_device *dev = (struct pico_device *)radio;
     if (!dev)
         return NULL;
     if (!addr || (addr && !area0)) {
-        printf("Usage (node): -6 [1-255],[1-255],[0-255] ...\n");
+        RADIO_DBG("Usage (node): -6 [1-255],[1-255],[0-255] ...\n");
     }
-    dev->dev.mode = LL_MODE_IEEE802154;
-    dev->dev.mtu = (uint32_t)MTU_802154_MAC;
-    dev->dev.hostvars.lowpan = 1;
-    dev->addr.pan_id.addr = short_be(RFDEV_PANID);
-    dev->addr.addr_short.addr = short_be((uint16_t)addr);
-    radiotest_gen_ex(dev->addr.addr_short, dev->addr.addr_ext.addr);
-    printf("Radiotest short address: 0x%04X\n", short_be(dev->addr.addr_short.addr));
-    printf("Radiotest ext address: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
-           dev->addr.addr_ext.addr[0],dev->addr.addr_ext.addr[1],
-           dev->addr.addr_ext.addr[2],dev->addr.addr_ext.addr[3],
-           dev->addr.addr_ext.addr[4],dev->addr.addr_ext.addr[5],
-           dev->addr.addr_ext.addr[6],dev->addr.addr_ext.addr[7]);
+
+    dev->mode = LL_MODE_IEEE802154;
+    dev->hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
+#ifdef PICO_6LOWPAN_NOMAC
+    dev->hostvars.lowpan_flags |= PICO_6LP_FLAG_NOMAC;
+#endif
+
+    dev->mtu = (uint32_t)MTU_802154_MAC;
+    radio->addr.pan_id.addr = short_be(RFDEV_PANID);
+    radio->addr.addr_short.addr = short_be((uint16_t)addr);
+    radiotest_gen_ex(radio->addr.addr_short, radio->addr.addr_ext.addr);
+    RADIO_DBG("Radiotest short address: 0x%04X\n", short_be(radio->addr.addr_short.addr));
+    RADIO_DBG("Radiotest ext address: %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
+           radio->addr.addr_ext.addr[0],radio->addr.addr_ext.addr[1],
+           radio->addr.addr_ext.addr[2],radio->addr.addr_ext.addr[3],
+           radio->addr.addr_ext.addr[4],radio->addr.addr_ext.addr[5],
+           radio->addr.addr_ext.addr[6],radio->addr.addr_ext.addr[7]);
 
     if (!loop) {
         if ((connection = radiotest_connect(addr, area0, area1)) <= 0) {
             return NULL;
         }
-        dev->dev.send = radiotest_send;
-        dev->dev.poll = radiotest_poll;
+        lp->send = radiotest_send;
+        dev->poll = radiotest_poll;
     } else {
-        dev->dev.send = pico_loop_send;
-        dev->dev.poll = pico_loop_poll;
+        lp->send = pico_loop_send;
+        dev->poll = pico_loop_poll;
     }
 
     if (dump) {
-        radiotest_pcap_open(dev, dump);
+        radiotest_pcap_open(radio, dump);
     }
 
-    if (pico_device_init((struct pico_device *)dev, "radio", (uint8_t *)&dev->addr)) {
-        dbg("pico_device_init failed.\n");
-        pico_device_destroy((struct pico_device *)dev);
+    if (pico_device_init(dev, "radio", (uint8_t *)&radio->addr)) {
+        RADIO_DBG("pico_device_init failed.\n");
+        pico_device_destroy(dev);
         return NULL;
     }
 
-    return (struct pico_device *)dev;
+    return dev;
 }
 

@@ -895,15 +895,22 @@ static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, struct pic
 
     IGNORE_PARAMETER(self);
 
-    if (0) {}
-#ifdef PICO_SUPPORT_6LOWPAN
-    /* TODO: For in 6LoWPAN branch */
-    if (dev && (LL_MODE_IEEE802154 == dev->mode || LL_MODE_IEEE802154_NO_MAC == dev->mode)) {
-        f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
-    }
+    switch (dev->mode) {
+#ifdef LL_MODE_IEEE802154
+        case LL_MODE_IEEE802154:
+            f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+            break;
+#elif defined (LL_MODE_IEEE802154_NO_MAC)
+        case LL_MODE_IEEE802154_NO_MAC:
+            f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+            break;
 #endif
-    else {
-        f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+        default:
+#ifdef PICO_SUPPORT_ETH
+            f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+#else
+            f = pico_frame_alloc(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
+#endif
     }
 
     if (!f)
@@ -1719,11 +1726,6 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
     struct pico_ip6 mcast_nm = {{ 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }};
     struct pico_ip6 mcast_gw = {{0}};
     struct pico_ip6 all_hosts = {{ 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
-#ifdef DEBUG_IPV6
-    char ipstr[40] = {
-        0
-    };
-#endif
     int i = 0;
     if (!dev) {
         pico_err = PICO_ERR_EINVAL;
@@ -1794,7 +1796,7 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
 #endif
     pico_ipv6_route_add(network, netmask, gateway, 1, new);
 #ifdef PICO_SUPPORT_6LOWPAN
-    if (!dev->hostvars.lowpan)
+    if (!PICO_DEV_IS_6LOWPAN(dev))
 #endif
         pico_ipv6_route_add(mcast_addr, mcast_nm, mcast_gw, 1, new);
     /* XXX MUST join the all-nodes multicast address on that interface, as well as
@@ -1821,6 +1823,11 @@ struct pico_ipv6_link *pico_ipv6_link_add_no_dad(struct pico_device *dev, struct
 
 struct pico_ipv6_link *pico_ipv6_link_add(struct pico_device *dev, struct pico_ip6 address, struct pico_ip6 netmask)
 {
+#ifdef DEBUG_IPV6
+    char ipstr[40] = {
+        0
+    };
+#endif
     /* Try to add the basic link */
     struct pico_ipv6_link *new = pico_ipv6_do_link_add(dev, address, netmask);
     if (!new)
@@ -2078,7 +2085,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             pico_ipv6_link_del(link->dev, link->address);
         }
 #ifdef PICO_SUPPORT_6LOWPAN
-        else if (link->dev->hostvars.lowpan && !pico_ipv6_is_linklocal(link->address.addr) &&
+        else if (PICO_DEV_IS_6LOWPAN(link->dev) && !pico_ipv6_is_linklocal(link->address.addr) &&
                  (link->expire_time > 0) && (int)(link->expire_time - now) < (int)(TWO_HOURS >> 4)) {
             /* RFC6775: The host SHOULD unicast one or more RSs to the router well before the
              * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */

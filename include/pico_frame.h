@@ -73,8 +73,9 @@ struct pico_frame {
 
 #if defined(PICO_SUPPORT_6LOWPAN)
     uint32_t hash;
+    union pico_ll_addr src;
+    union pico_ll_addr dst;
 #endif
-
 
     /* Pointer to socket */
     struct pico_socket *sock;

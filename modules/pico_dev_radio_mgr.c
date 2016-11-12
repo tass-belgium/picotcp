@@ -20,8 +20,11 @@
 #include <string.h>
 #include <stdio.h>
 
-/* Comment if you want to disable network manager debugging */
-//#define DEBUG_RADIO_MGR
+#ifdef DEBUG_RADIOTEST
+#define RADIO_DBG       dbg
+#else
+#define RADIO_DBG(...)  do { } while (0)
+#endif
 
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
@@ -118,9 +121,7 @@ pico_radio_mgr_socket_hup(int socket)
         key = i->keyValue;
         if (key && key->s == socket) {
             pico_tree_delete(&Sockets, key);
-#ifdef DEBUG_RADIO_MGR
-            printf("Radio %d detached from network\n", key->id);
-#endif
+            RADIO_DBG("Radio %d detached from network\n", key->id);
             PICO_FREE(key);
             close(socket);
             return 0;
@@ -149,7 +150,7 @@ pico_radio_mgr_welcome(int socket)
         return -1;
     }
 
-    printf("Connected to node %u in area %u and %u on socket %d.\n", id, area0, area1, socket);
+    dbg("Connected to node %u in area %u and %u on socket %d.\n", id, area0, area1, socket);
     if (pico_radio_mgr_socket_insert(socket, id, area0, area1, 0)) {
         close(socket);
         return -1;
@@ -166,7 +167,7 @@ pico_radio_mgr_accept(int socket)
     struct sockaddr_in addr;
     int s = accept(socket, (struct sockaddr *)&addr, &len);
     if (s < 0) {
-        printf("Failed accepting connection\n");
+        RADIO_DBG("Failed accepting connection\n");
         return s;
     } else if (!s) {
         return s;
@@ -189,13 +190,13 @@ pico_radio_mgr_listen(void)
 
     ret = bind(s, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (ret < 0) {
-        printf("Failed binding socket to address: %s\n", strerror(ret));
+        RADIO_DBG("Failed binding socket to address: %s\n", strerror(ret));
         return -1;
     }
 
     ret = listen(s, 5);
     if (ret < 0) {
-        printf("Failed start listening\n");
+        RADIO_DBG("Failed start listening\n");
         return -1;
     }
 
@@ -205,7 +206,7 @@ pico_radio_mgr_listen(void)
         return -1;
     }
 
-    printf("Started listening on port %d\n", LISTENING_PORT);
+    dbg("Started listening on port %d\n", LISTENING_PORT);
     return s;
 }
 
@@ -221,9 +222,7 @@ pico_radio_mgr_distribute(uint8_t *buf, int len, uint8_t id)
         area0 = node->area0;
         area1 = node->area1;
     } else {
-#ifdef DEBUG_RADIO_MGR
-        printf("Received frame from node not connected to network, weird..\n");
-#endif
+        RADIO_DBG("Received frame from node not connected to network, weird..\n");
         return;
     }
 
@@ -236,10 +235,8 @@ pico_radio_mgr_distribute(uint8_t *buf, int len, uint8_t id)
                 len = (int)sendto(key->s, &phy, (size_t)1, 0, NULL, 0);
                 if (len != 1) return;
                 len = (int)sendto(key->s, buf, (size_t)phy, 0, NULL, 0);
-#ifdef DEBUG_RADIO_MGR
                 if (len == (int)phy)
-                    printf("Forwarded from '%u' of %d bytes sent to '%u'\n", id, len, key->id);
-#endif
+                    RADIO_DBG("Forwarded from '%u' of %d bytes sent to '%u'\n", id, len, key->id);
             }
         }
     }
@@ -264,7 +261,7 @@ pico_radio_mgr_process(struct pollfd *fds, int n)
             if (ret_len != 1) return;
             ret_len = (int)recv(fds[i].fd, buf, (size_t)phy, 0);
             if (ret_len > 0) {
-                node = buf[--ret_len];
+                node = buf[ret_len - 2];
                 pico_radio_mgr_distribute(buf, ret_len, node);
             } else {
                 pico_radio_mgr_socket_hup(fds[i].fd);
@@ -288,7 +285,7 @@ pico_radio_mgr_start(void)
         fds = pico_radio_mgr_socket_all((int *)&n);
         ret = poll(fds, n, 1);
         if (ret < 0) {
-            printf("Socket error: %s\n", strerror(ret));
+            RADIO_DBG("Socket error: %s\n", strerror(ret));
             exit(255);
         } else if (!ret)
             continue;

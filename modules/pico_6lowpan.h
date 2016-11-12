@@ -13,7 +13,11 @@
 #include "pico_config.h"
 #include "pico_frame.h"
 
-#define PICO_6LOWPAN_IPHC_ENABLED
+#define PICO_6LP_FLAG_LOWPAN (0x01)
+#define PICO_6LP_FLAG_NOMAC  (0x02)
+
+#define PICO_DEV_IS_6LOWPAN(dev) ((dev) && ((dev)->hostvars.lowpan_flags | PICO_6LP_FLAG_LOWPAN))
+#define PICO_DEV_IS_NOMAC(dev) ((dev) && ((dev)->hostvars.lowpan_flags | PICO_6LP_FLAG_NOMAC))
 
 /******************************************************************************
  * Public variables
@@ -25,7 +29,7 @@ extern struct pico_protocol pico_proto_6lowpan;
  * Public functions
  ******************************************************************************/
 
-int pico_6lowpan_pull(struct pico_frame *f, union pico_ll_addr src, union pico_ll_addr dst);
+int32_t pico_6lowpan_pull(struct pico_frame *f);
 int pico_6lowpan_init(void);
 
 #endif /* INCLUDE_PICO_6LOWPAN */
