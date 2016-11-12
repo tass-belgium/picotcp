@@ -3,6 +3,7 @@
 #include "pico_stack.h"
 #include "pico_frame.h"
 #include "pico_ipv6.h"
+#include "pico_6lowpan.h"
 #include "modules/pico_802154.c"
 #include "check.h"
 
@@ -21,18 +22,18 @@
             printf("Trying %s: " s, __func__, ##__VA_ARGS__);                  \
             fflush(stdout)
 #define CHECKING(i)                                                            \
-            printf("Checking the results of test %2d in %s...", (i)++,        \
+            printf("Checking the results of test %2d in %s...", (i)++,         \
                    __func__);                                                  \
             fflush(stdout)
 #define FAIL_UNLESS(cond, s, ...)                                              \
-            if (cond) {                                                        \
+            if ((cond)) {                                                      \
                 printf(" SUCCESS\n");                                          \
             } else {                                                           \
                 printf(" FAILED\n");                                           \
             }                                                                  \
             fail_unless((cond), s, ##__VA_ARGS__)
 #define FAIL_IF(cond, s, ...)                                                  \
-            if (!cond) {                                                       \
+            if (!(cond)) {                                                     \
                 printf(" SUCCESS\n");                                          \
             } else {                                                           \
                 printf(" FAILED\n");                                           \
@@ -73,7 +74,7 @@ START_TEST(tc_swap)
     TRYING("With a = %d and b = %d\n", a, b);
     pico_swap(&a, &b);
     CHECKING(test);
-    FAIL_IF(a != 1 && b != 5, "Failed swapping numbers\n");
+    FAIL_IF(1 != a && b != 5, "Failed swapping numbers\n");
 
     ENDING(test);
 }
@@ -138,16 +139,21 @@ START_TEST(tc_802154_ll_src)
     };
     struct pico_device dev;
     struct pico_802154 addr;
-    int ret = 0;
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->buffer;
 
     STARTING();
 
-    dev.eth = &info;
+    dev.eth = (struct pico_ethdev *)&info;
+    f->net_hdr = f->buffer;
+    f->dev = &dev;
+    dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
 
     // TEST 3
     TRYING("With an IPv6 address that is derived from MAC short address\n");
     info.addr_short.addr = short_be(0x1234);
-    addr = addr_802154_ll_src(&ip2, &dev);
+    hdr->src = ip2;
+    addr = addr_802154_ll_src(f);
     CHECKING(test);
     FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've returned device's short address \n");
@@ -158,7 +164,8 @@ START_TEST(tc_802154_ll_src)
     // TEST 4
     TRYING("With an IPv6 address that is derived from MAC extended address\n");
     ip.addr[8] = 1;
-    addr = addr_802154_ll_src(&ip, &dev);
+    hdr->src = ip;
+    addr = addr_802154_ll_src(f);
     CHECKING(test);
     FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
                 "Should've returned device's extended address\n");
@@ -176,15 +183,25 @@ START_TEST(tc_802154_ll_dst)
     struct pico_ip6 ip;
     struct pico_ip6 local;
     struct pico_ip6 local2;
+    struct pico_802154 addr;
+    struct pico_frame *f = pico_frame_alloc(sizeof(struct pico_ipv6_hdr));
+    struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)f->buffer;
+    struct pico_device dev;
+    uint8_t buf[] = {3,2,3,4,5,6,7,8};
     pico_string_to_ipv6("ff00:0:0:0:0:0:e801:100", ip.addr);
     pico_string_to_ipv6("fe80:0:0:0:0102:0304:0506:0708", local.addr);
     pico_string_to_ipv6("fe80:0:0:0:0:0ff:fe00:1234", local2.addr);
-    struct pico_802154 addr;
-    uint8_t buf[] = {3,2,3,4,5,6,7,8};
+
+    STARTING();
+
+    f->net_hdr = f->buffer;
+    f->dev = &dev;
+    dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
 
     // TEST 1
     TRYING("With a MCAST IPv6 address, should return 0xFFFF\n");
-    addr = addr_802154_ll_dst(NULL, &ip, NULL);
+    hdr->dst = ip;
+    addr = addr_802154_ll_dst(f);
     CHECKING(test);
     FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
@@ -194,7 +211,8 @@ START_TEST(tc_802154_ll_dst)
 
     // TEST 2
     TRYING("With a link local IPv6 address derived from an extended L2 address\n");
-    addr = addr_802154_ll_dst(NULL, &local, NULL);
+    hdr->dst = local;
+    addr = addr_802154_ll_dst(f);
     dbg_addr_ext("After:", addr.addr._ext.addr);
     CHECKING(test);
     FAIL_UNLESS(AM_6LOWPAN_EXT == addr.mode,
@@ -205,13 +223,16 @@ START_TEST(tc_802154_ll_dst)
 
     // TEST 3
     TRYING("With a link local IPv6 address derived from a short L2 address\n");
-    addr = addr_802154_ll_dst(NULL, &local2, NULL);
+    hdr->dst = local2;
+    addr = addr_802154_ll_dst(f);
     CHECKING(test);
     FAIL_UNLESS(AM_6LOWPAN_SHORT == addr.mode,
                 "Should've set address mode to SHORT\n");
     CHECKING(test);
     FAIL_UNLESS(short_be(0x1234) == addr.addr._short.addr,
                 "Should've copied the short address from the IP address\n");
+
+    /* TODO: Test getting address from neighbour table */
 
     ENDING(test);
 }
@@ -222,7 +243,7 @@ END_TEST
  ******************************************************************************/
 
 /* Frame (123 bytes) */
-static const uint8_t pkt[] = {
+static uint8_t pkt[] = {
 0x41, 0xcc, 0xa6, 0xff, 0xff, 0x8a,       /*   A..... */
 0x18, 0x00, 0xff, 0xff, 0xda, 0x1c, 0x00, 0x88, /* ........ */
 0x18, 0x00, 0xff, 0xff, 0xda, 0x1c, 0x00, 0xc1, /* ........ */
@@ -303,7 +324,6 @@ START_TEST(tc_802154_src)
     int test = 1;
     struct pico_802154_hdr *hdr;
     struct pico_802154 addr;
-    int ret = 0;
     uint8_t src[] = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x88};
     STARTING();
 
@@ -328,7 +348,6 @@ START_TEST(tc_802154_dst)
     int test = 1;
     struct pico_802154_hdr *hdr;
     struct pico_802154 addr;
-    int ret = 0;
     uint8_t dst[] = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a};
 
     STARTING();
@@ -388,7 +407,6 @@ START_TEST(tc_802154_format)
     ENDING(test);
 }
 END_TEST
-/*
 START_TEST(tc_802154_process_out)
 {
     int i = 0;
@@ -396,14 +414,14 @@ START_TEST(tc_802154_process_out)
     int test = 1;
     struct pico_802154 src = {
         .addr.data = {3,2,3,4,5,6,7,8},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     struct pico_802154 dst = {
         .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     struct pico_frame *f = pico_frame_alloc(0);
-    struct pico_802154_info info = {
+    struct pico_6lowpan_info info = {
         .addr_short.addr = short_be(0x1234),
         .addr_ext.addr = {3,2,3,4,5,6,7,8},
         .pan_id.addr = short_be(0x1234)
@@ -415,14 +433,16 @@ START_TEST(tc_802154_process_out)
     dev.eth = &info;
     dev.q_out = PICO_ZALLOC(sizeof(struct pico_queue));
     f->dev = &dev;
-    frame_802154_store_addr(f, src, dst);
+    dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
 
     STARTING();
     pico_stack_init();
 
     // TEST 1
     TRYING("Trying with bare frame\n");
-    ret = pico_802154_process_out(NULL, f);
+    f->src.pan = src;
+    f->dst.pan = dst;
+    ret = pico_802154_process_out(f);
     printf("Buffer:");
     for (i = 0; i < 21; i++) {
         if (i % 8 != 0)
@@ -433,7 +453,7 @@ START_TEST(tc_802154_process_out)
     }
     printf("\n");
     CHECKING(test);
-    FAIL_UNLESS(0 == ret, "Shouldn't have returned an error\n");
+    FAIL_UNLESS(0 < ret, "Shouldn't have returned an error\n");
     CHECKING(test);
     FAIL_UNLESS(0 == memcmp(buf, f->datalink_hdr, 21),
                 "Frame isn't correctly formatted\n");
@@ -443,18 +463,17 @@ START_TEST(tc_802154_process_out)
     ENDING(test);
 }
 END_TEST
-
 START_TEST(tc_802154_process_in)
 {
     int ret = 0;
     int test = 1;
     struct pico_802154 src = {
         .addr.data = {3,2,3,4,5,6,7,8},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     struct pico_802154 dst = {
         .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a},
-        .mode = AM_802154_EXT
+        .mode = AM_6LOWPAN_EXT
     };
     struct pico_frame *f = pico_frame_alloc(22);
     uint8_t buf[] = {0x41,0xcc,0x00,0x34,0x12,0x8a,0x18,0x00,
@@ -466,12 +485,11 @@ START_TEST(tc_802154_process_in)
     pico_stack_init();
 
     TRYING("Apply processing function on predefined buffer\n");
-    ret = pico_802154_process_in(NULL, f);
+    ret = pico_802154_process_in(f);
     CHECKING(test);
     FAIL_UNLESS(0 < ret, "Should not return failure\n");
 }
 END_TEST
-*/
 Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
@@ -486,10 +504,8 @@ Suite *pico_suite(void)
     TCase *TCase_802154_src = tcase_create("Unit test for 802154_src");
     TCase *TCase_802154_dst = tcase_create("Unit test for 802154_dst");
     TCase *TCase_802154_format = tcase_create("Unit test for 802154_format");
-    /*
     TCase *TCase_802154_process_out = tcase_create("Unit test for 802154_process_out");
     TCase *TCase_802154_process_in = tcase_create("Unit test for 802154_process_in");
-    */
 
 /*******************************************************************************
  *  ADDRESSES
@@ -518,12 +534,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_802154_dst);
     tcase_add_test(TCase_802154_format, tc_802154_format);
     suite_add_tcase(s, TCase_802154_format);
-    /*
     tcase_add_test(TCase_802154_process_out, tc_802154_process_out);
     suite_add_tcase(s, TCase_802154_process_out);
     tcase_add_test(TCase_802154_process_in, tc_802154_process_in);
     suite_add_tcase(s, TCase_802154_process_in);
-    */
 
     return s;
 }

@@ -7,8 +7,8 @@ OPTIONS+=-DPICO_SUPPORT_6LOWPAN -DPICO_SUPPORT_IPV6
 # Enable the 6LoWPAN IPHC compression scheme by default
 6LOWPAN_IPHC?=1
 
-# Disable MAC framing for mac-enabled radios, enabled by default
-6LOWPAN_NOMAC?=1
+# Disable MAC framing for mac-enabled radios, disabled by default
+6LOWPAN_NOMAC?=0
 
 # Enable IEEE802.15.4 device support by default
 IEEE802154?=1

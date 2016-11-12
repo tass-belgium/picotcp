@@ -220,7 +220,6 @@ static int pico_loop_poll(struct pico_device *dev, int loop_score)
     if (buf) {
         RADIO_DBG("Receiving frame of %d bytes.\n", len);
         pico_6lowpan_stack_recv(dev, buf, (uint32_t)len, &src, &dst);
-        pico_stack_recv(dev, buf, (uint32_t)len);
         PICO_FREE(buf);
         loop_score--;
     }

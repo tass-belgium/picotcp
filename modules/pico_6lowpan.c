@@ -209,6 +209,7 @@ frag_timeout(pico_time now, void *arg)
      * reassemblies
      * TODO: Maybe using a global variable allows recovering from this situation */
     if (0 == pico_timer_add(1000, frag_timeout, NULL)) {
+        lp_dbg("6LP: Failed to set reassembly timeout! Aborting all ongoing reassemblies...\n");
         pico_tree_foreach_safe(i, &ReassemblyTree, next) {
             if ((key = i->keyValue)) {
                 pico_tree_delete(&ReassemblyTree, key);
@@ -467,9 +468,11 @@ static int8_t
 addr_ll_derived(struct pico_ip6 *addr, union pico_ll_addr *lladdr, struct pico_device *dev)
 {
     uint8_t iid[8] = {0};
-    if (pico_6lowpan_lls[dev->mode].addr_iid && pico_6lowpan_lls[dev->mode].addr_iid(iid, lladdr))
-        return -1;
-    return (int8_t)(0 == memcmp(iid, &addr->addr[8], 8));
+    if (pico_6lowpan_lls[dev->mode].addr_iid) {
+        if (!pico_6lowpan_lls[dev->mode].addr_iid(iid, lladdr))
+            return (int8_t)(0 == memcmp(iid, &addr->addr[8], 8));
+    }
+    return -1;
 }
 
 /* Sets the compression mode of either the source address or the destination
@@ -526,7 +529,7 @@ addr_comp_mcast(uint8_t *iphc, uint8_t *comp, struct pico_ip6 *mcast)
 static int8_t
 addr_comp_iid(uint8_t *iphc, uint8_t *comp, int8_t state, struct pico_ip6 *addr, union pico_ll_addr ll, struct pico_device *dev, int8_t shift)
 {
-    int8_t len = 16;
+    int8_t len = PICO_SIZE_IP6;
     switch (state) {
         case COMP_UNSPECIFIED: // Set stateful bit
             iphc[1] |= SRC_STATEFUL;
@@ -544,7 +547,7 @@ addr_comp_iid(uint8_t *iphc, uint8_t *comp, int8_t state, struct pico_ip6 *addr,
     }
 
     if (len >= 0)
-        buf_move(comp, addr->addr + 16 - len, (size_t)len);
+        buf_move(comp, addr->addr + PICO_SIZE_IP6 - len, (size_t)len);
     return len;
 }
 

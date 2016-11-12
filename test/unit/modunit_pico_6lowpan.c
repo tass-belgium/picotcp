@@ -94,7 +94,7 @@ dbg_buffer(uint8_t *buf, size_t len)
 {
     int i = 0;
     printf("Buffer:");
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < (int)len; i++) {
         if (i % 8 != 0)
             printf("0x%02x, ", buf[i]);
         else {
@@ -177,9 +177,9 @@ START_TEST(tc_ctx_lookup)
 {
     int test = 1, ret = 0;
     struct pico_ip6 a, b, c;
+    struct iphc_ctx *found = NULL;
     pico_string_to_ipv6("2aaa:1234:5678:9123:0:0ff:fe00:0105", a.addr);
     pico_string_to_ipv6("2aaa:1234:5678:9145:0102:0304:0506:0708", b.addr);
-    struct iphc_ctx *found = NULL;
 
     STARTING();
     pico_stack_init();
@@ -403,7 +403,7 @@ START_TEST(tc_decompressor_nh)
     int test = 1;
     uint8_t iphc = NH_COMPRESSED;
     uint8_t ori = 0;
-    uint8_t ret = 0;
+    int8_t ret = 0;
     uint8_t comp = PICO_PROTO_TCP;
 
     STARTING();
@@ -524,6 +524,8 @@ START_TEST(tc_addr_comp_mode)
 
     STARTING();
 
+    pico_stack_init();
+
     TRYING("With MAC derived address\n");
     ret = addr_comp_mode(iphc, &local2, addr, &dev, SRC_SHIFT);
     OUTPUT();
@@ -607,20 +609,21 @@ START_TEST(tc_compressor_src)
 {
     int test = 1;
     struct pico_ip6 unspec = {{ 0 }};
-    struct pico_ip6 mcast = {{0xff}};
     struct pico_ip6 ll_mac = {{0xfe,0x80,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
     struct pico_ip6 ll_nmac_16 = {{0xfe,0x80,0,0,0,0,0,0  ,0,0,0,0xff,0xfe,0,0x12,0x34}};
     struct pico_ip6 ll_nmac_64 = {{0xfe,0x80,0,0,0,0,0,0 ,8,7,6,5,4,3,2,1}};
     struct pico_ip6 ip_ctx = {{0x2a,0xaa,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
     struct pico_ip6 ip_stateless = {{0x2a,0xbb,0,0,0,0,0,0  ,1,2,3,4,5,6,7,8}};
     union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
-    struct pico_device dev;
+    struct pico_device dev = { 0 };
     int ret = 0;
 
     uint8_t iphc[3] = { 0, 0, 0 };
     uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
+    dev.mode = LL_MODE_IEEE802154;
     STARTING();
+    pico_stack_init();
 
     TRYING("With unspecified source address, should: set SAC, clear SAM\n");
     ret = compressor_src(unspec.addr, buf, iphc, &mac, NULL, &dev);
@@ -633,6 +636,7 @@ START_TEST(tc_compressor_src)
     FAIL_UNLESS((iphc[1] & SRC_COMPRESSED) == 0, test, "Should've cleared SAM");
 
     TRYING("With invalid device, should indicate error\n");
+    dev.mode = LL_MODE_ETHERNET;
     ret = compressor_src(ll_mac.addr, buf, iphc, &mac, NULL, &dev);
     RESULTS();
     FAIL_UNLESS(-1 == ret, test, "Should've indicated error, invalid device, ret = %d",ret);
@@ -738,7 +742,9 @@ START_TEST(tc_decompressor_src)
     struct pico_ip6 ip6 = {{0x2a,0xaa,0,0,0,0,0,0  ,0,0,0,0xff,0xfe,0,0x12,0x34}};
 
     uint8_t buf[PICO_SIZE_IP6] = { 0 };
+    dev.mode = LL_MODE_IEEE802154;
 
+    pico_stack_init();
     STARTING();
 
     TRYING("With statelessly compressed address\n");
@@ -961,11 +967,14 @@ START_TEST(tc_compressor_iphc)
     f->net_hdr = f->buffer;
     f->transport_hdr = f->buffer + 48;
     f->dev = &dev;
+    f->src = src;
+    f->dst = dst;
 
     STARTING();
+    pico_stack_init();
 
     TRYING("To compress a IPv6 frame from a sample capture\n");
-    buf = compressor_iphc(f, src, dst, &compressed_len, &nh);
+    buf = compressor_iphc(f, &compressed_len, &nh);
     FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
     OUTPUT();
     dbg_buffer(buf, 42);
@@ -980,37 +989,40 @@ END_TEST
 
 START_TEST(tc_decompressor_iphc)
 {
-int test = 1;
-struct pico_frame *f = pico_frame_alloc(2);
-union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
-union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
-struct pico_device dev;
-int compressed_len = 0;
-uint8_t *buf = NULL;
-uint8_t hdr[40] = {
-0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, /* `.....<. */
-0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
-0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
-0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
-0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x65, 0x63 };
-dev.mode = LL_MODE_IEEE802154;
-memcpy(f->buffer, lowpan_frame, 2);
-f->net_hdr = f->buffer;
-f->dev = &dev;
+    int test = 1;
+    struct pico_frame *f = pico_frame_alloc(2);
+    union pico_ll_addr src = { .pan = {.addr.data = {0x00,0x80,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_EXT } };
+    union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
+    struct pico_device dev;
+    int compressed_len = 0;
+    uint8_t *buf = NULL;
+    uint8_t hdr[40] = {
+    0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, /* `.....<. */
+    0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+    0x02, 0x80, 0xe1, 0x03, 0x00, 0x00, 0x9d, 0x00, /* ........ */
+    0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, /* ........ */
+    0x00, 0x00, 0x00, 0xff, 0xfe, 0x00, 0x65, 0x63 };
+    dev.mode = LL_MODE_IEEE802154;
+    memcpy(f->buffer, lowpan_frame, 2);
+    f->net_hdr = f->buffer;
+    f->dev = &dev;
+    f->src = src;
+    f->dst = dst;
 
-STARTING();
+    STARTING();
+    pico_stack_init();
 
-TRYING("To decompress a 6LoWPAN frame from a sampel capture\n");
-buf = decompressor_iphc(f, src, dst, &compressed_len);
-FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
-OUTPUT();
-dbg_buffer(buf, 40);
-RESULTS();
-FAIL_UNLESS(2 == compressed_len, test, "Should've returned compressed_len of 2, compressed_len = %d", compressed_len);
-FAIL_UNLESS(0 == memcmp(buf, hdr, 40), test, "Should've correctly decompressed the 6LoWPAN frame");
-pico_frame_discard(f);
+    TRYING("To decompress a 6LoWPAN frame from a sampel capture\n");
+    buf = decompressor_iphc(f, &compressed_len);
+    FAIL_UNLESS(buf, test, "Should've at least returned a buffer");
+    OUTPUT();
+    dbg_buffer(buf, 40);
+    RESULTS();
+    FAIL_UNLESS(2 == compressed_len, test, "Should've returned compressed_len of 2, compressed_len = %d", compressed_len);
+    FAIL_UNLESS(0 == memcmp(buf, hdr, 40), test, "Should've correctly decompressed the 6LoWPAN frame");
+    pico_frame_discard(f);
 
-ENDING(test);
+    ENDING(test);
 }
 END_TEST
 
@@ -1020,7 +1032,6 @@ START_TEST(tc_compressor_nhc_udp)
     struct pico_frame *f = pico_frame_alloc(8);
     uint8_t nh = PICO_PROTO_UDP;
     int compressed_len = 0;
-    union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
 
     uint8_t udp1[8] = {0x4d, 0x4c, 0x4d, 0x4c, 0x00, 0x0d, 0x7b, 0x50};
@@ -1175,7 +1186,7 @@ START_TEST(tc_compressor_nhc_ext)
 
     TRYING("With DSTOPT extension header\n");
     memcpy(f->buffer, ext1, 8);
-    buf = compressor_nhc_ext(f, src, dst, &compressed_len, &nh);
+    buf = compressor_nhc_ext(f, &compressed_len, &nh);
     FAIL_UNLESS(buf, test, "Should've at least returend a buffer");
     OUTPUT();
     dbg_buffer(buf, compressed_len);
@@ -1194,7 +1205,6 @@ START_TEST(tc_decompressor_nhc_ext)
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(9);
     int compressed_len = 0, decomp;
-    union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
 
     uint8_t ext1[8] = {0x11, 0x00, 0x1e, 0x00, 0x01, 0x02, 0x00, 0x00};
@@ -1206,7 +1216,7 @@ START_TEST(tc_decompressor_nhc_ext)
 
     TRYING("nhc_ext compressed header with dstopt extension header\n");
     memcpy(f->buffer, nhc1, 5);
-    buf = decompressor_nhc_ext(f, src, dst, &compressed_len, &decomp);
+    buf = decompressor_nhc_ext(f, &compressed_len, &decomp);
     FAIL_UNLESS(buf, test, "should've at least returend a buffer");
     OUTPUT();
     dbg_buffer(buf, 8);
@@ -1237,11 +1247,14 @@ START_TEST(tc_pico_iphc_compress)
     f->transport_len = 8;
     f->len = 61;
     f->dev = &dev;
+    f->src = src;
+    f->dst = dst;
 
     STARTING();
+    pico_stack_init();
 
     TRYING("Trying to compress an IPv6 frame from an example capture\n");
-    new = pico_iphc_compress(f, src, dst);
+    new = pico_iphc_compress(f);
     FAIL_UNLESS(new, test, "Should've at least returned a frame");
     OUTPUT();
     dbg_buffer(new->net_hdr, new->len);
@@ -1269,16 +1282,22 @@ START_TEST(tc_pico_iphc_decompress)
     f->net_len = 22;
     f->len = 22;
     f->dev = &dev;
+    f->src = src;
+    f->dst = dst;
 
     STARTING();
+    pico_stack_init();
 
     TRYING("Trying to decompress a 6LoWPAN frame from an example capture\n");
-    new = pico_iphc_decompress(f, src, dst);
+    new = pico_iphc_decompress(f);
     FAIL_UNLESS(new, test, "Should've at least returned a frame");
     OUTPUT();
     dbg_buffer(new->net_hdr, new->len);
     RESULTS();
     FAIL_UNLESS(61 == new->len, test, "Should've returned a length of 61, len = %d", new->len);
+    dbg_buffer(new->net_hdr, new->len);
+    dbg("Correct: \n");
+    dbg_buffer(ipv6_frame, new->len);
     FAIL_UNLESS(0 == memcmp(new->net_hdr, ipv6_frame, new->len), test, "Should've decompressed the frame correctly");
 
 
@@ -1294,9 +1313,11 @@ static int tx_called = 0;
 static uint8_t tx_len = 0;
 
 int pico_datalink_send(struct pico_frame *f) {
+    dbg("Datalink_send called!\n");
     if (++tx_called == 2) {
         memcpy(tx, f->start, f->len);
         OUTPUT();
+        dbg("tx: ");
         dbg_buffer(tx, tx_len);
     }
 
@@ -1315,10 +1336,12 @@ int pico_datalink_send(struct pico_frame *f) {
 
 int32_t pico_network_receive(struct pico_frame *f)
 {
+    dbg("Network_receive called!\n");
     if (++rx_called == 2)
         rx = pico_frame_copy(f);
 
     printf("RCVD frame at network layer \n");
+    dbg_buffer(f->buffer, f->buffer_len);
     return (int32_t)f->buffer_len;
 }
 
@@ -1495,11 +1518,12 @@ START_TEST(tc_tx_rx)
     app_ping(arg);
 
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
-    while(!tx || !rx) {
+    while(!rx) {
         pico_stack_tick();
         usleep(2000);
     }
     OUTPUT();
+    dbg("RX: ");
     dbg_buffer(rx->start, rx->len);
     RESULTS();
     tx[0] |= 0x60;
