@@ -628,43 +628,42 @@ static int recv_ack(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
     pico_dhcp_client_recv_params(dhcpc, opt);
     if ((dhcpc->event != PICO_DHCP_MSG_ACK) || !dhcpc->server_id.addr || !dhcpc->netmask.addr || !dhcpc->lease_time)
         return -1;
-    else {
-        /* Issue #20 the server can transmit on ACK a different IP than the one in OFFER */
-        /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
-        if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
-            dhcpc->address.addr = hdr->yiaddr;
 
-        /* close the socket used for address (re)acquisition */
-        pico_socket_close(dhcpc->s);
-        dhcpc->s = NULL;
+    /* Issue #20 the server can transmit on ACK a different IP than the one in OFFER */
+    /* RFC2131 ch 4.3.2 ... The client SHOULD use the parameters in the DHCPACK message for configuration */
+    if (dhcpc->state == DHCP_CLIENT_STATE_REQUESTING)
+        dhcpc->address.addr = hdr->yiaddr;
 
-        /* Delete all the links before adding the new ip address
-        * in case the new address doesn't match the old one */
-        l = pico_ipv4_link_by_dev(dhcpc->dev);
-        if (l && dhcpc->address.addr != (l->address).addr) {
-            pico_dhcp_client_update_link(dhcpc);
-        } else if (!l) {
-            return -1;
-        }
 
-        dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
-        dbg("DHCP client: rebinding time (T2) %u\n", (unsigned int)dhcpc->t2_time);
-        dbg("DHCP client: lease time %u\n", (unsigned int)dhcpc->lease_time);
+    /* close the socket used for address (re)acquisition */
+    pico_socket_close(dhcpc->s);
+    dhcpc->s = NULL;
 
-        dhcpc->retry = 0;
-        dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
-        dhcpc->rebind_time = dhcpc->lease_time - dhcpc->t2_time;
-        if (pico_dhcp_client_start_reacquisition_timers(dhcpc) < 0) {
-            pico_dhcp_client_callback(dhcpc, PICO_DHCP_ERROR);
-            return -1;
-        }
-
-        *(dhcpc->uid) = dhcpc->xid;
-        pico_dhcp_client_callback(dhcpc, PICO_DHCP_SUCCESS);
-
-        dhcpc->state = DHCP_CLIENT_STATE_BOUND;
-        return 0;
+    /* Delete all the links before adding the new ip address
+     * in case the new address doesn't match the old one */
+    l = pico_ipv4_link_by_dev(dhcpc->dev);
+    if (dhcpc->address.addr != (l->address).addr) {
+        pico_dhcp_client_update_link(dhcpc);
     }
+
+    dbg("DHCP client: renewal time (T1) %u\n", (unsigned int)dhcpc->t1_time);
+    dbg("DHCP client: rebinding time (T2) %u\n", (unsigned int)dhcpc->t2_time);
+    dbg("DHCP client: lease time %u\n", (unsigned int)dhcpc->lease_time);
+
+    dhcpc->retry = 0;
+    dhcpc->renew_time = dhcpc->t2_time - dhcpc->t1_time;
+    dhcpc->rebind_time = dhcpc->lease_time - dhcpc->t2_time;
+    if (pico_dhcp_client_start_reacquisition_timers(dhcpc) < 0) {
+        pico_dhcp_client_callback(dhcpc, PICO_DHCP_ERROR);
+        return -1;
+    }
+
+
+    *(dhcpc->uid) = dhcpc->xid;
+    pico_dhcp_client_callback(dhcpc, PICO_DHCP_SUCCESS);
+
+    dhcpc->state = DHCP_CLIENT_STATE_BOUND;
+    return 0;
 }
 
 static int renew(struct pico_dhcp_client_cookie *dhcpc, uint8_t *buf)
@@ -994,30 +993,29 @@ static void pico_dhcp_client_wakeup(uint16_t ev, struct pico_socket *s)
 
     if ((ev & PICO_SOCK_EV_RD) == 0)
         return;
-    else {
-        buf = PICO_ZALLOC(DHCP_CLIENT_MAXMSGZISE);
-        if (!buf) {
-            return;
-        } else {
-            r = pico_socket_recvfrom(s, buf, DHCP_CLIENT_MAXMSGZISE, NULL, NULL);
-            if (r < 0)
-                goto out_discard_buf;
 
-            /* If the 'xid' of an arriving message does not match the 'xid'
-            * of the most recent transmitted message, the message must be
-            * silently discarded. */
-            hdr = (struct pico_dhcp_hdr *)buf;
-            dhcpc = pico_dhcp_client_find_cookie(hdr->xid);
-            if (!dhcpc)
-                goto out_discard_buf;
+    buf = PICO_ZALLOC(DHCP_CLIENT_MAXMSGZISE);
+    if (!buf) {
+        return;
+    }
 
-            dhcpc->event = (uint8_t)pico_dhcp_client_opt_parse(buf, (uint16_t)r);
-            pico_dhcp_state_machine(dhcpc->event, dhcpc, buf);
+    r = pico_socket_recvfrom(s, buf, DHCP_CLIENT_MAXMSGZISE, NULL, NULL);
+    if (r < 0)
+        goto out_discard_buf;
+
+    /* If the 'xid' of an arriving message does not match the 'xid'
+     * of the most recent transmitted message, the message must be
+     * silently discarded. */
+    hdr = (struct pico_dhcp_hdr *)buf;
+    dhcpc = pico_dhcp_client_find_cookie(hdr->xid);
+    if (!dhcpc)
+        goto out_discard_buf;
+
+    dhcpc->event = (uint8_t)pico_dhcp_client_opt_parse(buf, (uint16_t)r);
+    pico_dhcp_state_machine(dhcpc->event, dhcpc, buf);
 
 out_discard_buf:
-            PICO_FREE(buf);
-        }
-    }
+    PICO_FREE(buf);
 }
 
 static void pico_dhcp_client_callback(struct pico_dhcp_client_cookie *dhcpc, int code)

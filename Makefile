@@ -1,5 +1,5 @@
--include ../../config.mk
--include ../../tools/kconfig/.config
+#-include ../../config.mk
+#-include ../../tools/kconfig/.config
 
 CC:=$(CROSS_COMPILE)gcc
 LD:=$(CROSS_COMPILE)ld

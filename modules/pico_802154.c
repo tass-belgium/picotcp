@@ -66,9 +66,9 @@ static void pico_swap(uint8_t *a, uint8_t *b)
 static void
 addr_802154_to_ietf(struct pico_802154 *addr)
 {
-    int i = 0;
-    int end = SIZE_6LOWPAN(addr->mode) - 1;
-    for (i = 0; i < (int)((uint8_t)SIZE_6LOWPAN(addr->mode) >> 1); i++) {
+    int32_t i = 0;
+    int32_t end = SIZE_6LOWPAN(addr->mode) - 1;
+    for (i = 0; i < (int32_t)((uint8_t)SIZE_6LOWPAN(addr->mode) >> 1); i++) {
         pico_swap(&addr->addr.data[i], &addr->addr.data[end - i]);
     }
 }
@@ -198,7 +198,7 @@ pico_802154_process_in(struct pico_frame *f)
 
     /* XXX: Generic procedure to move forward in incoming processing function
      * is updating the net_hdr-pointer */
-    f->net_hdr = f->datalink_hdr + (int)hlen;
+    f->net_hdr = f->datalink_hdr + (int32_t)hlen;
 
     return (int32_t)hlen;
 #else
@@ -212,13 +212,13 @@ static int32_t
 pico_802154_process_out(struct pico_frame *f)
 {
 #ifndef PICO_6LOWPAN_NOMAC
-    int len = (int)(SIZE_802154_MHR_MIN + SIZE_6LOWPAN(f->dst.pan.mode) + SIZE_6LOWPAN(f->src.pan.mode));
+    int32_t len = (int32_t)(SIZE_802154_MHR_MIN + SIZE_6LOWPAN(f->dst.pan.mode) + SIZE_6LOWPAN(f->src.pan.mode));
     uint8_t sec = (uint8_t)((f->flags & PICO_FRAME_FLAG_LL_SEC) ? (FCF_SEC) : (FCF_NO_SEC));
     struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)f->dev->eth;
     uint16_t headroom = (uint16_t)(f->net_hdr - f->buffer);
     static uint8_t seq = 0;
     uint32_t grow = 0;
-    int ret = 0;
+    int32_t ret = 0;
 
     if (headroom < (uint16_t)len) { /* Check if there's enough headroom to prepend 802.15.4 header */
         grow = (uint32_t)(len - headroom);
@@ -329,7 +329,7 @@ pico_802154_estimator(struct pico_frame *f)
 }
 
 /* Retrieve address from temporarily flat buffer */
-static int
+static int32_t
 addr_802154_from_buf(union pico_ll_addr *addr, uint8_t *buf)
 {
     uint8_t len = (uint8_t)*buf++;
@@ -351,8 +351,8 @@ addr_802154_from_buf(union pico_ll_addr *addr, uint8_t *buf)
 /* If 'dest' is not set, this function will get the link layer address for a
  * certain source IPv6 address, if 'dest' is set it will get it for the a
  * destination address */
-static int
-addr_802154_from_net(union pico_ll_addr *addr, struct pico_frame *f, int dest)
+static int32_t
+addr_802154_from_net(union pico_ll_addr *addr, struct pico_frame *f, int32_t dest)
 {
     if (dest) {
         addr->pan = addr_802154_ll_dst(f);
@@ -363,25 +363,25 @@ addr_802154_from_net(union pico_ll_addr *addr, struct pico_frame *f, int dest)
 }
 
 /* Determines the length of an IEEE802.15.4 address */
-static int
+static int32_t
 addr_802154_len(union pico_ll_addr *addr)
 {
     return SIZE_6LOWPAN(addr->pan.mode);
 }
 
 /* Compares 2 IEE802.15.4 addresses */
-static int
+static int32_t
 addr_802154_cmp(union pico_ll_addr *a, union pico_ll_addr *b)
 {
     if (a->pan.mode != b->pan.mode) {
-        return (int)((int)a->pan.mode - (int)b->pan.mode);
+        return (int32_t)((int32_t)a->pan.mode - (int32_t)b->pan.mode);
     } else {
         return memcmp(a->pan.addr.data, b->pan.addr.data, SIZE_6LOWPAN(b->pan.mode));
     }
 }
 
 /* Derive an IPv6 IID from an IEEE802.15.4 address */
-static int
+static int32_t
 addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr)
 {
     uint8_t buf[8] = {0,0,0,0xff,0xfe,0,0,0};
@@ -407,7 +407,7 @@ pico_802154_frame_alloc(struct pico_device *dev, uint16_t size)
 {
     struct pico_frame *f = pico_frame_alloc(dev->overhead + SIZE_802154_MHR_MAX + size);
     if (f) {
-        f->net_hdr = f->buffer + (int)(f->buffer_len - (uint32_t)size);
+        f->net_hdr = f->buffer + (int32_t)(f->buffer_len - (uint32_t)size);
         f->datalink_hdr = f->net_hdr - SIZE_802154_MHR_MAX;
         f->dev = dev;
         return f;

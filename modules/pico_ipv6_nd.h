@@ -29,7 +29,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f);
 int pico_ipv6_nd_recv(struct pico_frame *f);
 
 #ifdef PICO_SUPPORT_6LOWPAN
-int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l, struct pico_ipv6_route *gw);
+int pico_6lp_nd_start_soliciting(struct pico_ipv6_link *l, struct pico_ipv6_route *gw);
 void pico_6lp_nd_register(struct pico_ipv6_link *link);
 #endif
 

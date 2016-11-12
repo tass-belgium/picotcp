@@ -221,7 +221,9 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
         } else if (n->state == PICO_ND_STATE_STALE) {
             n->state = PICO_ND_STATE_DELAY;
             pico_nd_new_expire_time(n);
-        } else if (n->state != PICO_ND_STATE_REACHABLE) {
+        }
+
+        if (n->state != PICO_ND_STATE_REACHABLE) {
             pico_nd_discover(n);
         }
     }
@@ -780,7 +782,7 @@ static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
             while (route) {
                 if (0 == pico_ipv6_compare(&route->gateway, a)) {
                     local = pico_ipv6_linklocal_get(dev);
-                    pico_6lp_nd_start_solicitating(local, route);
+                    pico_6lp_nd_start_soliciting(local, route);
                     break;
                 }
                 route = pico_ipv6_gateway_by_dev_next(dev, route);
@@ -882,14 +884,14 @@ static void pico_6lp_nd_do_solicit(pico_time now, void *arg)
 
         /* Apply exponential retransmission timer, see RFC6775 5.3 */
         pico_timer_add(gw->backoff, pico_6lp_nd_do_solicit, gw);
-        nd_dbg("[6LP-ND]$ No default routers configured, solicitating\n");
+        nd_dbg("[6LP-ND]$ No default routers configured, soliciting\n");
     } else {
         PICO_FREE(gw);
     }
 }
 
 /* Start transmitting repetitive router solicitations */
-int pico_6lp_nd_start_solicitating(struct pico_ipv6_link *l, struct pico_ipv6_route *gw)
+int pico_6lp_nd_start_soliciting(struct pico_ipv6_link *l, struct pico_ipv6_route *gw)
 {
     struct pico_ipv6_route *dummy = PICO_ZALLOC(sizeof(struct pico_ipv6_route));
     struct pico_ip6 *dst = NULL;
@@ -961,7 +963,7 @@ static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f)
             return -1;
         } else if (2 == status) { // Router's NCE is full, remove router from default router list
             pico_ipv6_route_del(zero, zero, hdr->src, 10, l);
-            pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(l->dev), NULL);
+            pico_6lp_nd_start_soliciting(pico_ipv6_linklocal_get(l->dev), NULL);
         } else { // Registration success
             nd_dbg("[6LP-ND]: Registering routable address succeeded!\n");
         }

@@ -444,7 +444,7 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     dev->hostvars.lowpan_flags |= PICO_6LP_FLAG_NOMAC;
 #endif
 
-    dev->mtu = (uint32_t)MTU_802154_MAC;
+    dev->mtu = (uint32_t)75;
     radio->addr.pan_id.addr = short_be(RFDEV_PANID);
     radio->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(radio->addr.addr_short, radio->addr.addr_ext.addr);

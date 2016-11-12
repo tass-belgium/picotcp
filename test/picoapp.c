@@ -461,17 +461,18 @@ int main(int argc, char **argv)
             struct pico_ip6 pan;
 
             /* Copy required command line arguments */
-            do {
-                nxt = cpy_arg(&name, optarg);
-                if (!nxt) break;
-                nxt = cpy_arg(&area0, nxt);
-                if (!nxt) break;
-                nxt = cpy_arg(&area1, nxt);
-                if (!nxt) break;
-            } while (0);
+            nxt = cpy_arg(&name, optarg);
+            if (!nxt)
+                goto check;
+            nxt = cpy_arg(&area0, nxt);
+            if (!nxt)
+                goto check;
+            nxt = cpy_arg(&area1, nxt);
+            if (!nxt)
+                goto check;
 
             /* Check required arguments */
-            if (!name || !area0 || !area1) {
+check:      if (!name || !area0 || !area1) {
                 fprintf(stderr, "Usage: -6,id,area\n");
                 exit(1);
             }

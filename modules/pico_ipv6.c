@@ -2090,7 +2090,7 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
             /* RFC6775: The host SHOULD unicast one or more RSs to the router well before the
              * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */
             while ((gw = pico_ipv6_gateway_by_dev_next(link->dev, gw))) {
-                pico_6lp_nd_start_solicitating(link, gw);
+                pico_6lp_nd_start_soliciting(link, gw);
             }
         }
 #endif

@@ -389,110 +389,6 @@ START_TEST(tc_802154_format)
 }
 END_TEST
 /*
-START_TEST(tc_802154_store_addr)
-{
-    int test = 1;
-    struct pico_802154 src = {
-        .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x88},
-        .mode = AM_802154_EXT
-    };
-    struct pico_802154 dst = {
-        .addr.data = {0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a},
-        .mode = AM_802154_EXT
-    };
-    struct pico_frame *f = pico_frame_alloc(0);
-    struct pico_frame *f2 = pico_frame_alloc(12);
-    uint8_t buf[] = { AM_802154_EXT, 0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x88, AM_802154_EXT, 0x00, 0x1C, 0xDA, 0xFF, 0xFF, 0x00, 0x18, 0x8a};
-    int ret = 0;
-
-    STARTING();
-
-    // TEST 1
-    TRYING("Trying with bare frame\n");
-    ret = frame_802154_store_addr(f, src, dst);
-    CHECKING(test);
-    FAIL_UNLESS(!ret, "Shouldn't have returned error");
-    CHECKING(test);
-    FAIL_UNLESS(SIZE_802154_MHR_MAX == f->buffer_len,
-                "Had size of SIZE_802154_MHR_MAX, to put another header in front another 16 bytes would be needed\n");
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(buf, f->datalink_hdr, 18),
-                "Should've copied in the addresses and set datalink_hdr\n");
-
-    // TEST 2
-    TRYING("Trying with initialized frame\n");
-    f2->net_hdr = f2->buffer + 10;
-    ret = frame_802154_store_addr(f2, src, dst);
-    CHECKING(test);
-    FAIL_UNLESS(SIZE_802154_MHR_MAX + 2 == f2->buffer_len,
-                "Had size of SIZE_802154_MHR_MAX, to put another header in front another 10 bytes would be needed, buffer_len = %d\n",f2->buffer_len);
-    CHECKING(test);
-    FAIL_UNLESS(0 == memcmp(buf, f2->datalink_hdr, 18),
-                "Should've copied in the addresses and set datalink_hdr\n");
-
-    ENDING(test);
-}
-END_TEST
-
-START_TEST(tc_frame_802154_push)
-{
-    int test = 1;
-
-    struct pico_802154 llsrc = {
-        .addr.data = {3,2,3,4,5,6,7,8},
-        .mode = AM_802154_EXT
-    };
-    struct pico_802154 lldst = {
-        .addr.data = {0x12,0x34,0,0,0,0,0,0},
-        .mode = AM_802154_SHORT
-    };
-    struct pico_802154_info info = {
-        .addr_short.addr = short_be(0x1234),
-        .addr_ext.addr = {3,2,3,4,5,6,7,8}
-    };
-    struct pico_device dev;
-    struct pico_frame *f = pico_frame_alloc(40);
-    union pico_ll_addr src = { .pan = llsrc };
-    union pico_ll_addr dst = { .pan = lldst };
-    int ret = 0;
-    dev.eth = &info;
-
-    f->dev = &dev;
-    f->net_hdr = f->buffer + 12;
-    f->len = 40 + 50 + 50;
-
-    STARTING();
-
-    // TEST 1
-    TRYING("Trying to push a too big frame\n");
-    ret = frame_802154_push(f, src, dst);
-    CHECKING(test);
-    FAIL_UNLESS(ret != -1,
-                "Should not return an error unless memory is full\n");
-    CHECKING(test);
-    FAIL_UNLESS(MTU_802154_MAC - 15 == ret,
-                "Failed returning correct payload_available, ret = %d\n", ret);
-
-    // TEST 2
-    TRYING("Trying to push an extactly small enough frame\n");
-    f->len = 40 + 30 + 40;
-    ret = frame_802154_push(f, src, dst);
-    CHECKING(test);
-    FAIL_UNLESS(0 == ret, "Should not return an error\n");
-
-    // TEST 3
-    TRYING("Trying with wrong parameters\n");
-    f->dev = NULL;
-    ret = frame_802154_push(f, src, dst);
-    CHECKING(test);
-    FAIL_UNLESS(-1 == ret,
-                "Should've returned an error\n");
-
-    pico_frame_discard(f);
-    ENDING(test);
-}
-END_TEST
-
 START_TEST(tc_802154_process_out)
 {
     int i = 0;
@@ -591,8 +487,6 @@ Suite *pico_suite(void)
     TCase *TCase_802154_dst = tcase_create("Unit test for 802154_dst");
     TCase *TCase_802154_format = tcase_create("Unit test for 802154_format");
     /*
-    TCase *TCase_frame_802154_push = tcase_create("Unit test for frame_802154_push");
-    TCase *TCase_802154_store_addr = tcase_create("Unit test for 802154_store_addr");
     TCase *TCase_802154_process_out = tcase_create("Unit test for 802154_process_out");
     TCase *TCase_802154_process_in = tcase_create("Unit test for 802154_process_in");
     */
@@ -625,10 +519,6 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_802154_format, tc_802154_format);
     suite_add_tcase(s, TCase_802154_format);
     /*
-    tcase_add_test(TCase_frame_802154_push, tc_frame_802154_push);
-    suite_add_tcase(s, TCase_frame_802154_push);
-    tcase_add_test(TCase_802154_store_addr, tc_802154_store_addr);
-    suite_add_tcase(s, TCase_802154_store_addr);
     tcase_add_test(TCase_802154_process_out, tc_802154_process_out);
     suite_add_tcase(s, TCase_802154_process_out);
     tcase_add_test(TCase_802154_process_in, tc_802154_process_in);

@@ -144,7 +144,7 @@ pico_mdns_record_cmp_name_type( void *a, void *b )
     if (!(_a = (struct pico_mdns_record *)a) ||
         !(_b = (struct pico_mdns_record *)b)) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1; /* Don't want a wrong result when NULL-pointers are passed */
     }
 
     return pico_dns_record_cmp_name_type(_a->record, _b->record);
@@ -166,7 +166,7 @@ pico_mdns_record_cmp( void *a, void *b )
             return 0;
 
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1; /* Don't want a wrong result when NULL-pointers are passed */
     }
 
     return pico_dns_record_cmp((void*)(((struct pico_mdns_record *)a)->record),
@@ -195,7 +195,7 @@ pico_mdns_cookie_cmp( void *ka, void *kb )
     /* Check params */
     if (!a || !b) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255); /* Don't want a wrong result when NULL-pointers are passed */
+        return -1; /* Don't want a wrong result when NULL-pointers are passed */
     }
 
     /* Start comparing the questions */
@@ -860,7 +860,7 @@ pico_mdns_record_am_i_lexi_later( struct pico_mdns_record *my_record,
     if (!my_record || !peer_record ||
         !(my = my_record->record) || !(peer = peer_record->record)) {
         pico_err = PICO_ERR_EINVAL;
-        exit(255);
+        return -1;
     }
 
     /*

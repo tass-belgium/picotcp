@@ -62,7 +62,7 @@ static struct pico_ipv6_link * pico_6lowpan_link_add(struct pico_device *dev, co
         * to be globally unique). */
     if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
         if (pico_ipv6_is_linklocal(newaddr.addr))
-            pico_6lp_nd_start_solicitating(link, NULL);
+            pico_6lp_nd_start_soliciting(link, NULL);
         else
             pico_6lp_nd_register(link);
     }
@@ -159,8 +159,7 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
     if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
         PICO_FREE(dev->q_in);
         PICO_FREE(dev->q_out);
-        if (!dev->mode) // Mode is Ethernet
-            PICO_FREE(dev->eth);
+        PICO_FREE(dev->eth);
         return -1;
     }
 #endif

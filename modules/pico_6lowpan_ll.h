@@ -56,14 +56,14 @@ struct pico_dev_6lowpan
 
 struct pico_6lowpan_ll_protocol
 {
-    int (* process_in)(struct pico_frame *f);
-    int (* process_out)(struct pico_frame *f);
-    int (* estimate)(struct pico_frame *f);
-    int (* addr_from_buf)(union pico_ll_addr *addr, uint8_t *buf);
-    int (* addr_from_net)(union pico_ll_addr *addr, struct pico_frame *f, int dest);
-    int (* addr_len)(union pico_ll_addr *addr);
-    int (* addr_cmp)(union pico_ll_addr *a, union pico_ll_addr *b);
-    int (* addr_iid)(uint8_t *iid, union pico_ll_addr *addr);
+    int32_t (* process_in)(struct pico_frame *f);
+    int32_t (* process_out)(struct pico_frame *f);
+    int32_t (* estimate)(struct pico_frame *f);
+    int32_t (* addr_from_buf)(union pico_ll_addr *addr, uint8_t *buf);
+    int32_t (* addr_from_net)(union pico_ll_addr *addr, struct pico_frame *f, int32_t dest);
+    int32_t (* addr_len)(union pico_ll_addr *addr);
+    int32_t (* addr_cmp)(union pico_ll_addr *a, union pico_ll_addr *b);
+    int32_t (* addr_iid)(uint8_t *iid, union pico_ll_addr *addr);
     struct pico_frame * (*alloc)(struct pico_device *dev, uint16_t size);
 };
 

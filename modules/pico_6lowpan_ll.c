@@ -43,7 +43,7 @@
 struct extension {
     int32_t (*estimate)(struct pico_frame *f);
     int32_t (*out)(struct pico_frame *f);
-    int (*in)(struct pico_frame *f);
+    int32_t (*in)(struct pico_frame *f);
 };
 
 /*******************************************************************************
@@ -71,18 +71,18 @@ static struct pico_queue pico_6lowpan_ll_out = {
 #ifdef PICO_6LOWPAN_IPHC_ENABLED
 
 /* Compares if the IPv6 prefix of two IPv6 addresses match */
-static int compare_prefix(uint8_t *a, uint8_t *b, int len)
+static int32_t compare_prefix(uint8_t *a, uint8_t *b, int32_t len)
 {
-    uint8_t bitmask = (uint8_t)(0xff >> (8 - (len % 8)));
+    uint8_t bitmask = (uint8_t)(0xff << (8 - (len % 8)));
     size_t bytes = (size_t)len / 8;
-    int ret = 0;
+    int32_t ret = 0;
     if ((ret = memcmp(a, b, bytes)))
         return ret;
-    return (int)((a[bytes] & bitmask) - (b[bytes] & bitmask));
+    return (int32_t)((a[bytes] & bitmask) - (b[bytes] & bitmask));
 }
 
 /* Compares 2 IPHC context entries */
-static int compare_ctx(void *a, void *b)
+static int32_t compare_ctx(void *a, void *b)
 {
     struct iphc_ctx *ca = (struct iphc_ctx *)a;
     struct iphc_ctx *cb = (struct iphc_ctx *)b;
@@ -114,7 +114,7 @@ struct iphc_ctx * ctx_lookup_id(uint8_t id)
 }
 
 /* Tries to insert a new IPHC-context into the Context-tree */
-static int ctx_insert(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev)
+static int32_t ctx_insert(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev)
 {
     struct iphc_ctx *new = PICO_ZALLOC(sizeof(struct iphc_ctx));
     if (new) {
@@ -155,7 +155,7 @@ void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifeti
 }
 
 /* Check whether or not particular contexts are expired and remove them if so. Contexts
- * are reconfirmed before they're lifetime expires */
+ * are reconfirmed before their lifetime expires */
 static void ctx_lifetime_check(pico_time now, void *arg)
 {
     struct pico_tree_node *i = NULL, *next = NULL;
@@ -176,7 +176,7 @@ static void ctx_lifetime_check(pico_time now, void *arg)
                  * shortest of the, Router Lifetime, PIO lifetimes and the lifetime of the 6COs. */
                 gw = pico_ipv6_gateway_by_dev(key->dev);
                 while (gw) {
-                    pico_6lp_nd_start_solicitating(pico_ipv6_linklocal_get(key->dev), gw);
+                    pico_6lp_nd_start_soliciting(pico_ipv6_linklocal_get(key->dev), gw);
                     gw = pico_ipv6_gateway_by_dev_next(key->dev, gw);
                 }
             }
@@ -195,7 +195,7 @@ static void ctx_lifetime_check(pico_time now, void *arg)
 /* XXX: Extensible processing function for outgoing frames. Here, the mesh header
  * for a Mesh-Under topology can be prepended and the link layer source and
  * destination addresses can be updated */
-static int
+static int32_t
 ll_mesh_header_process_in(struct pico_frame *f)
 {
     IGNORE_PARAMETER(f);
@@ -205,7 +205,7 @@ ll_mesh_header_process_in(struct pico_frame *f)
 /* XXX: Extensible processing function for outgoing frames. Here, the mesh header
  * for a Mesh-Under topology can be prepended and the link layer source and
  * destination addresses can be updated */
-static int
+static int32_t
 ll_mesh_header_process_out(struct pico_frame *f)
 {
     IGNORE_PARAMETER(f);
@@ -214,7 +214,7 @@ ll_mesh_header_process_out(struct pico_frame *f)
 
 /* XXX: Extensible function that estimates the size of the mesh header to be
  * prepended based on the frame, the source and destination link layer address */
-static int
+static int32_t
 ll_mesh_header_estimator(struct pico_frame *f)
 {
     IGNORE_PARAMETER(f);
@@ -305,7 +305,7 @@ pico_6lowpan_ll_process_out(struct pico_protocol *self, struct pico_frame *f)
 static int32_t
 pico_6lowpan_ll_process_in(struct pico_protocol *self, struct pico_frame *f)
 {
-    int i = 0, ret = 0;
+    int32_t i = 0, ret = 0;
     uint32_t len = 0;
     IGNORE_PARAMETER(self);
 
@@ -363,7 +363,7 @@ int32_t pico_6lowpan_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32
 int32_t pico_6lowpan_ll_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 {
     /* FINAL OUTGOING POINT OF 6LOWPAN STACK */
-    return ((struct pico_dev_6lowpan *)dev)->send(dev, f->start, (int)f->len, f->src, f->dst);
+    return ((struct pico_dev_6lowpan *)dev)->send(dev, f->start, (int32_t)f->len, f->src, f->dst);
 }
 
 /* Push function for 6LoWPAN to call when it wants to try to send te frame to the device-driver */
@@ -371,7 +371,7 @@ int32_t
 pico_6lowpan_ll_push(struct pico_frame *f)
 {
     uint16_t frame_size, pl_available = 0;
-    int i = 0;
+    int32_t i = 0;
 
     if (!f || !f->dev)
         return -1;
@@ -408,7 +408,7 @@ struct pico_protocol pico_proto_6lowpan_ll = {
 
 void pico_6lowpan_ll_init(void)
 {
-    int i = 0;
+    int32_t i = 0;
 
 #ifdef PICO_6LOWPAN_IPHC_ENABLED
     /* We don't care about failure */
