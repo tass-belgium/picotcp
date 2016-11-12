@@ -430,7 +430,7 @@ START_TEST(tc_802154_process_out)
     uint8_t buf[] = {0x41,0xcc,0x00,0x34,0x12,0x8a,0x18,0x00,
                      0xff,0xff,0xda,0x1c,0x00,0x08,0x07,0x06,
                      0x05,0x04,0x03,0x02,0x03};
-    dev.eth = &info;
+    dev.eth = (struct pico_ethdev *)&info;
     dev.q_out = PICO_ZALLOC(sizeof(struct pico_queue));
     f->dev = &dev;
     dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
@@ -480,6 +480,8 @@ START_TEST(tc_802154_process_in)
                      0xff,0xff,0xda,0x1c,0x00,0x08,0x07,0x06,
                      0x05,0x04,0x03,0x02,0x03,0x60};
     memcpy(f->buffer, buf, 22);
+    f->src.pan = src;
+    f->dst.pan = dst;
 
     STARTING();
     pico_stack_init();
@@ -490,7 +492,7 @@ START_TEST(tc_802154_process_in)
     FAIL_UNLESS(0 < ret, "Should not return failure\n");
 }
 END_TEST
-Suite *pico_suite(void)
+static Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 

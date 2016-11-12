@@ -67,9 +67,9 @@
             printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
         }                                                                  \
         fflush(stdout);                                                    \
-        fail_unless((int)(cond), s, ##__VA_ARGS__);                             \
+        fail_unless((int)(intptr_t)cond, s, ##__VA_ARGS__);                             \
         }while(0)
-#define FAIL_IF(cond, i, s, ...)                                               \
+#define FAIL_IF(cond, i, s, ...)                                               }\
         do { \
         char str[80] = { 0 };                                             \
         snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
@@ -80,7 +80,7 @@
             printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[FAILED]");    \
         }                                                                  \
         fflush(stdout);                                                    \
-        fail_if((int)(cond), s, ##__VA_ARGS__);                                 \
+       fail_if((int)(intptr_t)(cond), s, ##__VA_ARGS__);                                 \
         }while(0)
 #define ENDING(i)                                                              \
         printf("*********************** ENDING %s *** NUMBER OF TESTS: %d\n",\
@@ -176,7 +176,7 @@ END_TEST
 START_TEST(tc_ctx_lookup)
 {
     int test = 1, ret = 0;
-    struct pico_ip6 a, b, c;
+    struct pico_ip6 a, b;
     struct iphc_ctx *found = NULL;
     pico_string_to_ipv6("2aaa:1234:5678:9123:0:0ff:fe00:0105", a.addr);
     pico_string_to_ipv6("2aaa:1234:5678:9145:0102:0304:0506:0708", b.addr);
@@ -709,7 +709,6 @@ START_TEST(tc_decompressor_src)
 
     union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
-    dev.mode = LL_MODE_IEEE802154;
 
     /* Stateless compression */
     uint8_t iphc1[] = {0x00, 0x00, 0x00};
@@ -814,7 +813,6 @@ START_TEST(tc_compressor_dst)
 
     union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
-    dev.mode = LL_MODE_IEEE802154;
 
     /* Multicast 48-bit */
     struct pico_ip6 mcast1 = {{0xff,0x12,0,0,0,0,0,0 ,0,0,0,5,4,3,2,1}};
@@ -831,7 +829,9 @@ START_TEST(tc_compressor_dst)
     uint8_t iphc[3] = { 0 };
     uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
+    dev.mode = LL_MODE_IEEE802154;
     STARTING();
+    pico_stack_init();
 
     TRYING("48-bit derivable mcast address\n");
     ret = compressor_dst(mcast1.addr, buf, iphc, NULL, &mac, &dev);
@@ -880,7 +880,6 @@ START_TEST(tc_decompressor_dst)
 
     union pico_ll_addr mac = { .pan = {.addr.data = {3,2,3,4,5,6,7,8}, .mode = AM_6LOWPAN_EXT } };
     struct pico_device dev;
-    dev.mode = LL_MODE_IEEE802154;
 
     /* Multicast 48-bit */
     uint8_t iphc1[3] = {0x00, 0x09, 0x00};
@@ -899,7 +898,9 @@ START_TEST(tc_decompressor_dst)
 
     uint8_t buf[PICO_SIZE_IP6] = { 0 };
 
+    dev.mode = LL_MODE_IEEE802154;
     STARTING();
+    pico_stack_init();
 
     TRYING("48-bit compressed address\n");
     ret = decompressor_dst(buf,buf1,iphc1,NULL, &mac,&dev);
@@ -980,7 +981,7 @@ START_TEST(tc_compressor_iphc)
     dbg_buffer(buf, 42);
     RESULTS();
     FAIL_UNLESS(2 == compressed_len, test, "Should have returned compressed_len of 2, compressed_len = %d", compressed_len);
-    FAIL_UNLESS(0 == memcmp(buf, lowpan_frame, compressed_len), test, "Should've compressed frame correctly");
+    FAIL_UNLESS(0 == memcmp(buf, lowpan_frame, (size_t)compressed_len), test, "Should've compressed frame correctly");
     pico_frame_discard(f);
 
     ENDING(test);
@@ -1030,7 +1031,6 @@ START_TEST(tc_compressor_nhc_udp)
 {
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(8);
-    uint8_t nh = PICO_PROTO_UDP;
     int compressed_len = 0;
     uint8_t *buf = NULL;
 
@@ -1099,7 +1099,6 @@ START_TEST(tc_decompressor_nhc_udp)
 {
     int test = 1;
     struct pico_frame *f = pico_frame_alloc(9);
-    uint8_t nh = PICO_PROTO_UDP;
     int compressed_len = 0;
     uint8_t *buf = NULL;
 
@@ -1174,7 +1173,6 @@ START_TEST(tc_compressor_nhc_ext)
     struct pico_frame *f = pico_frame_alloc(9);
     uint8_t nh = PICO_IPV6_EXTHDR_DESTOPT;
     int compressed_len = 0;
-    union pico_ll_addr src, dst;
     uint8_t *buf = NULL;
 
     uint8_t ext1[8] = {0x11, 0x00, 0x1e, 0x00, 0x01, 0x02, 0x00, 0x00};
@@ -1189,11 +1187,11 @@ START_TEST(tc_compressor_nhc_ext)
     buf = compressor_nhc_ext(f, &compressed_len, &nh);
     FAIL_UNLESS(buf, test, "Should've at least returend a buffer");
     OUTPUT();
-    dbg_buffer(buf, compressed_len);
+    dbg_buffer(buf, (size_t)compressed_len);
     RESULTS();
     FAIL_UNLESS(8 == compressed_len, test, "Should've returned length of 8, ret = %d", compressed_len);
     FAIL_UNLESS(PICO_PROTO_UDP == nh, test, "Should've updated next header to %02X, ret = %02X", PICO_PROTO_UDP, nh);
-    FAIL_UNLESS(0 == memcmp(buf, nhc1, compressed_len), test, "Should've correctly compressed next header");
+    FAIL_UNLESS(0 == memcmp(buf, nhc1, (size_t)compressed_len), test, "Should've correctly compressed next header");
 
     pico_frame_discard(f);
     ENDING(test);
@@ -1237,7 +1235,6 @@ START_TEST(tc_pico_iphc_compress)
     union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
     struct pico_device dev;
     struct pico_frame *new = NULL;
-    int ret = 0;
 
     dev.mode = LL_MODE_IEEE802154;
     memcpy(f->buffer, ipv6_frame, 61);
@@ -1274,7 +1271,6 @@ START_TEST(tc_pico_iphc_decompress)
     union pico_ll_addr dst = { .pan = {.addr.data = {0x65,0x63,0xe1,0x03,0x00,0x00,0x9d,0x00}, .mode = AM_6LOWPAN_SHORT } };
     struct pico_device dev;
     struct pico_frame *new = NULL;
-    int ret = 0;
 
     dev.mode = LL_MODE_IEEE802154;
     memcpy(f->buffer, comp_frame, 22);
@@ -1296,8 +1292,6 @@ START_TEST(tc_pico_iphc_decompress)
     RESULTS();
     FAIL_UNLESS(61 == new->len, test, "Should've returned a length of 61, len = %d", new->len);
     dbg_buffer(new->net_hdr, new->len);
-    dbg("Correct: \n");
-    dbg_buffer(ipv6_frame, new->len);
     FAIL_UNLESS(0 == memcmp(new->net_hdr, ipv6_frame, new->len), test, "Should've decompressed the frame correctly");
 
 
@@ -1348,7 +1342,7 @@ int32_t pico_network_receive(struct pico_frame *f)
 #define NUM_PING 1
 
 #ifdef PICO_SUPPORT_IPV6
-void cb_ping6(struct pico_icmp6_stats *s)
+static void cb_ping6(struct pico_icmp6_stats *s)
 {
     char host[50];
     pico_ipv6_to_string(host, s->dst.addr);
@@ -1364,9 +1358,10 @@ void cb_ping6(struct pico_icmp6_stats *s)
 }
 #endif
 
-void ping_abort_timer(pico_time now, void *_id)
+static void ping_abort_timer(pico_time now, void *_id)
 {
     int *id = (int *) _id;
+    IGNORE_PARAMETER(now);
     printf("Ping: aborting...\n");
     pico_icmp6_ping_abort(*id);
 }
@@ -1374,7 +1369,7 @@ void ping_abort_timer(pico_time now, void *_id)
 /* Copy a string until the separator,
    terminate it and return the next index,
    or NULL if it encounters a EOS */
-char *cpy_arg(char **dst, char *str)
+static char *cpy_arg(char **dst, char *str)
 {
     char *p, *nxt = NULL;
     char *start = str;
@@ -1399,14 +1394,14 @@ char *cpy_arg(char **dst, char *str)
     return nxt;
 }
 
-void app_ping(char *arg)
+static void app_ping(char *arg)
 {
     char *dest = NULL;
     char *next = NULL;
     char *abort = NULL;
     char *delay = NULL;
     char *asize = NULL;
-    int initial_delay = 0;
+    time_t initial_delay = 0;
     static int id;
     int timeout = 0;
     int size = 64;
@@ -1440,11 +1435,11 @@ void app_ping(char *arg)
     if (next) {
         next = cpy_arg(&delay, next);
         if (strlen(delay) > 0) {
-            initial_delay = atoi(delay);
+            initial_delay = (time_t)atoi(delay);
             if (initial_delay > 0) {
-                printf("Initial delay: %d seconds\n", initial_delay);
-                initial_delay = PICO_TIME_MS() + initial_delay * 1000;
-                while (PICO_TIME_MS() < initial_delay) {
+                printf("Initial delay: %ld seconds\n", initial_delay);
+                initial_delay = (time_t)(PICO_TIME_MS() + (time_t)(initial_delay * 1000));
+                while (PICO_TIME_MS() < (pico_time)initial_delay) {
                     pico_stack_tick();
                     usleep(10000);
                 }
@@ -1456,7 +1451,7 @@ void app_ping(char *arg)
     id = pico_icmp6_ping(dest, NUM_PING, 1000, 10000, size, cb_ping6, NULL);
     if (timeout > 0) {
         printf("Adding abort timer after %d seconds for id %d\n", timeout, id);
-        if (!pico_timer_add(timeout * 1000, ping_abort_timer, &id)) {
+        if (!pico_timer_add((pico_time)(timeout * 1000), ping_abort_timer, &id)) {
             printf("Failed to set ping abort timeout, aborting ping\n");
             ping_abort_timer((pico_time)0, &id);
             exit(1);
@@ -1480,11 +1475,11 @@ START_TEST(tc_tx_rx)
     const char pan_addr[] = "2aaa:abcd::0";
     const char pan_netmask[] = "ffff:ffff:ffff:ffff::0";
 
-    char *id = "3";
-    char *area0 = "1";
-    char *area1 = "0";
-    char *dump = "build/test/unit_6lowpan.pcap";
-    char *arg = strdup("2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1450,0,1,");
+    const char *id = "3";
+    const char *area0 = "1";
+    const char *area1 = "0";
+    char *dump = (char *)strdup("build/test/unit_6lowpan.pcap");
+    char *arg = (char *)strdup("2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1450,0,1,");
 
     STARTING();
 
@@ -1504,7 +1499,7 @@ START_TEST(tc_tx_rx)
     myaddr.addr[15] = n_id;
 
     printf("%d:%d:%d\n", n_id, n_area0, n_area1);
-    dev = pico_radiotest_create(n_id, n_area0, n_area1, 1, dump);
+    dev = pico_radiotest_create(n_id, n_area0, n_area1, 1, (char *)dump);
     if (!dev) {
         exit(1);
     }
@@ -1515,7 +1510,7 @@ START_TEST(tc_tx_rx)
     pico_ipv6_link_add(dev, myaddr, netmask);
 
     /* Start ping-application */
-    app_ping(arg);
+    app_ping((char *)arg);
 
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(!rx) {
@@ -1533,7 +1528,7 @@ START_TEST(tc_tx_rx)
 }
 END_TEST
 
-Suite *pico_suite(void)
+static Suite *pico_suite(void)
 {
     Suite *s = suite_create("PicoTCP");
 
