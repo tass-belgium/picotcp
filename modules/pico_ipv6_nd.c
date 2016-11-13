@@ -331,16 +331,18 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
     }
 #endif
 
-    if (n->state == PICO_ND_STATE_INCOMPLETE || n->state == PICO_ND_STATE_DELAY || n->state == PICO_ND_STATE_PROBE) {
+    if (n->state == PICO_ND_STATE_INCOMPLETE) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
         return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
+      nd_dbg("NS solicited for %s, state %d\n", ipv6_addr, n->state);
     } else {
       if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
         return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
+      nd_dbg("NS unicast for %s, state %d\n", ipv6_addr, n->state);
     }
 
     pico_nd_new_expire_time(n);
