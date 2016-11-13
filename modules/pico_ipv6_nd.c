@@ -1294,6 +1294,10 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(f->net_hdr);
+    struct pico_ip6 gateway = {{0}};
+
+    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
+    gateway = pico_ipv6_route_get_gateway(&icmp6_hdr->msg.info.redirect.dest.addr);
 
     if (f->transport_len < PICO_ICMP6HDR_REDIRECT_SIZE)
     {
@@ -1305,8 +1309,6 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-
     if (pico_ipv6_is_multicast(icmp6_hdr->msg.info.redirect.dest.addr))
     {
         return -1;
@@ -1317,11 +1319,9 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    //TODO: re-enable
-    //if(!pico_ipv6_compare(&hdr->src, pico_nd_get_default_router_addr()))
-    //{
-    //    return -1;
-    //}
+    if (memcmp(gateway.addr, hdr->src.addr, PICO_SIZE_IP6) != 0) {
+        return -1;
+    }
 
     /* ALL included options have length > 0, checked when processing redirect frame */
 
