@@ -67,4 +67,7 @@ print "***********************"
 print "%d out of %d Failed" % (failed, len(endResult))
 print "***********************"
 
-sys.exit(0)
+if failed:
+  sys.exit(1)
+else:
+  sys.exit(0)
