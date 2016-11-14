@@ -1098,10 +1098,50 @@ static int redirect_process(struct pico_frame *f)
     return 0;
 }
 
+static int pico_nd_prefix_option_valid(struct pico_icmp6_opt_prefix *prefix)
+{
+    pico_time now = PICO_TIME_MS();
+    struct pico_ipv6_link *link;
+
+    /* RFC4862 5.5.3 */
+    /* a) If the Autonomous flag is not set, silently ignore the Prefix
+     *       Information option.
+     */
+    if (prefix->aac == 0)
+        return -1;
+
+    /* b) If the prefix is the link-local prefix, silently ignore the
+     *       Prefix Information option
+     */
+    if (pico_ipv6_is_linklocal(prefix->prefix.addr))
+        return -1;
+
+    /* c) If the preferred lifetime is greater than the valid lifetime,
+     *       silently ignore the Prefix Information option
+     */
+    if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
+        return -1;
+
+    if (prefix->val_lifetime == 0)
+        return -1;
+
+
+    if (prefix->prefix_len != 64) {
+        return -1;
+    }
+
+    link = pico_ipv6_prefix_configured(&prefix->prefix);
+    if (link) {
+        pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
+        return -1;
+    }
+
+    return 0;
+}
+
 static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
-    uint8_t *nxtopt, *opt_start;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
     struct pico_ipv6_router *r;
@@ -1109,59 +1149,25 @@ static int radv_process(struct pico_frame *f)
     struct pico_ip6 zero = {
         .addr = {0}
     };
-    int optlen;
     int is_default = 0;
+    int optres_prefix = 0;
+    pico_time now = PICO_TIME_MS();
+    struct pico_icmp6_opt_prefix prefix_option;
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    optlen = f->transport_len - PICO_ICMP6HDR_ROUTER_ADV_SIZE;
-    opt_start = ((uint8_t *)&icmp6_hdr->msg.info.router_adv) + sizeof(struct router_adv_s);
-    nxtopt = opt_start;
 
-    while (optlen > 0) {
-        uint8_t *type = (uint8_t *)nxtopt;
-        switch (*type) {
-        case PICO_ND_OPT_PREFIX:
-        {
-            pico_time now = PICO_TIME_MS();
-            struct pico_icmp6_opt_prefix *prefix =
-                (struct pico_icmp6_opt_prefix *) nxtopt;
-            /* RFC4862 5.5.3 */
-            /* a) If the Autonomous flag is not set, silently ignore the Prefix
-             *       Information option.
-             */
-            if (prefix->aac == 0)
-                goto ignore_opt_prefix;
+    optres_prefix = neigh_options(f, &prefix_option, PICO_ND_OPT_PREFIX);
 
-            /* b) If the prefix is the link-local prefix, silently ignore the
-             *       Prefix Information option
-             */
-            if (pico_ipv6_is_linklocal(prefix->prefix.addr))
-                goto ignore_opt_prefix;
+    if (optres_prefix < 0) {
+        /* Malformed packet */
+        return -1;
+    }
 
-            /* c) If the preferred lifetime is greater than the valid lifetime,
-             *       silently ignore the Prefix Information option
-             */
-            if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
-                goto ignore_opt_prefix;
-
-            if (prefix->val_lifetime == 0)
-                goto ignore_opt_prefix;
-
-
-            if (prefix->prefix_len != 64) {
-                return -1;
-            }
-
-            link = pico_ipv6_prefix_configured(&prefix->prefix);
+    if (pico_nd_prefix_option_valid(&prefix_option) == 0) {
+            link = pico_ipv6_link_add_local(f->dev, &prefix_option.prefix);
             if (link) {
-                pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
-                goto ignore_opt_prefix;
-            }
-
-            link = pico_ipv6_link_add_local(f->dev, &prefix->prefix);
-            if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix->val_lifetime))));
+                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
                 pico_tree_foreach_safe(index, &RCache, _tmp)
                 {
                     r = index->keyValue;
@@ -1179,55 +1185,10 @@ static int radv_process(struct pico_frame *f)
                 pico_ipv6_router_add_link(&hdr->src, link);
                 /* pico_ipv6_route_add(zero, zero, hdr->src, 10, link); */
             }
-
-ignore_opt_prefix:
-            optlen -= (prefix->len << 3);
-            nxtopt += (prefix->len << 3);
-        }
-        break;
-        case PICO_ND_OPT_LLADDR_SRC:
-        {
-            struct pico_icmp6_opt_lladdr *lladdr_src =
-                (struct pico_icmp6_opt_lladdr *) nxtopt;
-            optlen -= (lladdr_src->len << 3);
-            nxtopt += (lladdr_src->len << 3);
-        }
-        break;
-        case PICO_ND_OPT_MTU:
-        {
-            struct pico_icmp6_opt_mtu *mtu =
-                (struct pico_icmp6_opt_mtu *) nxtopt;
-            /* Skip this */
-            optlen -= (mtu->len << 3);
-            nxtopt += (mtu->len << 3);
-        }
-        break;
-        case PICO_ND_OPT_REDIRECT:
-        {
-            struct pico_icmp6_opt_redirect *redirect =
-                (struct pico_icmp6_opt_redirect *) nxtopt;
-            /* Skip this */
-            optlen -= (redirect->len << 3);
-            nxtopt += (redirect->len << 3);
-
-        }
-        break;
-        case PICO_ND_OPT_RDNSS:
-        {
-            struct pico_icmp6_opt_rdnss *rdnss =
-                (struct pico_icmp6_opt_rdnss *) nxtopt;
-            /* Skip this */
-            optlen -= (rdnss->len << 3);
-            nxtopt += (rdnss->len << 3);
-        }
-        break;
-        default:
-      /* RFC 4861 6.1.2.
-         A node MUST silently discard any received Router Advertisement
-         that do not satisfy all of the validity checks. */
-            return -1;
-        }
+    } else {
+        /* prefix option is not valid, silently ignore it */
     }
+
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
         f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
     }
@@ -1554,7 +1515,6 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
         }
     }
 }
-
 
 int pico_ipv6_nd_recv(struct pico_frame *f)
 {
