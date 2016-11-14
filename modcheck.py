@@ -38,13 +38,33 @@ for k,v in mods.iteritems():
       command += i + "=0 "
   commands.append(command)
 
-nul = open('/dev/null', 'w')
+endResult = []
+failed = 0
+
 for i in commands:
   print 'Checking config:\n\t%s' % i
-  os.system('make clean >/dev/null')
+
+  subprocess.call(['make','clean'])
   args = i.split(' ')
-  subprocess.call(['make','clean'], shell=True, stdout=nul, stderr=nul)
-  subprocess.call(args[-1], shell=True,stdout=nul, stderr=nul)==0 or sys.exit(1)
-  print "CONFIG OK!"
-  print
+
+  if subprocess.call(args[:-1]) == 0:
+    print "**********************************************************"
+    print "*******************  CONFIG PASSED!  *******************"
+    endResult.append({"test": i, "result": "PASS"})
+  else:
+    failed += 1
+    print "**********************************************************"
+    print "*******************  CONFIG FAILED!  *******************"
+    endResult.append({"test": i, "result": "FAIL"})
+  print "**********************************************************"
+
+for r in endResult:
+  print "Test:", r["test"]
+  print "Status:", r["result"]
+  print ""
+
+print "***********************"
+print "%d out of %d Failed" % (failed, len(endResult))
+print "***********************"
+
 sys.exit(0)
