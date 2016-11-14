@@ -978,6 +978,9 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
      *  *
      *  * We are HOST-ONLY
      *  */
+
+    IGNORE_PARAMETER(f);
+
     return 0;
 }
 
