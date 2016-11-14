@@ -301,7 +301,7 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
     }
 }
 
-static pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
+static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_router *r = NULL;
 
@@ -1361,8 +1361,8 @@ static int pico_nd_redirect_recv(struct pico_frame *f)
 
 static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n)
 {
-    struct pico_ipv6_router *r;
     IGNORE_PARAMETER(now);
+
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
     /* intentional fall through */
@@ -1386,6 +1386,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     default:
         dbg("IPv6_ND: neighbor in wrong state!\n");
     }
+
     pico_nd_new_expire_time(n);
 }
 
