@@ -973,8 +973,11 @@ static int neigh_adv_checks(struct pico_frame *f)
 
 static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
-    pico_ipv6_neighbor_from_unsolicited(f);
-    /* Host only: router solicitation is discarded. */
+    /* RFC 4861 $6.2.6
+     *  * A host MUST silently discard any received Router Solicitation messages.
+     *  *
+     *  * We are HOST-ONLY
+     *  */
     return 0;
 }
 
