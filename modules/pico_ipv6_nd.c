@@ -687,7 +687,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
         n = pico_get_neighbor_from_ncache(&ip->src);
         if (!n) {
             n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
-        } else if (memcmp(opt.addr.mac.addr, n->mac.addr, PICO_SIZE_ETH)) {
+        } else if (pico_ipv6_neighbor_compare_stored(n, &opt) != 0) {
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger(&n->address);
@@ -1018,26 +1018,22 @@ static int redirect_process(struct pico_frame *f)
         target_neighbor = pico_get_neighbor_from_ncache(&redirect_hdr->target);
         if (target_neighbor) {
             /* Neighbor is already known */
-            if (memcmp(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH) != 0) {
+            if (pico_ipv6_neighbor_compare_stored(target_neighbor, &opt_ll) != 0) {
                 /* ll addr is NOT same as that already in cache */
-                memcpy(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH);
+                pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
                 target_neighbor->state = PICO_ND_STATE_STALE;
                 pico_ipv6_nd_queued_trigger(&target_neighbor->address);
             } else {
                 /* ll addr is the same as that already in cache */
-                //DO NOTHING
+                /* DO NOTHING */
             }
         } else {
             /* Neighbor is NOT known */
             target_neighbor = pico_nd_add(&redirect_hdr->target, f->dev);
 
             if (target_neighbor) {
-                memcpy(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH);
+                pico_ipv6_neighbor_update(target_neighbor, &opt_ll);
                 target_neighbor->state = PICO_ND_STATE_STALE;
-                /* TODO:
-                 * pico_nd_discover here?
-                 * or let pico_ipv6_get_neighbor -> pico_nd_get -> pico_nd_get_neighbor
-                 * -> pico_nd_discover take care of it when we actually need the neighbor?*/
             } else {
                 nd_dbg("Redirect: could not add neighbor, aborting route update\n");
                 return -1;
@@ -1045,10 +1041,6 @@ static int redirect_process(struct pico_frame *f)
         }
     } else {
         /* No ll addr option, we have to find out ourselves */
-        /* TODO:
-         * pico_nd_discover here?
-         * or let pico_ipv6_get_neighbor -> pico_nd_get -> pico_nd_get_neighbor
-         * -> pico_nd_discover take care of it when we actually need the neighbor?*/
     }
 
     /* TODO process opt_redirect
