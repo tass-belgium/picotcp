@@ -18,8 +18,6 @@
 #define MAX_INITIAL_RTR_ADVERTISEMENTS (3)
 #define DEFAULT_METRIC                 (10)
 
-#define DEBUG_IPV6_ND
-
 #ifdef DEBUG_IPV6_ND
 #define nd_dbg dbg
 #else
