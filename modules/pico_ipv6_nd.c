@@ -315,6 +315,8 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
 
 static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
+    struct pico_ipv6_router *r = NULL;
+
     if (!n)
         return;
 
@@ -331,12 +333,28 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
+          nd_dbg("DISCOVER, FAILURE UNI COUNT\n");
+          pico_ipv6_nd_unreachable(&n->address);
+          if((r = pico_get_router_from_rcache(&n->address))) {
+              pico_ipv6_assign_default_router(r->is_default);
+              pico_tree_delete(&RCache, r);
+          }
+          pico_tree_delete(&NCache, n);
+          PICO_FREE(n);
         return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
       nd_dbg("NS solicited for %s, state %d\n", ipv6_addr, n->state);
     } else {
       if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
+          nd_dbg("DISCOVER, FAILURE UNI COUNT\n");
+          pico_ipv6_nd_unreachable(&n->address);
+          if((r = pico_get_router_from_rcache(&n->address))) {
+              pico_ipv6_assign_default_router(r->is_default);
+              pico_tree_delete(&RCache, r);
+          }
+          pico_tree_delete(&NCache, n);
+          PICO_FREE(n);
         return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
@@ -1354,17 +1372,6 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_INCOMPLETE:
     /* intentional fall through */
     case PICO_ND_STATE_PROBE:
-        if (n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT || n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT) {
-            pico_ipv6_nd_unreachable(&n->address);
-            if((r = pico_get_router_from_rcache(&n->address))) {
-              pico_ipv6_assign_default_router(r->is_default);
-              pico_tree_delete(&RCache, r);
-            }
-            pico_tree_delete(&NCache, n);
-            PICO_FREE(n);
-            return;
-        }
-
         n->expire = 0ull;
         pico_nd_discover(n);
         break;
