@@ -1003,6 +1003,7 @@ static int redirect_process(struct pico_frame *f)
                 /* ll addr is NOT same as that already in cache */
                 memcpy(target_neighbor->mac.addr, opt_ll.addr.mac.addr, PICO_SIZE_ETH);
                 target_neighbor->state = PICO_ND_STATE_STALE;
+                pico_ipv6_nd_queued_trigger(&target_neighbor->address);
             } else {
                 /* ll addr is the same as that already in cache */
                 //DO NOTHING
@@ -1299,7 +1300,7 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
     struct pico_ip6 gateway = {{0}};
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    gateway = pico_ipv6_route_get_gateway(&icmp6_hdr->msg.info.redirect.dest.addr);
+    gateway = pico_ipv6_route_get_gateway(&icmp6_hdr->msg.info.redirect.dest);
 
     if (f->transport_len < PICO_ICMP6HDR_REDIRECT_SIZE)
     {
