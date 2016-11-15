@@ -2,6 +2,11 @@
 import os,sys
 import subprocess
 
+
+print "Scroll down for summary"
+print ""
+print ""
+
 f = open('MODTREE')
 mods = {}
 commands = []
@@ -45,9 +50,17 @@ for i in commands:
   print 'Checking config:\n\t%s' % i
 
   subprocess.call(['make','clean'])
+  sys.stdout.flush()
+  sys.stderr.flush()
+
   args = i.split(' ')
 
-  if subprocess.call(args[:-1]) == 0:
+  # Remove the last item (which is a blank)
+  ret = subprocess.call(args[:-1])
+  sys.stdout.flush()
+  sys.stderr.flush()
+
+  if ret == 0:
     print "**********************************************************"
     print "*******************  CONFIG PASSED!  *******************"
     endResult.append({"test": i, "result": "PASS"})
@@ -57,6 +70,12 @@ for i in commands:
     print "*******************  CONFIG FAILED!  *******************"
     endResult.append({"test": i, "result": "FAIL"})
   print "**********************************************************"
+
+print ""
+print "***************************************************************************"
+print "                           Executive Summary"
+print "***************************************************************************"
+print ""
 
 for r in endResult:
   print "Test:", r["test"]
