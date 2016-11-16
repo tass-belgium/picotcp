@@ -33,6 +33,8 @@
 #include "pico_sntp_client.h"
 #include "pico_mdns.h"
 #include "pico_tftp.h"
+#include "pico_dev_radiotest.h"
+#include "pico_dev_radio_mgr.h"
 
 #include <poll.h>
 #include <errno.h>
@@ -227,7 +229,7 @@ int main(int argc, char **argv)
     pico_stack_init();
     /* Parse args */
     while(1) {
-        c = getopt_long(argc, argv, "v:b:t:T:a:r:hl", long_options, &option_idx);
+        c = getopt_long(argc, argv, "6:v:b:t:T:a:r:hl", long_options, &option_idx);
         if (c < 0)
             break;
 
@@ -450,6 +452,63 @@ int main(int argc, char **argv)
 
         }
         break;
+
+        case '6':
+        {
+            char *nxt, *name = NULL, *area0 = NULL, *area1 = NULL, *dump = NULL;
+            const char pan_addr[] = "2aaa:abcd::0";
+            uint8_t n_id, n_area0, n_area1;
+            struct pico_ip6 pan;
+
+            /* Copy required command line arguments */
+            nxt = cpy_arg(&name, optarg);
+            if (!nxt)
+                goto check;
+            nxt = cpy_arg(&area0, nxt);
+            if (!nxt)
+                goto check;
+            nxt = cpy_arg(&area1, nxt);
+            if (!nxt)
+                goto check;
+
+            /* Check required arguments */
+check:      if (!name || !area0 || !area1) {
+                fprintf(stderr, "Usage: -6,id,area\n");
+                exit(1);
+            }
+
+            n_id = (uint8_t) atoi(name);
+            n_area0 = (uint8_t) atoi(area0);
+            n_area1 = (uint8_t) atoi(area1);
+
+            if (nxt) {
+                nxt = cpy_arg(&dump, nxt);
+            }
+
+            printf("%d:%d:%d\n", n_id, n_area0, n_area1);
+
+            if (!n_id) {
+                printf("Starting radio-network...\n");
+                pico_radio_mgr_start();
+            } else {
+                dev = pico_radiotest_create(n_id, n_area0, n_area1, 0, dump);
+                if (!dev) {
+                    exit(1);
+                }
+
+                printf("Radiotest created.\n");
+
+                /* Add a routable link */
+                pico_string_to_ipv6(pan_addr, pan.addr);
+                pico_ipv6_link_add_local(dev, &pan);
+
+                /* Enable routing on first device */
+                if (n_id == 1) {
+                    pico_ipv6_dev_routing_enable(dev);
+                }
+            }
+            break;
+        }
         case 'b':
         {
             char *nxt, *name = NULL, *sock = NULL;

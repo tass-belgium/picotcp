@@ -58,6 +58,7 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy_ext_buffer(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 int32_t pico_stack_recv_zerocopy_ext_buffer_notify(struct pico_device *dev, uint8_t *buffer, uint32_t len, void (*notify_free)(uint8_t *buffer));
+struct pico_frame *pico_stack_recv_new_frame(struct pico_device *dev, uint8_t *buffer, uint32_t len);
 
 /* ----- Initialization ----- */
 int pico_stack_init(void);

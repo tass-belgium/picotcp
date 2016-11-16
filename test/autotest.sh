@@ -40,6 +40,15 @@ killall -wq picoapp.elf
 killall -wq picoapp6.elf
 
 
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ 6LoWPAN PING 1HOP   (1500B) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(build/test/picoapp6.elf -6 0,0,0) &
+sleep 1
+(build/test/picoapp6.elf -6 1,2,1 -a noop) &
+sleep 1
+build/test/picoapp6.elf -6 2,1,0 -a ping,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1500,0,1 || exit 1
+killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
@@ -57,21 +66,21 @@ for pid in $pid; do wait $pid || exit 1; done
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 LOCALHOST TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-./build/test/picoapp6.elf --loop -a ping,::1,, || exit 1
+./build/test/picoapp6.elf --loop -a ping,::1,,,, || exit 1
 killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
-./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,, || exit 1
+./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,,,, || exit 1
 killall -w picoapp6.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 TEST (aborted in 4 seconds...) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::,,,,) &
-(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,4,) &
+(./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::2,ffff::,,, -a ping,aaaa::1,64,4,,) &
 sleep 7
 killall -w picoapp6.elf
 
@@ -144,20 +153,20 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING LOCALHOST TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-./build/test/picoapp.elf --loop -a ping:127.0.0.1: || exit 1
+./build/test/picoapp.elf --loop -a ping:127.0.0.1:::: || exit 1
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
-./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:: || exit 1
+./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:::: || exit 1
 killall -w picoapp.elf
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING TEST -- Aborted in 4 seconds ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.8:255.255.0.0:::) &
-(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:4:) &
+(./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.9:255.255.0.0::: -a ping:10.40.0.8:64:4::) &
 sleep 7
 killall -w picoapp.elf
 

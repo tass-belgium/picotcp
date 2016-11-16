@@ -16,7 +16,9 @@
 #include "pico_addressing.h"
 #include "pico_dns_client.h"
 
+#include "pico_6lowpan_ll.h"
 #include "pico_ethernet.h"
+#include "pico_6lowpan.h"
 #include "pico_olsr.h"
 #include "pico_aodv.h"
 #include "pico_eth.h"
@@ -234,7 +236,7 @@ MOCKABLE int32_t pico_transport_receive(struct pico_frame *f, uint8_t proto)
  *  NETWORK LAYER
  ******************************************************************************/
 
-int32_t pico_network_receive(struct pico_frame *f)
+MOCKABLE int32_t pico_network_receive(struct pico_frame *f)
 {
     if (0) {}
 
@@ -377,8 +379,20 @@ int pico_datalink_receive(struct pico_frame *f)
 {
     if (f->dev->eth) {
         /* If device has stack with datalink-layer pass frame through it */
-        f->datalink_hdr = f->buffer;
-        pico_enqueue(pico_proto_ethernet.q_in, f);
+        switch (f->dev->mode) {
+            #ifdef PICO_SUPPORT_802154
+            case LL_MODE_IEEE802154:
+                f->datalink_hdr = f->buffer;
+                return pico_enqueue(pico_proto_6lowpan_ll.q_in, f);
+            #endif
+            default:
+                #ifdef PICO_SUPPORT_ETH
+                f->datalink_hdr = f->buffer;
+                return pico_enqueue(pico_proto_ethernet.q_in,f);
+                #else
+                return -1;
+                #endif
+        }
     } else {
         /* If device handles raw IP-frames send it straight to network-layer */
         f->net_hdr = f->buffer;
@@ -386,45 +400,44 @@ int pico_datalink_receive(struct pico_frame *f)
     }
 
     return 0;
-    /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
-     * send frames through (upwards). */
-
 }
 
-int pico_datalink_send(struct pico_frame *f)
+MOCKABLE int pico_datalink_send(struct pico_frame *f)
 {
     if (f->dev->eth) {
-        /* If device has stack with datalink-layer pass frame through it */
-        return pico_enqueue(pico_proto_ethernet.q_out, f);
+        switch (f->dev->mode) {
+            #ifdef PICO_SUPPORT_802154
+            case LL_MODE_IEEE802154:
+                return pico_enqueue(pico_proto_6lowpan.q_out, f);
+            #endif
+            default:
+                #ifdef PICO_SUPPORT_ETH
+                return pico_enqueue(pico_proto_ethernet.q_out, f);
+                #else
+                return -1;
+                #endif
+        }
     } else {
         /* non-ethernet: no post-processing needed */
         return pico_sendto_dev(f);
     }
-
-    /* TODO: Based on the device-mode, choose apropriate link-layer protocol to
-     * send frames through (downwards). */
 }
 
 /*******************************************************************************
  *  PHYSICAL LAYER
  ******************************************************************************/
 
-/* LOWEST LEVEL: interface towards devices. */
-/* Device driver will call this function which returns immediately.
- * Incoming packet will be processed later on in the dev loop.
- */
-int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+struct pico_frame *pico_stack_recv_new_frame(struct pico_device *dev, uint8_t *buffer, uint32_t len)
 {
     struct pico_frame *f;
-    int32_t ret;
     if (len == 0)
-        return -1;
+        return NULL;
 
     f = pico_frame_alloc(len);
     if (!f)
     {
         dbg("Cannot alloc incoming frame!\n");
-        return -1;
+        return NULL;
     }
 
     /* Association to the device that just received the frame. */
@@ -441,11 +454,25 @@ int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
     }
 
     memcpy(f->buffer, buffer, len);
+    return f;
+}
+
+/* LOWEST LEVEL: interface towards devices. */
+/* Device driver will call this function which returns immediately.
+ * Incoming packet will be processed later on in the dev loop.
+ */
+int32_t pico_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len)
+{
+    struct pico_frame *f = pico_stack_recv_new_frame (dev, buffer, len);
+    int32_t ret;
+
+    if (!f)
+        return -1;
+
     ret = pico_enqueue(dev->q_in, f);
     if (ret <= 0) {
         pico_frame_discard(f);
     }
-
     return ret;
 }
 
@@ -863,6 +890,11 @@ int MOCKABLE pico_stack_init(void)
     pico_protocol_init(&pico_proto_ethernet);
 #endif
 
+#ifdef PICO_SUPPORT_6LOWPAN
+    pico_protocol_init(&pico_proto_6lowpan);
+    pico_protocol_init(&pico_proto_6lowpan_ll);
+#endif
+
 #ifdef PICO_SUPPORT_IPV4
     pico_protocol_init(&pico_proto_ipv4);
 #endif
@@ -918,7 +950,10 @@ int MOCKABLE pico_stack_init(void)
 #ifdef PICO_SUPPORT_AODV
     pico_aodv_init();
 #endif
-
+#ifdef PICO_SUPPORT_6LOWPAN
+    if (pico_6lowpan_init())
+       return -1;
+#endif
     pico_stack_tick();
     pico_stack_tick();
     pico_stack_tick();

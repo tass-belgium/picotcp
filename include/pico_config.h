@@ -19,6 +19,7 @@
 #   define PACKED_STRUCT_DEF __packed struct
 #   define PEDANTIC_STRUCT_DEF __packed struct
 #   define PACKED_UNION_DEF  __packed union
+#   define PACKED __packed
 #   define WEAK
 #elif defined __WATCOMC__
 #   define PACKED_STRUCT_DEF   _Packed struct
@@ -29,6 +30,7 @@
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #   define PEDANTIC_STRUCT_DEF struct
 #   define PACKED_UNION_DEF  union   /* Sane compilers do not require packed unions */
+#   define PACKED __attribute__((packed))
 #   define WEAK __attribute__((weak))
 #   ifdef __GNUC__
 #       define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
@@ -163,7 +165,6 @@ static inline uint64_t long_long_be(uint64_t le)
 
 #   endif /* BYTESWAP_GCC */
 #endif
-
 
 /* Mockables */
 #if defined UNIT_TEST

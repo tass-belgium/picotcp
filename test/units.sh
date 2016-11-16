@@ -4,6 +4,8 @@ rm -f /tmp/pico-mem-report-*
 ASAN_OPTIONS="detect_leaks=0" ./build/test/units || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_fragments.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_pico_stack.elf || exit 1
+ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_802154.elf || exit 1
+ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_6lowpan.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_ethernet.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_pico_protocol.elf || exit 1
 ASAN_OPTIONS="detect_leaks=0" ./build/test/modunit_pico_frame.elf || exit 1
