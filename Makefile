@@ -388,7 +388,7 @@ loop: mod core
 
 units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@if [ $(UNITS) -eq 0 ]; then \
-	@echo "\n\nunit tests should be ran with UNITS=1 from now on!"; \
+	echo "\n\nunit tests should be ran with UNITS=1 from now on!"; \
 	exit 1; \
 	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
@@ -436,7 +436,7 @@ devunits: mod core lib
 
 units_mm: mod core lib
 	@if [ $(UNITS_MM) -eq 0 ]; then \
-	@echo "\n\nMM unit tests should be ran with UNITS_MM=1 from now on!"; \
+	echo "\n\nMM unit tests should be ran with UNITS_MM=1 from now on!"; \
 	exit 1; \
 	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
