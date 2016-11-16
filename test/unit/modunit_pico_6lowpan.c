@@ -113,7 +113,7 @@ START_TEST(tc_compare_prefix)
     int test = 1, ret = 0;
     struct pico_ip6 a, b, c;
     pico_string_to_ipv6("2aaa:1234:5678:9123:0:0ff:fe00:0105", a.addr);
-    pico_string_to_ipv6("2aaa:1234:5678:9145:0102:0304:0506:0708", b.addr);
+    pico_string_to_ipv6("2aaa:1234:5678:9143:0102:0304:0506:0708", b.addr);
     pico_string_to_ipv6("2aaa:1234:5678:9156:0102:0304:0506:0708", c.addr);
 
     STARTING();
