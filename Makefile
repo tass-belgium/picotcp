@@ -73,6 +73,13 @@ ifeq ($(UNITS),1)
 	ARCH=faulty
 endif
 
+UNITS_MM?=0
+ifeq ($(UNITS_MM),1)
+	6LOWPAN=1
+	IEEE802154=1
+	MEMORY_MANAGER=1
+endif
+
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
@@ -428,6 +435,10 @@ devunits: mod core lib
 	@$(CC) -o $(PREFIX)/test/devunits $(CFLAGS) -I stack $(PREFIX)/test/unit/device/*.o -lcheck -lm -pthread -lrt
 
 units_mm: mod core lib
+	@if [ $(UNITS_MM) -eq 0 ]; then \
+	@echo "\n\nMM unit tests should be ran with UNITS_MM=1 from now on!"; \
+	exit 1; \
+	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units_mm.o"
