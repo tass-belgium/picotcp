@@ -66,6 +66,12 @@ POLARSSL?=0
 #IPv6 related
 IPV6?=1
 
+TEST?=0
+ifeq ($(TEST),1)
+	6LOWPAN=1
+	IEEE802154=1
+endif
+
 UNITS?=0
 ifeq ($(UNITS),1)
 	6LOWPAN=1
@@ -344,6 +350,10 @@ TEST6_ELF= test/picoapp6.elf
 
 
 test: posix
+	@if [ $(TEST) -eq 0 ]; then \
+	echo "\n\nsmoke tests should be ran with TEST=1 from now on!"; \
+	exit 1; \
+	fi
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
