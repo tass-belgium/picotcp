@@ -16,8 +16,13 @@
 #define PICO_6LP_FLAG_LOWPAN (0x01)
 #define PICO_6LP_FLAG_NOMAC  (0x02)
 
+#ifdef PICO_SUPPORT_6LOWPAN
 #define PICO_DEV_IS_6LOWPAN(dev) ((dev) && ((dev)->hostvars.lowpan_flags & PICO_6LP_FLAG_LOWPAN))
 #define PICO_DEV_IS_NOMAC(dev) ((dev) && ((dev)->hostvars.lowpan_flags & PICO_6LP_FLAG_NOMAC))
+#else
+#define PICO_DEV_IS_6LOWPAN(dev) (0)
+#define PICO_DEV_IS_NOMAC(dev) (0)
+#endif
 
 /******************************************************************************
  * Public variables
