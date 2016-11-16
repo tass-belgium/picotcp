@@ -66,6 +66,13 @@ POLARSSL?=0
 #IPv6 related
 IPV6?=1
 
+UNITS?=0
+ifeq ($(UNITS),1)
+	6LOWPAN=1
+	IEEE802154=1
+	ARCH=faulty
+endif
+
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
@@ -373,6 +380,10 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
 units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
+	@if [ $(UNITS) -eq 0 ]; then \
+	@echo "\n\nunit tests should be ran with UNITS=1 from now on!"; \
+	exit 1; \
+	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
