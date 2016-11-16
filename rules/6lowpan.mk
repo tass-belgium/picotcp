@@ -35,6 +35,7 @@ endif
 # IEEE802.15.4 with or without mac layer
 ifeq ($(IEEE802154), 1)
 	6LOWPAN_OPTIONS+=-DPICO_SUPPORT_802154
+	POSIX_OBJ+=modules/pico_dev_radiotest.o 
 endif
 
 OPTIONS+=$(6LOWPAN_OPTIONS)
