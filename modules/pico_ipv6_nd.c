@@ -314,6 +314,11 @@ static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
         pico_ipv6_assign_default_router(r->is_default);
         pico_ipv6_router_down(&n->address);
         pico_tree_delete(&RCache, r);
+
+        /* TODO: search for new route */
+        /* TODO: new link lifetime? */
+
+        PICO_FREE(r);
     }
 
     pico_tree_delete(&NCache, n);
@@ -328,7 +333,7 @@ static void pico_nd_new_expire_time(struct pico_ipv6_neighbor *n)
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     }
     else {
-        n->expire = n->dev->hostvars.retranstime + PICO_TIME_MS();
+        n->expire = PICO_TIME_MS() + n->dev->hostvars.retranstime;
     }
 }
 
@@ -348,16 +353,22 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
     }
 #endif
 
+    if (n->state == PICO_ND_STATE_DELAY) {
+        /* We wait for DELAY_FIRST_PROBE_TIME to expire
+         * This will set us in state PROBE and this will call pico_nd_discover
+         * in the timer_elapsed timer-callback
+         */
+        return;
+    }
+
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
-          pico_nd_delete_entry(n);
           return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED);
       nd_dbg("NS solicited for %s, state %d\n", ipv6_addr, n->state);
     } else {
       if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
-          pico_nd_delete_entry(n);
           return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST);
@@ -378,6 +389,7 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
+        pico_nd_discover(n);
         return NULL;
     }
 
@@ -480,9 +492,9 @@ static int neigh_options(struct pico_frame *f, void *opt, uint8_t expected_opt)
 
             if (expected_opt == PICO_ND_OPT_REDIRECT) {
                 memcpy(opt, option, sizeof(struct pico_icmp6_opt_redirect));
-	    } else {
+            } else {
                 memcpy(opt, option, (size_t)(len << 3));
-	    }
+            }
             found++;
         }
 
@@ -670,6 +682,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
 
     memcpy(n->mac.addr, opt->addr.mac.addr, PICO_SIZE_ETH);
     n->state = PICO_ND_STATE_STALE;
+    pico_nd_new_expire_time(n);
     pico_ipv6_nd_queued_trigger(ip);
     return n;
 }
@@ -683,15 +696,33 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
     int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
-    if (!pico_ipv6_is_unspecified(ip->src.addr) && (valid_lladdr > 0)) {
+    if (!pico_ipv6_is_unspecified(ip->src.addr)) {
         n = pico_get_neighbor_from_ncache(&ip->src);
         if (!n) {
-            n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
+            /* NO NCE */
+            if (valid_lladdr > 0) {
+                nd_dbg("NB FROM UNSOLICITED\n");
+                n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
+            } else {
+                n = pico_nd_add(&ip->src, f->dev);
+
+                if (n) {
+                    n->state = PICO_ND_STATE_INCOMPLETE;
+                } else {
+                    nd_dbg("Redirect: could not add neighbor, aborting route update\n");
+                    return;
+                }
+            }
         } else if (pico_ipv6_neighbor_compare_stored(n, &opt) != 0) {
+            /* NCE exists but different LL addr */
+            nd_dbg("NB FROM UNSOLICITED: diff ll addr\n");
             pico_ipv6_neighbor_update(n, &opt);
             n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger(&n->address);
             pico_nd_new_expire_time(n);
+        } else {
+            /* NCE exists with same LL addr */
+            nd_dbg("NB FROM UNSOLICITED: SAME LL ADDR\n");
         }
 
         if (!n)
@@ -711,31 +742,37 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
     int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
-    if (!pico_ipv6_is_unspecified(ip->src.addr) && (valid_lladdr > 0)) {
-        n = pico_get_neighbor_from_ncache(&ip->src);
-        if (!n)
-        {
-          n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
-        }
-        if(!(r = pico_get_router_from_rcache(&ip->src)))
-        {
-          r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
-          r->router = n;
-          if (pico_tree_insert(&RCache, r)) {
-              nd_dbg("Could not insert router in rcache\n");
-              PICO_FREE(r);
-              return;
-          }
-        }
+    if (!pico_ipv6_is_unspecified(ip->src.addr)) {
         r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
-        if(r_adv_hdr->life_time != 0)
-        {
-          r->invalidation = PICO_TIME_MS() + r_adv_hdr->life_time;
+        n = pico_get_neighbor_from_ncache(&ip->src);
+
+        if (!n) {
+            /* TODO:  */
         }
-        else
-        {
-          pico_ipv6_assign_default_router(r->is_default);
-          pico_tree_delete(&RCache, r);
+
+        /* Indicate he is a router, TODO: don't set it always! */
+        n->is_router = 1;
+
+        /* TODO: set correct expire time? */
+
+        r = pico_get_router_from_rcache(&ip->src);
+
+        if (!r) {
+            r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+            r->router = n;
+            if (pico_tree_insert(&RCache, r)) {
+                nd_dbg("Could not insert router in rcache\n");
+                PICO_FREE(r);
+                return;
+            }
+        }
+
+        if(r_adv_hdr->life_time != 0) {
+            r->invalidation = PICO_TIME_MS() + r_adv_hdr->life_time * 1000;
+        } else {
+            /* TODO: WHAT IF 0? */
+            pico_ipv6_assign_default_router(r->is_default);
+            pico_tree_delete(&RCache, r);
         }
     }
 }
@@ -1139,7 +1176,10 @@ static int pico_nd_prefix_option_valid(struct pico_icmp6_opt_prefix *prefix)
     link = pico_ipv6_prefix_configured(&prefix->prefix);
     if (link) {
         pico_ipv6_lifetime_set(link, now + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
-        return -1;
+        /* if other router supplies route to same prefix,
+         * link variable is not NULL but that doesn't mean R ADV is not valid
+         */
+        /* return -1; */
     }
 
     return 0;
@@ -1150,12 +1190,9 @@ static int radv_process(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
-    struct pico_ipv6_router *r;
-    struct pico_tree_node *index, *_tmp;
     struct pico_ip6 zero = {
         .addr = {0}
     };
-    int is_default = 0;
     int optres_prefix = 0;
     pico_time now = PICO_TIME_MS();
     struct pico_icmp6_opt_prefix prefix_option;
@@ -1174,25 +1211,18 @@ static int radv_process(struct pico_frame *f)
             link = pico_ipv6_link_add_local(f->dev, &prefix_option.prefix);
             if (link) {
                 pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
-                pico_tree_foreach_safe(index, &RCache, _tmp)
-                {
-                    r = index->keyValue;
-                    if(r->is_default)
-                    {
-                      is_default = 1;
-                      break;
-                    }
-                }
-                if(!is_default) {
-                    if (pico_ipv6_route_add(zero, zero, hdr->src, 10, link) != 0) {
+                if (pico_ipv6_route_add(zero, zero, hdr->src, 10, link) != 0) {
                         nd_dbg("Could not add default route in router adv\n");
-                    }
+                } else {
+                    nd_dbg("added route in router adv\n");
                 }
                 pico_ipv6_router_add_link(&hdr->src, link);
-                /* pico_ipv6_route_add(zero, zero, hdr->src, 10, link); */
+            } else {
+                nd_dbg("router adv: no link\n");
             }
     } else {
         /* prefix option is not valid, silently ignore it */
+        nd_dbg("Prefix option is not valid\n");
     }
 
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
@@ -1232,8 +1262,10 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
         link->rs_expire_time = 0;
       }
     }
+
     pico_ipv6_neighbor_from_unsolicited(f);
     pico_ipv6_router_from_unsolicited(f);
+
     return radv_process(f);
 }
 
@@ -1332,9 +1364,21 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
-    /* intentional fall through */
+        if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
+            n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
+            pico_nd_delete_entry(n);
+            return;
+        }
+
+        break;
     case PICO_ND_STATE_PROBE:
-        n->expire = 0ull;
+        if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
+            n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
+            pico_nd_delete_entry(n);
+            return;
+        }
+
+        pico_nd_new_expire_time(n);
         pico_nd_discover(n);
         break;
 
@@ -1367,11 +1411,9 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
     pico_tree_foreach_safe(index, &RCache, _tmp)
     {
         r = index->keyValue;
-        if (now > (r->invalidation)*1000) {
-            if(r->is_default)
-            {
-              pico_ipv6_router_down(&r->router->address);
-            }
+        if (now > r->invalidation) {
+            nd_dbg("ROUTER EXPIRED: %d, %d\n", now, r->invalidation);
+            pico_ipv6_router_down(&r->router->address);
             pico_ipv6_assign_default_router(r->is_default);
             pico_tree_delete(&RCache, r);
         }
@@ -1394,6 +1436,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     {
         n = index->keyValue;
         if (now > n->expire) {
+            nd_dbg("NB EXPIRED: %d, %d\n", now, n->expire);
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
@@ -1498,8 +1541,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             return;
         }
         n->frames_queued++;
-    }
-    else{
+    } else {
         struct pico_tree_node *index = NULL;
         struct pico_frame *frame = NULL;
         struct pico_ipv6_hdr *frame_hdr = NULL;
@@ -1526,6 +1568,7 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     int ret = -1;
+
     switch(hdr->type) {
     case PICO_ICMP6_ROUTER_SOL:
         nd_dbg("ICMP6: received ROUTER SOL\n");
