@@ -5,6 +5,15 @@
    Authors: Jelle De Vleeschouwer
  *********************************************************************/
 
+/*
+ * For testing purposes. pico_dev_radio_manager allows simulating a mesh
+ * network for smoke tests. I previously used geomess, but that's another
+ * dependency to add then. Then @danielinux wrote the pico_dev_radiotest but
+ * that required adding a multicast route on the host which in its turn
+ * required 'sudo'. So I wrote a small simulator which doesn't require sudo.
+ *   - Jelle
+ */
+
 #include "pico_dev_radiotest.h"
 #include "pico_addressing.h"
 #include "pico_dev_tap.h"
