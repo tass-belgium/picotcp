@@ -60,7 +60,7 @@
         do { \
         char str[80] = { 0 };                                             \
         snprintf(str, 80, "TEST %2d: "s"...", (i)++,  ##__VA_ARGS__);     \
-        printf(str);                                                       \
+        printf("%s",str);                                                       \
         if (cond) {                                                        \
             printf("%-*s %s\n", (int)(80 - strlen(str) - 12), "", "[SUCCESS]");   \
         } else {                                                           \
