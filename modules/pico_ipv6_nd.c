@@ -389,7 +389,8 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        pico_nd_discover(n);
+        /* Make timer callback handle pico_nd_discover */
+        pico_nd_new_expire_time(n);
         return NULL;
     }
 
@@ -1364,13 +1365,11 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
-        if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
-            n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
-            pico_nd_delete_entry(n);
+        if (n->expire == 0) {
+            /* Indicates we haven't yet started searching for this NB */
             return;
         }
-
-        break;
+        /* Fallthrough */
     case PICO_ND_STATE_PROBE:
         if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
             n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
