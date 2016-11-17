@@ -2062,7 +2062,7 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 {
     struct pico_ipv6_link *link = pico_ipv6_link_by_dev(dev);
     while (link && !pico_ipv6_is_global(link->address.addr)) {
-        printf("[0x%02X] - is global: %d - %d\n", link->address.addr[0], pico_ipv6_is_global(link->address.addr), link->address.addr[0] >> 0x05);
+        dbg("[0x%02X] - is global: %d - %d\n", link->address.addr[0], pico_ipv6_is_global(link->address.addr), link->address.addr[0] >> 0x05);
         link = pico_ipv6_link_by_dev_next(dev, link);
     }
     return link;
