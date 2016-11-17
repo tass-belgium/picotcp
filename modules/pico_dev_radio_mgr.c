@@ -291,6 +291,8 @@ pico_radio_mgr_start(void)
         return -1;
 
     for EVER {
+        if (fds)
+            PICO_FREE(fds);
         fds = pico_radio_mgr_socket_all((int *)&n);
         ret = poll(fds, n, 1);
         if (ret < 0) {
@@ -299,7 +301,5 @@ pico_radio_mgr_start(void)
         } else if (!ret)
             continue;
         pico_radio_mgr_process(fds, (int)n);
-        if (fds)
-            PICO_FREE(fds);
     }
 }
