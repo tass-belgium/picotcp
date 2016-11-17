@@ -981,8 +981,9 @@ void pico_mem_free(void*ptr)
 {
     struct pico_mem_block*generic_block;
     struct pico_mem_page*page;
-    /*Uncomment i for debugging!*/
-    /*uint16_t i = 0;*/
+#ifdef DEBUG_MM
+    uint16_t i = 0;
+#endif
 
     DBG_MM_YELLOW("Free called on %p", ptr);
 
@@ -1237,8 +1238,9 @@ void pico_mem_page0_free(void*ptr)
 {
     struct pico_mem_block*node = ptr;
     struct pico_mem_manager_extra*heap_page;
-    /* Uncomment for debugging! */
-    /* int i = 0; */
+#ifdef DEBUG_MM
+    uint16_t i = 0;
+#endif
 
     /* TODO: should be able to merge free neighbouring blocks (??) */
     DBG_MM_YELLOW("page0_free called");
