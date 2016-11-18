@@ -29,7 +29,7 @@ echo >> ./test/unit/modunit_$bname
 echo >> ./test/unit/modunit_$bname
 
 while read fn ; do
-    fname=`echo $fn | cut -d "(" -f 1| cut -d" " -f 3` 
+    fname=`echo $fn | cut -d "(" -f 1| cut -d" " -f 3`
     echo "START_TEST(tc_$fname)"               >>./test/unit/modunit_$bname 
     echo "{"                                >>./test/unit/modunit_$bname
     echo "   /* TODO: test this: $fn */"    >>./test/unit/modunit_$bname

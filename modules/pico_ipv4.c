@@ -398,7 +398,9 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
     f->transport_hdr = ((uint8_t *)f->net_hdr) + PICO_SIZE_IP4HDR + option_len;
     f->transport_len = (uint16_t)(short_be(hdr->len) - PICO_SIZE_IP4HDR - option_len);
     f->net_len = (uint16_t)(PICO_SIZE_IP4HDR + option_len);
+#if defined(PICO_SUPPORT_IPV4FRAG) || defined(PICO_SUPPORT_IPV6FRAG)
     f->frag = short_be(hdr->frag);
+#endif
 
     if (f->transport_len > max_allowed) {
         pico_frame_discard(f);
@@ -425,11 +427,13 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
+#if defined(PICO_SUPPORT_IPV4FRAG) || defined(PICO_SUPPORT_IPV6FRAG)
     if (f->frag & PICO_IPV4_EVIL) {
         (void)pico_icmp4_param_problem(f, 0);
         pico_frame_discard(f); /* RFC 3514 */
         return 0;
     }
+#endif
 
     if ((hdr->vhl & 0x0f) < 5) {
         /* RFC 791: IHL minimum value is 5 */
@@ -438,6 +442,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         return 0;
     }
 
+#if defined(PICO_SUPPORT_IPV4FRAG) || defined(PICO_SUPPORT_IPV6FRAG)
     if (f->frag & (PICO_IPV4_MOREFRAG | PICO_IPV4_FRAG_MASK))
     {
 #ifdef PICO_SUPPORT_IPV4FRAG
@@ -448,6 +453,7 @@ static int pico_ipv4_process_in(struct pico_protocol *self, struct pico_frame *f
         pico_frame_discard(f);
         return 0;
     }
+#endif
 
     if (pico_ipv4_process_bcast_in(f) > 0)
         return 0;
@@ -726,7 +732,6 @@ static int mcast_group_update(struct pico_mcast_group *g, struct pico_tree *MCAS
                     pico_err = PICO_ERR_ENOMEM;
                     return -1;
                 }
-
                 source->addr = ((struct pico_ip4 *)index->keyValue)->addr;
                 if (pico_tree_insert(&g->MCASTSources, source)) {
                     dbg("IPv4: Failed to insert source in tree\n");

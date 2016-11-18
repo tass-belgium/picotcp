@@ -56,6 +56,8 @@ TUN?=0
 TAP?=0
 PCAP?=0
 PPP?=1
+6LOWPAN?=0
+IEEE802154?=0
 IPC?=0
 CYASSL?=0
 WOLFSSL?=0
@@ -63,6 +65,26 @@ POLARSSL?=0
 
 #IPv6 related
 IPV6?=1
+
+TEST?=0
+ifeq ($(TEST),1)
+	6LOWPAN=1
+	IEEE802154=1
+endif
+
+UNITS?=0
+ifeq ($(UNITS),1)
+	6LOWPAN=1
+	IEEE802154=1
+	ARCH=faulty
+endif
+
+UNITS_MM?=0
+ifeq ($(UNITS_MM),1)
+	6LOWPAN=1
+	IEEE802154=1
+	MEMORY_MANAGER=1
+endif
 
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
@@ -208,7 +230,8 @@ POSIX_OBJ+= modules/pico_dev_vde.o \
             modules/pico_dev_tun.o \
             modules/pico_dev_ipc.o \
             modules/pico_dev_tap.o \
-            modules/pico_dev_mock.o
+            modules/pico_dev_mock.o \
+			modules/pico_dev_radio_mgr.o
 
 include rules/debug.mk
 
@@ -292,6 +315,9 @@ endif
 ifneq ($(PPP),0)
   include rules/ppp.mk
 endif
+ifneq ($(6LOWPAN), 0)
+  include rules/6lowpan.mk
+endif
 ifneq ($(IPC),0)
   include rules/ipc.mk
 endif
@@ -324,6 +350,10 @@ TEST6_ELF= test/picoapp6.elf
 
 
 test: posix
+	@if [ $(TEST) -eq 0 ]; then \
+	echo "\n\nsmoke tests should be compiled with TEST=1 from now on!"; \
+	exit 1; \
+	fi
 	@mkdir -p $(PREFIX)/test/
 	@make -C test/examples PREFIX=$(PREFIX)
 	@echo -e "\t[CC] picoapp.o"
@@ -366,6 +396,10 @@ loop: mod core
 	@$(CC) -c -o $(PREFIX)/loop_ping.o test/loop_ping.c $(CFLAGS) -ggdb
 
 units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
+	@if [ $(UNITS) -eq 0 ]; then \
+	echo "\n\nunit tests should be compiled with UNITS=1 from now on!"; \
+	exit 1; \
+	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units.o"
@@ -396,6 +430,8 @@ units: mod core lib $(UNITS_OBJ) $(MOD_OBJ)
 	@$(CC) -o $(PREFIX)/test/modunit_mld.elf $(UNIT_CFLAGS) -I. test/unit/modunit_pico_mld.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_igmp.elf $(UNIT_CFLAGS) -I. test/unit/modunit_pico_igmp.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_hotplug_detection.elf $(UNIT_CFLAGS) -I. test/unit/modunit_pico_hotplug_detection.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_802154.elf $(UNIT_CFLAGS) -I. test/unit/modunit_pico_802154.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
+	@$(CC) -o $(PREFIX)/test/modunit_6lowpan.elf $(UNIT_CFLAGS) -I. -I test/examples test/unit/modunit_pico_6lowpan.c  $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 	@$(CC) -o $(PREFIX)/test/modunit_strings.elf $(UNIT_CFLAGS) -I. test/unit/modunit_pico_strings.c $(UNIT_LDFLAGS) $(UNITS_OBJ) $(PREFIX)/lib/libpicotcp.a
 
 devunits: mod core lib
@@ -408,6 +444,10 @@ devunits: mod core lib
 	@$(CC) -o $(PREFIX)/test/devunits $(CFLAGS) -I stack $(PREFIX)/test/unit/device/*.o -lcheck -lm -pthread -lrt
 
 units_mm: mod core lib
+	@if [ $(UNITS_MM) -eq 0 ]; then \
+	echo "\n\nMM unit tests should be compiled with UNITS_MM=1 from now on!"; \
+	exit 1; \
+	fi
 	@echo -e "\n\t[UNIT TESTS SUITE]"
 	@mkdir -p $(PREFIX)/test
 	@echo -e "\t[CC] units_mm.o"
