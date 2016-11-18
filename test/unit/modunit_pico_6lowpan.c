@@ -3,7 +3,7 @@
 #include "pico_stack.h"
 #include "pico_frame.h"
 #include "pico_ipv6.h"
-#include "pico_dev_radiotest.c"
+#include "test/pico_dev_radiotest.c"
 #include "modules/pico_6lowpan_ll.c"
 #include "modules/pico_6lowpan.c"
 #include "pico_6lowpan_ll.h"
