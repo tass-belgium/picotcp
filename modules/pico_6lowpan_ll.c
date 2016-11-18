@@ -95,7 +95,7 @@ PICO_TREE_DECLARE(CTXtree, compare_ctx);
  * prefix of the IPv6 address */
 struct iphc_ctx * ctx_lookup(struct pico_ip6 addr)
 {
-    struct iphc_ctx test = { addr, 0, 0, 0, 0, NULL };
+    struct iphc_ctx test = { NULL, addr, 0, 0, 0, 0 };
     return pico_tree_findKey(&CTXtree, &test);
 }
 
@@ -366,6 +366,30 @@ int32_t pico_6lowpan_ll_sendto_dev(struct pico_device *dev, struct pico_frame *f
     /* FINAL OUTGOING POINT OF 6LOWPAN STACK */
     return ((struct pico_dev_6lowpan *)dev)->send(dev, f->start, (int32_t)f->len, f->src, f->dst);
 }
+
+/* Initialisation routine for 6LoWPAN specific devices */
+int pico_dev_6lowpan_init(struct pico_dev_6lowpan *dev, const char *name, uint8_t *mac, enum pico_ll_mode ll_mode, uint16_t mtu, uint8_t nomac,
+                          int (* send)(struct pico_device *dev, void *_buf, int len, union pico_ll_addr src, union pico_ll_addr dst),
+                          int (* poll)(struct pico_device *dev, int loop_score))
+{
+    struct pico_device *picodev = (struct pico_device *)dev;
+    if (!dev || !send || !poll) {
+        return -1;
+    }
+
+    picodev->mode = ll_mode;
+    picodev->hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
+    if (nomac) {
+        picodev->hostvars.lowpan_flags |= PICO_6LP_FLAG_NOMAC;
+    }
+    picodev->mtu = mtu;
+    picodev->poll = poll;
+    picodev->send = NULL;
+    dev->send = send;
+
+    return pico_device_init(picodev, name, mac);
+}
+
 
 /* Push function for 6LoWPAN to call when it wants to try to send te frame to the device-driver */
 int32_t

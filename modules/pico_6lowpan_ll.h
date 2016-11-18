@@ -30,29 +30,63 @@
 
 struct iphc_ctx
 {
+    struct pico_device *dev;
     struct pico_ip6 prefix;
     uint8_t id;
     uint8_t size;
-    pico_time lifetime;
     uint8_t flags;
-    struct pico_device *dev;
+    pico_time lifetime;
 };
 
+/*
+ *  Looks up a context entry for a particular IPv6-address contained in 'addr' and returns it.
+ *  Returns NULL if no entry is found. (See RFC4944)
+ */
 struct iphc_ctx * ctx_lookup(struct pico_ip6 addr);
+
+/*
+ *  Looks up a context entry that belongs to a certain context identifier.
+ *  Returns NULL if no belonging entry is found. (See RFC4944)
+ */
 struct iphc_ctx * ctx_lookup_id(uint8_t id);
+
+/*
+ *  Creates a new, or updates and existing, context entry for a certain IPv6 address. (See RFC4944)
+ */
 void ctx_update(struct pico_ip6 addr, uint8_t id, uint8_t size, pico_time lifetime, uint8_t flags, struct pico_device *dev);
 
 #endif
 
 /******************************************************************************
- * Interface with link layer
+ * Interface with device drivers
  ******************************************************************************/
 
 struct pico_dev_6lowpan
 {
+    /* Interface with picoTCP */
     struct pico_device dev;
+
+    /* Transmit-function:
+     *
+     *  @param dev  The device who's send-function got called
+     *  @param _buf Buffer containing the frame to be send over the network
+     *  @param len  Length of _buf
+     *  @param src  Link Layer source address of the device (IETF-endianness)
+     *  @param dst  Link layer destination address of the device (IETF-endianness)
+     *
+     *  @return length of the frame that is transmitted on success, -1 on failure
+     */
     int (* send)(struct pico_device *dev, void *_buf, int len, union pico_ll_addr src, union pico_ll_addr dst);
 };
+
+/* Initialisation routine for 6LoWPAN specific devices */
+int pico_dev_6lowpan_init(struct pico_dev_6lowpan *dev, const char *name, uint8_t *mac, enum pico_ll_mode ll_mode, uint16_t mtu, uint8_t nomac,
+                          int (* send)(struct pico_device *dev, void *_buf, int len, union pico_ll_addr src, union pico_ll_addr dst),
+                          int (* poll)(struct pico_device *dev, int loop_score));
+
+/******************************************************************************
+ * Interface with link layer
+ ******************************************************************************/
 
 struct pico_6lowpan_ll_protocol
 {
