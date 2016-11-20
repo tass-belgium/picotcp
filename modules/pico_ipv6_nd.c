@@ -1599,7 +1599,7 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f)
         return -1;
 
     /* See RFC6775 $6.5.1: Checking for duplicates */
-    if (!(n = pico_nd_find_neighbor(&icmp->msg.info.neigh_sol.target))) {
+    if (!(n = pico_get_neighbor_from_ncache(&icmp->msg.info.neigh_sol.target))) {
         /* No dup, add neighbor to cache */
         if (pico_nd_add_6lp(icmp->msg.info.neigh_sol.target, aro, f->dev))
             neigh_sol_dad_reply(f, sllao, aro, ICMP6_ARO_SUCCES);
@@ -1737,7 +1737,7 @@ static int radv_process(struct pico_frame *f)
     }
 
 #ifdef PICO_SUPPORT_6LOWPAN
-    sllao = neigh_options(f, &lladr_src, PICO_ND_OPT_LLADDR_SRC);
+    sllao = neigh_options(f, &lladdr_src, PICO_ND_OPT_LLADDR_SRC);
     if (sllao < 0) {
         /* Malformed packet */
         /* RFC6775 (6LoWPAN): An SLLAO MUST be included in the RA. */
@@ -1755,13 +1755,13 @@ static int radv_process(struct pico_frame *f)
 
     if (PICO_DEV_IS_6LOWPAN(f->dev)) {
         struct pico_ip6 prefix;
-        memcpy(prefix.addr, (uint8_t *)&co->prefix, (size_t)(co->len - 1) << 3);
-        ctx_update(prefix, co->id, co->clen, co->lifetime, co->c, f->dev);
+        memcpy(prefix.addr, (uint8_t *)&co.prefix, (size_t)(co.len - 1) << 3);
+        ctx_update(prefix, co.id, co.len, co.lifetime, co.c, f->dev);
     }
 #endif
 
-    abro_valid = neigh_options(f, &co, PICO_ND_OPT_ABRO);
-    if (context_option_valid < 0) {
+    abro_valid = neigh_options(f, &abro, PICO_ND_OPT_ABRO);
+    if (abro_valid < 0) {
         /* Malformed packet */
         return -1;
     }
