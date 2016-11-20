@@ -74,6 +74,7 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
     echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     reply->payload = reply->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     reply->payload_len = echo->transport_len;
+    reply->timestamp = pico_tick;
 
     ehdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
     rhdr = (struct pico_icmp6_hdr *)reply->transport_hdr;
