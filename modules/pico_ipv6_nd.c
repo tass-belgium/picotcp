@@ -290,8 +290,8 @@ static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst)
         if(pico_ipv6_is_unspecified(frame_dst.addr)){
           frame_dst = frame_hdr->dst;
         }
-        if(!pico_ipv6_compare(dst, &frame_dst)){
-          if(n){
+        if(pico_ipv6_compare(dst, &frame_dst) == 0){
+          if(n) {
             n->frames_queued--;
           }
 
@@ -412,11 +412,6 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_route *gw = NULL;
 
-    if (!n)
-        return;
-
-    gw = pico_ipv6_gateway_by_dev(n->dev);
-
 #ifdef DEBUG_IPV6_ND
     char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
     if (!ipv6_addr) {
@@ -427,6 +422,11 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
         PICO_FREE(ipv6_addr);
     }
 #endif
+
+    if (!n)
+        return;
+
+    gw = pico_ipv6_gateway_by_dev(n->dev);
 
     if (n->state == PICO_ND_STATE_DELAY) {
         /* We wait for DELAY_FIRST_PROBE_TIME to expire
@@ -458,7 +458,8 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
 static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_ipv6_neighbor *n, struct pico_device *dev)
 {
-    nd_dbg("Finding neighbor %02x:...:%02x, state = %d\n", addr->addr[0], addr->addr[15], n?n->state:-1);
+    nd_dbg("Finding neighbor %02x:...:%02x\n", addr->addr[0], addr->addr[15]);
+    print_nd_state(n);
 
     if (!n) {
         n = pico_nd_add(addr, dev);
@@ -1982,7 +1983,7 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
     {
         r = index->keyValue;
         if (now > r->invalidation) {
-            nd_dbg("ROUTER EXPIRED: %d, %d\n", now, r->invalidation);
+            nd_dbg("ROUTER EXPIRED: %lu, %lu\n", now, r->invalidation);
             pico_ipv6_router_down(&r->router->address);
             pico_ipv6_assign_default_router(r->is_default);
             pico_tree_delete(&RCache, r);
@@ -2006,7 +2007,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
     {
         n = index->keyValue;
         if (now > n->expire) {
-            nd_dbg("NB EXPIRED: %d, %d\n", now, n->expire);
+            nd_dbg("NB EXPIRED: %lu, %lu\n", now, n->expire);
             print_nd_state(n);
             pico_ipv6_nd_timer_elapsed(now, n);
         }
@@ -2100,6 +2101,24 @@ struct pico_eth *pico_ipv6_get_neighbor(struct pico_frame *f)
     return pico_nd_get(&hdr->dst, f->dev);
 }
 
+static struct pico_frame * pico_nd_get_oldest_frame(struct pico_frame **frames, int number_of_frames)
+{
+    int i = 0;
+    struct pico_frame *oldest = NULL;
+
+    if (!frames || number_of_frames <= 0)
+        return NULL;
+
+    oldest = frames[0];
+    for (i = 1; i < number_of_frames; ++i) {
+        if (frames[i]->timestamp < oldest->timestamp) {
+            oldest = frames[i];
+        }
+    }
+
+    return oldest;
+}
+
 void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
@@ -2112,33 +2131,62 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 
     n = pico_get_neighbor_from_ncache(dst);
 
-    if(n && n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED){
-        if (pico_tree_insert(&IPV6NQueue, cp)) {
-            nd_dbg("Could not insert frame in Queued frames tree\n");
-            PICO_FREE(cp);
-            return;
+    if (n) {
+        if (n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED) {
+            if (pico_tree_insert(&IPV6NQueue, cp)) {
+                nd_dbg("Could not insert frame in Queued frames tree\n");
+                PICO_FREE(cp);
+                return;
+            }
+            n->frames_queued++;
+        } else {
+            int i = 0;
+            struct pico_frame *frames[PICO_ND_MAX_FRAMES_QUEUED] = {0};
+
+            struct pico_frame *oldest = NULL;
+            struct pico_tree_node *index = NULL;
+            struct pico_frame *frame = NULL;
+            struct pico_ipv6_hdr *frame_hdr = NULL;
+
+            /* Get frames with dest addr == dst */
+            pico_tree_foreach(index,&IPV6NQueue) {
+                frame = index->keyValue;
+                frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+                if (pico_ipv6_compare(dst, &frame_hdr->dst) == 0) {
+                    frames[i++] = frame;
+                }
+            }
+
+            /* Get the oldest frame*/
+            oldest = pico_nd_get_oldest_frame(frames, PICO_ND_MAX_FRAMES_QUEUED);
+
+            /* Delete oldest frame... */
+            pico_tree_delete(&IPV6NQueue, oldest);
+            pico_frame_discard(oldest);
+
+            /* ...replace it with the newly recvd one */
+            pico_tree_insert(&IPV6NQueue, cp);
         }
-        n->frames_queued++;
     } else {
+        /* No neighbor known by the dest addr
+         * If there are any packets in the queue with this destination,
+         * delete them
+         */
         struct pico_tree_node *index = NULL;
         struct pico_frame *frame = NULL;
         struct pico_ipv6_hdr *frame_hdr = NULL;
 
-        pico_tree_foreach(index,&IPV6NQueue){
-          frame = index->keyValue;
-          frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
-          if(!pico_ipv6_compare(dst,&frame_hdr->dst)){
-            pico_tree_delete(&IPV6NQueue,frame);
-            pico_frame_discard(frame);
-            break;
-          }
+        pico_tree_foreach(index,&IPV6NQueue) {
+            frame = index->keyValue;
+            frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+            if (!pico_ipv6_compare(dst, &frame_hdr->dst)) {
+                pico_tree_delete(&IPV6NQueue,frame);
+                pico_frame_discard(frame);
+                break;
+            }
         }
 
-        if (pico_tree_insert(&IPV6NQueue,cp)) {
-            nd_dbg("Could not insert frame in Queued frames tree after emptying tree\n");
-            PICO_FREE(cp);
-            return;
-        }
+        /* TODO: what to do with newly recv frame? */
     }
 }
 
