@@ -78,6 +78,43 @@ static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f);
 static int neigh_sol_detect_dad_6lp(struct pico_frame *f);
 #endif
 
+#ifdef DEBUG_IPV6_ND
+static void print_nd_state(struct pico_ipv6_neighbor *n)
+{
+    if (!n)
+    {
+        nd_dbg("CAN'T PRINT STATE, NULL NEIGHBOR\n");
+        return;
+    }
+
+    switch (n->state)
+    {
+    case PICO_ND_STATE_INCOMPLETE:
+        nd_dbg("NB STATE : INCOMPLETE\n");
+        break;
+    case PICO_ND_STATE_REACHABLE:
+        nd_dbg("NB STATE : REACHABLE\n");
+        break;
+    case PICO_ND_STATE_STALE:
+        nd_dbg("NB STATE : STALE\n");
+        break;
+    case PICO_ND_STATE_DELAY:
+        nd_dbg("NB STATE : DELAY\n");
+        break;
+    case PICO_ND_STATE_PROBE:
+        nd_dbg("NB STATE : PROBE\n");
+        break;
+    default:
+        nd_dbg("NB STATE : NOT DEFINED??\n");
+        break;
+    };
+
+}
+#else
+#define print_nd_state(n) \
+    do{} while (0)
+#endif
+
 static int pico_ipv6_neighbor_compare(void *ka, void *kb)
 {
     struct pico_ipv6_neighbor *a = ka, *b = kb;
@@ -405,13 +442,15 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
       }
 
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED, &gw->gateway);
-      nd_dbg("NS solicited for %s, state %d\n", ipv6_addr, n->state);
+      nd_dbg("NS solicited for %s\n", ipv6_addr);
+      print_nd_state(n);
     } else {
       if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
           return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST, &gw->gateway);
-      nd_dbg("NS unicast for %s, state %d\n", ipv6_addr, n->state);
+      nd_dbg("NS unicast for %s\n", ipv6_addr);
+      print_nd_state(n);
     }
 
     pico_nd_new_expire_time(n);
@@ -431,6 +470,11 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
         /* Make timer callback handle pico_nd_discover */
         pico_nd_new_expire_time(n);
         return NULL;
+    }
+
+    if (n->state == PICO_ND_STATE_STALE) {
+        n->state = PICO_ND_STATE_DELAY;
+        pico_nd_new_expire_time(n);
     }
 
     if (n->state != PICO_ND_STATE_REACHABLE) {
@@ -800,11 +844,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
     struct pico_ipv6_router *r = NULL;
     struct router_adv_s *r_adv_hdr = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
-    struct pico_icmp6_opt_lladdr opt = {
-        0
-    };
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
-    int valid_lladdr = neigh_options(f, &opt, PICO_ND_OPT_LLADDR_SRC);
 
     if (!pico_ipv6_is_unspecified(ip->src.addr)) {
         r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
@@ -832,7 +872,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         }
 
         if(r_adv_hdr->life_time != 0) {
-            r->invalidation = PICO_TIME_MS() + r_adv_hdr->life_time * 1000;
+            r->invalidation = PICO_TIME_MS() + (pico_time)(r_adv_hdr->life_time * 1000);
         } else {
             /* TODO: WHAT IF 0? */
             pico_ipv6_assign_default_router(r->is_default);
@@ -891,7 +931,7 @@ static int neigh_sol_process(struct pico_frame *f)
 
     pico_ipv6_neighbor_from_unsolicited(f);
 
-    if (!f->dev->mode && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
+    if (f->dev->mode != LL_MODE_ETHERNET && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
         return 0;
 #ifdef PICO_SUPPORT_6LOWPAN
     else if (PICO_DEV_IS_6LOWPAN(f->dev)) {
@@ -1967,6 +2007,7 @@ static void pico_ipv6_nd_timer_callback(pico_time now, void *arg)
         n = index->keyValue;
         if (now > n->expire) {
             nd_dbg("NB EXPIRED: %d, %d\n", now, n->expire);
+            print_nd_state(n);
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
