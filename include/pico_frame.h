@@ -46,7 +46,7 @@ struct pico_frame {
     uint8_t *app_hdr;
     uint16_t app_len;
 
-    /* Pointer to the phisical device this packet belongs to.
+    /* Pointer to the physical device this packet belongs to.
      * Should be valid in both routing directions
      */
     struct pico_device *dev;
