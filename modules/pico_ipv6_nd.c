@@ -268,6 +268,22 @@ static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_li
     }
 }
 
+static void pico_nd_clear_pending_packets(struct pico_ip6 *dst)
+{
+    struct pico_tree_node *index = NULL;
+    struct pico_frame *frame = NULL;
+    struct pico_ipv6_hdr *frame_hdr = NULL;
+
+    pico_tree_foreach(index,&IPV6NQueue) {
+        frame = index->keyValue;
+        frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+        if (!pico_ipv6_compare(dst, &frame_hdr->dst)) {
+            pico_tree_delete(&IPV6NQueue,frame);
+            pico_frame_discard(frame);
+        }
+    }
+}
+
 static void pico_ipv6_nd_queued_trigger(struct pico_ip6 *dst)
 {
     struct pico_tree_node *index = NULL;
@@ -375,6 +391,8 @@ static void pico_ipv6_nd_unreachable(struct pico_ip6 *a)
 static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_router *r = NULL;
+
+    pico_nd_clear_pending_packets(&n->address);
 
     /* If it is a router, it should be in the RCache */
     r = pico_get_router_from_rcache(&n->address);
@@ -816,6 +834,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
                 n = pico_nd_add(&ip->src, f->dev);
 
                 if (n) {
+                    nd_dbg("NB FROM UNSOLICITED: added\n");
                     n->state = PICO_ND_STATE_INCOMPLETE;
                 } else {
                     nd_dbg("NB FROM UNSOLICITED: could not add neighbor, aborting route update\n");
@@ -1945,6 +1964,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_PROBE:
         if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
             n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
+            nd_dbg("DELETE ENTRY\n");
             pico_nd_delete_entry(n);
             return;
         }
@@ -2063,10 +2083,12 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
 
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
-      if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < 3 && (link->rs_expire_time < now)){
-          link->rs_retries++;
+      if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < MAX_INITIAL_RTR_ADVERTISEMENTS && (link->rs_expire_time < now)) {
           route = pico_ipv6_gateway_by_dev(link->dev);
-          pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
+          if (route) {
+              link->rs_retries++;
+              pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
+          }
           link->rs_expire_time = PICO_TIME_MS() + 4000;
       }
     }
@@ -2137,6 +2159,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
                 nd_dbg("Could not insert frame in Queued frames tree\n");
                 PICO_FREE(cp);
                 return;
+            } else {
+                nd_dbg("PACKET INSERTED\n");
             }
             n->frames_queued++;
         } else {
@@ -2172,21 +2196,13 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
          * If there are any packets in the queue with this destination,
          * delete them
          */
-        struct pico_tree_node *index = NULL;
-        struct pico_frame *frame = NULL;
-        struct pico_ipv6_hdr *frame_hdr = NULL;
+        pico_nd_clear_pending_packets(dst);
 
-        pico_tree_foreach(index,&IPV6NQueue) {
-            frame = index->keyValue;
-            frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
-            if (!pico_ipv6_compare(dst, &frame_hdr->dst)) {
-                pico_tree_delete(&IPV6NQueue,frame);
-                pico_frame_discard(frame);
-                break;
-            }
-        }
-
-        /* TODO: what to do with newly recv frame? */
+        /*
+         * Insert the packet in the tree
+         * Discovery should have started
+         */
+        pico_tree_insert(&IPV6NQueue, cp);
     }
 }
 
