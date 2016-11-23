@@ -349,6 +349,8 @@ static struct pico_ipv6_neighbor *pico_nd_add(struct pico_ip6 *addr, struct pico
     n->dev = dev;
     n->frames_queued = 0;
     n->state = PICO_ND_STATE_INCOMPLETE;
+    n->expire = PICO_TIME_MS() + ONE_MINUTE;
+
     if (pico_tree_insert(&NCache, n)) {
         nd_dbg("IPv6 ND: Failed to insert neigbor in tree\n");
         PICO_FREE(n);
@@ -1960,10 +1962,6 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
-        if (n->expire == 0) {
-            /* Indicates we haven't yet started searching for this NB */
-            return;
-        }
         /* Fallthrough */
     case PICO_ND_STATE_PROBE:
         if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
