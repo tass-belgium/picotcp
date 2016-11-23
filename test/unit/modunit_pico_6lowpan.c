@@ -1401,7 +1401,6 @@ static void app_ping(char *arg)
     char *abort = NULL;
     char *delay = NULL;
     char *asize = NULL;
-    time_t initial_delay = 0;
     static int id;
     int timeout = 0;
     int size = 64;
@@ -1435,11 +1434,11 @@ static void app_ping(char *arg)
     if (next) {
         next = cpy_arg(&delay, next);
         if (strlen(delay) > 0) {
-            initial_delay = (time_t)atoi(delay);
+            uint32_t initial_delay = (uint32_t) atoi(delay);
             if (initial_delay > 0) {
-                printf("Initial delay: %ld seconds\n", initial_delay);
-                initial_delay = (time_t)(PICO_TIME_MS() + (time_t)(initial_delay * 1000));
-                while (PICO_TIME_MS() < (pico_time)initial_delay) {
+                printf("Initial delay: %u seconds\n", initial_delay);
+                initial_delay = PICO_TIME_MS() + (initial_delay * 1000);
+                while (PICO_TIME_MS() < initial_delay) {
                     pico_stack_tick();
                     usleep(10000);
                 }
