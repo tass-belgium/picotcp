@@ -2092,7 +2092,9 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
       if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < 3 && (link->rs_expire_time < now)){
           link->rs_retries++;
           route = pico_ipv6_gateway_by_dev(link->dev);
-          pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
+          if (route != NULL) {
+              pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
+          }
           link->rs_expire_time = PICO_TIME_MS() + 4000;
       }
     }
