@@ -16,6 +16,7 @@
 #include "pico_ethernet.h"
 #include "pico_6lowpan.h"
 #include "pico_6lowpan_ll.h"
+#include "pico_addressing.h"
 
 #ifdef PICO_SUPPORT_IPV6
 #define MAX_INITIAL_RTR_ADVERTISEMENTS (3)
@@ -263,6 +264,23 @@ static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_li
         if( pico_ipv6_compare(&r->router->address, addr) == 0)
         {
           r->link = link;
+          break;
+        }
+    }
+}
+
+static void pico_ipv6_router_add_mtu(struct pico_ip6 *addr, uint32_t mtu)
+{
+    struct pico_tree_node *index, *_tmp;
+    struct pico_ipv6_router *r;
+    pico_tree_foreach_safe(index, &RCache, _tmp)
+    {
+        r = index->keyValue;
+        if(pico_ipv6_compare(&r->router->address, addr) == 0)
+        {
+          if (r->link != NULL) {
+              r->link->mtu = mtu;
+          }
           break;
         }
     }
@@ -1791,6 +1809,14 @@ static int radv_process(struct pico_frame *f)
     } else {
         /* prefix option is not valid, silently ignore it */
         nd_dbg("Prefix option is not valid\n");
+    }
+
+    {
+    struct pico_icmp6_opt_mtu mtu_option;
+    int mtu_valid = neigh_options(f, &mtu_option, PICO_ND_OPT_MTU);
+    if (mtu_valid > 0) {
+        pico_ipv6_router_add_mtu(&hdr->src,long_be(mtu_option.mtu));
+    }
     }
 
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {

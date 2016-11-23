@@ -1769,6 +1769,7 @@ static struct pico_ipv6_link *pico_ipv6_do_link_add(struct pico_device *dev, str
 
     new->MCASTGroups->root = &LEAF;
     new->MCASTGroups->compare = ipv6_mcast_groups_cmp;
+    new->mtu = 0;
 #ifdef PICO_SUPPORT_MLD
     new->mcast_compatibility = PICO_MLDV2;
     new->mcast_last_query_interval = MLD_QUERY_INTERVAL;
