@@ -855,6 +855,9 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 
         if (!n)
             return;
+
+        n->failure_uni_count = 0;
+        n->failure_multi_count = 0;
     }
 }
 
@@ -966,6 +969,7 @@ static int neigh_sol_process(struct pico_frame *f)
     }
 
     pico_icmp6_neighbor_advertisement(f,  &icmp6_hdr->msg.info.neigh_adv.target);
+
     return 0;
 }
 
