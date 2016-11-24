@@ -2159,7 +2159,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
         if (n->frames_queued < PICO_ND_MAX_FRAMES_QUEUED) {
             if (pico_tree_insert(&IPV6NQueue, cp)) {
                 nd_dbg("Could not insert frame in Queued frames tree\n");
-                PICO_FREE(cp);
+                pico_frame_discard(cp);
                 return;
             } else {
                 nd_dbg("PACKET INSERTED\n");
@@ -2206,6 +2206,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             pico_tree_insert(&IPV6NQueue, cp);
         } else {
             nd_dbg("Could not add NCE to postpone frame\n");
+            pico_frame_discard(cp);
+            return;
         }
     }
 }
