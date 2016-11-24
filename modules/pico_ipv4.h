@@ -10,7 +10,6 @@
 #include "pico_addressing.h"
 #include "pico_protocol.h"
 #include "pico_tree.h"
-#include "pico_device.h"
 
 #define PICO_IPV4_INADDR_ANY 0x00000000U
 

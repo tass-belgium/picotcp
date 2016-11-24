@@ -16,7 +16,10 @@
 #include "pico_ipv4.h"
 #include "pico_icmp6.h"
 #include "pico_eth.h"
-
+#include "pico_802154.h"
+#include "pico_6lowpan.h"
+#include "pico_6lowpan_ll.h"
+#include "pico_addressing.h"
 #define PICO_DEVICE_DEFAULT_MTU (1500)
 
 struct pico_devices_rr_info {
@@ -42,6 +45,43 @@ static int pico_dev_cmp(void *ka, void *kb)
 
 PICO_TREE_DECLARE(Device_tree, pico_dev_cmp);
 
+#ifdef PICO_SUPPORT_6LOWPAN
+static struct pico_ipv6_link * pico_6lowpan_link_add(struct pico_device *dev, const struct pico_ip6 *prefix)
+{
+    struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+    struct pico_6lowpan_info *info = (struct pico_6lowpan_info *)dev->eth;
+    struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
+    struct pico_ip6 newaddr;
+
+    memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
+    memcpy(newaddr.addr + 8, info->addr_ext.addr, SIZE_6LOWPAN_EXT);
+    newaddr.addr[8] = newaddr.addr[8] ^ 0x02; /* Toggle U/L bit */
+
+    /* RFC6775: No Duplicate Address Detection (DAD) is performed if
+        * EUI-64-based IPv6 addresses are used (as these addresses are assumed
+        * to be globally unique). */
+    if ((link = pico_ipv6_link_add_no_dad(dev, newaddr, netmask64))) {
+        if (pico_ipv6_is_linklocal(newaddr.addr))
+            pico_6lp_nd_start_soliciting(link, NULL);
+        else
+            pico_6lp_nd_register(link);
+    }
+
+    return link;
+}
+
+static int pico_6lowpan_store_info(struct pico_device *dev, const uint8_t *mac)
+{
+    if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_6lowpan_info)))) {
+        memcpy(dev->eth, mac, sizeof(struct pico_6lowpan_info));
+        return 0;
+    } else {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+}
+#endif
+
 #ifdef PICO_SUPPORT_IPV6
 static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *linklocal)
 {
@@ -49,62 +89,87 @@ static void device_init_ipv6_final(struct pico_device *dev, struct pico_ip6 *lin
     /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
     dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * PICO_ND_REACHABLE_TIME) / 10;
     dev->hostvars.retranstime = PICO_ND_RETRANS_TIMER;
-    pico_icmp6_router_solicitation(dev, linklocal);
+    pico_icmp6_router_solicitation(dev, linklocal, NULL);
     dev->hostvars.hoplimit = PICO_IPV6_DEFAULT_HOP;
 }
 
 struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const struct pico_ip6 *prefix)
 {
-    struct pico_ip6 newaddr;
     struct pico_ip6 netmask64 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-    struct pico_ipv6_link *link;
-    memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-    /* modified EUI-64 + invert universal/local bit */
-    newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
-    newaddr.addr[9] = dev->eth->mac.addr[1];
-    newaddr.addr[10] = dev->eth->mac.addr[2];
-    newaddr.addr[11] = 0xff;
-    newaddr.addr[12] = 0xfe;
-    newaddr.addr[13] = dev->eth->mac.addr[3];
-    newaddr.addr[14] = dev->eth->mac.addr[4];
-    newaddr.addr[15] = dev->eth->mac.addr[5];
-    link = pico_ipv6_link_add(dev, newaddr, netmask64);
-    if (link) {
-        device_init_ipv6_final(dev, &newaddr);
+    struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
+    struct pico_ip6 newaddr;
+
+    switch (dev->mode) {
+#ifdef PICO_SUPPORT_802154
+        case LL_MODE_IEEE802154:
+            link = pico_6lowpan_link_add(dev, prefix);
+            break;
+#elif defined (PICO_SUPPORT_802154_NO_MAC)
+        case LL_MODE_IEEE802154_NO_MAC:
+            link = pico_6lowpan_link_add(dev, prefix);
+            break;
+#endif
+        default:
+            memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
+            /* modified EUI-64 + invert universal/local bit */
+            newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
+            newaddr.addr[9] = dev->eth->mac.addr[1];
+            newaddr.addr[10] = dev->eth->mac.addr[2];
+            newaddr.addr[11] = 0xff;
+            newaddr.addr[12] = 0xfe;
+            newaddr.addr[13] = dev->eth->mac.addr[3];
+            newaddr.addr[14] = dev->eth->mac.addr[4];
+            newaddr.addr[15] = dev->eth->mac.addr[5];
+            if ((link = pico_ipv6_link_add(dev, newaddr, netmask64))) {
+                device_init_ipv6_final(dev, &newaddr);
+            }
     }
 
     return link;
 }
 #endif
-
 static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
 {
-    #ifdef PICO_SUPPORT_IPV6
+#ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
-    #endif
-    dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev));
-    if (dev->eth) {
-        memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
-        #ifdef PICO_SUPPORT_IPV6
-        if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
-            PICO_FREE(dev->q_in);
-            PICO_FREE(dev->q_out);
-            PICO_FREE(dev->eth);
-            return -1;
-        }
+#endif
 
-        #endif
-    } else {
-        pico_err = PICO_ERR_ENOMEM;
+    switch (dev->mode) {
+#ifdef PICO_SUPPORT_802154
+        case LL_MODE_IEEE802154:
+            if (pico_6lowpan_store_info(dev, mac))
+                return -1;
+            break;
+#elif defined (PICO_SUPPORT_802154_NO_MAC)
+        case LL_MODE_IEEE802154_NO_MAC:
+            if (pico_6lowpan_store_info(dev, mac))
+                return -1;
+            break;
+#endif
+        default: // Ethernet by default
+            if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev)))) {
+                memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
+            } else {
+                pico_err = PICO_ERR_ENOMEM;
+                return -1;
+            }
+    }
+
+#ifdef PICO_SUPPORT_IPV6
+    if (pico_ipv6_link_add_local(dev, &linklocal) == NULL) {
+        PICO_FREE(dev->q_in);
+        PICO_FREE(dev->q_out);
+        PICO_FREE(dev->eth);
         return -1;
     }
+#endif
 
     return 0;
 }
 
 int pico_device_ipv6_random_ll(struct pico_device *dev)
 {
-    #ifdef PICO_SUPPORT_IPV6
+#ifdef PICO_SUPPORT_IPV6
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
     struct pico_ip6 netmask6 = {{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
     uint32_t len = (uint32_t)strlen(dev->name);
@@ -129,7 +194,7 @@ int pico_device_ipv6_random_ll(struct pico_device *dev)
         }
     }
 
-    #endif
+#endif
     return 0;
 }
 
@@ -145,11 +210,17 @@ static int device_init_nomac(struct pico_device *dev)
     return 0;
 }
 
+#define DEBUG_IPV6(ip)  { \
+                            char ipstr[40] = { 0 }; \
+                            pico_ipv6_to_string(ipstr, (ip).addr); \
+                            dbg("IPv6 (%s)\n", ipstr); \
+                        }
+
 int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *mac)
 {
-
     uint32_t len = (uint32_t)strlen(name);
     int ret = 0;
+
     if(len > MAX_DEVICE_NAME)
         len = MAX_DEVICE_NAME;
 
@@ -176,12 +247,25 @@ int pico_device_init(struct pico_device *dev, const char *name, const uint8_t *m
     if (!dev->mtu)
         dev->mtu = PICO_DEVICE_DEFAULT_MTU;
 
+#ifdef PICO_SUPPORT_6LOWPAN
+    if (PICO_DEV_IS_6LOWPAN(dev) && LL_MODE_ETHERNET == dev->mode)
+        return -1;
+#endif
+
     if (mac) {
         ret = device_init_mac(dev, mac);
     } else {
-        ret = device_init_nomac(dev);
+        if (!dev->mode) {
+            ret = device_init_nomac(dev);
+        }
+#ifdef PICO_SUPPORT_6LOWPAN
+        else {
+            /* RFC6775: Link Local to be formed based on EUI-64 as per RFC6775 */
+            dbg("Link local address to be formed based on EUI-64\n");
+            return -1;
+        }
+#endif
     }
-
     return ret;
 }
 
@@ -199,7 +283,7 @@ void pico_device_destroy(struct pico_device *dev)
     pico_queue_destroy(dev->q_in);
     pico_queue_destroy(dev->q_out);
 
-    if (dev->eth)
+    if (!dev->mode && dev->eth)
         PICO_FREE(dev->eth);
 
 #ifdef PICO_SUPPORT_IPV4
@@ -256,6 +340,11 @@ static int devloop_in(struct pico_device *dev, int loop_score)
 
 static int devloop_sendto_dev(struct pico_device *dev, struct pico_frame *f)
 {
+#ifdef PICO_SUPPORT_6LOWPAN
+    if (PICO_DEV_IS_6LOWPAN(dev)) {
+        return (pico_6lowpan_ll_sendto_dev(dev, f) <= 0);
+    }
+#endif
     return (dev->send(dev, f->start, (int)f->len) <= 0);
 }
 
@@ -279,6 +368,7 @@ static int devloop_out(struct pico_device *dev, int loop_score)
             break; /* Don't discard */
 
     }
+
     return loop_score;
 }
 

@@ -2,17 +2,13 @@
    PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
-   .
-
-   Authors: Daniele Lacamera
+   Authors: Jelle De Vleeschouwer
  *********************************************************************/
 
-#ifndef INCLUDE_PICO_ETHERNET
-#define INCLUDE_PICO_ETHERNET
+#ifndef __PICO_DEV_RADIO_MGR_H_
+#define __PICO_DEV_RADIO_MGR_H_
 
-#include "pico_config.h"
-#include "pico_frame.h"
+/* Start listening for TCP connection requests on 'LISTENING_PORT' */
+int pico_radio_mgr_start(void);
 
-extern struct pico_protocol pico_proto_ethernet;
-
-#endif /* INCLUDE_PICO_ETHERNET */
+#endif
