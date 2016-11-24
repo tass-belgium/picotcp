@@ -2194,17 +2194,19 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             pico_tree_insert(&IPV6NQueue, cp);
         }
     } else {
-        /* No neighbor known by the dest addr
-         * If there are any packets in the queue with this destination,
-         * delete them
-         */
-        pico_nd_clear_pending_packets(dst);
+        n = pico_nd_add(&dst, f->dev);
 
-        /*
-         * Insert the packet in the tree
-         * Discovery should have started
-         */
-        pico_tree_insert(&IPV6NQueue, cp);
+        if (n) {
+            n->frames_queued++;
+
+            /*
+             * Insert the packet in the tree
+             * Discovery should have started
+             */
+            pico_tree_insert(&IPV6NQueue, cp);
+        } else {
+            nd_dbg("Could not add NCE to postpone frame\n");
+        }
     }
 }
 
