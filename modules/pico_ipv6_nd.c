@@ -269,7 +269,6 @@ static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_li
     }
 }
 
-<<<<<<< HEAD
 static void pico_nd_clear_pending_packets(struct pico_ip6 *dst)
 {
     struct pico_tree_node *index = NULL;
@@ -282,7 +281,10 @@ static void pico_nd_clear_pending_packets(struct pico_ip6 *dst)
         if (!pico_ipv6_compare(dst, &frame_hdr->dst)) {
             pico_tree_delete(&IPV6NQueue,frame);
             pico_frame_discard(frame);
-=======
+        }
+    }
+}
+
 static void pico_ipv6_router_add_mtu(struct pico_ip6 *addr, uint32_t mtu)
 {
     struct pico_tree_node *index, *_tmp;
@@ -296,7 +298,6 @@ static void pico_ipv6_router_add_mtu(struct pico_ip6 *addr, uint32_t mtu)
               r->link->mtu = mtu;
           }
           break;
->>>>>>> 7fe5b13a8cd879dca48faa4670f41728f49e2f41
         }
     }
 }
@@ -2219,7 +2220,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             pico_tree_insert(&IPV6NQueue, cp);
         }
     } else {
-        n = pico_nd_add(&dst, f->dev);
+        n = pico_nd_add(dst, f->dev);
 
         if (n) {
             n->frames_queued++;
