@@ -23,7 +23,7 @@ START_TEST(tc_pico_ipv6_neighbor_compare)
   b.address = address_b;
   fail_if(pico_ipv6_neighbor_compare(&a, &b) != 0, "Neighbours A and B have same ipv6 addr, not true?");
 
-  /* a has different addres */
+  /* a has different address */
   a.address.addr[0] = 1;
   fail_if(pico_ipv6_neighbor_compare(&a, &b) != 1, "Neighbour A has different ipv6 addr, not detected?");
 
@@ -31,7 +31,7 @@ START_TEST(tc_pico_ipv6_neighbor_compare)
   a.address = address_a;
   b.address = address_b;
 
-  /* b has different addres */
+  /* b has different address */
   b.address.addr[0] = 1;
   fail_if(pico_ipv6_neighbor_compare(&a, &b) != -1, "Neighbour B has different ipv6 addr, not detected?");
 }
@@ -49,7 +49,7 @@ START_TEST(tc_pico_ipv6_router_compare)
   b.router = &neighbor_b;
   fail_if(pico_ipv6_router_compare(&a, &b) != 0, "Routers A and B have same ipv6 addr, not true?");
 
-  /* a has different addres */
+  /* a has different address */
   neighbor_a.address.addr[0] = 1;
   fail_if(pico_ipv6_router_compare(&a, &b) != 1, "Router A has different ipv6 addr, not detected?");
 
@@ -57,7 +57,7 @@ START_TEST(tc_pico_ipv6_router_compare)
   neighbor_a.address = address_a;
   neighbor_b.address = address_b;
 
-  /* b has different addres */
+  /* b has different address */
   neighbor_b.address.addr[0] = 1;
   fail_if(pico_ipv6_router_compare(&a, &b) != -1, "Router B has different ipv6 addr, not detected?");
 }
@@ -78,7 +78,7 @@ START_TEST(tc_pico_ipv6_nd_qcompare)
 
   fail_if(pico_ipv6_nd_qcompare(&a, &b) != 0, "Frames A and B have same ipv6 addr, not true?");
 
-  /* a has different addres */
+  /* a has different address */
   a_hdr.dst.addr[0] = 1;
   fail_if(pico_ipv6_nd_qcompare(&a, &b) != 1, "Frame A has different ipv6 addr, not detected?");
 
@@ -86,7 +86,7 @@ START_TEST(tc_pico_ipv6_nd_qcompare)
   a_hdr.dst = a_dest_addr;
   b_hdr.dst = b_dest_addr;
 
-  /* b has different addres */
+  /* b has different address */
   b_hdr.dst.addr[0] = 1;
   fail_if(pico_ipv6_nd_qcompare(&a, &b) != -1, "Frame B has different ipv6 addr, not detected?");
 
@@ -289,6 +289,50 @@ START_TEST(tc_pico_nd_new_expire_time)
   pico_nd_new_expire_time(&n);
 }
 END_TEST
+START_TEST(tc_pico_nd_mtu)
+{
+    struct pico_device *dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
+    struct pico_frame *f = NULL;
+    const uint8_t mac[PICO_SIZE_ETH] = {
+    0x08, 0x00, 0x27, 0x39, 0xd0, 0xc6
+    };
+    const char * name = "nd_mtu";
+    /* Packet 15 from IPv6_NDP.cap */
+    const unsigned char pkt15[118] = {
+    0x33, 0x33, 0x00, 0x00, 0x00, 0x01, 0xc2, 0x00,
+    0x54, 0xf5, 0x00, 0x00, 0x86, 0xdd, 0x6e, 0x00,
+    0x00, 0x00, 0x00, 0x40, 0x3a, 0xff, 0xfe, 0x80,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xc0, 0x00,
+    0x54, 0xff, 0xfe, 0xf5, 0x00, 0x00, 0xff, 0x02,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x86, 0x00,
+    0xc4, 0xfe, 0x40, 0x00, 0x07, 0x08, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01,
+    0xc2, 0x00, 0x54, 0xf5, 0x00, 0x00, 0x05, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x05, 0xdc, 0x03, 0x04,
+    0x40, 0xc0, 0x00, 0x27, 0x8d, 0x00, 0x00, 0x09,
+    0x3a, 0x80, 0x00, 0x00, 0x00, 0x00, 0x20, 0x01,
+    0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+    };
+    pico_device_init(dummy_device, name, mac);
+    f = pico_frame_alloc(sizeof(pkt15));
+    memcpy(f->buffer, pkt15, sizeof(pkt15));
+    f->dev = dummy_device;
+    f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
+    f->net_len = PICO_SIZE_IP6HDR;
+    f->transport_hdr = f->buffer + PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR;
+    f->transport_len = sizeof(pkt15) - (PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
+
+    pico_ipv6_nd_recv(f);
+    
+    {
+    const struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(pkt15 + PICO_SIZE_ETHHDR);
+    struct pico_ipv6_router *test_router = pico_get_router_from_rcache(&(hdr->src));
+    fail_if(test_router->link->mtu != 1500);
+    }
+}
+END_TEST
 START_TEST(tc_pico_nd_discover)
 {
    /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
@@ -487,6 +531,7 @@ Suite *pico_suite(void)
     TCase *TCase_ipv6_duplicate_detected = tcase_create("Unit test for ipv6_duplicate_detected");
     TCase *TCase_pico_ipv6_nd_unreachable = tcase_create("Unit test for pico_ipv6_nd_unreachable");
     TCase *TCase_pico_nd_new_expire_time = tcase_create("Unit test for pico_nd_new_expire_time");
+    TCase *TCase_pico_nd_mtu = tcase_create("Unit test for pico_nd link mtu option");
     TCase *TCase_pico_nd_discover = tcase_create("Unit test for pico_nd_discover");
     TCase *TCase_neigh_options = tcase_create("Unit test for neigh_options");
     TCase *TCase_pico_ipv6_neighbor_update = tcase_create("Unit test for pico_ipv6_neighbor_update");
@@ -549,6 +594,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_nd_unreachable);
     tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
     suite_add_tcase(s, TCase_pico_nd_new_expire_time);
+    tcase_add_test(TCase_pico_nd_mtu, tc_pico_nd_mtu);
+    suite_add_tcase(s, TCase_pico_nd_mtu);
     tcase_add_test(TCase_pico_nd_discover, tc_pico_nd_discover);
     suite_add_tcase(s, TCase_pico_nd_discover);
     tcase_add_test(TCase_neigh_options, tc_neigh_options);

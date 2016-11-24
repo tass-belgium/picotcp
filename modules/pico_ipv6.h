@@ -70,6 +70,7 @@ struct pico_ipv6_link
     uint8_t mcast_compatibility;
     uint8_t mcast_last_query_interval;
 #endif
+    uint32_t mtu;
 };
 
 union pico_link {

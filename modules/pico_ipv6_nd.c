@@ -16,6 +16,7 @@
 #include "pico_ethernet.h"
 #include "pico_6lowpan.h"
 #include "pico_6lowpan_ll.h"
+#include "pico_addressing.h"
 
 #ifdef PICO_SUPPORT_IPV6
 #define MAX_INITIAL_RTR_ADVERTISEMENTS (3)
@@ -268,6 +269,7 @@ static void pico_ipv6_router_add_link(struct pico_ip6 *addr, struct pico_ipv6_li
     }
 }
 
+<<<<<<< HEAD
 static void pico_nd_clear_pending_packets(struct pico_ip6 *dst)
 {
     struct pico_tree_node *index = NULL;
@@ -280,6 +282,21 @@ static void pico_nd_clear_pending_packets(struct pico_ip6 *dst)
         if (!pico_ipv6_compare(dst, &frame_hdr->dst)) {
             pico_tree_delete(&IPV6NQueue,frame);
             pico_frame_discard(frame);
+=======
+static void pico_ipv6_router_add_mtu(struct pico_ip6 *addr, uint32_t mtu)
+{
+    struct pico_tree_node *index, *_tmp;
+    struct pico_ipv6_router *r;
+    pico_tree_foreach_safe(index, &RCache, _tmp)
+    {
+        r = index->keyValue;
+        if(pico_ipv6_compare(&r->router->address, addr) == 0)
+        {
+          if (r->link != NULL) {
+              r->link->mtu = mtu;
+          }
+          break;
+>>>>>>> 7fe5b13a8cd879dca48faa4670f41728f49e2f41
         }
     }
 }
@@ -1818,6 +1835,14 @@ static int radv_process(struct pico_frame *f)
         nd_dbg("Prefix option is not valid\n");
     }
 
+    {
+    struct pico_icmp6_opt_mtu mtu_option;
+    int mtu_valid = neigh_options(f, &mtu_option, PICO_ND_OPT_MTU);
+    if (mtu_valid > 0) {
+        pico_ipv6_router_add_mtu(&hdr->src,long_be(mtu_option.mtu));
+    }
+    }
+
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
         f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
     }
@@ -2087,7 +2112,7 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
       link = index->keyValue;
       if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < MAX_INITIAL_RTR_ADVERTISEMENTS && (link->rs_expire_time < now)) {
           route = pico_ipv6_gateway_by_dev(link->dev);
-          if (route) {
+          if (route != NULL) {
               link->rs_retries++;
               pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
           }
