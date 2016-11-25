@@ -289,17 +289,20 @@ pico_6lowpan_ll_process_out(struct pico_protocol *self, struct pico_frame *f)
     /* Call each of the outgoing processing functions */
     for (i = 0; i < NUM_LL_EXTENSIONS; i++) {
         ret = exts[i].out(f);
-        if (ret < 0) { /* Processing failed, no way to recover, discard frame */
-            pico_frame_discard(f);
-            return -1;
-        }
+        if (ret < 0)  /* Processing failed, no way to recover, discard frame */
+            goto fin;
         datalink_len = (uint32_t)(datalink_len + (uint32_t)ret);
+        if ((f->net_hdr - datalink_len) < f->buffer) /* Before buffer bound check */
+            goto fin;
     }
 
     /* Frame is ready for sending to the device driver */
     f->start = f->datalink_hdr;
     f->len = (uint32_t)(f->len + datalink_len);
     return (int32_t)(pico_sendto_dev(f) <= 0);
+fin:
+    pico_frame_discard(f);
+    return -1;
 }
 
 static int32_t
