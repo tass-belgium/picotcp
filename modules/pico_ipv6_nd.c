@@ -507,7 +507,7 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
         /* Make timer callback handle pico_nd_discover */
-        pico_nd_new_expire_time(n);
+        n->expire = 0;
         return NULL;
     }
 
