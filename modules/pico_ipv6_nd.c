@@ -1265,7 +1265,7 @@ static int redirect_process(struct pico_frame *f)
             dbg("Could not allocate ipv6 string for gateway debug\n");
         } else {
             pico_ipv6_to_string(ipv6_addr, ipv6_hdr->src.addr);
-            dbg("Zero gateway from route with ip addr: %s", ipv6_addr);
+            dbg("Zero gateway from route with ip addr: %s\n", ipv6_addr);
             PICO_FREE(ipv6_addr);
         }
     }
@@ -1866,7 +1866,6 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
     if (icmp6_initial_checks(f) < 0)
         return -1;
 
-
     if (router_adv_validity_checks(f) < 0)
         return -1;
 
@@ -1956,7 +1955,7 @@ static int pico_nd_redirect_is_valid(struct pico_frame *f)
         return -1;
     }
 
-    if (memcmp(gateway.addr, hdr->src.addr, PICO_SIZE_IP6) != 0) {
+    if (memcmp(&gateway.addr, &PICO_IP6_ANY, PICO_SIZE_IP6) != 0 && memcmp(gateway.addr, hdr->src.addr, PICO_SIZE_IP6) != 0) {
         return -1;
     }
 
