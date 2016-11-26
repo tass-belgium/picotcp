@@ -699,6 +699,7 @@ static int pico_icmp6_send_echo(struct pico_icmp6_ping_cookie *cookie)
 
     echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
     echo->payload_len = cookie->size;
+    echo->timestamp = pico_tick;
 
     hdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
     hdr->type = PICO_ICMP6_ECHO_REQUEST;
