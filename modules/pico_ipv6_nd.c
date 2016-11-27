@@ -695,11 +695,11 @@ static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico
 
 static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt, struct pico_icmp6_hdr *hdr, struct pico_device *dev)
 {
+    n->failure_uni_count = 0;
+    n->failure_multi_count = 0;
 
     if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt, dev) == 0)) {
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_uni_count = 0;
-        n->failure_multi_count = 0;
         pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
@@ -713,8 +713,6 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (IS_SOLICITED(hdr) && IS_OVERRIDE(hdr)) {
         pico_ipv6_neighbor_update(n, opt, dev);
         n->state = PICO_ND_STATE_REACHABLE;
-        n->failure_uni_count = 0;
-        n->failure_multi_count = 0;
         pico_ipv6_nd_queued_trigger(&n->address);
         pico_nd_new_expire_time(n);
         return 0;
