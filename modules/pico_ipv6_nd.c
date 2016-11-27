@@ -1864,11 +1864,15 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
     struct pico_ipv6_hdr *hdr = NULL;
     struct pico_ipv6_route *route = NULL;
 
-    if (icmp6_initial_checks(f) < 0)
+    if (icmp6_initial_checks(f) < 0) {
+        nd_dbg("Router adv: icmp6 initial check failed\n");
         return -1;
+    }
 
-    if (router_adv_validity_checks(f) < 0)
+    if (router_adv_validity_checks(f) < 0) {
+        nd_dbg("Router adv: router adv validity check failed\n");
         return -1;
+    }
 
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -2106,16 +2110,24 @@ static void pico_ipv6_nd_check_rs_timer_expired(pico_time now, void *arg){
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
     struct pico_ipv6_route *route = NULL;
+    struct pico_ip6 zero = {
+        .addr = {0}
+    };
 
     IGNORE_PARAMETER(arg);
 
-    pico_tree_foreach(index,&IPV6Links){
+    pico_tree_foreach(index,&IPV6Links) {
       link = index->keyValue;
       if(pico_ipv6_is_linklocal(link->address.addr)  && link->rs_retries < MAX_INITIAL_RTR_ADVERTISEMENTS && (link->rs_expire_time < now)) {
           route = pico_ipv6_gateway_by_dev(link->dev);
           if (route != NULL) {
               link->rs_retries++;
               pico_icmp6_router_solicitation(link->dev,&link->address, &route->gateway);
+          } else if (link->dev->mode == LL_MODE_ETHERNET) {
+              /* TODO: is it okay to supply zero as dst addr for 6LOWPAN links? (-->remove above if?) */
+              /* dst parameter is ignored for non-6LOWPAN links */
+              link->rs_retries++;
+              pico_icmp6_router_solicitation(link->dev,&link->address, &zero);
           }
           link->rs_expire_time = PICO_TIME_MS() + 4000;
       }
