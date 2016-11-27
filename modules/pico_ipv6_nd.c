@@ -1227,6 +1227,9 @@ static int redirect_process(struct pico_frame *f)
                 pico_ipv6_neighbor_update(target_neighbor, &opt_ll, target_neighbor->dev);
                 target_neighbor->state = PICO_ND_STATE_STALE;
                 pico_ipv6_nd_queued_trigger(&target_neighbor->address);
+
+                target_neighbor->failure_uni_count = 0;
+                target_neighbor->failure_multi_count = 0;
             } else {
                 /* ll addr is the same as that already in cache */
                 /* DO NOTHING */
