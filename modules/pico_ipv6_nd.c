@@ -111,8 +111,22 @@ static void print_nd_state(struct pico_ipv6_neighbor *n)
     };
 
 }
+
+static void pico_nd_print_addr(struct pico_ip6 *addr)
+{
+    char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
+    if (!ipv6_addr) {
+        dbg("Could not allocate ipv6 string for gateway debug\n");
+    } else {
+        pico_ipv6_to_string(ipv6_addr, addr->addr);
+        nd_dbg("ADDR : %s\n", ipv6_addr);
+        PICO_FREE(ipv6_addr);
+    }
+}
 #else
 #define print_nd_state(n) \
+    do{} while (0)
+#define print_nd_print_addr(addr) \
     do{} while (0)
 #endif
 
@@ -450,22 +464,14 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_route *gw = NULL;
 
-#ifdef DEBUG_IPV6_ND
-    char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
-    if (!ipv6_addr) {
-        dbg("Could not allocate ipv6 string for gateway debug\n");
-    } else {
-        pico_ipv6_to_string(ipv6_addr, n->address.addr);
-        nd_dbg("Sending NS for %s\n", ipv6_addr);
-        PICO_FREE(ipv6_addr);
-    }
-#endif
+    pico_nd_print_addr(&n->address);
 
     if (!n)
         return;
 
     gw = pico_ipv6_gateway_by_dev(n->dev);
 
+    nd_dbg("discover: %d, %d\n", n->failure_multi_count, n->failure_uni_count);
     if (n->state == PICO_ND_STATE_DELAY) {
         /* We wait for DELAY_FIRST_PROBE_TIME to expire
          * This will set us in state PROBE and this will call pico_nd_discover
@@ -476,20 +482,23 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
+          nd_dbg("failure multi count threshold reached\n");
           return;
       }
 
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_SOLICITED, &gw->gateway);
-      nd_dbg("NS solicited for %s\n", ipv6_addr);
-      print_nd_state(n);
+      nd_dbg("NS solicited for ");
     } else {
       if (++n->failure_uni_count > PICO_ND_MAX_UNICAST_SOLICIT){
+          nd_dbg("failure uni count threshold reached\n");
           return;
       }
       pico_icmp6_neighbor_solicitation(n->dev, &n->address, PICO_ICMP6_ND_UNICAST, &gw->gateway);
-      nd_dbg("NS unicast for %s\n", ipv6_addr);
-      print_nd_state(n);
+      nd_dbg("NS unicast for ");
     }
+
+    pico_nd_print_addr(&n->address);
+    print_nd_state(n);
 
     pico_nd_new_expire_time(n);
 }
@@ -859,16 +868,21 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
                     return;
                 }
             }
-        } else if (pico_ipv6_neighbor_compare_stored(n, &opt, f->dev) != 0) {
+        } else if (valid_lladdr > 0 && pico_ipv6_neighbor_compare_stored(n, &opt, f->dev) != 0) {
             /* NCE exists but different LL addr */
             nd_dbg("NB FROM UNSOLICITED: diff ll addr\n");
+            pico_nd_print_addr(&n->address);
+
             pico_ipv6_neighbor_update(n, &opt, n->dev);
             n->state = PICO_ND_STATE_STALE;
             pico_ipv6_nd_queued_trigger(&n->address);
             pico_nd_new_expire_time(n);
         } else {
-            /* NCE exists with same LL addr */
-            nd_dbg("NB FROM UNSOLICITED: SAME LL ADDR\n");
+            /*
+             * NCE exists with same LL addr or no ll addr option
+             * Either way, we don't update the state of the NCE
+             */
+            nd_dbg("NB FROM UNSOLICITED: SAME LL ADDR OR NO LL ADDR OPTION\n");
         }
 
         if (!n)
@@ -1261,42 +1275,21 @@ static int redirect_process(struct pico_frame *f)
 #ifdef DEBUG_IPV6_ND
     /* Is the gateway zero-address? */
     if (memcmp(&gateway, &zero, PICO_SIZE_IP6) == 0) {
-        char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
-        if (!ipv6_addr) {
-            dbg("Could not allocate ipv6 string for gateway debug\n");
-        } else {
-            pico_ipv6_to_string(ipv6_addr, ipv6_hdr->src.addr);
-            dbg("Zero gateway from route with ip addr: %s\n", ipv6_addr);
-            PICO_FREE(ipv6_addr);
-        }
+        pico_nd_print_addr(&ipv6_hdr->src);
     }
 #endif
 
     /* remove old route to dest */
     if (pico_ipv6_route_del(redirect_hdr->dest, zero, gateway, DEFAULT_METRIC, link) != 0) {
 #ifdef DEBUG_IPV6_ND
-        char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
-        if (!ipv6_addr) {
-            dbg("Could not allocate ipv6 string for route del debug\n");
-        } else {
-            pico_ipv6_to_string(ipv6_addr, redirect_hdr->dest.addr);
-            dbg("Old route to %s was not found.\n", ipv6_addr);
-            PICO_FREE(ipv6_addr);
-        }
+        pico_nd_print_addr(&redirect_hdr->dest);
 #endif
     }
 
     /* add new route recv from redirect to known routes so in future we will use this one */
     if (pico_ipv6_route_add(redirect_hdr->dest, zero, redirect_hdr->target, DEFAULT_METRIC, link) != 0) {
 #ifdef DEBUG_IPV6_ND
-        char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
-        if (!ipv6_addr) {
-            dbg("Could not allocate ipv6 string for route add debug\n");
-        } else {
-            pico_ipv6_to_string(ipv6_addr, redirect_hdr->dest.addr);
-            dbg("New route could not be added for destination %s.\n", ipv6_addr);
-            PICO_FREE(ipv6_addr);
-        }
+        pico_nd_print_addr(&redirect_hdr->dest);
 #endif
     }
 
@@ -1748,6 +1741,7 @@ static int pico_nd_router_sol_recv(struct pico_frame *f)
 
     return 0;
 }
+
 static int radv_process(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
@@ -1813,36 +1807,35 @@ static int radv_process(struct pico_frame *f)
     /* TODO: process ABRO option */
 #endif
 
-
     if (pico_nd_prefix_option_valid(f->dev, &prefix_option) == 0) {
-            link = pico_ipv6_link_add_local(f->dev, &prefix_option.prefix);
-            if (link) {
-                pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
-                if (pico_ipv6_route_add(zero, zero, hdr->src, 10, link) != 0) {
-                        nd_dbg("Could not add default route in router adv\n");
-                } else {
-                    nd_dbg("added route in router adv\n");
-#ifdef PICO_SUPPORT_6LOWPAN
-                    if (PICO_DEV_IS_6LOWPAN(f->dev)) {
-                        pico_6lp_nd_register(link);
-                    }
-#endif
-                }
-                pico_ipv6_router_add_link(&hdr->src, link);
+        link = pico_ipv6_link_add_local(f->dev, &prefix_option.prefix);
+        if (link) {
+            pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
+            if (pico_ipv6_route_add(zero, zero, hdr->src, 10, link) != 0) {
+                nd_dbg("Could not add default route in router adv\n");
             } else {
-                nd_dbg("router adv: no link\n");
+                nd_dbg("added route in router adv\n");
+#ifdef PICO_SUPPORT_6LOWPAN
+                if (PICO_DEV_IS_6LOWPAN(f->dev)) {
+                    pico_6lp_nd_register(link);
+                }
+#endif
             }
+            pico_ipv6_router_add_link(&hdr->src, link);
+        } else {
+            nd_dbg("router adv: no link\n");
+        }
     } else {
         /* prefix option is not valid, silently ignore it */
         nd_dbg("Prefix option is not valid\n");
     }
 
     {
-    struct pico_icmp6_opt_mtu mtu_option;
-    int mtu_valid = neigh_options(f, &mtu_option, PICO_ND_OPT_MTU);
-    if (mtu_valid > 0) {
-        pico_ipv6_router_add_mtu(&hdr->src,long_be(mtu_option.mtu));
-    }
+        struct pico_icmp6_opt_mtu mtu_option;
+        int mtu_valid = neigh_options(f, &mtu_option, PICO_ND_OPT_MTU);
+        if (mtu_valid > 0) {
+            pico_ipv6_router_add_mtu(&hdr->src,long_be(mtu_option.mtu));
+        }
     }
 
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
