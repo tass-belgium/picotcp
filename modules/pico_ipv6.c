@@ -1335,7 +1335,7 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
         /* RFC6775 $5.5.1:
          *  ... An unspecified source address MUST NOT be used in NS messages.
          */
-        if (f->dev->mode == LL_MODE_ETHERNET && (is_dad || link->istentative) && icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL) {
+        if (f->dev->mode == LL_MODE_ETHERNET && (is_dad || link->istentative) && (icmp6_hdr->type == PICO_ICMP6_NEIGH_SOL || icmp6_hdr->type == PICO_ICMP6_ROUTER_SOL)) {
            memcpy(hdr->src.addr, PICO_IP6_ANY, PICO_SIZE_IP6);
         }
 
