@@ -48,7 +48,17 @@ sleep 1
 (build/test/picoapp6.elf -6 1,2,1 -a noop) &
 sleep 1
 build/test/picoapp6.elf -6 2,1,0 -a ping,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1500,0,1 || exit 1
-killall -w picoapp6.elf
+killall -w picoapp6.elf -s SIGQUIT
+
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+echo "~~~ 6LoWPAN UDP 1HOP   (1400B) ~~~"
+echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+(build/test/picoapp6.elf -6 0,0,0) &
+sleep 1
+(build/test/picoapp6.elf -6 1,2,1 -a udpecho,::0,6667,) &
+sleep 1
+build/test/picoapp6.elf -6 2,1,0 -a udpclient,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,6667,6667,1400,100,10, || exit 1
+killall -w picoapp6.elf -s SIGQUIT
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
