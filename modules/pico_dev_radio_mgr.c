@@ -25,9 +25,11 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/poll.h>
 #include <string.h>
 #include <stdio.h>
+#include <signal.h>
 
 #ifdef DEBUG_RADIOTEST
 #define RADIO_DBG       dbg
@@ -200,12 +202,14 @@ pico_radio_mgr_listen(void)
 {
     struct sockaddr_in addr;
     int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    int ret = 0;
+    int ret = 0, yes = 1;
 
     memset(&addr, 0, sizeof(struct sockaddr_in));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(LISTENING_PORT);
     addr.sin_addr.s_addr = INADDR_ANY;
+
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
 
     ret = bind(s, (struct sockaddr *)&addr, sizeof(struct sockaddr_in));
     if (ret < 0) {
@@ -238,6 +242,7 @@ pico_radio_mgr_distribute(uint8_t *buf, int len, uint8_t id)
     struct pico_tree_node *i = NULL;
     struct socket *key = NULL;
     if (node) {
+        RADIO_DBG("Received frame from node '%d' of '%d' bytes\n", id, len);
         area0 = node->area0;
         area1 = node->area1;
     } else {
@@ -271,39 +276,50 @@ pico_radio_mgr_process(struct pollfd *fds, int n)
 
     for (i = 0; i < n; i++) {
         event = fds[i].revents;
-        if (!event) {
-            /* If the fd field is negative, then the corresponding events field is ignored and
-             * the revents field returns zero. */
-            return;
-        } else {
-            if (event & POLLHUP) { // POLLHUP
-                goto hup;
-            } else if (event & POLLIN) { // POLLIN
-                if (!i) {
-                    /* Accept a new connection */
-                    pico_radio_mgr_accept(fds[i].fd);
-                    continue;
-                }
-
-                /* Read from node  */
-                ret_len = (int)recv(fds[i].fd, &phy, (size_t)1, 0);
-                if (ret_len <= 0)
-                    goto hup;
-                ret_len = (int)recv(fds[i].fd, buf, (size_t)phy, 0);
-                if (ret_len <= 0 || ret_len != phy)
-                    goto hup;
-                node = buf[ret_len - 2];
-                pico_radio_mgr_distribute(buf, ret_len, node);
-            } else {
-                RADIO_DBG("Detected abnormality..\n");
-                goto hup;
+        if (event && (event & POLLIN)) { // POLLIN
+            if (!i) {
+                /* Accept a new connection */
+                pico_radio_mgr_accept(fds[i].fd);
+                continue;
             }
+
+            /* Read from node  */
+            ret_len = (int)recv(fds[i].fd, &phy, (size_t)1, 0);
+            if (ret_len <= 0)
+                goto hup;
+            ret_len = (int)recv(fds[i].fd, buf, (size_t)phy, 0);
+            if (ret_len <= 0 || ret_len != phy)
+                goto hup;
+            node = buf[ret_len - 2];
+            pico_radio_mgr_distribute(buf, ret_len, node);
+        } else if (event && (event & POLLHUP)) {
+            goto hup;
         }
     }
 
     return;
 hup:
     pico_radio_mgr_socket_hup(fds[i].fd);
+}
+
+static void
+pico_radio_mgr_quit(int signum)
+{
+    struct pico_tree_node *i = NULL;
+    struct socket *key = NULL;
+    IGNORE_PARAMETER(signum);
+
+    dbg("Closing all sockets...");
+    pico_tree_foreach(i, &Sockets) {
+        key = i->keyValue;
+        if (key) {
+            pico_tree_delete(&Sockets, key);
+            shutdown(key->s, SHUT_RDWR);
+            PICO_FREE(key);
+        }
+    }
+    dbg("done.\n");
+    exit(0);
 }
 
 /* Create and start a radio-manager instance */
@@ -316,6 +332,8 @@ pico_radio_mgr_start(void)
     int ret = 0;
     if (server < 0)
         return -1;
+
+    signal(SIGQUIT, pico_radio_mgr_quit);
 
     for EVER {
         if (fds)

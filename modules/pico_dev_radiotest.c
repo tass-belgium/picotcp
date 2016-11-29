@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/poll.h>
+#include <signal.h>
 
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
@@ -425,6 +426,13 @@ static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
     return radiotest_hello(s, id, area0, area1);
 }
 
+static void
+pico_radiotest_quit(int signum)
+{
+    dbg("Quitting radiotest\n");
+    exit(0);
+}
+
 /* Creates a radiotest-device */
 struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, int loop, char *dump)
 {
@@ -435,6 +443,8 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     if (!addr || (addr && !area0)) {
         RADIO_DBG("Usage (node): -6 [1-255],[1-255],[0-255] ...\n");
     }
+
+    signal(SIGQUIT, pico_radiotest_quit);
 
     radio->addr.pan_id.addr = short_be(RFDEV_PANID);
     radio->addr.addr_short.addr = short_be((uint16_t)addr);
