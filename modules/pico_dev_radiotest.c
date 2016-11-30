@@ -429,6 +429,7 @@ static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
 static void
 pico_radiotest_quit(int signum)
 {
+    IGNORE_PARAMETER(signum);
     dbg("Quitting radiotest\n");
     exit(0);
 }
