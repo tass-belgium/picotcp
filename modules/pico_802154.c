@@ -406,9 +406,11 @@ static struct pico_frame *
 pico_802154_frame_alloc(struct pico_device *dev, uint16_t size)
 {
     struct pico_frame *f = pico_frame_alloc(dev->overhead + SIZE_802154_MHR_MAX + size);
+    uint32_t maclen = (uint32_t)size + SIZE_802154_MHR_MAX;
     if (f) {
-        f->net_hdr = f->buffer + (int32_t)(f->buffer_len - (uint32_t)size);
-        f->datalink_hdr = f->net_hdr - SIZE_802154_MHR_MAX;
+        maclen = (uint32_t)(maclen / sizeof(uint32_t) * sizeof(uint32_t));
+        f->datalink_hdr = f->buffer + (int32_t)(f->buffer_len - maclen);
+        f->net_hdr = f->datalink_hdr + SIZE_802154_MHR_MAX;
         f->dev = dev;
         return f;
     } else {
