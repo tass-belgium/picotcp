@@ -186,7 +186,6 @@ static inline uint64_t long_long_be(uint64_t le)
 #define PICO_MAX_SLAB_SIZE 1600
 #define PICO_MEM_MINIMUM_OBJECT_SIZE 4
 
-
 /*** *** *** *** *** *** ***
  *** PLATFORM SPECIFIC   ***
  *** *** *** *** *** *** ***/
@@ -197,6 +196,8 @@ static inline uint64_t long_long_be(uint64_t le)
 #elif defined CORTEX_M4_SOFTFLOAT
 # include "arch/pico_cortex_m.h"
 #elif defined CORTEX_M3
+# include "arch/pico_cortex_m.h"
+#elif defined CORTEX_M0
 # include "arch/pico_cortex_m.h"
 #elif defined DOS_WATCOM
 # include "arch/pico_dos.h"
