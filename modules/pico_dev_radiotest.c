@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/poll.h>
+#include <signal.h>
 
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
@@ -425,25 +426,27 @@ static int radiotest_connect(uint8_t id, uint8_t area0, uint8_t area1)
     return radiotest_hello(s, id, area0, area1);
 }
 
+static void
+pico_radiotest_quit(int signum)
+{
+    IGNORE_PARAMETER(signum);
+    dbg("Quitting radiotest\n");
+    exit(0);
+}
+
 /* Creates a radiotest-device */
 struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t area1, int loop, char *dump)
 {
     struct radiotest_radio *radio = PICO_ZALLOC(sizeof(struct radiotest_radio));
     struct pico_dev_6lowpan *lp = (struct pico_dev_6lowpan *)radio;
-    struct pico_device *dev = (struct pico_device *)radio;
-    if (!dev)
+    if (!radio)
         return NULL;
     if (!addr || (addr && !area0)) {
         RADIO_DBG("Usage (node): -6 [1-255],[1-255],[0-255] ...\n");
     }
 
-    dev->mode = LL_MODE_IEEE802154;
-    dev->hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN;
-#ifdef PICO_6LOWPAN_NOMAC
-    dev->hostvars.lowpan_flags |= PICO_6LP_FLAG_NOMAC;
-#endif
+    signal(SIGQUIT, pico_radiotest_quit);
 
-    dev->mtu = (uint32_t)75;
     radio->addr.pan_id.addr = short_be(RFDEV_PANID);
     radio->addr.addr_short.addr = short_be((uint16_t)addr);
     radiotest_gen_ex(radio->addr.addr_short, radio->addr.addr_ext.addr);
@@ -458,23 +461,23 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
         if ((connection = radiotest_connect(addr, area0, area1)) <= 0) {
             return NULL;
         }
-        lp->send = radiotest_send;
-        dev->poll = radiotest_poll;
+        if (pico_dev_6lowpan_init(lp, "radio", (uint8_t *)&radio->addr, LL_MODE_IEEE802154, MTU_802154_MAC, 0, radiotest_send, radiotest_poll)) {
+            RADIO_DBG("pico_device_init failed.\n");
+            pico_device_destroy((struct pico_device *)lp);
+            return NULL;
+        }
     } else {
-        lp->send = pico_loop_send;
-        dev->poll = pico_loop_poll;
+        if (pico_dev_6lowpan_init(lp, "radio", (uint8_t *)&radio->addr, LL_MODE_IEEE802154, MTU_802154_MAC, 0, pico_loop_send, pico_loop_poll)) {
+            RADIO_DBG("pico_device_init failed.\n");
+            pico_device_destroy((struct pico_device *)lp);
+            return NULL;
+        }
     }
 
     if (dump) {
         radiotest_pcap_open(radio, dump);
     }
 
-    if (pico_device_init(dev, "radio", (uint8_t *)&radio->addr)) {
-        RADIO_DBG("pico_device_init failed.\n");
-        pico_device_destroy(dev);
-        return NULL;
-    }
-
-    return dev;
+    return (struct pico_device *)lp;
 }
 

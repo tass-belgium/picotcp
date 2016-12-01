@@ -895,21 +895,17 @@ static struct pico_frame *pico_ipv6_alloc(struct pico_protocol *self, struct pic
 
     IGNORE_PARAMETER(self);
 
-    switch (dev->mode) {
-#ifdef LL_MODE_IEEE802154
-        case LL_MODE_IEEE802154:
-            f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
-            break;
-#elif defined (LL_MODE_IEEE802154_NO_MAC)
-        case LL_MODE_IEEE802154_NO_MAC:
-            f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
-            break;
+    if (0) {}
+#ifdef PICO_SUPPORT_6LOWPAN
+    else if (PICO_DEV_IS_6LOWPAN(dev)) {
+        f = pico_proto_6lowpan_ll.alloc(&pico_proto_6lowpan_ll, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+    }
 #endif
-        default:
+    else {
 #ifdef PICO_SUPPORT_ETH
-            f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
+        f = pico_proto_ethernet.alloc(&pico_proto_ethernet, dev, (uint16_t)(size + PICO_SIZE_IP6HDR));
 #else
-            f = pico_frame_alloc(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
+        f = pico_frame_alloc(size + PICO_SIZE_IP6HDR + PICO_SIZE_ETHHDR);
 #endif
     }
 

@@ -11,6 +11,7 @@
 #include "pico_frame.h"
 #include "pico_protocol.h"
 #include "pico_stack.h"
+#include "pico_socket.h"
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
 static int n_frames_allocated;
@@ -258,6 +259,15 @@ struct pico_frame *pico_frame_deepcopy(struct pico_frame *f)
     new->app_hdr += addr_diff;
     new->start += addr_diff;
     new->payload += addr_diff;
+
+    if (f->info) {
+        new->info = PICO_ZALLOC(sizeof(struct pico_remote_endpoint));
+        if (!new->info) {
+            pico_frame_discard(new);
+            return NULL;
+        }
+        memcpy(new->info, f->info, sizeof(struct pico_remote_endpoint));
+    }
 
 #ifdef PICO_SUPPORT_DEBUG_MEMORY
     dbg("Deep-Copied frame @%p, into %p, usage count now: %d\n", f, new, *new->usage_count);
