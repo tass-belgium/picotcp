@@ -99,30 +99,26 @@ struct pico_ipv6_link *pico_ipv6_link_add_local(struct pico_device *dev, const s
     struct pico_ipv6_link *link = NULL; /* Make sure to return NULL */
     struct pico_ip6 newaddr;
 
-    switch (dev->mode) {
-#ifdef PICO_SUPPORT_802154
-        case LL_MODE_IEEE802154:
-            link = pico_6lowpan_link_add(dev, prefix);
-            break;
-#elif defined (PICO_SUPPORT_802154_NO_MAC)
-        case LL_MODE_IEEE802154_NO_MAC:
-            link = pico_6lowpan_link_add(dev, prefix);
-            break;
+    if (0) {}
+#ifdef PICO_SUPPORT_6LOWPAN
+    else if (PICO_DEV_IS_6LOWPAN(dev)) {
+        link = pico_6lowpan_link_add(dev, prefix);
+    }
 #endif
-        default:
-            memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
-            /* modified EUI-64 + invert universal/local bit */
-            newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
-            newaddr.addr[9] = dev->eth->mac.addr[1];
-            newaddr.addr[10] = dev->eth->mac.addr[2];
-            newaddr.addr[11] = 0xff;
-            newaddr.addr[12] = 0xfe;
-            newaddr.addr[13] = dev->eth->mac.addr[3];
-            newaddr.addr[14] = dev->eth->mac.addr[4];
-            newaddr.addr[15] = dev->eth->mac.addr[5];
-            if ((link = pico_ipv6_link_add(dev, newaddr, netmask64))) {
-                device_init_ipv6_final(dev, &newaddr);
-            }
+    else {
+        memcpy(newaddr.addr, prefix->addr, PICO_SIZE_IP6);
+        /* modified EUI-64 + invert universal/local bit */
+        newaddr.addr[8] = (dev->eth->mac.addr[0] ^ 0x02);
+        newaddr.addr[9] = dev->eth->mac.addr[1];
+        newaddr.addr[10] = dev->eth->mac.addr[2];
+        newaddr.addr[11] = 0xff;
+        newaddr.addr[12] = 0xfe;
+        newaddr.addr[13] = dev->eth->mac.addr[3];
+        newaddr.addr[14] = dev->eth->mac.addr[4];
+        newaddr.addr[15] = dev->eth->mac.addr[5];
+        if ((link = pico_ipv6_link_add(dev, newaddr, netmask64))) {
+            device_init_ipv6_final(dev, &newaddr);
+        }
     }
 
     return link;
@@ -134,25 +130,20 @@ static int device_init_mac(struct pico_device *dev, const uint8_t *mac)
     struct pico_ip6 linklocal = {{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xaa, 0xaa, 0xaa, 0xff, 0xfe, 0xaa, 0xaa, 0xaa}};
 #endif
 
-    switch (dev->mode) {
-#ifdef PICO_SUPPORT_802154
-        case LL_MODE_IEEE802154:
-            if (pico_6lowpan_store_info(dev, mac))
-                return -1;
-            break;
-#elif defined (PICO_SUPPORT_802154_NO_MAC)
-        case LL_MODE_IEEE802154_NO_MAC:
-            if (pico_6lowpan_store_info(dev, mac))
-                return -1;
-            break;
+    if (0) {}
+#ifdef PICO_SUPPORT_6LOWPAN
+    else if (PICO_DEV_IS_6LOWPAN(dev)) {
+        if (pico_6lowpan_store_info(dev, mac))
+            return -1;
+    }
 #endif
-        default: // Ethernet by default
-            if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev)))) {
-                memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
-            } else {
-                pico_err = PICO_ERR_ENOMEM;
-                return -1;
-            }
+    else {
+        if ((dev->eth = PICO_ZALLOC(sizeof(struct pico_ethdev)))) {
+            memcpy(dev->eth->mac.addr, mac, PICO_SIZE_ETH);
+        } else {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
     }
 
 #ifdef PICO_SUPPORT_IPV6
