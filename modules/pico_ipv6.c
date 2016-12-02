@@ -1326,6 +1326,10 @@ static inline void ipv6_push_hdr_adjust(struct pico_frame *f, struct pico_ipv6_l
 #else
         IGNORE_PARAMETER(hbh);
 #endif
+    case PICO_IPV6_EXTHDR_FRAG:
+    {
+        break;
+    }
     case PICO_PROTO_ICMP6:
     {
         icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
