@@ -126,7 +126,7 @@ static void pico_nd_print_addr(struct pico_ip6 *addr)
 #else
 #define print_nd_state(n) \
     do{} while (0)
-#define print_nd_print_addr(addr) \
+#define pico_nd_print_addr(addr) \
     do{} while (0)
 #endif
 
