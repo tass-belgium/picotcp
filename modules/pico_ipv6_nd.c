@@ -234,7 +234,7 @@ static struct pico_ip6 *pico_nd_get_default_router_addr(void)
       return NULL;
 }
 
-static void pico_ipv6_assign_default_router(int is_default)
+static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6_link *link)
 {
     struct pico_tree_node *index, *_tmp;
     struct pico_ipv6_router *r;
@@ -242,29 +242,34 @@ static void pico_ipv6_assign_default_router(int is_default)
     struct pico_ip6 zero = {
         .addr = {0}
     };
-    if(is_default)
+
+    pico_tree_foreach_safe(index, &RCache, _tmp)
     {
-      pico_tree_foreach_safe(index, &RCache, _tmp)
-      {
-          r = index->keyValue;
-          if (r->is_default)
-          {
+        r = index->keyValue;
+
+        if (r->is_default && assign_default) {
+            /* Un-assign default router */
             r->is_default = 0;
             if(pico_ipv6_route_del(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
                 nd_dbg("assign def router: Route could not be deleted\n");
             }
-          }
-          else if(!assigned)
-          {
+            continue;
+        }
+
+        if (link == r->link && !assigned) {
             if (pico_ipv6_route_add(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
                 nd_dbg("Route could not be added when assigning new default router\n");
             } else {
                 nd_dbg("Route added when assigning new default router\n");
-                r->is_default = 1;
+
+                if (assign_default) {
+                    /* Assign default router */
+                    r->is_default = 1;
+                }
+                /* flag we assigned a new 'default' router on this link */
                 assigned = 1;
             }
-          }
-      }
+        }
     }
 }
 
@@ -433,13 +438,13 @@ static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
 
     pico_ipv6_nd_unreachable(&n->address);
 
-    if(r) {
-        pico_ipv6_assign_default_router(r->is_default);
+    if (r) {
+        pico_ipv6_assign_router_on_link(r->is_default, r->link);
         pico_ipv6_router_down(&n->address);
         pico_tree_delete(&RCache, r);
 
-        /* TODO: search for new route */
         /* TODO: new link lifetime? */
+        /* TODO:  */
 
         PICO_FREE(r);
     }
@@ -477,6 +482,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
          * This will set us in state PROBE and this will call pico_nd_discover
          * in the timer_elapsed timer-callback
          */
+        nd_dbg("DELAY STATE\n");
         return;
     }
 
@@ -674,7 +680,7 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
           r = index->keyValue;
           if(r->router == n)
           {
-            pico_ipv6_assign_default_router(r->is_default);
+            pico_ipv6_assign_router_on_link(r->is_default, r->link);
             pico_tree_delete(&RCache, r);
             break;
           }
@@ -928,9 +934,10 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
 
         if(r_adv_hdr->life_time != 0) {
             r->invalidation = PICO_TIME_MS() + (pico_time)(r_adv_hdr->life_time * 1000);
+            n->expire = r->invalidation;
         } else {
             /* TODO: WHAT IF 0? */
-            pico_ipv6_assign_default_router(r->is_default);
+            pico_ipv6_assign_router_on_link(r->is_default, r->link);
             pico_tree_delete(&RCache, r);
         }
     }
@@ -1747,9 +1754,6 @@ static int radv_process(struct pico_frame *f)
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
     struct pico_ipv6_link *link;
     struct pico_ipv6_hdr *hdr;
-    struct pico_ip6 zero = {
-        .addr = {0}
-    };
 
     int optres_prefix = 0;
     pico_time now = PICO_TIME_MS();
@@ -1807,27 +1811,39 @@ static int radv_process(struct pico_frame *f)
     /* TODO: process ABRO option */
 #endif
 
+    /* TODO: HANDLE CASE WHERE PREFIX OPTION IS NOT THERE (OPTRES_prefix == 0) */
     if (pico_nd_prefix_option_valid(f->dev, &prefix_option) == 0) {
         link = pico_ipv6_link_add_local(f->dev, &prefix_option.prefix);
         if (link) {
             pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
-            if (pico_ipv6_route_add(zero, zero, hdr->src, 10, link) != 0) {
-                nd_dbg("Could not add default route in router adv\n");
-            } else {
-                nd_dbg("added route in router adv\n");
-#ifdef PICO_SUPPORT_6LOWPAN
-                if (PICO_DEV_IS_6LOWPAN(f->dev)) {
-                    pico_6lp_nd_register(link);
-                }
-#endif
-            }
             pico_ipv6_router_add_link(&hdr->src, link);
+
+            if (!pico_nd_get_default_router_addr()) {
+                pico_ipv6_assign_router_on_link(1, link);
+            } else {
+                nd_dbg("Already a default router in, don't add router yet\n");
+            }
+
+#ifdef PICO_SUPPORT_6LOWPAN
+            if (PICO_DEV_IS_6LOWPAN(f->dev)) {
+                pico_6lp_nd_register(link);
+            }
+#endif
         } else {
             nd_dbg("router adv: no link\n");
+            link = pico_ipv6_prefix_configured(&prefix_option.prefix);
+
+            if (link) {
+                pico_ipv6_router_add_link(&hdr->src, link);
+                nd_dbg("router adv: preconfigured prefix, add link\n");
+            } else {
+                nd_dbg("router adv: not a preconfigured prefix\n");
+            }
+
         }
     } else {
-        /* prefix option is not valid, silently ignore it */
-        nd_dbg("Prefix option is not valid\n");
+        /* prefix option is not valid or not present, silently ignore it */
+        nd_dbg("Prefix option is not valid or not present\n");
     }
 
     {
@@ -2030,7 +2046,7 @@ static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
         if (now > r->invalidation) {
             nd_dbg("ROUTER EXPIRED: %lu, %lu\n", now, r->invalidation);
             pico_ipv6_router_down(&r->router->address);
-            pico_ipv6_assign_default_router(r->is_default);
+            pico_ipv6_assign_router_on_link(r->is_default, r->link);
             pico_tree_delete(&RCache, r);
         }
     }
