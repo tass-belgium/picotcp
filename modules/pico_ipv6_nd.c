@@ -476,7 +476,6 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     gw = pico_ipv6_gateway_by_dev(n->dev);
 
-    nd_dbg("discover: %d, %d\n", n->failure_multi_count, n->failure_uni_count);
     if (n->state == PICO_ND_STATE_DELAY) {
         /* We wait for DELAY_FIRST_PROBE_TIME to expire
          * This will set us in state PROBE and this will call pico_nd_discover
@@ -529,10 +528,6 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     if (n->state == PICO_ND_STATE_STALE) {
         n->state = PICO_ND_STATE_DELAY;
         pico_nd_new_expire_time(n);
-    }
-
-    if (n->state != PICO_ND_STATE_REACHABLE) {
-        pico_nd_discover(n);
     }
 
     return &n->hwaddr.mac;
@@ -814,6 +809,9 @@ static int neigh_adv_process(struct pico_frame *f)
     if (!n) {
         return 0;
     }
+
+    n->failure_multi_count = 0;
+    n->failure_uni_count = 0;
 
     if ((optres == 0) || IS_OVERRIDE(icmp6_hdr) || (pico_ipv6_neighbor_compare_stored(n, &opt, f->dev) == 0)) {
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
