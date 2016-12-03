@@ -933,8 +933,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         }
 
         if(r_adv_hdr->life_time != 0) {
-            r->invalidation = PICO_TIME_MS() + (pico_time)(r_adv_hdr->life_time * 1000);
-            n->expire = r->invalidation;
+            r->invalidation = PICO_TIME_MS() + (pico_time)(short_be(r_adv_hdr->life_time) * 1000);
         } else {
             /* TODO: WHAT IF 0? */
             pico_ipv6_assign_router_on_link(r->is_default, r->link);
@@ -942,6 +941,7 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         }
     }
 }
+
 static int neigh_sol_detect_dad(struct pico_frame *f)
 {
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
