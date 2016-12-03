@@ -1093,6 +1093,10 @@ pico_iphc_reassemble(struct pico_frame *f, uint8_t **chunks, int32_t *chunks_len
     new->app_len = 0;
     new->transport_hdr = new->net_hdr + new->net_len;
     pico_iphc_bail_out(chunks, n - 1); // Success, discard compressed chunk
+    if (new->start < new->buffer) {
+        pico_frame_discard(new);
+        return NULL;
+    }
     return new;
 }
 
