@@ -2070,7 +2070,7 @@ struct pico_ipv6_link *pico_ipv6_global_get(struct pico_device *dev)
 
 #define TWO_HOURS   ((pico_time)(1000 * 60 * 60 * 2))
 
-void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
+void pico_ipv6_check_link_lifetime_expired(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *temp;
     struct pico_ipv6_link *link = NULL;
@@ -2095,8 +2095,8 @@ void pico_ipv6_check_lifetime_expired(pico_time now, void *arg)
         }
 #endif
     }
-    if (!pico_timer_add(1000, pico_ipv6_check_lifetime_expired, NULL)) {
-        dbg("IPv6: Failed to start check_lifetime timer\n");
+    if (!pico_timer_add(1000, pico_ipv6_check_link_lifetime_expired, NULL)) {
+        dbg("IPv6: Failed to start check_link_lifetime timer\n");
         /* TODO No more link lifetime checking now */
     }
 }
