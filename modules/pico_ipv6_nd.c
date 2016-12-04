@@ -183,6 +183,9 @@ static int icmp6_initial_checks(struct pico_frame *f)
     struct pico_ipv6_hdr *ipv6_hdr = NULL;
     struct pico_icmp6_hdr *icmp6_hdr = NULL;
 
+    if (!f)
+        return -1;
+
     ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
@@ -388,7 +391,9 @@ static void pico_nd_clear_queued_packets(struct pico_ip6 *dst)
     struct pico_tree_node *index = NULL;
     struct pico_frame *frame = NULL;
     struct pico_ipv6_hdr *frame_hdr = NULL;
-    struct pico_ip6 frame_dst = {0};
+    struct pico_ip6 frame_dst = {
+        .addr = {0}
+    };
 
     pico_tree_foreach(index,&IPV6NQueue) {
         frame = index->keyValue;
@@ -1098,59 +1103,6 @@ static int pico_nd_neigh_sol_recv(struct pico_frame *f)
     return neigh_sol_process(f);
 }
 
-static int pico_nd_router_prefix_option_valid(struct pico_device *dev, struct pico_icmp6_opt_prefix *prefix)
-{
-    struct pico_ipv6_link *link = NULL;
-
-#ifndef PICO_SUPPORT_6LOWPAN
-    IGNORE_PARAMETER(dev);
-#endif
-
-    /* RFC4862 5.5.3 */
-    /* a) If the Autonomous flag is not set, silently ignore the Prefix
-     *       Information option.
-     */
-    if (prefix->aac == 0)
-        return -1;
-
-    /* b) If the prefix is the link-local prefix, silently ignore the
-     *       Prefix Information option
-     */
-    if (pico_ipv6_is_linklocal(prefix->prefix.addr))
-        return -1;
-
-    /* c) If the preferred lifetime is greater than the valid lifetime,
-     *       silently ignore the Prefix Information option
-     */
-    if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
-        return -1;
-
-#ifdef PICO_SUPPORT_6LOWPAN
-    /* RFC6775 (6LoWPAN): Should the host erroneously receive a PIO with the L (on-link)
-     *      flag set, then that PIO MUST be ignored.
-     */
-    if (PICO_DEV_IS_6LOWPAN(dev) && prefix->onlink)
-        return -1;
-#endif
-
-    if (prefix->val_lifetime == 0)
-        return -1;
-
-
-    if (prefix->prefix_len != 64) {
-        return -1;
-    }
-
-    link = pico_ipv6_prefix_configured(&prefix->prefix);
-    if (link) {
-        /* if other router supplies route to same prefix:
-         * Update link lifetime
-         */
-        pico_ipv6_lifetime_set(link, PICO_TIME_MS() + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
-    }
-
-    return 0;
-}
 
 /*MARK*/
 #ifdef PICO_SUPPORT_6LOWPAN
@@ -1522,6 +1474,60 @@ static int router_sol_process(struct pico_frame *f)
 }
 
 #endif /* PICO_SUPPORT_6LOWPAN */
+
+static int pico_nd_router_prefix_option_valid(struct pico_device *dev, struct pico_icmp6_opt_prefix *prefix)
+{
+    struct pico_ipv6_link *link = NULL;
+
+#ifndef PICO_SUPPORT_6LOWPAN
+    IGNORE_PARAMETER(dev);
+#endif
+
+    /* RFC4862 5.5.3 */
+    /* a) If the Autonomous flag is not set, silently ignore the Prefix
+     *       Information option.
+     */
+    if (prefix->aac == 0)
+        return -1;
+
+    /* b) If the prefix is the link-local prefix, silently ignore the
+     *       Prefix Information option
+     */
+    if (pico_ipv6_is_linklocal(prefix->prefix.addr))
+        return -1;
+
+    /* c) If the preferred lifetime is greater than the valid lifetime,
+     *       silently ignore the Prefix Information option
+     */
+    if (long_be(prefix->pref_lifetime) > long_be(prefix->val_lifetime))
+        return -1;
+
+#ifdef PICO_SUPPORT_6LOWPAN
+    /* RFC6775 (6LoWPAN): Should the host erroneously receive a PIO with the L (on-link)
+     *      flag set, then that PIO MUST be ignored.
+     */
+    if (PICO_DEV_IS_6LOWPAN(dev) && prefix->onlink)
+        return -1;
+#endif
+
+    if (prefix->val_lifetime == 0)
+        return -1;
+
+
+    if (prefix->prefix_len != 64) {
+        return -1;
+    }
+
+    link = pico_ipv6_prefix_configured(&prefix->prefix);
+    if (link) {
+        /* if other router supplies route to same prefix:
+         * Update link lifetime
+         */
+        pico_ipv6_lifetime_set(link, PICO_TIME_MS() + (1000 * (pico_time)(long_be(prefix->val_lifetime))));
+    }
+
+    return 0;
+}
 
 static int pico_nd_router_sol_recv(struct pico_frame *f)
 {
@@ -2106,7 +2112,8 @@ static void pico_ipv6_router_adv_timer_callback(pico_time now, void *arg)
     }
 }
 
-static void pico_ipv6_router_sol_timer(pico_time now, void *arg){
+static void pico_ipv6_router_sol_timer(pico_time now, void *arg)
+{
     struct pico_tree_node *index = NULL;
     struct pico_ipv6_link *link = NULL;
     struct pico_ipv6_route *route = NULL;
