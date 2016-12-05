@@ -1076,17 +1076,20 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     int ret = 0;
     (void)src;
 
-    if (msginfo)
+    if (msg_info) {
         dev = msginfo->dev;
-
+    }
 #ifdef PICO_SUPPORT_IPV6
-    if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+    else if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         dev = pico_ipv6_link_find(src);
         if(!dev) {
             return -1;
         }
     }
 #endif
+    else {
+        dev = get_sock_dev(s);
+    }
 
     f = pico_socket_frame_alloc(s, dev, (uint16_t)(len + hdr_offset));
     if (!f) {
