@@ -22,6 +22,9 @@
 #define MAX_INITIAL_RTR_ADVERTISEMENTS      (3)
 #define DEFAULT_METRIC                      (10)
 
+#define PICO_ND_NOT_SEARCHING               (0)
+#define PICO_ND_SEARCHING                   (1)
+
 #ifdef DEBUG_IPV6_ND
 #define nd_dbg dbg
 #else
@@ -62,6 +65,7 @@ struct pico_ipv6_neighbor {
     uint16_t failure_uni_count;
     uint16_t frames_queued;
     pico_time expire;
+    uint8_t searching;
 };
 
 struct pico_ipv6_router {
@@ -472,6 +476,7 @@ static struct pico_ipv6_neighbor *pico_create_entry(struct pico_ip6 *addr, struc
     n->frames_queued = 0;
     n->state = PICO_ND_STATE_INCOMPLETE;
     n->expire = PICO_TIME_MS() + ONE_MINUTE_MS;
+    n->searching = PICO_ND_NOT_SEARCHING;
 
     if (pico_tree_insert(&NCache, n)) {
         nd_dbg("IPv6 ND: Failed to insert neigbor in tree\n");
@@ -523,6 +528,8 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     gw = pico_ipv6_gateway_by_dev(n->dev);
 
+    n->searching = PICO_ND_SEARCHING;
+
     if (n->state == PICO_ND_STATE_DELAY) {
         /* We wait for DELAY_FIRST_PROBE_TIME to expire
          * This will set us in state PROBE and this will call pico_nd_discover
@@ -554,9 +561,13 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
     pico_nd_set_new_expire_time(n);
 }
 
-static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_ipv6_neighbor *n, struct pico_device *dev)
+static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_device *dev)
 {
-    nd_dbg("Finding neighbor %02x:...:%02x\n", addr->addr[0], addr->addr[15]);
+    struct pico_ipv6_neighbor *n = NULL;
+
+    n = pico_get_neighbor_from_ncache(addr);
+    nd_dbg("Finding neighbor:\n");
+    pico_nd_print_addr(addr);
     print_nd_state(n);
 
     if (!n) {
@@ -566,8 +577,11 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        /* Make timer callback handle pico_nd_discover */
-        n->expire = 0;
+        if (n->searching == PICO_ND_NOT_SEARCHING) {
+            /* Make timer callback handle pico_nd_discover */
+            n->expire = 0;
+            n->searching = PICO_ND_SEARCHING;
+        }
         return NULL;
     }
 
@@ -590,7 +604,7 @@ static struct pico_eth *pico_nd_get(struct pico_ip6 *address, struct pico_device
     else
         addr = gateway;
 
-    return pico_nd_get_neighbor(&addr, pico_get_neighbor_from_ncache(&addr), dev);
+    return pico_nd_get_neighbor(&addr, dev);
 }
 
 static int pico_nd_get_length_of_options(struct pico_frame *f, uint8_t **first_option)
