@@ -46,6 +46,10 @@ extern struct pico_tree IPV6Links;
  */
 enum pico_ipv6_neighbor_state {
     PICO_ND_STATE_INCOMPLETE = 0,
+    /* PICO_ND_STATE_INCOMPLETE_SEARCHING: Not in RFC 4861
+     * Not an official state but used to indicate search has started for incomplete NCE
+     */
+    PICO_ND_STATE_INCOMPLETE_SEARCHING,
     PICO_ND_STATE_REACHABLE,
     PICO_ND_STATE_STALE,
     PICO_ND_STATE_DELAY,
@@ -65,7 +69,6 @@ struct pico_ipv6_neighbor {
     uint16_t failure_uni_count;
     uint16_t frames_queued;
     pico_time expire;
-    uint8_t searching;
 };
 
 struct pico_ipv6_router {
@@ -476,7 +479,6 @@ static struct pico_ipv6_neighbor *pico_create_entry(struct pico_ip6 *addr, struc
     n->frames_queued = 0;
     n->state = PICO_ND_STATE_INCOMPLETE;
     n->expire = PICO_TIME_MS() + ONE_MINUTE_MS;
-    n->searching = PICO_ND_NOT_SEARCHING;
 
     if (pico_tree_insert(&NCache, n)) {
         nd_dbg("IPv6 ND: Failed to insert neigbor in tree\n");
@@ -528,8 +530,6 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 
     gw = pico_ipv6_gateway_by_dev(n->dev);
 
-    n->searching = PICO_ND_SEARCHING;
-
     if (n->state == PICO_ND_STATE_DELAY) {
         /* We wait for DELAY_FIRST_PROBE_TIME to expire
          * This will set us in state PROBE and this will call pico_nd_discover
@@ -538,7 +538,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
         return;
     }
 
-    if (n->state == PICO_ND_STATE_INCOMPLETE) {
+    if ((n->state == PICO_ND_STATE_INCOMPLETE) || (n->state == PICO_ND_STATE_INCOMPLETE_SEARCHING)) {
       if (++n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT){
           nd_dbg("failure multi count threshold reached\n");
           return;
@@ -577,11 +577,14 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        if (n->searching == PICO_ND_NOT_SEARCHING) {
-            /* Make timer callback handle pico_nd_discover */
-            n->expire = 0;
-            n->searching = PICO_ND_SEARCHING;
-        }
+        /* Make timer callback handle pico_nd_discover */
+        n->expire = 0;
+        n->state = PICO_ND_STATE_INCOMPLETE_SEARCHING;
+        return NULL;
+    }
+
+    if (n->state == PICO_ND_STATE_INCOMPLETE_SEARCHING) {
+        /* Search already started */
         return NULL;
     }
 
@@ -1819,7 +1822,7 @@ static int neigh_adv_process(struct pico_frame *f)
         neigh_adv_reconfirm_router_option(n, IS_ROUTER(icmp6_hdr));
     }
 
-    if ((optres > 0) && (n->state == PICO_ND_STATE_INCOMPLETE)) {
+    if ((optres > 0) && ((n->state == PICO_ND_STATE_INCOMPLETE) || (n->state == PICO_ND_STATE_INCOMPLETE_SEARCHING))) {
         neigh_adv_process_incomplete(n, f, &opt);
         return 0;
     }
@@ -2009,6 +2012,8 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
 
     switch(n->state) {
     case PICO_ND_STATE_INCOMPLETE:
+        /* Fallthrough */
+    case PICO_ND_STATE_INCOMPLETE_SEARCHING:
         /* Fallthrough */
     case PICO_ND_STATE_PROBE:
         if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
