@@ -1076,7 +1076,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     int ret = 0;
     (void)src;
 
-    if (msg_info) {
+    if (msginfo) {
         dev = msginfo->dev;
     }
 #ifdef PICO_SUPPORT_IPV6
