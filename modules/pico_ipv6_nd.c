@@ -270,7 +270,7 @@ static struct pico_ipv6_neighbor *pico_get_neighbor_from_ncache(struct pico_ip6 
     return pico_tree_findKey(&NCache, &test);
 }
 
-static struct pico_ipv6_router *pico_get_router_from_rcache(struct pico_ip6 *dst)
+static struct pico_ipv6_router *pico_get_router_from_rcache(const struct pico_ip6 *dst)
 {
     struct pico_ipv6_router *router = NULL;
     struct pico_ipv6_router test = {

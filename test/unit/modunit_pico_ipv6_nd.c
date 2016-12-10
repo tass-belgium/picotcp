@@ -13,6 +13,20 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
+static int pico_icmp6_checksum_success_flag = 1;
+
+Suite *pico_suite(void);
+
+uint16_t pico_icmp6_checksum(struct pico_frame *f)
+{
+  IGNORE_PARAMETER(f);
+
+  if (pico_icmp6_checksum_success_flag)
+    return 0;
+
+  return 1;
+}
+
 START_TEST(tc_pico_ipv6_neighbor_compare)
 {
   struct pico_ipv6_neighbor a = { 0 }, b = { 0 };
@@ -64,7 +78,6 @@ START_TEST(tc_pico_ipv6_router_compare)
 END_TEST
 START_TEST(tc_pico_ipv6_nd_qcompare)
 {
-  /* TODO: test this: static int pico_ipv6_nd_qcompare(void *ka, void *kb){ */
   struct pico_frame a = { 0 }, b = { 0 };
   struct pico_ipv6_hdr a_hdr = { 0 }, b_hdr =  { 0 };
   struct pico_ip6 a_dest_addr = { 0 }, b_dest_addr = { 0 };
@@ -113,6 +126,93 @@ START_TEST(tc_pico_ipv6_nd_qcompare)
   /* b has different timestamp */
   b.timestamp = 1;
   fail_if(pico_ipv6_nd_qcompare(&a, &b) != -1, "Frame B has different timestamp, not detected?");
+}
+END_TEST
+START_TEST(tc_icmp6_initial_checks)
+{
+  struct pico_frame a = { 0 };
+  struct pico_ipv6_hdr ipv6_hdr = { 0 };
+  struct pico_icmp6_hdr icmp6_hdr = { 0 };
+
+
+  fail_if(icmp6_initial_checks(NULL) != -1, "NULL arg gives bad return value");
+
+  a.net_hdr = (uint8_t *)&ipv6_hdr;
+  a.transport_hdr = (uint8_t *)&icmp6_hdr;
+
+  /* Valid headers */
+  ipv6_hdr.hop = 255;
+  icmp6_hdr.code = 0;
+  pico_icmp6_checksum_success_flag = 1;
+
+  fail_if(icmp6_initial_checks(&a) != 0, "Valid headers should return success");
+
+  /* Invalid checksum */
+  pico_icmp6_checksum_success_flag = 0;
+  fail_if(icmp6_initial_checks(&a) != -1, "Invalid checksum should return failure");
+
+  /* Reset to valid */
+  ipv6_hdr.hop = 255;
+  icmp6_hdr.code = 0;
+  pico_icmp6_checksum_success_flag = 1;
+
+  /* Invalid icmp6 hdr code */
+  icmp6_hdr.code = 1;           /* Anything but 0 is invalid */
+  fail_if(icmp6_initial_checks(&a) != -1, "Invalid icmp6 code should return failure");
+
+  /* Reset to valid */
+  ipv6_hdr.hop = 255;
+  icmp6_hdr.code = 0;
+  pico_icmp6_checksum_success_flag = 1;
+
+  /* Invalid hop count */
+  ipv6_hdr.hop = 254;           /* Anything but 255 is invalid */
+  fail_if(icmp6_initial_checks(&a) != -1, "Invalid hop count should return failure");
+}
+END_TEST
+START_TEST(tc_pico_hw_addr_len)
+{
+  struct pico_device dummy_dev = { 0 };
+  struct pico_icmp6_opt_lladdr opt = { 0 };
+
+  dummy_dev.hostvars.lowpan_flags &= (uint8_t)(~PICO_6LP_FLAG_LOWPAN); /* Not a 6LP device */
+  fail_if(pico_hw_addr_len(&dummy_dev, &opt) != PICO_SIZE_ETH, "HW addr len is different from ETH for non 6LP device");
+
+  dummy_dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN; /* a 6LP device */
+  opt.len = 1;                  /* short 6lowpan option */
+  fail_if(pico_hw_addr_len(&dummy_dev, &opt) != SIZE_6LOWPAN_SHORT, "HW addr len is different from SIZE_6LOWPAN_SHORT for a 6LP device with optlen == 1");
+
+  dummy_dev.hostvars.lowpan_flags = PICO_6LP_FLAG_LOWPAN; /* a 6LP device */
+  opt.len = 0;                  /* extended 6lowpan option */
+  fail_if(pico_hw_addr_len(&dummy_dev, &opt) != SIZE_6LOWPAN_EXT, "HW addr len is different from SIZE_6LOWPAN_SHORT for a 6LP device with optlen == 1");
+}
+END_TEST
+START_TEST(tc_pico_nd_get_oldest_frame)
+{
+#define FRAME_COUNT (3)
+  struct pico_frame a, b, c;
+  struct pico_frame *frames[FRAME_COUNT] = { 0 };
+
+  frames[0] = &a;
+  frames[1] = &b;
+  frames[2] = &c;
+
+  fail_if(pico_nd_get_oldest_frame(frames, 0) != NULL, "Passing 0 should return NULL");
+
+  fail_if(pico_nd_get_oldest_frame(NULL, FRAME_COUNT) != NULL, "Passing NULL should return NULL");
+
+  a.timestamp = 0;
+  b.timestamp = 1;
+  c.timestamp = 2;
+
+  fail_if(pico_nd_get_oldest_frame(frames, FRAME_COUNT) != &a, "Frame a has smallest timestamp == is oldest");
+
+  /* 2 packets with same timestamp */
+  a.timestamp = 3;
+  b.timestamp = 2;
+  c.timestamp = 2;
+
+  fail_if(pico_nd_get_oldest_frame(frames, FRAME_COUNT) != &b, "Frames b and c have same timestamp, b is first in array so it should be returned first.");
 }
 END_TEST
 START_TEST(tc_pico_get_neighbor_from_ncache)
@@ -190,15 +290,20 @@ START_TEST(tc_pico_get_router_from_rcache)
   fail_if(pico_get_router_from_rcache(&c_addr) != NULL, "Router not registered in rcache and malloc failed, but we don't return NULL?");
 }
 END_TEST
+START_TEST(tc_pico_nd_get_default_router)
+{
+  /* TODO:  */
+}
+END_TEST
 START_TEST(tc_pico_nd_get_length_of_options)
 {
   struct pico_frame a = { 0 };
   struct pico_icmp6_hdr a_hdr = { 0 };
   uint8_t *option = NULL;
-  const int dummy_transport_len = 100;
+  const uint16_t dummy_transport_len = sizeof(*(&a_hdr));
 
   /* Init */
-  a.transport_hdr = &a_hdr;
+  a.transport_hdr = (uint8_t *)&a_hdr;
   a.transport_len = dummy_transport_len;
 
   a_hdr.type = PICO_ICMP6_ROUTER_SOL;
@@ -261,32 +366,36 @@ START_TEST(tc_pico_ipv6_nd_unreachable)
    /* TODO: test this: static void pico_ipv6_nd_unreachable(struct pico_ip6 *a) */
 }
 END_TEST
-START_TEST(tc_pico_nd_new_expire_time)
+START_TEST(tc_pico_nd_set_new_expire_time)
 {
   struct pico_ipv6_neighbor n = {
     0
   };
   struct pico_device d = { {0} };
 
-  /* TODO: how to test these time values */
-
   n.dev = &d;
 
   d.hostvars.retranstime = 666;
 
   n.state = PICO_ND_STATE_INCOMPLETE;
-  pico_nd_new_expire_time(&n);
+  pico_nd_set_new_expire_time(&n);
+  fail_if(n.expire != PICO_TIME_MS() + d.hostvars.retranstime);
 
   n.state = PICO_ND_STATE_REACHABLE;
-  pico_nd_new_expire_time(&n);
-
+  pico_nd_set_new_expire_time(&n);
+  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_REACHABLE_TIME);
 
   n.state = PICO_ND_STATE_STALE;
-  pico_nd_new_expire_time(&n);
+  pico_nd_set_new_expire_time(&n);
+  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
 
+  n.state = PICO_ND_STATE_DELAY;
+  pico_nd_set_new_expire_time(&n);
+  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
 
   n.state = PICO_ND_STATE_PROBE;
-  pico_nd_new_expire_time(&n);
+  pico_nd_set_new_expire_time(&n);
+  fail_if(n.expire != PICO_TIME_MS() + d.hostvars.retranstime);
 }
 END_TEST
 START_TEST(tc_pico_nd_mtu)
@@ -325,9 +434,9 @@ START_TEST(tc_pico_nd_mtu)
     f->transport_len = sizeof(pkt15) - (PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
 
     pico_ipv6_nd_recv(f);
-    
+
     {
-    const struct pico_ipv6_hdr *hdr = (struct pico_ipv6_hdr *)(pkt15 + PICO_SIZE_ETHHDR);
+    const struct pico_ipv6_hdr *hdr = (const struct pico_ipv6_hdr *)(pkt15 + PICO_SIZE_ETHHDR);
     struct pico_ipv6_router *test_router = pico_get_router_from_rcache(&(hdr->src));
     fail_if(test_router->link->mtu != 1500);
     }
@@ -396,11 +505,6 @@ END_TEST
 START_TEST(tc_neigh_sol_process)
 {
    /* TODO: test this: static int neigh_sol_process(struct pico_frame *f) */
-}
-END_TEST
-START_TEST(tc_icmp6_initial_checks)
-{
-   /* TODO: test this: static int icmp6_initial_checks(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_option_len_validity_check)
@@ -522,15 +626,20 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_neighbor_compare = tcase_create("Unit test for pico_ipv6_neighbor_compare");
     TCase *TCase_pico_ipv6_router_compare = tcase_create("Unit test for pico_ipv6_router_compare");
     TCase *TCase_pico_ipv6_nd_qcompare = tcase_create("Unit test for pico_ipv6_nd_qcompare");
+    TCase *TCase_icmp6_initial_checks = tcase_create("Unit test for icmp6_initial_checks");
+    TCase *TCase_pico_hw_addr_len = tcase_create("Unit test for pico_hw_addr_len");
+    TCase *TCase_pico_nd_get_oldest_frame = tcase_create("Unit test for pico_nd_get_oldest_frame");
+    TCase *TCase_ipv6_duplicate_detected = tcase_create("Unit test for ipv6_duplicate_detected");
     TCase *TCase_pico_get_neighbor_from_ncache = tcase_create("Unit test for pico_get_neighbor_from_ncache");
     TCase *TCase_pico_get_router_from_rcache = tcase_create("Unit test for pico_get_router_from_rcache");
+    TCase *TCase_pico_nd_get_default_router = tcase_create("Unit test for pico_nd_get_default_router");
+
     TCase *TCase_pico_ipv6_assign_default_router = tcase_create("Unit test for pico_ipv6_assign_default_router");
     TCase *TCase_pico_nd_get_length_of_options = tcase_create("Unit test for pico_nd_get_length_of_options");
     TCase *TCase_pico_ipv6_router_add_link = tcase_create("Unit test for pico_ipv6_router_add_link");
     TCase *TCase_pico_ipv6_nd_queued_trigger = tcase_create("Unit test for pico_ipv6_nd_queued_trigger");
-    TCase *TCase_ipv6_duplicate_detected = tcase_create("Unit test for ipv6_duplicate_detected");
     TCase *TCase_pico_ipv6_nd_unreachable = tcase_create("Unit test for pico_ipv6_nd_unreachable");
-    TCase *TCase_pico_nd_new_expire_time = tcase_create("Unit test for pico_nd_new_expire_time");
+    TCase *TCase_pico_nd_set_new_expire_time = tcase_create("Unit test for pico_nd_set_new_expire_time");
     TCase *TCase_pico_nd_mtu = tcase_create("Unit test for pico_nd link mtu option");
     TCase *TCase_pico_nd_discover = tcase_create("Unit test for pico_nd_discover");
     TCase *TCase_neigh_options = tcase_create("Unit test for neigh_options");
@@ -545,7 +654,6 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_router_from_unsolicited = tcase_create("Unit test for pico_ipv6_router_from_unsolicited");
     TCase *TCase_neigh_sol_detect_dad = tcase_create("Unit test for neigh_sol_detect_dad");
     TCase *TCase_neigh_sol_process = tcase_create("Unit test for neigh_sol_process");
-    TCase *TCase_icmp6_initial_checks = tcase_create("Unit test for icmp6_initial_checks");
     TCase *TCase_neigh_adv_option_len_validity_check = tcase_create("Unit test for neigh_adv_option_len_validity_check");
     TCase *TCase_neigh_adv_mcast_validity_check = tcase_create("Unit test for neigh_adv_mcast_validity_check");
     TCase *TCase_neigh_adv_validity_checks = tcase_create("Unit test for neigh_adv_validity_checks");
@@ -574,10 +682,20 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_neighbor_compare);
     tcase_add_test(TCase_pico_ipv6_router_compare, tc_pico_ipv6_router_compare);
     suite_add_tcase(s, TCase_pico_ipv6_router_compare);
+    tcase_add_test(TCase_icmp6_initial_checks, tc_icmp6_initial_checks);
+    suite_add_tcase(s, TCase_icmp6_initial_checks);
+    tcase_add_test(TCase_pico_hw_addr_len, tc_pico_hw_addr_len);
+    suite_add_tcase(s, TCase_pico_hw_addr_len);
+    tcase_add_test(TCase_pico_nd_get_oldest_frame, tc_pico_nd_get_oldest_frame);
+    suite_add_tcase(s, TCase_pico_nd_get_oldest_frame);
+    tcase_add_test(TCase_ipv6_duplicate_detected, tc_ipv6_duplicate_detected);
+    suite_add_tcase(s, TCase_ipv6_duplicate_detected);
     tcase_add_test(TCase_pico_get_neighbor_from_ncache, tc_pico_get_neighbor_from_ncache);
     suite_add_tcase(s, TCase_pico_get_neighbor_from_ncache);
     tcase_add_test(TCase_pico_get_router_from_rcache, tc_pico_get_router_from_rcache);
     suite_add_tcase(s, TCase_pico_get_router_from_rcache);
+    tcase_add_test(TCase_pico_nd_get_default_router, tc_pico_nd_get_default_router);
+    suite_add_tcase(s, TCase_pico_nd_get_default_router);
     tcase_add_test(TCase_pico_ipv6_nd_qcompare, tc_pico_ipv6_nd_qcompare);
     suite_add_tcase(s, TCase_pico_ipv6_nd_qcompare);
     tcase_add_test(TCase_pico_nd_get_length_of_options, tc_pico_nd_get_length_of_options);
@@ -588,12 +706,10 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_router_add_link);
     tcase_add_test(TCase_pico_ipv6_nd_queued_trigger, tc_pico_ipv6_nd_queued_trigger);
     suite_add_tcase(s, TCase_pico_ipv6_nd_queued_trigger);
-    tcase_add_test(TCase_ipv6_duplicate_detected, tc_ipv6_duplicate_detected);
-    suite_add_tcase(s, TCase_ipv6_duplicate_detected);
     tcase_add_test(TCase_pico_ipv6_nd_unreachable, tc_pico_ipv6_nd_unreachable);
     suite_add_tcase(s, TCase_pico_ipv6_nd_unreachable);
-    tcase_add_test(TCase_pico_nd_new_expire_time, tc_pico_nd_new_expire_time);
-    suite_add_tcase(s, TCase_pico_nd_new_expire_time);
+    tcase_add_test(TCase_pico_nd_set_new_expire_time, tc_pico_nd_set_new_expire_time);
+    suite_add_tcase(s, TCase_pico_nd_set_new_expire_time);
     tcase_add_test(TCase_pico_nd_mtu, tc_pico_nd_mtu);
     suite_add_tcase(s, TCase_pico_nd_mtu);
     tcase_add_test(TCase_pico_nd_discover, tc_pico_nd_discover);
@@ -622,8 +738,6 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_neigh_sol_detect_dad);
     tcase_add_test(TCase_neigh_sol_process, tc_neigh_sol_process);
     suite_add_tcase(s, TCase_neigh_sol_process);
-    tcase_add_test(TCase_icmp6_initial_checks, tc_icmp6_initial_checks);
-    suite_add_tcase(s, TCase_icmp6_initial_checks);
     tcase_add_test(TCase_neigh_adv_option_len_validity_check, tc_neigh_adv_option_len_validity_check);
     suite_add_tcase(s, TCase_neigh_adv_option_len_validity_check);
     tcase_add_test(TCase_neigh_adv_mcast_validity_check, tc_neigh_adv_mcast_validity_check);

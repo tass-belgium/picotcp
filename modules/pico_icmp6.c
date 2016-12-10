@@ -35,7 +35,7 @@ static struct pico_queue icmp6_out;
 static int pico_6lp_nd_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst);
 #endif
 
-uint16_t pico_icmp6_checksum(struct pico_frame *f)
+MOCKABLE uint16_t pico_icmp6_checksum(struct pico_frame *f)
 {
     struct pico_ipv6_hdr *ipv6_hdr = (struct pico_ipv6_hdr *)f->net_hdr;
 
