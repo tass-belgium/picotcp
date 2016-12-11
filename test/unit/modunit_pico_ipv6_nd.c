@@ -245,6 +245,10 @@ START_TEST(tc_pico_get_neighbor_from_ncache)
   /* Look for different neighbour when multiple neighbours in neigbhour cache*/
   c_addr.addr[0] = 2;
   fail_if(pico_get_neighbor_from_ncache(&c_addr) != NULL, "Neighbor not registered in ncache but found?");
+
+  /* Cleanup */
+  pico_tree_delete(&NCache, &a);
+  pico_tree_delete(&NCache, &b);
 }
 END_TEST
 START_TEST(tc_pico_get_router_from_rcache)
@@ -288,11 +292,108 @@ START_TEST(tc_pico_get_router_from_rcache)
 
   pico_set_mm_failure(1);
   fail_if(pico_get_router_from_rcache(&c_addr) != NULL, "Router not registered in rcache and malloc failed, but we don't return NULL?");
+
+  /* Cleanup */
+  pico_tree_delete(&RCache, &a);
+  pico_tree_delete(&RCache, &b);
 }
 END_TEST
 START_TEST(tc_pico_nd_get_default_router)
 {
-  /* TODO:  */
+  struct pico_ipv6_router r0 = { 0 }, r1 = { 0 }, r2 = { 0 };
+  struct pico_ipv6_neighbor n0 = { 0 }, n1 = { 0 }, n2 = { 0 };
+  struct pico_ipv6_link link = { 0 };
+  char ipstr0[] = "2001:0db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr1[] = "2001:db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr2[] = "2001:b8:130f:0000:0000:09c0:876a:130b";
+
+  /* Setup of routers */
+  r0.router = &n0;
+  r1.router = &n1;
+  r2.router = &n2;
+  r0.link = &link;
+  r1.link = &link;
+  r2.link = &link;
+  pico_string_to_ipv6(ipstr0, r0.router->address.addr);
+  pico_string_to_ipv6(ipstr1, r0.router->address.addr);
+  pico_string_to_ipv6(ipstr2, r1.router->address.addr);
+
+  /* No routers in Cache */
+  fail_if(pico_nd_get_default_router() != NULL, "No router in RCache, should have returned NULL");
+
+  /* Routers in rcache, but don't flag it as default router */
+  pico_tree_insert(&RCache, &r0);
+  pico_tree_insert(&RCache, &r1);
+  pico_tree_insert(&RCache, &r2);
+  fail_if(pico_nd_get_default_router() != NULL, "No default router in RCache, should have returned NULL");
+
+  /* Flag one router as default */
+  r1.is_default = 1;
+  fail_if(pico_nd_get_default_router() != &r1, "Default router in RCache, should have been returned");
+
+  /* Cleanup */
+  pico_tree_delete(&RCache, &r0);
+  pico_tree_delete(&RCache, &r1);
+  pico_tree_delete(&RCache, &r2);
+}
+END_TEST
+
+START_TEST(tc_pico_recv_rs)
+{
+  /* Context:
+   * Clean env, no NCEs, no RCEs
+   * We recv a RA, NCE has to be created, RCE has to be created, default router has to be set
+   * Using router solicitation from ND tahi tests v6LC.2.2.2 Part B
+   */
+  uint8_t packet_data[] = {
+    0x33,0x33,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0xa0,0xa0,0x86,0xdd,0x60,0x00,
+    0x00,0x00,0x00,0x38,0x3a,0xff,0xfe,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,
+    0x00,0xff,0xfe,0x00,0xa0,0xa0,0xff,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x01,0x86,0x00,0xa0,0x49,0x40,0x00,0x07,0x08,0x00,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x00,0x00,0x00,0x00,0xa0,0xa0,0x03,0x04,
+    0x40,0xc0,0x00,0x27,0x8d,0x00,0x00,0x09,0x3a,0x80,0x00,0x00,0x00,0x00,0x3f,0xfe,
+    0x05,0x01,0xff,0xff,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+  };
+  struct pico_frame *f = NULL;
+  struct pico_device *dummy_device = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x08, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+  struct pico_ipv6_hdr *ip = NULL;
+  struct pico_ip6 temp_src = { 0 };
+
+  /* Sanity check, no default router set */
+  fail_if(pico_nd_get_default_router() != NULL, "No default router in RCache, should have returned NULL");
+
+  f = pico_proto_ipv6.alloc(&pico_proto_ipv6, dummy_device, sizeof(packet_data));
+
+  /* f = pico_frame_alloc(sizeof(packet_data)); */
+  dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
+
+  pico_device_init(dummy_device, name, mac);
+
+  memcpy(f->buffer, packet_data, sizeof(packet_data));
+  f->dev = dummy_device;
+  f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
+  f->net_len = PICO_SIZE_IP6HDR;
+  f->transport_hdr = f->buffer + PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR;
+  f->transport_len = sizeof(packet_data) - (PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
+
+  ip = (struct pico_ipv6_hdr *)f->net_hdr;
+
+  /* Copy src addr because pico_ipv6_nd_recv includes an implicit pico_frame_discard */
+  memcpy(&temp_src, &ip->src, sizeof(struct pico_ip6));
+
+  pico_ipv6_nd_recv(f);
+
+  fail_if(pico_get_neighbor_from_ncache(&temp_src) == NULL, "RA recvd, NCE should have been created");
+  fail_if(pico_get_router_from_rcache(&temp_src) == NULL, "RA recvd, RCE should have been created");
+  fail_if(pico_nd_get_default_router() == NULL, "RA recvd, default router should have been set");
+
+  /* Cleanup */
+  pico_nd_delete_entry(pico_get_neighbor_from_ncache(&(temp_src)));
+  pico_device_destroy(dummy_device);
 }
 END_TEST
 START_TEST(tc_pico_nd_get_length_of_options)
@@ -424,6 +525,7 @@ START_TEST(tc_pico_nd_mtu)
     0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
+
     pico_device_init(dummy_device, name, mac);
     f = pico_frame_alloc(sizeof(pkt15));
     memcpy(f->buffer, pkt15, sizeof(pkt15));
@@ -439,6 +541,10 @@ START_TEST(tc_pico_nd_mtu)
     const struct pico_ipv6_hdr *hdr = (const struct pico_ipv6_hdr *)(pkt15 + PICO_SIZE_ETHHDR);
     struct pico_ipv6_router *test_router = pico_get_router_from_rcache(&(hdr->src));
     fail_if(test_router->link->mtu != 1500);
+
+    /* Cleanup */
+    pico_device_destroy(dummy_device);
+    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&(hdr->src)));
     }
 }
 END_TEST
@@ -677,6 +783,10 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_nd_ra_timer_callback = tcase_create("Unit test for pico_ipv6_nd_ra_timer_callback");
     TCase *TCase_pico_ipv6_nd_check_rs_timer_expired = tcase_create("Unit test for pico_ipv6_nd_check_rs_timer_expired");
 
+    TCase *TCase_functional_rs = tcase_create("Functional test for recv router advertisement");
+
+    tcase_add_test(TCase_functional_rs, tc_pico_recv_rs);
+    suite_add_tcase(s, TCase_functional_rs);
 
     tcase_add_test(TCase_pico_ipv6_neighbor_compare, tc_pico_ipv6_neighbor_compare);
     suite_add_tcase(s, TCase_pico_ipv6_neighbor_compare);

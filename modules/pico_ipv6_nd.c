@@ -260,7 +260,7 @@ static void ipv6_duplicate_detected(struct pico_ipv6_link *l)
         pico_device_ipv6_random_ll(dev);
 }
 
-static struct pico_ipv6_neighbor *pico_get_neighbor_from_ncache(struct pico_ip6 *dst)
+static struct pico_ipv6_neighbor *pico_get_neighbor_from_ncache(const struct pico_ip6 *dst)
 {
     struct pico_ipv6_neighbor test = {
         0
