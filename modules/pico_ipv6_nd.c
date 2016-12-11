@@ -326,37 +326,58 @@ static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6
 {
     struct pico_tree_node *index, *_tmp;
     struct pico_ipv6_router *r;
-    int assigned = 0;
     struct pico_ip6 zero = {
         .addr = {0}
     };
+
+    if (!assign_default) {
+        /*
+         * Removing non-default router
+         * No route has been registered
+         */
+        /*
+         * TODO: use metric field to add several routes on same link
+         * for now, we only support one route on one link
+         */
+        return;
+    }
 
     pico_tree_foreach_safe(index, &RCache, _tmp)
     {
         r = index->keyValue;
 
-        if (r->is_default && assign_default) {
+        if (r->link != link)
+        {
+            /* router on other link */
+            continue;
+        }
+
+
+        if (r->is_default) {
             /* Un-assign default router */
             r->is_default = 0;
+
+            /*
+             * No synchronization needed between route_del and route_added
+             * because we always take first router with the right link as default router
+             * So we will always delete the route of the default router first
+             * before assigning a new one (see below)
+             */
             if(pico_ipv6_route_del(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
                 nd_dbg("assign def router: Route could not be deleted\n");
             }
             continue;
         }
 
-        if (link == r->link && !assigned) {
-            if (pico_ipv6_route_add(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
-                nd_dbg("Route could not be added when assigning new default router\n");
-            } else {
-                nd_dbg("Route added when assigning new default router\n");
+        /* If we get here, default router is deleted and we can add a new route */
+        if (pico_ipv6_route_add(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
+            nd_dbg("Route could not be added when assigning new default router\n");
+        } else {
+            nd_dbg("Route added when assigning new default router\n");
 
-                if (assign_default) {
-                    /* Assign default router */
-                    r->is_default = 1;
-                }
-                /* flag we assigned a new 'default' router on this link */
-                assigned = 1;
-            }
+            /* Assign default router */
+            r->is_default = 1;
+            break;
         }
     }
 }
@@ -462,7 +483,7 @@ static void pico_ipv6_nd_trigger_queued_packets(struct pico_ip6 *dst)
     }
 }
 
-static struct pico_ipv6_neighbor *pico_create_entry(struct pico_ip6 *addr, struct pico_device *dev)
+static struct pico_ipv6_neighbor *pico_nd_create_entry(struct pico_ip6 *addr, struct pico_device *dev)
 {
     struct pico_ipv6_neighbor *n;
 
@@ -571,7 +592,7 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     print_nd_state(n);
 
     if (!n) {
-        n = pico_create_entry(addr, dev);
+        n = pico_nd_create_entry(addr, dev);
         pico_nd_discover(n);
         return NULL;
     }
@@ -732,7 +753,6 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
         n->is_router = 0;
 }
 
-
 static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico_icmp6_hdr *hdr)
 {
     if (IS_SOLICITED(hdr)) {
@@ -829,7 +849,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
 {
     size_t len = pico_hw_addr_len(dev, opt);
     struct pico_ipv6_neighbor *n = NULL;
-    n = pico_create_entry(ip, dev);
+    n = pico_nd_create_entry(ip, dev);
     if (!n)
         return NULL;
 
@@ -858,7 +878,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
                 nd_dbg("NB FROM UNSOLICITED\n");
                 n = pico_ipv6_neighbor_from_sol_new(&ip->src, &opt, f->dev);
             } else {
-                n = pico_create_entry(&ip->src, f->dev);
+                n = pico_nd_create_entry(&ip->src, f->dev);
 
                 if (n) {
                     nd_dbg("NB FROM UNSOLICITED: added\n");
@@ -1011,7 +1031,6 @@ static int neigh_sol_unicast_validity_check(struct pico_frame *f)
         link = pico_ipv6_link_by_dev_next(f->dev, link);
     }
     return -1;
-
 }
 
 static int neigh_sol_validate_unspec(struct pico_frame *f)
@@ -1335,7 +1354,7 @@ static struct pico_ipv6_neighbor *pico_nd_add_6lp(struct pico_ip6 naddr, struct 
 {
     struct pico_ipv6_neighbor *new = NULL;
 
-    if ((new = pico_create_entry(&naddr, dev))) {
+    if ((new = pico_nd_create_entry(&naddr, dev))) {
         new->expire = PICO_TIME_MS() + (pico_time)(ONE_MINUTE_MS * aro->lifetime);
         dbg("ARO Lifetime: %d minutes\n", aro->lifetime);
     } else {
@@ -1586,11 +1605,13 @@ static int radv_process(struct pico_frame *f)
 #ifdef PICO_SUPPORT_6LOWPAN
     int sllao = 0;
     int abro_valid = 0;
-    int context_option_valid = 0;
 
     struct pico_icmp6_opt_lladdr lladdr_src;
     struct pico_icmp6_opt_abro abro;
+#ifdef PICO_6LOWPAN_IPHC_ENABLED
+    int context_option_valid = 0;
     struct pico_icmp6_opt_6co co;
+#endif
 #endif
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
@@ -1945,7 +1966,7 @@ static int redirect_process(struct pico_frame *f)
             }
         } else {
             /* Neighbor is NOT known */
-            target_neighbor = pico_create_entry(&redirect_hdr->target, f->dev);
+            target_neighbor = pico_nd_create_entry(&redirect_hdr->target, f->dev);
 
             if (target_neighbor) {
                 pico_ipv6_neighbor_update(target_neighbor, &opt_ll, target_neighbor->dev);
@@ -2246,7 +2267,7 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             pico_tree_insert(&IPV6NQueue, cp);
         }
     } else {
-        n = pico_create_entry(dst, f->dev);
+        n = pico_nd_create_entry(dst, f->dev);
 
         if (n) {
             n->frames_queued++;
