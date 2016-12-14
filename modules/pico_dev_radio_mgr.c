@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <signal.h>
+#include <errno.h>
 
 #ifdef DEBUG_RADIOTEST
 #define RADIO_DBG       dbg
@@ -339,10 +340,11 @@ pico_radio_mgr_start(void)
         if (fds)
             PICO_FREE(fds);
         fds = pico_radio_mgr_socket_all((int *)&n);
-        ret = poll(fds, n, 1);
-        if (ret < 0) {
+        errno = 0;
+        ret = poll(fds, n, 0);
+        if (errno != EINTR && ret < 0) {
             RADIO_DBG("Socket error: %s\n", strerror(ret));
-            exit(255);
+            return ret;
         } else if (!ret) {
             continue;
         }

@@ -114,9 +114,9 @@ static void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
     /* Open dump */
     dev->pcapd = pcap_dump_open(dev->pcap, path);
     if (dev->pcapd)
-        RADIO_DBG("PCAP Enabled\n");
+        dbg("PCAP Enabled\n");
     else
-        RADIO_DBG("PCAP Disabled\n");
+        dbg("PCAP Disabled\n");
 }
 
 static void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
@@ -475,6 +475,7 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     }
 
     if (dump) {
+        dbg("Dump: %s\n", dump);
         radiotest_pcap_open(radio, dump);
     }
 
