@@ -1080,8 +1080,10 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
         dev = msginfo->dev;
     }
 #ifdef PICO_SUPPORT_IPV6
-    else if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+    else if (IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         dev = pico_ipv6_link_find(src);
+    } else if (ep) {
+        dev = pico_ipv6_source_dev_find(&ep->remote_addr.ip6);
     }
 #endif
     else {
