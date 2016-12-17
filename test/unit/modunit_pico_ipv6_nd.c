@@ -33,6 +33,7 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
 {
   /*
    * Router solicitation from ND tahi tests v6LC.2.2.2 Part B
+   * has link layer addr option + prefix option
    */
   struct pico_frame *adv = NULL;
   struct pico_icmp6_hdr *icmp6_hdr = NULL;
@@ -463,6 +464,7 @@ START_TEST(tc_pico_ipv6_assign_default_router_on_link)
   pico_tree_insert(&RCache, &r0);
   pico_tree_insert(&RCache, &r1);
   pico_tree_insert(&RCache, &r2);
+  pico_tree_insert(&RCache, &r3);
   fail_if(pico_nd_get_default_router() != NULL, "No default router in RCache, should have returned NULL");
 
   pico_ipv6_assign_router_on_link(0, &link0); /* Don't assign default router */
@@ -478,16 +480,119 @@ START_TEST(tc_pico_ipv6_assign_default_router_on_link)
   pico_tree_delete(&RCache, &r0);
   pico_tree_delete(&RCache, &r1);
   pico_tree_delete(&RCache, &r2);
+  pico_tree_delete(&RCache, &r3);
 }
 END_TEST
 START_TEST(tc_pico_ipv6_set_router_link)
 {
-  /* TODO: test this: static void pico_ipv6_set_router_link(struct pico_ip6 *addr, struct pico_ipv6_link *link) */
+  struct pico_ipv6_router r0 = { 0 }, r1 = { 0 }, r2 = { 0 }, r3 = { 0 };
+  struct pico_ipv6_neighbor n0 = { 0 }, n1 = { 0 }, n2 = { 0 }, n3 = { 0 };
+  struct pico_ipv6_link link0 = { 0 }, link1 = { 0 };
+  char ipstr0[] = "2001:0db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr1[] = "2001:1db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr2[] = "2001:b8:130f:0000:0000:09c0:876a:130b";
+  char ipstr3[] = "2001:8:130f:0000:0000:09c0:876a:130b";
+
+  /* Setup of routers */
+  r0.router = &n0;
+  r1.router = &n1;
+  r2.router = &n2;
+  r3.router = &n3;
+  pico_string_to_ipv6(ipstr0, r0.router->address.addr);
+  pico_string_to_ipv6(ipstr1, r1.router->address.addr);
+  pico_string_to_ipv6(ipstr2, r2.router->address.addr);
+  pico_string_to_ipv6(ipstr3, r3.router->address.addr);
+
+  /* NULL args */
+  pico_ipv6_set_router_link(NULL, NULL);
+
+  /* No routers in RCache */
+  pico_ipv6_set_router_link(&r0.router->address, &link0);
+
+  fail_if(r0.link == &link0, "Router not yet in RCache, link should not have been set");
+
+  /* Routers in RCache */
+  pico_tree_insert(&RCache, &r0);
+  pico_tree_insert(&RCache, &r1);
+  pico_tree_insert(&RCache, &r2);
+  pico_tree_insert(&RCache, &r3);
+
+  /* Setting router links */
+  pico_ipv6_set_router_link(&r0.router->address, &link0);
+  pico_ipv6_set_router_link(&r1.router->address, &link1);
+  pico_ipv6_set_router_link(&r2.router->address, &link0);
+  pico_ipv6_set_router_link(&r3.router->address, &link1);
+
+  fail_if(r0.link != &link0, "Router in RCache, link should have been set");
+  fail_if(r1.link != &link1, "Router in RCache, link should have been set");
+  fail_if(r2.link != &link0, "Router in RCache, link should have been set");
+  fail_if(r3.link != &link1, "Router in RCache, link should have been set");
+
+  /* Cleanup */
+  pico_tree_delete(&RCache, &r0);
+  pico_tree_delete(&RCache, &r1);
+  pico_tree_delete(&RCache, &r2);
+  pico_tree_delete(&RCache, &r3);
 }
 END_TEST
 START_TEST(tc_pico_ipv6_set_router_mtu)
 {
-  /* TODO: test this: static void pico_ipv6_set_router_mtu(struct pico_ip6 *addr, uint32_t mtu) */
+  struct pico_ipv6_router r0 = { 0 }, r1 = { 0 }, r2 = { 0 }, r3 = { 0 };
+  struct pico_ipv6_neighbor n0 = { 0 }, n1 = { 0 }, n2 = { 0 }, n3 = { 0 };
+  struct pico_ipv6_link link0 = { 0 }, link1 = { 0 };
+  uint32_t r0_mtu = 1500, r1_mtu = 2000, r2_mtu = 2500, r3_mtu = 3000;
+  char ipstr0[] = "2001:0db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr1[] = "2001:1db8:130f:0000:0000:09c0:876a:130b";
+  char ipstr2[] = "2001:b8:130f:0000:0000:09c0:876a:130b";
+  char ipstr3[] = "2001:8:130f:0000:0000:09c0:876a:130b";
+
+  /* Setup of routers */
+  r0.router = &n0;
+  r1.router = &n1;
+  r2.router = &n2;
+  r3.router = &n3;
+  /* Setting router links */
+  r0.link = &link0;
+  r1.link = &link0;
+  r2.link = &link0;
+  r3.link = &link1;             /* One router with different link */
+  pico_string_to_ipv6(ipstr0, r0.router->address.addr);
+  pico_string_to_ipv6(ipstr1, r1.router->address.addr);
+  pico_string_to_ipv6(ipstr2, r2.router->address.addr);
+  pico_string_to_ipv6(ipstr3, r3.router->address.addr);
+
+  /* NULL args */
+  pico_ipv6_set_router_mtu(NULL, 0);
+
+  /* No routers in RCache */
+  pico_ipv6_set_router_mtu(&r0.router->address, r0_mtu);
+
+  fail_if(r0.link->mtu == r0_mtu, "Router not yet in RCache, mtu should not have been set");
+
+  /* Routers in RCache */
+  pico_tree_insert(&RCache, &r0);
+  pico_tree_insert(&RCache, &r1);
+  pico_tree_insert(&RCache, &r2);
+  pico_tree_insert(&RCache, &r3);
+
+  /* Setting router mtu */
+  /* TODO: should link->mtu change if we change mtu of non-default router?  */
+  pico_ipv6_set_router_mtu(&r0.router->address, r0_mtu);
+  fail_if(r0.link->mtu != r0_mtu, "Router in RCache, mtu should have been set");
+  pico_ipv6_set_router_mtu(&r1.router->address, r1_mtu);
+  fail_if(r1.link->mtu != r1_mtu, "Router in RCache, mtu should have been set");
+  pico_ipv6_set_router_mtu(&r2.router->address, r2_mtu);
+  fail_if(r2.link->mtu != r2_mtu, "Router in RCache, mtu should have been set");
+  pico_ipv6_set_router_mtu(&r3.router->address, r3_mtu);
+  fail_if(r3.link->mtu != r3_mtu, "Router in RCache, mtu should have been set");
+  /* r3 and r2 have different links so setting mtu for r3 shouldn't affect r2 */
+  fail_if(r2.link->mtu != r2_mtu, "Router in RCache, mtu should have been set");
+
+  /* Cleanup */
+  pico_tree_delete(&RCache, &r0);
+  pico_tree_delete(&RCache, &r1);
+  pico_tree_delete(&RCache, &r2);
+  pico_tree_delete(&RCache, &r3);
 }
 END_TEST
 START_TEST(tc_pico_nd_clear_queued_packets)
@@ -811,7 +916,6 @@ START_TEST(tc_pico_recv_ra)
    * Clean env, no NCEs, no RCEs
    * We recv a RA, NCE has to be created, RCE has to be created, default router has to be set
    */
-#if 1
   struct pico_frame *f = NULL;
   struct pico_device *dummy_device = NULL;
   struct pico_ipv6_hdr ipv6_hdr = { 0 };
@@ -841,51 +945,6 @@ START_TEST(tc_pico_recv_ra)
   fail_if(pico_get_router_from_rcache(&ipv6_hdr.src) == NULL, "RA recvd, RCE should have been created");
   fail_if(pico_nd_get_default_router() == NULL, "RA recvd, default router should have been set");
 
-#else
-  /*
-   * Router solicitation from ND tahi tests v6LC.2.2.2 Part B
-   */
-  uint8_t packet_data[] = {
-    0x33,0x33,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0xa0,0xa0,0x86,0xdd,0x60,0x00,
-    0x00,0x00,0x00,0x38,0x3a,0xff,0xfe,0x80,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,
-    0x00,0xff,0xfe,0x00,0xa0,0xa0,0xff,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-    0x00,0x00,0x00,0x00,0x00,0x01,0x86,0x00,0xa0,0x49,0x40,0x00,0x07,0x08,0x00,0x00,
-    0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x01,0x00,0x00,0x00,0x00,0xa0,0xa0,0x03,0x04,
-    0x40,0xc0,0x00,0x27,0x8d,0x00,0x00,0x09,0x3a,0x80,0x00,0x00,0x00,0x00,0x3f,0xfe,
-    0x05,0x01,0xff,0xff,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
-  };
-  struct pico_frame *f = NULL;
-  struct pico_device *dummy_device = NULL;
-  const uint8_t mac[PICO_SIZE_ETH] = {
-    0x08, 0x00, 0x27, 0x39, 0xd0, 0xc6
-  };
-  const char *name = "nd_test";
-  struct pico_ipv6_hdr *ip = NULL;
-
-  /* Sanity check, no default router set */
-  fail_if(pico_nd_get_default_router() != NULL, "No default router in RCache, should have returned NULL");
-
-  f = pico_frame_alloc(sizeof(packet_data));
-  dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
-
-  pico_device_init(dummy_device, name, mac);
-
-  memcpy(f->buffer, packet_data, sizeof(packet_data));
-  f->dev = dummy_device;
-  f->net_hdr = f->buffer + PICO_SIZE_ETHHDR;
-  f->net_len = PICO_SIZE_IP6HDR;
-  f->transport_hdr = f->buffer + PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR;
-  f->transport_len = sizeof(packet_data) - (PICO_SIZE_ETHHDR + PICO_SIZE_IP6HDR);
-
-  ip = (struct pico_ipv6_hdr *)f->net_hdr;
-
-  pico_ipv6_nd_recv(f);
-
-  fail_if(pico_get_neighbor_from_ncache(&ip->src) == NULL, "RA recvd, NCE should have been created");
-  fail_if(pico_get_router_from_rcache(&ip->src) == NULL, "RA recvd, RCE should have been created");
-  fail_if(pico_nd_get_default_router() == NULL, "RA recvd, default router should have been set");
-#endif
-
   /* Cleanup */
   pico_nd_delete_entry(pico_get_neighbor_from_ncache(&(ipv6_hdr.src)));
   pico_device_destroy(dummy_device);
@@ -909,7 +968,7 @@ Suite *pico_suite(void)
 
     TCase *TCase_pico_ipv6_assign_default_router_on_link = tcase_create("Unit test for pico_ipv6_assign_default_router_on_link");
     TCase *TCase_pico_nd_get_length_of_options = tcase_create("Unit test for pico_nd_get_length_of_options");
-    TCase *TCase_pico_ipv6_router_add_link = tcase_create("Unit test for pico_ipv6_set_router_link");
+    TCase *TCase_pico_ipv6_set_router_link = tcase_create("Unit test for pico_ipv6_set_router_link");
     TCase *TCase_pico_ipv6_set_router_mtu = tcase_create("Unit test for pico_ipv6_set_router_mtu");
     TCase *TCase_pico_ipv6_nd_trigger_queued_packets = tcase_create("Unit test for pico_ipv6_nd_trigger_queued_packets");
     TCase *TCase_pico_nd_set_new_expire_time = tcase_create("Unit test for pico_nd_set_new_expire_time");
@@ -1008,8 +1067,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_nd_get_length_of_options);
     tcase_add_test(TCase_pico_ipv6_assign_default_router_on_link, tc_pico_ipv6_assign_default_router_on_link);
     suite_add_tcase(s, TCase_pico_ipv6_assign_default_router_on_link);
-    tcase_add_test(TCase_pico_ipv6_router_add_link, tc_pico_ipv6_set_router_link);
-    suite_add_tcase(s, TCase_pico_ipv6_router_add_link);
+    tcase_add_test(TCase_pico_ipv6_set_router_link, tc_pico_ipv6_set_router_link);
+    suite_add_tcase(s, TCase_pico_ipv6_set_router_link);
     tcase_add_test(TCase_pico_ipv6_set_router_mtu, tc_pico_ipv6_set_router_mtu);
     suite_add_tcase(s, TCase_pico_ipv6_set_router_mtu);
     tcase_add_test(TCase_pico_ipv6_nd_trigger_queued_packets, tc_pico_ipv6_nd_trigger_queued_packets);
