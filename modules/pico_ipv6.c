@@ -1887,6 +1887,11 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
     struct pico_ipv6_link test = {
         0
     }, *found = NULL;
+#ifdef PICO_SUPPORT_MCAST
+    struct pico_ip6 all_hosts = {{ 0xff, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }};
+    struct pico_mcast_group *g = NULL;
+    struct pico_tree_node *index, *_tmp;
+#endif
 
     if (!dev) {
         pico_err = PICO_ERR_EINVAL;
@@ -1904,6 +1909,26 @@ int pico_ipv6_link_del(struct pico_device *dev, struct pico_ip6 address)
     pico_ipv6_cleanup_routes(found);
     if (found->dad_timer)
         pico_timer_cancel(found->dad_timer);
+
+#ifdef PICO_SUPPORT_MCAST
+    /* TODO: Not sure how to properly delete MCAST groups, etc
+     * this makes asan happy for now
+     */
+
+    if (found == mcast_default_link_ipv6) {
+        mcast_default_link_ipv6 = NULL;
+        pico_ipv6_mcast_leave(&found->address, &all_hosts, 1, PICO_IP_MULTICAST_EXCLUDE, NULL);
+    }
+
+    pico_tree_foreach_safe(index, found->MCASTGroups, _tmp)
+    {
+        g = index->keyValue;
+        pico_tree_delete(found->MCASTGroups, g);
+        PICO_FREE(g);
+    }
+
+    PICO_FREE(found->MCASTGroups);
+#endif
 
     pico_tree_delete(&IPV6Links, found);
     /* XXX MUST leave the solicited-node multicast address corresponding to the address (RFC 4861 $7.2.1) */
