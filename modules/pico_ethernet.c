@@ -369,6 +369,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
             /* Enqueue copy of frame in IPv6 ND-module to retry later. Discard
              * frame, otherwise we have a duplicate in IPv6-ND */
             pico_ipv6_nd_postpone(f);
+            pico_frame_discard(f);
             return (int32_t)f->len;
         }
 
