@@ -515,7 +515,7 @@ int pico_icmp6_neighbor_advertisement(struct pico_frame *f, struct pico_ip6 *tar
 }
 
 /* RFC 4861 $6.3.7: sending router solicitations */
-int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src, struct pico_ip6 *dst)
+MOCKABLE int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src, struct pico_ip6 *dst)
 {
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02 }};
     struct pico_icmp6_opt_lladdr *lladdr = NULL;

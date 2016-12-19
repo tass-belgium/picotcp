@@ -29,6 +29,15 @@ uint16_t pico_icmp6_checksum(struct pico_frame *f)
   return 1;
 }
 
+int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src, struct pico_ip6 *dst)
+{
+  IGNORE_PARAMETER(dev);
+  IGNORE_PARAMETER(src);
+  IGNORE_PARAMETER(dst);
+
+  return 0;
+}
+
 static struct pico_frame *make_router_adv(struct pico_device *dev)
 {
   /*
@@ -246,32 +255,68 @@ START_TEST(tc_pico_hw_addr_len)
   fail_if(pico_hw_addr_len(&dummy_dev, &opt) != SIZE_6LOWPAN_EXT, "HW addr len is different from SIZE_6LOWPAN_SHORT for a 6LP device with optlen == 1");
 }
 END_TEST
-START_TEST(tc_pico_nd_get_oldest_frame)
+START_TEST(tc_pico_nd_get_oldest_queued_frame)
 {
-#define FRAME_COUNT (3)
   struct pico_frame a, b, c;
-  struct pico_frame *frames[FRAME_COUNT] = { 0 };
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+  struct pico_ip6 addr_1 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x1b
+    }
+  };
+  struct pico_ipv6_hdr hdr_0 = {0};
+  struct pico_ipv6_hdr hdr_1 = {0};
 
-  frames[0] = &a;
-  frames[1] = &b;
-  frames[2] = &c;
+  hdr_0.dst = addr_0;
+  hdr_1.dst = addr_1;
 
-  fail_if(pico_nd_get_oldest_frame(frames, 0) != NULL, "Passing 0 should return NULL");
-
-  fail_if(pico_nd_get_oldest_frame(NULL, FRAME_COUNT) != NULL, "Passing NULL should return NULL");
+  /* No queued frames yet */
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_0) != NULL, "No queued frames yet, should have returned NULL");
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_1) != NULL, "No queued frames yet, should have returned NULL");
 
   a.timestamp = 0;
   b.timestamp = 1;
   c.timestamp = 2;
 
-  fail_if(pico_nd_get_oldest_frame(frames, FRAME_COUNT) != &a, "Frame a has smallest timestamp == is oldest");
+  a.net_hdr = (uint8_t *)&hdr_0;
+  b.net_hdr = (uint8_t *)&hdr_0;
+  c.net_hdr = (uint8_t *)&hdr_0;
+
+  pico_tree_insert(&IPV6NQueue, &a);
+  pico_tree_insert(&IPV6NQueue, &b);
+  pico_tree_insert(&IPV6NQueue, &c);
+
+  /* Frames queued with same dest addresses */
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_0) != &a, "Queued frames in, shouldn't have returned NULL");
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_1) != NULL, "No queued frames for this dest yet, should have returned NULL");
 
   /* 2 packets with same timestamp */
-  a.timestamp = 3;
-  b.timestamp = 2;
+  a.timestamp = 1;
+  b.timestamp = 1;
   c.timestamp = 2;
 
-  fail_if(pico_nd_get_oldest_frame(frames, FRAME_COUNT) != &b, "Frames b and c have same timestamp, b is first in array so it should be returned first.");
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_0) != &a && pico_nd_get_oldest_queued_frame(&addr_0) != &b, "Queued frames in, shouldn't have returned NULL");
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_1) != NULL, "No queued frames for this dest yet, should have returned NULL");
+
+  /* Frames queued with different dest addresses */
+  a.timestamp = 0;
+  b.timestamp = 1;
+  c.timestamp = 2;
+
+  a.net_hdr = (uint8_t *)&hdr_1;
+  b.net_hdr = (uint8_t *)&hdr_0;
+  c.net_hdr = (uint8_t *)&hdr_0;
+
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_1) != &a, "No queued frames for this dest yet, should have returned NULL");
+  fail_if(pico_nd_get_oldest_queued_frame(&addr_0) != &b, "Queued frames in, shouldn't have returned NULL");
+
+  pico_tree_delete(&IPV6NQueue, &a);
+  pico_tree_delete(&IPV6NQueue, &b);
+  pico_tree_delete(&IPV6NQueue, &c);
 }
 END_TEST
 START_TEST(tc_ipv6_duplicate_detected)
@@ -435,36 +480,66 @@ START_TEST(tc_pico_nd_set_new_expire_time)
 END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router_on_link)
 {
-  struct pico_ipv6_router r0 = { 0 }, r1 = { 0 }, r2 = { 0 }, r3 = { 0 };
-  struct pico_ipv6_neighbor n0 = { 0 }, n1 = { 0 }, n2 = { 0 }, n3 = { 0 };
+  struct pico_ipv6_router *r0 = NULL, *r1 = NULL, *r2 = NULL, *r3 = NULL;
+  struct pico_ipv6_neighbor *n0 = NULL, *n1 = NULL, *n2 = NULL, *n3 = NULL;
   struct pico_ipv6_link link0 = { 0 }, link1 = { 0 };
-  char ipstr0[] = "2001:0db8:130f:0000:0000:09c0:876a:130b";
-  char ipstr1[] = "2001:1db8:130f:0000:0000:09c0:876a:130b";
-  char ipstr2[] = "2001:b8:130f:0000:0000:09c0:876a:130b";
-  char ipstr3[] = "2001:8:130f:0000:0000:09c0:876a:130b";
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+  struct pico_ip6 addr_1 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x1b
+    }
+  };
+  struct pico_ip6 addr_2 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x2b
+    }
+  };
+  struct pico_ip6 addr_3 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x3b
+    }
+  };
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
 
   /* Setup of routers */
-  r0.router = &n0;
-  r1.router = &n1;
-  r2.router = &n2;
-  r3.router = &n3;
-  r0.link = &link0;
-  r1.link = &link0;
-  r2.link = &link0;
-  r3.link = &link1;             /* One router with different link */
-  pico_string_to_ipv6(ipstr0, r0.router->address.addr);
-  pico_string_to_ipv6(ipstr1, r1.router->address.addr);
-  pico_string_to_ipv6(ipstr2, r2.router->address.addr);
-  pico_string_to_ipv6(ipstr3, r3.router->address.addr);
+  n0 = pico_nd_create_entry(&addr_0, dummy_dev);
+  n1 = pico_nd_create_entry(&addr_1, dummy_dev);
+  n2 = pico_nd_create_entry(&addr_2, dummy_dev);
+  n3 = pico_nd_create_entry(&addr_3, dummy_dev);
+
+  r0 = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+  r1 = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+  r2 = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+  r3 = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+
+  r0->router = n0;
+  r1->router = n1;
+  r2->router = n2;
+  r3->router = n3;
+  r0->link = &link0;
+  r1->link = &link0;
+  r2->link = &link0;
+  r3->link = &link1;             /* One router with different link */
 
   /* No routers in Cache */
   fail_if(pico_nd_get_default_router() != NULL, "No router in RCache, should have returned NULL");
 
   /* Routers in rcache, but don't flag it as default router */
-  pico_tree_insert(&RCache, &r0);
-  pico_tree_insert(&RCache, &r1);
-  pico_tree_insert(&RCache, &r2);
-  pico_tree_insert(&RCache, &r3);
+  pico_tree_insert(&RCache, r0);
+  pico_tree_insert(&RCache, r1);
+  pico_tree_insert(&RCache, r2);
+  pico_tree_insert(&RCache, r3);
   fail_if(pico_nd_get_default_router() != NULL, "No default router in RCache, should have returned NULL");
 
   pico_ipv6_assign_router_on_link(0, &link0); /* Don't assign default router */
@@ -474,13 +549,14 @@ START_TEST(tc_pico_ipv6_assign_default_router_on_link)
   pico_ipv6_assign_router_on_link(1, &link0); /* Assign default router */
 
   fail_if(pico_nd_get_default_router() == NULL, "Default router in RCache with link0, shouldn't have returned NULL");
-  fail_if(pico_nd_get_default_router() == &r3, "Default router in RCache with link0, shouldn't have returned router with link1");
+  fail_if(pico_nd_get_default_router() == r3, "Default router in RCache with link0, shouldn't have returned router with link1");
 
   /* Cleanup */
-  pico_tree_delete(&RCache, &r0);
-  pico_tree_delete(&RCache, &r1);
-  pico_tree_delete(&RCache, &r2);
-  pico_tree_delete(&RCache, &r3);
+  pico_nd_delete_entry(n0);
+  pico_nd_delete_entry(n1);
+  pico_nd_delete_entry(n2);
+  pico_nd_delete_entry(n3);
+  pico_device_destroy(dummy_dev);
 }
 END_TEST
 START_TEST(tc_pico_ipv6_set_router_link)
@@ -593,6 +669,11 @@ START_TEST(tc_pico_ipv6_set_router_mtu)
   pico_tree_delete(&RCache, &r1);
   pico_tree_delete(&RCache, &r2);
   pico_tree_delete(&RCache, &r3);
+}
+END_TEST
+START_TEST(tc_pico_ipv6_nd_postpone)
+{
+  /* TODO: test this: static void pico_ipv6_nd_postpone(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_nd_clear_queued_packets)
@@ -960,7 +1041,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv6_nd_qcompare = tcase_create("Unit test for pico_ipv6_nd_qcompare");
     TCase *TCase_icmp6_initial_checks = tcase_create("Unit test for icmp6_initial_checks");
     TCase *TCase_pico_hw_addr_len = tcase_create("Unit test for pico_hw_addr_len");
-    TCase *TCase_pico_nd_get_oldest_frame = tcase_create("Unit test for pico_nd_get_oldest_frame");
+    TCase *TCase_pico_nd_get_oldest_queued_frame = tcase_create("Unit test for pico_nd_get_oldest_queued_frame");
     TCase *TCase_ipv6_duplicate_detected = tcase_create("Unit test for ipv6_duplicate_detected");
     TCase *TCase_pico_get_neighbor_from_ncache = tcase_create("Unit test for pico_get_neighbor_from_ncache");
     TCase *TCase_pico_get_router_from_rcache = tcase_create("Unit test for pico_get_router_from_rcache");
@@ -1019,6 +1100,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_nd_delete_entry = tcase_create("Unit test for pico_nd_delete_entry");
     TCase *TCase_pico_nd_create_entry = tcase_create("Unit test for pico_nd_create_entry");
     TCase *TCase_pico_nd_clear_queued_packets = tcase_create("Unit test for pico_nd_clear_queued_packets");
+    TCase *TCase_pico_ipv6_nd_postpone = tcase_create("Unit test for pico_ipv6_nd_postpone");
 
     tcase_add_test(TCase_functional_ra, tc_pico_recv_ra);
     suite_add_tcase(s, TCase_functional_ra);
@@ -1043,6 +1125,9 @@ Suite *pico_suite(void)
     tcase_add_test(TCase_pico_nd_clear_queued_packets, tc_pico_nd_clear_queued_packets);
     suite_add_tcase(s, TCase_pico_nd_clear_queued_packets);
 
+    tcase_add_test(TCase_pico_ipv6_nd_postpone, tc_pico_ipv6_nd_postpone);
+    suite_add_tcase(s, TCase_pico_ipv6_nd_postpone);
+
     tcase_add_test(TCase_pico_ipv6_neighbor_compare, tc_pico_ipv6_neighbor_compare);
     suite_add_tcase(s, TCase_pico_ipv6_neighbor_compare);
     tcase_add_test(TCase_pico_ipv6_router_compare, tc_pico_ipv6_router_compare);
@@ -1051,8 +1136,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_icmp6_initial_checks);
     tcase_add_test(TCase_pico_hw_addr_len, tc_pico_hw_addr_len);
     suite_add_tcase(s, TCase_pico_hw_addr_len);
-    tcase_add_test(TCase_pico_nd_get_oldest_frame, tc_pico_nd_get_oldest_frame);
-    suite_add_tcase(s, TCase_pico_nd_get_oldest_frame);
+    tcase_add_test(TCase_pico_nd_get_oldest_queued_frame, tc_pico_nd_get_oldest_queued_frame);
+    suite_add_tcase(s, TCase_pico_nd_get_oldest_queued_frame);
     tcase_add_test(TCase_ipv6_duplicate_detected, tc_ipv6_duplicate_detected);
     suite_add_tcase(s, TCase_ipv6_duplicate_detected);
     tcase_add_test(TCase_pico_get_neighbor_from_ncache, tc_pico_get_neighbor_from_ncache);
@@ -1147,7 +1232,7 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_check_link_lifetime_expired);
     tcase_add_test(TCase_pico_ipv6_router_sol_timer, tc_pico_ipv6_router_sol_timer);
     suite_add_tcase(s, TCase_pico_ipv6_router_sol_timer);
-return s;
+    return s;
 }
 
 int main(void)

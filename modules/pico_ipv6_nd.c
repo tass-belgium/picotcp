@@ -93,8 +93,7 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f);
 /* DEBUG FUNCTIONS */
 static void print_nd_state(struct pico_ipv6_neighbor *n)
 {
-    if (!n)
-    {
+    if (!n) {
         nd_dbg("CAN'T PRINT STATE, NULL NEIGHBOR\n");
         return;
     }
@@ -226,18 +225,26 @@ static size_t pico_hw_addr_len(struct pico_device *dev, struct pico_icmp6_opt_ll
     return len;
 }
 
-static struct pico_frame * pico_nd_get_oldest_frame(struct pico_frame **frames, int number_of_frames)
+static struct pico_frame *pico_nd_get_oldest_queued_frame(struct pico_ip6 *dst)
 {
-    int i = 0;
     struct pico_frame *oldest = NULL;
+    struct pico_tree_node *index = NULL;
+    struct pico_frame *frame = NULL;
+    struct pico_ipv6_hdr *frame_hdr = NULL;
 
-    if (!frames || number_of_frames <= 0)
-        return NULL;
+    pico_tree_foreach(index,&IPV6NQueue) {
+        frame = index->keyValue;
+        frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
+        /* Get frames with dest addr == dst */
+        if (pico_ipv6_compare(dst, &frame_hdr->dst) == 0) {
+            /* Oldest hasn't been assigned yet*/
+            if (!oldest) {
+                oldest = frame;
+            }
 
-    oldest = frames[0];
-    for (i = 1; i < number_of_frames; ++i) {
-        if (frames[i]->timestamp < oldest->timestamp) {
-            oldest = frames[i];
+            if (frame->timestamp < oldest->timestamp) {
+                oldest = frame;
+            }
         }
     }
 
@@ -363,7 +370,7 @@ static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6
              * So we will always delete the route of the default router first
              * before assigning a new one (see below)
              */
-            if(pico_ipv6_route_del(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
+            if (pico_ipv6_route_del(zero, zero, r->router->address, DEFAULT_METRIC, r->link) != 0) {
                 nd_dbg("assign def router: Route could not be deleted\n");
             }
             continue;
@@ -2214,8 +2221,9 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
     struct pico_ipv6_hdr *hdr = NULL;
-    struct pico_ip6 *dst;
+    struct pico_ip6 *dst = NULL;
     struct pico_frame *cp = pico_frame_copy(f);
+    struct pico_frame *oldest = NULL;
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     dst = &hdr->dst;
@@ -2234,30 +2242,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
                 nd_dbg("Could not insert frame in Queued frames tree\n");
                 pico_frame_discard(cp);
                 return;
-            } else {
-                nd_dbg("PACKET INSERTED\n");
             }
             n->frames_queued++;
         } else {
-            int i = 0;
-            struct pico_frame *frames[PICO_ND_MAX_FRAMES_QUEUED] = {0};
-
-            struct pico_frame *oldest = NULL;
-            struct pico_tree_node *index = NULL;
-            struct pico_frame *frame = NULL;
-            struct pico_ipv6_hdr *frame_hdr = NULL;
-
-            /* Get frames with dest addr == dst */
-            pico_tree_foreach(index,&IPV6NQueue) {
-                frame = index->keyValue;
-                frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
-                if (pico_ipv6_compare(dst, &frame_hdr->dst) == 0) {
-                    frames[i++] = frame;
-                }
-            }
-
             /* Get the oldest frame*/
-            oldest = pico_nd_get_oldest_frame(frames, PICO_ND_MAX_FRAMES_QUEUED);
+            oldest = pico_nd_get_oldest_queued_frame(dst);
 
             /* Delete oldest frame... */
             pico_tree_delete(&IPV6NQueue, oldest);
