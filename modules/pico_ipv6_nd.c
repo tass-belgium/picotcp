@@ -423,18 +423,18 @@ static void pico_ipv6_set_router_mtu(struct pico_ip6 *addr, uint32_t mtu)
 
 static void pico_nd_clear_queued_packets(struct pico_ip6 *dst)
 {
-    struct pico_tree_node *index = NULL;
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_frame *frame = NULL;
     struct pico_ipv6_hdr *frame_hdr = NULL;
     struct pico_ip6 frame_dst = {
         .addr = {0}
     };
 
-    pico_tree_foreach(index,&IPV6NQueue) {
+    pico_tree_foreach_safe(index,&IPV6NQueue, _tmp) {
         frame = index->keyValue;
         frame_hdr = (struct pico_ipv6_hdr *) frame->net_hdr;
         frame_dst = pico_ipv6_route_get_gateway(&frame_hdr->dst);
-        if(pico_ipv6_is_unspecified(frame_dst.addr)){
+        if (pico_ipv6_is_unspecified(frame_dst.addr)) {
             frame_dst = frame_hdr->dst;
         }
 
@@ -2253,7 +2253,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
             pico_frame_discard(oldest);
 
             /* ...replace it with the newly recvd one */
-            pico_tree_insert(&IPV6NQueue, cp);
+            if (pico_tree_insert(&IPV6NQueue, cp)) {
+                nd_dbg("Could not insert frame in Queued frames tree\n");
+                pico_frame_discard(cp);
+                return;
+            }
         }
     } else {
         n = pico_nd_create_entry(dst, f->dev);
@@ -2265,7 +2269,11 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
              * Insert the packet in the tree
              * Discovery should have started
              */
-            pico_tree_insert(&IPV6NQueue, cp);
+            if (pico_tree_insert(&IPV6NQueue, cp)) {
+                nd_dbg("Could not insert frame in Queued frames tree\n");
+                pico_frame_discard(cp);
+                return;
+            }
         } else {
             nd_dbg("Could not add NCE to postpone frame\n");
             pico_frame_discard(cp);
