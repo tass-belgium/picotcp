@@ -807,7 +807,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
     struct pico_tree_node *index = NULL;
     struct pico_frame *frame = NULL;
     struct pico_ipv6_hdr *frame_hdr = NULL;
-    int number_of_frames_for_addr_0 = 0, number_of_frames_for_addr_1 = 0;
+    int number_of_frames_for_addr_0 = 0, number_of_frames_for_addr_1 = 0, number_of_frames = 0;
 
     pico_nd_create_entry(&addr_0, dummy_dev);
     pico_nd_create_entry(&addr_1, dummy_dev);
@@ -838,11 +838,15 @@ START_TEST(tc_pico_ipv6_nd_postpone)
       if (pico_ipv6_compare(&frame_hdr->dst, &addr_1) == 0) {
         number_of_frames_for_addr_1++;
       }
+
+      number_of_frames++;
     }
 
     fail_unless(number_of_frames_for_addr_0 == PICO_ND_MAX_FRAMES_QUEUED, "We postponed MAX frames with destination addr_0");
 
     fail_unless(number_of_frames_for_addr_1 == PICO_ND_MAX_FRAMES_QUEUED, "We postponed MAX frames with destination addr_1");
+
+    fail_unless(number_of_frames == PICO_ND_MAX_FRAMES_QUEUED*2, "There should only be 2 * MAX_FRAMES in the queued tree.");
 
     pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_0));
     pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_1));
