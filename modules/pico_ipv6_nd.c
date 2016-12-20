@@ -319,12 +319,11 @@ static struct pico_ipv6_router *pico_nd_get_default_router(void)
 
 static void pico_nd_set_new_expire_time(struct pico_ipv6_neighbor *n)
 {
-    if (n->state == PICO_ND_STATE_REACHABLE)
+    if (n->state == PICO_ND_STATE_REACHABLE) {
         n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
-    else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE)){
+    } else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE)) {
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
-    }
-    else {
+    } else {
         n->expire = PICO_TIME_MS() + n->dev->hostvars.retranstime;
     }
 }
@@ -1844,6 +1843,9 @@ static int neigh_adv_process(struct pico_frame *f)
     n = pico_get_neighbor_from_ncache(&icmp6_hdr->msg.info.neigh_adv.target);
 
     if (!n) {
+        /* RFC 4861 $7.2.5
+         *  * If no entry exists, the advertisment SHOULD be silently discarded
+         *  */
         return 0;
     }
 
