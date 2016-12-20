@@ -732,7 +732,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     pico_tree_foreach(index,&IPV6NQueue) {
       frame = index->keyValue;
-      for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
         if (memcmp(frame, frames[i].frame, sizeof(*frame)) == 0) {
           /* Frame is in there */
           if (!frames[i].flag) {
@@ -748,7 +748,6 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     /* Reset */
     number_of_unique_frames = 0;
-    printf("RESET: %d\n", number_of_unique_frames);
     for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
       frames[i].flag = 0;
     }
