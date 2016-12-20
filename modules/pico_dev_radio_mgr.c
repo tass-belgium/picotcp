@@ -150,15 +150,19 @@ pico_radio_mgr_welcome(int socket)
     int ret_len = sizeof(uint8_t);
     uint8_t id = 0, area0, area1;
 
-    ret_len = (int)recv(socket, &id, (size_t)ret_len, 0);
-    if (ret_len != 1)
-        goto hup;
-    ret_len = (int)recv(socket, &area0, (size_t)ret_len, 0);
-    if (ret_len != 1)
-        goto hup;
-    ret_len = (int)recv(socket, &area1, (size_t)ret_len, 0);
-    if (ret_len != 1)
-        goto hup;
+    errno = 0;
+    while ((ret_len = recv(socket, &id, (size_t)ret_len, 0)) != 1) {
+        if (errno && EINTR != errno)
+            goto hup;
+    }
+    while ((ret_len = recv(socket, &area0, (size_t)ret_len, 0)) != 1) {
+        if (errno && EINTR != errno)
+            goto hup;
+    }
+    while ((ret_len = recv(socket, &area1, (size_t)ret_len, 0)) != 1) {
+        if (errno && EINTR != errno)
+            goto hup;
+    }
 
     if (id <= 0) { // Node's can't have ID '0'.
         RADIO_DBG("Invalid socket\n");
@@ -175,7 +179,7 @@ pico_radio_mgr_welcome(int socket)
 
     return 0;
 hup:
-    RADIO_DBG("recv() failed\n");
+    RADIO_DBG("recv() failed with error: %s\n", strerror(errno));
     close(socket);
     return -1;
 }
@@ -341,7 +345,7 @@ pico_radio_mgr_start(void)
             PICO_FREE(fds);
         fds = pico_radio_mgr_socket_all((int *)&n);
         errno = 0;
-        ret = poll(fds, n, 0);
+        ret = poll(fds, n, 1);
         if (errno != EINTR && ret < 0) {
             RADIO_DBG("Socket error: %s\n", strerror(ret));
             return ret;
