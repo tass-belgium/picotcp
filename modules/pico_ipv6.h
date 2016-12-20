@@ -132,7 +132,7 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
     } ext;
 };
 
-int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b);
+int pico_ipv6_compare(const struct pico_ip6 *a, const struct pico_ip6 *b);
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip);
 int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6]);
 int pico_ipv6_is_unicast(struct pico_ip6 *a);
@@ -174,7 +174,7 @@ int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
 void pico_ipv6_check_link_lifetime_expired(pico_time now, void *arg);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
-void pico_ipv6_router_down(struct pico_ip6 *address);
+void pico_ipv6_router_down(const struct pico_ip6 *address);
 
 int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter);
 int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter);

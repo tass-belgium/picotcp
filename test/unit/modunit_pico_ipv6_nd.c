@@ -552,10 +552,10 @@ START_TEST(tc_pico_ipv6_assign_default_router_on_link)
   fail_if(pico_nd_get_default_router() == r3, "Default router in RCache with link0, shouldn't have returned router with link1");
 
   /* Cleanup */
-  pico_nd_delete_entry(n0);
-  pico_nd_delete_entry(n1);
-  pico_nd_delete_entry(n2);
-  pico_nd_delete_entry(n3);
+  pico_nd_delete_entry(&n0->address);
+  pico_nd_delete_entry(&n1->address);
+  pico_nd_delete_entry(&n2->address);
+  pico_nd_delete_entry(&n3->address);
   pico_device_destroy(dummy_dev);
 }
 END_TEST
@@ -730,6 +730,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
       pico_ipv6_nd_postpone(frames[i].frame);
     }
 
+    /* Check if first MAX frames are in queued tree */
     pico_tree_foreach(index,&IPV6NQueue) {
       frame = index->keyValue;
       for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
@@ -746,7 +747,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     fail_unless(number_of_unique_frames == PICO_ND_MAX_FRAMES_QUEUED, "We postponed PICO_ND_MAX_FRAMES_QUEUED, these should be in the Queue tree");
 
-    /* Reset */
+    /* Reset flags */
     number_of_unique_frames = 0;
     for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
       frames[i].flag = 0;
@@ -758,7 +759,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
       pico_ipv6_nd_postpone(frames[i].frame);
     }
 
-
+    /* Check if first MAX frames are in queued tree, they should have been overwritten */
     pico_tree_foreach(index,&IPV6NQueue) {
       frame = index->keyValue;
 
@@ -772,6 +773,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     fail_if(number_of_unique_frames, "First frames should have been overwritten by the newly postponed ones");
 
+    /* Now check if last MAX frames are in queued tree, they should have overwritten the first MAX frames */
     pico_tree_foreach(index,&IPV6NQueue) {
       frame = index->keyValue;
 
@@ -789,7 +791,7 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     fail_unless(number_of_unique_frames == PICO_ND_MAX_FRAMES_QUEUED, "We postponed PICO_ND_MAX_FRAMES_QUEUED, these should be in the Queue tree");
 
-    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_0));
+    pico_nd_delete_entry(&addr_0);
   }
 
   /* Sanity check, tree must be empty */
@@ -847,17 +849,16 @@ START_TEST(tc_pico_ipv6_nd_postpone)
 
     fail_unless(number_of_frames == PICO_ND_MAX_FRAMES_QUEUED*2, "There should only be 2 * MAX_FRAMES in the queued tree.");
 
-    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_0));
-    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_1));
+    pico_nd_delete_entry(&addr_0);
+    pico_nd_delete_entry(&addr_1);
   }
 
+  /* Cleanup */
   pico_device_destroy(dummy_dev);
 
   for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
     pico_frame_discard(frames[i].frame);
   }
-  /* TODO: test this: static void pico_ipv6_nd_postpone(struct pico_frame *f) */
-
 }
 END_TEST
 START_TEST(tc_pico_nd_clear_queued_packets)
@@ -872,12 +873,198 @@ START_TEST(tc_pico_ipv6_nd_trigger_queued_packets)
 END_TEST
 START_TEST(tc_pico_nd_create_entry)
 {
-  /* TODO: test this: static struct pico_ipv6_neighbor *pico_nd_create_entry(struct pico_ip6 *addr, struct pico_device *dev) */
+#define NUMBER_OF_NEIGHBORS (3)
+  struct pico_ipv6_neighbor *n = NULL;
+  struct pico_ip6 addr[NUMBER_OF_NEIGHBORS];
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+  int number_of_nce = 0, number_of_valid_nce = 0;
+  struct pico_tree_node *index = NULL, *_tmp = NULL;
+  int i = 0;
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    addr[i].addr[0] = (uint8_t)i;
+    pico_nd_create_entry(&addr[i], dummy_dev);
+  }
+
+  pico_tree_foreach(index,&NCache) {
+    n = index->keyValue;
+
+    for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+      if (pico_ipv6_compare(&n->address, &addr[i]) == 0) {
+        if (n->dev == dummy_dev && n->state == PICO_ND_STATE_INCOMPLETE && n->expire == PICO_TIME_MS() + ONE_MINUTE_MS) {
+          number_of_valid_nce++;
+        }
+      }
+    }
+
+    number_of_nce++;
+  }
+
+  fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "We created 1 entry, but NCE contains more entries?");
+  fail_unless(number_of_valid_nce == NUMBER_OF_NEIGHBORS, "We created 1 entry, but not the one we created or not valid?.");
+
+  /* Cleanup */
+  pico_device_destroy(dummy_dev);
+  pico_tree_foreach_safe(index, &NCache, _tmp)
+  {
+    n = index->keyValue;
+    pico_tree_delete(&NCache, n);
+    PICO_FREE(n);
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
 }
 END_TEST
 START_TEST(tc_pico_nd_delete_entry)
 {
-  /* TODO: test this: static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n) */
+#define NUMBER_OF_NEIGHBORS (3)
+  struct pico_ipv6_neighbor *neighbors[NUMBER_OF_NEIGHBORS] = { 0 };
+  struct pico_ipv6_router *routers[NUMBER_OF_NEIGHBORS] = { 0 };
+  struct pico_frame *frames[NUMBER_OF_NEIGHBORS] = { 0 };
+  struct pico_ipv6_hdr hdrs[NUMBER_OF_NEIGHBORS] = { 0 };
+  struct pico_ip6 addr[NUMBER_OF_NEIGHBORS] = { 0 };
+  struct pico_tree_node *index = NULL;
+  int i = 0, number_of_nce = 0, number_of_rce = 0, number_of_frames = 0;
+
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&IPV6NQueue), "Test hasn't started, no NCE should exist");
+
+  /* Test 1
+   * Create NUMBER_OF_NEIGHBORS NCE entries, then delete them
+   */
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    neighbors[i] = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+    addr[i].addr[0] = (uint8_t)i;
+    neighbors[i]->address = addr[i];
+
+    pico_tree_insert(&NCache, neighbors[i]);
+  }
+
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    pico_nd_delete_entry(&addr[i]);
+  }
+
+  pico_tree_foreach(index, &NCache)
+  {
+    number_of_nce++;
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  fail_if(number_of_nce, "All NCE should have been deleted");
+
+  /* Reset */
+  number_of_nce = 0;
+  number_of_rce = 0;
+
+  /* Test 2
+   * Create NUMBER_OF_NEIGHBORS NCE,
+   * Also create some RCE
+   * then delete them
+   */
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    neighbors[i] = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+    routers[i] = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+
+    routers[i]->router = neighbors[i];
+
+    addr[i].addr[0] = (uint8_t)i;
+    neighbors[i]->address = addr[i];
+
+    pico_tree_insert(&NCache, neighbors[i]);
+    pico_tree_insert(&RCache, routers[i]);
+  }
+
+  pico_tree_foreach(index, &NCache)
+  {
+    number_of_nce++;
+  }
+  pico_tree_foreach(index, &RCache)
+  {
+    number_of_rce++;
+  }
+
+  fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "NCEs should have been created");
+  fail_unless(number_of_rce == NUMBER_OF_NEIGHBORS, "RCEs should have been created");
+
+  /* Reset */
+  number_of_nce = 0;
+  number_of_rce = 0;
+
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    pico_nd_delete_entry(&addr[i]);
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, no NCE should exist");
+
+  /* Test 3
+   * Create NUMBER_OF_NEIGHBORS NCE,
+   * Also create some queued frames
+   * then delete NCE
+   */
+
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    neighbors[i] = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+
+    addr[i].addr[0] = (uint8_t)i;
+    neighbors[i]->address = addr[i];
+
+    pico_tree_insert(&NCache, neighbors[i]);
+
+
+    frames[i] = pico_proto_ipv6.alloc(&pico_proto_ipv6, dummy_dev, 1);
+    frames[i]->timestamp = (pico_time)i;
+    frames[i]->net_hdr = (uint8_t *)&hdrs[i];
+    hdrs[i].dst = addr[i];
+
+    pico_tree_insert(&IPV6NQueue, frames[i]);
+  }
+
+  pico_tree_foreach(index, &NCache)
+  {
+    number_of_nce++;
+  }
+
+  pico_tree_foreach(index, &IPV6NQueue)
+  {
+    number_of_frames++;
+  }
+
+  fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "NCEs should have been created");
+  fail_unless(number_of_frames == NUMBER_OF_NEIGHBORS, "Frames should be in Queue tree");
+
+  for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
+    pico_nd_delete_entry(&addr[i]);
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "All NCEs should have been deleted");
+  fail_unless(pico_tree_empty(&IPV6NQueue), "All queued frames should have been deleted");
+
+  pico_device_destroy(dummy_dev);
 }
 END_TEST
 START_TEST(tc_pico_nd_discover)
@@ -1171,7 +1358,7 @@ START_TEST(tc_pico_nd_mtu)
 
     /* Cleanup */
     pico_device_destroy(dummy_device);
-    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&(hdr->src)));
+    pico_nd_delete_entry(&(hdr->src));
     }
 }
 END_TEST
@@ -1211,7 +1398,7 @@ START_TEST(tc_pico_recv_ra)
   fail_if(pico_nd_get_default_router() == NULL, "RA recvd, default router should have been set");
 
   /* Cleanup */
-  pico_nd_delete_entry(pico_get_neighbor_from_ncache(&(ipv6_hdr.src)));
+  pico_nd_delete_entry(&(ipv6_hdr.src));
   pico_device_destroy(dummy_device);
 }
 END_TEST

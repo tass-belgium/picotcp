@@ -84,7 +84,7 @@ struct pico_ipv6_router {
 
 #ifdef PICO_SUPPORT_6LOWPAN
 static void pico_6lp_nd_deregister(struct pico_ipv6_link *);
-static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a);
+static void pico_6lp_nd_unreachable_gateway(const struct pico_ip6 *a);
 static int pico_6lp_nd_neigh_adv_process(struct pico_frame *f);
 static int neigh_sol_detect_dad_6lp(struct pico_frame *f);
 #endif
@@ -421,7 +421,7 @@ static void pico_ipv6_set_router_mtu(struct pico_ip6 *addr, uint32_t mtu)
     }
 }
 
-static void pico_nd_clear_queued_packets(struct pico_ip6 *dst)
+static void pico_nd_clear_queued_packets(const struct pico_ip6 *dst)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_frame *frame = NULL;
@@ -517,26 +517,30 @@ static struct pico_ipv6_neighbor *pico_nd_create_entry(struct pico_ip6 *addr, st
     return n;
 }
 
-static void pico_nd_delete_entry(struct pico_ipv6_neighbor *n)
+static void pico_nd_delete_entry(const struct pico_ip6 *addr)
 {
     struct pico_ipv6_router *r = NULL;
+    struct pico_ipv6_neighbor *n = NULL;
+
+    /* If it is a valid neighbor, it should be in the NCache */
+    n = pico_get_neighbor_from_ncache(addr);
 
     /* If it is a router, it should be in the RCache */
-    r = pico_get_router_from_rcache(&n->address);
+    r = pico_get_router_from_rcache(addr);
 
 #ifdef PICO_SUPPORT_6LOWPAN
     /* 6LP: Find any 6LoWPAN-hosts for which this address might have been a default gateway.
      * If such a host found, send a router solicitation again */
-    pico_6lp_nd_unreachable_gateway(&n->address);
+    pico_6lp_nd_unreachable_gateway(addr);
 #endif /* PICO_SUPPORT_6LOWPAN */
 
-    pico_nd_clear_queued_packets(&n->address);
+    pico_nd_clear_queued_packets(addr);
 
     if (r) {
         /* Assign new router on link */
         pico_ipv6_assign_router_on_link(r->is_default, r->link);
         /* Inform IPV6 router is down to remove all routes who use router */
-        pico_ipv6_router_down(&n->address);
+        pico_ipv6_router_down(addr);
         /* Delete RCE */
         pico_tree_delete(&RCache, r);
         PICO_FREE(r);
@@ -1149,7 +1153,7 @@ static int pico_nd_neigh_sol_recv(struct pico_frame *f)
 
 /*MARK*/
 #ifdef PICO_SUPPORT_6LOWPAN
-static void pico_6lp_nd_unreachable_gateway(struct pico_ip6 *a)
+static void pico_6lp_nd_unreachable_gateway(const struct pico_ip6 *a)
 {
     struct pico_ipv6_route *route = NULL;
     struct pico_ipv6_link *local = NULL;
@@ -2047,7 +2051,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
         if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
             n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
             nd_dbg("DELETE ENTRY\n");
-            pico_nd_delete_entry(n);
+            pico_nd_delete_entry(&n->address);
             return;
         }
 

@@ -65,7 +65,7 @@ static int pico_ipv6_mcast_filter(struct pico_frame *f);
 #endif
 
 
-int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b)
+int pico_ipv6_compare(const struct pico_ip6 *a, const struct pico_ip6 *b)
 {
     uint32_t i;
     for (i = 0; i < sizeof(struct pico_ip6); i++) {
@@ -1639,7 +1639,7 @@ int pico_ipv6_route_del(struct pico_ip6 address, struct pico_ip6 netmask, struct
     return -1;
 }
 
-void pico_ipv6_router_down(struct pico_ip6 *address)
+void pico_ipv6_router_down(const struct pico_ip6 *address)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_ipv6_route *route = NULL;
