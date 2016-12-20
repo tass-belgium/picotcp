@@ -671,9 +671,190 @@ START_TEST(tc_pico_ipv6_set_router_mtu)
   pico_tree_delete(&RCache, &r3);
 }
 END_TEST
+struct pico_flag_frame {
+  struct pico_frame *frame;
+  int flag;
+};
 START_TEST(tc_pico_ipv6_nd_postpone)
 {
+  struct pico_flag_frame frames[PICO_ND_MAX_FRAMES_QUEUED * 2] = { 0 };
+  struct pico_ipv6_hdr hdrs[sizeof(frames)/sizeof(frames[0])] = { 0 };
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+  struct pico_ip6 addr_1 = {
+    .addr = {
+      0x21, 0x21, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x1b
+    }
+  };
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+  int i = 0;
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+
+  /*
+   * Init frames
+   */
+
+  for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+    frames[i].frame = pico_proto_ipv6.alloc(&pico_proto_ipv6, dummy_dev, 1);
+    frames[i].frame->timestamp = (pico_time)i;
+    frames[i].frame->net_hdr = (uint8_t *)&hdrs[i];
+    hdrs[i].dst = addr_0;
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&IPV6NQueue), "Test hasn't started, tree should be empty!");
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+
+  {
+    /*
+     * First testcase:
+     * - No NCE yet
+     * - Postpone MAX frames
+     * - Postpone MAX frames again (check if overwritten properly)
+     */
+    struct pico_tree_node *index = NULL;
+    struct pico_frame *frame = NULL;
+    int number_of_unique_frames = 0;
+
+    /* Postpone first PICO_ND_MAX_FRAMES_QUEUED */
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      pico_ipv6_nd_postpone(frames[i].frame);
+    }
+
+    pico_tree_foreach(index,&IPV6NQueue) {
+      frame = index->keyValue;
+      for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+        if (memcmp(frame, frames[i].frame, sizeof(*frame)) == 0) {
+          /* Frame is in there */
+          if (!frames[i].flag) {
+            /* Frame has not been flagged before, new unique frame */
+            frames[i].flag = 1;
+            number_of_unique_frames++;
+          }
+        }
+      }
+    }
+
+    fail_unless(number_of_unique_frames == PICO_ND_MAX_FRAMES_QUEUED, "We postponed PICO_ND_MAX_FRAMES_QUEUED, these should be in the Queue tree");
+
+    /* Reset */
+    number_of_unique_frames = 0;
+    printf("RESET: %d\n", number_of_unique_frames);
+    for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      frames[i].flag = 0;
+    }
+
+
+    /* Postpone next PICO_ND_MAX_FRAMES_QUEUED */
+    for (i = PICO_ND_MAX_FRAMES_QUEUED; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      pico_ipv6_nd_postpone(frames[i].frame);
+    }
+
+
+    pico_tree_foreach(index,&IPV6NQueue) {
+      frame = index->keyValue;
+
+      for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+        if (memcmp(frame, frames[i].frame, sizeof(*frame)) == 0) {
+          /* Frame is in there, it shouldn't be */
+          number_of_unique_frames++;
+        }
+      }
+    }
+
+    fail_if(number_of_unique_frames, "First frames should have been overwritten by the newly postponed ones");
+
+    pico_tree_foreach(index,&IPV6NQueue) {
+      frame = index->keyValue;
+
+      for (i = PICO_ND_MAX_FRAMES_QUEUED; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+        if (memcmp(frame, frames[i].frame, sizeof(*frame)) == 0) {
+          /* Frame is in there */
+          if (!frames[i].flag) {
+            /* Frame has not been flagged before, new unique frame */
+            frames[i].flag = 1;
+            number_of_unique_frames++;
+          }
+        }
+      }
+    }
+
+    fail_unless(number_of_unique_frames == PICO_ND_MAX_FRAMES_QUEUED, "We postponed PICO_ND_MAX_FRAMES_QUEUED, these should be in the Queue tree");
+
+    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_0));
+  }
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&IPV6NQueue), "Test hasn't started, tree should be empty!");
+  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+
+  {
+    /*
+     * Second testcase:
+     * - multiple NCEs already exists
+     * - Postpone MAX frames for NCE 1
+     * - Postpone MAX frames for NCE 2
+     */
+    struct pico_tree_node *index = NULL;
+    struct pico_frame *frame = NULL;
+    struct pico_ipv6_hdr *frame_hdr = NULL;
+    int number_of_frames_for_addr_0 = 0, number_of_frames_for_addr_1 = 0;
+
+    pico_nd_create_entry(&addr_0, dummy_dev);
+    pico_nd_create_entry(&addr_1, dummy_dev);
+
+    for (i = 0; i < PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      frames[i].flag = 0;
+      hdrs[i].dst = addr_0;
+    }
+
+    for (i = PICO_ND_MAX_FRAMES_QUEUED; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      frames[i].flag = 0;
+      hdrs[i].dst = addr_1;
+    }
+
+    /* Postpone all frames */
+    for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+      pico_ipv6_nd_postpone(frames[i].frame);
+    }
+
+    pico_tree_foreach(index,&IPV6NQueue) {
+      frame = index->keyValue;
+      frame_hdr = (struct pico_ipv6_hdr *) frame->net_hdr;
+
+      if (pico_ipv6_compare(&frame_hdr->dst, &addr_0) == 0) {
+        number_of_frames_for_addr_0++;
+      }
+
+      if (pico_ipv6_compare(&frame_hdr->dst, &addr_1) == 0) {
+        number_of_frames_for_addr_1++;
+      }
+    }
+
+    fail_unless(number_of_frames_for_addr_0 == PICO_ND_MAX_FRAMES_QUEUED, "We postponed MAX frames with destination addr_0");
+
+    fail_unless(number_of_frames_for_addr_1 == PICO_ND_MAX_FRAMES_QUEUED, "We postponed MAX frames with destination addr_1");
+
+    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_0));
+    pico_nd_delete_entry(pico_get_neighbor_from_ncache(&addr_1));
+  }
+
+  pico_device_destroy(dummy_dev);
+
+  for (i = 0; i < 2 * PICO_ND_MAX_FRAMES_QUEUED; ++i) {
+    pico_frame_discard(frames[i].frame);
+  }
   /* TODO: test this: static void pico_ipv6_nd_postpone(struct pico_frame *f) */
+
 }
 END_TEST
 START_TEST(tc_pico_nd_clear_queued_packets)
