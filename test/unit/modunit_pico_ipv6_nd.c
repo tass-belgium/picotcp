@@ -909,8 +909,8 @@ START_TEST(tc_pico_nd_create_entry)
     number_of_nce++;
   }
 
-  fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "We created 1 entry, but NCE contains more entries?");
-  fail_unless(number_of_valid_nce == NUMBER_OF_NEIGHBORS, "We created 1 entry, but not the one we created or not valid?.");
+  fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "We created NCEs, should be in the NCache tree");
+  fail_unless(number_of_valid_nce == NUMBER_OF_NEIGHBORS, "We created NCEs, should all be in the NCache tree");
 
   /* Cleanup */
   pico_device_destroy(dummy_dev);
@@ -922,7 +922,7 @@ START_TEST(tc_pico_nd_create_entry)
   }
 
   /* Sanity check, tree must be empty */
-  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&NCache), "End of test, NCache should be empty");
 }
 END_TEST
 START_TEST(tc_pico_nd_delete_entry)
@@ -947,8 +947,8 @@ START_TEST(tc_pico_nd_delete_entry)
 
   /* Sanity check, tree must be empty */
   fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
-  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, no NCE should exist");
-  fail_unless(pico_tree_empty(&IPV6NQueue), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, no RCE should exist");
+  fail_unless(pico_tree_empty(&IPV6NQueue), "Test hasn't started, no queued frames should exist");
 
   /* Test 1
    * Create NUMBER_OF_NEIGHBORS NCE entries, then delete them
@@ -971,7 +971,7 @@ START_TEST(tc_pico_nd_delete_entry)
   }
 
   /* Sanity check, tree must be empty */
-  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&NCache), "NCE created and deleted, NCache should be empty");
   fail_if(number_of_nce, "All NCE should have been deleted");
 
   /* Reset */
@@ -1008,17 +1008,17 @@ START_TEST(tc_pico_nd_delete_entry)
   fail_unless(number_of_nce == NUMBER_OF_NEIGHBORS, "NCEs should have been created");
   fail_unless(number_of_rce == NUMBER_OF_NEIGHBORS, "RCEs should have been created");
 
-  /* Reset */
-  number_of_nce = 0;
-  number_of_rce = 0;
-
   for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
     pico_nd_delete_entry(&addr[i]);
   }
 
   /* Sanity check, tree must be empty */
-  fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
-  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, no NCE should exist");
+  fail_unless(pico_tree_empty(&NCache), "NCE created and deleted, NCache should be empty");
+  fail_unless(pico_tree_empty(&RCache), "RCE created and deleted, NCache should be empty");
+
+  /* Reset */
+  number_of_nce = 0;
+  number_of_rce = 0;
 
   /* Test 3
    * Create NUMBER_OF_NEIGHBORS NCE,
