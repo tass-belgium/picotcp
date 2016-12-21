@@ -890,6 +890,14 @@ START_TEST(tc_pico_nd_create_entry)
 
   /* Sanity check, tree must be empty */
   fail_unless(pico_tree_empty(&NCache), "Test hasn't started, no NCE should exist");
+
+  /* Failing malloc */
+  pico_set_mm_failure(1);
+  fail_if(pico_nd_create_entry(&addr[i], dummy_dev) != NULL, "Created entry but malloc failed, should have returned NULL?");
+
+  /* Sanity check, tree must still be empty */
+  fail_unless(pico_tree_empty(&NCache), "Test started, but attempt to create NCE failed, tree should still be empty");
+
   for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
     addr[i].addr[0] = (uint8_t)i;
     pico_nd_create_entry(&addr[i], dummy_dev);
