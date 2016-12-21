@@ -1484,10 +1484,95 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   pico_ns_unicast_count = 0;
   pico_ns_count = 0;
 
-  PICO_FREE(n);
-  pico_device_destroy(dummy_dev);
+  /* Test case 7
+   * PICO_ND_STATE_INCOMPLETE
+   * - failure count is set to PICO_ND_MAX_MULTICAST_SOLICIT
+   * NCE should be deleted
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_INCOMPLETE;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = PICO_ND_MAX_MULTICAST_SOLICIT;
+  n->expire = 0;
+  pico_tree_insert(&NCache, n);
 
-  /* TODO:  test this: static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n) */
+  /* Sanity check, tree must NOT be empty */
+  fail_if(pico_tree_empty(&NCache), "There should be an NCE");
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_count == 0, "When in state PROBE (and failure counters of NCE==0), NS should have been sent only once");
+
+  /* Tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "NCE should have been deleted");
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+
+  /* Test case 8
+   * PICO_ND_STATE_INCOMPLETE_SEARCHING
+   * - failure count is set to PICO_ND_MAX_MULTICAST_SOLICIT
+   * NCE should be deleted
+   */
+  /* Setup of neighbor */
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_INCOMPLETE_SEARCHING;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = PICO_ND_MAX_MULTICAST_SOLICIT;
+  n->expire = 0;
+  pico_tree_insert(&NCache, n);
+
+  /* Sanity check, tree must NOT be empty */
+  fail_if(pico_tree_empty(&NCache), "There should be an NCE");
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_count == 0, "When in state PROBE (and failure counters of NCE==0), NS should have been sent only once");
+
+  /* Tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "NCE should have been deleted");
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 9
+   * PICO_ND_STATE_PROBE
+   * - failure count is set to PICO_ND_MAX_MULTICAST_SOLICIT
+   * NCE should be deleted
+   */
+  /* Setup of neighbor */
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_PROBE;
+  n->failure_uni_count = PICO_ND_MAX_MULTICAST_SOLICIT;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+  pico_tree_insert(&NCache, n);
+
+  /* Sanity check, tree must NOT be empty */
+  fail_if(pico_tree_empty(&NCache), "There should be an NCE");
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_count == 0, "When in state PROBE (and failure counters of NCE==0), NS should have been sent only once");
+
+  /* Tree must be empty */
+  fail_unless(pico_tree_empty(&NCache), "NCE should have been deleted");
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* PICO_FREE(n); */
+  pico_device_destroy(dummy_dev);
 }
 END_TEST
 START_TEST(tc_pico_nd_mtu)

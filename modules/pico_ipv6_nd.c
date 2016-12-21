@@ -2051,8 +2051,8 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_INCOMPLETE_SEARCHING:
         /* Fallthrough */
     case PICO_ND_STATE_PROBE:
-        if (n->failure_multi_count > PICO_ND_MAX_MULTICAST_SOLICIT ||
-            n->failure_uni_count   > PICO_ND_MAX_UNICAST_SOLICIT) {
+        if (n->failure_multi_count >= PICO_ND_MAX_MULTICAST_SOLICIT ||
+            n->failure_uni_count   >= PICO_ND_MAX_UNICAST_SOLICIT) {
             nd_dbg("DELETE ENTRY\n");
             pico_nd_delete_entry(&n->address);
             return;
