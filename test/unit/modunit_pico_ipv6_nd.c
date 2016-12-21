@@ -17,6 +17,8 @@ static char all_node_multicast_addr_s[] = "ff02::1";
 
 static int pico_icmp6_checksum_success_flag = 1;
 
+static int pico_ns_solicited_count = 0, pico_ns_unicast_count = 0, pico_ns_count = 0;
+
 Suite *pico_suite(void);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f)
@@ -34,6 +36,24 @@ int pico_icmp6_router_solicitation(struct pico_device *dev, struct pico_ip6 *src
   IGNORE_PARAMETER(dev);
   IGNORE_PARAMETER(src);
   IGNORE_PARAMETER(dst);
+
+  return 0;
+}
+
+int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst)
+{
+  IGNORE_PARAMETER(dev);
+  IGNORE_PARAMETER(tgt);
+  IGNORE_PARAMETER(type);
+  IGNORE_PARAMETER(dst);
+
+  if (type == PICO_ICMP6_ND_UNICAST) {
+    pico_ns_unicast_count++;
+  } else if (type == PICO_ICMP6_ND_SOLICITED) {
+    pico_ns_solicited_count++;
+  }
+
+  pico_ns_count++;
 
   return 0;
 }
@@ -1316,8 +1336,157 @@ START_TEST(tc_pico_ipv6_router_sol_timer)
    /* TODO: test this: static void pico_ipv6_router_sol_timer(pico_time now, void *arg){ */
 }
 END_TEST
+
 START_TEST(tc_pico_ipv6_nd_timer_elapsed)
 {
+  struct pico_ipv6_neighbor *n = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+  struct pico_device *dummy_dev = NULL;
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+  dummy_dev->hostvars.retranstime = 1000;
+
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+
+  /* Test case 1
+   * PICO_ND_STATE_INCOMPLETE
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_INCOMPLETE;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_solicited_count == 1, "When in state INCOMPLETE (and failure counters of NCE==0), NS should have been sent");
+  fail_unless(pico_ns_count == 1, "When in state INCOMPLETE (and failure counters of NCE==0), NS should have been sent only once");
+  fail_unless(n->state == PICO_ND_STATE_INCOMPLETE, "State of NCE shouldn't have changed when INCOMPLETE");
+  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 2
+   * PICO_ND_STATE_INCOMPLETE_SEARCHING
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_INCOMPLETE_SEARCHING;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_solicited_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent");
+  fail_unless(pico_ns_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent only once");
+  fail_unless(n->state == PICO_ND_STATE_INCOMPLETE_SEARCHING, "State of NCE shouldn't have changed when INCOMPLETE_SEARCHING");
+  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 3
+   * PICO_ND_STATE_REACHABLE
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_REACHABLE;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_unicast_count == 0, "When in state REACHABLE (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(pico_ns_count == 0, "When in state REACHABLE (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(n->state == PICO_ND_STATE_STALE, "State of NCE should have changed from REACHABLE to STALE");
+  fail_if(n->expire != 0, "After switching from REACHABLE to STALE, expire time of NCE shouldn't have changed");
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 4
+   * PICO_ND_STATE_STALE
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_STALE;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_unicast_count == 0, "When in state STALE (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(pico_ns_count == 0, "When in state STALE (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(n->state == PICO_ND_STATE_STALE, "State of NCE shouldn't have changed when STALE");
+  fail_if(n->expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 5
+   * PICO_ND_STATE_DELAY
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_DELAY;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_unicast_count == 0, "When in state DELAY (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(pico_ns_count == 0, "When in state DELAY (and failure counters of NCE==0), NS shouldn't have been sent");
+  fail_unless(n->state == PICO_ND_STATE_PROBE, "State of NCE should have changed from DELAY to PROBE");
+  fail_if(n->expire != 0, "After switching from DELAY to PROBE, expire time of NCE shouldn't have changed");
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  /* Test case 6
+   * PICO_ND_STATE_PROBE
+   */
+  /* Setup of neighbor */
+  n->dev = dummy_dev;
+  n->state = PICO_ND_STATE_PROBE;
+  n->failure_uni_count = 0;
+  n->failure_multi_count = 0;
+  n->expire = 0;
+
+  pico_ipv6_nd_timer_elapsed(0, n);
+
+  fail_unless(pico_ns_unicast_count == 1, "When in state PROBE (and failure counters of NCE==0), NS should have been sent");
+  fail_unless(pico_ns_count == 1, "When in state PROBE (and failure counters of NCE==0), NS should have been sent only once");
+  fail_unless(n->state == PICO_ND_STATE_PROBE, "State of NCE shouldn't have changed when PROBE");
+  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+
+  /* Reset */
+  pico_ns_solicited_count = 0;
+  pico_ns_unicast_count = 0;
+  pico_ns_count = 0;
+
+  PICO_FREE(n);
+  pico_device_destroy(dummy_dev);
+
   /* TODO:  test this: static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor *n) */
 }
 END_TEST

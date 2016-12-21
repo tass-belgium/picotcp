@@ -350,7 +350,7 @@ static struct pico_frame *pico_icmp6_neigh_sol_prep(struct pico_device *dev, str
 }
 
 /* RFC 4861 $7.2.2: sending neighbor solicitations */
-int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst)
+MOCKABLE int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *tgt, uint8_t type, struct pico_ip6 *dst)
 {
     struct pico_ip6 daddr = {{ 0xff, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x01, 0xff, 0x00, 0x00, 0x00 }};
