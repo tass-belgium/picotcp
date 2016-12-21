@@ -19,6 +19,25 @@ static int pico_icmp6_checksum_success_flag = 1;
 
 static int pico_ns_solicited_count = 0, pico_ns_unicast_count = 0, pico_ns_count = 0;
 
+const uint8_t router_adv_mac[PICO_SIZE_ETH] = {
+  0x00, 0x00, 0x00, 0x00, 0xa0, 0xa0
+};
+const char router_adv_prefix[] = "3ffe:501:ffff:100::";
+
+static struct pico_icmp6_opt_prefix router_prefix_option = {
+  .type = PICO_ND_OPT_PREFIX,
+  .len = sizeof(struct pico_icmp6_opt_prefix) >> 3,
+  .prefix_len = 64, /* Only /64 are forwarded */
+  .res = 0,
+  .aac = 1,
+  .onlink = 1,
+  .val_lifetime = 86400,
+  .pref_lifetime = 14400,
+  .reserved = 0,
+};
+
+
+
 Suite *pico_suite(void);
 
 uint16_t pico_icmp6_checksum(struct pico_frame *f)
@@ -71,11 +90,6 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
   uint16_t len = 0;
   uint8_t *nxt_opt = NULL;
 
-  const char prefix_s[] = "3ffe:501:ffff:100::";
-  const uint8_t mac[PICO_SIZE_ETH] = {
-    0x00, 0x00, 0x00, 0x00, 0xa0, 0xa0
-  };
-
   len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
 
   adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, len);
@@ -92,15 +106,15 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
   nxt_opt = (uint8_t *)&icmp6_hdr->msg.info.router_adv + sizeof(struct router_adv_s);
 
   prefix =  (struct pico_icmp6_opt_prefix *)nxt_opt;
-  prefix->type = PICO_ND_OPT_PREFIX;
-  prefix->len = sizeof(struct pico_icmp6_opt_prefix) >> 3;
-  prefix->prefix_len = 64; /* Only /64 are forwarded */
-  prefix->aac = 1;
-  prefix->onlink = 1;
+  prefix->type = router_prefix_option.type;
+  prefix->len = router_prefix_option.len;
+  prefix->prefix_len = router_prefix_option.prefix_len;
+  prefix->aac = router_prefix_option.aac;
+  prefix->onlink = router_prefix_option.onlink;
+  prefix->val_lifetime = router_prefix_option.val_lifetime;
+  prefix->pref_lifetime = router_prefix_option.pref_lifetime;
 
-  prefix->val_lifetime = long_be(86400);
-  prefix->pref_lifetime = long_be(14400);
-  pico_string_to_ipv6(prefix_s, prefix->prefix.addr);
+  pico_string_to_ipv6(router_adv_prefix, prefix->prefix.addr);
 
   nxt_opt += (sizeof (struct pico_icmp6_opt_prefix));
   lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
@@ -108,7 +122,7 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
   lladdr->type = PICO_ND_OPT_LLADDR_SRC;
   lladdr->len = sizeof(struct pico_icmp6_opt_lladdr) >> 3;
 
-  memcpy(&lladdr->addr, &mac, PICO_SIZE_ETH);
+  memcpy(&lladdr->addr, &router_adv_mac, PICO_SIZE_ETH);
 
   icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
 
@@ -1158,7 +1172,64 @@ START_TEST(tc_pico_nd_get_length_of_options)
 END_TEST
 START_TEST(tc_get_neigh_option)
 {
-   /* TODO: test this: static int get_neigh_option(struct pico_frame *f, void *opt, uint8_t expected_opt) */
+  struct pico_frame *f = NULL;
+  struct pico_device *dummy_device = NULL;
+  struct pico_ipv6_hdr ipv6_hdr = { 0 };
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x08, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+  const char router_addr_s[] = "fe80::200:ff:fe00:a0a0";
+  struct pico_icmp6_opt_lladdr opt_lladdr = {
+    0
+  };
+  struct pico_icmp6_opt_prefix opt_prefix = {
+    0
+  };
+  struct pico_ip6 temp = { 0 };
+  struct redirect_s opt_redirect = { 0 };
+
+  pico_string_to_ipv6(router_addr_s, ipv6_hdr.src.addr);
+  pico_string_to_ipv6(all_node_multicast_addr_s, ipv6_hdr.dst.addr);
+  ipv6_hdr.hop = 255;
+
+  dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_device, name, mac);
+
+  f = make_router_adv(dummy_device);
+  f->net_hdr = (uint8_t *)&ipv6_hdr;
+  f->net_len = sizeof(struct pico_ipv6_hdr);
+
+  fail_unless(get_neigh_option(f, &opt_lladdr, PICO_ND_OPT_LLADDR_SRC) == 1, "our RA should have a valid LL addr option");
+  fail_unless(get_neigh_option(f, &opt_prefix, PICO_ND_OPT_PREFIX) == 1, "our RA should have a valid prefix option");
+  fail_unless(get_neigh_option(f, &opt_redirect, PICO_ND_OPT_REDIRECT) == 0, "our RA doesn't have a redirect option");
+
+  /* Check if ll addr is valid */
+  /* len is stored as a number of bytes */
+  fail_unless(opt_lladdr.type == PICO_ND_OPT_LLADDR_SRC, "We didn't extract the LL addr properly");
+  fail_unless(opt_lladdr.len == sizeof(struct pico_icmp6_opt_lladdr) >> 3, "We didn't extract the LL addr option properly");
+  fail_if(memcmp(&router_adv_mac, opt_lladdr.addr.data, pico_hw_addr_len(dummy_device, &opt_lladdr)), "We didn't extract the LL addr properly");
+
+  /* Check if prefix option is valid */
+  fail_unless(opt_prefix.type == router_prefix_option.type);
+  fail_unless(opt_prefix.len == router_prefix_option.len);
+  fail_unless(opt_prefix.prefix_len == router_prefix_option.prefix_len);
+  fail_unless(opt_prefix.res == router_prefix_option.res);
+  fail_unless(opt_prefix.aac == router_prefix_option.aac);
+  fail_unless(opt_prefix.onlink == router_prefix_option.onlink);
+  fail_unless(opt_prefix.val_lifetime == router_prefix_option.val_lifetime);
+  fail_unless(opt_prefix.reserved == router_prefix_option.reserved);
+
+  pico_string_to_ipv6(router_adv_prefix, temp.addr);
+  fail_unless(memcmp(&opt_prefix.prefix, &temp, sizeof(opt_prefix.prefix)) == 0);
+
+  /* TODO:
+   * - Test with invalid len parameter in option field
+   * - Test with same option twice in frame
+   */
+
+  pico_frame_discard(f);
+  pico_device_destroy(dummy_device);
 }
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor_update)
