@@ -1111,8 +1111,6 @@ static int neigh_sol_process(struct pico_frame *f)
     if (valid_lladdr < 0)
         return -1; /* Malformed packet. */
 
-    pico_ipv6_neighbor_from_unsolicited(f);
-
     if (f->dev->mode != LL_MODE_ETHERNET && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
         return 0;
 #ifdef PICO_SUPPORT_6LOWPAN
@@ -1123,11 +1121,14 @@ static int neigh_sol_process(struct pico_frame *f)
 #endif
 
     link = pico_ipv6_link_get(&icmp6_hdr->msg.info.neigh_adv.target);
-    if (!link) { /* Not for us. */
+    if (!link) {
+        nd_dbg("NS: not for us\n");
         return -1;
     }
 
     pico_icmp6_neighbor_advertisement(f,  &icmp6_hdr->msg.info.neigh_adv.target);
+
+    pico_ipv6_neighbor_from_unsolicited(f);
 
     return 0;
 }
@@ -2073,7 +2074,7 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     case PICO_ND_STATE_DELAY:
         n->expire = 0ull;
         n->state = PICO_ND_STATE_PROBE;
-        break;
+        return;
     default:
         dbg("IPv6_ND: neighbor in wrong state!\n");
         break;
