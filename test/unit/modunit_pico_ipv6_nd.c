@@ -13,6 +13,12 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
+enum ND_PACKET_TYPE {
+  PACKET_TYPE_NORMAL = 0,
+  PACKET_TYPE_BAD_LEN,
+  PACKET_TYPE_DOUBLE_OPTION,
+};
+
 static char all_node_multicast_addr_s[] = "ff02::1";
 
 static int pico_icmp6_checksum_success_flag = 1;
@@ -77,7 +83,7 @@ int pico_icmp6_neighbor_solicitation(struct pico_device *dev, struct pico_ip6 *t
   return 0;
 }
 
-static struct pico_frame *make_router_adv(struct pico_device *dev)
+static struct pico_frame *make_router_adv(struct pico_device *dev, enum ND_PACKET_TYPE packet_type)
 {
   /*
    * Router solicitation from ND tahi tests v6LC.2.2.2 Part B
@@ -89,8 +95,16 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
   struct pico_icmp6_opt_prefix *prefix = NULL;
   uint16_t len = 0;
   uint8_t *nxt_opt = NULL;
+  uint8_t number_of_lladdr_options = 1;
+  int i = 0;
 
-  len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
+  if (packet_type == PACKET_TYPE_DOUBLE_OPTION) {
+    len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + 2 * PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
+    number_of_lladdr_options = 2;
+  } else {
+    len = PICO_ICMP6HDR_ROUTER_ADV_SIZE + PICO_ICMP6_OPT_LLADDR_SIZE + sizeof(struct pico_icmp6_opt_prefix);
+    number_of_lladdr_options = 1;
+  }
 
   adv = pico_proto_ipv6.alloc(&pico_proto_ipv6, dev, len);
   fail_if(!adv);
@@ -107,7 +121,11 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
 
   prefix =  (struct pico_icmp6_opt_prefix *)nxt_opt;
   prefix->type = router_prefix_option.type;
-  prefix->len = router_prefix_option.len;
+  if (packet_type == PACKET_TYPE_BAD_LEN) {
+    prefix->len = 0;
+  } else {
+    prefix->len = router_prefix_option.len;
+  }
   prefix->prefix_len = router_prefix_option.prefix_len;
   prefix->aac = router_prefix_option.aac;
   prefix->onlink = router_prefix_option.onlink;
@@ -115,14 +133,22 @@ static struct pico_frame *make_router_adv(struct pico_device *dev)
   prefix->pref_lifetime = router_prefix_option.pref_lifetime;
 
   pico_string_to_ipv6(router_adv_prefix, prefix->prefix.addr);
-
   nxt_opt += (sizeof (struct pico_icmp6_opt_prefix));
-  lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
 
-  lladdr->type = PICO_ND_OPT_LLADDR_SRC;
-  lladdr->len = sizeof(struct pico_icmp6_opt_lladdr) >> 3;
+  for (i = 0; i < number_of_lladdr_options; i++) {
+    lladdr = (struct pico_icmp6_opt_lladdr *)nxt_opt;
 
-  memcpy(&lladdr->addr, &router_adv_mac, PICO_SIZE_ETH);
+    lladdr->type = PICO_ND_OPT_LLADDR_SRC;
+    lladdr->len = sizeof(struct pico_icmp6_opt_lladdr) >> 3;
+
+    memcpy(&lladdr->addr, &router_adv_mac, PICO_SIZE_ETH);
+    /*
+     * sizeof(struct pico_icmp6_opt_lladdr) is 10 bytes big
+     * but actually the size of this option should be 8 bytes
+     * We add 2 bytes padding for 6lowpan, so we jump to the nxt_opt using the below method
+     */
+    nxt_opt += lladdr->len << 3;
+  }
 
   icmp6_hdr->crc = short_be(pico_icmp6_checksum(adv));
 
@@ -1196,10 +1222,12 @@ START_TEST(tc_get_neigh_option)
   dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
   pico_device_init(dummy_device, name, mac);
 
-  f = make_router_adv(dummy_device);
+  /* Setup */
+  f = make_router_adv(dummy_device, PACKET_TYPE_NORMAL);
   f->net_hdr = (uint8_t *)&ipv6_hdr;
   f->net_len = sizeof(struct pico_ipv6_hdr);
 
+  /* Get neigh options from our RA (which has LL addr option and prefix option) */
   fail_unless(get_neigh_option(f, &opt_lladdr, PICO_ND_OPT_LLADDR_SRC) == 1, "our RA should have a valid LL addr option");
   fail_unless(get_neigh_option(f, &opt_prefix, PICO_ND_OPT_PREFIX) == 1, "our RA should have a valid prefix option");
   fail_unless(get_neigh_option(f, &opt_redirect, PICO_ND_OPT_REDIRECT) == 0, "our RA doesn't have a redirect option");
@@ -1223,10 +1251,29 @@ START_TEST(tc_get_neigh_option)
   pico_string_to_ipv6(router_adv_prefix, temp.addr);
   fail_unless(memcmp(&opt_prefix.prefix, &temp, sizeof(opt_prefix.prefix)) == 0);
 
-  /* TODO:
-   * - Test with invalid len parameter in option field
-   * - Test with same option twice in frame
-   */
+  /* Cleanup */
+  pico_frame_discard(f);
+
+  /* Setup */
+  f = make_router_adv(dummy_device, PACKET_TYPE_BAD_LEN);
+  f->net_hdr = (uint8_t *)&ipv6_hdr;
+  f->net_len = sizeof(struct pico_ipv6_hdr);
+
+  /* Get neigh options from our RA (which has LL addr option and prefix option, one option has bad length field) */
+  fail_unless(get_neigh_option(f, &opt_lladdr, PICO_ND_OPT_LLADDR_SRC) < 0, "our RA has a bad len field, should have returned failure");
+  fail_unless(get_neigh_option(f, &opt_prefix, PICO_ND_OPT_PREFIX) < 0, "our RA has a bad len field, should have returned failure");
+
+  /* Cleanup */
+  pico_frame_discard(f);
+
+  /* Setup */
+  f = make_router_adv(dummy_device, PACKET_TYPE_DOUBLE_OPTION);
+  f->net_hdr = (uint8_t *)&ipv6_hdr;
+  f->net_len = sizeof(struct pico_ipv6_hdr);
+
+  /* Get neigh options from our RA (which has 2 * LL addr option and prefix option) */
+  fail_unless(get_neigh_option(f, &opt_prefix, PICO_ND_OPT_PREFIX) == 1, "our RA has a double option, but not the prefix option. So retrieving this should have returned success");
+  fail_unless(get_neigh_option(f, &opt_lladdr, PICO_ND_OPT_LLADDR_SRC) < 0, "our RA has a double option, should have returned failure");
 
   pico_frame_discard(f);
   pico_device_destroy(dummy_device);
@@ -1717,7 +1764,7 @@ START_TEST(tc_pico_recv_ra)
   dummy_device = PICO_ZALLOC(sizeof(struct pico_device));
   pico_device_init(dummy_device, name, mac);
 
-  f = make_router_adv(dummy_device);
+  f = make_router_adv(dummy_device, PACKET_TYPE_NORMAL);
   f->net_hdr = (uint8_t *)&ipv6_hdr;
   f->net_len = sizeof(struct pico_ipv6_hdr);
 
