@@ -452,9 +452,9 @@ static void pico_nd_clear_queued_packets(const struct pico_ip6 *dst)
     }
 }
 
-static void pico_ipv6_nd_trigger_queued_packets(struct pico_ip6 *dst)
+static void pico_nd_trigger_queued_packets(struct pico_ip6 *dst)
 {
-    struct pico_tree_node *index = NULL;
+    struct pico_tree_node *index = NULL, *_tmp = NULL;
     struct pico_frame *frame = NULL;
     struct pico_ipv6_hdr *frame_hdr = NULL;
     struct pico_ipv6_neighbor *n = NULL;
@@ -468,7 +468,7 @@ static void pico_ipv6_nd_trigger_queued_packets(struct pico_ip6 *dst)
      *  * waiting for address resolution to complete. The Queue MUST hold at least one packet
      *  * Once address resolution completes, the node transmits any queued packets.
      *  */
-    pico_tree_foreach(index,&IPV6NQueue){
+    pico_tree_foreach_safe(index, &IPV6NQueue, _tmp){
         frame = index->keyValue;
         frame_hdr = (struct pico_ipv6_hdr *)frame->net_hdr;
         frame_dst = frame_hdr->dst;
@@ -773,7 +773,7 @@ static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico
         n->state = PICO_ND_STATE_REACHABLE;
         n->failure_uni_count = 0;
         n->failure_multi_count = 0;
-        pico_ipv6_nd_trigger_queued_packets(&n->address);
+        pico_nd_trigger_queued_packets(&n->address);
         pico_nd_set_new_expire_time(n);
         return 0;
     }
@@ -788,7 +788,7 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
 
     if (IS_SOLICITED(hdr) && !IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt, dev) == 0)) {
         n->state = PICO_ND_STATE_REACHABLE;
-        pico_ipv6_nd_trigger_queued_packets(&n->address);
+        pico_nd_trigger_queued_packets(&n->address);
         pico_nd_set_new_expire_time(n);
         return 0;
     }
@@ -801,7 +801,7 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (IS_SOLICITED(hdr) && IS_OVERRIDE(hdr)) {
         pico_ipv6_neighbor_update(n, opt, dev);
         n->state = PICO_ND_STATE_REACHABLE;
-        pico_ipv6_nd_trigger_queued_packets(&n->address);
+        pico_nd_trigger_queued_packets(&n->address);
         pico_nd_set_new_expire_time(n);
         return 0;
     }
@@ -809,7 +809,7 @@ static int neigh_adv_reconfirm(struct pico_ipv6_neighbor *n, struct pico_icmp6_o
     if (!IS_SOLICITED(hdr) && IS_OVERRIDE(hdr) && (pico_ipv6_neighbor_compare_stored(n, opt, dev) != 0)) {
         pico_ipv6_neighbor_update(n, opt, dev);
         n->state = PICO_ND_STATE_STALE;
-        pico_ipv6_nd_trigger_queued_packets(&n->address);
+        pico_nd_trigger_queued_packets(&n->address);
         pico_nd_set_new_expire_time(n);
         return 0;
     }
@@ -856,7 +856,7 @@ static void neigh_adv_process_incomplete(struct pico_ipv6_neighbor *n, struct pi
     if (opt)
         pico_ipv6_neighbor_update(n, opt, n->dev);
 
-    pico_ipv6_nd_trigger_queued_packets(&n->address);
+    pico_nd_trigger_queued_packets(&n->address);
 }
 
 static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev)
@@ -871,7 +871,7 @@ static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip
     memset(n->hwaddr.data + len, 0, sizeof(union pico_hw_addr) - len);
     n->state = PICO_ND_STATE_STALE;
     pico_nd_set_new_expire_time(n);
-    pico_ipv6_nd_trigger_queued_packets(ip);
+    pico_nd_trigger_queued_packets(ip);
     return n;
 }
 
@@ -909,7 +909,7 @@ static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f)
 
             pico_ipv6_neighbor_update(n, &opt, n->dev);
             n->state = PICO_ND_STATE_STALE;
-            pico_ipv6_nd_trigger_queued_packets(&n->address);
+            pico_nd_trigger_queued_packets(&n->address);
             pico_nd_set_new_expire_time(n);
         } else {
             /*
@@ -1977,7 +1977,7 @@ static int redirect_process(struct pico_frame *f)
                 /* ll addr is NOT same as that already in cache */
                 pico_ipv6_neighbor_update(target_neighbor, &opt_ll, target_neighbor->dev);
                 target_neighbor->state = PICO_ND_STATE_STALE;
-                pico_ipv6_nd_trigger_queued_packets(&target_neighbor->address);
+                pico_nd_trigger_queued_packets(&target_neighbor->address);
 
                 target_neighbor->failure_uni_count = 0;
                 target_neighbor->failure_multi_count = 0;
