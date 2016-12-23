@@ -22,9 +22,6 @@
 #define MAX_INITIAL_RTR_ADVERTISEMENTS      (3)
 #define DEFAULT_METRIC                      (10)
 
-#define PICO_ND_NOT_SEARCHING               (0)
-#define PICO_ND_SEARCHING                   (1)
-
 #ifdef DEBUG_IPV6_ND
 #define nd_dbg dbg
 #else
@@ -65,8 +62,8 @@ struct pico_ipv6_neighbor {
     union pico_hw_addr hwaddr;
     struct pico_device *dev;
     uint16_t is_router;
-    uint16_t failure_multi_count;
-    uint16_t failure_uni_count;
+    uint8_t failure_multi_count;
+    uint8_t failure_uni_count;
     uint16_t frames_queued;
     pico_time expire;
 };
@@ -91,17 +88,35 @@ static int neigh_sol_detect_dad_6lp(struct pico_frame *f);
 
 #ifdef DEBUG_IPV6_ND
 /* DEBUG FUNCTIONS */
-static void print_nd_state(struct pico_ipv6_neighbor *n)
+static void pico_nd_print_addr(struct pico_ip6 *addr)
+{
+    char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
+    if (!ipv6_addr) {
+        dbg("Could not allocate ipv6 string for gateway debug\n");
+    } else {
+        pico_ipv6_to_string(ipv6_addr, addr->addr);
+        nd_dbg("ADDR : %s\n", ipv6_addr);
+        PICO_FREE(ipv6_addr);
+    }
+}
+
+static void print_nce(struct pico_ipv6_neighbor *n)
 {
     if (!n) {
-        nd_dbg("CAN'T PRINT STATE, NULL NEIGHBOR\n");
+        nd_dbg("CAN'T PRINT INFO NCE, NULL NEIGHBOR\n");
         return;
     }
+
+    nd_dbg("NCE with ADDR: ");
+    pico_nd_print_addr(&n->address);
 
     switch (n->state)
     {
     case PICO_ND_STATE_INCOMPLETE:
         nd_dbg("NB STATE : INCOMPLETE\n");
+        break;
+    case PICO_ND_STATE_INCOMPLETE_SEARCHING:
+        nd_dbg("NB STATE : INCOMPLETE_SEARCHING\n");
         break;
     case PICO_ND_STATE_REACHABLE:
         nd_dbg("NB STATE : REACHABLE\n");
@@ -120,23 +135,13 @@ static void print_nd_state(struct pico_ipv6_neighbor *n)
         break;
     };
 
-}
-
-static void pico_nd_print_addr(struct pico_ip6 *addr)
-{
-    char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
-    if (!ipv6_addr) {
-        dbg("Could not allocate ipv6 string for gateway debug\n");
-    } else {
-        pico_ipv6_to_string(ipv6_addr, addr->addr);
-        nd_dbg("ADDR : %s\n", ipv6_addr);
-        PICO_FREE(ipv6_addr);
-    }
+    nd_dbg("FAILURE COUNTS: %d %d\n", n->failure_multi_count, n->failure_uni_count);
+    nd_dbg("FRAMES QUEUED: %d\n", n->frames_queued);
 }
 #else
-#define print_nd_state(n) \
+#define pico_nd_print_addr(addr)                \
     do{} while (0)
-#define pico_nd_print_addr(addr) \
+#define print_nce(n) \
     do{} while (0)
 #endif
 
@@ -482,6 +487,8 @@ static void pico_ipv6_nd_trigger_queued_packets(struct pico_ip6 *dst)
 
           if (pico_datalink_send(frame) <= 0) {
               pico_frame_discard(frame);
+          } else {
+              nd_dbg("ND-TRIGGER: FRAME SENT\n");
           }
 
           pico_tree_delete(&IPV6NQueue,frame);
@@ -554,6 +561,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_route *gw = NULL;
 
+    nd_dbg("DISCOVER: ");
     pico_nd_print_addr(&n->address);
 
     if (!n)
@@ -586,8 +594,7 @@ static void pico_nd_discover(struct pico_ipv6_neighbor *n)
       nd_dbg("NS unicast for ");
     }
 
-    pico_nd_print_addr(&n->address);
-    print_nd_state(n);
+    print_nce(n);
 
     pico_nd_set_new_expire_time(n);
 }
@@ -597,20 +604,17 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
     struct pico_ipv6_neighbor *n = NULL;
 
     n = pico_get_neighbor_from_ncache(addr);
-    nd_dbg("Finding neighbor:\n");
-    pico_nd_print_addr(addr);
-    print_nd_state(n);
+    nd_dbg("\n\nFinding neighbor:\n");
+    print_nce(n);
 
     if (!n) {
+        nd_dbg("no NCE yet, create one\n");
         n = pico_nd_create_entry(addr, dev);
-        pico_nd_discover(n);
-        return NULL;
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
-        /* Make timer callback handle pico_nd_discover */
-        n->expire = 0;
         n->state = PICO_ND_STATE_INCOMPLETE_SEARCHING;
+        pico_nd_discover(n);
         return NULL;
     }
 
@@ -1830,6 +1834,7 @@ static int neigh_adv_process(struct pico_frame *f)
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
     if (optres < 0) { /* Malformed packet: option field cannot be processed. */
+        nd_dbg("ND: NA malformed packet\n");
         return -1;
     }
 
@@ -1847,6 +1852,7 @@ static int neigh_adv_process(struct pico_frame *f)
         /* RFC 4861 $7.2.5
          *  * If no entry exists, the advertisment SHOULD be silently discarded
          *  */
+        nd_dbg("ND: NA - NO NCE, discard NA\n");
         return 0;
     }
 
@@ -1876,6 +1882,7 @@ static int pico_nd_neigh_adv_recv(struct pico_frame *f)
 
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     if (neigh_adv_checks(f) < 0) {
+        nd_dbg("ND: NA check failed\n");
         return -1;
     }
 
@@ -2058,9 +2065,8 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
             return;
         }
 
-        pico_nd_set_new_expire_time(n);
         pico_nd_discover(n);
-        break;
+        return;
 
     case PICO_ND_STATE_REACHABLE:
         n->state = PICO_ND_STATE_STALE;
@@ -2120,7 +2126,7 @@ static void pico_ipv6_check_nce_callback(pico_time now, void *arg)
         n = index->keyValue;
         if (now > n->expire) {
             nd_dbg("NB EXPIRED: %lu, %lu\n", now, n->expire);
-            print_nd_state(n);
+            print_nce(n);
             pico_ipv6_nd_timer_elapsed(now, n);
         }
     }
@@ -2249,6 +2255,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
                 nd_dbg("Could not insert frame in Queued frames tree\n");
                 pico_frame_discard(cp);
                 return;
+            } else {
+                nd_dbg("ND: INSERTED FRAME\n");
             }
             n->frames_queued++;
         } else {
@@ -2264,6 +2272,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
                 nd_dbg("Could not insert frame in Queued frames tree\n");
                 pico_frame_discard(cp);
                 return;
+            } else {
+                nd_dbg("ND: REPLACED/INSERTED FRAME\n");
             }
         }
     } else {
@@ -2280,6 +2290,8 @@ void pico_ipv6_nd_postpone(struct pico_frame *f)
                 nd_dbg("Could not insert frame in Queued frames tree\n");
                 pico_frame_discard(cp);
                 return;
+            } else {
+                nd_dbg("ND: CREATED NCE + INSERTED FRAME\n");
             }
         } else {
             nd_dbg("Could not add NCE to postpone frame\n");
