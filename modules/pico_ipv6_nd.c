@@ -306,10 +306,10 @@ static struct pico_ipv6_router *pico_get_router_from_rcache(const struct pico_ip
 
 static struct pico_ipv6_router *pico_nd_get_default_router(void)
 {
-  struct pico_tree_node *index, *_tmp;
+  struct pico_tree_node *index = NULL;
   struct pico_ipv6_router *tmp = NULL, *ret = NULL;
 
-  pico_tree_foreach_safe(index, &RCache, _tmp)
+  pico_tree_foreach(index, &RCache)
   {
       tmp = index->keyValue;
       if(tmp->is_default)
@@ -335,8 +335,8 @@ static void pico_nd_set_new_expire_time(struct pico_ipv6_neighbor *n)
 
 static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6_link *link)
 {
-    struct pico_tree_node *index, *_tmp;
-    struct pico_ipv6_router *r;
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_router *r = NULL;
     struct pico_ip6 zero = {
         .addr = {0}
     };
@@ -353,7 +353,7 @@ static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6
         return;
     }
 
-    pico_tree_foreach_safe(index, &RCache, _tmp)
+    pico_tree_foreach(index, &RCache)
     {
         r = index->keyValue;
 
@@ -395,9 +395,10 @@ static void pico_ipv6_assign_router_on_link(int assign_default, struct pico_ipv6
 
 static void pico_ipv6_set_router_link(struct pico_ip6 *addr, struct pico_ipv6_link *link)
 {
-    struct pico_tree_node *index, *_tmp;
-    struct pico_ipv6_router *r;
-    pico_tree_foreach_safe(index, &RCache, _tmp)
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_router *r = NULL;
+
+    pico_tree_foreach(index, &RCache)
     {
         r = index->keyValue;
         if( pico_ipv6_compare(&r->router->address, addr) == 0)
@@ -410,9 +411,9 @@ static void pico_ipv6_set_router_link(struct pico_ip6 *addr, struct pico_ipv6_li
 
 static void pico_ipv6_set_router_mtu(struct pico_ip6 *addr, uint32_t mtu)
 {
-    struct pico_tree_node *index, *_tmp;
-    struct pico_ipv6_router *r;
-    pico_tree_foreach_safe(index, &RCache, _tmp)
+    struct pico_tree_node *index = NULL;
+    struct pico_ipv6_router *r = NULL;
+    pico_tree_foreach(index, &RCache)
     {
         r = index->keyValue;
         if(pico_ipv6_compare(&r->router->address, addr) == 0)
