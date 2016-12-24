@@ -1236,11 +1236,13 @@ START_TEST(tc_pico_nd_delete_entry)
 END_TEST
 START_TEST(tc_pico_nd_discover)
 {
+  /* TODO:  */
    /* TODO: test this: static void pico_nd_discover(struct pico_ipv6_neighbor *n) */
 }
 END_TEST
 START_TEST(tc_pico_nd_get_neighbor)
 {
+  /* TODO:  */
   /* TODO: test this: static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_device *dev) */
 }
 END_TEST
@@ -1380,21 +1382,97 @@ START_TEST(tc_get_neigh_option)
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor_update)
 {
-   /* TODO: test this: static void pico_ipv6_neighbor_update(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt) */
+  struct pico_ipv6_neighbor n = { 0 };
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+  uint8_t initial_mac[PICO_SIZE_ETH] = {
+    0x00, 0x00, 0x00, 0x00, 0xa0, 0xa0
+  };
+  uint8_t new_mac[PICO_SIZE_ETH] = {
+    0x00, 0x00, 0x00, 0x00, 0xab, 0xab
+  };
+  struct pico_icmp6_opt_lladdr lladdr = { 0 };
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+
+  n.address = addr_0;
+  memcpy(&n.hwaddr.mac, &initial_mac, PICO_SIZE_ETH);
+  memcpy(&lladdr.addr, &new_mac, PICO_SIZE_ETH);
+
+  /* Sanity check */
+  fail_unless(memcmp(&n.hwaddr.mac, &initial_mac, PICO_SIZE_ETH) == 0, "Setup of mac addr failed?");
+
+  pico_ipv6_neighbor_update(&n, &lladdr, dummy_dev);
+
+  fail_unless(memcmp(&n.hwaddr.mac, &new_mac, PICO_SIZE_ETH) == 0, "Mac addr should have been updated");
+
+  pico_device_destroy(dummy_dev);
+
+  /* TODO: 6LOWPAN testing */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor_compare_stored)
 {
-   /* TODO: test this: static int pico_ipv6_neighbor_compare_stored(struct pico_ipv6_neighbor *n, struct pico_icmp6_opt_lladdr *opt) */
+  struct pico_ipv6_neighbor n = { 0 };
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+  uint8_t initial_mac[PICO_SIZE_ETH] = {
+    0x00, 0x00, 0x00, 0x00, 0xa0, 0xa0
+  };
+  uint8_t new_mac[PICO_SIZE_ETH] = {
+    0x00, 0x00, 0x00, 0x00, 0xab, 0xab
+  };
+  struct pico_icmp6_opt_lladdr lladdr = { 0 };
+  struct pico_device *dummy_dev = NULL;
+  const uint8_t mac[PICO_SIZE_ETH] = {
+    0x09, 0x00, 0x27, 0x39, 0xd0, 0xc6
+  };
+  const char *name = "nd_test";
+
+  dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+  pico_device_init(dummy_dev, name, mac);
+
+  n.address = addr_0;
+  memcpy(&n.hwaddr.mac, &initial_mac, PICO_SIZE_ETH);
+  memcpy(&lladdr.addr, &initial_mac, PICO_SIZE_ETH);
+
+  /* Sanity check */
+  fail_unless(memcmp(&n.hwaddr.mac, &initial_mac, PICO_SIZE_ETH) == 0, "Setup of mac addr failed?");
+  fail_unless(memcmp(&lladdr.addr, &initial_mac, PICO_SIZE_ETH) == 0, "Setup of mac addr failed?");
+
+  fail_unless(pico_ipv6_neighbor_compare_stored(&n, &lladdr, dummy_dev) == 0, "Neighbor and lladdr opt have the same mac addr");
+
+  memcpy(&n.hwaddr.mac, &initial_mac, PICO_SIZE_ETH);
+  memcpy(&lladdr.addr, &new_mac, PICO_SIZE_ETH);
+
+  fail_unless(pico_ipv6_neighbor_compare_stored(&n, &lladdr, dummy_dev) != 0, "Neighbor and lladdr opt do not have the same mac addr");
+
+  pico_device_destroy(dummy_dev);
+
+  /* TODO: 6LOWPAN testing */
 }
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm_router_option)
 {
+  /* TODO:  */
    /* TODO: test this: static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter) */
 }
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm_no_tlla)
 {
+  /* TODO:  */
    /* TODO: test this: static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico_icmp6_hdr *hdr) */
 }
 END_TEST
@@ -1410,16 +1488,19 @@ START_TEST(tc_neigh_adv_process_incomplete)
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor_from_sol_new)
 {
+  /* TODO:  */
   /* TODO: test this: static struct pico_ipv6_neighbor *pico_ipv6_neighbor_from_sol_new(struct pico_ip6 *ip, struct pico_icmp6_opt_lladdr *opt, struct pico_device *dev) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_neighbor_from_unsolicited)
 {
+  /* TODO:  */
    /* TODO: test this: static void pico_ipv6_neighbor_from_unsolicited(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_pico_ipv6_router_from_unsolicited)
 {
+  /* TODO:  */
    /* TODO: test this: static void pico_ipv6_router_from_unsolicited(struct pico_frame *f) */
 }
 END_TEST
@@ -1445,6 +1526,7 @@ START_TEST(tc_neigh_sol_validate_unspec)
 END_TEST
 START_TEST(tc_neigh_sol_validity_checks)
 {
+  /* TODO:  */
    /* TODO: test this: static int neigh_sol_validity_checks(struct pico_frame *f) */
 }
 END_TEST
@@ -1460,16 +1542,19 @@ START_TEST(tc_pico_nd_neigh_sol_recv)
 END_TEST
 START_TEST(tc_pico_nd_router_prefix_option_valid)
 {
+  /* TODO:  */
   /* TODO: test this: static int pico_nd_router_prefix_option_valid(struct pico_device *dev, struct pico_icmp6_opt_prefix *prefix) */
 }
 END_TEST
 START_TEST(tc_pico_nd_router_sol_recv)
 {
+  /* TODO:  */
    /* TODO: test this: static int pico_nd_router_sol_recv(struct pico_frame *f) */
 }
 END_TEST
 START_TEST(tc_router_adv_validity_checks)
 {
+  /* TODO:  */
   /* TODO: test this: static int router_adv_validity_checks(struct pico_frame *f) */
 }
 END_TEST
@@ -1485,6 +1570,7 @@ START_TEST(tc_pico_nd_router_adv_recv)
 END_TEST
 START_TEST(tc_neigh_adv_option_len_validity_check)
 {
+  /* TODO:  */
   /* TODO: test this: static int neigh_adv_option_len_validity_check(struct pico_frame *f) */
 }
 END_TEST
@@ -1515,6 +1601,7 @@ START_TEST(tc_pico_nd_neigh_adv_recv)
 END_TEST
 START_TEST(tc_pico_nd_redirect_is_valid)
 {
+  /* TODO:  */
    /* TODO: test this: static int pico_nd_redirect_is_valid(struct pico_frame *f) */
 }
 END_TEST
