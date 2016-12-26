@@ -1234,6 +1234,92 @@ START_TEST(tc_pico_nd_delete_entry)
   pico_device_destroy(dummy_dev);
 }
 END_TEST
+START_TEST(tc_pico_nd_create_rce)
+{
+  struct pico_ipv6_neighbor *n = NULL;
+  struct pico_ipv6_router *r = NULL;
+
+  /* Test 1: NULL args */
+  fail_unless(pico_nd_create_rce(NULL) == NULL, "Providing NULL should return NULL");
+
+  /* Test 2: Normal case */
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, tree should be empty");
+
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+
+  r = pico_nd_create_rce(n);
+
+  fail_unless(r, "RCE should have been created");
+  fail_unless(n->is_router, "is_router flag should have been set");
+  fail_if(pico_tree_empty(&RCache), "Test done, RCE should have been created");
+
+  /* Cleanup */
+  pico_tree_delete(&RCache, r);
+  PICO_FREE(r);
+  n->is_router = 0;
+
+  /* Test 3: Malloc failure - 1 */
+  pico_set_mm_failure(1);
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, tree should be empty");
+
+  r = pico_nd_create_rce(n);
+
+  fail_if(r, "RCE shouldn't have been created");
+  fail_if(n->is_router, "is_router flag shouldn't have been set");
+  fail_unless(pico_tree_empty(&RCache), "Test done, RCE shouldn't have been created");
+
+  /* Cleanup */
+  n->is_router = 0;
+
+  /* Test 4: Malloc failure - 2 */
+  pico_set_mm_failure(2);
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, tree should be empty");
+
+  r = pico_nd_create_rce(n);
+
+  fail_if(n->is_router, "is_router flag shouldn't have been set");
+  fail_unless(pico_tree_empty(&RCache), "Test done, RCE shouldn't have been created");
+
+  PICO_FREE(n);
+}
+END_TEST
+START_TEST(tc_pico_nd_delete_rce)
+{
+  struct pico_ipv6_neighbor *n = NULL;
+  struct pico_ipv6_router *r = NULL;
+
+  /* Test 1: NULL args
+   * This mustn't produce any side-effects
+   */
+  pico_nd_delete_rce(NULL);
+
+  /* Test 2: Normal case */
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, tree should be empty");
+
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+  r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+
+  r->router = n;
+  n->is_router = 1;
+  pico_tree_insert(&RCache, r);
+
+  /* Sanity check */
+  fail_if(pico_tree_empty(&RCache), "Test started, RCE should have been created");
+
+  pico_nd_delete_rce(r);
+
+  fail_if(n->is_router, "is_router flag should have been cleared");
+  fail_unless(pico_tree_empty(&RCache), "Test done, tree should be empty");
+
+  PICO_FREE(n);
+}
+END_TEST
 START_TEST(tc_pico_nd_discover)
 {
   /* TODO:  */
@@ -1466,8 +1552,57 @@ START_TEST(tc_pico_ipv6_neighbor_compare_stored)
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm_router_option)
 {
-  /* TODO:  */
-   /* TODO: test this: static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsigned int isRouter) */
+  struct pico_ipv6_neighbor *n = NULL;
+  struct pico_ipv6_router *r = NULL;
+  struct pico_ip6 addr_0 = {
+    .addr = {
+      0x20, 0x01, 0x0d, 0xb8, 0x13, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x09, 0xc0, 0x87, 0x6a, 0x13, 0x0b
+    }
+  };
+
+  n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
+  n->address = addr_0;
+  n->is_router = 1;
+
+  r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+  r->router = n;
+
+  /* Test 1: clearing of is_router flag, not in RCache */
+  neigh_adv_reconfirm_router_option(n, 0);
+
+  fail_if(n->is_router, "is_router flag should be cleared");
+
+  /* Test 2: clearing of is_router flag, in RCache */
+
+  n->is_router = 1;
+
+  /* Sanity check, tree must be empty */
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, RCache should be empty");
+  pico_tree_insert(&RCache, r);
+  fail_if(pico_tree_empty(&RCache), "Test started, RCache shouldn't be empty");
+
+  neigh_adv_reconfirm_router_option(n, 0);
+
+  fail_if(n->is_router, "is_router flag should be cleared");
+  fail_unless(pico_tree_empty(&RCache), "RCE should be deleted");
+
+  /* Test 3: Setting of is_router flag */
+  n->is_router = 0;
+
+  fail_unless(pico_tree_empty(&RCache), "Test hasn't started, RCache should be empty");
+
+  neigh_adv_reconfirm_router_option(n, 1);
+
+  fail_unless(n->is_router, "is_router flag should be set");
+  fail_if(pico_tree_empty(&RCache), "RCE should have been created");
+
+  /* Test 4 (cleanup): clearing of is_router flag */
+  neigh_adv_reconfirm_router_option(n, 0);
+
+  fail_if(n->is_router, "is_router flag should be cleared");
+  fail_unless(pico_tree_empty(&RCache), "RCE should have been deleted");
+
+  PICO_FREE(n);
 }
 END_TEST
 START_TEST(tc_neigh_adv_reconfirm_no_tlla)
@@ -2039,6 +2174,9 @@ Suite *pico_suite(void)
     TCase *TCase_pico_nd_clear_queued_packets = tcase_create("Unit test for pico_nd_clear_queued_packets");
     TCase *TCase_pico_ipv6_nd_postpone = tcase_create("Unit test for pico_ipv6_nd_postpone");
 
+    TCase *TCase_pico_nd_delete_rce = tcase_create("Unit test for pico_nd_delete_rce");
+    TCase *TCase_pico_nd_create_rce = tcase_create("Unit test for pico_nd_create_rce");
+
     tcase_add_test(TCase_functional_ra, tc_pico_recv_ra);
     suite_add_tcase(s, TCase_functional_ra);
     tcase_add_test(TCase_pico_ipv6_nd_timer_elapsed, tc_pico_ipv6_nd_timer_elapsed);
@@ -2064,6 +2202,12 @@ Suite *pico_suite(void)
 
     tcase_add_test(TCase_pico_ipv6_nd_postpone, tc_pico_ipv6_nd_postpone);
     suite_add_tcase(s, TCase_pico_ipv6_nd_postpone);
+
+    tcase_add_test(TCase_pico_nd_delete_rce, tc_pico_nd_delete_rce);
+    suite_add_tcase(s, TCase_pico_nd_delete_rce);
+
+    tcase_add_test(TCase_pico_nd_create_rce, tc_pico_nd_create_rce);
+    suite_add_tcase(s, TCase_pico_nd_create_rce);
 
     tcase_add_test(TCase_pico_ipv6_neighbor_compare, tc_pico_ipv6_neighbor_compare);
     suite_add_tcase(s, TCase_pico_ipv6_neighbor_compare);
