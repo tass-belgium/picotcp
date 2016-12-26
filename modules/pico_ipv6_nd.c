@@ -61,7 +61,7 @@ struct pico_ipv6_neighbor {
     struct pico_ip6 address;
     union pico_hw_addr hwaddr;
     struct pico_device *dev;
-    uint16_t is_router;
+    uint8_t is_router;
     uint8_t failure_multi_count;
     uint8_t failure_uni_count;
     uint16_t frames_queued;
@@ -494,15 +494,24 @@ static struct pico_ipv6_router *pico_nd_create_rce(struct pico_ipv6_neighbor *n)
 {
     struct pico_ipv6_router *r = NULL;
 
-    r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
-    r->router = n;
+    if (!n) {
+        return NULL;
+    }
 
+    r = PICO_ZALLOC(sizeof(struct pico_ipv6_router));
+
+    if (!r) {
+        nd_dbg("RCE could not be created, mem failure\n");
+        return NULL;
+    }
+
+    r->router = n;
     n->is_router = 1;
 
     if (pico_tree_insert(&RCache, r)) {
         nd_dbg("Could not insert router in rcache\n");
         PICO_FREE(r);
-        r = NULL;
+        n->is_router = 0;
     }
 
     return r;
@@ -510,6 +519,14 @@ static struct pico_ipv6_router *pico_nd_create_rce(struct pico_ipv6_neighbor *n)
 
 static void pico_nd_delete_rce(struct pico_ipv6_router *r)
 {
+    struct pico_ipv6_neighbor *n = NULL;
+
+    if (!r) {
+        return;
+    }
+
+    n = r->router;
+
     /* Assign new router on link */
     pico_ipv6_assign_router_on_link(r->is_default, r->link);
     /* Inform IPV6 router is down to remove all routes who use router */
@@ -517,14 +534,15 @@ static void pico_nd_delete_rce(struct pico_ipv6_router *r)
     /* Delete RCE */
     pico_tree_delete(&RCache, r);
 
-    PICO_FREE(r);
+    /* Clear is_router flag */
+    n->is_router = 0;
 
-    r = NULL;
+    PICO_FREE(r);
 }
 
 static struct pico_ipv6_neighbor *pico_nd_create_entry(struct pico_ip6 *addr, struct pico_device *dev)
 {
-    struct pico_ipv6_neighbor *n;
+    struct pico_ipv6_neighbor *n = NULL;
 
     /* Create a new NCE */
     n = PICO_ZALLOC(sizeof(struct pico_ipv6_neighbor));
@@ -790,7 +808,7 @@ static void neigh_adv_reconfirm_router_option(struct pico_ipv6_neighbor *n, unsi
         }
     }
 
-    n->is_router = (uint16_t)isRouter;
+    n->is_router = (uint8_t)isRouter;
 }
 
 static int neigh_adv_reconfirm_no_tlla(struct pico_ipv6_neighbor *n, struct pico_icmp6_hdr *hdr)
