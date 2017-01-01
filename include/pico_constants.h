@@ -24,7 +24,8 @@ extern volatile uint64_t pico_tick;
  ***     ARP CONFIG      ***
  *** *** *** *** *** *** ***/
 
-#include "pico_addressing.h"
+//#include "pico_addressing.h"
+//#include "NO NEED FOR THIS ONEpico_addressing.h"
 
 /* Maximum amount of accepted ARP requests per burst interval */
 #define PICO_ARP_MAX_RATE 1

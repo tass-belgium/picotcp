@@ -9,7 +9,7 @@
 #ifndef _INCLUDE_PICO_MM
 #define _INCLUDE_PICO_MM
 
-#include "pico_config.h"
+//#include "NO NEED FOR THIS ONEpico_config.h"
 
 /*
  * Memory init function, this will create a memory manager instance

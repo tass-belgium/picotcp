@@ -6,7 +6,7 @@
 #ifndef _INCLUDE_PICO_CORTEX_M
 #define _INCLUDE_PICO_CORTEX_M
 
-#include "pico_generic_gcc.h"
+#include "arch/pico_generic_gcc.h"
 
 #endif  /* PICO_CORTEX_M */
 
