@@ -417,7 +417,7 @@ int pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t *port);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull bind.
+On success, this call returns 0 after a successful bind.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -534,7 +534,7 @@ uint16_t remote_port);
 \end{itemize} 
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull connect.
+On success, this call returns 0 after a successful connect.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -568,7 +568,7 @@ int pico_socket_listen(struct pico_socket *s, int backlog);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull listen start.
+On success, this call returns 0 after a successful listen start.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately. 
 
 \subsubsection*{Errors}
@@ -639,7 +639,7 @@ int pico_socket_shutdown(struct pico_socket *s, int mode);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull socket shutdown.
+On success, this call returns 0 after a successful socket shutdown.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -669,7 +669,7 @@ int pico_socket_close(struct pico_socket *s);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull socket shutdown.
+On success, this call returns 0 after a successful socket shutdown.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -722,7 +722,7 @@ int pico_socket_setoption(struct pico_socket *s, int option, void *value);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull setting of socket option.
+On success, this call returns 0 after a successful setting of socket option.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -779,7 +779,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call returns 0 after a succesfull getting of socket option. The value of
+On success, this call returns 0 after a successful getting of socket option. The value of
 the option is written to \texttt{value}.
 On error, -1 is returned, and \texttt{pico$\_$err} is set appropriately.
 
