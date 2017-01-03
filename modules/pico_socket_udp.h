@@ -1,6 +1,9 @@
 #ifndef PICO_SOCKET_UDP_H
 #define PICO_SOCKET_UDP_H
 
+#include "pico_frame.h"
+#include "pico_socket.h"
+
 struct pico_socket *pico_socket_udp_open(void);
 int pico_socket_udp_deliver(struct pico_sockport *sp, struct pico_frame *f);
 
