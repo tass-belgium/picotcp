@@ -326,7 +326,7 @@ a one-direction NAT entry will be made.
 \begin{verbatim}
 int pico_ipv4_port_forward(struct pico_ip4 pub_addr, uint16_t pub_port,
 struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto,
-uint8_t persistant)
+uint8_t flag)
 \end{verbatim}
 
 \subsubsection*{Parameters}
@@ -336,7 +336,7 @@ uint8_t persistant)
 \item \texttt{priv$\_$addr} - Private IP address of the host on the internal network.
 \item \texttt{priv$\_$port} - Private port of the host on the internal network.
 \item \texttt{proto} - Protocol identifier, see supported list below.
-\item \texttt{persistant} - Option for function call: create \texttt{PICO$\_$IPV4$\_$FORWARD$\_$ADD} (= 1) \\
+\item \texttt{flag} - Option for function call: create \texttt{PICO$\_$IPV4$\_$FORWARD$\_$ADD} (= 1) \\
 or delete \texttt{PICO$\_$IPV4$\_$FORWARD$\_$DEL} (= 0).
 \end{itemize}
 
@@ -383,7 +383,7 @@ struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 \item \texttt{netmask} - Netmask of the address. If zeroed, the call assumes the meaning of adding a default gateway.
 \item \texttt{gateway} - Gateway of the address network. If zeroed, no gateway will be associated to this route, and the traffic towards the destination will be simply forwarded towards the given device.
 \item \texttt{metric} - Metric for this route.
-\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory, otherwise \texttt{NULL} can be used.
+\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory, otherwise \texttt{NULL} can not be used.
 \end{itemize}
 
 \subsubsection*{Return value}
