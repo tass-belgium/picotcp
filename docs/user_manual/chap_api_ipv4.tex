@@ -412,17 +412,14 @@ Remove the route to the destination IP address from the local device link, f.e. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask,
-struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link); 
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int metric);
 \end{verbatim}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{address} - Pointer to the destination internet host address as struct \texttt{pico$\_$ip4}.
 \item \texttt{netmask} - Netmask of the address.
-\item \texttt{gateway} - Gateway of the address network.
 \item \texttt{metric} - Metric of the route.
-\item \texttt{link} - Local device interface.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -436,7 +433,7 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_ipv4_route_del(dst, netmask, gateway, metric, link);
+ret = pico_ipv4_route_del(dst, netmask, metric);
 \end{verbatim}
 
 
