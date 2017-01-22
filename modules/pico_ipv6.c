@@ -1649,8 +1649,11 @@ void pico_ipv6_router_down(const struct pico_ip6 *address)
     pico_tree_foreach_safe(index, &IPV6Routes, _tmp)
     {
         route = index->keyValue;
-        if (pico_ipv6_compare(address, &route->gateway) == 0)
-            pico_ipv6_route_del(route->dest, route->netmask, route->gateway, (int)route->metric, route->link);
+        if (pico_ipv6_compare(address, &route->gateway) == 0) {
+            if (pico_ipv6_route_del(route->dest, route->netmask, route->gateway, (int)route->metric, route->link) != 0) {
+                dbg("Route del FAILED\n");
+            }
+        }
     }
 }
 
