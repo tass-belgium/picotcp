@@ -325,7 +325,7 @@ static struct pico_ipv6_router *pico_nd_get_default_router(void)
 static void pico_nd_set_new_expire_time(struct pico_ipv6_neighbor *n)
 {
     if (n->state == PICO_ND_STATE_REACHABLE) {
-        n->expire = PICO_TIME_MS() + PICO_ND_REACHABLE_TIME;
+        n->expire = PICO_TIME_MS() + n->dev->hostvars.reachabletime;
     } else if ((n->state == PICO_ND_STATE_DELAY) || (n->state == PICO_ND_STATE_STALE)) {
         n->expire = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
     } else {
@@ -1669,6 +1669,10 @@ static int radv_process(struct pico_frame *f)
     struct pico_icmp6_opt_6co co;
 #endif
 #endif
+    struct pico_ip6 zero = {
+        .addr = {0}
+    };
+    struct pico_ip6 *prefix = NULL;
 
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
@@ -1701,9 +1705,9 @@ static int radv_process(struct pico_frame *f)
     }
 
     if (PICO_DEV_IS_6LOWPAN(f->dev)) {
-        struct pico_ip6 prefix;
-        memcpy(prefix.addr, (uint8_t *)&co.prefix, (size_t)(co.len - 1) << 3);
-        ctx_update(prefix, co.id, co.len, co.lifetime, co.c, f->dev);
+        struct pico_ip6 co_prefix;
+        memcpy(co_prefix.addr, (uint8_t *)&co.prefix, (size_t)(co.len - 1) << 3);
+        ctx_update(co_prefix, co.id, co.len, co.lifetime, co.c, f->dev);
     }
 #endif
 
@@ -1715,11 +1719,22 @@ static int radv_process(struct pico_frame *f)
 
     /* TODO: process ABRO option */
 #endif
+    {
+        /* Router MTU processing */
+        struct pico_icmp6_opt_mtu mtu_option;
+        int mtu_valid = get_neigh_option(f, &mtu_option, PICO_ND_OPT_MTU);
+        if (mtu_valid > 0) {
+            pico_ipv6_set_router_mtu(&hdr->src,long_be(mtu_option.mtu));
+        }
+    }
 
-    struct pico_ip6 zero = {
-        .addr = {0}
-    };
-    struct pico_ip6 *prefix = &zero;
+    if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
+        f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
+    }
+
+    if (icmp6_hdr->msg.info.router_adv.hop) {
+        f->dev->hostvars.hoplimit = icmp6_hdr->msg.info.router_adv.hop;
+    }
 
     if (optres_prefix) {
         nd_dbg("IPv6-ND: Prefix option present\n");
@@ -1729,7 +1744,7 @@ static int radv_process(struct pico_frame *f)
             prefix = &prefix_option.prefix;
         } else {
             nd_dbg("IPv6-ND: Prefix option not valid\n");
-            prefix = &zero;
+            return -1;
         }
     } else {
         nd_dbg("IPv6-ND: Prefix option not present\n");
@@ -1764,22 +1779,14 @@ static int radv_process(struct pico_frame *f)
         }
     }
 
-    {
-        /* Router MTU processing */
-        struct pico_icmp6_opt_mtu mtu_option;
-        int mtu_valid = get_neigh_option(f, &mtu_option, PICO_ND_OPT_MTU);
-        if (mtu_valid > 0) {
-            pico_ipv6_set_router_mtu(&hdr->src,long_be(mtu_option.mtu));
-        }
+
+    if (icmp6_hdr->msg.info.router_adv.reachable_time != 0u) {
+        /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
+        f->dev->hostvars.basetime = long_be(icmp6_hdr->msg.info.router_adv.reachable_time);
+        f->dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * f->dev->hostvars.basetime) / 10;
     }
 
-    if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
-        f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
-    }
 
-    if (icmp6_hdr->msg.info.router_adv.hop) {
-        f->dev->hostvars.hoplimit = icmp6_hdr->msg.info.router_adv.hop;
-    }
 
     return 0;
 }
