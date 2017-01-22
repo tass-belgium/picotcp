@@ -72,7 +72,6 @@ struct pico_ipv6_router {
     struct pico_ipv6_neighbor *router;
     struct pico_ipv6_link *link;
     int is_default;
-    pico_time invalidation;
 };
 
 /******************************************************************************
@@ -975,12 +974,9 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
 {
     struct pico_ipv6_neighbor *n = NULL;
     struct pico_ipv6_router *r = NULL;
-    struct router_adv_s *r_adv_hdr = NULL;
-    struct pico_icmp6_hdr *icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
 
     if (!pico_ipv6_is_unspecified(ip->src.addr)) {
-        r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
         n = pico_get_neighbor_from_ncache(&ip->src);
 
         if (!n) {
@@ -991,8 +987,6 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
         /* Indicate he is a router */
         n->is_router = 1;
 
-        /* TODO: set correct expire time? */
-
         r = pico_get_router_from_rcache(&ip->src);
 
         if (!r) {
@@ -1001,13 +995,6 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
                 nd_dbg("Could not insert router in rcache\n");
                 return;
             }
-        }
-
-        if(r_adv_hdr->life_time != 0) {
-            r->invalidation = PICO_TIME_MS() + (pico_time)(short_be(r_adv_hdr->life_time) * 1000);
-        } else {
-            /* TODO: WHAT IF 0? */
-            pico_nd_delete_rce(r);
         }
     }
 }
@@ -1779,14 +1766,11 @@ static int radv_process(struct pico_frame *f)
         }
     }
 
-
     if (icmp6_hdr->msg.info.router_adv.reachable_time != 0u) {
         /* RFC 4861 $6.3.2 value between 0.5 and 1.5 times basetime */
         f->dev->hostvars.basetime = long_be(icmp6_hdr->msg.info.router_adv.reachable_time);
         f->dev->hostvars.reachabletime = ((5 + (pico_rand() % 10)) * f->dev->hostvars.basetime) / 10;
     }
-
-
 
     return 0;
 }
@@ -2152,29 +2136,6 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     pico_nd_set_new_expire_time(n);
 }
 
-static void pico_ipv6_check_router_lifetime_callback(pico_time now, void *arg)
-{
-    struct pico_tree_node *index = NULL, *_tmp = NULL;
-    struct pico_ipv6_router *r;
-
-    IGNORE_PARAMETER(arg);
-
-    pico_tree_foreach_safe(index, &RCache, _tmp)
-    {
-        r = index->keyValue;
-        if (now > r->invalidation) {
-            nd_dbg("ROUTER EXPIRED: %lu, %lu\n", now, r->invalidation);
-            pico_nd_print_addr(&r->router->address);
-            pico_nd_delete_rce(r);
-        }
-    }
-
-    if (!pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL)) {
-        dbg("IPV6 ND: Failed to start check router lifetime callback timer\n");
-        /* TODO: lifetime of routers will not be checked anymore */
-    }
-}
-
 static void pico_ipv6_check_nce_callback(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
@@ -2413,13 +2374,6 @@ void pico_ipv6_nd_init(void)
         goto fail_router_adv_timer;
     }
 
-    router_lifetime_id = pico_timer_add(200, pico_ipv6_check_router_lifetime_callback, NULL);
-    if (!router_lifetime_id)
-    {
-        nd_dbg("IPv6 ND: Failed to start check_router_lifetime timer\n");
-        goto fail_router_lifetime_timer;
-    }
-
     check_lifetime_id = pico_timer_add(1000, pico_ipv6_check_link_lifetime_expired, NULL);
     if (!check_lifetime_id) {
         nd_dbg("IPv6 ND: Failed to start check_link_lifetime timer\n");
@@ -2437,8 +2391,6 @@ fail_router_sol_timer:
     pico_timer_cancel(check_lifetime_id);
 fail_check_link_lifetime_timer:
     pico_timer_cancel(router_lifetime_id);
-fail_router_lifetime_timer:
-    pico_timer_cancel(ra_timer_id);
 fail_router_adv_timer:
     pico_timer_cancel(nd_timer_id);
 fail_check_nce_timer:
