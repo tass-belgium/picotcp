@@ -5,7 +5,7 @@
  * This code is donated to the picoTCP project, and shares the same licensing,
  * that is GNU GPLv2.
  *
- * See LICENSE and COPYING for usage.
+ * See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
  */
 
 #include <dos.h>   /* provides int86() along with the union REGS type */
