@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2015 Altran ISY BeNeLux. Some rights reserved.
+   PicoTCP. Copyright (c) 2015-2017 Altran ISY BeNeLux. Some rights reserved.
    See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
 
    .
