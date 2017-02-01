@@ -215,7 +215,7 @@ wolfSSL, mbedTLS, Mongoose RESTful library, MicroPython
 **Compilers picoTCP compiles under**:
 GCC, Clang, TCC, ARM-RCVT, IAR, XC-16, XC-32, MSP-GCC, AVR-GCC
 
-Unfortunately we can't release all the code, a.o. because some parts depend on code or binaries that aren't GPL compatible, some parts are only available under the commercial license, and some consist of very rough proof-of-concept code.
+Unfortunately we can't release all the code, a.o. because some parts depend on code or binaries that aren't GPL compatible, some parts were developed under a commercial contract, and some consist of very rough proof-of-concept code.
 If you want to know more about the availability under the commercial license, or the possibility of using our expert services for porting or driver development, feel free to contact us at info@picotcp.com.
 
 Your favorite not in the list? Check out the wiki for information and examples on how to port picoTCP to a new platform!
