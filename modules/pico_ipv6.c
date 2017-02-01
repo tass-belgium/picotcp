@@ -397,15 +397,14 @@ int pico_ipv6_is_unspecified(const uint8_t addr[PICO_SIZE_IP6])
 
 static struct pico_ipv6_route *pico_ipv6_route_find(const struct pico_ip6 *addr)
 {
-    struct pico_ipv6_route *r = NULL;
     struct pico_tree_node *index = NULL;
+    struct pico_ipv6_route *r = NULL;
     int i = 0;
     if (!pico_ipv6_is_localhost(addr->addr) && (pico_ipv6_is_linklocal(addr->addr)  || pico_ipv6_is_sitelocal(addr->addr)))    {
         return NULL;
     }
 
-    pico_tree_foreach_reverse(index, &IPV6Routes)
-    {
+    pico_tree_foreach_reverse(index, &IPV6Routes) {
         r = index->keyValue;
         for (i = 0; i < PICO_SIZE_IP6; ++i) {
             if ((addr->addr[i] & (r->netmask.addr[i])) != ((r->dest.addr[i]) & (r->netmask.addr[i]))) {
@@ -1481,7 +1480,8 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
 {
     struct pico_ip6 zerogateway = {{0}};
     struct pico_ipv6_route *r = pico_ipv6_route_find(&gateway);
-    if (!r ) { /* Specified Gateway is unreachable */
+
+    if (!r) { /* Specified Gateway is unreachable */
         pico_err = PICO_ERR_EHOSTUNREACH;
         return NULL;
     }
@@ -1490,7 +1490,6 @@ static inline struct pico_ipv6_route *ipv6_route_add_link(struct pico_ip6 gatewa
         pico_err = PICO_ERR_ENETUNREACH;
         return NULL;
     }
-
 
     return r;
 }
@@ -1508,7 +1507,7 @@ struct pico_ipv6_route *pico_ipv6_gateway_by_dev(struct pico_device *dev)
         if (!pico_ipv6_is_unspecified(route->gateway.addr) && pico_ipv6_is_unspecified(route->netmask.addr)) {
             /* Iterate over device's links */
             while (link) {
-                /* If link is equal to route's link, routing list is not empty */
+                /* If link is equal to route's link, router list is not empty */
                 if (0 == ipv6_link_compare(link, route->link))
                     return route;
                 link = pico_ipv6_link_by_dev_next(dev, link);
@@ -1559,6 +1558,7 @@ int pico_ipv6_route_add(struct pico_ip6 address, struct pico_ip6 netmask, struct
     test.netmask = netmask;
     test.metric = (uint32_t)metric;
     if (pico_tree_findKey(&IPV6Routes, &test)) {
+        /* Route already exists */
         pico_err = PICO_ERR_EINVAL;
         return -1;
     }

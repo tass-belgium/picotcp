@@ -64,7 +64,6 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
     return new;
 }
 
-
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
     struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));

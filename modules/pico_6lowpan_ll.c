@@ -345,7 +345,7 @@ pico_6lowpan_ll_process_in(struct pico_protocol *self, struct pico_frame *f)
 int32_t pico_6lowpan_stack_recv(struct pico_device *dev, uint8_t *buffer, uint32_t len, union pico_ll_addr *src, union pico_ll_addr *dst)
 {
     int32_t ret = 0;
-    ll_dbg("Stack recv called!\n");
+    ll_dbg("6LoWPAN - Stack recv called!\n");
     if (PICO_DEV_IS_NOMAC(dev)) {
         struct pico_frame *f = pico_stack_recv_new_frame(dev, buffer, len);
         if (f) {
