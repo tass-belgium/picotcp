@@ -1271,8 +1271,8 @@ frag_fill(uint8_t *frag, uint8_t dispatch, uint16_t dgram_size, uint16_t tag, ui
 {
     frag[0] = (uint8_t)(dispatch | ((uint8_t)short_be(dgram_size) & 0x07));
     frag[1] = (uint8_t)(short_be(dgram_size) >> 8);
-    frag[2] = (uint8_t)(tag);
-    frag[3] = (uint8_t)(tag >> 8);
+    frag[2] = (uint8_t)(short_be(tag));
+    frag[3] = (uint8_t)(short_be(tag) >> 8);
     frag[4] = (uint8_t)(dgram_off);
     buf_move(frag + offset, buf + copied, copy);
 }
@@ -1565,7 +1565,6 @@ defrag_remove_header(struct pico_frame *f, uint16_t *dgram_size, uint16_t *tag, 
     *dgram_size = (uint16_t)(((uint16_t)(f->net_hdr[0] & 0x07) << 8) | (uint16_t)f->net_hdr[1]);
     *tag = (uint16_t)(((uint16_t)f->net_hdr[2] << 8) | (uint16_t)f->net_hdr[3]);
     *off = (uint16_t)((uint16_t)f->net_hdr[4] << 3);
-    dbg("RECV [0]: %02X [1]: %02X dgram_size: %d off: %d tag: %d\n", f->net_hdr[0], f->net_hdr[1], *dgram_size, *off, *tag);
     f->net_len = (uint16_t)(f->net_len - (uint16_t)size);
     f->len = (uint32_t)(f->len - (uint32_t)size);
     f->net_hdr += size;

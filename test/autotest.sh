@@ -57,7 +57,7 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 sleep 1
 (build/test/picoapp6.elf -6 1,2,1 -a udpecho,::0,6667,) &
 sleep 1
-build/test/picoapp6.elf -6 2,1,0 -a udpclient,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,6667,6667,1400,100,10, || exit 1
+build/test/picoapp6.elf -6 2,1,0 -a udpclient,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,6667,6667,1400,10,1, || exit 1
 killall -w picoapp6.elf -s SIGQUIT
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
