@@ -310,12 +310,12 @@ hup:
 static void
 pico_radio_mgr_quit(int signum)
 {
-    struct pico_tree_node *i = NULL;
+    struct pico_tree_node *i = NULL, *tmp = NULL;
     struct socket *key = NULL;
     IGNORE_PARAMETER(signum);
 
     dbg("Closing all sockets...");
-    pico_tree_foreach(i, &Sockets) {
+    pico_tree_foreach_safe(i, &Sockets, tmp) {
         key = i->keyValue;
         if (key) {
             pico_tree_delete(&Sockets, key);
