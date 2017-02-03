@@ -71,7 +71,7 @@ pids+="$! "
 pids+="$! "
 sleep 2
  ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a  mcastsend_ipv6,aaaa::1,ff00::e007:707,6667,6667,|| exit 1
-for pid in $pid; do wait $pid || exit 1; done
+for pid in $pids; do wait $pid || exit 1; done
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 LOCALHOST TEST ~~~"
@@ -148,7 +148,7 @@ pids+="$! "
 pids+="$! "
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667: || exit 1
-for pid in $pid; do wait $pid || exit 1; done
+for pid in $pids; do wait $pid || exit 1; done
 
 echo
 echo
@@ -255,7 +255,7 @@ pids+="$! "
 pids+="$! "
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0::: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667: || exit 1
-for pid in $pid; do wait $pid || exit 1; done
+for pid in $pids; do wait $pid || exit 1; done
 
 killall -w picoapp.elf
 
