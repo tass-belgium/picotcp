@@ -477,8 +477,8 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     }
 
     if (dump) {
- //       dbg("Dump: %s\n", dump);
-//        radiotest_pcap_open(radio, dump);
+        dbg("Dump: %s\n", dump);
+        radiotest_pcap_open(radio, dump);
     }
 
     return (struct pico_device *)lp;

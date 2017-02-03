@@ -417,8 +417,8 @@ addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr)
 static struct pico_frame *
 pico_frame_alloc_with_headroom(uint16_t size, uint16_t headroom, uint16_t overhead)
 {
-    int network_offset = (((headroom + overhead) >> 3) + 1) << 3; // Sufficient headroom for alignment
-    struct pico_frame *f = pico_frame_alloc((uint32_t)(size + headroom + overhead));
+    int network_offset = (((headroom + overhead) >> 2) + 1) << 2; // Sufficient headroom for alignment
+    struct pico_frame *f = pico_frame_alloc((uint32_t)(size + network_offset));
 
     if (!f)
         return NULL;
