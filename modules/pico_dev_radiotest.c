@@ -1,5 +1,5 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
+   PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights reserved.
    See LICENSE and COPYING for usage.
 
    Authors: Daniele Lacamera, Jelle De Vleeschouwer
@@ -27,6 +27,7 @@
 #include <arpa/inet.h>
 #include <sys/poll.h>
 #include <signal.h>
+#include <errno.h>
 
 #define LISTENING_PORT  7777
 #define MESSAGE_MTU     150
@@ -114,9 +115,9 @@ static void radiotest_pcap_open(struct radiotest_radio *dev, char *dump)
     /* Open dump */
     dev->pcapd = pcap_dump_open(dev->pcap, path);
     if (dev->pcapd)
-        RADIO_DBG("PCAP Enabled\n");
+        dbg("PCAP Enabled\n");
     else
-        RADIO_DBG("PCAP Disabled\n");
+        dbg("PCAP Disabled\n");
 }
 
 static void radiotest_pcap_write(struct radiotest_radio *dev, uint8_t *buf, int len)
@@ -288,12 +289,13 @@ static int radiotest_poll(struct pico_device *dev, int loop_score)
     p.events = POLLIN | POLLHUP;
 
     /* Poll for data from radio management */
+    errno = 0;
     pollret = poll(&p, (nfds_t)1, 1);
-    if (pollret == 0)
+    if (errno == EINTR || pollret == 0)
         return loop_score;
 
-    if (pollret == -1) {
-        fprintf(stderr, "Socket error!\n");
+    if (pollret < 0) {
+        fprintf(stderr, "Socket error %s!\n", strerror(errno));
         exit(5);
     }
 
@@ -475,6 +477,7 @@ struct pico_device *pico_radiotest_create(uint8_t addr, uint8_t area0, uint8_t a
     }
 
     if (dump) {
+        dbg("Dump: %s\n", dump);
         radiotest_pcap_open(radio, dump);
     }
 

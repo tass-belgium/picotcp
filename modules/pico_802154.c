@@ -1,5 +1,5 @@
 /*********************************************************************
- PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights
+ PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights
  reserved.  See LICENSE and COPYING for usage.
 
  Authors: Jelle De Vleeschouwer
@@ -388,7 +388,8 @@ addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr)
     struct pico_802154 pan = addr->pan;
 
     if (AM_6LOWPAN_SHORT == pan.mode) {
-        *(uint16_t *)&buf[6] = pan.addr._short.addr;
+        buf[6] = (uint8_t)(pan.addr._short.addr);
+        buf[7] = (uint8_t)(pan.addr._short.addr >> 8);
     } else if (AM_6LOWPAN_EXT == pan.mode) {
         memcpy(buf, pan.addr.data, SIZE_6LOWPAN_EXT);
         buf[0] ^= (uint8_t)0x02;
@@ -400,20 +401,44 @@ addr_802154_iid(uint8_t iid[8], union pico_ll_addr *addr)
     return 0;
 }
 
+/*
+ *  Allocates a pico_frame but makes sure the network-buffer starts on an 4-byte aligned address,
+ *  this is required by upper layer of the stack. IEEE802.15.4's header isn't necessarily 4/8-byte
+ *  aligned since the minimum size of an IEEE802.15.4 header is '5'. The datalink header therefore
+ *  might not (and most probably isn't) aligned on an aligned address. The datalink header will of
+ *  the size passed in 'headroom'
+ *
+ *  @param size         Size of the actual frame provided for network-layer and above
+ *  @param headroom     Size of the headroom for datalink-buffer
+ *  @param overhead     Size of the overhead to keep for the device driver
+ *
+ *  @return struct pico_frame *, returns the allocated frame upon success, 'NULL' otherwise.
+ */
+static struct pico_frame *
+pico_frame_alloc_with_headroom(uint16_t size, uint16_t headroom, uint16_t overhead)
+{
+    int network_offset = (((headroom + overhead) >> 2) + 1) << 2; // Sufficient headroom for alignment
+    struct pico_frame *f = pico_frame_alloc((uint32_t)(size + network_offset));
+
+    if (!f)
+        return NULL;
+
+    f->net_hdr = f->buffer + network_offset;
+    f->datalink_hdr = f->net_hdr - headroom;
+    return f;
+}
+
 /* Allocates a frame with the maximum MAC header size + device's overhead-parameter since this is
  * the lowest level of the frame allocation chain */
 static struct pico_frame *
 pico_802154_frame_alloc(struct pico_device *dev, uint16_t size)
 {
-    struct pico_frame *f = pico_frame_alloc(dev->overhead + SIZE_802154_MHR_MAX + size);
-    if (f) {
-        f->net_hdr = f->buffer + (int32_t)(f->buffer_len - (uint32_t)size);
-        f->datalink_hdr = f->net_hdr - SIZE_802154_MHR_MAX;
-        f->dev = dev;
-        return f;
-    } else {
+    struct pico_frame *f = pico_frame_alloc_with_headroom(size, SIZE_802154_MHR_MAX, (uint16_t)dev->overhead);
+    if (!f)
         return NULL;
-    }
+
+    f->dev = dev;
+    return f;
 }
 
 const struct pico_6lowpan_ll_protocol pico_6lowpan_ll_802154 = {

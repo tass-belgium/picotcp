@@ -1,5 +1,5 @@
 /*********************************************************************
- PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
+ PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights reserved.
  See LICENSE and COPYING for usage.
 
  Authors: Jelle De Vleeschouwer
@@ -29,8 +29,8 @@
 #define lp_dbg(...) do {} while(0)
 #endif
 
-#define IPV6_MCAST_48(addr) (!(*(uint16_t *)&addr[8]) && !addr[10] && (addr[11] || addr[12]))
-#define IPV6_MCAST_32(addr) (!(*(uint32_t *)&addr[8]) && !addr[12] && (addr[13] || addr[14]))
+#define IPV6_MCAST_48(addr) (!addr[8] && !addr[9] && !addr[10] && (addr[11] || addr[12]))
+#define IPV6_MCAST_32(addr) (!addr[8] && !addr[9] && !addr[10] && !addr[11] && !addr[12] && (addr[13] || addr[14]))
 #define IPV6_MCAST_8(addr)  (addr[1] == 0x02 && !addr[14] && addr[15])
 #define PORT_COMP(a, mask, b)   (((a) & (mask)) == (b))
 
@@ -271,8 +271,8 @@ static int8_t
 compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
                llsrc, union pico_ll_addr *lldst, struct pico_device *dev)
 {
-    uint32_t fl = 0, mask = long_be((uint32_t)0x000FFFFF);
     uint8_t ecn = 0, dscp = 0;
+    uint32_t fl = 0;
     *ori &= 0x0F; // Clear version field
     *iphc &= (uint8_t)0x07; // Clear IPHC field
     *iphc |= (uint8_t)IPHC_DISPATCH;
@@ -281,21 +281,25 @@ compressor_vtf(uint8_t *ori, uint8_t *comp, uint8_t *iphc, union pico_ll_addr *
     IGNORE_PARAMETER(dev);
 
     /* Don't worry... */
-    ecn = (uint8_t)(*ori << 4) & 0xC0;
-    dscp = (uint8_t)(*ori++ << 4) & 0x30;
-    dscp |= (uint8_t)((uint8_t)(*ori-- & 0xF0) >> 4);
-    fl = long_be(*(uint32_t *)ori & mask);
+    ecn = (uint8_t)((ori[0] << 4) & 0xC0);
+    dscp = (uint8_t)(((ori[0] << 4) & 0x30) | ((ori[1] & 0xF0) >> 4));
+    fl = long_be((uint32_t)(ori[1] & 0x0F) << 16);
+    fl += long_be((uint32_t)(ori[2] & 0xFF) << 8);
+    fl += long_be((uint32_t)(ori[3] & 0xFF));
 
     if (fl) {
         if (!dscp) { // Flow label carried in-line
             *iphc |= TF_ELIDED_DSCP;
-            *comp = ecn;
-            *(uint32_t *)comp |= long_be((uint32_t)(fl << 8));
+            comp[0] = (uint8_t)(ecn | (ori[1] & 0x0F));
+            comp[1] = ori[2];
+            comp[2] = ori[3];
             return 3;
         } else { // Traffic class and flow label carried in-line
             *iphc |= TF_INLINE;
             *comp = ecn | dscp;
-            *(uint32_t *)comp |= long_be(fl);
+            comp[1] = ori[1] & 0x0F;
+            comp[2] = ori[2];
+            comp[3] = ori[3];
             return 4;
         }
     } else if (ecn || dscp) { // Traffic class carried in-line
@@ -834,11 +838,11 @@ decompressor_nhc_udp(struct pico_frame *f, int32_t processed_len, int32_t *compr
             hdr->trans.dport = xF0B0 | short_be((uint16_t)(buf[1] & 0xff));
             *compressed_len = 2;
         } else if (UDP_COMPRESSED_SRC == compression) {
-            hdr->trans.dport = *(uint16_t *)&buf[2];
+            hdr->trans.dport = short_be((uint16_t)(((uint16_t)buf[2] << 8) | (uint16_t)buf[3]));
             hdr->trans.sport = xF000 | short_be((uint16_t)buf[1]);
             *compressed_len = 4;
         } else if (UDP_COMPRESSED_DST == compression) {
-            hdr->trans.sport = *(uint16_t *)&buf[1];
+            hdr->trans.sport = short_be((uint16_t)(((uint16_t)buf[1] << 8) | (uint16_t)buf[2]));
             hdr->trans.dport = xF000 | short_be((uint16_t)buf[3]);
             *compressed_len = 4;
         } else {
@@ -1265,10 +1269,10 @@ frag_update(struct pico_frame *f, struct frag_ctx *frag, uint8_t units, uint16_t
 static void
 frag_fill(uint8_t *frag, uint8_t dispatch, uint16_t dgram_size, uint16_t tag, uint8_t dgram_off, int32_t offset, uint16_t copy, uint16_t copied, uint8_t *buf)
 {
-    uint16_t x7FF = short_be(0x7FF);
-    frag[0] = dispatch;
-    *(uint16_t *)&frag[0] |= (uint16_t)(short_be(dgram_size) & x7FF);
-    *(uint16_t *)&frag[2] = (uint16_t)short_be(tag);
+    frag[0] = (uint8_t)(dispatch | ((uint8_t)short_be(dgram_size) & 0x07));
+    frag[1] = (uint8_t)(short_be(dgram_size) >> 8);
+    frag[2] = (uint8_t)(short_be(tag));
+    frag[3] = (uint8_t)(short_be(tag) >> 8);
     frag[4] = (uint8_t)(dgram_off);
     buf_move(frag + offset, buf + copied, copy);
 }
@@ -1558,12 +1562,9 @@ defrag_update(struct frag_ctx *frag, uint16_t off, struct pico_frame *f)
 static struct frag_ctx *
 defrag_remove_header(struct pico_frame *f, uint16_t *dgram_size, uint16_t *tag, uint16_t *off, int32_t size)
 {
-    uint16_t x7FF = short_be(0x7FF);
-    uint16_t x00FF = short_be(0x00FF);
-    *dgram_size = short_be(*(uint16_t *)f->net_hdr & x7FF);
-    *tag = short_be(*(uint16_t *)&f->net_hdr[2]);
-    *off = short_be((uint16_t)(*(uint16_t *)&f->net_hdr[3] & x00FF));
-    *off = (uint16_t)(*off << 3);
+    *dgram_size = (uint16_t)(((uint16_t)(f->net_hdr[0] & 0x07) << 8) | (uint16_t)f->net_hdr[1]);
+    *tag = (uint16_t)(((uint16_t)f->net_hdr[2] << 8) | (uint16_t)f->net_hdr[3]);
+    *off = (uint16_t)((uint16_t)f->net_hdr[4] << 3);
     f->net_len = (uint16_t)(f->net_len - (uint16_t)size);
     f->len = (uint32_t)(f->len - (uint32_t)size);
     f->net_hdr += size;

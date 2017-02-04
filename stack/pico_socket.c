@@ -1,6 +1,6 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
-   See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights reserved.
+   See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
 
 
    Authors: Daniele Lacamera
@@ -1076,17 +1076,25 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     int ret = 0;
     (void)src;
 
-    if (msginfo)
+    if (msginfo) {
         dev = msginfo->dev;
-
+    }
 #ifdef PICO_SUPPORT_IPV6
-    if(IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
+    else if (IS_SOCK_IPV6(s) && ep && pico_ipv6_is_multicast(&ep->remote_addr.ip6.addr[0])) {
         dev = pico_ipv6_link_find(src);
-        if(!dev) {
-            return -1;
-        }
     }
 #endif
+    else if (IS_SOCK_IPV6(s) && ep) {
+        dev = pico_ipv6_source_dev_find(&ep->remote_addr.ip6);
+    } else if (IS_SOCK_IPV4(s) && ep) {
+        dev = pico_ipv4_source_dev_find(&ep->remote_addr.ip4);
+    } else {
+        dev = get_sock_dev(s);
+    }
+
+    if (!dev) {
+        return -1;
+    }
 
     f = pico_socket_frame_alloc(s, dev, (uint16_t)(len + hdr_offset));
     if (!f) {

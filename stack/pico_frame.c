@@ -1,6 +1,6 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012-2015 Altran Intelligent Systems. Some rights reserved.
-   See LICENSE and COPYING for usage.
+   PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights reserved.
+   See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
 
    .
 
@@ -63,7 +63,6 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
     new->next = NULL;
     return new;
 }
-
 
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {

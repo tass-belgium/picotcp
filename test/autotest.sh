@@ -44,34 +44,36 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN PING 1HOP   (1500B) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (build/test/picoapp6.elf -6 0,0,0) &
+pids="$! "
 sleep 1
 (build/test/picoapp6.elf -6 1,2,1 -a noop) &
+pids+="$! "
 sleep 1
 build/test/picoapp6.elf -6 2,1,0 -a ping,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,1500,0,1 || exit 1
+#TODO roll out this check for all "daemon" processes
+for pid in $pids; do ps -o pid= -p $pid || exit 1; done # check whether daemon processes didn't die from e.g. ASAN
 killall -w picoapp6.elf -s SIGQUIT
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ 6LoWPAN UDP 1HOP   (1400B) ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#TODO are these "daemon" processes that need to be killed, or are they intended to halt on their own, giving a status code?
 (build/test/picoapp6.elf -6 0,0,0) &
 sleep 1
 (build/test/picoapp6.elf -6 1,2,1 -a udpecho,::0,6667,) &
 sleep 1
-build/test/picoapp6.elf -6 2,1,0 -a udpclient,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,6667,6667,1400,100,10, || exit 1
+build/test/picoapp6.elf -6 2,1,0 -a udpclient,2aaa:abcd:0000:0000:0200:00aa:ab00:0001,6667,6667,1400,10,1, || exit 1
 killall -w picoapp6.elf -s SIGQUIT
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST6 TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic1,/tmp/pic0.ctl,aaaa::2,ffff::, -a mcastreceive_ipv6,aaaa::2,ff00::e007:707,6667,6667,) &
-pids="$! "
 (./build/test/picoapp6.elf --vde pic2,/tmp/pic0.ctl,aaaa::3,ffff::, -a mcastreceive_ipv6,aaaa::3,ff00::e007:707,6667,6667,) &
-pids+="$! "
 (./build/test/picoapp6.elf --vde pic3,/tmp/pic0.ctl,aaaa::4,ffff::, -a mcastreceive_ipv6,aaaa::4,ff00::e007:707,6667,6667,) &
-pids+="$! "
 sleep 2
  ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a  mcastsend_ipv6,aaaa::1,ff00::e007:707,6667,6667,|| exit 1
-for pid in $pid; do wait $pid || exit 1; done
+killall -w picoapp6.elf -s SIGQUIT
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 LOCALHOST TEST ~~~"
@@ -141,14 +143,11 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667:) &
-pids="$! "
 (./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667:) &
-pids+="$! "
 (./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667:) &
-pids+="$! "
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667: || exit 1
-for pid in $pid; do wait $pid || exit 1; done
+killall -w picoapp.elf
 
 echo
 echo
@@ -248,14 +247,11 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ MULTICAST TEST ~~~"
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp.elf --vde pic1:/tmp/pic0.ctl:10.40.0.3:255.255.0.0::: -a mcastreceive:10.40.0.3:224.7.7.7:6667:6667:) &
-pids="$! "
 (./build/test/picoapp.elf --vde pic2:/tmp/pic0.ctl:10.40.0.4:255.255.0.0::: -a mcastreceive:10.40.0.4:224.7.7.7:6667:6667:) &
-pids+="$! "
 (./build/test/picoapp.elf --vde pic3:/tmp/pic0.ctl:10.40.0.5:255.255.0.0::: -a mcastreceive:10.40.0.5:224.7.7.7:6667:6667:) &
-pids+="$! "
 sleep 2
 ./build/test/picoapp.elf --vde pic0:/tmp/pic0.ctl:10.40.0.2:255.255.0.0::: -a mcastsend:10.40.0.2:224.7.7.7:6667:6667: || exit 1
-for pid in $pid; do wait $pid || exit 1; done
+killall -w picoapp.elf
 
 killall -w picoapp.elf
 

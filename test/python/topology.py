@@ -2,7 +2,7 @@
 # Python classes definition for the picoTCP
 # topology test environment
 #
-# Copyright (c) 2013-2015 Altran Intelligent Systems. See LICENSE for usage.
+# Copyright (c) 2013-2017 Altran Intelligent Systems. See LICENSE for usage.
 
 import  sys, os, subprocess, time, re
 
