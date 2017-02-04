@@ -22,6 +22,8 @@
 #define MAX_INITIAL_RTR_ADVERTISEMENTS      (3)
 #define DEFAULT_METRIC                      (10)
 
+#define DEBUG_IPV6_ND
+
 #ifdef DEBUG_IPV6_ND
 #define nd_dbg dbg
 #else
@@ -2360,7 +2362,7 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 
 void pico_ipv6_nd_init(void)
 {
-    uint32_t nd_timer_id = 0, ra_timer_id = 0, router_lifetime_id = 0, check_lifetime_id = 0;
+    uint32_t nd_timer_id = 0, ra_timer_id = 0, check_lifetime_id = 0;
 
     nd_timer_id = pico_timer_add(200, pico_ipv6_check_nce_callback, NULL);
     if (!nd_timer_id) {
@@ -2390,7 +2392,7 @@ void pico_ipv6_nd_init(void)
 fail_router_sol_timer:
     pico_timer_cancel(check_lifetime_id);
 fail_check_link_lifetime_timer:
-    pico_timer_cancel(router_lifetime_id);
+    pico_timer_cancel(ra_timer_id);
 fail_router_adv_timer:
     pico_timer_cancel(nd_timer_id);
 fail_check_nce_timer:
