@@ -74,6 +74,7 @@ struct pico_ipv6_router {
     struct pico_ipv6_neighbor *router;
     struct pico_ipv6_link *link;
     int is_default;
+    pico_time invalidation;
 };
 
 /******************************************************************************
@@ -977,8 +978,11 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
     struct pico_ipv6_neighbor *n = NULL;
     struct pico_ipv6_router *r = NULL;
     struct pico_ipv6_hdr *ip = (struct pico_ipv6_hdr *)f->net_hdr;
+    struct router_adv_s *r_adv_hdr = NULL;
+    struct pico_icmp6_hdr *icmp6_hdr = (struct pico_icmp6_hdr *)f->transport_hdr;
 
     if (!pico_ipv6_is_unspecified(ip->src.addr)) {
+        r_adv_hdr = &icmp6_hdr->msg.info.router_adv;
         n = pico_get_neighbor_from_ncache(&ip->src);
 
         if (!n) {
@@ -998,6 +1002,8 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
                 return;
             }
         }
+
+        r->invalidation = PICO_TIME_MS() + (pico_time)(short_be(r_adv_hdr->life_time) * 1000);
     }
 }
 
@@ -1794,7 +1800,6 @@ static int pico_nd_router_adv_recv(struct pico_frame *f)
         return -1;
     }
 
-
     hdr = (struct pico_ipv6_hdr *)f->net_hdr;
     pico_tree_foreach(index,&IPV6Links){
       link = index->keyValue;
@@ -2138,23 +2143,33 @@ static void pico_ipv6_nd_timer_elapsed(pico_time now, struct pico_ipv6_neighbor 
     pico_nd_set_new_expire_time(n);
 }
 
-static void pico_ipv6_check_nce_callback(pico_time now, void *arg)
+static void pico_ipv6_check_ce_callback(pico_time now, void *arg)
 {
     struct pico_tree_node *index = NULL, *_tmp = NULL;
-    struct pico_ipv6_neighbor *n;
+    struct pico_ipv6_neighbor *n = NULL;
+    struct pico_ipv6_router *r = NULL;
 
     IGNORE_PARAMETER(arg);
 
     pico_tree_foreach_safe(index, &NCache, _tmp)
     {
         n = index->keyValue;
+
         if (now > n->expire) {
             nd_dbg("NB EXPIRED: %lu, %lu\n", now, n->expire);
             print_nce(n);
             pico_ipv6_nd_timer_elapsed(now, n);
         }
+
+        r = pico_get_router_from_rcache(&n->address);
+
+        if (r && now > r->invalidation) {
+            nd_dbg("ROUTER EXPIRED\n");
+            print_nce(r->router);
+            pico_nd_delete_rce(r);
+        }
     }
-    if (!pico_timer_add(200, pico_ipv6_check_nce_callback, NULL)) {
+    if (!pico_timer_add(200, pico_ipv6_check_ce_callback, NULL)) {
         dbg("IPV6 ND: Failed to start check nce callback timer: FATAL!\n");
         /* TODO: FATAL if this happens, NCE will not switch states anymore */
     }
@@ -2362,10 +2377,10 @@ int pico_ipv6_nd_recv(struct pico_frame *f)
 
 void pico_ipv6_nd_init(void)
 {
-    uint32_t nd_timer_id = 0, ra_timer_id = 0, check_lifetime_id = 0;
+    uint32_t ce_timer_id = 0, ra_timer_id = 0, check_lifetime_id = 0;
 
-    nd_timer_id = pico_timer_add(200, pico_ipv6_check_nce_callback, NULL);
-    if (!nd_timer_id) {
+    ce_timer_id = pico_timer_add(200, pico_ipv6_check_ce_callback, NULL);
+    if (!ce_timer_id) {
         nd_dbg("IPv6 ND: Failed to start NCE callback timer\n");
         goto fail_check_nce_timer;
     }
@@ -2394,7 +2409,7 @@ fail_router_sol_timer:
 fail_check_link_lifetime_timer:
     pico_timer_cancel(ra_timer_id);
 fail_router_adv_timer:
-    pico_timer_cancel(nd_timer_id);
+    pico_timer_cancel(ce_timer_id);
 fail_check_nce_timer:
     return;
 }
