@@ -22,6 +22,7 @@
 #define PICO_ICMP6HDR_ROUTER_SOL_SIZE_6LP 16
 #define PICO_ICMP6HDR_ROUTER_ADV_SIZE   16
 #define PICO_ICMP6HDR_REDIRECT_SIZE     40
+#define PICO_ICMP6HDR_PKT_TOO_BIG_SIZE  (8)
 
 /* ICMP types */
 #define PICO_ICMP6_DEST_UNREACH        1
@@ -44,6 +45,9 @@
 #define PICO_ICMP6_UNREACH_PORT        4
 #define PICO_ICMP6_UNREACH_SRCFILTER   5
 #define PICO_ICMP6_UNREACH_REJROUTE    6
+
+/* packet too big received */
+#define PICO_ICMP6_ERR_PKT_TOO_BIG     6002
 
 /* time exceeded codes */
 #define PICO_ICMP6_TIMXCEED_INTRANS    0

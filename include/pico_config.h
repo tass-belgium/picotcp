@@ -53,6 +53,7 @@
 #define short_be(x) (x)
 #define long_be(x) (x)
 #define long_long_be(x) (x)
+#define be_to_host_long(x) (x)
 
 static inline uint16_t short_from(void *_p)
 {
@@ -164,6 +165,10 @@ static inline uint64_t long_long_be(uint64_t le)
 }
 
 #   endif /* BYTESWAP_GCC */
+static inline uint32_t be_to_host_long(uint32_t be)
+{
+    return long_be(be);
+}
 #endif
 
 /* Mockables */
