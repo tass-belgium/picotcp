@@ -28,6 +28,8 @@ RFC compliance  :
 [![Jenkins RFC Compliance](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_RF_mbed)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_RF_mbed) -
 TICS quality    :
 [![Jenkins TICS](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_TICS)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_TICS/)
+Coverity Scan Build status:
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/7944/badge.svg)](https://scan.coverity.com/projects/7944)
 
 ---------------
 
@@ -185,10 +187,7 @@ This is just a very quick overview, more info can be found in our [wiki](https:/
 
 Contributors are very welcome. Report a bug, suggest a way to improve our documentation, or write some new code.
 
-Note however that, before accepting your code, we would ask you to sign our [Contributors License Agreement](https://docs.google.com/forms/d/1-z6lsT75l6ZIrgHGEWrWdHylJ6xxpjc7FwGfL2ilDFU/viewform). Your code remains under your copyright, and will always be available under GPLv2. However, this CLA enables us to use picoTCP (including code from external contributors like you) under other licenses, including our commercial license. By doing commercial projects, we can keep investing in the quality and features of picoTCP.
-
-Coverity Scan Build status:
-[![Coverity Scan Build Status](https://scan.coverity.com/projects/7944/badge.svg)](https://scan.coverity.com/projects/7944)
+Note however that, before accepting your code, we would ask you to sign our [Contributors License Agreement](https://docs.google.com/forms/d/1-z6lsT75l6ZIrgHGEWrWdHylJ6xxpjc7FwGfL2ilDFU/viewform). Your code remains under your copyright, and will always be available under GPLv2 and GPLv3. However, this CLA enables us to use picoTCP (including code from external contributors like you) under other licenses, including our commercial license. By doing commercial projects, we can keep investing in the quality and features of picoTCP.
 
 ---------------
 
