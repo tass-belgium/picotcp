@@ -1712,14 +1712,6 @@ static int radv_process(struct pico_frame *f)
 
     /* TODO: process ABRO option */
 #endif
-    {
-        /* Router MTU processing */
-        struct pico_icmp6_opt_mtu mtu_option;
-        int mtu_valid = get_neigh_option(f, &mtu_option, PICO_ND_OPT_MTU);
-        if (mtu_valid > 0) {
-            pico_ipv6_set_router_mtu(&hdr->src,long_be(mtu_option.mtu));
-        }
-    }
 
     if (icmp6_hdr->msg.info.router_adv.retrans_time != 0u) {
         f->dev->hostvars.retranstime = long_be(icmp6_hdr->msg.info.router_adv.retrans_time);
@@ -1769,6 +1761,17 @@ static int radv_process(struct pico_frame *f)
             nd_dbg("router adv: preconfigured prefix, add link\n");
         } else {
             nd_dbg("router adv: not a preconfigured prefix\n");
+        }
+    }
+
+    {
+        /* Router MTU processing,
+         * router link has to be set before calling pico_ipv6_set_router_mtu
+         */
+        struct pico_icmp6_opt_mtu mtu_option;
+        int mtu_valid = get_neigh_option(f, &mtu_option, PICO_ND_OPT_MTU);
+        if (mtu_valid > 0) {
+            pico_ipv6_set_router_mtu(&hdr->src,long_be(mtu_option.mtu));
         }
     }
 
