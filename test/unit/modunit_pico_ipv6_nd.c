@@ -13,6 +13,10 @@
 
 #ifdef PICO_SUPPORT_IPV6
 
+#define VALUE_BETWEEN_RANGE(val, min, max)      \
+  (((val) > (min)) && ((val) < (max)))
+#define EXPIRE_TIME_RANGE_MS               (5)
+
 enum ND_PACKET_TYPE {
   PACKET_TYPE_NORMAL = 0,
   PACKET_TYPE_BAD_LEN,
@@ -521,30 +525,43 @@ START_TEST(tc_pico_nd_set_new_expire_time)
     0
   };
   struct pico_device d = { {0} };
+  pico_time now = 0;
 
   n.dev = &d;
 
   d.hostvars.retranstime = 666;
+  d.hostvars.reachabletime = PICO_ND_REACHABLE_TIME;
+  /*
+   * We will test if the expire time is between a certain range,
+   * instead of comparing with the exact value set in the function
+   *
+   * This is to reduce machine/test-run dependency because of the use of PICO_TIME_MS()
+   */
 
   n.state = PICO_ND_STATE_INCOMPLETE;
   pico_nd_set_new_expire_time(&n);
-  fail_if(n.expire != PICO_TIME_MS() + d.hostvars.retranstime);
+  now = PICO_TIME_MS();
+  fail_unless(VALUE_BETWEEN_RANGE(n.expire, now + d.hostvars.retranstime - EXPIRE_TIME_RANGE_MS, now + d.hostvars.retranstime + EXPIRE_TIME_RANGE_MS));
 
   n.state = PICO_ND_STATE_REACHABLE;
   pico_nd_set_new_expire_time(&n);
-  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_REACHABLE_TIME);
+  now = PICO_TIME_MS();
+  fail_unless(VALUE_BETWEEN_RANGE(n.expire, now + d.hostvars.reachabletime - EXPIRE_TIME_RANGE_MS, now + d.hostvars.reachabletime + EXPIRE_TIME_RANGE_MS));
 
   n.state = PICO_ND_STATE_STALE;
   pico_nd_set_new_expire_time(&n);
-  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
+  now = PICO_TIME_MS();
+  fail_unless(VALUE_BETWEEN_RANGE(n.expire, now + PICO_ND_DELAY_FIRST_PROBE_TIME - EXPIRE_TIME_RANGE_MS, now + PICO_ND_DELAY_FIRST_PROBE_TIME + EXPIRE_TIME_RANGE_MS));
 
   n.state = PICO_ND_STATE_DELAY;
   pico_nd_set_new_expire_time(&n);
-  fail_if(n.expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
+  now = PICO_TIME_MS();
+  fail_unless(VALUE_BETWEEN_RANGE(n.expire, now + PICO_ND_DELAY_FIRST_PROBE_TIME - EXPIRE_TIME_RANGE_MS, now + PICO_ND_DELAY_FIRST_PROBE_TIME + EXPIRE_TIME_RANGE_MS));
 
   n.state = PICO_ND_STATE_PROBE;
   pico_nd_set_new_expire_time(&n);
-  fail_if(n.expire != PICO_TIME_MS() + d.hostvars.retranstime);
+  now = PICO_TIME_MS();
+  fail_unless(VALUE_BETWEEN_RANGE(n.expire, now + d.hostvars.retranstime - EXPIRE_TIME_RANGE_MS, now + d.hostvars.retranstime + EXPIRE_TIME_RANGE_MS));
 }
 END_TEST
 START_TEST(tc_pico_ipv6_assign_default_router_on_link)
@@ -1784,6 +1801,7 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   };
   const char *name = "nd_test";
   struct pico_device *dummy_dev = NULL;
+  pico_time now = 0;
 
   dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
   pico_device_init(dummy_dev, name, mac);
@@ -1801,12 +1819,13 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   n->failure_multi_count = 0;
   n->expire = 0;
 
+  now = PICO_TIME_MS();
   pico_ipv6_nd_timer_elapsed(0, n);
 
   fail_unless(pico_ns_solicited_count == 1, "When in state INCOMPLETE (and failure counters of NCE==0), NS should have been sent");
   fail_unless(pico_ns_count == 1, "When in state INCOMPLETE (and failure counters of NCE==0), NS should have been sent only once");
   fail_unless(n->state == PICO_ND_STATE_INCOMPLETE, "State of NCE shouldn't have changed when INCOMPLETE");
-  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+  fail_unless(VALUE_BETWEEN_RANGE(n->expire, now + n->dev->hostvars.retranstime - EXPIRE_TIME_RANGE_MS, now + n->dev->hostvars.retranstime + EXPIRE_TIME_RANGE_MS));
 
   /* Reset */
   pico_ns_solicited_count = 0;
