@@ -7,6 +7,8 @@
 #define INCLUDE_PICO_CONST
 /* Included from pico_config.h */
 
+#include <stdint.h>
+
 /** Non-endian dependant constants */
 #define PICO_SIZE_IP4    4
 #define PICO_SIZE_IP6   16

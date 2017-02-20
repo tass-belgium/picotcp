@@ -9,6 +9,11 @@
 #ifndef PICO_AODV_H_
 #define PICO_AODV_H_
 
+#include <stdint.h>
+#include "pico_addressing.h"
+#include "pico_config.h"
+#include "pico_device.h"
+
 /* RFC3561 */
 #define PICO_AODV_PORT (654)
 

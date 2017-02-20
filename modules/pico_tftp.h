@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "pico_addressing.h"
 
 #define PICO_TFTP_PORT          (69)
 #define PICO_TFTP_PAYLOAD_SIZE  (512)
