@@ -1735,33 +1735,38 @@ static int radv_process(struct pico_frame *f)
         nd_dbg("IPv6-ND: Prefix option not present\n");
         prefix = &zero;
     }
-
-    link = pico_ipv6_link_add_local(f->dev, prefix);
-    if (link) {
+    link = pico_ipv6_link_get(prefix);
+    // If already exists, update lifetime
+    if(link) {
         pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
-        pico_ipv6_set_router_link(&hdr->src, link);
+    } else {
+      link = pico_ipv6_link_add_local(f->dev, prefix);
+      if (link) {
+          pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
+          pico_ipv6_set_router_link(&hdr->src, link);
 
-        if (!pico_nd_get_default_router()) {
-            pico_ipv6_assign_router_on_link(1, link);
-        } else {
-            nd_dbg("Already a default router in, don't add router yet\n");
-        }
+          if (!pico_nd_get_default_router()) {
+              pico_ipv6_assign_router_on_link(1, link);
+          } else {
+              nd_dbg("Already a default router in, don't add router yet\n");
+          }
 
 #ifdef PICO_SUPPORT_6LOWPAN
-        if (PICO_DEV_IS_6LOWPAN(f->dev)) {
-            pico_6lp_nd_register(link);
-        }
+          if (PICO_DEV_IS_6LOWPAN(f->dev)) {
+              pico_6lp_nd_register(link);
+          }
 #endif
-    } else {
-        nd_dbg("router adv: no link\n");
-        link = pico_ipv6_prefix_configured(prefix);
+      } else {
+          nd_dbg("router adv: no link\n");
+          link = pico_ipv6_prefix_configured(prefix);
 
-        if (link) {
-            pico_ipv6_set_router_link(&hdr->src, link);
-            nd_dbg("router adv: preconfigured prefix, add link\n");
-        } else {
-            nd_dbg("router adv: not a preconfigured prefix\n");
-        }
+          if (link) {
+              pico_ipv6_set_router_link(&hdr->src, link);
+              nd_dbg("router adv: preconfigured prefix, add link\n");
+          } else {
+              nd_dbg("router adv: not a preconfigured prefix\n");
+          }
+      }
     }
 
     {
