@@ -302,6 +302,10 @@ static void lcp_optflags_print(struct pico_device_ppp *ppp, uint8_t *opts, uint3
 #define PPP_TIMER_ON_AUTH       0x10u
 #define PPP_TIMER_ON_IPCP       0x20u
 
+static int should_escape(uint8_t byte) {
+  return (byte == PPPF_FLAG_SEQ || byte == PPPF_CTRL_ESC || byte < 0x20);
+}
+
 /* Escape and send */
 static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int len)
 {
@@ -326,7 +330,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
 
     for (i = 1; i < (len - 1); i++) /* from 1 to len -1, as start/stop are not escaped */
     {
-        if (((in_buf[i] + 1u) >> 1) == 0x3Fu)
+        if (should_escape(in_buf[i]))
             esc_char_count++;
     }
     if (!esc_char_count) {
@@ -341,7 +345,7 @@ static int ppp_serial_send_escape(struct pico_device_ppp *ppp, void *buf, int le
     /* Start byte. */
     out_buf[0] = in_buf[0];
     for(i = 1, j = 1; i < (len - 1); i++) {
-        if (((in_buf[i] + 1u) >> 1) == 0x3Fu) {
+        if (should_escape(in_buf[i])) {
             out_buf[j++] = PPPF_CTRL_ESC;
             out_buf[j++] = in_buf[i] ^ 0x20;
         } else {
