@@ -1175,6 +1175,7 @@ START_TEST(tc_pico_nd_delete_entry)
 
     addr[i].addr[0] = (uint8_t)i;
     neighbors[i]->address = addr[i];
+    neighbors[i]->is_router = 1;
 
     pico_tree_insert(&NCache, neighbors[i]);
     pico_tree_insert(&RCache, routers[i]);
