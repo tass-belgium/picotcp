@@ -2162,12 +2162,14 @@ static void pico_ipv6_check_ce_callback(pico_time now, void *arg)
             pico_ipv6_nd_timer_elapsed(now, n);
         }
 
-        r = pico_get_router_from_rcache(&n->address);
+        if(n->is_router) {
+          r = pico_get_router_from_rcache(&n->address);
 
-        if (r && now > r->invalidation) {
-            nd_dbg("ROUTER EXPIRED\n");
-            print_nce(r->router);
-            pico_nd_delete_rce(r);
+          if (r && now > r->invalidation) {
+              nd_dbg("ROUTER EXPIRED\n");
+              print_nce(r->router);
+              pico_nd_delete_rce(r);
+          }
         }
     }
     if (!pico_timer_add(200, pico_ipv6_check_ce_callback, NULL)) {
