@@ -576,7 +576,8 @@ static void pico_nd_delete_entry(const struct pico_ip6 *addr)
     n = pico_get_neighbor_from_ncache(addr);
 
     /* If it is a router, it should be in the RCache */
-    r = pico_get_router_from_rcache(addr);
+    if(n && n->is_router)
+      r = pico_get_router_from_rcache(addr);
 
 #ifdef PICO_SUPPORT_6LOWPAN
     /* 6LP: Find any 6LoWPAN-hosts for which this address might have been a default gateway.
@@ -2388,7 +2389,7 @@ void pico_ipv6_nd_init(void)
         goto fail_check_nce_timer;
     }
 
-    ra_timer_id = pico_timer_add(200, pico_ipv6_router_adv_timer_callback, NULL);
+    ra_timer_id = pico_timer_add(PICO_IPV6_ND_MIN_RADV_INTERVAL, pico_ipv6_router_adv_timer_callback, NULL);
     if (!ra_timer_id) {
         nd_dbg("IPv6 ND: Failed to start RA callback timer\n");
         goto fail_router_adv_timer;
