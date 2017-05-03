@@ -1,0 +1,23 @@
+\section{Initialization}
+
+\subsection{pico$\_$stack$\_$init}
+
+\subsubsection*{Description}
+Initializes the picoTCP stack and must be called before any other function.
+
+\subsubsection*{Function prototype}
+\begin{verbatim}
+int pico_stack_init(void);
+\end{verbatim}
+
+\subsubsection*{Return value}
+On success, this call returns 0.
+On error, -1 is returned (\texttt{pico$\_$err} is \textbf{not} set).
+
+\subsubsection*{Example}
+\begin{verbatim}
+int main(int argc, char* argv[]) {
+    pico_stack_init();
+    /* Code using picoTCP */
+}
+\end{verbatim}

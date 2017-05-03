@@ -220,6 +220,7 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
+\item \texttt{PICO$\_$ERR$\_$ENXIO} - no such device or address
 \end{itemize}
 
 \subsubsection*{Example}
@@ -325,7 +326,7 @@ a one-direction NAT entry will be made.
 \begin{verbatim}
 int pico_ipv4_port_forward(struct pico_ip4 pub_addr, uint16_t pub_port,
 struct pico_ip4 priv_addr, uint16_t priv_port, uint8_t proto,
-uint8_t persistant)
+uint8_t flag)
 \end{verbatim}
 
 \subsubsection*{Parameters}
@@ -335,7 +336,7 @@ uint8_t persistant)
 \item \texttt{priv$\_$addr} - Private IP address of the host on the internal network.
 \item \texttt{priv$\_$port} - Private port of the host on the internal network.
 \item \texttt{proto} - Protocol identifier, see supported list below.
-\item \texttt{persistant} - Option for function call: create \texttt{PICO$\_$IPV4$\_$FORWARD$\_$ADD} (= 1) \\
+\item \texttt{flag} - Option for function call: create \texttt{PICO$\_$IPV4$\_$FORWARD$\_$ADD} (= 1) \\
 or delete \texttt{PICO$\_$IPV4$\_$FORWARD$\_$DEL} (= 0).
 \end{itemize}
 
@@ -347,14 +348,14 @@ or delete \texttt{PICO$\_$IPV4$\_$FORWARD$\_$DEL} (= 0).
 \end{itemize}
 
 \subsubsection*{Return value}
-On success, this call 0 after a succesfull entry of the forward rule.
+On success, this call 0 after a successful entry of the forward rule.
 On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
 \begin{itemize}[noitemsep]
 \item \texttt{PICO$\_$ERR$\_$EINVAL} - invalid argument
 \item \texttt{PICO$\_$ERR$\_$ENOMEM} - not enough space
-\item \texttt{PICO$\_$ERR$\_$EAGAIN} - not succesfull, try again
+\item \texttt{PICO$\_$ERR$\_$EAGAIN} - not successful, try again
 \end{itemize}
 
 \subsubsection*{Example}
@@ -370,6 +371,8 @@ host_port, PICO_PROTO_UDP, 1);
 \subsubsection*{Description}
 Add a new route to the destination IP address from the local device link, f.e. eth0.
 
+If both \texttt{address} and \texttt{netmask} are zeroed, the call assumes the meaning of adding a default gateway.
+
 \subsubsection*{Function prototype}
 \begin{verbatim}
 int pico_ipv4_route_add(struct pico_ip4 address, struct pico_ip4 netmask,
@@ -379,10 +382,10 @@ struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link);
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{address} - Pointer to the destination internet host address as \texttt{struct pico$\_$ip4}.
-\item \texttt{netmask} - Netmask of the address. If zeroed, the call assumes the meaning of adding a default gateway.
+\item \texttt{netmask} - Netmask of the address.
 \item \texttt{gateway} - Gateway of the address network. If zeroed, no gateway will be associated to this route, and the traffic towards the destination will be simply forwarded towards the given device.
 \item \texttt{metric} - Metric for this route.
-\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory, otherwise \texttt{NULL} can be used.
+\item \texttt{link} - Local device interface. If a valid gateway is specified, this parameter is not mandatory, otherwise \texttt{NULL} can not be used.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -411,17 +414,14 @@ Remove the route to the destination IP address from the local device link, f.e. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
-int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask,
-struct pico_ip4 gateway, int metric, struct pico_ipv4_link *link); 
+int pico_ipv4_route_del(struct pico_ip4 address, struct pico_ip4 netmask, int metric);
 \end{verbatim}
 
 \subsubsection*{Parameters}
 \begin{itemize}[noitemsep]
 \item \texttt{address} - Pointer to the destination internet host address as struct \texttt{pico$\_$ip4}.
 \item \texttt{netmask} - Netmask of the address.
-\item \texttt{gateway} - Gateway of the address network.
 \item \texttt{metric} - Metric of the route.
-\item \texttt{link} - Local device interface.
 \end{itemize}
 
 \subsubsection*{Return value}
@@ -435,7 +435,7 @@ On error, -1 is returned and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Example}
 \begin{verbatim}
-ret = pico_ipv4_route_del(dst, netmask, gateway, metric, link);
+ret = pico_ipv4_route_del(dst, netmask, metric);
 \end{verbatim}
 
 
@@ -456,7 +456,7 @@ struct pico_ip4 pico_ipv4_route_get_gateway(struct pico_ip4 *addr)
 \end{itemize}
 
 \subsubsection*{Return value}
-On success the gateway address is returned.
+On success the gateway address is returned -- or \texttt{0.0.0.0} if no gateway is needed (and \texttt{pico$\_$err} is unchanged).
 On error a \texttt{null} address is returned (\texttt{0.0.0.0}) and \texttt{pico$\_$err} is set appropriately.
 
 \subsubsection*{Errors}
@@ -475,7 +475,7 @@ gateway_addr = pico_ip4 pico_ipv4_route_get_gateway(&dest_addr)
 
 \subsubsection*{Description}
 This function sends out a number of ping echo requests and checks if the replies are received correctly.
-The information from the replies is passed to the callback function after a succesfull reception.
+The information from the replies is passed to the callback function after a successful reception.
 If a timeout expires before a reply is received, the callback is called with the error condition.
 
 \subsubsection*{Function prototype}

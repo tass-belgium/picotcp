@@ -10,6 +10,7 @@
 #ifndef INCLUDE_PICO_NAT
 #define INCLUDE_PICO_NAT
 #include "pico_frame.h"
+#include "pico_ipv4.h"
 
 #define PICO_NAT_PORT_FORWARD_DEL 0
 #define PICO_NAT_PORT_FORWARD_ADD 1

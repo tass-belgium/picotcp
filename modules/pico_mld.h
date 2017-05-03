@@ -10,6 +10,9 @@
 #ifndef INCLUDE_PICO_MLD
 #define INCLUDE_PICO_MLD
 
+#include <stdint.h>
+#include "pico_ipv6.h"
+
 #define PICO_MLDV1               1
 #define PICO_MLDV2               2
 

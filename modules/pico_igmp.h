@@ -10,6 +10,8 @@
 #ifndef INCLUDE_PICO_IGMP
 #define INCLUDE_PICO_IGMP
 
+#include "pico_ipv4.h"
+
 #define PICO_IGMPV1               1
 #define PICO_IGMPV2               2
 #define PICO_IGMPV3               3
