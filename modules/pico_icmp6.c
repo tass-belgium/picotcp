@@ -63,20 +63,116 @@ static void pico_icmp6_ping_recv_reply(struct pico_frame *f);
 static void pico_icmp6_update_pmtu(struct pico_frame *f);
 #endif
 
-static int pico_icmp6_send_echoreply(struct pico_frame *echo)
+static int pico_icmp6_send_echoreply_not_frag(struct pico_frame *echo)
 {
     struct pico_frame *reply = NULL;
     struct pico_icmp6_hdr *ehdr = NULL, *rhdr = NULL;
     struct pico_ip6 src;
     struct pico_ip6 dst;
+
+    reply = pico_proto_ipv6.alloc(&pico_proto_ipv6, echo->dev, (uint16_t)(echo->transport_len));
+    if (!reply) {
+        pico_err = PICO_ERR_ENOMEM;
+        return -1;
+    }
+
+    echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
+    reply->payload = reply->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
+    reply->payload_len = echo->transport_len;
+    reply->timestamp = pico_tick;
+
+    ehdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
+    rhdr = (struct pico_icmp6_hdr *)reply->transport_hdr;
+    rhdr->type = PICO_ICMP6_ECHO_REPLY;
+    rhdr->code = 0;
+    rhdr->msg.info.echo_reply.id = ehdr->msg.info.echo_reply.id;
+    rhdr->msg.info.echo_reply.seq = ehdr->msg.info.echo_request.seq;
+    memcpy(reply->payload, echo->payload, (uint32_t)(echo->transport_len - PICO_ICMP6HDR_ECHO_REQUEST_SIZE));
+    rhdr->crc = 0;
+    rhdr->crc = short_be(pico_icmp6_checksum(reply));
+    /* Get destination and source swapped */
+    memcpy(dst.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
+    memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, PICO_SIZE_IP6);
+
+    pico_ipv6_frame_push(reply, &src, &dst, PICO_PROTO_ICMP6, 0);
+    return 0;
+}
+
+static int pico_icmp6_send_echoreply_frag(struct pico_frame *echo)
+{
+    uint16_t offset = 0;
+    uint16_t frag_payload = (uint16_t) (echo->transport_len);
+    uint16_t header_overhead = (uint16_t) (echo->net_len + (echo->net_hdr - echo->buffer));
     static uint32_t frag_id = 0;
-
-    {
     uint32_t mtu = echo->dev->mtu;
-    const struct pico_ipv6_path_id path_id = {((struct pico_ipv6_hdr *)echo->net_hdr)->src};
-    const uint16_t header_overhead = (uint16_t) (echo->net_len + (echo->net_hdr - echo->buffer));
+    struct pico_frame *reply = NULL;
+    struct pico_icmp6_hdr *ehdr = NULL, *rhdr = NULL;
+    struct pico_ip6 src;
+    struct pico_ip6 dst;
 
+    echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
+    ehdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
+    /* Get destination and source swapped */
+    memcpy(dst.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
+    memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, PICO_SIZE_IP6);
+
+    while (offset < frag_payload) {
+        uint16_t size = (uint16_t) (frag_payload - offset);
+        const uint16_t icmp_mss = (uint16_t) (mtu - PICO_IPV6_EXTHDR_FRAG_SIZE - header_overhead);
+        if (size > icmp_mss) {
+            size = (uint16_t) (icmp_mss - (icmp_mss % 8));
+        }
+        /* Allocate ipv6 with fragmentation header */
+        reply = pico_proto_ipv6.alloc(&pico_proto_ipv6, echo->dev, (uint16_t) (size + PICO_IPV6_EXTHDR_FRAG_SIZE));
+
+        if (!reply) {
+            pico_err = PICO_ERR_ENOMEM;
+            return -1;
+        }
+        reply->net_len = (uint16_t) (reply->net_len + PICO_IPV6_EXTHDR_FRAG_SIZE);
+        reply->transport_hdr += PICO_IPV6_EXTHDR_FRAG_SIZE;
+        reply->transport_len = (uint16_t) (reply->transport_len - PICO_IPV6_EXTHDR_FRAG_SIZE);
+        /* Populate fragmentation header */
+        {
+        struct pico_ipv6_exthdr * frag_header = (struct pico_ipv6_exthdr *) (reply->transport_hdr-PICO_IPV6_EXTHDR_FRAG_SIZE);
+        uint16_t octet_offset = short_be((uint16_t)(offset));
+        if (offset + size < frag_payload) {
+            octet_offset = octet_offset | short_be(1);
+        }
+        frag_header->nxthdr = PICO_PROTO_ICMP6;
+        memcpy(frag_header->ext.frag.id, (uint8_t *)(&frag_id), 4);
+        memcpy(frag_header->ext.frag.om, (uint8_t *)(&octet_offset), 2);
+        }
+        /* Prepare for sending */
+        memcpy(reply->transport_hdr, echo->transport_hdr + offset, size);
+        if (offset ==  0){
+            rhdr = (struct pico_icmp6_hdr *)reply->transport_hdr;
+            rhdr->type = PICO_ICMP6_ECHO_REPLY;
+            rhdr->code = 0;
+            rhdr->msg.info.echo_reply.id = ehdr->msg.info.echo_reply.id;
+            rhdr->msg.info.echo_reply.seq = ehdr->msg.info.echo_request.seq;
+            /* Received echo packet used for checksum calculation */
+            memcpy(((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, src.addr, PICO_SIZE_IP6);
+            memcpy(((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, dst.addr, PICO_SIZE_IP6);
+            ehdr->type = PICO_ICMP6_ECHO_REPLY;
+            ehdr->code = 0;
+            ehdr->crc = 0;
+            rhdr->crc = short_be(pico_icmp6_checksum(echo));
+        }
+
+        pico_ipv6_frame_push(reply, &src, &dst, PICO_IPV6_EXTHDR_FRAG, 0);
+        offset = (uint16_t)(offset + size);
+    }
+    return 0;
+}
+
+static int pico_icmp6_send_echoreply(struct pico_frame *echo)
+{
+    uint32_t mtu = echo->dev->mtu;
+    uint16_t header_overhead = (uint16_t) (echo->net_len + (echo->net_hdr - echo->buffer));
 #ifdef PICO_SUPPORT_IPV6PMTU
+    struct pico_ipv6_path_id path_id = {((struct pico_ipv6_hdr *)echo->net_hdr)->src};
+
     mtu = pico_ipv6_pmtu_get(&path_id);
     if (mtu == 0) {
         mtu = echo->dev->mtu;
@@ -85,92 +181,10 @@ static int pico_icmp6_send_echoreply(struct pico_frame *echo)
 #endif
 
     if (echo->transport_len < mtu - header_overhead) {
-        reply = pico_proto_ipv6.alloc(&pico_proto_ipv6, echo->dev, (uint16_t)(echo->transport_len));
-        if (!reply) {
-            pico_err = PICO_ERR_ENOMEM;
-            return -1;
-        }
-
-        echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
-        reply->payload = reply->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
-        reply->payload_len = echo->transport_len;
-    reply->timestamp = pico_tick;
-
-        ehdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
-        rhdr = (struct pico_icmp6_hdr *)reply->transport_hdr;
-        rhdr->type = PICO_ICMP6_ECHO_REPLY;
-        rhdr->code = 0;
-        rhdr->msg.info.echo_reply.id = ehdr->msg.info.echo_reply.id;
-        rhdr->msg.info.echo_reply.seq = ehdr->msg.info.echo_request.seq;
-        memcpy(reply->payload, echo->payload, (uint32_t)(echo->transport_len - PICO_ICMP6HDR_ECHO_REQUEST_SIZE));
-        rhdr->crc = 0;
-        rhdr->crc = short_be(pico_icmp6_checksum(reply));
-        /* Get destination and source swapped */
-        memcpy(dst.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
-        memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, PICO_SIZE_IP6);
-
-        pico_ipv6_frame_push(reply, &src, &dst, PICO_PROTO_ICMP6, 0);
+      return pico_icmp6_send_echoreply_not_frag(echo);
     } else {
-        uint16_t offset = 0;
-        const uint16_t frag_payload = (uint16_t) (echo->transport_len);
-
-        echo->payload = echo->transport_hdr + PICO_ICMP6HDR_ECHO_REQUEST_SIZE;
-        ehdr = (struct pico_icmp6_hdr *)echo->transport_hdr;
-        /* Get destination and source swapped */
-        memcpy(dst.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, PICO_SIZE_IP6);
-        memcpy(src.addr, ((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, PICO_SIZE_IP6);
-
-        while (offset < frag_payload) {
-            uint16_t size = (uint16_t) (frag_payload - offset);
-            const uint16_t icmp_mss = (uint16_t) (mtu - PICO_IPV6_EXTHDR_FRAG_SIZE - header_overhead);
-            if (size > icmp_mss) {
-                size = (uint16_t) (icmp_mss - (icmp_mss % 8));
-            }
-            /* Allocate ipv6 with fragmentation header */
-            reply = pico_proto_ipv6.alloc(&pico_proto_ipv6, echo->dev, (uint16_t) (size + PICO_IPV6_EXTHDR_FRAG_SIZE));
-
-            if (!reply) {
-                pico_err = PICO_ERR_ENOMEM;
-                return -1;
-            }
-            reply->net_len = (uint16_t) (reply->net_len + PICO_IPV6_EXTHDR_FRAG_SIZE);
-            reply->transport_hdr += PICO_IPV6_EXTHDR_FRAG_SIZE;
-            reply->transport_len = (uint16_t) (reply->transport_len - PICO_IPV6_EXTHDR_FRAG_SIZE);
-            /* Populate fragmentation header */
-            {
-            struct pico_ipv6_exthdr * frag_header = (struct pico_ipv6_exthdr *) (reply->transport_hdr-PICO_IPV6_EXTHDR_FRAG_SIZE);
-            uint16_t octet_offset = short_be((uint16_t)(offset));
-            if (offset + size < frag_payload) {
-                octet_offset = octet_offset | short_be(1);
-            }
-            frag_header->nxthdr = PICO_PROTO_ICMP6;
-            memcpy(frag_header->ext.frag.id, (uint8_t *)(&frag_id), 4);
-            memcpy(frag_header->ext.frag.om, (uint8_t *)(&octet_offset), 2);
-            }
-            /* Prepare for sending */
-            memcpy(reply->transport_hdr, echo->transport_hdr + offset, size);
-            if (offset ==  0){
-                rhdr = (struct pico_icmp6_hdr *)reply->transport_hdr;
-                rhdr->type = PICO_ICMP6_ECHO_REPLY;
-                rhdr->code = 0;
-                rhdr->msg.info.echo_reply.id = ehdr->msg.info.echo_reply.id;
-                rhdr->msg.info.echo_reply.seq = ehdr->msg.info.echo_request.seq;
-                /* Received echo packet used for checksum calculation */
-                memcpy(((struct pico_ipv6_hdr *)echo->net_hdr)->src.addr, src.addr, PICO_SIZE_IP6);
-                memcpy(((struct pico_ipv6_hdr *)echo->net_hdr)->dst.addr, dst.addr, PICO_SIZE_IP6);
-                ehdr->type = PICO_ICMP6_ECHO_REPLY;
-                ehdr->code = 0;
-                ehdr->crc = 0;
-                rhdr->crc = short_be(pico_icmp6_checksum(echo));
-            }
-
-            pico_ipv6_frame_push(reply, &src, &dst, PICO_IPV6_EXTHDR_FRAG, 0);
-            offset = (uint16_t)(offset + size);
-        }
+      return pico_icmp6_send_echoreply_frag(echo);
     }
-    }
-
-    return 0;
 }
 
 static void pico_icmp6_ping_echo_recv_request(struct pico_frame *f)
