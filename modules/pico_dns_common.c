@@ -41,7 +41,7 @@
 int
 pico_dns_check_namelen( uint16_t namelen )
 {
-    return ((namelen > 2u) && (namelen < 256u)) ? (0) : (-1);
+    return ((namelen > 2u) && (namelen < PICO_DNS_NAMEBUF_SIZE)) ? (0) : (-1);
 }
 
 /* ****************************************************************************
@@ -66,7 +66,7 @@ pico_dns_namelen_comp( char *name )
     }
 
     /* Just count until the zero-byte or a pointer */
-    dns_name_foreach_label_safe(label, name, next, 255) {
+    dns_name_foreach_label_safe(label, name, next, PICO_DNS_NAMEBUF_SIZE) {
         if ((0xC0 & *label))
             break;
     }
@@ -101,16 +101,17 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
 
     /* Reading labels until reaching to pointer or NULL terminator.
      * Only one pointer is allowed in DNS compression, the pointer is always the last according to the RFC */
-    dns_name_foreach_label_safe(label, name, next, sizeof(decompressed_name)) {
-        uint8_t label_size = (uint8_t)(*label + 1);
-        if (decompressed_index + label_size >= sizeof(decompressed_name)) {
+    dns_name_foreach_label_safe(label, name, next, PICO_DNS_NAMEBUF_SIZE) {
+
+        uint8_t label_size = (uint8_t)(*label+1);
+        if (decompressed_index + label_size >= PICO_DNS_NAMEBUF_SIZE) {
             return NULL;
         }
         memcpy(&decompressed_name[decompressed_index], label, label_size);
         decompressed_index = (uint16_t)(decompressed_index+label_size);
     }
 
-    if (decompressed_index >= sizeof(decompressed_name)) {
+    if (decompressed_index >= PICO_DNS_NAMEBUF_SIZE) {
         return NULL;
     }
 
@@ -118,11 +119,11 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
         /* Found compression bits */
         ptr = (uint16_t)((((uint16_t) *label) & 0x003F) << 8);
         ptr = (uint16_t)(ptr | (uint16_t) *(label + 1));
-        label = (char *)((uint16_t *)packet + ptr);
+        label = (char *)((uint8_t *)packet + ptr);
 
-        dns_name_foreach_label_safe(label, label, next, sizeof(decompressed_name) - decompressed_index) {
+        dns_name_foreach_label_safe(label, label, next, PICO_DNS_NAMEBUF_SIZE-decompressed_index) {
             uint8_t label_size = (uint8_t)(*label + 1);
-            if (decompressed_index + label_size >= sizeof(decompressed_name)) {
+            if (decompressed_index + label_size >= PICO_DNS_NAMEBUF_SIZE) {
                 return NULL;
             }
             memcpy(&decompressed_name[decompressed_index], label, label_size);
@@ -130,7 +131,8 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
         }
     }
 
-    if (decompressed_index >= sizeof(decompressed_name)) {
+    fflush(stdout);
+    if (decompressed_index >= PICO_DNS_NAMEBUF_SIZE) {
         return NULL;
     }
 
@@ -251,7 +253,7 @@ char *
 pico_dns_qname_to_url( const char *qname )
 {
     char *url = NULL;
-    char temp[256] = {
+    char temp[PICO_DNS_NAMEBUF_SIZE] = {
         0
     };
     uint16_t namelen = pico_dns_strlen(qname);
