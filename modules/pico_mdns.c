@@ -1971,19 +1971,21 @@ pico_mdns_handle_single_question( struct pico_dns_question *question,
     /* Decompress single DNS question */
     qname_original = pico_dns_question_decompress(question, packet);
     mdns_dbg("Question RCVD for '%s'\n", question->qname);
+    if (NULL != question->qname) {
 
-    /* Find currently active query cookie */
-    if ((cookie = pico_mdns_ctree_find_cookie(question->qname,
-                                              PICO_MDNS_PACKET_TYPE_QUERY))) {
-        mdns_dbg("Query cookie found for question, suppress duplicate.\n");
-        cookie->status = PICO_MDNS_COOKIE_STATUS_CANCELLED;
-    } else {
-        qtype = short_be(question->qsuffix->qtype);
-        qclass = short_be(question->qsuffix->qclass);
-        antree = pico_mdns_populate_antree(question->qname, qtype, qclass);
+        /* Find currently active query cookie */
+        if ((cookie = pico_mdns_ctree_find_cookie(question->qname,
+                        PICO_MDNS_PACKET_TYPE_QUERY))) {
+            mdns_dbg("Query cookie found for question, suppress duplicate.\n");
+            cookie->status = PICO_MDNS_COOKIE_STATUS_CANCELLED;
+        } else {
+            qtype = short_be(question->qsuffix->qtype);
+            qclass = short_be(question->qsuffix->qclass);
+            antree = pico_mdns_populate_antree(question->qname, qtype, qclass);
+        }
+
+        PICO_FREE(question->qname);
     }
-
-    PICO_FREE(question->qname);
     question->qname = qname_original;
     return antree;
 }
@@ -2195,27 +2197,29 @@ pico_mdns_handle_data_as_answers_generic( uint8_t **ptr,
 
         /* Make an mDNS record from the DNS answer */
         orname = pico_dns_record_decompress(&answer, packet);
-        mdns_answer.record = &answer;
-        mdns_answer.record->rname_length = (uint16_t)(pico_dns_strlen(answer.rname) + 1u);
+        if (NULL != answer.rname) {
+            mdns_answer.record = &answer;
+            mdns_answer.record->rname_length = (uint16_t)(pico_dns_strlen(answer.rname) + 1u);
 
-        /* Handle a single aswer */
-        switch (type) {
-        case 1:
-            pico_mdns_handle_single_authority(&mdns_answer);
-            break;
-        case 2:
-            pico_mdns_handle_single_additional(&mdns_answer);
-            break;
-        default:
-            pico_mdns_handle_single_answer(&mdns_answer);
+            /* Handle a single aswer */
+            switch (type) {
+                case 1:
+                    pico_mdns_handle_single_authority(&mdns_answer);
+                    break;
+                case 2:
+                    pico_mdns_handle_single_additional(&mdns_answer);
+                    break;
+                default:
+                    pico_mdns_handle_single_answer(&mdns_answer);
 #if PICO_MDNS_ALLOW_CACHING == 1
-            pico_mdns_cache_add_record(&mdns_answer);
+                    pico_mdns_cache_add_record(&mdns_answer);
 #endif
-            break;
-        }
+                    break;
+            }
 
-        /* Free decompressed name and mDNS record */
-        PICO_FREE(mdns_answer.record->rname);
+            /* Free decompressed name and mDNS record */
+            PICO_FREE(mdns_answer.record->rname);
+        }
         answer.rname = orname;
 
         /* Move to next record */
