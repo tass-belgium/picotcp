@@ -102,12 +102,12 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
     /* Reading labels until reaching to pointer or NULL terminator.
      * Only one pointer is allowed in DNS compression, the pointer is always the last according to the RFC */
     dns_name_foreach_label_safe(label, name, next, sizeof(decompressed_name)) {
-        uint8_t label_size = (uint8_t)(*label) + 1;
+        uint8_t label_size = (uint8_t)(*label + 1);
         if (decompressed_index + label_size >= sizeof(decompressed_name)) {
             return NULL;
         }
         memcpy(&decompressed_name[decompressed_index], label, label_size);
-        decompressed_index += label_size;
+        decompressed_index = (uint16_t)(decompressed_index+label_size);
     }
 
     if (decompressed_index >= sizeof(decompressed_name)) {
@@ -118,15 +118,15 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
         /* Found compression bits */
         ptr = (uint16_t)((((uint16_t) *label) & 0x003F) << 8);
         ptr = (uint16_t)(ptr | (uint16_t) *(label + 1));
-        label = (uint8_t *)((uint8_t *)packet + ptr);
+        label = (char *)((uint16_t *)packet + ptr);
 
         dns_name_foreach_label_safe(label, label, next, sizeof(decompressed_name) - decompressed_index) {
-            uint8_t label_size = (uint8_t)(*label) + 1;
+            uint8_t label_size = (uint8_t)(*label + 1);
             if (decompressed_index + label_size >= sizeof(decompressed_name)) {
                 return NULL;
             }
             memcpy(&decompressed_name[decompressed_index], label, label_size);
-            decompressed_index += label_size;
+            decompressed_index = (uint16_t) (decompressed_index + label_size);
         }
     }
 
@@ -1539,7 +1539,7 @@ pico_dns_packet_compress_name( uint8_t *name,
 
     /* Try to compress name */
     lbl_iterator = name;
-    while (lbl_iterator != '\0') {
+    while (*lbl_iterator != '\0') {
         /* Try to find a compression pointer with current name */
         compression_ptr = pico_dns_packet_compress_find_ptr(lbl_iterator,
                                                             packet + 12, *len);
