@@ -131,7 +131,6 @@ pico_dns_decompress_name( char *name, pico_dns_packet *packet )
         }
     }
 
-    fflush(stdout);
     if (decompressed_index >= PICO_DNS_NAMEBUF_SIZE) {
         return NULL;
     }
