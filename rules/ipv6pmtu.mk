@@ -1,0 +1,2 @@
+OPTIONS+=-DPICO_SUPPORT_IPV6PMTU
+MOD_OBJ+=$(LIBBASE)modules/pico_ipv6_pmtu.o

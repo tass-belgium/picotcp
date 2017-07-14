@@ -22,6 +22,7 @@
 #define PICO_ICMP6HDR_ROUTER_SOL_SIZE_6LP 16
 #define PICO_ICMP6HDR_ROUTER_ADV_SIZE   16
 #define PICO_ICMP6HDR_REDIRECT_SIZE     40
+#define PICO_ICMP6HDR_PKT_TOO_BIG_SIZE  (8)
 
 /* ICMP types */
 #define PICO_ICMP6_DEST_UNREACH        1
@@ -45,6 +46,9 @@
 #define PICO_ICMP6_UNREACH_SRCFILTER   5
 #define PICO_ICMP6_UNREACH_REJROUTE    6
 
+/* packet too big received */
+#define PICO_ICMP6_ERR_PKT_TOO_BIG     6002
+
 /* time exceeded codes */
 #define PICO_ICMP6_TIMXCEED_INTRANS    0
 #define PICO_ICMP6_TIMXCEED_REASS      1
@@ -65,7 +69,8 @@
 #define PICO_ND_MAX_FRAMES_QUEUED      4 /* max frames queued while awaiting address resolution */
 
 /* ND RFC constants */
-#define PICO_ND_MAX_SOLICIT            3
+#define PICO_ND_MAX_UNICAST_SOLICIT    3
+#define PICO_ND_MAX_MULTICAST_SOLICIT  3
 #define PICO_ND_MAX_NEIGHBOR_ADVERT    3
 #define PICO_ND_DELAY_INCOMPLETE       1000 /* msec */
 #define PICO_ND_DELAY_FIRST_PROBE_TIME 5000 /* msec */
@@ -85,9 +90,12 @@
 #define PICO_ND_ROUTER             0x80000000
 #define PICO_ND_SOLICITED          0x40000000
 #define PICO_ND_OVERRIDE           0x20000000
-#define IS_ROUTER(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_ROUTER))           /* router flag set? */
-#define IS_SOLICITED(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_SOLICITED))     /* solicited flag set? */
-#define IS_OVERRIDE(x) (long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE))   /* override flag set? */
+/* router flag set? */
+#define IS_ROUTER(x)               (((long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_ROUTER)) >> 31) & 0x1)
+/* solicited flag set? */
+#define IS_SOLICITED(x)            (((long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_SOLICITED)) >> 30) & 0x1)
+/* override flag set? */
+#define IS_OVERRIDE(x)             (((long_be(x->msg.info.neigh_adv.rsor) & (PICO_ND_OVERRIDE)) >> 29) & 0x1)
 
 #define PICO_ND_PREFIX_LIFETIME_INF    0xFFFFFFFFu
 /* #define PICO_ND_DESTINATION_LRU_TIME   600000u / * msecs (10min) * / */

@@ -24,6 +24,8 @@
 #define PICO_IPV6_EXTHDR_NONE 59
 #define PICO_IPV6_EXTHDR_DESTOPT 60
 
+#define PICO_IPV6_EXTHDR_FRAG_SIZE 8
+
 #define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT 5
 #define PICO_IPV6_EXTHDR_OPT_ROUTER_ALERT_DATALEN 2
 
@@ -59,15 +61,18 @@ struct pico_ipv6_link
     struct pico_ip6 netmask;
     uint8_t istentative : 1;
     uint8_t isduplicate : 1;
+    uint8_t rs_retries;
     uint32_t dad_timer;
     uint16_t dup_detect_retrans;
     uint8_t retrans;
     pico_time expire_time;
+    pico_time rs_expire_time;
 #ifdef PICO_SUPPORT_MCAST
     struct pico_tree *MCASTGroups;
     uint8_t mcast_compatibility;
     uint8_t mcast_last_query_interval;
 #endif
+    uint32_t mtu;
 };
 
 union pico_link {
@@ -129,7 +134,7 @@ PACKED_STRUCT_DEF pico_ipv6_exthdr {
     } ext;
 };
 
-int pico_ipv6_compare(struct pico_ip6 *a, struct pico_ip6 *b);
+int pico_ipv6_compare(const struct pico_ip6 *a, const struct pico_ip6 *b);
 int pico_string_to_ipv6(const char *ipstr, uint8_t *ip);
 int pico_ipv6_to_string(char *ipbuf, const uint8_t ip[PICO_SIZE_IP6]);
 int pico_ipv6_is_unicast(struct pico_ip6 *a);
@@ -168,10 +173,10 @@ struct pico_ipv6_link *pico_ipv6_prefix_configured(struct pico_ip6 *prefix);
 struct pico_ipv6_route *pico_ipv6_gateway_by_dev(struct pico_device *dev);
 struct pico_ipv6_route *pico_ipv6_gateway_by_dev_next(struct pico_device *dev, struct pico_ipv6_route *last);
 int pico_ipv6_lifetime_set(struct pico_ipv6_link *l, pico_time expire);
-void pico_ipv6_check_lifetime_expired(pico_time now, void *arg);
+void pico_ipv6_check_link_lifetime_expired(pico_time now, void *arg);
 int pico_ipv6_dev_routing_enable(struct pico_device *dev);
 int pico_ipv6_dev_routing_disable(struct pico_device *dev);
-void pico_ipv6_router_down(struct pico_ip6 *address);
+void pico_ipv6_router_down(const struct pico_ip6 *address);
 
 int pico_ipv6_mcast_join(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter);
 int pico_ipv6_mcast_leave(struct pico_ip6 *mcast_link, struct pico_ip6 *mcast_group, uint8_t reference_count, uint8_t filter_mode, struct pico_tree *_MCASTFilter);

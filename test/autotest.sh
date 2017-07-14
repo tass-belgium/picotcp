@@ -73,7 +73,7 @@ echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 (./build/test/picoapp6.elf --vde pic3,/tmp/pic0.ctl,aaaa::4,ffff::, -a mcastreceive_ipv6,aaaa::4,ff00::e007:707,6667,6667,) &
 sleep 2
  ./build/test/picoapp6.elf --vde pic0,/tmp/pic0.ctl,aaaa::1,ffff::, -a  mcastsend_ipv6,aaaa::1,ff00::e007:707,6667,6667,|| exit 1
-killall -w picoapp6.elf -s SIGQUIT
+killall -w picoapp6.elf -s SIGKILL
 
 echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 echo "~~~ PING6 LOCALHOST TEST ~~~"
