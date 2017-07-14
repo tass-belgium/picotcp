@@ -470,6 +470,7 @@ int32_t pico_device_broadcast(struct pico_frame *f)
             ret = f->dev->send(f->dev, f->start, (int)f->len);
         }
     }
+    pico_frame_discard(f);
     return ret;
 }
 
