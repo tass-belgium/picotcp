@@ -68,6 +68,7 @@ START_TEST(tc_destination_is_bcast)
     CHECKING(count);
     fail_unless(0 == ret, "Should've returned 0 since not a mcast address\n");
     SUCCESS();
+    pico_frame_discard(f);
 
     BREAKING();
     ret = destination_is_bcast(NULL);
@@ -134,6 +135,7 @@ START_TEST(tc_destination_is_mcast)
     CHECKING(count);
     fail_unless(1 == ret, "Should've returned 1 since an IPv4 multicast\n");
     SUCCESS();
+    pico_frame_discard(f);
 
     BREAKING();
     ret = destination_is_bcast(NULL);
@@ -166,6 +168,7 @@ START_TEST(tc_pico_ipv4_ethernet_receive)
     CHECKING(count);
     fail_unless(pico_proto_ipv4.q_in->size == f->buffer_len, "Frame not enqueued\n");
     SUCCESS();
+    pico_frame_discard(f);
 
     ENDING(count);
 }
@@ -202,6 +205,7 @@ START_TEST(tc_pico_ipv6_ethernet_receive)
     CHECKING(count);
     fail_unless(pico_proto_ipv6.q_in->size == f->buffer_len, "Frame not enqueued\n");
     SUCCESS();
+    pico_frame_discard(f);
 
     ENDING(count);
 }
@@ -275,8 +279,96 @@ START_TEST(tc_pico_eth_receive)
     CHECKING(count);
     fail_unless(pico_proto_ipv4.q_in->size == f->buffer_len, "Frame not enqueued\n");
     SUCCESS();
+    pico_frame_discard(f);
 
     ENDING(count);
+}
+END_TEST
+
+static struct pico_frame* init_frame(struct pico_device *dev, int proto)
+{
+    struct pico_frame *f = NULL;
+    struct pico_eth_hdr *eth = NULL;
+
+    f = pico_frame_alloc(sizeof(struct pico_ipv4_hdr) + sizeof(struct pico_eth_hdr));
+    f->datalink_hdr = f->buffer;
+    f->net_hdr = f->datalink_hdr + sizeof(struct pico_eth_hdr);
+    f->dev = dev;
+    eth = (struct pico_eth_hdr *)f->datalink_hdr;
+
+    if (proto == PICO_IDETH_IPV4) {
+        ((uint8_t *)(f->net_hdr))[0] = 0x40; /* Ipv4 */
+        eth->proto = PICO_IDETH_IPV4;
+    } else if (proto == PICO_IDETH_IPV4) {
+        ((uint8_t *)(f->net_hdr))[0] = 0x60; /* Ipv6 */
+        eth->proto = PICO_IDETH_IPV6;
+    } else {
+        /* TODO: what do we do now? */
+    }
+
+    return f;
+}
+
+START_TEST(tc_pico_ethsend_local)
+{
+    struct pico_frame *f = NULL;
+    struct pico_eth_hdr *eth = NULL;
+    struct pico_device *dummy_dev = NULL;
+    char name[] = "my_device";
+    int count = 0;
+    uint8_t dummy_mac_0[6] = {
+        0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+    };
+    uint8_t dummy_mac_1[6] = {
+        0x02, 0x02, 0x03, 0x04, 0x05, 0x06
+    };
+
+    STARTING();
+
+    dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
+    pico_device_init(dummy_dev, name, dummy_mac_0);
+
+    /* Setup of frame */
+    f = init_frame(dummy_dev, PICO_IDETH_IPV4);
+    eth = (struct pico_eth_hdr *)f->datalink_hdr;
+
+    /* Check if NULL parameters are handled correctly */
+    CHECKING(count);
+    fail_unless(pico_ethsend_local(f, NULL) == 0);
+    SUCCESS();
+    CHECKING(count);
+    fail_unless(pico_ethsend_local(NULL, eth) == 0);
+    SUCCESS();
+    CHECKING(count);
+    fail_unless(pico_ethsend_local(NULL, NULL) == 0);
+    SUCCESS();
+
+    /* Check when packet is meant for us (send addr == destination addr) */
+    CHECKING(count);
+    memcpy(eth->saddr, dummy_mac_0, PICO_SIZE_ETH);
+    memcpy(eth->daddr, dummy_mac_0, PICO_SIZE_ETH);
+    fail_unless(pico_ethsend_local(f, eth) == 1);
+    SUCCESS();
+
+    /* Setup of frame, normally it was discarded by pico_ethsend_local() (on success) */
+    f = init_frame(dummy_dev, PICO_IDETH_IPV4);
+    eth = (struct pico_eth_hdr *)f->datalink_hdr;
+
+    /* Check when packet is not meant for us (send addr != destination addr) */
+    CHECKING(count);
+    memcpy(eth->saddr, dummy_mac_0, PICO_SIZE_ETH);
+    memcpy(eth->daddr, dummy_mac_1, PICO_SIZE_ETH);
+    fail_unless(pico_ethsend_local(f, eth) == 0);
+    SUCCESS();
+
+    ENDING(count);
+
+    /* Cleanup */
+    pico_frame_discard(f);
+    pico_device_destroy(dummy_dev);
+
+    /* frame 'f' got copied in the q_in, discard it to prevent memory leaks */
+    pico_frame_discard(pico_dequeue(pico_proto_ipv4.q_in));
 }
 END_TEST
 
@@ -289,6 +381,7 @@ Suite *pico_suite(void)
     TCase *TCase_pico_ipv4_ethernet_receive = tcase_create("Unit test for pico_ipv4_ethernet_receive");
     TCase *TCase_pico_ipv6_ethernet_receive = tcase_create("Unit test for pico_ipv6_ethernet_receive");
     TCase *TCase_pico_eth_receive = tcase_create("Unit test for pico_eth_receive");
+    TCase *TCase_pico_ethsend_local = tcase_create("Unit test for pico_ethsend_local");
 
     tcase_add_test(TCase_destination_is_bcast, tc_destination_is_bcast);
     suite_add_tcase(s, TCase_destination_is_bcast);
@@ -300,6 +393,8 @@ Suite *pico_suite(void)
     suite_add_tcase(s, TCase_pico_ipv6_ethernet_receive);
     tcase_add_test(TCase_pico_eth_receive, tc_pico_eth_receive);
     suite_add_tcase(s, TCase_pico_eth_receive);
+    tcase_add_test(TCase_pico_ethsend_local, tc_pico_ethsend_local);
+    suite_add_tcase(s, TCase_pico_ethsend_local);
     return s;
 }
 

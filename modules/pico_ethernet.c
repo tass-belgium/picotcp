@@ -294,12 +294,12 @@ static int pico_ethernet_ipv6_dst(struct pico_frame *f, struct pico_eth *const d
 
 
 /* Ethernet send, first attempt: try our own address.
- * Returns 0 if the packet is not for us.
- * Returns 1 if the packet is cloned to our own receive queue, so the caller can discard the original frame.
+ * Returns 0 if the packet is not for us or an error occured.
+ * Returns 1 if the packet is cloned to our own receive queue, the original supplied frame will be discarded
  * */
 static int32_t pico_ethsend_local(struct pico_frame *f, struct pico_eth_hdr *hdr)
 {
-    if (!hdr)
+    if (!hdr || !f)
         return 0;
 
     /* Check own mac */
