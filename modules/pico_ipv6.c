@@ -1392,7 +1392,7 @@ int pico_ipv6_frame_push(struct pico_frame *f, struct pico_ip6 *src, struct pico
             goto push_final;
     }
 
-    if (pico_ipv6_is_localhost(dst->addr)) {
+    if (dst && pico_ipv6_is_localhost(dst->addr)) {
         f->dev = pico_get_device("loop");
     }
 
