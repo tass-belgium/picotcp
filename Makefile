@@ -9,7 +9,10 @@ RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
 TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
-UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
+UNIT_LDFLAGS=-lcheck -lm -pthread -lrt
+ifeq (,$(wildcard /etc/debian-release))
+     UNIT_LDFLAGS+=-lsubunit
+endif
 UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 
 LIBNAME:="libpicotcp.a"
