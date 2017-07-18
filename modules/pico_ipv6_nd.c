@@ -479,13 +479,13 @@ static void pico_nd_trigger_queued_packets(struct pico_ip6 *dst)
             n->frames_queued--;
           }
 
-          if (pico_datalink_send(frame) <= 0) {
-              pico_frame_discard(frame);
-          } else {
+          pico_tree_delete(&IPV6NQueue, frame);
+          if (pico_datalink_send(frame) > 0) {
               nd_dbg("ND-TRIGGER: FRAME SENT\n");
+          } else {
+              pico_frame_discard(frame);
           }
 
-          pico_tree_delete(&IPV6NQueue,frame);
         }
     }
 }
@@ -512,6 +512,7 @@ static struct pico_ipv6_router *pico_nd_create_rce(struct pico_ipv6_neighbor *n)
         nd_dbg("Could not insert router in rcache\n");
         PICO_FREE(r);
         n->is_router = 0;
+        return NULL;
     }
 
     return r;
@@ -648,7 +649,9 @@ static struct pico_eth *pico_nd_get_neighbor(struct pico_ip6 *addr, struct pico_
 
     if (!n) {
         nd_dbg("no NCE yet, create one\n");
-        n = pico_nd_create_entry(addr, dev);
+        if((n = pico_nd_create_entry(addr, dev)) == NULL) {
+          return NULL;
+        }
     }
 
     if (n->state == PICO_ND_STATE_INCOMPLETE) {
@@ -1739,7 +1742,7 @@ static int radv_process(struct pico_frame *f)
 
     link = pico_ipv6_link_add_local(f->dev, prefix);
     if (link) {
-        pico_ipv6_lifetime_set(link, now + (pico_time)(1000 * (long_be(prefix_option.val_lifetime))));
+        pico_ipv6_lifetime_set(link, now + (pico_time)1000 * (pico_time)(long_be(prefix_option.val_lifetime)));
         pico_ipv6_set_router_link(&hdr->src, link);
 
         if (!pico_nd_get_default_router()) {

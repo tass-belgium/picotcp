@@ -360,6 +360,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
     struct pico_eth dstmac;
     uint8_t dstmac_valid = 0;
     uint16_t proto = PICO_IDETH_IPV4;
+    uint32_t len = f->len;
 
 #ifdef PICO_SUPPORT_IPV6
     /* Step 1: If the frame has an IPv6 packet,
@@ -372,7 +373,7 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
              * frame, otherwise we have a duplicate in IPv6-ND */
             pico_ipv6_nd_postpone(f);
             pico_frame_discard(f);
-            return (int32_t)f->len;
+            return (int32_t)len;
         }
 
         dstmac_valid = 1;
@@ -429,12 +430,11 @@ int32_t MOCKABLE pico_ethernet_send(struct pico_frame *f)
                 memcpy(hdr->daddr, &dstmac, PICO_SIZE_ETH);
                 hdr->proto = proto;
             }
-
+            len = f->len;
             if (pico_ethsend_local(f, hdr) || pico_ethsend_bcast(f) || pico_ethsend_dispatch(f)) {
                 /* one of the above functions has delivered the frame accordingly.
-                 * (returned != 0). It is safe to directly return successfully.
-                 * Lower level queue has frame, so don't discard */
-                return (int32_t)f->len;
+                 * (returned != 0). It is safe to directly return successfully. */
+                return (int32_t)len;
             }
         }
     }
