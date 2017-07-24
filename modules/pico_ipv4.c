@@ -114,6 +114,7 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     };
     int cnt = 0;
     char p;
+    uint16_t overflow = 0;
 
     if (pico_string_check_null_args(ipstr, ip) < 0)
         return -1;
@@ -121,7 +122,11 @@ int pico_string_to_ipv4(const char *ipstr, uint32_t *ip)
     while((p = *ipstr++) != 0 && cnt < PICO_SIZE_IP4)
     {
         if (pico_is_digit(p)) {
-            buf[cnt] = (uint8_t)((10 * buf[cnt]) + (p - '0'));
+            overflow = (uint16_t) ((10 * buf[cnt]) + (p - '0'));
+            if(overflow > UINT8_MAX) {
+              return -1;
+            }
+            buf[cnt] = (uint8_t) overflow;
         } else if (p == '.') {
             cnt++;
         } else {

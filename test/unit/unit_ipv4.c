@@ -56,6 +56,7 @@ START_TEST (test_ipv4)
     memset(ipstr, 0, 12);
     pico_ipv4_to_string(ipstr, ipaddr.addr);
     fail_if(strncmp(ipstr, "192.168.1.1", 11) != 0, "Error ipv4 to string");
+    fail_if(pico_string_to_ipv4("300.300.300.300", &(ipaddr.addr)) != -1, "Error string to ipv4");
 
     /*valid_netmask*/
     fail_if(pico_ipv4_valid_netmask(long_be(nm32.addr)) != 32, "Error checking netmask");
