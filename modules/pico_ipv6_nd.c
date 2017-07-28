@@ -1154,7 +1154,7 @@ static int neigh_sol_process(struct pico_frame *f)
     if (valid_lladdr < 0)
         return -1; /* Malformed packet. */
 
-    if (f->dev->mode != LL_MODE_ETHERNET && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
+    if (!f->dev->mode && !valid_lladdr && (0 == neigh_sol_detect_dad(f)))
         return 0;
 #ifdef PICO_SUPPORT_6LOWPAN
     else if (PICO_DEV_IS_6LOWPAN(f->dev)) {
