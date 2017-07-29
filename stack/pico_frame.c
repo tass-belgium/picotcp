@@ -66,16 +66,17 @@ struct pico_frame *pico_frame_copy(struct pico_frame *f)
 
 static struct pico_frame *pico_frame_do_alloc(uint32_t size, int zerocopy, int ext_buffer)
 {
-    struct pico_frame *p = PICO_ZALLOC(sizeof(struct pico_frame));
+    struct pico_frame *p = NULL;
     uint32_t frame_buffer_size = size;
-    if (!p)
-        return NULL;
 
     if (ext_buffer && !zerocopy) {
         /* external buffer implies zerocopy flag! */
-        PICO_FREE(p);
         return NULL;
     }
+
+    p = PICO_ZALLOC(sizeof(struct pico_frame));
+    if (!p)
+        return NULL;
 
     if (!zerocopy) {
         unsigned int align = size % sizeof(uint32_t);
