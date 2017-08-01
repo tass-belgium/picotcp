@@ -845,7 +845,8 @@ static int pico_ipv6_process_in(struct pico_protocol *self, struct pico_frame *f
     if (pico_ipv6_is_unicast(&hdr->dst) && !pico_ipv6_link_get(&hdr->dst)) {
         if(hdr->nxthdr == 0) {
             hbh = (struct pico_ipv6_exthdr *) f->transport_hdr;
-            if(hbh->ext.routing.routtype == 0)
+            if(hbh->ext.routing.routtype == 0 &&
+                hbh->ext.routing.segleft != 0)
                 return pico_ipv6_forward(f);
         } else
             /* not local, try to forward. */
