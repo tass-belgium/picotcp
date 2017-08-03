@@ -207,3 +207,7 @@ endif
 ifneq ($(DEBUG_RADIOTEST), 0)
 	CFLAGS+=-DDEBUG_RADIOTEST
 endif
+
+ifneq ($(DEBUG_ICMP6), 0)
+	CFLAGS+=-DDEBUG_ICMP6
+endif
