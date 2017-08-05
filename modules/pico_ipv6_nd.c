@@ -92,7 +92,7 @@ static void pico_nd_print_addr(struct pico_ip6 *addr)
 {
     char *ipv6_addr = PICO_ZALLOC(PICO_IPV6_STRING);
     if (!ipv6_addr) {
-        dbg("Could not allocate ipv6 string for gateway debug\n");
+        nd_dbg("Could not allocate ipv6 string for gateway debug\n");
     } else {
         pico_ipv6_to_string(ipv6_addr, addr->addr);
         nd_dbg("ADDR : %s\n", ipv6_addr);
@@ -293,7 +293,7 @@ static struct pico_ipv6_router *pico_get_router_from_rcache(const struct pico_ip
 
     if (!test.router)
     {
-        dbg("Could not allocate neighbor to get router from rcache\n");
+        nd_dbg("Could not allocate neighbor to get router from rcache\n");
         return NULL;
     }
 
@@ -514,6 +514,8 @@ static struct pico_ipv6_router *pico_nd_create_rce(struct pico_ipv6_neighbor *n)
         n->is_router = 0;
         return NULL;
     }
+    pico_nd_print_addr(&n->address);
+    nd_dbg("added to router cache\n");
 
     return r;
 }
@@ -1003,6 +1005,9 @@ static void pico_ipv6_router_from_unsolicited(struct pico_frame *f)
                 nd_dbg("Could not insert router in rcache\n");
                 return;
             }
+        } else {
+          pico_nd_print_addr(&ip->src);
+          nd_dbg("already in cache, updating timer\n");
         }
 
         r->invalidation = PICO_TIME_MS() + (pico_time)(short_be(r_adv_hdr->life_time) * 1000);
@@ -1025,14 +1030,14 @@ static int neigh_sol_detect_dad(struct pico_frame *f)
                 /* RFC4862 5.4.3 : sender is performing address resolution,
                  * our address is not yet valid, discard silently.
                  */
-                dbg("DAD:Sender performing AR\n");
+                nd_dbg("DAD:Sender performing AR\n");
             }
 
             else if (pico_ipv6_is_unspecified(ipv6_hdr->src.addr) &&
                      !pico_ipv6_is_allhosts_multicast(ipv6_hdr->dst.addr))
             {
                 /* RFC4862 5.4.3 : sender is performing DaD */
-                dbg("DAD:Sender performing DaD\n");
+                nd_dbg("DAD:Sender performing DaD\n");
                 ipv6_duplicate_detected(link);
             }
 
@@ -1410,7 +1415,7 @@ static struct pico_ipv6_neighbor *pico_nd_add_6lp(struct pico_ip6 naddr, struct 
 
     if ((new = pico_nd_create_entry(&naddr, dev))) {
         new->expire = PICO_TIME_MS() + (pico_time)(ONE_MINUTE_MS * aro->lifetime);
-        dbg("ARO Lifetime: %d minutes\n", aro->lifetime);
+        nd_dbg("ARO Lifetime: %d minutes\n", aro->lifetime);
     } else {
         return NULL;
     }
@@ -1757,7 +1762,7 @@ static int radv_process(struct pico_frame *f)
         }
 #endif
     } else {
-        nd_dbg("router adv: no link\n");
+        nd_dbg("router adv: link already exists\n");
         link = pico_ipv6_prefix_configured(prefix);
 
         if (link) {
