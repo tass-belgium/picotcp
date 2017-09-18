@@ -26,6 +26,11 @@
 #   define PEDANTIC_STRUCT_DEF struct
 #   define PACKED_UNION_DEF    _Packed union
 #   define WEAK
+#elif defined __CC_ARM
+#   define PACKED_STRUCT_DEF struct __attribute__((__packed__))
+#   define PEDANTIC_STRUCT_DEF struct __attribute__((__packed__))
+#   define PACKED_UNION_DEF  union  __attribute__((__packed__))
+#   define WEAK __attribute__((weak))
 #else
 #   define PACKED_STRUCT_DEF struct __attribute__((packed))
 #   define PEDANTIC_STRUCT_DEF struct
