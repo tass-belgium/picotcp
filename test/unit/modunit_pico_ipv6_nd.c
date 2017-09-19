@@ -1061,6 +1061,7 @@ START_TEST(tc_pico_nd_create_entry)
   int number_of_nce = 0, number_of_valid_nce = 0;
   struct pico_tree_node *index = NULL, *_tmp = NULL;
   int i = 0;
+  pico_time expected;
 
   dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
   pico_device_init(dummy_dev, name, mac);
@@ -1079,7 +1080,7 @@ START_TEST(tc_pico_nd_create_entry)
     addr[i].addr[0] = (uint8_t)i;
     pico_nd_create_entry(&addr[i], dummy_dev);
   }
-  pico_time expected = PICO_TIME_MS() + ONE_MINUTE_MS;
+  expected = PICO_TIME_MS() + ONE_MINUTE_MS;
 
   pico_tree_foreach(index,&NCache) {
     n = index->keyValue;
@@ -1805,6 +1806,7 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   const char *name = "nd_test";
   struct pico_device *dummy_dev = NULL;
   pico_time now = 0;
+  pico_time expected;
 
   dummy_dev = PICO_ZALLOC(sizeof(struct pico_device));
   pico_device_init(dummy_dev, name, mac);
@@ -1846,7 +1848,7 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   n->expire = 0;
 
   pico_ipv6_nd_timer_elapsed(0, n);
-  pico_time expected = PICO_TIME_MS() + n->dev->hostvars.retranstime;
+  expected = PICO_TIME_MS() + n->dev->hostvars.retranstime;
 
   fail_unless(pico_ns_solicited_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent");
   fail_unless(pico_ns_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent only once");
