@@ -16,6 +16,7 @@
 #define VALUE_BETWEEN_RANGE(val, min, max)      \
   (((val) > (min)) && ((val) < (max)))
 #define EXPIRE_TIME_RANGE_MS               (5)
+#define TIME_CHECK(time, expected)         VALUE_BETWEEN_RANGE(time, expected-EXPIRE_TIME_RANGE_MS, expected+EXPIRE_TIME_RANGE_MS)
 
 enum ND_PACKET_TYPE {
   PACKET_TYPE_NORMAL = 0,
@@ -1078,13 +1079,14 @@ START_TEST(tc_pico_nd_create_entry)
     addr[i].addr[0] = (uint8_t)i;
     pico_nd_create_entry(&addr[i], dummy_dev);
   }
+  pico_time expected = PICO_TIME_MS() + ONE_MINUTE_MS;
 
   pico_tree_foreach(index,&NCache) {
     n = index->keyValue;
 
     for (i = 0; i < NUMBER_OF_NEIGHBORS; ++i) {
       if (pico_ipv6_compare(&n->address, &addr[i]) == 0) {
-        if (n->dev == dummy_dev && n->state == PICO_ND_STATE_INCOMPLETE && n->expire == PICO_TIME_MS() + ONE_MINUTE_MS) {
+        if (n->dev == dummy_dev && n->state == PICO_ND_STATE_INCOMPLETE && TIME_CHECK(n->expire, expected)) {
           number_of_valid_nce++;
         }
       }
@@ -1844,11 +1846,12 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   n->expire = 0;
 
   pico_ipv6_nd_timer_elapsed(0, n);
+  pico_time expected = PICO_TIME_MS() + n->dev->hostvars.retranstime;
 
   fail_unless(pico_ns_solicited_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent");
   fail_unless(pico_ns_count == 1, "When in state INCOMPLETE_SEARCHING (and failure counters of NCE==0), NS should have been sent only once");
   fail_unless(n->state == PICO_ND_STATE_INCOMPLETE_SEARCHING, "State of NCE shouldn't have changed when INCOMPLETE_SEARCHING");
-  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+  fail_unless(TIME_CHECK(n->expire, expected));
 
   /* Reset */
   pico_ns_solicited_count = 0;
@@ -1888,11 +1891,12 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   n->expire = 0;
 
   pico_ipv6_nd_timer_elapsed(0, n);
+  expected = PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME;
 
   fail_unless(pico_ns_unicast_count == 0, "When in state STALE (and failure counters of NCE==0), NS shouldn't have been sent");
   fail_unless(pico_ns_count == 0, "When in state STALE (and failure counters of NCE==0), NS shouldn't have been sent");
   fail_unless(n->state == PICO_ND_STATE_STALE, "State of NCE shouldn't have changed when STALE");
-  fail_if(n->expire != PICO_TIME_MS() + PICO_ND_DELAY_FIRST_PROBE_TIME);
+  fail_unless(TIME_CHECK(n->expire, expected));
 
   /* Reset */
   pico_ns_solicited_count = 0;
@@ -1932,11 +1936,12 @@ START_TEST(tc_pico_ipv6_nd_timer_elapsed)
   n->expire = 0;
 
   pico_ipv6_nd_timer_elapsed(0, n);
+  expected = PICO_TIME_MS() + n->dev->hostvars.retranstime;
 
   fail_unless(pico_ns_unicast_count == 1, "When in state PROBE (and failure counters of NCE==0), NS should have been sent");
   fail_unless(pico_ns_count == 1, "When in state PROBE (and failure counters of NCE==0), NS should have been sent only once");
   fail_unless(n->state == PICO_ND_STATE_PROBE, "State of NCE shouldn't have changed when PROBE");
-  fail_if(n->expire != PICO_TIME_MS() + n->dev->hostvars.retranstime);
+  fail_unless(TIME_CHECK(n->expire, expected));
 
   /* Reset */
   pico_ns_solicited_count = 0;
