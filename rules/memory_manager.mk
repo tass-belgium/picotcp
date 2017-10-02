@@ -1,2 +1,0 @@
-OPTIONS+=-DPICO_SUPPORT_MM
-MOD_OBJ+=$(LIBBASE)modules/pico_mm.o

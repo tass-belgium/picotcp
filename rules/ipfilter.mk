@@ -1,2 +1,0 @@
-OPTIONS+=-DPICO_SUPPORT_IPFILTER
-MOD_OBJ+=$(LIBBASE)modules/pico_ipfilter.o
