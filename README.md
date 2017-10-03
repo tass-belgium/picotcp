@@ -32,6 +32,40 @@ Coverity Scan Build status:
 
 ---------------
 
+## It runs on (pretty much) everything
+
+By keeping interfaces simple, the porting effort to new platforms and OSses are very low. To give you an indication: porting to a new platform can be done in 3 days or less, a new OS in a single day and if you really go crazy, you can do an initial port in a single evening. Different platforms, mean different compilers, that’s why we continuously compile our stack with a bunch of them. The following list shows some of the currently supported platforms, device drivers and compilers.
+
+###  PicoTCP has been used with
+
+**Platforms picoTCP runs on**:
+ARM Cortex-M series (ST Micro STM, NXP LPC, TI Stellaris, Freescale K64F),
+ARM ARM9-series (ST Micro STR9),
+Texas Instruments (MSP430),
+Microchip (PIC24, PIC32),
+Atmel (AVR 8bit),
+Linux (User space (TUN/TAP), Kernel space),
+Windows (User space (TAP))
+
+**Network devices picoTCP has worked with**:
+BCM43362 (IEEE 802.11), MRF24WG (IEEE 802.11), LPC Ethernet ENET/EMAC (IEEE 802.3), Stellaris Ethernet (IEEE 802.3), STM32 Ethernet (IEEE 802.3), Wiznet W5100 (IEEE 802.3), USB CDC-ECM (CDC1.2), PPP, Virtual drivers ( TUN/TAP, VDE, Libpcap)
+
+**(RT)OSes picoTCP has been integrated into**:
+No OS / Bare metal, FreeRTOS, mbed-RTOS, Frosted, linux / POSIX, MS DOS, MS Windows
+
+**Libraries picoTCP has been integrated with**:
+wolfSSL, mbedTLS, Mongoose RESTful library, MicroPython
+
+**Compilers picoTCP compiles under**:
+GCC, Clang, TCC, ARM-RCVT, IAR, XC-16, XC-32, MSP-GCC, AVR-GCC
+
+Unfortunately we can't release all the code, a.o. because some parts depend on code or binaries that aren't GPL compatible, some parts were developed under a commercial contract, and some consist of very rough proof-of-concept code.
+If you want to know more about the availability under the commercial license, or the possibility of using our expert services for porting or driver development, feel free to contact us at picotcp@altran.com.
+
+Your favorite not in the list? Check out the wiki for information and examples on how to port picoTCP to a new platform!
+
+---------------
+
 ## Highly configurable and modular design
 
 Features are developed as modules in picoTCP, allowing you to pick the features you want in your application. This results in the smallest possible stack that remains compliant with the internet standards. The schematic below provides an overview of all implemented protocols.
@@ -197,36 +231,4 @@ Contributors are very welcome. Report a bug, suggest a way to improve our docume
 
 Note however that, before accepting your code, we would ask you to sign our [Contributors License Agreement](https://docs.google.com/forms/d/1-z6lsT75l6ZIrgHGEWrWdHylJ6xxpjc7FwGfL2ilDFU/viewform). Your code remains under your copyright, and will always be available under GPLv2 and GPLv3. However, this CLA enables us to use picoTCP (including code from external contributors like you) under other licenses, including our commercial license. By doing commercial projects, we can keep investing in the quality and features of picoTCP.
 
----------------
 
-## It runs on (pretty much) everything
-
-By keeping interfaces simple, the porting effort to new platforms and OSses are very low. To give you an indication: porting to a new platform can be done in 3 days or less, a new OS in a single day and if you really go crazy, you can do an initial port in a single evening. Different platforms, mean different compilers, that’s why we continuously compile our stack with a bunch of them. The following list shows some of the currently supported platforms, device drivers and compilers.
-
-###  PicoTCP has been used with
-
-**Platforms picoTCP runs on**:
-ARM Cortex-M series (ST Micro STM, NXP LPC, TI Stellaris, Freescale K64F),
-ARM ARM9-series (ST Micro STR9),
-Texas Instruments (MSP430),
-Microchip (PIC24, PIC32),
-Atmel (AVR 8bit),
-Linux (User space (TUN/TAP), Kernel space),
-Windows (User space (TAP))
-
-**Network devices picoTCP has worked with**:
-BCM43362 (IEEE 802.11), MRF24WG (IEEE 802.11), LPC Ethernet ENET/EMAC (IEEE 802.3), Stellaris Ethernet (IEEE 802.3), STM32 Ethernet (IEEE 802.3), Wiznet W5100 (IEEE 802.3), USB CDC-ECM (CDC1.2), PPP, Virtual drivers ( TUN/TAP, VDE, Libpcap)
-
-**(RT)OSes picoTCP has been integrated into**:
-No OS / Bare metal, FreeRTOS, mbed-RTOS, Frosted, linux / POSIX, MS DOS, MS Windows
-
-**Libraries picoTCP has been integrated with**:
-wolfSSL, mbedTLS, Mongoose RESTful library, MicroPython
-
-**Compilers picoTCP compiles under**:
-GCC, Clang, TCC, ARM-RCVT, IAR, XC-16, XC-32, MSP-GCC, AVR-GCC
-
-Unfortunately we can't release all the code, a.o. because some parts depend on code or binaries that aren't GPL compatible, some parts were developed under a commercial contract, and some consist of very rough proof-of-concept code.
-If you want to know more about the availability under the commercial license, or the possibility of using our expert services for porting or driver development, feel free to contact us at picotcp@altran.com.
-
-Your favorite not in the list? Check out the wiki for information and examples on how to port picoTCP to a new platform!
