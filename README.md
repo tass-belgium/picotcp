@@ -2,7 +2,7 @@
 
 ---------------
 
-Welcome to the one and only <font color=ff00f0>picoTCP repository</font>. 
+Welcome to the one and ONLY <font color=ff00f0>picoTCP repository</font>.
 
 picoTCP is a small-footprint, modular TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by *[Altran Intelligent Systems](http://intelligent-systems.altran.com/)*. Textual information about picoTCP, you can find on the [about page of our website](http://picotcp.com/about).
 
@@ -20,9 +20,9 @@ Wondering about picoTCP's code quality? Check [our TiCS score](http://tics.picot
 
 ## Continuous integration
 
-Functional tests: 
+Functional tests:
 [![Jenkins autotest](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_autotest)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_autotest) -
-Unit tests      : 
+Unit tests      :
 [![Jenkins unit tests](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_unit_tests)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_unit_tests) -
 RFC compliance  :
 [![Jenkins RFC Compliance](http://jenkins.picotcp.com:8080/buildStatus/icon?job=picoTCP_Rel/PicoTCP_rel_RF_mbed)](http://jenkins.picotcp.com:8080/job/picoTCP_Rel/job/PicoTCP_rel_RF_mbed) -
@@ -48,7 +48,7 @@ cd ..
 
 ### The code
 
-Then make a new directory, e.g. `example`, and create a file with the following content : 
+Then make a new directory, e.g. `example`, and create a file with the following content :
 [//]: # (The code below is pulled through our CI - please leave the code extractor comments intact!)
 [//]: # (code extractor start)
 ```C
@@ -126,7 +126,7 @@ int main(void){
 
 ### Building and running
 
-Now we can compile this and link it, by running 
+Now we can compile this and link it, by running
 ```bash
 gcc -c -o main.o -I../picotcp/build/include main.c
 gcc -o main.elf main.o ../picotcp/build/lib/libpicotcp.a
@@ -138,7 +138,7 @@ sudo tunctl -u <username>
 sudo ifconfig tap0 192.168.5.5
 ```
 
-Now, you should be able to run `./main.elf`, and see output like 
+Now, you should be able to run `./main.elf`, and see output like
 ```
 Protocol ethernet registered (layer: 2).
 Protocol ipv4 registered (layer: 3).
