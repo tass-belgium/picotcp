@@ -1,0 +1,52 @@
+---
+---
+
+@import "{{ site.theme }}";
+.page-header {
+    color: #fff;
+    text-align: center;
+    background-color: #DCDC00;
+    background-image: linear-gradient(180deg, #007EAF, #DCDC00);
+}
+.main-content h1, .main-content h2, .main-content h3, .main-content h4,.main-content h5,.main-content h6,  {
+    color: #DCDC00;
+
+}
+
+.main-content h2  {
+    color: #007EAF;
+    font-size: 2.1rem;
+
+}
+
+.main-content h4 {
+    color: #007EAF;
+
+}
+
+.main-content p {
+
+color: #808080;
+
+
+}
+
+a {
+
+color: #00b4b9;
+
+
+}
+
+.fa {
+   padding: 20px;
+   font-size: 30px;
+   width: 30px;
+   text-align: center;
+   text-decoration: none;
+   border-radius: 50%;
+}
+
+.page-header {
+    padding-top: 120px;
+}

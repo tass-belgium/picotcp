@@ -1,0 +1,24 @@
+Many thanks to these wonderful people:
+
+- Paul Barry for his excellent article on May07 issue of LinuxJournal, for the kind words and for bug reports
+- Dan Janowski (and his SRV RR)
+- Joshua Abraham
+- Ben April
+- Gene Rogers
+- Nicholas Veeser
+- Gildas Cherruel
+- Alex Dalitz
+- Cory Wright
+- Nicolas Pugnant
+- Andrea Peltrin
+- Giovanni Corriga
+- Luca Russo
+- Pierguido Lambri
+- Andrea Pampuri
+- _koo_
+- Oyku Gencay
+- Eric Liedtke
+- Justin Mercier
+- Daniel Berger
+and all #ruby-lang people
+
