@@ -56,4 +56,4 @@ Altran is a global leader in the key Engineering R&D markets where intelligent s
 
 For +30 years, the Altran group provides expertise to key players in Aerospace, Automotive, Defense, Energy, Finance, Life Sciences, Railway, Telecoms, Intelligent Systems, among others.
 
-[Learn more](http://altran.com).
+[Learn more](http://altran.com)
