@@ -25,10 +25,11 @@ picoTCP guarantees quality with unit tests, functional tests, a whole range of R
 
 ---------------
 
-## **About Intelligent System / Altran**
+## **About Intelligent Systems / Altran**
 
 ---------------
-Intelligent Systems / Altran is Altran’s dedicated organisation offering packaged solutions to clients in all industries, helping them create new business opportunities and new experiences for their users in applications areas such as autonomous systems, smart phones, smart meters, medical devices, connected cars, advanced air traffic control and smart sensors.
+_Intelligent Systems / Altran_ is Altran’s dedicated organization offering packaged solutions to clients in all industries, helping them create new business opportunities and new experiences for their users in applications areas such as autonomous systems, smart phones, smart meters, medical devices, connected cars, advanced air traffic control and smart sensors.
+
 We believe there are three key challenges intelligent systems need to address to be successful in the market:
 
 #### ![](assets/images/computer-cpu.png) **Technology**
@@ -51,8 +52,7 @@ to gain user acceptance and market share, Intelligent Systems have to be desirab
 
 
 
-Altran is a global leader in the key Engineering R&D markets where intelligent systems are found. Altran Belgium is the local partner of choice for co-creating the embedded software and guaranteeing affordable quality for intelligent systems.
-Altran works alongside its clients on every link in the value chain of their project, from conception to industrialization.
+Altran is a global leader in the key Engineering R&D markets where intelligent systems are found. Altran Belgium is the local partner of choice for co-creating the embedded software and guaranteeing affordable quality for intelligent systems. Altran works alongside its clients on every link in the value chain of their project, from conception to industrialization.
 
 For +30 years, the Altran group provides expertise to key players in Aerospace, Automotive, Defense, Energy, Finance, Life Sciences, Railway, Telecoms, Intelligent Systems, among others.
 
