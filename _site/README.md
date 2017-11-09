@@ -1,7 +1,7 @@
 # **picoTCP**
 
 ---------------
-As all communication towards, or from, Internet of Things nodes will be using the TCP/IP network protocol, we've designed our own very small TCP/IP stack at Altran, called picoTCP.
+As all communication towards, or from, IoT nodes will be using the TCP/IP network protocol, we've designed our own very small TCP/IP stack at Altran, called picoTCP.
 
 PicoTCP is a small-footprint, modular open-source TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by _Altran Intelligent Systems_.
 
