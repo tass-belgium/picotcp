@@ -51,10 +51,9 @@ to gain user acceptance and market share, Intelligent Systems have to be desirab
 
 
 
-Altran is a global leader in the key Engineering R&D markets where intelligent systems are found. Altran Belgium is the local partner of choice for co-creating the embedded software
-
-and guaranteeing affordable quality for intelligent systems.
+Altran is a global leader in the key Engineering R&D markets where intelligent systems are found. Altran Belgium is the local partner of choice for co-creating the embedded software and guaranteeing affordable quality for intelligent systems.
 Altran works alongside its clients on every link in the value chain of their project, from conception to industrialization.
-For +30 years, the Group provides expertise to key players in Aerospace, Automotive, Defense, Energy, Finance, Life Sciences, Railway, Telecoms, Intelligent Systems, among others.
+
+For +30 years, the Altran group provides expertise to key players in Aerospace, Automotive, Defense, Energy, Finance, Life Sciences, Railway, Telecoms, Intelligent Systems, among others.
 
 [Learn more](http://altran.com).
