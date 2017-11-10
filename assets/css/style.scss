@@ -2,13 +2,17 @@
 ---
 
 @import "{{ site.theme }}";
+
+body {
+  background-color: #FBFBFB;
+}
+
 .page-header {
-    color: #fff;
-    text-align: center;
-    background-color: #007EAF;
-    background-image:none;
-    /*background-image: linear-gradient(180deg, #007EAF, #DCDC00);*/
-    padding: 3rem 4rem;
+  color: #fff;
+  text-align: center;
+  background-color: #007EAF;
+  background-image:none;
+  padding: 3rem 4rem;
 }
 .main-content h1, .main-content h2, .main-content h3, .main-content h4,.main-content h5,.main-content h6,  {
     color: #DCDC00;
@@ -28,25 +32,45 @@
 
 .main-content p {
 
-color: #808080;
+  color: #808080;
 
 }
 
 a {
 
-color: #00b4b9;
+  color: #00b4b9;
 
 }
 
 .fa {
-   /*padding: 20px;*/
-   font-size: 30px;
-   width: 30px;
-   text-align: center;
-   text-decoration: none;
-   border-radius: 50%;
+  /*padding: 20px;*/
+  font-size: 30px;
+  width: 30px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 50%;
 }
 
 .fp-icons {
-  font-size: 13px;
+  font-size: 11px;
+}
+
+.responsive-container > div {
+  display: inline-block;
+  vertical-align: top;
+  width: 32%;
+  box-sizing: border-box;
+  text-align: justify;
+  padding-left: 10px;
+  padding-right: 5px;
+}
+
+@media (max-width: 1024px) { /*breakpoint*/
+  .responsive-container > div {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding-left: 0px;
+    padding-right: 0px;
+  }
 }
