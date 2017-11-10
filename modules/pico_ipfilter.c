@@ -16,7 +16,6 @@
 #include "pico_ipfilter.h"
 #include "pico_tcp.h"
 #include "pico_udp.h"
-#include "pico_tree.h"
 
 /**************** LOCAL MACROS ****************/
 #define MAX_PRIORITY    (10)
@@ -30,12 +29,11 @@
 
 /**************** LOCAL DECLARATIONS ****************/
 struct filter_node;
-static int filter_compare(void *filterA, void *filterB);
 
-/**************** FILTER TREE ****************/
 
 struct filter_node {
     struct pico_device *fdev;
+    struct filter_node *next_filter;
     /* output address */
     uint32_t out_addr;
     uint32_t out_addr_netmask;
@@ -53,7 +51,8 @@ struct filter_node {
     int (*function_ptr)(struct filter_node *filter, struct pico_frame *f);
 };
 
-static PICO_TREE_DECLARE(filter_tree, &filter_compare);
+static struct filter_node *filter_nodes_head = NULL;
+static struct filter_node *filter_nodes_tail = NULL;
 
 static inline int ipfilter_uint32_cmp(uint32_t a, uint32_t b)
 {
@@ -99,45 +98,9 @@ static inline int ipfilter_ptr_cmp(void *a, void *b)
     return 0;
 }
 
-
-
-static inline int filter_compare_ports(struct filter_node *a, struct filter_node *b)
-{
-    int cmp;
-    cmp = ipfilter_uint16_cmp(a->in_port, b->in_port);
-    if (cmp)
-        return cmp;
-
-    cmp = ipfilter_uint16_cmp(a->out_port, b->out_port);
-    return cmp;
-}
-
-static inline int filter_compare_addresses(struct filter_node *a, struct filter_node *b)
-{
-    int cmp;
-    /* Compare source address */
-    cmp = ipfilter_uint32_cmp((a->in_addr & a->in_addr_netmask), (b->in_addr & b->in_addr_netmask));
-    if (cmp)
-        return cmp;
-
-    /* Compare destination address */
-    cmp = ipfilter_uint32_cmp((a->out_addr & a->out_addr_netmask), (b->out_addr & b->out_addr_netmask));
-    return cmp;
-}
-
 static inline int filter_compare_proto(struct filter_node *a, struct filter_node *b)
 {
     return ipfilter_uint8_cmp(a->proto, b->proto);
-}
-
-static inline int filter_compare_address_port(struct filter_node *a, struct filter_node *b)
-{
-    int cmp;
-    cmp = filter_compare_addresses(a, b);
-    if (cmp)
-        return cmp;
-
-    return filter_compare_ports(a, b);
 }
 
 static inline int filter_match_packet_dev(struct filter_node *a, struct filter_node *b, struct filter_node *rule)
@@ -171,7 +134,7 @@ static inline int filter_match_packet_addr_in(struct filter_node *a, struct filt
 {
     int cmp;
     /* 3. Compare addresses order: in, out */
-    if (rule->in_addr_netmask) {
+    if (rule->in_addr) {
         cmp = ipfilter_uint32_cmp(a->in_addr & rule->in_addr_netmask, b->in_addr & rule->in_addr_netmask);
         if (cmp)
             return cmp;
@@ -182,7 +145,7 @@ static inline int filter_match_packet_addr_in(struct filter_node *a, struct filt
 static inline int filter_match_packet_addr_out(struct filter_node *a, struct filter_node *b, struct filter_node *rule)
 {
     int cmp;
-    if (rule->out_addr_netmask) {
+    if (rule->out_addr) {
         cmp = ipfilter_uint32_cmp(a->out_addr & rule->out_addr_netmask, b->out_addr & rule->out_addr_netmask);
         if (cmp) {
             return cmp;
@@ -272,38 +235,6 @@ static inline int filter_match_packet(struct filter_node *a, struct filter_node 
     return 0;
 }
 
-
-int filter_compare(void *filterA, void *filterB)
-{
-
-    struct filter_node *a = (struct filter_node *)filterA;
-    struct filter_node *b = (struct filter_node *)filterB;
-    int cmp = 0;
-    if (a->filter_id == 0 || b->filter_id == 0) {
-        return filter_match_packet(a, b);
-    }
-
-    /* improve the search */
-    if(a->filter_id == b->filter_id)
-        return 0;
-
-    /* 1. Compare devices */
-    cmp = ipfilter_ptr_cmp(a->fdev, a->fdev);
-    if (cmp)
-        return cmp;
-
-    /* 2. Compare protocol */
-    cmp = filter_compare_proto(a, b);
-    if(cmp)
-        return cmp;
-
-    /* 3. Compare addresses order: in, out */
-    /* 4. Compare ports     order: in, out */
-    cmp = filter_compare_address_port(a, b);
-
-    return cmp;
-}
-
 /**************** FILTER CALLBACKS ****************/
 
 static int fp_priority(struct filter_node *filter, struct pico_frame *f)
@@ -332,6 +263,14 @@ static int fp_drop(struct filter_node *filter, struct pico_frame *f)
     return 1;
 }
 
+static int fp_allow(struct filter_node *filter, struct pico_frame *f)
+{
+    IGNORE_PARAMETER(filter);
+    IGNORE_PARAMETER(f);
+    ipf_dbg("ipfilter> allow\n");
+    return 0;
+}
+
 struct fp_function {
     int (*fn)(struct filter_node *filter, struct pico_frame *f);
 };
@@ -341,7 +280,8 @@ static const struct fp_function fp_function[FILTER_COUNT] =
 {
     {&fp_priority},
     {&fp_reject},
-    {&fp_drop}
+    {&fp_drop},
+    {&fp_allow}
 };
 
 static int pico_ipv4_filter_add_validate(int8_t priority, enum filter_action action)
@@ -357,6 +297,19 @@ static int pico_ipv4_filter_add_validate(int8_t priority, enum filter_action act
     return 0;
 }
 
+static inline struct filter_node * ipfilter_apply_filter(struct filter_node *pkt)
+{
+    struct filter_node *filter_frame = filter_nodes_head;
+    while (filter_frame != NULL) {
+        if(filter_match_packet(filter_frame, pkt) == 0){
+            ipf_dbg("ipfilter> # ipfilter match\r\n");
+            return filter_frame;
+        }
+        ipf_dbg("ipfilter> # next filter\r\n");
+        filter_frame = filter_frame->next_filter;
+    }
+    return NULL;
+}
 
 /**************** FILTER API's ****************/
 uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
@@ -365,7 +318,7 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
                               uint16_t out_port, uint16_t in_port, int8_t priority,
                               uint8_t tos, enum filter_action action)
 {
-    static uint32_t filter_id = 1u; /* 0 is a special value used in the binary-tree search for packets being processed */
+    static uint32_t filter_id = 1u; /* 0 is a special value used for packets being processed */
     struct filter_node *new_filter;
 
     if (pico_ipv4_filter_add_validate(priority, action) < 0) {
@@ -378,7 +331,12 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
         pico_err = PICO_ERR_ENOMEM;
         return 0;
     }
-
+    if (!filter_nodes_head){
+        filter_nodes_head = filter_nodes_tail = new_filter;
+    } else {
+        filter_nodes_tail->next_filter = new_filter;
+        filter_nodes_tail = new_filter;
+    }
     new_filter->fdev = dev;
     new_filter->proto = proto;
     new_filter->out_addr = (!out_addr) ? (0U) : (out_addr->addr);
@@ -392,50 +350,30 @@ uint32_t pico_ipv4_filter_add(struct pico_device *dev, uint8_t proto,
     new_filter->filter_id = filter_id++;
     new_filter->function_ptr = fp_function[action].fn;
 
-    if(pico_tree_insert(&filter_tree, new_filter))
-    {
-        PICO_FREE(new_filter);
-        filter_id--;
-        return 0;
-    }
-
     return new_filter->filter_id;
 }
 
 int pico_ipv4_filter_del(uint32_t filter_id)
 {
-    struct filter_node *node = NULL;
-    struct filter_node dummy = {
-        0
-    };
+    struct filter_node **nodep = &filter_nodes_head;
+    struct filter_node *node = filter_nodes_head;
 
-    dummy.filter_id = filter_id;
-    if((node = pico_tree_delete(&filter_tree, &dummy)) == NULL)
-    {
-        ipf_dbg("ipfilter> failed to delete filter :%d\n", filter_id);
-        return -1;
+    while (node) {
+        if (node->filter_id == filter_id){
+            *nodep = node->next_filter;
+            pico_free(node);
+            return 0;
+        }
+        nodep = &node->next_filter;
+        node = node->next_filter;
     }
-
-    PICO_FREE(node);
-    return 0;
-}
-
-static int ipfilter_apply_filter(struct pico_frame *f, struct filter_node *pkt)
-{
-    struct filter_node *filter_frame = NULL;
-    filter_frame = pico_tree_findKey(&filter_tree, pkt);
-    if(filter_frame)
-    {
-        filter_frame->function_ptr(filter_frame, f);
-        return 1;
-    }
-
-    return 0;
+    return PICO_ERR_EINVAL;
 }
 
 int ipfilter(struct pico_frame *f)
 {
     struct filter_node temp;
+    struct filter_node *match;
     struct pico_ipv4_hdr *ipv4_hdr = (struct pico_ipv4_hdr *) f->net_hdr;
     struct pico_trans *trans;
     struct pico_icmp4_hdr *icmp_hdr;
@@ -459,6 +397,11 @@ int ipfilter(struct pico_frame *f)
     temp.proto = ipv4_hdr->proto;
     temp.priority = f->priority;
     temp.tos = ipv4_hdr->tos;
-    return ipfilter_apply_filter(f, &temp);
+
+    match = ipfilter_apply_filter(&temp);
+    if(match != NULL) {
+        return match->function_ptr(match, f);
+    }
+    return 0;
 }
 

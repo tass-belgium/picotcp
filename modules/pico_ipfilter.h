@@ -13,6 +13,7 @@ enum filter_action {
     FILTER_PRIORITY = 0,
     FILTER_REJECT,
     FILTER_DROP,
+    FILTER_ALLOW,
     FILTER_COUNT
 };
 
