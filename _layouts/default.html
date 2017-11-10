@@ -8,6 +8,7 @@
     <meta name="theme-color" content="#157878">
     <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
     <link rel="stylesheet" href="{{ '/assets/css/style.css?v=' | append: site.github.build_revision | relative_url }}">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
   </head>
   <body>
     <section class="page-header">
@@ -30,12 +31,13 @@
 
 <h1 id="features"><strong>Features</strong></h1>
 
-  <h3 id="--modularity"><img src="assets/images/modularity.png" alt="">  <a href="#header-3"></a><strong>Modularity</strong></h3>
+  <h3 id="--modularity"><span class="fa-stack fp-icons"><i class="fa fa-sitemap fa-stack-2x"></i></span><a href="#header-3"></a><strong>Modularity</strong></h3>
   <p>Each component of the stack is deployed in a separate module, allowing the user to select at compile time what needs to be included for any specific platform. This allows you to free up memory and resources, which are often mission-critical for a project.</p>
 
-  <h3 id="--portability"><img src="assets/images/portability.png" alt="">  <a href="#header-3"></a><strong>Portability</strong></h3>
+  <h3 id="--portability"><span class="fa-stack fp-icons"><i class="fa fa-cogs fa-stack-2x"></i></span><a href="#header-3"></a><strong>Portability</strong></h3>
   <p>The provided API’s are small, well documented and give you access to the library facilities, both from the applications and from the device drivers. The library facilitates the integration with the surroundings and minimizes the time needed to combine the stack with existing code. The support required to port to a new architecture is reduced to a set of macros defined in a header file specific for the platform.</p>
-  <h3 id="--quality"><img src="assets/images/quality.png" alt="">  <a href="#header-3"></a><strong>Quality</strong></h3>
+
+  <h3 id="--quality"><span class="fa-stack fp-icons"><i class="fa fa-certificate fa-stack-2x"></i><i class="fa fa-check fa-stack-1x fa-inverse"></i></span> <a href="#header-3"></a><strong>Quality</strong></h3>
   <p>picoTCP guarantees quality with unit tests, functional tests, a whole range of RFC compliance tests, together with static and dynamic code analysis. These tools allow us to ensure that a new release will be even better than the last one.</p>
 
   <p><a href="mailto:picotcp.belgium@altran.com">Learn more</a></p>
