@@ -1,16 +1,11 @@
 # **picoTCP**
 
----------------
-As all communication towards, or from, IoT nodes will be using the TCP/IP network protocol, we've designed our own very small TCP/IP stack at Altran, called picoTCP.
+picoTCP is a small-footprint, modular open-source TCP/IP stack designed for embedded systems and the Internet of Things. It has been started by _Altran Intelligent Systems_ and is now available under a GPL license.
 
-PicoTCP is a small-footprint, modular open-source TCP/IP stack designed for embedded systems and the Internet of Things. It's actively being developed by _Altran Intelligent Systems_.
+Do you want to make your hands dirty with some code? Learn how to use picoTCP in your project by going through the **Getting Started guide** on our [GitHub wiki](https://github.com/tass-belgium/picotcp/wiki).
 
-Learn how to use picoTCP in your project by going through the **Getting Started guide** on our [GitHub wiki](https://github.com/tass-belgium/picotcp/wiki).
-
----------------
 
 # **Features**
----------------
 
 ### ![](assets/images/modularity.png)  [](#header-3)**Modularity**
 Each component of the stack is deployed in a separate module, allowing the user to select at compile time what needs to be included for any specific platform. This allows you to free up memory and resources, which are often mission-critical for a project.
@@ -23,11 +18,9 @@ picoTCP guarantees quality with unit tests, functional tests, a whole range of R
 [Learn more](mailto:picotcp.belgium@altran.com)
 
 
----------------
 
 ## **About Intelligent Systems / Altran**
 
----------------
 _Intelligent Systems / Altran_ is Altran’s dedicated organization offering packaged solutions to clients in all industries, helping them create new business opportunities and new experiences for their users in applications areas such as autonomous systems, smart phones, smart meters, medical devices, connected cars, advanced air traffic control and smart sensors.
 
 We believe there are three key challenges intelligent systems need to address to be successful in the market:
@@ -43,14 +36,8 @@ to gain user acceptance and market share, Intelligent Systems have to be desirab
  Intelligent Systems have to be cost-effective, sustainable and support new business models, in a world of blurring boundaries between industry players.
 
 
----------------
-
 
 ## **About Altran**
-
----------------
-
-
 
 Altran is a global leader in the key Engineering R&D markets where intelligent systems are found. Altran Belgium is the local partner of choice for co-creating the embedded software and guaranteeing affordable quality for intelligent systems. Altran works alongside its clients on every link in the value chain of their project, from conception to industrialization.
 
