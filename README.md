@@ -11,7 +11,7 @@ Do you want to make your hands dirty with some code? Learn how to use picoTCP in
 Each component of the stack is deployed in a separate module, allowing the user to select at compile time what needs to be included for any specific platform. This allows you to free up memory and resources, which are often mission-critical for a project.
 
 ###  ![](assets/images/portability.png)  [](#header-3)**Portability**
-The provided API's are small, well documented and give you access to the library facilities, both from the applications and from the device drivers. The library facilitates the integration with the surroundings and minimizes the time needed to combine the stack with existing code. The support required to port to a new architecture is reduced to a set of macros defined in a header file specific for the platform.
+The provided APIs are small, well-documented and give you access to the library's features, both from an applications and device drivers perspective. The library facilitates the integration with the surroundings and minimizes the time needed to combine the stack with existing code. The support required to port to a new architecture is reduced to a set of macros defined in a header file specific for the platform.
 ### ![](assets/images/quality.png)  [](#header-3)**Quality**
 picoTCP guarantees quality with unit tests, functional tests, a whole range of RFC compliance tests, together with static and dynamic code analysis. These tools allow us to ensure that a new release will be even better than the last one.
 
