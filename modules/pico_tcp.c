@@ -1937,7 +1937,14 @@ static void tcp_retrans_timeout(pico_time val, void *sock)
         if (tcp_retrans_timeout_check_queue(t) < 0)
             return;
     }
-    else if(t->backoff >= PICO_TCP_MAX_RETRANS && (t->sock.state & 0xFF00) == PICO_SOCKET_STATE_TCP_ESTABLISHED )
+    else if(t->backoff >= PICO_TCP_MAX_RETRANS &&
+            ((t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_ESTABLISHED ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_FIN_WAIT1 ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_FIN_WAIT2 ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_TIME_WAIT ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSE_WAIT ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_LAST_ACK ||
+             (t->sock.state & PICO_SOCKET_STATE_TCP) == PICO_SOCKET_STATE_TCP_CLOSING))
     {
         tcp_dbg("Connection timeout!\n");
         /* the retransmission timer, failed to get an ack for a frame, gives up on the connection */
