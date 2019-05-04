@@ -16,7 +16,7 @@ struct pico_tcp_queue {
 struct tcp_sack_block {
     uint32_t left;
     uint32_t right;
-    struct tcp_sack_block *next;
+    struct tcp_sack_block* next;
 };
 typedef struct pico_socket_tcp {
     struct pico_socket sock;
@@ -85,6 +85,7 @@ typedef struct pico_socket_tcp {
 
 size_t serialize(pico_socket_tcp* sock);
 void deserialize(pico_socket_tcp* sock);
+void construct_sack_block(tcp_sack_block* block);
 
 // Returns the size of the data serialized
 size_t serialize(pico_socket_tcp* sock) {
@@ -141,17 +142,31 @@ size_t serialize(pico_socket_tcp* sock) {
     fwrite(&sock->fin_tmr, sizeof(uint32_t), 1, data);
 
     // Types to consider specially
-        // 1-> pico_tcp_queue
-        // 2-> tcp_sack_block
+        // tcp_sack_block
+        // pico_tcp_queue
+
+    // tcp_sack_block
+    //     just iterate over the list and store as an Array of two field objects
+
+    // Leave space to write the sack_block size before the sack_block list elts
+    size_t sack_block_size = 0;
+    long cur_pos = ftell(data);                  // Will return here to write sz
+    fseek(data, sizeof(size_t), SEEK_CUR);
+    tcp_sack_block* sack_itr = sock->sacks;
+    while (sack_itr) {
+        fwrite(&sack_itr->left, sizeof(uint32_t), 1, data);
+        fwrite(&sasck_itr->right, sizeof(uint32_t), 1, data);
+        sack_itr = sack_itr->next;
+        ++sack_block_size;
+    }
+    fseek(data, cur_pos, SEEK_POS);
+    fwrite(&sack_block_size, sizeof(size_t), 1, data);
 
     /* Special Formats */
 
     // pico_tcp_queue: pico_tree, ->->-> uints->->->
     //     JSON array, add each element obtained in the order using for_each iterator
 
-
-    // tcp_sack_block
-    //     just iterate over the list and store as an Array of two field objects
 
     size_t size = (size_t) ftell(data);
     fclose(data);
@@ -207,6 +222,10 @@ void deserialize(pico_socket_tcp* sock) {
     fread(&sock->ka_retries_count, sizeof(uint32_t), 1, data);
 
     fread(&sock->fin_tmr, sizeof(uint32_t), 1, data);
+
+    // Reconstruct tcp_sack_block
+    construct_sack_block(&sock->sacks);
+
     fclose(data);
 }
 
@@ -231,4 +250,9 @@ int main(int argc, char** argv) {
         printf("Restore: snd_old_ack %u\n", sock.snd_old_ack);
 
     }
+}
+
+
+void construct_sack_block(tcp_sack_block* block) {
+
 }
