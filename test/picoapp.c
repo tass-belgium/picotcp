@@ -752,6 +752,6 @@ check:      if (!name || !area0 || !area1) {
     printf("%s: launching PicoTCP loop\n", __FUNCTION__);
     while(1) {
         pico_stack_tick();
-        usleep(2000);
+        /* usleep(2000); */
     }
 }
