@@ -78,14 +78,17 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
         pico_socket_setoption(sock_a, PICO_SOCKET_OPT_KEEPIDLE, &ka_val);
         ka_val = 5000;
         pico_socket_setoption(sock_a, PICO_SOCKET_OPT_KEEPINTVL, &ka_val);
+        /* ka_val = 0;
+        pico_socket_setoption(sock_a, PICO_SOCKET_OPT_LINGER, &ka_val); */
     }
 
     if (ev & PICO_SOCK_EV_FIN) {
         printf("Socket closed. Exit normally. \n");
-        if (!pico_timer_add(2000, deferred_exit, NULL)) {
+/*        if (!pico_timer_add(6000, deferred_exit, NULL)) {
             printf("Failed to start exit timer, exiting now\n");
             exit(1);
         }
+        */
     }
 
     if (ev & PICO_SOCK_EV_ERR) {
