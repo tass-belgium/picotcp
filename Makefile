@@ -8,22 +8,22 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -pg -g
 UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
 UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
-DEBUG?=1
+DEBUG?=0
 PROFILE?=0
-PERF?=0
+PERF?=1
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
 GENERIC?=0
 PTHREAD?=0
-ADDRESS_SANITIZER?=1
+ADDRESS_SANITIZER?=0
 GCOV?=0
 
 # Default compiled-in protocols
@@ -93,7 +93,7 @@ EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules  $(EXTRA_CFLAGS)
 # options for adding warnings
 CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
-CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes
+CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes -pg 
 # options for supressing warnings
 CFLAGS+= -Wno-missing-field-initializers
 
