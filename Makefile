@@ -15,9 +15,9 @@ UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 LIBNAME:="libpicotcp.a"
 
 PREFIX?=$(PWD)/build
-DEBUG?=1
+DEBUG?=0
 PROFILE?=0
-PERF?=0
+PERF?=1
 ENDIAN?=little
 STRIP?=0
 RTOS?=0
