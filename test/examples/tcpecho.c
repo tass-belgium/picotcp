@@ -1,11 +1,140 @@
 #include "utils.h"
+#include <pico_addressing.h>
 #include <pico_socket.h>
 #include <pico_ipv4.h>
+
+// For serializing
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
 /*** START TCP ECHO ***/
 #define BSIZE (1024 * 10)
 static char recvbuf[BSIZE];
 static int pos = 0, len = 0;
 static int flag = 0;
+
+void serialize_pico_socket(struct pico_socket* s) {
+    FILE* data = fopen("data", "w");
+
+    // Write fields of socket (for now straight up)
+    fwrite(&s->proto, sizeof(uint64_t), 1, data);
+    fwrite(&s->net, sizeof(uint64_t), 1, data);
+    fwrite(&s->local_addr, sizeof(union pico_address), 1, data);
+    fwrite(&s->remote_addr, sizeof(union pico_address), 1, data);
+    fwrite(&s->local_port, sizeof(uint16_t), 1, data);
+    fwrite(&s->remote_port, sizeof(uint16_t), 1, data);
+
+    // Not sure how to deal with the queues (maybe I don't need them?)
+    printf("DEBUG, SERIALIZE: q_in.frames %u, q_in.size %u\n",
+        s->q_in.frames, s->q_in.size);
+    // struct pico_queue q_in;
+    printf("DEBUG, SERIALIZE: q_out.frames %u, q_out.size %u\n",
+        s->q_out.frames, s->q_out.size);
+    // struct pico_queue q_out;
+
+    // Not sure how to deal with function pointers...
+    fwrite(&s->wakeup, sizeof(uint64_t), 1, data);
+
+    // Conditional copying
+#ifdef PICO_SUPPORT_TCP
+    // Not sure if I need to copy the parents or not (starting with no...)
+    printf("DEBUG, SERIALIZE: backlog %p, next %p, parent %p\n",
+        s->backlog, s->next, s->parent);
+    // struct pico_socket *backlog;
+    // struct pico_socket *next;
+    // struct pico_socket *parent;
+
+    fwrite(&s->max_backlog, sizeof(uint16_t), 1, data);
+    fwrite(&s->number_of_pending_conn, sizeof(uint16_t), 1, data);
+#endif
+#ifdef PICO_SUPPORT_MCAST
+    // Not sure If I need this...
+    printf("DEBUG, SERIALIZE: MCASTListen %p\n",
+        s->MCASTListen);
+    // struct pico_tree *MCASTListen;
+#ifdef PICO_SUPPORT_IPV6
+    printf("DEBUG, SERIALIZE: MCASTListen_ipv6 %p\n",
+        s->MCASTListen_ipv6);
+    // struct pico_tree *MCASTListen_ipv6;
+#endif
+#endif
+    fwrite(&s->ev_pending, sizeof(uint16_t), 1, data);
+
+    // Can we assume the device is put back properly?
+    fwrite(&s->dev, sizeof(uint64_t), 1, data);
+    fwrite(&s->id, sizeof(int), 1, data);
+    fwrite(&s->state, sizeof(uint16_t), 1, data);
+    fwrite(&s->opt_flags, sizeof(uint16_t), 1, data);
+    fwrite(&s->timestamp, sizeof(pico_time), 1, data);
+    fwrite(&s->priv, sizeof(uint64_t), 1, data);
+    fclose(data);
+
+    // Delete old socket
+    // pico_socket_del(s);
+}
+
+void restore_pico_socket(struct pico_socket* rs) {
+    struct pico_socket s;
+    FILE* data = fopen("data", "r");
+
+    // read fields of socket (for now straight up)
+    fread(&s.proto, sizeof(uint64_t), 1, data);
+    fread(&s.net, sizeof(uint64_t), 1, data);
+
+    fread(&s.local_addr, sizeof(union pico_address), 1, data);
+    fread(&s.remote_addr, sizeof(union pico_address), 1, data);
+    fread(&s.local_port, sizeof(uint16_t), 1, data);
+    fread(&s.remote_port, sizeof(uint16_t), 1, data);
+
+    // Not sure how to deal with the queues (maybe I don't need them?)
+    // struct pico_queue q_in;
+    // struct pico_queue q_out;
+
+    // Not sure how to deal with function pointers...
+    fread(&s.wakeup, sizeof(uint64_t), 1, data);
+
+    // Conditional copying
+#ifdef PICO_SUPPORT_TCP
+    // Not sure if I need to copy the parents or not (starting with no...)
+    // struct pico_socket *backlog;
+    // struct pico_socket *next;
+    // struct pico_socket *parent;
+
+    fread(&s.max_backlog, sizeof(uint16_t), 1, data);
+    fread(&s.number_of_pending_conn, sizeof(uint16_t), 1, data);
+#endif
+#ifdef PICO_SUPPORT_MCAST
+    // Not sure If I need this...
+    // struct pico_tree *MCASTListen;
+#ifdef PICO_SUPPORT_IPV6
+    // struct pico_tree *MCASTListen_ipv6;
+#endif
+#endif
+    fread(&s.ev_pending, sizeof(uint16_t), 1, data);
+
+    // Can we assume the device is put back properly?
+    fread(&s.dev, sizeof(uint64_t), 1, data);
+    fread(&s.id, sizeof(int), 1, data);
+    fread(&s.state, sizeof(uint16_t), 1, data);
+    fread(&s.opt_flags, sizeof(uint16_t), 1, data);
+    fread(&s.timestamp, sizeof(pico_time), 1, data);
+    fread(&s.priv, sizeof(uint64_t), 1, data);
+    fclose(data);
+
+    memcpy(rs, &s, sizeof(struct pico_socket));
+
+    // Use pico_socket_clone() to reinitializing the necessary structures
+    // rs = pico_socket_clone(&s);
+
+    // Add restored socket
+    // int add_val = pico_socket_add(rs);
+    // printf("VDEBUG, RESTORE: add socket value %i\n", add_val);
+
+    // Check new socket
+    // int check_val = pico_check_socket(rs);
+    // printf("VDEBUG, RESTORE: check socket value %i\n", check_val);
+}
 
 int send_tcpecho(struct pico_socket *s)
 {
@@ -172,6 +301,15 @@ void app_tcpecho(char *arg)
     }
 
     printf("Launching PicoTCP echo server\n");
+
+    // Swap out socket
+    serialize_pico_socket(s);
+    printf("VDEBUG: finished serialize\n");
+    printf("VDEBUG: original socket addr: %p\n", s);
+    s = PICO_ZALLOC(sizeof(struct pico_socket));
+    printf("VDEBUG: new socket addr: %p\n", s);
+    restore_pico_socket(s);
+    printf("VDEBUG: finished restore\n");
     return;
 
 out:
