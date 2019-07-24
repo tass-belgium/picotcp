@@ -8,7 +8,7 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -pg -g
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -pg -g 
 UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
 UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 
@@ -54,7 +54,7 @@ AODV?=1
 MEMORY_MANAGER?=0
 MEMORY_MANAGER_PROFILING?=0
 TUN?=0
-TAP?=0
+TAP?=1
 PCAP?=0
 PPP?=1
 6LOWPAN?=0
@@ -90,12 +90,13 @@ endif
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules  $(EXTRA_CFLAGS)
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -fPIC $(EXTRA_CFLAGS)
 # options for adding warnings
 CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
 CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes -pg 
 # options for supressing warnings
-CFLAGS+= -Wno-missing-field-initializers
+CFLAGS+= -Wno-missing-field-initializers 
+
 
 ifeq ($(CC),clang)
 CFLAGS+= -Wunreachable-code-break -Wpointer-bool-conversion -Wmissing-variable-declarations
