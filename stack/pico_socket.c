@@ -392,7 +392,7 @@ int8_t pico_socket_add(struct pico_socket *s)
     sp = pico_get_sockport(PROTO(s), s->local_port);
     PICOTCP_MUTEX_LOCK(Mutex);
     if (!sp) {
-        /* dbg("Creating sockport..%04x\n", s->local_port); / * In comment due to spam during test * / */
+        dbg("Creating sockport..%04x\n", s->local_port); /* In comment due to spam during test */
         sp = PICO_ZALLOC(sizeof(struct pico_sockport));
 
         if (!sp) {
