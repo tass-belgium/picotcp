@@ -138,6 +138,7 @@ void restore_pico_socket(struct pico_socket* rs) {
 
 int send_tcpecho(struct pico_socket *s)
 {
+    printf("sending tcpecho on socket %p\n", s);
     int w, ww = 0;
     if (len > pos) {
         do {
@@ -160,9 +161,10 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 {
     int r = 0;
 
-    picoapp_dbg("tcpecho> wakeup ev=%u\n", ev);
+    printf("tcpecho> wakeup ev=%u\n", ev);
 
     if (ev & PICO_SOCK_EV_RD) {
+        printf("socket %p woken up to read\n", s);
         if (flag & PICO_SOCK_EV_CLOSE)
             printf("SOCKET> EV_RD, FIN RECEIVED\n");
 
@@ -198,7 +200,7 @@ void cb_tcpecho(uint16_t ev, struct pico_socket *s)
 
         sock_a = pico_socket_accept(s, &orig, &port);
         pico_ipv4_to_string(peer, orig.addr);
-        printf("Connection established with %s:%d.\n", peer, short_be(port));
+        printf("Connection established with %s:%d and socket %p.\n", peer, short_be(port), sock_a);
         pico_socket_setoption(sock_a, PICO_TCP_NODELAY, &yes);
         /* Set keepalive options */
         ka_val = 5;
@@ -282,8 +284,6 @@ void app_tcpecho(char *arg)
     }
 
     pico_socket_setoption(s, PICO_TCP_NODELAY, &yes);
-
-
 
     if (!IPV6_MODE)
         ret = pico_socket_bind(s, &inaddr_any.ip4, &listen_port);
