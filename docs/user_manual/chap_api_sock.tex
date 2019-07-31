@@ -137,6 +137,7 @@ This function sends data from the local address to the remote address, without c
 whether the remote endpoint is connected. Specifying the destination is particularly useful while sending single datagrams
 to different destinations upon consecutive calls. This is the preferred mechanism to send datagrams to a remote destination
 using a UDP socket.
+Note that the port needs to be passed in network byte order (big-endian), as with all socket calls. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -235,6 +236,7 @@ struct pico_msginfo {
 
 \subsubsection*{Description}
 This function is an extension of the \texttt{pico$\_$socket$\_$sendto} function described above. It's exactly the same but it adds up an additional argument to set TTL and QOS information on the outgoing packet which contains the datagram.
+Note that the port needs to be passed in network byte order (big-endian), as with all socket calls. 
 
 The usage of the extended argument makes sense in UDP context only, as the information is set at packet level, and only with UDP there is a 1:1 correspondence between datagrams and IP packets.
 
@@ -401,7 +403,8 @@ bytesRcvd = pico_socket_recv(sk_tcp, buf, bufLen);
 \subsection{pico$\_$socket$\_$bind}
 
 \subsubsection*{Description}
-This function binds a local IP-address and port to the specified socket.
+This function binds a local IP-address and port to the specified socket. 
+Note that the port needs to be passed in network byte order (big-endian), as with all socket calls. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
@@ -518,6 +521,7 @@ if (errMsg == 0) {
 
 \subsubsection*{Description}
 This function connects a local socket to a remote socket of a server that is listening, or permanently associate a remote UDP peer as default receiver for any further outgoing traffic through this socket.
+Note that the port needs to be passed in network byte order (big-endian), as with all socket calls. 
 
 \subsubsection*{Function prototype}
 \begin{verbatim}
