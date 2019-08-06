@@ -15,11 +15,13 @@ struct pico_tcp_queue {
     uint32_t size;
     uint32_t frames;
 };
+
 struct tcp_sack_block {
     uint32_t left;
     uint32_t right;
     struct tcp_sack_block* next;
 };
+
 typedef struct pico_socket_tcp {
     struct pico_socket sock;
 
@@ -87,12 +89,16 @@ typedef struct pico_socket_tcp {
 
 size_t serialize(pico_socket_tcp* sock);
 void deserialize(pico_socket_tcp* sock);
-void construct_sack_block(tcp_sack_block* block);
+void construct_sack_block(struct tcp_sack_block* block);
 
 // Returns the size of the data serialized
 size_t serialize(pico_socket_tcp* sock) {
     // Convert into JSON format (using cJSON)
     // Store ints as straight up fields in the top level
+    
+    size_t sack_block_size = 0;
+    struct tcp_sack_block* sack_itr = sock->sacks;
+    size_t size; 
 
     FILE* data = fopen("data", "w");
     fwrite(&sock->snd_nxt, sizeof(uint32_t), 1, data);
@@ -151,17 +157,16 @@ size_t serialize(pico_socket_tcp* sock) {
     //     just iterate over the list and store as an Array of two field objects
 
     // Leave space to write the sack_block size before the sack_block list elts
-    size_t sack_block_size = 0;
     long cur_pos = ftell(data);                  // Will return here to write sz
     fseek(data, sizeof(size_t), SEEK_CUR);
-    tcp_sack_block* sack_itr = sock->sacks;
+    sack_itr = sock->sacks;
     while (sack_itr) {
         fwrite(&sack_itr->left, sizeof(uint32_t), 1, data);
-        fwrite(&sasck_itr->right, sizeof(uint32_t), 1, data);
+        fwrite(&sack_itr->right, sizeof(uint32_t), 1, data);
         sack_itr = sack_itr->next;
         ++sack_block_size;
     }
-    fseek(data, cur_pos, SEEK_POS);
+    fseek(data, cur_pos, SEEK_SET);
     fwrite(&sack_block_size, sizeof(size_t), 1, data);
 
     /* Special Formats */
@@ -170,7 +175,7 @@ size_t serialize(pico_socket_tcp* sock) {
     //     JSON array, add each element obtained in the order using for_each iterator
 
 
-    size_t size = (size_t) ftell(data);
+    size = (size_t) ftell(data);
     fclose(data);
     return size;
 }
@@ -226,12 +231,12 @@ void deserialize(pico_socket_tcp* sock) {
     fread(&sock->fin_tmr, sizeof(uint32_t), 1, data);
 
     // Reconstruct tcp_sack_block
-    construct_sack_block(&sock->sacks);
+    construct_sack_block(sock->sacks);
 
     fclose(data);
 }
 
-void construct_sack_block(tcp_sack_block* block) {
+void construct_sack_block(struct tcp_sack_block* block) {
 
 }
 
