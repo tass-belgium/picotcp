@@ -174,6 +174,8 @@ static void pico_arp_unreachable(struct pico_ip4 *a)
                     pico_notify_dest_unreachable(f);
                 }
 
+                pico_frame_discard(f);
+                frames_queued[i] = NULL;
             }
         }
     }
@@ -224,17 +226,40 @@ struct pico_eth *pico_arp_get(struct pico_frame *f)
 
 void pico_arp_postpone(struct pico_frame *f)
 {
+    struct pico_ipv4_hdr *hdr = (struct pico_ipv4_hdr *) f->net_hdr;
+    struct pico_ip4 gateway;
+    struct pico_ip4 *where;
+    static int last_enq = -1;
     int i;
-    for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
-    {
-        if (!frames_queued[i]) {
-            if (f->failure_count < 4)
-                frames_queued[i] = f;
 
-            return;
+    if (f->failure_count < 4) {
+        for (i = 0; i < PICO_ARP_MAX_PENDING; i++)
+        {
+            if (!frames_queued[i]) {
+                frames_queued[i] = f;
+                last_enq = i;
+                return;
+            }
         }
+
+        /* No room available, overwrite the oldest frame in the buffer */
+        if (++last_enq >= PICO_ARP_MAX_PENDING) {
+            last_enq = 0;
+        }
+
+        if (frames_queued[last_enq])
+            pico_frame_discard(frames_queued[last_enq]);
+
+        frames_queued[last_enq] = f;
+    } else {
+        gateway = pico_ipv4_route_get_gateway(&hdr->dst);
+        /* check if dst is local (gateway = 0), or if to use gateway */
+        if (gateway.addr != 0)
+            where = &gateway;
+        else
+            where = &hdr->dst;
+        pico_arp_unreachable(where);
     }
-    /* Not possible to enqueue: caller will discard packet */
 }
 
 
