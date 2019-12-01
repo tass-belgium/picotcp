@@ -2,13 +2,13 @@
 -include ../../tools/kconfig/.config
 
 OS:=$(shell uname)
-CC:=$(CROSS_COMPILE)gcc
+CC:=$(CROSS_COMPILE)gcc-8
 LD:=$(CROSS_COMPILE)ld
 AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -pg -g 
+TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug -pg -g
 UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
 UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 
@@ -95,7 +95,7 @@ CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -fPIC -pg -g $(EXTRA_CFLAGS)
 CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
 CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes
 # options for supressing warnings
-CFLAGS+= -Wno-missing-field-initializers 
+CFLAGS+= -Wno-missing-field-initializers
 
 
 ifeq ($(CC),clang)
