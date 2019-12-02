@@ -179,6 +179,7 @@ static struct pico_socket *socket_tcp_deliver_ipv6(struct pico_socket *s, struct
 
 static int socket_tcp_do_deliver(struct pico_socket *s, struct pico_frame *f)
 {
+    dbg("TCP SOCKET> do deliver\n");
     if (s != NULL) {
         pico_tcp_input(s, f);
         if ((s->ev_pending) && s->wakeup) {
@@ -215,6 +216,7 @@ int pico_socket_tcp_deliver(struct pico_sockport *sp, struct pico_frame *f)
 
         if (found)
         {
+            dbg("FOUND\n");
             target = found;
             if ( found->remote_port != 0)
                 /* only break if it's connected */

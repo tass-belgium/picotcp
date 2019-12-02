@@ -125,6 +125,7 @@ struct pico_tree_node *pico_tree_prev(struct pico_tree_node *node)
  */
 void *pico_tree_insert(struct pico_tree *tree, void *key)
 {
+    printf("tree insert pointer %p\n", key);
     return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
@@ -165,6 +166,7 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
 
     /* if node already in, bail out */
     if(LocalKey) {
+        printf("TREE_INSERT\n");
         pico_err = PICO_ERR_EEXIST;
         return LocalKey;
     }
@@ -195,6 +197,10 @@ struct pico_tree_node *pico_tree_findNode(struct pico_tree *tree, void *key)
     while(IS_NOT_LEAF(found))
     {
         int result;
+        // the compare function is provided
+        // at runtime, and probably compares ports.
+        // when we close the client, why isn't it
+        // being deleted?
         result = tree->compare(found->keyValue, key);
         if(result == 0)
             return found;
