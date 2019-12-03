@@ -538,7 +538,7 @@ static void pico_socket_update_tcp_state(struct pico_socket *s, uint16_t tcp_sta
     }
 }
 
-static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
+int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
 {
     struct pico_sockport *sp;
     if (more_states & PICO_SOCKET_STATE_BOUND) {
@@ -1017,8 +1017,7 @@ static int32_t pico_socket_sendto_set_localport(struct pico_socket *s)
 {
 
     if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
-        /*s->local_port = pico_socket_high_port(s->proto->proto_number);*/
-        s->local_port = short_be(8080);
+        s->local_port = pico_socket_high_port(s->proto->proto_number);
         if (s->local_port == 0) {
             pico_err = PICO_ERR_EINVAL;
             return -1;
