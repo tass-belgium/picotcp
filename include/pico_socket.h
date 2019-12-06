@@ -198,6 +198,7 @@ int pico_socket_getname(struct pico_socket *s, void *local_addr, uint16_t *port,
 int pico_socket_getpeername(struct pico_socket *s, void *remote_addr, uint16_t *port, uint16_t *proto);
 
 int pico_socket_connect(struct pico_socket *s, const void *srv_addr, uint16_t remote_port);
+int pico_socket_connect_no_init(struct pico_socket *s, const void *srv_addr, uint16_t remote_port);
 int pico_socket_listen(struct pico_socket *s, const int backlog);
 struct pico_socket *pico_socket_accept(struct pico_socket *s, void *orig, uint16_t *port);
 int8_t pico_socket_del(struct pico_socket *s);
@@ -207,6 +208,7 @@ int pico_socket_getoption(struct pico_socket *s, int option, void *value);
 
 int pico_socket_shutdown(struct pico_socket *s, int mode);
 int pico_socket_close(struct pico_socket *s);
+int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state);
 
 struct pico_frame *pico_socket_frame_alloc(struct pico_socket *s, struct pico_device *dev, uint16_t len);
 struct pico_device *get_sock_dev(struct pico_socket *s);

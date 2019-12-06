@@ -1186,6 +1186,7 @@ int pico_tftp_listen(uint16_t family, void (*cb)(union pico_address *addr, uint1
     struct pico_socket *sock;
 
     if (server.listen_socket) {
+        printf("TFTP_LISTEN\n");
         pico_err = PICO_ERR_EEXIST;
         return -1;
     }
