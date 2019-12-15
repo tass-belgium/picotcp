@@ -57,6 +57,9 @@ struct pico_socket {
 
     void (*wakeup)(uint16_t ev, struct pico_socket *s);
 
+    /* Timeout parameter for Lua */
+    unsigned long lua_timeout;
+
 
 #ifdef PICO_SUPPORT_TCP
     /* For the TCP backlog queue */
