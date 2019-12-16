@@ -734,6 +734,28 @@ static int pico_socket_transport_read(struct pico_socket *s, void *buf, int len)
     else return 0;
 }
 
+static int pico_socket_transport_readline(struct pico_socket *s, void *buf)
+{
+    if (PROTO(s) == PICO_PROTO_UDP)
+    {
+        /*// make sure cast to uint16_t doesn't give unexpected results
+        if(len > 0xFFFF) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }*/
+
+        //return pico_socket_udp_recvline(s, buf, NULL, NULL); will implement later
+        printf("not implemented yet. oh no!\n");
+        exit(1);
+    }
+    else if (PROTO(s) == PICO_PROTO_TCP) {
+        return pico_socket_tcp_readline(s, buf);
+    }
+    else return 0;
+}
+
+
+
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
     if (!s || buf == NULL) {
@@ -748,13 +770,37 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
         }
     }
 
-    /*if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {*/
-        /*[>dbg("HAEAAA %x\n", s->state);<]*/
-        /*pico_err = PICO_ERR_EIO;*/
-        /*return -1;*/
-    /*}*/
+    /*if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+        //dbg("HAEAAA %x\n", s->state);
+        pico_err = PICO_ERR_EIO;
+        return -1;
+    }*/
 
     return pico_socket_transport_read(s, buf, len);
+}
+
+
+int pico_socket_readline(struct pico_socket *s, void *buf)
+{
+    if (!s || buf == NULL) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    } else {
+        /* check if exists in tree */
+        /* See task #178 */
+        if (pico_check_socket(s) != 0) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+    }
+
+    /*if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+        //dbg("HAEAAA %x\n", s->state);
+        pico_err = PICO_ERR_EIO;
+        return -1;
+    }*/
+
+    return pico_socket_transport_readline(s, buf);
 }
 
 static int pico_socket_write_check_state(struct pico_socket *s)

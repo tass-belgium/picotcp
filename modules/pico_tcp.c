@@ -1131,6 +1131,9 @@ static inline uint32_t tcp_read_in_frame_len(struct tcp_input_segment *f, int32_
         in_frame_len = f->payload_len;
     }
 
+    // this is tricking the caller to think that the payload's maximum size is the total len requested in the optional argument
+    // this is useful because it makes sure that in_frame_len represents the actual size of the payload that we are ready to process,
+    // so after we are done, we can drop that chunk from the queue. 
     if ((in_frame_len + tot_rd_len) > (uint32_t)read_op_len) {
         in_frame_len = read_op_len - tot_rd_len;
     }
@@ -1138,6 +1141,26 @@ static inline uint32_t tcp_read_in_frame_len(struct tcp_input_segment *f, int32_
     return in_frame_len;
 
 }
+
+
+static inline uint32_t tcp_read_in_frame_len_readline(struct tcp_input_segment *f, int32_t in_frame_off)
+{
+    uint32_t in_frame_len = 0;
+    if (in_frame_off > 0)
+    {
+        if ((uint32_t)in_frame_off > f->payload_len) {
+            tcp_dbg("FATAL TCP ERR: in_frame_off > f->payload_len\n");
+        }
+
+        in_frame_len = f->payload_len - (uint32_t)in_frame_off;
+    } else { /* in_frame_off == 0 */
+        in_frame_len = f->payload_len;
+    }
+
+    return in_frame_len;
+
+}
+
 
 static inline void tcp_read_check_segment_done(struct pico_socket_tcp *t, struct tcp_input_segment *f, uint32_t in_frame_len)
 {
@@ -1171,6 +1194,7 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 
         in_frame_len = tcp_read_in_frame_len(f, in_frame_off, tot_rd_len, len);
 
+        // find out the address of the first '\n' character
 
         memcpy((uint8_t *)buf + tot_rd_len, f->payload + in_frame_off, in_frame_len);
         tot_rd_len += in_frame_len;
@@ -1181,6 +1205,62 @@ uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
     }
     return tcp_read_finish(s, tot_rd_len);
 }
+
+
+uint32_t pico_tcp_readline(struct pico_socket *s, void *buf)
+{
+    struct pico_socket_tcp *t = TCP_SOCK(s);
+    struct tcp_input_segment *f;
+    int32_t in_frame_off;
+    uint32_t in_frame_len;
+    uint32_t tot_rd_len = 0;
+
+    while (1) {
+        /* To be sure we don't have garbage at the beginning */
+        release_until(&t->tcpq_in, t->rcv_processed);
+        f = first_segment(&t->tcpq_in);
+        if (!f) {
+            return tcp_read_finish(s, tot_rd_len);
+        }
+
+        in_frame_off = pico_seq_compare(t->rcv_processed, f->seq);
+        /* Check for hole at the beginning of data, awaiting retransmissions. */
+        if (in_frame_off < 0) {
+            dbg("TCP> read hole beginning of data, %08x - %08x. rcv_nxt is %08x\n", t->rcv_processed, f->seq, t->rcv_nxt);
+            return tcp_read_finish(s, tot_rd_len);
+        }
+
+        in_frame_len = tcp_read_in_frame_len_readline(f, in_frame_off);
+        //if (in_frame_len == 0) continue;
+        if (in_frame_len <=0) break;
+        char line[in_frame_len]; // can't be longer than this
+        memset(line, 0, in_frame_len);
+
+        memccpy(line, f->payload + in_frame_off, '\n', in_frame_len);
+        line[strlen(line)-1] = 0;
+
+        size_t strlensaved=strlen(line);
+
+        char* token = strtok(line, "\r");
+        while (token != NULL) {
+            memcpy((uint8_t *)buf + tot_rd_len, token, strlen(token));
+            tot_rd_len += strlen(token);
+            //printf("%s", token);
+            token = strtok(NULL, "\r");
+        }
+        t->rcv_processed += strlensaved+1;
+        if (f->payload[in_frame_off+strlensaved] == '\n') {
+            tcp_read_check_segment_done(t, f, strlensaved);
+            break;
+        } else {
+            tcp_read_check_segment_done(t, f, strlensaved);
+        }
+
+    }
+    return tcp_read_finish(s, tot_rd_len);
+}
+
+
 
 int pico_tcp_initconn(struct pico_socket *s);
 static void initconn_retry(pico_time when, void *arg)

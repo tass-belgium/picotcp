@@ -264,6 +264,24 @@ int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len)
 #endif
 }
 
+
+int pico_socket_tcp_readline(struct pico_socket *s, void *buf)
+{
+#ifdef PICO_SUPPORT_TCP
+    // check if in shutdown state and if no more data in tcpq_in 
+    if ((s->state & PICO_SOCKET_STATE_SHUT_REMOTE) && pico_tcp_queue_in_is_empty(s)) {
+        pico_err = PICO_ERR_ESHUTDOWN;
+        return -1;
+    } else {
+        return (int)(pico_tcp_readline(s, buf));
+    }
+
+#else
+    return 0;
+#endif
+}
+
+
 void transport_flags_update(struct pico_frame *f, struct pico_socket *s)
 {
 #ifdef PICO_SUPPORT_TCP

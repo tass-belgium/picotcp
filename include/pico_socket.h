@@ -183,6 +183,8 @@ struct pico_msginfo {
 struct pico_socket *pico_socket_open(uint16_t net, uint16_t proto, void (*wakeup)(uint16_t ev, struct pico_socket *s));
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len);
+int pico_socket_readline(struct pico_socket *s, void *buf);
+
 int pico_socket_write(struct pico_socket *s, const void *buf, int len);
 
 int pico_socket_sendto(struct pico_socket *s, const void *buf, int len, void *dst, uint16_t remote_port);
