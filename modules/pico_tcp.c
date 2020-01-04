@@ -1233,21 +1233,42 @@ uint32_t pico_tcp_readline(struct pico_socket *s, void *buf)
         in_frame_len = tcp_read_in_frame_len_readline(f, in_frame_off);
         //if (in_frame_len == 0) continue;
         if (in_frame_len <=0) break;
-        char line[in_frame_len]; // can't be longer than this
-        memset(line, 0, in_frame_len);
-
+        char line[in_frame_len+1]; // can't be longer than this
+        memset(line, '\0', in_frame_len+1);
+        
         memccpy(line, f->payload + in_frame_off, '\n', in_frame_len);
-        line[strlen(line)-1] = 0;
+        // void *nptr = memccpy(line, f->payload + in_frame_off, '\n', in_frame_len);
+        // blue();
+        // printf("strlen(line) after memccpy:%lu\n", strlen(line));
+        // printf("char at strlen line -1: -->%c<--\n", line[strlen(line)-1]);
+        // printf("in_frame_len: %lu, strlen(line1):%lu\n", in_frame_len, strlen(line));
+        // yellow();
+        // printf("unting for the newline\n");
+        // back2white();
+        // // finding \n
+        // char *ptr = strchr(line, '\n');
+        // int postz = (ptr == NULL ? -1 : ptr - line);
+        // printf("found first newline at %i\n", postz);
+        if (line[strlen(line)-1] == '\n') {
+            line[strlen(line)-1] = '\0';
+        }
+        //printf("nptr: %p\n", nptr);
 
         size_t strlensaved=strlen(line);
+        // red();
+        // printf("about to remove the dash r characters\n");
+        // back2white();
+        // printf("line: %s, strlen(line):%lu\n", line, strlen(line));
+
 
         char* token = strtok(line, "\r");
         while (token != NULL) {
             memcpy((uint8_t *)buf + tot_rd_len, token, strlen(token));
             tot_rd_len += strlen(token);
-            //printf("%s", token);
+            //printf("token: %s", token);
             token = strtok(NULL, "\r");
         }
+        //printf("\n");
         t->rcv_processed += strlensaved+1;
         if (f->payload[in_frame_off+strlensaved] == '\n') {
             tcp_read_check_segment_done(t, f, strlensaved);
