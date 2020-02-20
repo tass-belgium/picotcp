@@ -708,6 +708,56 @@ static int calc_score(int *score, int *index, int avg[][PROTO_DEF_AVG_NR],
   return 0;
 }
 
+void pico_stack_tick_no_in(void) {
+  static int score[PROTO_DEF_NR] = {
+      PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE,
+      PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE,
+      PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE};
+  static int index[PROTO_DEF_NR] = {0, 0, 0, 0, 0, 0};
+  static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
+  static int ret[PROTO_DEF_NR] = {0};
+
+  pico_check_timers();
+
+  ret[1] = pico_protocol_datalink_loop(score[1], PICO_LOOP_DIR_IN);
+  pico_rand_feed((uint32_t)ret[1]);
+
+  ret[2] = pico_protocol_network_loop(score[2], PICO_LOOP_DIR_IN);
+  pico_rand_feed((uint32_t)ret[2]);
+
+  ret[3] = pico_protocol_transport_loop(score[3], PICO_LOOP_DIR_IN);
+  pico_rand_feed((uint32_t)ret[3]);
+
+  ret[5] = score[5];
+#if defined(PICO_SUPPORT_IPV4) || defined(PICO_SUPPORT_IPV6)
+#if defined(PICO_SUPPORT_TCP) || defined(PICO_SUPPORT_UDP)
+  ret[5] = pico_sockets_loop(score[5]); /* swapped */
+  pico_rand_feed((uint32_t)ret[5]);
+#endif
+#endif
+
+  ret[4] = pico_protocol_socket_loop(score[4], PICO_LOOP_DIR_IN);
+  pico_rand_feed((uint32_t)ret[4]);
+
+  ret[6] = pico_protocol_socket_loop(score[6], PICO_LOOP_DIR_OUT);
+  pico_rand_feed((uint32_t)ret[6]);
+
+  ret[7] = pico_protocol_transport_loop(score[7], PICO_LOOP_DIR_OUT);
+  pico_rand_feed((uint32_t)ret[7]);
+
+  ret[8] = pico_protocol_network_loop(score[8], PICO_LOOP_DIR_OUT);
+  pico_rand_feed((uint32_t)ret[8]);
+
+  ret[9] = pico_protocol_datalink_loop(score[9], PICO_LOOP_DIR_OUT);
+  pico_rand_feed((uint32_t)ret[9]);
+
+  ret[10] = pico_devices_loop(score[10], PICO_LOOP_DIR_OUT);
+  pico_rand_feed((uint32_t)ret[10]);
+
+  /* calculate new loop scores for next iteration */
+  calc_score(score, index, (int(*)[])avg, ret);
+}
+
 void pico_stack_tick(void) {
   static int score[PROTO_DEF_NR] = {
       PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE, PROTO_DEF_SCORE,
