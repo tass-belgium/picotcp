@@ -1,24 +1,24 @@
 /*********************************************************************
-   PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights reserved.
-   See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
+   PicoTCP. Copyright (c) 2012-2017 Altran Intelligent Systems. Some rights
+ reserved. See COPYING, LICENSE.GPLv2 and LICENSE.GPLv3 for usage.
 
    Authors: Daniele Lacamera
  *********************************************************************/
 
+#include "pico_dev_tun.h"
 
 #include <fcntl.h>
-#include <sys/ioctl.h>
-#include <net/if.h>
 #include <linux/if_tun.h>
-#include "pico_device.h"
-#include "pico_dev_tun.h"
-#include "pico_stack.h"
-
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include <sys/poll.h>
 
+#include "pico_device.h"
+#include "pico_stack.h"
+
 struct pico_device_tun {
-    struct pico_device dev;
-    int fd;
+  struct pico_device dev;
+  int fd;
 };
 
 #define TUN_MTU 2048
@@ -78,33 +78,53 @@ static int tun_open(char *name)
     return tun_fd;
 }
 
+/* Public interface: create/destroy. */
 
+void pico_tun_destroy(struct pico_device *dev) {
+  struct pico_device_tun *tun = (struct pico_device_tun *)dev;
+  if (tun->fd > 0) close(tun->fd);
+}
 
-struct pico_device *pico_tun_create(char *name)
-{
-    struct pico_device_tun *tun = PICO_ZALLOC(sizeof(struct pico_device_tun));
+static int tun_open(char *name) {
+  struct ifreq ifr;
+  int tun_fd;
+  if ((tun_fd = open("/dev/net/tun", O_RDWR)) < 0) {
+    return (-1);
+  }
 
-    if (!tun)
-        return NULL;
+  memset(&ifr, 0, sizeof(ifr));
+  ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
+  strncpy(ifr.ifr_name, name, IFNAMSIZ);
+  if (ioctl(tun_fd, TUNSETIFF, &ifr) < 0) {
+    return (-1);
+  }
 
-    if( 0 != pico_device_init((struct pico_device *)tun, name, NULL)) {
-        dbg("Tun init failed.\n");
-        pico_tun_destroy((struct pico_device *)tun);
-        return NULL;
-    }
+  return tun_fd;
+}
 
-    tun->dev.overhead = 0;
-    tun->fd = tun_open(name);
-    if (tun->fd < 0) {
-        dbg("Tun creation failed.\n");
-        pico_tun_destroy((struct pico_device *)tun);
-        return NULL;
-    }
+struct pico_device *pico_tun_create(char *name) {
+  struct pico_device_tun *tun = PICO_ZALLOC(sizeof(struct pico_device_tun));
 
-    tun->dev.send = pico_tun_send;
-    tun->dev.poll = pico_tun_poll;
-    tun->dev.destroy = pico_tun_destroy;
-    dbg("Device %s created.\n", tun->dev.name);
-    return (struct pico_device *)tun;
+  if (!tun) return NULL;
+
+  if (0 != pico_device_init((struct pico_device *)tun, name, NULL)) {
+    dbg("Tun init failed.\n");
+    pico_tun_destroy((struct pico_device *)tun);
+    return NULL;
+  }
+
+  tun->dev.overhead = 0;
+  tun->fd = tun_open(name);
+  if (tun->fd < 0) {
+    dbg("Tun creation failed.\n");
+    pico_tun_destroy((struct pico_device *)tun);
+    return NULL;
+  }
+
+  tun->dev.send = pico_tun_send;
+  tun->dev.poll = pico_tun_poll;
+  tun->dev.destroy = pico_tun_destroy;
+  dbg("Device %s created.\n", tun->dev.name);
+  return (struct pico_device *)tun;
 }
 
