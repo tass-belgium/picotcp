@@ -23,59 +23,39 @@ struct pico_device_tun {
 
 #define TUN_MTU 2048
 
-static int pico_tun_send(struct pico_device *dev, void *buf, int len)
-{
-    struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    return (int)write(tun->fd, buf, (uint32_t)len);
+static int pico_tun_send(struct pico_device *dev, void *buf, int len) {
+  struct pico_device_tun *tun = (struct pico_device_tun *)dev;
+  return (int)write(tun->fd, buf, (uint32_t)len);
 }
 
-static int pico_tun_poll(struct pico_device *dev, int loop_score)
-{
-    struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    struct pollfd pfd;
-    unsigned char buf[TUN_MTU];
-    int len;
-    pfd.fd = tun->fd;
-    pfd.events = POLLIN;
-    do  {
-        if (poll(&pfd, 1, 0) <= 0)
-            return loop_score;
-
-        len = (int)read(tun->fd, buf, TUN_MTU);
-        if (len > 0) {
-            loop_score--;
-            pico_stack_recv(dev, buf, (uint32_t)len);
-        }
-    } while(loop_score > 0);
-    return 0;
-}
-
-/* Public interface: create/destroy. */
-
-void pico_tun_destroy(struct pico_device *dev)
-{
-    struct pico_device_tun *tun = (struct pico_device_tun *) dev;
-    if(tun->fd > 0)
-        close(tun->fd);
-}
-
-
-static int tun_open(char *name)
-{
-    struct ifreq ifr;
-    int tun_fd;
-    if((tun_fd = open("/dev/net/tun", O_RDWR)) < 0) {
-        return(-1);
+static int pico_tun_poll(struct pico_device *dev, int loop_score) {
+  struct pico_device_tun *tun = (struct pico_device_tun *)dev;
+  struct pollfd pfd;
+  unsigned char buf[TUN_MTU];
+  int len;
+  int flags = fcntl(tun->fd, F_GETFL, 0);
+  fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);
+  pfd.fd = tun->fd;
+  pfd.events = POLLIN;
+  int timeout = -1;
+  do {
+    if (poll(&pfd, 1, timeout) <= 0) {
+      return loop_score;
+    } else {
     }
 
-    memset(&ifr, 0, sizeof(ifr));
-    ifr.ifr_flags = IFF_TUN | IFF_NO_PI;
-    strncpy(ifr.ifr_name, name, IFNAMSIZ);
-    if(ioctl(tun_fd, TUNSETIFF, &ifr) < 0) {
-        return(-1);
+    for (;;) {
+      len = (int)read(tun->fd, buf, TUN_MTU);
+      if (len > 0) {
+        timeout = 0;
+        loop_score--;
+        pico_stack_recv(dev, buf, (uint32_t)len);
+      } else {
+        return loop_score;
+      }
     }
-
-    return tun_fd;
+  } while (loop_score > 0);
+  return 0;
 }
 
 /* Public interface: create/destroy. */

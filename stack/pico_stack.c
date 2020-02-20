@@ -614,8 +614,8 @@ void pico_timer_cancel_hashed(uint32_t hash) {
 
 #define PROTO_DEF_NR 11
 #define PROTO_DEF_AVG_NR 4
-#define PROTO_DEF_SCORE 32
-#define PROTO_MIN_SCORE 32
+#define PROTO_DEF_SCORE 128
+#define PROTO_MIN_SCORE 128
 #define PROTO_MAX_SCORE 128
 #define PROTO_LAT_IND                                                        \
   3 /* latency indication 0-3 (lower is better latency performance), x1, x2, \
