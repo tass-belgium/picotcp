@@ -144,6 +144,7 @@ static int socket_cmp(void *ka, void *kb)
     struct pico_socket *a = ka, *b = kb;
     int ret = 0;
 
+    printf("Socket comparing a: %p, b: %p\n", ka, kb);
     /* First, order by network family */
     ret = socket_cmp_family(a, b);
 
@@ -164,6 +165,7 @@ static int socket_cmp(void *ka, void *kb)
 static int sockport_cmp(void *ka, void *kb)
 {
     struct pico_sockport *a = ka, *b = kb;
+    /*printf("Sockport comparing a: %d, b: %d\n", a->number, b->number);*/
     if (a->number < b->number)
         return -1;
 
@@ -329,8 +331,8 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net)
     struct pico_sockport *sp;
     sp = pico_get_sockport(proto, port);
 
-    if (pico_generic_port_in_use(proto, port, sp, addr, net))
-        return 0;
+    /*if (pico_generic_port_in_use(proto, port, sp, addr, net))*/
+        /*return 0;*/
 
     return 1;
 }
@@ -417,6 +419,7 @@ int8_t pico_socket_add(struct pico_socket *s)
         }
         else if (PROTO(s) == PICO_PROTO_TCP)
         {
+          printf("PROTO TCP\n");
             if (pico_tree_insert(&TCPTable, sp)) {
 				PICO_FREE(sp);
 				PICOTCP_MUTEX_UNLOCK(Mutex);
@@ -427,6 +430,7 @@ int8_t pico_socket_add(struct pico_socket *s)
 
     if (pico_tree_insert(&sp->socks, s)) {
 		PICOTCP_MUTEX_UNLOCK(Mutex);
+        printf("Insert exists\n");
 		return -1;
 	}
     s->state |= PICO_SOCKET_STATE_BOUND;
@@ -534,11 +538,13 @@ static void pico_socket_update_tcp_state(struct pico_socket *s, uint16_t tcp_sta
     }
 }
 
-static int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
+int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint16_t less_states, uint16_t tcp_state)
 {
     struct pico_sockport *sp;
-    if (more_states & PICO_SOCKET_STATE_BOUND)
+    if (more_states & PICO_SOCKET_STATE_BOUND) {
+        printf("alter state %p\n", (void *) s);
         return pico_socket_add(s);
+    }
 
     if (less_states & PICO_SOCKET_STATE_BOUND)
         return pico_socket_del(s);
@@ -582,6 +588,8 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     if (!tr)
         return -1;
 
+    // port is wrong for some reason
+    printf("pico_socket_deliver localport %d\n", short_be(localport));
     sp = pico_get_sockport(p->proto_number, localport);
     if (!sp) {
         dbg("No such port %d\n", short_be(localport));
@@ -720,10 +728,33 @@ static int pico_socket_transport_read(struct pico_socket *s, void *buf, int len)
 
         return pico_socket_udp_recv(s, buf, (uint16_t)len, NULL, NULL);
     }
-    else if (PROTO(s) == PICO_PROTO_TCP)
+    else if (PROTO(s) == PICO_PROTO_TCP) {
         return pico_socket_tcp_read(s, buf, (uint32_t)len);
+    }
     else return 0;
 }
+
+static int pico_socket_transport_readline(struct pico_socket *s, void *buf)
+{
+    if (PROTO(s) == PICO_PROTO_UDP)
+    {
+        /*// make sure cast to uint16_t doesn't give unexpected results
+        if(len > 0xFFFF) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }*/
+
+        //return pico_socket_udp_recvline(s, buf, NULL, NULL); will implement later
+        printf("not implemented yet. oh no!\n");
+        exit(1);
+    }
+    else if (PROTO(s) == PICO_PROTO_TCP) {
+        return pico_socket_tcp_readline(s, buf);
+    }
+    else return 0;
+}
+
+
 
 int pico_socket_read(struct pico_socket *s, void *buf, int len)
 {
@@ -739,12 +770,37 @@ int pico_socket_read(struct pico_socket *s, void *buf, int len)
         }
     }
 
-    if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+    /*if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+        //dbg("HAEAAA %x\n", s->state);
         pico_err = PICO_ERR_EIO;
         return -1;
-    }
+    }*/
 
     return pico_socket_transport_read(s, buf, len);
+}
+
+
+int pico_socket_readline(struct pico_socket *s, void *buf)
+{
+    if (!s || buf == NULL) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    } else {
+        /* check if exists in tree */
+        /* See task #178 */
+        if (pico_check_socket(s) != 0) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+    }
+
+    /*if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
+        //dbg("HAEAAA %x\n", s->state);
+        pico_err = PICO_ERR_EIO;
+        return -1;
+    }*/
+
+    return pico_socket_transport_readline(s, buf);
 }
 
 static int pico_socket_write_check_state(struct pico_socket *s)
@@ -769,11 +825,11 @@ static int pico_socket_write_check_state(struct pico_socket *s)
 
 static int pico_socket_write_attempt(struct pico_socket *s, const void *buf, int len)
 {
-    if (pico_socket_write_check_state(s) < 0) {
-        return -1;
-    } else {
+    /*if (pico_socket_write_check_state(s) < 0) {*/
+        /*return -1;*/
+    /*} else {*/
         return pico_socket_sendto(s, buf, len, &s->remote_addr, s->remote_port);
-    }
+    /*}*/
 }
 
 int pico_socket_write(struct pico_socket *s, const void *buf, int len)
@@ -785,11 +841,13 @@ int pico_socket_write(struct pico_socket *s, const void *buf, int len)
         /* check if exists in tree */
         /* See task #178 */
         if (pico_check_socket(s) != 0) {
+            dbg("pico_socket_write doesn't exist\n");
             pico_err = PICO_ERR_EINVAL;
             return -1;
         }
     }
 
+    dbg("pico_socket_write\n");
     return pico_socket_write_attempt(s, buf, len);
 }
 
@@ -1059,6 +1117,7 @@ static void pico_xmit_frame_set_nofrag(struct pico_frame *f)
 
 static int pico_socket_final_xmit(struct pico_socket *s, struct pico_frame *f)
 {
+    dbg("pico_socket_final_xmit\n");
     if (s->proto->push(s->proto, f) > 0) {
         return f->payload_len;
     } else {
@@ -1121,7 +1180,7 @@ static int pico_socket_xmit_one(struct pico_socket *s, const void *buf, const in
     }
 
     memcpy(f->payload, (const uint8_t *)buf, f->payload_len);
-    /* dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len); */
+     /*dbg("Pushing segment, hdr len: %d, payload_len: %d\n", header_offset, f->payload_len);*/
     ret = pico_socket_final_xmit(s, f);
     return ret;
 }
@@ -1404,6 +1463,7 @@ int MOCKABLE pico_socket_sendto_extended(struct pico_socket *s, const void *buf,
 
 int MOCKABLE pico_socket_sendto(struct pico_socket *s, const void *buf, const int len, void *dst, uint16_t remote_port)
 {
+    dbg("pico_socket_sendto\n");
     return pico_socket_sendto_extended(s, buf, len, dst, remote_port, NULL);
 }
 
@@ -1620,6 +1680,88 @@ int MOCKABLE pico_socket_bind(struct pico_socket *s, void *local_addr, uint16_t 
     }
 
     return pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+}
+
+int pico_socket_connect_no_init(struct pico_socket *s, const void *remote_addr, uint16_t remote_port)
+{
+    int ret = -1;
+    pico_err = PICO_ERR_EPROTONOSUPPORT;
+    if (!s || remote_addr == NULL || remote_port == 0) {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    s->remote_port = remote_port;
+
+    if (s->local_port == 0) {
+        s->local_port = pico_socket_high_port(PROTO(s));
+        if (!s->local_port) {
+            pico_err = PICO_ERR_EINVAL;
+            return -1;
+        }
+    }
+
+    if (is_sock_ipv4(s)) {
+    #ifdef PICO_SUPPORT_IPV4
+        struct pico_ip4 *local = NULL;
+        const struct pico_ip4 *ip = (const struct pico_ip4 *)remote_addr;
+        s->remote_addr.ip4 = *ip;
+        local = pico_ipv4_source_find(ip);
+        if (local) {
+            get_sock_dev(s);
+            s->local_addr.ip4 = *local;
+        } else {
+            pico_err = PICO_ERR_EHOSTUNREACH;
+            return -1;
+        }
+
+    #endif
+    } else if (is_sock_ipv6(s)) {
+    #ifdef PICO_SUPPORT_IPV6
+        struct pico_ip6 *local = NULL;
+        const struct pico_ip6 *ip = (const struct pico_ip6 *)remote_addr;
+        s->remote_addr.ip6 = *ip;
+        local = pico_ipv6_source_find(ip);
+        if (local) {
+            get_sock_dev(s);
+            s->local_addr.ip6 = *local;
+        } else {
+            pico_err = PICO_ERR_EHOSTUNREACH;
+            return -1;
+        }
+
+    #endif
+    } else {
+        pico_err = PICO_ERR_EINVAL;
+        return -1;
+    }
+
+    pico_socket_alter_state(s, PICO_SOCKET_STATE_BOUND, 0, 0);
+
+#ifdef PICO_SUPPORT_UDP
+    if (PROTO(s) == PICO_PROTO_UDP) {
+        pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED, 0, 0);
+        pico_err = PICO_ERR_NOERR;
+        ret = 0;
+    }
+
+#endif
+
+#ifdef PICO_SUPPORT_TCP
+    if (PROTO(s) == PICO_PROTO_TCP) {
+      ret = 0;
+        /*if (pico_tcp_initconn(s) == 0) {*/
+            /*pico_socket_alter_state(s, PICO_SOCKET_STATE_CONNECTED | PICO_SOCKET_STATE_TCP_SYN_SENT, PICO_SOCKET_STATE_CLOSED, 0);*/
+            /*pico_err = PICO_ERR_NOERR;*/
+            /*ret = 0;*/
+        /*} else {*/
+            /*pico_err = PICO_ERR_EHOSTUNREACH;*/
+        /*}*/
+    }
+
+#endif
+
+    return ret;
 }
 
 

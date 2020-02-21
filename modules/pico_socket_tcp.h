@@ -14,6 +14,7 @@ void pico_socket_tcp_delete(struct pico_socket *s);
 void pico_socket_tcp_cleanup(struct pico_socket *sock);
 struct pico_socket *pico_socket_tcp_open(uint16_t family);
 int pico_socket_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
+int pico_socket_tcp_readline(struct pico_socket *s, void *buf); // added this for Lua receive()
 void transport_flags_update(struct pico_frame *, struct pico_socket *);
 
 #else
@@ -25,6 +26,7 @@ void transport_flags_update(struct pico_frame *, struct pico_socket *);
 #   define pico_socket_tcp_cleanup(...) do {} while(0)
 #   define pico_socket_tcp_open(f) (NULL)
 #   define pico_socket_tcp_read(...) (-1)
+#	define pico_socket_tcp_readline(...) (-1)
 #   define transport_flags_update(...) do {} while(0)
 
 #endif

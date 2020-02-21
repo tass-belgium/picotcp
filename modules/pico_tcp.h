@@ -78,6 +78,7 @@ PACKED_STRUCT_DEF pico_tcp_option
 
 struct pico_socket *pico_tcp_open(uint16_t family);
 uint32_t pico_tcp_read(struct pico_socket *s, void *buf, uint32_t len);
+uint32_t pico_tcp_readline(struct pico_socket *s, void *buf);
 int pico_tcp_initconn(struct pico_socket *s);
 int pico_tcp_input(struct pico_socket *s, struct pico_frame *f);
 uint16_t pico_tcp_checksum(struct pico_frame *f);
