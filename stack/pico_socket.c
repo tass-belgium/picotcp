@@ -144,7 +144,6 @@ static int socket_cmp(void *ka, void *kb)
     struct pico_socket *a = ka, *b = kb;
     int ret = 0;
 
-    printf("Socket comparing a: %p, b: %p\n", ka, kb);
     /* First, order by network family */
     ret = socket_cmp_family(a, b);
 
@@ -165,7 +164,6 @@ static int socket_cmp(void *ka, void *kb)
 static int sockport_cmp(void *ka, void *kb)
 {
     struct pico_sockport *a = ka, *b = kb;
-    /*printf("Sockport comparing a: %d, b: %d\n", a->number, b->number);*/
     if (a->number < b->number)
         return -1;
 
@@ -419,7 +417,6 @@ int8_t pico_socket_add(struct pico_socket *s)
         }
         else if (PROTO(s) == PICO_PROTO_TCP)
         {
-          printf("PROTO TCP\n");
             if (pico_tree_insert(&TCPTable, sp)) {
 				PICO_FREE(sp);
 				PICOTCP_MUTEX_UNLOCK(Mutex);
@@ -430,7 +427,6 @@ int8_t pico_socket_add(struct pico_socket *s)
 
     if (pico_tree_insert(&sp->socks, s)) {
 		PICOTCP_MUTEX_UNLOCK(Mutex);
-        printf("Insert exists\n");
 		return -1;
 	}
     s->state |= PICO_SOCKET_STATE_BOUND;
@@ -542,7 +538,6 @@ int8_t pico_socket_alter_state(struct pico_socket *s, uint16_t more_states, uint
 {
     struct pico_sockport *sp;
     if (more_states & PICO_SOCKET_STATE_BOUND) {
-        printf("alter state %p\n", (void *) s);
         return pico_socket_add(s);
     }
 
@@ -588,8 +583,6 @@ static int pico_socket_deliver(struct pico_protocol *p, struct pico_frame *f, ui
     if (!tr)
         return -1;
 
-    // port is wrong for some reason
-    printf("pico_socket_deliver localport %d\n", short_be(localport));
     sp = pico_get_sockport(p->proto_number, localport);
     if (!sp) {
         dbg("No such port %d\n", short_be(localport));
@@ -745,7 +738,6 @@ static int pico_socket_transport_readline(struct pico_socket *s, void *buf)
         }*/
 
         //return pico_socket_udp_recvline(s, buf, NULL, NULL); will implement later
-        printf("not implemented yet. oh no!\n");
         exit(1);
     }
     else if (PROTO(s) == PICO_PROTO_TCP) {

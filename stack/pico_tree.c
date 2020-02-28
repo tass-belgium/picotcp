@@ -125,7 +125,6 @@ struct pico_tree_node *pico_tree_prev(struct pico_tree_node *node)
  */
 void *pico_tree_insert(struct pico_tree *tree, void *key)
 {
-    printf("tree insert pointer %p\n", key);
     return pico_tree_insert_implementation(tree, key, USE_PICO_ZALLOC);
 }
 
@@ -166,7 +165,6 @@ void *pico_tree_insert_implementation(struct pico_tree *tree, void *key, uint8_t
 
     /* if node already in, bail out */
     if(LocalKey) {
-        printf("TREE_INSERT\n");
         pico_err = PICO_ERR_EEXIST;
         return LocalKey;
     }
