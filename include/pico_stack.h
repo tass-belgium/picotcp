@@ -91,6 +91,9 @@ uint32_t pico_timer_add(pico_time expire, void (*timer)(pico_time, void *),
 uint32_t pico_timer_add_hashed(pico_time expire,
                                void (*timer)(pico_time, void *), void *arg,
                                uint32_t hash);
+uint32_t pico_timers_size();
+uint32_t pico_timers_populate_id_to_expiry(uint32_t id_expiry_fd[][3]);
+void pico_timer_trigger_callback(uint32_t id);
 void pico_timer_cancel_hashed(uint32_t hash);
 void pico_timer_cancel(uint32_t id);
 uint32_t pico_rand(void);

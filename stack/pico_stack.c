@@ -577,6 +577,48 @@ static void pico_check_timers(void) {
   }
 }
 
+uint32_t pico_timers_size() { return Timers->n; }
+
+uint32_t pico_timers_populate_id_to_expiry(uint32_t id_expiry_fd[][3]) {
+  struct pico_timer *t;
+  struct pico_timer_ref *tref;
+  uint32_t insert_iterator = 0;
+  for (uint32_t i = 1; i <= Timers->n; i++) {
+    tref = heap_get_element(Timers, i);
+    t = tref->tmr;
+    if (t) {
+      id_expiry_fd[insert_iterator][0] = tref->id;
+      id_expiry_fd[insert_iterator][1] = tref->expire;
+      id_expiry_fd[insert_iterator][2] = 0;  // fd, to be filled later
+      insert_iterator++;
+    }
+  }
+  return insert_iterator;
+}
+
+void pico_timer_trigger_callback(uint32_t id) {
+  uint32_t i;
+  struct pico_timer *t;
+  struct pico_timer_ref *tref;
+  if (id == 0u) return;
+
+  pico_tick = PICO_TIME_MS();
+  for (i = 1; i <= Timers->n; i++) {
+    tref = heap_get_element(Timers, i);
+    if (tref->id == id) {
+      t = tref->tmr;
+      if (t) {
+        // trigger callback
+        t->timer(pico_tick, t->arg);
+        PICO_FREE(tref->tmr);
+        tref->tmr = NULL;
+        tref->id = 0;
+      }
+      break;
+    }
+  }
+}
+
 void MOCKABLE pico_timer_cancel(uint32_t id) {
   uint32_t i;
   struct pico_timer_ref *tref;
@@ -717,7 +759,7 @@ void pico_stack_tick_no_in(void) {
   static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
   static int ret[PROTO_DEF_NR] = {0};
 
-  pico_check_timers();
+  /*pico_check_timers();*/
 
   ret[1] = pico_protocol_datalink_loop(score[1], PICO_LOOP_DIR_IN);
   pico_rand_feed((uint32_t)ret[1]);
@@ -767,7 +809,7 @@ void pico_stack_tick(void) {
   static int avg[PROTO_DEF_NR][PROTO_DEF_AVG_NR];
   static int ret[PROTO_DEF_NR] = {0};
 
-  pico_check_timers();
+  /*pico_check_timers();*/
 
   /* dbg("LOOP_SCORES> %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d - %3d
    * -
