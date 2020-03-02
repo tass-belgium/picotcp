@@ -16,9 +16,7 @@
    #define TIME_PRESCALE
    #define PICO_SUPPORT_THREADING
  */
-// #define dbg printf
-
-#define dbg(...) do {} while(0)
+#define dbg printf
 
 #define stack_fill_pattern(...) \
   do {                          \

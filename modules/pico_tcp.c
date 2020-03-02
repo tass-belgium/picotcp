@@ -59,9 +59,7 @@
 #ifdef DEBUG_TCP_GENERAL
 #define tcp_dbg dbg
 #else
-#define tcp_dbg(...) \
-  do {               \
-  } while (0)
+#define tcp_dbg dbg
 #endif
 
 #ifdef DEBUG_TCP_NAGLE
@@ -1623,7 +1621,7 @@ static void tcp_send_fin(struct pico_socket_tcp *t) {
   hdr->rwnd = short_be(t->wnd);
   hdr->crc = 0;
   hdr->crc = short_be(pico_tcp_checksum(f));
-  /* tcp_dbg("SENDING FIN...\n"); */
+  tcp_dbg("SENDING FIN...\n");
   if (t->linger_timeout > 0) {
     pico_enqueue(&tcp_out, f);
     t->snd_nxt++;
@@ -3061,8 +3059,7 @@ int pico_tcp_output(struct pico_socket *s, int loop_score) {
        PICO_SOCKET_STATE_SHUT_LOCAL)) { /* if no more packets in queue, XXX
                                            replaced !f by tcpq check */
     if (!checkLocalClosing(
-            &t->sock)) /* check if local closing started and send fin */
-    {
+            &t->sock)) /* check if local closing started and send fin */ {
       checkRemoteClosing(
           &t->sock); /* check if remote closing started and send fin */
     }

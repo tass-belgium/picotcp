@@ -66,6 +66,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     id_expiry_fd[i][2] = timer_fd;
   }
   int timeout = -1;
+  int should_return = 0;
   do {
     if (poll(pfds, num_fds, timeout) <= 0) {
       // A poll timeout or error occurred.
@@ -91,10 +92,11 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     uint64_t res;
     for (int i = 1; i < num_fds; i++) {
       if (pfds[i].revents & POLLIN) {
+        printf("timer fired\n");
         int result = read(pfds[i].fd, &res, sizeof(res));
         if (result <= 0) {
-          // The read failed.
-          return loop_score;
+          should_return = 1;
+          break;
         }
         for (uint32_t j = 0; j < num_timers; j++) {
           if (id_expiry_fd[j][2] == pfds[i].fd) {
@@ -104,7 +106,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       }
     }
 
-  } while (loop_score > 0);
+  } while (loop_score > 0 && !should_return);
   return 0;
 }
 
