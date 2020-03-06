@@ -90,7 +90,7 @@ endif
 EXTRA_CFLAGS+=-DPICO_COMPILE_TIME=`date +%s`
 EXTRA_CFLAGS+=$(PLATFORM_CFLAGS)
 
-CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -fPIC -pg -g $(EXTRA_CFLAGS)
+CFLAGS=-I$(PREFIX)/include -Iinclude -Imodules -fPIC -g $(EXTRA_CFLAGS)
 # options for adding warnings
 CFLAGS+= -Wall -W -Wextra -Wshadow -Wcast-qual -Wwrite-strings -Wundef -Wdeclaration-after-statement
 CFLAGS+= -Wconversion -Wcast-align -Wmissing-prototypes

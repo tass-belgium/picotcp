@@ -7,9 +7,11 @@
 
 #include "pico_dev_tun.h"
 
+#include <errno.h>
 #include <fcntl.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/time.h>
@@ -32,10 +34,10 @@ static int pico_tun_send(struct pico_device *dev, void *buf, int len) {
 
 static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   struct pico_device_tun *tun = (struct pico_device_tun *)dev;
-  unsigned char buf[TUN_MTU];
+  unsigned char *buf = (unsigned char *)PICO_ZALLOC(TUN_MTU);
   int len;
   int flags = fcntl(tun->fd, F_GETFL, 0);
-  fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);
+  /*fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);*/
   uint32_t num_timers = pico_timers_size();
   uint32_t id_expiry_fd[num_timers][3];
   uint32_t num_inserted = pico_timers_populate_id_to_expiry(id_expiry_fd);
@@ -65,13 +67,13 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     pfds[i + 1].events = POLLIN;
     id_expiry_fd[i][2] = timer_fd;
   }
+  // -1 Timeout means block indefinitely.
   int timeout = -1;
   int should_return = 0;
   do {
     if (poll(pfds, num_fds, timeout) <= 0) {
-      // A poll timeout or error occurred.
-      // TODO(semaj): check for error.
-      return loop_score;
+      fprintf(stderr, "TUN poll error %s\n", strerror(errno));
+      return -1;
     }
 
     // First, check the TUN.
@@ -79,11 +81,11 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       for (;;) {
         len = (int)read(tun->fd, buf, TUN_MTU);
         if (len > 0) {
-          timeout = 0;
-          loop_score--;
-          pico_stack_recv(dev, buf, (uint32_t)len);
-        } else {
+          pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
           return loop_score;
+        } else {
+          fprintf(stderr, "TUN read error %s\n", strerror(errno));
+          return -1;
         }
       }
     }
@@ -95,8 +97,8 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
         printf("timer fired\n");
         int result = read(pfds[i].fd, &res, sizeof(res));
         if (result <= 0) {
-          should_return = 1;
-          break;
+          fprintf(stderr, "Timer read error %s\n", strerror(errno));
+          return -1;
         }
         for (uint32_t j = 0; j < num_timers; j++) {
           if (id_expiry_fd[j][2] == pfds[i].fd) {
