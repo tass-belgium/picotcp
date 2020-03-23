@@ -78,15 +78,13 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
 
     // First, check the TUN.
     if (pfds[0].revents & POLLIN) {
-      for (;;) {
-        len = (int)read(tun->fd, buf, TUN_MTU);
-        if (len > 0) {
-          pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
-          return loop_score;
-        } else {
-          fprintf(stderr, "TUN read error %s\n", strerror(errno));
-          return -1;
-        }
+      len = (int)read(tun->fd, buf, TUN_MTU);
+      if (len > 0) {
+        pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
+        return loop_score;
+      } else {
+        fprintf(stderr, "TUN read error %s\n", strerror(errno));
+        return -1;
       }
     }
 
@@ -94,7 +92,6 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     uint64_t res;
     for (int i = 1; i < num_fds; i++) {
       if (pfds[i].revents & POLLIN) {
-        printf("timer fired\n");
         int result = read(pfds[i].fd, &res, sizeof(res));
         if (result <= 0) {
           fprintf(stderr, "Timer read error %s\n", strerror(errno));

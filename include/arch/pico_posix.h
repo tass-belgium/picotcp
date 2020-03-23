@@ -16,7 +16,11 @@
    #define TIME_PRESCALE
    #define PICO_SUPPORT_THREADING
  */
-#define dbg printf
+
+#define dbg(fmt, ...)                    \
+  do {                                   \
+    fprintf(stderr, fmt, ##__VA_ARGS__); \
+  } while (0)
 
 #define stack_fill_pattern(...) \
   do {                          \

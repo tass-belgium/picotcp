@@ -59,7 +59,9 @@
 #ifdef DEBUG_TCP_GENERAL
 #define tcp_dbg dbg
 #else
-#define tcp_dbg dbg
+#define tcp_dbg(...) \
+  do {               \
+  } while (0)
 #endif
 
 #ifdef DEBUG_TCP_NAGLE
@@ -2884,10 +2886,11 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f) {
   f->payload = (f->transport_hdr + ((hdr->len & 0xf0u) >> 2u));
   f->payload_len = (uint16_t)(f->transport_len - ((hdr->len & 0xf0u) >> 2u));
 
-  dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
-  dbg("[sam] TCP> flags = 0x%02x\n", hdr->flags);
-  dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
-  dbg("[sam] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote "
+  tcp_dbg("[sam] TCP> [tcp input] t_len: %u\n", f->transport_len);
+  tcp_dbg("[sam] TCP> flags = 0x%02x\n", hdr->flags);
+  tcp_dbg("[sam] TCP> s->state >> 8 = %u\n", s->state >> 8);
+  tcp_dbg(
+      "[sam] TCP> [tcp input] socket: %p state: %d <-- local port:%u remote "
       "port: %u seq: 0x%08x ack: 0x%08x flags: 0x%02x t_len: %u, hdr: %u "
       "payload: %d\n",
       s, s->state >> 8, short_be(hdr->trans.dport), short_be(hdr->trans.sport),
@@ -2900,7 +2903,7 @@ int pico_tcp_input(struct pico_socket *s, struct pico_frame *f) {
   /* Those are not supported at this time. */
   /* flags &= (uint8_t) ~(PICO_TCP_CWR | PICO_TCP_URG | PICO_TCP_ECN); */
   if (invalid_flags(s, flags)) {
-    dbg("Invalid flags, sending RST!\n");
+    tcp_dbg("Invalid flags, sending RST!\n");
     pico_tcp_reply_rst(f);
   } else if (flags == PICO_TCP_SYN) {
     tcp_action_call(action->syn, s, f);
