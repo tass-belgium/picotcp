@@ -1205,16 +1205,16 @@ uint32_t pico_tcp_readline(struct pico_socket *s, void *buf) {
     char *token = strtok(line, "\r");
     while (token != NULL) {
       memcpy((uint8_t *)buf + tot_rd_len, token, strlen(token));
-      tot_rd_len += strlen(token);
+      tot_rd_len += (uint32_t)strlen(token);
       // printf("%s", token);
       token = strtok(NULL, "\r");
     }
-    t->rcv_processed += strlensaved + 1;
-    if (f->payload[in_frame_off + strlensaved] == '\n') {
-      tcp_read_check_segment_done(t, f, strlensaved);
+    t->rcv_processed += (uint32_t)strlensaved + 1;
+    if (f->payload[(size_t)in_frame_off + strlensaved] == '\n') {
+      tcp_read_check_segment_done(t, f, (uint32_t)strlensaved);
       break;
     } else {
-      tcp_read_check_segment_done(t, f, strlensaved);
+      tcp_read_check_segment_done(t, f, (uint32_t)strlensaved);
     }
   }
   return tcp_read_finish(s, tot_rd_len);

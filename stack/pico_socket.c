@@ -313,8 +313,9 @@ int pico_is_port_free(uint16_t proto, uint16_t port, void *addr, void *net) {
   struct pico_sockport *sp;
   sp = pico_get_sockport(proto, port);
 
-  /*if (pico_generic_port_in_use(proto, port, sp, addr, net))*/
-  /*return 0;*/
+  if (pico_generic_port_in_use(proto, port, sp, addr, net)) {
+    dbg("pico-is_port_free (currently unused) would return false\n");
+  }
 
   return 1;
 }
@@ -731,26 +732,6 @@ int pico_socket_readline(struct pico_socket *s, void *buf) {
   }*/
 
   return pico_socket_transport_readline(s, buf);
-}
-
-static int pico_socket_write_check_state(struct pico_socket *s) {
-  if ((s->state & PICO_SOCKET_STATE_BOUND) == 0) {
-    pico_err = PICO_ERR_EIO;
-    return -1;
-  }
-
-  if ((s->state & PICO_SOCKET_STATE_CONNECTED) == 0) {
-    pico_err = PICO_ERR_ENOTCONN;
-    return -1;
-  }
-
-  if (s->state &
-      PICO_SOCKET_STATE_SHUT_LOCAL) { /* check if in shutdown state */
-    pico_err = PICO_ERR_ESHUTDOWN;
-    return -1;
-  }
-
-  return 0;
 }
 
 static int pico_socket_write_attempt(struct pico_socket *s, const void *buf,
