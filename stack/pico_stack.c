@@ -558,31 +558,12 @@ int32_t pico_seq_compare(uint32_t a, uint32_t b) {
   return 0;
 }
 
-static void pico_check_timers(void) {
-  struct pico_timer *t;
-  struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
-  pico_tick = PICO_TIME_MS();
-  while ((tref) && (tref->expire < pico_tick)) {
-    t = tref->tmr;
-    if (t && t->timer)
-      // timer has expired, so call the callback
-      t->timer(pico_tick, t->arg);
+uint32_t pico_timers_size(void) { return Timers->n; }
 
-    if (t) {
-      PICO_FREE(t);
-    }
-
-    heap_peek(Timers, &tref_unused);
-    tref = heap_first(Timers);
-  }
-}
-
-uint32_t pico_timers_size() { return Timers->n; }
-
-uint32_t pico_timers_populate_id_to_expiry(uint32_t id_expiry_fd[][3]) {
+uint64_t pico_timers_populate_id_to_expiry(uint64_t id_expiry_fd[][3]) {
   struct pico_timer *t;
   struct pico_timer_ref *tref;
-  uint32_t insert_iterator = 0;
+  uint64_t insert_iterator = 0;
   for (uint32_t i = 1; i <= Timers->n; i++) {
     tref = heap_get_element(Timers, i);
     t = tref->tmr;
@@ -596,7 +577,7 @@ uint32_t pico_timers_populate_id_to_expiry(uint32_t id_expiry_fd[][3]) {
   return insert_iterator;
 }
 
-void pico_timer_trigger_callback(uint32_t id) {
+void pico_timer_trigger_callback(uint64_t id) {
   uint32_t i;
   struct pico_timer *t;
   struct pico_timer_ref *tref;

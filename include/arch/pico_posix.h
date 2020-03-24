@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 /*
@@ -17,10 +18,16 @@
    #define PICO_SUPPORT_THREADING
  */
 
+#ifdef DEBUG_TCP_GENERAL
 #define dbg(fmt, ...)                    \
   do {                                   \
     fprintf(stderr, fmt, ##__VA_ARGS__); \
   } while (0)
+#else
+#define dbg(...) \
+  do {           \
+  } while (0)
+#endif
 
 #define stack_fill_pattern(...) \
   do {                          \
@@ -130,7 +137,14 @@ extern int pico_sem_wait(void *sem, int timeout);
 extern void *pico_thread_create(void *(*routine)(void *), void *arg);
 #endif /* PICO_SUPPORT_THREADING */
 
-static inline void PICO_IDLE(void) { usleep(5000); }
+static void msleep(int tms) {
+  struct timeval tv;
+  tv.tv_sec = tms / 1000;
+  tv.tv_usec = (tms % 1000) * 1000;
+  select(0, NULL, NULL, NULL, &tv);
+}
+
+static inline void PICO_IDLE(void) { msleep(5); }
 
 #endif /* PICO_SUPPORT_POSIX */
 

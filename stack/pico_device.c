@@ -458,7 +458,7 @@ int32_t pico_device_broadcast(struct pico_frame *f) {
     }
   }
 
-  ret = sent ? f->len : -1;
+  ret = sent ? (int32_t)f->len : -1;
   pico_frame_discard(f);
   return ret;
 }
