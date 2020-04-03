@@ -82,6 +82,9 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       len = (int)read(tun->fd, buf, TUN_MTU);
       if (len > 0) {
         pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
+        for (uint64_t i = 1; i < num_fds; i++) {
+          close(pfds[i].fd);
+        }
         return loop_score;
       } else {
         fprintf(stderr, "TUN read error %s\n", strerror(errno));
