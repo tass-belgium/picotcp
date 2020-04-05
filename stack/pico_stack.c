@@ -860,6 +860,10 @@ static uint32_t pico_timer_ref_add(pico_time expire, struct pico_timer *t,
   if (Timers->n > PICO_MAX_TIMERS) {
     dbg("Warning: I have %d timers\n", (int)Timers->n);
   }
+  if (Timers->n > PICO_MAX_TIMERS * 2) {
+    fprintf(stderr, "Exiting, I have %d timers\n", (int)Timers->n);
+    exit(1);
+  }
 
   return tref.id;
 }
