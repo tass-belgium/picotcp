@@ -577,26 +577,20 @@ uint64_t pico_timers_populate_id_to_expiry(uint64_t id_expiry_fd[][3]) {
   return insert_iterator;
 }
 
-void pico_timer_trigger_callback(uint64_t id) {
-  uint32_t i;
+void pico_check_timers(void) {
   struct pico_timer *t;
-  struct pico_timer_ref *tref;
-  if (id == 0u) return;
-
+  struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
-  for (i = 1; i <= Timers->n; i++) {
-    tref = heap_get_element(Timers, i);
-    if (tref->id == id) {
-      t = tref->tmr;
-      if (t) {
-        // trigger callback
-        t->timer(pico_tick, t->arg);
-        PICO_FREE(tref->tmr);
-        tref->tmr = NULL;
-        tref->id = 0;
-      }
-      break;
+  while ((tref) && (tref->expire < pico_tick)) {
+    t = tref->tmr;
+    if (t && t->timer) t->timer(pico_tick, t->arg);
+
+    if (t) {
+      PICO_FREE(t);
     }
+
+    heap_peek(Timers, &tref_unused);
+    tref = heap_first(Timers);
   }
 }
 
