@@ -93,22 +93,23 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     }
 
     // Then, check the timers.
-    uint64_t res;
+    int should_check_timers = 0;
     for (uint64_t i = 1; i < num_fds; i++) {
       if (pfds[i].revents & POLLIN) {
-        long result = read(pfds[i].fd, &res, sizeof(res));
-        if (result <= 0) {
-          fprintf(stderr, "Timer read error %s\n", strerror(errno));
-          return -1;
-        }
-        for (uint32_t j = 0; j < num_timers; j++) {
-          if (id_expiry_fd[j][2] == (uint32_t)pfds[i].fd) {
-            pico_timer_trigger_callback(id_expiry_fd[j][0]);
-          }
-        }
+        should_check_timers = 1;
       }
     }
-
+    if (should_check_timers) {
+      pico_check_timers();
+    }
+    // We may have new timers, so we need to restart in order
+    // to populate our pollfds again.
+    if (num_timers != pico_timers_size()) {
+      for (uint64_t i = 1; i < num_fds; i++) {
+        close(pfds[i].fd);
+      }
+      return pico_tun_poll(dev, loop_score);
+    }
   } while (loop_score > 0 && !should_return);
   return 0;
 }
