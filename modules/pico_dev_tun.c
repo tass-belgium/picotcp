@@ -70,10 +70,10 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   }
   // -1 Timeout means block indefinitely.
   int timeout = -1;
-  int should_return = 0;
-  do {
+  for (;;) {
     if (poll(pfds, num_fds, timeout) <= 0) {
-      fprintf(stderr, "TUN poll error %s\n", strerror(errno));
+      fprintf(stderr, "TUN poll error: %s\n", strerror(errno));
+      // This will happen when snapshotted.
       return -1;
     }
 
@@ -87,8 +87,8 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
         }
         return loop_score;
       } else {
-        fprintf(stderr, "TUN read error %s\n", strerror(errno));
-        return -1;
+        fprintf(stderr, "TUN read error: %s\n", strerror(errno));
+        exit(1);
       }
     }
 
@@ -96,6 +96,16 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     int should_check_timers = 0;
     for (uint64_t i = 1; i < num_fds; i++) {
       if (pfds[i].revents & POLLIN) {
+        unsigned long long missed;
+        int ret = (int)read(pfds[i].fd, &missed, sizeof(missed));
+        if (ret < 0) {
+          fprintf(stderr, "Timer read error %s\n", strerror(errno));
+          exit(1);
+        }
+        if (missed > 3) {
+          fprintf(stderr, "We've missed a timer more than 3 times.\n");
+          exit(1);
+        }
         should_check_timers = 1;
       }
     }
@@ -104,13 +114,13 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     }
     // We may have new timers, so we need to restart in order
     // to populate our pollfds again.
-    if (num_timers != pico_timers_size()) {
+    if (num_timers < pico_timers_size()) {
       for (uint64_t i = 1; i < num_fds; i++) {
         close(pfds[i].fd);
       }
       return pico_tun_poll(dev, loop_score);
     }
-  } while (loop_score > 0 && !should_return);
+  }
   return 0;
 }
 
