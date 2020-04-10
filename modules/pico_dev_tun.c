@@ -114,7 +114,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     }
     // We may have new timers, so we need to restart in order
     // to populate our pollfds again.
-    if (num_timers < pico_timers_size()) {
+    if (num_timers != pico_timers_size()) {
       for (uint64_t i = 1; i < num_fds; i++) {
         close(pfds[i].fd);
       }
