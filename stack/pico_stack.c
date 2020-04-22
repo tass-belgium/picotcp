@@ -9,6 +9,8 @@
 
 #include "pico_stack.h"
 
+#include <sys/timerfd.h>
+
 #include "heap.h"
 #include "pico_6lowpan.h"
 #include "pico_6lowpan_ll.h"
@@ -528,6 +530,7 @@ struct pico_timer_ref {
   uint32_t id;
   uint32_t hash;
   struct pico_timer *tmr;
+  int timer_fd;
 };
 
 typedef struct pico_timer_ref pico_timer_ref;
@@ -560,7 +563,7 @@ int32_t pico_seq_compare(uint32_t a, uint32_t b) {
 
 uint32_t pico_timers_size(void) { return Timers->n; }
 
-uint64_t pico_timers_populate_id_to_expiry(uint64_t id_expiry_fd[][3]) {
+uint64_t pico_timers_populate_timer_fds(int timer_fds[]) {
   struct pico_timer *t;
   struct pico_timer_ref *tref;
   uint64_t insert_iterator = 0;
@@ -568,9 +571,7 @@ uint64_t pico_timers_populate_id_to_expiry(uint64_t id_expiry_fd[][3]) {
     tref = heap_get_element(Timers, i);
     t = tref->tmr;
     if (t) {
-      id_expiry_fd[insert_iterator][0] = tref->id;
-      id_expiry_fd[insert_iterator][1] = tref->expire;
-      id_expiry_fd[insert_iterator][2] = 0;  // fd, to be filled later
+      timer_fds[insert_iterator] = tref->timer_fd;
       insert_iterator++;
     }
   }
@@ -586,6 +587,7 @@ void pico_check_timers(void) {
     if (t && t->timer) t->timer(pico_tick, t->arg);
 
     if (t) {
+      close(tref->timer_fd);
       PICO_FREE(t);
     }
 
@@ -603,6 +605,7 @@ void MOCKABLE pico_timer_cancel(uint32_t id) {
     tref = heap_get_element(Timers, i);
     if (tref->id == id) {
       if (tref->tmr) {
+        close(tref->timer_fd);
         PICO_FREE(tref->tmr);
         tref->tmr = NULL;
         tref->id = 0;
@@ -621,6 +624,7 @@ void pico_timer_cancel_hashed(uint32_t hash) {
     tref = heap_get_element(Timers, i);
     if (tref->hash == hash) {
       if (tref->tmr) {
+        close(tref->timer_fd);
         PICO_FREE(tref->tmr);
         tref->tmr = NULL;
         tref[i].id = 0;
@@ -850,6 +854,15 @@ static uint32_t pico_timer_ref_add(pico_time expire, struct pico_timer *t,
   tref.tmr = t;
   tref.id = id;
   tref.hash = hash;
+  int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
+  struct itimerspec ts;
+  ts.it_interval.tv_sec = 0;
+  ts.it_interval.tv_nsec = 0;
+  ts.it_value.tv_sec = (long)((double)expire / 1000.0);
+  // The following is safe because modulo.
+  ts.it_value.tv_nsec = (long)(expire % 1000) * 1000000;
+  timerfd_settime(timer_fd, 0, &ts, NULL);
+  tref.timer_fd = timer_fd;
 
   if (heap_insert(Timers, &tref) < 0) {
     dbg("Error: failed to insert timer(ID %u) into heap\n", id);

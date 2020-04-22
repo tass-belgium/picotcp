@@ -39,34 +39,16 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   /*int flags = fcntl(tun->fd, F_GETFL, 0);*/
   /*fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);*/
   uint32_t num_timers = pico_timers_size();
-  uint64_t id_expiry_fd[num_timers][3];
-  uint64_t num_inserted = pico_timers_populate_id_to_expiry(id_expiry_fd);
+  int timer_fds[num_timers];
+  uint64_t num_inserted = pico_timers_populate_timer_fds(timer_fds);
   // number of timers + 1 for the TUN fd
   uint64_t num_fds = num_inserted + 1;
   struct pollfd pfds[num_fds];
   pfds[0].fd = tun->fd;
   pfds[0].events = POLLIN;
   for (uint64_t i = 0; i < num_inserted; i++) {
-    // uint32_t id = id_expiry_fd[i][0];
-    uint64_t expiry_relative_to_epoch_ms = id_expiry_fd[i][1];
-    // PICO_TIME_MS() is the current time relative to epoch.
-    uint64_t expiry_wait_ms = expiry_relative_to_epoch_ms - PICO_TIME_MS();
-    int timer_fd = timerfd_create(CLOCK_MONOTONIC, 0);
-    /*
-     * The itimerspec/timerfd APIs expect the `it_value` to
-     * be the amount of time to wait before firing,
-     * rather than the time at which to fire.
-     */
-    struct itimerspec ts;
-    ts.it_interval.tv_sec = 0;
-    ts.it_interval.tv_nsec = 0;
-    ts.it_value.tv_sec = (long)((double)expiry_wait_ms / 1000.0);
-    // The following is safe because modulo.
-    ts.it_value.tv_nsec = (long)(expiry_wait_ms % 1000) * 1000000;
-    timerfd_settime(timer_fd, 0, &ts, NULL);
-    pfds[i + 1].fd = timer_fd;
+    pfds[i + 1].fd = timer_fds[i];
     pfds[i + 1].events = POLLIN;
-    id_expiry_fd[i][2] = (uint32_t)timer_fd;
   }
   // -1 Timeout means block indefinitely.
   int timeout = -1;
@@ -82,9 +64,6 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       len = (int)read(tun->fd, buf, TUN_MTU);
       if (len > 0) {
         pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
-        for (uint64_t i = 1; i < num_fds; i++) {
-          close(pfds[i].fd);
-        }
         return loop_score;
       } else {
         fprintf(stderr, "TUN read error: %s\n", strerror(errno));
@@ -114,10 +93,7 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     }
     // We may have new timers, so we need to restart in order
     // to populate our pollfds again.
-    if (num_timers != pico_timers_size()) {
-      for (uint64_t i = 1; i < num_fds; i++) {
-        close(pfds[i].fd);
-      }
+    if (num_timers < pico_timers_size()) {
       return pico_tun_poll(dev, loop_score);
     }
   }

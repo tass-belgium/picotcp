@@ -92,7 +92,7 @@ uint32_t pico_timer_add_hashed(pico_time expire,
                                void (*timer)(pico_time, void *), void *arg,
                                uint32_t hash);
 uint32_t pico_timers_size(void);
-uint64_t pico_timers_populate_id_to_expiry(uint64_t id_expiry_fd[][3]);
+uint64_t pico_timers_populate_timer_fds(int id_expiry_fd[]);
 void pico_check_timers(void);
 void pico_timer_cancel_hashed(uint32_t hash);
 void pico_timer_cancel(uint32_t id);
