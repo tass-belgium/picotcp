@@ -25,6 +25,8 @@ struct pico_device_tun {
   int fd;
 };
 
+extern int SHOULD_SNAPSHOT;
+
 #define TUN_MTU 2048
 
 static int pico_tun_send(struct pico_device *dev, void *buf, int len) {
@@ -95,6 +97,9 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
     // to populate our pollfds again.
     if (num_timers < pico_timers_size()) {
       return pico_tun_poll(dev, loop_score);
+    }
+    if (SHOULD_SNAPSHOT == 1) {
+      return -1;
     }
   }
   return 0;
