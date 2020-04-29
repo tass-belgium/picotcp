@@ -11,11 +11,15 @@
 #include <fcntl.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/epoll.h>
 #include <sys/ioctl.h>
 #include <sys/poll.h>
 #include <sys/time.h>
 #include <sys/timerfd.h>
+#include <unistd.h>
 
 #include "pico_device.h"
 #include "pico_stack.h"
@@ -38,47 +42,98 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   struct pico_device_tun *tun = (struct pico_device_tun *)dev;
   unsigned char *buf = (unsigned char *)PICO_ZALLOC(TUN_MTU);
   int len;
-  /*int flags = fcntl(tun->fd, F_GETFL, 0);*/
-  /*fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);*/
+  int flags = fcntl(tun->fd, F_GETFL, 0);
+  fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);
+  printf("TUN FD: %d\n", tun->fd);
   uint32_t num_timers = pico_timers_size();
   int timer_fds[num_timers];
-  uint64_t num_inserted = pico_timers_populate_timer_fds(timer_fds);
+  int num_inserted = pico_timers_populate_timer_fds(timer_fds);
   // number of timers + 1 for the TUN fd
-  uint64_t num_fds = num_inserted + 1;
-  struct pollfd pfds[num_fds];
-  pfds[0].fd = tun->fd;
-  pfds[0].events = POLLIN;
-  for (uint64_t i = 0; i < num_inserted; i++) {
-    pfds[i + 1].fd = timer_fds[i];
-    pfds[i + 1].events = POLLIN;
-  }
+  int num_fds = num_inserted + 1;
+  /*struct pollfd pfds[num_fds];*/
+  /*pfds[0].fd = tun->fd;*/
+  /*pfds[0].events = POLLIN;*/
+  /*for (uint64_t i = 0; i < num_inserted; i++) {*/
+  /*pfds[i + 1].fd = timer_fds[i];*/
+  /*pfds[i + 1].events = POLLIN;*/
+  /*}*/
   // -1 Timeout means block indefinitely.
   int timeout = -1;
+  struct epoll_event ready_events[num_fds];
+  int epoll_fd = epoll_create1(0);
+  if (epoll_fd == -1) {
+    fprintf(stderr, "Failed to create epoll file descriptor\n");
+    exit(1);
+  }
+  struct epoll_event new_event;
+  new_event.events = EPOLLIN;
+  new_event.data.fd = tun->fd;
+  if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, tun->fd, &new_event)) {
+    fprintf(stderr, "Failed to add TUN file descriptor to epoll\n");
+    close(epoll_fd);
+    exit(1);
+  }
+  /*for (int i = 0; i < num_inserted; i++) {*/
+  /*new_event.events = EPOLLIN | EPOLLET;*/
+  /*new_event.data.fd = timer_fds[i];*/
+  /*printf("Adding fd %d\n", timer_fds[i]);*/
+  /*if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, timer_fds[i], &new_event)) {*/
+  /*fprintf(stderr, "Failed to add file descriptor %d to epoll\n", i);*/
+  /*close(epoll_fd);*/
+  /*exit(1);*/
+  /*}*/
+  /*}*/
+  int event_count;
+  int should_check_timers;
   for (;;) {
-    if (poll(pfds, num_fds, timeout) <= 0) {
-      fprintf(stderr, "TUN poll error: %s\n", strerror(errno));
-      // This will happen when snapshotted.
-      return -1;
+    printf("waiting\n");
+    event_count = epoll_wait(epoll_fd, ready_events, 1, timeout);
+    if (event_count <= 0) {
+      fprintf(stderr, "epoll_wait error %s\n", strerror(errno));
+      exit(1);
     }
-
-    // First, check the TUN.
-    if (pfds[0].revents & POLLIN) {
-      len = (int)read(tun->fd, buf, TUN_MTU);
-      if (len > 0) {
-        pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
-        return loop_score;
-      } else {
-        fprintf(stderr, "TUN read error: %s\n", strerror(errno));
+    printf("ready\n");
+    should_check_timers = 0;
+    for (int i = 0; i < event_count; i++) {
+      if ((ready_events[i].events & EPOLLERR) ||
+          (ready_events[i].events & EPOLLHUP) ||
+          (!(ready_events[i].events & EPOLLIN))) {
+        fprintf(stderr, "Timer poll error %s\n", strerror(errno));
         exit(1);
       }
-    }
-
-    // Then, check the timers.
-    int should_check_timers = 0;
-    for (uint64_t i = 1; i < num_fds; i++) {
-      if (pfds[i].revents & POLLIN) {
+      printf("READY FD: %d\n", ready_events[i].data.fd);
+      if (ready_events[i].data.fd == tun->fd) {
+        printf("tun ready\n");
+        int has_read;
+        for (;;) {
+          memset(buf, 0, TUN_MTU);
+          len = (int)read(tun->fd, buf, TUN_MTU);
+          if (len == -1 || len == 0) {
+            break;
+          } else if (len > 0) {
+            has_read = 1;
+            /*printf("<READING> %d %s\n", len, buf);*/
+            int result = pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);
+            printf("RESULT %d\n", result);
+          } else {
+            fprintf(stderr, "TUN read error: %s\n", strerror(errno));
+            exit(1);
+          }
+        }
+        if (close(epoll_fd)) {
+          fprintf(stderr, "Failed to close epoll file descriptor\n");
+          exit(1);
+        }
+        if (has_read == 1) {
+          return 0;
+        } else {
+          fprintf(stderr, "TUN unknown read error\n");
+          exit(1);
+        }
+      } else {  // timer
+        printf("timer ready\n");
         unsigned long long missed;
-        int ret = (int)read(pfds[i].fd, &missed, sizeof(missed));
+        int ret = (int)read(ready_events[i].data.fd, &missed, sizeof(missed));
         if (ret < 0) {
           fprintf(stderr, "Timer read error %s\n", strerror(errno));
           exit(1);
@@ -91,18 +146,88 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       }
     }
     if (should_check_timers) {
-      pico_check_timers();
+      pico_check_timers(epoll_fd);
     }
-    // We may have new timers, so we need to restart in order
-    // to populate our pollfds again.
-    if (num_timers < pico_timers_size()) {
+    if (num_timers != pico_timers_size()) {
+      printf("relooping\n");
+      if (close(epoll_fd)) {
+        fprintf(stderr, "Failed to close epoll file descriptor\n");
+        exit(1);
+      }
+      // TODO(semaj): don't recur. add new timers to epoll.
       return pico_tun_poll(dev, loop_score);
     }
-    if (SHOULD_SNAPSHOT == 1) {
-      return -1;
-    }
   }
-  return 0;
+  if (close(epoll_fd)) {
+    fprintf(stderr, "Failed to close epoll file descriptor\n");
+    exit(1);
+  }
+
+  /*for (;;) {*/
+  /*int result = poll(pfds, num_fds, timeout);*/
+  /*if (result <= 0) {*/
+  /*fprintf(stderr, "TUN poll error: %s\n", strerror(errno));*/
+  /*// This will happen when snapshotted.*/
+  /*return -1;*/
+  /*}*/
+
+  /*// First, check the TUN.*/
+  /*if (pfds[0].revents & POLLIN) {*/
+  /*len = (int)read(tun->fd, buf, TUN_MTU);*/
+  /*if (len > 0) {*/
+  /*pico_stack_recv_zerocopy(dev, buf, (uint32_t)len);*/
+  /*return loop_score;*/
+  /*} else {*/
+  /*fprintf(stderr, "TUN read error: %s\n", strerror(errno));*/
+  /*exit(1);*/
+  /*}*/
+  /*}*/
+  /*[>else if (pfds[0].revents & POLLNVAL) {<]*/
+  /*[>fprintf(stderr, "TUN poll NVAL %s\n", strerror(errno));<]*/
+  /*[>exit(1);<]*/
+  /*[>} else if (pfds[0].revents & POLLERR) {<]*/
+  /*[>fprintf(stderr, "TUN poll error %s\n", strerror(errno));<]*/
+  /*[>exit(1);<]*/
+  /*[>}<]*/
+
+  /*// Then, check the timers.*/
+  /*int should_check_timers = 0;*/
+  /*for (uint64_t i = 1; i < num_fds; i++) {*/
+  /*if (pfds[i].revents & POLLNVAL) {*/
+  /*fprintf(stderr, "Timer poll NVAL %s\n", strerror(errno));*/
+  /*exit(1);*/
+  /*} else if (pfds[i].revents & POLLERR) {*/
+  /*fprintf(stderr, "Timer poll error %s\n", strerror(errno));*/
+  /*exit(1);*/
+  /*} else if (pfds[i].revents & POLLIN) {*/
+  /*unsigned long long missed;*/
+  /*int ret = (int)read(pfds[i].fd, &missed, sizeof(missed));*/
+  /*if (ret < 0) {*/
+  /*fprintf(stderr, "Timer read error %s\n", strerror(errno));*/
+  /*exit(1);*/
+  /*}*/
+  /*if (missed > 3) {*/
+  /*fprintf(stderr, "We've missed a timer more than 3 times.\n");*/
+  /*exit(1);*/
+  /*}*/
+  /*should_check_timers = 1;*/
+  /*}*/
+  /*}*/
+  /*if (should_check_timers) {*/
+  /*printf("timers\n");*/
+  /*pico_check_timers();*/
+  /*}*/
+  /*// We may have new timers, so we need to restart in order*/
+  /*// to populate our pollfds again.*/
+  /*if (num_timers < pico_timers_size()) {*/
+  /*return pico_tun_poll(dev, loop_score);*/
+  /*}*/
+  /*if (SHOULD_SNAPSHOT == 1) {*/
+  /*return -1;*/
+  /*}*/
+  /*printf("relooping %d\n", result);*/
+  /*}*/
+  /*return 0;*/
 }
 
 /* Public interface: create/destroy. */

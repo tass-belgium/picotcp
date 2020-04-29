@@ -11,6 +11,9 @@
 
 #include <sys/timerfd.h>
 
+#include <errno.h>
+#include <string.h>
+#include <sys/epoll.h>
 #include "heap.h"
 #include "pico_6lowpan.h"
 #include "pico_6lowpan_ll.h"
@@ -563,12 +566,12 @@ int32_t pico_seq_compare(uint32_t a, uint32_t b) {
 
 uint32_t pico_timers_size(void) { return Timers->n; }
 
-uint64_t pico_timers_populate_timer_fds(int timer_fds[]) {
+int pico_timers_populate_timer_fds(int timer_fds[]) {
   struct pico_timer *t;
   struct pico_timer_ref *tref;
-  uint64_t insert_iterator = 0;
-  for (uint32_t i = 1; i <= Timers->n; i++) {
-    tref = heap_get_element(Timers, i);
+  int insert_iterator = 0;
+  for (int i = 1; (uint32_t)i <= Timers->n; i++) {
+    tref = heap_get_element(Timers, (uint32_t)i);
     t = tref->tmr;
     if (t) {
       timer_fds[insert_iterator] = tref->timer_fd;
@@ -578,7 +581,7 @@ uint64_t pico_timers_populate_timer_fds(int timer_fds[]) {
   return insert_iterator;
 }
 
-void pico_check_timers(void) {
+void pico_check_timers(int epoll_fd) {
   struct pico_timer *t;
   struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
@@ -587,6 +590,12 @@ void pico_check_timers(void) {
     if (t && t->timer) t->timer(pico_tick, t->arg);
 
     if (t) {
+      printf("Removing fd %d\n", tref->timer_fd);
+      if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, tref->timer_fd, NULL)) {
+        fprintf(stderr, "Failed to remove file descriptor from epoll: %s\n",
+                strerror(errno));
+        /*exit(1);*/
+      }
       close(tref->timer_fd);
       PICO_FREE(t);
     }
