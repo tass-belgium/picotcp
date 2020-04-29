@@ -585,12 +585,12 @@ void pico_check_timers(int epoll_fd) {
   struct pico_timer *t;
   struct pico_timer_ref tref_unused, *tref = heap_first(Timers);
   pico_tick = PICO_TIME_MS();
+  // Delete expired ones
   while ((tref) && (tref->expire < pico_tick)) {
     t = tref->tmr;
     if (t && t->timer) t->timer(pico_tick, t->arg);
 
     if (t) {
-      printf("Removing fd %d\n", tref->timer_fd);
       if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, tref->timer_fd, NULL)) {
         fprintf(stderr, "Failed to remove file descriptor from epoll: %s\n",
                 strerror(errno));
@@ -602,6 +602,24 @@ void pico_check_timers(int epoll_fd) {
 
     heap_peek(Timers, &tref_unused);
     tref = heap_first(Timers);
+  }
+  // Add new ones (potentially)
+  for (int i = 1; (uint32_t)i <= Timers->n; i++) {
+    tref = heap_get_element(Timers, (uint32_t)i);
+    t = tref->tmr;
+    if (t) {
+      struct epoll_event new_event;
+      new_event.events = EPOLLIN;
+      new_event.data.fd = tref->timer_fd;
+      int result =
+          epoll_ctl(epoll_fd, EPOLL_CTL_ADD, tref->timer_fd, &new_event);
+      // If it already existed, that's fine.
+      if (result == -1 && errno != EEXIST) {
+        fprintf(stderr, "Failed to add file descriptor to epoll: %s\n",
+                strerror(errno));
+        exit(1);
+      }
+    }
   }
 }
 
