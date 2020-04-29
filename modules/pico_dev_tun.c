@@ -40,11 +40,9 @@ static int pico_tun_send(struct pico_device *dev, void *buf, int len) {
 
 static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   struct pico_device_tun *tun = (struct pico_device_tun *)dev;
-  unsigned char *buf = (unsigned char *)PICO_ZALLOC(TUN_MTU);
   int len;
   int flags = fcntl(tun->fd, F_GETFL, 0);
   fcntl(tun->fd, F_SETFL, flags | O_NONBLOCK);
-  printf("TUN FD: %d\n", tun->fd);
   uint32_t num_timers = pico_timers_size();
   int timer_fds[num_timers];
   int num_inserted = pico_timers_populate_timer_fds(timer_fds);
@@ -84,7 +82,6 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
   /*}*/
   /*}*/
   int event_count;
-  int should_check_timers;
   for (;;) {
     printf("waiting\n");
     event_count = epoll_wait(epoll_fd, ready_events, 1, timeout);
@@ -92,8 +89,6 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
       fprintf(stderr, "epoll_wait error %s\n", strerror(errno));
       exit(1);
     }
-    printf("ready\n");
-    should_check_timers = 0;
     for (int i = 0; i < event_count; i++) {
       if ((ready_events[i].events & EPOLLERR) ||
           (ready_events[i].events & EPOLLHUP) ||
@@ -101,11 +96,10 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
         fprintf(stderr, "Timer poll error %s\n", strerror(errno));
         exit(1);
       }
-      printf("READY FD: %d\n", ready_events[i].data.fd);
       if (ready_events[i].data.fd == tun->fd) {
-        printf("tun ready\n");
         int has_read;
         for (;;) {
+          unsigned char *buf = (unsigned char *)PICO_ZALLOC(TUN_MTU);
           memset(buf, 0, TUN_MTU);
           len = (int)read(tun->fd, buf, TUN_MTU);
           if (len == -1 || len == 0) {
@@ -130,38 +124,14 @@ static int pico_tun_poll(struct pico_device *dev, int loop_score) {
           fprintf(stderr, "TUN unknown read error\n");
           exit(1);
         }
-      } else {  // timer
-        printf("timer ready\n");
-        unsigned long long missed;
-        int ret = (int)read(ready_events[i].data.fd, &missed, sizeof(missed));
-        if (ret < 0) {
-          fprintf(stderr, "Timer read error %s\n", strerror(errno));
-          exit(1);
-        }
-        if (missed > 3) {
-          fprintf(stderr, "We've missed a timer more than 3 times.\n");
-          exit(1);
-        }
-        should_check_timers = 1;
       }
-    }
-    if (should_check_timers) {
-      pico_check_timers(epoll_fd);
-    }
-    if (num_timers != pico_timers_size()) {
-      printf("relooping\n");
-      if (close(epoll_fd)) {
-        fprintf(stderr, "Failed to close epoll file descriptor\n");
-        exit(1);
-      }
-      // TODO(semaj): don't recur. add new timers to epoll.
-      return pico_tun_poll(dev, loop_score);
     }
   }
   if (close(epoll_fd)) {
     fprintf(stderr, "Failed to close epoll file descriptor\n");
     exit(1);
   }
+  return loop_score;
 
   /*for (;;) {*/
   /*int result = poll(pfds, num_fds, timeout);*/
