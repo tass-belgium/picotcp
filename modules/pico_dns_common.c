@@ -1519,7 +1519,7 @@ pico_dns_packet_compress_name( uint8_t *name,
 
     /* Try to compress name */
     lbl_iterator = name;
-    while (lbl_iterator != '\0') {
+    while (*lbl_iterator != '\0') {
         /* Try to find a compression pointer with current name */
         compression_ptr = pico_dns_packet_compress_find_ptr(lbl_iterator,
                                                             packet + 12, *len);
