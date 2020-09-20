@@ -2,7 +2,7 @@
 # dhcp.py
 # Butterfly-like topology test for dhcp
 # One DHCP server, serving on two interface
-# Eigth DHCP clients, four on each network
+# Eight DHCP clients, four on each network
 #
 # s1----@            @----r1
 # s2-----\__ DHCP __/-----r2
