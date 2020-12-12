@@ -61,13 +61,13 @@ PACKED_STRUCT_DEF pico_sntp_header
 
 struct sntp_server_ns_cookie
 {
-    int rec;                    /* Indicates wheter an sntp packet has been received */
+    int rec;                    /* Indicates whether an sntp packet has been received */
     uint16_t proto;             /* IPV4 or IPV6 prototype */
     pico_time stamp;            /* Timestamp of the moment the sntp packet is sent */
     char *hostname;             /* Hostname of the (s)ntp server*/
     struct pico_socket *sock;   /* Socket which contains the cookie */
     void (*cb_synced)(pico_err_t status);    /* Callback function for telling the user
-                                                wheter/when the time is synchronised */
+                                                whether/when the time is synchronised */
     uint32_t timer;   /* Timer that will signal timeout */
 };
 
