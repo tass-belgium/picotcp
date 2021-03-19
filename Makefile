@@ -8,13 +8,13 @@ AR:=$(CROSS_COMPILE)ar
 RANLIB:=$(CROSS_COMPILE)ranlib
 SIZE:=$(CROSS_COMPILE)size
 STRIP_BIN:=$(CROSS_COMPILE)strip
-TEST_LDFLAGS=-pthread  $(PREFIX)/modules/*.o $(PREFIX)/lib/*.o -lvdeplug
+TEST_LDFLAGS=-pthread  "$(PREFIX)/modules/*.o" "$(PREFIX)/lib/*.o" -lvdeplug
 UNIT_LDFLAGS=-lcheck -lm -pthread -lrt -lsubunit
 UNIT_CFLAGS= $(CFLAGS) -Wno-missing-braces
 
 LIBNAME:="libpicotcp.a"
 
-PREFIX?=$(PWD)/build
+PREFIX?="$(PWD)/build"
 DEBUG?=1
 PROFILE?=0
 PERF?=0
