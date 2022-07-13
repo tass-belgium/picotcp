@@ -1105,9 +1105,13 @@ static int pico_igmp_process_event(struct mcast_parameters *p)
 {
     struct pico_tree_node *index = NULL;
     struct mcast_parameters *_p = NULL;
+    struct pico_ipv4_link *link = NULL;
 
     igmp_dbg("IGMP: process event on group address %08X\n", p->mcast_group.ip4.addr);
-    if (p->event == IGMP_EVENT_QUERY_RECV && p->mcast_group.ip4.addr == 0) { /* general query */
+    link = pico_ipv4_link_get((struct pico_ip4 *)&p->mcast_link);
+    if ((p->event == IGMP_EVENT_QUERY_RECV && p->mcast_group.ip4.addr == 0)
+        || (link->mcast_compatibility != PICO_IGMPV3 && p->event == IGMP_EVENT_CREATE_GROUP && p->mcast_group.ip4.addr == 0)) {
+        /* general query */
         pico_tree_foreach(index, &IGMPParameters) {
             _p = index->keyValue;
             _p->max_resp_time = p->max_resp_time;
